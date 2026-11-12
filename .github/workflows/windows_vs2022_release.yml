@@ -105,8 +105,8 @@ jobs:
         shell: powershell
     runs-on: [ self-hosted, Windows, ptl ]
     env:
-      INSTALL_DIR: "${{ github.workspace }}\\install"
-      INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
+      INSTALL_DIR: "${{ github.workspace }}\\install-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}"
+      INSTALL_TEST_DIR: "${{ github.workspace }}\\install-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}\\tests"
       SSL_CERT_FILE: 'C:\certs\IntelProxyRootCA.crt'
       CURL_CA_BUNDLE: 'C:\certs\IntelProxyRootCA.crt'
       REQUESTS_CA_BUNDLE: 'C:\certs\IntelProxyRootCA.crt'
@@ -114,12 +114,16 @@ jobs:
       GTEST_TOTAL_SHARDS: '20'
       GTEST_SHARD_INDEX: ${{ matrix.shard }}
     steps:
-      # Test processes left over from a cancelled run keep DLLs (e.g. tbb12.dll) locked and break extraction
-      - name: Clean up leftovers of previous runs
+      # Diagnostics only: shows which leftover processes may hold DLLs in the workspace
+      - name: Diagnose leftover processes
+        continue-on-error: true
         run: |
-          Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith("${{ github.workspace }}\") } | Stop-Process -Force -ErrorAction SilentlyContinue
-          Start-Sleep -Seconds 5
-          if (Test-Path "${{ env.INSTALL_DIR }}") { Remove-Item "${{ env.INSTALL_DIR }}" -Recurse -Force }
+          Write-Host "== ov_gpu_func_tests processes =="
+          Get-Process ov_gpu_func_tests -ErrorAction SilentlyContinue | Select-Object Id, StartTime, Responding, Path | Format-Table -AutoSize | Out-String | Write-Host
+          Write-Host "== processes with modules loaded from workspace =="
+          Get-Process -ErrorAction SilentlyContinue | ForEach-Object { try { if ($_.Modules | Where-Object { $_.FileName -like "${{ github.workspace }}\*" }) { $_ | Select-Object Id, ProcessName, StartTime, Path } } catch {} } | Format-Table -AutoSize | Out-String | Write-Host
+          Write-Host "== install directories in workspace =="
+          Get-ChildItem "${{ github.workspace }}" -Directory -Filter 'install*' -ErrorAction SilentlyContinue | Select-Object Name, LastWriteTime | Format-Table -AutoSize | Out-String | Write-Host
 
       - name: Download OpenVINO package
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
