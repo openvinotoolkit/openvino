@@ -1,0 +1,41 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-11-12-16-21-55-238-43242891184",
+    "timestamp": "2026-11-12T16:21:55Z",
+    "run_id": "43242891184",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43242891184",
+    "workflow_name": "LLM accuracy CPU tests / LLM accuracy iGPU tests",
+    "pr_number": "39512",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39512",
+    "author": "mfhansen",
+    "category": "Dependencies",
+    "title": "LLM accuracy tests fail with TypeError: genai_gen_text() got an unexpected keyword argument 'context'",
+    "signature": "typeerror genai_gen_text got an unexpected keyword argument context|Dependencies",
+    "signature_hash": "6cf9cf0d8f5c0a43",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "LLM accuracy iGPU tests / LLM accuracy GPU tests",
+            "conclusion": "failure",
+            "symptom": "All 4 GPU accuracy_conformance test cases fail with TypeError calling genai_gen_text(context=...)"
+        },
+        {
+            "name": "LLM accuracy CPU tests / LLM accuracy CPU tests",
+            "conclusion": "failure",
+            "symptom": "All 4 CPU accuracy_conformance test cases fail with TypeError calling genai_gen_text(context=...)"
+        }
+    ],
+    "key_errors": [
+        "File \"/venv/lib/python3.12/site-packages/whowhatbench/text_evaluator.py\", line 236, in _generate_data\n    output = gen_answer_fn(\nTypeError: genai_gen_text() got an unexpected keyword argument 'context'",
+        "FAILED tests/llm/accuracy_conformance.py::test_accuracy_conformance[TinyLlama/TinyLlama-1.1B-Chat-v1.0-INT8-CPU] - TypeError: genai_gen_text() got an unexpected keyword argument 'context'"
+    ],
+    "root_cause": "The installed `whowhatbench` package's text_evaluator._generate_data() calls the GenAI generation callback with a `context` keyword argument, but the `genai_gen_text()` function bundled with the installed `optimum-intel`/`openvino-genai` wheel set does not accept that parameter. This is a dependency version-skew issue between whowhatbench and the GenAI model-loader helper it invokes, not something introduced by PR #39512 (which only edits a benchmarks CSV file under docs/). The same signature has recurred 5 times since 2026-11-05, consistently affecting both CPU and GPU LLM accuracy jobs, confirming a pinned-dependency incompatibility rather than a transient or PR-specific issue.",
+    "reproduction_steps": "1. Check out the merge-queue commit. 2. Install test deps per tests/llm/requirements.txt (same resolved versions as in the CI log, e.g. optimum-intel-2.0.0, openvino-genai-2026.4.1.0, whowhatbench 1.0.0.dev0). 3. Run `python3 -m pytest tests/llm/accuracy_conformance.py -k CPU --tb native`. 4. Observe TypeError: genai_gen_text() got an unexpected keyword argument 'context' raised from whowhatbench/text_evaluator.py:236.",
+    "recommended_actions": [
+        "Pin or bump whowhatbench to a version whose text_evaluator._generate_data() matches the current genai_gen_text() signature (or vice versa pin genai_gen_text()'s providing package to accept 'context').",
+        "Inspect the model-loader helper that defines genai_gen_text() (resolved from optimum-intel/openvino-genai in tests/llm/requirements.txt) and add the missing 'context' parameter if whowhatbench's newer API is the one to keep.",
+        "Add a CI smoke check that fails fast on signature mismatches between whowhatbench and the GenAI loader helpers before full accuracy runs."
+    ],
+    "prevention_strategies": "Pin whowhatbench, optimum-intel and openvino-genai together in tests/llm/requirements.txt with compatible version ranges, and add a unit test that calls genai_gen_text() directly with the exact kwargs whowhatbench's text_evaluator passes, so an incompatible upgrade fails fast in CI instead of surfacing only in the LLM accuracy jobs.",
+    "historical_context": "Identical signature (6cf9cf0d8f5c0a43) previously recorded 4 times between 2026-11-05 and 2026-11-10 (runs 41968975027, 42251178965, 42647164506, 42857529315), always in the LLM accuracy CPU/GPU jobs and always categorized Dependencies. This run raises the count to 5, confirming an unresolved, recurring dependency-version-skew issue rather than a one-off flake."
+}

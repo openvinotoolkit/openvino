@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 432,
+  "total": 433,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -4747,6 +4747,17 @@
       "category": "Configuration",
       "signature_hash": "08b993dbdc18ccac",
       "pr_number": "39717"
+    },
+    {
+      "investigation_id": "2026-11-12-16-21-55-238-43242891184",
+      "run_id": "43242891184",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43242891184",
+      "workflow_name": "LLM accuracy CPU tests / LLM accuracy iGPU tests",
+      "timestamp": "2026-11-12T16:21:55Z",
+      "title": "LLM accuracy tests fail with TypeError: genai_gen_text() got an unexpected keyword argument 'context'",
+      "category": "Dependencies",
+      "signature_hash": "6cf9cf0d8f5c0a43",
+      "pr_number": "39512"
     }
   ]
 }
