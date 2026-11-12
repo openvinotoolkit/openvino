@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 94,
+  "total": 95,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -951,6 +951,15 @@
       "category": "Infrastructure",
       "signature_hash": "8ef5fd2f7f7515b9",
       "commit_sha": "74331408dd41701e01e14a5874a41e744f0a2f03"
+    },
+    {
+      "investigation_id": "2026-11-12-01-42-28-412-43127634633",
+      "run_id": "43127634633",
+      "timestamp": "2026-11-12T01:42:28Z",
+      "title": "PyTorch Detectron2 model hub tests fail: pretrained weight download SSL certificate expired on dl.fbaipublicfiles.com",
+      "category": "External Service",
+      "signature_hash": "4014ef1f5a5e54e7",
+      "commit_sha": "8a91a733ef1c01752ea51a1256198850b4140a6f"
     }
   ]
 }
