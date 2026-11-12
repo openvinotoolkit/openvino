@@ -163,8 +163,10 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
     OPENVINO_ASSERT(versionResult == NPU_VM_RUNTIME_RESULT_SUCCESS,
                     "Failed to get VM runtime version, error code: ",
                     versionResult);
+    _logger.debug("DynamicPipeline: using VM runtime API %u.%u",
+                  ZE_MAJOR_VERSION(_apiVersion),
+                  ZE_MINOR_VERSION(_apiVersion));
 
-    _logger.debug("DynamicPipeline: using v2.0 VM runtime API");
     const npu_vm_runtime_handle_t vmRuntime = static_cast<npu_vm_runtime_handle_t>(_graph->get_handle());
     const auto commandQueueDesc = _graph->get_command_queue_desc();
     _executionContext.ensure(vmRuntime,
@@ -181,8 +183,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
 
     _logger.debug("Event pool and command queue setup completed");
 
-    const uint64_t num_of_subgraphs = _graph->get_metadata().numberOfSubgraphs;
-    _command_list_group = std::make_unique<PipelinedCommandLists>(num_of_subgraphs, _init_structs);
+    _command_list_group = std::make_unique<PipelinedCommandLists>();
 
     auto& commandLists = _command_list_group;
     commandLists->initArguments(_graph->get_metadata());
@@ -480,8 +481,7 @@ std::vector<ov::ProfilingInfo> DynamicPipeline::get_profiling_info() const {
 }
 
 void DynamicPipeline::reset() const {
-    _logger.debug("reset - started");
-    _logger.debug("reset - completed");
+    // No-op for the dynamic pipeline reset path.
 }
 
 void DynamicPipeline::update_graph_arguments(uint32_t index,

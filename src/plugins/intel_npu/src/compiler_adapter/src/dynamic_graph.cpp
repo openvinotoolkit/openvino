@@ -51,6 +51,9 @@ void DynamicGraph::create_execution_engine(const Config& config) {
     if (npuVMRuntimeGetAPIVersion(&_apiVersion) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to get VM runtime API version");
     }
+    _logger.debug("DynamicGraph: using VM runtime API %u.%u",
+                  ZE_MAJOR_VERSION(_apiVersion),
+                  ZE_MINOR_VERSION(_apiVersion));
 
     NpuVMRuntimeConfigChain runtimeConfig;
     populateRuntimeConfigChain(runtimeConfig, config);

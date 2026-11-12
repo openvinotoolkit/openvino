@@ -42,10 +42,6 @@ struct DynamicArguments {
     std::vector<npu_vm_runtime_mem_ref_handle_t> _outputMemRefHandles;
     npu_vm_runtime_execute_params2_t _executeParams2 = {};
 
-    // True once the command lists have been recorded by the first npuVMRuntimeExecute2 call. Subsequent
-    // executions can be replayed without re-recording when no tensor changed.
-    bool _commandListsRecorded = false;
-
     DynamicArguments() = default;
     DynamicArguments(const DynamicArguments&) = delete;
     DynamicArguments& operator=(const DynamicArguments&) = delete;
@@ -61,13 +57,9 @@ struct DynamicArguments {
 
 class DynamicPipeline final : public IPipeline {
     struct PipelinedCommandLists {
-        std::shared_ptr<DynamicArguments> _arguments;
+        std::shared_ptr<DynamicArguments> _arguments = std::make_shared<DynamicArguments>();
 
-        PipelinedCommandLists(size_t numCommandLists, const std::shared_ptr<ZeroInitStructsHolder>& init_structs) {
-            (void)numCommandLists;
-            (void)init_structs;
-            _arguments = std::make_shared<DynamicArguments>();
-        }
+        PipelinedCommandLists() = default;
 
         // Use metadata to initialize, which will later be updated again by setArgumentProperties
         void initArguments(const NetworkMetadata& metadata) {
