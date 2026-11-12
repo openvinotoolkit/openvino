@@ -22,7 +22,8 @@ namespace ov::pass {
  * @ingroup ov_transformation_common_api
  * @brief Fuses QSAPrepare and SparseAttentionIndexer into the stateful internal QSAIndexer op, leaving query-side
  * RMSNorm and RoPE outside the op (query_norm and query_rope disabled).
- * QSAIndexer is a graph-only placeholder and has no execution implementation.
+ * QSAIndexer is backend-neutral; execution requires a device implementation. The GPU implementation supports
+ * f16 inputs and a single index-key/selection head.
  *
  *        Query  RawKeys cos/sin ... KeyLength           Query
  *          │       │       │            │                 │

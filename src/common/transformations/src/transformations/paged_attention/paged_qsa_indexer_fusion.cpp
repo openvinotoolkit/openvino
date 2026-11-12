@@ -4,6 +4,7 @@
 
 #include "transformations/paged_attention/paged_qsa_indexer_fusion.hpp"
 
+#include <limits>
 #include <utility>
 #include <vector>
 
@@ -12,6 +13,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/paged_qsa_indexer.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -19,7 +21,6 @@
 #include "openvino/pass/node_registry.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "ov_ops/paged_qsa_indexer.hpp"
 #include "ov_ops/qsa_indexer.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
@@ -34,22 +35,100 @@ using QSAIndexerOutputIdx = op_internal::QSAIndexer::OutputIdx;
 using PagedQSAIndexerInputIdx = op_internal::PagedQSAIndexer::InputIdx;
 using PagedQSAIndexerOutputIdx = op_internal::PagedQSAIndexer::OutputIdx;
 
+namespace {
+
+constexpr size_t heads_axis = 2;
+constexpr size_t head_dim_axis = 3;
+constexpr size_t rotary_dim_axis = 2;
+
+op_internal::PagedQSAIndexer::Config paged_config_from(const op_internal::QSAIndexer::Config& config) {
+    op_internal::PagedQSAIndexer::Config result;
+    result.key_block_size = config.key_block_size;
+    result.block_topk = config.block_topk;
+    result.num_selection_heads = config.num_selection_heads;
+    result.indexer_rotary_dim = config.indexer_rotary_dim;
+    result.indexer_head_dim = config.indexer_head_dim;
+    result.epsilon = config.epsilon;
+    result.scale = config.scale;
+    result.query_norm = config.query_norm;
+    result.query_rope = config.query_rope;
+    return result;
+}
+
+bool supports_paged_indexer(const ov::Output<ov::Node>& output) {
+    const auto indexer = ov::as_type_ptr<op_internal::QSAIndexer>(output.get_node_shared_ptr());
+    OPENVINO_ASSERT(indexer, "PagedQSAIndexerFusion: matched node is expected to be QSAIndexer");
+    const auto& query_shape = indexer->get_input_partial_shape(QSAIndexerInputIdx::INDEX_QUERY);
+    const auto& keys_shape = indexer->get_input_partial_shape(QSAIndexerInputIdx::RAW_INDEX_KEYS);
+    const auto& cos_shape = indexer->get_input_partial_shape(QSAIndexerInputIdx::ROPE_COS);
+    const auto& sin_shape = indexer->get_input_partial_shape(QSAIndexerInputIdx::ROPE_SIN);
+    if (query_shape.rank().is_dynamic() || query_shape.rank().get_length() != 4 || keys_shape.rank().is_dynamic() ||
+        keys_shape.rank().get_length() != 4 || cos_shape.rank().is_dynamic() || cos_shape.rank().get_length() != 3 ||
+        sin_shape.rank().is_dynamic() || sin_shape.rank().get_length() != 3 || query_shape[heads_axis].is_dynamic() ||
+        query_shape[head_dim_axis].is_dynamic() || keys_shape[heads_axis].is_dynamic() ||
+        keys_shape[head_dim_axis].is_dynamic() || cos_shape[rotary_dim_axis].is_dynamic()) {
+        return false;
+    }
+
+    const auto data_type = indexer->get_input_element_type(QSAIndexerInputIdx::INDEX_QUERY);
+    const auto& config = indexer->get_config();
+    const auto query_heads = query_shape[heads_axis].get_length();
+    const auto key_heads = keys_shape[heads_axis].get_length();
+    const auto max_dimension = static_cast<size_t>(std::numeric_limits<int64_t>::max());
+    std::string reason;
+    if (!op_internal::PagedQSAIndexer::validate_config(paged_config_from(config), reason) ||
+        config.indexer_head_dim > max_dimension || config.indexer_rotary_dim == 0 ||
+        config.indexer_rotary_dim > max_dimension / 2 || config.block_topk > max_dimension ||
+        config.num_selection_heads > max_dimension || query_heads <= 0 || key_heads <= 0 ||
+        query_heads % key_heads != 0 ||
+        (config.num_selection_heads != 1 && config.num_selection_heads != static_cast<size_t>(key_heads)) ||
+        static_cast<size_t>(query_heads) > max_dimension / config.indexer_head_dim ||
+        static_cast<size_t>(key_heads) > max_dimension / config.indexer_head_dim) {
+        return false;
+    }
+    const auto head_dim = static_cast<int64_t>(config.indexer_head_dim);
+    const auto rotary_dim = static_cast<int64_t>(config.indexer_rotary_dim);
+    if (query_shape[head_dim_axis] != head_dim || keys_shape[head_dim_axis] != head_dim ||
+        !query_shape[0].compatible(keys_shape[0]) || !query_shape[1].compatible(keys_shape[1]) ||
+        cos_shape[rotary_dim_axis] != rotary_dim || !sin_shape[rotary_dim_axis].compatible(rotary_dim)) {
+        return false;
+    }
+    for (size_t axis : {0, 1}) {
+        if (!query_shape[axis].compatible(cos_shape[axis]) || !query_shape[axis].compatible(sin_shape[axis]) ||
+            !keys_shape[axis].compatible(cos_shape[axis]) || !keys_shape[axis].compatible(sin_shape[axis]) ||
+            !cos_shape[axis].compatible(sin_shape[axis])) {
+            return false;
+        }
+    }
+    for (const auto input : {QSAIndexerInputIdx::RAW_INDEX_KEYS,
+                             QSAIndexerInputIdx::ROPE_COS,
+                             QSAIndexerInputIdx::ROPE_SIN,
+                             QSAIndexerInputIdx::Q_NORM_WEIGHT,
+                             QSAIndexerInputIdx::K_NORM_WEIGHT}) {
+        if (indexer->get_input_element_type(input) != data_type) {
+            return false;
+        }
+    }
+    for (const auto input : {QSAIndexerInputIdx::Q_NORM_WEIGHT, QSAIndexerInputIdx::K_NORM_WEIGHT}) {
+        if (!indexer->get_input_partial_shape(input).compatible(ov::PartialShape{head_dim})) {
+            return false;
+        }
+    }
+    return true;
+}
+
+}  // namespace
+
 PagedQSAIndexerFusion::PagedQSAIndexerFusion(paged_attention::PaParams& pa_params,
                                              std::unordered_set<std::string>& var_ids_to_remove) {
     MATCHER_SCOPE(PagedQSAIndexerFusion);
     using namespace ov::pass::pattern;
 
     // QSAIndexer activations are [B, L, H, D], cos / sin are [B, L, rotary_dim].
-    constexpr size_t heads_axis = 2;
-    constexpr size_t head_dim_axis = 3;
-    constexpr size_t rotary_dim_axis = 2;
-
-    // The flattened widths are taken from the shapes, so the head counts and sizes are static.
-    const auto p_query = any_input(rank_equals(4) && has_static_dims({heads_axis, head_dim_axis}) &&
-                                   type_matches_any({ov::element::f32, ov::element::f16, ov::element::bf16}));
-    const auto p_raw_keys = any_input(rank_equals(4) && has_static_dims({heads_axis, head_dim_axis}));
-    const auto p_rope_cos = any_input(rank_equals(3) && has_static_dim(rotary_dim_axis));
-    const auto p_rope_sin = any_input(rank_equals(3));
+    const auto p_query = any_input(type_matches_any({ov::element::f32, ov::element::f16, ov::element::bf16}));
+    const auto p_raw_keys = any_input();
+    const auto p_rope_cos = any_input();
+    const auto p_rope_sin = any_input();
 
     // The dense states are read from variables, directly or through the beam Gather, in the FuseQSAIndexer layout.
     const auto read_state = [](const std::shared_ptr<ov::Node>& p_read_value) {
@@ -71,7 +150,8 @@ PagedQSAIndexerFusion::PagedQSAIndexerFusion(paged_attention::PaParams& pa_param
                                                                any_input(),
                                                                p_block_keys_cache,
                                                                p_incomplete_raw_keys,
-                                                               read_state(p_rope_read)});
+                                                               read_state(p_rope_read)},
+                                                              supports_paged_indexer);
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS, &pa_params, &var_ids_to_remove](Matcher& m) {
         const auto indexer = ov::as_type_ptr<op_internal::QSAIndexer>(m.get_match_root());
@@ -87,6 +167,7 @@ PagedQSAIndexerFusion::PagedQSAIndexerFusion(paged_attention::PaParams& pa_param
         const auto& query_shape = query.get_partial_shape();
         const auto& keys_shape = raw_keys.get_partial_shape();
         const auto key_heads = keys_shape[heads_axis].get_length();
+        const auto paged_config = paged_config_from(config);
         const auto head_dim = static_cast<int64_t>(config.indexer_head_dim);
         const auto rotary_dim = static_cast<int64_t>(config.indexer_rotary_dim);
 
@@ -133,16 +214,6 @@ PagedQSAIndexerFusion::PagedQSAIndexerFusion(paged_attention::PaParams& pa_param
         inputs[PagedQSAIndexerInputIdx::INDEX_BLOCK_ROPE_CACHE] = index_block_rope_cache;
         inputs[PagedQSAIndexerInputIdx::BLOCK_INDEX_KEYS_CACHE] = block_index_keys_cache;
 
-        op_internal::PagedQSAIndexer::Config paged_config;
-        paged_config.key_block_size = config.key_block_size;
-        paged_config.block_topk = config.block_topk;
-        paged_config.num_selection_heads = config.num_selection_heads;
-        paged_config.indexer_rotary_dim = config.indexer_rotary_dim;
-        paged_config.indexer_head_dim = config.indexer_head_dim;
-        paged_config.epsilon = config.epsilon;
-        paged_config.scale = config.scale;
-        paged_config.query_norm = config.query_norm;
-        paged_config.query_rope = config.query_rope;
         const auto paged = rg.make<op_internal::PagedQSAIndexer>(inputs, paged_config);
         paged->set_friendly_name(indexer->get_friendly_name());
 

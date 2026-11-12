@@ -11,7 +11,7 @@
 
 namespace ov::op::internal {
 
-/// Graph-only placeholder for the fused QSA indexer; it has no execution implementation.
+/// Backend-neutral representation of the fused QSA indexer. Execution requires a device implementation.
 class TRANSFORMATIONS_API QSAIndexer : public ov::op::Op {
 public:
     OPENVINO_OP("QSAIndexer");

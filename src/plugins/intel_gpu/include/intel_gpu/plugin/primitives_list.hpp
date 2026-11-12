@@ -338,6 +338,8 @@ REGISTER_FACTORY(internal, Swoosh);
 REGISTER_FACTORY(internal, MLIR);
 #endif
 REGISTER_FACTORY(internal, PagedQSAIndexerGPU);
+REGISTER_FACTORY(internal, PagedQSAIndexer);
+REGISTER_FACTORY(internal, QSAIndexerGPU);
 REGISTER_FACTORY(internal, QSAIndexer);
 REGISTER_FACTORY(internal, SparsePA);
 REGISTER_FACTORY(internal, SparseSDPA);
