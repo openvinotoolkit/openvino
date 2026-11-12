@@ -264,6 +264,16 @@ Datatype ResampleKernelOpt::GetUnitType(const base_params& params) const {
 }
 
 KernelsData ResampleKernelOpt::GetKernelsData(const Params& params) const {
-    return GetCommonKernelsData(params);
+    auto kernels_data = GetCommonKernelsData(params);
+    // ALIGN_CORNERS source coordinates come from an fp32 division. For the interpolating modes make it correctly
+    // rounded, so the coordinates match resample_ref (ref_divide(), used for planar layouts and thus dynamic shapes)
+    // and the reference: the default OpenCL division may be off by an ULP, which at coordinates in the hundreds shifts
+    // the interpolation weights by ~1e-5 (static vs dynamic shape mismatch).
+    const auto& resample_prim_params = static_cast<const resample_params&>(params);
+    if (!kernels_data.empty() && resample_prim_params.coordTransMode == CoordinateTransformationMode::ALIGN_CORNERS &&
+        resample_prim_params.resampleType != ResampleType::NEAREST_NEIGHBOR) {
+        kernels_data[0].kernels[0].code.kernelString->options += " -cl-fp32-correctly-rounded-divide-sqrt";
+    }
+    return kernels_data;
 }
 }  // namespace kernel_selector
