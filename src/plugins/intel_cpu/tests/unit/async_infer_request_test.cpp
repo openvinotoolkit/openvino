@@ -13,7 +13,6 @@
 #include <thread>
 #include <vector>
 
-#include "common_test_utils/file_utils.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
@@ -185,13 +184,20 @@ constexpr const char* kTestDeviceName = "ASYNC_INFER_REQUEST_TEST_CPU";
 // library registered under kTestDeviceName. Reused across all TESTs in this file: compile_model()
 // itself is what creates a brand-new, independent CompiledModel/executor per test, so sharing the
 // Core/plugin instance is safe and keeps each test fast.
+//
+// Only a bare library name (no directory) is passed to register_plugin(): it is then resolved by
+// the OS dynamic loader via its normal search path (LD_LIBRARY_PATH/rpath/etc.), exactly like
+// ov::test::utils::PluginCache's "target_plugin_name" mechanism does elsewhere in the test suite.
+// Resolving a path relative to the test executable's own directory (getExecutableDirectory())
+// instead is NOT safe here: some CI packaging layouts (e.g. the Android CXX_Unit_Tests job) push
+// the plugin .so to a different directory than the ov_cpu_unit_tests binary itself, while still
+// configuring LD_LIBRARY_PATH to cover the actual location.
 ov::Core& GetTestCore() {
     static ov::Core core = [] {
         ov::Core c;
-        auto plugin_path =
-            ov::util::make_plugin_library_name(ov::util::make_path(ov::test::utils::getExecutableDirectory()),
-                                               std::string("openvino_intel_cpu_plugin") + OV_BUILD_POSTFIX);
-        c.register_plugin(plugin_path.string(), kTestDeviceName);
+        auto plugin_name =
+            ov::util::make_plugin_library_name(std::string("openvino_intel_cpu_plugin") + OV_BUILD_POSTFIX);
+        c.register_plugin(plugin_name.string(), kTestDeviceName);
         return c;
     }();
     return core;
