@@ -709,8 +709,7 @@ std::vector<int> get_core_type_count() {
     std::vector<std::set<int>> frequencies(HYPER_THREADING_PROC + 1);
     for (const auto& row : cpu._cpu_mapping_table) {
         const int core_type = row[CPU_MAP_CORE_TYPE];
-        if (core_type < MAIN_CORE_PROC || core_type > HYPER_THREADING_PROC ||
-            cpu._proc_type_table[0][core_type] == 0) {
+        if (core_type < MAIN_CORE_PROC || core_type > HYPER_THREADING_PROC || cpu._proc_type_table[0][core_type] == 0) {
             continue;
         }
         const auto freq = cpu_frequencies.find(row[CPU_MAP_PROCESSOR_ID]);

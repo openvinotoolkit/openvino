@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
-#include <iostream>
 #include <memory>
 #include <mutex>
 #include <set>
@@ -170,9 +169,8 @@ bool is_main_core_case_4(const ov::MemBandwidthPressure& tolerance) {
 
 bool is_main_core_light_fp_low_memory_pressure_profile(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
-    return tolerance.total_convs > 0 && is_main_core_case_3(tolerance) &&
-           tolerance.ratio_mem_limited_gemms == 0.0F && tolerance.ratio_mem_limited_adds == 0.0F &&
-           tolerance.max_mem_tolerance >= MEM_TOLERANCE_HIGH &&
+    return tolerance.total_convs > 0 && is_main_core_case_3(tolerance) && tolerance.ratio_mem_limited_gemms == 0.0F &&
+           tolerance.ratio_mem_limited_adds == 0.0F && tolerance.max_mem_tolerance >= MEM_TOLERANCE_HIGH &&
            tolerance.max_mem_tolerance < ov::MemBandwidthPressure::UNKNOWN;
 }
 
@@ -241,8 +239,8 @@ bool is_static_partitioner_low_compute_low_add_pressure_profile(const ov::MemBan
     return tolerance.total_convs > 0 && tolerance.ratio_compute_convs < CONV_RATIO_ULTRA_LOW &&
            tolerance.ratio_mem_limited_convs < CONV_MEM_LIMITED_RATIO_STATIC_LOW_COMPUTE &&
            tolerance.ratio_mem_limited_adds < ADD_RATIO_STATIC_LOW_PRESSURE &&
-           tolerance.ratio_mem_limited_gemms == 0.0F &&
-           tolerance.max_mem_tolerance >= MEM_TOLERANCE_VERY_LOW && tolerance.total_heavy_convs == 0;
+           tolerance.ratio_mem_limited_gemms == 0.0F && tolerance.max_mem_tolerance >= MEM_TOLERANCE_VERY_LOW &&
+           tolerance.total_heavy_convs == 0;
 }
 
 bool is_static_partitioner_light_gemm_dominant_profile(const ov::MemBandwidthPressure& tolerance) {
@@ -321,10 +319,10 @@ bool is_all_core_auto_case_low_tolerance_zero_adds_profile(const ov::MemBandwidt
 
 bool is_all_core_auto_case_high_tolerance_non_light_conv_profile(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
-    return tolerance.total_convs > 0 && tolerance.total_light_convs == 0 &&
-           tolerance.ratio_compute_convs > 0.0F && tolerance.ratio_compute_convs < 1.0F &&
-           tolerance.ratio_mem_limited_convs == 0.0F && tolerance.ratio_mem_limited_gemms == 0.0F &&
-           tolerance.ratio_mem_limited_adds == 0.0F && tolerance.max_mem_tolerance >= MEM_TOLERANCE_HIGH &&
+    return tolerance.total_convs > 0 && tolerance.total_light_convs == 0 && tolerance.ratio_compute_convs > 0.0F &&
+           tolerance.ratio_compute_convs < 1.0F && tolerance.ratio_mem_limited_convs == 0.0F &&
+           tolerance.ratio_mem_limited_gemms == 0.0F && tolerance.ratio_mem_limited_adds == 0.0F &&
+           tolerance.max_mem_tolerance >= MEM_TOLERANCE_HIGH &&
            tolerance.max_mem_tolerance < ov::MemBandwidthPressure::UNKNOWN;
 }
 
@@ -363,8 +361,7 @@ void determine_tbb_partitioner_and_threads(Config& config,
                           is_all_core_auto_case_high_lp_share_residual_vision_profile(tolerance, lp_ecore_share) ||
                           is_all_core_auto_case_low_tolerance_dense_conv_profile(tolerance) ||
                           is_all_core_auto_case_low_tolerance_zero_adds_profile(tolerance) ||
-                          (!int8_intensive &&
-                           is_all_core_auto_case_high_tolerance_non_light_conv_profile(tolerance)) ||
+                          (!int8_intensive && is_all_core_auto_case_high_tolerance_non_light_conv_profile(tolerance)) ||
                           (is_all_core_auto_case(tolerance) &&
                            !is_all_core_auto_case_small_conv_exclusion_profile(tolerance, lp_ecore_share)))) {
         config.modelPreferThreadsLatency = proc_type_table[0][MAIN_CORE_PROC] +
@@ -383,8 +380,7 @@ void determine_tbb_partitioner_and_threads(Config& config,
     bool static_case_5 = has_lp_ecores && is_static_partitioner_case_5(tolerance);
 
     if (is_static_partitioner_case_1(tolerance) || is_static_partitioner_case_2(tolerance) || static_case_3 ||
-        static_case_4 || static_case_5 ||
-        is_static_partitioner_low_compute_low_add_pressure_profile(tolerance) ||
+        static_case_4 || static_case_5 || is_static_partitioner_low_compute_low_add_pressure_profile(tolerance) ||
         is_static_partitioner_light_gemm_dominant_profile(tolerance)) {
         config.tbbPartitioner = TbbPartitioner::STATIC;
     } else {

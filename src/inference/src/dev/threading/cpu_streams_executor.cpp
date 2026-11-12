@@ -145,7 +145,8 @@ struct CPUStreamsExecutor::Impl {
             const auto core_type_counts = get_core_type_count();
 
             for (const auto proc_kind : proc_kinds) {
-                for (const auto core_type : map_proc_kind_to_tbb_core_types(sys_core_types, core_type_counts, proc_kind)) {
+                for (const auto core_type :
+                     map_proc_kind_to_tbb_core_types(sys_core_types, core_type_counts, proc_kind)) {
                     if (core_type != custom::task_arena::automatic &&
                         std::find(mapped_core_types.begin(), mapped_core_types.end(), core_type) ==
                             mapped_core_types.end()) {
