@@ -18,6 +18,7 @@
 #include "moe_transformations/apply_moe_device_routed_transforms.hpp"
 #include "moe_transformations/moe_topology.hpp"
 #include "npuw_transformations/add_position_ids_param.hpp"
+#include "npuw_transformations/broadcast_u2_zero_point.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
 #include "npuw_transformations/cut_lm_head.hpp"
 #include "npuw_transformations/detect_causal_mask.hpp"
@@ -1114,6 +1115,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         if (ov::npuw::util::OptimizeLinCacheLayout().run_on_model(kvcache_model)) {
             LOG_DEBUG("Conv state tensors re-laid out as [batch, kernel, channels]");
         }
+    }
+
+    ov::npuw::BroadcastU2ZeroPoint().run_on_model(kvcache_model);
+    if (lm_head_model) {
+        ov::npuw::BroadcastU2ZeroPoint().run_on_model(lm_head_model);
     }
 
     LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
