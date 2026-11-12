@@ -49,7 +49,7 @@ op_internal::PagedQSAIndexer::Config paged_config_from(const op_internal::QSAInd
     result.indexer_rotary_dim = config.indexer_rotary_dim;
     result.indexer_head_dim = config.indexer_head_dim;
     result.epsilon = config.epsilon;
-    result.scale = config.scale;
+    result.scale = op_internal::QSAIndexer::effective_scale(config);
     return result;
 }
 

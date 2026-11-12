@@ -444,11 +444,12 @@ multiplication.
 * *scale*
 
   * **Description**: Positive multiplier applied to every block score (see "Score scale"). It does not affect
-    the selection outputs. The value ``0`` selects ``1.0 / sqrt(indexer_head_dim)`` at execution time.
+    the selection outputs. When omitted, the default is resolved at op construction, so a serialized IR always
+    carries the actual value.
   * **Type**: ``float``
-  * **Default value**: ``0``
+  * **Default value**: ``1.0 / sqrt(indexer_head_dim)``
   * **Required**: *no*
-  * **Constraints**: ``scale >= 0``.
+  * **Constraints**: ``scale > 0``.
 
 
 **Inputs**

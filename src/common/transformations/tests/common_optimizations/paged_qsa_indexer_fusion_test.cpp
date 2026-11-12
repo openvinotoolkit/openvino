@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 #include <memory>
 #include <string>
@@ -73,6 +74,7 @@ struct GraphOptions {
     bool gathered_states = false;
     bool variable_states = true;
     int64_t rope_length = -1;
+    float scale = 1.0f / std::sqrt(static_cast<float>(head_size));
 };
 
 // The dense QSAIndexer as created by FuseQSAIndexer, with its states kept in variables.
@@ -120,6 +122,7 @@ std::shared_ptr<Model> make_model(const GraphOptions& o, bool paged) {
     config.indexer_rotary_dim = rotary_dim;
     config.indexer_head_dim = head_size;
     config.epsilon = epsilon;
+    config.scale = o.scale;
 
     Output<Node> indices, count, block_keys_state, raw_keys_state, rope_state;
     if (paged) {
@@ -166,6 +169,7 @@ std::shared_ptr<Model> make_model(const GraphOptions& o, bool paged) {
         paged_config.indexer_rotary_dim = config.indexer_rotary_dim;
         paged_config.indexer_head_dim = config.indexer_head_dim;
         paged_config.epsilon = config.epsilon;
+        paged_config.scale = o.scale == 0.0f ? 1.0f / std::sqrt(static_cast<float>(head_size)) : o.scale;
         const auto paged_indexer = std::make_shared<op_internal::PagedQSAIndexer>(inputs, paged_config);
 
         const auto batch_and_length = op::util::node_to_get_shape_value_of_indices_from_shape_source(query, {0, 1});
@@ -289,7 +293,19 @@ TEST_P(PagedQSAIndexerFusionConvertedTest, ConvertsToPagedQSAIndexer) {
 
 INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
                          PagedQSAIndexerFusionConvertedTest,
-                         testing::Values(GraphOptions{}, GraphOptions{true}));
+                         testing::Values(GraphOptions{},
+                                         GraphOptions{true},
+                                         GraphOptions{false, true, -1, 0.0f},
+                                         GraphOptions{false, true, -1, 0.5f}),
+                         [](const testing::TestParamInfo<GraphOptions>& info) {
+                             if (info.param.scale == 0.0f) {
+                                 return "DefaultScale";
+                             }
+                             if (info.param.scale == 0.5f) {
+                                 return "CustomScale";
+                             }
+                             return info.param.gathered_states ? "GatheredStates" : "DirectStates";
+                         });
 
 class PagedQSAIndexerFusionNotConvertedTest : public PagedQSAIndexerFusionTest {};
 

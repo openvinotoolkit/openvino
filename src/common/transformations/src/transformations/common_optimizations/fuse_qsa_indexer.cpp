@@ -144,7 +144,6 @@ FuseQSAIndexer::FuseQSAIndexer() {
         const auto& rope_sin = pattern_map.at(p_rope_sin);
 
         // The source ops validate the batch, the head size, element types and token_budget % key_block_size == 0.
-        // scale stays 0, the default 1 / sqrt(indexer_head_dim).
         const auto key_block_size = prepare->get_key_block_size();
         const auto data_type = raw_keys.get_element_type();
         const auto& batch_dim = raw_keys.get_partial_shape()[0];
@@ -154,6 +153,7 @@ FuseQSAIndexer::FuseQSAIndexer() {
         config.indexer_rotary_dim = static_cast<size_t>(rope_cos.get_partial_shape()[rotary_dim_axis].get_length());
         config.indexer_head_dim = static_cast<size_t>(head_dim.get_length());
         config.epsilon = prepare->get_epsilon();
+        config.scale = op_internal::QSAIndexer::effective_scale(config);
 
         // QSAIndexer takes [B, L, H, D] activations and head-first states, while the public ops are head-first for
         // the query and head-less for the keys.
