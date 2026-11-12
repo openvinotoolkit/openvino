@@ -96,3 +96,19 @@ class TestSoftplusFP16(PytorchLayerTest):
     def test_softplus_fp16(self, beta, threshold, ie_device, precision, ir_version):
         self._test(aten_softplus_fp16(beta, threshold), "aten::softplus",
                    ie_device, precision, ir_version)
+
+
+class TestSoftplusFP16Input(PytorchLayerTest):
+    def _prepare_input(self):
+        return (np.array([0.0, 1.0, -1.0, 0.5, 2.0, -3.0], dtype=np.float16),)
+
+    @pytest.mark.parametrize("beta,threshold", [
+        (1.0, 0.9999),
+        (65536.0, 20.0),
+    ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_softplus_fp16_input(self, beta, threshold, ie_device, precision, ir_version):
+        self._test(aten_softplus_beta_threshold(beta, threshold), "aten::softplus",
+                   ie_device, precision, ir_version)

@@ -9,6 +9,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
+#include "openvino/op/convert_promote_types.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/multiply.hpp"
@@ -43,11 +44,14 @@ OutputVector translate_softplus(const NodeContext& context) {
         return {context.mark_node(std::make_shared<v4::SoftPlus>(x))};
     }
 
-    const auto input_type = x.get_element_type();
+    const auto input_type = get_input_element_type(context, 0);
     const bool low_precision = input_type == element::f16 || input_type == element::bf16;
     Output<Node> input = x;
     if (low_precision) {
         input = context.mark_node(std::make_shared<v0::Convert>(x, element::f32));
+    } else if (input_type.is_dynamic()) {
+        auto f32_scalar = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0.0f}));
+        input = context.mark_node(std::make_shared<v14::ConvertPromoteTypes>(x, f32_scalar, true))->output(0);
     }
 
     Output<Node> scaled = input;
@@ -72,6 +76,8 @@ OutputVector translate_softplus(const NodeContext& context) {
     Output<Node> result = context.mark_node(std::make_shared<v1::Select>(above_threshold, input, softplus));
     if (low_precision) {
         result = context.mark_node(std::make_shared<v0::Convert>(result, input_type));
+    } else if (input_type.is_dynamic()) {
+        result = context.mark_node(std::make_shared<v1::ConvertLike>(result, x));
     }
     return {result};
 };
