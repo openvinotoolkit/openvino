@@ -20,6 +20,8 @@
 namespace ov {
 namespace threading {
 
+namespace {
+
 std::vector<int> map_proc_kind_to_tbb_core_types(const std::vector<int>& sys_core_types,
                                                  const std::vector<int>& core_type_counts,
                                                  const int proc_kind) {
@@ -54,6 +56,8 @@ std::vector<int> map_proc_kind_to_tbb_core_types(const std::vector<int>& sys_cor
     }
     return {sys_core_types.begin() + (end - count), sys_core_types.begin() + end};
 }
+
+}  // namespace
 
 std::vector<int> map_proc_kinds_to_tbb_core_types(const std::vector<int>& sys_core_types,
                                                   const std::vector<int>& proc_kinds) {
