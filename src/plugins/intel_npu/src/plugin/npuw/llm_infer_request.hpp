@@ -58,6 +58,8 @@ protected:
     void prepare_for_new_conversation(int64_t prompt_length);
     void apply_lora();
     void clear_chunk_prefill_kv_cache();
+    int64_t get_external_stored_tokens() const;
+    void publish_stored_tokens(int64_t num_tokens);
     void copy_kvcache();
     void update_kvcache_for(std::shared_ptr<ov::IAsyncInferRequest> request,
                             const PortsMap& in_ports,
