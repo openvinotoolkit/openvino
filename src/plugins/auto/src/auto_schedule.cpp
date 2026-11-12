@@ -5,6 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <algorithm>
 #include <chrono>
+#include <utility>
 
 #include "auto_schedule.hpp"
 
@@ -106,6 +107,11 @@ bool AutoSchedule::check_and_disable_if_low_power_device_failed(const std::strin
 DeviceName AutoSchedule::get_dynamic_active_device() const {
     std::lock_guard<std::mutex> lock(m_gate_mutex);
     return m_gate_current_device;
+}
+
+std::pair<DeviceName, SoCompiledModel> AutoSchedule::get_dynamic_query_model() const {
+    std::lock_guard<std::mutex> lock(m_context->m_mutex);
+    return {m_dynamic_query_device, m_context->m_hw_compiled_model};
 }
 
 void AutoSchedule::init() {
@@ -357,6 +363,7 @@ void AutoSchedule::init() {
             const auto& initial_device = m_compile_context[ACTUALDEVICE].m_device_info.device_name;
             m_dynamic_compiled_models[initial_device] = m_compile_context[ACTUALDEVICE].m_compiled_model;
             m_gate_current_device = initial_device;
+            m_dynamic_query_device = initial_device;
             LOG_INFO_TAG("[dynamic] initial target device:%s", initial_device.c_str());
         }
     } else {
@@ -707,16 +714,6 @@ void AutoSchedule::dispatch_dynamic_task(ov::threading::Task& pipeline_task, con
                         get_log_tag(),
                         ": failed to compile the model on the device pinned by the remote tensor ",
                         requested_device_name);
-        if (previous_device != device.device_name) {
-            try {
-                release_inactive_device(previous_device);
-            } catch (const std::exception& ex) {
-                // releasing is only a memory optimization and must not fail a prepared inference
-                LOG_WARNING_TAG("[dynamic] failed to release inactive device:%s: %s",
-                              previous_device.c_str(),
-                              ex.what());
-            }
-        }
         const auto& device_name = device.device_name;
         {
             std::lock_guard<std::mutex> lock(m_gate_mutex);
@@ -746,6 +743,17 @@ void AutoSchedule::dispatch_dynamic_task(ov::threading::Task& pipeline_task, con
             });
             m_idle_worker_requests[device_name].try_push(std::make_pair(worker->m_index, worker));
             release_execution_slot();
+        }
+        // off the critical path: the next dispatch runs on this single stream executor, so it waits for the release
+        if (previous_device != device_name) {
+            try {
+                release_inactive_device(previous_device, device_name);
+            } catch (const std::exception& ex) {
+                // releasing is only a memory optimization and must not fail a dispatched inference
+                LOG_WARNING_TAG("[dynamic] failed to release inactive device:%s: %s",
+                                previous_device.c_str(),
+                                ex.what());
+            }
         }
     } catch (const std::exception&) {
         m_this_worker_infer_request = nullptr;
@@ -797,7 +805,13 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
         context.m_meta_devices = m_context->m_device_priorities;
     }
     const auto candidate_devices = context.m_meta_devices;
-    LOG_INFO_TAG("[dynamic] device:%s is used for the first time, compiling the model", device.device_name.c_str());
+    // only devices released before have an entry there
+    if (m_released_infer_times.count(device.device_name)) {
+        LOG_INFO_TAG("[dynamic] device:%s was released before, reloading the model", device.device_name.c_str());
+    } else {
+        LOG_INFO_TAG("[dynamic] device:%s is used for the first time, compiling the model",
+                     device.device_name.c_str());
+    }
     // select_dynamic_device() reserved nothing for the requested device
     context.m_priority_released = true;
     try_to_compile_model(context, m_dynamic_model ? m_dynamic_model->clone() : nullptr);
@@ -861,13 +875,13 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
     return true;
 }
 
-void AutoSchedule::release_inactive_device(const DeviceName& device_name) {
-    if (!m_context->m_compile_for_all || device_name.empty() ||
-        device_name == m_compile_context[ACTUALDEVICE].m_device_info.device_name) {
+void AutoSchedule::release_inactive_device(const DeviceName& device_name, const DeviceName& active_device) {
+    if (!m_context->m_compile_for_all || device_name.empty() || device_name == active_device) {
         return;
     }
     const auto cached = m_dynamic_compiled_models.find(device_name);
-    if (cached == m_dynamic_compiled_models.end()) {
+    const auto active = m_dynamic_compiled_models.find(active_device);
+    if (cached == m_dynamic_compiled_models.end() || active == m_dynamic_compiled_models.end()) {
         return;
     }
     // Without a cache for this device, a released model would need a full recompilation.
@@ -934,6 +948,19 @@ void AutoSchedule::release_inactive_device(const DeviceName& device_name) {
     // unmap first so a throwing teardown leaves the device to be rebuilt by generate_workers(); the model dies last
     auto model_to_release = std::move(cached->second);
     m_dynamic_compiled_models.erase(cached);
+    // the other references of the released model are dropped together with it, after its requests
+    SoCompiledModel initial_model;
+    SoCompiledModel query_model;
+    {
+        std::lock_guard<std::mutex> lock(m_context->m_mutex);
+        if (device_name == m_compile_context[ACTUALDEVICE].m_device_info.device_name) {
+            initial_model = std::exchange(m_compile_context[ACTUALDEVICE].m_compiled_model, {});
+        }
+        if (device_name == m_dynamic_query_device) {
+            query_model = std::exchange(m_context->m_hw_compiled_model, active->second);
+            m_dynamic_query_device = active_device;
+        }
+    }
     // the requests go first, they keep the compiled model alive; their timings are kept for the final summary
     auto& released_times = m_released_infer_times[device_name];
     released_times.first.splice(released_times.first.end(), workers.front().m_start_times);
@@ -944,6 +971,9 @@ void AutoSchedule::release_inactive_device(const DeviceName& device_name) {
         tasks_it != m_infer_pipeline_tasks_device_specific.end()) {
         tasks_it->second = nullptr;
     }
+    query_model = {};
+    initial_model = {};
+    model_to_release = {};
     LOG_INFO_TAG("[dynamic] device:%s is inactive, its compiled model is released", device_name.c_str());
 }
 
