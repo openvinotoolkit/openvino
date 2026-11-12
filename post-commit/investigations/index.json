@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 96,
+  "total": 97,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -971,6 +971,17 @@
       "category": "External Service",
       "signature_hash": "4014ef1f5a5e54e7",
       "commit_sha": "7e11265ea54dfaf319ff57770a65fa7e896d83f3"
+    },
+    {
+      "investigation_id": "2026-11-12-10-20-01-237-43184181638",
+      "run_id": "43184181638",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43184181638",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-11-12T10:20:01Z",
+      "title": "PyTorch Detectron2 model hub tests fail: pretrained weight download SSL certificate expired on dl.fbaipublicfiles.com",
+      "category": "External Service",
+      "signature_hash": "4014ef1f5a5e54e7",
+      "commit_sha": "d200513bc810298e4d3ba2b3b2085bfe0788b7c6"
     }
   ]
 }

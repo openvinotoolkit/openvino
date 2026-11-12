@@ -4,18 +4,21 @@
   "signature_hash": "4014ef1f5a5e54e7",
   "title": "PyTorch Detectron2 model hub tests fail: pretrained weight download SSL certificate expired on dl.fbaipublicfiles.com",
   "category": "External Service",
-  "count": 2,
+  "count": 3,
   "first_seen": "2026-11-12T01:42:28Z",
-  "last_seen": "2026-11-12T01:58:30Z",
+  "last_seen": "2026-11-12T10:20:01Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/43184181638",
     "https://github.com/openvinotoolkit/openvino/actions/runs/43127638525",
     "https://github.com/openvinotoolkit/openvino/actions/runs/43127634633"
   ],
   "affected_commits": [
+    "d200513bc810298e4d3ba2b3b2085bfe0788b7c6",
     "7e11265ea54dfaf319ff57770a65fa7e896d83f3",
     "8a91a733ef1c01752ea51a1256198850b4140a6f"
   ],
   "recent_timestamps": [
+    "2026-11-12T10:20:01Z",
     "2026-11-12T01:58:30Z",
     "2026-11-12T01:42:28Z"
   ]

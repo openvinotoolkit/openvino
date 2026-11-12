@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-12-10-20-01-237-43184181638",
+  "timestamp": "2026-11-12T10:20:01Z",
+  "run_id": "43184181638",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43184181638",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "commit_sha": "d200513bc810298e4d3ba2b3b2085bfe0788b7c6",
+  "pr_number": null,
+  "pr_url": null,
+  "author": "zhangYiIntel",
+  "category": "External Service",
+  "title": "PyTorch Detectron2 model hub tests fail: pretrained weight download SSL certificate expired on dl.fbaipublicfiles.com",
+  "signature": "detectron2 pretrained weight download fails: URLError CERTIFICATE_VERIFY_FAILED certificate has expired when downloading model_final weights via iopath PathManager from dl.fbaipublicfiles.com|External Service",
+  "signature_hash": "4014ef1f5a5e54e7",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "All 19 test_detectron2_precommit parametrized cases failed with ProcessError wrapping URLError CERTIFICATE_VERIFY_FAILED while downloading pretrained weights"
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check failed because the PyTorch Models tests job failed"
+    }
+  ],
+  "key_errors": [
+    "install/tests/model_hub_tests/pytorch/test_detectron2.py::TestDetectron2ConvertModel::test_detectron2_precommit[CPU-COCO-Detection/faster_rcnn_R_50_FPN_1x-none-None-None] FAILED [  5%]",
+    "E           multiprocessing.context.ProcessError: \nE           COCO-Detection/faster_rcnn_R_50_FPN_1x running failed: \nE             File \"/venv/lib/python3.11/site-packages/detectron2/checkpoint/detection_checkpoint.py\", line 61, in load\nE               path = self.path_manager.get_local_path(path)\nE             File \"/venv/lib/python3.11/site-packages/iopath/common/download.py\", line 58, in download\nE               tmp, _ = request.urlretrieve(url, filename=tmp, reporthook=hook(t))\nE             File \"/usr/lib/python3.11/urllib/request.py\", line 1364, in do_open\nE               raise URLError(err)\nE           URLError: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1018)>",
+    "Attempt 1 of 3 failed: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1018)>\nAttempt 2 of 3 failed: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1018)>\nAttempt 3 of 3 failed: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1018)>"
+  ],
+  "root_cause": "All 19 Detectron2 precommit test cases fail at model-load time, not at OpenVINO conversion time. Detectron2's DetectionCheckpointer resolves pretrained weight URLs via iopath's PathManager, which downloads from the third-party host dl.fbaipublicfiles.com (Facebook AI Research public file storage). That host's TLS certificate has expired, so every urllib.request.urlretrieve call fails TLS verification with CERTIFICATE_VERIFY_FAILED / certificate has expired, after 3 retries. This is an upstream external-service outage unrelated to OpenVINO source changes; the triggering commit (#39201, CPU QSAIndexer/SparsePA kernels) does not touch any model-hub test code or network/TLS configuration.",
+  "reproduction_steps": "Run `pytest install/tests/model_hub_tests/pytorch/test_detectron2.py -k test_detectron2_precommit` locally (or `curl -v https://dl.fbaipublicfiles.com/detectron2/COCO-Detection/faster_rcnn_R_50_FPN_1x/137257794/model_final_b275ba.pkl`) while dl.fbaipublicfiles.com's certificate is expired; the download step fails identically outside CI.",
+  "recommended_actions": [
+    "No source-code fix needed; monitor dl.fbaipublicfiles.com and re-run the PyTorch Models tests job once Facebook AI Research renews the certificate.",
+    "Consider adding a CI-side retry/backoff with a longer total wait window, or temporarily skipping/marking test_detectron2_precommit as xfail(reason='upstream cert expired') if the outage persists beyond a few hours, to avoid blocking other post-commit signal.",
+    "Optionally mirror Detectron2 pretrained weights to an internal/controlled storage location to remove the dependency on dl.fbaipublicfiles.com for CI stability."
+  ],
+  "prevention_strategies": "This category of failure (third-party host certificate expiry) cannot be prevented by code changes; mitigate impact by: (1) isolating model-hub download failures from merge-blocking status where feasible, (2) adding a lightweight pre-flight certificate/reachability check for dl.fbaipublicfiles.com with a clear 'external dependency unavailable' message instead of a generic ProcessError, and (3) mirroring frequently used external model weights to infrastructure under OpenVINO's control.",
+  "historical_context": "Identical signature (4014ef1f5a5e54e7) previously recorded twice on 2026-11-12 (first_seen 2026-11-12T01:42:28Z, runs 43127638525 and 43127634633), both also detectron2 CERTIFICATE_VERIFY_FAILED failures on dl.fbaipublicfiles.com. This is now the 3rd consecutive occurrence within the same day, indicating the upstream certificate outage is still unresolved."
+}
