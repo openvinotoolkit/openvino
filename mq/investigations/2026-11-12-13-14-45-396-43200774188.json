@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-12-13-14-45-396-43200774188",
+  "timestamp": "2026-11-12T13:14:45Z",
+  "run_id": "43200774188",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43200774188",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "39717",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39717",
+  "author": "wilson-seok",
+  "category": "Configuration",
+  "title": "Build (C++20) job fails - sccache cannot start because Azure Blob connection string URI is malformed",
+  "signature": "sccache server startup failed cache storage failed to read unexpected permanent at read azbloberror code invaliduri message the requested uri does not represent any resource on the server|Configuration",
+  "signature_hash": "08b993dbdc18ccac",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build (C++20, non-blocking) / Build",
+      "conclusion": "failure",
+      "symptom": "CMake configure step fails: C compiler ABI/test-compile check fails because sccache cannot start due to Azure Blob cache storage InvalidUri error"
+    }
+  ],
+  "key_errors": [
+    "CMake Error at /usr/local/share/cmake-4.1/Modules/CMakeTestCCompiler.cmake:67 (message): The C compiler \"/usr/bin/cc\" is not able to compile a simple test program.",
+    "FAILED: [code=2] CMakeFiles/cmTC_5ca5c.dir/testCCompiler.c.o",
+    "sccache: error: Server startup failed: cache storage failed to read: Unexpected (permanent) at read => AzblobError { code: \"InvalidUri\", message: \"The requested URI does not represent any resource on the server. RequestId:2150317a-701e-0026-27a7-72b828000000 Time:2026-11-12T13:09:19.7227680Z\" }",
+    "uri: https://ghasccacheblobs.blob.core.windows.net//sccache/ubuntu_22_04_x86_64_Release_cpp20/.sccache_check",
+    "response: Parts { status: 400, ... \"x-ms-error-code\": \"InvalidUri\" ... }"
+  ],
+  "root_cause": "The sccache compiler cache backend is configured to use an Azure Blob Storage container (ghasccacheblobs.blob.core.windows.net) via an SCCACHE_* connection string/env var. The generated blob URI contains a double slash (\"...blob.core.windows.net//sccache/...\"), which Azure rejects with HTTP 400 InvalidUri. sccache treats this as a fatal server-startup error rather than falling back to no-cache, so every invocation of the compiler wrapper during CMake's initial C/CXX compiler ABI-detection try-compile fails, which CMake treats as 'C compiler is not able to compile a simple test program', aborting configure before any project source (including this PR's GPU changes) is touched. This is a shared CI infrastructure/configuration problem unrelated to the PR's diff (ocl_memory.cpp / remote_output_lifecycle.cpp), which never reaches the compiler.",
+  "reproduction_steps": "Not reproducible by a contributor locally (depends on the CI runner's SCCACHE_* environment configuration and the ghasccacheblobs Azure storage account). To reproduce in CI: run the 'Build (C++20, non-blocking) / Build' job on any PR/merge-queue run while the SCCACHE_* Azure Blob connection string env var/secret still has the malformed (double-slash) container path.",
+  "recommended_actions": [
+    "Fix the SCCACHE_* Azure Blob connection configuration (secret/env var, likely SCCACHE_BUCKET or SCCACHE_ENDPOINT, set at the organization/workflow level) to remove the duplicated path separator producing '.../blob.core.windows.net//sccache/...'",
+    "Alternatively, set SCCACHE_IGNORE_SERVER_IO_ERROR or allow sccache to degrade gracefully to no-cache on backend misconfiguration instead of failing the build outright",
+    "Re-run the failed jobs (or re-add the PR to the merge queue) once the sccache configuration is corrected or as a stopgap, since the failure is purely infrastructure-side and unrelated to this PR's code",
+    "Add a CI health-check step that validates the sccache backend connectivity/URI before the main build fans out across many jobs, to fail fast with a clearer message"
+  ],
+  "prevention_strategies": "Validate the SCCACHE_* Azure Blob connection string/URI construction logic (e.g., in reusable actions/workflows that set it) with a unit test or a lint step that rejects duplicated path separators. Monitor sccache server-startup failures as a dedicated CI health metric so a misconfigured secret is caught before it blocks many merge-queue runs.",
+  "historical_context": "This exact signature has recurred 6 times since 2026-11-06 (pattern 08b993dbdc18ccac), most recently just hours before this run (2026-11-12T09:01:19Z), affecting PRs #38204, #39578, #39262, #39034, #39101. A related but distinct sccache failure (pattern e78859139d383270, 'Timed out waiting for server startup' on ARM64, External Service) occurred twice on 2026-11-05 and has not recurred since. The recurring nature strongly suggests the underlying Azure Blob connection string misconfiguration has not yet been fixed upstream."
+}

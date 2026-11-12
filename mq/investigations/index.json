@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 431,
+  "total": 432,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -4736,6 +4736,17 @@
       "category": "External Service",
       "signature_hash": "2641a2995515ec82",
       "pr_number": "38204"
+    },
+    {
+      "investigation_id": "2026-11-12-13-14-45-396-43200774188",
+      "run_id": "43200774188",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43200774188",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-11-12T13:14:45Z",
+      "title": "Build (C++20) job fails - sccache cannot start because Azure Blob connection string URI is malformed",
+      "category": "Configuration",
+      "signature_hash": "08b993dbdc18ccac",
+      "pr_number": "39717"
     }
   ]
 }
