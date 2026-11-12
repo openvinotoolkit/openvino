@@ -108,14 +108,10 @@ jobs:
       NODE_EXTRA_CA_CERTS: 'C:\certs\IntelProxyRootCA.crt'
       GTEST_TOTAL_SHARDS: '4'
       GTEST_SHARD_INDEX: ${{ matrix.shard }}
+      NEO_CACHE_PERSISTENT: '1'
+      NEO_CACHE_MAX_SIZE: 16106127360 # 15GB
+      NEO_CACHE_STATS: '1'
     steps:
-      # Test processes left over from a cancelled run keep DLLs (e.g. tbb12.dll) locked and break extraction
-      # - name: Clean up leftovers of previous runs
-      #   run: |
-      #     Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith("${{ github.workspace }}\") } | Stop-Process -Force -ErrorAction SilentlyContinue
-      #     Start-Sleep -Seconds 5
-      #     if (Test-Path "${{ env.INSTALL_DIR }}") { Remove-Item "${{ env.INSTALL_DIR }}" -Recurse -Force }
-
       - name: Download OpenVINO package
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
@@ -133,11 +129,63 @@ jobs:
           Expand-Archive "${{ env.INSTALL_DIR }}\\openvino_package.zip" -DestinationPath "${{ env.INSTALL_DIR }}" -Force
           Expand-Archive "${{ env.INSTALL_TEST_DIR }}\\openvino_tests.zip" -DestinationPath "${{ env.INSTALL_DIR }}" -Force
 
+      - name: Check NEO cache dir size
+        run: |
+          $dir = $env:NEO_CACHE_DIR
+          if (-not $dir) { $dir = Join-Path $env:LOCALAPPDATA 'NEO\neo_compiler_cache' }
+          Write-Host "NEO cache dir: $dir"
+          if (Test-Path $dir) {
+            $size = (Get-ChildItem $dir -Recurse -File -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
+            if (-not $size) { $size = 0 }
+            Write-Host ("NEO cache dir size: {0} bytes ({1:N2} MB)" -f $size, ($size / 1MB))
+          } else {
+            Write-Host "NEO cache dir does not exist"
+          }
+          # Remove stale stats file so that only stats from the tests run are reported; keep its path for the print step
+          $statsFile = Join-Path $dir 'stats'
+          "NEO_STATS_FILE=$statsFile" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          if (Test-Path $statsFile) {
+            Write-Host "Removing NEO stats file: $statsFile"
+            Remove-Item $statsFile -Force
+          } else {
+            Write-Host "NEO stats file not found: $statsFile"
+          }
+
       - name: Run GPU functional smoke tests
         run: |
           . "${{ env.INSTALL_DIR }}\\setupvars.ps1"
           & "${{ env.INSTALL_TEST_DIR }}\\ov_gpu_func_tests.exe" "--gtest_filter=*smoke*" "--gtest_output=xml:${{ env.INSTALL_TEST_DIR }}\\TEST-gpu-functional-${{ matrix.shard }}.xml"
-        timeout-minutes: 500
+        timeout-minutes: 180
+
+      - name: Print NEO STATS file content
+        if: always()
+        run: |
+          $f = $env:NEO_STATS_FILE
+          if (-not $f) {
+            $dir = $env:NEO_CACHE_DIR
+            if (-not $dir) { $dir = Join-Path $env:LOCALAPPDATA 'NEO\neo_compiler_cache' }
+            $f = Join-Path $dir 'stats'
+          }
+          $dir = Split-Path $f -Parent
+          Write-Host "NEO stats file: $f"
+          if (-not (Test-Path $f)) {
+            Write-Host "File not found: $f"
+            if (Test-Path $dir) {
+              Get-ChildItem $dir | Select-Object -First 50 Name, Length | Format-Table | Out-String | Write-Host
+            }
+            exit 0
+          }
+          $bytes = [System.IO.File]::ReadAllBytes($f)
+          Write-Host "=== $f ($($bytes.Length) bytes) ==="
+          $count = [int][math]::Floor($bytes.Length / 8)
+          $values = for ($i = 0; $i -lt $count; $i++) { [BitConverter]::ToUInt64($bytes, $i * 8) }
+          for ($i = 0; $i -lt $count; $i += 2) {
+            $end = [math]::Min($i + 1, $count - 1)
+            Write-Host (($values[$i..$end] | ForEach-Object { '{0,20}' -f $_ }) -join ' ')
+          }
+          if ($bytes.Length % 8) {
+            Write-Host "Trailing $($bytes.Length % 8) byte(s) ignored"
+          }
 
       - name: Upload GPU functional test results
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
