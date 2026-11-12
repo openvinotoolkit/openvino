@@ -1562,6 +1562,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                     compressed_cache_variable->get_compression_scale_state()->set_memory(_outputs[2], present_scales_layout);
                     if (compressed_cache_variable->has_zp_state()) {
                         auto present_zp_layout = present_scales_layout;
+                        present_zp_layout.data_type = _impl_params->output_layouts[3].data_type;
                         compressed_cache_variable->get_compression_zp_state()->set_memory(_outputs[3], present_zp_layout);
                     }
                 }
@@ -1578,6 +1579,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                 compressed_cache_variable->get_compression_scale_state()->set_layout(present_scales_layout);
                 if (compressed_cache_variable->has_zp_state()) {
                     auto present_zp_layout = present_scales_layout;
+                    present_zp_layout.data_type = _impl_params->output_layouts[3].data_type;
                     compressed_cache_variable->get_compression_zp_state()->set_layout(present_zp_layout);
                 }
             }
