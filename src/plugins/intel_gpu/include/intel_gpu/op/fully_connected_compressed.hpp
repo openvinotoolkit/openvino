@@ -14,6 +14,7 @@ public:
 
     FullyConnectedCompressed() = default;
 
+    // weights_layout defaults to NK when transpose_b is true, KN otherwise.
     FullyConnectedCompressed(const ov::Output<Node>& A,
                              const ov::Output<Node>& B,
                              const ov::Output<Node>& bias,

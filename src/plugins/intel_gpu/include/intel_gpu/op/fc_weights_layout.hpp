@@ -12,7 +12,7 @@
 
 namespace ov::intel_gpu::op {
 
-// Physical layout of FullyConnected weights.
+// Physical layout of FullyConnected weights. Only NK counts as transposed for the OCL, oneDNN and TernOCL FC impls; GNK is CM-only.
 enum class FcWeightsLayout : uint8_t {
     NK,   // [..., N, K]
     KN,   // [..., K, N]
