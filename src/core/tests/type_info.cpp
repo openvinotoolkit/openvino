@@ -74,6 +74,30 @@ TEST(type_info, check_hash_value) {
     EXPECT_EQ(hash_val(type_empty_ver.name, type_empty_ver.version_id), type_empty_ver.hash());
 }
 
+namespace {
+struct RehashableTypeInfo : public ov::DiscreteTypeInfo {
+    using ov::DiscreteTypeInfo::DiscreteTypeInfo;
+    void rehash() {
+        update_hash();
+    }
+};
+}  // namespace
+
+TEST(type_info, update_hash_after_fields_change) {
+    const ov::DiscreteTypeInfo expected("Custom", "extension");
+    RehashableTypeInfo type("stale", "stale");
+    type.name = expected.name;
+    type.version_id = expected.version_id;
+
+    EXPECT_NE(expected.hash(), type.hash());
+    EXPECT_NE(expected, type);
+
+    type.rehash();
+
+    EXPECT_EQ(expected.hash(), type.hash());
+    EXPECT_EQ(expected, type);
+}
+
 TEST(type_info, find_in_map) {
     std::vector<std::string> vector_names;
     ov::DiscreteTypeInfo a("Mod", "opset1");

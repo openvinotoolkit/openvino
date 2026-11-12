@@ -24,6 +24,7 @@ public:
           version_id_str(std::move(_version_id_str)) {
         name = name_str.c_str();
         version_id = version_id_str.c_str();
+        update_hash();
     }
 };
 
