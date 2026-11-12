@@ -46,7 +46,9 @@
 #include "fully_connected_inst.h"
 #include "impls/cm/fully_connected_woq_u2.hpp"
 #include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/op/fully_connected.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
+#include "intel_gpu/op/placeholder.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "intel_gpu/primitives/activation.hpp"
@@ -54,6 +56,7 @@
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
+#include "intel_gpu/primitives/quantize.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
@@ -65,7 +68,10 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/manager.hpp"
 #include "pass_manager.h"
+#include "plugin/transformations/convert_fc_to_compressed.hpp"
+#include "plugin/transformations/fuse_hadamard_fc.hpp"
 #include "program_wrapper.h"
 #include "random_generator.hpp"
 #include "reorder_inst.h"
@@ -79,8 +85,16 @@ using ov::intel_gpu::cm::WoqU2WeightLayout;
 
 namespace {
 
-// The plugin selects CM for GNK weights only; the NK conformance and reorder tests below run it on NK weights.
-[[maybe_unused]] const bool nk_enabled_for_this_file = (woq_u2_nk_enabled_for_tests() = true);
+// Enables the NK test path for the lifetime of the scope while keeping the process-wide default false.
+struct NkEnabledScope {
+    bool saved = woq_u2_nk_enabled_for_tests();
+    NkEnabledScope() {
+        woq_u2_nk_enabled_for_tests() = true;
+    }
+    ~NkEnabledScope() {
+        woq_u2_nk_enabled_for_tests() = saved;
+    }
+};
 
 enum class ZpKind { none, tensor_f16, tensor_u8, scalar };
 
@@ -497,6 +511,7 @@ std::vector<int64_t> sample_rows(int64_t M) {
 class fully_connected_cm_woq_u2 : public ::testing::TestWithParam<WoqU2Param> {};
 
 TEST_P(fully_connected_cm_woq_u2, conformance) {
+    const NkEnabledScope nk_on;
     auto& engine = get_test_engine();
     if (!cm_woq_u2_supported(engine))
         GTEST_SKIP() << "CM u2 FC requires Xe2 / Xe3 with CM JIT support and >= 96 KB SLM";
@@ -643,6 +658,7 @@ memory::ptr to_device(engine& engine, const memory::ptr& m) {
 }
 
 TEST(fully_connected_cm_woq_u2_perf, DISABLED_benchmark_shapes) {
+    const NkEnabledScope nk_on;
     auto& engine = get_test_engine();
     if (!cm_woq_u2_supported(engine))
         GTEST_SKIP() << "CM u2 FC requires Xe2 / Xe3 with CM JIT support and >= 96 KB SLM";
@@ -830,6 +846,7 @@ INSTANTIATE_TEST_SUITE_P(perf_shapes, fully_connected_cm_woq_u2, ::testing::Valu
 //   --gtest_also_run_disabled_tests --gtest_filter=*fully_connected_cm_woq_u2_perf.DISABLED_benchdnn_cases*
 // Environment: OV_WOQ_U2_PERF_ITERS (runs per case, default 100).
 TEST(fully_connected_cm_woq_u2_perf, DISABLED_benchdnn_cases) {
+    const NkEnabledScope nk_on;
     auto& engine = get_test_engine();
     if (!cm_woq_u2_supported(engine))
         GTEST_SKIP() << "CM u2 FC requires Xe2 / Xe3 with CM JIT support and >= 96 KB SLM";
@@ -993,7 +1010,8 @@ U2ReorderResult run_u2_reorder_passes(engine& engine, int64_t N, int64_t K, bool
     return r;
 }
 
-TEST(fully_connected_cm_woq_u2_reorder, cm_selected_keeps_scale_zp_bfyx) {
+TEST(smoke_fully_connected_cm_woq_u2_reorder, cm_selected_keeps_scale_zp_bfyx) {
+    const NkEnabledScope nk_on;
     auto& engine = get_test_engine();
     if (!cm_woq_u2_supported(engine))
         GTEST_SKIP() << "CM u2 FC requires Xe2 / Xe3 with CM JIT support and >= 96 KB SLM";
@@ -1004,7 +1022,8 @@ TEST(fully_connected_cm_woq_u2_reorder, cm_selected_keeps_scale_zp_bfyx) {
     ASSERT_FALSE(r.zp_reordered);
 }
 
-TEST(fully_connected_cm_woq_u2_reorder, cm_not_selected_reorders_scale_zp) {
+TEST(smoke_fully_connected_cm_woq_u2_reorder, cm_not_selected_reorders_scale_zp) {
+    const NkEnabledScope nk_on;
     auto& engine = get_test_engine();
     // N % 32 != 0: CM rejects it.
     const auto r = run_u2_reorder_passes(engine, 48, 128, true, true);
@@ -1014,7 +1033,8 @@ TEST(fully_connected_cm_woq_u2_reorder, cm_not_selected_reorders_scale_zp) {
     ASSERT_TRUE(r.zp_reordered);
 }
 
-TEST(fully_connected_cm_woq_u2_reorder, scale_zp_not_transposed_no_reorder) {
+TEST(smoke_fully_connected_cm_woq_u2_reorder, scale_zp_not_transposed_no_reorder) {
+    const NkEnabledScope nk_on;
     auto& engine = get_test_engine();
     // Scale / zp [G, N]; the second case is square (N == G).
     for (const auto& [N, K] : std::vector<std::pair<int64_t, int64_t>>{{64, 128}, {32, 32 * 64}}) {
@@ -1026,7 +1046,8 @@ TEST(fully_connected_cm_woq_u2_reorder, scale_zp_not_transposed_no_reorder) {
     }
 }
 
-TEST(fully_connected_cm_woq_u2_reorder, weights_not_transposed_no_reorder) {
+TEST(smoke_fully_connected_cm_woq_u2_reorder, weights_not_transposed_no_reorder) {
+    const NkEnabledScope nk_on;
     auto& engine = get_test_engine();
     // transpose_b_scale / zp left true: only the weights_transposed early return prevents the reorder.
     const auto r = run_u2_reorder_passes(engine, 64, 128, false, true);
@@ -1037,7 +1058,8 @@ TEST(fully_connected_cm_woq_u2_reorder, weights_not_transposed_no_reorder) {
 
 // A scalar zero point never reaches CM (it needs a per-group tensor); TernOCL, which does use one, checks the scale
 // layout in validate_impl, i.e. before select_preferred_formats could reorder it, so it must happen in prepare_quantization.
-TEST(fully_connected_cm_woq_u2_reorder, scalar_zero_point_reorders_in_prepare_quantization) {
+TEST(smoke_fully_connected_cm_woq_u2_reorder, scalar_zero_point_reorders_in_prepare_quantization) {
+    const NkEnabledScope nk_on;
     auto& engine = get_test_engine();
     const int64_t N = 64, K = 256, G = K / 64;
     topology topo(input_layout("input", layout{ov::PartialShape{16, K}, data_types::f16, format::bfyx}));
@@ -1062,7 +1084,7 @@ TEST(fully_connected_cm_woq_u2_reorder, scalar_zero_point_reorders_in_prepare_qu
 // Dynamic M and a dynamic operand pass the static epilogue check (both dims are merely "dynamic"), but at run time the
 // operand can have fewer rows than the output: an eltwise broadcast the kernels do not do, they would read past its
 // single row. support_shapes() re-runs the check on the concrete layouts, so this is the rule it relies on.
-TEST(fully_connected_cm_woq_u2_epi_operand, runtime_row_broadcast_is_rejected) {
+TEST(smoke_fully_connected_cm_woq_u2_epi_operand, runtime_row_broadcast_is_rejected) {
     constexpr int64_t N = 512;
     auto f16 = [](const ov::PartialShape& s) {
         return layout{s, data_types::f16, format::bfyx};
@@ -1097,6 +1119,7 @@ TEST(fully_connected_cm_woq_u2_epi_operand, runtime_row_broadcast_is_rejected) {
 // Control: if a different shape (M_other) runs in between so SHAPE_CHANGED=true when returning to M,
 // update_stages_flags keeps need_dispatch_data_update=true and the cached static WoqU2FCImpl succeeds.
 void run_dynamic_repeated_shape_repro(int64_t M, int64_t M_interleaved = 0) {
+    const NkEnabledScope nk_on;
     auto& engine = get_test_engine();
     if (!cm_woq_u2_supported(engine))
         GTEST_SKIP() << "CM u2 FC requires Xe2 / Xe3 with CM JIT support and >= 96 KB SLM";
@@ -1158,6 +1181,7 @@ TEST(smoke_fully_connected_cm_woq_u2_regression, dynamic_repeated_shape_control_
 // (hardcoding S=5 in INPUT0_FEATURE_NUM and OUTPUT_SIZE_Y) and cached in m_dynamic_impls_cache.
 // A subsequent broadcast execution at S=8 reuses that S=5 kernel and corrupts the output.
 TEST(smoke_fully_connected_cm_woq_u2_regression, runtime_epilogue_broadcast_fallback_corrupts_next_shape) {
+    const NkEnabledScope nk_on;
     auto& engine = get_test_engine();
     if (!cm_woq_u2_supported(engine))
         GTEST_SKIP() << "CM u2 FC requires Xe2 / Xe3 with CM JIT support and >= 96 KB SLM";
@@ -1226,6 +1250,7 @@ TEST(smoke_fully_connected_cm_woq_u2_regression, runtime_epilogue_broadcast_fall
 // A one-row epilogue operand needs broadcasting when M > 1: CM rejects it in support_shapes() and the fallback FC must
 // run (and be rebuilt for each new M) rather than a kernel cached for another shape.
 TEST(smoke_fully_connected_cm_woq_u2_regression, runtime_epilogue_broadcast_2d_falls_back_per_shape) {
+    const NkEnabledScope nk_on;
     auto& engine = get_test_engine();
     if (!cm_woq_u2_supported(engine))
         GTEST_SKIP() << "CM u2 FC requires Xe2 / Xe3 with CM JIT support and >= 96 KB SLM";
@@ -1273,14 +1298,13 @@ TEST(smoke_fully_connected_cm_woq_u2_regression, runtime_epilogue_broadcast_2d_f
     }
 }
 
-
 // ---- Native group-major (GNK) weights [G, N, 64] ----
 
 using ov::intel_gpu::cm::woq_u2_accepts_gnk;
 using ov::intel_gpu::cm::woq_u2_gnk_enabled_for_tests;
 using ov::intel_gpu::op::FcWeightsLayout;
 
-TEST(fully_connected_cm_woq_u2_gnk_check, accepts_only_cm_eligible_gnk) {
+TEST(smoke_fully_connected_cm_woq_u2_gnk_check, accepts_only_cm_eligible_gnk) {
     cldnn::device_info info{};
     info.arch = gpu_arch::xe2;
     info.max_local_mem_size = 128 * 1024;
@@ -1363,7 +1387,7 @@ std::shared_ptr<ov::Model> run_gpu_pipeline(const std::shared_ptr<ov::Model>& mo
 }
 
 // (a) A CM-eligible chain becomes one GNK FullyConnectedCompressed on the raw u2 constant.
-TEST(fully_connected_cm_woq_u2_gnk_pipeline, eligible_chain_becomes_gnk_fc) {
+TEST(smoke_fully_connected_cm_woq_u2_gnk_pipeline, eligible_chain_becomes_gnk_fc) {
     auto& engine = get_test_engine();
     if (!cm_woq_u2_supported(engine))
         GTEST_SKIP() << "CM u2 FC requires Xe2 / Xe3 with CM JIT support and >= 96 KB SLM";
@@ -1516,6 +1540,7 @@ TEST_P(fully_connected_cm_woq_u2_gnk, selects_cm_and_matches_nk) {
         topo.add(fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "zp", out_dt, 2, 3, true, false, false, FcWeightsLayout::GNK));
     });
     SCOPED_TRACE("NK");
+    const NkEnabledScope nk_on;
     const auto nk_out = run_u2_fc(engine, w, M, a, out_dt, [&](topology& topo) {
         add_weights(topo, "", w);
         topo.add(make_fc("fc_prim", "input", "", ZpKind::tensor_u8, out_dt, 2, w.zp_scalar));
@@ -1560,12 +1585,15 @@ bool gnk_fc_cm_accepts(engine& engine, int64_t N, int64_t K) {
 
 // CM is picked for GNK weights only: the same FC with NK weights is rejected unless a test opts in to NK, and then
 // takes the same scale / zp reorder as any other non-CM u2 FC.
-TEST(fully_connected_cm_woq_u2_gnk_only, nk_is_rejected_gnk_is_accepted) {
+TEST(smoke_fully_connected_cm_woq_u2_gnk_only, nk_is_rejected_gnk_is_accepted) {
     auto& engine = get_test_engine();
     if (!cm_woq_u2_supported(engine))
         GTEST_SKIP() << "CM u2 FC requires Xe2 / Xe3 with CM JIT support and >= 96 KB SLM";
 
-    ASSERT_TRUE(run_u2_reorder_passes(engine, 64, 128, true, true).cm_accepts) << "NK must be accepted while the test opt-in is on";
+    {
+        const NkEnabledScope nk_on;
+        ASSERT_TRUE(run_u2_reorder_passes(engine, 64, 128, true, true).cm_accepts) << "NK must be accepted while the test opt-in is on";
+    }
 
     const NkDisabledScope nk_off;
     const auto nk = run_u2_reorder_passes(engine, 64, 128, true, true);
@@ -1573,6 +1601,343 @@ TEST(fully_connected_cm_woq_u2_gnk_only, nk_is_rejected_gnk_is_accepted) {
     EXPECT_TRUE(nk.scale_reordered);
     EXPECT_TRUE(nk.zp_reordered);
     EXPECT_TRUE(gnk_fc_cm_accepts(engine, 64, 128));
+}
+
+// Reproducer for Finding 1a:
+// ConvertFullyConnectedToFullyConnectedCompressed must only emit FcWeightsLayout::GNK when the FC itself satisfies
+// the CM u2 kernel's invariants (f16 activations, static K on activations, f16/f32 output, and either no bias or
+// static M == 1 with a 1-row f16/f32 bias). Otherwise it must fall back to the NK path so OCL/oneDNN can execute it.
+TEST(smoke_fully_connected_cm_woq_u2_regression, gnk_conversion_rejects_unsupported_fc_configs) {
+    cldnn::device_info xe2_info{};
+    xe2_info.arch = gpu_arch::xe2;
+    xe2_info.max_local_mem_size = 128 * 1024;
+
+    auto run_convert = [&](ov::element::Type act_et, const ov::PartialShape& act_ps, ov::element::Type out_et, bool with_bias) -> FcWeightsLayout {
+        const size_t G = 2, N = 32, gs = 64;
+        const size_t K = G * gs;
+        auto a = std::make_shared<ov::op::v0::Parameter>(act_et, act_ps);
+        auto w = ov::op::v0::Constant::create(ov::element::u2, ov::Shape{G, N, gs}, {1});
+        auto w_conv = std::make_shared<ov::op::v0::Convert>(w, ov::element::f16);
+        auto zp = ov::op::v0::Constant::create(ov::element::u2, ov::Shape{G, N, 1}, {1});
+        auto zp_conv = std::make_shared<ov::op::v0::Convert>(zp, ov::element::f16);
+        auto sub = std::make_shared<ov::op::v1::Subtract>(w_conv, zp_conv);
+        auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{G, N, 1}, {0.5f});
+        auto mul = std::make_shared<ov::op::v1::Multiply>(sub, scale);
+        auto order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {1, 0, 2});
+        auto tr = std::make_shared<ov::op::v1::Transpose>(mul, order);
+        auto target = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {static_cast<int64_t>(N), static_cast<int64_t>(K)});
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(tr, target, false);
+        std::shared_ptr<ov::Node> bias = with_bias ? std::static_pointer_cast<ov::Node>(ov::op::v0::Constant::create(act_et, ov::Shape{1, N}, {0.1f}))
+                                                   : std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(a, reshape, bias, out_et, true);
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{a});
+
+        ov::pass::Manager pm;
+        pm.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>(xe2_info, true);
+        pm.run_passes(model);
+
+        for (const auto& op : model->get_ops()) {
+            if (auto fcc = ov::as_type_ptr<ov::intel_gpu::op::FullyConnectedCompressed>(op)) {
+                return fcc->get_weights_layout();
+            }
+        }
+        ADD_FAILURE() << "Expected a FullyConnectedCompressed node";
+        return FcWeightsLayout::NK;
+    };
+
+    // Eligible: f16 activations with static K, no bias (or M == 1 with bias).
+    EXPECT_EQ(run_convert(ov::element::f16, {-1, 128}, ov::element::f16, false), FcWeightsLayout::GNK);
+    EXPECT_EQ(run_convert(ov::element::f16, {1, 128}, ov::element::f16, true), FcWeightsLayout::GNK);
+    EXPECT_EQ(run_convert(ov::element::f16, {1, 1, 128}, ov::element::f32, true), FcWeightsLayout::GNK);
+
+    // Ineligible for CM u2 FC -> must fall back to NK instead of emitting an un-executable GNK FC.
+    EXPECT_EQ(run_convert(ov::element::f32, {-1, 128}, ov::element::f32, false), FcWeightsLayout::NK);
+    EXPECT_EQ(run_convert(ov::element::f16, {-1, -1}, ov::element::f16, false), FcWeightsLayout::NK);
+    EXPECT_EQ(run_convert(ov::element::f16, {16, 128}, ov::element::f16, true), FcWeightsLayout::NK);
+    EXPECT_EQ(run_convert(ov::element::f16, {-1, 128}, ov::element::f16, true), FcWeightsLayout::NK);
+}
+
+// Reproducer for Finding 1b:
+// prepare_primitive_fusing must not fuse a [1, N] bias (when M != 1) or an unsupported activation / eltwise / quantize
+// post-op into a GNK FC: since OCL and oneDNN reject GNK, any fusion rejected by woq_u2_epilogue or
+// woq_u2_check_epi_operand leaves the GNK FC with zero supported implementations.
+TEST(smoke_fully_connected_cm_woq_u2_regression, gnk_prepare_primitive_fusing_guards_unsupported_epilogues) {
+    auto& engine = get_test_engine();
+    const int64_t G = 2, N = 64, gs = 64, K = G * gs;
+
+    auto run_fusing = [&](const ov::PartialShape& in_ps, const std::function<void(topology&)>& add_post) {
+        topology topo(input_layout("input", layout{in_ps, data_types::f16, format::bfyx}));
+        topo.add(data("weights", engine.allocate_memory({ov::PartialShape{G, N, gs}, data_types::u2, format::bfyx})));
+        topo.add(data("scale", engine.allocate_memory({ov::PartialShape{G, N}, data_types::f16, format::bfyx})));
+        topo.add(data("zp", engine.allocate_memory({ov::PartialShape{G, N}, data_types::u8, format::bfyx})));
+        topo.add(fully_connected("fc",
+                                 input_info("input"),
+                                 "weights",
+                                 "",
+                                 "scale",
+                                 "zp",
+                                 data_types::f16,
+                                 in_ps.size(),
+                                 3,
+                                 true,
+                                 false,
+                                 false,
+                                 FcWeightsLayout::GNK));
+        add_post(topo);
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        auto prog = program::build_program(engine, topo, config, false, true);
+        program_wrapper::apply_opt_pass<prepare_quantization>(*prog);
+        program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
+        for (auto* n : prog->get_processing_order()) {
+            if (n->is_type<fully_connected>()) {
+                n->get_output_layouts(false);
+                const auto& fc_node = n->as<fully_connected>();
+                const auto epi = ov::intel_gpu::cm::woq_u2_epilogue(fc_node.get_fused_primitives(), fc_node.bias_term());
+                EXPECT_TRUE(epi.ok()) << "Unsupported epilogue fused into GNK FC: " << epi.error;
+                if (epi.ok() && epi.dep >= 0) {
+                    const auto why =
+                        ov::intel_gpu::cm::woq_u2_check_epi_operand(fc_node.get_input_layout(static_cast<size_t>(epi.dep)), fc_node.get_output_layout(0), N);
+                    EXPECT_TRUE(why.empty()) << "Invalid epilogue operand fused into GNK FC: " << why;
+                }
+                return std::make_pair(fc_node.bias_term(), fc_node.get_fused_primitives().size());
+            }
+        }
+        ADD_FAILURE() << "fully_connected node not found";
+        return std::make_pair(false, size_t(0));
+    };
+
+    // 1. Constant [1, N] bias: fused only when static M == 1; kept unfused for static M > 1 and dynamic M.
+    {
+        SCOPED_TRACE("M=1 bias");
+        const auto [has_bias, fused_cnt] = run_fusing({1, K}, [&](topology& t) {
+            t.add(data("bias", engine.allocate_memory({ov::PartialShape{1, N}, data_types::f16, format::bfyx})));
+            t.add(eltwise("add_bias", {input_info("fc"), input_info("bias")}, eltwise_mode::sum));
+            t.add(reorder("out", input_info("add_bias"), format::bfyx, data_types::f32));
+        });
+        EXPECT_TRUE(has_bias);
+        EXPECT_EQ(fused_cnt, size_t(0));
+    }
+    {
+        SCOPED_TRACE("M=16 bias");
+        const auto [has_bias, fused_cnt] = run_fusing({16, K}, [&](topology& t) {
+            t.add(data("bias", engine.allocate_memory({ov::PartialShape{1, N}, data_types::f16, format::bfyx})));
+            t.add(eltwise("add_bias", {input_info("fc"), input_info("bias")}, eltwise_mode::sum));
+            t.add(reorder("out", input_info("add_bias"), format::bfyx, data_types::f32));
+        });
+        EXPECT_FALSE(has_bias);
+        EXPECT_EQ(fused_cnt, size_t(0));
+    }
+    {
+        SCOPED_TRACE("dynamic M bias");
+        const auto [has_bias, fused_cnt] = run_fusing({-1, K}, [&](topology& t) {
+            t.add(data("bias", engine.allocate_memory({ov::PartialShape{1, N}, data_types::f16, format::bfyx})));
+            t.add(eltwise("add_bias", {input_info("fc"), input_info("bias")}, eltwise_mode::sum));
+            t.add(reorder("out", input_info("add_bias"), format::bfyx, data_types::f32));
+        });
+        EXPECT_FALSE(has_bias);
+        EXPECT_EQ(fused_cnt, size_t(0));
+    }
+
+    // 2. Unsupported activations: relu, standalone swish, and swish followed by a 1-row prod when M > 1.
+    {
+        SCOPED_TRACE("relu");
+        const auto [has_bias, fused_cnt] = run_fusing({16, K}, [&](topology& t) {
+            t.add(activation("relu", input_info("fc"), activation_func::relu));
+            t.add(reorder("out", input_info("relu"), format::bfyx, data_types::f32));
+        });
+        EXPECT_EQ(fused_cnt, size_t(0));
+    }
+    {
+        SCOPED_TRACE("standalone swish");
+        const auto [has_bias, fused_cnt] = run_fusing({16, K}, [&](topology& t) {
+            t.add(activation("swish", input_info("fc"), activation_func::swish, {1.0f, 0.0f}));
+            t.add(reorder("out", input_info("swish"), format::bfyx, data_types::f32));
+        });
+        EXPECT_EQ(fused_cnt, size_t(0));
+    }
+    {
+        SCOPED_TRACE("swish + 1-row prod at M=16");
+        const auto [has_bias, fused_cnt] = run_fusing({16, K}, [&](topology& t) {
+            t.add(input_layout("gate", layout{ov::PartialShape{1, N}, data_types::f16, format::bfyx}));
+            t.add(activation("swish", input_info("fc"), activation_func::swish, {1.0f, 0.0f}));
+            t.add(eltwise("prod", {input_info("swish"), input_info("gate")}, eltwise_mode::prod));
+            t.add(reorder("out", input_info("prod"), format::bfyx, data_types::f32));
+        });
+        EXPECT_EQ(fused_cnt, size_t(0));
+    }
+    {
+        SCOPED_TRACE("valid SwiGLU at M=16");
+        const auto [has_bias, fused_cnt] = run_fusing({16, K}, [&](topology& t) {
+            t.add(input_layout("gate", layout{ov::PartialShape{16, N}, data_types::f16, format::bfyx}));
+            t.add(activation("swish", input_info("fc"), activation_func::swish, {1.0f, 0.0f}));
+            t.add(eltwise("prod", {input_info("swish"), input_info("gate")}, eltwise_mode::prod));
+            t.add(reorder("out", input_info("prod"), format::bfyx, data_types::f32));
+        });
+        EXPECT_EQ(fused_cnt, size_t(2));
+    }
+
+    // 3. Unsupported eltwise modes / chained eltwises: standalone prod, sub, and sum + sum.
+    {
+        SCOPED_TRACE("standalone prod");
+        const auto [has_bias, fused_cnt] = run_fusing({-1, K}, [&](topology& t) {
+            t.add(input_layout("mul_in", layout{ov::PartialShape{-1, N}, data_types::f16, format::bfyx}));
+            t.add(eltwise("mul", {input_info("fc"), input_info("mul_in")}, eltwise_mode::prod));
+            t.add(reorder("out", input_info("mul"), format::bfyx, data_types::f32));
+        });
+        EXPECT_EQ(fused_cnt, size_t(0));
+    }
+    {
+        SCOPED_TRACE("sum + sum");
+        const auto [has_bias, fused_cnt] = run_fusing({16, K}, [&](topology& t) {
+            t.add(input_layout("s1", layout{ov::PartialShape{16, N}, data_types::f16, format::bfyx}));
+            t.add(input_layout("s2", layout{ov::PartialShape{16, N}, data_types::f16, format::bfyx}));
+            t.add(eltwise("sum1", {input_info("fc"), input_info("s1")}, eltwise_mode::sum));
+            t.add(eltwise("sum2", {input_info("sum1"), input_info("s2")}, eltwise_mode::sum));
+            t.add(reorder("out", input_info("sum2"), format::bfyx, data_types::f32));
+        });
+        EXPECT_EQ(fused_cnt, size_t(1));
+    }
+}
+
+// Reproducer for Finding 2:
+// When a u2 FC does not select CM (e.g. NK weights in production), select_preferred_formats inserts the deferred
+// fbyx reorder on scale/zp after select_formats_for(fc_node). It must update fc_node's preferred_input_fmt for
+// scale/zp to fbyx so reorder_inputs does not insert a reverse fbyx -> bfyx reorder when scale/zp is in data_flow.
+TEST(smoke_fully_connected_cm_woq_u2_regression, deferred_reorder_data_flow_scale_zp_keeps_fbyx_and_matches_ref) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP();
+
+    const NkDisabledScope nk_off;
+    const int64_t M = 4, K = 128, N = 64, G = K / 64;
+    auto input_mem = engine.allocate_memory({ov::PartialShape{M, K}, data_types::f16, format::bfyx});
+    auto weights_mem = engine.allocate_memory({ov::PartialShape{N, K}, data_types::u2, format::bfyx});
+    auto scale_mem = engine.allocate_memory({ov::PartialShape{N, G}, data_types::f16, format::bfyx});
+    auto zp_mem = engine.allocate_memory({ov::PartialShape{N, G}, data_types::u8, format::bfyx});
+
+    set_values(input_mem, std::vector<ov::float16>(M * K, ov::float16(1.0f)));
+    set_values(weights_mem, std::vector<uint8_t>(N * K / 4, 0x55));
+    std::vector<ov::float16> scale_vals(N * G);
+    for (int64_t n = 0; n < N; ++n) {
+        scale_vals[n * G + 0] = ov::float16(1.0f);
+        scale_vals[n * G + 1] = ov::float16(10.0f);
+    }
+    set_values(scale_mem, scale_vals);
+    set_values(zp_mem, std::vector<uint8_t>(N * G, 0));
+
+    topology topo(input_layout("input", input_mem->get_layout()),
+                  data("weights", weights_mem),
+                  input_layout("scale", scale_mem->get_layout()),
+                  input_layout("zp", zp_mem->get_layout()),
+                  fully_connected("fc", input_info("input"), "weights", "", "scale", "zp", data_types::f32, 2, 2, true, true, true));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
+    network net(engine, topo, config);
+    const auto& fc_node = net.get_program()->get_node("fc");
+    EXPECT_EQ(fc_node.get_preferred_input_fmt(2), format::fbyx);
+    EXPECT_EQ(fc_node.get_preferred_input_fmt(3), format::fbyx);
+    EXPECT_EQ(fc_node.get_input_layout(2).format, format::fbyx);
+    EXPECT_EQ(fc_node.get_input_layout(3).format, format::fbyx);
+
+    net.set_input_data("input", input_mem);
+    net.set_input_data("scale", scale_mem);
+    net.set_input_data("zp", zp_mem);
+    auto outputs = net.execute();
+    auto out_mem = outputs.at("fc").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
+    for (int64_t i = 0; i < M * N; ++i) {
+        ASSERT_NEAR(out_ptr[i], 704.0f, 1e-1f) << "index " << i << " (row " << i / N << ", col " << i % N << ")";
+    }
+}
+
+// Reproducer for Findings 3 & 5:
+// woq_u2_check_epi_operand must reject transposed planar formats (fbyx, byfx, yxfb), and
+// validate_node must reject FCs with a fused Hadamard input transform (hadamard_block != 0).
+TEST(smoke_fully_connected_cm_woq_u2_regression, epi_format_and_hadamard_guards) {
+    EXPECT_FALSE(woq_u2_nk_enabled_for_tests()) << "NK test opt-in must not be enabled globally at static init";
+    constexpr int64_t N = 64, K = 128, G = K / 64;
+    using ov::intel_gpu::cm::woq_u2_check_epi_operand;
+    const layout out_bfyx{ov::PartialShape{4, N}, data_types::f16, format::bfyx};
+    EXPECT_TRUE(woq_u2_check_epi_operand(out_bfyx, out_bfyx, N).empty());
+    EXPECT_FALSE(woq_u2_check_epi_operand(layout{ov::PartialShape{4, N}, data_types::f16, format::fbyx}, out_bfyx, N).empty());
+    EXPECT_FALSE(woq_u2_check_epi_operand(layout{ov::PartialShape{4, N}, data_types::f16, format::byfx}, out_bfyx, N).empty());
+    EXPECT_FALSE(woq_u2_check_epi_operand(layout{ov::PartialShape{4, N}, data_types::f16, format::yxfb}, out_bfyx, N).empty());
+
+    auto& engine = get_test_engine();
+    topology topo(input_layout("input", layout{ov::PartialShape{16, K}, data_types::f16, format::bfyx}));
+    topo.add(data("weights", engine.allocate_memory({ov::PartialShape{G, N, 64}, data_types::u2, format::bfyx})));
+    topo.add(data("scale", engine.allocate_memory({ov::PartialShape{G, N}, data_types::f16, format::bfyx})));
+    topo.add(data("zp", engine.allocate_memory({ov::PartialShape{G, N}, data_types::u8, format::bfyx})));
+    auto fc_prim = fully_connected("fc", input_info("input"), "weights", "", "scale", "zp", data_types::f16, 2, 3, true, false, false, FcWeightsLayout::GNK);
+    fc_prim.hadamard_block = 1024;
+    topo.add(fc_prim);
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topo, config, false, true);
+    auto& fc = prog->get_node("fc").as<fully_connected>();
+    fc.get_output_layouts(false);
+    EXPECT_FALSE(ov::intel_gpu::cm::FullyConnectedWoqU2ImplementationManager::validate_node(fc, true, false));
+}
+
+// Reproducer for GNK runtime epilogue broadcast unfusing:
+// A dynamic GNK FC with a fused epilogue has no fallback FC implementation when support_shapes() rejects a
+// runtime broadcast operand; primitive_inst::is_valid_fusion() must return false so the node executes via
+// _unfused_subgraph (running the GNK FC on CM and the broadcasting eltwise separately).
+TEST(smoke_fully_connected_cm_woq_u2_regression, gnk_runtime_epilogue_broadcast_unfuses_and_matches_ref) {
+    auto& engine = get_test_engine();
+    if (!cm_woq_u2_supported(engine))
+        GTEST_SKIP() << "CM u2 FC requires Xe2 / Xe3 with CM JIT support and >= 96 KB SLM";
+
+    const NkDisabledScope nk_off;
+    const int64_t K = 128, N = 64;
+    tests::random_generator rg(GET_SUITE_NAME);
+    const auto w = make_weights(engine, K, N, ZpKind::tensor_u8, rg, 91);
+    const auto gnk = make_gnk_buffers(engine, w);
+
+    topology topo(input_layout("input", layout{ov::PartialShape{-1, -1, K}, data_types::f16, format::bfyx}));
+    topo.add(data("weights", gnk.weights));
+    topo.add(data("scale", gnk.scale));
+    topo.add(data("zp", gnk.zp));
+    topo.add(fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "zp", data_types::f32, 3, 3, true, false, false, FcWeightsLayout::GNK));
+    topo.add(input_layout("epi", layout{ov::PartialShape{-1, -1, N}, data_types::f32, format::bfyx}));
+    topo.add(eltwise("post", input_info("fc_prim"), input_info("epi"), eltwise_mode::sum));
+    topo.add(reorder("out", input_info("post"), format::bfyx, data_types::f32));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
+    network::ptr net = get_network(engine, topo, config, get_test_stream_ptr(), false);
+
+    auto run_step = [&](int64_t B, int64_t S, bool broadcast_epi) {
+        const int64_t M = B * S;
+        const auto a = random_activations(static_cast<size_t>(M * K), static_cast<uint64_t>(M * 101 + 7));
+        auto in_mem = engine.allocate_memory({ov::PartialShape{B, S, K}, data_types::f16, format::bfyx});
+        set_values(in_mem, a);
+        net->set_input_data("input", in_mem);
+
+        const ov::PartialShape epi_shape = broadcast_epi ? ov::PartialShape{1, 1, N} : ov::PartialShape{B, S, N};
+        std::vector<float> epi_v(static_cast<size_t>(ov::shape_size(epi_shape.to_shape())), 0.25f);
+        auto epi_mem = engine.allocate_memory({epi_shape, data_types::f32, format::bfyx});
+        set_values(epi_mem, epi_v);
+        net->set_input_data("epi", epi_mem);
+
+        auto outputs = net->execute();
+        HostEpi he{Epi::add, &epi_v, broadcast_epi};
+        check_rows(outputs.at("out").get_memory(), M, a, all_rows(M), w, true, he);
+    };
+
+    ASSERT_NO_FATAL_FAILURE(run_step(2, 5, false));
+    ASSERT_NO_FATAL_FAILURE(run_step(2, 5, true));
+    run_step(2, 8, true);
 }
 
 }  // namespace

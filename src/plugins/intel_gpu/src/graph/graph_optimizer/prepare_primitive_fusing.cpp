@@ -503,6 +503,15 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
         } else if (replace_candidate.is_type<fully_connected>()) {
             auto& fc = replace_candidate.as<fully_connected>();
             auto desc = fc.get_primitive();
+#if OV_GPU_WITH_CM
+            if (fc.get_input_layout(1).data_type == data_types::u2 && ov::intel_gpu::cm::FullyConnectedWoqU2ImplementationManager::accepts_post_op_fusion(fc)) {
+                const auto N = ov::intel_gpu::op::fc_weight_dims(fc.get_input_layout(1).get_partial_shape(), desc->weights_layout).N.get_length();
+                if (!fc.get_fused_primitives().empty() ||
+                    !ov::intel_gpu::cm::woq_u2_check_epi_operand(bias_node.get_output_layout(), eltw_node.get_output_layout(), N).empty()) {
+                    continue;
+                }
+            }
+#endif
 
             // If the primitive has biases, then we try to combine the values, or do nothing and keep as fused sum.
             if (fc.bias_term()) {
@@ -616,21 +625,19 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 GPU_DEBUG_TRACE_DETAIL << node.id() << " has fused swiglu. Skip fusing more primitives" << std::endl;
                 return false;
             }
-            if (lo.has_all_enabled_onednn_impls_optimization_attribute() &&
-                lo.get_preferred_impl_type(node, format::any /*dummy*/) == impl_types::onednn) {
+#if OV_GPU_WITH_CM
+            // u2 FCs the CM kernels can run take post-ops in static shapes too: the kernels apply a bias /
+            // fused add / fused SwiGLU themselves. A bias and fused primitives cannot be combined.
+            if (node.get_input_layout(1).data_type == data_types::u2 &&
+                ov::intel_gpu::cm::FullyConnectedWoqU2ImplementationManager::accepts_post_op_fusion(node)) {
+                return !node.bias_term();
+            }
+#endif
+            if (lo.has_all_enabled_onednn_impls_optimization_attribute() && lo.get_preferred_impl_type(node, format::any /*dummy*/) == impl_types::onednn) {
                 return true;
             }
             auto in_dt = node.get_input_layout(0).data_type;
-#if OV_GPU_WITH_CM
-            // u2 FCs the CM kernels can run take post-ops in static shapes too: the kernels apply a bias /
-            // fused add / fused SwiGLU themselves (FullyConnectedWoqU2ImplementationManager::validate_impl
-            // decides after fusion; other fused patterns fall back to the OCL reference FC).
-            if (node.get_input_layout(1).data_type == data_types::u2 &&
-                ov::intel_gpu::cm::FullyConnectedWoqU2ImplementationManager::accepts_post_op_fusion(node))
-                return true;
-#endif
             return node.is_dynamic() || data_type_traits::is_i8_u8(in_dt);
-
         };
 
         auto gemm_supports_fusings = [](gemm_node& node) -> bool {
@@ -975,6 +982,37 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (!should_fuse)
                 return;
 
+#if OV_GPU_WITH_CM
+            if (input.is_type<fully_connected>() && input.get_input_layout(1).data_type == data_types::u2 &&
+                ov::intel_gpu::cm::FullyConnectedWoqU2ImplementationManager::accepts_post_op_fusion(input)) {
+                auto& fc = input.as<fully_connected>();
+                const auto act_prim = activation_node.get_primitive();
+                bool can_form_swiglu = !fc.bias_term() && fc.get_fused_primitives().empty() && !activation_node.has_fused_primitives() &&
+                                       act_prim->activation_function == activation_func::swish && !act_prim->additional_params_input.is_valid() &&
+                                       act_prim->additional_params.a == 1.0f && activation_node.get_users().size() == 1;
+                if (can_form_swiglu) {
+                    auto& user = *activation_node.get_users().front();
+                    if (!user.is_type<eltwise>() || user.is_output() || user.has_fused_primitives() || user.get_inputs_count() != 2) {
+                        can_form_swiglu = false;
+                    } else {
+                        const auto eltw_prim = user.as<eltwise>().get_primitive();
+                        const auto& deps = user.get_dependencies();
+                        const auto& peer = *(deps[0].first == &activation_node ? deps[1].first : deps[0].first);
+                        const auto N =
+                            ov::intel_gpu::op::fc_weight_dims(fc.get_input_layout(1).get_partial_shape(), fc.get_primitive()->weights_layout).N.get_length();
+                        const bool coeffs_ok = std::all_of(eltw_prim->coefficients.begin(), eltw_prim->coefficients.end(), [](float c) {
+                            return c == 1.0f;
+                        });
+                        can_form_swiglu = eltw_prim->mode == eltwise_mode::prod && eltw_prim->stride.empty() && coeffs_ok && &peer != &fc &&
+                                          ov::intel_gpu::cm::woq_u2_check_epi_operand(peer.get_output_layout(), user.get_output_layout(), N).empty();
+                    }
+                }
+                if (!can_form_swiglu) {
+                    return;
+                }
+            }
+#endif
+
             // Onednn reorder does not support eltwise nor binary post operation
             if (lo.has_all_enabled_onednn_impls_optimization_attribute() && input.is_type<reorder>()) {
                 return;
@@ -1100,6 +1138,13 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (!should_fuse)
                 return;
 
+#if OV_GPU_WITH_CM
+            if (input_data.is_type<fully_connected>() && input_data.get_input_layout(1).data_type == data_types::u2 &&
+                ov::intel_gpu::cm::FullyConnectedWoqU2ImplementationManager::accepts_post_op_fusion(input_data)) {
+                return;
+            }
+#endif
+
             p.fuse_nodes(input_data, quantize_node, &fusing_history);
         };
 
@@ -1220,19 +1265,28 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             }
 
 #if OV_GPU_WITH_CM
-            // A static u2 FC takes post-ops only for the CM kernels (fc_supports_fusings). Do not fuse one they
-            // cannot apply (operand not shaped like the output, e.g. per-column with M > 1): the FC would fall
-            // back to the OCL reference FC, while unfused it stays on CM with the eltwise as a separate kernel.
+            // A u2 FC eligible for the CM kernels (including any GNK FC) can only fuse post-ops supported by
+            // woq_u2_epilogue and woq_u2_check_epi_operand: a single eltwise::sum, or eltwise::prod completing SwiGLU.
             for (size_t i = 0; i < parents.size(); i++) {
                 auto& fc = *parents[i].first;
                 if (!can_fuse_parents[i] || !fc.is_type<fully_connected>() || fc.get_input_layout(1).data_type != data_types::u2 ||
-                    !fc.get_input_layout(1).is_static())
+                    !fc.get_input_layout(1).is_static() || !ov::intel_gpu::cm::FullyConnectedWoqU2ImplementationManager::accepts_post_op_fusion(fc)) {
                     continue;
-                const auto N = ov::intel_gpu::op::fc_weight_dims(fc.get_input_layout(1).get_partial_shape(),
-                                                                 fc.as<fully_connected>().get_primitive()->weights_layout).N.get_length();
+                }
+                const auto& fc_node = fc.as<fully_connected>();
+                const auto& fused = fc_node.get_fused_primitives();
+                const bool coeffs_ok = std::all_of(prim->coefficients.begin(), prim->coefficients.end(), [](float c) {
+                    return c == 1.0f;
+                });
+                const bool mode_ok = !fc_node.bias_term() && !node.has_fused_primitives() && coeffs_ok &&
+                                     ((fused.empty() && prim->mode == eltwise_mode::sum) ||
+                                      (fused.size() == 1 && fused[0].is_type<activation>() && prim->mode == eltwise_mode::prod));
+                const auto N =
+                    ov::intel_gpu::op::fc_weight_dims(fc.get_input_layout(1).get_partial_shape(), fc_node.get_primitive()->weights_layout).N.get_length();
                 const auto& peer = *parents[parents.size() - 1 - i].first;
-                if (!ov::intel_gpu::cm::woq_u2_check_epi_operand(peer.get_output_layout(), node.get_output_layout(), N).empty())
+                if (!mode_ok || !ov::intel_gpu::cm::woq_u2_check_epi_operand(peer.get_output_layout(), node.get_output_layout(), N).empty()) {
                     can_fuse_parents[i] = false;
+                }
             }
 #endif
 

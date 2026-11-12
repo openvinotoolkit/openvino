@@ -144,8 +144,8 @@ inline std::string woq_u2_check_epi_operand(const cldnn::layout& epi, const cldn
     if (epi.data_type != data_types::f16 && epi.data_type != data_types::f32) {
         return "epilogue tensor dtype not f16/f32";
     }
-    if (!format::is_simple_data_format(epi.format) || epi.data_padding) {
-        return "epilogue tensor not plain / padded";
+    if (epi.format != format::bfyx || epi.data_padding) {
+        return "epilogue tensor not plain bfyx / padded";
     }
     const auto& ps = epi.get_partial_shape();
     if (ps.rank().is_dynamic() || ps.size() == 0 || !ps[ps.size() - 1].is_static() || ps[ps.size() - 1].get_length() != N) {
@@ -229,14 +229,17 @@ struct FullyConnectedWoqU2ImplementationManager : public ImplementationManager {
     }
 
     // Everything but the epilogue: whether this FC could run on the CM kernels if its bias / fused post-ops
-    // are supported. prepare_primitive_fusing uses it to let such FCs take post-op fusions.
+    // are supported. prepare_primitive_fusing uses it to let such FCs take post-op fusions (and for GNK FCs,
+    // which have no fallback implementation, to block unsupported post-op fusions independent of device).
     static bool accepts_post_op_fusion(const program_node& node) {
+        assert(node.is_type<fully_connected>());
+        if (node.as<fully_connected>().get_primitive()->weights_layout == ov::intel_gpu::op::FcWeightsLayout::GNK) {
+            return validate_node(node, false, false);
+        }
         return validate_base(node, false);
     }
 
-    static bool validate_base(const program_node& node, bool check_epilogue) {
-        assert(node.is_type<fully_connected>());
-
+    static bool check_device(const program_node& node) {
         auto& engine = node.get_program().get_engine();
         const auto& config = node.get_program().get_config();
         const auto& info = engine.get_device_info();
@@ -253,11 +256,23 @@ struct FullyConnectedWoqU2ImplementationManager : public ImplementationManager {
         if (info.max_local_mem_size < required_slm_bytes) {
             CM_FC_LOG_AND_RETURN_FALSE(node, "insufficient SLM: " << info.max_local_mem_size << " < " << required_slm_bytes);
         }
+        return true;
+    }
+
+    static bool validate_base(const program_node& node, bool check_epilogue) {
+        return check_device(node) && validate_node(node, check_epilogue, true);
+    }
+
+    static bool validate_node(const program_node& node, bool check_epilogue, bool check_dev_info = true) {
+        assert(node.is_type<fully_connected>());
 
         const auto& fc_node = node.as<fully_connected>();
         const auto& prim = fc_node.get_primitive();
         if (!prim->compressed_weights) {
             CM_FC_LOG_AND_RETURN_FALSE(node, "weights not compressed");
+        }
+        if (prim->hadamard_block != 0) {
+            CM_FC_LOG_AND_RETURN_FALSE(node, "fused Hadamard input transform not supported");
         }
         if (!prim->decompression_scale.is_valid()) {
             CM_FC_LOG_AND_RETURN_FALSE(node, "no decompression scale");
@@ -376,7 +391,14 @@ struct FullyConnectedWoqU2ImplementationManager : public ImplementationManager {
                                                                                    << (total > 0 ? (N * K) / static_cast<int64_t>(total) : -1));
         }
 
-        if (gnk && !woq_u2_accepts_gnk(info,
+        cldnn::device_info gnk_info{};
+        if (check_dev_info) {
+            gnk_info = node.get_program().get_engine().get_device_info();
+        } else {
+            gnk_info.arch = gpu_arch::xe2;
+            gnk_info.max_local_mem_size = required_slm_bytes;
+        }
+        if (gnk && !woq_u2_accepts_gnk(gnk_info,
                                        true,
                                        wei.data_type,
                                        wei.get_partial_shape(),
