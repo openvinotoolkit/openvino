@@ -1724,6 +1724,10 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         OPENVINO_THROW("Missing ORC weights bank container");
     }
 
+    if (compiled->m_eval_future.valid()) {
+        compiled->m_eval_future.get();
+    }
+
     compiled->implement_properties();
     return compiled;
 }
