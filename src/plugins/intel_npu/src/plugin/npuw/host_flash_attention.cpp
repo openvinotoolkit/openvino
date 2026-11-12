@@ -1227,6 +1227,21 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
         return std::nullopt;
     }
 
+    std::shared_ptr<ov::Model> masked_tile_model;
+    if (fused_flash_attention && local_enable_mask_skipping) {
+        masked_tile_model = create_hfa_tile_model(q_shape_static,
+                                                  block_kv_dtype,
+                                                  block_kv_dtype,
+                                                  q_dtype,
+                                                  mask_dtype,
+                                                  past_tile_size,
+                                                  kv_num_heads,
+                                                  false,
+                                                  fused_flash_attention,
+                                                  false,
+                                                  v_transposed);
+    }
+
     auto final_tile_model = create_hfa_tile_model(q_shape_static,
                                                   block_kv_dtype,    // state_dtype (consistent with regular tile)
                                                   present_kv_dtype,  // kv_tile_dtype (present-KV, f32)
@@ -1249,6 +1264,7 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     // ========================================================================
     HostFlashAttention hfa;
     hfa._tile_model = tile_model;
+    hfa._masked_tile_model = masked_tile_model;
     hfa._final_tile_model = final_tile_model;
     hfa._query_size = query_size;  // Query length for PREFILL/GENERATE logic and context_length
     hfa._context_size = context_size;
@@ -1296,6 +1312,7 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
 
     // Store the tile models for later compilation
     _tile_model_to_compile = func_hfa._tile_model;
+    _masked_tile_model_to_compile = func_hfa._masked_tile_model;
     _final_tile_model_to_compile = func_hfa._final_tile_model;
 
     // Copy query size, context size, and K/V sequence dimensions from function HFA
@@ -1398,6 +1415,13 @@ bool HostFlashAttention::is_valid() const {
     const auto& tin = _sdpa_attention_info._tile_input_indices;
     const auto& tout = _sdpa_attention_info._tile_output_indices;
 
+    if (_compiled_masked_tile_model &&
+        (_compiled_masked_tile_model->inputs().size() != tile_inputs.size() + 1 ||
+         _compiled_masked_tile_model->outputs().size() != tile_outputs.size() || tin.mask < tile_inputs.size() ||
+         tin.mask >= _compiled_masked_tile_model->inputs().size())) {
+        return false;
+    }
+
     auto in_range = [](std::size_t idx, std::size_t size) {
         return idx < size;
     };
@@ -1451,6 +1475,7 @@ Selector::Ptr PositionIDs::find(std::size_t original_query_length, const ov::ISy
 }
 
 void PositionIDs::prepare(int64_t past_len) {
+    _history_length = past_len;
     const auto& iport = _rq.get().get_compiled_model()->inputs()[_position_ids_idx];
     const auto in_tensor = _rq.get().get_tensor(iport);
     const auto in_dims = in_tensor->get_shape();
@@ -1493,6 +1518,7 @@ HistorySize::HistorySize(std::size_t original_query_length) : _original_query_le
 }
 
 void HistorySize::prepare(int64_t past_len) {
+    _history_length = past_len;
     // past_len is the request's history_size(): what the host last set through npuw_history_size,
     // or 0 if it is unset. Same chunk rounding as PositionIDs, which takes its prefill past from
     // past_len too. HFA is prefill-only; for a query length of 1 (GENERATE, rejected by the HFA
@@ -1528,6 +1554,7 @@ void HFARuntimeContext::reset() {
     m_mask_tile_cache.clear();
     m_mask_tile_buffers.clear();
     m_final_mask_tile_buffer = {};
+    m_masked_mask_tile_buffer = {};
     m_state_buffers.reset();
     m_current_buffer_idx = 0;
 }

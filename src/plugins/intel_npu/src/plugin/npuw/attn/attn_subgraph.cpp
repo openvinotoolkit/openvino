@@ -44,7 +44,8 @@ struct HFARequestSet {
     enum TileIdx : std::size_t {
         REGULAR_TILE = 0,
         FINAL_TILE = 1,
-        COUNT = 2,
+        MASKED_TILE = 2,
+        COUNT = 3,
     };
 
     std::array<ov::SoPtr<ov::IAsyncInferRequest>, COUNT> infer_requests{};
@@ -345,39 +346,49 @@ void ensure_hfa_requests(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
     auto& request = get_request(ctx);
     const bool is_piped = request.is_subrequest_pipelined(ctx.real_subgraph_idx);
 
-    state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE] = hfa->_compiled_tile_model->create_infer_request();
     state.hfa_requests.infer_requests[HFARequestSet::FINAL_TILE] = state.base_request;
     if (is_piped) {
-        state.hfa_requests.pipeline_requests[HFARequestSet::REGULAR_TILE] =
-            hfa->_compiled_tile_model->create_infer_request();
         state.hfa_requests.pipeline_requests[HFARequestSet::FINAL_TILE] = state.base_pipeline_request;
     }
 
-    // The regular and the final tile models share the same leading input layout by construction
-    // (see build_tile_param_mapping) - the final tile model may only have extra trailing inputs.
-    OPENVINO_ASSERT(hfa->_compiled_final_tile_model->inputs().size() >= hfa->_compiled_tile_model->inputs().size(),
-                    "HFA: final tile model must expose at least the regular tile model's inputs");
-    const size_t num_inputs = hfa->_compiled_tile_model->inputs().size();
-    for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
-        const auto tile_input = hfa->_compiled_tile_model->inputs()[input_idx];
-        const auto final_tile_input = hfa->_compiled_final_tile_model->inputs()[input_idx];
-
-        // Regular tile KV inputs (f16) differ from final tile KV inputs (f32), and may also
-        // differ in shape whenever past_tile_size < final_tile_size (SWA short-past case).
-        // Skip sharing on mismatch; those ports are set per-tile in process_tile instead.
-        if (tile_input.get_element_type() != final_tile_input.get_element_type() ||
-            tile_input.get_partial_shape() != final_tile_input.get_partial_shape()) {
-            continue;
+    auto create_tile_requests = [&](const auto& model, HFARequestSet::TileIdx idx) {
+        if (!model) {
+            return;
         }
-
-        auto main_tensor = state.base_request->get_tensor(final_tile_input);
-        state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE]->set_tensor(tile_input, main_tensor);
-
+        auto& tile_request = state.hfa_requests.infer_requests[idx];
+        auto& pipeline_request = state.hfa_requests.pipeline_requests[idx];
+        tile_request = model->create_infer_request();
         if (is_piped) {
-            auto pipeline_tensor = state.base_pipeline_request->get_tensor(final_tile_input);
-            state.hfa_requests.pipeline_requests[HFARequestSet::REGULAR_TILE]->set_tensor(tile_input, pipeline_tensor);
+            pipeline_request = model->create_infer_request();
         }
-    }
+        // The regular and the final tile models share the same leading input layout by construction
+        // (see build_tile_param_mapping) - the final tile model may only have extra trailing inputs.
+        OPENVINO_ASSERT(hfa->_compiled_final_tile_model->inputs().size() >= model->inputs().size(),
+                        "HFA: final tile model must expose at least the regular tile model's inputs");
+        const size_t num_inputs = model->inputs().size();
+        for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
+            const auto tile_input = model->inputs()[input_idx];
+            const auto final_tile_input = hfa->_compiled_final_tile_model->inputs()[input_idx];
+
+            // Regular tile KV inputs (f16) differ from final tile KV inputs (f32), and may also
+            // differ in shape whenever past_tile_size < final_tile_size (SWA short-past case).
+            // Skip sharing on mismatch; those ports are set per-tile in process_tile instead.
+            if (tile_input.get_element_type() != final_tile_input.get_element_type() ||
+                tile_input.get_partial_shape() != final_tile_input.get_partial_shape()) {
+                continue;
+            }
+
+            auto main_tensor = state.base_request->get_tensor(final_tile_input);
+            tile_request->set_tensor(tile_input, main_tensor);
+
+            if (is_piped) {
+                auto pipeline_tensor = state.base_pipeline_request->get_tensor(final_tile_input);
+                pipeline_request->set_tensor(tile_input, pipeline_tensor);
+            }
+        }
+    };
+    create_tile_requests(hfa->_compiled_tile_model, HFARequestSet::REGULAR_TILE);
+    create_tile_requests(hfa->_compiled_masked_tile_model, HFARequestSet::MASKED_TILE);
 
     if (!state.hfa_runtime_ctx.has_value()) {
         state.hfa_runtime_ctx.emplace();
@@ -1037,12 +1048,6 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             state_acc = current_buffer.acc;
                             state_max = current_buffer.max;
                             state_sum = current_buffer.sum;
-                            regular_tile_request->set_tensor(hfa_desc->_compiled_tile_model->inputs()[tile_in.acc],
-                                                             state_acc);
-                            regular_tile_request->set_tensor(hfa_desc->_compiled_tile_model->inputs()[tile_in.max],
-                                                             state_max);
-                            regular_tile_request->set_tensor(hfa_desc->_compiled_tile_model->inputs()[tile_in.d],
-                                                             state_sum);
                         } else {
                             state_acc =
                                 regular_tile_request->get_tensor(hfa_desc->_compiled_tile_model->inputs()[tile_in.acc]);
@@ -1055,16 +1060,23 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                                                                        state_sum);
                         }
 
-                        regular_tile_request->set_tensor(hfa_desc->_compiled_tile_model->inputs()[tile_in.q],
-                                                         query_tensor);
+                        auto bind_tile_state = [&](auto& request, const auto& model) {
+                            if (!model) {
+                                return;
+                            }
+                            request->set_tensor(model->inputs()[tile_in.q], query_tensor);
+                            request->set_tensor(model->inputs()[tile_in.acc], state_acc);
+                            request->set_tensor(model->inputs()[tile_in.max], state_max);
+                            request->set_tensor(model->inputs()[tile_in.d], state_sum);
+                            request->set_tensor(model->outputs()[tile_out.acc], state_acc);
+                            request->set_tensor(model->outputs()[tile_out.max], state_max);
+                            request->set_tensor(model->outputs()[tile_out.d], state_sum);
+                        };
+                        bind_tile_state(regular_tile_request, hfa_desc->_compiled_tile_model);
+                        bind_tile_state(state.hfa_requests.infer_requests[HFARequestSet::MASKED_TILE],
+                                        hfa_desc->_compiled_masked_tile_model);
                         final_tile_request->set_tensor(hfa_desc->_compiled_final_tile_model->inputs()[tile_in.q],
                                                        query_tensor);
-                        regular_tile_request->set_tensor(hfa_desc->_compiled_tile_model->outputs()[tile_out.acc],
-                                                         state_acc);
-                        regular_tile_request->set_tensor(hfa_desc->_compiled_tile_model->outputs()[tile_out.max],
-                                                         state_max);
-                        regular_tile_request->set_tensor(hfa_desc->_compiled_tile_model->outputs()[tile_out.d],
-                                                         state_sum);
                         final_tile_request->set_tensor(hfa_desc->_compiled_final_tile_model->inputs()[tile_in.acc],
                                                        state_acc);
                         final_tile_request->set_tensor(hfa_desc->_compiled_final_tile_model->inputs()[tile_in.max],
@@ -1077,6 +1089,7 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         const uint32_t V_SEQ_DIM = static_cast<uint32_t>(sdpa_info._v_seq_dim);
                         constexpr uint32_t MASK_KV_SEQ_DIM = 3;
                         size_t next_available_mask_buffer_idx = 0;
+                        const bool uses_mask = hfa_desc->_compiled_tile_model->inputs().size() > tile_in.mask;
 
                         auto process_tile = [&](auto& request,
                                                 auto& model,
@@ -1150,8 +1163,9 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                     } else {
                                         ov::SoPtr<ov::ITensor> cached_mask_tile =
                                             is_final_tile ? state.hfa_runtime_ctx->get_final_mask_tile_buffer()
+                                            : !uses_mask  ? state.hfa_runtime_ctx->get_masked_mask_tile_buffer()
                                                           : state.hfa_runtime_ctx->get_mask_tile_buffer(
-                                                                next_available_mask_buffer_idx);
+                                                               next_available_mask_buffer_idx);
                                         extract_and_copy_tile(attention_mask_tensor,
                                                               cached_mask_tile,
                                                               MASK_KV_SEQ_DIM,
@@ -1163,7 +1177,7 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                                                tile_length,
                                                                                cached_mask_tile);
                                         request->set_tensor(model->inputs()[tile_in.mask], cached_mask_tile);
-                                        if (!is_final_tile) {
+                                        if (!is_final_tile && uses_mask) {
                                             next_available_mask_buffer_idx++;
                                         }
                                     }
@@ -1191,8 +1205,8 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         int64_t mask_tile_offset = 0;
                         int64_t remaining_full_tiles = past_full_tiles;  // tiles driven from past blocks
 
-                        // For the fused hfa, the regular tile model has no mask input (6 inputs)
-                        const bool uses_mask = hfa_desc->_compiled_tile_model->inputs().size() > tile_in.mask;
+                        const int64_t history = state.hfa_selector->history_length();
+                        const bool classify_history = total_kv_length == global_context_length;
 
                         // Regular tiles read the leading mask region, while the final tile reads
                         // the trailing region. Validate both ranges before creating tensor views.
@@ -1224,15 +1238,25 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             const int64_t tiles_in_block = block_len / past_tile_size;
 
                             for (int64_t t = 0; t < tiles_in_block && remaining_full_tiles > 0; ++t) {
-                                process_tile(regular_tile_request,
-                                             hfa_desc->_compiled_tile_model,
-                                             k_block,
-                                             v_block,
-                                             t * past_tile_size,
-                                             mask_tile_offset,
-                                             past_tile_size,
-                                             false,       // async
-                                             uses_mask);  // process_with_mask
+                                if (!classify_history || mask_tile_offset < history) {
+                                    const bool masked = classify_history &&
+                                                        mask_tile_offset + past_tile_size > history &&
+                                                        hfa_desc->_compiled_masked_tile_model;
+                                    auto& tile_request =
+                                        masked ? state.hfa_requests.infer_requests[HFARequestSet::MASKED_TILE]
+                                               : regular_tile_request;
+                                    const auto& tile_model =
+                                        masked ? hfa_desc->_compiled_masked_tile_model : hfa_desc->_compiled_tile_model;
+                                    process_tile(tile_request,
+                                                 tile_model,
+                                                 k_block,
+                                                 v_block,
+                                                 t * past_tile_size,
+                                                 mask_tile_offset,
+                                                 past_tile_size,
+                                                 false,                 // async
+                                                 uses_mask || masked);  // process_with_mask
+                                }
                                 mask_tile_offset += past_tile_size;
                                 remaining_full_tiles--;
                             }
@@ -1426,6 +1450,28 @@ void serialize_compiled_state(v1::subgraphs::Context& context,
                 LOG_DEBUG("Imported compiled tile model for host flash attention");
             }
         }
+        const auto* format = context.get_if<ov::npuw::compiled::HFASerializationFormat>();
+        if (stream.output() || format == nullptr || format->has_masked_tile_field) {
+            bool has_masked_tile = mutable_hfa->_compiled_masked_tile_model != nullptr;
+            stream & has_masked_tile;
+            if (has_masked_tile) {
+                if (stream.output()) {
+                    std::stringstream ss;
+                    mutable_hfa->_compiled_masked_tile_model->export_model(ss);
+                    std::string model_str = ss.str();
+                    stream & model_str;
+                } else {
+                    NPUW_ASSERT(submodel_ctx != nullptr);
+                    std::string model_str;
+                    stream & model_str;
+                    std::stringstream ss(model_str);
+                    mutable_hfa->_compiled_masked_tile_model =
+                        submodel_ctx->plugin->get_core()->import_model(ss,
+                                                                       submodel_ctx->device,
+                                                                       submodel_ctx->import_config);
+                }
+            }
+        }
         if (stream.input()) {
             NPUW_ASSERT(submodel_ctx != nullptr);
             mutable_hfa->_compiled_final_tile_model = submodel_ctx->compiled_model;
@@ -1462,6 +1508,9 @@ void attach_runtime_behavior(ov::npuw::v1::subgraphs::CompiledPipeline& compiled
         case BehaviorKind::HFA:
             if (const auto* hfa = get_compiled_hfa(context)) {
                 visit(hfa->_compiled_tile_model);
+                if (hfa->_compiled_masked_tile_model) {
+                    visit(hfa->_compiled_masked_tile_model);
+                }
                 visit(hfa->_compiled_final_tile_model);
             }
             break;
