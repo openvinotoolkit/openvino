@@ -52,7 +52,7 @@ bool CompilerOptionSupportHelper::isOptionSupported(ov::intel_npu::CompilerType 
     }
 
     std::unique_ptr<ICompilerAdapter> compiler;
-    compiler = _adapterFactory->getCompiler(_backend, compilerType, "", _optionSupportCache);
+    compiler = _adapterFactory->getCompiler(compilerType, "", _optionSupportCache);
 
     std::once_flag* optionsLoaded = nullptr;
     {

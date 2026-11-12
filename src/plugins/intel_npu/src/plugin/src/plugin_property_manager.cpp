@@ -948,7 +948,7 @@ void PluginPropertyManager::registerProperties() {
             }
 
             try {
-                return _compilerAdapterFactory->getCompiler(_backend, compilerType.value(), compilationPlatform) != nullptr;
+                return _compilerAdapterFactory->getCompiler(compilerType.value(), compilationPlatform) != nullptr;
             } catch (...) {
                 return false;
             }
@@ -966,7 +966,7 @@ void PluginPropertyManager::registerProperties() {
                     device == nullptr ? deviceId : device->getName());
             }
 
-                return _compilerAdapterFactory->getCompiler(_backend, compilerType.value(), compilationPlatform)->get_version();
+                return _compilerAdapterFactory->getCompiler(compilerType.value(), compilationPlatform)->get_version();
         },
         [](const ov::Any&) {
             OPENVINO_THROW("READ-ONLY configuration key: ", ov::intel_npu::compiler_version.name());

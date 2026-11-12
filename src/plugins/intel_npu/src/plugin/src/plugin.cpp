@@ -171,7 +171,6 @@ namespace intel_npu {
 
 Plugin::Plugin()
     : _vclLoaderHolder(std::make_shared<const VCLLoaderHolder>()),
-    _compilerAdapterFactory(std::make_shared<const CompilerAdapterFactory>(vcl_functions())),
       _logger("NPUPlugin", Logger::global().level()) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
     set_device_name("NPU");
@@ -189,6 +188,7 @@ Plugin::Plugin()
     // backend registry shall be created after configs are updated
     _backendsRegistry = std::make_unique<BackendsRegistry>();
     _backend = _backendsRegistry->getEngineBackend();
+    _compilerAdapterFactory = std::make_shared<const CompilerAdapterFactory>(_backend, vcl_functions());
 
     register_options(_backend, *options);
     if (_backend) {
@@ -291,8 +291,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                       device == nullptr ? std::move(deviceId) : device->getName());
 
     ov::intel_npu::CompilerType compilerType = _propertiesManager->determineCompilerType(localProperties);
-    auto compiler = _compilerAdapterFactory->getCompiler(_backend,
-                                                         compilerType,
+    auto compiler = _compilerAdapterFactory->getCompiler(compilerType,
                                                          compilationPlatform,
                                                          _compilerOptionSupportHelper->getOptionSupportCache());
 
@@ -669,8 +668,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
                                       device == nullptr ? std::move(deviceId) : device->getName());
 
     ov::intel_npu::CompilerType compilerType = _propertiesManager->determineCompilerType(localProperties);
-    auto compiler = _compilerAdapterFactory->getCompiler(_backend,
-                                                         compilerType,
+    auto compiler = _compilerAdapterFactory->getCompiler(compilerType,
                                                          compilationPlatform,
                                                          _compilerOptionSupportHelper->getOptionSupportCache());
 

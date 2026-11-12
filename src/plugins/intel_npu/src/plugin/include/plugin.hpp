@@ -92,9 +92,9 @@ private:
     // or a profiling decoder is created.
     std::shared_ptr<const VCLLoaderHolder> _vclLoaderHolder;
 
-    // The only factory of the plugin, built on the entry points of `_vclLoaderHolder`, and shared by compile, query,
-    // property and option support requests so that they all see what it learned about the compiler-in-plugin. Entry
-    // points of another holder would need another factory.
+    // The only factory of the plugin, bound to `_backend` and the entry points of `_vclLoaderHolder`, and shared by
+    // compile, query, property and option support requests so that they all see what it learned about the
+    // compiler-in-plugin. Another backend or holder needs another factory.
     std::shared_ptr<const CompilerAdapterFactory> _compilerAdapterFactory;
 
     mutable Logger _logger;

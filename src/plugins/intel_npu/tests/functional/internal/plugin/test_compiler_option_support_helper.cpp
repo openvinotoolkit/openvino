@@ -76,7 +76,7 @@ protected:
         backend = ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>());
         helper = std::make_unique<CompilerOptionSupportHelper>(
             backend,
-            std::make_shared<const CompilerAdapterFactory>(npu::vcl_provider::processWide()));
+            std::make_shared<const CompilerAdapterFactory>(backend, npu::vcl_provider::processWide()));
     }
 
     void TearDown() override {
@@ -233,10 +233,10 @@ TEST_P(CompilerOptionSupportHelperFunctionalTests, ProbesCompilerDirectlyForOpti
 TEST_P(CompilerOptionSupportHelperFunctionalTests, BatchModeSupportMatchesDirectCompilerProbe) {
     const std::string batchModeOption = ov::intel_npu::batch_mode.name();
 
-    const CompilerAdapterFactory factory{npu::vcl_provider::processWide()};
+    const CompilerAdapterFactory factory{backend, npu::vcl_provider::processWide()};
     auto adapterCompilerType = compilerType;
     std::unique_ptr<ICompilerAdapter> compilerAdapter;
-    OV_ASSERT_NO_THROW(compilerAdapter = factory.getCompiler(backend, adapterCompilerType, ""));
+    OV_ASSERT_NO_THROW(compilerAdapter = factory.getCompiler(adapterCompilerType, ""));
 
     bool supportedByCompiler = false;
     OV_ASSERT_NO_THROW(supportedByCompiler = compilerAdapter->is_option_supported(batchModeOption));
@@ -341,7 +341,7 @@ protected:
         backend = ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>());
         helper = std::make_unique<CompilerOptionSupportHelper>(
             backend,
-            std::make_shared<const CompilerAdapterFactory>(npu::vcl_provider::processWide()));
+            std::make_shared<const CompilerAdapterFactory>(backend, npu::vcl_provider::processWide()));
     }
 
     void TearDown() override {

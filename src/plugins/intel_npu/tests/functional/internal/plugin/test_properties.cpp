@@ -159,7 +159,7 @@ public:
         });
 
         const auto adapterFactory =
-            std::make_shared<const ::intel_npu::CompilerAdapterFactory>(npu::vcl_provider::processWide());
+            std::make_shared<const ::intel_npu::CompilerAdapterFactory>(backend, npu::vcl_provider::processWide());
         propertiesManager = std::make_unique<PluginPropertyManager>(
             options,
             backend,
@@ -688,7 +688,7 @@ TEST_P(CompatibilityCheckTests, CheckUnsupportedConfigWithGetMergedConfigAndUnkn
     std::shared_ptr<::intel_npu::OptionsDesc> localOptions = std::make_shared<::intel_npu::OptionsDesc>();
     localOptions->add<::intel_npu::COMPILER_TYPE>();
     const auto adapterFactory =
-        std::make_shared<const ::intel_npu::CompilerAdapterFactory>(npu::vcl_provider::processWide());
+        std::make_shared<const ::intel_npu::CompilerAdapterFactory>(backend, npu::vcl_provider::processWide());
     auto localPropertiesManager = std::make_unique<::intel_npu::PluginPropertyManager>(
         localOptions,
         backend,
