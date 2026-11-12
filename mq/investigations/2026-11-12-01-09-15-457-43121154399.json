@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-12-01-09-15-457-43121154399",
+  "timestamp": "2026-11-12T01:09:15Z",
+  "run_id": "43121154399",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43121154399",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "39727",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39727",
+  "author": "alvoron",
+  "category": "External Service",
+  "title": "PyTorch Detectron2 model-hub tests fail to download weights due to expired TLS certificate on dl.fbaipublicfiles.com",
+  "signature": "ssl certificate verify failed certificate has expired|External Service",
+  "signature_hash": "2641a2995515ec82",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "Step 'PyTorch Detectron2 Tests' failed: all 19 detectron2 model-hub subtests fail downloading model weights."
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Aggregator job fails because an upstream required job (PyTorch Models tests) failed."
+    }
+  ],
+  "key_errors": [
+    "install/tests/model_hub_tests/pytorch/test_detectron2.py::TestDetectron2ConvertModel::test_detectron2_precommit[CPU-COCO-Detection/faster_rcnn_R_50_FPN_1x-none-None-None] FAILED",
+    "E File \".../iopath/common/download.py\", line 58, in download\nE   tmp, _ = request.urlretrieve(url, filename=tmp, reporthook=hook(t))",
+    "E File \"/usr/lib/python3.11/urllib/request.py\", line 1364, in do_open\nE   raise URLError(err)\nE URLError: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1018)>",
+    "Attempt 1 of 3 failed: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1018)>"
+  ],
+  "root_cause": "Every one of the 19 Detectron2 precommit subtests fails identically while downloading pretrained model weights via iopath's download() helper (test_detectron2.py -> detection_checkpoint.load -> iopath file_io.get_local_path -> download -> urllib.request.urlretrieve). The HTTPS handshake fails with CERTIFICATE_VERIFY_FAILED: certificate has expired, i.e. the TLS certificate presented by the external model-weights host (Detectron2's Model Zoo on dl.fbaipublicfiles.com, accessed via the Facebook/Meta-hosted URLs referenced by the detectron2_precommit model list) has expired. This is an external third-party infrastructure problem unrelated to the PR under test (cmake/dependencies.cmake, an unrelated oneTBB version bump for ARM MacOS) and unrelated to OpenVINO code; 3 retries were attempted per model and all failed with the same TLS error, confirming this is not a transient network blip but a genuinely expired server certificate that will keep failing until the certificate is renewed or the client trust store/retry logic works around it.",
+  "reproduction_steps": "Not reproducible via OpenVINO code changes. To reproduce locally: run `python3 -m pytest install/tests/model_hub_tests/pytorch/test_detectron2.py -m precommit -v` against a built OpenVINO install and observe the same URLError when the harness tries to download any detectron2 model checkpoint from its hosted model zoo URL while the external host's certificate remains expired.",
+  "recommended_actions": [
+    "Monitor the external Detectron2 model-zoo host's certificate; this typically self-resolves once the third party renews its certificate.",
+    "Re-run only the failed jobs once the certificate is renewed (automatic remediation requested for this run).",
+    "Consider adding a bounded retry-with-backoff across job re-attempts (not just in-process retries) for model_hub download helpers so an expired-cert window during a long merge-queue run doesn't block merges.",
+    "If this becomes frequent, consider caching/mirroring Detectron2 reference weights internally to decouple CI from this external host's certificate lifecycle."
+  ],
+  "prevention_strategies": "Model-hub tests that fetch artifacts from third-party hosts should treat TLS/connectivity failures to those hosts as infrastructure flakiness, not code regressions, and should avoid blocking unrelated PRs' merges when triggered purely by expired external certificates. Consider a dedicated 'external model download' health check or cached mirror to decouple from host certificate lifecycle.",
+  "historical_context": "No prior pattern for this specific 'certificate has expired' failure was found. Prior Network-category SSL failures in the database (self-signed certificate on git clone, server certificate verification failed cloning a HF model) are distinct from this expired-certificate failure on an external model-weights download host; this is a new, previously unseen signature."
+}
