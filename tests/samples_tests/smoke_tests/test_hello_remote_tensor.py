@@ -12,7 +12,7 @@ import pytest
 
 from common.samples_common_test_class import download, get_cmd_output, get_devices
 
-MODEL = 'bvlcalexnet-12.onnx'
+MODEL = 'samples_smoke_tests_data_2021.4/models/public/squeezenet1.1/FP16/squeezenet1.1.xml'
 IMAGE = 'dog-224x224.bmp'
 
 # The sample runs on directly selected GPU devices only; take them from TEST_DEVICE like the other sample tests.
@@ -25,13 +25,12 @@ def get_executable():
 
 @pytest.fixture
 def executable():
+    # The sample needs a GPU with the Level Zero driver at run time, so only a job with such a machine opts in.
+    if os.environ.get('OV_REQUIRE_REMOTE_TENSOR_SAMPLE') != '1':
+        pytest.skip('Set OV_REQUIRE_REMOTE_TENSOR_SAMPLE=1 to run the Level Zero remote tensor sample tests')
     path = get_executable()
     if not path.is_file():
-        message = f'The optional Level Zero remote tensor sample was not built: {path}'
-        # A job that must have the sample sets this flag so a failed build is not hidden by a skip.
-        if os.environ.get('OV_REQUIRE_REMOTE_TENSOR_SAMPLE') == '1':
-            pytest.fail(message)
-        pytest.skip(message)
+        pytest.fail(f'The optional Level Zero remote tensor sample was not built: {path}')
     return path
 
 
@@ -89,6 +88,7 @@ def test_hello_remote_tensor_unicode_paths(executable, cache, tmp_path, name):
     unicode_model = unicode_dir / (name + pathlib.Path(model).suffix)
     unicode_image = unicode_dir / (name + pathlib.Path(image).suffix)
     shutil.copy(model, unicode_model)
+    shutil.copy(pathlib.Path(model).with_suffix('.bin'), unicode_model.with_suffix('.bin'))
     shutil.copy(image, unicode_image)
 
     output = get_cmd_output(executable, unicode_model, unicode_image, GPU_DEVICES[0])
