@@ -101,7 +101,7 @@ macro(ov_gpu_add_backend_target)
     # We use onednn headers all over the graph module, so we have to append includes to all backends and add a dependency between targets
     if (ENABLE_ONEDNN_FOR_GPU)
         target_include_directories(${ARG_NAME} SYSTEM BEFORE PRIVATE $<TARGET_PROPERTY:onednn_gpu_tgt${OV_GPU_SUFFIX},INTERFACE_INCLUDE_DIRECTORIES>)
-        add_dependencies(openvino_intel_gpu_${IMPL_TYPE}_obj${OV_GPU_SUFFIX} onednn_gpu_tgt${OV_GPU_SUFFIX})
+        add_dependencies(${ARG_NAME} onednn_gpu_tgt${OV_GPU_SUFFIX})
     endif()
 
     # The graph backend implementations are compiled in these per-backend STATIC
@@ -130,8 +130,9 @@ foreach(IMPL_TYPE IN LISTS AVAILABLE_IMPL_TYPES)
         continue()
     endif()
     add_subdirectory(impls/${IMPL_TYPE} impls/${IMPL_TYPE}${OV_GPU_SUFFIX})
-    if (TARGET openvino_intel_gpu_${IMPL_TYPE}_obj${OV_GPU_SUFFIX})
-        list(APPEND BACKEND_LIBS openvino_intel_gpu_${IMPL_TYPE}_obj${OV_GPU_SUFFIX})
+    set(BACKEND_TARGET openvino_intel_gpu_${IMPL_TYPE}_backend${OV_GPU_SUFFIX})
+    if (TARGET ${BACKEND_TARGET})
+        list(APPEND BACKEND_LIBS ${BACKEND_TARGET})
     endif()
 endforeach()
 
