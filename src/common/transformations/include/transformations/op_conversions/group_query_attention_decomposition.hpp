@@ -59,6 +59,7 @@ protected:
                                                      const ov::Output<ov::Node>& value,
                                                      const std::shared_ptr<ov::Node>& kv_past_b,
                                                      const std::shared_ptr<ov::Node>& kv_rows,
+                                                     const std::shared_ptr<ov::Node>& total_b,
                                                      KVCacheMetadata& metadata);
     virtual std::shared_ptr<ov::Node> make_sdpa(const ov::Output<ov::Node>& query,
                                                 const ov::Output<ov::Node>& key,
@@ -96,6 +97,12 @@ protected:
     std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<op::v3::ShapeOf>& shape,
                                              const std::vector<int>& dims);
     std::shared_ptr<ov::Node> get_dimensions(const ov::Output<ov::Node>& output, const std::vector<int>& dims);
+    // Resizes a rank-4 KV cache buffer (axis 2) to ORT's max(past_rows, total_sequence_length) capacity: trims an
+    // overlap in the buffer's tail, or pads headroom past it with unspecified (zero) filler rows. past_rows is an
+    // i64 [1] node (e.g. from ShapeOf(past), or a zero Constant when there is no past tensor to read).
+    ov::Output<ov::Node> resize_kv_to_capacity(const ov::Output<ov::Node>& past_rows,
+                                               const ov::Output<ov::Node>& buffer,
+                                               const ov::Output<ov::Node>& total_sequence_length);
     std::shared_ptr<ov::Node> rotaryEmbedding(ov::Output<ov::Node> input,
                                               ov::Output<ov::Node> cos,
                                               ov::Output<ov::Node> sin,
