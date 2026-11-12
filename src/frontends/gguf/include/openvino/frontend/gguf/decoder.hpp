@@ -21,6 +21,16 @@
 
 namespace ov::frontend::gguf {
 
+struct ModelComponentContract {
+    std::vector<std::string> outputs;
+    std::string state_prefix;
+};
+
+struct ModelComponentGroup {
+    std::string primary;
+    std::map<std::string, ModelComponentContract> models;
+};
+
 struct ModelContract {
     enum class ImageAttentionMode { CAUSAL, GLOBAL_AND_SLIDING, SLIDING_ONLY };
 
@@ -38,12 +48,15 @@ struct ModelContract {
         std::string attention_context_input;
         std::vector<AuxiliaryOutput> auxiliary_outputs;
         std::vector<std::string> preserved_inputs;
-        bool logits_first = false;
+        bool logits_first = true;
     };
 
     std::optional<bool> batchable_recurrent;
     ImageAttentionMode image_attention = ImageAttentionMode::CAUSAL;
     std::optional<GenAIContract> genai;
+    std::vector<std::string> sequence_outputs;
+    std::map<std::string, ModelComponentGroup> component_groups;
+    std::optional<bool> supports_genai_adaptation;
 };
 
 // Typed RoPE configuration, replacing the raw gguf `op_params`/`rope_params` int32 array

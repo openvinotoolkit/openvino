@@ -82,7 +82,7 @@ RUN cd /usr/src/Python-3.14t && \
 RUN ln -s /usr/python3.14t/bin/python3.14t /usr/bin/python3.14t
 
 # Install sscache
-ARG SCCACHE_VERSION="v0.7.5"
+ARG SCCACHE_VERSION="v0.18.0"
 ENV SCCACHE_HOME="/opt/sccache" \
     SCCACHE_PATH="/opt/sccache/sccache"
 

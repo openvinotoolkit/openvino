@@ -55,6 +55,7 @@
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "pass/simplify_activation_shapes.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::pass {
@@ -65,6 +66,11 @@ using std::make_shared;
 
 // f16 lowest, matches genai's causal-mask "-inf" fill.
 constexpr float NEG_INF = -65504.0f;
+
+bool has_output_name(const std::shared_ptr<ov::op::v0::Result>& result, const std::string& name) {
+    return result->get_friendly_name() == name || result->input_value(0).get_names().count(name) ||
+           result->output(0).get_names().count(name);
+}
 
 // translate_get_rows's embedding-table lookup restores ggml's rank-4 form with a fixed
 // Unsqueeze(axis=0), pinning the residual stream's leading axis to a literal 1 regardless of
@@ -216,10 +222,14 @@ ov::Output<ov::Node> pad_media_placeholders(const ov::Model& model, const ov::Ou
 bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     using namespace ov::op;
 
+    for (const auto& output : model->outputs()) {
+        if (output.get_names().count("embeddings"))
+            return false;
+    }
     auto contract = read_model_contract(model);
     OPENVINO_ASSERT(contract.genai, "[GGUF] missing GenAI model contract");
     const auto genai = *contract.genai;
-    if (!genai.enabled)
+    if (!contract.supports_genai_adaptation.value_or(genai.enabled))
         return false;
 
     // Token count is optional: custom builders may leave it unused, so conversion prunes it.
@@ -230,6 +240,17 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     auto token_len_per_seq = find_parameter(model, "token_len_per_seq");
     const bool has_recurrent_states = model->get_rt_info().count(gguf_recurrent_states_key()) != 0;
     const auto operations = model->get_ops();
+    for (const auto& name : contract.sequence_outputs) {
+        const auto result =
+            std::find_if(model->get_results().begin(), model->get_results().end(), [&](const auto& output) {
+                return has_output_name(output, name);
+            });
+        OPENVINO_ASSERT(result != model->get_results().end(), "[GGUF] missing declared sequence output ", name);
+        const auto rank = (*result)->input_value(0).get_partial_shape().rank();
+        OPENVINO_ASSERT(rank.is_static() && (rank.get_length() == 3 || rank.get_length() == 4),
+                        "[GGUF] sequence output requires rank 3 or 4: ",
+                        name);
+    }
     const auto has_gated_delta_net = [&] {
         return std::any_of(operations.begin(), operations.end(), [](const auto& node) {
             return ov::is_type<internal::GatedDeltaNet>(node);
@@ -242,7 +263,8 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         return false;
     }
 
-    std::vector<std::pair<std::shared_ptr<v0::Result>, ModelContract::GenAIContract::AuxiliaryOutput>> outputs;
+    std::vector<std::pair<std::shared_ptr<v0::Result>, ModelContract::GenAIContract::AuxiliaryOutput>>
+        auxiliary_outputs;
     for (const auto& output : genai.auxiliary_outputs) {
         std::shared_ptr<v0::Result> found;
         for (const auto& result : model->get_results()) {
@@ -254,7 +276,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         OPENVINO_ASSERT(found && found != model->get_results().front(),
                         "[GGUF] missing GenAI auxiliary output port ",
                         output.source_tensor);
-        outputs.emplace_back(found, output);
+        auxiliary_outputs.emplace_back(found, output);
     }
 
     for (const auto& input : genai.preserved_inputs)
@@ -861,18 +883,24 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     new_result->set_friendly_name("logits");
 
     const auto auxiliary_results = model->get_results();
-    if (genai.logits_first)
+    if (genai.logits_first) {
         for (const auto& result : auxiliary_results)
             model->remove_result(result);
-    else
+    } else {
         model->remove_result(old_result);
+    }
     model->add_results({new_result});
-    for (const auto& [result, output] : outputs) {
+    for (const auto& [result, output] : auxiliary_outputs) {
         ov::Output<ov::Node> value = result->input_value(0);
+        auto names = value.get_names();
+        const auto& result_names = result->output(0).get_names();
+        names.insert(result_names.begin(), result_names.end());
         if (output.squeeze_axis)
             value =
                 make_shared<v0::Squeeze>(value, v0::Constant::create(ov::element::i64, {1}, {*output.squeeze_axis}));
+        names.insert(output.name);
         name_output(value, output.name);
+        value.set_names(names);
         result->input(0).replace_source_output(value);
         result->output(0).set_names({output.name});
     }
@@ -880,6 +908,43 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         for (const auto& result : auxiliary_results)
             if (result != old_result)
                 model->add_results({result});
+
+    std::unordered_set<std::string> normalized;
+    for (const auto& result : model->get_results()) {
+        const auto source = result->input_value(0);
+        const auto selected =
+            std::find_if(contract.sequence_outputs.begin(), contract.sequence_outputs.end(), [&](const auto& name) {
+                return has_output_name(result, name);
+            });
+        if (selected == contract.sequence_outputs.end())
+            continue;
+        auto names = source.get_names();
+        const auto& result_names = result->output(0).get_names();
+        names.insert(result_names.begin(), result_names.end());
+        for (const auto& name : contract.sequence_outputs) {
+            if (has_output_name(result, name))
+                names.insert(name);
+        }
+        const auto shape = source.get_partial_shape();
+        OPENVINO_ASSERT(shape.rank().is_static() && (shape.size() == 3 || shape.size() == 4),
+                        "[GGUF] sequence output requires rank 3 or 4: ",
+                        *selected);
+        auto width = get_dimensions(source, {-1});
+        auto reshaped = make_shared<v1::Reshape>(
+            source,
+            make_shared<v0::Concat>(
+                ov::OutputVector{batch_len, v0::Constant::create(ov::element::i64, {1}, {-1}), width},
+                0),
+            false);
+        name_output(reshaped, *selected);
+        reshaped->output(0).set_names(names);
+        result->input(0).replace_source_output(reshaped);
+        result->validate_and_infer_types();
+        result->output(0).add_names(names);
+        normalized.insert(names.begin(), names.end());
+    }
+    for (const auto& name : contract.sequence_outputs)
+        OPENVINO_ASSERT(normalized.count(name), "[GGUF] missing declared sequence output ", name);
 
     // Swap the input list to the genai contract. beam_idx is kept as-is; every other old
     // gguf Parameter has had its output rewired (consumers now read the derived subgraph),
@@ -920,6 +985,9 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         if (!uses_ids)
             model->remove_parameter(input_ids);
     }
+    ov::pass::Manager activation_shapes_manager;
+    activation_shapes_manager.register_pass<SimplifyActivationShapes>();
+    activation_shapes_manager.run_passes(model);
     return true;
 }
 

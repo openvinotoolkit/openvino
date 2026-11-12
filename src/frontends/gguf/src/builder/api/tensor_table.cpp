@@ -9,7 +9,6 @@
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 #include "openvino/frontend/gguf/builder/model_builder.hpp"
 #include "openvino/frontend/gguf/builder/value.hpp"
-#include "openvino/util/common_util.hpp"
 
 namespace ov::frontend::gguf {
 
@@ -32,21 +31,17 @@ bool GgufTensors::has(const std::string& gguf_name) const {
 }
 
 std::optional<uint32_t> GgufTensors::source_type(const std::string& gguf_name) const {
-    const auto& types = m_ctx->m_impl->build_ctx.weights->qtypes;
-    auto prefix = gguf_name;
-    const std::string suffix = ".weight";
-    if (prefix.size() >= suffix.size() && prefix.compare(prefix.size() - suffix.size(), suffix.size(), suffix) == 0)
-        prefix.resize(prefix.size() - suffix.size());
-    const auto found = types.find(prefix + ".qtype");
-    if (found == types.end())
+    const auto& weights = m_ctx->m_impl->build_ctx.weights->weights;
+    const auto found = weights.find(gguf_name);
+    if (found == weights.end())
         return std::nullopt;
-    return static_cast<uint32_t>(found->second);
+    return static_cast<uint32_t>(found->second.qtype);
 }
 
 std::set<uint32_t> GgufTensors::source_types() const {
     std::set<uint32_t> types;
-    for (const auto& entry : m_ctx->m_impl->build_ctx.weights->qtypes)
-        types.insert(static_cast<uint32_t>(entry.second));
+    for (const auto& entry : m_ctx->m_impl->build_ctx.weights->weights)
+        types.insert(static_cast<uint32_t>(entry.second.qtype));
     return types;
 }
 
@@ -57,13 +52,8 @@ GgufValue GgufTensors::operator()(const std::string& gguf_name) const {
         return GgufValue();
     }
     impl.check_open();
-    if (!e.weight_emitted(gguf_name)) {
-        if (ov::util::ends_with(gguf_name, ".weight")) {
-            e.add_weight(gguf_name);
-        } else {
-            e.add_named_weight(gguf_name);
-        }
-    }
+    if (!e.weight_emitted(gguf_name))
+        e.add_weight(gguf_name);
     return GgufValue(gguf_name, e.value(gguf_name));
 }
 

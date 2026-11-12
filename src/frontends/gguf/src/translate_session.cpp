@@ -45,7 +45,9 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
+#include "pass/isolate_precision_sensitive_outputs.hpp"
 #include "pass/lower_set_rows_stateless.hpp"
+#include "pass/materialize_weights.hpp"
 #include "pass/prune_orphaned_parameters.hpp"
 #include "quant/weights.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
@@ -122,12 +124,7 @@ void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
                     const std::shared_ptr<ConstantCache>& constant_cache) {
     const auto& operation_type = decoder->get_op_type();
     if (operation_type == "GGML_OP_NONE") {
-        // A GGML_OP_NONE leaf is a weight if the decoder marks it as one: either the native
-        // builder's pre-extracted payload (bool "gguf_weight") or the cgraph decoder's raw
-        // bytes ("data"). Otherwise it is a model-input leaf (already seeded as a Parameter
-        // above) and there is nothing to translate.
-        const bool is_builder_weight =
-            decoder->get_attribute("gguf_weight").is<bool>() && decoder->get_attribute("gguf_weight").as<bool>();
+        const bool is_builder_weight = decoder->get_attribute("gguf_source").is<GgufWeight>();
         const bool is_cgraph_weight = decoder->get_attribute("data").is<ov::Tensor>();
         if (!is_builder_weight && !is_cgraph_weight) {
             return;
@@ -378,6 +375,9 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
 }
 
 std::shared_ptr<Model> TranslateSession::apply_transformations(std::shared_ptr<Model> model) {
+    ov::pass::Manager weight_normalization;
+    weight_normalization.register_pass<pass::MaterializeGGUFWeights>();
+    weight_normalization.run_passes(model);
     ov::pass::Manager manager;
     manager.set_per_pass_validation(true);
     manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
@@ -418,6 +418,8 @@ std::shared_ptr<Model> TranslateSession::apply_transformations(std::shared_ptr<M
         manager.register_pass<ov::pass::GatedDeltaNetFusion>();
         manager.register_pass<pass::PruneParametersOrphanedSince>(live_before_gdn);
     }
+
+    manager.register_pass<pass::IsolatePrecisionSensitiveOutputs>();
 
     fold_hadamard_input_signs(model);
     manager.run_passes(model);

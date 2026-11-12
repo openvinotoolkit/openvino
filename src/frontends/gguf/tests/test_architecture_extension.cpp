@@ -15,12 +15,14 @@
 
 #include "builder/api/metadata_store.hpp"
 #include "builder/arch_registry.hpp"
+#include "builder/gguf_builder_decoder.hpp"
 #include "builder/gguf_graph.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "gguf_writer.hpp"
 #include "gtest/gtest.h"
+#include "op_test_utils.hpp"
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
@@ -171,40 +173,31 @@ TEST(GGUFArchitectureExtension, DeferredArchitecturesAreRejectedWithoutAnExtensi
 
 TEST(GGUFArchitectureExtension, BuiltInDecodersAcceptSupportedTensorTypes) {
     using namespace ov::frontend::gguf;
-    for (const auto* architecture : {"afmoe", "qwen3tts"}) {
+    ov::Core core;
+    for (const auto* architecture : {"afmoe", "qwen3tts", "qwen3vlmoe"}) {
         SCOPED_TRACE(architecture);
-        ScratchDir scratch;
-        const auto path = write_decoder_gguf(scratch.path(), architecture);
-        ASSERT_FALSE(path.empty());
-        auto loaded = get_gguf_data(path);
-        const detail::MetadataStore meta_store{std::get<0>(loaded)};
-        const GgufMetadata meta(meta_store);
-        const auto definition = ArchRegistry{}.find(meta);
-        ASSERT_TRUE(definition);
-        detail::WeightStore store{std::get<1>(loaded), std::get<2>(loaded)};
-        for (const auto type : {GGUF_TYPE_BF16, GGUF_TYPE_Q4_K, GGUF_TYPE_Q8_0}) {
+        const auto arrays = cnpy::npz_load(test_data_dir() + "/arch_accuracy/" + architecture + ".npz");
+        const TemporaryGguf fixture(npz_array(arrays, "model"));
+        for (const auto type : {GGUF_TYPE_BF16, GGUF_TYPE_Q8_0}) {
             SCOPED_TRACE(type);
-            store.qtypes["token_embd.qtype"] = type;
-            EXPECT_NE(definition->factory(BuildContext{meta, architecture, &store}), nullptr);
+            auto loaded = get_gguf_data(fixture.path);
+            auto& weights = std::get<1>(loaded);
+            quantize_weight(weights, "token_embd.weight", type);
+            const detail::MetadataStore meta_store{std::get<0>(loaded)};
+            const GgufMetadata meta(meta_store);
+            const auto definition = ArchRegistry{}.find(meta);
+            ASSERT_TRUE(definition);
+            detail::WeightStore store{weights};
+            const auto builder = definition->factory(BuildContext{meta, architecture, &store});
+            std::shared_ptr<GgufDecoder> decoder = std::make_shared<GgufBuilderDecoder>(builder->build());
+            FrontEnd frontend;
+            frontend.add_extension(std::make_shared<GenAIExtension>(GenAIExtension::InputMode::IDS_TO_LOGITS));
+            const auto model = frontend.convert(frontend.load(decoder));
+            EXPECT_NO_THROW(core.compile_model(model,
+                                               "CPU",
+                                               ov::hint::inference_precision(ov::element::f32),
+                                               ov::hint::dynamic_quantization_group_size(0)));
         }
-    }
-}
-
-TEST(GGUFArchitectureExtension, BuiltInOmniDecoderAcceptsSupportedTensorTypes) {
-    using namespace ov::frontend::gguf;
-    ScratchDir scratch;
-    const auto path = write_decoder_gguf(scratch.path(), "qwen3vlmoe");
-    ASSERT_FALSE(path.empty());
-    auto loaded = get_gguf_data(path);
-    const detail::MetadataStore meta_store{std::get<0>(loaded)};
-    const GgufMetadata meta(meta_store);
-    const auto definition = ArchRegistry{}.find(meta);
-    ASSERT_TRUE(definition);
-    detail::WeightStore store{std::get<1>(loaded), std::get<2>(loaded)};
-    for (const auto type : {GGUF_TYPE_BF16, GGUF_TYPE_Q4_K, GGUF_TYPE_Q8_0}) {
-        SCOPED_TRACE(type);
-        store.qtypes["token_embd.qtype"] = type;
-        EXPECT_NE(definition->factory(BuildContext{meta, "qwen3vlmoe", &store}), nullptr);
     }
 }
 
@@ -696,9 +689,9 @@ TEST(GGUFArchitectureExtension, TypedUnknownLayerNormFactoryControlsScalesAndLay
         return parameters;
     });
     auto loaded = get_gguf_data(path);
-    auto& [metadata, weights, qtypes, mappings] = loaded;
+    auto& [metadata, weights, mappings] = loaded;
     detail::MetadataStore store{metadata};
-    detail::WeightStore tensors{weights, qtypes};
+    detail::WeightStore tensors{weights};
     const BuildContext context{GgufMetadata(store), "custom-normalization", &tensors};
     const auto graph = definition.factory(context)->build();
     EXPECT_TRUE(graph->use_per_op_rope);
@@ -725,7 +718,7 @@ TEST(GGUFArchitectureExtension, TypedGatedDeltaNetFactoryScalesBothResidualBranc
     const auto path = write_decoder_gguf(scratch.path(), "custom-recurrent");
     ASSERT_FALSE(path.empty());
     auto loaded = get_gguf_data(path);
-    auto& [metadata, weights, qtypes, mappings] = loaded;
+    auto& [metadata, weights, mappings] = loaded;
     for (int layer = 0; layer < 2; ++layer) {
         const auto prefix = "blk." + std::to_string(layer) + ".";
         const std::map<std::string, ov::Shape> shapes{{"attn_qkv.weight", {12, 8}},
@@ -744,7 +737,7 @@ TEST(GGUFArchitectureExtension, TypedGatedDeltaNetFactoryScalesBothResidualBranc
         }
     }
     detail::MetadataStore store{metadata};
-    detail::WeightStore tensors{weights, qtypes};
+    detail::WeightStore tensors{weights};
     const BuildContext context{GgufMetadata(store), "custom-recurrent", &tensors};
     for (float scale : {1.0f, 0.375f}) {
         const auto definition = make_decoder_architecture("custom-recurrent", [scale](const BuildContext& context) {

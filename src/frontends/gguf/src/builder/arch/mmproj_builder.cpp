@@ -8,14 +8,18 @@
 #include <array>
 #include <cmath>
 #include <limits>
+#include <map>
 #include <optional>
 #include <set>
 #include <sstream>
+#include <vector>
 
 #include "builder/api/metadata_store.hpp"
 #include "builder/gguf_graph.hpp"
 #include "builder/metadata_checks.hpp"
 #include "builder/projector_registry.hpp"
+#include "lfm3_audio_generator.hpp"
+#include "lfm3_projector_builder.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 #include "projector_adapter.hpp"
 #include "qwen3tts_projector.hpp"
@@ -66,6 +70,7 @@ struct ProjectorTopology {
     const char* name;
     EncoderTopology topology;
     unsigned traits = 0;
+    ProjectorLayout genai_layout = ProjectorLayout::Unsupported;
 };
 
 // Entries describe implemented graph topologies, independently of language DecoderConfig.
@@ -74,18 +79,18 @@ constexpr ProjectorTopology projector_catalog[] = {
     {"vision", "deepseekocr2", EncoderTopology::OCR2, RMS_NORM},
     {"vision", "pixtral", EncoderTopology::PIXTRAL, RMS_NORM},
     {"vision", "phi4", EncoderTopology::PHI4},
-    {"vision", "lfm2", EncoderTopology::LFM2},
-    {"vision", "muse-glimmer", EncoderTopology::MUSE_GLIMMER},
-    {"vision", "gemma4v", EncoderTopology::GEMMA4, RMS_NORM},
-    {"vision", "gemma4uv", EncoderTopology::UNIFIED_VISION},
+    {"vision", "lfm2", EncoderTopology::LFM2, 0, ProjectorLayout::Image},
+    {"vision", "muse-glimmer", EncoderTopology::MUSE_GLIMMER, 0, ProjectorLayout::WindowedPatches},
+    {"vision", "gemma4v", EncoderTopology::GEMMA4, RMS_NORM, ProjectorLayout::PaddedPatches},
+    {"vision", "gemma4uv", EncoderTopology::UNIFIED_VISION, 0, ProjectorLayout::PaddedPatches},
     {"audio", "gemma4a", EncoderTopology::GEMMA4_AUDIO},
     {"audio", "lfm2a", EncoderTopology::LFM2_AUDIO},
     {"audio", "gemma4ua", EncoderTopology::UNIFIED_AUDIO},
     {"vision", "minicpmv4_6", EncoderTopology::MINICPM46},
-    {"vision", "minicpmv4_7", EncoderTopology::MINICPM46},
+    {"vision", "minicpmv4_7", EncoderTopology::MINICPM46, 0, ProjectorLayout::PackedPatches},
     {"audio", "qwen3a", EncoderTopology::QWEN3_AUDIO},
     {"audio", "qwen3tts_spkenc", EncoderTopology::QWEN3_SPEAKER},
-    {"vision", "gemma3", EncoderTopology::SIGLIP, SWAPPED_FFN},
+    {"vision", "gemma3", EncoderTopology::SIGLIP, SWAPPED_FFN, ProjectorLayout::Image},
     {"vision", "idefics3", EncoderTopology::SIGLIP, SWAPPED_FFN},
     {"vision", "janus_pro", EncoderTopology::SIGLIP},
     {"vision", "mlp", EncoderTopology::CLIP, SWAPPED_FFN},
@@ -93,8 +98,8 @@ constexpr ProjectorTopology projector_catalog[] = {
     {"vision", "resampler", EncoderTopology::RESAMPLER},
     {"vision", "qwen2vl_merger", EncoderTopology::QWEN, SWAPPED_FFN},
     {"vision", "qwen2.5vl_merger", EncoderTopology::QWEN, RMS_NORM | SWAPPED_FFN},
-    {"vision", "qwen3vl_merger", EncoderTopology::QWEN},
-    {"vision", "gemma3nv", EncoderTopology::MOBILENET},
+    {"vision", "qwen3vl_merger", EncoderTopology::QWEN, 0, ProjectorLayout::SplitMerger},
+    {"vision", "gemma3nv", EncoderTopology::MOBILENET, 0, ProjectorLayout::Image},
     {"audio", "qwen2a", EncoderTopology::WHISPER, POOL_2},
     {"audio", "ultravox", EncoderTopology::WHISPER},
     {"audio", "voxtral", EncoderTopology::WHISPER, POOL_2},
@@ -1424,121 +1429,147 @@ private:
     }
 };
 
-class Qwen3TTSBuilder : public ModelBuilder {
-public:
-    explicit Qwen3TTSBuilder(const BuildContext& context) : g(context) {}
-
-    std::shared_ptr<GgufGraph> build() override {
-        RopeConfig rope;
-        rope.per_op = true;
-        g.configure_rope(rope);
-        Qwen3TTSProjector(g).build();
-        auto graph = g.finish();
-        graph->mmproj_config = {{"gen_audio.projector", std::string("qwen3tts_gen")},
-                                {"gen_audio.window_size", std::string("72")},
-                                {"gen_audio.sample_rate", std::string("24000")}};
-        return graph;
+std::vector<std::string> build_mmproj_encoders(GgufGraphContext& g,
+                                               const BuildContext& ctx,
+                                               ModelAdapters& adapters,
+                                               std::map<std::string, std::string>& config) {
+    std::optional<ProjectorRegistry> defaults;
+    const auto& registry = ctx.projectors ? *ctx.projectors : defaults.emplace();
+    std::vector<std::shared_ptr<const ProjectorDefinition>> encoders;
+    for (const auto* modality : {"vision", "audio"}) {
+        if (!ctx.metadata.get_bool(std::string("clip.has_") + modality + "_encoder").value_or(false))
+            continue;
+        const auto type = resolve_projector_type(ctx.metadata, modality);
+        const auto definition = registry.find(ctx.metadata, modality, type);
+        if (!definition && std::string(modality) == "audio" && type == "gemma3na" &&
+            ctx.metadata.get_bool("clip.has_vision_encoder").value_or(false) &&
+            resolve_projector_type(ctx.metadata, "vision") == "gemma3nv") {
+            config["audio.projector"] = type;
+            config["audio.supported"] = "false";
+            continue;
+        }
+        OPENVINO_ASSERT(definition, "[GGUF] unsupported ", modality, " mmproj projector '", type, "'");
+        encoders.push_back(definition);
     }
+    std::vector<std::string> modalities;
+    config.emplace("vision.auxiliary_count", "0");
+    for (const auto& definition : encoders) {
+        auto result = definition->build(g);
+        OPENVINO_ASSERT(result.output, "[GGUF] projector handler '", definition->id, "' returned no output");
+        g.set_output(result.output, definition->modality + ".embeddings");
+        for (const auto& entry : result.config) {
+            OPENVINO_ASSERT(entry.first.rfind(definition->modality + ".", 0) == 0,
+                            "[GGUF] projector metadata must use its modality prefix");
+            config[entry.first] = entry.second;
+        }
+        config[definition->modality + ".projector"] = definition->projector_type;
+        const auto layout =
+            result.genai_layout.value_or(definition->genai_layout.value_or(ProjectorLayout::Unsupported));
+        config[definition->modality + ".genai_layout"] = projector_layout_name(layout);
+        auto callback = result.genai_adapter.value_or(definition->genai_adapter);
+        if (callback) {
+            auto adapter = std::make_shared<ModelAdapter>();
+            adapter->transform = std::move(callback);
+            adapters[definition->modality + ".embeddings"] = std::move(adapter);
+        }
+        modalities.push_back(definition->modality);
+    }
+    return modalities;
+}
 
-private:
-    GgufGraphContext g;
-};
+void write_mmproj_config(GgufGraph& graph,
+                         const GgufMetadata& metadata,
+                         const std::map<std::string, std::string>& config) {
+    const auto number = [](auto value) {
+        std::ostringstream stream;
+        stream.precision(std::numeric_limits<double>::max_digits10);
+        stream << value;
+        return stream.str();
+    };
+    const auto join = [&](const auto& values) {
+        std::string text;
+        for (size_t i = 0; i < values.size(); ++i)
+            text += (i ? "," : "") + number(values[i]);
+        return text;
+    };
+    // Preserve full metadata names. Strings serialize through the standard IR rt_info path.
+    for (const auto& [key, value] : detail::MetadataAccess::get(metadata).map) {
+        if (key.rfind("clip.", 0) != 0)
+            continue;
+        if (const auto s = metadata.get_str(key)) {
+            graph.mmproj_config[key] = *s;
+        } else if (const auto n = metadata.get_int(key)) {
+            graph.mmproj_config[key] = std::to_string(*n);
+        } else if (const auto f = metadata.get_float(key)) {
+            graph.mmproj_config[key] = number(*f);
+        } else if (std::holds_alternative<std::vector<std::string>>(value)) {
+            // Length-prefixed strings preserve commas, quotes and empty entries.
+            std::ostringstream stream;
+            for (const auto& item : metadata.get_str_array(key))
+                stream << item.size() << ':' << item;
+            graph.mmproj_config[key] = stream.str();
+            graph.mmproj_config[key + ".encoding"] = std::string("length-prefixed-strings");
+        } else if (const auto integers = metadata.get_int_array(key); !integers.empty()) {
+            graph.mmproj_config[key] = join(integers);
+        } else {
+            graph.mmproj_config[key] = join(metadata.get_float_array(key));
+        }
+    }
+    for (const auto& entry : config)
+        graph.mmproj_config[entry.first] = entry.second;
+}
 
 class MmprojBuilder : public ModelBuilder {
 public:
     explicit MmprojBuilder(const BuildContext& context) : ctx(context), g(context) {}
 
     std::shared_ptr<GgufGraph> build() override {
-        std::optional<ProjectorRegistry> defaults;
-        const auto& registry = ctx.projectors ? *ctx.projectors : defaults.emplace();
-        std::vector<std::shared_ptr<const ProjectorDefinition>> encoders;
-        std::map<std::string, std::string> branch_config;
-        for (const auto* modality : {"vision", "audio"}) {
-            if (!ctx.metadata.get_bool(std::string("clip.has_") + modality + "_encoder").value_or(false))
-                continue;
-            const auto type = resolve_projector_type(ctx.metadata, modality);
-            const auto definition = registry.find(ctx.metadata, modality, type);
-            if (!definition && std::string(modality) == "audio" && type == "gemma3na" &&
-                ctx.metadata.get_bool("clip.has_vision_encoder").value_or(false) &&
-                resolve_projector_type(ctx.metadata, "vision") == "gemma3nv") {
-                branch_config["audio.projector"] = type;
-                branch_config["audio.supported"] = "false";
-                continue;
-            }
-            OPENVINO_ASSERT(definition, "[GGUF] unsupported ", modality, " mmproj projector '", type, "'");
-            encoders.push_back(definition);
-        }
-        const auto has_gen_audio = ctx.metadata.get_bool("clip.has_gen_audio_encoder").value_or(false);
-        OPENVINO_ASSERT(!encoders.empty() || has_gen_audio, "[GGUF] mmproj has no encoder");
         ModelAdapters adapters;
-        branch_config["vision.auxiliary_count"] = "0";
-        if (has_gen_audio) {
-            const auto type = ctx.metadata.get_str("clip.gen.audio.projector_type").value_or("");
-            OPENVINO_ASSERT(type == "qwen3tts_gen", "[GGUF] unsupported generated audio projector '", type, "'");
+        std::map<std::string, std::string> config;
+        const auto modalities = build_mmproj_encoders(g, ctx, adapters, config);
+        const auto generation_type = resolve_projector_type(ctx.metadata, "gen.audio");
+        const auto explicit_generation_type = ctx.metadata.get_str("clip.gen.audio.projector_type").value_or("");
+        const bool lfm3 = resolve_projector_type(ctx.metadata, "vision") == "lfm3vl" ||
+                          resolve_projector_type(ctx.metadata, "audio") == "lfm3a" || generation_type == "lfm3a_gen";
+        const bool has_generation = ctx.metadata.get_bool("clip.has_gen_audio_encoder").value_or(false);
+        const bool qwen3tts_generation = has_generation && explicit_generation_type == "qwen3tts_gen";
+        const bool lfm3_generation = has_generation && lfm3;
+        if (has_generation && !qwen3tts_generation && !lfm3_generation && modalities.empty())
+            OPENVINO_THROW("[GGUF] unsupported generated audio projector '", explicit_generation_type, "'");
+        OPENVINO_ASSERT(!modalities.empty() || qwen3tts_generation || lfm3_generation, "[GGUF] mmproj has no encoder");
+        if (qwen3tts_generation) {
             Qwen3TTSProjector(g).build();
-            branch_config["gen_audio.projector"] = type;
-            branch_config["gen_audio.window_size"] = "72";
-            branch_config["gen_audio.sample_rate"] = "24000";
+            config["gen_audio.projector"] = explicit_generation_type;
+            config["gen_audio.window_size"] = "72";
+            config["gen_audio.sample_rate"] = "24000";
         }
-        for (const auto& definition : encoders) {
-            auto result = definition->build(g);
-            OPENVINO_ASSERT(result.output, "[GGUF] projector handler '", definition->id, "' returned no output");
-            g.set_output(result.output, definition->modality + ".embeddings");
-            for (const auto& entry : result.config) {
-                OPENVINO_ASSERT(entry.first.rfind(definition->modality + ".", 0) == 0,
-                                "[GGUF] projector metadata must use its modality prefix");
-                branch_config[entry.first] = entry.second;
+        if (lfm3) {
+            auto contract = g.model_contract();
+            if (!contract.batchable_recurrent)
+                contract.batchable_recurrent = false;
+            for (const auto& modality : modalities)
+                contract.component_groups.try_emplace(
+                    modality,
+                    ModelComponentGroup{
+                        "encoder",
+                        {{"encoder", {{modality + ".embeddings"}, modality == "audio" ? "audio.state." : ""}}}});
+            if (lfm3_generation) {
+                OPENVINO_ASSERT(generation_type == "lfm3a_gen", "[GGUF] unsupported LFM3 audio generation projector");
+                build_lfm3_audio_generation(g);
+                contract.component_groups.try_emplace(
+                    "audio_generation",
+                    ModelComponentGroup{
+                        "depthformer",
+                        {{"depthformer", {{"audio.depth_logits"}, ""}},
+                         {"feedback", {{"audio.feedback"}, ""}},
+                         {"codec", {{"audio.spectrogram", "audio.istft_window"}, "audio.codec.state."}}}});
+                config["audio_generation.projector"] = "lfm3a_gen";
             }
-            branch_config[definition->modality + ".projector"] = definition->projector_type;
-            const auto layout =
-                result.genai_layout.value_or(definition->genai_layout.value_or(ProjectorLayout::Unsupported));
-            branch_config[definition->modality + ".genai_layout"] = projector_layout_name(layout);
-            auto callback = result.genai_adapter.value_or(definition->genai_adapter);
-            if (callback) {
-                auto adapter = std::make_shared<ModelAdapter>();
-                adapter->transform = std::move(callback);
-                adapters[definition->modality + ".embeddings"] = std::move(adapter);
-            }
+            g.configure_model_contract(contract);
         }
         auto graph = g.finish();
         graph->model_adapters = std::move(adapters);
-        const auto number = [](auto value) {
-            std::ostringstream stream;
-            stream.precision(std::numeric_limits<double>::max_digits10);
-            stream << value;
-            return stream.str();
-        };
-        const auto join = [&](const auto& values) {
-            std::string text;
-            for (size_t i = 0; i < values.size(); ++i)
-                text += (i ? "," : "") + number(values[i]);
-            return text;
-        };
-        // Preserve full metadata names. Strings serialize through the standard IR rt_info path.
-        for (const auto& [key, value] : detail::MetadataAccess::get(ctx.metadata).map) {
-            if (key.rfind("clip.", 0) != 0)
-                continue;
-            if (const auto s = ctx.metadata.get_str(key)) {
-                graph->mmproj_config[key] = *s;
-            } else if (const auto n = ctx.metadata.get_int(key)) {
-                graph->mmproj_config[key] = std::to_string(*n);
-            } else if (const auto f = ctx.metadata.get_float(key)) {
-                graph->mmproj_config[key] = number(*f);
-            } else if (std::holds_alternative<std::vector<std::string>>(value)) {
-                // Length-prefixed strings preserve commas, quotes and empty entries.
-                std::ostringstream stream;
-                for (const auto& item : ctx.metadata.get_str_array(key))
-                    stream << item.size() << ':' << item;
-                graph->mmproj_config[key] = stream.str();
-                graph->mmproj_config[key + ".encoding"] = std::string("length-prefixed-strings");
-            } else if (const auto integers = ctx.metadata.get_int_array(key); !integers.empty()) {
-                graph->mmproj_config[key] = join(integers);
-            } else {
-                graph->mmproj_config[key] = join(ctx.metadata.get_float_array(key));
-            }
-        }
-        for (const auto& entry : branch_config)
-            graph->mmproj_config[entry.first] = entry.second;
+        write_mmproj_config(*graph, ctx.metadata, config);
         return graph;
     }
 
@@ -1549,9 +1580,19 @@ private:
 
 }  // namespace
 
+ProjectorLayout builtin_projector_layout(const std::string& projector_type) {
+    for (const auto& entry : projector_catalog) {
+        if (std::string(entry.modality) == "vision" && projector_type == entry.name)
+            return entry.genai_layout;
+    }
+    return ProjectorLayout::Unsupported;
+}
+
 ProjectorResult build_builtin_projector(GgufGraphContext& graph,
                                         const std::string& modality,
                                         const std::string& projector_type) {
+    if ((modality == "vision" && projector_type == "lfm3vl") || (modality == "audio" && projector_type == "lfm3a"))
+        return build_lfm3_projector(graph, modality);
     auto result = BuiltinProjectorBuilder(graph).build(modality, projector_type);
     if (modality == "vision") {
         const auto layout = builtin_projector_layout(projector_type);
@@ -1562,7 +1603,7 @@ ProjectorResult build_builtin_projector(GgufGraphContext& graph,
 }
 
 std::vector<ProjectorDefinition> builtin_projectors() {
-    std::vector<ProjectorDefinition> definitions;
+    auto definitions = lfm3_projector_definitions();
     for (const auto& entry : projector_catalog) {
         const std::string modality = entry.modality;
         const std::string type = entry.name;
@@ -1580,10 +1621,6 @@ std::vector<ProjectorDefinition> builtin_projectors() {
 
 std::shared_ptr<ModelBuilder> make_mmproj_builder(const BuildContext& context) {
     return std::make_shared<MmprojBuilder>(context);
-}
-
-std::shared_ptr<ModelBuilder> make_qwen3tts_projector_builder(const BuildContext& context) {
-    return std::make_shared<Qwen3TTSBuilder>(context);
 }
 
 }  // namespace ov::frontend::gguf

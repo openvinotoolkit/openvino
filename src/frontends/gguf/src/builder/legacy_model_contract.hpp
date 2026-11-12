@@ -211,15 +211,22 @@ inline LegacyEmbeddingBoundaries resolve_legacy_embedding_boundaries(const std::
     return boundaries;
 }
 
+inline bool resolve_legacy_genai_adaptation(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& parameter : model->get_parameters()) {
+        if (parameter->get_friendly_name() == "dspark_ctx_feat" ||
+            parameter->output(0).get_names().count("dspark_ctx_feat"))
+            return false;
+    }
+    return true;
+}
+
 inline ModelContract::GenAIContract resolve_legacy_genai_contract(const std::shared_ptr<ov::Model>& model) {
     ModelContract::GenAIContract contract;
+    contract.enabled = resolve_legacy_genai_adaptation(model);
     const auto architecture = model->has_rt_info({"gguf_architecture"})
                                   ? model->get_rt_info<std::string>({"gguf_architecture"})
                                   : std::string{};
     for (const auto& parameter : model->get_parameters()) {
-        const auto& names = parameter->output(0).get_names();
-        if (names.count("dspark_ctx_feat"))
-            contract.enabled = false;
         if (parameter->get_friendly_name() == "gguf.target_token_embedding" ||
             parameter->get_friendly_name() == "gguf.target_lm_head")
             contract.preserved_inputs.push_back(parameter->output(0).get_any_name());
@@ -233,7 +240,6 @@ inline ModelContract::GenAIContract resolve_legacy_genai_contract(const std::sha
         contract.causal_attention = false;
         contract.attention_context_input = "hidden_states";
     }
-    contract.logits_first = architecture == "eagle3";
     const auto& results = model->get_results();
     for (size_t i = 1; i < results.size(); ++i) {
         auto source = results[i]->input_value(0);
@@ -256,6 +262,7 @@ inline ModelContract resolve_legacy_model_contract(const std::shared_ptr<ov::Mod
                                                    std::optional<int64_t> embedding_width) {
     ModelContract contract;
     contract.genai = resolve_legacy_genai_contract(model);
+    contract.supports_genai_adaptation = resolve_legacy_genai_adaptation(model);
     if (!model->has_rt_info({"gguf_architecture"}))
         return contract;
     const auto architecture = model->get_rt_info<std::string>({"gguf_architecture"});

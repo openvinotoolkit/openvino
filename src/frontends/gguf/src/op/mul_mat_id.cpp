@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 
+#include "helper_ops/gguf_constant.hpp"
 #include "node_context.hpp"
 #include "op_table.hpp"
 #include "openvino/op/bitwise_and.hpp"
@@ -330,7 +331,20 @@ ov::Output<ov::Node> translate_mul_mat_id_generic(ov::Output<ov::Node> expert_we
 }
 
 std::shared_ptr<ov::op::v0::Constant> half_expert_constant(const ov::Output<ov::Node>& weights) {
+    const auto& partial_shape = weights.get_partial_shape();
+    if (!partial_shape.is_static())
+        return nullptr;
+    const auto shape = partial_shape.to_shape();
+    if (shape.size() != 3 && (shape.size() != 4 || shape[0] != 1))
+        return nullptr;
     auto source = weights;
+    if (const auto deferred = ov::as_type_ptr<GGUFConstant>(source.get_node_shared_ptr())) {
+        if (deferred->qtype() != GGUF_TYPE_F16 && deferred->qtype() != GGUF_TYPE_BF16)
+            return nullptr;
+        source = deferred->materialize()->output(0);
+        if (const auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(source.get_node_shared_ptr()))
+            source = reshape->input_value(0);
+    }
     if (const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(source.get_node_shared_ptr())) {
         if (convert->get_destination_type() != ov::element::f32) {
             return nullptr;
@@ -342,11 +356,7 @@ std::shared_ptr<ov::op::v0::Constant> half_expert_constant(const ov::Output<ov::
         (source.get_element_type() != ov::element::f16 && source.get_element_type() != ov::element::bf16)) {
         return nullptr;
     }
-    const auto& shape = constant->get_shape();
-    if (shape.size() != 3 && (shape.size() != 4 || shape[0] != 1)) {
-        return nullptr;
-    }
-    return constant;
+    return constant->get_shape() == shape ? constant : std::make_shared<ov::op::v0::Constant>(*constant, shape);
 }
 
 ov::Output<ov::Node> translate_mul_mat_id_half(std::shared_ptr<ov::op::v0::Constant> weights,
@@ -432,7 +442,7 @@ OutputVector translate_mul_mat_id(const NodeContext& context) {
         result = translate_mul_mat_id_mxfp4_packed(expert_weights, activations, safe_ids);
     } else if (auto half_weights = half_expert_constant(expert_weights)) {
         result = translate_mul_mat_id_half(std::move(half_weights), activations, safe_ids);
-    } else if (ov::op::util::is_on_path<ov::op::v0::Constant>(expert_weights)) {
+    } else if (ov::op::util::is_on_path<ov::op::v0::Constant, GGUFConstant>(expert_weights)) {
         result = translate_mul_mat_id_gathermatmul(expert_weights, activations, safe_ids);
     } else {
         result = translate_mul_mat_id_generic(expert_weights, activations, safe_ids);

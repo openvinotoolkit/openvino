@@ -21,7 +21,7 @@ public:
     explicit DSparkBuilder(const BuildContext& context)
         : m_metadata(context.metadata),
           m_config(resolve_decoder_parameters(context.metadata, RopeMode::Neox), context.weights->weights),
-          m_emitter(context.weights->weights, context.weights->qtypes, context.arch, context.weights->translators) {}
+          m_emitter(context.weights->weights, context.arch, context.weights->translators) {}
 
     std::shared_ptr<GgufGraph> build() override {
         using ov::element::f32;
@@ -41,10 +41,9 @@ public:
         OPENVINO_ASSERT(!captures.empty(), "[GGUF] missing DSpark target_layers");
         OPENVINO_ASSERT(!m_metadata.get_bool("dspark.dspark.hidden_correction").value_or(false),
                         "[GGUF] DSpark hidden correction is not supported");
+        m_config.model_contract.supports_genai_adaptation = false;
         auto& e = m_emitter;
         m_config.configure_graph(e, m_metadata);
-        e.graph()->model_contract.genai.emplace();
-        e.graph()->model_contract.genai->enabled = false;
         const auto kv = blocks::KvCachePlan::build(m_config);
         e.add_input("inp_tokens", i32, ps({1, 1, 1, block}));
         e.add_input("inp_pos", i32, ps({1, 1, 1, -1}));
@@ -76,8 +75,7 @@ public:
                     features.data<float>()[pos * feature_width + feature_width / 2 + i] = std::cos(angle);
                 }
             }
-            e.weights()["dspark.log_snr_features"] = features;
-            e.add_named_weight("dspark.log_snr_features");
+            e.add_generated_weight("dspark.log_snr_features", features);
             auto snr = std::string("dspark.log_snr_features");
             for (int layer = 1; layer <= 2; ++layer) {
                 const auto name = "dspark.log_snr_fc" + std::to_string(layer);

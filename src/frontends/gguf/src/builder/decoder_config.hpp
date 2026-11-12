@@ -20,7 +20,7 @@ class GraphEmitter;
 // Internal configuration resolved from metadata, tensor shapes and architecture semantics.
 // Typed parameters resolve semantics before dependent plans are built.
 struct DecoderConfig {
-    DecoderConfig(const DecoderParameters& parameters, const std::unordered_map<std::string, ov::Tensor>& weights);
+    DecoderConfig(const DecoderParameters& parameters, const GgufWeightTable& weights);
 
     // Sets the graph's RoPE, SWA and model-contract state and configures the weight transforms.
     void configure_graph(GraphEmitter& emitter, const GgufMetadata& metadata) const;

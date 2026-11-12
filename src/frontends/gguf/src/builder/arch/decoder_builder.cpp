@@ -58,7 +58,7 @@ constexpr int64_t D = -1;
 
 DecoderBuilder::DecoderBuilder(const BuildContext& context, const DecoderParameters& parameters)
     : m_cfg(parameters, context.weights->weights),
-      m_emit(context.weights->weights, context.weights->qtypes, context.arch, context.weights->translators),
+      m_emit(context.weights->weights, context.arch, context.weights->translators),
       m_kv(blocks::KvCachePlan::build(m_cfg)) {
     m_cfg.configure_graph(m_emit, context.metadata);
     auto& graph = *m_emit.graph();
@@ -297,7 +297,7 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
         auto ffn_norm_r = norm(m_emit, ffn_inp_r, p + m_cfg.ffn_norm_key, p + "ffn_norm", m_cfg.rms_eps);
         // Mirror the non-recurrent FFN dispatch below: Qwen3-Next is MoE for every trunk layer
         // (llama.cpp routes both the GDN and full-attention layers through build_moe_ffn), so a
-        // real model has no per-layer dense FFN tensors here and dense_ffn's weight_tensor lookup
+        // real model has no per-layer dense FFN tensors here and dense_ffn's weight lookup
         // would assert.
         const bool is_moe_layer_r = m_cfg.layer_is_moe(il);
         auto down_r = is_moe_layer_r   ? blocks::moe_ffn(m_emit, m_cfg, p, ffn_norm_r)
@@ -334,6 +334,9 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
                     : m_cfg.post_norm_only
                         ? ffn_inp
                         : norm(m_emit, ffn_inp, p + m_cfg.ffn_norm_key, p + "ffn_norm", m_cfg.rms_eps);
+    if (m_cfg.parallel_ffn && selects_output_rows(il)) {
+        ffn_norm = m_emit.add_op("GGML_OP_GET_ROWS", p + "ffn_norm_g", {ffn_norm, "inp_out_ids"});
+    }
 
     // Hybrid MoE: lead layers (il < n_dense_lead) are always dense regardless of is_moe.
     const bool is_moe_layer = m_cfg.layer_is_moe(il);
@@ -359,7 +362,7 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
 
     // Gemma4: per-layer output scale (layer_output_scale.weight is a scalar [1]).
     if (m_emit.has_weight(p + "layer_output_scale.weight")) {
-        m_emit.add_named_weight(p + "layer_output_scale.weight");
+        m_emit.add_weight(p + "layer_output_scale.weight");
         cur = m_emit.add_op("GGML_OP_MUL", p + "scaled_out", {cur, p + "layer_output_scale.weight"});
     }
     return cur;
@@ -426,7 +429,7 @@ std::string DecoderBuilder::build_head(const std::string& in) {
     }
     if (m_cfg.arch == "dflash" && m_emit.has_weight("d2t")) {
         using namespace ov::op;
-        const auto& mapping = m_emit.weights().at("d2t");
+        const auto& mapping = m_emit.weight_source("d2t").data;
         OPENVINO_ASSERT(mapping.get_element_type() == i64 && mapping.get_shape().size() == 1,
                         "[GGUF] DFlash d2t must be a rank-one i64 tensor");
         auto shape = std::make_shared<v3::ShapeOf>(m_emit.value(logits));
@@ -499,7 +502,7 @@ std::shared_ptr<GgufGraph> DecoderBuilder::build() {
     auto graph = m_emit.graph();
     graph->model_output_names.insert(graph->model_output_names.begin(), logits);
     if (m_cfg.arch == "eagle3" && m_emit.has_weight("d2t")) {
-        const auto& mapping = m_emit.weights().at("d2t");
+        const auto& mapping = m_emit.weight_source("d2t").data;
         OPENVINO_ASSERT(mapping.get_element_type() == i64, "[GGUF] Eagle3 d2t must be i64");
         auto constant = std::make_shared<ov::op::v0::Constant>(mapping);
         constant->set_friendly_name("d2t");
@@ -518,7 +521,7 @@ std::string DecoderBuilder::build_dflash(const std::string& embeddings) {
     m_emit.add_input("hidden_states", f32, {1, 1, -1, width});
     auto context = m_emit.add_op("GGML_OP_MUL_MAT", "dflash.fc", {"fc.weight", "hidden_states"});
     if (m_emit.has_weight("fc.scale")) {
-        m_emit.add_named_weight("fc.scale");
+        m_emit.add_weight("fc.scale");
         context = m_emit.add_op("GGML_OP_MUL", "dflash.fc_scaled", {context, "fc.scale"});
     }
     context = blocks::rms_norm(m_emit, context, "enc.output_norm.weight", "dflash.encoder_norm", m_cfg.rms_eps);

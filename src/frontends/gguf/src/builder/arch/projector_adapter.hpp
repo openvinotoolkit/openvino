@@ -21,7 +21,8 @@ std::string projector_layout_name(ProjectorLayout layout);
 ProjectorLayout builtin_projector_layout(const std::string& projector_type);
 std::vector<std::string> projector_embedding_outputs(const std::shared_ptr<ov::Model>& model,
                                                      const std::string& modality);
-void require_projector_layout(const std::shared_ptr<ov::Model>& model);
+// Throws when the model declares no adaptable GenAI vision layout.
+ProjectorLayout read_projector_layout(const std::shared_ptr<ov::Model>& model);
 ProjectorModels adapt_projector_layout(const std::shared_ptr<ov::Model>& model);
 
 }  // namespace ov::frontend::gguf

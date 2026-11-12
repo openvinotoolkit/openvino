@@ -28,13 +28,13 @@ DecoderParameters decoder_family_defaults(const std::string& arch, int layers, i
     p.causal_attention = arch != "dflash";
     p.model_contract.genai.emplace();
     auto& genai = *p.model_contract.genai;
-    genai.enabled = arch != "dspark" && !p.embedding_model;
+    if (arch == "dspark" || p.embedding_model)
+        p.model_contract.supports_genai_adaptation = false;
     genai.causal_attention = p.causal_attention;
     if (is_one_of(arch, {"qwen3vl", "qwen3vlmoe", "qwen3tts"}))
         genai.position_layout = ModelContract::GenAIContract::PositionLayout::THREE_AXIS;
     if (arch == "dflash")
         genai.attention_context_input = "hidden_states";
-    genai.logits_first = arch == "eagle3";
     if (is_one_of(arch, {"jais2", "cohere2"}))
         p.normalization.kind = NormalizationKind::Layer;
     p.parallel_ffn = arch == "cohere2";

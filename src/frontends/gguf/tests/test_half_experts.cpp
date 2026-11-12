@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <sstream>
+#include <cstring>
 #include <tuple>
 
+#include "helper_ops/gguf_constant.hpp"
 #include "node_context.hpp"
 #include "op_test_utils.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
-#include "openvino/pass/serialize.hpp"
 #include "ov_ops/gather_matmul.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
@@ -22,19 +22,26 @@ using namespace ov_gguf_test;
 
 namespace {
 
-using HalfExpertCase = std::tuple<ov::element::Type, bool, bool, bool>;
+enum class WeightStorage { DIRECT, CONVERTED, NATIVE_DEFERRED, CGRAPH_DEFERRED };
+using HalfExpertCase = std::tuple<ov::element::Type, bool, WeightStorage, bool>;
 
 std::shared_ptr<ov::Model> expert_model(const ov::element::Type& precision,
                                         bool rank4,
-                                        bool converted,
+                                        WeightStorage storage,
                                         bool per_expert,
                                         const std::vector<float>& values) {
     const ov::Shape weight_shape = rank4 ? ov::Shape{1, 3, 2, 2} : ov::Shape{3, 2, 2};
     auto constant = ov::op::v0::Constant::create(precision, weight_shape, values);
     constant->set_friendly_name("expert_storage");
     ov::Output<ov::Node> weights = constant;
-    if (converted) {
+    if (storage == WeightStorage::CONVERTED) {
         weights = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f32);
+    } else if (storage == WeightStorage::NATIVE_DEFERRED || storage == WeightStorage::CGRAPH_DEFERRED) {
+        ov::Tensor data(precision, weight_shape);
+        std::memcpy(data.data(), constant->get_data_ptr(), data.get_byte_size());
+        ov::frontend::gguf::GgufWeight source(data);
+        source.native = storage == WeightStorage::NATIVE_DEFERRED;
+        weights = std::make_shared<ov::frontend::gguf::GGUFConstant>(source);
     }
     const ov::PartialShape acts_shape{1, ov::Dimension::dynamic(), per_expert ? 2 : 1, 2};
     const ov::PartialShape ids_shape{1, 1, ov::Dimension::dynamic(), 2};
@@ -143,24 +150,19 @@ void infer_tokens(ov::InferRequest& request,
 class GGUFHalfExperts : public ::testing::TestWithParam<HalfExpertCase> {};
 
 TEST_P(GGUFHalfExperts, PreservesStorageAndDynamicTokenValues) {
-    const auto [precision, rank4, converted, per_expert] = GetParam();
+    const auto [precision, rank4, storage, per_expert] = GetParam();
     // These are the independent expected values of GGUFOps.MulMatIdNused2 and ActivationsPerExpert.
     const std::vector<float> weights{1, 0, 0, 1, 2, 0, 0, 2, 3, 0, 0, 3};
     const std::vector<float> expected =
         per_expert ? std::vector<float>{1, 2, 6, 8, 15, 18, 7, 8} : std::vector<float>{1, 2, 2, 4, 9, 12, 3, 4};
-    auto model = expert_model(precision, rank4, converted, per_expert, weights);
+    auto model = expert_model(precision, rank4, storage, per_expert, weights);
     check_half_graph(model, precision, false);
     ov::Core core;
     const ov::AnyMap properties{{"INFERENCE_PRECISION_HINT", ov::element::f32}, {"DYNAMIC_QUANTIZATION_GROUP_SIZE", 0}};
     for (const bool roundtrip : {false, true}) {
         SCOPED_TRACE(roundtrip ? "serialized" : "original");
         if (roundtrip) {
-            std::stringstream xml, bin;
-            ov::pass::Serialize(xml, bin).run_on_model(model);
-            auto bytes = bin.str();
-            ov::Tensor storage(ov::element::u8, {bytes.size()});
-            std::memcpy(storage.data(), bytes.data(), bytes.size());
-            model = core.read_model(xml.str(), storage);
+            model = reload_ir_model(model);
             check_half_graph(model, precision, true);
         }
         auto compiled = core.compile_model(model, "CPU", properties);
@@ -171,22 +173,25 @@ TEST_P(GGUFHalfExperts, PreservesStorageAndDynamicTokenValues) {
             infer_tokens(request, tokens, per_expert, expected);
         }
     }
-    auto f32 = expert_model(ov::element::f32, rank4, false, per_expert, weights);
-    auto compiled = core.compile_model(f32, "CPU", properties);
-    auto request = compiled.create_infer_request();
-    infer_tokens(request, 2, per_expert, expected);
 }
 
 INSTANTIATE_TEST_SUITE_P(Storage,
                          GGUFHalfExperts,
                          ::testing::Combine(::testing::Values(ov::element::f16, ov::element::bf16),
                                             ::testing::Bool(),
-                                            ::testing::Bool(),
+                                            ::testing::Values(WeightStorage::DIRECT,
+                                                              WeightStorage::CONVERTED,
+                                                              WeightStorage::NATIVE_DEFERRED,
+                                                              WeightStorage::CGRAPH_DEFERRED),
                                             ::testing::Bool()),
                          ([](const ::testing::TestParamInfo<HalfExpertCase>& info) {
-                             const auto& [precision, rank4, converted, per_expert] = info.param;
+                             const auto& [precision, rank4, storage, per_expert] = info.param;
+                             const auto storage_name = storage == WeightStorage::DIRECT            ? "_direct"
+                                                       : storage == WeightStorage::CONVERTED       ? "_converted"
+                                                       : storage == WeightStorage::NATIVE_DEFERRED ? "_native"
+                                                                                                   : "_cgraph";
                              return std::string(precision.get_type_name()) + (rank4 ? "_rank4" : "_rank3") +
-                                    (converted ? "_converted" : "_direct") + (per_expert ? "_down" : "_shared");
+                                    storage_name + (per_expert ? "_down" : "_shared");
                          }));
 
 TEST(GGUFHalfExpertsRepresented, Bf16ValuesMatchAnalyticAndF32Path) {
@@ -210,7 +215,11 @@ TEST(GGUFHalfExpertsRepresented, Bf16ValuesMatchAnalyticAndF32Path) {
     ov::Core core;
     for (const auto& precision : {ov::element::bf16, ov::element::f32}) {
         SCOPED_TRACE(precision.get_type_name());
-        auto model = expert_model(precision, false, precision == ov::element::bf16, true, represented);
+        auto model = expert_model(precision,
+                                  false,
+                                  precision == ov::element::bf16 ? WeightStorage::CONVERTED : WeightStorage::DIRECT,
+                                  true,
+                                  represented);
         auto compiled = core.compile_model(
             model,
             "CPU",

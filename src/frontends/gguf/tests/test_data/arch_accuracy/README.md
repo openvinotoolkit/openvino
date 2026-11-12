@@ -98,6 +98,8 @@ PYTHONPATH="$LLAMA_SRC/gguf-py" python3 gen_dspark_accuracy.py --oracle ./dspark
 Gated-DeltaNet feature ordering. `dspark.npz` uses the DSpark API oracle for noncausal
 draft blocks with log-SNR conditioning; it also stores Markov and confidence projection
 weights for the head checks. The upstream oracle revision does not supply these Prism contracts.
+The `qwen3next-legacy-hadamard` case rotates the legacy fixture's fused weights and reuses its
+original logits; it always uses the committed fixture, even when `OV_GGUF_ACCURACY_DATA` is set.
 
 For an additional real-checkpoint check, create `<arch>.gguf` in a separate directory,
 then run `architecture_oracle <arch>.gguf <arch>.bin "The capital of France is"`.
