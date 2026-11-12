@@ -1109,32 +1109,54 @@ protected:
         return {std::make_shared<HFACpuCompiledModel>(model, m_plugin, std::move(cpu), id)};
     }
 
-    std::shared_ptr<ov::npuw::CompiledModel> compile(bool fused, bool short_tiles = false) {
-        auto first = build_hfa_runtime_model(PAST_LEN, !fused);
-        auto second = build_hfa_runtime_model(PAST_LEN, !fused);
-        for (const auto& node : second->get_ops()) {
-            node->set_friendly_name(node->get_friendly_name() + ".1");
+    std::shared_ptr<ov::npuw::CompiledModel> compile(bool fused,
+                                                     bool short_tiles = false,
+                                                     bool alternating_masks = false) {
+        std::vector<std::shared_ptr<ov::Model>> models;
+        ov::ParameterVector parameters;
+        ov::OutputVector outputs;
+        for (size_t call = 0; call < (alternating_masks ? 3u : 2u); ++call) {
+            auto model = build_hfa_runtime_model(PAST_LEN, !fused);
+            if (call != 0) {
+                const auto suffix = "." + std::to_string(call);
+                for (const auto& node : model->get_ops()) {
+                    node->set_friendly_name(node->get_friendly_name() + suffix);
+                }
+                for (const auto& parameter : model->get_parameters()) {
+                    parameter->output(0).set_names({parameter->output(0).get_any_name() + suffix});
+                }
+            }
+            if (call == 2) {
+                model->replace_parameter(model->get_parameters().size() - 1, models.front()->get_parameters().back());
+            }
+            for (const auto& parameter : model->get_parameters()) {
+                if (std::find(parameters.begin(), parameters.end(), parameter) == parameters.end()) {
+                    parameters.push_back(parameter);
+                }
+            }
+            outputs.push_back(model->get_results()[0]->input_value(0));
+            models.push_back(model);
         }
-        auto parameters = first->get_parameters();
-        for (const auto& parameter : second->get_parameters()) {
-            parameter->output(0).set_names({parameter->output(0).get_any_name() + ".1"});
-            parameters.push_back(parameter);
-        }
-        m_reference_model = std::make_shared<ov::Model>(
-            ov::OutputVector{first->get_results()[0]->input_value(0), second->get_results()[0]->input_value(0)},
-            parameters);
+        m_reference_model = std::make_shared<ov::Model>(outputs, parameters);
         m_plan = std::filesystem::temp_directory_path() /
                  ("hfa_plan_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".xml");
         {
             std::ofstream plan(m_plan);
             plan << "<ensemble gflops=\"1\"><partitioning>";
-            for (const auto& model : {first, second}) {
-                plan << "<group gflops=\"1\" tag=\"attn\">";
+            std::vector<std::vector<std::shared_ptr<ov::Node>>> grouped_layers;
+            for (const auto& model : models) {
+                plan << "<group gflops=\"1\" tag=\"attn\"";
+                if (alternating_masks) {
+                    plan << " repeated=\"hfa\"";
+                }
+                plan << ">";
+                grouped_layers.emplace_back();
                 for (const auto& node : model->get_ordered_ops()) {
                     if (ov::is_type<ov::op::v0::Parameter>(node) || ov::is_type<ov::op::v0::Constant>(node) ||
                         ov::is_type<ov::op::v0::Result>(node)) {
                         continue;
                     }
+                    grouped_layers.back().push_back(node);
                     plan << "<layer name=\"" << node->get_friendly_name() << "\"/>";
                     const auto inputs = node->input_values();
                     if (std::any_of(inputs.begin(), inputs.end(), [](const auto& input) {
@@ -1146,7 +1168,22 @@ protected:
                 plan << "<output name=\"" << model->get_results()[0]->input_value(0).get_node()->get_friendly_name()
                      << "\"/></group>";
             }
-            plan << "</partitioning></ensemble>";
+            plan << "</partitioning>";
+            if (alternating_masks) {
+                plan << "<repeated><block id=\"hfa\">";
+                for (size_t layer = 0; layer < grouped_layers.front().size(); ++layer) {
+                    plan << "<match>";
+                    for (const auto& layers : grouped_layers) {
+                        OPENVINO_ASSERT(layers.size() == grouped_layers.front().size());
+                        OPENVINO_ASSERT(layers[layer]->get_type_info() ==
+                                        grouped_layers.front()[layer]->get_type_info());
+                        plan << "<layer name=\"" << layers[layer]->get_friendly_name() << "\"/>";
+                    }
+                    plan << "</match>";
+                }
+                plan << "</block></repeated>";
+            }
+            plan << "</ensemble>";
             OPENVINO_ASSERT(plan.good(), "Could not write the HFA partition plan");
         }
         auto compiled =
@@ -1168,7 +1205,11 @@ protected:
                                                                  {"NPUW_ATTN_HFA_FUSED", fused ? "YES" : "NO"},
                                                                  {"NPUW_ATTN_HFA_MASK_SKIPPING", "YES"}});
         m_hfa = nullptr;
-        for (auto& desc : compiled->m_compiled_submodels) {
+        for (size_t idx = 0; idx < compiled->m_compiled_submodels.size(); ++idx) {
+            auto& desc = compiled->m_compiled_submodels[idx];
+            if (desc.replaced_by.value_or(idx) != idx) {
+                continue;
+            }
             if (auto* hfa = ov::npuw::attn::get_compiled_hfa(desc.pipeline.context)) {
                 m_hfa = hfa;
                 if (short_tiles) {
@@ -1191,7 +1232,8 @@ protected:
 
     void check(const std::shared_ptr<ov::npuw::CompiledModel>& compiled,
                int64_t history,
-               const ov::SoPtr<ov::IAsyncInferRequest>& existing_request = {}) {
+               const ov::SoPtr<ov::IAsyncInferRequest>& existing_request = {},
+               bool alternating_masks = false) {
         ASSERT_NE(m_hfa, nullptr);
         auto request = existing_request ? existing_request : compiled->create_infer_request();
         bool history_set = false;
@@ -1210,10 +1252,11 @@ protected:
         for (const auto& port : compiled->inputs()) {
             ov::Tensor tensor(port.get_element_type(), port.get_shape());
             auto* data = tensor.data<float>();
-            for (size_t i = 0; i < tensor.get_size(); ++i) {
-                data[i] = static_cast<float>(1 + i % 7) / 32.0f;
-            }
             const auto name = port.get_any_name();
+            const size_t call = alternating_masks ? (name.back() == '2' ? 2 : name.back() == '1' ? 1 : 0) : 0;
+            for (size_t i = 0; i < tensor.get_size(); ++i) {
+                data[i] = static_cast<float>(1 + i % 7 + 3 * call) / 32.0f;
+            }
             if (name.find("past_key_values") != std::string::npos) {
                 const bool transposed_value =
                     name.find(".value") != std::string::npos && m_hfa->_sdpa_attention_info._v_seq_dim == 3;
@@ -1221,13 +1264,17 @@ protected:
                     const size_t slot = (i / (transposed_value ? 1 : HEAD_DIM)) % PAST_LEN;
                     if (static_cast<int64_t>(slot) >= history) {
                         data[i] = name.find(".key") != std::string::npos ? 16.0f : 128.0f;
+                    } else if (alternating_masks && slot == 1 && name.find(".value") != std::string::npos) {
+                        data[i] += 2.0f + static_cast<float>(call);
                     }
                 }
             } else if (name.find("mask.0") != std::string::npos) {
+                const bool excludes_slot_one = alternating_masks && name == "mask.0.1";
                 for (size_t q = 0; q < QUERY_SIZE; ++q) {
                     for (size_t k = 0; k < PAST_LEN + QUERY_SIZE; ++k) {
                         data[q * (PAST_LEN + QUERY_SIZE) + k] =
-                            (k < static_cast<size_t>(history) || (k >= PAST_LEN && k <= PAST_LEN + q))
+                            ((k < static_cast<size_t>(history) && !(excludes_slot_one && k == 1)) ||
+                             (k >= PAST_LEN && k <= PAST_LEN + q))
                                 ? 0.0f
                                 : std::numeric_limits<float>::lowest();
                     }
@@ -1317,6 +1364,22 @@ TEST_F(HostFlashAttentionRuntimeTest, NonFusedPartialHistorySkipsUpperTile) {
     check(compiled, 3);
     EXPECT_EQ(count(m_hfa->_compiled_tile_model), count(m_hfa->_compiled_final_tile_model));
     EXPECT_FALSE(m_hfa->_compiled_masked_tile_model);
+}
+
+TEST_F(HostFlashAttentionRuntimeTest, FusedFoldedCallsWithAlternatingMasks) {
+    auto compiled = compile(true, false, true);
+    ASSERT_EQ(compiled->outputs().size(), 3u);
+    ASSERT_EQ(compiled->m_compiled_submodels.size(), 3u);
+    for (const auto& desc : compiled->m_compiled_submodels) {
+        ASSERT_TRUE(desc.replaced_by.has_value());
+        ASSERT_EQ(*desc.replaced_by, 0u);
+    }
+    ASSERT_NE(m_hfa, nullptr);
+    ASSERT_TRUE(m_hfa->_compiled_masked_tile_model);
+    check(compiled, 3, {}, true);
+    EXPECT_EQ(count(m_hfa->_compiled_tile_model), 0u);
+    EXPECT_EQ(count(m_hfa->_compiled_masked_tile_model), 3u);
+    EXPECT_EQ(count(m_hfa->_compiled_final_tile_model), 3u);
 }
 
 TEST_F(HostFlashAttentionRuntimeTest, MaskedTileExportImport) {

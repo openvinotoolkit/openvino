@@ -1154,10 +1154,12 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                                tile_length)) {
                                     request->set_tensor(model->inputs()[tile_in.mask], attention_mask_tensor);
                                 } else if (state.hfa_runtime_ctx.has_value()) {
-                                    auto cached_tile =
-                                        state.hfa_runtime_ctx->find_cached_mask_tile(attention_mask_tensor,
-                                                                                     mask_offset,
-                                                                                     tile_length);
+                                    const bool use_mask_cache = is_final_tile || uses_mask;
+                                    auto cached_tile = use_mask_cache ? state.hfa_runtime_ctx->find_cached_mask_tile(
+                                                                            attention_mask_tensor,
+                                                                            mask_offset,
+                                                                            tile_length)
+                                                                      : ov::SoPtr<ov::ITensor>{};
                                     if (cached_tile) {
                                         request->set_tensor(model->inputs()[tile_in.mask], cached_tile);
                                     } else {
@@ -1172,10 +1174,12 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                               mask_offset,
                                                               tile_length,
                                                               "Mask");
-                                        state.hfa_runtime_ctx->cache_mask_tile(attention_mask_tensor,
-                                                                               mask_offset,
-                                                                               tile_length,
-                                                                               cached_mask_tile);
+                                        if (use_mask_cache) {
+                                            state.hfa_runtime_ctx->cache_mask_tile(attention_mask_tensor,
+                                                                                   mask_offset,
+                                                                                   tile_length,
+                                                                                   cached_mask_tile);
+                                        }
                                         request->set_tensor(model->inputs()[tile_in.mask], cached_mask_tile);
                                         if (!is_final_tile && uses_mask) {
                                             next_available_mask_buffer_idx++;
