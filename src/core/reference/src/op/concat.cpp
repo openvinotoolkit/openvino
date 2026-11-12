@@ -4,7 +4,9 @@
 
 #include "openvino/reference/concat.hpp"
 
+#include <algorithm>
 #include <cstring>
+#include <iterator>
 
 namespace ov::reference {
 namespace {
