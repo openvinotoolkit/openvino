@@ -462,6 +462,17 @@ static std::pair<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> broadcast
     return {k_tile_broadcast, v_tile_broadcast};
 }
 
+// The non-fused tile math expects V as [B,H,head_dim,tile]; bring normal-layout V into that form.
+static std::shared_ptr<ov::Node> v_tile_to_bhds(const std::shared_ptr<ov::Node>& v_tile_f32, bool v_transposed) {
+    if (v_transposed) {
+        return v_tile_f32;
+    }
+    auto order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 1, 3, 2});
+    auto v_bhds = std::make_shared<ov::op::v1::Transpose>(v_tile_f32, order);
+    v_bhds->set_friendly_name("v_tile_bhds");
+    return v_bhds;
+}
+
 #if ENABLE_HFA_LOOP_BASED_COMPUTATION
 // ============================================================================
 // Helper function: Reshape Q for grouped computation (loop-based approach)
@@ -692,7 +703,7 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     results = execute_host_flash_attention(f32_nodes,
                                            q_grouped,             // Q: grouped format
                                            f32_nodes.k_tile_f32,  // K: original 4D
-                                           f32_nodes.v_tile_f32,  // V: original 4D
+                                           v_tile_to_bhds(f32_nodes.v_tile_f32, v_transposed),
                                            batch,
                                            num_heads,
                                            kv_num_heads,
@@ -718,7 +729,7 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     } else {
         // Broadcast K and V tiles from kv_num_heads to num_heads
         auto [k_broadcast, v_broadcast] = broadcast_kv_tiles(f32_nodes.k_tile_f32,
-                                                             f32_nodes.v_tile_f32,
+                                                             v_tile_to_bhds(f32_nodes.v_tile_f32, v_transposed),
                                                              batch,
                                                              num_heads,
                                                              kv_num_heads,
