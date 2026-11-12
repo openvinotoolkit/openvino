@@ -180,6 +180,7 @@ std::vector<Case> make_cases() {
         bool_case<::intel_npu::NPUW_BAGEL>("NPUW_BAGEL", "YES", true),
         string_case<::intel_npu::NPUW_BAGEL_SEQ_BUCKETS>("NPUW_BAGEL_SEQ_BUCKETS", "2,512", "2,512"),
         string_case<::intel_npu::NPUW_BAGEL_KV_BUCKETS>("NPUW_BAGEL_KV_BUCKETS", "1024,4096", "1024,4096"),
+        bool_case<::intel_npu::NPUW_BAGEL_FOLD_MASK>("NPUW_BAGEL_FOLD_MASK", "NO", false),
         {"NPUW_WEIGHTS_HANDLE_PROVIDER",
          {},
          [](const ::intel_npu::Config&) {

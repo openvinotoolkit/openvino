@@ -263,6 +263,15 @@ void ov::npuw::BagelInferRequest::infer_language_model() {
             std::copy_n(dst + (S - 1) * dst_cols, dst_cols, dst + r * dst_cols);
             dst[r * dst_cols + Pb + r] = 0.0f;
         }
+        if (m_compiled_model->folds_mask(n_gen)) {
+            for (std::size_t r = 1; r < Sb; ++r) {
+                OPENVINO_ASSERT(std::memcmp(dst, dst + r * dst_cols, dst_cols * sizeof(float)) == 0,
+                                "NPUW_BAGEL: attention_mask row ",
+                                r,
+                                " differs from row 0, which the folded mask of generation variants "
+                                "does not support; set NPUW_BAGEL_FOLD_MASK=NO");
+            }
+        }
     }
 
     auto in_und = inner_input(variant, "und_index");
