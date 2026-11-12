@@ -422,14 +422,12 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- C#195015 -->
+    <!-- C#199570  -->
     <skip_config>
-        <message>samePlatformProduceTheSameBlobCacheEnabled will be removed as functionality should be tested by driver</message>
-        <enable_rules>
-             <operating_system>linux</operating_system>
-        </enable_rules>
+        <message>Tests with abnomally large durations</message>
         <filters>
-            <filter>.*samePlatformProduceTheSameBlobCacheEnabled.*</filter>
+            <filter>.*InferWithHostCompileMultithreadTests.*</filter>
+            <filter>.*InferWithHostCompileTests.*</filter>
         </filters>
     </skip_config>
 
