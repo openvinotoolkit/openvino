@@ -41,6 +41,8 @@
 #include "primitive_inst_test_helper.h"
 
 #include "condition_inst.h"
+#include "loop_inst.h"
+#include "mutable_data_inst.h"
 
 #include <memory>
 
@@ -3896,6 +3898,77 @@ TEST(prepare_buffer_fusing, in_place_crop_rejected_around_condition) {
     ASSERT_FLOAT_EQ(out_ptr[1], 22.f);
     ASSERT_FLOAT_EQ(out_ptr[2], 33.f);
     ASSERT_FLOAT_EQ(out_ptr[3], 44.f);
+}
+
+// loop has inner networks, so it never runs do_runtime_in_place_crop() for its crop users.
+TEST(prepare_buffer_fusing, in_place_crop_rejected_after_loop) {
+    auto& engine = get_test_engine();
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    const layout in_layout{ov::PartialShape{-1, 4, 2}, data_types::f32, format::bfyx};
+    const layout scalar_layout{ov::PartialShape{}, data_types::i64, format::bfyx};
+    auto in_mem = engine.allocate_memory({{1, 4, 2}, data_types::f32, format::bfyx});
+    auto trip_count_mem = engine.allocate_memory(scalar_layout);
+    auto initial_condition_mem = engine.allocate_memory(scalar_layout);
+    auto num_iteration_mem = engine.allocate_memory(scalar_layout);
+    auto axis_mem = engine.allocate_memory(scalar_layout);
+
+    set_values<float>(in_mem, {1.f, 10.f, 2.f, 20.f, 3.f, 30.f, 4.f, 40.f});
+    set_values<int64_t>(trip_count_mem, {2});
+    set_values<int64_t>(initial_condition_mem, {1});
+    set_values<int64_t>(axis_mem, {2});
+
+    topology body_topo(
+        input_layout("body_in", in_layout),
+        eltwise("body_out", {input_info("body_in"), input_info("body_in")}, eltwise_mode::sum)
+    );
+    ExecutionConfig body_config = config;
+    body_config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"body_out"}));
+    auto body_program = program::build_program(engine, body_topo, body_config, false, false, true);
+
+    std::vector<loop::io_primitive_map> input_primitive_maps{loop::io_primitive_map("input", "body_in")};
+    std::vector<loop::io_primitive_map> output_primitive_maps{loop::io_primitive_map("loop", "body_out")};
+    std::vector<loop::backedge_mapping> back_edges{loop::backedge_mapping("body_out", "body_in")};
+
+    const auto op_mode = cldnn::crop_ngraph_op_mode::split;
+    auto offset0 = cldnn::tensor(0);
+    auto offset1 = cldnn::tensor(cldnn::batch(0), cldnn::feature(0), cldnn::spatial(0, 1));
+
+    topology topo(
+        input_layout("input", in_layout),
+        input_layout("trip_count", scalar_layout),
+        input_layout("initial_condition", scalar_layout),
+        mutable_data("num_iteration", num_iteration_mem),
+        data("axis", axis_mem),
+        loop("loop",
+             {input_info("num_iteration"), input_info("trip_count"), input_info("initial_condition"), input_info("input")},
+             body_program, "trip_count", "initial_condition", "num_iteration",
+             input_primitive_maps, output_primitive_maps, back_edges, 2),
+        crop("crop0", {input_info("loop"), input_info("axis")}, cldnn::tensor(1), offset0, op_mode, 0, 2, 2),
+        crop("crop1", {input_info("loop"), input_info("axis")}, cldnn::tensor(1), offset1, op_mode, 1, 2, 2),
+        eltwise("sum", {input_info("crop0"), input_info("crop1")}, eltwise_mode::sum),
+        reorder("output", input_info("sum"), format::bfyx, data_types::f32)
+    );
+
+    network net(engine, topo, config);
+    net.set_input_data("input", in_mem);
+    net.set_input_data("trip_count", trip_count_mem);
+    net.set_input_data("initial_condition", initial_condition_mem);
+    auto outputs = net.execute();
+
+    auto out_mem = outputs.at("output").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
+    ASSERT_EQ(out_mem->count(), 4u);
+    // Two iterations of x + x scale the input by 4.
+    ASSERT_FLOAT_EQ(out_ptr[0], 44.f);
+    ASSERT_FLOAT_EQ(out_ptr[1], 88.f);
+    ASSERT_FLOAT_EQ(out_ptr[2], 132.f);
+    ASSERT_FLOAT_EQ(out_ptr[3], 176.f);
+
+    ASSERT_FALSE(net.get_primitive("crop0")->can_be_optimized());
+    ASSERT_FALSE(net.get_primitive("crop1")->can_be_optimized());
 }
 
 
