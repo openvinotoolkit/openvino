@@ -258,7 +258,7 @@ own suites in intel_gpu.
 
 | Suite                                     | What it covers                                                                                                                          | Needs GPUs |
 |-------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|------------|
-| `TPAnnotationsTest`                       | `tp_shard` / `tp_role`: set twice, serialization, rank ranges (uneven, shared, partial shares)                                         | no         |
+| `TPAnnotationsTest`                       | `tp_shard` / `tp_role`: set twice, serialization, rank ranges (even, fused segments, refused when not whole or not even)              | no         |
 | `TPAnalyzerTest`                          | The analysis of the synthetic blocks: roles, geometry, bias, LM head, KV-cache variables, refusals, tied embeddings                     | no         |
 | `TPShardingVerifierTest`                  | The verifier's rules on hand-annotated graphs and its refusals, each with the error text                                               | no         |
 | `TPRankPasses/*`                          | Rank models on 2/3/4 ranks: weights, collectives, KV-cache variables, PagedAttention head counts, fewer KV heads than ranks, fused projections | no |

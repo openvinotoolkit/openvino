@@ -4,7 +4,6 @@
 
 #include "tp_transformations/annotations.hpp"
 
-#include <algorithm>
 #include <sstream>
 
 #include "openvino/core/attribute_visitor.hpp"
@@ -229,12 +228,16 @@ std::vector<Range> rank_ranges(const std::vector<Segment>& segments, size_t rank
         const size_t shares = segment.count ? segment.count : world_size;
         OPENVINO_ASSERT(segment.step > 0 && shares * segment.step <= world_size && world_size % segment.step == 0,
                         "[TP] ", shares, " shares of ", segment.step, " ranks each do not fit ", world_size, " ranks");
-        const size_t share = (rank / segment.step) % shares;
-        const size_t base = units / shares;
-        const size_t remainder = units % shares;
-        const size_t offset = (share * base + std::min(share, remainder)) * segment.unit;
-        const size_t length = (base + (share < remainder ? 1 : 0)) * segment.unit;
-        ranges.push_back({segment_offset + offset, length});
+        OPENVINO_ASSERT(units % shares == 0,
+                        "[TP] cannot split ",
+                        units,
+                        " units of ",
+                        segment.unit,
+                        " elements evenly in ",
+                        shares,
+                        " shares");
+        const size_t length = units / shares * segment.unit;
+        ranges.push_back({segment_offset + (rank / segment.step) % shares * length, length});
         segment_offset += segment.length;
     }
     return ranges;

@@ -222,30 +222,6 @@ TEST_P(TPAccuracyTest, MatchesSingleDeviceAfterKvCacheTrim) {
     expect_close(reference.get_output_tensor(0), parallel.get_output_tensor(0));
 }
 
-// 448 is 14 quantization groups: three and four ranks get unequal shares of the
-// MLP, the remainder on the lower ranks.
-TEST_P(TPAccuracyTest, MatchesSingleDeviceOnUnevenMlpSplit) {
-    BlockConfig config;
-    config.intermediate = 448;
-    auto model = make_transformer_block(config);
-
-    auto [reference, parallel] = run_both(model, make_input(config));
-    expect_close(reference, parallel);
-}
-
-// Five KV heads divide by none of the world sizes under test, so the ranks end
-// up with different numbers of attention heads -- and with the remainder handed
-// to the lower ranks, the last rank is the one that gets shorted.
-TEST_P(TPAccuracyTest, MatchesSingleDeviceOnUnevenHeadSplit) {
-    BlockConfig config;
-    config.num_kv_heads = 5;
-    config.num_heads = 10;
-    auto model = make_transformer_block(config);
-
-    auto [reference, parallel] = run_both(model, make_input(config));
-    expect_close(reference, parallel);
-}
-
 // Three groups of 64 per rank in the MLP: the packed u4 zero points of the down projection are cut
 // inside a byte on every world size (TPRankPassesNibbleTest).
 TEST_P(TPAccuracyTest, MatchesSingleDeviceOnZeroPointsCutInsideAByte) {

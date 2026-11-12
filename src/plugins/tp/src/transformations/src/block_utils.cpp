@@ -198,18 +198,6 @@ ReshapeAxisSpan map_reshape_axis_span(const std::shared_ptr<ov::Node>& reshape, 
     return {};
 }
 
-/// Every rank's boundaries along a split of `segments`.
-std::vector<size_t> boundaries(const std::vector<Segment>& segments, size_t world_size) {
-    std::vector<size_t> result;
-    for (size_t rank = 0; rank < world_size; ++rank) {
-        for (const auto& range : rank_ranges(segments, rank, world_size)) {
-            result.push_back(range.offset);
-            result.push_back(range.offset + range.length);
-        }
-    }
-    return result;
-}
-
 /// `segments` expressed in steps of `trailing` elements, splitting at the very same places,
 /// or empty when some boundary falls inside a step.
 std::vector<Segment> coarsen(const std::vector<Segment>& segments, int64_t trailing, size_t world_size) {
@@ -218,15 +206,14 @@ std::vector<Segment> coarsen(const std::vector<Segment>& segments, int64_t trail
     for (const auto& segment : segments) {
         if (segment.length % step != 0)
             return {};
+        const size_t length = segment.length / step;
         const size_t unit = std::lcm(segment.unit, step) / step;
-        if ((segment.length / step) % unit != 0)
+        const size_t shares = segment.count ? segment.count : world_size;
+        if (length % unit != 0 || length / unit % shares != 0)
             return {};
-        result.push_back({segment.length / step, unit, segment.step, segment.count});
+        result.push_back({length, unit, segment.step, segment.count});
     }
-    std::vector<size_t> scaled;
-    for (const auto b : boundaries(result, world_size))
-        scaled.push_back(b * step);
-    return scaled == boundaries(segments, world_size) ? result : std::vector<Segment>{};
+    return result;
 }
 
 size_t total_length(const std::vector<Segment>& segments) {

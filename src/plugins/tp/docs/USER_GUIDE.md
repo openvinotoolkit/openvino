@@ -46,9 +46,11 @@ Level Zero context — no host round-trip and no copy through CPU memory.
   `ScaledDotProductAttention`, with the Q/K/V/O and MLP projections being
   MatMuls over constant-derived weights. Fused projections (one `qkv_proj`,
   one `gate_up_proj`) are supported.
-- More ranks than KV heads only when the ranks divide by the KV heads and the
-  query heads by the ranks (e.g. 2 KV heads and 32 query heads on 4 GPUs: two
-  ranks share each KV head). Fewer ranks than KV heads work for any count.
+- Every split even over the ranks: the number of ranks divides the KV heads
+  and the MLP's quantization groups (8 KV heads: 2, 4 or 8 GPUs). More ranks
+  than KV heads only when the ranks divide by the KV heads and the query heads
+  by the ranks (e.g. 2 KV heads and 32 query heads on 4 GPUs: two ranks share
+  each KV head).
 
 ## Is It Worth It
 
@@ -326,19 +328,6 @@ payload; both are one-time costs per shape.
 A shorter sequence afterwards reuses what is already there, a longer one pays
 again.
 
-### `[TP] Warning: N KV heads do not divide evenly across M ranks`
-
-Not an error: dimensions do not have to divide evenly by the number of ranks, and the
-remainder goes to the first ranks, one unit each. The model runs.
-
-It costs latency, though. Every layer ends in a collective, so the ranks that
-got an extra head do more work while the rest wait at the barrier, and the
-whole model moves at their pace. The percentage in the message is the share of
-their time the other ranks spend waiting (one head out of the busier ranks'
-heads); the warning only appears above 10%.
-
-Choose a number of devices that divides the KV head count to make it go away.
-
 ### `[TP] Warning: N weights cannot be cut at the rank boundaries at compile time`
 
 Not an error: the model runs correctly. A rank's boundary falls inside a quantization group of
@@ -351,18 +340,16 @@ a markedly slower prefill for that layer.
 Choose a number of devices that gives every rank whole groups, or compress the model with a
 group size that divides a rank's share of the heads.
 
-### `[TP] '<weight>' (<block>) splits ... unit(s) for N ranks: a rank would get none`
+### `[TP] '<down projection>' (<block>): world size N does not divide the MLP's intermediate size ...`
 
-Every rank needs at least one unit of every split: a whole query group or KV head in attention,
-a whole quantization group in the MLP. A model too small for the number of devices (an MLP of
-two quantization groups on three devices, say) is rejected with the largest number of devices
-that works. Use that many or fewer.
+Every rank takes an equal share of the MLP, in whole quantization groups. The message gives the
+number of units the intermediate dimension has; use a number of devices that divides it.
 
 ### `[TP] Model has H Q heads and K KV heads; world size N does not divide them evenly`
 
-With more ranks than KV heads, every rank needs one whole KV head and an equal
-share of its query heads, so N has to be a multiple of the KV head count and
-divide the query head count. Use fewer devices, or a number that fits.
+Every rank takes an equal share of the attention heads: N has to divide the KV
+head count, or, with more ranks than KV heads, be a multiple of the KV head
+count and divide the query head count. Use a number of devices that fits.
 
 ### `[TP] Sharding verification failed at node ...`
 

@@ -63,6 +63,24 @@ std::shared_ptr<ov::Node> activation(const std::shared_ptr<ov::Node>& input) {
     return wrap_type<ov::op::util::UnaryElementwiseArithmetic, ov::op::v4::Swish>({input});
 }
 
+/// The intermediate dimension of `down`'s MLP in whole units of `unit`, the same number on every rank.
+Segment intermediate_split(int64_t size,
+                           int64_t unit,
+                           const std::shared_ptr<ov::Node>& down,
+                           size_t world_size,
+                           const std::string& block) {
+    if (size % unit != 0)
+        unit = 1;
+    const int64_t units = size / unit;
+    OPENVINO_ASSERT(units % static_cast<int64_t>(world_size) == 0,
+                    "[TP] '", down->get_friendly_name(), "' (", block, "): world size ", world_size,
+                    " does not divide the MLP's intermediate size ", size, " evenly",
+                    unit > 1 ? " in quantization groups of " + std::to_string(unit) : std::string{}, " (", units,
+                    " unit(s)). Every rank takes an equal share of the MLP; use a number of devices that divides ",
+                    units, ".");
+    return {static_cast<size_t>(size), static_cast<size_t>(unit)};
+}
+
 /// Annotates an MLP: `columns` produce the intermediate dimension, `down` consumes it.
 /// The split step is the coarsest any of the three weights needs (quantization groups),
 /// so all of them are cut at the same offsets.
@@ -84,7 +102,7 @@ void annotate_mlp(const std::vector<std::shared_ptr<ov::Node>>& columns,
         fold(column, weight_axes(column).out_features);
     fold(down, weight_axes(down).in_features);
 
-    const std::vector<Segment> segments{{static_cast<size_t>(size), static_cast<size_t>(size % unit == 0 ? unit : 1)}};
+    const std::vector<Segment> segments{intermediate_split(size, unit, down, config.world_size, block)};
     for (const auto& column : columns) {
         if (!annotate_projection(column, ShardStrategy::COLUMN_PARALLEL, segments, Collective::NONE, config.world_size, block))
             report.runtime_slices.push_back(column->get_friendly_name());
@@ -165,8 +183,8 @@ TPFusedGateUpMLPBlock::TPFusedGateUpMLPBlock(const TPAnalyzerConfig& config, TPA
             if (step > 0 && size % step == 0)
                 unit = std::lcm(unit, step);
         }
-        const Segment segment{static_cast<size_t>(size), static_cast<size_t>(size % unit == 0 ? unit : 1)};
         const std::string block = "TPFusedGateUpMLPBlock";
+        const Segment segment = intermediate_split(size, unit, d, config.world_size, block);
         if (!annotate_projection(gate_up, ShardStrategy::COLUMN_PARALLEL, {segment, segment}, Collective::NONE, config.world_size, block))
             report->runtime_slices.push_back(gate_up->get_friendly_name());
         annotate_feature_parts(fused_output, {segment, segment}, block);

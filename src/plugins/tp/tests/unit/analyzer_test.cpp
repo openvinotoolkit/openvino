@@ -140,21 +140,34 @@ TEST(TPAnalyzerTest, RejectsAProjectionWithRuntimeWeights) {
     EXPECT_THROW(analyze(model, 2), ov::Exception);
 }
 
-TEST(TPAnalyzerTest, RejectsMoreRanksThanKvHeads) {
-    BlockConfig config;  // 12 KV heads
-    auto model = make_transformer_block(config);
-    EXPECT_THROW(analyze(model, config.num_kv_heads + 1), ov::Exception);
-}
-
-// Two quantization groups of the MLP cannot give three ranks one each.
-TEST(TPAnalyzerTest, RejectsMoreRanksThanQuantizationGroups) {
+// Every rank takes an equal share of the attention heads: 12 KV heads on 5 ranks are refused, and
+// so are 2 KV heads on 3 ranks (more ranks than KV heads).
+TEST(TPAnalyzerTest, RejectsKvHeadsTheRanksDoNotDivide) {
     BlockConfig config;
-    config.group_size = 128;
-    config.intermediate = 256;
-    EXPECT_NO_THROW(analyze(make_transformer_block(config), 2));
+    OV_EXPECT_THROW(analyze(make_transformer_block(config), 5),
+                    ov::Exception,
+                    HasSubstr("Model has 24 Q heads and 12 KV heads; world size 5 does not divide them evenly"));
+    config.num_heads = 12;
+    config.num_kv_heads = 2;
     OV_EXPECT_THROW(analyze(make_transformer_block(config), 3),
                     ov::Exception,
-                    ::testing::HasSubstr("2 unit(s) for 3 ranks: a rank would get none. Use at most 2 devices"));
+                    HasSubstr("Model has 12 Q heads and 2 KV heads; world size 3 does not divide them evenly"));
+}
+
+// Every rank takes an equal share of the MLP in whole quantization groups: 14 groups of 32 split
+// over two ranks, not over four, with a gate and an up projection or one gate_up_proj.
+TEST(TPAnalyzerTest, RejectsAnMlpTheRanksDoNotDivide) {
+    for (const auto gate_up : {Fused::NONE, Fused::SPLIT}) {
+        SCOPED_TRACE(gate_up == Fused::NONE ? "gate and up" : "gate_up_proj");
+        BlockConfig config;
+        config.intermediate = 448;
+        config.gate_up = gate_up;
+        EXPECT_NO_THROW(analyze(make_transformer_block(config), 2));
+        OV_EXPECT_THROW(analyze(make_transformer_block(config), 4),
+                        ov::Exception,
+                        HasSubstr("world size 4 does not divide the MLP's intermediate size 448 evenly in quantization "
+                                  "groups of 32 (14 unit(s))"));
+    }
 }
 
 // Weights of whole bytes and 4-bit ones are split; other packings are rejected, naming the weight.

@@ -136,8 +136,8 @@ struct Range {
 
 /// The ranges of `rank`, one per segment, offsets relative to the whole dimension.
 ///
-/// Each segment is split in whole units; a remainder goes to the first ranks,
-/// one extra unit each.
+/// Each segment is split in whole units, the same number for every share; a split
+/// that does not divide evenly throws.
 std::vector<Range> rank_ranges(const std::vector<Segment>& segments, size_t rank, size_t world_size);
 
 /// Total length of `rank`'s ranges.

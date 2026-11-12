@@ -123,13 +123,14 @@ Geometry annotate_attention(const std::shared_ptr<ov::Node>& attention,
                     "[TP] The query projection produces ", q_features, " features, which does not match ", g.heads,
                     " heads x ", g.head_dim, " head_dim");
     const auto world_size = static_cast<int64_t>(config.world_size);
-    if (world_size > g.kv_heads) {
-        OPENVINO_ASSERT(world_size % g.kv_heads == 0 && g.heads % world_size == 0,
-                        "[TP] Model has ", g.heads, " Q heads and ", g.kv_heads, " KV heads; world size ", world_size,
-                        " does not divide them evenly (required with fewer KV heads than ranks: Q heads % N == 0 "
-                        "and N % KV heads == 0).");
+    const bool even = world_size > g.kv_heads ? world_size % g.kv_heads == 0 && g.heads % world_size == 0
+                                              : g.kv_heads % world_size == 0;
+    OPENVINO_ASSERT(even,
+                    "[TP] Model has ", g.heads, " Q heads and ", g.kv_heads, " KV heads; world size ", world_size,
+                    " does not divide them evenly (required: KV heads % N == 0, or with fewer KV heads than ranks "
+                    "N % KV heads == 0 and Q heads % N == 0). Every rank takes an equal share of the attention heads.");
+    if (world_size > g.kv_heads)
         g.replicas = static_cast<size_t>(world_size / g.kv_heads);
-    }
 
     // Every rank owns whole query groups, or with fewer KV heads than ranks an equal share of one
     // group, next to the KV head(s) that group uses.

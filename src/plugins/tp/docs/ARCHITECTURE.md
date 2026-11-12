@@ -110,9 +110,11 @@ the analysis shards the following MatMul weights:
 
 Splits are in whole units: query groups (or, with fewer KV heads than ranks, equal shares of one
 group), KV heads, and for the MLP the coarsest step any of its weights needs (quantization
-groups). Units that do not divide by `N` go one extra to each of the first ranks
-(e.g. 5 KV heads on 2 ranks: 3 and 2); the busiest rank paces the group, so the plugin warns when
-the imbalance is large.
+groups). Every rank takes the same number of units; a world size `N` that does not divide them
+fails the compilation, naming the dimension. An uneven split would give the ranks rank models of
+different shapes, so a device rewrite that depends on a shape could order the independent
+collectives of parallel branches differently on different ranks; the busiest rank would also
+pace the group.
 
 **Fewer KV heads than ranks** (`N % num_kv_heads == 0` and `num_heads % N == 0`): every rank
 keeps the one KV head its query heads use, `r / (N / num_kv_heads)`, and an equal share of that
@@ -874,8 +876,9 @@ Dev properties: [DEVELOPER_GUIDE.md § Tunables](DEVELOPER_GUIDE.md#tunables)
   over constant-derived weights. A block it recognizes only partly, or an op
   without a sharding rule on a split tensor, fails the compilation; a weight
   fed by a live parameter (a LoRA adapter) is not supported.
-- Fewer KV heads than ranks is supported only when the ranks divide by the KV
-  heads and the query heads by the ranks.
+- Every split is even: the ranks divide the KV heads (or, with fewer KV heads
+  than ranks, divide by the KV heads and divide the query heads) and the
+  MLP's quantization groups.
 - Remote contexts supplied by the user are not supported: the plugin
   always creates the rank contexts itself. The compiled model's own context
   gives out host tensors only; a device tensor would be one model-level

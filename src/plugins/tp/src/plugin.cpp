@@ -203,6 +203,11 @@ void log_analysis(const TPAnalysisReport& report, size_t num_collectives) {
                 << " head_dim=" << report.head_dim
                 << " intermediate=" << report.intermediate_size
                 << " sharded variables=" << report.sharded_variables.size() << std::endl;
+    if (report.kv_replicas > 1) {
+        TP_LOG_INFO << "[TP] " << report.num_kv_heads << " KV heads on "
+                    << static_cast<size_t>(report.num_kv_heads) * report.kv_replicas << " ranks: " << report.kv_replicas
+                    << " ranks share each KV head and compute its K/V projections alike" << std::endl;
+    }
     if (report.lm_head_copy_bytes != 0) {
         TP_LOG_INFO << "[TP] The LM head shares its weight with the embedding, which stays whole: splitting the LM "
                        "head adds a cut copy of "
@@ -270,31 +275,6 @@ size_t count_collectives(const ov::Model& model) {
         count += role && role->collective != Collective::NONE ? 1 : 0;
     }
     return count;
-}
-
-/// Attention is split by KV head. An uneven split gives the first ranks one
-/// extra each, and since every layer ends in a collective the slowest rank
-/// paces the whole model -- worth saying out loud, because the model still runs
-/// and the cost is invisible otherwise.
-void warn_on_kv_imbalance(const TPAnalysisReport& report, uint32_t shard_degree) {
-    const auto kv_heads = static_cast<int>(report.num_kv_heads);
-    if (report.kv_replicas > 1) {
-        TP_LOG_INFO << "[TP] " << kv_heads << " KV heads on " << shard_degree << " ranks: " << report.kv_replicas
-                    << " ranks share each KV head and compute its K/V projections alike" << std::endl;
-        return;
-    }
-    const int remainder = kv_heads % static_cast<int>(shard_degree);
-    if (remainder == 0) {
-        return;
-    }
-    const int base = kv_heads / static_cast<int>(shard_degree);
-    const int imbalance_pct = 100 / (base + 1);
-    if (imbalance_pct <= 10) {
-        return;
-    }
-    TP_WARN_ALWAYS << "[TP] Warning: " << kv_heads << " KV heads do not divide evenly across "
-                   << shard_degree << " ranks (" << remainder << " rank(s) get " << (base + 1) << ", the rest "
-                   << base << "), about " << imbalance_pct << "% load imbalance.";
 }
 
 constexpr const char* kNoRemoteContextImport =
@@ -560,7 +540,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
     const size_t num_collectives = shard_only ? 0 : count_collectives(*analyzed);
     log_analysis(*report, num_collectives);
-    warn_on_kv_imbalance(*report, shard_degree);
     check_rank_memory(*analyzed, device_names, shard_degree, shard_only ? 0 : cfg.get_comm_buffer_size());
 
     // A shard stripped of its collectives runs alone, on an ordinary context.

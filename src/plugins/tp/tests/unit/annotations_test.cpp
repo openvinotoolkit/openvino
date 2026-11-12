@@ -16,12 +16,12 @@ namespace {
 
 using ::testing::HasSubstr;
 
-TEST(TPAnnotationsTest, RangesSplitWholeUnitsWithTheRemainderOnTheFirstRanks) {
-    // 8 KV heads x 128 over 3 ranks: 3, 3, 2 heads.
-    const std::vector<Segment> heads{{1024, 128}};
-    EXPECT_EQ(rank_ranges(heads, 0, 3), (std::vector<Range>{{0, 384}}));
-    EXPECT_EQ(rank_ranges(heads, 1, 3), (std::vector<Range>{{384, 384}}));
-    EXPECT_EQ(rank_ranges(heads, 2, 3), (std::vector<Range>{{768, 256}}));
+TEST(TPAnnotationsTest, RangesSplitWholeUnitsEvenly) {
+    // 6 KV heads x 128 over 3 ranks: 2 heads each.
+    const std::vector<Segment> heads{{768, 128}};
+    EXPECT_EQ(rank_ranges(heads, 0, 3), (std::vector<Range>{{0, 256}}));
+    EXPECT_EQ(rank_ranges(heads, 1, 3), (std::vector<Range>{{256, 256}}));
+    EXPECT_EQ(rank_ranges(heads, 2, 3), (std::vector<Range>{{512, 256}}));
 }
 
 TEST(TPAnnotationsTest, RangesOfFusedSegmentsAreOffsetBySegment) {
@@ -31,8 +31,12 @@ TEST(TPAnnotationsTest, RangesOfFusedSegmentsAreOffsetBySegment) {
     EXPECT_EQ(rank_length(qkv, 1, 2), 24u);
 }
 
-TEST(TPAnnotationsTest, RangesRejectASegmentThatIsNotWholeUnits) {
+TEST(TPAnnotationsTest, RangesRejectASplitThatIsNotWholeEqualUnits) {
     OV_EXPECT_THROW(rank_ranges({{100, 32}}, 0, 2), ov::Exception, HasSubstr("in units of 32"));
+    // 8 KV heads x 128 over 3 ranks.
+    OV_EXPECT_THROW(rank_ranges({{1024, 128}}, 0, 3),
+                    ov::Exception,
+                    HasSubstr("cannot split 8 units of 128 elements evenly in 3 shares"));
 }
 
 TEST(TPAnnotationsTest, AnnotationsSurviveCloneAndConflictsAreRejected) {

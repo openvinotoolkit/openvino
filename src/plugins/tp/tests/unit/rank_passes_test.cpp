@@ -8,7 +8,6 @@
 #include <string>
 #include <vector>
 
-#include "common_test_utils/test_assertions.hpp"
 #include "l1_test_utils.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/paged_attention.hpp"
@@ -30,11 +29,9 @@ int64_t lm_head_rows(const std::shared_ptr<ov::Model>& model) {
     return -1;
 }
 
-/// KV heads rank `rank` owns: whole heads, remainder spread over the first ranks.
-int64_t local_kv_heads(const BlockConfig& config, size_t rank, size_t world_size) {
-    const auto base = config.num_kv_heads / world_size;
-    const auto remainder = config.num_kv_heads % world_size;
-    return static_cast<int64_t>(base + (rank < remainder ? 1 : 0));
+/// KV heads every rank owns.
+int64_t local_kv_heads(const BlockConfig& config, size_t world_size) {
+    return static_cast<int64_t>(config.num_kv_heads / world_size);
 }
 
 std::shared_ptr<ov::Node> paged_attention(const std::shared_ptr<ov::Model>& model) {
@@ -133,7 +130,7 @@ TEST_P(TPRankPassesTest, LocalizesTheKvCacheVariables) {
         const auto variables = models[rank]->get_variables();
         ASSERT_EQ(variables.size(), 2u);
         for (const auto& variable : variables) {
-            EXPECT_EQ(variable->get_info().data_shape[1].get_length(), local_kv_heads(config, rank, world_size))
+            EXPECT_EQ(variable->get_info().data_shape[1].get_length(), local_kv_heads(config, world_size))
                 << variable->get_info().variable_id << " rank " << rank;
         }
     }
@@ -151,7 +148,7 @@ TEST_P(TPRankPassesTest, LocalizesEveryKvCacheInitializer) {
             auto read_value = ov::as_type_ptr<ov::op::v6::ReadValue>(op);
             if (!read_value || read_value->get_input_size() == 0)
                 continue;
-            EXPECT_EQ(read_value->get_output_partial_shape(0)[1].get_length(), local_kv_heads(config, rank, world_size));
+            EXPECT_EQ(read_value->get_output_partial_shape(0)[1].get_length(), local_kv_heads(config, world_size));
             ++checked;
         }
         EXPECT_EQ(checked, 2u) << "expected one initializer per KV cache";
@@ -170,7 +167,7 @@ TEST_P(TPRankPassesTest, LocalizesThePagedAttentionHeadCounts) {
         for (const char* key : {"num_k_heads", "num_v_heads"}) {
             const auto entry = rt_info.find(key);
             ASSERT_NE(entry, rt_info.end()) << key;
-            EXPECT_EQ(entry->second.as<int64_t>(), local_kv_heads(config, rank, world_size)) << key << " rank " << rank;
+            EXPECT_EQ(entry->second.as<int64_t>(), local_kv_heads(config, world_size)) << key << " rank " << rank;
         }
         // Head size is per head and does not split.
         EXPECT_EQ(rt_info.at("k_head_size").as<int64_t>(), static_cast<int64_t>(config.head_dim));
@@ -185,7 +182,7 @@ TEST_P(TPRankPassesTest, LocalizesThePagedAttentionOperands) {
     for (size_t rank = 0; rank < world_size; ++rank) {
         const auto attention = paged_attention(models[rank]);
         ASSERT_NE(attention, nullptr);
-        const int64_t kv = local_kv_heads(config, rank, world_size);
+        const int64_t kv = local_kv_heads(config, world_size);
         const int64_t q = kv * static_cast<int64_t>(config.num_heads / config.num_kv_heads);
         const auto head_dim = static_cast<int64_t>(config.head_dim);
         // Nothing in the graph names a head count, so the shapes prove the split landed.
@@ -458,13 +455,5 @@ INSTANTIATE_TEST_SUITE_P(TPRankPasses,
                          [](const ::testing::TestParamInfo<std::tuple<FusedCase, size_t>>& info) {
                              return std::get<0>(info.param).name + "_world" + std::to_string(std::get<1>(info.param));
                          });
-
-TEST(TPRankPassesTest, RejectsKvHeadsThatDoNotDivideTheRanks) {
-    BlockConfig c;
-    c.num_heads = 12;
-    c.num_kv_heads = 2;
-    auto model = make_transformer_block(c);
-    OV_EXPECT_THROW(analyze(model, 3), ov::Exception, ::testing::HasSubstr("world size 3 does not divide them evenly"));
-}
 
 }  // namespace ov::tp::tests
