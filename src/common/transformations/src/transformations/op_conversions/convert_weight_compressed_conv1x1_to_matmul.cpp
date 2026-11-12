@@ -37,8 +37,9 @@ using ov::pass::pattern::op::Or;
 
 namespace {
 
-// Multiply is commutative, and the scale of a decompression subgraph may itself be Convert(Constant). Without a type restriction
-// the matcher can bind the (small) float scale as the "compressed weights" and the real low-precision weights as the "scale".
+// Multiply is commutative, and the scale of a decompression subgraph may itself be Convert(Constant). Without a type
+// restriction the matcher can bind the (small) float scale as the "compressed weights" and the real low-precision
+// weights as the "scale".
 bool is_compressed_weight_type(const ov::Output<ov::Node>& output) {
     const auto& type = output.get_element_type();
     return !(type.is_real() && type.bitwidth() >= 16);
@@ -83,9 +84,11 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
         return is_compressed_weight_type(output);
     };
     auto weights_const_m = wrap_type<ov::op::v0::Constant>(
-        (pattern::shape_matches("[?, ?, 1, 1]") || pattern::shape_matches("[?, ?, ?, 1, 1]")) && compressed_weight_type);
+        (pattern::shape_matches("[?, ?, 1, 1]") || pattern::shape_matches("[?, ?, ?, 1, 1]")) &&
+        compressed_weight_type);
     auto weights_param_m = wrap_type<ov::op::v0::Parameter>(
-        (pattern::shape_matches("[?, ?, 1, 1]") || pattern::shape_matches("[?, ?, ?, 1, 1]")) && compressed_weight_type);
+        (pattern::shape_matches("[?, ?, 1, 1]") || pattern::shape_matches("[?, ?, ?, 1, 1]")) &&
+        compressed_weight_type);
     auto weights_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{weights_const_m, weights_param_m});
     auto weight_convert_m = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({weights_m});
     auto weights_scales_m = ov::pass::pattern::any_input();
@@ -170,7 +173,8 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
         auto scale = pattern_map.at(weights_scales_m).get_node_shared_ptr();
         auto zp = (pattern_map.count(weights_zp_m) > 0) ? pattern_map.at(weights_zp_m).get_node_shared_ptr() : nullptr;
 
-        // Everything that is reshaped below must be a constant of a supported shape: bail out instead of asserting later
+        // Everything that is reshaped below must be a constant of a supported shape: bail out instead of asserting
+        // later
         const auto scale_constant = get_constant(scale);
         if (!scale_constant || !is_squeezable_to_2d_or_3d(scale_constant->get_shape())) {
             return false;

@@ -43,7 +43,8 @@ struct Conv1x1ToMatmulTestParams {
     bool with_act_new_reshape;
     bool with_batched_input;
     std::string activation_op_type;
-    // scale is Convert(Constant f32 -> f16) instead of a plain f16 Constant (e.g. kept in f32 until precision conversion)
+    // scale is Convert(Constant f32 -> f16) instead of a plain f16 Constant (e.g. kept in f32 until precision
+    // conversion)
     bool scale_as_convert = false;
 };
 
@@ -343,8 +344,9 @@ TEST_F(ConvertWeightCompressedConv1x1ToMatmulTest_Blocked, conv3x3) {
     model = CreateConv3x3();
 }
 
-// The scale may still be a constant subgraph (Convert(Constant)) when the pass runs. Both operands of the decompression Multiply are then
-// Convert(Constant): the compressed weights must still be bound as the weights (not the scale) and the scale must be folded.
+// The scale may still be a constant subgraph (Convert(Constant)) when the pass runs. Both operands of the decompression
+// Multiply are then Convert(Constant): the compressed weights must still be bound as the weights (not the scale) and
+// the scale must be folded.
 class ConvertWeightCompressedConv1x1ToMatmulTest_ConvertScale : public TransformationTestsF {
 public:
     ConvertWeightCompressedConv1x1ToMatmulTest_ConvertScale() {
@@ -368,8 +370,8 @@ TEST_F(ConvertWeightCompressedConv1x1ToMatmulTest_ConvertScale, conv1x1_group_qu
     run(true);
 }
 
-// A 3x3 convolution must be left alone (and the pass must not throw) when the decompression scale is Convert(Constant [C, 1, 1, 1]):
-// the scale used to be mistaken for 1x1 "compressed weights".
+// A 3x3 convolution must be left alone (and the pass must not throw) when the decompression scale is Convert(Constant
+// [C, 1, 1, 1]): the scale used to be mistaken for 1x1 "compressed weights".
 TEST_F(ConvertWeightCompressedConv1x1ToMatmulTest_Blocked, conv3x3_scale_as_convert) {
     auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 2, 2, 4});
     auto to_nchw = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {0, 3, 1, 2});
@@ -390,7 +392,8 @@ TEST_F(ConvertWeightCompressedConv1x1ToMatmulTest_Blocked, conv3x3_scale_as_conv
     model = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{input});
 }
 
-// The scale is not a constant (here a Parameter): nothing can be folded, the pass must skip the convolution instead of asserting.
+// The scale is not a constant (here a Parameter): nothing can be folded, the pass must skip the convolution instead of
+// asserting.
 TEST_F(ConvertWeightCompressedConv1x1ToMatmulTest_Blocked, conv1x1_non_constant_scale) {
     auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 1, 1, 10});
     auto scale = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{15, 1, 1, 1});
