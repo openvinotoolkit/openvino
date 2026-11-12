@@ -60,6 +60,7 @@ public:
         return Handle(m_mutex, m_context);
     }
 
+    ov::weight_sharing::WeightBuffer get_shared_weight_source_buffer(size_t source_id, Handle& handle);
     ov::weight_sharing::WeightBuffer request_shared_weight_source_buffer(size_t source_id,
                                                                          const element::Type& type,
                                                                          const ov::Shape& shape,
@@ -81,7 +82,7 @@ public:
                                                                              Handle& handle);
 
     bool serialize_native_format(ov::npuw::orc::Stream& stream);
-    bool deserialize_native_format(ov::npuw::orc::Stream& stream, const ov::ICore& core);
+    std::set<int64_t> consume_from(ov::npuw::orc::Stream& stream, const ov::ICore& core);
 
 protected:
     /* CVS-198039
@@ -90,7 +91,7 @@ protected:
     const ov::op::v0::Constant& get_transformed_constant(const std::string& device,
                                                          size_t source_id,
                                                          Handle& handle) const;
-    bool deserialize_native_format_impl(ov::npuw::orc::Stream& stream, const ov::ICore& core, Handle& handle);
+    std::set<int64_t> consume_from_impl(ov::npuw::orc::Stream& stream, const ov::ICore& core, Handle& handle);
 
 private:
     static ov::weight_sharing::WeightBuffer create_shared_buffer(int64_t source_id, std::size_t size);
