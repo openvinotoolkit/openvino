@@ -209,6 +209,39 @@ TEST(OrcTest, ScopedSectionsRoundTripMetadataBeforeChildren) {
     root.expect_end();
 }
 
+TEST(OrcTest, ScopedSectionRejectsHeaderOutsideParentBeforeReading) {
+    std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
+    with_leaf_section(buffer, TYPE_TEST, 0u, [] {});
+    const auto position = buffer.tellg();
+    OV_EXPECT_THROW_HAS_SUBSTRING(ScopedReadSection(buffer, 1u), ov::Exception, "header exceeds remaining parent");
+    EXPECT_EQ(buffer.tellg(), position);
+}
+
+TEST(OrcTest, ScopedSectionRejectsBodyOutsideParent) {
+    std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
+    with_leaf_section(buffer, TYPE_TEST, 0u, [&] {
+        auto writer = Stream::writer(buffer);
+        std::uint32_t value = 7u;
+        writer & value;
+    });
+    OV_EXPECT_THROW_HAS_SUBSTRING(ScopedReadSection(buffer, buffer.str().size() - 1u),
+                                  ov::Exception,
+                                  "exceeds remaining payload");
+}
+
+TEST(OrcTest, ScopedSectionReaderRejectsFieldOutsideBodyBeforeReading) {
+    std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
+    with_leaf_section(buffer, TYPE_META, 0u, [] {});
+    auto writer = Stream::writer(buffer);
+    std::uint32_t value = 7u;
+    writer & value;
+    ScopedReadSection section(buffer);
+    auto reader = section.reader();
+    const auto position = buffer.tellg();
+    OV_EXPECT_THROW_HAS_SUBSTRING(reader & value, ov::Exception, "ORC read exceeds bounded input stream");
+    EXPECT_EQ(buffer.tellg(), position);
+}
+
 TEST(OrcTest, IsOrcReturnsTrueForValidBlob) {
     const auto root =
         Section::container(TYPE_NCMD, 1u, {make_payload_section(TYPE_META, 1u, BlobSummary{1u, {"NPU"}})});
