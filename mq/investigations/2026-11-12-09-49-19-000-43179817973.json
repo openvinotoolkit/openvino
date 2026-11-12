@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-12-09-49-19-000-43179817973",
+  "timestamp": "2026-11-12T09:49:19Z",
+  "run_id": "43179817973",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43179817973",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "39753",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39753",
+  "author": "jade-cho",
+  "category": "External Service",
+  "title": "PyTorch Detectron2 model-hub tests fail to download weights due to expired TLS certificate on dl.fbaipublicfiles.com",
+  "signature": "ssl certificate verify failed certificate has expired|External Service",
+  "signature_hash": "2641a2995515ec82",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "All 17 Detectron2 precommit cases failed while downloading pretrained weights: urllib raised SSL CERTIFICATE_VERIFY_FAILED because the certificate on the download host has expired."
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check failed because of the PyTorch Models tests job failure."
+    }
+  ],
+  "key_errors": [
+    "install/tests/model_hub_tests/pytorch/test_detectron2.py::TestDetectron2ConvertModel::test_detectron2_precommit[CPU-COCO-Detection/faster_rcnn_R_50_FPN_1x-none-None-None] FAILED",
+    "E           URLError: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1018)>",
+    "File \"/venv/lib/python3.11/site-packages/detectron2/checkpoint/detection_checkpoint.py\", line 61, in load\\n    path = self.path_manager.get_local_path(path)"
+  ],
+  "root_cause": "All 17 Detectron2 precommit subtests fail identically while attempting to download the pretrained model weights (model_final_*.pkl) via iopath's download() helper. The TLS handshake fails with CERTIFICATE_VERIFY_FAILED: certificate has expired, i.e. the external file host serving the Detectron2 model zoo weights currently presents an expired TLS certificate. This is unrelated to the PR under test (GPU RandomUniform state change) or to any OpenVINO code path; it is a pre-existing, recurring external-service outage already tracked under signature 2641a2995515ec82 (7 occurrences in the last 12 hours alone).",
+  "reproduction_steps": "Run `pytest install/tests/model_hub_tests/pytorch/test_detectron2.py -k test_detectron2_precommit` locally once the model-hub test dependencies are installed; the failure reproduces whenever the weight-hosting server's certificate remains expired, independent of OpenVINO code changes.",
+  "recommended_actions": [
+    "No action needed on this PR (#39753) \u2014 the GPU RandomUniform change is unrelated to this failure.",
+    "Re-run the failed jobs once the external certificate is renewed (the job is requested to remediate automatically via `remediate_transient_failure`).",
+    "Monitor/escalate to infra: the certificate on the Detectron2 weights host appears to have been expired for several hours across many merge-queue runs; consider mirroring the weights internally or pinning a trusted bundle to avoid this single point of failure.",
+    "A rerun-pattern proposal for this exact signature is already open as PR #39754 \u2014 merge it to let the automated rerunner recover future occurrences without a full CI Doctor investigation."
+  ],
+  "prevention_strategies": "Mirror externally-hosted test fixtures (e.g., Detectron2 model weights) in an internally-controlled artifact store with a maintained certificate, or vendor/cache the weights so CI does not depend on a third party's TLS certificate lifecycle. Add a pre-flight certificate-expiry check/alerting for frequently-used external test-data hosts.",
+  "historical_context": "This exact signature (2641a2995515ec82) has recurred at least 7 times in the 12 hours preceding this run (first seen 2026-11-12T01:09:15Z, most recently 2026-11-12T09:01:19Z before this occurrence), affecting PRs #38204, #39752, #39201, #39727 and others. A human-review rerun-pattern PR (#39754) proposing `certificate verify failed: certificate has expired` as a workflow-rerunner search string is already open and unmerged."
+}
