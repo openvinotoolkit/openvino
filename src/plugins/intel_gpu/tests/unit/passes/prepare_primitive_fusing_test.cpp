@@ -653,6 +653,9 @@ TEST(prepare_primitive_fusing, fuse_constant_transposes_accuracy_test) {
 // a rank-3 [1, N, K] weights constant transposed by {0, 2, 1} must not be fused as a swap of its outer dims.
 TEST(prepare_primitive_fusing, fuse_constant_transposes_3d_weights_accuracy_test) {
     auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad) {
+        GTEST_SKIP() << "FC with non-transposed constant weights is only produced for oneDNN (XMX) devices";
+    }
 
     const size_t T = 2, K = 32, N = 4;
     auto input = engine.allocate_memory({ { 1, T, K }, data_types::f16, format::bfyx });
