@@ -104,6 +104,11 @@ public:
             const auto matched_multiply = ov::as_type_ptr<ov::op::v1::Multiply>(m.get_match_root());
             const auto matched_input = node_to_output.at(input);
 
+            // A broadcasting zero point or scale makes the chain non-shape-preserving.
+            if (matched_multiply->get_output_partial_shape(0) != matched_input.get_partial_shape()) {
+                return false;
+            }
+
             if (!node_to_output.count(subtract) && !is_identity_quantizer_without_zp(node_to_output.at(fq_in_low),
                                                                                      node_to_output.at(fq_in_high),
                                                                                      node_to_output.at(fq_out_low),
