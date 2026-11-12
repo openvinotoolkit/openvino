@@ -10,6 +10,9 @@ PagedQSAIndexer
 
 **Category**: *Internal*
 
+The shared ``ov::op::internal::PagedQSAIndexer`` is defined in ``openvino/op/paged_qsa_indexer.hpp``
+in the core development API. GPU lowering uses this same operator, not a GPU-specific subclass.
+
 **Short description**:
 The *PagedQSAIndexer* is the **model-specific plan producer** for Qwen Sparse Attention (QSA) in its
 **paged** form, used under **continuous batching / PagedAttention page tables**. It consumes externally projected

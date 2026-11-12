@@ -24,6 +24,7 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/paged_qsa_indexer.hpp"
+#include "openvino/op/qsa_indexer.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -35,7 +36,6 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
-#include "ov_ops/qsa_indexer.hpp"
 #include "ov_ops/rms.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/fuse_qsa_indexer.hpp"
@@ -228,9 +228,9 @@ std::shared_ptr<Model> make_model(const GraphOptions& o, bool paged) {
     return std::make_shared<Model>(results, sinks, params);
 }
 
-class QSAIndexerPlaceholderTest : public testing::Test, public testing::WithParamInterface<bool> {};
+class QSAIndexerOperatorTest : public testing::Test, public testing::WithParamInterface<bool> {};
 
-TEST_P(QSAIndexerPlaceholderTest, SelectionShapesAndCloneSupportFusion) {
+TEST_P(QSAIndexerOperatorTest, SelectionShapesAndCloneSupportFusion) {
     const auto model = make_model(GraphOptions{false, false, true, false}, GetParam());
     const auto parameters = model->get_parameters();
     parameters.at(0)->set_partial_shape({2, 3, query_heads, head_size});
@@ -278,37 +278,11 @@ TEST_P(QSAIndexerPlaceholderTest, SelectionShapesAndCloneSupportFusion) {
 }
 
 INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
-                         QSAIndexerPlaceholderTest,
+                         QSAIndexerOperatorTest,
                          testing::Values(false, true),
                          [](const testing::TestParamInfo<bool>& info) {
                              return info.param ? "Paged" : "Dense";
                          });
-
-TEST(PagedQSAIndexerPlaceholderTest, MergesTokenDimensions) {
-    const auto model = make_model(GraphOptions{false, false, true, false}, true);
-    std::shared_ptr<op_internal::PagedQSAIndexer> indexer;
-    for (const auto& node : model->get_ops()) {
-        indexer = ov::as_type_ptr<op_internal::PagedQSAIndexer>(node);
-        if (indexer) {
-            break;
-        }
-    }
-    ASSERT_NE(indexer, nullptr);
-    auto inputs = indexer->input_values();
-    inputs[PagedQSAIndexerInputIdx::INDEX_QUERY] =
-        std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, query_heads * head_size});
-    inputs[PagedQSAIndexerInputIdx::RAW_INDEX_KEYS] =
-        std::make_shared<v0::Parameter>(element::f32, PartialShape{6, key_heads * head_size});
-    const auto merged = indexer->clone_with_new_inputs(inputs);
-    EXPECT_EQ(merged->get_output_partial_shape(PagedQSAIndexerOutputIdx::SELECTED_BLOCK_INDICES),
-              (PartialShape{6, selection_heads, block_topk}));
-    EXPECT_EQ(merged->get_output_partial_shape(PagedQSAIndexerOutputIdx::SELECTED_BLOCK_COUNT),
-              (PartialShape{6, selection_heads}));
-
-    inputs[PagedQSAIndexerInputIdx::ROPE_COS] =
-        std::make_shared<v0::Parameter>(element::f32, PartialShape{5, rotary_dim});
-    EXPECT_THROW(indexer->clone_with_new_inputs(inputs), ov::NodeValidationFailure);
-}
 
 std::unordered_set<std::string> run_paged_qsa_indexer_fusion(const std::shared_ptr<Model>& model) {
     pass::paged_attention::PaParams pa_params{model->get_parameters()};
@@ -357,61 +331,88 @@ INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
                          PagedQSAIndexerFusionNotConvertedTest,
                          testing::Values(GraphOptions{true, false, false}));
 
+std::shared_ptr<Model> make_model_with_modified_indexer(const std::string& name) {
+    const auto model = make_model(GraphOptions{}, false);
+    std::shared_ptr<op_internal::QSAIndexer> indexer;
+    for (const auto& node : model->get_ops()) {
+        indexer = ov::as_type_ptr<op_internal::QSAIndexer>(node);
+        if (indexer) {
+            break;
+        }
+    }
+    OPENVINO_ASSERT(indexer, "Expected a dense QSAIndexer in the test model");
+    auto inputs = indexer->input_values();
+    auto config = indexer->get_config();
+    if (name == "zero_block_size") {
+        config.key_block_size = 0;
+    } else if (name == "selection_heads") {
+        config.num_selection_heads = 2;
+    } else if (name == "nonfinite_scale") {
+        config.scale = std::numeric_limits<float>::infinity();
+    } else if (name == "head_dimension") {
+        config.indexer_head_dim = head_size / 2;
+    } else if (name == "head_count") {
+        inputs[QSAIndexerInputIdx::RAW_INDEX_KEYS] =
+            v0::Constant::create(element::f32, Shape{1, 1, 3, head_size}, {0.0f});
+    } else if (name == "weight_shape") {
+        inputs[QSAIndexerInputIdx::K_NORM_WEIGHT] = v0::Constant::create(element::f32, Shape{head_size - 1}, {1.0f});
+    } else if (name == "weight_type") {
+        inputs[QSAIndexerInputIdx::Q_NORM_WEIGHT] = v0::Constant::create(element::f16, Shape{head_size}, {1.0f});
+    } else if (name == "rotary_dimension") {
+        config.indexer_rotary_dim = rotary_dim - 1;
+    } else if (name == "zero_rotary_dimension") {
+        config.indexer_rotary_dim = 0;
+        inputs[QSAIndexerInputIdx::ROPE_COS] = v0::Constant::create(element::f32, Shape{1, 1, 0}, std::vector<float>{});
+        inputs[QSAIndexerInputIdx::ROPE_SIN] = v0::Constant::create(element::f32, Shape{1, 1, 0}, std::vector<float>{});
+        const auto rope_state =
+            ov::as_type_ptr<v6::ReadValue>(inputs[QSAIndexerInputIdx::PAST_INCOMPLETE_ROPE].get_node_shared_ptr());
+        OPENVINO_ASSERT(rope_state);
+        rope_state->get_variable()->update_data_shape(PartialShape{-1, 0});
+        rope_state->validate_and_infer_types();
+    } else if (name == "incompatible_key_rope_cos" || name == "incompatible_key_rope_sin") {
+        model->get_parameters()[0]->set_partial_shape({1, Dimension(1, 3), query_heads, head_size});
+        model->get_parameters()[1]->set_partial_shape({1, 1, key_heads, head_size});
+        const auto idx =
+            name == "incompatible_key_rope_cos" ? QSAIndexerInputIdx::ROPE_COS : QSAIndexerInputIdx::ROPE_SIN;
+        inputs[idx] = v0::Constant::create(element::f32, Shape{1, 3, rotary_dim}, {1.0f});
+    } else {
+        model->get_parameters()[0]->set_partial_shape({1, 3, query_heads, head_size});
+        model->get_parameters()[1]->set_partial_shape({1, 3, key_heads, head_size});
+        inputs[QSAIndexerInputIdx::ROPE_COS] = v0::Constant::create(element::f32, Shape{1, 5, rotary_dim}, {1.0f});
+    }
+    const auto replacement = std::make_shared<op_internal::QSAIndexer>(inputs, config);
+    ov::replace_node(indexer, replacement);
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
+class QSAIndexerInvalidInputsTest : public testing::TestWithParam<std::string> {};
+
+TEST_P(QSAIndexerInvalidInputsTest, RejectsInvalidInputsAtConstruction) {
+    EXPECT_THROW(make_model_with_modified_indexer(GetParam()), ov::NodeValidationFailure);
+}
+
+INSTANTIATE_TEST_SUITE_P(QSAIndexer,
+                         QSAIndexerInvalidInputsTest,
+                         testing::Values("zero_block_size",
+                                         "selection_heads",
+                                         "nonfinite_scale",
+                                         "head_dimension",
+                                         "head_count",
+                                         "weight_shape",
+                                         "weight_type",
+                                         "rotary_dimension",
+                                         "rope_token_count"),
+                         [](const testing::TestParamInfo<std::string>& info) {
+                             return info.param;
+                         });
+
 class PagedQSAIndexerInvalidProductionInputsTest : public TransformationTestsF,
                                                    public testing::WithParamInterface<std::string> {
 public:
     void SetUp() override {
         TransformationTestsF::SetUp();
-        const auto& name = GetParam();
-        model = make_model(GraphOptions{}, false);
-        std::shared_ptr<op_internal::QSAIndexer> indexer;
-        for (const auto& node : model->get_ops()) {
-            indexer = ov::as_type_ptr<op_internal::QSAIndexer>(node);
-            if (indexer) {
-                break;
-            }
-        }
-        ASSERT_NE(indexer, nullptr);
-        auto inputs = indexer->input_values();
-        auto config = indexer->get_config();
-        if (name == "zero_block_size") {
-            config.key_block_size = 0;
-        } else if (name == "selection_heads") {
-            config.num_selection_heads = 2;
-        } else if (name == "nonfinite_scale") {
-            config.scale = std::numeric_limits<float>::infinity();
-        } else if (name == "head_dimension") {
-            config.indexer_head_dim = head_size / 2;
-        } else if (name == "head_count") {
-            inputs[QSAIndexerInputIdx::RAW_INDEX_KEYS] =
-                v0::Constant::create(element::f32, Shape{1, 1, 3, head_size}, {0.0f});
-        } else if (name == "weight_shape") {
-            inputs[QSAIndexerInputIdx::K_NORM_WEIGHT] =
-                v0::Constant::create(element::f32, Shape{head_size - 1}, {1.0f});
-        } else if (name == "weight_type") {
-            inputs[QSAIndexerInputIdx::Q_NORM_WEIGHT] = v0::Constant::create(element::f16, Shape{head_size}, {1.0f});
-        } else if (name == "rotary_dimension") {
-            config.indexer_rotary_dim = rotary_dim - 1;
-        } else if (name == "zero_rotary_dimension") {
-            config.indexer_rotary_dim = 0;
-            inputs[QSAIndexerInputIdx::ROPE_COS] =
-                v0::Constant::create(element::f32, Shape{1, 1, 0}, std::vector<float>{});
-            inputs[QSAIndexerInputIdx::ROPE_SIN] =
-                v0::Constant::create(element::f32, Shape{1, 1, 0}, std::vector<float>{});
-        } else if (name == "incompatible_key_rope_cos" || name == "incompatible_key_rope_sin") {
-            model->get_parameters()[0]->set_partial_shape({1, Dimension(1, 3), query_heads, head_size});
-            model->get_parameters()[1]->set_partial_shape({1, 1, key_heads, head_size});
-            const auto idx =
-                name == "incompatible_key_rope_cos" ? QSAIndexerInputIdx::ROPE_COS : QSAIndexerInputIdx::ROPE_SIN;
-            inputs[idx] = v0::Constant::create(element::f32, Shape{1, 3, rotary_dim}, {1.0f});
-        } else {
-            model->get_parameters()[0]->set_partial_shape({1, 3, query_heads, head_size});
-            model->get_parameters()[1]->set_partial_shape({1, 3, key_heads, head_size});
-            inputs[QSAIndexerInputIdx::ROPE_COS] = v0::Constant::create(element::f32, Shape{1, 5, rotary_dim}, {1.0f});
-        }
-        const auto replacement = std::make_shared<op_internal::QSAIndexer>(inputs, config);
-        ov::replace_node(indexer, replacement);
-        model->validate_nodes_and_infer_types();
+        model = make_model_with_modified_indexer(GetParam());
         pa_params = std::make_unique<pass::paged_attention::PaParams>(model->get_parameters());
         manager.register_pass<pass::PagedQSAIndexerFusion>(*pa_params, removed_ids);
     }
@@ -432,18 +433,9 @@ TEST_P(PagedQSAIndexerInvalidProductionInputsTest, DoesNotFuseOrAddCaches) {}
 
 INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
                          PagedQSAIndexerInvalidProductionInputsTest,
-                         testing::Values("zero_block_size",
-                                         "selection_heads",
-                                         "nonfinite_scale",
-                                         "head_dimension",
-                                         "head_count",
-                                         "weight_shape",
-                                         "weight_type",
-                                         "rotary_dimension",
-                                         "zero_rotary_dimension",
+                         testing::Values("zero_rotary_dimension",
                                          "incompatible_key_rope_cos",
-                                         "incompatible_key_rope_sin",
-                                         "rope_token_count"),
+                                         "incompatible_key_rope_sin"),
                          [](const testing::TestParamInfo<std::string>& info) {
                              return info.param;
                          });

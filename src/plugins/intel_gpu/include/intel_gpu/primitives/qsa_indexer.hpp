@@ -6,23 +6,23 @@
 
 #include <vector>
 
-#include "intel_gpu/op/qsa_indexer.hpp"
+#include "openvino/op/qsa_indexer.hpp"
 #include "primitive.hpp"
 
 namespace cldnn {
 
 /// @brief Non-paged (dense, functional-state) QSA Indexer primitive: Q1 (prepare) +
 /// Q2 (score/top-k). Outputs: selected_block_indices, selected_block_count, and the updated block_index_keys_cache,
-/// past_incomplete_raw_k and past_incomplete_rope state. See ov::intel_gpu::op::QSAIndexer.
+/// past_incomplete_raw_k and past_incomplete_rope state. See ov::op::internal::QSAIndexer.
 struct qsa_indexer : public primitive_base<qsa_indexer> {
     CLDNN_DECLARE_PRIMITIVE(qsa_indexer)
 
-    using InputIdx = ov::intel_gpu::op::QSAIndexer::InputIdx;
-    using OutputIdx = ov::intel_gpu::op::QSAIndexer::OutputIdx;
+    using InputIdx = ov::op::internal::QSAIndexer::InputIdx;
+    using OutputIdx = ov::op::internal::QSAIndexer::OutputIdx;
 
     qsa_indexer() : primitive_base("", {}) {}
 
-    qsa_indexer(const primitive_id& id, const std::vector<input_info>& inputs, const ov::intel_gpu::op::QSAIndexer::Config& config)
+    qsa_indexer(const primitive_id& id, const std::vector<input_info>& inputs, const ov::op::internal::QSAIndexer::Config& config)
         : primitive_base(
               id,
               inputs,
@@ -48,8 +48,8 @@ struct qsa_indexer : public primitive_base<qsa_indexer> {
     bool query_norm = true;
     bool query_rope = true;
 
-    ov::intel_gpu::op::QSAIndexer::Config get_config() const {
-        ov::intel_gpu::op::QSAIndexer::Config config;
+    ov::op::internal::QSAIndexer::Config get_config() const {
+        ov::op::internal::QSAIndexer::Config config;
         config.key_block_size = key_block_size;
         config.block_topk = block_topk;
         config.num_selection_heads = num_selection_heads;

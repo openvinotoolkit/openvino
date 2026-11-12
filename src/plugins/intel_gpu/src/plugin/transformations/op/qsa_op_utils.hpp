@@ -2,33 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// Validation helpers shared by the QSA indexer / sparse-attention ops (GPU plugin).
-
 #pragma once
 
-#include <cstddef>
 #include <initializer_list>
 #include <string>
 
 #include "openvino/core/attribute_visitor.hpp"
-#include "openvino/core/node.hpp"
-#include "openvino/core/partial_shape.hpp"
-#include "openvino/core/validation_util.hpp"
+#include "openvino/op/util/qsa_op_utils.hpp"
 
 namespace ov::intel_gpu::op::qsa_util {
 
-// The kernels read every integer input as int32_t.
-inline void check_i32_input(const ov::Node* node, size_t idx, const char* name, int64_t rank) {
-    const auto& et = node->get_input_element_type(idx);
-    const auto& ps = node->get_input_partial_shape(idx);
-    NODE_VALIDATION_CHECK(node, et.is_dynamic() || et == element::i32, node->get_type_name(), " expects an i32 ", name, " input, got ", et);
-    NODE_VALIDATION_CHECK(node, ps.rank().compatible(rank), node->get_type_name(), " expects a rank-", rank, " ", name, " input, got ", ps);
-}
-
-inline void check_shape(const ov::Node* node, size_t idx, const char* name, const ov::PartialShape& expected) {
-    const auto& ps = node->get_input_partial_shape(idx);
-    NODE_VALIDATION_CHECK(node, ps.compatible(expected), node->get_type_name(), " expects ", name, " shaped ", expected, ", got ", ps);
-}
+using ov::op::internal::qsa_util::check_shape;
+using ov::op::internal::qsa_util::dim_at;
 
 inline void check_float_inputs(const ov::Node* node, std::initializer_list<size_t> indices) {
     element::Type et = element::dynamic;
@@ -45,11 +30,6 @@ inline void check_float_inputs(const ov::Node* node, std::initializer_list<size_
     NODE_VALIDATION_CHECK(node, et.is_dynamic() || et.is_real(), node->get_type_name(), " expects floating-point inputs, got ", et);
 }
 
-inline ov::Dimension dim_at(const ov::PartialShape& ps, size_t axis) {
-    return ps.rank().is_static() && ps.size() > axis ? ps[axis] : ov::Dimension::dynamic();
-}
-
-/// Config rules for SparseSDPA::Config.
 template <class Config>
 bool validate_sparse_attention_config(const Config& c, std::string& reason) {
     auto fail = [&reason](const char* msg) {

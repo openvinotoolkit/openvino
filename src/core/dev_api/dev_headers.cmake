@@ -33,9 +33,11 @@ set(DEV_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/paged_qsa_indexer.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/paged_selective_ssm.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/paged_sparse_attention.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/op/qsa_indexer.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/rms_norm.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/selective_ssm.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/util/node_util.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/op/util/qsa_op_utils.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/util/slice_plan.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/opsets/opset10_decl.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/opsets/opset11_decl.hpp

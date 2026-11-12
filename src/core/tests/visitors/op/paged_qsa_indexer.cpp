@@ -70,6 +70,10 @@ TEST(attributes, paged_qsa_indexer) {
     EXPECT_EQ(restored_config.query_norm, config.query_norm);
     EXPECT_EQ(restored_config.query_rope, config.query_rope);
     EXPECT_EQ(restored->get_output_size(), 2);
+    const auto clone = ov::as_type_ptr<PagedQSAIndexer>(restored->clone_with_new_inputs(restored->input_values()));
+    ASSERT_NE(clone, nullptr);
+    EXPECT_EQ(clone->get_config().query_norm, config.query_norm);
+    EXPECT_EQ(clone->get_config().query_rope, config.query_rope);
 }
 
 TEST(serialize, paged_qsa_indexer_legacy_query_flags) {
