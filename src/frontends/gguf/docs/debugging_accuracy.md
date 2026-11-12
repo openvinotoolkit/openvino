@@ -12,6 +12,9 @@ there is no requirement to complete every diagnostic before inspecting the impli
 Native builders and supplied cgraph decoders share converters, but have different graph construction
 and state/IO adaptation. Backend environment variables do not configure native frontend inference.
 See [testing](testing.md) for commands, acceptance criteria, and how to recognize skipped coverage.
+For GenAI/mmproj, use [multimodal integration bisection](#multimodal-integration-bisection).
+Before interpreting an ineffective rebuild, verify the source objects and loaded libraries;
+see [build and runtime identity](../../../../.claude/skills/ov-gguf/references/build-runtime.md).
 
 ## Reference and precision
 
@@ -30,6 +33,13 @@ CPU execution and, when needed, F32 arithmetic on the checkpoint's represented w
 weights preserves the file's original quantization error; it does not recover the publisher's
 F32 weights. Keep these measurements separate and retain failed comparisons. See
 [quantization](quantization.md) for conversion losses, native precision controls, and memory costs.
+
+Inspect tensor types rather than checkpoint names; a Q4_0 file can contain other quant formats.
+If inputs and graph contracts agree, exactly expand the same quantized weights with the pinned
+quantizer, compare the expansion in both engines, and compare OV compressed against OV expanded.
+Agreement of the expansions with a discrepancy only in quantized execution implicates CPU
+arithmetic; retain the original failed gate. A requantized fixture or a separately downloaded
+F16 checkpoint cannot establish parity for the original model.
 
 ## Localize the failing boundary
 
@@ -57,6 +67,50 @@ was selected. Check shapes, strides, offsets, and candidate source tensors befor
 Near an MoE boundary, compare router logits, selected expert IDs, and the selection cutoff margin.
 A small change near a tie can select another expert and amplify later differences. Identifying
 this sensitivity does not waive the agreed accuracy threshold.
+
+## Multimodal integration bisection
+
+Freeze one failing request and the actual pinned CPU oracle. Record model/projector hashes,
+prompt/media, attention backend, inference precision, KV cache precision, activation
+quantization and thread settings. KV precision is independent of inference precision.
+Use explicit matching cache precision for numerical diagnosis and test product defaults
+separately. Do not silently change the task's first-token or replay-choice thresholds.
+
+Compare these boundaries in order, saving each buffer and its geometry:
+
+1. **Template and token IDs.** Compare the assembled prompt, special-token/BOS policy and
+   actual llama tokenizer IDs. Include combining marks, newlines and literal byte-token
+   spellings if chat fails while a plain prompt passes. For raw UTF-8 BPE, an ordinary
+   multi-character vocabulary entry may require merges; byte fallback must neither consume
+   its literal `<0xNN>` spelling nor displace an ordinary character with the same byte.
+2. **Media encoder.** Compare preprocessing geometry, token/patch limits and element-wise
+   encoder outputs. Synthetic square smoke tests can hide JPEG resizing or sequence limits.
+   Confirm frame sampling, timestamps and boundary tokens for video, and sample rate/audio
+   boundaries for audio. A documented mtmd assembly adaptation still needs the pinned CPU
+   encoder and llama decoder; label it separately from an upstream video API.
+3. **Embedding insertion and positions.** Feed the same encoder tensor to both decoders to
+   separate encoder errors from text/media insertion, per-layer features or position IDs.
+   Keep prompt IDs, token-type groups and sequence lengths identical.
+4. **Mask and window contract.** Compare local/global layers in SDPA and PA. GGUF emits
+   the existing GPT-OSS/Gemma3 sliding-mask pattern and moves mask precision conversion
+   into `Select`, preserving any intervening `Slice`. GenAI-adapted masks follow
+   Optimum-intel's window policy: same-image tokens remain visible bidirectionally even
+   beyond the sliding window, while text attention remains windowed. This differs from
+   the pinned llama.cpp Gemma4 mask; see the [known parity gap](mmproj.md#gemma4-image-window-parity-gap).
+   Restoring both policies requires an explicit serializable PA operation input or
+   attribute and device support. Runtime metadata must not control attention semantics.
+   Compare full prefill with prefix reuse separately; see the
+   [bidirectional image prefix-cache gap](mmproj.md#bidirectional-image-prefix-cache-gap).
+5. **Decoder logits.** Compare full logits, top choices and their margin on identical
+   history, then isolate cache/activation/weight arithmetic with exact expansions described under reference and precision.
+   High encoder cosine alone does not establish decoder parity or rule out a close top-1 flip.
+
+After fixing a shared tokenizer, mask, PA or executor path, run representative affected
+families with both SDPA/PA and relevant chat/media scenarios. Keep optimum-intel compatibility
+(existing loader/processor/model contracts) separate from llama numerical parity; sharing
+layout does not mean identical media geometry. Report every retained failure even if its
+arithmetic origin is understood. Tiny/random fixtures establish numerical contracts, not
+the quality of their generated prose.
 
 ## llama.cpp backend isolation
 

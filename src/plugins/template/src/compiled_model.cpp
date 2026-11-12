@@ -7,10 +7,13 @@
 #include <memory>
 
 #include "async_infer_request.hpp"
+#include "hsm_writer_handler.hpp"
 #include "itt.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
+#include "openvino/runtime/hsm_deferred_writer.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "perf_counter.hpp"
 #include "plugin.hpp"
@@ -154,6 +157,8 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
     } else if (ov::runtime_requirements == name) {
         // A real plugin would encode compilation capabilities.
         return std::string(get_template_plugin()->get_runtime_requirements());
+    } else if (ov::internal::caching_properties == name || ov::device::architecture == name) {
+        return get_plugin()->get_property(name, {});
     } else if (ov::supported_properties == name) {
         auto ro_properties = default_ro_properties();
         auto rw_properties = default_rw_properties();
@@ -173,21 +178,35 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
 void ov::template_plugin::CompiledModel::export_model(std::ostream& model_stream) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "CompiledModel::export_model");
 
-    std::stringstream xmlFile, binFile;
-    ov::pass::Serialize serializer(xmlFile, binFile);
-    serializer.run_on_model(m_model);
+    if (m_cfg.export_hsm_format) {
+        ov::AnyMap cache_options;
+        const auto caching_properties = get_property(ov::internal::caching_properties.name());
+        for (const auto& name : caching_properties.as<decltype(ov::internal::caching_properties)::value_type>()) {
+            cache_options.emplace(name, get_property(name));
+        }
+        HsmWriterHandler handler{m_model, m_cfg, cache_options, get_template_plugin()->get_runtime_requirements()};
+        auto writer = ov::runtime::hsm::DeferredWriter::open(model_stream);
+        OPENVINO_ASSERT(writer, "TEMPLATE: cannot open HSM writer, the export stream must be seekable");
+        writer->add_sections({&handler});
+        const auto error = writer->finalize();
+        OPENVINO_ASSERT(!error, "TEMPLATE: HSM export failed: ", error.message());
+    } else {
+        std::stringstream xmlFile, binFile;
+        ov::pass::Serialize serializer(xmlFile, binFile);
+        serializer.run_on_model(m_model);
 
-    auto m_constants = binFile.str();
-    auto m_model = xmlFile.str();
+        auto m_constants = binFile.str();
+        auto m_model = xmlFile.str();
 
-    auto dataSize = static_cast<std::uint64_t>(m_model.size());
-    model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-    model_stream.write(m_model.c_str(), dataSize);
-
-    if (m_cfg.cache_mode == CacheMode::OPTIMIZE_SPEED) {
-        dataSize = static_cast<std::uint64_t>(m_constants.size());
+        auto dataSize = static_cast<std::uint64_t>(m_model.size());
         model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-        model_stream.write(reinterpret_cast<char*>(&m_constants[0]), dataSize);
+        model_stream.write(m_model.c_str(), dataSize);
+
+        if (m_cfg.cache_mode == CacheMode::OPTIMIZE_SPEED) {
+            dataSize = static_cast<std::uint64_t>(m_constants.size());
+            model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+            model_stream.write(reinterpret_cast<char*>(&m_constants[0]), dataSize);
+        }
     }
 }
 // ! [compiled_model:export_model]

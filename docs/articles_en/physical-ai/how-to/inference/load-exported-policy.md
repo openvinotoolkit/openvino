@@ -46,4 +46,4 @@ Use chunk prediction when a runtime owns the queueing and timing.
 chunk = model.predict_action_chunk(observation)
 ```
 
-Do not build robot-loop timing around `select_action()`. Use `PolicyRuntime` when the policy is driving hardware.
+Do not build robot-loop timing around `select_action()`. Use `RobotRuntime` with a `PolicySource` action source when the policy is driving hardware.

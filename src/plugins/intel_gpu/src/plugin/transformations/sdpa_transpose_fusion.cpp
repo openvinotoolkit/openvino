@@ -11,6 +11,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "transformations/utils/utils.hpp"
 
 #include <memory>
@@ -80,7 +81,7 @@ SDPATransposeFusion::SDPATransposeFusion() {
     auto any_sdpa_m = std::make_shared<Or>(OutputVector{sdpa_m, sdpa_v13_m});
     auto transpose_m = wrap_type<v1::Transpose>({any_sdpa_m, any_input()});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto transpose = ov::as_type_ptr<v1::Transpose>(
             pattern_map.at(transpose_m).get_node_shared_ptr());
@@ -130,7 +131,8 @@ SDPATransposeFusion::SDPATransposeFusion() {
                     new_out_order,
                     sdpa->get_quantization_attrs(),
                         sdpa->get_output_type(),
-                        sdpa->get_causal_mask_alignment());
+                        sdpa->get_causal_mask_alignment(),
+                        sdpa->get_sliding_window_size());
             } else {
                 new_sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(
                     sdpa->input_values(),
@@ -140,7 +142,8 @@ SDPATransposeFusion::SDPATransposeFusion() {
                     sdpa->get_input2_transpose_order(),
                     new_out_order,
                         sdpa->get_output_type(),
-                        sdpa->get_causal_mask_alignment());
+                        sdpa->get_causal_mask_alignment(),
+                        sdpa->get_sliding_window_size());
             }
             sdpa_node = sdpa;
         } else {

@@ -6,12 +6,16 @@
 
 #include <algorithm>
 #include <memory>
+#include <unordered_set>
 #include <vector>
 
+#include "model_contract.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
+#include "openvino/frontend/gguf/tokenizer_metadata.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -21,7 +25,7 @@
 #include "openvino/op/equal.hpp"
 #include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/gather.hpp"
-#include "openvino/op/greater_eq.hpp"
+#include "openvino/op/greater.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/less_eq.hpp"
 #include "openvino/op/logical_and.hpp"
@@ -49,6 +53,7 @@
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "pass/simplify_activation_shapes.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::pass {
@@ -59,6 +64,11 @@ using std::make_shared;
 
 // f16 lowest, matches genai's causal-mask "-inf" fill.
 constexpr float NEG_INF = -65504.0f;
+
+bool has_output_name(const std::shared_ptr<ov::op::v0::Result>& result, const std::string& name) {
+    return result->get_friendly_name() == name || result->input_value(0).get_names().count(name) ||
+           result->output(0).get_names().count(name);
+}
 
 // translate_get_rows's embedding-table lookup restores ggml's rank-4 form with a fixed
 // Unsqueeze(axis=0), pinning the residual stream's leading axis to a literal 1 regardless of
@@ -86,28 +96,7 @@ public:
         ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
             auto unsqueeze = m.get_match_root();
 
-            // translate_get_rows optionally inserts a Convert between the Gather and the
-            // Unsqueeze (output dtype mismatch); look through it structurally instead of
-            // relying on naming.
-            auto node = unsqueeze->input_value(0).get_node_shared_ptr();
-            if (auto convert = ov::as_type_ptr<v0::Convert>(node)) {
-                node = convert->input_value(0).get_node_shared_ptr();
-            }
-            auto gather = ov::as_type_ptr<v8::Gather>(node);
-            if (!gather) {
-                return false;
-            }
-
-            // The indices feeding the Gather are Squeeze(inp_tokens, [0,1]) (see
-            // translate_get_rows); trace back through that Squeeze to confirm this call site is
-            // actually rooted at the "inp_tokens" parameter, not some unrelated Gather/Unsqueeze
-            // pair elsewhere in the graph (e.g. FixInpOutIdsRowSelect's call sites).
-            auto indices_node = gather->input_value(1).get_node_shared_ptr();
-            if (auto squeeze = ov::as_type_ptr<v0::Squeeze>(indices_node)) {
-                indices_node = squeeze->input_value(0).get_node_shared_ptr();
-            }
-            auto param = ov::as_type_ptr<v0::Parameter>(indices_node);
-            if (!param || param->output(0).get_names().count("inp_tokens") == 0) {
+            if (!token_embedding_lookup(unsqueeze)) {
                 return false;
             }
 
@@ -189,6 +178,42 @@ int64_t max_kv_cache_head_size(const std::shared_ptr<ov::Model>& model) {
     return max_hs;
 }
 
+// HF Gemma4 and llama.cpp look up media positions as padding.
+ov::Output<ov::Node> pad_media_placeholders(const ov::Model& model, const ov::Output<ov::Node>& ids) {
+    const auto& rt_info = model.get_rt_info();
+    const auto it = rt_info.find(gguf_tokenizer_metadata_key());
+    if (it == rt_info.end())
+        return ids;
+    const auto& config = it->second.as<std::shared_ptr<GGUFTokenizerMetadata>>()->config;
+    const auto tokens = config.find("tokens");
+    if (tokens == config.end() || !tokens->second.is<std::vector<std::string>>())
+        return ids;
+    const auto p = config.find("padding_token_id");
+    if (p == config.end())
+        return ids;
+    int64_t pad;
+    {
+        OPENVINO_ASSERT(p->second.is<ov::Tensor>(), "[GGUF] padding_token_id must be a tensor");
+        const auto& value = p->second.as<ov::Tensor>();
+        OPENVINO_ASSERT(value.get_size() == 1 && value.get_element_type().is_integral_number(),
+                        "[GGUF] padding_token_id must contain one integral value");
+        pad = ov::op::v0::Constant(value).cast_vector<int64_t>().front();
+        OPENVINO_ASSERT(pad >= 0 && static_cast<uint64_t>(pad) < tokens->second.as<std::vector<std::string>>().size(),
+                        "[GGUF] padding_token_id is outside the vocabulary");
+    }
+    ov::Output<ov::Node> media;
+    const auto& vocabulary = tokens->second.as<std::vector<std::string>>();
+    for (size_t id = 0; id < vocabulary.size(); ++id) {
+        if (vocabulary[id] != "<|image|>" && vocabulary[id] != "<|video|>" && vocabulary[id] != "<|audio|>")
+            continue;
+        auto match = make_shared<ov::op::v1::Equal>(ids, ov::op::v0::Constant::create(ov::element::i64, {}, {id}));
+        media = media.get_node() ? make_shared<ov::op::v1::LogicalOr>(media, match)->output(0) : match->output(0);
+    }
+    if (!media.get_node())
+        return ids;
+    return make_shared<ov::op::v1::Select>(media, ov::op::v0::Constant::create(ov::element::i64, {}, {pad}), ids);
+}
+
 }  // namespace
 
 bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
@@ -207,10 +232,27 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     auto token_len_per_seq = find_parameter(model, "token_len_per_seq");
     const bool has_recurrent_states = model->get_rt_info().count(gguf_recurrent_states_key()) != 0;
     const auto operations = model->get_ops();
-    const bool batchable_recurrent =
-        has_recurrent_states && std::any_of(operations.begin(), operations.end(), [](const auto& node) {
+    auto contract = read_model_contract(model);
+    if (!contract.supports_genai_adaptation.value_or(true))
+        return false;
+    for (const auto& name : contract.sequence_outputs) {
+        const auto result =
+            std::find_if(model->get_results().begin(), model->get_results().end(), [&](const auto& output) {
+                return has_output_name(output, name);
+            });
+        OPENVINO_ASSERT(result != model->get_results().end(), "[GGUF] missing declared sequence output ", name);
+        const auto rank = (*result)->input_value(0).get_partial_shape().rank();
+        OPENVINO_ASSERT(rank.is_static() && (rank.get_length() == 3 || rank.get_length() == 4),
+                        "[GGUF] sequence output requires rank 3 or 4: ",
+                        name);
+    }
+    const auto has_gated_delta_net = [&] {
+        return std::any_of(operations.begin(), operations.end(), [](const auto& node) {
             return ov::is_type<internal::GatedDeltaNet>(node);
         });
+    };
+    const bool batchable_recurrent =
+        has_recurrent_states && (contract.batchable_recurrent ? *contract.batchable_recurrent : has_gated_delta_net());
     const bool recurrent_only = !inp_pos && !self_kq_mask && has_recurrent_states;
     if (!inp_tokens || (!recurrent_only && !self_kq_mask)) {
         return false;
@@ -230,6 +272,16 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
                 OPENVINO_ASSERT(per_layer_name.empty(), "[GGUF] ambiguous per-layer token embedding boundary");
                 per_layer_name = node->get_friendly_name();
                 per_layer_count = it->second.as<int64_t>();
+            }
+        }
+        if (embedding_name.empty() || per_layer_name.empty()) {
+            const auto legacy =
+                resolve_legacy_embedding_boundaries(model, embedding_name.empty(), per_layer_name.empty());
+            if (legacy.token)
+                embedding_name = legacy.token->get_friendly_name();
+            if (legacy.per_layer) {
+                per_layer_name = legacy.per_layer->get_friendly_name();
+                per_layer_count = legacy.per_layer_count;
             }
         }
         OPENVINO_ASSERT(!embedding_name.empty(), "[GGUF] missing native token embedding boundary");
@@ -261,12 +313,13 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         auto embedding = find_boundary(embedding_name);
         const auto width = embedding->get_output_partial_shape(0)[3].get_length();
         // Clone each lookup graph before rewiring the language model. Constants retain shared buffers.
-        const auto extract = [&](const ov::Output<ov::Node>& lookup, const std::string& name) {
+        const auto extract = [&](const ov::Output<ov::Node>& lookup, const std::string& name, bool pad_media) {
             auto extracted = make_shared<ov::Model>(ov::OutputVector{lookup}, ov::ParameterVector{inp_tokens})->clone();
             extracted->get_rt_info() = model->get_rt_info();
             auto ids = make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
             name_output(ids, "input_ids");
-            auto ids4 = make_shared<v0::Unsqueeze>(make_shared<v0::Convert>(ids, ov::element::i32),
+            auto lookup_ids = pad_media ? pad_media_placeholders(*model, ids) : ids->output(0);
+            auto ids4 = make_shared<v0::Unsqueeze>(make_shared<v0::Convert>(lookup_ids, ov::element::i32),
                                                    v0::Constant::create(ov::element::i64, {2}, {0, 1}));
             auto old_ids = extracted->get_parameters().front();
             old_ids->output(0).replace(ids4->output(0));
@@ -276,7 +329,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
             extracted->validate_nodes_and_infer_types();
             return extracted;
         };
-        m_embedding_model = extract(make_shared<v0::Squeeze>(embedding, axis_1), "inputs_embeds");
+        m_embedding_model = extract(make_shared<v0::Squeeze>(embedding, axis_1), "inputs_embeds", false);
         auto per_layer = per_layer_name.empty() ? nullptr : find_boundary(per_layer_name);
         int64_t per_layer_width = 0;
         if (per_layer) {
@@ -292,7 +345,8 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
                                                  {4},
                                                  {int64_t{0}, int64_t{0}, per_layer_count, per_layer_width}),
                             true),
-                        "per_layer_inputs");
+                        "per_layer_inputs",
+                        true);
         }
         inputs_embeds = make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, width});
         name_output(inputs_embeds, "inputs_embeds");
@@ -310,6 +364,9 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         }
     }
 
+    if (inputs_embeds)
+        contract = read_model_contract(model, inputs_embeds->get_partial_shape()[2].get_length());
+
     // ---- new genai inputs: input_ids / attention_mask / position_ids [b, seq] i64 ----
     // Recurrent state buffers currently hold one sequence. Keep that constraint explicit.
     auto input_ids = make_shared<v0::Parameter>(
@@ -324,10 +381,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
                                    multimodal_positions ? ov::PartialShape{4, -1, -1} : ov::PartialShape{-1, -1});
     name_output(position_ids, "position_ids");
     std::shared_ptr<v0::Parameter> token_type_ids;
-    const auto arch_it = model->get_rt_info().find("gguf_architecture");
-    const auto arch = arch_it != model->get_rt_info().end() ? arch_it->second.as<std::string>() : std::string{};
-    // Gemma4 E2B/E4B, the variants with per-layer token embeddings, keep image attention causal.
-    if (inputs_embeds && (arch == "gemma3" || (arch == "gemma4" && !per_layer_inputs))) {
+    if (inputs_embeds && contract.image_attention != ModelContract::ImageAttentionMode::CAUSAL) {
         token_type_ids = make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
         name_output(token_type_ids, "token_type_ids");
     }
@@ -449,6 +503,10 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     };
     const auto causal = make_shared<v1::LessEqual>(k_row, q_pos_col);
     ov::Output<ov::Node> allowed = causal;
+    ov::Output<ov::Node> same_image;
+    ov::Output<ov::Node> causal_or_query_image = causal;
+    ov::Output<ov::Node> causal_or_key_image = causal;
+    ov::Output<ov::Node> causal_or_same_group = causal;
     if (token_type_ids) {
         // Only patches within the same current image can attend bidirectionally.
         auto zeros = make_shared<v3::Broadcast>(v0::Constant::create(ov::element::i64, {}, {0}),
@@ -459,42 +517,82 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         auto query_groups = make_shared<v8::Slice>(groups, past_len, kv_len, one_1, one_1);
         auto same_group = make_shared<v1::Equal>(as_query_col(query_groups), as_key_row(groups));
         auto one = v0::Constant::create(ov::element::i64, {}, {1});
-        auto images = make_shared<v1::LogicalAnd>(make_shared<v1::Equal>(as_query_col(token_type_ids), one),
-                                                  make_shared<v1::Equal>(as_key_row(key_types), one));
-        allowed = make_shared<v1::LogicalOr>(allowed, make_shared<v1::LogicalAnd>(same_group, images));
+        auto query_image = make_shared<v1::Equal>(as_query_col(token_type_ids), one);
+        auto key_image = make_shared<v1::Equal>(as_key_row(key_types), one);
+        auto images = make_shared<v1::LogicalAnd>(query_image, key_image);
+        same_image = make_shared<v1::LogicalAnd>(same_group, images);
+        allowed = make_shared<v1::LogicalOr>(allowed, same_image);
+        causal_or_query_image = make_shared<v1::LogicalOr>(causal, query_image);
+        causal_or_key_image = make_shared<v1::LogicalOr>(causal, key_image);
+        causal_or_same_group = make_shared<v1::LogicalOr>(causal, same_group);
     }
     auto valid_keys =
         make_shared<v1::NotEqual>(as_key_row(attention_mask), v0::Constant::create(ov::element::i64, {}, {0}));
     allowed = make_shared<v1::LogicalAnd>(allowed, valid_keys);
     auto mask_4d = to_mask_4d(allowed);
     if (self_kq_mask) {
-        // Gemma4 permits bidirectional image attention only in sliding-window layers.
-        const bool causal_global = token_type_ids && arch == "gemma4";
+        const bool causal_global =
+            token_type_ids && contract.image_attention == ModelContract::ImageAttentionMode::SLIDING_ONLY;
         auto global_mask = causal_global ? to_mask_4d(make_shared<v1::LogicalAnd>(causal, valid_keys)) : mask_4d;
         self_kq_mask->output(0).replace(global_mask->output(0));
     }
 
-    // Sliding-window mask: for prompts within the window this equals the full causal mask, but
-    // once the context (prompt + generated tokens) exceeds it, reusing the causal mask would
-    // leave every older key visible and produce wrong logits. When the model's metadata records
-    // an explicit window length (see gguf_swa_window_key), AND the causal mask with "key not
-    // more than window - 1 steps behind the query"; a token at position q may attend to keys in
-    // [q - window + 1, q]. Absent a recorded length (e.g. gpt-oss/gemma4, whose SWA is described
-    // by sinks / a per-layer pattern with no accompanying token count here), fall back to the
-    // full causal mask, matching the previous behavior.
+    std::shared_ptr<v1::Select> sliding_mask;
     if (auto self_kq_mask_swa = find_parameter(model, "self_kq_mask_swa")) {
         ov::Output<ov::Node> swa_mask_4d = mask_4d->output(0);
         const auto& rt_info = model->get_rt_info();
         const auto swa_it = rt_info.find(gguf_swa_window_key());
         if (swa_it != rt_info.end()) {
             const auto window = swa_it->second.as<int64_t>();
-            auto window_m1 = v0::Constant::create(ov::element::i32, ov::Shape{}, {static_cast<int32_t>(window - 1)});
-            auto window_start = make_shared<v1::Subtract>(q_pos_col, window_m1);      // [seq, 1]
-            auto within_window = make_shared<v1::GreaterEqual>(k_row, window_start);  // [seq, kv_len]
-            auto allowed_swa = make_shared<v1::LogicalAnd>(allowed, within_window);   // [seq, kv_len]
-            swa_mask_4d = to_mask_4d(allowed_swa);
+            auto offset = v0::Constant::create(ov::element::i32, ov::Shape{}, {-static_cast<int32_t>(window)});
+            auto query_positions = make_shared<v0::Unsqueeze>(q_pos_col, one_1);
+            ov::Output<ov::Node> window_key_positions = make_shared<v0::Unsqueeze>(k_row, one_1);
+            if (token_type_ids) {
+                // Same-image keys bypass the window, matching Optimum-intel and existing PA semantics.
+                window_key_positions = make_shared<v1::Select>(make_shared<v0::Unsqueeze>(same_image, one_1),
+                                                               query_positions,
+                                                               window_key_positions);
+            }
+            auto within_window =
+                make_shared<v1::Greater>(window_key_positions, make_shared<v1::Add>(query_positions, offset));
+            // Distribute causal OR image-group conditions into the exported-model PA mask pattern.
+            auto mask =
+                make_shared<v13::BitwiseAnd>(make_shared<v0::Unsqueeze>(causal_or_query_image, one_1), within_window);
+            mask = make_shared<v13::BitwiseAnd>(mask, make_shared<v0::Unsqueeze>(causal_or_key_image, one_1));
+            mask = make_shared<v13::BitwiseAnd>(make_shared<v0::Unsqueeze>(causal_or_same_group, one_1), mask);
+            mask = make_shared<v13::BitwiseAnd>(mask, make_shared<v0::Unsqueeze>(valid_keys, one_1));
+            auto shape = make_shared<v0::Concat>(ov::OutputVector{batch_len, one_1, query_len, kv_len}, 0);
+            auto broadcast = make_shared<v3::Broadcast>(mask, shape);
+            sliding_mask = make_shared<v1::Select>(broadcast, zero_f, neg_f);
+            swa_mask_4d = sliding_mask;
         }
         self_kq_mask_swa->output(0).replace(swa_mask_4d);
+    }
+    if (sliding_mask) {
+        // Move mask precision conversion into Select so the existing PA matcher can recognize it.
+        for (const auto& node : model->get_ops()) {
+            const auto convert = ov::as_type_ptr<v0::Convert>(node);
+            if (!convert)
+                continue;
+            auto source = convert->input_value(0).get_node_shared_ptr();
+            ov::NodeVector slices;
+            while (ov::is_type<v8::Slice>(source)) {
+                slices.push_back(source);
+                source = source->input_value(0).get_node_shared_ptr();
+            }
+            if (source != sliding_mask)
+                continue;
+            const auto type = convert->get_destination_type();
+            ov::Output<ov::Node> mask = make_shared<v1::Select>(sliding_mask->input_value(0),
+                                                                v0::Constant::create(type, {}, {0}),
+                                                                v0::Constant::create(type, {}, {NEG_INF}));
+            for (auto it = slices.rbegin(); it != slices.rend(); ++it) {
+                auto inputs = (*it)->input_values();
+                inputs[0] = mask;
+                mask = (*it)->clone_with_new_inputs(inputs);
+            }
+            ov::replace_output_update_name(convert->output(0), mask);
+        }
     }
 
     if (batchable_recurrent) {
@@ -589,6 +687,17 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         if ((lm_head = ov::as_type_ptr<v0::MatMul>(node))) {
             break;
         }
+        if (ov::is_type<v0::Unsqueeze>(node) || ov::is_type<v1::Reshape>(node)) {
+            const auto axes = ov::as_type_ptr<v0::Constant>(node->get_input_node_shared_ptr(1));
+            const bool restored_layout =
+                ov::is_type<v1::Reshape>(node) || (axes && axes->cast_vector<int64_t>() == std::vector<int64_t>{1});
+            const auto head = ov::as_type_ptr<v0::MatMul>(node->get_input_node_shared_ptr(0));
+            if (restored_layout && head && head->get_output_partial_shape(0).rank() == 3) {
+                ov::replace_output_update_name(node->output(0), head->output(0));
+                lm_head = head;
+            }
+            break;
+        }
         if (!ov::is_type<v1::Multiply>(node) && !ov::is_type<v0::Tanh>(node)) {
             break;
         }
@@ -596,15 +705,13 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         out = node->input_value(0);
     }
     const auto& hidden_ps = lm_head ? lm_head->get_input_partial_shape(0) : ov::PartialShape::dynamic();
-    if (lm_head && hidden_ps.rank().is_static() && hidden_ps.size() == 4 && hidden_ps[3].is_static() &&
-        lm_head->get_input_partial_shape(1).size() == 2) {
-        auto hidden_3d = make_shared<v1::Reshape>(
-            lm_head->input_value(0),
-            make_shared<v0::Concat>(
-                ov::OutputVector{batch_len,
-                                 v0::Constant::create(ov::element::i64, {2}, {int64_t{-1}, hidden_ps[3].get_length()})},
-                0),
-            false);  // [batch, seq, hidden]
+    if (lm_head && hidden_ps.rank().is_static() && (hidden_ps.size() == 3 || hidden_ps.size() == 4) &&
+        hidden_ps[hidden_ps.size() - 1].is_static() && lm_head->get_input_partial_shape(1).size() == 2) {
+        const auto sequence_and_hidden_dims =
+            v0::Constant::create(ov::element::i64, {2}, {int64_t{-1}, hidden_ps[hidden_ps.size() - 1].get_length()});
+        const auto hidden_3d_shape = make_shared<v0::Concat>(ov::OutputVector{batch_len, sequence_and_hidden_dims}, 0);
+        auto hidden_3d =
+            make_shared<v1::Reshape>(lm_head->input_value(0), hidden_3d_shape, false);  // [batch, seq, hidden]
         lm_head->input(0).replace_source_output(hidden_3d);
         lm_head->revalidate_and_infer_types();
         // Softcap (x * (1/cap) -> tanh -> * cap): scalar constants keep the chain rank-3, and the
@@ -648,8 +755,51 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     auto new_result = make_shared<v0::Result>(logits);
     new_result->set_friendly_name("logits");
 
-    model->add_results({new_result});
-    model->remove_result(old_result);
+    ov::ResultVector outputs{new_result};
+    const auto old_results = model->get_results();
+    for (const auto& result : old_results) {
+        model->remove_result(result);
+        if (result != old_result)
+            outputs.push_back(result);
+    }
+    model->add_results(outputs);
+
+    std::unordered_set<std::string> normalized;
+    for (const auto& result : model->get_results()) {
+        const auto source = result->input_value(0);
+        const auto selected =
+            std::find_if(contract.sequence_outputs.begin(), contract.sequence_outputs.end(), [&](const auto& name) {
+                return has_output_name(result, name);
+            });
+        if (selected == contract.sequence_outputs.end())
+            continue;
+        auto names = source.get_names();
+        const auto& result_names = result->output(0).get_names();
+        names.insert(result_names.begin(), result_names.end());
+        for (const auto& name : contract.sequence_outputs) {
+            if (has_output_name(result, name))
+                names.insert(name);
+        }
+        const auto shape = source.get_partial_shape();
+        OPENVINO_ASSERT(shape.rank().is_static() && (shape.size() == 3 || shape.size() == 4),
+                        "[GGUF] sequence output requires rank 3 or 4: ",
+                        *selected);
+        auto width = get_dimensions(source, {-1});
+        auto reshaped = make_shared<v1::Reshape>(
+            source,
+            make_shared<v0::Concat>(
+                ov::OutputVector{batch_len, v0::Constant::create(ov::element::i64, {1}, {-1}), width},
+                0),
+            false);
+        name_output(reshaped, *selected);
+        reshaped->output(0).set_names(names);
+        result->input(0).replace_source_output(reshaped);
+        result->validate_and_infer_types();
+        result->output(0).add_names(names);
+        normalized.insert(names.begin(), names.end());
+    }
+    for (const auto& name : contract.sequence_outputs)
+        OPENVINO_ASSERT(normalized.count(name), "[GGUF] missing declared sequence output ", name);
 
     // Swap the input list to the genai contract. beam_idx is kept as-is; every other old
     // gguf Parameter has had its output rewired (consumers now read the derived subgraph),
@@ -685,6 +835,9 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         if (!uses_ids)
             model->remove_parameter(input_ids);
     }
+    ov::pass::Manager activation_shapes_manager;
+    activation_shapes_manager.register_pass<SimplifyActivationShapes>();
+    activation_shapes_manager.run_passes(model);
     return true;
 }
 

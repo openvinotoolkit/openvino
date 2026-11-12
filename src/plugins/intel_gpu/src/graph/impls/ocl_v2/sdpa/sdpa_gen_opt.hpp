@@ -28,7 +28,7 @@ inline size_t get_sg_number_scale_factor(const device_info& info, size_t head_si
     constexpr size_t subgroup_size = 16;
     const size_t optimal_scale_factor = 2;
     if (kernel_type == SDPAStage::MULTI_TOKENS) {
-        if (head_size % subgroup_size == 0 && head_size * optimal_scale_factor <= info.max_work_group_size) {
+        if ((head_size % subgroup_size == 0) && (head_size * optimal_scale_factor <= info.max_work_group_size)) {
             return optimal_scale_factor;
         }
     } else if (kernel_type == SDPAStage::SINGLE_TOKEN) {

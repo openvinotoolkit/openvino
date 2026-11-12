@@ -10,6 +10,8 @@
 #include <json_object.h>
 #include "utils.hpp"
 
+#include <algorithm>
+
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(stateless_kv)
 
@@ -17,15 +19,50 @@ stateless_kv_inst::typed_primitive_inst(network& network, const stateless_kv_nod
     update_output_memory();
 }
 
-std::optional<int64_t> stateless_kv_inst::compute_update_offset(const kernel_impl_params& impl_param, const stateless_kv& desc) {
+static layout get_input_view(const layout& input_layout, int64_t concat_axis, int64_t source_offset, int64_t copy_len) {
+    OPENVINO_ASSERT(concat_axis >= 0 && concat_axis < static_cast<int64_t>(input_layout.get_rank()));
+    auto view_layout = input_layout;
+    auto input_shape = view_layout.get_partial_shape();
+    const auto input_len = input_shape[concat_axis].get_length();
+    OPENVINO_ASSERT(source_offset >= 0 && copy_len >= 0 && source_offset + copy_len <= input_len);
+    input_shape[concat_axis] = copy_len;
+    view_layout.set_partial_shape(input_shape);
+    view_layout.data_padding._lower_size[concat_axis] += source_offset;
+    view_layout.data_padding._upper_size[concat_axis] += input_len - source_offset - copy_len;
+    return view_layout;
+}
+
+layout stateless_kv_runtime_state::get_past_to_sdpa_input_layout(const layout& input_layout, int64_t concat_axis) const {
+    return get_input_view(input_layout, concat_axis, get_sdpa_in_past_offset(), get_new_in_sdpa_offset());
+}
+
+layout stateless_kv_runtime_state::get_sdpa_to_present_input_layout(const layout& input_layout, int64_t concat_axis) const {
+    return get_input_view(input_layout, concat_axis, -get_sdpa_in_present_offset(), get_present_output_len());
+}
+
+int64_t stateless_kv_inst::get_swa_sequence_length(int64_t abs_seq_len, int64_t cache_capacity, int64_t window_size) {
+    OPENVINO_ASSERT(abs_seq_len >= 0, "[GPU] stateless_kv absolute sequence length must be non-negative");
+    OPENVINO_ASSERT(window_size > 0 && window_size <= cache_capacity,
+                    "[GPU] stateless_kv window_size must be within cache capacity");
+    if (abs_seq_len <= cache_capacity)
+        return abs_seq_len;
+
+    const auto rolling_gap = cache_capacity - window_size + 1;
+    const auto overflow = abs_seq_len - cache_capacity;
+    const auto rolling_count = 1 + (overflow - 1) / rolling_gap;
+    return abs_seq_len - rolling_gap * rolling_count;
+}
+
+std::optional<stateless_kv_runtime_state> stateless_kv_inst::compute_runtime_state(const kernel_impl_params& impl_param,
+                                                                                   const stateless_kv& desc) {
     const auto mem_dep_it = impl_param.memory_deps.find(2);
     if (mem_dep_it == impl_param.memory_deps.end())
-        return {};
+        return std::nullopt;
 
     const auto& seq_len_mem = mem_dep_it->second;
     const auto seq_len_layout = seq_len_mem->get_layout();
     if (seq_len_layout.count() == 0)
-        return {};
+        return std::nullopt;
 
     OPENVINO_ASSERT(seq_len_layout.count() == 1);
     cldnn::mem_lock<uint8_t, mem_lock_type::read> seq_len_mem_lock(seq_len_mem, impl_param.get_stream());
@@ -60,7 +97,27 @@ std::optional<int64_t> stateless_kv_inst::compute_update_offset(const kernel_imp
                            << (present_seq_len <= past_dim.get_length() ? "update" : "concat") << std::endl;
     OPENVINO_ASSERT(past_seq_len >= 0, "[GPU] new_token_data shouldn't exceed present_seq_length");
 
-    return past_seq_len;
+    stateless_kv_runtime_state state;
+    state.past_seq_len = past_seq_len;
+    state.present_seq_len = present_seq_len;
+    state.new_token_len = current_dim.get_length();
+
+    if (desc.window_size > 0) {
+        OPENVINO_ASSERT(desc.input.size() == 3, "[GPU] stateless_kv doesn't support window_size together with pos_idx");
+        const auto cache_capacity = past_dim.get_length();
+        state.past_front_idx = past_seq_len - get_swa_sequence_length(past_seq_len, cache_capacity, desc.window_size);
+        state.present_front_idx = present_seq_len - get_swa_sequence_length(present_seq_len, cache_capacity, desc.window_size);
+        state.sdpa_front_idx = std::max<int64_t>(0, past_seq_len - desc.window_size + 1);
+    }
+
+    OPENVINO_ASSERT(state.get_past_output_len() >= 0 && state.get_present_output_len() >= 0);
+    OPENVINO_ASSERT(state.get_new_in_sdpa_offset() >= 0);
+    OPENVINO_ASSERT(state.get_sdpa_len(desc.window_size) ==
+                    (desc.window_size > 0
+                         ? std::min(state.present_seq_len, state.new_token_len + desc.window_size - 1)
+                         : state.present_seq_len));
+
+    return state;
 }
 
 void stateless_kv_inst::update_shape_info_tensor(const kernel_impl_params& params) {
@@ -76,22 +133,32 @@ void stateless_kv_inst::update_shape_info_tensor(const kernel_impl_params& param
     for (size_t i = 0; i < get_node().get_dependencies().size(); ++i) {
         GPU_DEBUG_TRACE_DETAIL << id() << " : update shape_info for input[" << i << "]" << std::endl;
         if (i == 0 && desc->input.size() == 3) {
-            auto past_layout = params.get_input_layout(0);
-            const auto past_len = compute_update_offset(params, *desc);
-            if (past_len) {
-                auto past_shape = past_layout.get_partial_shape();
-                const auto past_capacity = past_shape[desc->concat_axis].get_length();
-                OPENVINO_ASSERT(*past_len >= 0 && *past_len <= past_capacity);
-                past_shape[desc->concat_axis] = *past_len;
-                past_layout.set_partial_shape(past_shape);
-                past_layout.data_padding._upper_size[desc->concat_axis] += past_capacity - *past_len;
-            }
-            fill_shape_info_data(past_layout, node_input_layouts[i], shape_info_ptr, offset);
+            OPENVINO_ASSERT(m_runtime_state.has_value(), "[GPU] stateless_kv runtime state wasn't initialized during shape update");
+            const auto& state = *m_runtime_state;
+            const auto copy_len = state.is_rolling() ? 0 : state.get_new_in_present_offset();
+            const auto past_view = get_input_view(params.get_input_layout(0), desc->concat_axis, 0, copy_len);
+            fill_shape_info_data(past_view, node_input_layouts[i], shape_info_ptr, offset);
         } else {
             fill_shape_info_data(params.input_layouts[i], node_input_layouts[i], shape_info_ptr, offset);
         }
     }
 
+    if (desc->window_size > 0) {
+        OPENVINO_ASSERT(m_runtime_state.has_value(), "[GPU] stateless_kv SWA runtime state wasn't initialized during shape update");
+        OPENVINO_ASSERT(desc->input.size() == 3);
+        OPENVINO_ASSERT(node_input_layouts.size() == 5);
+        const auto& state = *m_runtime_state;
+        if (state.is_rolling()) {
+            auto past_view = state.get_past_to_sdpa_input_layout(params.get_input_layout(0), desc->concat_axis);
+            GPU_DEBUG_TRACE_DETAIL << id() << " : update shape_info for SWA sdpa's past input" << std::endl;
+            fill_shape_info_data(past_view, node_input_layouts[3], shape_info_ptr, offset);
+            auto sdpa_view = state.get_sdpa_to_present_input_layout(params.get_output_layout(1), desc->concat_axis);
+            GPU_DEBUG_TRACE_DETAIL << id() << " : update shape_info for SWA present's sdpa input" << std::endl;
+            fill_shape_info_data(sdpa_view, node_input_layouts[4], shape_info_ptr, offset);
+        }
+    }
+
+    offset = get_node().get_total_shape_info_input_size();
     for (size_t i = 0; i < get_node().get_output_layouts().size(); ++i) {
         GPU_DEBUG_TRACE_DETAIL << id() << " : update shape_info for output[" << i << "]" << std::endl;
         fill_shape_info_data(params.output_layouts[i], get_node().get_output_layout(i), shape_info_ptr, offset);
@@ -115,15 +182,24 @@ std::vector<layout> stateless_kv_inst::calc_output_layouts(const stateless_kv_no
     op.set_output_size(2);
     op.set_concat_axis(concat_axis);
     op.set_is_seq_len_present_len(desc->is_seq_len_present_len);
-    op.set_update_offset(stateless_kv_inst::compute_update_offset(impl_param, *desc));
+    op.set_window_size(desc->window_size);
+    const auto runtime_state = stateless_kv_inst::compute_runtime_state(impl_param, *desc);
+    if (runtime_state) {
+        op.set_update_offset(runtime_state->get_new_in_present_offset());
+        op.set_is_rolling(runtime_state->is_rolling());
+        op.set_past_seq_len(runtime_state->past_seq_len);
+    }
 
     auto output_shapes = shape_infer(&op, input_shapes);
-    int64_t padding = 0;
-    if (output_shapes[0][concat_axis].is_static() && output_shapes[1][concat_axis].is_static()) {
-        padding = output_shapes[0][concat_axis].get_length() - output_shapes[1][concat_axis].get_length();
-        OPENVINO_ASSERT(padding >= 0);
+    int64_t lower_padding = 0;
+    int64_t upper_padding = 0;
+    if (runtime_state && !runtime_state->is_rolling() && output_shapes[0][concat_axis].is_static()) {
+        lower_padding = runtime_state->get_sdpa_in_present_offset();
+        upper_padding = output_shapes[0][concat_axis].get_length() - output_shapes[1][concat_axis].get_length() - lower_padding;
+        OPENVINO_ASSERT(lower_padding >= 0 && upper_padding >= 0);
     }
-    GPU_DEBUG_TRACE_DETAIL << desc->id << " : output[" << output_shapes[0] << "][" << output_shapes[1] << "] padding: " << padding << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << desc->id << " : output[" << output_shapes[0] << "][" << output_shapes[1] << "] padding: [" << lower_padding << ", "
+                           << upper_padding << "]" << std::endl;
 
     std::vector<layout> out_layouts;
     out_layouts.emplace_back(output_shapes[0], impl_param.get_input_layout(0).data_type, impl_param.get_output_layout(0).format);
@@ -131,7 +207,8 @@ std::vector<layout> stateless_kv_inst::calc_output_layouts(const stateless_kv_no
     padding::DynamicDimsMask seq_padding_info;
     seq_padding_info[concat_axis] = 1;
     out_layouts[1].data_padding._dynamic_dims_mask = seq_padding_info;
-    out_layouts[1].data_padding._upper_size[concat_axis] = padding;
+    out_layouts[1].data_padding._lower_size[concat_axis] = lower_padding;
+    out_layouts[1].data_padding._upper_size[concat_axis] = upper_padding;
 
     return out_layouts;
 }
@@ -144,6 +221,7 @@ std::string stateless_kv_inst::to_string(const stateless_kv_node& node) {
     stateless_kv_info.add("input id", node.input().id());
     stateless_kv_info.add("concat axis", node.get_primitive()->concat_axis);
     stateless_kv_info.add("is present len", node.get_primitive()->is_seq_len_present_len);
+    stateless_kv_info.add("window size", node.get_primitive()->window_size);
     node_info->add("stateless_kv info", stateless_kv_info);
     std::stringstream primitive_description;
     node_info->dump(primitive_description);
@@ -163,7 +241,6 @@ void stateless_kv_inst::update_output_memory() {
 
     auto& engine = _network.get_engine();
     OPENVINO_ASSERT(_outputs[1], "[GPU] output1 should be available when output0 is present");
-    OPENVINO_ASSERT(engine.is_the_same_buffer(output_memory(0), output_memory(1)), "[GPU] output1 should be same tensor with output0");
     m_is_inplace = engine.is_the_same_buffer(output_memory(), input_memory());
     GPU_DEBUG_TRACE_DETAIL << id() << ": update_output_memory in[" << input_memory().get_layout().to_short_string() << "] out["
                            << output_memory(0).get_layout().to_short_string() << "][" << output_memory(1).get_layout().to_short_string() << "] inplace["
@@ -172,6 +249,7 @@ void stateless_kv_inst::update_output_memory() {
 
 void stateless_kv_inst::on_execute() {
     update_output_memory();
+    get_impl()->update(*this, *get_impl_params());
     set_arguments();
 }
 

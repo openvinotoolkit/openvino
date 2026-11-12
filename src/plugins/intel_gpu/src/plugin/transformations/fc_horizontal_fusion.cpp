@@ -147,6 +147,13 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         const size_t k_axis = transpose_b ? 1 : 0;
         auto weight_dtype = fc_nodes[0]->get_input_element_type(weight_idx);
         auto k_size = fc_nodes[0]->get_input_shape(weight_idx)[k_axis];
+        const bool transpose_b_scale = fc_nodes[0]->get_transpose_b_scale();
+        const bool transpose_b_zp = fc_nodes[0]->get_transpose_b_zp();
+        // Scale/ZP are [N, groups] when transposed, [groups, N] otherwise.
+        auto get_param_n_axis = [](const ov::Output<ov::Node>& output, bool transposed) -> int64_t {
+            const auto rank = static_cast<int64_t>(output.get_partial_shape().size());
+            return transposed ? 0 : std::max<int64_t>(0, rank - 1);
+        };
         std::vector<int64_t> orig_n_sizes;
         // merge weights, scale, zp
         for (auto fc : fc_nodes) {
@@ -156,7 +163,8 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
             if (weight_dtype != fc->get_input_element_type(weight_idx)) {
                 return false;
             }
-            if (transpose_b != fc->get_transpose_b()) {
+            if (transpose_b != fc->get_transpose_b() || transpose_b_scale != fc->get_transpose_b_scale() ||
+                transpose_b_zp != fc->get_transpose_b_zp()) {
                 return false;
             }
             orig_n_sizes.push_back(fc->get_input_shape(weight_idx)[n_axis]);
@@ -165,6 +173,21 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         // unfolded Concat on weights (e.g. in case of unsupported precision) may then fail the pipeline if the GPU also doesn't support this.
         // So if the concatenation at ov::Model is not possible, the transformation just returns false
         auto concat_and_fold = [](const ov::OutputVector& outputs, int64_t axis, std::string_view name_suffix) -> std::shared_ptr<ov::Node> {
+            const auto& reference_shape = outputs.front().get_partial_shape();
+            if (!reference_shape.is_static() || axis < 0 || axis >= reference_shape.rank().get_length()) {
+                return nullptr;
+            }
+            for (const auto& output : outputs) {
+                const auto& shape = output.get_partial_shape();
+                if (!shape.is_static() || shape.rank() != reference_shape.rank() || output.get_element_type() != outputs.front().get_element_type()) {
+                    return nullptr;
+                }
+                for (int64_t dim = 0; dim < shape.rank().get_length(); ++dim) {
+                    if (dim != axis && shape[dim] != reference_shape[dim]) {
+                        return nullptr;
+                    }
+                }
+            }
             auto concat = std::make_shared<ov::op::v0::Concat>(outputs, axis);
             auto folded = ov::util::get_constant_from_source(concat);
             if (!folded) {
@@ -183,7 +206,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
             return false;
         }
 
-        auto fused_scale = concat_and_fold(scale_nodes, 0, "_fused_scale");
+        auto fused_scale = concat_and_fold(scale_nodes, get_param_n_axis(scale_nodes[0], transpose_b_scale), "_fused_scale");
         if (!fused_scale) {
             return false;
         }
@@ -222,7 +245,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                     }
                 }
             } else {
-                fused_zps = concat_and_fold(zp_nodes, 0, "_fused_zps");
+                fused_zps = concat_and_fold(zp_nodes, get_param_n_axis(zp_nodes[0], transpose_b_zp), "_fused_zps");
                 if (!fused_zps) {
                     return false;
                 }
@@ -313,10 +336,18 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                                                                     fused_scale,
                                                                     fused_zps,
                                                                     fc_nodes[0]->get_output_type(),
-                                                                    transpose_b);
+                                                                    transpose_b,
+                                                                    fc_nodes[0]->get_transpose_b_scale(),
+                                                                    fc_nodes[0]->get_transpose_b_zp());
         } else {
-            new_fc =
-                std::make_shared<op::FullyConnectedCompressed>(input_node, fused_weight, fused_bias, fused_scale, fc_nodes[0]->get_output_type(), transpose_b);
+            new_fc = std::make_shared<op::FullyConnectedCompressed>(input_node,
+                                                                    fused_weight,
+                                                                    fused_bias,
+                                                                    fused_scale,
+                                                                    fc_nodes[0]->get_output_type(),
+                                                                    transpose_b,
+                                                                    fc_nodes[0]->get_transpose_b_scale(),
+                                                                    fc_nodes[0]->get_transpose_b_zp());
         }
 
         auto new_fc_name = fc_nodes[0]->get_friendly_name() + "_fused_" + std::to_string(fc_nodes.size()) + "FCs";

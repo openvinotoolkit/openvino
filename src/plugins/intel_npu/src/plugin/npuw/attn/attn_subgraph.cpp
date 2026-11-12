@@ -191,7 +191,16 @@ void ensure_hfa_selector(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
     const size_t original_query_length = hfa->_sdpa_attention_info._query_size;
     state.hfa_selector = runtime::host_flash_attention::PositionIDs::find(original_query_length, request);
     if (!state.hfa_selector) {
-        OPENVINO_THROW("HFA dynamic capability is enabled, but no run-time features were found.");
+        // No position_ids: the host must report the history through the npuw_history_size state
+        // before every prefill chunk, starting with the first one.
+        state.hfa_selector = runtime::host_flash_attention::HistorySize::find(original_query_length, request);
+        if (state.hfa_selector) {
+            LOG_VERB("HFA: no position_ids input, taking the past length from the npuw_history_size state");
+        }
+    }
+    if (!state.hfa_selector) {
+        OPENVINO_THROW("HFA dynamic capability is enabled, but no run-time features were found: the model has no "
+                       "position_ids input and the npuw_history_size state was not set before the first infer().");
     }
 }
 
@@ -1437,6 +1446,29 @@ void attach_runtime_behavior(ov::npuw::v1::subgraphs::CompiledPipeline& compiled
     spec.factory = make_runtime_factory();
     spec.handles_function_prologue = true;
     compiled_pipeline.runtime_behavior = std::move(spec);
+
+    // Looked up when called: at compile time this runs before the extra models are compiled
+    compiled_pipeline.for_each_extra_compiled_model = [kind](
+                                                          const ov::npuw::v1::subgraphs::Context& context,
+                                                          const ov::npuw::v1::subgraphs::CompiledModelVisitor& visit) {
+        switch (kind) {
+        case BehaviorKind::Pyramid:
+            if (const auto* pyramid = get_compiled_pyramid(context)) {
+                for (const auto& cm : pyramid->_compiled_models) {
+                    visit(cm);
+                }
+            }
+            break;
+        case BehaviorKind::HFA:
+            if (const auto* hfa = get_compiled_hfa(context)) {
+                visit(hfa->_compiled_tile_model);
+                visit(hfa->_compiled_final_tile_model);
+            }
+            break;
+        case BehaviorKind::Dynamic:
+            break;  // runs on the subgraph's own compiled model only
+        }
+    };
 }
 
 std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> register_patterns(

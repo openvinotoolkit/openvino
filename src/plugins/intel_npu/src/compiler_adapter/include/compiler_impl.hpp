@@ -19,8 +19,6 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/common.hpp"
-#include "openvino/runtime/profiling_info.hpp"
-#include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace intel_npu {
@@ -33,7 +31,7 @@ public:
      * @param optionSupportCache The cache used for storing the compiler's option support answers, already bound to
      *        this compiler's cache key. May be disabled, in which case the compiler is queried every time.
      */
-    VCLCompilerImpl(std::shared_ptr<const VCLFunctionTable> functions,
+    VCLCompilerImpl(const std::shared_ptr<const VCLFunctionTable>& functions,
                     const std::optional<IDevice::DeviceProperties>& deviceProperties = std::nullopt,
                     ScopedOptionSupportCache optionSupportCache = {});
     ~VCLCompilerImpl() override;
@@ -93,9 +91,6 @@ public:
      */
     uint32_t get_version() const override;
 
-    std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
-                                                            const std::vector<uint8_t>& network) const override;
-
     /**
      * @brief Returns the compiler supported options list
      * @note The result is stored in the option support cache, if one was provided, so that subsequent
@@ -136,18 +131,5 @@ private:
 
     Logger _logger;
 };
-
-/**
- * @brief Loads the VCL compiler library and returns a compiler paired with it.
- *
- * Keeps the load + SoPtr pairing in one place: the returned SoPtr owns the shared library, so the
- * compiler cannot outlive the code it dispatches into.
- *
- * @param optionSupportCache Bound here to the compiler-in-plugin's own cache key. Callers hand over
- *        the shared cache rather than a pre-bound one, so a compiler can never be paired with a key
- *        that belongs to a different compiler's answers.
- */
-ov::SoPtr<IVCLCompiler> makeVCLCompiler(const std::optional<IDevice::DeviceProperties>& deviceProperties = std::nullopt,
-                                        const std::shared_ptr<OptionSupportCache>& optionSupportCache = nullptr);
 
 }  // namespace intel_npu

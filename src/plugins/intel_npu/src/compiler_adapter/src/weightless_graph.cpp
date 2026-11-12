@@ -11,7 +11,6 @@
 #include <queue>
 
 #include "intel_npu/config/options.hpp"
-#include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
@@ -264,14 +263,16 @@ WeightlessGraph::WeightlessGraph(
     std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::pair<std::string, std::shared_ptr<ov::ICore>>>&&
         weightsSource,
     const bool blobIsPersistent,
-    const std::optional<std::string>& compatibilityDescriptor)
+    const std::optional<std::string>& compatibilityDescriptor,
+    const std::shared_ptr<IProfilingDecoder>& profilingDecoder)
     : Graph(zeGraphExt,
             zeroInitStruct,
             mainGraphDesc,
             std::move(mainMetadata),
             std::move(mainBlob),
             compatibilityDescriptor,
-            blobIsPersistent),
+            blobIsPersistent,
+            profilingDecoder),
       _initsGraphDesc(initGraphDesc),
       _initBlobs(std::move(initBlobs)),
       _initsMetadata(std::move(initMetadata)),
@@ -608,6 +609,9 @@ void WeightlessGraph::create_pipeline(const size_t initIndex,
 
     if (_zeGraphExt == nullptr) {
         OPENVINO_THROW("Zero compiler adapter wasn't initialized");
+    }
+    if (_zeroInitStruct == nullptr) {
+        OPENVINO_THROW("Zero init structure wasn't initialized");
     }
 
     _initsCommandLists.at(initIndex) = std::make_unique<CommandList>(_zeroInitStruct);

@@ -19,8 +19,7 @@ endif()
 if(ENABLE_INTEL_NPU_PROTOPIPE)
     set(YAML_BUILD_SHARED_LIBS OFF)
     add_subdirectory(yaml-cpp EXCLUDE_FROM_ALL)
-    # NB: Suppress warnings in yaml-cpp
-    if(SUGGEST_OVERRIDE_SUPPORTED)
-        target_compile_options(yaml-cpp PRIVATE -Wno-suggest-override)
-    endif()
+    # NB: need to disable all warnings because some
+    # OpenVINO CI builds may treat warnings as errors
+    ov_disable_all_warnings(yaml-cpp)
 endif()
