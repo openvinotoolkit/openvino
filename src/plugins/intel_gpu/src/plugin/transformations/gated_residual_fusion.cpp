@@ -99,31 +99,42 @@ ov::Output<ov::Node> make_unit_gain(size_t count, ov::NodeVector& new_ops) {
     return gain->output(0);
 }
 
-/// Total number of elements of a static shape, or 0 when unknown.
-size_t static_element_count(const ov::PartialShape& ps) {
-    if (ps.is_dynamic()) {
-        return 0;
-    }
-    size_t total = 1;
-    for (const auto& d : ps) {
-        total *= static_cast<size_t>(d.get_length());
-    }
-    return total;
+bool has_element_count(const ov::PartialShape& ps, size_t count) {
+    return ps.is_static() && ov::shape_size(ps.to_shape()) == count;
 }
 
-/// True when the output's last dimension is statically 1. Used as a *matching-time*
-/// predicate (not just a callback check) so that a symmetric `Or(Mul(a,b), Mul(b,a))`
-/// pattern backtracks onto the correct operand instead of accepting the first
-/// structurally-plausible - but semantically swapped - binding.
-bool last_dim_is_one(const ov::Output<ov::Node>& out) {
+/// A [*, C, 1] view of the write gate with a static C. Matching-time predicate (not just a callback check) so that the
+/// commutative Multiply binds the gate and Y views the right way round instead of accepting the first swapped binding.
+bool is_gate_view(const ov::Output<ov::Node>& out) {
     const auto& ps = out.get_partial_shape();
-    return ps.rank().is_static() && ps.size() >= 1 && !ps[ps.size() - 1].is_dynamic() && ps[ps.size() - 1].get_length() == 1;
+    return ps.rank().is_static() && ps.size() >= 2 && ps[ps.size() - 1].is_static() && ps[ps.size() - 1].get_length() == 1 && ps[ps.size() - 2].is_static();
 }
 
-/// True when the output's second-to-last dimension is statically 1.
-bool second_to_last_dim_is_one(const ov::Output<ov::Node>& out) {
+/// A [*, 1, D] view of the sub-layer output with a static D.
+bool is_y_view(const ov::Output<ov::Node>& out) {
     const auto& ps = out.get_partial_shape();
-    return ps.rank().is_static() && ps.size() >= 2 && !ps[ps.size() - 2].is_dynamic() && ps[ps.size() - 2].get_length() == 1;
+    return ps.rank().is_static() && ps.size() >= 2 && ps[ps.size() - 2].is_static() && ps[ps.size() - 2].get_length() == 1 && ps[ps.size() - 1].is_static();
+}
+
+/// MatMul with the weights stored as [out, in] (transpose_b), as the kernels read them.
+bool is_weight_matmul(const ov::Output<ov::Node>& out) {
+    const auto mm = ov::as_type_ptr<ov::op::v0::MatMul>(out.get_node_shared_ptr());
+    return mm && !mm->get_transpose_a() && mm->get_transpose_b();
+}
+
+/// `ps` has the rank of `ref` and equal static or both dynamic leading dimensions. A static 1 against a dynamic dimension may be a
+/// broadcast, which the row-wise WRITE kernel does not model.
+bool has_same_leading_dims(const ov::PartialShape& ps, const ov::PartialShape& ref) {
+    if (ps.rank().is_dynamic() || ref.rank().is_dynamic() || ps.size() != ref.size()) {
+        return false;
+    }
+    for (size_t i = 0; i + 1 < ps.size(); ++i) {
+        const bool both_static = ps[i].is_static() && ref[i].is_static();
+        if (both_static ? ps[i] != ref[i] : (ps[i].is_static() || ref[i].is_static())) {
+            return false;
+        }
+    }
+    return true;
 }
 
 /// The kernels are f16-only; fusing an f32 (or other) subgraph would produce a node with
@@ -304,7 +315,7 @@ std::optional<WriteGateBranch> match_write_gate_branch(const ov::Output<ov::Node
 
     for (const auto& target : rbar.get_target_inputs()) {
         auto mm = ov::as_type_ptr<ov::op::v0::MatMul>(target.get_node()->shared_from_this());
-        if (!mm || mm == read_matmul || target.get_index() != 0 || mm->get_transpose_a() || !mm->get_transpose_b()) {
+        if (!mm || mm == read_matmul || target.get_index() != 0 || !is_weight_matmul(mm->output(0))) {
             continue;
         }
         const auto& w_ps = mm->input_value(1).get_partial_shape();
@@ -407,12 +418,12 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
     // A gain of ones is folded away by the exporter, so the flattened normalization feeds the GEMM directly.
     auto rbar = rbar_fused | rbar_decomposed | rbar_nogamma | nogamma_flat | normalized_flat;
 
-    auto low = wrap_type<ov::op::v0::MatMul>({rbar, any_input()});
+    auto low = wrap_type<ov::op::v0::MatMul>({rbar, any_input()}, is_weight_matmul);
     // The 1/C scale sits after the down projection as exported, or on W_down itself once an
     // earlier pass has pushed the scalar into the weights; the callback proves either form.
     auto low_scaled = optional<ov::op::v1::Multiply>({low, any_input()});
     auto activation = wrap_type<ov::op::v4::Swish>({low_scaled});
-    auto up = wrap_type<ov::op::v0::MatMul>({activation, any_input()});
+    auto up = wrap_type<ov::op::v0::MatMul>({activation, any_input()}, is_weight_matmul);
     auto read_gate = wrap_type<ov::op::v0::Sigmoid>({up});
 
     // Canonical form: both flat, reshaped to [*, C, D] only afterwards.
@@ -531,11 +542,6 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
             }
         }
 
-        // weights must be stored as [out, in] (transpose_b)
-        if (low_mm->get_transpose_a() || !low_mm->get_transpose_b() || up_mm->get_transpose_a() || !up_mm->get_transpose_b()) {
-            return false;
-        }
-
         const auto w_up = up_mm->input_value(1);
         const auto& w_down_ps = w_down.get_partial_shape();
         const auto& w_up_ps = w_up.get_partial_shape();
@@ -578,7 +584,7 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
             }
             // the grouped norm must be per branch (gain width C*D or D)
             const auto gain = rms_node->input_value(1);
-            if (static_element_count(gain.get_partial_shape()) != C * D) {
+            if (!has_element_count(gain.get_partial_shape(), C * D)) {
                 // A [D]-wide gain would be a valid branch-shared gain, but the kernels
                 // expects the expanded [C*D] form; leave such graphs untouched.
                 return false;
@@ -592,7 +598,7 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
             }
             if (pm.count(gain_nogamma) > 0) {
                 const auto gain = pm.at(gain_nogamma);
-                if (static_element_count(gain.get_partial_shape()) != C * D) {
+                if (!has_element_count(gain.get_partial_shape(), C * D)) {
                     return false;
                 }
                 gain_flat = flatten_to(gain, C * D, new_ops);
@@ -627,20 +633,26 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
             } else if (!get_scalar_f32(pm.at(inv_rms_pow).get_node_shared_ptr()->input_value(1), numerator) || !close(numerator, -1.0f)) {
                 return false;
             }
-            if (!get_scalar_f32(pm.at(biased).get_node_shared_ptr()->input_value(1), epsilon)) {
+            const auto eps_input = other_operand(pm.at(biased).get_node_shared_ptr(), pm.at(mean));
+            if (!eps_input || !get_scalar_f32(*eps_input, epsilon)) {
                 return false;
             }
             // The gain operand already includes any `1 + w` fold, so GatedResidual must not
             // fold it again either.
             if (pm.count(decomposed_gain) > 0) {
                 const auto gain = pm.at(decomposed_gain);
-                if (static_element_count(gain.get_partial_shape()) != C * D) {
+                if (!has_element_count(gain.get_partial_shape(), C * D)) {
                     return false;
                 }
                 gain_flat = flatten_to(gain, C * D, new_ops);
             } else {
                 gain_flat = make_unit_gain(C * D, new_ops);
             }
+        }
+
+        // The op reads the gain and floating-point weights as the residual's type, and the kernels are f16-only.
+        if (!is_f16(residual_out) || !is_f16(gain_flat) || (!compressed_down && (!is_f16(w_down) || !is_f16(w_up)))) {
+            return false;
         }
 
         ov::OutputVector gr_inputs{residual_out, gain_flat};
@@ -665,11 +677,8 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
             }
         }
 
-        // Without a W_inject projection of the normalized residual this is the terminal mixer.
-        bool has_write_gate = false;
-        for (const auto& consumer : low_mm->input_value(0).get_target_inputs()) {
-            has_write_gate |= consumer.get_node() != low_mm.get() && ov::is_type<ov::op::v0::MatMul>(consumer.get_node());
-        }
+        // Without a write-gate branch off the normalized residual this is the terminal mixer.
+        const auto mode = gate_branch ? op::GatedResidual::Mode::READ : op::GatedResidual::Mode::FINAL_MIX;
 
         auto make_gr = [&](bool with_gate) {
             ov::OutputVector inputs = gr_inputs;
@@ -677,7 +686,7 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
                 inputs.insert(inputs.end(), gate_inputs.begin(), gate_inputs.end());
             }
             return std::make_shared<op::GatedResidual>(inputs,
-                                                       has_write_gate ? op::GatedResidual::Mode::READ : op::GatedResidual::Mode::FINAL_MIX,
+                                                       mode,
                                                        C,
                                                        D,
                                                        L,
@@ -698,10 +707,20 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
         }
         gr->set_friendly_name(root->get_friendly_name());
         new_ops.push_back(gr);
+        if (compressed_down) {
+            // The repacked constants may carry a weightless cache attribute, so copy_runtime_info would not pick them up as inputs.
+            for (size_t i = op::GatedResidual::ReadInputIdx::W_DOWN; i < gr->get_input_size(); ++i) {
+                new_ops.push_back(gr->get_input_node_shared_ptr(i));
+            }
+        }
 
-        ov::copy_runtime_info(m.get_matched_nodes(), new_ops);
+        // One call: a second one would overwrite the fused names merged onto `gr` by the first.
+        auto fused_nodes = m.get_matched_nodes();
         if (with_gate) {
-            ov::copy_runtime_info(gate_branch->nodes, gr);
+            fused_nodes.insert(fused_nodes.end(), gate_branch->nodes.begin(), gate_branch->nodes.end());
+        }
+        ov::copy_runtime_info(fused_nodes, new_ops);
+        if (with_gate) {
             gate_branch->gate.replace(gr->output(1));
         }
         ov::replace_node(root, ov::OutputVector{gr->output(0)});
@@ -722,10 +741,10 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
     auto write_gate = any_input();  // S: [T, C], produced by 2 * sigmoid(W_inject * Rbar / C)
     // The gate broadcasts as [*, C, 1] and Y as [*, 1, D]; both wrappers are structurally identical (Reshape-or-Unsqueeze
     // of a generic input), so the shape predicates are what lets the commutative Multiply bind the operands the right way round.
-    auto gate_3d = wrap_type<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({write_gate, any_input()}, last_dim_is_one);
+    auto gate_3d = wrap_type<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({write_gate, any_input()}, is_gate_view);
 
     auto y_src = any_input();
-    auto y_3d = wrap_type<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({y_src, any_input()}, second_to_last_dim_is_one);
+    auto y_3d = wrap_type<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({y_src, any_input()}, is_y_view);
 
     auto scaled = wrap_type<ov::op::v1::Multiply>({gate_3d, y_3d});
 
@@ -752,19 +771,9 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
             return false;
         }
 
-        // branch geometry derived directly from how the gate/y operands
-        // broadcast: gate is [*, C, 1], y is [*, 1, D].
+        // Branch geometry from how the gate [*, C, 1] and Y [*, 1, D] views broadcast; the view predicates proved their shapes.
         const auto& gate_ps = pm.at(gate_3d).get_partial_shape();
         const auto& y_ps = pm.at(y_3d).get_partial_shape();
-        if (gate_ps.rank().is_dynamic() || y_ps.rank().is_dynamic() || gate_ps.size() < 2 || y_ps.size() < 2) {
-            return false;
-        }
-        if (gate_ps[gate_ps.size() - 1].is_dynamic() || gate_ps[gate_ps.size() - 1].get_length() != 1 || gate_ps[gate_ps.size() - 2].is_dynamic()) {
-            return false;
-        }
-        if (y_ps[y_ps.size() - 2].is_dynamic() || y_ps[y_ps.size() - 2].get_length() != 1 || y_ps[y_ps.size() - 1].is_dynamic()) {
-            return false;
-        }
         const auto C = static_cast<size_t>(gate_ps[gate_ps.size() - 2].get_length());
         const auto D = static_cast<size_t>(y_ps[y_ps.size() - 1].get_length());
         if (!caps::is_geometry_supported(op::GatedResidual::Mode::WRITE, C, D, 0, false)) {
@@ -806,7 +815,7 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
         }
 
         // The kernel walks the residual's rows, so Y and the gate must share its leading dimensions.
-        if (!op::GatedResidual::shares_leading_dims(y_src_ps, residual_ps) || !op::GatedResidual::shares_leading_dims(gate_src_ps, residual_ps)) {
+        if (!has_same_leading_dims(y_src_ps, residual_ps) || !has_same_leading_dims(gate_src_ps, residual_ps)) {
             return false;
         }
 

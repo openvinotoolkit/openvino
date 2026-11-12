@@ -19,9 +19,8 @@ bool matrix_matches(const ov::PartialShape& ps, size_t rows, size_t cols) {
            (ps.rank().get_length() == 2 && ps[0].compatible(static_cast<int64_t>(rows)) && ps[1].compatible(static_cast<int64_t>(cols)));
 }
 
-}  // namespace
-
-bool GatedResidual::shares_leading_dims(const ov::PartialShape& ps, const ov::PartialShape& ref) {
+/// Same rank as `ref` and compatible leading (all but the last) dimensions.
+bool leading_dims_match(const ov::PartialShape& ps, const ov::PartialShape& ref) {
     if (ps.rank().is_dynamic() || ref.rank().is_dynamic()) {
         return true;
     }
@@ -29,13 +28,14 @@ bool GatedResidual::shares_leading_dims(const ov::PartialShape& ps, const ov::Pa
         return false;
     }
     for (size_t i = 0; i + 1 < ps.size(); ++i) {
-        const bool both_static = ps[i].is_static() && ref[i].is_static();
-        if (both_static ? ps[i] != ref[i] : (ps[i].is_static() || ref[i].is_static())) {
+        if (!ps[i].compatible(ref[i])) {
             return false;
         }
     }
     return true;
 }
+
+}  // namespace
 
 GatedResidual::GatedResidual(const ov::OutputVector& args,
                              Mode mode,
@@ -100,13 +100,13 @@ void GatedResidual::validate_and_infer_types() {
                               m_hc_count);
         // The kernel walks the residual's rows only.
         NODE_VALIDATION_CHECK(this,
-                              shares_leading_dims(get_input_partial_shape(WriteInputIdx::SUBLAYER_Y), residual_ps),
+                              leading_dims_match(get_input_partial_shape(WriteInputIdx::SUBLAYER_Y), residual_ps),
                               "GatedResidual (WRITE) sub-layer output must have the residual's rank and leading dimensions, got ",
                               get_input_partial_shape(WriteInputIdx::SUBLAYER_Y),
                               " for residual ",
                               residual_ps);
         NODE_VALIDATION_CHECK(this,
-                              shares_leading_dims(get_input_partial_shape(WriteInputIdx::WRITE_GATE), residual_ps),
+                              leading_dims_match(get_input_partial_shape(WriteInputIdx::WRITE_GATE), residual_ps),
                               "GatedResidual (WRITE) write gate must have the residual's rank and leading dimensions, got ",
                               get_input_partial_shape(WriteInputIdx::WRITE_GATE),
                               " for residual ",
@@ -139,6 +139,19 @@ void GatedResidual::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, m_lowrank > 0, "GatedResidual (READ/FINAL_MIX) requires a positive low rank L.");
 
     const size_t cd = m_hc_count * m_hidden_size;
+    // Norm weight and floating-point weights are read as the residual's element type.
+    const auto check_residual_type = [&](size_t idx, const char* name) {
+        auto et = out_et;
+        NODE_VALIDATION_CHECK(this,
+                              ov::element::Type::merge(et, et, get_input_element_type(idx)),
+                              "GatedResidual ",
+                              name,
+                              " must have the residual element type ",
+                              out_et,
+                              ", got ",
+                              get_input_element_type(idx));
+    };
+    check_residual_type(ReadInputIdx::NORM_WEIGHT, "norm weight");
     const auto& gain_ps = get_input_partial_shape(ReadInputIdx::NORM_WEIGHT);
     NODE_VALIDATION_CHECK(this,
                           gain_ps.rank().is_dynamic() || (gain_ps.rank().get_length() == 1 && gain_ps[0].compatible(static_cast<int64_t>(cd))),
@@ -175,7 +188,10 @@ void GatedResidual::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this,
                           wd_et.is_dynamic() || (compressed == wd_quant),
                           "GatedResidual takes i4/u4/i8/u8 weights exactly with the compressed input forms.");
-    if (compressed) {
+    if (!compressed) {
+        check_residual_type(ReadInputIdx::W_DOWN, "W_down");
+        check_residual_type(ReadInputIdx::W_UP, "W_up");
+    } else {
         // scale/zp are [G, N] (N contiguous), unlike FC's [N, G]; the group size along K is K / G (not an attribute).
         auto check_group = [&](size_t scale_idx, size_t zp_idx, size_t n, size_t k, const char* name) {
             const auto& sps = get_input_partial_shape(scale_idx);
@@ -229,6 +245,7 @@ void GatedResidual::validate_and_infer_types() {
             NODE_VALIDATION_CHECK(this,
                                   inject_et.is_dynamic() || !is_compressed_weight_type(inject_et),
                                   "GatedResidual takes an i4/u4/i8/u8 W_inject exactly with the compressed input forms.");
+            check_residual_type(inject_idx, "W_inject");
         }
         NODE_VALIDATION_CHECK(this,
                               matrix_matches(get_input_partial_shape(inject_idx), m_hc_count, cd),

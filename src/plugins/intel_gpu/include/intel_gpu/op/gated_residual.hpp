@@ -108,10 +108,6 @@ public:
         return t == ov::element::i4 || t == ov::element::u4 || t == ov::element::i8 || t == ov::element::u8;
     }
 
-    /// Same rank as `ref` and leading (all but the last) dimensions that are equal static values or both dynamic: a static 1 against
-    /// a dynamic dimension may be a broadcast, which the row-wise WRITE kernel does not model.
-    static bool shares_leading_dims(const ov::PartialShape& ps, const ov::PartialShape& ref);
-
     /// @brief Input indices for Mode::WRITE
     struct WriteInputIdx {
         static constexpr size_t RESIDUAL = 0;    ///< [B,T,C*D]
