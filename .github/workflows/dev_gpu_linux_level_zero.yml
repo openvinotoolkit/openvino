@@ -196,12 +196,8 @@ jobs:
       - name: Add proxy CA certificate to system trust store
         run: update-ca-certificates
 
-      # EnableLEO=1 is currently required for ZE context creation from the OpenCL runtime; this should become
-      # the default in newer runtimes around 2027, but we keep it explicit here because remote tensor access
-      # otherwise remains unavailable.
       - name: hello_remote_tensor sample tests
         env:
-          EnableLEO: '1'
           TEST_DEVICE: 'GPU;GPU.0'
           OV_REQUIRE_REMOTE_TENSOR_SAMPLE: '1'
         run: |
