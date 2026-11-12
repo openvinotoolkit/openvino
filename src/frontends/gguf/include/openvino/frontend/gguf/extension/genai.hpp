@@ -11,6 +11,7 @@ namespace ov::frontend::gguf {
 
 /// Prepare a decoder for GenAI during convert(): stateful caches, then normalized GenAI IO.
 /// Register before convert(), without separate GGUFMakeStateful or AdaptToGenAI passes.
+/// \deprecated Call ov::frontend::gguf::adapt_to_genai on the converted model instead.
 class GGUF_FRONTEND_API GenAIExtension : public ov::Extension {
 public:
     OPENVINO_RTTI("gguf::GenAIExtension", "", ov::Extension);

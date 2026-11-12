@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/frontend/gguf/model_adapter.hpp"
 #include "openvino/frontend/gguf/visibility.hpp"
 #include "openvino/pass/pass.hpp"
 
@@ -80,3 +81,37 @@ private:
 };
 
 }  // namespace ov::frontend::gguf::pass
+
+namespace ov::frontend::gguf {
+
+struct GenAIAdaptOptions {
+    /// Input contract of a decoder's language model; ignored for an mmproj.
+    pass::AdaptToGenAI::InputMode input = pass::AdaptToGenAI::InputMode::IDS_TO_LOGITS;
+};
+
+/// \brief Adapt a model returned by FrontEnd::convert to the models used by OpenVINO GenAI.
+///
+/// Convert without GenAI-specific extensions, then call this once per converted file:
+///
+///     ov::frontend::gguf::FrontEnd fe;
+///     auto models = ov::frontend::gguf::adapt_to_genai(fe.convert(fe.load(gguf_path)));
+///     auto language = models.at("language");
+///
+/// A decoder is made stateful (GGUFMakeStateful) and adapted (AdaptToGenAI). It returns
+/// "language" and, for EMBEDS_TO_LOGITS, "text_embeddings" plus "text_embeddings_per_layer" when the
+/// architecture has per-layer token embeddings.
+///
+/// An mmproj returns one entry per encoder:
+///  - "vision_embeddings" with the GenAI vision encoder inputs, plus "vision_embeddings_pos" and
+///    "vision_embeddings_merger" for split-merger projectors; projector callbacks name their own
+///    models. A vision projector without a GenAI layout keeps the native encoder inputs.
+///  - "audio_embeddings"; Gemma4 encoders take GenAI input_features, other encoders keep their
+///    native inputs.
+///  - "audio_generation_<component>" for each declared audio-generation component.
+///
+/// The supplied model is consumed: the returned models may reuse or modify it, and share its
+/// weights. Throws if the model is neither a converted GGUF decoder nor an mmproj.
+GGUF_FRONTEND_API ModelMap adapt_to_genai(const std::shared_ptr<ov::Model>& model,
+                                          const GenAIAdaptOptions& options = {});
+
+}  // namespace ov::frontend::gguf

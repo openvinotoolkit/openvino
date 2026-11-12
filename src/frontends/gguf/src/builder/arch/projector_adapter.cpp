@@ -466,6 +466,35 @@ void temporal_packed_patch_layout(const std::shared_ptr<ov::Model>& model, int64
     model->validate_nodes_and_infer_types();
 }
 
+// Encode each image of a [B, 3, H, W] batch independently into [B, tokens, width] features.
+void batched_image_layout(const std::shared_ptr<ov::Model>& model) {
+    OPENVINO_ASSERT(model->get_parameters().size() == 1 && model->get_results().size() == 1,
+                    "[GGUF] batched image vision requires one pixel input and one output");
+    auto body = model->clone();
+    const auto pixels = body->get_parameters().front();
+    auto shape = pixels->get_partial_shape();
+    OPENVINO_ASSERT(shape.rank().is_static() && shape.size() == 4 && shape[0] == 1 && shape[1] == 3,
+                    "[GGUF] batched image vision requires RGB NCHW pixels with a singleton batch");
+    const auto features = body->get_results().front()->input_value(0);
+    const auto output_shape = features.get_partial_shape();
+    OPENVINO_ASSERT(output_shape.rank().is_static() && output_shape.size() == 3 && output_shape[0] == 1,
+                    "[GGUF] batched image vision requires [1, tokens, width] embeddings");
+    shape[0] = ov::Dimension::dynamic();
+    auto input = std::make_shared<v0::Parameter>(pixels->get_element_type(), shape);
+    name_output(input, "pixel_values");
+    auto iterator = std::make_shared<v0::TensorIterator>();
+    iterator->set_body(body);
+    iterator->set_sliced_input(pixels, input, 0, 1, 1, -1, 0);
+    auto output = iterator->get_concatenated_slices(features, 0, 1, 1, -1, 0);
+    output.set_names({"last_hidden_state"});
+    iterator->validate_and_infer_types();
+    model->remove_result(model->get_results().front());
+    model->remove_parameter(model->get_parameters().front());
+    model->add_parameters({input});
+    model->add_results({std::make_shared<v0::Result>(output)});
+    model->validate_nodes_and_infer_types();
+}
+
 constexpr std::pair<ProjectorLayout, const char*> layout_names[] = {
     {ProjectorLayout::Unsupported, "unsupported"},
     {ProjectorLayout::Image, "image"},
@@ -474,6 +503,7 @@ constexpr std::pair<ProjectorLayout, const char*> layout_names[] = {
     {ProjectorLayout::SplitMerger, "split_merger"},
     {ProjectorLayout::PackedPatches, "packed_patches"},
     {ProjectorLayout::TemporalPackedPatches, "temporal_packed_patches"},
+    {ProjectorLayout::BatchedImage, "batched_image"},
 };
 }  // namespace
 
@@ -530,10 +560,55 @@ ProjectorModels adapt_projector_layout(const std::shared_ptr<ov::Model>& model) 
                                      mmproj_int_metadata(model, "vision.patch_size"),
                                      mmproj_int_metadata(model, "vision.temporal_patch_size"));
         break;
+    case ProjectorLayout::BatchedImage:
+        batched_image_layout(model);
+        break;
     case ProjectorLayout::Unsupported:
         OPENVINO_THROW("[GGUF] no GenAI vision layout contract");
     }
     return {{"vision_embeddings", model}};
+}
+
+void adapt_audio_layout(const std::shared_ptr<ov::Model>& model) {
+    const auto projector = model->get_rt_info<std::string>({"gguf_mmproj", "audio.projector"});
+    const bool unified = projector == "gemma4ua";
+    if (!unified && projector != "gemma4a")
+        return;
+    OPENVINO_ASSERT(model->get_parameters().size() == 1 && model->get_results().size() == 1,
+                    "[GGUF] Gemma4 audio requires one feature input and one output");
+    const auto original = model->get_parameters().front();
+    // The encoder reads [1, 1, mel, frames] spectrograms or [1, 1, frames, samples] waveform frames.
+    const auto& source = original->get_partial_shape();
+    const auto width_axis = unified ? 3 : 2;
+    OPENVINO_ASSERT(source.rank().is_static() && source.size() == 4 && source[width_axis].is_static(),
+                    "[GGUF] Gemma4 audio requires a static feature width");
+    const auto features =
+        std::make_shared<v0::Parameter>(original->get_element_type(), ov::PartialShape{1, -1, source[width_axis]});
+    name_output(features, "input_features");
+    Value input = features;
+    if (!unified) {
+        // Valid frames form a prefix; the encoder sees them as [1, mel, frames].
+        const auto mask = std::make_shared<v0::Parameter>(ov::element::boolean, ov::PartialShape{1, -1});
+        name_output(mask, "input_features_mask");
+        const auto length =
+            std::make_shared<v1::ReduceSum>(std::make_shared<v0::Convert>(mask, ov::element::i64), ints({1}), false);
+        input = std::make_shared<v8::Slice>(input, ints({0}), length, ints({1}), ints({1}));
+        input = std::make_shared<v1::Transpose>(input, ints({0, 2, 1}));
+        model->add_parameters({mask});
+    }
+    ov::replace_node(original, std::make_shared<v0::Unsqueeze>(input, ints({1})));
+    model->remove_parameter(original);
+    model->add_parameters({features});
+    auto output = model->get_results().front()->input_value(0);
+    output.set_names({"last_hidden_state"});
+    if (!unified) {
+        const auto dimensions =
+            std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(output), ints({0, 1}), ints({0}));
+        auto mask = std::make_shared<v3::Broadcast>(v0::Constant::create(ov::element::boolean, {}, {true}), dimensions);
+        mask->output(0).set_names({"attention_mask"});
+        model->add_results({std::make_shared<v0::Result>(mask)});
+    }
+    model->validate_nodes_and_infer_types();
 }
 
 }  // namespace ov::frontend::gguf

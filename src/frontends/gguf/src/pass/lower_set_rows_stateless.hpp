@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <string>
+
 #include "openvino/pass/matcher_pass.hpp"
 
 namespace ov::frontend::gguf {
@@ -16,11 +18,19 @@ namespace pass {
 // frontend's normalization stage so a plain convert() yields a runnable stateless model. A caller
 // wanting stateful execution registers an alternative lowering via DecoderTransformationExtension
 // (which runs first and consumes the KV-cache SetRows ops before this pass sees them).
+//
+// A lowered write into a model Parameter is a KV cache write. Its output Reshape carries
+// kv_cache_write_key() in rt_info, so GGUFMakeStateful can still make it stateful after conversion.
 class LowerSetRowsStateless : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::frontend::gguf::pass::LowerSetRowsStateless")
     LowerSetRowsStateless();
 };
+
+inline const std::string& kv_cache_write_key() {
+    static const std::string key = "gguf_kv_cache_write";
+    return key;
+}
 
 }  // namespace pass
 }  // namespace ov::frontend::gguf

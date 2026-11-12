@@ -922,6 +922,35 @@ TEST(GGUFMultimodalBackboneAdaptation, QwenAndGemmaSupportBatchesAndPagedAttenti
     }
 }
 
+TEST(GGUFMultimodalBackboneAdaptation, AdaptToGenAIReturnsDecoderModels) {
+    auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/gemma4-ple.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    ov::frontend::gguf::FrontEnd frontend;
+    const auto input = frontend.load(temporary.path);
+    using Mode = ov::frontend::gguf::pass::AdaptToGenAI::InputMode;
+    for (const auto mode : {Mode::IDS_TO_LOGITS, Mode::EMBEDS_TO_LOGITS}) {
+        const bool embeds = mode == Mode::EMBEDS_TO_LOGITS;
+        SCOPED_TRACE(embeds);
+        const auto converted = frontend.convert(input);
+        const auto models = ov::frontend::gguf::adapt_to_genai(converted, {mode});
+        std::set<std::string> names;
+        for (const auto& [name, model] : models)
+            names.insert(name);
+        const std::set<std::string> expected =
+            embeds ? std::set<std::string>{"language", "text_embeddings", "text_embeddings_per_layer"}
+                   : std::set<std::string>{"language"};
+        EXPECT_EQ(names, expected);
+        const auto& language = models.at("language");
+        EXPECT_EQ(language, converted);
+        EXPECT_FALSE(language->get_variables().empty());
+        EXPECT_NO_THROW(language->input("beam_idx"));
+        EXPECT_NO_THROW(language->input(embeds ? "inputs_embeds" : "input_ids"));
+        OV_EXPECT_THROW(ov::frontend::gguf::adapt_to_genai(language, {mode}),
+                        ov::Exception,
+                        testing::HasSubstr("already adapted"));
+    }
+}
+
 // Gemma3/Gemma4 scale token lookups only, as in llama.cpp, so the scale belongs to the embedding
 // model and injected media embeddings reach the decoder unscaled.
 TEST(GGUFMultimodalBackboneAdaptation, EmbeddingModelPreservesTokenScaling) {

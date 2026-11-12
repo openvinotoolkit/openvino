@@ -28,6 +28,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/transpose.hpp"
@@ -38,6 +39,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "pass/lower_set_rows_stateless.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils.hpp"
 
@@ -348,18 +350,33 @@ bool GGUFMakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
         beam_idx->output(0).set_names({m_beam_idx_name});
     }
 
-    // Only a SetRows writing into a model Parameter is a cache write; the rest (e.g. MoE routing
-    // writes) are left to the default stateless lowering that runs after this pass. Collect first,
-    // then rewrite, so the graph is not mutated while being walked.
-    std::vector<std::shared_ptr<SetRows>> cache_writes;
+    // Only a write into a model Parameter is a cache write; the rest (e.g. MoE routing writes) are
+    // left to the default stateless lowering. A converted stateless model carries the same writes
+    // already lowered to ScatterUpdate and marked by LowerSetRowsStateless. Collect first, then
+    // rewrite, so the graph is not mutated while being walked.
+    struct CacheWrite {
+        std::shared_ptr<ov::Node> write;
+        ov::Output<ov::Node> new_rows;
+        std::shared_ptr<v0::Parameter> cache;
+    };
+    std::vector<CacheWrite> cache_writes;
     for (const auto& node : model->get_ops()) {
-        auto set_rows = ov::as_type_ptr<SetRows>(node);
-        if (!set_rows) {
-            continue;
+        CacheWrite write{node, {}, nullptr};
+        if (ov::as_type_ptr<SetRows>(node)) {
+            write.new_rows = node->input_value(0);
+            write.cache = ov::as_type_ptr<v0::Parameter>(node->input_value(2).get_node_shared_ptr());
+        } else if (node->get_rt_info().count(kv_cache_write_key())) {
+            const auto scatter = ov::as_type_ptr<v3::ScatterUpdate>(node->get_input_node_shared_ptr(0));
+            const auto flat = scatter ? ov::as_type_ptr<v1::Reshape>(scatter->get_input_node_shared_ptr(0)) : nullptr;
+            write.cache = flat ? ov::as_type_ptr<v0::Parameter>(flat->get_input_node_shared_ptr(0)) : nullptr;
+            OPENVINO_ASSERT(ov::is_type<v1::Reshape>(node) && write.cache,
+                            "[GGUF] GGUFMakeStateful: malformed lowered KV cache write '",
+                            node->get_friendly_name(),
+                            "'");
+            write.new_rows = scatter->input_value(2);
         }
-        auto dst = ov::as_type_ptr<v0::Parameter>(set_rows->input_value(2).get_node_shared_ptr());
-        if (dst && !m_skip_caches.count(dst->get_friendly_name())) {
-            cache_writes.push_back(set_rows);
+        if (write.cache && !m_skip_caches.count(write.cache->get_friendly_name())) {
+            cache_writes.push_back(std::move(write));
         }
     }
     // A model can have recurrent states and no KV cache at all (an all-linear-attention stack),
@@ -380,9 +397,8 @@ bool GGUFMakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // Same beam_idx Gather axis for every cache; hoisted out of the loop below.
     auto axis0 = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
 
-    for (const auto& set_rows : cache_writes) {
-        auto new_rows = set_rows->input_value(0);
-        auto cache_param = ov::as_type_ptr<v0::Parameter>(set_rows->input_value(2).get_node_shared_ptr());
+    for (const auto& [write, rows, cache_param] : cache_writes) {
+        auto new_rows = rows;
         const auto& cache_name = cache_param->get_friendly_name();
         const auto& ps = cache_param->get_partial_shape();
         const auto et = cache_param->get_element_type();
@@ -438,15 +454,15 @@ bool GGUFMakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
         auto past = std::make_shared<v8::Gather>(read_value, beam_idx, axis0);
         auto concat = std::make_shared<v0::Concat>(ov::OutputVector{past, new_rows}, axis);
         caches.push_back({read_value, concat.get(), init_shape});
-        concat->set_friendly_name(set_rows->get_friendly_name());
+        concat->set_friendly_name(write->get_friendly_name());
         new_sinks.push_back(std::make_shared<v6::Assign>(concat, var));
 
         // The stateless graph returns each updated cache as a Result; in the stateful form the Assign
         // sink above takes that role, so those Results go. Identify them as the Results reading THIS
         // write -- not by matching the cache's name, which only happens to work while the builder
         // names a cache's write after the cache itself. Collect them before replace_node, while the
-        // SetRows is still the node they read.
-        for (const auto& consumer : set_rows->output(0).get_target_inputs()) {
+        // write is still the node they read.
+        for (const auto& consumer : write->output(0).get_target_inputs()) {
             if (auto r = ov::as_type_ptr<v0::Result>(consumer.get_node()->shared_from_this())) {
                 results_to_remove.push_back(r);
             }
@@ -454,7 +470,7 @@ bool GGUFMakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
         // Every remaining consumer of the write (attention's read of the cache) now reads the grown
         // Concat instead.
-        ov::replace_node(set_rows, concat);
+        ov::replace_node(write, concat);
         model->add_variables({var});
 
         params_to_remove.push_back(cache_param);

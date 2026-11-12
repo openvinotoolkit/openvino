@@ -20,6 +20,7 @@
 #include "model_contract.hpp"
 #include "op_test_utils.hpp"
 #include "openvino/frontend/gguf/adapt_mmproj_to_genai.hpp"
+#include "openvino/frontend/gguf/adapt_to_genai.hpp"
 #include "openvino/frontend/gguf/extension/projector.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
@@ -1616,6 +1617,71 @@ INSTANTIATE_TEST_SUITE_P(Reference,
                                            "qwen3vl_merger",
                                            "lfm2",
                                            "lfm2_no_norm"));
+
+// adapt_to_genai owns the GenAI input layouts: CLIP-style encoders accept an image batch and Gemma4
+// audio accepts [1, frames, width] features with a prefix mask.
+class GGUFMMProjGenAIModels : public GGUFMMProjGenAIVisionLayout {};
+
+TEST_P(GGUFMMProjGenAIModels, MatchReference) {
+    const std::string family = GetParam();
+    const bool audio = family.find("gemma4") == 0;
+    const auto models = ov::frontend::gguf::adapt_to_genai(model);
+    ASSERT_EQ(models.size(), 1u);
+    const auto& adapted = models.at(audio ? "audio_embeddings" : "vision_embeddings");
+    const auto check = [&](const ov::Tensor& actual, const std::string& key, size_t batch) {
+        const auto& expected = array(key);
+        ASSERT_EQ(actual.get_shape(), (ov::Shape{batch, expected.shape[2], expected.shape[3]}));
+        const size_t size = expected.num_vals;
+        for (size_t b = 0; b < batch; ++b)
+            ov_gguf_test::expect_nmse_below(
+                ov_gguf_test::nmse(actual.data<const float>() + b * size, expected.data<float>(), size),
+                dynamic_accuracy_limit(GetParam()));
+    };
+    if (!audio) {
+        const auto image = tensor("inputs", ov::element::f32);
+        auto shape = image.get_shape();
+        shape[0] = 2;
+        ov::Tensor batch(ov::element::f32, shape);
+        for (size_t b = 0; b < 2; ++b)
+            std::memcpy(batch.data<float>() + b * image.get_size(), image.data<const float>(), image.get_byte_size());
+        check(infer(adapted, {{"pixel_values", batch}}).front(), "embeddings", 2);
+        return;
+    }
+    const bool unified = family == "gemma4ua";
+    for (const std::string step : {"0.", "1."}) {
+        SCOPED_TRACE(step);
+        const auto source = tensor(step + (unified ? "waveform_frames" : "features"), ov::element::f32);
+        const size_t rows = source.get_shape()[2], columns = source.get_shape()[3];
+        std::map<std::string, ov::Tensor> inputs;
+        if (unified) {
+            inputs["input_features"] = ov::Tensor(ov::element::f32, {1, rows, columns}, source.data());
+        } else {
+            // Two padded frames past the mask must not reach the encoder.
+            const size_t frames = columns + 2;
+            ov::Tensor features(ov::element::f32, {1, frames, rows});
+            ov::Tensor mask(ov::element::boolean, {1, frames});
+            std::fill_n(features.data<float>(), features.get_size(), 1e3f);
+            for (size_t t = 0; t < frames; ++t) {
+                mask.data<bool>()[t] = t < columns;
+                for (size_t m = 0; t < columns && m < rows; ++m)
+                    features.data<float>()[t * rows + m] = source.data<const float>()[m * columns + t];
+            }
+            inputs = {{"input_features", features}, {"input_features_mask", mask}};
+        }
+        const auto outputs = infer(adapted, inputs);
+        ASSERT_EQ(outputs.size(), unified ? 1u : 2u);
+        check(outputs.front(), step + "embeddings", 1);
+        if (!unified) {
+            EXPECT_EQ(outputs[1].get_shape(), (ov::Shape{1, array(step + "embeddings").shape[2]}));
+            const auto* valid = outputs[1].data<const bool>();
+            EXPECT_TRUE(std::all_of(valid, valid + outputs[1].get_size(), [](bool value) {
+                return value;
+            }));
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(Reference, GGUFMMProjGenAIModels, ::testing::Values("mlp", "internvl", "gemma4a", "gemma4ua"));
 
 std::pair<std::shared_ptr<ov::Model>, ov::frontend::gguf::ModelContract> component_contract_model() {
     const auto parameter = [](const std::string& name, const ov::Shape& shape) {
