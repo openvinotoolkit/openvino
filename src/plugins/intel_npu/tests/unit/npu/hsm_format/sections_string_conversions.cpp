@@ -27,12 +27,7 @@ TEST_F(SectionsStringConversionsTest, TypeAndIDToStringAllValidTypes) {
               "ENCRYPTED_SCHEDULES_FLAG_0");
     ASSERT_EQ(section_type_and_id_to_string(SectionType(SectionTypeCode::COMPILER_VERSION), SectionID(0)),
               "COMPILER_VERSION_0");
-}
-
-TEST_F(SectionsStringConversionsTest, UnknownTypeToString) {
-    OV_EXPECT_THROW(section_type_and_id_to_string(SectionType(SectionTypeCode::UNKNOWN), SectionID(0)),
-                    ov::Exception,
-                    _);
+    ASSERT_EQ(section_type_and_id_to_string(SectionType(SectionTypeCode::UNKNOWN), SectionID(0)), "UNKNOWN_0");
 }
 
 TEST_F(SectionsStringConversionsTest, DifferentIDsToString) {

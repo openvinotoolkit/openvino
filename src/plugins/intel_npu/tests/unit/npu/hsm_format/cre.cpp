@@ -373,6 +373,9 @@ TEST_F(CRETests, ToStringSingleToken) {
 
     cre = CRE({COMPILER_VERSION_TOKEN});
     ASSERT_EQ(cre.to_string(), "COMPILER_VERSION");
+
+    cre = CRE({UNKNOWN_TOKEN});
+    ASSERT_EQ(cre.to_string(), "UNKNOWN");
 }
 
 TEST_F(CRETests, ToStringAllTokensOneSubexpression) {
@@ -400,11 +403,13 @@ TEST_F(CRETests, ToStringAllTokensOneSubexpression) {
         CRE::OR_PTR,
         COMPILER_VERSION_TOKEN,
         ID_0_TOKEN,
+        CRE::OR_PTR,
+        UNKNOWN_TOKEN,
     });
     ASSERT_EQ(
         cre.to_string(),
         "RUNTIME_REQUIREMENTS.OR.ELF_MAIN_SCHEDULE.AND.NOT.OPEN.ELF_INIT_SCHEDULES_2.AND.DYNAMIC_SCHEDULE.OR.NOT.IO_"
-        "LAYOUTS.OR.OPEN.BATCH_SIZE.CLOSE.AND.ENCRYPTED_SCHEDULES_FLAG.CLOSE.OR.COMPILER_VERSION_0");
+        "LAYOUTS.OR.OPEN.BATCH_SIZE.CLOSE.AND.ENCRYPTED_SCHEDULES_FLAG.CLOSE.OR.COMPILER_VERSION_0.OR.UNKOWN");
 }
 
 TEST_F(CRETests, ToStringAllTokensMultipleSubexpression) {
@@ -413,32 +418,28 @@ TEST_F(CRETests, ToStringAllTokensMultipleSubexpression) {
         CRE::OR_PTR,
         ELF_MAIN_SCHEDULE_TOKEN,
     });
-    cre.append_to_expression({ELF_INIT_SCHEDULES_TOKEN,
-                              ID_2_TOKEN,
-                              CRE::AND_PTR,
-                              DYNAMIC_SCHEDULE_TOKEN,
-                              CRE::OR_PTR,
-                              CRE::NOT_PTR,
-                              IO_LAYOUTS_TOKEN,
-                              CRE::OR_PTR,
-                              CRE::OPEN_PTR,
-                              BATCH_SIZE_TOKEN,
-                              CRE::CLOSE_PTR,
-                              CRE::AND_PTR,
-                              ENCRYPTED_SCHEDULES_FLAG_TOKEN});
+    cre.append_to_expression({
+        ELF_INIT_SCHEDULES_TOKEN,
+        ID_2_TOKEN,
+        CRE::AND_PTR,
+        DYNAMIC_SCHEDULE_TOKEN,
+        CRE::OR_PTR,
+        CRE::NOT_PTR,
+        IO_LAYOUTS_TOKEN,
+        CRE::OR_PTR,
+        CRE::OPEN_PTR,
+        BATCH_SIZE_TOKEN,
+        CRE::CLOSE_PTR,
+        CRE::AND_PTR,
+        ENCRYPTED_SCHEDULES_FLAG_TOKEN,
+        CRE::OR_PTR,
+        UNKNOWN_TOKEN,
+    });
     cre.append_to_expression({COMPILER_VERSION_TOKEN, ID_0_TOKEN});
     ASSERT_EQ(cre.to_string(),
               "RUNTIME_REQUIREMENTS.OR.ELF_MAIN_SCHEDULE.AND.OPEN.ELF_INIT_SCHEDULES_2.AND.DYNAMIC_SCHEDULE.OR.NOT.IO_"
-              "LAYOUTS.OR.OPEN.BATCH_SIZE.CLOSE.AND.ENCRYPTED_SCHEDULES_FLAG.CLOSE.AND.OPEN.COMPILER_VERSION_0.CLOSE");
-}
-
-TEST_F(CRETests, UnknownToString) {
-    CRE cre({UNKNOWN_TOKEN});
-    OV_EXPECT_THROW(cre.to_string(), ov::Exception, _);
-
-    cre = CRE({ELF_MAIN_SCHEDULE_TOKEN});
-    cre.append_to_expression(UNKNOWN_TOKEN);
-    OV_EXPECT_THROW(cre.to_string(), ov::Exception, _);
+              "LAYOUTS.OR.OPEN.BATCH_SIZE.CLOSE.AND.ENCRYPTED_SCHEDULES_FLAG.CLOSE.AND.OPEN.COMPILER_VERSION_0.OR."
+              "UNKOWN.CLOSE");
 }
 
 TEST_F(CRETests, FromEmptyString) {

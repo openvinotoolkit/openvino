@@ -95,10 +95,7 @@ TEST_F(SectionTypeTest, ToStringAllKnownTypes) {
     ASSERT_EQ(SectionType(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG).to_string(),
               ENCRYPTED_SCHEDULES_FLAG_SECTION_NAME);
     ASSERT_EQ(SectionType(SectionTypeCode::COMPILER_VERSION).to_string(), COMPILER_VERSION_SECTION_NAME);
-}
-
-TEST_F(SectionTypeTest, ToStringUnKnownType) {
-    OV_EXPECT_THROW(SectionType(SectionTypeCode::UNKNOWN).to_string(), ov::Exception, _);
+    ASSERT_EQ(SectionType(SectionTypeCode::UNKNOWN).to_string(), "UNKNOWN");
 }
 
 TEST_F(SectionTypeTest, ValidFromStringUpperCased) {

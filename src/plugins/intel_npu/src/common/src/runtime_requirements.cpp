@@ -12,6 +12,8 @@
 
 namespace {
 
+using namespace intel_npu;
+
 constexpr std::string_view VERSION_KEY = "version";
 constexpr std::string_view CRE_KEY = "cre";
 constexpr char REQUIREMENTS_SEPARATOR = ';';
@@ -37,6 +39,17 @@ void write_requirements_entry(const ov::runtime::hsm::SectionSink& sink,
     sink({reinterpret_cast<const std::byte*>(key.data()), key.size()});
     sink({reinterpret_cast<const std::byte*>(&KEY_VALUE_SEPARATOR), sizeof(KEY_VALUE_SEPARATOR)});
     sink({reinterpret_cast<const std::byte*>(value.data()), value.size()});
+}
+
+bool unknown_token_in_cre(const CRE& cre) {
+    for (const std::shared_ptr<CREToken>& token : cre.get_expression()) {
+        if (is_section_type(token) &&
+            std::dynamic_pointer_cast<SectionType>(token)->get_code() == SectionTypeCode::UNKNOWN) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 }  // namespace
@@ -110,12 +123,14 @@ RuntimeRequirementsSection::RuntimeRequirementsSection(const RuntimeRequirements
 void RuntimeRequirementsSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "RuntimeRequirementsSection::write");
 
+    const CRE cre = m_runtime_requirements.get_cre();
+    OPENVINO_ASSERT(!unknown_token_in_cre(cre), "Unknown CRE tokens should not be serialized inside the blob");
+
     // TODO logs?
     // Version
     write_requirements_entry(sink, VERSION_KEY, CURRENT_RUNTIME_REQUIREMENTS_VERSION.to_string(), true);
 
     // CRE
-    const CRE cre = m_runtime_requirements.get_cre();
     if (!cre.empty()) {
         write_requirements_entry(sink, CRE_KEY, cre.to_string());
     }

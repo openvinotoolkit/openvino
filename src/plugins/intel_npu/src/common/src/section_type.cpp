@@ -67,7 +67,7 @@ std::string SectionType::to_string() const {
     case SectionTypeCode::COMPILER_VERSION:
         return COMPILER_VERSION_SECTION_NAME.data();
     default:
-        OPENVINO_THROW("Attempted to convert an unkown section type to string");
+        return "UNKNOWN";
     }
 }
 
