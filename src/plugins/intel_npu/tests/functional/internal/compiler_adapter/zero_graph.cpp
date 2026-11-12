@@ -79,8 +79,8 @@ public:
 
 protected:
     void SetUp() override {
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         _logGuard.emplace(ov::log::Level::ERR);
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
         std::tie(targetDevice, configuration, zeGraphNpuExtVersion) = this->GetParam();
 
@@ -147,7 +147,7 @@ protected:
     GraphDescriptor graphDescriptor;
 
     std::shared_ptr<ov::Model> model;
-    void* blob;
+    void* blob = nullptr;
 
     std::string targetDevice;
     std::string blobPath;
