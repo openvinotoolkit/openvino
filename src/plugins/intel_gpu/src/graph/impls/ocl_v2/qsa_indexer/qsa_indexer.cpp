@@ -22,8 +22,8 @@
 namespace ov::intel_gpu::ocl {
 
 using namespace cldnn;
-using QSAIn = ov::intel_gpu::op::QSAIndexer::InputIdx;
-using QSAOut = ov::intel_gpu::op::QSAIndexer::OutputIdx;
+using QSAIn = ov::op::internal::QSAIndexer::InputIdx;
+using QSAOut = ov::op::internal::QSAIndexer::OutputIdx;
 
 namespace {
 
@@ -52,7 +52,7 @@ JitConstants make_jit(JitConstants jit, const std::shared_ptr<const qsa_indexer>
     jit.make("QSA_BLOCK_TOPK", desc->block_topk);
     jit.make("QSA_ADDRESS_MODE", 1);
     jit.add(qsa::float_constant("QSA_IDX_NORM_EPS", desc->epsilon));
-    jit.add(qsa::float_constant("QSA_IDX_SCALE", ov::intel_gpu::op::QSAIndexer::effective_scale(desc->get_config())));
+    jit.add(qsa::float_constant("QSA_IDX_SCALE", ov::op::internal::QSAIndexer::effective_scale(desc->get_config())));
     return jit;
 }
 
@@ -477,7 +477,7 @@ bool QSAIndexerImplementationManager::validate_impl(const cldnn::program_node& n
 
     const auto desc = node.as<cldnn::qsa_indexer>().get_primitive();
     std::string reason;
-    if (!ov::intel_gpu::op::QSAIndexer::validate_config(desc->get_config(), reason)) {
+    if (!ov::op::internal::QSAIndexer::validate_config(desc->get_config(), reason)) {
         return false;
     }
 

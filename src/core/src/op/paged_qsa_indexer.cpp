@@ -151,12 +151,7 @@ void PagedQSAIndexer::validate_and_infer_types() {
         return ps.rank().is_static() && ps.size() > axis ? ps[axis] : ov::Dimension::dynamic();
     };
 
-    ov::Dimension tokens = dim_at(index_query_ps, 0);
-    for (const auto idx : {InputIdx::RAW_INDEX_KEYS, InputIdx::ROPE_COS, InputIdx::ROPE_SIN}) {
-        NODE_VALIDATION_CHECK(this,
-                              ov::Dimension::merge(tokens, tokens, dim_at(get_input_partial_shape(idx), 0)),
-                              "PagedQSAIndexer expects all token inputs to have the same number of tokens");
-    }
+    const ov::Dimension tokens = dim_at(index_query_ps, 0);
     const ov::Dimension di(static_cast<int64_t>(m_config.indexer_head_dim));
     const ov::Dimension rot(static_cast<int64_t>(m_config.indexer_rotary_dim));
     const ov::Dimension rope_row(static_cast<int64_t>(2 * m_config.indexer_rotary_dim));

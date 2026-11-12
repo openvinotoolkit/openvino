@@ -14,6 +14,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/paged_qsa_indexer.hpp"
+#include "openvino/op/qsa_indexer.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -21,7 +22,6 @@
 #include "openvino/pass/node_registry.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "ov_ops/qsa_indexer.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
 

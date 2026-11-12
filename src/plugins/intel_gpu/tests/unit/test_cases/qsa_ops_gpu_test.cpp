@@ -59,9 +59,10 @@
 #include <tuple>
 #include <vector>
 
+#include "openvino/op/paged_qsa_indexer.hpp"
+#include "openvino/op/qsa_indexer.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/internal_properties.hpp"
-#include "ov_ops/qsa_indexer.hpp"
 #include "primitive_inst.h"
 #include "random_generator.hpp"
 #include "test_utils.h"
@@ -71,8 +72,8 @@ using namespace ::tests;
 
 namespace {
 
-using PagedIn = ov::intel_gpu::op::PagedQSAIndexer::InputIdx;
-using DenseIdxIn = ov::intel_gpu::op::QSAIndexer::InputIdx;
+using PagedIn = ov::op::internal::PagedQSAIndexer::InputIdx;
+using DenseIdxIn = ov::op::internal::QSAIndexer::InputIdx;
 using SparsePAIn = cldnn::sparse_pa::InputIdx;
 using SparseSDPAIn = ov::intel_gpu::op::SparseSDPA::InputIdx;
 
@@ -699,7 +700,7 @@ std::unique_ptr<network> build_paged_network(engine& engine, const paged_inputs&
     add_call_tensor(topo, dynamic, "past_lens", {-1}, make_i32(engine, {I(in.past_lens.size())}, in.past_lens));
 
     if (stage != Stage::AttentionOnly) {
-        ov::intel_gpu::op::PagedQSAIndexer::Config cfg;
+        ov::op::internal::PagedQSAIndexer::Config cfg;
         cfg.key_block_size = d.r;
         cfg.block_topk = d.block_topk;
         cfg.num_selection_heads = 1;
@@ -995,7 +996,7 @@ std::unique_ptr<network> build_dense_network(engine& engine, const dense_inputs&
     add_call_tensor(topo, dynamic, "key_length", {-1}, make_i32(engine, {I(in.batch)}, in.key_length));
 
     if (stage != Stage::AttentionOnly) {
-        ov::intel_gpu::op::QSAIndexer::Config cfg;
+        ov::op::internal::QSAIndexer::Config cfg;
         cfg.key_block_size = d.r;
         cfg.block_topk = d.block_topk;
         cfg.num_selection_heads = 1;
@@ -1318,7 +1319,7 @@ void validate_pair(const split_reference& ref, const pair_outputs& gpu, float at
 /// Checks the dense state outputs against `refs`: the summary of every complete block, and
 /// the staged raw keys and first-token RoPE row of the new incomplete block.
 void validate_dense_state(network& net, const dense_inputs& in, const std::vector<split_reference>& refs) {
-    using Out = ov::intel_gpu::op::QSAIndexer::OutputIdx;
+    using Out = ov::op::internal::QSAIndexer::OutputIdx;
     const auto& d = in.d;
     auto indexer = net.get_primitive("indexer");
     const auto summary = read_f16(indexer->output_memory_ptr(Out::BLOCK_INDEX_KEYS_CACHE));
@@ -1588,7 +1589,7 @@ void run_dense_state_chain_test(const split_dims& d, const std::vector<size_t>& 
     if (!qsa_ops_available()) {
         GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
-    using Out = ov::intel_gpu::op::QSAIndexer::OutputIdx;
+    using Out = ov::op::internal::QSAIndexer::OutputIdx;
     auto& engine = get_test_engine();
     tests::random_generator rg(GET_SUITE_NAME);
     const auto full = make_split_reference(rg, d, 0, std::accumulate(q_lens.begin(), q_lens.end(), size_t{0}), Positions::MRoPELike);
@@ -2416,8 +2417,8 @@ ov::OutputVector make_dense_indexer_args(const split_dims& d, size_t h_ik = 1) {
             make_param({1, I(2 * d.rotary)})};
 }
 
-ov::intel_gpu::op::PagedQSAIndexer::Config make_paged_indexer_config(const split_dims& d) {
-    ov::intel_gpu::op::PagedQSAIndexer::Config c;
+ov::op::internal::PagedQSAIndexer::Config make_paged_indexer_config(const split_dims& d) {
+    ov::op::internal::PagedQSAIndexer::Config c;
     c.key_block_size = d.r;
     c.block_topk = d.block_topk;
     c.num_selection_heads = 1;
@@ -2428,8 +2429,8 @@ ov::intel_gpu::op::PagedQSAIndexer::Config make_paged_indexer_config(const split
     return c;
 }
 
-ov::intel_gpu::op::QSAIndexer::Config make_dense_indexer_config(const split_dims& d) {
-    ov::intel_gpu::op::QSAIndexer::Config c;
+ov::op::internal::QSAIndexer::Config make_dense_indexer_config(const split_dims& d) {
+    ov::op::internal::QSAIndexer::Config c;
     c.key_block_size = d.r;
     c.block_topk = d.block_topk;
     c.num_selection_heads = 1;
@@ -2591,7 +2592,7 @@ public:
 };
 
 TEST(qsa_ops_gpu_test, dense_indexer_query_flag_attributes_and_clone) {
-    using Indexer = ov::intel_gpu::op::QSAIndexer;
+    using Indexer = ov::op::internal::QSAIndexer;
     EXPECT_TRUE(Indexer::Config{}.query_norm);
     EXPECT_TRUE(Indexer::Config{}.query_rope);
     EXPECT_TRUE(ov::op::internal::PagedQSAIndexer::Config{}.query_norm);
@@ -2790,44 +2791,44 @@ TEST(qsa_ops_gpu_test, paged_qsa_indexer_config_validation_rejects_illegal_attri
     std::string reason;
     split_dims d;
     auto base = make_paged_indexer_config(d);
-    ASSERT_TRUE(ov::intel_gpu::op::PagedQSAIndexer::validate_config(base, reason)) << reason;
+    ASSERT_TRUE(ov::op::internal::PagedQSAIndexer::validate_config(base, reason)) << reason;
 
     auto c = base;
     c.key_block_size = 0;
-    ASSERT_FALSE(ov::intel_gpu::op::PagedQSAIndexer::validate_config(c, reason));
+    ASSERT_FALSE(ov::op::internal::PagedQSAIndexer::validate_config(c, reason));
 
     c = base;
     c.block_topk = 0;
-    ASSERT_FALSE(ov::intel_gpu::op::PagedQSAIndexer::validate_config(c, reason));
+    ASSERT_FALSE(ov::op::internal::PagedQSAIndexer::validate_config(c, reason));
 
     c = base;
     c.indexer_rotary_dim = c.indexer_head_dim + 2;
-    ASSERT_FALSE(ov::intel_gpu::op::PagedQSAIndexer::validate_config(c, reason));
+    ASSERT_FALSE(ov::op::internal::PagedQSAIndexer::validate_config(c, reason));
 
     c = base;
     c.scale = -1.0f;
-    ASSERT_FALSE(ov::intel_gpu::op::PagedQSAIndexer::validate_config(c, reason));
+    ASSERT_FALSE(ov::op::internal::PagedQSAIndexer::validate_config(c, reason));
 
     // scale == 0 selects the 1 / sqrt(indexer_head_dim) default.
     c = base;
     c.scale = 0.0f;
-    ASSERT_TRUE(ov::intel_gpu::op::PagedQSAIndexer::validate_config(c, reason)) << reason;
-    EXPECT_FLOAT_EQ(ov::intel_gpu::op::PagedQSAIndexer::effective_scale(c), 1.0f / std::sqrt(static_cast<float>(d.Di)));
+    ASSERT_TRUE(ov::op::internal::PagedQSAIndexer::validate_config(c, reason)) << reason;
+    EXPECT_FLOAT_EQ(ov::op::internal::PagedQSAIndexer::effective_scale(c), 1.0f / std::sqrt(static_cast<float>(d.Di)));
 }
 
 TEST(qsa_ops_gpu_test, paged_qsa_indexer_rejects_page_size_not_divisible_by_key_block_size) {
     split_dims d;
-    using In = ov::intel_gpu::op::PagedQSAIndexer::InputIdx;
+    using In = ov::op::internal::PagedQSAIndexer::InputIdx;
     auto args = make_paged_indexer_args(d, 8, d.page_size / d.r);
     args[In::INDEX_KEY_CACHE] = make_param({8, 1, I(d.page_size + 1), I(d.Di)});  // page_size is read from this cache
-    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception);
+    EXPECT_THROW((void)std::make_shared<ov::op::internal::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception);
 }
 
 TEST(qsa_ops_gpu_test, paged_qsa_indexer_output_shapes_and_clone) {
     split_dims d;
     const size_t num_pages = 8;
     const size_t summaries_per_page = d.page_size / d.r;
-    auto node = std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(make_paged_indexer_args(d, num_pages, summaries_per_page), make_paged_indexer_config(d));
+    auto node = std::make_shared<ov::op::internal::PagedQSAIndexer>(make_paged_indexer_args(d, num_pages, summaries_per_page), make_paged_indexer_config(d));
 
     ASSERT_EQ(node->get_output_size(), 2u);
     const auto& selected_block_indices_ps = node->get_output_partial_shape(0);
@@ -2838,7 +2839,7 @@ TEST(qsa_ops_gpu_test, paged_qsa_indexer_output_shapes_and_clone) {
     ASSERT_EQ(node->get_output_element_type(1), ov::element::i32);
 
     auto clone = node->clone_with_new_inputs(node->input_values());
-    ASSERT_NE(std::dynamic_pointer_cast<ov::intel_gpu::op::PagedQSAIndexer>(clone), nullptr)
+    ASSERT_NE(std::dynamic_pointer_cast<ov::op::internal::PagedQSAIndexer>(clone), nullptr)
         << "clone_with_new_inputs() must not silently downgrade to the base ov::op::internal::PagedQSAIndexer type";
 }
 
@@ -2846,60 +2847,60 @@ TEST(qsa_ops_gpu_test, paged_qsa_indexer_resolves_default_scale) {
     split_dims d;
     auto cfg = make_paged_indexer_config(d);
     cfg.scale = 0.0f;
-    auto node = std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(make_paged_indexer_args(d, 8, d.page_size / d.r), cfg);
+    auto node = std::make_shared<ov::op::internal::PagedQSAIndexer>(make_paged_indexer_args(d, 8, d.page_size / d.r), cfg);
     EXPECT_FLOAT_EQ(node->get_config().scale, 0.0f);  // sentinel stays in the IR; consumers resolve it
-    EXPECT_FLOAT_EQ(ov::intel_gpu::op::PagedQSAIndexer::effective_scale(node->get_config()), 1.0f / std::sqrt(static_cast<float>(d.Di)));
+    EXPECT_FLOAT_EQ(ov::op::internal::PagedQSAIndexer::effective_scale(node->get_config()), 1.0f / std::sqrt(static_cast<float>(d.Di)));
 }
 
 TEST(qsa_ops_gpu_test, paged_qsa_indexer_rejects_wrong_input_count) {
     split_dims d;
     auto args = make_paged_indexer_args(d, 8, d.page_size / d.r);
     args.pop_back();
-    ASSERT_THROW((void)std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception);
+    ASSERT_THROW((void)std::make_shared<ov::op::internal::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception);
 }
 
 TEST(qsa_ops_gpu_test, paged_qsa_indexer_rejects_bad_rope_shapes) {
     split_dims d;
-    using In = ov::intel_gpu::op::PagedQSAIndexer::InputIdx;
+    using In = ov::op::internal::PagedQSAIndexer::InputIdx;
     const size_t spp = d.page_size / d.r;
     auto args = make_paged_indexer_args(d, 8, spp);
     args[In::ROPE_COS] = make_param({-1, I(d.rotary / 2)});  // a half-width row, not rotary
-    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope_cos width";
+    EXPECT_THROW((void)std::make_shared<ov::op::internal::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope_cos width";
 
     args = make_paged_indexer_args(d, 8, spp);
     args[In::ROPE_SIN] = make_param({3, I(d.rotary)});
     args[In::INDEX_QUERY] = make_param({4, I(d.Hiq * d.Di)});
-    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope_sin tokens";
+    EXPECT_THROW((void)std::make_shared<ov::op::internal::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope_sin tokens";
 
     args = make_paged_indexer_args(d, 8, spp);
     args[In::INDEX_BLOCK_ROPE_CACHE] = make_param({8, I(spp), I(d.rotary)});
-    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope cache row width";
+    EXPECT_THROW((void)std::make_shared<ov::op::internal::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope cache row width";
 
     args = make_paged_indexer_args(d, 8, spp);
     args[In::INDEX_BLOCK_ROPE_CACHE] = make_param({9, I(spp), I(2 * d.rotary)});
-    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope cache num_blocks";
+    EXPECT_THROW((void)std::make_shared<ov::op::internal::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope cache num_blocks";
 
     args = make_paged_indexer_args(d, 8, spp);
     args[In::INDEX_BLOCK_ROPE_CACHE] = make_param({8, I(spp), I(2 * d.rotary)}, ov::element::f32);
-    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope cache type";
+    EXPECT_THROW((void)std::make_shared<ov::op::internal::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "rope cache type";
 }
 
 TEST(qsa_ops_gpu_test, paged_qsa_indexer_requires_i32_integer_inputs) {
     split_dims d;
-    using In = ov::intel_gpu::op::PagedQSAIndexer::InputIdx;
+    using In = ov::op::internal::PagedQSAIndexer::InputIdx;
     for (size_t idx : {In::BLOCK_INDICES, In::BLOCK_INDICES_BEGINS, In::SUBSEQUENCE_BEGINS, In::PAST_LENS}) {
         auto args = make_paged_indexer_args(d, 8, d.page_size / d.r);
         args[idx] = make_param({-1}, ov::element::i64);
-        EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "input " << idx;
+        EXPECT_THROW((void)std::make_shared<ov::op::internal::PagedQSAIndexer>(args, make_paged_indexer_config(d)), ov::Exception) << "input " << idx;
     }
 }
 
 TEST(qsa_ops_gpu_test, dense_qsa_indexer_validates_state_rope_and_key_length) {
     split_dims d;
-    using In = ov::intel_gpu::op::QSAIndexer::InputIdx;
-    using Out = ov::intel_gpu::op::QSAIndexer::OutputIdx;
-    std::shared_ptr<ov::intel_gpu::op::QSAIndexer> node;
-    ASSERT_NO_THROW(node = std::make_shared<ov::intel_gpu::op::QSAIndexer>(make_dense_indexer_args(d), make_dense_indexer_config(d)));
+    using In = ov::op::internal::QSAIndexer::InputIdx;
+    using Out = ov::op::internal::QSAIndexer::OutputIdx;
+    std::shared_ptr<ov::op::internal::QSAIndexer> node;
+    ASSERT_NO_THROW(node = std::make_shared<ov::op::internal::QSAIndexer>(make_dense_indexer_args(d), make_dense_indexer_config(d)));
     // Outputs: selection plus the updated state, shaped and typed like the state inputs.
     ASSERT_EQ(node->get_output_size(), Out::COUNT);
     EXPECT_EQ(node->get_output_partial_shape(Out::SELECTED_BLOCK_INDICES), (ov::PartialShape{1, 1, -1, I(d.block_topk)}));
@@ -2912,35 +2913,35 @@ TEST(qsa_ops_gpu_test, dense_qsa_indexer_validates_state_rope_and_key_length) {
 
     auto args = make_dense_indexer_args(d);
     args[In::ROPE_COS] = make_param({1, -1, I(d.rotary)}, ov::element::f32);
-    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "rope_cos type";
+    EXPECT_THROW((void)std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "rope_cos type";
 
     args = make_dense_indexer_args(d);
     args[In::ROPE_COS] = make_param({1, -1, I(d.rotary / 2)});
-    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "half-width rope_cos";
+    EXPECT_THROW((void)std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "half-width rope_cos";
 
     args = make_dense_indexer_args(d);
     args[In::ROPE_COS] = make_param({-1, I(d.rotary)});
-    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "rank-2 rope_cos";
+    EXPECT_THROW((void)std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "rank-2 rope_cos";
 
     args = make_dense_indexer_args(d);
     args[In::ROPE_SIN] = make_param({2, -1, I(d.rotary)});
-    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "batch mismatch";
+    EXPECT_THROW((void)std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "batch mismatch";
 
     args = make_dense_indexer_args(d);
     args[In::KEY_LENGTH] = make_param({1}, ov::element::i64);
-    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "i64 key_length";
+    EXPECT_THROW((void)std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "i64 key_length";
 
     args = make_dense_indexer_args(d);
     args[In::PAST_INCOMPLETE_RAW_K] = make_param({1, 1, I(d.r), I(d.Di)});
-    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "r raw-key slots";
+    EXPECT_THROW((void)std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "r raw-key slots";
 
     args = make_dense_indexer_args(d);
     args[In::PAST_INCOMPLETE_ROPE] = make_param({1, I(d.rotary)});
-    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "non-interleaved rope state";
+    EXPECT_THROW((void)std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "non-interleaved rope state";
 
     args = make_dense_indexer_args(d);
     args[In::BLOCK_INDEX_KEYS_CACHE] = make_param({1, 1, -1, I(d.Di)}, ov::element::f32);
-    EXPECT_THROW((void)std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "summary type";
+    EXPECT_THROW((void)std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d)), ov::Exception) << "summary type";
 }
 
 cldnn::sparse_pa::Config make_sparse_pa_config(const split_dims& d) {
@@ -3105,7 +3106,7 @@ TEST(qsa_ops_gpu_test, plugin_rejects_unsupported_indexer_heads_and_precision) {
         args[DenseIdxIn::K_NORM_WEIGHT] = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{d.Di}, std::vector<float>(d.Di, 1.0f));
         auto cfg = make_dense_indexer_config(d);
         cfg.num_selection_heads = num_selection_heads;
-        return std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, cfg);
+        return std::make_shared<ov::op::internal::QSAIndexer>(args, cfg);
     };
     expect_compile_error(core, make_dense(2, 1), {}, "only H_ik == 1 is supported");
     expect_compile_error(core, make_dense(2, 2), {}, "only num_selection_heads == 1 is supported");

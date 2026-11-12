@@ -227,9 +227,7 @@ set(GPU_PLUGIN_TRANSFORMATIONS_OP_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/lora_subgraph_fused.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/mlir_op.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/moe_router_fused.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/paged_qsa_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/placeholder.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/qsa_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/read_value.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/sdpa.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/sparse_pa.cpp

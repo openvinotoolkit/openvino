@@ -10,18 +10,18 @@
 #include "openvino/core/node.hpp"
 #include "openvino/op/op.hpp"
 
-namespace ov::intel_gpu::op {
+namespace ov::op::internal {
 
-/// \brief GPU-internal non-paged, stateful complete-block plan producer for Qwen Sparse Attention (QSA).
+/// \brief Non-paged, stateful complete-block plan producer for Qwen Sparse Attention (QSA).
 ///
 /// Reads no page table and owns no opaque runtime state. The state (`block_index_keys_cache`, and the
 /// raw keys and first-token RoPE row of the incomplete block) is passed as inputs and
 /// returned, updated, as outputs (functional state interface). `key_length` is the number of
 /// valid tokens of each row after the call; rows shorter than `L` are left-padded.
 /// RoPE uses the caller-supplied per-token rotate-half `rope_cos`/`rope_sin`.
-class QSAIndexer : public ov::op::Op {
+class OPENVINO_API QSAIndexer : public ov::op::Op {
 public:
-    OPENVINO_OP("QSAIndexer", "gpu_opset");
+    OPENVINO_OP("QSAIndexer");
 
     /// @brief Fixed input order of the QSAIndexer op.
     struct InputIdx {
@@ -78,13 +78,15 @@ public:
     /// `scale`, or its 1 / sqrt(indexer_head_dim) default when unset (0).
     static float effective_scale(const Config& c);
 
-    /// H_iq, derived from index_query's static shape (last dim / indexer_head_dim). Never cached.
+    /// H_iq, derived from index_query's static head axis. Never cached.
     size_t get_index_query_heads() const;
-    /// H_ik, derived from raw_index_keys's static shape (last dim / indexer_head_dim). Never cached.
+    /// H_ik, derived from raw_index_keys's static head axis. Never cached.
     size_t get_index_key_heads() const;
 
 private:
+    void check_float_inputs() const;
+
     Config m_config{};
 };
 
-}  // namespace ov::intel_gpu::op
+}  // namespace ov::op::internal
