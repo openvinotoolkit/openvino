@@ -138,3 +138,69 @@ const auto params = std::vector<ConvertBGMToCompressedParams>{
 }  // namespace
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests, ConvertBGMToCompressed, ::testing::ValuesIn(params));
+
+namespace {
+struct ConvertBGMToCompressedGroupsNumParams {
+    ov::Shape wei_shape;  // [E, OC, IC] or grouped [E, OC, G, IC / G]
+    ov::Shape scale_shape;
+    ov::Shape zp_shape;
+    size_t expected_G;
+};
+
+class ConvertBGMToCompressedGroupsNum : public testing::TestWithParam<ConvertBGMToCompressedGroupsNumParams> {};
+
+TEST_P(ConvertBGMToCompressedGroupsNum, PredicateReceivesICGroupsNum) {
+    const auto& p = GetParam();
+    const auto compressed_type = ov::element::u8;
+    const bool grouped = p.wei_shape.size() == 4;
+    const size_t E = p.wei_shape[0];
+    const size_t OC = p.wei_shape[1];
+    const size_t IC = ov::shape_size(p.wei_shape) / (E * OC);
+
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{8, 10, IC});
+    auto weights_const = ov::op::v0::Constant::create(compressed_type, p.wei_shape, {1});
+    std::shared_ptr<ov::Node> weights = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
+    if (!p.zp_shape.empty()) {
+        auto zp_const = ov::op::v0::Constant::create(compressed_type, p.zp_shape, {1});
+        auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp_const, ov::element::f32);
+        weights = std::make_shared<ov::op::v1::Subtract>(weights, zp_convert);
+    }
+    auto scale_const = ov::op::v0::Constant::create(ov::element::f32, p.scale_shape, {1});
+    weights = std::make_shared<ov::op::v1::Multiply>(weights, scale_const);
+    if (grouped) {
+        auto shape = ov::op::v0::Constant::create(
+            ov::element::i64,
+            ov::Shape{3},
+            std::vector<int64_t>{static_cast<int64_t>(E), static_cast<int64_t>(OC), static_cast<int64_t>(IC)});
+        weights = std::make_shared<ov::op::v1::Reshape>(weights, shape, false);
+    }
+    auto index = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{10, 8}, {1});
+    auto bgm = std::make_shared<ov::op::internal::GatherMatmul>(input, weights, index);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{bgm}, ov::ParameterVector{input});
+
+    size_t received_G = 0;
+    ov::pass::Manager manager;
+    manager.register_pass<ConvertGatherMatmulToGatherMatmulCompressed>(
+        std::vector<ov::element::Type>{ov::element::f32},
+        std::vector<ov::element::Type>{compressed_type},
+        [&](const std::shared_ptr<ov::op::internal::GatherMatmulCompressed>&, size_t, size_t, size_t G) {
+            received_G = G;
+            return true;
+        });
+    manager.run_passes(model);
+
+    EXPECT_EQ(received_G, p.expected_G);
+}
+
+const std::vector<ConvertBGMToCompressedGroupsNumParams> groups_num_params = {
+    // per-OC
+    {{16, 5, 256}, {16, 5, 1}, {16, 5, 1}, 1},
+    // grouped: G = 4
+    {{16, 5, 4, 64}, {16, 5, 4, 1}, {16, 5, 4, 1}, 4},
+    // per-IC: G = IC
+    {{16, 5, 256}, {16, 1, 256}, {}, 256},
+    {{16, 5, 256}, {16, 1, 256}, {16, 1, 256}, 256},
+};
+}  // namespace
+
+INSTANTIATE_TEST_SUITE_P(TransformationTests, ConvertBGMToCompressedGroupsNum, ::testing::ValuesIn(groups_num_params));

@@ -9,6 +9,7 @@
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -168,6 +169,11 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
     return std::make_tuple(fc_input_b, fc_input_scale, fc_input_zp);
 }
 
+size_t ConvertFullyConnectedToFullyConnectedCompressed::get_ic_groups_num(const ov::Shape& processed_scale_shape) {
+    return processed_scale_shape.empty() || ov::shape_size(processed_scale_shape) <= 1 ? 1
+                                                                                       : processed_scale_shape.back();
+}
+
 ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyConnectedCompressed(
     const std::vector<ov::element::Type>& supported_activation_types,
     const std::vector<ov::element::Type>& supported_weights_types,
@@ -210,7 +216,8 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
 
         const size_t IC = *(weights_shape.rbegin());
         const size_t OC = *(weights_shape.rbegin() + 1);
-        const size_t G = grouped ? (has_transpose ? *(scale_shape.rbegin() + 2) : *(scale_shape.rbegin() + 1)) : 1;
+        const auto& processed_scale_shape = fc_input_scale->get_output_shape(0);
+        const size_t G = get_ic_groups_num(processed_scale_shape);
         // The flags are not copyable and are needed by supports_config
         if (ov::is_conversion_disabled(fc, element::f16)) {
             ov::disable_conversion(new_fc, element::f16);
