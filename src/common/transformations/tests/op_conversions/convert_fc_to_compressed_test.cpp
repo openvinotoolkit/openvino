@@ -230,3 +230,77 @@ TEST_F(TransformationTestsF, ConvertFCToCompressedRank0ScaleZpWithTranspose) {
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input});
     }
 }
+
+namespace {
+struct ConvertFCToCompressedGroupsNumParams {
+    ov::Shape wei_shape;
+    ov::Shape scale_shape;
+    ov::Shape zp_shape;
+    bool transposed;
+    size_t expected_G;
+};
+
+class ConvertFCToCompressedGroupsNum : public testing::TestWithParam<ConvertFCToCompressedGroupsNumParams> {};
+
+TEST_P(ConvertFCToCompressedGroupsNum, PredicateReceivesICGroupsNum) {
+    const auto& p = GetParam();
+    const auto compressed_type = ov::element::u8;
+    const bool grouped = p.wei_shape.size() == 3;
+    const size_t IC = p.transposed ? p.wei_shape[0] : ov::shape_size(p.wei_shape) / p.wei_shape[0];
+
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{10, IC});
+    auto weights_const = ov::op::v0::Constant::create(compressed_type, p.wei_shape, {1});
+    std::shared_ptr<ov::Node> weights = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
+    if (!p.zp_shape.empty()) {
+        auto zp_const = ov::op::v0::Constant::create(compressed_type, p.zp_shape, {1});
+        auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp_const, ov::element::f32);
+        weights = std::make_shared<ov::op::v1::Subtract>(weights, zp_convert);
+    }
+    auto scale_const = ov::op::v0::Constant::create(ov::element::f32, p.scale_shape, {1});
+    weights = std::make_shared<ov::op::v1::Multiply>(weights, scale_const);
+    if (grouped) {
+        auto shape = ov::op::v0::Constant::create(
+            ov::element::i64,
+            ov::Shape{2},
+            std::vector<int64_t>{static_cast<int64_t>(p.wei_shape[0]), static_cast<int64_t>(IC)});
+        weights = std::make_shared<ov::op::v1::Reshape>(weights, shape, false);
+    }
+    if (p.transposed) {
+        auto perm = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{1, 0});
+        weights = std::make_shared<ov::op::v1::Transpose>(weights, perm);
+    }
+    auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
+    auto fc = std::make_shared<ov::op::internal::FullyConnected>(input, weights, bias);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+
+    size_t received_G = 0;
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::ConvertFullyConnectedToFullyConnectedCompressed>(
+        std::vector<ov::element::Type>{ov::element::f32},
+        std::vector<ov::element::Type>{compressed_type},
+        [&](const std::shared_ptr<ov::op::internal::FullyConnected>&, size_t, size_t, size_t G) {
+            received_G = G;
+            return true;
+        });
+    manager.run_passes(model);
+
+    EXPECT_EQ(received_G, p.expected_G);
+}
+
+const std::vector<ConvertFCToCompressedGroupsNumParams> groups_num_params = {
+    // per-tensor
+    {{64, 32}, {}, {}, false, 1},
+    // per-OC
+    {{64, 32}, {64, 1}, {}, false, 1},
+    {{32, 64}, {1, 64}, {1, 64}, true, 1},
+    // grouped: G = 4
+    {{64, 4, 8}, {64, 4, 1}, {}, false, 4},
+    {{64, 4, 8}, {64, 4, 1}, {64, 4, 1}, false, 4},
+    // per-IC: G = IC
+    {{32, 64}, {32, 1}, {}, true, 32},
+    {{768, 2304}, {768, 1}, {}, true, 768},
+    {{32, 64}, {32, 1}, {32, 1}, true, 32},
+};
+}  // namespace
+
+INSTANTIATE_TEST_SUITE_P(TransformationTests, ConvertFCToCompressedGroupsNum, ::testing::ValuesIn(groups_num_params));
