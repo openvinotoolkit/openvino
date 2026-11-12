@@ -40,6 +40,8 @@
 #include "program_wrapper.h"
 #include "primitive_inst_test_helper.h"
 
+#include "condition_inst.h"
+
 #include <memory>
 
 using namespace cldnn;
@@ -3742,3 +3744,158 @@ TEST(prepare_buffer_fusing, in_place_concat_rejected_for_shape_of_subgraph_input
     ASSERT_EQ(out_ptr[2], 3.f);
     ASSERT_EQ(out_ptr[3], 4.f);
 }
+
+TEST(prepare_buffer_fusing, in_place_concat_and_crop_along_batch_feature_only_safe_index) {
+    auto& engine = get_test_engine();
+
+    const int64_t num_slices = 4;
+    const int64_t feat_size = 10;
+    auto in_layout = layout{ov::PartialShape{num_slices, feat_size}, data_types::f32, format::bfyx};
+    auto input_mem = engine.allocate_memory(in_layout);
+    auto axis_mem = engine.allocate_memory({{}, data_types::i64, format::bfyx});
+    auto bound_min_mem = engine.allocate_memory({{1, 1}, data_types::f32, format::bfyx});
+    auto bound_max_mem = engine.allocate_memory({{1, 1}, data_types::f32, format::bfyx});
+
+    std::vector<float> input_data(static_cast<size_t>(num_slices * feat_size));
+    for (int64_t s = 0; s < num_slices; ++s) {
+        for (int64_t f = 0; f < feat_size; ++f) {
+            input_data[static_cast<size_t>(s * feat_size + f)] = static_cast<float>((s + 1) * 10 + f);
+        }
+    }
+    set_values(input_mem, input_data);
+    set_values<int64_t>(axis_mem, {0});
+    set_values<float>(bound_min_mem, {0.f});
+    set_values<float>(bound_max_mem, {100.f});
+
+    const auto op_mode = cldnn::crop_ngraph_op_mode::split;
+    auto offset0 = cldnn::tensor(cldnn::batch(0), cldnn::feature(0), cldnn::spatial(0, 0));
+    auto offset1 = cldnn::tensor(cldnn::batch(1), cldnn::feature(0), cldnn::spatial(0, 0));
+    auto offset2 = cldnn::tensor(cldnn::batch(2), cldnn::feature(0), cldnn::spatial(0, 0));
+    auto offset3 = cldnn::tensor(cldnn::batch(3), cldnn::feature(0), cldnn::spatial(0, 0));
+
+    topology topo(
+        input_layout("input", in_layout),
+        data("axis", axis_mem),
+        data("bound_min", bound_min_mem),
+        data("bound_max", bound_max_mem),
+        crop("split_in0", {input_info("input"), input_info("axis")}, cldnn::tensor(1), offset0, op_mode, 0, 0, num_slices),
+        crop("split_in1", {input_info("input"), input_info("axis")}, cldnn::tensor(1), offset1, op_mode, 1, 0, num_slices),
+        crop("split_in2", {input_info("input"), input_info("axis")}, cldnn::tensor(1), offset2, op_mode, 2, 0, num_slices),
+        crop("split_in3", {input_info("input"), input_info("axis")}, cldnn::tensor(1), offset3, op_mode, 3, 0, num_slices),
+        eltwise("min0", {input_info("split_in0"), input_info("bound_max")}, eltwise_mode::min),
+        eltwise("max0", {input_info("min0"), input_info("bound_min")}, eltwise_mode::max),
+        eltwise("min1", {input_info("split_in1"), input_info("bound_max")}, eltwise_mode::min),
+        eltwise("max1", {input_info("min1"), input_info("bound_min")}, eltwise_mode::max),
+        eltwise("min2", {input_info("split_in2"), input_info("bound_max")}, eltwise_mode::min),
+        eltwise("max2", {input_info("min2"), input_info("bound_min")}, eltwise_mode::max),
+        eltwise("min3", {input_info("split_in3"), input_info("bound_max")}, eltwise_mode::min),
+        eltwise("max3", {input_info("min3"), input_info("bound_min")}, eltwise_mode::max),
+        concatenation("concat", {input_info("max0"), input_info("max1"), input_info("max2"), input_info("max3")}, 0),
+        crop("area_split0", {input_info("concat"), input_info("axis")}, cldnn::tensor(1), offset0, op_mode, 0, 0, num_slices),
+        crop("area_split1", {input_info("concat"), input_info("axis")}, cldnn::tensor(1), offset1, op_mode, 1, 0, num_slices),
+        crop("area_split2", {input_info("concat"), input_info("axis")}, cldnn::tensor(1), offset2, op_mode, 2, 0, num_slices),
+        crop("area_split3", {input_info("concat"), input_info("axis")}, cldnn::tensor(1), offset3, op_mode, 3, 0, num_slices),
+        eltwise("diff_y", {input_info("area_split2"), input_info("area_split0")}, eltwise_mode::sub),
+        eltwise("diff_x", {input_info("area_split3"), input_info("area_split1")}, eltwise_mode::sub),
+        eltwise("area", {input_info("diff_y"), input_info("diff_x")}, eltwise_mode::prod),
+        reorder("output", input_info("area"), format::bfyx, data_types::f32)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network net(engine, topo, config);
+    net.set_input_data("input", input_mem);
+    auto outputs = net.execute();
+
+    ASSERT_TRUE(net.get_primitive("concat")->can_be_optimized());
+    ASSERT_TRUE(net.get_primitive("area_split0")->can_be_optimized());
+    ASSERT_TRUE(net.get_primitive("area_split1")->can_be_optimized());
+    ASSERT_TRUE(net.get_primitive("area_split2")->can_be_optimized());
+    ASSERT_TRUE(net.get_primitive("area_split3")->can_be_optimized());
+
+    auto out_mem = outputs.at("output").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
+    ASSERT_EQ(out_mem->count(), static_cast<size_t>(feat_size));
+    for (int64_t f = 0; f < feat_size; ++f) {
+        const float y0 = input_data[static_cast<size_t>(0 * feat_size + f)];
+        const float x0 = input_data[static_cast<size_t>(1 * feat_size + f)];
+        const float y1 = input_data[static_cast<size_t>(2 * feat_size + f)];
+        const float x1 = input_data[static_cast<size_t>(3 * feat_size + f)];
+        const float expected = (y1 - y0) * (x1 - x0);
+        ASSERT_FLOAT_EQ(out_ptr[static_cast<size_t>(f)], expected) << "Mismatch at feature " << f;
+    }
+}
+
+TEST(prepare_buffer_fusing, in_place_crop_rejected_around_condition) {
+    auto& engine = get_test_engine();
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    const ov::PartialShape in_pshape = {-1, 4, 2};
+    const ov::PartialShape split_pshape = {-1, 4, 1};
+    auto in_mem = engine.allocate_memory({{1, 4, 2}, data_types::f32, format::bfyx});
+    auto pred_mem = engine.allocate_memory({{1}, data_types::u8, format::bfyx});
+    auto axis_mem = engine.allocate_memory({{}, data_types::i64, format::bfyx});
+
+    set_values<float>(in_mem, {1.f, 10.f, 2.f, 20.f, 3.f, 30.f, 4.f, 40.f});
+    set_values<uint8_t>(pred_mem, {1});
+    set_values<int64_t>(axis_mem, {2});
+
+    auto build_branch = [&](const std::string& prefix) {
+        topology branch_topo;
+        branch_topo.add(
+            input_layout(prefix + "_in0", {split_pshape, data_types::f32, format::bfyx}),
+            input_layout(prefix + "_in1", {split_pshape, data_types::f32, format::bfyx}),
+            concatenation(prefix + "_concat", {input_info(prefix + "_in0"), input_info(prefix + "_in1")}, 2)
+        );
+        condition::branch b;
+        b.inner_program = program::build_program(engine, branch_topo, config, false, false, true);
+        b.input_map.insert({"crop_before0", prefix + "_in0"});
+        b.input_map.insert({"crop_before1", prefix + "_in1"});
+        b.output_map.insert({0, prefix + "_concat"});
+        return b;
+    };
+
+    auto branch_true = build_branch("t");
+    auto branch_false = build_branch("f");
+
+    const auto op_mode = cldnn::crop_ngraph_op_mode::split;
+    auto offset0 = cldnn::tensor(0);
+    auto offset1 = cldnn::tensor(cldnn::batch(0), cldnn::feature(0), cldnn::spatial(0, 1));
+
+    topology topo(
+        input_layout("pred", pred_mem->get_layout()),
+        input_layout("input", {in_pshape, data_types::f32, format::bfyx}),
+        data("axis", axis_mem),
+        crop("crop_before0", {input_info("input"), input_info("axis")}, cldnn::tensor(1), offset0, op_mode, 0, 2, 2),
+        crop("crop_before1", {input_info("input"), input_info("axis")}, cldnn::tensor(1), offset1, op_mode, 1, 2, 2),
+        condition("cond", {input_info("pred"), input_info("crop_before0"), input_info("crop_before1")}, branch_true, branch_false, 1),
+        crop("crop_after0", {input_info("cond"), input_info("axis")}, cldnn::tensor(1), offset0, op_mode, 0, 2, 2),
+        crop("crop_after1", {input_info("cond"), input_info("axis")}, cldnn::tensor(1), offset1, op_mode, 1, 2, 2),
+        eltwise("sum", {input_info("crop_after0"), input_info("crop_after1")}, eltwise_mode::sum),
+        reorder("output", input_info("sum"), format::bfyx, data_types::f32)
+    );
+
+    network net(engine, topo, config);
+    net.set_input_data("pred", pred_mem);
+    net.set_input_data("input", in_mem);
+    auto outputs = net.execute();
+
+    ASSERT_FALSE(net.get_primitive("crop_before0")->can_be_optimized());
+    ASSERT_FALSE(net.get_primitive("crop_before1")->can_be_optimized());
+    ASSERT_FALSE(net.get_primitive("crop_after0")->can_be_optimized());
+    ASSERT_FALSE(net.get_primitive("crop_after1")->can_be_optimized());
+
+    auto out_mem = outputs.at("output").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
+    ASSERT_EQ(out_mem->count(), 4u);
+    ASSERT_FLOAT_EQ(out_ptr[0], 11.f);
+    ASSERT_FLOAT_EQ(out_ptr[1], 22.f);
+    ASSERT_FLOAT_EQ(out_ptr[2], 33.f);
+    ASSERT_FLOAT_EQ(out_ptr[3], 44.f);
+}
+
+
