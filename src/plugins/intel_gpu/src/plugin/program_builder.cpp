@@ -40,7 +40,13 @@ const cldnn::primitive_id ProgramBuilder::m_preProcessTag("_cldnn_input_preproce
 const cldnn::primitive_id ProgramBuilder::m_preCustomLayerTag("_cldnn_custom_preprocess");
 const cldnn::primitive_id ProgramBuilder::m_postCustomLayerTag("_cldnn_custom_postprocess");
 ProgramBuilder::factories_map_t ProgramBuilder::factories_map = {};
+std::vector<ov::Extension::Ptr> ProgramBuilder::shape_inference_extensions;
 std::mutex ProgramBuilder::m_mutex = {};
+
+std::vector<ov::Extension::Ptr> ProgramBuilder::get_shape_inference_extensions() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return shape_inference_extensions;
+}
 
 std::string layer_type_lower(const ov::Node* op) {
     std::string layerType = op->get_type_name();

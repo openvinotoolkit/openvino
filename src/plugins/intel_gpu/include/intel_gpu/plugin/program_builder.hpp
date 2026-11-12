@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/core/node.hpp"
+#include "openvino/core/op_extension.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/op/parameter.hpp"
 
@@ -23,6 +24,7 @@
 #include <mutex>
 #include <set>
 #include <unordered_set>
+#include <type_traits>
 
 #if defined(_WIN32) && !defined(__GNUC__)
 #    define __PRETTY_FUNCTION__ __FUNCSIG__
@@ -131,8 +133,18 @@ public:
         std::lock_guard<std::mutex> lock(m_mutex);
         if (ProgramBuilder::factories_map.find(OpType::get_type_info_static()) == ProgramBuilder::factories_map.end()) {
             ProgramBuilder::factories_map.insert({OpType::get_type_info_static(), func});
+            if constexpr (std::is_default_constructible<OpType>::value) {
+                const auto& type = OpType::get_type_info_static();
+                // Standard opsets already have Core factories. Expose serializable
+                // internal operations through the plugin's normal extension hook.
+                if (type.version_id && std::string(type.version_id).find("opset") != 0) {
+                    shape_inference_extensions.emplace_back(std::make_shared<ov::OpExtension<OpType>>());
+                }
+            }
         }
     }
+
+    static std::vector<ov::Extension::Ptr> get_shape_inference_extensions();
 
     template<typename PType, typename = typename std::enable_if<!is_smart_pointer<PType>::value>::type>
     void add_primitive(const ov::Node& op, PType prim, std::vector<std::string> aliases = {}) {
@@ -156,6 +168,7 @@ public:
     }
 private:
     static factories_map_t factories_map;
+    static std::vector<ov::Extension::Ptr> shape_inference_extensions;
     std::shared_ptr<cldnn::program> m_program;
     std::shared_ptr<ov::Model> m_model;
     ExecutionConfig m_config;
