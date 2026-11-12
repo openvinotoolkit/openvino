@@ -195,6 +195,10 @@ REGISTER_IMPLS(gather_matmul);
 REGISTER_IMPLS(mlir_primitive);
 #endif
 REGISTER_IMPLS(grouped_matmul);
+REGISTER_IMPLS(paged_qsa_indexer);
+REGISTER_IMPLS(qsa_indexer);
+REGISTER_IMPLS(sparse_pa);
+REGISTER_IMPLS(sparse_sdpa);
 
 REGISTER_DEFAULT_IMPLS(assign, CPU_S, CPU_D);
 REGISTER_DEFAULT_IMPLS(read_value, CPU_S, CPU_D);
