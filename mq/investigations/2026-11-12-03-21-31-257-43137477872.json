@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-12-03-21-31-257-43137477872",
+  "timestamp": "2026-11-12T03:21:31Z",
+  "run_id": "43137477872",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43137477872",
+  "workflow_name": "PyTorch Models tests / PyTorch Models tests",
+  "pr_number": "38204",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38204",
+  "author": "Kotomi-Du",
+  "category": "External Service",
+  "title": "PyTorch Detectron2 model-hub tests fail to download weights due to expired TLS certificate on dl.fbaipublicfiles.com",
+  "signature": "ssl certificate verify failed certificate has expired|External Service",
+  "signature_hash": "2641a2995515ec82",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "All 19 PyTorch Detectron2 precommit model conversion tests fail while downloading model weights from an upstream host whose TLS certificate has expired"
+    }
+  ],
+  "key_errors": [
+    "E           URLError: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1018)>",
+    "Attempt 1 of 3 failed: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1018)>",
+    "File \"/venv/lib/python3.11/site-packages/iopath/common/file_io.py\", line 1197, in get_local_path"
+  ],
+  "root_cause": "The Detectron2 model-hub precommit tests download pretrained weight checkpoints over HTTPS from an external host (dl.fbaipublicfiles.com) via detectron2's DetectionCheckpointer -> iopath download() path. The remote host's TLS certificate has expired, so every HTTPS connection now fails Python's certificate validation with CERTIFICATE_VERIFY_FAILED, causing all parametrized Detectron2 conversion tests to fail identically (download is a prerequisite step, unrelated to the PR's actual diff). This is the third observed occurrence of this exact signature within the last ~2 hours, confirming it is an ongoing external-service outage rather than a one-off blip.",
+  "reproduction_steps": "Run `pytest install/tests/model_hub_tests/pytorch/test_detectron2.py::TestDetectron2ConvertModel::test_detectron2_precommit` locally with network access; the download of any Detectron2 COCO/Cityscapes/LVIS checkpoint from dl.fbaipublicfiles.com will fail with the same SSL certificate-expired error until the upstream certificate is renewed.",
+  "recommended_actions": [
+    "Re-run the failed jobs once the upstream certificate is renewed (expected to self-resolve; this is not fixable from the OpenVINO repo).",
+    "Consider mirroring/caching Detectron2 model weights in an internal artifact store to decouple precommit CI from this third-party host's certificate lifecycle.",
+    "If the outage persists beyond a few hours, mark the detectron2 precommit tests as xfail/skip temporarily with a tracking ticket to unblock the merge queue."
+  ],
+  "prevention_strategies": "Avoid hard dependencies on third-party HTTPS hosts for precommit-blocking tests; cache or vendor model weights, or add a short retry-with-backoff plus a clear xfail marker keyed to this specific SSL error so a recurring external outage doesn't repeatedly block merges.",
+  "historical_context": "This exact failure signature (signature_hash 2641a2995515ec82) was first recorded at 2026-11-12T01:09:15Z (run 43121154399, PR #39727) and recurred at 2026-11-12T02:34:24Z (run 43133112821, PR #39727); this is the 3rd occurrence within the last 12 hours, now also affecting PR #38204, confirming a sustained upstream TLS outage rather than an isolated flake."
+}
