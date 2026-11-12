@@ -31,11 +31,14 @@ static dnnl::memory::desc make_weights_md(const layout& weights_layout, dnnl::me
 static std::pair<dnnl::memory::format_tag, dnnl::memory::format_tag> get_matmul_formats(size_t prim_input_size, bool weights_transposed = true) {
     if (prim_input_size == 3) {
         return {dnnl::memory::format_tag::abc, weights_transposed ? dnnl::memory::format_tag::acb : dnnl::memory::format_tag::abc};
-    } else if (prim_input_size == 4) {
+    }
+    if (prim_input_size == 4) {
         return {dnnl::memory::format_tag::abcd, weights_transposed ? dnnl::memory::format_tag::abdc : dnnl::memory::format_tag::abcd};
-    } else if (prim_input_size == 5) {
+    }
+    if (prim_input_size == 5) {
         return {dnnl::memory::format_tag::abcde, weights_transposed ? dnnl::memory::format_tag::abced : dnnl::memory::format_tag::abcde};
-    } else if (prim_input_size == 6) {
+    }
+    if (prim_input_size == 6) {
         return {dnnl::memory::format_tag::abcdef, weights_transposed ? dnnl::memory::format_tag::abcdfe : dnnl::memory::format_tag::abcdef};
     }
 
