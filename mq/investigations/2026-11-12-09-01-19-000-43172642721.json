@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-12-09-01-19-000-43172642721",
+  "timestamp": "2026-11-12T09:01:19Z",
+  "run_id": "43172642721",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43172642721",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "38204",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38204",
+  "author": "Kotomi-Du",
+  "category": "Configuration",
+  "title": "Build (C++20) job fails - sccache cannot start because Azure Blob connection string URI is malformed",
+  "signature": "sccache server startup failed cache storage failed to read unexpected permanent at read azbloberror code invaliduri message the requested uri does not represent any resource on the server|Configuration",
+  "signature_hash": "08b993dbdc18ccac",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build (C++20, non-blocking) / Build",
+      "conclusion": "failure",
+      "symptom": "CMake configure fails at the trivial C-compiler-check test compile because sccache's wrapped compiler invocation errors with 'sccache: error: Server startup failed: cache storage failed to read: Unexpected (permanent) at read => AzblobError { code: \"InvalidUri\" ... }'"
+    },
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "All test_detectron2.py precommit cases failed during model weight/source download due to an expired TLS certificate on the model-hub host (separate, already-tracked External Service pattern 2641a2995515ec82)"
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Aggregated status check fails because the Build and PyTorch Models tests jobs failed"
+    }
+  ],
+  "key_errors": [
+    "CMake Error at /usr/local/share/cmake-4.1/Modules/CMakeTestCCompiler.cmake:67 (message):\n  The C compiler \"/usr/bin/cc\" is not able to compile a simple test program.",
+    "FAILED: [code=2] CMakeFiles/cmTC_e4786.dir/testCCompiler.c.o\nsccache /usr/bin/cc    -o CMakeFiles/cmTC_e4786.dir/testCCompiler.c.o -c .../testCCompiler.c\nsccache: error: Server startup failed: cache storage failed to read: Unexpected (permanent) at read => AzblobError { code: \"InvalidUri\", message: \"The requested URI does not represent any resource on the server. RequestId:eb01ec4f-001e-00aa-057f-72d026000000 Time:2026-11-12T08:27:38.5654298Z\" }",
+    "uri: https://ghasccacheblobs.blob.core.windows.net//sccache/ubuntu_22_04_x86_64_Release_cpp20/.sccache_check\nresponse: Parts { status: 400, ... \"x-ms-error-code\": \"InvalidUri\" ... }",
+    "install/tests/model_hub_tests/pytorch/test_detectron2.py::TestDetectron2ConvertModel::test_detectron2_precommit[CPU-COCO-Detection/faster_rcnn_R_50_FPN_1x-none-None-None] FAILED",
+    "E           URLError: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1018)>"
+  ],
+  "root_cause": "This run has two unrelated, pre-existing, recurring CI infrastructure failures, neither caused by PR #38204 (which only touches intel_gpu FC-compression transformations/tests): (1) the sccache server fails to start in the Build (C++20) job because the Azure Blob Storage URI it builds contains a doubled slash ('ghasccacheblobs.blob.core.windows.net//sccache/...'), which Azure's Blob API rejects with HTTP 400 InvalidUri - this happens during CMake's trivial C-compiler-check test compile, before any PR-specific code is touched, and is the same signature recorded 5 times previously (pattern 08b993dbdc18ccac); (2) the PyTorch Models tests job's Detectron2 precommit suite fails because the external model-hub host serves an expired TLS certificate, triggering CERTIFICATE_VERIFY_FAILED on every download attempt - the same signature recorded 6 times previously (pattern 2641a2995515ec82, which crossed the 3-occurrences-in-12h recurring-escalation threshold again with this run).",
+  "reproduction_steps": "N/A - both failures are CI-infrastructure/external-service issues (sccache Azure Blob cache misconfiguration and an expired upstream TLS certificate), not reproducible by rebuilding PR #38204's code locally.",
+  "recommended_actions": [
+    "Fix the sccache Azure Blob Storage configuration so the computed blob URI never contains a doubled '/' (sanitize trailing slashes when concatenating the storage account URL with SCCACHE_AZURE_KEY_PREFIX in the CI environment/action that sets these variables) - now 6 occurrences, needs owner escalation.",
+    "Wait for the external model-hub host's TLS certificate to be renewed, or mirror/cache the Detectron2 model assets in an OpenVINO-controlled store - now 7 occurrences in <12h, a human-review rerun-pattern PR (#39754) is already pending merge for this signature.",
+    "Automated remediation requested for this run (re-run failed jobs / re-queue depending on live merge-queue status) since both categories are transient/config-infra, not code-caused.",
+    "No code changes required on PR #38204."
+  ],
+  "prevention_strategies": "Validate the SCCACHE_AZURE_* environment variables at CI setup time to catch a malformed/double-slash URI before it reaches sccache. For model-hub tests, consider caching/mirroring frequently-used assets in an OpenVINO-controlled store to avoid dependency on third-party certificate hygiene, and merge the pending workflow-rerunner PR (#39754) for the certificate-expiry signature.",
+  "historical_context": "sccache Azure InvalidUri signature (08b993dbdc18ccac) first seen 2026-11-06T11:53:20Z, now 6 occurrences across GenAI and C++20 Build jobs (Ubuntu 22.04/24.04). Detectron2 expired-certificate signature (2641a2995515ec82) first seen 2026-11-12T01:09:15Z, now 7 occurrences within the last ~8 hours (runs 43121154399, 43133112821, 43137477872, 43151858776, 43157183354, 43165661071, and this run), all affecting unrelated PRs - confirming both are persistent external/infrastructure issues unconnected to the code under review."
+}
