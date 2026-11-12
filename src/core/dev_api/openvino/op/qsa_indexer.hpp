@@ -76,9 +76,9 @@ public:
     /// `scale`, or its 1 / sqrt(indexer_head_dim) default when unset (0).
     static float effective_scale(const Config& config);
 
-    /// H_iq, derived from index_query's static head axis. Never cached.
+    /// H_iq, derived from index_query's static shape (last dim / indexer_head_dim). Never cached.
     size_t get_index_query_heads() const;
-    /// H_ik, derived from raw_index_keys's static head axis. Never cached.
+    /// H_ik, derived from raw_index_keys's static shape (last dim / indexer_head_dim). Never cached.
     size_t get_index_key_heads() const;
 
 private:
