@@ -63,8 +63,7 @@ KERNEL(gemm_mmad_int8_slm)(
     )
 {
     // Indices
-    const uint output_x = (uint)get_global_id(0);
-    const uint output_x_tile = output_x * PACK_SIZE / SLM_TILE_SIZE;
+    const uint output_x_tile = (uint)get_global_id(0) * PACK_SIZE / SLM_TILE_SIZE;
     const uint output_y_tile = (uint)get_global_id(1);
 #if HAS_FUSED_OPS
     uint output_y = output_y_tile * SUB_GROUP_SIZE;
@@ -182,6 +181,11 @@ KERNEL(gemm_mmad_int8_slm)(
 
     // Last calculations and writing result in the global memory
     for (uint i = 0; i < 4; i++) {
+#if HAS_FUSED_OPS
+        // Output column of chunk i: each work item writes 4 columns, SUB_GROUP_SIZE apart. Fused ops are indexed
+        // with (b, f, output_y, output_x), so get_global_id(0) can't be used as the column here.
+        const uint output_x = output_x_tile * SLM_TILE_SIZE + i * SUB_GROUP_SIZE + lid0;
+#endif // HAS_FUSED_OPS
         for (uint j = 0; j < SUB_GROUP_SIZE; j++) {
             ACTIVATION_TYPE dequantized = TO_ACTIVATION_TYPE(reg_tile_output_pnt[i * SUB_GROUP_SIZE + j]);
             dequantized *= TO_ACTIVATION_TYPE(ALPHA);

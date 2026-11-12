@@ -14,6 +14,13 @@
 #if OV_GPU_WITH_OCL
     #include "impls/ocl/reorder.hpp"
 #endif
+// Packs the weights of the TernOCL int2 FullyConnected impl, so it is registered wherever that impl is.
+#if OV_GPU_WITH_OCL && defined(OV_GPU_WITH_OCL_RT)
+#    include "impls/ocl_v2/ternocl_int2/ternocl_int2_weights_reorder.hpp"
+#    define OV_GPU_CREATE_INSTANCE_TERNOCL(...) OV_GPU_CREATE_INSTANCE_OCL(__VA_ARGS__)
+#else
+#    define OV_GPU_CREATE_INSTANCE_TERNOCL(...)
+#endif
 
 namespace ov::intel_gpu {
 
@@ -41,6 +48,7 @@ static std::vector<format> supported_dyn_formats = {
 
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<reorder>::get_implementations() {
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
+        OV_GPU_CREATE_INSTANCE_TERNOCL(ocl::TernoclInt2WeightsReorderImplementationManager, shape_types::static_shape)
         OV_GPU_CREATE_INSTANCE_ONEDNN(onednn::ReorderImplementationManager, shape_types::static_shape, not_in_shape_flow())
         OV_GPU_CREATE_INSTANCE_OCL(ocl::ReorderImplementationManager, shape_types::static_shape, not_in_shape_flow())
         OV_GPU_CREATE_INSTANCE_OCL(ocl::ReorderImplementationManager, shape_types::dynamic_shape,

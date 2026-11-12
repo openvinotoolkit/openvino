@@ -34,6 +34,10 @@
 #include "openvino/itt.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/avg_pool.hpp"
+#if !defined(OPENVINO_ARCH_ARM64)
+#    include "openvino/op/bitwise_not.hpp"
+#    include "openvino/op/util/binary_elementwise_bitwise.hpp"
+#endif
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/clamp.hpp"
@@ -147,6 +151,7 @@
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
 // CPU specific transformations
+#include "transformations/cpu_opset/common/pass/clamp_bf16_scalar_constants.hpp"
 #include "transformations/cpu_opset/common/pass/disable_bf16_comp_cumsum_sin_gen.hpp"
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/cpu_opset/common/pass/ngram_fusion.hpp"
@@ -216,6 +221,7 @@
 #    include "transformations/cpu_opset/x64/pass/convert_to_interaction.hpp"
 #    include "transformations/cpu_opset/x64/pass/mlp_fusion.hpp"
 #    include "transformations/cpu_opset/x64/pass/qkv_proj_fusion.hpp"
+#    include "transformations/cpu_opset/x64/pass/sparse_attention_kv_cache_fusion.hpp"
 #    include "transformations/op_conversions/group_normalization_decomposition.hpp"
 #    include "transformations/op_conversions/hsigmoid_decomposition.hpp"
 #    include "transformations/op_conversions/reduce_l1_decomposition.hpp"
@@ -474,8 +480,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // We need to fuse Transpose to MatMul to have a simpler callback for the next transformation
     CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::TransposeMatMul);
     CPU_REGISTER_PASS_ARM(decompression_handling_manager, ov::pass::TransposeMatMul);
-    const auto& decompression_precisions =
-        ov::intel_cpu::node::FullyConnected::getSupportedCompressedWeightsTypes(true);
+    const auto& decompression_precisions = ov::intel_cpu::node::FullyConnected::getSupportedCompressedWeightsTypes();
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager,
                              ov::pass::MarkDequantization,
                              decompression_precisions,
@@ -591,6 +596,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         ov::pass::KeepConstAndDecompression);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
+    CPU_REGISTER_PASS_X64(manager, SparseAttentionKVCacheFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::GatedDeltaNetFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstPrecision, decompression_precisions, false, true);
@@ -1213,6 +1219,8 @@ void Transformations::PostLpt() {
     if (config.inferencePrecision == ov::element::bf16) {
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::DisableBF16CompForLtxVideoRopePattern);
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::intel_cpu::DisableBF16CompCumSumSinGen);
+        // Must be before Snippets tokenization and ConvertToPowerStatic (CpuSpecificOpSet)
+        CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::intel_cpu::ClampBF16ScalarConstants);
     }
 
     // Should be before Snippets pipeline because Ngram pattern contains eltwise nodes that can be tokenized by
@@ -1445,10 +1453,15 @@ void Transformations::MainSnippets() {
     };
 #endif  // OPENVINO_ARCH_X86_64
 
-    auto is_supported_op = []([[maybe_unused]] const std::shared_ptr<const ov::Node>& n) -> bool {
+    auto is_supported_op = [ignoreCallback]([[maybe_unused]] const std::shared_ptr<const ov::Node>& n) -> bool {
         // CPU Plugin supports Swish in Subgraph via conversion to SwishCPU that requires scalar beta.
         // CPU Plugin does not support Mish for x64
         auto is_unsupported = [](const std::shared_ptr<const ov::Node>& n) {
+#if !defined(OPENVINO_ARCH_ARM64)
+            if (ov::is_type_any_of<const ov::op::util::BinaryElementwiseBitwise, const ov::op::v13::BitwiseNot>(n)) {
+                return true;
+            }
+#endif
             if (ov::is_type<const ov::op::v4::Swish>(n) && n->get_input_size() > 1) {
                 return !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1)) ||
                        ov::shape_size(n->get_input_shape(1)) != 1;
@@ -1476,7 +1489,7 @@ void Transformations::MainSnippets() {
                                                                  const ov::op::v1::ReduceMax,
                                                                  const ov::op::v1::ReduceSum>(n));
         };
-        return !is_unsupported(n) && !is_unsupported_by_common_tokenization(n);
+        return !is_unsupported(n) && (ignoreCallback || !is_unsupported_by_common_tokenization(n));
     };
 
     auto has_supported_tensors = [ignoreCallback](const std::shared_ptr<const ov::Node>& n) -> bool {
@@ -1608,10 +1621,8 @@ void Transformations::MainSnippets() {
     CPU_SET_CALLBACK_COMMON(
         snippetsManager,
         [&](const std::shared_ptr<const ov::Node>& n) -> bool {
-            if (!ignoreCallback) {
-                if (n->is_dynamic() || !is_supported_op(n))
-                    return true;
-            }
+            if ((!ignoreCallback && n->is_dynamic()) || !is_supported_op(n))
+                return true;
 
             const auto& inputs = n->inputs();
             // todo: clarify whether we can evaluate snippets on const paths

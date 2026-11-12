@@ -69,11 +69,11 @@ TEST(shape_of_gpu, bfyx_i64) {
     }
 }
 
-void shape_of_cpu_impl_bfyx_i64(bool disable_usm = false);
-void shape_of_cpu_impl_bfyx_i64(bool disable_usm) {
+void shape_of_cpu_impl_bfyx_i64(bool disable_usm = false, data_types input_type = data_types::f32);
+void shape_of_cpu_impl_bfyx_i64(bool disable_usm, data_types input_type) {
     auto engine = create_test_engine(engine_types::ocl, runtime_types::ocl, !disable_usm);
 
-    auto input = engine->allocate_memory({data_types::f32, format::bfyx, tensor{1, 2, 3, 3}});
+    auto input = engine->allocate_memory({input_type, format::bfyx, tensor{1, 2, 3, 3}});
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -104,6 +104,15 @@ TEST(shape_of_cpu_impl, bfyx_i64) {
 
 TEST(shape_of_cpu_impl, bfyx_i64_disable_usm) {
     shape_of_cpu_impl_bfyx_i64(true);
+}
+
+// ShapeOf only reads dims, so f8 inputs (e.g. f8 KV caches) are accepted.
+TEST(shape_of_cpu_impl, bfyx_f8e4m3_input) {
+    shape_of_cpu_impl_bfyx_i64(false, data_types::f8e4m3);
+}
+
+TEST(shape_of_cpu_impl, bfyx_f8e5m2_input) {
+    shape_of_cpu_impl_bfyx_i64(false, data_types::f8e5m2);
 }
 
 TEST(shape_of_gpu, yxfb) {

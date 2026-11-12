@@ -343,7 +343,7 @@ describe("ov basic tests.", () => {
       res1 = inferRequest.infer([tensor]);
     });
 
-    it("Test importModelSync(stream, device)", () => {
+    it("Test importModelSync(Buffer, device)", () => {
       const newCompiled = core.importModelSync(userStream, "CPU");
       assert.ok(newCompiled instanceof ov.CompiledModel);
       const newInferRequest = newCompiled.createInferRequest();
@@ -352,7 +352,7 @@ describe("ov basic tests.", () => {
       assert.deepStrictEqual(res1["fc_out"].data[0], res2["fc_out"].data[0]);
     });
 
-    it("Test importModelSync(stream, device, config)", () => {
+    it("Test importModelSync(Buffer, device, config)", () => {
       const newCompiled = core.importModelSync(userStream, "CPU", {
         NUM_STREAMS: 1,
       });
@@ -362,34 +362,34 @@ describe("ov basic tests.", () => {
       assert.deepStrictEqual(res1["fc_out"].data[0], res2["fc_out"].data[0]);
     });
 
-    it("Test importModelSync(stream, device) throws", () => {
+    it("Test importModelSync with invalid model argument throws", () => {
       assert.throws(
         () => core.importModelSync(model, "CPU"),
         /'importModelSync' method called with incorrect parameters./,
       );
     });
 
-    it("importModelSync(stream, device) - C++ API error", () => {
+    it("importModelSync(Buffer, device) - C++ API error", () => {
       assert.throws(
         () => core.importModelSync(userStream, "DEVICE"),
         /Device .* is not registered/,
       );
     });
 
-    it("Test importModelSync(stream, device) throws", () => {
+    it("Test importModelSync with invalid device argument throws", () => {
       assert.throws(
         () => core.importModelSync(userStream, tensor),
         /'importModelSync' method called with incorrect parameters./,
       );
     });
-    it("Test importModelSync(stream, device, config: tensor) throws", () => {
+    it("Test importModelSync(Buffer, device, config: tensor) throws", () => {
       assert.throws(
         () => core.importModelSync(userStream, "CPU", tensor),
         /NotFound: Unsupported property 0 by CPU plugin./,
       );
     });
 
-    it("Test importModelSync(stream, device, config: string) throws", () => {
+    it("Test importModelSync(Buffer, device, config: string) throws", () => {
       const testString = "test";
       assert.throws(
         () => core.importModelSync(userStream, "CPU", testString),
@@ -397,7 +397,7 @@ describe("ov basic tests.", () => {
       );
     });
 
-    it("Test importModelSync(stream, device, config: unsupported property) \
+    it("Test importModelSync(Buffer, device, config: unsupported property) \
     throws", () => {
       assert.throws(
         () => core.importModelSync(userStream, "CPU", { NPU_DEVICE_TOTAL_MEM_SIZE: 1024 }),
@@ -412,14 +412,14 @@ describe("ov basic tests.", () => {
       assert.ok(cm instanceof ov.CompiledModel);
     });
 
-    it("Test importModel(stream, device)", async () => {
+    it("Test importModel(Buffer, device)", async () => {
       const newCompiled = await core.importModel(userStream, "CPU");
       const newInferRequest = newCompiled.createInferRequest();
       const res2 = newInferRequest.infer([tensor]);
       assert.deepStrictEqual(res1["fc_out"].data[0], res2["fc_out"].data[0]);
     });
 
-    it("Test importModel(stream, device, config)", async () => {
+    it("Test importModel(Buffer, device, config)", async () => {
       const newCompiled = await core.importModel(userStream, "CPU", { NUM_STREAMS: 1 });
       const newInferRequest = newCompiled.createInferRequest();
       const res2 = newInferRequest.infer([tensor]);
@@ -427,28 +427,28 @@ describe("ov basic tests.", () => {
       assert.deepStrictEqual(res1["fc_out"].data[0], res2["fc_out"].data[0]);
     });
 
-    it("Test importModel(stream, device) throws", async () => {
+    it("Test importModel(Buffer, device) throws", async () => {
       await assert.rejects(
         async () => await core.importModel(model, "CPU"),
         /'importModel' method called with incorrect parameters./,
       );
     });
 
-    it("importModel(stream, device) - C++ API error", async () => {
+    it("importModel(Buffer, device) - C++ API error", async () => {
       await assert.rejects(
         async () => await core.importModel(userStream, "DEVICE"),
         /Device .* is not registered/,
       );
     });
 
-    it("Test importModel(stream, device) throws", async () => {
+    it("Test importModel(Buffer, device) throws", async () => {
       await assert.rejects(
         async () => await core.importModel(userStream, tensor),
         /'importModel' method called with incorrect parameters./,
       );
     });
 
-    it("Test importModel(stream, device, config: string) throws", async () => {
+    it("Test importModel(Buffer, device, config: string) throws", async () => {
       const testString = "test";
       await assert.rejects(
         async () => await core.importModel(userStream, "CPU", testString),

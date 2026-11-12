@@ -16,17 +16,12 @@ if(ENABLE_CM_FOR_GPU)
     add_compile_definitions(ENABLE_CM_FOR_GPU)
 endif()
 
-file(GLOB SUBDIRS "${CMAKE_CURRENT_SOURCE_DIR}/impls/*")
+include(${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
 
 find_host_package(Python3 REQUIRED COMPONENTS Interpreter)
 
-foreach(SUBDIR IN LISTS SUBDIRS)
-    if(IS_DIRECTORY ${SUBDIR})
-        get_filename_component(SUBDIR_NAME ${SUBDIR} NAME)
-        list(APPEND AVAILABLE_IMPL_TYPES ${SUBDIR_NAME})
-        list(APPEND EXCLUDE_PATHS ${SUBDIR})
-    endif()
-endforeach()
+# Backend implementations under impls/; add new backend directory names here.
+set(AVAILABLE_IMPL_TYPES common cpu ocl ocl_v2 onednn cm sycl)
 
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set(COMMON_COMPILE_OPTIONS $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os -Wno-suggest-override>>)
@@ -64,11 +59,16 @@ macro(ov_gpu_add_backend_target)
         NAME
     )
     set(multiValueArgs
+        SOURCES                       # Explicit backend source file list (passed through to ov_add_target)
         INCLUDES                      # Extra include directories
         LINK_LIBRARIES                # Link libraries (in form of target name or file name)
         BYPASS                        # All other args that must be passed as is to ov_add_target call
     )
     cmake_parse_arguments(ARG "${options}" "${oneValueRequiredArgs}" "${multiValueArgs}" ${ARGN} )
+
+    if(NOT ARG_SOURCES)
+        message(SEND_ERROR "ov_gpu_add_backend_target(${ARG_NAME}): SOURCES is required, no glob fallback is provided")
+    endif()
 
     set(TARGET_INCLUDES ${COMMON_INCLUDE_DIRS} ${ARG_INCLUDES})
     set(TARGET_LINK_LIBRARIES ${COMMON_LINK_LIBRARIES} ${ARG_LINK_LIBRARIES})
@@ -81,7 +81,7 @@ macro(ov_gpu_add_backend_target)
 
     ov_add_target(
         NAME ${ARG_NAME}
-        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        SOURCES ${ARG_SOURCES}
         TYPE OBJECT
         INCLUDES
             PRIVATE
@@ -140,9 +140,7 @@ get_property(EXTRA_LINK_LIBRARIES GLOBAL PROPERTY EXTRA_LINK_LIBRARIES_GLOBAL)
 ov_add_target(
     NAME ${TARGET_NAME}
     TYPE STATIC
-    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-    EXCLUDED_SOURCE_PATHS
-        ${EXCLUDE_PATHS}
+    SOURCES  ${GPU_GRAPH_SOURCES}
     OBJECT_FILES
         ${OBJ_FILES}
     INCLUDES

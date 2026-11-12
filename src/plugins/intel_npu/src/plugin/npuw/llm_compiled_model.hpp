@@ -17,6 +17,7 @@ namespace npuw {
 struct LLMVariantSwitchTestAccess;
 struct LLMTrimKVCacheTestAccess;
 struct LLMContinuedPrefillTestAccess;
+struct LLMLongRopeModeTestAccess;
 struct LLMSwaCacheTestAccess;
 }  // namespace npuw
 }  // namespace test
@@ -35,7 +36,10 @@ class LLMCompiledModel : public ov::npuw::ICompiledModel {
         std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
 
 public:
-    static constexpr const char* output_embeds = "npuw_output_embed";
+    struct layer_names {
+        static constexpr const char* output_embeds = "npuw_output_embed";
+        static constexpr const char* logits = "logits";
+    };
 
     static constexpr uint32_t whisper_batch_dim = 0u;
     static constexpr uint32_t whisper_seq_len_dim = 2u;
@@ -97,6 +101,7 @@ protected:
     friend struct ov::test::npuw::LLMVariantSwitchTestAccess;
     friend struct ov::test::npuw::LLMTrimKVCacheTestAccess;
     friend struct ov::test::npuw::LLMContinuedPrefillTestAccess;
+    friend struct ov::test::npuw::LLMLongRopeModeTestAccess;
     friend struct ov::test::npuw::LLMSwaCacheTestAccess;
     friend class EncoderEmbeddingInferRequest;
 
@@ -112,6 +117,9 @@ protected:
                                                          const std::shared_ptr<const ov::IPlugin>& plugin,
                                                          const ov::AnyMap& properties,
                                                          const ov::npuw::s11n::CompiledContext& ctx);
+
+    std::map<std::string, std::size_t> serialize_prefill_other_outs_seqdims() const;
+    void deserialize_prefill_other_outs_seqdims(const std::map<std::string, std::size_t>& by_name);
 
     // Trust-boundary check for imported blobs: KVCacheDesc::dim and the V-transposed flags are read
     // from the stream and select the axis used to subscript shape vectors in the KV-slice helpers.
@@ -134,6 +142,7 @@ protected:
     bool m_is_block_kv_cache = false;
     std::shared_ptr<ov::npuw::ICompiledModel_v0> m_kvcache_compiled;
     std::shared_ptr<ov::npuw::ICompiledModel_v0> m_prefill_compiled;
+    std::map<ov::Output<const ov::Node>, std::size_t> m_prefill_other_outs_seqdims;
     // This model is optional, so can be null.
     std::shared_ptr<ov::npuw::ICompiledModel_v0> m_lm_head_compiled;
 
@@ -178,6 +187,8 @@ protected:
     size_t m_decomposed_sdpa_size = 0;
 
     bool m_is_embedding = false;
+    // True when the model expects additive attention_mask in [B, 1, Q, K] float layout.
+    bool m_attention_mask_is_4d_float = false;
     // True when the embedding model is a non-autoregressive bidirectional encoder (e.g. BERT):
     // routed to the dedicated KV/RoPE-free encoder embedding path.
     bool m_is_encoder_embedding = false;
