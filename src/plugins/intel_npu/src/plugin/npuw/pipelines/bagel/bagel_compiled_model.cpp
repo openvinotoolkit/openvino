@@ -5,6 +5,7 @@
 #include "bagel_compiled_model.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <sstream>
 
 #include "bagel_infer_request.hpp"
@@ -15,10 +16,15 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/scatter_update.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace {
@@ -110,6 +116,68 @@ std::size_t convert_index_copy_to_scatter_update(const std::shared_ptr<ov::Model
     return count;
 }
 
+// Exact only when all mask rows are equal: Q' = [Q * sqrt((E+1)/E) | 1], K' = [K | mask row] adds the mask
+// inside Q.K^T
+std::size_t fold_key_padding_mask(const std::shared_ptr<ov::Model>& model) {
+    std::size_t count = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        const auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(node);
+        if (!sdpa || sdpa->get_input_size() != 4 || sdpa->get_causal()) {
+            continue;
+        }
+        const auto q = sdpa->input_value(0);
+        const auto k = sdpa->input_value(1);
+        const auto mask = sdpa->input_value(3);
+        const auto& qps = q.get_partial_shape();
+        const auto& kps = k.get_partial_shape();
+        const auto& mps = mask.get_partial_shape();
+        if (!qps.is_static() || !kps.is_static() || !mps.is_static() || qps.size() != 4 || kps.size() != 4 ||
+            mps.size() != 4 || !mask.get_element_type().is_real()) {
+            continue;
+        }
+        const auto qs = qps.to_shape();
+        const auto ks = kps.to_shape();
+        const auto ms = mps.to_shape();
+        if (ms[0] != 1 || ms[1] != 1 || ms[3] != ks[2]) {
+            continue;
+        }
+
+        const auto i64_const = [](const std::vector<std::size_t>& v) {
+            return ov::op::v0::Constant::create(ov::element::i64, {v.size()}, v);
+        };
+        const auto E = qs[3];
+        const auto S = ks[2];
+        const auto q_type = q.get_element_type();
+        const auto k_type = k.get_element_type();
+
+        // SDPA without a scale input divides by sqrt(E + 1) now; real scores keep 1 / sqrt(E)
+        const auto q_scale = ov::op::v0::Constant::create(q_type, {}, {std::sqrt(double(E + 1) / double(E))});
+        const auto q_scaled = std::make_shared<ov::op::v1::Multiply>(q, q_scale);
+        const auto ones = std::make_shared<ov::op::v3::Broadcast>(ov::op::v0::Constant::create(q_type, {}, {1}),
+                                                                  i64_const({qs[0], qs[1], qs[2], 1}));
+        const auto q_new = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{q_scaled, ones}, 3);
+
+        const auto row = std::make_shared<ov::op::v8::Slice>(mask,
+                                                             i64_const({0, 0, 0, 0}),
+                                                             i64_const({1, 1, 1, S}),
+                                                             i64_const({1, 1, 1, 1}));
+        ov::Output<ov::Node> column = std::make_shared<ov::op::v1::Reshape>(row, i64_const({1, 1, S, 1}), false);
+        if (mask.get_element_type() != k_type) {
+            column = std::make_shared<ov::op::v0::Convert>(column, k_type);
+        }
+        const auto column_b = std::make_shared<ov::op::v3::Broadcast>(column, i64_const({ks[0], ks[1], S, 1}));
+        const auto k_new = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{k, column_b}, 3);
+
+        const auto folded =
+            std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_new, k_new, sdpa->input_value(2), false);
+        folded->set_friendly_name(sdpa->get_friendly_name());
+        ov::copy_runtime_info(sdpa, {q_scaled, ones, q_new, row, column_b, k_new, folded});
+        ov::replace_node(sdpa, folded);
+        ++count;
+    }
+    return count;
+}
+
 std::size_t pick_bucket(const std::vector<std::size_t>& buckets, std::size_t n, const char* what) {
     const auto it = std::lower_bound(buckets.begin(), buckets.end(), n);
     OPENVINO_ASSERT(it != buckets.end(), "NPUW_BAGEL: ", what, " ", n, " exceeds the largest bucket ", buckets.back());
@@ -176,6 +244,7 @@ ov::npuw::BagelCompiledModel::BagelCompiledModel(const std::shared_ptr<ov::Model
     m_cfg.update(to_string_map(bagel_props));
     m_seq_buckets = parse_buckets(m_cfg.get<::intel_npu::NPUW_BAGEL_SEQ_BUCKETS>(), "NPUW_BAGEL_SEQ_BUCKETS");
     m_kv_buckets = parse_buckets(m_cfg.get<::intel_npu::NPUW_BAGEL_KV_BUCKETS>(), "NPUW_BAGEL_KV_BUCKETS");
+    m_fold_mask = m_cfg.get<::intel_npu::NPUW_BAGEL_FOLD_MASK>();
     if (m_mode == Mode::LANGUAGE_MODEL) {
         m_model = m_model->clone();
         const auto converted = convert_index_copy_to_scatter_update(m_model);
@@ -199,9 +268,14 @@ std::size_t ov::npuw::BagelCompiledModel::kv_bucket(std::size_t n) const {
 ov::SoPtr<ov::ICompiledModel> ov::npuw::BagelCompiledModel::compile_variant(
     const std::map<std::size_t, ov::PartialShape>& shapes,
     const std::string& tag,
-    bool drop_logits) const {
+    bool drop_logits,
+    bool fold_mask) const {
     auto model = m_model->clone();
     model->reshape(shapes);
+    if (fold_mask) {
+        const auto folded = fold_key_padding_mask(model);
+        LOG_INFO("BagelCompiledModel: folded the attention mask into " << folded << " SDPA ops of variant " << tag);
+    }
     if (drop_logits) {
         const auto results = model->get_results();
         const auto logits = std::find_if(results.begin(), results.end(), [](const auto& result) {
@@ -251,7 +325,7 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::BagelCompiledModel::lm_variant(const LMK
     std::stringstream tag;
     tag << "S=" << S << " n_gen=" << G << " P=" << P;
     // Only decode-sized calls read logits; for longer sequences the LM head output costs gigabytes
-    auto compiled = compile_variant(shapes, tag.str(), key.seq > m_seq_buckets.front());
+    auto compiled = compile_variant(shapes, tag.str(), key.seq > m_seq_buckets.front(), folds_mask(key.gen));
     m_lm_variants.emplace(key, compiled);
     return compiled;
 }
@@ -270,7 +344,7 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::BagelCompiledModel::shape_variant(const 
         shapes.emplace(i, ov::PartialShape(key[i]));
         tag << (i ? " " : "") << key[i];
     }
-    auto compiled = compile_variant(shapes, tag.str(), false);
+    auto compiled = compile_variant(shapes, tag.str(), false, false);
     m_shape_variants.emplace(key, compiled);
     return compiled;
 }

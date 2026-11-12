@@ -51,6 +51,10 @@ public:
     }
     std::size_t seq_bucket(std::size_t n) const;
     std::size_t kv_bucket(std::size_t n) const;
+    // Variants with several generation tokens only see full-attention masks, whose rows are all equal
+    bool folds_mask(std::size_t n_gen) const noexcept {
+        return m_fold_mask && n_gen > 1;
+    }
 
     ov::SoPtr<ov::ICompiledModel> lm_variant(const LMKey& key) const;
     ov::SoPtr<ov::ICompiledModel> shape_variant(const ShapeKey& key) const;
@@ -59,7 +63,8 @@ private:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     ov::SoPtr<ov::ICompiledModel> compile_variant(const std::map<std::size_t, ov::PartialShape>& shapes,
                                                   const std::string& tag,
-                                                  bool drop_logits) const;
+                                                  bool drop_logits,
+                                                  bool fold_mask) const;
 
     std::shared_ptr<ov::Model> m_model;
     // Variants are compiled after compile_model() returns, when the user may have released the Core
@@ -68,6 +73,7 @@ private:
     ov::AnyMap m_inner_props;
     std::vector<std::size_t> m_seq_buckets;
     std::vector<std::size_t> m_kv_buckets;
+    bool m_fold_mask = false;
 
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
