@@ -276,7 +276,6 @@ jobs:
 
       # CMake skips the optional hello_remote_tensor sample with only a status message when the system Level Zero
       # loader or the OpenCL headers are missing. Report why, so a missing binary is explained in this log.
-      # The build tree must stay untouched here (no configure re-run): later steps install from it.
       - name: Check hello_remote_tensor sample
         if: ${{ inputs.build-samples && inputs.build-variant == 'levelzero' }}
         run: |
@@ -285,7 +284,9 @@ jobs:
             exit 0
           fi
           echo "::warning title=hello_remote_tensor::The sample was not built, the reason is in the log of this step"
-          echo "--- CMake cache (empty or -NOTFOUND value means the dependency was not found) ---"
+          echo "--- CMake message of the sample (configure is repeated only to print it) ---"
+          cmake -S ${OPENVINO_REPO} -B ${BUILD_DIR} 2>&1 | grep hello_remote_tensor || echo "CMake printed nothing about hello_remote_tensor"
+          echo "--- CMake cache ---"
           grep -E "^(LEVEL_ZERO|OpenCL|OPENCL)[A-Za-z_]*:" ${BUILD_DIR}/CMakeCache.txt || true
           echo "--- Level Zero and OpenCL packages ---"
           dpkg -l | grep -E "libze|level-zero|opencl|ocl-icd" || true
