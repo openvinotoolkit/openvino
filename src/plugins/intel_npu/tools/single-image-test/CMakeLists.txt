@@ -53,7 +53,7 @@ ov_set_threading_interface_for(${TARGET_NAME})
 
 set_target_properties(${TARGET_NAME} PROPERTIES
                       FOLDER intel_npu_tools
-                      CXX_STANDARD 20)
+                      CXX_STANDARD ${CMAKE_CXX_STANDARD})
 
 # TODO: fix warnings and remove this exception
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)

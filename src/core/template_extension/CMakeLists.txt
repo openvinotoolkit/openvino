@@ -3,7 +3,9 @@
 #
 
 # [cmake:extension]
-set(CMAKE_CXX_STANDARD 20)
+if(NOT DEFINED CMAKE_CXX_STANDARD)
+    set(CMAKE_CXX_STANDARD 20)
+endif()
 
 set(TARGET_NAME "openvino_template_extension")
 

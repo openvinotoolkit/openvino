@@ -68,7 +68,7 @@ ov_add_target(TYPE EXECUTABLE
 
 set_target_properties(${TARGET_NAME} PROPERTIES
                       FOLDER intel_npu_tools
-                      CXX_STANDARD 20)
+                      CXX_STANDARD ${CMAKE_CXX_STANDARD})
 
 # OpenCV headers do enum arithmetic that C++20 deprecates; treat them as system headers
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${OpenCV_INCLUDE_DIRS})
