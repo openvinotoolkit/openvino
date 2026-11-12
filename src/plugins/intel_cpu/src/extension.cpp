@@ -225,7 +225,7 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     std::make_shared<ov::OpExtension<ov::op::internal::PagedCausalConv1D>>(),
     std::make_shared<ov::OpExtension<ov::op::internal::PagedQSAIndexer>>(),
     std::make_shared<ov::OpExtension<ov::op::internal::PagedSparseAttention>>(),
-    std::make_shared<ov::OpExtension<ov::op::internal::NGramHashFunction>>(),  
+    std::make_shared<ov::OpExtension<ov::op::internal::NGramHashFunction>>(),
     // clang-format off
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::InteractionNode>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::LLMMLPNode>>())
