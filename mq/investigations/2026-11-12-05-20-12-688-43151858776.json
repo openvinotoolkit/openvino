@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-12-05-20-12-688-43151858776",
+  "timestamp": "2026-11-12T05:20:12Z",
+  "run_id": "43151858776",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43151858776",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "39201",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39201",
+  "author": "zhangYiIntel",
+  "category": "External Service",
+  "title": "PyTorch Detectron2 model-hub tests fail to download weights due to expired TLS certificate on dl.fbaipublicfiles.com",
+  "signature": "ssl certificate verify failed certificate has expired|External Service",
+  "signature_hash": "2641a2995515ec82",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "All test_detectron2.py precommit cases failed during model weight/source download due to expired SSL certificate"
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Aggregated status check fails because PyTorch Models tests job failed"
+    }
+  ],
+  "key_errors": [
+    "install/tests/model_hub_tests/pytorch/test_detectron2.py::TestDetectron2ConvertModel::test_detectron2_precommit[CPU-COCO-Detection/faster_rcnn_R_50_FPN_1x-none-None-None] FAILED",
+    "E           URLError: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1018)>",
+    "Attempt 1 of 3 failed: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1018)>",
+    "Attempt 2 of 3 failed: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1018)>",
+    "Attempt 3 of 3 failed: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1018)>"
+  ],
+  "root_cause": "All 19 Detectron2 model-hub precommit test cases failed identically during test setup while urlretrieve()-downloading model weights/annotation assets over HTTPS. The TLS handshake fails with CERTIFICATE_VERIFY_FAILED: certificate has expired, an error entirely produced by Python's ssl module validating the remote host's certificate chain, not by any code in this PR. The PR's changed files (CPU plugin sparse-attention kernels, QSAIndexer, transformations) are unrelated to Detectron2/model-hub test infrastructure, and the repo-memory pattern database already shows 3 prior occurrences of this exact error in the last several hours across unrelated PRs, confirming an external certificate expiry on the model-hosting side rather than a PR-caused regression.",
+  "reproduction_steps": "N/A - depends on the external TLS certificate state of the model-download host at the time of the test run; not reproducible locally unless the same expired certificate is still being served.",
+  "recommended_actions": [
+    "Re-run the failed PyTorch Models tests job once the external certificate is renewed (automated remediation requested via remediate_transient_failure).",
+    "Monitor whether the host serving Detectron2 model assets renews its certificate; if it recurs for an extended period, consider a vendored/cached mirror for CI model-hub assets to avoid dependency on a single external cert.",
+    "No code changes required on PR #39201."
+  ],
+  "prevention_strategies": "Model-hub precommit tests depend on third-party HTTPS endpoints whose certificate hygiene is outside OpenVINO's control. Consider caching/mirroring frequently-used model-hub test assets in an OpenVINO-controlled artifact store, and have the workflow rerunner auto-retry on this specific, narrow SSL-expiry signature (a candidate string for this is already pending human review in PR #39754).",
+  "historical_context": "This exact signature (hash 2641a2995515ec82) has been recorded 3 times already in the last several hours (runs 43121154399, 43133112821, 43137477872, affecting PRs #38204 and #39727), all with the identical CERTIFICATE_VERIFY_FAILED: certificate has expired error in Detectron2 model-hub tests. This run is the 4th occurrence, confirming a persistent external TLS certificate issue rather than a one-off blip."
+}
