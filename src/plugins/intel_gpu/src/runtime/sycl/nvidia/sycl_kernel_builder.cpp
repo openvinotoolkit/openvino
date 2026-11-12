@@ -105,7 +105,9 @@ void sycl_kernel_builder::build_kernels(
     // call that returns.
     std::call_once(_ocl_builder_once, [this]() { init_ocl_builder(); });
     std::vector<kernel::ptr> tmp;
-    _ocl_builder->build_kernels(src, src_bytes, src_format, options, tmp);
+    // -w: the NVIDIA OpenCL compiler prints only a "N warnings generated." summary to stderr (the build log stays
+    // empty), so the warnings cannot be acted on from here; suppress them.
+    _ocl_builder->build_kernels(src, src_bytes, src_format, options + " -w", tmp);
     OPENVINO_ASSERT(!tmp.empty(), "[GPU] OCL builder returned no kernels");
     // NVIDIA OCL runtime returns PTX as the device binary
     const auto binary = tmp[0]->get_binary();
