@@ -203,15 +203,10 @@ static std::vector<Detection> parseTwoTensorDetections(const ov::Tensor& pred_bo
 // Reduce PixelLink oriented polygons to axis-aligned detection boxes so that the
 // standard mAP matching (which works on axis-aligned Detection boxes) can be reused.
 // Scene-text detection is single-class, so every box is assigned class_id 0.
-static std::vector<Detection> parsePixelLinkDetections(const std::map<std::string, ov::Tensor>& outputs,
+static std::vector<Detection> parsePixelLinkDetections(const std::vector<pixellink::ScaleData>& scales,
                                                        float confidence_threshold,
                                                        const pixellink::DecodeParams& params) {
     std::vector<Detection> detections;
-
-    std::vector<pixellink::ScaleData> scales;
-    if (!pixellink::buildScales(outputs, scales)) {
-        return detections;
-    }
 
     std::vector<pixellink::Polygon> polygons;
     std::vector<float> scores;
@@ -223,7 +218,7 @@ static std::vector<Detection> parsePixelLinkDetections(const std::map<std::strin
             continue;
         }
 
-        float score = i < scores.size() ? scores[i] : 0.0f;
+        const float score = scores.at(i);
         if (score <= confidence_threshold) {
             continue;
         }
@@ -268,22 +263,9 @@ std::vector<Detection> parseDetectionsFromOutputs(const std::map<std::string, ov
 
     // Strategy 2: PixelLink scene-text heads (multiple 4D [1, C, H, W] score/delta/link
     // tensors). Decode oriented polygons and reduce them to axis-aligned boxes.
-    {
-        bool all_4d = true;
-        for (const auto& [name, tensor] : outputs) {
-            const auto shape = tensor.get_shape();
-            if (shape.size() != 4 || shape[0] != 1) {
-                all_4d = false;
-                break;
-            }
-        }
-
-        if (all_4d) {
-            std::vector<Detection> pixellink_detections = parsePixelLinkDetections(outputs, confidence_threshold, pixellinkParams);
-            if (!pixellink_detections.empty()) {
-                return pixellink_detections;
-            }
-        }
+    std::vector<pixellink::ScaleData> scales;
+    if (pixellink::buildScales(outputs, scales)) {
+        return parsePixelLinkDetections(scales, confidence_threshold, pixellinkParams);
     }
 
     // Strategy 3: Single output tensor so parse as combined detections

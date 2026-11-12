@@ -55,6 +55,89 @@ If you need to configure a release package layout and have Single Image Test in 
     Successful build will show the information about Single Image Test Tool CLI options
 
 
+## PixelLink / PSO0 post-processing in mAP mode
+
+`--mode map` recognizes PSO0-style named, dual-direction PixelLink heads.
+Each spatial scale must contain all six NCHW tensors:
+
+| Name tokens (case-insensitive) | Shape | Meaning |
+| --- | --- | --- |
+| `scores_hori`, `scores_vert` | `[1,1,H,W]` | Horizontal/vertical text probabilities |
+| `bbox_deltas_hori`, `bbox_deltas_vert` | `[1,8,H,W]` | Four `(dx,dy)` corner offsets in grid-cell units |
+| `link_scores_hori`, `link_scores_vert` | `[1,8,H,W]` | Horizontal/vertical link probabilities |
+
+Tensors are grouped by spatial dimensions; suffixes such as `fpn2` are not
+required. Head role and orientation names are required: shapes alone cannot
+distinguish eight-channel links from corner offsets. Missing, duplicate,
+incorrectly shaped, or non-finite heads produce an error.
+
+The decoder preserves the Python proof-of-concept algorithm: select text
+pixels using the maximum horizontal/vertical score rounded to three decimal
+places (ties to even), require the selected orientation's maximum link
+probability to pass its threshold, form eight-connected components, fit a
+minimum-area rectangle to each component's corner votes, and apply polygon
+NMS across scales.
+
+| Option | Default | Scope |
+| --- | --- | --- |
+| `--pixellink_text_threshold` | `0.55` | Global text-pixel cutoff in `[0,1]` |
+| `--pixellink_link_threshold` | `0.60` | Global link-probability cutoff in `[0,1]` |
+| `--pixellink_nms_iou` | `0.50` | Global polygon NMS IoU threshold in `[0,1]` |
+| `--pixellink_image_size` | `768,1152` | Positive integer image dimensions `H,W` |
+| `--pixellink_morph_close` | `false` | Optional 3x3 morphological closing before component labeling; may merge adjacent text |
+
+Thresholds must be finite scalar values, not per-layer maps. Image dimensions
+determine the scale-to-image ratios; set them explicitly for other input sizes.
+These options are ignored by non-PixelLink detection formats.
+
+Generate CPU reference blobs in a fresh working directory, then compare the
+device outputs using the same model, input, and layouts:
+
+```sh
+single-image-test --device CPU --network /path/model.onnx \
+    --input /path/input.bin --img_as_bin --ip FP32 --op FP32 \
+    --il HWC --iml HWC --ol NCHW --oml NCHW
+
+single-image-test --device NPU --network /path/model.onnx \
+    --input /path/input.bin --img_as_bin --ip FP32 --op FP32 \
+    --il HWC --iml HWC --ol NCHW --oml NCHW \
+    --run_test --mode map --map_threshold 0.5 --overlap_threshold 0.5 \
+    --pixellink_text_threshold 0.55 --pixellink_link_threshold 0.60 \
+    --pixellink_nms_iou 0.5 --pixellink_image_size 768,1152
+```
+
+Use the device/configuration appropriate for the installed plugin. Both commands
+must complete successfully; do not reuse blobs from a failed or unrelated run.
+This example's HWC input is PSO0-specific; the output heads must be NCHW.
+
+### Metric limitations
+
+- Oriented polygons are reduced to **axis-aligned bounding boxes**, all assigned
+  **class 0**. Matching uses the existing SIT mAP implementation and
+  `--overlap_threshold`, not oriented-polygon IoU or COCO multi-IoU mAP.
+- The decoder uses links as a per-pixel mask, not a directional neighbor graph.
+  Adjacent text instances can merge. This is PoC-compatible behavior, not a
+  generic implementation of every PixelLink model's postprocessor.
+- A comparison against CPU-decoded tensors measures **reference agreement**,
+  not accuracy against annotated ground truth. Matching errors on both sides
+  can still yield high mAP.
+- An empty prediction or reference set fails the existing mAP gate, with an
+  explicit message; it is not misclassified as an unsupported output format.
+- Decoded mAP does not replace raw-tensor NRMSE or change existing validation
+  configurations. Run each metric separately when both are needed.
+
+### CPU regression tests
+
+The synthetic tests need a built SIT plus the OpenVINO Python package, NumPy,
+and a CPU plugin. No private model or NPU is required:
+
+```sh
+SIT_BINARY=/path/to/single-image-test python3 test_pixellink.py -v
+```
+
+Set `SIT_TEST_OUTPUT_DIR` to a new directory to retain models, references,
+commands, and logs; otherwise temporary test artifacts are cleaned up.
+
 ## How to run
 
 Running the application with the `-help` option yields the following usage message:
