@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <string>
@@ -25,6 +26,7 @@
 #include "openvino/op/qsa_prepare.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/sparse_attention_indexer.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
@@ -44,6 +46,7 @@ using namespace ov;
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
+namespace v8 = ov::op::v8;
 namespace v17 = ov::op::v17;
 namespace op_internal = ov::op::internal;
 using ov::op::util::make_try_fold;
@@ -106,6 +109,8 @@ struct GraphOptions {
     int64_t indexer_key_block_size = 4;
     int64_t query_sequence = 3;
     int64_t keys_sequence = 3;
+    int64_t cache_blocks = -1;
+    std::vector<int64_t> key_length_values;
 };
 
 constexpr int64_t query_heads = 4;
@@ -162,9 +167,14 @@ SharedGraph make_shared_graph(const GraphOptions& o) {
         o.rms_changes_precision ? element::f16 : o.precision,
         blhd ? PartialShape{batch, query_sequence, heads, depth} : PartialShape{batch, heads, query_sequence, depth});
     g.raw_keys = parameter(o.precision, PartialShape{batch, sequence, depth});
-    g.cache = parameter(o.precision, PartialShape{batch, Dimension::dynamic(), depth});
+    g.cache =
+        parameter(o.precision,
+                  PartialShape{batch, o.cache_blocks < 0 ? Dimension::dynamic() : Dimension(o.cache_blocks), depth});
     g.key_length =
-        parameter(o.key_length_type, o.dynamic_key_length_rank ? PartialShape::dynamic() : PartialShape{batch});
+        o.key_length_values.empty()
+            ? parameter(o.key_length_type, o.dynamic_key_length_rank ? PartialShape::dynamic() : PartialShape{batch})
+            : Output<Node>(
+                  v0::Constant::create(o.key_length_type, Shape{o.key_length_values.size()}, o.key_length_values));
     g.incomplete_keys = parameter(o.precision, PartialShape{batch, Dimension(key_block_size - 1), depth});
     const auto cos = parameter(o.precision, rope_shape);
     const auto sin = parameter(o.precision, rope_shape);
@@ -356,13 +366,24 @@ std::shared_ptr<Model> getModelRef(const GraphOptions& o) {
     config.query_norm = o.query_fusion == QueryFusion::Full;
     config.query_rope = o.query_fusion != QueryFusion::None;
     const auto fused = std::make_shared<op_internal::QSAIndexer>(inputs, config);
+    const auto block_keys =
+        std::make_shared<v0::Squeeze>(fused->output(QSAIndexerOutputIdx::BLOCK_INDEX_KEYS_CACHE), i64({1}));
+    Output<Node> block_count = needed_blocks;
+    if (!o.key_length_values.empty()) {
+        int64_t max_length = 0;
+        for (const auto length : o.key_length_values) {
+            max_length = std::max(max_length, length);
+        }
+        block_count = i64({max_length / key_block_size});
+    }
+    const auto trimmed_block_keys = std::make_shared<v8::Slice>(block_keys, i64({0}), block_count, i64({1}), i64({1}));
 
     const std::vector<Output<Node>> outputs{
         fused->output(QSAIndexerOutputIdx::SELECTED_BLOCK_INDICES),
         fused->output(QSAIndexerOutputIdx::SELECTED_BLOCK_COUNT),
         std::make_shared<v0::Squeeze>(fused->output(QSAIndexerOutputIdx::PAST_INCOMPLETE_RAW_K), i64({1})),
         fused->output(QSAIndexerOutputIdx::PAST_INCOMPLETE_ROPE),
-        std::make_shared<v0::Squeeze>(fused->output(QSAIndexerOutputIdx::BLOCK_INDEX_KEYS_CACHE), i64({1})),
+        trimmed_block_keys,
     };
     return make_model(g, outputs, o);
 }
@@ -404,6 +425,12 @@ GraphOptions with(std::string name, void (*setter)(GraphOptions&)) {
 
 const std::vector<GraphOptions> fused_cases{
     with("qwen_indexer_static", [](GraphOptions&) {}),
+    with("overprovisioned_cache_is_trimmed_to_key_length",
+         [](GraphOptions& o) {
+             o.cache_blocks = 3;
+             o.key_length_values = {8, 6};
+             o.extra_state_consumers = true;
+         }),
     with("single_row_rope",
          [](GraphOptions& o) {
              o.single_row_rope = true;

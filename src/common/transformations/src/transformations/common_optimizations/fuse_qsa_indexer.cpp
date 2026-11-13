@@ -4,6 +4,7 @@
 
 #include "transformations/common_optimizations/fuse_qsa_indexer.hpp"
 
+#include <algorithm>
 #include <vector>
 
 #include "itt.hpp"
@@ -20,6 +21,7 @@
 #include "openvino/op/qsa_prepare.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/sparse_attention_indexer.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
@@ -41,6 +43,7 @@ namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
 namespace v17 = ov::op::v17;
+namespace v8 = ov::op::v8;
 namespace op_internal = ov::op::internal;
 using QSAIndexerOutputIdx = op_internal::QSAIndexer::OutputIdx;
 
@@ -206,7 +209,22 @@ FuseQSAIndexer::FuseQSAIndexer() {
             squeeze->set_friendly_name(prepare->get_friendly_name() + "." + std::to_string(prepare_output));
             return squeeze;
         };
-        const auto block_keys = squeeze_state(QSAIndexerOutputIdx::BLOCK_INDEX_KEYS_CACHE, 0);
+        // QSAIndexer returns the grown cache on BLOCK_INDEX_KEYS_CACHE, while QSAPrepare output 0 holds only the
+        // complete blocks of the longest sequence, so the replacement is sliced back to that block count.
+        // A Constant key_length folds the count so the sliced shape stays as static as the original output.
+        ov::Output<ov::Node> block_count = needed_blocks;
+        if (const auto lengths = ov::as_type_ptr<v0::Constant>(key_length.get_node_shared_ptr())) {
+            const auto values = lengths->cast_vector<int64_t>();
+            if (!values.empty()) {
+                const auto max_length = *std::max_element(values.begin(), values.end());
+                block_count = i64({max_length / key_block_size});
+            }
+        }
+        const auto block_keys_capacity = squeeze_state(QSAIndexerOutputIdx::BLOCK_INDEX_KEYS_CACHE, 0);
+        block_keys_capacity->set_friendly_name(prepare->get_friendly_name() + ".0.capacity");
+        // Expose only the required block range, not any extra capacity added before QSAIndexer.
+        const auto block_keys = rg.make<v8::Slice>(block_keys_capacity, i64({0}), block_count, i64({1}), i64({1}));
+        block_keys->set_friendly_name(prepare->get_friendly_name() + ".0");
         const auto incomplete_raw_keys_out = squeeze_state(QSAIndexerOutputIdx::PAST_INCOMPLETE_RAW_K, 1);
         ov::copy_runtime_info(sources, rg.get());
 

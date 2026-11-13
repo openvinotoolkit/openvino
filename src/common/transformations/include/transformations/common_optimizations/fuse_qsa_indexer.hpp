@@ -28,7 +28,7 @@ namespace ov::pass {
  *        Query  RawKeys cos/sin ... KeyLength           Query
  *          │       │       │            │                 │
  *          │    ┌──┴───────┴────────────┴──┐          Transpose  RawKeys cos/sin ... KeyLength
- *          │    │        QSAPrepare        │              │      [layout adapters, cache growth]
+ *          │    │        QSAPrepare        │              │      [layout adapters, cache growth / trim]
  *          │    └──┬────────┬──────────┬───┘           ┌──┴──────────┴───────┴───────────┴──┐
  *   ┌──────┴───────┴──┐     │          │      ──►      │             QSAIndexer             │
  *   │ SparseAttention │  incomplete keys / rope        └──┬──────┬───────┬───────┬──────────┘
@@ -44,8 +44,8 @@ namespace ov::pass {
  *    batch size;
  *  - cos / sin are broadcast unless their statically known batch sizes equal the raw-key batch size;
  *    dynamic batch dimensions are not assumed equal without shape-symbol propagation;
- *  - the block-key cache is grown by zero blocks up to the complete blocks of the longest sequence, which
- *    is the shape of the QSAPrepare output, since QSAIndexer keeps the cache shape;
+ *  - the block-key cache is grown by zero blocks when the incoming cache is smaller than the complete blocks of
+ *    the longest sequence; the returned cache is sliced to the complete-block count expected from QSAPrepare;
  *  - q_norm_weight is a vector of ones.
  * block_topk is token_budget / key_block_size and scale is set explicitly to the default 1 / sqrt(head size).
  *
