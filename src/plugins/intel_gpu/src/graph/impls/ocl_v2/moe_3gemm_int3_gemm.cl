@@ -23,19 +23,14 @@
 // LSB-first bit stream of K values, so a run of 32 values (a granule) is exactly
 // 3 uints and is the DPAS b operand of one K step once unpacked.
 //
-// GEMM has two dispatch modes:
-//  - ROW_MODE (few rows per expert): one work-group per gathered row, which
-//    finds its expert in offsets. SG_K subgroups split K and reduce through SLM.
-//  - expert mode: the second grid dimension walks a host-built list of
-//    {expert, first row} tiles of SG_M * TILE_M rows. The SG_M subgroups of a
-//    work-group share one decoded weight tile through SLM and each multiply it
-//    with TILE_M rows through DPAS.
+// The second grid dimension walks a host-built list of {expert, first row}
+// tiles of SG_M * TILE_M rows. The SG_M subgroups of a work-group share one
+// decoded weight tile through SLM and each multiply it with TILE_M rows through
+// DPAS.
 
 #pragma OPENCL EXTENSION cl_intel_subgroups : enable
 #pragma OPENCL EXTENSION cl_intel_subgroups_short : enable
-#if !ROW_MODE
 #pragma OPENCL EXTENSION cl_intel_subgroup_matrix_multiply_accumulate : enable
-#endif
 
 #define SIMD             16
 #define K_CHUNK          32                        // u3 values per 3-uint granule, and the DPAS K step
@@ -44,23 +39,6 @@
 #define CHUNKS_K         (K_SIZE / K_CHUNK)
 #define GROUPS_K         (K_SIZE / GROUP_SIZE)
 #define W_GROUPS_K       (K_SIZE / WEI_GROUP_SIZE)
-
-// Bit-stream extraction of value i (a literal) from the three granule words.
-// Both branches fold away at compile time; only i == 10 and i == 21 straddle.
-#define U3_WORD(w0, w1, w2, idx) ((idx) == 0 ? (w0) : ((idx) == 1 ? (w1) : (w2)))
-#define U3_BIT(i) (3u * (i))
-#define U3_IDX(i) (U3_BIT(i) >> 5)
-#define U3_OFF(i) (U3_BIT(i) & 31u)
-#define U3_AT(w0, w1, w2, i)                                                        \
-    ((U3_OFF(i) <= 29u)                                                             \
-         ? ((U3_WORD(w0, w1, w2, U3_IDX(i)) >> U3_OFF(i)) & 7u)                     \
-         : (((U3_WORD(w0, w1, w2, U3_IDX(i)) >> U3_OFF(i)) |                        \
-             (U3_WORD(w0, w1, w2, U3_IDX(i) + 1u) << (32u - U3_OFF(i)))) & 7u))
-
-// Four consecutive weights minus the zero point z (a char4) as a char4
-#define U3_CHAR4(w0, w1, w2, i, z)                                                  \
-    ((char4)((char)U3_AT(w0, w1, w2, (i) + 0), (char)U3_AT(w0, w1, w2, (i) + 1),     \
-             (char)U3_AT(w0, w1, w2, (i) + 2), (char)U3_AT(w0, w1, w2, (i) + 3)) - (z))
 
 // Eight consecutive u3 values (the low 24 bits of f; higher bits are ignored)
 // spread into the eight nibbles of an int: into 12-bit halves at bits 0 and 16,
@@ -101,22 +79,8 @@ inline int4 FUNC(sub_zp_b4)(int4 b, uint z) {
         ((int)zp[((e) * W_GROUPS_K + (g) * GROUP_SIZE / WEI_GROUP_SIZE) * N_SIZE + (n)])
 #endif
 
-inline int FUNC(mad4)(char4 a, char4 b, int acc) {
-    acc += (int)a.x * (int)b.x;
-    acc += (int)a.y * (int)b.y;
-    acc += (int)a.z * (int)b.z;
-    acc += (int)a.w * (int)b.w;
-    return acc;
-}
-
-#if ROW_MODE
-#define SG_COUNT SG_K
-#else
-#define SG_COUNT SG_M
-#endif
-
 REQD_SUB_GROUP_SIZE(SIMD)
-__attribute__((reqd_work_group_size(SIMD, SG_COUNT, 1)))
+__attribute__((reqd_work_group_size(SIMD, SG_M, 1)))
 KERNEL(moe_int3_gemm)(
     const __global char* quantized_input,   // [rows, K]
     const __global half* a_scales,          // [rows, GROUPS_K]
@@ -124,73 +88,15 @@ KERNEL(moe_int3_gemm)(
     const __global half* scale,             // [E, W_GROUPS_K, N]
     const __global ZP_TYPE* zp,             // [E, W_GROUPS_K, N] or [1]
     const __global int* offsets,            // [E] exclusive end row of each expert
-#if !ROW_MODE
     const __global int2* tiles,             // [tiles] {expert, first row of the tile within the expert}
-#endif
 #if GATE_ACT_MUL
     const __global half* up,                // [rows, N]
 #endif
-    __global half* output,                  // [rows, N]
-    const int num_experts)
+    __global half* output)                  // [rows, N]
 {
     const uint lane = get_sub_group_local_id();
     const uint sg   = (uint)get_local_id(1);
-    const uint n    = (uint)get_group_id(0) * SIMD + lane;
 
-#if ROW_MODE
-    // Expert of this row: the first one whose end offset lies past it.
-    const int row = (int)get_group_id(2);
-    int lo = 0;
-    int hi = num_experts - 1;
-    while (lo < hi) {
-        const int mid = (lo + hi) / 2;
-        if (offsets[mid] > row)
-            hi = mid;
-        else
-            lo = mid + 1;
-    }
-    const uint expert = (uint)lo;
-
-    const __global uint* B = weights + ((size_t)expert * N_SIZE + n) * CHUNKS_K * GRANULE_UINTS;
-    const __global uint* A = (const __global uint*)(quantized_input + (size_t)row * K_SIZE);
-    const __global half* AS = a_scales + (size_t)row * GROUPS_K;
-
-    float out = 0.0f;
-    for (uint g = sg; g < GROUPS_K; g += SG_K) {
-        const char4 z = (char4)((char)WEI_ZP(expert, n, g));
-        int acc = 0;
-        unroll_for (uint cc = 0; cc < CHUNKS_PER_GROUP; ++cc) {
-            const uint chunk = g * CHUNKS_PER_GROUP + cc;
-            const uint3 w = vload3(chunk, B);
-            const uint4 a0 = vload4(0, A + chunk * 8);
-            const uint4 a1 = vload4(1, A + chunk * 8);
-            acc = FUNC_CALL(mad4)(as_char4(a0.s0), U3_CHAR4(w.s0, w.s1, w.s2, 0, z), acc);
-            acc = FUNC_CALL(mad4)(as_char4(a0.s1), U3_CHAR4(w.s0, w.s1, w.s2, 4, z), acc);
-            acc = FUNC_CALL(mad4)(as_char4(a0.s2), U3_CHAR4(w.s0, w.s1, w.s2, 8, z), acc);
-            acc = FUNC_CALL(mad4)(as_char4(a0.s3), U3_CHAR4(w.s0, w.s1, w.s2, 12, z), acc);
-            acc = FUNC_CALL(mad4)(as_char4(a1.s0), U3_CHAR4(w.s0, w.s1, w.s2, 16, z), acc);
-            acc = FUNC_CALL(mad4)(as_char4(a1.s1), U3_CHAR4(w.s0, w.s1, w.s2, 20, z), acc);
-            acc = FUNC_CALL(mad4)(as_char4(a1.s2), U3_CHAR4(w.s0, w.s1, w.s2, 24, z), acc);
-            acc = FUNC_CALL(mad4)(as_char4(a1.s3), U3_CHAR4(w.s0, w.s1, w.s2, 28, z), acc);
-        }
-        out += (float)acc * (float)AS[g] * WEI_SCALE(expert, n, g);
-    }
-
-#if SG_K > 1
-    __local float partial[SG_K][SIMD];
-    partial[sg][lane] = out;
-    barrier(CLK_LOCAL_MEM_FENCE);
-    if (sg != 0)
-        return;
-    unroll_for (uint j = 1; j < SG_K; ++j)
-        out += partial[j][lane];
-#endif
-#if GATE_ACT_MUL
-    out = MOE_GATE_ACT(out) * (float)up[(size_t)row * N_SIZE + n];
-#endif
-    output[(size_t)row * N_SIZE + n] = (half)out;
-
-#else  // expert mode
     // A work-group takes one {expert, first row} entry of the host's tile list, so
     // only row tiles that hold rows are launched. A subgroup computes TILE_M (16) rows x
     // NB 16-column blocks, so each activation load feeds NB DPAS. The activations
@@ -208,7 +114,7 @@ KERNEL(moe_int3_gemm)(
 #define GRAN_PER_GROUP  (CHUNKS_PER_GROUP * NB)
 #define GRAN_PER_SG     (GRAN_PER_GROUP / SG_M)
 #if TILE_M != 16 || (GRAN_PER_GROUP % SG_M) != 0 || (CHUNKS_PER_GROUP % 2) != 0
-#   error "moe_3gemm_int3_gemm.cl - invalid expert mode configuration"
+#   error "moe_3gemm_int3_gemm.cl - invalid tile configuration"
 #endif
     const int2 tile = tiles[get_group_id(1)];
     const uint expert = (uint)tile.x;
@@ -331,10 +237,8 @@ KERNEL(moe_int3_gemm)(
 #undef NH
 #undef GRAN_PER_GROUP
 #undef GRAN_PER_SG
-#endif  // ROW_MODE
 }
 
-#undef SG_COUNT
 #undef SIMD
 #undef K_CHUNK
 #undef GRANULE_UINTS
