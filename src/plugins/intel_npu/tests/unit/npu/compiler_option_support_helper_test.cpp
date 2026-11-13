@@ -27,7 +27,7 @@ CompilerOptionSupportTestContext makeContext(
     auto factory = std::make_shared<const ::intel_npu::CompilerAdapterFactory>(backend,
                                                                                ::intel_npu::VCLFunctionTableProvider{},
                                                                                cache);
-    auto helper = std::make_unique<::intel_npu::CompilerOptionSupportHelper>(backend, factory, cache);
+    auto helper = std::make_unique<::intel_npu::CompilerOptionSupportHelper>(factory, cache);
     return {std::move(cache), std::move(factory), std::move(helper)};
 }
 

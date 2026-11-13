@@ -201,7 +201,7 @@ Plugin::Plugin()
     /// Init and register properties
     OV_ITT_TASK_NEXT(PLUGIN, "RegisterProperties");
     _compilerOptionSupportHelper =
-        std::make_shared<CompilerOptionSupportHelper>(_backend, _compilerAdapterFactory, optionSupportCache);
+        std::make_shared<CompilerOptionSupportHelper>(_compilerAdapterFactory, optionSupportCache);
     _propertiesManager = std::make_unique<PluginPropertyManager>(options,
                                                                  _backend,
                                                                  _compilerOptionSupportHelper,

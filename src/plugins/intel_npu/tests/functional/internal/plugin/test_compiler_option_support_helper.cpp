@@ -77,7 +77,6 @@ protected:
         backend = ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>());
         optionSupportCache = std::make_shared<OptionSupportCache>();
         helper = std::make_unique<CompilerOptionSupportHelper>(
-            backend,
             std::make_shared<const CompilerAdapterFactory>(backend,
                                                            npu::vcl_provider::processWide(),
                                                            optionSupportCache),
@@ -346,7 +345,6 @@ protected:
         backend = ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>());
         const auto optionSupportCache = std::make_shared<OptionSupportCache>();
         helper = std::make_unique<CompilerOptionSupportHelper>(
-            backend,
             std::make_shared<const CompilerAdapterFactory>(backend,
                                                            npu::vcl_provider::processWide(),
                                                            optionSupportCache),
