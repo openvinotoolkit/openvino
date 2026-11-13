@@ -22,6 +22,7 @@
 #include "nodes/kernels/scaled_attn/attn_memcpy.hpp"
 #include "nodes/kernels/scaled_attn/attn_quant.hpp"
 #include "nodes/kernels/scaled_attn/cache_spec.hpp"
+#include "nodes/kernels/sparse_attn/paged_page_table_check.hpp"
 #include "nodes/kernels/sparse_attn/sparse_attn_common.hpp"
 #include "nodes/kernels/sparse_attn/sparse_pa_kernel.hpp"
 #include "nodes/paged_attn.h"
@@ -36,7 +37,6 @@
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/paged_sparse_attention.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
-#include "utils/paged_page_table_check.hpp"
 #include "utils/plain_tensor.hpp"
 
 #ifdef OPENVINO_ARCH_X86_64

@@ -16,6 +16,7 @@
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
+#include "nodes/kernels/sparse_attn/paged_page_table_check.hpp"
 #include "nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.hpp"
 #include "nodes/kernels/sparse_attn/qsa_executor.hpp"
 #include "nodes/kernels/sparse_attn/qsa_indexer_common.hpp"
@@ -26,7 +27,6 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/paged_qsa_indexer.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
-#include "utils/paged_page_table_check.hpp"
 
 #ifdef OPENVINO_ARCH_X86_64
 #    include "cpu_types.h"

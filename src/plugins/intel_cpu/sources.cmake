@@ -816,6 +816,7 @@ set(CPU_PLUGIN_X64_SRCS
     ${CPU_SRC_DIR}/nodes/executors/x64/selective_ssm_jit_executor.hpp
     ${CPU_SRC_DIR}/nodes/executors/x64/subgraph.cpp
     ${CPU_SRC_DIR}/nodes/executors/x64/subgraph.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/paged_page_table_check.hpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.cpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_brgemm.hpp
