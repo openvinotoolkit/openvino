@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+#include <cstdint>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -36,9 +38,30 @@ std::vector<layout> qsa_indexer_inst::calc_output_layouts(const qsa_indexer_node
     std::vector<layout> layouts = {
         layout{selected_block_indices_shape, ov::element::i32, cldnn::format::get_default_format(selected_block_indices_shape.size())},
         layout{selected_block_count_shape, ov::element::i32, cldnn::format::get_default_format(selected_block_count_shape.size())}};
-    // The updated state has the shape and type of the corresponding state input.
-    for (size_t in :
-         {qsa_indexer::InputIdx::BLOCK_INDEX_KEYS_CACHE, qsa_indexer::InputIdx::PAST_INCOMPLETE_RAW_K, qsa_indexer::InputIdx::PAST_INCOMPLETE_ROPE}) {
+    // The block-key cache holds the complete blocks of the longest row after the call, max(key_length) / r, as
+    // QSAPrepare defines; without the key_length values only the [0, Bp + ceil(L / r)] bound is known. The
+    // incomplete-block states keep the shape and type of their inputs.
+    {
+        const auto& in_layout = impl_param.get_input_layout(qsa_indexer::InputIdx::BLOCK_INDEX_KEYS_CACHE);
+        auto shape = in_layout.get<ShapeType>();
+        if (shape.rank().is_static() && shape.size() == 4) {
+            const auto& memory_deps = impl_param.memory_deps;
+            const auto key_length_it = memory_deps.find(qsa_indexer::InputIdx::KEY_LENGTH);
+            if (key_length_it != memory_deps.end()) {
+                const auto& key_length_mem = key_length_it->second;
+                cldnn::mem_lock<int32_t, mem_lock_type::read> key_length(key_length_mem, impl_param.get_stream());
+                int64_t longest = 0;
+                for (size_t b = 0; b < key_length_mem->get_layout().count(); b++) {
+                    longest = std::max<int64_t>(longest, key_length[b]);
+                }
+                shape[2] = ov::intel_gpu::op::QSAIndexer::exact_cache_blocks(longest, desc->key_block_size);
+            } else {
+                shape[2] = ov::intel_gpu::op::QSAIndexer::bounded_cache_blocks(shape[2], index_query_shape[1], desc->key_block_size);
+            }
+        }
+        layouts.emplace_back(shape, in_layout.data_type, cldnn::format::get_default_format(shape.size()));
+    }
+    for (size_t in : {qsa_indexer::InputIdx::PAST_INCOMPLETE_RAW_K, qsa_indexer::InputIdx::PAST_INCOMPLETE_ROPE}) {
         const auto& in_layout = impl_param.get_input_layout(in);
         const auto shape = in_layout.get<ShapeType>();
         layouts.emplace_back(shape, in_layout.data_type, cldnn::format::get_default_format(shape.size()));

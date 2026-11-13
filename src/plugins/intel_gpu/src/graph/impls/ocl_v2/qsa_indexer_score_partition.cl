@@ -21,7 +21,7 @@
 
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
 KERNEL(qsa_indexer_score_partition)(const __global half* indexer_q,           // [tokens, Hiq, Di]
-                                    const __global half* summary_cache,       // paged: [N_phys,1,page/r,Di]; dense: [B,1,S_cap/r,Di]
+                                    const __global half* summary_cache,       // paged: [N_phys,1,page/r,Di]; dense: [B,1,max(key_length)/r,Di]
                                     const __global int* past_lens,            // paged: [num_seqs]; dense: [B]
 #if QSA_ADDRESS_MODE == 0
                                     const __global int* subsequence_begins,   // [num_seqs+1]
