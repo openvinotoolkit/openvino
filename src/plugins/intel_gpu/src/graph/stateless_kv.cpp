@@ -32,6 +32,10 @@ static layout get_input_view(const layout& input_layout, int64_t concat_axis, in
     return view_layout;
 }
 
+layout stateless_kv_runtime_state::get_new_input_layout(const layout& input_layout, int64_t concat_axis) const {
+    return get_input_view(input_layout, concat_axis, 0, new_seq_len);
+}
+
 layout stateless_kv_runtime_state::get_past_to_sdpa_input_layout(const layout& input_layout, int64_t concat_axis) const {
     return get_input_view(input_layout, concat_axis, get_sdpa_in_past_offset(), get_new_in_sdpa_offset());
 }
@@ -53,21 +57,27 @@ int64_t stateless_kv_inst::get_swa_sequence_length(int64_t abs_seq_len, int64_t 
     return abs_seq_len - rolling_gap * rolling_count;
 }
 
+static std::optional<int64_t> read_len_value(const memory::ptr& mem, const kernel_impl_params& impl_param) {
+    const auto layout = mem->get_layout();
+    if (layout.count() == 0)
+        return std::nullopt;
+
+    OPENVINO_ASSERT(layout.count() == 1);
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> mem_lock_guard(mem, impl_param.get_stream());
+    auto tensor = make_tensor(layout, mem_lock_guard.data());
+    return ov::get_tensor_data_as<int64_t>(tensor)[0];
+}
+
 std::optional<stateless_kv_runtime_state> stateless_kv_inst::compute_runtime_state(const kernel_impl_params& impl_param,
                                                                                    const stateless_kv& desc) {
     const auto mem_dep_it = impl_param.memory_deps.find(2);
     if (mem_dep_it == impl_param.memory_deps.end())
         return std::nullopt;
 
-    const auto& seq_len_mem = mem_dep_it->second;
-    const auto seq_len_layout = seq_len_mem->get_layout();
-    if (seq_len_layout.count() == 0)
+    const auto seq_len_opt = read_len_value(mem_dep_it->second, impl_param);
+    if (!seq_len_opt)
         return std::nullopt;
-
-    OPENVINO_ASSERT(seq_len_layout.count() == 1);
-    cldnn::mem_lock<uint8_t, mem_lock_type::read> seq_len_mem_lock(seq_len_mem, impl_param.get_stream());
-    auto seq_len_tensor = make_tensor(seq_len_layout, seq_len_mem_lock.data());
-    const auto seq_len = ov::get_tensor_data_as<int64_t>(seq_len_tensor)[0];
+    const auto seq_len = *seq_len_opt;
 
     const auto& past_layout = impl_param.get_input_layout(0);
     const auto past_shape = past_layout.get_partial_shape();
@@ -83,39 +93,52 @@ std::optional<stateless_kv_runtime_state> stateless_kv_inst::compute_runtime_sta
     const auto& current_dim = current_shape[static_cast<size_t>(current_sequence_axis)];
     OPENVINO_ASSERT(current_dim.is_static());
 
+    const int64_t new_token_size = current_dim.get_length();
+    int64_t new_seq_len = new_token_size;
+    if (desc.has_cur_len()) {
+        const auto cur_len_mem_it = impl_param.memory_deps.find(3);
+        OPENVINO_ASSERT(cur_len_mem_it != impl_param.memory_deps.end());
+
+        const auto cur_len_opt = read_len_value(cur_len_mem_it->second, impl_param);
+        OPENVINO_ASSERT(cur_len_opt.has_value());
+        new_seq_len = *cur_len_opt;
+    }
+
     int64_t past_seq_len = 0;
     int64_t present_seq_len = 0;
     if (desc.is_seq_len_present_len) {
         present_seq_len = seq_len;
-        past_seq_len = present_seq_len - current_dim.get_length();
+        past_seq_len = present_seq_len - new_seq_len;
     } else {
         past_seq_len = seq_len;
-        present_seq_len = past_seq_len + current_dim.get_length();
+        present_seq_len = past_seq_len + new_seq_len;
     }
-    GPU_DEBUG_TRACE_DETAIL << desc.id << " : " << (desc.is_seq_len_present_len ? "present" : "past") << "_len[" << seq_len << "] cur_len["
-                           << current_dim.get_length() << "] past_tensor[" << past_dim.get_length() << "] "
+    GPU_DEBUG_TRACE_DETAIL << desc.id << " : " << (desc.is_seq_len_present_len ? "present" : "past") << "_len[" << seq_len << "] new_size[" << new_token_size
+                           << "] new_len[" << new_seq_len << "] past_tensor[" << past_dim.get_length() << "] "
                            << (present_seq_len <= past_dim.get_length() ? "update" : "concat") << std::endl;
-    OPENVINO_ASSERT(past_seq_len >= 0, "[GPU] new_token_data shouldn't exceed present_seq_length");
+    OPENVINO_ASSERT(new_token_size >= new_seq_len && new_seq_len >= 0, "[GPU] new_seq_len shouldn't exceed new_token_data range");
+    OPENVINO_ASSERT(past_seq_len >= 0, "[GPU] cur_seq_length shouldn't exceed present_seq_length");
 
     stateless_kv_runtime_state state;
     state.past_seq_len = past_seq_len;
     state.present_seq_len = present_seq_len;
-    state.new_token_len = current_dim.get_length();
+    state.new_token_size = new_token_size;
+    state.new_seq_len = new_seq_len;
+    state.padded_seq_len = past_seq_len + new_token_size;
 
     if (desc.window_size > 0) {
-        OPENVINO_ASSERT(desc.input.size() == 3, "[GPU] stateless_kv doesn't support window_size together with pos_idx");
+        OPENVINO_ASSERT(!desc.has_pos_idx, "[GPU] stateless_kv doesn't support window_size together with pos_idx");
         const auto cache_capacity = past_dim.get_length();
         state.past_front_idx = past_seq_len - get_swa_sequence_length(past_seq_len, cache_capacity, desc.window_size);
         state.present_front_idx = present_seq_len - get_swa_sequence_length(present_seq_len, cache_capacity, desc.window_size);
+        state.padded_front_idx = state.padded_seq_len - get_swa_sequence_length(state.padded_seq_len, cache_capacity, desc.window_size);
         state.sdpa_front_idx = std::max<int64_t>(0, past_seq_len - desc.window_size + 1);
     }
 
     OPENVINO_ASSERT(state.get_past_output_len() >= 0 && state.get_present_output_len() >= 0);
     OPENVINO_ASSERT(state.get_new_in_sdpa_offset() >= 0);
     OPENVINO_ASSERT(state.get_sdpa_len(desc.window_size) ==
-                    (desc.window_size > 0
-                         ? std::min(state.present_seq_len, state.new_token_len + desc.window_size - 1)
-                         : state.present_seq_len));
+                    (desc.window_size > 0 ? std::min(state.present_seq_len, state.new_seq_len + desc.window_size - 1) : state.present_seq_len));
 
     return state;
 }
@@ -132,12 +155,16 @@ void stateless_kv_inst::update_shape_info_tensor(const kernel_impl_params& param
     const auto node_input_layouts = get_node().get_shape_info_input_layouts();
     for (size_t i = 0; i < get_node().get_dependencies().size(); ++i) {
         GPU_DEBUG_TRACE_DETAIL << id() << " : update shape_info for input[" << i << "]" << std::endl;
-        if (i == 0 && desc->input.size() == 3) {
+        if (i == 0 && !desc->has_pos_idx) {
             OPENVINO_ASSERT(m_runtime_state.has_value(), "[GPU] stateless_kv runtime state wasn't initialized during shape update");
             const auto& state = *m_runtime_state;
             const auto copy_len = state.is_rolling() ? 0 : state.get_new_in_present_offset();
             const auto past_view = get_input_view(params.get_input_layout(0), desc->concat_axis, 0, copy_len);
             fill_shape_info_data(past_view, node_input_layouts[i], shape_info_ptr, offset);
+        } else if (i == 1 && !desc->has_pos_idx) {
+            OPENVINO_ASSERT(m_runtime_state.has_value(), "[GPU] stateless_kv runtime state wasn't initialized during shape update");
+            const auto new_view = m_runtime_state->get_new_input_layout(params.get_input_layout(1), desc->concat_axis);
+            fill_shape_info_data(new_view, node_input_layouts[i], shape_info_ptr, offset);
         } else {
             fill_shape_info_data(params.input_layouts[i], node_input_layouts[i], shape_info_ptr, offset);
         }
@@ -145,16 +172,19 @@ void stateless_kv_inst::update_shape_info_tensor(const kernel_impl_params& param
 
     if (desc->window_size > 0) {
         OPENVINO_ASSERT(m_runtime_state.has_value(), "[GPU] stateless_kv SWA runtime state wasn't initialized during shape update");
-        OPENVINO_ASSERT(desc->input.size() == 3);
-        OPENVINO_ASSERT(node_input_layouts.size() == 5);
+        OPENVINO_ASSERT(!desc->has_pos_idx);
+        const auto sdpa_past_idx = desc->input.size();
+        OPENVINO_ASSERT(node_input_layouts.size() == sdpa_past_idx + 2);
         const auto& state = *m_runtime_state;
-        if (state.is_rolling()) {
+        if (state.is_capacity_overflow()) {
             auto past_view = state.get_past_to_sdpa_input_layout(params.get_input_layout(0), desc->concat_axis);
             GPU_DEBUG_TRACE_DETAIL << id() << " : update shape_info for SWA sdpa's past input" << std::endl;
-            fill_shape_info_data(past_view, node_input_layouts[3], shape_info_ptr, offset);
+            fill_shape_info_data(past_view, node_input_layouts[sdpa_past_idx], shape_info_ptr, offset);
+        }
+        if (state.is_rolling()) {
             auto sdpa_view = state.get_sdpa_to_present_input_layout(params.get_output_layout(1), desc->concat_axis);
             GPU_DEBUG_TRACE_DETAIL << id() << " : update shape_info for SWA present's sdpa input" << std::endl;
-            fill_shape_info_data(sdpa_view, node_input_layouts[4], shape_info_ptr, offset);
+            fill_shape_info_data(sdpa_view, node_input_layouts[sdpa_past_idx + 1], shape_info_ptr, offset);
         }
     }
 
@@ -186,14 +216,14 @@ std::vector<layout> stateless_kv_inst::calc_output_layouts(const stateless_kv_no
     const auto runtime_state = stateless_kv_inst::compute_runtime_state(impl_param, *desc);
     if (runtime_state) {
         op.set_update_offset(runtime_state->get_new_in_present_offset());
-        op.set_is_rolling(runtime_state->is_rolling());
+        op.set_is_capacity_overflow(runtime_state->is_capacity_overflow());
         op.set_past_seq_len(runtime_state->past_seq_len);
     }
 
     auto output_shapes = shape_infer(&op, input_shapes);
     int64_t lower_padding = 0;
     int64_t upper_padding = 0;
-    if (runtime_state && !runtime_state->is_rolling() && output_shapes[0][concat_axis].is_static()) {
+    if (runtime_state && !runtime_state->is_capacity_overflow() && output_shapes[0][concat_axis].is_static()) {
         lower_padding = runtime_state->get_sdpa_in_present_offset();
         upper_padding = output_shapes[0][concat_axis].get_length() - output_shapes[1][concat_axis].get_length() - lower_padding;
         OPENVINO_ASSERT(lower_padding >= 0 && upper_padding >= 0);
