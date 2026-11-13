@@ -2172,10 +2172,9 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
                     m_kvcache_desc.total_size,
                     ").");
 
-    // Every port here is [BATCH, SEQ_LEN] (or [.., BATCH, SEQ_LEN] for the 3-D VLM variant of
-    // position_ids), so the sequence extent is the last axis - except `inputs_embeds`, which
-    // ReshapeToStatic (see reshape_to_static.cpp) lays out as [BATCH, SEQ_LEN, EMB_SIZE]: its
-    // sequence axis is 1, and the last axis is the embedding width.
+    // The sequence extent is the last axis, except for `inputs_embeds`, which ReshapeToStatic
+    // lays out as [BATCH, SEQ_LEN, EMB_SIZE]. For 4-D attention masks, the last axis is the
+    // key extent; the query extent is checked separately below.
     auto sequence_axis = [](const ov::Output<const ov::Node>& port, size_t rank) -> size_t {
         return port.get_names().count(layer_names::inputs_embeds) != 0 ? 1 : rank - 1;
     };
@@ -2217,8 +2216,12 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
         // Pin it directly here instead of only cross-checking agreement with the top-level
         // model below: that model's shape is just as blob-controlled as this one, so a forged
         // blob could make both sides agree on the same wrong rank and still pass.
-        if (std::strcmp(name, layer_names::input_ids) == 0 || std::strcmp(name, layer_names::token_type_ids) == 0 ||
-            std::strcmp(name, layer_names::attention_mask) == 0) {
+        if (std::strcmp(name, layer_names::attention_mask) == 0 && m_attention_mask_is_4d_float) {
+            OPENVINO_ASSERT(rank == 4 && child.get_element_type().is_real(),
+                            "NPUW blob: input 'attention_mask' must be a rank-4 floating-point tensor.");
+        } else if (std::strcmp(name, layer_names::input_ids) == 0 ||
+                   std::strcmp(name, layer_names::token_type_ids) == 0 ||
+                   std::strcmp(name, layer_names::attention_mask) == 0) {
             OPENVINO_ASSERT(rank == 2, "NPUW blob: input '", name, "' rank (", rank, ") must be 2.");
         } else if (std::strcmp(name, layer_names::inputs_embeds) == 0) {
             OPENVINO_ASSERT(rank == 3, "NPUW blob: input '", name, "' rank (", rank, ") must be 3.");
@@ -2285,7 +2288,8 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
                         top_rank_dim,
                         ").");
         for (size_t i = 0; i < rank; ++i) {
-            if (i == axis) {
+            if (i == axis ||
+                (m_attention_mask_is_4d_float && std::strcmp(name, layer_names::attention_mask) == 0 && i == 2)) {
                 continue;  // the sequence axis is intentionally resized; checked separately
             }
             const auto& top_dim = top->get_partial_shape()[i];
@@ -2318,29 +2322,42 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
         }
     };
 
-    auto validate_extent =
-        [&](const std::vector<ov::Output<const ov::Node>>& ports, const char* name, uint64_t required, bool exact) {
-            auto port = ov::npuw::util::find_port_by_name(ports, name);
-            if (!port.has_value()) {
-                return;  // optional input not present on this model
-            }
-            validate_matches_top_level(*port, name);
-            const auto extent = sequence_extent(*port);
-            // A declared limit of 0 (itself blob-controlled, e.g. a forged max_prompt_size or
-            // max_generation_token_len) would make `required <= extent` pass trivially even for
-            // a zero-length port - Whisper's raw one-token copies in particular never re-check
-            // the caller's token count against anything else, so a zero-sized restored input_ids
-            // port alone is enough to write out of bounds on the very first call.
-            OPENVINO_ASSERT(extent > 0 && (exact ? required == extent : required <= extent),
-                            "NPUW blob: input '",
-                            name,
-                            "' sequence length (",
-                            extent,
-                            exact ? ") does not exactly match the declared limit ("
-                                  : ") is zero or smaller than the declared limit (",
-                            required,
-                            ").");
-        };
+    auto validate_extent = [&](const std::vector<ov::Output<const ov::Node>>& ports,
+                               const char* name,
+                               uint64_t required,
+                               bool exact,
+                               uint64_t query_required = 0) {
+        auto port = ov::npuw::util::find_port_by_name(ports, name);
+        if (!port.has_value()) {
+            return;  // optional input not present on this model
+        }
+        validate_matches_top_level(*port, name);
+        const auto extent = sequence_extent(*port);
+        // A declared limit of 0 (itself blob-controlled, e.g. a forged max_prompt_size or
+        // max_generation_token_len) would make `required <= extent` pass trivially even for
+        // a zero-length port - Whisper's raw one-token copies in particular never re-check
+        // the caller's token count against anything else, so a zero-sized restored input_ids
+        // port alone is enough to write out of bounds on the very first call.
+        OPENVINO_ASSERT(
+            extent > 0 && (exact ? required == extent : required <= extent),
+            "NPUW blob: input '",
+            name,
+            "' sequence length (",
+            extent,
+            exact ? ") does not exactly match the declared limit (" : ") is zero or smaller than the declared limit (",
+            required,
+            ").");
+        if (m_attention_mask_is_4d_float && std::strcmp(name, layer_names::attention_mask) == 0) {
+            const auto query_extent = static_cast<uint64_t>(port->get_partial_shape()[2].get_length());
+            OPENVINO_ASSERT(
+                query_extent > 0 && (exact ? query_extent == query_required : query_extent >= query_required),
+                "NPUW blob: attention_mask query length (",
+                query_extent,
+                ") does not satisfy the declared limit (",
+                query_required,
+                ").");
+        }
+    };
 
     if (m_prefill_compiled) {
         const auto& prefill_inputs = m_prefill_compiled->inputs();
@@ -2365,7 +2382,8 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
         validate_extent(prefill_inputs,
                         layer_names::attention_mask,
                         m_kvcache_desc.max_prompt_size,
-                        require_exact_extent);
+                        require_exact_extent,
+                        prefill_required);
 
         if (m_is_whisper) {
             // infer_prefill() copies the top-level 'encoder_hidden_states' tensor's full byte
@@ -2453,7 +2471,11 @@ void ov::npuw::LLMCompiledModel::validate_imported_sequence_extents() const {
                                 ") must be {1}.");
             }
         }
-        validate_extent(gen_inputs, layer_names::attention_mask, attention_mask_required, require_exact_extent);
+        validate_extent(gen_inputs,
+                        layer_names::attention_mask,
+                        attention_mask_required,
+                        require_exact_extent,
+                        m_kvcache_desc.max_generation_token_len);
     }
 }
 
