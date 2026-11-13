@@ -106,6 +106,12 @@ public:
     static std::filesystem::path get_cache_location(const ov::ICore& core,
                                                     const ov::AnyMap& config,
                                                     const std::string& device_name = {});
+    static std::string get_blob_id(const ov::ICore& core,
+                                   const std::string& device_name,
+                                   const ov::AnyMap& config,
+                                   const std::shared_ptr<const ov::Model>& model,
+                                   const std::filesystem::path& model_path);
+    static bool is_blob_cached(const std::filesystem::path& cache_location, const std::string& blob_id);
     static bool is_blob_cached(const ov::ICore& core,
                                const std::string& device_name,
                                const ov::AnyMap& config,
