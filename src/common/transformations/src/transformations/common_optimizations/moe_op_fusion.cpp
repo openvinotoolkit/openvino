@@ -110,12 +110,8 @@ static bool broadcast_per_channel(ov::Output<ov::Node>& scale, size_t K, size_t 
 }
 
 // Compressed weight dtypes the fused 3-GEMM MoE decodes.
-static const std::vector<ov::element::Type> moe_3gemm_weight_types = {ov::element::u2,
-                                                                      ov::element::u3,
-                                                                      ov::element::u4,
-                                                                      ov::element::i4,
-                                                                      ov::element::u8,
-                                                                      ov::element::i8};
+static const std::vector<ov::element::Type> moe_3gemm_weight_types =
+    {ov::element::u2, ov::element::u3, ov::element::u4, ov::element::i4, ov::element::u8, ov::element::i8};
 
 Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
     MATCHER_SCOPE(Convert3GatherMatmulMoeBlockToMoeOp);
