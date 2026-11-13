@@ -232,13 +232,14 @@ FuseQSAIndexerQueryRoPE<Indexer>::FuseQSAIndexerQueryRoPE() {
     const auto p_query = any_input();
     const auto p_rope_cos = any_input();
     const auto p_rope_sin = any_input();
-    // NopElimination can replace the head-axis Unsqueeze of [tokens, 1, D] with a Reshape.
+    // NopElimination can replace the head-axis Unsqueeze of [batch, length, D] with a Reshape.
     const auto with_head_axis = [](const ov::Output<ov::Node>& rows) {
         const auto unsqueeze = wrap_type<v0::Unsqueeze>({rows, wrap_type<v0::Constant>(value_matches("1"))});
         const auto reshape = wrap_type<v1::Reshape>({rows, wrap_const()}, [](const ov::Output<ov::Node>& output) {
             const auto& shape = output.get_node()->get_input_partial_shape(0);
-            return shape.rank() == 3 && shape[1] == 1 && shape[2].is_static() && shape[2].get_length() > 0 &&
-                   output.get_partial_shape() == ov::PartialShape{shape[0], 1, 1, shape[2]};
+            return shape.rank() == 3 && shape[1].is_static() && shape[1].get_length() > 0 && shape[2].is_static() &&
+                   shape[2].get_length() > 0 &&
+                   output.get_partial_shape() == ov::PartialShape{shape[0], 1, shape[1], shape[2]};
         });
         return unsqueeze | reshape;
     };

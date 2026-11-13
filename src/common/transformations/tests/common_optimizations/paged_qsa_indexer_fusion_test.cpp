@@ -482,118 +482,151 @@ struct QueryOptions {
     std::vector<int64_t> rope_rows_target;
 };
 
-template <class Indexer = op_internal::PagedQSAIndexer>
-std::shared_ptr<Model> make_query_model(const QueryOptions& o, bool fused) {
+template <class Indexer>
+struct QueryGraph {
+    std::shared_ptr<Model> model;
+    std::shared_ptr<Indexer> indexer;
+    OutputVector inputs;
+    Output<Node> raw_query;
+    Output<Node> norm;
+    Output<Node> rotated;
+    Output<Node> query;
+};
+
+template <class Indexer>
+QueryGraph<Indexer> make_query_graph(const QueryOptions& o) {
     using In = typename Indexer::InputIdx;
     constexpr bool paged = std::is_same<Indexer, op_internal::PagedQSAIndexer>::value;
-    const auto model = make_model(GraphOptions{false, false, paged, false, o.rope_length}, paged);
-    for (const auto& node : model->get_ops()) {
-        const auto indexer = ov::as_type_ptr<Indexer>(node);
-        if (!indexer) {
-            continue;
+    QueryGraph<Indexer> graph;
+    graph.model = make_model(GraphOptions{false, false, paged, false, o.rope_length}, paged);
+    for (const auto& node : graph.model->get_ops()) {
+        graph.indexer = ov::as_type_ptr<Indexer>(node);
+        if (graph.indexer) {
+            break;
         }
-        auto inputs = indexer->input_values();
-        if (o.non_unit_unused_weight && !(fused && o.absorb_norm)) {
-            inputs[In::Q_NORM_WEIGHT] = v0::Constant::create(element::f32, Shape{head_size}, {0.5f});
-        }
-        const auto unflatten = [](const Output<Node>& input) {
-            if constexpr (std::is_same_v<Indexer, op_internal::PagedQSAIndexer>) {
-                return input.get_node_shared_ptr()->input_value(0);
-            } else {
-                return input;
-            }
-        };
-        Output<Node> raw_query = unflatten(inputs[In::INDEX_QUERY]);
-        if (o.flat_norm) {
-            raw_query = inputs[In::INDEX_QUERY];
-        }
-        const auto make_norm = [&](const Output<Node>& input) -> Output<Node> {
-            const auto norm_input =
-                o.changes_precision ? Output<Node>(std::make_shared<v0::Convert>(input, element::f16)) : input;
-            if (o.affine) {
-                return std::make_shared<op_internal::RMS>(norm_input,
-                                                          v0::Constant::create(element::f32, Shape{head_size}, {0.5f}),
-                                                          o.norm_epsilon,
-                                                          element::f32,
-                                                          o.norm_axis);
-            }
-            return std::make_shared<op_internal::RMS>(norm_input, o.norm_epsilon, element::f32, o.norm_axis);
-        };
-        const auto other_rows = [&](const Output<Node>& rows) -> Output<Node> {
-            const auto param = std::make_shared<v0::Parameter>(rows.get_element_type(), rows.get_partial_shape());
-            model->add_parameters({param});
-            return param;
-        };
-        const auto cos = unflatten(inputs[In::ROPE_COS]);
-        const auto sin = unflatten(inputs[In::ROPE_SIN]);
-        std::shared_ptr<Node> rope;
-        const auto make_rope = [&](const Output<Node>& input) -> Output<Node> {
-            op_internal::RoPE::Config config;
-            config.rotary_ndims = rotary_dim;
-            config.input_trans0213 = true;
-            config.is_interleaved = o.interleaved;
-            const auto with_head_axis = [&o](const Output<Node>& rows) -> Output<Node> {
-                if (o.rope_rows_target.empty()) {
-                    return std::make_shared<v0::Unsqueeze>(rows, i64({o.rope_axis}));
-                }
-                return std::make_shared<v1::Reshape>(rows, i64(o.rope_rows_target), o.rope_rows_special_zero);
-            };
-            rope = std::make_shared<op_internal::RoPE>(
-                OutputVector{input,
-                             with_head_axis(o.distinct_cos ? other_rows(cos) : cos),
-                             with_head_axis(o.distinct_sin ? other_rows(sin) : sin)},
-                config);
-            return std::make_shared<v1::Transpose>(rope, i64({0, 2, 1, 3}));
-        };
-        Output<Node> norm = raw_query;
-        Output<Node> rotated;
-        Output<Node> query = raw_query;
-        if (o.rope_before_norm) {
-            rotated = make_rope(raw_query);
-            if (o.with_norm) {
-                query = norm = make_norm(rotated);
-            } else {
-                query = rotated;
-            }
-        } else {
-            if (o.with_norm) {
-                query = norm = make_norm(raw_query);
-            }
-            if (o.with_rope) {
-                query = rotated = make_rope(query);
-            }
-        }
-        if (o.extra_consumers) {
-            model->add_results({std::make_shared<v0::Result>(rope), std::make_shared<v0::Result>(norm)});
-        }
-        auto config = indexer->get_config();
-        config.query_norm = o.indexer_query_norm;
-        config.query_rope = o.indexer_query_rope;
-        if (fused) {
-            config.query_norm = o.indexer_query_norm || (o.with_norm && o.absorb_norm);
-            config.query_rope = o.indexer_query_rope || (o.with_rope && o.absorb_rope);
-            const bool norm_outside = o.with_norm && !o.absorb_norm;
-            const bool rope_outside = o.with_rope && !o.absorb_rope;
-            if (!norm_outside && !rope_outside) {
-                query = raw_query;
-            } else if (!rope_outside) {
-                query = norm;
-            } else if (!norm_outside) {
-                query = rotated;
-            }
-        }
-        if constexpr (paged) {
-            const auto flatten = inputs[In::INDEX_QUERY].get_node_shared_ptr();
-            inputs[In::INDEX_QUERY] =
-                o.flat_norm ? query
-                            : Output<Node>(std::make_shared<v1::Reshape>(query, flatten->input_value(1), false));
-        } else {
-            inputs[In::INDEX_QUERY] = query;
-        }
-        ov::replace_node(indexer, std::make_shared<Indexer>(inputs, config));
-        break;
     }
-    return model;
+    OPENVINO_ASSERT(graph.indexer, "Expected a query indexer in the test model");
+    graph.inputs = graph.indexer->input_values();
+    const auto unflatten = [](const Output<Node>& input) {
+        if constexpr (std::is_same_v<Indexer, op_internal::PagedQSAIndexer>) {
+            return input.get_node_shared_ptr()->input_value(0);
+        } else {
+            return input;
+        }
+    };
+    graph.raw_query = o.flat_norm ? graph.inputs[In::INDEX_QUERY] : unflatten(graph.inputs[In::INDEX_QUERY]);
+    const auto make_norm = [&](const Output<Node>& input) -> Output<Node> {
+        const auto norm_input =
+            o.changes_precision ? Output<Node>(std::make_shared<v0::Convert>(input, element::f16)) : input;
+        if (o.affine) {
+            return std::make_shared<op_internal::RMS>(norm_input,
+                                                      v0::Constant::create(element::f32, Shape{head_size}, {0.5f}),
+                                                      o.norm_epsilon,
+                                                      element::f32,
+                                                      o.norm_axis);
+        }
+        return std::make_shared<op_internal::RMS>(norm_input, o.norm_epsilon, element::f32, o.norm_axis);
+    };
+    const auto other_rows = [&](const Output<Node>& rows) -> Output<Node> {
+        const auto param = std::make_shared<v0::Parameter>(rows.get_element_type(), rows.get_partial_shape());
+        graph.model->add_parameters({param});
+        return param;
+    };
+    const auto cos = unflatten(graph.inputs[In::ROPE_COS]);
+    const auto sin = unflatten(graph.inputs[In::ROPE_SIN]);
+    std::shared_ptr<Node> rope;
+    const auto make_rope = [&](const Output<Node>& input) -> Output<Node> {
+        op_internal::RoPE::Config config;
+        config.rotary_ndims = rotary_dim;
+        config.input_trans0213 = true;
+        config.is_interleaved = o.interleaved;
+        const auto with_head_axis = [&o](const Output<Node>& rows) -> Output<Node> {
+            if (o.rope_rows_target.empty()) {
+                return std::make_shared<v0::Unsqueeze>(rows, i64({o.rope_axis}));
+            }
+            return std::make_shared<v1::Reshape>(rows, i64(o.rope_rows_target), o.rope_rows_special_zero);
+        };
+        rope = std::make_shared<op_internal::RoPE>(OutputVector{input,
+                                                                with_head_axis(o.distinct_cos ? other_rows(cos) : cos),
+                                                                with_head_axis(o.distinct_sin ? other_rows(sin) : sin)},
+                                                   config);
+        return std::make_shared<v1::Transpose>(rope, i64({0, 2, 1, 3}));
+    };
+    graph.norm = graph.raw_query;
+    graph.query = graph.raw_query;
+    if (o.rope_before_norm) {
+        graph.rotated = make_rope(graph.raw_query);
+        if (o.with_norm) {
+            graph.query = graph.norm = make_norm(graph.rotated);
+        } else {
+            graph.query = graph.rotated;
+        }
+    } else {
+        if (o.with_norm) {
+            graph.query = graph.norm = make_norm(graph.raw_query);
+        }
+        if (o.with_rope) {
+            graph.query = graph.rotated = make_rope(graph.query);
+        }
+    }
+    if (o.extra_consumers) {
+        graph.model->add_results({std::make_shared<v0::Result>(rope), std::make_shared<v0::Result>(graph.norm)});
+    }
+    return graph;
+}
+
+template <class Indexer>
+void replace_query_indexer(QueryGraph<Indexer>& graph,
+                           const QueryOptions& o,
+                           const Output<Node>& query,
+                           const typename Indexer::Config& config) {
+    using In = typename Indexer::InputIdx;
+    if constexpr (std::is_same_v<Indexer, op_internal::PagedQSAIndexer>) {
+        const auto flatten = graph.inputs[In::INDEX_QUERY].get_node_shared_ptr();
+        graph.inputs[In::INDEX_QUERY] =
+            o.flat_norm ? query : Output<Node>(std::make_shared<v1::Reshape>(query, flatten->input_value(1), false));
+    } else {
+        graph.inputs[In::INDEX_QUERY] = query;
+    }
+    ov::replace_node(graph.indexer, std::make_shared<Indexer>(graph.inputs, config));
+}
+
+template <class Indexer = op_internal::PagedQSAIndexer>
+std::shared_ptr<Model> getQueryModel(const QueryOptions& o) {
+    using In = typename Indexer::InputIdx;
+    auto graph = make_query_graph<Indexer>(o);
+    auto config = graph.indexer->get_config();
+    config.query_norm = o.indexer_query_norm;
+    config.query_rope = o.indexer_query_rope;
+    if (o.non_unit_unused_weight) {
+        graph.inputs[In::Q_NORM_WEIGHT] = v0::Constant::create(element::f32, Shape{head_size}, {0.5f});
+    }
+    replace_query_indexer(graph, o, graph.query, config);
+    return graph.model;
+}
+
+template <class Indexer = op_internal::PagedQSAIndexer>
+std::shared_ptr<Model> getQueryModelRef(const QueryOptions& o) {
+    using In = typename Indexer::InputIdx;
+    auto graph = make_query_graph<Indexer>(o);
+    auto config = graph.indexer->get_config();
+    config.query_norm = o.indexer_query_norm || (o.with_norm && o.absorb_norm);
+    config.query_rope = o.indexer_query_rope || (o.with_rope && o.absorb_rope);
+    if (o.non_unit_unused_weight && !o.absorb_norm) {
+        graph.inputs[In::Q_NORM_WEIGHT] = v0::Constant::create(element::f32, Shape{head_size}, {0.5f});
+    }
+    const bool norm_outside = o.with_norm && !o.absorb_norm;
+    const bool rope_outside = o.with_rope && !o.absorb_rope;
+    Output<Node> query = graph.query;
+    if (!norm_outside && !rope_outside) {
+        query = graph.raw_query;
+    } else if (!rope_outside) {
+        query = graph.norm;
+    } else if (!norm_outside) {
+        query = graph.rotated;
+    }
+    replace_query_indexer(graph, o, query, config);
+    return graph.model;
 }
 
 class FusePagedQSAIndexerQueryTest : public TransformationTestsF, public testing::WithParamInterface<QueryOptions> {
@@ -607,8 +640,8 @@ protected:
 };
 
 TEST_P(FusePagedQSAIndexerQueryTest, AbsorbsOnlyCompatibleQuerySteps) {
-    model = make_query_model(GetParam(), false);
-    model_ref = make_query_model(GetParam(), true);
+    model = getQueryModel(GetParam());
+    model_ref = getQueryModelRef(GetParam());
 }
 
 const std::vector<QueryOptions> query_cases = [] {
@@ -668,6 +701,10 @@ const std::vector<QueryOptions> query_cases = [] {
     o.rope_rows_target = {0, 1, 1, rotary_dim};
     o.rope_rows_special_zero = true;
     cases.push_back(o);
+    o = QueryOptions{"multiple_rope_rows_preserved"};
+    o.rope_length = 2;
+    o.rope_rows_target = {-1, 1, 2, rotary_dim};
+    cases.push_back(o);
     o = QueryOptions{"multiple_rope_rows"};
     o.rope_length = 2;
     o.rope_rows_target = {-1, 1, 1, rotary_dim};
@@ -691,8 +728,8 @@ INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
 TEST_F(TransformationTestsF, FuseQSAIndexerQueryAfterNopElimination) {
     QueryOptions options;
     options.rope_length = 1;
-    model = make_query_model(options, false);
-    model_ref = make_query_model(options, true);
+    model = getQueryModel(options);
+    model_ref = getQueryModelRef(options);
 
     pass::NopElimination nop_elimination;
     ASSERT_TRUE(nop_elimination.run_on_model(model));
@@ -726,7 +763,7 @@ TEST_F(TransformationTestsF, FuseQSAIndexerQueryRejectsDynamicRoPERowsTarget) {
     QueryOptions options;
     options.rope_length = 1;
     options.rope_rows_target = {-1, 1, 1, rotary_dim};
-    model = make_query_model(options, false);
+    model = getQueryModel(options);
 
     const auto other = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1});
     const auto target =
@@ -755,9 +792,7 @@ TEST_F(TransformationTestsF, FuseQSAIndexerQueryRejectsDynamicRoPERowsTarget) {
     manager.register_pass<pass::FuseQSAIndexerQuery>();
 }
 
-std::shared_ptr<Model> make_mixed_query_model(const QueryOptions& options, bool dense_fused, bool paged_fused) {
-    const auto mixed = make_query_model(options, paged_fused);
-    const auto dense = make_query_model<op_internal::QSAIndexer>(options, dense_fused);
+std::shared_ptr<Model> combine_query_models(const std::shared_ptr<Model>& mixed, const std::shared_ptr<Model>& dense) {
     mixed->add_parameters(dense->get_parameters());
     mixed->add_results(dense->get_results());
     return mixed;
@@ -766,8 +801,8 @@ std::shared_ptr<Model> make_mixed_query_model(const QueryOptions& options, bool 
 TEST_F(TransformationTestsF, FuseQSAIndexerQueryHandlesMixedRoPERowsAdapters) {
     QueryOptions options;
     options.rope_length = 1;
-    model = make_mixed_query_model(options, false, false);
-    model_ref = make_mixed_query_model(options, true, true);
+    model = combine_query_models(getQueryModel(options), getQueryModel<op_internal::QSAIndexer>(options));
+    model_ref = combine_query_models(getQueryModelRef(options), getQueryModelRef<op_internal::QSAIndexer>(options));
 
     size_t rope_count = 0;
     for (const auto& node : model->get_ops()) {
@@ -790,8 +825,9 @@ TEST_F(TransformationTestsF, FuseQSAIndexerQueryHandlesMixedRoPERowsAdapters) {
 }
 
 TEST_F(TransformationTestsF, FuseQSAIndexerQueryHandlesDenseAndPagedIndexersIdempotently) {
-    model = make_mixed_query_model(QueryOptions{}, false, false);
-    model_ref = make_mixed_query_model(QueryOptions{}, true, true);
+    model = combine_query_models(getQueryModel(QueryOptions{}), getQueryModel<op_internal::QSAIndexer>(QueryOptions{}));
+    model_ref = combine_query_models(getQueryModelRef(QueryOptions{}),
+                                     getQueryModelRef<op_internal::QSAIndexer>(QueryOptions{}));
     comparator.enable(FunctionsComparator::ATTRIBUTES);
     comparator.enable(FunctionsComparator::CONST_VALUES);
     manager.register_pass<pass::FuseQSAIndexerQuery>();
@@ -801,8 +837,8 @@ TEST_F(TransformationTestsF, FuseQSAIndexerQueryHandlesDenseAndPagedIndexersIdem
 TEST_F(TransformationTestsF, FuseQSAIndexerQueryIgnoresInactiveNormWeights) {
     QueryOptions options;
     options.non_unit_unused_weight = true;
-    model = make_mixed_query_model(options, false, false);
-    model_ref = make_mixed_query_model(options, true, true);
+    model = combine_query_models(getQueryModel(options), getQueryModel<op_internal::QSAIndexer>(options));
+    model_ref = combine_query_models(getQueryModelRef(options), getQueryModelRef<op_internal::QSAIndexer>(options));
     comparator.enable(FunctionsComparator::ATTRIBUTES);
     comparator.enable(FunctionsComparator::CONST_VALUES);
     manager.register_pass<pass::FuseQSAIndexerQuery>();
@@ -813,8 +849,8 @@ TEST_F(TransformationTestsF, FuseQSAIndexerQueryNormIgnoresEnabledQueryRoPE) {
     options.with_rope = false;
     options.absorb_rope = false;
     options.indexer_query_rope = true;
-    model = make_mixed_query_model(options, false, false);
-    model_ref = make_mixed_query_model(options, true, true);
+    model = combine_query_models(getQueryModel(options), getQueryModel<op_internal::QSAIndexer>(options));
+    model_ref = combine_query_models(getQueryModelRef(options), getQueryModelRef<op_internal::QSAIndexer>(options));
     comparator.enable(FunctionsComparator::ATTRIBUTES);
     comparator.enable(FunctionsComparator::CONST_VALUES);
     manager.register_pass<pass::FuseQSAIndexerQuery>();
@@ -825,8 +861,8 @@ TEST_F(TransformationTestsF, FuseQSAIndexerQueryRoPEIgnoresEnabledQueryNorm) {
     options.with_norm = false;
     options.absorb_norm = false;
     options.indexer_query_norm = true;
-    model = make_mixed_query_model(options, false, false);
-    model_ref = make_mixed_query_model(options, true, true);
+    model = combine_query_models(getQueryModel(options), getQueryModel<op_internal::QSAIndexer>(options));
+    model_ref = combine_query_models(getQueryModelRef(options), getQueryModelRef<op_internal::QSAIndexer>(options));
     comparator.enable(FunctionsComparator::ATTRIBUTES);
     comparator.enable(FunctionsComparator::CONST_VALUES);
     manager.register_pass<pass::FuseQSAIndexerQuery>();
@@ -842,8 +878,8 @@ TEST_F(TransformationTestsF, FuseQSAIndexerQueryKeepsSharedQueryReshape) {
         }
         return m;
     };
-    model = share_query_reshape(make_query_model(QueryOptions{}, false));
-    model_ref = share_query_reshape(make_query_model(QueryOptions{}, false));
+    model = share_query_reshape(getQueryModel(QueryOptions{}));
+    model_ref = share_query_reshape(getQueryModel(QueryOptions{}));
     comparator.enable(FunctionsComparator::ATTRIBUTES);
     manager.register_pass<pass::FuseQSAIndexerQuery>();
 }
@@ -913,8 +949,8 @@ void broadcast_query_rope_rows(const std::shared_ptr<Model>& query_model, const 
 }
 
 TEST_F(TransformationTestsF, FuseQSAIndexerQueryRoPEAcceptsBatchBroadcast) {
-    model = make_query_model(QueryOptions{}, false);
-    model_ref = make_query_model(QueryOptions{}, true);
+    model = getQueryModel(QueryOptions{});
+    model_ref = getQueryModelRef(QueryOptions{});
     broadcast_query_rope_rows(model, {2, 2, rotary_dim});
     broadcast_query_rope_rows(model_ref, {2, 2, rotary_dim});
     comparator.enable(FunctionsComparator::ATTRIBUTES);
@@ -922,10 +958,10 @@ TEST_F(TransformationTestsF, FuseQSAIndexerQueryRoPEAcceptsBatchBroadcast) {
     manager.register_pass<pass::FuseQSAIndexerQuery>();
 }
 
-// The CPU pipeline runs ConvertBroadcast3 before the query fusion.
+// ConvertBroadcast3 can run before the query fusion.
 TEST_F(TransformationTestsF, FuseQSAIndexerQueryRoPEAcceptsOpset1BatchBroadcast) {
-    model = make_query_model(QueryOptions{}, false);
-    model_ref = make_query_model(QueryOptions{}, true);
+    model = getQueryModel(QueryOptions{});
+    model_ref = getQueryModelRef(QueryOptions{});
     broadcast_query_rope_rows<v1::Broadcast>(model, {2, 2, rotary_dim});
     broadcast_query_rope_rows<v1::Broadcast>(model_ref, {2, 2, rotary_dim});
     comparator.enable(FunctionsComparator::ATTRIBUTES);
@@ -936,8 +972,11 @@ TEST_F(TransformationTestsF, FuseQSAIndexerQueryRoPEAcceptsOpset1BatchBroadcast)
 class FuseQSAIndexerQueryModeTest : public TransformationTestsF, public testing::WithParamInterface<bool> {};
 
 TEST_P(FuseQSAIndexerQueryModeTest, FusesOnlySelectedIndexerType) {
-    model = make_mixed_query_model(QueryOptions{}, false, false);
-    model_ref = make_mixed_query_model(QueryOptions{}, !GetParam(), GetParam());
+    const QueryOptions options;
+    model = combine_query_models(getQueryModel(options), getQueryModel<op_internal::QSAIndexer>(options));
+    model_ref = combine_query_models(GetParam() ? getQueryModelRef(options) : getQueryModel(options),
+                                     GetParam() ? getQueryModel<op_internal::QSAIndexer>(options)
+                                                : getQueryModelRef<op_internal::QSAIndexer>(options));
     comparator.enable(FunctionsComparator::ATTRIBUTES);
     comparator.enable(FunctionsComparator::CONST_VALUES);
     if (GetParam()) {
@@ -972,8 +1011,11 @@ TEST_P(FuseQSAIndexerQueryPolicyTest, HonorsIndividualMatcherConfiguration) {
     options.affine = !policy.norm;
     options.absorb_norm = policy.norm;
     options.absorb_rope = !policy.norm;
-    model = make_mixed_query_model(options, false, false);
-    model_ref = make_mixed_query_model(options, policy.callback && policy.paged, policy.callback && !policy.paged);
+    model = combine_query_models(getQueryModel(options), getQueryModel<op_internal::QSAIndexer>(options));
+    model_ref =
+        combine_query_models(policy.callback && !policy.paged ? getQueryModelRef(options) : getQueryModel(options),
+                             policy.callback && policy.paged ? getQueryModelRef<op_internal::QSAIndexer>(options)
+                                                             : getQueryModel<op_internal::QSAIndexer>(options));
     comparator.enable(FunctionsComparator::ATTRIBUTES);
     comparator.enable(FunctionsComparator::CONST_VALUES);
     manager.register_pass<pass::FuseQSAIndexerQuery>();

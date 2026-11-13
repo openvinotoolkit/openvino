@@ -22,8 +22,8 @@ namespace ov::pass {
  * @ingroup ov_transformation_common_api
  * @brief Fuses QSAPrepare and SparseAttentionIndexer into the stateful internal QSAIndexer op, leaving query-side
  * RMSNorm and RoPE outside the op (query_norm and query_rope disabled).
- * QSAIndexer is backend-neutral; execution requires a device implementation. The GPU implementation supports
- * f16 inputs and a single index-key/selection head.
+ * The disabled flags are intermediate fusion states only: query preprocessing must be absorbed by
+ * FuseQSAIndexerQuery and both flags must be true before the indexer is executed.
  *
  *        Query  RawKeys cos/sin ... KeyLength           Query
  *          │       │       │            │                 │
@@ -68,8 +68,8 @@ public:
  *   x ─► RoPE(input_trans0213) ─► Transpose(0, 2, 1, 3) ─► QSAIndexer   ──►   x ─► QSAIndexer(query_rope)
  *
  * The RoPE is the plain rotate-half RoPE of the QSAIndexer rotary dimension, with Unsqueeze(axis=1) of the
- * QSAIndexer cos / sin (before their batch Broadcast). A Reshape with a constant target from [tokens, 1, D] to
- * [tokens, 1, 1, D] is also supported when D is static and positive. It is fused while query_rope is disabled.
+ * QSAIndexer cos / sin (before their batch Broadcast). A Reshape with a constant target from [B, L, D] to
+ * [B, 1, L, D] is also supported when L and D are static and positive. It is fused while query_rope is disabled.
  * QSAIndexer normalizes before it rotates, so it must run before FuseQSAIndexerQueryNorm, as FuseQSAIndexerQuery
  * does; the query_norm of the matched indexer is not checked.
  * The PagedQSAIndexer specialization requires the layout adapters produced by PagedQSAIndexerFusion:
@@ -122,8 +122,7 @@ public:
  * @ingroup ov_transformation_common_api
  * @brief Absorbs canonical query RMS and RoPE into dense and paged QSA indexers.
  *
- * Register after the plugin's RMSFusion and RoPEFusion, before passes that combine or decompose RMS/RoPE.
- * This pass is not registered in the device plugin pipelines.
+ * Register after RMSFusion and RoPEFusion, before passes that combine or decompose RMS/RoPE.
  * Does not run those model-wide canonicalization passes itself. Runs the dense and paged FuseQSAIndexerQueryRoPE
  * over the whole model first and FuseQSAIndexerQueryNorm second, with the caller's PassConfig, since QSAIndexer
  * normalizes before it rotates. Specializations share PassConfig callbacks and disable settings.

@@ -47,7 +47,10 @@
 #include <openvino/op/paged_sparse_attention.hpp>
 #include <openvino/op/parameter.hpp>
 #include <openvino/op/read_value.hpp>
+#include <openvino/op/reshape.hpp>
 #include <openvino/op/result.hpp>
+#include <openvino/op/transpose.hpp>
+#include <openvino/op/unsqueeze.hpp>
 #include <openvino/op/util/variable.hpp>
 #include <set>
 #include <sstream>
@@ -58,6 +61,8 @@
 #include "openvino/op/paged_qsa_indexer.hpp"
 #include "openvino/op/qsa_indexer.hpp"
 #include "openvino/runtime/core.hpp"
+#include "ov_ops/rms.hpp"
+#include "ov_ops/rotary_positional_embeddings.hpp"
 #include "primitive_inst.h"
 #include "random_generator.hpp"
 #include "test_utils.h"
@@ -2446,6 +2451,55 @@ TEST_P(QSAIndexerPluginTest, LowersFusionOutputAndImportsCompiledModel) {
     run(restored);
 }
 
+TEST_P(QSAIndexerPluginTest, AbsorbsQueryPreprocessingBeforeLowering) {
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
+    }
+
+    const split_dims d;
+    const auto query = make_param({1, 2, I(d.Hiq), I(d.Di)});
+    const auto cos = make_param({1, 2, I(d.rotary)});
+    const auto sin = make_param({1, 2, I(d.rotary)});
+    const auto i64 = [](const std::vector<int64_t>& values) {
+        return ov::op::v0::Constant::create(ov::element::i64, ov::Shape{values.size()}, values);
+    };
+    const auto rms = std::make_shared<ov::op::internal::RMS>(query, d.eps, ov::element::f16, -1);
+    ov::op::internal::RoPE::Config rope_config;
+    rope_config.rotary_ndims = d.rotary;
+    rope_config.input_trans0213 = true;
+    const auto rope = std::make_shared<ov::op::internal::RoPE>(
+        ov::OutputVector{rms, std::make_shared<ov::op::v0::Unsqueeze>(cos, i64({1})), std::make_shared<ov::op::v0::Unsqueeze>(sin, i64({1}))},
+        rope_config);
+    const auto query_blhd = std::make_shared<ov::op::v1::Transpose>(rope, i64({0, 2, 1, 3}));
+    auto args = GetParam() ? make_paged_indexer_args(d, 8, d.page_size / d.r) : make_dense_indexer_args(d);
+    std::shared_ptr<ov::Node> indexer;
+    if (GetParam()) {
+        args[PagedIn::INDEX_QUERY] = std::make_shared<ov::op::v1::Reshape>(query_blhd, i64({-1, I(d.Hiq * d.Di)}), false);
+        args[PagedIn::ROPE_COS] = std::make_shared<ov::op::v1::Reshape>(cos, i64({-1, I(d.rotary)}), false);
+        args[PagedIn::ROPE_SIN] = std::make_shared<ov::op::v1::Reshape>(sin, i64({-1, I(d.rotary)}), false);
+        auto config = make_paged_indexer_config(d);
+        config.query_norm = config.query_rope = false;
+        indexer = std::make_shared<ov::op::internal::PagedQSAIndexer>(args, config);
+    } else {
+        args[DenseIdxIn::INDEX_QUERY] = query_blhd;
+        args[DenseIdxIn::ROPE_COS] = cos;
+        args[DenseIdxIn::ROPE_SIN] = sin;
+        auto config = make_dense_indexer_config(d);
+        config.query_norm = config.query_rope = false;
+        indexer = std::make_shared<ov::op::internal::QSAIndexer>(args, config);
+    }
+    ov::ParameterVector parameters{query, cos, sin};
+    for (size_t i = 0; i < args.size(); ++i) {
+        if (i == DenseIdxIn::INDEX_QUERY || i == DenseIdxIn::ROPE_COS || i == DenseIdxIn::ROPE_SIN) {
+            continue;
+        }
+        parameters.push_back(ov::as_type_ptr<ov::op::v0::Parameter>(args[i].get_node_shared_ptr()));
+    }
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{indexer->output(0), indexer->output(1)}, parameters);
+    ov::Core core;
+    EXPECT_NO_THROW(core.compile_model(model, "GPU", ov::hint::inference_precision(ov::element::f16)));
+}
+
 INSTANTIATE_TEST_SUITE_P(QSA,
                          QSAIndexerPluginTest,
                          ::testing::Bool(),
@@ -2755,6 +2809,32 @@ void expect_compile_error(ov::Core& core, const std::shared_ptr<ov::Node>& op, c
         ADD_FAILURE() << "compile_model unexpectedly succeeded; expected an error containing '" << needle << "'";
     } catch (const ov::Exception& e) {
         EXPECT_NE(std::string(e.what()).find(needle), std::string::npos) << e.what();
+    }
+}
+
+TEST(qsa_ops_gpu_test, plugin_rejects_incomplete_query_fusion) {
+    ov::Core core;
+    if (!gpu_in_core(core)) {
+        GTEST_SKIP() << "GPU plugin is not available in ov::Core";
+    }
+    const split_dims d;
+    for (const bool paged : {false, true}) {
+        for (const auto& [norm, rope] : {std::pair{false, false}, std::pair{false, true}, std::pair{true, false}}) {
+            SCOPED_TRACE(::testing::Message() << "paged=" << paged << " norm=" << norm << " rope=" << rope);
+            std::shared_ptr<ov::Node> indexer;
+            if (paged) {
+                auto config = make_paged_indexer_config(d);
+                config.query_norm = norm;
+                config.query_rope = rope;
+                indexer = std::make_shared<ov::op::internal::PagedQSAIndexer>(make_paged_indexer_args(d, 8, d.page_size / d.r), config);
+            } else {
+                auto config = make_dense_indexer_config(d);
+                config.query_norm = norm;
+                config.query_rope = rope;
+                indexer = std::make_shared<ov::op::internal::QSAIndexer>(make_dense_indexer_args(d), config);
+            }
+            expect_compile_error(core, indexer, {}, "only query_norm == true and query_rope == true are supported");
+        }
     }
 }
 
