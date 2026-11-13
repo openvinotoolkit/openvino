@@ -9,6 +9,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_device.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_dynamic_infer_request.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_dynamic_pipeline.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_execution_list.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_infer_request.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_pipeline.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_profiling.hpp
@@ -17,6 +18,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_device.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_dynamic_infer_request.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_dynamic_pipeline.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_execution_list.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_infer_request.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_pipeline.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_profiling.cpp

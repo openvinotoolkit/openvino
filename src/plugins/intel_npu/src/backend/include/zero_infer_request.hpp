@@ -49,6 +49,9 @@ public:
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
 
 protected:
+    // Records the graph of this request, with its tensors, into a command list shared with other requests
+    friend class ZeroExecutionList;
+
     /**
      * @see ov::ISyncInferRequest
      */
@@ -103,6 +106,12 @@ protected:
 
     virtual void prepare_inputs();
     virtual void prepare_outputs();
+
+    /**
+     * @brief Makes the outputs of a finished inference available in the user tensors. Part of get_result(), after
+     * the inference has completed and before the pipeline is reset.
+     */
+    void update_user_outputs();
 
     /**
      * @brief Basic checks for input/output tensor
@@ -164,6 +173,8 @@ protected:
     std::unique_ptr<IPipeline> _pipeline;
     bool _pipelineIsCreated = false;
     bool _dynamicBatchValueChanged = false;
+    // Set by ZeroExecutionList, the request then gets an ExternalPipeline that never records or submits
+    bool _executedByExecutionList = false;
 
     Logger _logger;
 
