@@ -5314,21 +5314,20 @@ protected:
         constexpr int in_xy = 5;
         constexpr int k = 3;
         constexpr int pad = 1;
-        constexpr int out_xy = in_xy + 2 * pad - k + 1;
+
+        tests::random_generator rg(GET_SUITE_NAME);
+        auto input_rnd = rg.generate_random_4d<T>(p.batch, p.input_features, in_xy, in_xy, -0.5, 0.5);
+        auto weights_rnd = rg.generate_random_4d<T>(p.output_features, p.input_features, k, k, -0.5, 0.5);
+        auto bias_rnd = rg.generate_random_1d<T>(p.output_features, -0.5, 0.5);
 
         const layout in_layout{ov::PartialShape{p.batch, p.input_features, in_xy, in_xy}, p.data_type, format::bfyx};
         const layout w_layout{ov::PartialShape{p.output_features, p.input_features, k, k}, p.data_type, format::bfyx};
         const layout b_layout{ov::PartialShape{1, p.output_features, 1, 1}, p.data_type, format::bfyx};
 
-        tests::random_generator rg(GET_SUITE_NAME);
-        auto input_vals = rg.generate_random_1d<T>(in_layout.count(), -0.5, 0.5);
-        auto weights_vals = rg.generate_random_1d<T>(w_layout.count(), -0.5, 0.5);
-        auto bias_vals = rg.generate_random_1d<T>(b_layout.count(), -0.5, 0.5);
-
         auto input = engine.allocate_memory(in_layout);
         auto weights = engine.allocate_memory(w_layout);
-        set_values(input, input_vals);
-        set_values(weights, weights_vals);
+        set_values(input, flatten_4d(format::bfyx, input_rnd));
+        set_values(weights, flatten_4d(format::bfyx, weights_rnd));
 
         topology topology;
         topology.add(input_layout("input", in_layout));
@@ -5337,7 +5336,7 @@ protected:
         std::string bias_id = no_bias;
         if (p.with_bias) {
             auto bias = engine.allocate_memory(b_layout);
-            set_values(bias, bias_vals);
+            set_values(bias, bias_rnd);
             topology.add(data("bias", bias));
             bias_id = "bias";
         }
@@ -5361,26 +5360,14 @@ protected:
         const float tolerance = p.data_type == data_types::f16 ? 1e-2f : 1e-4f;
         for (int b = 0; b < p.batch; ++b) {
             for (int of = 0; of < p.output_features; ++of) {
-                for (int y = 0; y < out_xy; ++y) {
-                    for (int x = 0; x < out_xy; ++x) {
-                        float expected = p.with_bias ? static_cast<float>(bias_vals[of]) : 0.f;
-                        for (int ifm = 0; ifm < p.input_features; ++ifm) {
-                            for (int ky = 0; ky < k; ++ky) {
-                                const int iy = y + ky - pad;
-                                if (iy < 0 || iy >= in_xy)
-                                    continue;
-                                for (int kx = 0; kx < k; ++kx) {
-                                    const int ix = x + kx - pad;
-                                    if (ix < 0 || ix >= in_xy)
-                                        continue;
-                                    const size_t in_idx = ((b * p.input_features + ifm) * in_xy + iy) * in_xy + ix;
-                                    const size_t w_idx = ((of * p.input_features + ifm) * k + ky) * k + kx;
-                                    expected += static_cast<float>(input_vals[in_idx]) * static_cast<float>(weights_vals[w_idx]);
-                                }
-                            }
-                        }
-                        const size_t out_idx = ((b * p.output_features + of) * out_xy + y) * out_xy + x;
-                        ASSERT_NEAR(expected, output_ptr[out_idx], tolerance)
+                const float bias_val = p.with_bias ? static_cast<float>(bias_rnd[of]) : 0.f;
+                auto expected = reference_convolve<T, float, T, float>(input_rnd[b], weights_rnd[of], 1, 1, bias_val, 1, 1, pad, pad);
+                const size_t out_y = expected.size();
+                const size_t out_x = expected[0].size();
+                for (size_t y = 0; y < out_y; ++y) {
+                    for (size_t x = 0; x < out_x; ++x) {
+                        const size_t out_idx = (static_cast<size_t>(b * p.output_features + of) * out_y + y) * out_x + x;
+                        ASSERT_NEAR(expected[y][x], output_ptr[out_idx], tolerance)
                             << "b=" << b << " f=" << of << " y=" << y << " x=" << x;
                     }
                 }
@@ -5418,6 +5405,25 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                              convolution_yxfb_yxio_b16_params{data_types::f32, 32, 4, 24, true},
                              convolution_yxfb_yxio_b16_params{data_types::f32, 64, 4, 32, false}),
                          convolution_yxfb_yxio_b16_accuracy::get_test_name);
+
+TEST(convolution_yxfb_yxio_b16, f32_ofm_not_multiple_of_ofm_per_work_item_is_rejected) {
+    auto& engine = get_test_engine();
+
+    const layout in_layout{ov::PartialShape{64, 8, 5, 5}, data_types::f32, format::bfyx};
+    auto weights = engine.allocate_memory({ov::PartialShape{4, 8, 3, 3}, data_types::f32, format::bfyx});
+
+    topology topology(input_layout("input", in_layout),
+                      data("weights", weights),
+                      reorder("input_yxfb", input_info("input"), format::yxfb, data_types::f32),
+                      convolution("conv", input_info("input_yxfb"), "weights", no_bias, 1, {1, 1}, {1, 1}, {1, 1}, {1, 1}, false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    ov::intel_gpu::ImplementationDesc conv_impl = {format::yxfb, "convolution_gpu_yxfb_yxio_b16", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv", conv_impl}}));
+
+    ASSERT_ANY_THROW(network net(engine, topology, config));
+}
 
 using TestParamType_convolution_gpu = ::testing::tuple<int,   // 0 - Filter size
                                                        int,   // 1 - Input features

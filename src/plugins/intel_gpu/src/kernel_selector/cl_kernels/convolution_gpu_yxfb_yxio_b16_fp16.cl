@@ -91,7 +91,7 @@ KERNEL(convolution_gpu_yxfb_yxio_b16)(
                     input_idx += INPUT0_OFFSET + g * FILTER_IFM_NUM * INPUT0_FEATURE_PITCH;
                     input_idx += out_batch_id;
 
-                    //sub_group_id used as offset to make each workitem load different filter, and then shuffle it
+                    //filter_lane used as offset to make each workitem load different filter, and then shuffle it
                     // 2 * filter_lane is used because we group 2 halfs as one uint element.
                     uint filter_idx = ofm_offset + 2*filter_lane + i*FILTER_Y_PITCH + j*FILTER_X_PITCH;
 
