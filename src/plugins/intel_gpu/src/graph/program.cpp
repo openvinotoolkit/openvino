@@ -8,6 +8,7 @@
 #include "registry/implementation_manager.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/weights_prefetch.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/util/file_util.hpp"
@@ -38,6 +39,7 @@
 #include "reorg_yolo_inst.h"
 #include "eltwise_inst.h"
 #include "non_zero_inst.h"
+#include "random_uniform_inst.h"
 #include "softmax_inst.h"
 #include "permute_inst.h"
 #include "custom_gpu_primitive_inst.h"
@@ -648,7 +650,9 @@ void program::post_optimize_graph(bool is_internal) {
 
 // mark if the node is constant assuming that all dependencies are marked properly
 void program::mark_if_constant(program_node& node) {
-    if (node.get_dependencies().empty() || node.is_type<assign>() || node.is_type<read_value>() || node.is_type<gather_nonzero>()) {
+    // RandomUniform must produce a new sequence on every inference, so it must never be folded into a constant
+    if (node.get_dependencies().empty() || node.is_type<assign>() || node.is_type<read_value>() || node.is_type<gather_nonzero>() ||
+        node.is_type<random_uniform>()) {
         return;
     }
     node.constant = true;
@@ -2033,6 +2037,10 @@ void program::load(cldnn::BinaryInputBuffer& ib,
                                               ib.get_stream_size(),
                                               allocation_type::usm_host,
                                               layout({{static_cast<tensor::value_type>(ib.get_stream_size()), 1, 1, 1}, data_types::u8, format::bfyx}));
+        // Weights become sub-buffers of the blob, so its pages must stay resident.
+        if (auto* prefetch_buf = dynamic_cast<ov::intel_gpu::PrefetchStreamBuf*>(ib.get_streambuf())) {
+            prefetch_buf->keep_read_data();
+        }
     }
 
     size_t num_nodes;

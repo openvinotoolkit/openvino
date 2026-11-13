@@ -293,6 +293,7 @@ public:
 
 // UntangleConst
 void untangleConst(std::shared_ptr<ov::Model> model);
+void untangleWeightConverts(const std::shared_ptr<ov::Model>& model);
 
 }  // namespace opt
 }  // namespace patterns

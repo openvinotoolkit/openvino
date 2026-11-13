@@ -26,9 +26,12 @@ public:
     // the bug is e.g. manifesting on the old CentOS (and it's 4.8.x gcc) used in our testing
     // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81880
     static thread_local const char*         m_this_preferred_device_name;
+    // set when the scheduler cannot dispatch a request, rethrown by the scheduling stage of the pipeline
+    static thread_local std::exception_ptr  m_this_scheduling_exception;
 
 protected:
     virtual void init() = 0;
+    virtual void release_execution_slot() {}
     static bool run_pipeline_task(ov::threading::Task& pipeline_task, NotBusyPriorityWorkerRequests& idle_worker_request,
                                   const DeviceName& preferred_device);
     virtual void generate_workers(const std::string& device, const SoCompiledModel& compiled_model);
@@ -40,6 +43,8 @@ protected:
     std::shared_ptr<ov::threading::IStreamsExecutor>                     m_executor;
     DeviceMap<NotBusyPriorityWorkerRequests>                             m_idle_worker_requests;
     DeviceMap<std::vector<WorkerInferRequest>>                           m_worker_requests;
+    // start/end times of the workers released with their compiled model, merged into the summary of ~Schedule()
+    DeviceMap<std::pair<std::list<Time>, std::list<Time>>>               m_released_infer_times;
     TaskQueue                                                            m_infer_pipeline_tasks;
     DeviceMap<std::unique_ptr<TaskQueue>>                                m_infer_pipeline_tasks_device_specific;
     SoCompiledModel                                                      m_passthrough_compiled_model;
@@ -49,6 +54,8 @@ protected:
     Time                                                                 m_cpuhelp_release_time;
     mutable std::atomic<std::size_t>                                     m_request_id = {0};
     std::mutex                                                           m_dev_infer_mutex;
+    // dynamic selection only: written before the execution slot is released, read by the next dispatch
+    double                                                               m_last_infer_ms = -1.0;
     std::unordered_map<IASyncInferPtr, WorkerInferRequest*>              m_dev_infer;
 };
 

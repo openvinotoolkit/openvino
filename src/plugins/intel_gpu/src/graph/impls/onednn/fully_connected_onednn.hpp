@@ -10,6 +10,7 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include <memory>
 #include <cmath>
+#include <numeric>
 
 #define LOG_AND_RETURN_FALSE(node) do {                                         \
     GPU_DEBUG_TRACE << (node).id() << " :  Do not select onednn" << std::endl;  \
@@ -92,11 +93,30 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
                 }
             }
 
+            // oneDNN requires every non-unit stride of a sub-byte weights descriptor to hold a whole number of bytes.
+            // The row stride equals the innermost (padded) dimension, so reject weights whose innermost dimension
+            // doesn't fill whole bytes and let another FC implementation handle them.
+            // Constant u4/i4 weights are padded later by prepare_padding (only when oneDNN is preferred), so keep them here.
+            const auto& wei_node = fc_node.weights();
+            const bool padded_later = one_of(wei_dt, {data_types::u4, data_types::i4}) && wei_node.is_constant() && wei_node.is_type<data>();
+            if (const auto wei_bits = ov::element::Type(wei_dt).bitwidth(); wei_bits < 8 && !padded_later) {
+                const auto wei_layout = fc_node.weights().get_output_layout(false);
+                if (wei_layout.is_static()) {
+                    const auto elems_per_byte = std::lcm<size_t>(wei_bits, 8) / wei_bits;
+                    const auto last = static_cast<size_t>(get_compressed_weights_rank(wei_layout) - 1);
+                    const auto& padding = wei_layout.data_padding;
+                    const size_t innermost = wei_layout.get_dim(last) + padding._lower_size[last] + padding._upper_size[last];
+                    if (innermost > 1 && innermost % elems_per_byte != 0) {
+                        LOG_AND_RETURN_FALSE(node);
+                    }
+                }
+            }
+
             // Reject u2 scale grouping oneDNN can't handle here, so another FC impl is selected instead.
             if (wei_dt == data_types::u2 && fc_prim->decompression_scale.is_valid()) {
                 const auto& scale_layout = fc_node.get_input_layout(fc_prim->bias.is_valid() ? 3 : 2);
                 const auto groups = get_scale_groups(fc_node.weights().get_output_layout(false), scale_layout,
-                                                     fc_prim->weights_transposed, fc_prim->transpose_b_scale);
+                                                     fc_prim->weights_transposed);
                 if (!is_supported_scale_group(groups.first, groups.second)) {
                     LOG_AND_RETURN_FALSE(node);
                 }
@@ -120,12 +140,27 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
 
     in_out_fmts_t query_formats(const program_node& node) const override {
         assert(node.is_type<fully_connected>());
+        const auto& fc_node = node.as<fully_connected>();
+        const auto& fc_prim = fc_node.get_primitive();
         std::vector<format::type> in_fmts(node.get_dependencies().size(), format::any);
         std::vector<format::type> out_fmts(node.get_outputs_count(), format::any);
 
         size_t out_rank = node.get_output_layout().get_rank();
-        for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
+        for (size_t idx = 0; idx < node.get_dependencies().size(); idx++) {
             if (node.get_dependency(idx).is_constant()) {
+                continue;
+            }
+            const size_t scale_idx = fc_prim->bias.is_valid() ? 3 : 2;
+            const size_t zp_idx = scale_idx + 1;
+            const bool is_decompression_parameter =
+                ((fc_prim->decompression_scale.is_valid() && idx == scale_idx) || (fc_prim->decompression_zero_point.is_valid() && idx == zp_idx));
+            if (is_decompression_parameter) {
+                const auto& in_layout = node.get_input_layout(idx);
+                const bool is_blocked = format::is_blocked(in_layout.format);
+                // oneDNN binds scale/zp as a flat format_tag::a buffer, so only plain layouts can be passed through.
+                // Keep plain permutations (e.g. fbyx from prepare_quantization); reorder blocked layouts to plain.
+                in_fmts[idx] = is_blocked ? format::get_default_format(in_layout.get_rank()).value : in_layout.format.value;
+                GPU_DEBUG_LOG << node.id() << " : " << (is_blocked ? "Reorder blocked" : "Keep plain") << " scale/zp format at index " << idx << std::endl;
                 continue;
             }
 
