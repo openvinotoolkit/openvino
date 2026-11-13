@@ -285,7 +285,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         };
 
         // u2 GNK weights can be passed to the CM kernel as is (scale / zp [G, N]) instead of being permuted to NK.
-        if (has_transpose_before_reshape && !pattern_map.count(weights_reshape_m) && with_zero_point &&
+        if (has_transpose_before_reshape && pattern_map.count(weights_reshape_m) == 0 && with_zero_point &&
             is_gnk_u2_pattern(fc,
                               weight_ptr,
                               pattern_map.at(transpose_const_m).get_node_shared_ptr(),
