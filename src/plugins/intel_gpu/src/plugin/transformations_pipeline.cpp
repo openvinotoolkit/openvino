@@ -2062,7 +2062,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
                 for (size_t i = 0 ; i < root->get_input_node_shared_ptr(0)->get_output_size(); ++i) {
                     if (root->get_input_node_shared_ptr(0)->get_output_element_type(i) == ov::element::Type_t::f32) {
-                        GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: input type is not supported" << std::endl;
+                        GPU_DEBUG_TAGGED(TRACE, "dynquan") << root->get_friendly_name() << " turned off: f32 input is not supported" << std::endl;
                         return true;
                     }
                 }
@@ -2081,7 +2081,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 const auto& input_shape = root->get_input_partial_shape(0);
                 const size_t input_rank = input_shape.size();
                 if (input_rank > 3) {
-                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: input rank is not supported" << std::endl;
+                    GPU_DEBUG_TAGGED(TRACE, "dynquan")
+                        << root->get_friendly_name() << " turned off: input rank " << input_rank << " > 3 is not supported" << std::endl;
                     return true;
                 }
 
@@ -2092,24 +2093,24 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 const size_t innermost_size = weight_shape[k_axis].get_length();
                 const size_t simd = 16;
                 if (innermost_size < 32 || (innermost_size % (simd * 2) != 0)) {
-                    GPU_DEBUG_TRACE << root->get_friendly_name()
-                                    << "  dyn_quan is turned off: inner shape is not supported. It is too small or not aligned with simd*2 "
-                                    << innermost_size << std::endl;
+                    GPU_DEBUG_TAGGED(TRACE, "dynquan") << root->get_friendly_name() << " turned off: K " << innermost_size
+                                                       << " is smaller than 32 or not aligned to simd*2 (" << simd * 2 << ")" << std::endl;
                     return true;
                 }
 
                 // AZP does not support grouped size dyn-quan
                 GPU_DEBUG_IF(asymmetric_dyn_quant && (adj_group_size != UINT64_MAX)) {
-                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: asym quantization does not support grouped quantization" <<
-                                                                   " ('DynamicQuantizeAsym' is enabled with grouped size dyn-quan)" << std::endl;
+                    GPU_DEBUG_TAGGED(TRACE, "dynquan")
+                        << root->get_friendly_name() << " turned off: asym_dynamic_quantization does not support grouped quantization (group_size "
+                        << adj_group_size << ")" << std::endl;
                     return true;
                 }
 
                 bool has_wzp = root->get_input_size() > 4;
 
                 if (has_wzp && !cldnn::one_of(root->get_input_element_type(4), {ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4})) {
-                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off:"
-                                                                    " unsupported weight zp type: " << root->get_input_element_type(4) << std::endl;
+                    GPU_DEBUG_TAGGED(TRACE, "dynquan")
+                        << root->get_friendly_name() << " turned off: unsupported weight zp type " << root->get_input_element_type(4) << std::endl;
                     return true;
                 }
 
@@ -2117,9 +2118,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 // the cost of dynamically quantizing its activation
                 const auto& n_dim = weight_shape[n_axis];
                 if (n_dim.is_static() && n_dim.get_length() == 1) {
-                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off:"
-                                                                    " compressed weight with N==1 (activation quantization is unprofitable;"
-                                                                    " keep weight-only quantization with f16 activation)" << std::endl;
+                    GPU_DEBUG_TAGGED(TRACE, "dynquan") << root->get_friendly_name()
+                                                       << " turned off: N == 1 (activation quantization is unprofitable;"
+                                                          " keep weight-only quantization with f16 activation)"
+                                                       << std::endl;
                     return true;
                 }
 
@@ -2128,9 +2130,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             const bool model_allows_group_size = dynamic_quantization_group_size_max >= dynamic_quantization_group_size;
             if (!model_allows_group_size) {
-                GPU_DEBUG_INFO << "dyn_quan is turned off because group_size is larger than max size "
-                               << dynamic_quantization_group_size << "/" << dynamic_quantization_group_size_max << std::endl;
+                GPU_DEBUG_TAGGED(INFO, "dynquan") << "turned off for all FCs: group_size " << dynamic_quantization_group_size
+                                                  << " is larger than dynamic_quantization_group_size_max " << dynamic_quantization_group_size_max << std::endl;
             } else {
+                if (dynamic_quantization_group_size == 0) {
+                    GPU_DEBUG_TAGGED(INFO, "dynquan") << "turned off for all FCs: dynamic_quantization_group_size is 0" << std::endl;
+                }
                 manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size,
                                                                                     asymmetric_dyn_quant,
                                                                                     precomputed_reduction,
@@ -2139,6 +2144,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 // Deduplicate identical DynamicQuantize nodes sharing same input
                 manager.register_pass<ov::pass::SharedOpOptimization>();
             }
+        } else {
+            GPU_DEBUG_TAGGED(INFO, "dynquan") << "graph pass is not used (no XMX or oneDNN disabled); fully_connected_bf_tiled kernel "
+                                              << "quantizes activations internally with group_size " << config.get_dynamic_quantization_group_size()
+                                              << std::endl;
         }
 
         // Remove Pad in front of MaxPool if both the pads_begin and pads_end are zero.
