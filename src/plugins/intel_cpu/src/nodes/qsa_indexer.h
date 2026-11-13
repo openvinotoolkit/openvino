@@ -68,6 +68,8 @@ private:
     // The computation is the cross-compiled executor (AVX-512 / AVX2 / plain C++ by the CPU); the scoring of the blocks
     // runs on the brgemm scorer instead where the CPU, the precision and the head counts allow it.
     ov::intel_cpu::QSAIndexerNode::Config m_config;
+    size_t m_index_query_heads = 0;  // fixed by the model
+    size_t m_index_key_heads = 0;
     std::shared_ptr<ov::Extensions::Cpu::qsa::DenseExecutor> m_executor;
     std::shared_ptr<ov::Extensions::Cpu::qsa::DenseScorer> m_scorer;  // null: the executor scores the blocks itself
     impl_desc_type m_impl = impl_desc_type::ref;

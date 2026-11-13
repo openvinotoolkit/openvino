@@ -108,6 +108,9 @@ QSAIndexer::QSAIndexer(const std::shared_ptr<ov::Node>& op, const GraphContext::
     const auto qsa_indexer = ov::as_type_ptr<const ov::intel_cpu::QSAIndexerNode>(op);
     OPENVINO_ASSERT(qsa_indexer, "Expected QSAIndexer node");
     m_config = qsa_indexer->get_config();
+    // Fixed by the model (isSupportedOperation checked they are static).
+    m_index_query_heads = qsa_indexer->get_index_query_heads();
+    m_index_key_heads = qsa_indexer->get_index_key_heads();
 }
 
 void QSAIndexer::initSupportedPrimitiveDescriptors() {
@@ -141,42 +144,27 @@ void QSAIndexer::initSupportedPrimitiveDescriptors() {
 void QSAIndexer::createPrimitive() {
     const auto precision = getSrcMemoryAtPort(InputIdx::Q_IDX)->getDesc().getPrecision();
     const auto& c = m_config;
-    const ov::Extensions::Cpu::qsa::Config config{
-        c.compress_ratio,
-        c.h_sel,
-        c.block_topk,
-        c.indexer_head_dim,
-        c.indexer_rotary_dim,
-        static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads()),
-        c.eps,
-        QSAIndexerNode::effective_scale(c),
-        precision,
-        c.order_by_score};
+    ov::Extensions::Cpu::qsa::Config config;
+    config.key_block_size = c.compress_ratio;
+    config.num_selection_heads = c.h_sel;
+    config.block_topk = c.block_topk;
+    config.head_dim = c.indexer_head_dim;
+    config.rotary_dim = c.indexer_rotary_dim;
+    config.index_query_heads = m_index_query_heads;
+    config.index_key_heads = m_index_key_heads;
+    config.num_threads = static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads());
+    config.eps = c.eps;
+    config.scale = QSAIndexerNode::effective_scale(c);
+    config.precision = precision;
+    config.order_by_score = c.order_by_score;
     m_executor = ov::Extensions::Cpu::XARCH::make_dense_qsa_executor(config);
     m_impl = qsa_kernel_impl_type();
 #ifdef OPENVINO_ARCH_X86_64
-    // The scoring on brgemm where the CPU, the precision and the head counts allow it; the head counts are static, the
-    // batch and the window are not. The scorer is shared by the layers of the same configuration.
-    const size_t q_heads = getInputShapeAtPort(InputIdx::Q_IDX).getDims()[2];
-    const size_t k_heads = getInputShapeAtPort(InputIdx::K_IDX).getDims()[2];
-    if (q_heads != Shape::UNDEFINED_DIM && k_heads != Shape::UNDEFINED_DIM) {
-        const auto brgemm =
-            ov::Extensions::Cpu::qsa::QsaBrgemm::get(context->getParamsCache(),
-                                                     ov::Extensions::Cpu::qsa::QsaBrgemm::Params{q_heads,
-                                                                                                 k_heads,
-                                                                                                 c.h_sel,
-                                                                                                 c.indexer_head_dim,
-                                                                                                 c.indexer_rotary_dim,
-                                                                                                 c.block_topk,
-                                                                                                 config.num_threads,
-                                                                                                 c.eps,
-                                                                                                 config.scale,
-                                                                                                 precision,
-                                                                                                 c.order_by_score});
-        if (brgemm) {
-            m_scorer = ov::Extensions::Cpu::XARCH::make_dense_qsa_scorer(brgemm, config);
-            m_impl = ov::Extensions::Cpu::qsa::QsaBrgemm::impl_type(precision);
-        }
+    // The scoring on brgemm where the CPU, the precision and the head counts allow it. The scorer is shared by the
+    // layers of the same configuration.
+    if (const auto brgemm = ov::Extensions::Cpu::qsa::QsaBrgemm::get(context->getParamsCache(), config)) {
+        m_scorer = ov::Extensions::Cpu::XARCH::make_dense_qsa_scorer(brgemm);
+        m_impl = ov::Extensions::Cpu::qsa::QsaBrgemm::impl_type(precision);
     }
 #endif
     Node::createPrimitive();
@@ -202,9 +190,11 @@ void QSAIndexer::execute([[maybe_unused]] const dnnl::stream& strm) {
     call.sel_indices.reset(getDstMemoryAtPort(OutputIdx::SEL_INDICES));
     call.sel_count.reset(getDstMemoryAtPort(OutputIdx::SEL_COUNT));
 
-    // The calls that have complete blocks to score go to the brgemm scorer, the other calls are scored by the executor.
-    const bool brgemm = m_scorer && m_scorer->applies(call);
+    m_executor->find_batch_max_params(call);
     size_t scratch_bytes = m_executor->scratch_bytes(call);
+    // A call that has blocks in the summary cache to score goes to the brgemm scorer, the others are scored by the
+    // executor.
+    const bool brgemm = m_scorer && call.summary_cache.size(2) > 0;
     if (brgemm) {
         scratch_bytes = std::max(scratch_bytes, m_scorer->scratch_bytes(call));
     }
@@ -227,6 +217,14 @@ bool QSAIndexer::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
         const auto qsa_indexer = ov::as_type_ptr<const ov::intel_cpu::QSAIndexerNode>(op);
         if (!qsa_indexer) {
             errorMessage = "Only QSAIndexer operation is supported";
+            return false;
+        }
+        // The head counts are fixed once, when the executor is built; the batch and the window may change.
+        const auto& query_ps = op->get_input_partial_shape(InputIdx::Q_IDX);
+        const auto& key_ps = op->get_input_partial_shape(InputIdx::K_IDX);
+        if (query_ps.rank().is_dynamic() || query_ps.size() != 4 || query_ps[2].is_dynamic() ||
+            key_ps.rank().is_dynamic() || key_ps.size() != 4 || key_ps[2].is_dynamic()) {
+            errorMessage = "QSAIndexer CPU implementation requires static head counts.";
             return false;
         }
         static constexpr size_t float_ports[] = {InputIdx::Q_IDX,

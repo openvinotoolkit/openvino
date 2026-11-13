@@ -44,11 +44,10 @@ using ov::intel_cpu::CpuParallel;
 using ov::intel_cpu::CpuParallelPtr;
 using ov::intel_cpu::div_up;
 using ov::intel_cpu::rnd_up;
+using qsa_kernel::batch_entry_plan;
+using qsa_kernel::BatchEntryPlan;
 using qsa_kernel::BlockScore;
 using qsa_kernel::rope_batch;
-using qsa_kernel::row_plan;
-using qsa_kernel::RowPlan;
-using qsa_kernel::RowStats;
 
 constexpr size_t kAlign = 64;
 
@@ -80,8 +79,8 @@ struct ScratchLayout {
     size_t total_bytes;
 
     ScratchLayout(const DenseCall& call, const Config& c)
-        : thread(call.q_idx.size(2), call.q_idx.size(3), c.rotary_dim, call.summary_cache.size(2), c.block_topk),
-          threads_offset(rnd_up(2 * call.q_idx.size(3) * sizeof(float), kAlign)),
+        : thread(c.index_query_heads, c.head_dim, c.rotary_dim, call.summary_cache.size(2), c.block_topk),
+          threads_offset(rnd_up(2 * c.head_dim * sizeof(float), kAlign)),
           total_bytes(threads_offset + c.num_threads * thread.bytes) {}
 };
 
@@ -99,10 +98,10 @@ struct ThreadBuffers {
 // The scratch of a call, bound to its memory.
 template <typename T>
 struct Scratch {
-    Scratch(const DenseCall& call, const ScratchLayout& layout, uint8_t* memory)
+    Scratch(const DenseCall& call, const Config& c, const ScratchLayout& layout, uint8_t* memory)
         : threads(memory + layout.threads_offset),
           m_layout(layout) {
-        const size_t D_idx = call.q_idx.size(3);
+        const size_t D_idx = c.head_dim;
         auto* const norm_weights = reinterpret_cast<float*>(memory);
         q_norm_w = qsa_kernel::row_as_f32(call.q_norm_weight.ptr<T>(), D_idx, norm_weights);
         k_norm_w = qsa_kernel::row_as_f32(call.k_norm_weight.ptr<T>(), D_idx, norm_weights + D_idx);
@@ -133,8 +132,14 @@ private:
 // The pending window of a row is [the `tail` rows of the incomplete-block state | the real tokens of this call].
 // Raw K row at pending position `pos` (a view of the tensor when it is f32, `buf` otherwise):
 template <typename T>
-const float* pending_row(const DenseCall& call, const RowPlan& plan, size_t b, size_t h, int64_t pos, float* buf) {
-    const size_t D_idx = call.q_idx.size(3);
+const float* pending_row(const DenseCall& call,
+                         const Config& c,
+                         const BatchEntryPlan& plan,
+                         size_t b,
+                         size_t h,
+                         int64_t pos,
+                         float* buf) {
+    const size_t D_idx = c.head_dim;
     if (pos < plan.tail) {
         return qsa_kernel::row_as_f32(call.past_raw_k_in.ptr<T>(b, h, pos), D_idx, buf);
     }
@@ -146,7 +151,7 @@ const float* pending_row(const DenseCall& call, const RowPlan& plan, size_t b, s
 template <typename T>
 void get_first_token_cos_sin(const DenseCall& call,
                              const Config& c,
-                             const RowPlan& plan,
+                             const BatchEntryPlan& plan,
                              size_t b,
                              int64_t pos,
                              float* dst) {
@@ -166,7 +171,7 @@ void get_first_token_cos_sin(const DenseCall& call,
 template <typename T>
 void initialize_summary_cache(const DenseCall& call, const Config& c, const CpuParallel& parallel) {
     const size_t B = call.summary_cache.size(0);
-    const size_t H_ik = call.summary_cache.size(1);
+    const size_t H_ik = c.index_key_heads;
     const size_t blocks_out = call.summary_cache.size(2);
     const size_t blocks_in = call.summary_cache_in.size(2);
 
@@ -178,7 +183,7 @@ void initialize_summary_cache(const DenseCall& call, const Config& c, const CpuP
                 call.sel_count.size(0) * call.sel_count.size(1) * call.sel_count.size(2),
                 0);
 
-    const size_t block_bytes = call.summary_cache.size(3) * sizeof(T);
+    const size_t block_bytes = c.head_dim * sizeof(T);
     const size_t copy_blocks = std::min(blocks_in, blocks_out);
     constexpr size_t kPartBytes = 256UL << 10;
     const size_t parts = std::clamp<size_t>(div_up(blocks_out * block_bytes, kPartBytes), 1, c.num_threads);
@@ -209,17 +214,16 @@ void initialize_summary_cache(const DenseCall& call, const Config& c, const CpuP
 template <typename T>
 void append_complete_blocks(const DenseCall& call,
                             const Config& c,
-                            const RowStats& stats,
                             const Scratch<T>& scratch,
                             const CpuParallel& parallel) {
-    const size_t D_idx = call.q_idx.size(3);
+    const size_t D_idx = c.head_dim;
     const auto r = static_cast<int64_t>(c.key_block_size);
     parallel.parallel_for3d(
         call.q_idx.size(0),
-        call.k_idx.size(2),
-        static_cast<size_t>(stats.max_new_blocks),
+        c.index_key_heads,
+        static_cast<size_t>(call.max_new_blocks),
         [&](size_t b, size_t h, size_t j) {
-            const auto plan = row_plan(call, c, b);
+            const auto plan = batch_entry_plan(call, c, b);
             if (static_cast<int64_t>(j) >= plan.new_blocks) {
                 return;
             }
@@ -229,7 +233,7 @@ void append_complete_blocks(const DenseCall& call,
             const int64_t block_start = static_cast<int64_t>(j) * r;
             std::fill_n(pooled, D_idx, 0.0F);
             for (int64_t pos = block_start; pos < block_start + r; pos++) {
-                qsa_kernel::add_inplace(pooled, pending_row<T>(call, plan, b, h, pos, buf.row_buf), D_idx);
+                qsa_kernel::add_inplace(pooled, pending_row<T>(call, c, plan, b, h, pos, buf.row_buf), D_idx);
             }
             qsa_kernel::scale_inplace(pooled, 1.0F / static_cast<float>(r), D_idx);
 
@@ -255,11 +259,11 @@ void update_incomplete_block(const DenseCall& call,
                              const Config& c,
                              const Scratch<T>& scratch,
                              const CpuParallel& parallel) {
-    const size_t D_idx = call.q_idx.size(3);
-    const size_t H_ik = call.k_idx.size(2);
+    const size_t D_idx = c.head_dim;
+    const size_t H_ik = c.index_key_heads;
     const auto r = static_cast<int64_t>(c.key_block_size);
     parallel.parallel_for(call.q_idx.size(0), [&](size_t b) {
-        const auto plan = row_plan(call, c, b);
+        const auto plan = batch_entry_plan(call, c, b);
         const auto buf = scratch.thread();
 
         const int64_t rest = plan.tail + plan.current - plan.new_blocks * r;
@@ -268,7 +272,9 @@ void update_incomplete_block(const DenseCall& call,
             for (size_t h = 0; h < H_ik; h++) {
                 T* const dst = call.past_raw_k.ptr<T>(b, h, pos);
                 if (pos < rest) {
-                    qsa_kernel::store_row(pending_row<T>(call, plan, b, h, rest_start + pos, buf.row_buf), dst, D_idx);
+                    qsa_kernel::store_row(pending_row<T>(call, c, plan, b, h, rest_start + pos, buf.row_buf),
+                                          dst,
+                                          D_idx);
                 } else {
                     std::fill_n(dst, D_idx, T{});
                 }
@@ -287,14 +293,14 @@ void update_incomplete_block(const DenseCall& call,
 // and the top-k ----
 template <typename T>
 void run_token_scorer(const DenseCall& call, const Config& c, const Scratch<T>& scratch, const CpuParallel& parallel) {
-    const size_t D_idx = call.q_idx.size(3);
-    const size_t H_iq = call.q_idx.size(2);
-    const size_t H_ik = call.k_idx.size(2);
+    const size_t D_idx = c.head_dim;
+    const size_t H_iq = c.index_query_heads;
+    const size_t H_ik = c.index_key_heads;
     const size_t G = H_iq / H_ik;  // index query heads per index key head
     const size_t rotary_dim = c.rotary_dim;
     const auto r = static_cast<int64_t>(c.key_block_size);
     parallel.parallel_for2d(call.q_idx.size(0), call.q_idx.size(1), [&](size_t b, size_t l_u) {
-        const auto plan = row_plan(call, c, b);
+        const auto plan = batch_entry_plan(call, c, b);
         const auto l = static_cast<int64_t>(l_u);
         if (l < plan.num_padding) {
             return;
@@ -366,23 +372,38 @@ class DenseExecutorImpl final : public DenseExecutor {
 public:
     explicit DenseExecutorImpl(const Config& config) : m_config(config) {}
 
+    void find_batch_max_params(DenseCall& call) const override {
+        const auto blocks_out = call.summary_cache.size(2);
+        call.max_blocks = call.max_new_blocks = call.max_q_len = 0;
+        for (size_t b = 0; b < call.q_idx.size(0); b++) {
+            const auto plan = batch_entry_plan(call, m_config, b);
+            OPENVINO_ASSERT(static_cast<size_t>(plan.past_blocks + plan.new_blocks) <= blocks_out,
+                            "QSAIndexer: ",
+                            plan.past_blocks + plan.new_blocks,
+                            " blocks do not fit the summary_cache output of ",
+                            blocks_out,
+                            " blocks");
+            call.max_q_len = std::max(call.max_q_len, plan.current);
+            call.max_blocks = std::max(call.max_blocks, plan.past_blocks + plan.new_blocks);
+            call.max_new_blocks = std::max(call.max_new_blocks, plan.new_blocks);
+        }
+    }
+
     [[nodiscard]] size_t scratch_bytes(const DenseCall& call) const override {
-        static_cast<void>(qsa_kernel::row_stats(call, m_config));  // the call has to fit its caches
         return ScratchLayout(call, m_config).total_bytes;
     }
 
     void prepare(const DenseCall& call, uint8_t* memory, const CpuParallelPtr& cpu_parallel) override {
-        const RowStats stats = qsa_kernel::row_stats(call, m_config);
         const ScratchLayout layout(call, m_config);
-        const Scratch<T> scratch(call, layout, memory);
+        const Scratch<T> scratch(call, m_config, layout, memory);
         initialize_summary_cache<T>(call, m_config, *cpu_parallel);
-        append_complete_blocks<T>(call, m_config, stats, scratch, *cpu_parallel);
+        append_complete_blocks<T>(call, m_config, scratch, *cpu_parallel);
         update_incomplete_block<T>(call, m_config, scratch, *cpu_parallel);
     }
 
     void score_tokens(const DenseCall& call, uint8_t* memory, const CpuParallelPtr& cpu_parallel) override {
         const ScratchLayout layout(call, m_config);
-        const Scratch<T> scratch(call, layout, memory);
+        const Scratch<T> scratch(call, m_config, layout, memory);
         run_token_scorer<T>(call, m_config, scratch, *cpu_parallel);
     }
 

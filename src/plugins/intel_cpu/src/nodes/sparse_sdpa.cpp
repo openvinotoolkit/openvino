@@ -194,7 +194,6 @@ SparseSDPA::SparseSDPA(const std::shared_ptr<ov::Node>& op, const GraphContext::
 }
 
 void SparseSDPA::createPrimitive() {
-    [[maybe_unused]] const auto Dh = static_cast<size_t>(getInputShapeAtPort(InputIdx::QUERY).getDims()[3]);
     // The kernel reads QUERY, KEY, VALUE and writes the output as one data type (see
     // initSupportedPrimitiveDescriptors).
     [[maybe_unused]] const auto qprec = getParentEdgeAt(InputIdx::QUERY)->getMemory().getPrecision();
@@ -203,7 +202,20 @@ void SparseSDPA::createPrimitive() {
                         getChildEdgeAt(0)->getMemory().getPrecision() == qprec,
                     "query, key, value and output must have one precision, but the query is ",
                     qprec);
+    // The head counts and sizes are static (see isSupportedOperation), so the executor fixes them once.
+    const auto& q_dims = getInputShapeAtPort(InputIdx::QUERY).getDims();
+    const auto& k_dims = getInputShapeAtPort(InputIdx::KEY).getDims();
+    const auto& v_dims = getInputShapeAtPort(InputIdx::VALUE).getDims();
+    const auto& sel_dims = getInputShapeAtPort(InputIdx::SEL_INDICES).getDims();
+    CPU_NODE_ASSERT(none_of(Shape::UNDEFINED_DIM, q_dims[1], q_dims[3], k_dims[1], v_dims[3], sel_dims[1]),
+                    "requires static head counts and head sizes");
     ov::Extensions::Cpu::SparseSdpaConfig config;
+    config.num_heads = static_cast<size_t>(q_dims[1]);
+    config.num_kv_heads = static_cast<size_t>(k_dims[1]);
+    config.num_selection_heads = static_cast<size_t>(sel_dims[1]);
+    config.k_head_size = static_cast<size_t>(q_dims[3]);
+    config.v_head_size = static_cast<size_t>(v_dims[3]);
+    config.data_precision = qprec;
     config.key_block_size = m_key_block_size;
     config.causal = m_causal;
     config.scale = m_scale;
@@ -218,20 +230,16 @@ void SparseSDPA::createPrimitive() {
     } else if (qprec == ov::element::f16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_fp16)) {
         amx_type = ov::element::f16;
     }
-    // Prefill over packs of query heads (brgemm products, whose M is the pack): it needs the AMX type, a causal op and
-    // static head counts.
-    const auto q_heads = getInputShapeAtPort(InputIdx::QUERY).getDims()[1];
-    const auto k_heads = getInputShapeAtPort(InputIdx::KEY).getDims()[1];
-    const auto sel_heads = getInputShapeAtPort(InputIdx::SEL_INDICES).getDims()[1];
-    const auto Dv = getInputShapeAtPort(InputIdx::VALUE).getDims()[3];
-    if (amx_type != ov::element::dynamic && m_causal &&
-        none_of(Shape::UNDEFINED_DIM, q_heads, k_heads, sel_heads, Dv)) {
-        const size_t pack = ov::Extensions::Cpu::max_q_head_pack_size(q_heads, k_heads, sel_heads);
+    // Prefill over packs of query heads (brgemm products, whose M is the pack): it needs the AMX type and a causal op.
+    if (amx_type != ov::element::dynamic && m_causal) {
+        const size_t pack = ov::Extensions::Cpu::max_q_head_pack_size(config.num_heads,
+                                                                      config.num_kv_heads,
+                                                                      config.num_selection_heads);
         if (ov::Extensions::Cpu::TileBrgemmKernels::supports_pack(pack)) {
             m_brgemm = ov::Extensions::Cpu::TileBrgemmKernels::get(context->getParamsCache(),
                                                                    pack,
-                                                                   Dh,
-                                                                   Dv,
+                                                                   config.k_head_size,
+                                                                   config.v_head_size,
                                                                    ov::Extensions::Cpu::kGatherTileRows,
                                                                    amx_type);
             config.brgemm = m_brgemm.handle();

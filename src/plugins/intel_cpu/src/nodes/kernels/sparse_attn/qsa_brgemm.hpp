@@ -16,6 +16,7 @@
 #include <utility>
 
 #include "cache/multi_cache.h"
+#include "nodes/kernels/sparse_attn/qsa_executor.hpp"
 #include "nodes/kernels/x64/brgemm_kernel.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
@@ -43,39 +44,34 @@ inline constexpr size_t kSelectBuckets = 256;
 // PagedAttention kernels), and a node fetches it once when it is created, not per call. Created only by get().
 class QsaBrgemm {
 public:
-    // Everything that does not change from call to call; also the key of the scorer in the params cache.
-    struct Params {
-        size_t index_query_heads = 0;
-        size_t index_key_heads = 0;
-        size_t selection_heads = 0;
-        size_t dim = 0;         // channels of an index head
-        size_t rotary_dim = 0;  // channels of the query rotated by RoPE
-        size_t block_topk = 0;
-        size_t num_threads = 0;
-        float eps = 0.0F;
-        float scale = 0.0F;
-        ov::element::Type precision;  // of the summary blocks
-        // The chosen blocks of a row by descending score, equal scores by ascending block id (the order of
-        // SparseAttentionIndexer-17), instead of ascending block ids. Needs the scores of every token, so the tokens
-        // that take all their blocks are scored too.
-        bool order_by_score = false;
+    // The key of the scorer in the params cache: the configuration of the node, without what the scorer does not read.
+    struct Key {
+        Config config;
 
         [[nodiscard]] size_t hash() const {
             size_t seed = 0;
-            for (const size_t value :
-                 {index_query_heads, index_key_heads, selection_heads, dim, rotary_dim, block_topk, num_threads}) {
+            for (const size_t value : {config.index_query_heads,
+                                       config.index_key_heads,
+                                       config.num_selection_heads,
+                                       config.head_dim,
+                                       config.rotary_dim,
+                                       config.block_topk,
+                                       config.num_threads}) {
                 seed = dnnl::impl::hash_combine(seed, value);
             }
-            seed = dnnl::impl::hash_combine(seed, eps);
-            seed = dnnl::impl::hash_combine(seed, scale);
-            seed = dnnl::impl::hash_combine(seed, order_by_score);
-            return dnnl::impl::hash_combine(seed, precision.hash());
+            seed = dnnl::impl::hash_combine(seed, config.eps);
+            seed = dnnl::impl::hash_combine(seed, config.scale);
+            seed = dnnl::impl::hash_combine(seed, config.order_by_score);
+            return dnnl::impl::hash_combine(seed, config.precision.hash());
         }
-        bool operator==(const Params& rhs) const {
-            return index_query_heads == rhs.index_query_heads && index_key_heads == rhs.index_key_heads &&
-                   selection_heads == rhs.selection_heads && dim == rhs.dim && rotary_dim == rhs.rotary_dim &&
-                   block_topk == rhs.block_topk && num_threads == rhs.num_threads && eps == rhs.eps &&
-                   scale == rhs.scale && precision == rhs.precision && order_by_score == rhs.order_by_score;
+        bool operator==(const Key& rhs) const {
+            const auto& l = config;
+            const auto& r = rhs.config;
+            return l.index_query_heads == r.index_query_heads && l.index_key_heads == r.index_key_heads &&
+                   l.num_selection_heads == r.num_selection_heads && l.head_dim == r.head_dim &&
+                   l.rotary_dim == r.rotary_dim && l.block_topk == r.block_topk && l.num_threads == r.num_threads &&
+                   l.eps == r.eps && l.scale == r.scale && l.precision == r.precision &&
+                   l.order_by_score == r.order_by_score;
         }
     };
 
@@ -83,8 +79,8 @@ public:
     // call by plan(), the scratch (of `shared_bytes` and `thread_bytes` per worker thread) is the caller's.
     struct Plan {
         size_t batch = 0;
-        int64_t max_current = 0;      // the most tokens of a row in the call
-        int64_t max_row_blocks = 0;   // the most complete blocks of a row after the call
+        int64_t max_q_len = 0;        // the most tokens of a batch entry / sequence in the call
+        int64_t max_blocks = 0;       // the most complete blocks of a batch entry / sequence after the call
         size_t padded_blocks = 0;     // the blocks of a score row, a multiple of the blocks of a brgemm call
         size_t score_stride = 0;      // floats between the score rows of two tokens
         size_t score_tile_bytes = 0;  // the score matrix of one tile of tokens of one row
@@ -98,29 +94,34 @@ public:
         size_t rows, query_tile, packed_blocks, packed_query, gemm_scores, workspace, scratch_a, key_chunk_stage;
     };
 
-    // The scorer of `params` from the params cache (built on first use, shared by the layers of the same
+    // The scorer of `config` from the params cache (built on first use, shared by the layers of the same
     // configuration), nullptr if this CPU or the configuration has no brgemm scoring. The selection heads have to be
     // covered by the K heads.
-    static std::shared_ptr<const QsaBrgemm> get(const MultiCachePtr& cache, const Params& params) {
-        if (params.index_key_heads == 0 || params.index_query_heads % params.index_key_heads != 0 ||
-            params.selection_heads > params.index_key_heads || !score_kernel_supported(params.precision, params.dim)) {
+    static std::shared_ptr<const QsaBrgemm> get(const MultiCachePtr& cache, const Config& config) {
+        if (config.index_key_heads == 0 || config.index_query_heads % config.index_key_heads != 0 ||
+            config.num_selection_heads > config.index_key_heads ||
+            !score_kernel_supported(config.precision, config.head_dim)) {
             return nullptr;
         }
-        const auto builder = [&cache](const Params& key) -> std::shared_ptr<const QsaBrgemm> {
-            const size_t heads_per_key = key.index_query_heads / key.index_key_heads;
+        const auto builder = [&cache](const Key& key) -> std::shared_ptr<const QsaBrgemm> {
+            const size_t heads_per_key = key.config.index_query_heads / key.config.index_key_heads;
             const size_t tokens_per_call = score_tokens_per_call(heads_per_key);
             // `q_k_kernel` scores a full set of tokens (query rows: tokens_per_call * heads_per_key), `k_q_kernel` a
             // single token (heads_per_key rows): the decode step is one token wide.
-            auto q_k_kernel = get_score_kernel(cache, key.precision, tokens_per_call * heads_per_key, key.dim, false);
-            auto k_q_kernel = get_score_kernel(cache, key.precision, heads_per_key, key.dim, true);
+            auto q_k_kernel = get_score_kernel(cache,
+                                               key.config.precision,
+                                               tokens_per_call * heads_per_key,
+                                               key.config.head_dim,
+                                               false);
+            auto k_q_kernel = get_score_kernel(cache, key.config.precision, heads_per_key, key.config.head_dim, true);
             if (!q_k_kernel || !k_q_kernel) {
                 return nullptr;
             }
             return std::shared_ptr<const QsaBrgemm>(  // NOLINT(modernize-make-shared): the constructor is private
-                new QsaBrgemm(key, std::move(q_k_kernel), std::move(k_q_kernel)));
+                new QsaBrgemm(key.config, std::move(q_k_kernel), std::move(k_q_kernel)));
         };
         try {
-            return cache->getOrCreate(params, builder).first;
+            return cache->getOrCreate(Key{config}, builder).first;
         } catch (const ov::Exception&) {
             return nullptr;
         }
@@ -135,63 +136,50 @@ public:
         return amx ? impl_desc_type::brgemm_avx512_amx : impl_desc_type::brgemm_avx512;
     }
 
-    // The sizes of a call of `batch` rows, the longest of `max_current` tokens and with at most `max_row_blocks`
-    // complete blocks in a row.
-    [[nodiscard]] Plan plan(size_t batch, int64_t max_current, int64_t max_row_blocks) const {
+    // The sizes of a call of `batch` rows, the longest of `max_q_len` tokens and with at most `max_blocks`
+    // complete blocks in a batch entry / sequence.
+    [[nodiscard]] Plan plan(size_t batch, int64_t max_q_len, int64_t max_blocks) const {
         Plan p;
         p.batch = batch;
-        p.max_current = max_current;
-        p.max_row_blocks = max_row_blocks;
-        p.padded_blocks = rnd_up(static_cast<size_t>(max_row_blocks), kScoreBlockRows);
+        p.max_q_len = max_q_len;
+        p.max_blocks = max_blocks;
+        p.padded_blocks = rnd_up(static_cast<size_t>(max_blocks), kScoreBlockRows);
         // A cache line more than the blocks: the score rows of the tokens a call writes together do not share an L1
         // set.
         p.score_stride = p.padded_blocks + kAlign / sizeof(float);
-        p.tiles_total = div_up(static_cast<size_t>(max_current), m_tile_tokens);
-        const size_t alloc_tokens = std::min(m_tile_tokens, static_cast<size_t>(max_current));
-        p.score_tile_bytes = rnd_up(alloc_tokens * m_params.selection_heads * p.score_stride * sizeof(float), kAlign);
+        p.tiles_total = div_up(static_cast<size_t>(max_q_len), tile_tokens);
+        const size_t alloc_tokens = std::min(tile_tokens, static_cast<size_t>(max_q_len));
+        p.score_tile_bytes =
+            rnd_up(alloc_tokens * m_config.num_selection_heads * p.score_stride * sizeof(float), kAlign);
         if (needs_scoring(p) && p.score_tile_bytes != 0) {
             p.tiles_per_round = std::clamp<size_t>(kScoreBudgetBytes / (batch * p.score_tile_bytes), 1, p.tiles_total);
         }
         p.shared_bytes = p.tiles_per_round * batch * p.score_tile_bytes;
         p.thread_bytes =
-            m_select_offset + rnd_up((p.padded_blocks + 1) * sizeof(float) + kSelectBuckets * sizeof(uint32_t), kAlign);
+            select_offset + rnd_up((p.padded_blocks + 1) * sizeof(float) + kSelectBuckets * sizeof(uint32_t), kAlign);
         return p;
     }
 
     // Scores are only needed when a token has more blocks than it can choose, or, to order the blocks by score, when it
     // has any.
     [[nodiscard]] bool needs_scoring(const Plan& plan) const {
-        return static_cast<size_t>(plan.max_row_blocks) > (m_params.order_by_score ? 0 : m_params.block_topk);
+        return static_cast<size_t>(plan.max_blocks) > (m_config.order_by_score ? 0 : m_config.block_topk);
     }
 
     // What the scorer kernel reads (qsa_brgemm_kernel.cpp).
-    [[nodiscard]] const Params& params() const {
-        return m_params;
+    [[nodiscard]] const Config& config() const {
+        return m_config;
     }
-    [[nodiscard]] const std::shared_ptr<BrgemmKernel>& q_k_kernel() const {
-        return m_q_k_kernel;
-    }
-    [[nodiscard]] const std::shared_ptr<BrgemmKernel>& k_q_kernel() const {
-        return m_k_q_kernel;
-    }
-    [[nodiscard]] size_t heads_per_key() const {
-        return m_heads_per_key;
-    }
-    [[nodiscard]] size_t tokens_per_call() const {
-        return m_tokens_per_call;
-    }
-    [[nodiscard]] size_t tile_tokens() const {
-        return m_tile_tokens;
-    }
-    [[nodiscard]] size_t packed_query_bytes() const {
-        return m_packed_query_bytes;
-    }
-    [[nodiscard]] const ThreadOffsets& offsets() const {
-        return m_offsets;
-    }
-    [[nodiscard]] size_t select_offset() const {
-        return m_select_offset;
-    }
+
+    // What the scorer kernel reads (qsa_brgemm_kernel.cpp); set once by the constructor.
+    std::shared_ptr<BrgemmKernel> q_k_kernel;
+    std::shared_ptr<BrgemmKernel> k_q_kernel;
+    size_t heads_per_key;
+    size_t tokens_per_call;
+    size_t tile_tokens;
+    size_t packed_query_bytes = 0;  // the B matrix of the query tile of a K head (one token)
+    ThreadOffsets offsets{};
+    size_t select_offset = 0;  // the selection scratch follows the fixed part of a thread slice
 
     static constexpr size_t kAlign = 64;
     // Query slices (the tokens of one brgemm call each) an item prepares and scores.
@@ -221,15 +209,15 @@ private:
         }
     };
 
-    QsaBrgemm(const Params& params, std::shared_ptr<BrgemmKernel> q_k_kernel, std::shared_ptr<BrgemmKernel> k_q_kernel)
-        : m_params(params),
-          m_q_k_kernel(std::move(q_k_kernel)),
-          m_k_q_kernel(std::move(k_q_kernel)),
-          m_heads_per_key(params.index_query_heads / params.index_key_heads),
-          m_tokens_per_call(score_tokens_per_call(m_heads_per_key)),
-          m_tile_tokens(m_tokens_per_call * kQuerySlicesPerItem),
-          m_packed_blocks_bytes(rnd_up(m_q_k_kernel->get_scratch_b_size(), kAlign)),
-          m_packed_query_bytes(rnd_up(m_k_q_kernel->get_scratch_b_size(), kAlign)) {
+    QsaBrgemm(const Config& config, std::shared_ptr<BrgemmKernel> q_k, std::shared_ptr<BrgemmKernel> k_q)
+        : q_k_kernel(std::move(q_k)),
+          k_q_kernel(std::move(k_q)),
+          heads_per_key(config.index_query_heads / config.index_key_heads),
+          tokens_per_call(score_tokens_per_call(heads_per_key)),
+          tile_tokens(tokens_per_call * kQuerySlicesPerItem),
+          packed_query_bytes(rnd_up(k_q_kernel->get_scratch_b_size(), kAlign)),
+          m_config(config),
+          m_packed_blocks_bytes(rnd_up(q_k_kernel->get_scratch_b_size(), kAlign)) {
         init_thread_layout();
     }
 
@@ -306,36 +294,28 @@ private:
     // Layout of a thread slice: f32 rows | query tiles | packed blocks | packed query | brgemm output | workspace |
     // A scratch | zero-padded chunk | selection scratch (its size follows from the call, see plan()).
     void init_thread_layout() {
-        const size_t dim = m_params.dim;
-        const size_t element = m_params.precision.size();
-        const size_t query_rows = m_tokens_per_call * m_heads_per_key;
+        const size_t dim = m_config.head_dim;
+        const size_t element = m_config.precision.size();
+        const size_t query_rows = tokens_per_call * heads_per_key;
         size_t offset = 0;
         auto reserve = [&offset](size_t bytes) {
             const size_t start = offset;
             offset += rnd_up(bytes, kAlign);
             return start;
         };
-        m_offsets.rows = reserve((2 * dim + 2 * m_params.rotary_dim) * sizeof(float));
-        m_offsets.query_tile = reserve(kQuerySlicesPerItem * m_params.index_key_heads * query_rows * dim * element);
-        m_offsets.packed_blocks = reserve(m_packed_blocks_bytes);
-        m_offsets.packed_query = reserve(m_params.index_key_heads * m_packed_query_bytes);
-        m_offsets.gemm_scores = reserve(query_rows * kScoreBlockRows * sizeof(float));
-        m_offsets.workspace = reserve(BrgemmKernel::get_wsp_size());
-        m_offsets.scratch_a = reserve(std::max(m_q_k_kernel->get_scratch_a_size(), m_k_q_kernel->get_scratch_a_size()));
-        m_offsets.key_chunk_stage = reserve(kScoreBlockRows * dim * element);
-        m_select_offset = offset;
+        offsets.rows = reserve((2 * dim + 2 * m_config.rotary_dim) * sizeof(float));
+        offsets.query_tile = reserve(kQuerySlicesPerItem * m_config.index_key_heads * query_rows * dim * element);
+        offsets.packed_blocks = reserve(m_packed_blocks_bytes);
+        offsets.packed_query = reserve(m_config.index_key_heads * packed_query_bytes);
+        offsets.gemm_scores = reserve(query_rows * kScoreBlockRows * sizeof(float));
+        offsets.workspace = reserve(BrgemmKernel::get_wsp_size());
+        offsets.scratch_a = reserve(std::max(q_k_kernel->get_scratch_a_size(), k_q_kernel->get_scratch_a_size()));
+        offsets.key_chunk_stage = reserve(kScoreBlockRows * dim * element);
+        select_offset = offset;
     }
 
-    Params m_params;
-    std::shared_ptr<BrgemmKernel> m_q_k_kernel;
-    std::shared_ptr<BrgemmKernel> m_k_q_kernel;
-    size_t m_heads_per_key;
-    size_t m_tokens_per_call;
-    size_t m_tile_tokens;
+    Config m_config;
     size_t m_packed_blocks_bytes;  // the B matrix of 32 blocks (several tokens)
-    size_t m_packed_query_bytes;   // the B matrix of the query tile of a K head (one token)
-    ThreadOffsets m_offsets{};
-    size_t m_select_offset = 0;  // the selection scratch follows the fixed part of a thread slice
 };
 
 }  // namespace ov::Extensions::Cpu::qsa

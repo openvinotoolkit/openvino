@@ -26,6 +26,7 @@ struct SparsePAConfig {
     size_t v_head_size = 0;
     size_t key_block_size = 0;
     bool causal = true;
+    ov::element::Type data_precision = ov::element::f32;  ///< query and output type
     CacheSpec key_spec;
     CacheSpec value_spec;
     /// Tokens per physical page, without the parameter rows of by-channel key pages; 0: dim 2 of the key cache (plain

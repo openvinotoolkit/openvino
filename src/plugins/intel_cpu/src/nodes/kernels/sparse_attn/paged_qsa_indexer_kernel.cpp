@@ -40,13 +40,8 @@ using ov::intel_cpu::div_up;
 using ov::intel_cpu::rnd_up;
 using qsa_kernel::block_address;
 using qsa_kernel::BlockScore;
-using qsa_kernel::index_key_heads;
-using qsa_kernel::index_query_heads;
-using qsa_kernel::num_sequences;
-using qsa_kernel::num_tokens;
 using qsa_kernel::row_view;
 using qsa_kernel::seq_plan;
-using qsa_kernel::SeqStats;
 using qsa_kernel::token_address;
 
 constexpr size_t kAlign = 64;
@@ -88,8 +83,8 @@ struct ScratchLayout {
     size_t total_bytes;
 
     ScratchLayout(const PagedCall& call, const Config& c, int64_t max_blocks)
-        : thread(index_query_heads(call, c), c.head_dim, c.rotary_dim, static_cast<size_t>(max_blocks), c.block_topk),
-          norm_weights_offset(rnd_up(num_tokens(call) * sizeof(int32_t), kAlign)),
+        : thread(c.index_query_heads, c.head_dim, c.rotary_dim, static_cast<size_t>(max_blocks), c.block_topk),
+          norm_weights_offset(rnd_up(call.q_idx.size(0) * sizeof(int32_t), kAlign)),
           threads_offset(rnd_up(norm_weights_offset + 2 * c.head_dim * sizeof(float), kAlign)),
           total_bytes(threads_offset + c.num_threads * thread.bytes) {}
 };
@@ -122,9 +117,9 @@ struct Scratch {
         // f32 weights are used in place; 16-bit ones are converted once per call into the scratch
         q_norm_w = qsa_kernel::row_as_f32(call.q_norm_weight.ptr<T>(), D_idx, q_norm);
         k_norm_w = qsa_kernel::row_as_f32(call.k_norm_weight.ptr<T>(), D_idx, k_norm);
-        const size_t tokens = num_tokens(call);
+        const size_t tokens = call.q_idx.size(0);
         std::fill_n(token_seq, tokens, static_cast<int32_t>(-1));
-        for (size_t seq = 0; seq < num_sequences(call); seq++) {
+        for (size_t seq = 0; seq < call.subsequence_begins.size(0) - 1; seq++) {
             const auto plan = seq_plan(call, c, seq);
             for (int64_t t = plan.token_begin; t < plan.token_begin + plan.q_len; t++) {
                 if (static_cast<size_t>(t) < tokens) {
@@ -187,7 +182,7 @@ void store_token_rows(const PagedCall& call, const Config& c, const Scratch<T>& 
         }
     }
     const auto [cur_page, cur_slot] = token_address(call, plan, logical_pos);
-    for (size_t key_head = 0; key_head < index_key_heads(call, c); key_head++) {
+    for (size_t key_head = 0; key_head < c.index_key_heads; key_head++) {
         const float* const row = row_view<T>(call.k_idx, D_idx, buf.row_buf, token, key_head * D_idx);
         cvt_copy(call.raw_k_cache.ptr<T>(cur_page, key_head, cur_slot), row, 1, D_idx, 0, 0);
     }
@@ -239,8 +234,8 @@ void select_blocks(const PagedCall& call, const Config& c, const Scratch<T>& scr
     const auto buf = scratch.thread();
     const size_t D_idx = c.head_dim;
     const size_t rotary_dim = c.rotary_dim;
-    const size_t index_keys = index_key_heads(call, c);
-    const size_t index_queries = index_query_heads(call, c);
+    const size_t index_keys = c.index_key_heads;
+    const size_t index_queries = c.index_query_heads;
     const size_t heads_per_key = index_queries / index_keys;
     const size_t selection_heads = c.num_selection_heads;
 
@@ -301,15 +296,29 @@ class PagedExecutorImpl final : public PagedExecutor {
 public:
     explicit PagedExecutorImpl(const Config& config) : m_config(config) {}
 
+    void find_batch_max_params(PagedCall& call) const override {
+        const auto* block_indices_begins = call.block_indices_begins.ptr<int32_t>();
+        call.max_blocks = call.max_new_blocks = call.max_q_len = 0;
+        for (size_t seq = 0; seq < call.subsequence_begins.size(0) - 1; seq++) {
+            OPENVINO_ASSERT(block_indices_begins[seq + 1] > block_indices_begins[seq],
+                            "[CPU] paged_qsa_indexer: each sequence must have at least one cache block");
+            const auto plan = seq_plan(call, m_config, seq);
+            OPENVINO_ASSERT(plan.total_blocks() <= plan.block_capacity,
+                            "[CPU] paged_qsa_indexer: the completed blocks do not fit the sequence's cache blocks");
+            call.max_blocks = std::max(call.max_blocks, plan.total_blocks());
+            call.max_new_blocks = std::max(call.max_new_blocks, plan.new_blocks);
+            call.max_q_len = std::max(call.max_q_len, plan.q_len);
+        }
+    }
+
     [[nodiscard]] size_t scratch_bytes(const PagedCall& call) const override {
-        return ScratchLayout(call, m_config, qsa_kernel::seq_stats(call, m_config).max_blocks).total_bytes;
+        return ScratchLayout(call, m_config, call.max_blocks).total_bytes;
     }
 
     void prepare(const PagedCall& call, uint8_t* memory, const CpuParallelPtr& cpu_parallel) override {
         const auto& parallel = *cpu_parallel;
-        const size_t tokens = num_tokens(call);
-        const SeqStats stats = qsa_kernel::seq_stats(call, m_config);
-        const ScratchLayout layout(call, m_config, stats.max_blocks);
+        const size_t tokens = call.q_idx.size(0);
+        const ScratchLayout layout(call, m_config, call.max_blocks);
         const Scratch<T> scratch(call, m_config, layout, memory);
 
         std::fill_n(call.sel_indices.ptr<int32_t>(), tokens * m_config.num_selection_heads * m_config.block_topk, -1);
@@ -324,10 +333,10 @@ public:
         });
         // Phase 2: the blocks this call completes are independent of each other (they read the raw rows of this and of
         // earlier calls, written by phase 1 or before).
-        if (stats.max_new_blocks > 0) {
-            parallel.parallel_for3d(num_sequences(call),
-                                    index_key_heads(call, m_config),
-                                    static_cast<size_t>(stats.max_new_blocks),
+        if (call.max_new_blocks > 0) {
+            parallel.parallel_for3d(call.subsequence_begins.size(0) - 1,
+                                    m_config.index_key_heads,
+                                    static_cast<size_t>(call.max_new_blocks),
                                     [&](size_t seq, size_t key_head, size_t j) {
                                         if (static_cast<int64_t>(j) < seq_plan(call, m_config, seq).new_blocks) {
                                             pool_block<T>(call, m_config, scratch, seq, key_head, j);
@@ -338,10 +347,9 @@ public:
 
     // A token scores the complete blocks up to the one it completes, all written by prepare().
     void score_tokens(const PagedCall& call, uint8_t* memory, const CpuParallelPtr& cpu_parallel) override {
-        const SeqStats stats = qsa_kernel::seq_stats(call, m_config);
-        const ScratchLayout layout(call, m_config, stats.max_blocks);
+        const ScratchLayout layout(call, m_config, call.max_blocks);
         const Scratch<T> scratch(call, m_config, layout, memory);
-        cpu_parallel->parallel_for(num_tokens(call), [&](size_t token) {
+        cpu_parallel->parallel_for(call.q_idx.size(0), [&](size_t token) {
             if (scratch.token_seq[token] >= 0) {
                 select_blocks<T>(call, m_config, scratch, token);
             }

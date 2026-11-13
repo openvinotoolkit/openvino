@@ -216,22 +216,33 @@ bool SparsePA::deriveConfig(const ov::op::internal::PagedSparseAttention& op, Co
     };
     if (!rank_is(query_ps, 2) || !rank_is(key_ps, 2) || !rank_is(value_ps, 2) || !rank_is(key_cache_ps, 4) ||
         !rank_is(selected_ps, 3) || !query_ps[1].is_static() || !key_ps[1].is_static() || !value_ps[1].is_static() ||
-        !key_cache_ps[1].is_static() || !selected_ps[1].is_static()) {
+        !selected_ps[1].is_static()) {
         reason = "PagedSparseAttention CPU implementation requires static head dimensions.";
         return false;
     }
     const auto query_width = static_cast<size_t>(query_ps[1].get_length());
     const auto key_width = static_cast<size_t>(key_ps[1].get_length());
     const auto value_width = static_cast<size_t>(value_ps[1].get_length());
-    config.num_kv_heads = static_cast<size_t>(key_cache_ps[1].get_length());
     config.num_selection_heads = static_cast<size_t>(selected_ps[1].get_length());
-    // The head sizes are derived from the widths of the flattened inputs: they must split evenly.
-    if (config.num_kv_heads == 0 || key_width % config.num_kv_heads != 0 || value_width % config.num_kv_heads != 0) {
-        reason = "PagedSparseAttention: key and value widths must be multiples of the number of KV heads.";
+    // The head counts and sizes are fixed by the model. The transformation that creates the op records them in the
+    // runtime info (like PagedAttention), because the cache shapes are padded when the caches are quantized.
+    const auto& rt = op.get_rt_info();
+    for (const char* name : {"num_k_heads", "k_head_size", "num_v_heads", "v_head_size"}) {
+        if (rt.count(name) == 0UL) {
+            reason = std::string("PagedSparseAttention CPU implementation requires the runtime info ") + name;
+            return false;
+        }
+    }
+    config.num_kv_heads = rt.at("num_k_heads").as<size_t>();
+    config.k_head_size = rt.at("k_head_size").as<size_t>();
+    config.v_head_size = rt.at("v_head_size").as<size_t>();
+    if (config.num_kv_heads == 0 || rt.at("num_v_heads").as<size_t>() != config.num_kv_heads ||
+        key_width != config.num_kv_heads * config.k_head_size ||
+        value_width != config.num_kv_heads * config.v_head_size) {
+        reason =
+            "PagedSparseAttention: the key and value widths must match the head counts and sizes of the runtime info.";
         return false;
     }
-    config.k_head_size = key_width / config.num_kv_heads;
-    config.v_head_size = value_width / config.num_kv_heads;
     if (config.k_head_size == 0 || config.v_head_size == 0 || query_width % config.k_head_size != 0) {
         reason = "PagedSparseAttention: the query width must be a multiple of the key head size.";
         return false;
@@ -265,11 +276,12 @@ void SparsePA::createPrimitive() {
     // every block is its own run.
     m_config.max_run_rows = page_size != Shape::UNDEFINED_DIM ? page_size : m_config.key_block_size;
     m_config.brgemm = {};
+    const auto query_prec = getOriginalInputPrecisionAtPort(InputIdx::QUERY);
+    m_config.data_precision = query_prec;
 #ifdef OPENVINO_ARCH_X86_64
     // AMX matrix products over the selected rows of a work item (see attn_brgemm_tiles.hpp), for the prefill and the
     // decode of a large selection: bf16 / f16 data on hardware with the matching AMX, a pack of several query heads
     // (the M of the products), and the causal selection.
-    const auto query_prec = getOriginalInputPrecisionAtPort(InputIdx::QUERY);
     const bool amx =
         (query_prec == ov::element::bf16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16)) ||
         (query_prec == ov::element::f16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_fp16));

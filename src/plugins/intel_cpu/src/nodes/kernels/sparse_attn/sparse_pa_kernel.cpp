@@ -46,10 +46,6 @@ namespace {
 struct PaQuant {
     const CacheSpec& key;
     const CacheSpec& value;
-
-    [[nodiscard]] bool enabled() const {
-        return is_quantized_cache(key);
-    }
 };
 
 /// @brief Byte layout of the per-thread scratch of the sparse PA kernel. The scratch of a call holds one such block per
@@ -85,8 +81,13 @@ struct SparsePAScratchLayout {
           q(pack.total),
           scores(q + aligned(max_pack_size * k_head_size * sizeof(float))),
           k_run(scores + aligned(max_pack_size * max_run_rows * sizeof(float))),
-          v_run(k_run + aligned(key_run_rows(quant, max_pack_size, max_run_rows) * k_head_size * sizeof(float))),
-          brgemm(v_run + aligned(value_run_rows(quant, max_pack_size, max_run_rows) * v_head_size * sizeof(float)),
+          // quantized keys are dequantized to f32 for by-channel keys and for packs, values for packs
+          v_run(k_run +
+                aligned(
+                    (is_quantized_cache(quant.key) && (quant.key.by_channel || max_pack_size > 1) ? max_run_rows : 0) *
+                    k_head_size * sizeof(float))),
+          brgemm(v_run + aligned((is_quantized_cache(quant.key) && max_pack_size > 1 ? max_run_rows : 0) * v_head_size *
+                                 sizeof(float)),
                  k_head_size,
                  v_head_size,
                  max_pack_size,
@@ -95,13 +96,6 @@ struct SparsePAScratchLayout {
           total(brgemm.total) {}
 
 private:
-    // Quantized keys are dequantized to f32 for by-channel keys and for packs; values for packs.
-    static size_t key_run_rows(const PaQuant& quant, size_t max_pack_size, size_t max_run_rows) {
-        return quant.enabled() && (quant.key.by_channel || max_pack_size > 1) ? max_run_rows : 0;
-    }
-    static size_t value_run_rows(const PaQuant& quant, size_t max_pack_size, size_t max_run_rows) {
-        return quant.enabled() && max_pack_size > 1 ? max_run_rows : 0;
-    }
 };
 
 // ---- quantized (u8/u4) paged cache access, same layouts as PagedAttention (see PaQuant) ----
@@ -335,13 +329,6 @@ struct PackWork {
     float* v_run;       // quantized caches: [max_run_rows, v_head_size] dequantized value run
 };
 
-// Index of the sequence whose tokens contain `token`.
-size_t find_sequence(const PlainTensor& subsequence_begins, size_t token) {
-    const auto* begins = subsequence_begins.ptr<int32_t>();
-    const auto* end = begins + subsequence_begins.size(0);
-    return static_cast<size_t>(std::upper_bound(begins, end, static_cast<int32_t>(token)) - begins) - 1;
-}
-
 // Maps a logical KV position of the sequence to the physical (block, slot) address in the caches through the shared
 // page table. A selected key_block_size-wide span never crosses a physical block boundary (page_size % key_block_size
 // == 0 is enforced by the node).
@@ -466,7 +453,7 @@ void attention_over_run(PackWork& w, int64_t kpos0, int64_t n) {
     if (n == 0) {
         return;
     }
-    if (w.quant.enabled()) {
+    if (is_quantized_cache(w.quant.key)) {
         attention_over_run_quant(w, kpos0, n);
     } else {
         // The query rows are f32 here, so only the cache rows need their own type (f16 next to f32 data, like
@@ -523,7 +510,7 @@ struct PagedRowSource {
         const auto [phys_block, slot] = physical_address(w, kpos0);
         const T* k_src = k_stage;
         const T* v_src = v_stage;
-        if (w.quant.enabled()) {
+        if (is_quantized_cache(w.quant.key)) {
             dequant_k_rows<T>(w.quant, w.key_cache, phys_block, w.k_head, slot, n, w.k_head_size, k_stage);
             dequant_v_rows<T>(w.quant, w.value_cache, phys_block, w.k_head, slot, n, w.v_head_size, v_stage);
         } else {
@@ -578,7 +565,12 @@ void attention_work_item(const SparsePAArgs& a,
                          size_t pack_size,
                          [[maybe_unused]] bool brgemm_item) {
     const auto* subsequence_begins = a.subsequence_begins.ptr<int32_t>();
-    const size_t seq = find_sequence(a.subsequence_begins, token);
+    // The sequence whose tokens contain `token`.
+    const auto* const begins_end = subsequence_begins + a.subsequence_begins.size(0);
+    const size_t seq =
+        static_cast<size_t>(std::upper_bound(subsequence_begins, begins_end, static_cast<int32_t>(token)) -
+                            subsequence_begins) -
+        1;
     if (seq + 1 >= a.subsequence_begins.size(0)) {
         return;  // not a token of any sequence
     }
@@ -695,11 +687,26 @@ void sparse_pa_impl(const SparsePAArgs& a, const ov::intel_cpu::CpuParallelPtr& 
 
 class PaExecutor final : public SparsePAExecutor {
 public:
-    explicit PaExecutor(const SparsePAConfig& config) : m_cfg(config) {}
+    // The heads, head sizes and the data type are fixed by the config, so the scratch of a thread is computed once
+    // here.
+    explicit PaExecutor(const SparsePAConfig& config)
+        : m_cfg(config),
+          m_thread_block_bytes(
+              SparsePAScratchLayout(
+                  config.k_head_size,
+                  config.v_head_size,
+                  config.max_run_rows,
+                  max_q_head_pack_size(config.num_heads, config.num_kv_heads, config.num_selection_heads),
+                  config.data_precision.size(),
+                  PaQuant{config.key_spec, config.value_spec},
+                  tile_brgemm_sizes(config.brgemm))
+                  .total) {}
 
     [[nodiscard]] size_t scratch_bytes(const SparsePATensors& t,
                                        const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const override {
-        return thread_scratch_bytes(t, cpu_parallel) + t.query.size(0) * sizeof(int32_t);
+        // One block per worker thread, then one token id per token for the work list.
+        return static_cast<size_t>(cpu_parallel->get_num_worker_threads()) * m_thread_block_bytes +
+               t.query.size(0) * sizeof(int32_t);
     }
 
     void execute(const SparsePATensors& t,
@@ -709,29 +716,6 @@ public:
     }
 
 private:
-    [[nodiscard]] PaQuant quant() const {
-        return {m_cfg.key_spec, m_cfg.value_spec};
-    }
-
-    // One scratch block per worker thread (so nothing is allocated while computing), then one token id per token for
-    // the work list; see SparsePAScratchLayout for a thread's block.
-    [[nodiscard]] size_t thread_scratch_bytes(const SparsePATensors& t,
-                                              const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const {
-        return static_cast<size_t>(cpu_parallel->get_num_worker_threads()) * thread_block_bytes(t);
-    }
-
-    [[nodiscard]] size_t thread_block_bytes(const SparsePATensors& t) const {
-        return SparsePAScratchLayout(
-                   m_cfg.k_head_size,
-                   m_cfg.v_head_size,
-                   m_cfg.max_run_rows,
-                   max_q_head_pack_size(m_cfg.num_heads, m_cfg.num_kv_heads, m_cfg.num_selection_heads),
-                   t.query.get_precision().size(),
-                   quant(),
-                   tile_brgemm_sizes(m_cfg.brgemm))
-            .total;
-    }
-
     void run(const SparsePATensors& t, uint8_t* scratch, const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const {
         const auto& query = t.query;
         const auto& key_cache = t.key_cache;
@@ -751,10 +735,10 @@ private:
         const size_t sel_head_num = m_cfg.num_selection_heads;
         const bool causal = m_cfg.causal;
         const float scale = t.scale;
-        const PaQuant quant = this->quant();
+        const PaQuant quant{m_cfg.key_spec, m_cfg.value_spec};
         const size_t max_run_rows = m_cfg.max_run_rows;
         const TileBrgemm& brgemm = m_cfg.brgemm;
-        const size_t scratch_bytes_per_thread = thread_block_bytes(t);
+        const size_t scratch_bytes_per_thread = m_thread_block_bytes;
         auto* const token_ids = reinterpret_cast<int32_t*>(
             scratch + static_cast<size_t>(cpu_parallel->get_num_worker_threads()) * scratch_bytes_per_thread);
 
@@ -763,11 +747,11 @@ private:
         // Plain caches: the query precision, or f16 next to f32 data like PagedAttention (read in place, no conversion
         // pass). The AMX tiles are built for the query precision, so a cache of another type uses the SIMD heads.
         const bool cache_is_data = key_cache.get_precision() == data_prc && value_cache.get_precision() == data_prc;
-        OPENVINO_ASSERT(quant.enabled() || cache_is_data ||
+        OPENVINO_ASSERT(is_quantized_cache(quant.key) || cache_is_data ||
                             (data_prc == ov::element::f32 && key_cache.get_precision() == ov::element::f16 &&
                              value_cache.get_precision() == ov::element::f16),
                         "[CPU] sparse_pa: plain caches must have the query precision, or f16 with f32 data");
-        const bool tiles = brgemm.enabled() && (quant.enabled() || cache_is_data);
+        const bool tiles = brgemm.enabled() && (is_quantized_cache(quant.key) || cache_is_data);
         OPENVINO_ASSERT(!brgemm.enabled() || brgemm.prec == data_prc,
                         "[CPU] sparse_pa: the brgemm kernels must be built for the query precision");
         OPENVINO_ASSERT(scratch != nullptr, "[CPU] sparse_pa: scratch must not be null");
@@ -786,7 +770,7 @@ private:
         // A decode token (a sequence of one new token) is a brgemm item too when its selection holds enough K / V bytes
         // (plain caches; a quantized cache would be dequantized into the tile first).
         const bool decode_brgemm =
-            tiles && !quant.enabled() &&
+            tiles && !is_quantized_cache(quant.key) &&
             sel_indices.size(2) * key_block_size * (k_head_size + v_head_size) * brgemm.prec.size() >=
                 kBrgemmDecodeMinBytes;
         const auto is_brgemm_sequence = [&](size_t seq) {
@@ -855,6 +839,7 @@ private:
     }
 
     SparsePAConfig m_cfg;
+    size_t m_thread_block_bytes;  // bytes of the scratch block of one worker thread
 };
 
 }  // namespace

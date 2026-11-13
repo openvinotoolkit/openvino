@@ -77,14 +77,11 @@ using ov::intel_cpu::CpuParallel;
 using ov::intel_cpu::CpuParallelPtr;
 using ov::intel_cpu::div_up;
 using ov::intel_cpu::rnd_up;
+using qsa_kernel::batch_entry_plan;
 using qsa_kernel::block_address;
-using qsa_kernel::num_sequences;
 using qsa_kernel::rope_batch;
-using qsa_kernel::row_plan;
-using qsa_kernel::row_stats;
 using qsa_kernel::row_view;
 using qsa_kernel::seq_plan;
-using qsa_kernel::seq_stats;
 using qsa_kernel::SeqPlan;
 
 // Step 5: writes the (ascending) ids of the k blocks of the highest scores[0, n) to `chosen`, n > k > 0 (scores: the
@@ -203,14 +200,6 @@ inline void select_top_blocks(const float* scores,
     std::copy_n(collected, k, chosen);
 }
 
-// Orders `count` chosen block ids by descending score, equal scores by ascending block id: the order of
-// SparseAttentionIndexer-17. `scores` is the [NB] row of the token and selection head.
-inline void order_blocks_by_score(const float* scores, int32_t* blocks, size_t count) {
-    std::sort(blocks, blocks + count, [scores](int32_t a, int32_t b) {
-        return scores[a] != scores[b] ? scores[a] > scores[b] : a < b;
-    });
-}
-
 // The computation of a call on the scorer of the node (QsaBrgemm); `Source` is described below.
 //
 // `Source` is the layout of the call: it gives the runner the tokens of the rows, the query and RoPE rows, the blocks
@@ -236,20 +225,19 @@ inline void order_blocks_by_score(const float* scores, int32_t* blocks, size_t c
 //   int32_t* selection_count(b, v, sel_head)      where their number goes
 class BrgemmRunner {
 public:
-    using Params = QsaBrgemm::Params;
     using Plan = QsaBrgemm::Plan;
 
     explicit BrgemmRunner(const QsaBrgemm& brgemm)
         : m_brgemm(brgemm),
-          m_config(brgemm.params()),
-          m_q_k_kernel(brgemm.q_k_kernel()),
-          m_k_q_kernel(brgemm.k_q_kernel()),
-          m_heads_per_key(brgemm.heads_per_key()),
-          m_tokens_per_call(brgemm.tokens_per_call()),
-          m_tile_tokens(brgemm.tile_tokens()),
-          m_packed_query_bytes(brgemm.packed_query_bytes()),
-          m_offsets(brgemm.offsets()),
-          m_select_offset(brgemm.select_offset()) {}
+          m_config(brgemm.config()),
+          m_q_k_kernel(brgemm.q_k_kernel),
+          m_k_q_kernel(brgemm.k_q_kernel),
+          m_heads_per_key(brgemm.heads_per_key),
+          m_tokens_per_call(brgemm.tokens_per_call),
+          m_tile_tokens(brgemm.tile_tokens),
+          m_packed_query_bytes(brgemm.packed_query_bytes),
+          m_offsets(brgemm.offsets),
+          m_select_offset(brgemm.select_offset) {}
 
     // Selects the blocks of every token of the call. `shared` / `threads` are the scratch of plan.shared_bytes and of
     // num_threads slices of plan.thread_bytes.
@@ -260,7 +248,7 @@ public:
         const Context<Source> ctx{source, plan, static_cast<float*>(shared), static_cast<uint8_t*>(threads), parallel};
         if (!m_brgemm.needs_scoring(plan)) {
             // every token sees at most block_topk blocks: all of them are chosen
-            parallel.parallel_for2d(plan.batch, static_cast<size_t>(plan.max_current), [&](size_t b, size_t v) {
+            parallel.parallel_for2d(plan.batch, static_cast<size_t>(plan.max_q_len), [&](size_t b, size_t v) {
                 if (static_cast<int64_t>(v) < source.tokens(b)) {
                     select_token(ctx, b, static_cast<int64_t>(v), nullptr, nullptr);
                 }
@@ -268,8 +256,8 @@ public:
             return;
         }
 
-        const size_t groups_total = div_up(static_cast<size_t>(plan.max_row_blocks), kScoreBlockRows);
-        const size_t tile_alloc_tokens = std::min(m_tile_tokens, static_cast<size_t>(plan.max_current));
+        const size_t groups_total = div_up(static_cast<size_t>(plan.max_blocks), kScoreBlockRows);
+        const size_t tile_alloc_tokens = std::min(m_tile_tokens, static_cast<size_t>(plan.max_q_len));
         for (size_t first_tile = 0; first_tile < plan.tiles_total; first_tile += plan.tiles_per_round) {
             const size_t tiles = std::min(plan.tiles_per_round, plan.tiles_total - first_tile);
             // Few work items (decode, short windows): split the block range of an item among several threads.
@@ -289,7 +277,7 @@ public:
                     select_token(ctx,
                                  b,
                                  v,
-                                 tile_scores(ctx, tile, b) + t * m_config.selection_heads * plan.score_stride);
+                                 tile_scores(ctx, tile, b) + t * m_config.num_selection_heads * plan.score_stride);
                 }
             });
         }
@@ -346,8 +334,8 @@ private:
         auto* const base = ctx.threads + static_cast<size_t>(parallel_get_thread_num()) * ctx.plan.thread_bytes;
         ThreadScratch s{};
         s.q_row = reinterpret_cast<float*>(base + m_offsets.rows);
-        s.normed = s.q_row + m_config.dim;
-        s.rope_cos = s.normed + m_config.dim;
+        s.normed = s.q_row + m_config.head_dim;
+        s.rope_cos = s.normed + m_config.head_dim;
         s.rope_sin = s.rope_cos + m_config.rotary_dim;
         s.query_tile = base + m_offsets.query_tile;
         s.packed_blocks = base + m_offsets.packed_blocks;
@@ -378,7 +366,7 @@ private:
                       const ThreadScratch* s) const {
         const auto visible = static_cast<size_t>(ctx.source.blocks_visible(b, v));
         const size_t k = std::min(m_config.block_topk, visible);
-        for (size_t sel_head = 0; sel_head < m_config.selection_heads; sel_head++) {
+        for (size_t sel_head = 0; sel_head < m_config.num_selection_heads; sel_head++) {
             auto* const out_row = ctx.source.selection_indices(b, v, sel_head);
             if (visible <= m_config.block_topk) {
                 for (size_t i = 0; i < k; i++) {
@@ -393,7 +381,11 @@ private:
                                   out_row);
             }
             if (m_config.order_by_score && k > 0) {
-                order_blocks_by_score(token_scores + sel_head * ctx.plan.score_stride, out_row, k);
+                // descending score, equal scores by ascending block id: the order of SparseAttentionIndexer-17
+                const float* const row_scores = token_scores + sel_head * ctx.plan.score_stride;
+                std::sort(out_row, out_row + k, [row_scores](int32_t a, int32_t b) {
+                    return row_scores[a] != row_scores[b] ? row_scores[a] > row_scores[b] : a < b;
+                });
             }
             *ctx.source.selection_count(b, v, sel_head) = static_cast<int32_t>(k);
         }
@@ -419,7 +411,7 @@ private:
                 select_token(ctx,
                              b,
                              first_token + t,
-                             scores + static_cast<size_t>(t) * m_config.selection_heads * ctx.plan.score_stride,
+                             scores + static_cast<size_t>(t) * m_config.num_selection_heads * ctx.plan.score_stride,
                              &thread);
             }
         };
@@ -462,7 +454,7 @@ private:
                               QuerySlice* q_slices) const {
         using T = typename Source::Element;
         const Source& source = ctx.source;
-        const size_t dim = m_config.dim;
+        const size_t dim = m_config.head_dim;
         const size_t heads_per_key = m_heads_per_key;
         const size_t q_slice_count = div_up(static_cast<size_t>(valid), m_tokens_per_call);
         for (size_t q_slice_idx = 0; q_slice_idx < q_slice_count; q_slice_idx++) {
@@ -538,11 +530,11 @@ private:
             // the chunks of an item end where its last token's blocks end, so the last slice sees every one of them
             const size_t key_chunk_blocks = std::min(kScoreBlockRows, key_total_blocks - key_first_block);
             for (size_t key_head = 0; key_head < m_config.index_key_heads; key_head++) {
-                const size_t sel_head = (key_head * m_config.selection_heads) / m_config.index_key_heads;
+                const size_t sel_head = (key_head * m_config.num_selection_heads) / m_config.index_key_heads;
                 // the first K head of a selection head writes its scores, the others add
                 const bool first_key_head_of_sel =
-                    key_head ==
-                    (sel_head * m_config.index_key_heads + m_config.selection_heads - 1) / m_config.selection_heads;
+                    key_head == (sel_head * m_config.index_key_heads + m_config.num_selection_heads - 1) /
+                                    m_config.num_selection_heads;
                 // the 32 blocks of the chunk; the last chunk of the row may have fewer, and a source whose cache is
                 // paged may have to gather them
                 const T* const blocks = ctx.source.block_rows(b,
@@ -560,10 +552,11 @@ private:
                         continue;  // no token of the slice sees these blocks
                     }
                     // the scores of the first token of the slice in `scores`
-                    float* const score_out = scores +
-                                             (q_slice_idx * m_tokens_per_call * m_config.selection_heads + sel_head) *
-                                                 ctx.plan.score_stride +
-                                             key_first_block;
+                    float* const score_out =
+                        scores +
+                        (q_slice_idx * m_tokens_per_call * m_config.num_selection_heads + sel_head) *
+                            ctx.plan.score_stride +
+                        key_first_block;
                     if (q_slice.is_single_token) {
                         score_k_q_slice(thread, q_slice, blocks, key_head, first_key_head_of_sel, score_out, amx_tiles);
                     } else {
@@ -621,7 +614,7 @@ private:
                          float* score_out,
                          size_t score_stride,
                          AmxTileState& amx_tiles) const {
-        const size_t dim = m_config.dim;
+        const size_t dim = m_config.head_dim;
         const auto* const query = reinterpret_cast<const T*>(q_slice.query) + key_head * q_slice.query_rows * dim;
         const size_t full_row_tiles = q_slice.query_rows / kScoreBlockRows;
         for (size_t row_tile = 0; row_tile < full_row_tiles; row_tile++) {
@@ -660,7 +653,7 @@ private:
                     sum[i] += row[i];
                 }
             }
-            float* const token_out = score_out + t * m_config.selection_heads * score_stride;
+            float* const token_out = score_out + t * m_config.num_selection_heads * score_stride;
             if (first_key_head_of_sel) {
                 for (size_t i = 0; i < kScoreBlockRows; i++) {
                     token_out[i] = sum[i] * m_config.scale;
@@ -676,7 +669,7 @@ private:
     static constexpr size_t kQuerySlicesPerItem = QsaBrgemm::kQuerySlicesPerItem;
 
     const QsaBrgemm& m_brgemm;
-    const Params& m_config;
+    const Config& m_config;
     const std::shared_ptr<BrgemmKernel>& m_q_k_kernel;
     const std::shared_ptr<BrgemmKernel>& m_k_q_kernel;
     size_t m_heads_per_key;
@@ -702,17 +695,17 @@ public:
           m_q_norm_weight(q_norm_weight) {}
 
     [[nodiscard]] int64_t tokens(size_t b) const {
-        return row_plan(m_call, m_c, b).current;
+        return batch_entry_plan(m_call, m_c, b).current;
     }
     [[nodiscard]] int64_t blocks_visible(size_t b, int64_t v) const {
-        return row_plan(m_call, m_c, b).blocks_visible(v, static_cast<int64_t>(m_c.key_block_size));
+        return batch_entry_plan(m_call, m_c, b).blocks_visible(v, static_cast<int64_t>(m_c.key_block_size));
     }
     [[nodiscard]] int64_t blocks(size_t b) const {
-        const auto plan = row_plan(m_call, m_c, b);
+        const auto plan = batch_entry_plan(m_call, m_c, b);
         return plan.past_blocks + plan.new_blocks;
     }
     [[nodiscard]] const float* query_row(size_t b, int64_t v, size_t h, float* buf) const {
-        return qsa_kernel::row_as_f32(m_call.q_idx.ptr<T>(b, position(b, v), h), m_call.q_idx.size(3), buf);
+        return qsa_kernel::row_as_f32(m_call.q_idx.ptr<T>(b, position(b, v), h), m_c.head_dim, buf);
     }
     [[nodiscard]] const float* rope_cos(size_t b, int64_t v, float* buf) const {
         return qsa_kernel::row_as_f32(m_call.rope_cos.ptr<T>(rope_batch(m_call.rope_cos, b), position(b, v)),
@@ -734,7 +727,7 @@ public:
         if (count == kScoreBlockRows) {
             return rows;
         }
-        const size_t dim = m_call.q_idx.size(3);
+        const size_t dim = m_c.head_dim;
         std::copy_n(rows, count * dim, stage);
         std::fill_n(stage + count * dim, (kScoreBlockRows - count) * dim, T{});
         return stage;
@@ -748,7 +741,7 @@ public:
 
 private:
     [[nodiscard]] size_t position(size_t b, int64_t v) const {
-        return static_cast<size_t>(row_plan(m_call, m_c, b).num_padding + v);
+        return static_cast<size_t>(batch_entry_plan(m_call, m_c, b).num_padding + v);
     }
 
     const DenseCall& m_call;
@@ -839,37 +832,28 @@ struct ScorerScratch {
     size_t threads_offset;
     size_t total_bytes;
 
-    ScorerScratch(const QsaBrgemm& brgemm, size_t batch, int64_t max_current, int64_t max_row_blocks)
-        : plan(brgemm.plan(batch, max_current, max_row_blocks)),
-          shared_offset(rnd_up(brgemm.params().dim * sizeof(float), QsaBrgemm::kAlign)),
+    ScorerScratch(const QsaBrgemm& brgemm, size_t batch, int64_t max_q_len, int64_t max_blocks)
+        : plan(brgemm.plan(batch, max_q_len, max_blocks)),
+          shared_offset(rnd_up(brgemm.config().head_dim * sizeof(float), QsaBrgemm::kAlign)),
           threads_offset(rnd_up(shared_offset + plan.shared_bytes, QsaBrgemm::kAlign)),
-          total_bytes(threads_offset + brgemm.params().num_threads * plan.thread_bytes) {}
+          total_bytes(threads_offset + brgemm.config().num_threads * plan.thread_bytes) {}
 };
 
 template <typename T>
 class DenseScorerImpl final : public DenseScorer {
 public:
-    DenseScorerImpl(std::shared_ptr<const QsaBrgemm> brgemm, const Config& config)
-        : m_brgemm(std::move(brgemm)),
-          m_config(config) {}
-
-    // A call without blocks in the summary cache has nothing to score.
-    [[nodiscard]] bool applies(const DenseCall& call) const override {
-        return call.summary_cache.size(2) > 0;
-    }
+    explicit DenseScorerImpl(std::shared_ptr<const QsaBrgemm> brgemm) : m_brgemm(std::move(brgemm)) {}
 
     [[nodiscard]] size_t scratch_bytes(const DenseCall& call) const override {
-        const auto stats = row_stats(call, m_config);
-        return ScorerScratch(*m_brgemm, call.q_idx.size(0), stats.max_current, stats.max_row_blocks).total_bytes;
+        return ScorerScratch(*m_brgemm, call.q_idx.size(0), call.max_q_len, call.max_blocks).total_bytes;
     }
 
     void score(const DenseCall& call, uint8_t* memory, const CpuParallelPtr& cpu_parallel) override {
-        const auto stats = row_stats(call, m_config);
-        const ScorerScratch scratch(*m_brgemm, call.q_idx.size(0), stats.max_current, stats.max_row_blocks);
+        const ScorerScratch scratch(*m_brgemm, call.q_idx.size(0), call.max_q_len, call.max_blocks);
         auto* const q_norm_buf = reinterpret_cast<float*>(memory);
         const float* const q_norm_w =
-            qsa_kernel::row_as_f32(call.q_norm_weight.ptr<T>(), m_config.head_dim, q_norm_buf);
-        const DenseSource<T> source(call, m_config, q_norm_w);
+            qsa_kernel::row_as_f32(call.q_norm_weight.ptr<T>(), m_brgemm->config().head_dim, q_norm_buf);
+        const DenseSource<T> source(call, m_brgemm->config(), q_norm_w);
         BrgemmRunner(*m_brgemm).run(scratch.plan,
                                     source,
                                     memory + scratch.shared_offset,
@@ -879,33 +863,24 @@ public:
 
 private:
     std::shared_ptr<const QsaBrgemm> m_brgemm;
-    Config m_config;
 };
 
 template <typename T>
 class PagedScorerImpl final : public PagedScorer {
 public:
-    PagedScorerImpl(std::shared_ptr<const QsaBrgemm> brgemm, const Config& config)
-        : m_brgemm(std::move(brgemm)),
-          m_config(config) {}
-
-    // A call whose sequences have no complete block has nothing to score.
-    [[nodiscard]] bool applies(const PagedCall& call) const override {
-        return seq_stats(call, m_config).max_blocks > 0;
-    }
+    explicit PagedScorerImpl(std::shared_ptr<const QsaBrgemm> brgemm) : m_brgemm(std::move(brgemm)) {}
 
     [[nodiscard]] size_t scratch_bytes(const PagedCall& call) const override {
-        const auto stats = seq_stats(call, m_config);
-        return ScorerScratch(*m_brgemm, num_sequences(call), stats.max_q_len, stats.max_blocks).total_bytes;
+        return ScorerScratch(*m_brgemm, call.subsequence_begins.size(0) - 1, call.max_q_len, call.max_blocks)
+            .total_bytes;
     }
 
     void score(const PagedCall& call, uint8_t* memory, const CpuParallelPtr& cpu_parallel) override {
-        const auto stats = seq_stats(call, m_config);
-        const ScorerScratch scratch(*m_brgemm, num_sequences(call), stats.max_q_len, stats.max_blocks);
+        const ScorerScratch scratch(*m_brgemm, call.subsequence_begins.size(0) - 1, call.max_q_len, call.max_blocks);
         auto* const q_norm_buf = reinterpret_cast<float*>(memory);
         const float* const q_norm_w =
-            qsa_kernel::row_as_f32(call.q_norm_weight.ptr<T>(), m_config.head_dim, q_norm_buf);
-        const PagedSource<T> source(call, m_config, q_norm_w);
+            qsa_kernel::row_as_f32(call.q_norm_weight.ptr<T>(), m_brgemm->config().head_dim, q_norm_buf);
+        const PagedSource<T> source(call, m_brgemm->config(), q_norm_w);
         BrgemmRunner(*m_brgemm).run(scratch.plan,
                                     source,
                                     memory + scratch.shared_offset,
@@ -915,20 +890,20 @@ public:
 
 private:
     std::shared_ptr<const QsaBrgemm> m_brgemm;
-    Config m_config;
 };
 
 template <template <typename> class Impl, typename Interface>
-std::shared_ptr<Interface> make_scorer(const std::shared_ptr<const QsaBrgemm>& brgemm, const Config& config) {
+std::shared_ptr<Interface> make_scorer(const std::shared_ptr<const QsaBrgemm>& brgemm) {
     OPENVINO_ASSERT(brgemm, "QSA block scorer: no brgemm kernels");
+    const auto& config = brgemm->config();
     if (config.precision == ov::element::f32) {
-        return std::make_shared<Impl<float>>(brgemm, config);
+        return std::make_shared<Impl<float>>(brgemm);
     }
     if (config.precision == ov::element::f16) {
-        return std::make_shared<Impl<ov::float16>>(brgemm, config);
+        return std::make_shared<Impl<ov::float16>>(brgemm);
     }
     if (config.precision == ov::element::bf16) {
-        return std::make_shared<Impl<ov::bfloat16>>(brgemm, config);
+        return std::make_shared<Impl<ov::bfloat16>>(brgemm);
     }
     OPENVINO_THROW("QSA block scorer: unsupported precision ", config.precision);
 }
@@ -936,15 +911,13 @@ std::shared_ptr<Interface> make_scorer(const std::shared_ptr<const QsaBrgemm>& b
 }  // namespace
 
 std::shared_ptr<ov::Extensions::Cpu::qsa::DenseScorer> make_dense_qsa_scorer(
-    const std::shared_ptr<const ov::Extensions::Cpu::qsa::QsaBrgemm>& brgemm,
-    const ov::Extensions::Cpu::qsa::Config& config) {
-    return make_scorer<DenseScorerImpl, DenseScorer>(brgemm, config);
+    const std::shared_ptr<const ov::Extensions::Cpu::qsa::QsaBrgemm>& brgemm) {
+    return make_scorer<DenseScorerImpl, DenseScorer>(brgemm);
 }
 
 std::shared_ptr<ov::Extensions::Cpu::qsa::PagedScorer> make_paged_qsa_scorer(
-    const std::shared_ptr<const ov::Extensions::Cpu::qsa::QsaBrgemm>& brgemm,
-    const ov::Extensions::Cpu::qsa::Config& config) {
-    return make_scorer<PagedScorerImpl, PagedScorer>(brgemm, config);
+    const std::shared_ptr<const ov::Extensions::Cpu::qsa::QsaBrgemm>& brgemm) {
+    return make_scorer<PagedScorerImpl, PagedScorer>(brgemm);
 }
 
 }  // namespace ov::Extensions::Cpu::XARCH
@@ -955,14 +928,12 @@ namespace ov::Extensions::Cpu::XARCH {
 
 // The scorers are created only on CPUs with the AVX-512 brgemm kernels, so the other instruction sets never get here.
 std::shared_ptr<ov::Extensions::Cpu::qsa::DenseScorer> make_dense_qsa_scorer(
-    const std::shared_ptr<const ov::Extensions::Cpu::qsa::QsaBrgemm>& /*brgemm*/,
-    const ov::Extensions::Cpu::qsa::Config& /*config*/) {
+    const std::shared_ptr<const ov::Extensions::Cpu::qsa::QsaBrgemm>& /*brgemm*/) {
     OPENVINO_THROW("QSAIndexer: the brgemm block scorer requires AVX-512");
 }
 
 std::shared_ptr<ov::Extensions::Cpu::qsa::PagedScorer> make_paged_qsa_scorer(
-    const std::shared_ptr<const ov::Extensions::Cpu::qsa::QsaBrgemm>& /*brgemm*/,
-    const ov::Extensions::Cpu::qsa::Config& /*config*/) {
+    const std::shared_ptr<const ov::Extensions::Cpu::qsa::QsaBrgemm>& /*brgemm*/) {
     OPENVINO_THROW("PagedQSAIndexer: the brgemm block scorer requires AVX-512");
 }
 

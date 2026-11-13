@@ -424,29 +424,53 @@ void sparse_sdpa_brgemm(const SdpaBrgemmArgs& a, const ov::intel_cpu::CpuParalle
 
 class SdpaExecutor final : public SparseSdpaExecutor {
 public:
-    explicit SdpaExecutor(const SparseSdpaConfig& config) : m_cfg(config) {}
+    // The heads and head sizes are fixed by the config, so the scratch layout is computed once here.
+    explicit SdpaExecutor(const SparseSdpaConfig& config) : m_cfg(config), m_scratch(config) {}
 
-    [[nodiscard]] size_t scratch_bytes(const SparseSdpaTensors& t,
+    [[nodiscard]] size_t scratch_bytes([[maybe_unused]] const SparseSdpaTensors& t,
                                        const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const override {
-        return make_plan(t, cpu_parallel).total;
+        const auto num_threads = static_cast<size_t>(cpu_parallel->get_num_worker_threads());
+        return m_scratch.brgemm_offset(num_threads) + num_threads * m_scratch.brgemm_bytes_per_thread;
     }
 
     void execute(const SparseSdpaTensors& t,
                  uint8_t* scratch,
                  const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const override {
-        run(t, make_plan(t, cpu_parallel), scratch, cpu_parallel);
+        run(t, scratch, cpu_parallel);
     }
 
 private:
     // The scratch of a call, one allocation: the per-thread floats of the decode path, then (64-byte aligned) the
     // per-thread buffers of the brgemm prefill: the state of the head pack, the gather tile and the brgemm scratch.
-    struct Plan {
+    struct SdpaScratchLayout {
         DecodeScratch decode;
         PackStateLayout pack_layout;
         TileBrgemmLayout brgemm_layout;
         size_t brgemm_bytes_per_thread = 0;
-        size_t brgemm_offset = 0;
-        size_t total = 0;
+
+        explicit SdpaScratchLayout(const SparseSdpaConfig& c)
+            : decode(c.k_head_size,
+                     c.v_head_size,
+                     max_q_head_pack_size(c.num_heads, c.num_kv_heads, c.num_selection_heads),
+                     c.key_block_size,
+                     is_quantized_cache(c.key_spec) || is_quantized_cache(c.value_spec)) {
+            if (c.brgemm.enabled()) {
+                const size_t max_pack = max_q_head_pack_size(c.num_heads, c.num_kv_heads, c.num_selection_heads);
+                const size_t data_size = c.data_precision.size();
+                pack_layout = PackStateLayout(0, c.k_head_size, c.v_head_size, max_pack, data_size, true);
+                brgemm_layout = TileBrgemmLayout(pack_layout.total,
+                                                 c.k_head_size,
+                                                 c.v_head_size,
+                                                 max_pack,
+                                                 data_size,
+                                                 tile_brgemm_sizes(c.brgemm));
+                brgemm_bytes_per_thread = brgemm_layout.total;
+            }
+        }
+        // Where the brgemm buffers start: after the decode floats of every thread.
+        [[nodiscard]] size_t brgemm_offset(size_t num_threads) const {
+            return aligned(num_threads * decode.total * sizeof(float));
+        }
     };
 
     [[nodiscard]] KvQuant key_quant(const SparseSdpaTensors& t) const {
@@ -456,36 +480,7 @@ private:
         return {m_cfg.value_spec, t.value_scale_zp};
     }
 
-    [[nodiscard]] Plan make_plan(const SparseSdpaTensors& t, const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const {
-        const size_t Hq = t.query.size(1);
-        const size_t Hkv = t.key.size(1);
-        const size_t Dh = t.query.size(3);
-        const size_t Dv = t.value.size(3);
-        const size_t max_pack = max_q_head_pack_size(Hq, Hkv, t.sel_indices.size(1));
-        Plan plan{
-            DecodeScratch(Dh, Dv, max_pack, m_cfg.key_block_size, key_quant(t).enabled() || value_quant(t).enabled()),
-            {},
-            {},
-            0,
-            0,
-            0};
-        const auto num_threads = static_cast<size_t>(cpu_parallel->get_num_worker_threads());
-        plan.brgemm_offset = aligned(num_threads * plan.decode.total * sizeof(float));
-        if (m_cfg.brgemm.enabled()) {
-            const size_t data_size = t.query.get_precision().size();
-            plan.pack_layout = PackStateLayout(0, Dh, Dv, max_pack, data_size, true);
-            plan.brgemm_layout =
-                TileBrgemmLayout(plan.pack_layout.total, Dh, Dv, max_pack, data_size, tile_brgemm_sizes(m_cfg.brgemm));
-            plan.brgemm_bytes_per_thread = plan.brgemm_layout.total;
-        }
-        plan.total = plan.brgemm_offset + num_threads * plan.brgemm_bytes_per_thread;
-        return plan;
-    }
-
-    void run(const SparseSdpaTensors& t,
-             const Plan& plan,
-             uint8_t* scratch,
-             const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const {
+    void run(const SparseSdpaTensors& t, uint8_t* scratch, const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const {
         const auto& query = t.query;
         const auto& key = t.key;
         const auto& value = t.value;
@@ -496,17 +491,21 @@ private:
         const auto value_quant = this->value_quant(t);
         const int32_t* key_length = t.key_length;
         const size_t key_length_batch_stride = t.key_length_batch_stride;
-        const size_t num_heads = query.size(1);
-        const size_t num_kv_heads = key.size(1);
-        const size_t k_head_size = query.size(3);
-        const size_t v_head_size = value.size(3);
+        const size_t num_heads = m_cfg.num_heads;
+        const size_t num_kv_heads = m_cfg.num_kv_heads;
+        const size_t k_head_size = m_cfg.k_head_size;
+        const size_t v_head_size = m_cfg.v_head_size;
         const size_t key_block_size = m_cfg.key_block_size;
-        const size_t h_sel = sel_indices.size(1);
+        const size_t h_sel = m_cfg.num_selection_heads;
+        OPENVINO_ASSERT(query.size(1) == num_heads && key.size(1) == num_kv_heads && query.size(3) == k_head_size &&
+                            value.size(3) == v_head_size && sel_indices.size(1) == h_sel,
+                        "[CPU] sparse_sdpa: the head counts and sizes of the call differ from the executor's");
+        const auto num_threads = static_cast<size_t>(cpu_parallel->get_num_worker_threads());
         const bool causal = m_cfg.causal;
         const float scale = m_cfg.scale;
         [[maybe_unused]] const TileBrgemm& brgemm = m_cfg.brgemm;
         [[maybe_unused]] uint8_t* const brgemm_scratch =
-            plan.brgemm_bytes_per_thread > 0 ? scratch + plan.brgemm_offset : nullptr;
+            m_scratch.brgemm_bytes_per_thread > 0 ? scratch + m_scratch.brgemm_offset(num_threads) : nullptr;
 
         const size_t q_per_sel = num_heads / h_sel;
         const size_t group = num_heads / num_kv_heads;
@@ -543,10 +542,10 @@ private:
                                       key_quant,
                                       value_quant,
                                       brgemm,
-                                      plan.pack_layout,
-                                      plan.brgemm_layout,
+                                      m_scratch.pack_layout,
+                                      m_scratch.brgemm_layout,
                                       brgemm_scratch,
-                                      plan.brgemm_bytes_per_thread,
+                                      m_scratch.brgemm_bytes_per_thread,
                                       max_q_head_pack_size(num_heads, num_kv_heads, h_sel)};
             // The brgemm path reads the query and the output as the brgemm's data type, and so the key and value unless
             // the cache is compressed (u8 / u4 rows, dequantized on the fly).
@@ -568,8 +567,8 @@ private:
         // Query heads sharing a K head and a selection head form one item: the rows are read once for all of them. With
         // too little work for the threads (a decode of few sequences) every head is its own item.
         const size_t max_pack = max_q_head_pack_size(num_heads, num_kv_heads, h_sel);
-        const DecodeScratch& layout = plan.decode;
-        const size_t per_thread_floats = layout.total;
+        const DecodeScratch& decode = m_scratch.decode;
+        const size_t per_thread_floats = decode.total;
         auto* const scratch_floats = reinterpret_cast<float*>(scratch);
         // Items are (b, pack, l). A pack shares the chunk split and the K/V reads but divides the item count, so use
         // packs only with at least 2 items per worker thread; otherwise every query head is its own item.
@@ -611,14 +610,14 @@ private:
                               pad,
                               causal ? std::min(static_cast<int64_t>(S), token_pos + 1) : static_cast<int64_t>(S),
                               scale,
-                              layout.max_run_rows,
-                              layout.score_stride,
-                              row + layout.q,
-                              row + layout.acc,
-                              row + layout.run_max,
-                              row + layout.run_sum,
-                              row + layout.scores,
-                              row + layout.dequant};
+                              decode.max_run_rows,
+                              decode.score_stride,
+                              row + decode.q,
+                              row + decode.acc,
+                              row + decode.run_max,
+                              row + decode.run_sum,
+                              row + decode.scores,
+                              row + decode.dequant};
                 for (size_t head = 0; head < pack; head++) {
                     cvt_copy(it.q + head * k_head_size, query.ptr<T>(b, first_head + head, l), 1, k_head_size, 0, 0);
                 }
@@ -660,6 +659,7 @@ private:
     }
 
     SparseSdpaConfig m_cfg;
+    SdpaScratchLayout m_scratch;
 };
 
 }  // namespace

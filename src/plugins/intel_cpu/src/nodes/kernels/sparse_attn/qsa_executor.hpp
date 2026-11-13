@@ -9,7 +9,8 @@
 // paged_qsa_indexer_kernel.cpp, qsa_brgemm_kernel.cpp) implement it.
 //
 // A node builds an executor once (the factory picks the data type) and then, per call, fills a Call with the tensors of
-// its ports, asks the executor for the scratch size, and runs it. Both ops are two stages:
+// its ports, lets the executor find the batch maxima and asks it for the scratch size, and runs the stages.
+// Both ops are two stages:
 //   prepare      appends the new keys to the caches and pools the blocks they complete
 //   score        per token: scores the complete blocks it sees and keeps the block_topk best ones
 // The executor scores the tokens itself; the brgemm scorer (x64, AVX-512) is a separate object that replaces that
@@ -32,6 +33,9 @@ struct Config {
     size_t num_selection_heads = 0;  ///< selection heads of the output
     size_t block_topk = 0;           ///< blocks kept per token and selection head
     size_t head_dim = 0;             ///< channels of an index head
+    size_t index_query_heads = 0;    ///< heads of the index query
+    size_t index_key_heads = 0;      ///< heads of the index keys
+    size_t page_size = 0;            ///< tokens per page of the caches (paged op)
     size_t rotary_dim = 0;           ///< channels rotated by RoPE
     size_t num_threads = 0;          ///< worker threads of the node (sizes the scratch)
     float eps = 0.0F;                ///< RMSNorm epsilon
@@ -43,10 +47,14 @@ struct Config {
 
 /// @brief The tensors of a call of the QSAIndexer node (dense caches, see qsa_indexer_kernel.cpp).
 struct DenseCall {
-    ov::intel_cpu::PlainTensor q_idx;                                          ///< [B, L, H_iq, D]
-    ov::intel_cpu::PlainTensor k_idx;                                          ///< [B, L, H_ik, D]
-    ov::intel_cpu::PlainTensor rope_cos, rope_sin;                             ///< [1 | B, L, Dr]
-    ov::intel_cpu::PlainTensor key_length;                                     ///< [1 | B]
+    // Set by Executor::find_batch_max_params() from the longest row of the batch; read by the stages and the scorer.
+    int64_t max_blocks = 0;                         ///< most complete blocks a row of the batch has after the call
+    int64_t max_new_blocks = 0;                     ///< most blocks a row of the batch completes in the call
+    int64_t max_q_len = 0;                          ///< most tokens of a row of the batch in the call
+    ov::intel_cpu::PlainTensor q_idx;               ///< [B, L, H_iq, D]
+    ov::intel_cpu::PlainTensor k_idx;               ///< [B, L, H_ik, D]
+    ov::intel_cpu::PlainTensor rope_cos, rope_sin;  ///< [1 | B, L, Dr]
+    ov::intel_cpu::PlainTensor key_length;          ///< [1 | B]
     ov::intel_cpu::PlainTensor q_norm_weight, k_norm_weight;                   ///< [D]
     ov::intel_cpu::PlainTensor past_raw_k_in, past_rope_in, summary_cache_in;  ///< the state inputs (read only)
     ov::intel_cpu::PlainTensor summary_cache, past_raw_k, past_rope;           ///< the updated state
@@ -55,11 +63,15 @@ struct DenseCall {
 
 /// @brief The tensors of a call of the PagedQSAIndexer node (caches addressed through the PagedAttention page table).
 struct PagedCall {
-    ov::intel_cpu::PlainTensor q_idx;                                           ///< [tokens, H_iq * D]
-    ov::intel_cpu::PlainTensor k_idx;                                           ///< [tokens, H_ik * D]
-    ov::intel_cpu::PlainTensor rope_cos, rope_sin;                              ///< [tokens, Dr]
-    ov::intel_cpu::PlainTensor q_norm_weight, k_norm_weight;                    ///< [D]
-    ov::intel_cpu::PlainTensor past_lens, subsequence_begins;                   ///< [seqs], [seqs + 1]
+    // Set by Executor::find_batch_max_params() from the longest sequence; read by the stages and the scorer.
+    int64_t max_blocks = 0;                                    ///< most complete blocks a sequence has after the call
+    int64_t max_new_blocks = 0;                                ///< most blocks a sequence completes in the call
+    int64_t max_q_len = 0;                                     ///< most tokens of a sequence in the call
+    ov::intel_cpu::PlainTensor q_idx;                          ///< [tokens, H_iq * D]
+    ov::intel_cpu::PlainTensor k_idx;                          ///< [tokens, H_ik * D]
+    ov::intel_cpu::PlainTensor rope_cos, rope_sin;             ///< [tokens, Dr]
+    ov::intel_cpu::PlainTensor q_norm_weight, k_norm_weight;   ///< [D]
+    ov::intel_cpu::PlainTensor past_lens, subsequence_begins;  ///< [seqs], [seqs + 1]
     ov::intel_cpu::PlainTensor block_indices, block_indices_begins;             ///< page table
     ov::intel_cpu::PlainTensor raw_k_cache, indexer_rope_cache, summary_cache;  ///< paged caches, written in place
     ov::intel_cpu::PlainTensor sel_indices, sel_count;                          ///< [tokens, H_sel, K], [tokens, H_sel]
@@ -71,7 +83,10 @@ template <typename Call>
 class Executor {
 public:
     virtual ~Executor() = default;
-    /// Scratch bytes of a call (for both stages); also checks that the call fits its caches.
+    /// Walks the rows / sequences of the call once: checks that the call fits its caches and sets the max_* fields of
+    /// the call, which the stages and the scorer read. Call it before scratch_bytes() and the stages.
+    virtual void find_batch_max_params(Call& call) const = 0;
+    /// The scratch bytes the stages of the call need, from the call (its max_* fields must be set).
     [[nodiscard]] virtual size_t scratch_bytes(const Call& call) const = 0;
     virtual void prepare(const Call& call, uint8_t* scratch, const ov::intel_cpu::CpuParallelPtr& cpu_parallel) = 0;
     virtual void score_tokens(const Call& call,
@@ -84,8 +99,7 @@ template <typename Call>
 class Scorer {
 public:
     virtual ~Scorer() = default;
-    /// Whether the call has anything to score (otherwise the executor's own scoring runs).
-    [[nodiscard]] virtual bool applies(const Call& call) const = 0;
+    /// Scratch of the scoring stage from the max_* fields of the call.
     [[nodiscard]] virtual size_t scratch_bytes(const Call& call) const = 0;
     virtual void score(const Call& call, uint8_t* scratch, const ov::intel_cpu::CpuParallelPtr& cpu_parallel) = 0;
 };

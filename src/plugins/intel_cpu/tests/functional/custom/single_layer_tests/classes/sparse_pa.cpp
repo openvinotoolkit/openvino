@@ -436,13 +436,12 @@ void SparsePALayerCPUTest::SetUp() {
                              scale,
                              sinks};
     auto sparse_pa = std::make_shared<ov::op::internal::PagedSparseAttention>(args, m_cfg.key_block_size);
-    if (quantized()) {
-        // Head metadata for ConvertPagedAttnInputs, which builds the padded quantized cache shapes from it.
-        sparse_pa->get_rt_info()["num_k_heads"] = Hkv;
-        sparse_pa->get_rt_info()["k_head_size"] = m_k_head_size;
-        sparse_pa->get_rt_info()["num_v_heads"] = Hkv;
-        sparse_pa->get_rt_info()["v_head_size"] = Dv;
-    }
+    // Head metadata, as the transformation that creates the op records it: the node takes the head counts and sizes
+    // from it, and ConvertPagedAttnInputs builds the cache shapes (32-token pages, padded when quantized) from it.
+    sparse_pa->get_rt_info()["num_k_heads"] = Hkv;
+    sparse_pa->get_rt_info()["k_head_size"] = m_k_head_size;
+    sparse_pa->get_rt_info()["num_v_heads"] = Hkv;
+    sparse_pa->get_rt_info()["v_head_size"] = Dv;
 
     function =
         std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(sparse_pa)}, parameters);

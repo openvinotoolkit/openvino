@@ -52,6 +52,10 @@ private:
     ov::op::internal::PagedQSAIndexer::Config m_config;
     std::shared_ptr<ov::Extensions::Cpu::qsa::PagedExecutor> m_executor;
     std::shared_ptr<ov::Extensions::Cpu::qsa::PagedScorer> m_scorer;  // null: the executor scores the blocks itself
+    // Fixed by the model.
+    size_t m_index_query_heads = 0;
+    size_t m_index_key_heads = 0;
+    size_t m_page_size = 0;  // tokens per page of the caches
     impl_desc_type m_impl = impl_desc_type::ref;
 };
 

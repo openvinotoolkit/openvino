@@ -10,6 +10,7 @@
 #include "cpu_parallel.hpp"
 #include "nodes/kernels/scaled_attn/attn_brgemm_common.hpp"
 #include "nodes/kernels/scaled_attn/cache_spec.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/plain_tensor.hpp"
 
 namespace ov::Extensions::Cpu {
@@ -18,6 +19,12 @@ namespace ov::Extensions::Cpu {
 /// CacheSpec: per-token groups of `group_size` elements, or per-channel groups of tokens with `by_channel`); any other
 /// precision is a plain cache read as is.
 struct SparseSdpaConfig {
+    size_t num_heads = 0;            ///< query heads
+    size_t num_kv_heads = 0;         ///< key / value heads
+    size_t num_selection_heads = 1;  ///< heads of the block selection: 1, num_kv_heads or num_heads
+    size_t k_head_size = 0;          ///< E of the query and the keys
+    size_t v_head_size = 0;          ///< Ev of the values and the output
+    ov::element::Type data_precision = ov::element::f32;  ///< query, output and plain key / value type
     size_t key_block_size = 0;
     bool causal = true;
     float scale = 1.0F;
