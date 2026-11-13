@@ -29,7 +29,6 @@
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #ifdef OPENVINO_ARCH_X86_64
-#    include "cpu_types.h"
 #    include "nodes/kernels/sparse_attn/qsa_brgemm.hpp"
 #    include "nodes/kernels/sparse_attn/qsa_brgemm_kernel.hpp"
 #endif

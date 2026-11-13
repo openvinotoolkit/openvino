@@ -83,7 +83,13 @@ std::shared_ptr<ov::op::internal::PagedSparseAttention> make_sparse_pa(ov::Param
     ov::OutputVector args(params.begin(), params.end());
     args.push_back(ov::op::v0::Constant::create(f32, ov::Shape{}, {0.25F}));
     args.push_back(ov::op::v0::Constant::create(f32, ov::Shape{0}, std::vector<float>{}));
-    return std::make_shared<ov::op::internal::PagedSparseAttention>(args, 2);
+    auto sparse_pa = std::make_shared<ov::op::internal::PagedSparseAttention>(args, 2);
+    // The head counts and sizes the node takes from the op, as the transformation that creates it records them.
+    sparse_pa->get_rt_info()["num_k_heads"] = size_t{2};
+    sparse_pa->get_rt_info()["k_head_size"] = size_t{16};
+    sparse_pa->get_rt_info()["num_v_heads"] = size_t{2};
+    sparse_pa->get_rt_info()["v_head_size"] = size_t{16};
+    return sparse_pa;
 }
 
 }  // namespace
