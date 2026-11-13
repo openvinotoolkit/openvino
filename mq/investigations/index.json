@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 439,
+  "total": 440,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -4820,6 +4820,17 @@
       "category": "Infrastructure",
       "signature_hash": "39e65673e42b712c",
       "pr_number": "39717"
+    },
+    {
+      "investigation_id": "2026-11-13-09-57-39-000-43399290436",
+      "run_id": "43399290436",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43399290436",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-11-13T09:57:39Z",
+      "title": "smoke_MaxPoolV14 - primType is unexpected: undef_f32 Expected: acl_f32 on ARM64",
+      "category": "Flaky Test",
+      "signature_hash": "eb0b94c864ee1a85",
+      "pr_number": "39771"
     }
   ]
 }

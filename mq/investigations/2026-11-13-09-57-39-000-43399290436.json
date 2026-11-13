@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-13-09-57-39-000-43399290436",
+  "timestamp": "2026-11-13T09:57:39Z",
+  "run_id": "43399290436",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43399290436",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "39771",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39771",
+  "author": "culhatsker",
+  "category": "Flaky Test",
+  "title": "smoke_MaxPoolV14 - primType is unexpected: undef_f32 Expected: acl_f32 on ARM64",
+  "signature": "primType is unexpected undef_f32 Expected acl_f32|Flaky Test",
+  "signature_hash": "eb0b94c864ee1a85",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "Intel CPU plugin func tests (parallel) step failed: one smoke_MaxPoolV14 test hit a primType mismatch on ACL backend (undef_f32 instead of acl_f32)."
+    },
+    {
+      "name": "ci/gha_overall_status_linux_arm64",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check failed because the CPU functional tests job above failed."
+    }
+  ],
+  "key_errors": [
+    "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp:248: Failure\nValue of: primTypeCheck(primType)\n  Actual: false\nExpected: true\nprimType is unexpected : undef_f32 Expected : acl_f32",
+    "[  FAILED  ] smoke_MaxPoolV14_CPU_4D_2x2Kernel/MaxPoolingV14LayerCPUTest.CompareWithRefs/IS=([1..10.16.8.8])_TS=(1.16.8.8)_(2.16.8.8)_Prc=f32_MaxPool_K(2.2)_S(2.2)_D(1.1)_PB(0.0)_PE(0.0)_Rounding=ceil_torch_AutoPad=same_lower__primitive=acl, where GetParam() = ... (84 ms)"
+  ],
+  "root_cause": "This is the same recurring, previously documented flaky-test pattern (eb0b94c864ee1a85, now observed 9 times since 2026-09-11) affecting ARM64 ACL-backed CPU functional tests. The assertion in cpu_test_utils.cpp:248 checks that the ACL primitive type selected at runtime (primType) matches the expected 'acl_f32' tag for a given test, but intermittently the executor falls back to an unexpected 'undef_f32' primitive. This is consistent across many different pooling/convert/matmul smoke tests (previously MaxPool, AvgPool, FC, Convert, etc.; now MaxPoolV14), strongly indicating a shared non-deterministic ACL primitive/executor selection path (likely a thread-safety or caching race under the 16-worker parallel test run) rather than a bug in any individual test or PR. The current PR (#39771) only changes tests/memory_tests/tools/run_tests.py (an unrelated memory-test reporting script) and does not touch CPU plugin or ACL primitive-selection code, confirming the failure is unrelated to this PR's changes.",
+  "reproduction_steps": "Run the ARM64 CPU functional test suite locally on an ARM64 host with the ACL backend enabled: `ov_cpu_func_tests --gtest_filter=*smoke_MaxPoolV14_CPU_4D_2x2Kernel*CompareWithRefs*acl*` repeatedly under the 16-worker parallel runner (run_parallel.py --workers=16); the primType mismatch is intermittent and may require many iterations of the full parallel suite to reproduce.",
+  "recommended_actions": [
+    "Re-run the failed CPU functional tests job; this is a known flaky pattern (eb0b94c864ee1a85) unrelated to the current PR's run_tests.py changes.",
+    "Investigate ACL executor/primitive selection caching for thread-safety issues under parallel test execution in src/plugins/intel_cpu (ACL executor factory, cpu_test_utils.cpp primType resolution) to determine why primType can resolve to 'undef' instead of the expected backend tag.",
+    "Given this pattern has now recurred 9 times across 9+ different smoke tests and PRs, prioritize a permanent fix or quarantine the affected tests on ARM64 ACL until resolved."
+  ],
+  "prevention_strategies": "Add thread-safety assertions or tracing around ACL primitive/executor selection in the CPU plugin's ARM64 path. Track recurrence of signature eb0b94c864ee1a85 and escalate for dedicated engineering investigation now that it has crossed 9 occurrences across nearly two months.",
+  "historical_context": "This exact signature (primType is unexpected ... undef_f32 Expected ... acl_f32, category Flaky Test) has now recurred 9 times since 2026-09-11 across unrelated PRs (#37783, #37885, #38052, #38528, #38669, #39245, #39251, #39286, and now #39771), each time on a different smoke test (MaxPool, AvgPool, FC, MaxPoolV14, etc.), confirming this is an infrastructure-level ARM64/ACL flake rather than a code regression introduced by any single PR."
+}
