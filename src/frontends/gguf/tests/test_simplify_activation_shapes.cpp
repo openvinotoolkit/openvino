@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <sstream>
+#include <tuple>
+
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/decompositions/rms_norm.hpp"
 #include "openvino/op/add.hpp"
@@ -136,37 +139,39 @@ std::shared_ptr<ov::Model> matmul_rms_model_ref(bool with_scale,
     return std::make_shared<ov::Model>(ov::OutputVector{value}, ov::ParameterVector{x});
 }
 
-TEST_F(GGUFActivationShapes, FusesMatMulRmsNormWithScaleAndResidual) {
-    model = matmul_rms_model(true, true, {-1, 1, 8});
-    model_ref = matmul_rms_model_ref(true, true, {-1, 1, 8});
-    manager.register_pass<ov::pass::RMSFusion>(false, true, true);
-    manager.register_pass<ov::pass::EliminateSqueeze>();
-    manager.register_pass<ov::pass::DeReshapeFullyConnected>();
-}
+using MatMulRmsFusionParams = std::tuple<bool, bool, ov::PartialShape>;
 
-TEST_F(GGUFActivationShapes, FusesStaticMatMulRmsNormWithScaleAndResidual) {
-    model = matmul_rms_model(true, true, {2, 1, 8});
-    model_ref = matmul_rms_model_ref(true, true, {2, 1, 8});
-    manager.register_pass<ov::pass::RMSFusion>(false, true, true);
-    manager.register_pass<ov::pass::EliminateSqueeze>();
-    manager.register_pass<ov::pass::DeReshapeFullyConnected>();
-}
+class GGUFMatMulRmsFusion : public GGUFActivationShapes, public testing::WithParamInterface<MatMulRmsFusionParams> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<MatMulRmsFusionParams>& info) {
+        const auto& [with_scale, with_residual, input_shape] = info.param;
+        std::ostringstream name;
+        name << (with_scale ? "Scaled" : "Unscaled") << (with_residual ? "Residual" : "NoResidual")
+             << (input_shape[0].is_dynamic() ? "Dynamic" : "Static");
+        return name.str();
+    }
 
-TEST_F(GGUFActivationShapes, FusesMatMulRmsNormWithoutScale) {
-    model = matmul_rms_model(false, false, {2, 1, 8});
-    model_ref = matmul_rms_model_ref(false, false, {2, 1, 8});
-    manager.register_pass<ov::pass::RMSFusion>(false, true, true);
-    manager.register_pass<ov::pass::EliminateSqueeze>();
-    manager.register_pass<ov::pass::DeReshapeFullyConnected>();
-}
+protected:
+    void SetUp() override {
+        GGUFActivationShapes::SetUp();
+        const auto& [with_scale, with_residual, input_shape] = GetParam();
+        model = matmul_rms_model(with_scale, with_residual, input_shape);
+        model_ref = matmul_rms_model_ref(with_scale, with_residual, input_shape);
+        manager.register_pass<ov::pass::RMSFusion>(false, true, true);
+        manager.register_pass<ov::pass::EliminateSqueeze>();
+        manager.register_pass<ov::pass::DeReshapeFullyConnected>();
+    }
+};
 
-TEST_F(GGUFActivationShapes, FusesDynamicMatMulRmsNormWithoutScaleWithResidual) {
-    model = matmul_rms_model(false, true, {-1, 1, 8});
-    model_ref = matmul_rms_model_ref(false, true, {-1, 1, 8});
-    manager.register_pass<ov::pass::RMSFusion>(false, true, true);
-    manager.register_pass<ov::pass::EliminateSqueeze>();
-    manager.register_pass<ov::pass::DeReshapeFullyConnected>();
-}
+TEST_P(GGUFMatMulRmsFusion, FusesMatMulRmsNorm) {}
+
+INSTANTIATE_TEST_SUITE_P(GGUFActivationShapes,
+                         GGUFMatMulRmsFusion,
+                         testing::Values(MatMulRmsFusionParams{true, true, {-1, 1, 8}},
+                                         MatMulRmsFusionParams{true, true, {2, 1, 8}},
+                                         MatMulRmsFusionParams{false, false, {2, 1, 8}},
+                                         MatMulRmsFusionParams{false, true, {-1, 1, 8}}),
+                         GGUFMatMulRmsFusion::getTestCaseName);
 
 std::shared_ptr<ov::Model> rotary_model(bool compact,
                                         int64_t split_axis,
