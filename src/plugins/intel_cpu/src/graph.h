@@ -109,7 +109,7 @@ public:
         return _name;
     }
 
-    std::optional<size_t> getPagedAttentionBlockSize() const;
+    [[nodiscard]] std::optional<size_t> getPagedAttentionBlockSize() const;
 
     NodePtr getInputNodeByIndex(std::size_t index) {
         if (index >= inputNodes.size()) {

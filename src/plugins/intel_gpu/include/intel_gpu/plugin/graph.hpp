@@ -78,7 +78,7 @@ public:
     std::mutex& get_mutex() { return m_infer_mutex; }
 
     bool use_external_queue() const;
-    std::optional<size_t> getPagedAttentionBlockSize() const {
+    [[nodiscard]] std::optional<size_t> getPagedAttentionBlockSize() const {
         return m_paged_attention_block_size;
     }
 
