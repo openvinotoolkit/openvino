@@ -4082,4 +4082,152 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_opt_large_scores,
                                            sdpa_opt_large_scores_params{true, 0.0f}),
                          sdpa_opt_large_scores_test::PrintToStringParamName);
 
+// The first layer of Qwen2.5 (e.g. Qwen2.5-Math-1.5B) has unscaled Q*K^T scores of up to ~300000 (beyond the f16
+// range) and ~26600 after the default 1/sqrt(128) scale (where the f16 ulp is 16). Here every query and key element is
+// close to 32, so all unscaled scores are close to 128 * 32 * 32 = 131072 (twice the f16 maximum) and the scaled ones
+// (~11600, f16 ulp 8) differ only by tens, with an f16 causal mask input as exported models have. Larger scores would
+// only add f32 rounding to the reference comparison. The prefill of LLMs runs the sdpa_opt multi-token kernel with
+// FlashAttention-2 on GPUs without sdpa_micro, and that path also keeps the scores in an f16 SLM buffer, so check it
+// as well as the regular path.
+struct sdpa_opt_qwen2_scores_params {
+    bool dynamic;
+    bool flash_attn_v2;
+};
+
+class sdpa_opt_qwen2_scores_test : public ::testing::TestWithParam<sdpa_opt_qwen2_scores_params> {
+public:
+    static std::string PrintToStringParamName(const testing::TestParamInfo<sdpa_opt_qwen2_scores_params>& info) {
+        const auto& p = info.param;
+        return std::string(p.dynamic ? "dynamic" : "static") + (p.flash_attn_v2 ? "_flash_attn_v2" : "_regular");
+    }
+};
+
+TEST_P(sdpa_opt_qwen2_scores_test, matches_reference) {
+    const auto& p = GetParam();
+    auto& engine = get_test_engine();
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+
+    // 58 tokens: neither the query block nor the key partition is full.
+    const size_t heads = 2, seq = 58, head_size = 128;
+    const ov::Shape qkv_shape{1, heads, seq, head_size};
+    const ov::Shape mask_shape{1, 1, seq, seq};
+    const layout qkv_layout(qkv_shape, data_types::f16, format::bfyx);
+    const layout mask_layout(mask_shape, data_types::f16, format::bfyx);
+    const layout qkv_dyn_layout(ov::PartialShape{1, static_cast<int64_t>(heads), -1, static_cast<int64_t>(head_size)}, data_types::f16, format::bfyx);
+    const layout mask_dyn_layout(ov::PartialShape{1, 1, -1, -1}, data_types::f16, format::bfyx);
+
+    // Values on a 1/32 grid below 64 are exact in f16, so the reference below sees the same inputs as the kernel.
+    const auto q_data = rg.generate_random_1d<ov::float16>(qkv_layout.count(), 31.5f, 32.5f, 32);
+    const auto k_data = rg.generate_random_1d<ov::float16>(qkv_layout.count(), 31.5f, 32.5f, 32);
+    const auto v_data = rg.generate_random_1d<ov::float16>(qkv_layout.count(), -1.0f, 1.0f, 64);
+    const float mask_lowest = std::numeric_limits<ov::float16>::lowest();
+    std::vector<ov::float16> mask_data(seq * seq);
+    for (size_t i = 0; i < seq; ++i) {
+        for (size_t j = 0; j < seq; ++j) {
+            mask_data[i * seq + j] = ov::float16(j <= i ? 0.0f : mask_lowest);
+        }
+    }
+
+    auto q_mem = engine.allocate_memory(qkv_layout);
+    auto k_mem = engine.allocate_memory(qkv_layout);
+    auto v_mem = engine.allocate_memory(qkv_layout);
+    auto mask_mem = engine.allocate_memory(mask_layout);
+    set_values(q_mem, q_data);
+    set_values(k_mem, k_data);
+    set_values(v_mem, v_data);
+    set_values(mask_mem, mask_data);
+
+    topology topo;
+    topo.add(input_layout("q", p.dynamic ? qkv_dyn_layout : qkv_layout));
+    topo.add(input_layout("k", p.dynamic ? qkv_dyn_layout : qkv_layout));
+    topo.add(input_layout("v", p.dynamic ? qkv_dyn_layout : qkv_layout));
+    topo.add(input_layout("mask", p.dynamic ? mask_dyn_layout : mask_layout));
+    topo.add(scaled_dot_product_attention("sdpa",
+                                          {input_info("q"), input_info("k"), input_info("v"), input_info("mask")},
+                                          false,
+                                          -1,
+                                          {0, 1, 2, 3},
+                                          {0, 1, 2, 3},
+                                          {0, 1, 2, 3},
+                                          {0, 1, 2, 3}));
+    topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    // Keep systolic devices off sdpa_micro, so that every device runs the sdpa_opt multi-token kernel.
+    config.set_property(ov::intel_gpu::enable_sdpa_micro(false));
+    config.set_property(ov::intel_gpu::could_use_flashattn_v2(p.flash_attn_v2));
+    auto net = get_network(engine, topo, config, get_test_stream_ptr(), false);
+    net->set_input_data("q", q_mem);
+    net->set_input_data("k", k_mem);
+    net->set_input_data("v", v_mem);
+    net->set_input_data("mask", mask_mem);
+    auto output = net->execute().at("result").get_memory();
+
+    std::string sdpa_id;
+    for (const auto& info : net->get_primitives_info()) {
+        if (info.type_id == "scaled_dot_product_attention")
+            sdpa_id = info.original_id;
+    }
+    ASSERT_FALSE(sdpa_id.empty()) << "Expected an SDPA primitive";
+    const auto inst = net->get_primitive(sdpa_id);
+    const auto kernels = inst->get_impl()->get_kernels_dump_info(*inst->get_impl_params()).get_entries();
+    ASSERT_NE(kernels.find("sdpa_opt__multi_reg"), std::string::npos) << "Executed kernels: " << kernels;
+
+    // Double reference on the f16 inputs with the default scale.
+    const double scale = 1.0 / std::sqrt(static_cast<double>(head_size));
+    std::vector<double> expected(qkv_layout.count(), 0.0);
+    std::vector<double> weights(seq);
+    for (size_t h = 0; h < heads; ++h) {
+        for (size_t i = 0; i < seq; ++i) {
+            double max_logit = -std::numeric_limits<double>::infinity();
+            for (size_t j = 0; j < seq; ++j) {
+                double dot = 0.0;
+                for (size_t e = 0; e < head_size; ++e) {
+                    dot += static_cast<double>(q_data[(h * seq + i) * head_size + e]) * static_cast<double>(k_data[(h * seq + j) * head_size + e]);
+                }
+                weights[j] = dot * scale + static_cast<double>(mask_data[i * seq + j]);
+                max_logit = std::max(max_logit, weights[j]);
+            }
+            double sum = 0.0;
+            for (auto& w : weights) {
+                w = std::exp(w - max_logit);
+                sum += w;
+            }
+            auto* out = &expected[(h * seq + i) * head_size];
+            for (size_t j = 0; j < seq; ++j) {
+                for (size_t e = 0; e < head_size; ++e) {
+                    out[e] += weights[j] / sum * static_cast<double>(v_data[(h * seq + j) * head_size + e]);
+                }
+            }
+        }
+    }
+
+    ASSERT_EQ(output->get_layout().get_shape(), qkv_shape);
+    cldnn::mem_lock<float, mem_lock_type::read> output_data(output, get_test_stream());
+    ASSERT_EQ(output_data.size(), expected.size());
+    double max_diff = 0.0;
+    size_t max_diff_idx = 0;
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_TRUE(std::isfinite(output_data[i])) << "index " << i << ": " << output_data[i];
+        const double diff = std::abs(static_cast<double>(output_data[i]) - expected[i]);
+        if (diff > max_diff) {
+            max_diff = diff;
+            max_diff_idx = i;
+        }
+    }
+    RecordProperty("max_abs_diff", std::to_string(max_diff));
+    // f32 scores keep the error at a few 1e-3 (f16 probabilities and output); f16 scores are off by ~1.
+    ASSERT_LE(max_diff, 1e-2) << "index " << max_diff_idx << ": " << output_data[max_diff_idx] << " vs " << expected[max_diff_idx];
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_sdpa_opt_qwen2_scores,
+                         sdpa_opt_qwen2_scores_test,
+                         ::testing::Values(sdpa_opt_qwen2_scores_params{false, false},
+                                           sdpa_opt_qwen2_scores_params{true, false},
+                                           sdpa_opt_qwen2_scores_params{false, true},
+                                           sdpa_opt_qwen2_scores_params{true, true}),
+                         sdpa_opt_qwen2_scores_test::PrintToStringParamName);
+
 } // namespace
