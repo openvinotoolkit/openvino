@@ -98,9 +98,6 @@ private:
     }
 
     size_t hash_value;
-
-protected:
-    void update_hash(void);
 };
 
 OPENVINO_API

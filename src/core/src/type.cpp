@@ -20,10 +20,6 @@ size_t DiscreteTypeInfo::hash() {
     return hash_value;
 }
 
-void DiscreteTypeInfo::update_hash(void) {
-    hash_value = compute_hash(name, version_id);
-}
-
 bool DiscreteTypeInfo::is_castable(const DiscreteTypeInfo& target_type) const {
     return *this == target_type || (parent && parent->is_castable(target_type));
 }
