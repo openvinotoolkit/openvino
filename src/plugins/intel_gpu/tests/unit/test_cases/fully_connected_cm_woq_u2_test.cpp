@@ -1548,6 +1548,45 @@ TEST_P(fully_connected_cm_woq_u2_gnk, selects_cm_and_matches_nk) {
     EXPECT_EQ(gnk_out, nk_out);
 }
 
+// (e) GNK with scale / zp as runtime inputs (Parameters in the model, not constants) selects CM and matches the reference.
+TEST_P(fully_connected_cm_woq_u2_gnk, runtime_scale_zp_selects_cm_and_matches_reference) {
+    auto& engine = get_test_engine();
+    if (!cm_woq_u2_supported(engine))
+        GTEST_SKIP() << "CM u2 FC requires Xe2 / Xe3 with CM JIT support and >= 96 KB SLM";
+    ASSERT_EQ(woq_u2_weight_layout_for_tests(), WoqU2WeightLayout::n_major);
+
+    const int64_t M = std::get<0>(GetParam());
+    const data_types out_dt = std::get<1>(GetParam());
+    const bool out_f32 = out_dt == data_types::f32;
+    const int64_t K = 320, N = 512;
+    tests::random_generator rg(GET_SUITE_NAME);
+    const auto w = make_weights(engine, K, N, ZpKind::tensor_u8, rg, static_cast<uint32_t>(M * 131 + K));
+    const auto gnk = make_gnk_buffers(engine, w);
+    const auto a = random_activations(static_cast<size_t>(M * K), static_cast<uint64_t>(M * 1000003 + K));
+
+    topology topo(input_layout("input", layout{ov::PartialShape{M, K}, data_types::f16, format::bfyx}),
+                  input_layout("scale", gnk.scale->get_layout()),
+                  input_layout("zp", gnk.zp->get_layout()));
+    topo.add(data("weights", gnk.weights));
+    topo.add(fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "zp", out_dt, 2, 3, true, false, false, FcWeightsLayout::GNK));
+    topo.add(reorder("out", input_info("fc_prim"), format::bfyx, out_dt));
+    auto net = get_network(engine, topo, woq_config(engine, {}), get_test_stream_ptr(), false);
+    auto input_mem = engine.allocate_memory({ov::PartialShape{M, K}, data_types::f16, format::bfyx});
+    set_values(input_mem, a);
+    net->set_input_data("input", input_mem);
+    net->set_input_data("scale", gnk.scale);
+    net->set_input_data("zp", gnk.zp);
+    auto outputs = net->execute();
+
+    bool cm_ran = false;
+    for (const auto& id : net->get_executed_primitive_ids()) {
+        const auto impl = net->get_primitive(id)->get_impl();
+        cm_ran |= impl && impl->get_kernel_name().find("woq_u2") != std::string::npos;
+    }
+    EXPECT_TRUE(cm_ran) << "CM u2 FC implementation was not selected";
+    check_rows(outputs.at("out").get_memory(), M, a, all_rows(M), w, out_f32);
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke,
                          fully_connected_cm_woq_u2_gnk,
                          ::testing::Combine(::testing::Values(int64_t{5}, int64_t{40}), ::testing::Values(data_types::f16, data_types::f32)),
