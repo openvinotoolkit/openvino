@@ -5,6 +5,7 @@
 #pragma once
 #include "evaluate_node.hpp"
 #include "openvino/op/gated_delta_net.hpp"
+#include "openvino/op/gguf_dequantize.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/rms_norm.hpp"
@@ -561,6 +562,10 @@ extern template bool evaluate_node<ov::op::internal::AUGRUSequence>(std::shared_
 extern template bool evaluate_node<ov::op::internal::GatedDeltaNet>(std::shared_ptr<ov::Node> node,
                                                                     ov::TensorVector& outputs,
                                                                     const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::internal::GGUFDequantize>(std::shared_ptr<ov::Node> node,
+                                                                     ov::TensorVector& outputs,
+                                                                     const ov::TensorVector& inputs);
 
 extern template bool evaluate_node<ov::op::internal::RMS>(std::shared_ptr<ov::Node> node,
                                                           ov::TensorVector& outputs,
