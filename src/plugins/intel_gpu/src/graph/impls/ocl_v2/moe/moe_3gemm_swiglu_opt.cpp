@@ -1161,18 +1161,20 @@ public:
         return one_of(weight_dt, {data_types::u4, data_types::i4, data_types::u8, data_types::i8, data_types::f16});
     }
 
-    // OneDNN grouped matmul on s8 activations with grouped src scales, for int8 x int4 / int8 DPAS. Only for weights
-    // without a zero point: the zero point needs the group sums of the activations, which the grouped matmul can't take
-    // (unlike the FullyConnected one), so OneDNN would convert the weights to f16 instead.
+    // OneDNN grouped matmul on s8 activations with grouped src scales, for int8 x int4 / int8 DPAS. 4-bit weights may
+    // have a zero point, which OneDNN subtracts while converting them to s8; 8-bit ones with a zero point would need the
+    // group sums of the activations, which the grouped matmul can't take, so OneDNN would convert the weights to f16.
     static bool is_onednn_dyn_quan_supported(const RuntimeParams& params) {
         const auto& config = params.typed_desc<moe_3gemm_fused_compressed>()->_config;
         const auto& info = params.get_device_info();
-        if (info.arch < gpu_arch::xe2 || !info.supports_immad || config.has_zp || !MoE3GemmDynQuan::is_supported(params)) {
+        if (info.arch < gpu_arch::xe2 || !info.supports_immad || !MoE3GemmDynQuan::is_supported(params)) {
             return false;
         }
         for (auto weight : {MOE3GemmInputIndex::WEIGHT_0, MOE3GemmInputIndex::WEIGHT_1, MOE3GemmInputIndex::WEIGHT_2}) {
             const auto weight_dt = params.get_input_layout(static_cast<size_t>(weight)).data_type;
-            if (!one_of(weight_dt, {data_types::u4, data_types::i4, data_types::u8, data_types::i8})) {
+            const auto supported = config.has_zp ? std::vector<data_types>{data_types::u4, data_types::i4}
+                                                 : std::vector<data_types>{data_types::u4, data_types::i4, data_types::u8, data_types::i8};
+            if (!one_of(weight_dt, supported)) {
                 return false;
             }
         }
