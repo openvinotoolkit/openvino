@@ -808,6 +808,79 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_compressed_int8_bias_eltwise_quantize_u
     fully_connected_test_params{ CASE_FC_FP16_3D_INT8_COMP_1, 2, 5 },
 }));
 
+// Gated MLP after ScaleDownGatedMLPInput: Swish, the scalar scale-down and the multiply by the up branch
+// all fuse into the gate FC.
+class fc_compressed_swish_scale_gated_onednn : public FullyConnectedFusingTestOneDNN {};
+TEST_P(fc_compressed_swish_scale_gated_onednn, basic) {
+    auto p = GetParam();
+
+    auto supports_immad = engine.get_device_info().supports_immad;
+    auto dcomp_zp_name = supports_immad ? "dcomp_zp" : "";
+
+    auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", dcomp_zp_name, data_types::f16, get_output_dim_size(p), get_input_weights_rank(p));
+    fc_prim.decompression_zero_point_scalar = 8.0f;
+    auto dcomp_zp_layout = layout{ {1, 1, 1, 1}, data_types::u8, format::bfyx };
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("scale", get_mem(get_scale_layout(p, 128))),
+        data("dcomp_zp", get_mem(dcomp_zp_layout, 8.0f)),
+        data("scale_down", get_mem(get_single_element_layout(p), 0.125f)),
+        data("up", get_mem(get_output_layout(p), -1, 1)),
+        fc_prim,
+        activation("swish", input_info("fc_prim"), activation_func::swish, {1.f, 0.f}),
+        eltwise("gate_scaled", { input_info("swish"), input_info("scale_down") }, eltwise_mode::prod),
+        eltwise("gated", { input_info("gate_scaled"), input_info("up") }, eltwise_mode::prod),
+        reorder("reorder_bfyx", input_info("gated"), p.default_format, data_types::f32)
+    );
+
+    cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(false));
+    cfg_not_fused.set_property(ov::hint::dynamic_quantization_group_size(0));
+    tolerance = 1e-2f;
+    execute(p, false, false);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_compressed_swish_scale_gated_onednn, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP16_INT8_COMP_1, 2, 5 },
+    fully_connected_test_params{ CASE_FC_FP16_3D_INT8_COMP_1, 2, 5 },
+}));
+
+// Down projection after ScaleDownGatedMLPInput: the scalar scale-up fuses into the FC.
+class fc_compressed_scale_up_onednn : public FullyConnectedFusingTestOneDNN {};
+TEST_P(fc_compressed_scale_up_onednn, basic) {
+    auto p = GetParam();
+
+    auto supports_immad = engine.get_device_info().supports_immad;
+    auto dcomp_zp_name = supports_immad ? "dcomp_zp" : "";
+
+    auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", dcomp_zp_name, data_types::f32, get_output_dim_size(p), get_input_weights_rank(p));
+    fc_prim.decompression_zero_point_scalar = 8.0f;
+    auto dcomp_zp_layout = layout{ {1, 1, 1, 1}, data_types::u8, format::bfyx };
+    auto scale_up_layout = layout{ get_single_element_layout(p).get_partial_shape(), data_types::f32, p.default_format };
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("scale", get_mem(get_scale_layout(p, 128))),
+        data("dcomp_zp", get_mem(dcomp_zp_layout, 8.0f)),
+        data("scale_up", get_mem(scale_up_layout, 8.0f)),
+        fc_prim,
+        eltwise("scaled", { input_info("fc_prim"), input_info("scale_up") }, eltwise_mode::prod),
+        reorder("reorder_bfyx", input_info("scaled"), p.default_format, data_types::f32)
+    );
+
+    cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(false));
+    cfg_not_fused.set_property(ov::hint::dynamic_quantization_group_size(0));
+    tolerance = 1.0f;
+    execute(p, false, false);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_compressed_scale_up_onednn, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP16_INT8_COMP_1, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_3D_INT8_COMP_1, 2, 3 },
+}));
+
 class fc_compressed_dyn_quan_and_quantized : public FullyConnectedFusingTestOneDNN {};
 TEST_P(fc_compressed_dyn_quan_and_quantized, basic) {
     auto p = GetParam();
