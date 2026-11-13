@@ -32,13 +32,44 @@ support (`cldnn::query_microkernels_supported()`); `OV_GPU_ENABLE_SDPA_MICRO=0` 
 from `sdpa_micro`) turns it off. Where `sdpa_ocl` refuses an op, the opt kernels run. The generator is created in every
 impl's default constructor, the params constructor adds its stages, and every later decision reads `has_stage()`: a
 loaded or cloned impl is default-constructed and only gets `_order` (indices into `_stages`) back, so it must not
-re-derive the kernel from the device or the environment. Which kernel serves each stage on which device is one table,
-the comment above the lane predicates in `include/intel_gpu/primitives/paged_attention.hpp`.
+re-derive the kernel from the device or the environment.
 
-`SDPAOclDecodeGenerator` serves GENERATE on Xe2+ XMX only; everywhere else GENERATE runs the `paged_attention_opt`
+Which kernel serves each attention stage on which device, the device part of the choice (the predicates are in
+`include/intel_gpu/primitives/paged_attention.hpp`). Where `sdpa_ocl` refuses an op (head size, page kind, scores
+output, alibi, ...) the last column's kernel runs.
+
+| Stage | xe_hpc, Xe2+ XMX | xe_hpg XMX (DG2, ARL-H) | non-XMX, unknown arch |
+|---|---|---|---|
+| SDPA, prefill | `sdpa_ocl` | `sdpa_ocl` (SG8) | `sdpa_opt` |
+| SDPA, one query | `sdpa_ocl` | `sdpa_ocl` (SG8); ARL-H: `sdpa_opt` (1) | `sdpa_opt` |
+| SDPA, per-channel KV | `sdpa_ocl` | `sdpa_ref` | `sdpa_ref` |
+| PA PREFILL | `sdpa_ocl` | `sdpa_ocl` (xe_hpg PA PREFILL) | `sdpa_opt` |
+| PA MIXED | `sdpa_ocl` | `sdpa_ocl` (SG8) | `paged_attention_opt.cl` |
+| PA GENERATE | `sdpa_ocl_decode` | `paged_attention_opt.cl` (2) | `paged_attention_opt.cl` |
+
+- The first column is the SG16 arms (2D block IO), the second the SG8 ones. xe_hpc takes the first column as Xe2 does
+  (the same SG16 DPAS and 2D block IO), Xe2's tuned tilings included; not measured on xe_hpc. An XMX device whose arch
+  is unknown (every device in a build without oneDNN, which detects the arch) or xe_hp (SIMD8 DPAS, no 2D block IO)
+  takes the last column. The lane (`sdpa_ocl_selected()`) checks XMX as well as the arch, because the xe_hpg arch also
+  covers MTL, which has no XMX.
+- SDPA = plain (non-paged) SDPA. Indirect SDPA (beam search) and a plain int4 KV cache run `sdpa_opt` everywhere. The
+  per-channel row is the GQA decomposition's fused quantized cache (`sdpa_ocl_per_channel_kv_ok()`): the per-channel
+  reads put one channel per lane of a 16-wide subgroup, and the xe_hpg SG8 arms have none.
+- A PA MIXED step with few new tokens per subsequence follows the small GQA rule (`select_gqa_multi_tokens_kernel()` in
+  `paged_attention_opt.cpp`: `pa_small_q_opt.cl`, `paged_attention_opt.cl`'s GQA fallback, or `sdpa_ocl`). PA GENERATE,
+  on either reader, adds `paged_attention_opt.cl`'s finalization when it splits the keys into partitions.
+- (1) Static shapes only (`sdpa_ocl_plain_single_token_ok()`, gfx 12.74); a dynamic op on ARL-H takes `sdpa_ocl`. The
+  rule is upstream's (PR #27387), which kept ARL-H's one-query SDPA on `sdpa_opt` instead of `sdpa_micro`'s single-token
+  kernel; it was not measured against `sdpa_ocl`.
+- (2) `sdpa_ocl_decode`'s SG8 reader (`sdpa_ocl_hpg_decode.cl`) is not selected (`sdpa_ocl_decode_reader_available()`;
+  "xe_hpg reader (SG8)").
+- `OV_GPU_ENABLE_SDPA_MICRO=0` moves every `sdpa_ocl` cell but PA GENERATE to the last column; PA GENERATE does not read
+  it.
+
+`SDPAOclDecodeGenerator` serves GENERATE on xe_hpc and Xe2+ XMX only; everywhere else GENERATE runs the `paged_attention_opt`
 single-token kernels, which since 2026-11-06 read the token-major page of every kind ("Paged-attention cache layouts").
 On xe_hpg its SG8 reader is not selected ("xe_hpg reader (SG8)").
-`SDPAOclGenerator::supported()` requires Xe2 or later, or xe_hpg (the SG8 arms, below), and
+`SDPAOclGenerator::supported()` requires the lane (`sdpa_ocl_selected()`: xe_hpc, Xe2+, or xe_hpg with the SG8 arms, below), and
 f16/bf16 Q and output. Plain SDPA
 additionally requires equal K and V head sizes (`SDPAOpt::dpas_sdpa_op_supported()`), paged
 attention does not.
@@ -1476,6 +1507,15 @@ the dim order `{0, 1, 2, 3}`, as XAttention's; `graph/paged_attention.cpp` reads
 application allocates itself must have the token-major shape: a d-major one fails the block-size check of
 `graph/paged_attention.cpp` ("Incorrect block size").
 
+In-page addressing of a K page (the token-major order is the geometry the DPAS kernels' 2D block reads take):
+
+| Page kind | Layout |
+|---|---|
+| uncompressed | `[block_size tokens][k_head_size]` |
+| i8 BY_TOKEN | the same data rows, then the per-token (scale, zp) arrays |
+| i8 BY_CHANNEL | the same data rows, then one interleaved (scale, zp) pair per channel |
+| u4 BY_CHANNEL | `[block_size tokens][k_head_size / 2]` bytes, channels `2b` and `2b + 1` in byte `b`, then the per-channel pairs; its V page has split nibbles and a trailing per-token comp array |
+
 A token-major page has eight readers: the cache writer (`pa_kv_cache_update_ref.cl`), rotate, `pa_kv_reorder`,
 `sdpa_ocl` (MIXED), `pa_small_q_opt.cl` (MIXED with at most 16 new tokens per subsequence, GQA; xe_hpc and newer),
 `sdpa_ocl_decode` (GENERATE), `paged_attention_opt.cl` (MIXED and GENERATE) and the adaptive R-KV diversity kernel. Each
@@ -2131,7 +2171,8 @@ here, so none of it was measured on them.
 - xe_hpc (PVC), and xe_hpg (DG2/Arc-A, ARL-H) until its lane became the default on 2026-11-09, have no DPAS SDPA
   kernel any more: plain SDPA and PA PREFILL/MIXED run the opt kernels, so attention there is slower by the old
   `sdpa_micro` margin (not measured). xe_hpg on its lane runs `sdpa_ocl` where its tiers are ready and the opt kernels elsewhere (the
-  temporary routing of refused ops to `sdpa_micro` is gone). xe_hpc has no `sdpa_ocl` arm (`sdpa_ocl_arch_ok()`).
+  temporary routing of refused ops to `sdpa_micro` is gone). xe_hpc had no `sdpa_ocl` arm until 2026-11-11, when it
+  joined the SG16 lane (`sdpa_ocl_selected()`, top of this document).
 - Asymmetric planar KV-cache compression (what `kv_cache_compression.cpp` builds on every XMX device): an XMX device
   off the lane now runs it on the `sdpa_opt` stages and their planar zero-point path (`SDPAOpt::validate_impl()`),
   instead of `sdpa_micro`; without that it would have dropped to `SDPARef`. On the lane `validate_impl()` keeps its
