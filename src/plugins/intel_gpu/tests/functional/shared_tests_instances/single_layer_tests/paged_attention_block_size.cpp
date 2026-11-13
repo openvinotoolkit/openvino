@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+#include <exception>
+
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
@@ -27,26 +30,26 @@ public:
     void check_block_size(ov::element::Type data_type, bool enable_xattn, int64_t block_size, size_t expected) {
         ov::Core core;
         if (enable_xattn) {
-            try {
-                const auto caps = core.get_property(ov::test::utils::DEVICE_GPU, ov::device::capabilities);
-                if (std::find(caps.begin(), caps.end(), ov::intel_gpu::capability::HW_MATMUL) == caps.end()) {
-                    GTEST_SKIP() << "XAttention requires a GPU with HW_MATMUL capability (Xe2/Xe3)";
-                }
-            } catch (const std::exception& e) {
-                GTEST_SKIP() << "Unable to query GPU capabilities for XAttention: " << e.what();
+            const auto caps = core.get_property(ov::test::utils::DEVICE_GPU, ov::device::capabilities);
+            if (std::find(caps.begin(), caps.end(), ov::intel_gpu::capability::HW_MATMUL) == caps.end()) {
+                GTEST_SKIP() << "XAttention requires a GPU with HW_MATMUL capability (Xe2/Xe3)";
             }
         }
 
+        constexpr int64_t head_size = 64;
+        constexpr int64_t head_num = 8;
         function = make_paged_attn_model(data_type,
                                          enable_xattn,
-                                         /*head_size=*/64,
-                                         /*head_num=*/8,
+                                         head_size,
+                                         head_num,
                                          /*use_sink_input=*/false,
                                          /*sliding_window=*/0,
                                          /*use_alibi=*/false,
                                          /*max_ctx_len=*/1024,
                                          /*use_rotation=*/false,
                                          block_size);
+        // GPU lowering needs the feature width to infer the head count from a direct query parameter.
+        function->get_parameters().front()->set_partial_shape({ov::Dimension::dynamic(), head_size * head_num});
 
         if (enable_xattn) {
             // GPU TransformationsPipeline enables XAttention only when xattention_block_size
@@ -59,21 +62,20 @@ public:
                     xattention_block_size->set_friendly_name("xattention_block_size");
                     op->input(xattention_block_size_idx).replace_source_output(xattention_block_size->output(0));
                     function->add_parameters({xattention_block_size});
-                    function->validate_nodes_and_infer_types();
                     replaced = true;
                     break;
                 }
             }
             ASSERT_TRUE(replaced);
         }
+        function->validate_nodes_and_infer_types();
 
         ov::CompiledModel compiled;
         try {
             compiled = core.compile_model(function, ov::test::utils::DEVICE_GPU);
         } catch (const std::exception& e) {
             const std::string message = e.what();
-            if (enable_xattn && (message.find("XAttention is not supported") != std::string::npos ||
-                                 message.find("IGC version incompatible") != std::string::npos || message.find("CM is not enabled") != std::string::npos)) {
+            if (enable_xattn && message.find("XAttention is not supported by your current GPU architecture or IGC version") != std::string::npos) {
                 GTEST_SKIP() << message;
             }
             throw;
@@ -95,11 +97,11 @@ public:
     }
 };
 
-TEST_F(PagedAttentionBlockSizeTest, StandardBlockSize) {
+TEST_F(PagedAttentionBlockSizeTest, smoke_StandardBlockSize) {
     check_block_size(ov::element::f16, /*enable_xattn=*/false, /*block_size=*/16, /*expected=*/16);
 }
 
-TEST_F(PagedAttentionBlockSizeTest, XAttentionBlockSize) {
+TEST_F(PagedAttentionBlockSizeTest, smoke_XAttentionBlockSize) {
     check_block_size(ov::element::f16, /*enable_xattn=*/true, /*block_size=*/256, /*expected=*/256);
 }
 
