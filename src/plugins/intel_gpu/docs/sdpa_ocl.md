@@ -76,8 +76,8 @@ attention does not.
 
 Paged attention adds the PREFILL and MIXED stages together, so both variants are compiled even
 when only one is dispatched. The MIXED stage reads the token-major K page only (since 2026-11-02),
-so `can_use_sdpa_ocl_for()` keeps MIXED off `sdpa_ocl` on every d-major page: there it still
-compiles, as the token-major reader, and `pa_multi_token` runs ("Paged-attention cache layouts").
+and every K page is token-major (since 2026-11-09), so `can_use_sdpa_ocl_for()` has no page check
+("Paged-attention cache layouts").
 
 Reachable configurations on Xe2 with XMX and no environment overrides:
 
@@ -1533,11 +1533,10 @@ on BY_CHANNEL pages and on scores-output ops.
 The page kinds are f16, f32 (f32 inference with an f32 cache; the opt kernels only), i8 BY_TOKEN, i8 BY_CHANNEL and u4
 BY_CHANNEL. The execution config maps a u8 cache to i8 and an i4 one to u4, and refuses a 4-bit BY_TOKEN K for a PA
 model; the writer and the readers have no 4-bit BY_TOKEN K either (`#error`), and `PA_KV_reorder::validate_impl()`
-refuses one, so a 4-bit K is BY_CHANNEL only. The `sdpa_ocl` MIXED stage reads f16, i8 BY_TOKEN, i8 and u4 BY_CHANNEL
-(`sdpa_ocl_mixed_page_ok()` on the host, `classify_pa_cache().dequant_ok` in the jit), with block reads, or the per-key
-gathers (`PA_K_TOKEN_STRIDE` / `PA_K_HIDDEN_STRIDE`) where the block2d rule rejects the pitch; `can_use_sdpa_ocl_for()`
-sends MIXED on any other kind to `pa_multi_token`. The MIXED stage still compiles there, because the constructor adds it
-with PREFILL, and is never dispatched.
+refuses one, so a 4-bit K is BY_CHANNEL only. The `sdpa_ocl` MIXED stage reads every one of them that reaches it: f16,
+i8 BY_TOKEN, i8 and u4 BY_CHANNEL (`classify_pa_cache().dequant_ok` in the jit; `choose_sdpa_ocl()` refuses a 4-bit
+BY_TOKEN K, so `sdpa_ocl` never stages one), with block reads, or the per-key gathers (`PA_K_TOKEN_STRIDE` /
+`PA_K_HIDDEN_STRIDE`) where the block2d rule rejects the pitch. `can_use_sdpa_ocl_for()` has no page check.
 
 Where `sdpa_ocl` serves MIXED, a small GQA MIXED step (at most 16 new tokens per subsequence) goes to the GQA fallback,
 `pa_small_q_opt.cl` or `sdpa_ocl`, chosen in `select_gqa_multi_tokens_kernel()` by cache kind, head size, new tokens and
@@ -1580,7 +1579,7 @@ How the host classifies the cache MIXED reads (`classify_pa_cache()`):
 - `IS_PA_KV_COMPRESSED` follows the cache data type (i8/u8), not the quantization mode. Paged
   attention adds the PREFILL and MIXED stages together, so a MIXED kernel that fails to compile
   takes a PREFILL-only case down with it. The kernel reads f16, i8 BY_TOKEN, i8 and u4 BY_CHANNEL
-  pages; any other kind compiles as that reader and is kept off dispatch by `can_use_sdpa_ocl_for()`.
+  pages, the only kinds that reach it (above).
 - u4 is recognised from the configured kv-cache precision: the tensor is u8 (an i4 cache is i8),
   so its layout type cannot tell. u4 only, not i4: the int4 quantizer clamps to [0, 15], so u4
   nibbles are unsigned, while i4 would need a signed widen that nothing implements.
