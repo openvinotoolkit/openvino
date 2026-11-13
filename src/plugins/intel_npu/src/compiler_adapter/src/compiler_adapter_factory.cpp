@@ -18,13 +18,19 @@ namespace {
 
 std::shared_ptr<IVCLCompiler> makePluginCompiler(std::shared_ptr<const VCLFunctionTable>& functions,
                                                  const std::shared_ptr<IDevice>& device,
+                                                 std::string_view platform,
                                                  const std::shared_ptr<OptionSupportCache>& optionSupportCache) {
     auto vclLoader = VCLLoader::getInstance();
     OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
     functions = vclLoader->sharedFunctions();
+
+    // Only online compilation gets the attached device's descriptor.
+    // Offline and cross compilation get a dummy one, so the local device cannot affect the blob.
+    const bool onlineCompilation = device && (platform.empty() || device->getName() == platform);
+
     return std::make_shared<VCLCompilerImpl>(
         functions,
-        device ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()} : std::nullopt,
+        onlineCompilation ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()} : std::nullopt,
         ScopedOptionSupportCache{optionSupportCache,
                                  static_cast<OptionSupportCache::CacheKey>(ov::intel_npu::CompilerType::PLUGIN)});
 }
@@ -51,7 +57,7 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
         std::shared_ptr<const VCLFunctionTable> functions;
         std::shared_ptr<IVCLCompiler> compiler;
         try {
-            compiler = makePluginCompiler(functions, device, optionSupportCache);
+            compiler = makePluginCompiler(functions, device, platform, optionSupportCache);
         } catch (const std::exception& vclException) {
             OPENVINO_THROW("VCL compiler loading failed, aborting. Error: ", vclException.what());
         }
@@ -137,7 +143,7 @@ CompilerAdapterFactory::resolvePreferPluginCompiler(const ov::SoPtr<IEngineBacke
         std::shared_ptr<IVCLCompiler> pluginCompiler;
         std::shared_ptr<const VCLFunctionTable> functions;
         try {
-            pluginCompiler = makePluginCompiler(functions, device, optionSupportCache);
+            pluginCompiler = makePluginCompiler(functions, device, platform, optionSupportCache);
         } catch (...) {
             _pluginCompilerPresence.store(PluginCompilerPresence::ABSENT, std::memory_order_release);
             if (onlineCompilation) {

@@ -31,7 +31,7 @@ ov::util::MemoryView Section::view() const noexcept {
     }
 }
 
-bool Section::read(size_t offset, size_t length, void* destination) const {
+bool Section::read(size_t offset, size_t length, void* destination) const noexcept {
     if (const auto total = size(); destination == nullptr || offset > total || length > total - offset) {
         return false;
     }
@@ -50,9 +50,13 @@ bool Section::read(size_t offset, size_t length, void* destination) const {
                               },
                               [&](const StreamSource& stream_source) {
                                   auto& [stream, payload_start] = stream_source;
-                                  stream->seekg(payload_start + static_cast<std::streamoff>(offset));
-                                  return static_cast<bool>(stream->read(reinterpret_cast<char*>(destination),
-                                                                        static_cast<std::streamsize>(length)));
+                                  try {
+                                      stream->seekg(payload_start + static_cast<std::streamoff>(offset));
+                                      return static_cast<bool>(stream->read(reinterpret_cast<char*>(destination),
+                                                                            static_cast<std::streamsize>(length)));
+                                  } catch (...) {
+                                      return false;
+                                  }
                               },
                           },
                           m_source);
