@@ -335,6 +335,8 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
     conv_to_matmul.run_on_model(model);
     // Collapse FakeQuantize-based QDQ chains when requested.
     if (prepared_properties.at(std::string(::intel_npu::NPUW_UNQDQ::key())).as<bool>()) {
+        ov::npuw::RescaleFP16OverflowQDQ rescale_fp16_overflow;
+        rescale_fp16_overflow.run_on_model(model);
         ov::npuw::CollapseUNQDQ collapse_unqdq;
         collapse_unqdq.run_on_model(model);
     }
