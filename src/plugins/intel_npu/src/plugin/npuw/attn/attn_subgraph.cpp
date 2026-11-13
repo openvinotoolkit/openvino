@@ -189,7 +189,13 @@ void ensure_hfa_selector(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
 
     auto& request = get_request(ctx);
     const size_t original_query_length = hfa->_sdpa_attention_info._query_size;
-    state.hfa_selector = runtime::host_flash_attention::PositionIDs::find(original_query_length, request);
+    state.hfa_selector =
+        runtime::host_flash_attention::ExplicitHistory::find(original_query_length,
+                                                             ctx.compiled_model.attention_history_size_input(),
+                                                             request);
+    if (!state.hfa_selector) {
+        state.hfa_selector = runtime::host_flash_attention::PositionIDs::find(original_query_length, request);
+    }
     if (!state.hfa_selector) {
         // No position_ids: the host must report the history through the npuw_history_size state
         // before every prefill chunk, starting with the first one.
@@ -363,7 +369,8 @@ void ensure_hfa_requests(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
         const auto final_tile_input = hfa->_compiled_final_tile_model->inputs()[input_idx];
 
         // Regular tile KV inputs (f16) differ from final tile KV inputs (f32), and may also
-        // differ in shape whenever past_tile_size < final_tile_size (SWA short-past case).
+        // differ in shape whenever past_tile_size < final_tile_size (SWA short-past case) or
+        // the past KV is fed in [B,S,H,D] layout.
         // Skip sharing on mismatch; those ports are set per-tile in process_tile instead.
         if (tile_input.get_element_type() != final_tile_input.get_element_type() ||
             tile_input.get_partial_shape() != final_tile_input.get_partial_shape()) {
@@ -990,11 +997,17 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         auto present_key_tensor = hfa_inputs.at(sdpa_in.present_key);
                         auto attention_mask_tensor = hfa_inputs.at(sdpa_in.attention_mask);
                         auto present_value_tensor = hfa_inputs.at(sdpa_in.present_value);
-                        const uint32_t K_SEQ_DIM = static_cast<uint32_t>(sdpa_info._k_seq_dim);
+                        using HFAInfo = ov::npuw::compiled::HostFlashAttentionInfo;
+                        const uint32_t K_SEQ_DIM = static_cast<uint32_t>(HFAInfo::concat_seq_dim(sdpa_info._k_seq_dim));
+                        const uint32_t V_SEQ_DIM = static_cast<uint32_t>(HFAInfo::concat_seq_dim(sdpa_info._v_seq_dim));
+                        const uint32_t PAST_K_SEQ_DIM =
+                            static_cast<uint32_t>(HFAInfo::past_seq_dim(sdpa_info._k_seq_dim));
+                        const uint32_t PAST_V_SEQ_DIM =
+                            static_cast<uint32_t>(HFAInfo::past_seq_dim(sdpa_info._v_seq_dim));
                         OPENVINO_ASSERT(K_SEQ_DIM < present_key_tensor->get_shape().size(),
                                         "HFA: K sequence dimension is out of range for the present key tensor");
                         for (const auto& k_block : past_key_blocks) {
-                            OPENVINO_ASSERT(K_SEQ_DIM < k_block->get_shape().size(),
+                            OPENVINO_ASSERT(PAST_K_SEQ_DIM < k_block->get_shape().size(),
                                             "HFA: K sequence dimension is out of range for a past key tensor");
                         }
 
@@ -1006,7 +1019,7 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         int64_t layer_bound_kv_length =
                             static_cast<int64_t>(present_key_tensor->get_shape()[K_SEQ_DIM]);
                         for (const auto& k_block : past_key_blocks) {
-                            layer_bound_kv_length += static_cast<int64_t>(k_block->get_shape()[K_SEQ_DIM]);
+                            layer_bound_kv_length += static_cast<int64_t>(k_block->get_shape()[PAST_K_SEQ_DIM]);
                         }
                         const int64_t global_context_length = state.hfa_selector->context_length();
                         const int64_t total_kv_length = std::min(global_context_length, layer_bound_kv_length);
@@ -1074,7 +1087,6 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         final_tile_request->set_tensor(hfa_desc->_compiled_final_tile_model->outputs()[0],
                                                        attention_output_tensor);
 
-                        const uint32_t V_SEQ_DIM = static_cast<uint32_t>(sdpa_info._v_seq_dim);
                         constexpr uint32_t MASK_KV_SEQ_DIM = 3;
                         size_t next_available_mask_buffer_idx = 0;
 
@@ -1088,6 +1100,9 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                 bool async = false,
                                                 bool process_with_mask = true,
                                                 bool is_final_tile = false) {
+                            // Regular tiles read past-KV blocks, the final tile reads present KV.
+                            const uint32_t k_seq_dim = is_final_tile ? K_SEQ_DIM : PAST_K_SEQ_DIM;
+                            const uint32_t v_seq_dim = is_final_tile ? V_SEQ_DIM : PAST_V_SEQ_DIM;
                             auto k_tile_buffer = request->get_tensor(model->inputs()[tile_in.k]);
                             auto v_tile_buffer = request->get_tensor(model->inputs()[tile_in.v]);
                             ov::SoPtr<ov::ITensor> mask_tile_buffer;
@@ -1097,7 +1112,7 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
 
                             if (can_reuse_tensor_zero_copy(k_source,
                                                            k_tile_buffer,
-                                                           K_SEQ_DIM,
+                                                           k_seq_dim,
                                                            kv_offset,
                                                            tile_length)) {
                                 request->set_tensor(model->inputs()[tile_in.k], k_source);
@@ -1109,14 +1124,14 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                 k_tile_buffer->get_element_type(),
                                                 ".  Tile model was not constructed with the correct KV dtype.");
                                 request->set_tensor(model->inputs()[tile_in.k],
-                                                    ov::npuw::util::view(k_source, K_SEQ_DIM, kv_offset, tile_length));
+                                                    ov::npuw::util::view(k_source, k_seq_dim, kv_offset, tile_length));
                             } else {
-                                extract_and_copy_tile(k_source, k_tile_buffer, K_SEQ_DIM, kv_offset, tile_length, "K");
+                                extract_and_copy_tile(k_source, k_tile_buffer, k_seq_dim, kv_offset, tile_length, "K");
                             }
 
                             if (can_reuse_tensor_zero_copy(v_source,
                                                            v_tile_buffer,
-                                                           V_SEQ_DIM,
+                                                           v_seq_dim,
                                                            kv_offset,
                                                            tile_length)) {
                                 request->set_tensor(model->inputs()[tile_in.v], v_source);
@@ -1128,9 +1143,9 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                 v_tile_buffer->get_element_type(),
                                                 ".  Tile model was not constructed with the correct KV dtype.");
                                 request->set_tensor(model->inputs()[tile_in.v],
-                                                    ov::npuw::util::view(v_source, V_SEQ_DIM, kv_offset, tile_length));
+                                                    ov::npuw::util::view(v_source, v_seq_dim, kv_offset, tile_length));
                             } else {
-                                extract_and_copy_tile(v_source, v_tile_buffer, V_SEQ_DIM, kv_offset, tile_length, "V");
+                                extract_and_copy_tile(v_source, v_tile_buffer, v_seq_dim, kv_offset, tile_length, "V");
                             }
 
                             if (process_with_mask && attention_mask_tensor) {
@@ -1218,7 +1233,7 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                              ++block_idx) {
                             const auto& k_block = past_key_blocks[block_idx];
                             const auto& v_block = past_value_blocks[block_idx];
-                            const int64_t block_len = static_cast<int64_t>(k_block->get_shape()[K_SEQ_DIM]);
+                            const int64_t block_len = static_cast<int64_t>(k_block->get_shape()[PAST_K_SEQ_DIM]);
                             NPUW_ASSERT(block_len % past_tile_size == 0 &&
                                         "HFA: KV block length must be a multiple of the past tile size");
                             const int64_t tiles_in_block = block_len / past_tile_size;

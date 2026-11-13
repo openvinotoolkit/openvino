@@ -711,6 +711,20 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     LOG_DEBUG("Preparing to infer...");
     LOG_BLOCK();
 
+    const auto history_input_name = m_npuw_model->attention_history_size_input();
+    if (!history_input_name.empty()) {
+        namespace hfa = ov::npuw::runtime::host_flash_attention;
+        const auto& model_inputs = m_npuw_model->inputs();
+        const auto history_idx = hfa::find_history_input(model_inputs, history_input_name);
+        OPENVINO_ASSERT(history_idx.has_value(),
+                        "NPUW attention history input '",
+                        history_input_name,
+                        "' was not found among model inputs");
+        const auto history_size = hfa::read_history_input(get_tensor(model_inputs[*history_idx]));
+        update_history_size(history_size);
+        LOG_DEBUG("Attention history size: " << history_size);
+    }
+
     // Adjust spatial input range, if supported
     if (m_spatial_selector) {
         m_spatial_selector->prepare();

@@ -27,6 +27,7 @@
 #undef private
 #include "attn/attn_subgraph.hpp"
 #include "embedding/redirect_new_kv_to_output.hpp"
+#include "hfa_bshd_model.hpp"
 #include "just_sync_infer_request.hpp"
 #include "llm_test_helpers.hpp"
 #include "model_builder.hpp"
@@ -851,6 +852,30 @@ TEST_F(SubgraphBehaviorInferTest, DynAttnBehaviorNotAttachedWithoutAttnIsolation
     auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, props);
     EXPECT_EQ(count_dyn_attn_behaviors(compiled), 0u)
         << "DynAttnBehavior must NOT be attached when NPUW_ONLINE_ISOLATE=ATTN is not set";
+}
+
+// The llama.cpp-style decomposed attention ([B,S,H,D] past KV transposed before the Concat, history
+// from a model input) must be turned into Host Flash Attention, not left as static attention.
+TEST_F(SubgraphBehaviorInferTest, HfaAttachedForTransposedPastKVWithExplicitHistory) {
+    auto model = ov::test::npuw::build_hfa_bshd_model();
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin);
+    plugin->set_core(core);
+    auto props = base_props();
+    props["NPUW_ATTN"] = std::string("HFA");
+    props["NPUW_ATTN_HISTORY_SIZE_INPUT"] = ov::test::npuw::kHfaHistoryInputName;
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, props);
+
+    std::size_t num_hfa = 0;
+    for (const auto& desc : compiled->m_compiled_submodels) {
+        if (const auto* hfa = ov::npuw::attn::get_compiled_hfa(desc.pipeline.context)) {
+            ++num_hfa;
+            using Info = ov::npuw::compiled::HostFlashAttentionInfo;
+            EXPECT_EQ(Info::concat_seq_dim(hfa->_sdpa_attention_info._k_seq_dim), 2u);
+            EXPECT_EQ(Info::past_seq_dim(hfa->_sdpa_attention_info._k_seq_dim), 1u);
+        }
+    }
+    EXPECT_GT(num_hfa, 0u);
 }
 
 // Regression test for "Cannot find tensor for port" on the first inference of an LLM imported

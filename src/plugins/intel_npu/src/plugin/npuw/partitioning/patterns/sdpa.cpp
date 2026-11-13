@@ -176,17 +176,34 @@ SDPA::SDPA(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const st
 
 SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
                                const std::string& isol_tag) {
+    // A past-KV input fed in [B, S, H, D] layout and permuted to [B, H, S, D] right before the Concat.
+    // Accepted only for HFA: other attention modes (e.g. PYRAMID) take the Concat axis as the past
+    // parameter's sequence axis, which a Transpose breaks.
+    const bool allow_bshd = snapshot->getCtx().allow_transposed_past_kv;
+    auto as_bshd_kv_transpose = [allow_bshd](const std::shared_ptr<ov::Node>& node) {
+        auto transpose = allow_bshd ? ov::as_type_ptr<ov::op::v1::Transpose>(node) : nullptr;
+        if (!transpose || transpose->get_output_target_inputs(0).size() != 1)
+            return std::shared_ptr<ov::op::v1::Transpose>{};
+        auto order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
+        if (!order || order->cast_vector<int64_t>() != std::vector<int64_t>{0, 2, 1, 3})
+            return std::shared_ptr<ov::op::v1::Transpose>{};
+        return transpose;
+    };
+
     // KV-cache Concat predicate: all inputs except the last (current KV slice) must be
-    // Parameters or Parameter-through-Convert.  This guards against matching Eagle-style
-    // concats or DQ-chain concats whose non-last inputs are intermediate nodes such as
-    // Multiply/Subtract produced by a dequantisation path.
-    auto kv_concat_pred = [](const ov::Output<ov::Node>& output) {
+    // Parameters or Parameter-through-Convert, optionally behind a [B,S,H,D]->[B,H,S,D] Transpose.
+    // This guards against matching Eagle-style concats or DQ-chain concats whose non-last inputs
+    // are intermediate nodes such as Multiply/Subtract produced by a dequantisation path.
+    auto kv_concat_pred = [as_bshd_kv_transpose](const ov::Output<ov::Node>& output) {
         auto concat = output.get_node_shared_ptr();
         const auto num_inputs = concat->get_input_size();
         if (num_inputs < 2)
             return false;
         for (size_t i = 0; i + 1 < num_inputs; ++i) {
             auto inp = concat->get_input_node_shared_ptr(i);
+            if (auto transpose = as_bshd_kv_transpose(inp)) {
+                inp = transpose->get_input_node_shared_ptr(0);
+            }
             if (ov::as_type_ptr<ov::op::v0::Parameter>(inp))
                 continue;
             if (auto cvt = ov::as_type_ptr<ov::op::v0::Convert>(inp)) {
@@ -253,6 +270,13 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
                 // Also isolate all Convert inputs to this Concat
                 for (size_t i = 0; i < concat_node->get_input_size(); ++i) {
                     auto input_node = concat_node->get_input_node_shared_ptr(i);
+                    const bool is_past_input = i + 1 < concat_node->get_input_size();
+                    if (auto transpose_node = is_past_input ? as_bshd_kv_transpose(input_node) : nullptr) {
+                        if (node_to_gptr->count(transpose_node)) {
+                            node_to_gptr->at(transpose_node)->isolate(isol_tag);
+                        }
+                        input_node = transpose_node->get_input_node_shared_ptr(0);
+                    }
                     if (auto convert_node = std::dynamic_pointer_cast<ov::op::v0::Convert>(input_node)) {
                         if (node_to_gptr->count(convert_node)) {
                             node_to_gptr->at(convert_node)->isolate(isol_tag);

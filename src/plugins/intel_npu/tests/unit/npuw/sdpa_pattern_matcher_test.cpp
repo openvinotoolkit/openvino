@@ -11,6 +11,7 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "hfa_bshd_model.hpp"
 #include "openvino/op/ops.hpp"
 #include "partitioning/online/compiler.hpp"
 #include "partitioning/patterns/sdpa.hpp"
@@ -343,3 +344,39 @@ TEST(SDPAPatternMatcherTest, ATTNPresetMatchesDQModel) {
     EXPECT_GE(count_groups_with_tag(ens, "attn"), 2u)
         << "ATTN preset should match DQ SDPA model via SDPACompressed pattern";
 }
+
+// --- [B,S,H,D] past KV transposed to [B,H,S,D] before the Concat (llama.cpp HFA prefill) ---
+
+namespace {
+
+size_t count_attn_groups(const ov::test::npuw::HfaBshdModelConfig& model_cfg, const std::string& attn_mode) {
+    auto model = ov::test::npuw::build_hfa_bshd_model(model_cfg);
+    auto cfg = make_cfg(
+        {{"NPUW_ONLINE_PIPELINE", "REP"}, {"NPUW_ONLINE_ISOLATE", "P:SDPADecomposed/attn"}, {"NPUW_ATTN", attn_mode}});
+    return count_groups_with_tag(ov::npuw::online::buildPartitioning(model, cfg), "attn");
+}
+
+}  // namespace
+
+TEST(SDPAPatternMatcherTest, SDPADecomposedMatchesTransposedPastKVForHFA) {
+    EXPECT_GE(count_attn_groups({}, "HFA"), 2u);
+}
+
+// Only HFA maps the past parameter's sequence axis through the Transpose; other attention modes
+// read the Concat axis as the parameter's sequence axis, so they must keep these graphs untagged.
+class SDPAPatternMatcherNonHFAModeTest : public ::testing::TestWithParam<std::string> {};
+
+TEST_P(SDPAPatternMatcherNonHFAModeTest, SDPADecomposedSkipsTransposedPastKV) {
+    EXPECT_EQ(count_attn_groups({}, GetParam()), 0u);
+}
+
+TEST_P(SDPAPatternMatcherNonHFAModeTest, SDPADecomposedStillMatchesPlainPastKV) {
+    ov::test::npuw::HfaBshdModelConfig model_cfg;
+    model_cfg.bshd_key = false;
+    model_cfg.bshd_value = false;
+    EXPECT_GE(count_attn_groups(model_cfg, GetParam()), 2u);
+}
+
+INSTANTIATE_TEST_SUITE_P(AttentionModes,
+                         SDPAPatternMatcherNonHFAModeTest,
+                         ::testing::Values("STATIC", "DYNAMIC", "PYRAMID"));

@@ -1577,6 +1577,10 @@ void Snapshot::setCtx(const ov::npuw::online::PassContext& ctx) {
     m_ctx = ctx;
 }
 
+const ov::npuw::online::PassContext& Snapshot::getCtx() const {
+    return m_ctx;
+}
+
 void Snapshot::stripTag(const std::string& tag) {
     for (auto&& nh : m_graph->nodes()) {
         const auto& gptr = m_graph->meta(nh).get<Group::GPtr>();
