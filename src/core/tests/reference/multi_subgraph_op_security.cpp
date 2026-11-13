@@ -6,6 +6,7 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/reference/if.hpp"
@@ -33,6 +34,11 @@ ov::Tensor make_trip_count_tensor(int64_t value) {
     ov::Tensor t(element::i64, Shape{1});
     t.data<int64_t>()[0] = value;
     return t;
+}
+
+std::shared_ptr<Model> make_passthrough_body() {
+    auto param = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    return std::make_shared<Model>(OutputVector{param}, ParameterVector{param});
 }
 }  // namespace
 
@@ -66,10 +72,8 @@ TEST(IfReferenceSecurityTest, body_parameter_index_beyond_descriptor_count_does_
 }
 
 TEST(IfReferenceSecurityTest, body_parameter_index_beyond_body_size_throws) {
-    auto then_param = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
-    auto then_body = std::make_shared<Model>(OutputVector{then_param}, ParameterVector{then_param});
-    auto else_param = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
-    auto else_body = std::make_shared<Model>(OutputVector{else_param}, ParameterVector{else_param});
+    auto then_body = make_passthrough_body();
+    auto else_body = make_passthrough_body();
 
     MultiSubGraphOp::MultiSubgraphInputDescriptionVector then_inputs{
         std::make_shared<MultiSubGraphOp::InvariantInputDescription>(1, 7)};
@@ -109,8 +113,7 @@ TEST(TensorIteratorReferenceSecurityTest, body_parameter_index_beyond_descriptor
 }
 
 TEST(TensorIteratorReferenceSecurityTest, body_parameter_index_beyond_body_size_throws) {
-    auto param = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
-    auto body = std::make_shared<Model>(OutputVector{param}, ParameterVector{param});
+    auto body = make_passthrough_body();
 
     op::util::InputDescriptionVector input_descs{std::make_shared<MultiSubGraphOp::InvariantInputDescription>(0, 7)};
     op::util::OutputDescriptionVector output_descs{std::make_shared<MultiSubGraphOp::BodyOutputDescription>(0, 0)};
@@ -124,8 +127,7 @@ TEST(TensorIteratorReferenceSecurityTest, body_parameter_index_beyond_body_size_
 }
 
 TEST(TensorIteratorReferenceSecurityTest, zero_iterations_throws_instead_of_reading_empty_body_outputs) {
-    auto param = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
-    auto body = std::make_shared<Model>(OutputVector{param}, ParameterVector{param});
+    auto body = make_passthrough_body();
 
     op::util::InputDescriptionVector input_descs{std::make_shared<MultiSubGraphOp::InvariantInputDescription>(0, 0)};
     op::util::OutputDescriptionVector output_descs{std::make_shared<MultiSubGraphOp::BodyOutputDescription>(0, 0)};
@@ -138,9 +140,45 @@ TEST(TensorIteratorReferenceSecurityTest, zero_iterations_throws_instead_of_read
                                   "produced no output");
 }
 
+TEST(TensorIteratorReferenceSecurityTest, zero_iterations_with_slice_input_throws_instead_of_dividing_by_zero) {
+    auto body = make_passthrough_body();
+
+    op::util::InputDescriptionVector input_descs{
+        std::make_shared<MultiSubGraphOp::SliceInputDescription>(0, 0, 0, 1, 1, -1, 0)};
+    op::util::OutputDescriptionVector output_descs{std::make_shared<MultiSubGraphOp::BodyOutputDescription>(0, 0)};
+
+    ov::TensorVector args{make_tensor(element::f32, Shape{1}, 1.0f)};
+    ov::TensorVector out{ov::Tensor(element::f32, Shape{1})};
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::reference::tensor_iterator(0, body, output_descs, input_descs, out, args),
+                                  ov::Exception,
+                                  "produced no output");
+}
+
+TEST(LoopReferenceSecurityTest, body_parameter_index_beyond_descriptor_count_does_not_overflow) {
+    ParameterVector params;
+    for (int i = 0; i < 5; ++i)
+        params.push_back(std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic()));
+    auto condition = op::v0::Constant::create(element::boolean, Shape{}, {true});
+    auto body = std::make_shared<Model>(OutputVector{params[4], condition}, params);
+
+    // input index 0 is trip_count, 1 is execution_condition; the mapped value is
+    // args[2], landing on body_parameter_index 4 even though D == 1 < N == 5.
+    op::util::InputDescriptionVector input_descs{std::make_shared<MultiSubGraphOp::InvariantInputDescription>(2, 4)};
+    op::util::OutputDescriptionVector output_descs{std::make_shared<MultiSubGraphOp::BodyOutputDescription>(0, 0)};
+
+    ov::TensorVector args{make_trip_count_tensor(1),
+                          make_bool_tensor(true),
+                          make_tensor(element::f32, Shape{1}, 42.0f)};
+    ov::TensorVector out{ov::Tensor(element::f32, Shape{1})};
+
+    OV_ASSERT_NO_THROW(
+        ov::reference::loop(body, output_descs, input_descs, op::v5::Loop::SpecialBodyPorts{-1, 1}, out, args, {}));
+    EXPECT_EQ(out[0].data<float>()[0], 42.0f);
+}
+
 TEST(LoopReferenceSecurityTest, body_parameter_index_beyond_body_size_throws) {
-    auto param = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
-    auto body = std::make_shared<Model>(OutputVector{param}, ParameterVector{param});
+    auto body = make_passthrough_body();
 
     // input index 0 is trip_count, 1 is execution_condition; body inputs start at 2.
     op::util::InputDescriptionVector input_descs{std::make_shared<MultiSubGraphOp::InvariantInputDescription>(2, 7)};
@@ -156,8 +194,7 @@ TEST(LoopReferenceSecurityTest, body_parameter_index_beyond_body_size_throws) {
 }
 
 TEST(LoopReferenceSecurityTest, slice_input_zero_length_axis_throws) {
-    auto param = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
-    auto body = std::make_shared<Model>(OutputVector{param}, ParameterVector{param});
+    auto body = make_passthrough_body();
 
     // args[0] is trip_count and args[1] is execution_condition (hardcoded by
     // reference::loop, not described by any InputDescription); the

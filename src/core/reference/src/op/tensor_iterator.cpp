@@ -48,30 +48,35 @@ void tensor_iterator(uint64_t num_iterations,
     // Slicing
     std::vector<std::shared_ptr<op::v0::TensorIterator::SliceInputDescription>> slice_inputs;
     std::vector<ov::TensorVector> sliced_values;
-    int slice_in_idx = 0;
-    for (const auto& desc : input_descs) {
-        if (const auto& slice_desc = ov::as_type_ptr<op::v0::TensorIterator::SliceInputDescription>(desc)) {
-            const auto el_size = args[slice_desc->m_input_index].get_element_type().size();
-            slice_inputs.push_back(slice_desc);
-            auto shape = args[slice_desc->m_input_index].get_shape();
-            shape.at(slice_desc->m_axis) = 1;
-            sliced_values.emplace_back(ov::TensorVector());
-            for (uint64_t i = 0; i < num_iterations; ++i) {
-                sliced_values.back().emplace_back(
-                    ov::Tensor(args[slice_desc->m_input_index].get_element_type(), shape));
+    // With num_iterations == 0 there is nothing to slice, and reference::split would
+    // divide by a zero split count; the body-output check below already rejects this
+    // case cleanly.
+    if (num_iterations > 0) {
+        int slice_in_idx = 0;
+        for (const auto& desc : input_descs) {
+            if (const auto& slice_desc = ov::as_type_ptr<op::v0::TensorIterator::SliceInputDescription>(desc)) {
+                const auto el_size = args[slice_desc->m_input_index].get_element_type().size();
+                slice_inputs.push_back(slice_desc);
+                auto shape = args[slice_desc->m_input_index].get_shape();
+                shape.at(slice_desc->m_axis) = 1;
+                sliced_values.emplace_back(ov::TensorVector());
+                for (uint64_t i = 0; i < num_iterations; ++i) {
+                    sliced_values.back().emplace_back(
+                        ov::Tensor(args[slice_desc->m_input_index].get_element_type(), shape));
+                }
+                std::vector<char*> pointers_to_data(num_iterations);
+                for (size_t j = 0; j < pointers_to_data.size(); ++j) {
+                    pointers_to_data[slice_desc->m_stride > 0 ? j : (pointers_to_data.size() - j - 1)] =
+                        static_cast<char*>(sliced_values[slice_in_idx][j].data());
+                }
+                reference::split(static_cast<const char*>(args[slice_desc->m_input_index].data()),
+                                 args[slice_desc->m_input_index].get_shape(),
+                                 el_size,
+                                 slice_desc->m_axis,
+                                 num_iterations,
+                                 pointers_to_data.data());
+                slice_in_idx++;
             }
-            std::vector<char*> pointers_to_data(num_iterations);
-            for (size_t j = 0; j < pointers_to_data.size(); ++j) {
-                pointers_to_data[slice_desc->m_stride > 0 ? j : (pointers_to_data.size() - j - 1)] =
-                    static_cast<char*>(sliced_values[slice_in_idx][j].data());
-            }
-            reference::split(static_cast<const char*>(args[slice_desc->m_input_index].data()),
-                             args[slice_desc->m_input_index].get_shape(),
-                             el_size,
-                             slice_desc->m_axis,
-                             num_iterations,
-                             pointers_to_data.data());
-            slice_in_idx++;
         }
     }
 
