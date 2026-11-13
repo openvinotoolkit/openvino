@@ -14,6 +14,7 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/memory.hpp"
 #include "openvino/core/memory_util.hpp"
+#include "common_utils/prefetch_streambuf.hpp"
 #include "openvino/util/parallel_read_streambuf.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
