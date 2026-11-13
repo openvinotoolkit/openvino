@@ -16,7 +16,7 @@ without shortening the investigation.
 
 ## Review workflow
 
-### 1. Establish the baseline
+### 1. Establish the review baseline
 
 Identify exactly which changes are being reviewed:
 
@@ -129,7 +129,15 @@ If these checks do not establish a defect, do not report one as confirmed.
 
 ### 6. Finalize
 
-Recheck the reviewed revision and the evidence supporting each finding.
+Recheck the reviewed revision and the evidence supporting each finding:
+- Before claiming tests, guards, replies, or handling are absent, search the
+  relevant scope. Otherwise state "not verified" and identify the limitation.
+- Check producer/caller contracts before proposing defensive checks. Do not
+  silently discard invalid input unless that behavior satisfies the contract.
+- Verify that a proposed fix preserves semantics. Do not describe an alternative
+  as faster, cheaper, or negligible-cost without supporting evidence.
+- Distinguish duplicate registrations from necessary related dependencies, and
+  historical reviewer preferences from current technical requirements.
 
 Report all material, well-supported, actionable findings in descending order of
 impact. Consolidate repeated instances of one root cause.
@@ -225,11 +233,11 @@ shared tests and documentation according to the behavior exercised or described.
 | Changed paths or behavior | Reference |
 | --- | --- |
 | `src/core/`, `src/inference/` | [Runtime and core](references/runtime.md) |
-| `src/common/transformations/`, `src/common/low_precision_transformations/`, `src/common/offline_transformations/`, `src/common/snippets/`, `src/core/src/pass/`, `src/core/src/pattern/`, `src/core/include/openvino/pass/` transformation passes and tests under frontends or plugins, `src/bindings/python/tests/test_transformations/` | [Transformations](references/transformations.md), plus owning-component guidance |
+| `src/common/transformations/`, `src/common/low_precision_transformations/`, `src/common/offline_transformations/`, `src/common/snippets/`, `src/core/src/pass/`, `src/core/src/pattern/`, `src/core/include/openvino/pass/`, transformation passes and tests under frontends or plugins, `src/bindings/python/tests/test_transformations/` | [Transformations](references/transformations.md), plus owning-component guidance |
 | `src/plugins/intel_gpu/`, `src/inference/include/openvino/runtime/intel_gpu/`, Intel GPU tests, kernels, selection, runtime, memory, layouts, caching, precision, or platform enablement | [Plugins](references/plugins.md); also apply [Bindings and public APIs](references/bindings.md) for public API or user-visible contract changes |
 | `src/plugins/`, including plugin-local tests | [Plugins](references/plugins.md) |
 | `src/tests/functional/` shared operator and inference behavior tests | [Runtime and core](references/runtime.md) and [Plugins](references/plugins.md), as exercised |
-| `src/frontends/`, `src/bindings/python/src/openvino/frontend/`, `src/bindings/python/src/pyopenvino/frontend/`, framework conversion tests in `tests/layer_tests/` and `tests/model_hub_tests/` | [Frontends](references/frontend.md); also apply [Bindings and public APIs](references/bindings.md) for Python API or language-boundary changes |
+| `src/frontends/`, `src/bindings/python/src/openvino/frontend/` (including PyTorch and JAX decoders), `src/bindings/python/src/pyopenvino/frontend/`, framework conversion tests in `tests/layer_tests/` and `tests/model_hub_tests/` | [Frontends](references/frontend.md); also apply [bindings](references/bindings.md) for Python API and language-boundary changes |
 | `src/bindings/`, public API changes under `src/core/include/` or `src/inference/include/` | [Bindings and public APIs](references/bindings.md) |
 | `.github/workflows/`, `.github/actions/`, `.github/scripts/`, `.github/dockerfiles/`, Smart CI and dependency configuration under `.github/`, `cmake/`, `CMakeLists.txt` and `*.cmake` at any depth, dependency manifests and integration changes | [CI, build, and dependencies](references/ci.md) |
 
@@ -239,8 +247,12 @@ references add domain-specific checks and explicit requirements.
 Distinguish:
 
 - **Mandatory requirements:** explicit implementation or compatibility rules.
-  Report a verified violation with the cited rule, applicability, and practical
-  consequence. If impact is unknown, say so.
+  Loaded component guides are merge requirements, not optional style. Report
+  a verified violation as a finding of at least medium severity, even when it
+  causes no immediate failure. Cite the guide and the rule, state the
+  consequence of the violation, and use the fix the guide prescribes. Ask the
+  author to check the rest of the change against the guide, since the review
+  may not list every violation.
 - **Investigative prompts:** instructions to inspect, trace, compare, or measure.
   Failure to find evidence is not automatically a code defect.
 - **Recommendations:** preferences that require a material consequence before
@@ -248,17 +260,6 @@ Distinguish:
 
 If a referenced file is unavailable, disclose the limitation and use available
 applicable guidance without pretending the missing reference was loaded.
-
-### Evidence checks before finalizing
-
-- Before claiming tests, guards, replies, or handling are absent, search the
-  relevant scope. Otherwise state "not verified" and identify the limitation.
-- Check producer/caller contracts before proposing defensive checks. Do not
-  silently discard invalid input unless that behavior satisfies the contract.
-- Verify that a proposed fix preserves semantics. Do not describe an alternative
-  as faster, cheaper, or negligible-cost without supporting evidence.
-- Distinguish duplicate registrations from necessary related dependencies, and
-  historical reviewer preferences from current technical requirements.
 
 ## Conditional review modes
 
@@ -333,9 +334,10 @@ Severity describes impact; confidence describes evidential strength.
   comparable impact on a reachable supported path.
 - **High:** demonstrated or strongly supported incorrect results, crashes,
   compatibility failure, or major resource/performance impact on a reachable
-  supported path.
+  supported path. 
 - **Medium:** material localized impact or a technically grounded unresolved
-  risk requiring focused verification.
+  risk requiring focused verification. Verified violations of mandatory rules
+  in a loaded component guide are at least medium.
 - **Low:** meaningful non-blocking maintenance or diagnostic improvement.
 
 Do not assign high or critical severity solely because code is complex,
@@ -364,5 +366,5 @@ Use these assessments:
 Name the triggering condition or inspected scope and link supporting evidence
 where available. Keep actions specific; use "None" when no action is needed.
 
-The table must agree with the detailed findings. Summarize rather than repeat the full findings. 
+The table must agree with the detailed findings. Summarize rather than repeat the full findings.
 Do not include secrets or sensitive data.
