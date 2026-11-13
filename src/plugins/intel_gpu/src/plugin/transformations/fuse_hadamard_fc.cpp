@@ -60,18 +60,13 @@ bool FuseHadamardIntoFC::run_on_model(const std::shared_ptr<ov::Model>& model) {
     size_t fused = 0;
     for (const auto& node : model->get_ordered_ops()) {
         auto fc = ov::as_type_ptr<op::FullyConnectedCompressed>(node);
-        if (!fc || fc->get_weights_layout() == op::FcWeightsLayout::GNK) {
+        // K = wshape[1] below only holds for NK weights.
+        if (!fc || fc->get_weights_layout() != op::FcWeightsLayout::NK)
             continue;
-        }
         const auto& wshape = fc->get_input_partial_shape(1);
-        if (wshape.rank().is_dynamic() || wshape.rank().get_length() < 2) {
+        if (wshape.rank().is_dynamic() || wshape.rank().get_length() < 2 || !wshape[1].is_static())
             continue;
-        }
-        const auto k_dim = op::fc_weight_dims(wshape, fc->get_weights_layout()).K;
-        if (!k_dim.is_static()) {
-            continue;
-        }
-        const size_t K = static_cast<size_t>(k_dim.get_length());
+        const size_t K = static_cast<size_t>(wshape[1].get_length());
         if (K % kBlock != 0)
             continue;
 

@@ -121,6 +121,24 @@ TEST(fc_weights_layout, op_rejects_inconsistent_layout) {
     EXPECT_THROW(make_fc({4, 128}, {128, 32}, false, FcWeightsLayout::NK), ov::Exception);
 }
 
+// Rank-3 weights with a leading expert dim (MoE) stay NK / KN; GNK is never inferred from the rank.
+TEST(fc_weights_layout, rank3_expert_weights_stay_nk_kn) {
+    using ov::intel_gpu::op::fc_weight_dims;
+    const auto nk = fc_weight_dims(ov::PartialShape{3, 32, 128}, FcWeightsLayout::NK);
+    EXPECT_EQ(nk.N, 32);
+    EXPECT_EQ(nk.K, 128);
+    const auto kn = fc_weight_dims(ov::PartialShape{3, 128, 32}, FcWeightsLayout::KN);
+    EXPECT_EQ(kn.N, 32);
+    EXPECT_EQ(kn.K, 128);
+
+    auto fc_nk = make_fc({3, 4, 128}, {3, 32, 128}, true);
+    EXPECT_EQ(fc_nk->get_weights_layout(), FcWeightsLayout::NK);
+    EXPECT_EQ(fc_nk->get_output_partial_shape(0), (ov::PartialShape{3, 4, 32}));
+    auto fc_kn = make_fc({3, 4, 128}, {3, 128, 32}, false);
+    EXPECT_EQ(fc_kn->get_weights_layout(), FcWeightsLayout::KN);
+    EXPECT_EQ(fc_kn->get_output_partial_shape(0), (ov::PartialShape{3, 4, 32}));
+}
+
 TEST(fc_weights_layout, compressed_op_shape_inference) {
     auto fc = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(activations({4, 128}),
                                                                             weights({2, 32, 64}, ov::element::u8),
@@ -222,5 +240,25 @@ TEST(fc_weights_layout, gnk_shape_inference_and_impl_rejection) {
     for (const auto& impl : fc.type()->get_supported_implementations(fc)) {
         EXPECT_NE(impl->get_impl_type(), impl_types::ocl);
         EXPECT_NE(impl->get_impl_type(), impl_types::onednn);
+    }
+}
+
+// A TernOCL-shaped u2 FC (scalar zero point 1, group 128, N % 16) must still be rejected for GNK weights.
+TEST(fc_weights_layout, ternocl_rejects_gnk) {
+    auto& engine = get_test_engine();
+    const int64_t G = 16, N = 128, gs = 1, K = G * gs;
+    topology topo(input_layout("input", layout{ov::PartialShape{4, K}, data_types::f16, format::bfyx}));
+    topo.add(data("weights", engine.allocate_memory({ov::PartialShape{G, N, gs}, data_types::u2, format::bfyx})));
+    topo.add(data("scale", engine.allocate_memory({ov::PartialShape{G, 1}, data_types::f16, format::bfyx})));
+    auto fc = fully_connected("fc", input_info("input"), "weights", "", "scale", "", data_types::f16, 2, 3, true, true, true, FcWeightsLayout::GNK);
+    fc.decompression_zero_point_scalar = 1;
+    topo.add(fc);
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topo, config, false, true);
+    auto& node = prog->get_node("fc").as<fully_connected>();
+    for (const auto& impl : node.type()->get_supported_implementations(node)) {
+        EXPECT_NE(impl->get_impl_type(), impl_types::ocl);
     }
 }

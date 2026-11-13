@@ -327,7 +327,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
             }
         }
 
-        // Create new fc with merged weights, bias, scale, zp
+        // Create new fc with merged weights, bias, scale, zp. GNK FCs are rejected above, so the default NK / KN layout is correct.
         std::shared_ptr<ov::Node> new_fc;
         if (fused_zps) {
             new_fc = std::make_shared<op::FullyConnectedCompressed>(input_node,
