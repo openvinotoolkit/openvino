@@ -7,12 +7,12 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
-#include <stdexcept>
 #include <vector>
 
 #include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/stream.hpp"
+#include "openvino/core/except.hpp"
 
 namespace cldnn {
 class les_context;
@@ -57,7 +57,7 @@ public:
     virtual void set_les_context(cldnn::les_context*, uint64_t) {}
     virtual void set_consumer(cldnn::event::ptr) {}
     virtual std::optional<ExpertDemand> begin_les_demand(const std::vector<uint32_t>&) { return std::nullopt; }
-    virtual void finish_les_demand(cldnn::stream&) { throw std::logic_error("No LES demand is supported"); }
+    virtual void finish_les_demand(cldnn::stream&) { OPENVINO_THROW("No LES demand is supported"); }
     virtual void prefetch_les_demand(const std::vector<uint32_t>&, cldnn::stream&) {}
 
     // Releases any pinning established by the most recent acquisition.
