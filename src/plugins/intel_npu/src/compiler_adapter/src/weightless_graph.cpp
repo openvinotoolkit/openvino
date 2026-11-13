@@ -392,20 +392,11 @@ void WeightlessGraph::initialize_impl(const Config& config) {
     }
 
     // Create a single command queue for all weights initialization schedules
-    uint32_t commandQueueOptions = 0;
-    if (config.has<TURBO>() && config.get<TURBO>()) {
-        if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
-            _wgLogger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in init command queue options");
-            commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
-        }
-    }
-    CommandQueueDesc commandQueueDesc{
-        zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-        config.has<WORKLOAD_TYPE>() ? zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>()) : std::nullopt,
-        commandQueueOptions,
-        this,
-        config.get<SHARED_COMMON_QUEUE>()};
-    _initsCommandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, commandQueueDesc);
+    auto commandQueueParams = CommandQueueParams::from_config(config);
+    // Init schedules don't need device-sync ordering
+    commandQueueParams.runInferencesSequentially = false;
+    _initsCommandQueue =
+        ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, create_command_queue_desc(commandQueueParams));
 
 #if USE_SINGLE_THREADED_RUN_INIT
     run_init_single_threaded();
