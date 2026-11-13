@@ -637,8 +637,7 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
             if (!eps_input || !get_scalar_f32(*eps_input, epsilon)) {
                 return false;
             }
-            // The gain operand already includes any `1 + w` fold, so GatedResidual must not
-            // fold it again either.
+            // The gain operand already includes any `1 + w` fold; the op takes it as is.
             if (pm.count(decomposed_gain) > 0) {
                 const auto gain = pm.at(decomposed_gain);
                 if (!has_element_count(gain.get_partial_shape(), C * D)) {
@@ -677,21 +676,17 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
             }
         }
 
-        // Without a write-gate branch off the normalized residual this is the terminal mixer.
-        const auto mode = gate_branch ? op::GatedResidual::Mode::READ : op::GatedResidual::Mode::FINAL_MIX;
-
         auto make_gr = [&](bool with_gate) {
             ov::OutputVector inputs = gr_inputs;
             if (with_gate) {
                 inputs.insert(inputs.end(), gate_inputs.begin(), gate_inputs.end());
             }
             return std::make_shared<op::GatedResidual>(inputs,
-                                                       mode,
+                                                       op::GatedResidual::Mode::READ,
                                                        C,
                                                        D,
                                                        L,
                                                        epsilon,
-                                                       /*norm_gain_plus_one=*/false,
                                                        /*produce_write_gate=*/with_gate);
         };
         bool with_gate = !gate_inputs.empty();
@@ -825,7 +820,6 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
                                                       D,
                                                       /*lowrank=*/0,
                                                       /*epsilon=*/0.0f,
-                                                      /*norm_gain_plus_one=*/false,
                                                       /*produce_write_gate=*/false);
         if (!gr->get_output_partial_shape(0).compatible(root->get_output_partial_shape(0))) {
             return false;

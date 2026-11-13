@@ -4,27 +4,26 @@ GatedResidual
 =============
 
 .. meta::
-  :description: Learn about GatedResidual, an internal operation for branch-wise gated residual READ, WRITE, and FINAL_MIX computations used by hyper-connection transformer models.
+  :description: Learn about GatedResidual, an internal operation for branch-wise gated residual READ and WRITE computations used by hyper-connection transformer models.
 
 **Versioned name**: *GatedResidual*
 
 **Category**: *Internal*
 
 **Short description**:
-The *GatedResidual* operation represents the gated residual (hyper-connection) mechanism used by Qwen4-Exp / Qwen3.8-Flash-Next-style models. It handles branch-wise normalization and gated branch merging, the gated residual update, and an optional terminal merge. READ and WRITE are distinct operation modes; the sub-layer output is an explicit input to WRITE. READ and FINAL_MIX optionally accept ``i4``/``u4``/``i8``/``u8`` compressed ``w_down`` / ``w_up`` / ``w_inject`` weights.
+The *GatedResidual* operation represents the gated residual (hyper-connection) mechanism used by Qwen4-Exp / Qwen3.8-Flash-Next-style models. It handles branch-wise normalization and gated branch merging, and the gated residual update. READ and WRITE are distinct operation modes; the sub-layer output is an explicit input to WRITE. READ optionally accepts ``i4``/``u4``/``i8``/``u8`` compressed ``w_down`` / ``w_up`` / ``w_inject`` weights.
 
 **Detailed description**
 
 A residual stream with ``C`` branches and per-branch hidden size ``D`` is physically stored as
-``[B, T, C*D]`` and logically interpreted as ``[B, T, C, D]``. ``GatedResidual`` provides three
+``[B, T, C*D]`` and logically interpreted as ``[B, T, C, D]``. ``GatedResidual`` provides two
 modes:
 
 * ``READ`` normalizes each branch independently, computes a low-rank channel-wise read gate,
-  merges the gated branches, and may also emit a per-branch write gate.
+  merges the gated branches, and may also emit a per-branch write gate. Without a write gate
+  it is a terminal branch mixer.
 * ``WRITE`` broadcasts a previously computed per-branch write gate over the hidden dimension
   and adds the gated sub-layer output to every residual branch.
-* ``FINAL_MIX`` performs the READ merge without producing a write gate, for a terminal branch
-  mixer.
 
 A typical transformer region is:
 
@@ -41,8 +40,8 @@ write gate is one scalar per branch and token, with range ``(0, 2)``.
 
 Let ``R_c`` be branch ``c`` of the residual row, ``Rbar_c`` its normalized value, ``W_down``
 shape ``[L, C*D]``, ``W_up`` shape ``[C*D, L]``, and ``W_inject`` shape ``[C, C*D]``. The
-stored normalization weight ``w`` yields the gain :math:`\gamma = 1 + w` when
-``norm_gain_plus_one`` is true; otherwise :math:`\gamma = w`. :math:`\gamma_c` is the
+stored normalization weight ``w`` is the gain :math:`\gamma = w`; a checkpoint that stores
+``w`` as an offset from one must fold the ``1 +`` into the weight. :math:`\gamma_c` is the
 ``D``-element segment of :math:`\gamma` that belongs to branch ``c``.
 
 For each branch:
@@ -79,8 +78,8 @@ WRITE mode uses the original widened residual and the sub-layer output ``Y``:
 
    R'_c = R_c + S_c Y
 
-The scalar ``S_c`` broadcasts across the ``D`` channels of branch ``c``. ``FINAL_MIX`` uses
-the READ equations for ``M`` but does not calculate ``S``.
+The scalar ``S_c`` broadcasts across the ``D`` channels of branch ``c``. Without
+``produce_write_gate``, READ uses the same equations for ``M`` but does not calculate ``S``.
 
 The following PyTorch-equivalent code illustrates the full computation. Weights are given as
 decompressed floating-point tensors; ``dequantize_weight`` shows how the compressed
@@ -101,20 +100,17 @@ already unpacked to one value per element (signed types sign-extended) or ``None
        z = zp.t().repeat_interleave(K // G, dim=1).float() if zp is not None else 0.0   # no zero points: 0
        return ((q.float() - z) * s.float()).half()
 
-   def branch_rms_norm(residual, norm_weight, C, D, epsilon, norm_gain_plus_one):
+   def branch_rms_norm(residual, norm_weight, C, D, epsilon):
        # residual: [..., C*D]; every branch is normalized over its own D channels
        r = residual.float().unflatten(-1, (C, D))
        r = r * torch.rsqrt(r.pow(2).mean(dim=-1, keepdim=True) + epsilon)
        gain = norm_weight.float().unflatten(-1, (C, D))
-       if norm_gain_plus_one:
-           gain = 1.0 + gain
        return r * gain                                  # [..., C, D]
 
    def gated_residual_read(residual, norm_weight, w_down, w_up, w_inject,
-                           C, D, epsilon=1e-6, norm_gain_plus_one=True,
-                           produce_write_gate=False):
-       # READ (produce_write_gate may be True) and FINAL_MIX (w_inject is None)
-       r_bar = branch_rms_norm(residual, norm_weight, C, D, epsilon, norm_gain_plus_one)
+                           C, D, epsilon=1e-6, produce_write_gate=False):
+       # READ; w_inject is None when produce_write_gate is False
+       r_bar = branch_rms_norm(residual, norm_weight, C, D, epsilon)
        r_bar_flat = r_bar.flatten(-2)                   # [..., C*D]
 
        t = F.silu(F.linear(r_bar_flat, w_down.float()) / C)             # [..., L]
@@ -136,8 +132,8 @@ already unpacked to one value per element (signed types sign-extended) or ``None
 
 * *mode*
 
-  * **Description**: Selects ``READ``, ``WRITE``, or ``FINAL_MIX``.
-  * **Range of values**: ``0`` (READ), ``1`` (WRITE), ``2`` (FINAL_MIX)
+  * **Description**: Selects ``READ`` or ``WRITE``.
+  * **Range of values**: ``0`` (READ), ``1`` (WRITE)
   * **Type**: ``int``
   * **Required**: *yes*
 
@@ -157,8 +153,8 @@ already unpacked to one value per element (signed types sign-extended) or ``None
 
 * *lowrank*
 
-  * **Description**: Low-rank width, :math:`L`, used by READ and FINAL_MIX projections. It must be positive for READ and FINAL_MIX and is unused by WRITE.
-  * **Range of values**: a positive integer for READ / FINAL_MIX; any non-negative integer for WRITE
+  * **Description**: Low-rank width, :math:`L`, used by READ projections. It must be positive for READ and is unused by WRITE.
+  * **Range of values**: a positive integer for READ; any non-negative integer for WRITE
   * **Type**: ``int``
   * **Required**: *yes*
 
@@ -170,16 +166,9 @@ already unpacked to one value per element (signed types sign-extended) or ``None
   * **Default value**: ``1e-6``
   * **Required**: *no*
 
-* *norm_gain_plus_one*
-
-  * **Description**: If true, interpret the stored normalization weight as ``1 + w``; otherwise use it as the gain directly.
-  * **Type**: ``bool``
-  * **Default value**: ``true``
-  * **Required**: *no*
-
 * *produce_write_gate*
 
-  * **Description**: In READ mode, compute and emit the write gate using ``w_inject``. It must be false for FINAL_MIX and is unused in WRITE mode.
+  * **Description**: In READ mode, compute and emit the write gate using ``w_inject``. It is unused in WRITE mode.
   * **Type**: ``bool``
   * **Default value**: ``false``
   * **Required**: *no*
@@ -192,23 +181,23 @@ residual shape is ``[B, T, C, D]``; the physical shape is ``[B, T, C*D]``. Any r
 is accepted for the data inputs (``residual``, ``sublayer_y``, ``write_gate``), as long as the
 last dimension is as specified below and the leading dimensions agree across them.
 
-* **READ / FINAL_MIX input 0**: ``residual``
+* **READ input 0**: ``residual``
   A floating-point tensor with logical shape ``[B, T, C, D]`` and physical shape
   ``[B, T, C*D]``. **Required.**
 
-* **READ / FINAL_MIX input 1**: ``norm_weight``
+* **READ input 1**: ``norm_weight``
   A 1D tensor of shape ``[C*D]`` containing the branch-wise normalization gains in flattened
   storage order. Each branch uses its own contiguous ``D``-element segment. **Required.**
 
-* **READ / FINAL_MIX input 2**: ``w_down``
+* **READ input 2**: ``w_down``
   A 2D tensor of shape ``[L, C*D]`` for the low-rank down projection. Floating-point in the
   uncompressed forms, ``i4``, ``u4``, ``i8`` or ``u8`` in the compressed forms. **Required.**
 
-* **READ / FINAL_MIX input 3**: ``w_up``
+* **READ input 3**: ``w_up``
   A 2D tensor of shape ``[C*D, L]`` for the up projection that produces read-gate logits. Floating-point in the
   uncompressed forms, ``i4``, ``u4``, ``i8`` or ``u8`` in the compressed forms. **Required.**
 
-READ and FINAL_MIX accept one of six input forms, selected by the weight element type, by whether
+READ accepts one of six input forms, selected by the weight element type, by whether
 zero points are present, and by ``produce_write_gate``. Inputs 0-3 are identical in all of them. The
 compression parameters, when present, follow input 3. The write-gate inputs, when present, are always
 the **last** inputs, so the index of ``w_inject`` depends on the form:
@@ -237,13 +226,13 @@ Zero points are optional but all-or-nothing: either ``zp_down`` and ``zp_up`` (a
 present or none is, and a missing zero point is 0. For a given ``produce_write_gate`` the number of
 inputs selects the form unambiguously.
 
-* **READ / FINAL_MIX inputs 4-5 (compressed forms only)**: when the weights are ``i4``, ``u4``, ``i8`` or
+* **READ inputs 4-5 (compressed forms only)**: when the weights are ``i4``, ``u4``, ``i8`` or
   ``u8``, these inputs carry the scales of ``w_down`` and ``w_up``.
 
   * input 4: ``scale_down``, ``f16``, shape ``[G_d, L]``
   * input 5: ``scale_up``, ``f16``, shape ``[G_u, C*D]``
 
-* **READ / FINAL_MIX inputs 6-7 (compressed forms with zero points only)**:
+* **READ inputs 6-7 (compressed forms with zero points only)**:
 
   * input 6: ``zp_down``, same element type as ``w_down``, same shape as ``scale_down``
   * input 7: ``zp_up``, same element type as ``w_up``, same shape as ``scale_up``
@@ -282,7 +271,7 @@ above.
 
 **Outputs**
 
-* **READ / FINAL_MIX output 0**: ``mixed``
+* **READ output 0**: ``mixed``
   A tensor of shape ``[B, T, D]``. It is the mean of the branch-wise, read-gated normalized
   residual states.
 
@@ -298,9 +287,9 @@ above.
 * ``hc_count`` and ``hidden_size`` must be positive.
 * The residual rank must be at least 2, and its last dimension must be compatible with
   ``hc_count * hidden_size``.
-* READ and FINAL_MIX require four inputs with floating-point weights, five when ``produce_write_gate`` is true, six (without zero points) or eight (with zero points) for compressed weights, or eight (without) or eleven (with zero points) for compressed weights with a write gate (see the input forms above).  
+* READ requires four inputs with floating-point weights, five when ``produce_write_gate`` is true, six (without zero points) or eight (with zero points) for compressed weights, or eight (without) or eleven (with zero points) for compressed weights with a write gate (see the input forms above).  
   The write-gate inputs are always the last inputs.  
-  FINAL_MIX must not produce a write gate. READ/FINAL_MIX require ``lowrank > 0``.
+  READ requires ``lowrank > 0``.
 * ``norm_weight`` must have shape ``[C*D]``, ``w_down`` ``[L, C*D]``, ``w_up`` ``[C*D, L]``, and
   ``w_inject`` (if present) ``[C, C*D]``. ``w_down``, ``w_up`` and ``w_inject`` (if present) must share one element type.
 * For the compressed form, scale tensors must be rank 2 with last dimension equal to the weight's
@@ -310,7 +299,7 @@ above.
 * WRITE requires exactly three inputs and returns the residual shape. ``sublayer_y`` must have
   last dimension ``D``, ``write_gate`` must have last dimension ``C``, and both must share the
   residual element type.
-* READ/FINAL_MIX output 0 preserves the residual rank and leading dimensions and replaces the
+* READ output 0 preserves the residual rank and leading dimensions and replaces the
   final dimension with ``hidden_size``. When the write gate is produced, output 1 preserves the
   leading dimensions and replaces the final dimension with ``hc_count``.
 * All outputs use the element type of ``residual``.
@@ -332,8 +321,7 @@ and a generated write gate. The flattened residual has shape ``[1, 2, 256]``.
 
    <layer ... type="GatedResidual">
        <data mode="0" hc_count="4" hidden_size="64" lowrank="32"
-             epsilon="1e-6" norm_gain_plus_one="true"
-             produce_write_gate="true"/>
+             epsilon="1e-6" produce_write_gate="true"/>
        <input>
            <port id="0">  <!-- residual: [B,T,C*D] -->
                <dim>1</dim><dim>2</dim><dim>256</dim>
@@ -368,8 +356,7 @@ The matching WRITE that adds the sub-layer output back to every branch:
 
    <layer ... type="GatedResidual">
        <data mode="1" hc_count="4" hidden_size="64" lowrank="32"
-             epsilon="1e-6" norm_gain_plus_one="true"
-             produce_write_gate="false"/>
+             epsilon="1e-6" produce_write_gate="false"/>
        <input>
            <port id="0">  <!-- residual: [B,T,C*D] -->
                <dim>1</dim><dim>2</dim><dim>256</dim>
@@ -388,7 +375,7 @@ The matching WRITE that adds the sub-layer output back to every branch:
        </output>
    </layer>
 
-A FINAL_MIX with ``u4`` compressed weights (eight-input form). ``w_down`` has ``K = C*D = 256``
+A READ without a write gate, with ``u4`` compressed weights (eight-input form). ``w_down`` has ``K = C*D = 256``
 and ``G_d = 8``, so its group size is ``256 / 8 = 32``; ``w_up`` has ``K = L = 32`` and ``G_u = 1``,
 so it is per-channel (group size 32 = K):
 
@@ -396,9 +383,8 @@ so it is per-channel (group size 32 = K):
    :force:
 
    <layer ... type="GatedResidual">
-       <data mode="2" hc_count="4" hidden_size="64" lowrank="32"
-             epsilon="1e-6" norm_gain_plus_one="true"
-             produce_write_gate="false"/>
+       <data mode="0" hc_count="4" hidden_size="64" lowrank="32"
+             epsilon="1e-6" produce_write_gate="false"/>
        <input>
            <port id="0">  <!-- residual: f16 [B,T,C*D] -->
                <dim>1</dim><dim>2</dim><dim>256</dim>

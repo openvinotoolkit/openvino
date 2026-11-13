@@ -9,7 +9,7 @@
 
 namespace ov::intel_gpu {
 
-/// @brief Recognizes the Gated Residual READ / MIX (and FINAL_MIX) pattern and replaces
+/// @brief Recognizes the Gated Residual READ / MIX pattern and replaces
 /// it with ov::intel_gpu::op::GatedResidual.
 ///
 /// Canonical sub-graph (all activations are token-major [T, C*D]):

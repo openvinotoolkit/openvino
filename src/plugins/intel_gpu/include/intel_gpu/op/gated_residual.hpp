@@ -6,8 +6,10 @@
 
 #include <cstddef>
 #include <optional>
+#include <vector>
 
 #include "openvino/core/node.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/op.hpp"
 
@@ -19,7 +21,7 @@ namespace ov::intel_gpu::op {
 /// Qwen4-Exp / Qwen3.8-Flash-Next style models, where the residual stream is widened
 /// from [B,T,D] to [B,T,C,D] (physically stored as [B,T,C*D]).
 ///
-/// READ / FINAL_MIX (branch merge, executed *before* a sub-layer):
+/// READ (branch merge, executed *before* a sub-layer):
 ///   Rbar_c = rms_norm(R_c) * gain_c                (branch-wise grouped RMSNorm, group width D)
 ///   G      = sigmoid(W_up * SiLU(W_down * Rbar / C))
 ///   mixed  = (1/C) * sum_c G_c (*) Rbar_c
@@ -32,18 +34,17 @@ namespace ov::intel_gpu::op {
 ///  - the normalization is per-branch over D channels, *not* a single RMSNorm over C*D;
 ///  - all three 1/C factors are part of the model semantics;
 ///  - the read gate is per-(branch, channel), the write gate is a per-branch scalar in (0,2);
-///  - `gain = 1 + w` when `norm_gain_plus_one` is set (checkpoint stores w initialized to 0).
+///  - the norm weight is the gain as is; a `1 + w` fold of the checkpoint is the producer's job.
 class GatedResidual : public ov::op::Op {
 public:
     OPENVINO_OP("GatedResidual", "gpu_opset");
 
     enum class Mode : int32_t {
-        READ = 0,       ///< branch merge, optionally also produces the write gate
-        WRITE = 1,      ///< branch update using a precomputed write gate
-        FINAL_MIX = 2,  ///< model-tail mixer: READ without write-gate generation
+        READ = 0,   ///< branch merge, optionally also produces the write gate
+        WRITE = 1,  ///< branch update using a precomputed write gate
     };
 
-    /// @brief Input indices for Mode::READ / Mode::FINAL_MIX that do not depend on the input form
+    /// @brief Input indices for Mode::READ that do not depend on the input form
     struct ReadInputIdx {
         static constexpr size_t RESIDUAL = 0;     ///< [B,T,C*D]
         static constexpr size_t NORM_WEIGHT = 1;  ///< [C*D]
@@ -58,7 +59,7 @@ public:
         static constexpr size_t ZP_UP = 7;       ///< same type as the weights (4-bit packed) [G_u, C*D], only with zero points
     };
 
-    /// @brief Input form of a READ / FINAL_MIX node. The write-gate inputs are always the last inputs, so their indices depend on
+    /// @brief Input form of a READ node. The write-gate inputs are always the last inputs, so their indices depend on
     /// the form:
     ///   floating-point weights:        residual, norm, w_down, w_up [, w_inject]
     ///   compressed, no zero points:    residual, norm, w_down, w_up, scale_down, scale_up [, w_inject, scale_inject]
@@ -108,6 +109,13 @@ public:
         return t == ov::element::i4 || t == ov::element::u4 || t == ov::element::i8 || t == ov::element::u8;
     }
 
+    /// Output shapes derived from the residual shape; shared by validate_and_infer_types() and the primitive's shape inference.
+    static std::vector<ov::PartialShape> infer_output_shapes(Mode mode,
+                                                             size_t hc_count,
+                                                             size_t hidden_size,
+                                                             bool produce_write_gate,
+                                                             const ov::PartialShape& residual_ps);
+
     /// @brief Input indices for Mode::WRITE
     struct WriteInputIdx {
         static constexpr size_t RESIDUAL = 0;    ///< [B,T,C*D]
@@ -117,14 +125,7 @@ public:
 
     GatedResidual() = default;
 
-    GatedResidual(const ov::OutputVector& args,
-                  Mode mode,
-                  size_t hc_count,
-                  size_t hidden_size,
-                  size_t lowrank,
-                  float epsilon,
-                  bool norm_gain_plus_one,
-                  bool produce_write_gate);
+    GatedResidual(const ov::OutputVector& args, Mode mode, size_t hc_count, size_t hidden_size, size_t lowrank, float epsilon, bool produce_write_gate);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
@@ -145,9 +146,6 @@ public:
     float get_epsilon() const {
         return m_epsilon;
     }
-    bool get_norm_gain_plus_one() const {
-        return m_norm_gain_plus_one;
-    }
     bool get_produce_write_gate() const {
         return m_produce_write_gate;
     }
@@ -158,7 +156,6 @@ private:
     size_t m_hidden_size = 0;
     size_t m_lowrank = 0;
     float m_epsilon = 1e-6f;
-    bool m_norm_gain_plus_one = true;
     bool m_produce_write_gate = false;
 };
 

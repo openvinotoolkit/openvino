@@ -31,10 +31,10 @@ namespace caps = cldnn::gated_residual_caps;
 
 namespace {
 
-constexpr size_t gr_sg = 16;           // subgroup size == one Xe2 hardware thread
+constexpr size_t gr_sg = 16;           // subgroup size == one hardware thread on Xe2+
 constexpr size_t gr_wg_size = 16;      // subgroups of the scalar / single-kernel work-groups
 constexpr size_t gr_dpas_k_step = 32;  // K consumed per dpas loop step (two K16 slices)
-constexpr size_t gr_dpas_n = 16;       // dpas N axis == GRF width on Xe2
+constexpr size_t gr_dpas_n = 16;       // dpas N axis == GRF width on Xe2+
 constexpr size_t gr_down_tn = 32;      // low-rank columns per down-projection subgroup
 constexpr size_t gr_decode_rows = 32;  // up to here both GEMMs use decode tiling
 constexpr size_t gr_read_dpas_tm = 32;
@@ -95,7 +95,7 @@ size_t largest_divisor_up_to(size_t n, size_t cap) {
     return 1;
 }
 
-/// Weight storage of the READ / FINAL_MIX kernels (GR_W_TYPE): f16, or the compressed forms with f16 scales and optional zero
+/// Weight storage of the READ kernels (GR_W_TYPE): f16, or the compressed forms with f16 scales and optional zero
 /// points. u4 stands for the 4-bit types (i4 / u4), u8 for the 8-bit ones (i8 / u8); signedness is gr_weight_signed().
 enum class GrWType : int { f16 = 0, u4 = 1, u8 = 2 };
 
@@ -187,9 +187,10 @@ std::string gr_tier_suffix(GrTier tier, bool down, bool q, bool pd) {
     return std::string(down ? "down" : "up") + (pd ? "_pd" : q ? "_q" : "") + tiers[static_cast<size_t>(tier)];
 }
 
-/// Whether the READ / FINAL_MIX runs on the systolic kernels instead of the fused scalar gr_read kernel.
+/// Whether the READ runs on the systolic kernels instead of the fused scalar gr_read kernel.
 bool can_use_dpas_gr_read(const RuntimeParams& params) {
-    return caps::uses_dpas_read(params.typed_desc<gated_residual>()->lowrank, caps::has_systolic(params.get_device_info(), params.get_program().get_config()));
+    return caps::uses_dpas_read(params.typed_desc<gated_residual>()->lowrank,
+                                caps::uses_dpas_kernels(params.get_device_info(), params.get_program().get_config()));
 }
 
 GrWType gr_weight_type(const RuntimeParams& params) {
@@ -205,7 +206,7 @@ bool gr_weight_signed(const RuntimeParams& params) {
     return dt == ov::element::i4 || dt == ov::element::i8;
 }
 
-/// Input form of a READ / FINAL_MIX node (the op validated that its input count is one of the forms).
+/// Input form of a READ node (the op validated that its input count is one of the forms).
 GrOp::ReadLayout gr_read_layout(const RuntimeParams& params) {
     const auto layout = GrOp::read_layout(params.get_input_layout_size(), params.typed_desc<gated_residual>()->produce_write_gate);
     OPENVINO_ASSERT(layout.has_value(), "[GPU][OCL] gated_residual: unexpected number of inputs ", params.get_input_layout_size());
@@ -254,7 +255,7 @@ size_t gr_wq_kch(GrWType t, size_t segment, size_t row_k, size_t max_bytes) {
 constexpr size_t gr_wq_up_load_bytes = 64;    // UP: a lane loads up to one cache line of its row per step
 constexpr size_t gr_wq_dpas_load_bytes = 32;  // gr_read_dpas is register bound
 
-/// Compressed READ / FINAL_MIX above the decode regime: `st` token subgroups (and `ks` K subgroups) of one work-group dequantize
+/// Compressed READ above the decode regime: `st` token subgroups (and `ks` K subgroups) of one work-group dequantize
 /// every weight slice once into SLM and all of them run their dpas on it, instead of each token subgroup dequantizing the
 /// weights again. The decode tier keeps the per-subgroup dequantization (one or two token tiles, nothing to share).
 struct GrQShare {
@@ -315,8 +316,8 @@ size_t rows_of(const RuntimeParams& params, const gated_residual& desc) {
 // Kernel selection
 // ---------------------------------------------------------------------------
 
-/// READ / FINAL_MIX kernels (the GPU_GR_KERNEL_SELECTION debug option). `auto`: the row count picks between the 3-dispatch pipeline and
-/// the single kernel. `ocl3` / `single` force one of them. `scalar`: the scalar gr_read kernel (caps::has_systolic is false).
+/// READ kernels (the GPU_GR_KERNEL_SELECTION debug option). `auto`: the row count picks between the 3-dispatch pipeline and
+/// the single kernel. `ocl3` / `single` force one of them. `scalar`: the scalar gr_read kernel (caps::uses_dpas_kernels is false).
 enum class GrPath { automatic, ocl3, single, scalar };
 
 GrPath gr_kernel_selection(const RuntimeParams& params) {
@@ -362,7 +363,7 @@ bool gr_single_q(const RuntimeParams& params, GrPath path, size_t rows) {
            (path == GrPath::single || (path == GrPath::automatic && rows > gr_q_scratch_max_rows(params)));
 }
 
-/// The dispatches of one READ / FINAL_MIX on the dpas path for `rows` token rows.
+/// The dispatches of one READ on the dpas path for `rows` token rows.
 struct ReadPlan {
     bool q = false;              // compressed weights
     GrTier tier = GrTier::wide;  // DOWN_PROJ tier of the 3-dispatch pipeline
@@ -446,7 +447,6 @@ protected:
 
     static void add_norm_constants(JitConstants& jit, const gated_residual& desc) {
         jit.add(float_constant("GR_EPS", desc.epsilon));
-        jit.make("GR_NORM_GAIN_PLUS_ONE", desc.norm_gain_plus_one ? 1 : 0);
     }
 
     /// Arguments of the single-dispatch READ kernels: residual, norm weight, W_down, W_up [, their scales and zero points]
@@ -1240,7 +1240,7 @@ public:
 }  // namespace
 
 bool GatedResidualImplementationManager::validate_impl(const cldnn::program_node& node) const {
-    assert(node.is_type<cldnn::gated_residual>());
+    OPENVINO_ASSERT(node.is_type<cldnn::gated_residual>());
 
     if (node.has_fused_primitives()) {
         return false;
@@ -1252,7 +1252,7 @@ bool GatedResidualImplementationManager::validate_impl(const cldnn::program_node
     }
 
     const auto desc = node.as<cldnn::gated_residual>().get_primitive();
-    const bool systolic = caps::has_systolic(info, node.get_program().get_config());
+    const bool systolic = caps::uses_dpas_kernels(info, node.get_program().get_config());
     if (!caps::is_geometry_supported(desc->mode, desc->hc_count, desc->hidden_size, desc->lowrank, systolic)) {
         return false;
     }
@@ -1284,7 +1284,7 @@ bool GatedResidualImplementationManager::validate_impl(const cldnn::program_node
         return true;
     }
 
-    // Compressed READ / FINAL_MIX (dpas kernels and the scalar gr_read.cl): i4 / u4 / i8 / u8 W_down / W_up (and W_inject) with
+    // Compressed READ (dpas kernels and the scalar gr_read.cl): i4 / u4 / i8 / u8 W_down / W_up (and W_inject) with
     // static f16 [G, N] scales and optional zero points of the weight type.
     using Idx = GrOp::ReadInputIdx;
     const ov::element::Type wt = node.get_input_layout(Idx::W_DOWN).data_type;

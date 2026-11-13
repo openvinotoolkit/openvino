@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// GatedResidual READ / MIX (also FINAL_MIX), fused scalar fallback (pre-Xe2 or shapes the systolic path rejects).
+// GatedResidual READ / MIX, fused scalar fallback (pre-Xe2 or shapes the systolic path rejects).
 //
 //   Rbar = branch-wise RMSNorm(R) * gain  ->  t = SiLU(W_down Rbar / C)  ->  G = sigmoid(W_up t)
 //   mixed = (1/C) * sum_c G_c * Rbar_c,   optionally S = 2 * sigmoid(W_inject Rbar / C)
 //
 // One work-group owns GR_READ_ROWS token rows; one subgroup is one hardware thread. Rbar and t live in SLM.
-// JIT: GR_BRANCHES (4), GR_HIDDEN, GR_LOWRANK, GR_EPS, GR_NORM_GAIN_PLUS_ONE, GR_PRODUCE_WRITE_GATE,
+// JIT: GR_BRANCHES (4), GR_HIDDEN, GR_LOWRANK, GR_EPS, GR_PRODUCE_WRITE_GATE,
 //      GR_WG_SIZE (subgroups per work-group), GR_READ_ROWS, GR_NV_D / GR_NV_C / GR_NV_L (= chunk halves / 16 of the
 //      three K loops over D, C*D and L).
 // Compressed weights (GR_W_TYPE != 0, see gr_common.cl: i4 / u4 / i8 / u8 rows [N, K] with f16 scale / zero point [G, N]) are
@@ -124,10 +124,7 @@ KERNEL(gr_read)(const __global ushort* residual,
             const GR_UT(GR_NV_D) xu = GR_SLMLD(GR_NV_D, slm_rbar + sbase + d, lane);
             const GR_UT(GR_NV_D) gu = GR_BRU(GR_NV_D, norm_weight + c * GR_HIDDEN + d);
             const GR_FT(GR_NV_D) f = GR_U2F(GR_NV_D, xu);
-            GR_FT(GR_NV_D) gain = GR_U2F(GR_NV_D, gu);
-#if GR_NORM_GAIN_PLUS_ONE
-            gain = gain + 1.0f;
-#endif
+            const GR_FT(GR_NV_D) gain = GR_U2F(GR_NV_D, gu);
             const GR_FT(GR_NV_D) o = (f * inv_rms) * gain;
             const GR_UT(GR_NV_D) ou = GR_F2U(GR_NV_D, o);
             GR_SLMST(GR_NV_D, slm_rbar + sbase + d, ou, lane);

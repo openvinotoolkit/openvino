@@ -1833,10 +1833,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::SwiGluFusionWithClamp>();
         const float activations_scale_factor = config.get_activations_scale_factor();
         const bool fp16_activation_scaling = activations_scale_factor > 0.f && infer_precision == ov::element::f16;
-        // A fused GatedResidual node has no implementation without the subgroup extensions, and it hides the Add / MatMul ops that
-        // the activation scaling below has to rescale.
+        // GatedResidual kernel (scalar included) needs the OpenCL subgroup extensions, else a fused node has no implementation.
+        // The fusion also hides the Add / MatMul ops that the activation scaling has to rescale, so it is skipped then.
         if (cldnn::gated_residual_caps::is_device_supported(device_info) && !fp16_activation_scaling) {
-            manager.register_pass<ov::intel_gpu::GatedResidualFusion>(cldnn::gated_residual_caps::has_systolic(device_info, config));
+            manager.register_pass<ov::intel_gpu::GatedResidualFusion>(cldnn::gated_residual_caps::uses_dpas_kernels(device_info, config));
         }
         // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
         manager.register_pass<ov::pass::Validate>();

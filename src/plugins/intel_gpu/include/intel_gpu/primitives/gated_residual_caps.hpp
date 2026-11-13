@@ -29,10 +29,10 @@ inline bool is_device_supported(const device_info& info) {
     return info.supports_intel_subgroups && info.supports_intel_subgroups_short;
 }
 
-/// The device runs the systolic (dpas) READ kernels; GPU_GR_KERNEL_SELECTION=scalar (debug option) pretends it does not.
-bool has_systolic(const device_info& info, const ov::intel_gpu::ExecutionConfig& config);
+/// The READ runs the dpas kernels: Xe2+ with systolic arrays (supports_immad); GPU_GR_KERNEL_SELECTION=scalar (debug option) pretends not.
+bool uses_dpas_kernels(const device_info& info, const ov::intel_gpu::ExecutionConfig& config);
 
-/// A READ / FINAL_MIX runs on the dpas kernels exactly when this holds; the scalar gr_read.cl takes the rest.
+/// A READ runs on the dpas kernels exactly when this holds; the scalar gr_read.cl takes the rest.
 constexpr bool uses_dpas_read(size_t lowrank, bool systolic) {
     return systolic && lowrank != 0 && lowrank % 32 == 0;
 }

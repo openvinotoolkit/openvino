@@ -13,7 +13,7 @@
 // The residual tiles come through 2D block reads (a whole TM x K32 A tile per message, rows past the end read 0); W rows
 // are K-contiguous, so every lane reads its own row with one 64 B vload16.
 //
-// JIT: GR_BRANCHES, GR_HIDDEN (multiple of 32), GR_LOWRANK (multiple of 32), GR_EPS, GR_NORM_GAIN_PLUS_ONE,
+// JIT: GR_BRANCHES, GR_HIDDEN (multiple of 32), GR_LOWRANK (multiple of 32), GR_EPS,
 //      GR_PRODUCE_WRITE_GATE, GR_WG_SIZE (subgroups), GR_RD_TM (8/16/32), GR_RD_NT, GR_NV_KD (phase 1 chunk halves / 16),
 //      GR_RD_SLM_GAIN (0 = gain from global, 1 = padded SLM copy, 2 = duplicated SLM copy), GR_P3_GB (optional: branches per
 //      phase-3 K loop).
@@ -43,15 +43,8 @@
     #error "gr_read_dpas.cl: D and L must be multiples of the weight load widths"
 #endif
 
-// The 1 of the (1 + w) gain is added in half precision
-#if GR_NORM_GAIN_PLUS_ONE
-    #define GR_GADD(g) ((g) + (half)1.0f)
-#else
-    #define GR_GADD(g) (g)
-#endif
-
 // The gain of a K16 slice is one register half: A rows alternate between the low and high half of a GRF, and IGC realigns
-// (mov + mul + mov) whenever the gain sits at the other offset. The gain (+1) is therefore staged in SLM so that every gain
+// (mov + mul + mov) whenever the gain sits at the other offset. The gain is therefore staged in SLM so that every gain
 // half is also read at the other offset: duplicated (GS = (g0, g0, g1, g1)) or behind a 16-half pad (GE = (g0, g1),
 // GS = (g-1, g0, g1, g2)).
 #if GR_RD_SLM_GAIN == 2
@@ -70,10 +63,10 @@
     #define GR_G1O(GE, GS) as_half((GE).s1)
 #else
     #define GR_P2_GAIN(GE, GS, KK) { GE = intel_sub_group_block_read_us2(norm_weight + (KK)); }
-    #define GR_G0E(GE, GS) GR_GADD(as_half((GE).s0))
-    #define GR_G0O(GE, GS) GR_GADD(as_half((GE).s0))
-    #define GR_G1E(GE, GS) GR_GADD(as_half((GE).s1))
-    #define GR_G1O(GE, GS) GR_GADD(as_half((GE).s1))
+    #define GR_G0E(GE, GS) as_half((GE).s0)
+    #define GR_G0O(GE, GS) as_half((GE).s0)
+    #define GR_G1E(GE, GS) as_half((GE).s1)
+    #define GR_G1O(GE, GS) as_half((GE).s1)
 #endif
 
 // One K32 step of phase 2: loads of the A tile (raw residual), the gain and the W rows of every column tile ...
@@ -159,7 +152,7 @@ KERNEL(gr_read_dpas)(const __global ushort* residual,
         for (uint it = 0; it < GR_GIT; it++) {
             const uint i = (it * GR_WG_SIZE + sg) * GR_GNV * 16;
             if (i < GR_CD) {
-                const GR_UT(GR_GNV) g = CAT(GR_ASU_, GR_GNV)(GR_GADD(CAT(GR_ASH_, GR_GNV)(gv[it])));
+                const GR_UT(GR_GNV) g = gv[it];
 #if GR_RD_SLM_GAIN == 2
                 ushort gq[GR_GNV];
                 CAT(vstore, GR_GNV)(g, 0, gq);
@@ -443,10 +436,7 @@ KERNEL(gr_read_dpas)(const __global ushort* residual,
                 for (uint m = 0; m < GR_MT; m++) {
                     GR_RD2D1(8, residual, GR_CD * 2, num_rows, GR_CD * 2, c * GR_HIDDEN + d0, t0 + m * 8, rt[m]);
                 }
-                float gain = convert_float(as_half(intel_sub_group_block_read_us(norm_weight + c * GR_HIDDEN + d0)));
-#if GR_NORM_GAIN_PLUS_ONE
-                gain = gain + 1.0f;
-#endif
+                const float gain = convert_float(as_half(intel_sub_group_block_read_us(norm_weight + c * GR_HIDDEN + d0)));
 #pragma unroll
                 for (uint m = 0; m < GR_MT; m++) {
                     const float8 invv = vload8(0, slm_inv + c * GR_RD_TM + m * 8);

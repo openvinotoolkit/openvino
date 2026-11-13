@@ -14,7 +14,7 @@
 
 namespace ov::intel_gpu::ocl {
 
-/// @brief Internal (scratch) buffers of the 3-dispatch systolic READ/FINAL_MIX pipeline.
+/// @brief Internal (scratch) buffers of the 3-dispatch systolic READ pipeline.
 struct GatedResidualInternalBufIdx {
     static constexpr size_t RBAR = 0;       ///< f16 [num_rows, C*D], branch-wise RMSNorm output
     static constexpr size_t T_SCRATCH = 1;  ///< f16 [num_rows, L], down-projection + SiLU output
@@ -23,7 +23,7 @@ struct GatedResidualInternalBufIdx {
     static constexpr size_t WI_F16 = 4;     ///< f16 [C, C*D], dequantized W_inject (compressed weights with a write gate)
 };
 
-/// @brief OpenCL implementation of the gated residual READ/WRITE/FINAL_MIX stages.
+/// @brief OpenCL implementation of the gated residual READ/WRITE stages.
 struct GatedResidualImplementationManager : public cldnn::ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("ocl::gated_residual")
     explicit GatedResidualImplementationManager(cldnn::shape_types shape_type, cldnn::ValidateFunc vf = nullptr)

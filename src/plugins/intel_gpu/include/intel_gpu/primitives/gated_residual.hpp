@@ -12,7 +12,7 @@
 namespace cldnn {
 
 /// @brief gated_residual primitive.
-/// @details Implements the READ/MIX, WRITE/COMBINE and FINAL_MIX stages of the
+/// @details Implements the READ/MIX and WRITE/COMBINE stages of the
 /// gated residual (hyper connection) mechanism. See ov::intel_gpu::op::GatedResidual
 /// for the exact semantics.
 struct gated_residual : public primitive_base<gated_residual> {
@@ -29,7 +29,6 @@ struct gated_residual : public primitive_base<gated_residual> {
                    size_t hidden_size,
                    size_t lowrank,
                    float epsilon,
-                   bool norm_gain_plus_one,
                    bool produce_write_gate)
         // READ with produce_write_gate emits (mixed, S); output_data_types and
         // output_paddings must be sized accordingly or get_output_layout(1) is invalid.
@@ -43,7 +42,6 @@ struct gated_residual : public primitive_base<gated_residual> {
           hidden_size(hidden_size),
           lowrank(lowrank),
           epsilon(epsilon),
-          norm_gain_plus_one(norm_gain_plus_one),
           produce_write_gate(produce_write_gate) {}
 
     Mode mode = Mode::READ;
@@ -51,7 +49,6 @@ struct gated_residual : public primitive_base<gated_residual> {
     size_t hidden_size = 0;
     size_t lowrank = 0;
     float epsilon = 1e-6f;
-    bool norm_gain_plus_one = true;
     bool produce_write_gate = false;
 
     size_t hash() const override {
@@ -61,7 +58,6 @@ struct gated_residual : public primitive_base<gated_residual> {
         seed = hash_combine(seed, hidden_size);
         seed = hash_combine(seed, lowrank);
         seed = hash_combine(seed, epsilon);
-        seed = hash_combine(seed, norm_gain_plus_one);
         seed = hash_combine(seed, produce_write_gate);
         return seed;
     }
@@ -72,7 +68,7 @@ struct gated_residual : public primitive_base<gated_residual> {
 
         auto rhs_casted = downcast<const gated_residual>(rhs);
         return mode == rhs_casted.mode && hc_count == rhs_casted.hc_count && hidden_size == rhs_casted.hidden_size && lowrank == rhs_casted.lowrank &&
-               epsilon == rhs_casted.epsilon && norm_gain_plus_one == rhs_casted.norm_gain_plus_one && produce_write_gate == rhs_casted.produce_write_gate;
+               epsilon == rhs_casted.epsilon && produce_write_gate == rhs_casted.produce_write_gate;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -82,7 +78,6 @@ struct gated_residual : public primitive_base<gated_residual> {
         ob << hidden_size;
         ob << lowrank;
         ob << epsilon;
-        ob << norm_gain_plus_one;
         ob << produce_write_gate;
     }
 
@@ -93,7 +88,6 @@ struct gated_residual : public primitive_base<gated_residual> {
         ib >> hidden_size;
         ib >> lowrank;
         ib >> epsilon;
-        ib >> norm_gain_plus_one;
         ib >> produce_write_gate;
     }
 };

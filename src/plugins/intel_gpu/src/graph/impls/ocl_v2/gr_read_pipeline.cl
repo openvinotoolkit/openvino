@@ -33,7 +33,7 @@
 
 #if GR_PIPELINE_STAGE == 0
 // ---------------------------------------------------------------------------------------------------------------
-// RBAR. JIT: GR_EPS, GR_NORM_GAIN_PLUS_ONE, GR_CH (halves per chunk), GR_NV_CH (= GR_CH / 16), GR_NCH (= D / GR_CH),
+// RBAR. JIT: GR_EPS, GR_CH (halves per chunk), GR_NV_CH (= GR_CH / 16), GR_NCH (= D / GR_CH),
 // GR_RB_S (subgroups per branch row, divides GR_NCH), GR_GPF (gain chunks loaded before the norm
 // reduction; bounded by the register budget).
 // GR_RB_S subgroups per (branch, row): gws = [C * GR_RB_S * 16, rows, 1], lws = [C * GR_RB_S * 16, 1, 1].
@@ -101,12 +101,9 @@ KERNEL(gr_rbar)(const __global ushort* residual, const __global ushort* norm_wei
 #pragma unroll
     for (uint i = 0; i < GR_NCHP; i++) {
 #if GR_GPF > 0
-        GR_FT(GR_NV_CH) gain = i < GR_GPF ? GR_U2F(GR_NV_CH, gr_[i]) : GR_RB_LDF(norm_weight + gbase + i * GR_CH);
+        const GR_FT(GR_NV_CH) gain = i < GR_GPF ? GR_U2F(GR_NV_CH, gr_[i]) : GR_RB_LDF(norm_weight + gbase + i * GR_CH);
 #else
-        GR_FT(GR_NV_CH) gain = GR_RB_LDF(norm_weight + gbase + i * GR_CH);
-#endif
-#if GR_NORM_GAIN_PLUS_ONE
-        gain = gain + 1.0f;
+        const GR_FT(GR_NV_CH) gain = GR_RB_LDF(norm_weight + gbase + i * GR_CH);
 #endif
         const GR_FT(GR_NV_CH) f = GR_U2F(GR_NV_CH, r[i]);
         const GR_FT(GR_NV_CH) o = (f * inv_rms) * gain;
@@ -137,10 +134,7 @@ KERNEL(gr_rbar)(const __global ushort* residual, const __global ushort* norm_wei
     const float inv_rms = native_rsqrt(sq * (1.0f / (float)GR_HIDDEN) + GR_EPS);
     for (uint d = 0; d < GR_NCHP * GR_CH; d += GR_CH) {
         const GR_FT(GR_NV_CH) f = GR_RB_LDF(residual + base + d);
-        GR_FT(GR_NV_CH) gain = GR_RB_LDF(norm_weight + gbase + d);
-#if GR_NORM_GAIN_PLUS_ONE
-        gain = gain + 1.0f;
-#endif
+        const GR_FT(GR_NV_CH) gain = GR_RB_LDF(norm_weight + gbase + d);
         const GR_FT(GR_NV_CH) o = (f * inv_rms) * gain;
         GR_RB_ST(rbar_out + base + d, o);
     }
