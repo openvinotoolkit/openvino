@@ -399,6 +399,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/mvn.h
     ${CPU_SRC_DIR}/nodes/ngram.cpp
     ${CPU_SRC_DIR}/nodes/ngram.h
+    ${CPU_SRC_DIR}/nodes/ngram_hash.cpp
+    ${CPU_SRC_DIR}/nodes/ngram_hash.h
     ${CPU_SRC_DIR}/nodes/node_config.h
     ${CPU_SRC_DIR}/nodes/non_max_suppression.cpp
     ${CPU_SRC_DIR}/nodes/non_max_suppression.h
