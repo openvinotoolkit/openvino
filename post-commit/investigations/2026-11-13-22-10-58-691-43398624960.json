@@ -1,0 +1,39 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-11-13-22-10-58-691-43398624960",
+    "timestamp": "2026-11-13T22:10:58Z",
+    "run_id": "43398624960",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43398624960",
+    "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+    "commit_sha": "daad70df37bb008e7d4a0690e78d84989225f2d3",
+    "pr_number": "39266",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39266",
+    "author": "KirillSmirnov",
+    "category": "Flaky Test",
+    "title": "GPU unit tests fail with a burst of 37 gtest-parallel worker crashes/accuracy mismatches right after test pool startup",
+    "signature": "GPU unit tests accuracy tolerance mismatch in fusion test (val_ref vs val_opt difference exceeds tolerance in fusion_test_common.hpp) followed by burst of concurrent gtest-parallel worker processes exiting with code 3|Flaky Test",
+    "signature_hash": "502c01bffd8f35db",
+    "confidence": "Medium",
+    "failed_jobs": [
+        {
+            "name": "GPU unit tests",
+            "conclusion": "failure",
+            "symptom": "37 of 29264 ov_gpu_unit_tests cases failed: 1 genuine accuracy-tolerance mismatch plus 36 worker processes that exited with code 3 almost instantly after starting, all clustered in the first ~37 tests executed right after gtest-parallel spawned its worker pool"
+        }
+    ],
+    "key_errors": [
+        "C:\\...\\intel_gpu\\tests\\unit\\fusions\\fusion_test_common.hpp(90): error: The difference between val_ref[i] and val_opt[i] is 3.0517578125e-05, which exceeds tolerance, where val_ref[i] evaluates to -0.04473876953125, val_opt[i] evaluates to -0.044769287109375, and tolerance evaluates to 9.9999997473787516e-06. [FAILED] fusings_gpu/pooling_f32_scale.fp16_scale_out/1 (fused vs not-fused scale op dropped)",
+        "[2/29264] basic/convolution_random_smoke_test.u8s8f32/b_fs_yx_fsv16_i1x32x28x28_w48x32x1x1_s1x1_ofs0x0_d1x1_g1_bias_wzp returned with exit code 3 (3765 ms) -- no test body output printed between [ RUN ] and the exit line (silent worker-process exit, no gtest FAILED/crash message)",
+        "FAILED TESTS (37/29264): ... basic/convolution_random_smoke_test.* (36 similarly silent exit-code-3 entries, all within the first 37/29264 scheduled tests)"
+    ],
+    "root_cause": "Identical two-part signature to the prior occurrence (run 43369335165, ~4h earlier on the same day): (1) fusings_gpu/pooling_f32_scale.fp16_scale_out/1 is a genuine, deterministic accuracy assertion where the fused 'scale' post-op is dropped compared to the unfused reference graph, producing a 3e-5 numeric drift that exceeds the 1e-5 fp16 tolerance in fusion_test_common.hpp - a possible fusion-correctness issue in the pooling+scale path. (2) The other 36 failures (all basic/convolution_random_smoke_test.* and related conv/fusing cases) exited with gtest process exit code 3 (uncaught exception/abort, not an ASSERT) with zero test-body output, clustered in the first 37 tests dispatched immediately after gtest-parallel spawned its worker pool. The PR that triggered this push (#39266) only changes a std::string conversion for a test case-name field in paged_attention_token_type_gpu_test.cpp - unrelated to pooling/convolution fusion or conv_random_smoke tests - so this is very unlikely to be a regression introduced by that change. The recurrence of the exact same signature hash within the same day strongly supports the 'Flaky Test'/transient GPU-runner-instability categorization from the prior investigation (shared self-hosted Windows GPU runner, OpenCL context/kernel-compile contention during gtest-parallel worker-pool startup) rather than a newly introduced code defect.",
+    "reproduction_steps": "N/A - not reliably reproducible outside the shared intel-gpu self-hosted Windows CI runner pool; requires running the full ov_gpu_unit_tests.exe binary under gtest-parallel with GPU driver contention matching the runner environment. The single genuine assertion failure can be reproduced locally with: ov_gpu_unit_tests.exe --gtest_filter=fusings_gpu/pooling_f32_scale.fp16_scale_out/1",
+    "recommended_actions": [
+        "Escalate the fusings_gpu/pooling_f32_scale.fp16_scale_out/1 accuracy assertion as a standalone correctness bug report, since it has now been observed with the same values across two separate runs - compare fused vs unfused graph dumps to confirm whether the scale post-op is consistently dropped",
+        "Because this is the second occurrence of the identical exit-code-3 burst signature within the same day, escalate to the CI infra team to investigate GPU driver/OpenCL context contention on the specific intel-gpu Windows runner(s) used, rather than treating it as a one-off flake",
+        "Capture a native crash dump (procdump) during gtest-parallel worker pool startup on the affected runner to identify why workers silently exit with code 3",
+        "Check whether GTEST_PARALLEL_SCRIPT worker concurrency exceeds the number of usable GPU command queues on this runner class, causing early OpenCL context contention"
+    ],
+    "prevention_strategies": "Add a short staggered warm-up delay (or reduced initial worker concurrency) when gtest-parallel first spins up GPU test workers, to avoid concurrent OpenCL context/kernel-cache initialization races on shared Windows GPU runners. Track the fusings_gpu/pooling_f32_scale.fp16_scale_out/1 tolerance failure independently as a potential fusion-pass correctness bug rather than lumping it with the flaky burst.",
+    "historical_context": "This is the second time this exact signature (hash 502c01bffd8f35db) has been recorded, with the first occurrence only ~4 hours earlier in run 43369335165 (PR #39582 context, unrelated statelesskv/GQA changes). The pattern record count is now 2, confirming this is a recurring, not one-off, failure of the GPU unit tests job."
+}
