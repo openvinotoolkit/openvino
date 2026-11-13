@@ -18,7 +18,7 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.28 AND NOT DEFINED CMAKE_CXX_SCAN_FOR_M
 endif()
 
 # CVS-190125: raise the GNU floor (currently 10) once OpenVINO drops the OSes that
-# ship it (e.g. RHEL 8) as part of the 2027.0 C++20 default switch.
+# ship it (e.g. RHEL 8).
 set(_ov_cxx20_floor_GNU 10)
 set(_ov_cxx20_floor_Clang 14)
 set(_ov_cxx20_floor_AppleClang 13)

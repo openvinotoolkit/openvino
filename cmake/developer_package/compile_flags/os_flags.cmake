@@ -13,7 +13,7 @@ if(NOT DEFINED CMAKE_POSITION_INDEPENDENT_CODE)
 endif()
 
 # the only place to change the project default standard
-set(OV_CXX_STANDARD_DEFAULT 17)
+set(OV_CXX_STANDARD_DEFAULT 20)
 
 # to allows to override CMAKE_CXX_STANDARD from command line
 if(NOT DEFINED CMAKE_CXX_STANDARD)

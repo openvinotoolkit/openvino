@@ -68,7 +68,7 @@ if(WIN32)
 endif()
 
 set_target_properties(
-  ${TARGET_NAME} PROPERTIES CXX_STANDARD 17)
+  ${TARGET_NAME} PROPERTIES CXX_STANDARD ${CMAKE_CXX_STANDARD})
 
 if(MSVC)
   # Enforce standards conformance on MSVC

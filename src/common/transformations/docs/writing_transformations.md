@@ -124,7 +124,11 @@ ov::pass::MyFusion::MyFusion() {
 
 `MATCHER_SCOPE` / `RUN_ON_MODEL_SCOPE` are mandatory: they provide the ITT domain name used by transformation profiling and allow the pass to be excluded from conditionally-compiled builds.
 
-Use `OV_CAPTURE_CPY_AND_THIS` in the callback lambda capture list instead of `[=]` or `[&]`.
+Use `OV_CAPTURE_CPY_AND_THIS` in the callback lambda capture list instead of `[=]` or `[&]`,
+unless the callback body never touches `this`/a member (e.g. it only uses captured-by-value
+locals or constructor parameters) — then use plain `[=]`. `OV_CAPTURE_CPY_AND_THIS` expands to
+`[=, this]` under C++20, and an unused `this` there is a hard error
+(`-Werror=unused-lambda-capture`) on GCC/Clang.
 
 A few mechanics are worth remembering:
 

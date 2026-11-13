@@ -375,7 +375,7 @@ ov::pass::PositionIDsReplacerGranite::PositionIDsReplacerGranite(const Output<No
     auto p_angles = wrap_type<v0::Concat>({p_transpose, p_transpose});
     auto p_sin_cos = wrap_type<v0::Sin, v0::Cos>({p_angles});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_map();
         pattern_map.at(p_positions_heads)->input(0).replace_source_output(unsq_position_ids);
         return true;

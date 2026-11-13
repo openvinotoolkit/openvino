@@ -38,7 +38,7 @@ L2NormToRMS::L2NormToRMS(size_t max_work_group_size) {
     auto gamma = any_input();
     auto mul = wrap_type<ov::op::v1::Multiply>({div, gamma});
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
         auto sum_node = ov::as_type_ptr<ov::op::v1::ReduceSum>(pm.at(sum).get_node_shared_ptr());
         if (!sum_node || !sum_node->get_keep_dims() || transformation_callback(sum_node)) {

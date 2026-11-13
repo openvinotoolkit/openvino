@@ -647,7 +647,7 @@ IncreasePositionIdsPrecisionForLtxVideo::IncreasePositionIdsPrecisionForLtxVideo
     // Sin owns the rewrite; Cos is discovered from the exact same angle output.
     auto sin = wrap_type<ov::op::v0::Sin>({any_input()});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto sin_node = ov::as_type_ptr<ov::op::v0::Sin>(m.get_match_root());
         std::shared_ptr<ov::Node> cos_node;
         size_t sin_count = 0;
