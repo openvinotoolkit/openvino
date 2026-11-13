@@ -6,6 +6,7 @@
 
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "moe_3gemm_base.hpp"
 #include "ocl_v2/utils/jitter.hpp"
 
@@ -33,11 +34,29 @@ MoE3GemmDynQuan::Shape MoE3GemmDynQuan::get_shape(const RuntimeParams& params, P
 }
 
 bool MoE3GemmDynQuan::is_supported(const RuntimeParams& params) {
+    const auto& id = params.desc->id;
     if (params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES)).data_type != ov::element::f16) {
+        GPU_DEBUG_TAGGED(TRACE, "dynquan") << id << " turned off: only f16 activations are supported" << std::endl;
+        return false;
+    }
+    const auto& exec_config = params.get_program().get_config();
+    const uint64_t dyn_quan_group_size = exec_config.get_dynamic_quantization_group_size();
+    if (dyn_quan_group_size == 0) {
+        GPU_DEBUG_TAGGED(TRACE, "dynquan") << id << " turned off: dynamic_quantization_group_size is 0" << std::endl;
+        return false;
+    }
+    if (exec_config.get_dynamic_quantization_group_size_max() < dyn_quan_group_size) {
+        GPU_DEBUG_TAGGED(TRACE, "dynquan") << id << " turned off: group_size " << dyn_quan_group_size << " is larger than the max "
+                                           << exec_config.get_dynamic_quantization_group_size_max() << std::endl;
         return false;
     }
     for (auto proj : {Projection::GATE_UP, Projection::DOWN}) {
-        if (get_shape(params, proj).group_size == 0) {
+        const auto shape = get_shape(params, proj);
+        if (shape.group_size == 0) {
+            const auto& config = params.typed_desc<moe_3gemm_fused_compressed>()->_config;
+            GPU_DEBUG_TAGGED(TRACE, "dynquan") << id << " turned off: no activation group of 128 or 64 values that is at most group_size "
+                                               << dyn_quan_group_size << " divides the " << (proj == Projection::DOWN ? "down" : "gate/up")
+                                               << " weight group of " << get_group_size(config, shape.k) << std::endl;
             return false;
         }
     }
