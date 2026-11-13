@@ -82,21 +82,16 @@ enum class MoeGemmImpl : uint8_t {
     batched_gemv,           // OCL batched GEMV kernels, decode only
     int3_batched_gemv,      // OCL batched GEMV kernels for u3 weights (moe_3gemm_int3.cl), decode only
     micro_gemm,             // OCL micro-kernel GEMM, prefill only
-    grouped_gemm,           // one OneDNN grouped matmul per GEMM layer
+    grouped_gemm,           // one OneDNN grouped matmul per GEMM layer, on f16 activations or, above
+                            // dyn_quan_threshold tokens where onednn_dyn_quan allows it, on those of MoE3GemmDynQuan
     int3_grouped_gemm,      // the grouped GEMM path for u3 weights on dynamically quantized activations (MoE3GemmDynQuan) and
                             // the moe_3gemm_int3_gemm.cl GEMMs instead of OneDNN
     per_expert_onednn,      // OneDNN matmul per activated expert, prefill only
-    grouped_gemm_dyn_quan,  // OneDNN grouped matmuls on the dynamically quantized activations of MoE3GemmDynQuan
 };
 
-// All share the routing masks, the expert-sorted rows and the scatter of the grouped GEMM path
+// Both share the routing masks, the expert-sorted rows and the scatter of the grouped GEMM path
 bool is_grouped_gemm(MoeGemmImpl impl) {
-    return one_of(impl, {MoeGemmImpl::grouped_gemm, MoeGemmImpl::int3_grouped_gemm, MoeGemmImpl::grouped_gemm_dyn_quan});
-}
-
-// The grouped GEMM paths on int8 activations, quantized and gathered by MoE3GemmDynQuan
-bool is_dyn_quan_grouped_gemm(MoeGemmImpl impl) {
-    return impl == MoeGemmImpl::int3_grouped_gemm || impl == MoeGemmImpl::grouped_gemm_dyn_quan;
+    return impl == MoeGemmImpl::grouped_gemm || impl == MoeGemmImpl::int3_grouped_gemm;
 }
 
 class MoE3GemmSwigluGather : public KernelGenerator {
@@ -1095,6 +1090,10 @@ public:
     MoeGemmImpl decode_impl = MoeGemmImpl::batched_gemv;  // token_num <= batched_gemv_threshold
     MoeGemmImpl prefill_impl = MoeGemmImpl::per_expert_onednn;
     size_t batched_gemv_threshold = 32;
+    // Whether the OneDNN grouped matmuls may run on dynamically quantized activations (is_onednn_dyn_quan_supported()),
+    // which they do above dyn_quan_threshold tokens
+    bool onednn_dyn_quan = false;
+    size_t dyn_quan_threshold = 0;
     // Output columns per subgroup of the u3 batched GEMV, per MoE3GemmInt3Gemv::Projection
     std::array<size_t, 2> int3_gemv_nbs{};
     // Constant per impl, per MoE3GemmDynQuan::Projection; set when an impl runs on dynamically quantized activations
@@ -1108,9 +1107,14 @@ public:
         return int3_gemm_shapes[static_cast<size_t>(proj)];
     }
 
-    // Whether the grouped GEMM path quantizes its activations (MoE3GemmDynQuan) in prefill or decode
+    // Whether the grouped GEMM path quantizes its activations (MoE3GemmDynQuan) for some token count
     bool uses_dyn_quan() const {
-        return is_dyn_quan_grouped_gemm(prefill_impl) || is_dyn_quan_grouped_gemm(decode_impl);
+        return uses_int3_gemm() || onednn_dyn_quan;
+    }
+
+    // Whether a call with token_num tokens on impl quantizes its activations
+    bool uses_dyn_quan(MoeGemmImpl impl, size_t token_num) const {
+        return impl == MoeGemmImpl::int3_grouped_gemm || (impl == MoeGemmImpl::grouped_gemm && onednn_dyn_quan && token_num > dyn_quan_threshold);
     }
 
     // Whether the grouped GEMM path runs the u3 GEMMs of MoE3GemmInt3Gemm in prefill or decode
@@ -1129,7 +1133,6 @@ public:
             return force_gpu_mask_gen_prefill;
         case MoeGemmImpl::grouped_gemm:
         case MoeGemmImpl::int3_grouped_gemm:
-        case MoeGemmImpl::grouped_gemm_dyn_quan:
             // OTD computes the expert lease on the host
             if (_weight_provider->is_offloaded()) {
                 return false;
@@ -1176,13 +1179,10 @@ public:
         return true;
     }
 
-    // The grouped GEMM path runs on dynamically quantized activations where that applies: u3 on its own int8 GEMMs,
-    // 4- and 8-bit weights on OneDNN
+    // u3 weights run on their own int8 GEMMs where dynamic quantization applies; the OneDNN grouped matmuls choose
+    // their activation precision per call
     static MoeGemmImpl select_grouped_gemm_impl(const RuntimeParams& params) {
-        if (MoE3GemmInt3Gemm::is_supported(params)) {
-            return MoeGemmImpl::int3_grouped_gemm;
-        }
-        return is_onednn_dyn_quan_supported(params) ? MoeGemmImpl::grouped_gemm_dyn_quan : MoeGemmImpl::grouped_gemm;
+        return MoE3GemmInt3Gemm::is_supported(params) ? MoeGemmImpl::int3_grouped_gemm : MoeGemmImpl::grouped_gemm;
     }
 
     // Weights without a batched GEMV OCL kernel decode through the grouped GEMM path instead
@@ -1221,6 +1221,8 @@ public:
         const auto& weight_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0)).data_type;
         decode_impl = select_decode_impl(params, weight_dt);
         prefill_impl = select_prefill_impl(params, weight_dt);
+        onednn_dyn_quan = (prefill_impl == MoeGemmImpl::grouped_gemm || decode_impl == MoeGemmImpl::grouped_gemm) && is_onednn_dyn_quan_supported(params);
+        dyn_quan_threshold = config.get_moe_dynamic_quantization_threshold();
         if (uses_dyn_quan()) {
             for (auto proj : {MoE3GemmDynQuan::Projection::GATE_UP, MoE3GemmDynQuan::Projection::DOWN}) {
                 dyn_quan_shapes[static_cast<size_t>(proj)] = MoE3GemmDynQuan::get_shape(params, proj);
@@ -1543,6 +1545,7 @@ public:
             ob << nb;
         }
         ob << batched_gemv_threshold;
+        ob << onednn_dyn_quan << dyn_quan_threshold;
         for (const auto& shape : dyn_quan_shapes) {
             ob << shape.k << shape.group_size;
         }
@@ -1562,6 +1565,7 @@ public:
             ib >> nb;
         }
         ib >> batched_gemv_threshold;
+        ib >> onednn_dyn_quan >> dyn_quan_threshold;
         for (auto& shape : dyn_quan_shapes) {
             ib >> shape.k >> shape.group_size;
         }
@@ -1594,6 +1598,8 @@ public:
         cur_moe->decode_impl = decode_impl;
         cur_moe->int3_gemv_nbs = int3_gemv_nbs;
         cur_moe->batched_gemv_threshold = batched_gemv_threshold;
+        cur_moe->onednn_dyn_quan = onednn_dyn_quan;
+        cur_moe->dyn_quan_threshold = dyn_quan_threshold;
         cur_moe->dyn_quan_shapes = dyn_quan_shapes;
         cur_moe->int3_gemm_shapes = int3_gemm_shapes;
         cur_moe->_activation_type = _activation_type;
@@ -1624,8 +1630,9 @@ public:
         //         scratch.y = down(scratch.gate) * routing_weights
         // 2: up/gate input, scratch.x has same layout with down output (GPU-only). With dynamic quantization it holds the
         // int8 gathered rows instead, the gate/up input and then the down input.
+        const bool dyn_quan = uses_dyn_quan(select_impl(token_num), token_num);
         size_t gate_up_input_size = static_cast<size_t>(config.hidden_size);
-        if (uses_dyn_quan()) {
+        if (dyn_quan) {
             const size_t max_k = std::max(dyn_quan_shape(MoE3GemmDynQuan::Projection::GATE_UP).k, dyn_quan_shape(MoE3GemmDynQuan::Projection::DOWN).k);
             gate_up_input_size = std::max(gate_up_input_size, ceil_div(max_k, ov::element::Type(data_type).size()));
         }
@@ -1671,7 +1678,7 @@ public:
             layout layout_grouped_offsets(ov::Shape{expert_num}, ov::element::i32, cldnn::format::bfyx);
             internal_buffers.emplace_back(layout_grouped_offsets, false);  // 12: grouped end-offsets
             internal_buffers.emplace_back(layout_token_idx, false);        // 13: row_lut
-            if (uses_dyn_quan()) {
+            if (dyn_quan) {
                 // Shared by the gate/up input and the down input, which is quantized after gate and up are done
                 const auto& gate_up = dyn_quan_shape(MoE3GemmDynQuan::Projection::GATE_UP);
                 const auto& down = dyn_quan_shape(MoE3GemmDynQuan::Projection::DOWN);
@@ -3155,8 +3162,8 @@ public:
         return ret_event;
     }
 
-    // Steps 2-5 on OneDNN grouped GEMM: gather, gate, up, SiLU, down. With MoeGemmImpl::grouped_gemm_dyn_quan the
-    // gate/up and the down inputs are quantized to int8 by MoE3GemmDynQuan.
+    // Steps 2-5 on OneDNN grouped GEMM: gather, gate, up, SiLU, down. Above dyn_quan_threshold tokens, where
+    // onednn_dyn_quan allows it, the gate/up and the down inputs are quantized to int8 by MoE3GemmDynQuan.
     cldnn::event::ptr exec_onednn_grouped_gemm(cldnn::event::ptr ret_event,
                                                cldnn::stream& stream,
                                                typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
@@ -3166,7 +3173,8 @@ public:
                                                int max_tokens_per_expert) {
         auto& dnn_stream = stream.get_onednn_stream();
         const auto& intermediates_memories = instance.get_intermediates_memories();
-        const bool dyn_quan = impl == MoeGemmImpl::grouped_gemm_dyn_quan;
+        auto hidden_states_layout = instance.get_impl_params()->input_layouts[static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES)];
+        const bool dyn_quan = uses_dyn_quan(impl, get_seq_len(hidden_states_layout));
 
         // ----------------------------------------------------------------
         // Step 2: GPU gather – reorder input tokens sorted by expert
