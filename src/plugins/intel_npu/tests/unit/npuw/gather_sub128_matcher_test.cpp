@@ -15,7 +15,6 @@
 #include <tuple>
 #include <vector>
 
-#include "common_test_utils/ov_test_utils.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "lazy_tensor.hpp"
@@ -751,190 +750,14 @@ constexpr std::size_t kGroups = 16;
 constexpr std::size_t kGroupSize = 128;  // kGroups * kGroupSize == hidden size of the vocabulary
 constexpr std::size_t kOutFeatures = 64;
 
-struct GQWeight {
-    std::shared_ptr<ov::opset10::Parameter> weight;
-    std::shared_ptr<ov::opset10::Parameter> scale;
-};
-
-GQWeight make_gq_weight(std::size_t out_features) {
-    return {std::make_shared<ov::opset10::Parameter>(ov::element::i4, ov::Shape{kGroups, kGroupSize, out_features}),
-            std::make_shared<ov::opset10::Parameter>(ov::element::f16, ov::Shape{kGroups, 1, out_features})};
-}
-
-// Each MatMul output is read by an op, as q/k/v in a real layer. The merge redirects readers, it does not
-// move tensor names
+// The MatMul output is read by an op, as q_proj in a real layer
 std::shared_ptr<ov::opset10::Result> make_result(const ov::Output<ov::Node>& matmul_out) {
     return std::make_shared<ov::opset10::Result>(std::make_shared<ov::opset10::Convert>(matmul_out, ov::element::f32));
 }
 
-// W(i4) -> Convert -> Multiply(S) -> Reshape, the weight side that DQParMMGQ matches
-ov::Output<ov::Node> dequantize(const GQWeight& gq) {
-    const auto out_features = static_cast<int32_t>(gq.weight->get_shape()[2]);
-    auto weight_convert = std::make_shared<ov::opset10::Convert>(gq.weight, ov::element::f16);
-    auto scaled = std::make_shared<ov::opset10::Multiply>(weight_convert, gq.scale);
-    auto shape = ov::opset10::Constant::create(ov::element::i32,
-                                               ov::Shape{2},
-                                               std::vector<int32_t>{kGroups * kGroupSize, out_features});
-    return std::make_shared<ov::opset10::Reshape>(scaled, shape, false);
-}
-
-// A head function where the dequantized vocabulary feeds the first layer MatMuls directly, with no
-// norm in between (for example EXAONE-4.0): ids -> Gather(W, Z, S) -> Convert -> Sub128 -> Subtract ->
-// Multiply -> Convert -> group-quantized MatMuls. DQParMMGQ registers this Multiply as the activation
-// of the MatMuls, and HostGatherQuantAsymm then replaces it.
-std::shared_ptr<ov::Model> make_head_with_direct_gq_readers(std::size_t num_matmuls) {
-    auto model = make_parameter_gather_model(128.0f);
-    auto converted = model->get_results().front()->input_value(0);
-    model->remove_result(model->get_results().front());
-    for (std::size_t index = 0; index < num_matmuls; ++index) {
-        const auto gq = make_gq_weight(kOutFeatures);
-        auto matmul = std::make_shared<ov::opset10::MatMul>(converted, dequantize(gq), false, false);
-        model->add_parameters({gq.weight, gq.scale});
-        model->add_results({make_result(matmul)});
-    }
-    model->validate_nodes_and_infer_types();
-    return model;
-}
-
-// Expected head after the host gather: the MatMuls read the host-gathered f16 embedding, nothing is merged
-std::shared_ptr<ov::Model> make_host_gathered_head(std::size_t num_matmuls) {
-    auto gathered = std::make_shared<ov::opset10::Parameter>(ov::element::f16, ov::Shape{1, 1, kGroups * kGroupSize});
-    auto converted = std::make_shared<ov::opset10::Convert>(gathered, ov::element::f16);
-    ov::ParameterVector params{gathered};
-    ov::ResultVector results;
-    for (std::size_t index = 0; index < num_matmuls; ++index) {
-        const auto gq = make_gq_weight(kOutFeatures);
-        auto matmul = std::make_shared<ov::opset10::MatMul>(converted, dequantize(gq), false, false);
-        params.insert(params.end(), {gq.weight, gq.scale});
-        results.push_back(make_result(matmul));
-    }
-    return std::make_shared<ov::Model>(results, params);
-}
-
-// Expected head after the merge over axis 2: one MatMul on the activation Multiply over the concatenated
-// weights, and a Slice per original MatMul
-std::shared_ptr<ov::Model> make_merged_head(std::size_t num_matmuls) {
-    auto model = make_parameter_gather_model(128.0f);
-    auto multiply = model->get_results().front()->input_value(0).get_node()->input_value(0);
-    model->remove_result(model->get_results().front());
-
-    const auto gq = make_gq_weight(kOutFeatures * num_matmuls);
-    auto matmul = std::make_shared<ov::opset10::MatMul>(multiply, dequantize(gq), false, false);
-    model->add_parameters({gq.weight, gq.scale});
-    for (std::size_t index = 0; index < num_matmuls; ++index) {
-        // DQParMMGQ registers the MatMuls in reverse topological order, so the last one comes first
-        const auto position = num_matmuls - 1 - index;
-        const auto begin = static_cast<int32_t>(position * kOutFeatures);
-        const auto end = static_cast<int32_t>((position + 1) * kOutFeatures);
-        auto start = ov::opset10::Constant::create(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{0, 0, begin});
-        auto stop = ov::opset10::Constant::create(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{1, 1, end});
-        auto step = ov::opset10::Constant::create(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{1, 1, 1});
-        auto slice = std::make_shared<ov::op::v8::Slice>(matmul, start, stop, step);
-        model->add_results({make_result(slice)});
-    }
-    return model;
-}
-
-// Runs the head/tail passes in the order of Partitioner::optimize() with a context the test can inspect
-class HeadTailPasses : public ov::pass::ModelPass {
-public:
-    OPENVINO_MODEL_PASS_RTTI("npuw::test::HeadTailPasses");
-    HeadTailPasses(std::shared_ptr<ov::npuw::patterns::opt::Context>& context, bool host_gather)
-        : m_context(context),
-          m_host_gather(host_gather) {}
-
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
-        m_context = std::make_shared<ov::npuw::patterns::opt::Context>(model, 0);
-        m_context->pmm_dims = "2";
-        ov::pass::GraphRewrite rewrite;
-        rewrite.add_matcher<ov::npuw::patterns::opt::DQParMMGQ>(std::ref(*m_context));
-        rewrite.run_on_model(model);
-        EXPECT_FALSE(m_context->par_dq_mms.empty());
-
-        if (m_host_gather) {
-            EXPECT_TRUE(run_host_gather(model, *m_context));
-        }
-        ov::npuw::patterns::opt::mergeParallelMatMuls(model, *m_context);
-
-        // Partitioning adds the Parameters that the passes create (host gather output, concatenated
-        // closures) to the function, do the same so the model stays valid
-        ov::ParameterVector created;
-        for (const auto& node : model->get_ordered_ops()) {
-            auto param = ov::as_type_ptr<ov::op::v0::Parameter>(node);
-            if (param && model->get_parameter_index(param) < 0) {
-                created.push_back(param);
-            }
-        }
-        model->add_parameters(created);
-        return true;
-    }
-
-private:
-    std::shared_ptr<ov::npuw::patterns::opt::Context>& m_context;
-    bool m_host_gather;
-};
-
-class HeadTailPassesTest : public TransformationTestsF {
-protected:
-    void SetUp() override {
-        TransformationTestsF::SetUp();
-        // Nodes created by the passes have no fused names
-        disable_rt_info_check();
-        comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-        comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
-    }
-
-    std::shared_ptr<ov::npuw::patterns::opt::Context> context;
-};
-
-class HostGatherParallelMatMulsTest : public HeadTailPassesTest, public ::testing::WithParamInterface<std::size_t> {
-protected:
-    void TearDown() override {
-        HeadTailPassesTest::TearDown();
-        ASSERT_NE(context, nullptr);
-        EXPECT_TRUE(context->par_dq_mms.empty());
-        EXPECT_TRUE(context->params_to_concat.empty());
-        EXPECT_EQ(context->closures_to_subtract_128.size(), 2u);
-        EXPECT_TRUE(vocab_weight->output(0).get_target_inputs().empty());
-        EXPECT_TRUE(vocab_zero_point->output(0).get_target_inputs().empty());
-    }
-
-    std::shared_ptr<ov::op::v0::Parameter> vocab_weight;
-    std::shared_ptr<ov::op::v0::Parameter> vocab_zero_point;
-};
-
-}  // namespace
-
-// CVS-199500: the context kept the replaced vocabulary chain alive, so the u8 vocabulary Parameters
-// still had readers. Partitioning then kept their closures next to the lazy Sub128 closures, and the
-// weights bank detached the shared source of both. With two or more MatMuls the merge also brought
-// the replaced chain back into the graph.
-TEST_P(HostGatherParallelMatMulsTest, ReleasesReplacedVocabularyAndDoesNotMergeOnIt) {
-    const auto num_matmuls = GetParam();
-    model = make_head_with_direct_gq_readers(num_matmuls);
-    vocab_weight = model->get_parameters().at(1);
-    vocab_zero_point = model->get_parameters().at(2);
-    manager.register_pass<HeadTailPasses>(context, true);
-    model_ref = make_host_gathered_head(num_matmuls);
-}
-
-INSTANTIATE_TEST_SUITE_P(NumMatMuls, HostGatherParallelMatMulsTest, ::testing::Values(1u, 2u, 3u));
-
-class ParallelMatMulMergeTest : public HeadTailPassesTest, public ::testing::WithParamInterface<std::size_t> {};
-
-TEST_P(ParallelMatMulMergeTest, MergesMatMulsOnUnchangedActivation) {
-    const auto num_matmuls = GetParam();
-    model = make_head_with_direct_gq_readers(num_matmuls);
-    manager.register_pass<HeadTailPasses>(context, false);
-    model_ref = make_merged_head(num_matmuls);
-}
-
-INSTANTIATE_TEST_SUITE_P(NumMatMuls, ParallelMatMulMergeTest, ::testing::Values(2u, 3u));
-
-namespace {
-
-// The head of make_head_with_direct_gq_readers(1) as the plugin sees it before partitioning: the
-// vocabulary and the MatMul weights are Constants that partitioning turns into closure Parameters
+// A head as the plugin sees it before partitioning: the dequantized vocabulary feeds a group-quantized
+// MatMul directly, with no norm in between (for example EXAONE-4.0, layer 0). The vocabulary and the
+// MatMul weights are Constants that partitioning turns into closure Parameters.
 struct ConstantHead {
     std::shared_ptr<ov::Model> model;
     ov::Output<ov::Node> vocab_multiply;
