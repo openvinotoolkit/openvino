@@ -103,9 +103,11 @@ typedef enum _npu_vm_runtime_result_t {
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Blob descriptor
+/// @details The runtime does not copy the buffer. The handle created from it reads the bytecode and the kernel
+///          binaries in place, so the buffer must stay valid and unmodified until npuVMRuntimeDestroy returns.
 typedef struct _npu_vm_runtime_blob_desc_t {
     size_t inputSize;       ///< [in] Size of input buffer in bytes
-    const uint8_t* pInput;  ///< [in] Pointer to input buffer
+    const uint8_t* pInput;  ///< [in] Pointer to input buffer, borrowed for the lifetime of the runtime handle
 } npu_vm_runtime_blob_desc_t;
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -150,6 +152,7 @@ NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRun
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Init VM runtime instance and return handle
+/// @details The handle borrows desc->pInput without copying it. Keep the buffer alive until npuVMRuntimeDestroy.
 NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreate(
     const npu_vm_runtime_blob_desc_t* desc,   ///< [in] pointer to graph descriptor
     npu_vm_runtime_handle_t* phRuntime,       ///< [out] pointer to handle of VM runtime object created
@@ -299,6 +302,8 @@ typedef struct _npu_vm_runtime_config_desc_t {
 ///          Shared command queue usage is selected by passing a non-null commandQueue handle
 ///          in v2 execution-context creation and execute parameters, not by a config descriptor.
 ///          Updated queue configuration can still be provided per call through npuVMRuntimeExecute2::pConfig.
+///          As with npuVMRuntimeCreate, the handle borrows desc->pInput without copying it. Keep the buffer alive
+///          until npuVMRuntimeDestroy.
 NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreate2(
     const npu_vm_runtime_blob_desc_t* desc,  ///< [in] pointer to graph descriptor
     const npu_vm_runtime_config_desc_t*
@@ -318,6 +323,9 @@ typedef struct _npu_vm_runtime_create_execution_context_params_t {
 
     /// @brief Initial Level Zero command queue. Used by interpreter to create a fence for host synchronization.
     ///        Later npuVMRuntimeExecute2 calls may provide a different commandQueue.
+    ///        Lifetime: this queue must remain valid until a subsequent npuVMRuntimeExecute2 with a different
+    ///        commandQueue has succeeded. The interpreter keeps a fence bound to this queue and destroys it only
+    ///        during that migration, so freeing the queue earlier causes a use-after-free inside the runtime.
     ze_command_queue_handle_t commandQueue;
 
     /// @brief Graph DDI table extension pointer.
@@ -345,6 +353,11 @@ NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRun
 ///          If commandQueue differs from the one currently stored in executionContext,
 ///          runtime updates queue-dependent internal objects as needed.
 ///          Plugin never creates or manages command lists directly in this path.
+///          Queue lifetime: every commandQueue passed here (and to npuVMRuntimeCreateExecutionContext2) must stay
+///          valid until a later npuVMRuntimeExecute2 with a different commandQueue succeeds; a failed call may
+///          return before the migration. On a queue change the
+///          interpreter destroys the fence bound to the previously stored queue and rebuilds it on the new one;
+///          if the caller already freed the old queue, that destroy is a use-after-free the runtime cannot detect.
 typedef struct _npu_vm_runtime_execute_params2_t {
     /// @brief Command queue for submitting command lists or configuring internal command lists.
     ze_command_queue_handle_t commandQueue;

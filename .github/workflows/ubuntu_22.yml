@@ -1,11 +1,13 @@
 name: Linux (Ubuntu 22.04, Python 3.11)
-run-name: ${{ github.event_name == 'schedule' && (github.event.schedule == '0 0 * * 3,6' && 'Linux (Ubuntu 22.04, Python 3.11) - Nightly (with latest OneDNN)' || 'Linux (Ubuntu 22.04, Python 3.11) - Nightly (without latest OneDNN)') || 'Linux (Ubuntu 22.04, Python 3.11)' }}
+run-name: ${{ github.event_name == 'schedule' && (github.event.schedule == '0 2 * * *' && 'Linux (Ubuntu 22.04, Python 3.11) - Nightly (C++20 build only)' || github.event.schedule == '0 0 * * 3,6' && 'Linux (Ubuntu 22.04, Python 3.11) - Nightly (with latest OneDNN)' || 'Linux (Ubuntu 22.04, Python 3.11) - Nightly (without latest OneDNN)') || 'Linux (Ubuntu 22.04, Python 3.11)' }}
 on:
   schedule:
     # at 00:00 on Wednesday and Saturday (with latest OneDNN)
     - cron: '0 0 * * 3,6'
     # at 00:00 on Tuesday and Thursday (without latest OneDNN)
     - cron: '0 0 * * 2,4'
+    # at 02:00 every day: C++20 build without the regular build and tests
+    - cron: '0 2 * * *'
   workflow_dispatch:
     inputs:
       target-branch:
@@ -138,7 +140,8 @@ jobs:
 
   Build:
     needs: [Docker, Smart_CI]
-    if: "!needs.smart_ci.outputs.skip_workflow"
+    # Skip the regular build and its dependent build/test jobs on the daily C++20 schedule.
+    if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event.schedule != '0 2 * * *' }}
     uses: ./.github/workflows/job_build_linux.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
@@ -167,6 +170,33 @@ jobs:
             -DCPACK_GENERATOR=TGZ
             -DENABLE_WHEEL=ON
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+
+  # Non-blocking C++20 compile check (CVS-189849): daily, dispatched, or re-run workflows.
+  # Promote to a required pre-commit check once stable.
+  Build_CPP20:
+    name: Build (C++20, non-blocking)
+    needs: [Docker, Smart_CI]
+    if: >-
+      ${{
+        !needs.smart_ci.outputs.skip_workflow &&
+        (github.event.schedule == '0 2 * * *' || github.event_name == 'workflow_dispatch' || github.run_attempt > 1)
+      }}
+    uses: ./.github/workflows/job_build_linux_cpp20.yml
+    with:
+      runner: 'aks-linux-16-cores-32gb'
+      cmake-build-parallel-level: '15'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
+      os: 'ubuntu_22_04'
+      cmake-options: >-
+            -G 'Ninja Multi-Config'
+            -DENABLE_NCC_STYLE=OFF
+            -DENABLE_TESTS=ON
+            -DENABLE_STRICT_DEPENDENCIES=OFF
+            -DENABLE_SYSTEM_OPENCL=ON
+            -DENABLE_OV_GGUF_FRONTEND=ON
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+            -DCMAKE_CXX_STANDARD=20
 
   Debian_Packages:
     name: Debian Packages
@@ -549,7 +579,7 @@ jobs:
       runner: 'aks-linux-4-cores-16gb'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
       run-real-models: ${{ github.event_name == 'schedule' }}
-      genai-ref: 2ccabebb8d5ab70673525a777a92f2bf62fce136
+      genai-ref: ccb13a1c79c067234e9af56167b360037a9dc07f
 
   GGUF_LlamaCpp_Validation:
     name: GGUF Frontend x llama.cpp validation
@@ -602,6 +632,8 @@ jobs:
         shell: bash
         run: |
           SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+          # OpenDAL 0.58.1 that is used by sccache 0.18.0 no longer trims BlobEndpoint trailing slashes, producing invalid Azure URLs.
+          SCCACHE_AZURE_CONNECTION_STRING="$(sed -E 's#(^|;)(BlobEndpoint=[^;]*[^/;])/+(;|$)#\1\2\3#g' <<< "$SCCACHE_AZURE_CONNECTION_STRING")"
           # nosemgrep: yaml.github-actions.security.audit.unsafe-add-mask-workflow-command.unsafe-add-mask-workflow-command
           echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
           echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
@@ -730,8 +762,8 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status
-    needs: [Smart_CI, Build, Debian_Packages, Samples, Conformance, CXX_Unit_Tests, Python_Unit_Tests, TensorFlow_Layer_Tests, Pytorch_Layer_Tests,
-            CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, JAX_Models_Tests_Precommit, GGUF_Models_Tests_Precommit, GGUF_GenAI_Validation,
+    needs: [Smart_CI, Build, Samples, Conformance, CXX_Unit_Tests, Python_Unit_Tests, TensorFlow_Layer_Tests, Pytorch_Layer_Tests,
+            CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, JAX_Models_Tests_Precommit, GGUF_Models_Tests_Precommit,
             NVIDIA_Plugin, Openvino_tokenizers, iGPU,
             Keras3_OpenVINO_Backend, iGPU_RoPE_Tests]
     if: ${{ always() }}

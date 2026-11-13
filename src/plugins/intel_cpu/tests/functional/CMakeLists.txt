@@ -42,6 +42,10 @@ target_link_libraries(cpuUtils PRIVATE ${CPU_UTILS_LINK_LIBRARIES})
 target_include_directories(cpuUtils PRIVATE ${CPU_UTILS_INCLUDE_PATHS})
 
 set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src)
+if(X86_64)
+    # x64 tests compile CPU-specific op sources (e.g. QSAIndexer) which use transformations/itt.hpp
+    list(APPEND INCLUDES $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
+endif()
 set(DEPENDENCIES openvino_intel_cpu_plugin openvino_template_extension)
 set(LINK_LIBRARIES funcSharedTests cpuUtils openvino::snippets ov_snippets_models openvino::reference)
 

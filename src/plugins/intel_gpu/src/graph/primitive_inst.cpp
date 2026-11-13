@@ -311,6 +311,10 @@ event::ptr primitive_inst::set_output_memory(memory::ptr mem_new, bool check, si
     } else {
         _outputs[idx] = mem_new;
         _max_output_layout_count[idx] = mem_new->get_layout().get_linear_size();
+        // Refresh dynamic arguments during preparation even if the input shape is unchanged.
+        if (is_dynamic()) {
+            set_flag(ExecutionFlags::MEMORY_CHANGED);
+        }
         // Replacing the primary output means any borrowed remote permute view is no longer active.
         if (idx == 0)
             _remote_permute_output_alias.reset();
@@ -460,13 +464,15 @@ void primitive_inst::update_shape() {
         input_shape_changed = true;
     }
 
-    if (!get_node().is_type<kv_cache>() && !get_node().is_type<strided_slice>() && !input_shape_changed && _impl_params->get_output_layout().is_static()) {
+    if (!get_node().is_type<kv_cache>() && !get_node().is_type<stateless_kv>() && !get_node().is_type<strided_slice>() &&
+        !input_shape_changed && _impl_params->get_output_layout().is_static()) {
         return;
     }
 
     std::vector<event::ptr> dependencies_events;
     auto queue_type = get_network().get_stream().get_queue_type();
     bool has_runtime_deps = false;
+    bool need_queue_finish = false;
     for (auto& i : get_node().get_shape_infer_dependencies()) {
         // Some primitives may have flexible count of deps (e.g. reshape), thus allow skipping some deps
         if (memory_deps.count(i) > 0 || i >= get_node().get_dependencies().size()) {
@@ -492,21 +498,23 @@ void primitive_inst::update_shape() {
                                                                                      : dep->get_node().get_preferred_impl_type() == impl_types::cpu)) {
             has_runtime_deps = true;
 
-            // Events may be not created for in-order queue, so take them for OOO queue only
-            if (queue_type == QueueTypes::out_of_order && dep->get_impl_params()->out_event) {
+            if (dep->get_impl_params()->out_event) {
                 dependencies_events.push_back(dep->get_impl_params()->out_event);
 
-                GPU_DEBUG_TRACE_DETAIL << id() << ": shape infer waits for " << i << " dependency\n";
+                GPU_DEBUG_TRACE_DETAIL << id() << ": shape infer will wait event for dependency " << i << "\n";
+            } else if (queue_type != QueueTypes::out_of_order) {
+                need_queue_finish = true;
+                GPU_DEBUG_TRACE_DETAIL << id() << ": shape infer will finish queue for dependency " << i << "\n";
             }
         }
     }
 
     if (has_runtime_deps) {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("update_shape_sync: " + id()));
-        GPU_DEBUG_TRACE_DETAIL << "runtime synchronization for " << id() << " shape inference\n";
-        if (!dependencies_events.empty() && queue_type == QueueTypes::out_of_order) {
+        GPU_DEBUG_TRACE_DETAIL << "runtime synchronization(" << (need_queue_finish ? "finish" : "event") << ") for " << id() << " shape inference\n";
+        if (!need_queue_finish) {
             get_network().get_stream().wait_for_events(dependencies_events);
-        } else if (queue_type == QueueTypes::in_order) {
+        } else {
             get_network().get_stream().finish();
         }
     }
@@ -561,6 +569,12 @@ void primitive_inst::update_shape() {
                 _impl_params->output_layouts[2] = compressed_cache_variable->get_compression_zp_state()->get_layout();
             }
         }
+    }
+
+    if (get_node().is_type<stateless_kv>()) {
+        auto& stateless_kv_instance = downcast<stateless_kv_inst>(*this);
+        const auto desc = get_node().as<stateless_kv>().get_primitive();
+        stateless_kv_instance.set_runtime_state(stateless_kv_inst::compute_runtime_state(*_impl_params, *desc));
     }
 
     if (get_node().is_type<kv_cache>()) {
@@ -829,15 +843,16 @@ bool primitive_inst::try_bind_remote_permute_output(const layout& actual_layout)
 void primitive_inst::realloc_outputs_for_stateless_kv() {
     const auto& users = get_user_insts();
     const auto output_it = std::find_if(users.begin(), users.end(), [](primitive_inst* user) {
-        return user->is_output();
+        return user->is_output() && user->get_node().is_type<reorder>() && 
+            user->get_node().get_dependency_with_port(0).second == 0;
     });
     OPENVINO_ASSERT(output_it != users.end(), "[GPU] stateless_kv should directly connect to an output");
+    primitive_inst& result = **output_it;
 
     const auto& past_layout = _impl_params->get_input_layout();
-    const auto& mid_layout = _impl_params->get_output_layout(0);     // output to present_kv
+    const auto& mid_layout = _impl_params->get_output_layout(0);  // output to present_kv
     const auto& target_layout = _impl_params->get_output_layout(1);  // output to sdpa
 
-    auto& result = **output_it;
     if (result.is_dynamic()) {
         if (!result._update_shape_done_by_other) {
             result.update_shape();
@@ -855,7 +870,10 @@ void primitive_inst::realloc_outputs_for_stateless_kv() {
     const auto present_tensor = result.output_memory_ptr();
     OPENVINO_ASSERT(present_tensor, "[GPU] Output memory of ", result.id(), " is not prepared for stateless_kv node ", id());
     auto& engine = _network.get_engine();
-    const auto is_same = !past_empty && engine.is_the_same_buffer(*present_tensor, *past_tensor);
+    auto& memory_pool = get_network().get_memory_pool();
+    // output[0] may be cleared outside, conservatively treat output[1] as a separate buffer only when output[0] exists and not aliased.
+    const bool own_output1 = _outputs[0] && _outputs[1] && !engine.is_the_same_buffer(*_outputs[0], *_outputs[1]);
+    const auto is_same = present_tensor && !past_empty && engine.is_the_same_buffer(*present_tensor, *past_tensor);
     const auto& present_layout = result._impl_params->get_output_layout();
     const auto same_placement = [&]() {
         return past_layout.data_type == mid_layout.data_type && past_layout.format == mid_layout.format &&
@@ -880,41 +898,114 @@ void primitive_inst::realloc_outputs_for_stateless_kv() {
     // a different element type or format, a restricted input, or past whose elements would move.
     const auto use_private_present = present_layout.data_type != mid_layout.data_type || present_layout.format != mid_layout.format ||
                                      aliases_restricted_input() || (is_same && !same_placement());
-    auto kv_present = present_tensor;
-    auto& private_present = downcast<stateless_kv_inst>(*this).private_present();
-    if (use_private_present) {
-        const bool can_reuse = private_present && private_present->size() >= mid_layout.bytes_count();
-        auto& sp = *get_network().get_shape_predictor();
-        const auto prealloc = sp.predict_preallocation_shape(id(), mid_layout, can_reuse);
-        if (!can_reuse) {
-            auto alloc_layout = mid_layout;
-            if (prealloc.first && sp.can_preallocate(ov::shape_size(prealloc.second) * data_type_traits::size_of(mid_layout.data_type)))
-                alloc_layout = mid_layout.clone_with_other_shape(prealloc.second);
-            if (alloc_layout.bytes_count() < mid_layout.bytes_count())
-                alloc_layout = mid_layout;
-            private_present = engine.allocate_memory(alloc_layout, engine.get_preferred_memory_allocation_type(), false);
+
+    if (_outputs[0] && _mem_allocated) {
+        const auto reuse_private_present = use_private_present && mid_layout.get_linear_size() <= _max_output_layout_count[0];
+        GPU_DEBUG_TRACE_DETAIL << id() << ": current private_present, max=" << _max_output_layout_count[0] << " needs=" << mid_layout.get_linear_size()
+                               << " => " << (reuse_private_present ? "reuse" : "release") << std::endl;
+        if (!reuse_private_present) {
+            memory_pool.release_memory(_outputs[0].get(), get_node().get_unique_id(), get_node().id(), get_network_id());
+            _mem_allocated = false;
+            _outputs[0] = {};
         }
-        kv_present = engine.reinterpret_buffer(*private_present, mid_layout);
+    } else {
+        _outputs[0] = {};
+    }
+    // _outputs[0] exists means it's reused
+    if (use_private_present) {
         // The Result stays a real reorder and copies the private present into its own buffer.
         result.set_can_be_optimized(false);
+        if (!_outputs[0]) {
+            auto& sp = *get_network().get_shape_predictor();
+            const auto prealloc = sp.predict_preallocation_shape(id(), mid_layout, false);
+            auto alloc_params = *_impl_params;
+            auto& alloc_layout = alloc_params.output_layouts[0];
+            if (prealloc.first && sp.can_preallocate(ov::shape_size(prealloc.second) * data_type_traits::size_of(mid_layout.data_type)))
+                alloc_layout = mid_layout.clone_with_other_shape(prealloc.second);
+            if (alloc_layout.get_linear_size() < mid_layout.get_linear_size())
+                alloc_layout = mid_layout;
+            _outputs[0] = allocate_output(engine,
+                                          memory_pool,
+                                          get_node(),
+                                          alloc_params,
+                                          _runtime_memory_dependencies,
+                                          get_network_id(),
+                                          get_network().is_internal(),
+                                          0,
+                                          false,
+                                          is_output_buffer(this, true),
+                                          nullptr,
+                                          true);
+            _max_output_layout_count[0] = alloc_layout.get_linear_size();
+            _mem_allocated = true;
+            set_flag(ExecutionFlags::MEMORY_CHANGED);
+        }
+        _outputs[0] = engine.reinterpret_buffer(*_outputs[0], mid_layout);
     } else {
-        private_present.reset();
         if (mid_layout == present_layout)
             result.set_can_be_optimized(true);
+        _max_output_layout_count[0] = result._max_output_layout_count[0];
+        _outputs[0] = present_tensor;
     }
     GPU_DEBUG_TRACE_DETAIL << id() << ": input[" << (past_tensor ? past_tensor->buffer_ptr() : nullptr) << "]("
-                           << (past_tensor ? past_tensor->get_layout().to_short_string() : "") << ") and output[" << present_tensor->buffer_ptr() << "]("
-                           << present_tensor->get_layout().to_short_string() << ")(" << result.id() << ") same:" << is_same << std::endl;
+                           << (past_tensor ? past_tensor->get_layout().to_short_string() : "") << ") and output["
+                           << (present_tensor ? present_tensor->buffer_ptr() : nullptr) << "]("
+                           << (present_tensor ? present_tensor->get_layout().to_short_string() : "") << ")(" << result.id() << ") same:" << is_same
+                           << std::endl;
     GPU_DEBUG_TRACE_DETAIL << id() << ": input[" << past_layout.to_short_string() << "] -> mid[" << mid_layout.to_short_string() << "]["
                            << target_layout.to_short_string() << "] -> output[" << present_layout.to_short_string() << "](" << result.id()
                            << ") opt:" << result.can_be_optimized() << std::endl;
 
-    if (_outputs[0]) {
-        OPENVINO_ASSERT(!_mem_allocated, "stateless_kv should never allocate output[0] for itself");
+    const auto& state = downcast<stateless_kv_inst>(*this).get_runtime_state();
+    OPENVINO_ASSERT(state.has_value(), "[GPU] stateless_kv runtime state wasn't initialized before output allocation");
+    const auto is_rolling = state->is_rolling();
+    const auto is_overflow = state->is_capacity_overflow();
+    GPU_DEBUG_TRACE_DETAIL << id() << ": runtime state" << (is_overflow ? "(overflow)" : "") << (is_rolling ? "(rolling)" : "")
+                           << ": past=" << state->past_seq_len << " present=" << state->present_seq_len << " new=" << state->new_token_size
+                           << ", front_idx: past=" << state->past_front_idx << " present=" << state->present_front_idx << " sdpa=" << state->sdpa_front_idx
+                           << std::endl;
+
+    if (own_output1) {
+        const auto concat_axis = ov::util::normalize(get_typed_desc<stateless_kv>()->concat_axis, target_layout.get_rank());
+        const auto current_len = target_layout.get_partial_shape()[concat_axis].get_length();
+        const auto last_len = _outputs[1]->get_layout().get_partial_shape()[concat_axis].get_length();
+        const auto layout_match = target_layout == _outputs[1]->get_layout();
+        const auto reuse_output1 = is_overflow && layout_match;
+        GPU_DEBUG_TRACE_DETAIL << id() << ": current_len=" << current_len << " last_len=" << last_len << ", layout " << (layout_match ? "match" : "changed")
+                               << ", sdpa buffer:" << (reuse_output1 ? " reuse" : " release") << std::endl;
+        if (!reuse_output1) {
+            memory_pool.release_memory(_outputs[1].get(), get_node().get_unique_id(), get_node().id(), _network.get_id());
+            _outputs[1] = nullptr;
+            _max_output_layout_count[1] = 0;
+        }
+    } else {
+        _outputs[1] = nullptr;
     }
-    _outputs[0] = kv_present;
-    _outputs[1] = engine.reinterpret_buffer(*kv_present, target_layout);
-    this->_mem_allocated = false;
+    // _outputs[1] exists means it's reused
+    if (!is_overflow) {
+        GPU_DEBUG_TRACE_DETAIL << id() << ": use present output as SDPA output for non-overflow update" << std::endl;
+        _outputs[1] = engine.reinterpret_buffer(*_outputs[0], target_layout);
+        _max_output_layout_count[1] = target_layout.get_linear_size();
+    } else {
+        if (!_outputs[1]) {
+            GPU_DEBUG_TRACE_DETAIL << id() << ": allocate independent SDPA output for capacity overflow update, required=" << target_layout.bytes_count()
+                                   << std::endl;
+            _outputs[1] = allocate_output(engine,
+                                          memory_pool,
+                                          get_node(),
+                                          *_impl_params,
+                                          _runtime_memory_dependencies,
+                                          get_network_id(),
+                                          get_network().is_internal(),
+                                          1,
+                                          false,
+                                          is_output_buffer(this, true),
+                                          nullptr,
+                                          true);
+            _max_output_layout_count[1] = target_layout.get_linear_size();
+            set_flag(ExecutionFlags::MEMORY_CHANGED);
+        }
+    }
 }
 
 void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
@@ -1501,6 +1592,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                     compressed_cache_variable->get_compression_scale_state()->set_memory(_outputs[2], present_scales_layout);
                     if (compressed_cache_variable->has_zp_state()) {
                         auto present_zp_layout = present_scales_layout;
+                        present_zp_layout.data_type = _impl_params->output_layouts[3].data_type;
                         compressed_cache_variable->get_compression_zp_state()->set_memory(_outputs[3], present_zp_layout);
                     }
                 }
@@ -1517,6 +1609,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                 compressed_cache_variable->get_compression_scale_state()->set_layout(present_scales_layout);
                 if (compressed_cache_variable->has_zp_state()) {
                     auto present_zp_layout = present_scales_layout;
+                    present_zp_layout.data_type = _impl_params->output_layouts[3].data_type;
                     compressed_cache_variable->get_compression_zp_state()->set_layout(present_zp_layout);
                 }
             }
@@ -2787,7 +2880,7 @@ primitive_inst::primitive_inst(network& network, const program_node& node, bool 
       _can_be_optimized(node.can_be_optimized()),
       _can_share_buffer(node.can_share_buffer()),
       _is_constant(node.is_constant()),
-      _needs_completion_event(is_any_user_cpu(node.get_users()) || node.is_output()) {
+      _needs_completion_event(is_any_user_cpu(node.get_users()) || node.is_output() || node.is_shape_infer_dep()) {
     // When dynamic shape node has huge upper boundary which causes bigger mem size than system max allocable mem size, do not allocate in build time.
     auto output_layout = node.get_output_layout();
     auto& engine = network.get_engine();
