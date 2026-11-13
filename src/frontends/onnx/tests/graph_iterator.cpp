@@ -34,6 +34,7 @@ public:
     size_t reset_call_count = 0;
     mutable std::filesystem::path last_returned_dir;
     std::filesystem::path model_dir;
+    std::map<std::string, std::string> metadata;
 
     SimpleIterator() = default;
     explicit SimpleIterator(const std::filesystem::path& dir) : model_dir(dir) {}
@@ -56,11 +57,11 @@ public:
         return 1;
     }
 
-    std::map<std::string, std::string> get_metadata() const override {
-        return {};
+    const std::map<std::string, std::string>& get_metadata() const override {
+        return metadata;
     }
 
-    std::filesystem::path get_model_dir() const override {
+    const std::filesystem::path& get_model_dir() const override {
         ++get_model_dir_call_count;
         last_returned_dir = model_dir;
         return model_dir;

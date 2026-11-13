@@ -48,10 +48,18 @@ public:
     virtual int64_t get_opset_version(const std::string& domain) const = 0;
 
     /// \brief Retrieves metadata associated with the graph.
-    virtual std::map<std::string, std::string> get_metadata() const = 0;
+    /// The map is returned by reference and must stay valid for the lifetime of the iterator. The caller copies it
+    /// with its own code, so the nodes of the map are allocated and released by the same module. Returning a
+    /// std::map by value would let an implementation living in another shared library (possibly linked against a
+    /// different C runtime) allocate memory that this library frees.
+    virtual const std::map<std::string, std::string>& get_metadata() const = 0;
 
     /// \brief Returns the directory path where the model is located.
-    virtual std::filesystem::path get_model_dir() const = 0;
+    /// The path is returned by reference and must stay valid for the lifetime of the iterator. The caller copies it
+    /// with its own code, so the storage of the path is allocated and released by the same module. Returning a
+    /// std::filesystem::path by value would let an implementation living in another shared library (possibly linked
+    /// against a different C runtime) allocate memory that this library frees.
+    virtual const std::filesystem::path& get_model_dir() const = 0;
 
     /// \brief Destructor
     virtual ~GraphIterator();
