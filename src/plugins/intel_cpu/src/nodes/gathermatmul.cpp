@@ -169,7 +169,7 @@ bool GatherMatmul::isSupportedCompressedOperation([[maybe_unused]] const std::sh
 ov::element::TypeVector GatherMatmul::getSupportedCompressedWeightsTypes() {
     using ov::element::Type_t;
 #ifdef OPENVINO_ARCH_X86_64
-    return {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4};
+    return {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4, Type_t::u3};
 #elif defined(OPENVINO_ARCH_ARM64)
     return {Type_t::i8, Type_t::i4};
 #else
@@ -230,6 +230,8 @@ void GatherMatmul::initSupportedPrimitiveDescriptors() {
     descs[ARG_SRC_4] = algorithm == Algorithm::GatherMatmulCompressed ? makeSrcDesc(WEIGHT_ZERO_POINTS)
                                                                       : MemoryDescUtils::makeEmptyDesc();
     descs[ARG_DST] = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(dstTypes.front(), getOutputShapeAtPort(0));
+
+    m_attrs.dynamicQuantizationGroupSize = context->getConfig().fcDynamicQuantizationGroupSize;
 
     auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
     m_factory = std::make_shared<ExecutorFactory<GatherMatmulAttrs>>(m_attrs, executionContext, descs);

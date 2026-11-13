@@ -39,26 +39,8 @@ public:
     explicit CutLMHeadMatcher(std::shared_ptr<ov::Model>& lm_head_model) {
         // The first input to MatMul is treated as the cut point.
         auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
-
-        // Several patterns for matmul are supported:
-        // Matmul -> Result
-        // Matmul -> Add -> Result
-        auto matmul_add = opp::wrap_type<ov::op::v1::Add>({matmul, opp::any_input()});
-        // Matmul -> Transpose -> Result
-        auto matmul_transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul, opp::any_input()});
-        //  Matmul -> Convert -> Result
-        auto matmul_convert = opp::wrap_type<ov::op::v0::Convert>({matmul});
-        // MatMul -> Divide -> Tanh -> Multiply -> Result
-        auto div = opp::wrap_type<ov::op::v1::Multiply, ov::op::v1::Divide>({matmul, opp::any_input()});
-        auto tanh = opp::wrap_type<ov::op::v0::Tanh>({div});
-        auto matmul_multiply = opp::wrap_type<ov::op::v1::Multiply>({tanh, opp::any_input()});
-
-        auto last_op = std::make_shared<opp::op::Or>(ov::OutputVector{matmul->output(0),
-                                                                      matmul_add->output(0),
-                                                                      matmul_transpose->output(0),
-                                                                      matmul_convert->output(0),
-                                                                      matmul_multiply->output(0)});
-        auto res = opp::wrap_type<ov::op::v0::Result>({last_op->output(0)});
+        const ov::npuw::patterns::LMHeadTerminal terminal(matmul);
+        auto res = opp::wrap_type<ov::op::v0::Result>({terminal.output});
 
         auto callback = [=, &lm_head_model](opp::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
@@ -68,14 +50,7 @@ public:
             auto matched_result =
                 std::static_pointer_cast<ov::op::v0::Result>(node_to_output.at(res).get_node_shared_ptr());
 
-            std::shared_ptr<ov::Node> matched_node_last_op = matched_matmul;
-            for (const auto& p : {matmul_add, matmul_transpose, matmul_convert, matmul_multiply}) {
-                const auto it = node_to_output.find(p);
-                if (it != node_to_output.end()) {
-                    matched_node_last_op = it->second.get_node_shared_ptr();
-                    break;
-                }
-            }
+            const auto matched_node_last_op = terminal.last_op(node_to_output);
 
             // Skip Result nodes that are not logits.
             // Note: checking that Result's output name is "logits" is a sufficiently
@@ -132,6 +107,11 @@ public:
             auto new_result = std::make_shared<ov::op::v0::Result>(matched_node_last_op);
             lm_head_model =
                 std::make_shared<ov::Model>(ov::OutputVector{new_result->output(0)}, ov::ParameterVector{new_param});
+            // The Model constructor does not deep-copy graph nodes, so tied-weight dequantization nodes
+            // may remain shared with the original model. Any later pass modifying these nodes affects
+            // both models and can cause incorrect behavior. Clone to isolate the graph nodes while
+            // keeping constant data buffers shared.
+            lm_head_model = lm_head_model->clone();
 
             return true;
         };
@@ -146,6 +126,32 @@ public:
 }  // namespace
 
 namespace ov::npuw {
+
+patterns::LMHeadTerminal::LMHeadTerminal(const std::shared_ptr<ov::Node>& matmul_pattern) : matmul(matmul_pattern) {
+    add = opp::wrap_type<ov::op::v1::Add>({matmul, opp::any_input()});
+    transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul, opp::any_input()});
+    convert = opp::wrap_type<ov::op::v0::Convert>({matmul});
+    scale = opp::wrap_type<ov::op::v1::Multiply, ov::op::v1::Divide>({matmul, opp::any_input()});
+    const auto tanh = opp::wrap_type<ov::op::v0::Tanh>({scale});
+    softcap = opp::wrap_type<ov::op::v1::Multiply>({tanh, opp::any_input()});
+    output = std::make_shared<opp::op::Or>(ov::OutputVector{matmul->output(0),
+                                                            add->output(0),
+                                                            transpose->output(0),
+                                                            convert->output(0),
+                                                            softcap->output(0),
+                                                            scale->output(0)});
+}
+
+std::shared_ptr<ov::Node> patterns::LMHeadTerminal::last_op(const ov::pass::pattern::PatternValueMap& values) const {
+    // `scale` must be checked after `softcap`: the scale op is also a part of the softcap chain.
+    for (const auto& p : {add, transpose, convert, softcap, scale}) {
+        const auto it = values.find(p);
+        if (it != values.end()) {
+            return it->second.get_node_shared_ptr();
+        }
+    }
+    return values.at(matmul).get_node_shared_ptr();
+}
 
 CutLMHead::CutLMHead(std::shared_ptr<ov::Model>& lm_head_model) : m_lm_head_model(lm_head_model) {}
 

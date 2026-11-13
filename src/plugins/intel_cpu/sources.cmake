@@ -48,6 +48,7 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/emitters/snippets/common/compiled_snippet_cpu.hpp
     ${CPU_SRC_DIR}/emitters/snippets/common/emitter_factory.hpp
     ${CPU_SRC_DIR}/emitters/snippets/common/jit_debug_emitter_base.hpp
+    ${CPU_SRC_DIR}/emitters/snippets/common/jit_kernel_emitter_utils.hpp
     ${CPU_SRC_DIR}/emitters/snippets/common/jit_segfault_detector_emitter_base.hpp
     ${CPU_SRC_DIR}/emitters/snippets/common/verbose_utils.hpp
     ${CPU_SRC_DIR}/emitters/snippets/cpu_kernel_executor_table.hpp
@@ -299,6 +300,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/grid_sample.hpp
     ${CPU_SRC_DIR}/nodes/grn.cpp
     ${CPU_SRC_DIR}/nodes/grn.h
+    ${CPU_SRC_DIR}/nodes/histc.cpp
+    ${CPU_SRC_DIR}/nodes/histc.h
     ${CPU_SRC_DIR}/nodes/identity.cpp
     ${CPU_SRC_DIR}/nodes/identity.hpp
     ${CPU_SRC_DIR}/nodes/if.cpp
@@ -353,6 +356,12 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/softmax.cpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/softmax.hpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/softmax_kernel.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_brgemm.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_brgemm_kernel.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_pa_kernel.cpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_pa_kernel.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_sdpa_kernel.cpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_sdpa_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/transpose.hpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/transpose_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/xattention.hpp
@@ -409,6 +418,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/paged_causal_conv1d.h
     ${CPU_SRC_DIR}/nodes/paged_gated_delta_net.cpp
     ${CPU_SRC_DIR}/nodes/paged_gated_delta_net.h
+    ${CPU_SRC_DIR}/nodes/paged_qsa_indexer.cpp
+    ${CPU_SRC_DIR}/nodes/paged_qsa_indexer.h
     ${CPU_SRC_DIR}/nodes/paged_selective_ssm.cpp
     ${CPU_SRC_DIR}/nodes/paged_selective_ssm.h
     ${CPU_SRC_DIR}/nodes/pooling.cpp
@@ -425,6 +436,16 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/psroi_pooling.h
     ${CPU_SRC_DIR}/nodes/qkv_proj.cpp
     ${CPU_SRC_DIR}/nodes/qkv_proj.h
+    ${CPU_SRC_DIR}/nodes/qsa_indexer.cpp
+    ${CPU_SRC_DIR}/nodes/qsa_indexer.h
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_indexer_common.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.cpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_indexer_kernel.cpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_indexer_kernel.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_brgemm.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_indexer_brgemm_kernel.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_kernel_utils.hpp
     ${CPU_SRC_DIR}/nodes/random_uniform.cpp
     ${CPU_SRC_DIR}/nodes/random_uniform.hpp
     ${CPU_SRC_DIR}/nodes/range.cpp
@@ -481,6 +502,10 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/space_to_depth.h
     ${CPU_SRC_DIR}/nodes/sparse_fill_empty_rows.cpp
     ${CPU_SRC_DIR}/nodes/sparse_fill_empty_rows.h
+    ${CPU_SRC_DIR}/nodes/sparse_sdpa.cpp
+    ${CPU_SRC_DIR}/nodes/sparse_sdpa.h
+    ${CPU_SRC_DIR}/nodes/sparse_pa.cpp
+    ${CPU_SRC_DIR}/nodes/sparse_pa.h
     ${CPU_SRC_DIR}/nodes/split.cpp
     ${CPU_SRC_DIR}/nodes/split.h
     ${CPU_SRC_DIR}/nodes/stft.cpp
@@ -581,8 +606,12 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/power_static.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/read_value_with_subgraph.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/read_value_with_subgraph.hpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/qsa_indexer.cpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/qsa_indexer.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/sdpa.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/sdpa.hpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/sparse_attention_with_kv_cache.cpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/sparse_attention_with_kv_cache.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/submodel.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/submodel.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/swish_cpu.cpp
@@ -591,6 +620,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/align_matmul_input_ranks.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.hpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/clamp_bf16_scalar_constants.cpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/clamp_bf16_scalar_constants.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/convert_broadcast_to_tiles.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/convert_broadcast_to_tiles.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/convert_fq_rnn_to_quantized_rnn.cpp
@@ -675,6 +706,11 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/utils/general_utils.h
     ${CPU_SRC_DIR}/utils/graph_serializer/deserializer.cpp
     ${CPU_SRC_DIR}/utils/graph_serializer/deserializer.hpp
+    ${CPU_SRC_DIR}/utils/graph_serializer/hsm_common.hpp
+    ${CPU_SRC_DIR}/utils/graph_serializer/hsm_reader_handler.cpp
+    ${CPU_SRC_DIR}/utils/graph_serializer/hsm_reader_handler.hpp
+    ${CPU_SRC_DIR}/utils/graph_serializer/hsm_writer_handler.cpp
+    ${CPU_SRC_DIR}/utils/graph_serializer/hsm_writer_handler.hpp
     ${CPU_SRC_DIR}/utils/graph_serializer/serializer.cpp
     ${CPU_SRC_DIR}/utils/graph_serializer/serializer.hpp
     ${CPU_SRC_DIR}/utils/memory_stats_dump.hpp
@@ -851,6 +887,8 @@ set(CPU_PLUGIN_X64_SRCS
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/mlp_fusion.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/qkv_proj_fusion.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/qkv_proj_fusion.hpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/sparse_attention_kv_cache_fusion.cpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/sparse_attention_kv_cache_fusion.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/sdpa_fuse_transpose_reshape.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/sdpa_fuse_transpose_reshape.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/simplify_fakequantize.hpp

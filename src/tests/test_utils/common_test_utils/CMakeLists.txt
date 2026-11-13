@@ -16,8 +16,6 @@ function(add_common_utils ADD_TARGET_NAME)
             TYPE STATIC
             SOURCES ${TARGET_SOURCES}
             ADD_CLANG_FORMAT
-            DEPENDENCIES
-                openvino_template_plugin
             LINK_LIBRARIES
                 PUBLIC
                     gtest
@@ -35,6 +33,10 @@ function(add_common_utils ADD_TARGET_NAME)
                         "${CMAKE_CURRENT_SOURCE_DIR}/src"
                         "${OpenVINO_SOURCE_DIR}/src/plugins/template/include"
     )
+
+    if(ENABLE_TEMPLATE)
+        add_dependencies(${ADD_TARGET_NAME} openvino_template_plugin)
+    endif()
 
     ov_developer_package_export_targets(TARGET ${ADD_TARGET_NAME}
                                         INSTALL_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include/")
