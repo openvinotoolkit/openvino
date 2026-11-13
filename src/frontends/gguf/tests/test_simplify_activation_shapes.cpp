@@ -5,6 +5,7 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/decompositions/rms_norm.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/gather.hpp"
@@ -19,7 +20,9 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "ov_ops/rms.hpp"
+#include "ov_ops/rotary_positional_embeddings.hpp"
 #include "pass/simplify_activation_shapes.hpp"
+#include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/symbolic_transformations/dereshape_matmul.hpp"
@@ -163,6 +166,142 @@ TEST_F(GGUFActivationShapes, FusesDynamicMatMulRmsNormWithoutScaleWithResidual) 
     manager.register_pass<ov::pass::RMSFusion>(false, true, true);
     manager.register_pass<ov::pass::EliminateSqueeze>();
     manager.register_pass<ov::pass::DeReshapeFullyConnected>();
+}
+
+std::shared_ptr<ov::Model> rotary_model(bool compact,
+                                        int64_t split_axis,
+                                        int64_t concat_axis,
+                                        bool split_input = false,
+                                        bool split_cos = false) {
+    const bool split_last = split_axis == -1 || split_axis == 3;
+    const auto x_shape = split_cos    ? ov::PartialShape{2, 1, 2, 8}
+                         : split_last ? ov::PartialShape{2, 1, -1, 8}
+                                      : ov::PartialShape{2, 1, 8, 4};
+    const auto table_shape = split_cos    ? ov::PartialShape{2, 1, 2, 4}
+                             : split_last ? ov::PartialShape{2, 1, -1, 4}
+                                          : ov::PartialShape{2, 1, 4, 4};
+    const auto input =
+        std::make_shared<v0::Parameter>(ov::element::f32, split_input ? ov::PartialShape{2, 2, -1, 8} : x_shape);
+    ov::Output<ov::Node> x = input;
+    if (split_input) {
+        x = std::make_shared<v1::VariadicSplit>(input,
+                                                v0::Constant::create(ov::element::i64, {}, {1}),
+                                                v0::Constant::create(ov::element::i64, {2}, {1, 1}))
+                ->output(0);
+    }
+    const auto cos =
+        std::make_shared<v0::Parameter>(ov::element::f32, split_cos ? ov::PartialShape{2, 1, 4, 4} : table_shape);
+    const auto sin = std::make_shared<v0::Parameter>(ov::element::f32, table_shape);
+    const auto split = std::make_shared<v1::VariadicSplit>(x,
+                                                           v0::Constant::create(ov::element::i64, {}, {split_axis}),
+                                                           v0::Constant::create(ov::element::i64, {2}, {4, 4}));
+    const auto axis = v0::Constant::create(ov::element::i64, {1}, {1});
+    ov::Output<ov::Node> first = split->output(0);
+    ov::Output<ov::Node> second = split->output(1);
+    ov::Output<ov::Node> cos_value = cos;
+    ov::Output<ov::Node> sin_value = sin;
+    if (split_cos) {
+        cos_value = std::make_shared<v1::VariadicSplit>(cos,
+                                                        v0::Constant::create(ov::element::i64, {}, {2}),
+                                                        v0::Constant::create(ov::element::i64, {2}, {2, 2}))
+                        ->output(0);
+    }
+    if (compact) {
+        first = std::make_shared<v0::Squeeze>(first, axis);
+        second = std::make_shared<v0::Squeeze>(second, axis);
+        cos_value = std::make_shared<v0::Squeeze>(cos_value, axis);
+        sin_value = std::make_shared<v0::Squeeze>(sin_value, axis);
+    }
+    const auto first_cos =
+        split_cos ? std::make_shared<v1::Multiply>(cos_value, first) : std::make_shared<v1::Multiply>(first, cos_value);
+    const auto second_sin = std::make_shared<v1::Multiply>(second, sin_value);
+    const auto negative =
+        std::make_shared<v1::Multiply>(second_sin, v0::Constant::create(ov::element::f32, {}, {-1.f}));
+    ov::Output<ov::Node> result_first = std::make_shared<v1::Add>(first_cos, negative);
+    const auto second_cos = split_cos ? std::make_shared<v1::Multiply>(cos_value, second)
+                                      : std::make_shared<v1::Multiply>(second, cos_value);
+    const auto first_sin = std::make_shared<v1::Multiply>(first, sin_value);
+    ov::Output<ov::Node> result_second = std::make_shared<v1::Add>(second_cos, first_sin);
+    if (compact) {
+        result_first = std::make_shared<v0::Unsqueeze>(result_first, axis);
+        result_second = std::make_shared<v0::Unsqueeze>(result_second, axis);
+    }
+    const auto output = std::make_shared<v0::Concat>(ov::OutputVector{result_first, result_second}, concat_axis);
+    return std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{input, cos, sin});
+}
+
+std::shared_ptr<ov::Model> rotary_model_ref(bool split_input = false, bool split_cos = false) {
+    const auto input = std::make_shared<v0::Parameter>(ov::element::f32,
+                                                       split_input ? ov::PartialShape{2, 2, -1, 8}
+                                                       : split_cos ? ov::PartialShape{2, 1, 2, 8}
+                                                                   : ov::PartialShape{2, 1, -1, 8});
+    ov::Output<ov::Node> x = input;
+    if (split_input) {
+        x = std::make_shared<v1::VariadicSplit>(input,
+                                                v0::Constant::create(ov::element::i64, {}, {1}),
+                                                v0::Constant::create(ov::element::i64, {2}, {1, 1}))
+                ->output(0);
+    }
+    const auto cos =
+        std::make_shared<v0::Parameter>(ov::element::f32,
+                                        split_cos ? ov::PartialShape{2, 1, 4, 4} : ov::PartialShape{2, 1, -1, 4});
+    const auto sin =
+        std::make_shared<v0::Parameter>(ov::element::f32,
+                                        split_cos ? ov::PartialShape{2, 1, 2, 4} : ov::PartialShape{2, 1, -1, 4});
+    ov::Output<ov::Node> cos_value = cos;
+    if (split_cos) {
+        cos_value = std::make_shared<v1::VariadicSplit>(cos,
+                                                        v0::Constant::create(ov::element::i64, {}, {2}),
+                                                        v0::Constant::create(ov::element::i64, {2}, {2, 2}))
+                        ->output(0);
+    }
+    ov::op::internal::RoPE::Config config;
+    config.rotary_ndims = 8;
+    config.cos_sin_ndims = 4;
+    const auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{x, cos_value, sin}, config);
+    return std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, cos, sin});
+}
+
+TEST_F(GGUFActivationShapes, FusesSingletonHeadRotaryWithNegativeAxes) {
+    model = rotary_model(false, -1, -1);
+    model_ref = rotary_model_ref();
+    manager.register_pass<ov::pass::RoPEFusion>();
+    comparator.disable(FunctionsComparator::ACCURACY);
+    disable_rt_info_check();
+}
+
+TEST_F(GGUFActivationShapes, FusesSingletonHeadRotaryWithPositiveAxes) {
+    model = rotary_model(false, 3, 3);
+    model_ref = rotary_model_ref();
+    manager.register_pass<ov::pass::RoPEFusion>();
+    comparator.disable(FunctionsComparator::ACCURACY);
+    disable_rt_info_check();
+}
+
+TEST_F(GGUFActivationShapes, FusesSingletonHeadRotaryFedByAnotherSplit) {
+    model = rotary_model(false, -1, -1, true);
+    model_ref = rotary_model_ref(true);
+    manager.register_pass<ov::pass::RoPEFusion>();
+    comparator.disable(FunctionsComparator::ACCURACY);
+    disable_rt_info_check();
+}
+
+TEST_F(GGUFActivationShapes, FusesSingletonHeadRotaryWithSplitCosine) {
+    model = rotary_model(false, -1, -1, false, true);
+    model_ref = rotary_model_ref(false, true);
+    manager.register_pass<ov::pass::RoPEFusion>();
+    comparator.disable(FunctionsComparator::ACCURACY);
+    disable_rt_info_check();
+}
+
+TEST_F(GGUFActivationShapes, SimplifiesRotaryArithmeticWithNonLastConcatAxis) {
+    model = rotary_model(false, -1, 2);
+    model_ref = rotary_model(true, -1, 2);
+}
+
+TEST_F(GGUFActivationShapes, SimplifiesRotaryArithmeticWithNonLastSplitAxis) {
+    model = rotary_model(false, 2, -1);
+    model_ref = rotary_model(true, 2, -1);
 }
 
 TEST_F(GGUFActivationShapes, KeepsUnrelatedMatMulElementwiseConsumersAtRankFour) {

@@ -11,6 +11,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
@@ -27,7 +28,10 @@
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/op/util/symbolic_info.hpp"
 #include "openvino/op/util/unary_elementwise_arithmetic.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/symbolic_transformations/utils.hpp"
@@ -124,6 +128,36 @@ std::unordered_set<const ov::Node*> rms_matmul_nodes(const ov::NodeVector& nodes
     return preserved;
 }
 
+std::unordered_set<const ov::Node*> rope_nodes(const ov::NodeVector& nodes) {
+    ov::pass::RoPEFusionGPTOSS rope_fusion;
+    const auto matcher = rope_fusion.get_matcher();
+    std::unordered_set<const ov::Node*> preserved;
+    if (!matcher)
+        return preserved;
+    for (const auto& node : nodes) {
+        const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(node);
+        if (!concat || !activation_shape(concat->get_output_partial_shape(0)) ||
+            (concat->get_axis() != -1 && concat->get_axis() != 3) || !matcher->match(node))
+            continue;
+        const auto& pattern_values = matcher->get_pattern_value_map();
+        const auto split = std::find_if(pattern_values.begin(), pattern_values.end(), [](const auto& match) {
+            const auto pattern = ov::as_type_ptr<ov::pass::pattern::op::WrapType>(match.first);
+            return pattern && pattern->get_wrapped_types().size() == 1 &&
+                   pattern->get_wrapped_type() == ov::op::v1::VariadicSplit::get_type_info_static();
+        });
+        if (split == pattern_values.end())
+            continue;
+        const auto axis = split->second.get_node_shared_ptr()->get_input_node_shared_ptr(1);
+        if ((!ov::op::util::has_constant_value<int64_t>(axis, -1) &&
+             !ov::op::util::has_constant_value<int64_t>(axis, 3)) ||
+            !matcher->get_symbols().at("half_ndims").is_integer())
+            continue;
+        for (const auto& matched : matcher->get_matched_nodes())
+            preserved.insert(matched.get());
+    }
+    return preserved;
+}
+
 }  // namespace
 
 bool SimplifyActivationShapes::run_on_model(const std::shared_ptr<ov::Model>& model) {
@@ -133,6 +167,7 @@ bool SimplifyActivationShapes::run_on_model(const std::shared_ptr<ov::Model>& mo
     symbols.run_passes(model);
     const auto nodes = model->get_ordered_ops();
     const auto rms_nodes = rms_matmul_nodes(nodes);
+    const auto rope_pattern_nodes = rope_nodes(nodes);
     std::unordered_set<const ov::Node*> constants;
     std::map<ov::Output<ov::Node>, ov::Output<ov::Node>> squeezed;
     for (const auto& node : nodes) {
@@ -147,8 +182,9 @@ bool SimplifyActivationShapes::run_on_model(const std::shared_ptr<ov::Model>& mo
     const auto axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
     bool changed = false;
     for (const auto& node : nodes) {
-        if (constants.count(node.get()) || rms_nodes.count(node.get()) || node->get_output_size() != 1 ||
-            !node->get_output_element_type(0).is_real() || transformation_callback(node)) {
+        if (constants.count(node.get()) || rms_nodes.count(node.get()) || rope_pattern_nodes.count(node.get()) ||
+            node->get_output_size() != 1 || !node->get_output_element_type(0).is_real() ||
+            transformation_callback(node)) {
             continue;
         }
         const auto shape = node->get_output_partial_shape(0);

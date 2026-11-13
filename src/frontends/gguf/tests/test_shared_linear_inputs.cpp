@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <tuple>
+#include <utility>
+#include <vector>
 
 #include "builder/blocks/common.hpp"
 #include "builder/blocks/ffn.hpp"
@@ -16,6 +21,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/transpose.hpp"
 #include "pass/materialize_weights.hpp"
+#include "quant/weights.hpp"
 #include "utils.hpp"
 
 namespace {
@@ -46,6 +52,18 @@ std::shared_ptr<ov::Node> linear_node(const ov::Output<ov::Node>& output) {
     if (node->get_type_name() == std::string("Unsqueeze") || node->get_type_name() == std::string("Reshape"))
         node = node->get_input_node_shared_ptr(0);
     return node;
+}
+
+DecoderConfig geglu_config(int width, const GgufWeightTable& weights) {
+    DecoderParameters parameters;
+    parameters.dimensions.layers = 1;
+    parameters.dimensions.embedding = width;
+    parameters.dimensions.query_heads = 1;
+    parameters.dimensions.kv_heads = 1;
+    parameters.dimensions.head_size = width;
+    parameters.normalization.epsilon = 1e-5f;
+    parameters.activation = FfnActivation::GeGlu;
+    return DecoderConfig(parameters, weights);
 }
 }  // namespace
 
@@ -339,6 +357,185 @@ TEST(GGUFSharedLinearInputs, GateUpProjectionKeepsGLUBranchesRank3) {
                 EXPECT_NEAR(outputs[0].data<float>()[row * 3 + n],
                             projection * projection / (1 + std::exp(-projection)),
                             1e-6f);
+            }
+        }
+    }
+}
+
+TEST(GGUFSharedLinearInputs, SwiGLUQ4KProjectionsRemainRankThree) {
+    GgufWeightTable weights;
+    GraphEmitter emitter(weights, "test");
+    emitter.add_input("x", ov::element::f32, {2, 1, -1, 256});
+    for (const auto* name : {"ffn_gate.weight", "ffn_up.weight"}) {
+        auto& weight = weights[name];
+        weight.shape = {3, 256};
+        weight.qtype = GGUF_TYPE_Q4_K;
+        weight.source_name = name;
+        weight.data = ov::Tensor(ov::element::u8, {3 * 144});
+        std::fill_n(weight.data.data<uint8_t>(), weight.data.get_size(), 0);
+    }
+    const auto output = blocks::swiglu_gate_up(emitter,
+                                               "ffn_gate.weight",
+                                               "ffn_up.weight",
+                                               "x",
+                                               "ffn_gate",
+                                               "ffn_up",
+                                               "ffn_swiglu",
+                                               false);
+    for (const auto* name : {"ffn_gate", "ffn_up", "ffn_swiglu"})
+        EXPECT_EQ(emitter.value(name).get_partial_shape(), (ov::PartialShape{2, -1, 3})) << name;
+    EXPECT_EQ(emitter.value(output).get_partial_shape(), (ov::PartialShape{2, 1, -1, 3}));
+}
+
+TEST(GGUFSharedLinearInputs, GeGLUKeepsDenseProjectionsRankThree) {
+    GgufWeightTable weights;
+    GraphEmitter emitter(weights, "test");
+    const auto x = emitter.add_input("x", ov::element::f32, {2, 1, -1, 8});
+    for (const auto* name : {"ffn_gate.weight", "ffn_up.weight"}) {
+        weights[name] = ov::Tensor(ov::element::f32, {3, 8});
+        for (size_t i = 0; i < 24; ++i)
+            weights[name].data.data<float>()[i] = (static_cast<int>(i % 7) - 3) / 8.f;
+    }
+    weights["ffn_down.weight"] = ov::Tensor(ov::element::f32, {8, 3});
+    blocks::geglu_ffn(emitter, geglu_config(8, weights), "", "x");
+    for (const auto* name : {"ffn_gate", "ffn_up", "ffn_geglu"}) {
+        EXPECT_EQ(emitter.value(name).get_partial_shape(), (ov::PartialShape{2, -1, 3})) << name;
+    }
+    const auto model =
+        std::make_shared<ov::Model>(ov::OutputVector{emitter.value("ffn_geglu")}, ov::ParameterVector{x});
+    ASSERT_TRUE(pass::MaterializeGGUFWeights().run_on_model(model));
+    for (const size_t tokens : {1, 3}) {
+        ov::Tensor input(ov::element::f32, {2, 1, tokens, 8});
+        for (size_t i = 0; i < input.get_size(); ++i)
+            input.data<float>()[i] = (static_cast<int>(i % 11) - 5) / 4.f;
+        ov::TensorVector outputs{ov::Tensor(ov::element::f32, {2, tokens, 3})};
+        ASSERT_TRUE(model->evaluate(outputs, {input}));
+        EXPECT_EQ(outputs[0].get_shape(), (ov::Shape{2, tokens, 3}));
+        for (size_t row = 0; row < 2 * tokens; ++row) {
+            for (size_t n = 0; n < 3; ++n) {
+                float projection = 0;
+                for (size_t k = 0; k < 8; ++k)
+                    projection +=
+                        input.data<float>()[row * 8 + k] * weights["ffn_gate.weight"].data.data<float>()[n * 8 + k];
+                const float gelu =
+                    0.5f * projection *
+                    (1.f + std::tanh(0.7978845608f * (projection + 0.044715f * projection * projection * projection)));
+                EXPECT_NEAR(outputs[0].data<float>()[row * 3 + n], gelu * projection, 1e-6f);
+            }
+        }
+    }
+}
+
+TEST(GGUFSharedLinearInputs, GeGLUSelectsProjectionRankForQuantizedWeights) {
+    const std::vector<std::tuple<GgufTensorType, GgufTensorType, int>> formats{
+        {GGUF_TYPE_Q4_0, GGUF_TYPE_Q4_0, 3},
+        {GGUF_TYPE_Q4_K, GGUF_TYPE_Q4_K, 4},
+        {GGUF_TYPE_Q4_K, GGUF_TYPE_Q4_0, 4},
+        {GGUF_TYPE_Q4_0, GGUF_TYPE_Q4_K, 4},
+        {GGUF_TYPE_Q2_0, GGUF_TYPE_Q4_K, 3},
+        {GGUF_TYPE_Q4_K, GGUF_TYPE_Q2_K, 3},
+        {GGUF_TYPE_PQ2_0, GGUF_TYPE_PQ2_0, 3},
+        {GGUF_TYPE_PTQ1_0, GGUF_TYPE_PTQ1_0, 3},
+    };
+    const auto bytes_per_row = [](GgufTensorType type) {
+        switch (type) {
+        case GGUF_TYPE_Q2_0:
+            return 72;
+        case GGUF_TYPE_Q2_K:
+            return 84;
+        case GGUF_TYPE_PQ2_0:
+            return 68;
+        case GGUF_TYPE_PTQ1_0:
+            return 56;
+        case GGUF_TYPE_Q4_K:
+        case GGUF_TYPE_Q4_0:
+            return 144;
+        default:
+            OPENVINO_THROW("Unexpected test weight format");
+        }
+    };
+    for (const auto& [gate_type, up_type, rank] : formats) {
+        SCOPED_TRACE(static_cast<int>(gate_type));
+        SCOPED_TRACE(static_cast<int>(up_type));
+        GgufWeightTable weights;
+        GraphEmitter emitter(weights, "test");
+        emitter.add_input("x", ov::element::f32, {2, 1, -1, 256});
+        for (const auto& [name, type] :
+             {std::pair{"ffn_gate.weight", gate_type}, std::pair{"ffn_up.weight", up_type}}) {
+            auto& weight = weights[name];
+            weight.shape = {3, 256};
+            weight.qtype = type;
+            weight.source_name = name;
+            weight.data = ov::Tensor(ov::element::u8, {3 * static_cast<size_t>(bytes_per_row(type))});
+            std::fill_n(weight.data.data<uint8_t>(), weight.data.get_size(), 0);
+        }
+        weights["ffn_down.weight"] = ov::Tensor(ov::element::f32, {256, 3});
+        const auto output = blocks::geglu_ffn(emitter, geglu_config(256, weights), "", "x");
+        const auto expected = rank == 3 ? ov::PartialShape{2, -1, 3} : ov::PartialShape{2, 1, -1, 3};
+        for (const auto* name : {"ffn_gate", "ffn_up", "ffn_geglu"}) {
+            EXPECT_EQ(emitter.value(name).get_partial_shape(), expected) << name;
+        }
+        EXPECT_EQ(emitter.value(output).get_partial_shape(), (ov::PartialShape{2, 1, -1, 256}));
+    }
+}
+
+TEST(GGUFSharedLinearInputs, GeGLUQ4KRankFourPreservesBatchesAndTokens) {
+    GgufWeightTable weights;
+    GraphEmitter emitter(weights, "test");
+    const auto x = emitter.add_input("x", ov::element::f32, {2, 1, -1, 256});
+    for (const auto& [name, code] :
+         {std::pair{"ffn_gate.weight", uint8_t{0x11}}, std::pair{"ffn_up.weight", uint8_t{0x23}}}) {
+        auto& weight = weights[name];
+        weight.shape = {3, 256};
+        weight.qtype = GGUF_TYPE_Q4_K;
+        weight.source_name = name;
+        weight.data = ov::Tensor(ov::element::u8, {3 * 144});
+        auto bytes = weight.data.data<uint8_t>();
+        std::fill_n(bytes, weight.data.get_size(), 0);
+        for (size_t row = 0; row < 3; ++row) {
+            auto block = bytes + row * 144;
+            block[1] = 0x20;  // 1/128 in little-endian f16
+            std::fill_n(block + 4, 12, 0x01);
+            std::fill_n(block + 16, 128, code);
+        }
+    }
+    weights["ffn_down.weight"] = ov::Tensor(ov::element::f32, {256, 3});
+    blocks::geglu_ffn(emitter, geglu_config(256, weights), "", "x");
+    EXPECT_EQ(emitter.value("ffn_geglu").get_partial_shape(), (ov::PartialShape{2, 1, -1, 3}));
+    const auto model =
+        std::make_shared<ov::Model>(ov::OutputVector{emitter.value("ffn_geglu")}, ov::ParameterVector{x});
+    ASSERT_TRUE(pass::MaterializeGGUFWeights().run_on_model(model));
+    std::vector<ov::Tensor> dense;
+    for (const auto* name : {"ffn_gate.weight", "ffn_up.weight"}) {
+        const auto weight_model =
+            std::make_shared<ov::Model>(ov::OutputVector{make_weight_node(weights[name])}, ov::ParameterVector{});
+        ov::TensorVector output{ov::Tensor(ov::element::f32, {3, 256})};
+        ASSERT_TRUE(weight_model->evaluate(output, {}));
+        ASSERT_TRUE(std::any_of(output[0].data<const float>(),
+                                output[0].data<const float>() + output[0].get_size(),
+                                [](float value) {
+                                    return value != 0.f;
+                                }));
+        dense.push_back(output[0]);
+    }
+    for (const size_t tokens : {1, 3}) {
+        ov::Tensor input(ov::element::f32, {2, 1, tokens, 256});
+        for (size_t i = 0; i < input.get_size(); ++i)
+            input.data<float>()[i] = (static_cast<int>(i % 11) - 5) / 4.f;
+        ov::TensorVector outputs{ov::Tensor(ov::element::f32, {2, 1, tokens, 3})};
+        ASSERT_TRUE(model->evaluate(outputs, {input}));
+        EXPECT_EQ(outputs[0].get_shape(), (ov::Shape{2, 1, tokens, 3}));
+        for (size_t row = 0; row < 2 * tokens; ++row) {
+            for (size_t column = 0; column < 3; ++column) {
+                float gate = 0.f;
+                float up = 0.f;
+                for (size_t k = 0; k < 256; ++k) {
+                    gate += input.data<float>()[row * 256 + k] * dense[0].data<const float>()[column * 256 + k];
+                    up += input.data<float>()[row * 256 + k] * dense[1].data<const float>()[column * 256 + k];
+                }
+                const float gelu =
+                    0.5f * gate * (1.f + std::tanh(0.7978845608f * (gate + 0.044715f * gate * gate * gate)));
+                EXPECT_NEAR(outputs[0].data<float>()[row * 3 + column], gelu * up, 2e-6f);
             }
         }
     }
