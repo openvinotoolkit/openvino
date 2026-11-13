@@ -435,7 +435,7 @@ std::shared_ptr<IGraph> IBlobFormatImporter::create_graph(const ov::SoPtr<IEngin
                             extract_blob_type());
 
     m_graph->update_network_name(network_name);
-    validate_main_schedule_descriptors(m_graph->get_metadata());
+    blob_format_importer_utils::validate_main_schedule_descriptors(m_graph->get_metadata());
     if (m_batch_size.has_value() && m_batch_size.value() > 0) {
         // Initial batch setup for static cases
         m_graph->set_batch_size(m_batch_size.value());
@@ -460,20 +460,6 @@ std::shared_ptr<ov::Model> IBlobFormatImporter::create_dummy_model() const {
 
 Config IBlobFormatImporter::get_config() const {
     return m_config;
-}
-
-void validate_main_schedule_descriptors(const NetworkMetadata& metadata) {
-    auto check_descriptors = [](const std::vector<IODescriptor>& descriptors) {
-        for (const IODescriptor& descriptor : descriptors) {
-            OPENVINO_ASSERT(!descriptor.isInitInputWeights && !descriptor.isInitOutputWeights,
-                            "The I/O descriptor \"",
-                            descriptor.nameFromCompiler,
-                            "\" of the main schedule is marked as an init schedule weights descriptor");
-        }
-    };
-
-    check_descriptors(metadata.inputs);
-    check_descriptors(metadata.outputs);
 }
 
 namespace blob_format_importer_factory {
@@ -511,5 +497,22 @@ std::unique_ptr<IBlobFormatImporter> create(BlobSource& npu_formatted_blob,
 }
 
 }  // namespace blob_format_importer_factory
+namespace blob_format_importer_utils {
+
+    void validate_main_schedule_descriptors(const NetworkMetadata& metadata) {
+        auto check_descriptors = [](const std::vector<IODescriptor>& descriptors) {
+            for (const IODescriptor& descriptor : descriptors) {
+                OPENVINO_ASSERT(!descriptor.isInitInputWeights && !descriptor.isInitOutputWeights,
+                                "The I/O descriptor \"",
+                                descriptor.nameFromCompiler,
+                                "\" of the main schedule is marked as an init schedule weights descriptor");
+            }
+        };
+
+        check_descriptors(metadata.inputs);
+        check_descriptors(metadata.outputs);
+    }
+
+}  // namespace blob_format_importer_utils
 
 }  // namespace intel_npu

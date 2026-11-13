@@ -154,3 +154,42 @@ TEST_F(BlobFormatImportersTest, CannotCreateModelBeforeGraph) {
     OV_ASSERT_NO_THROW(importer = blob_format_importer_factory::create(source, true, nullptr, config));
     OV_EXPECT_THROW(importer->create_dummy_model(), ov::Exception, _);
 }
+
+using blob_format_importer_utils::validate_main_schedule_descriptors;
+
+namespace {
+
+IODescriptor create_descriptor(const std::string& name, const ov::PartialShape& shape) {
+    IODescriptor descriptor;
+    descriptor.nameFromCompiler = name;
+    descriptor.precision = ov::element::f32;
+    descriptor.shapeFromCompiler = shape;
+    return descriptor;
+}
+
+}  // namespace
+/**
+ * @brief The init weights descriptors belong to the init schedules only, the main schedule must not contain any of
+ * these regardless of their shapes or of the batch size
+ */
+TEST_F(BlobFormatImportersTest, MainScheduleRejectsInitWeightsDescriptors) {
+    NetworkMetadata metadata;
+    metadata.inputs.push_back(create_descriptor("input", ov::Shape{1, 3}));
+    metadata.outputs.push_back(create_descriptor("output", ov::Shape{1, 3}));
+    IODescriptor main_weights = create_descriptor("main_weights", ov::Shape{});
+    main_weights.isMainInputWeights = true;
+    metadata.inputs.push_back(std::move(main_weights));
+    OV_ASSERT_NO_THROW(validate_main_schedule_descriptors(metadata));
+
+    IODescriptor init_input = create_descriptor("init_input", ov::Shape{1, 3});
+    init_input.isInitInputWeights = true;
+    metadata.inputs.push_back(std::move(init_input));
+    OV_EXPECT_THROW_HAS_SUBSTRING(validate_main_schedule_descriptors(metadata), ov::Exception, "init_input");
+
+    metadata.inputs.pop_back();
+    IODescriptor init_output = create_descriptor("init_output", ov::Shape{1, 3});
+    init_output.isInitOutputWeights = true;
+    metadata.outputs.push_back(std::move(init_output));
+    OV_EXPECT_THROW_HAS_SUBSTRING(validate_main_schedule_descriptors(metadata), ov::Exception, "init_output");
+}
+
