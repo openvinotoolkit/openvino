@@ -20,8 +20,8 @@
 
 // Symmetric int8 quantization, shared by dynamic_quantize_gpu_opt and the activations of the MoE expert GEMMs
 // (moe_3gemm_dyn_quan): a group of values v is stored as q = rte(v * s) with s = 127 / max(|v|), computed in the type of
-// v, and dequantized as q / s. The sum of q over the group (the precomputed reduction) lets a GEMM apply a weight zero
-// point once per group.
+// v, and dequantized as q / s. The sum of q over the group (the precomputed reduction, DQ_SUM_N) lets a GEMM apply a
+// weight zero point once per group.
 #define DQ_I8_MAX_VAL 127
 // Lower bound of max(|v|), so that 127 / max(|v|) stays finite in half
 #define DQ_I8_MIN_ABS_MAX 0.003h
@@ -39,15 +39,12 @@
     }
 
 // One group spread over a subgroup, each lane holding n values v (a vector of type): q receives the quantized values of
-// the lane, dq_scale the dequantization scale 1 / s and q_sum the sum of q over the group, both uniform in the subgroup.
-#define DQ_I8_SUBGROUP_QUANTIZE_N(n, type, v, q, dq_scale, q_sum)                       \
+// the lane and dq_scale the dequantization scale 1 / s, uniform in the subgroup.
+#define DQ_I8_SUBGROUP_QUANTIZE_N(n, type, v, q, dq_scale)                              \
     do {                                                                               \
         type dq_abs_max_ = DQ_I8_MIN_ABS_MAX;                                          \
         DQ_ABS_MAX_N(n, v, dq_abs_max_)                                                \
         const type dq_s_ = DQ_I8_SCALE(type, sub_group_reduce_max(dq_abs_max_));       \
         q = DQ_I8_QUANTIZE_N(n, v, dq_s_);                                             \
         dq_scale = (type)1 / dq_s_;                                                    \
-        int dq_sum_ = 0;                                                               \
-        DQ_SUM_N(n, q, dq_sum_)                                                        \
-        q_sum = sub_group_reduce_add(dq_sum_);                                         \
     } while (0)

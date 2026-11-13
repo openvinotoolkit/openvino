@@ -1653,15 +1653,13 @@ public:
                 const size_t rows = token_num * max_topk;
                 const size_t row_groups = std::max(gate_up.groups(), down.groups());
                 internal_buffers.emplace_back(layout(ov::Shape{rows, row_groups}, ov::element::f16, cldnn::format::bfyx), false);  // 14
-                internal_buffers.emplace_back(layout(ov::Shape{rows, row_groups}, ov::element::i32, cldnn::format::bfyx), false);  // 15
-                // The hidden states quantized once per token, gathered into 2, 14 and 15
-                internal_buffers.emplace_back(layout(ov::Shape{token_num, gate_up.groups()}, ov::element::f16, cldnn::format::bfyx), false);  // 16
-                internal_buffers.emplace_back(layout(ov::Shape{token_num, gate_up.groups()}, ov::element::i32, cldnn::format::bfyx), false);  // 17
+                // The scales of the hidden states quantized once per token, gathered into 14
+                internal_buffers.emplace_back(layout(ov::Shape{token_num, gate_up.groups()}, ov::element::f16, cldnn::format::bfyx), false);  // 15
             }
             if (uses_int3_gemm()) {
                 const size_t rows = token_num * max_topk;
                 const size_t max_tiles = MoE3GemmInt3Gemm::get_max_tiles(expert_num, rows);
-                internal_buffers.emplace_back(layout(ov::Shape{max_tiles * 2}, ov::element::i32, cldnn::format::bfyx), false);  // 18
+                internal_buffers.emplace_back(layout(ov::Shape{max_tiles * 2}, ov::element::i32, cldnn::format::bfyx), false);  // 16
             }
         }
         return internal_buffers;
@@ -2940,18 +2938,15 @@ public:
         return tiles.size() / 2;
     }
 
-    // The int8 gathered rows of the grouped GEMM path and their per-group scales and sums (MoE3GemmDynQuan)
+    // The int8 gathered rows of the grouped GEMM path and their per-group scales (MoE3GemmDynQuan)
     struct dyn_quan_rows {
         memory::ptr quantized;
         memory::ptr scales;
-        memory::ptr sums;
     };
 
     dyn_quan_rows get_dyn_quan_rows(typed_primitive_inst<moe_3gemm_fused_compressed>& instance) const {
         const auto& intermediates_memories = instance.get_intermediates_memories();
-        return {intermediates_memories[MOE_INTERNAL_BUFFER_GATE_UP_INPUT],
-                intermediates_memories[MOE_INTERNAL_BUFFER_QUANTIZED_SCALES],
-                intermediates_memories[MOE_INTERNAL_BUFFER_QUANTIZED_SUMS]};
+        return {intermediates_memories[MOE_INTERNAL_BUFFER_GATE_UP_INPUT], intermediates_memories[MOE_INTERNAL_BUFFER_QUANTIZED_SCALES]};
     }
 
     cldnn::event::ptr exec_dyn_quan_quantize(cldnn::event::ptr ret_event,
@@ -2967,7 +2962,7 @@ public:
                              instance,
                              stage,
                              std::move(inputs),
-                             {outputs.quantized, outputs.scales, outputs.sums},
+                             {outputs.quantized, outputs.scales},
                              {groups * simd, 1, 1},
                              {simd, 1, 1});
     }
@@ -2977,9 +2972,7 @@ public:
         const auto& intermediates_memories = instance.get_intermediates_memories();
         auto hidden_states_layout = instance.get_impl_params()->input_layouts[static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES)];
         const auto token_num = get_seq_len(hidden_states_layout);
-        const dyn_quan_rows tokens{intermediates_memories[MOE_INTERNAL_BUFFER_DOWN_OUTPUT],
-                                   intermediates_memories[MOE_INTERNAL_BUFFER_QUANTIZED_TOKEN_SCALES],
-                                   intermediates_memories[MOE_INTERNAL_BUFFER_QUANTIZED_TOKEN_SUMS]};
+        const dyn_quan_rows tokens{intermediates_memories[MOE_INTERNAL_BUFFER_DOWN_OUTPUT], intermediates_memories[MOE_INTERNAL_BUFFER_QUANTIZED_TOKEN_SCALES]};
         ret_event = exec_dyn_quan_quantize(ret_event,
                                            instance,
                                            *dyn_quan_quantize,
@@ -2992,8 +2985,8 @@ public:
         return execute_stage({ret_event},
                              instance,
                              *dyn_quan_gather,
-                             {tokens.quantized, tokens.scales, tokens.sums, intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT]},
-                             {rows.quantized, rows.scales, rows.sums},
+                             {tokens.quantized, tokens.scales, intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT]},
+                             {rows.quantized, rows.scales},
                              {items, static_cast<size_t>(total_rows), 1},
                              {items, 1, 1});
     }
@@ -3033,7 +3026,7 @@ public:
         const auto gemm = [&](Projection proj, int w, memory::ptr output) {
             const auto& shape = int3_gemm_shape(proj);
             const bool down = proj == Projection::DOWN;
-            std::vector<memory::ptr> inputs{rows.quantized, rows.scales, rows.sums, wei.weight[w], wei.scale[w], wei.zp[w], offsets};
+            std::vector<memory::ptr> inputs{rows.quantized, rows.scales, wei.weight[w], wei.scale[w], wei.zp[w], offsets};
             if (row_mode) {
                 const size_t sg_k = MoE3GemmInt3Gemm::get_row_sg_k(shape);
                 ret_event = execute_stage({ret_event},

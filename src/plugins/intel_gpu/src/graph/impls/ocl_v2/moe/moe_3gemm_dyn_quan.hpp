@@ -15,7 +15,7 @@ namespace ov::intel_gpu::ocl {
 // GEMMs that run on int8 activations, whatever their weight type: the hidden states are quantized once per token and
 // gathered into their rows sorted by expert for gate and up, and act(gate) * up is quantized again for down. The
 // quantization is that of the FullyConnected layers (dynamic_quantize_gpu_opt): symmetric int8 per group, with an f16
-// dequantization scale and the i32 sum of the quantized values of each group, both [rows, groups].
+// dequantization scale of each group, [rows, groups].
 class MoE3GemmDynQuan {
 public:
     enum class Projection { GATE_UP, DOWN };
@@ -65,7 +65,7 @@ protected:
     }
 };
 
-// Copies the int8 hidden states and the scales and sums of each token into its rows sorted by expert
+// Copies the int8 hidden states and the scales of each token into its rows sorted by expert
 class MoE3GemmDynQuanGather : public KernelGenerator {
 public:
     MoE3GemmDynQuanGather() : KernelGenerator("moe_3gemm_dyn_quan", "gather") {}

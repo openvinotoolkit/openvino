@@ -7,12 +7,13 @@
 // Expert GEMMs of the fused MoE prefill for u3 (3-bit unsigned) weights, computed
 // with dynamically quantized int8 activations:
 //
-//   C[r, n] = sum_g  a_scale[r, g] * w_scale[e, g, n] *
-//                    ( sum_{k in g} A[r, k] * W[e, n, k]  -  zp[e, g, n] * sum_{k in g} A[r, k] )
+//   C[r, n] = sum_g  a_scale[r, g] * w_scale[e, g, n] * sum_{k in g} A[r, k] * (W[e, n, k] - zp[e, g, n])
 //
 // where row r of the gathered activations belongs to expert e. The rows are
 // sorted by expert, and offsets[e] is the exclusive end row of expert e. The
-// activations, their scales and their sums come from moe_3gemm_dyn_quan.cl.
+// activations and their scales come from moe_3gemm_dyn_quan.cl. The zero point
+// is subtracted while the weights are decoded: for a zero point in the u3 range
+// [0, 7], W - zp lies in [-7, 7], still an int4 DPAS operand.
 //
 // Weights are the plain [E, N, K] u3 tensor: each output channel is a
 // LSB-first bit stream of K values, so a run of 32 values (a granule) is exactly
@@ -52,11 +53,10 @@
          : (((U3_WORD(w0, w1, w2, U3_IDX(i)) >> U3_OFF(i)) |                        \
              (U3_WORD(w0, w1, w2, U3_IDX(i) + 1u) << (32u - U3_OFF(i)))) & 7u))
 
-// Four consecutive weights as a char4, without the zero point: it is applied
-// once per group through the activation sum.
-#define U3_CHAR4(w0, w1, w2, i)                                                     \
-    (char4)((char)U3_AT(w0, w1, w2, (i) + 0), (char)U3_AT(w0, w1, w2, (i) + 1),      \
-            (char)U3_AT(w0, w1, w2, (i) + 2), (char)U3_AT(w0, w1, w2, (i) + 3))
+// Four consecutive weights minus the zero point z (a char4) as a char4
+#define U3_CHAR4(w0, w1, w2, i, z)                                                  \
+    ((char4)((char)U3_AT(w0, w1, w2, (i) + 0), (char)U3_AT(w0, w1, w2, (i) + 1),     \
+             (char)U3_AT(w0, w1, w2, (i) + 2), (char)U3_AT(w0, w1, w2, (i) + 3)) - (z))
 
 // Eight consecutive u3 values (the low 24 bits of f; higher bits are ignored)
 // spread into the eight nibbles of an int: into 12-bit halves at bits 0 and 16,
@@ -79,15 +79,22 @@ inline int4 FUNC(u3_to_dpas_b4)(uint w0, uint w1, uint w2) {
                   FUNC_CALL(u3_spread8_nib)(w2 >> 8));
 }
 
+// Subtracts the zero point z in [0, 7] from each of the 32 nibbles of b (values in [0, 7]): with bit 3 set first, a
+// nibble holds v + 8 in [8, 15], and v + 8 - z in [1, 15] borrows nothing from its neighbor; clearing bit 3 again
+// subtracts 8 modulo 16, which leaves v - z as a signed int4.
+inline int4 FUNC(sub_zp_b4)(int4 b, uint z) {
+    return as_int4(((as_uint4(b) | 0x88888888u) - z * 0x11111111u) ^ 0x88888888u);
+}
+
 // Scale and zero point of expert e, output channel n, activation group g. Both
 // are [E, W_GROUPS_K, N] in memory; a scalar zero point is shared by all experts.
 #define WEI_SCALE(e, n, g) \
     ((float)scale[((e) * W_GROUPS_K + (g) * GROUP_SIZE / WEI_GROUP_SIZE) * N_SIZE + (n)])
 #if ZP_SCALAR
-#   define WEI_ZP(e, n, g) ((float)zp[0])
+#   define WEI_ZP(e, n, g) ((int)zp[0])
 #else
 #   define WEI_ZP(e, n, g) \
-        ((float)zp[((e) * W_GROUPS_K + (g) * GROUP_SIZE / WEI_GROUP_SIZE) * N_SIZE + (n)])
+        ((int)zp[((e) * W_GROUPS_K + (g) * GROUP_SIZE / WEI_GROUP_SIZE) * N_SIZE + (n)])
 #endif
 
 inline int FUNC(mad4)(char4 a, char4 b, int acc) {
@@ -109,7 +116,6 @@ __attribute__((reqd_work_group_size(SIMD, SG_COUNT, 1)))
 KERNEL(moe_int3_gemm)(
     const __global char* quantized_input,   // [rows, K]
     const __global half* a_scales,          // [rows, GROUPS_K]
-    const __global int* a_sums,             // [rows, GROUPS_K]
     const __global uint* weights,           // [E, N, K] u3
     const __global half* scale,             // [E, W_GROUPS_K, N]
     const __global ZP_TYPE* zp,             // [E, W_GROUPS_K, N] or [1]
@@ -141,27 +147,26 @@ KERNEL(moe_int3_gemm)(
     const __global uint* B = weights + ((size_t)expert * N_SIZE + n) * CHUNKS_K * GRANULE_UINTS;
     const __global uint* A = (const __global uint*)(quantized_input + (size_t)row * K_SIZE);
     const __global half* AS = a_scales + (size_t)row * GROUPS_K;
-    const __global int* AZ = a_sums + (size_t)row * GROUPS_K;
 
     float out = 0.0f;
     for (uint g = sg; g < GROUPS_K; g += SG_K) {
+        const char4 z = (char4)((char)WEI_ZP(expert, n, g));
         int acc = 0;
         unroll_for (uint cc = 0; cc < CHUNKS_PER_GROUP; ++cc) {
             const uint chunk = g * CHUNKS_PER_GROUP + cc;
             const uint3 w = vload3(chunk, B);
             const uint4 a0 = vload4(0, A + chunk * 8);
             const uint4 a1 = vload4(1, A + chunk * 8);
-            acc = FUNC_CALL(mad4)(as_char4(a0.s0), U3_CHAR4(w.s0, w.s1, w.s2, 0), acc);
-            acc = FUNC_CALL(mad4)(as_char4(a0.s1), U3_CHAR4(w.s0, w.s1, w.s2, 4), acc);
-            acc = FUNC_CALL(mad4)(as_char4(a0.s2), U3_CHAR4(w.s0, w.s1, w.s2, 8), acc);
-            acc = FUNC_CALL(mad4)(as_char4(a0.s3), U3_CHAR4(w.s0, w.s1, w.s2, 12), acc);
-            acc = FUNC_CALL(mad4)(as_char4(a1.s0), U3_CHAR4(w.s0, w.s1, w.s2, 16), acc);
-            acc = FUNC_CALL(mad4)(as_char4(a1.s1), U3_CHAR4(w.s0, w.s1, w.s2, 20), acc);
-            acc = FUNC_CALL(mad4)(as_char4(a1.s2), U3_CHAR4(w.s0, w.s1, w.s2, 24), acc);
-            acc = FUNC_CALL(mad4)(as_char4(a1.s3), U3_CHAR4(w.s0, w.s1, w.s2, 28), acc);
+            acc = FUNC_CALL(mad4)(as_char4(a0.s0), U3_CHAR4(w.s0, w.s1, w.s2, 0, z), acc);
+            acc = FUNC_CALL(mad4)(as_char4(a0.s1), U3_CHAR4(w.s0, w.s1, w.s2, 4, z), acc);
+            acc = FUNC_CALL(mad4)(as_char4(a0.s2), U3_CHAR4(w.s0, w.s1, w.s2, 8, z), acc);
+            acc = FUNC_CALL(mad4)(as_char4(a0.s3), U3_CHAR4(w.s0, w.s1, w.s2, 12, z), acc);
+            acc = FUNC_CALL(mad4)(as_char4(a1.s0), U3_CHAR4(w.s0, w.s1, w.s2, 16, z), acc);
+            acc = FUNC_CALL(mad4)(as_char4(a1.s1), U3_CHAR4(w.s0, w.s1, w.s2, 20, z), acc);
+            acc = FUNC_CALL(mad4)(as_char4(a1.s2), U3_CHAR4(w.s0, w.s1, w.s2, 24, z), acc);
+            acc = FUNC_CALL(mad4)(as_char4(a1.s3), U3_CHAR4(w.s0, w.s1, w.s2, 28, z), acc);
         }
-        const float part = (float)acc - WEI_ZP(expert, n, g) * (float)AZ[g];
-        out += part * (float)AS[g] * WEI_SCALE(expert, n, g);
+        out += (float)acc * (float)AS[g] * WEI_SCALE(expert, n, g);
     }
 
 #if SG_K > 1
@@ -181,8 +186,8 @@ KERNEL(moe_int3_gemm)(
     // NB 16-column blocks, so each activation load feeds NB DPAS. The activations
     // of a quantization group arrive through 2D block reads anchored at the
     // expert's first row: their layout is exactly the DPAS a operand, and rows past
-    // the expert read as zero. The weights are staged as 4-bit values for the int8
-    // x int4 DPAS (u3 values are valid signed int4) and shared by the SG_M
+    // the expert read as zero. The weights minus the zero point are staged as signed
+    // 4-bit values for the int8 x int4 DPAS and shared by the SG_M
     // subgroups through a triple-buffered SLM stage behind a split barrier: the
     // next group is staged and the barrier entered before the current group is
     // computed, and only waited on afterwards. A buffer is rewritten two groups
@@ -204,11 +209,8 @@ KERNEL(moe_int3_gemm)(
     const bool has_rows = (int)m0 < rows;
 
     const __global char* A = quantized_input + (size_t)row_begin * K_SIZE;
-    // Activation scales and sums of row m0 + lane
+    // Activation scales of row m0 + lane
     const size_t V = (size_t)(row_begin + min((int)(m0 + lane), rows - 1)) * GROUPS_K;
-#if ZP_SCALAR
-    const float zp_scalar = (float)zp[0];
-#endif
 
     float acc_f[NB][TILE_M];
     unroll_for (uint j = 0; j < NB; ++j)
@@ -217,6 +219,7 @@ KERNEL(moe_int3_gemm)(
 
     __local int4 wshare[3][GRAN_PER_GROUP][SIMD];
     uint3 raw[GRAN_PER_SG];
+    uint raw_zp[GRAN_PER_SG];
 
     // Granule i of this subgroup in group g: column block gidx / CHUNKS_PER_GROUP,
     // chunk gidx % CHUNKS_PER_GROUP; staged at SLM slot chunk * NB + block.
@@ -227,10 +230,12 @@ KERNEL(moe_int3_gemm)(
         const uint col = n0 + (GRAN_GIDX(i) / CHUNKS_PER_GROUP) * SIMD + lane;      \
         const __global uint* wp = weights + ((size_t)expert * N_SIZE + col) * CHUNKS_K * GRANULE_UINTS; \
         raw[i] = vload3((g_) * CHUNKS_PER_GROUP + GRAN_GIDX(i) % CHUNKS_PER_GROUP, wp); \
+        raw_zp[i] = (uint)WEI_ZP(expert, col, g_);                                  \
     }
 #define STAGE_RAW(b_)                                                               \
     unroll_for (uint i = 0; i < GRAN_PER_SG; ++i)                                   \
-        wshare[b_][GRAN_SLOT(i)][lane] = FUNC_CALL(u3_to_dpas_b4)(raw[i].s0, raw[i].s1, raw[i].s2);
+        wshare[b_][GRAN_SLOT(i)][lane] =                                            \
+            FUNC_CALL(sub_zp_b4)(FUNC_CALL(u3_to_dpas_b4)(raw[i].s0, raw[i].s1, raw[i].s2), raw_zp[i]);
 
     LOAD_RAW(0)
     STAGE_RAW(0)
@@ -251,18 +256,9 @@ KERNEL(moe_int3_gemm)(
 
         if (has_rows) {
             float bs[NB];
-#if !ZP_SCALAR
-            float bzp[NB];
-#endif
-            unroll_for (uint j = 0; j < NB; ++j) {
-                const uint col = n0 + j * SIMD + lane;
-                bs[j] = WEI_SCALE(expert, col, g);
-#if !ZP_SCALAR
-                bzp[j] = WEI_ZP(expert, col, g);
-#endif
-            }
+            unroll_for (uint j = 0; j < NB; ++j)
+                bs[j] = WEI_SCALE(expert, n0 + j * SIMD + lane, g);
             const float a_scale = (float)a_scales[V + g];
-            const float a_sum = (float)a_sums[V + g];
 
             ushort a_all[NH][32];
             unroll_for (uint h = 0; h < NH; ++h)
@@ -296,15 +292,8 @@ KERNEL(moe_int3_gemm)(
                 unroll_for (uint t = 0; t < 8; ++t) {
                     const uint r = mb * 8 + t;
                     const float as = sub_group_broadcast(a_scale, r);
-                    const float as_sum = as * sub_group_broadcast(a_sum, r);
-                    unroll_for (uint j = 0; j < NB; ++j) {
-#if ZP_SCALAR
-                        const float part = fma((float)acc[mb][j][t], as, -zp_scalar * as_sum);
-#else
-                        const float part = fma((float)acc[mb][j][t], as, -bzp[j] * as_sum);
-#endif
-                        acc_f[j][r] = fma(part, bs[j], acc_f[j][r]);
-                    }
+                    unroll_for (uint j = 0; j < NB; ++j)
+                        acc_f[j][r] = fma((float)acc[mb][j][t] * as, bs[j], acc_f[j][r]);
                 }
             }
         }
