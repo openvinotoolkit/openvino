@@ -35,7 +35,7 @@ namespace ov::pass {
  * Assign sinks.
  * The effective score scale is stored explicitly as a positive value in the paged op.
  *
- * Both dense and paged indexers always apply query RMSNorm followed by RoPE internally.
+ * Query normalization/rotation flags are preserved, so plugin compilation can absorb query preprocessing later.
  * The query and raw keys must have static head counts and f32, f16 or bf16 data.
  */
 class TRANSFORMATIONS_API PagedQSAIndexerFusion : public MatcherPass {
