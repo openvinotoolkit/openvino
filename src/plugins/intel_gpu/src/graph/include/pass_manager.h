@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "concatenation_inst.h"
+#include "condition_inst.h"
 #include "convolution_inst.h"
 #include "eltwise_inst.h"
 #include "intel_gpu/graph/program.hpp"
@@ -364,6 +365,14 @@ public:
         if (auto idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(*dep); idx != -1) {
             add_memory_dependency(node, &dep->get_dependency(idx));
             add_memory_dependency(&dep->get_dependency(idx), node);
+        }
+
+        // Condition may pass an input buffer through as its output at runtime (e.g. when the executed body is an identity)
+        if (dep->is_type<condition>()) {
+            for (auto* forwarded : dep->as<condition>().get_inputs_forwarded_to_outputs()) {
+                add_memory_dependency(node, forwarded);
+                add_memory_dependency(forwarded, node);
+            }
         }
 
         if ((!dep->can_be_optimized() || !dep->is_runtime_skippable()) &&
