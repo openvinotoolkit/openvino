@@ -22,6 +22,7 @@
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "serialization.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
+#include "weight_sharing_context_adapter.hpp"
 
 namespace {
 
@@ -120,8 +121,8 @@ protected:
 TEST(TransformationWeightContextIDMapperTest, RegistersUIDsInBothDirections) {
     TransformationWeightContextIDMapper mapper;
     for (const UID_Type uid : {UID_Type{0}, UID_Type{42}, std::numeric_limits<UID_Type>::max()}) {
-        const auto expected = std::make_pair(static_cast<ov::weight_sharing::DataID>(uid) + 1,
-                                             ov::weight_sharing::DataID{0});
+        const auto expected =
+            std::make_pair(static_cast<ov::weight_sharing::DataID>(uid) + 1, ov::weight_sharing::DataID{0});
         EXPECT_EQ(mapper.set_ov_context_ids(uid), expected);
         EXPECT_EQ(mapper.set_ov_context_ids(uid), expected);
         EXPECT_EQ(mapper.get_ov_context_ids(uid), expected);
@@ -132,8 +133,8 @@ TEST(TransformationWeightContextIDMapperTest, RegistersUIDsInBothDirections) {
 TEST(TransformationWeightContextIDMapperTest, GetsOrCreatesContextIDs) {
     TransformationWeightContextIDMapper mapper;
     for (const UID_Type uid : {UID_Type{0}, UID_Type{42}, std::numeric_limits<UID_Type>::max()}) {
-        const auto expected = std::make_pair(static_cast<ov::weight_sharing::DataID>(uid) + 1,
-                                             ov::weight_sharing::DataID{0});
+        const auto expected =
+            std::make_pair(static_cast<ov::weight_sharing::DataID>(uid) + 1, ov::weight_sharing::DataID{0});
         EXPECT_EQ(mapper.get_or_create_ov_context_ids(uid), std::make_tuple(false, expected));
         EXPECT_EQ(mapper.get_or_create_ov_context_ids(uid), std::make_tuple(true, expected));
         EXPECT_EQ(mapper.get_ov_context_ids(uid), expected);
@@ -163,8 +164,8 @@ TEST(TransformationWeightContextIDMapperTest, ConcurrentMappingAccess) {
     for (size_t worker = 0; worker < 8; ++worker) {
         workers.emplace_back([&mapper, worker] {
             for (UID_Type uid = 0; uid < 128; ++uid) {
-                const auto context_ids = std::make_pair(static_cast<ov::weight_sharing::DataID>(uid) + 1,
-                                                       ov::weight_sharing::DataID{0});
+                const auto context_ids =
+                    std::make_pair(static_cast<ov::weight_sharing::DataID>(uid) + 1, ov::weight_sharing::DataID{0});
                 if (worker % 2 == 0) {
                     EXPECT_EQ(mapper.set_ov_context_ids(uid), context_ids);
                 } else {
@@ -189,8 +190,8 @@ TEST(TransformationWeightContextIDMapperTest, ConcurrentGetOrCreateInsertsEachUI
             for (UID_Type uid = 0; uid < 128; ++uid) {
                 const auto [found, context_ids] = mapper.get_or_create_ov_context_ids(uid);
                 insertion_counts[worker] += !found;
-                const auto expected = std::make_pair(static_cast<ov::weight_sharing::DataID>(uid) + 1,
-                                                     ov::weight_sharing::DataID{0});
+                const auto expected =
+                    std::make_pair(static_cast<ov::weight_sharing::DataID>(uid) + 1, ov::weight_sharing::DataID{0});
                 EXPECT_EQ(context_ids, expected);
                 EXPECT_EQ(mapper.get_ov_context_ids(uid), expected);
                 EXPECT_EQ(mapper.get_transformation_uid(context_ids), uid);
