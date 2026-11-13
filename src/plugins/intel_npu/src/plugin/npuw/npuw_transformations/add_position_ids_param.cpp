@@ -91,31 +91,33 @@ public:
             //       from the left till the real current positions in the sequence (inclusively), while our current
             //       items are lied at the right end of the static `input_ids` after a whole window of padding. Thus,
             //       the Range should be preserved for Causal Mask creation.
-            auto& pattern_to_output = m.at(cos).front();
-
-            auto range_node = pattern_to_output.at(range).get_node_shared_ptr();
-            // Point of branching:
-            auto unsqueeze1_node = pattern_to_output.at(unsqueeze1).get_node_shared_ptr();
-            auto convert_node = pattern_to_output.at(convert).get_node_shared_ptr();
-
-            // Create `position_ids` parameter
+            //
+            // Hybrid models can have independent RoPE branches for full and sliding
+            // attention. Every branch must use actual positions rather than the
+            // static cache capacity. Share one parameter across all matched paths.
             auto [position_ids, position_ids_squeezed] = make_position_ids();
+            std::unordered_set<ov::Node*> handled_converts;
+            for (const auto& pattern_to_output : m.at(cos)) {
+                auto convert_node = pattern_to_output.at(convert).get_node_shared_ptr();
+                if (!handled_converts.insert(convert_node.get()).second) {
+                    continue;
+                }
+                auto range_node = pattern_to_output.at(range).get_node_shared_ptr();
+                auto unsqueeze1_node = pattern_to_output.at(unsqueeze1).get_node_shared_ptr();
 
-            // Create new Unsqueeze node for point of branching
-            auto unsqueeze1_node_copy =
-                unsqueeze1_node->clone_with_new_inputs({position_ids, unsqueeze1_node->input_value(1)});
-            convert_node->input(0).replace_source_output(unsqueeze1_node_copy->output(0));
+                // Clone only the RoPE side of the branch, preserving Range-based
+                // causal-mask indexing and each branch's inverse frequencies.
+                auto unsqueeze1_node_copy =
+                    unsqueeze1_node->clone_with_new_inputs({position_ids, unsqueeze1_node->input_value(1)});
+                convert_node->input(0).replace_source_output(unsqueeze1_node_copy->output(0));
 
-            // FIXME: For Gated Short Convolution Block, there is ScatterNDUpdate that also consumes generated
-            // positions in old IRs.
-            //        It seems to right to use the newly created `position_ids` for it as well, however, real tests show
-            //        no difference against usage of hardcoded QRange: both are similarly accurate.
-            OPENVINO_ASSERT(range_node->get_output_size() == 1, "Range node should have exactly one output");
-            auto range_consumers = range_node->get_output_target_inputs(0);
-            for (auto&& consumer : range_consumers) {
-                // Only the Clamp path is remained to rewire.
-                if (consumer.get_node()->get_type_name() == std::string("Clamp")) {
-                    consumer.replace_source_output(position_ids_squeezed->output(0));
+                // Preserve the existing rewrite of legacy short-convolution indexing.
+                OPENVINO_ASSERT(range_node->get_output_size() == 1, "Range node should have exactly one output");
+                auto range_consumers = range_node->get_output_target_inputs(0);
+                for (auto&& consumer : range_consumers) {
+                    if (consumer.get_node()->get_type_name() == std::string("Clamp")) {
+                        consumer.replace_source_output(position_ids_squeezed->output(0));
+                    }
                 }
             }
 
