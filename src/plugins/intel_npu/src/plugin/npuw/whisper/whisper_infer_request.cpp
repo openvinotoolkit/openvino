@@ -4,6 +4,7 @@
 
 #include "whisper_infer_request.hpp"
 
+#include <algorithm>
 #include <regex>
 
 #include "../../../utils/include/intel_npu/utils/zero/zero_remote_tensor.hpp"
@@ -33,20 +34,19 @@ void ov::npuw::WhisperInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_i
 
     prepare_for_new_conversation();
 
-    const auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
-    const auto prompt_length = input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
-    OPENVINO_ASSERT(prompt_length <= kvcache_desc.max_prompt_size,
-                    "Whisper prompt of length ",
-                    prompt_length,
-                    " is longer than the compiled prefill input (",
-                    kvcache_desc.max_prompt_size,
-                    "). Please shorten the prompt.");
-
     // NB: input_ids for whisper: [token, token, pad, pad]
     auto padded_input = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
+    auto padded_attention_mask = m_prefill_request->get_tensor(m_prefill_in_ports.at("attention_mask"));
+    // input_ids is dynamic, so compare the element count (not only the sequence length) with both buffers.
+    OPENVINO_ASSERT(
+        input_ids->get_size() <= padded_input->get_size() && input_ids->get_size() <= padded_attention_mask->get_size(),
+        "Whisper input_ids size (",
+        input_ids->get_size(),
+        ") is longer than the compiled prefill input (",
+        std::min(padded_input->get_size(), padded_attention_mask->get_size()),
+        "). Please shorten the prompt.");
     std::copy_n(input_ids->data<int64_t>(), input_ids->get_size(), padded_input->data<int64_t>());
 
-    auto padded_attention_mask = m_prefill_request->get_tensor(m_prefill_in_ports.at("attention_mask"));
     std::fill_n(padded_attention_mask->data<int64_t>(), input_ids->get_size(), 1u);
 
     auto encoder_hidden_states = m_prefill_request->get_tensor(m_prefill_in_ports.at("encoder_hidden_states"));

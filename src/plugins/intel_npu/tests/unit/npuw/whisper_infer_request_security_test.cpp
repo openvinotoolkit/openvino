@@ -128,6 +128,12 @@ ov::Tensor make_input_ids(size_t seq_len) {
     return tensor;
 }
 
+ov::Tensor make_batched_input_ids(size_t batch, size_t seq_len) {
+    ov::Tensor tensor(ov::element::i64, ov::Shape{batch, seq_len});
+    std::iota(tensor.data<int64_t>(), tensor.data<int64_t>() + tensor.get_size(), int64_t{1});
+    return tensor;
+}
+
 ov::Tensor make_encoder_hidden_states(size_t encoder_seq_len, size_t hidden_size) {
     ov::Tensor tensor(ov::element::f32, ov::Shape{1, encoder_seq_len, hidden_size});
     std::fill_n(tensor.data<float>(), tensor.get_size(), 0.f);
@@ -168,6 +174,14 @@ protected:
 TEST_F(WhisperInferRequestSecurityTest, OversizedPromptIsRejectedNotOverflowed) {
     constexpr size_t kOversizedPrompt = ov::npuw::LLMCompiledModel::whisper_max_prompt_size + 60;
     set_inputs(make_input_ids(kOversizedPrompt),
+               make_encoder_hidden_states(WhisperConfig{}.max_source_positions, kHiddenSize));
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(m_request->infer(), ov::Exception, "longer than the compiled prefill input");
+}
+
+TEST_F(WhisperInferRequestSecurityTest, BatchedPromptIsRejectedNotOverflowed) {
+    // Sequence length fits, but the total element count exceeds the static buffers.
+    set_inputs(make_batched_input_ids(2, ov::npuw::LLMCompiledModel::whisper_max_prompt_size),
                make_encoder_hidden_states(WhisperConfig{}.max_source_positions, kHiddenSize));
 
     OV_EXPECT_THROW_HAS_SUBSTRING(m_request->infer(), ov::Exception, "longer than the compiled prefill input");
