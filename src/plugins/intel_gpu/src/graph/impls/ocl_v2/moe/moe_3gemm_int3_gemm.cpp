@@ -25,7 +25,6 @@ size_t weight_input(size_t matrix) {
 }
 
 constexpr size_t ROW_SG_K = 4;
-constexpr size_t TILE_SG_M = 4;
 
 }  // namespace
 
@@ -41,7 +40,8 @@ MoE3GemmInt3Gemm::Shape MoE3GemmInt3Gemm::get_shape(const RuntimeParams& params,
 // Requirements shared by all moe_3gemm_int3_gemm kernels. They need SIMD16 DPAS and the 2D block reads of Xe2+, read
 // f16 scales, and take the zero point as u8/i8. The activations are quantized to int8, which is accurate enough for
 // zero-centered weights only, so the weights need a zero point. The tiled kernels consume an activation group as pairs
-// of 32-value chunks, which the 64- and 128-value groups of MoE3GemmDynQuan are.
+// of 32-value chunks, which the 64- and 128-value groups of MoE3GemmDynQuan are. Weight groups of a multiple of 64
+// values make hidden_size and inter_size, so K and N of both projections, multiples of 64 too.
 bool MoE3GemmInt3Gemm::is_supported(const RuntimeParams& params) {
     const auto& config = params.typed_desc<moe_3gemm_fused_compressed>()->_config;
     const auto& info = params.get_device_info();
@@ -64,7 +64,7 @@ bool MoE3GemmInt3Gemm::is_supported(const RuntimeParams& params) {
     }
     for (auto proj : {Projection::GATE_UP, Projection::DOWN}) {
         const auto shape = get_shape(params, proj);
-        if (shape.weight_group_size % 64 != 0 || shape.group_size % 64 != 0 || shape.n % 16 != 0) {
+        if (shape.weight_group_size % 64 != 0 || shape.group_size % 64 != 0) {
             return false;
         }
     }
@@ -73,15 +73,6 @@ bool MoE3GemmInt3Gemm::is_supported(const RuntimeParams& params) {
 
 size_t MoE3GemmInt3Gemm::get_row_sg_k(const Shape& shape) {
     return std::min(ROW_SG_K, shape.groups());
-}
-
-size_t MoE3GemmInt3Gemm::get_tile_nb(const Shape& shape) {
-    return shape.n % 32 == 0 ? 2 : 1;
-}
-
-// The subgroups split the 32-value granules of a quantization group (for all column blocks) between them
-size_t MoE3GemmInt3Gemm::get_tile_sg_m(const Shape& shape) {
-    return std::min(TILE_SG_M, get_tile_nb(shape) * shape.group_size / 32);
 }
 
 size_t MoE3GemmInt3Gemm::get_max_tiles(size_t num_experts, size_t rows) {
@@ -97,13 +88,12 @@ JitConstants MoE3GemmInt3Gemm::get_jit_constants(const RuntimeParams& params) co
     jit.make("N_SIZE", shape.n);
     jit.make("GROUP_SIZE", shape.group_size);
     jit.make("WEI_GROUP_SIZE", shape.weight_group_size);
-    jit.make("HAS_ZP", 1);
     jit.make("ZP_SCALAR", zp.count() == 1 ? 1 : 0);
     jit.make("ZP_TYPE", zp.data_type == ov::element::i8 ? "char" : "uchar");
     jit.make("SG_K", get_row_sg_k(shape));
-    jit.make("SG_M", get_tile_sg_m(shape));
-    jit.make("TILE_M", TILE_ROWS / get_tile_sg_m(shape));
-    jit.make("NB", get_tile_nb(shape));
+    jit.make("SG_M", TILE_SG_M);
+    jit.make("TILE_M", TILE_ROWS / TILE_SG_M);
+    jit.make("NB", TILE_NB);
     return jit;
 }
 
