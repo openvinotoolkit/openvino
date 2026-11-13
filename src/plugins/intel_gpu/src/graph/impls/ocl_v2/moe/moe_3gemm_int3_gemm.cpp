@@ -95,6 +95,21 @@ JitConstants MoE3GemmInt3Gemm::get_jit_constants(const RuntimeParams& params) co
     jit.make("SG_M", TILE_SG_M);
     jit.make("TILE_M", TILE_ROWS / TILE_SG_M);
     jit.make("NB", TILE_NB);
+    if (m_gate) {
+        jit.make("GATE_ACT_MUL", 1);
+        switch (params.typed_desc<moe_3gemm_fused_compressed>()->_config.activation_type) {
+        case ov::op::internal::MOE::Activation_type::SWIGLU:
+            break;
+        case ov::op::internal::MOE::Activation_type::GEGLU_TANH:
+            jit.make("GATE_ACT_GELU_TANH", 1);
+            break;
+        case ov::op::internal::MOE::Activation_type::GEGLU_ERF:
+            jit.make("GATE_ACT_GELU_ERF", 1);
+            break;
+        default:
+            OPENVINO_THROW("moe_3gemm_int3_gemm: unsupported gate activation ", static_cast<int>(params.typed_desc<moe_3gemm_fused_compressed>()->_config.activation_type));
+        }
+    }
     return jit;
 }
 

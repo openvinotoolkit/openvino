@@ -2106,7 +2106,7 @@ TEST_P(moe_3gemm_compressed_gpu_u3, moe_accuracy_test_u3) {
     // The int8 GEMMs need Xe2+, a zero point, weight groups of a multiple of 64 values and dynamic quantization
     const bool int8_gemm = !expect_gemv && engine.get_device_info().arch >= gpu_arch::xe2 && param.has_zp && param.group_size % 64 == 0 &&
                            (param.dyn_quan == U3DynQuan::allowed || param.dyn_quan == U3DynQuan::group_size_64);
-    for (const char* kernel_name : {"moe_3gemm_dyn_quan_quantize", "moe_3gemm_dyn_quan_quantize_swiglu", "moe_3gemm_dyn_quan_gather"}) {
+    for (const char* kernel_name : {"moe_3gemm_dyn_quan_quantize_gate_up", "moe_3gemm_dyn_quan_quantize_down", "moe_gather_ref_prefill_gather_i8", "moe_3gemm_int3_gemm_gate"}) {
         ASSERT_EQ(executed_kernels.find(kernel_name) != std::string::npos, int8_gemm) << kernel_name << ", executed kernels: " << executed_kernels;
     }
 

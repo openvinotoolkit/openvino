@@ -185,10 +185,9 @@ static size_t get_seq_len(cldnn::layout& layout) {
     return seq_len;
 }
 
-static size_t get_vec_size(const RuntimeParams& params) {
-    const auto& input = params.get_input_layout(0);
+static size_t get_vec_size(ov::element::Type data_type) {
     size_t vec_size = 1;
-    switch (input.data_type) {
+    switch (data_type) {
     case ov::element::i8:
     case ov::element::u8:
         vec_size = 16;
@@ -208,6 +207,10 @@ static size_t get_vec_size(const RuntimeParams& params) {
         break;
     }
     return vec_size;
+}
+
+static size_t get_vec_size(const RuntimeParams& params) {
+    return get_vec_size(params.get_input_layout(0).data_type);
 }
 
 static auto calc_thread_count(RuntimeParams& params, const size_t vector_size, const size_t hidden_size) {
@@ -232,14 +235,32 @@ static auto calc_thread_count(RuntimeParams& params, const size_t vector_size, c
 
     return std::tuple{local_threads_needed, batches_per_thread, unaligned_elements};
 }
+// Rows a gather copies into the expert-sorted order: the f16 hidden states, or with dynamic quantization the int8 hidden
+// states and their per-group scales (MoE3GemmDynQuan)
+enum class MoeGatherRows : uint8_t { hidden_states, quantized_hidden_states, quantized_scales };
+
 class MoE3GemmSwigluPrefillGather : public KernelGenerator {
 public:
-    explicit MoE3GemmSwigluPrefillGather(bool use_grouped_gemm = false)
-        : KernelGenerator("moe_gather_ref", "prefill_gather"),
-          m_use_grouped_gemm(use_grouped_gemm) {}
+    explicit MoE3GemmSwigluPrefillGather(bool use_grouped_gemm = false, MoeGatherRows rows = MoeGatherRows::hidden_states)
+        : KernelGenerator("moe_gather_ref",
+                          rows == MoeGatherRows::hidden_states             ? "prefill_gather"
+                          : rows == MoeGatherRows::quantized_hidden_states ? "prefill_gather_i8"
+                                                                           : "prefill_gather_scales"),
+          m_use_grouped_gemm(use_grouped_gemm),
+          m_rows(rows) {}
+
+    static ov::element::Type get_data_type(MoeGatherRows rows) {
+        return rows == MoeGatherRows::quantized_hidden_states ? ov::element::i8 : ov::element::f16;
+    }
+
+    static size_t get_row_size(const RuntimeParams& params, MoeGatherRows rows) {
+        const auto hidden_size = params.typed_desc<moe_3gemm_fused_compressed>()->_config.hidden_size;
+        return rows == MoeGatherRows::quantized_scales ? MoE3GemmDynQuan::get_shape(params, MoE3GemmDynQuan::Projection::GATE_UP).groups() : hidden_size;
+    }
 
 protected:
     bool m_use_grouped_gemm;
+    MoeGatherRows m_rows;
 
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
@@ -247,12 +268,9 @@ protected:
         for (const auto* name : {"INPUT0_TYPE", "INPUT1_TYPE", "OUTPUT_TYPE", "OPTIONAL_SHAPE_INFO_ARG"}) {
             jit.remove(name);
         }
-        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
-        // auto& engine = params.prog->get_engine();
-        // const auto& info = engine.get_device_info();
-
-        auto hidden_size = desc->_config.hidden_size;
-        auto block_size = get_vec_size(params);
+        const auto data_type = get_data_type(m_rows);
+        const auto hidden_size = get_row_size(params, m_rows);
+        auto block_size = get_vec_size(data_type);
         auto [local_threads_count, batches_per_thread, unaligned_elements] = calc_thread_count(const_cast<RuntimeParams&>(params), block_size, hidden_size);
 
         jit.make("HIDDEN_SIZE", hidden_size);
@@ -260,9 +278,10 @@ protected:
         jit.make("BATCHES_PER_THREAD", batches_per_thread);
         jit.make("UNALIGNED_ELEMENTS", unaligned_elements);
 
-        jit.make("INPUT0_TYPE", "half");
+        const char* type_name = data_type == ov::element::i8 ? "char" : "half";
+        jit.make("INPUT0_TYPE", type_name);
         jit.make("INPUT1_TYPE", "int");
-        jit.make("OUTPUT_TYPE", "half");
+        jit.make("OUTPUT_TYPE", type_name);
         jit.make("OPTIONAL_SHAPE_INFO_ARG", "");
         if (m_use_grouped_gemm) {
             jit.make("ONEDNN_GROUPED_GEMM_USED", 1);
@@ -690,11 +709,14 @@ public:
     Stage::Ptr int3_gemv_gate_up = make_stage<MoE3GemmInt3Gemv>(MoE3GemmInt3Gemv::Projection::GATE_UP);
     Stage::Ptr int3_gemv_down = make_stage<MoE3GemmInt3Gemv>(MoE3GemmInt3Gemv::Projection::DOWN);
     // Dynamic quantization of the grouped GEMM path activations, and the u3 expert GEMMs on them
-    Stage::Ptr dyn_quan_quantize = make_stage<MoE3GemmDynQuanQuantize>(/*swiglu=*/false);
-    Stage::Ptr dyn_quan_quantize_swiglu = make_stage<MoE3GemmDynQuanQuantize>(/*swiglu=*/true);
-    Stage::Ptr dyn_quan_gather = make_stage<MoE3GemmDynQuanGather>();
-    Stage::Ptr int3_gate_up_row = make_stage<MoE3GemmInt3Gemm>(MoE3GemmInt3Gemm::Projection::GATE_UP, /*row_mode=*/true);
-    Stage::Ptr int3_gate_up_tiled = make_stage<MoE3GemmInt3Gemm>(MoE3GemmInt3Gemm::Projection::GATE_UP, /*row_mode=*/false);
+    Stage::Ptr dyn_quan_quantize_gate_up = make_stage<MoE3GemmDynQuanQuantize>(MoE3GemmDynQuan::Projection::GATE_UP);
+    Stage::Ptr dyn_quan_quantize_down = make_stage<MoE3GemmDynQuanQuantize>(MoE3GemmDynQuan::Projection::DOWN);
+    Stage::Ptr dyn_quan_gather_quantized = make_stage<MoE3GemmSwigluPrefillGather>(/*use_grouped_gemm=*/true, MoeGatherRows::quantized_hidden_states);
+    Stage::Ptr dyn_quan_gather_scales = make_stage<MoE3GemmSwigluPrefillGather>(/*use_grouped_gemm=*/true, MoeGatherRows::quantized_scales);
+    Stage::Ptr int3_up_row = make_stage<MoE3GemmInt3Gemm>(MoE3GemmInt3Gemm::Projection::GATE_UP, /*row_mode=*/true);
+    Stage::Ptr int3_up_tiled = make_stage<MoE3GemmInt3Gemm>(MoE3GemmInt3Gemm::Projection::GATE_UP, /*row_mode=*/false);
+    Stage::Ptr int3_gate_row = make_stage<MoE3GemmInt3Gemm>(MoE3GemmInt3Gemm::Projection::GATE_UP, /*row_mode=*/true, /*gate=*/true);
+    Stage::Ptr int3_gate_tiled = make_stage<MoE3GemmInt3Gemm>(MoE3GemmInt3Gemm::Projection::GATE_UP, /*row_mode=*/false, /*gate=*/true);
     Stage::Ptr int3_down_row = make_stage<MoE3GemmInt3Gemm>(MoE3GemmInt3Gemm::Projection::DOWN, /*row_mode=*/true);
     Stage::Ptr int3_down_tiled = make_stage<MoE3GemmInt3Gemm>(MoE3GemmInt3Gemm::Projection::DOWN, /*row_mode=*/false);
 
@@ -1264,13 +1286,16 @@ public:
             add_stage(grouped_gemm_prefill_swiglu, params);
             add_stage(prefill_scatter_reduce_row_lut, params);
             if (uses_dyn_quan()) {
-                add_stage(dyn_quan_quantize, params);
-                add_stage(dyn_quan_quantize_swiglu, params);
-                add_stage(dyn_quan_gather, params);
+                add_stage(dyn_quan_quantize_gate_up, params);
+                add_stage(dyn_quan_quantize_down, params);
+                add_stage(dyn_quan_gather_quantized, params);
+                add_stage(dyn_quan_gather_scales, params);
             }
             if (uses_int3_gemm()) {
-                add_stage(int3_gate_up_row, params);
-                add_stage(int3_gate_up_tiled, params);
+                add_stage(int3_up_row, params);
+                add_stage(int3_up_tiled, params);
+                add_stage(int3_gate_row, params);
+                add_stage(int3_gate_tiled, params);
                 add_stage(int3_down_row, params);
                 add_stage(int3_down_tiled, params);
             }
@@ -2514,8 +2539,7 @@ public:
     // Cache key is total_tokens and dyn_quan only — the per-request max_tokens_per_expert
     // dispatch hint is passed as a runtime argument (DNNL_ARG_HINT_MAX_GROUP_SIZE)
     // at execute() time, so no recompilation is needed when it changes.
-    // dyn_quan: the src is int8 with per-group scales (MoE3GemmDynQuan), and act(gate) * up is fused into the
-    // quantization of the down input instead of the gate post-ops.
+    // dyn_quan: the src is int8 with per-group scales (MoE3GemmDynQuan).
     grouped_onednn_kernel& get_grouped_kernel(int total_tokens, bool dyn_quan, typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
         auto key = dyn_quan ? -total_tokens : total_tokens;
         if (_grouped_kernels.has(key)) {
@@ -2623,10 +2647,7 @@ public:
         // Gate GEMM with fused eltwise(swish/gelu) + binary_mul(up_output) post-ops.
         // This eliminates the separate grouped_gemm_prefill_swiglu OCL kernel.
         // Execution order: up GEMM first, then gate GEMM with post-ops consuming up output.
-        if (dyn_quan) {
-            gk->gate_pd = make_pd(K_gu, N_gu, _gate_up_group_size, gw_dt, 0, dnnl::post_ops());
-            gk->gate_prim = dnnl::matmul(gk->gate_pd);
-        } else {
+        {
             // Post-ops: eltwise(activation) + binary_mul(up_output as grouped tensor)
             dnnl::post_ops gate_po;
             auto activation_algo = moe_activation_to_dnnl_algo(_activation_type);
@@ -2800,9 +2821,10 @@ public:
     //
     // Note: "total" = token_num * max_topk, sorted by expert assignment.
     //
-    // With MoeGemmImpl::int3_grouped_gemm, the gather, the grouped matmuls and the SiLU run on the
-    // MoE3GemmDynQuan and moe_3gemm_int3_gemm kernels instead (exec_int3_grouped_gemm): the activations
-    // are quantized to int8, and the SiLU is fused into the quantization of the down projection input.
+    // With dynamic quantization, the gate/up input is quantized to int8 once per token and its values and scales
+    // gathered, and act(gate) * up quantized before down (MoE3GemmDynQuan). MoeGemmImpl::int3_grouped_gemm runs
+    // the moe_3gemm_int3_gemm kernels instead of the grouped matmuls (exec_int3_grouped_gemm), with the SiLU in the
+    // gate GEMM's epilogue.
     //
     cldnn::event::ptr exec_grouped_gemm_cpu_mask_gen(const std::vector<cldnn::event::ptr>& events,
                                                      cldnn::stream& stream,
@@ -2949,25 +2971,48 @@ public:
         return {intermediates_memories[MOE_INTERNAL_BUFFER_GATE_UP_INPUT], intermediates_memories[MOE_INTERNAL_BUFFER_QUANTIZED_SCALES]};
     }
 
+    // The single quantization call site of both projections: input [rows, K] f16 to outputs (int8 [rows, K] and the
+    // [rows, groups] scales)
     cldnn::event::ptr exec_dyn_quan_quantize(cldnn::event::ptr ret_event,
                                              typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
-                                             Stage& stage,
-                                             std::vector<memory::ptr> inputs,
+                                             MoE3GemmDynQuan::Projection proj,
+                                             const memory::ptr& input,
                                              const dyn_quan_rows& outputs,
-                                             size_t rows,
-                                             MoE3GemmDynQuan::Projection proj) const {
+                                             size_t rows) const {
         constexpr size_t simd = MoE3GemmDynQuan::SIMD;
         const size_t groups = rows * dyn_quan_shape(proj).groups();
         return execute_stage({ret_event},
                              instance,
-                             stage,
-                             std::move(inputs),
+                             proj == MoE3GemmDynQuan::Projection::DOWN ? *dyn_quan_quantize_down : *dyn_quan_quantize_gate_up,
+                             {input},
                              {outputs.quantized, outputs.scales},
                              {groups * simd, 1, 1},
                              {simd, 1, 1});
     }
 
-    // Gate/up input: the hidden states quantized once per token, then gathered into their rows sorted by expert
+    // moe_gather_ref: copies the token row of each gathered row into output, rows sorted by expert
+    cldnn::event::ptr exec_prefill_gather(cldnn::event::ptr ret_event,
+                                          typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
+                                          Stage& stage,
+                                          MoeGatherRows rows,
+                                          const memory::ptr& input,
+                                          const memory::ptr& output,
+                                          int total_rows) const {
+        auto& params = const_cast<RuntimeParams&>(*instance.get_impl_params());
+        const auto block_size = get_vec_size(MoE3GemmSwigluPrefillGather::get_data_type(rows));
+        auto [local_threads_count, batches_per_thread, unaligned_elements] =
+            calc_thread_count(params, block_size, MoE3GemmSwigluPrefillGather::get_row_size(params, rows));
+        return execute_stage({ret_event},
+                             instance,
+                             stage,
+                             {input, instance.get_intermediates_memories()[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT]},
+                             {output},
+                             {static_cast<size_t>(total_rows) * local_threads_count, 1, 1},
+                             {local_threads_count, 1, 1});
+    }
+
+    // Gate/up input: the hidden states quantized once per token, then their int8 values and scales gathered into the
+    // rows sorted by expert
     cldnn::event::ptr exec_dyn_quan_gate_up_input(cldnn::event::ptr ret_event, typed_primitive_inst<moe_3gemm_fused_compressed>& instance, int total_rows) {
         const auto& intermediates_memories = instance.get_intermediates_memories();
         auto hidden_states_layout = instance.get_impl_params()->input_layouts[static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES)];
@@ -2975,34 +3020,32 @@ public:
         const dyn_quan_rows tokens{intermediates_memories[MOE_INTERNAL_BUFFER_DOWN_OUTPUT], intermediates_memories[MOE_INTERNAL_BUFFER_QUANTIZED_TOKEN_SCALES]};
         ret_event = exec_dyn_quan_quantize(ret_event,
                                            instance,
-                                           *dyn_quan_quantize,
-                                           {instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES))},
+                                           MoE3GemmDynQuan::Projection::GATE_UP,
+                                           instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES)),
                                            tokens,
-                                           token_num,
-                                           MoE3GemmDynQuan::Projection::GATE_UP);
+                                           token_num);
         const auto rows = get_dyn_quan_rows(instance);
-        const size_t items = MoE3GemmDynQuan::get_gather_items(dyn_quan_shape(MoE3GemmDynQuan::Projection::GATE_UP));
-        return execute_stage({ret_event},
-                             instance,
-                             *dyn_quan_gather,
-                             {tokens.quantized, tokens.scales, intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT]},
-                             {rows.quantized, rows.scales},
-                             {items, static_cast<size_t>(total_rows), 1},
-                             {items, 1, 1});
+        ret_event = exec_prefill_gather(ret_event,
+                                        instance,
+                                        *dyn_quan_gather_quantized,
+                                        MoeGatherRows::quantized_hidden_states,
+                                        tokens.quantized,
+                                        rows.quantized,
+                                        total_rows);
+        return exec_prefill_gather(ret_event, instance, *dyn_quan_gather_scales, MoeGatherRows::quantized_scales, tokens.scales, rows.scales, total_rows);
     }
 
-    // Down input: act(gate) * up of the gathered rows
+    // Down input: act(gate) * up of the gathered rows, which the gate GEMM wrote to scratch.gate
     cldnn::event::ptr exec_dyn_quan_down_input(cldnn::event::ptr ret_event,
                                                typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                                                scratch_buffers& scratch,
                                                int total_rows) {
         return exec_dyn_quan_quantize(ret_event,
                                       instance,
-                                      *dyn_quan_quantize_swiglu,
-                                      {scratch.up, scratch.gate},
+                                      MoE3GemmDynQuan::Projection::DOWN,
+                                      scratch.gate,
                                       get_dyn_quan_rows(instance),
-                                      static_cast<size_t>(total_rows),
-                                      MoE3GemmDynQuan::Projection::DOWN);
+                                      static_cast<size_t>(total_rows));
     }
 
     // Steps 2-5 on the dynamically quantized activations and the u3 GEMMs. Rows are sorted by expert, with the end
@@ -3023,15 +3066,19 @@ public:
         const auto& wei = scratch.moe_fusion_wei_addr;
         const bool row_mode = max_rows_per_expert <= MoE3GemmInt3Gemm::ROW_MODE_MAX_ROWS;
 
-        const auto gemm = [&](Projection proj, int w, memory::ptr output) {
+        // w: weight index (gate, up, down). The gate GEMM reads the up output for its act(gate) * up epilogue.
+        const auto gemm = [&](int w, memory::ptr output) {
+            const auto proj = w == 2 ? Projection::DOWN : Projection::GATE_UP;
             const auto& shape = int3_gemm_shape(proj);
-            const bool down = proj == Projection::DOWN;
             std::vector<memory::ptr> inputs{rows.quantized, rows.scales, wei.weight[w], wei.scale[w], wei.zp[w], offsets};
             if (row_mode) {
                 const size_t sg_k = MoE3GemmInt3Gemm::get_row_sg_k(shape);
+                if (w == 0) {
+                    inputs.push_back(scratch.up);
+                }
                 ret_event = execute_stage({ret_event},
                                           instance,
-                                          down ? *int3_down_row : *int3_gate_up_row,
+                                          w == 0 ? *int3_gate_row : (w == 1 ? *int3_up_row : *int3_down_row),
                                           inputs,
                                           {output},
                                           {shape.n, sg_k, static_cast<size_t>(total_rows)},
@@ -3040,10 +3087,13 @@ public:
                                           {num_experts});
             } else {
                 inputs.push_back(intermediates_memories[MOE_INTERNAL_BUFFER_INT3_TILES]);
+                if (w == 0) {
+                    inputs.push_back(scratch.up);
+                }
                 constexpr size_t sg_m = MoE3GemmInt3Gemm::TILE_SG_M;
                 ret_event = execute_stage({ret_event},
                                           instance,
-                                          down ? *int3_down_tiled : *int3_gate_up_tiled,
+                                          w == 0 ? *int3_gate_tiled : (w == 1 ? *int3_up_tiled : *int3_down_tiled),
                                           inputs,
                                           {output},
                                           {shape.n / MoE3GemmInt3Gemm::TILE_NB, tile_count * sg_m, 1},
@@ -3054,10 +3104,10 @@ public:
         };
 
         ret_event = exec_dyn_quan_gate_up_input(ret_event, instance, total_rows);
-        gemm(Projection::GATE_UP, 0, scratch.gate);
-        gemm(Projection::GATE_UP, 1, scratch.up);
+        gemm(1, scratch.up);
+        gemm(0, scratch.gate);
         ret_event = exec_dyn_quan_down_input(ret_event, instance, scratch, total_rows);
-        gemm(Projection::DOWN, 2, scratch.y);
+        gemm(2, scratch.y);
         return ret_event;
     }
 
@@ -3106,7 +3156,7 @@ public:
     }
 
     // Steps 2-5 on OneDNN grouped GEMM: gather, gate, up, SiLU, down. With MoeGemmImpl::grouped_gemm_dyn_quan the
-    // gather and the SiLU are those of MoE3GemmDynQuan, which quantize the gate/up and the down inputs to int8.
+    // gate/up and the down inputs are quantized to int8 by MoE3GemmDynQuan.
     cldnn::event::ptr exec_onednn_grouped_gemm(cldnn::event::ptr ret_event,
                                                cldnn::stream& stream,
                                                typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
@@ -3124,19 +3174,13 @@ public:
         if (dyn_quan) {
             ret_event = exec_dyn_quan_gate_up_input(ret_event, instance, total_gathered_tokens);
         } else {
-            auto hidden_size = _hidden_size;
-            auto block_size = get_vec_size(*instance.get_impl_params());
-            auto [local_threads_count, batches_per_thread, unaligned_elements] =
-                calc_thread_count(const_cast<RuntimeParams&>(*instance.get_impl_params()), block_size, hidden_size);
-
-            ret_event = execute_stage({ret_event},
-                                      instance,
-                                      *grouped_gemm_prefill_gather,
-                                      {instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES)),
-                                       intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT]},
-                                      {scratch.x},
-                                      {static_cast<size_t>(total_gathered_tokens) * local_threads_count, 1, 1},
-                                      {local_threads_count, 1, 1});
+            ret_event = exec_prefill_gather(ret_event,
+                                            instance,
+                                            *grouped_gemm_prefill_gather,
+                                            MoeGatherRows::hidden_states,
+                                            instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES)),
+                                            scratch.x,
+                                            total_gathered_tokens);
         }
 
         // In OTD mode, ensure gather OCL kernel completes before OneDNN reads scratch.x.
@@ -3217,7 +3261,7 @@ public:
                       scratch.gate,
                       gk.gate_scale_md,
                       gk.gate_zp_md,
-                      nullptr,
+                      scratch.up,
                       rows.scales,
                       gk.gate_up_src_scale_md);
             on_after_grouped_gemm(stream);
