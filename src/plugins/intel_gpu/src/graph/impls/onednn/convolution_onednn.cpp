@@ -172,12 +172,13 @@ protected:
         if (instance.activations_zero_points_term()) {
             auto a_zp = instance.activations_zero_points_memory();
 
-            // In the case of dynamic model, if choose_impl was executed in runtime,
-            // a_zp could be remained as u8 or i8.
+            // oneDNN takes s32 zero points. create() converts the zero points of the node it is called for, but the
+            // impl may be a clone from the implementations cache, created for another node with equal params.
             if (a_zp->get_layout().data_type != data_types::i32) {
-                const auto& conv_node = instance.get_node().as<convolution>();
-                auto& a_zp_node = conv_node.activations_zero_points().as<data>();
-                a_zp = a_zp_node.get_attached_memory_ptr();
+                if (!instance.activations_zero_points_s32_memory()) {
+                    instance.set_activations_zero_points_s32_memory(onednn::convert_zp_data_to_s32(a_zp));
+                }
+                a_zp = instance.activations_zero_points_s32_memory();
             }
 
             dnnl::memory::desc desc = onednn::layout_to_memory_desc_flatten(a_zp->get_layout(), dnnl::memory::format_tag::a);
