@@ -372,7 +372,10 @@ void* gpu_usm::lock_impl(const stream& stream, mem_lock_type type) {
     if (0 == _lock_count) {
         auto& _ze_stream = downcast<const ze_stream>(stream);
         auto alloc_type = get_allocation_type();
-        if (alloc_type == allocation_type::usm_device || alloc_type == allocation_type::cl_mem) {
+        const bool is_device_mem = alloc_type == allocation_type::usm_device || alloc_type == allocation_type::cl_mem;
+        if (is_device_mem && _bytes_count == 0) {
+            _mapped_ptr = nullptr;
+        } else if (is_device_mem) {
             GPU_DEBUG_LOG << "Copy usm_device buffer to host buffer." << std::endl;
             auto *zero_engine = downcast<ze_engine>(_engine);
             _host_buffer = allocate_usm_host(zero_engine->get_context(), _bytes_count);
@@ -429,6 +432,10 @@ void* gpu_usm::buffer_ptr() const {
 }
 
 event::ptr gpu_usm::fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events, bool blocking) {
+    if (_bytes_count == 0) {
+        return create_event(stream, _bytes_count);
+    }
+
     auto& _ze_stream = downcast<ze_stream>(stream);
     auto ev = _ze_stream.create_base_event();
     auto ev_ze = downcast<ze::ze_base_event>(ev.get())->get_handle();

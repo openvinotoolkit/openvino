@@ -54,6 +54,46 @@ TEST(engine, memory_creation) {
     ASSERT_EQ(std::dynamic_pointer_cast<simple_attached_memory>(mem)->lock(get_test_stream(), mem_lock_type::read), host_data.data());
 }
 
+TEST(engine, zero_size_memory_creation) {
+    auto& engine = get_test_engine();
+    auto& stream = get_test_stream();
+    const layout zero_layout = {ov::PartialShape{1, 0, 2}, data_types::f32, format::bfyx};
+
+    std::vector<allocation_type> alloc_types = {allocation_type::cl_mem};
+    for (auto type : {allocation_type::usm_host, allocation_type::usm_device}) {
+        if (engine.supports_allocation(type))
+            alloc_types.push_back(type);
+    }
+
+    for (auto type : alloc_types) {
+        SCOPED_TRACE(type);
+        memory::ptr mem0 = nullptr;
+        memory::ptr mem1 = nullptr;
+        OV_ASSERT_NO_THROW(mem0 = engine.allocate_memory(zero_layout, type));
+        OV_ASSERT_NO_THROW(mem1 = engine.allocate_memory(zero_layout, type));
+        ASSERT_EQ(mem0->get_layout(), zero_layout);
+        ASSERT_EQ(mem0->size(), 0u);
+        ASSERT_EQ(mem0->get_allocation_type(), type);
+
+        // Empty allocations must still get distinct backing buffers
+        ASSERT_NE(mem0->get_internal_params().mem, nullptr);
+        ASSERT_NE(mem0->get_internal_params().mem, mem1->get_internal_params().mem);
+
+        OV_ASSERT_NO_THROW(mem0->fill(stream));
+        OV_ASSERT_NO_THROW((mem_lock<uint8_t, mem_lock_type::read_write>(mem0, stream)));
+    }
+}
+
+TEST(engine, zero_size_reinterpreted_cl_mem_lock) {
+    auto& engine = get_test_engine();
+    auto& stream = get_test_stream();
+    auto mem = engine.allocate_memory({ov::PartialShape{1, 1, 2}, data_types::f32, format::bfyx}, allocation_type::cl_mem);
+    auto zero_mem = engine.reinterpret_buffer(*mem, {ov::PartialShape{1, 0, 2}, data_types::f32, format::bfyx});
+
+    ASSERT_EQ(zero_mem->size(), 0u);
+    OV_ASSERT_NO_THROW((mem_lock<uint8_t, mem_lock_type::read>(zero_mem, stream)));
+}
+
 TEST(engine, large_allocation) {
     // This test is used for manual testing only.
     GTEST_SKIP();
