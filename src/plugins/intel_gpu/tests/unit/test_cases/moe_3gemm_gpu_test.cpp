@@ -2137,7 +2137,8 @@ TEST_P(moe_3gemm_compressed_gpu_u3, moe_accuracy_test_u3) {
     const auto executed_kernels = moe_inst->get_impl()->get_kernels_dump_info(*moe_inst->get_impl_params()).get_entries();
     // Threshold 0 selects the per-device default, which is at least 2 tokens
     const size_t threshold = param.batched_gemv_threshold != 0 ? param.batched_gemv_threshold : 2;
-    const bool expect_gemv = param.seq_len <= threshold;
+    // The batched GEMV takes K of a multiple of 512 values; otherwise decode runs the prefill kernels
+    const bool expect_gemv = param.seq_len <= threshold && param.hidden_size % 512 == 0 && param.inter_size % 512 == 0;
     for (const char* kernel_name : {"moe_3gemm_int3_gemv_gate_up", "moe_3gemm_int3_gemv_down"}) {
         ASSERT_EQ(executed_kernels.find(kernel_name) != std::string::npos, expect_gemv) << kernel_name << ", executed kernels: " << executed_kernels;
     }
@@ -2169,8 +2170,9 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                              // decode: batched GEMV, one and several tokens
                              Moe3GemmU3TestParams{1, 512, 512, 8, 2, 128},
                              Moe3GemmU3TestParams{8, 512, 512, 8, 2, 128},
-                             // prefill with at most 4 rows per expert: per-row int8 GEMM
+                             // a few rows per expert, and single-token decode on the int8 GEMMs (K = 576: no batched GEMV)
                              Moe3GemmU3TestParams{4, 512, 512, 8, 2, 128, 1},
+                             Moe3GemmU3TestParams{1, 576, 512, 8, 2, 64},
                              // prefill: tiled int8 GEMM with one partial tile per expert, and with several tiles
                              Moe3GemmU3TestParams{40, 512, 512, 4, 2, 128},
                              Moe3GemmU3TestParams{200, 512, 1024, 4, 2, 128},

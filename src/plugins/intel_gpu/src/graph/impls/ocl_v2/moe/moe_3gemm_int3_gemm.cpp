@@ -24,8 +24,6 @@ size_t weight_input(size_t matrix) {
     return static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0) + matrix * INPUTS_PER_MATRIX;
 }
 
-constexpr size_t ROW_SG_K = 4;
-
 }  // namespace
 
 MoE3GemmInt3Gemm::Shape MoE3GemmInt3Gemm::get_shape(const RuntimeParams& params, Projection proj) {
@@ -72,10 +70,6 @@ bool MoE3GemmInt3Gemm::is_supported(const RuntimeParams& params) {
     return true;
 }
 
-size_t MoE3GemmInt3Gemm::get_row_sg_k(const Shape& shape) {
-    return std::min(ROW_SG_K, shape.groups());
-}
-
 size_t MoE3GemmInt3Gemm::get_max_tiles(size_t num_experts, size_t rows) {
     return std::min(num_experts, rows) + rows / TILE_ROWS;
 }
@@ -84,14 +78,12 @@ JitConstants MoE3GemmInt3Gemm::get_jit_constants(const RuntimeParams& params) co
     auto jit = KernelGenerator::get_jit_constants(params);
     const auto shape = get_shape(params, m_proj);
     const auto& zp = params.get_input_layout(weight_input(m_proj == Projection::DOWN ? 2 : 0) + 2);
-    jit.make("ROW_MODE", m_row_mode ? 1 : 0);
     jit.make("K_SIZE", shape.k);
     jit.make("N_SIZE", shape.n);
     jit.make("GROUP_SIZE", shape.group_size);
     jit.make("WEI_GROUP_SIZE", shape.weight_group_size);
     jit.make("ZP_SCALAR", zp.count() == 1 ? 1 : 0);
     jit.make("ZP_TYPE", zp.data_type == ov::element::i8 ? "char" : "uchar");
-    jit.make("SG_K", get_row_sg_k(shape));
     jit.make("SG_M", TILE_SG_M);
     jit.make("TILE_M", TILE_ROWS / TILE_SG_M);
     jit.make("NB", TILE_NB);
@@ -113,13 +105,9 @@ JitConstants MoE3GemmInt3Gemm::get_jit_constants(const RuntimeParams& params) co
     return jit;
 }
 
-// The expert mode tiles of TILE_M rows x NB column blocks need 256 registers per thread
+// The tiles of TILE_M rows x NB column blocks need 256 registers per thread
 std::string MoE3GemmInt3Gemm::get_build_options(const RuntimeParams& params) const {
-    auto options = KernelGenerator::get_build_options(params);
-    if (!m_row_mode) {
-        options += " -cl-intel-256-GRF-per-thread";
-    }
-    return options;
+    return KernelGenerator::get_build_options(params) + " -cl-intel-256-GRF-per-thread";
 }
 
 }  // namespace ov::intel_gpu::ocl

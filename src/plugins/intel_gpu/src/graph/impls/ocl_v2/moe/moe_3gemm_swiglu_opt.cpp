@@ -708,12 +708,9 @@ public:
     Stage::Ptr dyn_quan_quantize_down = make_stage<MoE3GemmDynQuanQuantize>(MoE3GemmDynQuan::Projection::DOWN);
     Stage::Ptr dyn_quan_gather_quantized = make_stage<MoE3GemmSwigluPrefillGather>(/*use_grouped_gemm=*/true, MoeGatherRows::quantized_hidden_states);
     Stage::Ptr dyn_quan_gather_scales = make_stage<MoE3GemmSwigluPrefillGather>(/*use_grouped_gemm=*/true, MoeGatherRows::quantized_scales);
-    Stage::Ptr int3_up_row = make_stage<MoE3GemmInt3Gemm>(MoE3GemmInt3Gemm::Projection::GATE_UP, /*row_mode=*/true);
-    Stage::Ptr int3_up_tiled = make_stage<MoE3GemmInt3Gemm>(MoE3GemmInt3Gemm::Projection::GATE_UP, /*row_mode=*/false);
-    Stage::Ptr int3_gate_row = make_stage<MoE3GemmInt3Gemm>(MoE3GemmInt3Gemm::Projection::GATE_UP, /*row_mode=*/true, /*gate=*/true);
-    Stage::Ptr int3_gate_tiled = make_stage<MoE3GemmInt3Gemm>(MoE3GemmInt3Gemm::Projection::GATE_UP, /*row_mode=*/false, /*gate=*/true);
-    Stage::Ptr int3_down_row = make_stage<MoE3GemmInt3Gemm>(MoE3GemmInt3Gemm::Projection::DOWN, /*row_mode=*/true);
-    Stage::Ptr int3_down_tiled = make_stage<MoE3GemmInt3Gemm>(MoE3GemmInt3Gemm::Projection::DOWN, /*row_mode=*/false);
+    Stage::Ptr int3_up = make_stage<MoE3GemmInt3Gemm>(MoE3GemmInt3Gemm::Projection::GATE_UP);
+    Stage::Ptr int3_gate = make_stage<MoE3GemmInt3Gemm>(MoE3GemmInt3Gemm::Projection::GATE_UP, /*gate=*/true);
+    Stage::Ptr int3_down = make_stage<MoE3GemmInt3Gemm>(MoE3GemmInt3Gemm::Projection::DOWN);
 
     struct dnnl_weights {
         dnnl::memory weight;
@@ -1140,8 +1137,8 @@ public:
             // GPU mask gen avoids the host sync on topk, but the host never sees the real max rows per expert, which the
             // grouped GEMM needs as a dispatch hint, so token_num is used instead. That is exact for one token
             // but oversizes the dispatch for more (25-token prefill: 452 vs 290 ms on Qwen3.6-35B-A3B int3).
-            // The row tiles of the u3 GEMMs are built by the host mask gen; one token needs none.
-            return (force_gpu_mask_gen_prefill && impl != MoeGemmImpl::int3_grouped_gemm) || token_num == 1;
+            // The row tiles of the u3 GEMMs are built by the host mask gen.
+            return impl != MoeGemmImpl::int3_grouped_gemm && (force_gpu_mask_gen_prefill || token_num == 1);
         default:
             return false;
         }
@@ -1149,7 +1146,7 @@ public:
 
     // Whether the grouped GEMM GPU mask gen stage and its per-expert buffers are needed
     bool needs_grouped_gpu_mask_gen() const {
-        return is_grouped_gemm(decode_impl) || (is_grouped_gemm(prefill_impl) && prefill_impl != MoeGemmImpl::int3_grouped_gemm && force_gpu_mask_gen_prefill);
+        return decode_impl == MoeGemmImpl::grouped_gemm || (prefill_impl == MoeGemmImpl::grouped_gemm && force_gpu_mask_gen_prefill);
     }
 
     // Resident single-token decode on the batched GEMV path uses none of the gather/scatter scratch buffers
@@ -1296,12 +1293,9 @@ public:
                 add_stage(dyn_quan_gather_scales, params);
             }
             if (uses_int3_gemm()) {
-                add_stage(int3_up_row, params);
-                add_stage(int3_up_tiled, params);
-                add_stage(int3_gate_row, params);
-                add_stage(int3_gate_tiled, params);
-                add_stage(int3_down_row, params);
-                add_stage(int3_down_tiled, params);
+                add_stage(int3_up, params);
+                add_stage(int3_gate, params);
+                add_stage(int3_down, params);
             }
         }
         if (needs_grouped_gpu_mask_gen()) {
@@ -2942,7 +2936,7 @@ public:
         intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS]
             ->copy_from(stream, grouped_offsets_cpu.data(), 0, 0, grouped_offsets_cpu.size() * sizeof(grouped_offsets_cpu[0]), true);
         size_t int3_tile_count = 0;
-        if (impl == MoeGemmImpl::int3_grouped_gemm && max_tokens_per_expert > MoE3GemmInt3Gemm::ROW_MODE_MAX_ROWS) {
+        if (impl == MoeGemmImpl::int3_grouped_gemm) {
             int3_tile_count = upload_int3_tiles(stream, instance, grouped_offsets_cpu);
         }
 
@@ -3058,58 +3052,41 @@ public:
     }
 
     // Steps 2-5 on the dynamically quantized activations and the u3 GEMMs. Rows are sorted by expert, with the end
-    // offsets in MOE_INTERNAL_BUFFER_GROUPED_OFFSETS. Row mode takes no tile list (tile_count is 0).
+    // offsets in MOE_INTERNAL_BUFFER_GROUPED_OFFSETS and the tile_count row tiles in MOE_INTERNAL_BUFFER_INT3_TILES.
     cldnn::event::ptr exec_int3_grouped_gemm(cldnn::event::ptr ret_event,
                                              typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                                              scratch_buffers& scratch,
                                              int total_rows,
-                                             int max_rows_per_expert,
                                              size_t tile_count) {
         using Projection = MoE3GemmInt3Gemm::Projection;
         constexpr size_t simd = MoE3GemmInt3Gemm::SIMD;
+        constexpr size_t sg_m = MoE3GemmInt3Gemm::TILE_SG_M;
         const auto& intermediates_memories = instance.get_intermediates_memories();
-        const auto& config = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config;
-        const int num_experts = get_num_grouped_experts(static_cast<int>(config.num_expert));
         const auto rows = get_dyn_quan_rows(instance);
         auto offsets = intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS];
         const auto& wei = scratch.moe_fusion_wei_addr;
-        const bool row_mode = max_rows_per_expert <= MoE3GemmInt3Gemm::ROW_MODE_MAX_ROWS;
 
         // w: weight index (gate, up, down). The gate GEMM reads the up output for its act(gate) * up epilogue.
         const auto gemm = [&](int w, memory::ptr output) {
             const auto proj = w == 2 ? Projection::DOWN : Projection::GATE_UP;
             const auto& shape = int3_gemm_shape(proj);
-            std::vector<memory::ptr> inputs{rows.quantized, rows.scales, wei.weight[w], wei.scale[w], wei.zp[w], offsets};
-            if (row_mode) {
-                const size_t sg_k = MoE3GemmInt3Gemm::get_row_sg_k(shape);
-                if (w == 0) {
-                    inputs.push_back(scratch.up);
-                }
-                ret_event = execute_stage({ret_event},
-                                          instance,
-                                          w == 0 ? *int3_gate_row : (w == 1 ? *int3_up_row : *int3_down_row),
-                                          inputs,
-                                          {output},
-                                          {shape.n, sg_k, static_cast<size_t>(total_rows)},
-                                          {simd, sg_k, 1},
-                                          false,
-                                          {num_experts});
-            } else {
-                inputs.push_back(intermediates_memories[MOE_INTERNAL_BUFFER_INT3_TILES]);
-                if (w == 0) {
-                    inputs.push_back(scratch.up);
-                }
-                constexpr size_t sg_m = MoE3GemmInt3Gemm::TILE_SG_M;
-                ret_event = execute_stage({ret_event},
-                                          instance,
-                                          w == 0 ? *int3_gate_tiled : (w == 1 ? *int3_up_tiled : *int3_down_tiled),
-                                          inputs,
-                                          {output},
-                                          {shape.n / MoE3GemmInt3Gemm::TILE_NB, tile_count * sg_m, 1},
-                                          {simd, sg_m, 1},
-                                          false,
-                                          {num_experts});
+            std::vector<memory::ptr> inputs{rows.quantized,
+                                            rows.scales,
+                                            wei.weight[w],
+                                            wei.scale[w],
+                                            wei.zp[w],
+                                            offsets,
+                                            intermediates_memories[MOE_INTERNAL_BUFFER_INT3_TILES]};
+            if (w == 0) {
+                inputs.push_back(scratch.up);
             }
+            ret_event = execute_stage({ret_event},
+                                      instance,
+                                      w == 0 ? *int3_gate : (w == 1 ? *int3_up : *int3_down),
+                                      inputs,
+                                      {output},
+                                      {shape.n / MoE3GemmInt3Gemm::TILE_NB, tile_count * sg_m, 1},
+                                      {simd, sg_m, 1});
         };
 
         ret_event = exec_dyn_quan_gate_up_input(ret_event, instance, total_rows);
@@ -3138,7 +3115,7 @@ public:
         int total_gathered_tokens = static_cast<int>(token_num) * static_cast<int>(config.top_k);
 
         if (impl == MoeGemmImpl::int3_grouped_gemm) {
-            ret_event = exec_int3_grouped_gemm(ret_event, instance, scratch, total_gathered_tokens, max_tokens_per_expert, int3_tile_count);
+            ret_event = exec_int3_grouped_gemm(ret_event, instance, scratch, total_gathered_tokens, int3_tile_count);
         } else {
             ret_event = exec_onednn_grouped_gemm(ret_event, stream, instance, scratch, impl, total_gathered_tokens, max_tokens_per_expert);
         }
@@ -3333,11 +3310,7 @@ public:
                                        {num_total_experts, 1, 1},
                                        false,
                                        {static_cast<int>(token_num)});
-        // The top-k experts of a token are distinct, so an expert gets at most one row per token
-        OPENVINO_ASSERT(impl != MoeGemmImpl::int3_grouped_gemm || static_cast<int>(token_num) <= MoE3GemmInt3Gemm::ROW_MODE_MAX_ROWS,
-                        "The u3 expert GEMMs need the host mask gen for the row tiles of ",
-                        token_num,
-                        " tokens");
+        OPENVINO_ASSERT(impl != MoeGemmImpl::int3_grouped_gemm, "The u3 expert GEMMs need the row tiles of the host mask gen");
         return exec_grouped_gemm_core(ret_event, stream, instance, scratch, impl, static_cast<int>(token_num));
     }
 
