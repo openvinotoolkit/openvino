@@ -46,7 +46,7 @@ ScaleDownGatedMLPInput::ScaleDownGatedMLPInput(float scale_factor) {
             std::make_shared<ov::op::v1::Multiply>(gate, ov::op::v0::Constant::create(gate->get_output_element_type(0), ov::Shape{}, {1.f / scale_factor}));
         scale_down->set_friendly_name(down->get_friendly_name() + "_scale_down");
         ov::copy_runtime_info(down, scale_down);
-        for (auto& in : gate_consumers)
+        for (const auto& in : gate_consumers)
             in.replace_source_output(scale_down);
 
         // The scale-up goes after the Convert that keeps the projection output in FP32, if there is one.
@@ -63,7 +63,7 @@ ScaleDownGatedMLPInput::ScaleDownGatedMLPInput(float scale_factor) {
         ov::copy_runtime_info(down, scale_up);
         scale_up->output(0).set_names(out->output(0).get_names());
         out->output(0).set_names({});
-        for (auto& in : out_consumers)
+        for (const auto& in : out_consumers)
             in.replace_source_output(scale_up);
         return true;
     };
