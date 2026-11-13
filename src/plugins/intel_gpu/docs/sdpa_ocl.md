@@ -3232,6 +3232,14 @@ re-measures against the opt kernels.
     heads 96 / 128 / 256 (llama-3.1-8b 485 against 422 us), 0.82 on gemma-4-e2b (heads 256 / 512), 1.12 on qwen3-vl-4b's
     4.9K-token video prompt; first token 0.96-1.03 at 1K. 32-token prompts take 1.09-1.21x the first-token latency on
     the small models (llama-3.2-1b 13.7 against 11.3 ms, phi-3.5-mini, phi-4-mini, gemma-3-4b), not analysed.
+    Those runs were of a `SDPA_OCL_NO_GETENV=OFF` build. Re-measured on 2026-11-13 (32-token prompt, the same tree
+    built ON and OFF): the OFF build took 1.07-1.10x the ON build's first token on these four models, but 1.00x on
+    llama-3.1-8b. The product build (ON, 10 iterations x 3 rounds) took 0.95-1.01x the RC's: llama-3.2-1b 10.87
+    against 10.92 ms, phi-3.5-mini 22.73 / 23.82, phi-4-mini 29.67 / 29.46, gemma-3-4b 29.77 / 31.30. Against the opt
+    kernels of the same build (`OV_GPU_ENABLE_SDPA_MICRO=0`) it took 1.00-1.03x. The kernels' device time of a 32-token
+    PREFILL (cliloader) was lower than the RC's on all five models, mostly from `pa_kv_cache_update_ref` (2-4x faster).
+    `sdpa_ocl_prefill` itself took 0.3-0.4x `sdpa_micro__prefill` on the llama models and 1.05-1.7x on phi-3.5-mini,
+    phi-4-mini and gemma-3-4b; at 32 tokens one kernel's calls spread 2-6x, so only the direction holds.
   - MIXED of 256-token chunks (a 4K prompt, `max_num_batched_tokens` 256): `sdpa_ocl_mixed` 1.26-1.40x
     `sdpa_micro__generate` per call (llama-3.1-8b 1142 against 904 us, qwen3-8b 1158 / 882, llama-3.2-1b 699 / 500),
     first token 1.09-1.16x.
