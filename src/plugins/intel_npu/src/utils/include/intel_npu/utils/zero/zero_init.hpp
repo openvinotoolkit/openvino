@@ -27,12 +27,30 @@ class ZeroMemPoolManager;
 }  // namespace zero_mem
 
 /**
+ * @brief Versions of the level zero API and driver extensions that the plugin targets.
+ * @details The holder negotiates each extension with the driver against these versions. The defaults are what the
+ * plugin uses in production; tests can lower individual versions to exercise the negotiation with older drivers.
+ */
+struct ZeroInitTargets {
+    ze_api_version_t zeApiVersion = ZE_API_VERSION_1_18;
+    uint32_t driverNpuExtVersion = ZE_DRIVER_NPU_EXT_VERSION_1_0;
+    uint32_t graphNpuExtVersion = ZE_GRAPH_EXT_VERSION_1_19;
+    uint32_t commandQueueNpuExtVersion = ZE_COMMAND_QUEUE_NPU_EXT_VERSION_1_1;
+    uint32_t profilingNpuExtVersion = ZE_PROFILING_DATA_EXT_VERSION_1_0;
+    uint32_t contextNpuExtVersion = ZE_CONTEXT_NPU_EXT_VERSION_1_0;
+    uint32_t mutableCommandListExtVersion = ZE_MUTABLE_COMMAND_LIST_EXP_VERSION_1_1;
+    uint32_t externalMemMapSysMemExtVersion = ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION_1_0;
+    uint32_t commandQueueSetPriorityExtVersion = ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_VERSION_1_0;
+    uint32_t deviceLuidExtVersion = ZE_DEVICE_LUID_EXT_VERSION_1_0;
+};
+
+/**
  * Holder for the level zero structures which must be initialized via call to the driver once zero backend is loaded,
  * and de-initialized after their last use is over.
  */
 class ZeroInitStructsHolder final {
 public:
-    ZeroInitStructsHolder();
+    explicit ZeroInitStructsHolder(const ZeroInitTargets& targets = {});
 
     ZeroInitStructsHolder(const ZeroInitStructsHolder&) = delete;
     ZeroInitStructsHolder& operator=(const ZeroInitStructsHolder&) = delete;
@@ -107,19 +125,20 @@ public:
 
     uint32_t getCompilerVersion();
 
+    inline ZeroMemPool& getZeroMemPool() {
+        return _zero_mem_pool;
+    }
+
+    static void destroyContextForInstance(std::shared_ptr<ZeroInitStructsHolder>& instance);
+
 private:
     friend class zero_mem::ZeroMemPoolManager;
 
-    void initNpuDriver();
+    void initNpuDriver(const ze_api_version_t zeApiVersion);
     void initCompilerPropertiesLocked();
     void getExtensionFunctionAddress(const std::string& name, const uint32_t version, void** function_address);
     void setContextProperties();
     void destroyContextLocked();
-    static void destroyContextForInstance(std::shared_ptr<ZeroInitStructsHolder>& instance);
-
-    inline ZeroMemPool& getZeroMemPool() {
-        return _zero_mem_pool;
-    }
 
     // keep zero_api alive until context is destroyed
     std::shared_ptr<ZeroApi> _zero_api;

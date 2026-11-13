@@ -8,7 +8,6 @@
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
-#include "common/zero_init_mock.hpp"
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 #include "driver_compiler_adapter.hpp"
 #include "intel_npu/utils/utils.hpp"
@@ -87,10 +86,9 @@ protected:
         model = ov::test::utils::make_multi_single_conv();
         blob = nullptr;
 
-        std::shared_ptr<ZeroInitStructsMock> zeroInitMock =
-            std::make_shared<ZeroInitStructsMock>(::intel_npu::test_constants::TARGET_ZE_DRIVER_NPU_EXT_VERSION,
-                                                  zeGraphNpuExtVersion);
-        zeroInitStruct = std::reinterpret_pointer_cast<ZeroInitStructsHolder>(zeroInitMock);
+        ZeroInitTargets targets;
+        targets.graphNpuExtVersion = zeGraphNpuExtVersion;
+        zeroInitStruct = std::make_shared<ZeroInitStructsHolder>(targets);
         zeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
     }
 
@@ -346,10 +344,7 @@ TEST_P(ZeroGraphTest, DontDestroyZeroGraphWhenZeroContextIsDestroyed) {
         logs.push_back('\n');
     };
 
-    auto localZeroInitMock = std::make_shared<::intel_npu::ZeroInitStructsMock>();
-
-    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> localZeroInitStruct =
-        std::reinterpret_pointer_cast<::intel_npu::ZeroInitStructsHolder>(localZeroInitMock);
+    auto localZeroInitStruct = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
 
     {
         utils::LogCallbackGuard log_callback_guard(logCb);
@@ -361,7 +356,7 @@ TEST_P(ZeroGraphTest, DontDestroyZeroGraphWhenZeroContextIsDestroyed) {
         OV_ASSERT_NO_THROW(localGraphDescriptor = localZeroGraphExt->getGraphDescriptor(serializedIR, ""));
         OV_ASSERT_NO_THROW(localZeroGraphExt->initializeGraph(localGraphDescriptor));
 
-        ::intel_npu::ZeroInitStructsMock::destroyContextForInstance(localZeroInitMock);
+        ::intel_npu::ZeroInitStructsHolder::destroyContextForInstance(localZeroInitStruct);
 
         try {
             localZeroGraphExt->destroyGraph(localGraphDescriptor);

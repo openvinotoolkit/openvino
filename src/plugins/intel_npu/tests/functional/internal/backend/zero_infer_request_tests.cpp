@@ -6,7 +6,6 @@
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
-#include "common/zero_init_mock.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_plugin_cache.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -165,14 +164,10 @@ public:
             npu_config->update(propertyName, propertyValue.as<std::string>());
         }
 
-        auto zeroInitMock = std::make_shared<::intel_npu::ZeroInitStructsMock>(
-            ::intel_npu::test_constants::TARGET_ZE_DRIVER_NPU_EXT_VERSION,
-            zeGraphNpuExtVersion,
-            ::intel_npu::test_constants::TARGET_ZE_COMMAND_QUEUE_NPU_EXT_VERSION,
-            ::intel_npu::test_constants::TARGET_ZE_PROFILING_NPU_EXT_VERSION,
-            ::intel_npu::test_constants::TARGET_ZE_CONTEXT_NPU_EXT_VERSION,
-            zeMutableCommandListExtVersion);
-        zeroInitStruct = std::reinterpret_pointer_cast<::intel_npu::ZeroInitStructsHolder>(zeroInitMock);
+        ::intel_npu::ZeroInitTargets targets;
+        targets.graphNpuExtVersion = zeGraphNpuExtVersion;
+        targets.mutableCommandListExtVersion = zeMutableCommandListExtVersion;
+        zeroInitStruct = std::make_shared<::intel_npu::ZeroInitStructsHolder>(targets);
 
         OVPluginTestBase::SetUp();
     }
@@ -368,6 +363,6 @@ INSTANTIATE_TEST_SUITE_P(
         // Simulate PV driver having 1.5 graph extension version and no mutable command list extension version
         ::testing::ValuesIn(std::vector<std::pair<uint32_t, uint32_t>>{
             {ZE_GRAPH_EXT_VERSION_1_5, ZE_MAKE_VERSION(0, 0)},
-            {intel_npu::test_constants::TARGET_ZE_GRAPH_NPU_EXT_VERSION,
-             intel_npu::test_constants::TARGET_ZE_MUTABLE_COMMAND_LIST_EXT_VERSION}})),
+            {intel_npu::ZeroInitTargets{}.graphNpuExtVersion,
+             intel_npu::ZeroInitTargets{}.mutableCommandListExtVersion}})),
     ZeroInferRequestTests::getTestCaseName);
