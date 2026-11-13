@@ -124,61 +124,53 @@ bool Plugin::is_meta_device(const std::string& priorities) const {
     return false;
 }
 
+ov::AnyMap Plugin::get_device_config(const DeviceName& device_with_id, const ov::AnyMap& properties) const {
+    auto device_config = get_core()->get_supported_property(device_with_id, properties);
+    auto is_set_perfhint = properties.find(ov::hint::performance_mode.name()) != properties.end();
+    auto is_set_device_properties = false;
+    auto item = properties.find(ov::device::properties.name());
+    if (item != properties.end()) {
+        ov::AnyMap devicesProperties;
+        std::stringstream strConfigs(item->second.as<std::string>());
+        // Parse the device properties to common property into deviceConfigs.
+        ov::util::Read<ov::AnyMap>{}(strConfigs, devicesProperties);
+        auto it = devicesProperties.find(device_with_id);
+        if (it != devicesProperties.end()) {
+            is_set_device_properties = true;
+        }
+    }
+    if (get_device_name() == "AUTO" && !is_set_perfhint && !is_set_device_properties) {
+        // setting latency as the default performance mode if
+        // 1. no hints setting for AUTO plugin
+        // 2. no ov::device::properties(secondary properties) setting for target device
+        device_config[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::LATENCY;
+    } else if (get_device_name() == "MULTI") {
+        auto is_set_numstreams = properties.find(ov::num_streams.name()) != properties.end();
+        auto is_set_numthreads = properties.find(ov::inference_num_threads.name()) != properties.end();
+        if (!is_set_perfhint && !is_set_numthreads && !is_set_device_properties && !is_set_numstreams) {
+            // setting tput as the default performance mode if
+            // 1. no hints setting for MULTI plugin
+            // 2. no inference_num_threads setting for MULTI plugin
+            // 3. no ov::device::properties(secondary properties) setting for target device
+            // 4. no ov::num_streams setting for target device
+            device_config[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::THROUGHPUT;
+        }
+    }
+    // only in case of cumulative, update to tput for hardware device
+    auto&& iter = device_config.find(ov::hint::performance_mode.name());
+    if (iter != device_config.end() && iter->second.as<std::string>() == "CUMULATIVE_THROUGHPUT")
+        iter->second = ov::hint::PerformanceMode::THROUGHPUT;
+    // validate the device validity
+    get_core()->get_property(device_with_id, ov::supported_properties, device_config);
+    return device_config;
+}
+
 std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& priorities,
                                                           const ov::AnyMap& properties) const {
     std::vector<DeviceInformation> meta_devices;
 
     // parsing the string and splitting to tokens
     std::vector<std::string> devices_with_requests = m_plugin_config.parse_priorities_devices(priorities);
-    auto set_default_hint = [&](const std::string& target_device,
-                              ov::AnyMap& device_config,
-                              const ov::AnyMap& properties) {
-        auto is_set_perfhint = properties.find(ov::hint::performance_mode.name()) != properties.end();
-        auto is_set_device_properties = false;
-        auto item = properties.find(ov::device::properties.name());
-        if (item != properties.end()) {
-            ov::AnyMap devicesProperties;
-            std::stringstream strConfigs(item->second.as<std::string>());
-            // Parse the device properties to common property into deviceConfigs.
-            ov::util::Read<ov::AnyMap>{}(strConfigs, devicesProperties);
-            auto it = devicesProperties.find(target_device);
-            if (it != devicesProperties.end()) {
-                is_set_device_properties = true;
-            }
-        }
-        if (get_device_name() == "AUTO" && !is_set_perfhint && !is_set_device_properties) {
-            // setting latency as the default performance mode if
-            // 1. no hints setting for AUTO plugin
-            // 2. no ov::device::properties(secondary properties) setting for target device
-            device_config[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::LATENCY;
-            return;
-        }
-
-        if (get_device_name() == "MULTI") {
-            auto is_set_numstreams = properties.find(ov::num_streams.name()) != properties.end();
-            auto is_set_numthreads = properties.find(ov::inference_num_threads.name()) != properties.end();
-            if (!is_set_perfhint && !is_set_numthreads && !is_set_device_properties&& !is_set_numstreams) {
-                // setting tput as the default performance mode if
-                // 1. no hints setting for MULTI plugin
-                // 2. no inference_num_threads setting for MULTI plugin
-                // 3. no ov::device::properties(secondary properties) setting for target device
-                // 4. no ov::num_streams setting for target device
-                device_config[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::THROUGHPUT;
-            }
-        }
-    };
-
-    auto get_device_config = [&] (const DeviceName & device_with_id) {
-        auto device_config = get_core()->get_supported_property(device_with_id, properties);
-        set_default_hint(device_with_id, device_config, properties);
-        // only in case of cumulative, update to tput for hardware device
-        auto && iter = device_config.find(ov::hint::performance_mode.name());
-        if (iter != device_config.end() && iter->second.as<std::string>() == "CUMULATIVE_THROUGHPUT")
-            iter->second = ov::hint::PerformanceMode::THROUGHPUT;
-        // validate the device validity
-        get_core()->get_property(device_with_id, ov::supported_properties, device_config);
-        return device_config;
-    };
 
     auto get_default_device_id = [this](std::string device_name) -> std::string {
         try {
@@ -291,7 +283,7 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
             // create meta device
             try {
                 meta_devices.push_back({device_name_with_id,
-                                        get_device_config(device_name_with_id),
+                                        get_device_config(device_name_with_id, properties),
                                         num_requests,
                                         default_device_id,
                                         unique_name,
@@ -636,18 +628,18 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     auto_s_context->m_model_precision = model_precision;
     auto_s_context->m_compile_for_all = load_config.get_property(ov::intel_auto::compile_for_all);
     if (auto_s_context->m_compile_for_all) {
-        std::vector<const DeviceInformation*> warmup_candidates;
+        std::vector<const DeviceInformation*> precompile_candidates;
         for (const auto& device : auto_s_context->m_device_priorities_initial) {
             if (ov::DeviceIDParser(device.device_name).get_device_name() != "CPU")
-                warmup_candidates.push_back(&device);
+                precompile_candidates.push_back(&device);
         }
-        // A user blob ID does not identify a device, so blobs warmed up for other devices would overwrite each other.
+        // A user blob ID does not identify a device, so blobs compiled for other devices would overwrite each other.
         const bool has_blob_id =
-            full_property.count(ov::cache_blob_id.name()) != 0 ||
+            CacheManager::has_user_blob_id(full_property) ||
             std::any_of(auto_s_context->m_device_priorities_initial.begin(),
                         auto_s_context->m_device_priorities_initial.end(),
                         [](const DeviceInformation& device) {
-                            return device.config.count(ov::cache_blob_id.name()) != 0;
+                            return CacheManager::has_user_blob_id(device.config);
                         });
         if (is_cumulative || has_blob_id) {
             LOG_WARNING_TAG("compile_for_all is ignored: %s",
@@ -656,14 +648,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
         } else if (!std::any_of(auto_s_context->m_device_priorities_initial.begin(),
                                 auto_s_context->m_device_priorities_initial.end(),
                                 [this](const DeviceInformation& device) {
-                                    return !CacheWarmupManager::get_cache_location(*get_core(),
-                                                                                   device.config,
-                                                                                   device.device_name)
+                                    return !CacheManager::get_cache_location(*get_core(),
+                                                                             device.config,
+                                                                             device.device_name)
                                                 .empty();
                                 })) {
             // Independent of how many devices the host has, so the contract of an explicit true is the same everywhere.
             OPENVINO_THROW(ov::intel_auto::compile_for_all.name(), " requires ov::cache_dir or ov::cache_path to be set");
-        } else if (warmup_candidates.empty() || auto_s_context->m_device_priorities_initial.size() < 2) {
+        } else if (precompile_candidates.empty() || auto_s_context->m_device_priorities_initial.size() < 2) {
             LOG_WARNING_TAG("compile_for_all is ignored: no other candidate device to compile");
             auto_s_context->m_compile_for_all = false;
         }
@@ -1189,7 +1181,7 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
         (properties.count(ov::hint::performance_mode.name()) &&
          properties.at(ov::hint::performance_mode.name()).as<std::string>() == "CUMULATIVE_THROUGHPUT");
     const bool preserve_cpu_for_compile_retry = !is_cumulative_tput &&
-                                                properties.count(ov::cache_blob_id.name()) == 0 &&
+                                                !CacheManager::has_user_blob_id(properties) &&
                                                 properties.count(ov::intel_auto::compile_for_all.name()) &&
                                                 properties.at(ov::intel_auto::compile_for_all.name()).as<bool>();
     if (device_list_config != properties.end() && !(device_list_config->second.as<std::string>().empty())) {
@@ -1205,8 +1197,8 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
                 if (device.front() == '-')
                     continue;
                 try {
-                    const auto device_config = get_core()->get_supported_property(device, properties);
-                    if (device_config.count(ov::cache_blob_id.name())) {
+                    const auto device_config = get_device_config(device, properties);
+                    if (CacheManager::has_user_blob_id(device_config)) {
                         can_preserve_cpu_for_compile_retry = false;
                         break;
                     }
@@ -1218,7 +1210,7 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
         }
         std::size_t num_blob_files = 0;
         bool if_need_cache_check = !is_cumulative_tput && enable_startup_cpu && !can_preserve_cpu_for_compile_retry &&
-                                   (model || !model_path.empty()) && properties.count(ov::cache_blob_id.name()) == 0;
+                                   (model || !model_path.empty()) && !CacheManager::has_user_blob_id(properties);
         if (if_need_cache_check) {
             for (auto&& device : devices_to_be_merged) {
                 // Skip the excluded device
@@ -1230,18 +1222,12 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
                 // check if cached model exists for other devices
                 bool is_blob_file_exist = false;
                 try {
-                    // Device-scoped settings take precedence over the global ones.
-                    const auto device_config = get_core()->get_supported_property(device, properties);
-                    const auto cache_location =
-                        CacheWarmupManager::get_cache_location(*get_core(), device_config, device);
-                    if (cache_location.empty() || device_config.count(ov::cache_blob_id.name()))
+                    // The cache key follows the config the device is compiled with, which adds the default hints.
+                    const auto device_config = get_device_config(device, properties);
+                    if (CacheManager::has_user_blob_id(device_config))
                         continue;
-                    is_blob_file_exist = CacheWarmupManager::is_blob_cached(*get_core(),
-                                                                            device,
-                                                                            device_config,
-                                                                            model,
-                                                                            model_path,
-                                                                            cache_location);
+                    is_blob_file_exist =
+                        CacheManager::is_blob_cached(*get_core(), device, device_config, model, model_path);
                 } catch (const std::exception& ex) {
                     // The probe is an optimization only; a failing device must not break compilation.
                     LOG_DEBUG_TAG("cache probe failed for %s: %s", device.c_str(), ex.what());

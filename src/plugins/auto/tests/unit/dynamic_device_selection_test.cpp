@@ -1167,7 +1167,7 @@ public:
                 ++m_gpu0_compile_count;
                 return mockExeNetworkActual;
             });
-        // GPU.1 is only a warmup candidate, but warmup dereferences the compiled model it gets back
+        // GPU.1 is only a precompile candidate, but precompile dereferences the compiled model it gets back
         ON_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
@@ -1224,7 +1224,7 @@ public:
         return ov::SoPtr<ov::ICompiledModel>{cpu_model, {}};
     }
 
-    // GPU.0 is the initial device; CPU is the one that goes inactive and is never warmed up
+    // GPU.0 is the initial device; CPU is the one that goes inactive and is never pre-compiled
     void switch_between_devices(bool compile_for_all, std::shared_ptr<ov::ICompiledModel>* result = nullptr) {
         if (compile_for_all) {
             config.insert(ov::intel_auto::compile_for_all(true));
@@ -1275,7 +1275,7 @@ TEST_F(AutoDynamicInactiveDeviceReleaseTest, inactive_device_is_compiled_again_w
     EXPECT_EQ(m_cpu_compile_count.load(), 2);
 }
 
-TEST_F(AutoDynamicInactiveDeviceReleaseTest, cpu_is_released_without_a_non_cpu_warmup_candidate) {
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, cpu_is_released_without_a_non_cpu_precompile_candidate) {
     config.erase(ov::device::priorities.name());
     config.insert(ov::device::priorities("GPU.0,CPU"));
     switch_between_devices(true);
@@ -1380,7 +1380,7 @@ TEST_F(AutoDynamicInactiveDeviceReleaseTest, device_without_caching_support_is_k
 }
 
 TEST_F(AutoDynamicInactiveDeviceReleaseTest, previous_device_is_released_before_the_next_device_is_compiled) {
-    // GPU.1 is not warmed up, so it is only compiled by the switch
+    // GPU.1 is not pre-compiled, so it is only compiled by the switch
     config.insert(ov::device::properties(ov::AnyMap{{"GPU.1", ov::AnyMap{ov::cache_dir("")}}}));
     auto gpu1_compile_count = std::make_shared<std::atomic<int>>(0);
     auto cpu_alive_at_gpu1_compile = std::make_shared<std::atomic<int>>(0);

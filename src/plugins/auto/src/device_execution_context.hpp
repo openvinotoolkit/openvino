@@ -11,16 +11,11 @@
 #include <utility>
 #include <vector>
 
+#include "cache_manager.hpp"
 #include "common.hpp"
 
 namespace ov {
 namespace auto_plugin {
-
-// What AutoSchedule has learned about the model cache of a device, each value is queried at most once.
-struct DeviceCacheInfo {
-    std::optional<bool> supports_caching;
-    std::optional<std::string> blob_id;
-};
 
 /**
  * @brief Everything AUTO owns for one device: compiled model, worker requests, idle/pending queues and statistics.

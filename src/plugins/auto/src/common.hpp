@@ -273,6 +273,8 @@ struct AutoCompileContext {
     std::promise<void> m_promise;
     // output of try_to_compile_model(), handed over to the device context once its workers are created
     SoCompiledModel m_compile_result;
+    // the config of the device that compiled m_compile_result
+    ov::AnyMap m_compiled_config;
     // owner of the compiled model after the hand-over, never reset so readers keep seeing the last loaded model
     std::atomic<DeviceExecutionContext*> m_device_context = {nullptr};
     DeviceInformation  m_device_info;

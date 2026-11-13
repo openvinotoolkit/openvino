@@ -10,7 +10,7 @@
 
 #include "schedule.hpp"
 #include "async_infer_request.hpp"
-#include "cache_warmup.hpp"
+#include "cache_manager.hpp"
 
 namespace ov {
 namespace auto_plugin {
@@ -38,7 +38,7 @@ private:
     void try_to_compile_model(AutoCompileContext& context, const std::shared_ptr<ov::Model>& model) override;
     bool select_other_device(const std::string& cur_dev_name) override;
     // Null unless ov::intel_auto::compile_for_all is enabled; set before any background task starts.
-    std::shared_ptr<CacheWarmup>                                         m_cache_warmup;
+    std::shared_ptr<CachePrecompiler>                                    m_cache_precompiler;
     void release_execution_slot() override;
     /**
      * @brief Serialize the incoming request behind the execution gate when per inference device selection is on.

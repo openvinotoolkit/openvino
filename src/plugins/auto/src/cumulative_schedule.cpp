@@ -92,7 +92,7 @@ void CumuSchedule::init() {
             if (context_ptr->m_worker_name.empty()) {
                 context_ptr->m_worker_name = context_ptr->m_device_info.device_name;
             }
-            hand_over_compile_result(*context_ptr);
+            register_compile_result(*context_ptr);
             context_ptr->m_is_already = true;
             // reloadsuccess flag only for m_compile_context[FALLBACKDEVICE]
             context_ptr->m_is_reload_success = true;
@@ -198,6 +198,7 @@ void CumuSchedule::try_to_compile_model(AutoCompileContext& context, const std::
             context.m_compile_result = m_context->m_ov_core->compile_model(model, device, device_config);
         }
         context.m_is_load_success = true;
+        context.m_compiled_config = device_config;
     } catch (const ov::Exception& e) {
         context.m_err_message += device + ":" + e.what();
         context.m_is_load_success = false;

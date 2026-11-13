@@ -187,7 +187,7 @@ TEST_F(AutoFuncTests, compile_for_all_populates_cache_reused_by_later_loads) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
     }
-    // Releasing AUTO waits for an in-flight warm-up, so both blobs are fully written here.
+    // Releasing AUTO waits for an in-flight pre-compilation, so both blobs are fully written here.
     ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 2);
     for (const std::string device : {"MOCK_GPU", "MOCK_3"}) {
         auto compiled_model = core.compile_model(model_cannot_batch, device);

@@ -95,9 +95,11 @@ DeviceExecutionContext* Schedule::find_device_context(const DeviceName& name) {
     return iter == m_device_contexts.end() ? nullptr : iter->second.get();
 }
 
-void Schedule::hand_over_compile_result(AutoCompileContext& context) {
+void Schedule::register_compile_result(AutoCompileContext& context) {
     generate_workers(context.m_worker_name, context.m_compile_result);
-    context.m_device_context = &get_device_context(context.m_worker_name);
+    auto& device_context = get_device_context(context.m_worker_name);
+    device_context.cache_info().compile_config = context.m_compiled_config;
+    context.m_device_context = &device_context;
     context.m_compile_result = {};
 }
 

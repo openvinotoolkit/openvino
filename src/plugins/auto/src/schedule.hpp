@@ -46,8 +46,9 @@ protected:
     // asserts if the device was not added by init()
     DeviceExecutionContext& get_device_context(const DeviceName& name);
     DeviceExecutionContext* find_device_context(const DeviceName& name);
-    // creates the workers of a successful compilation, the device context becomes the owner of the compiled model
-    void hand_over_compile_result(AutoCompileContext& context);
+    // moves a successful compilation into the context named by m_worker_name (it differs from the device name only
+    // for CPU_HELP): creates the workers, records the compile config, and the context becomes the owner of the model
+    void register_compile_result(AutoCompileContext& context);
     // records a failed compilation in the context of the device the compile context targets
     void mark_compile_failure(const AutoCompileContext& context, const std::string& reason);
     std::shared_ptr<ov::threading::IStreamsExecutor>                     m_executor;

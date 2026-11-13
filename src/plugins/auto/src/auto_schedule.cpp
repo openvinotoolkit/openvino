@@ -140,22 +140,22 @@ void AutoSchedule::init() {
     if (m_context->m_compile_for_all) {
         const auto& actual_device = m_compile_context[ACTUALDEVICE].m_device_info.device_name;
         const auto& candidates = m_compile_context[ACTUALDEVICE].m_meta_devices;
-        const bool has_warmup_candidate = std::any_of(candidates.begin(), candidates.end(), [&](const auto& device) {
+        const bool has_device_to_compile = std::any_of(candidates.begin(), candidates.end(), [&](const auto& device) {
             return device.device_name != actual_device && ov::DeviceIDParser(device.device_name).get_device_name() != "CPU";
         });
-        if (!has_warmup_candidate) {
-            LOG_INFO_TAG("compile_for_all cache warm-up is skipped: no other non-CPU candidate device to compile");
+        if (!has_device_to_compile) {
+            LOG_INFO_TAG("compile_for_all cache pre-compilation is skipped: no other non-CPU candidate device");
         } else {
-            // Fallbacks switch devices non-deterministically and would overlap with the background warm-up.
+            // Fallbacks switch devices non-deterministically and would overlap with the background pre-compilation.
             LOG_INFO_TAG("compile_for_all disables startup and runtime fallback");
             m_context->m_startup_fallback = false;
             m_context->m_runtime_fallback = false;
             // Capture before the actual-device task releases the model.
-            m_cache_warmup = std::make_shared<CacheWarmup>(m_plugin->get_cache_warmup_manager(),
-                                                           m_context->m_ov_core,
-                                                           m_context->m_model,
-                                                           m_context->m_model_path,
-                                                           get_log_tag());
+            m_cache_precompiler = std::make_shared<CachePrecompiler>(m_plugin->get_cache_manager(),
+                                                                     m_context->m_ov_core,
+                                                                     m_context->m_model,
+                                                                     m_context->m_model_path,
+                                                                     get_log_tag());
         }
     }
     if (m_context->m_runtime_fallback) {
@@ -170,7 +170,7 @@ void AutoSchedule::init() {
             if (context_ptr->m_worker_name.empty()) {
                 context_ptr->m_worker_name = context_ptr->m_device_info.device_name;
             }
-            hand_over_compile_result(*context_ptr);
+            register_compile_result(*context_ptr);
             context_ptr->m_is_already = true;
             // reloadsuccess flag only for m_compile_context[FALLBACKDEVICE]
             context_ptr->m_is_reload_success = true;
@@ -208,12 +208,9 @@ void AutoSchedule::init() {
         m_compile_context[CPU].m_device_info = *cpu_iter;
         m_compile_context[CPU].m_device_info.config[ov::hint::performance_mode.name()] =
             ov::hint::PerformanceMode::LATENCY;
-        std::string cache_dir =
-            m_compile_context[ACTUALDEVICE].m_device_info.config.count(ov::cache_dir.name())
-                ? m_compile_context[ACTUALDEVICE].m_device_info.config[ov::cache_dir.name()].as<std::string>()
-                : m_context->m_ov_core->get_property("", ov::cache_dir);
-        if (!cache_dir.empty() && (m_context->m_startup_fallback || m_context->m_runtime_fallback)) {
-            m_compile_context[CPU].m_device_info.config[ov::cache_dir.name()] = "";
+        if (CacheManager::disable_caching(*m_context->m_ov_core,
+                                          m_compile_context[CPU].m_device_info.device_name,
+                                          m_compile_context[CPU].m_device_info.config)) {
             LOG_INFO_TAG("Clear cache dir setting for CPU accelerator");
         }
         m_compile_context[CPU].m_worker_name = "CPU_HELP";
@@ -352,10 +349,10 @@ void AutoSchedule::init() {
         }
     }
     m_context->m_hw_compiled_model = wait_first_compiled_model_ready();
-    // compile_for_all disables the CPU helper, so the warm-up can start as soon as the actual device is ready.
-    if (m_cache_warmup && m_compile_context[ACTUALDEVICE].m_is_already) {
+    // compile_for_all disables the CPU helper, so the pre-compilation can start as soon as the actual device is ready.
+    if (m_cache_precompiler && m_compile_context[ACTUALDEVICE].m_is_already) {
         // Failed startup devices were already removed from the actual context's candidates.
-        m_cache_warmup->start(m_compile_context[ACTUALDEVICE].m_device_info.device_name,
+        m_cache_precompiler->start(m_compile_context[ACTUALDEVICE].m_device_info.device_name,
                               m_compile_context[ACTUALDEVICE].m_meta_devices);
     }
 }
@@ -401,6 +398,7 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
             context.m_compile_result = m_context->m_ov_core->compile_model(model, device, device_config);
         }
         context.m_is_load_success = true;
+        context.m_compiled_config = device_config;
         auto compile_end_time = std::chrono::high_resolution_clock::now();
         auto compiled_time =
             std::chrono::duration_cast<std::chrono::nanoseconds>(compile_end_time - compile_start_time).count() *
@@ -840,7 +838,8 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
     }
     device = context.m_device_info;
     if (!get_device_context(device.device_name).is_ready()) {
-        generate_workers(device.device_name, context.m_compile_result);
+        context.m_worker_name = device.device_name;
+        register_compile_result(context);
     } else {
         // the fallback landed on a device this schedule already compiled and has a worker for;
         // reuse it instead of generating a second (duplicate) worker for the same device
@@ -867,46 +866,15 @@ void AutoSchedule::release_inactive_device(const DeviceName& device_name) {
 }
 
 bool AutoSchedule::has_reloadable_cache(DeviceExecutionContext& context) {
-    const auto& device_name = context.name();
-    const auto info = std::find_if(m_context->m_device_priorities_initial.begin(),
-                                   m_context->m_device_priorities_initial.end(),
-                                   [&](const DeviceInformation& device) {
-                                       return device.device_name == device_name;
-                                   });
-    const ov::AnyMap no_config;
-    const auto& device_config =
-        info != m_context->m_device_priorities_initial.end()
-            ? info->config
-            : (m_context->m_low_power_device && m_context->m_low_power_device->device_name == device_name
-                   ? m_context->m_low_power_device->config
-                   : no_config);
-    auto& cache_info = context.cache_info();
-    if (!cache_info.supports_caching) {
-        bool supported = false;
-        try {
-            supported = m_context->m_ov_core->device_supports_model_caching(device_name);
-        } catch (const ov::Exception&) {
-        }
-        cache_info.supports_caching = supported;
-    }
-    const auto cache_location =
-        CacheWarmupManager::get_cache_location(*m_context->m_ov_core, device_config, device_name);
-    if (!*cache_info.supports_caching || cache_location.empty()) {
-        return false;
-    }
     try {
-        if (!cache_info.blob_id) {
-            cache_info.blob_id = CacheWarmupManager::get_blob_id(*m_context->m_ov_core,
-                                                                 device_name,
-                                                                 device_config,
-                                                                 m_dynamic_model,
-                                                                 m_context->m_model_path);
-        }
-        // Keep the filesystem check fresh in case the cache entry was removed after the key was computed.
-        return CacheWarmupManager::is_blob_cached(cache_location, *cache_info.blob_id);
+        return CacheManager::is_reloadable(*m_context->m_ov_core,
+                                           context.name(),
+                                           context.cache_info(),
+                                           m_dynamic_model,
+                                           m_context->m_model_path);
     } catch (const std::exception& ex) {
         // A cache probe is only an optimization; retain the compiled model if the probe fails.
-        LOG_DEBUG_TAG("[dynamic] cache probe failed for %s: %s", device_name.c_str(), ex.what());
+        LOG_DEBUG_TAG("[dynamic] cache probe failed for %s: %s", context.name().c_str(), ex.what());
         return false;
     }
 }
@@ -985,9 +953,9 @@ AutoSchedule::~AutoSchedule() {
         m_plugin->get_executor_manager()->clear("AutoDeviceAsyncCompile");
         m_executor.reset();
     }
-    // After the recycle task has stopped, so no new warm-up can be queued.
-    if (m_cache_warmup) {
-        m_cache_warmup->stop();
+    // After the recycle task has stopped, so no new pre-compilation can be queued.
+    if (m_cache_precompiler) {
+        m_cache_precompiler->stop();
     }
     if (m_plugin && !m_context->m_dynamic_device_selection) {
         m_plugin->unregister_priority(m_context->m_model_priority,
