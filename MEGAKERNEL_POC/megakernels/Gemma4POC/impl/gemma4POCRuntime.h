@@ -137,9 +137,11 @@ private:
     void* scratch_ = nullptr;
     void* tab_ = nullptr;      // ModelTab
     void* ltab_ = nullptr;     // LayerTab[nl_]
+    void* kmask_ = nullptr;    // float[kv_cap_], see ModelTab::kmask
     std::vector<uint8_t> htab_, hltab_;
     size_t off_[16] = {};
     bool prof_on_ = false;
+    bool prof_total_ = false;  // OV_MEGAKERNEL_PROF=3: kernel start / end only
     bool debug_cmp_ = false;
     std::vector<uint16_t>* dbg_x_ = nullptr;
     void* prof_ = nullptr;
