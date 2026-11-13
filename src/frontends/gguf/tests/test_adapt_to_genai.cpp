@@ -53,6 +53,7 @@
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/system_conf.hpp"
+#include "ov_ops/fully_connected_compressed.hpp"
 #include "utils.hpp"
 
 using namespace ov_gguf_test;
@@ -1099,6 +1100,34 @@ TEST(GGUFAdaptToGenAI, SurvivesSDPAToPagedAttentionWithRealAttentionBlock) {
     if (q_shape[1].is_static()) {
         EXPECT_EQ(q_shape[1].get_length(), hidden);
     }
+}
+
+TEST(GGUFAdaptToGenAI, NativeCompressedHeadSupportsSampledTokenSelection) {
+    constexpr int64_t vocab = 16;
+    constexpr int64_t hidden = 256;
+    auto model = build_attention_gguf_model(vocab, hidden);
+    auto hidden_4d = std::make_shared<v0::Unsqueeze>(model->get_results()[0]->input_value(0),
+                                                  v0::Constant::create(ov::element::i64, {1}, {0}));
+    auto weight = std::make_shared<v0::Constant>(ov::element::gguf_q4_k, ov::Shape{vocab, hidden});
+    auto absent = std::make_shared<v0::Constant>(ov::element::f32, ov::Shape{0});
+    auto scale = v0::Constant::create(ov::element::f32, {1}, {1.f});
+    auto head = std::make_shared<ov::op::internal::FullyConnectedCompressed>(hidden_4d, weight, absent, scale,
+                                                                         ov::element::f32);
+    model->get_results()[0]->input(0).replace_source_output(head);
+    ASSERT_TRUE(AdaptToGenAI().run_on_model(model));
+    ASSERT_EQ(model->get_results()[0]->get_input_node_shared_ptr(0), head);
+    ASSERT_EQ(head->get_input_partial_shape(0).rank().get_length(), 3);
+    ASSERT_EQ(head->get_rt_info().count("gguf_lm_head"), 1u);
+    EXPECT_EQ(head->get_input_node_shared_ptr(1), weight);
+    ov::pass::SDPAToPagedAttention().run_on_model(model);
+    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+    auto indices = std::make_shared<v0::Parameter>(ov::element::i64, ov::Shape{2});
+    auto gather = std::make_shared<v8::Gather>(head->input_value(0), indices,
+                                             v0::Constant::create(ov::element::i64, {1}, {0}));
+    head->input(0).replace_source_output(gather);
+    model->add_parameters({indices});
+    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+    EXPECT_EQ(model->get_output_partial_shape(0), (ov::PartialShape{2, -1, vocab}));
 }
 
 class GGUFAdaptToGenAILmHead : public ::testing::TestWithParam<bool> {};
