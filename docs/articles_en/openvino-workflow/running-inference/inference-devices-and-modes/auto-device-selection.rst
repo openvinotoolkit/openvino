@@ -211,6 +211,11 @@ the following setup options:
 |                                              | Enabling it disables ``ov::intel_auto::enable_startup_fallback``   |
 |                                              | and ``ov::intel_auto::enable_runtime_fallback``.                   |
 |                                              |                                                                    |
+|                                              | In dynamic device selection, a device that is no longer selected   |
+|                                              | releases its compiled model, which is loaded from the cache when   |
+|                                              | it is selected again. Devices without a cache location or a cache  |
+|                                              | blob are never released.                                           |
+|                                              |                                                                    |
 |                                              | Requires ``ov::cache_dir`` or ``ov::cache_path``. Without them,    |
 |                                              | compiling the model throws on every host.                          |
 |                                              |                                                                    |
