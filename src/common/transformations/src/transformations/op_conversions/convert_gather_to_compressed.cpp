@@ -4,7 +4,6 @@
 
 #include "transformations/op_conversions/convert_gather_to_compressed.hpp"
 
-#include <algorithm>
 #include <memory>
 
 #include "openvino/core/graph_util.hpp"
@@ -32,11 +31,12 @@ namespace v1 = ov::op::v1;
 namespace v8 = ov::op::v8;
 ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed(
     const std::vector<ov::element::Type>& supported_weights_types) {
-    auto compressed_constant = [supported_weights_types](const ov::Output<ov::Node>& output) {
-        return std::find(supported_weights_types.begin(), supported_weights_types.end(), output.get_element_type()) !=
-                   supported_weights_types.end() &&
-               (output.get_shape().size() == 2 || output.get_shape().size() == 3);
-    };
+    const auto rank_2 = ov::pass::pattern::rank_equals(2);
+    const auto rank_3 = ov::pass::pattern::rank_equals(3);
+    auto compressed_constant = ov::pass::pattern::all_of({ov::pass::pattern::type_matches_any(supported_weights_types),
+                                                          [rank_2, rank_3](const ov::Output<ov::Node>& output) {
+                                                              return rank_2(output) || rank_3(output);
+                                                          }});
 
     auto reshape_3d_to_2d = [](const ov::Output<ov::Node>& output) {
         auto in_ps = output.get_node()->get_input_partial_shape(0);
