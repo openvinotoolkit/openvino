@@ -76,7 +76,11 @@ struct condition : public primitive_base<condition> {
                 output_map.insert({output_index, output_second});
             }
             inner_program = std::make_shared<cldnn::program>(ib.get_engine());
-            inner_program->load(ib);
+            inner_program->load(ib,
+                                nullptr,
+                                nullptr,
+                                cldnn::program::get_loading_weights_memory(),
+                                cldnn::program::get_loading_host_buffer_base_ptr());
         }
     };
 
