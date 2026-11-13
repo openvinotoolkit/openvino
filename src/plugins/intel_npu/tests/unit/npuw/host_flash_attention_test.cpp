@@ -948,6 +948,54 @@ TEST(HostFlashAttentionPositionIdsFindTest, PreservesExactHistory) {
     EXPECT_EQ(selector->context_length(), 48);
 }
 
+TEST(HostFlashAttentionPositionIdsFindTest, PrefillZeroIdsWithoutHistoryHasNoPast) {
+    auto rq = make_position_ids_request({1, QUERY_SIZE});
+    ov::Tensor ids(ov::element::i64, {1, QUERY_SIZE});
+    std::fill_n(ids.data<int64_t>(), ids.get_size(), int64_t{0});
+    rq->set_tensor(rq->get_inputs()[0], ov::get_tensor_impl(ids));
+    auto selector = ov::npuw::runtime::host_flash_attention::PositionIDs::find(QUERY_SIZE, *rq);
+    ASSERT_NE(selector, nullptr);
+    selector->prepare(0);
+    EXPECT_EQ(selector->context_length(), QUERY_SIZE);
+}
+
+TEST(HostFlashAttentionPositionIdsFindTest, PrefillZeroIdsAfterResetHasNoStalePast) {
+    auto rq = make_position_ids_request({1, QUERY_SIZE});
+    ov::Tensor ids(ov::element::i64, {1, QUERY_SIZE});
+    const int64_t history = 2 * QUERY_SIZE + 3;
+    std::iota(ids.data<int64_t>(), ids.data<int64_t>() + ids.get_size(), history);
+    rq->set_tensor(rq->get_inputs()[0], ov::get_tensor_impl(ids));
+    auto selector = ov::npuw::runtime::host_flash_attention::PositionIDs::find(QUERY_SIZE, *rq);
+    ASSERT_NE(selector, nullptr);
+    selector->prepare(history);
+    EXPECT_EQ(selector->context_length(), 4 * QUERY_SIZE);
+
+    std::fill_n(ids.data<int64_t>(), ids.get_size(), int64_t{0});
+    selector->prepare(0);
+    EXPECT_EQ(selector->context_length(), QUERY_SIZE);
+}
+
+TEST(HostFlashAttentionPositionIdsFindTest, PrefillZeroIdsWithHistoryThrows) {
+    auto rq = make_position_ids_request({1, QUERY_SIZE});
+    ov::Tensor ids(ov::element::i64, {1, QUERY_SIZE});
+    std::fill_n(ids.data<int64_t>(), ids.get_size(), int64_t{0});
+    rq->set_tensor(rq->get_inputs()[0], ov::get_tensor_impl(ids));
+    auto selector = ov::npuw::runtime::host_flash_attention::PositionIDs::find(QUERY_SIZE, *rq);
+    ASSERT_NE(selector, nullptr);
+    EXPECT_THROW(selector->prepare(19), ov::Exception);
+}
+
+TEST(HostFlashAttentionPositionIdsFindTest, GenerateZeroIdsWithoutHistoryStartsAtPositionZero) {
+    auto rq = make_position_ids_request({1, 1});
+    ov::Tensor ids(ov::element::i64, {1, 1});
+    std::fill_n(ids.data<int64_t>(), ids.get_size(), int64_t{0});
+    rq->set_tensor(rq->get_inputs()[0], ov::get_tensor_impl(ids));
+    auto selector = ov::npuw::runtime::host_flash_attention::PositionIDs::find(1, *rq);
+    ASSERT_NE(selector, nullptr);
+    selector->prepare(0);
+    EXPECT_EQ(selector->context_length(), 1);
+}
+
 namespace {
 
 class HFACpuCompiledModel;

@@ -1498,7 +1498,12 @@ void PositionIDs::prepare(int64_t past_len) {
         }
     }
     LOG_WARN("Dynamic selector - no data found in the feature?");
-    _current_length = -1;
+    if (_case == Case::PREFILL && past_len > 0) {
+        OPENVINO_THROW("HFA: position_ids have no positive value, but the history size is ",
+                       past_len,
+                       ". position_ids and history size contradict each other.");
+    }
+    _current_length = 0;
 }
 
 int64_t PositionIDs::context_length() const {
