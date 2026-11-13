@@ -1209,9 +1209,6 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         int64_t mask_tile_offset = 0;
                         int64_t remaining_full_tiles = past_full_tiles;  // tiles driven from past blocks
 
-                        const int64_t history = state.hfa_selector->history_length();
-                        const bool classify_history = total_kv_length == global_context_length;
-
                         // Regular tiles read the leading mask region, while the final tile reads
                         // the trailing region. Validate both ranges before creating tensor views.
                         int64_t mask_total_length = 0;
@@ -1227,6 +1224,9 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                             total_kv_length,
                                             " positions are required");
                         }
+
+                        const int64_t history = state.hfa_selector->history_length();
+                        const bool classify_history = total_kv_length == global_context_length;
 
                         // Iterate through KV blocks; each block contributes block_size/past_tile_size
                         // tiles (one-to-one per block in block-split mode, or several chunks out of a
@@ -1454,26 +1454,23 @@ void serialize_compiled_state(v1::subgraphs::Context& context,
                 LOG_DEBUG("Imported compiled tile model for host flash attention");
             }
         }
-        const auto* format = context.get_if<ov::npuw::compiled::HFASerializationFormat>();
-        if (stream.output() || format == nullptr || format->has_masked_tile_field) {
-            bool has_masked_tile = mutable_hfa->_compiled_masked_tile_model != nullptr;
-            stream & has_masked_tile;
-            if (has_masked_tile) {
-                if (stream.output()) {
-                    std::stringstream ss;
-                    mutable_hfa->_compiled_masked_tile_model->export_model(ss);
-                    std::string model_str = ss.str();
-                    stream & model_str;
-                } else {
-                    NPUW_ASSERT(submodel_ctx != nullptr);
-                    std::string model_str;
-                    stream & model_str;
-                    std::stringstream ss(model_str);
-                    mutable_hfa->_compiled_masked_tile_model =
-                        submodel_ctx->plugin->get_core()->import_model(ss,
-                                                                       submodel_ctx->device,
-                                                                       submodel_ctx->import_config);
-                }
+        bool has_masked_tile = mutable_hfa->_compiled_masked_tile_model != nullptr;
+        stream & has_masked_tile;
+        if (has_masked_tile) {
+            if (stream.output()) {
+                std::stringstream ss;
+                mutable_hfa->_compiled_masked_tile_model->export_model(ss);
+                std::string model_str = ss.str();
+                stream & model_str;
+            } else {
+                NPUW_ASSERT(submodel_ctx != nullptr);
+                std::string model_str;
+                stream & model_str;
+                std::stringstream ss(model_str);
+                mutable_hfa->_compiled_masked_tile_model =
+                    submodel_ctx->plugin->get_core()->import_model(ss,
+                                                                   submodel_ctx->device,
+                                                                   submodel_ctx->import_config);
             }
         }
         if (stream.input()) {

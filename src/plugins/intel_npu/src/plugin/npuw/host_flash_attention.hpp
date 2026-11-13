@@ -162,10 +162,6 @@ struct HostFlashAttention {
 
 namespace compiled {
 
-struct HFASerializationFormat {
-    bool has_masked_tile_field = true;
-};
-
 // Simplified host flash attention parameter info
 // Contains parameter indices from the original SDPA model
 struct HostFlashAttentionInfo {
@@ -547,7 +543,6 @@ public:
 class PositionIDs final : public Selector {
     std::size_t _position_ids_idx = 0u;
     int64_t _current_length = 0;
-    int64_t _past_length = 0;
     std::size_t _original_query_length = 0u;  // original query length before PropagateSliceUp
 
     std::reference_wrapper<const ov::ISyncInferRequest> _rq;
@@ -564,7 +559,6 @@ public:
 // "position_ids" input, driven by a host that reports the number of tokens already in the KV cache
 // through the npuw_history_size variable state (e.g. LiteRT). Prefill only, like HFA itself.
 class HistorySize final : public Selector {
-    int64_t _past_length = 0;
     std::size_t _original_query_length = 0u;  // original query length before PropagateSliceUp
 
 public:

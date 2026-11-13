@@ -1495,9 +1495,7 @@ void ov::npuw::CompiledModel::serialize_orc_container(std::ostream& stream,
             const auto device_index = real_idx == idx ? find_device_index(m_dev_list, submodel_device(real_idx)) : 0u;
             ov::npuw::orc::with_leaf_section(body_stream,
                                              CompiledModelDesc::kOrcType,
-                                             ov::npuw::attn::get_compiled_hfa(subm.pipeline.context) != nullptr
-                                                 ? 1u
-                                                 : CompiledModelDesc::kOrcVersion,
+                                             CompiledModelDesc::kOrcVersion,
                                              [&] {
                                                  auto desc_stream = ov::npuw::s11n::Stream::writer(body_stream);
                                                  subm.serialize(desc_stream, weights_ctx, device_index);
@@ -1639,13 +1637,12 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         if (child.header().type != CompiledModelDesc::kOrcType) {
             OPENVINO_THROW("Unexpected ORC child type ID ", child.header().type, " in NPUW CompiledModel container");
         }
-        if (child.header().version > 1u) {
+        if (child.header().version != CompiledModelDesc::kOrcVersion) {
             OPENVINO_THROW("Unsupported ORC NPUW subgraph version ", child.header().version);
         }
 
         compiled->m_compiled_submodels.emplace_back();
         auto& submodel = compiled->m_compiled_submodels.back();
-        submodel.pipeline.context.put<ov::npuw::compiled::HFASerializationFormat>({child.header().version >= 1u});
         auto child_stream = ov::npuw::s11n::Stream::reader(child_source);
         ov::npuw::s11n::SubmodelDeserializeCtx submodel_ctx(
             plugin,

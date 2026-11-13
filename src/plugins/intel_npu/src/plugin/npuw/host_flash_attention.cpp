@@ -1454,6 +1454,14 @@ bool HostFlashAttention::is_valid() const {
 namespace runtime {
 namespace host_flash_attention {
 
+namespace {
+
+int64_t round_up_history_length(int64_t history_length, std::size_t original_query_length) {
+    return ((history_length + original_query_length - 1) / original_query_length) * original_query_length;
+}
+
+}  // namespace
+
 // PositionIDs constructor
 PositionIDs::PositionIDs(std::size_t param_idx, std::size_t original_query_length, const ov::ISyncInferRequest& rq)
     : _position_ids_idx(param_idx),
@@ -1486,20 +1494,6 @@ void PositionIDs::prepare(int64_t past_len) {
         if (pos_data_ptr[idx] > 0) {
             // Initialize fields
             _current_length = pos_data_ptr[idx];
-            switch (_case) {
-            case Case::GENERATE:
-                // decode case, we have pos_id-1 past elements to take from kvcache
-                _past_length = _current_length;
-                break;
-            case Case::PREFILL:
-                // chunked prefill case. calculate the past_length in full chunks
-                // FIXME: We know too much about chunking here
-                _past_length =
-                    ((past_len + _original_query_length - 1) / _original_query_length) * _original_query_length;
-                break;
-            default:
-                NPUW_ASSERT(false && "Reached the unreachable code");
-            }
             return;
         }
     }
@@ -1508,8 +1502,22 @@ void PositionIDs::prepare(int64_t past_len) {
 }
 
 int64_t PositionIDs::context_length() const {
+    int64_t past_length = 0;
+    switch (_case) {
+    case Case::GENERATE:
+        // decode case, we have pos_id-1 past elements to take from kvcache
+        past_length = _current_length;
+        break;
+    case Case::PREFILL:
+        // chunked prefill case. calculate the past_length in full chunks
+        // FIXME: We know too much about chunking here
+        past_length = round_up_history_length(_history_length, _original_query_length);
+        break;
+    default:
+        NPUW_ASSERT(false && "Reached the unreachable code");
+    }
     // Use original_query_length for context calculation (not query_size which may be sliced to 1)
-    return _original_query_length + _past_length;
+    return _original_query_length + past_length;
 }
 
 // HistorySize constructor
@@ -1519,15 +1527,14 @@ HistorySize::HistorySize(std::size_t original_query_length) : _original_query_le
 
 void HistorySize::prepare(int64_t past_len) {
     _history_length = past_len;
-    // past_len is the request's history_size(): what the host last set through npuw_history_size,
-    // or 0 if it is unset. Same chunk rounding as PositionIDs, which takes its prefill past from
-    // past_len too. HFA is prefill-only; for a query length of 1 (GENERATE, rejected by the HFA
-    // runtime) the rounding is the identity.
-    _past_length = ((past_len + _original_query_length - 1) / _original_query_length) * _original_query_length;
 }
 
 int64_t HistorySize::context_length() const {
-    return _original_query_length + _past_length;
+    // _history_length is the request's history_size(): what the host last set through npuw_history_size,
+    // or 0 if it is unset. Same chunk rounding as PositionIDs, which takes its prefill past from
+    // the history length too. HFA is prefill-only; for a query length of 1 (GENERATE, rejected by the HFA
+    // runtime) the rounding is the identity.
+    return _original_query_length + round_up_history_length(_history_length, _original_query_length);
 }
 
 Selector::Ptr HistorySize::find(std::size_t original_query_length, const ov::ISyncInferRequest& rq) {
