@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-13-00-34-45-000-43336008835",
+  "timestamp": "2026-11-13T00:34:45Z",
+  "run_id": "43336008835",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43336008835",
+  "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+  "commit_sha": "56346f1a8b82abf01e525e40850fa4ed3d3f8df7",
+  "pr_number": "39667",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39667",
+  "author": null,
+  "category": "Infrastructure",
+  "title": "Windows CC build fails with linker LNK1102 out-of-memory errors under high parallelism",
+  "signature": "Windows Release build runs out of memory - compiler fatal error C1060 (out of heap space) and linker fatal error LNK1102 (out of memory) under high parallelism|Infrastructure",
+  "signature_hash": "80cfa127185fbf3e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build_And_Run_Collect_Mode",
+      "conclusion": "failure",
+      "symptom": "Ninja build stopped: multiple MSVC link.exe invocations fail with LNK1102 'fatal error LNK1102: out of memory' while linking ov_ir_frontend_tests.exe, _pyopenvino pyd, ov_subgraphs_dumper_tests.exe and openvino_mock1_frontend.dll"
+    },
+    {
+      "name": "ci/gha_overall_status_windows_cc",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails because Build_And_Run_Collect_Mode failed"
+    }
+  ],
+  "key_errors": [
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/ov_ir_frontend_tests.exe\nLINK : fatal error LNK1102: out of memory",
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/python/openvino/_pyopenvino.cp311-win_amd64.pyd\nLINK : fatal error LNK1102: out of memory",
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/ov_subgraphs_dumper_tests.exe\nLINK : fatal error LNK1102: out of memory",
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/openvino_mock1_frontend.dll ... \nLINK : fatal error LNK1102: out of memory\nninja: build stopped: subcommand failed."
+  ],
+  "root_cause": "The Windows CC (Conditional Compilation) build runs with CMAKE_BUILD_PARALLEL_LEVEL: 31 on a shared Windows runner. Multiple MSVC link.exe invocations are scheduled concurrently by ninja; each link.exe process (especially for test binaries and the pyopenvino extension) consumes significant memory, and the combined working set exceeds available runner memory, causing link.exe to abort with LNK1102 'out of memory'. This is a resource-exhaustion/runner-capacity issue, not a code defect in the PR that triggered this run - the PR's own diff is a GPU-plugin-only logic fix unrelated to linking or build parallelism. This is the third time (3 occurrences) this exact linker-exhaustion pattern has been recorded against Windows builds with the same CMAKE_BUILD_PARALLEL_LEVEL configuration.",
+  "reproduction_steps": "N/A - requires reproducing memory pressure on an identically-sized Windows runner; not reliably reproducible locally without matching parallelism/memory constraints. Locally: build with `cmake --build . --parallel 31` on a machine with similar core count but less RAM than the CI runner to induce similar linker OOM.",
+  "recommended_actions": [
+    "Reduce CMAKE_BUILD_PARALLEL_LEVEL for the Windows CC job, or set a separate (lower) parallel level specifically for the link stage (e.g., via ninja -j or CMAKE_JOB_POOLS) to avoid scheduling many memory-heavy link.exe processes concurrently.",
+    "Investigate whether /INCREMENTAL:NO and /OPT:REF /OPT:ICF combined with full parallelism is pushing memory usage too high for this runner size; consider splitting heavy link targets into a separate low-concurrency job pool.",
+    "Consider increasing runner memory/size for this specific Windows CC workflow if build parallelism cannot be safely reduced without regressing build time.",
+    "Re-run the failed job - since this is an infra/resource issue unrelated to the PR's code change, a retry with the same parallelism may succeed depending on runner contention at the time."
+  ],
+  "prevention_strategies": "Cap build parallelism for memory-heavy link stages (e.g., ninja job pools limiting concurrent link.exe processes), monitor peak memory usage trends on this Windows build agent pool, and consider alerting when link memory approaches runner limits before LNK1102 is hit.",
+  "historical_context": "This is a recurring pattern (pattern 80cfa127185fbf3e, previously 2 occurrences on 2026-11-03 and 2026-11-12, runs 41586716106 and 43241364429) of Windows Release builds failing with compiler C1060 / linker LNK1102 out-of-memory errors under high parallelism. This run is the 3rd recorded occurrence, confirming it is an ongoing infrastructure capacity issue rather than an isolated incident."
+}
