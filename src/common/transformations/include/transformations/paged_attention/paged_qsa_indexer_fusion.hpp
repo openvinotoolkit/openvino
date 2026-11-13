@@ -35,7 +35,8 @@ namespace ov::pass {
  * Assign sinks.
  * The effective score scale is stored explicitly as a positive value in the paged op.
  *
- * Query normalization/rotation flags are preserved, so plugin compilation can absorb query preprocessing later.
+ * Query normalization/rotation flags are preserved. FuseQSAIndexerQuery must absorb any remaining query
+ * preprocessing and enable both flags before the paged indexer is executed.
  * The query and raw keys must have static head counts and f32, f16 or bf16 data.
  */
 class TRANSFORMATIONS_API PagedQSAIndexerFusion : public MatcherPass {
