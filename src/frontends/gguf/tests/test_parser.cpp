@@ -728,7 +728,8 @@ TEST_F(GGUFShards, FrontendConvertsTheSameConstantsFromSingleFileAndShardInputs)
         const auto comparison = comparator.compare(model, reference);
         EXPECT_TRUE(comparison.valid) << comparison.message;
     }
-    const auto unicode_prefix = ov::util::make_path(m_base + u8"_模型_żółć");
+    auto unicode_prefix = ov::util::make_path(m_base);
+    unicode_prefix += std::filesystem::path{u8"_模型_żółć"};
     const auto unicode_first =
         std::filesystem::path(unicode_prefix.native() + std::filesystem::path("-00001-of-00002.gguf").native());
     const auto unicode_second =
