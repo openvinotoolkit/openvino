@@ -263,12 +263,7 @@ TEST(CollapseUNQDQPassTest, ConvToMatMulAndUNQDQOrderDoesNotMatter) {
 constexpr float kOverflowRange = 950796.0f;
 constexpr float kEps = 1e-7f;
 
-struct UNQDQOptions {
-    bool swapped_multiply = false;
-    bool rescaled = false;  // carries the marker RescaleFP16OverflowQDQ leaves on the FQs it handled
-};
-
-ov::Output<ov::Node> add_unqdq(const ov::Output<ov::Node>& input, float range, const UNQDQOptions& options = {}) {
+ov::Output<ov::Node> add_unqdq(const ov::Output<ov::Node>& input, float range, bool swapped_multiply = false) {
     auto fake_quantize = std::make_shared<ov::op::v0::FakeQuantize>(
         input,
         ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {-range}),
@@ -276,17 +271,14 @@ ov::Output<ov::Node> add_unqdq(const ov::Output<ov::Node>& input, float range, c
         ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f}),
         ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {65535.0f}),
         65536);
-    if (options.rescaled) {
-        fake_quantize->get_rt_info()["npuw_fp16_rescaled"] = true;
-    }
     auto quantized_convert = std::make_shared<ov::op::v0::Convert>(fake_quantize, ov::element::u16);
     auto dequantized_convert = std::make_shared<ov::op::v0::Convert>(quantized_convert, ov::element::f32);
     auto subtract =
         std::make_shared<ov::op::v1::Subtract>(dequantized_convert,
                                                ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {32768.0f}));
     auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {range / 32768.0f});
-    return options.swapped_multiply ? std::make_shared<ov::op::v1::Multiply>(scale, subtract)
-                                    : std::make_shared<ov::op::v1::Multiply>(subtract, scale);
+    return swapped_multiply ? std::make_shared<ov::op::v1::Multiply>(scale, subtract)
+                            : std::make_shared<ov::op::v1::Multiply>(subtract, scale);
 }
 
 ov::Output<ov::Node> rescale(const ov::Output<ov::Node>& input, int k) {
@@ -320,7 +312,7 @@ struct MlpOptions {
     ov::element::Type type = ov::element::f32;
     // Reference graph state
     int k = 0;               // exponent RescaleFP16OverflowQDQ applied, 0 if it left the model alone
-    bool collapsed = false;  // CollapseUNQDQ ran afterwards
+    bool collapsed = false;  // CollapseUNQDQ ran; RescaleFP16OverflowQDQ collapses the region itself when k != 0
 };
 
 std::shared_ptr<ov::Model> build_overflow_mlp_model(const MlpOptions& o) {
@@ -330,19 +322,22 @@ std::shared_ptr<ov::Model> build_overflow_mlp_model(const MlpOptions& o) {
     // The first overflowing FQ in topological order decides where the factor goes
     const bool scale_mul = o.k && o.mul_range > 65504.0f;
     const bool scale_down = o.k && !scale_mul;
-    const auto qdq = [&](const ov::Output<ov::Node>& input, float range, bool in_region) {
-        return o.collapsed ? input : add_unqdq(input, range, {o.swapped_multiply, in_region});
+    const auto qdq = [&](const ov::Output<ov::Node>& input, float range) -> ov::Output<ov::Node> {
+        if (!o.collapsed && !o.k) {
+            return add_unqdq(input, range, o.swapped_multiply);
+        }
+        if (input.get_element_type() != ov::element::f32) {
+            return std::make_shared<ov::op::v0::Convert>(input, ov::element::f32);
+        }
+        return input;
     };
 
     auto mul = std::make_shared<ov::op::v1::Multiply>(scale_mul ? rescale(up, o.k) : up, gate);
-    ov::Output<ov::Node> down_input = qdq(mul, o.mul_range, scale_mul);
-    if (o.collapsed && down_input.get_element_type() != ov::element::f32) {
-        down_input = std::make_shared<ov::op::v0::Convert>(down_input, ov::element::f32);
-    }
+    ov::Output<ov::Node> down_input = qdq(mul, o.mul_range);
     auto down = std::make_shared<ov::op::v0::MatMul>(
         scale_down ? rescale(down_input, o.k) : down_input,
         ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4, 4}, std::vector<float>(16, 1.0f)));
-    ov::Output<ov::Node> x = qdq(down, o.down_range, o.k != 0);
+    ov::Output<ov::Node> x = qdq(down, o.down_range);
     if (o.residual_add) {
         auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4});
         params.push_back(residual);
@@ -543,11 +538,12 @@ TEST_F(RescaleFP16OverflowQDQTest, KeepsMatMulWithDequantizedInput) {
 }
 
 // After CollapseUNQDQ the factor must cancel in the normalization, including for activations small
-// enough that eps matters
+// enough that eps matters, and must not create inf/NaN for f16 inputs that become subnormal
 TEST(RescaleFP16OverflowQDQNumericTest, MatchesCollapseOnlyOutput) {
-    const auto run = [](bool rescale, float value) {
-        const auto model = build_mlp([](MlpOptions& o) {
+    const auto run = [](bool rescale, const ov::element::Type& type, float value) {
+        const auto model = build_mlp([&](MlpOptions& o) {
             o.decomposed_l2 = true;
+            o.type = type;
         });
         ov::pass::Manager manager;
         if (rescale) {
@@ -557,18 +553,30 @@ TEST(RescaleFP16OverflowQDQNumericTest, MatchesCollapseOnlyOutput) {
         manager.run_passes(model);
         ov::TensorVector inputs;
         for (auto&& param : model->get_parameters()) {
-            inputs.emplace_back(ov::element::f32, param->get_shape());
-            std::fill_n(inputs.back().data<float>(), inputs.back().get_size(), value);
+            inputs.emplace_back(param->get_element_type(), param->get_shape());
+            if (param->get_element_type() == ov::element::f16) {
+                std::fill_n(inputs.back().data<ov::float16>(), inputs.back().get_size(), ov::float16(value));
+            } else {
+                std::fill_n(inputs.back().data<float>(), inputs.back().get_size(), value);
+            }
         }
         ov::TensorVector outputs{ov::Tensor(ov::element::f32, ov::Shape{1, 4})};
         EXPECT_TRUE(model->evaluate(outputs, inputs));
         return std::vector<float>(outputs[0].data<float>(), outputs[0].data<float>() + outputs[0].get_size());
     };
-    for (float value : {1e-2f, 1.0f, 600.0f}) {
-        const auto expected = run(false, value);
-        const auto actual = run(true, value);
-        for (std::size_t i = 0; i < expected.size(); ++i) {
-            EXPECT_NEAR(actual[i], expected[i], 1e-5f * std::fabs(expected[i])) << "value=" << value;
+    // In f16 the factor raises the subnormal threshold by 2^k, so tiny products lose precision; they must
+    // still stay finite. Values that remain normal after scaling must match.
+    for (const auto& type : {ov::element::f32, ov::element::f16}) {
+        for (float value : {0.0f, 1e-3f, 1e-2f, 1.0f, 200.0f}) {
+            const auto expected = run(false, type, value);
+            const auto actual = run(true, type, value);
+            const bool exact = type == ov::element::f32 || value == 0.0f || value >= 1.0f;
+            for (std::size_t i = 0; i < expected.size(); ++i) {
+                ASSERT_TRUE(std::isfinite(actual[i])) << type << " value=" << value;
+                if (exact) {
+                    EXPECT_NEAR(actual[i], expected[i], 1e-5f * std::fabs(expected[i])) << type << " value=" << value;
+                }
+            }
         }
     }
 }

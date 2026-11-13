@@ -19,7 +19,8 @@ public:
 // handled, with every intermediate value feeding only the next step. If either FQ range exceeds the
 // f16 maximum, the MatMul input (or the input of the first chain's producer, if that chain
 // overflows too) is scaled by 2^-k; the normalization cancels the factor once its eps is scaled by
-// 2^-2k. Rescaled FQs are marked, so running the pass again is a no-op.
+// 2^-2k. Both chains are collapsed together with the rescale, since their calibrated FQ bounds would
+// no longer fit the scaled values; the rest of the model is left for CollapseUNQDQ.
 class RescaleFP16OverflowQDQ : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::RescaleFP16OverflowQDQ");

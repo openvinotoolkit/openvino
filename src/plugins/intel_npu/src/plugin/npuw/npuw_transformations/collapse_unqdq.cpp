@@ -52,8 +52,6 @@ constexpr float kF16Max = 65504.f;
 // Calibrated ranges are not hard bounds, so keep one binade of headroom below the f16 maximum.
 constexpr float kRescaleTarget = 32768.f;
 
-constexpr const char* kRescaledKey = "npuw_fp16_rescaled";
-
 // FakeQuantize(input) -> Convert (quantize) -> Convert (dequantize) -> Subtract (zero point) -> Multiply (scale).
 // Shared by CollapseUNQDQ and the rescale guards so both agree on what a removable chain is. Multiply is
 // commutative, so the matcher also accepts Multiply(scale, Subtract).
@@ -245,9 +243,6 @@ bool ov::npuw::RescaleFP16OverflowQDQ::run_on_model(const std::shared_ptr<ov::Mo
         }
         const auto fq_in = ov::as_type_ptr<ov::op::v0::FakeQuantize>(map.at(p.in.fake_q).get_node_shared_ptr());
         const auto fq_out = ov::as_type_ptr<ov::op::v0::FakeQuantize>(map.at(p.out.fake_q).get_node_shared_ptr());
-        if (fq_in->get_rt_info().count(kRescaledKey) || fq_out->get_rt_info().count(kRescaledKey)) {
-            continue;
-        }
         const float range_in = fq_range(fq_in);
         const float range_out = fq_range(fq_out);
         if (!std::isfinite(range_in) || !std::isfinite(range_out) || !(std::max(range_in, range_out) > kF16Max)) {
@@ -311,11 +306,16 @@ bool ov::npuw::RescaleFP16OverflowQDQ::run_on_model(const std::shared_ptr<ov::Mo
         multiply->set_friendly_name(producer->get_friendly_name() + "/fp16_rescale");
         ov::copy_runtime_info(producer, {factor, multiply});
         input.replace_source_output(multiply);
-        // FQ bounds stay as calibrated, so mark the scaled chains to keep a second run from scaling them again
-        if (scale_producer) {
-            fq_in->get_rt_info()[kRescaledKey] = true;
+        // The FQ bounds stay as calibrated and would quantize the scaled values on a 2^k coarser grid,
+        // so remove both chains here, as CollapseUNQDQ does
+        for (const auto& [fq, end] :
+             {std::pair{fq_in, map.at(p.in.multiply)}, std::pair{fq_out, map.at(p.out.multiply)}}) {
+            const auto chain_end = end.get_node_shared_ptr();
+            ov::replace_node(chain_end,
+                             ov::OutputVector{preserve_output_type(fq->input_value(0),
+                                                                   chain_end->get_output_element_type(0),
+                                                                   chain_end->get_friendly_name())});
         }
-        fq_out->get_rt_info()[kRescaledKey] = true;
         LOG_INFO("RescaleFP16OverflowQDQ: scaled " << producer->get_friendly_name() << " by 2^-" << k << " for range "
                                                    << range);
         changed = true;
