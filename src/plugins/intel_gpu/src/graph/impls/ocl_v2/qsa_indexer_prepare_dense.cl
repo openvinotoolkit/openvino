@@ -6,7 +6,8 @@
 //
 // Same maths as qsa_indexer_prepare_paged.cl with dense addressing: batch IS the sequence axis, the flat token index
 // is t = b * seq_len + l, and the staged incomplete block / its first-token rope row live in distinct input and output
-// state buffers (the host has already copied every state input into its output).
+// state buffers (the host has already copied the incomplete-block state inputs into their outputs, and
+// qsa_indexer_carry_cache_dense has carried the earlier blocks of the block-key cache).
 //
 // JIT: QSA_IDX_QUERY_HEADS, QSA_IDX_HEAD_DIM, QSA_IDX_ROTARY_DIM, QSA_COMPRESS_RATIO, QSA_IDX_NORM_EPS, SUBGROUP_SIZE
 // Dispatch: gws = [SG, HIQ + 1, num_wg], lws = [SG, 1, 1]
@@ -24,7 +25,7 @@ KERNEL(qsa_indexer_prepare_dense)(const __global half* q_idx,           // [B, L
                                   const __global int* key_length,       // [B]
                                   const __global half* raw_in,          // [B, 1, r-1, Di]
                                   const __global half* rope_in,         // [B, 2*rotary_dim]
-                                  __global half* summary_cache,         // [B, 1, floor(S_cap/r), Di]
+                                  __global half* summary_cache,         // [B, 1, max(key_length)/r, Di]
                                   __global half* raw_out,               // [B, 1, r-1, Di]
                                   __global half* rope_out,              // [B, 2*rotary_dim]
                                   __global half* indexer_q,             // [tokens, Hiq, Di]

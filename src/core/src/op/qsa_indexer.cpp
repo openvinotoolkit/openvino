@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "itt.hpp"
+#include "qsa_indexer_shape_inference.hpp"
 
 namespace ov::op::internal {
 
@@ -199,21 +200,14 @@ void QSAIndexer::validate_and_infer_types() {
                               "QSAIndexer: num_selection_heads must be 1 or H_ik.");
     }
 
-    const ov::PartialShape selected_block_indices_ps{batch,
-                                                     ov::Dimension(static_cast<int64_t>(m_config.num_selection_heads)),
-                                                     length,
-                                                     ov::Dimension(static_cast<int64_t>(m_config.block_topk))};
-    const ov::PartialShape selected_block_count_ps{batch,
-                                                   ov::Dimension(static_cast<int64_t>(m_config.num_selection_heads)),
-                                                   length};
-
+    const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
     set_output_size(OutputIdx::COUNT);
-    set_output_type(OutputIdx::SELECTED_BLOCK_INDICES, element::i32, selected_block_indices_ps);
-    set_output_type(OutputIdx::SELECTED_BLOCK_COUNT, element::i32, selected_block_count_ps);
+    set_output_type(OutputIdx::SELECTED_BLOCK_INDICES, element::i32, output_shapes[OutputIdx::SELECTED_BLOCK_INDICES]);
+    set_output_type(OutputIdx::SELECTED_BLOCK_COUNT, element::i32, output_shapes[OutputIdx::SELECTED_BLOCK_COUNT]);
     for (auto [out, in] : {std::pair{OutputIdx::BLOCK_INDEX_KEYS_CACHE, InputIdx::BLOCK_INDEX_KEYS_CACHE},
                            std::pair{OutputIdx::PAST_INCOMPLETE_RAW_K, InputIdx::PAST_INCOMPLETE_RAW_K},
                            std::pair{OutputIdx::PAST_INCOMPLETE_ROPE, InputIdx::PAST_INCOMPLETE_ROPE}}) {
-        set_output_type(out, get_input_element_type(in), get_input_partial_shape(in));
+        set_output_type(out, get_input_element_type(in), output_shapes[out]);
     }
 }
 

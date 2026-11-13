@@ -163,6 +163,7 @@ set(GPU_OCL_V2_KERNEL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/paged_selective_ssm_large_state.cl
     ${CMAKE_CURRENT_LIST_DIR}/paged_selective_ssm_opt.cl
     ${CMAKE_CURRENT_LIST_DIR}/qsa_common.cl
+    ${CMAKE_CURRENT_LIST_DIR}/qsa_indexer_carry_cache_dense.cl
     ${CMAKE_CURRENT_LIST_DIR}/qsa_indexer_prepare_dense.cl
     ${CMAKE_CURRENT_LIST_DIR}/qsa_indexer_prepare_paged.cl
     ${CMAKE_CURRENT_LIST_DIR}/qsa_indexer_score_dpas.cl

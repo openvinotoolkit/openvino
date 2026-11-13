@@ -6,7 +6,6 @@
 
 #include <gtest/gtest.h>
 
-#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <string>
@@ -19,18 +18,14 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
-#include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/qsa_indexer.hpp"
 #include "openvino/op/qsa_prepare.hpp"
-#include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_mean.hpp"
-#include "openvino/op/slice.hpp"
 #include "openvino/op/sparse_attention_indexer.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
-#include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
@@ -46,7 +41,6 @@ using namespace ov;
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
-namespace v8 = ov::op::v8;
 namespace v17 = ov::op::v17;
 namespace op_internal = ov::op::internal;
 using ov::op::util::make_try_fold;
@@ -318,19 +312,6 @@ std::shared_ptr<Model> getModelRef(const GraphOptions& o) {
         return std::make_shared<v3::Broadcast>(rope, target);
     };
 
-    // The block-key cache grows by zero blocks up to the complete blocks of the longest sequence.
-    const auto longest_i64 = std::make_shared<v0::Convert>(g.key_length, element::i64);
-    const auto longest = std::make_shared<v1::ReduceMax>(longest_i64, i64({0}), true);
-    const auto needed_blocks = std::make_shared<v1::Divide>(longest, i64({key_block_size}));
-    const auto missing_blocks = std::make_shared<v1::Subtract>(needed_blocks, dims_of(g.cache, {1}));
-    const auto growth = std::make_shared<v1::Maximum>(missing_blocks, i64({0}));
-    const auto growth_shape =
-        make_try_fold<v0::Concat>(OutputVector{dims_of(g.raw_keys, {0}), i64({1}), growth, i64({head_size})}, 0);
-    const auto zeros =
-        std::make_shared<v3::Broadcast>(v0::Constant::create(o.precision, Shape{}, {0.0f}), growth_shape);
-    const auto cache =
-        std::make_shared<v0::Concat>(OutputVector{std::make_shared<v0::Unsqueeze>(g.cache, i64({1})), zeros}, 2);
-
     OutputVector inputs(QSAIndexerInputIdx::COUNT);
     switch (o.query_fusion) {
     case QueryFusion::None:
@@ -351,7 +332,7 @@ std::shared_ptr<Model> getModelRef(const GraphOptions& o) {
                                                  : key_length;
     inputs[QSAIndexerInputIdx::Q_NORM_WEIGHT] = v0::Constant::create(o.precision, Shape{head_size}, {1.0f});
     inputs[QSAIndexerInputIdx::K_NORM_WEIGHT] = g.key_weight;
-    inputs[QSAIndexerInputIdx::BLOCK_INDEX_KEYS_CACHE] = cache;
+    inputs[QSAIndexerInputIdx::BLOCK_INDEX_KEYS_CACHE] = std::make_shared<v0::Unsqueeze>(g.cache, i64({1}));
     inputs[QSAIndexerInputIdx::PAST_INCOMPLETE_RAW_K] = std::make_shared<v0::Unsqueeze>(g.incomplete_keys, i64({1}));
     inputs[QSAIndexerInputIdx::PAST_INCOMPLETE_ROPE] = g.incomplete_rope;
 
@@ -366,24 +347,12 @@ std::shared_ptr<Model> getModelRef(const GraphOptions& o) {
     config.query_norm = o.query_fusion == QueryFusion::Full;
     config.query_rope = o.query_fusion != QueryFusion::None;
     const auto fused = std::make_shared<op_internal::QSAIndexer>(inputs, config);
-    const auto block_keys =
-        std::make_shared<v0::Squeeze>(fused->output(QSAIndexerOutputIdx::BLOCK_INDEX_KEYS_CACHE), i64({1}));
-    Output<Node> block_count = needed_blocks;
-    if (!o.key_length_values.empty()) {
-        int64_t max_length = 0;
-        for (const auto length : o.key_length_values) {
-            max_length = std::max(max_length, length);
-        }
-        block_count = i64({max_length / key_block_size});
-    }
-    const auto trimmed_block_keys = std::make_shared<v8::Slice>(block_keys, i64({0}), block_count, i64({1}), i64({1}));
-
     const std::vector<Output<Node>> outputs{
         fused->output(QSAIndexerOutputIdx::SELECTED_BLOCK_INDICES),
         fused->output(QSAIndexerOutputIdx::SELECTED_BLOCK_COUNT),
         std::make_shared<v0::Squeeze>(fused->output(QSAIndexerOutputIdx::PAST_INCOMPLETE_RAW_K), i64({1})),
         fused->output(QSAIndexerOutputIdx::PAST_INCOMPLETE_ROPE),
-        trimmed_block_keys,
+        std::make_shared<v0::Squeeze>(fused->output(QSAIndexerOutputIdx::BLOCK_INDEX_KEYS_CACHE), i64({1})),
     };
     return make_model(g, outputs, o);
 }
@@ -425,7 +394,7 @@ GraphOptions with(std::string name, void (*setter)(GraphOptions&)) {
 
 const std::vector<GraphOptions> fused_cases{
     with("qwen_indexer_static", [](GraphOptions&) {}),
-    with("overprovisioned_cache_is_trimmed_to_key_length",
+    with("oversized_cache_passes_through",
          [](GraphOptions& o) {
              o.cache_blocks = 3;
              o.key_length_values = {8, 6};

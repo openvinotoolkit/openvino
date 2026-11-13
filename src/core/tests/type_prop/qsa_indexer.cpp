@@ -10,6 +10,7 @@
 #include <sstream>
 #include <tuple>
 
+#include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/pass/serialize.hpp"
@@ -116,5 +117,39 @@ TEST(QSAIndexerTest, SupportsDynamicShapes) {
     const auto indexer = std::make_shared<QSAIndexer>(inputs, make_config());
     EXPECT_EQ(indexer->get_output_partial_shape(0), (PartialShape{-1, 1, -1, 2}));
     EXPECT_EQ(indexer->get_output_partial_shape(1), (PartialShape{-1, 1, -1}));
+}
+
+TEST(QSAIndexerTest, BlockIndexKeysCacheFollowsConstantKeyLength) {
+    auto inputs = make_inputs();
+    // Only the one past block of row 0 must be cached; the output holds 8 / 4 blocks.
+    inputs[QSAIndexer::InputIdx::KEY_LENGTH] = ov::op::v0::Constant::create(ov::element::i32, {2}, {8, 6});
+    inputs[QSAIndexer::InputIdx::BLOCK_INDEX_KEYS_CACHE] =
+        std::make_shared<Parameter>(ov::element::f32, PartialShape{2, 1, 1, 16});
+    const auto indexer = std::make_shared<QSAIndexer>(inputs, make_config());
+    EXPECT_EQ(indexer->get_output_partial_shape(QSAIndexer::OutputIdx::BLOCK_INDEX_KEYS_CACHE),
+              (PartialShape{2, 1, 2, 16}));
+}
+
+TEST(QSAIndexerTest, BlockIndexKeysCacheIsBoundedWithoutKeyLengthValues) {
+    auto inputs = make_inputs();
+    auto indexer = std::make_shared<QSAIndexer>(inputs, make_config());
+    // Bp + ceil(L / r) = 4 + ceil(3 / 4).
+    EXPECT_EQ(indexer->get_output_partial_shape(QSAIndexer::OutputIdx::BLOCK_INDEX_KEYS_CACHE),
+              (PartialShape{2, 1, {0, 5}, 16}));
+
+    inputs[QSAIndexer::InputIdx::BLOCK_INDEX_KEYS_CACHE] =
+        std::make_shared<Parameter>(ov::element::f32, PartialShape{2, 1, -1, 16});
+    indexer = std::make_shared<QSAIndexer>(inputs, make_config());
+    EXPECT_EQ(indexer->get_output_partial_shape(QSAIndexer::OutputIdx::BLOCK_INDEX_KEYS_CACHE),
+              (PartialShape{2, 1, -1, 16}));
+}
+
+TEST(QSAIndexerTest, RejectsBlockIndexKeysCacheNotCoveringPastBlocks) {
+    auto inputs = make_inputs();
+    // Row 0 has 12 - 3 = 9 past tokens, i.e. 2 complete past blocks.
+    inputs[QSAIndexer::InputIdx::KEY_LENGTH] = ov::op::v0::Constant::create(ov::element::i32, {2}, {12, 4});
+    inputs[QSAIndexer::InputIdx::BLOCK_INDEX_KEYS_CACHE] =
+        std::make_shared<Parameter>(ov::element::f32, PartialShape{2, 1, 1, 16});
+    EXPECT_THROW(std::make_shared<QSAIndexer>(inputs, make_config()), ov::NodeValidationFailure);
 }
 }  // namespace

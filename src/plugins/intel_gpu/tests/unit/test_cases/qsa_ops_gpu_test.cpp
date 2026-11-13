@@ -1097,7 +1097,9 @@ struct route {
 };
 
 std::vector<std::string> expected_indexer_kernels(bool paged, const route& r) {
-    std::vector<std::string> k = {paged ? "qsa_indexer_prepare_paged" : "qsa_indexer_prepare_dense"};
+    // The dense block-key cache is carried into the resized output before prepare appends the new blocks.
+    std::vector<std::string> k =
+        paged ? std::vector<std::string>{"qsa_indexer_prepare_paged"} : std::vector<std::string>{"qsa_indexer_carry_cache_dense", "qsa_indexer_prepare_dense"};
     switch (r.indexer) {
     case IndexerPath::Decode:
         for (size_t i = 0; i < r.decode_chunks; i++) {
@@ -1306,8 +1308,8 @@ void validate_pair(const split_reference& ref, const pair_outputs& gpu, float at
     EXPECT_EQ(mismatches, 0u);
 }
 
-/// Checks the dense state outputs against `refs`: the summary of every complete block, and
-/// the staged raw keys and first-token RoPE row of the new incomplete block.
+/// Checks the dense state outputs against `refs`: the summary of every complete block, zeros past each row's last
+/// block, and the staged raw keys and first-token RoPE row of the new incomplete block.
 void validate_dense_state(network& net, const dense_inputs& in, const std::vector<split_reference>& refs) {
     using Out = ov::op::internal::QSAIndexer::OutputIdx;
     const auto& d = in.d;
@@ -1315,7 +1317,12 @@ void validate_dense_state(network& net, const dense_inputs& in, const std::vecto
     const auto summary = read_f16(indexer->output_memory_ptr(Out::BLOCK_INDEX_KEYS_CACHE));
     const auto raw = read_f16(indexer->output_memory_ptr(Out::PAST_INCOMPLETE_RAW_K));
     const auto rope = read_f16(indexer->output_memory_ptr(Out::PAST_INCOMPLETE_ROPE));
-    ASSERT_EQ(indexer->get_output_layout(Out::BLOCK_INDEX_KEYS_CACHE).count(), in.batch * in.summary_cap * d.Di);
+    // The output cache holds max(key_length) / r blocks, whatever the input cache capacity.
+    size_t out_blocks = 0;
+    for (const auto& ref : refs) {
+        out_blocks = std::max(out_blocks, ref.total_len() / d.r);
+    }
+    ASSERT_EQ(indexer->get_output_layout(Out::BLOCK_INDEX_KEYS_CACHE).count(), in.batch * out_blocks * d.Di);
     ASSERT_EQ(indexer->get_output_layout(Out::PAST_INCOMPLETE_RAW_K).count(), in.batch * (d.r - 1) * d.Di);
     ASSERT_EQ(indexer->get_output_layout(Out::PAST_INCOMPLETE_ROPE).count(), in.batch * 2 * d.rotary);
     for (size_t b = 0; b < refs.size(); b++) {
@@ -1326,10 +1333,16 @@ void validate_dense_state(network& net, const dense_inputs& in, const std::vecto
         for (size_t blk = 0; blk < total / d.r; blk++) {
             const auto expected = ref.summary(blk);
             for (size_t j = 0; j < d.Di; j++) {
-                const float got = summary[(b * in.summary_cap + blk) * d.Di + j];
+                const float got = summary[(b * out_blocks + blk) * d.Di + j];
                 if (!(std::fabs(got - expected[j]) <= 1e-2f + 1e-2f * std::fabs(expected[j])) && mismatches++ < 8) {
                     ADD_FAILURE() << "summary[" << blk << "][" << j << "] gpu=" << got << " ref=" << expected[j];
                 }
+            }
+        }
+        for (size_t i = total / d.r * d.Di; i < out_blocks * d.Di; i++) {
+            const float got = summary[b * out_blocks * d.Di + i];
+            if (got != 0.0f && mismatches++ < 8) {
+                ADD_FAILURE() << "summary[" << i / d.Di << "][" << i % d.Di << "] past the last block gpu=" << got << " ref=0";
             }
         }
         const size_t staged = total % d.r;
@@ -1585,16 +1598,15 @@ void run_dense_state_chain_test(const split_dims& d, const std::vector<size_t>& 
     const auto full = make_split_reference(rg, d, 0, std::accumulate(q_lens.begin(), q_lens.end(), size_t{0}), Positions::MRoPELike);
     std::unique_ptr<network> net;
     std::vector<float> summary, raw, rope;
-    size_t summary_cap = 0;
     size_t past_len = 0;
     for (size_t q_len : q_lens) {
         SCOPED_TRACE("past_len=" + std::to_string(past_len) + " q_len=" + std::to_string(q_len));
         const auto ref = slice_reference(full, past_len, q_len);
         auto in = dense_inputs_from_reference(ref);
         if (net) {
-            // Previous state, summary grown to this call's capacity (zero-filled tail).
-            in.block_index_keys_cache.assign(in.summary_cap * d.Di, 0.0f);
-            std::copy_n(summary.begin(), summary_cap * d.Di, in.block_index_keys_cache.begin());
+            // Previous state as is: the returned cache holds exactly the blocks of the earlier calls.
+            in.block_index_keys_cache = summary;
+            in.summary_cap = summary.size() / d.Di;
             in.raw_state = raw;
             in.rope_state = rope;
             set_dense_inputs(engine, *net, in, Stage::Pair, true);
@@ -1613,7 +1625,6 @@ void run_dense_state_chain_test(const split_dims& d, const std::vector<size_t>& 
         summary = read_state(Out::BLOCK_INDEX_KEYS_CACHE);
         raw = read_state(Out::PAST_INCOMPLETE_RAW_K);
         rope = read_state(Out::PAST_INCOMPLETE_ROPE);
-        summary_cap = in.summary_cap;
         past_len += q_len;
     }
 }
@@ -1742,6 +1753,11 @@ TEST(qsa_ops_gpu_test, qwen38_dense_batch_ragged_decode_matches_reference) {
 
 TEST(qsa_ops_gpu_test, dense_state_carries_across_calls) {
     run_dense_state_chain_test(split_dims{}, {37, 1, 1, 6, 1, 3, 2}, 2e-2f);
+}
+
+// The first calls complete no block, so the cache passed between them is empty.
+TEST(qsa_ops_gpu_test, dense_state_carries_empty_cache_across_calls) {
+    run_dense_state_chain_test(split_dims{}, {2, 1, 1, 6, 1}, 2e-2f);
 }
 
 TEST(qsa_ops_gpu_test, qwen38_dense_state_carries_across_calls) {

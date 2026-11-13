@@ -97,7 +97,7 @@ bool use_dpas_score(const kernel_impl_params& params) {
 size_t score_scratch_elems(const kernel_impl_params& params, const qsa_indexer& /*desc*/) {
     const auto& index_query_shape = params.get_input_layout(QSAIn::INDEX_QUERY).get_shape();
     const auto tokens = std::max<size_t>(1, index_query_shape[0] * index_query_shape[1]);
-    const auto& summary_shape = params.get_input_layout(QSAIn::BLOCK_INDEX_KEYS_CACHE).get_shape();
+    const auto& summary_shape = params.get_output_layout(QSAOut::BLOCK_INDEX_KEYS_CACHE).get_shape();
     const auto pitch = qsa::score_pitch(summary_shape[2]);
     if (!is_decode_shape(params) && use_dpas_score(params)) {
         return tokens * pitch;
@@ -105,6 +105,45 @@ size_t score_scratch_elems(const kernel_impl_params& params, const qsa_indexer& 
     const auto budget_rows = std::max<size_t>(1, qsa::score_budget_bytes() / (pitch * sizeof(float)));
     return std::min(tokens, budget_rows) * pitch;
 }
+
+class DenseCarryCacheGenerator : public qsa::QsaGenerator {
+public:
+    DenseCarryCacheGenerator() : QsaGenerator("qsa_indexer_carry_cache_dense", "qsa_indexer_carry_cache_dense") {}
+
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        return make_jit(QsaGenerator::get_jit_constants(params), params.typed_desc<qsa_indexer>(), params);
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
+        Arguments args;
+        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::KEY_LENGTH});
+        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::BLOCK_INDEX_KEYS_CACHE});
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, QSAOut::BLOCK_INDEX_KEYS_CACHE});
+        for (uint32_t i = 0; i < 3; i++) {
+            args.push_back({ArgumentDescriptor::Types::SCALAR, i});
+        }
+        return args;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt) {
+            if (params.is_dynamic()) {
+                return;
+            }
+            auto* rtp = rt_of(rt);
+            const auto desc = params.typed_desc<qsa_indexer>();
+            auto& wgs = kd.params.workGroups;
+            wgs.global = {desc->indexer_head_dim, std::max<size_t>(1, rtp->summary_stride), std::max<size_t>(1, rtp->batch)};
+            wgs.local = {desc->indexer_head_dim, 1, 1};
+
+            kd.params.scalars.clear();
+            qsa::push_u32(kd, rtp->seq_len);
+            qsa::push_u32(kd, rtp->cache_in_blocks);
+            qsa::push_u32(kd, rtp->summary_stride);
+        }};
+    }
+};
 
 class DensePrepareGenerator : public qsa::QsaGenerator {
 public:
@@ -309,6 +348,7 @@ class QSAIndexerImpl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::QSAIndexerImpl)
 
+    Stage::Ptr carry_cache = make_stage<DenseCarryCacheGenerator>();
     Stage::Ptr prepare = make_stage<DensePrepareGenerator>();
     Stage::Ptr score_dpas = make_stage<DenseScoreDpasGenerator>();
     Stage::Ptr score_partition = make_stage<DenseScorePartitionGenerator>();
@@ -328,6 +368,7 @@ public:
 
     explicit QSAIndexerImpl(const RuntimeParams& params) : QSAIndexerImpl() {
         const bool xmx = use_dpas_score(params);
+        add_stage(carry_cache, params);
         add_stage(prepare, params);
         if (may_decode(params) || (may_prefill(params) && !xmx)) {
             add_stage(score_partition, params);
@@ -373,7 +414,12 @@ public:
 
         const auto& params = *instance.get_impl_params();
         auto* rtp = &rt();
-        auto last = execute_stage(copy_state(events, instance), instance, prepare);
+        auto deps = copy_state(events, instance);
+        // An empty output cache (no row has a complete block yet) has nothing to carry or zero-fill.
+        if (rtp->batch * rtp->summary_stride != 0) {
+            deps = {execute_stage(deps, instance, carry_cache)};
+        }
+        auto last = execute_stage(deps, instance, prepare);
         const bool decode = is_decode_shape(params);
         if (!decode && use_dpas_score(params)) {
             rtp->chunk_row_begin = 0;
@@ -410,7 +456,8 @@ public:
         rtp->seq_len = seq_len;
         rtp->num_tokens = batch * seq_len;
         rtp->index_query_heads = index_heads_4d(index_query_layout);
-        rtp->summary_stride = params.get_input_layout(QSAIn::BLOCK_INDEX_KEYS_CACHE).get_shape()[2];
+        rtp->summary_stride = params.get_output_layout(QSAOut::BLOCK_INDEX_KEYS_CACHE).get_shape()[2];
+        rtp->cache_in_blocks = params.get_input_layout(QSAIn::BLOCK_INDEX_KEYS_CACHE).get_shape()[2];
 
         // key_length stays in GPU memory: every size below is a bound from shapes only and the kernels derive the real
         // work (and drop the excess) from key_length.
@@ -427,32 +474,41 @@ public:
     }
 
 private:
-    /// Functional state: every state output starts as a copy of its input, then prepare overwrites the entries this call
-    /// produces. Inputs and outputs are distinct buffers, so prepare reads the old incomplete block without a hazard.
+    /// Functional state: the incomplete-block state outputs start as a copy of their inputs, then prepare overwrites the
+    /// entries this call produces. Inputs and outputs are distinct buffers, so prepare reads the old incomplete block
+    /// without a hazard. The block-key cache changes its block count, so the carry stage copies it instead.
     std::vector<event::ptr> copy_state(const std::vector<event::ptr>& events, primitive_inst& instance) {
         auto& stream = instance.get_network().get_stream();
         if (stream.get_queue_type() == QueueTypes::out_of_order) {
             stream.wait_for_events(events);
         }
         std::vector<event::ptr> deps = events;
-        static constexpr std::array<std::pair<size_t, size_t>, 3> state = {std::pair{QSAIn::BLOCK_INDEX_KEYS_CACHE, QSAOut::BLOCK_INDEX_KEYS_CACHE},
-                                                                           std::pair{QSAIn::PAST_INCOMPLETE_RAW_K, QSAOut::PAST_INCOMPLETE_RAW_K},
-                                                                           std::pair{QSAIn::PAST_INCOMPLETE_ROPE, QSAOut::PAST_INCOMPLETE_ROPE}};
         const auto& params = *instance.get_impl_params();
-        for (const auto& [in, out] : state) {
+        const auto is_aliased = [&](size_t in, size_t out) {
             auto src = instance.input_memory_ptr(in);
             auto dst = instance.output_memory_ptr(out);
+            return src == dst || (src->buffer_ptr() != nullptr && src->buffer_ptr() == dst->buffer_ptr());
+        };
+        // The carry stage reads and writes each cache element in the same work-item, so an aliased cache is safe only
+        // with an unchanged block count.
+        OPENVINO_ASSERT(params.get_input_layout(QSAIn::BLOCK_INDEX_KEYS_CACHE).count() == 0 ||
+                            params.get_output_layout(QSAOut::BLOCK_INDEX_KEYS_CACHE).count() == 0 ||
+                            !is_aliased(QSAIn::BLOCK_INDEX_KEYS_CACHE, QSAOut::BLOCK_INDEX_KEYS_CACHE) || rt().cache_in_blocks == rt().summary_stride,
+                        "[GPU][OCL] qsa_indexer: an aliased block-key cache must keep its block count");
+        static constexpr std::array<std::pair<size_t, size_t>, 2> state = {std::pair{QSAIn::PAST_INCOMPLETE_RAW_K, QSAOut::PAST_INCOMPLETE_RAW_K},
+                                                                           std::pair{QSAIn::PAST_INCOMPLETE_ROPE, QSAOut::PAST_INCOMPLETE_ROPE}};
+        for (const auto& [in, out] : state) {
             const auto bytes = params.get_output_layout(out).bytes_count();
             OPENVINO_ASSERT(!params.get_input_layout(in).data_padding && !params.get_output_layout(out).data_padding,
                             "[GPU][OCL] qsa_indexer: padded state buffers are not supported");
-            OPENVINO_ASSERT(src->size() >= bytes && dst->size() >= bytes, "[GPU][OCL] qsa_indexer: state buffer is too small");
-            const bool aliased = src == dst || (src->buffer_ptr() != nullptr && src->buffer_ptr() == dst->buffer_ptr());
-            // An aliased summary is safe (prepare only appends to it); the incomplete-block state is read and rewritten by
-            // different work-groups of one dispatch.
-            OPENVINO_ASSERT(!aliased || in == QSAIn::BLOCK_INDEX_KEYS_CACHE, "[GPU][OCL] qsa_indexer: incomplete-block state input and output must not alias");
-            if (bytes == 0 || aliased) {
+            if (bytes == 0) {
                 continue;
             }
+            auto src = instance.input_memory_ptr(in);
+            auto dst = instance.output_memory_ptr(out);
+            OPENVINO_ASSERT(src->size() >= bytes && dst->size() >= bytes, "[GPU][OCL] qsa_indexer: state buffer is too small");
+            // The incomplete-block state is read and rewritten by different work-groups of one dispatch.
+            OPENVINO_ASSERT(!is_aliased(in, out), "[GPU][OCL] qsa_indexer: incomplete-block state input and output must not alias");
             deps.push_back(dst->copy_from(stream, *src, 0, 0, bytes, false));
         }
         return deps;
