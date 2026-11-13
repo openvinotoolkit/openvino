@@ -903,8 +903,8 @@ struct sdpa_ocl_problem {
 
 // How the stage reads a paged-attention KV cache; all false for plain SDPA and for PA PREFILL, whose K is
 // the f16 input. MIXED reads the token-major K page (paged_attention.hpp). `compressed` is keyed on the data type so
-// that MIXED always compiles: on a kind without a dequant (dequant_ok false) it compiles, and
-// PagedAttentionOptImpl::can_use_sdpa_ocl_for() keeps it off dispatch.
+// that MIXED always compiles: on a kind without a dequant (dequant_ok false) it compiles. No such kind reaches MIXED:
+// the config maps i4 to u4, and PagedAttentionOptImpl::choose_sdpa_ocl() refuses a 4-bit BY_TOKEN K.
 struct pa_cache_desc {
     bool compressed = false;        // IS_PA_KV_COMPRESSED: an i8/u8 cache (u4 is stored as u8)
     bool key_by_channel = false;    // the descriptor's K quantization

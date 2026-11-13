@@ -71,18 +71,6 @@ inline bool get_kv_compressed(const RuntimeParams& params) {
     return data_type_traits::is_i8_u8(key_cache_layout.data_type) || data_type_traits::is_i4_u4(key_cache_layout.data_type);
 }
 
-// Whether sdpa_ocl's MIXED stage reads this K page kind (classify_pa_cache().dequant_ok in sdpa_gen_ocl.cpp): every
-// uncompressed page, i8 BY_TOKEN, i8 BY_CHANNEL and u4 BY_CHANNEL. A u8 or i4 cache (the plugin's config maps them to i8
-// and u4, so only a hand-built topology has one) goes to pa_multi_token. All pages are token-major (paged_attention.hpp).
-inline bool sdpa_ocl_mixed_page_ok(const RuntimeParams& params) {
-    if (!get_kv_compressed(params))
-        return true;
-    const auto precision = params.get_program().get_config().get_kv_cache_precision();
-    if (data_type_traits::is_i4_u4(precision))
-        return precision == ov::element::u4 && params.typed_desc<paged_attention>()->is_key_by_channel;
-    return params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].data_type == ov::element::i8;
-}
-
 // Whether paged_attention_opt.cl reads the uncompressed K page with a 2D block transpose instead of a per-lane vload16
 // (USE_2D_BLOCK_IO_K_TM): Xe2+ only, the arch check keeps the 2D block read off a part without it (the rest read per
 // lane). The K row is the surface width and pitch; the page base is a whole number of pages, which the pitch rule keeps
@@ -292,16 +280,15 @@ inline GQAMultiTokensKernel select_gqa_multi_tokens_kernel(const kernel_impl_par
     if (forced == GQAMultiTokensKernel::FALLBACK)
         return GQAMultiTokensKernel::FALLBACK;
 
-    // Where sdpa_ocl serves MIXED on the op's page kind (sdpa_ocl_mixed_page_ok()) it is a third candidate beside
-    // pa_small_q_opt.cl and paged_attention_opt.cl (token_major_gqa_kernel_without_small_q() and the helpers above it).
-    const bool sdpa_ocl_candidate = sdpa_ocl_mixed && sdpa_ocl_mixed_page_ok(params);
-    const auto without_small_q = sdpa_ocl_candidate ? token_major_gqa_kernel_without_small_q(params, max_subsequence_len) : GQAMultiTokensKernel::FALLBACK;
+    // Where sdpa_ocl serves MIXED it is a third candidate beside pa_small_q_opt.cl and paged_attention_opt.cl
+    // (token_major_gqa_kernel_without_small_q() and the helpers above it).
+    const auto without_small_q = sdpa_ocl_mixed ? token_major_gqa_kernel_without_small_q(params, max_subsequence_len) : GQAMultiTokensKernel::FALLBACK;
     if (!supports_gqa_multi_tokens_dpas_kernel(params))
         return without_small_q;
 
     if (forced != GQAMultiTokensKernel::SMALL_Q) {
         const size_t max_context_len = get_max_context_len(params);
-        if (sdpa_ocl_candidate) {
+        if (sdpa_ocl_mixed) {
             if (token_major_gqa_prefers_fallback(params, max_subsequence_len, max_context_len))
                 return GQAMultiTokensKernel::FALLBACK;
             if (!token_major_gqa_small_q_context(params, max_context_len))
@@ -1713,12 +1700,7 @@ public:
     // per subsequence, so a query's image group is the query itself.
     bool can_use_sdpa_ocl_for(const kernel_impl_params& params, const PagedAttentionStage& stage) const {
         // Speculative decoding MIXED case is faster with the GQA multi-token kernel than with the DPAS kernel
-        if (!sdpa_ocl_staged(stage) || can_use_gqa_multi_tokens_kernel(params, stage, sdpa_ocl_staged(PagedAttentionStage::MIXED)))
-            return false;
-        // sdpa_ocl's MIXED stage reads the kinds of page sdpa_ocl_mixed_page_ok() names; any other goes to pa_multi_token.
-        // The refusal is here and only here: PREFILL reads the K input, not the page, and the ctor add_stage()s PREFILL
-        // and MIXED together, so the MIXED kernel still COMPILES on such a page -- it just must not dispatch.
-        return stage != PagedAttentionStage::MIXED || sdpa_ocl_mixed_page_ok(params);
+        return sdpa_ocl_staged(stage) && !can_use_gqa_multi_tokens_kernel(params, stage, sdpa_ocl_staged(PagedAttentionStage::MIXED));
     }
 
     // Whether sdpa_ocl serves PREFILL/MIXED of this op, decided once per impl from the descriptor, config, environment
