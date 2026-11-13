@@ -92,7 +92,7 @@ private:
     /**
      * @brief If a batch size a stored, this method will be used to extract it.
      */
-    virtual std::optional<int> extract_batch_size() const = 0;
+    virtual std::optional<int64_t> extract_batch_size() const = 0;
 
     /**
      * @brief If input/output layouts were stored, this method will be used to extract them.
@@ -111,7 +111,7 @@ private:
      * @brief A potential source of weights for weights separation. Can be `nullptr`.
      */
     std::shared_ptr<const ov::Model> m_original_model;
-    std::optional<int> m_batch_size;
+    std::optional<int64_t> m_batch_size;
     std::shared_ptr<IGraph> m_graph;
 };
 
@@ -134,5 +134,27 @@ std::unique_ptr<IBlobFormatImporter> create(BlobSource& npu_formatted_blob,
                                             const Config& config);
 
 }  // namespace blob_format_importer_factory
+
+namespace blob_format_importer_utils {
+
+/**
+ * @brief Batch size value stored in the blob metadata for models with a dynamic batch handled by the plugin.
+ */
+constexpr int64_t DYNAMIC_BATCH_SIZE = -1;
+
+/**
+ * @brief Checks whether the batch size stored in the blob metadata is consistent with the I/O descriptors reported by
+ * the driver for the compiled schedule.
+ * @details The metadata is not authenticated, while the batch size stored within it controls the size of the Level Zero
+ * buffers and the slicing applied by the inference pipeline. Plugin batching runs the compiled schedule once per batch
+ * slice, which is memory safe only if every buffer sliced by the pipeline was compiled with a batch of 1.、
+ *
+ * @param batch_size The batch size found in the blob metadata.
+ * @param metadata The I/O descriptors of the main schedule.
+ * @throws ov::AssertFailure if the batch size is invalid or cannot be applied on the given schedule.
+ */
+void validate_batch_size(const int64_t batch_size, const NetworkMetadata& metadata);
+
+}  // namespace blob_format_importer_utils
 
 }  // namespace intel_npu

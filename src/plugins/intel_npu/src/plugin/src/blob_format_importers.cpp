@@ -4,8 +4,6 @@
 
 #include "blob_format_importers.hpp"
 
-#include <limits>
-
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/common/parser_factory.hpp"
 #include "intel_npu/config/options.hpp"
@@ -88,7 +86,7 @@ void decrypt_payload(ov::Tensor& payload, const ov::EncryptionCallbacks& encrypt
  */
 std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& inputDescriptors,
                                               const std::vector<IODescriptor>& outputDescriptors,
-                                              const std::optional<int> batchSize,
+                                              const std::optional<int64_t> batchSize,
                                               const std::optional<std::vector<ov::Layout>>& inputLayouts,
                                               const std::optional<std::vector<ov::Layout>>& outputLayouts) {
     ov::ParameterVector parameters;
@@ -217,7 +215,7 @@ private:
      * @note N/A
      * @return Always std::nullopt
      */
-    std::optional<int> extract_batch_size() const override {
+    std::optional<int64_t> extract_batch_size() const override {
         return std::nullopt;
     }
 
@@ -328,18 +326,12 @@ private:
         return init_schedules;
     }
 
-    std::optional<int> extract_batch_size() const override {
+    std::optional<int64_t> extract_batch_size() const override {
         const std::optional<int64_t> batch_size = m_metadata->get_batch_size();
-        if (!batch_size.has_value()) {
-            return std::nullopt;
+        if (batch_size.has_value()) {
+            m_logger.debug("Extracted batch size: %lld", static_cast<long long>(batch_size.value()));
         }
-        m_logger.debug("Extracted batch size: %lld", batch_size.value());
-        OPENVINO_ASSERT(batch_size.value() > 0 && batch_size.value() <= std::numeric_limits<int>::max(),
-                        "The batch size stored in the blob metadata is out of the supported range [1, ",
-                        std::numeric_limits<int>::max(),
-                        "]: ",
-                        batch_size.value());
-        return std::make_optional<int>(static_cast<int>(batch_size.value()));
+        return batch_size;
     }
 
     std::optional<std::pair<std::vector<ov::Layout>, std::vector<ov::Layout>>> extract_layouts() const override {
@@ -443,8 +435,13 @@ std::shared_ptr<IGraph> IBlobFormatImporter::create_graph(const ov::SoPtr<IEngin
 
     m_graph->update_network_name(network_name);
     if (m_batch_size.has_value()) {
-        // Initial batch setup for static cases
-        m_graph->set_batch_size(m_batch_size.value());
+        // The batch size is used for sizing the buffers and for slicing them, thus it must match the compiled schedule
+        blob_format_importer_utils::validate_batch_size(m_batch_size.value(), m_graph->get_metadata());
+
+        if (m_batch_size.value() > 0) {
+            // Initial batch setup for static cases
+            m_graph->set_batch_size(static_cast<size_t>(m_batch_size.value()));
+        }
     }
 
     return m_graph;
@@ -503,5 +500,54 @@ std::unique_ptr<IBlobFormatImporter> create(BlobSource& npu_formatted_blob,
 }
 
 }  // namespace blob_format_importer_factory
+
+namespace blob_format_importer_utils {
+
+void validate_batch_size(const int64_t batch_size, const NetworkMetadata& metadata) {
+    OPENVINO_ASSERT(batch_size == DYNAMIC_BATCH_SIZE || batch_size > 0,
+                    "The batch size stored in the blob metadata is invalid: ",
+                    batch_size);
+
+    // Mirrors the buffers sliced by the inference pipeline: all outputs and all inputs except the weights ones
+    const auto check_descriptor = [batch_size](const IODescriptor& descriptor, const std::string_view io_type) {
+        OPENVINO_ASSERT(!descriptor.isStateInput && !descriptor.isStateOutput && !descriptor.isShapeTensor,
+                        "The blob metadata declares a batch size of ",
+                        batch_size,
+                        ", but the ",
+                        io_type,
+                        " \"",
+                        descriptor.nameFromCompiler,
+                        "\" is a state or shape tensor, which cannot be batched by the plugin");
+
+        const ov::PartialShape& shape = descriptor.shapeFromCompiler;
+        const bool compiled_with_batch_one =
+            shape.rank().is_static() && shape.rank().get_length() > 0 && shape[utils::BATCH_AXIS].is_static() &&
+            shape[utils::BATCH_AXIS].get_length() == static_cast<int64_t>(utils::DEFAULT_BATCH_SIZE);
+        OPENVINO_ASSERT(compiled_with_batch_one,
+                        "The blob metadata declares a batch size of ",
+                        batch_size,
+                        ", but the ",
+                        io_type,
+                        " \"",
+                        descriptor.nameFromCompiler,
+                        "\" was compiled with the shape ",
+                        shape,
+                        ". Batching on the plugin requires a batch of ",
+                        utils::DEFAULT_BATCH_SIZE,
+                        " in the compiled schedule");
+    };
+
+    for (const IODescriptor& descriptor : metadata.inputs) {
+        if (descriptor.isMainInputWeights) {
+            continue;
+        }
+        check_descriptor(descriptor, "input");
+    }
+    for (const IODescriptor& descriptor : metadata.outputs) {
+        check_descriptor(descriptor, "output");
+    }
+}
+
+}  // namespace blob_format_importer_utils
 
 }  // namespace intel_npu
