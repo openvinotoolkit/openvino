@@ -112,6 +112,28 @@ inline std::shared_ptr<ov::Model> createCustomNetModel(bool dynamicBatch = false
     return model;
 }
 
+/**
+ * @brief Creates a model batched on the 0th axis, which can be batched on the plugin side, using the given names for
+ * its only input and output.
+ */
+inline std::shared_ptr<ov::Model> createBatchedModelWithNames(const std::string& inputName,
+                                                              const std::string& outputName) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 4});
+    input->set_friendly_name(inputName);
+    input->get_output_tensor(0).set_names({inputName});
+    input->set_layout("N...");
+
+    auto relu = std::make_shared<ov::op::v0::Relu>(input);
+    relu->set_friendly_name(outputName);
+    relu->get_output_tensor(0).set_names({outputName});
+
+    auto result = std::make_shared<ov::op::v0::Result>(relu);
+    result->set_friendly_name(outputName);
+    result->set_layout("N...");
+
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input}, "BatchedModel");
+}
+
 using OVCompiledGraphImportExportTestNPU = OVCompiledGraphImportExportTest;
 
 TEST_P(OVCompiledGraphImportExportTestNPU, CanImportModelWithApplicationHeaderAndTensorAPI) {
@@ -216,6 +238,40 @@ TEST_P(OVCompiledGraphImportExportTestNPU, NonELFBlobExportThrows) {
                         testing::HasSubstr("Requested raw blob export, but the graph is not a weightful ELF one."));
         rawBlobConfig.erase(ov::intel_npu::compilation_mode.name());
     }
+}
+
+/**
+ * @brief Compiles the given model using plugin batching and expects the import of the exported blob to throw.
+ * @details The main schedule of a blob must not contain init schedule weights descriptors. These are identified only by
+ * the names of the arguments found in the blob, so the names must not be usable for skipping the validation of the
+ * batch size stored in the blob metadata.
+ */
+inline void exportBatchedModelAndExpectImportThrows(const std::shared_ptr<ov::Model>& model,
+                                                    const std::string& targetDevice,
+                                                    ov::AnyMap configuration) {
+    ov::Core core;
+    configuration.insert(ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::PLUGIN));
+
+    std::stringstream blobStream;
+    OV_ASSERT_NO_THROW(core.compile_model(model, targetDevice, configuration).export_model(blobStream));
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(core.import_model(blobStream, targetDevice, configuration),
+                                  ov::Exception,
+                                  "is marked as an init schedule weights descriptor");
+}
+
+// Inputs using the "vpux_ow_" prefix are flagged as init schedule inputs
+TEST_P(OVCompiledGraphImportExportTestNPU, ImportingBatchedBlobWithInitInputWeightsNameInMainScheduleThrows) {
+    exportBatchedModelAndExpectImportThrows(createBatchedModelWithNames("vpux_ow_input", "output"),
+                                            target_device,
+                                            configuration);
+}
+
+// Outputs using the "vpux_tw_" prefix are flagged as init schedule outputs
+TEST_P(OVCompiledGraphImportExportTestNPU, ImportingBatchedBlobWithInitOutputWeightsNameInMainScheduleThrows) {
+    exportBatchedModelAndExpectImportThrows(createBatchedModelWithNames("input", "vpux_tw_output"),
+                                            target_device,
+                                            configuration);
 }
 
 TEST_P(OVCompiledGraphImportExportTestNPU, CheckSizeOfExportedModelIfMultipleOfPageSize) {
