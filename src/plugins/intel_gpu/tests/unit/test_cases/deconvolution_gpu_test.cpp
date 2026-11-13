@@ -2515,6 +2515,99 @@ TEST(export_import_deconvolution_f16_fw_gpu, basic_wsiz2x2_in1x2x2x2_fs_b_yx_fsv
     test_deconvolution_f16_fw_gpu_basic_wsiz2x2_in1x2x2x2_fs_b_yx_fsv32_stride1_pad1_replace_to_conv<float>(true);
 }
 
+// A stride-1 deconvolution is replaced by a convolution with transposed (180-degree rotated) weights. When the weights
+// are not constant, the rotation has to happen in the weights reorder executed at runtime.
+static void test_deconvolution_stride1_runtime_weights_replace_to_conv(impl_types impl_type, uint32_t groups) {
+    auto& engine = get_test_engine();
+    if (impl_type == impl_types::onednn && !engine.get_device_info().supports_immad) {
+        GTEST_SKIP();
+    }
+
+    const int64_t ifm = 8, ofm = 16, in_size = 5, k = 3, pad = 1;
+    const int64_t ifm_g = ifm / groups, ofm_g = ofm / groups;
+    const int64_t out_size = in_size - 1 - 2 * pad + k;
+
+    layout in_layout{ov::PartialShape{1, ifm, in_size, in_size}, data_types::f16, format::bfyx};
+    layout weights_layout = groups == 1 ? layout{ov::PartialShape{ofm, ifm, k, k}, data_types::f16, format::bfyx}
+                                        : layout{ov::PartialShape{groups, ofm_g, ifm_g, k, k}, data_types::f16, format::bfzyx};
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto input_data = rg.generate_random_1d<ov::float16>(in_layout.count(), -1, 1);
+    auto weights_data = rg.generate_random_1d<ov::float16>(weights_layout.count(), -1, 1);
+    auto input = engine.allocate_memory(in_layout);
+    auto weights = engine.allocate_memory(weights_layout);
+    set_values(input, input_data);
+    set_values(weights, weights_data);
+
+    topology topology(input_layout("input", in_layout),
+                      input_layout("weights", weights_layout),
+                      deconvolution("deconv", input_info("input"), "weights", "", groups, {1, 1}, {pad, pad}, {1, 1},
+                                    tensor(1, ofm, out_size, out_size), groups > 1),
+                      reorder("out", input_info("deconv"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    ov::intel_gpu::ImplementationDesc deconv_impl = {format::bfyx, "", impl_type};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"deconv", deconv_impl}}));
+
+    network network(engine, topology, config);
+    auto deconv_inst = network.get_primitive("deconv");
+    ASSERT_TRUE(deconv_inst->get_node().is_type<convolution>());
+    ASSERT_EQ(deconv_inst->get_impl()->is_onednn(), impl_type == impl_types::onednn);
+
+    network.set_input_data("input", input);
+    network.set_input_data("weights", weights);
+    auto outputs = network.execute();
+    auto output = outputs.at("out").get_memory();
+    ASSERT_EQ(output->get_layout().get_shape(), ov::Shape({1, static_cast<size_t>(ofm), static_cast<size_t>(out_size), static_cast<size_t>(out_size)}));
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    // out[g * ofm_g + o][y][x] += in[g * ifm_g + i][iy][ix] * w[g][o][i][ky][kx], where y = iy - pad + ky
+    std::vector<float> expected(output->count(), 0.f);
+    for (int64_t g = 0; g < groups; g++) {
+        for (int64_t o = 0; o < ofm_g; o++) {
+            for (int64_t i = 0; i < ifm_g; i++) {
+                for (int64_t iy = 0; iy < in_size; iy++) {
+                    for (int64_t ix = 0; ix < in_size; ix++) {
+                        for (int64_t ky = 0; ky < k; ky++) {
+                            for (int64_t kx = 0; kx < k; kx++) {
+                                const int64_t y = iy - pad + ky;
+                                const int64_t x = ix - pad + kx;
+                                if (y < 0 || y >= out_size || x < 0 || x >= out_size) {
+                                    continue;
+                                }
+                                const auto in_val = static_cast<float>(input_data[((g * ifm_g + i) * in_size + iy) * in_size + ix]);
+                                const auto w_val = static_cast<float>(weights_data[(((g * ofm_g + o) * ifm_g + i) * k + ky) * k + kx]);
+                                expected[((g * ofm_g + o) * out_size + y) * out_size + x] += in_val * w_val;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    for (size_t i = 0; i < expected.size(); i++) {
+        ASSERT_NEAR(expected[i], output_ptr[i], 2e-2f) << "i = " << i;
+    }
+}
+
+TEST(deconvolution_f16_fw_gpu, stride1_runtime_weights_replace_to_conv) {
+    test_deconvolution_stride1_runtime_weights_replace_to_conv(impl_types::ocl, 1);
+}
+
+TEST(deconvolution_f16_fw_gpu, stride1_runtime_grouped_weights_replace_to_conv) {
+    test_deconvolution_stride1_runtime_weights_replace_to_conv(impl_types::ocl, 2);
+}
+
+TEST(deconvolution_gpu_onednn, stride1_runtime_weights_replace_to_conv) {
+    test_deconvolution_stride1_runtime_weights_replace_to_conv(impl_types::onednn, 1);
+}
+
+TEST(deconvolution_gpu_onednn, stride1_runtime_grouped_weights_replace_to_conv) {
+    test_deconvolution_stride1_runtime_weights_replace_to_conv(impl_types::onednn, 2);
+}
+
 struct deconvolution_random_test_params {
     data_types input_type;
     format::type input_format;
