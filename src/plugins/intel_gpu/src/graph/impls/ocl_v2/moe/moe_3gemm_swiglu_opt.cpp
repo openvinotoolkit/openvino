@@ -319,11 +319,7 @@ protected:
         jit.make("SUBGROUP_SIZE", info.arch >= gpu_arch::xe2 ? 32 : 16);
         jit.make("INTERMEDIA_SIZE", desc->_config.inter_size);
         jit.make("MOE_DTYPE", "half");
-        if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_TANH) {
-            jit.make("GATE_ACT_GELU_TANH", 1);
-        } else if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_ERF) {
-            jit.make("GATE_ACT_GELU_ERF", 1);
-        }
+        add_gate_activation_jit(jit, desc->_config.activation_type);
         if (m_use_grouped_gemm) {
             jit.make("ONEDNN_GROUPED_GEMM_USED", 1);
         }
@@ -464,11 +460,6 @@ protected:
 #    define N_BLOCK      4
 #    define SUBGROUP_NUM 8
 
-// group_size == SIZE_MAX means per-channel compression: a single group spans the whole K
-static size_t get_group_size(const MOECompressed::Config& config, size_t k) {
-    return config.group_size == std::numeric_limits<size_t>::max() ? k : config.group_size;
-}
-
 // Validate GEMV kernel compatibility: ELEMS_PER_LANE = FAKE_GROUP_SIZE / SUBGROUP_SIZE must be >= 2.
 // Smaller values have no kernel branch and would silently produce wrong results.
 static void check_gemv_group_size(const RuntimeParams& params) {
@@ -545,11 +536,7 @@ protected:
         check_gemv_group_size(params);
         add_common_consts(params, jit);
         jit.make("GATE_UP_ENABLE", 1);
-        if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_TANH) {
-            jit.make("GATE_ACT_GELU_TANH", 1);
-        } else if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_ERF) {
-            jit.make("GATE_ACT_GELU_ERF", 1);
-        }
+        add_gate_activation_jit(jit, desc->_config.activation_type);
         if (!_disable_shared_experts && desc->_config.num_shared_expert > 0 &&
             params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT)) {
             jit.make("SHARED_EXPERT_ENABLE", 1);

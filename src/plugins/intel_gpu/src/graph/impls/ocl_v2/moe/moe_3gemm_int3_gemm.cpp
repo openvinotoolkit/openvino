@@ -9,29 +9,19 @@
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 #include "moe_3gemm_base.hpp"
+#include "moe_3gemm_int3_weights.hpp"
 #include "ocl_v2/utils/jitter.hpp"
 
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 
 namespace ov::intel_gpu::ocl {
 
-namespace {
-
-// Weight matrices in input order (gate, up, down), each followed by its scale and zero point
-constexpr size_t INPUTS_PER_MATRIX = 3;
-
-size_t weight_input(size_t matrix) {
-    return static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0) + matrix * INPUTS_PER_MATRIX;
-}
-
-}  // namespace
-
 MoE3GemmInt3Gemm::Shape MoE3GemmInt3Gemm::get_shape(const RuntimeParams& params, Projection proj) {
     const auto& config = params.typed_desc<moe_3gemm_fused_compressed>()->_config;
     Shape shape;
     static_cast<MoE3GemmDynQuan::Shape&>(shape) = MoE3GemmDynQuan::get_shape(params, proj);
     shape.n = proj == Projection::DOWN ? config.hidden_size : config.inter_size;
-    shape.weight_group_size = MoE3GemmDynQuan::get_weight_group_size(params, proj);
+    shape.weight_group_size = get_group_size(config, shape.k);
     return shape;
 }
 
@@ -49,15 +39,8 @@ bool MoE3GemmInt3Gemm::is_supported(const RuntimeParams& params) {
     }
     // Gate and up share one kernel configuration, so up has to match gate
     for (size_t matrix = 0; matrix < 3; ++matrix) {
-        const size_t ref = matrix == 1 ? 0 : matrix;
-        const auto& weight = params.get_input_layout(weight_input(matrix));
-        const auto& scale = params.get_input_layout(weight_input(matrix) + 1);
-        const auto& zp = params.get_input_layout(weight_input(matrix) + 2);
-        const auto& ref_scale = params.get_input_layout(weight_input(ref) + 1);
-        const auto& ref_zp = params.get_input_layout(weight_input(ref) + 2);
-        if (weight.data_type != ov::element::u3 || scale.data_type != ov::element::f16 || scale.count() != ref_scale.count() ||
-            !one_of(zp.data_type, {ov::element::u8, ov::element::i8}) || zp.data_type != ref_zp.data_type || zp.count() != ref_zp.count() ||
-            (zp.count() != 1 && zp.count() != scale.count())) {
+        const auto desc = get_int3_matrix_desc(params, matrix);
+        if (desc.weight_group_size == 0 || !same_int3_layout(desc, get_int3_matrix_desc(params, matrix == 1 ? 0 : matrix))) {
             return false;
         }
     }
@@ -77,30 +60,19 @@ size_t MoE3GemmInt3Gemm::get_max_tiles(size_t num_experts, size_t rows) {
 JitConstants MoE3GemmInt3Gemm::get_jit_constants(const RuntimeParams& params) const {
     auto jit = KernelGenerator::get_jit_constants(params);
     const auto shape = get_shape(params, m_proj);
-    const auto& zp = params.get_input_layout(weight_input(m_proj == Projection::DOWN ? 2 : 0) + 2);
+    const auto weights = get_int3_matrix_desc(params, m_proj == Projection::DOWN ? 2 : 0);
     jit.make("K_SIZE", shape.k);
     jit.make("N_SIZE", shape.n);
     jit.make("GROUP_SIZE", shape.group_size);
     jit.make("WEI_GROUP_SIZE", shape.weight_group_size);
-    jit.make("ZP_SCALAR", zp.count() == 1 ? 1 : 0);
-    jit.make("ZP_TYPE", zp.data_type == ov::element::i8 ? "char" : "uchar");
+    jit.make("ZP_SCALAR", weights.zp_scalar ? 1 : 0);
+    jit.make("ZP_TYPE", weights.zp_type == ov::element::i8 ? "char" : "uchar");
     jit.make("SG_M", TILE_SG_M);
     jit.make("TILE_M", TILE_ROWS / TILE_SG_M);
     jit.make("NB", TILE_NB);
     if (m_gate) {
         jit.make("GATE_ACT_MUL", 1);
-        switch (params.typed_desc<moe_3gemm_fused_compressed>()->_config.activation_type) {
-        case ov::op::internal::MOE::Activation_type::SWIGLU:
-            break;
-        case ov::op::internal::MOE::Activation_type::GEGLU_TANH:
-            jit.make("GATE_ACT_GELU_TANH", 1);
-            break;
-        case ov::op::internal::MOE::Activation_type::GEGLU_ERF:
-            jit.make("GATE_ACT_GELU_ERF", 1);
-            break;
-        default:
-            OPENVINO_THROW("moe_3gemm_int3_gemm: unsupported gate activation ", static_cast<int>(params.typed_desc<moe_3gemm_fused_compressed>()->_config.activation_type));
-        }
+        add_gate_activation_jit(jit, params.typed_desc<moe_3gemm_fused_compressed>()->_config.activation_type);
     }
     return jit;
 }
