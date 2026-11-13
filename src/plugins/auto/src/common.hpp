@@ -226,6 +226,16 @@ struct DeviceSelectionPolicy {
     bool                                      reserve_device = true;
 };
 
+// What the queries of the AUTO compiled model need from the first compiled model, taken once so that no compiled model
+// is held outside of its DeviceExecutionContext.
+struct CompiledModelMetadata {
+    std::vector<ov::Output<const ov::Node>> inputs;
+    std::vector<ov::Output<const ov::Node>> outputs;
+    ov::SoPtr<ov::IRemoteContext> context;
+    // keeps the device plugin library loaded for the ports
+    std::shared_ptr<void> so;
+};
+
 class ScheduleContext : public std::enable_shared_from_this<ScheduleContext>  {
 public:
     using Ptr = std::shared_ptr<ScheduleContext>;
@@ -250,7 +260,7 @@ public:
     ov::Any                                        m_schedule_policy = ov::intel_auto::SchedulePolicy::DEFAULT;
     std::mutex                                     m_mutex;
     std::mutex                                     m_fallback_mutex;
-    SoCompiledModel                                m_hw_compiled_model;
+    std::shared_ptr<const CompiledModelMetadata>   m_hw_metadata;
     std::string                                    m_model_precision;
     DeviceSelectionPolicy                          m_selection_policy;
     std::optional<DeviceInformation>               m_low_power_device;

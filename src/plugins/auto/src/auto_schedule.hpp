@@ -22,6 +22,8 @@ public:
     AutoCompileContext                                                     m_compile_context[CONTEXTNUM];
     // device the latest dynamic inference was dispatched to, empty until one has been dispatched
     DeviceName get_dynamic_active_device() const;
+    // the dynamic selection follows the device in use, the static modes the one that serves the requests
+    DeviceExecutionContext* get_active_context() override;
 
 private:
     void init() override;

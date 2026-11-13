@@ -103,6 +103,34 @@ bool AutoSchedule::check_and_disable_if_low_power_device_failed(const std::strin
     return false;
 }
 
+DeviceExecutionContext* AutoSchedule::get_active_context() {
+    if (m_context->m_dynamic_device_selection) {
+        // every device can be released, so the context that answers is the one of the device in use
+        auto* active = find_device_context(get_dynamic_active_device());
+        if (active && active->compiled_model()) {
+            return active;
+        }
+        // the device in use was switched meanwhile, take the first loaded one by name to stay deterministic
+        DeviceExecutionContext* loaded = nullptr;
+        for (const auto& device : m_device_contexts) {
+            if (device.second->compiled_model() && (!loaded || device.first < loaded->name())) {
+                loaded = device.second.get();
+            }
+        }
+        return loaded;
+    }
+    // the precedence of the request routing: a fallback device replaces the actual device it was selected for
+    std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
+    for (const auto role : {FALLBACKDEVICE, ACTUALDEVICE, CPU}) {
+        auto& compile_context = m_compile_context[role];
+        auto* context = compile_context.m_is_already ? compile_context.m_device_context.load() : nullptr;
+        if (context && context->compiled_model()) {
+            return context;
+        }
+    }
+    return nullptr;
+}
+
 DeviceName AutoSchedule::get_dynamic_active_device() const {
     std::lock_guard<std::mutex> lock(m_gate_mutex);
     return m_gate_current_device;
@@ -333,7 +361,6 @@ void AutoSchedule::init() {
             // devices that failed to compile at startup were pruned from this copy only
             m_context->m_device_priorities = m_compile_context[ACTUALDEVICE].m_meta_devices;
             const auto& initial_device = m_compile_context[ACTUALDEVICE].m_device_info.device_name;
-            get_device_context(initial_device).keep_alive();
             m_gate_current_device = initial_device;
             LOG_INFO_TAG("[dynamic] initial target device:%s", initial_device.c_str());
         }
@@ -348,7 +375,7 @@ void AutoSchedule::init() {
             m_passthrough_context->keep_alive();
         }
     }
-    m_context->m_hw_compiled_model = wait_first_compiled_model_ready();
+    capture_hw_metadata(wait_first_compiled_model_ready());
     // compile_for_all disables the CPU helper, so the pre-compilation can start as soon as the actual device is ready.
     if (m_cache_precompiler && m_compile_context[ACTUALDEVICE].m_is_already) {
         // Failed startup devices were already removed from the actual context's candidates.
@@ -857,7 +884,7 @@ void AutoSchedule::release_inactive_device(const DeviceName& device_name) {
         return;
     }
     auto* context = find_device_context(device_name);
-    if (!context || !context->is_ready() || context->is_kept_alive() || !has_reloadable_cache(*context)) {
+    if (!context || !context->is_ready() || !has_reloadable_cache(*context)) {
         return;
     }
     if (context->try_release()) {

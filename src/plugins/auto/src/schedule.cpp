@@ -76,6 +76,22 @@ bool Schedule::run_pipeline_task(ov::threading::Task& pipeline_task,
     return false;
 }
 
+void Schedule::capture_hw_metadata(const SoCompiledModel& first_compiled_model) {
+    auto metadata = std::make_shared<CompiledModelMetadata>();
+    metadata->inputs = first_compiled_model->inputs();
+    metadata->outputs = first_compiled_model->outputs();
+    metadata->so = first_compiled_model._so;
+    try {
+        metadata->context = first_compiled_model->get_context();
+        if (!metadata->context._so) {
+            metadata->context._so = first_compiled_model._so;
+        }
+    } catch (ov::NotImplemented&) {
+        LOG_INFO_TAG("underlying hardware does not support hardware context");
+    }
+    m_context->m_hw_metadata = std::move(metadata);
+}
+
 DeviceExecutionContext& Schedule::add_device_context(const DeviceName& name) {
     auto& context = m_device_contexts[name];
     if (!context) {

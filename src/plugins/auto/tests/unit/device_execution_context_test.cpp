@@ -96,6 +96,15 @@ TEST_F(DeviceExecutionContextTest, releaseDropsWorkersAndModel) {
     EXPECT_FALSE(context.try_release());
 }
 
+TEST_F(DeviceExecutionContextTest, modelCopyTakenBeforeReleaseStaysValid) {
+    DeviceExecutionContext context("GPU.0");
+    make_ready(context);
+    const auto model_copy = context.compiled_model();
+    EXPECT_TRUE(context.try_release());
+    EXPECT_FALSE(context.compiled_model());
+    EXPECT_TRUE(model_copy);
+}
+
 TEST_F(DeviceExecutionContextTest, releasedContextRejectsLateIdleWorkers) {
     DeviceExecutionContext context("GPU.0");
     make_ready(context, 1);

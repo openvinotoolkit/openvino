@@ -18,7 +18,7 @@ void DeviceExecutionContext::make_ready(const SoCompiledModel& model,
                                         size_t num_requests,
                                         const WorkerSetup& setup_worker) {
     OPENVINO_ASSERT(m_state != State::Ready, "Device ", m_name, " already has workers");
-    m_compiled_model = model;
+    exchange_model(model);
     try {
         m_workers.resize(num_requests);
         m_idle_workers.set_capacity(num_requests);
@@ -36,7 +36,7 @@ void DeviceExecutionContext::make_ready(const SoCompiledModel& model,
         }
         m_idle_workers.set_capacity(0);
         m_workers.clear();
-        m_compiled_model = {};
+        exchange_model({});
         throw;
     }
     m_state = State::Ready;
@@ -63,7 +63,7 @@ bool DeviceExecutionContext::try_release() {
     m_idle_workers.set_capacity(0);
     // the requests keep the compiled model alive, so they go first
     m_workers.clear();
-    m_compiled_model = {};
+    exchange_model({});
     m_state = State::Released;
     return true;
 }
@@ -103,8 +103,15 @@ const DeviceName& DeviceExecutionContext::name() const {
     return m_name;
 }
 
-const SoCompiledModel& DeviceExecutionContext::compiled_model() const {
+SoCompiledModel DeviceExecutionContext::compiled_model() const {
+    std::lock_guard<std::mutex> lock(m_model_mutex);
     return m_compiled_model;
+}
+
+SoCompiledModel DeviceExecutionContext::exchange_model(SoCompiledModel model) {
+    std::lock_guard<std::mutex> lock(m_model_mutex);
+    std::swap(m_compiled_model, model);
+    return model;
 }
 
 std::vector<WorkerInferRequest>& DeviceExecutionContext::workers() {

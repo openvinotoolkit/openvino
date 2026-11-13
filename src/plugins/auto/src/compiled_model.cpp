@@ -28,14 +28,14 @@ ov::auto_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& 
 }
 
 const std::vector<ov::Output<const ov::Node>>& ov::auto_plugin::CompiledModel::outputs() const {
-    if (m_inputs_outputs_from_hardware && m_context->m_hw_compiled_model)
-        return m_context->m_hw_compiled_model->outputs();
+    if (m_inputs_outputs_from_hardware && m_context->m_hw_metadata)
+        return m_context->m_hw_metadata->outputs;
     return ov::ICompiledModel::outputs();
 }
 
 const std::vector<ov::Output<const ov::Node>>& ov::auto_plugin::CompiledModel::inputs() const {
-    if (m_inputs_outputs_from_hardware && m_context->m_hw_compiled_model)
-        return m_context->m_hw_compiled_model->inputs();
+    if (m_inputs_outputs_from_hardware && m_context->m_hw_metadata)
+        return m_context->m_hw_metadata->inputs;
     return ov::ICompiledModel::inputs();
 }
 
@@ -58,16 +58,21 @@ std::string ov::auto_plugin::CompiledModel::get_log_tag() const noexcept {
 }
 
 ov::AnyMap ov::auto_plugin::CompiledModel::get_device_supported_properties(AutoCompileContext& context) {
-     ov::AnyMap all_devices;
+    return get_device_supported_properties(context.m_device_info.device_name, context.compiled_model());
+}
+
+ov::AnyMap ov::auto_plugin::CompiledModel::get_device_supported_properties(const std::string& device_name,
+                                                                          const SoCompiledModel& model) {
+    ov::AnyMap all_devices;
     ov::AnyMap device_properties = {};
-    OPENVINO_ASSERT(context.compiled_model());
-    auto device_supported_properties = context.compiled_model()->get_property(ov::supported_properties.name());
+    OPENVINO_ASSERT(model);
+    auto device_supported_properties = model->get_property(ov::supported_properties.name());
     for (auto&& property_name : device_supported_properties.as<std::vector<ov::PropertyName>>()) {
         // For LTO issue, explicitly do the conversion here
         std::string query_name = property_name;
-        device_properties[property_name] = context.compiled_model()->get_property(query_name);
+        device_properties[property_name] = model->get_property(query_name);
     }
-    all_devices[context.m_device_info.device_name] = device_properties;
+    all_devices[device_name] = device_properties;
     return all_devices;
 }
 

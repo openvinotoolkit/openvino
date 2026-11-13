@@ -20,6 +20,7 @@ public:
     size_t                                  m_n_ctput_schedule_next_device = 0;
     std::string schedule_to_next_device(const std::vector<DeviceInformation>& devices,
                                         std::size_t current_device_index);
+    DeviceExecutionContext* get_active_context() override;
 private:
     void init() override;
     SoCompiledModel wait_first_compiled_model_ready() override;

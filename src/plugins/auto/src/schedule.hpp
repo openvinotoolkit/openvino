@@ -22,6 +22,9 @@ public:
     void run(ov::threading::Task infer_task) override;
     virtual ~Schedule();
     virtual ISyncInferPtr create_sync_infer_request();
+    // the context whose compiled model answers the model queries right now, null if none holds one;
+    // the model may be released at any time, so the caller takes a copy through compiled_model()
+    virtual DeviceExecutionContext* get_active_context() = 0;
     static thread_local WorkerInferRequest* m_this_worker_infer_request;
     // have to use the const char* ptr rather than std::string due to a bug in old gcc versions,
     // the bug is e.g. manifesting on the old CentOS (and it's 4.8.x gcc) used in our testing
@@ -41,6 +44,8 @@ protected:
     virtual bool select_other_device(const std::string& cur_dev_name) = 0;
     virtual SoCompiledModel wait_first_compiled_model_ready() = 0;
     std::string get_log_tag() const noexcept;
+    // keeps the ports and the remote context of the first compiled model, the model itself is not kept
+    void capture_hw_metadata(const SoCompiledModel& first_compiled_model);
     // add_device_context() is idempotent and must not be called once the scheduler serves requests
     DeviceExecutionContext& add_device_context(const DeviceName& name);
     // asserts if the device was not added by init()

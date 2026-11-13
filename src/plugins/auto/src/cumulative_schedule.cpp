@@ -161,7 +161,7 @@ void CumuSchedule::init() {
         m_passthrough_context = m_p_ctput_loadcontext[0].m_device_context.load();
         m_passthrough_context->keep_alive();
     }
-    m_context->m_hw_compiled_model = wait_first_compiled_model_ready();
+    capture_hw_metadata(wait_first_compiled_model_ready());
 }
 
 void CumuSchedule::try_to_compile_model(AutoCompileContext& context, const std::shared_ptr<ov::Model>& model) {
@@ -209,6 +209,17 @@ void CumuSchedule::try_to_compile_model(AutoCompileContext& context, const std::
         mark_compile_failure(context, e.what());
     }
 }
+DeviceExecutionContext* CumuSchedule::get_active_context() {
+    for (size_t i = 0; i < m_n_ctput_devicenums; i++) {
+        auto* context = m_p_ctput_loadcontext[i].m_is_already ? m_p_ctput_loadcontext[i].m_device_context.load()
+                                                               : nullptr;
+        if (context && context->compiled_model()) {
+            return context;
+        }
+    }
+    return nullptr;
+}
+
 SoCompiledModel CumuSchedule::wait_first_compiled_model_ready() {
     std::ostringstream result;
     result << "compile model failed, ";

@@ -332,3 +332,32 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoCompiledModelPropertyMockTest,
                          CompiledModelPropertyMockTest,
                          ::testing::ValuesIn(testCompiledModelProperty),
                          CompiledModelPropertyMockTest::getTestCaseName);
+
+class AutoModelQueries : public tests::AutoTest, public ::testing::Test {
+public:
+    void SetUp() override {
+        plugin->set_device_name("AUTO");
+        ON_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(_),
+                              _))
+            .WillByDefault(Return(mockExeNetwork));
+        metaDevices = {{ov::test::utils::DEVICE_CPU, {}, -1}, {ov::test::utils::DEVICE_GPU, {}, -1}};
+        ON_CALL(*plugin, parse_meta_devices(_, _)).WillByDefault(Return(metaDevices));
+        ON_CALL(*plugin, get_valid_device)
+            .WillByDefault([](const std::vector<DeviceInformation>& metaDevices, const std::string&) {
+                return std::list<DeviceInformation>(metaDevices.begin(), metaDevices.end());
+            });
+        ON_CALL(*plugin, select_device(_, _, _, _, _)).WillByDefault(Return(metaDevices[1]));
+        ON_CALL(*mockIExeNet, get_runtime_model()).WillByDefault(Return(model));
+    }
+};
+
+// the compiled model keeps no hardware compiled model of its own, the queries go to the device that serves requests
+TEST_F(AutoModelQueries, ports_and_runtime_model_come_from_the_device) {
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, ov::AnyMap{}));
+    EXPECT_EQ(compiled_model->inputs().size(), model->inputs().size());
+    EXPECT_EQ(compiled_model->outputs().size(), model->outputs().size());
+    EXPECT_EQ(compiled_model->get_runtime_model(), model);
+}

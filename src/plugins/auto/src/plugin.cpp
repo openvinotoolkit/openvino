@@ -668,15 +668,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
         is_cumulative ? std::static_pointer_cast<Schedule>(std::make_shared<CumuSchedule>())
                       : std::static_pointer_cast<Schedule>(std::make_shared<AutoSchedule>());
     scheduler->launch(auto_s_context);
-    ov::SoPtr<ov::IRemoteContext> device_context;
-    try {
-        OPENVINO_ASSERT(auto_s_context->m_hw_compiled_model, "no valid compiled model available");
-        device_context = auto_s_context->m_hw_compiled_model->get_context();
-        if (!device_context._so)
-            device_context._so = auto_s_context->m_hw_compiled_model._so;
-    } catch (ov::NotImplemented&) {
-        LOG_INFO_TAG("underlying hardware does not support hardware context");
-    }
+    OPENVINO_ASSERT(auto_s_context->m_hw_metadata, "no valid compiled model available");
+    const ov::SoPtr<ov::IRemoteContext> device_context = auto_s_context->m_hw_metadata->context;
     if (is_cumulative) {
         impl = std::make_shared<AutoCumuCompiledModel>(auto_s_context->m_model,
                                                        shared_from_this(),

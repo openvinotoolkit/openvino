@@ -6,6 +6,7 @@
 
 #include <functional>
 #include <list>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <utility>
@@ -43,7 +44,7 @@ public:
     bool try_release();
     // Unloaded/Released/Faulted -> Faulted, records why the model failed to compile; no-op when Ready
     void mark_faulted(const std::string& reason);
-    // a context kept alive is never released, e.g. it backs the inputs()/outputs() of the compiled model
+    // a context kept alive is never released, e.g. the passthrough model that serves every request directly
     void keep_alive();
     // no worker can be taken or returned afterwards, so a late completion callback cannot re-queue a worker
     void stop_scheduling();
@@ -54,7 +55,8 @@ public:
     const DeviceName& name() const;
     // reason of the latest compile failure, empty unless Faulted
     const std::string& last_error() const;
-    const SoCompiledModel& compiled_model() const;
+    // a copy, so it stays valid when another thread releases the context meanwhile; empty unless Ready
+    SoCompiledModel compiled_model() const;
     std::vector<WorkerInferRequest>& workers();
     NotBusyPriorityWorkerRequests& idle_workers();
     TaskQueue& pending_tasks();
@@ -70,6 +72,8 @@ public:
 
 private:
     void collect_worker_stats();
+    // swaps the model handle and returns the previous one, so that it is destroyed outside of the lock
+    SoCompiledModel exchange_model(SoCompiledModel model);
 
     const DeviceName m_name;
     bool m_keep_alive = false;
@@ -79,6 +83,8 @@ private:
     std::list<Time> m_released_start_times;
     std::list<Time> m_released_end_times;
     // the declaration order is the reverse of the destruction order: requests first, the model last
+    // the model handle is the one member that other threads read while the context is released, hence the mutex
+    mutable std::mutex m_model_mutex;
     SoCompiledModel m_compiled_model;
     NotBusyPriorityWorkerRequests m_idle_workers;
     TaskQueue m_pending_tasks;
