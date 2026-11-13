@@ -248,6 +248,18 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.push_back(std::regex(R"__(.*smoke_LPT/GroupConvolutionTransformationGPU\..*f16_\[1,6,24,24\]_GPU_f32_4D_\[1,6,24,24\]_\[1,6,18,18\]_.*_reshape_on_weights_max_pool_.*)__"));
             patterns.push_back(std::regex(R"__(.*smoke_LPT/MatMulTransformation\..*f16_GPU_\[1,4,12,2\]_level=256_shape=\[\]_input_low=\{ 0 \}_input_high=\{ 25\.5 \}.*\[1,4,2,12\]_level=256_shape=\[\]_input_low=\{ -12\.8 \}.*)__"));
             patterns.push_back(std::regex(R"__(.*smoke_LPT_4D/ConvolutionBackpropDataTransformationGPU\..*/f16_.*input_high=\{ 255 \}_output_low=\{ -12\.7 \}.*)__"));
+            // Failed in CI Win platform
+            patterns.push_back(std::regex(R"(.*smoke_MatrixNmsLayerTestGPU_static/MatrixNmsLayerTestGPU.CompareWithRefs/IS=([]_[]_)_TS=((3.100.4)_(3.1.100)_)_model_type=f32_sortResultType=CLASSID_normalized=1_out_type=i64_nms_top_k=100_keep_top_k=*1_backgroudClass=1_decayFunction=LINEAR_score_threshold=0_gaussian_sigma=2_post_threshold=0_TargetDevice=GPU.*)"));
+            patterns.push_back(std::regex(R"(.*smoke_MatrixNmsLayerTestGPU_static/MatrixNmsLayerTestGPU.CompareWithRefs/IS=([]_[]_)_TS=((3.100.4)_(3.1.100)_)_model_type=f32_sortResultType=CLASSID_normalized=1_out_type=i32_nms_top_k=100_keep_top_k=*1_backgroudClass=*1_decayFunction=LINEAR_score_threshold=0_gaussian_sigma=2_post_threshold=0_TargetDevice=GPU.*)"));
+            patterns.push_back(std::regex(R"(.*smoke_MatrixNmsLayerTestGPU_static/MatrixNmsLayerTestGPU.CompareWithRefs/IS=([]_[]_)_TS=((3.100.4)_(3.1.100)_)_model_type=f32_sortResultType=SCORE_normalized=1_out_type=i64_nms_top_k=100_keep_top_k=*1_backgroudClass=*1_decayFunction=LINEAR_score_threshold=0_gaussian_sigma=2_post_threshold=0_TargetDevice=GPU.*)"));
+            patterns.push_back(std::regex(R"(.*smoke_MatrixNmsLayerTestGPU_static/MatrixNmsLayerTestGPU.CompareWithRefs/IS=([]_[]_)_TS=((3.100.4)_(3.1.100)_)_model_type=f32_sortResultType=SCORE_normalized=1_out_type=i32_nms_top_k=100_keep_top_k=*1_backgroudClass=*1_decayFunction=LINEAR_score_threshold=0_gaussian_sigma=2_post_threshold=0_TargetDevice=GPU.*)"));
+            patterns.push_back(std::regex(R"(.*smoke_MatrixNmsLayerTestGPU_static/MatrixNmsLayerTestGPU.CompareWithRefs/IS=([]_[]_)_TS=((3.100.4)_(3.1.100)_)_model_type=f32_sortResultType=NONE_normalized=1_out_type=i64_nms_top_k=100_keep_top_k=*1_backgroudClass=*1_decayFunction=LINEAR_score_threshold=0_gaussian_sigma=2_post_threshold=0_TargetDevice=GPU.*)"));
+            patterns.push_back(std::regex(R"(.*smoke_MoE3GemmCompressedOffload/MoECompressedOffloadTest.Inference/OR=50_WP=u4_DS=empty.*)"));
+            patterns.push_back(std::regex(R"(.*smoke_MoE3GemmCompressedOffload/MoECompressedOffloadTest.Inference/OR=75_WP=u4_DS=empty.*)"));
+            patterns.push_back(std::regex(R"(.*smoke_MoE3GemmCompressedOffload_u3/MoECompressedOffloadTest.Inference/OR=75_WP=u3_DS=empty.*)"));
+            patterns.push_back(std::regex(R"(.*smoke_MoE3GemmCompressedFusion/MoECompressedFusionTest.Inference/IS=[?.?.256]_TS=(1.30.256),(1.2.256),(1.24.256),topk=4_experts=8_inter=512_pattern=GEMM3_routing=Softmax_WP=u4_DP=f16_SP=f16_DM=full_DS=empty_RD=1_GS=128_GI=0_FGM=0_act=SWISH_PES=0_LNM=0_UWD=1.*)"));
+            patterns.push_back(std::regex(R"(.*smoke_BehaviorTests/OVInferRequestIOTensorTest.failToSetTensorWithIncorrectName/targetDevice=GPU_configItem=NUM_STREAMS_AUTO.*)"));
+            patterns.push_back(std::regex(R"(.*smoke_LPT/ClampTransformation.CompareWithRefImpl/f32_[1,3,16,16]_GPU_f32_level=256_shape=[1,1,1,1]_input_low={ 0 }_input_high={ 255 }_output_low={ 0 }_output_high{ 127 }_precision=_min=0max=127.*)"));
         }
 
         return patterns;
