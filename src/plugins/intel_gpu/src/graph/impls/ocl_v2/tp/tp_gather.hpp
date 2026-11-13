@@ -9,7 +9,7 @@
 
 #include "program_node.h"
 #include "registry/implementation_manager.hpp"
-#include "tp_allreduce.hpp"
+#include "ze/tp/collective_backend.hpp"
 
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 
@@ -27,7 +27,9 @@ struct TPGather : public ImplementationManager {
         static constexpr std::array supported_types = {data_types::f16, data_types::bf16, data_types::f32};
         static constexpr std::array supported_fmts = {format::bfyx, format::bfzyx, format::bfwzyx};
 
-        if (node.has_fused_primitives() || !runs_on_l0_p2p(node)) {
+        // Empty without a TP context: binding then reports the missing context, not a missing implementation.
+        const auto& backend = node.get_program().get_config().get_tp_collective_backend();
+        if (node.has_fused_primitives() || !(backend.empty() || backend == cldnn::ze::tp::l0_p2p_backend)) {
             return false;
         }
 

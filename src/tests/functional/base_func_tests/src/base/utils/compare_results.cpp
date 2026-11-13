@@ -9,7 +9,6 @@
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
 #include "ov_ops/rms.hpp"
-#include "ov_ops/tp_collective.hpp"
 #include "openvino/op/paged_attention.hpp"
 
 #include "shared_test_classes/base/utils/compare_results.hpp"

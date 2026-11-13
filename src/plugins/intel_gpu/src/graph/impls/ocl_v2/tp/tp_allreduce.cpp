@@ -21,29 +21,14 @@
 namespace ov::intel_gpu::ocl {
 namespace {
 
-// The reduction step the recorder launches between its copies. Only the
-// element type specializes it: buffers, count and launch size are set when the
-// collective is recorded.
+// The reduction step the recorder launches between its copies. The default jit
+// constants type it by the input; buffers, count and launch size are set when
+// the collective is recorded.
 class TPAllReduceGenerator : public KernelGenerator {
 public:
     TPAllReduceGenerator() : KernelGenerator("tp_allreduce") {}
 
 protected:
-    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
-        auto jit = make_base_jit_constants(params);
-        switch (params.get_input_layout(0).data_type) {
-        case data_types::bf16:
-            jit.make("TP_BF16", 1);
-            break;
-        case data_types::f16:
-            jit.make("TP_F16", 1);
-            break;
-        default:
-            break;
-        }
-        return jit;
-    }
-
     // The stream never launches this kernel, so it binds no primitive memory.
     Arguments get_arguments_desc(const RuntimeParams& params) const override {
         return {};
@@ -117,6 +102,7 @@ public:
                        ov::element::Type{layout.data_type},
                        reduce_kernel(),
                        async ? model_queue_of(stream) : nullptr);
+
         if (channel.options().validate_allreduce_output) {
             stream.finish();
             // One copy: reading device memory element by element crosses the bus every time.
@@ -147,11 +133,6 @@ private:
 };
 
 }  // namespace
-
-bool runs_on_l0_p2p(const program_node& node) {
-    const auto& backend = node.get_program().get_config().get_tp_collective_backend();
-    return backend.empty() || backend == cldnn::ze::tp::l0_p2p_backend;
-}
 
 std::unique_ptr<primitive_impl> TPAllReduce::create_impl(const program_node& node, const RuntimeParams& params) const {
     assert(node.is_type<tp_allreduce>());

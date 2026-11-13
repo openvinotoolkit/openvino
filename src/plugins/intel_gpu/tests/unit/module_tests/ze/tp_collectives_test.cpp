@@ -44,6 +44,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "impls/ocl_v2/utils/jitter.hpp"
 #include "impls/ocl_v2/utils/kernels_db.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -370,10 +371,9 @@ private:
 
     static Entry build(ze_context_handle_t ctx, ze_device_handle_t dev, ov::element::Type dtype) {
         std::string source = "#define KERNEL(name) __kernel void name\n";
-        if (dtype == ov::element::bf16) {
-            source += "#define TP_BF16 1\n";
-        } else if (dtype == ov::element::f16) {
-            source += "#define TP_F16 1\n";
+        for (const auto* tensor : {"INPUT0", "OUTPUT"}) {
+            for (const auto& jit : ov::intel_gpu::ocl::make_type_jit_constants(tensor, dtype))
+                source += "#define " + jit.name + " " + jit.value + "\n";
         }
         std::set<std::string> seen;
         source += inline_headers(std::string(ov::intel_gpu::ocl::SourcesDB::get_kernel_template("tp_allreduce")), seen);

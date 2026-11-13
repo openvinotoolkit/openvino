@@ -20,7 +20,6 @@ namespace ov {
     symbol_statement(zeCommandListAppendBarrier)              \
     symbol_statement(zeCommandListAppendEventReset)           \
     symbol_statement(zeCommandListAppendMemoryCopy)           \
-    symbol_statement(zeCommandListAppendMemoryCopyRegion)     \
     symbol_statement(zeCommandListAppendSignalEvent)          \
     symbol_statement(zeCommandListAppendWaitOnEvents)         \
     symbol_statement(zeCommandListAppendWriteGlobalTimestamp) \

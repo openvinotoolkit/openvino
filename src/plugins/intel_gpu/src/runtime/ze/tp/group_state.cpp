@@ -19,9 +19,6 @@
 #include "openvino/core/except.hpp"
 #include "tp_l0_shared_context.hpp"
 
-// Turns a failed Level Zero call into an exception naming the call.
-#define ZE_THROW(expr) OV_ZE_EXPECT(expr)
-
 // Verbosity travels with the options, so the collectives log the same way whoever created the context.
 #define TP_GROUP_LOG(level)                \
     if (m_options.verbosity >= (level)) \
@@ -59,10 +56,10 @@ std::size_t checked_multiply(std::size_t lhs, std::size_t rhs, const char* what)
 
 void select_compute_ordinal(ze_device_handle_t dev, uint32_t& ordinal) {
     uint32_t qg_count = 0;
-    ZE_THROW(ov::zeDeviceGetCommandQueueGroupProperties(dev, &qg_count, nullptr));
+    OV_ZE_EXPECT(ov::zeDeviceGetCommandQueueGroupProperties(dev, &qg_count, nullptr));
     std::vector<ze_command_queue_group_properties_t> qgp(qg_count,
                                                          {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_GROUP_PROPERTIES, nullptr});
-    ZE_THROW(ov::zeDeviceGetCommandQueueGroupProperties(dev, &qg_count, qgp.data()));
+    OV_ZE_EXPECT(ov::zeDeviceGetCommandQueueGroupProperties(dev, &qg_count, qgp.data()));
     ordinal = 0;
     for (uint32_t g = 0; g < qg_count; ++g) {
         if (qgp[g].flags & ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE) {
@@ -308,7 +305,7 @@ void GroupState::init_rank(RankState& rs) {
 
     // Kernel-timestamp -> ns conversion. On Intel GPUs timerResolution is ns/tick.
     ze_device_properties_t dp{ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES, nullptr};
-    ZE_THROW(ov::zeDeviceGetProperties(rs.device, &dp));
+    OV_ZE_EXPECT(ov::zeDeviceGetProperties(rs.device, &dp));
     rs.timer_ns_per_tick = dp.timerResolution > 0 ? dp.timerResolution : 1;
     const uint32_t bits = dp.kernelTimestampValidBits;
     rs.timestamp_mask = (bits == 0 || bits >= 64) ? ~uint64_t{0} : ((uint64_t{1} << bits) - 1);
@@ -317,7 +314,7 @@ void GroupState::init_rank(RankState& rs) {
     qd.ordinal = rs.compute_ordinal;
     qd.mode = ZE_COMMAND_QUEUE_MODE_ASYNCHRONOUS;
     qd.priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
-    ZE_THROW(ov::zeCommandQueueCreate(m_shared->context, rs.device, &qd, &rs.compute_queue));
+    OV_ZE_EXPECT(ov::zeCommandQueueCreate(m_shared->context, rs.device, &qd, &rs.compute_queue));
 }
 
 void GroupState::destroy_rank(RankState& rs) {
@@ -339,18 +336,18 @@ GroupState::RecordingResources GroupState::create_recording_resources(int rank) 
         }
         epd.count = 2;
         std::vector<ze_device_handle_t> devs(m_shared->devices.begin(), m_shared->devices.end());
-        ZE_THROW(ov::zeEventPoolCreate(m_shared->context, &epd, static_cast<uint32_t>(devs.size()), devs.data(),
-                                       &res.pool));
+        OV_ZE_EXPECT(ov::zeEventPoolCreate(m_shared->context, &epd, static_cast<uint32_t>(devs.size()), devs.data(),
+                                           &res.pool));
         for (int p = 0; p < 2; ++p) {
             ze_event_desc_t ed{ZE_STRUCTURE_TYPE_EVENT_DESC, nullptr};
             ed.signal = ZE_EVENT_SCOPE_FLAG_HOST;
             ed.wait = ZE_EVENT_SCOPE_FLAG_HOST;
             ed.index = static_cast<uint32_t>(p);
-            ZE_THROW(ov::zeEventCreate(res.pool, &ed, &res.done[p]));
+            OV_ZE_EXPECT(ov::zeEventCreate(res.pool, &ed, &res.done[p]));
 
             ze_command_list_desc_t ld{ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC, nullptr};
             ld.commandQueueGroupOrdinal = compute_ordinal(rank);
-            ZE_THROW(ov::zeCommandListCreate(m_shared->context, device(rank), &ld, &res.lists[p]));
+            OV_ZE_EXPECT(ov::zeCommandListCreate(m_shared->context, device(rank), &ld, &res.lists[p]));
         }
     } catch (...) {
         destroy_recording_resources(res);
@@ -398,7 +395,7 @@ void GroupState::create_event_sets() {
         ed.wait = ZE_EVENT_SCOPE_FLAG_DEVICE;
         ed.index = index;
         ze_event_handle_t ev = nullptr;
-        ZE_THROW(ov::zeEventCreate(pool, &ed, &ev));
+        OV_ZE_EXPECT(ov::zeEventCreate(pool, &ed, &ev));
         return ev;
     };
 
@@ -416,7 +413,7 @@ void GroupState::create_event_sets() {
             epd.flags = m_options.profiling_device ? ZE_EVENT_POOL_FLAG_KERNEL_TIMESTAMP : 0;
             epd.count = static_cast<uint32_t>((2 * (N - 1) + 1) * N);
         }
-        ZE_THROW(ov::zeEventPoolCreate(ctx, &epd, static_cast<uint32_t>(devs.size()), devs.data(), &set.pool));
+        OV_ZE_EXPECT(ov::zeEventPoolCreate(ctx, &epd, static_cast<uint32_t>(devs.size()), devs.data(), &set.pool));
         auto& events = (N == 2) ? set.recv : set.step;
         for (uint32_t i = 0; i < epd.count; ++i) {
             events.push_back(make(set.pool, i));
@@ -426,7 +423,7 @@ void GroupState::create_event_sets() {
     for (auto& set : m_gather_events) {
         ze_event_pool_desc_t epd{ZE_STRUCTURE_TYPE_EVENT_POOL_DESC, nullptr};
         epd.count = static_cast<uint32_t>(2 * N);
-        ZE_THROW(ov::zeEventPoolCreate(ctx, &epd, static_cast<uint32_t>(devs.size()), devs.data(), &set.pool));
+        OV_ZE_EXPECT(ov::zeEventPoolCreate(ctx, &epd, static_cast<uint32_t>(devs.size()), devs.data(), &set.pool));
         for (int i = 0; i < N; ++i) {
             set.ev.push_back(make(set.pool, static_cast<uint32_t>(i)));
             set.ready.push_back(make(set.pool, static_cast<uint32_t>(N + i)));
@@ -770,8 +767,8 @@ bool GroupState::await_splice(Splice& splice, int rank, int collective_id) {
             fail_collective(true, collective_id, rank, "previous splice of this recording");
         }
     }
-    ZE_THROW(r);
-    ZE_THROW(ze_api()->zeEventHostReset(splice.done));
+    OV_ZE_EXPECT(r);
+    OV_ZE_EXPECT(ze_api()->zeEventHostReset(splice.done));
     splice.in_flight.store(0, std::memory_order_release);
     return true;
 }
@@ -783,7 +780,7 @@ void GroupState::handed_over(int rank, Splice* splice) {
 
 void GroupState::execute_and_wait(int rank, ze_command_list_handle_t list, const char* what) {
     auto& rs = m_ranks[static_cast<std::size_t>(rank)];
-    ZE_THROW(ze_api()->zeCommandQueueExecuteCommandLists(rs.compute_queue, 1, &list, nullptr));
+    OV_ZE_EXPECT(ze_api()->zeCommandQueueExecuteCommandLists(rs.compute_queue, 1, &list, nullptr));
     sync_queue(rs.compute_queue, what);
 }
 
@@ -806,7 +803,7 @@ void GroupState::sync_queue(ze_command_queue_handle_t queue, const char* what) c
     if (r == ZE_RESULT_NOT_READY) {
         OPENVINO_THROW("[TP][L0] ", what, " did not complete within ", m_collective_timeout.count(), " ms");
     }
-    ZE_THROW(r);
+    OV_ZE_EXPECT(r);
 }
 
 void GroupState::abort_all(const std::string& reason) {

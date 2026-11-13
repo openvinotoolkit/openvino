@@ -13,8 +13,6 @@
 #include "openvino/core/except.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 
-#define ZE_THROW(expr) OV_ZE_EXPECT(expr)
-
 namespace ov::intel_gpu::ocl {
 
 using cldnn::ze::tp::alloc_id_of;
@@ -61,45 +59,45 @@ void TPGatherRecorder::record(int parity) {
     // row's band stale on the root about once in 500 calls.
     auto copy_band = [&] {
         for (std::size_t row = 0; row < sig.rows; ++row) {
-            ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(list,
-                                                             static_cast<uint8_t*>(sig.root_out) + row * full_bytes +
-                                                                 static_cast<std::size_t>(rank) * slice_bytes,
-                                                             static_cast<const uint8_t*>(sig.in) + row * slice_bytes,
-                                                             slice_bytes,
-                                                             nullptr,
-                                                             0,
-                                                             nullptr));
+            OV_ZE_EXPECT(ze_api()->zeCommandListAppendMemoryCopy(list,
+                                                                 static_cast<uint8_t*>(sig.root_out) + row * full_bytes +
+                                                                     static_cast<std::size_t>(rank) * slice_bytes,
+                                                                 static_cast<const uint8_t*>(sig.in) + row * slice_bytes,
+                                                                 slice_bytes,
+                                                                 nullptr,
+                                                                 0,
+                                                                 nullptr));
         }
     };
 
     if (rank != 0) {
         // Not before the root's queue has reached this gather: until then its
         // output's memory may still be in use by whatever ran there before.
-        ZE_THROW(ze_api()->zeCommandListAppendWaitOnEvents(list, 1, &ready[static_cast<std::size_t>(rank)]));
-        ZE_THROW(ze_api()->zeCommandListAppendEventReset(list, ready[static_cast<std::size_t>(rank)]));
+        OV_ZE_EXPECT(ze_api()->zeCommandListAppendWaitOnEvents(list, 1, &ready[static_cast<std::size_t>(rank)]));
+        OV_ZE_EXPECT(ze_api()->zeCommandListAppendEventReset(list, ready[static_cast<std::size_t>(rank)]));
         copy_band();
         // Signalled once the reset and the copy are both done, so the root
         // cannot hand out the next ready of this parity before it is cleared.
-        ZE_THROW(ze_api()->zeCommandListAppendBarrier(list, ev[static_cast<std::size_t>(rank)], 0, nullptr));
+        OV_ZE_EXPECT(ze_api()->zeCommandListAppendBarrier(list, ev[static_cast<std::size_t>(rank)], 0, nullptr));
     } else {
         // Own band first: the barrier and the device-scope signals after it
         // write its cache lines back before any peer writes next to them.
         copy_band();
-        ZE_THROW(ze_api()->zeCommandListAppendBarrier(list, nullptr, 0, nullptr));
+        OV_ZE_EXPECT(ze_api()->zeCommandListAppendBarrier(list, nullptr, 0, nullptr));
         for (int r = 1; r < world_size; ++r) {
-            ZE_THROW(ze_api()->zeCommandListAppendSignalEvent(list, ready[static_cast<std::size_t>(r)]));
+            OV_ZE_EXPECT(ze_api()->zeCommandListAppendSignalEvent(list, ready[static_cast<std::size_t>(r)]));
         }
         // Holds everything queued behind this recording -- the rest of the
         // model on the root -- until every band is in place.
         std::vector<ze_event_handle_t> waits(ev.begin() + 1, ev.end());
-        ZE_THROW(ze_api()->zeCommandListAppendWaitOnEvents(list, static_cast<uint32_t>(waits.size()), waits.data()));
+        OV_ZE_EXPECT(ze_api()->zeCommandListAppendWaitOnEvents(list, static_cast<uint32_t>(waits.size()), waits.data()));
         for (auto* e : waits) {
-            ZE_THROW(ze_api()->zeCommandListAppendEventReset(list, e));
+            OV_ZE_EXPECT(ze_api()->zeCommandListAppendEventReset(list, e));
         }
     }
 
     ScopedTime close(group.options().profiling_host, group.stats().gather_close_ns);
-    ZE_THROW(ze_api()->zeCommandListClose(list));
+    OV_ZE_EXPECT(ze_api()->zeCommandListClose(list));
 }
 
 void TPGatherRecorder::run(const cldnn::ze::tp::Channel& channel,

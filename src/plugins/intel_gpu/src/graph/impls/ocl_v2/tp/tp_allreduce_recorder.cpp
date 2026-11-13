@@ -16,8 +16,6 @@
 #include "openvino/core/except.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 
-#define ZE_THROW(expr) OV_ZE_EXPECT(expr)
-
 namespace ov::intel_gpu::ocl {
 
 using cldnn::ze::tp::alloc_id_of;
@@ -82,12 +80,12 @@ void append_reduce(ze_command_list_handle_t list,
     const uint64_t n = count;
     const std::size_t items = (count + elems_per_item - 1) / elems_per_item;
     const ze_group_count_t groups{static_cast<uint32_t>((items + group_size - 1) / group_size), 1, 1};
-    ZE_THROW(ze_api()->zeKernelSetGroupSize(kernel, group_size, 1, 1));
-    ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 0, sizeof(dst), &dst));
-    ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 1, sizeof(src0), &src0));
-    ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 2, sizeof(src1), &src1));
-    ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 3, sizeof(n), &n));
-    ZE_THROW(ze_api()->zeCommandListAppendLaunchKernel(list, kernel, &groups, nullptr, 0, nullptr));
+    OV_ZE_EXPECT(ze_api()->zeKernelSetGroupSize(kernel, group_size, 1, 1));
+    OV_ZE_EXPECT(ze_api()->zeKernelSetArgumentValue(kernel, 0, sizeof(dst), &dst));
+    OV_ZE_EXPECT(ze_api()->zeKernelSetArgumentValue(kernel, 1, sizeof(src0), &src0));
+    OV_ZE_EXPECT(ze_api()->zeKernelSetArgumentValue(kernel, 2, sizeof(src1), &src1));
+    OV_ZE_EXPECT(ze_api()->zeKernelSetArgumentValue(kernel, 3, sizeof(n), &n));
+    OV_ZE_EXPECT(ze_api()->zeCommandListAppendLaunchKernel(list, kernel, &groups, nullptr, 0, nullptr));
 }
 
 // Where the payload splits at one level of the recursion. Both partners compute
@@ -129,7 +127,7 @@ uint64_t ticks_to_ns(uint64_t start, uint64_t end, uint64_t mask, uint64_t ns_pe
 }
 
 void barrier(ze_command_list_handle_t list) {
-    ZE_THROW(ze_api()->zeCommandListAppendBarrier(list, nullptr, 0, nullptr));
+    OV_ZE_EXPECT(ze_api()->zeCommandListAppendBarrier(list, nullptr, 0, nullptr));
 }
 
 void* byte_offset(void* base, std::size_t bytes) {
@@ -310,7 +308,7 @@ void TPAllReduceRecorder::record(int parity) {
             }
         }
         ScopedTime close(measure, st.rec_close_ns);
-        ZE_THROW(ze_api()->zeCommandListClose(list));
+        OV_ZE_EXPECT(ze_api()->zeCommandListClose(list));
     }
     if (measure) {
         chosen->bump();
@@ -326,17 +324,17 @@ void TPAllReduceRecorder::record_pair(ze_command_list_handle_t list, const Signa
 
     // Push our input into the peer's staging, never into the peer's own buffer,
     // which is what lets each rank record on its own. ev_recv[r] tells the peer.
-    ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(list,
-                                                     staging[static_cast<std::size_t>(peer)],
-                                                     piece.in,
-                                                     bytes,
-                                                     ev_recv[r],
-                                                     0,
-                                                     nullptr));
-    ZE_THROW(ze_api()->zeCommandListAppendWaitOnEvents(list, 1, &ev_recv[peer]));
+    OV_ZE_EXPECT(ze_api()->zeCommandListAppendMemoryCopy(list,
+                                                         staging[static_cast<std::size_t>(peer)],
+                                                         piece.in,
+                                                         bytes,
+                                                         ev_recv[r],
+                                                         0,
+                                                         nullptr));
+    OV_ZE_EXPECT(ze_api()->zeCommandListAppendWaitOnEvents(list, 1, &ev_recv[peer]));
     // This rank is the only waiter; the wait already orders what follows, so
     // the reset needs no barrier.
-    ZE_THROW(ze_api()->zeCommandListAppendEventReset(list, ev_recv[peer]));
+    OV_ZE_EXPECT(ze_api()->zeCommandListAppendEventReset(list, ev_recv[peer]));
     append_reduce(list, sig.kernel, piece.out, piece.in, staging[static_cast<std::size_t>(r)], piece.n);
 }
 
@@ -370,18 +368,18 @@ void TPAllReduceRecorder::record_ring(ze_command_list_handle_t list, const Signa
 
         // An empty chunk still has to signal, or the successor waits forever.
         if (send_cnt == 0) {
-            ZE_THROW(ze_api()->zeCommandListAppendSignalEvent(list, ev(s, r)));
+            OV_ZE_EXPECT(ze_api()->zeCommandListAppendSignalEvent(list, ev(s, r)));
         } else {
             void* send_src = (s == 0) ? byte_at(piece.in, send_off) : byte_at(piece.out, send_off);
-            ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(list,
-                                                             ring_slot(sig, piece, next, send_chunk),
-                                                             send_src,
-                                                             send_cnt * elem,
-                                                             ev(s, r),
-                                                             0,
-                                                             nullptr));
+            OV_ZE_EXPECT(ze_api()->zeCommandListAppendMemoryCopy(list,
+                                                                 ring_slot(sig, piece, next, send_chunk),
+                                                                 send_src,
+                                                                 send_cnt * elem,
+                                                                 ev(s, r),
+                                                                 0,
+                                                                 nullptr));
         }
-        ZE_THROW(ze_api()->zeCommandListAppendWaitOnEvents(list, 1, &ev(s, prev)));
+        OV_ZE_EXPECT(ze_api()->zeCommandListAppendWaitOnEvents(list, 1, &ev(s, prev)));
         if (recv_cnt == 0) {
             continue;
         }
@@ -400,8 +398,8 @@ void TPAllReduceRecorder::record_ring(ze_command_list_handle_t list, const Signa
     // peer's output would bake the peer's address into this recording. The
     // successor may still be in its reduce-scatter, writing the slots we are
     // about to deliver into, so one handshake per rank goes first.
-    ZE_THROW(ze_api()->zeCommandListAppendSignalEvent(list, ev(2 * steps, r)));
-    ZE_THROW(ze_api()->zeCommandListAppendWaitOnEvents(list, 1, &ev(2 * steps, next)));
+    OV_ZE_EXPECT(ze_api()->zeCommandListAppendSignalEvent(list, ev(2 * steps, r)));
+    OV_ZE_EXPECT(ze_api()->zeCommandListAppendWaitOnEvents(list, 1, &ev(2 * steps, next)));
 
     for (int s = 0; s < steps; ++s) {
         const int send_chunk = ((r + 1 - s) % N + N) % N;
@@ -412,26 +410,26 @@ void TPAllReduceRecorder::record_ring(ze_command_list_handle_t list, const Signa
 
         const int step = steps + s;
         if (send_cnt == 0) {
-            ZE_THROW(ze_api()->zeCommandListAppendSignalEvent(list, ev(step, r)));
+            OV_ZE_EXPECT(ze_api()->zeCommandListAppendSignalEvent(list, ev(step, r)));
         } else {
             void* send_src = (s == 0) ? byte_at(piece.out, send_off) : ring_slot(sig, piece, r, send_chunk);
-            ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(list,
-                                                             ring_slot(sig, piece, next, send_chunk),
-                                                             send_src,
-                                                             send_cnt * elem,
-                                                             ev(step, r),
-                                                             0,
-                                                             nullptr));
+            OV_ZE_EXPECT(ze_api()->zeCommandListAppendMemoryCopy(list,
+                                                                 ring_slot(sig, piece, next, send_chunk),
+                                                                 send_src,
+                                                                 send_cnt * elem,
+                                                                 ev(step, r),
+                                                                 0,
+                                                                 nullptr));
         }
-        ZE_THROW(ze_api()->zeCommandListAppendWaitOnEvents(list, 1, &ev(step, prev)));
+        OV_ZE_EXPECT(ze_api()->zeCommandListAppendWaitOnEvents(list, 1, &ev(step, prev)));
         if (recv_cnt > 0) {
-            ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(list,
-                                                             byte_at(piece.out, recv_off),
-                                                             ring_slot(sig, piece, r, recv_chunk),
-                                                             recv_cnt * elem,
-                                                             nullptr,
-                                                             0,
-                                                             nullptr));
+            OV_ZE_EXPECT(ze_api()->zeCommandListAppendMemoryCopy(list,
+                                                                 byte_at(piece.out, recv_off),
+                                                                 ring_slot(sig, piece, r, recv_chunk),
+                                                                 recv_cnt * elem,
+                                                                 nullptr,
+                                                                 0,
+                                                                 nullptr));
         }
     }
 
@@ -439,9 +437,9 @@ void TPAllReduceRecorder::record_ring(ze_command_list_handle_t list, const Signa
     // step events and the successor's handshake.
     barrier(list);
     for (int s = 0; s < 2 * steps; ++s) {
-        ZE_THROW(ze_api()->zeCommandListAppendEventReset(list, ev(s, prev)));
+        OV_ZE_EXPECT(ze_api()->zeCommandListAppendEventReset(list, ev(s, prev)));
     }
-    ZE_THROW(ze_api()->zeCommandListAppendEventReset(list, ev(2 * steps, next)));
+    OV_ZE_EXPECT(ze_api()->zeCommandListAppendEventReset(list, ev(2 * steps, next)));
 }
 
 void TPAllReduceRecorder::record_halving(ze_command_list_handle_t list, const Signature& sig, const Piece& piece) {
@@ -478,17 +476,17 @@ void TPAllReduceRecorder::record_halving(ze_command_list_handle_t list, const Si
         if (send_hi > send_lo) {
             // At the start of the partner's region for this step, which is only
             // as large as one half and keeps the source aligned.
-            ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(list,
-                                                             halving_stage(sig, piece, partner, j),
-                                                             byte_at(mine, send_lo),
-                                                             (send_hi - send_lo) * elem,
-                                                             ev(j, r),
-                                                             0,
-                                                             nullptr));
+            OV_ZE_EXPECT(ze_api()->zeCommandListAppendMemoryCopy(list,
+                                                                 halving_stage(sig, piece, partner, j),
+                                                                 byte_at(mine, send_lo),
+                                                                 (send_hi - send_lo) * elem,
+                                                                 ev(j, r),
+                                                                 0,
+                                                                 nullptr));
         } else {
-            ZE_THROW(ze_api()->zeCommandListAppendSignalEvent(list, ev(j, r)));
+            OV_ZE_EXPECT(ze_api()->zeCommandListAppendSignalEvent(list, ev(j, r)));
         }
-        ZE_THROW(ze_api()->zeCommandListAppendWaitOnEvents(list, 1, &ev(j, partner)));
+        OV_ZE_EXPECT(ze_api()->zeCommandListAppendWaitOnEvents(list, 1, &ev(j, partner)));
         if (keep_hi > keep_lo) {
             append_reduce(list,
                           sig.kernel,
@@ -510,28 +508,28 @@ void TPAllReduceRecorder::record_halving(ze_command_list_handle_t list, const Si
         std::size_t lo = 0, hi = 0;
         halving_range(n, r, j + 1, lo, hi);
         if (hi > lo) {
-            ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(list,
-                                                             halving_stage(sig, piece, partner, region),
-                                                             byte_at(piece.out, lo),
-                                                             (hi - lo) * elem,
-                                                             ev(step, r),
-                                                             0,
-                                                             nullptr));
+            OV_ZE_EXPECT(ze_api()->zeCommandListAppendMemoryCopy(list,
+                                                                 halving_stage(sig, piece, partner, region),
+                                                                 byte_at(piece.out, lo),
+                                                                 (hi - lo) * elem,
+                                                                 ev(step, r),
+                                                                 0,
+                                                                 nullptr));
         } else {
-            ZE_THROW(ze_api()->zeCommandListAppendSignalEvent(list, ev(step, r)));
+            OV_ZE_EXPECT(ze_api()->zeCommandListAppendSignalEvent(list, ev(step, r)));
         }
-        ZE_THROW(ze_api()->zeCommandListAppendWaitOnEvents(list, 1, &ev(step, partner)));
+        OV_ZE_EXPECT(ze_api()->zeCommandListAppendWaitOnEvents(list, 1, &ev(step, partner)));
 
         std::size_t partner_lo = 0, partner_hi = 0;
         halving_range(n, partner, j + 1, partner_lo, partner_hi);
         if (partner_hi > partner_lo) {
-            ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(list,
-                                                             byte_at(piece.out, partner_lo),
-                                                             halving_stage(sig, piece, r, region),
-                                                             (partner_hi - partner_lo) * elem,
-                                                             nullptr,
-                                                             0,
-                                                             nullptr));
+            OV_ZE_EXPECT(ze_api()->zeCommandListAppendMemoryCopy(list,
+                                                                 byte_at(piece.out, partner_lo),
+                                                                 halving_stage(sig, piece, r, region),
+                                                                 (partner_hi - partner_lo) * elem,
+                                                                 nullptr,
+                                                                 0,
+                                                                 nullptr));
         }
         barrier(list);
     }
@@ -539,7 +537,7 @@ void TPAllReduceRecorder::record_halving(ze_command_list_handle_t list, const Si
     barrier(list);
     for (int step = 0; step < 2 * levels; ++step) {
         const int j = (step < levels) ? step : (2 * levels - 1 - step);
-        ZE_THROW(ze_api()->zeCommandListAppendEventReset(list, ev(step, r ^ (1 << j))));
+        OV_ZE_EXPECT(ze_api()->zeCommandListAppendEventReset(list, ev(step, r ^ (1 << j))));
     }
 }
 
@@ -692,7 +690,7 @@ void TPAllReduceRecorder::run(const cldnn::ze::tp::Channel& channel,
                     group.fail_collective(true, collective_id, rank, "previous splice of this recording");
                 }
             }
-            ZE_THROW(res);
+            OV_ZE_EXPECT(res);
             const auto w1 = stamp();
             if (measure_dev) {
                 // The event still holds the timestamps of the splice that just
@@ -746,7 +744,7 @@ void TPAllReduceRecorder::run(const cldnn::ze::tp::Channel& channel,
                     }
                 }
             }
-            ZE_THROW(ze_api()->zeEventHostReset(splice.done));
+            OV_ZE_EXPECT(ze_api()->zeEventHostReset(splice.done));
             splice.in_flight.store(0, std::memory_order_release);
             if (measure_host) {
                 st.ahead_now[rank].v.fetch_sub(1, std::memory_order_relaxed);

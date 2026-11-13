@@ -519,8 +519,7 @@ The plugin defines exactly two ops, `TPAllReduce` and `TPGather`, and
 both are inserted by `TPInsertCollectives`. To add a third:
 
 1. Declare it in `src/common/transformations/include/ov_ops/tp_collective.hpp`
-   (source in `src/common/transformations/src/ov_ops/tp_collective.cpp`) and
-   add it to `ov_ops/opset_private_tbl.hpp`.
+   (source in `src/common/transformations/src/ov_ops/tp_collective.cpp`).
 2. Inherit `ov::op::internal::TPCollectiveBase`, declare with
    `OPENVINO_OP("TPMyOp", "ie_internal_opset", TPCollectiveBase)`.
 3. Implement constructors, `validate_and_infer_types`,
