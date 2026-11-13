@@ -25,7 +25,6 @@
 #include "openvino/op/qsa_prepare.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_mean.hpp"
-#include "openvino/op/reshape.hpp"
 #include "openvino/op/sparse_attention_indexer.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
@@ -58,8 +57,16 @@ enum class QueryLayout {
     BLHDTransposeAfterRoPE,   // [B, L, H, D] raw query, followed by a Transpose for SparseAttentionIndexer
 };
 
+// The query steps that QSAIndexer is expected to absorb.
+enum class QueryFusion {
+    None,  // the base fusion: the SparseAttentionIndexer query, transposed to [B, L, H, D]
+    RoPE,  // the query RoPE: the RoPE input
+    Full,  // the query RoPE and RMSNorm: the raw query
+};
+
 struct GraphOptions {
     std::string name;
+    QueryFusion query_fusion = QueryFusion::Full;
     element::Type precision = element::f32;
     QueryLayout query_layout = QueryLayout::BLHDTransposed;
     // cos / sin have a single row, which QSAPrepare broadcasts over the batch.
@@ -73,11 +80,7 @@ struct GraphOptions {
     // Plugin compilation canonicalizes the decomposed query RMSNorm and RoPE before query absorption.
     // Only for QueryLayout::BLHDTransposed.
     bool decomposed_query = false;
-    bool reshape_rope_rows = false;
     // Negative cases.
-    bool missing_query_norm = false;
-    bool norm_after_rope = false;
-    bool wrong_rope_reshape = false;
     bool query_rope = true;
     bool distinct_query_rope = false;
     bool distinct_query_sin = false;
@@ -119,6 +122,7 @@ Output<Node> i64(const std::vector<int64_t>& values) {
 struct SharedGraph {
     ParameterVector parameters;
     Output<Node> raw_query;
+    Output<Node> rope_input;
     Output<Node> query;  // SparseAttentionIndexer query
     Output<Node> raw_keys, cache, key_length, rope_cos, rope_sin, key_weight, incomplete_keys, incomplete_rope;
     Output<Node> indexer_key_length, index_weights;
@@ -188,11 +192,11 @@ SharedGraph make_shared_graph(const GraphOptions& o) {
                                                  o.rms_axis)
             : std::make_shared<op_internal::RMS>(g.raw_query, rms_epsilon, o.precision, o.rms_axis);
 
-    const Output<Node> query_input = o.missing_query_norm ? g.raw_query : Output<Node>(rms);
+    g.rope_input = rms;
     if (o.decomposed_query) {
         // The rotate-half RoPE of the transposed query, as exported: x * cos + concat(-x2, x1) * sin.
         constexpr int64_t last_axis = 3;
-        const auto x = head_transpose(query_input);
+        const auto x = head_transpose(rms);
         const auto half = rotary / 2;
         const auto halves = std::make_shared<v1::VariadicSplit>(x, i64({last_axis}), i64({half, half}));
         const auto minus_x2 =
@@ -211,26 +215,16 @@ SharedGraph make_shared_graph(const GraphOptions& o) {
         rope_config.use_rope_cache = o.cached_query_rope;
         rope_config.input_trans0213 = o.query_layout == QueryLayout::BLHDTransposed;
         rope_config.output_trans0213 = o.query_layout == QueryLayout::BLHDRoPEBeforeTranspose;
-        const auto with_head_axis = [&](const Output<Node>& rows) -> Output<Node> {
-            if (o.reshape_rope_rows) {
-                return std::make_shared<v1::Reshape>(rows,
-                                                     i64(o.wrong_rope_reshape ? std::vector<int64_t>{1, 2, 1, rotary}
-                                                                              : std::vector<int64_t>{0, 1, 1, rotary}),
-                                                     true);
-            }
-            return std::make_shared<v0::Unsqueeze>(rows, i64({o.query_rope_axis}));
-        };
         g.query = std::make_shared<op_internal::RoPE>(
-            OutputVector{query_input, with_head_axis(query_cos), with_head_axis(query_sin)},
+            OutputVector{rms,
+                         std::make_shared<v0::Unsqueeze>(query_cos, i64({o.query_rope_axis})),
+                         std::make_shared<v0::Unsqueeze>(query_sin, i64({o.query_rope_axis}))},
             rope_config);
         if (o.query_layout == QueryLayout::BLHDTransposeAfterRoPE) {
             g.query = head_transpose(g.query);
         }
     } else {
-        g.query = query_input;
-    }
-    if (o.norm_after_rope) {
-        g.query = std::make_shared<op_internal::RMS>(g.query, rms_epsilon, o.precision, o.rms_axis);
+        g.query = rms;
     }
     if (o.converted_query) {
         g.query = std::make_shared<v0::Convert>(g.query, o.precision);
@@ -328,7 +322,17 @@ std::shared_ptr<Model> getModelRef(const GraphOptions& o) {
         std::make_shared<v0::Concat>(OutputVector{std::make_shared<v0::Unsqueeze>(g.cache, i64({1})), zeros}, 2);
 
     OutputVector inputs(QSAIndexerInputIdx::COUNT);
-    inputs[QSAIndexerInputIdx::INDEX_QUERY] = g.raw_query;
+    switch (o.query_fusion) {
+    case QueryFusion::None:
+        inputs[QSAIndexerInputIdx::INDEX_QUERY] = head_transpose(g.query);
+        break;
+    case QueryFusion::RoPE:
+        inputs[QSAIndexerInputIdx::INDEX_QUERY] = g.rope_input;
+        break;
+    case QueryFusion::Full:
+        inputs[QSAIndexerInputIdx::INDEX_QUERY] = g.raw_query;
+        break;
+    }
     inputs[QSAIndexerInputIdx::RAW_INDEX_KEYS] = std::make_shared<v0::Unsqueeze>(g.raw_keys, i64({2}));
     inputs[QSAIndexerInputIdx::ROPE_COS] = rope_for_batch(g.rope_cos);
     inputs[QSAIndexerInputIdx::ROPE_SIN] = rope_for_batch(g.rope_sin);
@@ -349,6 +353,8 @@ std::shared_ptr<Model> getModelRef(const GraphOptions& o) {
     config.indexer_head_dim = head_size;
     config.epsilon = epsilon;
     config.scale = 1.0f / std::sqrt(static_cast<float>(head_size));
+    config.query_norm = o.query_fusion == QueryFusion::Full;
+    config.query_rope = o.query_fusion != QueryFusion::None;
     const auto fused = std::make_shared<op_internal::QSAIndexer>(inputs, config);
 
     const std::vector<Output<Node>> outputs{
@@ -375,6 +381,7 @@ protected:
         manager.register_pass<pass::RoPEFusion>(true);
         manager.register_pass<pass::RMSFusion>(false, true);
         manager.register_pass<pass::FuseQSAIndexer>();
+        manager.register_pass<pass::FuseQSAIndexerQuery>();
     }
 };
 
@@ -417,15 +424,6 @@ const std::vector<GraphOptions> fused_cases{
          [](GraphOptions& o) {
              o.decomposed_query = true;
          }),
-    with("reshaped_rope_rows",
-         [](GraphOptions& o) {
-             o.reshape_rope_rows = true;
-             o.query_sequence = o.keys_sequence = 1;
-         }),
-    with("partial_rotary_dimension",
-         [](GraphOptions& o) {
-             o.rotary_dim = head_size / 2;
-         }),
     with("extra_state_consumers",
          [](GraphOptions& o) {
              o.extra_state_consumers = true;
@@ -453,19 +451,23 @@ TEST_F(TransformationTestsF, FuseQSAIndexerLeavesQueryAndOtherNonAffineRMSNormUn
     };
     model = getModel(o);
     add_other_norm(model);
+    o.query_fusion = QueryFusion::None;
+    model_ref = getModelRef(o);
+    add_other_norm(model_ref);
     comparator.enable(FunctionsComparator::ATTRIBUTES);
     comparator.enable(FunctionsComparator::CONST_VALUES);
+    disable_result_friendly_names_check();
     manager.register_pass<pass::FuseQSAIndexer>();
 }
 
-TEST_F(TransformationTestsF, FuseQSAIndexerFusesCanonicalQueryIdempotently) {
+TEST_F(TransformationTestsF, FuseQSAIndexerLeavesCanonicalQueryUnchanged) {
     GraphOptions o;
+    o.query_fusion = QueryFusion::None;
     model = getModel(o);
     model_ref = getModelRef(o);
     comparator.enable(FunctionsComparator::ATTRIBUTES);
     comparator.enable(FunctionsComparator::CONST_VALUES);
     disable_result_friendly_names_check();
-    manager.register_pass<pass::FuseQSAIndexer>();
     manager.register_pass<pass::FuseQSAIndexer>();
 }
 
@@ -483,104 +485,119 @@ TEST_F(TransformationTestsF, FuseQSAIndexerHonorsCallback) {
     });
 }
 
-class FuseQSAIndexerNotFusedTest : public FuseQSAIndexerTest {};
-
-TEST_P(FuseQSAIndexerNotFusedTest, KeepsSourceOps) {
-    model = getModel(GetParam());
+TEST_F(TransformationTestsF, FuseQSAIndexerQueryLeavesDecomposedQueryUnchanged) {
+    GraphOptions o;
+    o.decomposed_query = true;
+    o.query_fusion = QueryFusion::None;
+    model = getModelRef(o);
+    manager.register_pass<pass::FuseQSAIndexerQuery>();
 }
 
-// Neither source op is fused unless both query preprocessing steps match the runtime implementation.
-const std::vector<GraphOptions> unsupported_query_cases{
-    with("missing_query_norm",
-         [](GraphOptions& o) {
-             o.missing_query_norm = true;
-         }),
-    with("norm_after_rope",
-         [](GraphOptions& o) {
-             o.missing_query_norm = true;
-             o.norm_after_rope = true;
-         }),
-    with("rope_rows_wrong_reshape",
-         [](GraphOptions& o) {
-             o.reshape_rope_rows = o.wrong_rope_reshape = true;
-             o.query_sequence = o.keys_sequence = 1;
-         }),
+// QSAIndexer keeps the query steps that do not match the kernel ones in the graph.
+const std::vector<GraphOptions> partially_fused_cases{
+    // The SparseAttentionIndexer query is not a [B, L, H, D] input rotated by the plain rotate-half RoPE of the
+    // key cos / sin, so the query is passed as is.
     with("bhld_query",
          [](GraphOptions& o) {
+             o.query_fusion = QueryFusion::None;
              o.query_layout = QueryLayout::BHLD;
          }),
     with("bhld_query_without_rope",
          [](GraphOptions& o) {
+             o.query_fusion = QueryFusion::None;
              o.query_layout = QueryLayout::BHLD;
              o.query_rope = false;
          }),
     with("rope_output_transpose",
          [](GraphOptions& o) {
+             o.query_fusion = QueryFusion::None;
              o.query_layout = QueryLayout::BLHDRoPEBeforeTranspose;
          }),
     with("explicit_query_transpose",
          [](GraphOptions& o) {
+             o.query_fusion = QueryFusion::None;
              o.query_layout = QueryLayout::BLHDTransposeAfterRoPE;
          }),
     with("converted_query",
          [](GraphOptions& o) {
+             o.query_fusion = QueryFusion::None;
              o.converted_query = true;
          }),
     with("query_rope_wrong_unsqueeze_axis",
          [](GraphOptions& o) {
+             o.query_fusion = QueryFusion::None;
              o.query_rope_axis = 0;
              o.single_row_rope = true;
          }),
     with("distinct_query_rope",
          [](GraphOptions& o) {
+             o.query_fusion = QueryFusion::None;
              o.distinct_query_rope = true;
          }),
     with("distinct_query_sin",
          [](GraphOptions& o) {
+             o.query_fusion = QueryFusion::None;
              o.distinct_query_sin = true;
          }),
     with("interleaved_query_rope",
          [](GraphOptions& o) {
+             o.query_fusion = QueryFusion::None;
              o.interleaved_query_rope = true;
          }),
     with("input_interleaved_query_rope",
          [](GraphOptions& o) {
+             o.query_fusion = QueryFusion::None;
              o.input_interleaved_query_rope = true;
          }),
     with("cached_query_rope",
          [](GraphOptions& o) {
+             o.query_fusion = QueryFusion::None;
              o.cached_query_rope = true;
          }),
     with("distinct_query_rotary_dim",
          [](GraphOptions& o) {
+             o.query_fusion = QueryFusion::None;
              o.query_rotary_dim = head_size / 2;
          }),
+    // The query RoPE input is not the non-affine RMSNorm of the last axis with the key epsilon that keeps the
+    // precision, so only the RoPE is absorbed.
     with("affine_query",
          [](GraphOptions& o) {
+             o.query_fusion = QueryFusion::RoPE;
              o.affine_query = true;
          }),
     with("rms_changes_precision",
          [](GraphOptions& o) {
+             o.query_fusion = QueryFusion::RoPE;
              o.rms_changes_precision = true;
          }),
     with("rms_wrong_axis",
          [](GraphOptions& o) {
+             o.query_fusion = QueryFusion::RoPE;
              o.rms_axis = -2;
          }),
     with("distinct_query_epsilon",
          [](GraphOptions& o) {
+             o.query_fusion = QueryFusion::RoPE;
              o.query_epsilon = 2 * epsilon;
          }),
     with("nearly_equal_query_epsilon",
          [](GraphOptions& o) {
+             o.query_fusion = QueryFusion::RoPE;
              o.query_epsilon = std::nextafter(epsilon, 2 * epsilon);
          }),
 };
 
-INSTANTIATE_TEST_SUITE_P(FuseQSAIndexerUnsupportedQuery,
-                         FuseQSAIndexerNotFusedTest,
-                         testing::ValuesIn(unsupported_query_cases),
+INSTANTIATE_TEST_SUITE_P(FuseQSAIndexerPartially,
+                         FuseQSAIndexerFusedTest,
+                         testing::ValuesIn(partially_fused_cases),
                          FuseQSAIndexerTest::getTestCaseName);
+
+class FuseQSAIndexerNotFusedTest : public FuseQSAIndexerTest {};
+
+TEST_P(FuseQSAIndexerNotFusedTest, KeepsSourceOps) {
+    model = getModel(GetParam());
+}
 
 const std::vector<GraphOptions> not_fused_cases{
     // QSAIndexer kernels are specialized for the head count and the head size.

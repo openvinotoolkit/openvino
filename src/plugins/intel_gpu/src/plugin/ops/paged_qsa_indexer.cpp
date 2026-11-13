@@ -23,6 +23,10 @@ static void CreatePagedQSAIndexerOp(ProgramBuilder& p, const std::shared_ptr<ov:
                     "': ",
                     reason);
 
+    OPENVINO_ASSERT(op->get_config().query_norm && op->get_config().query_rope,
+                    "[GPU] PagedQSAIndexer '",
+                    layer_name,
+                    "': only query_norm == true and query_rope == true are supported");
     OPENVINO_ASSERT(op->get_config().num_selection_heads == 1,
                     "[GPU] PagedQSAIndexer '",
                     layer_name,

@@ -19,6 +19,10 @@ static void CreateQSAIndexerOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     OPENVINO_ASSERT(ov::op::internal::QSAIndexer::validate_config(op->get_config(), reason), "[GPU] Cannot lower QSAIndexer op '", layer_name, "': ", reason);
 
     using In = ov::op::internal::QSAIndexer::InputIdx;
+    OPENVINO_ASSERT(op->get_config().query_norm && op->get_config().query_rope,
+                    "[GPU] QSAIndexer '",
+                    layer_name,
+                    "': only query_norm == true and query_rope == true are supported");
     OPENVINO_ASSERT(op->get_config().num_selection_heads == 1,
                     "[GPU] QSAIndexer '",
                     layer_name,

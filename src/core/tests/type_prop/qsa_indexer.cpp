@@ -8,6 +8,7 @@
 
 #include <limits>
 #include <sstream>
+#include <tuple>
 
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
@@ -51,10 +52,15 @@ void expect_config_eq(const QSAIndexer::Config& actual, const QSAIndexer::Config
     EXPECT_EQ(actual.indexer_head_dim, expected.indexer_head_dim);
     EXPECT_EQ(actual.epsilon, expected.epsilon);
     EXPECT_EQ(actual.scale, expected.scale);
+    EXPECT_EQ(actual.query_norm, expected.query_norm);
+    EXPECT_EQ(actual.query_rope, expected.query_rope);
 }
 
-TEST(QSAIndexerTest, PreservesSharedTypeAndConfigThroughCloneAndIR) {
-    const auto config = make_config();
+class QSAIndexerAttributesTest : public testing::TestWithParam<std::tuple<bool, bool>> {};
+
+TEST_P(QSAIndexerAttributesTest, PreservesSharedTypeAndConfigThroughCloneAndIR) {
+    auto config = make_config();
+    std::tie(config.query_norm, config.query_rope) = GetParam();
     const auto inputs = make_inputs();
     const auto indexer = std::make_shared<QSAIndexer>(inputs, config);
     EXPECT_EQ(indexer->get_output_size(), QSAIndexer::OutputIdx::COUNT);
@@ -85,6 +91,14 @@ TEST(QSAIndexerTest, PreservesSharedTypeAndConfigThroughCloneAndIR) {
     ASSERT_NE(loaded, nullptr);
     expect_config_eq(loaded->get_config(), config);
 }
+
+INSTANTIATE_TEST_SUITE_P(QSAIndexer,
+                         QSAIndexerAttributesTest,
+                         testing::Combine(testing::Bool(), testing::Bool()),
+                         ([](const testing::TestParamInfo<QSAIndexerAttributesTest::ParamType>& info) {
+                             const auto [norm, rope] = info.param;
+                             return std::string(norm ? "NormOn" : "NormOff") + (rope ? "_RoPEOn" : "_RoPEOff");
+                         }));
 
 TEST(QSAIndexerTest, RejectsDimensionsThatCannotBeRepresented) {
     auto config = make_config();
