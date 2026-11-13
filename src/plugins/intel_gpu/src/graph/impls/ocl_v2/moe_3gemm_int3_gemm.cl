@@ -3,6 +3,7 @@
 //
 
 #include "include/batch_headers/common.cl"
+#include "moe_3gemm_int3_decode.cl"
 #if GATE_ACT_MUL
 #include "moe_gate_activation.cl"
 #endif
@@ -33,24 +34,10 @@
 #pragma OPENCL EXTENSION cl_intel_subgroup_matrix_multiply_accumulate : enable
 
 #define SIMD             16
-#define K_CHUNK          32                        // u3 values per 3-uint granule, and the DPAS K step
-#define GRANULE_UINTS    3
-#define CHUNKS_PER_GROUP (GROUP_SIZE / K_CHUNK)
+#define CHUNKS_PER_GROUP (GROUP_SIZE / K_CHUNK)  // a granule (K_CHUNK values) is also the DPAS K step
 #define CHUNKS_K         (K_SIZE / K_CHUNK)
 #define GROUPS_K         (K_SIZE / GROUP_SIZE)
 #define W_GROUPS_K       (K_SIZE / WEI_GROUP_SIZE)
-
-// Eight consecutive u3 values (the low 24 bits of f; higher bits are ignored)
-// spread into the eight nibbles of an int: into 12-bit halves at bits 0 and 16,
-// then 6-bit quarters at each byte, then 3-bit values at each nibble. Each step
-// keeps the low part in place and takes the rest from the shifted copy (one bfn);
-// the bits the steps leave over are cleared at the end.
-inline int FUNC(u3_spread8_nib)(uint f) {
-    uint u = bitselect(f << 4, f, 0x00000FFFu);
-    u = bitselect(u << 2, u, 0x003F003Fu);
-    u = bitselect(u << 1, u, 0x07070707u);
-    return as_int(u & 0x77777777u);
-}
 
 // One granule as the b operand of the int8 x int4 DPAS: value k at nibble k % 8
 // of component k / 8.
