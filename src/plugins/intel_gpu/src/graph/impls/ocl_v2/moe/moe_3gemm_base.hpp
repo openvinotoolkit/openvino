@@ -28,10 +28,8 @@ namespace ov::intel_gpu::ocl {
 // Dynamically quantized activations of the expert GEMMs: the int8 values of the gathered rows live in buffer 2 and
 // those of the hidden states, one row per token, in buffer 1, which the down projection writes only after the gather.
 #define MOE_INTERNAL_BUFFER_QUANTIZED_SCALES       14  // per-group dequantization scales of the int8 gathered rows
-#define MOE_INTERNAL_BUFFER_QUANTIZED_SUMS         15  // per-group sums of the int8 gathered rows
-#define MOE_INTERNAL_BUFFER_QUANTIZED_TOKEN_SCALES 16  // per-group dequantization scales of the int8 hidden states
-#define MOE_INTERNAL_BUFFER_QUANTIZED_TOKEN_SUMS   17  // per-group sums of the int8 hidden states
-#define MOE_INTERNAL_BUFFER_INT3_TILES             18  // {expert, first row} per prefill row tile of the u3 expert GEMMs
+#define MOE_INTERNAL_BUFFER_QUANTIZED_TOKEN_SCALES 15  // per-group dequantization scales of the int8 hidden states
+#define MOE_INTERNAL_BUFFER_INT3_TILES             16  // {expert, first row} per prefill row tile of the u3 expert GEMMs
 
 #define ENABLE_MOE_MICRO_GEMM_POST_PROC_SILU_MUL 1
 

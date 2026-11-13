@@ -6,8 +6,7 @@
 #include "include/dynamic_quantize_utils.cl"
 
 // Dynamic quantization of the activations of the MoE expert GEMMs, independent of the weight type: symmetric int8 per
-// GROUP_SIZE run, as dynamic_quantize_gpu_opt, with the dequantization scale ([rows, groups] f16) and the sum of the
-// quantized values ([rows, groups] i32) of each group. The sum applies a weight zero point once per (row, group).
+// GROUP_SIZE run, as dynamic_quantize_gpu_opt, with the dequantization scale ([rows, groups] f16) of each group.
 //  - QUANTIZE: the hidden states, once per token.
 //  - QUANTIZE_SWIGLU: act(gate) * up, the input of the down projection.
 //  - GATHER: copies the quantized hidden states of each token into its rows sorted by expert.
@@ -37,8 +36,7 @@ KERNEL(moe_dyn_quan_quantize)(
     const __global half* input,
 #endif
     __global char* quantized,
-    __global half* scales,
-    __global int* sums)
+    __global half* scales)
 {
     const uint group = (uint)get_global_id(0) / SIMD;
     const uint offset = group * GROUP_SIZE + get_sub_group_local_id() * VEC_SIZE;
@@ -57,12 +55,10 @@ KERNEL(moe_dyn_quan_quantize)(
 
     CHAR_VEC q;
     half scale;
-    int sum;
-    DQ_I8_SUBGROUP_QUANTIZE_N(VEC_SIZE, half, v, q, scale, sum);
+    DQ_I8_SUBGROUP_QUANTIZE_N(VEC_SIZE, half, v, q, scale);
     VSTORE(q, 0, quantized + offset);
     if (get_sub_group_local_id() == 0) {
         scales[group] = scale;
-        sums[group] = sum;
     }
 }
 
@@ -75,15 +71,13 @@ KERNEL(moe_dyn_quan_quantize)(
 
 #elif GATHER
 
-// Each gathered row copies the ROW_SIZE int8 values and the GROUPS scales and sums of its token.
+// Each gathered row copies the ROW_SIZE int8 values and the GROUPS scales of its token.
 KERNEL(moe_dyn_quan_gather)(
     const __global char* quantized_tokens,
     const __global half* token_scales,
-    const __global int* token_sums,
     const __global int* token_idx,
     __global char* quantized,
-    __global half* scales,
-    __global int* sums)
+    __global half* scales)
 {
     const uint i = (uint)get_global_id(0);
     const uint row = (uint)get_global_id(1);
@@ -97,7 +91,6 @@ KERNEL(moe_dyn_quan_gather)(
     }
     if (i < GROUPS) {
         scales[(size_t)row * GROUPS + i] = token_scales[(size_t)token * GROUPS + i];
-        sums[(size_t)row * GROUPS + i] = token_sums[(size_t)token * GROUPS + i];
     }
 }
 

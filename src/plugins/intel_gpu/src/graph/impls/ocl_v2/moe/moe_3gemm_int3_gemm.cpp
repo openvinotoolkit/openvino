@@ -38,7 +38,8 @@ MoE3GemmInt3Gemm::Shape MoE3GemmInt3Gemm::get_shape(const RuntimeParams& params,
 }
 
 // Requirements shared by all moe_3gemm_int3_gemm kernels. They need SIMD16 DPAS and the 2D block reads of Xe2+, read
-// f16 scales, and take the zero point as u8/i8. The activations are quantized to int8, which is accurate enough for
+// f16 scales, and take the zero point as u8/i8 in the u3 range [0, 7], subtracted from the weights while they are
+// decoded. The activations are quantized to int8, which is accurate enough for
 // zero-centered weights only, so the weights need a zero point. The tiled kernels consume an activation group as pairs
 // of 32-value chunks, which the 64- and 128-value groups of MoE3GemmDynQuan are. Weight groups of a multiple of 64
 // values make hidden_size and inter_size, so K and N of both projections, multiples of 64 too.
