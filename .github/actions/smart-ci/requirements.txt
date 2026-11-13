@@ -1,10 +1,10 @@
 attrs==26.1.0
-fastcore==1.12.1
-ghapi==1.0.4
-jsonschema==4.19.1
+fastcore==2.2.41
+ghapi==2.1.5
+jsonschema==4.26.0
 jsonschema-specifications==2025.9.1
 packaging==26.3
-PyYAML==6.0.1
+PyYAML==6.0.3
 referencing==0.37.0
-rpds-py==2026.6.3
+rpds-py==2026.9.1
 typing_extensions==4.16.0
