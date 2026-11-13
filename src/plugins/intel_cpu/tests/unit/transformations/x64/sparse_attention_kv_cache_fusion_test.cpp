@@ -152,6 +152,11 @@ class SparseAttentionKVCacheFusionTest : public TransformationTestsF {
 protected:
     void SetUp() override {
         TransformationTestsF::SetUp();
+#if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
+        // the graph comparator casts the Assign sinks through RTTI, which does not work across libraries on Android
+        test_skipped = true;
+        GTEST_SKIP() << "Skipping SparseAttentionKVCacheFusion tests on Android X64";
+#endif
         disable_rt_info_check();
         manager.register_pass<SparseAttentionKVCacheFusion>();
     }

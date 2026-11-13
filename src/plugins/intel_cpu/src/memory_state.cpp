@@ -16,7 +16,6 @@
 #include <vector>
 
 #include "cpu_memory.h"
-#include "cpu_parallel.hpp"
 #include "cpu_tensor.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
@@ -27,12 +26,13 @@
 #include "nodes/kernels/scaled_attn/attn_quant.hpp"
 #include "nodes/kernels/scaled_attn/cache_spec.hpp"
 #if defined(OPENVINO_ARCH_X86_64)
+#    include "cpu_parallel.hpp"
 #    include "nodes/kernels/sparse_attn/sparse_sdpa_kernel.hpp"
+#    include "openvino/runtime/intel_cpu/properties.hpp"
 #endif
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"

@@ -19,7 +19,6 @@
 #include <set>
 #include <string>
 #include <tuple>
-#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -52,6 +51,8 @@
 #include "nodes/rnn.h"
 #include "nodes/scaled_attn.h"
 #if defined(OPENVINO_ARCH_X86_64)
+#    include <type_traits>
+
 #    include "nodes/sparse_sdpa.h"
 #endif
 #include "nodes/transpose.h"

@@ -291,12 +291,14 @@ void PagedQSAIndexerLayerCPUTest::SetUp() {
     auto p_block_indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{n_phys});
     auto p_block_indices_begins =
         std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{m_num_sequences + 1});
+    // The caches are typed by ConvertPagedAttnInputs (the inference precision), as in a real pipeline.
     auto p_raw_k_cache =
-        std::make_shared<ov::op::v0::Parameter>(data_precision, ov::Shape{n_phys, m_h_ik, m_page_size, kDidx});
+        std::make_shared<ov::op::v0::Parameter>(ov::element::dynamic, ov::Shape{n_phys, m_h_ik, m_page_size, kDidx});
     auto p_indexer_rope_cache =
-        std::make_shared<ov::op::v0::Parameter>(data_precision, ov::Shape{n_phys, m_slots_per_page, 2 * kRotaryDim});
-    auto p_summary_cache =
-        std::make_shared<ov::op::v0::Parameter>(data_precision, ov::Shape{n_phys, m_h_ik, m_slots_per_page, kDidx});
+        std::make_shared<ov::op::v0::Parameter>(ov::element::dynamic,
+                                                ov::Shape{n_phys, m_slots_per_page, 2 * kRotaryDim});
+    auto p_summary_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::dynamic,
+                                                                   ov::Shape{n_phys, m_h_ik, m_slots_per_page, kDidx});
 
     const ov::ParameterVector params_in{p_q_idx,
                                         p_k_idx,
