@@ -83,6 +83,7 @@ set(OV_CORE_TESTS_VISITORS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op/gather_nd.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gather_tree.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gelu.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/gguf_dequantize.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/generate_proposals.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/glu.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/greater.cpp
