@@ -123,8 +123,12 @@
 #    include "nodes/interaction.h"
 #    include "nodes/llm_mlp.h"
 #    include "nodes/paged_attn.h"
+#    include "nodes/paged_qsa_indexer.h"
 #    include "nodes/qkv_proj.h"
+#    include "nodes/qsa_indexer.h"
 #    include "nodes/rms_norm.h"
+#    include "nodes/sparse_pa.h"
+#    include "nodes/sparse_sdpa.h"
 #endif
 
 #if defined(OPENVINO_ARCH_ARM64)
@@ -256,6 +260,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(SelectiveSSM, Type::SelectiveSSM);
     INTEL_CPU_NODE(PagedSelectiveSSM, Type::PagedSelectiveSSM);
     INTEL_CPU_NODE(PagedCausalConv1D, Type::PagedCausalConv1D);
+
 #if defined(OPENVINO_ARCH_X86_64)
     INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
     INTEL_CPU_NODE(GridSample, Type::GridSample);
@@ -264,6 +269,10 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(QKVProjection, Type::QKVProjection);
     INTEL_CPU_NODE(PagedAttention, Type::PagedAttention);
     INTEL_CPU_NODE(RMSNorm, Type::RMS);
+    INTEL_CPU_NODE(QSAIndexer, Type::QSAIndexer);
+    INTEL_CPU_NODE(SparseSDPA, Type::SparseSDPA);
+    INTEL_CPU_NODE(PagedQSAIndexer, Type::PagedQSAIndexer);
+    INTEL_CPU_NODE(SparsePA, Type::SparsePA);
 #elif defined(OPENVINO_ARCH_ARM64)
     INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
     INTEL_CPU_NODE(PagedAttention, Type::PagedAttention);
