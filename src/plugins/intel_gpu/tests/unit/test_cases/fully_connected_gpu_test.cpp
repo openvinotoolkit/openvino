@@ -5344,7 +5344,7 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                           testing::Bool(),
                                           testing::Values(int64_t{1}, int64_t{2})));
 
-static void test_dynamic_shape_agnostic_onednn_fc(size_t input_rank, bool is_caching_test) {
+static void test_dynamic_shape_agnostic_onednn_fc(size_t input_rank, bool is_caching_test, bool is_dynamic_ifm = false) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         GTEST_SKIP();
@@ -5364,8 +5364,9 @@ static void test_dynamic_shape_agnostic_onednn_fc(size_t input_rank, bool is_cac
     set_values(weights_mem, weights_data);
     set_values(bias_mem, bias_data);
 
-    auto in_dyn_shape =
-        input_rank == 2 ? ov::PartialShape{ov::Dimension::dynamic(), ifm} : ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ifm};
+    const auto in_dyn_ifm = is_dynamic_ifm ? ov::Dimension::dynamic() : ov::Dimension(ifm);
+    auto in_dyn_shape = input_rank == 2 ? ov::PartialShape{ov::Dimension::dynamic(), in_dyn_ifm}
+                                        : ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), in_dyn_ifm};
     topology topology(input_layout("input", layout{in_dyn_shape, data_types::f16, format::bfyx}),
                       data("weights", weights_mem),
                       data("bias", bias_mem),
@@ -5478,6 +5479,14 @@ TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_2d_cached) {
 
 TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_3d_cached) {
     test_dynamic_shape_agnostic_onednn_fc(3, true);
+}
+
+TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_2d_dynamic_ifm) {
+    test_dynamic_shape_agnostic_onednn_fc(2, false, true);
+}
+
+TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_3d_dynamic_ifm) {
+    test_dynamic_shape_agnostic_onednn_fc(3, false, true);
 }
 
 // Without forcing, the shape-agnostic oneDNN impl must not be selected on Intel GPUs.

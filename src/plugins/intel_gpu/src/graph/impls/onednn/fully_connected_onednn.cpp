@@ -264,6 +264,17 @@ protected:
         auto [target_fmt, weights_fmt] = get_matmul_formats(prim_input_size, weights_transposed);
 
         dnnl::memory::desc weights_md = make_weights_md(weights_layout, weights_fmt);
+        if (is_dynamic_shape) {
+            // oneDNN requires the src reduction dim to match the weights, so resolve an unknown K from the static weights ([K, N]).
+            auto input_pshape = input_layout.get_partial_shape();
+            const auto weights_dims = weights_md.get_dims();
+            const auto k = weights_dims[weights_dims.size() - 2];
+            const size_t k_idx = prim_input_size - 1;
+            if (input_pshape.rank().is_static() && input_pshape.size() > k_idx && input_pshape[k_idx].is_dynamic() && k != DNNL_RUNTIME_DIM_VAL) {
+                input_pshape[k_idx] = k;
+                input_layout.set_partial_shape(input_pshape);
+            }
+        }
         dnnl::memory::desc input_md;
         if (input_layout.data_padding && format::is_default_format(input_layout.format) && !input_layout.is_dynamic()) {
             input_md = onednn::layout_to_memory_desc_strides(input_layout, target_fmt);
@@ -453,6 +464,9 @@ public:
         auto& engine = impl_params.prog->get_engine();
         const auto& config = impl_params.prog->get_config();
         auto attr = impl_params.attrs_onednn;
+        // Attributes of dynamic nodes are not initialized with the user scratchpad mode, so set it here
+        // to allocate the scratchpad from the plugin's memory pool.
+        attr->set_scratchpad_mode(dnnl::scratchpad_mode::user);
         auto prim = impl_params.typed_desc<fully_connected>();
         int group_size = 0;
         dnnl::memory::data_type ds_data_type = dnnl::memory::data_type::undef;
