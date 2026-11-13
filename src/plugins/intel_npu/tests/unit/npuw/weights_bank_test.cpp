@@ -7,9 +7,12 @@
 #include <gtest/gtest.h>
 
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <sstream>
+#include <stdexcept>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "fake_npu_remote_context.hpp"
@@ -22,13 +25,39 @@
 
 namespace {
 
+using ov::npuw::weights::TransformationWeightContextIDMapper;
+using UID_Type = TransformationWeightContextIDMapper::UID_Type;
 using ov::test::npuw::FakeNpuRemoteContext;
 using ov::test::npuw::tensor_data_ptr;
+
+class TestBank : public ov::npuw::weights::Bank {
+public:
+    using Bank::Bank;
+
+    const TransformationWeightContextIDMapper& get_ids_mapper() const {
+        return ids_mapper;
+    }
+};
 
 std::vector<float> read_f32(const ov::Tensor& tensor) {
     ov::Tensor host(tensor.get_element_type(), tensor.get_shape());
     tensor.copy_to(host);
     return {host.data<float>(), host.data<float>() + host.get_size()};
+}
+
+void expect_runtime_weight_sources(const TestBank& bank_instance,
+                                   const std::set<UID_Type>& uids,
+                                   const ov::weight_sharing::WeightSourceRegistry& sources,
+                                   const std::string& device) {
+    for (const auto uid : uids) {
+        const auto context_ids = bank_instance.get_ids_mapper().get_ov_context_ids(uid);
+        ASSERT_TRUE(context_ids.has_value());
+        const auto source_it = sources.find(context_ids->first);
+        ASSERT_NE(source_it, sources.end());
+        const auto& source = source_it->second;
+        EXPECT_EQ(source.m_device, device);
+        EXPECT_FALSE(source.m_weights.expired());
+    }
 }
 
 void expect_weight_sources_equal(const ov::weight_sharing::WeightSourceRegistry& expected,
@@ -88,13 +117,127 @@ protected:
 
 }  // namespace
 
+TEST(TransformationWeightContextIDMapperTest, RegistersUIDsInBothDirections) {
+    TransformationWeightContextIDMapper mapper;
+    for (const UID_Type uid : {UID_Type{0}, UID_Type{42}, std::numeric_limits<UID_Type>::max()}) {
+        const auto expected = std::make_pair(static_cast<ov::weight_sharing::DataID>(uid) + 1,
+                                             ov::weight_sharing::DataID{0});
+        EXPECT_EQ(mapper.set_ov_context_ids(uid), expected);
+        EXPECT_EQ(mapper.set_ov_context_ids(uid), expected);
+        EXPECT_EQ(mapper.get_ov_context_ids(uid), expected);
+        EXPECT_EQ(mapper.get_transformation_uid(expected), uid);
+    }
+}
+
+TEST(TransformationWeightContextIDMapperTest, GetsOrCreatesContextIDs) {
+    TransformationWeightContextIDMapper mapper;
+    for (const UID_Type uid : {UID_Type{0}, UID_Type{42}, std::numeric_limits<UID_Type>::max()}) {
+        const auto expected = std::make_pair(static_cast<ov::weight_sharing::DataID>(uid) + 1,
+                                             ov::weight_sharing::DataID{0});
+        EXPECT_EQ(mapper.get_or_create_ov_context_ids(uid), std::make_tuple(false, expected));
+        EXPECT_EQ(mapper.get_or_create_ov_context_ids(uid), std::make_tuple(true, expected));
+        EXPECT_EQ(mapper.get_ov_context_ids(uid), expected);
+        EXPECT_EQ(mapper.get_transformation_uid(expected), uid);
+    }
+    EXPECT_THROW(mapper.get_or_create_ov_context_ids(-1), ov::Exception);
+    EXPECT_FALSE(mapper.get_ov_context_ids(-1).has_value());
+    EXPECT_TRUE(std::get<0>(mapper.get_or_create_ov_context_ids(42)));
+}
+
+TEST(TransformationWeightContextIDMapperTest, RegistersContextIDsInBothDirections) {
+    TransformationWeightContextIDMapper mapper;
+    const TransformationWeightContextIDMapper::WSContextIDs context_ids{43, 7};
+    EXPECT_EQ(mapper.set_transformation_uid(context_ids), 42);
+    EXPECT_EQ(mapper.set_transformation_uid(context_ids), 42);
+    EXPECT_EQ(mapper.get_transformation_uid(context_ids), 42);
+    EXPECT_EQ(mapper.get_ov_context_ids(42), context_ids);
+    EXPECT_EQ(mapper.get_or_create_ov_context_ids(42), std::make_tuple(true, context_ids));
+    EXPECT_THROW(mapper.set_ov_context_ids(42), ov::Exception);
+    EXPECT_EQ(mapper.get_ov_context_ids(42), context_ids);
+    EXPECT_THROW(mapper.get_transformation_uid({43, 0}), std::out_of_range);
+}
+
+TEST(TransformationWeightContextIDMapperTest, ConcurrentMappingAccess) {
+    TransformationWeightContextIDMapper mapper;
+    std::vector<std::thread> workers;
+    for (size_t worker = 0; worker < 8; ++worker) {
+        workers.emplace_back([&mapper, worker] {
+            for (UID_Type uid = 0; uid < 128; ++uid) {
+                const auto context_ids = std::make_pair(static_cast<ov::weight_sharing::DataID>(uid) + 1,
+                                                       ov::weight_sharing::DataID{0});
+                if (worker % 2 == 0) {
+                    EXPECT_EQ(mapper.set_ov_context_ids(uid), context_ids);
+                } else {
+                    EXPECT_EQ(mapper.set_transformation_uid(context_ids), uid);
+                }
+                EXPECT_EQ(mapper.get_ov_context_ids(uid), context_ids);
+                EXPECT_EQ(mapper.get_transformation_uid(context_ids), uid);
+            }
+        });
+    }
+    for (auto& worker : workers) {
+        worker.join();
+    }
+}
+
+TEST(TransformationWeightContextIDMapperTest, ConcurrentGetOrCreateInsertsEachUIDOnce) {
+    TransformationWeightContextIDMapper mapper;
+    std::vector<size_t> insertion_counts(8, 0);
+    std::vector<std::thread> workers;
+    for (size_t worker = 0; worker < insertion_counts.size(); ++worker) {
+        workers.emplace_back([&mapper, &insertion_counts, worker] {
+            for (UID_Type uid = 0; uid < 128; ++uid) {
+                const auto [found, context_ids] = mapper.get_or_create_ov_context_ids(uid);
+                insertion_counts[worker] += !found;
+                const auto expected = std::make_pair(static_cast<ov::weight_sharing::DataID>(uid) + 1,
+                                                     ov::weight_sharing::DataID{0});
+                EXPECT_EQ(context_ids, expected);
+                EXPECT_EQ(mapper.get_ov_context_ids(uid), expected);
+                EXPECT_EQ(mapper.get_transformation_uid(context_ids), uid);
+            }
+        });
+    }
+    for (auto& worker : workers) {
+        worker.join();
+    }
+    size_t total_insertions = 0;
+    for (const auto count : insertion_counts) {
+        total_insertions += count;
+    }
+    EXPECT_EQ(total_insertions, 128);
+}
+
+TEST(TransformationWeightContextIDMapperTest, RejectsUnknownIDsAndInvalidConversions) {
+    TransformationWeightContextIDMapper mapper;
+    EXPECT_FALSE(mapper.get_ov_context_ids(42).has_value());
+    EXPECT_THROW(mapper.get_transformation_uid({43, 0}), std::out_of_range);
+    EXPECT_THROW(mapper.set_ov_context_ids(-1), ov::Exception);
+    EXPECT_THROW(mapper.set_transformation_uid({0, 0}), ov::Exception);
+    EXPECT_THROW(mapper.set_transformation_uid({std::numeric_limits<ov::weight_sharing::DataID>::max(), 0}),
+                 ov::Exception);
+    EXPECT_FALSE(mapper.get_ov_context_ids(42).has_value());
+}
+
+TEST(WeightSharingContextAccessorTest, HasNoTransformationBufferWithoutContext) {
+    ov::npuw::weights::WeightSharingContextAccessor accessor(nullptr);
+    auto handle = accessor.get_handle();
+    EXPECT_FALSE(accessor.has_transformation_buffer(42, handle));
+}
+
+TEST(WeightSharingContextAccessorTest, HasNoTransformationBufferWithoutMapping) {
+    auto context = std::make_shared<ov::weight_sharing::Context>();
+    ov::npuw::weights::WeightSharingContextAccessor accessor(context);
+    auto handle = accessor.get_handle();
+    EXPECT_FALSE(accessor.has_transformation_buffer(42, handle));
+    EXPECT_TRUE(context->m_runtime_sources.empty());
+}
+
 TEST_P(WeightsBankTest, EvaluationUpdatesRuntimeWeightSources) {
-    using ov::npuw::weights::Bank;
     using ov::npuw::weights::LazyTensor;
 
     const auto& device = GetParam();
     auto shared_context = std::make_shared<ov::weight_sharing::Context>();
-    Bank bank_instance(m_core, device, "first-bank", shared_context);
+    TestBank bank_instance(m_core, device, "first-bank", shared_context);
 
     std::vector<std::shared_ptr<ov::op::v0::Constant>> constants;
     constants.push_back(
@@ -105,27 +248,21 @@ TEST_P(WeightsBankTest, EvaluationUpdatesRuntimeWeightSources) {
     // either a shared "constant" or a shared "transformation" of such constants.
     // At this point, NPUW doesn't discern shared "constant" and shared "transformation" of constants.
     // Let's interpret it as "shared transformation"(LazyTensor) as the broader concept.
-    std::set<int64_t> uids;
+    std::set<UID_Type> uids;
     for (const auto& constant : constants) {
         uids.insert(bank_instance.registerLT(LazyTensor(constant), device));
     }
 
     // Evaluate and allocate memory for the "shared transformation" and register it in ov::weight_sharing::Context.
     // The memory for the "shared transformation" is allocated and registered in the shared context
-    // as "source_id" that equals to the UID of the "shared transformation",
-    // "constant_id" is 0.
+    // under the context IDs associated with its UID by the bank's mapper.
     auto statBeforeEvaluate = this->m_remote_context->get_statistics_snapshot();
     bank_instance.evaluate_and_allocate();
 
-    // REQUIREMENT: "source_id" from ov::weight_sharing::Context must match the UID of "shared transformation"
+    // REQUIREMENT: Each registered UID must have a runtime source under its mapped source ID.
     ASSERT_EQ(shared_context->m_runtime_sources.size(), uids.size());
     const auto sources_after_first_evaluate = shared_context->m_runtime_sources;
-    for (const auto& [source_id, source] : sources_after_first_evaluate) {
-        // REQUIREMENT reinforcement: The source_id must be one of the registered UIDs in the bank (LazyTensor).
-        ASSERT_NE(uids.find(source_id), uids.end());
-        EXPECT_EQ(source.m_device, device);
-        EXPECT_FALSE(source.m_weights.expired());
-    }
+    ASSERT_NO_FATAL_FAILURE(expect_runtime_weight_sources(bank_instance, uids, sources_after_first_evaluate, device));
     {
         auto handle = bank_instance.get_handle();
         // The handle's context must match the shared context used to create the bank instance.
@@ -155,13 +292,7 @@ TEST_P(WeightsBankTest, EvaluationUpdatesRuntimeWeightSources) {
     // is forbidden as well as the double registration in NPUW Bank.
     ASSERT_EQ(shared_context->m_runtime_sources.size(), uids.size());
     const auto sources_after_second_evaluate = shared_context->m_runtime_sources;
-    for (const auto& [source_id, source] : sources_after_second_evaluate) {
-        // REQUIREMENT reinforcement: "source_id" from ov::weight_sharing::Context must match UID of "shared
-        // transformation"
-        ASSERT_NE(uids.find(source_id), uids.end());
-        EXPECT_EQ(source.m_device, device);
-        EXPECT_FALSE(source.m_weights.expired());
-    }
+    ASSERT_NO_FATAL_FAILURE(expect_runtime_weight_sources(bank_instance, uids, sources_after_second_evaluate, device));
     {
         auto handle = bank_instance.get_handle();
         // The handle's context must stay the same
