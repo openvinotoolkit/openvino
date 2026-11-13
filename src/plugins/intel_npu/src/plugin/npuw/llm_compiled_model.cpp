@@ -1927,14 +1927,16 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
     bool is_weightless = true;
     read(stream, is_weightless);
 
+    std::unordered_map<std::string, std::shared_ptr<ov::weight_sharing::Context>> shared_weight_ctx_per_bank;
     auto read_and_finalize_banks = [&](std::istream& model_stream,
                                        const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
         auto stream = Stream::reader(model_stream);
         std::string bank_name;
         stream & bank_name;
 
+        shared_weight_ctx_per_bank[bank_name] = std::make_shared<ov::weight_sharing::Context>();
         if (is_weightless) {
-            auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
+            auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "", shared_weight_ctx_per_bank[bank_name]);
 
             for (const auto& compiled_variant : compiled->m_generate_compiled_variants) {
                 compiled_variant->set_weights_bank(bank);
@@ -1949,7 +1951,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
                 compiled->m_lm_head_compiled->finalize_weights_bank();
             }
         } else {
-            auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
+            auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "", shared_weight_ctx_per_bank[bank_name]);
             stream&* bank;
 
             // Encoder embedding models are prefill-only: no kvcache/generate compiled models.
@@ -2005,7 +2007,11 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
     NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
     read_and_finalize_banks(stream, compiled_model);
 
-    LOG_INFO("Done.");
+    if (!shared_weight_ctx_per_bank.empty()) {
+        LOG_INFO("Done with shared weight contexts: " << shared_weight_ctx_per_bank.size());
+    } else {
+        LOG_INFO("Done.");
+    }
 
     return compiled_model;
 }
