@@ -416,8 +416,8 @@ or `Linux NPU driver 1.30 <https://github.com/intel/linux-npu-driver/releases#re
 Only bounded dynamic shapes are supported, which means each dynamic dimension must specify an upper bound,
 for example ``ov::Dimension(1, 512)``.
 
-Dynamic shapes are supported only with the ``Compiler-In-Plugin`` compiler type; the ``Compiler-In-Driver``
-path does not support dynamic shapes. See the ``ov::intel_npu::compiler_type`` property description above for
+Dynamic shapes are supported with both the ``Compiler-In-Plugin`` and ``Compiler-In-Driver`` compiler
+types when using the required driver versions. See the ``ov::intel_npu::compiler_type`` property description above for
 details on selecting the compiler type. The driver versions listed above are required because dynamic shape
 support depends on the driver's support for IO strides, which is available only starting from those versions.
 
