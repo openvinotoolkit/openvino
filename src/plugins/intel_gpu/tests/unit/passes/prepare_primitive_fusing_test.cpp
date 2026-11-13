@@ -649,6 +649,89 @@ TEST(prepare_primitive_fusing, fuse_constant_transposes_accuracy_test) {
     }
 }
 
+TEST(prepare_primitive_fusing, fuse_constant_transposes_multiple_users) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad) {
+        GTEST_SKIP() << "The weights format reorder is only inserted for oneDNN fully connected";
+    }
+
+    auto input = engine.allocate_memory({{2, 32}, data_types::f16, format::bfyx});
+    auto weights = engine.allocate_memory({{32, 2}, data_types::f16, format::bfyx});
+
+    topology topology(input_layout("input", input->get_layout()),
+                      data("weights", weights),
+                      permute("permute", input_info("weights"), {1, 0}),
+                      fully_connected("fc0", input_info("input"), {"permute"}, "", data_types::f16),
+                      fully_connected("fc1", input_info("input"), {"permute"}, "", data_types::f16),
+                      fully_connected("fc2", input_info("input"), {"permute"}, "", data_types::f16));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplementationDesc fc_impl = {format::bfyx, "", impl_types::onednn};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc0", fc_impl}, {"fc1", fc_impl}, {"fc2", fc_impl}}));
+
+    auto prog = program::build_program(engine, topology, config, false, true);
+    prog->get_layout_optimizer().set_implementation_forcing(config.get_force_implementations());
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
+
+    ASSERT_FALSE(has_node(*prog, "permute"));
+    for (const auto& fc_id : {"fc0", "fc1", "fc2"}) {
+        const auto& fc_weights = prog->get_node(fc_id).get_dependency(1);
+        ASSERT_TRUE(fc_weights.is_type<reorder>()) << fc_id << " reads weights from " << fc_weights.id();
+        ASSERT_EQ(fc_weights.get_output_layout().format, format::bfyx) << fc_id;
+    }
+}
+
+TEST(prepare_primitive_fusing, fuse_constant_transposes_multiple_users_accuracy_test) {
+    auto& engine = get_test_engine();
+
+    const int64_t m = 4, k = 64, n = 16;
+    auto input = engine.allocate_memory({{m, k}, data_types::f16, format::bfyx});
+    auto weights = engine.allocate_memory({{k, n}, data_types::f16, format::bfyx});
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto input_data = rg.generate_random_2d<ov::float16>(m, k, -1, 1);
+    auto weights_data = rg.generate_random_2d<ov::float16>(k, n, -1, 1);
+
+    set_values(input, flatten_2d(format::bfyx, input_data));
+    set_values(weights, flatten_2d(format::bfyx, weights_data));
+
+    topology topology(input_layout("input", input->get_layout()),
+                      data("weights", weights),
+                      permute("permute", input_info("weights"), {1, 0}),
+                      activation("act1", input_info("input"), activation_func::negative),
+                      activation("act2", input_info("input"), activation_func::abs),
+                      fully_connected("fc0", input_info("input"), {"permute"}, "", data_types::f16),
+                      fully_connected("fc1", input_info("act1"), {"permute"}, "", data_types::f16),
+                      fully_connected("fc2", input_info("act2"), {"permute"}, "", data_types::f16));
+
+    auto run = [&](bool optimize) {
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(optimize));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        cldnn::network network(engine, topology, config);
+        network.set_input_data("input", input);
+        auto outputs = network.execute();
+        std::vector<std::vector<ov::float16>> results;
+        for (const auto& id : {"fc0", "fc1", "fc2"}) {
+            cldnn::mem_lock<ov::float16> ptr(outputs.at(id).get_memory(), get_test_stream());
+            results.emplace_back(ptr.begin(), ptr.end());
+        }
+        return results;
+    };
+
+    auto results = run(true);
+    auto results_ref = run(false);
+
+    for (size_t fc = 0; fc < results_ref.size(); ++fc) {
+        ASSERT_EQ(results[fc].size(), results_ref[fc].size());
+        for (size_t i = 0; i < results_ref[fc].size(); ++i) {
+            ASSERT_NEAR(results[fc][i], results_ref[fc][i], 1e-2f) << "fc" << fc << " index " << i;
+        }
+    }
+}
+
 TEST(prepare_primitive_fusing, can_profiling_data_when_fuse_illegal) {
     auto& engine = get_test_engine();
     auto weights = engine.allocate_memory({ov::PartialShape{2, 10}, data_types::u8, format::bfyx});

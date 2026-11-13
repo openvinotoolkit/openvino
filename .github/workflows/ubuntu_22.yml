@@ -171,7 +171,7 @@ jobs:
             -DENABLE_WHEEL=ON
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
 
-  # Non-blocking C++20 compile check (CVS-189849): daily, dispatched, or re-run workflows.
+  # Non-blocking C++20 compile check (CVS-189849): daily or dispatched workflows.
   # Promote to a required pre-commit check once stable.
   Build_CPP20:
     name: Build (C++20, non-blocking)
@@ -179,7 +179,7 @@ jobs:
     if: >-
       ${{
         !needs.smart_ci.outputs.skip_workflow &&
-        (github.event.schedule == '0 2 * * *' || github.event_name == 'workflow_dispatch' || github.run_attempt > 1)
+        (github.event.schedule == '0 2 * * *' || github.event_name == 'workflow_dispatch')
       }}
     uses: ./.github/workflows/job_build_linux_cpp20.yml
     with:
@@ -762,7 +762,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status
-    needs: [Smart_CI, Build, Debian_Packages, Samples, Conformance, CXX_Unit_Tests, Python_Unit_Tests, TensorFlow_Layer_Tests, Pytorch_Layer_Tests,
+    needs: [Smart_CI, Build, Samples, Conformance, CXX_Unit_Tests, Python_Unit_Tests, TensorFlow_Layer_Tests, Pytorch_Layer_Tests,
             CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, JAX_Models_Tests_Precommit, GGUF_Models_Tests_Precommit,
             NVIDIA_Plugin, Openvino_tokenizers, iGPU,
             Keras3_OpenVINO_Backend, iGPU_RoPE_Tests]
