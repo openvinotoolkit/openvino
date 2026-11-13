@@ -5,13 +5,17 @@
 #include <gtest/gtest.h>
 
 #include <behavior/compiled_model/import_export.hpp>
+#include <functional>
 #include <openvino/runtime/intel_npu/properties.hpp>
+#include <optional>
 #include <sstream>
 
+#include "blob_source.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "intel_npu/npu_private_properties.hpp"
+#include "metadata.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/util/codec_xor.hpp"
@@ -132,6 +136,57 @@ inline std::shared_ptr<ov::Model> createBatchedModelWithNames(const std::string&
     result->set_layout("N...");
 
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input}, "BatchedModel");
+}
+
+/**
+ * @brief Creates a model having a scalar output, i.e. a rank zero descriptor which has no batch axis.
+ */
+inline std::shared_ptr<ov::Model> createModelWithScalarOutput() {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 4});
+    input->set_friendly_name("input");
+    input->get_output_tensor(0).set_names({"input"});
+
+    auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1});
+    auto reduceSum = std::make_shared<ov::op::v1::ReduceSum>(input, axes, false);
+    reduceSum->set_friendly_name("scalar_output");
+    reduceSum->get_output_tensor(0).set_names({"scalar_output"});
+
+    auto result = std::make_shared<ov::op::v0::Result>(reduceSum);
+    result->set_friendly_name("scalar_output");
+
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input}, "ScalarOutputModel");
+}
+
+/**
+ * @brief Rewrites the NPU metadata of the given blob in order to store the given batch size. All other fields are kept.
+ * @details The plugin does not batch models having rank zero descriptors, thus the batch size has to be injected
+ * after compilation in order to obtain such a blob.
+ */
+inline std::string setBatchSizeInBlobMetadata(const std::string& blob, const int64_t batchSize) {
+    std::istringstream blobStream(blob);
+    ::intel_npu::BlobSource blobSource(blobStream);
+    const std::unique_ptr<::intel_npu::MetadataBase> storedMetadata = ::intel_npu::read_metadata_from(blobSource);
+    OPENVINO_ASSERT(storedMetadata != nullptr, "The exported blob does not contain the NPU metadata");
+    OPENVINO_ASSERT(!storedMetadata->get_batch_size().has_value(),
+                    "The exported blob already holds a batch size in its metadata");
+
+    const uint64_t payloadSize = storedMetadata->get_compiler_payload_size();
+    std::ostringstream newBlobStream;
+    newBlobStream.write(blob.data(), static_cast<std::streamsize>(payloadSize));
+    ::intel_npu::Metadata<::intel_npu::CURRENT_METADATA_VERSION>(
+        payloadSize,
+        ::intel_npu::CURRENT_OPENVINO_VERSION,
+        storedMetadata->get_init_sizes(),
+        batchSize,
+        storedMetadata->get_input_layouts(),
+        storedMetadata->get_output_layouts(),
+        storedMetadata->get_compiler_version(),
+        std::nullopt,
+        storedMetadata->get_compatibility_descriptor(),
+        storedMetadata->get_blob_type().value_or(::intel_npu::BlobType::ELF))
+        .write(newBlobStream);
+
+    return newBlobStream.str();
 }
 
 using OVCompiledGraphImportExportTestNPU = OVCompiledGraphImportExportTest;
@@ -272,6 +327,36 @@ TEST_P(OVCompiledGraphImportExportTestNPU, ImportingBatchedBlobWithInitOutputWei
     exportBatchedModelAndExpectImportThrows(createBatchedModelWithNames("input", "vpux_tw_output"),
                                             target_device,
                                             configuration);
+}
+
+/**
+ * @brief Plugin batching writes the batch value on the first axis of the I/O buffers, so a batch size stored in the
+ * blob metadata must be rejected if the graph contains rank zero descriptors.
+ * @details The plugin does not batch models having rank zero descriptors, so the model is compiled without plugin
+ * batching and the batch size is injected afterwards in the NPU metadata of the exported blob.
+ */
+TEST_P(OVCompiledGraphImportExportTestNPU, ImportingBatchedBlobWithRankZeroOutputThrows) {
+    ov::Core core;
+    configuration.insert(ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::COMPILER));
+
+    std::stringstream blobStream;
+    OV_ASSERT_NO_THROW(
+        core.compile_model(createModelWithScalarOutput(), target_device, configuration).export_model(blobStream));
+    const std::string blob = blobStream.str();
+
+    // The original blob can be imported, the failure must be caused only by the injected batch size
+    std::stringstream originalBlobStream(blob);
+    ov::CompiledModel originalCompiledModel;
+    OV_ASSERT_NO_THROW(originalCompiledModel = core.import_model(originalBlobStream, target_device, configuration));
+    ASSERT_EQ(originalCompiledModel.output().get_shape(), ov::Shape{})
+        << "The compiler did not keep the output as a rank zero tensor";
+
+    std::string batchedBlob;
+    OV_ASSERT_NO_THROW(batchedBlob = setBatchSizeInBlobMetadata(blob, 2));
+    std::stringstream batchedBlobStream(batchedBlob);
+    OV_EXPECT_THROW_HAS_SUBSTRING(core.import_model(batchedBlobStream, target_device, configuration),
+                                  ov::Exception,
+                                  "which does not contain a batch axis");
 }
 
 TEST_P(OVCompiledGraphImportExportTestNPU, CheckSizeOfExportedModelIfMultipleOfPageSize) {
