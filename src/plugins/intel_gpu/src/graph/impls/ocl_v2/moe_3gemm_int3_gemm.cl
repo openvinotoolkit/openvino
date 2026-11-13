@@ -3,6 +3,9 @@
 //
 
 #include "include/batch_headers/common.cl"
+#if GATE_ACT_MUL
+#include "moe_gate_activation.cl"
+#endif
 
 // Expert GEMMs of the fused MoE prefill for u3 (3-bit unsigned) weights, computed
 // with dynamically quantized int8 activations:
@@ -13,7 +16,8 @@
 // sorted by expert, and offsets[e] is the exclusive end row of expert e. The
 // activations and their scales come from moe_3gemm_dyn_quan.cl. The zero point
 // is subtracted while the weights are decoded: for a zero point in the u3 range
-// [0, 7], W - zp lies in [-7, 7], still an int4 DPAS operand.
+// [0, 7], W - zp lies in [-7, 7], still an int4 DPAS operand. With GATE_ACT_MUL
+// (the gate GEMM), the output is act(C) * up, with up the output of the up GEMM.
 //
 // Weights are the plain [E, N, K] u3 tensor: each output channel is a
 // LSB-first bit stream of K values, so a run of 32 values (a granule) is exactly
@@ -123,6 +127,9 @@ KERNEL(moe_int3_gemm)(
 #if !ROW_MODE
     const __global int2* tiles,             // [tiles] {expert, first row of the tile within the expert}
 #endif
+#if GATE_ACT_MUL
+    const __global half* up,                // [rows, N]
+#endif
     __global half* output,                  // [rows, N]
     const int num_experts)
 {
@@ -177,6 +184,9 @@ KERNEL(moe_int3_gemm)(
         return;
     unroll_for (uint j = 1; j < SG_K; ++j)
         out += partial[j][lane];
+#endif
+#if GATE_ACT_MUL
+    out = MOE_GATE_ACT(out) * (float)up[(size_t)row * N_SIZE + n];
 #endif
     output[(size_t)row * N_SIZE + n] = (half)out;
 
@@ -308,8 +318,14 @@ KERNEL(moe_int3_gemm)(
 
     unroll_for (uint t = 0; t < TILE_M; ++t) {
         if ((int)(m0 + t) < rows) {
-            unroll_for (uint j = 0; j < NB; ++j)
-                output[(size_t)(row_begin + m0 + t) * N_SIZE + n0 + j * SIMD + lane] = (half)acc_f[j][t];
+            unroll_for (uint j = 0; j < NB; ++j) {
+                const size_t idx = (size_t)(row_begin + m0 + t) * N_SIZE + n0 + j * SIMD + lane;
+#if GATE_ACT_MUL
+                output[idx] = (half)(MOE_GATE_ACT(acc_f[j][t]) * (float)up[idx]);
+#else
+                output[idx] = (half)acc_f[j][t];
+#endif
+            }
         }
     }
 #undef NH

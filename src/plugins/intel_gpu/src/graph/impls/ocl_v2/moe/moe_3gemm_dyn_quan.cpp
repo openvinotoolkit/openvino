@@ -4,8 +4,6 @@
 
 #include "moe_3gemm_dyn_quan.hpp"
 
-#include <algorithm>
-
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 #include "moe_3gemm_base.hpp"
@@ -57,43 +55,14 @@ bool MoE3GemmDynQuan::is_supported(const RuntimeParams& params) {
             return false;
         }
     }
-    return get_gather_items(get_shape(params, Projection::GATE_UP)) <= params.get_device_info().max_work_group_size;
-}
-
-size_t MoE3GemmDynQuan::get_gather_items(const Shape& gate_up) {
-    return round_up_to(std::max(gate_up.k / 16, gate_up.groups()), size_t{16});
+    return true;
 }
 
 JitConstants MoE3GemmDynQuanQuantize::get_jit_constants(const RuntimeParams& params) const {
     auto jit = KernelGenerator::get_jit_constants(params);
-    const auto& config = params.typed_desc<moe_3gemm_fused_compressed>()->_config;
-    const auto shape = MoE3GemmDynQuan::get_shape(params, m_swiglu ? MoE3GemmDynQuan::Projection::DOWN : MoE3GemmDynQuan::Projection::GATE_UP);
-    jit.make(m_swiglu ? "QUANTIZE_SWIGLU" : "QUANTIZE", 1);
+    const auto shape = MoE3GemmDynQuan::get_shape(params, m_proj);
     jit.make("GROUP_SIZE", shape.group_size);
     jit.make("VEC_SIZE", shape.group_size / MoE3GemmDynQuan::SIMD);
-    if (m_swiglu) {
-        switch (config.activation_type) {
-        case ov::op::internal::MOE::Activation_type::SWIGLU:
-            break;
-        case ov::op::internal::MOE::Activation_type::GEGLU_TANH:
-            jit.make("GATE_ACT_GELU_TANH", 1);
-            break;
-        case ov::op::internal::MOE::Activation_type::GEGLU_ERF:
-            jit.make("GATE_ACT_GELU_ERF", 1);
-            break;
-        default:
-            OPENVINO_THROW("MoE dynamic quantization: unsupported gate activation ", static_cast<int>(config.activation_type));
-        }
-    }
-    return jit;
-}
-
-JitConstants MoE3GemmDynQuanGather::get_jit_constants(const RuntimeParams& params) const {
-    auto jit = KernelGenerator::get_jit_constants(params);
-    const auto shape = MoE3GemmDynQuan::get_shape(params, MoE3GemmDynQuan::Projection::GATE_UP);
-    jit.make("GATHER", 1);
-    jit.make("ROW_SIZE", shape.k);
-    jit.make("GROUPS", shape.groups());
     return jit;
 }
 

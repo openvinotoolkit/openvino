@@ -13,7 +13,7 @@
 namespace ov::intel_gpu::ocl {
 
 // Expert GEMMs of the grouped GEMM path for u3 experts (moe_3gemm_int3_gemm.cl), on the int8 activations of the
-// MoE3GemmDynQuan front end.
+// MoE3GemmDynQuan front end. The gate GEMM computes act(gate) * up in its epilogue, from the output of the up GEMM.
 class MoE3GemmInt3Gemm : public KernelGenerator {
 public:
     using Projection = MoE3GemmDynQuan::Projection;
@@ -33,10 +33,13 @@ public:
     // Experts with at most this many rows go through the per-row kernels
     static constexpr int ROW_MODE_MAX_ROWS = 4;
 
-    MoE3GemmInt3Gemm(Projection proj, bool row_mode)
-        : KernelGenerator("moe_3gemm_int3_gemm", std::string(proj == Projection::DOWN ? "down" : "gate_up") + (row_mode ? "_row" : "_tiled")),
+    // gate: the gate GEMM of GATE_UP, with the act(gate) * up epilogue, rather than the up GEMM
+    MoE3GemmInt3Gemm(Projection proj, bool row_mode, bool gate = false)
+        : KernelGenerator("moe_3gemm_int3_gemm",
+                          std::string(proj == Projection::DOWN ? "down" : (gate ? "gate" : "up")) + (row_mode ? "_row" : "_tiled")),
           m_proj(proj),
-          m_row_mode(row_mode) {}
+          m_row_mode(row_mode),
+          m_gate(gate) {}
 
     // Whether the kernels support this MoE: activations quantized by MoE3GemmDynQuan, u3 weights with a u8/i8 zero
     // point (scalar or shaped like the scales), f16 scales and weight groups a multiple of 64 values, on Xe2+ with DPAS.
@@ -52,6 +55,7 @@ public:
 protected:
     Projection m_proj;
     bool m_row_mode;
+    bool m_gate;
 
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override;
     [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override;
