@@ -248,7 +248,8 @@ TEST_P(ConvertFCToCompressedGroupsNum, PredicateReceivesICGroupsNum) {
     const bool grouped = p.wei_shape.size() == 3;
     const size_t IC = p.transposed ? p.wei_shape[0] : ov::shape_size(p.wei_shape) / p.wei_shape[0];
 
-    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{10, IC});
+    auto input =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{10, static_cast<int64_t>(IC)});
     auto weights_const = ov::op::v0::Constant::create(compressed_type, p.wei_shape, {1});
     std::shared_ptr<ov::Node> weights = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
     if (!p.zp_shape.empty()) {
