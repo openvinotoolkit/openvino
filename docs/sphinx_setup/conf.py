@@ -195,7 +195,13 @@ html_css_files = [
     'css/input.css',
     'css/textfield.css',
     'css/tabs.css',
-    'https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/css/splide.min.css',
+    (
+        'https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/css/splide.min.css',
+        {
+            'integrity': 'sha384-RQYEYzAnHyG0swTqlleCCsKHN9pUKyYMflAk6KEjvY6KhE5MLlvjwZkai5538g2T',
+            'crossorigin': 'anonymous',
+        },
+    ),
 ]
 
 html_js_files = [
