@@ -3047,13 +3047,13 @@ public:
                                           {num_experts});
             } else {
                 inputs.push_back(intermediates_memories[MOE_INTERNAL_BUFFER_INT3_TILES]);
-                const size_t sg_m = MoE3GemmInt3Gemm::get_tile_sg_m(shape);
+                constexpr size_t sg_m = MoE3GemmInt3Gemm::TILE_SG_M;
                 ret_event = execute_stage({ret_event},
                                           instance,
                                           down ? *int3_down_tiled : *int3_gate_up_tiled,
                                           inputs,
                                           {output},
-                                          {shape.n / MoE3GemmInt3Gemm::get_tile_nb(shape), tile_count * sg_m, 1},
+                                          {shape.n / MoE3GemmInt3Gemm::TILE_NB, tile_count * sg_m, 1},
                                           {simd, sg_m, 1},
                                           false,
                                           {num_experts});

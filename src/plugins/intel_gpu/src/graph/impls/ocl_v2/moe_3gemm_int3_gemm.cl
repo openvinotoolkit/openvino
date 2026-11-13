@@ -85,7 +85,7 @@ inline int4 FUNC(u3_to_dpas_b4)(uint w0, uint w1, uint w2) {
     ((float)scale[((e) * W_GROUPS_K + (g) * GROUP_SIZE / WEI_GROUP_SIZE) * N_SIZE + (n)])
 #if ZP_SCALAR
 #   define WEI_ZP(e, n, g) ((float)zp[0])
-#elif HAS_ZP
+#else
 #   define WEI_ZP(e, n, g) \
         ((float)zp[((e) * W_GROUPS_K + (g) * GROUP_SIZE / WEI_GROUP_SIZE) * N_SIZE + (n)])
 #endif
@@ -112,9 +112,7 @@ KERNEL(moe_int3_gemm)(
     const __global int* a_sums,             // [rows, GROUPS_K]
     const __global uint* weights,           // [E, N, K] u3
     const __global half* scale,             // [E, W_GROUPS_K, N]
-#if HAS_ZP
     const __global ZP_TYPE* zp,             // [E, W_GROUPS_K, N] or [1]
-#endif
     const __global int* offsets,            // [E] exclusive end row of each expert
 #if !ROW_MODE
     const __global int2* tiles,             // [tiles] {expert, first row of the tile within the expert}
@@ -143,9 +141,7 @@ KERNEL(moe_int3_gemm)(
     const __global uint* B = weights + ((size_t)expert * N_SIZE + n) * CHUNKS_K * GRANULE_UINTS;
     const __global uint* A = (const __global uint*)(quantized_input + (size_t)row * K_SIZE);
     const __global half* AS = a_scales + (size_t)row * GROUPS_K;
-#if HAS_ZP
     const __global int* AZ = a_sums + (size_t)row * GROUPS_K;
-#endif
 
     float out = 0.0f;
     for (uint g = sg; g < GROUPS_K; g += SG_K) {
@@ -164,10 +160,7 @@ KERNEL(moe_int3_gemm)(
             acc = FUNC_CALL(mad4)(as_char4(a1.s2), U3_CHAR4(w.s0, w.s1, w.s2, 24), acc);
             acc = FUNC_CALL(mad4)(as_char4(a1.s3), U3_CHAR4(w.s0, w.s1, w.s2, 28), acc);
         }
-        float part = (float)acc;
-#if HAS_ZP
-        part -= WEI_ZP(expert, n, g) * (float)AZ[g];
-#endif
+        const float part = (float)acc - WEI_ZP(expert, n, g) * (float)AZ[g];
         out += part * (float)AS[g] * WEI_SCALE(expert, n, g);
     }
 
@@ -184,7 +177,7 @@ KERNEL(moe_int3_gemm)(
 
 #else  // expert mode
     // A work-group takes one {expert, first row} entry of the host's tile list, so
-    // only row tiles that hold rows are launched. A subgroup computes TILE_M rows x
+    // only row tiles that hold rows are launched. A subgroup computes TILE_M (16) rows x
     // NB 16-column blocks, so each activation load feeds NB DPAS. The activations
     // of a quantization group arrive through 2D block reads anchored at the
     // expert's first row: their layout is exactly the DPAS a operand, and rows past
@@ -196,12 +189,10 @@ KERNEL(moe_int3_gemm)(
     // after it was read, and passing the wait of the group in between proves every
     // subgroup is done with it. Subgroups whose rows lie past the expert's end
     // still stage their share of the weights, but skip the DPAS and the rescale.
-#define M_BLOCKS        (TILE_M / 8)
-#define RB              (TILE_M / 16)
 #define NH              (CHUNKS_PER_GROUP / 2)
 #define GRAN_PER_GROUP  (CHUNKS_PER_GROUP * NB)
 #define GRAN_PER_SG     (GRAN_PER_GROUP / SG_M)
-#if (TILE_M % 16) != 0 || (GRAN_PER_GROUP % SG_M) != 0 || (CHUNKS_PER_GROUP % 2) != 0
+#if TILE_M != 16 || (GRAN_PER_GROUP % SG_M) != 0 || (CHUNKS_PER_GROUP % 2) != 0
 #   error "moe_3gemm_int3_gemm.cl - invalid expert mode configuration"
 #endif
     const int2 tile = tiles[get_group_id(1)];
@@ -213,10 +204,8 @@ KERNEL(moe_int3_gemm)(
     const bool has_rows = (int)m0 < rows;
 
     const __global char* A = quantized_input + (size_t)row_begin * K_SIZE;
-    // Activation scales and sums of row m0 + rb * 16 + lane
-    size_t V[RB];
-    unroll_for (uint rb = 0; rb < RB; ++rb)
-        V[rb] = (size_t)(row_begin + min((int)(m0 + rb * 16 + lane), rows - 1)) * GROUPS_K;
+    // Activation scales and sums of row m0 + lane
+    const size_t V = (size_t)(row_begin + min((int)(m0 + lane), rows - 1)) * GROUPS_K;
 #if ZP_SCALAR
     const float zp_scalar = (float)zp[0];
 #endif
@@ -262,33 +251,28 @@ KERNEL(moe_int3_gemm)(
 
         if (has_rows) {
             float bs[NB];
-#if HAS_ZP && !ZP_SCALAR
+#if !ZP_SCALAR
             float bzp[NB];
 #endif
             unroll_for (uint j = 0; j < NB; ++j) {
                 const uint col = n0 + j * SIMD + lane;
                 bs[j] = WEI_SCALE(expert, col, g);
-#if HAS_ZP && !ZP_SCALAR
+#if !ZP_SCALAR
                 bzp[j] = WEI_ZP(expert, col, g);
 #endif
             }
-            float2 sv[RB];
-            unroll_for (uint rb = 0; rb < RB; ++rb) {
-                sv[rb].x = (float)a_scales[V[rb] + g];
-#if HAS_ZP
-                sv[rb].y = (float)a_sums[V[rb] + g];
-#endif
-            }
+            const float a_scale = (float)a_scales[V + g];
+            const float a_sum = (float)a_sums[V + g];
 
-            ushort a_all[NH][RB][32];
+            ushort a_all[NH][32];
             unroll_for (uint h = 0; h < NH; ++h)
-                unroll_for (uint rb = 0; rb < RB; ++rb)
-                    intel_sub_group_2d_block_read_8b_16r32x2c((__global void*)A, K_SIZE, rows, K_SIZE,
-                                                              (int2)(g * GROUP_SIZE + h * 2 * K_CHUNK, m0 + rb * 16),
-                                                              a_all[h][rb]);
+                intel_sub_group_2d_block_read_8b_16r32x2c((__global void*)A, K_SIZE, rows, K_SIZE,
+                                                          (int2)(g * GROUP_SIZE + h * 2 * K_CHUNK, m0),
+                                                          a_all[h]);
 
-            int8 acc[M_BLOCKS][NB];
-            unroll_for (uint mb = 0; mb < M_BLOCKS; ++mb)
+            // Rows 0-7 and 8-15 of the tile
+            int8 acc[2][NB];
+            unroll_for (uint mb = 0; mb < 2; ++mb)
                 unroll_for (uint j = 0; j < NB; ++j)
                     acc[mb][j] = (int8)(0);
 
@@ -298,30 +282,26 @@ KERNEL(moe_int3_gemm)(
                     int4 w[NB];
                     unroll_for (uint j = 0; j < NB; ++j)
                         w[j] = wshare[buf][cc * NB + j][lane];
-                    unroll_for (uint mb = 0; mb < M_BLOCKS; ++mb) {
+                    unroll_for (uint mb = 0; mb < 2; ++mb) {
                         short8 a;
                         unroll_for (uint t = 0; t < 8; ++t)
-                            a[t] = as_short(a_all[h][mb / 2][c * 16 + (mb % 2) * 8 + t]);
+                            a[t] = as_short(a_all[h][c * 16 + mb * 8 + t]);
                         unroll_for (uint j = 0; j < NB; ++j)
                             acc[mb][j] = intel_sub_group_i8_i4_matrix_mad_k32(a, w[j], acc[mb][j]);
                     }
                 }
             }
 
-            unroll_for (uint mb = 0; mb < M_BLOCKS; ++mb) {
+            unroll_for (uint mb = 0; mb < 2; ++mb) {
                 unroll_for (uint t = 0; t < 8; ++t) {
                     const uint r = mb * 8 + t;
-                    const float as = sub_group_broadcast(sv[r / 16].x, r % 16);
-#if HAS_ZP
-                    const float as_sum = as * sub_group_broadcast(sv[r / 16].y, r % 16);
-#endif
+                    const float as = sub_group_broadcast(a_scale, r);
+                    const float as_sum = as * sub_group_broadcast(a_sum, r);
                     unroll_for (uint j = 0; j < NB; ++j) {
 #if ZP_SCALAR
                         const float part = fma((float)acc[mb][j][t], as, -zp_scalar * as_sum);
-#elif HAS_ZP
-                        const float part = fma((float)acc[mb][j][t], as, -bzp[j] * as_sum);
 #else
-                        const float part = (float)acc[mb][j][t] * as;
+                        const float part = fma((float)acc[mb][j][t], as, -bzp[j] * as_sum);
 #endif
                         acc_f[j][r] = fma(part, bs[j], acc_f[j][r]);
                     }
@@ -343,8 +323,6 @@ KERNEL(moe_int3_gemm)(
                 output[(size_t)(row_begin + m0 + t) * N_SIZE + n0 + j * SIMD + lane] = (half)acc_f[j][t];
         }
     }
-#undef M_BLOCKS
-#undef RB
 #undef NH
 #undef GRAN_PER_GROUP
 #undef GRAN_PER_SG

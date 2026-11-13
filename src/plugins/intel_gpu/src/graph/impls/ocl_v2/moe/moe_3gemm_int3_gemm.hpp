@@ -26,6 +26,10 @@ public:
     static constexpr size_t SIMD = 16;
     // Rows per entry of the host-built tile list of the expert mode kernels
     static constexpr size_t TILE_ROWS = 64;
+    // Expert mode work-groups: TILE_SG_M subgroups of TILE_ROWS / TILE_SG_M rows x TILE_NB 16-column blocks. N is a
+    // multiple of 64 and a quantization group of 64 or more values, so they fit every supported shape.
+    static constexpr size_t TILE_SG_M = 4;
+    static constexpr size_t TILE_NB = 2;
     // Experts with at most this many rows go through the per-row kernels
     static constexpr int ROW_MODE_MAX_ROWS = 4;
 
@@ -35,18 +39,13 @@ public:
           m_row_mode(row_mode) {}
 
     // Whether the kernels support this MoE: activations quantized by MoE3GemmDynQuan, u3 weights with a u8/i8 zero
-    // point (scalar or shaped like the scales), f16 scales, weight groups a multiple of 64 values, N a multiple of 16,
-    // on Xe2+ with DPAS.
+    // point (scalar or shaped like the scales), f16 scales and weight groups a multiple of 64 values, on Xe2+ with DPAS.
     static bool is_supported(const RuntimeParams& params);
 
     static Shape get_shape(const RuntimeParams& params, Projection proj);
 
     // Subgroups splitting K in the per-row kernels
     static size_t get_row_sg_k(const Shape& shape);
-    // 16-column blocks per subgroup in the expert mode kernels
-    static size_t get_tile_nb(const Shape& shape);
-    // Subgroups per work-group in the expert mode kernels, each computing TILE_ROWS / get_tile_sg_m() rows
-    static size_t get_tile_sg_m(const Shape& shape);
     // Upper bound of the tile list length: every expert with rows has at most one partial tile
     static size_t get_max_tiles(size_t num_experts, size_t rows);
 
