@@ -7,7 +7,6 @@
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/runtime/device_info.hpp"
 
-#include <cstdlib>
 #include <vector>
 
 namespace cldnn {
@@ -49,85 +48,31 @@ struct paged_attention : public primitive_base<paged_attention> {
     static constexpr size_t block_size = 16;
     static constexpr size_t block_size_xattn = 256;
 
-    // K cache page layout: token-major [num_blocks, kv_heads, block_size, k_head_size] on every device and for every
-    // kind of page -- the order of the V cache and of the XAttention K cache, so a page has the geometry the DPAS
-    // kernels' 2D block reads take. Every consumer reads that page only. In-page addressing:
-    //   uncompressed    [block_size tokens][k_head_size]
-    //   i8 BY_TOKEN     the same data rows, then the per-token (scale, zp) arrays
-    //   i8 BY_CHANNEL   the same data rows, then one interleaved (scale, zp) pair per channel
-    //   u4 BY_CHANNEL   [block_size tokens][k_head_size / 2] bytes, channels 2b and 2b + 1 in byte b, then the
-    //                   per-channel pairs. Its V page has split nibbles and a trailing per-token comp array.
-    // (The plugin's config turns a u8 cache into i8 and an i4 one into u4; 4-bit BY_TOKEN keys are rejected.)
+    // Device predicates of the sdpa_ocl kernels; the stage x device table is in docs/sdpa_ocl.md, "Where it runs".
 
-    // Which kernel serves each attention stage on which device -- the device part of the choice, made by the predicates
-    // below. Where sdpa_ocl refuses an op (head size, page kind, scores output, alibi, ...) the last column's kernel runs.
-    //
-    //                          xe_hpc, Xe2+ XMX  xe_hpg XMX (DG2, ARL-H)            non-XMX, unknown arch
-    //   SDPA, prefill          sdpa_ocl          sdpa_ocl (SG8)                     sdpa_opt
-    //   SDPA, one query        sdpa_ocl          sdpa_ocl (SG8); ARL-H: sdpa_opt *  sdpa_opt
-    //   SDPA, per-channel KV   sdpa_ocl          sdpa_ref                           sdpa_ref
-    //   PA PREFILL             sdpa_ocl          sdpa_ocl (xe_hpg PA PREFILL)       sdpa_opt
-    //   PA MIXED               sdpa_ocl          sdpa_ocl (SG8)                     paged_attention_opt.cl
-    //   PA GENERATE            sdpa_ocl_decode   paged_attention_opt.cl **          paged_attention_opt.cl
-    //
-    // The first column is the SG16 arms (2D block IO), the second the SG8 ones. xe_hpc takes the first column as Xe2 does
-    // (the same SG16 DPAS and 2D block IO), Xe2's tuned tilings included; not measured on xe_hpc. An XMX device whose
-    // arch is unknown (every device in a build without oneDNN, which detects the arch) or xe_hp (SIMD8 DPAS, no 2D block
-    // IO) takes the last column.
-    // SDPA = plain (non-paged) SDPA. Indirect SDPA (beam search) and a plain int4 KV cache run sdpa_opt everywhere; the
-    // per-channel row is the GQA decomposition's fused quantized cache (sdpa_ocl_per_channel_kv_ok()). A PA MIXED step
-    // with few new tokens per subsequence follows the small GQA rule (select_gqa_multi_tokens_kernel() in
-    // paged_attention_opt.cpp: pa_small_q_opt.cl, paged_attention_opt.cl's GQA fallback, or sdpa_ocl). PA GENERATE, on
-    // either reader, adds paged_attention_opt.cl's finalization when it splits the keys into partitions.
-    // (*) static shapes only (sdpa_ocl_plain_single_token_ok()); a dynamic op on ARL-H takes sdpa_ocl.
-    // (**) sdpa_ocl_decode's SG8 reader (sdpa_ocl_hpg_decode.cl) is not selected (sdpa_ocl_decode_reader_available()).
-    // OV_GPU_ENABLE_SDPA_MICRO=0 (config enable_sdpa_micro, named after the removed sdpa_micro) moves every sdpa_ocl
-    // cell but PA GENERATE to the last column; PA GENERATE does not read it.
-
-    // Device generations sdpa_ocl may run on (arch only; XMX is in sdpa_ocl_selected()): xe_hpc and Xe2+ (SG16, 2D block
-    // IO) and xe_hpg (DG2/Arc-A, ARL-H: the SG8 arms). Within these, xe_hpg is the SG8 one and every other is SG16.
-    // An unknown arch and xe_hp are neither, so they never reach the SG16 arms.
-    static bool sdpa_ocl_arch_ok(const device_info& info) {
-        return info.arch == gpu_arch::xe_hpg || info.arch >= gpu_arch::xe_hpc;
-    }
-
-    // Whether the DPAS SDPA kernel (sdpa_ocl) may serve plain SDPA and PA PREFILL/MIXED on this device: xe_hpc, Xe2+ and
-    // xe_hpg XMX. Every other device (non-XMX, unknown arch) runs the opt kernels, and so does an op sdpa_ocl refuses. The
-    // lane needs XMX only, no oneDNN microkernel support.
-    // This is the lane, i.e. which kernel serves PREFILL/MIXED. It is NOT "a GENERATE reader exists": ask
-    // sdpa_ocl_decode_reader_available() for that.
+    // The sdpa_ocl lane (plain SDPA, PA PREFILL/MIXED). immad is needed: the xe_hpg arch also covers MTL (no XMX).
     static bool sdpa_ocl_selected(const device_info& info) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        return info.supports_immad && sdpa_ocl_arch_ok(info);
+        return info.supports_immad && info.arch >= gpu_arch::xe_hpg;
 #else
-        // The DPAS kernel is not built without oneDNN.
         (void)info;
         return false;
 #endif
     }
 
-    // Whether sdpa_ocl may read per-channel compressed KV (one scale, and zero point, per head-dim channel) on this arch:
-    // the SG16 arms (xe_hpc, Xe2+) only, the per-channel reads put one channel per lane of a 16-wide subgroup and the
-    // xe_hpg SG8 arms have none. On top of sdpa_ocl_selected(); the op checks are SDPAOclGenerator::supported()'s.
+    // Per-channel compressed KV in sdpa_ocl: the SG16 arms (xe_hpc, Xe2+) only. On top of sdpa_ocl_selected().
     static bool sdpa_ocl_per_channel_kv_ok(const device_info& info) {
         return info.arch >= gpu_arch::xe_hpc;
     }
 
-    // Whether plain SDPA with one query (a static single-token op) may run sdpa_ocl's single-token kernel on this device:
-    // everywhere on the lane but ARL-H (gfx 12.74), which keeps sdpa_opt's single-token kernel as it kept it under the
-    // removed sdpa_micro.
+    // ARL-H (gfx 12.74) keeps sdpa_opt for a static one-query plain SDPA (upstream PR #27387).
     static bool sdpa_ocl_plain_single_token_ok(const device_info& info) {
         return !(info.gfx_ver.major == 12 && info.gfx_ver.minor == 74);
     }
 
-    // Whether sdpa_ocl_decode (the DPAS GENERATE reader) serves this device: xe_hpc and Xe2+ XMX (SG16 + 2D block IO). Elsewhere
-    // GENERATE runs the opt kernels (pa_single_token / pa_gqa_single_token), which read the same token-major page.
-    // xe_hpg keeps them although sdpa_ocl_decode has an SG8 reader (sdpa_ocl_hpg_decode.cl): on the A770 it took
-    // 2.0-7.0x their device time per call from 1K to 32K keys (real models, 2026-11-09), so nothing selects it.
-    // Mirrors the device part of supported(), which calls this itself so the two cannot drift. No oneDNN guard: the
-    // decode kernel does not need oneDNN.
+    // sdpa_ocl_decode serves PA GENERATE: the lane without xe_hpg.
     static bool sdpa_ocl_decode_reader_available(const device_info& info) {
-        return sdpa_ocl_arch_ok(info) && info.supports_immad && info.arch != gpu_arch::xe_hpg;
+        return sdpa_ocl_selected(info) && info.arch != gpu_arch::xe_hpg;
     }
 
     paged_attention() : primitive_base("", {}) {}

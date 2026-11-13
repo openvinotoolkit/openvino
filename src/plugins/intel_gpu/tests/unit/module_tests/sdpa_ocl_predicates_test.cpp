@@ -45,14 +45,6 @@ constexpr bool kOneDnn =
 #endif
 }  // namespace
 
-TEST(SdpaOclPredicates, ArchOkTruthTable) {
-    for (auto a : kArchs) {
-        SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a));
-        const bool want = sg16_arch(a) || a == gpu_arch::xe_hpg;
-        EXPECT_EQ(pa::sdpa_ocl_arch_ok(make_info(a, true)), want);
-    }
-}
-
 TEST(SdpaOclPredicates, PerChannelKvOkTruthTable) {
     for (auto a : kArchs) {
         SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a));
@@ -74,8 +66,8 @@ TEST(SdpaOclPredicates, DecodeReaderAvailableTruthTable) {
     for (auto a : kArchs) {
         for (bool immad : kBools) {
             SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a) << " immad=" << immad);
-            // The SG16 arms only, not xe_hpg (SG8); no oneDNN term.
-            const bool want = immad && sg16_arch(a);
+            // The SG16 arms only, not xe_hpg (SG8); the lane's oneDNN term.
+            const bool want = kOneDnn && immad && sg16_arch(a);
             EXPECT_EQ(pa::sdpa_ocl_decode_reader_available(make_info(a, immad)), want);
         }
     }

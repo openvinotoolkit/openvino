@@ -6,6 +6,8 @@
 
 #include "dpas_backend_test_helper.h"
 
+#include <cstdlib>
+
 class paged_attention_test: public PagedAttentionTest<paged_attention_test_params> {};
 TEST_P(paged_attention_test, basic) {
     auto p = GetParam();
