@@ -13,6 +13,7 @@
 #include <thread>
 #include <vector>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/visibility.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/op/parameter.hpp"
@@ -317,6 +318,15 @@ TEST(AsyncInferRequestRaceConditionTest, ObservesBusyStateWhileCallerThreadSyncI
     SetInput(ctx.infer_request, ctx.compiled_model.input(), 42.0F);
     ctx.state->arm_gate();
 
+    // Guarantees the blocked op is released even if an assertion below fails early --
+    // otherwise the in-flight future's destructor would block forever.
+    struct ReleaseGuard {
+        std::shared_ptr<ControllableOpState> state;
+        ~ReleaseGuard() {
+            state->release();
+        }
+    } release_guard{ctx.state};
+
     auto in_flight = std::async(std::launch::async, [&] {
         ctx.infer_request.infer();
     });
@@ -325,7 +335,10 @@ TEST(AsyncInferRequestRaceConditionTest, ObservesBusyStateWhileCallerThreadSyncI
     // request is truly busy, not just "about to start".
     ctx.state->wait_until_entered();
 
-    ASSERT_THROW(ctx.infer_request.infer(), ov::Busy);
+    // Exact exception type (ov::Busy) isn't checked: on some platforms (e.g. Android, where the
+    // CPU plugin loads as a separate shared library) RTTI identity doesn't cross that boundary,
+    // so it arrives as a plain ov::Exception with the same message.
+    OV_EXPECT_THROW_HAS_SUBSTRING(ctx.infer_request.infer(), ov::Exception, "busy");
 
     ctx.state->release();
     ASSERT_NO_THROW(in_flight.get());
@@ -345,7 +358,8 @@ TEST(AsyncInferRequestCancelTest, CancelDuringCallerThreadSyncInferRaisesCancell
     ctx.infer_request.cancel();
     ctx.state->release();
 
-    ASSERT_THROW(in_flight.get(), ov::Cancelled);
+    // See the busy-exception comment above: checked by message, not exact type.
+    OV_EXPECT_THROW_HAS_SUBSTRING(in_flight.get(), ov::Exception, "cancel");
 
     // cancel() only affects the in-flight call; the request must be fully usable afterwards.
     SetInput(ctx.infer_request, ctx.compiled_model.input(), 9.0F);
