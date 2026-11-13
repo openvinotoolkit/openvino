@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/thread_utils.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -450,21 +451,14 @@ TEST(type_prop, if_invalid_false_body) {
     EXPECT_EQ(else_op_res->get_element_type(), ov::element::f16);
 }
 
-static shared_ptr<Node> make_nested_if(size_t depth) {
+namespace {
+// If with a constant condition; `inner` goes into the then-body.
+shared_ptr<Node> make_if_level(const shared_ptr<Node>& inner) {
     auto cond = make_shared<op::v0::Constant>(element::boolean, Shape{1}, true);
     auto if_op = make_shared<op::v8::If>(cond);
 
-    // then/else bodies
     auto then_p = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
-    shared_ptr<Node> then_out;
-    if (depth > 0) {
-        // nest another If inside the then-body
-        auto inner = make_nested_if(depth - 1);
-        then_out = inner;
-    } else {
-        then_out = then_p;
-    }
-    auto then_res = make_shared<op::v0::Result>(then_out);
+    auto then_res = make_shared<op::v0::Result>(inner ? inner : static_cast<shared_ptr<Node>>(then_p));
     auto then_body = make_shared<Model>(OutputVector{then_res}, ParameterVector{then_p});
 
     auto else_p = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
@@ -478,9 +472,25 @@ static shared_ptr<Node> make_nested_if(size_t depth) {
     return if_op;
 }
 
-TEST(type_prop, if_nested_constant_condition_exceeds_max_depth_throws) {
-    const size_t excessive_depth = 1024;
-    OV_EXPECT_THROW(std::ignore = make_nested_if(excessive_depth),
-        ov::NodeValidationFailure,
-        HasSubstr("nesting depth exceeds"));
+shared_ptr<Node> make_nested_if(size_t depth) {
+    shared_ptr<Node> if_op;
+    for (size_t i = 0; i <= depth; ++i) {
+        if_op = make_if_level(if_op);
+    }
+    return if_op;
+}
+
+constexpr size_t small_stack_size = 512 * 1024;
+}  // namespace
+
+TEST(type_prop, if_shallow_nested_bodies_validate) {
+    OV_ASSERT_NO_THROW(std::ignore = make_nested_if(8));
+}
+
+// Runs on a small stack; asserts the error, not the depth at which it fires.
+TEST(type_prop, if_deep_nesting_reports_error_instead_of_overflowing_the_stack) {
+    const auto error = ov::test::utils::run_with_stack_size(small_stack_size, [] {
+        std::ignore = make_nested_if(100000);
+    });
+    EXPECT_THAT(error, HasSubstr("deeper than the stack of the current thread"));
 }
