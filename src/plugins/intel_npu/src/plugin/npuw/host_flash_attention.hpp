@@ -576,6 +576,12 @@ public:
     static Selector::Ptr find(std::size_t query_size, const std::string& input_name, const ov::ISyncInferRequest& rq);
 };
 
+// NPUW_ATTN_HISTORY_SIZE_INPUT support: index of the input matched by tensor or friendly name, if any.
+std::optional<std::size_t> find_history_input(const std::vector<ov::Output<const ov::Node>>& inputs,
+                                              const std::string& input_name);
+// Reads the non-negative i32/i64 history length from the first element of the input tensor.
+int64_t read_history_input(const ov::SoPtr<ov::ITensor>& tensor);
+
 }  // namespace host_flash_attention
 }  // namespace runtime
 

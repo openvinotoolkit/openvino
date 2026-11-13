@@ -680,12 +680,15 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     const bool use_mask = is_final_tile || !fused_flash_attention || !enable_mask_skipping;
     auto f32_nodes = convert_inputs_to_f32(inputs, mask_dtype, compute_dtype, use_mask);
     if (kv_bshd) {
-        auto bshd_to_bhsd = [](const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<ov::Node> {
+        auto bshd_to_bhsd = [](const std::shared_ptr<ov::Node>& node,
+                               const std::string& name) -> std::shared_ptr<ov::Node> {
             auto order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
-            return std::make_shared<ov::op::v1::Transpose>(node, order);
+            auto transpose = std::make_shared<ov::op::v1::Transpose>(node, order);
+            transpose->set_friendly_name(name);
+            return transpose;
         };
-        f32_nodes.k_tile_f32 = bshd_to_bhsd(f32_nodes.k_tile_f32);
-        f32_nodes.v_tile_f32 = bshd_to_bhsd(f32_nodes.v_tile_f32);
+        f32_nodes.k_tile_f32 = bshd_to_bhsd(f32_nodes.k_tile_f32, "k_tile_bhsd");
+        f32_nodes.v_tile_f32 = bshd_to_bhsd(f32_nodes.v_tile_f32, "v_tile_bhsd");
     }
 
     FlashAttentionResults results;
@@ -1600,30 +1603,16 @@ Selector::Ptr ExplicitHistory::find(std::size_t query_size,
     if (input_name.empty()) {
         return {};
     }
-    const auto& inputs = rq.get_inputs();
-    const auto input = std::find_if(inputs.begin(), inputs.end(), [&](const auto& port) {
-        const auto& names = port.get_names();
-        return names.count(input_name) != 0 || port.get_node()->get_friendly_name() == input_name;
-    });
-    if (input == inputs.end()) {
+    const auto input_idx = find_history_input(rq.get_inputs(), input_name);
+    if (!input_idx) {
         return {};
     }
-    return Selector::Ptr{new ExplicitHistory(std::distance(inputs.begin(), input), query_size, rq)};
+    return Selector::Ptr{new ExplicitHistory(*input_idx, query_size, rq)};
 }
 
 void ExplicitHistory::prepare(int64_t past_len) {
     const auto& port = _rq.get().get_compiled_model()->inputs()[_history_idx];
-    const auto tensor = _rq.get().get_tensor(port);
-    OPENVINO_ASSERT(tensor->get_size() > 0, "HFA explicit history input must not be empty");
-    int64_t history = 0;
-    if (tensor->get_element_type() == ov::element::i64) {
-        history = tensor->data<int64_t>()[0];
-    } else if (tensor->get_element_type() == ov::element::i32) {
-        history = tensor->data<int32_t>()[0];
-    } else {
-        OPENVINO_THROW("HFA explicit history input must have i32 or i64 element type");
-    }
-    OPENVINO_ASSERT(history >= 0, "HFA explicit history size cannot be negative");
+    const auto history = read_history_input(_rq.get().get_tensor(port));
     OPENVINO_ASSERT(history == past_len,
                     "HFA explicit history input does not match request history size: ",
                     history,
@@ -1636,6 +1625,31 @@ void ExplicitHistory::prepare(int64_t past_len) {
 
 int64_t ExplicitHistory::context_length() const {
     return _query_size + _past_length;
+}
+
+std::optional<std::size_t> find_history_input(const std::vector<ov::Output<const ov::Node>>& inputs,
+                                              const std::string& input_name) {
+    const auto input = std::find_if(inputs.begin(), inputs.end(), [&](const auto& port) {
+        return port.get_names().count(input_name) != 0 || port.get_node()->get_friendly_name() == input_name;
+    });
+    if (input == inputs.end()) {
+        return std::nullopt;
+    }
+    return static_cast<std::size_t>(std::distance(inputs.begin(), input));
+}
+
+int64_t read_history_input(const ov::SoPtr<ov::ITensor>& tensor) {
+    OPENVINO_ASSERT(tensor->get_size() > 0, "NPUW attention history input must not be empty");
+    int64_t history = 0;
+    if (tensor->get_element_type() == ov::element::i64) {
+        history = tensor->data<int64_t>()[0];
+    } else if (tensor->get_element_type() == ov::element::i32) {
+        history = tensor->data<int32_t>()[0];
+    } else {
+        OPENVINO_THROW("NPUW attention history input must have i32 or i64 element type");
+    }
+    OPENVINO_ASSERT(history >= 0, "NPUW attention history size cannot be negative");
+    return history;
 }
 
 // ============================================================================
