@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 441,
+  "total": 442,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -4836,6 +4836,17 @@
       "investigation_id": "2026-11-13-15-37-41-000-43440674345",
       "run_id": "43440674345",
       "timestamp": "2026-11-13T15:37:41Z",
+      "title": "LLM accuracy tests fail with TypeError: genai_gen_text() got an unexpected keyword argument 'context'",
+      "category": "Dependencies",
+      "signature_hash": "6cf9cf0d8f5c0a43",
+      "pr_number": "39512"
+    },
+    {
+      "investigation_id": "2026-11-13-15-53-21-000-43443594792",
+      "run_id": "43443594792",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43443594792",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+      "timestamp": "2026-11-13T15:53:21Z",
       "title": "LLM accuracy tests fail with TypeError: genai_gen_text() got an unexpected keyword argument 'context'",
       "category": "Dependencies",
       "signature_hash": "6cf9cf0d8f5c0a43",
