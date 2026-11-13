@@ -144,6 +144,7 @@ set(GPU_OCL_V2_KERNEL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/lora_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/moe_3gemm_dyn_quan.cl
     ${CMAKE_CURRENT_LIST_DIR}/moe_3gemm_int3.cl
+    ${CMAKE_CURRENT_LIST_DIR}/moe_3gemm_int3_decode.cl
     ${CMAKE_CURRENT_LIST_DIR}/moe_3gemm_int3_gemm.cl
     ${CMAKE_CURRENT_LIST_DIR}/moe_3gemm_swiglu_fuse.cl
     ${CMAKE_CURRENT_LIST_DIR}/moe_3gemm_swiglu_mlp.cl
