@@ -575,6 +575,20 @@ private:
     }
 };
 
+// Whether the expert GEMMs run on dynamically quantized activations for these DYNAMIC_QUANTIZATION_GROUP_SIZE(_MAX)
+// values: the activation groups are 128 or 64 values that divide the weight groups
+static bool expects_moe_dyn_quan(uint64_t dq_group_size, uint64_t dq_group_size_max, size_t weight_group_size) {
+    if (dq_group_size == 0 || dq_group_size > dq_group_size_max) {
+        return false;
+    }
+    for (uint64_t act_group_size : {128, 64}) {
+        if (act_group_size <= dq_group_size && weight_group_size % act_group_size == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 struct Moe3GemmTestParams {
     size_t seq_len;
     bool is_u4;
@@ -588,8 +602,9 @@ struct Moe3GemmTestParams {
     bool micro_gemm_prefill = false;  // true: prefill uses the micro-GEMM path (grouped GEMM off)
     size_t routed_experts = 0;        // > 0: tokens are routed only to the first routed_experts experts
     size_t executions = 1;            // > 1: execute() again on new inputs of the same shape
-    // DYNAMIC_QUANTIZATION_GROUP_SIZE, the default when negative
-    int dq_group_size = -1;
+    uint64_t dq_group_size = UINT64_MAX;
+    uint64_t dq_group_size_max = UINT64_MAX;
+    size_t dq_threshold = 32;  // GPU_MOE_DYNAMIC_QUANTIZATION_THRESHOLD
 };
 
 class moe_3gemm_compressed_gpu_random : public ::testing::TestWithParam<std::tuple<cldnn::MoERouterFused::RoutingType, Moe3GemmTestParams>> {};
@@ -821,6 +836,9 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
         net_config.set_property(ov::intel_gpu::moe_use_micro_gemm_prefill(true));
         net_config.set_property(ov::intel_gpu::moe_use_grouped_gemm_prefill(false));
     }
+    net_config.set_user_property(ov::hint::dynamic_quantization_group_size(param.dq_group_size));
+    net_config.set_user_property(ov::intel_gpu::hint::dynamic_quantization_group_size_max(param.dq_group_size_max));
+    net_config.set_property(ov::intel_gpu::moe_dynamic_quantization_threshold(param.dq_threshold));
     network network(engine, topology, net_config);
     network.set_input_data("hidden_states", hidden_states_mem);
     network.set_input_data("routing_weights", routing_weights_mem);
@@ -879,6 +897,16 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
             ASSERT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), tolerance) << "execute() #" << run + 1;
         }
     }
+
+    // Resident prefill on the OneDNN grouped GEMM quantizes the activations for u4 weights; u8 ones have a zero point
+    const bool dyn_quan = param.lru_expert_num == 0 && !param.micro_gemm_prefill && config.seq_len > 32 && config.seq_len > param.dq_threshold &&
+                          engine.get_device_info().arch >= gpu_arch::xe2 && param.is_u4 &&
+                          expects_moe_dyn_quan(param.dq_group_size, param.dq_group_size_max, config.group_size);
+    const auto moe_inst = network.get_primitive("moe_3gemm_fused_compressed");
+    const auto executed_kernels = moe_inst->get_impl()->get_kernels_dump_info(*moe_inst->get_impl_params()).get_entries();
+    for (const char* kernel_name : {"moe_3gemm_dyn_quan_quantize_gate_up", "moe_3gemm_dyn_quan_quantize_down", "moe_gather_ref_prefill_gather_i8"}) {
+        ASSERT_EQ(executed_kernels.find(kernel_name) != std::string::npos, dyn_quan) << kernel_name << ", executed kernels: " << executed_kernels;
+    }
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke,
@@ -896,7 +924,9 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                                               Moe3GemmTestParams{33, true, 128, 256, 4, 2, 128},
                                                               Moe3GemmTestParams{33, false, 128, 256, 4, 2, 128},
                                                               Moe3GemmTestParams{48, true, 128, 256, 4, 2, 128},
-                                                              Moe3GemmTestParams{48, false, 128, 256, 4, 2, 128})));
+                                                              Moe3GemmTestParams{48, false, 128, 256, 4, 2, 128},
+                                                              // u4 prefill on f16 activations
+                                                              Moe3GemmTestParams{48, true, 128, 256, 4, 2, 128, false, 0, false, 0, 1, 0})));
 
 // Sub-128 weight quantization group size (e.g. trinity-mini afmoe uses group_size=64
 // with SIGMOID_BIAS routing). Limited to SIGMOID_BIAS to mirror real model usage and
@@ -1574,9 +1604,9 @@ TEST_P(moe_3gemm_compressed_gpu_symmetric_random, moe_accuracy_test_symmetric) {
 
     auto net_config = get_test_default_config(engine);
     net_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    if (param.dq_group_size >= 0) {
-        net_config.set_user_property(ov::hint::dynamic_quantization_group_size(static_cast<uint64_t>(param.dq_group_size)));
-    }
+    net_config.set_user_property(ov::hint::dynamic_quantization_group_size(param.dq_group_size));
+    net_config.set_user_property(ov::intel_gpu::hint::dynamic_quantization_group_size_max(param.dq_group_size_max));
+    net_config.set_property(ov::intel_gpu::moe_dynamic_quantization_threshold(param.dq_threshold));
     network network(engine, topology, net_config);
     network.set_input_data("hidden_states", hidden_states_mem);
     network.set_input_data("routing_weights", routing_weights_mem);
@@ -1586,6 +1616,17 @@ TEST_P(moe_3gemm_compressed_gpu_symmetric_random, moe_accuracy_test_symmetric) {
     get_test_stream().flush();
     cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
+    // Prefill (above the batched GEMV threshold, 32) runs the OneDNN grouped GEMM, on quantized activations above
+    // dq_threshold tokens
+    const bool prefill = config.seq_len > 32;
+    const bool dyn_quan = prefill && config.seq_len > param.dq_threshold && engine.get_device_info().arch >= gpu_arch::xe2 &&
+                          expects_moe_dyn_quan(param.dq_group_size, param.dq_group_size_max, config.group_size);
+    const auto moe_inst = network.get_primitive("moe_3gemm_fused_compressed");
+    const auto executed_kernels = moe_inst->get_impl()->get_kernels_dump_info(*moe_inst->get_impl_params()).get_entries();
+    for (const char* kernel_name : {"moe_3gemm_dyn_quan_quantize_gate_up", "moe_3gemm_dyn_quan_quantize_down", "moe_gather_ref_prefill_gather_i8"}) {
+        ASSERT_EQ(executed_kernels.find(kernel_name) != std::string::npos, dyn_quan) << kernel_name << ", executed kernels: " << executed_kernels;
+    }
+
     auto ref_output = routing_type == cldnn::MoERouterFused::RoutingType::SIGMOID_BIAS
                           ? ref.run_reference_sigmoid(hidden_states, routing_weights, routing_bias_data, routing_eps_val, w0_data, w1_data, w2_data)
                           : ref.run_reference_softmax(hidden_states, routing_weights, w0_data, w1_data, w2_data);
@@ -1593,7 +1634,7 @@ TEST_P(moe_3gemm_compressed_gpu_symmetric_random, moe_accuracy_test_symmetric) {
     const float base_tolerance = routing_type == cldnn::MoERouterFused::RoutingType::SIGMOID_BIAS ? 0.25f : 0.15f;
     const float tolerance = base_tolerance * std::max(1, static_cast<int>(config.hidden_size / 128));
     // The prefill cases reach outputs of tens, where the f16 grouped GEMM alone is ~1% off the f32 reference
-    const float rel_tolerance = param.dq_group_size >= 0 ? 0.02f : 0.0f;
+    const float rel_tolerance = prefill ? 0.02f : 0.0f;
     for (size_t i = 0; i < ref_output.size(); ++i) {
         const float ref_value = static_cast<float>(ref_output[i]);
         ASSERT_NEAR(static_cast<float>(output_ptr[i]), ref_value, tolerance + rel_tolerance * std::abs(ref_value));
@@ -1615,14 +1656,20 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                                               // Sub-128 group_size for symmetric quantization.
                                                               Moe3GemmTestParams{1, true, 128, 256, 4, 2, 64, true},
                                                               Moe3GemmTestParams{1, false, 128, 256, 4, 2, 64, true},
-                                                              // Prefill (grouped GEMM) on dynamically quantized activations, and without
-                                                              Moe3GemmTestParams{40, true, 128, 256, 4, 2, 128, true, 0, false, 0, 1, 128},
+                                                              // Prefill (grouped GEMM) on dynamically quantized activations: per token,
+                                                              // 256-, 128- and 64-value groups; and on f16 ones: 32-value groups (none
+                                                              // supported), turned off, above the max, at most dq_threshold tokens
+                                                              Moe3GemmTestParams{40, true, 128, 256, 4, 2, 128, true},
                                                               Moe3GemmTestParams{40, false, 128, 256, 4, 2, 128, true, 0, false, 0, 1, 128},
-                                                              Moe3GemmTestParams{200, true, 256, 512, 4, 2, 128, true, 0, false, 0, 1, 128},
+                                                              Moe3GemmTestParams{200, true, 256, 512, 4, 2, 128, true, 0, false, 0, 1, 256},
                                                               Moe3GemmTestParams{200, false, 256, 512, 4, 2, 128, true, 0, false, 0, 1, 128},
                                                               Moe3GemmTestParams{40, true, 128, 256, 4, 2, 64, true, 0, false, 0, 1, 64},
                                                               Moe3GemmTestParams{40, true, 512, 512, 4, 2, 512, true, 0, false, 0, 1, 128},
-                                                              Moe3GemmTestParams{40, true, 128, 256, 4, 2, 128, true, 0, false, 0, 1, 0})));
+                                                              Moe3GemmTestParams{40, true, 128, 256, 4, 2, 128, true, 0, false, 0, 1, 32},
+                                                              Moe3GemmTestParams{40, true, 128, 256, 4, 2, 128, true, 0, false, 0, 1, 0},
+                                                              Moe3GemmTestParams{40, true, 128, 256, 4, 2, 128, true, 0, false, 0, 1, 128, 64},
+                                                              Moe3GemmTestParams{40, true, 128, 256, 4, 2, 128, true, 0, false, 0, 1, UINT64_MAX, UINT64_MAX,
+                                                                                 40})));
 
 // Symmetric quantization test with shared expert
 class moe_3gemm_compressed_gpu_shared_symmetric_random : public ::testing::TestWithParam<Moe3GemmTestParams> {};
@@ -1931,9 +1978,6 @@ TEST(moe_3gemm_expert_mask, shape_predictor_overflow_regression) {
 // u3 experts: decode on the moe_3gemm_int3 batched GEMV, prefill on the moe_3gemm_int3_gemm int8 GEMMs where dynamic
 // quantization applies, on OneDNN grouped GEMM otherwise
 struct Moe3GemmU3TestParams {
-    // Dynamic quantization setting: the default (per token on Xe2+), an explicit 64-value group, or turned off
-    enum class DynQuan { allowed, group_size_64, group_size_0, group_size_max_below };
-
     size_t seq_len;
     size_t hidden_size;
     size_t inter_size;
@@ -1944,9 +1988,9 @@ struct Moe3GemmU3TestParams {
     bool has_zp = true;
     bool is_caching_test = false;
     bool has_shared_expert = false;
-    DynQuan dyn_quan = DynQuan::allowed;
+    uint64_t dq_group_size = UINT64_MAX;
+    uint64_t dq_group_size_max = UINT64_MAX;
 };
-using U3DynQuan = Moe3GemmU3TestParams::DynQuan;
 
 class moe_3gemm_compressed_gpu_u3 : public ::testing::TestWithParam<Moe3GemmU3TestParams> {};
 
@@ -2081,14 +2125,8 @@ TEST_P(moe_3gemm_compressed_gpu_u3, moe_accuracy_test_u3) {
     auto net_config = get_test_default_config(engine);
     net_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     net_config.set_property(ov::intel_gpu::moe_batched_gemv_threshold(param.batched_gemv_threshold));
-    if (param.dyn_quan == U3DynQuan::group_size_64) {
-        net_config.set_user_property(ov::hint::dynamic_quantization_group_size(64));
-    } else if (param.dyn_quan == U3DynQuan::group_size_0) {
-        net_config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
-    } else if (param.dyn_quan == U3DynQuan::group_size_max_below) {
-        net_config.set_user_property(ov::hint::dynamic_quantization_group_size(128));
-        net_config.set_user_property(ov::intel_gpu::hint::dynamic_quantization_group_size_max(64));
-    }
+    net_config.set_user_property(ov::hint::dynamic_quantization_group_size(param.dq_group_size));
+    net_config.set_user_property(ov::intel_gpu::hint::dynamic_quantization_group_size_max(param.dq_group_size_max));
     auto network = get_network(engine, topology, net_config, get_test_stream_ptr(), param.is_caching_test);
     network->set_input_data("hidden_states", hidden_states_mem);
     network->set_input_data("routing_weights", routing_weights_mem);
@@ -2103,9 +2141,9 @@ TEST_P(moe_3gemm_compressed_gpu_u3, moe_accuracy_test_u3) {
     for (const char* kernel_name : {"moe_3gemm_int3_gemv_gate_up", "moe_3gemm_int3_gemv_down"}) {
         ASSERT_EQ(executed_kernels.find(kernel_name) != std::string::npos, expect_gemv) << kernel_name << ", executed kernels: " << executed_kernels;
     }
-    // The int8 GEMMs need Xe2+, a zero point, weight groups of a multiple of 64 values and dynamic quantization
-    const bool int8_gemm = !expect_gemv && engine.get_device_info().arch >= gpu_arch::xe2 && param.has_zp && param.group_size % 64 == 0 &&
-                           (param.dyn_quan == U3DynQuan::allowed || param.dyn_quan == U3DynQuan::group_size_64);
+    // The int8 GEMMs need Xe2+, a zero point and dynamic quantization
+    const bool int8_gemm = !expect_gemv && engine.get_device_info().arch >= gpu_arch::xe2 && param.has_zp &&
+                           expects_moe_dyn_quan(param.dq_group_size, param.dq_group_size_max, param.group_size);
     for (const char* kernel_name : {"moe_3gemm_dyn_quan_quantize_gate_up", "moe_3gemm_dyn_quan_quantize_down", "moe_gather_ref_prefill_gather_i8", "moe_3gemm_int3_gemm_gate"}) {
         ASSERT_EQ(executed_kernels.find(kernel_name) != std::string::npos, int8_gemm) << kernel_name << ", executed kernels: " << executed_kernels;
     }
@@ -2143,12 +2181,16 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                              Moe3GemmU3TestParams{40, 512, 512, 4, 2, 32},
                              Moe3GemmU3TestParams{2, 512, 512, 8, 2, 512},
                              Moe3GemmU3TestParams{40, 512, 512, 4, 2, 512},
-                             // dynamic quantization: 64-value activation groups, or turned off (OneDNN prefill)
-                             Moe3GemmU3TestParams{40, 512, 512, 4, 2, 128, 32, true, false, false, U3DynQuan::group_size_64},
-                             Moe3GemmU3TestParams{40, 512, 512, 4, 2, 128, 32, true, false, false, U3DynQuan::group_size_0},
-                             Moe3GemmU3TestParams{1, 512, 512, 8, 2, 128, 32, true, false, false, U3DynQuan::group_size_0},
-                             Moe3GemmU3TestParams{40, 512, 512, 4, 2, 128, 32, true, false, false, U3DynQuan::group_size_max_below},
-                             Moe3GemmU3TestParams{40, 512, 512, 4, 2, 128, 32, true, true, false, U3DynQuan::group_size_0},
+                             // 256-, 128- and 64-value activation groups; 32-value ones (none supported), turned off and
+                             // above the max run OneDNN prefill
+                             Moe3GemmU3TestParams{40, 512, 512, 4, 2, 128, 32, true, false, false, 256},
+                             Moe3GemmU3TestParams{40, 512, 512, 4, 2, 128, 32, true, false, false, 128},
+                             Moe3GemmU3TestParams{40, 512, 512, 4, 2, 128, 32, true, false, false, 64},
+                             Moe3GemmU3TestParams{40, 512, 512, 4, 2, 128, 32, true, false, false, 32},
+                             Moe3GemmU3TestParams{40, 512, 512, 4, 2, 128, 32, true, false, false, 0},
+                             Moe3GemmU3TestParams{1, 512, 512, 8, 2, 128, 32, true, false, false, 0},
+                             Moe3GemmU3TestParams{40, 512, 512, 4, 2, 128, 32, true, false, false, 128, 64},
+                             Moe3GemmU3TestParams{40, 512, 512, 4, 2, 128, 32, true, true, false, 0},
                              // no zero point (OneDNN prefill)
                              Moe3GemmU3TestParams{1, 512, 512, 8, 2, 128, 32, false},
                              Moe3GemmU3TestParams{8, 512, 512, 8, 2, 64, 32, false},

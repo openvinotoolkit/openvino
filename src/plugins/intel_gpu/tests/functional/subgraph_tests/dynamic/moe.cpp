@@ -234,22 +234,21 @@ TEST_P(MoECompressedFusionTest, Inference) {
     run();
 }
 
-// The last field keeps dynamic quantization at its default instead of disabling it
-using MoECompressedOffloadParams = std::tuple<size_t, ov::element::Type, ov::test::utils::DecompressionType, bool>;
+using MoECompressedOffloadParams = std::tuple<size_t, ov::element::Type, ov::test::utils::DecompressionType>;
 
 // The experts are streamed from the weights file on demand, so the model has to be read from a file.
 class MoECompressedOffloadTest : public testing::WithParamInterface<MoECompressedOffloadParams>, virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MoECompressedOffloadParams>& info) {
-        const auto& [offload_ratio, wp, ds, dyn_quan] = info.param;
+        const auto& [offload_ratio, wp, ds] = info.param;
         std::ostringstream result;
-        result << "OR=" << offload_ratio << "_WP=" << wp << "_DS=" << ds << "_DQ=" << dyn_quan;
+        result << "OR=" << offload_ratio << "_WP=" << wp << "_DS=" << ds;
         return result.str();
     }
 
 protected:
     void SetUp() override {
-        const auto& [offload_ratio, wp, ds, dyn_quan] = GetParam();
+        const auto& [offload_ratio, wp, ds] = GetParam();
         targetDevice = ov::test::utils::DEVICE_GPU;
         const auto caps = core->get_property(targetDevice, ov::device::capabilities);
         if (std::find(caps.begin(), caps.end(), ov::intel_gpu::capability::HW_MATMUL) == caps.end()) {
@@ -281,11 +280,9 @@ protected:
         function = core->read_model(xml_path);
         configuration = {ov::hint::inference_precision(ov::element::f16),
                          ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
+                         ov::hint::dynamic_quantization_group_size(0),
                          ov::intel_gpu::offload_ratio(offload_ratio),
                          ov::weights_path(bin_path)};
-        if (!dyn_quan) {
-            configuration.insert(ov::hint::dynamic_quantization_group_size(0));
-        }
     }
 
     void compile_model() override {
@@ -327,16 +324,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedOffload_u3,
                                             ::testing::Values(ov::element::u3),
                                             ::testing::Values(ov::test::utils::DecompressionType::full,
                                                               ov::test::utils::DecompressionType::scalar,
-                                                              ov::test::utils::DecompressionType::empty),
-                                            ::testing::Values(false, true)),
+                                                              ov::test::utils::DecompressionType::empty)),
                          MoECompressedOffloadTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedOffload,
                          MoECompressedOffloadTest,
                          ::testing::Combine(::testing::Values(size_t{50}, size_t{75}),
                                             ::testing::Values(ov::element::u8, ov::element::u4),
-                                            ::testing::Values(ov::test::utils::DecompressionType::full, ov::test::utils::DecompressionType::empty),
-                                            ::testing::Values(false)),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full, ov::test::utils::DecompressionType::empty)),
                          MoECompressedOffloadTest::getTestCaseName);
 
 // GatherMatmul and fused MoE kernels support only f16 activations, so the MoE pipeline must be applied
@@ -621,7 +616,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmGeluCompressed,
                                             ::testing::Values(true)),        // use_weight_decompression
                          MoECompressedFusionTest::getTestCaseName);
 
-// Gelu gate on u3: applied by the batched GEMV (decode) and by the int8 quantizer of the down input (prefill).
+// Gelu gate on u3: applied by the batched GEMV (decode) and by the epilogue of the int8 gate GEMM (prefill).
 INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmGeluCompressed_u3,
                          MoECompressedFusionTest,
                          ::testing::Combine(::testing::ValuesIn(moe_params_smoke_u3),
