@@ -45,8 +45,11 @@ public:
         views.zp[2] = weights.down_z;
     }
 
-    std::optional<ExpertSlotLease> try_acquire_simultaneous(const std::vector<uint32_t>& experts, cldnn::stream& stream) override;
-    size_t acquire_one(uint32_t expert, cldnn::stream& stream) override;
+    std::optional<ExpertSlotLease> try_acquire_simultaneous(const std::vector<uint32_t>& experts,
+                                                            const RoutedWeightViews& inputs,
+                                                            const RoutedWeightViews& slots,
+                                                            cldnn::stream& stream) override;
+    size_t acquire_one(uint32_t expert, const RoutedWeightViews& inputs, const RoutedWeightViews& slots, cldnn::stream& stream) override;
 };
 
 // Offload (OTD) provider: expert weights live on disk and are streamed on demand
@@ -56,8 +59,8 @@ public:
 //
 // The resident weight buffers are not owned here; they are bound at runtime via
 // bind() because in this back-end they alias the primitive's
-// input memory. The scales and zero points stay fully resident in the primitive inputs:
-// bind() replaces them with slot buffers and keeps the inputs as the source of the per-expert copies.
+// input memory. The scales and zero points stay fully resident in the primitive inputs; the per-expert ones
+// are copied on a miss into slot buffers that the primitive instance owns and passes to every acquisition.
 // Loading metadata (config / bin offsets / weights path) is captured
 // at construction from graph-build time information.
 class OffloadExpertWeightProvider : public IExpertWeightProvider {
@@ -80,8 +83,11 @@ public:
         return _bound;
     }
     void fill_routed_weight_views(cldnn::moe_weights& weights, RoutedWeightViews& views) override;
-    std::optional<ExpertSlotLease> try_acquire_simultaneous(const std::vector<uint32_t>& experts, cldnn::stream& stream) override;
-    size_t acquire_one(uint32_t expert, cldnn::stream& stream) override;
+    std::optional<ExpertSlotLease> try_acquire_simultaneous(const std::vector<uint32_t>& experts,
+                                                            const RoutedWeightViews& inputs,
+                                                            const RoutedWeightViews& slots,
+                                                            cldnn::stream& stream) override;
+    size_t acquire_one(uint32_t expert, const RoutedWeightViews& inputs, const RoutedWeightViews& slots, cldnn::stream& stream) override;
 
     LRUCache& cache() {
         return *_cache;
@@ -92,6 +98,10 @@ public:
     }
 
 private:
+    // The engine may re-allocate an internal buffer, and then the experts loaded into it are gone
+    void reset_cache_if_slots_changed(const RoutedWeightViews& slots);
+    void load(uint32_t expert, size_t slot, const RoutedWeightViews& inputs, const RoutedWeightViews& slots, cldnn::stream& stream);
+
     size_t _capacity = 0;
     cldnn::MOECompressed::Config _config{};
     std::vector<size_t> _weight_bin_offsets;
@@ -99,9 +109,9 @@ private:
     std::shared_ptr<LRUCache> _cache;
     moe_otd::ParallelWeightReader _weight_reader;
     cldnn::moe_weights* _resident = nullptr;
-    // Scales and zero points with every expert, only the per-expert ones are set
-    cldnn::moe_weights _sources{};
     bool _bound = false;
+    // Handles of the slot buffers the LRU describes, compared only to detect a re-allocation
+    std::vector<const void*> _slot_handles;
 };
 
 }  // namespace ov::intel_gpu::ocl::moe

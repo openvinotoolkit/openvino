@@ -2,16 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils/test_utils.h"
-#include "ocl_v2/moe/expert_weight_providers.hpp"
-
 #include <filesystem>
 #include <fstream>
 
+#include "ocl_v2/moe/expert_weight_providers.hpp"
+#include "test_utils/test_utils.h"
+
 using namespace cldnn;
 using namespace tests;
+using ov::intel_gpu::ocl::moe::get_slot_layout;
 using ov::intel_gpu::ocl::moe::OffloadExpertWeightProvider;
 using ov::intel_gpu::ocl::moe::ResidentExpertWeightProvider;
+using ov::intel_gpu::ocl::moe::RoutedWeightViews;
 
 TEST(moe_expert_weight_provider, resident_is_identity) {
     ResidentExpertWeightProvider provider;
@@ -21,7 +23,7 @@ TEST(moe_expert_weight_provider, resident_is_identity) {
     // Fully resident: try_acquire_simultaneous returns the expert ids unchanged, including duplicates
     // (no remap, no dedup) - the expert id is already the addressable slot.
     std::vector<uint32_t> experts = {3, 1, 4, 1, 5, 9, 2, 6};
-    auto lease = provider.try_acquire_simultaneous(experts, get_test_stream());
+    auto lease = provider.try_acquire_simultaneous(experts, {}, {}, get_test_stream());
     ASSERT_TRUE(lease.has_value());
     ASSERT_EQ(*lease, (std::vector<size_t>{3, 1, 4, 1, 5, 9, 2, 6}));
 }
@@ -56,15 +58,15 @@ TEST(moe_expert_weight_provider, offload_bind_resident_buffers) {
 TEST(moe_expert_weight_provider, resident_try_acquire_simultaneous_is_identity) {
     ResidentExpertWeightProvider provider;
     std::vector<uint32_t> experts = {3, 7, 3, 1, 7};
-    auto lease = provider.try_acquire_simultaneous(experts, get_test_stream());
+    auto lease = provider.try_acquire_simultaneous(experts, {}, {}, get_test_stream());
     ASSERT_TRUE(lease.has_value());
     ASSERT_EQ(*lease, (std::vector<size_t>{3, 7, 3, 1, 7}));
 }
 
 TEST(moe_expert_weight_provider, resident_acquire_one_is_identity) {
     ResidentExpertWeightProvider provider;
-    ASSERT_EQ(provider.acquire_one(42, get_test_stream()), 42U);
-    ASSERT_EQ(provider.acquire_one(0, get_test_stream()), static_cast<size_t>(0));
+    ASSERT_EQ(provider.acquire_one(42, {}, {}, get_test_stream()), 42U);
+    ASSERT_EQ(provider.acquire_one(0, {}, {}, get_test_stream()), static_cast<size_t>(0));
 }
 
 TEST(moe_expert_weight_provider, offload_try_acquire_simultaneous_capacity_overflow) {
@@ -85,7 +87,7 @@ TEST(moe_expert_weight_provider, offload_try_acquire_simultaneous_capacity_overf
 
     // 3 unique experts (0, 1, 2) exceeds capacity=2 -> nullopt
     std::vector<uint32_t> experts = {0, 1, 2, 0, 1};
-    auto lease = provider.try_acquire_simultaneous(experts, get_test_stream());
+    auto lease = provider.try_acquire_simultaneous(experts, {}, {}, get_test_stream());
     ASSERT_FALSE(lease.has_value());
 }
 
@@ -106,7 +108,7 @@ TEST(moe_expert_weight_provider, offload_try_acquire_simultaneous_within_capacit
 
     // 2 unique experts (0, 1) with duplicates -> within capacity=2
     std::vector<uint32_t> experts = {0, 1, 0, 1, 0};
-    auto lease = provider.try_acquire_simultaneous(experts, get_test_stream());
+    auto lease = provider.try_acquire_simultaneous(experts, {}, {}, get_test_stream());
     ASSERT_TRUE(lease.has_value());
     // Slots should be valid (cache returned slots for experts 0 and 1)
     ASSERT_EQ(lease->size(), 5U);
@@ -130,7 +132,7 @@ TEST(moe_expert_weight_provider, offload_acquire_one_basic) {
     cache.set_filled(slot0);
 
     // acquire_one should return a valid slot
-    auto slot = provider.acquire_one(5, get_test_stream());
+    auto slot = provider.acquire_one(5, {}, {}, get_test_stream());
     ASSERT_EQ(slot, slot0);
 }
 
@@ -153,7 +155,10 @@ TEST(moe_expert_weight_provider, offload_loads_weights_from_file_and_params_from
 
     const layout weight_layout{ov::Shape{num_expert, rows, cols}, data_types::u8, format::bfyx};
     const layout weight_slots_layout{ov::Shape{capacity, rows, cols}, data_types::u8, format::bfyx};
-    auto weight_slots = engine.reinterpret_buffer(*engine.allocate_memory(weight_slots_layout), weight_layout);
+    // The partially uploaded weight constant: `capacity` experts, viewed with the full layout
+    const auto allocate_weight_slots = [&]() {
+        return engine.reinterpret_buffer(*engine.allocate_memory(weight_slots_layout), weight_layout);
+    };
     // Scales already reordered by the regular pipeline, with every expert resident
     const layout scales_layout{ov::Shape{num_expert, rows, groups, 1}, data_types::f16, format::byfx};
     auto scales = engine.allocate_memory(scales_layout);
@@ -169,25 +174,35 @@ TEST(moe_expert_weight_provider, offload_loads_weights_from_file_and_params_from
     config.num_expert = num_expert;
     {
         OffloadExpertWeightProvider provider(capacity, config, {weights_offset, 0, 0}, path);
-        cldnn::moe_weights resident{};
-        resident.gate_w = weight_slots;
-        resident.gate_s = scales;
-        resident.gate_z = shared_zp;
-        provider.bind(resident);
-        ASSERT_NE(resident.gate_s, scales);
-        ASSERT_EQ(resident.gate_z, shared_zp);
+        RoutedWeightViews inputs;
+        inputs.scale[0] = scales;
+        inputs.zp[0] = shared_zp;
+        // The scale slots are an internal buffer of the primitive instance; a zero point shared by all the experts has none
+        RoutedWeightViews slots;
+        slots.weight[0] = allocate_weight_slots();
+        slots.scale[0] = engine.allocate_memory(get_slot_layout(scales_layout, capacity, num_expert));
 
         const uint32_t expert = 3;
-        const auto slot = provider.acquire_one(expert, stream);
+        const auto slot = provider.acquire_one(expert, inputs, slots, stream);
         ASSERT_LT(slot, capacity);
 
         std::vector<uint8_t> loaded_weights(weight_bytes);
-        weight_slots->copy_to(stream, loaded_weights.data(), slot * weight_bytes, 0, weight_bytes, true);
+        slots.weight[0]->copy_to(stream, loaded_weights.data(), slot * weight_bytes, 0, weight_bytes, true);
         EXPECT_EQ(loaded_weights, std::vector<uint8_t>(weight_bytes, static_cast<uint8_t>(expert)));
 
         constexpr size_t scale_count = rows * groups;
         std::vector<ov::float16> loaded_scales(scale_count);
-        resident.gate_s->copy_to(stream, loaded_scales.data(), slot * scale_count * sizeof(ov::float16), 0, scale_count * sizeof(ov::float16), true);
+        slots.scale[0]->copy_to(stream, loaded_scales.data(), slot * scale_count * sizeof(ov::float16), 0, scale_count * sizeof(ov::float16), true);
+        EXPECT_EQ(loaded_scales, std::vector<ov::float16>(scale_data.begin() + expert * scale_count, scale_data.begin() + (expert + 1) * scale_count));
+        EXPECT_EQ(provider.acquire_one(expert, inputs, slots, stream), slot);
+
+        // A re-allocated slot buffer has lost the experts, they are loaded again. The old one is kept so that the new one gets other memory.
+        const auto old_scale_slots = slots.scale[0];
+        slots.scale[0] = engine.allocate_memory(get_slot_layout(scales_layout, capacity, num_expert));
+        slots.scale[0]->fill(stream, 0u);
+        const auto reloaded_slot = provider.acquire_one(expert, inputs, slots, stream);
+        std::fill(loaded_scales.begin(), loaded_scales.end(), ov::float16(0.f));
+        slots.scale[0]->copy_to(stream, loaded_scales.data(), reloaded_slot * scale_count * sizeof(ov::float16), 0, scale_count * sizeof(ov::float16), true);
         EXPECT_EQ(loaded_scales, std::vector<ov::float16>(scale_data.begin() + expert * scale_count, scale_data.begin() + (expert + 1) * scale_count));
     }
     std::filesystem::remove(path);

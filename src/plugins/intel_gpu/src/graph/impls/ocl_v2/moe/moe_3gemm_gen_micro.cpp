@@ -8,6 +8,7 @@
 // For example, intel_gpu/runtime/utils.hpp will causes compiling error in hash<dnnl::impl::primitive_hashing::key_t>
 #include "moe_3gemm_gen_micro.hpp"
 
+#include "expert_weight_provider.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 #include "ocl_v2/utils/jitter.hpp"
@@ -392,6 +393,14 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
     Arguments args;
     auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
     const bool is_weight_symmetric_quantized = (params.input_layouts[m_zp_idx].count() == 0);
+    // The experts of an offloaded layer are addressed by slot: its per-expert scales and zero points are read from their slot buffers
+    const auto scale_zp_arg = [&](MOE3GemmInputIndex input, uint32_t slots) -> ArgumentDescriptor {
+        const auto index = static_cast<size_t>(input);
+        if (desc->_otd.lru_expert_num > 0 && moe::is_per_expert(params.input_layouts[index], desc->_config.num_expert)) {
+            return {ArgumentDescriptor::Types::INTERNAL_BUFFER, slots};
+        }
+        return {ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(index)};
+    };
 
     switch (m_type) {
     case MoE3GemmMicroKernelType::MLP_GATE:
@@ -409,9 +418,9 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT});  // n_array - token len
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                                            // m
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                                            // k
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_0)});                 // scale
+        args.push_back(scale_zp_arg(MOE3GemmInputIndex::SCALE_0, MOE_INTERNAL_BUFFER_OTD_SCALE_SLOTS));                    // scale
         if (!is_weight_symmetric_quantized) {
-            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_0)});  // zp
+            args.push_back(scale_zp_arg(MOE3GemmInputIndex::ZP_0, MOE_INTERNAL_BUFFER_OTD_ZP_SLOTS));  // zp
         }
         break;
     case MoE3GemmMicroKernelType::MLP_UP:
@@ -423,9 +432,9 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT});  // n_array - token len
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                                            // m
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                                            // k
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_1)});                 // scale
+        args.push_back(scale_zp_arg(MOE3GemmInputIndex::SCALE_1, MOE_INTERNAL_BUFFER_OTD_SCALE_SLOTS + 1));                // scale
         if (!is_weight_symmetric_quantized) {
-            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_1)});  // zp
+            args.push_back(scale_zp_arg(MOE3GemmInputIndex::ZP_1, MOE_INTERNAL_BUFFER_OTD_ZP_SLOTS + 1));  // zp
         }
         break;
     case MoE3GemmMicroKernelType::MLP_DOWN:
@@ -437,9 +446,9 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT});  // n_array - token len
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                                            // m
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                                            // k
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_2)});                 // scale
+        args.push_back(scale_zp_arg(MOE3GemmInputIndex::SCALE_2, MOE_INTERNAL_BUFFER_OTD_SCALE_SLOTS + 2));                // scale
         if (!is_weight_symmetric_quantized) {
-            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_2)});  // zp
+            args.push_back(scale_zp_arg(MOE3GemmInputIndex::ZP_2, MOE_INTERNAL_BUFFER_OTD_ZP_SLOTS + 2));  // zp
         }
         break;
     default:
