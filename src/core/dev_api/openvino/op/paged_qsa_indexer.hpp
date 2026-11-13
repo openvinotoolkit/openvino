@@ -48,12 +48,6 @@ public:
         static constexpr size_t COUNT = 13;
     };
 
-    struct OutputIdx {
-        static constexpr size_t SELECTED_BLOCK_INDICES = 0;  ///< [tokens, num_selection_heads, block_topk]
-        static constexpr size_t SELECTED_BLOCK_COUNT = 1;    ///< [tokens, num_selection_heads]
-        static constexpr size_t COUNT = 2;
-    };
-
     struct Config {
         size_t key_block_size = 4;       ///< r
         size_t block_topk = 0;           ///< K_max, required

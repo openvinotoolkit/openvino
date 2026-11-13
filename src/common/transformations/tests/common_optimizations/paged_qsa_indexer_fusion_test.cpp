@@ -46,7 +46,6 @@ namespace op_internal = ov::op::internal;
 using QSAIndexerInputIdx = op_internal::QSAIndexer::InputIdx;
 using QSAIndexerOutputIdx = op_internal::QSAIndexer::OutputIdx;
 using PagedQSAIndexerInputIdx = op_internal::PagedQSAIndexer::InputIdx;
-using PagedQSAIndexerOutputIdx = op_internal::PagedQSAIndexer::OutputIdx;
 
 constexpr int64_t query_heads = 4;
 constexpr int64_t key_heads = 1;
@@ -178,9 +177,8 @@ std::shared_ptr<Model> make_model(const GraphOptions& o, bool paged) {
             const auto token_major = std::make_shared<v1::Reshape>(paged_indexer->output(output), shape, false);
             return std::make_shared<v1::Transpose>(token_major, i64(order));
         };
-        indices =
-            restore(PagedQSAIndexerOutputIdx::SELECTED_BLOCK_INDICES, {selection_heads, block_topk}, {0, 2, 1, 3});
-        count = restore(PagedQSAIndexerOutputIdx::SELECTED_BLOCK_COUNT, {selection_heads}, {0, 2, 1});
+        indices = restore(0, {selection_heads, block_topk}, {0, 2, 1, 3});
+        count = restore(1, {selection_heads}, {0, 2, 1});
         block_keys_state = block_keys_cache;
         raw_keys_state = incomplete_raw_keys_with_head;
         rope_state = incomplete_rope;

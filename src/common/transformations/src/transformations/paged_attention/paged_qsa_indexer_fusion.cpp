@@ -33,7 +33,6 @@ namespace op_internal = ov::op::internal;
 using QSAIndexerInputIdx = op_internal::QSAIndexer::InputIdx;
 using QSAIndexerOutputIdx = op_internal::QSAIndexer::OutputIdx;
 using PagedQSAIndexerInputIdx = op_internal::PagedQSAIndexer::InputIdx;
-using PagedQSAIndexerOutputIdx = op_internal::PagedQSAIndexer::OutputIdx;
 
 namespace {
 
@@ -223,10 +222,8 @@ PagedQSAIndexerFusion::PagedQSAIndexerFusion(paged_attention::PaParams& pa_param
             const auto token_major = rg.make<v1::Reshape>(paged->output(output), shape, false);
             return rg.make<v1::Transpose>(token_major, i64(order));
         };
-        const auto indices = restore(PagedQSAIndexerOutputIdx::SELECTED_BLOCK_INDICES,
-                                     {selection_heads, static_cast<int64_t>(config.block_topk)},
-                                     {0, 2, 1, 3});
-        const auto count = restore(PagedQSAIndexerOutputIdx::SELECTED_BLOCK_COUNT, {selection_heads}, {0, 2, 1});
+        const auto indices = restore(0, {selection_heads, static_cast<int64_t>(config.block_topk)}, {0, 2, 1, 3});
+        const auto count = restore(1, {selection_heads}, {0, 2, 1});
         rg.add(batch_and_length);
         ov::copy_runtime_info(indexer, rg.get());
         register_new_node(paged);
