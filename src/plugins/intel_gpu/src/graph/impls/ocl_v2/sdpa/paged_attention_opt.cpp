@@ -1723,7 +1723,7 @@ public:
 
     // Whether sdpa_ocl serves PREFILL/MIXED of this op, decided once per impl from the descriptor, config, environment
     // and device -- never per shape -- and remembered only as the staged pair (sdpa_ocl_staged()). The device part is
-    // the table in paged_attention.hpp. The K page layout does not depend on it: an op refused here runs
+    // the table in docs/sdpa_ocl.md, "Where it runs". The K page layout does not depend on it: an op refused here runs
     // pa_sdpa_opt / pa_multi_token, which read every page.
     static bool choose_sdpa_ocl(const kernel_impl_params& params) {
         const auto& info = params.get_device_info();

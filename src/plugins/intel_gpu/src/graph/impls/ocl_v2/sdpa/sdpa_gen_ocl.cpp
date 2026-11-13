@@ -1900,9 +1900,9 @@ bool SDPAOclGenerator::supported(const kernel_impl_params& params) {
         return dt == ov::element::f16 || dt == ov::element::bf16 || data_type_traits::is_i8_u8(dt) || data_type_traits::is_i4_u4(dt);
     };
 
-    // xe_hpc and Xe2+ (the 2D block IO kernels) and xe_hpg (the SG8 arms). Every caller already requires XMX.
+    // The lane: XMX on xe_hpc and Xe2+ (the 2D block IO kernels) or xe_hpg (the SG8 arms). Every caller already checks it.
     const auto arch = params.get_device_info().arch;
-    if (!paged_attention::sdpa_ocl_arch_ok(params.get_device_info())) {
+    if (!paged_attention::sdpa_ocl_selected(params.get_device_info())) {
         return false;
     }
     // xe_hpg serves plain SDPA on an i8 KV cache only (k_tile_dword_i8 / v_tile_gather). A plain int4 cache has no nibble
