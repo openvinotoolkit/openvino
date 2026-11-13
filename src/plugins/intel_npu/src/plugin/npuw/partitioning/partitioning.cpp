@@ -2328,10 +2328,12 @@ void Partitioner::optimize(const std::string& func_name) {
         // Convert parameters to f16 where required
         do_cvtf16(ctx);
 
-        // Add lazy Sub128 parameters while retaining the original sources when they are still shared.
-        // A source and its Sub128 closure share one LazyTensor, which the weights bank detaches after
-        // the first evaluation. The source is kept only for readers that are reachable from the
-        // model outputs: a disconnected chain that an earlier pass still holds must not count.
+        // Replace the u8 sources with lazy Sub128 parameters. A Sub128 closure is built on its source
+        // closure and shares its data, which the weights bank detaches after the first evaluation, so
+        // the source can never stay as a closure of its own: it is always removed. The passes that
+        // request Sub128 replace every reader of the source. A disconnected chain that an earlier pass
+        // still holds (for example the parallel MatMul context) may still list it as a reader, so only
+        // readers reachable from the model outputs count.
         std::unordered_set<const ov::Node*> live_ops;
         if (!ctx.closures_to_subtract_128.empty()) {
             for (const auto& node : f._model->get_ordered_ops()) {
@@ -2358,7 +2360,8 @@ void Partitioner::optimize(const std::string& func_name) {
                 std::any_of(source_readers.begin(), source_readers.end(), [&](const ov::Input<ov::Node>& reader) {
                     return live_ops.count(reader.get_node()) > 0;
                 });
-            if (!source_has_live_reader && to_remove_idx.insert(source_idx).second) {
+            NPUW_ASSERT(!source_has_live_reader && "The u8 source of a Sub128 closure must have no other readers");
+            if (to_remove_idx.insert(source_idx).second) {
                 to_remove.push_back(source_param);
             }
         }

@@ -822,11 +822,10 @@ ConstantHead make_constant_head() {
 
 }  // namespace
 
-// CVS-199500: partitioning decided whether to keep the u8 vocabulary Parameter next to its Sub128
-// closure by get_target_inputs(). Any holder of the replaced vocabulary chain (here the test, in
+// CVS-199500: partitioning kept the u8 vocabulary Parameter next to its Sub128 closure while
+// get_target_inputs() was not empty. A holder of the replaced vocabulary chain (here the test, in
 // the bug the parallel MatMul context) made the disconnected Gather count as a reader, and the
-// weights bank then detached the source shared by both closures. Only readers reachable from the
-// model outputs may keep the source.
+// weights bank then detached the source shared by both closures. The source is always replaced.
 TEST(HostGatherSub128PartitioningTest, DropsVocabularySourceHeldByDisconnectedChain) {
     const auto head = make_constant_head();
     auto cfg = make_head_partitioning_cfg();
