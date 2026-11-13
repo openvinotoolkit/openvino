@@ -4,9 +4,9 @@
 // Copyright (C) 2026 FUJITSU LIMITED
 //
 // half support for the native NVIDIA OpenCL compiler, which enables cl_khr_fp16 but leaves most of the half built-ins
-// out: the HALF_* limits, math overloads, convert_* families, as_* reinterprets, vloadN / vstoreN, the relational
-// built-ins and the half atomics of cl_ext_float_atomics. The convert_* section also emulates Intel's out-of-range
-// float to integer conversion, which is not specific to half.
+// out: the HALF_* limits, math overloads, convert_* families, as_* reinterprets, vloadN / vstoreN, prefetch, the
+// relational built-ins and the half atomics of cl_ext_float_atomics. The convert_* section also emulates Intel's
+// out-of-range float to integer conversion, which is not specific to half.
 //
 // Depends on:
 //     nvidia/compat_common.cl   cl_khr_fp16
@@ -407,6 +407,22 @@ static inline void __attribute__((overloadable)) vstore8 (half8  v,size_t o,as h
 static inline void __attribute__((overloadable)) vstore16(half16 v,size_t o,as half* p){p[o*16+0]=v.s0;p[o*16+1]=v.s1;p[o*16+2]=v.s2;p[o*16+3]=v.s3;p[o*16+4]=v.s4;p[o*16+5]=v.s5;p[o*16+6]=v.s6;p[o*16+7]=v.s7;p[o*16+8]=v.s8;p[o*16+9]=v.s9;p[o*16+10]=v.sa;p[o*16+11]=v.sb;p[o*16+12]=v.sc;p[o*16+13]=v.sd;p[o*16+14]=v.se;p[o*16+15]=v.sf;}
 OV_NV_VSTORE(__global)
 #undef OV_NV_VSTORE
+
+// --------------------------------------------------------------------------------------------------------------------
+// prefetch
+// --------------------------------------------------------------------------------------------------------------------
+// The NVIDIA headers have no halfN overloads of prefetch, so a call on a half pointer is ambiguous. Each one prefetches
+// the same bytes through the uchar overload.
+
+#define OV_NV_H_PREFETCH(w) \
+static inline void __attribute__((overloadable)) prefetch(const __global half##w* p, size_t n){prefetch((const __global uchar*)p, n*sizeof(half##w));}
+OV_NV_H_PREFETCH()
+OV_NV_H_PREFETCH(2)
+OV_NV_H_PREFETCH(3)
+OV_NV_H_PREFETCH(4)
+OV_NV_H_PREFETCH(8)
+OV_NV_H_PREFETCH(16)
+#undef OV_NV_H_PREFETCH
 
 // --------------------------------------------------------------------------------------------------------------------
 // Relational built-ins
