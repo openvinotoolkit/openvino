@@ -242,7 +242,7 @@ shared tests and documentation according to the behavior exercised or described.
 | `src/tests/functional/` shared operator and inference behavior tests | [Runtime and core](references/runtime.md) and [Plugins](references/plugins.md), as exercised |
 | `src/frontends/`, `src/bindings/python/src/openvino/frontend/`, `src/bindings/python/src/pyopenvino/frontend/`, framework conversion tests in `tests/layer_tests/` and `tests/model_hub_tests/` | [Frontends](references/frontend.md); also apply [Bindings and public APIs](references/bindings.md) for Python API or language-boundary changes |
 | `src/bindings/`, public API changes under `src/core/include/` or `src/inference/include/` | [Bindings and public APIs](references/bindings.md) |
-| `.github/workflows/`, `.github/actions/`, `.github/scripts/`, `.github/dockerfiles/`, Smart CI and dependency configuration under `.github/`, `cmake/`, `CMakeLists.txt`, and `*.cmake` | [Build and CI](references/build_ci.md) |
+| `.github/workflows/`, `.github/actions/`, `.github/scripts/`, `.github/dockerfiles/`, Smart CI and dependency configuration under `.github/`, `cmake/`, `CMakeLists.txt` and `*.cmake` at any depth, dependency manifests and integration changes | [CI, build, and dependencies](references/ci.md) |
 
 This skill defines the common evidence and reporting contract. Component
 references add domain-specific checks and explicit requirements.
