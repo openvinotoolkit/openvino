@@ -8025,17 +8025,16 @@ Output<Node> make_paged_sparse_attention(const Case& test_case,
                                          const OutputVector& paging,
                                          const Output<Node>& selected_block_indices,
                                          const Output<Node>& selected_block_count) {
-    // The scale is kept, a single-element one is squeezed, and an absent one defaults to 1 / sqrt(S).
+    // The scale is kept, a single-element constant one is folded to a scalar, and an absent one defaults to
+    // 1 / sqrt(S).
     Output<Node> scale;
     switch (test_case.scale) {
     case Scale::Absent:
         scale = v0::Constant::create(test_case.data_type, Shape{}, {1.0f / std::sqrt(static_cast<float>(head_size))});
         break;
     case Scale::Scalar:
-        scale = make_scale(test_case);
-        break;
     case Scale::Vector1:
-        scale = std::make_shared<v15::Squeeze>(make_scale(test_case));
+        scale = v0::Constant::create(test_case.data_type, Shape{}, {explicit_scale});
         break;
     }
     // The sinks are kept with their own precision; absent sinks become an empty tensor of the Q/K/V type.

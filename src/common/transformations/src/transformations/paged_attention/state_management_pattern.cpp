@@ -560,6 +560,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
 
         auto kv_transpose_order = v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3});
 
+        std::cout << "real_q ps: " << real_q.get_partial_shape() << std::endl;
         auto q_transpose = std::make_shared<v1::Transpose>(real_q, kv_transpose_order);
         auto q_reshape =
             std::make_shared<v1::Reshape>(q_transpose, v0::Constant::create(element::i64, Shape{2}, {0, -1}), true);

@@ -161,8 +161,7 @@ ov::pass::PagedSparseAttentionFusion::PagedSparseAttentionFusion(ov::pass::paged
         if (pm.count(p_scale)) {
             scale = pm.at(p_scale);
             if (scale.get_partial_shape().rank() == 1) {
-                const auto squeezed_scale = std::make_shared<v15::Squeeze>(scale);
-                scale = squeezed_scale;
+                scale = ov::op::util::make_try_fold<v15::Squeeze>(scale);
             }
         } else {
             scale = v0::Constant::create(packed_query.get_element_type(),

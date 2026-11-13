@@ -85,7 +85,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                     "of --task text-generation");
 
     const bool has_attention =
-        ov::op::util::has_op_with_types<ov::op::v13::ScaledDotProductAttention, ov::op::v17::SparseAttention>(model);
+        ov::op::util::has_op_with_type<ov::op::v13::ScaledDotProductAttention, ov::op::v17::SparseAttention>(model);
     OPENVINO_ASSERT(has_attention,
                     "No ScaledDotProductAttention or SparseAttention operation observed in the graph, cannot perform "
                     "the SDPAToPagedAttention transformation.");
@@ -124,6 +124,10 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     if (const auto ngram_embeddings = get_parameter(model, "ngram_embeddings")) {
         const auto ngram_shape = ngram_embeddings->get_partial_shape();
+        OPENVINO_ASSERT(ngram_shape.rank().is_static() && ngram_shape.rank().get_length() == 4,
+                        "Unexpected shape for ngram_embeddings input: expected rank 4 "
+                        "[batch, seq_len, num_ngrams, embedding_size], observed ",
+                        ngram_shape);
         ngram_embeddings->set_partial_shape(PartialShape{-1, 1, ngram_shape[2], ngram_shape[3]});
     }
 

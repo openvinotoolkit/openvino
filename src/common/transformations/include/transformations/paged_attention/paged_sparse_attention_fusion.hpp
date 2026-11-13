@@ -28,7 +28,8 @@ namespace pass {
  * SDPAToPagedAttention must prepare all token inputs before this matcher runs.
  * They use B_token as the leading dimension and a singleton sequence axis
  * inside the graph, as in StateManagementPattern. In particular, the external
- * ngram_embeddings input is [B_token, 1, num_ngrams, embedding_size].
+ * ngram_embeddings input is [B_token, num_ngrams, embedding_size], restored to
+ * [B_token, 1, num_ngrams, embedding_size] for its existing consumers.
  * Bs is distinct from the sparse attention attribute key_block_size;
  * KB counts selected sparse blocks, each containing key_block_size tokens.
  *
@@ -66,8 +67,7 @@ namespace pass {
  * The enclosing model pass must add pa_params to the model and remove Assign
  * sinks for var_ids_to_remove. Preparing the sparse indexer's paged state is
  * a separate transformation.
- * The replacement is a temporary graph-only op until PagedSparseAttention is
- * implemented in core.
+ * The replacement uses the internal core PagedSparseAttention operation.
  */
 
 class TRANSFORMATIONS_API PagedSparseAttentionFusion : public ov::pass::MatcherPass {
