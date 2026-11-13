@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-13-07-25-20-254-43378018793",
+  "timestamp": "2026-11-13T07:25:20Z",
+  "run_id": "43378018793",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43378018793",
+  "workflow_name": "Build (C++20, non-blocking) / Build",
+  "pr_number": "39266",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39266",
+  "author": "KirillSmirnov",
+  "category": "Configuration",
+  "title": "Build (C++20) job fails - sccache cannot start because Azure Blob connection string URI is malformed",
+  "signature": "sccache server startup failed cache storage failed to read unexpected permanent at read azbloberror code invaliduri message the requested uri does not represent any resource on the server|Configuration",
+  "signature_hash": "08b993dbdc18ccac",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build (C++20, non-blocking) / Build",
+      "conclusion": "failure",
+      "symptom": "CMake C compiler check fails because sccache server fails to start, aborting configure"
+    }
+  ],
+  "key_errors": [
+    "CMake Error at /usr/share/cmake-3.28/Modules/CMakeTestCCompiler.cmake:67 (message): The C compiler \"/usr/bin/cc\" is not able to compile a simple test program.",
+    "sccache: error: Server startup failed: cache storage failed to read: Unexpected (permanent) at read => AzblobError { code: \"InvalidUri\", message: \"The requested URI does not represent any resource on the server.\" }",
+    "uri: https://ghasccacheblobs.blob.core.windows.net//sccache/ubuntu_24_04_x86_64_Release_cpp20/.sccache_check",
+    "-- Configuring incomplete, errors occurred!"
+  ],
+  "root_cause": "The non-blocking C++20 build job sets CMAKE_C_COMPILER_LAUNCHER/CMAKE_CXX_COMPILER_LAUNCHER to sccache with an Azure Blob remote cache backend (SCCACHE_AZURE_CONNECTION_STRING/SCCACHE_AZURE_KEY_PREFIX). The sccache daemon fails to start because the blob storage URI it builds (note the double slash in 'https://ghasccacheblobs.blob.core.windows.net//sccache/...') is rejected by Azure with 'InvalidUri'. This is almost certainly caused by a misconfigured SCCACHE_AZURE_CONNECTION_STRING/key-prefix combination (an extra separator or malformed container/blob-prefix value) producing a doubled path separator, rather than a transient service outage, since the identical signature has now recurred 9 times over the past week across many unrelated PRs with the same double-slash URI pattern.",
+  "reproduction_steps": "N/A - requires the CI runner's SCCACHE_AZURE_CONNECTION_STRING secret and cache endpoint; cannot be reproduced locally. To reproduce in CI, trigger the 'Build (C++20, non-blocking)' job and inspect CMakeFiles/CMakeError.log / sccache --show-stats output for the AzblobError.",
+  "recommended_actions": [
+    "Inspect the SCCACHE_AZURE_KEY_PREFIX / SCCACHE_AZURE_CONNECTION_STRING configuration used by the 'Build (C++20, non-blocking)' job (likely in .github/workflows/job_build_linux_cpp20.yml or a shared composite action) for a trailing/leading slash that produces the doubled '//' segment in the blob URI.",
+    "Compare the Azure Blob prefix configuration against other build jobs (e.g. ARM64) that use sccache successfully to find the discrepancy.",
+    "Consider setting SCCACHE_IGNORE_SERVER_IO_ERROR more defensively or adding a fallback to local caching when the Azure backend is unreachable/misconfigured, so a cache misconfiguration does not fail the whole build.",
+    "Once fixed, verify by re-running the C++20 job and confirming sccache startup succeeds (no AzblobError in logs)."
+  ],
+  "prevention_strategies": "Add a startup self-check step that validates the sccache Azure Blob URI (e.g., a HEAD request to the configured endpoint) before the main build begins, failing fast with a clear configuration error instead of an opaque CMake compiler-detection failure. Periodically audit the SCCACHE_AZURE_* secrets/variables across workflow files to catch future URI drift. Since this is a non-blocking job, consider also alerting on sustained sccache-caused failures separately from the main merge gate.",
+  "historical_context": "This exact signature (pattern 08b993dbdc18ccac) has now recurred 9 times since 2026-11-06, most recently at 2026-11-13T03:40:54Z (run 43352207166) and now again in this run. It has affected many unrelated PRs (#39563, #39717, #38204, #39578, #39262, #39034, #39101, and now #39266), confirming this is a persistent CI infrastructure/configuration defect in the C++20 non-blocking build job rather than an issue with any specific PR's code changes."
+}
