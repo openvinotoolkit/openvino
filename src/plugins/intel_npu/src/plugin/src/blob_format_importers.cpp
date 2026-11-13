@@ -469,7 +469,14 @@ void validate_batch_size_against_descriptors(const NetworkMetadata& metadata, co
 
     auto check_descriptors = [batch_size](const std::vector<IODescriptor>& descriptors) {
         for (const IODescriptor& descriptor : descriptors) {
-            if (descriptor.isInitInputWeights || descriptor.isInitOutputWeights || descriptor.isMainInputWeights) {
+            // The init weights descriptors belong to the init schedules only. Their flags are derived from the names
+            // found in the blob, so they cannot be trusted for skipping the rank check below.
+            OPENVINO_ASSERT(!descriptor.isInitInputWeights && !descriptor.isInitOutputWeights,
+                            "The I/O descriptor \"",
+                            descriptor.nameFromCompiler,
+                            "\" of the main schedule is marked as an init schedule weights descriptor");
+
+            if (descriptor.isMainInputWeights) {
                 continue;
             }
 

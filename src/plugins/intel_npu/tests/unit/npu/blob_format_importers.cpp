@@ -199,7 +199,28 @@ TEST_F(BlobFormatImportersTest, BatchSizeRejectedForRankZeroDescriptors) {
 }
 
 /**
- * @brief Rank zero descriptors are allowed when the plugin does not perform the batching or for weights inputs
+ * @brief The init weights flags are derived from the names found in the blob, they must not be usable for skipping the
+ * rank check of the main schedule descriptors
+ */
+TEST_F(BlobFormatImportersTest, BatchSizeRejectedForInitWeightsDescriptors) {
+    NetworkMetadata metadata;
+    metadata.inputs.push_back(create_descriptor("input", ov::Shape{1, 3}));
+    metadata.outputs.push_back(create_descriptor("output", ov::Shape{1, 3}));
+
+    IODescriptor init_input = create_descriptor("init_input", ov::Shape{});
+    init_input.isInitInputWeights = true;
+    metadata.inputs.push_back(std::move(init_input));
+    OV_EXPECT_THROW_HAS_SUBSTRING(validate_batch_size_against_descriptors(metadata, 4), ov::Exception, "init_input");
+
+    metadata.inputs.pop_back();
+    IODescriptor init_output = create_descriptor("init_output", ov::Shape{1, 3});
+    init_output.isInitOutputWeights = true;
+    metadata.outputs.push_back(std::move(init_output));
+    OV_EXPECT_THROW_HAS_SUBSTRING(validate_batch_size_against_descriptors(metadata, 4), ov::Exception, "init_output");
+}
+
+/**
+ * @brief Rank zero descriptors are allowed when the plugin does not perform the batching or for main weights inputs
  */
 TEST_F(BlobFormatImportersTest, RankZeroDescriptorsAllowedWithoutPluginBatching) {
     NetworkMetadata metadata;

@@ -119,11 +119,12 @@ private:
  * @brief Checks whether the I/O descriptors of a graph can be batched by the plugin using the given batch size.
  * @details Plugin batching writes the batch value on the first axis of every I/O buffer. Rank zero descriptors do not
  * have such an axis, so a batch size imported from the blob metadata must be rejected if any of these is found. The
- * weights descriptors are ignored since they are never batched.
+ * main schedule weights descriptors are ignored since they are never batched.
  *
- * @param metadata The I/O descriptors of the graph.
+ * @param metadata The I/O descriptors of the main schedule.
  * @param batch_size The batch size extracted from the blob.
- * @throws ov::Exception if the batch size is positive and at least one descriptor has a dynamic or zero rank.
+ * @throws ov::Exception if the batch size is positive and at least one descriptor has a dynamic or zero rank, or is
+ * marked as an init schedule weights descriptor.
  */
 void validate_batch_size_against_descriptors(const NetworkMetadata& metadata, const int64_t batch_size);
 
