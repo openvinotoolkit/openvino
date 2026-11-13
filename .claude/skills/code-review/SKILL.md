@@ -225,7 +225,7 @@ shared tests and documentation according to the behavior exercised or described.
 | Changed paths or behavior | Reference |
 | --- | --- |
 | `src/core/`, `src/inference/` | [Runtime and core](references/runtime.md) |
-| `src/common/transformations/`, `src/common/low_precision_transformations/`, `src/common/offline_transformations/`, `src/common/snippets/`, `src/core/src/pass/`, `src/core/src/pattern/`, transformation passes and tests under frontends or plugins, `src/bindings/python/tests/test_transformations/` | [Transformations](references/transformations.md), plus owning-component guidance |
+| `src/common/transformations/`, `src/common/low_precision_transformations/`, `src/common/offline_transformations/`, `src/common/snippets/`, `src/core/src/pass/`, `src/core/src/pattern/`, `src/core/include/openvino/pass/` transformation passes and tests under frontends or plugins, `src/bindings/python/tests/test_transformations/` | [Transformations](references/transformations.md), plus owning-component guidance |
 | `src/plugins/intel_gpu/`, `src/inference/include/openvino/runtime/intel_gpu/`, Intel GPU tests, kernels, selection, runtime, memory, layouts, caching, precision, or platform enablement | [Plugins](references/plugins.md); also apply [Bindings and public APIs](references/bindings.md) for public API or user-visible contract changes |
 | `src/plugins/`, including plugin-local tests | [Plugins](references/plugins.md) |
 | `src/tests/functional/` shared operator and inference behavior tests | [Runtime and core](references/runtime.md) and [Plugins](references/plugins.md), as exercised |
