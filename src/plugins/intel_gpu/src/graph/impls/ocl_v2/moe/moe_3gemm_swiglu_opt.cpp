@@ -1080,15 +1080,13 @@ public:
     size_t dyn_quan_threshold = 0;
     // Output columns per subgroup of the u3 batched GEMV, per MoE3GemmInt3Gemv::Projection
     std::array<size_t, 2> int3_gemv_nbs{};
-    // Constant per impl, per MoE3GemmDynQuan::Projection; set when an impl runs on dynamically quantized activations
-    std::array<MoE3GemmDynQuan::Shape, 2> dyn_quan_shapes{};
-    std::array<MoE3GemmInt3Gemm::Shape, 2> int3_gemm_shapes{};
+    // Activation group size per MoE3GemmDynQuan::Projection, which depends on the compile-time config; set when an
+    // impl runs on dynamically quantized activations
+    std::array<size_t, 2> dyn_quan_group_sizes{};
 
-    const MoE3GemmDynQuan::Shape& dyn_quan_shape(MoE3GemmDynQuan::Projection proj) const {
-        return dyn_quan_shapes[static_cast<size_t>(proj)];
-    }
-    const MoE3GemmInt3Gemm::Shape& int3_gemm_shape(MoE3GemmInt3Gemm::Projection proj) const {
-        return int3_gemm_shapes[static_cast<size_t>(proj)];
+    MoE3GemmDynQuan::Shape dyn_quan_shape(MoE3GemmDynQuan::Projection proj) const {
+        const bool down = proj == MoE3GemmDynQuan::Projection::DOWN;
+        return {static_cast<size_t>(down ? _intermediate_size : _hidden_size), dyn_quan_group_sizes[static_cast<size_t>(proj)]};
     }
 
     // Whether the grouped GEMM path quantizes its activations (MoE3GemmDynQuan) for some token count
@@ -1211,12 +1209,7 @@ public:
         dyn_quan_threshold = config.get_moe_dynamic_quantization_threshold();
         if (uses_dyn_quan()) {
             for (auto proj : {MoE3GemmDynQuan::Projection::GATE_UP, MoE3GemmDynQuan::Projection::DOWN}) {
-                dyn_quan_shapes[static_cast<size_t>(proj)] = MoE3GemmDynQuan::get_shape(params, proj);
-            }
-        }
-        if (uses_int3_gemm()) {
-            for (auto proj : {MoE3GemmInt3Gemm::Projection::GATE_UP, MoE3GemmInt3Gemm::Projection::DOWN}) {
-                int3_gemm_shapes[static_cast<size_t>(proj)] = MoE3GemmInt3Gemm::get_shape(params, proj);
+                dyn_quan_group_sizes[static_cast<size_t>(proj)] = MoE3GemmDynQuan::get_shape(params, proj).group_size;
             }
         }
 
@@ -1529,11 +1522,8 @@ public:
         }
         ob << batched_gemv_threshold;
         ob << onednn_dyn_quan << dyn_quan_threshold;
-        for (const auto& shape : dyn_quan_shapes) {
-            ob << shape.k << shape.group_size;
-        }
-        for (const auto& shape : int3_gemm_shapes) {
-            ob << shape.k << shape.group_size << shape.n << shape.weight_group_size;
+        for (size_t group_size : dyn_quan_group_sizes) {
+            ob << group_size;
         }
     }
 
@@ -1549,11 +1539,8 @@ public:
         }
         ib >> batched_gemv_threshold;
         ib >> onednn_dyn_quan >> dyn_quan_threshold;
-        for (auto& shape : dyn_quan_shapes) {
-            ib >> shape.k >> shape.group_size;
-        }
-        for (auto& shape : int3_gemm_shapes) {
-            ib >> shape.k >> shape.group_size >> shape.n >> shape.weight_group_size;
+        for (size_t& group_size : dyn_quan_group_sizes) {
+            ib >> group_size;
         }
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
         auto cur_moe = impl_params->typed_desc<moe_3gemm_fused_compressed>();
@@ -1583,8 +1570,7 @@ public:
         cur_moe->batched_gemv_threshold = batched_gemv_threshold;
         cur_moe->onednn_dyn_quan = onednn_dyn_quan;
         cur_moe->dyn_quan_threshold = dyn_quan_threshold;
-        cur_moe->dyn_quan_shapes = dyn_quan_shapes;
-        cur_moe->int3_gemm_shapes = int3_gemm_shapes;
+        cur_moe->dyn_quan_group_sizes = dyn_quan_group_sizes;
         cur_moe->_activation_type = _activation_type;
         return cur_moe;
     }
@@ -3045,7 +3031,6 @@ public:
                                              scratch_buffers& scratch,
                                              int total_rows,
                                              size_t tile_count) {
-        using Projection = MoE3GemmInt3Gemm::Projection;
         constexpr size_t simd = MoE3GemmInt3Gemm::SIMD;
         constexpr size_t sg_m = MoE3GemmInt3Gemm::TILE_SG_M;
         const auto& intermediates_memories = instance.get_intermediates_memories();
@@ -3055,8 +3040,7 @@ public:
 
         // w: weight index (gate, up, down). The gate GEMM reads the up output for its act(gate) * up epilogue.
         const auto gemm = [&](int w, memory::ptr output) {
-            const auto proj = w == 2 ? Projection::DOWN : Projection::GATE_UP;
-            const auto& shape = int3_gemm_shape(proj);
+            const auto n = static_cast<size_t>(w == 2 ? _hidden_size : _intermediate_size);
             std::vector<memory::ptr> inputs{rows.quantized,
                                             rows.scales,
                                             wei.weight[w],
@@ -3072,7 +3056,7 @@ public:
                                       w == 0 ? *int3_gate : (w == 1 ? *int3_up : *int3_down),
                                       inputs,
                                       {output},
-                                      {shape.n / MoE3GemmInt3Gemm::TILE_NB, tile_count * sg_m, 1},
+                                      {n / MoE3GemmInt3Gemm::TILE_NB, tile_count * sg_m, 1},
                                       {simd, sg_m, 1});
         };
 
