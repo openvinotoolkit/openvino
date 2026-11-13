@@ -4,17 +4,19 @@
   "signature_hash": "5c9adec102201520",
   "title": "smoke_MatMulCompressedWeights_Kleidiai_i8_kernel_switch fails with unexpected impl type undef_f32 on ARM64",
   "category": "Flaky Test",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-11-13T07:09:24Z",
-  "last_seen": "2026-11-13T07:09:24Z",
+  "last_seen": "2026-11-13T19:24:42Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/43486543645",
     "https://github.com/openvinotoolkit/openvino/actions/runs/43378018632"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39548",
     "https://github.com/openvinotoolkit/openvino/pull/39266"
   ],
   "recent_timestamps": [
-    "2026-11-13T07:09:24Z"
+    "2026-11-13T19:24:42Z"
   ],
   "rerun_search_string": "unexpected impl type: undef_f32"
 }

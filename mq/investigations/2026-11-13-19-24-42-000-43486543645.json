@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-13-19-24-42-000-43486543645",
+  "timestamp": "2026-11-13T19:24:42Z",
+  "run_id": "43486543645",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43486543645",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "39548",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39548",
+  "author": "kkoryun",
+  "category": "Flaky Test",
+  "title": "smoke_MatMulCompressedWeights_Kleidiai_i8_kernel_switch fails with unexpected impl type undef_f32 on ARM64",
+  "signature": "unexpected impl type undef_f32 implType find kleidiai npos matmulcompressedweights|Flaky Test",
+  "signature_hash": "5c9adec102201520",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "smoke_MatMulCompressedWeights_Kleidiai_i8_kernel_switch test asserts the selected GEMM implementation does not contain 'kleidiai', getting 'undef_f32' instead"
+    }
+  ],
+  "key_errors": [
+    "src/plugins/intel_cpu/tests/functional/custom/subgraph_tests/src/classes/matmul_weights_decompression.cpp:168: Failure\nExpected: (implType.find(\"kleidiai\")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615\nunexpected impl type: undef_f32"
+  ],
+  "root_cause": "The smoke_MatMulCompressedWeights_Kleidiai_i8_kernel_switch test expects the CPU plugin to select a KleidiAI-based GEMM kernel for this dynamic-quantization matmul-weights-decompression configuration, but the executed primitive was reported as undef_f32 (no specific implementation name recorded / fallback kernel selected) instead of a kleidiai-tagged implementation. This is the identical signature already recorded in the pattern database (first seen 2026-11-13T07:09:24Z on PR #39266, run 43378018632) and is unrelated to the current PR's change (NPUW CollapseUNQDQ transformation, which only touches src/plugins/intel_npu). ARM64 KleidiAI kernel selection for this test is non-deterministic/runner-dependent (likely CPU feature detection or kernel-dispatch heuristics flakiness on the ARM64 cross-compilation runner), not a regression introduced by this PR.",
+  "reproduction_steps": "Build the CPU plugin for ARM64 (cross-compiled per .github/workflows/ubuntu_22_arm64_cross_compilation.yml) and run: ov_cpu_func_tests --gtest_filter=*smoke_MatMulCompressedWeights_Kleidiai_i8_kernel_switch*data_shape=*1.2.48*1.3.48*weights_shape=48,64*weights_precision=i8* on an ARM64 runner; failure reproduces intermittently depending on runtime CPU capability detection.",
+  "recommended_actions": [
+    "Re-run the failed CPU functional tests job (transient/flaky) — already requested via remediate_transient_failure.",
+    "File/escalate a ticket against the ARM64 KleidiAI kernel-dispatch logic in src/plugins/intel_cpu to investigate why the kernel selection for this i8/dynamic-quantization configuration intermittently falls back to undef_f32 instead of the kleidiai-tagged kernel.",
+    "Consider marking this specific parameterized test case as known-flaky (disabled_tests) on ARM64 until the dispatch logic is fixed, to stop blocking unrelated merge-queue PRs."
+  ],
+  "prevention_strategies": "Add deterministic CPU-capability mocking/stubbing for kernel-dispatch unit tests so GEMM implementation selection does not depend on the physical ARM64 runner's detected features; add a retry wrapper specifically for this known-flaky smoke test in the parallel test runner.",
+  "historical_context": "Identical signature previously recorded in /tmp/gh-aw/repo-memory/default/mq/patterns/5c9adec102201520.json, first seen 2026-11-13T07:09:24Z on PR #39266 (run 43378018632), unrelated PR. This is now occurrence #2 for the same pattern, both on ARM64 cross-compilation CPU functional tests, within the last 12 hours."
+}
