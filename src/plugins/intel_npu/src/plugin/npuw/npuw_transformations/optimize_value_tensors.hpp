@@ -11,17 +11,21 @@ namespace npuw {
 namespace util {
 
 // Decompose SDPA and transpose V tensors, including past/present KV-cache ports.
+// With decompose_sdpa=false SDPA is kept as is and an explicit Transpose before SDPA.V restores the layout it expects
+// (SDPA with sink is always decomposed). is_whisper enables the cross-attention (direct V input) matchers.
 // Direct ShapeOf consumers use a Gather to restore dimension order without freezing dynamic shapes.
 // Other consumers are not rewired by the ShapeOf correction.
 class OptimizeValueTensors : public ov::pass::ModelPass {
     bool m_is_prefill;
     bool m_is_whisper;
+    bool m_decompose_sdpa;
 
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::OptimizeValueTensors");
-    explicit OptimizeValueTensors(bool is_prefill, bool is_whisper = false)
+    explicit OptimizeValueTensors(bool is_prefill, bool is_whisper = false, bool decompose_sdpa = true)
         : m_is_prefill(is_prefill),
-          m_is_whisper(is_whisper) {}
+          m_is_whisper(is_whisper),
+          m_decompose_sdpa(decompose_sdpa) {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };

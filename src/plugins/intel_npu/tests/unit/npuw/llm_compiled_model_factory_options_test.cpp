@@ -1215,6 +1215,34 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperOptionOptimizesSelfAndCrossAtt
     EXPECT_EQ(encoder_value_shape[3], whisper_config.get_encoder_seq_len());
 }
 
+// Whisper supports only the decomposed SDPA: NPUW_LLM_DECOMPOSE_SDPA=NO is overridden
+TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperForcesSDPADecompositionWhenDecomposeSDPAIsNo) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        build_whisper_decoder_model(),
+                        {{"NPUW_WHISPER", "YES"}, {"NPUW_WHISPER_EOS_TOKEN", "42"}, {"NPUW_LLM_DECOMPOSE_SDPA", "NO"}},
+                        recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto* prefill = recorder.find_suffix("_prefill");
+    const auto& generate = require_call_containing(recorder, "_kv");
+    ASSERT_NE(prefill, nullptr);
+
+    for (const auto& model : {prefill->model, generate.model}) {
+        const auto ops = model->get_ops();
+        EXPECT_EQ(std::count_if(ops.begin(),
+                                ops.end(),
+                                [](const auto& op) {
+                                    return ov::is_type<ov::op::v13::ScaledDotProductAttention>(op);
+                                }),
+                  0);
+        EXPECT_TRUE(has_transposed_value_matmul(model, "self_attn"));
+        EXPECT_TRUE(has_transposed_value_matmul(model, "encoder_attn"));
+    }
+}
+
 TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperNonInt8PreservesFoldAndFuncallStageOptions) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;

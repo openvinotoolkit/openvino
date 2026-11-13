@@ -24,6 +24,7 @@
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/runtime/properties.hpp"
 
 namespace {
 
@@ -115,6 +116,98 @@ TEST_F(OptimizeValueTensorsPassTest, SDPAOpsRemainsWhenOptimizationDisabled) {
     const auto& generate = require_sub_model_containing(recorder, "_kv");
 
     EXPECT_GT(count_ops<ov::op::v13::ScaledDotProductAttention>(generate.model), 0u);
+}
+
+// The V-cache ports (past_key_values.*.value inputs, present.*.value outputs) are in the transposed
+// [B, H, D, S] layout. The test models have head_dim = 16, the sequence dims are larger.
+void expect_v_cache_transposed(const std::shared_ptr<ov::Model>& model) {
+    constexpr int64_t head_dim = 16;
+    size_t checked = 0;
+    const auto check = [&](const auto& port) {
+        const auto& name = port.get_any_name();
+        if (name.find(".value") == std::string::npos ||
+            (name.find("past_key_values") == std::string::npos && name.find("present") == std::string::npos)) {
+            return;
+        }
+        const auto& shape = port.get_partial_shape();
+        ASSERT_EQ(shape.rank(), ov::Rank(4)) << name;
+        EXPECT_EQ(shape[2], ov::Dimension(head_dim)) << name << " " << shape;
+        ++checked;
+    };
+    for (const auto& input : model->inputs()) {
+        check(input);
+    }
+    for (const auto& output : model->outputs()) {
+        check(output);
+    }
+    EXPECT_GT(checked, 0u);
+}
+
+// NPUW_LLM_DECOMPOSE_SDPA=NO keeps the SDPA only where neither PYRAMID/HFA attention nor an integer KV-cache is in
+// effect: those support only the decomposed SDPA. Prefill PYRAMID without chunking is effectively STATIC.
+// Prefill and generate are decided separately: forcing one side must keep the SDPA on the other.
+struct DecomposeSDPACase {
+    std::string name;
+    ov::AnyMap props;
+    bool prefill_decomposed;
+    bool generate_decomposed;
+};
+
+class OptimizeValueTensorsDecomposeSDPATest : public ov::test::npuw::LLMPassTestFixture,
+                                              public ::testing::WithParamInterface<DecomposeSDPACase> {};
+
+INSTANTIATE_TEST_SUITE_P(
+    AttentionHints,
+    OptimizeValueTensorsDecomposeSDPATest,
+    ::testing::Values(
+        DecomposeSDPACase{"GeneratePyramid", {{"NPUW_LLM_GENERATE_ATTENTION_HINT", "PYRAMID"}}, false, true},
+        DecomposeSDPACase{"GenerateHFA", {{"NPUW_LLM_GENERATE_ATTENTION_HINT", "HFA"}}, false, true},
+        DecomposeSDPACase{"ChunkedPrefillPyramid",
+                          {{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+                           {"NPUW_LLM_PREFILL_CHUNK_SIZE", "64"},
+                           {"NPUW_LLM_PREFILL_ATTENTION_HINT", "PYRAMID"}},
+                          true,
+                          false},
+        DecomposeSDPACase{"ChunkedPrefillHFA",
+                          {{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+                           {"NPUW_LLM_PREFILL_CHUNK_SIZE", "64"},
+                           {"NPUW_LLM_PREFILL_ATTENTION_HINT", "HFA"}},
+                          true,
+                          false},
+        DecomposeSDPACase{"IntegerKVCache", {{ov::hint::kv_cache_precision.name(), ov::element::i8}}, true, true},
+        DecomposeSDPACase{"PrefillPyramidWithoutChunking",
+                          {{"NPUW_LLM_PREFILL_ATTENTION_HINT", "PYRAMID"}},
+                          false,
+                          false}),
+    [](const ::testing::TestParamInfo<DecomposeSDPACase>& info) {
+        return info.param.name;
+    });
+
+TEST_P(OptimizeValueTensorsDecomposeSDPATest, SDPADecomposedOnlyWhereRequired) {
+    const auto& param = GetParam();
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ov::AnyMap props{{"NPUW_LLM_OPTIMIZE_V_TENSORS", "YES"}, {"NPUW_LLM_DECOMPOSE_SDPA", "NO"}};
+    for (const auto& [key, value] : param.props) {
+        props[key] = value;
+    }
+    ASSERT_NO_THROW(compiled = create_compiled_model(props, recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    for (const auto& [fragment, decomposed] : {std::pair<std::string, bool>{"_prefill", param.prefill_decomposed},
+                                               std::pair<std::string, bool>{"_kv", param.generate_decomposed}}) {
+        SCOPED_TRACE(fragment);
+        const auto& sub = require_sub_model_containing(recorder, fragment);
+        expect_v_cache_transposed(sub.model);
+        if (decomposed) {
+            EXPECT_EQ(count_ops<ov::op::v13::ScaledDotProductAttention>(sub.model), 0u);
+            EXPECT_GT(count_ops<ov::op::v8::Softmax>(sub.model), 0u);
+        } else {
+            EXPECT_GT(count_ops<ov::op::v13::ScaledDotProductAttention>(sub.model), 0u);
+            EXPECT_EQ(count_ops<ov::op::v8::Softmax>(sub.model), 0u);
+        }
+    }
 }
 
 // TransposeValueTensors sets transpose_b=true on the value-multiplication MatMul
@@ -444,5 +537,50 @@ TEST_P(OptimizeValueTensorsDynamicShapeTest, ShapeQueriesPreserveRuntimeDimensio
 INSTANTIATE_TEST_SUITE_P(ShapeOfVersions,
                          OptimizeValueTensorsDynamicShapeTest,
                          ::testing::Combine(::testing::Bool(), ::testing::Bool(), ::testing::Values(0, 1, 2)));
+
+// NPUW_LLM_DECOMPOSE_SDPA=NO keeps SDPA ops, the V-cache layout is still transposed and an
+// explicit Transpose{0,1,3,2} restores the layout SDPA expects.
+class OptimizeValueTensorsKeepSDPATest : public ov::test::npuw::LLMPassTestFixture,
+                                         public ::testing::WithParamInterface<std::tuple<std::string, bool>> {};
+
+INSTANTIATE_TEST_SUITE_P(SubModels,
+                         OptimizeValueTensorsKeepSDPATest,
+                         ::testing::Combine(::testing::Values(std::string{"_prefill"}, std::string{"_kv"}),
+                                            ::testing::Bool()),
+                         [](const ::testing::TestParamInfo<std::tuple<std::string, bool>>& info) {
+                             auto name = std::get<0>(info.param).substr(1);
+                             return name + (std::get<1>(info.param) ? "_GQA" : "_MHA");
+                         });
+
+TEST_P(OptimizeValueTensorsKeepSDPATest, SDPAKeptWithExplicitVTranspose) {
+    const auto& [fragment, gqa] = GetParam();
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    auto model = gqa ? ov::test::npuw::build_llm_gqa_test_model() : ov::test::npuw::build_llm_test_model();
+    ASSERT_NO_THROW(compiled = create_compiled_model(model,
+                                                     {{"NPUW_LLM_OPTIMIZE_V_TENSORS", "YES"},
+                                                      {"NPUW_LLM_DECOMPOSE_SDPA", "NO"},
+                                                      {"NPUW_LLM_PREFILL_ATTENTION_HINT", "STATIC"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& sub = require_sub_model_containing(recorder, fragment);
+    EXPECT_GT(count_ops<ov::op::v13::ScaledDotProductAttention>(sub.model), 0u);
+    EXPECT_EQ(count_ops<ov::op::v8::Softmax>(sub.model), 0u);
+    expect_v_cache_transposed(sub.model);
+
+    // The restoring Transpose sits right before SDPA.V (after the GQA broadcast chain, if any)
+    for (const auto& op : sub.model->get_ops()) {
+        if (!ov::is_type<ov::op::v13::ScaledDotProductAttention>(op)) {
+            continue;
+        }
+        auto v = op->get_input_node_shared_ptr(2);
+        ASSERT_TRUE(ov::is_type<ov::op::v1::Transpose>(v)) << op->get_friendly_name();
+        auto order = ov::as_type_ptr<ov::op::v0::Constant>(v->get_input_node_shared_ptr(1));
+        ASSERT_NE(order, nullptr);
+        EXPECT_EQ(order->cast_vector<int64_t>(), (std::vector<int64_t>{0, 1, 3, 2})) << op->get_friendly_name();
+    }
+}
 
 }  // namespace
