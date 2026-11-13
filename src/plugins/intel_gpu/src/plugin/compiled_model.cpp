@@ -9,6 +9,8 @@
 #include "openvino/runtime/plugin_config.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/core/memory_util.hpp"
+#include "openvino/core/op_extension.hpp"
+#include "openvino/frontend/manager.hpp"
 #include "openvino/util/memory.hpp"
 #include "openvino/util/mmap_object.hpp"
 
@@ -18,14 +20,44 @@
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/async_infer_request.hpp"
+#include "intel_gpu/op/atan2.hpp"
+
+#include <pugixml.hpp>
 
 #include <sstream>
 #include <sys/types.h>
 #include <vector>
+#include <unordered_map>
 
 namespace ov::intel_gpu {
 
 namespace {
+std::shared_ptr<ov::Model> read_custom_shape_model(const std::shared_ptr<ov::ICore>& core,
+                                                 const std::string& xml) {
+    try {
+        return core->read_model(xml, ov::Tensor{}, true);
+    } catch (const ov::Exception&) {
+        // The importing Core still owns user extensions. Only retry the reproduced
+        // GPU-fused Atan2 case with a private frontend, without changing Core's registry.
+        pugi::xml_document document;
+        OPENVINO_ASSERT(document.load_buffer(xml.data(), xml.size()), "[GPU] Invalid custom shape IR");
+        bool internal_atan2 = false;
+        for (const auto& layer : document.child("net").child("layers").children("layer")) {
+            internal_atan2 |= std::string(layer.attribute("type").value()) == "Atan2" &&
+                              std::string(layer.attribute("version").value()) == "ie_internal_opset";
+        }
+        if (!internal_atan2) {
+            throw;
+        }
+    }
+    ov::frontend::FrontEndManager manager;
+    auto frontend = manager.load_by_framework("ir");
+    OPENVINO_ASSERT(frontend, "[GPU] Custom shape inference requires the IR frontend");
+    frontend->add_extension(std::make_shared<ov::OpExtension<ov::intel_gpu::op::Atan2>>());
+    std::istringstream stream(xml);
+    return frontend->convert(frontend->load(static_cast<std::istream*>(&stream)));
+}
+
 std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::shared_ptr<const ov::IPlugin>& plugin,
                                                                    const ExecutionConfig& config) {
     if (config.get_exclusive_async_requests()) {
@@ -201,11 +233,17 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
         }
     }
 
-    ib.set_model_reader([core = plugin->get_core()](const std::string& xml) {
+    using ShapeModels = std::unordered_map<std::string, std::shared_ptr<ov::Model>>;
+    auto shape_models = std::make_shared<ShapeModels>();
+    ib.set_model_reader([core = plugin->get_core(), shape_models](const std::string& xml) {
         OPENVINO_ASSERT(core, "[GPU] Importing Core is not available");
-        // The cached operation already has its compilation-time precision contract.
-        // Read it without frontend post-processing or GPU model transformations.
-        return core->read_model(xml, ov::Tensor{}, true);
+        auto found = shape_models->find(xml);
+        if (found == shape_models->end()) {
+            found = shape_models->emplace(xml, read_custom_shape_model(core, xml)).first;
+        }
+        // Runtime shape inference already clones the operation before assigning
+        // concrete inputs. Share only the parsed prototype and its library owners.
+        return found->second;
     });
     auto graph_base = std::make_shared<Graph>(ib, context, m_config, 0);
     // Graph serialization already preserves its finalized ExecutionConfig. Propagate resolved

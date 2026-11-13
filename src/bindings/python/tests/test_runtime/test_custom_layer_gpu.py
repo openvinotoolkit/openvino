@@ -5,6 +5,7 @@
 import io
 import os
 import struct
+from xml.etree import ElementTree
 
 import numpy as np
 import pytest
@@ -203,7 +204,9 @@ class CacheConcat(ov.Op):
 
 
 @gpu_only
-@pytest.mark.parametrize("mode", ["path", "precision", "axis", "nested", "loop", "loop_invariant", "extension"])
+@pytest.mark.parametrize("mode", [
+    "path", "precision", "axis", "nested", "loop", "loop_invariant", "loop_trip_producer", "extension",
+])
 def test_custom_layer_dynamic_cache_restoration(device, tmp_path, mode):
     if mode == "precision" and "FP16" not in Core().get_property(device, "OPTIMIZATION_CAPABILITIES"):
         pytest.skip("The precision cache case requires FP16 support")
@@ -262,14 +265,17 @@ def test_custom_layer_dynamic_cache_restoration(device, tmp_path, mode):
         branch.set_output(yes.get_results()[0], else_body.get_results()[0])
         branch.validate_and_infer_types()
         result = branch
-    elif mode in ("loop", "loop_invariant"):
+    elif mode in ("loop", "loop_invariant", "loop_trip_producer"):
         trip = ops.parameter([], ov.Type.i64, name="trip_count")
         params.append(trip)
         body_p = ops.parameter([-1, 4], ov.Type.f32, name="body_input")
         activation = ops.relu(body_p, name="custom_op")
+        if mode == "loop_trip_producer":
+            activation = ops.add(activation, ops.constant(np.float32(1)))
         condition = ops.constant(np.array(True))
         body = ov.Model([condition, activation], [body_p])
-        loop = ops.loop(trip, ops.constant(np.array(True)))
+        loop_trip = ops.add(trip, ops.constant(np.int64(1))) if mode == "loop_trip_producer" else trip
+        loop = ops.loop(loop_trip, ops.constant(np.array(True)))
         loop.set_function(body)
         if mode == "loop_invariant":
             loop.set_invariant_input(body_p, input_parameter.output(0))
@@ -329,8 +335,10 @@ def test_custom_layer_dynamic_cache_restoration(device, tmp_path, mode):
             expected = np.maximum(values + (1 if half else 0), 0) * (2 if half else 1)
         if mode == "nested":
             inputs.append(np.array(True))
-        elif mode in ("loop", "loop_invariant"):
+        elif mode in ("loop", "loop_invariant", "loop_trip_producer"):
             inputs.append(np.array(3, dtype=np.int64))
+            if mode == "loop_trip_producer":
+                expected += 4
         for compiled in (warm, imported):
             outputs = compiled(inputs)
             actual = np.array(outputs[compiled.output(0)], copy=True)
@@ -536,3 +544,42 @@ def test_custom_cache_lstm_peephole_input(device, tmp_path):
         inputs[6] += 5
         samples.append((inputs, [inputs[0] + inputs[6][0], inputs[2] + inputs[6][1]]))
     check_custom_cache_round_trip(device, tmp_path, model, {"CONFIG_FILE": config}, samples)
+
+
+@gpu_only
+def test_custom_cache_identical_shape_models_are_independent(device, tmp_path):
+    first = ops.parameter([-1, 4], ov.Type.f32)
+    second = ops.parameter([-1, 4], ov.Type.f32)
+    model = Model([ops.relu(first), ops.relu(second)], [first, second])
+    kernel = """__kernel void relu_custom(__global const float* data, __global float* out) {
+        size_t i=get_global_id(0);out[i]=fmax(data[i],0.0f);
+    }"""
+    config = write_config(tmp_path, """<CustomLayer name="Relu" type="SimpleGPU" version="1">
+        <Kernel entry="relu_custom"><Source filename="relu.cl"/></Kernel><Buffers>
+        <Tensor arg-index="0" type="input" port-index="0" format="BFYX"/>
+        <Tensor arg-index="1" type="output" port-index="0" format="BFYX"/></Buffers>
+        <WorkSizes global="B*F*Y*X,1,1" local="1,1,1"/></CustomLayer>""", {"relu.cl": kernel})
+    samples = []
+    for first_batch, second_batch in ((1, 3), (3, 1), (2, 4)):
+        first_values = np.arange(first_batch * 4, dtype=np.float32).reshape(first_batch, 4) - 3
+        second_values = np.arange(second_batch * 4, dtype=np.float32).reshape(second_batch, 4) - 5
+        samples.append(([first_values, second_values], [np.maximum(first_values, 0), np.maximum(second_values, 0)]))
+    check_custom_cache_round_trip(device, tmp_path, model, {"CONFIG_FILE": config}, samples)
+
+
+@gpu_only
+def test_gpu_load_keeps_internal_atan2_private(device, tmp_path):
+    first = ops.parameter([-1, 4], ov.Type.f32)
+    second = ops.parameter([-1, 4], ov.Type.f32)
+    xml_path = tmp_path / "model.xml"
+    ov.serialize(Model([ops.add(first, second)], [first, second]), xml_path)
+    document = ElementTree.parse(xml_path)
+    add_layer = next(layer for layer in document.findall("./layers/layer") if layer.get("type") == "Add")
+    add_layer.set("type", "Atan2")
+    add_layer.set("version", "ie_internal_opset")
+    document.write(xml_path)
+    core = Core()
+    core.get_property(device, "FULL_DEVICE_NAME")
+    # Loading GPU must not expose its private operation factories to ordinary Core readers.
+    with pytest.raises(RuntimeError, match="Atan2"):
+        core.read_model(xml_path)

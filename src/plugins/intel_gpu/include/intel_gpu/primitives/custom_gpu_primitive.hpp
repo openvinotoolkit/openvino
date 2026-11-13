@@ -237,12 +237,17 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
             for (size_t port = 0; port < op->get_input_size(); ++port) {
                 auto parameter = std::make_shared<ov::op::v0::Parameter>(
                     op->get_input_element_type(port), op->get_input_partial_shape(port));
+                parameter->set_friendly_name("shape_input_" + std::to_string(port));
                 parameters.push_back(parameter);
                 inputs.push_back(parameter);
             }
             auto independent = op->clone_with_new_inputs(inputs);
+            independent->set_friendly_name("shape_operation");
             independent->validate_and_infer_types();
-            auto model = std::make_shared<ov::Model>(independent->outputs(), parameters);
+            auto model = std::make_shared<ov::Model>(independent->outputs(), parameters, "custom_shape");
+            for (size_t port = 0; port < model->get_results().size(); ++port) {
+                model->get_results()[port]->set_friendly_name("shape_output_" + std::to_string(port));
+            }
             std::ostringstream xml, weights;
             ov::pass::Serialize(xml, weights).run_on_model(model);
             OPENVINO_ASSERT(weights.str().empty(), "[GPU] Custom shape inference model must not contain weights");

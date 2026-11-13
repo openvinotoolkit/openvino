@@ -10,7 +10,6 @@ set(GPU_PLUGIN_CORE_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/graph.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/multi_tensor_variable_state.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/plugin.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/extension.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/program_builder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/remote_context.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/remote_tensor.cpp

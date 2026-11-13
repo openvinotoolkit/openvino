@@ -116,9 +116,6 @@ struct loop_impl : typed_primitive_impl<loop> {
         auto& outer_network = instance.get_network();
         auto& stream = outer_network.get_stream();
 
-        // Control tensors are read on the host before the body is scheduled.
-        stream.wait_for_events(events);
-
         auto body_network = instance.get_body_network();
         int64_t current_iteration_idx = 0;
         auto ev = stream.create_user_event(false);
@@ -153,6 +150,10 @@ struct loop_impl : typed_primitive_impl<loop> {
         // read trip_count from outer network
         int64_t trip_count = -1;
         if (!instance.get_trip_count_id().empty()) {
+            // Only the producer of the host-read control tensor must finish here.
+            if (outer_network.has_event(instance.get_trip_count_id())) {
+                outer_network.get_primitive_event(instance.get_trip_count_id())->wait();
+            }
             memory::ptr trip_count_mem = outer_network.get_primitive(instance.get_trip_count_id())->output_memory_ptr();
             trip_count = read_scalar_value(std::move(trip_count_mem), stream);
         } else {

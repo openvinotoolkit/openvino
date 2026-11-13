@@ -189,7 +189,6 @@ function(ov_gpu_build_stack RT_TYPE SUFFIX MODULE_NAME)
 
     ov_add_plugin(NAME ${MODULE_NAME}
                   DEVICE_NAME "GPU"
-                  AS_EXTENSION
                   SOURCES ${PLUGIN_SOURCES}
                   OBJECT_LIBRARIES ${GPU_PLUGIN_OBJECT_LIBRARIES}
                   DEFAULT_CONFIG ${PLUGIN_DEFAULT_CONFIG}
