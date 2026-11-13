@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 438,
+  "total": 439,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -4809,6 +4809,17 @@
       "category": "Configuration",
       "signature_hash": "08b993dbdc18ccac",
       "pr_number": "39266"
+    },
+    {
+      "investigation_id": "2026-11-13-08-28-28-000-43200774181",
+      "run_id": "43200774181",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43200774181",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-11-13T08:28:28Z",
+      "title": "GPU unit tests job cancelled by Windows runner shutdown signal",
+      "category": "Infrastructure",
+      "signature_hash": "39e65673e42b712c",
+      "pr_number": "39717"
     }
   ]
 }

@@ -1,0 +1,36 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-11-13-08-28-28-000-43200774181",
+    "timestamp": "2026-11-13T08:28:28Z",
+    "run_id": "43200774181",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43200774181",
+    "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+    "pr_number": "39717",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39717",
+    "author": "wilson-seok",
+    "category": "Infrastructure",
+    "title": "GPU unit tests job cancelled by Windows runner shutdown signal",
+    "signature": "runner has received a shutdown signal operation was canceled|Infrastructure",
+    "signature_hash": "39e65673e42b712c",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "GPU unit tests",
+            "conclusion": "failure",
+            "symptom": "Job was mid-way through downloading the openvino_tests artifact (gtest-parallel run) when the self-hosted Windows runner received a shutdown signal and the job was force-cancelled."
+        }
+    ],
+    "key_errors": [
+        "2026-11-13T08:20:25.9027991Z ##[error]The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled.",
+        "2026-11-13T08:20:25.9330393Z ##[error]The operation was canceled."
+    ],
+    "root_cause": "The 'GPU unit tests' job on the Windows (VS 2022, Python 3.11, Release) merge-queue workflow was terminated by the self-hosted runner infrastructure itself, not by any test or build failure. The log shows the job was actively receiving the openvino_tests artifact (gtest-parallel download, ~14s elapsed, chunk-by-chunk progress) when the runner process received an external shutdown signal and the job's operation was cancelled. This is a classic self-hosted-runner infrastructure interruption (runner service restarted/stopped or runner VM recycled mid-job), unrelated to the PR's GPU memory-unlock synchronization change.",
+    "reproduction_steps": "N/A - not reproducible locally; this is a CI runner infrastructure interruption, not a code or test failure.",
+    "recommended_actions": [
+        "Re-run the failed 'GPU unit tests' job (or the whole run) since this is a transient infrastructure interruption unrelated to the PR diff.",
+        "If this recurs frequently for the same self-hosted Windows GPU runner pool, check runner fleet health/maintenance windows (auto-scaling recycle, VM image updates, runner service restarts).",
+        "No code changes needed in ocl_memory.cpp or remote_output_lifecycle.cpp; the PR's actual GPU fix was not exercised to completion before the runner was shut down."
+    ],
+    "prevention_strategies": "Monitor self-hosted Windows GPU runner uptime and scheduled maintenance windows; consider automatic job retry on 'runner has received a shutdown signal' (already covered by the existing rerunner pattern entry) to reduce merge-queue friction from infrastructure churn.",
+    "historical_context": "Same signature ('runner has received a shutdown signal' + 'operation was canceled', Infrastructure category) was previously recorded once on 2026-09-05 for PR #37918's CMake-configure build job (run 33998569451). This is the second occurrence overall, and the first occurrence in this 12-hour window, so no recurring-escalation notification is triggered."
+}
