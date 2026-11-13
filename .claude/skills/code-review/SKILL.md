@@ -130,6 +130,7 @@ If these checks do not establish a defect, do not report one as confirmed.
 ### 6. Finalize
 
 Recheck the reviewed revision and the evidence supporting each finding:
+
 - Before claiming tests, guards, replies, or handling are absent, search the
   relevant scope. Otherwise state "not verified" and identify the limitation.
 - Check producer/caller contracts before proposing defensive checks. Do not
@@ -237,7 +238,7 @@ shared tests and documentation according to the behavior exercised or described.
 | `src/plugins/intel_gpu/`, `src/inference/include/openvino/runtime/intel_gpu/`, Intel GPU tests, kernels, selection, runtime, memory, layouts, caching, precision, or platform enablement | [Plugins](references/plugins.md); also apply [Bindings and public APIs](references/bindings.md) for public API or user-visible contract changes |
 | `src/plugins/`, including plugin-local tests | [Plugins](references/plugins.md) |
 | `src/tests/functional/` shared operator and inference behavior tests | [Runtime and core](references/runtime.md) and [Plugins](references/plugins.md), as exercised |
-| `src/frontends/`, `src/bindings/python/src/openvino/frontend/` (including PyTorch and JAX decoders), `src/bindings/python/src/pyopenvino/frontend/`, framework conversion tests in `tests/layer_tests/` and `tests/model_hub_tests/` | [Frontends](references/frontend.md); also apply [bindings](references/bindings.md) for Python API and language-boundary changes |
+| `src/frontends/`, `src/bindings/python/src/openvino/frontend/` (including PyTorch and JAX decoders), `src/bindings/python/src/pyopenvino/frontend/`, framework conversion tests in `tests/layer_tests/` and `tests/model_hub_tests/` | [Frontends](references/frontend.md); also apply [Bindings and public APIs](references/bindings.md) for Python API or language-boundary changes |
 | `src/bindings/`, public API changes under `src/core/include/` or `src/inference/include/` | [Bindings and public APIs](references/bindings.md) |
 | `.github/workflows/`, `.github/actions/`, `.github/scripts/`, `.github/dockerfiles/`, Smart CI and dependency configuration under `.github/`, `cmake/`, `CMakeLists.txt` and `*.cmake` at any depth, dependency manifests and integration changes | [CI, build, and dependencies](references/ci.md) |
 
@@ -334,7 +335,7 @@ Severity describes impact; confidence describes evidential strength.
   comparable impact on a reachable supported path.
 - **High:** demonstrated or strongly supported incorrect results, crashes,
   compatibility failure, or major resource/performance impact on a reachable
-  supported path. 
+  supported path.
 - **Medium:** material localized impact or a technically grounded unresolved
   risk requiring focused verification. Verified violations of mandatory rules
   in a loaded component guide are at least medium.
@@ -356,6 +357,7 @@ area; omit minor observations and inapplicable areas.
 | --- | --- | --- | --- |
 
 Use these assessments:
+
 - **Confirmed defect** — a reachable defect is established at the reviewed revision.
 - **Reported failure** — a failure was reported; applicability or root cause remains unverified.
 - **Needs verification** — a concrete invariant, test, or measurement remains unverified.
