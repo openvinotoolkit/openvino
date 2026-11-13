@@ -44,6 +44,7 @@ set(GPU_OCL_V2_IMPL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/moe/moe_3gemm_int3_gemm.hpp
     ${CMAKE_CURRENT_LIST_DIR}/moe/moe_3gemm_int3_gemv.cpp
     ${CMAKE_CURRENT_LIST_DIR}/moe/moe_3gemm_int3_gemv.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/moe/moe_3gemm_int3_weights.hpp
     ${CMAKE_CURRENT_LIST_DIR}/moe/moe_3gemm_swiglu_opt.cpp
     ${CMAKE_CURRENT_LIST_DIR}/moe/moe_3gemm_swiglu_opt.hpp
     ${CMAKE_CURRENT_LIST_DIR}/moe/moe_gather.cpp

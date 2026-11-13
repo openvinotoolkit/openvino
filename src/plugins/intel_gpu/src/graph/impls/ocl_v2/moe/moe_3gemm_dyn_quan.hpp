@@ -38,9 +38,6 @@ public:
     // quantization group and divides the weight group of the projection: 128 for the per-token default of Xe2+, as
     // for the u8/i8 FullyConnected layers.
     static Shape get_shape(const RuntimeParams& params, Projection proj);
-
-    // Values per weight scale group of the projection, 0 when the scales don't split K into equal groups
-    static size_t get_weight_group_size(const RuntimeParams& params, Projection proj);
 };
 
 // int8 quantization of the input of a projection: the hidden states for gate/up, act(gate) * up for down
