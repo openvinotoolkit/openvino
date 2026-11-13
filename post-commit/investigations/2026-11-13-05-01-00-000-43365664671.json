@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-13-05-01-00-000-43365664671",
+  "timestamp": "2026-11-13T05:01:00Z",
+  "run_id": "43365664671",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43365664671",
+  "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+  "commit_sha": "90a5ddd79b05618846cc631d540d621d20740a16",
+  "pr_number": "39563",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39563",
+  "author": "fishbell",
+  "category": "Infrastructure",
+  "title": "Windows CC build fails with linker out-of-memory errors under high parallelism",
+  "signature": "Windows Release build runs out of memory - compiler fatal error C1060 (out of heap space) and linker fatal error LNK1102 (out of memory) under high parallelism|Infrastructure",
+  "signature_hash": "80cfa127185fbf3e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build_And_Run_Collect_Mode",
+      "conclusion": "failure",
+      "symptom": "ninja build stopped: multiple link.exe invocations failed with LNK1102 'out of memory' while linking throughput_benchmark.exe, classification_sample_async.exe and ov_transformations_tests.exe"
+    },
+    {
+      "name": "ci/gha_overall_status_windows_cc",
+      "conclusion": "failure",
+      "symptom": "Check status of all jobs failed because Build_And_Run_Collect_Mode failed"
+    }
+  ],
+  "key_errors": [
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/throughput_benchmark.exe\nLINK : fatal error LNK1102: out of memory",
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/classification_sample_async.exe\nLINK : fatal error LNK1102: out of memory",
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/ov_transformations_tests.exe\nLINK : fatal error LNK1102: out of memory\nninja: build stopped: subcommand failed."
+  ],
+  "root_cause": "The Windows CC (conditional-compilation collect-mode) build runs ninja with CMAKE_BUILD_PARALLEL_LEVEL=31 on a shared Windows runner. Several final link steps (throughput_benchmark.exe, classification_sample_async.exe, ov_transformations_tests.exe) ran concurrently near the end of the build, and MSVC link.exe exhausted available memory under that parallelism, failing with LNK1102. This is not caused by the merged PR's code change; it is the fourth recorded occurrence of this exact signature on this job, indicating the runner's memory/parallelism budget for this job is consistently insufficient under current build size and concurrency.",
+  "reproduction_steps": "Not reliably reproducible outside CI since it depends on runner memory pressure and link-step concurrency. Locally, building the full OpenVINO Windows Release CC configuration with 'ninja -j 31' (or similarly high -j) on a machine with limited RAM while all sample/test executables are linked concurrently can reproduce LNK1102.",
+  "recommended_actions": [
+    "Reduce CMAKE_BUILD_PARALLEL_LEVEL for the Windows CC job (currently 31) or cap link-step parallelism specifically (e.g., via a Ninja pool limiting concurrent link jobs) to avoid memory exhaustion during the final link phase.",
+    "Consider splitting/serializing the linking of large executables (ov_transformations_tests.exe, samples) from the rest of the parallel build graph.",
+    "Evaluate increasing the Windows runner's available memory/swap for this job, or move to a larger runner SKU if cost allows.",
+    "Re-run the failed job once infra-level mitigation is applied; no code change is required."
+  ],
+  "prevention_strategies": "Track recurrence count (now 4) for this signature; if it keeps recurring, escalate to CI infra owners to adjust parallelism defaults or runner sizing for Windows conditional-compilation builds specifically, since it is unrelated to incoming code changes.",
+  "historical_context": "Same signature (80cfa127185fbf3e) recorded 3 prior times: runs 41586716106, 43241364429, 43336008835, first seen 2026-11-03. All previous investigations attributed the failure to Windows Release build memory exhaustion from high parallelism (C1060/LNK1102), consistent with this occurrence."
+}
