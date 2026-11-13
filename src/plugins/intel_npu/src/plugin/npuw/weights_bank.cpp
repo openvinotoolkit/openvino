@@ -306,6 +306,14 @@ void Bank::deserialize(ov::npuw::orc::Stream& stream) {
         if (handle.context) {
             auto deserialized_uids_by_weight_ctx = this->consume_from_impl(stream, *m_core, handle);
             for (auto uid : deserialized_uids_by_weight_ctx) {
+                NPUW_ASSERT(uid >= 0 && "Malformed blob: negative weights bank uid");
+                NPUW_ASSERT(static_cast<uint64_t>(uid) < static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) &&
+                            "Malformed blob: weights bank uid exceeds max int value");
+                for (const auto& bank : m_device_banks) {
+                    NPUW_ASSERT(bank.second.storage.count(uid) == 0 && "Malformed blob: duplicate weights bank uid");
+                }
+                uid_count = std::max(uid_count, uid + 1);
+
                 const auto context_ids = ids_mapper.get_ov_context_ids(uid);
                 NPUW_ASSERT(context_ids.has_value() && "Bank::deserialize: Context IDs not found for UID");
                 const auto source_id = context_ids->first;
