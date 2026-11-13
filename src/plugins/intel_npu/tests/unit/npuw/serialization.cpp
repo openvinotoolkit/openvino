@@ -37,6 +37,7 @@
 #include "openvino/util/mmap_object.hpp"
 #include "pyramid_attention.hpp"
 #include "spatial.hpp"
+#include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 #include "weights_bank.hpp"
 
 using ov::test::npuw::ModelBuilder;
@@ -105,6 +106,25 @@ void expect_serialize_throws(const Gather& hg,
     auto stream = Stream::writer(ss);
     writer.serialize(stream, {});
 }
+
+class MockRemoteContext : public ov::IRemoteContext {
+    std::string m_name;
+
+public:
+    MockRemoteContext(std::string name) : m_name(std::move(name)) {}
+    const std::string& get_device_name() const override {
+        return m_name;
+    }
+    MOCK_METHOD(ov::SoPtr<ov::ITensor>,
+                create_host_tensor,
+                (const ov::element::Type type, const ov::Shape& shape),
+                (override));
+    MOCK_METHOD(const ov::AnyMap&, get_property, (), (const, override));
+    MOCK_METHOD(ov::SoPtr<ov::IRemoteTensor>,
+                create_tensor,
+                (const ov::element::Type&, const ov::Shape&, const ov::AnyMap&),
+                (override));
+};
 
 class SerializationNullPlugin final : public ov::IPlugin {
 public:
@@ -638,6 +658,19 @@ void expect_lazy_tensor_transform_types_equal(const ov::npuw::weights::LazyTenso
     for (std::size_t i = 0; i < expected_transforms.size(); ++i) {
         EXPECT_EQ(expected_transforms[i].index(), actual_transforms[i].index());
     }
+}
+
+std::shared_ptr<ov::MockICore> make_host_tensor_core() {
+    auto core = std::make_shared<testing::NiceMock<ov::MockICore>>();
+    ON_CALL(*core, get_default_context(testing::_)).WillByDefault([](const std::string& device) {
+        auto ctx = std::make_shared<testing::NiceMock<MockRemoteContext>>(device);
+        ON_CALL(*ctx, create_host_tensor(testing::_, testing::_))
+            .WillByDefault([](const ov::element::Type type, const ov::Shape& shape) {
+                return ov::make_tensor(type, shape);
+            });
+        return ctx;
+    });
+    return core;
 }
 
 }  // namespace
@@ -1791,8 +1824,7 @@ TEST(SerializationTest, OVTypes_LazyTensor_concat_permute_convert_roundtrip) {
 TEST(SerializationTest, OVTypes_LazyTensor_subtract128_roundtrip) {
     using namespace ov::npuw::s11n;
 
-    auto constant = make_weightless_constant<uint8_t>(ov::element::u8, ov::Shape{2, 3},
-                                                       {0, 1, 127, 128, 254, 255}, 0);
+    auto constant = make_weightless_constant<uint8_t>(ov::element::u8, ov::Shape{2, 3}, {0, 1, 127, 128, 254, 255}, 0);
     auto var = ov::npuw::weights::LazyTensor(constant).subtract_128();
     ov::npuw::weights::LazyTensor res;
     const auto expected = var.eval();
@@ -1894,6 +1926,97 @@ TEST(SerializationTest, OVTypes_WeightsBank_cpu_roundtrip) {
 
     expect_tensors_equal(var.get(uid0, "CPU"), res.get(uid0, "CPU"));
     expect_tensors_equal(var.get(uid1, "CPU"), res.get(uid1, "CPU"));
+}
+
+TEST(SerializationTest, WeightsBank_RejectsOutOfRangeUid) {
+    for (const int64_t bad_uid : {int64_t{-1}, std::numeric_limits<int64_t>::max()}) {
+        std::stringstream ss;
+        auto w = ov::npuw::orc::Stream::writer(ss);
+        std::size_t bank_size = 1, storage_size = 1;
+        std::string device = "CPU";
+        int64_t uid = bad_uid;
+        w & bank_size & device & storage_size & uid;
+        ov::npuw::weights::Bank res(nullptr, "", "bad");
+        OV_EXPECT_THROW(ov::npuw::s11n::read(ss, res), ov::Exception, testing::HasSubstr("weights bank uid"));
+    }
+}
+
+TEST(SerializationTest, WeightsBank_RejectsDuplicatedUid) {
+    using namespace ov::npuw::s11n;
+
+    auto first = make_weightless_constant<float>(ov::element::f32, ov::Shape{2}, {1.0f, 2.0f}, 0);
+    auto second = make_weightless_constant<float>(ov::element::f32, ov::Shape{2}, {3.0f, 4.0f}, first->get_byte_size());
+
+    auto mock_core = make_host_tensor_core();
+
+    ov::npuw::weights::Bank var(nullptr, "CPU", "test-bank");
+    std::ignore = var.registerLT(ov::npuw::weights::LazyTensor(first), "CPU");
+    std::ignore = var.registerLT(ov::npuw::weights::LazyTensor(second), "CPU");
+    var.evaluate_and_allocate();
+
+    std::stringstream tmp;
+    write(tmp, var);
+
+    ov::npuw::weights::Bank res(mock_core, "", "restored-bank");
+    read(tmp, res);
+
+    auto legacy_blob = tmp.str();
+    const auto pos = legacy_blob.find("CPU");
+    ASSERT_NE(pos, std::string::npos);
+    legacy_blob.replace(pos, 3, "NPU");
+
+    std::stringstream ss(legacy_blob);
+    OV_EXPECT_THROW(read(ss, res), ov::Exception, testing::HasSubstr("Malformed blob: duplicate weights bank uid"));
+}
+
+TEST(SerializationTest, WeightsBank_LegacyNpuKey_Restore) {
+    using namespace ov::npuw::s11n;
+
+    auto first = make_weightless_constant<float>(ov::element::f32, ov::Shape{2}, {1.0f, 2.0f}, 0);
+    auto second = make_weightless_constant<float>(ov::element::f32, ov::Shape{2}, {3.0f, 4.0f}, first->get_byte_size());
+    auto third = make_weightless_constant<float>(ov::element::f32,
+                                                 ov::Shape{2},
+                                                 {5.0f, 6.0f},
+                                                 first->get_byte_size() + second->get_byte_size());
+
+    auto mock_core = make_host_tensor_core();
+
+    ov::npuw::weights::Bank old_bank(nullptr, "CPU", "old");
+    const auto uid0 = old_bank.registerLT(ov::npuw::weights::LazyTensor(first), "CPU");
+    const auto uid1 = old_bank.registerLT(ov::npuw::weights::LazyTensor(second), "CPU");
+    old_bank.evaluate_and_allocate();
+
+    std::stringstream tmp;
+    write(tmp, old_bank);
+    auto legacy_blob = tmp.str();
+    const auto pos = legacy_blob.find("CPU");
+    ASSERT_NE(pos, std::string::npos);
+    legacy_blob.replace(pos, 3, "NPU");
+
+    for (const std::string alloc : {"", "NPU"}) {
+        ov::npuw::weights::Bank res(mock_core, alloc, "restored-bank");
+        std::stringstream ss(legacy_blob);
+        read(ss, res);
+
+        for (const std::string dev : {"NPU", "NPU.0", "NPU.1"}) {
+            expect_tensors_equal(old_bank.get(uid0, "CPU"), res.get(uid0, dev));
+            expect_tensors_equal(old_bank.get(uid1, "CPU"), res.get(uid1, dev));
+        }
+        if (alloc.empty()) {
+            EXPECT_THROW(res.get(uid0, "GPU"), ov::Exception);
+            const auto uid_other = res.registerLT(ov::npuw::weights::LazyTensor(third), "NPU.0");
+            res.evaluate_and_allocate();
+            OV_EXPECT_THROW(res.get(uid_other, "NPU.1"), ov::Exception, testing::HasSubstr("has no storage"));
+        }
+
+        const auto uid_new = res.registerLT(ov::npuw::weights::LazyTensor(third), "NPU.1");
+        EXPECT_NE(uid_new, uid0);
+        EXPECT_NE(uid_new, uid1);
+        res.evaluate_and_allocate();
+        expect_tensors_equal(old_bank.get(uid0, "CPU"), res.get(uid0, "NPU.1"));
+        expect_tensors_equal(old_bank.get(uid1, "CPU"), res.get(uid1, "NPU.1"));
+        expect_tensors_equal(ov::npuw::weights::LazyTensor(third).eval(), res.get(uid_new, "NPU.1"));
+    }
 }
 
 TEST(SerializationTest, AllSentinelsPass) {
