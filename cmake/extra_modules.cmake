@@ -12,6 +12,15 @@ function(ov_generate_dev_package_config)
     # create a helper target to build all developer package targets
     add_custom_target(ov_dev_targets DEPENDS ${_OPENVINO_DEVELOPER_PACKAGE_TARGETS})
 
+    # embedded debug information would considerably enlarge the installed static libraries
+    foreach(target IN LISTS _OPENVINO_DEVELOPER_PACKAGE_TARGETS)
+        get_target_property(target_type ${target} TYPE)
+        get_target_property(target_imported ${target} IMPORTED)
+        if(target_type STREQUAL "STATIC_LIBRARY" AND NOT target_imported)
+            ov_keep_debug_info_in_pdb(${target})
+        endif()
+    endforeach()
+
     # filter out targets which are installed by OpenVINOConfig.cmake static build case
     if(openvino_installed_targets)
         list(REMOVE_ITEM _OPENVINO_DEVELOPER_PACKAGE_TARGETS ${openvino_installed_targets})

@@ -132,6 +132,21 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # PDB related flags
     #
 
+    # With embedded debug information (/Z7, e.g. for compiler caches) the linker builds PDB files
+    # from scratch anyway, while incremental linking adds padding and thunks to binaries, a second
+    # link to embed manifests and stale blocks in PDB files.
+    # /INCREMENTAL:NO is added as a link option: third-party projects (e.g. level_zero) rewrite
+    # "/INCREMENTAL" in the linker flag variables and would turn it into "/INCREMENTAL:NO:NO".
+    if(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT MATCHES "Embedded")
+        foreach(link_type IN ITEMS EXE SHARED MODULE)
+            foreach(config IN ITEMS DEBUG RELWITHDEBINFO)
+                string(REGEX REPLACE "(^| )/INCREMENTAL( |$)" " "
+                       CMAKE_${link_type}_LINKER_FLAGS_${config} "${CMAKE_${link_type}_LINKER_FLAGS_${config}}")
+            endforeach()
+        endforeach()
+        add_link_options("$<$<CONFIG:Debug,RelWithDebInfo>:/INCREMENTAL:NO>")
+    endif()
+
     if(ENABLE_PDB_IN_RELEASE)
         set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Zi")
         set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Zi")

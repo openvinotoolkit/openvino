@@ -56,11 +56,12 @@ jobs:
     runs-on: ${{ inputs.runner }}
     env:
       CMAKE_BUILD_TYPE: ${{ inputs.build-type }}
-      CMAKE_CXX_COMPILER_LAUNCHER: ${{ inputs.build-type != 'Debug' && 'ccache' || '' }}
-      CMAKE_C_COMPILER_LAUNCHER: ${{ inputs.build-type != 'Debug' && 'ccache' || '' }}
-      CCACHE_REMOTE_DIR: "C:\\mount\\caches\\ccache\\windows${{ inputs.build-variant }}_x86_64_${{ inputs.build-type }}\\${{ inputs.target-branch }}"
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CCACHE_SECONDARY_STORAGE: "file:///C:/mount/caches/ccache/shared/windows/${{ inputs.build-variant }}/x86_64/${{ inputs.build-type }}|update-mtime=true"
       CCACHE_DIR: ${{ github.workspace }}\\ccache
       CCACHE_MAXSIZE: 3G
+      CCACHE_COMPILERCHECK: content
       CCACHE_SLOPPINESS: pch_defines,time_macros
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       OPENVINO_CONTRIB_REPO: "${{ github.workspace }}\\openvino_contrib"
@@ -156,16 +157,14 @@ jobs:
       #
 
       - name: Setup ccache
-        uses: ./openvino/.github/actions/cache
-        if: ${{ inputs.build-type != 'Debug' }}
-        with:
-          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cache-path: ${{ env.CCACHE_REMOTE_DIR }}
-          path: ${{ env.CCACHE_DIR }}
-          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-ccache
+        run: |
+          ccache --version
+          $config = ccache --show-config | Out-String
+          Write-Output $config
+          if (-not $config.Contains($env:CCACHE_SECONDARY_STORAGE)) {
+            Write-Error "ccache remote storage is not configured: expected $env:CCACHE_SECONDARY_STORAGE"
+            exit 1
+          }
 
       - name: Configure Developer Command Prompt for Microsoft Visual C++
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
@@ -192,15 +191,14 @@ jobs:
           Invoke-Expression $cmakeCommand
 
       - name: Clean ccache stats
-        if: ${{ inputs.build-type != 'Debug' }}
         run: '& ccache --zero-stats'
 
       - name: Cmake build - OpenVINO
         run: cmake --build ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --parallel $env:CMAKE_BUILD_PARALLEL_LEVEL -- --quiet
 
       - name: Show ccache stats
-        if: ${{ inputs.build-type != 'Debug' }}
-        run: '& ccache --show-stats'
+        if: ${{ !cancelled() }}
+        run: '& ccache --show-stats --verbose'
 
       - name: Cmake install - OpenVINO
         run: |

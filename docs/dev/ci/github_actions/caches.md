@@ -128,10 +128,21 @@ To add new resources, contact a member of the CI team for assistance.
 
 Builds can share compiled objects through ccache's remote storage on the shared drive
 by setting `CCACHE_SECONDARY_STORAGE` (or `CCACHE_REMOTE_STORAGE` on newer ccache)
-to `file:///mount/caches/ccache/shared`. The RISC-V GNU build in
-[`linux_riscv.yml`](./../../../../.github/workflows/linux_riscv.yml) is the pilot user.
-Old entries are evicted together with the rest of `/mount/caches/ccache` by the
-`Cleanup_ccache_lin` job in
+to `file:///mount/caches/ccache/shared` (`file:///C:/mount/caches/ccache/shared` on Windows).
+Users:
+* The RISC-V GNU build in [`linux_riscv.yml`](./../../../../.github/workflows/linux_riscv.yml)
+  (`/mount/caches/ccache/shared/ubuntu22/riscv64/gnu`).
+* The Windows builds in
+  [`job_build_windows.yml`](./../../../../.github/workflows/job_build_windows.yml)
+  (`C:\mount\caches\ccache\shared\windows\<build-variant>\x86_64\<build-type>`).
+  ccache cannot cache MSVC `/Zi` compilations, so the Debug build sets
+  `-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded` (`/Z7`). Static libraries installed
+  to the developer package stay on `/Zi` through `ov_keep_debug_info_in_pdb()` to keep
+  the package size, so they are not cached. Builds with embedded debug information also link without
+  `/INCREMENTAL`, which keeps PDB files free of stale incremental-link data.
+
+Old entries are evicted together with the rest of `/mount/caches/ccache` and
+`C:\mount\caches\ccache` by the `Cleanup_ccache_lin` and `Cleanup_ccache_win` jobs in
 [`cleanup_caches.yml`](./../../../../.github/workflows/cleanup_caches.yml).
 
 ## Cloud Storage via Azure Blob Storage
