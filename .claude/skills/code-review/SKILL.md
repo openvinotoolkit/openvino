@@ -21,8 +21,7 @@ without shortening the investigation.
 Identify exactly which changes are being reviewed:
 
 - **Pull request:** record the base and head SHAs and inspect the current PR
-  diff. Recheck the head before finalizing; if it changed, revisit affected
-  findings and coverage.
+  diff.
 - **Committed branch changes:** compare the merge base of the selected target
   and `HEAD` against `HEAD`. Record the comparison SHAs. Do not silently include
   uncommitted changes.
@@ -32,8 +31,7 @@ Identify exactly which changes are being reviewed:
   unstaged changes, or both. Distinguish index content from working-tree
   content.
 
-Read the description and relevant linked requirements. Distinguish documented
-requirements from assumptions about intended behavior.
+Read the description and relevant linked requirements.
 
 For local reviews, mark PR-only checks and discussion as not applicable.
 Report local validation separately.
@@ -47,7 +45,8 @@ For PR reviews:
 
 - Inspect discussion, review summaries, and relevant inline threads for failure
   reports, constraints, and decisions affecting the changed behavior.
-- Treat comments and author explanations as leads, not proof.
+- Treat comments and author explanations as leads, not proof, including later
+  replies.
 - Classify material existing concerns as still applicable, fixed,
   outdated/inapplicable, or not yet verifiable at the reviewed head.
 - Support that classification with current code, tests, or other direct
@@ -127,8 +126,6 @@ Before reporting a defect:
    action.
 
 If these checks do not establish a defect, do not report one as confirmed.
-Retain only material, technically grounded validation gaps or questions, clearly
-separated from defect findings.
 
 ### 6. Finalize
 
@@ -136,9 +133,6 @@ Recheck the reviewed revision and the evidence supporting each finding.
 
 Report all material, well-supported, actionable findings in descending order of
 impact. Consolidate repeated instances of one root cause.
-
-Summarize significant inspection and validation limitations without reproducing
-the entire internal checklist.
 
 ## Priority checklist
 
@@ -202,13 +196,8 @@ measured slowdown or speedup without measurements.
 - Expect regression coverage for fixes and behavioral changes when an existing
   suite can express the scenario.
 - Check whether equivalent coverage already exists before requesting new tests.
-- Map tests to relevant execution variants, devices, runtimes, precisions,
-  shapes, and boundary conditions.
-- Distinguish test presence, test quality, execution results, and environment
-  coverage.
 - Request specific validation: identify the scenario, expected invariant, and
   what result would resolve the concern.
-- Do not turn unavailable validation into a demonstrated functional defect.
 - Consider CI and build configuration requirements when relevant to the changed
   surfaces or explicitly required by repository policy.
 
@@ -257,22 +246,13 @@ Distinguish:
 - **Recommendations:** preferences that require a material consequence before
   becoming actionable findings.
 
-Do not automatically assign medium or higher severity to every checklist item
-or guide deviation. Severity follows impact, not the presence of a rule.
-
 If a referenced file is unavailable, disclose the limitation and use available
 applicable guidance without pretending the missing reference was loaded.
 
 ### Evidence checks before finalizing
 
-- For discussion-based claims, inspect relevant review threads and ordinary PR
-  comments, including later replies. Distinguish unanswered from unresolved.
 - Before claiming tests, guards, replies, or handling are absent, search the
   relevant scope. Otherwise state "not verified" and identify the limitation.
-- Inspect large or truncated files through targeted reads before excluding
-  them, especially tests supporting a reported finding.
-- Separate demonstrated code defects, reported failures, validation gaps, and
-  optional improvements; keep the opening assessment consistent with them.
 - Check producer/caller contracts before proposing defensive checks. Do not
   silently discard invalid input unless that behavior satisfies the contract.
 - Verify that a proposed fix preserves semantics. Do not describe an alternative
@@ -290,8 +270,6 @@ Treat a revert as a regression review:
 - Check whether the revert reintroduces that problem or changes compatibility.
 - Do not request new tests or refactors for restored code unless needed to
   prevent a concrete regression.
-- If the original rationale is unavailable, state the limitation rather than
-  inventing requirements.
 
 ### External contributions
 
@@ -331,8 +309,8 @@ For each material defect, include:
 - evidence and relevant counterevidence;
 - minimal correction direction.
 
-Use one finding per root cause. Do not require a long repeated template when a
-short paragraph contains the necessary evidence.
+Do not require a long repeated template when a short paragraph contains
+the necessary evidence.
 
 ### Validation gaps and questions
 
@@ -366,7 +344,6 @@ validation is missing, or a checklist was not completed.
 Qualify uncertainty explicitly. Do not label a suspected failure as confirmed
 or use low-confidence speculation as a blocking defect.
 
-
 ### Review summary table
 
 End the review with a concise table covering material findings and significant
@@ -387,6 +364,5 @@ Use these assessments:
 Name the triggering condition or inspected scope and link supporting evidence
 where available. Keep actions specific; use "None" when no action is needed.
 
-The table must agree with the detailed findings. Do not promote uncertainty to
-a confirmed defect, equate passing CI with correctness, or imply coverage of
-uninspected paths. Summarize rather than repeat the full findings.
+The table must agree with the detailed findings. Summarize rather than repeat the full findings. 
+Do not include secrets or sensitive data.
