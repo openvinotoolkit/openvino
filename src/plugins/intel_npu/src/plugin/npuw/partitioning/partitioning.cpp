@@ -4,9 +4,11 @@
 
 #include "partitioning.hpp"
 
+#include <algorithm>
 #include <limits>
 #include <memory>
 #include <set>
+#include <unordered_set>
 
 #include "../logging.hpp"
 #include "../npuw_transformations/detect_causal_mask.hpp"
@@ -2327,6 +2329,15 @@ void Partitioner::optimize(const std::string& func_name) {
         do_cvtf16(ctx);
 
         // Add lazy Sub128 parameters while retaining the original sources when they are still shared.
+        // A source and its Sub128 closure share one LazyTensor, which the weights bank detaches after
+        // the first evaluation. The source is kept only for readers that are reachable from the
+        // model outputs: a disconnected chain that an earlier pass still holds must not count.
+        std::unordered_set<const ov::Node*> live_ops;
+        if (!ctx.closures_to_subtract_128.empty()) {
+            for (const auto& node : f._model->get_ordered_ops()) {
+                live_ops.insert(node.get());
+            }
+        }
         for (const auto& shifted_and_source : ctx.closures_to_subtract_128) {
             const auto& shifted_param = shifted_and_source.first;
             const auto& source_param = shifted_and_source.second;
@@ -2342,7 +2353,12 @@ void Partitioner::optimize(const std::string& func_name) {
                 funcall._is_lazy_unpack.push_back(false);
             });
 
-            if (source_param->output(0).get_target_inputs().empty() && to_remove_idx.insert(source_idx).second) {
+            const auto source_readers = source_param->output(0).get_target_inputs();
+            const bool source_has_live_reader =
+                std::any_of(source_readers.begin(), source_readers.end(), [&](const ov::Input<ov::Node>& reader) {
+                    return live_ops.count(reader.get_node()) > 0;
+                });
+            if (!source_has_live_reader && to_remove_idx.insert(source_idx).second) {
                 to_remove.push_back(source_param);
             }
         }

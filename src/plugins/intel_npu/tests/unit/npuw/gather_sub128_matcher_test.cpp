@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "lazy_tensor.hpp"
 #include "npuw_transformations/insert_vocab_sub128.hpp"
@@ -929,6 +930,115 @@ TEST_P(ParallelMatMulMergeTest, MergesMatMulsOnUnchangedActivation) {
 }
 
 INSTANTIATE_TEST_SUITE_P(NumMatMuls, ParallelMatMulMergeTest, ::testing::Values(2u, 3u));
+
+namespace {
+
+// The head of make_head_with_direct_gq_readers(1) as the plugin sees it before partitioning: the
+// vocabulary and the MatMul weights are Constants that partitioning turns into closure Parameters
+struct ConstantHead {
+    std::shared_ptr<ov::Model> model;
+    ov::Output<ov::Node> vocab_multiply;
+};
+
+ConstantHead make_constant_head() {
+    constexpr std::size_t vocab_size = 64;
+    constexpr std::size_t hidden_size = kGroups * kGroupSize;
+    auto ids = std::make_shared<ov::opset10::Parameter>(ov::element::i32, ov::Shape{1, 1});
+    auto weights = ov::opset10::Constant::create(ov::element::u8,
+                                                 ov::Shape{vocab_size, hidden_size},
+                                                 std::vector<uint8_t>(vocab_size * hidden_size, 200));
+    auto zero_point =
+        ov::opset10::Constant::create(ov::element::u8, ov::Shape{vocab_size, 1}, std::vector<uint8_t>(vocab_size, 128));
+    auto scale =
+        ov::opset10::Constant::create(ov::element::f16, ov::Shape{vocab_size, 1}, std::vector<float>(vocab_size, 1.0f));
+    auto axis = ov::opset10::Constant::create(ov::element::i32, ov::Shape{}, {0});
+
+    auto gathered_weights = std::make_shared<ov::opset10::Gather>(weights, ids, axis);
+    auto gathered_zero_point = std::make_shared<ov::opset10::Gather>(zero_point, ids, axis);
+    auto gathered_scale = std::make_shared<ov::opset10::Gather>(scale, ids, axis);
+    auto shift = ov::opset10::Constant::create(ov::element::f16, ov::Shape{}, {128.0f});
+    auto shifted_weight = std::make_shared<ov::opset10::Subtract>(
+        std::make_shared<ov::opset10::Convert>(gathered_weights, ov::element::f16),
+        shift);
+    auto shifted_zero_point = std::make_shared<ov::opset10::Subtract>(
+        std::make_shared<ov::opset10::Convert>(gathered_zero_point, ov::element::f16),
+        shift);
+    shifted_weight->get_rt_info()[ov::npuw::NPUW_SUB128_SHIFT_RT_INFO] = true;
+    shifted_zero_point->get_rt_info()[ov::npuw::NPUW_SUB128_SHIFT_RT_INFO] = true;
+    auto dequantized = std::make_shared<ov::opset10::Subtract>(shifted_weight, shifted_zero_point);
+    auto scaled = std::make_shared<ov::opset10::Multiply>(dequantized, gathered_scale);
+    auto converted = std::make_shared<ov::opset10::Convert>(scaled, ov::element::f16);
+
+    auto gq_weight = ov::opset10::Constant::create(ov::element::i4,
+                                                   ov::Shape{kGroups, kGroupSize, kOutFeatures},
+                                                   std::vector<int8_t>(hidden_size * kOutFeatures, 1));
+    auto gq_scale = ov::opset10::Constant::create(ov::element::f16,
+                                                  ov::Shape{kGroups, 1, kOutFeatures},
+                                                  std::vector<float>(kGroups * kOutFeatures, 1.0f));
+    auto gq_scaled =
+        std::make_shared<ov::opset10::Multiply>(std::make_shared<ov::opset10::Convert>(gq_weight, ov::element::f16),
+                                                gq_scale);
+    auto gq_shape =
+        ov::opset10::Constant::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{hidden_size, kOutFeatures});
+    auto gq_reshaped = std::make_shared<ov::opset10::Reshape>(gq_scaled, gq_shape, false);
+    auto matmul = std::make_shared<ov::opset10::MatMul>(converted, gq_reshaped, false, false);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{make_result(matmul)}, ov::ParameterVector{ids});
+    return {model, scaled->output(0)};
+}
+
+::intel_npu::Config make_head_partitioning_cfg() {
+    auto opt_desc = std::make_shared<::intel_npu::OptionsDesc>();
+    ::intel_npu::registerNPUWOptions(*opt_desc);
+    ::intel_npu::Config cfg(opt_desc);
+    cfg.update({{"NPUW_ONLINE_PIPELINE", "NONE"},
+                {"NPUW_FUNCALL_FOR_ALL", "YES"},
+                {"NPUW_FOLD", "YES"},
+                {"NPUW_HOST_GATHER", "YES"}});
+    return cfg;
+}
+
+}  // namespace
+
+// CVS-199500: partitioning decided whether to keep the u8 vocabulary Parameter next to its Sub128
+// closure by get_target_inputs(). Any holder of the replaced vocabulary chain (here the test, in
+// the bug the parallel MatMul context) made the disconnected Gather count as a reader, and the
+// weights bank then detached the source shared by both closures. Only readers reachable from the
+// model outputs may keep the source.
+TEST(HostGatherSub128PartitioningTest, DropsVocabularySourceHeldByDisconnectedChain) {
+    const auto head = make_constant_head();
+    auto cfg = make_head_partitioning_cfg();
+    ov::npuw::PartitioningContext ctx;
+    ctx.use_host_gather_quant = true;
+
+    const auto partitioning = ov::npuw::getPartitioning(head.model, cfg, ctx);
+
+    // The vocabulary Multiply was replaced by the host gather, the test still holds it
+    EXPECT_TRUE(head.vocab_multiply.get_target_inputs().empty());
+
+    ASSERT_EQ(partitioning.functions.size(), 1u);
+    const auto& function = partitioning.functions.begin()->second;
+    const auto& params = function._model->get_parameters();
+    EXPECT_EQ(std::count_if(params.begin(),
+                            params.end(),
+                            [](const std::shared_ptr<ov::op::v0::Parameter>& param) {
+                                return param->get_element_type() == ov::element::u8;
+                            }),
+              0);
+    EXPECT_EQ(std::count_if(params.begin(),
+                            params.end(),
+                            [](const std::shared_ptr<ov::op::v0::Parameter>& param) {
+                                return param->get_element_type() == ov::element::i8;
+                            }),
+              2);
+
+    const auto funcall = std::find_if(partitioning.subgraphs.begin(),
+                                      partitioning.subgraphs.end(),
+                                      [](const ov::npuw::Subgraph& subgraph) {
+                                          return !subgraph._funcall.empty();
+                                      });
+    ASSERT_NE(funcall, partitioning.subgraphs.end());
+    EXPECT_EQ(funcall->_lazy_closure.size(), params.size() - function._param_offset);
+}
 
 TEST(ConvertDQVocabTest, ReplacesMarkedShiftsWithLazySources) {
     const auto model = make_parameter_vocab_dq_model();
