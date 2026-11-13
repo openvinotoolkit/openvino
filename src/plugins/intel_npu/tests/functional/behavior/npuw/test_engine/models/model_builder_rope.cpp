@@ -26,7 +26,8 @@ RoPEFrequencies build_rope_frequencies(size_t head_dim,
                                        ov::element::Type precision,
                                        const ov::Output<ov::Node>& position_ids,
                                        const ov::Output<ov::Node>& shape_source = {},
-                                       const std::string& prefix = "model.rope") {
+                                       const std::string& prefix = "model.rope",
+                                       const LongRopeSpec& longrope = {}) {
     const size_t half_dim = head_dim / 2;
 
     std::vector<float> inv_freq_data(half_dim);
@@ -34,8 +35,35 @@ RoPEFrequencies build_rope_frequencies(size_t head_dim,
         inv_freq_data[i] =
             1.0f / std::pow(kRoPEBaseFrequency, static_cast<float>(2 * i) / static_cast<float>(head_dim));
     }
-    auto inv_freq = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1, half_dim, 1}, inv_freq_data);
-    inv_freq->set_friendly_name(prefix + ".inv_freq");
+    ov::Output<ov::Node> inv_freq;
+    if (longrope.enabled()) {
+        OPENVINO_ASSERT(longrope.inv_freq_short.size() == half_dim && longrope.inv_freq_long.size() == half_dim,
+                        "LongRopeSpec needs head_dim / 2 inverse frequencies per mode");
+        auto short_factor =
+            ov::opset11::Constant::create(ov::element::f32, ov::Shape{1, half_dim, 1}, longrope.inv_freq_short);
+        short_factor->set_friendly_name(prefix + ".inv_freq_short");
+        auto long_factor =
+            ov::opset11::Constant::create(ov::element::f32, ov::Shape{1, half_dim, 1}, longrope.inv_freq_long);
+        long_factor->set_friendly_name(prefix + ".inv_freq_long");
+
+        // max(position_ids) + 1 <= original_max_position_embeddings ? short : long.
+        // The offset has to be exactly 1 - NPUW rejects any other one.
+        const auto pos_type = position_ids.get_element_type();
+        auto reduce_axes = ov::opset11::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1});
+        auto max_pos = std::make_shared<ov::op::v1::ReduceMax>(position_ids, reduce_axes, false);
+        auto one = ov::opset11::Constant::create(pos_type, ov::Shape{}, {1});
+        auto shifted = std::make_shared<ov::op::v1::Add>(max_pos, one);
+        auto limit = ov::opset11::Constant::create(pos_type, ov::Shape{}, {longrope.context_limit});
+        auto is_short = std::make_shared<ov::op::v1::LessEqual>(shifted, limit);
+        auto select = std::make_shared<ov::op::v1::Select>(is_short, short_factor, long_factor);
+        select->set_friendly_name(prefix + ".inv_freq_select");
+        inv_freq = select->output(0);
+    } else {
+        auto inv_freq_const =
+            ov::opset11::Constant::create(ov::element::f32, ov::Shape{1, half_dim, 1}, inv_freq_data);
+        inv_freq_const->set_friendly_name(prefix + ".inv_freq");
+        inv_freq = inv_freq_const->output(0);
+    }
 
     // Broadcast inv_freq to [batch, half_dim, 1] using batch dim from shape_source.
     // This ShapeOf -> Gather -> Concat -> Broadcast chain matches NPUW's RopePatternLLama2.
@@ -111,9 +139,10 @@ RoPEFrequencies build_rope_frequencies(size_t head_dim,
 HalfRotationRoPE::HalfRotationRoPE(size_t hd,
                                    ov::element::Type precision,
                                    const ov::Output<ov::Node>& position_ids,
-                                   const ov::Output<ov::Node>& shape_source)
+                                   const ov::Output<ov::Node>& shape_source,
+                                   const LongRopeSpec& longrope)
     : head_dim(hd) {
-    auto freq = build_rope_frequencies(hd, precision, position_ids, shape_source);
+    auto freq = build_rope_frequencies(hd, precision, position_ids, shape_source, "model.rope", longrope);
     cos_freq = freq.cos;
     sin_freq = freq.sin;
 }

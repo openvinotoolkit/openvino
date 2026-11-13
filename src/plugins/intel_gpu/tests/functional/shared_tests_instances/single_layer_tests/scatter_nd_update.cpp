@@ -11,6 +11,7 @@ using ov::test::ScatterNDUpdateLayerTest;
 // map<inputShape map<indicesShape, indicesValue>>
 // updateShape is gotten from inputShape and indicesShape
 std::map<std::vector<size_t>, std::map<std::vector<size_t>, std::vector<int>>> sliceSelectInShape{
+    {{16}, {{{4, 1}, {0, 8, 3, 15}}}},
     {{4, 3, 2, 3, 2}, {{{2, 2, 1}, {3, 2, 0, 1}}}},
     {{10, 9, 9, 11}, {{{4, 1}, {1, 3, 5, 7}}, {{1, 2}, {4, 6}}, {{2, 3}, {0, 1, 1, 2, 2, 2}}, {{1, 4}, {5, 5, 4, 9}}}},
     {{10, 9, 12, 10, 11}, {{{2, 2, 1}, {5, 6, 2, 8}}, {{2, 3}, {0, 4, 6, 5, 7, 1}}}},

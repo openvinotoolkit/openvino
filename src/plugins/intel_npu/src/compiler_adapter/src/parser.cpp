@@ -14,8 +14,10 @@
 
 namespace intel_npu {
 
-Parser::Parser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
+Parser::Parser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+               const std::shared_ptr<IProfilingDecoder>& profilingDecoder)
     : _zeroInitStruct(zeroInitStruct),
+      _profilingDecoder(profilingDecoder),
       _logger("Parser", Logger::global().level()) {
     _logger.info("initialize Parser start");
 
@@ -37,14 +39,16 @@ std::shared_ptr<IGraph> Parser::parse(
 
     const void* data = mainBlob.data();
     size_t size = mainBlob.get_byte_size();
-    if (blobType.has_value() && (blobType.value() == BlobType::LLVM || blobType.value() == BlobType::BYTECODE)) {
+    if (blobType.has_value() && (blobType.value() == BlobType::BYTECODE)) {
         OPENVINO_ASSERT(
             config.get<ALLOW_BYTECODE>(),
             "The blob declares a payload that runs in-process on the host VM runtime instead of being parsed by the "
             "NPU driver, and NPU_ALLOW_BYTECODE is disabled, so only native NPU device blobs are accepted.");
         _logger.debug("Create graph for dynamic blob, use internal function to get metadata!");
         NPUVMRuntimeApi::initializeFromBlob(data, size);
-        return std::make_shared<DynamicGraph>(_zeroInitStruct, mainBlob, config, blobType.value());
+        auto dynamicGraph = std::make_shared<DynamicGraph>(_zeroInitStruct, mainBlob, blobType.value());
+        dynamicGraph->initialize(config);  // load metadata
+        return dynamicGraph;
     }
 
     GraphDescriptor mainGraphDesc;
@@ -70,9 +74,9 @@ std::shared_ptr<IGraph> Parser::parse(
                                        mainGraphDesc,
                                        std::move(mainNetworkMetadata),
                                        mainBlob,
-                                       config,
                                        compatibilityDescriptor,
-                                       blobIsPersistent);
+                                       blobIsPersistent,
+                                       _profilingDecoder);
     }
 
     // The presence of init schedules means weights separation has been enabled at compilation time. Use a specific
@@ -101,9 +105,9 @@ std::shared_ptr<IGraph> Parser::parse(
                                              std::move(initNetworkMetadata),
                                              initBlobs,
                                              std::move(weightsSource),
-                                             config,
                                              blobIsPersistent,
-                                             compatibilityDescriptor);
+                                             compatibilityDescriptor,
+                                             _profilingDecoder);
 }
 
 }  // namespace intel_npu

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <fstream>
@@ -17,10 +18,13 @@ namespace ov_gguf_test {
 
 // GGUF metadata value types (gguf.h GGUF_VALUE_TYPE_*).
 enum : uint32_t {
+    GGUF_TYPE_UINT16 = 2,
     GGUF_TYPE_UINT32 = 4,
+    GGUF_TYPE_INT32 = 5,
     GGUF_TYPE_FLOAT32 = 6,
     GGUF_TYPE_BOOL = 7,
     GGUF_TYPE_STRING = 8,
+    GGUF_TYPE_ARRAY = 9,
 };
 
 // ggml tensor type F32 (ggml.h GGML_TYPE_F32).
@@ -28,6 +32,14 @@ constexpr uint32_t GGML_TYPE_F32 = 0;
 
 class GgufWriter {
 public:
+    void kv_u16(const std::string& key, uint16_t v) {
+        kv_key(key, GGUF_TYPE_UINT16);
+        put(v);
+    }
+    void kv_i32(const std::string& key, int32_t v) {
+        kv_key(key, GGUF_TYPE_INT32);
+        put(v);
+    }
     void kv_u32(const std::string& key, uint32_t v) {
         kv_key(key, GGUF_TYPE_UINT32);
         put(v);
@@ -44,6 +56,42 @@ public:
         kv_key(key, GGUF_TYPE_STRING);
         put(static_cast<uint64_t>(v.size()));
         m_kv.insert(m_kv.end(), v.begin(), v.end());
+    }
+    void kv_u32_array(const std::string& key, const std::vector<uint32_t>& values) {
+        kv_key(key, GGUF_TYPE_ARRAY);
+        put(uint32_t(GGUF_TYPE_UINT32));
+        put(uint64_t(values.size()));
+        for (auto value : values)
+            put(value);
+    }
+    void kv_u16_array(const std::string& key, const std::vector<uint16_t>& values) {
+        kv_key(key, GGUF_TYPE_ARRAY);
+        put(uint32_t(GGUF_TYPE_UINT16));
+        put(uint64_t(values.size()));
+        for (auto value : values)
+            put(value);
+    }
+    void kv_str_array(const std::string& key, const std::vector<std::string>& values) {
+        kv_key(key, GGUF_TYPE_ARRAY);
+        put(uint32_t(GGUF_TYPE_STRING));
+        put(uint64_t(values.size()));
+        for (const auto& value : values)
+            put_str(m_kv, value);
+    }
+
+    // Fill with a deterministic nonzero pattern. `norm_ramp` slopes norm weights per element so a
+    // norm tensor is not indistinguishable from an identity.
+    void filled_tensor(const std::string& name,
+                       const std::vector<uint64_t>& dims,
+                       bool norm = false,
+                       float norm_ramp = 0.f) {
+        size_t count = 1;
+        for (auto d : dims)
+            count *= d;
+        std::vector<float> values(count);
+        for (size_t i = 0; i < count; ++i)
+            values[i] = norm ? 1.f + norm_ramp * float(i) : 0.1f * std::sin(float(i + 1));
+        tensor(name, dims, values);
     }
 
     // dims uses GGUF order (fastest axis first). Empty values produce zero-filled data.
@@ -72,6 +120,25 @@ public:
         if (!values.empty())
             std::memcpy(m_data.data() + offset, values.data(), n * sizeof(float));
         m_data_size += bytes;
+        ++m_n_tensors;
+    }
+
+    void raw_tensor(const std::string& name,
+                    const std::vector<uint64_t>& dims,
+                    uint32_t type,
+                    const std::vector<uint8_t>& data) {
+        put_str(m_ti, name);
+        put(m_ti, static_cast<uint32_t>(dims.size()));
+        for (auto d : dims) {
+            put(m_ti, d);
+        }
+        put(m_ti, type);
+        put(m_ti, m_data_size);
+        m_data.insert(m_data.end(), data.begin(), data.end());
+        if (const auto padding = data.size() % kAlignment) {
+            m_data.resize(m_data.size() + kAlignment - padding, 0);
+        }
+        m_data_size = m_data.size();
         ++m_n_tensors;
     }
 

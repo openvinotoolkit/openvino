@@ -7,6 +7,7 @@
 #    include <sstream>
 #    include <string>
 
+#    include "intel_gpu/op/mlir_op.hpp"
 #    include "json_object.h"
 #    include "mlir_primitive_inst.h"
 #    include "openvino/core/partial_shape.hpp"

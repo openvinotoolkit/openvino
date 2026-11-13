@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <type_traits>
 
 #include "openvino/runtime/aligned_buffer.hpp"
@@ -43,6 +44,10 @@ public:
         }
     }
 
+    util::PrefetchToken hint_prefetch_async() const noexcept override {
+        return hint_prefetch_async(get_offset(), m_byte_size);
+    }
+
 protected:
     template <typename U>
     struct is_aligned_buffer_ptr : std::false_type {};
@@ -56,8 +61,25 @@ protected:
             if (m_shared_object) {
                 m_shared_object->hint_evict(offset, size);
             }
-        } else {
+        } else if constexpr (is_aligned_buffer_ptr_v<T>) {
+            if (m_shared_object) {
+                invoke_evict(*m_shared_object, offset, size);
+            }
         }
+    }
+
+    // The offset is relative to the root source buffer, so it is forwarded to the parents unchanged.
+    util::PrefetchToken hint_prefetch_async(size_t offset, size_t size) const noexcept override {
+        if constexpr (std::is_same_v<std::shared_ptr<ov::MappedMemory>, T>) {
+            if (m_shared_object) {
+                return m_shared_object->hint_prefetch_async(offset, size);
+            }
+        } else if constexpr (is_aligned_buffer_ptr_v<T>) {
+            if (m_shared_object) {
+                return invoke_hint_prefetch_async(*m_shared_object, offset, size);
+            }
+        }
+        return {};
     }
 
     void hint_prefetch() const override {
@@ -140,6 +162,16 @@ public:
 
     SharedBuffer(char* data, size_t size, const T& shared_object)
         : SharedBuffer(data, size, shared_object, get_or_make_descriptor(shared_object)) {}
+
+    // std::byte* overloads so callers holding an IBuffer::data()-style pointer don't need to cast.
+    SharedBuffer(std::byte* data,
+                 size_t size,
+                 const T& shared_object,
+                 const std::shared_ptr<IBufferDescriptor>& descriptor)
+        : SharedBuffer(reinterpret_cast<char*>(data), size, shared_object, descriptor) {}
+
+    SharedBuffer(std::byte* data, size_t size, const T& shared_object)
+        : SharedBuffer(reinterpret_cast<char*>(data), size, shared_object) {}
 };
 
 /// \brief SharedStreamBuffer class to store pointer to pre-allocated buffer and provide streambuf interface.

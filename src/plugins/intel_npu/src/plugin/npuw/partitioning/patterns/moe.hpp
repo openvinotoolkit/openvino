@@ -63,6 +63,14 @@ public:
     GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 
+// Structural expert isolation shared by all supported batched FFN layouts.
+// Router activation/normalization and model/node names are not part of the match.
+class BatchedExpert : public ov::pass::MatcherPass {
+public:
+    MOE_EXPERT_STATIC_INFO(BatchedExpert)
+    BatchedExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
+};
+
 class GPTOSSRouter : public ov::pass::MatcherPass {
 public:
     MOE_ROUTER_STATIC_INFO(GPTOSSRouter)

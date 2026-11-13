@@ -21,36 +21,33 @@ RUN apt-get update && \
     add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
     apt-get update && \
     apt-get install \
-        curl \
-        git \
-        gpg-agent \
-        tzdata \
-        # parallel gzip
-        pigz \
-        # Pythons
-        python3.10-dev \
-        python3.10-venv \
-        python3.10-distutils \
-        python3.11-dev \
-        python3.11-venv \
-        python3.11-distutils \
-        python3.12-dev \
-        python3.12-venv \
-        python3.13-dev \
-        python3.13-venv \
-        python3-dev \
-        python3-venv \
-        python3-pip \
-        python3-full \
-        python3.14-nogil \
-        python3.14-venv \
-        python3.14-dev \
-        # For Java API
-        default-jdk \
-        # For clang-tidy validation
-        clang-format-18 \
-        clang-tidy-18 \
-        && \
+    curl \
+    git \
+    gpg-agent \
+    tzdata \
+    # parallel gzip
+    pigz \
+    # Pythons
+    python3.11-dev \
+    python3.11-venv \
+    python3.11-distutils \
+    python3.12-dev \
+    python3.12-venv \
+    python3.13-dev \
+    python3.13-venv \
+    python3-dev \
+    python3-venv \
+    python3-pip \
+    python3-full \
+    python3.14-nogil \
+    python3.14-venv \
+    python3.14-dev \
+    # For Java API
+    default-jdk \
+    # For clang-tidy validation
+    clang-format-18 \
+    clang-tidy-18 \
+    && \
     rm -rf /var/lib/apt/lists/*
 
 # Install build dependencies
@@ -60,7 +57,7 @@ RUN chmod +x /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
 # Install sccache
-ARG SCCACHE_VERSION="v0.7.5"
+ARG SCCACHE_VERSION="v0.18.0"
 ENV SCCACHE_HOME="/opt/sccache" \
     SCCACHE_PATH="/opt/sccache/sccache"
 
@@ -80,7 +77,6 @@ ENV PATH="/venv/bin:$PATH"
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     /venv/bin/python3 -m pip install --upgrade pip==${PIP_VERSION} && \
-    python3.10 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.11 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.12 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.13 -m pip install --upgrade pip==${PIP_VERSION} && \

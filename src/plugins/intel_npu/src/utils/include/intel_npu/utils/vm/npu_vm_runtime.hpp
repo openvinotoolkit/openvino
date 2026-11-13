@@ -318,6 +318,9 @@ typedef struct _npu_vm_runtime_create_execution_context_params_t {
 
     /// @brief Initial Level Zero command queue. Used by interpreter to create a fence for host synchronization.
     ///        Later npuVMRuntimeExecute2 calls may provide a different commandQueue.
+    ///        Lifetime: this queue must remain valid until a subsequent npuVMRuntimeExecute2 with a different
+    ///        commandQueue has succeeded. The interpreter keeps a fence bound to this queue and destroys it only
+    ///        during that migration, so freeing the queue earlier causes a use-after-free inside the runtime.
     ze_command_queue_handle_t commandQueue;
 
     /// @brief Graph DDI table extension pointer.
@@ -345,6 +348,11 @@ NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRun
 ///          If commandQueue differs from the one currently stored in executionContext,
 ///          runtime updates queue-dependent internal objects as needed.
 ///          Plugin never creates or manages command lists directly in this path.
+///          Queue lifetime: every commandQueue passed here (and to npuVMRuntimeCreateExecutionContext2) must stay
+///          valid until a later npuVMRuntimeExecute2 with a different commandQueue succeeds; a failed call may
+///          return before the migration. On a queue change the
+///          interpreter destroys the fence bound to the previously stored queue and rebuilds it on the new one;
+///          if the caller already freed the old queue, that destroy is a use-after-free the runtime cannot detect.
 typedef struct _npu_vm_runtime_execute_params2_t {
     /// @brief Command queue for submitting command lists or configuring internal command lists.
     ze_command_queue_handle_t commandQueue;

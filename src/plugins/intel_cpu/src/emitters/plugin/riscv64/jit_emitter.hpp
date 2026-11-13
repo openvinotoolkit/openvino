@@ -132,7 +132,7 @@ protected:
     void emit_code_impl(const std::vector<size_t>& in_idxs,
                         const std::vector<size_t>& out_idxs,
                         const std::vector<size_t>& pool_vec_idxs,
-                        const std::vector<size_t>& pool_gpr_idxs) const override {
+                        const std::vector<size_t>& pool_gpr_idxs) const override final {
         emit_code_impl(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs, {});
     }
 

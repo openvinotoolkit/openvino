@@ -8,6 +8,7 @@
 #include "registry/implementation_manager.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/weights_prefetch.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/util/file_util.hpp"
@@ -15,6 +16,7 @@
 #include "openvino/core/memory_util.hpp"
 #include "openvino/util/parallel_read_streambuf.hpp"
 #include "common_utils/parallel_mem_streambuf.hpp"
+#include "common_utils/prefetch_streambuf.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -22,6 +24,7 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/graph/tensor_conversion.hpp"
 
 
 #include "allocation_order.hpp"
@@ -206,13 +209,15 @@ program::program(engine& engine_ref,
                  std::set<std::shared_ptr<program_node>> const& nodes,
                  const ExecutionConfig& config,
                  std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-                 bool is_internal)
+                 bool is_internal,
+                 std::optional<std::map<primitive_type_id, bool>> onednn_impls)
     : _engine(engine_ref),
       _stream(_engine.create_stream(config)),
       _config(config),
       _task_executor(std::move(task_executor)),
       processing_order(),
-      is_internal(is_internal) {
+      is_internal(is_internal),
+      _onednn_impls(std::move(onednn_impls)) {
     _config.finalize(_engine);
     _engine.set_enable_large_allocations(_config.get_enable_large_allocations());
     init_primitives();
@@ -314,8 +319,9 @@ program::ptr program::build_program(engine& engine,
                                     const std::set<std::shared_ptr<program_node>>& nodes,
                                     const ExecutionConfig& config,
                                     std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-                                    bool is_internal) {
-    return std::make_shared<program>(engine, nodes, config, task_executor, is_internal);
+                                    bool is_internal,
+                                    std::optional<std::map<primitive_type_id, bool>> onednn_impls) {
+    return std::make_shared<program>(engine, nodes, config, task_executor, is_internal, std::move(onednn_impls));
 }
 
 program_node& program::get_node(primitive_id const& id) {
@@ -802,14 +808,17 @@ const std::vector<primitive_id>& program::get_allocating_order(bool forced_updat
 }
 
 void program::prepare_memory_dependencies() {
-    if (!_config.get_enable_memory_pool())
-        return;
+    // Computed even without the memory pool: network::may_alias() relies on these restrictions.
     for (const auto& node : get_processing_order()) {
         node->add_memory_dependency(*node);
     }
     apply_opt_pass<basic_memory_dependencies>();
     apply_opt_pass<skipped_branch_memory_dependencies>();
     apply_opt_pass<oooq_memory_dependencies>();
+    // Publish sorted restriction vectors before runtime consumers can access them.
+    for (const auto& node : get_processing_order()) {
+        node->get_memory_dependencies();
+    }
 }
 
 std::string program::get_memory_dependencies_string() const {
@@ -1017,7 +1026,15 @@ void program::swap_names(program_node& node1, program_node& node2) {
 }
 
 void program::replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling) {
-    return replace_all_usages(old_node, std::make_pair(&new_node, 0), remove_if_dangling);
+    const std::list<program_node*> users(old_node.users);
+    for (auto* user : users) {
+        for (size_t i = 0; i < user->dependencies.size(); ++i) {
+            if (user->dependencies[i].first == &old_node) {
+                const auto port = user->dependencies[i].second;
+                user->replace_dependency(i, {&new_node, port}, remove_if_dangling);
+            }
+        }
+    }
 }
 
 void program::replace_all_usages(program_node& old_node, std::pair<program_node*, int32_t> new_node, bool remove_if_dangling) {
@@ -1191,12 +1208,17 @@ bool program::move_node(program_node& node,
 void program::fuse_nodes(program_node &fused_node,
                          program_node &peer_node,
                          std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>>* fusing_history) {
-    auto peer_layout = peer_node.get_output_layout();
+    auto peer_layouts = peer_node.get_output_layouts();
+    OPENVINO_ASSERT(peer_layouts.size() == 1 || (peer_layouts.size() == 2 && peer_node.is_type<dynamic_quantize>()));
+    if (peer_layouts.size() == 2) {
+        fused_node.set_num_outputs(2);
+    }
+
     fused_primitive_desc local_desc(peer_node.get_primitive());
     local_desc.f_param = get_node_ptr(peer_node.id())->get_fuse_params();
     local_desc.total_num_deps = peer_node.get_dependencies().size();
     local_desc.input_layout = peer_node.get_input_layout(0);
-    local_desc.output_layout = peer_layout;
+    local_desc.output_layouts = peer_layouts;
 
     if (fused_node.in_shape_of_subgraph && !peer_node.in_shape_of_subgraph) {
         fused_node.in_shape_of_subgraph = false;
@@ -1205,8 +1227,10 @@ void program::fuse_nodes(program_node &fused_node,
     int32_t orig_fused_node_num_deps = static_cast<int32_t>(fused_node.get_dependencies().size());
     auto fused_layout = fused_node.get_output_layout();
     auto fused_padding = fused_layout.data_padding;
-    cldnn::padding needed_padding = padding::max(peer_layout.data_padding,
-                                                 fused_padding);
+    cldnn::padding needed_padding = fused_padding;
+    for (const auto& peer_layout : peer_layouts) {
+        needed_padding = padding::max(needed_padding, peer_layout.data_padding);
+    }
 
     auto history_iter = fusing_history->find(peer_node.id());
     if (history_iter != fusing_history->end()) {
@@ -1289,8 +1313,8 @@ void program::fuse_nodes(program_node &fused_node,
 
     // Update output layout. Recalculation is not needed.
     fused_node.merge_output_padding(needed_padding);
-    fused_node.set_output_layout(peer_layout, false);
-    fused_node.recalc_output_layout(true);
+    fused_node.set_output_layouts(peer_layouts, false);
+    fused_node.recalc_output_layouts(true);
 }
 
 void program::remove_nodes(std::vector<program_node*>& to_remove) {
@@ -1491,23 +1515,16 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     size_t dynamic_batch_onednn_conv_count = 0;
     bool has_sdpa = false;
     size_t total_non_byxf_onednn_conv_whitelist_layers = 0;
-
-    // OneDNN previously selects formats like b_fs_yx_fsv16 or bs_fs_yx_bsv16_fsv16 based on batch size.
-    // For dynamic batches, this approach is inefficient.
-    // We plan to switch to byxf for better flexibility across varying batch sizes.
-    // The whitelist below defines the initial target scope (CVS-176149).
-    const std::unordered_set<primitive_type_id> byxf_onednn_conv_whitelist = {cldnn::input_layout::type_id(),
-                                                                              cldnn::permute::type_id(),
-                                                                              cldnn::convolution::type_id(),
-                                                                              cldnn::fully_connected::type_id(),
-                                                                              cldnn::activation::type_id(),
-                                                                              cldnn::softmax::type_id(),
-                                                                              cldnn::reduce::type_id(),
-                                                                              cldnn::reorder::type_id(),
-                                                                              cldnn::eltwise::type_id()};
+    // Dynamic reorder and JIT pitch handling for this optimization support rank <= 4 only.
+    bool has_rank_gt4_data_flow = false;
 #endif
     for (const auto& node : get_processing_order()) {
         auto &prim = *node;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        if (prim.is_in_data_flow() && prim.get_output_layout().get_partial_shape().size() > 4) {
+            has_rank_gt4_data_flow = true;
+        }
+#endif
         if (prim.type() == cldnn::convolution::type_id()) {
             auto &conv = prim.as<convolution>();
             if (conv.get_primitive()->groups > 1)
@@ -1520,8 +1537,9 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                 is_dynamic_batch_onednn_conv = is_dynamic_batch && !is_fp32_conv;
                 if (is_dynamic_batch_onednn_conv)
                     dynamic_batch_onednn_conv_count++;
-            } else {
+            }
 #endif
+            if (!conv.is_dynamic()) {
                 auto input_size = node->get_input_layout(0).get_tensor();
                 auto ifm = static_cast<uint32_t>(input_size.feature[0]);
                 if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups >= 16) {
@@ -1535,9 +1553,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
                 if (input_size.spatial[0] == 1 && input_size.spatial[1] == 1)
                     total_1x1_fm_conv_layers++;
-#ifdef ENABLE_ONEDNN_FOR_GPU
             }
-#endif
             lo.update_formats_map(conv);
 
             if (conv.weights_zero_points_term() || conv.activations_zero_points_term())
@@ -1685,7 +1701,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             can_use_bs_fs_yx_bsv16_fsv16 = false;
         }
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        if (prim.is_in_data_flow() && (byxf_onednn_conv_whitelist.count(prim.type()) == 0)) {
+        if (prim.is_in_data_flow() && !layout_optimizer::is_byxf_onednn_conv_compatible(prim.type())) {
             total_non_byxf_onednn_conv_whitelist_layers++;
         }
         if (prim.type() == cldnn::scaled_dot_product_attention::type_id()) {
@@ -1755,9 +1771,17 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
         }
     }
 
+    if (_onednn_impls.has_value()) {
+        lo.clear_onednn_impls_optimization_attribute();
+        for (const auto& [type_id, enabled] : *_onednn_impls) {
+            lo.set_value_onednn(type_id, enabled);
+        }
+    }
+
     // WA: Limit byxf layout to models with few convolutions to avoid excessive reorders (CVS-185041)
     constexpr size_t max_byxf_onednn_conv_count = 5;
     bool should_use_byxf_onednn_conv = is_dynamic_batch_onednn_conv
+        && !has_rank_gt4_data_flow
         && (total_non_byxf_onednn_conv_whitelist_layers == 0 ||
             (has_sdpa && dynamic_batch_onednn_conv_count <= max_byxf_onednn_conv_count));
     if (should_use_byxf_onednn_conv)
@@ -1918,6 +1942,9 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
                 kernels_cache.add_to_cached_kernels(node->get_selected_impl()->get_kernels());
             }
         }
+        const auto conversion_executor = get_tensor_conversion(false);
+        if (conversion_executor)
+            kernels_cache.add_to_cached_kernels(conversion_executor->get_kernels());
         ob << kernels_cache;
         ob << impl_ids;
         for (auto& impl_id : impl_ids) {
@@ -1928,6 +1955,15 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
             ob << get_node_ptr(impl_id)->selected_impl;
             ob << get_node_ptr(impl_id)->get_selected_impl()->get_cached_kernel_ids(kernels_cache);
         }
+
+        auto keys = conversion_executor ? conversion_executor->get_keys() : std::vector<tensor_conversion_key>{};
+        ob << keys.size();
+        for (const auto& key : keys) {
+            ob << static_cast<int32_t>(key.first);
+            ob << static_cast<int32_t>(key.second);
+        }
+        ob << (conversion_executor ? kernels_cache.get_cached_kernel_ids(conversion_executor->get_kernels())
+                                   : std::vector<std::string>{});
     }
 
     ob << optimized_out.size();
@@ -1998,8 +2034,12 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         host_buffer_base_ptr =
             ib.get_engine().create_hostbuffer(ib.get_tensor(),
                                               ib.get_stream_size(),
-                                              allocation_type::cl_mem,
+                                              allocation_type::usm_host,
                                               layout({{static_cast<tensor::value_type>(ib.get_stream_size()), 1, 1, 1}, data_types::u8, format::bfyx}));
+        // Weights become sub-buffers of the blob, so its pages must stay resident.
+        if (auto* prefetch_buf = dynamic_cast<ov::intel_gpu::PrefetchStreamBuf*>(ib.get_streambuf())) {
+            prefetch_buf->keep_read_data();
+        }
     }
 
     size_t num_nodes;
@@ -2125,6 +2165,30 @@ void program::load(cldnn::BinaryInputBuffer& ib,
             ib >> cached_kernel_ids;
             p_node.selected_impl->init_by_cached_kernels(get_kernels_cache(), cached_kernel_ids);
         }
+
+        size_t conversion_count;
+        ib >> conversion_count;
+        std::vector<tensor_conversion_key> conversion_keys;
+        conversion_keys.reserve(conversion_count);
+        for (size_t i = 0; i < conversion_count; ++i) {
+            int32_t src_type, dst_type;
+            ib >> src_type;
+            ib >> dst_type;
+            conversion_keys.emplace_back(static_cast<data_types>(src_type), static_cast<data_types>(dst_type));
+        }
+        std::vector<std::string> conversion_ids;
+        ib >> conversion_ids;
+        OPENVINO_ASSERT(conversion_ids.size() == conversion_keys.size(), "[GPU] State conversion cache is incomplete");
+        std::vector<kernel::ptr> conversion_kernels;
+        conversion_kernels.reserve(conversion_ids.size());
+        for (const auto& id : conversion_ids)
+            conversion_kernels.push_back(kernels_cache.get_kernel_from_cached_kernels(id));
+        if (!conversion_keys.empty()) {
+            get_tensor_conversion()->restore(_engine, conversion_keys, conversion_kernels);
+        } else {
+            std::lock_guard<std::mutex> lock(_tensor_conversion_mutex);
+            _tensor_conversion.reset();
+        }
     }
 
     size_t optimized_out_size;
@@ -2180,6 +2244,7 @@ void program::load(cldnn::BinaryInputBuffer& ib,
     size_t state_initializers_size;
     ib >> state_initializers_size;
     state_initializers.clear();
+
     for (size_t i = 0; i < state_initializers_size; i++) {
         std::string variable_id;
         std::vector<primitive_id> initializers;
@@ -2195,4 +2260,3 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         }
     }
 }
-

@@ -13,6 +13,7 @@
 #include <cstring>
 #include <future>
 #include <mutex>
+#include <optional>
 #include <thread>
 #include <tuple>
 
@@ -108,28 +109,33 @@ public:
 class MapHolder final : public MappedMemory {
     void* m_mapped_view = MAP_FAILED;
     size_t m_mapped_view_size = 0;
-    void* m_data = nullptr;
+    std::byte* m_data = nullptr;
     size_t m_size = 0;
-    uint64_t m_id = std::numeric_limits<uint64_t>::max();
+    std::optional<uint64_t> m_id;
     HandleHolder m_handle;
-    // Tasks adopted from hint_prefetch_async()'s token; joined before unmapping (see ~MapHolder).
+    // Handles shared with hint_prefetch_async()'s caller; joined before unmapping (see ~MapHolder).
     std::mutex m_pending_prefetch_mutex;
-    std::vector<std::future<void>> m_pending_prefetch;
+    std::vector<util::PrefetchToken> m_pending_prefetch;
 
-    void adopt_pending_prefetch(std::vector<std::future<void>>&& tasks) {
-        std::lock_guard<std::mutex> lock(m_pending_prefetch_mutex);
-        // Reap already-finished futures so the vector doesn't grow without bound across repeated
-        // hint_prefetch_async() calls over this mapping's lifetime.
-        m_pending_prefetch.erase(std::remove_if(m_pending_prefetch.begin(),
-                                                m_pending_prefetch.end(),
-                                                [](std::future<void>& task) {
-                                                    return !task.valid() || task.wait_for(std::chrono::seconds(0)) ==
-                                                                                std::future_status::ready;
-                                                }),
-                                 m_pending_prefetch.end());
-        m_pending_prefetch.insert(m_pending_prefetch.end(),
-                                  std::make_move_iterator(tasks.begin()),
-                                  std::make_move_iterator(tasks.end()));
+    void adopt_pending_prefetch(util::PrefetchToken task) noexcept {
+        if (task.valid()) {
+            try {
+                std::lock_guard<std::mutex> lock(m_pending_prefetch_mutex);
+                // Reap already-finished handles so the vector doesn't grow without bound across repeated
+                // hint_prefetch_async() calls over this mapping's lifetime.
+                m_pending_prefetch.erase(std::remove_if(m_pending_prefetch.begin(),
+                                                        m_pending_prefetch.end(),
+                                                        [](util::PrefetchToken& pending) {
+                                                            return !pending.valid() ||
+                                                                   pending.wait_for(std::chrono::seconds(0)) ==
+                                                                       std::future_status::ready;
+                                                        }),
+                                         m_pending_prefetch.end());
+                m_pending_prefetch.push_back(std::move(task));
+            } catch (const std::exception&) {
+                task.wait();
+            }
+        }
     }
 
     void wait_for_pending_prefetch() noexcept {
@@ -153,7 +159,8 @@ public:
                                      " for mapping. Ensure that file exists and has appropriate permissions.");
         }
         set_from_fd(fd, offset, size, mmap_mode);
-        m_id = (mmap_mode == MmapMode::READ_WRITE) ? no_mapping_id : util::get_id_for_file(path, offset, size);
+        m_id = (mmap_mode == MmapMode::READ_WRITE) ? std::nullopt
+                                                   : std::optional<uint64_t>(util::get_id_for_file(path, offset, size));
     }
 
     void set_from_fd(const int fd, const size_t offset, const size_t size, const MmapMode mmap_mode = MmapMode::READ) {
@@ -178,16 +185,16 @@ public:
                 throw std::runtime_error("Can not create file mapping for " + std::to_string(fd) +
                                          ", err=" + std::strerror(errno));
             }
-            m_data = static_cast<char*>(m_mapped_view) + gap;
+            m_data = static_cast<std::byte*>(m_mapped_view) + gap;
         }
         // A read-write mapping is not an immutable data source, so it must not be shared through id-based caches.
         m_id = (mmap_mode == MmapMode::READ_WRITE)
-                   ? no_mapping_id
-                   : util::u64_hash_combine(static_cast<uint64_t>(sb.st_ino),
-                                            {static_cast<uint64_t>(sb.st_dev), offset, size});
+                   ? std::nullopt
+                   : std::optional<uint64_t>(util::u64_hash_combine(static_cast<uint64_t>(sb.st_ino),
+                                                                    {static_cast<uint64_t>(sb.st_dev), offset, size}));
     }
 
-    uint64_t get_id() const noexcept override {
+    std::optional<uint64_t> get_id() const noexcept override {
         return m_id;
     }
 
@@ -199,11 +206,15 @@ public:
         }
     }
 
-    char* data() noexcept override {
-        return static_cast<char*>(m_data);
+    const std::byte* data() const noexcept override final {
+        return m_data;
     }
 
-    size_t size() const noexcept override {
+    std::byte* data() noexcept override final {
+        return m_data;
+    }
+
+    size_t size() const noexcept override final {
         return m_size;
     }
 
@@ -215,7 +226,7 @@ public:
         }
     }
 
-    void hint_prefetch(size_t offset, size_t size) override {
+    void hint_prefetch(size_t offset, size_t size) noexcept override {
         constexpr size_t one_mb = 1024 * 1024;
         // Below 4 MiB the overhead of spawning threads exceeds the benefit; skip.
         if (const auto region = util::make_madvise_region(m_data, m_size, offset, size); region.m_length > 4 * one_mb) {
@@ -225,13 +236,16 @@ public:
         }
     }
 
-    void hint_prefetch_async(size_t offset, size_t size) override {
+    util::PrefetchToken hint_prefetch_async(size_t offset, size_t size) noexcept override {
         if (const auto region = util::clamp_align_region(m_data, m_size, offset, size);
             region.m_length > util::default_parallel_io_threshold) {
-            auto token = util::vm_prefetch_async(reinterpret_cast<void*>(region.m_address),
-                                                 region.m_length,
-                                                 util::prefetch_thread_count(region.m_length));
-            adopt_pending_prefetch(token.detach());
+            auto future = util::vm_prefetch_async(reinterpret_cast<void*>(region.m_address),
+                                                  region.m_length,
+                                                  util::prefetch_thread_count(region.m_length));
+            adopt_pending_prefetch(future);
+            return future;
+        } else {
+            return {};
         }
     }
 };
