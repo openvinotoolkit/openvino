@@ -2268,3 +2268,11 @@ std::vector<ov::SoPtr<ov::IVariableState>> ov::npuw::LLMInferRequest::query_stat
 
     return states;
 }
+
+int64_t ov::npuw::LLMInferRequest::get_external_stored_tokens() const {
+    return m_stored_tokens_state->get_num_stored_tokens();
+}
+
+void ov::npuw::LLMInferRequest::publish_stored_tokens(int64_t num_tokens) {
+    m_stored_tokens_state->set_num_stored_tokens(num_tokens);
+}
