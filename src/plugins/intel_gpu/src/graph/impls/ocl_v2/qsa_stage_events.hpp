@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <atomic>
+#include <mutex>
 #include <vector>
 
 #include "intel_gpu/runtime/event.hpp"
@@ -12,10 +14,10 @@ namespace ov::intel_gpu::ocl::qsa {
 
 /// Test / benchmark hook: while armed, the multi-stage QSA primitives (SparsePA, SparseSDPA) append the event of every
 /// stage they dispatch, so a profiling-enabled queue can report the GPU time of the whole call (the primitive itself
-/// only returns the event of its last stage).
+/// only returns the event of its last stage). Read events() only while no stream is executing.
 struct QsaStageEvents {
-    static bool& armed() {
-        static bool value = false;
+    static std::atomic<bool>& armed() {
+        static std::atomic<bool> value{false};
         return value;
     }
     static std::vector<cldnn::event::ptr>& events() {
@@ -23,7 +25,9 @@ struct QsaStageEvents {
         return value;
     }
     static const cldnn::event::ptr& record(const cldnn::event::ptr& ev) {
-        if (armed()) {
+        if (armed().load(std::memory_order_relaxed)) {
+            static std::mutex m;
+            std::lock_guard<std::mutex> lock(m);
             events().push_back(ev);
         }
         return ev;
