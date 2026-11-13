@@ -1,5 +1,9 @@
 name: Windows (VS 2022, Python 3.11, Release)
+run-name: ${{ github.event_name == 'schedule' && 'Windows (VS 2022, Python 3.11, Release) - Nightly (C++20 build only)' || 'Windows (VS 2022, Python 3.11, Release)' }}
 on:
+  schedule:
+    # at 02:00 every day: C++20 build without the regular build and tests
+    - cron: '0 2 * * *'
   workflow_dispatch:
     inputs:
       target-branch:
@@ -34,6 +38,7 @@ jobs:
     if: github.event.pull_request.draft == false || github.run_attempt > 1
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
       target_branch: ${{ steps.set_target_branch.outputs.target_branch }}
     steps:
@@ -63,7 +68,8 @@ jobs:
 
   Build:
     needs: [ Smart_CI ]
-    if: "!needs.smart_ci.outputs.skip_workflow"
+    # Skip the regular build and its dependent build/test jobs on the daily C++20 schedule.
+    if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event.schedule != '0 2 * * *' }}
     uses: ./.github/workflows/job_build_windows.yml
     with:
       runner: 'aks-win-16-cores-32gb-build'
@@ -84,6 +90,35 @@ jobs:
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
             -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config"
+
+  # Non-blocking C++20 compile check (CVS-189849): daily or dispatched workflows.
+  # Promote to a required pre-commit check once stable.
+  Build_CPP20:
+    name: Build (C++20, non-blocking)
+    needs: [ Smart_CI ]
+    if: >-
+      ${{
+        !needs.smart_ci.outputs.skip_workflow &&
+        (github.event.schedule == '0 2 * * *' || github.event_name == 'workflow_dispatch')
+      }}
+    uses: ./.github/workflows/job_build_windows_cpp20.yml
+    with:
+      runner: 'aks-win-16-cores-32gb-build'
+      cmake-build-parallel-level: '15'
+      build-type: 'Release'
+      target-branch: ${{ needs.smart_ci.outputs.target_branch }}
+      cmake-options: >-
+            -G 'Ninja Multi-Config'
+            -DENABLE_PYTHON=ON
+            -DENABLE_WHEEL=OFF
+            -DENABLE_TESTS=ON
+            -DENABLE_OV_GGUF_FRONTEND=ON
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+            -DENABLE_STRICT_DEPENDENCIES=OFF
+            -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+            -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config_cpp20"
+            -DCMAKE_CXX_STANDARD=20
 
   Samples:
     needs: [ Build, Smart_CI ]
@@ -172,7 +207,7 @@ jobs:
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ always() }}
         with:
           name: test-results-samples
@@ -228,7 +263,7 @@ jobs:
         working-directory: ${{ env.OPENVINO_JS_LIBS_DIR }}
 
       - name: Setup Node ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -560,13 +595,14 @@ jobs:
     if: >-
       ${{
         fromJSON(needs.smart_ci.outputs.affected_components).NPU.test ||
-        fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
-        fromJSON(needs.smart_ci.outputs.affected_components).JAX_FE.test ||
-        fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
+        fromJSON(needs.smart_ci.outputs.changed_components).TF_FE ||
+        fromJSON(needs.smart_ci.outputs.changed_components).JAX_FE ||
+        fromJSON(needs.smart_ci.outputs.changed_components).PyTorch_FE
       }}
     with:
       runner: 'aks-win-4-cores-8gb-test'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      changed-components: ${{ needs.smart_ci.outputs.changed_components }}
 
   CXX_Unit_Tests:
     name: C++ unit tests
@@ -637,7 +673,7 @@ jobs:
         run: python3 -m pip install -r ${{ github.workspace }}\install\tests\functional_test_utils\layer_tests_summary\requirements.txt
 
       - name: Restore tests execution time
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
           key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
@@ -651,7 +687,7 @@ jobs:
         timeout-minutes: 60
 
       - name: Save tests execution time
-        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: github.ref_name == 'master'
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
@@ -672,6 +708,68 @@ jobs:
             ${{ env.INSTALL_TEST_DIR }}/logs/hash_table.csv
             ${{ env.PARALLEL_TEST_CACHE }}
           if-no-files-found: 'error'
+
+  GPU_Unit_Tests:
+    name: GPU unit tests
+    needs: [ Build, Smart_CI ]
+    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
+    timeout-minutes: 120 # to be adjusted when the stage is marked as required for merge
+    defaults:
+      run:
+        shell: powershell
+    runs-on: [ self-hosted, Windows, ptl ]
+    env:
+      INSTALL_DIR: "${{ github.workspace }}\\install"
+      INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
+      SSL_CERT_FILE: 'C:\certs\IntelProxyRootCA.crt'
+      CURL_CA_BUNDLE: 'C:\certs\IntelProxyRootCA.crt'
+      REQUESTS_CA_BUNDLE: 'C:\certs\IntelProxyRootCA.crt'
+      NODE_EXTRA_CA_CERTS: 'C:\certs\IntelProxyRootCA.crt'
+      GTEST_PARALLEL_SCRIPT: "${{ github.workspace }}\\gtest-parallel\\gtest_parallel.py"
+    steps:
+      - name: Download OpenVINO package
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+          Expand-Archive "${{ env.INSTALL_DIR }}\\openvino_package.zip" -DestinationPath "${{ env.INSTALL_DIR }}" -Force
+          Expand-Archive "${{ env.INSTALL_TEST_DIR }}\\openvino_tests.zip" -DestinationPath "${{ env.INSTALL_DIR }}" -Force
+
+      - name: Fetch gtest-parallel
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          repository: 'google/gtest-parallel'
+          ref: 'cd488bdedc1d2cffb98201a17afc1b298b0b90f1'
+          path: 'gtest-parallel'
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Run GPU unit tests
+        run: |
+          . "${{ env.INSTALL_DIR }}\\setupvars.ps1"
+          python "${{ env.GTEST_PARALLEL_SCRIPT }}" "--gtest_filter=-*scatter_nd_update_gpu.dynamic_padded_output*:*border_gpu.basic_zero_input*:*bicubic_zeros_no_align_data1x1*:*bicubic_border_align_batches*:*bilinear_zeros_no_align_data1x1*:*non_zero_gpu.empty_input*:*mark_shape_of_subgraphs.concat_with_empty_tensor_inputs*:*concat_cpu_impl.dynamic_4d_f*:*border_gpu.basic_zero_input_dynamic*:*network_test.model_with_empty_input_is_not_dynamic*:*bicubic_zeros_align_data1x1*:*sdpa_gpu_sink_test.matches_independent_reference*:*permute_f_y_axes_tile.combined/InputShape=(16.32.128.512)*:*fusings_gpu/conv_fp32_multi_eltwise_quantization.basic/1:*cpu_impls/activation_random_test.random/2:*smoke/moe_3gemm_compressed_gpu_random.moe_accuracy_test_random/10" "--dump_json_test_results=${{ env.INSTALL_TEST_DIR }}\\TEST-gpu-unit.json" "${{ env.INSTALL_TEST_DIR }}\\ov_gpu_unit_tests.exe"
+        timeout-minutes: 500
+
+      - name: Upload GPU unit test results
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        if: always()
+        with:
+          name: test-results-unit-gpu
+          path: ${{ env.INSTALL_TEST_DIR }}/TEST-gpu-unit.json
+          if-no-files-found: 'ignore'
 
   Overall_Status:
     name: ci/gha_overall_status_windows

@@ -172,6 +172,9 @@ public:
 class ConvReorderFusingTest : public BaseFusingTest<convolution_test_params> {
 public:
     void execute(convolution_test_params& p, std::map<std::string, std::vector<std::string>> expected_fused_primitives_ids = {}) {
+        if (engine.get_device_info().supports_immad) {
+            p.expected_fused_primitives = p.expected_fused_primitives_onednn;
+        }
         auto input_prim = get_mem(get_input_layout(p));
         network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
         network network_fused(this->engine, this->topology_fused, cfg_fused);
@@ -789,7 +792,7 @@ TEST_P(conv_fp32_wrong_bias, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_wrong_bias, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_FP32_15, 3, 3, 3 },
+    convolution_test_params{ CASE_CONV_FP32_15, 3, 2, 3 },
 }));
 
 class conv_fp16_wrong_bias : public ConvFusingTest {};
@@ -3171,13 +3174,18 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_mean, have_mean) {
         data("weights", get_mem(get_weights_layout(p), -127, 127)),
         reorder("reorder_fsv32", input_info("input"), format::fs_b_yx_fsv32, data_types::f32, "mul", reorder_mean_mode::mul),
         convolution("conv_prim", input_info("reorder_fsv32"), "weights", "", 1, { 1, 1 }, p.dilation, p.pad, p.pad, false),
-        activation("activation", input_info("conv_prim"), activation_func::abs)
+        activation("activation", input_info("conv_prim"), activation_func::abs),
+        reorder("reorder_out", input_info("activation"), format::bfyx, data_types::f32)
     );
 
+    if (engine.get_device_info().supports_immad) {
+        // Increase tolerance when using onednn
+        tolerance = 1e-2f;
+    }
     execute(p);
 }
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_mean, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 4, 4, 4 }
+    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 3, 4, 5 }
 }));
 
 // 'reorder_fsv32' is not being fused in the current impl, since it has 'subtract'
@@ -3200,7 +3208,8 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_subtract, have_subtract_per_feature)
         data("weights_dw", get_mem(dw_weights_layout, -127, 127)),
         convolution("conv_prim", input_info("input"), "weights", "", p.groups, p.stride, p.dilation, p.pad, p.pad, format::is_grouped(get_weights_layout(p).format)),
         reorder("reorder_fsv32", input_info("conv_prim"), format::fs_b_yx_fsv32, data_types::f32, values_to_subtract),
-        convolution("conv_output", input_info("reorder_fsv32"), "weights_dw", "", p.out_shape[1].get_length(), dw_stride, p.dilation, p.pad, p.pad, true)
+        convolution("conv_output", input_info("reorder_fsv32"), "weights_dw", "", p.out_shape[1].get_length(), dw_stride, p.dilation, p.pad, p.pad, true),
+        reorder("reorder_out", input_info("conv_output"), format::bfyx, data_types::f32)
     );
 
     ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "", impl_types::ocl };
@@ -3209,7 +3218,7 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_subtract, have_subtract_per_feature)
     execute(p);
 }
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_subtract, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 4, 4, 4 }
+    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 4, 5, 5 }
 }));
 
 // 'reorder_fsv32' is not being fused in the current impl, since it has 'fused_activation'
@@ -3229,14 +3238,15 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_fused_activation, have_fused_activat
         reorder("reorder_fsv32", input_info("conv_prim"), format::fs_b_yx_fsv32, data_types::f32),
         activation("activation_quantize", input_info("reorder_fsv32"), "actv_params", activation_func::relu_negative_slope),
         convolution("conv_prim2", input_info("activation_quantize"), "weights_dw", "", p.out_shape[1].get_length(), dw_stride, p.dilation, p.pad, p.pad, true),
-        activation("activation", input_info("conv_prim2"), activation_func::abs)
+        activation("activation", input_info("conv_prim2"), activation_func::abs),
+        reorder("reorder_out", input_info("activation"), format::bfyx, data_types::f32)
     );
 
     execute(p);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_fused_activation, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 5, 5, 6 }
+    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 4, 6, 7 }
 }));
 
 // activation will be fused through 'reorder_fsv32' and 'reorder_fsv32' will be fused as well
@@ -3255,14 +3265,15 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_fused_through_activation, have_fused
         reorder("reorder_fsv32", input_info("conv_prim"), format::fs_b_yx_fsv32, data_types::f32),
         activation("activation_quantize", input_info("reorder_fsv32"), activation_func::relu),
         convolution("conv_prim2", input_info("activation_quantize"), "weights_dw", "", p.out_shape[1].get_length(), dw_stride, p.dilation, p.pad, p.pad, true),
-        activation("activation", input_info("conv_prim2"), activation_func::abs)
+        activation("activation", input_info("conv_prim2"), activation_func::abs),
+        reorder("reorder_out", input_info("activation"), format::bfyx, data_types::f32)
     );
 
     execute(p, {{"conv_prim", {"activation_quantize"}}});
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_fused_through_activation, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 4, 4, 6 }
+    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 3, 5, 7 }
 }));
 
 // 'reorder_fsv32' is being fused even if it has 'padding'
@@ -3286,7 +3297,7 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_data_padding, have_data_padding) {
     execute(p);
 }
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_data_padding, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 4, 4, 5 }
+    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 4, 6, 5 }
 }));
 
 class conv_gen9_common_conv_fwd_data_1stconv : public ConvFusingTest {};
@@ -4581,6 +4592,112 @@ TEST_P(conv_elt_fp16_onednn, basic_activation_eltwise_div) {
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_elt_fp16_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ CASE_CONV_FP16_1, 2, 2, 4 },
+}));
+
+// oneDNN keeps the 4D rank of a 1D grouped convolution in plain format, so binary post-ops must keep it too.
+class conv_fp32_1d_group_eltwise_onednn : public WeightsPrimitiveFusingTestOneDNN {
+public:
+    layout get_1d_input_layout(convolution_test_params& p, bool is_dynamic) {
+        auto in_layout = get_input_layout(p);
+        if (is_dynamic)
+            in_layout.set_partial_shape({ ov::Dimension::dynamic(), p.in_shape[1], p.in_shape[2] });
+        return in_layout;
+    }
+
+    void execute_1d(convolution_test_params& p, bool is_caching_test = false) {
+        ov::intel_gpu::ImplementationDesc conv_impl = { format::bfyx, "", impl_types::onednn };
+        cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
+        cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+        auto network_not_fused = get_network(engine, topology_non_fused, cfg_not_fused, get_test_stream_ptr(cfg_not_fused), is_caching_test);
+        auto network_fused = get_network(engine, topology_fused, cfg_fused, get_test_stream_ptr(cfg_fused), is_caching_test);
+        auto input_prim = get_mem(get_input_layout(p));
+        network_fused->set_input_data("input", input_prim);
+        network_not_fused->set_input_data("input", input_prim);
+
+        p.expected_fused_primitives = p.expected_fused_primitives_onednn;
+        compare(*network_not_fused, *network_fused, p);
+    }
+
+    void execute_eltwise(convolution_test_params& p, bool is_dynamic) {
+        if (!engine.get_device_info().supports_immad)
+            GTEST_SKIP();
+
+        create_topologies(
+            input_layout("input", get_1d_input_layout(p, is_dynamic)),
+            data("weights", get_mem(get_weights_layout(p))),
+            data("scale_data", get_mem(get_output_layout(p))),
+            data("shift_data", get_mem(get_output_layout(p))),
+            convolution("conv_prim", input_info("input"), "weights", "", p.groups, p.stride, p.dilation, p.pad, p.pad, true),
+            eltwise("scale", { input_info("conv_prim"), input_info("scale_data") }, eltwise_mode::prod),
+            eltwise("shift", { input_info("scale"), input_info("shift_data") }, eltwise_mode::sum),
+            reorder("reorder_bfyx", input_info("shift"), p.default_format, data_types::f32)
+        );
+
+        tolerance = default_tolerance(p.default_type);
+        execute_1d(p);
+    }
+};
+
+TEST_P(conv_fp32_1d_group_eltwise_onednn, static_shape) {
+    auto p = GetParam();
+    execute_eltwise(p, false);
+}
+
+TEST_P(conv_fp32_1d_group_eltwise_onednn, dynamic_shape) {
+    auto p = GetParam();
+    execute_eltwise(p, true);
+}
+
+// in_shape; out_shape; weights_shape; stride; pad; dilation; groups; data_type; input_format; weights_type; weights_format; default_type; default_format;
+#define CASE_CONV_FP32_1D_GROUP_1 { 1, 16, 16 }, { 1, 16, 16 }, { 16, 1, 1, 7 }, { 1 }, { 3 }, { 1 }, 16, data_types::f32, format::bfyx, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_FP32_1D_GROUP_2 { 1, 32, 16 }, { 1, 32, 16 }, { 32, 1, 1, 31 }, { 1 }, { 15 }, { 1 }, 32, data_types::f32, format::bfyx, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_1d_group_eltwise_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_FP32_1D_GROUP_1, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP32_1D_GROUP_2, 2, 2, 4 },
+}));
+
+class conv_fp32_1d_group_quantize_onednn : public conv_fp32_1d_group_eltwise_onednn {
+public:
+    void execute_quantize(convolution_test_params& p, bool is_caching_test) {
+        if (!engine.get_device_info().supports_immad)
+            GTEST_SKIP();
+
+        // Rank-3 bounds keep the quantize scales rank-3, as in a 1D model.
+        layout single_element_layout{ ov::PartialShape{ 1, 1, 1 }, p.default_type, p.default_format };
+        create_topologies(
+            input_layout("input", get_input_layout(p)),
+            data("weights", get_mem(get_weights_layout(p))),
+            data("in_lo", get_mem(get_per_channel_layout(p), -10, 0)),
+            data("in_hi", get_mem(get_per_channel_layout(p), 1, 10)),
+            data("out_lo", get_mem(single_element_layout, 0)),
+            data("out_hi", get_mem(single_element_layout, 255)),
+            convolution("conv_prim", input_info("input"), "weights", "", p.groups, p.stride, p.dilation, p.pad, p.pad, true),
+            quantize("quantize", input_info("conv_prim"), input_info("in_lo"), input_info("in_hi"),
+                     input_info("out_lo"), input_info("out_hi"), 256, data_types::u8),
+            reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
+        );
+
+        tolerance = 1.f;
+        execute_1d(p, is_caching_test);
+    }
+};
+
+TEST_P(conv_fp32_1d_group_quantize_onednn, per_channel) {
+    auto p = GetParam();
+    execute_quantize(p, false);
+}
+
+TEST_P(conv_fp32_1d_group_quantize_onednn, per_channel_cached) {
+    auto p = GetParam();
+    execute_quantize(p, true);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_1d_group_quantize_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_FP32_1D_GROUP_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_1D_GROUP_2, 2, 2, 3 },
 }));
 
 #endif  // ENABLE_ONEDNN_FOR_GPU

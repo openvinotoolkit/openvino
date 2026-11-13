@@ -37,14 +37,8 @@ OutputVector translate_quantize_per_tensor_fx(const NodeContext& context) {
     const auto zero_point = context.get_input(2);
     auto low = context.const_input<int64_t>(3);
     auto high = context.const_input<int64_t>(4);
-    return {quantize_fx(context,
-                        input,
-                        scale,
-                        zero_point,
-                        low,
-                        high,
-                        element::i8,
-                        QuantizedPtNodeType::QUANTIZE_PER_TENSOR)};
+    const auto dtype = convert_dtype(context.const_input<int64_t>(5));
+    return {quantize_fx(context, input, scale, zero_point, low, high, dtype, QuantizedPtNodeType::QUANTIZE_PER_TENSOR)};
 }
 
 OutputVector translate_quantize_per_channel_fx(const NodeContext& context) {
@@ -55,6 +49,7 @@ OutputVector translate_quantize_per_channel_fx(const NodeContext& context) {
     const auto axis = context.get_input(3);
     auto low = context.const_input<int64_t>(4);
     auto high = context.const_input<int64_t>(5);
+    const auto dtype = convert_dtype(context.const_input<int64_t>(6));
     return {quantize_fx(context,
                         input,
                         scales,
@@ -62,7 +57,7 @@ OutputVector translate_quantize_per_channel_fx(const NodeContext& context) {
                         axis,
                         low,
                         high,
-                        element::i8,
+                        dtype,
                         QuantizedPtNodeType::QUANTIZE_PER_CHANNEL)};
 }
 

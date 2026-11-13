@@ -24,6 +24,10 @@ CPU::CPU() {
     std::vector<std::vector<std::string>> system_info_table;
     std::vector<std::string> node_info_table;
 
+    // Snapshot the process affinity baseline before any thread is pinned. This keeps the
+    // baseline unpolluted by transient thread affinity restrictions (e.g. getpid()==TID).
+    std::tie(_process_mask, _process_mask_ncpus) = ov::threading::query_process_mask();
+
     constexpr int cache_info_mode = 1;
     constexpr int freq_info_mode = 2;
 
@@ -149,9 +153,9 @@ CPU::CPU() {
     };
 
     auto check_valid_cpu = [&]() {
-        ov::threading::CpuSet mask;
-        int ncpus = 0;
-        std::tie(mask, ncpus) = ov::threading::get_process_mask();
+        // Use the process affinity baseline snapshotted at the start of the constructor directly,
+        // avoiding re-entry into cpu_info() while the singleton is being constructed.
+        const ov::threading::CpuSet& mask = _process_mask;
 
         if ((_processors == 0) || mask == nullptr) {
             return -1;
