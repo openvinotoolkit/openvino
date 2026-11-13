@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-13-05-26-06-000-43369333911",
+  "timestamp": "2026-11-13T05:26:06Z",
+  "run_id": "43369333911",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43369333911",
+  "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+  "commit_sha": "2ad63894cb2d0ee4df89cf8df03e2079810f7ece",
+  "pr_number": null,
+  "pr_url": null,
+  "author": null,
+  "category": "Infrastructure",
+  "title": "Windows CC build fails with compiler/linker out-of-memory errors under high parallelism",
+  "signature": "Windows Release build runs out of memory - compiler fatal error C1060 (out of heap space) and linker fatal error LNK1102 (out of memory) under high parallelism|Infrastructure",
+  "signature_hash": "80cfa127185fbf3e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build_And_Run_Collect_Mode",
+      "conclusion": "failure",
+      "symptom": "Several linker invocations fail with 'LINK : fatal error LNK1102: out of memory' while linking Release binaries in parallel."
+    },
+    {
+      "name": "ci/gha_overall_status_windows_cc",
+      "conclusion": "failure",
+      "symptom": "Overall status check job fails because the upstream Build_And_Run_Collect_Mode job failed."
+    }
+  ],
+  "key_errors": [
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/throughput_benchmark.exe\nLINK : fatal error LNK1102: out of memory",
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/ov_gpu_unit_tests.exe\nLINK : fatal error LNK1102: out of memory",
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/python/openvino/_pyopenvino.cp311-win_amd64.pyd\nLINK : fatal error LNK1102: out of memory",
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/ov_lp_transformations_tests.exe\nLINK : fatal error LNK1102: out of memory\n##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The Windows Conditional Compilation build links multiple large Release binaries (unit tests, samples, Python extension module) concurrently with MSVC link.exe. Each linker instance consumes significant virtual memory for symbol resolution and PDB generation; when CMake/Ninja schedules many of these link steps in parallel on the Windows runner, the combined working set exceeds available memory/address space, and link.exe reports LNK1102 ('out of memory') even though the error is really resource exhaustion from parallelism, not a genuine out-of-memory condition on a single link. This is the 5th recorded occurrence of the same signature since 2026-11-03, consistently on Windows CC post-commit builds.",
+  "reproduction_steps": "Not reliably reproducible locally without a similarly resource-constrained Windows runner. To reproduce in CI, rerun the 'Windows Conditional Compilation (VS 2022, Python 3.11)' workflow on master; the failure is intermittent and correlates with high link-step parallelism (e.g., default CMake/Ninja job count on the Windows CC runner building many Release targets).",
+  "recommended_actions": [
+    "Reduce the number of parallel link jobs for the Windows CC Release build (e.g., pass -j/--parallel with a lower link job count via CMAKE_JOB_POOLS or Ninja job pools specifically for the link pool) to lower peak memory usage.",
+    "Evaluate whether the Windows CC runner's available memory/VM size is sufficient for the current number of Release targets being linked; consider a larger runner SKU or splitting the build into fewer concurrent link targets.",
+    "Consider enabling incremental/faster PDB generation options (e.g., /DEBUG:FASTLINK) for Release CC builds to reduce linker memory footprint.",
+    "If this keeps recurring, open a tracking issue referencing this recurring signature (5 occurrences since 2026-11-03) so the CI infrastructure team can proactively address Windows CC linker memory pressure rather than relying on reruns."
+  ],
+  "prevention_strategies": "Limit linker parallelism on Windows builds (via Ninja/MSBuild job pools) independently from compiler parallelism, monitor runner memory headroom during Release CC builds, and consider caching/incremental linking strategies that reduce per-link memory use. Track this signature's occurrence count in the pattern database to detect regressions in runner sizing.",
+  "historical_context": "This is the 5th occurrence of signature 80cfa127185fbf3e ('Windows Release build runs out of memory ... LNK1102') first seen 2026-11-03T07:07:04Z and now last seen 2026-11-13T05:26:06Z, affecting commits 90a5ddd7, 56346f1a, 3042b45f, 6817c714, and now 2ad63894. All prior occurrences were on the same Windows Conditional Compilation workflow, consistent with a systemic resource-exhaustion issue rather than a one-off flake."
+}
