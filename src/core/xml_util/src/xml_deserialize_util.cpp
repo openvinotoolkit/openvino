@@ -26,6 +26,7 @@
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/stack_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "transformations/rt_info/attributes.hpp"
 
@@ -43,6 +44,9 @@ void str_to_container<std::vector<std::string>>(const std::string& value, std::v
     }
 }
 namespace {
+
+// Stack space that must remain free before parsing another nested subgraph body.
+constexpr size_t STACK_HEADROOM_REQUIRED = 128 * 1024;
 
 bool getStrAttribute(const pugi::xml_node& node, const std::string& name, std::string& value) {
     if (!node)
@@ -924,6 +928,11 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
 }
 
 std::shared_ptr<ov::Model> XmlDeserializer::parse_function(const pugi::xml_node& root) {
+    // Nested subgraph bodies are parsed recursively, before any of them is validated.
+    OPENVINO_ASSERT(ov::util::stack_bytes_available() > STACK_HEADROOM_REQUIRED,
+                    "Model deserialization stopped: the model nests subgraph bodies (If, Loop, "
+                    "TensorIterator, ...) deeper than the stack of the current thread can handle safely.");
+
     // OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::V10Reader_RT, "V10Parser", "Parse");
 
     struct FunctionNodes {

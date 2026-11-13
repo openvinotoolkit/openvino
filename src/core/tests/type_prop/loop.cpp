@@ -6,19 +6,24 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/thread_utils.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/greater.hpp"
+#include "openvino/op/if.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/unsqueeze.hpp"
 
 using namespace std;
 using namespace ov;
+using testing::HasSubstr;
 
 // trip_count = 10
 // execution_condition = true
@@ -1579,4 +1584,65 @@ TEST(type_prop, loop_merged_static_seed_relaxed_when_body_value_dynamic) {
 
     EXPECT_EQ(body_carried->get_partial_shape(), (PartialShape{1, Dimension::dynamic()}));
     EXPECT_TRUE(loop->get_output_partial_shape(0)[1].is_dynamic());
+}
+
+namespace {
+enum class Kind { If, Loop, TensorIterator };
+
+// Wraps `inner` (or a Relu when null) into one If / Loop / TensorIterator.
+Output<Node> make_level(Kind kind, const Output<Node>& inner) {
+    auto data = make_shared<ov::op::v0::Constant>(element::f32, Shape{1}, 1.f);
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const Output<Node> body_out = inner.get_node() ? inner : make_shared<ov::op::v0::Relu>(param)->output(0);
+
+    switch (kind) {
+    case Kind::If: {
+        auto cond = make_shared<ov::op::v0::Constant>(element::boolean, Shape{1}, true);
+        auto if_op = make_shared<ov::op::v8::If>(cond);
+        auto then_res = make_shared<ov::op::v0::Result>(body_out);
+        auto else_param = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+        auto else_res = make_shared<ov::op::v0::Result>(else_param);
+        if_op->set_then_body(make_shared<Model>(ResultVector{then_res}, ParameterVector{param}));
+        if_op->set_else_body(make_shared<Model>(ResultVector{else_res}, ParameterVector{else_param}));
+        if_op->set_input(data, param, else_param);
+        return if_op->set_output(then_res, else_res);
+    }
+    case Kind::Loop: {
+        auto trip_count = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, 1);
+        auto exec_cond = make_shared<ov::op::v0::Constant>(element::boolean, Shape{1}, true);
+        auto body_cond = make_shared<ov::op::v0::Constant>(element::boolean, Shape{1}, true);
+        auto loop = make_shared<ov::op::v5::Loop>(trip_count, exec_cond);
+        loop->set_function(make_shared<Model>(OutputVector{body_cond, body_out}, ParameterVector{param}));
+        loop->set_invariant_input(param, data);
+        loop->set_special_body_ports(ov::op::v5::Loop::SpecialBodyPorts{-1, 0});
+        return loop->get_iter_value(body_out, -1);
+    }
+    default: {
+        auto ti = make_shared<ov::op::v0::TensorIterator>();
+        ti->set_function(make_shared<Model>(OutputVector{body_out}, ParameterVector{param}));
+        ti->set_invariant_input(param, data);
+        return ti->get_iter_value(body_out, -1);
+    }
+    }
+}
+
+// Cycles If, Loop, TensorIterator (TensorIterator cannot directly nest itself).
+Output<Node> make_mixed_nested(size_t depth) {
+    Output<Node> out;
+    for (size_t i = 0; i < depth; ++i) {
+        out = make_level(static_cast<Kind>(i % 3), out);
+    }
+    return out;
+}
+}  // namespace
+
+TEST(type_prop, mixed_subgraph_ops_shallow_nesting_validates) {
+    OV_ASSERT_NO_THROW(std::ignore = make_mixed_nested(9));
+}
+
+TEST(type_prop, mixed_subgraph_ops_deep_nesting_reports_error_instead_of_overflowing_the_stack) {
+    const auto error = ov::test::utils::run_with_stack_size(512 * 1024, [] {
+        std::ignore = make_mixed_nested(100000);
+    });
+    EXPECT_THAT(error, HasSubstr("deeper than the stack of the current thread"));
 }
