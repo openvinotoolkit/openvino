@@ -145,6 +145,100 @@ bool is_zero_scalar_constant(const ov::Output<ov::Node>& output) {
     return !values.empty() && values.front() == 0;
 }
 
+class Lfm3SlidingMaskMatcher : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::patterns::Lfm3SlidingMaskMatcher");
+
+    Lfm3SlidingMaskMatcher(const std::shared_ptr<ov::Node>& attention_mask,
+                           const std::shared_ptr<ov::Node>& position_ids) {
+        // LFM3 exports a negative (forget) mask inside two Selects:
+        // Select(!(K <= Q && key_valid), fill, Select(Q - K >= window, fill, 0)).
+        // Q is a physical cache position, NOT a temporal position_id. Keep it
+        // for the causal bound and for keys in the right-aligned current chunk.
+        auto integer = [](int64_t value) {
+            return opp::wrap_type<ov::op::v0::Constant>([value](const ov::Output<ov::Node>& output) {
+                auto c = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
+                return c && c->get_element_type().is_integral_number() && ov::shape_size(c->get_shape()) == 1 &&
+                       c->cast_vector<int64_t>().front() == value;
+            });
+        };
+        auto past_shape = opp::wrap_type<ov::op::v3::ShapeOf>({opp::any_input()});
+        auto past_len = opp::wrap_type<ov::op::v8::Gather>({past_shape, integer(2), integer(0)});
+        auto full_len = opp::wrap_type<ov::op::v1::Add>({past_len, opp::any_input()});
+        auto query_range = opp::wrap_type<ov::op::v4::Range>({past_len, full_len, integer(1)});
+        auto query_col = opp::wrap_type<ov::op::v0::Unsqueeze>({query_range, integer(1)});
+        auto mask_param = opp::wrap_type<ov::op::v0::Parameter>();
+        auto mask_shape = opp::wrap_type<ov::op::v3::ShapeOf>({mask_param});
+        auto mask_len = opp::wrap_type<ov::op::v8::Gather>({mask_shape, integer(1), integer(0)});
+        auto key_range = opp::wrap_type<ov::op::v4::Range>({integer(0), mask_len, integer(1)});
+        auto key_row = opp::wrap_type<ov::op::v0::Unsqueeze>({key_range, integer(0)});
+        auto distance = opp::wrap_type<ov::op::v1::Subtract>({query_col, key_row});
+        auto window = opp::wrap_type<ov::op::v0::Constant>();
+        auto forget = opp::wrap_type<ov::op::v1::GreaterEqual>({distance, window});
+        auto expand_mask = [&](const std::shared_ptr<ov::Node>& mask) {
+            auto batch = opp::wrap_type<ov::op::v0::Unsqueeze>({mask, integer(0)});
+            return opp::wrap_type<ov::op::v0::Unsqueeze>({batch, integer(1)});
+        };
+        auto causal = opp::wrap_type<ov::op::v1::LessEqual>({key_row, query_col});
+        auto valid = opp::wrap_type<ov::op::v13::BitwiseAnd>({expand_mask(causal), opp::any_input()});
+        auto invalid = opp::wrap_type<ov::op::v13::BitwiseNot>({valid});
+        auto sliding_select =
+            opp::wrap_type<ov::op::v1::Select>({expand_mask(forget), opp::any_input(), opp::any_input()});
+        auto mask_select = opp::wrap_type<ov::op::v1::Select>({invalid, opp::any_input(), sliding_select});
+
+        auto callback = [=](opp::Matcher& m) {
+            const auto& values = m.get_pattern_value_map();
+            auto matched_window = ov::as_type_ptr<ov::op::v0::Constant>(values.at(window).get_node_shared_ptr());
+            // Only the exported signed integer, scalar-broadcast distance form.
+            // In particular, do not reinterpret vector windows or unsigned subtraction.
+            if (values.at(mask_param).get_node() != attention_mask.get() ||
+                values.at(query_range).get_element_type() != ov::element::i64 ||
+                values.at(key_range).get_element_type() != ov::element::i64 ||
+                matched_window->get_element_type() != ov::element::i64 ||
+                ov::shape_size(matched_window->get_shape()) != 1 || matched_window->get_shape().size() > 2 ||
+                matched_window->cast_vector<int64_t>().front() <= 0 ||
+                attention_mask->get_output_partial_shape(0).rank() != 2) {
+                return false;
+            }
+
+            auto zero = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+            auto one = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+            auto column = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {-1, 1});
+            ov::Output<ov::Node> logical_positions = position_ids;
+            if (logical_positions.get_element_type() != ov::element::i64) {
+                logical_positions = std::make_shared<ov::op::v0::Convert>(logical_positions, ov::element::i64);
+            }
+            auto logical_query_col = std::make_shared<ov::op::v1::Reshape>(logical_positions, column, false);
+            auto logical_distance = std::make_shared<ov::op::v1::Subtract>(logical_query_col, values.at(key_row));
+            auto forget_history = std::make_shared<ov::op::v1::GreaterEqual>(logical_distance, matched_window);
+            auto is_history = std::make_shared<ov::op::v1::Less>(values.at(key_row), values.at(past_len));
+            // History is left-aligned: use position_ids there. Current keys are
+            // right-aligned: retain Q - K >= window there, including for chunks
+            // longer than a window. Do not replace the shared Q/K ranges.
+            auto mapped_forget = std::make_shared<ov::op::v1::Select>(is_history, forget_history, values.at(forget));
+
+            // Padded query rows must not gain access to history, even if their
+            // position_ids are zero or repeat a real token's position.
+            auto vector = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+            auto start = std::make_shared<ov::op::v1::Reshape>(values.at(past_len), vector, false);
+            auto stop = std::make_shared<ov::op::v1::Reshape>(values.at(mask_len), vector, false);
+            auto query_valid = std::make_shared<ov::op::v8::Slice>(attention_mask, start, stop, vector, vector);
+            auto query_valid_bool = std::make_shared<ov::op::v0::Convert>(query_valid, ov::element::boolean);
+            auto query_valid_col = std::make_shared<ov::op::v1::Reshape>(query_valid_bool, column, false);
+            auto query_invalid = std::make_shared<ov::op::v1::LogicalNot>(query_valid_col);
+            auto clean_forget = std::make_shared<ov::op::v1::LogicalOr>(mapped_forget, query_invalid);
+            auto batch = std::make_shared<ov::op::v0::Unsqueeze>(clean_forget, zero);
+            auto heads = std::make_shared<ov::op::v0::Unsqueeze>(batch, one);
+            // Change only the inner condition; preserve both fill values and
+            // the outer causal/key-padding Select, also shared by full attention.
+            values.at(sliding_select).get_node_shared_ptr()->input(0).replace_source_output(heads);
+            LOG_INFO("LFM3 sliding window attention mask pattern found and patched.");
+            return true;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(mask_select, "Lfm3SlidingMaskMatcher"), std::move(callback));
+    }
+};
+
 class OldPhi3SlidingMaskMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::patterns::OldPhi3SlidingMaskMatcher");
@@ -678,6 +772,7 @@ bool SlidingWindowMask::run_on_model(const std::shared_ptr<ov::Model>& model) {
     ov::pass::Manager manager;
     manager.set_per_pass_validation(true);
     const auto rewriter = manager.register_pass<ov::pass::GraphRewrite>();
+    rewriter->add_matcher<Lfm3SlidingMaskMatcher>(attention_mask_node_ptr, position_ids_node_ptr);
     rewriter->add_matcher<Gemma4SlidingMaskMatcher>(attention_mask_node_ptr, position_ids_node_ptr);
     rewriter->add_matcher<Gemma4UnifiedSlidingMaskMatcher>(attention_mask_node_ptr, position_ids_node_ptr);
     rewriter->add_matcher<Phi3SlidingMaskMatcher>(attention_mask_node_ptr, position_ids_node_ptr);
