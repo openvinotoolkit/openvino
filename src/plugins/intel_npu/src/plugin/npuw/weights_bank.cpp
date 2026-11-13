@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <limits>
 #include <map>
+#include <thread>
 
 #include "logging.hpp"
 #include "openvino/core/memory_util.hpp"
@@ -18,8 +19,29 @@
 
 using ov::npuw::weights::Bank;
 using ov::npuw::weights::LazyTensor;
+using ov::npuw::weights::TransformationWeightContextIDMapper;
+using ov::npuw::weights::WeightSharingContextAccessor;
 
 namespace {
+class ContextIDsGuard {
+public:
+    explicit ContextIDsGuard(std::atomic_flag& flag) : m_flag(flag) {
+        while (m_flag.test_and_set(std::memory_order_acquire)) {
+            std::this_thread::yield();
+        }
+    }
+
+    ~ContextIDsGuard() {
+        m_flag.clear(std::memory_order_release);
+    }
+
+    ContextIDsGuard(const ContextIDsGuard&) = delete;
+    ContextIDsGuard& operator=(const ContextIDsGuard&) = delete;
+
+private:
+    std::atomic_flag& m_flag;
+};
+
 /* TODO CVS-199040:
  * Proper implementation of ov::IBufferDescriptor for ov::Tensor.
  * Once that implemented, the entire struct can be removed
@@ -135,8 +157,80 @@ private:
     std::mutex m_mutex;
 };
 
+std::optional<TransformationWeightContextIDMapper::WSContextIDs>
+ov::npuw::weights::TransformationWeightContextIDMapper::get_ov_context_ids(UID_Type uid) const {
+    const ContextIDsGuard guard(m_context_ids_lock);
+    const auto context_ids = m_ov_context_ids.find(uid);
+    if (context_ids == m_ov_context_ids.end()) {
+        return std::nullopt;
+    }
+    return context_ids->second;
+}
+
+std::tuple<bool, TransformationWeightContextIDMapper::WSContextIDs>
+ov::npuw::weights::TransformationWeightContextIDMapper::get_or_create_ov_context_ids(UID_Type uid) {
+    const ContextIDsGuard guard(m_context_ids_lock);
+    const auto existing = m_ov_context_ids.find(uid);
+    if (existing != m_ov_context_ids.end()) {
+        return {true, existing->second};
+    }
+    const auto context_ids = create_ov_context_ids(uid);
+    insert_mapping(uid, context_ids);
+    return {false, context_ids};
+}
+
+TransformationWeightContextIDMapper::UID_Type
+ov::npuw::weights::TransformationWeightContextIDMapper::get_transformation_uid(
+    const WSContextIDs& context_ids) const {
+    const ContextIDsGuard guard(m_context_ids_lock);
+    return m_transformation_uids.at(context_ids);
+}
+
+TransformationWeightContextIDMapper::WSContextIDs
+ov::npuw::weights::TransformationWeightContextIDMapper::create_ov_context_ids(UID_Type uid) {
+    OPENVINO_ASSERT(uid >= 0, "Transformation UID must be nonnegative: ", uid);
+    return {static_cast<SourceID_Type>(uid) + 1, 0};
+}
+
+TransformationWeightContextIDMapper::WSContextIDs
+ov::npuw::weights::TransformationWeightContextIDMapper::set_ov_context_ids(UID_Type uid) {
+    const auto context_ids = create_ov_context_ids(uid);
+    set_transformation_uid(context_ids);
+    return context_ids;
+}
+
+TransformationWeightContextIDMapper::UID_Type
+ov::npuw::weights::TransformationWeightContextIDMapper::set_transformation_uid(
+    const WSContextIDs& context_ids) {
+    const auto source_id = context_ids.first;
+    OPENVINO_ASSERT(source_id > 0 &&
+                        source_id - 1 <= static_cast<SourceID_Type>(std::numeric_limits<UID_Type>::max()),
+                    "Source ID cannot be mapped to a transformation UID: ",
+                    source_id);
+    const auto uid = static_cast<UID_Type>(source_id - 1);
+    const ContextIDsGuard guard(m_context_ids_lock);
+    insert_mapping(uid, context_ids);
+    return uid;
+}
+
+void ov::npuw::weights::TransformationWeightContextIDMapper::insert_mapping(UID_Type uid,
+                                                                        const WSContextIDs& context_ids) {
+    const auto [forward_it, inserted] = m_ov_context_ids.emplace(uid, context_ids);
+    OPENVINO_ASSERT(forward_it->second == context_ids,
+                    "Transformation UID already maps to different context IDs: ",
+                    uid);
+    try {
+        m_transformation_uids.emplace(context_ids, uid);
+    } catch (...) {
+        if (inserted) {
+            m_ov_context_ids.erase(forward_it);
+        }
+        throw;
+    }
+}
+
 ov::weight_sharing::WeightBuffer ov::npuw::weights::WeightSharingContextAccessor::create_shared_buffer(
-    int64_t source_id,
+    ov::weight_sharing::DataID source_id,
     std::size_t size) {
     // Create page aligned buffer to satisfy further GPU-NPU memory sharing requirements
     auto raw = std::make_shared<ov::AlignedBuffer>(size, ov::util::get_system_page_size());
@@ -148,7 +242,7 @@ ov::weight_sharing::WeightBuffer ov::npuw::weights::WeightSharingContextAccessor
 }
 
 ov::weight_sharing::WeightBuffer ov::npuw::weights::WeightSharingContextAccessor::create_shared_buffer(
-    int64_t source_id,
+    ov::weight_sharing::DataID source_id,
     const ov::Tensor& tensor) {
     return std::make_shared<SharedTensorBuffer>(const_cast<char*>(static_cast<const char*>(tensor.data())),
                                                 tensor.get_byte_size(),
@@ -158,35 +252,42 @@ ov::weight_sharing::WeightBuffer ov::npuw::weights::WeightSharingContextAccessor
 
 const ov::op::v0::Constant& ov::npuw::weights::WeightSharingContextAccessor::get_transformed_constant(
     const std::string& device,
-    size_t source_id,
+    UID_Type transformation_uid,
     Handle& handle) const {
     OPENVINO_ASSERT(handle.context, "WeightSharingContextAccessor has no weight sharing context");
     auto dev_it = m_transformed_weights_per_device.find(device);
     OPENVINO_ASSERT(dev_it != m_transformed_weights_per_device.end(),
                     "No transformed weights found for device: ",
                     device);
-    auto iter = dev_it->second.find(source_id);
+    auto iter = dev_it->second.find(transformation_uid);
     OPENVINO_ASSERT(iter != dev_it->second.end(),
-                    "Transformed constant not found for source id: ",
-                    source_id,
+                    "Transformed constant not found for transformation UID: ",
+                    transformation_uid,
                     ", on device: ",
                     device);
     return iter->second;
 }
 
-ov::weight_sharing::WeightBuffer ov::npuw::weights::WeightSharingContextAccessor::get_shared_weight_source_buffer(
-    size_t source_id,
+bool ov::npuw::weights::WeightSharingContextAccessor::has_transformation_buffer(
+    UID_Type transformation_uid,
     Handle& handle) {
     if (!handle.context) {
-        return {};
+        return false;
     }
 
+    const auto context_ids = ids_mapper.get_ov_context_ids(transformation_uid);
+    if (!context_ids) {
+        return false;
+    }
+    const auto [source_id, constant_id] = *context_ids;
+    NPUW_ASSERT(constant_id == 0 &&
+                "has_transformation_buffer: Only constant_id 0 is supported for shared weight sources");
     auto shared_weight_source = ov::weight_sharing::get_runtime_weight_source(*handle.context, source_id);
-    return shared_weight_source.m_weights.lock();
+    return static_cast<bool>(shared_weight_source.m_weights.lock());
 }
 
 ov::weight_sharing::WeightBuffer ov::npuw::weights::WeightSharingContextAccessor::request_shared_weight_source_buffer(
-    size_t source_id,
+    UID_Type transformation_uid,
     const element::Type& type,
     const ov::Shape& shape,
     const std::string& device,
@@ -196,9 +297,13 @@ ov::weight_sharing::WeightBuffer ov::npuw::weights::WeightSharingContextAccessor
     }
 
     auto size = ov::util::get_memory_size_safe(type, shape);
-    OPENVINO_ASSERT(size.has_value(), "LazyTensor size overflow, uid: ", source_id, " device: ", device);
+    OPENVINO_ASSERT(size.has_value(), "LazyTensor size overflow, uid: ", transformation_uid, " device: ", device);
+
+    auto [existing, context_ids] = ids_mapper.get_or_create_ov_context_ids(transformation_uid);
+    const auto [source_id, constant_id] = context_ids;
+    NPUW_ASSERT(constant_id == 0 && "request_shared_weight_source_buffer: Only constant_id 0 is supported for shared weight sources");
     LOG_DEBUG("WeightSharingContextAccessor::request_shared_weight_source_buffer - source id: "
-              << source_id << ", device: " << device << ", size: " << *size);
+              << source_id << ", device: " << device << ", size: " << *size << ", existed before: " << existing);
 
     auto shared_weight_source = ov::weight_sharing::get_runtime_weight_source(*handle.context, source_id);
     if (auto shared_buffer = shared_weight_source.m_weights.lock(); shared_buffer != nullptr) {
@@ -215,12 +320,12 @@ ov::weight_sharing::WeightBuffer ov::npuw::weights::WeightSharingContextAccessor
 
     auto shared_buffer = WeightSharingContextAccessor::create_shared_buffer(source_id, *size);
     register_shared_weight_source_for_weight(shared_buffer, device, handle);
-    register_transformed_constant(shared_buffer, source_id, device, type, shape, handle);
+    register_transformed_constant(shared_buffer, transformation_uid, device, type, shape, handle);
     return shared_buffer;
 }
 
 ov::weight_sharing::WeightBuffer
-ov::npuw::weights::WeightSharingContextAccessor::register_tensor_as_shared_weight_source(size_t source_id,
+ov::npuw::weights::WeightSharingContextAccessor::register_tensor_as_shared_weight_source(UID_Type transformation_uid,
                                                                                          const std::string& device,
                                                                                          const ov::Tensor& tensor,
                                                                                          Handle& handle) {
@@ -228,10 +333,17 @@ ov::npuw::weights::WeightSharingContextAccessor::register_tensor_as_shared_weigh
         return {};
     }
 
+    auto [existing, context_ids] = ids_mapper.get_or_create_ov_context_ids(transformation_uid);
+    const auto [source_id, constant_id] = context_ids;
+    NPUW_ASSERT(constant_id == 0 && "register_tensor_as_shared_weight_source: Only constant_id 0 is supported for shared weight sources");
+
+    LOG_DEBUG("WeightSharingContextAccessor::register_tensor_as_shared_weight_source - source id: "
+              << source_id << ", device: " << device << ", size: " << tensor.get_size() << ", existed before: " << existing);
+
     auto shared_buffer = WeightSharingContextAccessor::create_shared_buffer(source_id, tensor);
     register_shared_weight_source_for_weight(shared_buffer, device, handle);
     register_transformed_constant(shared_buffer,
-                                  source_id,
+                                  transformation_uid,
                                   device,
                                   tensor.get_element_type(),
                                   tensor.get_shape(),
@@ -241,7 +353,7 @@ ov::npuw::weights::WeightSharingContextAccessor::register_tensor_as_shared_weigh
 
 void ov::npuw::weights::WeightSharingContextAccessor::register_transformed_constant(
     std::shared_ptr<ov::AlignedBuffer> transformation_buffer,
-    size_t constant_id,
+    UID_Type transformation_uid,
     const std::string& device,
     const element::Type& type,
     const ov::Shape& shape,
@@ -263,7 +375,6 @@ void ov::npuw::weights::WeightSharingContextAccessor::register_transformed_const
     // required to accomodate all evaluated tensors for the closure. After that we
     // can allocate the aligned staging buffer of this total size, assign `source_id` to it,
     // and use `constant_id` to map to the offset within that staging buffer.
-    // NPUW will require to introduce UID to source_id/constant_id mapping.
     auto transformed_constant = ov::op::v0::Constant(type, shape, transformation_buffer);
     ov::weight_sharing::set_constant(*handle.context, transformed_constant);
 
@@ -271,8 +382,8 @@ void ov::npuw::weights::WeightSharingContextAccessor::register_transformed_const
     // As weight sharing context doesn't include the shape of the constant in WeightMetaData,
     // we store and remember the transformed constant,
     // so that we can deserialize its ov::Tensor from raw buffer.
-    m_transformed_weights_per_device[device].erase(constant_id);
-    m_transformed_weights_per_device[device].emplace(constant_id, std::move(transformed_constant));
+    m_transformed_weights_per_device[device].erase(transformation_uid);
+    m_transformed_weights_per_device[device].emplace(transformation_uid, std::move(transformed_constant));
     LOG_DEBUG("WeightSharingContextAccessor::register_transformed_constant - m_transformed_weights_per_device: "
               << device << ", counts: " << m_transformed_weights_per_device[device].size());
 }
@@ -337,15 +448,8 @@ bool ov::npuw::weights::WeightSharingContextAccessor::serialize_native_format_im
                         "NPUW: transformed constant ids for each source must have exactly one constant id");
             for (auto constant_id : constant_ids) {
                 NPUW_ASSERT(constant_id == 0 && "NPUW: constant id must be 0 for each weight transformation");
-                // 3) serialize the weight identifier
-                if (constant_id != invalid_constant_id) {
-                    // Should newer happen
-                    stream & constant_id;
-                } else {
-                    // the NPUW format: source_id is a real identifier for the weight
-                    // when constant_id is always 0
-                    stream & source_id;
-                }
+                auto uid = ids_mapper.get_transformation_uid({source_id, constant_id});
+                stream & uid;
                 const WeightMetaData& weight_meta_map =
                     m_context->m_weight_registry.find(source_id)->second.find(constant_id)->second;
                 bool is_initialized =
@@ -355,7 +459,7 @@ bool ov::npuw::weights::WeightSharingContextAccessor::serialize_native_format_im
                 // 4) serialize the weight metadata
                 auto type_str = weight_meta_map.m_type.to_string();
                 /*CVS-198039 WeightMetaData has no m_shape*/
-                const auto& transformed_constant = get_transformed_constant(device, source_id, handle);
+                const auto& transformed_constant = get_transformed_constant(device, uid, handle);
                 auto shape = transformed_constant.get_shape();
                 auto byte_size = weight_meta_map.m_size;
                 stream & type_str & shape & byte_size;
@@ -373,7 +477,7 @@ bool ov::npuw::weights::WeightSharingContextAccessor::serialize_native_format_im
                     " must have a valid descriptor");
                 LOG_VERB(
                     "WeightSharingContextAccessor::serialize_native_format_impl - serializing weight data for uid: "
-                    << source_id << ", source_id: " << source_staging_buffer_descriptor->get_id()
+                    << uid << ", source_id: " << source_staging_buffer_descriptor->get_id()
                     << ", size: " << source_staging_buffer->size());
                 stream.bytes(source_staging_buffer->get_ptr(weight_meta_map.m_offset), weight_meta_map.m_size);
             }
@@ -382,13 +486,15 @@ bool ov::npuw::weights::WeightSharingContextAccessor::serialize_native_format_im
     return true;
 }
 
-std::set<int64_t> ov::npuw::weights::WeightSharingContextAccessor::consume_from(ov::npuw::orc::Stream& stream,
+std::set<WeightSharingContextAccessor::UID_Type>
+ov::npuw::weights::WeightSharingContextAccessor::consume_from(ov::npuw::orc::Stream& stream,
                                                                                 const ov::ICore& core) {
     auto lock = get_handle();
     return consume_from_impl(stream, core, lock);
 }
 
-std::set<int64_t> ov::npuw::weights::WeightSharingContextAccessor::consume_from_impl(ov::npuw::orc::Stream& stream,
+std::set<WeightSharingContextAccessor::UID_Type>
+ov::npuw::weights::WeightSharingContextAccessor::consume_from_impl(ov::npuw::orc::Stream& stream,
                                                                                      const ov::ICore& core,
                                                                                      Handle& handle) {
     NPUW_ASSERT(stream.input() && "WeightSharingContextAccessor::consume_from_impl must receive an input stream");
@@ -398,7 +504,7 @@ std::set<int64_t> ov::npuw::weights::WeightSharingContextAccessor::consume_from_
         return {};
     }
 
-    std::set<int64_t> deserialized_uids;
+    std::set<UID_Type> deserialized_uids;
     size_t bank_size = 0;
     stream & bank_size;
     LOG_DEBUG("WeightSharingContextAccessor::consume_from_impl - total devices: " << bank_size);
@@ -410,13 +516,13 @@ std::set<int64_t> ov::npuw::weights::WeightSharingContextAccessor::consume_from_
         LOG_DEBUG("WeightSharingContextAccessor::consume_from_impl - total weights for device " << device << ": "
                                                                                                 << storage_size);
         for (std::size_t j = 0; j < storage_size; ++j) {
-            int64_t uid = -1;
+            UID_Type uid = -1;
             stream & uid;
 
             auto common_allocator = [this, &core, &device, uid, &handle](const ov::element::Type& type,
                                                                          const ov::Shape& shape) {
                 NPUW_ASSERT(
-                    this->get_shared_weight_source_buffer(uid, handle) == nullptr &&
+                    !this->has_transformation_buffer(uid, handle) &&
                     "WeightSharingContextAccessor::consume_from_impl: Shared weight source must not already exist");
                 if (device == "CPU") {
                     auto shared_source = this->request_shared_weight_source_buffer(uid, type, shape, device, handle);
@@ -451,7 +557,7 @@ void ov::npuw::weights::WeightSharingContextAccessor::register_shared_weight_sou
     OPENVINO_ASSERT(buf_descriptor != nullptr,
                     "WeightSharingContextAccessor::register_shared_weight_source_for_weight - must register a source "
                     "buffer, that have a valid descriptor");
-    size_t source_id = buf_descriptor->get_id();
+    ov::weight_sharing::DataID source_id = buf_descriptor->get_id();
     m_shared_sources[source_id] = source_buffer;
     ov::weight_sharing::set_runtime_weight_source(*handle.context, source_buffer, device);
     LOG_DEBUG("WeightSharingContextAccessor::register_shared_weight_source_for_weight - source id: "
@@ -721,15 +827,18 @@ void Bank::deserialize(ov::npuw::orc::Stream& stream) {
         std::unique_lock guard(m_mutex);
         auto handle = this->get_handle();
         if (handle.context) {
-            auto deserialized_uids_by_weight_ctx = this->consume_from(stream, *m_core);
+            auto deserialized_uids_by_weight_ctx = this->consume_from_impl(stream, *m_core, handle);
             for (auto uid : deserialized_uids_by_weight_ctx) {
-                auto m_weight_registry_it = handle.context->m_weight_registry.find(uid);
+                const auto context_ids = ids_mapper.get_ov_context_ids(uid);
+                NPUW_ASSERT(context_ids.has_value() && "Bank::deserialize: Context IDs not found for UID");
+                const auto source_id = context_ids->first;
+                auto m_weight_registry_it = handle.context->m_weight_registry.find(source_id);
                 NPUW_ASSERT(m_weight_registry_it != handle.context->m_weight_registry.end() &&
-                            "Bank::deserialize: UID not found in weight registry");
+                            "Bank::deserialize: Source ID not found in weight registry");
                 const auto& weight_meta_map = m_weight_registry_it->second;
                 NPUW_ASSERT(weight_meta_map.size() == 1 &&
                             "Bank::deserialize: weight_meta_map must contain exactly one entry");
-                auto weight_source = ov::weight_sharing::get_runtime_weight_source(*handle.context, uid);
+                auto weight_source = ov::weight_sharing::get_runtime_weight_source(*handle.context, source_id);
                 auto shared_source = weight_source.m_weights.lock();
                 NPUW_ASSERT(shared_source &&
                             "Bank::deserialize: WeightSource must provide a valid shared source buffer");
