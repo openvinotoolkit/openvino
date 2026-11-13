@@ -9,7 +9,6 @@
 
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
-#include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "serialization.hpp"
 #include "util.hpp"
 

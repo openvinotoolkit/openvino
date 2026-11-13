@@ -9,7 +9,6 @@
 #include <unordered_map>
 
 #include "lazy_tensor.hpp"
-#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
@@ -92,7 +91,7 @@ private:
     mutable std::mutex m_mutex;
     std::shared_ptr<const ov::ICore> m_core = nullptr;
     std::string m_alloc_device;
-    int64_t uid_count = 1;
+    int64_t uid_count = 0;
     std::string m_bank_name;
 };
 
