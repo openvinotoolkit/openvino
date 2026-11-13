@@ -102,8 +102,9 @@ public:
 
     std::map<size_t, cldnn::layout> inputLayouts;
     using IsRemoteWeight = bool;
-    using BlobCacheKey = std::tuple<const char*, ov::Shape, ov::element::Type, IsRemoteWeight>;
+    using BlobCacheKey = std::tuple<const char*, ov::Shape, ov::element::Type, IsRemoteWeight, bool>;
     std::map<BlobCacheKey, cldnn::primitive_id> blobMemCache;
+    std::map<ov::element::Type, cldnn::kernel::ptr> ggufShuffleKernels;
     using GgufBlobCacheKey = std::tuple<uint64_t, uint64_t, size_t, ov::Shape, ov::element::Type, bool>;
     std::multimap<GgufBlobCacheKey,
                   std::pair<std::shared_ptr<const ov::op::v0::Constant>, cldnn::primitive_id>> ggufBlobMemCache;

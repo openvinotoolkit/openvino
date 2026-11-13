@@ -54,7 +54,9 @@ std::shared_ptr<ov::intel_gpu::op::FullyConnectedCompressed> make_gguf_repack_fc
 }
 }
 
-TEST(GGUFRepack, PreservesSharedRawAndIsIdempotent) {
+class GGUFRepackMode : public ::testing::TestWithParam<bool> {};
+
+TEST_P(GGUFRepackMode, PreservesSharedRawAndIsIdempotent) {
     const std::array<ov::element::Type, 6> formats = {ov::element::gguf_q4_k,
                                                    ov::element::gguf_q5_k,
                                                    ov::element::gguf_q6_k,
@@ -80,7 +82,7 @@ TEST(GGUFRepack, PreservesSharedRawAndIsIdempotent) {
         auto graph = std::make_shared<ov::Model>(ov::OutputVector{fc, raw, second_fc},
                             ov::ParameterVector{activation, second_activation});
         ov::pass::Manager repack;
-        repack.register_pass<RepackGGUFWeightsShuffle>();
+        repack.register_pass<RepackGGUFWeightsShuffle>(GetParam());
         repack.run_passes(graph);
         auto packed = ov::as_type_ptr<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(1));
         ASSERT_NE(packed, nullptr);
@@ -88,11 +90,14 @@ TEST(GGUFRepack, PreservesSharedRawAndIsIdempotent) {
         EXPECT_EQ(packed->get_element_type(), type);
         EXPECT_EQ(packed->get_shape(), shape);
         EXPECT_EQ(packed->get_byte_size(), payload.size());
+        EXPECT_EQ(packed->get_data_ptr() == raw->get_data_ptr(), GetParam());
+        EXPECT_EQ(packed->get_rt_info().count("intel_gpu_gguf_shuffle_pending"), GetParam() ? 1u : 0u);
         EXPECT_EQ(std::memcmp(raw->get_data_ptr(), payload.data(), payload.size()), 0);
         EXPECT_EQ(graph->get_results()[1]->get_input_node_shared_ptr(0), raw);
         auto second_packed = ov::as_type_ptr<ov::op::v0::Constant>(second_fc->get_input_node_shared_ptr(1));
         ASSERT_NE(second_packed, nullptr);
         EXPECT_NE(second_packed, raw);
+        EXPECT_EQ(second_packed->get_data_ptr() == raw->get_data_ptr(), GetParam());
         for (const auto* key : {"gguf_ext_source", "gguf_ext_offset", "gguf_ext_size", "gguf_ext_source_path"}) {
             EXPECT_EQ(packed->get_rt_info().count(key), 0);
             EXPECT_EQ(second_packed->get_rt_info().count(key), 0);
@@ -114,9 +119,15 @@ TEST(GGUFRepack, PreservesSharedRawAndIsIdempotent) {
         EXPECT_EQ(cloned_fc->get_input_node_shared_ptr(1), cloned_weight);
         auto cloned_packed = ov::as_type_ptr<ov::op::v0::Constant>(cloned_weight);
         ASSERT_NE(cloned_packed, nullptr);
+        if (GetParam()) {
+            EXPECT_EQ(cloned_packed->get_data_ptr(), raw->get_data_ptr());
+            EXPECT_EQ(cloned_packed->get_rt_info().count("intel_gpu_gguf_shuffle_pending"), 1u);
+        }
         EXPECT_EQ(std::memcmp(cloned_packed->get_data_ptr(), once.data(), once.size()), 0);
     }
 }
+
+INSTANTIATE_TEST_SUITE_P(GGUFRepack, GGUFRepackMode, ::testing::Bool());
 
 TEST(GGUFRepack, LeavesIneligibleWeightsUnchanged) {
     const std::vector<std::pair<ov::element::Type, ov::Shape>> cases = {

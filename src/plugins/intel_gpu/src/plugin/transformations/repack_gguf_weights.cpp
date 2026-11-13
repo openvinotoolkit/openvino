@@ -218,7 +218,7 @@ inline void sg_scatter_chunks(uint8_t* entry, const uint8_t* src, size_t pbytes,
 
 }  // namespace
 
-RepackGGUFWeightsShuffle::RepackGGUFWeightsShuffle() {
+RepackGGUFWeightsShuffle::RepackGGUFWeightsShuffle(bool defer_to_gpu) {
     using namespace ov::pass::pattern;
 
     auto fc_m = wrap_type<ov::intel_gpu::op::FullyConnectedCompressed>();
@@ -283,6 +283,22 @@ RepackGGUFWeightsShuffle::RepackGGUFWeightsShuffle() {
         const size_t total_bytes = w_const->get_byte_size();  // == N*nbpr_native*bb
         if (total_bytes != N * nbpr_native * bb) {
             return false;
+        }
+
+        auto replace_weights = [&](const std::shared_ptr<ov::op::v0::Constant>& packed_const) {
+            packed_const->set_friendly_name(w_const->get_friendly_name());
+            ov::copy_runtime_info(w_const, packed_const);
+            for (const auto* key : {"gguf_ext_source", "gguf_ext_offset", "gguf_ext_size", "gguf_ext_source_path"}) {
+                packed_const->get_rt_info().erase(key);
+            }
+            packed_const->get_rt_info()[kShuffledWeights] = true;
+            fc->input(1).replace_source_output(packed_const->output(0));
+        };
+        if (defer_to_gpu && N != 0 && K != 0) {
+            auto deferred_const = std::make_shared<ov::op::v0::Constant>(*w_const);
+            replace_weights(deferred_const);
+            deferred_const->get_rt_info()["intel_gpu_gguf_shuffle_pending"] = true;
+            return true;
         }
 
         const auto* src = static_cast<const uint8_t*>(w_const->get_data_ptr());
@@ -443,13 +459,7 @@ RepackGGUFWeightsShuffle::RepackGGUFWeightsShuffle() {
 
         // New Constant: SAME element type, SAME shape, SAME byte size — only the bytes are shuffled.
         auto packed_const = std::make_shared<ov::op::v0::Constant>(wt, shape, dst_buf);
-        packed_const->set_friendly_name(w_const->get_friendly_name());
-        ov::copy_runtime_info(w_const, packed_const);
-        for (const auto* key : {"gguf_ext_source", "gguf_ext_offset", "gguf_ext_size", "gguf_ext_source_path"}) {
-            packed_const->get_rt_info().erase(key);
-        }
-        packed_const->get_rt_info()[kShuffledWeights] = true;
-        fc->input(1).replace_source_output(packed_const->output(0));
+        replace_weights(packed_const);
         return true;
     };
 

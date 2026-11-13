@@ -22,6 +22,7 @@
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "fully_connected_inst.h"
 #include "impls/ocl_v2/primitive_ocl_base.hpp"
+#include "impls/ocl_v2/gguf/gguf_weight_shuffle.hpp"
 #include "registry/registry.hpp"
 
 #include "intel_gpu/op/fully_connected_compressed.hpp"
@@ -45,6 +46,7 @@
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
+#include "ov_ops/gather_compressed.hpp"
 #include "plugin/transformations/repack_gguf_weights.hpp"
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
 #include "plugin/transformations/fc_horizontal_fusion.hpp"
@@ -124,6 +126,38 @@ class gguf_fc_dynamic_reference : public ::testing::TestWithParam<gguf_fc_mode> 
 
 // True when the OCL / CM prefill GEMM can run on this device for a shuffled GGUF weight whose output channel
 // count is `channels` (mirrors gguf_select_prefill_kernel in fc_gguf_opt.cpp).
+TEST(fully_connected_gpu, gguf_gpu_shuffle_matches_cpu_bytes) {
+    auto& engine = get_test_engine();
+    gguf_scoped_env_var shuffle("OV_GPU_GGUF_SHUFFLE", "1");
+    const std::vector<ov::element::Type> formats = {ov::element::gguf_q4_k, ov::element::gguf_q5_k,
+        ov::element::gguf_q6_k, ov::element::gguf_q4_0, ov::element::gguf_q4_1, ov::element::gguf_q8_0};
+    for (const auto& type : formats) {
+        cldnn::kernel::ptr kernel;
+        for (const auto& shape : std::vector<ov::Shape>{{16, 256}, {32, 512}, {48, 768}}) {
+            SCOPED_TRACE(type.to_string() + "_" + std::to_string(shape[0]) + "_" + std::to_string(shape[1]));
+            const size_t bytes = ov::shape_size(shape) / type.block_elem_count() * type.block_byte_size();
+            std::vector<uint8_t> payload(bytes);
+            for (size_t index = 0; index < bytes; ++index)
+                payload[index] = static_cast<uint8_t>((index * 37 + index / 97 + 19) % 256);
+            auto raw = std::make_shared<ov::op::v0::Constant>(type, shape, payload.data());
+            auto activation = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, shape[1]});
+            auto absent = std::make_shared<ov::intel_gpu::op::Placeholder>();
+            auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.f});
+            auto fc = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(activation, raw, absent, scale, absent, ov::element::f32);
+            auto graph = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{activation});
+            ov::pass::Manager manager;
+            manager.register_pass<ov::intel_gpu::RepackGGUFWeightsShuffle>();
+            manager.run_passes(graph);
+            auto reference = ov::as_type_ptr<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(1));
+            ASSERT_NE(reference, raw);
+            const cldnn::layout layout(shape, cldnn::element_type_to_data_type(type), cldnn::format::bfyx);
+            auto output = ov::intel_gpu::ocl::upload_shuffled_gguf_weights(engine, layout, type, shape, payload.data(), kernel);
+            cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read> actual(output, get_test_stream());
+            EXPECT_EQ(std::memcmp(actual.data(), reference->get_data_ptr(), bytes), 0);
+        }
+    }
+}
+
 bool gguf_gemm_capable(cldnn::engine& engine, bool shuffled, size_t channels) {
     const auto& info = engine.get_device_info();
     const size_t alignment = info.arch >= gpu_arch::xe3 ? 64 : 32;
@@ -140,6 +174,70 @@ std::string gguf_ocl_gemm_stage(const ov::element::Type& type) {
          : type == ov::element::gguf_q4_1 ? "fc_gguf_gemm_q4_1"
                                           : "fc_gguf_gemm_q8_0";
 }
+}
+
+TEST(fully_connected_gpu, gguf_gpu_shuffle_shared_gather_export) {
+    gguf_scoped_env_var shuffle("OV_GPU_GGUF_SHUFFLE", "1");
+    gguf_scoped_env_var prefill("OV_GPU_GGUF_PREFILL_GEMM", "ocl");
+    const ov::Shape weight_shape{32, 256};
+    std::vector<uint8_t> payload(32 * 8 * 18);
+    for (size_t channel = 0; channel < 32; ++channel) {
+        for (size_t block = 0; block < 8; ++block) {
+            auto* bytes = payload.data() + (channel * 8 + block) * 18;
+            const ov::float16 scale(static_cast<float>(channel + 1));
+            std::memcpy(bytes, &scale, sizeof(scale));
+            std::memset(bytes + 2, 0x99, 16);
+        }
+    }
+    const auto weight = std::make_shared<ov::op::v0::Constant>(ov::element::gguf_q4_0, weight_shape, payload.data());
+    const auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.f});
+    const auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
+    ov::ParameterVector parameters;
+    ov::OutputVector outputs;
+    for (size_t index = 0; index < 2; ++index) {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 256});
+        outputs.push_back(std::make_shared<ov::op::internal::FullyConnectedCompressed>(
+            input, weight, bias, scale, ov::element::f32));
+        parameters.push_back(input);
+    }
+    const auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2});
+    const auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    outputs.push_back(std::make_shared<ov::op::internal::GatherCompressed>(weight, indices, axis, 0, scale));
+    parameters.push_back(indices);
+    ov::Core core;
+    auto compiled = core.compile_model(std::make_shared<ov::Model>(outputs, parameters), "GPU",
+                                       ov::hint::inference_precision(ov::element::f32));
+    EXPECT_EQ(std::memcmp(weight->get_data_ptr(), payload.data(), payload.size()), 0);
+    std::stringstream binary;
+    compiled.export_model(binary);
+    auto imported = core.import_model(binary, "GPU", ov::hint::inference_precision(ov::element::f32));
+    for (auto execution : {compiled, imported}) {
+        auto request = execution.create_infer_request();
+        ov::Tensor selected(ov::element::i32, {2});
+        selected.data<int32_t>()[0] = 0;
+        selected.data<int32_t>()[1] = 31;
+        request.set_input_tensor(2, selected);
+        for (const size_t rows : {size_t{1}, size_t{33}, size_t{1}}) {
+            for (size_t input = 0; input < 2; ++input) {
+                ov::Tensor tensor(ov::element::f32, {rows, 256});
+                std::fill_n(tensor.data<float>(), rows * 256, static_cast<float>(input + 1));
+                request.set_input_tensor(input, tensor);
+            }
+            request.infer();
+            for (size_t output = 0; output < 2; ++output) {
+                const auto tensor = request.get_output_tensor(output);
+                for (size_t row = 0; row < rows; ++row)
+                    for (size_t channel = 0; channel < 32; ++channel)
+                        EXPECT_NEAR(tensor.data<const float>()[row * 32 + channel],
+                                    256.f * (channel + 1) * (output + 1), 0.1f);
+            }
+            const auto gathered = request.get_output_tensor(2);
+            for (size_t column = 0; column < 256; ++column) {
+                EXPECT_EQ(gathered.data<const float>()[column], 1.f);
+                EXPECT_EQ(gathered.data<const float>()[256 + column], 32.f);
+            }
+        }
+    }
 }
 
 TEST(fully_connected_gpu, gguf_constant_source_sharing) {

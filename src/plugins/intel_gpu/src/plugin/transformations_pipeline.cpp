@@ -1818,7 +1818,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
     #ifdef ENABLE_ONEDNN_FOR_GPU
-        manager.register_pass<ov::intel_gpu::RepackGGUFWeightsShuffle>();
+        manager.register_pass<ov::intel_gpu::RepackGGUFWeightsShuffle>(true);
     #endif
         manager.register_pass<ov::intel_gpu::TransposeFusion>(device_info.supports_immad);
         // Absorb a trailing Transpose({0,2,1,3}) into the SDPA output order so

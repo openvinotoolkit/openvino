@@ -125,6 +125,7 @@ set(GPU_OCL_V2_KERNEL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/fc_gguf_gemv_opt.cl
     ${CMAKE_CURRENT_LIST_DIR}/fc_gguf_transcode.cl
     ${CMAKE_CURRENT_LIST_DIR}/fc_gguf_act_dq.cl
+    ${CMAKE_CURRENT_LIST_DIR}/gguf_weight_shuffle.cl
     ${CMAKE_CURRENT_LIST_DIR}/fc_gguf_gemm_common.cl
     ${CMAKE_CURRENT_LIST_DIR}/fc_gguf_gemm_body.cl
     ${CMAKE_CURRENT_LIST_DIR}/fc_gguf_gemm_opt.cl
