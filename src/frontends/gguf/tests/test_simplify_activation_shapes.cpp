@@ -267,37 +267,46 @@ std::shared_ptr<ov::Model> rotary_model_ref(bool split_input = false, bool split
     return std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, cos, sin});
 }
 
-TEST_F(GGUFActivationShapes, FusesSingletonHeadRotaryWithNegativeAxes) {
-    model = rotary_model(false, -1, -1);
-    model_ref = rotary_model_ref();
-    manager.register_pass<ov::pass::RoPEFusion>();
-    comparator.disable(FunctionsComparator::ACCURACY);
-    disable_rt_info_check();
+using SingletonHeadRoPEParams = std::tuple<int64_t, int64_t, bool, bool>;
+
+class SingletonHeadRoPEFusionTests : public GGUFActivationShapes,
+                                     public testing::WithParamInterface<SingletonHeadRoPEParams> {
+protected:
+    void SetUp() override {
+        GGUFActivationShapes::SetUp();
+        const auto [split_axis, concat_axis, split_input, split_cos] = GetParam();
+        model = rotary_model(false, split_axis, concat_axis, split_input, split_cos);
+        model_ref = rotary_model_ref(split_input, split_cos);
+        manager.register_pass<ov::pass::RoPEFusion>();
+        comparator.disable(FunctionsComparator::ACCURACY);
+        disable_rt_info_check();
+    }
+};
+
+TEST_P(SingletonHeadRoPEFusionTests, Fuses) {}
+
+std::string singleton_head_rope_test_name(const testing::TestParamInfo<SingletonHeadRoPEParams>& info) {
+    switch (info.index) {
+    case 0:
+        return "NegativeAxes";
+    case 1:
+        return "PositiveAxes";
+    case 2:
+        return "SplitInput";
+    case 3:
+        return "SplitCosine";
+    default:
+        return "Unknown";
+    }
 }
 
-TEST_F(GGUFActivationShapes, FusesSingletonHeadRotaryWithPositiveAxes) {
-    model = rotary_model(false, 3, 3);
-    model_ref = rotary_model_ref();
-    manager.register_pass<ov::pass::RoPEFusion>();
-    comparator.disable(FunctionsComparator::ACCURACY);
-    disable_rt_info_check();
-}
-
-TEST_F(GGUFActivationShapes, FusesSingletonHeadRotaryFedByAnotherSplit) {
-    model = rotary_model(false, -1, -1, true);
-    model_ref = rotary_model_ref(true);
-    manager.register_pass<ov::pass::RoPEFusion>();
-    comparator.disable(FunctionsComparator::ACCURACY);
-    disable_rt_info_check();
-}
-
-TEST_F(GGUFActivationShapes, FusesSingletonHeadRotaryWithSplitCosine) {
-    model = rotary_model(false, -1, -1, false, true);
-    model_ref = rotary_model_ref(false, true);
-    manager.register_pass<ov::pass::RoPEFusion>();
-    comparator.disable(FunctionsComparator::ACCURACY);
-    disable_rt_info_check();
-}
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         SingletonHeadRoPEFusionTests,
+                         testing::Values(SingletonHeadRoPEParams{-1, -1, false, false},
+                                         SingletonHeadRoPEParams{3, 3, false, false},
+                                         SingletonHeadRoPEParams{-1, -1, true, false},
+                                         SingletonHeadRoPEParams{-1, -1, false, true}),
+                         singleton_head_rope_test_name);
 
 TEST_F(GGUFActivationShapes, SimplifiesRotaryArithmeticWithNonLastConcatAxis) {
     model = rotary_model(false, -1, 2);

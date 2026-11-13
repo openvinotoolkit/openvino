@@ -42,6 +42,11 @@ OutputVector translate_mulmat(const NodeContext& context) {
     const bool u2_weights =
         (ov::is_type<ov::op::v0::Constant>(weight) && weight->get_output_element_type(0) == ov::element::u2) ||
         (deferred && gguf_has_u2_weights(deferred->qtype()));
+    const bool gpu_rank4_hint = context.get_attribute<bool>("gpu_rank4_hint", false);
+    const auto tag_gpu_rank4_hint = [&] {
+        if (gpu_rank4_hint)
+            res.get_node_shared_ptr()->get_rt_info()["gguf_gpu_rank4_hint"] = true;
+    };
     const auto& shape = A.get_partial_shape();
     const bool rank3_output = context.get_attribute<int>("activation_rank", 4) == 3;
     const bool rank3_projection = u2_weights && shape.rank() == 4 && shape[1] == 1 && shape[3].is_static() &&
@@ -85,6 +90,7 @@ OutputVector translate_mulmat(const NodeContext& context) {
         // Variable encoder grids use equal or singleton batch axes. MatMul validates
         // their broadcast compatibility at runtime; do not freeze a grid dimension.
         res = std::make_shared<ov::op::v0::MatMul>(A, B, false, transpose_b);
+        tag_gpu_rank4_hint();
         res = restore_projection(res);
         return rename_outputs_with_suffix({res}, context.get_name());
     }
@@ -125,6 +131,7 @@ OutputVector translate_mulmat(const NodeContext& context) {
     }
 
     res = std::make_shared<ov::op::v0::MatMul>(A, B, false, transpose_b);
+    tag_gpu_rank4_hint();
     res = restore_projection(res);
 
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());

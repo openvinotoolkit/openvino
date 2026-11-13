@@ -139,15 +139,15 @@ std::unordered_set<const ov::Node*> rope_nodes(const ov::NodeVector& nodes) {
         if (!concat || !activation_shape(concat->get_output_partial_shape(0)) ||
             (concat->get_axis() != -1 && concat->get_axis() != 3) || !matcher->match(node))
             continue;
-        const auto& pattern_values = matcher->get_pattern_value_map();
-        const auto split = std::find_if(pattern_values.begin(), pattern_values.end(), [](const auto& match) {
+        const auto pattern_nodes = matcher->get_pattern_map();
+        const auto split = std::find_if(pattern_nodes.begin(), pattern_nodes.end(), [](const auto& match) {
             const auto pattern = ov::as_type_ptr<ov::pass::pattern::op::WrapType>(match.first);
             return pattern && pattern->get_wrapped_types().size() == 1 &&
                    pattern->get_wrapped_type() == ov::op::v1::VariadicSplit::get_type_info_static();
         });
-        if (split == pattern_values.end())
+        if (split == pattern_nodes.end())
             continue;
-        const auto axis = split->second.get_node_shared_ptr()->get_input_node_shared_ptr(1);
+        const auto axis = split->second->get_input_node_shared_ptr(1);
         if ((!ov::op::util::has_constant_value<int64_t>(axis, -1) &&
              !ov::op::util::has_constant_value<int64_t>(axis, 3)) ||
             !matcher->get_symbols().at("half_ndims").is_integer())
