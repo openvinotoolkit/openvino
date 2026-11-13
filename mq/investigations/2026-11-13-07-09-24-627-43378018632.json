@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-13-07-09-24-627-43378018632",
+  "timestamp": "2026-11-13T07:09:24Z",
+  "run_id": "43378018632",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43378018632",
+  "workflow_name": "CPU functional tests",
+  "pr_number": "39266",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39266",
+  "author": "KirillSmirnov",
+  "category": "Flaky Test",
+  "title": "smoke_MatMulCompressedWeights_Kleidiai_i8_kernel_switch fails with unexpected impl type undef_f32 on ARM64",
+  "signature": "unexpected impl type undef_f32 implType find kleidiai npos matmulcompressedweights|Flaky Test",
+  "signature_hash": "5c9adec102201520",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "Intel CPU plugin func tests (parallel) step failed: 1 gtest failure in smoke_MatMulCompressedWeights_Kleidiai_i8_kernel_switch/MatmulWeightsDecompression.CompareWithRefs"
+    },
+    {
+      "name": "ci/gha_overall_status_linux_arm64",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed because the upstream CPU functional tests job failed"
+    }
+  ],
+  "key_errors": [
+    "src/plugins/intel_cpu/tests/functional/custom/subgraph_tests/src/classes/matmul_weights_decompression.cpp:168: Failure",
+    "Expected: (implType.find(\"kleidiai\")) != (std::string::npos), actual: 18446744073709551615 vs 18446744073709551615",
+    "unexpected impl type: undef_f32"
+  ],
+  "root_cause": "On ARM64, the MatmulWeightsDecompression test expects the FullyConnected node to be executed by the KleidiAI executor (impl type containing \"kleidiai\") whenever integer compressed weights are combined with dynamic-quantization group size UINT64_MAX. In this run the node instead executed with impl type \"undef_f32\", meaning executor selection fell back to an undefined/default path instead of picking KleidiAI for this specific parameter combination (data_shape=[?,?,?] with shapes [1,2,48]x[1,3,48], weights [48,64], i8 weights, f32 decompression/scale, scale_precision=dynamic). This is the same class of previously observed ARM64 CPU-executor-selection flakiness recorded under pattern eb0b94c864ee1a85 (\"primType is unexpected: undef_f32 Expected: acl_f32\", 8 occurrences) and 7c36e50cffda3cd7, but for a different gtest suite (MatMulCompressedWeights_Kleidiai) and a different expected backend (kleidiai instead of acl). It is unrelated to the PR under test (#39266), whose only change is a dangling-reference fix in an unrelated GPU unit test file not touched by this CPU test path. Only 1 of 72542 ARM64 CPU functional tests failed, consistent with nondeterministic executor/dispatch selection rather than a deterministic regression.",
+  "reproduction_steps": "On an ARM64 host with KleidiAI-enabled OpenVINO CPU plugin build, run: ./ov_cpu_func_tests --gtest_filter=*smoke_MatMulCompressedWeights_Kleidiai_i8_kernel_switch*CompareWithRefs*data_shape=*1.2.48*1.3.48*weights_shape=48.64*i8* repeatedly / under load (a single run may pass since the failure is nondeterministic).",
+  "recommended_actions": [
+    "Investigate FullyConnected executor selection logic for i8 weights + dynamic-quantization-group-size=UINT64_MAX on ARM64 (src/plugins/intel_cpu/src/nodes/executors/) to find why KleidiAI is not always selected for this shape/precision combination.",
+    "Consider adding a retry or relaxed-architecture-detection guard to the test if KleidiAI availability is itself environment/CPU-feature dependent on the ARM64 CI runner.",
+    "Compare with the already-tracked pattern eb0b94c864ee1a85 (acl_f32 variant) to check if both stem from the same underlying executor-selection race or cache invalidation bug.",
+    "Re-run the failed job; a plain retry is expected to pass given the low failure rate (1/72542 tests)."
+  ],
+  "prevention_strategies": "Add CI-level automatic retry/rerun for this specific flaky ARM64 executor-selection signature via the workflow rerunner (a proposal has been submitted). Longer term, root-cause the executor dispatch nondeterminism in the FullyConnected ARM64 executor factory so the underlying flake is fixed rather than masked by reruns.",
+  "historical_context": "Related pattern eb0b94c864ee1a85 has recurred 8 times since 2026-09-11 with the same undef_f32-vs-expected-backend symptom but for the ACL executor instead of KleidiAI; pattern 7c36e50cffda3cd7 recorded one additional prior occurrence (2026-08-18) for ACL. This is the first recorded occurrence of the KleidiAI-specific variant."
+}
