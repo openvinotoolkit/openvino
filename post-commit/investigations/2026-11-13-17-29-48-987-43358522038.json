@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-13-17-29-48-987-43358522038",
+  "timestamp": "2026-11-13T17:29:48Z",
+  "run_id": "43358522038",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43358522038",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "4ad119b2f9614a198fbd612676f4a1f3cbbcbe62",
+  "pr_number": "39679",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39679",
+  "author": null,
+  "category": "Code Issue",
+  "title": "smoke_ScatterUpdateGeneralPathOutOfRangeIndices tests fail - expected ov::Exception not thrown",
+  "signature": "test smoke_ScatterUpdateGeneralPathOutOfRangeIndices/ScatterUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices failed: Expected exception ov::Exception was not thrown in scatter_update.cpp ThrowsOnOutOfRangeIndices CompareWithRefs|Code Issue",
+  "signature_hash": "c7d3b823733ac934",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "4/4 failed smoke_ScatterUpdateGeneralPathOutOfRangeIndices/ScatterUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices variants - expected ov::Exception not thrown"
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check failed because the CPU functional tests job failed"
+    }
+  ],
+  "key_errors": [
+    "[ RUN ] smoke_ScatterUpdateGeneralPathOutOfRangeIndices/ScatterUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices/f32_IS=[8.4]_[2.4]_TS=((8.4)_)_((2.4)_)_indices_shape=[2]_indices_values=(0.100000)axis=0_idx_precision=i64",
+    "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\plugins\\intel_cpu\\tests\\functional\\custom\\single_layer_tests\\scatter_update.cpp(145): error: Failed",
+    "Expected exception ov::Exception",
+    "[ FAILED ] ... (71 ms) / (25 ms) / (42 ms) / (30 ms) -- 4 parameterizations all failed the same way",
+    "failed test counter is: 4"
+  ],
+  "root_cause": "All 4 failures are the same gtest: ScatterUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices (smoke_ScatterUpdateGeneralPathOutOfRangeIndices suite), covering the f32/i32 input precisions x i32/i64 index precisions combinations. The test builds a ScatterUpdate op with an out-of-range index constant (value 100000 against a data dim of 8) and expects both the CPU plugin execution (get_plugin_outputs) and the reference/template execution (calculate_refs) to throw ov::Exception via OV_EXPECT_THROW. The failure (\"Expected exception ov::Exception\" with no exception captured) means neither OV_EXPECT_THROW assertion triggered for at least one of the two calls, i.e. no exception was thrown where one was required. The triggering commit (PR #39679) only touches the GPU plugin's oneDNN 1D group-convolution post-op rank handling (src/plugins/intel_gpu, onednn integration) and is unrelated to CPU ScatterUpdate bounds checking, so this failure is very unlikely to be caused by that change. This points to a pre-existing bounds-check regression/flakiness in the CPU ScatterUpdate out-of-range-index validation path (or the reference/template plugin's bounds check) rather than a new code change in this commit; it may have been introduced by an earlier, unrelated change to ScatterUpdate validation/shape-inference, or it is an environment-specific (Windows Release) behavior difference versus other platforms.",
+  "reproduction_steps": "Build the CPU plugin tests on Windows (VS 2022, Release) and run: ov_cpu_func_tests.exe --gtest_filter=\"smoke_ScatterUpdateGeneralPathOutOfRangeIndices/ScatterUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices*\" -- this should reproduce the missing-exception failure if it is a genuine CPU/reference bug; if it does NOT reproduce locally/on Linux, the failure is likely Windows-Release-specific or transiently environment-dependent.",
+  "recommended_actions": [
+    "Reproduce locally on Windows Release and on Linux to confirm whether the missing out-of-range exception is platform-specific.",
+    "Inspect ScatterUpdate shape/bounds validation in src/plugins/intel_cpu (and the ov::reference ScatterUpdate implementation used by the template/reference plugin) for a recent change that may have relaxed or removed the out-of-range index check for the general (non-fast-path) case.",
+    "Check CheckPluginRelatedResults / compile_model() behavior: confirm whether validation now happens at a later stage (e.g., only during generate_inputs of a different shape) causing the exception to not be raised for the indices_shape=[2] general path case specifically.",
+    "Add temporary verbose logging/asserts in a local debug build to see which of OV_EXPECT_THROW(get_plugin_outputs()) vs OV_EXPECT_THROW(calculate_refs()) is failing to throw.",
+    "If confirmed pre-existing/flaky and unrelated to recent merges, consider filing a tracking ticket and temporarily marking the test disabled on Windows with a reference to the ticket, pending root-cause fix."
+  ],
+  "prevention_strategies": "Add out-of-range-index bounds validation unit tests directly at the ov::op::v3::ScatterUpdate shape-inference / validate_and_infer_types level (not only end-to-end CPU functional tests) so that regressions in bounds checking are caught at the unit-test level closer to the source, with clearer platform-independent failure signals. Add CI coverage comparing CPU vs TEMPLATE plugin exception behavior explicitly in the test name/output to make it immediately clear which backend failed to throw.",
+  "historical_context": "No prior investigation records or patterns found for a ScatterUpdate out-of-range-indices failure in this database; this is the first recorded occurrence of this signature."
+}

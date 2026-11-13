@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "test smoke_ScatterUpdateGeneralPathOutOfRangeIndices/ScatterUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices failed: Expected exception ov::Exception was not thrown in scatter_update.cpp ThrowsOnOutOfRangeIndices CompareWithRefs|Code Issue",
+  "signature_hash": "c7d3b823733ac934",
+  "title": "smoke_ScatterUpdateGeneralPathOutOfRangeIndices tests fail - expected ov::Exception not thrown",
+  "category": "Code Issue",
+  "count": 1,
+  "first_seen": "2026-11-13T17:29:48Z",
+  "last_seen": "2026-11-13T17:29:48Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/43358522038"
+  ],
+  "affected_commits": [
+    "4ad119b2f9614a198fbd612676f4a1f3cbbcbe62"
+  ],
+  "recent_timestamps": [
+    "2026-11-13T17:29:48Z"
+  ]
+}
