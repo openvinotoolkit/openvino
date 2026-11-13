@@ -1,0 +1,39 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-11-13-17-54-36-616-43369335165",
+    "timestamp": "2026-11-13T17:54:36Z",
+    "run_id": "43369335165",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43369335165",
+    "workflow_name": "Windows VS2022 (GPU unit tests)",
+    "commit_sha": "2ad63894cb2d0ee4df89cf8df03e2079810f7ece",
+    "pr_number": "39582",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39582",
+    "author": "ZackyLake",
+    "category": "Flaky Test",
+    "title": "GPU unit tests fail with a burst of 37 gtest-parallel worker crashes/accuracy mismatches right after test pool startup",
+    "signature": "GPU unit tests accuracy tolerance mismatch in fusion test (val_ref vs val_opt difference exceeds tolerance in fusion_test_common.hpp) followed by burst of concurrent gtest-parallel worker processes exiting with code 3|Flaky Test",
+    "signature_hash": "502c01bffd8f35db",
+    "confidence": "Medium",
+    "failed_jobs": [
+        {
+            "name": "GPU unit tests",
+            "conclusion": "failure",
+            "symptom": "37 of 29264 ov_gpu_unit_tests cases failed: 1 genuine accuracy-tolerance mismatch plus 36 worker processes that exited with code 3 almost instantly after starting, all clustered in the first ~70 tests (test indices 29-68) executed right after gtest-parallel spawned its worker pool"
+        }
+    ],
+    "key_errors": [
+        "C:\\...\\intel_gpu\\tests\\unit\\fusions\\fusion_test_common.hpp(90): error: The difference between val_ref[i] and val_opt[i] is 3.0517578125e-05, which exceeds tolerance, where val_ref[i] evaluates to -0.04473876953125, val_opt[i] evaluates to -0.044769287109375, and tolerance evaluates to 9.9999997473787516e-06. [FAILED] fusings_gpu/pooling_f32_scale.fp16_scale_out/1 (fused vs not-fused scale op dropped)",
+        "[29/29264] fusings_gpu/conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec.vector_ops/1 returned with exit code 3 (5285 ms) -- no test body output printed between [ RUN ] and the exit line (silent worker-process exit, no gtest FAILED/crash message)",
+        "FAILED TESTS (37/29264): ... fusings_gpu/conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec.vector_ops/1 ... basic/convolution_random_smoke_test.u8s8f32_fsv4_input/b_fs_yx_fsv16_i1x32x28x28_w48x32x5x5_s1x1_ofs2x2_d1x1_g1_bias_wzp (36 similarly silent exit-code-3 entries, all within the first 70/29264 scheduled tests)"
+    ],
+    "root_cause": "Two distinct symptoms are mixed in this run. (1) fusings_gpu/pooling_f32_scale.fp16_scale_out/1 is a genuine, deterministic accuracy assertion: the fused 'scale' post-op is dropped (its node is missing from the 'fused:' graph dump) compared to the unfused reference, producing a 3e-5 numeric drift that exceeds the 1e-5 fp16 tolerance in fusion_test_common.hpp - this looks like a real fusion-correctness regression in the pooling+scale path, independent of the commit under test. (2) The other 36 failures all exited with gtest process exit code 3 (uncaught C++ exception / abort, not a gtest ASSERT failure) with zero test-body output, and are concentrated in a tight window immediately after gtest-parallel launched its worker pool and began dispatching GPU kernel-compiling tests concurrently. This pattern (many workers silently dying with no printed error, right at pool startup, under GPU driver/OpenCL contention on a shared `intel-gpu` self-hosted Windows runner) matches known transient GPU-runner instability during concurrent early kernel compilation rather than a logic bug introduced by PR #39582 (which only touches the statelesskv/GQA decomposition path, unrelated to pooling/convolution fusion tests). The investigation is log-scoped per Phase 4 safeguards; no source files were opened because the burst signature (silent exit code 3, no gtest FAILED message) points to process/runtime instability rather than a localizable code change.",
+    "reproduction_steps": "N/A - not reliably reproducible outside the `intel-gpu` self-hosted Windows CI runner pool; requires running the full ov_gpu_unit_tests.exe binary under gtest-parallel with GPU driver contention matching the runner environment. The single genuine assertion failure can be reproduced locally with: ov_gpu_unit_tests.exe --gtest_filter=fusings_gpu/pooling_f32_scale.fp16_scale_out/1",
+    "recommended_actions": [
+        "Investigate fusings_gpu/pooling_f32_scale.fp16_scale_out/1 separately: compare fused vs unfused graphs in fusion_test_common.hpp(78) output - the fused graph is missing the 'scale' node entirely, suggesting the pooling+scale fusion pass silently drops the scale op for fp16 in this parameterization instead of folding its effect numerically",
+        "Re-run the GPU unit tests job once to confirm the other 36 failures are transient (they are not reproducible in the log output - no stack traces or gtest error text were printed for any of them)",
+        "If the burst of silent exit-code-3 failures recurs, capture a native crash dump (procdump) on the `intel-gpu` / `ov-dmz-58` runner during gtest-parallel worker startup to see if GPU driver/OpenCL context creation is failing under concurrent load",
+        "Check whether GTEST_PARALLEL_SCRIPT worker concurrency exceeds the number of usable GPU command queues on this runner, causing early OpenCL context contention"
+    ],
+    "prevention_strategies": "Add a short staggered warm-up delay (or reduced initial worker concurrency) when gtest-parallel first spins up GPU test workers, to avoid concurrent OpenCL context/kernel-cache initialization races on shared Windows GPU runners. Separately, treat any fusion pass that can legally drop a post-op (e.g., scale) under certain parameter combinations as a correctness bug requiring either a looser tolerance class or a pass-level fix, not a flaky-test suppression.",
+    "historical_context": "No prior pattern record for a mass/clustered exit-code-3 GPU unit-test burst was found in 103 prior post-commit investigations and 49 patterns; the closest related entries are 'iGPU func tests fail en masse - no supported GPU devices found on runner' (5 occurrences, Infrastructure) and 'iGPU unit tests job exceeds 80-minute timeout' (2 occurrences, Infrastructure), both different symptoms (missing-device and timeout, not silent per-test process exits). This appears to be a new failure signature for the GPU unit tests job."
+}
