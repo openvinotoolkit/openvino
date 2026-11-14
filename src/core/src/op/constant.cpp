@@ -325,7 +325,17 @@ Constant::Constant(const element::Type& type, const Shape& shape, const std::sha
     OPENVINO_ASSERT(constant_size, "Cannot calculate byte size for type: ", m_element_type, " and shape: ", m_shape);
     const auto data_size = ((*constant_size > 0) && data) ? data->size() : 0;
     OPENVINO_ASSERT(*constant_size == data_size,
-                    "The Constant byte size and input data byte size not same: ",
+                    "Constant (element_type: '",
+                    m_element_type,
+                    "', shape: ",
+                    m_shape,
+                    ") byte size mismatch: expected ",
+                    *constant_size,
+                    " byte(s) based on shape and element type, but provided buffer size is ",
+                    data_size,
+                    " byte(s) (delta: ",
+                    (*constant_size > data_size ? *constant_size - data_size : data_size - *constant_size),
+                    " byte(s)). The Constant byte size and input data byte size not same: ",
                     *constant_size,
                     " != ",
                     data_size);
@@ -352,7 +362,23 @@ Constant::Constant(const Constant& other, const Shape& new_shape)
       m_all_elements_bitwise_identical_checked{other.m_all_elements_bitwise_identical_checked.load()} {
     const auto new_size = shape_size(new_shape);
     const auto other_size = shape_size(other.m_shape);
-    OPENVINO_ASSERT(other_size == new_size, "ov::Shape size ", new_size, " is not equal to ", other_size);
+    OPENVINO_ASSERT(other_size == new_size,
+                    "Cannot reshape Constant '",
+                    other.get_friendly_name(),
+                    "' (element_type: '",
+                    m_element_type,
+                    "'): total element count mismatch between source shape ",
+                    other.m_shape,
+                    " (",
+                    other_size,
+                    " elements) and target shape ",
+                    new_shape,
+                    " (",
+                    new_size,
+                    " elements). ov::Shape size ",
+                    new_size,
+                    " is not equal to ",
+                    other_size);
     constructor_validate_and_infer_types();
 }
 

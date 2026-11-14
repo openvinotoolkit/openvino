@@ -7,6 +7,7 @@ set(TARGET_NAME ov_ir_frontend_tests)
 ov_add_test_target(
         NAME ${TARGET_NAME}
         SOURCES
+            ${CMAKE_CURRENT_SOURCE_DIR}/const_shape_mismatch_diagnostic_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/frontend_test.hpp
             ${CMAKE_CURRENT_SOURCE_DIR}/frontend_test_basic.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/frontend_test_mmap.cpp
