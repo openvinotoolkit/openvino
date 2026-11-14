@@ -44,12 +44,18 @@ void op::v0::ReverseSequence::validate_and_infer_types() {
     const auto data_rank = get_input_partial_shape(0).rank();
 
     if (data_rank.is_static()) {
+        ov::util::try_normalize_axis(m_batch_axis, data_rank, *this);
         m_normalized_seq_axis = ov::util::try_normalize_axis(m_seq_axis, data_rank, *this);
     } else {
+        NODE_VALIDATION_CHECK(this,
+                              m_batch_axis >= 0,
+                              "Rank must be static in order to normalize negative axis: ",
+                              m_batch_axis);
         NODE_VALIDATION_CHECK(this,
                               m_seq_axis >= 0,
                               "Rank must be static in order to normalize negative axis: ",
                               m_seq_axis);
+        m_normalized_seq_axis = static_cast<size_t>(m_seq_axis);
     }
 }
 
@@ -64,12 +70,34 @@ void op::v0::ReverseSequence::set_batch_axis(int64_t batch_axis) {
 }
 
 size_t op::v0::ReverseSequence::get_batch_axis() const {
-    const auto& data_rank = get_input_partial_shape(0).rank();
-    return ov::util::try_normalize_axis(m_batch_axis, data_rank, *this);
+    if (get_input_size() > 0) {
+        const auto& data_rank = get_input_partial_shape(0).rank();
+        if (data_rank.is_static()) {
+            return ov::util::try_normalize_axis(m_batch_axis, data_rank, *this);
+        }
+    }
+    NODE_VALIDATION_CHECK(this,
+                          m_batch_axis >= 0,
+                          "Rank must be static in order to normalize negative axis: ",
+                          m_batch_axis);
+    return static_cast<size_t>(m_batch_axis);
 }
 
 void op::v0::ReverseSequence::set_sequence_axis(int64_t sequence_axis) {
+    size_t normalized_axis = 0;
+    if (get_input_size() > 0) {
+        const auto& data_rank = get_input_partial_shape(0).rank();
+        if (data_rank.is_static()) {
+            normalized_axis = ov::util::try_normalize_axis(sequence_axis, data_rank, *this);
+        } else {
+            NODE_VALIDATION_CHECK(this,
+                                  sequence_axis >= 0,
+                                  "Rank must be static in order to normalize negative axis: ",
+                                  sequence_axis);
+            normalized_axis = static_cast<size_t>(sequence_axis);
+        }
+        m_normalized_seq_axis = normalized_axis;
+    }
     m_seq_axis = sequence_axis;
-    m_normalized_seq_axis = ov::util::try_normalize_axis(m_seq_axis, get_input_partial_shape(0).rank(), *this);
 }
 }  // namespace ov
