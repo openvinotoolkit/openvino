@@ -1,12 +1,14 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Build the Bonsai 2 27B u2 IR from its PQ2_0 GGUF, using the Bonsai 1 27B IR
-as a template.
+"""Build a Bonsai 2 u2 IR (2B, 4B, 9B or 27B) from its PQ2_0 GGUF, using an IR of
+the same Qwen3.5 architecture as a template.
 
-Bonsai 2 27B (prism-ml/Ternary-Bonsai-2-27B-gguf) has the Qwen3.5-27B
-architecture of Bonsai 27B, so the exported+quantized Bonsai 1 IR already holds
-the right graph. This tool keeps that graph and swaps every weight:
+Bonsai 2 (prism-ml/Ternary-Bonsai-2-<size>-gguf) has the Qwen3.5 architecture of
+its size, so an exported+quantized IR of that architecture already holds the right
+graph: the Bonsai 1 27B IR for 27B, the Qwen3.5-2B/4B/9B IR (optimum export +
+quantize_ir_ternary.py) for the smaller sizes. This tool keeps that graph and
+swaps every weight:
 
   * ternary MatMuls: the PQ2_0 blocks *are* the u2 layout the GPU plugin's
     weight-compression pattern expects (codes {0,1,2}, zero point 1, one fp16
@@ -20,10 +22,12 @@ the right graph. This tool keeps that graph and swaps every weight:
     dequantises them.
 
 Bonsai 2 additionally stores its folded weights in a rotated basis: the input
-of each folded projection is sign-flipped and put through a blockwise (1024)
-normalised Walsh-Hadamard transform, and the embedding table is stored rotated.
-The transform is inserted into the graph (Reshape -> MatMul with one shared
-H_1024 constant -> Reshape); the sign flips are folded into the preceding
+of each folded projection is sign-flipped and put through a blockwise normalised
+Walsh-Hadamard transform (block B = prism.hadamard.block_size: 512 for 2B and 4B,
+1024 for 27B, 4096 for 9B), and the embedding table is stored rotated. The
+smaller sizes tie the LM head to the embedding (prism.hadamard.version 2). The
+transform is inserted into the graph (Reshape -> MatMul with one shared H_B
+constant -> Reshape); the sign flips are folded into the preceding
 RMSNorm weight where every consumer is folded (compensating the dense GDN gate
 projections), into the up_proj rows for down_proj, and kept as an explicit
 Multiply only for the two attention output projections whose producer is not a
@@ -34,6 +38,14 @@ gather, on the device.
         --gguf <Ternary-Bonsai-2-27B-PQ2_0.gguf> \
         --template-dir <bonsai27b-u2 dir with openvino_model.xml> \
         --out-dir <bonsai2-27b-u2> [--gguf-py <prism llama.cpp>/gguf-py]
+
+    # 2B / 4B / 9B: the template is the Qwen3.5 base model of the same size
+    optimum-cli export openvino --model Qwen/Qwen3.5-2B --task image-text-to-text \
+        --weight-format fp16 qwen35-2b-fp16
+    python quantize_ir_ternary.py --in qwen35-2b-fp16/openvino_language_model.xml \
+        --out tmpl-2b-u2/openvino_model.xml
+    python bonsai2_gguf_to_ir.py --gguf <Ternary-Bonsai-2-2B-PQ2_0.gguf> \
+        --template-dir tmpl-2b-u2 --out-dir <bonsai2-2b-u2> [--gguf-py ...]
 
     # self-check: run it on the Bonsai 1 GGUF and compare against its own IR
     python bonsai2_gguf_to_ir.py --gguf <Ternary-Bonsai-27B-PQ2_0.gguf> \
@@ -298,14 +310,24 @@ def main():
     folded: set[str] = set()
     signs: dict[int, np.ndarray] = {}
     block = 0
-    if int(fields.get("prism.hadamard.version", 0)) == 1 and not a.no_hadamard:
+    # A tied model (no output.weight) reads its LM head from the token embedding.
+    head = "output.weight" if "output.weight" in tensors else "token_embd.weight"
+    version = int(fields.get("prism.hadamard.version", 0))
+    if version in (1, 2) and not a.no_hadamard:
+        tied = bool(fields.get("prism.hadamard.tied_output", False))
         if fields["prism.hadamard.transform"] != "normalized-sylvester-walsh-hadamard" \
                 or fields["prism.hadamard.axis"] != "input-last-dimension" \
                 or fields["prism.hadamard.sign_mode"] != "explicit" \
-                or not fields.get("prism.hadamard.gdn_v_grouped", False):
+                or (version == 2) != tied or tied != (head == "token_embd.weight") \
+                or (nv != nk and not v_grouped):
             sys.exit("unexpected prism.hadamard contract")
         block = int(fields["prism.hadamard.block_size"])
+        if block <= 0 or block & (block - 1):
+            sys.exit(f"Hadamard block {block} is not a power of two")
         folded = set(fields["prism.hadamard.weight_names"])
+        if tied:
+            # version 2: the stored (rotated) embedding rows are also the folded LM head
+            folded.add(head)
         inverse = set(fields.get("prism.hadamard.inverse_weight_names", []))
         if inverse != {"token_embd.weight"}:
             sys.exit(f"unexpected inverse set {inverse}")
@@ -341,7 +363,7 @@ def main():
     k_of = {}               # hf module -> K
     for hf, mm in sorted(matmuls.items()):
         if hf == "lm_head":
-            gname, leaf, layer = "output.weight", "lm_head", -1
+            gname, leaf, layer = head, "lm_head", -1
         else:
             lm = layer_re.match(hf)
             if not lm:
@@ -500,7 +522,7 @@ def main():
     # ---- Hadamard rotation ---------------------------------------------------
     if folded and not a.verify:
         H = ops.constant(hadamard(block).astype(np.float32))
-        H.set_friendly_name("hadamard.H1024")
+        H.set_friendly_name(f"hadamard.H{block}")
         n_rot = n_sign_mul = n_norm_fold = 0
         rotated_outputs = {}    # producer output -> rotated output (shared)
 
@@ -524,7 +546,7 @@ def main():
 
         for hf, mm in sorted(matmuls.items()):
             if hf == "lm_head":
-                gname, layer, leaf = "output.weight", -1, "lm_head"
+                gname, layer, leaf = head, -1, "lm_head"
             else:
                 lm = layer_re.match(hf)
                 layer, leaf = int(lm.group(1)), lm.group(2)

@@ -199,6 +199,98 @@ cp ../bonsai27b-hf/*processor_config.json .     # the processor configs WWB load
 cd ..
 ```
 
+### 4.1 Bonsai 2 2B, 4B and 9B
+
+The smaller sizes have the architecture of the Qwen3.5 base model of the same
+size, so that model replaces the Bonsai 1 IR of step 3 as the template. They
+use other Hadamard blocks (512 for 2B and 4B, 4096 for 9B) and tie the LM head
+to the embedding (2B and 4B). The converter reads both from the GGUF. For
+`<size>` = `2B`, `4B` or `9B`:
+
+```bash
+cd $WORK
+./venv/bin/hf download Qwen/Qwen3.5-<size> --local-dir qwen35-<size>-hf
+./venv/bin/optimum-cli export openvino --model qwen35-<size>-hf \
+    --task image-text-to-text --weight-format fp16 qwen35-<size>-fp16
+./venv/bin/python $TOOLS/quantize_ir_ternary.py --in qwen35-<size>-fp16/openvino_language_model.xml \
+    --out tmpl-<size>-u2/openvino_model.xml
+
+./venv/bin/hf download prism-ml/Ternary-Bonsai-2-<size>-gguf Ternary-Bonsai-2-<size>-PQ2_0.gguf --local-dir bonsai2-gguf
+./venv/bin/python $TOOLS/bonsai2_gguf_to_ir.py \
+    --gguf           bonsai2-gguf/Ternary-Bonsai-2-<size>-PQ2_0.gguf \
+    --template-dir   tmpl-<size>-u2 \
+    --gguf-py        llama.cpp-prism/gguf-py \
+    --out-dir        bonsai2-<size>-u2
+```
+
+Expected for 2B: `[ir] hadamard H512: 151 folded weights, sign widths [2048, 6144]`,
+and for 9B: `[ir] hadamard H4096: 201 folded weights, sign widths [4096, 12288]`.
+The IRs are 0.6 GB (2B), 1.3 GB (4B) and 2.4 GB (9B). The GenAI model
+directory is built as for 27B, with `qwen35-<size>-fp16` and `qwen35-<size>-hf`
+in place of `bonsai27b-fp16` and `bonsai27b-hf`.
+
+### 4.2 MTP draft head (4B, 9B and 27B)
+
+The 4B and 9B are also released as `PQ2_0-MTP-Q8_0` GGUFs: the same ternary
+model plus one Qwen3.5 multi-token-prediction block in Q8_0. GenAI runs that
+block as the speculative-decoding draft when the model directory holds an
+`openvino_mtp_model.xml`. Its graph comes from the optimum-intel export of the
+base model, which needs a newer optimum-intel and transformers than step 3,
+so it gets its own venv:
+
+```bash
+cd $WORK
+python3 -m venv mtp-venv
+./mtp-venv/bin/pip install "optimum-intel[openvino] @ git+https://github.com/huggingface/optimum-intel.git" \
+    "transformers==5.15.1"
+./mtp-venv/bin/optimum-cli export openvino --model qwen35-<size>-hf \
+    --task image-text-to-text --weight-format fp16 qwen35-<size>-mtpx   # writes openvino_mtp_model.xml too
+
+./venv/bin/hf download prism-ml/Ternary-Bonsai-2-<size>-gguf Ternary-Bonsai-2-<size>-PQ2_0-MTP-Q8_0.gguf \
+    --local-dir bonsai2-gguf
+./venv/bin/python $TOOLS/bonsai2_mtp_to_ir.py \
+    --gguf     bonsai2-gguf/Ternary-Bonsai-2-<size>-PQ2_0-MTP-Q8_0.gguf \
+    --template qwen35-<size>-mtpx/openvino_mtp_model.xml \
+    --gguf-py  llama.cpp-prism/gguf-py \
+    --out-dir  bonsai2-<size>-genai
+```
+
+The main model stays the one from 4.1: the ternary tensors of the MTP GGUF are
+the same as in the plain one. The draft weights are int8 with a scale per 32
+inputs, exactly the Q8_0 values (0.13 GB for 4B, 0.26 GB for 9B). The draft
+reads the hidden state the main model feeds its LM head, which Bonsai 2 keeps
+in the rotated basis, so the converter puts the Hadamard transform at both
+ends of the block.
+
+prism-ml ships no MTP head for the 27B. A community head trained against the
+ternary 27B, `ProCreations/Ternary-Bonsai-2-27B-MTP`, comes as BF16
+safetensors. The Bonsai 1 checkpoint of step 3 has no `mtp.*` weights, so add
+the head's to it for the export (this exports the whole 27B again), then pass
+the head to the converter with `--mtp`; it quantizes it to Q8_0 (0.46 GB):
+
+```bash
+cd $WORK
+./venv/bin/hf download ProCreations/Ternary-Bonsai-2-27B-MTP model_mtp.safetensors --local-dir bonsai2-27b-mtp
+mkdir bonsai27b-hf-mtp && ln -s $WORK/bonsai27b-hf/* $WORK/bonsai2-27b-mtp/model_mtp.safetensors bonsai27b-hf-mtp/
+rm bonsai27b-hf-mtp/model.safetensors.index.json
+./mtp-venv/bin/python - <<'PY'
+import json
+from safetensors import safe_open
+idx = json.load(open("bonsai27b-hf/model.safetensors.index.json"))
+with safe_open("bonsai2-27b-mtp/model_mtp.safetensors", "pt") as f:
+    idx["weight_map"].update({k: "model_mtp.safetensors" for k in f.keys()})
+json.dump(idx, open("bonsai27b-hf-mtp/model.safetensors.index.json", "w"), indent=2)
+PY
+./mtp-venv/bin/optimum-cli export openvino --model bonsai27b-hf-mtp \
+    --task image-text-to-text --weight-format fp16 bonsai27b-mtpx
+./venv/bin/python $TOOLS/bonsai2_mtp_to_ir.py \
+    --gguf     bonsai2-gguf/Ternary-Bonsai-2-27B-PQ2_0.gguf \
+    --mtp      bonsai2-27b-mtp/model_mtp.safetensors \
+    --template bonsai27b-mtpx/openvino_mtp_model.xml \
+    --gguf-py  llama.cpp-prism/gguf-py \
+    --out-dir  bonsai2-27b-genai
+```
+
 ## 5. Run
 
 ```bash
@@ -252,6 +344,42 @@ Then `llm_bench` as in 5.1, and `wwb --model-type text` against `<name>-fp16`
 (or against the stock kernels as in 5.2). Bonsai 8B on an Arc Pro B70: 168
 tokens/s; WWB similarity 0.988 between TernOCL and the stock kernels, 0.77
 between the ternary and the fp16 model (the stock kernels score the same 0.77).
+
+### 5.4 Speculative decoding
+
+GenAI offers two modes for these models, both greedy only: the MTP draft of
+4.2 (4B, 9B, 27B) and prompt lookup (any size, no extra model). They cannot be
+combined. Both run through the continuous-batching pipeline:
+
+```python
+import openvino_genai as og
+
+model = "bonsai2-4B-genai"
+pipe = og.ContinuousBatchingPipeline(model, og.SchedulerConfig(), "GPU",
+                                     {"draft_model": og.draft_model(model, "GPU")})
+# prompt lookup instead: {"prompt_lookup": True}, and config.max_ngram_size = 3
+config = og.GenerationConfig(max_new_tokens=256, do_sample=False, num_assistant_tokens=3)
+print(pipe.generate(["Explain photosynthesis in two sentences."], [config])[0].m_generation_ids)
+```
+
+Arc Pro B70, 256 tokens, chat prompts, decode tokens/s (GCC build, Core i9-13900K host):
+
+| model | plain | MTP, 3 draft tokens | prompt lookup, 3 draft tokens |
+|---|---|---|---|
+| 2B | 295-300 | - | 293-574 |
+| 4B | 195-197 | 243-286 | 194-246 |
+| 9B | 141-142 | 196-215 | 138-168 |
+| 27B | 54 | 95-106 | 51-75 |
+
+MTP accepts 2.7 to 3.3 tokens per main-model step at 3 draft tokens (the 4B
+and 9B about the same at 4), and gives the same tokens as plain decoding on
+these prompts. The 27B gains most (1.8x) because its steps are dominated by
+the GPU, where the verify rows come almost for free. Prompt lookup depends on how much of the answer repeats the prompt
+(574 tokens/s on a code rewrite, none on free text); on one 2B prompt its
+output left plain decoding's at token 228. The verify steps are cheap for the
+TernOCL kernels (2 to 4 rows cost 5 to 15% more than one), so the rest of the
+cost per step is the host and the draft, which is why a slower host CPU
+loses more of the gain.
 
 ## 6. Knobs that matter
 
