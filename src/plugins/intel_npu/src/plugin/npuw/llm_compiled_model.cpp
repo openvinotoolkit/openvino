@@ -1081,8 +1081,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     bool propagate_slice_up = m_cfg.get<::intel_npu::NPUW_LLM_PROPAGATE_SLICE_UP>();
     if (is_per_layer_inputs_model) {
         // SWA shrink is incompatible with prefix caching and multi-token generation (e.g.
-        // speculative decoding) and with the 4D float attention_mask. When it applies, continuous
-        // prefill is resolved off.
+        // speculative decoding) and with the 4D float attention_mask.
         const bool swa_shrink_compatible =
             !m_enable_prefix_caching && max_generation_token_len == 1 && !m_attention_mask_is_4d_float;
         if (swa_shrink_compatible && !m_cfg.has<::intel_npu::NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK>()) {
@@ -2161,9 +2160,6 @@ bool ov::npuw::LLMCompiledModel::can_continue_prefill() const {
     }
     if (m_longrope_context_limit > 0u) {
         return false;  // LongRoPE threshold can be crossed mid-generation
-    }
-    if (m_swa_window_size > 0u) {
-        return false;
     }
     OPENVINO_ASSERT(m_prefill_compiled, "Continuous prefill probe requires a compiled prefill model.");
     const auto& prefill_inputs = m_prefill_compiled->inputs();
