@@ -5,6 +5,7 @@
 #include <gflags/gflags.h>
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cstdlib>
 #include <fstream>
@@ -497,16 +498,37 @@ int main(int argc, char* argv[]) {
                                    FLAGS_oml,
                                    FLAGS_ioml);
 
-        reshape(std::move(inputs_info), info_map, model, FLAGS_shape, FLAGS_override_model_batch_size, FLAGS_d);
-
-        std::cout << "Printing Input and Output Info from model" << std::endl;
-        printInputAndOutputsInfoShort(*model);
-        auto timeBeforeLoadNetwork = std::chrono::steady_clock::now();
         std::cout << "Parsing configuration file" << std::endl;
         auto configs = parseConfigFile();
         if (FLAGS_pc) {
             configs["PERF_COUNT"] = "YES";
         }
+
+        // NPUW LLM pipelines (NPU_USE_NPUW + NPUW_LLM) intentionally consume a dynamic,
+        // stateful model and reshape prefill/kvcache sub-models internally. The generic
+        // static-shape bounding below would otherwise reject the dynamic sequence length,
+        // so skip it in that case and hand the dynamic model straight to the plugin.
+        auto is_enabled = [&configs](const std::string& key) {
+            auto it = configs.find(key);
+            if (it == configs.end()) {
+                return false;
+            }
+            std::string value = it->second;
+            std::transform(value.begin(), value.end(), value.begin(), ::toupper);
+            return value == "YES" || value == "TRUE" || value == "1";
+        };
+        const bool npuw_llm_pipeline = is_enabled("NPU_USE_NPUW") && is_enabled("NPUW_LLM");
+
+        if (npuw_llm_pipeline && FLAGS_shape.empty() && FLAGS_override_model_batch_size == 1) {
+            std::cout << "NPUW LLM pipeline detected: keeping model dynamic and skipping static-shape bounding."
+                      << std::endl;
+        } else {
+            reshape(std::move(inputs_info), info_map, model, FLAGS_shape, FLAGS_override_model_batch_size, FLAGS_d);
+        }
+
+        std::cout << "Printing Input and Output Info from model" << std::endl;
+        printInputAndOutputsInfoShort(*model);
+        auto timeBeforeLoadNetwork = std::chrono::steady_clock::now();
         if (FLAGS_raw_blob) {
             if (FLAGS_d.find("NPU") != std::string::npos) {
                 // set only if was not previously parsed from config
