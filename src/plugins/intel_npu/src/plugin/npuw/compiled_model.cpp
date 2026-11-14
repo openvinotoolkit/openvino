@@ -2940,7 +2940,9 @@ ov::Any ov::npuw::CompiledModel::get_property(const std::string& name) const {
 }
 
 std::string ov::npuw::CompiledModel::submodel_device(const std::size_t idx) const {
-    std::size_t real_idx = m_compiled_submodels[idx].replaced_by.value_or(idx);
+    OPENVINO_ASSERT(idx < m_compiled_submodels.size(), "Invalid NPUW submodel index ", idx);
+    const std::size_t real_idx = m_compiled_submodels[idx].replaced_by.value_or(idx);
+    OPENVINO_ASSERT(real_idx < m_compiled_submodels.size(), "Invalid NPUW replacement submodel index ", real_idx);
     const auto& comp_subm_desc = m_compiled_submodels[real_idx];
 
     if (!comp_subm_desc.compiled_model) {
