@@ -2053,3 +2053,172 @@ TEST_F(IRFrontendTests, read_value_layer_with_missing_variable_id_attribute) {
                     ov::Exception,
                     testing::HasSubstr("Variable is not initialized."));
 }
+
+namespace {
+// Const -> Result IR whose Const declares `shape` and `size`; port dims repeat the shape.
+std::string make_const_result_ir(const std::string& element_type, const std::string& shape, size_t size) {
+    std::string dims;
+    if (!shape.empty()) {
+        for (size_t begin = 0; begin <= shape.size();) {
+            auto end = shape.find(',', begin);
+            if (end == std::string::npos) {
+                end = shape.size();
+            }
+            dims += "<dim>" + shape.substr(begin, end - begin) + "</dim>";
+            begin = end + 1;
+        }
+    }
+    return R"(<?xml version="1.0"?>
+<net name="const_size" version="11">
+    <layers>
+        <layer id="0" name="c0" type="Const" version="opset1">
+            <data element_type=")" +
+           element_type + R"(" shape=")" + shape + R"(" offset="0" size=")" + std::to_string(size) + R"("/>
+            <output><port id="0" precision=")" +
+           element_type + R"(">)" + dims + R"(</port></output>
+        </layer>
+        <layer id="1" name="r0" type="Result" version="opset1">
+            <input><port id="0">)" +
+           dims + R"(</port></input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+    </edges>
+</net>
+)";
+}
+
+ov::Tensor make_weights(size_t size) {
+    ov::Tensor weights(ov::element::u8, ov::Shape{size});
+    auto* data = static_cast<uint8_t*>(weights.data());
+    for (size_t i = 0; i < size; ++i) {
+        data[i] = static_cast<uint8_t>(i * 37 + 1);
+    }
+    return weights;
+}
+
+std::string to_test_name(const std::string& element_type, const std::string& shape, size_t size) {
+    std::string name = element_type + "_shape_";
+    if (shape.empty()) {
+        name += "scalar";
+    }
+    for (const auto c : shape) {
+        name += c == ',' ? std::string("x") : c == '-' ? std::string("neg") : std::string(1, c);
+    }
+    return name + "_size_" + std::to_string(size);
+}
+
+constexpr bool is_64bit_size_t = sizeof(size_t) >= 8;
+
+// A Const shape and the packed byte size it needs.
+struct ConstSize {
+    std::string element_type;
+    std::string shape;
+    size_t required;
+};
+
+void PrintTo(const ConstSize& c, std::ostream* os) {
+    *os << c.element_type << " [" << c.shape << "] size " << c.required;
+}
+
+std::vector<ConstSize> valid_const_sizes() {
+    // Sub-byte types pack elements, so the required size rounds up to whole bytes. Empty constants need 0 bytes;
+    // the IR serializer writes size="1" for them, including element_type="dynamic" placeholders in CPU exports.
+    return {
+        {"f32", "", 4},     {"f32", "2,3", 24},    {"f16", "2,3", 12},  {"bf16", "3", 6}, {"i8", "5", 5},
+        {"i32", "2,2", 16}, {"i64", "3", 24},      {"u8", "7", 7},      {"u4", "3", 2},   {"i4", "5", 3},
+        {"u4", "2,4", 4},   {"u1", "9", 2},        {"u2", "3", 1},      {"u3", "5", 2},   {"nf4", "3", 2},
+        {"f4e2m1", "5", 3}, {"f8e4m3", "3", 3},    {"dynamic", "0", 0}, {"f32", "0", 0},  {"f32", "0,4", 0},
+        {"u4", "4,0", 0},   {"f32", "16,16,0", 0},
+    };
+}
+
+// A Const that read_model must reject, and the expected error.
+struct InvalidConst {
+    std::string element_type;
+    std::string shape;
+    size_t size;
+    std::string error;
+};
+
+void PrintTo(const InvalidConst& c, std::ostream* os) {
+    *os << c.element_type << " [" << c.shape << "] size " << c.size << ", expects \"" << c.error << "\"";
+}
+
+std::vector<InvalidConst> invalid_consts() {
+    const std::string inconsistent = "Attribute and shape size are inconsistent";
+    const std::string overflow = "Const shape size overflow";
+    std::vector<InvalidConst> cases = {
+        // f32 element count 2^59 + 1 (2^27 + 1 for 32-bit size_t): count * bitwidth wraps to 32 bits, so a 4-byte
+        // buffer used to pass.
+        {"f32", is_64bit_size_t ? "576460752303423489" : "134217729", 4, inconsistent},
+        // u8 element count 2^61 + 1 (2^29 + 1): count * bitwidth wraps to 8 bits.
+        {"u8", is_64bit_size_t ? "2305843009213693953" : "536870913", 1, inconsistent},
+        // The element count itself wraps to 0 and to 2.
+        {"f32", is_64bit_size_t ? "4294967296,4294967296" : "65536,65536", 4, overflow},
+        {"f32", is_64bit_size_t ? "3,6148914691236517206" : "3,1431655766", 8, overflow},
+        // An overflowing product is rejected even when a later dimension is 0.
+        {"f32", is_64bit_size_t ? "4294967296,4294967296,0" : "65536,65536,0", 0, overflow},
+        // The shape is read as unsigned values, so a negative dimension cannot be parsed. Port dims repeat the
+        // shape, and -1 is the only negative value the port parser accepts.
+        {"f32", "-1,4", 16, "Cannot parse '-1'"},
+    };
+    // One byte short of the packed size.
+    for (const auto& c : valid_const_sizes()) {
+        if (c.required > 0) {
+            cases.push_back({c.element_type, c.shape, c.required - 1, inconsistent});
+        }
+    }
+    return cases;
+}
+}  // namespace
+
+class IRFrontendValidConstSizeTests : public ::testing::TestWithParam<ConstSize>, public IRFrontendTestsImpl {
+protected:
+    void TearDown() override {
+        RemoveTemporalFiles();
+    }
+};
+
+TEST_P(IRFrontendValidConstSizeTests, exact_size_is_accepted) {
+    const auto& p = GetParam();
+    std::shared_ptr<ov::Model> model;
+    OV_ASSERT_NO_THROW(model = core.read_model(make_const_result_ir(p.element_type, p.shape, p.required),
+                                               make_weights(p.required + 1)));
+    ASSERT_NE(model, nullptr);
+}
+
+TEST_P(IRFrontendValidConstSizeTests, padded_size_is_accepted) {
+    const auto& p = GetParam();
+    OV_ASSERT_NO_THROW(
+        core.read_model(make_const_result_ir(p.element_type, p.shape, p.required + 1), make_weights(p.required + 1)));
+}
+
+INSTANTIATE_TEST_SUITE_P(IRFrontend,
+                         IRFrontendValidConstSizeTests,
+                         ::testing::ValuesIn(valid_const_sizes()),
+                         [](const ::testing::TestParamInfo<ConstSize>& info) {
+                             return to_test_name(info.param.element_type, info.param.shape, info.param.required);
+                         });
+
+class IRFrontendInvalidConstSizeTests : public ::testing::TestWithParam<InvalidConst>, public IRFrontendTestsImpl {
+protected:
+    void TearDown() override {
+        RemoveTemporalFiles();
+    }
+};
+
+TEST_P(IRFrontendInvalidConstSizeTests, read_model_throws) {
+    const auto& p = GetParam();
+    OV_EXPECT_THROW(core.read_model(make_const_result_ir(p.element_type, p.shape, p.size), make_weights(p.size + 1)),
+                    ov::Exception,
+                    testing::HasSubstr(p.error));
+}
+
+INSTANTIATE_TEST_SUITE_P(IRFrontend,
+                         IRFrontendInvalidConstSizeTests,
+                         ::testing::ValuesIn(invalid_consts()),
+                         [](const ::testing::TestParamInfo<InvalidConst>& info) {
+                             return to_test_name(info.param.element_type, info.param.shape, info.param.size);
+                         });
