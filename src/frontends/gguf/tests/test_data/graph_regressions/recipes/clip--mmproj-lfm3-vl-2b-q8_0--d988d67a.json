@@ -1,355 +1,67 @@
 {
-  "version": 1,
-  "metadata": [
-    {
-      "name": "general.architecture",
-      "type": 8,
-      "value": "clip"
-    },
-    {
-      "name": "general.type",
-      "type": 8,
-      "value": "mmproj"
-    },
-    {
-      "name": "general.sampling.top_k",
-      "type": 5,
-      "value": 50
-    },
-    {
-      "name": "general.sampling.temp",
-      "type": 6,
-      "value": 0.10000000149011612
-    },
-    {
-      "name": "general.sampling.penalty_repeat",
-      "type": 6,
-      "value": 1.100000023841858
-    },
-    {
-      "name": "general.finetune",
-      "type": 8,
-      "value": "2b"
-    },
-    {
-      "name": "general.basename",
-      "type": 8,
-      "value": "LFM3-VL"
-    },
-    {
-      "name": "general.size_label",
-      "type": 8,
-      "value": "189M"
-    },
-    {
-      "name": "general.license.name",
-      "type": 8,
-      "value": "lfm1.0"
-    },
-    {
-      "name": "general.license.link",
-      "type": 8,
-      "value": "LICENSE"
-    },
-    {
-      "name": "general.base_model.count",
-      "type": 4,
-      "value": 1
-    },
-    {
-      "name": "general.base_model.0.name",
-      "type": 8,
-      "value": "LFM3 1.7B Base"
-    },
-    {
-      "name": "general.base_model.0.organization",
-      "type": 8,
-      "value": "LiquidAI"
-    },
-    {
-      "name": "general.base_model.0.repo_url",
-      "type": 8,
-      "value": "https://huggingface.co/LiquidAI/LFM3-1.7B-Base"
-    },
-    {
-      "name": "general.languages",
-      "type": 9,
-      "element_type": 8,
-      "value": [
-        "en",
-        "ar",
-        "zh",
-        "fr",
-        "de",
-        "it",
-        "ja",
-        "ko",
-        "pt",
-        "es",
-        "vi",
-        "th",
-        "id",
-        "hi",
-        "ru",
-        "pl"
-      ]
-    },
-    {
-      "name": "clip.has_vision_encoder",
-      "type": 7,
-      "value": true
-    },
-    {
-      "name": "clip.vision.projection_dim",
-      "type": 4,
-      "value": 2048
-    },
-    {
-      "name": "clip.vision.image_size",
-      "type": 4,
-      "value": 512
-    },
-    {
-      "name": "clip.vision.patch_size",
-      "type": 4,
-      "value": 16
-    },
-    {
-      "name": "clip.vision.embedding_length",
-      "type": 4,
-      "value": 1024
-    },
-    {
-      "name": "clip.vision.feed_forward_length",
-      "type": 4,
-      "value": 2560
-    },
-    {
-      "name": "clip.vision.block_count",
-      "type": 4,
-      "value": 14
-    },
-    {
-      "name": "clip.vision.attention.head_count",
-      "type": 4,
-      "value": 16
-    },
-    {
-      "name": "clip.vision.image_mean",
-      "type": 9,
-      "element_type": 6,
-      "value": [
-        0.5,
-        0.5,
-        0.5
-      ]
-    },
-    {
-      "name": "clip.vision.image_std",
-      "type": 9,
-      "element_type": 6,
-      "value": [
-        0.5,
-        0.5,
-        0.5
-      ]
-    },
-    {
-      "name": "clip.vision.projector_type",
-      "type": 8,
-      "value": "lfm3vl"
-    },
-    {
-      "name": "clip.vision.attention.head_count_kv",
-      "type": 4,
-      "value": 8
-    },
-    {
-      "name": "clip.vision.spatial_merge_size",
-      "type": 4,
-      "value": 2
-    },
-    {
-      "name": "clip.vision.attention.layer_norm_epsilon",
-      "type": 6,
-      "value": 9.999999747378752e-06
-    },
-    {
-      "name": "clip.use_silu",
-      "type": 7,
-      "value": true
-    },
-    {
-      "name": "clip.vision.image_min_pixels",
-      "type": 4,
-      "value": 65536
-    },
-    {
-      "name": "clip.vision.image_max_pixels",
-      "type": 4,
-      "value": 16777216
-    },
-    {
-      "name": "clip.vision.image_resize_algo",
-      "type": 8,
-      "value": "bicubic"
-    },
-    {
-      "name": "general.quantization_version",
-      "type": 4,
-      "value": 2
-    },
-    {
-      "name": "general.file_type",
-      "type": 4,
-      "value": 7
-    }
-  ],
-  "omitted_metadata": [
-    "general.license",
-    "general.name",
-    "general.tags"
-  ],
+  "version": 2,
   "source_header_sha256": "611468f23cd68ef6aa1794c6bf903a73585eb4645350dbf01a1665ad4861510f",
+  "omitted_metadata": ["general.license", "general.name", "general.tags"],
+  "metadata": {
+    "general.architecture": ["str", "clip"],
+    "general.type": ["str", "mmproj"],
+    "general.sampling.top_k": ["i32", 50],
+    "general.sampling.temp": ["f32", 0.10000000149011612],
+    "general.sampling.penalty_repeat": ["f32", 1.100000023841858],
+    "general.finetune": ["str", "2b"],
+    "general.basename": ["str", "LFM3-VL"],
+    "general.size_label": ["str", "189M"],
+    "general.license.name": ["str", "lfm1.0"],
+    "general.license.link": ["str", "LICENSE"],
+    "general.base_model.count": ["u32", 1],
+    "general.base_model.0.name": ["str", "LFM3 1.7B Base"],
+    "general.base_model.0.organization": ["str", "LiquidAI"],
+    "general.base_model.0.repo_url": ["str", "https://huggingface.co/LiquidAI/LFM3-1.7B-Base"],
+    "general.languages": ["str[]", ["en", "ar", "zh", "fr", "de", "it", "ja", "ko", "pt", "es", "vi", "th", "id", "hi", "ru", "pl"]],
+    "clip.has_vision_encoder": ["bool", true],
+    "clip.vision.projection_dim": ["u32", 2048],
+    "clip.vision.image_size": ["u32", 512],
+    "clip.vision.patch_size": ["u32", 16],
+    "clip.vision.embedding_length": ["u32", 1024],
+    "clip.vision.feed_forward_length": ["u32", 2560],
+    "clip.vision.block_count": ["u32", 14],
+    "clip.vision.attention.head_count": ["u32", 16],
+    "clip.vision.image_mean": ["f32[]", [0.5, 0.5, 0.5]],
+    "clip.vision.image_std": ["f32[]", [0.5, 0.5, 0.5]],
+    "clip.vision.projector_type": ["str", "lfm3vl"],
+    "clip.vision.attention.head_count_kv": ["u32", 8],
+    "clip.vision.spatial_merge_size": ["u32", 2],
+    "clip.vision.attention.layer_norm_epsilon": ["f32", 9.999999747378752e-06],
+    "clip.use_silu": ["bool", true],
+    "clip.vision.image_min_pixels": ["u32", 65536],
+    "clip.vision.image_max_pixels": ["u32", 16777216],
+    "clip.vision.image_resize_algo": ["str", "bicubic"],
+    "general.quantization_version": ["u32", 2],
+    "general.file_type": ["u32", 7]
+  },
   "tensors": [
-    {"name":"mm.0.bias","shape":[4096],"ggml_type":0,"storage_type":"f32","storage_shape":[4096]},
-    {"name":"mm.0.weight","shape":[4096,4096],"ggml_type":8,"storage_type":"u8","storage_shape":[17825792]},
-    {"name":"mm.2.bias","shape":[2048],"ggml_type":0,"storage_type":"f32","storage_shape":[2048]},
-    {"name":"mm.2.weight","shape":[2048,4096],"ggml_type":8,"storage_type":"u8","storage_shape":[8912896]},
-    {"name":"mm.input_norm.bias","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"mm.input_norm.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.blk.0.conv2d_in_proj.weight","shape":[3072,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[3342336]},
-    {"name":"v.blk.0.conv2d_out_proj.weight","shape":[1024,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[1114112]},
-    {"name":"v.blk.0.conv2d_spatial.weight","shape":[1024,1,3,3],"ggml_type":0,"storage_type":"f32","storage_shape":[1024,1,3,3]},
-    {"name":"v.blk.0.ffn_down.weight","shape":[1024,2560],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.0.ffn_gate.weight","shape":[2560,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.0.ffn_up.weight","shape":[2560,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.0.ln1.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.blk.0.ln2.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.blk.1.conv2d_in_proj.weight","shape":[3072,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[3342336]},
-    {"name":"v.blk.1.conv2d_out_proj.weight","shape":[1024,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[1114112]},
-    {"name":"v.blk.1.conv2d_spatial.weight","shape":[1024,1,3,3],"ggml_type":0,"storage_type":"f32","storage_shape":[1024,1,3,3]},
-    {"name":"v.blk.1.ffn_down.weight","shape":[1024,2560],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.1.ffn_gate.weight","shape":[2560,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.1.ffn_up.weight","shape":[2560,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.1.ln1.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.blk.1.ln2.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.blk.10.attn_k.weight","shape":[512,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[557056]},
-    {"name":"v.blk.10.attn_k_norm.weight","shape":[64],"ggml_type":0,"storage_type":"f32","storage_shape":[64]},
-    {"name":"v.blk.10.attn_out.weight","shape":[1024,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[1114112]},
-    {"name":"v.blk.10.attn_q.weight","shape":[1024,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[1114112]},
-    {"name":"v.blk.10.attn_q_norm.weight","shape":[64],"ggml_type":0,"storage_type":"f32","storage_shape":[64]},
-    {"name":"v.blk.10.attn_v.weight","shape":[512,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[557056]},
-    {"name":"v.blk.10.ffn_down.weight","shape":[1024,2560],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.10.ffn_gate.weight","shape":[2560,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.10.ffn_up.weight","shape":[2560,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.10.ln1.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.blk.10.ln2.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.blk.11.conv2d_in_proj.weight","shape":[3072,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[3342336]},
-    {"name":"v.blk.11.conv2d_out_proj.weight","shape":[1024,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[1114112]},
-    {"name":"v.blk.11.conv2d_spatial.weight","shape":[1024,1,3,3],"ggml_type":0,"storage_type":"f32","storage_shape":[1024,1,3,3]},
-    {"name":"v.blk.11.ffn_down.weight","shape":[1024,2560],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.11.ffn_gate.weight","shape":[2560,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.11.ffn_up.weight","shape":[2560,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.11.ln1.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.blk.11.ln2.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.blk.12.attn_k.weight","shape":[512,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[557056]},
-    {"name":"v.blk.12.attn_k_norm.weight","shape":[64],"ggml_type":0,"storage_type":"f32","storage_shape":[64]},
-    {"name":"v.blk.12.attn_out.weight","shape":[1024,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[1114112]},
-    {"name":"v.blk.12.attn_q.weight","shape":[1024,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[1114112]},
-    {"name":"v.blk.12.attn_q_norm.weight","shape":[64],"ggml_type":0,"storage_type":"f32","storage_shape":[64]},
-    {"name":"v.blk.12.attn_v.weight","shape":[512,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[557056]},
-    {"name":"v.blk.12.ffn_down.weight","shape":[1024,2560],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.12.ffn_gate.weight","shape":[2560,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.12.ffn_up.weight","shape":[2560,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.12.ln1.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.blk.12.ln2.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.blk.13.conv2d_in_proj.weight","shape":[3072,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[3342336]},
-    {"name":"v.blk.13.conv2d_out_proj.weight","shape":[1024,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[1114112]},
-    {"name":"v.blk.13.conv2d_spatial.weight","shape":[1024,1,3,3],"ggml_type":0,"storage_type":"f32","storage_shape":[1024,1,3,3]},
-    {"name":"v.blk.13.ffn_down.weight","shape":[1024,2560],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.13.ffn_gate.weight","shape":[2560,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.13.ffn_up.weight","shape":[2560,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.13.ln1.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.blk.13.ln2.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.blk.2.attn_k.weight","shape":[512,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[557056]},
-    {"name":"v.blk.2.attn_k_norm.weight","shape":[64],"ggml_type":0,"storage_type":"f32","storage_shape":[64]},
-    {"name":"v.blk.2.attn_out.weight","shape":[1024,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[1114112]},
-    {"name":"v.blk.2.attn_q.weight","shape":[1024,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[1114112]},
-    {"name":"v.blk.2.attn_q_norm.weight","shape":[64],"ggml_type":0,"storage_type":"f32","storage_shape":[64]},
-    {"name":"v.blk.2.attn_v.weight","shape":[512,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[557056]},
-    {"name":"v.blk.2.ffn_down.weight","shape":[1024,2560],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.2.ffn_gate.weight","shape":[2560,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.2.ffn_up.weight","shape":[2560,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.2.ln1.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.blk.2.ln2.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.blk.3.conv2d_in_proj.weight","shape":[3072,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[3342336]},
-    {"name":"v.blk.3.conv2d_out_proj.weight","shape":[1024,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[1114112]},
-    {"name":"v.blk.3.conv2d_spatial.weight","shape":[1024,1,3,3],"ggml_type":0,"storage_type":"f32","storage_shape":[1024,1,3,3]},
-    {"name":"v.blk.3.ffn_down.weight","shape":[1024,2560],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.3.ffn_gate.weight","shape":[2560,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.3.ffn_up.weight","shape":[2560,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.3.ln1.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.blk.3.ln2.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.blk.4.attn_k.weight","shape":[512,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[557056]},
-    {"name":"v.blk.4.attn_k_norm.weight","shape":[64],"ggml_type":0,"storage_type":"f32","storage_shape":[64]},
-    {"name":"v.blk.4.attn_out.weight","shape":[1024,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[1114112]},
-    {"name":"v.blk.4.attn_q.weight","shape":[1024,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[1114112]},
-    {"name":"v.blk.4.attn_q_norm.weight","shape":[64],"ggml_type":0,"storage_type":"f32","storage_shape":[64]},
-    {"name":"v.blk.4.attn_v.weight","shape":[512,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[557056]},
-    {"name":"v.blk.4.ffn_down.weight","shape":[1024,2560],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.4.ffn_gate.weight","shape":[2560,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.4.ffn_up.weight","shape":[2560,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.4.ln1.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.blk.4.ln2.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.blk.5.conv2d_in_proj.weight","shape":[3072,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[3342336]},
-    {"name":"v.blk.5.conv2d_out_proj.weight","shape":[1024,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[1114112]},
-    {"name":"v.blk.5.conv2d_spatial.weight","shape":[1024,1,3,3],"ggml_type":0,"storage_type":"f32","storage_shape":[1024,1,3,3]},
-    {"name":"v.blk.5.ffn_down.weight","shape":[1024,2560],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.5.ffn_gate.weight","shape":[2560,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.5.ffn_up.weight","shape":[2560,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.5.ln1.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.blk.5.ln2.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.blk.6.attn_k.weight","shape":[512,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[557056]},
-    {"name":"v.blk.6.attn_k_norm.weight","shape":[64],"ggml_type":0,"storage_type":"f32","storage_shape":[64]},
-    {"name":"v.blk.6.attn_out.weight","shape":[1024,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[1114112]},
-    {"name":"v.blk.6.attn_q.weight","shape":[1024,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[1114112]},
-    {"name":"v.blk.6.attn_q_norm.weight","shape":[64],"ggml_type":0,"storage_type":"f32","storage_shape":[64]},
-    {"name":"v.blk.6.attn_v.weight","shape":[512,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[557056]},
-    {"name":"v.blk.6.ffn_down.weight","shape":[1024,2560],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.6.ffn_gate.weight","shape":[2560,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.6.ffn_up.weight","shape":[2560,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.6.ln1.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.blk.6.ln2.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.blk.7.conv2d_in_proj.weight","shape":[3072,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[3342336]},
-    {"name":"v.blk.7.conv2d_out_proj.weight","shape":[1024,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[1114112]},
-    {"name":"v.blk.7.conv2d_spatial.weight","shape":[1024,1,3,3],"ggml_type":0,"storage_type":"f32","storage_shape":[1024,1,3,3]},
-    {"name":"v.blk.7.ffn_down.weight","shape":[1024,2560],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.7.ffn_gate.weight","shape":[2560,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.7.ffn_up.weight","shape":[2560,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.7.ln1.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.blk.7.ln2.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.blk.8.attn_k.weight","shape":[512,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[557056]},
-    {"name":"v.blk.8.attn_k_norm.weight","shape":[64],"ggml_type":0,"storage_type":"f32","storage_shape":[64]},
-    {"name":"v.blk.8.attn_out.weight","shape":[1024,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[1114112]},
-    {"name":"v.blk.8.attn_q.weight","shape":[1024,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[1114112]},
-    {"name":"v.blk.8.attn_q_norm.weight","shape":[64],"ggml_type":0,"storage_type":"f32","storage_shape":[64]},
-    {"name":"v.blk.8.attn_v.weight","shape":[512,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[557056]},
-    {"name":"v.blk.8.ffn_down.weight","shape":[1024,2560],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.8.ffn_gate.weight","shape":[2560,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.8.ffn_up.weight","shape":[2560,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.8.ln1.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.blk.8.ln2.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.blk.9.conv2d_in_proj.weight","shape":[3072,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[3342336]},
-    {"name":"v.blk.9.conv2d_out_proj.weight","shape":[1024,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[1114112]},
-    {"name":"v.blk.9.conv2d_spatial.weight","shape":[1024,1,3,3],"ggml_type":0,"storage_type":"f32","storage_shape":[1024,1,3,3]},
-    {"name":"v.blk.9.ffn_down.weight","shape":[1024,2560],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.9.ffn_gate.weight","shape":[2560,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.9.ffn_up.weight","shape":[2560,1024],"ggml_type":8,"storage_type":"u8","storage_shape":[2785280]},
-    {"name":"v.blk.9.ln1.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.blk.9.ln2.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.embedding_norm.weight","shape":[1024],"ggml_type":0,"storage_type":"f32","storage_shape":[1024]},
-    {"name":"v.patch_embd.weight","shape":[1024,3,16,16],"ggml_type":1,"storage_type":"f16","storage_shape":[1024,3,16,16]},
-    {"name":"v.patch_embd.weight.1","shape":[1024,3,16,16],"ggml_type":1,"storage_type":"f16","storage_shape":[1024,3,16,16]}
+    ["mm.0.bias", "F32", [4096]],
+    ["mm.0.weight", "Q8_0", [4096, 4096]],
+    ["mm.2.bias", "F32", [2048]],
+    ["mm.2.weight", "Q8_0", [2048, 4096]],
+    ["mm.input_norm.bias", "F32", [1024]],
+    ["mm.input_norm.weight", "F32", [1024]],
+    ["v.blk.{}.conv2d_in_proj.weight", "Q8_0", [3072, 1024], "0-1,3,5,7,9,11,13"],
+    ["v.blk.{}.conv2d_out_proj.weight", "Q8_0", [1024, 1024], "0-1,3,5,7,9,11,13"],
+    ["v.blk.{}.conv2d_spatial.weight", "F32", [1024, 1, 3, 3], "0-1,3,5,7,9,11,13"],
+    ["v.blk.{}.ffn_down.weight", "Q8_0", [1024, 2560], "0-13"],
+    ["v.blk.{}.ffn_gate.weight", "Q8_0", [2560, 1024], "0-13"],
+    ["v.blk.{}.ffn_up.weight", "Q8_0", [2560, 1024], "0-13"],
+    ["v.blk.{}.ln1.weight", "F32", [1024], "0-13"],
+    ["v.blk.{}.ln2.weight", "F32", [1024], "0-13"],
+    ["v.blk.{}.attn_k.weight", "Q8_0", [512, 1024], "2,4,6,8,10,12"],
+    ["v.blk.{}.attn_k_norm.weight", "F32", [64], "2,4,6,8,10,12"],
+    ["v.blk.{}.attn_out.weight", "Q8_0", [1024, 1024], "2,4,6,8,10,12"],
+    ["v.blk.{}.attn_q.weight", "Q8_0", [1024, 1024], "2,4,6,8,10,12"],
+    ["v.blk.{}.attn_q_norm.weight", "F32", [64], "2,4,6,8,10,12"],
+    ["v.blk.{}.attn_v.weight", "Q8_0", [512, 1024], "2,4,6,8,10,12"],
+    ["v.embedding_norm.weight", "F32", [1024]],
+    ["v.patch_embd.weight", "F16", [1024, 3, 16, 16]],
+    ["v.patch_embd.weight.1", "F16", [1024, 3, 16, 16]]
   ]
 }

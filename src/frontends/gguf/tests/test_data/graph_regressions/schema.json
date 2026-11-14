@@ -16,13 +16,14 @@
       "items": {"type": "integer", "minimum": 1}
     },
     "metadata": {
-      "type": "object",
-      "required": ["name", "type", "value"],
-      "properties": {
-        "name": {"type": "string", "minLength": 1},
-        "type": {"type": "integer", "minimum": 0, "maximum": 12},
-        "element_type": {"type": "integer", "minimum": 0, "maximum": 12},
-        "value": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "enum": ["u8", "i8", "u16", "i16", "u32", "i32", "f32", "bool", "str", "u64", "i64", "f64",
+                   "u8[]", "i8[]", "u16[]", "i16[]", "u32[]", "i32[]", "f32[]", "bool[]", "str[]",
+                   "u64[]", "i64[]", "f64[]"]
+        },
+        {
           "oneOf": [
             {"type": ["number", "boolean", "string", "array"]},
             {
@@ -30,30 +31,51 @@
               "required": ["nonfinite"],
               "properties": {"nonfinite": {"enum": ["nan", "+inf", "-inf"]}},
               "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": ["rle"],
+              "properties": {"rle": {"type": "array", "minItems": 1}},
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": ["signs", "count"],
+              "properties": {"signs": {"type": "string"}, "count": {"type": "integer", "minimum": 1}},
+              "additionalProperties": false
             }
           ]
         }
-      }
+      ],
+      "minItems": 2,
+      "maxItems": 2
     },
     "tensor": {
-      "type": "object",
-      "required": ["name", "shape", "ggml_type", "storage_type", "storage_shape"],
-      "properties": {
-        "name": {"type": "string", "minLength": 1},
-        "shape": {"$ref": "#/$defs/shape"},
-        "ggml_type": {
-          "enum": [0, 1, 2, 3, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 24, 25, 26, 27, 28, 30, 39, 41, 42, 142, 143]
+      "type": "array",
+      "prefixItems": [
+        {"type": "string", "minLength": 1},
+        {
+          "enum": ["F32", "F16", "Q4_0", "Q4_1", "Q5_0", "Q5_1", "Q8_0", "Q8_1", "Q2_K", "Q3_K", "Q4_K", "Q5_K",
+                   "Q6_K", "Q8_K", "I8", "I16", "I32", "I64", "F64", "BF16", "MXFP4", "Q1_0", "Q2_0", "PQ2_0",
+                   "PTQ1_0"]
         },
-        "storage_type": {"enum": ["f32", "f16", "bf16", "f64", "i8", "i16", "i32", "i64", "u8"]},
-        "storage_shape": {"$ref": "#/$defs/shape"}
-      }
+        {"$ref": "#/$defs/shape"},
+        {"type": "string", "pattern": "^\\d+(-\\d+)?(,\\d+(-\\d+)?)*$"}
+      ],
+      "minItems": 3,
+      "maxItems": 4
     },
     "recipe": {
       "type": "object",
       "required": ["version", "metadata", "tensors"],
       "properties": {
-        "version": {"$ref": "#/$defs/version"},
-        "metadata": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/metadata"}},
+        "version": {"const": 2},
+        "metadata": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {"type": "string", "minLength": 1},
+          "additionalProperties": {"$ref": "#/$defs/metadata"}
+        },
         "tensors": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/tensor"}},
         "omitted_metadata": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
         "source_header_sha256": {"$ref": "#/$defs/hash"},

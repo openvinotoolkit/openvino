@@ -27,8 +27,15 @@ not LFS:
 
 - `catalog.json`: case/checkpoint identities, provenance, stages and projector contracts.
 - `schema.json`: shared versioned catalog, recipe and reference definitions.
-- `recipes/<case>.json`: explicit typed metadata and original tensor names, dimensions
-  and per-tensor GGML formats. Shapes use OpenVINO order, reversing GGUF's `ne[]`.
+- `recipes/<case>.json`: compact recipe version 2, one metadata entry or tensor group per
+  line. Metadata maps each key to `[type, value]` (`"u32"`, `"f32[]"`, ...); arrays of at
+  least 64 values may use `{"rle": [[value, count], ...]}` or, for signed ±1 arrays,
+  bit-packed `{"signs": <base64>, "count": n}`. Tensors are `[name, ggml_type, shape]` or
+  `[template, ggml_type, shape, layers]`, where one `{}` in the template expands over
+  ascending, disjoint layer ranges such as `"0-2,4-63"`. Shapes use OpenVINO order,
+  reversing GGUF's `ne[]`; source storage is derived from the GGML type. The runner
+  expands this to a per-tensor descriptor before conversion; `recipe_sha256` digests
+  the expanded descriptor.
 - `references/<case>.json`: complete operation type/version counts, projection summaries
   and graph/model-map SHA-256 values; at most **32 KiB per case across all stages**.
 
@@ -41,8 +48,8 @@ legacy positive architecture fingerprints have materialized references with iden
 top-level operation and input counts; rejection, broken-model and dependency tests remain.
 Numerical repacking, Hadamard and ternary tests remain in the C++ suite.
 
-Synthetic payload generation is versioned by recipe/tool version 1, uses fixed finite
-patterns or zeros, and is limited to 64 MiB per recipe. F32/F16 and patterned Q8_0
+Synthetic payload generation is versioned by expanded descriptor/tool version 1, uses
+fixed finite patterns or zeros, and is limited to 64 MiB per recipe. F32/F16 and patterned Q8_0
 controls are supplemented by valid packed-zero blocks for the other supported GGML
 formats; each materialization class has a small ordinary-conversion reference.
 It never invents random checkpoint-sized payloads. Temporary files are cleaned up.

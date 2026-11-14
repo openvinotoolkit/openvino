@@ -4,7 +4,9 @@
 """Compact GGUF structural references; all graph capture lives in the C++ test runner."""
 
 import argparse
+import base64
 import bisect
+import copy
 import hashlib
 import json
 import math
@@ -21,6 +23,7 @@ HERE = Path(__file__).resolve().parent
 DATA = HERE / "test_data" / "graph_regressions"
 MAX_REFERENCE_BYTES = 32 * 1024
 VERSION = 1
+RECIPE_VERSION = 2
 
 # GGML block storage, not the frontend's unpacked representation.
 BLOCKS = {
@@ -35,6 +38,16 @@ STORAGE_TYPES = {0: "f32", 1: "f16", 24: "i8", 25: "i16", 26: "i32",
                  27: "i64", 28: "f64", 30: "bf16"}
 METADATA_FORMATS = {0: "B", 1: "b", 2: "H", 3: "h", 4: "I", 5: "i",
                     6: "f", 7: "?", 10: "Q", 11: "q", 12: "d"}
+GGML_NAMES = {0: "F32", 1: "F16", 2: "Q4_0", 3: "Q4_1", 6: "Q5_0", 7: "Q5_1", 8: "Q8_0", 9: "Q8_1",
+              10: "Q2_K", 11: "Q3_K", 12: "Q4_K", 13: "Q5_K", 14: "Q6_K", 15: "Q8_K", 24: "I8", 25: "I16",
+              26: "I32", 27: "I64", 28: "F64", 30: "BF16", 39: "MXFP4", 41: "Q1_0", 42: "Q2_0",
+              142: "PQ2_0", 143: "PTQ1_0"}
+GGML_IDS = {name: kind for kind, name in GGML_NAMES.items()}
+METADATA_NAMES = {0: "u8", 1: "i8", 2: "u16", 3: "i16", 4: "u32", 5: "i32", 6: "f32", 7: "bool",
+                  8: "str", 10: "u64", 11: "i64", 12: "f64"}
+METADATA_IDS = {name: kind for kind, name in METADATA_NAMES.items()}
+LAYER_INDEX = re.compile(r"(?<![^.])\d+(?![^.])")
+MIN_ENCODED_ARRAY = 64
 OMIT_METADATA = {
     "tokenizer.ggml.tokens", "tokenizer.ggml.scores", "tokenizer.ggml.token_type",
     "tokenizer.ggml.merges", "tokenizer.chat_template",
@@ -306,6 +319,177 @@ def validate_recipe(recipe):
         storage_shape = shape if kind in STORAGE_TYPES else [byte_count]
         if tensor["storage_type"] != STORAGE_TYPES.get(kind, "u8") or tensor["storage_shape"] != storage_shape:
             raise ValueError(f"Inconsistent source storage for {name}")
+
+
+def storage(kind, shape):
+    block, size = BLOCKS[kind]
+    return STORAGE_TYPES.get(kind, "u8"), list(shape) if kind in STORAGE_TYPES else [math.prod(shape) // block * size]
+
+
+def encode_array(element, values):
+    if len(values) < MIN_ENCODED_ARRAY:
+        return values
+    if element in (1, 3, 5, 11) and all(type(value) is int and value in (-1, 1) for value in values):
+        bits = bytearray((len(values) + 7) // 8)
+        for index, value in enumerate(values):
+            if value < 0:
+                bits[index // 8] |= 1 << (index % 8)
+        return {"signs": base64.b64encode(bytes(bits)).decode("ascii"), "count": len(values)}
+    runs = []
+    for value in values:
+        if runs and canonical_bytes(runs[-1][0]) == canonical_bytes(value):
+            runs[-1][1] += 1
+        else:
+            runs.append([value, 1])
+    return {"rle": runs} if len(runs) * 4 <= len(values) else values
+
+
+def decode_array(name, value):
+    if isinstance(value, list):
+        return value
+    if not isinstance(value, dict):
+        raise ValueError(f"Invalid encoded metadata array for {name}")
+    if set(value) == {"rle"} and isinstance(value["rle"], list):
+        result = []
+        for run in value["rle"]:
+            if not isinstance(run, list) or len(run) != 2 or type(run[1]) is not int or run[1] < 1:
+                raise ValueError(f"Invalid metadata run for {name}")
+            result.extend(copy.deepcopy(run[0]) for _ in range(run[1]))
+        return result
+    if set(value) == {"signs", "count"} and type(value["count"]) is int and value["count"] >= 0:
+        bits = base64.b64decode(value["signs"], validate=True)
+        count = value["count"]
+        if len(bits) != (count + 7) // 8 or (count % 8 and bits[-1] >> (count % 8)):
+            raise ValueError(f"Invalid sign bits for {name}")
+        return [-1 if bits[index // 8] >> (index % 8) & 1 else 1 for index in range(count)]
+    raise ValueError(f"Invalid encoded metadata array for {name}")
+
+
+def layer_ranges(layers):
+    parts, start = [], layers[0]
+    for index, layer in enumerate(layers):
+        if index + 1 == len(layers) or layers[index + 1] != layer + 1:
+            parts.append(str(start) if start == layer else f"{start}-{layer}")
+            if index + 1 < len(layers):
+                start = layers[index + 1]
+    return ",".join(parts)
+
+
+def parse_layer_ranges(name, text):
+    layers = []
+    for part in text.split(","):
+        match = re.fullmatch(r"(0|[1-9]\d*)(?:-(0|[1-9]\d*))?", part)
+        if not match:
+            raise ValueError(f"Invalid layer range for {name}: {text}")
+        first, last = int(match[1]), int(match[2] or match[1])
+        if last < first or (layers and first <= layers[-1]):
+            raise ValueError(f"Layer ranges must be ascending and disjoint for {name}: {text}")
+        layers.extend(range(first, last + 1))
+    return layers
+
+
+def encode_recipe(recipe):
+    """Compact on-disk form: typed metadata map and per-layer tensor templates without derived storage."""
+    result = {"version": RECIPE_VERSION}
+    for key in ("source_header_sha256", "omitted_metadata", "payload"):
+        if key in recipe:
+            result[key] = recipe[key]
+    result["metadata"] = {}
+    for entry in recipe["metadata"]:
+        if entry["type"] == 9:
+            element = entry["element_type"]
+            result["metadata"][entry["name"]] = [METADATA_NAMES[element] + "[]",
+                                                 encode_array(element, entry["value"])]
+        else:
+            result["metadata"][entry["name"]] = [METADATA_NAMES[entry["type"]], entry["value"]]
+    groups = {}
+    for tensor in recipe["tensors"]:
+        name = tensor["name"]
+        if "{" in name or "}" in name:
+            raise ValueError(f"Tensor name cannot be templated: {name}")
+        match = LAYER_INDEX.search(name)
+        if match and str(int(match[0])) == match[0]:
+            key = (name[:match.start()] + "{}" + name[match.end():], tensor["ggml_type"], tuple(tensor["shape"]))
+            groups.setdefault(key, []).append((int(match[0]), name))
+        else:
+            groups.setdefault((name, tensor["ggml_type"], tuple(tensor["shape"])), []).append((None, name))
+    result["tensors"] = []
+    for (template, kind, shape), members in groups.items():
+        if len(members) == 1:
+            result["tensors"].append([members[0][1], GGML_NAMES[kind], list(shape)])
+        else:
+            layers = sorted(layer for layer, _ in members)
+            result["tensors"].append([template, GGML_NAMES[kind], list(shape), layer_ranges(layers)])
+    return result
+
+
+def decode_recipe(document):
+    """Expand the on-disk recipe into the descriptor consumed by the C++ snapshot runner."""
+    if not isinstance(document, dict) or document.get("version") != RECIPE_VERSION:
+        raise ValueError("Unsupported recipe version")
+    recipe = {"version": VERSION, "metadata": [], "tensors": []}
+    for name, (kind, value) in document["metadata"].items():
+        if kind.endswith("[]"):
+            if kind[:-2] not in METADATA_IDS:
+                raise ValueError(f"Invalid metadata type for {name}")
+            recipe["metadata"].append({"name": name, "type": 9, "element_type": METADATA_IDS[kind[:-2]],
+                                       "value": decode_array(name, value)})
+        elif kind in METADATA_IDS:
+            recipe["metadata"].append({"name": name, "type": METADATA_IDS[kind], "value": value})
+        else:
+            raise ValueError(f"Invalid metadata type for {name}")
+    for entry in document["tensors"]:
+        name, kind, shape = entry[:3]
+        if kind not in GGML_IDS:
+            raise ValueError(f"Unsupported tensor type for {name}: {kind}")
+        if len(entry) == 4:
+            if name.count("{}") != 1:
+                raise ValueError(f"Layer template requires exactly one '{{}}': {name}")
+            names = [name.replace("{}", str(layer)) for layer in parse_layer_ranges(name, entry[3])]
+        elif "{" in name or "}" in name:
+            raise ValueError(f"Tensor template requires layer ranges: {name}")
+        else:
+            names = [name]
+        for concrete in names:
+            storage_type, storage_shape = storage(GGML_IDS[kind], shape)
+            recipe["tensors"].append({"name": concrete, "shape": list(shape), "ggml_type": GGML_IDS[kind],
+                                      "storage_type": storage_type, "storage_shape": storage_shape})
+    for key in ("omitted_metadata", "source_header_sha256", "payload"):
+        if key in document:
+            recipe[key] = document[key]
+    validate_recipe(recipe)
+    return recipe
+
+
+def recipe_text(recipe):
+    """One metadata entry or tensor group per line keeps diffs reviewable."""
+    document = encode_recipe(recipe)
+    line = lambda value: json.dumps(value, allow_nan=False)
+    lines = ["{", f'  "version": {document["version"]},']
+    for key in ("source_header_sha256", "omitted_metadata", "payload"):
+        if key in document:
+            lines.append(f"  {line(key)}: {line(document[key])},")
+    lines.append('  "metadata": {')
+    items = list(document["metadata"].items())
+    lines += [f"    {line(name)}: {line(value)}{',' if index + 1 < len(items) else ''}"
+              for index, (name, value) in enumerate(items)]
+    lines += ["  },", '  "tensors": [']
+    lines += [f"    {line(entry)}{',' if index + 1 < len(document['tensors']) else ''}"
+              for index, entry in enumerate(document["tensors"])]
+    lines += ["  ]", "}"]
+    text = "\n".join(lines) + "\n"
+    decoded = decode_recipe(json.loads(text))
+    by_name = lambda value: sorted(value["tensors"], key=lambda tensor: tensor["name"])
+    if (canonical_bytes({**decoded, "tensors": by_name(decoded)}) !=
+            canonical_bytes({**recipe, "tensors": by_name(recipe)})):
+        raise ValueError("Recipe encoding is not lossless")
+    return text
+
+
+def load_recipe(path):
+    document = load_json(path)
+    validate_document(document, "recipe")
+    return decode_recipe(document)
 
 
 def load_json(path):
@@ -597,9 +781,7 @@ def _run_cases(args, report):
         if not re.fullmatch(r"[A-Za-z0-9_.-]+", case["id"]):
             raise ValueError(f"Invalid case ID: {case['id']}")
         recipe_path = contained_path(root, case["recipe"])
-        recipe = load_json(recipe_path)
-        validate_document(recipe, "recipe")
-        validate_recipe(recipe)
+        recipe = load_recipe(recipe_path)
         if recipe.get("source_header_sha256") and recipe["source_header_sha256"] != case["source"]["header_sha256"]:
             raise ValueError(f"Catalog/recipe header provenance differs for {case['id']}")
         stages = case.get("stages", [case.get("stage", "deferred_plan")])
@@ -608,7 +790,10 @@ def _run_cases(args, report):
         actual_stages = {}
         for stage in stages:
             if stage == "deferred_plan":
-                model = capture(recipe_path, runner)
+                with tempfile.TemporaryDirectory(prefix="ov_gguf_recipe_") as directory:
+                    path = Path(directory) / f"{case['id']}.expanded.json"
+                    path.write_text(json.dumps(recipe), encoding="utf-8")
+                    model = capture(path, runner)
             elif stage in ("materialized", "controlled_values"):
                 with tempfile.TemporaryDirectory(prefix="ov_gguf_materialized_") as directory:
                     path = Path(directory) / "synthetic.gguf"
@@ -674,7 +859,7 @@ def main(argv=None):
             if not args.recipe_output or args.update or args.cases:
                 raise ValueError("--import-gguf requires --recipe-output and cannot update references")
             recipe = import_header(args.import_gguf, args.source_size)
-            args.recipe_output.write_text(json.dumps(recipe, indent=2) + "\n", encoding="utf-8")
+            args.recipe_output.write_text(recipe_text(recipe), encoding="utf-8")
             print(f"imported {len(recipe['tensors'])} tensors; omitted {recipe['omitted_metadata']}")
             return 0
         return run_cases(args)

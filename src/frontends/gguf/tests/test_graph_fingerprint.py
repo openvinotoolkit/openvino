@@ -125,6 +125,43 @@ def test_import_omits_scores_and_preserves_typed_nonfinite_metadata(tmp_path):
         graph.import_header(path)
 
 
+def test_compact_recipe_roundtrips_layers_and_encoded_arrays(tmp_path):
+    value = recipe()
+    value["tensors"] = [{"name": name, "ggml_type": kind, "shape": [32, 256],
+                         "storage_type": graph.storage(kind, [32, 256])[0],
+                         "storage_shape": graph.storage(kind, [32, 256])[1]}
+                        for name, kind in [("token_embd.weight", 12), ("blk.0.attn_q.weight", 12),
+                                           ("blk.1.attn_q.weight", 14), ("blk.2.attn_q.weight", 12),
+                                           ("blk.3.attn_q.weight", 12), ("mm.10.weight", 0)]]
+    value["metadata"] += [
+        {"name": "eps", "type": 9, "element_type": 6, "value": [0.0] * 70 + [-0.0] * 30},
+        {"name": "signs", "type": 9, "element_type": 5, "value": [1, -1, -1] * 25},
+        {"name": "gate", "type": 6, "value": {"nonfinite": "-inf"}},
+    ]
+    path = tmp_path / "recipe.json"
+    path.write_text(graph.recipe_text(value))
+    document = json.loads(path.read_text())
+    assert ["blk.{}.attn_q.weight", "Q4_K", [32, 256], "0,2-3"] in document["tensors"]
+    assert ["mm.10.weight", "F32", [32, 256]] in document["tensors"]
+    assert document["metadata"]["eps"][1] == {"rle": [[0.0, 70], [-0.0, 30]]}
+    assert set(document["metadata"]["signs"][1]) == {"signs", "count"}
+    decoded = graph.load_recipe(path)
+    assert graph.canonical_bytes(decoded["metadata"]) == graph.canonical_bytes(value["metadata"])
+    assert sorted(decoded["tensors"], key=lambda t: t["name"]) == sorted(value["tensors"], key=lambda t: t["name"])
+
+
+@pytest.mark.parametrize("tensor", [
+    ["blk.{}.w", "F32", [2], "3-1"],
+    ["blk.{}.w", "F32", [2], "0-2,2"],
+    ["blk.{}.w", "F32", [2]],
+    ["blk.0.w", "Q9_K", [2]],
+])
+def test_compact_recipe_rejects_invalid_tensor_groups(tensor):
+    document = {"version": 2, "metadata": {"general.architecture": ["str", "llama"]}, "tensors": [tensor]}
+    with pytest.raises(ValueError):
+        graph.decode_recipe(document)
+
+
 def test_reference_size_ceiling_is_bytes_not_node_count():
     graph.reference_bytes({"diagnostic": "x" * (graph.MAX_REFERENCE_BYTES - 32)})
     with pytest.raises(ValueError, match="32 KiB"):
@@ -138,7 +175,7 @@ def test_update_requires_selection_and_finishes_capture_before_writing(tmp_path,
                                {"native": graph.compact_snapshot(snapshot())})}})
     cases = []
     for name in ("one", "two"):
-        (tmp_path / f"{name}.recipe.json").write_text(json.dumps(value))
+        (tmp_path / f"{name}.recipe.json").write_text(graph.recipe_text(value))
         (tmp_path / f"{name}.reference.json").write_text(original)
         cases.append({"id": name, "recipe": f"{name}.recipe.json", "reference": f"{name}.reference.json",
                       "models": [name], "architecture": "llama",
