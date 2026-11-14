@@ -14,9 +14,8 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/memory.hpp"
 #include "openvino/core/memory_util.hpp"
-#include "openvino/util/parallel_read_streambuf.hpp"
-#include "common_utils/parallel_mem_streambuf.hpp"
 #include "common_utils/prefetch_streambuf.hpp"
+#include "openvino/util/parallel_read_streambuf.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -2049,18 +2048,16 @@ void program::load(cldnn::BinaryInputBuffer& ib,
     ib >> num_nodes;
     bool is_valid_data_node;
 
-    // Prefetch hook: if the backing streambuf is ParallelReadStreamBuf (or
-    // ParallelMemStreamBuf wrapping one for a file-backed mmap), ask it to
+    // Prefetch hook: if the backing streambuf is ParallelReadStreamBuf, ask it to
     // collapse the upcoming thousands of small ib >> ... reads for data
     // primitives into one bulk parallel pread.  The cap keeps the up-front
     // dispatch/allocation cost bounded; reads that fall outside the prefetched
-    // window transparently fall back to file I/O.
+    // window transparently fall back to file I/O.  ParallelMemStreamBuf needs
+    // no hook: its file-backed NativeStreamBuf batches small reads in its window.
     {
         auto* rdbuf = ib.get_streambuf();
         if (auto* prs = dynamic_cast<ov::util::ParallelReadStreamBuf*>(rdbuf)) {
             prs->prefetch(ov::util::default_parallel_io_prefetch_cap);
-        } else if (auto* pms = dynamic_cast<ov::intel_gpu::ParallelMemStreamBuf*>(rdbuf)) {
-            pms->prefetch(ov::util::default_parallel_io_prefetch_cap);
         }
     }
 
@@ -2097,8 +2094,6 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         auto* rdbuf = ib.get_streambuf();
         if (auto* prs = dynamic_cast<ov::util::ParallelReadStreamBuf*>(rdbuf)) {
             prs->prefetch(ov::util::default_parallel_io_prefetch_cap);
-        } else if (auto* pms = dynamic_cast<ov::intel_gpu::ParallelMemStreamBuf*>(rdbuf)) {
-            pms->prefetch(ov::util::default_parallel_io_prefetch_cap);
         }
     }
 

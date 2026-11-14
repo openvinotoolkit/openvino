@@ -4,11 +4,17 @@
 
 #include "behavior/ov_plugin/caching_tests.hpp"
 
+#include <cmath>
 #include <cstdlib>
 #include <filesystem>
 
+#include "openvino/op/constant.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "openvino/util/native_streambuf.hpp"
+#include "openvino/util/parallel_io.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
@@ -106,16 +112,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU,
                                             ::testing::ValuesIn(GPULoadFromFileConfigs)),
                          CompileModelLoadFromCacheTest::getTestCaseName);
 
-class CompileModelZeroCopySingleFileCacheLoadTest : public testing::WithParamInterface<CompileModelLoadFromCacheParams>,
+// Minimal exported blob size; 0 selects the small conv_pool_relu model.
+using ZeroCopySingleFileCacheLoadParams = std::tuple<std::string, ov::AnyMap, size_t>;
+
+class CompileModelZeroCopySingleFileCacheLoadTest : public testing::WithParamInterface<ZeroCopySingleFileCacheLoadParams>,
                                                     virtual public ov::test::SubgraphBaseTest,
                                                     virtual public OVPluginTestBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<CompileModelLoadFromCacheParams> obj) {
-        return CompileModelLoadFromCacheTest::getTestCaseName(obj);
+    static std::string getTestCaseName(testing::TestParamInfo<ZeroCopySingleFileCacheLoadParams> obj) {
+        const auto& [device, config, min_blob_size] = obj.param;
+        return CompileModelLoadFromCacheTest::getTestCaseName({{device, config}, obj.index}) +
+               "_MinBlobSize=" + std::to_string(min_blob_size);
     }
 
     void SetUp() override {
-        std::tie(targetDevice, configuration) = this->GetParam();
+        std::tie(targetDevice, configuration, m_minBlobSize) = this->GetParam();
         target_device = targetDevice;
         APIBaseTest::SetUp();
         set_env("OV_GPU_ENABLE_ZERO_COPY_CACHE_LOAD", "YES");
@@ -131,7 +142,23 @@ public:
         core->set_property(ov::cache_dir());
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
-        manager.run_passes(ov::test::utils::make_conv_pool_relu({1, 3, 227, 227}, ov::element::f32));
+        std::shared_ptr<ov::Model> model;
+        if (m_minBlobSize > 0) {
+            // Smallest square matrix whose FP16 weights (2 B per element) exceed m_minBlobSize,
+            // plus a small margin, so the blob lands slightly above the selected I/O threshold.
+            const auto channels = static_cast<size_t>(std::ceil(std::sqrt(m_minBlobSize / 2.0))) + 16;
+            auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, channels});
+            std::vector<float> values(channels * channels);
+            for (size_t i = 0; i < values.size(); ++i) {
+                values[i] = static_cast<float>(i % 251) / 251.f;
+            }
+            auto weights = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{channels, channels}, values);
+            auto matmul = std::make_shared<ov::op::v0::MatMul>(input, weights, false, true);
+            model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input});
+        } else {
+            model = ov::test::utils::make_conv_pool_relu({1, 3, 227, 227}, ov::element::f32);
+        }
+        manager.run_passes(model);
     }
 
     void TearDown() override {
@@ -155,6 +182,9 @@ public:
 
         std::stringstream strm;
         compiledModel.export_model(strm);
+        if (m_minBlobSize > 0) {
+            ASSERT_GT(strm.tellp(), std::streampos(m_minBlobSize));
+        }
         ov::CompiledModel importedCompiledModel = core->import_model(strm, target_device, configuration);
         EXPECT_EQ(false, importedCompiledModel.get_property(ov::loaded_from_cache.name()).as<bool>());
 
@@ -163,6 +193,7 @@ public:
     }
 
 private:
+    size_t m_minBlobSize = 0;
     std::string m_modelName;
     std::string m_weightsName;
     std::string m_cacheFilePath;
@@ -175,7 +206,13 @@ TEST_P(CompileModelZeroCopySingleFileCacheLoadTest, CanLoadFromSingleFileCache) 
 INSTANTIATE_TEST_SUITE_P(smoke_ZeroCopySingleFileCacheLoad_GPU,
                          CompileModelZeroCopySingleFileCacheLoadTest,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::Values(ov::AnyMap{})),
+                                            ::testing::Values(ov::AnyMap{}),
+                                            // Small model, then slightly above: NativeStreamBuf window bypass (2 MiB),
+                                            // ParallelMemStreamBuf file-backed path (4 MiB), NativeStreamBuf parallel reads (8 MiB).
+                                            ::testing::Values(size_t{0},
+                                                              ov::util::default_native_threshold,
+                                                              ov::util::default_parallel_io_threshold,
+                                                              ov::util::default_native_window)),
                          CompileModelZeroCopySingleFileCacheLoadTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU,
                          CompileModelWithCacheEncryptionTest,

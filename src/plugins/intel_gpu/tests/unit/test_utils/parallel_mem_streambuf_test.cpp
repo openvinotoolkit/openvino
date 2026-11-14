@@ -6,11 +6,17 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <thread>
 #include <vector>
+
+#include "common_test_utils/common_utils.hpp"
+#include "openvino/util/mmap_object.hpp"
+#include "openvino/util/native_streambuf.hpp"
+#include "openvino/util/parallel_io.hpp"
 
 #ifdef _WIN32
 #    ifndef NOMINMAX
@@ -32,6 +38,81 @@ void fill_pattern(std::vector<char>& buf, size_t start_index = 0) {
 }
 
 }  // namespace
+
+// File-backed mmap region followed by unrelated data in the same file (e.g. a
+// trailing blob map). The stream must expose only the region, in bulk reads,
+// char reads, seeks and in_avail. Payloads are slightly above each I/O threshold:
+// NativeStreamBuf window bypass (2 MiB, still the memcpy path here),
+// ParallelMemStreamBuf file-backed path (4 MiB) and NativeStreamBuf parallel reads (8 MiB).
+class ParallelMemStreamBufRegionTest : public ::testing::TestWithParam<size_t> {};
+
+TEST_P(ParallelMemStreamBufRegionTest, FileBackedRegionDoesNotExposeTrailingData) {
+    constexpr size_t k_prefix = 4096;
+    const size_t k_payload = GetParam() + 4096 + 19;
+    constexpr size_t k_suffix = 1024;
+    std::vector<char> content(k_prefix + k_payload + k_suffix);
+    fill_pattern(content);
+
+    const auto path = std::filesystem::temp_directory_path() / (ov::test::utils::generateTestFilePrefix() + "_par_mem_region.bin");
+    {
+        std::ofstream ofs(path, std::ios::binary | std::ios::trunc);
+        ASSERT_TRUE(ofs.is_open());
+        ASSERT_TRUE(ofs.write(content.data(), static_cast<std::streamsize>(content.size())));
+    }
+    {
+        auto mapping = ov::load_mmap_object(path);
+        ASSERT_NE(mapping, nullptr);
+        const auto* payload = mapping->data() + k_prefix;
+        const auto expected = [&](size_t pos) {
+            return std::char_traits<char>::to_int_type(content[k_prefix + pos]);
+        };
+
+        ov::intel_gpu::ParallelMemStreamBuf buf(payload, k_payload);
+        std::istream stream(&buf);
+        EXPECT_EQ(buf.in_avail(), static_cast<std::streamsize>(k_payload));
+
+        // Bulk read requesting more than the region stops exactly at its end.
+        std::vector<char> got(k_payload + k_suffix, '!');
+        stream.read(got.data(), static_cast<std::streamsize>(got.size()));
+        EXPECT_TRUE(stream.eof());
+        ASSERT_EQ(stream.gcount(), static_cast<std::streamsize>(k_payload));
+        EXPECT_TRUE(std::equal(got.begin(), got.begin() + k_payload, content.begin() + k_prefix));
+        EXPECT_TRUE(std::all_of(got.begin() + k_payload, got.end(), [](char c) {
+            return c == '!';
+        }));
+        EXPECT_EQ(buf.sgetc(), std::char_traits<char>::eof());
+        EXPECT_EQ(buf.in_avail(), -1);
+
+        // seekg(0, end) reports the region size, not the file size.
+        stream.clear();
+        stream.seekg(0, std::ios::end);
+        ASSERT_TRUE(stream.good());
+        EXPECT_EQ(stream.tellg(), std::streampos(k_payload));
+
+        // Seeking past the region end is rejected.
+        EXPECT_EQ(buf.pubseekpos(std::streampos(k_payload + 1), std::ios::in), std::streampos(std::streamoff(-1)));
+
+        // Char-by-char reads near the end stop at the region boundary.
+        stream.seekg(-3, std::ios::end);
+        ASSERT_TRUE(stream.good());
+        for (size_t pos = k_payload - 3; pos < k_payload; ++pos) {
+            ASSERT_EQ(stream.peek(), expected(pos));
+            ASSERT_EQ(stream.get(), expected(pos));
+        }
+        EXPECT_EQ(stream.get(), std::char_traits<char>::eof());
+
+        // Seeking back to the start re-reads the region from its first byte.
+        stream.clear();
+        stream.seekg(0, std::ios::beg);
+        ASSERT_TRUE(stream.good());
+        EXPECT_EQ(stream.get(), expected(0));
+    }
+    std::filesystem::remove(path);
+}
+
+INSTANTIATE_TEST_SUITE_P(ThresholdSizes,
+                         ParallelMemStreamBufRegionTest,
+                         ::testing::Values(ov::util::default_native_threshold, ov::util::default_parallel_io_threshold, ov::util::default_native_window));
 
 // 1. Small read – threshold=SIZE_MAX forces the single memcpy path.
 TEST(ParallelMemStreamBufTest, FullReadSingleMemcpyPath) {
