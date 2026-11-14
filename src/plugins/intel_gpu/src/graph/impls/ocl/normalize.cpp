@@ -37,8 +37,9 @@ public:
 
         auto scale_layout = impl_param.get_input_layout(1);
 
-        params.normMode = primitive->across_spatial ? kernel_selector::normalize_mode::ACROSS_SPATIAL
-                                                    : kernel_selector::normalize_mode::WITHIN_SPATIAL;
+        params.normMode = primitive->across_x ? kernel_selector::normalize_mode::ACROSS_X
+                  : primitive->across_spatial ? kernel_selector::normalize_mode::ACROSS_SPATIAL
+                                : kernel_selector::normalize_mode::WITHIN_SPATIAL;
         params.epsilon = primitive->epsilon;
         if (format::is_simple_data_format(scale_layout.format)) {
             params.scaleTable = convert_data_tensor(scale_layout).FlattenFeatureAndSpatials();

@@ -6,8 +6,11 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/core/visibility.hpp"
+#include "openvino/op/normalize_l2.hpp"
 
 namespace ov::intel_gpu {
+
+bool normalize_l2_supports_across_x(const ov::op::v0::NormalizeL2& op);
 
 /**
  * @brief Decomposes NormalizeL2 into subgraph
