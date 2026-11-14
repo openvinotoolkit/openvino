@@ -1,0 +1,19 @@
+{
+    "schema_version": "1.0",
+    "signature": "OpenVINO process crashed with signal 3221225477 (access violation) during test_tf_Gather.py::TestGather::test_gather CPU FP16 GatherV2 batch_dims=-2 axis=-1|Code Issue",
+    "signature_hash": "afec4249190f026d",
+    "title": "smoke_TestGather test_gather crashes with Windows access violation (signal 3221225477) on CPU FP16 GatherV2 batch_dims=-2",
+    "category": "Code Issue",
+    "count": 1,
+    "first_seen": "2026-11-14T01:28:23Z",
+    "last_seen": "2026-11-14T01:28:23Z",
+    "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/43435091114"
+    ],
+    "affected_commits": [
+        "e31618d01c26ea28b35f98ded16e37dd2e35133c"
+    ],
+    "recent_timestamps": [
+        "2026-11-14T01:28:23Z"
+    ]
+}

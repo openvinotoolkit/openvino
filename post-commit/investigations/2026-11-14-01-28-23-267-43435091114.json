@@ -1,0 +1,40 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-11-14-01-28-23-267-43435091114",
+    "timestamp": "2026-11-14T01:28:23Z",
+    "run_id": "43435091114",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43435091114",
+    "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+    "commit_sha": "e31618d01c26ea28b35f98ded16e37dd2e35133c",
+    "pr_number": null,
+    "pr_url": null,
+    "author": null,
+    "category": "Code Issue",
+    "title": "smoke_TestGather test_gather crashes with Windows access violation (signal 3221225477) on CPU FP16 GatherV2 batch_dims=-2",
+    "signature": "OpenVINO process crashed with signal 3221225477 (access violation) during test_tf_Gather.py::TestGather::test_gather CPU FP16 GatherV2 batch_dims=-2 axis=-1|Code Issue",
+    "signature_hash": "afec4249190f026d",
+    "confidence": "Medium",
+    "failed_jobs": [
+        {
+            "name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+            "conclusion": "failure",
+            "symptom": "pytest subprocess running inference was killed with Windows exception code 3221225477 (0xC0000005, access violation) for one parametrization of test_gather"
+        }
+    ],
+    "key_errors": [
+        "FAILED install\\tests\\layer_tests\\tensorflow_tests\\test_tf_Gather.py::TestGather::test_gather[ ie_device:CPU - precision:FP16 - indices_type:<class 'numpy.int32'> - params_type:<class 'numpy.float32'> - params:{'params_shape': [3, 2, 6, 4], 'indices_shape': [3, 2, 1, 3], 'axis_value': -1, 'batch_dims': -2, 'operation_type': 'GatherV2'} ] - multiprocessing.context.ProcessError: OpenVINO was killed with a signal 3221225477",
+        "E           multiprocessing.context.TimeoutError: OpenVINO running timed out!",
+        "= 1 failed, 5781 passed, 170 skipped, 15 xfailed, 2 xpassed, 25 warnings in 783.74s (0:13:03) =",
+        "##[error]Process completed with exit code 1."
+    ],
+    "root_cause": "The TensorFlow layer test runs CPU inference for a Gather/GatherV2 case with a negative batch_dims (-2) and negative axis (-1), shapes params=[3,2,6,4], indices=[3,2,1,3]. The child worker process that executes OpenVINO inference (spawned via Python multiprocessing to isolate crashes) terminated abnormally with Windows exit code 3221225477 (0xC0000005, STATUS_ACCESS_VIOLATION), which the test harness first observed as a 60s queue-read timeout before reporting the ProcessError. This points to a native crash (likely an out-of-bounds memory access) inside the CPU Gather kernel or its shape/axis normalization logic when batch_dims is negative and resolves to the same effective axis as axis_value, rather than a test-harness or infra issue. No PR could be associated with this push (merge-queue commit from PR #39644, which touches NPUW blob handling and is unrelated to Gather); the failure is attributed to the CPU Gather implementation itself and may be a pre-existing latent bug newly exercised, or a flaky/race condition in that kernel path.",
+    "reproduction_steps": "On a Windows build matching this CI config: cd install/tests/layer_tests && python -m pytest tensorflow_tests/test_tf_Gather.py::TestGather::test_gather -k \"CPU and FP16 and batch_dims: -2\" -v. If it does not reproduce immediately, loop the run (e.g. for /l %i in (1,1,20) do ...) since a 60s-timeout-then-crash pattern is consistent with either a rare crash or a slow/hung worker process; also try under a debugger or with AddressSanitizer-enabled CPU plugin build to capture the exact faulting instruction.",
+    "recommended_actions": [
+        "Reproduce locally/in CI with the exact parametrization (CPU, FP16, GatherV2, params_shape=[3,2,6,4], indices_shape=[3,2,1,3], axis_value=-1, batch_dims=-2) and attach a debugger or enable Windows crash dumps to get a native stack trace for exit code 0xC0000005.",
+        "Inspect the CPU Gather node implementation (src/plugins/intel_cpu/src/nodes/gather.cpp) for how negative batch_dims/axis are normalized against the actual indices/data ranks, especially when axis and batch_dims end up referencing overlapping or out-of-range dimensions.",
+        "Check if this parametrization previously had an xfail/skip marker that was removed, and whether it reproduces consistently or only intermittently (run it 10-20x back-to-back to rule out a race condition).",
+        "If a genuine OOB write/read is found, add bounds validation or an explicit unsupported-combination check (batch_dims with axis resolving to the same effective dimension) rather than letting the kernel dereference invalid memory."
+    ],
+    "prevention_strategies": "Add CPU-plugin-level ASan/UBSan nightly runs (or ensure existing ones cover Windows Gather kernels) so native memory-safety crashes like this surface with a stack trace instead of only a bare process exit code in layer tests. Extend Gather unit tests to explicitly cover negative batch_dims combined with negative axis values that resolve to the same effective dimension index, which appears to be an under-tested corner case.",
+    "historical_context": "No prior pattern in the post-commit knowledge base matches this signature (searched for 'killed with a signal', '3221225477', '0xC0000005', 'access violation', and 'Gather' across all 50 existing pattern files — no hits). This is recorded as a new pattern for future recurrence tracking."
+}
