@@ -7,6 +7,20 @@ import pytest
 from packaging import version
 from openvino.frontend.pytorch.torchdynamo.backend_utils import _is_testing
 
+
+@pytest.mark.precommit
+def test_pytorch_fx_decoder_without_sym_min(monkeypatch):
+    from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+    graph = torch.fx.Graph()
+    value = graph.placeholder("value")
+    result = graph.call_function(torch.ops.aten.relu.default, (value,))
+    graph.output(result)
+    decoder = TorchFXPythonDecoder(result, nodes=list(graph.nodes))
+    monkeypatch.delattr(torch, "sym_min", raising=False)
+    assert decoder.get_op_type() == "aten.relu.default"
+
+
 class AtenDiv(torch.nn.Module):
     # aten::div can have str or NoneType constant
     def __init__(self, rounding_mode):

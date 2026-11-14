@@ -17,6 +17,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
@@ -52,6 +53,27 @@ OutputVector translate_transpose(const NodeContext& context) {
 
     return {context.mark_node(std::make_shared<v1::Transpose>(data, scatter))};
 };
+
+OutputVector translate_mT(const NodeContext& context) {
+    num_inputs_check(context, 1, 1);
+    const auto input = context.get_input(0);
+    const auto input_rank = input.get_partial_shape().rank();
+    PYTORCH_OP_CONVERSION_CHECK(input_rank.is_dynamic() || input_rank.get_length() >= 2,
+                                "mT requires a tensor with at least 2 dimensions.");
+    Output<Node> rank;
+    std::tie(std::ignore, rank) = get_shape_rank(context, input, true);
+    const auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    const auto one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
+    const auto two = context.mark_node(v0::Constant::create(element::i32, Shape{}, {2}));
+    const auto last = context.mark_node(std::make_shared<v1::Subtract>(rank, one));
+    const auto penultimate = context.mark_node(std::make_shared<v1::Subtract>(rank, two));
+    const auto prefix = context.mark_node(std::make_shared<v4::Range>(zero, penultimate, one, element::i32));
+    const auto last_axis = context.mark_node(std::make_shared<v0::Unsqueeze>(last, zero));
+    const auto penultimate_axis = context.mark_node(std::make_shared<v0::Unsqueeze>(penultimate, zero));
+    const auto order =
+        context.mark_node(std::make_shared<v0::Concat>(OutputVector{prefix, last_axis, penultimate_axis}, 0));
+    return {context.mark_node(std::make_shared<v1::Transpose>(input, order))};
+}
 
 OutputVector translate_t(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
