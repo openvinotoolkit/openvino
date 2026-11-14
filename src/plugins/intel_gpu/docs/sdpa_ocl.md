@@ -41,7 +41,7 @@ output, alibi, ...) the last column's kernel runs.
 | Stage | xe_hpc, Xe2+ XMX | xe_hpg XMX (DG2, ARL-H) | non-XMX, unknown arch |
 |---|---|---|---|
 | SDPA, prefill | `sdpa_ocl` (3) | `sdpa_ocl` (SG8) | `sdpa_opt` |
-| SDPA, one query | `sdpa_ocl` (3) | `sdpa_ocl` (SG8); ARL-H: `sdpa_opt` (1) | `sdpa_opt` |
+| SDPA, one query | `sdpa_ocl` (3) | `sdpa_opt` (1); other heads `sdpa_ocl` (SG8) | `sdpa_opt` |
 | SDPA, per-channel KV | `sdpa_ocl` | `sdpa_ref` | `sdpa_ref` |
 | PA PREFILL | `sdpa_ocl` | `sdpa_ocl` (xe_hpg PA PREFILL) | `sdpa_opt` |
 | PA MIXED | `sdpa_ocl` | `sdpa_ocl` (SG8) | `paged_attention_opt.cl` |
@@ -52,15 +52,20 @@ output, alibi, ...) the last column's kernel runs.
   is unknown (every device in a build without oneDNN, which detects the arch) or xe_hp (SIMD8 DPAS, no 2D block IO)
   takes the last column. The lane (`sdpa_ocl_selected()`) checks XMX as well as the arch, because the xe_hpg arch also
   covers MTL, which has no XMX.
-- SDPA = plain (non-paged) SDPA. Indirect SDPA (beam search) and a plain int4 KV cache run `sdpa_opt` everywhere. The
+- SDPA = plain (non-paged) SDPA. Indirect SDPA (beam search) runs `sdpa_opt` with static shapes and in every step that
+  reorders the beams (`need_indirect_load()`); a dynamic op's step without a reorder (one beam, as a stateful LLM's at
+  batch 1) takes the kernels of the table. A plain int4 KV cache runs `sdpa_opt` everywhere. The
   per-channel row is the GQA decomposition's fused quantized cache (`sdpa_ocl_per_channel_kv_ok()`): the per-channel
   reads put one channel per lane of a 16-wide subgroup, and the xe_hpg SG8 arms have none.
 - A PA MIXED step with few new tokens per subsequence follows the small GQA rule (`select_gqa_multi_tokens_kernel()` in
   `paged_attention_opt.cpp`: `pa_small_q_opt.cl`, `paged_attention_opt.cl`'s GQA fallback, or `sdpa_ocl`). PA GENERATE,
   on either reader, adds `paged_attention_opt.cl`'s finalization when it splits the keys into partitions.
-- (1) Static shapes only (`sdpa_ocl_plain_single_token_ok()`, gfx 12.74); a dynamic op on ARL-H takes `sdpa_ocl`. The
-  rule is upstream's (PR #27387), which kept ARL-H's one-query SDPA on `sdpa_opt` instead of `sdpa_micro`'s single-token
-  kernel; it was not measured against `sdpa_ocl`.
+- (1) Since 2026-11-14 ("Plain SDPA of stateful LLMs on xe_hpg" in the Change history), at the heads the opt
+  stages take (`opt_stages_take_head()` in `sdpa_opt.cpp`: 64 to 512 and even, a head that is not a multiple of 16 only
+  with an uncompressed K and V); the other heads take the SG8 single-token kernel, but on ARL-H with static shapes
+  `sdpa_opt` (`sdpa_ocl_plain_single_token_ok()`, gfx 12.74). That ARL-H rule is upstream's (PR #27387), which kept
+  ARL-H's one-query SDPA on `sdpa_opt` instead of `sdpa_micro`'s single-token kernel; it was not measured against
+  `sdpa_ocl`.
 - (2) `sdpa_ocl_decode`'s SG8 reader (`sdpa_ocl_hpg_decode.cl`) is not selected (`sdpa_ocl_decode_reader_available()`;
   "xe_hpg reader (SG8)").
 - (3) A rank-3 SDPA (Q/K/V `[B, L, E]`) takes `sdpa_ocl` on Xe2 and newer GPUs only (discrete or integrated; xe3p unmeasured), for heads of 64..256 that are multiples of 16
@@ -92,7 +97,8 @@ Reachable configurations on Xe2 with XMX and no environment overrides:
 ### xe_hpg bring-up (DG2, SG8)
 
 xe_hpg (SG8, no 2D block IO) takes the `sdpa_ocl` lane like Xe2 since 2026-11-09: PREFILL, MIXED and plain SDPA
-pick the kernels Xe2 picks, GENERATE the opt kernels ("xe_hpg reader (SG8)"). `OV_GPU_ENABLE_SDPA_MICRO=0` keeps
+pick the kernels Xe2 picks, GENERATE the opt kernels ("xe_hpg reader (SG8)"), and since 2026-11-14 so does plain
+SDPA's one-query step at the heads the opt stages take ("Where it runs", note (1)). `OV_GPU_ENABLE_SDPA_MICRO=0` keeps
 PREFILL, MIXED and plain SDPA on the opt kernels, as on Xe2 (the A/B control). The SG8 arms serve plain f16 SDPA
 (static and dynamic shapes, one query or more), bf16, a mask, causal, a sink and a runtime scale (the mask, causal,
 sink and softmax code is lane = query and shared with SG16, only the 16-key `mask_full` vector of a full 2D mask is
@@ -286,7 +292,7 @@ tile. A u4 MIXED of 256-token chunks in 4K-token prompts took 0.68-0.73x the dev
 xe_hpg" in the Change history; `SDPA_OCL_HPG_PA_COMP_Q32=0` keeps the 32 x 16 tiles).
 
 The kernel also serves plain SDPA (its PREFILL stage) without causality, a runtime scalar mask, a runtime scale, a sink
-or a compressed / indirect KV cache, at the same heads (`hpg_plain_prefill_ok()`; a constant scale input is a literal; a
+or a compressed KV cache, at the same heads (`hpg_plain_prefill_ok()`; a constant scale input is a literal; a
 finite static scalar mask adds the same value to every score of a row, which the softmax ignores, so the kernel leaves it
 out: CLIP's vision encoder has 0, in phi-3.5-vision, which took the generic kernel at 7.2x `sdpa_micro` before and takes
 400 us against 372 now): the loop without the causal bound, so every workgroup
@@ -297,7 +303,10 @@ padding (a crop view of a fused QKV tensor pads another axis); a padded head dim
 `smoke_sdpa_hpg_rows` checks its rows with sharp data: GQA / MQA, batches, q != kv, `[b, s, h, d]` inputs and output,
 K / V padded on the other axes, dynamic shapes, 1.1-1.5K tokens, heads 96, 72 and 512, static scalar masks of 0 and -3;
 `SDPA_OCL_NEG_SG8=10` must fail every case with two
-batches or KV heads. `SDPA_OCL_HPG_PLAIN_PREFILL=0` switches it off for plain SDPA. A tensor mask (f16, bfyx, unpadded)
+batches or KV heads. An indirect op (a stateful LLM with `beam_idx`, as llama-3.2-1b under `ATTENTION_BACKEND=SDPA`) is served
+since 2026-11-14: `SDPAOptImpl::execute()` dispatches the PREFILL stage only in a step without a beam reorder
+(`need_indirect_load()`), and the beam table is not among the kernel's arguments, as on Xe2.
+`SDPA_OCL_HPG_PLAIN_PREFILL=0` switches it off for plain SDPA. A tensor mask (f16, bfyx, unpadded)
 is added in the raw score domain as in the generic kernel, 8 keys of the lane's query row per 8 x 8 score block just
 before the block is used (`hpg_mask8()`: row 0 of a per-key mask, key 0 of a per-query one, batch and head broadcast
 through `MSK_OFF`; one 16 B load when the rows are whole dwords, two-byte loads otherwise, which `SDPA_OCL_NEG_SG8=4`
@@ -3116,6 +3125,77 @@ PREFILL, plain SDPA and the other heads keep their tilings.
     check line changed.
 - Not checked: the B70 (xe_hpg-only code), the Linux driver, chunks other than 256 tokens, i8 BY_TOKEN at head 64, other
   head-64 models, the V lead with 8 value columns (kept at 6), the real models' output beyond the unit references.
+
+### Plain SDPA of stateful LLMs on xe_hpg (2026-11-14)
+
+The xe_hpg PREFILL kernel serves indirect plain SDPA, and on xe_hpg a one-query step of plain SDPA runs the opt kernels
+at the heads they take (`opt_stages_take_head()` in `sdpa_opt.cpp`: 64 to 512 and even, a head that is not a multiple of
+16 only with an uncompressed K and V; the dynamic op does not add the `sdpa_ocl` single-token stage, the static one takes
+the opt stages). With `ATTENTION_BACKEND=SDPA` an LLM's first token then runs the xe_hpg PREFILL kernel and every later
+token the opt kernels, where Xe2 runs `sdpa_ocl`'s single-token stage; that is the only difference from Xe2. Other heads
+keep the SG8 single-token kernel. Xe2 is unchanged: `hpg_plain_prefill_ok()` returns false off xe_hpg before any other
+check, and the single-token gate is true off xe_hpg; no kernel source or JIT constant changed.
+
+- Why: a stateful LLM with `beam_idx` makes its SDPA indirect (the beam table is its last input), and
+  `hpg_plain_prefill_ok()` refused indirect ops, so with `ATTENTION_BACKEND=SDPA` both plain stages ran the generic SG8
+  kernel: first token 1.30-1.62x the 2026.5 RC and the second 2.39-4.04x on the six models below, the decode step 946-1464
+  us per call against 31-44 us on the opt kernels and 183-199 us on `sdpa_micro__generate`. The refusal was not needed:
+  `SDPAOptImpl::execute()` dispatches the `sdpa_ocl` PREFILL of an indirect op only in a step without a beam reorder
+  (`need_indirect_load()`: the beam table's indirect axis is 1, as at batch 1), the beam table is not among the
+  kernel's arguments (`get_data_inputs_num()`), and a step that reorders the beams takes the opt indirect stages, as on
+  Xe2. Sending the refused PREFILL ops to the opt kernels too (tried first) failed 26 accuracy cases there (runtime
+  scale, `GQAQuantizedKVCache`, causal, sink), so PREFILL keeps `sdpa_ocl`.
+- Device time per call (llm_bench with cliloader, A770, Windows driver 32.0.101.9175, `ATTENTION_BACKEND=SDPA` without
+  the CB config, a 1K-token prompt, 32 output tokens, the OFF build; `SDPA_OCL_HPG_PLAIN_PREFILL=0` is the one-switch
+  control of the PREFILL kernel, `OV_GPU_ENABLE_SDPA_MICRO=0` the opt kernels):
+
+  | model (head) | PREFILL kernel | generic SG8 (switch off) | RC `sdpa_micro__prefill` | opt `multi_reg` |
+  |---|---|---|---|---|
+  | llama-3.2-1b (64) | 631.6 us | 2073.1 (0.30x) | 1019.0 (0.62x) | 907.6 (0.70x) |
+  | llama-3.1-8b (128) | 901.1 | 4369.1 (0.21x) | 1239.6 (0.73x) | 1294.9 (0.70x) |
+  | phi-3.5-mini (96) | 1095.1 | 4632.6 (0.24x) | 1466.9 (0.75x) | 1231.8 (0.89x) |
+  | phi-4-mini (128) | 705.2 | 3392.2 (0.21x) | 915.6 (0.77x) | 992.3 (0.71x) |
+  | qwen3-8b (128) | 896.7 | 4192.1 (0.21x) | 1227.6 (0.73x) | 1288.0 (0.70x) |
+  | gemma-2-9b (256) | 1033.0 | 5062.4 (0.20x) | 1577.2 (0.65x) | 1128.3 (0.92x) |
+
+  The decode step runs `sdpa_opt__single_reg` (31.6-44.3 us) and its finalization (4.7-6.7 us), the kernels and times
+  of the opt control; the RC runs the same kernels on four models and `sdpa_micro__generate` (182.6 / 198.8 us) on
+  llama-3.2-1b and gemma-2-9b.
+- Latency against the RC (pip) and the opt kernels of the same install (`on_opt`), the ON install, 64 output tokens,
+  3 iterations x 2 rounds:
+
+  | model | first token | / RC | / opt | second token | / RC | / opt |
+  |---|---|---|---|---|---|---|
+  | llama-3.2-1b | 43.58 ms | 0.875 | 0.900 | 6.10 ms | 0.679 | 0.994 |
+  | llama-3.1-8b | 185.18 | 0.950 | 0.935 | 24.41 | 0.991 | 0.995 |
+  | phi-3.5-mini | 153.08 | 0.925 | 0.956 | 13.82 | 1.004 | 1.009 |
+  | phi-4-mini | 135.69 | 0.960 | 0.932 | 16.98 | 1.051 | 1.051 |
+  | qwen3-8b | 195.34 | 0.942 | 0.924 | 18.88 | 1.003 | 1.003 |
+  | gemma-2-9b | 264.46 | 0.905 | 0.978 | 24.63 | 0.749 | 0.986 |
+
+  phi-4-mini's second token varied 16.2-18.5 ms between iterations on this install; 3 rounds again gave 1.022x the RC
+  and 1.008x the opt control (one iteration at 19.7 ms; the RC 15.9-16.4, the opt control 16.1-16.3), with the same
+  decode kernels at the same time per call, so the rest is outside SDPA and not analysed.
+- Checks:
+  - the kit on all four lanes against the last baselines (`rb4`, HEAD 7c77a9f817): func (F1-F3 on both lanes), the def
+    lane and the host tests identical; on the HPG lane only the one-query cases changed, which now run the opt kernels
+    and failed their kernel assertions (36). The tests take the new rule from `tests::plain_decode_on_opt()`
+    (`dpas_backend_test_helper.h`, mirrors `opt_stages_take_head()`). With it the 12 affected groups of both lanes are
+    identical to `rb4`, all passing, including the 11 cases whose kernel assertion had stopped them before the
+    accuracy compare (sink, bf16, lower-right causal, an i8 KV cache, all at one query);
+  - `SDPA_OCL_NEG_SG8=1`-`3`, `5`, `6`, `10`-`13`, `18`, `10` on the broadcast suite and `1` on the KV-compressed suite
+    fail the same cases with the new oracles as with the old ones on the same plugin, but the 22 one-query cases now on
+    the opt kernels, which pass them (they break `sdpa_ocl` only; under the old oracles their kernel assertion failed).
+    The four of the KV-compressed suite fail its three reference perturbations (`SDPA_KVC_NEG`, 18 / 18 each);
+  - the text of the six models (64 tokens, prompt permutation off) against the opt control and the RC: llama-3.1-8b the
+    same in all three; gemma-2-9b the same as the RC (the opt control starts with one more newline, then the same 55
+    words); llama-3.2-1b the same as the opt control (the RC from word 17);
+    phi-4-mini the same as the RC (the opt control from word 3); phi-3.5-mini and qwen3-8b differ from both after 2-41
+    words, as the opt control and the RC differ from each other; every text coherent.
+- Not checked: the B70 and Xe2 (xe_hpg-only gates), ARL-H, the Linux driver, a beam search (a step that reorders takes the
+  opt indirect stages, a path this change does not touch), prompts other than 1K tokens, that the PREFILL kernel runs
+  for the indirect cases of `SDPAWithKVCacheTest` (they pass; only the real models' one-switch A/B shows the kernel), and
+  the PA backend's timing (its code path is unchanged and its kit groups are identical).
 
 ## Known issues
 
