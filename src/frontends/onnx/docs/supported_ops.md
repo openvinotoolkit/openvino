@@ -238,7 +238,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |DynamicTimeWarping                                      |                        |1                               |                                |
 |com.microsoft           |EPContext                                               |                        |1                               |                                |
 |com.microsoft           |EmbedLayerNormalization                                 |1                       |1                               |                                |
-|com.microsoft           |ExpandDims                                              |                        |1                               |                                |
+|com.microsoft           |ExpandDims                                              |1                       |1                               |                                |
 |com.microsoft           |FastGelu                                                |1                       |1                               |                                |
 |com.microsoft           |FusedConv                                               |1                       |1                               |                                |
 |com.microsoft           |FusedGemm                                               |1                       |1                               |                                |

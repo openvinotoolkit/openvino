@@ -1,0 +1,60 @@
+ir_version: 7
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  name: "test_expand_dims_negative_axis"
+  node {
+    input: "X"
+    input: "axis"
+    output: "Y"
+    op_type: "ExpandDims"
+    domain: "com.microsoft"
+  }
+  input {
+    name: "X"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  initializer {
+    data_type: 6
+    int32_data: -2
+    name: "axis"
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 13
+}
+opset_import {
+  domain: "com.microsoft"
+  version: 1
+}
