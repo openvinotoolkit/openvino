@@ -2385,60 +2385,65 @@ void jit_erf_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
     auto vmm_src = Vmm(in_vec_idxs[0]);
     auto vmm_dst = Vmm(out_vec_idxs[0]);
 
-    auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
-    auto vmm_aux1 = Vmm(aux_vec_idxs[1]);
-    auto vmm_aux2 = Vmm(aux_vec_idxs[2]);
-    auto vmm_aux3 = Vmm(aux_vec_idxs[3]);
+    auto vmm_abs_x = Vmm(aux_vec_idxs[0]);  // Also the implicit blend mask (xmm0) on SSE4.1.
+    auto vmm_poly = Vmm(aux_vec_idxs[1]);
+    auto vmm_t = Vmm(aux_vec_idxs[2]);
+    auto vmm_x = Vmm(aux_vec_idxs[3]);
 
-    // IMPORTANT: we use vmm_aux3 to save `x` as exp_compute does not use it.
-    h->uni_vmovups(vmm_aux3, vmm_src);
+    // Preserve x across exp even when the input and output registers alias.
+    h->uni_vmovups(vmm_x, vmm_src);
 
     // -exp(-x*x)
     h->uni_vmulps(vmm_dst, vmm_src, vmm_src);
     h->uni_vxorps(vmm_dst, vmm_dst, table_val("sign_mask"));
 
-    // pass the current `aux_vec_idxs` to `exp_emitter` excepting `vmm_aux3`
     auto exp_aux_vec_idxs = aux_vec_idxs;
     exp_aux_vec_idxs.erase(
-        std::find(exp_aux_vec_idxs.begin(), exp_aux_vec_idxs.end(), static_cast<size_t>(vmm_aux3.getIdx())));
+        std::find(exp_aux_vec_idxs.begin(), exp_aux_vec_idxs.end(), static_cast<size_t>(vmm_x.getIdx())));
     m_exp_emitter->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
                              {static_cast<size_t>(vmm_dst.getIdx())},
                              exp_aux_vec_idxs);
 
     h->uni_vxorps(vmm_dst, vmm_dst, table_val("sign_mask"));
 
-    // get sign
-    h->uni_vmovups(vmm_aux0, vmm_aux3);
-    h->uni_vandps(vmm_aux0, vmm_aux0, table_val("sign_mask"));
-
-    // abs(x)
-    h->uni_vmovups(vmm_aux1, vmm_aux3);
-    // compute abs(x) = _mm_and_ps(x, 01111..111));
-    h->uni_vandps(vmm_aux1, vmm_aux1, table_val("positive_mask"));
-
-    // t = 1 / (p*x + 1)
-    h->uni_vmovups(vmm_aux2, table_val("approx_const"));
-    h->uni_vfmadd213ps(vmm_aux2, vmm_aux1, table_val("one"));
-    h->uni_vmovups(vmm_aux3, table_val("one"));
-    h->uni_vdivps(vmm_aux3, vmm_aux3, vmm_aux2);
+    // t = 1 / (p * abs(x) + 1)
+    h->uni_vandps(vmm_abs_x, vmm_x, table_val("positive_mask"));
+    h->uni_vmovups(vmm_poly, table_val("approx_const"));
+    h->uni_vfmadd213ps(vmm_poly, vmm_abs_x, table_val("one"));
+    h->uni_vmovups(vmm_t, table_val("one"));
+    h->uni_vdivps(vmm_t, vmm_t, vmm_poly);
 
     // -exp(-x*x)*t
-    h->uni_vmulps(vmm_dst, vmm_dst, vmm_aux3);
+    h->uni_vmulps(vmm_dst, vmm_dst, vmm_t);
 
-    // compute polynomialial r
-    h->uni_vmovups(vmm_aux1, table_val("pol5"));
-    h->uni_vfmadd213ps(vmm_aux1, vmm_aux3, table_val("pol4"));
-    h->uni_vfmadd213ps(vmm_aux1, vmm_aux3, table_val("pol3"));
-    h->uni_vfmadd213ps(vmm_aux1, vmm_aux3, table_val("pol2"));
-    h->uni_vfmadd213ps(vmm_aux1, vmm_aux3, table_val("pol1"));
+    // Compute polynomial r(t).
+    h->uni_vmovups(vmm_poly, table_val("pol5"));
+    h->uni_vfmadd213ps(vmm_poly, vmm_t, table_val("pol4"));
+    h->uni_vfmadd213ps(vmm_poly, vmm_t, table_val("pol3"));
+    h->uni_vfmadd213ps(vmm_poly, vmm_t, table_val("pol2"));
+    h->uni_vfmadd213ps(vmm_poly, vmm_t, table_val("pol1"));
 
     // erf = sign * (1 - r * t * exp(-x*x))
-    h->uni_vfmadd213ps(vmm_dst, vmm_aux1, table_val("one"));
-    h->uni_vxorps(vmm_dst, vmm_dst, vmm_aux0);
+    h->uni_vfmadd213ps(vmm_dst, vmm_poly, table_val("one"));
+    h->uni_vandps(vmm_t, vmm_x, table_val("sign_mask"));
+    h->uni_vxorps(vmm_dst, vmm_dst, vmm_t);
+
+    // Avoid cancellation near zero. For |x| < 2^-12 the relative cubic correction to 2*x/sqrt(pi)
+    // is at most x^2/3, below FP32 rounding precision.
+    if constexpr (isa == x64::avx512_core) {
+        h->vcmpps(k_mask, vmm_abs_x, table_val("linear_bound"), _cmp_lt_os);
+        h->vmulps(vmm_dst | k_mask, vmm_x, table_val("two_over_sqrt_pi"));
+    } else {
+        h->uni_vcmpps(vmm_abs_x, vmm_abs_x, table_val("linear_bound"), _cmp_lt_os);
+        h->uni_vmulps(vmm_x, vmm_x, table_val("two_over_sqrt_pi"));
+        h->uni_vblendvps(vmm_dst, vmm_dst, vmm_x, vmm_abs_x);
+    }
 }
 
 void jit_erf_emitter::register_table_entries() {
     push_arg_entry_of("approx_const", 0x3ea7ba05, true);  // 0.3275911
+    push_arg_entry_of("linear_bound", 0x39800000, true);  // 2^-12
+    push_arg_entry_of("two_over_sqrt_pi", 0x3f906ebb, true);
     push_arg_entry_of("one", CONST_1_F, true);
     push_arg_entry_of("sign_mask", 0x80000000, true);
     push_arg_entry_of("positive_mask", 0x7fffffff, true);
