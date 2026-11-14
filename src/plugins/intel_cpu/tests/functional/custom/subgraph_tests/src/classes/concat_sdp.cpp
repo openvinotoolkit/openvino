@@ -3,6 +3,9 @@
 //
 #include "concat_sdp.hpp"
 
+#include <cmath>
+#include <functional>
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -19,6 +22,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
+#include "utils/precision_support.h"
 
 namespace ov {
 namespace test {
@@ -80,7 +84,7 @@ void ConcatSDPTest::SetUp() {
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16()) {
         GTEST_SKIP() << "Host has no native bf16 support.";
     }
-    if (inType == ElementType::f16 && !ov::with_cpu_x86_avx512_core_fp16()) {
+    if (inType == ElementType::f16 && !ov::intel_cpu::hasHardwareSupport(ElementType::f16)) {
         GTEST_SKIP() << "Host has no native f16 support.";
     }
 
@@ -234,9 +238,30 @@ void ConcatSDPTest::generate_inputs(const std::vector<ov::Shape>& targetInputSta
     past_shape[2] = starts_conversation ? 0 : m_accum_L_q;
     m_accum_L_q = past_shape[2] + q_shape[2];
 
-    inputs.insert({params[0], fill_gaussian(params[0], q_shape, idx + 1)});
-    inputs.insert({params[1], fill_gaussian(params[1], kv_shape, idx + 2)});
-    inputs.insert({params[2], fill_gaussian(params[2], kv_shape, idx + 3)});
+    if (m_force_u8_zero_point_overflow_inputs) {
+        auto fill_fp16 = [](const std::shared_ptr<ov::op::v0::Parameter>& param,
+                            const ov::Shape& shape,
+                            const std::function<ov::float16(size_t)>& value_at) {
+            ov::Tensor tensor{param->get_element_type(), shape};
+            auto* values = static_cast<ov::float16*>(tensor.data());
+            for (size_t i = 0; i < tensor.get_size(); ++i) {
+                values[i] = value_at(i % shape.back());
+            }
+            return tensor;
+        };
+        inputs.insert({params[0], fill_fp16(params[0], q_shape, [](size_t i) {
+                           return ov::float16(i % 2 == 0 ? 1e-3F : -1e-3F);
+                       })});
+        inputs.insert({params[1], fill_fp16(params[1], kv_shape, [](size_t i) {
+                           // These alternating values quantize to the u8 endpoints 255 and 0.
+                           return ov::float16(i % 2 == 0 ? -59968.0F : -60000.0F);
+                       })});
+        inputs.insert({params[2], fill_fp16(params[2], kv_shape, [](size_t) { return ov::float16(1.0F); })});
+    } else {
+        inputs.insert({params[0], fill_gaussian(params[0], q_shape, idx + 1)});
+        inputs.insert({params[1], fill_gaussian(params[1], kv_shape, idx + 2)});
+        inputs.insert({params[2], fill_gaussian(params[2], kv_shape, idx + 3)});
+    }
     inputs.insert({params[3], fill_gaussian(params[3], past_shape, idx + 4)});
     inputs.insert({params[4], fill_gaussian(params[4], past_shape, idx + 5)});
     inputs.insert({params[5], fill_beam_idx(params[5], ov::Shape{q_shape[0]}, idx)});
@@ -315,6 +340,40 @@ TEST_P(ConcatSDPTest, CompareWithRefs) {
             }
         }
     }
+}
+
+TEST_P(ConcatSDPU8ZeroPointTest, KeepsFp16AttentionOutputFinite) {
+#if !defined(OPENVINO_ARCH_ARM64) && !defined(OPENVINO_ARCH_ARM)
+    GTEST_SKIP() << "This regression targets the ARM FP16/u8 attention kernel.";
+#else
+    m_force_u8_zero_point_overflow_inputs = true;
+
+    auto fp16_cache_config = configuration;
+    fp16_cache_config["KEY_CACHE_PRECISION"] = "f16";
+    fp16_cache_config["VALUE_CACHE_PRECISION"] = "f16";
+    const auto control = run_test(function, fp16_cache_config);
+    const auto actual = run_test(function, configuration);
+    CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
+    CheckNumberOfNodesWithType(compiledModel, "Concatenation", 0);
+    CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
+
+    auto expect_finite = [](const std::vector<std::vector<ov::Tensor>>& outputs) {
+        for (const auto& iteration : outputs) {
+            for (const auto& output : iteration) {
+                ASSERT_EQ(output.get_element_type(), ElementType::f16);
+                const auto* values = static_cast<const ov::float16*>(output.data());
+                for (size_t i = 0; i < output.get_size(); ++i) {
+                    ASSERT_TRUE(std::isfinite(static_cast<float>(values[i]))) << "nonfinite result at index " << i;
+                }
+            }
+        }
+    };
+    expect_finite(control);
+    expect_finite(actual);
+    ASSERT_EQ(control.size(), actual.size());
+    ASSERT_EQ(control.size(), 1u);
+    compare(control.front(), actual.front());
+#endif
 }
 
 std::string ConcatSDPResetStateTest::getTestCaseName(const testing::TestParamInfo<ConcatSDPTestParams>& obj) {

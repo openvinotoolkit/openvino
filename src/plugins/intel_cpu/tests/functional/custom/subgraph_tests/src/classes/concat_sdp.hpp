@@ -60,10 +60,13 @@ protected:
     int64_t m_headNumKV = 8;
     int m_iter = 0;
     size_t m_accum_L_q = 0;
+    bool m_force_u8_zero_point_overflow_inputs = false;
     // Iteration indices at which the KV-cache states are reset before the infer, i.e. the
     // first prompt of a new conversation. Iteration 0 is implicitly a conversation start
     std::set<size_t> m_resetBefore;
 };
+
+class ConcatSDPU8ZeroPointTest : public ConcatSDPTest {};
 
 // Same subgraph as ConcatSDPTest, but the iteration list is split into several conversations
 // by `reset_state` calls, with a different batch in each conversation
