@@ -185,6 +185,9 @@ public:
                               + _deform_conv_dep_offset);
     }
 
+    memory::ptr activations_zero_points_s32_memory() const { return _activations_zero_points_s32; }
+    void set_activations_zero_points_s32_memory(memory::ptr mem) { _activations_zero_points_s32 = std::move(mem); }
+
     memory::ptr compensation_memory() const {
         return dep_memory_ptr(2 + 1 * static_cast<int>(bias_term())
                               + 1 * static_cast<int>(weights_zero_points_term())
@@ -200,6 +203,7 @@ public:
 
 private:
     int32_t _deform_conv_dep_offset = 0;
+    memory::ptr _activations_zero_points_s32;
 };
 
 using convolution_inst = typed_primitive_inst<convolution>;

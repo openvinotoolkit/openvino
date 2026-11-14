@@ -11264,6 +11264,57 @@ TEST(convolution_gpu_onednn, support_activation_zero_points_for_i32) {
         }
 }
 
+// Two dynamic convolutions with equal params and different activation zero points: the second one to run gets its
+// oneDNN impl from the implementations cache, created there for the first. Each must still use its own zero points.
+TEST(convolution_gpu_onednn, activation_zero_points_with_impl_from_cache) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP();
+
+    const int64_t ifm = 16, ofm = 16, k = 3, spatial = 6;
+    const uint8_t input_value = 10;
+    const std::vector<uint8_t> a_zp_values = {3, 7};
+
+    auto weights = engine.allocate_memory({{ofm, ifm, k, k}, data_types::i8, format::bfyx});
+    set_values(weights, std::vector<int8_t>(weights->count(), 1));
+
+    topology topology(input_layout("input", layout{{ov::Dimension::dynamic(), ifm, spatial, spatial}, data_types::u8, format::bfyx}),
+                      data("weights", weights));
+    for (size_t i = 0; i < a_zp_values.size(); ++i) {
+        const auto id = std::to_string(i);
+        auto a_zp = engine.allocate_memory({{1, ifm, 1, 1}, data_types::u8, format::bfyx});
+        set_values(a_zp, std::vector<uint8_t>(ifm, a_zp_values[i]));
+        topology.add(data("a_zp" + id, a_zp),
+                     convolution("conv" + id, input_info("input"), "weights", "", "", "a_zp" + id, "", 1,
+                                 {1, 1}, {1, 1}, {0, 0}, {0, 0}, false, data_types::f32),
+                     reorder("out" + id, input_info("conv" + id), format::bfyx, data_types::f32));
+    }
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    // The last batch returns to an earlier shape, so the impl is replaced again
+    for (int64_t batch : {1, 2, 1}) {
+        auto input = engine.allocate_memory({{batch, ifm, spatial, spatial}, data_types::u8, format::bfyx});
+        set_values(input, std::vector<uint8_t>(input->count(), input_value));
+        network.set_input_data("input", input);
+        auto outputs = network.execute();
+
+        for (size_t i = 0; i < a_zp_values.size(); ++i) {
+            ASSERT_TRUE(network.get_primitive("conv" + std::to_string(i))->get_impl()->is_onednn());
+            // All weights are 1: out = sum over ifm * k * k of (input - a_zp)
+            const float expected = static_cast<float>(ifm * k * k * (input_value - a_zp_values[i]));
+            auto output = outputs.at("out" + std::to_string(i)).get_memory();
+            cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+            ASSERT_EQ(output->count(), static_cast<size_t>(batch * ofm * (spatial - k + 1) * (spatial - k + 1)));
+            for (size_t j = 0; j < output->count(); ++j)
+                ASSERT_EQ(expected, output_ptr[j]) << "conv" << i << " batch " << batch << " index " << j;
+        }
+    }
+}
+
 TEST(convolution_gpu_onednn, eltw_and_bin_double_shift_in_blob_cache) {
     auto& engine = get_test_engine();
     auto stream_ptr = get_test_stream_ptr();
