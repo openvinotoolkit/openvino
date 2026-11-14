@@ -73,6 +73,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/mem_reset_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/memory_dependency_set_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/nodes_ordering_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/ocl_v2_impl_base_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/primitive_comparison_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/command_list_and_recorder_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/shape_predictor_test.cpp

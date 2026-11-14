@@ -97,16 +97,18 @@ bool use_dpas_score(const kernel_impl_params& params) {
     return can_use_dpas_score(*desc, h_iq, params.get_device_info(), params.get_program().get_config());
 }
 
+bool use_dpas_prefill(const kernel_impl_params& params) {
+    return !is_decode_shape(params) && use_dpas_score(params);
+}
+
+/// f32 element capacity of BLOCK_SCORES: every path is row-chunked under the score budget.
 size_t score_scratch_elems(const kernel_impl_params& params, const qsa_indexer& /*desc*/) {
     const auto& index_query_shape = params.get_input_layout(QSAIn::INDEX_QUERY).get_shape();
-    const auto tokens = std::max<size_t>(1, index_query_shape[0] * index_query_shape[1]);
+    const auto tokens = index_query_shape[0] * index_query_shape[1];
     const auto& summary_shape = params.get_input_layout(QSAIn::BLOCK_INDEX_KEYS_CACHE).get_shape();
     const auto pitch = qsa::score_pitch(summary_shape[2]);
-    if (!is_decode_shape(params) && use_dpas_score(params)) {
-        return tokens * pitch;
-    }
-    const auto budget_rows = std::max<size_t>(1, qsa::score_budget_bytes(params.get_program().get_config()) / (pitch * sizeof(float)));
-    return std::min(tokens, budget_rows) * pitch;
+    const size_t min_rows = use_dpas_prefill(params) ? qsa::dpas_query_tile : 1;
+    return qsa::score_scratch_rows(tokens, pitch, params.get_program().get_config(), min_rows) * pitch;
 }
 
 class DensePrepareGenerator : public qsa::QsaGenerator {
@@ -179,7 +181,7 @@ protected:
         args.push_back({ArgumentDescriptor::Types::OUTPUT, QSAOut::BLOCK_INDEX_KEYS_CACHE});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::KEY_LENGTH});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAIndexerInternalBufIdx::BLOCK_SCORES});
-        for (uint32_t i = 0; i < 4; i++) {
+        for (uint32_t i = 0; i < 6; i++) {
             args.push_back({ArgumentDescriptor::Types::SCALAR, i});
         }
         return args;
@@ -193,14 +195,16 @@ protected:
             auto* rtp = rt_of(rt);
             const auto sg = qsa::subgroup_size(params.get_device_info());
             auto& wgs = kd.params.workGroups;
-            wgs.global = {std::max<size_t>(1, rtp->score_tile_count) * score_wg_size * sg, 1, 1};
+            wgs.global = {std::max<size_t>(1, rtp->chunk_tile_count) * score_wg_size * sg, 1, 1};
             wgs.local = {score_wg_size * sg, 1, 1};
 
             kd.params.scalars.clear();
-            qsa::push_u32(kd, rtp->score_tile_count);
+            qsa::push_u32(kd, rtp->chunk_tile_count);
             qsa::push_u32(kd, rtp->seq_len);
             qsa::push_u32(kd, rtp->summary_stride);
             qsa::push_u32(kd, rtp->pitch);
+            qsa::push_u32(kd, rtp->chunk_row_begin);
+            qsa::push_u32(kd, rtp->chunk_row_end);
         }};
     }
 };
@@ -378,19 +382,19 @@ public:
         auto* rtp = &rt();
         auto last = execute_stage(copy_state(events, instance), instance, prepare);
         const bool decode = is_decode_shape(params);
-        if (!decode && use_dpas_score(params)) {
-            rtp->chunk_row_begin = 0;
-            rtp->chunk_row_end = rtp->num_tokens;
-            auto scored = execute_stage({last}, instance, score_dpas);
-            return execute_stage({scored}, instance, topk);
-        }
+        // Chunks reuse one bounded BLOCK_SCORES buffer, so they run strictly in sequence.
+        Stage& scorer = use_dpas_prefill(params) ? *score_dpas : *score_partition;
         Stage& finalizer = decode ? *topk_decode : *topk;
         for (size_t begin = 0; begin < rtp->num_tokens; begin += rtp->chunk_rows) {
             rtp->chunk_row_begin = begin;
             rtp->chunk_row_end = std::min(rtp->num_tokens, begin + rtp->chunk_rows);
-            qsa::force_stage_refresh(*score_partition);
+            // A chunk of n rows spans at most n / L + 2 batch rows, each adding at most two partial query tiles.
+            const size_t rows = rtp->chunk_row_end - rtp->chunk_row_begin;
+            const size_t batch_rows = std::min(rtp->batch, rows / std::max<size_t>(1, rtp->seq_len) + 2);
+            rtp->chunk_tile_count = std::min(rtp->score_tile_count, (rows + qsa::dpas_query_tile - 1) / qsa::dpas_query_tile + 2 * batch_rows);
+            qsa::force_stage_refresh(scorer);
             qsa::force_stage_refresh(finalizer);
-            auto scored = execute_stage({last}, instance, score_partition);
+            auto scored = execute_stage({last}, instance, scorer);
             last = execute_stage({scored}, instance, finalizer);
         }
         return last;
@@ -423,10 +427,11 @@ public:
         const size_t max_blocks = std::max<size_t>(1, rtp->summary_stride);
         rtp->pitch = qsa::score_pitch(max_blocks);
         rtp->num_partitions = std::max<size_t>(1, (max_blocks + score_partition_blocks - 1) / score_partition_blocks);
-        rtp->chunk_rows = std::max<size_t>(1, std::min(rtp->num_tokens, score_scratch_elems(params, *desc) / rtp->pitch));
+        rtp->chunk_rows = qsa::score_chunk_rows(rtp->num_tokens, score_scratch_elems(params, *desc) / rtp->pitch, use_dpas_prefill(params));
         rtp->chunk_row_begin = 0;
         rtp->chunk_row_end = rtp->num_tokens;
         rtp->score_tile_count = batch * ((seq_len + qsa::dpas_query_tile - 1) / qsa::dpas_query_tile);
+        rtp->chunk_tile_count = rtp->score_tile_count;
     }
 
 private:

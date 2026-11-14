@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "primitive_inst.h"
 #include <iostream>
 
 
@@ -503,6 +504,31 @@ void print_profiling_all_exectimes(const std::map<cldnn::primitive_id, cldnn::ne
         std::cout << o.first << ":" << time << std::endl;
     }
     std::cout << std::endl;
+}
+
+void rebind_impl_through_set_kernels(cldnn::network& net, const cldnn::primitive_id& id) {
+    auto inst = net.get_primitive(id);
+    const auto& params = *inst->get_impl_params();
+    ASSERT_FALSE(params.is_dynamic());
+    auto impl = inst->get_impl()->m_manager->create(inst->get_node(), params);
+    ASSERT_NE(impl, nullptr);
+    impl->set_node_params(inst->get_node());
+    const auto sources = impl->get_kernels_source();
+    std::vector<std::string> entry_points;
+    for (const auto& source : sources) {
+        entry_points.push_back(source->entry_point);
+    }
+    impl->set_kernels(net.get_program()->get_kernels_cache().compile(params, sources));
+    const auto kernels = impl->get_kernels();
+    ASSERT_EQ(kernels.size(), entry_points.size());
+    for (size_t i = 0; i < kernels.size(); i++) {
+        ASSERT_NE(kernels[i], nullptr) << id << ": stage " << i << " got no kernel";
+        EXPECT_EQ(kernels[i]->get_id(), entry_points[i]) << id << ": stage " << i << " got another stage's kernel";
+    }
+    inst->set_impl(std::move(impl));
+    // Same flags a fresh instance starts with: rebind the arguments and recompute the dispatch data of the new impl.
+    inst->set_flag(cldnn::ExecutionFlags::IMPL_CHANGED);
+    inst->set_flag(cldnn::ExecutionFlags::SHAPE_CHANGED);
 }
 
 }  // namespace tests

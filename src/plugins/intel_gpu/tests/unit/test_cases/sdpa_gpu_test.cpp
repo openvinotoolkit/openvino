@@ -167,7 +167,7 @@ struct sdpa_gpu_test : public ::testing::TestWithParam<sdpa_test_params> {
         return {output, net};
     }
 
-    void execute(sdpa_test_params& p, bool is_caching_test = false) {
+    void execute(sdpa_test_params& p, bool is_caching_test = false, bool rebind_kernels = false) {
         const auto head_size = p.head_size;
         const auto num_heads = p.num_heads;
         const auto seq_length_q = p.sequence_length_q;
@@ -237,6 +237,28 @@ struct sdpa_gpu_test : public ::testing::TestWithParam<sdpa_test_params> {
                                         input0_layout, input1_layout, input2_layout, input3_layout,
                                         input0, input1, input2, input3,
                                         use_scalar_scale_val, scale_val, use_scalar_attn_mask, attn_mask_val, p.dt);
+
+        if (rebind_kernels) {
+            auto bytes = [](const cldnn::memory::ptr& mem) {
+                cldnn::mem_lock<char, mem_lock_type::read> lock(mem, get_test_stream());
+                return std::vector<char>(lock.data(), lock.data() + mem->size());
+            };
+            const auto before = bytes(mem_opt_ptr);
+            // Graph passes may rename the attention node, so look it up by type.
+            cldnn::primitive_id sdpa_id;
+            std::string executed;
+            for (const auto& id : net_opt_ptr->get_executed_primitive_ids()) {
+                executed += id + " ";
+                if (net_opt_ptr->get_primitive(id)->get_node().is_type<scaled_dot_product_attention>()) {
+                    sdpa_id = id;
+                }
+            }
+            ASSERT_FALSE(sdpa_id.empty()) << "no SDPA primitive among: " << executed;
+            rebind_impl_through_set_kernels(*net_opt_ptr, sdpa_id);
+            ASSERT_FALSE(HasFatalFailure());
+            auto outputs = net_opt_ptr->execute();
+            ASSERT_EQ(bytes(outputs.at("result").get_memory()), before);
+        }
 
         if (is_caching_test) {
             auto inst = net_opt_ptr->get_primitive("sdpa");
@@ -329,6 +351,16 @@ TEST_P(sdpa_gpu_test, basic) {
 TEST_P(sdpa_gpu_test, basic_caching) {
     auto p = GetParam();
     execute(p, true);
+}
+
+// The static impl keeps only some of its stages (e.g. just the micro multi-token one), so set_kernels() must bind the
+// compiled kernels to the activated stages.
+TEST_P(sdpa_gpu_test, basic_set_kernels) {
+    auto p = GetParam();
+    if (p.dynamic) {
+        GTEST_SKIP() << "rebinding needs a static impl";
+    }
+    execute(p, false, true);
 }
 
 // Test that an explicit causal attention mask produces the same result as is_causal=true.

@@ -92,7 +92,7 @@ inline void add_dense_cache_jit(JitConstants& jit, const std::string& cache, con
     jit.make(prefix + "ZP_F16", quant.enabled() && ov::intel_gpu::op::dense_zp_is_f16(quant) ? 1 : 0);
 }
 
-/// Upper bound on the decode BLOCK_SCORES scratch. The debug option QSA_SCORE_BUDGET_BYTES can shrink it to force the
+/// Upper bound on the BLOCK_SCORES scratch of every scoring path. The debug option QSA_SCORE_BUDGET_BYTES can shrink it to force the
 /// multi-chunk path with small shapes.
 inline size_t score_budget_bytes(const ov::intel_gpu::ExecutionConfig& config) {
     const auto override_bytes = GPU_DEBUG_VALUE_OR(config.get_qsa_score_budget_bytes(), 0);
@@ -103,6 +103,27 @@ inline size_t score_budget_bytes(const ov::intel_gpu::ExecutionConfig& config) {
 /// leave their row.
 inline size_t score_pitch(size_t max_blocks) {
     return (std::max<size_t>(1, max_blocks) + 7) / 8 * 8;
+}
+
+inline constexpr size_t dpas_query_tile = 16;
+
+/// Rows of BLOCK_SCORES to allocate: the score budget in rows of `pitch`, but at least `min_rows` (one query tile for the
+/// systolic scorer) and at most `tokens`.
+inline size_t score_scratch_rows(size_t tokens, size_t pitch, const ov::intel_gpu::ExecutionConfig& config, size_t min_rows) {
+    const auto budget_rows = score_budget_bytes(config) / (pitch * sizeof(float));
+    return std::min(std::max<size_t>(1, tokens), std::max(budget_rows, min_rows));
+}
+
+/// Rows per BLOCK_SCORES chunk given the rows the scratch holds; the systolic scorer's chunks are whole query tiles, so
+/// only a tile straddling a sequence start is scored twice.
+inline size_t score_chunk_rows(size_t tokens, size_t capacity_rows, bool whole_tiles) {
+    if (capacity_rows >= tokens) {
+        return std::max<size_t>(1, tokens);
+    }
+    if (whole_tiles) {
+        capacity_rows = capacity_rows / dpas_query_tile * dpas_query_tile;
+    }
+    return std::max<size_t>(1, capacity_rows);
 }
 
 /// Most subgroups of a top-k work-group (sizes its SLM) and the count used by the longest rows.
@@ -124,7 +145,6 @@ constexpr size_t topk_reg_keys = 64;
 /// Thresholds counted per top-k probe (at most 7): 3 -> 16 probes for 32 key bits; more only adds per-key work.
 constexpr size_t topk_thresholds = 3;
 
-inline constexpr size_t dpas_query_tile = 16;
 inline constexpr size_t dpas_k_step = 16;
 inline constexpr size_t dpas_wide_cols = 32;
 inline constexpr size_t gqa_workers = 4;

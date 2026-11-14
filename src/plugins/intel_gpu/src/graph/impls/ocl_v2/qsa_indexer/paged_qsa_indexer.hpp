@@ -20,7 +20,7 @@ namespace ov::intel_gpu::ocl {
 /// Internal (scratch) buffers of the OpenCL PagedQSAIndexer implementation.
 struct PagedQSAIndexerInternalBufIdx {
     static constexpr size_t INDEXER_Q = 0;     ///< f16 [num_tokens, H_iq, D_idx]
-    static constexpr size_t BLOCK_SCORES = 1;  ///< f32 [rows, pitch]; rows bounded by the score budget unless the systolic scorer runs
+    static constexpr size_t BLOCK_SCORES = 1;  ///< f32 [rows, pitch]; rows bounded by the score budget
 
     static constexpr size_t COUNT = 2;
 };
@@ -33,6 +33,7 @@ struct PagedQSAIndexerRuntimeParams : public ImplRuntimeParams {
     size_t pitch = 8;  ///< row pitch of BLOCK_SCORES (multiple of 8)
     size_t prepare_wg_count = 0;
     size_t score_tile_count = 0;
+    size_t chunk_tile_count = 0;  ///< query tiles the systolic scorer dispatches for the current row chunk
     size_t num_partitions = 1;
     size_t chunk_rows = 1;
     size_t chunk_row_begin = 0;

@@ -160,6 +160,20 @@ inline bool FUNC(qsa_resolve_tile_paged)(const __global int* subsequence_begins,
     return false;
 }
 
+// Index (in the qsa_resolve_tile_paged numbering) of the tile that holds flattened token `row`.
+inline uint FUNC(qsa_first_tile_paged)(const __global int* subsequence_begins, uint num_seqs, uint row, uint tile_tokens) {
+    uint acc = 0;
+    for (uint i = 0; i < num_seqs; i++) {
+        const uint begin = (uint)subsequence_begins[i];
+        const uint end = (uint)subsequence_begins[i + 1];
+        if (row < end) {
+            return acc + (row - begin) / tile_tokens;
+        }
+        acc += (end - begin + tile_tokens - 1) / tile_tokens;
+    }
+    return acc;
+}
+
 // Dense token t = b * seq_len + l -> batch and logical position; a left-padding row yields 0xFFFFFFFF.
 inline void FUNC(qsa_resolve_token_dense)(const __global int* key_length, uint seq_len, uint token_idx, __private uint* batch, __private uint* abs_pos) {
     *batch = token_idx / seq_len;

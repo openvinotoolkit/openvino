@@ -110,22 +110,23 @@ bool use_dpas_score(const kernel_impl_params& params) {
     return can_use_dpas_score(*desc, page_size_of(params), h_iq, params.get_device_info(), params.get_program().get_config());
 }
 
+bool use_dpas_prefill(const kernel_impl_params& params) {
+    return !is_decode_shape(params) && use_dpas_score(params);
+}
+
 /// Row pitch the scorer / finalizer agree on when the pool holds the most blocks it can ever list.
 size_t pool_pitch(const kernel_impl_params& params, const paged_qsa_indexer& desc) {
     const auto& kcache_shape = params.get_input_layout(QSAIn::INDEX_KEY_CACHE).get_shape();
     return qsa::score_pitch(kcache_shape[0] * page_size_of(params) / desc.key_block_size);
 }
 
-/// f32 element capacity of BLOCK_SCORES. Only the systolic prefill scorer writes one row per token; every other path
-/// is row-chunked under the score budget. Static shapes only, so allocation and per-call planning agree.
+/// f32 element capacity of BLOCK_SCORES: every path is row-chunked under the score budget. Static shapes only, so
+/// allocation and per-call planning agree.
 size_t score_scratch_elems(const kernel_impl_params& params, const paged_qsa_indexer& desc) {
-    const auto tokens = std::max<size_t>(1, params.get_input_layout(QSAIn::INDEX_QUERY).get_shape()[0]);
+    const auto tokens = params.get_input_layout(QSAIn::INDEX_QUERY).get_shape()[0];
     const auto pitch = pool_pitch(params, desc);
-    if (!is_decode_shape(params) && use_dpas_score(params)) {
-        return tokens * pitch;
-    }
-    const auto budget_rows = std::max<size_t>(1, qsa::score_budget_bytes(params.get_program().get_config()) / (pitch * sizeof(float)));
-    return std::min(tokens, budget_rows) * pitch;
+    const size_t min_rows = use_dpas_prefill(params) ? qsa::dpas_query_tile : 1;
+    return qsa::score_scratch_rows(tokens, pitch, params.get_program().get_config(), min_rows) * pitch;
 }
 
 class PagedPrepareGenerator : public qsa::QsaGenerator {
@@ -197,7 +198,7 @@ protected:
             args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(idx)});
         }
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedQSAIndexerInternalBufIdx::BLOCK_SCORES});
-        for (uint32_t i = 0; i < 3; i++) {
+        for (uint32_t i = 0; i < 5; i++) {
             args.push_back({ArgumentDescriptor::Types::SCALAR, i});
         }
         return args;
@@ -212,13 +213,15 @@ protected:
             const auto sg = qsa::subgroup_size(params.get_device_info());
             auto& wgs = kd.params.workGroups;
             // One work-group owns one 16-query tile.
-            wgs.global = {std::max<size_t>(1, rtp->score_tile_count) * score_wg_size * sg, 1, 1};
+            wgs.global = {std::max<size_t>(1, rtp->chunk_tile_count) * score_wg_size * sg, 1, 1};
             wgs.local = {score_wg_size * sg, 1, 1};
 
             kd.params.scalars.clear();
-            qsa::push_u32(kd, rtp->score_tile_count);
+            qsa::push_u32(kd, rtp->chunk_tile_count);
             qsa::push_u32(kd, rtp->num_seqs);
             qsa::push_u32(kd, rtp->pitch);
+            qsa::push_u32(kd, rtp->chunk_row_begin);
+            qsa::push_u32(kd, rtp->chunk_row_end);
         }};
     }
 };
@@ -350,8 +353,8 @@ public:
         return *static_cast<PagedQSAIndexerRuntimeParams*>(m_rt_params.get());
     }
 
-    // Decode: prepare -> [score_partition -> topk_decode] per row chunk. Prefill/mixed: score_dpas -> topk when the
-    // systolic scorer is available, otherwise the same row-chunked partition scorer with the prefill top-k.
+    // Decode: prepare -> [score_partition -> topk_decode] per row chunk. Prefill/mixed: [score_dpas -> topk] per row chunk
+    // when the systolic scorer is available, otherwise the partition scorer with the prefill top-k.
     explicit PagedQSAIndexerImpl(const RuntimeParams& params) : PagedQSAIndexerImpl() {
         const bool xmx = use_dpas_score(params);
         add_stage(prepare, params);
@@ -399,21 +402,19 @@ public:
         auto* rtp = &rt();
         auto last = execute_stage(events, instance, prepare);
         const bool decode = is_decode_shape(params);
-        if (!decode && use_dpas_score(params)) {
-            rtp->chunk_row_begin = 0;
-            rtp->chunk_row_end = rtp->num_tokens;
-            auto scored = execute_stage({last}, instance, score_dpas);
-            return execute_stage({scored}, instance, topk);
-        }
         // Chunks reuse one bounded BLOCK_SCORES buffer, so they run strictly in sequence; the stages are
         // re-dispatched per chunk, hence the explicit refresh.
+        Stage& scorer = use_dpas_prefill(params) ? *score_dpas : *score_partition;
         Stage& finalizer = decode ? *topk_decode : *topk;
         for (size_t begin = 0; begin < rtp->num_tokens; begin += rtp->chunk_rows) {
             rtp->chunk_row_begin = begin;
             rtp->chunk_row_end = std::min(rtp->num_tokens, begin + rtp->chunk_rows);
-            qsa::force_stage_refresh(*score_partition);
+            // A chunk of n rows over k sequences touches at most n / 16 + 2k query tiles.
+            const size_t rows = rtp->chunk_row_end - rtp->chunk_row_begin;
+            rtp->chunk_tile_count = std::min(rtp->score_tile_count, (rows + qsa::dpas_query_tile - 1) / qsa::dpas_query_tile + 2 * rtp->num_seqs);
+            qsa::force_stage_refresh(scorer);
             qsa::force_stage_refresh(finalizer);
-            auto scored = execute_stage({last}, instance, score_partition);
+            auto scored = execute_stage({last}, instance, scorer);
             last = execute_stage({scored}, instance, finalizer);
         }
         return last;
@@ -446,9 +447,10 @@ public:
         rtp->num_partitions = std::max<size_t>(1, (max_blocks + score_partition_blocks - 1) / score_partition_blocks);
         // The runtime pitch never exceeds the pool-wide pitch the buffer was sized for, so a chunk can hold more rows
         // than the static budget alone would allow.
-        rtp->chunk_rows = std::max<size_t>(1, std::min(rtp->num_tokens, score_scratch_elems(params, *desc) / rtp->pitch));
+        rtp->chunk_rows = qsa::score_chunk_rows(rtp->num_tokens, score_scratch_elems(params, *desc) / rtp->pitch, use_dpas_prefill(params));
         rtp->chunk_row_begin = 0;
         rtp->chunk_row_end = rtp->num_tokens;
+        rtp->chunk_tile_count = rtp->score_tile_count;
     }
 };
 
