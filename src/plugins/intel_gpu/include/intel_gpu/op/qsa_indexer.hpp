@@ -32,7 +32,7 @@ public:
         static constexpr size_t KEY_LENGTH = 4;              ///< [B], valid tokens after the call
         static constexpr size_t Q_NORM_WEIGHT = 5;           ///< [D_idx]
         static constexpr size_t K_NORM_WEIGHT = 6;           ///< [D_idx]
-        static constexpr size_t BLOCK_INDEX_KEYS_CACHE = 7;  ///< [B, H_ik, floor(S_cap/r), D_idx]
+        static constexpr size_t BLOCK_INDEX_KEYS_CACHE = 7;  ///< [B, H_ik, Bp, D_idx], Bp must cover the complete past blocks
         static constexpr size_t PAST_INCOMPLETE_RAW_K = 8;   ///< [B, H_ik, r-1, D_idx], slot p % r
         static constexpr size_t PAST_INCOMPLETE_ROPE = 9;    ///< [B, 2*indexer_rotary_dim], (cos_j, sin_j) interleaved
 
@@ -43,7 +43,7 @@ public:
     struct OutputIdx {
         static constexpr size_t SELECTED_BLOCK_INDICES = 0;  ///< [B, num_selection_heads, L, block_topk]
         static constexpr size_t SELECTED_BLOCK_COUNT = 1;    ///< [B, num_selection_heads, L]
-        static constexpr size_t BLOCK_INDEX_KEYS_CACHE = 2;  ///< same shape as input BLOCK_INDEX_KEYS_CACHE
+        static constexpr size_t BLOCK_INDEX_KEYS_CACHE = 2;  ///< [B, H_ik, max(key_length)/r, D_idx], rows past a row's last block are zero
         static constexpr size_t PAST_INCOMPLETE_RAW_K = 3;   ///< same shape as input PAST_INCOMPLETE_RAW_K
         static constexpr size_t PAST_INCOMPLETE_ROPE = 4;    ///< same shape as input PAST_INCOMPLETE_ROPE
 
@@ -75,6 +75,15 @@ public:
 
     /// `scale`, or its 1 / sqrt(indexer_head_dim) default when unset (0).
     static float effective_scale(const Config& config);
+
+    /// Rows of the block_index_keys_cache output when the key_length values are known: the complete blocks of the
+    /// longest row, max(key_length) / r, as QSAPrepare defines. Shared by the op and the cldnn primitive.
+    static ov::Dimension exact_cache_blocks(int64_t longest_key_length, size_t key_block_size);
+
+    /// Rows of the block_index_keys_cache output when only shapes are known, as QSAPrepare infers them: [0, Bp + ceil(L / r)]
+    /// when that bound is static (the incomplete block holds at most r - 1 past tokens), else dynamic. Shared by the op
+    /// and the cldnn primitive.
+    static ov::Dimension bounded_cache_blocks(const ov::Dimension& past_blocks, const ov::Dimension& new_tokens, size_t key_block_size);
 
     /// H_iq, derived from index_query's static shape (last dim / indexer_head_dim). Never cached.
     size_t get_index_query_heads() const;

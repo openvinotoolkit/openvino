@@ -4,6 +4,7 @@
 
 #include "intel_gpu/op/qsa_indexer.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <initializer_list>
 #include <string>
@@ -47,6 +48,21 @@ bool QSAIndexer::validate_config(const Config& c, std::string& reason) {
 
 float QSAIndexer::effective_scale(const Config& c) {
     return c.scale > 0.0f ? c.scale : 1.0f / std::sqrt(static_cast<float>(c.indexer_head_dim));
+}
+
+ov::Dimension QSAIndexer::exact_cache_blocks(int64_t longest_key_length, size_t key_block_size) {
+    OPENVINO_ASSERT(key_block_size > 0, "QSAIndexer: key_block_size must be positive");
+    return ov::Dimension(std::max<int64_t>(longest_key_length, 0) / static_cast<int64_t>(key_block_size));
+}
+
+ov::Dimension QSAIndexer::bounded_cache_blocks(const ov::Dimension& past_blocks, const ov::Dimension& new_tokens, size_t key_block_size) {
+    OPENVINO_ASSERT(key_block_size > 0, "QSAIndexer: key_block_size must be positive");
+    // As QSAPrepare: only a static Bp + ceil(L / r) bounds the rows, anything else leaves them dynamic.
+    if (!past_blocks.is_static() || !new_tokens.is_static()) {
+        return ov::Dimension::dynamic();
+    }
+    const auto r = static_cast<int64_t>(key_block_size);
+    return ov::Dimension(0, past_blocks.get_length() + (new_tokens.get_length() + r - 1) / r);
 }
 
 size_t QSAIndexer::get_index_query_heads() const {
@@ -138,8 +154,23 @@ void QSAIndexer::validate_and_infer_types() {
     set_output_size(OutputIdx::COUNT);
     set_output_type(OutputIdx::SELECTED_BLOCK_INDICES, element::i32, selected_block_indices_ps);
     set_output_type(OutputIdx::SELECTED_BLOCK_COUNT, element::i32, selected_block_count_ps);
-    for (auto [out, in] : {std::pair{OutputIdx::BLOCK_INDEX_KEYS_CACHE, InputIdx::BLOCK_INDEX_KEYS_CACHE},
-                           std::pair{OutputIdx::PAST_INCOMPLETE_RAW_K, InputIdx::PAST_INCOMPLETE_RAW_K},
+    // The block-key cache holds the complete blocks of the longest row after the call, max(key_length) / r, as
+    // QSAPrepare defines: exact for a constant key_length, else only bounded by the shapes.
+    {
+        const auto& cache_ps = get_input_partial_shape(InputIdx::BLOCK_INDEX_KEYS_CACHE);
+        ov::PartialShape grown = cache_ps;
+        if (cache_ps.rank().is_static() && cache_ps.size() == 4) {
+            if (const auto key_length = ov::util::get_constant_from_source(input_value(InputIdx::KEY_LENGTH))) {
+                const auto lengths = key_length->cast_vector<int64_t>();
+                const auto longest = lengths.empty() ? int64_t{0} : *std::max_element(lengths.begin(), lengths.end());
+                grown[2] = exact_cache_blocks(longest, m_config.key_block_size);
+            } else {
+                grown[2] = bounded_cache_blocks(cache_ps[2], length, m_config.key_block_size);
+            }
+        }
+        set_output_type(OutputIdx::BLOCK_INDEX_KEYS_CACHE, get_input_element_type(InputIdx::BLOCK_INDEX_KEYS_CACHE), grown);
+    }
+    for (auto [out, in] : {std::pair{OutputIdx::PAST_INCOMPLETE_RAW_K, InputIdx::PAST_INCOMPLETE_RAW_K},
                            std::pair{OutputIdx::PAST_INCOMPLETE_ROPE, InputIdx::PAST_INCOMPLETE_ROPE}}) {
         set_output_type(out, get_input_element_type(in), get_input_partial_shape(in));
     }

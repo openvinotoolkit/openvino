@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include <set>
 #include <string>
+#include <vector>
 
 #include "intel_gpu/primitives/qsa_indexer.hpp"
 #include "primitive_inst.h"
@@ -20,6 +22,17 @@ public:
 
     program_node& input(size_t index = 0) const {
         return get_dependency(index);
+    }
+
+    // The block_index_keys_cache output has max(key_length) / r rows, so the output shape depends on the key_length
+    // values. As for paged_attention's past_lens, a key_length network input is uploaded blocking into lockable memory,
+    // so shape inference reads it on the host without synchronizing the queue.
+    std::set<size_t> get_lockable_input_ids() const override {
+        return {qsa_indexer::InputIdx::KEY_LENGTH};
+    }
+
+    std::vector<size_t> get_shape_infer_dependencies() const override {
+        return {qsa_indexer::InputIdx::KEY_LENGTH};
     }
 };
 using qsa_indexer_node = typed_program_node<qsa_indexer>;

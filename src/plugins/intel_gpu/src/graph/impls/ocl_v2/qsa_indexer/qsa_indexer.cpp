@@ -97,7 +97,7 @@ bool use_dpas_score(const kernel_impl_params& params) {
 size_t score_scratch_elems(const kernel_impl_params& params, const qsa_indexer& /*desc*/) {
     const auto& index_query_shape = params.get_input_layout(QSAIn::INDEX_QUERY).get_shape();
     const auto tokens = std::max<size_t>(1, index_query_shape[0] * index_query_shape[1]);
-    const auto& summary_shape = params.get_input_layout(QSAIn::BLOCK_INDEX_KEYS_CACHE).get_shape();
+    const auto& summary_shape = params.get_output_layout(QSAOut::BLOCK_INDEX_KEYS_CACHE).get_shape();
     const auto pitch = qsa::score_pitch(summary_shape[2]);
     if (!is_decode_shape(params) && use_dpas_score(params)) {
         return tokens * pitch;
@@ -410,7 +410,8 @@ public:
         rtp->seq_len = seq_len;
         rtp->num_tokens = batch * seq_len;
         rtp->index_query_heads = index_heads_4d(index_query_layout);
-        rtp->summary_stride = params.get_input_layout(QSAIn::BLOCK_INDEX_KEYS_CACHE).get_shape()[2];
+        // The cache the kernels work on is the output buffer (max(key_length) / r rows), so its row count is the batch pitch.
+        rtp->summary_stride = params.get_output_layout(QSAOut::BLOCK_INDEX_KEYS_CACHE).get_shape()[2];
 
         // key_length stays in GPU memory: every size below is a bound from shapes only and the kernels derive the real
         // work (and drop the excess) from key_length.
@@ -429,9 +430,13 @@ public:
 private:
     /// Functional state: every state output starts as a copy of its input, then prepare overwrites the entries this call
     /// produces. Inputs and outputs are distinct buffers, so prepare reads the old incomplete block without a hazard.
+    /// The block-key cache output has max(key_length) / r rows per (batch, head) and the input Bp, either may be larger:
+    /// each (batch, head) keeps its first min(Bp, out) rows, and when the output has more rows it is zeroed first, so the
+    /// rows past the last block of a shorter row are zero (as the CPU plugin); prepare writes the completed blocks.
     std::vector<event::ptr> copy_state(const std::vector<event::ptr>& events, primitive_inst& instance) {
         auto& stream = instance.get_network().get_stream();
-        if (stream.get_queue_type() == QueueTypes::out_of_order) {
+        const bool out_of_order = stream.get_queue_type() == QueueTypes::out_of_order;
+        if (out_of_order) {
             stream.wait_for_events(events);
         }
         std::vector<event::ptr> deps = events;
@@ -442,18 +447,42 @@ private:
         for (const auto& [in, out] : state) {
             auto src = instance.input_memory_ptr(in);
             auto dst = instance.output_memory_ptr(out);
-            const auto bytes = params.get_output_layout(out).bytes_count();
-            OPENVINO_ASSERT(!params.get_input_layout(in).data_padding && !params.get_output_layout(out).data_padding,
-                            "[GPU][OCL] qsa_indexer: padded state buffers are not supported");
-            OPENVINO_ASSERT(src->size() >= bytes && dst->size() >= bytes, "[GPU][OCL] qsa_indexer: state buffer is too small");
+            const auto& in_layout = params.get_input_layout(in);
+            const auto& out_layout = params.get_output_layout(out);
+            OPENVINO_ASSERT(!in_layout.data_padding && !out_layout.data_padding, "[GPU][OCL] qsa_indexer: padded state buffers are not supported");
+            const bool same_shape = in_layout.get_shape() == out_layout.get_shape();
+            OPENVINO_ASSERT(same_shape || in == QSAIn::BLOCK_INDEX_KEYS_CACHE, "[GPU][OCL] qsa_indexer: only the block-key cache may change shape");
+            OPENVINO_ASSERT(src->size() >= in_layout.bytes_count() && dst->size() >= out_layout.bytes_count(),
+                            "[GPU][OCL] qsa_indexer: state buffer is too small");
             const bool aliased = src == dst || (src->buffer_ptr() != nullptr && src->buffer_ptr() == dst->buffer_ptr());
-            // An aliased summary is safe (prepare only appends to it); the incomplete-block state is read and rewritten by
-            // different work-groups of one dispatch.
-            OPENVINO_ASSERT(!aliased || in == QSAIn::BLOCK_INDEX_KEYS_CACHE, "[GPU][OCL] qsa_indexer: incomplete-block state input and output must not alias");
-            if (bytes == 0 || aliased) {
+            // An aliased summary of unchanged shape is safe (prepare only appends to it); the incomplete-block state is read
+            // and rewritten by different work-groups of one dispatch.
+            OPENVINO_ASSERT(!aliased || (in == QSAIn::BLOCK_INDEX_KEYS_CACHE && same_shape),
+                            "[GPU][OCL] qsa_indexer: state input and output must not alias (unless the block-key cache keeps its shape)");
+            if (aliased || out_layout.bytes_count() == 0) {
                 continue;
             }
-            deps.push_back(dst->copy_from(stream, *src, 0, 0, bytes, false));
+            if (same_shape) {
+                deps.push_back(dst->copy_from(stream, *src, 0, 0, in_layout.bytes_count(), false));
+                continue;
+            }
+            // [B, H, Bp, Di] -> [B, H, out, Di].
+            const auto in_shape = in_layout.get_shape();
+            const auto out_shape = out_layout.get_shape();
+            const size_t row_bytes = in_shape[3] * ov::element::Type(in_layout.data_type).size();
+            const size_t src_pitch = in_shape[2] * row_bytes;
+            const size_t dst_pitch = out_shape[2] * row_bytes;
+            const size_t copy_bytes = std::min(in_shape[2], out_shape[2]) * row_bytes;
+            if (out_shape[2] > in_shape[2]) {
+                // The fill must land before the row copies: block on an out-of-order queue, where they are not ordered.
+                deps.push_back(dst->fill(stream, static_cast<unsigned char>(0), {}, out_of_order));
+            }
+            if (copy_bytes == 0) {
+                continue;
+            }
+            for (size_t i = 0; i < in_shape[0] * in_shape[1]; i++) {
+                deps.push_back(dst->copy_from(stream, *src, i * src_pitch, i * dst_pitch, copy_bytes, false));
+            }
         }
         return deps;
     }
