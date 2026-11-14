@@ -21,7 +21,8 @@ enum class ProjectorLayout {
     WindowedPatches,
     SplitMerger,
     PackedPatches,
-    TemporalPackedPatches
+    TemporalPackedPatches,
+    BatchedImage
 };
 
 struct GGUF_FRONTEND_API ProjectorResult {

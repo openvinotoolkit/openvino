@@ -343,6 +343,23 @@ TEST(GGUFExtensions, GGUFMakeStatefulAddsOnlyBeamIdx) {
     EXPECT_EQ(stateful, stateless);
 }
 
+// adapt_to_genai makes an already converted model stateful, so the pass also recognizes the
+// lowered ScatterUpdate write and must produce the same state as the conversion-time extension.
+TEST(GGUFExtensions, GGUFMakeStatefulRewritesLoweredCacheWrite) {
+    auto converted = kv_cache_write_builder().build();
+    pass::GGUFMakeStateful().run_on_model(converted);
+    auto extension = kv_cache_write_builder().build_with_extensions(
+        {std::make_shared<ov::frontend::DecoderTransformationExtension>(pass::GGUFMakeStateful())});
+
+    auto comparator = FunctionsComparator::with_default();
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    const auto result = comparator.compare(converted, extension);
+    EXPECT_TRUE(result.valid) << result.message;
+    EXPECT_EQ(count_ops_of_type(converted, ov::op::v3::ScatterUpdate::get_type_info_static()), 0);
+    EXPECT_EQ(input_names(converted), input_names(extension));
+}
+
 // A DecoderTransformationExtension can hold any pass, not only the ones the frontend ships: here a
 // plain lambda pass, which must run during conversion (it renames the model, observable after).
 TEST(GGUFExtensions, ArbitraryTransformationExtensionRuns) {

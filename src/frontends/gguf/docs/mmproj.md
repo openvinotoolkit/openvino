@@ -75,9 +75,20 @@ flagged by a `<key>.encoding` companion. The metadata survives IR serialization 
 
 ## Using the encoders and a language model
 
-[`AdaptMmprojToGenAI`](../include/openvino/frontend/gguf/adapt_mmproj_to_genai.hpp) keeps one
-modality of a converted mmproj model and rewrites it in place, so run it on a separate clone for
-each modality:
+[`adapt_to_genai()`](../include/openvino/frontend/gguf/adapt_to_genai.hpp) returns every GenAI
+encoder of a converted mmproj model by name:
+
+| Name | Model |
+|---|---|
+| `vision_embeddings` | Vision encoder in the projector's GenAI layout (below), or native pixel inputs when the projector has none |
+| `vision_embeddings_pos`, `vision_embeddings_merger` | Additional models of the `split_merger` layout |
+| `audio_embeddings` | Audio encoder; Gemma4 encoders take `input_features [1,frames,width]` (plus `input_features_mask [1,frames]` for `gemma4a`, which also returns an all-true `attention_mask`) |
+| `audio_generation_<component>` | Independent speech-generation components |
+
+It uses
+[`AdaptMmprojToGenAI`](../include/openvino/frontend/gguf/adapt_mmproj_to_genai.hpp), which keeps one
+modality of a converted mmproj model and rewrites it in place. To use it directly, run it on a
+separate clone for each modality:
 
 | Mode | Result |
 |---|---|
@@ -95,6 +106,7 @@ each modality:
 | `split_merger` | Separate patch-embedding, position-table and merger models |
 | `packed_patches` | One packed pixel strip with positions, a patch grid and merge/window indices |
 | `temporal_packed_patches` | `[groups,rows,cols,patch features]` pixels; raster positions are derived in the graph and groups are encoded independently |
+| `batched_image` | `pixel_values [B,3,H,W]`; each image is encoded independently into `last_hidden_state [B,T,D]` (`mlp`, `internvl`) |
 
 Layout construction runs on a clone and replaces the model only on success, so an invalid
 layout leaves the native model available for the `EMBEDDINGS` fallback. A
@@ -114,32 +126,22 @@ model, it also takes `token_type_ids` for bidirectional attention within an imag
 [4,B,T]` for interleaved M-RoPE, or per-layer inputs computed by
 `get_per_layer_embedding_model()`.
 
-Register `GenAIExtension` before converting the language model, as described in
-[runtime.md](runtime.md#stateful-and-genai-conversion). In C++, with a `FrontEndManager manager`
-and an already converted combined `mmproj` model:
+Adapt the language model in that mode, as described in
+[runtime.md](runtime.md#stateful-and-genai-conversion). In C++, with a `FrontEndManager manager`:
 
 ```cpp
-#include <openvino/frontend/gguf/adapt_mmproj_to_genai.hpp>
-#include <openvino/frontend/gguf/extension/genai.hpp>
+#include <openvino/frontend/gguf/adapt_to_genai.hpp>
 
-using namespace ov::frontend::gguf::pass;
-auto vision = mmproj->clone();
-auto audio = mmproj->clone();
-AdaptMmprojToGenAI vision_adapter(AdaptMmprojToGenAI::Modality::VISION,
-                                 AdaptMmprojToGenAI::Layout::VISION_ENCODERS);
-vision_adapter.run_on_model(vision);
-auto vision_models = vision_adapter.get_vision_models();
-AdaptMmprojToGenAI(AdaptMmprojToGenAI::Modality::AUDIO).run_on_model(audio);
+using namespace ov::frontend::gguf;
 auto frontend = manager.load_by_framework("gguf");
-auto genai = std::make_shared<ov::frontend::gguf::GenAIExtension>(
-    ov::frontend::gguf::GenAIExtension::InputMode::EMBEDS_TO_LOGITS);
-frontend->add_extension(genai);
-auto language = frontend->convert(frontend->load("language.gguf"));
-auto token_lookup = genai->get_embedding_model();
-auto per_layer_lookup = genai->get_per_layer_embedding_model();
+auto encoders = adapt_to_genai(frontend->convert(frontend->load("mmproj.gguf")));
+auto decoder = adapt_to_genai(frontend->convert(frontend->load("language.gguf")),
+                              {pass::AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS});
+auto language = decoder.at("language");
+auto token_lookup = decoder.at("text_embeddings");
 ```
 
-`per_layer_lookup` is null for models without that branch. The consumer inserts the encoder
+`text_embeddings_per_layer` is present only for models with that branch. The consumer inserts the encoder
 features into `inputs_embeds` at the media token positions and supplies masks, positions and any
 per-layer inputs. These passes expose graph contracts; they do not construct tokenizers, media
 preprocessing or a complete GenAI pipeline. GenAI uses an F16 KV cache for GGUF multimodal models
