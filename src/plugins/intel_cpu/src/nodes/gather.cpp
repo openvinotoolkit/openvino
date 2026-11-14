@@ -291,6 +291,10 @@ void Gather::createPrimitive() {
     if (isInPlace()) {
         return;
     }
+    // Static zero-sized tensors need no kernel (execute() only zero-fills), and the JIT setup divides by those sizes.
+    if (!isDynamicNode() && (!isExecutable() || isInputTensorAtPortEmpty(GATHER_DATA))) {
+        return;
+    }
     m_threads_num = parallel_get_max_threads();
 #if defined(OPENVINO_ARCH_X86_64)
     uint64_t idxElPerVec = 1;
@@ -467,6 +471,11 @@ void Gather::execute([[maybe_unused]] const dnnl::stream& strm) {
         return;
     }
 
+    if (isInputTensorAtPortEmpty(GATHER_DATA)) {
+        getDstMemoryAtPort(0)->nullify();
+        return;
+    }
+
     if (canOptimize1DCase) {
         exec1DCase();
         return;
@@ -533,6 +542,10 @@ void Gather::execute([[maybe_unused]] const dnnl::stream& strm) {
 
 void Gather::executeDynamicImpl([[maybe_unused]] const dnnl::stream& strm) {
     if (isInPlace()) {
+        return;
+    }
+    if (isInputTensorAtPortEmpty(GATHER_DATA)) {
+        getDstMemoryAtPort(0)->nullify();
         return;
     }
     if (canOptimize1DCase) {
@@ -997,11 +1010,12 @@ bool Gather::created() const {
 }
 
 bool Gather::neverExecute() const {
-    return isInPlace() || Node::neverExecute();
+    return isInPlace() || getSelectedPrimitiveDescriptor()->hasZeroOutputDims();
 }
 
 bool Gather::isExecutable() const {
-    return !isInPlace() && Node::isExecutable();
+    // Empty data with non-empty output is valid: every index is out of range and the output is zeros.
+    return !isInPlace() && !hasEmptyOutputTensors();
 }
 
 void Gather::resolveInPlaceEdges(Edge::LOOK look) {
