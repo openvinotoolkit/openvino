@@ -10,7 +10,9 @@
 #include <map>
 #include <memory>
 #include <numeric>
+#include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "builder/api/metadata_store.hpp"
@@ -47,6 +49,20 @@ using ov::frontend::gguf::RopeMode;
 
 namespace {
 
+// qwen35 file with one NextN block; empty per-layer arrays use scalar metadata.
+struct MtpFixture {
+    std::vector<uint32_t> kv_heads;
+    std::vector<uint32_t> recurrent;
+    std::vector<uint32_t> sliding;
+    uint32_t nextn_kv_heads = 1;
+    uint32_t nextn_swa_head_size = 0;
+    std::vector<std::string> hadamard_names;
+    bool tied_hadamard = false;
+    bool explicit_untied_hadamard = false;
+    bool inverse_embedding_hadamard = false;
+    bool separate_embedding = false;
+};
+
 // Remove the generated files even when a test fails.
 class ScratchDir {
 public:
@@ -69,25 +85,66 @@ private:
 std::string write_decoder_gguf(const std::string& dir,
                                const std::string& arch = "qwen3",
                                uint32_t layers = 2,
-                               bool layer_norm = false) {
+                               bool layer_norm = false,
+                               const std::optional<MtpFixture>& mtp = std::nullopt) {
+    const auto fixture = mtp.value_or(MtpFixture{});
+    const auto& hadamard_names = fixture.hadamard_names;
     const auto path = ov::util::path_join({dir, arch + ".gguf"}).string();
     GgufWriter writer;
     writer.kv_str("general.architecture", arch);
     writer.kv_u32(arch + ".block_count", layers);
     writer.kv_u32(arch + ".embedding_length", 8);
     writer.kv_u32(arch + ".attention.head_count", 2);
-    writer.kv_u32(arch + ".attention.head_count_kv", 1);
+    if (fixture.kv_heads.empty())
+        writer.kv_u32(arch + ".attention.head_count_kv", 1);
+    else
+        writer.kv_u32_array(arch + ".attention.head_count_kv", fixture.kv_heads);
+    if (!fixture.recurrent.empty())
+        writer.kv_u32_array(arch + ".attention.recurrent_layers", fixture.recurrent);
+    if (!fixture.sliding.empty())
+        writer.kv_u32_array(arch + ".attention.sliding_window_pattern", fixture.sliding);
+    if (fixture.nextn_swa_head_size) {
+        writer.kv_u32(arch + ".attention.sliding_window", 4);
+        writer.kv_u32(arch + ".attention.key_length_swa", fixture.nextn_swa_head_size);
+        writer.kv_u32(arch + ".rope.dimension_count_swa", fixture.nextn_swa_head_size);
+    }
     writer.kv_u32(arch + ".rope.dimension_count", 4);
     writer.kv_u32(arch + ".context_length", 32);
     writer.kv_f32(arch + (layer_norm ? ".attention.layer_norm_epsilon" : ".attention.layer_norm_rms_epsilon"), 1e-5f);
     writer.kv_f32(arch + ".rope.scaling.factor", 4.f);
-    writer.kv_f32(arch + ".attn_logit_softcapping", 2.f);
-    writer.kv_u32(arch + ".attention.sliding_window", 2);
+    if (mtp) {
+        writer.kv_u32(arch + ".nextn_predict_layers", 1);
+        writer.kv_u32(arch + ".full_attention_interval", 1);
+        writer.kv_u32(arch + ".ssm.conv_kernel", 4);
+        writer.kv_u32(arch + ".ssm.state_size", 4);
+        writer.kv_u32(arch + ".ssm.group_count", 1);
+        writer.kv_u32(arch + ".ssm.time_step_rank", 2);
+        writer.kv_u32(arch + ".ssm.inner_size", 8);
+        writer.kv_u32_array(arch + ".rope.dimension_sections", {1, 1, 0, 0});
+        if (!hadamard_names.empty()) {
+            const std::string p = "prism.hadamard.";
+            writer.kv_u32(p + "version", fixture.tied_hadamard ? 2 : 1);
+            if (fixture.tied_hadamard || fixture.explicit_untied_hadamard)
+                writer.kv_bool(p + "tied_output", fixture.tied_hadamard);
+            if (fixture.tied_hadamard || fixture.inverse_embedding_hadamard)
+                writer.kv_str_array(p + "inverse_weight_names", {"token_embd.weight"});
+            writer.kv_u32(p + "block_size", 8);
+            writer.kv_str(p + "transform", "normalized-sylvester-walsh-hadamard");
+            writer.kv_str(p + "axis", "input-last-dimension");
+            writer.kv_str(p + "sign_mode", "identity");
+            writer.kv_str_array(p + "weight_names", hadamard_names);
+        }
+    } else {
+        writer.kv_f32(arch + ".attn_logit_softcapping", 2.f);
+        writer.kv_u32(arch + ".attention.sliding_window", 2);
+    }
     const auto weight = [&](const std::string& name, const std::vector<uint64_t>& shape, bool norm = false) {
         writer.filled_tensor(name, shape, norm);
     };
     weight("token_embd.weight", {8, 16});
     weight("output_norm.weight", {8}, true);
+    if (!hadamard_names.empty() && !fixture.tied_hadamard)
+        weight("output.weight", {8, 16});
     if (layer_norm)
         weight("output_norm.bias", {8});
     for (uint32_t layer = 0; layer < layers; ++layer) {
@@ -95,18 +152,31 @@ std::string write_decoder_gguf(const std::string& dir,
         weight(prefix + "attn_norm.weight", {8}, true);
         if (layer_norm)
             weight(prefix + "attn_norm.bias", {8});
-        weight(prefix + "attn_q.weight", {8, 8});
-        weight(prefix + "attn_k.weight", {8, 4});
-        weight(prefix + "attn_v.weight", {8, 4});
-        weight(prefix + "attn_output.weight", {8, 8});
-        weight(prefix + "attn_q_norm.weight", {4}, true);
-        weight(prefix + "attn_k_norm.weight", {4}, true);
+        const bool nextn = mtp && layer == layers - 1;
+        const auto head_size = nextn && fixture.nextn_swa_head_size ? fixture.nextn_swa_head_size : 4u;
+        weight(prefix + "attn_q.weight", {8, mtp ? 4 * head_size : 8u});
+        const auto kv_width = nextn ? head_size * fixture.nextn_kv_heads : 4u;
+        weight(prefix + "attn_k.weight", {8, kv_width});
+        weight(prefix + "attn_v.weight", {8, kv_width});
+        weight(prefix + "attn_output.weight", {mtp ? 2 * head_size : 8u, 8});
+        weight(prefix + "attn_q_norm.weight", {head_size}, true);
+        weight(prefix + "attn_k_norm.weight", {head_size}, true);
         weight(prefix + "ffn_norm.weight", {8}, true);
         if (layer_norm)
             weight(prefix + "ffn_norm.bias", {8});
         weight(prefix + "ffn_gate.weight", {8, 12});
         weight(prefix + "ffn_up.weight", {8, 12});
         weight(prefix + "ffn_down.weight", {12, 8});
+        if (nextn) {
+            weight(prefix + "nextn.eh_proj.weight", {16, 8});
+            weight(prefix + "nextn.enorm.weight", {8}, true);
+            weight(prefix + "nextn.hnorm.weight", {8}, true);
+            weight(prefix + "nextn.shared_head_norm.weight", {8}, true);
+            if (fixture.separate_embedding)
+                weight(prefix + "nextn.embed_tokens.weight", {8, 16});
+            if (!hadamard_names.empty())
+                weight(prefix + "nextn.shared_head_head.weight", {8, 16});
+        }
     }
     return writer.write(path) ? path : std::string{};
 }
@@ -220,6 +290,143 @@ TEST(GGUFGenAIExtension, RegistrationIsLocalAndConversionCanBeRepeated) {
                     testing::HasSubstr("already registered"));
 }
 
+TEST(GGUFGenAIExtension, MtpDraftAcceptsTargetOnlyLayerMetadata) {
+    using Extension = ov::frontend::gguf::GenAIExtension;
+    // Target-only arrays must match the explicit full-layer reference; the second case infers
+    // two NextN KV heads from a projection using the smaller sliding-window head size.
+    const std::vector<std::pair<MtpFixture, MtpFixture>> cases{
+        {MtpFixture{{1}, {0}, {0}}, MtpFixture{{1, 1}, {0, 1}, {0, 0}}},
+        {MtpFixture{{1}, {0}, {0, 1}, 2, 2}, MtpFixture{{1, 2}, {0, 1}, {0, 1}, 2, 2}},
+    };
+    for (const auto& [target_only, all_layers] : cases) {
+        SCOPED_TRACE(target_only.nextn_swa_head_size);
+        ScratchDir target_only_dir;
+        ScratchDir all_layers_dir;
+        const auto load = [&](const std::string& dir, const MtpFixture& fixture) {
+            const auto path = write_decoder_gguf(dir, "qwen35", 2, false, fixture);
+            auto extension = std::make_shared<Extension>(Extension::InputMode::IDS_TO_LOGITS, "mtp");
+            convert_with(path, {extension});
+            return extension->get_mtp_draft_model();
+        };
+        const auto target_only_model = load(target_only_dir.path(), target_only);
+        const auto all_layers_model = load(all_layers_dir.path(), all_layers);
+        ov::Core core;
+        const auto compile = [&](const std::shared_ptr<ov::Model>& model) {
+            return core
+                .compile_model(model,
+                               "CPU",
+                               ov::hint::inference_precision(ov::element::f32),
+                               ov::hint::dynamic_quantization_group_size(0),
+                               ov::hint::kv_cache_precision(ov::element::f32))
+                .create_infer_request();
+        };
+        auto actual = compile(target_only_model);
+        auto reference = compile(all_layers_model);
+        size_t past = 0;
+        for (const size_t tokens : {3u, 1u}) {
+            ov::Tensor ids(ov::element::i64, {1, tokens}), positions(ov::element::i64, {1, tokens});
+            ov::Tensor mask(ov::element::i64, {1, past + tokens}), beam(ov::element::i32, {1});
+            ov::Tensor hidden(ov::element::f32, {1, tokens, 8});
+            std::fill_n(mask.data<int64_t>(), mask.get_size(), 1);
+            *beam.data<int32_t>() = 0;
+            for (size_t i = 0; i < tokens; ++i) {
+                ids.data<int64_t>()[i] = static_cast<int64_t>(past + i + 1);
+                positions.data<int64_t>()[i] = static_cast<int64_t>(past + i);
+            }
+            for (size_t i = 0; i < hidden.get_size(); ++i)
+                hidden.data<float>()[i] = 0.1f * std::sin(static_cast<float>(i + past));
+            for (auto* request : {&actual, &reference}) {
+                request->set_tensor("input_ids", ids);
+                request->set_tensor("position_ids", positions);
+                request->set_tensor("attention_mask", mask);
+                request->set_tensor("beam_idx", beam);
+                request->set_tensor("hidden_states", hidden);
+                request->infer();
+            }
+            for (const auto* name : {"logits", "last_hidden_state"}) {
+                const auto actual_output = actual.get_tensor(name);
+                const auto reference_output = reference.get_tensor(name);
+                ASSERT_EQ(actual_output.get_shape(), reference_output.get_shape());
+                for (size_t i = 0; i < actual_output.get_size(); ++i)
+                    EXPECT_NEAR(actual_output.data<const float>()[i], reference_output.data<const float>()[i], 1e-5f);
+            }
+            past += tokens;
+        }
+    }
+}
+
+TEST(GGUFGenAIExtension, MtpComponentIsResolvedAtConvertAndFiltersUnusedHadamardWeights) {
+    using Extension = ov::frontend::gguf::GenAIExtension;
+    // The draft uses its NextN head, so output.weight (or the tied token_embd head) is unused;
+    // target-only names leave nothing rotated.
+    struct HadamardCase {
+        std::vector<std::string> names;
+        bool tied = false;
+        bool explicit_untied = false;
+        bool inverse_embedding = false;
+    };
+    const std::vector<HadamardCase> cases{
+        {{"output.weight", "blk.1.nextn.shared_head_head.weight"}},
+        {{"output.weight", "blk.0.attn_q.weight"}},
+        {{"blk.0.attn_q.weight", "blk.1.nextn.shared_head_head.weight"}, true},
+        {{"blk.0.attn_q.weight"}, true},
+        {{"blk.0.attn_q.weight"}, false, true},
+        {{"output.weight"}, false, true, true},
+    };
+    for (const auto& test_case : cases) {
+        SCOPED_TRACE(test_case.names.back() + (test_case.tied ? " tied" : ""));
+        ScratchDir scratch;
+        MtpFixture fixture;
+        fixture.hadamard_names = test_case.names;
+        fixture.tied_hadamard = test_case.tied;
+        fixture.explicit_untied_hadamard = test_case.explicit_untied;
+        fixture.inverse_embedding_hadamard = test_case.inverse_embedding;
+        const auto path = write_decoder_gguf(scratch.path(), "qwen35", 2, false, fixture);
+        ov::frontend::gguf::FrontEnd frontend;
+        const auto input = frontend.load(path);
+        const auto extension = std::make_shared<Extension>(Extension::InputMode::EMBEDS_TO_LOGITS_TEXT, "mtp");
+        frontend.add_extension(extension);
+        const auto model = frontend.convert(input);
+        EXPECT_NO_THROW(model->output("last_hidden_state"));
+        const auto draft = extension->get_mtp_draft_model();
+        ASSERT_TRUE(draft);
+        EXPECT_EQ(draft->input("hidden_states").get_partial_shape(), (ov::PartialShape{-1, -1, 8}));
+        EXPECT_EQ(draft->output("logits").get_partial_shape(), (ov::PartialShape{-1, -1, 16}));
+    }
+}
+
+TEST(GGUFGenAIExtension, MtpComponentsRejectUnsupportedInputs) {
+    using Extension = ov::frontend::gguf::GenAIExtension;
+    MtpFixture separate_embedding;
+    separate_embedding.separate_embedding = true;
+    struct Case {
+        std::string arch;
+        uint32_t layers;
+        std::optional<MtpFixture> mtp;
+        std::string component;
+        std::string error;
+    };
+    const std::string per_layer = "per-layer settings must describe every decoder layer";
+    const std::vector<Case> cases{
+        {"qwen3", 2, std::nullopt, "mtp", "MTP is not supported for architecture"},
+        {"qwen3", 2, std::nullopt, "mtp_target", "unknown decoder component"},
+        {"qwen35", 0, MtpFixture{}, "mtp", "qwen35.block_count"},
+        {"qwen35", 1, MtpFixture{}, "mtp", "invalid number of NextN blocks"},
+        {"qwen35", 2, separate_embedding, "mtp", "shared token embeddings"},
+        {"qwen35", 2, MtpFixture{{0, 1, 1}}, "mtp", per_layer},
+        {"qwen35", 2, MtpFixture{{}, {1, 0, 0}}, "mtp", per_layer},
+        {"qwen35", 2, MtpFixture{{}, {}, {0, 0, 0}}, "mtp", per_layer},
+    };
+    for (const auto& test_case : cases) {
+        SCOPED_TRACE(test_case.error);
+        ScratchDir scratch;
+        const auto path = write_decoder_gguf(scratch.path(), test_case.arch, test_case.layers, false, test_case.mtp);
+        const auto extension =
+            std::make_shared<Extension>(Extension::InputMode::EMBEDS_TO_LOGITS_TEXT, test_case.component);
+        OV_EXPECT_THROW(convert_with(path, {extension}), ov::Exception, testing::HasSubstr(test_case.error));
+    }
+}
+
 TEST(GGUFArchitectureExtension, DecoderOptionsSelectTheActivation) {
     ScratchDir scratch;
     const auto path = write_decoder_gguf(scratch.path(), kUnknownArch);
@@ -265,12 +472,36 @@ public:
         if (!output)
             output = tensors.require("token_embd.weight");
         ctx.set_output(ctx.node("GGML_OP_MUL_MAT", {output, cur}));
+        if (!m_ctx.component.empty())
+            ctx.acknowledge_component();
         return ctx.finish();
     }
 
 private:
     BuildContext m_ctx;
 };
+
+TEST(GGUFArchitectureExtension, ExternalBuilderCanAcknowledgeSelectedComponent) {
+    ScratchDir scratch;
+    const auto path = write_decoder_gguf(scratch.path(), "qwen3");
+    ASSERT_FALSE(path.empty());
+
+    ov::frontend::gguf::FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ArchitectureExtension>(
+        ArchitectureDefinition{"qwen3",
+                               "qwen3",
+                               [](const BuildContext& context) {
+                                   return std::make_shared<Qwen3Builder>(context);
+                               }},
+        RegistrationMode::Replace));
+    frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>(
+        ov::frontend::gguf::GenAIExtension::InputMode::IDS_TO_LOGITS,
+        "external-component"));
+
+    const auto model = frontend.convert(frontend.load(path));
+    ASSERT_TRUE(model);
+    EXPECT_EQ(model->output().get_partial_shape(), (ov::PartialShape{-1, -1, 16}));
+}
 
 constexpr uint32_t kVisEmbd = 32;
 constexpr uint32_t kVisLayers = 2;

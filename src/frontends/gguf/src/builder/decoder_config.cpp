@@ -248,8 +248,11 @@ DecoderConfig::DecoderConfig(const DecoderParameters& p, const GgufWeightTable& 
     use_per_op_rope = use_per_op_rope || rope_op_case == ROPE_OP_CASE_IMROPE || rope_config.per_op;
 }
 
-void DecoderConfig::configure_graph(GraphEmitter& emitter, const GgufMetadata& metadata) const {
-    emitter.configure_hadamard(decoder_weight_transform_metadata(metadata, ssm_dt_rank, ssm_group_count));
+void DecoderConfig::configure_graph(GraphEmitter& emitter,
+                                    const GgufMetadata& metadata,
+                                    bool allow_inverse_only_hadamard) const {
+    emitter.configure_hadamard(decoder_weight_transform_metadata(metadata, ssm_dt_rank, ssm_group_count),
+                               allow_inverse_only_hadamard);
     auto& graph = *emitter.graph();
     graph.has_rope = true;
     graph.rope_config = rope_config;

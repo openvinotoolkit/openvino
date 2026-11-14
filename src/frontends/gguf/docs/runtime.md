@@ -91,6 +91,7 @@ exposes GenAI's interface. Select the mode in the `GenAIExtension` constructor:
 |---|---|---|
 | `IDS_TO_LOGITS` (default) | `input_ids [B,T]`, `attention_mask [B,KV]`, `position_ids [B,T]`, `beam_idx [B]` | `logits [B,T,vocab]` |
 | `EMBEDS_TO_LOGITS` | `inputs_embeds [B,T,D]` instead of `input_ids`; see [multimodal language models](mmproj.md#using-the-encoders-and-a-language-model) | `logits [B,T,vocab]` |
+| `EMBEDS_TO_LOGITS_TEXT` | Text embeddings `[B,T,D]`, with text `position_ids [B,T]` even for M-RoPE models | `logits [B,T,vocab]` |
 
 - The leading dimensions are derived from the live inputs, so one graph serves both SDPA and
   `ov::pass::SDPAToPagedAttention`.
@@ -102,6 +103,46 @@ exposes GenAI's interface. Select the mode in the `GenAIExtension` constructor:
   left padding. Mamba 2 and `nemotron_h` states stay at one sequence: greedy, batch-1 decoding only.
   A consumer must reset, not trim, the states listed in `gguf_recurrent_states`.
 - The pass does not create a tokenizer, sampler or pipeline, and it does not adapt encoder models.
+
+### Multi-token prediction (MTP)
+
+Some checkpoints store NextN draft blocks after the target layers
+(`<arch>.nextn_predict_layers`). Ordinary conversion excludes these blocks and returns
+logits only. Select the `"mtp"` component to convert the target and its draft in one call:
+
+```cpp
+auto extension = std::make_shared<GenAIExtension>(
+    GenAIExtension::InputMode::EMBEDS_TO_LOGITS_TEXT, "mtp");
+frontend->add_extension(extension);
+auto target = frontend->convert(frontend->load("model-with-mtp.gguf"));
+auto text_embeddings = extension->get_embedding_model();
+auto draft = extension->get_mtp_draft_model();  // null when the file has no NextN block
+```
+
+The component is read when `convert()` runs, so the extension may be registered before or
+after `load()`. Both models return `last_hidden_state [B,T,D]` for every token, after final
+normalization and before any output-head Hadamard transform. The draft also takes
+`hidden_states [B,T,D]`; pair the target hidden state at token `t` with the embedding of token
+`t+1`. In the embeddings modes the draft takes the same text embeddings as the target, so
+`text_embeddings` serves both. A file without NextN blocks still converts as a target that
+exports hidden states, for a draft supplied from another file.
+
+The draft owns the hidden-state normalization, EH projection, NextN block and output head.
+Its head is the NextN head when present, otherwise the target `output.weight` or, for a tied
+checkpoint, `token_embd.weight`. Target and draft caches are independent. The draft reuses
+the target's weight nodes, so tensors read by both models, such as the token embedding or a
+shared output head, are unpacked once and share host buffers. Per-layer KV-head, recurrent
+and sliding-window metadata may describe the target layers or all stored layers; when the
+draft KV-head count is omitted, it is inferred from the NextN key projection.
+
+The frontend supplies graphs, not a sampler. OpenVINO GenAI's `speculative_type="mtp"`
+option (llama.cpp `--spec-type draft-mtp`) connects both models to its greedy MTP strategy.
+
+Drafts are built only for the families accepted by `has_mtp_draft()` in
+`decoder_builder.cpp`, currently `qwen35`; other families reject the `"mtp"` component. To add
+a family, check that its NextN block builds as a regular layer of that family and compare the
+draft with the ggml MTP graph. A separate `nextn.embed_tokens.weight` table (GLM-4.5) and
+chained multi-block drafts (`step35`) are not supported yet.
 
 `GGUFMakeStateful` remains independently available through `DecoderTransformationExtension`
 for consumers that keep GGUF IO. The llama.cpp backend uses its own stateful lowering for its

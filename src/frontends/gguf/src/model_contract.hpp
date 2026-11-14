@@ -22,6 +22,7 @@ inline void validate_model_contract(const ModelContract& contract) {
                             "[GGUF] model contract output names must be nonempty and unique");
     };
     validate_outputs(contract.sequence_outputs);
+    validate_outputs(contract.sequence_inputs);
     for (const auto& [name, group] : contract.component_groups) {
         OPENVINO_ASSERT(!name.empty(), "[GGUF] model contract component group name must be nonempty");
         OPENVINO_ASSERT(group.models.count(group.primary),
@@ -67,6 +68,7 @@ inline void write_model_contract(const std::shared_ptr<ov::Model>& model, const 
         ov::AnyMap{{"batchable_recurrent", recurrent},
                    {"image_attention", image_attention},
                    {"sequence_outputs", contract.sequence_outputs},
+                   {"sequence_inputs", contract.sequence_inputs},
                    {"component_groups", component_groups},
                    {"supports_genai_adaptation", std::string(supports_genai ? "true" : "false")}};
 }
@@ -106,6 +108,9 @@ inline ModelContract read_model_contract(const std::shared_ptr<ov::Model>& model
     if (model->has_rt_info({"gguf_model_contract", "sequence_outputs"}))
         contract.sequence_outputs =
             model->get_rt_info<std::vector<std::string>>({"gguf_model_contract", "sequence_outputs"});
+    if (model->has_rt_info({"gguf_model_contract", "sequence_inputs"}))
+        contract.sequence_inputs =
+            model->get_rt_info<std::vector<std::string>>({"gguf_model_contract", "sequence_inputs"});
     if (model->has_rt_info({"gguf_model_contract", "component_groups"})) {
         const auto groups = model->get_rt_info<ov::AnyMap>({"gguf_model_contract", "component_groups"});
         for (const auto& [name, value] : groups) {

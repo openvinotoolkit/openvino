@@ -26,6 +26,9 @@ public:
     const std::shared_ptr<TensorMap>& values() const {
         return m_graph->values;
     }
+    const std::shared_ptr<GgufGraph>& mtp_draft() const {
+        return m_graph->mtp_draft;
+    }
 
     // Per-node accessors (bound to the node this decoder instance was cloned for).
     ov::Any get_attribute(const std::string& name) const override;

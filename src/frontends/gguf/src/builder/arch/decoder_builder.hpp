@@ -26,6 +26,9 @@ public:
     std::shared_ptr<GgufGraph> build() override;
 
 private:
+    // Draft builder for the NextN block, reusing the weight leaves `target` has emitted.
+    DecoderBuilder(const BuildContext& context, const DecoderParameters& parameters, const GraphEmitter* target);
+
     // Model inputs shared by every layer (tokens, positions, masks, KV update index).
     void build_inputs();
 
@@ -44,12 +47,19 @@ private:
     // Final norm, lm_head, and the optional logit scale / soft-cap.
     std::string build_head(const std::string& cur);
     bool selects_output_rows(int il) const {
-        return il == m_cfg.n_layer - 1 && !m_cfg.embedding_model;
+        return il == m_cfg.n_layer - 1 && !m_cfg.embedding_model && !m_export_hidden;
     }
+    std::string nextn_weight(const std::string& name) const;
+    std::string lm_head_weight() const;
 
+    BuildContext m_context;
+    DecoderParameters m_parameters;
     DecoderConfig m_cfg;
     GraphEmitter m_emit;
     blocks::KvCachePlan m_kv;
+    bool m_draft = false;
+    int m_nextn_layer = -1;
+    bool m_export_hidden = false;
 };
 
 }  // namespace ov::frontend::gguf
