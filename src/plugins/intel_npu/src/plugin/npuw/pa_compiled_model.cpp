@@ -9,7 +9,9 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include <map>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <unordered_set>
@@ -17,7 +19,18 @@
 #include <vector>
 
 #include "intel_npu/config/npuw.hpp"
+#include "llm_compiled_model_utils.hpp"
 #include "logging.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -25,9 +38,24 @@
 
 namespace {
 
-// The block size the CPU PA executor and the CB pipeline both use. Not read
-// off the cache ports: a u8 key cache keeps its scales in the block (dim 40).
-constexpr std::size_t kBlockSize = 32u;
+// The block size the CB pipeline addresses the cache with. A GPU value cache
+// block is [block_size, head_size], 16 or 256 rows with XAttention, and never
+// holds scales, so it is read off the port as the pipeline does. A CPU block
+// may hold by-channel scales (a u8 key cache block has 40 rows), so the CPU's
+// fixed size is used, as the pipeline does too.
+std::size_t pa_block_size(const std::string& device, const ov::SoPtr<ov::ICompiledModel>& compiled) {
+    if (device != "GPU") {
+        return 32u;
+    }
+    for (const auto& input : compiled->inputs()) {
+        if (input.get_any_name().rfind("value_cache.", 0) == 0) {
+            const auto& rows = input.get_partial_shape()[2];
+            OPENVINO_ASSERT(rows.is_static(), "PA: the GPU value cache block size is dynamic");
+            return static_cast<std::size_t>(rows.get_length());
+        }
+    }
+    OPENVINO_THROW("PA: the model has no value cache input");
+}
 
 constexpr std::array<std::size_t, 3> kChunkSizes = {1024u, 128u, 1u};
 
@@ -95,6 +123,32 @@ bool is_chunkable_pa_model(const std::shared_ptr<ov::Model>& model) {
            lshape[2].is_static();
 }
 
+// `shape` without dimension `drop`, and a batch of 1 in front.
+ov::Shape as_batch_one(const ov::Shape& shape, std::size_t drop) {
+    ov::Shape out{1};
+    for (std::size_t i = 0; i < shape.size(); ++i) {
+        if (i != drop) {
+            out.push_back(shape[i]);
+        }
+    }
+    return out;
+}
+
+// The highest dimension past 0 that is 1 in every given shape. Rewriting all
+// the operands of an op at the same dimension keeps their dimensions paired,
+// so elementwise and broadcast semantics are preserved.
+std::optional<std::size_t> shared_singleton(const std::vector<ov::Shape>& shapes) {
+    for (std::size_t i = shapes.front().size(); i-- > 1;) {
+        const auto is_one = [i, &shapes](const ov::Shape& s) {
+            return s.size() == shapes.front().size() && s[i] == 1;
+        };
+        if (std::all_of(shapes.begin(), shapes.end(), is_one)) {
+            return i;
+        }
+    }
+    return std::nullopt;
+}
+
 std::shared_ptr<ov::Model> derive_pa_semi_static_model(const std::shared_ptr<ov::Model>& base_model,
                                                        std::size_t chunk_size) {
     for (const char* name : {"input_ids", "position_ids"}) {
@@ -104,25 +158,24 @@ std::shared_ptr<ov::Model> derive_pa_semi_static_model(const std::shared_ptr<ov:
     auto derived = base_model->clone();
     derived->reshape({{"input_ids", ov::PartialShape{static_cast<int64_t>(chunk_size)}},
                       {"position_ids", ov::PartialShape{static_cast<int64_t>(chunk_size)}}});
+    ov::npuw::pa::untie_matmul_weights(derived);
+    ov::npuw::pa::relayout_token_major(derived, chunk_size);
     derived->set_friendly_name(base_model->get_friendly_name() + "_pa_token_" + std::to_string(chunk_size));
     return derived;
 }
 
+// The variants go through NPUW on this plugin's device, partitioned by
+// make_variant_config().
 std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> compile_pa_semi_static_variants(
     const std::shared_ptr<ov::Model>& base_model,
     const std::shared_ptr<const ov::IPlugin>& plugin,
-    const std::string& device,
-    const ov::AnyMap& inner_config) {
+    const ov::AnyMap& variant_config) {
     std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> variants;
     for (const auto chunk_size : kChunkSizes) {
         auto derived = derive_pa_semi_static_model(base_model, chunk_size);
-        auto compiled = plugin->get_core()->compile_model(derived, device, inner_config);
-        OPENVINO_ASSERT(compiled != nullptr,
-                        "PA semi-static derivation failed to compile chunk_size=",
-                        chunk_size,
-                        " on ",
-                        device);
-        LOG_INFO("PA: compiled semi-static variant chunk_size=" << chunk_size << " on " << device);
+        auto compiled = plugin->get_core()->compile_model(derived, plugin->get_device_name(), variant_config);
+        OPENVINO_ASSERT(compiled != nullptr, "PA semi-static derivation failed to compile chunk_size=", chunk_size);
+        LOG_INFO("PA: compiled semi-static variant chunk_size=" << chunk_size << " through NPUW");
         variants.emplace(chunk_size, std::move(compiled));
     }
 
@@ -131,16 +184,231 @@ std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> compile_pa_semi_static_vari
 
 }  // anonymous namespace
 
-ov::npuw::PACompiledModel::PACompiledModel(const std::shared_ptr<ov::Model>& model,
-                                           const std::shared_ptr<const ov::IPlugin>& plugin,
-                                           const ov::AnyMap& properties)
-    : ov::npuw::ICompiledModel(nullptr, plugin) {  // ports are the inner model's, see inputs()
-    // An env var, not an option, so it stays out of user configs. GPU would also
-    // need the remote context forwarded for the pipeline's cache allocation.
+void ov::npuw::pa::untie_matmul_weights(const std::shared_ptr<ov::Model>& model) {
+    // True when `out` is computed from constants alone.
+    std::function<bool(const ov::Output<ov::Node>&)> from_constants = [&](const ov::Output<ov::Node>& out) {
+        const auto node = out.get_node_shared_ptr();
+        if (ov::op::util::is_constant(node)) {
+            return true;
+        }
+        if (ov::op::util::is_parameter(node) || node->get_input_size() == 0) {
+            return false;
+        }
+        for (const auto& input : node->input_values()) {
+            if (!from_constants(input)) {
+                return false;
+            }
+        }
+        return true;
+    };
+    // True when an op on the way to the constants has other consumers.
+    std::function<bool(const ov::Output<ov::Node>&)> shared = [&](const ov::Output<ov::Node>& out) {
+        const auto node = out.get_node_shared_ptr();
+        if (ov::op::util::is_constant(node)) {
+            return false;
+        }
+        if (out.get_target_inputs().size() > 1) {
+            return true;
+        }
+        for (const auto& input : node->input_values()) {
+            if (shared(input)) {
+                return true;
+            }
+        }
+        return false;
+    };
+    // Copies the ops above the constants; the constants themselves are shared.
+    std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>&)> copy = [&](const ov::Output<ov::Node>& out) {
+        const auto node = out.get_node_shared_ptr();
+        if (ov::op::util::is_constant(node)) {
+            return out;
+        }
+        ov::OutputVector inputs;
+        for (const auto& input : node->input_values()) {
+            inputs.push_back(copy(input));
+        }
+        auto copied = node->clone_with_new_inputs(inputs);
+        copied->set_friendly_name(node->get_friendly_name() + "/untied");
+        ov::copy_runtime_info(node, copied);
+        return copied->output(out.get_index());
+    };
+
+    for (const auto& node : model->get_ordered_ops()) {
+        auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(node);
+        if (!matmul) {
+            continue;
+        }
+        const auto weights = matmul->input_value(1);
+        if (!from_constants(weights) || !shared(weights)) {
+            continue;
+        }
+        matmul->input(1).replace_source_output(copy(weights));
+    }
+}
+
+void ov::npuw::pa::relayout_token_major(const std::shared_ptr<ov::Model>& model, std::size_t tokens) {
+    if (tokens <= 1) {
+        return;
+    }
+    const auto is_token_major = [tokens](const ov::PartialShape& shape) {
+        return shape.is_static() && shape.rank().get_length() >= 3 &&
+               static_cast<std::size_t>(shape[0].get_length()) == tokens;
+    };
+    // An operand whose dimensions are all 1 but the innermost broadcasts
+    // against any token count, so the rewrite does not affect it.
+    const auto broadcasts_over_tokens = [](const ov::PartialShape& shape) {
+        if (shape.is_dynamic()) {
+            return false;
+        }
+        for (auto i = 0; i + 1 < shape.rank().get_length(); ++i) {
+            if (shape[i].get_length() != 1) {
+                return false;
+            }
+        }
+        return true;
+    };
+    const auto reshape_to = [](const ov::Output<ov::Node>& src, const ov::Shape& shape) {
+        auto target = ov::op::v0::Constant::create(ov::element::i64,
+                                                   ov::Shape{shape.size()},
+                                                   std::vector<int64_t>(shape.begin(), shape.end()));
+        return std::make_shared<ov::op::v1::Reshape>(src, target, false);
+    };
+    // Feeds the given inputs of `op` in their batch-1 form and restores the
+    // original output shape for its consumers.
+    const auto rebatch =
+        [&](const std::shared_ptr<ov::Node>& op, const std::vector<std::size_t>& inputs, std::size_t drop) {
+            const auto out_shape = op->get_output_shape(0);
+            const auto consumers = op->output(0).get_target_inputs();
+            for (const auto idx : inputs) {
+                op->input(idx).replace_source_output(
+                    reshape_to(op->input_value(idx), as_batch_one(op->get_input_shape(idx), drop)));
+            }
+            op->validate_and_infer_types();
+            auto restored = reshape_to(op, out_shape);
+            for (auto consumer : consumers) {
+                consumer.replace_source_output(restored);
+            }
+        };
+    const auto rebatch_eltwise = [&](const std::shared_ptr<ov::Node>& op) {
+        std::vector<std::size_t> token_inputs;
+        std::vector<ov::Shape> token_shapes;
+        for (std::size_t i = 0; i < op->get_input_size(); ++i) {
+            const auto& shape = op->get_input_partial_shape(i);
+            if (is_token_major(shape)) {
+                token_inputs.push_back(i);
+                token_shapes.push_back(op->get_input_shape(i));
+            } else if (!broadcasts_over_tokens(shape)) {
+                return false;
+            }
+        }
+        if (token_inputs.empty()) {
+            return false;
+        }
+        const auto drop = shared_singleton(token_shapes);
+        if (!drop) {
+            return false;
+        }
+        rebatch(op, token_inputs, *drop);
+        return true;
+    };
+
+    bool changed = false;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (node->get_output_size() != 1 || node->get_output_partial_shape(0).is_dynamic()) {
+            continue;
+        }
+        if (auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(node)) {
+            const auto& act = matmul->get_input_partial_shape(0);
+            const auto& rhs = matmul->get_input_partial_shape(1);
+            if (!matmul->get_transpose_a() && is_token_major(act) && rhs.rank().get_length() == 2) {
+                // A batch of single-row GEMVs against one weight matrix.
+                if (const auto drop = shared_singleton({matmul->get_input_shape(0)})) {
+                    rebatch(matmul, {0}, *drop);
+                    changed = true;
+                }
+            } else if (!matmul->get_transpose_a() && !matmul->get_transpose_b() && act.is_static() && rhs.is_static() &&
+                       act.rank().get_length() == 3 && rhs.rank().get_length() == 3 && is_token_major(act) &&
+                       act[2].get_length() == 1 && rhs[1].get_length() == 1) {
+                // The RoPE position outer product: with K = 1 it is a broadcast
+                // Multiply, rebatched like the other elementwise ops.
+                auto product = std::make_shared<ov::op::v1::Multiply>(matmul->input_value(0), matmul->input_value(1));
+                product->set_friendly_name(matmul->get_friendly_name());
+                ov::replace_node(matmul, product);
+                rebatch_eltwise(product);
+                changed = true;
+            }
+        } else if (ov::is_type<ov::op::v1::Multiply>(node) || ov::is_type<ov::op::v1::Add>(node) ||
+                   ov::is_type<ov::op::v1::Subtract>(node) || ov::is_type<ov::op::v1::Divide>(node)) {
+            changed |= rebatch_eltwise(node);
+        }
+    }
+    if (changed) {
+        model->validate_nodes_and_infer_types();
+    }
+}
+
+ov::AnyMap ov::npuw::PACompiledModel::make_variant_config(const ov::AnyMap& properties,
+                                                          const std::string& pa_device,
+                                                          const std::string& weights_bank,
+                                                          const std::optional<util::NPUDesc>& npudesc) {
+    // The variants start from the NPU defaults of the NPUW LLM path. On top of
+    // them every PA op is a block of its own, kept off NPU, and the static
+    // repeated blocks around them fold onto NPU and share one weights bank
+    // across the variants, which are clones of one model. The PA model picks
+    // its logits rows itself, so there is no last token to slice out, and the
+    // tail that does it has a dynamic row count, so it cannot be made a
+    // function like the static subgraphs. The caller's properties override
+    // these defaults, and extend the compilation mode parameters.
+    auto config = util::get_default_common_config(npudesc);
+    config.erase(std::string(::intel_npu::NPUW_SLICE_OUT::key()));
+    config.erase(std::string(::intel_npu::NPUW_FUNCALL_FOR_ALL::key()));
+    // The tail picks a dynamic number of logits rows, which the NPU compiler
+    // cannot take, so it goes to the PA device, or to CPU next to a GPU: the
+    // GPU adds the residual of the tail's first FC in place into the buffer
+    // of a subgraph input, which it allocates only at inference, and crashes.
+    const std::string tail_device = pa_device == "GPU" ? "CPU" : pa_device;
+    config[std::string(::intel_npu::NPUW_DEVICES::key())] =
+        tail_device == pa_device ? "NPU," + pa_device : "NPU," + pa_device + "," + tail_device;
+    config[std::string(::intel_npu::NPUW_ONLINE_PIPELINE::key())] = std::string("REP");
+    config[std::string(::intel_npu::NPUW_ONLINE_ISOLATE::key())] = std::string("Op:PagedAttentionExtension/pa");
+    // Every PA op stays on the PA device. Next to a GPU the CPU is listed for
+    // the tail, so the PA ops avoid it too: the cache pools they take are GPU
+    // tensors, so a CPU fallback for them could not run anyway.
+    auto pa_avoid = std::string("Op:PagedAttentionExtension/NPU");
+    if (tail_device != pa_device) {
+        pa_avoid += ",Op:PagedAttentionExtension/" + tail_device;
+    }
+    config[std::string(::intel_npu::NPUW_ONLINE_AVOID::key())] = pa_avoid;
+    config[std::string(::intel_npu::NPUW_ONLINE_KEEP_BLOCKS_TAGGED::key())] = std::string("pa");
+    const auto compilation_mode_params = std::string(::intel_npu::COMPILATION_MODE_PARAMS::key());
+    for (const auto& [key, value] : properties) {
+        if (key == compilation_mode_params) {
+            config[key] =
+                ov::npuw::util::merge_compilation_mode_params(config[key].as<std::string>(), value.as<std::string>());
+        } else {
+            config[key] = value;
+        }
+    }
+
+    // A variant is an ordinary NPUW model: it must not select the PA front-end
+    // again, and a partitioning chosen for the whole model does not apply to it.
+    config.erase(std::string(::intel_npu::NPUW_PA::key()));
+    config.erase(std::string(::intel_npu::NPUW_PLAN::key()));
+    config[std::string(::intel_npu::NPUW_SUBMODEL_DEVICE::key())] = "last:" + tail_device;
+    config[ov::intel_npu::use_npuw.name()] = std::string("YES");
+    config[std::string(::intel_npu::NPUW_WEIGHTS_BANK::key())] = weights_bank;
+    return config;
+}
+
+ov::npuw::PACompiledModel::DynamicModel ov::npuw::PACompiledModel::compile_dynamic(
+    const std::shared_ptr<ov::Model>& model,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    const ov::AnyMap& properties) {
+    // An env var, not an option, so it stays out of user configs.
     const char* device_env = std::getenv("OPENVINO_NPUW_PA_DEVICE");
     const std::string device = (device_env != nullptr && device_env[0] != '\0') ? device_env : "CPU";
-    OPENVINO_ASSERT(device == "CPU",
-                    "The PagedAttention fallback device is CPU for now, got OPENVINO_NPUW_PA_DEVICE=",
+    OPENVINO_ASSERT(device == "CPU" || device == "GPU",
+                    "The PagedAttention device is CPU or GPU, got OPENVINO_NPUW_PA_DEVICE=",
                     device);
 
     bool has_past_lens = false, has_cache = false;
@@ -164,15 +432,55 @@ ov::npuw::PACompiledModel::PACompiledModel(const std::shared_ptr<ov::Model>& mod
     }
 
     LOG_INFO("PA: compiling the dynamic PA model 1:1 on " << device);
-    m_compiled_model = plugin->get_core()->compile_model(model, device, inner_config);
-    OPENVINO_ASSERT(m_compiled_model != nullptr, "PACompiledModel requires a valid inner compiled model");
+    auto compiled = plugin->get_core()->compile_model(model, device, inner_config);
+    OPENVINO_ASSERT(compiled != nullptr, "PACompiledModel requires a valid inner compiled model");
+    return {device, std::move(compiled)};
+}
 
+ov::npuw::PACompiledModel::PACompiledModel(const std::shared_ptr<ov::Model>& model,
+                                           const std::shared_ptr<const ov::IPlugin>& plugin,
+                                           const ov::AnyMap& properties)
+    : PACompiledModel(model, plugin, properties, compile_dynamic(model, plugin, properties)) {}
+
+// The ports are the inner model's, see inputs(). The CB pipeline allocates the
+// cache pools from this model's context when the execution device is a GPU, so
+// with PA on GPU the context is the dynamic model's. The CPU has none.
+ov::npuw::PACompiledModel::PACompiledModel(const std::shared_ptr<ov::Model>& model,
+                                           const std::shared_ptr<const ov::IPlugin>& plugin,
+                                           const ov::AnyMap& properties,
+                                           DynamicModel dynamic)
+    : ov::npuw::ICompiledModel(
+          nullptr,
+          plugin,
+          dynamic.device == "GPU" ? dynamic.compiled->get_context() : ov::SoPtr<ov::IRemoteContext>{}),
+      m_compiled_model(std::move(dynamic.compiled)),
+      m_block_size(pa_block_size(dynamic.device, m_compiled_model)) {
+    const auto& device = dynamic.device;
     if (is_chunkable_pa_model(model)) {
-        m_semi_static_models = compile_pa_semi_static_variants(model, plugin, device, inner_config);
+        // One bank for all the variants, unless the caller names one.
+        const auto bank_it = properties.find(std::string(::intel_npu::NPUW_WEIGHTS_BANK::key()));
+        const auto caller_bank = bank_it == properties.end() ? std::string{} : bank_it->second.as<std::string>();
+        const auto bank = caller_bank.empty() ? ov::npuw::util::generate_random_string() : caller_bank;
+        auto variant_config =
+            make_variant_config(properties, device, bank, util::extract_npu_descriptor(plugin, properties));
+        // NPUW builds the PA blocks of the variants as new models, without the
+        // rt_info runtime options the CPU may take its cache settings from and
+        // without the 4-bit weights the GPU picks a u4 cache for. Both read the
+        // same cache pools, so the variants take the dynamic model's effective
+        // settings.
+        const auto cache_keys = device == "GPU" ? std::vector<std::string>{ov::hint::kv_cache_precision.name()}
+                                                : std::vector<std::string>{ov::key_cache_precision.name(),
+                                                                           ov::value_cache_precision.name(),
+                                                                           ov::key_cache_group_size.name(),
+                                                                           ov::value_cache_group_size.name()};
+        for (const auto& key : cache_keys) {
+            variant_config[key] = m_compiled_model->get_property(key);
+        }
+        m_semi_static_models = compile_pa_semi_static_variants(model, plugin, variant_config);
     } else {
         LOG_INFO("PA: model is outside the chunkable flat-token contract; every dispatch runs 1:1");
     }
-    LOG_INFO("PA: " << m_semi_static_models.size() << " semi-static variant(s) on " << device);
+    LOG_INFO("PA: " << m_semi_static_models.size() << " semi-static variant(s), PA ops on " << device);
 }
 
 const std::vector<ov::Output<const ov::Node>>& ov::npuw::PACompiledModel::inputs() const {
@@ -219,14 +527,16 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::PACompiledModel::create_sync_in
     auto self = std::static_pointer_cast<const ov::ICompiledModel>(shared_from_this());
     auto inner_request = m_compiled_model->create_infer_request();
     OPENVINO_ASSERT(inner_request != nullptr, "PACompiledModel requires a valid inner infer request");
-    return std::make_shared<PAInferRequest>(self, std::move(inner_request), m_semi_static_models);
+    return std::make_shared<PAInferRequest>(self, std::move(inner_request), m_semi_static_models, m_block_size);
 }
 
 ov::npuw::PAInferRequest::PAInferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model,
                                          ov::SoPtr<ov::IAsyncInferRequest> inner_request,
-                                         const std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>>& variants)
+                                         const std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>>& variants,
+                                         std::size_t block_size)
     : ov::ISyncInferRequest(compiled_model),
-      m_inner_request(std::move(inner_request)) {
+      m_inner_request(std::move(inner_request)),
+      m_block_size(block_size) {
     for (const auto& input : get_inputs()) {
         m_inputs_by_name.emplace(input.get_any_name(), input);
     }
@@ -419,7 +729,7 @@ void ov::npuw::PAInferRequest::log_dispatch_io(bool outputs) const {
 void ov::npuw::PAInferRequest::infer() {
     log_dispatch_io(/*outputs=*/false);
     const auto dispatch = parse_dispatch();
-    pa::validate_dispatch(dispatch, kBlockSize, m_dispatch_idx);
+    pa::validate_dispatch(dispatch, m_block_size, m_dispatch_idx);
     LOG_VERB("PA dispatch #" << m_dispatch_idx << ": " << dispatch.sequences() << " subsequence(s), "
                              << dispatch.tokens() << " token(s), " << dispatch.sampled_tokens_indices.size()
                              << " sampled");

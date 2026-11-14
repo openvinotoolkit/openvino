@@ -8,24 +8,58 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
+#include "llm_compiled_model_utils.hpp"
 #include "npuw/compiled_model.hpp"
 #include "pa_dispatch.hpp"
 
 namespace ov::npuw {
 
+namespace pa {
+
+// The PA model is token-major: the flat token count sits in dimension 0, where
+// the NPU compiler reads a batch and lowers the trunk into batched layers.
+// Every token-major tensor also carries a singleton dimension ([tokens, 1,
+// hidden] through the FFN, [tokens, heads, 1, head_size] around RoPE), so
+// consuming it and prepending a batch of 1 moves the token count out of the
+// batch position without moving data. This does that around the weight
+// MatMuls and the elementwise arithmetic of a variant with `tokens` > 1, so
+// the NPU gets batch-1 layers. The reshapes are metadata only.
+void relayout_token_major(const std::shared_ptr<ov::Model>& model, std::size_t tokens);
+
+// A model with tied embeddings decompresses one weight table for both the
+// embedding Gather and the LM head MatMul. Partitioned as is, the head
+// subgraph outputs the whole decompressed table every inference and the tail
+// takes it as an input, so the LM head weights are no longer constants. This
+// gives every MatMul whose constant-only weight decompression it shares with
+// other consumers its own copy of the decompression ops.
+void untie_matmul_weights(const std::shared_ptr<ov::Model>& model);
+
+}  // namespace pa
+
 // Front-end for the dynamic PagedAttention model the GenAI CB pipeline
-// deploys. The model is compiled 1:1 on the PA device (CPU) next to its
-// semi-static variants. The ports are the inner model's, so the pipeline reads
-// the device-resolved KV cache geometry off them.
+// deploys. The model is compiled 1:1 on the PA device (CPU, or GPU with
+// OPENVINO_NPUW_PA_DEVICE=GPU) next to its semi-static variants, which NPUW
+// partitions: the repeated blocks fold onto NPU and every PA op stays on the
+// PA device. The ports are the inner model's, so the pipeline reads the
+// device-resolved KV cache geometry off them.
 class PACompiledModel final : public ov::npuw::ICompiledModel {
 public:
     PACompiledModel(const std::shared_ptr<ov::Model>& model,
                     const std::shared_ptr<const ov::IPlugin>& plugin,
                     const ov::AnyMap& properties);
+
+    // The NPUW config the variants compile with: the NPU defaults of the LLM
+    // path plus the partitioning above, under the caller's properties, with one
+    // weights bank for all.
+    static ov::AnyMap make_variant_config(const ov::AnyMap& properties,
+                                          const std::string& pa_device,
+                                          const std::string& weights_bank,
+                                          const std::optional<util::NPUDesc>& npudesc);
 
     const std::vector<ov::Output<const ov::Node>>& inputs() const override;
     const std::vector<ov::Output<const ov::Node>>& outputs() const override;
@@ -37,9 +71,22 @@ public:
     ov::Any get_property(const std::string& name) const override;
 
 private:
+    struct DynamicModel {
+        std::string device;
+        ov::SoPtr<ov::ICompiledModel> compiled;
+    };
+    static DynamicModel compile_dynamic(const std::shared_ptr<ov::Model>& model,
+                                        const std::shared_ptr<const ov::IPlugin>& plugin,
+                                        const ov::AnyMap& properties);
+    PACompiledModel(const std::shared_ptr<ov::Model>& model,
+                    const std::shared_ptr<const ov::IPlugin>& plugin,
+                    const ov::AnyMap& properties,
+                    DynamicModel dynamic);
+
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
     ov::SoPtr<ov::ICompiledModel> m_compiled_model;
+    std::size_t m_block_size = 0u;
 
     // Keyed by chunk size.
     std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> m_semi_static_models;
@@ -53,7 +100,8 @@ class PAInferRequest final : public ov::ISyncInferRequest {
 public:
     PAInferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model,
                    ov::SoPtr<ov::IAsyncInferRequest> inner_request,
-                   const std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>>& variants);
+                   const std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>>& variants,
+                   std::size_t block_size);
 
     void infer() override;
 
@@ -78,6 +126,7 @@ private:
     void run_chunk(ChunkRequest& chunk, const pa::Dispatch& d, int64_t seq, int64_t seq_offset, int64_t n_chunk_tokens);
 
     ov::SoPtr<ov::IAsyncInferRequest> m_inner_request;
+    std::size_t m_block_size = 0u;
 
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_inputs_by_name;
 

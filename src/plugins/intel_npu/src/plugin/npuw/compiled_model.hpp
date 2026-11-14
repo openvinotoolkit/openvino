@@ -47,7 +47,9 @@ public:
     static std::shared_ptr<ov::npuw::ICompiledModel> import_model(std::istream& stream,
                                                                   const std::shared_ptr<const ov::IPlugin>& plugin,
                                                                   const ov::AnyMap& properties);
-    ICompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin);
+    ICompiledModel(const std::shared_ptr<ov::Model>& model,
+                   const std::shared_ptr<const ov::IPlugin>& plugin,
+                   const ov::SoPtr<ov::IRemoteContext>& context = {});
 };
 
 // Minimum interface consumed by LLMCompiledModel from its sub-compiled models

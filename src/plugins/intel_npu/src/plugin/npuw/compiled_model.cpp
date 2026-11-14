@@ -251,6 +251,9 @@ ov::npuw::DeviceProperties get_properties_per_device(const std::shared_ptr<const
                         device_properties[device_name][opt.first] = opt.second;
                     }
                 }
+            } else {
+                // The DEVICE_ID this plugin was given names an NPU device.
+                device_properties[device_name].erase(ov::device::id.name());
             }  // if(NPU)
         }
     }
@@ -438,8 +441,9 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::import_model
 }
 
 ov::npuw::ICompiledModel::ICompiledModel(const std::shared_ptr<ov::Model>& model,
-                                         const std::shared_ptr<const ov::IPlugin>& plugin)
-    : ov::ICompiledModel(model, plugin) {}
+                                         const std::shared_ptr<const ov::IPlugin>& plugin,
+                                         const ov::SoPtr<ov::IRemoteContext>& context)
+    : ov::ICompiledModel(model, plugin, context) {}
 
 ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                        const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -805,15 +809,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     }
 #endif
 
-    std::map<std::size_t, std::string> forced_sub_devices{};
-    std::string fsd_opt = m_cfg.get<::intel_npu::NPUW_SUBMODEL_DEVICE>();
-    // Change "last" keyword to tail subgraph number
-    std::size_t last_pos = fsd_opt.find("last");
-    if (last_pos != std::string::npos) {
-        fsd_opt.erase(last_pos, 4);
-        fsd_opt.insert(last_pos, std::to_string(end_sub_idx));
-    }
-    forced_sub_devices = ::intel_npu::OptionParser<std::map<std::size_t, std::string>>::parse(fsd_opt);
+    auto forced_sub_devices =
+        ov::npuw::util::parse_submodel_devices(m_cfg.get<::intel_npu::NPUW_SUBMODEL_DEVICE>(), end_sub_idx);
 
     // Exclude optimized out subgraphs from compilation target beforehand - otherwise we might get head and repeated
     // block in the same chunk
@@ -2473,7 +2470,7 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
             device_config.insert(ov::internal::exclusive_async_requests(true));
         }
     }  // if(subgraphs > 1)
-    return core->compile_model(submodel, device, device_config);
+    return core->compile_model(ov::npuw::util::with_dynamic_pa_tokens(submodel), device, device_config);
 }
 
 void ov::npuw::CompiledModel::dump_on_fail(std::size_t id, const std::string& device_to_try, const char* extra) {
