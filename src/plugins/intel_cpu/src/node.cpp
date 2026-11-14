@@ -75,12 +75,14 @@ Node::NodesFactory& Node::factory() {
 
 Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const ShapeInferFactory& shapeInferFactory)
     : context(std::move(ctx)),
+      auxiliaryMemoryControl(context->getAuxiliaryNetworkMemoryControl()),
       fusingPort(-1),
       engine(context->getEngine()),
       name(op->get_friendly_name()),
       typeStr(op->get_type_name()),
       type(TypeFromName(op->get_type_name())),
       executeTaskId(openvino::itt::handle(this->name)) {
+    OPENVINO_ASSERT(auxiliaryMemoryControl, "CPU node requires an auxiliary memory control interface");
     for (size_t i = 0; i < op->get_input_size(); i++) {
         const auto& shape = op->get_input_partial_shape(i);
         OPENVINO_ASSERT(!shape.rank().is_dynamic(),
@@ -205,6 +207,7 @@ Node::Node(const std::string& type,
       outputShapes(std::move(outShapes)),
 
       context(ctx),
+      auxiliaryMemoryControl(context->getAuxiliaryNetworkMemoryControl()),
       originalInputPrecisions(std::move(inputPrecisions)),
       originalOutputPrecisions(std::move(outputPrecisions)),
       fusingPort(-1),
@@ -213,6 +216,7 @@ Node::Node(const std::string& type,
       typeStr(type),
       type(TypeFromName(type)),
       executeTaskId(openvino::itt::handle(this->name)) {
+    OPENVINO_ASSERT(auxiliaryMemoryControl, "CPU node requires an auxiliary memory control interface");
     parentEdges.reserve(inputShapes.size());
     childEdges.reserve(outputShapes.size());
 }

@@ -381,7 +381,20 @@ void StridedSlice::prepareParams() {
             dstMemory.push_back(getDstMemoryAtPort(i));
         }
     }
-    execPtr = std::make_shared<StridedSliceCommonExecutor>(attrs, srcMemory, dstMemory);
+    auto executor = std::make_shared<StridedSliceCommonExecutor>(attrs, srcMemory, dstMemory);
+    execPtr = executor;
+    std::weak_ptr<StridedSliceCommonExecutor> weakExecutor = executor;
+    getAuxiliaryMemoryControl()->registerMemoryCallbacks(
+        [weakExecutor]() {
+            if (const auto executor = weakExecutor.lock()) {
+                executor->releaseMemory();
+            }
+        },
+        [weakExecutor]() {
+            if (const auto executor = weakExecutor.lock()) {
+                executor->allocateMemory();
+            }
+        });
 }
 
 bool StridedSlice::needShapeInfer() const {
@@ -410,6 +423,19 @@ StridedSlice::StridedSliceCommonExecutor::StridedSliceCommonExecutor(const Strid
     dimsNormalization();
     dimsGluing();
     indicesCalculation();
+}
+
+void StridedSlice::StridedSliceCommonExecutor::releaseMemory() {
+    VectorDims{}.swap(srcIndices);
+    VectorDims{}.swap(dstIndices);
+}
+
+void StridedSlice::StridedSliceCommonExecutor::allocateMemory() {
+    if (srcIndices.empty() && workAmount != 0) {
+        srcIndices.resize(workAmount, 0);
+        dstIndices.resize(workAmount, 0);
+        indicesCalculation();
+    }
 }
 
 void StridedSlice::StridedSliceCommonExecutor::orderParametersByLayouts(

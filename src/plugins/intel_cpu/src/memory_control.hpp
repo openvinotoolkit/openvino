@@ -6,7 +6,9 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
+#include <type_traits>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -16,6 +18,17 @@
 #include "edge.h"
 
 namespace ov::intel_cpu {
+
+class IAuxiliaryMemoryControl {
+public:
+    virtual ~IAuxiliaryMemoryControl() = default;
+
+    virtual MemoryPtr allocate(const dnnl::engine& engine, const MemoryDescPtr& desc) = 0;
+    virtual void registerMemoryBlock(MemoryBlockPtr block) = 0;
+    virtual void registerMemoryCallbacks(std::function<void()> release, std::function<void()> allocate) = 0;
+    virtual void releaseMemory() = 0;
+    virtual void allocateMemory() = 0;
+};
 
 using EdgeCluster = std::vector<EdgePtr>;
 using EdgeClusters = std::vector<EdgeCluster>;
@@ -78,13 +91,17 @@ private:
     bool m_allocated = false;
 };
 
-class NetworkMemoryControl {
+class NetworkMemoryControl : public IAuxiliaryMemoryControl {
 public:
     NetworkMemoryControl() = default;
     MemoryControl::Ptr createMemoryControlUnit(std::string id);
 
-    void allocateMemory();
-    void releaseMemory();
+    MemoryPtr allocate(const dnnl::engine& engine, const MemoryDescPtr& desc) override;
+    void registerMemoryBlock(MemoryBlockPtr block) override;
+    void registerMemoryCallbacks(std::function<void()> release, std::function<void()> allocate) override;
+
+    void allocateMemory() override;
+    void releaseMemory() override;
 
     [[nodiscard]] std::vector<std::pair<std::string, MemoryStatistics>> dumpStatistics() const;
 
@@ -94,6 +111,12 @@ public:
 
 private:
     std::vector<MemoryControl::Ptr> m_controlUnits;
+    struct AuxiliaryMemory;
+    std::vector<std::shared_ptr<AuxiliaryMemory>> m_auxiliaryMemory;
+    std::vector<std::pair<std::function<void()>, std::function<void()>>> m_auxiliaryCallbacks;
 };
+
+static_assert(std::is_base_of_v<IAuxiliaryMemoryControl, NetworkMemoryControl>,
+              "NetworkMemoryControl must implement IAuxiliaryMemoryControl");
 
 }  // namespace ov::intel_cpu
