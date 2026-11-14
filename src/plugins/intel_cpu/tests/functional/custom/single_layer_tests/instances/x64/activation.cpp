@@ -2,10 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cmath>
+#include <limits>
+
 #include "custom/single_layer_tests/classes/activation.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
 #include "common_test_utils/test_enums.hpp"
+#include "internal_properties.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/runtime/core.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test::utils;
@@ -97,6 +103,37 @@ const auto basicCases5D = ::testing::Combine(
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation5D_Eltwise_CPU_Blocked, ActivationLayerCPUTest, basicCases5D, ActivationLayerCPUTest::getTestCaseName);
+
+// The generic comparison skips elements that are NaN or infinite in both results,
+// so NaN propagation through the Exp emitter is checked explicitly.
+TEST(smoke_Activation_CPU, ExpKeepsNaN) {
+    for (const auto mode : {ov::intel_cpu::SnippetsMode::ENABLE, ov::intel_cpu::SnippetsMode::DISABLE}) {
+        const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4});
+        const auto exp = std::make_shared<ov::op::v0::Exp>(input);
+        const auto model = std::make_shared<ov::Model>(exp, ov::ParameterVector{input});
+
+        ov::Core core;
+        auto request = core.compile_model(model,
+                                          ov::test::utils::DEVICE_CPU,
+                                          ov::hint::inference_precision(ov::element::f32),
+                                          ov::intel_cpu::snippets_mode(mode))
+                           .create_infer_request();
+        ov::Tensor tensor(ov::element::f32, ov::Shape{4});
+        auto* data = tensor.data<float>();
+        data[0] = std::numeric_limits<float>::quiet_NaN();
+        data[1] = std::numeric_limits<float>::infinity();
+        data[2] = -std::numeric_limits<float>::infinity();
+        data[3] = 0.0f;
+        request.set_input_tensor(tensor);
+        request.infer();
+
+        const auto* out = request.get_output_tensor().data<const float>();
+        EXPECT_TRUE(std::isnan(out[0])) << "exp(NaN) is " << out[0];
+        EXPECT_EQ(out[1], std::numeric_limits<float>::infinity());
+        EXPECT_EQ(out[2], 0.0f);
+        EXPECT_EQ(out[3], 1.0f);
+    }
+}
 
 }  // namespace
 }  // namespace Activation

@@ -2284,8 +2284,12 @@ void jit_exp_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
     // get mask of values lower than log(FLT_MIN) to zero them in the output
     compute_cmp_mask(vmm_src, vmm_aux1, _cmp_lt_os);
 
-    h->uni_vminps(vmm_dst, vmm_src, table_val("ln_flt_max_f"));
-    h->uni_vmaxps(vmm_dst, vmm_dst, vmm_aux1);
+    // clamp x to [log(FLT_MIN), log(FLT_MAX)]; minps/maxps return the second operand
+    // when one of them is NaN, so x goes second to keep NaN in the result
+    h->uni_vmovups(vmm_aux0, table_val("ln_flt_max_f"));
+    h->uni_vminps(vmm_aux0, vmm_aux0, vmm_src);
+    h->uni_vmaxps(vmm_aux1, vmm_aux1, vmm_aux0);
+    h->uni_vmovups(vmm_dst, vmm_aux1);
     h->uni_vmovups(vmm_aux0, vmm_dst);
 
     // calculate exp(x)
