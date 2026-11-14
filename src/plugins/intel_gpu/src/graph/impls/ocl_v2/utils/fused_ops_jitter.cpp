@@ -865,7 +865,10 @@ JitConstants make_activation_jit_constants(const std::string& suffix,
     }
     case activation_func::elu: {
         const JitTerm alpha = convert_to_type("m"_jit, calc_dt);
-        jit.add(make_jit_constant(macro_def, max(input, zero) + (alpha * (exp(min(input, zero)) - one))));
+        // OpenCL max/min may drop the NaN operand, so keep NaN explicitly
+        // (see relu_negative_slope for why this is a ternary, not select()).
+        const JitTerm elu_body = max(input, zero) + (alpha * (exp(min(input, zero)) - one));
+        jit.add(make_jit_constant(macro_def, ternary(isnan(input), input, elu_body)));
         break;
     }
     case activation_func::clamp: {

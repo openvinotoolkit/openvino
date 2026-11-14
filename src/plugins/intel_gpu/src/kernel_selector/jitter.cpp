@@ -1227,10 +1227,10 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
         }
         case ActivationFunction::ELU: {
             auto alpha = disable_type_conversion ? "m"_jit : to_type("m"_jit);
-            jitConstants.AddConstant(MakeJitConstant(
-                macro_def,
-                (max_func(input, zero) + (alpha * (exp(min_func(input, zero)) - one)))
-                    .str()));
+            // OpenCL fmax/fmin return the non-NaN operand, so keep NaN explicitly
+            // (see RELU_NEGATIVE_SLOPE for why this is a ternary, not select()).
+            const JitTerm elu_body = max_func(input, zero) + (alpha * (exp(min_func(input, zero)) - one));
+            jitConstants.AddConstant(MakeJitConstant(macro_def, ternary(isnan(input), input, elu_body).str()));
             break;
         }
         case ActivationFunction::CLAMP: {
