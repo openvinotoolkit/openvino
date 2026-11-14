@@ -4,11 +4,13 @@
 import os
 import platform
 import re
+import tempfile
 
 import pytest
 import timm
 import torch
 from models_hub_common.utils import get_models_list, retry
+from openvino import convert_model
 
 from torch_utils import TestTorchConvertModel
 
@@ -174,6 +176,24 @@ class TestTimmConvertModel(TestTorchConvertModel):
             m(*self.example)
         return m
 
+    def convert_model_impl(self, model_obj):
+        if self.mode != "onnx":
+            return super().convert_model_impl(model_obj)
+
+        from torch.onnx import _constants
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            onnx_path = os.path.join(tmp_dir, "model.onnx")
+            torch.onnx.export(
+                model_obj.eval(),
+                self.example,
+                onnx_path,
+                dynamo=True,
+                opset_version=_constants.ONNX_MAX_OPSET,
+                dynamic_shapes=({0: torch.export.Dim("batch")},),
+            )
+            return convert_model(onnx_path, verbose=True)
+
     def infer_fw_model(self, model_obj, inputs):
         fw_outputs = model_obj(*[torch.from_numpy(i) for i in inputs])
         if isinstance(fw_outputs, dict):
@@ -208,11 +228,11 @@ class TestTimmConvertModel(TestTorchConvertModel):
 
     @pytest.mark.nightly
     @pytest.mark.parametrize("name,link,mark,reason", get_models_list(os.path.join(os.path.dirname(__file__), "timm_models")))
-    @pytest.mark.parametrize("mode", ["trace", "export"])
+    @pytest.mark.parametrize("mode", ["trace", "export", "onnx"])
     def test_convert_model_all_models(self, mode, name, link, mark, reason, ie_device):
         self.mode = mode
         assert mark is None or mark in [
-            'skip', 'xfail', 'xfail_trace', 'xfail_export'], f"Incorrect test case for {name}"
+            'skip', 'xfail', 'xfail_trace', 'xfail_export', 'xfail_onnx'], f"Incorrect test case for {name}"
         if mark == 'skip':
             pytest.skip(reason)
         elif mark in ['xfail', f'xfail_{mode}']:

@@ -108,6 +108,10 @@ jobs:
         env:
           CPLUS_INCLUDE_PATH: ${{ env.Python_ROOT_DIR }}/include/python${{ env.PYTHON_VERSION }}
 
+      - name: Install deps for nightly timm ONNX export tests
+        if: ${{ inputs.model_scope == 'nightly_scope1' }}
+        run: python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/timm_onnx.txt
+
       - name: PyTorch Models Tests Timm and Torchvision
         if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope1' }}
         run: |
