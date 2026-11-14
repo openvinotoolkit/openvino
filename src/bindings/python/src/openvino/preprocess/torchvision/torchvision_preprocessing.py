@@ -182,6 +182,10 @@ class _(TransformConverterBase):
         torch_padding = transform.padding
         pad_mode = transform.padding_mode
 
+        # torchvision accepts a one-element sequence and treats it like an int
+        if not isinstance(torch_padding, int) and len(torch_padding) == 1:
+            torch_padding = torch_padding[0]
+
         if pad_mode == "constant":
             if isinstance(transform.fill, tuple):
                 raise ValueError("Different fill values for R, G, B channels are not supported.")
@@ -200,9 +204,10 @@ class _(TransformConverterBase):
             pads_end[layout.get_index_by_name("W")] = torch_padding
 
         # padding different in horizontal and vertical axis
+        # (torchvision order: left/right, then top/bottom)
         elif len(torch_padding) == 2:
-            image_dimensions[0] += sum(torch_padding)
-            image_dimensions[1] += sum(torch_padding)
+            image_dimensions[0] += 2 * torch_padding[1]
+            image_dimensions[1] += 2 * torch_padding[0]
 
             pads_begin[layout.get_index_by_name("H")] = torch_padding[1]
             pads_begin[layout.get_index_by_name("W")] = torch_padding[0]
