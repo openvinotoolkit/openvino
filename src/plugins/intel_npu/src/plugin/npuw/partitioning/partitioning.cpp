@@ -4,9 +4,11 @@
 
 #include "partitioning.hpp"
 
+#include <algorithm>
 #include <limits>
 #include <memory>
 #include <set>
+#include <unordered_set>
 
 #include "../logging.hpp"
 #include "../npuw_transformations/detect_causal_mask.hpp"
@@ -2326,7 +2328,18 @@ void Partitioner::optimize(const std::string& func_name) {
         // Convert parameters to f16 where required
         do_cvtf16(ctx);
 
-        // Add lazy Sub128 parameters while retaining the original sources when they are still shared.
+        // Replace the u8 sources with lazy Sub128 parameters. A Sub128 closure is built on its source
+        // closure and shares its data, which the weights bank detaches after the first evaluation, so
+        // the source can never stay as a closure of its own: it is always removed. The passes that
+        // request Sub128 replace every reader of the source. A disconnected chain that an earlier pass
+        // still holds (for example the parallel MatMul context) may still list it as a reader, so only
+        // readers reachable from the model outputs count.
+        std::unordered_set<const ov::Node*> live_ops;
+        if (!ctx.closures_to_subtract_128.empty()) {
+            for (const auto& node : f._model->get_ordered_ops()) {
+                live_ops.insert(node.get());
+            }
+        }
         for (const auto& shifted_and_source : ctx.closures_to_subtract_128) {
             const auto& shifted_param = shifted_and_source.first;
             const auto& source_param = shifted_and_source.second;
@@ -2342,7 +2355,13 @@ void Partitioner::optimize(const std::string& func_name) {
                 funcall._is_lazy_unpack.push_back(false);
             });
 
-            if (source_param->output(0).get_target_inputs().empty() && to_remove_idx.insert(source_idx).second) {
+            const auto source_readers = source_param->output(0).get_target_inputs();
+            const bool source_has_live_reader =
+                std::any_of(source_readers.begin(), source_readers.end(), [&](const ov::Input<ov::Node>& reader) {
+                    return live_ops.count(reader.get_node()) > 0;
+                });
+            NPUW_ASSERT(!source_has_live_reader && "The u8 source of a Sub128 closure must have no other readers");
+            if (to_remove_idx.insert(source_idx).second) {
                 to_remove.push_back(source_param);
             }
         }
