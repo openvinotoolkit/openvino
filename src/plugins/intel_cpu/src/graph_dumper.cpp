@@ -18,6 +18,7 @@
 #include "cpu_types.h"
 #include "graph.h"
 #include "node.h"
+#include "nodes/paged_attn.h"
 #include "nodes/scaled_attn.h"
 #include "onednn/dnnl.h"
 #include "openvino/core/except.hpp"
@@ -131,6 +132,11 @@ std::map<std::string, std::string> extract_node_metadata(const NodePtr& node) {
             serialization_info["kv_cache_precision"] = sdpa_node->getKVCachePrecision().get_type_name();
         }
     }
+    if (node->getType() == Type::PagedAttention) {
+        auto* pa_node = dynamic_cast<node::PagedAttention*>(node.get());
+        OPENVINO_ASSERT(pa_node != nullptr, "[CPU] Unexpected: PagedAttention node cast failed");
+        serialization_info["block_size"] = std::to_string(pa_node->getBlockSize());
+    }
 
     return serialization_info;
 }
@@ -231,7 +237,11 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
         holder->add_control_dependency(node);
     }
 
-    return std::make_shared<ov::Model>(results, params, graph._name);
+    auto runtime_model = std::make_shared<ov::Model>(results, params, graph._name);
+    if (auto pa_bs = graph.getPagedAttentionBlockSize()) {
+        runtime_model->get_rt_info()[ov::exec_model_info::PAGED_ATTENTION_BLOCK_SIZE] = *pa_bs;
+    }
+    return runtime_model;
 }
 
 #ifdef CPU_DEBUG_CAPS
