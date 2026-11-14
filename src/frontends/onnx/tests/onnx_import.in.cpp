@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <fstream>
 #include <iterator>
 #include <limits>
@@ -23,6 +24,7 @@
 // clang-format on
 #include "common_test_utils/all_close.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/ndarray.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_case.hpp"
@@ -33,11 +35,17 @@
 #include "gtest/gtest.h"
 #include "onnx_utils.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert_like.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/prelu.hpp"
+#include "openvino/op/random_uniform.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/pass/constant_folding.hpp"
+#include "openvino/runtime/core.hpp"
 
 using namespace ov;
 using namespace ov::frontend::onnx::tests;
@@ -6113,6 +6121,142 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_random_normal_like) {
     }
 
     test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bernoulli_decomposition) {
+    const auto model = convert_model("bernoulli_seed_dynamic.onnx");
+
+    const auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{Dimension::dynamic()});
+    const auto shape = std::make_shared<op::v3::ShapeOf>(input);
+    const auto low = op::v0::Constant::create(element::f32, Shape{}, {0.0f});
+    const auto high = op::v0::Constant::create(element::f32, Shape{}, {1.0f});
+    // ONNX float seed is passed bit-wise as op_seed.
+    const float onnx_seed = 1.5f;
+    uint32_t op_seed = 0;
+    std::memcpy(&op_seed, &onnx_seed, sizeof(op_seed));
+    const auto samples = std::make_shared<op::v8::RandomUniform>(shape, low, high, element::f32, 0, op_seed);
+    const auto mask = std::make_shared<op::v1::Less>(samples, input);
+    const auto output = std::make_shared<op::v1::ConvertLike>(mask, input);
+    const auto model_ref = std::make_shared<Model>(OutputVector{output}, ParameterVector{input});
+
+    const auto res = FunctionsComparator::with_default()
+                         .enable(FunctionsComparator::ATTRIBUTES)
+                         .enable(FunctionsComparator::CONST_VALUES)
+                         .disable(FunctionsComparator::TENSOR_NAMES)(model, model_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bernoulli_degenerate_probabilities) {
+    const auto model = convert_model("bernoulli.onnx");
+    EXPECT_EQ(model->get_output_element_type(0), element::f32);
+    EXPECT_EQ(model->get_output_partial_shape(0), PartialShape({2, 4}));
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{2, 4}, {0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f});
+    test_case.add_expected_output<float>(Shape{2, 4}, {0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bernoulli_f16) {
+    ov::frontend::FrontEnd::Ptr front_end;
+    auto input_model = load_model("bernoulli.onnx", &front_end);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("x"), element::f16);
+    const auto model = front_end->convert(input_model);
+    EXPECT_EQ(model->get_output_element_type(0), element::f16);
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<ov::float16>(Shape{2, 4}, {0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f});
+    test_case.add_expected_output<ov::float16>(Shape{2, 4}, {0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bernoulli_double_opset22) {
+    const auto model = convert_model("bernoulli_double_opset22.onnx");
+    EXPECT_EQ(model->get_output_element_type(0), element::f64);
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<double>(Shape{6}, {1.0, 0.0, 1.0, 1.0, 0.0, 0.0});
+    test_case.add_expected_output<double>(Shape{6}, {1.0, 0.0, 1.0, 1.0, 0.0, 0.0});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bernoulli_bf16_opset22) {
+    ov::frontend::FrontEnd::Ptr front_end;
+    auto input_model = load_model("bernoulli_double_opset22.onnx", &front_end);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("x"), element::bf16);
+    const auto model = front_end->convert(input_model);
+    EXPECT_EQ(model->get_output_element_type(0), element::bf16);
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<ov::bfloat16>(Shape{6}, {1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f});
+    test_case.add_expected_output<ov::bfloat16>(Shape{6}, {1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bernoulli_dtype_int32) {
+    const auto model = convert_model("bernoulli_dtype_int32.onnx");
+    EXPECT_EQ(model->get_output_element_type(0), element::i32);
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{6}, {0.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f});
+    test_case.add_expected_output<int32_t>(Shape{6}, {0, 1, 1, 0, 1, 0});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bernoulli_dtype_bool) {
+    const auto model = convert_model("bernoulli_dtype_bool.onnx");
+    EXPECT_EQ(model->get_output_element_type(0), element::boolean);
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{6}, {1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f});
+    test_case.add_expected_output<bool>(Shape{6}, {1, 1, 0, 0, 1, 0});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bernoulli_unknown_input_type) {
+    const auto model = convert_model("bernoulli_unknown_input_type.onnx");
+    EXPECT_TRUE(model->get_output_element_type(0).is_dynamic());
+
+    model->get_parameters().at(0)->set_element_type(element::f32);
+    model->validate_nodes_and_infer_types();
+    EXPECT_EQ(model->get_output_element_type(0), element::f32);
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{6}, {0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f});
+    test_case.add_expected_output<float>(Shape{6}, {0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bernoulli_seed_dynamic_shape) {
+    const auto model = convert_model("bernoulli_seed_dynamic.onnx");
+    EXPECT_EQ(model->get_output_partial_shape(0), PartialShape{Dimension::dynamic()});
+
+    // The first half is sampled with p = 0.25 and the second half with p = 0.75.
+    constexpr size_t half = 5000;
+    std::vector<float> probabilities(half, 0.25f);
+    probabilities.resize(2 * half, 0.75f);
+
+    ov::Core core;
+    const auto infer = [&]() {
+        auto request = core.compile_model(model, s_device).create_infer_request();
+        request.set_input_tensor(ov::Tensor(element::f32, Shape{probabilities.size()}, probabilities.data()));
+        request.infer();
+        const auto& output = request.get_output_tensor();
+        EXPECT_EQ(output.get_shape(), Shape{probabilities.size()});
+        return std::vector<float>(output.data<float>(), output.data<float>() + output.get_size());
+    };
+
+    const auto result = infer();
+    ASSERT_EQ(result.size(), probabilities.size());
+    EXPECT_EQ(result, infer()) << "The same seed must produce the same samples";
+    EXPECT_TRUE(std::all_of(result.begin(), result.end(), [](float v) {
+        return v == 0.0f || v == 1.0f;
+    }));
+
+    const auto low_p_mean = std::accumulate(result.begin(), result.begin() + half, 0.0f) / half;
+    const auto high_p_mean = std::accumulate(result.begin() + half, result.end(), 0.0f) / half;
+    EXPECT_NEAR(low_p_mean, 0.25f, 0.03f);
+    EXPECT_NEAR(high_p_mean, 0.75f, 0.03f);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_packed_sum_2fin) {
