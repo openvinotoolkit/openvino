@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-14-04-29-39-000-43461440649",
+  "timestamp": "2026-11-14T04:29:39Z",
+  "run_id": "43461440649",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43461440649",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "9041181274a6fa43661525a07fb3fafb3303ab4c",
+  "pr_number": "39575",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39575",
+  "author": "praasz",
+  "category": "Flaky Test",
+  "title": "GPU unit tests fail with a burst of 37 gtest-parallel worker crashes right after fp16_scale_out accuracy mismatch",
+  "signature": "GPU unit tests accuracy tolerance mismatch in fusion test (val_ref vs val_opt difference exceeds tolerance in fusion_test_common.hpp) followed by burst of concurrent gtest-parallel worker processes exiting with code 3|Flaky Test",
+  "signature_hash": "502c01bffd8f35db",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "First test fusings_gpu/pooling_f32_scale.fp16_scale_out/1 fails on a tiny fp16 accuracy tolerance mismatch, followed by 36 other gtest-parallel worker processes exiting with exit code 3 (crash/abort) across unrelated test suites (convolution smoke tests, fusings, etc.)."
+    }
+  ],
+  "key_errors": [
+    "fusion_test_common.hpp(90): error: The difference between val_ref[i] and val_opt[i] is 3.0517578125e-05, which exceeds tolerance, where val_ref[i] evaluates to -0.04473876953125, val_opt[i] evaluates to -0.044769287109375, tolerance evaluates to 9.9999997473787516e-06",
+    "[1/29264] fusings_gpu/pooling_f32_scale.fp16_scale_out/1 returned with exit code 1 (2828 ms)",
+    "[2/29264] basic/convolution_random_smoke_test.u8s8f32/b_fs_yx_fsv16_i1x32x28x28_w48x32x1x1_s1x1_ofs0x0_d1x1_g1_bias_wzp_izp returned with exit code 3 (4586 ms)",
+    "FAILED TESTS (37/29264)"
+  ],
+  "root_cause": "The run matches a known recurring pattern: 'GPU unit tests' job on the Windows (VS 2022, Release) post-commit pipeline begins with a tiny fp16 numeric tolerance mismatch in fusings_gpu/pooling_f32_scale.fp16_scale_out/1 (difference ~3e-5 vs tolerance ~1e-5, a borderline fp16 rounding issue in the fused pooling+scale kernel), and is immediately followed by 36 additional gtest-parallel worker processes exiting with exit code 3 across otherwise-unrelated test cases (convolution smoke tests, fusings). Exit code 3 for unrelated, non-executing tests (RUN logged but test body never completes) is consistent with worker-process level instability (e.g., GPU driver/device contention or resource exhaustion under gtest-parallel's concurrent worker model) rather than 37 independent logic bugs. This same signature has now recurred 4 times (today's run makes it the 4th... now 5th) over the past day on this workflow, reinforcing the 'Flaky Test'/infrastructure-adjacent classification rather than a new code regression introduced by PR #39575 (an HSM-reader exception-handling change unrelated to GPU kernels).",
+  "reproduction_steps": "On a Windows GPU test runner: build GPU unit tests, then run `python gtest-parallel.py ... ov_gpu_unit_tests.exe --gtest_filter=fusings_gpu/pooling_f32_scale.fp16_scale_out/1` repeatedly to check for fp16 tolerance flakiness, and separately run the full suite concurrently via gtest-parallel to attempt to reproduce the cascading exit-code-3 crashes under worker contention. Not reliably reproducible outside the shared CI runner environment.",
+  "recommended_actions": [
+    "Escalate signature 502c01bffd8f35db to the GPU plugin test owners given it has now recurred 5 times in ~24h on master post-commit Windows GPU unit tests.",
+    "Investigate whether the Windows GPU runner pool has a shared/contended GPU device causing exit code 3 bursts under gtest-parallel; check runner logs for GPU driver resets or OOM during the affected time window.",
+    "Consider loosening the fp16 tolerance in fusion_test_common.hpp for pooling_f32_scale.fp16_scale_out or marking it as a known-flaky/soft-fail case if the ~3e-5 vs ~1e-5 delta is an expected fp16 rounding edge case on this hardware.",
+    "Add gtest-parallel worker crash diagnostics (stderr/exit reason capture) so exit-code-3 bursts can be root-caused precisely instead of inferred."
+  ],
+  "prevention_strategies": "Track this signature's recurrence count centrally (already done via patterns/502c01bffd8f35db.json) and set an automatic escalation threshold (e.g., notify GPU plugin owners directly) once a pattern's count crosses a small number of occurrences in a short window, since manual Teams reports may be missed. Consider adding retry-on-crash logic in the Windows GPU unit test job for gtest-parallel worker-level exit code 3 failures distinct from genuine assertion failures.",
+  "historical_context": "Identical or near-identical failure signature (502c01bffd8f35db) previously recorded 4 times on 2026-11-13T17:54:36Z, 2026-11-13T22:10:58Z, 2026-11-14T01:16:34Z, and 2026-11-14T02:50:26Z, all on the same 'GPU unit tests' job starting with the fp16_scale_out tolerance mismatch and cascading into dozens of exit-code-3 worker crashes. This run is the 5th occurrence, confirming an ongoing, unresolved flaky/infrastructure issue rather than a one-off."
+}
