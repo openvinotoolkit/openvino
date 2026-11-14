@@ -248,6 +248,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.push_back(std::regex(R"__(.*smoke_LPT/GroupConvolutionTransformationGPU\..*f16_\[1,6,24,24\]_GPU_f32_4D_\[1,6,24,24\]_\[1,6,18,18\]_.*_reshape_on_weights_max_pool_.*)__"));
             patterns.push_back(std::regex(R"__(.*smoke_LPT/MatMulTransformation\..*f16_GPU_\[1,4,12,2\]_level=256_shape=\[\]_input_low=\{ 0 \}_input_high=\{ 25\.5 \}.*\[1,4,2,12\]_level=256_shape=\[\]_input_low=\{ -12\.8 \}.*)__"));
             patterns.push_back(std::regex(R"__(.*smoke_LPT_4D/ConvolutionBackpropDataTransformationGPU\..*/f16_.*input_high=\{ 255 \}_output_low=\{ -12\.7 \}.*)__"));
+            patterns.push_back(std::regex(R"(.*smoke/SDPAWithKVCacheTest.MultipleIterationStateful/with_rearrange=1_batch=2_et=f16_num_iter=10_num_groups=4_initial_batch=1_qkv_order=\(0\.2\.1\.3\)_mask=1_scale=0_causal=0_compressed=1k_head=64v_head=64)"));
         }
 
         return patterns;
