@@ -102,7 +102,8 @@ template <class T>
 void shape_validation(const ov::op::util::FFTBase* op,
                       const std::vector<T>& input_shapes,
                       std::optional<std::vector<int64_t>>& axes,
-                      FFTKind fft_kind) {
+                      FFTKind fft_kind,
+                      bool require_non_empty_axes = false) {
     const auto& input_shape = input_shapes[0];
     const auto& axes_shape = input_shapes[1];
 
@@ -116,6 +117,16 @@ void shape_validation(const ov::op::util::FFTBase* op,
     }
 
     NODE_SHAPE_INFER_CHECK(op, input_shapes, axes_shape.rank().compatible(1), "Axes input must be 1D tensor.");
+
+    if (require_non_empty_axes) {
+        if (axes_shape.rank().is_static()) {
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   axes_shape[0].is_dynamic() || axes_shape[0].get_length() > 0,
+                                   "Axes input must not be empty.");
+        }
+        NODE_SHAPE_INFER_CHECK(op, input_shapes, !axes || !axes->empty(), "Axes input must not be empty.");
+    }
 
     if (input_shapes.size() == 3) {
         const auto& signal_size_shape = input_shapes[2];
