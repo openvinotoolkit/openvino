@@ -139,19 +139,78 @@ ARM determinism has not yet been validated.
 
 ## Review policy for reference changes
 
-The PR author must attach baseline-versus-candidate **real-model performance results
-for every affected checkpoint identity** in `changed_cases.json`. Include immutable
-model/build revisions, hardware/software, precision and plugin/GenAI/KV settings,
-inputs, warmups/repetitions, prefill/decode latency or throughput, compile time and
-peak memory as applicable. Preserve raw results and explain structural changes.
-Do not substitute structural equality, synthetic timings or unrelated numerical tests
-for those results.
+A changed reference does not mean every affected checkpoint must be benchmarked in every
+scenario. The PR author proves "no regression" on a minimal representative set, chosen
+from `changed_cases.json` by the rules below, and widens the set only when a
+representative regresses. Initial reference registration establishes a baseline; it is
+not evidence of a speedup.
 
-For synthetic/controlled references, identify the affected quantization/topology decision
-classes and map them to real checkpoints. Reviewers may approve benchmark representatives
-only with an explicit mapping and justification for **each** affected model. There is no
-automatic equivalence exemption, regression threshold waiver or benchmark-result validator.
-Initial reference registration establishes a baseline; it is not evidence of a speedup.
+### 1. Group affected cases by change signature
+
+Group the changed cases by their net operation/projection deltas from `changed_cases.json`
+(for example "+1 Convert before MatMul" or "Q6_K projection rank 4 -> 3"). Cases whose
+hash changed with equal counts form groups by the operation types whose structure or
+attributes changed; inspect them with the runner's `--gguf-snapshot` diagnostic. Describe
+every group in the PR.
+
+### 2. Select representatives
+
+Within each group, cover every bucket the changed operations/projections actually touch:
+
+| Axis | Buckets |
+| --- | --- |
+| Weight format of the changed projections | Q4_0/Q4_1, Q4_K/Q5_K, Q6_K, Q8_0, F16/BF16, low-bit (Q1/Q2/TQ) |
+| Topology | dense, sliding-window (Gemma), MoE, hybrid/recurrent (LFM2, Mamba), projector (vision/audio) |
+| Size | the smallest real checkpoint in the bucket, plus one model of 7B or more per group |
+
+Use real checkpoints listed in the cases' `models`. Map each `representative` or
+`controlled` case to the real checkpoints that share its decision class. If fewer than
+about three checkpoints are affected in total, benchmark all of them. A change affecting
+the whole catalog typically reduces to 8-10 models (for example Llama Q4_K_M, Qwen3 Q4_0,
+a Q6_K-heavy model, Qwen3-MoE, LFM2, Gemma-3, a BF16 model, one vision projector and one
+model of 7B or more).
+
+### 3. Select devices
+
+- CPU: always.
+- GPU: when the change touches MatMul/FullyConnected, quantization or decompression, MoE,
+  attention/KV cache, ranks or dynamic dimensions.
+- NPU: only for cases explicitly supported on NPU.
+
+Baseline and candidate run on the same machine; name the CPU and GPU hosts used.
+
+### 4. Select scenarios
+
+Every representative runs the baseline scenario: GenAI `LLMPipeline` with
+`GGUF_READER=FRONTEND`, batch 1, a prompt of about 1k tokens and 128 generated tokens.
+Record prefill latency (time to first token), decode throughput (tokens/s), compile time
+and peak memory. Add scenarios only when the change signature triggers them:
+
+| Change touches | Extra scenario |
+| --- | --- |
+| Attention, RoPE, KV cache, states, PagedAttention adaptation | 8k-token context and continuous batching with 4 parallel requests |
+| MoE routing or expert matmuls | batch of 4 or more different prompts |
+| Projector graph | one image or audio request |
+| Speculative/EAGLE graphs | the speculative pipeline |
+| Weight layout or decompression only | baseline scenario only; compile time and peak memory are the main signals |
+
+### 5. Measure, judge and widen
+
+- Alternate baseline and candidate runs (A/B/A/B) with 2 warmups and 5 measured runs;
+  report the median and spread.
+- A representative passes when no metric is worse by more than the larger of 3% and the
+  measured run-to-run noise for that model and device.
+- If a representative fails, benchmark every checkpoint in its group. If any group fails,
+  also benchmark the second size bucket of the other groups.
+
+### 6. Report
+
+Attach the results to the PR as JSON or a table with one row per model, device and
+scenario: model and build revisions, device, scenario, settings (precision, plugin,
+GenAI and KV options) and the four metrics, plus the grouping and representative mapping
+from steps 1-2. Preserve raw results. Structural equality, synthetic timings or unrelated
+numerical tests do not substitute for these results. Whether a regression is acceptable
+remains a reviewer decision.
 
 Adding support requires registering every relevant original-dimensional variant and format,
 recording provenance, capturing the required stages and reviewing the new references.
