@@ -92,7 +92,11 @@ ov::Output<ov::Node> PoolingFactory::make_avg_pool_op(const ov::Output<ov::Node>
 ov::OutputVector PoolingFactory::make_avg_pool() const {
     const bool count_include_pad = m_onnx_node.get_attribute_value<std::int64_t>("count_include_pad", 0);
     auto pooled = make_avg_pool_op(m_inputs.at(0), !count_include_pad);
-    if (count_include_pad && m_rounding_type == RoundingType::CEIL && m_auto_pad == PadType::EXPLICIT) {
+    const auto nonzero = [](size_t value) { return value != 0; };
+    const bool has_padding = std::any_of(m_padding_below.begin(), m_padding_below.end(), nonzero) ||
+                             std::any_of(m_padding_above.begin(), m_padding_above.end(), nonzero);
+    if (count_include_pad && has_padding && m_rounding_type == RoundingType::CEIL &&
+        m_auto_pad == PadType::EXPLICIT) {
         std::vector<int64_t> begin{0, 0}, end{0, 0};
         begin.insert(begin.end(), m_padding_below.begin(), m_padding_below.end());
         end.insert(end.end(), m_padding_above.begin(), m_padding_above.end());
