@@ -135,6 +135,16 @@ set(GPU_RUNTIME_SYCL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_user_event.cpp
     ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_user_event.hpp
     ${CMAKE_CURRENT_LIST_DIR}/sycl/sycl_wrapper.hpp
+)
+
+set(GPU_RUNTIME_SYCL_INTEL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/sycl/intel/sycl_kernel_builder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/sycl/intel/sycl_kernel_builder.hpp
+)
+
+set(GPU_RUNTIME_SYCL_NVIDIA_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/nvidia/sycl_kernel_builder.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/nvidia/sycl_kernel_builder.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/nvidia/sycl_ptx_kernel.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/sycl/nvidia/sycl_ptx_kernel.hpp
 )

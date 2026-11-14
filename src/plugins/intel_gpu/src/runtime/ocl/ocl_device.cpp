@@ -4,7 +4,7 @@
 
 #include "ocl_device.hpp"
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#if defined(ENABLE_ONEDNN_FOR_GPU) && defined(OV_GPU_WITH_OCL_RT)
 #    ifndef NOMINMAX
 #        define NOMINMAX
 #    endif

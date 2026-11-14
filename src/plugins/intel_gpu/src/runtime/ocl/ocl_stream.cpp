@@ -247,6 +247,7 @@ ocl_stream::ocl_stream(const ocl_engine& engine, const ExecutionConfig& config, 
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 dnnl::stream& ocl_stream::get_onednn_stream() {
+#ifdef OV_GPU_VENDOR_INTEL
     OPENVINO_ASSERT(m_queue_type == QueueTypes::in_order, "[GPU] Can't create onednn stream handle as onednn doesn't support out-of-order queue");
     OPENVINO_ASSERT(_engine.get_device_info().vendor_id == INTEL_VENDOR_ID, "[GPU] Can't create onednn stream handle as for non-Intel devices");
     if (!_onednn_stream) {
@@ -258,6 +259,9 @@ dnnl::stream& ocl_stream::get_onednn_stream() {
     }
 
     return *_onednn_stream;
+#else
+    OPENVINO_THROW("[GPU] get_onednn_stream can be used for Intel GPUs only");
+#endif
 }
 #endif
 
