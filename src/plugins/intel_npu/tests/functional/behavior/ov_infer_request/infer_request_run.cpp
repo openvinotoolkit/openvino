@@ -2079,6 +2079,141 @@ TEST_P(DynamicBatchingTests, DynamicCheckMultipleBatchingRunsSeq) {
     }
 }
 
+namespace {
+
+// Fills the input with the given value, runs the inference and checks that the model added '1' to every element
+void fillInferAndCheckAddOne(ov::InferRequest& inferenceRequest, ov::Tensor& inputTensor, const float value) {
+    auto* inputData = inputTensor.data<float>();
+    for (size_t i = 0; i < inputTensor.get_size(); ++i) {
+        inputData[i] = value;
+    }
+
+    inferenceRequest.infer();  // Adds '1' to each element
+
+    // The output tensor can be reallocated if the batch size changes, so always query it after the inference
+    auto outputTensor = inferenceRequest.get_output_tensor();
+    ASSERT_EQ(outputTensor.get_shape(), inputTensor.get_shape());
+
+    const auto* outputData = outputTensor.data<float>();
+    for (size_t j = 0; j < outputTensor.get_size(); ++j) {
+        ASSERT_NEAR(outputData[j], value + 1.f, 1e-5)
+            << "Batch=" << inputTensor.get_shape()[0] << " Expected=" << value + 1.f << ", actual=" << outputData[j]
+            << " for index " << j;
+    }
+}
+
+}  // namespace
+
+// The same tensor object is reshaped (its batch changes) without calling set_tensor again. The plugin must detect the
+// new batch size before running the inference.
+TEST_P(DynamicBatchingTests, DynamicBatchReshapeSameTensorWithoutSetTensor) {
+    const auto modelShape = PartialShape{ov::Dimension(1, 10), 2, 64, 64};
+    auto model = createModel(element::f32, modelShape, "N...");
+    ov::CompiledModel compiledModel = core->compile_model(model, target_device, configuration);
+    auto inferenceRequest = compiledModel.create_infer_request();
+
+    ov::Tensor inputTensor(ov::element::f32, Shape{2, 2, 64, 64});
+    inferenceRequest.set_input_tensor(inputTensor);
+    fillInferAndCheckAddOne(inferenceRequest, inputTensor, 1.f);
+
+    // Inflation: reallocates the underlying memory of the tensor
+    for (size_t batch = 3; batch <= 10; ++batch) {
+        inputTensor.set_shape(Shape{batch, 2, 64, 64});
+        fillInferAndCheckAddOne(inferenceRequest, inputTensor, static_cast<float>(batch));
+    }
+
+    // Deflation: the memory is kept, only the shape changes
+    for (size_t batch = 9; batch >= 1; --batch) {
+        inputTensor.set_shape(Shape{batch, 2, 64, 64});
+        fillInferAndCheckAddOne(inferenceRequest, inputTensor, static_cast<float>(batch) + 100.f);
+    }
+}
+
+// Same as above, but set_tensor is called again with the same (reshaped) tensor object. The pointer to the tensor is
+// unchanged, so the call must not be skipped.
+TEST_P(DynamicBatchingTests, DynamicBatchReshapeSameTensorThenSetTensor) {
+    const auto modelShape = PartialShape{ov::Dimension(1, 10), 2, 64, 64};
+    auto model = createModel(element::f32, modelShape, "N...");
+    ov::CompiledModel compiledModel = core->compile_model(model, target_device, configuration);
+    auto inferenceRequest = compiledModel.create_infer_request();
+
+    ov::Tensor inputTensor(ov::element::f32, Shape{2, 2, 64, 64});
+    inferenceRequest.set_input_tensor(inputTensor);
+    fillInferAndCheckAddOne(inferenceRequest, inputTensor, 1.f);
+
+    for (size_t batch = 3; batch <= 10; ++batch) {
+        inputTensor.set_shape(Shape{batch, 2, 64, 64});
+        inferenceRequest.set_input_tensor(inputTensor);
+        fillInferAndCheckAddOne(inferenceRequest, inputTensor, static_cast<float>(batch));
+    }
+
+    for (size_t batch = 9; batch >= 1; --batch) {
+        inputTensor.set_shape(Shape{batch, 2, 64, 64});
+        inferenceRequest.set_input_tensor(inputTensor);
+        fillInferAndCheckAddOne(inferenceRequest, inputTensor, static_cast<float>(batch) + 100.f);
+    }
+}
+
+// Calling set_tensor again with the same tensor and the same shape is a no-op and must keep producing correct results
+TEST_P(DynamicBatchingTests, DynamicBatchSetSameTensorMultipleTimes) {
+    const auto modelShape = PartialShape{ov::Dimension(1, 10), 2, 64, 64};
+    auto model = createModel(element::f32, modelShape, "N...");
+    ov::CompiledModel compiledModel = core->compile_model(model, target_device, configuration);
+    auto inferenceRequest = compiledModel.create_infer_request();
+
+    ov::Tensor inputTensor(ov::element::f32, Shape{4, 2, 64, 64});
+    for (size_t run = 0; run < 3; ++run) {
+        inferenceRequest.set_input_tensor(inputTensor);
+        fillInferAndCheckAddOne(inferenceRequest, inputTensor, static_cast<float>(run));
+    }
+}
+
+// Setting a tensor with a batch bigger than the upper bound of the model must fail, and the request must remain usable
+// with the previously set tensor
+TEST_P(DynamicBatchingTests, DynamicBatchSetTensorBiggerThanModelUpperBound) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    const auto modelShape = PartialShape{ov::Dimension(1, 10), 2, 64, 64};
+    auto model = createModel(element::f32, modelShape, "N...");
+    ov::CompiledModel compiledModel = core->compile_model(model, target_device, configuration);
+    auto inferenceRequest = compiledModel.create_infer_request();
+
+    ov::Tensor inputTensor(ov::element::f32, Shape{4, 2, 64, 64});
+    inferenceRequest.set_input_tensor(inputTensor);
+    fillInferAndCheckAddOne(inferenceRequest, inputTensor, 1.f);
+
+    const auto errorMessage = HasSubstr("The tensor shape is not compatible with the model input/output max shape");
+
+    ov::Tensor tooBigInput(ov::element::f32, Shape{11, 2, 64, 64});
+    OV_EXPECT_THROW(inferenceRequest.set_input_tensor(tooBigInput), ov::Exception, errorMessage);
+
+    ov::Tensor tooBigOutput(ov::element::f32, Shape{11, 2, 64, 64});
+    OV_EXPECT_THROW(inferenceRequest.set_output_tensor(tooBigOutput), ov::Exception, errorMessage);
+
+    // The failed calls must not have changed the state of the request
+    fillInferAndCheckAddOne(inferenceRequest, inputTensor, 2.f);
+}
+
+// Same check on a fresh request (no tensor set yet): the failure must not leave the request in a bad state
+TEST_P(DynamicBatchingTests, DynamicBatchSetTensorBiggerThanModelUpperBoundBeforeFirstInfer) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    const auto modelShape = PartialShape{ov::Dimension(1, 10), 2, 64, 64};
+    auto model = createModel(element::f32, modelShape, "N...");
+    ov::CompiledModel compiledModel = core->compile_model(model, target_device, configuration);
+    auto inferenceRequest = compiledModel.create_infer_request();
+
+    ov::Tensor tooBigInput(ov::element::f32, Shape{11, 2, 64, 64});
+    OV_EXPECT_THROW(inferenceRequest.set_input_tensor(tooBigInput),
+                    ov::Exception,
+                    HasSubstr("The tensor shape is not compatible with the model input/output max shape"));
+
+    // A valid tensor can still be set and used afterwards
+    ov::Tensor inputTensor(ov::element::f32, Shape{3, 2, 64, 64});
+    inferenceRequest.set_input_tensor(inputTensor);
+    fillInferAndCheckAddOne(inferenceRequest, inputTensor, 1.f);
+}
+
 using ROITensorInference = OVInferRequestInferenceTests;
 
 TEST_P(ROITensorInference, InferenceROITensor) {
