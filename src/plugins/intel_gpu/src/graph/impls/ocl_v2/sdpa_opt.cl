@@ -588,12 +588,11 @@ KERNEL(sdpa_opt)(
                         #endif
                             qk_val[seq_idx] += INPUT0_VAL_MIN;
 #elif !IS_CAUSAL && HAS_ATTN_MASK_INPUT
-                        const uint attn_mask_offset = INPUT3_GET_INDEX_SAFE(b0_idx, b1_idx, target_seq_idx + seq_idx, start_partition_idx + seq_len);
+                        // _SAFE index macro doesn't parenthesize its arguments, so the modulo for a broadcast mask needs the whole sum
+                        const uint attn_mask_offset = INPUT3_GET_INDEX_SAFE(b0_idx, b1_idx, (target_seq_idx + seq_idx), (start_partition_idx + seq_len));
                         INPUT3_COMPUTE_TYPE mask_val = DECODE_INPUT3_COMPUTE_TYPE(attn_mask[attn_mask_offset]);
-#ifdef CLAMP_ATTN_MASK_INPUT
-                        // Conditionally clamp attention mask when attention mask differs from SOFTMAX_ACCUMULATOR_TYPE(f32)
+                        // A key partition masked only with -Inf would have an infinite maximum and turn its softmax into NaN
                         mask_val = INPUT3_MAX_FUNC(mask_val, INPUT3_VAL_MIN);
-#endif
                         qk_val[seq_idx] += mask_val;
 #elif defined(STATIC_SCALAR_ATTN_MASK_VALUE)
                         qk_val[seq_idx] += STATIC_SCALAR_ATTN_MASK_VALUE;
@@ -1069,6 +1068,9 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 #if !IS_CAUSAL && HAS_ATTN_MASK_INPUT
     const uint attn_mask_offset = INPUT3_GET_INDEX_SAFE(b0_idx, b1_idx, target_seq_idx, source_seq_idx);
+    // A mask broadcast over the keys (e.g. a scalar mask) has a single element along X; the _SAFE index above wraps
+    // to it, so the following keys must not step past it.
+    const uint mask_key_pitch = INPUT3_SIZE_X == 1 ? 0 : 1;
     if (target_seq_idx >= (uint)TARGET_SEQ_LEN) {
         unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
             mask_vec[i] = NAN;
@@ -1076,7 +1078,7 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
     } else {
         if (source_seq_idx + SUBGROUP_SIZE <= (uint)SOURCE_SEQ_LEN) {
             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
-                const INPUT3_TYPE mask_val = attn_mask[attn_mask_offset + i];
+                const INPUT3_TYPE mask_val = attn_mask[attn_mask_offset + i * mask_key_pitch];
                 mask_vec[i] = DECODE_INPUT3_COMPUTE_TYPE(mask_val);
             }
         } else {
@@ -1087,7 +1089,7 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
             const uint max_mask_offset = min(source_seq_idx + SUBGROUP_SIZE, (uint)SOURCE_SEQ_LEN);
             for (uint i = 0; i < SUBGROUP_SIZE; i++) {
                 if (source_seq_idx + i < max_mask_offset) {
-                    const INPUT3_TYPE mask_val = attn_mask[attn_mask_offset + i];
+                    const INPUT3_TYPE mask_val = attn_mask[attn_mask_offset + i * mask_key_pitch];
                     mask_vec[i] = DECODE_INPUT3_COMPUTE_TYPE(mask_val);
                 } else {
                     mask_vec[i] = NAN;
@@ -2844,8 +2846,6 @@ KERNEL(sdpa_opt)(
 // max_logits    [batch, heads_num, q_len, partition_idx]
 // tmp_out       [batch, heads_num, q_len, partition_idx, head_size]
 
-#define MAX_PARTITIONS_NUM 128
-
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
 KERNEL(sdpa_opt_finalization_stage)(
     OPTIONAL_SHAPE_INFO_ARG
@@ -2933,15 +2933,7 @@ KERNEL(sdpa_opt_finalization_stage)(
 #endif
             acc += out_val_f * TO_SOFTMAX_ACCUMULATOR_TYPE(max_logits_u_exp_sum[partition_idx]);
     }
-    const uint out_offset = b0_idx * (NUM_HEADS * TARGET_SEQ_LEN * V_HEAD_SIZE) +
-#ifdef OUTPUT_TRANSPOSE_ORDER_PRESENT
-                            target_seq_idx * (NUM_HEADS * V_HEAD_SIZE) +
-                            b1_idx * (V_HEAD_SIZE) +
-#else
-                            b1_idx * (TARGET_SEQ_LEN * V_HEAD_SIZE) +
-                            target_seq_idx * (V_HEAD_SIZE) +
-#endif
-                            local_id;
+    const uint out_offset = SDPA_OUTPUT_GET_INDEX(b0_idx, b1_idx, target_seq_idx, local_id);
 
     output[out_offset] = TO_OUTPUT_TYPE(acc / global_exp_sum);
 }
