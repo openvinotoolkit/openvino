@@ -4181,17 +4181,18 @@ TEST(constant_folding, loop_with_node_which_has_no_evaluate) {
     EXPECT_EQ(count_ops_of_type<op::v5::Loop>(model), 1);
 }
 
-TEST(constant_folding, node_with_dynamic_type_constant_input) {
+TEST_F(TransformationTestsF, ConstantFoldingNodeWithDynamicTypeConstantInput) {
     // FullyConnected without bias gets an empty Constant of dynamic type as its bias input.
     // With constant activations and weights, all its inputs are constants, but the dynamic type
     // one cannot be wrapped in a tensor, so the node must be skipped instead of throwing.
-    auto activations = op::v0::Constant::create(element::i8, Shape{3, 4}, {1});
-    auto weights = op::v0::Constant::create(element::i8, Shape{5, 4}, {1});
-    auto fc = std::make_shared<op::internal::FullyConnected>(activations, weights, element::i8);
-    ASSERT_TRUE(fc->get_input_element_type(2).is_dynamic());
-    auto model = std::make_shared<Model>(fc->outputs(), ParameterVector{});
-
-    EXPECT_NO_THROW(pass::ConstantFolding().run_on_model(model));
-    EXPECT_EQ(count_ops_of_type<op::internal::FullyConnected>(model), 1);
+    {
+        auto activations = op::v0::Constant::create(element::i8, Shape{3, 4}, {1});
+        auto weights = op::v0::Constant::create(element::i8, Shape{5, 4}, {1});
+        auto fc = std::make_shared<op::internal::FullyConnected>(activations, weights, element::i8);
+        ASSERT_TRUE(fc->get_input_element_type(2).is_dynamic());
+        model = std::make_shared<Model>(fc->outputs(), ParameterVector{});
+        manager.register_pass<pass::ConstantFolding>();
+    }
+    // model_ref is not set: the model must stay unchanged.
 }
 }  // namespace ov::test
