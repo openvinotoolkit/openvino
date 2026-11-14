@@ -154,3 +154,121 @@ TEST_F(BlobFormatImportersTest, CannotCreateModelBeforeGraph) {
     OV_ASSERT_NO_THROW(importer = blob_format_importer_factory::create(source, true, nullptr, config));
     OV_EXPECT_THROW(importer->create_dummy_model(), ov::Exception, _);
 }
+
+namespace {
+
+IODescriptor create_descriptor(const std::string& name, const ov::PartialShape& shape_from_compiler) {
+    IODescriptor descriptor;
+    descriptor.nameFromCompiler = name;
+    descriptor.precision = ov::element::f32;
+    descriptor.shapeFromCompiler = shape_from_compiler;
+    return descriptor;
+}
+
+/**
+ * @brief Network metadata as reported by the driver for a schedule compiled with batch handled by the plugin, i.e. the
+ * compiled schedule processes one batch slice at a time.
+ */
+NetworkMetadata create_plugin_batched_metadata() {
+    NetworkMetadata metadata;
+    metadata.inputs.push_back(create_descriptor("input", ov::PartialShape{1, 3, 8, 8}));
+    metadata.outputs.push_back(create_descriptor("output", ov::PartialShape{1, 10}));
+    return metadata;
+}
+
+}  // namespace
+
+using blob_format_importer_utils::DYNAMIC_BATCH_SIZE;
+using blob_format_importer_utils::validate_batch_size;
+
+/**
+ * @brief Static and dynamic batch sizes are accepted if the schedule was compiled with a batch of 1
+ */
+TEST_F(BlobFormatImportersTest, BatchSizeAcceptedForPluginBatchedSchedule) {
+    const NetworkMetadata metadata = create_plugin_batched_metadata();
+
+    for (const int64_t batch_size : {int64_t{1}, int64_t{3}, int64_t{4294967297}, DYNAMIC_BATCH_SIZE}) {
+        EXPECT_NO_THROW(validate_batch_size(batch_size, metadata)) << "batch size: " << batch_size;
+    }
+}
+
+/**
+ * @brief Values outside of the {-1} U [1, +inf) domain are rejected
+ */
+TEST_F(BlobFormatImportersTest, BatchSizeInvalidValuesRejected) {
+    const NetworkMetadata metadata = create_plugin_batched_metadata();
+
+    for (const int64_t batch_size : {int64_t{0}, int64_t{-2}, std::numeric_limits<int64_t>::min()}) {
+        SCOPED_TRACE("batch size: " + std::to_string(batch_size));
+        OV_EXPECT_THROW(validate_batch_size(batch_size, metadata), ov::Exception, _);
+    }
+}
+
+/**
+ * @brief A schedule compiled with a batch different than 1 must not be combined with a batch size from the metadata.
+ * Otherwise, the buffers are sized according to the metadata, while the device reads and writes them according to the
+ * compiled schedule.
+ */
+TEST_F(BlobFormatImportersTest, BatchSizeRejectedForCompilerBatchedSchedule) {
+    NetworkMetadata input_batched = create_plugin_batched_metadata();
+    input_batched.inputs.at(0).shapeFromCompiler = ov::PartialShape{3, 3, 8, 8};
+
+    NetworkMetadata output_batched = create_plugin_batched_metadata();
+    output_batched.outputs.at(0).shapeFromCompiler = ov::PartialShape{3, 10};
+
+    NetworkMetadata dynamic_batch = create_plugin_batched_metadata();
+    dynamic_batch.inputs.at(0).shapeFromCompiler = ov::PartialShape{ov::Dimension::dynamic(), 3, 8, 8};
+
+    NetworkMetadata scalar = create_plugin_batched_metadata();
+    scalar.outputs.at(0).shapeFromCompiler = ov::PartialShape{};
+
+    for (const NetworkMetadata& metadata : {input_batched, output_batched, dynamic_batch, scalar}) {
+        for (const int64_t batch_size : {int64_t{1}, int64_t{3}, int64_t{4294967297}, DYNAMIC_BATCH_SIZE}) {
+            SCOPED_TRACE("batch size: " + std::to_string(batch_size));
+            OV_EXPECT_THROW(validate_batch_size(batch_size, metadata), ov::Exception, _);
+        }
+    }
+}
+
+/**
+ * @brief States and shape tensors are not sliced per batch, thus they cannot coexist with a batch size from the
+ * metadata
+ */
+TEST_F(BlobFormatImportersTest, BatchSizeRejectedForStatesAndShapeTensors) {
+    NetworkMetadata state_input = create_plugin_batched_metadata();
+    state_input.inputs.push_back(create_descriptor("state", ov::PartialShape{1, 16}));
+    state_input.inputs.back().isStateInput = true;
+
+    NetworkMetadata state_output = create_plugin_batched_metadata();
+    state_output.outputs.push_back(create_descriptor("state", ov::PartialShape{1, 16}));
+    state_output.outputs.back().isStateOutput = true;
+
+    NetworkMetadata shape_tensor = create_plugin_batched_metadata();
+    shape_tensor.inputs.push_back(create_descriptor("input", ov::PartialShape{1}));
+    shape_tensor.inputs.back().isShapeTensor = true;
+
+    for (const NetworkMetadata& metadata : {state_input, state_output, shape_tensor}) {
+        OV_EXPECT_THROW(validate_batch_size(1, metadata), ov::Exception, _);
+    }
+}
+
+/**
+ * @brief The compilation path stores -1 as batch size for models with a dynamic batch. The metadata must preserve this
+ * value (only 0 is mapped to "no batch size").
+ */
+TEST_F(BlobFormatImportersTest, DynamicBatchSizeSurvivesMetadataRoundTrip) {
+    std::ostringstream stream;
+    stream << DUMMY_COMPILER_PAYLOAD.data();
+    Metadata<CURRENT_METADATA_VERSION>(DUMMY_COMPILER_PAYLOAD.size(),
+                                       CURRENT_OPENVINO_VERSION,
+                                       std::nullopt,
+                                       DYNAMIC_BATCH_SIZE)
+        .write(stream);
+    const std::string blob = stream.str();
+
+    std::istringstream input_stream(blob);
+    BlobSource source(input_stream);
+    const std::unique_ptr<MetadataBase> metadata = read_metadata_from(source);
+    ASSERT_NE(metadata, nullptr);
+    EXPECT_EQ(metadata->get_batch_size(), std::make_optional<int64_t>(DYNAMIC_BATCH_SIZE));
+}
