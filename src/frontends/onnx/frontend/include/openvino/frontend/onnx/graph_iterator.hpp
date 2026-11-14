@@ -56,9 +56,8 @@ public:
     /// linked against a different C runtime) allocate memory that this library frees. Override get_metadata_ref()
     /// instead. This method is still required to be implemented, and it is only called by the default
     /// implementation of get_metadata_ref().
-    OPENVINO_DEPRECATED(
-        "Returns by value, which is not safe across shared libraries with different C runtimes. "
-        "Implement get_metadata_ref() instead.")
+    OPENVINO_DEPRECATED("Returns by value, which is not safe across shared libraries with different C runtimes. "
+                        "Implement get_metadata_ref() instead.")
     virtual std::map<std::string, std::string> get_metadata() const = 0;
 
     /// \brief Returns the directory path where the model is located.
@@ -66,9 +65,8 @@ public:
     /// (possibly linked against a different C runtime) allocate memory that this library frees. Override
     /// get_model_dir_ref() instead. This method is still required to be implemented, and it is only called by the
     /// default implementation of get_model_dir_ref().
-    OPENVINO_DEPRECATED(
-        "Returns by value, which is not safe across shared libraries with different C runtimes. "
-        "Implement get_model_dir_ref() instead.")
+    OPENVINO_DEPRECATED("Returns by value, which is not safe across shared libraries with different C runtimes. "
+                        "Implement get_model_dir_ref() instead.")
     virtual std::filesystem::path get_model_dir() const = 0;
 
     /// \brief Destructor
