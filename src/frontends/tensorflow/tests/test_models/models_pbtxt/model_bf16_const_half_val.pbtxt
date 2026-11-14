@@ -1,0 +1,95 @@
+node {
+  name: "x"
+  op: "Placeholder"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_BFLOAT16
+    }
+  }
+  attr {
+    key: "shape"
+    value {
+      shape {
+        dim {
+          size: 2
+        }
+        dim {
+          size: 3
+        }
+      }
+    }
+  }
+}
+node {
+  name: "scalar_const"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_BFLOAT16
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_BFLOAT16
+        tensor_shape {
+        }
+        half_val: 16384
+      }
+    }
+  }
+}
+node {
+  name: "splat_const"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_BFLOAT16
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_BFLOAT16
+        tensor_shape {
+          dim {
+            size: 2
+          }
+          dim {
+            size: 3
+          }
+        }
+        half_val: 16320
+      }
+    }
+  }
+}
+node {
+  name: "mul"
+  op: "Mul"
+  input: "x"
+  input: "scalar_const"
+  attr {
+    key: "T"
+    value {
+      type: DT_BFLOAT16
+    }
+  }
+}
+node {
+  name: "add"
+  op: "AddV2"
+  input: "mul"
+  input: "splat_const"
+  attr {
+    key: "T"
+    value {
+      type: DT_BFLOAT16
+    }
+  }
+}
