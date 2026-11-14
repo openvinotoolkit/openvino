@@ -41,6 +41,20 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChain_Comparison,
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          EltwiseChainTest::getTestCaseName);
 
+// An 8-bit SquaredDifference is computed in i32 by the snippets kernel.
+// The parameters are in [10, 20), so the result never leaves the 8-bit range.
+INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChain_SquaredDifference_8bit,
+                         EltwiseChainTest,
+                         ::testing::Combine(::testing::ValuesIn(static_shapes_to_test_representation(inputShapes())),
+                                            ::testing::Values(InputLayerType::PARAMETER),
+                                            ::testing::Values(std::vector<ElementType>(4, ElementType::i8),
+                                                              std::vector<ElementType>(4, ElementType::u8)),
+                                            ::testing::Values(std::vector<EltwiseChainOp>{EltwiseTypes::SQUARED_DIFF}),
+                                            ::testing::Values(PostNode::EMPTY),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         EltwiseChainTest::getTestCaseName);
+
 }  // namespace
 }  // namespace test
 }  // namespace ov
