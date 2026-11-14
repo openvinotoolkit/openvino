@@ -42,6 +42,23 @@ Shape make_roi_shape(const Shape& tensor_shape, const Coordinate& begin, const C
     return roi_shape;
 }
 
+// Extends strides to the rank of shape (which must be greater), which adds leading dimensions to the strides' shape.
+// Strides of a scalar are empty, so then the innermost added dimension is set to the element size.
+Strides extend_strides(const Strides& strides, const Shape& shape, const size_t element_size) {
+    auto dim = shape.size() - strides.size();
+    Strides extended;
+    extended.reserve(shape.size());
+    extended.resize(dim);
+    extended.insert(extended.end(), strides.begin(), strides.end());
+    if (strides.empty()) {
+        extended[--dim] = element_size;
+    }
+    while (dim-- > 0) {
+        extended[dim] = shape[dim + 1] * extended[dim + 1];
+    }
+    return extended;
+}
+
 // Hints for the [offset, offset + size) range of a file mapping.
 class MappedRangeHints final : public util::IMemoryHints {
 public:
@@ -501,6 +518,7 @@ public:
             std::distance(new_shape.cbegin(), new_dim.base()) - 1);
 
         m_shape = std::move(new_shape);
+        update_strides();
     }
 
     size_t get_offset() const {
@@ -512,10 +530,26 @@ public:
     }
 
 protected:
+    const Strides& get_roi_strides() const {
+        return m_strides.empty() ? m_owner->get_strides() : m_strides;
+    }
+
     std::shared_ptr<ITensor> m_owner;
     Shape m_shape;
     const Shape m_capacity;
     const size_t m_offset;
+
+private:
+    void update_strides() {
+        const auto& owner_strides = m_owner->get_strides();
+        if (m_shape.size() > owner_strides.size()) {
+            m_strides = extend_strides(owner_strides, m_shape, m_owner->get_element_type().size());
+        } else {
+            m_strides.clear();
+        }
+    }
+
+    Strides m_strides;
 };
 
 /**
@@ -532,7 +566,7 @@ public:
     }
 
     const Strides& get_strides() const override {
-        return m_owner->get_strides();
+        return get_roi_strides();
     }
 
     const Shape& get_shape() const override {
@@ -582,7 +616,7 @@ public:
     }
 
     const Strides& get_strides() const override {
-        return m_owner->get_strides();
+        return get_roi_strides();
     }
 
     const Shape& get_shape() const override {
