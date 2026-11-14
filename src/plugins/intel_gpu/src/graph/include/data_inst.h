@@ -20,6 +20,9 @@ struct typed_program_node<data> : public typed_program_node_base<data> {
     memory& get_attached_memory() const { return *mem; }
     memory::ptr get_attached_memory_ptr() const { return mem; }
     void attach_memory(memory::ptr new_mem, bool invalidate_users_if_changed = true);
+    // Drops the node's reference to its memory without recomputing the layout. Only for
+    // data nodes that are about to be removed from the program.
+    void release_attached_memory() { mem.reset(); }
 
 private:
     memory::ptr mem;
