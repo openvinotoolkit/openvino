@@ -125,9 +125,10 @@ bool AclEltwiseExecutor::supports(const EltwiseConfig& config) {
             return false;
         }
         break;
+    // EltwiseLog is not listed: NELogLayer does not follow IEEE 754 for zero, negative, infinite, NaN and subnormal
+    // inputs in its vectorized path, so Log is executed by the reference executor
     case Algorithm::EltwiseAbs:
     case Algorithm::EltwiseExp:
-    case Algorithm::EltwiseLog:
         if (!checkPrecision({ov::element::i32, ov::element::i32}, ov::element::i32) &&
             !checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) &&
             !checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32)) {
@@ -489,16 +490,6 @@ bool AclEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs, const 
                                                      static_cast<float>(aclEltwiseAttrs.data.alpha),
                                                      static_cast<float>(aclEltwiseAttrs.data.beta),
                                                      static_cast<float>(aclEltwiseAttrs.data.gamma)));
-            return acl_op;
-        };
-        break;
-    case Algorithm::EltwiseLog:
-        if (!NELogLayer::validate(srcTensorsInfo.data(), dstTensorsInfo.data())) {
-            return false;
-        }
-        exec_func = [this]() -> std::unique_ptr<IFunction> {
-            auto acl_op = std::make_unique<NELogLayer>();
-            acl_op->configure(srcTensors.data(), dstTensors.data());
             return acl_op;
         };
         break;
