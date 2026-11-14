@@ -32,6 +32,9 @@ constexpr uint32_t TARGET_ZE_DEVICE_LUID_EXT_VERSION = ZE_DEVICE_LUID_EXT_VERSIO
 
 constexpr ze_driver_uuid_t uuid = ze_intel_npu_driver_uuid;
 
+// Reported by drivers which don't require the dynamically loaded ze_loader to translate handles
+constexpr const char* STATIC_LOADER_COMPATIBLE_OPTION = "STATIC_LOADER_COMPATIBLE";
+
 using intel_npu::zeroUtils::queryDriverExtensionVersion;
 
 void saveSupportedExtension(std::map<std::string, uint32_t, std::less<>>& supportedExtensions,
@@ -154,9 +157,7 @@ void ZeroInitStructsHolder::initNpuDriver() {
     fallbackToZeDriverGet();
 }
 
-ZeroInitStructsHolder::ZeroInitStructsHolder()
-    : _zero_api(ZeroApi::get_instance()),
-      _log("NPUZeroInitStructsHolder", Logger::global().level()) {
+std::vector<ze_driver_extension_properties_t> ZeroInitStructsHolder::initDriverAndExtensions() {
     _log.debug("ZeroInitStructsHolder - initialize NPU Driver");
     initNpuDriver();
 
@@ -370,6 +371,62 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     uint32_t device_count = 1;
     // Get npu target device
     THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGet", zeDeviceGet(_driver_handle, &device_count, &_device_handle));
+
+    return extProps;
+}
+
+bool ZeroInitStructsHolder::isStaticLoaderCompatible() {
+    if (_graph_dditable_ext_decorator->version() < ZE_GRAPH_EXT_VERSION_1_11) {
+        return false;
+    }
+    return _graph_dditable_ext_decorator->pfnCompilerIsOptionSupported(_device_handle,
+                                                                       ZE_NPU_DRIVER_OPTIONS,
+                                                                       STATIC_LOADER_COMPATIBLE_OPTION,
+                                                                       nullptr) == ZE_RESULT_SUCCESS;
+}
+
+void ZeroInitStructsHolder::resetDriverAndExtensions() {
+    _driver_handle = nullptr;
+    _device_handle = nullptr;
+    _driver_properties = {};
+    _ze_drv_api_version = {};
+    _driver_extension_properties.clear();
+    _mutable_command_list_ext_version = 0;
+    _graph_dditable_ext_decorator.reset();
+    _command_queue_npu_dditable_ext_decorator.reset();
+    _graph_profiling_npu_dditable_ext_decorator.reset();
+    _driver_npu_dditable_ext_decorator.reset();
+    _context_npu_dditable_ext_decorator.reset();
+}
+
+ZeroInitStructsHolder::ZeroInitStructsHolder()
+    : _zero_api(ZeroApi::get_instance()),
+      _log("NPUZeroInitStructsHolder", Logger::global().level()) {
+    std::vector<ze_driver_extension_properties_t> extProps;
+    if (_zero_api->is_static_loader()) {
+        // Older drivers need ze_loader to translate handles. Without it they fail to initialize, and when they find
+        // a ze_loader loaded by someone else they don't report STATIC_LOADER_COMPATIBLE.
+        bool compatible = false;
+        try {
+            extProps = initDriverAndExtensions();
+            compatible = isStaticLoaderCompatible();
+        } catch (const std::exception& ex) {
+            _log.info("ZeroInitStructsHolder - initialization with the static Level Zero loader failed: %s", ex.what());
+        }
+
+        if (!compatible) {
+            _log.info("ZeroInitStructsHolder - NPU driver is not %s, fall back to the dynamic Level Zero loader",
+                      STATIC_LOADER_COMPATIBLE_OPTION);
+            resetDriverAndExtensions();
+            _zero_api->switch_to_dynamic_loader();
+            extProps = initDriverAndExtensions();
+        }
+    } else {
+        extProps = initDriverAndExtensions();
+    }
+    _log.debug("ZeroInitStructsHolder - using the %s Level Zero loader",
+               _zero_api->is_static_loader() ? "static" : "dynamic");
+    const auto count = static_cast<uint32_t>(extProps.size());
 
     // Create context - share between the compiler and the backend
     ze_context_desc_t context_desc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, 0, 0};

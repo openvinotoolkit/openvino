@@ -118,6 +118,9 @@ namespace ov {
  * Dynamicaly loads ze_loader during construction and resolves required and optional symbols.
  * Provides wrappers for resolved symbols and throws when missing symbol is called.
  * 
+ * When built with OV_ZERO_LOADER_STATIC, the symbols are resolved from the statically linked loader instead,
+ * until switch_to_dynamic_loader() is called.
+ *
  * @note User must store shared pointer returned by get_instance() to prevent unloading.
  */
 class ZeroApi {
@@ -132,12 +135,29 @@ public:
 
     static const std::shared_ptr<ZeroApi> get_instance();
 
+    /**
+     * @brief Returns true when the symbols are resolved from the statically linked loader.
+     */
+    bool is_static_loader() const;
+
+    /**
+     * @brief Resolves the symbols from the dynamically loaded ze_loader for the rest of the process.
+     * @note Must be called before any Level Zero object is created through the statically linked loader,
+     * since handles are not shared between the two loaders. No-op if the dynamic loader is already used.
+     */
+    void switch_to_dynamic_loader();
+
 #define symbol_statement(symbol) decltype(&::symbol) symbol;
     symbols_list();
     weak_symbols_list();
 #undef symbol_statement
 
 private:
+    void load_dynamic_loader();
+    // only defined when built with OV_ZERO_LOADER_STATIC
+    void load_static_loader();
+
+    // null while the symbols are resolved from the statically linked loader
     std::shared_ptr<void> lib;
 };
 

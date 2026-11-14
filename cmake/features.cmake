@@ -233,6 +233,10 @@ ov_dependent_option (ENABLE_SYSTEM_SNAPPY "Enables use of system version of Snap
 # the option is turned off by default, because we are not sure that system version of ZE loader is fresh enough
 ov_dependent_option (ENABLE_SYSTEM_LEVEL_ZERO "Enables use of system version of Level Zero" OFF
     "ENABLE_INTEL_NPU OR ENABLE_INTEL_GPU" OFF)
+# POC: link the NPU plugin with a static ze_loader.lib that embeds the loader instead of loading ze_loader.dll.
+# Requires the Level Zero BUILD_STATIC_NO_DLL option; the GPU plugin keeps loading ze_loader.dll at runtime.
+ov_dependent_option (ENABLE_NPU_STATIC_ZE_LOADER "Statically link the NPU plugin with the Level Zero loader" OFF
+    "WIN32;ENABLE_INTEL_NPU;BUILD_SHARED_LIBS;NOT ENABLE_SYSTEM_LEVEL_ZERO" OFF)
 
 ov_dependent_option(ENABLE_JS "Enables JS API building" ${ENABLE_JS_DEFAULT} "NOT ANDROID;NOT EMSCRIPTEN" OFF)
 

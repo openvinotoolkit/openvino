@@ -11,6 +11,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <vector>
 #include <string>
 #include <string_view>
 
@@ -103,6 +104,9 @@ private:
     friend class zero_mem::ZeroMemPoolManager;
 
     void initNpuDriver();
+    std::vector<ze_driver_extension_properties_t> initDriverAndExtensions();
+    bool isStaticLoaderCompatible();
+    void resetDriverAndExtensions();
     void initCompilerPropertiesLocked();
     void getExtensionFunctionAddress(const std::string& name, const uint32_t version, void** function_address);
     void setContextProperties();
