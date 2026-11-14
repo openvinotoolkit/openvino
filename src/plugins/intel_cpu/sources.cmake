@@ -193,6 +193,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/executors/dnnl/dnnl_executor.hpp
     ${CPU_SRC_DIR}/nodes/executors/dnnl/dnnl_fullyconnected_primitive.cpp
     ${CPU_SRC_DIR}/nodes/executors/dnnl/dnnl_fullyconnected_primitive.hpp
+    ${CPU_SRC_DIR}/nodes/executors/dnnl/dnnl_gated_residual_executor.cpp
+    ${CPU_SRC_DIR}/nodes/executors/dnnl/dnnl_gated_residual_executor.hpp
     ${CPU_SRC_DIR}/nodes/executors/dnnl/dnnl_gathermatmul_executor.cpp
     ${CPU_SRC_DIR}/nodes/executors/dnnl/dnnl_gathermatmul_executor.hpp
     ${CPU_SRC_DIR}/nodes/executors/dnnl/dnnl_matmul_primitive.cpp
@@ -214,6 +216,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/executors/fullyconnected_config.hpp
     ${CPU_SRC_DIR}/nodes/executors/fullyconnected_implementations.cpp
     ${CPU_SRC_DIR}/nodes/executors/gated_delta_net_config.hpp
+    ${CPU_SRC_DIR}/nodes/executors/gated_residual_config.hpp
+    ${CPU_SRC_DIR}/nodes/executors/gated_residual_implementations.cpp
     ${CPU_SRC_DIR}/nodes/executors/gathermatmul_config.hpp
     ${CPU_SRC_DIR}/nodes/executors/gathermatmul_implementations.cpp
     ${CPU_SRC_DIR}/nodes/executors/gdn_implementations.cpp
@@ -284,6 +288,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/fullyconnected.h
     ${CPU_SRC_DIR}/nodes/gated_delta_net.cpp
     ${CPU_SRC_DIR}/nodes/gated_delta_net.h
+    ${CPU_SRC_DIR}/nodes/gated_residual.cpp
+    ${CPU_SRC_DIR}/nodes/gated_residual.h
     ${CPU_SRC_DIR}/nodes/gather.cpp
     ${CPU_SRC_DIR}/nodes/gather.h
     ${CPU_SRC_DIR}/nodes/gather_elements.cpp
@@ -869,6 +875,10 @@ set(CPU_PLUGIN_X64_SRCS
     ${CPU_SRC_DIR}/nodes/kernels/x64/rdft_kernel.cpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/rdft_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/registers_pool.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/x64/gated_residual_mix_kernel.cpp
+    ${CPU_SRC_DIR}/nodes/kernels/x64/gated_residual_mix_kernel.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/x64/gated_residual_write_kernel.cpp
+    ${CPU_SRC_DIR}/nodes/kernels/x64/gated_residual_write_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/rms_kernel.cpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/rms_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/rope_kernel.cpp

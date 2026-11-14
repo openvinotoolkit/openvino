@@ -7,10 +7,10 @@
 #include "gtest/gtest.h"
 #include "openvino/core/shape.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/pass/manager.hpp"
 #include "ov_ops/rms.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
-#include "openvino/pass/manager.hpp"
 
 using namespace CPUTestUtils;
 
@@ -18,9 +18,12 @@ namespace ov {
 namespace test {
 
 std::string RMSNormLayerCPUTest::getTestCaseName(const testing::TestParamInfo<RMSNormCPUTestParams>& obj) {
-    const auto& [inType, inputShapes, targetDevice, cpuParams] = obj.param;
+    const auto& [inType, scaleType, inputShapes, targetDevice, cpuParams] = obj.param;
     std::ostringstream result;
     result << "netPRC=" << inType << "_";
+    if (inputShapes.size() > 1) {
+        result << "scalePRC=" << scaleType << "_";
+    }
     result << "IS=";
     for (const auto& inputShape : inputShapes) {
         result << ov::test::utils::partialShape2str({inputShape.first}) << "_";
@@ -87,7 +90,7 @@ void RMSNormLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetIn
 }
 
 void RMSNormLayerCPUTest::SetUp() {
-    const auto& [inType, inputShapes, _targetDevice, cpuParams] = this->GetParam();
+    const auto& [inType, scaleType, inputShapes, _targetDevice, cpuParams] = this->GetParam();
     targetDevice = _targetDevice;
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     if (selectedType.empty()) {
@@ -106,7 +109,7 @@ void RMSNormLayerCPUTest::SetUp() {
     inputParams.push_back(data);
     std::shared_ptr<ov::op::internal::RMS> rms;
     if (inputDynamicShapes.size() > 1) {
-        auto scale = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[1]);
+        auto scale = std::make_shared<ov::op::v0::Parameter>(scaleType, inputDynamicShapes[1]);
         inputParams.push_back(scale);
         rms = std::make_shared<ov::op::internal::RMS>(data, scale, 0.1f);
     } else {

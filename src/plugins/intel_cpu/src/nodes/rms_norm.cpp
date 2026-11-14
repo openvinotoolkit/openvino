@@ -41,6 +41,7 @@ namespace ov::intel_cpu::node {
 
 struct RMSNormKey {
     ov::element::Type precision;
+    ov::element::Type scale_precision;
     size_t data_size;
     size_t scale_size;
     float eps;
@@ -51,6 +52,7 @@ struct RMSNormKey {
 size_t RMSNormKey::hash() const {
     size_t seed = 0;
     seed = hash_combine(seed, precision.hash());
+    seed = hash_combine(seed, scale_precision.hash());
     seed = hash_combine(seed, data_size);
     seed = hash_combine(seed, scale_size);
     seed = hash_combine(seed, eps);
@@ -59,8 +61,8 @@ size_t RMSNormKey::hash() const {
 }
 
 bool RMSNormKey::operator==(const RMSNormKey& rhs) const {
-    auto retVal =
-        precision == rhs.precision && data_size == rhs.data_size && scale_size == rhs.scale_size && eps == rhs.eps;
+    auto retVal = precision == rhs.precision && scale_precision == rhs.scale_precision && data_size == rhs.data_size &&
+                  scale_size == rhs.scale_size && eps == rhs.eps;
 
     return retVal;
 }
@@ -91,13 +93,19 @@ static void execJitKernel(const std::shared_ptr<kernel::JitKernelBase>& ker,
 }
 
 struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
-    RMSNormExecutor(ov::element::Type precision, size_t data_size, size_t scale_size, float eps)
+    RMSNormExecutor(ov::element::Type precision,
+                    ov::element::Type scale_precision,
+                    size_t data_size,
+                    size_t scale_size,
+                    float eps)
         : m_precision(precision) {
         kernel::jit_rms_compile_params jcp;
         jcp.src_prc = precision;
         jcp.dst_prc = precision;
         jcp.data_size = data_size;
         jcp.scale_size = scale_size;
+        // The kernel loads the gain at its own precision (f32, or bf16/f16 without a prior conversion).
+        jcp.scale_prc = scale_precision;
         jcp.eps = eps;
         m_kernel = createJitKernel(jcp);
     }
@@ -107,7 +115,8 @@ struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
         static constexpr float identity_scale = 1.0F;
         auto* src = inputs[0]->getDataAs<uint8_t>();
         auto* dst = output->getDataAs<uint8_t>();
-        const auto* scale = inputs.size() > 1 ? inputs[1]->getDataAs<float>() : &identity_scale;
+        // With a bf16/f16 gain this points at elements of that type; the kernel reads it at jcp.scale_prc.
+        const auto* scale = inputs.size() > 1 ? reinterpret_cast<const float*>(inputs[1]->getData()) : &identity_scale;
 
         const auto& src_strides = inputs[0]->getDescWithType<BlockedMemoryDesc>()->getStrides();
         const auto& dst_strides = output->getDescWithType<BlockedMemoryDesc>()->getStrides();
@@ -157,7 +166,13 @@ void RMSNorm::initSupportedPrimitiveDescriptors() {
 
     std::vector<PortConfigurator> inPortConfigs{{LayoutType::ncsp, precision}};
     if (getOriginalInputsNumber() > 1) {
-        inPortConfigs.emplace_back(LayoutType::ncsp, ov::element::f32);
+        // A bf16/f16 gain is consumed natively by the kernel (no f32 conversion on that edge). A single-element
+        // gain is one value, so it keeps the f32 port: a conversion there saves nothing.
+        auto scale_precision = getOriginalInputPrecisionAtPort(1);
+        const auto& scale_shape = getInputShapeAtPort(1);
+        const bool native_scale = any_of(scale_precision, ov::element::bf16, ov::element::f16) &&
+                                  scale_shape.isStatic() && shape_size(scale_shape.getStaticDims()) > 1;
+        inPortConfigs.emplace_back(LayoutType::ncsp, native_scale ? scale_precision : ov::element::f32);
     }
     addSupportedPrimDesc(inPortConfigs, {{LayoutType::ncsp, precision}}, impl_type);
 }
@@ -170,11 +185,13 @@ void RMSNorm::createPrimitive() {
                             ? shape_size(getSrcMemoryAtPort(1)->getDescWithType<BlockedMemoryDesc>()->getBlockDims())
                             : 1;
 
-    RMSNormKey key = {precision, data_size, scale_size, m_eps};
+    const auto scale_precision =
+        getOriginalInputsNumber() > 1 ? getSrcMemoryAtPort(1)->getDesc().getPrecision() : ov::element::f32;
+    RMSNormKey key = {precision, scale_precision, data_size, scale_size, m_eps};
 
     auto builder = [&]([[maybe_unused]] const RMSNormKey& key) -> std::shared_ptr<Executor> {
 #ifdef OPENVINO_ARCH_X86_64
-        return std::make_shared<RMSNormExecutor>(precision, data_size, scale_size, m_eps);
+        return std::make_shared<RMSNormExecutor>(precision, scale_precision, data_size, scale_size, m_eps);
 #else
         return nullptr;
 #endif

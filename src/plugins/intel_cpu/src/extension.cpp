@@ -21,6 +21,7 @@
 #include "openvino/op/equal.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/gated_delta_net.hpp"
+#include "openvino/op/gated_residual.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/group_conv.hpp"
@@ -223,6 +224,7 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     std::make_shared<ov::OpExtension<ov::op::internal::SelectiveSSM>>(),
     std::make_shared<ov::OpExtension<ov::op::internal::PagedSelectiveSSM>>(),
     std::make_shared<ov::OpExtension<ov::op::internal::PagedCausalConv1D>>(),
+    std::make_shared<ov::OpExtension<ov::op::internal::GatedResidual>>(),
     std::make_shared<ov::OpExtension<ov::op::internal::PagedQSAIndexer>>(),
     std::make_shared<ov::OpExtension<ov::op::internal::PagedSparseAttention>>(),
     std::make_shared<ov::OpExtension<ov::op::internal::NGramHashFunction>>(),
