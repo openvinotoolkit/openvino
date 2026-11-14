@@ -36,10 +36,11 @@ namespace pass {
 /// based
 /// root node in Matcher pattern then efficient mechanism is used to execute them.
 /// Matcher pattern root is type based if it's operation from opset or
-/// pattern::op::WrapType.
+/// pattern::op::WrapType, or a pattern::op::Or whose alternatives are all type based.
 /// Note: when implementing pattern for Matcher make sure that root node is an operation
 /// from opset
-/// or has ov::pattern::op::WrapType. That will help GraphRewrite to execute matcher
+/// or has ov::pattern::op::WrapType, or is an Or of type-based alternatives.
+/// That will help GraphRewrite to execute matcher
 /// passes more
 /// efficient.
 /// \ingroup ov_pass_cpp_api
