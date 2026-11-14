@@ -287,26 +287,33 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::weights::Bank& var) {
     if (stream.output()) {
         var.serialize(stream);
     } else {
-        LOG_INFO("Deserializing weights bank...");
-        LOG_BLOCK();
-
-        std::size_t bank_size = 0;
-        stream & bank_size;
-
-        for (std::size_t i = 0; i < bank_size; ++i) {
-            std::string device;
-            stream & device;
-            std::size_t storage_size = 0;
-            stream & storage_size;
-            for (std::size_t j = 0; j < storage_size; ++j) {
-                int64_t uid = -1;
-                stream & uid;
-                var.read_and_add_tensor(stream, uid, device);
-            }
-        }
-
-        LOG_INFO("DONE.");
+        var.deserialize(stream, {});
     }
+}
+
+void Bank::deserialize(ov::npuw::orc::Stream& stream, const std::function<void(const std::string&)>& validate_device) {
+    LOG_INFO("Deserializing weights bank...");
+    LOG_BLOCK();
+
+    std::size_t bank_size = 0;
+    stream & bank_size;
+
+    for (std::size_t i = 0; i < bank_size; ++i) {
+        std::string device;
+        stream & device;
+        if (validate_device) {
+            validate_device(device);
+        }
+        std::size_t storage_size = 0;
+        stream & storage_size;
+        for (std::size_t j = 0; j < storage_size; ++j) {
+            int64_t uid = -1;
+            stream & uid;
+            read_and_add_tensor(stream, uid, device);
+        }
+    }
+
+    LOG_INFO("DONE.");
 }
 
 std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name,
