@@ -4,10 +4,11 @@
   "signature_hash": "502c01bffd8f35db",
   "title": "GPU unit tests fail with a burst of 37 gtest-parallel worker crashes right after fp16_scale_out accuracy mismatch",
   "category": "Flaky Test",
-  "count": 6,
+  "count": 7,
   "first_seen": "2026-11-13T17:54:36Z",
-  "last_seen": "2026-11-14T05:56:19Z",
+  "last_seen": "2026-11-14T07:30:39Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/43516902466",
     "https://github.com/openvinotoolkit/openvino/actions/runs/43473585791",
     "https://github.com/openvinotoolkit/openvino/actions/runs/43461440649",
     "https://github.com/openvinotoolkit/openvino/actions/runs/43440149471",
@@ -16,6 +17,7 @@
     "https://github.com/openvinotoolkit/openvino/actions/runs/43369335165"
   ],
   "affected_commits": [
+    "3c9a5d2928fb85965c82d5c59a87a247b6440ff2",
     "0c51a97339b7c5284ce3ec78c5e05ca6b2c1ddce",
     "9041181274a6fa43661525a07fb3fafb3303ab4c",
     "d6bbd412444c8409cd7a264e87d03c3d427957dc",
@@ -24,6 +26,7 @@
     "2ad63894cb2d0ee4df89cf8df03e2079810f7ece"
   ],
   "recent_timestamps": [
+    "2026-11-14T07:30:39Z",
     "2026-11-14T05:56:19Z",
     "2026-11-14T04:29:39Z",
     "2026-11-14T02:50:26Z",

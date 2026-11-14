@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-14-07-30-39-000-43516902466",
+  "timestamp": "2026-11-14T07:30:39Z",
+  "run_id": "43516902466",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43516902466",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "3c9a5d2928fb85965c82d5c59a87a247b6440ff2",
+  "pr_number": "39011",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39011",
+  "author": "vmadananth",
+  "category": "Flaky Test",
+  "title": "GPU unit tests fail with a burst of 37 gtest-parallel worker crashes right after fp16_scale_out accuracy mismatch",
+  "signature": "GPU unit tests accuracy tolerance mismatch in fusion test (val_ref vs val_opt difference exceeds tolerance in fusion_test_common.hpp) followed by burst of concurrent gtest-parallel worker processes exiting with code 3|Flaky Test",
+  "signature_hash": "502c01bffd8f35db",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "fusings_gpu/pooling_f32_scale.fp16_scale_out/1 accuracy mismatch (diff 3.05e-05 > tolerance 1e-05), immediately followed by 36 more tests (mostly convolution_random_smoke_test and fusings_gpu cases) exiting with code 3"
+    }
+  ],
+  "key_errors": [
+    "fusion_test_common.hpp(90): error: The difference between val_ref[i] and val_opt[i] is 3.0517578125e-05, which exceeds tolerance, where\nval_ref[i] evaluates to -0.04473876953125,\nval_opt[i] evaluates to -0.044769287109375, and\ntolerance evaluates to 9.9999997473787516e-06.\n[  FAILED  ] fusings_gpu/pooling_f32_scale.fp16_scale_out/1",
+    "basic/convolution_random_smoke_test.u8s8f32/b_fs_yx_fsv16_i1x32x28x28_w48x32x1x1_s1x1_ofs0x0_d1x1_g1_bias_wzp_izp returned with exit code 3 (3861 ms)",
+    "FAILED TESTS (37/29276): fusings_gpu/pooling_f32_scale.fp16_scale_out/1, convolution_grouped_fsv4_fsv16/convolution_grouped_gpu.base/..., basic/convolution_random_smoke_test.* (multiple), fusings_gpu/conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec.* (multiple)"
+  ],
+  "root_cause": "The first test (fusings_gpu/pooling_f32_scale.fp16_scale_out/1) fails on a borderline floating-point accuracy mismatch (3.05e-05 vs a 1e-05 tolerance) comparing fused vs. non-fused GPU kernel outputs - a known tight-tolerance flake on this Windows iGPU runner. Immediately afterward, 36 more gtest-parallel worker processes (convolution and fusion tests) exit silently with code 3, matching the previously-tracked runner-resource-exhaustion signature. The merged PR (#39011, 'Gpu fc weights layout') is documented as an infrastructure-only change (new weights_layout attribute, no behavior change) and does not touch pooling/fusion kernels or accuracy-sensitive code paths referenced in the failing tests, so this is consistent with the pre-existing recurring iGPU runner flake rather than a regression introduced by this commit. This is the 7th recorded occurrence of signature 502c01bffd8f35db.",
+  "reproduction_steps": "Not reliably reproducible outside the CI Windows iGPU runner. Locally: build ov_gpu_unit_tests, run with gtest_parallel.py at similar worker concurrency against an Intel iGPU device, and repeat fusings_gpu/pooling_f32_scale.fp16_scale_out/1 and nearby convolution_random_smoke_test cases many times under concurrent load.",
+  "recommended_actions": [
+    "Investigate reducing gtest-parallel worker concurrency for GPU unit tests on Windows iGPU runners to avoid resource exhaustion under concurrent kernel execution.",
+    "Review/relax the fusion accuracy tolerance in fusion_test_common.hpp for fp16_scale_out-style comparisons, or adjust the reference computation to reduce the fp16/fp32 rounding gap.",
+    "Escalate to the iGPU CI runner pool owners: this is the 7th occurrence of the same signature in a short time window; consider temporarily marking affected convolution/fusion tests as known-flaky or capping test parallelism until root-caused.",
+    "Add retry-on-failure for the worker-crash burst specifically in gtest-parallel GPU test runs to avoid repeatedly blocking post-commit merges on this transient runner issue."
+  ],
+  "prevention_strategies": "Add CI-level detection that treats a cluster of worker exit-code-3 failures immediately following an accuracy-tolerance failure as a known runner-resource-exhaustion signature, auto-retrying the GPU unit test job once before failing the pipeline. Track GPU resource utilization/memory pressure metrics during gtest-parallel runs to correlate with worker concurrency.",
+  "historical_context": "This exact signature (502c01bffd8f35db) has recurred 6 times previously across unrelated commits (runs 43369335165, 43398624960, 43430895182, 43440149471, 43461440649, 43473585791), always starting with the same fp16_scale_out accuracy mismatch followed by a burst of worker crashes. This run is the 7th occurrence, further confirming it is a persistent runner/infrastructure-level flake unrelated to the merged PR's content."
+}

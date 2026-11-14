@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 110,
+  "total": 111,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -1119,6 +1119,17 @@
       "category": "Flaky Test",
       "signature_hash": "502c01bffd8f35db",
       "commit_sha": "0c51a97339b7c5284ce3ec78c5e05ca6b2c1ddce"
+    },
+    {
+      "investigation_id": "2026-11-14-07-30-39-000-43516902466",
+      "run_id": "43516902466",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43516902466",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-11-14T07:30:39Z",
+      "title": "GPU unit tests fail with a burst of 37 gtest-parallel worker crashes right after fp16_scale_out accuracy mismatch",
+      "category": "Flaky Test",
+      "signature_hash": "502c01bffd8f35db",
+      "commit_sha": "3c9a5d2928fb85965c82d5c59a87a247b6440ff2"
     }
   ]
 }
