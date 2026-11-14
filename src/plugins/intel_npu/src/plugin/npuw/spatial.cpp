@@ -6,6 +6,25 @@
 
 #include "util.hpp"
 
+ov::npuw::runtime::spatial::Range::Range(std::size_t range, std::size_t slice) : nway(slice) {
+    OPENVINO_ASSERT(nway > 0);
+    iters = range / nway;
+    tail = range % nway;
+}
+
+void ov::npuw::runtime::spatial::for_each_slice(const Range& range, const Slice& slice, const Selector* selector) {
+    for (std::size_t i = 0; i < range.iters; ++i) {
+        const auto offset = i * range.nway;
+        if (!selector || selector->need_submit(offset, range.nway)) {
+            slice(offset, range.nway, false, i);
+        }
+    }
+    const auto offset = range.iters * range.nway;
+    if (range.tail && (!selector || selector->need_submit(offset, range.tail))) {
+        slice(offset, range.tail, true, range.iters);
+    }
+}
+
 ov::npuw::runtime::spatial::AttentionMask::AttentionMask(std::size_t param_idx, const ov::ISyncInferRequest& rq)
     : m_attn_mask_param_idx(param_idx),
       m_rq(rq) {}
