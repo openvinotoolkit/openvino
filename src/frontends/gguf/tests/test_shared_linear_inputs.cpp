@@ -426,16 +426,16 @@ TEST(GGUFSharedLinearInputs, GeGLUKeepsDenseProjectionsRankThree) {
     }
 }
 
-TEST(GGUFSharedLinearInputs, GeGLUKeepsProjectionsRankThreeAndMarksGPUHints) {
-    const std::vector<std::tuple<GgufTensorType, GgufTensorType, bool>> formats{
-        {GGUF_TYPE_Q4_0, GGUF_TYPE_Q4_0, false},
-        {GGUF_TYPE_Q4_K, GGUF_TYPE_Q4_K, true},
-        {GGUF_TYPE_Q4_K, GGUF_TYPE_Q4_0, true},
-        {GGUF_TYPE_Q4_0, GGUF_TYPE_Q4_K, true},
-        {GGUF_TYPE_Q2_0, GGUF_TYPE_Q4_K, false},
-        {GGUF_TYPE_Q4_K, GGUF_TYPE_Q2_K, false},
-        {GGUF_TYPE_PQ2_0, GGUF_TYPE_PQ2_0, false},
-        {GGUF_TYPE_PTQ1_0, GGUF_TYPE_PTQ1_0, false},
+TEST(GGUFSharedLinearInputs, GeGLUSelectsProjectionRankForQuantizedWeights) {
+    const std::vector<std::tuple<GgufTensorType, GgufTensorType, int>> formats{
+        {GGUF_TYPE_Q4_0, GGUF_TYPE_Q4_0, 3},
+        {GGUF_TYPE_Q4_K, GGUF_TYPE_Q4_K, 4},
+        {GGUF_TYPE_Q4_K, GGUF_TYPE_Q4_0, 4},
+        {GGUF_TYPE_Q4_0, GGUF_TYPE_Q4_K, 4},
+        {GGUF_TYPE_Q2_0, GGUF_TYPE_Q4_K, 3},
+        {GGUF_TYPE_Q4_K, GGUF_TYPE_Q2_K, 3},
+        {GGUF_TYPE_PQ2_0, GGUF_TYPE_PQ2_0, 3},
+        {GGUF_TYPE_PTQ1_0, GGUF_TYPE_PTQ1_0, 3},
     };
     const auto bytes_per_row = [](GgufTensorType type) {
         switch (type) {
@@ -454,7 +454,7 @@ TEST(GGUFSharedLinearInputs, GeGLUKeepsProjectionsRankThreeAndMarksGPUHints) {
             OPENVINO_THROW("Unexpected test weight format");
         }
     };
-    for (const auto& [gate_type, up_type, gpu_rank4_hint] : formats) {
+    for (const auto& [gate_type, up_type, rank] : formats) {
         SCOPED_TRACE(static_cast<int>(gate_type));
         SCOPED_TRACE(static_cast<int>(up_type));
         GgufWeightTable weights;
@@ -471,22 +471,15 @@ TEST(GGUFSharedLinearInputs, GeGLUKeepsProjectionsRankThreeAndMarksGPUHints) {
         }
         weights["ffn_down.weight"] = ov::Tensor(ov::element::f32, {256, 3});
         const auto output = blocks::geglu_ffn(emitter, geglu_config(256, weights), "", "x");
+        const auto expected = rank == 3 ? ov::PartialShape{2, -1, 3} : ov::PartialShape{2, 1, -1, 3};
         for (const auto* name : {"ffn_gate", "ffn_up", "ffn_geglu"}) {
-            EXPECT_EQ(emitter.value(name).get_partial_shape(), (ov::PartialShape{2, -1, 3})) << name;
-        }
-        for (const auto* name : {"ffn_gate", "ffn_up"}) {
-            const auto& rt_info = emitter.value(name).get_node_shared_ptr()->get_rt_info();
-            const auto hint = rt_info.find("gguf_gpu_rank4_hint");
-            ASSERT_EQ(hint != rt_info.end(), gpu_rank4_hint) << name;
-            if (gpu_rank4_hint) {
-                EXPECT_TRUE(hint->second.as<bool>()) << name;
-            }
+            EXPECT_EQ(emitter.value(name).get_partial_shape(), expected) << name;
         }
         EXPECT_EQ(emitter.value(output).get_partial_shape(), (ov::PartialShape{2, 1, -1, 256}));
     }
 }
 
-TEST(GGUFSharedLinearInputs, GeGLUQ4KGPUHintPreservesBatchesAndTokens) {
+TEST(GGUFSharedLinearInputs, GeGLUQ4KRankFourPreservesBatchesAndTokens) {
     GgufWeightTable weights;
     GraphEmitter emitter(weights, "test");
     const auto x = emitter.add_input("x", ov::element::f32, {2, 1, -1, 256});
@@ -508,11 +501,10 @@ TEST(GGUFSharedLinearInputs, GeGLUQ4KGPUHintPreservesBatchesAndTokens) {
     }
     weights["ffn_down.weight"] = ov::Tensor(ov::element::f32, {256, 3});
     const auto output = blocks::geglu_ffn(emitter, geglu_config(256, weights), "", "x");
-    EXPECT_EQ(emitter.value("ffn_geglu").get_partial_shape(), (ov::PartialShape{2, -1, 3}));
-    EXPECT_EQ(emitter.value("ffn_geglu_4d").get_partial_shape(), (ov::PartialShape{2, 1, -1, 3}));
+    EXPECT_EQ(emitter.value("ffn_geglu").get_partial_shape(), (ov::PartialShape{2, 1, -1, 3}));
     EXPECT_EQ(emitter.value(output).get_partial_shape(), (ov::PartialShape{2, 1, -1, 256}));
     const auto model =
-        std::make_shared<ov::Model>(ov::OutputVector{emitter.value("ffn_geglu_4d")}, ov::ParameterVector{x});
+        std::make_shared<ov::Model>(ov::OutputVector{emitter.value("ffn_geglu")}, ov::ParameterVector{x});
     ASSERT_TRUE(pass::MaterializeGGUFWeights().run_on_model(model));
     std::vector<ov::Tensor> dense;
     for (const auto* name : {"ffn_gate.weight", "ffn_up.weight"}) {
