@@ -501,6 +501,47 @@ TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_low_lp_share_residua
     EXPECT_EQ(config.modelPreferThreadsLatency, 24);
 }
 
+TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_high_tolerance_non_light_conv_fp32_all_cores_auto) {
+    // iisa-v1-fp32-ox: preserve the floating-point all-core optimization.
+    const auto tolerance = MemBandwidthPressureBuilder{}
+                               .total_nodes(1208)
+                               .total_gemms(3)
+                               .total_convs(78)
+                               .total_light_convs(0)
+                               .ratio_compute_convs(27.0f / 78.0f)
+                               .max_mem_tolerance(192.0f)
+                               .build();
+    for (const auto& proc_type_table : std::vector<std::vector<std::vector<int>>>{
+             {{16, 4, 8, 4, 0, 0, 0}}, {{28, 8, 16, 4, 0, 0, 0}}}) {
+        Config config;
+        configure_x86_hybrid_threads(config, proc_type_table, tolerance, false, false);
+
+        EXPECT_EQ(config.modelPreferThreadsLatency, proc_type_table[0][ALL_PROC]);
+        EXPECT_EQ(config.tbbPartitioner, TbbPartitioner::AUTO);
+    }
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_high_tolerance_non_light_conv_int8_keeps_main_and_efficient) {
+    // crnn-tf INT8 matches the same metrics profile, but must keep the original policy.
+    const auto tolerance = MemBandwidthPressureBuilder{}
+                               .total_nodes(139)
+                               .total_gemms(1)
+                               .total_convs(7)
+                               .total_light_convs(0)
+                               .ratio_compute_convs(6.0f / 7.0f)
+                               .max_mem_tolerance(10.24f)
+                               .build();
+    for (const auto& proc_type_table : std::vector<std::vector<std::vector<int>>>{
+             {{16, 4, 8, 4, 0, 0, 0}}, {{28, 8, 16, 4, 0, 0, 0}}}) {
+        Config config;
+        configure_x86_hybrid_threads(config, proc_type_table, tolerance, true, false);
+
+        EXPECT_EQ(config.modelPreferThreadsLatency,
+                  proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC]);
+        EXPECT_EQ(config.tbbPartitioner, TbbPartitioner::STATIC);
+    }
+}
+
 TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_throughput_ht_adjustment) {
     Config config;
     std::vector<std::vector<int>> proc_type_table = {{16, 8, 0, 0, 8, 0, 0}};

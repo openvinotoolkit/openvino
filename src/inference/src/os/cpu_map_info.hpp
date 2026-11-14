@@ -66,6 +66,8 @@ public:
     std::vector<std::vector<int>> _cpu_mapping_table;
     std::map<int, int> _socketid_mapping_table;
     std::map<int, int> _numaid_mapping_table;
+    // Rows contain {processor ID, maximum frequency in kHz}; populated on Linux for multiple TBB core types.
+    std::vector<std::vector<int>> _cpu_freq_table;
     std::mutex _cpu_mutex;
     int _socket_idx = 0;
 

@@ -81,6 +81,8 @@ namespace ThreadPreferenceConstants {
 [[maybe_unused]] constexpr float ADD_RATIO_AUTO_VISION = 0.25F;
 [[maybe_unused]] constexpr float CONV_MEM_LIMITED_RATIO_AUTO_RESIDUAL_VISION = 0.3F;
 [[maybe_unused]] constexpr float ADD_RATIO_AUTO_RESIDUAL_VISION = 0.4F;
+[[maybe_unused]] constexpr float CONV_MEM_LIMITED_RATIO_STATIC_LOW_COMPUTE = 0.4F;
+[[maybe_unused]] constexpr float ADD_RATIO_STATIC_LOW_PRESSURE = 0.2F;
 
 [[maybe_unused]] constexpr float GEMM_RATIO_HIGH = 0.14F;
 [[maybe_unused]] constexpr float GEMM_RATIO_LOW = 0.05F;
@@ -165,6 +167,13 @@ bool is_main_core_case_4(const ov::MemBandwidthPressure& tolerance) {
            static_cast<float>(tolerance.total_light_convs) > CONV_RATIO_LOW * static_cast<float>(tolerance.total_convs);
 }
 
+bool is_main_core_light_fp_low_memory_pressure_profile(const ov::MemBandwidthPressure& tolerance) {
+    using namespace ThreadPreferenceConstants;
+    return tolerance.total_convs > 0 && is_main_core_case_3(tolerance) && tolerance.ratio_mem_limited_gemms == 0.0F &&
+           tolerance.ratio_mem_limited_adds == 0.0F && tolerance.max_mem_tolerance >= MEM_TOLERANCE_HIGH &&
+           tolerance.max_mem_tolerance < ov::MemBandwidthPressure::UNKNOWN;
+}
+
 bool is_static_partitioner_case_1(const ov::MemBandwidthPressure& tolerance) {
     return tolerance.total_nodes == 0;
 }
@@ -223,6 +232,24 @@ bool is_static_partitioner_case_5(const ov::MemBandwidthPressure& tolerance) {
            tolerance.ratio_compute_convs == 1.0F && tolerance.ratio_mem_limited_adds == 1.0F &&
            static_cast<float>(tolerance.total_heavy_convs) >
                CONV_RATIO_ULTRA_LOW * static_cast<float>(tolerance.total_nodes);
+}
+
+bool is_static_partitioner_low_compute_low_add_pressure_profile(const ov::MemBandwidthPressure& tolerance) {
+    using namespace ThreadPreferenceConstants;
+    return tolerance.total_convs > 0 && tolerance.ratio_compute_convs < CONV_RATIO_ULTRA_LOW &&
+           tolerance.ratio_mem_limited_convs < CONV_MEM_LIMITED_RATIO_STATIC_LOW_COMPUTE &&
+           tolerance.ratio_mem_limited_adds < ADD_RATIO_STATIC_LOW_PRESSURE &&
+           tolerance.ratio_mem_limited_gemms == 0.0F && tolerance.max_mem_tolerance >= MEM_TOLERANCE_VERY_LOW &&
+           tolerance.total_heavy_convs == 0;
+}
+
+bool is_static_partitioner_light_gemm_dominant_profile(const ov::MemBandwidthPressure& tolerance) {
+    using namespace ThreadPreferenceConstants;
+    return tolerance.total_convs > 0 && tolerance.ratio_compute_convs == 1.0F &&
+           tolerance.ratio_mem_limited_convs == 0.0F && tolerance.ratio_mem_limited_gemms == 0.0F &&
+           tolerance.ratio_mem_limited_adds < ADD_RATIO_STATIC_LOW_PRESSURE &&
+           tolerance.max_mem_tolerance >= MEM_TOLERANCE_HIGH && tolerance.total_heavy_convs == 0 &&
+           tolerance.total_light_gemms == tolerance.total_gemms && tolerance.total_light_gemms >= tolerance.total_convs;
 }
 
 bool is_all_core_auto_case(const ov::MemBandwidthPressure& tolerance) {
@@ -289,6 +316,15 @@ bool is_all_core_auto_case_low_tolerance_zero_adds_profile(const ov::MemBandwidt
            tolerance.ratio_mem_limited_convs <= CONV_RATIO_ULTRA_LOW && tolerance.total_gemms == 0;
 }
 
+bool is_all_core_auto_case_high_tolerance_non_light_conv_profile(const ov::MemBandwidthPressure& tolerance) {
+    using namespace ThreadPreferenceConstants;
+    return tolerance.total_convs > 0 && tolerance.total_light_convs == 0 && tolerance.ratio_compute_convs > 0.0F &&
+           tolerance.ratio_compute_convs < 1.0F && tolerance.ratio_mem_limited_convs == 0.0F &&
+           tolerance.ratio_mem_limited_gemms == 0.0F && tolerance.ratio_mem_limited_adds == 0.0F &&
+           tolerance.max_mem_tolerance >= MEM_TOLERANCE_HIGH &&
+           tolerance.max_mem_tolerance < ov::MemBandwidthPressure::UNKNOWN;
+}
+
 void determine_tbb_partitioner_and_threads(Config& config,
                                            const std::vector<std::vector<int>>& proc_type_table,
                                            const ov::MemBandwidthPressure& tolerance,
@@ -313,11 +349,18 @@ void determine_tbb_partitioner_and_threads(Config& config,
         }
     }
 
+    if (has_lp_ecores && !int8_intensive && is_main_core_light_fp_low_memory_pressure_profile(tolerance)) {
+        config.modelPreferThreadsLatency = proc_type_table[0][MAIN_CORE_PROC];
+        config.tbbPartitioner = TbbPartitioner::STATIC;
+        return;
+    }
+
     if (has_lp_ecores && (is_all_core_auto_case_high_lp_share_relaxed_profile(tolerance, lp_ecore_share) ||
                           is_all_core_auto_case_high_lp_share_vision_profile(tolerance, lp_ecore_share) ||
                           is_all_core_auto_case_high_lp_share_residual_vision_profile(tolerance, lp_ecore_share) ||
                           is_all_core_auto_case_low_tolerance_dense_conv_profile(tolerance) ||
                           is_all_core_auto_case_low_tolerance_zero_adds_profile(tolerance) ||
+                          (!int8_intensive && is_all_core_auto_case_high_tolerance_non_light_conv_profile(tolerance)) ||
                           (is_all_core_auto_case(tolerance) &&
                            !is_all_core_auto_case_small_conv_exclusion_profile(tolerance, lp_ecore_share)))) {
         config.modelPreferThreadsLatency = proc_type_table[0][MAIN_CORE_PROC] +
@@ -336,7 +379,8 @@ void determine_tbb_partitioner_and_threads(Config& config,
     bool static_case_5 = has_lp_ecores && is_static_partitioner_case_5(tolerance);
 
     if (is_static_partitioner_case_1(tolerance) || is_static_partitioner_case_2(tolerance) || static_case_3 ||
-        static_case_4 || static_case_5) {
+        static_case_4 || static_case_5 || is_static_partitioner_low_compute_low_add_pressure_profile(tolerance) ||
+        is_static_partitioner_light_gemm_dominant_profile(tolerance)) {
         config.tbbPartitioner = TbbPartitioner::STATIC;
     } else {
         config.tbbPartitioner = TbbPartitioner::AUTO;
@@ -1434,7 +1478,8 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
     config.enableCpuPinning = check_cpu_pinning(config.enableCpuPinning,
                                                 config.changedCpuPinning,
                                                 config.enableCpuReservation,
-                                                streams_info_table);
+                                                streams_info_table,
+                                                proc_type_table);
 
     config.streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor",
                                                            config.streams,

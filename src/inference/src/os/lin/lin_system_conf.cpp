@@ -290,6 +290,21 @@ CPU::CPU() {
                            _cores);
         }
     }
+
+    if (_proc_type_table[0][MAIN_CORE_PROC] + _proc_type_table[0][EFFICIENT_CORE_PROC] +
+            _proc_type_table[0][LP_EFFICIENT_CORE_PROC] >
+        1) {
+        _cpu_freq_table.reserve(_cpu_mapping_table.size());
+        for (const auto& cpu : _cpu_mapping_table) {
+            const int cpu_id = cpu[CPU_MAP_PROCESSOR_ID];
+            std::ifstream freq_file("/sys/devices/system/cpu/cpu" + std::to_string(cpu_id) +
+                                    "/cpufreq/cpuinfo_max_freq");
+            int freq = 0;
+            if (freq_file >> freq && freq > 0) {
+                _cpu_freq_table.push_back({cpu_id, freq});
+            }
+        }
+    }
     std::vector<std::vector<std::string>>().swap(system_info_table);
 
     if (check_valid_cpu() < 0) {
