@@ -39,6 +39,9 @@ RUN apt-get update && \
     python3.14-nogil \
     python3.14-venv \
     python3.14-dev \
+    python3.15-nogil \
+    python3.15-venv \
+    python3.15-dev \
     # For Java API
     default-jdk \
     # To build documentation
@@ -79,6 +82,8 @@ ENV PATH="$SCCACHE_HOME:$PATH"
 
 # Setup pip
 ENV PIP_VERSION="24.0"
+# pip 24.0 is incompatible with Python 3.15 (abstract importlib.metadata Distribution.locate_file)
+ENV PIP_VERSION_PY315="26.2.1"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3 get-pip.py  --no-cache-dir pip==${PIP_VERSION} && \
     python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
@@ -86,6 +91,8 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3.13 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.14 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.14t get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.15 get-pip.py --no-cache-dir pip==${PIP_VERSION_PY315} && \
+    python3.15t get-pip.py --no-cache-dir pip==${PIP_VERSION_PY315} && \
     rm -f get-pip.py
 
 # Use Python 3.11 as default

@@ -42,6 +42,9 @@ RUN apt-get update && \
     python3.14-nogil \
     python3.14-venv \
     python3.14-dev \
+    python3.15-nogil \
+    python3.15-venv \
+    python3.15-dev \
     # For Java API
     default-jdk \
     # For clang-tidy validation
@@ -75,13 +78,17 @@ ENV PATH="/venv/bin:$PATH"
 
 # Setup pip
 ENV PIP_VERSION="24.0"
+# pip 24.0 is incompatible with Python 3.15 (abstract importlib.metadata Distribution.locate_file)
+ENV PIP_VERSION_PY315="26.2.1"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     /venv/bin/python3 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.11 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.12 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.13 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.14 -m pip install --upgrade pip==${PIP_VERSION} && \
-    python3.14t get-pip.py --no-cache-dir pip==${PIP_VERSION}
+    python3.14t get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.15 get-pip.py --no-cache-dir --ignore-installed pip==${PIP_VERSION_PY315} && \
+    python3.15t get-pip.py --no-cache-dir --ignore-installed pip==${PIP_VERSION_PY315}
 
 # Install newer ninja (apt ships 1.10.1 on 22.04 / 1.11.1 on 24.04; pin for consistency)
 RUN python3 -m pip install --no-cache-dir ninja==1.13.0
