@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include "openvino/op/ngram_hash_function.hpp"
 #include "openvino/op/ops.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
@@ -211,6 +212,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 #include "openvino/opsets/opset17_tbl.hpp"
 
 #include "ov_ops/opset_private_tbl.hpp"
+_OPENVINO_OP_REG(NGramHashFunction, ov::op::internal)
 #undef _OPENVINO_OP_REG
     };
 OPENVINO_SUPPRESS_DEPRECATED_END
