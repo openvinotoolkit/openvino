@@ -5,6 +5,7 @@
 #include "primitive_inst.h"
 #include "registry.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/runtime/device.hpp"
 
 
 #if OV_GPU_WITH_ONEDNN
@@ -36,6 +37,12 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<fully
         OV_GPU_CREATE_INSTANCE_TERNOCL(cldnn::ocl::TernoclInt2FCImplementationManager, shape_types::dynamic_shape)
         OV_GPU_CREATE_INSTANCE_TERNOCL(cldnn::ocl::TernoclInt2FCImplementationManager, shape_types::static_shape)
         OV_GPU_CREATE_INSTANCE_ONEDNN(onednn::FullyConnectedImplementationManager, shape_types::static_shape)
+        // On Intel GPUs oneDNN implements a matmul with runtime dims only with a reference kernel, so the
+        // shape-agnostic impl gives no benefit over the per-shape static impls there.
+        OV_GPU_CREATE_INSTANCE_ONEDNN(onednn::FullyConnectedImplementationManager, shape_types::dynamic_shape,
+            [](const program_node& node) {
+                return node.get_program().get_engine().get_device_info().vendor_id != INTEL_VENDOR_ID;
+        })
         OV_GPU_GET_INSTANCE_OCL(fully_connected, shape_types::static_shape,
             [](const program_node& node) {
                 return ocl_supports_weights_layout(node) && no_hadamard_input(node);

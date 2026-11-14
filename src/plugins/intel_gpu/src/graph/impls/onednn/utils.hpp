@@ -65,6 +65,11 @@ dnnl::memory::desc layout_to_memory_desc_blocked(
     const cldnn::layout& l,
     dnnl::memory::format_tag target_fmt);
 
+/// Creates a memory descriptor supporting both static and dynamic shapes.
+/// For dynamic layouts, uses DNNL_RUNTIME_DIM_VAL for unknown dimensions.
+/// Supports 2D through 6D layouts.
+dnnl::memory::desc layout_to_memory_desc_dynamic(const cldnn::layout& l, dnnl::memory::format_tag target_fmt);
+
 /// This function is specifically designed for quantize post-op inputs where:
 ///  - For gemm/fully_connected: always use default format
 ///  - For other primitives: use blocked format if output is blocked, otherwise use undef
@@ -80,7 +85,7 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped = false);
 cldnn::format find_data_format(dnnl::memory::desc desc);
 dnnl::memory::format_tag get_format_by_desc(dnnl::memory::desc desc);
 cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& desc, bool is_weights = false, bool is_grouped = false);
-int64_t get_offset(const cldnn::layout& l, dnnl::memory::desc&& desc);
+int64_t get_offset(const cldnn::layout& l, const dnnl::memory::desc& desc);
 bool keep_weights_reorder_shape_consistent(cldnn::layout& layout, const dnnl::memory::desc& desc);
 size_t get_post_ops_count(const program_node& node);
 bool is_supported_post_ops(const program_node& node);
