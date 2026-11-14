@@ -1639,6 +1639,11 @@ bool Node::canBePerformedAsScaleShift([[maybe_unused]] const Node* parentNode) c
 #if defined(OPENVINO_ARCH_X86_64)
     OPENVINO_ASSERT(parentNode);
 
+    // Multiplication by a reciprocal cannot preserve integer division's rounding.
+    if (getAlgorithm() == Algorithm::EltwiseDivide && getOriginalInputPrecisionAtPort(0).is_integral_number()) {
+        return false;
+    }
+
     size_t fusingPort = 0;
     const auto channelAxis = parentNode->getFusingAxis();
 

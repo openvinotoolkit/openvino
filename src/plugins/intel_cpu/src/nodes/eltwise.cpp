@@ -771,6 +771,13 @@ bool Eltwise::canFuse(const NodePtr& node) const {
         return false;
     }
 
+    // Byte Divide needs its own execution precision and rounding mode.
+    if (isByteDivide(getAlgorithm(), getOriginalInputPrecisionAtPort(0)) ||
+        (node->getType() == Type::Eltwise &&
+         isByteDivide(node->getAlgorithm(), node->getOriginalInputPrecisionAtPort(0)))) {
+        return false;
+    }
+
     bool isIntegerNode = isIntegerComputeSupported(this);
     if (isIntegerNode && getAlgorithm() == Algorithm::EltwiseDivide &&
         !EltwiseJitExecutor::supports(m_attrs,
