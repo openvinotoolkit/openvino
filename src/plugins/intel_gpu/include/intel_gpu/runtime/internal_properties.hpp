@@ -243,6 +243,8 @@ static constexpr Property<std::string, ov::PropertyMutability::RW> pa_mixed_rout
 static constexpr Property<bool, PropertyMutability::RW> record_replay_dynamic{"GPU_RECORD_REPLAY_DYNAMIC"};
 static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> force_fp32_layer_types{"GPU_FORCE_FP32_LAYER_TYPES"};
 static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> force_fp32_layer_names{"GPU_FORCE_FP32_LAYER_NAMES"};
+static constexpr Property<bool, ov::PropertyMutability::RW> qsa_ocl_disable_xmx{"GPU_QSA_OCL_DISABLE_XMX"};
+static constexpr Property<int, ov::PropertyMutability::RW> qsa_score_budget_bytes{"GPU_QSA_SCORE_BUDGET_BYTES"};
 }  // namespace ov::intel_gpu
 
 namespace cldnn {

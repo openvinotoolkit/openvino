@@ -19,7 +19,7 @@ namespace ov::intel_gpu::ocl {
 
 struct QSAIndexerInternalBufIdx {
     static constexpr size_t INDEXER_Q = 0;     ///< f16 [tokens=B*L, H_iq, D_idx]
-    static constexpr size_t BLOCK_SCORES = 1;  ///< f32 [rows, pitch]
+    static constexpr size_t BLOCK_SCORES = 1;  ///< f32 [rows, pitch]; rows bounded by the score budget
 
     static constexpr size_t COUNT = 2;
 };
@@ -32,6 +32,7 @@ struct QSAIndexerRuntimeParams : public ImplRuntimeParams {
     size_t prepare_blocks_per_row = 1;
     size_t prepare_wg_count = 0;
     size_t score_tile_count = 0;
+    size_t chunk_tile_count = 0;  ///< query tiles the systolic scorer dispatches for the current row chunk
     size_t num_partitions = 1;
     size_t chunk_rows = 1;
     size_t chunk_row_begin = 0;

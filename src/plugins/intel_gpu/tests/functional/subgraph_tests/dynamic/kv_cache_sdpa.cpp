@@ -36,6 +36,7 @@ struct Params {
     size_t v_head_size;
     int32_t initial_batch;
     std::vector<int64_t> qkv_order;
+    ov::element::Type compression_type = ov::element::i8;
 };
 
 class SDPAWithKVCacheTest : public ::testing::Test, public ::testing::WithParamInterface<Params> {
@@ -47,7 +48,7 @@ public:
 #endif
         auto core = ov::test::utils::PluginCache::get().core();
 
-        if (p.model_element_type == ov::element::bf16) {
+        if (p.model_element_type == ov::element::bf16 || (p.compressed && p.compression_type.bitwidth() == 4)) {
             const auto capabilities = core->get_property(ov::test::utils::DEVICE_GPU, ov::device::capabilities);
             if (std::find(capabilities.cbegin(), capabilities.cend(), ov::intel_gpu::capability::HW_MATMUL) == capabilities.cend())
                 GTEST_SKIP();
@@ -57,7 +58,7 @@ public:
                                  ov::intel_gpu::hint::enable_sdpa_optimization(true)};
 
         if (p.compressed) {
-            properties.emplace(ov::hint::kv_cache_precision(ov::element::i8));
+            properties.emplace(ov::hint::kv_cache_precision(p.compression_type));
         } else {
             properties.emplace(ov::hint::kv_cache_precision(p.model_element_type));
         }
@@ -341,6 +342,9 @@ public:
         result << "scale=" << p.with_scale << "_";
         result << "causal=" << p.causal << "_";
         result << "compressed=" << p.compressed << "";
+        if (p.compressed) {
+            result << "_" << p.compression_type << "_";
+        }
         result << "k_head=" << p.k_head_size << "";
         result << "v_head=" << p.v_head_size << "";
         return result.str();
@@ -481,6 +485,14 @@ std::vector<Params> get_test_params() {
     }
     // Same head size without compression
     p.push_back({with_rearrange, with_mask, !with_scale, !causal, !compressed, 1, ov::element::Type_t::f16, 5, 4, 512, 512, 1, {0, 1, 2, 3}});
+
+    // A long decode outgrows the preallocated cache (7 + 128 + id % 64 tokens), so the cache is reallocated and the old rows
+    // are copied by the concat stage; with a 4-bit cache those rows are packed (head_size / 2 bytes).
+    for (auto kv_type : {ov::element::u4, ov::element::i8}) {
+        p.push_back({!with_rearrange, !with_mask, !with_scale, causal, compressed, 1, ov::element::Type_t::f16, 200, 4, 64, 64, 1, {0, 1, 2, 3}, kv_type});
+        p.push_back({!with_rearrange, !with_mask, !with_scale, causal, compressed, 1, ov::element::Type_t::f16, 200, 4, 128, 128, 1, {0, 2, 1, 3}, kv_type});
+    }
+    p.push_back({with_rearrange, !with_mask, !with_scale, causal, compressed, 1, ov::element::Type_t::f16, 200, 4, 64, 64, 1, {0, 1, 2, 3}, ov::element::i8});
 
     return p;
 }

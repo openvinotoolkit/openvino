@@ -66,6 +66,7 @@ float f16_from_bits(uint16_t bits) {
 }
 
 constexpr float kMinScale = 1.0f / 16384.0f;
+constexpr float kRangeNone = 3.0e38f;  // "no range yet" bound of the BY_CHANNEL write
 
 KVQuant token_quant(uint8_t bits, bool sym) {
     return {Mode::BY_TOKEN, bits, sym, 0};
@@ -218,13 +219,20 @@ struct quant_pages {
         std::memcpy(&bytes[off + 2], &zp_bits, 2);
     }
 
+    /// Smallest asymmetric BY_CHANNEL range relative to the larger magnitude (|zero point| <= 512).
+    float min_width() const {
+        return qmax() / 512.0f;
+    }
+
     /// BY_CHANNEL: re-quantizes the group starting at page-local token `tok0` from `rows` (one f16 row per
     /// valid token of the group, already dequantized where they came from the cache).
     void write_group(size_t p, size_t h, size_t tok0, const std::vector<std::vector<float>>& rows) {
         std::vector<float> scale_h(D), zp_h(D), inv(D);
         std::vector<uint16_t> scale_bits(D), zp_bits(D);
         for (size_t c = 0; c < D; c++) {
-            float mn = 0.0f, mx = 0.0f;
+            // Symmetric ranges include 0; asymmetric ones are the data range, widened to at least min_width() of the larger
+            // magnitude so that the zero point stays within about +-512.
+            float mn = q.symmetric ? 0.0f : kRangeNone, mx = q.symmetric ? 0.0f : -kRangeNone;
             for (const auto& r : rows) {
                 mn = std::min(mn, r[c]);
                 mx = std::max(mx, r[c]);
@@ -234,6 +242,7 @@ struct quant_pages {
                 scale = std::max(mx, -mn) / (q.bits == 8 ? 127.0f : 7.0f);
                 zp = zero_code();
             } else {
+                mx += std::max(min_width() * std::max(std::fabs(mn), std::fabs(mx)) - (mx - mn), 0.0f);
                 scale = (mx - mn) / qmax();
             }
             scale = std::max(scale, kMinScale);
@@ -702,7 +711,12 @@ void run_case(const kvq_case& tc) {
                         const double step = quants[which].mode == Mode::BY_TOKEN ? scale_s : ch_s[j];
                         const double diff = std::fabs(static_cast<double>(got[j]) - want[j]);
                         max_steps = std::max(max_steps, diff / step);
-                        differing += diff > 1e-6 ? 1 : 0;
+                        // The kernel and this model use the same formulas, but the kernels build with -cl-mad-enable and OpenCL
+                        // does not round f32 divisions correctly by default, so their f32 results can differ in the last bits.
+                        // That can move an f16 scale / zero point by one ulp (a fraction of a step on every element of the
+                        // channel) or flip a value on a code rounding edge to the next code (a full step). Only the latter
+                        // counts as a mismatch.
+                        differing += diff > 0.5 * step ? 1 : 0;
                         total++;
                     }
                 }
@@ -849,6 +863,297 @@ TEST(sparse_pa_kvq_mixed, f16_key_quantized_value) {
     std::cout << "QSA_KVQ_ATTN mixed_f16K_i8V max_abs=" << e.max_abs << " bad=" << e.bad << std::endl;
     EXPECT_EQ(e.bad, 0u);
 }
+
+// ---------------------------------------------------------------------------
+// Multi-step decode with BY_CHANNEL keys: every step appends one token per sequence to the cache the previous step
+// produced. Covers the group re-quantization (range widened / narrowed / group completed / first token of a group /
+// page boundaries) and checks each step against the CPU model of the write.
+// ---------------------------------------------------------------------------
+
+enum class decode_pattern { iid, growing, decaying, spikes, calm, stable, offset };
+
+const char* pattern_name(decode_pattern p) {
+    switch (p) {
+    case decode_pattern::iid:
+        return "iid";
+    case decode_pattern::growing:
+        return "growing";
+    case decode_pattern::decaying:
+        return "decaying";
+    case decode_pattern::spikes:
+        return "spikes";
+    case decode_pattern::calm:
+        return "calm";
+    case decode_pattern::stable:
+        return "stable";
+    case decode_pattern::offset:
+        return "offset";
+    }
+    return "";
+}
+
+float pattern_factor(decode_pattern p, size_t step, size_t channel) {
+    switch (p) {
+    case decode_pattern::growing:
+        return 1.0f + 0.15f * static_cast<float>(step);
+    case decode_pattern::decaying:
+        return std::max(0.05f, 1.0f - 0.03f * static_cast<float>(step));
+    case decode_pattern::spikes:
+        return (step % 5 == 4 && channel % 13 == step % 13) ? 8.0f : 1.0f;
+    case decode_pattern::calm:
+        return 0.5f;
+    default:
+        return 1.0f;
+    }
+}
+
+struct decode_case {
+    std::string name;
+    dims d;
+    KVQuant k;
+    std::vector<size_t> pasts;
+    size_t steps;
+    decode_pattern pattern;
+};
+
+/// `base` with every sequence at `pasts[s]` cached tokens and one new token.
+case_data decode_step_case(const case_data& base, const std::vector<size_t>& pasts) {
+    case_data c = base;
+    const auto& d = c.d;
+    c.seqs.clear();
+    c.past_lens.clear();
+    c.subsequence_begins = {0};
+    c.tokens = pasts.size();
+    for (size_t s = 0; s < pasts.size(); s++) {
+        c.seqs.push_back({pasts[s], 1});
+        c.past_lens.push_back(static_cast<int32_t>(pasts[s]));
+        c.subsequence_begins.push_back(static_cast<int32_t>(s + 1));
+        c.key_hist[s].resize((pasts[s] + 1) * d.Hkv * d.Dh);
+        c.value_hist[s].resize((pasts[s] + 1) * d.Hkv * d.Dv);
+    }
+    c.query.resize(c.tokens * d.Hq * d.Dh);
+    c.sel.assign(c.tokens * d.topk, 0);
+    c.count.assign(c.tokens, 0);
+    for (size_t s = 0; s < pasts.size(); s++) {
+        const size_t n_complete = (pasts[s] + 1) / d.r;
+        const size_t cnt = std::min(d.topk, n_complete);
+        for (size_t j = 0; j < cnt; j++) {
+            c.sel[s * d.topk + j] = static_cast<int32_t>(j * n_complete / cnt);
+        }
+        c.count[s] = static_cast<int32_t>(cnt);
+    }
+    return c;
+}
+
+void run_decode_case(const decode_case& tc) {
+    const KVQuant vq = token_quant(8, false);
+    std::vector<seq_spec> final_seqs;
+    for (size_t p : tc.pasts) {
+        final_seqs.push_back({p, tc.steps});
+    }
+    auto base = make_case(tc.d, tc.k, vq, final_seqs, 5);
+    const auto& d = base.d;
+    if (tc.pattern == decode_pattern::offset) {
+        // Every fourth channel carries a DC offset of about 10 sigma (the values of a channel are uniform in +-(1 + 0.5 * (c % 7))).
+        for (size_t s = 0; s < tc.pasts.size(); s++) {
+            for (size_t i = 0; i < base.key_hist[s].size(); i++) {
+                const size_t c = i % d.Dh;
+                if (c % 4 == 0) {
+                    base.key_hist[s][i] = f16r(base.key_hist[s][i] + ((c / 4) % 2 ? -6.0f : 6.0f) * (1.0f + 0.5f * static_cast<float>(c % 7)));
+                }
+            }
+        }
+    }
+    for (size_t s = 0; s < tc.pasts.size(); s++) {
+        for (size_t j = 0; j < tc.steps; j++) {
+            for (size_t i = 0; i < d.Hkv * d.Dh; i++) {
+                float& x = base.key_hist[s][(tc.pasts[s] + j) * d.Hkv * d.Dh + i];
+                x = f16r(x * pattern_factor(tc.pattern, j, i % d.Dh));
+                if (tc.pattern == decode_pattern::stable && tc.pasts[s] + j >= 16) {
+                    // Stationary keys: a row of the previous group, so the group range stops moving.
+                    x = base.key_hist[s][(tc.pasts[s] + j - 16) * d.Hkv * d.Dh + i];
+                }
+            }
+        }
+    }
+
+    quant_pages key_model(tc.k, base.total_pages, d.Hkv, d.page, d.Dh);
+    quant_pages value_model(vq, base.total_pages, d.Hkv, d.page, d.Dv);
+    for (size_t s = 0; s < tc.pasts.size(); s++) {
+        cpu_write_range(key_model, base, s, base.key_hist[s], d.Dh, 0, tc.pasts[s]);
+        cpu_write_range(value_model, base, s, base.value_hist[s], d.Dv, 0, tc.pasts[s]);
+    }
+    std::vector<uint8_t> key_bytes = key_model.bytes, value_bytes = value_model.bytes;
+
+    double worst_steps = 0.0, worst_differing = 0.0;
+    gpu_run run;
+    case_data last;
+    for (size_t step = 0; step < tc.steps; step++) {
+        std::vector<size_t> pasts;
+        for (size_t p : tc.pasts) {
+            pasts.push_back(p + step);
+        }
+        last = decode_step_case(base, pasts);
+        // Single-step check: the model starts from the cache the GPU produced, so knife-edge rounding does not accumulate.
+        key_model.bytes = key_bytes;
+        run = run_gpu(last, key_bytes, value_bytes);
+        ASSERT_FALSE(run.out.empty());
+        key_bytes = run.key_bytes;
+        value_bytes = run.value_bytes;
+        for (size_t s = 0; s < pasts.size(); s++) {
+            cpu_write_range(key_model, base, s, base.key_hist[s], d.Dh, pasts[s], pasts[s] + 1);
+        }
+
+        // The cache the GPU produced vs the model, in quantization steps (only the sequences' valid tokens).
+        quant_pages gpu_keys = key_model;
+        gpu_keys.bytes = run.key_bytes;
+        size_t differing = 0, total = 0;
+        double step_max = 0.0;
+        for (size_t s = 0; s < pasts.size(); s++) {
+            for (size_t t = 0; t <= pasts[s]; t++) {
+                const size_t page = static_cast<size_t>(base.block_indices[base.page_first[s] + t / d.page]);
+                for (size_t h = 0; h < d.Hkv; h++) {
+                    const auto got = gpu_keys.read_row(page, h, t % d.page);
+                    const auto want = key_model.read_row(page, h, t % d.page);
+                    std::vector<float> sc, zp;
+                    key_model.get_params_channel(page, h, t % d.page, sc, zp);
+                    for (size_t j = 0; j < d.Dh; j++) {
+                        const double diff = std::fabs(static_cast<double>(got[j]) - want[j]);
+                        step_max = std::max(step_max, diff / sc[j]);
+                        differing += diff > 0.5 * sc[j] ? 1 : 0;
+                        total++;
+                    }
+                }
+            }
+        }
+        const double frac = static_cast<double>(differing) / static_cast<double>(total);
+        worst_steps = std::max(worst_steps, step_max);
+        worst_differing = std::max(worst_differing, frac);
+        ASSERT_LE(step_max, 2.0) << tc.name << " step " << step << ": key cache differs from the model";
+        ASSERT_LE(frac, 0.05) << tc.name << " step " << step;
+    }
+
+    // Final state: attention over the GPU cache, and the key error against the unquantized history.
+    quant_pages gpu_keys = key_model, gpu_values = value_model;
+    gpu_keys.bytes = key_bytes;
+    gpu_values.bytes = value_bytes;
+    const auto ref_cache = reference_attention(
+        last,
+        [&](size_t s, size_t pos, size_t kv) {
+            return gpu_keys.read_row(static_cast<size_t>(last.block_indices[last.page_first[s] + pos / d.page]), kv, pos % d.page);
+        },
+        [&](size_t s, size_t pos, size_t kv) {
+            return gpu_values.read_row(static_cast<size_t>(last.block_indices[last.page_first[s] + pos / d.page]), kv, pos % d.page);
+        });
+    const auto e_attn = compare(run.out, ref_cache, 1.5e-2, 1.5e-2);
+    EXPECT_EQ(e_attn.bad, 0u) << tc.name << ": attention output differs from the dequantized-cache reference";
+
+    // Relative key error against the unquantized history over tokens [first(s), past + steps) of every sequence.
+    auto key_error = [&](const quant_pages& keys, auto first) {
+        double err = 0.0, mag = 0.0;
+        size_t n = 0;
+        for (size_t s = 0; s < tc.pasts.size(); s++) {
+            for (size_t t = first(s); t < tc.pasts[s] + tc.steps; t++) {
+                const size_t page = static_cast<size_t>(base.block_indices[base.page_first[s] + t / d.page]);
+                for (size_t h = 0; h < d.Hkv; h++) {
+                    const auto got = keys.read_row(page, h, t % d.page);
+                    for (size_t j = 0; j < d.Dh; j++) {
+                        const float x = base.key_hist[s][(t * d.Hkv + h) * d.Dh + j];
+                        err += std::fabs(got[j] - x);
+                        mag += std::fabs(x);
+                        n++;
+                    }
+                }
+            }
+        }
+        return std::make_pair(err / mag, err / static_cast<double>(n));
+    };
+    const auto [rel, mae] = key_error(gpu_keys, [](size_t) {
+        return size_t{0};
+    });
+
+    // Each widening of a partial group re-quantizes its cached rows from their dequantized values, so decode adds error
+    // over writing the same history in one call (every group quantized once from the exact rows). Compared on the groups
+    // the decode steps touched.
+    quant_pages one_shot(tc.k, base.total_pages, d.Hkv, d.page, d.Dh);
+    for (size_t s = 0; s < tc.pasts.size(); s++) {
+        cpu_write_range(one_shot, base, s, base.key_hist[s], d.Dh, 0, tc.pasts[s] + tc.steps);
+    }
+    auto touched = [&](size_t s) {
+        return tc.pasts[s] / tc.k.group_size * tc.k.group_size;
+    };
+    const double decode_rel = key_error(gpu_keys, touched).first;
+    const double one_shot_rel = key_error(one_shot, touched).first;
+
+    std::cout << "QSA_KVQ_DECODE " << tc.name << " worst_cache_steps=" << worst_steps << " worst_differing=" << worst_differing * 100.0
+              << "% attn_max_abs=" << e_attn.max_abs << " key_rel_err=" << rel << " key_mae=" << mae
+              << " decode_vs_one_shot=" << decode_rel / one_shot_rel << std::endl;
+    EXPECT_LT(rel, tc.k.bits == 4 ? 0.25 : 0.03) << tc.name;
+    // CPU model of these cases: at most 1.33x.
+    EXPECT_LE(decode_rel, 1.6 * one_shot_rel) << tc.name << ": decode writes compound the key error";
+}
+
+std::vector<decode_case> decode_cases() {
+    std::vector<decode_case> cases;
+    auto add = [&](const char* dn, const dims& d, const KVQuant& k, std::vector<size_t> pasts, size_t steps, decode_pattern p) {
+        std::ostringstream os;
+        os << dn << "_K" << quant_name(k) << "_" << pattern_name(p);
+        for (size_t past : pasts) {
+            os << "_" << past;
+        }
+        os << "x" << steps;
+        cases.push_back({os.str(), d, k, std::move(pasts), steps, p});
+    };
+    dims page32 = qwen38();
+    page32.page = 32;
+    dims d128 = qwen38();
+    d128.Dh = d128.Dv = 128;
+    // First token of an empty cache, a partial group, group boundaries (15 / 16 / 17), a long history.
+    add("qwen", qwen38(), channel_quant(8, false, 16), {0}, 40, decode_pattern::iid);
+    add("qwen", qwen38(), channel_quant(4, false, 16), {5}, 40, decode_pattern::iid);
+    add("qwen", qwen38(), channel_quant(8, true, 16), {15, 16, 17, 100}, 36, decode_pattern::iid);
+    add("qwen", qwen38(), channel_quant(8, false, 16), {2051}, 20, decode_pattern::iid);
+    // The range moves: growing magnitudes (always widened), decaying (never widened), rare large spikes.
+    add("toy", toy(), channel_quant(4, true, 16), {31, 47}, 40, decode_pattern::growing);
+    add("toy", toy(), channel_quant(8, false, 16), {20, 64}, 40, decode_pattern::decaying);
+    add("toy", toy(), channel_quant(8, false, 16), {3, 130}, 45, decode_pattern::spikes);
+    add("toy", toy(), channel_quant(4, false, 16), {7, 33, 90}, 40, decode_pattern::spikes);
+    add("toy", toy(), channel_quant(8, true, 16), {12}, 40, decode_pattern::calm);
+    // 32-token groups / pages, 16-token groups in 32-token pages, head size 128.
+    add("page32", page32, channel_quant(8, false, 32), {0, 33, 70}, 70, decode_pattern::iid);
+    add("page32", page32, channel_quant(4, true, 32), {31, 64}, 40, decode_pattern::spikes);
+    add("page32g16", page32, channel_quant(8, false, 16), {9, 30}, 40, decode_pattern::iid);
+    add("d128", d128, channel_quant(4, false, 16), {10}, 40, decode_pattern::calm);
+    add("d128", d128, channel_quant(8, false, 16), {0, 47}, 40, decode_pattern::growing);
+    // A batch covering every fill state of a group (also the kernel benchmark: cliloader -d).
+    std::vector<size_t> batch;
+    for (size_t i = 0; i < 16; i++) {
+        batch.push_back(2048 + i);
+    }
+    add("batch16", qwen38(), channel_quant(8, false, 16), batch, 16, decode_pattern::iid);
+    add("batch16", qwen38(), channel_quant(4, true, 16), batch, 16, decode_pattern::spikes);
+    add("batch16", qwen38(), channel_quant(8, false, 16), batch, 16, decode_pattern::stable);
+    add("qwen", qwen38(), channel_quant(8, false, 16), {2051}, 20, decode_pattern::stable);
+    // Channels with a DC offset: the asymmetric range no longer has to include 0.
+    add("qwen", qwen38(), channel_quant(4, false, 16), {5}, 40, decode_pattern::offset);
+    add("qwen", qwen38(), channel_quant(8, false, 16), {0}, 40, decode_pattern::offset);
+    add("page32", page32, channel_quant(4, false, 32), {31, 64}, 40, decode_pattern::offset);
+    add("d128", d128, channel_quant(4, false, 16), {2051}, 20, decode_pattern::offset);
+    return cases;
+}
+
+class sparse_pa_kvq_decode : public ::testing::TestWithParam<decode_case> {};
+
+TEST_P(sparse_pa_kvq_decode, matches_model) {
+    if (!ocl_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
+    }
+    run_decode_case(GetParam());
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke, sparse_pa_kvq_decode, ::testing::ValuesIn(decode_cases()), [](const ::testing::TestParamInfo<decode_case>& info) {
+    return info.param.name;
+});
 
 // ---------------------------------------------------------------------------
 // Dense SparseSDPA with compressed K/V (KVCacheCompressed format, see intel_gpu/op/sparse_kv_quant.hpp): i8 data

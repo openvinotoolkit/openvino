@@ -12,9 +12,9 @@
 // Dispatch: gws = [SG, QSA_KV_HEADS, tokens_padded], lws = [SG, 1, 1]
 //
 // QSA_KV_WRITE_KCHANNEL: BY_CHANNEL key cache write. One subgroup owns one (sequence, token group, kv head); a group is
-// QSA_K_GROUP consecutive tokens of one page that share one scale / zero point per channel, so appending a token
-// re-quantizes the whole group: pass 1 gets the per-channel range (cached tokens dequantized with their old parameters,
-// new tokens from the key input), pass 2 re-quantizes and rewrites every row, then the parameters. Groups without a new
+// QSA_K_GROUP consecutive tokens of one page that share one scale / zero point per channel. Every group the new tokens
+// touch is re-quantized: pass 1 gets the per-channel range (cached tokens dequantized with their old parameters, new
+// tokens from the key input), pass 2 re-quantizes and rewrites every row, then the parameters. Groups without a new
 // token are never touched.
 // Dispatch: gws = [(tokens / QSA_K_GROUP + 2 * num_seqs) * SG, QSA_KV_HEADS, 1], lws = [SG, 1, 1]
 
@@ -62,6 +62,10 @@ inline bool FUNC(qsa_resolve_group)(const __global int* subsequence_begins,
     }
     return false;
 }
+
+#define QSA_KCH_NONE 3.0e38f  // "no range yet" bound of an asymmetric range
+// Smallest asymmetric range relative to the larger magnitude: keeps |zero point| <= 512, where (code - zp) is still accurate in f16.
+#define QSA_KCH_MINW ((QSA_K_BITS == 8 ? 255.0f : 15.0f) / 512.0f)
 
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
 KERNEL(sparse_attention_kv_write_kchannel)(const __global half* key,                  // [num_tokens, Hkv*Dh] token-major
@@ -138,12 +142,12 @@ KERNEL(sparse_attention_kv_write_kchannel)(const __global half* key,            
         }                                                                                                                           \
     }
 
-    // Pass 1: per-channel range, always including 0 so that the zero point stays inside the f16 range.
+    // Pass 1: per-channel range. Symmetric ranges include 0, asymmetric ones are the data range (see the guard below).
     float mn[QSA_K_HEAD_SIZE / QSA_SG];
     float mx[QSA_K_HEAD_SIZE / QSA_SG];
     unroll_for (uint j = 0; j < KCH_NE; j++) {
-        mn[j] = 0.0f;
-        mx[j] = 0.0f;
+        mn[j] = SYM ? 0.0f : QSA_KCH_NONE;
+        mx[j] = SYM ? 0.0f : -QSA_KCH_NONE;
     }
     for (uint t = 0; t < n_valid; t++) {
         float h[QSA_K_HEAD_SIZE / QSA_SG];
@@ -154,26 +158,32 @@ KERNEL(sparse_attention_kv_write_kchannel)(const __global half* key,            
         }
     }
 
-    half scale_h[QSA_K_HEAD_SIZE / QSA_SG];
-    half zero_h[QSA_K_HEAD_SIZE / QSA_SG];
+    // New parameters (the old ones stay in registers for dequantizing the cached rows below).
     float inv[QSA_K_HEAD_SIZE / QSA_SG];
     float zero_f[QSA_K_HEAD_SIZE / QSA_SG];
     unroll_for (uint j = 0; j < KCH_NE; j++) {
+        const uint c = lane + QSA_SG * j;
         float scale, zero;
         if (SYM) {
             scale = fmax(fmax(mx[j], -mn[j]) / (BITS == 8 ? 127.0f : 7.0f), QSA_KVQ_MIN_SCALE);
             zero = FUNC_CALL(qsa_q_zero_sym)(BITS);
         } else {
-            scale = fmax((mx[j] - mn[j]) / QMAX, QSA_KVQ_MIN_SCALE);
+            // Widen a narrow range upwards to QSA_KCH_MINW of the larger magnitude (a centered value would sit on a rounding tie).
+            const float widen = fmax(QSA_KCH_MINW * fmax(fabs(mn[j]), fabs(mx[j])) - (mx[j] - mn[j]), 0.0f);
+            scale = fmax((mx[j] + widen - mn[j]) / QMAX, QSA_KVQ_MIN_SCALE);
             zero = -mn[j] / scale;
         }
-        scale_h[j] = convert_half_rte(scale);
-        zero_h[j] = convert_half_rte(zero);
-        inv[j] = 1.0f / convert_float(scale_h[j]);
-        zero_f[j] = convert_float(zero_h[j]);
+        const half scale_h = convert_half_rte(scale);
+        const half zero_h = convert_half_rte(zero);
+        inv[j] = 1.0f / convert_float(scale_h);
+        zero_f[j] = convert_float(zero_h);
+        *(__global half*)(key_cache + rec + c * 2) = scale_h;
+        if (!SYM) {
+            *(__global half*)(key_cache + rec + DH * 2 + c * 2) = zero_h;
+        }
     }
 
-    // Pass 2: re-quantize every row of the group with the new parameters.
+    // Pass 2: re-quantize every row of the group.
     for (uint t = 0; t < n_valid; t++) {
         float h[QSA_K_HEAD_SIZE / QSA_SG];
         KCH_LOAD_ROW(t, h);
@@ -182,14 +192,6 @@ KERNEL(sparse_attention_kv_write_kchannel)(const __global half* key,            
             code[j] = (uint)(clamp(h[j] * inv[j] + zero_f[j], 0.0f, QMAX) + 0.5f);
         }
         FUNC_CALL(qsa_q_store_codes)(key_cache, pb + (tok0 + t) * ROWB, code, KCH_NE, BITS);
-    }
-
-    unroll_for (uint j = 0; j < KCH_NE; j++) {
-        const uint c = lane + QSA_SG * j;
-        *(__global half*)(key_cache + rec + c * 2) = scale_h[j];
-        if (!SYM) {
-            *(__global half*)(key_cache + rec + DH * 2 + c * 2) = zero_h[j];
-        }
     }
 }
 

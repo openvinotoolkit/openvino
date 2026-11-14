@@ -10,16 +10,16 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
-#include <cstdlib>
 #include <limits>
 #include <optional>
 #include <string>
-#include <string_view>
 
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/op/sparse_kv_quant.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/device_info.hpp"
+#include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/kernel_args.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/float16.hpp"
@@ -42,10 +42,9 @@ inline void force_stages_refresh(PrimitiveImplOCL& impl) {
     }
 }
 
-/// OV_GPU_QSA_OCL_DISABLE_XMX=1 routes every stage to the scalar kernels (for testing them on XMX hardware).
-inline bool xmx_allowed(const cldnn::device_info& info) {
-    const char* v = std::getenv("OV_GPU_QSA_OCL_DISABLE_XMX");
-    if (v != nullptr && std::string_view(v) == "1") {
+/// The debug option QSA_OCL_DISABLE_XMX routes every stage to the scalar kernels (for testing them on XMX hardware).
+inline bool xmx_allowed(const cldnn::device_info& info, const ov::intel_gpu::ExecutionConfig& config) {
+    if (GPU_DEBUG_VALUE_OR(config.get_qsa_ocl_disable_xmx(), false)) {
         return false;
     }
     return info.arch >= cldnn::gpu_arch::xe2 && info.supports_immad;
@@ -93,22 +92,65 @@ inline void add_dense_cache_jit(JitConstants& jit, const std::string& cache, con
     jit.make(prefix + "ZP_F16", quant.enabled() && ov::intel_gpu::op::dense_zp_is_f16(quant) ? 1 : 0);
 }
 
-/// Upper bound on the decode BLOCK_SCORES scratch. Debug builds can shrink it through OV_GPU_QSA_SCORE_BUDGET_BYTES
-/// to force the multi-chunk path with small shapes.
-inline size_t score_budget_bytes() {
-    if (const char* override_str = std::getenv("OV_GPU_QSA_SCORE_BUDGET_BYTES")) {
-        const auto value = std::strtoull(override_str, nullptr, 10);
-        if (value > 0) {
-            return static_cast<size_t>(value);
-        }
-    }
-    return 128 * 1024 * 1024;
+/// Upper bound on the BLOCK_SCORES scratch of every scoring path (decode and prefill). The internal option
+/// QSA_SCORE_BUDGET_BYTES can shrink it to force the multi-chunk path with small shapes.
+inline size_t score_budget_bytes(const ov::intel_gpu::ExecutionConfig& config) {
+    const auto override_bytes = config.get_qsa_score_budget_bytes();
+    return override_bytes > 0 ? static_cast<size_t>(override_bytes) : size_t{128} * 1024 * 1024;
 }
 
 /// Row pitch (in floats) of BLOCK_SCORES: a multiple of 8 so the 8-wide score stores of the systolic scorer never
 /// leave their row.
 inline size_t score_pitch(size_t max_blocks) {
     return (std::max<size_t>(1, max_blocks) + 7) / 8 * 8;
+}
+
+inline constexpr size_t dpas_query_tile = 16;
+
+/// Rows of BLOCK_SCORES to allocate: the score budget in rows of `pitch`, but at least `min_rows` (one query tile for the
+/// systolic scorer) and at most `tokens`.
+inline size_t score_scratch_rows(size_t tokens, size_t pitch, const ov::intel_gpu::ExecutionConfig& config, size_t min_rows) {
+    const auto budget_rows = score_budget_bytes(config) / (pitch * sizeof(float));
+    return std::min(std::max<size_t>(1, tokens), std::max(budget_rows, min_rows));
+}
+
+/// Rows per BLOCK_SCORES chunk given the rows the scratch holds; the systolic scorer's chunks are whole query tiles, so
+/// only a tile straddling a sequence start is scored twice.
+inline size_t score_chunk_rows(size_t tokens, size_t capacity_rows, bool whole_tiles) {
+    if (capacity_rows >= tokens) {
+        return std::max<size_t>(1, tokens);
+    }
+    if (whole_tiles) {
+        capacity_rows = capacity_rows / dpas_query_tile * dpas_query_tile;
+    }
+    return std::max<size_t>(1, capacity_rows);
+}
+
+/// Runs `scorer` then `finalizer` once per row chunk (`rtp.chunk_rows` rows each) of the BLOCK_SCORES scratch, which every
+/// chunk reuses, so the chunks run strictly in sequence. `rtp` provides num_tokens / chunk_rows / score_tile_count and
+/// receives the current chunk_row_begin / chunk_row_end / chunk_tile_count.
+/// A chunk of n rows that spans k sequences covers at most n / dpas_query_tile + 2k query tiles (each sequence may start and
+/// end in a partial tile); `sequences_in_chunk(n)` returns an upper bound of k.
+/// The stages are re-dispatched per chunk, hence the explicit refresh.
+/// `execute_stage(events, stage)` runs one stage of the owning impl.
+template <class RuntimeParams, class SequencesInChunk, class ExecuteStage>
+cldnn::event::ptr run_score_chunks(RuntimeParams& rtp,
+                                   cldnn::event::ptr last,
+                                   Stage& scorer,
+                                   Stage& finalizer,
+                                   SequencesInChunk&& sequences_in_chunk,
+                                   ExecuteStage&& execute_stage) {
+    for (size_t begin = 0; begin < rtp.num_tokens; begin += rtp.chunk_rows) {
+        rtp.chunk_row_begin = begin;
+        rtp.chunk_row_end = std::min<size_t>(rtp.num_tokens, begin + rtp.chunk_rows);
+        const size_t rows = rtp.chunk_row_end - rtp.chunk_row_begin;
+        rtp.chunk_tile_count = std::min<size_t>(rtp.score_tile_count, (rows + dpas_query_tile - 1) / dpas_query_tile + 2 * sequences_in_chunk(rows));
+        force_stage_refresh(scorer);
+        force_stage_refresh(finalizer);
+        auto scored = execute_stage({last}, scorer);
+        last = execute_stage({scored}, finalizer);
+    }
+    return last;
 }
 
 /// Most subgroups of a top-k work-group (sizes its SLM) and the count used by the longest rows.
@@ -130,7 +172,6 @@ constexpr size_t topk_reg_keys = 64;
 /// Thresholds counted per top-k probe (at most 7): 3 -> 16 probes for 32 key bits; more only adds per-key work.
 constexpr size_t topk_thresholds = 3;
 
-inline constexpr size_t dpas_query_tile = 16;
 inline constexpr size_t dpas_k_step = 16;
 inline constexpr size_t dpas_wide_cols = 32;
 inline constexpr size_t gqa_workers = 4;
@@ -175,8 +216,8 @@ size_t dpas_attention_workers(const Desc& desc) {
 }
 
 template <class Desc>
-bool can_use_dpas_attention(const Desc& desc, std::optional<size_t> page_size, const cldnn::device_info& info) {
-    if (!xmx_allowed(info)) {
+bool can_use_dpas_attention(const Desc& desc, std::optional<size_t> page_size, const cldnn::device_info& info, const ov::intel_gpu::ExecutionConfig& config) {
+    if (!xmx_allowed(info, config)) {
         return false;
     }
     if (desc.k_head_size % dpas_k_step != 0 || desc.v_head_size % dpas_query_tile != 0) {
@@ -195,8 +236,11 @@ bool can_use_dpas_attention(const Desc& desc, std::optional<size_t> page_size, c
 }
 
 template <class Desc>
-bool can_use_gqa_dpas_attention(const Desc& desc, std::optional<size_t> page_size, const cldnn::device_info& info) {
-    if (!xmx_allowed(info)) {
+bool can_use_gqa_dpas_attention(const Desc& desc,
+                                std::optional<size_t> page_size,
+                                const cldnn::device_info& info,
+                                const ov::intel_gpu::ExecutionConfig& config) {
+    if (!xmx_allowed(info, config)) {
         return false;
     }
     if (desc.num_kv_heads == 0 || desc.num_heads % desc.num_kv_heads != 0) {
@@ -222,8 +266,11 @@ bool can_use_gqa_dpas_attention(const Desc& desc, std::optional<size_t> page_siz
 }
 
 template <class Desc>
-size_t decode_split_partitions(const Desc& desc, std::optional<size_t> page_size, const cldnn::device_info& info) {
-    return can_use_gqa_dpas_attention(desc, page_size, info) ? gqa_split_partitions : split_partitions;
+size_t decode_split_partitions(const Desc& desc,
+                               std::optional<size_t> page_size,
+                               const cldnn::device_info& info,
+                               const ov::intel_gpu::ExecutionConfig& config) {
+    return can_use_gqa_dpas_attention(desc, page_size, info, config) ? gqa_split_partitions : split_partitions;
 }
 
 /// Float as an OpenCL C literal with the full single precision.

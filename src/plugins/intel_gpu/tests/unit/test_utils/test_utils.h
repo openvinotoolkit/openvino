@@ -669,4 +669,8 @@ double get_profiling_exectime(const std::map<cldnn::primitive_id, cldnn::network
                     const std::string& primitive_id);
 void print_profiling_all_exectimes(const std::map<cldnn::primitive_id, cldnn::network_output>& outputs);
 
+/// Recompiles the impl of static primitive `id` through set_kernels() (the runtime compilation path), checks that every
+/// activated stage got the kernel built from its own source, and installs the new impl in the network.
+void rebind_impl_through_set_kernels(cldnn::network& net, const cldnn::primitive_id& id);
+
 } // namespace tests
