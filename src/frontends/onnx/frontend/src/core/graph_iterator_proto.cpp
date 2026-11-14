@@ -348,7 +348,8 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
         tensor_meta_info.m_external_location = std::make_shared<std::string>(ext_location);
         return true;
     }
-    const auto full_path = ov::util::sanitize_path(graph_iterator->get_model_dir(), ov::util::make_path(ext_location));
+    const auto full_path =
+        ov::util::sanitize_path(graph_iterator->get_model_dir_ref(), ov::util::make_path(ext_location));
     const int64_t file_size = ov::util::file_size(full_path);
     if ((file_size <= 0 && ext_data_length > 0) || ext_data_length > static_cast<uint64_t>(file_size) ||
         ext_data_offset > static_cast<uint64_t>(file_size) - ext_data_length) {
@@ -549,6 +550,7 @@ GraphIteratorProto::GraphIteratorProto(GraphIteratorProto* parent, const GraphPr
     m_stream_cache = parent->m_stream_cache;
     m_data_holder = parent->m_data_holder;
     m_model = parent->m_model;
+    m_metadata = parent->m_metadata;
 }
 
 void GraphIteratorProto::initialize(const std::filesystem::path& path) {
@@ -560,6 +562,7 @@ void GraphIteratorProto::initialize(const std::filesystem::path& path) {
         m_model = std::make_shared<ModelProto>();
         FRONT_END_GENERAL_CHECK(m_model->ParseFromIstream(&model_file), "Model can't be parsed");
         model_file.close();
+        refresh_metadata();
         if (m_model->has_graph()) {
             fixup_legacy_nodes(*m_model);
             topological_sort_graph(m_model->mutable_graph());
@@ -570,6 +573,7 @@ void GraphIteratorProto::initialize(const std::filesystem::path& path) {
         }
     } catch (...) {
         m_model.reset();
+        m_metadata.clear();
         m_graph = nullptr;
         node_index = 0;
         m_decoders.clear();
@@ -585,6 +589,7 @@ void GraphIteratorProto::initialize(std::istream& stream, const std::filesystem:
 
 void GraphIteratorProto::initialize(std::shared_ptr<ModelProto> model) {
     m_model = std::move(model);
+    refresh_metadata();
     if (m_model && m_model->has_graph()) {
         fixup_legacy_nodes(*m_model);
         topological_sort_graph(m_model->mutable_graph());
@@ -755,18 +760,16 @@ std::int64_t GraphIteratorProto::get_opset_version(const std::string& domain) co
     return -1;
 }
 
-std::map<std::string, std::string> GraphIteratorProto::get_metadata() const {
-    std::map<std::string, std::string> metadata;
-
+void GraphIteratorProto::refresh_metadata() {
+    m_metadata.clear();
     if (!m_model) {
-        return metadata;
+        return;
     }
 
     const auto& model_metadata = m_model->metadata_props();
     for (const auto& prop : model_metadata) {
-        metadata.emplace(prop.key(), prop.value());
+        m_metadata.emplace(prop.key(), prop.value());
     }
-    return metadata;
 }
 
 namespace detail {

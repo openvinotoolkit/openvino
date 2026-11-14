@@ -34,6 +34,7 @@ public:
     size_t reset_call_count = 0;
     mutable std::filesystem::path last_returned_dir;
     std::filesystem::path model_dir;
+    std::map<std::string, std::string> metadata;
 
     SimpleIterator() = default;
     explicit SimpleIterator(const std::filesystem::path& dir) : model_dir(dir) {}
@@ -56,17 +57,69 @@ public:
         return 1;
     }
 
-    std::map<std::string, std::string> get_metadata() const override {
-        return {};
+    const std::map<std::string, std::string>& get_metadata_ref() const override {
+        return metadata;
     }
 
-    std::filesystem::path get_model_dir() const override {
+    const std::filesystem::path& get_model_dir_ref() const override {
         ++get_model_dir_call_count;
         last_returned_dir = model_dir;
         return model_dir;
     }
 
+    // The deprecated by-value interface is still pure virtual. The frontend must not call it.
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    std::map<std::string, std::string> get_metadata() const override {
+        ++deprecated_call_count;
+        return metadata;
+    }
+
+    std::filesystem::path get_model_dir() const override {
+        ++deprecated_call_count;
+        return model_dir;
+    }
+    OPENVINO_SUPPRESS_DEPRECATED_END
+
+    mutable size_t deprecated_call_count = 0;
+
     ~SimpleIterator() override {};
+};
+
+// An iterator written against the previous interface: it implements only the deprecated by-value functions.
+// It must keep working through the default implementations of get_metadata_ref() / get_model_dir_ref().
+class LegacyIterator : public ov::frontend::onnx::GraphIterator {
+public:
+    mutable size_t get_model_dir_call_count = 0;
+    mutable size_t get_metadata_call_count = 0;
+    std::filesystem::path model_dir;
+    std::map<std::string, std::string> metadata;
+
+    size_t size() const override {
+        return 0;
+    }
+    void reset() override {}
+    void next() override {}
+    bool is_end() const override {
+        return true;
+    }
+    std::shared_ptr<ov::frontend::onnx::DecoderBase> get_decoder() const override {
+        return nullptr;
+    }
+    int64_t get_opset_version(const std::string&) const override {
+        return 1;
+    }
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    std::map<std::string, std::string> get_metadata() const override {
+        ++get_metadata_call_count;
+        return metadata;
+    }
+
+    std::filesystem::path get_model_dir() const override {
+        ++get_model_dir_call_count;
+        return model_dir;
+    }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 };
 
 namespace {
@@ -227,10 +280,37 @@ TEST_P(FrontEndLoadFromTest, tensor_place_uses_model_dir_for_external_data) {
         FAIL() << "convert failed: reason unknown";
     }
 
-    ASSERT_GT(iter->get_model_dir_call_count, 0) << "get_model_dir() was never called";
+    ASSERT_GT(iter->get_model_dir_call_count, 0) << "get_model_dir_ref() was never called";
     ASSERT_EQ(iter->last_returned_dir, expected_model_dir)
-        << "get_model_dir() returned unexpected path: " << iter->last_returned_dir
+        << "get_model_dir_ref() returned unexpected path: " << iter->last_returned_dir
         << " (expected: " << expected_model_dir << ")";
+    EXPECT_EQ(iter->deprecated_call_count, 0) << "the frontend must not call the deprecated by-value functions";
+}
+
+TEST_P(FrontEndLoadFromTest, legacy_iterator_works_through_default_ref_implementations) {
+    const std::string model_name = "external_data/external_data.onnx";
+    const std::filesystem::path path =
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, model_name});
+
+    auto iter = std::make_shared<LegacyIterator>();
+    iter->model_dir = path.parent_path();
+    iter->metadata = {{"key", "value"}};
+
+    // The defaults forward to the deprecated functions once and keep the result.
+    EXPECT_EQ(iter->get_model_dir_ref(), iter->model_dir);
+    EXPECT_EQ(iter->get_model_dir_ref(), iter->model_dir);
+    EXPECT_EQ(iter->get_model_dir_call_count, 1);
+    EXPECT_EQ(iter->get_metadata_ref(), iter->metadata);
+    EXPECT_EQ(iter->get_metadata_ref(), iter->metadata);
+    EXPECT_EQ(iter->get_metadata_call_count, 1);
+
+    auto graph_iter = std::dynamic_pointer_cast<ov::frontend::onnx::GraphIterator>(iter);
+    ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_framework("onnx"));
+    ASSERT_NE(m_frontEnd, nullptr);
+    ASSERT_TRUE(m_frontEnd->supported(graph_iter));
+    ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(graph_iter));
+    ASSERT_NE(m_inputModel, nullptr);
+    ASSERT_NO_THROW(m_frontEnd->convert(m_inputModel));
 }
 
 TEST(FrontEndGraphIteratorTest, loads_uint16_raw_initializer_via_iterator) {
