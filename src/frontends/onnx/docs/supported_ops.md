@@ -256,7 +256,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |GroupNorm                                               |1                       |1                               |                                |
 |com.microsoft           |GroupQueryAttention                                     |1                       |1                               |                                |
 |com.microsoft           |Inverse                                                 |                        |1                               |                                |
-|com.microsoft           |Irfft                                                   |                        |1                               |                                |
+|com.microsoft           |Irfft                                                   |1                       |1                               |                                |
 |com.microsoft           |LongformerAttention                                     |                        |1                               |                                |
 |com.microsoft           |MatMulBnb4                                              |                        |1                               |                                |
 |com.microsoft           |MatMulFpQ4                                              |                        |1                               |                                |
@@ -303,7 +303,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |RelativePositionBias                                    |                        |1                               |                                |
 |com.microsoft           |RemovePadding                                           |                        |1                               |                                |
 |com.microsoft           |RestorePadding                                          |                        |1                               |                                |
-|com.microsoft           |Rfft                                                    |                        |1                               |                                |
+|com.microsoft           |Rfft                                                    |1                       |1                               |                                |
 |com.microsoft           |RotaryEmbedding                                         |1                       |1                               |                                |
 |com.microsoft           |SampleOp                                                |                        |1                               |                                |
 |com.microsoft           |Sampling                                                |                        |1                               |                                |
