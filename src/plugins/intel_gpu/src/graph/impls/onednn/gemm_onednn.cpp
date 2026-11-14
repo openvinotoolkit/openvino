@@ -26,25 +26,106 @@ protected:
     }
 
     std::unordered_map<int, dnnl::memory> get_arguments(gemm_inst& instance) const override {
-        std::unordered_map<int, dnnl::memory> args = parent::get_arguments(instance);
-        auto& engine = instance.get_network().get_engine();
-        auto dnnl_engine = engine.get_onednn_engine();
+        std::unordered_map<int, dnnl::memory> args;
 
+        const bool is_dynamic = instance.get_node().is_dynamic();
+        const bool gemm_with_bias = instance.inputs_memory_count() == 3;
+
+        dnnl::memory::desc in0_md = _pd.src_desc();
+        dnnl::memory::desc in1_md = _pd.weights_desc(0);
+        dnnl::memory::desc out_md = _pd.dst_desc();
+        dnnl::memory::desc bias_md;
+        if (gemm_with_bias) {
+            bias_md = _pd.weights_desc(1);
+        }
+
+        if (is_dynamic) {
+            const auto* impl_params = instance.get_impl_params();
+            OPENVINO_ASSERT(impl_params != nullptr, "[GPU] Missing impl params for dynamic oneDNN GEMM");
+
+            dnnl::memory::data_type in0_dt;
+            dnnl::memory::data_type in1_dt;
+            dnnl::memory::data_type out_dt;
+            dnnl::memory::data_type bias_dt = dnnl::memory::data_type::undef;
+
+            dnnl::memory::dims in0_dims;
+            dnnl::memory::dims in1_dims;
+            dnnl::memory::dims out_dims;
+            dnnl::memory::dims bias_dims;
+
+            dnnl::memory::dims in0_strides;
+            dnnl::memory::dims in1_strides;
+
+            dnnl::memory::format_tag in0_fmt;
+            dnnl::memory::format_tag in1_fmt;
+            dnnl::memory::format_tag out_fmt;
+            dnnl::memory::format_tag bias_fmt = dnnl::memory::format_tag::undef;
+
+            get_gemm_primitive_md(*impl_params,
+                                  in0_dt,
+                                  in1_dt,
+                                  out_dt,
+                                  in0_dims,
+                                  in1_dims,
+                                  in0_strides,
+                                  in1_strides,
+                                  out_dims,
+                                  in0_fmt,
+                                  in1_fmt,
+                                  out_fmt,
+                                  gemm_with_bias,
+                                  bias_dt,
+                                  bias_dims,
+                                  bias_fmt);
+
+            in0_md = get_input_memory_desc(in0_dims, in0_dt, in0_fmt, in0_strides);
+            in1_md = get_input_memory_desc(in1_dims, in1_dt, in1_fmt, in1_strides);
+            out_md = dnnl::memory::desc(out_dims, out_dt, out_fmt);
+            if (gemm_with_bias) {
+                bias_md = dnnl::memory::desc(bias_dims, bias_dt, bias_fmt);
+            }
+        }
+
+        {
+            dnnl::memory input0_mem;
+            auto& input0 = instance.input_memory(0);
+            auto offset0 = onednn::get_offset(instance.get_input_layout(0), dnnl::memory::desc(in0_md));
+            if (instance.get_input_layout(0).count() != 0) {
+                input0_mem = input0.get_onednn_memory(in0_md, offset0);
+            }
+            args.insert({DNNL_ARG_SRC, input0_mem});
+        }
         {
             dnnl::memory input1_mem;
             auto& weights = instance.input_memory(1);
-            auto offset = onednn::get_offset(instance.get_input_layout(1), _pd.dnnl::primitive_desc_base::weights_desc(0));
+            auto offset = onednn::get_offset(instance.get_input_layout(1), dnnl::memory::desc(in1_md));
             if (instance.get_input_layout(1).count() != 0) {
-                input1_mem = weights.get_onednn_memory(_pd.weights_desc(0), offset);
+                input1_mem = weights.get_onednn_memory(in1_md, offset);
             }
             args.insert({DNNL_ARG_WEIGHTS, input1_mem});
         }
-
-        if (instance.inputs_memory_count() == 3) {
-            auto& weights = instance.input_memory(2);
-            auto offset = onednn::get_offset(instance.get_input_layout(2), _pd.dnnl::primitive_desc_base::weights_desc(1));
-            args.insert({DNNL_ARG_BIAS, weights.get_onednn_memory(_pd.weights_desc(1), offset)});
+        {
+            auto& output = instance.output_memory();
+            auto offset = onednn::get_offset(instance.get_output_layout(), dnnl::memory::desc(out_md));
+            args.insert({DNNL_ARG_DST, output.get_onednn_memory(out_md, offset)});
         }
+
+        if (gemm_with_bias) {
+            auto& weights = instance.input_memory(2);
+            auto offset = onednn::get_offset(instance.get_input_layout(2), dnnl::memory::desc(bias_md));
+            args.insert({DNNL_ARG_BIAS, weights.get_onednn_memory(bias_md, offset)});
+        }
+
+        if (_scratchpad_md.get_size() != 0) {
+            const auto& intermediates = instance.get_intermediates_memories();
+            OPENVINO_ASSERT(!intermediates.empty(),
+                            "[GPU] oneDNN primitive ", instance.id(), " requires scratchpad of size ",
+                            _scratchpad_md.get_size(), " bytes, but intermediates memory is missing");
+            auto scratchpad = intermediates[0];
+            args.insert({DNNL_ARG_SCRATCHPAD, scratchpad->get_onednn_memory(_scratchpad_md, 0)});
+        }
+
+        configure_post_ops_arguments(instance, args);
 
         return args;
     }
@@ -112,9 +193,9 @@ protected:
         in1_dt = onednn::convert_data_type(in1_l.data_type);
         out_dt = onednn::convert_data_type(out_l.data_type);
 
-        in0_dims = onednn::convert_tensor(in0_l.get_tensor(), rank);
-        in1_dims = onednn::convert_tensor(in1_l.get_tensor(), rank);
-        out_dims = onednn::convert_tensor(out_l.get_tensor(), rank);
+        in0_dims = onednn::convert_layout(in0_l, rank);
+        in1_dims = onednn::convert_layout(in1_l, rank);
+        out_dims = onednn::convert_layout(out_l, rank);
 
         in0_fmt = onednn::convert_gemm_data_format(in0_dims, in0_l.format);
         in1_fmt = onednn::convert_gemm_data_format(in1_dims, in1_l.format);
@@ -154,10 +235,8 @@ protected:
                 }
             }
             size_t last_idx = transpose_order.size() - 1;
-            if (static_cast<size_t>(transpose_order[last_idx]) != last_idx - 1) {
-                return false;
-            }
-            return static_cast<size_t>(transpose_order[last_idx - 1]) == last_idx;
+            return static_cast<size_t>(transpose_order[last_idx]) == last_idx - 1 &&
+                   static_cast<size_t>(transpose_order[last_idx - 1]) == last_idx;
         };
 
         auto transpose_dims_and_format_tag = [](std::vector<int64_t> transpose_order,
@@ -230,9 +309,16 @@ protected:
 
         if (gemm_with_bias) {
             auto bias_l = impl_params.get_input_layout(2);
+            const auto bias_shape_rank = bias_l.get_partial_shape().rank();
+            if (bias_shape_rank.is_static() && bias_shape_rank.get_length() < static_cast<int64_t>(rank)) {
+                auto bias_shape = bias_l.get_partial_shape();
+                bias_shape.insert(bias_shape.begin(), rank - bias_shape_rank.get_length(), 1);
+                bias_l.set_partial_shape(bias_shape);
+            }
+
             auto bias_rank = cldnn::format::dimension(bias_l.format);
             bias_dt = onednn::convert_data_type(bias_l.data_type);
-            bias_dims = onednn::convert_tensor(bias_l.get_tensor(), bias_rank);
+            bias_dims = onednn::convert_layout(bias_l, bias_rank);
             bias_fmt = onednn::convert_gemm_data_format(bias_dims, bias_l.format);
         }
     }
@@ -292,7 +378,12 @@ protected:
                 out_md,
                 attr);
         }
-        return std::make_shared<dnnl::matmul::primitive_desc>(engine.get_onednn_engine(), in0_md, in1_md, out_md, attr);
+        return std::make_shared<dnnl::matmul::primitive_desc>(
+            engine.get_onednn_engine(),
+            in0_md,
+            in1_md,
+            out_md,
+            attr);
     }
 
 public:
@@ -348,7 +439,13 @@ public:
             ob << make_data(&bias_fmt, sizeof(dnnl::memory::format_tag));
         }
 
-        ob << get_cache_blob();
+        std::vector<uint8_t> prim_cache;
+        try {
+            prim_cache = _prim.get_cache_blob();
+        } catch (const dnnl::error&) {
+            prim_cache.clear();
+        }
+        ob << prim_cache;
 #endif
     }
 
@@ -430,7 +527,11 @@ public:
 
         _scratchpad_md = _pd.scratchpad_desc();
 
-        _prim = make_primitive_from_blob(prim_cache);
+        if (prim_cache.empty()) {
+            _prim = dnnl::primitive(_pd);
+        } else {
+            _prim = dnnl::primitive(_pd, prim_cache);
+        }
 #endif
     }
 
@@ -439,8 +540,12 @@ public:
         const auto& config = impl_params.prog->get_config();
         auto attr = impl_params.attrs_onednn;
 
-        if (impl_params.get_input_layout(0).count() == 0 ||
-            impl_params.get_input_layout(1).count() == 0) {
+        bool gemm_with_bias = arg.get_primitive()->dependencies().size() == 3;
+        bool is_dynamic = impl_params.get_input_layout(0).is_dynamic() ||
+                          impl_params.get_input_layout(1).is_dynamic() ||
+                          (gemm_with_bias && impl_params.get_input_layout(2).is_dynamic());
+        if (!is_dynamic && (impl_params.get_input_layout(0).count() == 0 ||
+                           impl_params.get_input_layout(1).count() == 0)) {
             return std::make_unique<gemm_onednn>(engine);
         }
 
