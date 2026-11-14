@@ -4,6 +4,9 @@
 
 #include "intel_npu/config/npuw.hpp"
 
+#include <string>
+#include <unordered_set>
+
 using namespace intel_npu;
 using namespace ov::intel_npu;
 
@@ -30,6 +33,29 @@ void intel_npu::registerNPUWKokoroOptions(OptionsDesc& desc) {
         using Opt = typename decltype(tag)::type;
         desc.add<Opt>();
     });
+}
+
+intel_npu::Config::ConfigMap intel_npu::filterCachedNPUWOptions(const Config::ConfigMap& options) {
+    static const std::unordered_set<std::string> cached = [] {
+        std::unordered_set<std::string> keys;
+        for_each_cached_npuw_option([&](auto tag) {
+            using Opt = typename decltype(tag)::type;
+            keys.insert(std::string(Opt::key()));
+        });
+        // TODO: Mark NPUW_WHISPER_EOS_TOKEN as CACHED and drop this exception. It is baked into the compiled model
+        // (serialized as m_eos_token_id), but is UNCACHED today. Changing that alters the model cache key and
+        // invalidates existing NPUW caches once.
+        keys.insert(std::string(NPUW_WHISPER_EOS_TOKEN::key()));
+        return keys;
+    }();
+
+    Config::ConfigMap out;
+    for (const auto& p : options) {
+        if (cached.count(p.first) != 0) {
+            out.emplace(p);
+        }
+    }
+    return out;
 }
 
 std::string ov::npuw::s11n::anyToString(const ov::Any& var) {

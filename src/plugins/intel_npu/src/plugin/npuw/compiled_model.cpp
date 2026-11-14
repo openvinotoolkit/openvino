@@ -1593,8 +1593,15 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         meta_stream & compiled->m_inputs_to_submodels_inputs & compiled->m_outputs_to_submodels_outputs &
             compiled->m_param_subscribers & compiled->m_submodels_input_to_prev_output;
         meta_stream & compiled->m_dev_list;
-        meta_stream & compiled->m_cfg;
+
+        // Security: the config comes from a potentially untrusted cache blob.
+        // Apply only the options meant to round-trip through a blob (CACHED). Any other entries, e.g. UNCACHED debug
+        // knobs (NPUW_DUMP_*, NPUW_CACHE_DIR) or unregistered keys, are dropped.
+        std::string blob_cfg;
+        meta_stream & blob_cfg;
+        compiled->m_cfg.update(::intel_npu::filterCachedNPUWOptions(::intel_npu::Config::parseString(blob_cfg)));
         compiled->m_cfg.parseEnvVars();
+
         meta_stream & compiled->m_non_npuw_props;
         // Model priority is a runtime-only property: the submodels are imported with the default one,
         // so drop the value saved at export time to report what they actually use

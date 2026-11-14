@@ -551,6 +551,8 @@ public:
      */
     void fromString(const std::string& str);
 
+    static ConfigMap parseString(const std::string& str);
+
     // Returns a string with all config keys which have set values
     std::string toString() const;
 
