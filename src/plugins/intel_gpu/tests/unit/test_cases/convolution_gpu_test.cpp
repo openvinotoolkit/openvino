@@ -10572,6 +10572,65 @@ TEST(convolution_gpu_onednn, spatial_1d_dynamic) {
     }
 }
 
+TEST(convolution_gpu_onednn, spatial_1d_depthwise_fused_eltwise_blocked_input) {
+    // Depthwise 1D conv on oneDNN with a planar output and a fused eltwise whose other input is blocked
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    const int64_t channels = 32;
+    const int64_t in_len = 10;
+    const int64_t kernel = 3;
+    const int64_t out_len = in_len - kernel + 1;
+    layout in_layout{ ov::PartialShape{1, channels, in_len}, data_types::f16, format::bfyx };
+    layout weights_layout{ ov::PartialShape{channels, 1, 1, kernel}, data_types::f16, format::bfyx };
+    layout mul_layout{ ov::PartialShape{1, channels, out_len}, data_types::f16, format::b_fs_yx_fsv16 };
+    auto input_data = rg.generate_random_1d<ov::float16>(in_layout.count(), -1, 1);
+    auto weights_data = rg.generate_random_1d<ov::float16>(weights_layout.count(), -1, 1);
+    auto mul_data = rg.generate_random_1d<ov::float16>(mul_layout.count(), -1, 1);
+    auto input_mem = engine.allocate_memory(in_layout);
+    auto weights_mem = engine.allocate_memory(weights_layout);
+    auto mul_mem = engine.allocate_memory(mul_layout);
+    set_values(input_mem, input_data);
+    set_values(weights_mem, weights_data);
+    set_values(mul_mem, mul_data);
+
+    topology t(input_layout("input", in_layout),
+               input_layout("mul_in", mul_layout),
+               data("weights", weights_mem),
+               convolution("conv", input_info("input"), "weights", no_bias, static_cast<uint32_t>(channels),
+                           ov::Strides{1}, ov::Strides{1}, ov::CoordinateDiff{0}, ov::CoordinateDiff{0}, true),
+               eltwise("mul", input_info("conv"), input_info("mul_in"), eltwise_mode::prod),
+               reorder("reorder", input_info("mul"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::bfyx, "", impl_types::onednn };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl } }));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, t, config);
+    network.set_input_data("input", input_mem);
+    network.set_input_data("mul_in", mul_mem);
+    auto outputs = network.execute();
+    auto output_memory = outputs.at("reorder").get_memory();
+    ASSERT_EQ(output_memory->get_layout().get_partial_shape(), ov::PartialShape({1, channels, out_len}));
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
+
+    // mul_in is b_fs_yx_fsv16: 16 channels innermost, then the spatial axis, then the channel blocks
+    for (int64_t c = 0; c < channels; ++c) {
+        for (int64_t x = 0; x < out_len; ++x) {
+            float acc = 0.f;
+            for (int64_t k = 0; k < kernel; ++k) {
+                acc += static_cast<float>(input_data[c * in_len + x + k]) * static_cast<float>(weights_data[c * kernel + k]);
+            }
+            const float mul = static_cast<float>(mul_data[(c / 16) * out_len * 16 + x * 16 + c % 16]);
+            ASSERT_NEAR(acc * mul, output_ptr[c * out_len + x], 1e-2f) << "c = " << c << ", x = " << x;
+        }
+    }
+}
+
 TEST(convolution_gpu_onednn, spatial_1d_quantize_post_ops_blocked_format) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
