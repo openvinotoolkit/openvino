@@ -340,8 +340,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*WeightlessCacheAccuracy.*)"),
 #endif
 #if defined(OPENVINO_ARCH_ARM)
-            // GatherMatmul is not supported on 32-bit ARM
-            std::regex(R"(.*smoke_GroupedMatMul.*)"),
             // Issue: 144998
             std::regex(R"(.*smoke_CachingSupportCase_CPU.*_(i8|u8).*)"),
             std::regex(R"(.*smoke_Hetero_CachingSupportCase.*_(i8|u8).*)"),
@@ -506,6 +504,8 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(smoke_MatmulAndGatherSharedWeightsDecompression.*)"),
             // Issue: 170863
             std::regex(R"(smoke_Model_Distribution_MatMul_NoTranspose.*)"),
+            // GroupedMatmul is supported only by X86_64
+            // std::regex(R"(.*smoke_GroupedMatMul.*)"),
 #endif
 #if defined(OPENVINO_ARCH_ARM64)
             // Issue: 149216. For low precision model from original framework, Snippets PropagatePrecision should insert ConvertTruncation instead
