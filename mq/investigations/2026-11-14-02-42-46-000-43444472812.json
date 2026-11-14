@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-14-02-42-46-000-43444472812",
+  "timestamp": "2026-11-14T02:42:46Z",
+  "run_id": "43444472812",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43444472812",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "39826",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39826",
+  "author": "michalzx",
+  "category": "Flaky Test",
+  "title": "fusings_gpu pooling_f32_scale fp16_scale_out fails GPU unit test tolerance check",
+  "signature": "gpu unit tests fusion pooling scale fp16 difference between val ref and val opt exceeds tolerance|Flaky Test",
+  "signature_hash": "7b64fedfacbfda60",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "fusings_gpu/pooling_f32_scale.fp16_scale_out/1 fails a numeric tolerance assertion by a single fp16 ULP"
+    }
+  ],
+  "key_errors": [
+    "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\plugins\\intel_gpu\\tests\\unit\\fusions\\fusion_test_common.hpp(90): error: The difference between val_ref[i] and val_opt[i] is 3.0517578125e-05, which exceeds tolerance, where\nval_ref[i] evaluates to -0.04473876953125,\nval_opt[i] evaluates to -0.044769287109375, and\ntolerance evaluates to 9.9999997473787516e-06.\ni = 14",
+    "[  FAILED  ] fusings_gpu/pooling_f32_scale.fp16_scale_out/1 (875 ms)"
+  ],
+  "root_cause": "A single fp16 element (index 14) of the fused pooling+scale GPU kernel output differs from the unfused reference by 3.0517578125e-05 (exactly one fp16 ULP at that magnitude), while the test's tolerance is fixed at 1e-5 regardless of value scale. This is the same signature already recorded in pattern 7b64fedfacbfda60 from run 43417057783 (PR #38855), confirming it recurs intermittently across unrelated merge-queue runs rather than being caused by this PR's (docs-only) change.",
+  "reproduction_steps": "Run `ov_gpu_unit_tests.exe --gtest_filter=fusings_gpu/pooling_f32_scale.fp16_scale_out/1` repeatedly on a Windows GPU runner; the comparison is borderline and fails intermittently depending on GPU driver/kernel scheduling nondeterminism.",
+  "recommended_actions": [
+    "Widen the fp16 comparison tolerance in fusion_test_common.hpp for scale-fused pooling tests, or compare in relative terms for small magnitudes",
+    "Investigate whether the fused kernel path introduces a deterministic extra rounding step versus the unfused reference path for this test case",
+    "Track recurrence via pattern 7b64fedfacbfda60; escalate to the GPU plugin owners if it exceeds 3 occurrences in 12 hours"
+  ],
+  "prevention_strategies": "Use relative/ULP-aware tolerance comparisons for fp16 fused-vs-unfused kernel validation instead of a single fixed absolute epsilon, since fp16 ULP size grows with magnitude.",
+  "historical_context": "Identical signature previously recorded 2026-11-13T23:41:12Z in run https://github.com/openvinotoolkit/openvino/actions/runs/43417057783 (PR #38855). A rerun-pattern proposal for this exact signature is already open as PR #39838 (not yet merged); this run should not generate a duplicate proposal."
+}

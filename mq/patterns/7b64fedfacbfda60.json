@@ -4,16 +4,19 @@
   "signature_hash": "7b64fedfacbfda60",
   "title": "fusings_gpu pooling_f32_scale fp16_scale_out fails GPU unit test tolerance check",
   "category": "Flaky Test",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-11-13T23:41:12Z",
-  "last_seen": "2026-11-13T23:41:12Z",
+  "last_seen": "2026-11-14T02:42:46Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/43444472812",
     "https://github.com/openvinotoolkit/openvino/actions/runs/43417057783"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39826",
     "https://github.com/openvinotoolkit/openvino/pull/38855"
   ],
   "recent_timestamps": [
+    "2026-11-14T02:42:46Z",
     "2026-11-13T23:41:12Z"
   ],
   "rerun_search_string": "The difference between val_ref[i] and val_opt[i] is"
