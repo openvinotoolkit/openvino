@@ -17,6 +17,9 @@
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/transpose.hpp"
 #include "utils/convpool.hpp"
 
@@ -88,7 +91,30 @@ ov::Output<ov::Node> PoolingFactory::make_avg_pool_op(const ov::Output<ov::Node>
 
 ov::OutputVector PoolingFactory::make_avg_pool() const {
     const bool count_include_pad = m_onnx_node.get_attribute_value<std::int64_t>("count_include_pad", 0);
-    return {make_avg_pool_op(m_inputs.at(0), !count_include_pad)};
+    auto pooled = make_avg_pool_op(m_inputs.at(0), !count_include_pad);
+    const auto nonzero = [](size_t value) { return value != 0; };
+    const bool has_padding = std::any_of(m_padding_below.begin(), m_padding_below.end(), nonzero) ||
+                             std::any_of(m_padding_above.begin(), m_padding_above.end(), nonzero);
+    if (count_include_pad && has_padding && m_rounding_type == RoundingType::CEIL &&
+        m_auto_pad == PadType::EXPLICIT) {
+        std::vector<int64_t> begin{0, 0}, end{0, 0};
+        begin.insert(begin.end(), m_padding_below.begin(), m_padding_below.end());
+        end.insert(end.end(), m_padding_above.begin(), m_padding_above.end());
+        const auto rank = begin.size();
+        const auto pads_begin = v0::Constant::create(element::i64, Shape{rank}, begin);
+        const auto pads_end = v0::Constant::create(element::i64, Shape{rank}, end);
+        const auto zero = std::make_shared<v1::ConvertLike>(v0::Constant::create(element::f32, Shape{}, {0}),
+                                                          m_inputs.at(0));
+        const auto padded = std::make_shared<v1::Pad>(m_inputs.at(0), pads_begin, pads_end, zero, PadMode::CONSTANT);
+        const auto averaged = std::make_shared<v16::AvgPool>(padded, m_strides, m_dilations,
+                                                           Shape(m_kernel_shape.size(), 0),
+                                                           Shape(m_kernel_shape.size(), 0), m_kernel_shape,
+                                                           true, RoundingType::CEIL_TORCH, PadType::EXPLICIT);
+        const auto starts = v0::Constant::create(element::i64, Shape{rank}, std::vector<int64_t>(rank, 0));
+        const auto steps = v0::Constant::create(element::i64, Shape{rank}, std::vector<int64_t>(rank, 1));
+        return {std::make_shared<v8::Slice>(averaged, starts, std::make_shared<v3::ShapeOf>(pooled), steps)};
+    }
+    return {pooled};
 }
 
 ov::OutputVector PoolingFactory::make_lp_pool(float p_norm) const {
