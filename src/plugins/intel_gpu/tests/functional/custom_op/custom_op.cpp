@@ -8,6 +8,8 @@
 #include <memory>
 
 #include "openvino/core/any.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -307,6 +309,61 @@ TEST(CustomOpAnyFmt3D, OutputFormatAnyPreservesAxisOrder3D) {
             }
         }
     }
+}
+
+static void test_any_output_broadcast_with_add(bool dynamic_graph) {
+    ov::Core core;
+    constexpr size_t kF = 17;
+    constexpr size_t kY = 19;
+    const ov::Shape shape{1, kF, kY};
+    const ov::Shape bias_shape{1, 1, kY};
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape(shape));
+    auto custom = std::make_shared<CustomOpAnyFmt3D>(param);
+    ov::ParameterVector parameters{param};
+    std::vector<float> bias_data(kY);
+    for (size_t y = 0; y < kY; ++y)
+        bias_data[y] = static_cast<float>(y) * 0.25f;
+    std::shared_ptr<ov::Node> bias;
+    if (dynamic_graph) {
+        auto bias_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32,
+                                                               ov::PartialShape{-1, 1, kY});
+        parameters.push_back(bias_param);
+        bias = bias_param;
+    } else {
+        bias = ov::op::v0::Constant::create(ov::element::f32, bias_shape, bias_data);
+    }
+    auto add = std::make_shared<ov::op::v1::Add>(custom, bias);
+    auto result = std::make_shared<ov::op::v0::Result>(add);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, parameters);
+    ASSERT_TRUE(custom->get_output_partial_shape(0).is_static());
+    ASSERT_EQ(model->is_dynamic(), dynamic_graph);
+    ov::AnyMap config = {ov::hint::inference_precision(ov::element::f32),
+                         {"CONFIG_FILE", TEST_CUSTOM_OP_CONFIG_PATH}};
+    ov::CompiledModel compiled;
+    OV_ASSERT_NO_THROW(compiled = core.compile_model(model, ov::test::utils::DEVICE_GPU, config));
+    auto request = compiled.create_infer_request();
+    std::vector<float> input_data(ov::shape_size(shape), 0.0f);
+    request.set_input_tensor(0, ov::Tensor(ov::element::f32, shape, input_data.data()));
+    if (dynamic_graph)
+        request.set_input_tensor(1, ov::Tensor(ov::element::f32, bias_shape, bias_data.data()));
+    OV_ASSERT_NO_THROW(request.infer());
+    auto output = request.get_output_tensor();
+    ASSERT_EQ(output.get_shape(), shape);
+    const float* values = output.data<const float>();
+    for (size_t f = 0; f < kF; ++f) {
+        for (size_t y = 0; y < kY; ++y) {
+            ASSERT_FLOAT_EQ(values[f * kY + y], static_cast<float>(f * 10 + y) + bias_data[y])
+                << "at f=" << f << " y=" << y;
+        }
+    }
+}
+
+TEST(CustomOpAnyFmt3D, StaticOutputFormatAnyBroadcastsThroughAdd) {
+    test_any_output_broadcast_with_add(false);
+}
+
+TEST(CustomOpAnyFmt3D, StaticOutputFormatAnyBroadcastsThroughAddInDynamicGraph) {
+    test_any_output_broadcast_with_add(true);
 }
 
 // Two input ports fed by the same producer used to build colliding pre-reorder primitive
