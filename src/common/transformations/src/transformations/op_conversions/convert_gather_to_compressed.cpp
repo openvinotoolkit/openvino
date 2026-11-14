@@ -29,12 +29,14 @@ using ov::pass::pattern::op::Or;
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
 namespace v8 = ov::op::v8;
-ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
-    auto compressed_constant = [](const ov::Output<ov::Node>& output) {
-        return (output.get_element_type() == ov::element::u8 || output.get_element_type() == ov::element::i8 ||
-                output.get_element_type() == ov::element::u4 || output.get_element_type() == ov::element::i4) &&
-               (output.get_shape().size() == 2 || output.get_shape().size() == 3);
-    };
+ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed(
+    const std::vector<ov::element::Type>& supported_weights_types) {
+    const auto rank_2 = ov::pass::pattern::rank_equals(2);
+    const auto rank_3 = ov::pass::pattern::rank_equals(3);
+    auto compressed_constant = ov::pass::pattern::all_of({ov::pass::pattern::type_matches_any(supported_weights_types),
+                                                          [rank_2, rank_3](const ov::Output<ov::Node>& output) {
+                                                              return rank_2(output) || rank_3(output);
+                                                          }});
 
     auto reshape_3d_to_2d = [](const ov::Output<ov::Node>& output) {
         auto in_ps = output.get_node()->get_input_partial_shape(0);
