@@ -6,22 +6,22 @@
 
 #include <vector>
 
-#include "intel_gpu/op/paged_qsa_indexer.hpp"
+#include "openvino/op/paged_qsa_indexer.hpp"
 #include "primitive.hpp"
 
 namespace cldnn {
 
 /// @brief Paged-cache QSA Indexer primitive: Q1 (prepare) + Q2 (score/top-k).
-/// @details See ov::intel_gpu::op::PagedQSAIndexer. Always declares 2 outputs
+/// @details See ov::op::internal::PagedQSAIndexer. Always declares 2 outputs
 /// (selected_block_indices, selected_block_count); the raw-K/summary cache inputs are mutated in place.
 struct paged_qsa_indexer : public primitive_base<paged_qsa_indexer> {
     CLDNN_DECLARE_PRIMITIVE(paged_qsa_indexer)
 
-    using InputIdx = ov::intel_gpu::op::PagedQSAIndexer::InputIdx;
+    using InputIdx = ov::op::internal::PagedQSAIndexer::InputIdx;
 
     paged_qsa_indexer() : primitive_base("", {}) {}
 
-    paged_qsa_indexer(const primitive_id& id, const std::vector<input_info>& inputs, const ov::intel_gpu::op::PagedQSAIndexer::Config& config)
+    paged_qsa_indexer(const primitive_id& id, const std::vector<input_info>& inputs, const ov::op::internal::PagedQSAIndexer::Config& config)
         : primitive_base(id, inputs, 2, {optional_data_type{ov::element::i32}, optional_data_type{ov::element::i32}}),
           key_block_size(config.key_block_size),
           block_topk(config.block_topk),
@@ -39,8 +39,8 @@ struct paged_qsa_indexer : public primitive_base<paged_qsa_indexer> {
     float epsilon = 1e-6f;
     float scale = 0.0f;
 
-    ov::intel_gpu::op::PagedQSAIndexer::Config get_config() const {
-        ov::intel_gpu::op::PagedQSAIndexer::Config config;
+    ov::op::internal::PagedQSAIndexer::Config get_config() const {
+        ov::op::internal::PagedQSAIndexer::Config config;
         config.key_block_size = key_block_size;
         config.block_topk = block_topk;
         config.num_selection_heads = num_selection_heads;
