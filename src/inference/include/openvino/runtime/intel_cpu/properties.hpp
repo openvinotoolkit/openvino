@@ -1,4 +1,3 @@
-
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -116,6 +115,29 @@ static constexpr Property<bool> denormals_optimization{"CPU_DENORMALS_OPTIMIZATI
  * @endcode
  */
 static constexpr Property<float> sparse_weights_decompression_rate{"CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE"};
+
+/**
+ * @brief This CPU-specific opt-in property runs synchronous inference directly on the calling
+ * application thread instead of dispatching to a worker thread.
+ * @ingroup ov_runtime_cpu_prop_cpp_api
+ *
+ * Intended for workloads where multiple application threads share one compiled model, each
+ * driving its own synchronous request.
+ *
+ * @code
+ * core.compile_model(model, "CPU", ov::AnyMap{{ov::intel_cpu::multi_app_thread_sync_execution.name(), true}});
+ * @endcode
+ *
+ * @note Falls back to the regular async pipeline (silently) when exclusive async requests are
+ * enabled or the model uses sub-streams (e.g. tensor-parallel); check get_property() for the
+ * effective value.
+ * @note Rejected with an exception at compile_model() time if CPU pinning is, or resolves to,
+ * true, since inline inference would otherwise silently change the caller thread's own affinity.
+ * Pass ov::hint::enable_cpu_pinning(false) explicitly together with this property.
+ * @note Known limitation: more concurrent application threads than NUM_STREAMS can collide on the
+ * same internal graph slot and serialize; results stay correct, only parallelism degrades.
+ */
+static constexpr Property<bool> multi_app_thread_sync_execution{"CPU_MULTI_APP_THREAD_SYNC_EXECUTION"};
 
 }  // namespace intel_cpu
 }  // namespace ov
