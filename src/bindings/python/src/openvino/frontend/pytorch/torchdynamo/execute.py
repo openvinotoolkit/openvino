@@ -4,6 +4,7 @@
 
 # mypy: ignore-errors
 
+import os
 from copy import deepcopy
 from dataclasses import dataclass
 from functools import lru_cache
@@ -21,13 +22,20 @@ from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 from openvino.frontend.pytorch.torchdynamo.partition import Partitioner
 from openvino.frontend.pytorch.torchdynamo.compile import openvino_compile
 from openvino import Core, Type, PartialShape
-from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device, _get_aot_autograd
+from openvino.frontend.pytorch.torchdynamo.backend_utils import (
+    _get_cache_dir, _get_device, _get_aot_autograd, _get_no_fallback)
 
 from typing import Optional, Any
 
 from torch.fx.experimental.proxy_tensor import make_fx, wrapper_and_args_for_make_fx
 
 import logging
+
+try:
+    from openvino.frontend.pytorch.torchdynamo.vllm import runtime_hooks as _rh
+except ImportError:
+    _rh = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -42,6 +50,175 @@ compiled_cache = {}
 req_cache = {}
 max_openvino_partitions = 0
 partitioned_modules = {}
+# Structural hash -> (compiled, req), reused across dynamo retraces of identical graphs.
+structural_cache = {}
+# cache_key -> whether int args have no OV Parameter.
+skip_ints_cache = {}
+
+
+def _shape_agnostic_compile(gm, args, options):
+    """Return True if the OV model compiled from this graph accepts any input shape.
+
+    That needs every int input sourced from a ShapeOf (bake_symint_constants then forces dynamic Parameters);
+    a graph without int inputs is shape-agnostic iff dynamic shapes are on.
+    """
+    if os.environ.get("OV_SHAPE_AGNOSTIC_CACHE", "1") == "0":
+        return False  # kill switch: go back to one compiled model per shape
+    try:
+        from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh
+        from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt
+        n_int = sum(1 for a in args if isinstance(a, int))
+        # Same guard as compile_hooks.apply_input_shapes, which otherwise pins Parameters to trace shapes.
+        if not (bool_opt(options, "vllm", False) or n_int):
+            return False
+        if n_int == 0:
+            return bool_opt(options, "dynamic_shapes", True)
+        return len(_vh.symint_shape_sources(gm, args)) == n_int
+    except Exception as e:
+        logger.debug("shape-agnostic check unavailable: %s", e)
+        return False
+
+
+def _use_structural_cache(options):
+    """Return True if this compile may reuse a model across dynamo re-traces.
+
+    Opt-in (default on under the vllm preset; OV_STRUCTURAL_CACHE=1/0 forces it): a hit asserts two graphs are
+    equivalent, so anything _structural_key omits would serve the wrong model.
+    """
+    env = os.environ.get("OV_STRUCTURAL_CACHE")
+    if env is not None:
+        return env != "0"
+    try:
+        from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt
+    except Exception:
+        return False
+    return bool_opt(options, "vllm", False)
+
+
+# Small constants are keyed by content (re-traces may rebuild them at a new address); weights by storage.
+_KEY_CONTENT_NUMEL = 1 << 16
+_KEY_LITERAL_TYPES = (bool, int, float, complex, str, type(None), torch.dtype, torch.device,
+                      torch.memory_format, torch.layout)
+
+
+def _key_arg(arg, node_id):
+    """Key text for one FX argument: graph nodes by id, literals by value, containers recursively."""
+    if isinstance(arg, torch.fx.Node):
+        return node_id.get(arg, arg.op)
+    if isinstance(arg, (list, tuple)):
+        return "[" + ",".join(_key_arg(a, node_id) for a in arg) + "]"
+    if isinstance(arg, dict):
+        items = sorted(arg.items(), key=lambda kv: str(kv[0]))
+        return "{" + ",".join(f"{k}={_key_arg(v, node_id)}" for k, v in items) + "}"
+    if isinstance(arg, slice):
+        return f"slice({_key_arg(arg.start, node_id)},{_key_arg(arg.stop, node_id)},{_key_arg(arg.step, node_id)})"
+    if isinstance(arg, _KEY_LITERAL_TYPES):
+        return repr(arg)
+    # Anything else: its type, since repr may embed an address.
+    return type(arg).__name__
+
+
+def _key_constant(gm, target):
+    """Key text for a get_attr constant: content for small tensors, storage identity for large ones."""
+    try:
+        obj = gm
+        for atom in str(target).split("."):
+            obj = getattr(obj, atom)
+    except AttributeError:
+        return "?"
+    if not isinstance(obj, torch.Tensor):
+        return type(obj).__name__
+    desc = f"{obj.dtype}{tuple(obj.shape)}{tuple(obj.stride())}"
+    if obj.numel() <= _KEY_CONTENT_NUMEL:
+        import hashlib
+        data = obj.detach().contiguous().cpu()
+        try:
+            raw = data.view(torch.uint8).numpy().tobytes()
+        except (RuntimeError, TypeError):
+            raw = repr(data.tolist()).encode()
+        return desc + hashlib.sha256(raw).hexdigest()[:16]
+    return desc + f"@{obj.untyped_storage().data_ptr()}+{obj.storage_offset()}"
+
+
+def _structural_key(gm, args, options=None):
+    """Return a hash of the FX graph structure that is stable across re-traces.
+
+    Input sizes are part of the key only when the compiled model depends on them (not shape-agnostic).
+    """
+    shape_agnostic = _shape_agnostic_compile(gm, args, options)
+    placeholders = [node for node in gm.graph.nodes if node.op == "placeholder"]
+    dynamic_dims = {}
+    if shape_agnostic:
+        try:
+            from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh
+            for _int_idx, (tensor_idx, dim) in _vh.symint_shape_sources(gm, args).items():
+                dynamic_dims.setdefault(tensor_idx, set()).add(dim)
+        except Exception as e:
+            logger.debug("dynamic-dim sourcing unavailable: %s", e)
+        # symint_shape_sources names one tensor per int; dynamo's placeholder metadata marks the other tensors
+        # sharing that size (e.g. positions next to input_ids).
+        if len(placeholders) == len(args):
+            for i, node in enumerate(placeholders):
+                fake = node.meta.get("val", node.meta.get("example_value"))
+                if isinstance(fake, torch.Tensor):
+                    for dim, size in enumerate(fake.shape):
+                        if isinstance(size, torch.SymInt):
+                            dynamic_dims.setdefault(i, set()).add(dim)
+    try:
+        # Label placeholders by kind, not position: dynamo orders args differently across traces.
+        ph_label = {}
+        if shape_agnostic and len(placeholders) == len(args):
+            tensor_i = 0
+            for node, arg in zip(placeholders, args):
+                if isinstance(arg, int):
+                    ph_label[node] = "phI"
+                else:
+                    ph_label[node] = f"phT{tensor_i}"
+                    tensor_i += 1
+        parts = []
+        # Index-based ids, so arg99_1 vs arg132_1 naming doesn't change the hash.
+        node_id = {}
+        ph_i = 0
+        op_i = 0
+        for node in gm.graph.nodes:
+            if node.op == "placeholder":
+                node_id[node] = ph_label.get(node, f"ph{ph_i}")
+                ph_i += 1
+                continue
+            target = str(node.target) if hasattr(node, "target") else str(node.op)
+            # Literals by value: graphs differing only in a scalar or an axis must not share a model.
+            arg_descs = [_key_arg(arg, node_id) for arg in node.args]
+            arg_descs += [f"{k}={_key_arg(v, node_id)}" for k, v in sorted(node.kwargs.items())]
+            if node.op == "get_attr":
+                arg_descs.append(_key_constant(gm, node.target))
+            parts.append(f"{node.op}:{target}({','.join(arg_descs)})")
+            # Counted separately from placeholders, which reorder across traces.
+            node_id[node] = f"n{op_i}"
+            op_i += 1
+        parts.append(f"nph={ph_i}")
+    except Exception:
+        parts = [str(id(gm))]
+    # Scope reuse to one model: same-architecture models differ only in weights.
+    sig = [f"M{options.get('model_id') if options else None}", "|".join(parts)]
+    for i, arg in enumerate(args):
+        if isinstance(arg, torch.Tensor):
+            if shape_agnostic:
+                # Only symbolic dims are abstracted, so different static shapes don't collide.
+                dyn = dynamic_dims.get(i, set())
+                shape_sig = ",".join(
+                    "*" if d in dyn else str(size) for d, size in enumerate(arg.shape)
+                )
+                sig.append(f"T{arg.dtype}:({shape_sig})")
+            else:
+                sig.append(f"T{arg.dtype}:{tuple(arg.size())}")
+        elif isinstance(arg, int):
+            # Shape-agnostic: the int Parameter is stripped.
+            if not shape_agnostic:
+                sig.append(f"I:{arg}")
+        else:
+            sig.append(f"S{type(arg).__name__}")
+    import hashlib
+    return hashlib.sha256("|".join(sig).encode()).hexdigest()
 
 
 def execute(
@@ -68,11 +245,26 @@ def execute(
 import numpy as np
 
 
+def _torch_to_numpy(tensor):
+    """Hand a torch tensor to OV as numpy; bf16 goes as a zero-copy float16 view, as OV's bindings expect."""
+    if tensor.dtype == torch.bfloat16:
+        return tensor.view(torch.float16).numpy()
+    return tensor.numpy()
+
+
+def _ov_result_to_torch(res, port):
+    """Rebuild a torch tensor from an OV output; a bf16 port arrives as numpy float16 and is viewed back."""
+    tensor = torch.from_numpy(res[port])
+    if port.get_element_type() == Type.bf16 and tensor.dtype == torch.float16:
+        tensor = tensor.view(torch.bfloat16)
+    return tensor
+
+
 def execute_cached(compiled_model, *args):
-    ov_inputs = [a.detach().cpu().numpy() for a in args]
+    ov_inputs = [_torch_to_numpy(a.detach().cpu()) for a in args]
     ov_inputs.reverse()
     res = compiled_model(ov_inputs)
-    result = [torch.from_numpy(res[out]) for out in compiled_model.outputs]
+    result = [_ov_result_to_torch(res, out) for out in compiled_model.outputs]
     return result
 
 
@@ -100,23 +292,87 @@ def openvino_execute(
         if not fully_supported:
             model_hash_str = model_hash_str + "_p" + str(partition_id)
 
-    if use_cache and (partition_id in compiled_cache):
-        compiled = compiled_cache[partition_id]
-        req = req_cache[partition_id]
+    # Shape is part of the key: a partition reused at another shape yields zero-sized outputs.
+    shape_key = tuple(
+        tuple(a.size()) if isinstance(a, torch.Tensor) else (type(a).__name__, a)
+        for a in args
+    )
+    cache_key = (partition_id, shape_key)
+
+    # Lets OV_EVICT_PROFILE_COMPILE free exactly the entries this call created.
+    struct_key = None
+    _fresh_compile = False
+
+    if use_cache and (cache_key in compiled_cache):
+        compiled = compiled_cache[cache_key]
+        req = req_cache[cache_key]
     else:
-        compiled = openvino_compile(gm, *args, model_hash_str=model_hash_str, options=options)
-        compiled_cache[partition_id] = compiled
-        req = compiled.create_infer_request()
-        req_cache[partition_id] = req
+        if _use_structural_cache(options):
+            struct_key = _structural_key(gm, args, options)
+        if struct_key is not None and use_cache and struct_key in structural_cache:
+            compiled, req = structural_cache[struct_key]
+        else:
+            compiled = openvino_compile(gm, *args, model_hash_str=model_hash_str, options=options)
+            req = compiled.create_infer_request()
+            if struct_key is not None:
+                structural_cache[struct_key] = (compiled, req)
+            _fresh_compile = True
+        compiled_cache[cache_key] = compiled
+        req_cache[cache_key] = req
 
     flat_args, _ = tree_flatten(args)
+    # Skip int args only if their Parameter is gone, else the tensors bind wrong ports. Cached per entry.
+    _skip_ints = skip_ints_cache.get(cache_key)
+    if _skip_ints is None:
+        _n_flat = len(flat_args)
+        _n_tensor_args = sum(1 for a in flat_args if not isinstance(a, int))
+        _skip_ints = False
+        if _n_tensor_args != _n_flat:
+            _ports = compiled.inputs
+            _n_positional_ports = sum(
+                1 for inp in _ports
+                if not any(n.startswith("__pa__") for n in inp.get_names()))
+            _skip_ints = _n_positional_ports == _n_tensor_args or len(_ports) < _n_flat
+        if use_cache:
+            skip_ints_cache[cache_key] = _skip_ints
     ov_inputs = []
     for arg in flat_args:
-        ov_inputs.append((arg if isinstance(arg, int) else arg.detach().cpu().numpy()))
+        if isinstance(arg, int):
+            if _skip_ints:
+                continue
+            ov_inputs.append(arg)
+            continue
+        tensor = arg.detach()
+        if not tensor.is_contiguous():
+            tensor = tensor.contiguous()
+        ov_inputs.append(_torch_to_numpy(tensor))
 
-    res = req.infer(ov_inputs, share_inputs=True, share_outputs=True)
+    # run_pa_infer: None on non-PA graphs, PA_SKIP on profile/dummy runs (eager), else the outputs.
+    res = None
+    if _rh is not None:
+        try:
+            _pa_out = _rh.run_pa_infer(compiled, req, ov_inputs)
+            if _pa_out is _rh.PA_SKIP:
+                _eager_out = gm(*args)
+                # A profile compile is never reused; drop it so its repacked weights are freed.
+                if _fresh_compile and os.environ.get("OV_EVICT_PROFILE_COMPILE", "1") != "0":
+                    compiled_cache.pop(cache_key, None)
+                    req_cache.pop(cache_key, None)
+                    skip_ints_cache.pop(cache_key, None)
+                    if struct_key is not None:
+                        structural_cache.pop(struct_key, None)
+                if isinstance(_eager_out, (list, tuple)):
+                    return list(_eager_out)
+                return _eager_out
+            res = _pa_out
+        except Exception:
+            # Positional infer would silently skip a PA graph's __pa__ inputs, so its errors must surface.
+            if _rh.has_pa_inputs(compiled):
+                raise
+    if res is None:
+        res = req.infer(ov_inputs, share_inputs=True, share_outputs=True)
 
-    results1 = [torch.from_numpy(res[out]) for out in compiled.outputs]
+    results1 = [_ov_result_to_torch(res, out) for out in compiled.outputs]
     if len(results1) == 1:
         return results1[0]
     return results1
@@ -131,9 +387,11 @@ class OpenVINOGraphModule(torch.nn.Module):
                                     "model_hash_str": model_hash_str}
         self.perm_fallback = False
         self.options = options
+        self._no_fallback = _get_no_fallback(options)
 
     def __call__(self, *args):
-        if self.perm_fallback:
+        _no_fallback = self._no_fallback
+        if self.perm_fallback and not _no_fallback:
             return self.gm(*args)
 
         try:
@@ -146,6 +404,10 @@ class OpenVINOGraphModule(torch.nn.Module):
             )
             logger.debug("OpenVINO graph execution successful")
         except Exception as e:
+            logger.debug("OV partition %d execution failed; falling back to PyTorch",
+                         self.partition_id, exc_info=True)
+            if _no_fallback:
+                raise
             logger.debug(
                 f"OpenVINO execution failed with {e}. Falling back to native PyTorch execution."
             )
@@ -186,30 +448,27 @@ def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=Non
     )
     model_hash_str = executor_parameters.get("model_hash_str", None)
 
-    signature = str(id(gm))
+    # model_id guards against a recycled id(gm) reusing another model's graph.
+    _model_id = options.get("model_id") if options else None
+    signature = f"{_model_id}_{id(gm)}"
     if (not _get_aot_autograd(options)):
+        # Coarsen to dtype/rank only when the compile is shape-agnostic, as in _structural_key.
+        shape_agnostic = _shape_agnostic_compile(gm, args, options)
         for idx, input_data in enumerate(args):
             if isinstance(input_data, torch.Tensor):
                 signature = (
-                    signature
-                    + "_"
-                    + str(idx)
-                    + ":"
-                    + str(input_data.type())[6:]
-                    + ":"
-                    + str(input_data.size())[11:-1].replace(" ", "")
+                    signature + "_" + str(idx) + ":" + str(input_data.type())[6:]
                 )
+                if shape_agnostic:
+                    signature += ":rank" + str(input_data.dim())
+                else:
+                    signature += ":" + str(input_data.size())[11:-1].replace(" ", "")
             else:
                 signature = (
-                    signature
-                    + "_"
-                    + str(idx)
-                    + ":"
-                    + type(input_data).__name__
-                    + ":val("
-                    + str(input_data)
-                    + ")"
+                    signature + "_" + str(idx) + ":" + type(input_data).__name__
                 )
+                if not shape_agnostic:
+                    signature += ":val(" + str(input_data) + ")"
 
     if signature not in partitioned_modules:
         partitioned_modules[signature] = partition_graph(
@@ -224,3 +483,13 @@ def clear_caches():
 
     compiled_cache.clear()
     partitioned_modules.clear()
+    structural_cache.clear()
+    req_cache.clear()
+    skip_ints_cache.clear()
+    # These are keyed by id()/address of the objects just dropped, which may be recycled.
+    if _rh is None:
+        return
+    from openvino.frontend.pytorch.torchdynamo.vllm import fused_moe, side_channel
+    side_channel.clear_caches()
+    _rh.clear_caches()
+    fused_moe.clear_weight_caches()

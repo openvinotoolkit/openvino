@@ -4,9 +4,14 @@
 
 #pragma once
 
+#include <map>
+#include <memory>
+#include <string>
+
 #include "input_model.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/parameter.hpp"
 
 namespace ov::frontend::pytorch {
 
@@ -64,6 +69,15 @@ public:
     std::map<size_t, size_t> m_body_output_aliases;
 
     OutputVector convert_node(const NodeContext& context);
+
+    // Shared PagedAttention side-channel Parameters, keyed by tag.
+    std::map<std::string, std::shared_ptr<ov::op::v0::Parameter>> m_shared_pa_params;
+    // Shared PA inputs derived from seq_lens and query_start_loc (past_lens, max_context_len, ...).
+    std::map<std::string, ov::Output<ov::Node>> m_shared_pa_outputs;
+    // Per-layer PagedAttention key/value by vLLM layer name, reused by the layers sharing that KV cache.
+    std::map<std::string, std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>>> m_pa_layer_kv;
+    // PagedAttention calls without a constant layer_name, to give each a distinct tag.
+    size_t m_unknown_pa_layer_count{0};
 
 private:
     const frontend::InputModel::Ptr m_input_model;

@@ -52,6 +52,15 @@ def _get_aot_autograd(options) -> Optional[Any]:
             return False
 
 
+def _get_no_fallback(options) -> bool:
+    """Resolve "no_fallback", through the vLLM preset when it is available."""
+    try:
+        from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt
+    except ImportError:
+        return bool(options and options.get("no_fallback", False))
+    return bool_opt(options, "no_fallback", False)
+
+
 def _get_model_caching(options) -> Optional[Any]:
     if options is not None and "model_caching" in options:
         caching = options["model_caching"]

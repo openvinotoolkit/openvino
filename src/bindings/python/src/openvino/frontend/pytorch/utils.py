@@ -149,6 +149,16 @@ def graph_has_ops(graph, op_types: list) -> bool:
     return res
 
 
+def to_ov_float_type(value):
+    """Convert a torch float dtype (or an OpenVINO type, or None) for a decoder's default_float_type."""
+    if value is None or isinstance(value, OVType):
+        return value
+    ov_type = pt_to_ov_type_map.get(str(value))
+    if not isinstance(ov_type, OVType):
+        raise ValueError(f"default_float_type must be a floating-point dtype, got {value!r}")
+    return ov_type
+
+
 pt_to_ov_type_map = {
     "float": OVType.f32,
     "int": OVType.i64,
