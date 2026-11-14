@@ -62,3 +62,7 @@ cross_compiled_file(${TARGET_NAME}
 )
 
 ov_add_api_validator_post_build_step(TARGET ${NPU_PLUGIN_TARGET})
+
+if(BUILD_SHARED_LIBS)
+    add_dependencies(${TARGET_NAME} openvino_intel_npu_vm_runtime)
+endif()
