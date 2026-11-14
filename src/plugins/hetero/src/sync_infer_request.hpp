@@ -50,8 +50,16 @@ private:
 
     ov::SoPtr<ov::IAsyncInferRequest> get_request(const ov::Output<const ov::Node>& port) const;
 
+    struct SubmodelConnection {
+        size_t out_submodel_idx;
+        ov::Output<const ov::Node> out_port;
+        size_t in_submodel_idx;
+        ov::Output<const ov::Node> in_port;
+    };
+
     std::vector<ov::SoPtr<ov::IAsyncInferRequest>> m_subrequests;
     std::map<ov::Output<const ov::Node>, size_t> m_port_to_subrequest_idx;
+    std::vector<SubmodelConnection> m_submodel_connections;
 };
 
 }  // namespace hetero
