@@ -348,7 +348,7 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
         tensor_meta_info.m_external_location = std::make_shared<std::string>(ext_location);
         return true;
     }
-    const auto full_path = ov::util::sanitize_path(graph_iterator->get_model_dir(), ov::util::make_path(ext_location));
+    const auto full_path = ov::util::sanitize_path(graph_iterator->get_model_dir_ref(), ov::util::make_path(ext_location));
     const int64_t file_size = ov::util::file_size(full_path);
     if ((file_size <= 0 && ext_data_length > 0) || ext_data_length > static_cast<uint64_t>(file_size) ||
         ext_data_offset > static_cast<uint64_t>(file_size) - ext_data_length) {
@@ -769,10 +769,6 @@ void GraphIteratorProto::refresh_metadata() {
     for (const auto& prop : model_metadata) {
         m_metadata.emplace(prop.key(), prop.value());
     }
-}
-
-const std::map<std::string, std::string>& GraphIteratorProto::get_metadata() const {
-    return m_metadata;
 }
 
 namespace detail {
