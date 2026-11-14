@@ -5,6 +5,7 @@
 #include "pass/simplify_activation_shapes.hpp"
 
 #include <algorithm>
+#include <map>
 #include <unordered_set>
 
 #include "openvino/core/graph_util.hpp"
@@ -12,6 +13,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/normalize_l2.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_sum.hpp"
@@ -56,6 +58,22 @@ ov::Output<ov::Node> unwrapped(const ov::Output<ov::Node>& value) {
     return value;
 }
 
+// MatMul activation boundaries keep their original rank: plugins pick FullyConnected kernels
+// (e.g. GPU dynamic quantization) and fuse residual eltwise ops based on that layout.
+bool feeds_matmul(const ov::Node& node) {
+    const auto targets = node.output(0).get_target_inputs();
+    return std::any_of(targets.begin(), targets.end(), [](const ov::Input<ov::Node>& target) {
+        return ov::is_type<ov::op::v0::MatMul>(target.get_node());
+    });
+}
+
+bool consumes_matmul(const ov::Node& node) {
+    const auto inputs = node.input_values();
+    return std::any_of(inputs.begin(), inputs.end(), [](const ov::Output<ov::Node>& input) {
+        return ov::is_type<ov::op::v0::MatMul>(input.get_node()) && activation_shape(input.get_partial_shape());
+    });
+}
+
 }  // namespace
 
 bool SimplifyActivationShapes::run_on_model(const std::shared_ptr<ov::Model>& model) {
@@ -65,6 +83,7 @@ bool SimplifyActivationShapes::run_on_model(const std::shared_ptr<ov::Model>& mo
     symbols.run_passes(model);
     const auto nodes = model->get_ordered_ops();
     std::unordered_set<const ov::Node*> constants;
+    std::map<ov::Output<ov::Node>, ov::Output<ov::Node>> squeezed;
     for (const auto& node : nodes) {
         const auto inputs = node->inputs();
         if (ov::is_type<ov::op::v0::Constant>(node) ||
@@ -83,6 +102,8 @@ bool SimplifyActivationShapes::run_on_model(const std::shared_ptr<ov::Model>& mo
         }
         const auto shape = node->get_output_partial_shape(0);
         const auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(node);
+        if ((reshape && feeds_matmul(*node)) || consumes_matmul(*node))
+            continue;
         if (reshape && shape.rank() == 3) {
             const auto value = unwrapped(reshape->input_value(0));
             if (same_shape(value.get_partial_shape(), shape)) {
@@ -100,9 +121,13 @@ bool SimplifyActivationShapes::run_on_model(const std::shared_ptr<ov::Model>& mo
             const auto value = unwrapped(input);
             if (value != input)
                 return value;
-            const auto squeezed = ov::op::util::make_try_fold<ov::op::v0::Squeeze>(input, axis);
-            created.push_back(squeezed);
-            return squeezed;
+            const auto cached = squeezed.find(input);
+            if (cached != squeezed.end())
+                return cached->second;
+            const auto squeeze = ov::op::util::make_try_fold<ov::op::v0::Squeeze>(input, axis);
+            created.push_back(squeeze);
+            squeezed.emplace(input, squeeze);
+            return squeeze;
         };
         if (reshape) {
             const auto value = unwrapped(reshape->input_value(0));

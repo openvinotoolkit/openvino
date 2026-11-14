@@ -43,6 +43,8 @@ protected:
     std::shared_ptr<ov::threading::IStreamsExecutor>                     m_executor;
     DeviceMap<NotBusyPriorityWorkerRequests>                             m_idle_worker_requests;
     DeviceMap<std::vector<WorkerInferRequest>>                           m_worker_requests;
+    // start/end times of the workers released with their compiled model, merged into the summary of ~Schedule()
+    DeviceMap<std::pair<std::list<Time>, std::list<Time>>>               m_released_infer_times;
     TaskQueue                                                            m_infer_pipeline_tasks;
     DeviceMap<std::unique_ptr<TaskQueue>>                                m_infer_pipeline_tasks_device_specific;
     SoCompiledModel                                                      m_passthrough_compiled_model;
@@ -52,6 +54,8 @@ protected:
     Time                                                                 m_cpuhelp_release_time;
     mutable std::atomic<std::size_t>                                     m_request_id = {0};
     std::mutex                                                           m_dev_infer_mutex;
+    // dynamic selection only: written before the execution slot is released, read by the next dispatch
+    double                                                               m_last_infer_ms = -1.0;
     std::unordered_map<IASyncInferPtr, WorkerInferRequest*>              m_dev_infer;
 };
 
