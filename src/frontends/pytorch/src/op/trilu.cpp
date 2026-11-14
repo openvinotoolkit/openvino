@@ -10,6 +10,9 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/less_eq.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/negative.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -36,6 +39,13 @@ OutputVector translate_base_triu_tril(const NodeContext& context, bool upper) {
     Output<Node> vertical_range;
     if (!context.input_is_none(1)) {
         auto diagonal = context.get_input(1);
+        diagonal = context.mark_node(std::make_shared<v0::Convert>(diagonal, element::i64));
+        auto n_i64 = context.mark_node(std::make_shared<v0::Convert>(n, element::i64));
+        auto m_i64 = context.mark_node(std::make_shared<v0::Convert>(m, element::i64));
+        // Offsets outside [-n, m] are equivalent to the nearest boundary diagonal.
+        auto min_diagonal = context.mark_node(std::make_shared<v0::Negative>(n_i64));
+        diagonal = context.mark_node(std::make_shared<v1::Maximum>(diagonal, min_diagonal));
+        diagonal = context.mark_node(std::make_shared<v1::Minimum>(diagonal, m_i64));
         diagonal = context.mark_node(std::make_shared<v0::Convert>(diagonal, element::i32));
         auto stop = context.mark_node(std::make_shared<v1::Add>(n, diagonal));
         vertical_range = context.mark_node(std::make_shared<v4::Range>(diagonal, stop, one, element::i32));
