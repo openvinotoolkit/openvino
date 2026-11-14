@@ -14,11 +14,13 @@
 
 namespace {
 
-bool set_source_buffer(ov::wsh::WeightSourceRegistry& sources, const ov::wsh::WeightBuffer& buffer) {
+bool set_source_buffer(ov::wsh::WeightSourceRegistry& sources,
+                       const ov::wsh::WeightBuffer& buffer,
+                       const std::string& device = {}) {
     const auto& desc = buffer ? buffer->get_descriptor() : nullptr;
     const auto source_id = desc ? desc->get_id() : ov::wsh::invalid_source_id;
     if (source_id != ov::wsh::invalid_source_id) {
-        sources[source_id] = ov::wsh::WeightSource{{}, buffer};
+        sources[source_id] = ov::wsh::WeightSource{device, buffer};
         return true;
     } else {
         return false;
@@ -80,6 +82,7 @@ DataID Extension::get_constant_source_id(const ov::op::v0::Constant& constant) {
 
 DataID Extension::get_constant_id(const ov::op::v0::Constant& constant) {
     const auto desc = constant.m_data->get_descriptor();
+    // -S- the offset of constant can be 0, but 0 equals invalid_constant_id. is it OK?
     return desc ? desc->get_offset() : invalid_constant_id;
 }
 
@@ -192,7 +195,15 @@ bool set_weight_source(Context& shared_context, const ov::op::v0::Constant& cons
     return set_source_buffer(shared_context.m_cache_sources, source_buffer);
 }
 
-bool set_runtime_weight_source(Context& shared_context, const WeightBuffer& source_buffer) {
-    return set_source_buffer(shared_context.m_runtime_sources, source_buffer);
+bool set_runtime_weight_source(Context& shared_context, const WeightBuffer& source_buffer, const std::string& device) {
+    return set_source_buffer(shared_context.m_runtime_sources, source_buffer, device);
+}
+
+WeightSource get_runtime_weight_source(const Context& shared_context, size_t source_id) {
+    const auto& weights = shared_context.m_runtime_sources;
+    if (auto weight_it = weights.find(source_id); weight_it != weights.end()) {
+        return weight_it->second;
+    }
+    return {};
 }
 }  // namespace ov::weight_sharing

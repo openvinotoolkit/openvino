@@ -16,6 +16,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/reference/convert.hpp"
+#include "openvino/runtime/remote_tensor.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"

@@ -6,7 +6,6 @@
 
 #include <memory>
 #include <mutex>
-#include <tuple>
 #include <unordered_map>
 
 #include "lazy_tensor.hpp"
@@ -17,6 +16,18 @@
 #include "openvino/runtime/tensor.hpp"
 #include "orc.hpp"
 #include "orc/schema_npuw.hpp"
+#include "weight_sharing_context_adapter.hpp"
+
+namespace ov {
+namespace npuw {
+namespace weights {
+class Bank;
+}  // namespace weights
+namespace orc {
+void serialize(ov::npuw::orc::Stream& stream, ov::npuw::weights::Bank& var);
+}  // namespace orc
+}  // namespace npuw
+}  // namespace ov
 
 namespace ov {
 namespace npuw {
@@ -25,7 +36,7 @@ class LLMCompiledModel;
 class CompiledModel;
 namespace weights {
 
-class Bank {
+class Bank : public WeightSharingContextAccessor {
 public:
     static constexpr ov::npuw::orc::TypeId kOrcType =
         static_cast<ov::npuw::orc::TypeId>(ov::npuw::orc::schema_npuw::WeightsBank::ID);
@@ -33,7 +44,10 @@ public:
     // must be introduced through a new versioned payload rather than by mutating v0.
     static constexpr ov::npuw::orc::Version kOrcVersion = 0u;
 
-    Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& alloc_device, const std::string& bank_name);
+    Bank(const std::shared_ptr<const ov::ICore>& core,
+         const std::string& alloc_device,
+         const std::string& bank_name,
+         std::shared_ptr<ov::weight_sharing::Context> weight_sharing_context = nullptr);
 
     // Register LazyTensor in a bank if it's not there. Returns LazyTensor's unique id
     int64_t registerLT(const LazyTensor& tensor, const std::string& device);
@@ -56,6 +70,7 @@ private:
     struct StoredTensor {
         LazyTensor lt;
         ov::Tensor tensor;
+        bool is_evaluated() const;
     };
     // Bank for specified device and their allocated memory
     struct DeviceBank {
@@ -70,6 +85,7 @@ private:
                                          const std::string& device);
 
     void serialize(ov::npuw::orc::Stream& stream);
+    void deserialize(ov::npuw::orc::Stream& stream);
     void read_and_add_tensor(ov::npuw::orc::Stream& stream, int64_t uid, const std::string& device);
 
     mutable std::mutex m_mutex;
@@ -81,7 +97,8 @@ private:
 
 std::shared_ptr<Bank> bank(const std::string& bank_name,
                            const std::shared_ptr<const ov::ICore>& core,
-                           const std::string& alloc_device);
+                           const std::string& alloc_device,
+                           std::shared_ptr<ov::weight_sharing::Context> weight_shared_context = nullptr);
 
 }  // namespace weights
 }  // namespace npuw
