@@ -4,33 +4,40 @@
 
 #include "fully_connected_ternocl_int2.hpp"
 
-#ifdef OV_GPU_WITH_OCL_RT
+#include <algorithm>
+#include <array>
+#include <cctype>
+#include <cstdint>
+#include <string>
+#include <vector>
 
-#    include <array>
-#    include <atomic>
-#    include <cmath>
-#    include <cstdint>
-#    include <cstdio>
-#    include <cstdlib>
-#    include <iostream>
-#    include <map>
-#    include <mutex>
-#    include <vector>
-
-#    include "fully_connected_inst.h"
-#    include "intel_gpu/runtime/debug_configuration.hpp"
-#    include "intel_gpu/runtime/kernel_args.hpp"
-#    include "intel_gpu/runtime/memory.hpp"
-#    include "primitive_inst.h"
-#    include "registry/registry.hpp"
-#    include "runtime/ocl/ocl_engine.hpp"
-#    include "runtime/ocl/ocl_kernel.hpp"
-#    include "ternocl_int2_kernels.inc"  // generated from TERNOCL_ROOT (CMakeLists.txt)
+#include "fully_connected_inst.h"
+#include "impls/ocl_v2/primitive_ocl_base.hpp"
+#include "impls/ocl_v2/utils/kernel_generator.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "primitive_inst.h"
+#include "registry/registry.hpp"
+#include "ternocl_int2_kernels.inc"  // generated from TERNOCL_ROOT (CMakeLists.txt)
 
 namespace cldnn {
 namespace ocl {
 
 namespace {
+
+using ov::intel_gpu::ArgumentDescriptor;
+using ov::intel_gpu::Arguments;
+using ov::intel_gpu::DispatchDataFunc;
+using ov::intel_gpu::ImplRuntimeParams;
+using ov::intel_gpu::KernelData;
+using ov::intel_gpu::KernelLanguage;
+using ov::intel_gpu::KernelString;
+using ov::intel_gpu::RuntimeParams;
+using ov::intel_gpu::ScalarDescriptor;
+using ov::intel_gpu::WorkGroupSizes;
+using ov::intel_gpu::ocl::KernelGenerator;
+using ov::intel_gpu::ocl::PrimitiveImplOCL;
+using ov::intel_gpu::ocl::Stage;
 
 // ---------------------------------------------------------------------------
 // Tile selection. GEMV (M <= 8): sub-group rows SGM, work-group width WGN
@@ -122,11 +129,11 @@ GemvTile gemv_tile(size_t K, size_t N, bool integrated) {
     return N <= 8192 ? GemvTile{32, 4, 1} : GemvTile{32, 2, 1};
 }
 
-MtTile mt_tile(size_t K, size_t N, size_t M, bool integrated) {
-    if (M < 64) {
+MtTile mt_tile(size_t K, size_t N, size_t cls, bool integrated) {
+    if (cls < 7) {
         // Sweep at M = 12 / 20 / 32 / 48 over the 27B shapes; the winners group
         // by output width (narrow N <= 8192, head N >= 65536).
-        const int band = M <= 16 ? 0 : (M <= 32 ? 1 : 2);
+        const size_t band = cls - 4;
         static const MtTile narrow[3] = {{16, 16, 2, 2}, {32, 16, 2, 4}, {32, 16, 1, 4}};  // Arc Pro B70
         static const MtTile wide[3] = {{16, 16, 1, 8}, {32, 16, 1, 4}, {64, 16, 1, 8}};
         static const MtTile head[3] = {{16, 16, 1, 4}, {64, 32, 1, 8}, {64, 32, 1, 8}};
@@ -178,9 +185,9 @@ MtTile mt_tile(size_t K, size_t N, size_t M, bool integrated) {
     return MtTile{64, 32, 4, 4};
 }
 
-// Arc Pro B70 sweep of the 27B shapes, per M band (<= 16, <= 32, < 64, >= 64).
-MtTile int8_tile(size_t K, size_t N, size_t M) {
-    const int band = M <= 16 ? 0 : (M <= 32 ? 1 : (M < 64 ? 2 : 3));
+// Arc Pro B70 sweep of the 27B shapes, per M-tiled launch class (M <= 16, <= 32, < 64, >= 64).
+MtTile int8_tile(size_t K, size_t N, size_t cls) {
+    const size_t band = cls - 4;
     struct Entry {
         size_t k, n;
         MtTile t[4];
@@ -201,407 +208,385 @@ MtTile int8_tile(size_t K, size_t N, size_t M) {
     return fallback[band];
 }
 
-// ---------------------------------------------------------------------------
-// Programs are built once per (context, source, options) and shared by the impls created on that
-// context (the FCs of a model differ only in a few shapes); every impl creates its own cl_kernel
-// from them, so argument state is never shared. Each impl holds the cache, so it is released with
-// the last of them.
-class TernoclProgramCache {
-public:
-    static std::shared_ptr<TernoclProgramCache> get(const ocl_engine& engine) {
-        static std::mutex m;
-        static std::map<cl_context, std::weak_ptr<TernoclProgramCache>> caches;
-        std::lock_guard<std::mutex> lock(m);
-        for (auto it = caches.begin(); it != caches.end();) {
-            it = it->second.expired() ? caches.erase(it) : std::next(it);
-        }
-        auto& entry = caches[engine.get_cl_context().get()];
-        auto cache = entry.lock();
-        if (!cache) {
-            cache = std::make_shared<TernoclProgramCache>();
-            entry = cache;
-        }
-        return cache;
-    }
-
-    cl::Program get_program(const ocl_engine& engine, const char* src, const std::string& opts) {
-        const std::string key = std::to_string(reinterpret_cast<uintptr_t>(src)) + "|" + opts;
-        std::lock_guard<std::mutex> lock(_m);
-        auto it = _programs.find(key);
-        if (it != _programs.end())
-            return it->second;
-        cl::Program prog(engine.get_cl_context(), std::string(src));
-        try {
-            prog.build(std::vector<cl::Device>{engine.get_cl_device()}, opts.c_str());
-        } catch (const cl::Error&) {
-            OPENVINO_THROW("[GPU] ternocl int2: kernel build failed (", opts, "):\n", prog.getBuildInfo<CL_PROGRAM_BUILD_LOG>(engine.get_cl_device()));
-        }
-        GPU_DEBUG_TRACE_DETAIL << "[ternocl-int2] built " << opts << std::endl;
-        return _programs.emplace(key, prog).first->second;
-    }
-
-private:
-    std::mutex _m;
-    std::map<std::string, cl::Program> _programs;
-};
-
-kernel::ptr make_kernel(const ocl_engine& engine, const cl::Program& prog, const char* name) {
-    return std::make_shared<ocl_kernel>(ocl_kernel_type(cl::Kernel(prog, name), engine.get_usm_helper()), name);
-}
-
 size_t ceil_div(size_t a, size_t b) {
     return (a + b - 1) / b;
 }
 
-}  // namespace
+// Classes 0-3: GEMV for M = 1, 2, <= 4, <= 8 (SGM = 1, 2, 4, 8).
+// Classes 4-7: M-tiled GEMM for M <= 16, <= 32, < 64, >= 64.
+constexpr size_t kLaunchClasses = 8;
+constexpr size_t kFirstTiledClass = 4;
 
-struct fully_connected_ternocl_int2 : typed_primitive_impl<fully_connected> {
-    using parent = typed_primitive_impl<fully_connected>;
+size_t launch_class(size_t M) {
+    if (M <= 8)
+        return M <= 1 ? 0 : (M == 2 ? 1 : (M <= 4 ? 2 : 3));
+    return M <= 16 ? 4 : (M <= 32 ? 5 : (M < 64 ? 6 : 7));
+}
 
-    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::fully_connected_ternocl_int2)
+struct FcShape {
+    size_t M, N, K;
+};
 
-    // Weights and scales come from the node's inputs: the weights reorder packs the weights, and
-    // prepare_quantization lays the grouped scales out as [groups, N]. Nothing here depends on the
-    // node beyond kernel_impl_params, so a cached impl can serve any FC with equal params.
-    const ocl_engine* _engine = nullptr;
-    std::shared_ptr<TernoclProgramCache> _programs;
-    // i8 [K] +-1 from the primitive's hadamard_signs (part of the impl cache key), or null.
-    memory::ptr _had_signs;
-    size_t _N = 0;
-    size_t _K = 0;
-    TernoclPostop _postop = TernoclPostop::none;
-    size_t _other_dep = 0;
-    size_t _scale_dep = 0;
-    bool _out_f32 = false;
-    size_t _had_block = 0;
-    bool _integrated = false;
-    // GPU_TERNOCL_INT2_INT8_PREFILL: M > 8 on the int2 x int8 DPAS GEMM (activations quantized per 128-group).
-    bool _int8_prefill = false;
+// N and K from the [N, K] weights, M from the output (0 while it is dynamic).
+FcShape fc_shape(const RuntimeParams& params) {
+    const auto& w = params.get_input_layout(1).get_partial_shape();
+    const size_t N = static_cast<size_t>(w[0].get_length());
+    const size_t K = static_cast<size_t>(w[1].get_length());
+    const auto& out = params.output_layouts[0];
+    return {out.is_dynamic() ? 0 : ov::shape_size(out.get_shape()) / N, N, K};
+}
 
-    // GEMV for M = 1, 2, <= 4, <= 8; M-tiled for M <= 16, <= 32, < 64, >= 64.
-    struct Launch {
-        kernel::ptr k;
-        GemvTile g{};
-        MtTile t{};
-    };
-    std::array<Launch, 8> _launch;
-    // int8 prefill, M-tiled classes 4..7: scale pre-kernel + GEMM from one program.
-    struct Int8Launch {
-        kernel::ptr quant, gemm;
-        MtTile t{};
-    };
-    std::array<Int8Launch, 4> _int8_launch;
-    kernel::ptr _fwht;
+bool is_integrated(const RuntimeParams& params) {
+    return params.get_device_info().dev_type == device_type::integrated_gpu;
+}
 
-    fully_connected_ternocl_int2() : parent("ternocl_int2") {}
-    fully_connected_ternocl_int2(ocl_engine& engine,
-                                 const fully_connected& desc,
-                                 size_t N,
-                                 size_t K,
-                                 TernoclPostop postop,
-                                 size_t other_dep,
-                                 size_t scale_dep,
-                                 bool out_f32,
-                                 bool int8)
-        : parent("ternocl_int2"),
-          _N(N),
-          _K(K),
-          _postop(postop),
-          _other_dep(other_dep),
-          _scale_dep(scale_dep),
-          _out_f32(out_f32),
-          _had_block(desc.hadamard_block),
-          _int8_prefill(int8) {
-        attach(engine, desc);
+struct Epilogue {
+    TernoclPostop postop;
+    size_t other_dep;  // dependency index of the eltwise operand
+    bool out_f32;
+};
+
+Epilogue epilogue(const RuntimeParams& params) {
+    const auto& desc = params.typed_desc<fully_connected>();
+    size_t other_dep = 0;
+    const auto postop = ternocl_int2_postop(params.fused_desc, desc->bias.is_valid(), &other_dep);
+    OPENVINO_ASSERT(postop.has_value(), "[GPU] ternocl int2: ", desc->id, " has no folded epilogue for its fused chain");
+    return {*postop, other_dep, params.output_layouts[0].data_type == data_types::f32};
+}
+
+void set_tiled_dispatch(WorkGroupSizes& wgs, const MtTile& t, const FcShape& s) {
+    const size_t tn = static_cast<size_t>(t.mt_n * t.wg_n), tm = static_cast<size_t>(t.mt_m * t.wg_m);
+    wgs.local = {16 * static_cast<size_t>(t.wg_n * t.wg_m), 1, 1};
+    wgs.global = {ceil_div(s.N, tn) * wgs.local[0], ceil_div(s.M, tm), 1};
+}
+
+std::string tile_options(const MtTile& t) {
+    return " -DMT_M=" + std::to_string(t.mt_m) + " -DMT_N=" + std::to_string(t.mt_n) + " -DWG_M=" + std::to_string(t.wg_m) +
+           " -DWG_N=" + std::to_string(t.wg_n) + " -cl-intel-256-GRF-per-thread";
+}
+
+enum class TernoclKernel { upcvt, quant, int8_gemm, fwht };
+
+// One kernel per program: TERNOCL_SELECT_KERNELS drops the other kernels of the source.
+// The tile depends only on (K, N, launch class, device), so a stage serves every M of its class.
+class TernoclStageGenerator : public KernelGenerator {
+public:
+    TernoclStageGenerator(TernoclKernel kind, size_t cls) : KernelGenerator("ternocl_int2", suffix(kind, cls)), m_kind(kind), m_cls(cls) {}
+
+    [[nodiscard]] KernelData get_kernel_data(const RuntimeParams& params) const override {
+        const std::string name = kernel_name();
+        std::string selector = name;
+        std::transform(selector.begin(), selector.end(), selector.begin(), [](unsigned char c) {
+            return static_cast<char>(std::toupper(c));
+        });
+
+        KernelData kd;
+        kd.code = std::make_shared<KernelString>();
+        kd.code->language = KernelLanguage::OCLC_V2;
+        kd.code->entry_point = get_entry_point(params);
+        kd.code->options = get_build_options(params);
+        kd.code->batch_compilation = false;
+        kd.code->str =
+            "#define TERNOCL_SELECT_KERNELS\n#define TERNOCL_KERNEL_" + selector + "\n#define " + name + " " + kd.code->entry_point + "\n" + source();
+
+        kd.params.arguments = get_arguments_desc(params);
+        kd.params.layerID = params.desc->id;
+        kd.update_dispatch_data_func = get_dispatch_data_func();
+        GPU_DEBUG_TRACE_DETAIL << "[ternocl-int2] " << params.desc->id << " " << name << ": " << kd.code->options << std::endl;
+        return kd;
     }
 
-    // Engine-bound state, rebuilt rather than serialized.
-    void attach(ocl_engine& engine, const fully_connected& desc) {
-        _engine = &engine;
-        _integrated = engine.get_device_info().dev_type == device_type::integrated_gpu;
-        _programs = TernoclProgramCache::get(engine);
-        _had_signs = nullptr;
-        if (desc.hadamard_block != 0 && !desc.hadamard_signs.empty()) {
-            OPENVINO_ASSERT(desc.hadamard_signs.size() == _K, "[GPU] ternocl int2: hadamard signs length mismatch");
-            _had_signs =
-                engine.allocate_memory(layout{ov::PartialShape{static_cast<int64_t>(_K)}, data_types::i8, format::bfyx}, allocation_type::usm_device, false);
-            _had_signs->copy_from(engine.get_service_stream(), desc.hadamard_signs.data(), true);
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[kind = m_kind, cls = m_cls](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
+            const auto s = fc_shape(params);
+            auto& wgs = kd.params.workGroups;
+            std::vector<int32_t> scalars;
+            switch (kind) {
+            case TernoclKernel::upcvt:
+                if (cls < kFirstTiledClass) {
+                    const auto g = gemv_tile(s.K, s.N, is_integrated(params));
+                    const size_t wgn = static_cast<size_t>(g.wgn);
+                    wgs.local = {wgn * static_cast<size_t>(g.ls), 1, 1};
+                    wgs.global = {ceil_div(s.N, wgn) * wgs.local[0], ceil_div(s.M, size_t{1} << cls), 1};
+                } else {
+                    set_tiled_dispatch(wgs, mt_tile(s.K, s.N, cls, is_integrated(params)), s);
+                }
+                scalars = {static_cast<int32_t>(s.M), static_cast<int32_t>(s.N), static_cast<int32_t>(s.K)};
+                break;
+            case TernoclKernel::quant:
+                // SA[g, m] = 127 / absmax of row m over group g: one sub-group per (row, group).
+                wgs.local = {16, 1, 1};
+                wgs.global = {(s.K / kTernoclGroupSize) * 16, s.M, 1};
+                scalars = {static_cast<int32_t>(s.M), static_cast<int32_t>(s.K)};
+                break;
+            case TernoclKernel::int8_gemm:
+                set_tiled_dispatch(wgs, int8_tile(s.K, s.N, cls), s);
+                scalars = {static_cast<int32_t>(s.M), static_cast<int32_t>(s.N), static_cast<int32_t>(s.K)};
+                break;
+            case TernoclKernel::fwht:
+                wgs.local = {128, 1, 1};
+                wgs.global = {s.M * (s.K / 1024) * 128, 1, 1};
+                scalars = {static_cast<int32_t>(s.K), params.typed_desc<fully_connected>()->hadamard_signs.empty() ? 0 : 1};
+                break;
+            }
+            kd.params.scalars.clear();
+            for (const auto v : scalars) {
+                ScalarDescriptor d;
+                d.t = ScalarDescriptor::Types::INT32;
+                d.v.s32 = v;
+                kd.params.scalars.push_back(d);
+            }
+        }};
+    }
+
+protected:
+    // Inputs: {A, B, S, Other, Bias, Hadamard signs}. Scratch: {[rotated A], [SA]}.
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        using T = ArgumentDescriptor::Types;
+        const bool rotated = params.typed_desc<fully_connected>()->hadamard_block != 0;
+        const ArgumentDescriptor a = rotated ? ArgumentDescriptor{T::INTERNAL_BUFFER, 0} : ArgumentDescriptor{T::INPUT, 0};
+        const ArgumentDescriptor sa{T::INTERNAL_BUFFER, rotated ? 1u : 0u};
+        switch (m_kind) {
+        case TernoclKernel::upcvt:  // A, B, S, C, Other, Bias, M, N, K
+            return {a, {T::INPUT, 1}, {T::INPUT, 2}, {T::OUTPUT, 0}, {T::INPUT, 3}, {T::INPUT, 4}, {T::SCALAR, 0}, {T::SCALAR, 1}, {T::SCALAR, 2}};
+        case TernoclKernel::quant:  // A, SA, Aq (not written in QMODE 1), M, K
+            return {a, sa, a, {T::SCALAR, 0}, {T::SCALAR, 1}};
+        case TernoclKernel::int8_gemm:  // A, Aq (unused), SA, B, SB, C, Other, Bias, M, N, K
+            return {a, a, sa, {T::INPUT, 1}, {T::INPUT, 2}, {T::OUTPUT, 0}, {T::INPUT, 3}, {T::INPUT, 4}, {T::SCALAR, 0}, {T::SCALAR, 1}, {T::SCALAR, 2}};
+        case TernoclKernel::fwht:  // x, signs, H_1024(s * x) / 32, K, has_signs
+            return {{T::INPUT, 0}, {T::INPUT, 5}, {T::INTERNAL_BUFFER, 0}, {T::SCALAR, 0}, {T::SCALAR, 1}};
+        }
+        OPENVINO_THROW("[GPU] ternocl int2: unknown kernel");
+    }
+
+    [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
+        const auto s = fc_shape(params);
+        const auto ep = epilogue(params);
+        const std::string epi = " -DPOSTOP=" + std::to_string(static_cast<int>(ep.postop)) + (ep.out_f32 ? " -DOUT_F32" : "");
+        std::string opts = "-cl-std=CL3.0";
+        switch (m_kind) {
+        case TernoclKernel::upcvt:
+            if (m_cls < kFirstTiledClass) {
+                const auto g = gemv_tile(s.K, s.N, is_integrated(params));
+                opts += " -DSGM=" + std::to_string(size_t{1} << m_cls) + " -DNSG_N=" + std::to_string(g.wgn / 16) + " -DLS=" + std::to_string(g.ls) +
+                        " -DU=" + std::to_string(g.u) + " -DPF=0";
+            } else {
+                opts += tile_options(mt_tile(s.K, s.N, m_cls, is_integrated(params)));
+            }
+            return opts + epi;
+        case TernoclKernel::quant:
+            return opts + " -cl-fp32-correctly-rounded-divide-sqrt -DQMODE=1";
+        case TernoclKernel::int8_gemm:
+            return opts + " -cl-fp32-correctly-rounded-divide-sqrt -DQMODE=1" + tile_options(int8_tile(s.K, s.N, m_cls)) + epi;
+        case TernoclKernel::fwht:
+            return opts;
+        }
+        OPENVINO_THROW("[GPU] ternocl int2: unknown kernel");
+    }
+
+private:
+    static std::string suffix(TernoclKernel kind, size_t cls) {
+        switch (kind) {
+        case TernoclKernel::upcvt:
+            return "upcvt" + std::to_string(cls);
+        case TernoclKernel::quant:
+            return "quant";
+        case TernoclKernel::int8_gemm:
+            return "int8_" + std::to_string(cls);
+        case TernoclKernel::fwht:
+            return "fwht";
+        }
+        return {};
+    }
+
+    [[nodiscard]] std::string kernel_name() const {
+        switch (m_kind) {
+        case TernoclKernel::upcvt:
+            return m_cls < kFirstTiledClass ? "int2_fp16_upcvt_gemm" : "int2_fp16_upcvt_gemm_mt";
+        case TernoclKernel::quant:
+            return "quant_a";
+        case TernoclKernel::int8_gemm:
+            return "int2_int8_gemm_mt";
+        case TernoclKernel::fwht:
+            return "hadamard_fwht_1024";
+        }
+        return {};
+    }
+
+    [[nodiscard]] const char* source() const {
+        switch (m_kind) {
+        case TernoclKernel::upcvt:
+            return kTernoclUpcvtSource;
+        case TernoclKernel::quant:
+        case TernoclKernel::int8_gemm:
+            return kTernoclInt8Source;
+        case TernoclKernel::fwht:
+            return kTernoclFwhtSource;
+        }
+        return "";
+    }
+
+    TernoclKernel m_kind;
+    size_t m_cls;
+};
+
+}  // namespace
+
+// Stages: the up-convert GEMM per launch class, the int8 prefill (quant_a + GEMM per M-tiled class)
+// and the FWHT of rotated-basis checkpoints. A dynamic-shape impl builds all classes and picks one
+// per execution. A static-shape impl builds only its own class.
+class fully_connected_ternocl_int2 : public PrimitiveImplOCL {
+public:
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::fully_connected_ternocl_int2)
+
+    std::array<Stage::Ptr, kLaunchClasses> upcvt = make_stages<kLaunchClasses>(TernoclKernel::upcvt, 0);
+    Stage::Ptr quant = make_stage<TernoclStageGenerator>(TernoclKernel::quant, 0);
+    std::array<Stage::Ptr, kLaunchClasses - kFirstTiledClass> int8_gemm =
+        make_stages<kLaunchClasses - kFirstTiledClass>(TernoclKernel::int8_gemm, kFirstTiledClass);
+    Stage::Ptr fwht = make_stage<TernoclStageGenerator>(TernoclKernel::fwht, 0);
+
+    fully_connected_ternocl_int2() : PrimitiveImplOCL("ternocl_int2") {}
+    fully_connected_ternocl_int2(const program_node& node, const RuntimeParams& params) : fully_connected_ternocl_int2() {
+        const auto& desc = params.typed_desc<fully_connected>();
+        // The weights input is the u2 constant at build time and the packed one once this reorder is folded.
+        const auto& wei_layout = params.get_input_layout(1);
+        auto packed_layout = wei_layout;
+        packed_layout.format = format::is_os_yx_isv16_ternary;
+        _weights_reorder_params = std::make_shared<WeightsReorderParams>(wei_layout, packed_layout);
+        const bool int8 = node.get_program().get_config().get_ternocl_int2_int8_prefill();
+        auto add = [&](Stage::Ptr& stage) {
+            add_stage(stage, params);
+            OPENVINO_ASSERT(has_stage(stage), "[GPU] ternocl int2: failed to generate a kernel for ", node.id());
+        };
+        if (desc->hadamard_block != 0)
+            add(fwht);
+        if (params.is_dynamic()) {
+            for (size_t cls = 0; cls < (int8 ? kFirstTiledClass : kLaunchClasses); ++cls)
+                add(upcvt[cls]);
+            if (int8) {
+                add(quant);
+                for (auto& stage : int8_gemm)
+                    add(stage);
+            }
+        } else {
+            const size_t cls = launch_class(fc_shape(params).M);
+            if (int8 && cls >= kFirstTiledClass) {
+                add(quant);
+                add(int8_gemm[cls - kFirstTiledClass]);
+            } else {
+                add(upcvt[cls]);
+            }
         }
     }
 
-    void save(BinaryOutputBuffer& ob) const override {
-        parent::save(ob);
-        ob << _N;
-        ob << _K;
-        ob << static_cast<int>(_postop);
-        ob << _other_dep;
-        ob << _scale_dep;
-        ob << _out_f32;
-        ob << _had_block;
-        ob << _int8_prefill;
-    }
-
-    void load(BinaryInputBuffer& ib) override {
-        parent::load(ib);
-        int postop = 0;
-        ib >> _N;
-        ib >> _K;
-        ib >> postop;
-        ib >> _other_dep;
-        ib >> _scale_dep;
-        ib >> _out_f32;
-        ib >> _had_block;
-        ib >> _int8_prefill;
-        _postop = static_cast<TernoclPostop>(postop);
-        const auto* params = reinterpret_cast<const kernel_impl_params*>(ib.getKernelImplParams());
-        OPENVINO_ASSERT(params != nullptr, "[GPU] ternocl int2: kernel_impl_params are required to load the impl");
-        attach(downcast<ocl_engine>(ib.get_engine()), *params->typed_desc<fully_connected>());
-    }
-
-    std::unique_ptr<primitive_impl> clone() const override {
-        // Shares the kernel handles like the stock OCL impls: OpenVINO clones
-        // cached impls on every shape update, and rebuilding costs tens of us per FC.
-        return std::make_unique<fully_connected_ternocl_int2>(*this);
-    }
-
-    bool is_cpu() const override {
-        return false;
-    }
-    bool is_onednn() const override {
-        return false;
+    [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
+        auto copy = make_deep_copy<fully_connected_ternocl_int2>(this);
+        copy->_had_signs = _had_signs;
+        return copy;
     }
 
     // Scratch comes from the network memory pool, so it is shared across primitives
     // and resized with M: [had] f16 [M, K] rotated activation, [int8] f16 [K/128, LDSA(M)] scales.
-    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& params) const override {
-        const auto& out = params.output_layouts[0];
-        if (out.is_dynamic() || _N == 0)
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const RuntimeParams& params) const override {
+        if (params.output_layouts[0].is_dynamic())
             return {};
-        const size_t M = ov::shape_size(out.get_shape()) / _N;
+        const auto s = fc_shape(params);
         std::vector<BufferDescriptor> descs;
-        if (_had_block != 0)
-            descs.emplace_back(M * _K, ov::element::f16);
-        if (M > 8 && _int8_prefill)
-            descs.emplace_back((_K / kTernoclGroupSize) * ((M + 31) & ~size_t{31}), ov::element::f16);
+        if (has_stage(fwht))
+            descs.emplace_back(s.M * s.K, ov::element::f16);
+        if (runs_int8(s.M))
+            descs.emplace_back((s.K / kTernoclGroupSize) * ((s.M + 31) & ~size_t{31}), ov::element::f16);
         return descs;
     }
 
-protected:
-    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
-    void set_arguments_impl(typed_primitive_inst<fully_connected>&) override {}
-    void set_arguments_impl(typed_primitive_inst<fully_connected>&, kernel_arguments_data&) override {}
-
-    std::string epi_opts() const {
-        return " -DPOSTOP=" + std::to_string(static_cast<int>(_postop)) + (_out_f32 ? " -DOUT_F32" : "");
-    }
-
-    static size_t launch_class(size_t M) {
-        if (M <= 8)
-            return M == 1 ? 0 : (M == 2 ? 1 : (M <= 4 ? 2 : 3));
-        return M <= 16 ? 4 : (M <= 32 ? 5 : (M < 64 ? 6 : 7));
-    }
-
-    Launch& get_launch(size_t M) {
-        auto& l = _launch[launch_class(M)];
-        if (l.k)
-            return l;
-        std::string opts = "-cl-std=CL3.0";
-        if (M <= 8) {
-            const int sgm = M == 1 ? 1 : (M == 2 ? 2 : (M <= 4 ? 4 : 8));
-            l.g = gemv_tile(_K, _N, _integrated);
-            opts += " -DSGM=" + std::to_string(sgm) + " -DNSG_N=" + std::to_string(l.g.wgn / 16) + " -DLS=" + std::to_string(l.g.ls) +
-                    " -DU=" + std::to_string(l.g.u) + " -DPF=0";
-            l.k = make_kernel(*_engine, _programs->get_program(*_engine, kTernoclUpcvtSource, opts + epi_opts()), "int2_fp16_upcvt_gemm");
+    [[nodiscard]] std::vector<size_t> get_stages_execution_order(const kernel_impl_params& params) const override {
+        if (!is_dynamic())
+            return _order;
+        const size_t M = fc_shape(params).M;
+        const size_t cls = launch_class(M);
+        std::vector<size_t> order;
+        if (has_stage(fwht))
+            order.push_back(stage_index(fwht));
+        if (runs_int8(M)) {
+            order.push_back(stage_index(quant));
+            order.push_back(stage_index(int8_gemm[cls - kFirstTiledClass]));
         } else {
-            l.t = mt_tile(_K, _N, M, _integrated);
-            opts += " -DMT_M=" + std::to_string(l.t.mt_m) + " -DMT_N=" + std::to_string(l.t.mt_n) + " -DWG_M=" + std::to_string(l.t.wg_m) +
-                    " -DWG_N=" + std::to_string(l.t.wg_n) + " -cl-intel-256-GRF-per-thread";
-            l.k = make_kernel(*_engine, _programs->get_program(*_engine, kTernoclUpcvtSource, opts + epi_opts()), "int2_fp16_upcvt_gemm_mt");
+            order.push_back(stage_index(upcvt[cls]));
         }
-        GPU_DEBUG_TRACE_DETAIL << "[ternocl-int2] K=" << _K << " N=" << _N << " M-class " << launch_class(M) << ": " << opts << epi_opts() << std::endl;
-        return l;
+        return order;
     }
 
-    Int8Launch& get_int8_launch(size_t M) {
-        const auto cls = launch_class(M);
-        OPENVINO_ASSERT(cls >= 4, "[GPU] ternocl int2: int8 launch requires M > 8");
-        auto& l = _int8_launch[cls - 4];
-        if (l.gemm)
-            return l;
-        l.t = int8_tile(_K, _N, M);
-        const std::string opts = "-cl-std=CL3.0 -cl-fp32-correctly-rounded-divide-sqrt -DQMODE=1 -DMT_M=" + std::to_string(l.t.mt_m) +
-                                 " -DMT_N=" + std::to_string(l.t.mt_n) + " -DWG_M=" + std::to_string(l.t.wg_m) + " -DWG_N=" + std::to_string(l.t.wg_n) +
-                                 " -cl-intel-256-GRF-per-thread" + epi_opts();
-        const auto prog = _programs->get_program(*_engine, kTernoclInt8Source, opts);
-        l.quant = make_kernel(*_engine, prog, "quant_a");
-        l.gemm = make_kernel(*_engine, prog, "int2_int8_gemm_mt");
-        GPU_DEBUG_TRACE_DETAIL << "[ternocl-int2] K=" << _K << " N=" << _N << " M-class " << launch_class(M) << " int8: " << opts << std::endl;
-        return l;
-    }
-
-    event::ptr execute_int8(typed_primitive_inst<fully_connected>& instance, memory::cptr in, std::vector<event::ptr> deps, size_t M) {
-        auto& network = instance.get_network();
-        auto& stream = network.get_stream();
-        auto& l = get_int8_launch(M);
-        const size_t groups = _K / kTernoclGroupSize;
-        const auto& sa = instance.get_intermediates_memories().at(_had_block != 0 ? 1 : 0);
-
-        // quant_a(A, SA, Aq, M, K): SA[g, m] = 127 / absmax of row m over group g. Aq is not written in QMODE 1.
-        kernel_arguments_desc qd;
-        qd.workGroups.global = {groups * 16, M, 1};
-        qd.workGroups.local = {16, 1, 1};
-        qd.arguments = {{argument_desc::Types::INPUT, 0},
-                        {argument_desc::Types::OUTPUT, 0},
-                        {argument_desc::Types::INPUT, 0},
-                        {argument_desc::Types::SCALAR, 0},
-                        {argument_desc::Types::SCALAR, 1}};
-        scalars_desc qs(2);
-        qs[0].t = qs[1].t = scalar_desc::Types::INT32;
-        qs[0].v.s32 = static_cast<int32_t>(M);
-        qs[1].v.s32 = static_cast<int32_t>(_K);
-        kernel_arguments_data qa;
-        qa.inputs = {in};
-        qa.outputs = {sa};
-        qa.scalars = &qs;
-        stream.set_arguments(*l.quant, qd, qa);
-        deps = {stream.enqueue_kernel(*l.quant, qd, qa, deps, false)};
-
-        // A, Aq (unused), SA, B, SB, C, Other, Bias, M, N, K
-        kernel_arguments_desc d;
-        const size_t tn = static_cast<size_t>(l.t.mt_n * l.t.wg_n), tm = static_cast<size_t>(l.t.mt_m * l.t.wg_m);
-        d.workGroups.local = {16 * static_cast<size_t>(l.t.wg_n * l.t.wg_m), 1, 1};
-        d.workGroups.global = {ceil_div(_N, tn) * d.workGroups.local[0], ceil_div(M, tm), 1};
-        d.arguments = {{argument_desc::Types::INPUT, 0},
-                       {argument_desc::Types::INPUT, 0},
-                       {argument_desc::Types::INPUT, 1},
-                       {argument_desc::Types::INPUT, 2},
-                       {argument_desc::Types::INPUT, 3},
-                       {argument_desc::Types::OUTPUT, 0},
-                       {argument_desc::Types::INPUT, 4},
-                       {argument_desc::Types::INPUT, 5},
-                       {argument_desc::Types::SCALAR, 0},
-                       {argument_desc::Types::SCALAR, 1},
-                       {argument_desc::Types::SCALAR, 2}};
-        scalars_desc sc(3);
-        for (auto& s : sc)
-            s.t = scalar_desc::Types::INT32;
-        sc[0].v.s32 = static_cast<int32_t>(M);
-        sc[1].v.s32 = static_cast<int32_t>(_N);
-        sc[2].v.s32 = static_cast<int32_t>(_K);
-        memory::cptr other = ternocl_postop_reads_other(_postop) ? instance.dep_memory_ptr(_other_dep) : in;
-        memory::cptr bias = _postop == TernoclPostop::bias ? instance.bias_memory() : in;
-        kernel_arguments_data a;
-        a.inputs = {in, sa, instance.weights_memory(), instance.dep_memory_ptr(_scale_dep), other, bias};
-        a.outputs = {instance.output_memory_ptr(0)};
-        a.scalars = &sc;
-        stream.set_arguments(*l.gemm, d, a);
-        return stream.enqueue_kernel(*l.gemm, d, a, deps, instance.is_output());
-    }
-
-    event::ptr execute_impl(const std::vector<event::ptr>& events, typed_primitive_inst<fully_connected>& instance) override {
-        auto& network = instance.get_network();
-        auto& stream = network.get_stream();
-        const auto& params = instance.get_impl_params();
-        const size_t M = ov::shape_size(params->output_layouts[0].get_shape()) / _N;
-
-        memory::cptr in = instance.input_memory_ptr(0);
+    // Runs the stages back to back and returns the last stage's event.
+    event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
+        kernel_dump_info.clear_entries();
+        if (instance.can_be_optimized())
+            return instance.get_network().get_stream().aggregate_events(events, events.size() > 1, instance.is_output());
+        update_rt_params(instance);
         std::vector<event::ptr> deps = events;
-        if (_had_block != 0) {
-            // Rotated-basis checkpoint: the GEMM consumes H_1024(s * x) / 32.
-            const auto& rotated = instance.get_intermediates_memories().at(0);
-            if (!_fwht)
-                _fwht = make_kernel(*_engine, _programs->get_program(*_engine, kTernoclFwhtSource, "-cl-std=CL3.0"), "hadamard_fwht_1024");
-            kernel_arguments_desc d;
-            d.workGroups.global = {M * (_K / 1024) * 128, 1, 1};
-            d.workGroups.local = {128, 1, 1};
-            d.arguments = {{argument_desc::Types::INPUT, 0},
-                           {argument_desc::Types::INPUT, 1},
-                           {argument_desc::Types::OUTPUT, 0},
-                           {argument_desc::Types::SCALAR, 0},
-                           {argument_desc::Types::SCALAR, 1}};
-            scalars_desc sc(2);
-            sc[0].t = sc[1].t = scalar_desc::Types::INT32;
-            sc[0].v.s32 = static_cast<int32_t>(_K);
-            sc[1].v.s32 = _had_signs ? 1 : 0;
-            kernel_arguments_data a;
-            a.inputs = {in, _had_signs ? memory::cptr(_had_signs) : in};
-            a.outputs = {rotated};
-            a.scalars = &sc;
-            stream.set_arguments(*_fwht, d, a);
-            deps = {stream.enqueue_kernel(*_fwht, d, a, deps, false)};
-            in = rotated;
+        if (has_stage(fwht) && !_had_signs) {
+            // Not uploaded at impl creation: impls are created in parallel, and the service stream
+            // is not thread-safe on Level Zero.
+            const auto& signs = instance.get_impl_params()->typed_desc<fully_connected>()->hadamard_signs;
+            if (!signs.empty()) {
+                OPENVINO_ASSERT(signs.size() == fc_shape(*instance.get_impl_params()).K, "[GPU] ternocl int2: hadamard signs length mismatch");
+                _had_signs = instance.get_network().get_engine().allocate_memory(
+                    layout{ov::PartialShape{static_cast<int64_t>(signs.size())}, data_types::i8, format::bfyx},
+                    allocation_type::usm_device,
+                    false);
+                deps.push_back(_had_signs->copy_from(instance.get_network().get_stream(), signs.data(), false));
+                for (auto& stage : _stages)
+                    stage->kd.need_args_update = true;
+            }
         }
-
-        if (M > 8 && _int8_prefill)
-            return execute_int8(instance, in, deps, M);
-
-        auto& l = get_launch(M);
-        kernel_arguments_desc d;
-        if (M <= 8) {
-            const size_t sgm = M == 1 ? 1 : (M == 2 ? 2 : (M <= 4 ? 4 : 8));
-            const size_t wgn = static_cast<size_t>(l.g.wgn);
-            d.workGroups.local = {wgn * static_cast<size_t>(l.g.ls), 1, 1};
-            d.workGroups.global = {ceil_div(_N, wgn) * d.workGroups.local[0], ceil_div(M, sgm), 1};
-        } else {
-            const size_t tn = static_cast<size_t>(l.t.mt_n * l.t.wg_n), tm = static_cast<size_t>(l.t.mt_m * l.t.wg_m);
-            d.workGroups.local = {16 * static_cast<size_t>(l.t.wg_n * l.t.wg_m), 1, 1};
-            d.workGroups.global = {ceil_div(_N, tn) * d.workGroups.local[0], ceil_div(M, tm), 1};
+        event::ptr ev;
+        for (const auto i : get_stages_execution_order(*instance.get_impl_params())) {
+            ev = execute_stage(deps, instance, *_stages[i]);
+            deps = {ev};
         }
-        // A, B, S, C, Other, Bias, M, N, K
-        d.arguments = {{argument_desc::Types::INPUT, 0},
-                       {argument_desc::Types::INPUT, 1},
-                       {argument_desc::Types::INPUT, 2},
-                       {argument_desc::Types::OUTPUT, 0},
-                       {argument_desc::Types::INPUT, 3},
-                       {argument_desc::Types::INPUT, 4},
-                       {argument_desc::Types::SCALAR, 0},
-                       {argument_desc::Types::SCALAR, 1},
-                       {argument_desc::Types::SCALAR, 2}};
-        scalars_desc sc(3);
-        for (auto& s : sc)
-            s.t = scalar_desc::Types::INT32;
-        sc[0].v.s32 = static_cast<int32_t>(M);
-        sc[1].v.s32 = static_cast<int32_t>(_N);
-        sc[2].v.s32 = static_cast<int32_t>(_K);
-        // Unused Other / Bias slots are never read, but need a valid buffer.
-        memory::cptr other = ternocl_postop_reads_other(_postop) ? instance.dep_memory_ptr(_other_dep) : in;
-        memory::cptr bias = _postop == TernoclPostop::bias ? instance.bias_memory() : in;
-        kernel_arguments_data a;
-        a.inputs = {in, instance.weights_memory(), instance.dep_memory_ptr(_scale_dep), other, bias};
-        a.outputs = {instance.output_memory_ptr(0)};
-        a.scalars = &sc;
-        stream.set_arguments(*l.k, d, a);
-        return stream.enqueue_kernel(*l.k, d, a, deps, instance.is_output());
+        return ev;
     }
 
-public:
-    static std::unique_ptr<primitive_impl> create(const fully_connected_node& arg, const kernel_impl_params& impl_params) {
-        auto& prog = arg.get_program();
-        const bool int8 = prog.get_config().get_ternocl_int2_int8_prefill();
-        const auto& desc = impl_params.typed_desc<fully_connected>();
-
-        // At build the weights input is the u2 constant; once the reorder below is folded it is the packed one.
-        const auto& wei_layout = impl_params.get_input_layout(1);
-        const auto wei_shape = wei_layout.get_shape();
-        const size_t N = wei_shape[0];
-        const size_t K = wei_shape[1];
-
-        size_t other_dep = 0;
-        const auto postop = ternocl_int2_postop(impl_params.fused_desc, desc->bias.is_valid(), &other_dep);
-        OPENVINO_ASSERT(postop.has_value(), "[GPU] ternocl int2: ", arg.id(), " has no folded epilogue for its fused chain");
-        const bool out_f32 = impl_params.output_layouts[0].data_type == data_types::f32;
+    [[nodiscard]] kernel_arguments_data get_arguments(const primitive_inst& instance) const override {
+        const auto& fc = static_cast<const fully_connected_inst&>(instance);
+        const auto& params = *instance.get_impl_params();
+        const auto ep = epilogue(params);
+        const auto in = instance.input_memory_ptr(0);
         // Dependencies are input, weights, [bias], scale, [zero point].
-        const size_t scale_dep = desc->bias.is_valid() ? 3 : 2;
+        const size_t scale_dep = params.typed_desc<fully_connected>()->bias.is_valid() ? 3 : 2;
 
-        GPU_DEBUG_TRACE << "[ternocl-int2] create " << arg.id() << " N=" << N << " K=" << K << " postop=" << static_cast<int>(*postop) << " out_f32=" << out_f32
-                        << " hadamard=" << desc->hadamard_block << " int8_prefill=" << int8 << std::endl;
+        kernel_arguments_data args;
+        // Unused Other / Bias / signs slots are never read, but need a valid buffer.
+        args.inputs = {in,
+                       fc.weights_memory(),
+                       instance.dep_memory_ptr(scale_dep),
+                       ternocl_postop_reads_other(ep.postop) ? instance.dep_memory_ptr(ep.other_dep) : in,
+                       ep.postop == TernoclPostop::bias ? fc.bias_memory() : in,
+                       _had_signs ? _had_signs : in};
+        args.outputs = {instance.output_memory_ptr(0)};
+        const auto& scratch = instance.get_intermediates_memories();
+        args.intermediates = {scratch.begin(), scratch.end()};
+        return args;
+    }
 
-        auto impl =
-            std::make_unique<fully_connected_ternocl_int2>(downcast<ocl_engine>(prog.get_engine()), *desc, N, K, *postop, other_dep, scale_dep, out_f32, int8);
-        auto packed_layout = wei_layout;
-        packed_layout.format = format::is_os_yx_isv16_ternary;
-        impl->_weights_reorder_params = std::make_shared<WeightsReorderParams>(wei_layout, packed_layout);
-        return impl;
+private:
+    // hadamard_signs as i8 [K], uploaded at the first execution.
+    memory::ptr _had_signs;
+
+    template <size_t Count>
+    std::array<Stage::Ptr, Count> make_stages(TernoclKernel kind, size_t first_class) {
+        std::array<Stage::Ptr, Count> stages;
+        for (size_t i = 0; i < Count; ++i)
+            stages[i] = make_stage<TernoclStageGenerator>(kind, first_class + i);
+        return stages;
+    }
+
+    [[nodiscard]] size_t stage_index(const Stage::Ptr& stage) const {
+        return static_cast<size_t>(std::find(_stages.begin(), _stages.end(), stage.get()) - _stages.begin());
+    }
+
+    // The int8 prefill runs when its stages are built and M > 8.
+    [[nodiscard]] bool runs_int8(size_t M) const {
+        return has_stage(quant) && (!is_dynamic() || M > 8);
     }
 };
 
@@ -619,7 +604,14 @@ std::unique_ptr<primitive_impl> TernoclInt2FCImplementationManager::create_impl(
     assert(node.is_type<fully_connected>());
     if (!validate_impl(node))
         return stock_ocl_manager(*this, get_shape_type(node)).create_impl(node, params);
-    return fully_connected_ternocl_int2::create(static_cast<const fully_connected_node&>(node), params);
+
+    const auto& desc = params.typed_desc<fully_connected>();
+    GPU_DEBUG_TRACE << "[ternocl-int2] create " << node.id() << " N=" << fc_shape(params).N << " K=" << fc_shape(params).K
+                    << " postop=" << static_cast<int>(epilogue(params).postop) << " out_f32=" << epilogue(params).out_f32
+                    << " hadamard=" << desc->hadamard_block << " int8_prefill=" << node.get_program().get_config().get_ternocl_int2_int8_prefill()
+                    << (params.is_dynamic() ? " dynamic" : " static") << std::endl;
+
+    return std::make_unique<fully_connected_ternocl_int2>(node, params);
 }
 
 std::unique_ptr<primitive_impl> TernoclInt2FCImplementationManager::create_impl(const kernel_impl_params& params) const {
@@ -638,5 +630,3 @@ in_out_fmts_t TernoclInt2FCImplementationManager::query_formats(const program_no
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::fully_connected_ternocl_int2)
-
-#endif  // OV_GPU_WITH_OCL_RT
