@@ -76,6 +76,44 @@ def test_graph_preprocess_scale_vector():
     assert "Multiply" in model_operators
 
 
+def test_graph_preprocess_clamp():
+    shape = [2, 2]
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
+    model = Model(ops.relu(parameter_a), [parameter_a], "TestModel")
+
+    ppp = PrePostProcessor(model)
+    ppp.input().preprocess().clamp(-1.0, 1.0)
+    model = ppp.build()
+
+    model_operators = [op.get_type_name() for op in model.get_ordered_ops()]
+    assert "Clamp" in model_operators
+    assert model.get_output_element_type(0) == Type.f32
+
+    compiled_model = Core().compile_model(model, "CPU")
+    data = np.array([[-5.0, 0.5], [2.0, -0.25]], dtype=np.float32)
+    result = compiled_model(data)[0]
+    assert np.allclose(result, np.maximum(np.clip(data, -1.0, 1.0), 0.0))
+
+
+def test_graph_postprocess_clamp():
+    shape = [2, 2]
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
+    model = Model(ops.negative(parameter_a), [parameter_a], "TestModel")
+
+    ppp = PrePostProcessor(model)
+    ppp.output().postprocess().clamp(0.0, 3.0)
+    model = ppp.build()
+
+    model_operators = [op.get_type_name() for op in model.get_ordered_ops()]
+    assert "Clamp" in model_operators
+    assert model.get_output_element_type(0) == Type.f32
+
+    compiled_model = Core().compile_model(model, "CPU")
+    data = np.array([[-5.0, 0.5], [2.0, -0.25]], dtype=np.float32)
+    result = compiled_model(data)[0]
+    assert np.allclose(result, np.clip(-data, 0.0, 3.0))
+
+
 def test_graph_preprocess_mean_scale_convert():
     shape = [2, 2]
     param1 = ops.parameter(shape, dtype=np.int32, name="A")

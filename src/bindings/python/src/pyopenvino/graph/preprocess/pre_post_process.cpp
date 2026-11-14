@@ -92,6 +92,24 @@ static void regclass_graph_PreProcessSteps(py::module m) {
         )");
 
     steps.def(
+        "clamp",
+        [](ov::preprocess::PreProcessSteps& self, double min_value, double max_value) {
+            return &self.clamp(min_value, max_value);
+        },
+        py::arg("min_value"),
+        py::arg("max_value"),
+        R"(
+            Clamps each element of input tensor to the specified range [min_value, max_value].
+
+            :param min_value: Minimum value to clamp to.
+            :type min_value: float
+            :param max_value: Maximum value to clamp to.
+            :type max_value: float
+            :return: Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.preprocess.PreProcessSteps
+        )");
+
+    steps.def(
         "convert_element_type",
         [](ov::preprocess::PreProcessSteps& self, ov::element::Type type = {}) {
             return &self.convert_element_type(type);
@@ -236,6 +254,24 @@ static void regclass_graph_PostProcessSteps(py::module m) {
         m,
         "PostProcessSteps");
     steps.doc() = "openvino.preprocess.PostprocessSteps wraps ov::preprocess::PostProcessSteps";
+
+    steps.def(
+        "clamp",
+        [](ov::preprocess::PostProcessSteps& self, double min_value, double max_value) {
+            return &self.clamp(min_value, max_value);
+        },
+        py::arg("min_value"),
+        py::arg("max_value"),
+        R"(
+            Clamps each element of output tensor to the specified range [min_value, max_value].
+
+            :param min_value: Minimum value to clamp to.
+            :type min_value: float
+            :param max_value: Maximum value to clamp to.
+            :type max_value: float
+            :return: Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+            :rtype: openvino.preprocess.PostProcessSteps
+        )");
 
     steps.def(
         "convert_element_type",
