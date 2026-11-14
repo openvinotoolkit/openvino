@@ -1436,6 +1436,14 @@ TEST_F(OVTensorTest, bufferTensorViewsBufferAndTakesItsId) {
     hints->hint_prefetch();
 }
 
+TEST_F(OVTensorTest, itensorMemoryHintsAreNoOpByDefault) {
+    const auto tensor = ov::make_tensor(ov::element::u8, ov::Shape{4});
+    std::shared_ptr<ov::util::IMemoryHints> hints = tensor;
+
+    hints->hint_evict();
+    EXPECT_FALSE(hints->hint_prefetch().valid());
+}
+
 TEST_F(OVTensorTest, bufferTensorCopyTo) {
     auto mapping = std::make_shared<MockMappedMemory>(16);
     std::iota(reinterpret_cast<uint8_t*>(mapping->data()), reinterpret_cast<uint8_t*>(mapping->data()) + 16, 0);

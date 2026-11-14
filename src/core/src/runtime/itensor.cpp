@@ -33,6 +33,12 @@ Strides default_byte_strides(const Shape& shape, const element::Type& et) {
 
 ITensor::~ITensor() = default;
 
+void ITensor::hint_evict() noexcept {}
+
+util::PrefetchToken ITensor::hint_prefetch() noexcept {
+    return {};
+}
+
 size_t ITensor::get_size() const {
     return shape_size(get_shape());
 }
