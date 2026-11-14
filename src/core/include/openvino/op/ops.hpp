@@ -145,6 +145,7 @@
 #include "openvino/op/proposal.hpp"
 #include "openvino/op/psroi_pooling.hpp"
 #include "openvino/op/qsa_prepare.hpp"
+#include "openvino/op/random_poisson.hpp"
 #include "openvino/op/random_uniform.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/rdft.hpp"
