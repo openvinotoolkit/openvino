@@ -66,6 +66,7 @@ ov_add_test_target(
         ${TEST_COMMON_INCLUDE_DIR}
     LINK_LIBRARIES
         openvino_intel_gpu_graph
+        openvino::pugixml
         gtest
         gtest_main
         gflags
