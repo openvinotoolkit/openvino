@@ -21,7 +21,7 @@ public:
     explicit DSparkBuilder(const BuildContext& context)
         : m_metadata(context.metadata),
           m_config(resolve_decoder_parameters(context.metadata, RopeMode::Neox), context.weights->weights),
-          m_emitter(context.weights->weights, context.weights->qtypes, context.arch, context.weights->translators) {}
+          m_emitter(context.weights->weights, context.arch, context.weights->translators) {}
 
     std::shared_ptr<GgufGraph> build() override {
         using ov::element::f32;
@@ -75,8 +75,7 @@ public:
                     features.data<float>()[pos * feature_width + feature_width / 2 + i] = std::cos(angle);
                 }
             }
-            e.weights()["dspark.log_snr_features"] = features;
-            e.add_named_weight("dspark.log_snr_features");
+            e.add_generated_weight("dspark.log_snr_features", features);
             auto snr = std::string("dspark.log_snr_features");
             for (int layer = 1; layer <= 2; ++layer) {
                 const auto name = "dspark.log_snr_fc" + std::to_string(layer);

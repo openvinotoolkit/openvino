@@ -26,6 +26,12 @@ public:
                 : network(network), engine(network.get_engine()), output_allocation(output_allocation),
                     require_direct_output(require_direct_output), operation_id(operation_id) {}
 
+    template <typename T>
+    void set_values(const cldnn::memory::ptr& memory, const std::vector<T>& values) {
+        cldnn::mem_lock<T, cldnn::mem_lock_type::write> ptr(memory, network.get_stream());
+        std::copy(values.begin(), values.end(), ptr.begin());
+    }
+
     void run(const ov::Shape& input_shape,
              const ov::Shape& output_shape,
              const std::vector<float>& input_values,
@@ -35,14 +41,14 @@ public:
                bool is_remote = true) {
         SCOPED_TRACE("iteration " + std::to_string(iteration++));
            auto input = engine.allocate_memory({input_shape, cldnn::data_types::f32, cldnn::format::bfyx});
-        tests::set_values(input, input_values);
+        set_values(input, input_values);
         network.set_input_data("input", input);
 
         const auto output_layout = cldnn::layout{output_shape, cldnn::data_types::f32, cldnn::format::bfyx};
         auto destination = reuse_output ? engine.reinterpret_buffer(*last_output, output_layout)
                                         : engine.allocate_memory(output_layout, output_allocation);
         if (!reuse_output)
-            tests::set_values(destination, std::vector<float>(expected.size(), -99.f));
+            set_values(destination, std::vector<float>(expected.size(), -99.f));
         network.set_output_memory("output", destination, is_remote);
         auto outputs = network.execute();
         auto result = outputs.at("output").get_memory();
@@ -113,15 +119,15 @@ TEST_P(remote_output_lifecycle, gather) {
     auto indices = engine.allocate_memory({{6}, cldnn::data_types::i32, cldnn::format::bfyx});
     network.set_input_data("indices", indices);
     RemoteOutputLifecycle lifecycle(network, GetParam(), false);
-    tests::set_values(indices, std::vector<int32_t>{0, 1, 2, 3, 4, 5});
+    lifecycle.set_values(indices, std::vector<int32_t>{0, 1, 2, 3, 4, 5});
     lifecycle.run({1, 6}, {1, 6}, {1, 2, 3, 4, 5, 6}, {1, 2, 3, 4, 5, 6}, true);
-    tests::set_values(indices, std::vector<int32_t>{5, 4, 3, 2, 1, 0});
+    lifecycle.set_values(indices, std::vector<int32_t>{5, 4, 3, 2, 1, 0});
     lifecycle.run({1, 6}, {1, 6}, {7, 8, 9, 10, 11, 12}, {12, 11, 10, 9, 8, 7}, false);
-    tests::set_values(indices, std::vector<int32_t>{0, 1, 2, 3, 4, 5});
+    lifecycle.set_values(indices, std::vector<int32_t>{0, 1, 2, 3, 4, 5});
     lifecycle.run({1, 6}, {1, 6}, {2, 3, 4, 5, 6, 7}, {2, 3, 4, 5, 6, 7}, true, true);
-    tests::set_values(indices, std::vector<int32_t>{5, 4, 3, 2, 1, 0});
+    lifecycle.set_values(indices, std::vector<int32_t>{5, 4, 3, 2, 1, 0});
     lifecycle.run({1, 6}, {1, 6}, {3, 4, 5, 6, 7, 8}, {8, 7, 6, 5, 4, 3}, false, true);
-    tests::set_values(indices, std::vector<int32_t>{0, 1, 2, 3, 4, 5});
+    lifecycle.set_values(indices, std::vector<int32_t>{0, 1, 2, 3, 4, 5});
     lifecycle.run({1, 6}, {1, 6}, {4, 5, 6, 7, 8, 9}, {4, 5, 6, 7, 8, 9}, true, false, false);
 }
 

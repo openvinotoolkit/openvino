@@ -16,6 +16,7 @@
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/serialize.hpp"
@@ -36,6 +37,31 @@ ov::Tensor tensor(const cnpy::NpyArray& value, ov::element::Type type = ov::elem
     ov::Tensor result(type, ov::Shape(value.shape.begin(), value.shape.end()));
     std::memcpy(result.data(), value.data<char>(), result.get_byte_size());
     return result;
+}
+
+using Frames = std::pair<ov::Tensor, ov::Tensor>;
+
+ov::Tensor packed_pixels(const std::vector<Frames>& groups, size_t patch = 16, size_t temporal = 2) {
+    OPENVINO_ASSERT(!groups.empty(), "packed_pixels requires at least one group");
+    const auto shape = groups.front().first.get_shape();
+    OPENVINO_ASSERT(shape.size() == 4 && shape[0] == 1 && shape[1] == 3, "packed_pixels requires [1,3,H,W] frames");
+    const auto height = shape[2], width = shape[3];
+    OPENVINO_ASSERT(height % patch == 0 && width % patch == 0, "packed_pixels requires patch-aligned frames");
+    ov::Tensor packed(ov::element::f32, {groups.size(), height / patch, width / patch, 3 * temporal * patch * patch});
+    auto* destination = packed.data<float>();
+    for (const auto& frames : groups) {
+        OPENVINO_ASSERT(frames.first.get_shape() == shape && frames.second.get_shape() == shape);
+        for (size_t row = 0; row < height / patch; ++row)
+            for (size_t col = 0; col < width / patch; ++col)
+                for (size_t channel = 0; channel < 3; ++channel)
+                    for (size_t frame_index = 0; frame_index < temporal; ++frame_index)
+                        for (size_t y = 0; y < patch; ++y)
+                            for (size_t x = 0; x < patch; ++x)
+                                *destination++ = (frame_index == 0 ? frames.first : frames.second)
+                                                     .data<const float>()[(channel * height + row * patch + y) * width +
+                                                                          col * patch + x];
+    }
+    return packed;
 }
 
 class GGUFTestLfm3Media : public ::testing::TestWithParam<std::string> {};
@@ -128,6 +154,130 @@ INSTANTIATE_TEST_SUITE_P(Components,
                              return info.param;
                          });
 
+TEST(GGUFLfm3MediaAdapter, TemporalPackedLayoutMatchesCpuOracleAcrossGroupsAndIR) {
+    const auto path = std::filesystem::path(ov_gguf_test::test_data_dir()) / "lfm3_media_vision.npz";
+    ASSERT_TRUE(std::filesystem::is_regular_file(path));
+    const auto arrays = cnpy::npz_load(path.string());
+    const std::map<std::string, cnpy::NpyArray> data(arrays.begin(), arrays.end());
+    ov_gguf_test::TemporaryGguf fixture(data.at("model"));
+    ov::frontend::gguf::FrontEnd frontend;
+    const auto native = frontend.convert(frontend.load(fixture.path));
+    EXPECT_EQ(native->get_rt_info<std::string>({"gguf_mmproj", "vision.genai_layout"}), "temporal_packed_patches");
+    EXPECT_EQ(native->get_rt_info<std::string>({"gguf_mmproj", "vision.patch_size"}), "16");
+    EXPECT_EQ(native->get_rt_info<std::string>({"gguf_mmproj", "vision.temporal_patch_size"}), "2");
+    ov::Core core;
+    const ov::AnyMap properties{{"INFERENCE_PRECISION_HINT", "f32"}, {"DYNAMIC_QUANTIZATION_GROUP_SIZE", 0}};
+    auto native_request = core.compile_model(native, "CPU", properties).create_infer_request();
+    const auto xml = fixture.path + ".xml";
+    ov::serialize(native, xml);
+    enum class Reload { None, Native, Adapted };
+    for (const auto reload : {Reload::None, Reload::Native, Reload::Adapted}) {
+        auto model = reload == Reload::Native ? core.read_model(xml) : native->clone();
+        Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
+        ASSERT_TRUE(adapter.run_on_model(model));
+        ASSERT_EQ(adapter.get_vision_models().size(), 1);
+        EXPECT_EQ(adapter.get_vision_models().at("vision_embeddings"), model);
+        if (reload == Reload::Adapted) {
+            ov::serialize(model, xml);
+            model = core.read_model(xml);
+        }
+        ASSERT_EQ(model->inputs().size(), 1);
+        EXPECT_EQ(model->input().get_any_name(), "pixel_values");
+        EXPECT_EQ(model->input().get_element_type(), ov::element::f32);
+        EXPECT_EQ(model->input().get_partial_shape(), (ov::PartialShape{-1, -1, -1, 1536}));
+        EXPECT_EQ(model->output().get_any_name(), "last_hidden_state");
+        EXPECT_EQ(model->output().get_element_type(), ov::element::f32);
+        EXPECT_EQ(model->output().get_partial_shape(), (ov::PartialShape{-1, -1, 12}));
+        auto request = core.compile_model(model, "CPU", properties).create_infer_request();
+        for (const size_t step : {0, 1, 0}) {
+            const auto key = std::to_string(step) + ".";
+            const auto first = tensor(data.at(key + "pixel_values"));
+            const auto second = tensor(data.at(key + "pixel_values_1"));
+            for (const size_t group_count : {1, 3, 1}) {
+                std::vector<Frames> groups{{first, second}, {second, first}, {first, first}};
+                groups.resize(group_count);
+                request.set_tensor("pixel_values", packed_pixels(groups));
+                request.infer();
+                const auto actual = request.get_tensor("last_hidden_state");
+                const auto& expected = data.at(key + "embeddings");
+                EXPECT_EQ(actual.get_shape(), (ov::Shape{group_count, expected.shape[1], expected.shape[2]}));
+                ov_gguf_test::expect_nmse_below(
+                    ov_gguf_test::nmse(actual.data<const float>(), expected.data<float>(), expected.num_vals),
+                    1e-5);
+                for (size_t group = 1; group < groups.size(); ++group) {
+                    native_request.set_tensor("vision.pixel_values", groups[group].first);
+                    native_request.set_tensor("vision.pixel_values_1", groups[group].second);
+                    native_request.set_tensor("vision.positions", tensor(data.at(key + "positions"), ov::element::i32));
+                    native_request.infer();
+                    const auto native_features = native_request.get_tensor("vision.embeddings");
+                    ov_gguf_test::expect_nmse_below(
+                        ov_gguf_test::nmse(actual.data<const float>() + group * expected.num_vals,
+                                           native_features.data<const float>(),
+                                           expected.num_vals),
+                        1e-5);
+                }
+            }
+        }
+    }
+    std::filesystem::remove(xml);
+    std::filesystem::remove(fixture.path + ".bin");
+}
+
+TEST(GGUFLfm3MediaAdapter, TemporalPackedLayoutRequiresMatchingFrameCount) {
+    const auto path = std::filesystem::path(ov_gguf_test::test_data_dir()) / "lfm3_media_vision.npz";
+    ASSERT_TRUE(std::filesystem::is_regular_file(path));
+    const auto arrays = cnpy::npz_load(path.string());
+    const std::map<std::string, cnpy::NpyArray> data(arrays.begin(), arrays.end());
+    ov_gguf_test::TemporaryGguf fixture(data.at("model"));
+    ov::frontend::gguf::FrontEnd frontend;
+    const auto native = frontend.convert(frontend.load(fixture.path));
+    const auto second =
+        ov::as_type_ptr<ov::op::v0::Parameter>(native->input("vision.pixel_values_1").get_node_shared_ptr());
+    auto zero = std::make_shared<ov::op::v1::Multiply>(native->input("vision.pixel_values"),
+                                                       ov::op::v0::Constant::create(ov::element::f32, {}, {0.f}));
+    second->output(0).replace(zero);
+    native->remove_parameter(second);
+    native->validate_nodes_and_infer_types();
+    ov::Core core;
+    const ov::AnyMap properties{{"INFERENCE_PRECISION_HINT", "f32"}, {"DYNAMIC_QUANTIZATION_GROUP_SIZE", 0}};
+    auto native_request = core.compile_model(native, "CPU", properties).create_infer_request();
+    for (const int64_t temporal : {1, 2}) {
+        auto model = native->clone();
+        model->set_rt_info(std::to_string(temporal), {"gguf_mmproj", "vision.temporal_patch_size"});
+        if (temporal == 2) {
+            const auto parameters = model->get_parameters();
+            const auto results = model->get_results();
+            Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
+            EXPECT_THROW(adapter.run_on_model(model), ov::Exception);
+            EXPECT_TRUE(adapter.get_vision_models().empty());
+            EXPECT_EQ(model->get_parameters(), parameters);
+            EXPECT_EQ(model->get_results(), results);
+            continue;
+        }
+        ASSERT_TRUE(Adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS).run_on_model(model));
+        ASSERT_EQ(model->inputs().size(), 1);
+        EXPECT_EQ(model->input().get_partial_shape(), (ov::PartialShape{-1, -1, -1, 768 * temporal}));
+        auto request = core.compile_model(model, "CPU", properties).create_infer_request();
+        for (const size_t step : {0, 1}) {
+            const auto key = std::to_string(step) + ".";
+            const auto first = tensor(data.at(key + "pixel_values"));
+            native_request.set_tensor("vision.pixel_values", first);
+            native_request.set_tensor("vision.positions", tensor(data.at(key + "positions"), ov::element::i32));
+            native_request.infer();
+            for (const auto& second_frame : {tensor(data.at(key + "pixel_values_1")), first}) {
+                request.set_tensor("pixel_values", packed_pixels({{first, second_frame}}, 16, temporal));
+                request.infer();
+                const auto actual = request.get_tensor("last_hidden_state");
+                const auto expected = native_request.get_tensor("vision.embeddings");
+                ASSERT_EQ(actual.get_size(), expected.get_size());
+                ov_gguf_test::expect_nmse_below(
+                    ov_gguf_test::nmse(actual.data<const float>(), expected.data<const float>(), expected.get_size()),
+                    1e-5);
+            }
+        }
+    }
+}
+
 TEST(GGUFLfm3MediaAdapter, CombinedOmniPreservesIndependentComponentsAndStates) {
     const auto path = std::filesystem::path(ov_gguf_test::test_data_dir()) / "lfm3_media_omni.npz";
     ASSERT_TRUE(std::filesystem::is_regular_file(path));
@@ -153,7 +303,11 @@ TEST(GGUFLfm3MediaAdapter, CombinedOmniPreservesIndependentComponentsAndStates) 
                                 : data.count("vision." + name) ? "vision." + name
                                                                : "audio." + name;
             ASSERT_TRUE(data.count(source)) << source;
-            request.set_tensor(name, tensor(data.at(source), input.get_element_type()));
+            request.set_tensor(name,
+                               name == "pixel_values" && outputs.count("last_hidden_state")
+                                   ? packed_pixels({{tensor(data.at("vision.pixel_values")),
+                                                     tensor(data.at("vision.pixel_values_1"))}})
+                                   : tensor(data.at(source), input.get_element_type()));
         }
         request.infer();
         for (const auto& [output, reference] : outputs) {
@@ -193,7 +347,7 @@ TEST(GGUFLfm3MediaAdapter, CombinedOmniPreservesIndependentComponentsAndStates) 
     Adapter vision_adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
     ASSERT_TRUE(vision_adapter.run_on_model(vision));
     ASSERT_EQ(vision_adapter.get_vision_models().size(), 1);
-    compare(vision, {{"image_features", "vision.embeddings"}}, 0);
+    compare(vision, {{"last_hidden_state", "vision.embeddings"}}, 0);
     auto audio = native->clone();
     ASSERT_TRUE(Adapter(Adapter::Modality::AUDIO).run_on_model(audio));
     compare(audio, {{"audio_features", "audio.embeddings"}}, 7);
@@ -240,6 +394,70 @@ TEST(GGUFLfm3MediaAdapter, BuiltinProjectorHelperBuildsLfm3Types) {
         EXPECT_EQ(model->get_ordered_ops().size(), reference->get_ordered_ops().size());
         EXPECT_EQ(model->inputs().size(), reference->inputs().size());
         EXPECT_NO_THROW(model->output(modality + ".embeddings"));
+    }
+}
+
+TEST(GGUFLfm3MediaAdapter, ProjectorCanOverrideTemporalPackedLayoutWithRecipeOrCallback) {
+    using namespace ov::frontend::gguf;
+    const auto path = std::filesystem::path(ov_gguf_test::test_data_dir()) / "lfm3_media_vision.npz";
+    ASSERT_TRUE(std::filesystem::is_regular_file(path));
+    const auto arrays = cnpy::npz_load(path.string());
+    const std::map<std::string, cnpy::NpyArray> data(arrays.begin(), arrays.end());
+    ov_gguf_test::TemporaryGguf fixture(data.at("model"));
+    for (const bool callback : {false, true}) {
+        auto definition = lfm3_replacement("vision", [callback](GgufGraphContext& graph) {
+            auto result = build_builtin_projector(graph, "vision", "lfm3vl");
+            if (!callback)
+                result.genai_layout = ProjectorLayout::Image;
+            return result;
+        });
+        definition.genai_layout = ProjectorLayout::Image;
+        if (callback) {
+            definition.genai_adapter = [](const std::shared_ptr<ov::Model>& model) {
+                return ModelAdapterResult{model, {{"vision_embeddings", model}}};
+            };
+        }
+        FrontEnd frontend;
+        frontend.add_extension(std::make_shared<ProjectorExtension>(definition, RegistrationMode::Replace));
+        auto model = frontend.convert(frontend.load(fixture.path));
+        EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.genai_layout"}),
+                  callback ? "temporal_packed_patches" : "image");
+        Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
+        ASSERT_TRUE(adapter.run_on_model(model));
+        ASSERT_EQ(model->inputs().size(), 3);
+        EXPECT_EQ(model->input("pixel_values").get_partial_shape(), (ov::PartialShape{1, 3, -1, -1}));
+        EXPECT_NO_THROW(model->input("pixel_values_1"));
+        EXPECT_NO_THROW(model->input("positions"));
+        EXPECT_EQ(model->output().get_any_name(), "image_features");
+        EXPECT_EQ(adapter.get_vision_models().at("vision_embeddings"), model);
+    }
+}
+
+TEST(GGUFLfm3MediaAdapter, TemporalPackedLayoutRejectsInvalidMetadataWithoutChangingModel) {
+    const auto path = std::filesystem::path(ov_gguf_test::test_data_dir()) / "lfm3_media_vision.npz";
+    ASSERT_TRUE(std::filesystem::is_regular_file(path));
+    const auto arrays = cnpy::npz_load(path.string());
+    const std::map<std::string, cnpy::NpyArray> data(arrays.begin(), arrays.end());
+    ov_gguf_test::TemporaryGguf fixture(data.at("model"));
+    ov::frontend::gguf::FrontEnd frontend;
+    const auto native = frontend.convert(frontend.load(fixture.path));
+    for (const auto& [key, value] :
+         std::vector<std::pair<std::string, std::string>>{{"vision.temporal_patch_size", "0"},
+                                                          {"vision.temporal_patch_size", "1"},
+                                                          {"vision.temporal_patch_size", "3"},
+                                                          {"vision.patch_size", "0"},
+                                                          {"vision.patch_size", "9223372036854775807"}}) {
+        auto model = native->clone();
+        model->set_rt_info(value, {"gguf_mmproj", key});
+        const auto inputs = model->get_parameters();
+        const auto outputs = model->get_results();
+        Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
+        EXPECT_THROW(adapter.run_on_model(model), ov::Exception);
+        EXPECT_TRUE(adapter.get_vision_models().empty());
+        EXPECT_EQ(model->get_parameters(), inputs);
+        EXPECT_EQ(model->get_results(), outputs);
+        EXPECT_NO_THROW(Adapter(Adapter::Modality::VISION).run_on_model(model));
+        EXPECT_EQ(model->output().get_any_name(), "image_features");
     }
 }
 
