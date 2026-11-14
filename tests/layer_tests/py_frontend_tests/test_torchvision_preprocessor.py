@@ -11,8 +11,9 @@ import torch
 import torch.nn.functional as f
 import torchvision.transforms as transforms
 from PIL import Image
-from openvino import Type, Core
+from openvino import Type, Core, Model
 from openvino import convert_model
+import openvino.opset11 as ops
 from openvino.preprocess.torchvision import PreprocessConverter
 from openvino.properties.hint import inference_precision
 
@@ -73,6 +74,18 @@ def _infer_pipelines_impl(test_input, preprocess_pipeline, input_channels=3):
     return torch_result, ov_result
 
 
+def _infer_output_shapes(test_input, preprocess_pipeline):
+    # Identity-like model: its output shape is exactly the preprocessed image shape,
+    # so unlike Convnet it cannot hide a one-pixel difference
+    param = ops.parameter([1, 3, -1, -1], Type.f32, name="x")
+    model = Model([ops.relu(param)], [param])
+    image = Image.fromarray(test_input, "RGB")
+    model = PreprocessConverter.from_torchvision(model=model, transform=preprocess_pipeline, input_example=image)
+    ov_result = Core().compile_model(model, "CPU")(np.expand_dims(test_input, axis=0))[0]
+    torch_shape = tuple(preprocess_pipeline(image).unsqueeze(0).shape)
+    return torch_shape, ov_result.shape
+
+
 def test_normalize():
     test_input = np.random.randint(255, size=(224, 224, 3), dtype=np.uint8)
     preprocess_pipeline = transforms.Compose(
@@ -94,6 +107,8 @@ def test_normalize():
         (224, (200, 240, 3), transforms.InterpolationMode.BILINEAR, 4e-03),
         (224, (220, 220, 3), transforms.InterpolationMode.BICUBIC, 4e-03),
         (224, (200, 240, 3), transforms.InterpolationMode.BICUBIC, 4e-03),
+        ([224], (200, 240, 3), transforms.InterpolationMode.NEAREST, 4e-05),
+        ([224], (240, 200, 3), transforms.InterpolationMode.BILINEAR, 4e-03),
         ((224, 224), (220, 220, 3), transforms.InterpolationMode.NEAREST, 4e-05),
         ((224, 224), (200, 240, 3), transforms.InterpolationMode.NEAREST, 4e-05),
         # integer scale factor -> every sampled coordinate is a rounding tie
@@ -114,6 +129,28 @@ def test_resize(target_size, current_size, interpolation, tolerance):
     )
     torch_result, ov_result = _infer_pipelines(test_input, preprocess_pipeline)
     assert np.max(np.absolute(torch_result - ov_result)) < tolerance
+
+
+@pytest.mark.skipif(
+    condition=platform.machine() in ("arm", "armv7l", "aarch64", "arm64", "ARM64"),
+    reason="Ticket: 114816",
+)
+@pytest.mark.parametrize(
+    ("target_size", "current_size"),
+    [
+        (120, (240, 320, 3)),     # control: int size, already worked
+        ([120], (240, 320, 3)),   # one-element list must behave like an int
+        ((120,), (320, 240, 3)),  # one-element tuple, portrait image
+        ([120], (240, 240, 3)),   # square image must stay square
+        (224, (112, 115, 3)),     # int(224 * 115 / 112) == 230, but int(224 * (115 / 112)) == 229
+        ([224], (115, 112, 3)),   # same rounding, list form, portrait
+    ],
+)
+def test_resize_smaller_edge_output_shape(target_size, current_size):
+    test_input = np.random.randint(255, size=current_size, dtype=np.uint8)
+    preprocess_pipeline = transforms.Compose([transforms.Resize(target_size), transforms.ToTensor()])
+    torch_shape, ov_shape = _infer_output_shapes(test_input, preprocess_pipeline)
+    assert ov_shape == torch_shape
 
 
 def test_convertimagedtype():
