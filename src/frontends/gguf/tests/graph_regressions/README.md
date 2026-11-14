@@ -205,12 +205,18 @@ and peak memory. Add scenarios only when the change signature triggers them:
 
 ### 6. Report
 
-Attach the results to the PR as JSON or a table with one row per model, device and
-scenario: model and build revisions, device, scenario, settings (precision, plugin,
-GenAI and KV options) and the four metrics, plus the grouping and representative mapping
-from steps 1-2. Preserve raw results. Structural equality, synthetic timings or unrelated
-numerical tests do not substitute for these results. Whether a regression is acceptable
-remains a reviewer decision.
+The report format is open; what matters is that reviewers can read the evidence directly
+in the PR description. A Markdown table is preferred, for example:
+
+| Model | Device | Scenario | Prefill, ms | Decode, tok/s | Compile, s | Peak memory, GB | Change |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Qwen3-0.6B Q4_0 | GPU (Arc A770) | baseline | before -> after | before -> after | before -> after | before -> after | +x% / within noise |
+
+Next to the results, state the grouping and representative mapping from steps 1-2, the
+baseline and candidate commits, the hosts and the settings used (precision, plugin,
+GenAI and KV options). Raw logs may be linked but are not required in the description.
+Structural equality, synthetic timings or unrelated numerical tests do not substitute
+for real-model results. Whether a regression is acceptable remains a reviewer decision.
 
 Adding support requires registering every relevant original-dimensional variant and format,
 recording provenance, capturing the required stages and reviewing the new references.
