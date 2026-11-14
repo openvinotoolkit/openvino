@@ -206,14 +206,13 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
 
     std::shared_ptr<::intel_npu::ICompilerAdapter> compiler;
     try {
-        compiler = npu_config->get<::intel_npu::COMPILER_TYPE>() == ov::intel_npu::CompilerType::DRIVER
-                       ? std::dynamic_pointer_cast<::intel_npu::ICompilerAdapter>(
-                             std::make_shared<::intel_npu::DriverCompilerAdapter>(zeroInitStruct))
-                       : std::dynamic_pointer_cast<::intel_npu::ICompilerAdapter>(
-                             std::make_shared<::intel_npu::PluginCompilerAdapter>(
-                                 zeroInitStruct,
-                                 std::make_shared<::intel_npu::VCLCompilerImpl>(
-                                     ::intel_npu::VCLLoader::getInstance()->sharedFunctions())));
+        if (npu_config->get<::intel_npu::COMPILER_TYPE>() == ov::intel_npu::CompilerType::DRIVER) {
+            compiler = std::make_shared<::intel_npu::DriverCompilerAdapter>(zeroInitStruct);
+        } else {
+            compiler = std::make_shared<::intel_npu::PluginCompilerAdapter>(
+                zeroInitStruct,
+                std::make_shared<::intel_npu::VCLCompilerImpl>(::intel_npu::VCLLoaderHolder().functions()));
+        }
     } catch (...) {
         GTEST_SKIP() << "Couldn't load compiler library";
     }

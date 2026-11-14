@@ -17,20 +17,21 @@ OptionSupportCache::CacheKey toCacheKey(const ov::intel_npu::CompilerType compil
 }
 }  // namespace
 
-CompilerOptionSupportHelper::CompilerOptionSupportHelper(const ov::SoPtr<IEngineBackend>& backend,
-                                                         const CompilerAdapterFactory& adapterFactory)
-    : _backend(backend),
-      _adapterFactory(adapterFactory),
-      _optionSupportCache(std::make_shared<OptionSupportCache>()) {}
-
-const std::shared_ptr<OptionSupportCache>& CompilerOptionSupportHelper::getOptionSupportCache() const {
-    return _optionSupportCache;
+CompilerOptionSupportHelper::CompilerOptionSupportHelper(
+    const std::shared_ptr<const CompilerAdapterFactory>& adapterFactory,
+    const std::shared_ptr<OptionSupportCache>& optionSupportCache)
+    : _adapterFactory(adapterFactory),
+      _optionSupportCache(optionSupportCache) {
+    OPENVINO_ASSERT(_adapterFactory != nullptr,
+                    "CompilerOptionSupportHelper requires a non-null CompilerAdapterFactory");
+    OPENVINO_ASSERT(_optionSupportCache != nullptr,
+                    "CompilerOptionSupportHelper requires a non-null OptionSupportCache");
 }
 
 bool CompilerOptionSupportHelper::isOptionSupported(ov::intel_npu::CompilerType compilerType,
                                                     const std::string& optionName,
                                                     const std::optional<std::string>& optionValue) {
-    const auto supportedCompilerTypes = _adapterFactory.getKnownCompilerTypes();
+    const auto supportedCompilerTypes = CompilerAdapterFactory::getKnownCompilerTypes();
     OPENVINO_ASSERT(std::find(supportedCompilerTypes.begin(), supportedCompilerTypes.end(), compilerType) !=
                         supportedCompilerTypes.end(),
                     "Unsupported compiler type");
@@ -48,7 +49,7 @@ bool CompilerOptionSupportHelper::isOptionSupported(ov::intel_npu::CompilerType 
     }
 
     std::unique_ptr<ICompilerAdapter> compiler;
-    compiler = _adapterFactory.getCompiler(_backend, compilerType, "", _optionSupportCache);
+    compiler = _adapterFactory->getCompiler(compilerType, "");
 
     std::once_flag* optionsLoaded = nullptr;
     {
