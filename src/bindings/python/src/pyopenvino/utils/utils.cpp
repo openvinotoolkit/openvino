@@ -336,7 +336,11 @@ static void* to_pointer(const std::string& name, py::object value) {
     if (value.is_none()) {
         return nullptr;
     }
-    OPENVINO_ASSERT(!py::isinstance<py::bool_>(value), "The value of ", name, expected_types);
+    OPENVINO_ASSERT(
+        !py::isinstance<py::bool_>(value) && !py::isinstance(value, py::module_::import("numpy").attr("bool_")),
+        "The value of ",
+        name,
+        expected_types);
     const auto index = py::reinterpret_steal<py::object>(PyNumber_Index(value.ptr()));
     if (!index) {
         PyErr_Clear();
