@@ -11,6 +11,7 @@ ov_add_test_target(
             ${CMAKE_CURRENT_SOURCE_DIR}/frontend_test_basic.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/frontend_test_mmap.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/frontend_test_with_extensions.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/if_deserialization.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/meta_data_tests.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/partial_shape_deserialization.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/pre_processing_deserialization.cpp
