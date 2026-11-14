@@ -2060,11 +2060,17 @@ void Partitioner::attention(const std::string& func_name) {
 
     // Get attention mode from NPUW_ATTN config (string type)
     const auto attn_mode = cfg.get<::intel_npu::NPUW_ATTN>();
+    const auto report_attention_mode = [&](const char* selected_mode) {
+        LOG_INFO("Attention mode: requested=" << attn_mode << ", selected=" << selected_mode << ", function="
+                                              << func_name << ", instances=" << all_functions.at(func_name).mdls.size()
+                                              << ", model=" << model->get_friendly_name());
+    };
 
     // Check if attention optimization is disabled
     if (attn_mode == "STATIC") {
         LOG_VERB("Attention optimization disabled (STATIC mode) for " << func_name << " in model "
                                                                       << model->get_friendly_name());
+        report_attention_mode("STATIC");
         return;
     }
 
@@ -2077,6 +2083,7 @@ void Partitioner::attention(const std::string& func_name) {
         f._attention = ov::npuw::function::Attention::from(f._model);
         if (f._attention) {
             LOG_VERB("Done - DYNAMIC attention");
+            report_attention_mode("DYNAMIC");
             return;
         }
         LOG_WARN("No dynamic ranges found in the ATTN block");
@@ -2088,6 +2095,7 @@ void Partitioner::attention(const std::string& func_name) {
         f._pyramid_attention = ov::npuw::function::PyramidAttention::from(f._model);
         if (f._pyramid_attention) {
             LOG_VERB("Done - PYRAMID attention");
+            report_attention_mode("PYRAMID");
             return;
         }
         LOG_WARN("No pyramid attention found in the ATTN block");
@@ -2144,10 +2152,12 @@ void Partitioner::attention(const std::string& func_name) {
             mask_kind_consistent && cfg.get<::intel_npu::NPUW_ATTN_HFA_MASK_SKIPPING>());
         if (f._host_flash_attention) {
             LOG_VERB("Done - HFA (Host Flash Attention)");
+            report_attention_mode("HFA");
             return;
         }
         LOG_WARN("No host flash attention found in the ATTN block");
     }
+    report_attention_mode("STATIC");
 }
 
 void Partitioner::optimize(const std::string& func_name) {
@@ -2877,6 +2887,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.saveTinyConstants(func_group);
                 p.saveScaleFactors(func_group);
                 p.createFunction(func_group);
+                p.attention(func_group);
                 p.decompressionCutOff(func_group);
             }
         };

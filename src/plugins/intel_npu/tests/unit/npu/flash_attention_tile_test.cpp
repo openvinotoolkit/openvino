@@ -10,10 +10,15 @@
 #include <random>
 #include <vector>
 
+#include "host_flash_attention.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/reference/scaled_dot_product_attention.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 
 using namespace ov::intel_npu::op;
 
@@ -189,7 +194,9 @@ std::vector<float> run_sdpa_reference(const ov::Tensor& query_t,
                                       const ov::Tensor& key_t,
                                       const ov::Tensor& value_t,
                                       const float* mask_data,
-                                      const ov::Shape& mask_shape) {
+                                      const ov::Shape& mask_shape,
+                                      const float* sink_data = nullptr,
+                                      const ov::Shape& sink_shape = {}) {
     auto query = tensor_to_f32(query_t);
     auto key = tensor_to_f32(key_t);
     auto value = tensor_to_f32(value_t);
@@ -205,14 +212,14 @@ std::vector<float> run_sdpa_reference(const ov::Tensor& query_t,
                                                               value.data<const float>(),
                                                               mask_data,
                                                               &scale,
-                                                              nullptr,  // no sink
+                                                              sink_data,
                                                               output.data(),
                                                               false,
                                                               query.get_shape(),
                                                               key.get_shape(),
                                                               value.get_shape(),
                                                               mask_shape,
-                                                              ov::Shape{},
+                                                              sink_shape,
                                                               output_shape);
 
     return output;
@@ -411,6 +418,173 @@ TEST_F(FlashAttentionTileTest, ThreeTiles_MatchesSDPA) {
     auto expected = run_sdpa_reference(Q, K, V, nullptr, {});
 
     compare_vectors(actual, expected, 1e-5f, "ThreeTiles_MatchesSDPA");
+}
+
+TEST_F(FlashAttentionTileTest, AttentionSinkInitialStateMatchesSDPA) {
+    auto Q = make_random_tensor(ov::element::f32, {1, 2, 2, 4}, 450);
+    auto K = make_random_tensor(ov::element::f32, {1, 2, 6, 4}, 451);
+    auto V = make_random_tensor(ov::element::f32, {1, 2, 6, 4}, 452);
+    auto sink = ov::Tensor(ov::element::f32, {1, 2, 1, 1});
+    sink.data<float>()[0] = 0.25f;
+    sink.data<float>()[1] = -0.75f;
+
+    ov::Tensor state_acc_tensor(ov::element::f32, {1, 2, 2, 4});
+    ov::Tensor state_max_tensor(ov::element::f32, {1, 2, 2, 1});
+    ov::Tensor state_sum_tensor(ov::element::f32, {1, 2, 2, 1});
+    auto state_acc = ov::get_tensor_impl(state_acc_tensor);
+    auto state_max = ov::get_tensor_impl(state_max_tensor);
+    auto state_sum = ov::get_tensor_impl(state_sum_tensor);
+
+    ov::npuw::runtime::host_flash_attention::HFARuntimeContext::initialize_state_tensors(state_acc,
+                                                                                         state_max,
+                                                                                         state_sum,
+                                                                                         ov::get_tensor_impl(sink));
+
+    EXPECT_FLOAT_EQ(state_max_tensor.data<float>()[0], 0.25f);
+    EXPECT_FLOAT_EQ(state_max_tensor.data<float>()[1], 0.25f);
+    EXPECT_FLOAT_EQ(state_max_tensor.data<float>()[2], -0.75f);
+    EXPECT_FLOAT_EQ(state_max_tensor.data<float>()[3], -0.75f);
+    for (size_t index = 0; index < state_acc_tensor.get_size(); ++index) {
+        EXPECT_FLOAT_EQ(state_acc_tensor.data<float>()[index], 0.0f);
+    }
+    for (size_t index = 0; index < state_sum_tensor.get_size(); ++index) {
+        EXPECT_FLOAT_EQ(state_sum_tensor.data<float>()[index], 1.0f);
+    }
+
+    ov::Tensor state_max_squeezed(ov::element::f32, {1, 2, 2});
+    ov::Tensor state_sum_squeezed(ov::element::f32, {1, 2, 2});
+    std::copy_n(state_max_tensor.data<const float>(), state_max_squeezed.get_size(), state_max_squeezed.data<float>());
+    std::copy_n(state_sum_tensor.data<const float>(), state_sum_squeezed.get_size(), state_sum_squeezed.data<float>());
+
+    const auto result = run_flash_attention_tile(Q,
+                                                 K,
+                                                 V,
+                                                 state_acc_tensor,
+                                                 state_max_squeezed,
+                                                 state_sum_squeezed,
+                                                 nullptr,
+                                                 {false, true});
+    const auto output = tensor_to_f32(result.output);
+    const std::vector<float> actual(output.data<const float>(), output.data<const float>() + output.get_size());
+    const auto expected = run_sdpa_reference(Q, K, V, nullptr, {}, sink.data<const float>(), sink.get_shape());
+
+    compare_vectors(actual, expected, 1e-5f, "AttentionSinkInitialStateMatchesSDPA");
+}
+
+TEST_F(FlashAttentionTileTest, AttentionSinkBroadcastMatchesReferenceWithVectorTail) {
+    const ov::Shape state_shape{2, 3, 19, 1};
+    const std::vector<ov::Shape>
+        sink_shapes{{2, 3, 1, 1}, {1, 3, 1, 1}, {2, 1, 1, 1}, {1, 1, 1, 1}, {3, 1, 1}, {1, 1, 19, 1}, {}};
+    for (const auto& state_type : {ov::element::f16, ov::element::f32}) {
+        for (const auto& sink_type : {ov::element::f16, ov::element::f32}) {
+            for (const auto& sink_shape : sink_shapes) {
+                SCOPED_TRACE(state_type.get_type_name());
+                SCOPED_TRACE(sink_type.get_type_name());
+                SCOPED_TRACE(ov::PartialShape(sink_shape));
+                auto sink = make_random_tensor(sink_type, sink_shape, 460);
+                auto acc = make_filled_tensor(state_type, {2, 3, 19, 4}, 2.0f);
+                auto sum = make_filled_tensor(state_type, state_shape, 2.0f);
+                const size_t state_size = ov::shape_size(state_shape);
+                auto guarded_max = make_filled_tensor(state_type, {state_size + 2}, -123.0f);
+                auto* max_data = static_cast<uint8_t*>(guarded_max.data()) + state_type.size();
+                ov::Tensor max(state_type, state_shape, max_data);
+                auto acc_impl = ov::get_tensor_impl(acc);
+                auto max_impl = ov::get_tensor_impl(max);
+                auto sum_impl = ov::get_tensor_impl(sum);
+                ov::npuw::runtime::host_flash_attention::HFARuntimeContext::initialize_state_tensors(
+                    acc_impl,
+                    max_impl,
+                    sum_impl,
+                    ov::get_tensor_impl(sink));
+
+                auto sink_param = std::make_shared<ov::op::v0::Parameter>(sink_type, sink_shape);
+                auto converted = std::make_shared<ov::op::v0::Convert>(sink_param, state_type);
+                auto target_shape = ov::op::v0::Constant::create(ov::element::i64,
+                                                                 ov::Shape{state_shape.size()},
+                                                                 std::vector<int64_t>{2, 3, 19, 1});
+                auto broadcast = std::make_shared<ov::op::v3::Broadcast>(converted, target_shape);
+                ov::Model reference(ov::OutputVector{broadcast}, ov::ParameterVector{sink_param});
+                ov::TensorVector expected{ov::Tensor(state_type, state_shape)};
+                ASSERT_TRUE(reference.evaluate(expected, ov::TensorVector{sink}));
+                const auto actual_float = tensor_to_f32(max);
+                const auto expected_float = tensor_to_f32(expected.front());
+                for (size_t index = 0; index < state_size; ++index) {
+                    EXPECT_FLOAT_EQ(actual_float.data<const float>()[index], expected_float.data<const float>()[index]);
+                }
+                const auto guards_float = tensor_to_f32(guarded_max);
+                EXPECT_FLOAT_EQ(guards_float.data<const float>()[0], -123.0f);
+                EXPECT_FLOAT_EQ(guards_float.data<const float>()[state_size + 1], -123.0f);
+                const auto sum_float = tensor_to_f32(sum);
+                EXPECT_FLOAT_EQ(sum_float.data<const float>()[state_size - 1], 1.0f);
+                const auto acc_float = tensor_to_f32(acc);
+                EXPECT_FLOAT_EQ(acc_float.data<const float>()[0], 0.0f);
+            }
+        }
+    }
+}
+
+TEST_F(FlashAttentionTileTest, NextStateBufferUsesFixedInitialStateWithoutSink) {
+    ov::Tensor initial_acc(ov::element::f32, {1, 2, 2, 4});
+    ov::Tensor initial_max(ov::element::f32, {1, 2, 2, 1});
+    ov::Tensor initial_sum(ov::element::f32, {1, 2, 2, 1});
+    auto initial_acc_impl = ov::get_tensor_impl(initial_acc);
+    auto initial_max_impl = ov::get_tensor_impl(initial_max);
+    auto initial_sum_impl = ov::get_tensor_impl(initial_sum);
+    ov::npuw::runtime::host_flash_attention::HFARuntimeContext::initialize_state_tensors(initial_acc_impl,
+                                                                                         initial_max_impl,
+                                                                                         initial_sum_impl);
+
+    ov::npuw::runtime::host_flash_attention::HFARuntimeContext context;
+    context.initialize_state_buffers({initial_acc_impl, initial_max_impl, initial_sum_impl},
+                                     0,
+                                     "",
+                                     [](const ov::element::Type& type, const ov::Shape& shape, const std::string&) {
+                                         return ov::get_tensor_impl(ov::Tensor(type, shape));
+                                     });
+    context.prepare_next_state_buffers();
+    context.switch_buffers();
+
+    const auto& next_state = context.get_current_state_buffers();
+    for (size_t index = 0; index < next_state.max->get_size(); ++index) {
+        EXPECT_FLOAT_EQ(next_state.max->data<const float>()[index], std::numeric_limits<float>::lowest());
+    }
+    for (size_t index = 0; index < next_state.sum->get_size(); ++index) {
+        EXPECT_FLOAT_EQ(next_state.sum->data<const float>()[index], 0.0f);
+    }
+    EXPECT_FLOAT_EQ(next_state.acc->data<const float>()[0], 0.0f);
+}
+
+TEST_F(FlashAttentionTileTest, NextStateBufferAfterSinkUsesFixedInitialState) {
+    ov::Tensor initial_acc(ov::element::f32, {1, 2, 2, 4});
+    ov::Tensor initial_max(ov::element::f32, {1, 2, 2, 1});
+    ov::Tensor initial_sum(ov::element::f32, {1, 2, 2, 1});
+    auto initial_acc_impl = ov::get_tensor_impl(initial_acc);
+    auto initial_max_impl = ov::get_tensor_impl(initial_max);
+    auto initial_sum_impl = ov::get_tensor_impl(initial_sum);
+    ov::Tensor sink(ov::element::f32, {1, 2, 1, 1});
+    ov::npuw::runtime::host_flash_attention::HFARuntimeContext::initialize_state_tensors(initial_acc_impl,
+                                                                                         initial_max_impl,
+                                                                                         initial_sum_impl,
+                                                                                         ov::get_tensor_impl(sink));
+
+    ov::npuw::runtime::host_flash_attention::HFARuntimeContext context;
+    context.initialize_state_buffers({initial_acc_impl, initial_max_impl, initial_sum_impl},
+                                     0,
+                                     "",
+                                     [](const ov::element::Type& type, const ov::Shape& shape, const std::string&) {
+                                         return ov::get_tensor_impl(ov::Tensor(type, shape));
+                                     });
+    context.prepare_next_state_buffers();
+    context.switch_buffers();
+
+    const auto& next_state = context.get_current_state_buffers();
+    for (size_t index = 0; index < next_state.max->get_size(); ++index) {
+        EXPECT_FLOAT_EQ(next_state.max->data<const float>()[index], std::numeric_limits<float>::lowest());
+    }
+    for (size_t index = 0; index < next_state.sum->get_size(); ++index) {
+        EXPECT_FLOAT_EQ(next_state.sum->data<const float>()[index], 0.0f);
+    }
+    EXPECT_FLOAT_EQ(next_state.acc->data<const float>()[0], 0.0f);
 }
 
 // ============================================================================

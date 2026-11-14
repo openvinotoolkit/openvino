@@ -56,7 +56,7 @@ const constexpr ov::npuw::s11n::IndicatorType NPUW_FLUX2_COMPILED_MODEL_INDICATO
 const constexpr ov::npuw::s11n::IndicatorType NPUW_BATCHED_COMPILED_MODEL_INDICATOR =
     {char{0x42}, char{0x41}, char{0x54}, char{0x43}, char{0x4d}, char{0x4f}};
 
-const constexpr char* NPUW_SERIALIZATION_VERSION = "0.36";
+const constexpr char* NPUW_SERIALIZATION_VERSION = "0.37";
 
 // Forward declaration
 namespace intel_npu {
@@ -288,6 +288,7 @@ void serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguousInf
 void serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguousInfo::Param& var);
 void serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionBlockInfo& var);
 std::shared_ptr<ov::npuw::compiled::PyramidAttention> make_pyramid_from_stream(Stream& stream, uint8_t tag);
+void serialize(Stream& stream, ov::npuw::compiled::HostFlashAttentionInfo::HFATileInputIndices& var);
 void serialize(Stream& stream, ov::npuw::compiled::HostFlashAttention& var);
 void serialize(Stream& stream, ov::npuw::compiled::MoEExperts& var);
 void serialize(Stream& stream, ov::npuw::compiled::MoEDownstream& var);
