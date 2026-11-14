@@ -6,6 +6,7 @@
 
 #include "itt.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/clamp.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -20,6 +21,7 @@
 #include "openvino/op/less_eq.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
 #include "openvino/op/normalize_l2.hpp"
@@ -399,6 +401,51 @@ public:
     }
 };
 
+class MarkSqrtOfReduceWithEps : public MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("MarkSqrtOfReduceWithEps");
+    MarkSqrtOfReduceWithEps() {
+        MATCHER_SCOPE(MarkSqrtOfReduceWithEps);
+
+        auto reduce = pattern::wrap_type<v1::ReduceSum, v1::ReduceMean>();
+
+        auto eps_const_pattern = pattern::wrap_type<v0::Constant>();
+        auto optional_eps_convert = pattern::optional<v0::Convert>(eps_const_pattern);
+        auto max_or_add = pattern::wrap_type<v1::Maximum, v1::Add>({reduce, optional_eps_convert});
+        auto upper_bound = pattern::wrap_type<v1::Minimum>({max_or_add, pattern::any_input()});
+
+        auto clamp = pattern::wrap_type<v0::Clamp>({reduce});
+
+        auto sqrt_input = std::make_shared<pattern::op::Or>(OutputVector{max_or_add, upper_bound, clamp});
+        auto sqrt = pattern::wrap_type<v0::Sqrt>({sqrt_input});
+
+        matcher_pass_callback callback = [=](pattern::Matcher& m) {
+            const auto& pattern_to_output = m.get_pattern_value_map();
+            const auto eps_limit = static_cast<double>(static_cast<float>(float16_min_normalized));
+
+            if (pattern_to_output.count(clamp)) {
+                const auto clamp_node = as_type_ptr<v0::Clamp>(pattern_to_output.at(clamp).get_node_shared_ptr());
+                if (!clamp_node || clamp_node->get_min() < 0.0 || clamp_node->get_min() > eps_limit)
+                    return false;
+            } else {
+                const auto eps_const =
+                    as_type_ptr<v0::Constant>(pattern_to_output.at(eps_const_pattern).get_node_shared_ptr());
+                if (!eps_const)
+                    return false;
+                for (const auto val : eps_const->cast_vector<double>())
+                    if (val < 0.0 || val > eps_limit)
+                        return false;
+            }
+
+            disable_conversion(m.get_match_root(), element::f16);
+            return true;
+        };
+
+        auto m = make_shared<pattern::Matcher>(sqrt, matcher_name);
+        register_matcher(m, callback);
+    }
+};
+
 class PropagateDownDisableSensitivityForQuantized : public MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("PropagateDownDisableSensitivityForQuantized");
@@ -468,6 +515,7 @@ bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model
     // Mark root of Division with eps pattern to keep in FP32
     REGISTER_PASS(manager, MarkFloatingPointRange)
     REGISTER_PASS(manager, MarkDivWithEps)
+    REGISTER_PASS(manager, MarkSqrtOfReduceWithEps)
     REGISTER_PASS(manager, MarkExpInReduceOpPath)
     REGISTER_PASS(manager, MarkRandomUniform)
     REGISTER_PASS(manager, PropagateDownDisableSensitivityForQuantized)
