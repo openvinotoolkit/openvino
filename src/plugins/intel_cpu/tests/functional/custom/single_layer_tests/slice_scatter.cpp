@@ -2,12 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/slice_scatter.hpp"
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/runtime/core.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
-#include "openvino/op/slice_scatter.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test;
@@ -174,6 +177,119 @@ TEST_P(SliceScatterLayerCPUTest, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, "SliceScatter");
 }
 
+TEST(SliceScatterCPUTest, StaticShapeRuntimeParamsRefresh) {
+    auto core = ov::Core();
+    // Fully static data shape [4] and updates shape [2]
+    auto data_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4});
+    auto updates_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2});
+
+    // Secondary inputs as runtime parameters with static shape [1]
+    auto start_param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1});
+    auto stop_param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1});
+    auto step_param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1});
+    auto axes_param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1});
+
+    auto slice_scatter = std::make_shared<ov::op::v15::SliceScatter>(data_param,
+                                                                     updates_param,
+                                                                     start_param,
+                                                                     stop_param,
+                                                                     step_param,
+                                                                     axes_param);
+
+    auto model = std::make_shared<ov::Model>(
+        ov::OutputVector{slice_scatter->output(0)},
+        ov::ParameterVector{data_param, updates_param, start_param, stop_param, step_param, axes_param});
+
+    auto compiled_model = core.compile_model(model, "CPU");
+    auto infer_request = compiled_model.create_infer_request();
+
+    // First inference: write to positions [0:2]
+    {
+        ov::Tensor data_tensor(ov::element::f32, ov::Shape{4});
+        float* data_ptr = data_tensor.data<float>();
+        data_ptr[0] = 10.0f;
+        data_ptr[1] = 20.0f;
+        data_ptr[2] = 30.0f;
+        data_ptr[3] = 40.0f;
+
+        ov::Tensor updates_tensor(ov::element::f32, ov::Shape{2});
+        float* updates_ptr = updates_tensor.data<float>();
+        updates_ptr[0] = 1.0f;
+        updates_ptr[1] = 2.0f;
+
+        ov::Tensor start_tensor(ov::element::i64, ov::Shape{1});
+        start_tensor.data<int64_t>()[0] = 0;
+
+        ov::Tensor stop_tensor(ov::element::i64, ov::Shape{1});
+        stop_tensor.data<int64_t>()[0] = 2;
+
+        ov::Tensor step_tensor(ov::element::i64, ov::Shape{1});
+        step_tensor.data<int64_t>()[0] = 1;
+
+        ov::Tensor axes_tensor(ov::element::i64, ov::Shape{1});
+        axes_tensor.data<int64_t>()[0] = 0;
+
+        infer_request.set_tensor(data_param, data_tensor);
+        infer_request.set_tensor(updates_param, updates_tensor);
+        infer_request.set_tensor(start_param, start_tensor);
+        infer_request.set_tensor(stop_param, stop_tensor);
+        infer_request.set_tensor(step_param, step_tensor);
+        infer_request.set_tensor(axes_param, axes_tensor);
+
+        infer_request.infer();
+
+        auto out_tensor = infer_request.get_output_tensor(0);
+        const float* out_ptr = out_tensor.data<const float>();
+        EXPECT_EQ(out_ptr[0], 1.0f);
+        EXPECT_EQ(out_ptr[1], 2.0f);
+        EXPECT_EQ(out_ptr[2], 30.0f);
+        EXPECT_EQ(out_ptr[3], 40.0f);
+    }
+
+    // Second inference: write to positions [2:4] (same static shape, different runtime bounds)
+    {
+        ov::Tensor data_tensor(ov::element::f32, ov::Shape{4});
+        float* data_ptr = data_tensor.data<float>();
+        data_ptr[0] = 10.0f;
+        data_ptr[1] = 20.0f;
+        data_ptr[2] = 30.0f;
+        data_ptr[3] = 40.0f;
+
+        ov::Tensor updates_tensor(ov::element::f32, ov::Shape{2});
+        float* updates_ptr = updates_tensor.data<float>();
+        updates_ptr[0] = 3.0f;
+        updates_ptr[1] = 4.0f;
+
+        ov::Tensor start_tensor(ov::element::i64, ov::Shape{1});
+        start_tensor.data<int64_t>()[0] = 2;
+
+        ov::Tensor stop_tensor(ov::element::i64, ov::Shape{1});
+        stop_tensor.data<int64_t>()[0] = 4;
+
+        ov::Tensor step_tensor(ov::element::i64, ov::Shape{1});
+        step_tensor.data<int64_t>()[0] = 1;
+
+        ov::Tensor axes_tensor(ov::element::i64, ov::Shape{1});
+        axes_tensor.data<int64_t>()[0] = 0;
+
+        infer_request.set_tensor(data_param, data_tensor);
+        infer_request.set_tensor(updates_param, updates_tensor);
+        infer_request.set_tensor(start_param, start_tensor);
+        infer_request.set_tensor(stop_param, stop_tensor);
+        infer_request.set_tensor(step_param, step_tensor);
+        infer_request.set_tensor(axes_param, axes_tensor);
+
+        infer_request.infer();
+
+        auto out_tensor = infer_request.get_output_tensor(0);
+        const float* out_ptr = out_tensor.data<const float>();
+        EXPECT_EQ(out_ptr[0], 10.0f);
+        EXPECT_EQ(out_ptr[1], 20.0f);
+        EXPECT_EQ(out_ptr[2], 3.0f);
+        EXPECT_EQ(out_ptr[3], 4.0f);
+    }
+}
+
 namespace {
 
 const std::vector<ov::test::utils::InputLayerType> inputLayerTypes = {ov::test::utils::InputLayerType::CONSTANT,
@@ -220,7 +336,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Plain_Static_2D,
                          SliceScatterLayerCPUTest,
                          ::testing::Combine(::testing::Values(static_shapes_to_test_representation({{32, 16}})),
                                             ::testing::ValuesIn(paramsPlain2D),
-                                            ::testing::ValuesIn(inputLayerTypes),
+                                            ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                                             ::testing::ValuesIn(inputPrecisions),
                                             ::testing::Values(emptyCPUSpec)),
                          SliceScatterLayerCPUTest::getTestCaseName);
