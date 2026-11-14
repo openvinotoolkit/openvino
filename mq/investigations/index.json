@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 448,
+  "total": 449,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -4909,6 +4909,15 @@
       "category": "Flaky Test",
       "signature_hash": "7b64fedfacbfda60",
       "pr_number": "39548"
+    },
+    {
+      "investigation_id": "2026-11-14-07-13-04-000-43500345011",
+      "run_id": "43500345011",
+      "timestamp": "2026-11-14T07:13:04Z",
+      "title": "GPU unit tests fail in a burst of 36 early-scheduled tests exiting with code 3 and no output on Windows runner",
+      "category": "Infrastructure",
+      "signature_hash": "f9292bee76d60b31",
+      "pr_number": "39011"
     }
   ]
 }
