@@ -120,6 +120,10 @@ IODescriptor createIODescriptorFromLevelZero(const uint32_t indexUsedByDriver,
                                 "from compiler has been lost.");
                     // We need to keep batch dimension dynamic
                     shapeFromIRModel.push_back(ov::Dimension(1, dynamicDim));
+                } else if (shapeFromCompiler[id] == 0) {
+                    // A dynamic dimension without an upper bound is reported with 0 in "dims".
+                    // ov::Dimension(1, 0) would be the empty interval, which no tensor shape is compatible with.
+                    shapeFromIRModel.push_back(ov::Dimension::dynamic());
                 } else {
                     shapeFromIRModel.push_back(ov::Dimension(1, shapeFromCompiler[id]));
                 }
