@@ -343,6 +343,14 @@ std::shared_ptr<ov::op::v0::Parameter> find_mask_parameter(const std::shared_ptr
 
 template <typename T>
 void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) {
+    // offset can be derived from a subtraction of two independently blob-controlled extents
+    // (e.g. a chunk size vs. the actual port size); an unchecked underflow there turns into a
+    // wild pointer below, so reject it here rather than at the subtraction site.
+    OPENVINO_ASSERT(offset <= tensor->get_size(),
+                    "fill_tensor: offset ",
+                    offset,
+                    " is out of range for a tensor of size ",
+                    tensor->get_size());
     T* tensor_data = tensor->data<T>();
     std::fill(tensor_data + offset, tensor_data + tensor->get_size(), fill_val);
 }
