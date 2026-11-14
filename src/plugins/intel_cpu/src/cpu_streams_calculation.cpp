@@ -663,6 +663,8 @@ struct StreamsInfoBuilder {
                 break;
             }
         }
+        OPENVINO_ASSERT(socket_index < proc_socket_table.size(),
+                        "Could not find current_socket_id in proc_socket_table");
         const std::vector<int>& current_socket_info = proc_socket_table[socket_index];
         n_threads_per_stream = model_prefer_threads == 0
                                    ? current_socket_info[ALL_PROC]
