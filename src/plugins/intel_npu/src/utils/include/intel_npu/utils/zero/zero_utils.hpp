@@ -136,6 +136,22 @@ static inline ov::element::Type_t toOVElementType(const ze_graph_argument_precis
     }
 }
 
+static inline ov::element::Type_t toStorageType(const ov::element::Type_t type) {
+    switch (type) {
+    // The NPU driver stores boolean tensors as u8
+    case ov::element::Type_t::boolean:
+        return ov::element::Type_t::u8;
+    default:
+        return type;
+    }
+}
+
+// True when two element types share driver storage. Equal types always share storage.
+static inline bool sameStorage(const ov::element::Type& first, const ov::element::Type& second) {
+    return toStorageType(static_cast<ov::element::Type_t>(first)) ==
+           toStorageType(static_cast<ov::element::Type_t>(second));
+}
+
 static inline std::string getLatestBuildError(ze_graph_dditable_ext_curr_t& _graph_ddi_table_ext) {
     Logger _logger("LevelZeroUtils", Logger::global().level());
     _logger.debug("getLatestBuildError start");
