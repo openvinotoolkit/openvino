@@ -10101,3 +10101,15 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_query_seqlens_sliding_window_decod
          1.051573f,  -0.464264f, -0.082366f, 0.321527f,  0.057996f,  -0.504767f, 1.920703f,  -1.825270f});
     test_case.run_with_tolerance_as_fp();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_unique) {
+    const auto model = convert_model("com.microsoft/unique.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{6}, {2.0f, 1.0f, 1.0f, 3.0f, 4.0f, 3.0f});
+    test_case.add_expected_output<float>(Shape{4}, {2.0f, 1.0f, 3.0f, 4.0f});
+    test_case.add_expected_output<int64_t>(Shape{6}, {0, 1, 1, 2, 3, 2});
+    test_case.add_expected_output<int64_t>(Shape{4}, {1, 2, 2, 1});
+
+    test_case.run();
+}
