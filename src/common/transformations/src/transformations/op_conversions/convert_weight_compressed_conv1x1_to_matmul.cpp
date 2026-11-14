@@ -15,6 +15,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -34,6 +35,30 @@
 using namespace ov::pass::pattern;
 using ov::pass::pattern::op::Or;
 
+namespace {
+
+// Multiply is commutative, and the scale of a decompression subgraph may itself be Convert(Constant). Without a type
+// restriction the matcher can bind the (small) float scale as the "compressed weights" and the real low-precision
+// weights as the "scale".
+bool is_compressed_weight_type(const ov::Output<ov::Node>& output) {
+    const auto& type = output.get_element_type();
+    return !(type.is_real() && type.bitwidth() >= 16);
+}
+
+// Shapes handled by reshape_const_to_2d below.
+bool is_squeezable_to_2d_or_3d(const ov::Shape& shape) {
+    switch (shape.size()) {
+    case 4:
+        return shape[2] == 1 && shape[3] == 1;
+    case 5:
+        return shape[3] == 1 && shape[4] == 1;
+    default:
+        return shape.size() <= 2;
+    }
+}
+
+}  // namespace
+
 ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1ToMatmul() {
     MATCHER_SCOPE(ConvertWeightCompressedConv1x1ToMatmul);
 
@@ -47,10 +72,12 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
     auto a_m = std::make_shared<ov::pass::pattern::op::Or>(
         OutputVector{transpose_activations_m, reshape_activations_m, direct_activation_m});
 
-    auto weights_const_m = wrap_type<ov::op::v0::Constant>(pattern::shape_matches("[?, ?, 1, 1]") ||
-                                                           pattern::shape_matches("[?, ?, ?, 1, 1]"));
-    auto weights_param_m = wrap_type<ov::op::v0::Parameter>(pattern::shape_matches("[?, ?, 1, 1]") ||
-                                                            pattern::shape_matches("[?, ?, ?, 1, 1]"));
+    auto weights_const_m = wrap_type<ov::op::v0::Constant>(
+        (pattern::shape_matches("[?, ?, 1, 1]") || pattern::shape_matches("[?, ?, ?, 1, 1]")) &&
+        is_compressed_weight_type);
+    auto weights_param_m = wrap_type<ov::op::v0::Parameter>(
+        (pattern::shape_matches("[?, ?, 1, 1]") || pattern::shape_matches("[?, ?, ?, 1, 1]")) &&
+        is_compressed_weight_type);
     auto weights_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{weights_const_m, weights_param_m});
     auto weight_convert_m = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({weights_m});
     auto weights_scales_m = ov::pass::pattern::any_input();
@@ -132,8 +159,27 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
         }
 
         auto weight = pattern_map.at(weights_m).get_node_shared_ptr();
-        auto scale = pattern_map.at(weights_scales_m).get_node_shared_ptr();
-        auto zp = (pattern_map.count(weights_zp_m) > 0) ? pattern_map.at(weights_zp_m).get_node_shared_ptr() : nullptr;
+        // Scale / zero point may be a constant subgraph (e.g. Convert(Constant) or one output of a Split) that has not
+        // been folded yet. Fold the matched output (not output 0 of its producer). Everything that is reshaped below
+        // must be a constant of a supported shape: bail out instead of asserting later.
+        const auto& scale = pattern_map.at(weights_scales_m);
+        const auto scale_constant = ov::util::get_constant_from_source(scale);
+        if (!scale_constant || !is_squeezable_to_2d_or_3d(scale_constant->get_shape())) {
+            return false;
+        }
+        const bool has_zp = pattern_map.count(weights_zp_m) > 0;
+        std::shared_ptr<ov::op::v0::Constant> zp_constant;
+        if (has_zp) {
+            zp_constant = ov::util::get_constant_from_source(pattern_map.at(weights_zp_m));
+            if (!zp_constant || !is_squeezable_to_2d_or_3d(zp_constant->get_shape())) {
+                return false;
+            }
+        }
+        if (const auto weight_constant = ov::as_type_ptr<ov::op::v0::Constant>(weight)) {
+            if (!is_squeezable_to_2d_or_3d(weight_constant->get_shape())) {
+                return false;
+            }
+        }
 
         // Determine activation source based on which pattern branch matched
         std::shared_ptr<Node> activation;
@@ -235,17 +281,17 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
         ov::disable_constant_folding(weight_squeezed_convert);
 
         // add reshape after scales
-        auto Reshape_scale = reshape_const_to_2d(scale);
+        auto Reshape_scale = reshape_const_to_2d(scale_constant);
         MatcherPass::register_new_node(Reshape_scale);
-        Reshape_scale->set_friendly_name(scale->get_friendly_name() + "_Reshape_scale");
-        ov::copy_runtime_info(scale, Reshape_scale);
+        Reshape_scale->set_friendly_name(scale.get_node()->get_friendly_name() + "_Reshape_scale");
+        ov::copy_runtime_info(scale.get_node_shared_ptr(), Reshape_scale);
 
         auto scaled_weight = weight_mult->clone_with_new_inputs({weight_squeezed_convert, Reshape_scale});
-        if (zp) {
+        if (has_zp) {
             // add reshape after zero points
-            auto Reshape_zp = reshape_const_to_2d(zp);
+            auto Reshape_zp = reshape_const_to_2d(zp_constant);
             MatcherPass::register_new_node(Reshape_zp);
-            Reshape_zp->set_friendly_name(zp->get_friendly_name() + "_Reshape_zp");
+            Reshape_zp->set_friendly_name(pattern_map.at(weights_zp_m).get_node()->get_friendly_name() + "_Reshape_zp");
             auto weights_zp_convert =
                 ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(weights_zp_convert_m).get_node_shared_ptr());
             auto zp_squeezed_convert = weights_zp_convert->clone_with_new_inputs({Reshape_zp});
