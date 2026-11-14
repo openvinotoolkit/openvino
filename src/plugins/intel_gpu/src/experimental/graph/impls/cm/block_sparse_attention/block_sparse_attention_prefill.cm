@@ -1,0 +1,166 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+// BlockSparseAttention prefill kernel (dense [B,L,H,D], heads-inner) -- ported from
+// aboutSHW/opencl/tests/sdpa_cm/cm_sdpa_opt_prefill.cm. Same dense [B,H,S,D]-family ABI as
+// OpenVINO's OCL sdpa_opt multi-token kernel, built on the flash-attention body shared with
+// vl_sdpa (cm_sdpa_vlen.cm) via the shared impls/cm/include/cm_sdpa_common.hpp's
+// sdpa_kernel_lsc_prefetch -- the has_attn_mask/sparse_block_size support this kernel needs was
+// merged into that shared header (backward compatible: new trailing template/function params with
+// defaults, so cm_sdpa_vlen.cm's existing call site is unaffected).
+//
+// Q_TRANSPOSE_ORDER/K_TRANSPOSE_ORDER/V_TRANSPOSE_ORDER/OUTPUT_TRANSPOSE_ORDER are always
+// TRANSPOSE_ORDER_SWAPPED for this op ([B,S,H,D], heads inner) -- BlockSparseAttention's declared
+// ABI, unlike OCL SDPA which defaults to heads-outer.
+#include "cm_sdpa_common.hpp"
+#include "block_sparse_attention/attention_layout.hpp"
+
+namespace KERNEL_NAME {
+
+#include "cm_sdpa_common.hpp"
+#include "block_sparse_attention/attention_layout.hpp"
+
+#ifndef HAS_ATTN_MASK_INPUT
+#define HAS_ATTN_MASK_INPUT 0
+#endif
+#ifndef HAS_SCALE_INPUT
+#define HAS_SCALE_INPUT 0
+#endif
+// Block-sparsity gate, mirroring pageatten/cm_pa_xe2.hpp's own SPARSE_BLOCK_SIZE convention: 1
+// (default) means "fully dense, no mask args at all" -- a no-op/bypass that leaves the non-sparse
+// ABI (and codegen) completely unchanged. Must equal block_size_q == block_size_kv (enforced by
+// BlockSparseAttentionImplementationManager::validate_impl) and be 128 or 256.
+#ifndef SPARSE_BLOCK_SIZE
+#define SPARSE_BLOCK_SIZE 1
+#endif
+
+_GENX_MAIN_ void KERNEL_NAME(
+    half* query [[type("svmptr_t")]],
+    half* key [[type("svmptr_t")]],
+    half* value [[type("svmptr_t")]],
+#if HAS_ATTN_MASK_INPUT
+    half* attn_mask [[type("svmptr_t")]],  // [1,1,q_len,kv_len], additive, pre-scale units
+#endif
+#if HAS_SCALE_INPUT
+    float scale,  // overrides CMFLA_SCALE_FACTOR when set
+#endif
+    half* output [[type("svmptr_t")]],
+    int q_len,
+    int kv_len
+#if SPARSE_BLOCK_SIZE > 1
+    // [B,Hq,num_q_blocks,num_k_blocks], row-major, 1 byte/block, 1=keep 0=skip -- BlockSparseAttention's
+    // block_mask input, laid out identically to XAttention's sparse_block_mask. Q-block index is
+    // per q-head (not shared across a GQA group) -- matches XAttention's own indexing.
+    , bool* sparse_block_mask [[type("svmptr_t")]]
+    , int num_q_blocks
+    , int num_k_blocks
+#endif
+    ) {
+    constexpr int num_heads = CMFLA_NUM_HEADS;
+    constexpr int num_kv_heads = CMFLA_NUM_KV_HEADS;
+    constexpr int head_size = CMFLA_HEAD_SIZE;
+    constexpr int group_size = num_heads / num_kv_heads;
+
+#if HAS_SCALE_INPUT
+#if CMFLA_Q_SCALED_BY_LOG2
+    float q_prescale_rt = scale * log2e;
+#else
+    float q_prescale_rt = scale;
+#endif
+#else
+    float q_prescale_rt = q_prescale;
+#endif
+
+    auto bh = cm_group_id(1);           // 0 .. batch*num_heads-1
+    auto b = bh / num_heads;
+    auto h = bh % num_heads;
+    auto hkv = h / group_size;
+
+    auto wg_id = cm_group_id(2);
+    auto wg_local_id = cm_local_id(2);
+    auto local_size = cm_local_size(2);
+    int wg_seq_len = local_size * q_step;
+    int q_start = wg_id * wg_seq_len + wg_local_id * q_step;
+
+    uint q_seq_pitch = get_seq_pitch_bytes<Q_TRANSPOSE_ORDER>(q_len, num_heads, head_size);
+    uint k_seq_pitch = get_seq_pitch_bytes<K_TRANSPOSE_ORDER>(kv_len, num_kv_heads, head_size);
+    uint v_seq_pitch = get_seq_pitch_bytes<V_TRANSPOSE_ORDER>(kv_len, num_kv_heads, head_size);
+    uint o_seq_pitch = get_seq_pitch_bytes<OUTPUT_TRANSPOSE_ORDER>(q_len, num_heads, head_size);
+
+    uint q_batch_off = (uint)b * get_batch_byte_stride(q_len, num_heads, head_size);
+    uint k_batch_off = (uint)b * get_batch_byte_stride(kv_len, num_kv_heads, head_size);
+    uint v_batch_off = (uint)b * get_batch_byte_stride(kv_len, num_kv_heads, head_size);
+    uint o_batch_off = (uint)b * get_batch_byte_stride(q_len, num_heads, head_size);
+
+    uint q_off = q_batch_off + get_head_byte_offset<Q_TRANSPOSE_ORDER>(h, q_len, head_size)
+                 + (uint)q_start * q_seq_pitch;
+    uint k_off = k_batch_off + get_head_byte_offset<K_TRANSPOSE_ORDER>(hkv, kv_len, head_size);
+    uint v_off = v_batch_off + get_head_byte_offset<V_TRANSPOSE_ORDER>(hkv, kv_len, head_size);
+    uint o_off = o_batch_off + get_head_byte_offset<OUTPUT_TRANSPOSE_ORDER>(h, q_len, head_size)
+                 + (uint)q_start * o_seq_pitch;
+
+    int q_tokens = q_len - q_start;
+    int kv_stop = kv_len;
+#if CMFLA_IS_CAUSAL
+    // Causal: this WG's query tile never needs to look past its own last token.
+    int causal_kv_stop = q_start + wg_seq_len;
+    if (causal_kv_stop < kv_stop) kv_stop = causal_kv_stop;
+#endif
+
+    if (q_tokens <= 0) return;
+
+#if HAS_ATTN_MASK_INPUT
+    // attn_mask is [1,1,q_len,kv_len] -- shared across batch/heads, row-major with kv_len
+    // contiguous, but the per-row PITCH is padded up to a multiple of 8 half-elements (16
+    // bytes): the LSC 2D block descriptor requires its pitch to be 16-byte aligned, which a
+    // raw kv_len*sizeof(half) stride isn't guaranteed to be (e.g. kv_len=100 -> 200 bytes,
+    // not a multiple of 16). The host-side buffer must be allocated with this same padded
+    // row stride (extra tail columns are never read: the descriptor's surface WIDTH bound
+    // stays the true kv_len, so only real columns are ever touched).
+    uint mask_pitch_bytes = (uint)((kv_len + 7) / 8 * 8) * sizeof(half);
+    uint mask_off = (uint)q_start * mask_pitch_bytes;
+    svmptr_t mask_ptr = reinterpret_cast<svmptr_t>((uint8_t*)attn_mask + mask_off);
+#else
+    uint mask_pitch_bytes = 0;
+    svmptr_t mask_ptr = 0;
+#endif
+
+#if SPARSE_BLOCK_SIZE > 1
+    // sparse_block_mask row for this work-item's (batch,q_head,q_block) -- q_start is always a
+    // multiple of q_step(16), which divides both allowed SPARSE_BLOCK_SIZE values (128/256), so
+    // this Q tile never straddles a block boundary.
+    svmptr_t sparse_mask_ptr = 0;
+    if (sparse_block_mask) {
+        int q_block = q_start / SPARSE_BLOCK_SIZE;
+        if (q_block < num_q_blocks) {
+            uint mask_row_off = (uint)((b * num_heads + h) * num_q_blocks + q_block) * (uint)num_k_blocks;
+            sparse_mask_ptr = reinterpret_cast<svmptr_t>((bool*)sparse_block_mask + mask_row_off);
+        }
+    }
+#else
+    svmptr_t sparse_mask_ptr = 0;
+#endif
+
+    sdpa_kernel_lsc_prefetch<(bool)CMFLA_IS_CAUSAL, num_heads, num_kv_heads, head_size, 0, 16,
+                             (bool)HAS_ATTN_MASK_INPUT, SPARSE_BLOCK_SIZE>(
+        wg_local_id,
+        q_start,
+        kv_stop,
+        q_tokens,
+        kv_stop,
+        q_seq_pitch,
+        k_seq_pitch,
+        v_seq_pitch,
+        reinterpret_cast<svmptr_t>((uint8_t*)query + q_off),
+        reinterpret_cast<svmptr_t>((uint8_t*)key + k_off),
+        reinterpret_cast<svmptr_t>((uint8_t*)value + v_off),
+        reinterpret_cast<svmptr_t>((uint8_t*)output + o_off),
+        o_seq_pitch,
+        q_prescale_rt,
+        mask_ptr,
+        mask_pitch_bytes,
+        sparse_mask_ptr);
+}
+
+}  // namespace KERNEL_NAME

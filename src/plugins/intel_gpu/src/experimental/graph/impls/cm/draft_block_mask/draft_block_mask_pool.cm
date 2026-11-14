@@ -1,0 +1,42 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+// Stage 1 of DraftBlockMask (FlashVSR's generate_draft_block_mask, wan_video_dit.py:116-153):
+// mean-pool a windowed [N, WINDOW_TOKENS, NUM_HEADS*HEAD_DIM] half tensor over the WINDOW_TOKENS
+// dim, per head -> pooled [N, NUM_HEADS, HEAD_DIM] half. Bandwidth-bound: reads the full windowed
+// Q/K, same order of bytes as the main attention op itself. The same kernel entry point is used for
+// both Q and K, bound to different input/output buffers and dispatch sizes by the host (see
+// DraftBlockMaskPoolGenerator in draft_block_mask.cpp).
+//
+// JIT constants: NUM_HEADS, HEAD_DIM, WINDOW_TOKENS
+// GWS: [N, NUM_HEADS, 1], LWS: [1,1,1].
+//
+#include <cm/cm.h>
+#include <cm/cmtl.h>
+
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#endif
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(
+    half* windowed ATTR,
+    half* pooled ATTR) {
+    constexpr uint D_full = NUM_HEADS * HEAD_DIM;
+    uint w = cm_group_id(0);
+    uint h = cm_group_id(1);
+
+    uint row_base_elems = w * (uint)WINDOW_TOKENS * D_full + h * (uint)HEAD_DIM;
+
+    vector<float, HEAD_DIM> acc = 0;
+    for (uint t = 0; t < WINDOW_TOKENS; t++) {
+        vector<half, HEAD_DIM> row;
+        row.format<int>() = cm_ptr_load<int, HEAD_DIM / 2>((int*)windowed, (row_base_elems + t * D_full) * (uint)sizeof(half));
+        vector<float, HEAD_DIM> row_f = row;
+        acc += row_f;
+    }
+    vector<half, HEAD_DIM> out = acc * (1.0f / (float)WINDOW_TOKENS);
+
+    uint out_off_elems = (w * (uint)NUM_HEADS + h) * (uint)HEAD_DIM;
+    cm_ptr_store<int, HEAD_DIM / 2>((int*)pooled, out_off_elems * (uint)sizeof(half), out.format<int>());
+}

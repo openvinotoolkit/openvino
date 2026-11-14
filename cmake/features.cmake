@@ -238,6 +238,8 @@ ov_dependent_option(ENABLE_JS "Enables JS API building" ${ENABLE_JS_DEFAULT} "NO
 
 ov_option(ENABLE_OPENVINO_DEBUG "Enable output for OPENVINO_DEBUG statements" OFF)
 
+ov_option(ENABLE_OV_EXPERIMENTAL "Enable experimental path features" OFF)
+
 ov_dependent_option(ENABLE_IO_URING "Enables io_uring feature" OFF "LINUX" OFF)
 
 ov_dependent_option (ENABLE_IPF_CLIENT_API "Enable IPF ClientApi integration for AUTO device telemetry" ON "MSVC;ENABLE_AUTO" OFF)

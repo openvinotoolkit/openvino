@@ -52,6 +52,10 @@
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 
+#if defined(OPENVINO_EXPERIMENTAL)
+#    include "experimental/hooks.hpp"
+#endif
+
 #ifdef OV_GPU_MLIR_BACKEND_LINKED
 #    include "transformations/mlir/interface/gpu_runtime.hpp"
 #endif
@@ -275,6 +279,10 @@ Plugin::Plugin() {
 #endif
     set_device_name("GPU");
     register_primitives();
+
+#if defined(OPENVINO_EXPERIMENTAL)
+    ov::intel_gpu::experimental::register_primitives();
+#endif
 
     cldnn::device_query device_query;
     m_device_map = device_query.get_available_devices();

@@ -250,6 +250,10 @@ else()
     ov_gpu_build_stack(${GPU_RT_TYPE} "" ${TARGET_NAME})
 endif()
 
+if(ENABLE_OV_EXPERIMENTAL)
+    add_subdirectory(src/experimental)
+endif()
+
 if(ENABLE_TESTS)
   add_subdirectory(tests)
 endif()

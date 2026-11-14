@@ -138,6 +138,14 @@ ov_build_target_faster(openvino_core_obj
     PCH_EXCLUDE
         "src/op/util/attr_types.cpp"
         "src/runtime/tensor.cpp")
+
+if(ENABLE_OV_EXPERIMENTAL)
+    add_subdirectory(experimental)
+else()
+    file(REMOVE "${CMAKE_BINARY_DIR}/OpenVINOExperimental.cmake")
+    file(REMOVE "${CMAKE_CURRENT_BINARY_DIR}/experimental/OpenVINOExperimental.cmake")
+endif()
+
 # -----------------------------------------------------------------------------------------------
 # Installation logic...
 # -----------------------------------------------------------------------------------------------

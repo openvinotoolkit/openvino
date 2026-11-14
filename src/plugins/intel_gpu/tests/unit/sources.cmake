@@ -580,3 +580,18 @@ set(GPU_UNIT_TESTS_SYCL_RT_SRCS
 if(OV_GPU_TESTS_RT STREQUAL "SYCL")
     list(APPEND GPU_UNIT_TESTS_SRCS ${GPU_UNIT_TESTS_SYCL_RT_SRCS})
 endif()
+
+# Experimental-path tests (BlockSparseAttention / DraftBlockMask CM kernels, graph nodes and
+# plugin ops). Only compiled when the experimental path is enabled; they exercise the experimental
+# shadow tree (experimental primitives, graph inst headers, CM impls) plus the experimental CPU
+# references in src/core/experimental/reference/include. The sources live in the experimental shadow
+# tree (src/experimental/tests/unit/) rather than tests/unit/test_cases/ so the CHECK_SOURCES_LISTED
+# completeness scan of test_cases/ is naturally satisfied when the experimental path is off.
+set(GPU_UNIT_TESTS_EXPERIMENTAL_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/../../src/experimental/tests/unit/block_sparse_attention.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/../../src/experimental/tests/unit/block_sparse_attention_plugin.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/../../src/experimental/tests/unit/draft_block_mask.cpp
+)
+if(ENABLE_OV_EXPERIMENTAL)
+    list(APPEND GPU_UNIT_TESTS_SRCS ${GPU_UNIT_TESTS_EXPERIMENTAL_SRCS})
+endif()
