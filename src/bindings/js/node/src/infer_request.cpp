@@ -14,9 +14,6 @@
 #include "node/include/node_output.hpp"
 #include "node/include/tensor.hpp"
 #include "node/include/type_validation.hpp"
-namespace {
-std::mutex infer_mutex;
-}
 
 InferRequestWrap::InferRequestWrap(const Napi::CallbackInfo& info)
     : Napi::ObjectWrap<InferRequestWrap>(info),
@@ -42,7 +39,9 @@ void InferRequestWrap::set_infer_request(const ov::InferRequest& infer_request) 
     _infer_request = infer_request;
 }
 
-Napi::Object InferRequestWrap::wrap(Napi::Env env, ov::InferRequest infer_request) {
+Napi::Object InferRequestWrap::wrap(Napi::Env env,
+                                    ov::InferRequest infer_request,
+                                    std::shared_ptr<std::mutex> infer_mutex) {
     const auto& prototype = env.GetInstanceData<AddonData>()->infer_request;
     if (!prototype) {
         OPENVINO_THROW("Invalid pointer to InferRequest prototype.");
@@ -50,6 +49,9 @@ Napi::Object InferRequestWrap::wrap(Napi::Env env, ov::InferRequest infer_reques
     auto obj = prototype.New({});
     const auto ir = Napi::ObjectWrap<InferRequestWrap>::Unwrap(obj);
     ir->set_infer_request(infer_request);
+    if (infer_mutex) {
+        ir->_infer_mutex = std::move(infer_mutex);
+    }
     return obj;
 }
 
@@ -224,7 +226,7 @@ namespace {
 void perform_inference_thread(TsfnContext* context) {
     std::exception_ptr stored_exception;
     try {
-        const std::lock_guard<std::mutex> lock(infer_mutex);
+        const std::lock_guard<std::mutex> lock(*context->_infer_mutex);
         if (const auto* positional_inputs = std::get_if<ov::TensorVector>(&context->_inputs)) {
             for (size_t i = 0; i < positional_inputs->size(); ++i) {
                 context->_ir.set_input_tensor(i, positional_inputs->at(i));
@@ -279,7 +281,7 @@ Napi::Value InferRequestWrap::infer_async(const Napi::CallbackInfo& info) {
     try {
         OPENVINO_ASSERT(info.Length() == 1, "InferAsync method takes as an argument an array or an object.");
 
-        context = new TsfnContext(env, _infer_request);
+        context = new TsfnContext(env, _infer_request, _infer_mutex);
         context->_inputs = parse_input_data(info[0]);
 
         context->tsfn = Napi::ThreadSafeFunction::New(env,
