@@ -5,15 +5,18 @@
 #include "openvino/op/log.hpp"
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/negative.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_sum.hpp"
-#include "openvino/op/sigmoid.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils.hpp"
@@ -24,13 +27,35 @@ using namespace ov::op;
 
 std::shared_ptr<ov::Node> translate_log_sigmoid_common(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
-    auto op_vector = op::translate_1to1_match_1_inputs_with_fp32_type_alignment<v0::Sigmoid>(context);
-    PYTORCH_OP_CONVERSION_CHECK(op_vector.size() == 1,
-                                "Expected exactly one element in the vector. Got: ",
-                                op_vector.size());
-    auto sigmoid = op_vector[0];
-    auto log = context.mark_node(std::make_shared<v0::Log>(sigmoid));
-    return log;
+    auto x = get_input_with_floating_type(context, 0);
+    const auto scalar = [&](double value) -> Output<Node> {
+        auto constant = context.mark_node(v0::Constant::create(element::f64, Shape{}, {value}));
+        return context.mark_node(std::make_shared<v1::ConvertLike>(constant, x));
+    };
+    // log(sigmoid(x)) = min(x, 0) - log1p(exp(-abs(x))). Computing sigmoid first loses both tails:
+    // it rounds to 0 for large negative x and to 1 for moderately large positive x.
+    auto abs_x = context.mark_node(std::make_shared<v0::Abs>(x));
+    auto neg_abs_x = context.mark_node(std::make_shared<v0::Negative>(abs_x));
+    auto z = context.mark_node(std::make_shared<v0::Exp>(neg_abs_x));
+    // For z in [0, 1], log1p(z) = 2 * (t + t^3/3 + t^5/5 + ...), t = z/(2+z) <= 1/3.
+    // This avoids cancellation in 1+z and does not depend on the accuracy of Log near 1.
+    // Eight terms bound relative truncation error below 2e-9; sixteen suffice for f64.
+    auto two = scalar(2);
+    auto denominator = context.mark_node(std::make_shared<v1::Add>(two, z));
+    auto scale = context.mark_node(std::make_shared<v1::Divide>(two, denominator));
+    auto scaled_z = context.mark_node(std::make_shared<v1::Multiply>(z, scale));
+    auto t = context.mark_node(std::make_shared<v1::Multiply>(scaled_z, scalar(0.5)));
+    auto t_squared = context.mark_node(std::make_shared<v1::Multiply>(t, t));
+    const int terms = x.get_element_type() == element::f64 ? 16 : 8;
+    Output<Node> polynomial = scalar(1.0 / (2 * terms - 1));
+    for (int i = terms - 2; i >= 0; --i) {
+        auto product = context.mark_node(std::make_shared<v1::Multiply>(t_squared, polynomial));
+        polynomial = context.mark_node(std::make_shared<v1::Add>(scalar(1.0 / (2 * i + 1)), product));
+    }
+    // Preserve 2*t separately, so dividing a subnormal value by 2 cannot erase the result.
+    auto log1p_z = context.mark_node(std::make_shared<v1::Multiply>(scaled_z, polynomial));
+    auto min_x_zero = context.mark_node(std::make_shared<v1::Minimum>(x, scalar(0)));
+    return context.mark_node(std::make_shared<v1::Subtract>(min_x_zero, log1p_z));
 };
 
 OutputVector translate_log_sigmoid(const NodeContext& context) {
