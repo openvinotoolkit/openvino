@@ -283,78 +283,64 @@ void ocl_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args
         GPU_DEBUG_TRACE_DETAIL << "Set arguments for primitive: " << args_desc.layerID << " (" << kernel.get_id() << " = " << kern.get() << ")\n";
         set_arguments_impl(kern, args_desc.arguments, args);
 
-        // new_plan.md Phase 5: chunk_base_ptrs holds USM device pointers that PagedAttentionExtension
-        // kernels dereference indirectly (loaded from a regular argument buffer, not passed as a
-        // direct kernel argument), which the driver cannot discover through normal argument analysis.
-        // Without explicitly registering them via CL_KERNEL_EXEC_INFO_USM_PTRS_INTEL, the driver lacks
-        // the page-table/dependency-tracking state for that indirect access and clFinish() faults with
-        // CL_OUT_OF_RESOURCES on the very first dispatch. The pointer set only actually changes when a
-        // chunk is appended (a growth event), so it's compared against what was last registered for
-        // this kernel and the call is skipped when unchanged -- most dispatches are steady-state.
-        // NOTE: several different kernels (kv_cache_update, pa_multi_token, pa_sdpa_opt, finalization,
-        // ...) share this primitive's layerID and each binds its own subset of PagedAttentionInputIdx
-        // as INPUT arguments, so this must match the CHUNK_BASE_PTRS input by its declared index, never
-        // by position (e.g. `.back()`) - a non-chunked dispatch's last INPUT is some unrelated tensor.
+        // The global KV chunk table (PagedAttentionExtension input 28) holds USM device pointers that the kernels
+        // dereference indirectly (loaded from a regular argument buffer, not passed as direct kernel arguments),
+        // which the driver cannot discover through normal argument analysis. They must be registered through
+        // CL_KERNEL_EXEC_INFO_USM_PTRS_INTEL, otherwise the first dispatch faults with CL_OUT_OF_RESOURCES.
+        // Only this layer's K/V chunk pointers are registered (the layer index travels as the SCALAR argument that
+        // directly follows the table INPUT argument). The set only changes when a chunk is appended or released, so
+        // it is compared against what was last registered for this kernel and the driver call is skipped otherwise.
+        // NOTE: several different kernels share the primitive's layerID and each binds its own subset of the inputs,
+        // so the table is matched by its declared input index, never by position.
         const bool is_paged_attention = args_desc.layerID.find("pagedattentionextension") != std::string::npos;
         if (is_paged_attention) {
             using InputIdx = cldnn::paged_attention::PagedAttentionInputIdx;
-            std::vector<void*> ptrs;
-            bool has_pointer_table = false;
-
             namespace kv_chunk_table = ov::intel_gpu::kv_chunk_table;
-            auto append_pointer_table = [&](size_t input_index, const char* what, bool is_chunk_table) {
-                OPENVINO_ASSERT(input_index < args.inputs.size() && args.inputs[input_index],
-                                "[GPU] ", what, " input is missing for a chunked PagedAttentionExtension dispatch");
-                const auto& table_mem = args.inputs[input_index];
-                mem_lock<int64_t, mem_lock_type::read> lock(std::const_pointer_cast<memory>(table_mem), *this);
-                if (is_chunk_table) {
-                    // Only the chunk base pointer words are USM pointers; the directory words that follow are not.
-                    OPENVINO_ASSERT(lock.size() >= kv_chunk_table::kHeaderWords, "[GPU] ", what, " is too small to hold a chunk table header");
-                    const auto header = kv_chunk_table::read_header(lock.data());
-                    OPENVINO_ASSERT(lock.size() >= kv_chunk_table::kHeaderWords + header.num_chunks, "[GPU] ", what, " chunk table is truncated");
-                    for (uint32_t i = 0; i < header.num_chunks; ++i) {
-                        ptrs.push_back(reinterpret_cast<void*>(lock[kv_chunk_table::kHeaderWords + i]));
-                    }
-                } else {
-                    for (auto value : lock) {
-                        ptrs.push_back(reinterpret_cast<void*>(value));
-                    }
-                }
-                has_pointer_table = true;
-            };
-
-            for (const auto& arg : args_desc.arguments) {
-                if (arg.t != argument_desc::Types::INPUT) {
+            const auto& arguments = args_desc.arguments;
+            for (size_t arg_pos = 0; arg_pos < arguments.size(); ++arg_pos) {
+                if (arguments[arg_pos].t != argument_desc::Types::INPUT ||
+                    arguments[arg_pos].index != static_cast<uint32_t>(InputIdx::KV_CHUNK_TABLE)) {
                     continue;
                 }
-                if (arg.index == static_cast<uint32_t>(InputIdx::CHUNK_BASE_PTRS)) {
-                    append_pointer_table(static_cast<size_t>(InputIdx::CHUNK_BASE_PTRS), "chunk_base_ptrs", false);
-                } else if (arg.index == static_cast<uint32_t>(InputIdx::KEY_CACHE) ||
-                           arg.index == static_cast<uint32_t>(InputIdx::VALUE_CACHE)) {
-                    // A real KV cache is never i64, so an i64 memory here is a chunk table.
-                    if (arg.index < args.inputs.size() && args.inputs[arg.index] &&
-                        args.inputs[arg.index]->get_layout().data_type == ov::element::i64) {
-                        append_pointer_table(arg.index, "key/value cache chunk table", true);
+                const size_t table_index = static_cast<size_t>(InputIdx::KV_CHUNK_TABLE);
+                OPENVINO_ASSERT(table_index < args.inputs.size() && args.inputs[table_index] && args.scalars != nullptr &&
+                                    arg_pos + 1 < arguments.size() && arguments[arg_pos + 1].t == argument_desc::Types::SCALAR,
+                                "[GPU] A chunked PagedAttentionExtension dispatch needs the kv_chunk_table input followed by the layer index scalar");
+                const size_t layer = args.scalars->at(arguments[arg_pos + 1].index).v.u32;
+
+                mem_lock<uint64_t, mem_lock_type::read> lock(std::const_pointer_cast<memory>(args.inputs[table_index]), *this);
+                OPENVINO_ASSERT(lock.size() * sizeof(uint64_t) >= kv_chunk_table::kHeaderSlots * sizeof(uint64_t) && kv_chunk_table::is_valid(lock.data()),
+                                "[GPU] kv_chunk_table input is not initialized (missing header)");
+                const auto header = kv_chunk_table::read_header(lock.data());
+                OPENVINO_ASSERT(layer < header.num_layers && header.live_chunks <= header.max_chunks &&
+                                    lock.size() >= kv_chunk_table::total_slots(header.num_layers, header.max_chunks, header.max_granules),
+                                "[GPU] kv_chunk_table header is inconsistent with the PagedAttentionExtension layer ", layer);
+
+                std::vector<void*> ptrs;
+                ptrs.reserve(2 * header.live_chunks);
+                const size_t base = kv_chunk_table::layer_base_slot(header, layer);
+                for (uint32_t i = 0; i < header.live_chunks; ++i) {
+                    ptrs.push_back(reinterpret_cast<void*>(lock[base + i]));
+                }
+                for (uint32_t i = 0; i < header.live_chunks; ++i) {
+                    ptrs.push_back(reinterpret_cast<void*>(lock[base + header.max_chunks + i]));
+                }
+                if (!ptrs.empty()) {
+                    auto& last_registered = _last_registered_chunk_exec_info[kern.get()];
+                    if (last_registered != ptrs) {
+                        cl_int exec_info_err = clSetKernelExecInfo(kern.get(),
+                                                                    CL_KERNEL_EXEC_INFO_USM_PTRS_INTEL,
+                                                                    ptrs.size() * sizeof(void*),
+                                                                    ptrs.data());
+                        OPENVINO_ASSERT(exec_info_err == CL_SUCCESS,
+                                        "[GPU] Failed to set USM_PTRS_INTEL exec info for ",
+                                        ptrs.size(),
+                                        " chunk pointers, error code: ",
+                                        exec_info_err);
+                        last_registered = std::move(ptrs);
                     }
                 }
-            }
-
-            if (has_pointer_table && !ptrs.empty()) {
-                // The chunk set only actually changes on a growth event (new chunk appended); on every
-                // other (steady-state) dispatch it's identical to last time, so skip the driver call.
-                auto& last_registered = _last_registered_chunk_exec_info[kern.get()];
-                if (last_registered != ptrs) {
-                    cl_int exec_info_err = clSetKernelExecInfo(kern.get(),
-                                                                CL_KERNEL_EXEC_INFO_USM_PTRS_INTEL,
-                                                                ptrs.size() * sizeof(void*),
-                                                                ptrs.data());
-                    OPENVINO_ASSERT(exec_info_err == CL_SUCCESS,
-                                    "[GPU] Failed to set USM_PTRS_INTEL exec info for ",
-                                    ptrs.size(),
-                                    " chunk pointers, error code: ",
-                                    exec_info_err);
-                    last_registered = std::move(ptrs);
-                }
+                break;
             }
         }
     } catch (cl::Error const& err) {

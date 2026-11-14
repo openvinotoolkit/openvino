@@ -72,9 +72,12 @@ std::vector<ov::element::Type> get_real_types() {
 namespace ov {
 namespace op {
 
-PagedAttentionExtension::PagedAttentionExtension(const ov::OutputVector& args, bool write_kv_cache)
+PagedAttentionExtension::PagedAttentionExtension(const ov::OutputVector& args,
+                                                 bool write_kv_cache,
+                                                 int64_t kv_cache_layer_index)
     : ov::op::Op(args),
-      m_write_kv_cache(write_kv_cache) {
+      m_write_kv_cache(write_kv_cache),
+      m_kv_cache_layer_index(kv_cache_layer_index) {
     constructor_validate_and_infer_types();
 }
 
@@ -117,7 +120,11 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 26, "qq_bias", {1}, {element::u8});
     input_check(this, 27, "qq_bias_begins", {1}, {element::i32});
     if (get_input_size() == 29) {
-        input_check(this, 28, "chunk_base_ptrs", {1}, {element::i64});
+        input_check(this, 28, "kv_chunk_table", {1}, {element::i32});
+        NODE_VALIDATION_CHECK(this,
+                              m_kv_cache_layer_index >= 0,
+                              "`kv_cache_layer_index` must be >= 0 when the `kv_chunk_table` input is present, but it is ",
+                              m_kv_cache_layer_index);
     }
 
     const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
@@ -132,11 +139,12 @@ void PagedAttentionExtension::validate_and_infer_types() {
 std::shared_ptr<ov::Node> PagedAttentionExtension::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     OV_OP_SCOPE(PagedAttentionExtension_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return std::make_shared<PagedAttentionExtension>(new_args, m_write_kv_cache);
+    return std::make_shared<PagedAttentionExtension>(new_args, m_write_kv_cache, m_kv_cache_layer_index);
 }
 
 bool PagedAttentionExtension::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("write_kv_cache", m_write_kv_cache);
+    visitor.on_attribute("kv_cache_layer_index", m_kv_cache_layer_index);
     return true;
 }
 

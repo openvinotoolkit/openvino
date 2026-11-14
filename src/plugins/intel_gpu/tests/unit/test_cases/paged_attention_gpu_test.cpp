@@ -1642,7 +1642,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_kv_cache_by_channel_large_head, kv_cache_by_chann
     paged_attention_test_params{ {{1, 10}, {1, 14}}, 2, 2, 512, 512, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 },
 }));
 
-// See new_plan.md Phase 5: exercises the new CHUNK_BASE_PTRS addressing path (both the
+// Exercises the chunked KV cache addressing through the global kv_chunk_table input (both the
 // pa_kv_cache_update write kernel and the pa_sdpa_opt read kernel) by splitting the legacy
 // key_cache/value_cache buffers into multiple independent device chunks. The CPU reference
 // computation (PagedAttentionReference) is derived purely from PagedAttentionManager's host-side
@@ -1656,7 +1656,7 @@ TEST_P(paged_attention_chunked_test, basic) {
 }
 
 namespace {
-paged_attention_test_params make_chunked_test_params(std::vector<SubsequenceDescriptor> subsequences, size_t blocks_per_chunk, bool use_tables = false) {
+paged_attention_test_params make_chunked_test_params(std::vector<SubsequenceDescriptor> subsequences, size_t blocks_per_chunk) {
     paged_attention_test_params p{};
     p.subsequences = std::move(subsequences);
     p.num_heads = 2;
@@ -1672,7 +1672,6 @@ paged_attention_test_params make_chunked_test_params(std::vector<SubsequenceDesc
     p.rotation_config = DISABLE_ROTATION;
     p.disable_flashattn_v2 = DISABLE_FA_V2;
     p.chunking_blocks_per_chunk = blocks_per_chunk;
-    p.chunking_use_tables = use_tables;
     // Peaky attention so that wrong key-chunk addressing is visible in the output (see qk_scale).
     p.qk_scale = 10.0f;
     return p;
@@ -1692,18 +1691,9 @@ INSTANTIATE_TEST_SUITE_P(
         // the write kernel's prefill full-block and partial-block branches each touch a different chunk.
         make_chunked_test_params({{20, 0}}, 1)));
 
-// Same shapes as above, but key_cache/value_cache are bound as i64 chunk pointer tables and the primitive has no
-// 29th CHUNK_BASE_PTRS input (has_chunk_tables mode).
-INSTANTIATE_TEST_SUITE_P(
-    smoke_paged_attention_chunked_tables,
-    paged_attention_chunked_test,
-    ::testing::Values(
-        make_chunked_test_params({{1, 40}}, 2, true),
-        make_chunked_test_params({{20, 0}}, 1, true)));
-
-// Negative control for the table-mode suite above: the key table has two entries swapped, so the decode kernel
+// Negative control for the suites above: the key table has two entries swapped, so the decode kernel
 // reads the wrong chunk and the output MUST deviate from the reference by more than the tolerance. This proves the
-// table-mode tests are sensitive to key addressing. Only the decode case is used: the first-token prefill never
+// chunked tests are sensitive to key addressing. Only the decode case is used: the first-token prefill never
 // reads the cache, so a corrupt table would go unnoticed there.
 class paged_attention_chunked_negative_test : public PagedAttentionTest<paged_attention_test_params> {};
 TEST_P(paged_attention_chunked_negative_test, corrupt_key_table_is_detected) {
@@ -1728,16 +1718,16 @@ TEST_P(paged_attention_chunked_negative_test, corrupt_key_table_is_detected) {
 
 namespace {
 paged_attention_test_params make_corrupt_key_table_params() {
-    auto p = make_chunked_test_params({{1, 40}}, 2, true);
+    auto p = make_chunked_test_params({{1, 40}}, 2);
     p.chunking_corrupt_key_table = true;
     return p;
 }
 
-// Table mode with explicit per-chunk block counts and a granule exponent (granule = 2^granule_shift blocks).
+// Explicit per-chunk block counts and a granule exponent (granule = 2^granule_shift blocks).
 paged_attention_test_params make_granule_test_params(std::vector<SubsequenceDescriptor> subsequences,
                                                      std::vector<size_t> chunk_blocks,
                                                      uint32_t granule_shift) {
-    auto p = make_chunked_test_params(std::move(subsequences), chunk_blocks.front(), true);
+    auto p = make_chunked_test_params(std::move(subsequences), chunk_blocks.front());
     p.chunking_chunk_blocks = std::move(chunk_blocks);
     p.chunking_granule_shift = granule_shift;
     return p;
@@ -1751,7 +1741,7 @@ paged_attention_test_params make_corrupt_directory_params() {
 }  // namespace
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_paged_attention_chunked_tables_negative,
+    smoke_paged_attention_chunked_negative,
     paged_attention_chunked_negative_test,
     ::testing::Values(make_corrupt_key_table_params(), make_corrupt_directory_params()));
 
@@ -1775,5 +1765,42 @@ INSTANTIATE_TEST_SUITE_P(
         make_granule_test_params({{1, 1000}}, {16, 32, 16}, 4),
         // Same sequence in a single 64-block chunk with granule 64 (the doc's default granule).
         make_granule_test_params({{1, 1000}}, {64}, 6)));
+
+namespace {
+paged_attention_test_params make_chunked_compressed_test_params(std::vector<SubsequenceDescriptor> subsequences,
+                                                                size_t blocks_per_chunk,
+                                                                ov::internal::CacheQuantMode quant_mode,
+                                                                ov::element::Type kv_precision) {
+    auto p = make_chunked_test_params(std::move(subsequences), blocks_per_chunk);
+    p.kv_cache_compression = true;
+    p.key_cache_quant_mode = quant_mode;
+    p.kv_cache_precision = kv_precision;
+    // The peaky softmax scale used for the f16 cases would amplify the quantization error.
+    p.qk_scale = 1.0f;
+    return p;
+}
+
+std::vector<paged_attention_test_params> make_chunked_compressed_cases() {
+    const auto by_token = ov::internal::CacheQuantMode::BY_TOKEN;
+    const auto by_channel = ov::internal::CacheQuantMode::BY_CHANNEL;
+    std::vector<paged_attention_test_params> cases;
+    for (const auto& [quant_mode, precision] : {std::pair{by_token, ov::element::i8},
+                                                std::pair{by_channel, ov::element::i8},
+                                                std::pair{by_channel, ov::element::u4}}) {
+        // Decode across a chunk boundary, prefill with a block per chunk, and a prefix-cached (mixed) prompt.
+        cases.push_back(make_chunked_compressed_test_params({{1, 40}}, 2, quant_mode, precision));
+        cases.push_back(make_chunked_compressed_test_params({{20, 0}}, 1, quant_mode, precision));
+        cases.push_back(make_chunked_compressed_test_params({{10, 30}}, 1, quant_mode, precision));
+        cases.push_back(make_chunked_compressed_test_params({{1, 40}, {1, 70}, {1, 34}}, 2, quant_mode, precision));
+    }
+    return cases;
+}
+}  // namespace
+
+// Compressed (i8/u4) KV cache with the chunk table.
+INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_chunked_compressed,
+                         paged_attention_chunked_test,
+                         ::testing::ValuesIn(make_chunked_compressed_cases()));
+
 
 

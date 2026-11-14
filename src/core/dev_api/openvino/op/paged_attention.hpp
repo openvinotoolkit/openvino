@@ -55,14 +55,18 @@ public:
     /// 25  token_type_ids                                   [B_token] or [B_token, 1], i32  optional
     /// 26  qq_bias                                          [total_bias_bytes], u8    optional
     /// 27  qq_bias_begins                                   [B_seq + 1], i32          optional
-    /// 28  chunk_base_ptrs                                  [max_chunks], i64         optional (see
-    ///     new_plan.md Phase 5: absent (28 inputs) or empty means key_cache/value_cache are single,
-    ///     contiguous allocations addressed the legacy way; when present, key_cache/value_cache are
-    ///     interpreted as a flat block-id space split across `max_chunks` equally-sized, independently
-    ///     allocated USM device chunks, and this input holds each chunk's base device pointer (as a
-    ///     bit-cast i64) so it can be plumbed to the plugin as a regular graph input rather than a
-    ///     compile-time constant.
-    explicit PagedAttentionExtension(const ov::OutputVector& args, bool write_kv_cache = true);
+    /// 28  kv_chunk_table                                   [-1], i32                 optional
+    ///     absent (28 inputs) means key_cache/value_cache are single,
+    ///     contiguous allocations. When present, the global chunk table shared by all layers describes
+    ///     the KV cache as a set of independently allocated chunks (a header, a shared granule
+    ///     directory and per-layer K/V chunk base pointers, each u64 stored as two i32). key_cache/
+    ///     value_cache then carry the dtype/block shape and are bound to the chunk-0 tensors; block ids
+    ///     are global block ids resolved through the table. `kv_cache_layer_index` selects this
+    ///     layer's pointer region and must be >= 0 when the input is present.
+    /// \param kv_cache_layer_index N of the `key_cache.N` parameter this node reads (-1 = not set).
+    explicit PagedAttentionExtension(const ov::OutputVector& args,
+                                     bool write_kv_cache = true,
+                                     int64_t kv_cache_layer_index = -1);
 
     void validate_and_infer_types() override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
@@ -75,15 +79,19 @@ public:
         return m_write_kv_cache;
     }
 
-    /// \return Whether this node was constructed with the optional 29th `chunk_base_ptrs` input (see
-    /// new_plan.md Phase 5). Never true for the 28-input legacy shape.
-    bool has_chunk_base_ptrs() const {
+    /// \return Whether this node was constructed with the optional 29th `kv_chunk_table` input.
+    bool has_kv_chunk_table() const {
         return get_input_size() == 29;
+    }
+
+    int64_t get_kv_cache_layer_index() const {
+        return m_kv_cache_layer_index;
     }
 
 protected:
     std::vector<ov::element::Type> m_output_type = {ov::element::dynamic, ov::element::dynamic, ov::element::dynamic};
     bool m_write_kv_cache = true;
+    int64_t m_kv_cache_layer_index = -1;
 };
 
 }  // namespace op

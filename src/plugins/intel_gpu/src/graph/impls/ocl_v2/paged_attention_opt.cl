@@ -95,32 +95,32 @@ inline uint FUNC(pa_bidir_group_begin)(const __global int* token_type_ids, const
 #define _VEC_ELEMENT_ACCESSOR(VECTOR_SIZE, vec, idx) CAT(_VEC_,CAT(VECTOR_SIZE,_ELEMENT_ACCESSOR))(vec, idx)
 #define GET_VECTOR_ELEMENT(vec, idx) _VEC_ELEMENT_ACCESSOR(QUERIES_PER_WI, vec, idx)
 
-#define IS_CHUNKED_KV (HAS_CHUNK_BASE_PTRS || HAS_CHUNK_TABLES)
+#define IS_CHUNKED_KV HAS_CHUNK_TABLE
 
-#if HAS_CHUNK_TABLES
-    // key_cache/value_cache arguments hold a chunk table (see kv_chunk_table.hpp); the layout dtype is i64, so the
-    // element type comes from KV_CACHE_TYPE.
-    #define PA_KEY_CACHE_TYPE KV_CACHE_TYPE
-    #define PA_VALUE_CACHE_TYPE KV_CACHE_TYPE
+// Tokens per key-cache block row: BY_CHANNEL key blocks are padded with per-channel scale/zp.
+#ifdef IS_KEY_BY_CHANNEL
+    #define PA_KEY_BLOCK_TOKENS ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE
+#else
+    #define PA_KEY_BLOCK_TOKENS PAGED_ATTENTION_BLOCK_SIZE
+#endif
 
-    // Table words: [0] granule_shift | num_chunks << 8 | generation << 32, [1] num_granules, then num_chunks chunk base
-    // pointers, then a u32 directory of (chunk_id << 20 | granule_in_chunk) per granule.
-    inline ulong FUNC(pa_resolve_chunk_block)(const __global ulong* table, uint gbid, uint* local_block) {
-        const ulong header = table[0];
-        const uint granule_shift = (uint)(header & 0xFFu);
-        const uint num_chunks = (uint)((header >> 8) & 0xFFFFFFu);
-        const __global uint* directory = (const __global uint*)(table + 2 + num_chunks);
+#define PA_KEY_CACHE_TYPE INPUT1_TYPE
+#define PA_VALUE_CACHE_TYPE INPUT2_TYPE
+
+#if HAS_CHUNK_TABLE
+    // Global KV chunk table (see kv_chunk_table.hpp), viewed as u64 slots: [0] magic, [1] L, [2] C_max, [3] live chunks,
+    // [4] granule_shift, [5] live granules, [6] D_max; the u32 granule directory starts at slot 16 and is followed by the
+    // per-layer K/V chunk base pointers. Returns the chunk base pointer of `layer` (K when is_value == 0, V otherwise)
+    // and the block index inside that chunk.
+    inline ulong FUNC(pa_resolve_chunk_block)(const __global ulong* table, uint layer, uint is_value, uint gbid, uint* local_block) {
+        const uint max_chunks = (uint)table[2];
+        const uint granule_shift = (uint)table[4];
+        const uint max_granules = (uint)table[6];
+        const __global uint* directory = (const __global uint*)(table + 16);
         const uint entry = directory[gbid >> granule_shift];
         *local_block = ((entry & 0xFFFFFu) << granule_shift) | (gbid & ((1u << granule_shift) - 1u));
-        return table[2 + (entry >> 20)];
+        return table[16 + ((max_granules + 1u) >> 1) + (ulong)layer * 2u * max_chunks + (is_value ? max_chunks : 0u) + (entry >> 20)];
     }
-#else
-    #define PA_KEY_CACHE_TYPE INPUT1_TYPE
-    #define PA_VALUE_CACHE_TYPE INPUT2_TYPE
-    #if HAS_CHUNK_BASE_PTRS
-        #define PA_KEY_CHUNK_PTR(chunk_id) ((const __global INPUT1_TYPE*)(chunk_base_ptrs[(chunk_id)]))
-        #define PA_VALUE_CHUNK_PTR(chunk_id) ((const __global INPUT2_TYPE*)(chunk_base_ptrs[num_chunks + (chunk_id)]))
-    #endif
 #endif
 
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
@@ -132,25 +132,19 @@ __attribute__((reqd_work_group_size(1, 1, V_HEAD_SIZE * SG_SCALE_FACTOR)))
 KERNEL(pa_sdpa_opt)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* query,
-#if HAS_CHUNK_TABLES
-    const __global ulong* key_cache,
-    const __global ulong* value_cache,
-#else
     const __global INPUT1_TYPE* key_cache,
     const __global INPUT2_TYPE* value_cache,
-#endif
     const __global INPUT3_TYPE* past_lens,
     const __global INPUT4_TYPE* block_indices,
     const __global INPUT5_TYPE* block_indices_begins,
 #if MULTI_TOKENS_PROCESSING
     const __global INPUT6_TYPE* subsequence_begins,
 #endif
-#if HAS_CHUNK_BASE_PTRS
-    // See new_plan.md Phase 5: `num_chunks` key chunk device pointers followed by `num_chunks` value chunk
-    // device pointers, one ulong (raw USM pointer) each. num_chunks itself is a runtime scalar (not a jit
-    // constant) because it grows across inference steps as new chunks are allocated.
-    const __global ulong* chunk_base_ptrs,
-    const uint num_chunks,
+#if HAS_CHUNK_TABLE
+    // Global KV chunk table shared by all layers (PagedAttentionExtension input 28, an i32 tensor read as u64 slots)
+    // and this layer's index. key_cache/value_cache are only the chunk-0 tensors in this mode and are not read.
+    const __global ulong* kv_chunk_table,
+    const uint kv_layer_idx,
 #endif
 #if HAS_SCALE_INPUT
     const __global SCALE_INPUT_TYPE* scale,
@@ -201,14 +195,9 @@ KERNEL(pa_sdpa_opt)(
     // max_logits: [sequences_num, HEADS_NUM, total_partitions_num]
     // tmp_out: [sequences_num, HEADS_NUM, total_partitions_num, V_HEAD_SIZE]
 
-    // See new_plan.md Phase 5: chunked KV cache is only wired for the uncompressed cache read path so far.
-#if IS_CHUNKED_KV && IS_KV_COMPRESSED
-#error "Chunked KV cache is not yet supported together with a compressed/quantized cache"
-#endif
-
     // ACTIVE_KEY_CACHE/ACTIVE_VALUE_CACHE resolve to the legacy single contiguous buffers when chunking is
     // disabled, or to a per-block chunk-resolved pointer (declared locally at each use site) when enabled.
-    // Only used by the uncompressed read sites below (guarded by !IS_KV_COMPRESSED).
+    // In both cases block offsets are relative to local_block_idx.
 #if IS_CHUNKED_KV
     #define ACTIVE_KEY_CACHE key_cache_chunk
     #define ACTIVE_VALUE_CACHE value_cache_chunk
@@ -382,19 +371,13 @@ KERNEL(pa_sdpa_opt)(
             const uint head_idx = head_num_idx / KV_HEADS_GROUP_SIZE;
             const uint block_indice = block_indices[start_block_idx + block_num * SUBGROUPS_PER_WG];
 
-#if HAS_CHUNK_TABLES
+#if HAS_CHUNK_TABLE
             // The chunk pointer is biased by the block offset in 64-bit so large chunks cannot overflow 32-bit math.
             uint table_local_block;
-            const ulong key_chunk_base = FUNC_CALL(pa_resolve_chunk_block)(key_cache, block_indice, &table_local_block);
+            const ulong key_chunk_base = FUNC_CALL(pa_resolve_chunk_block)(kv_chunk_table, kv_layer_idx, 0u, block_indice, &table_local_block);
             const __global PA_KEY_CACHE_TYPE* key_cache_chunk =
-                (const __global PA_KEY_CACHE_TYPE*)key_chunk_base + (ulong)table_local_block * (ADJUSTED_K_HEAD_SIZE * KV_HEADS_NUM * SUBGROUP_SIZE);
+                (const __global PA_KEY_CACHE_TYPE*)key_chunk_base + (ulong)table_local_block * (KV_HEADS_NUM * phys_adjusted_k_head_size * PA_KEY_BLOCK_TOKENS);
             const uint local_block_idx = 0;
-#elif IS_CHUNKED_KV
-            // See new_plan.md Phase 5: resolve the physical block id to a (chunk, local block) pair and
-            // dereference the corresponding chunk's device pointer instead of indexing a single flat buffer.
-            const uint chunk_id = block_indice / BLOCKS_PER_CHUNK;
-            const uint local_block_idx = block_indice % BLOCKS_PER_CHUNK;
-            const __global PA_KEY_CACHE_TYPE* key_cache_chunk = PA_KEY_CHUNK_PTR(chunk_id);
 #else
             const uint local_block_idx = block_indice;
 #endif
@@ -407,14 +390,14 @@ KERNEL(pa_sdpa_opt)(
     #ifdef IS_KEY_BY_CHANNEL
             const uint head_stride = phys_adjusted_k_head_size * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
             const uint block_stride = KV_HEADS_NUM * head_stride;
-            const uint key_block_offset = block_indice * block_stride + head_idx * head_stride;
+            const uint key_block_offset = local_block_idx * block_stride + head_idx * head_stride;
             const uint hidden_stride = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
     #else
-            const uint block_offset = block_indice * phys_adjusted_k_head_size * KV_HEADS_NUM * SUBGROUP_SIZE + head_idx * phys_adjusted_k_head_size * SUBGROUP_SIZE;
+            const uint block_offset = local_block_idx * phys_adjusted_k_head_size * KV_HEADS_NUM * SUBGROUP_SIZE + head_idx * phys_adjusted_k_head_size * SUBGROUP_SIZE;
             const uint key_block_offset = block_offset;
             const uint hidden_stride = SUBGROUP_SIZE;
             const uint key_comp_offset = key_block_offset + phys_k_head_size * PAGED_ATTENTION_BLOCK_SIZE;
-            INPUT0_TYPE* key_comp_ptr = key_cache + key_comp_offset;
+            INPUT0_TYPE* key_comp_ptr = ACTIVE_KEY_CACHE + key_comp_offset;
             INPUT0_TYPE comp_scale = key_comp_ptr[0 + sglid];
             INPUT0_TYPE comp_zp = key_comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + sglid];
     #endif
@@ -434,7 +417,7 @@ KERNEL(pa_sdpa_opt)(
                     // Pre-read scale/zp: lane sglid reads scale for head dim (qk_idx*16 + sglid)
                     const uint comp_head_dim = qk_idx * KEY_VEC_SIZE + sglid;
                     const uint comp_col_base = key_block_offset + comp_head_dim * hidden_stride;
-                    INPUT0_TYPE* comp_ptr = (INPUT0_TYPE*)(key_cache + comp_col_base + PACKED_K_BLOCK_SIZE);
+                    INPUT0_TYPE* comp_ptr = (INPUT0_TYPE*)(ACTIVE_KEY_CACHE + comp_col_base + PACKED_K_BLOCK_SIZE);
                     INPUT0_TYPE comp_scale = comp_ptr[0];
                     INPUT0_TYPE comp_zp = comp_ptr[1];
 
@@ -448,8 +431,8 @@ KERNEL(pa_sdpa_opt)(
 
                         const uint col_base0 = key_block_offset + head_dim0 * hidden_stride;
                         const uint col_base1 = key_block_offset + head_dim1 * hidden_stride;
-                        char packed0 = key_cache[col_base0 + sglid_byte_offset];
-                        char packed1 = key_cache[col_base1 + sglid_byte_offset];
+                        char packed0 = ACTIVE_KEY_CACHE[col_base0 + sglid_byte_offset];
+                        char packed1 = ACTIVE_KEY_CACHE[col_base1 + sglid_byte_offset];
                         char u4_val0 = is_odd_lane ? ((uchar)packed0 >> 4) : (packed0 & 0x0F);
                         char u4_val1 = is_odd_lane ? ((uchar)packed1 >> 4) : (packed1 & 0x0F);
 
@@ -494,7 +477,7 @@ KERNEL(pa_sdpa_opt)(
                 KEY_BLOCK_UNCOMPRESSED k_vals;
                 unroll_for (uint i = 0; i < KEY_VEC_SIZE / 2; i++) {
                     uint packed_h = qk_idx * (KEY_VEC_SIZE / 2) + i;
-                    INPUT1_TYPE packed_byte = key_cache[key_block_offset + packed_h * hidden_stride + sglid];
+                    INPUT1_TYPE packed_byte = ACTIVE_KEY_CACHE[key_block_offset + packed_h * hidden_stride + sglid];
                     MAKE_VECTOR_TYPE(char, U4_ELEMS_PER_BYTE) buff = unpack_to_char(*(uint4x2_t *)&packed_byte);
                     k_vals[2 * i]     = ((INPUT0_TYPE)(char)buff.s0 - comp_zp) * comp_scale;
                     k_vals[2 * i + 1] = ((INPUT0_TYPE)(char)buff.s1 - comp_zp) * comp_scale;
@@ -506,12 +489,12 @@ KERNEL(pa_sdpa_opt)(
                 // Per-channel scale/zp for i8 BY_CHANNEL: each column has PAGED_ATTENTION_BLOCK_SIZE data bytes + scale(fp16) + zp(fp16)
                 const uint comp_head_dim = qk_idx * KEY_VEC_SIZE + sglid;
                 const uint comp_col_base = key_block_offset + comp_head_dim * hidden_stride;
-                INPUT0_TYPE* comp_ptr = (INPUT0_TYPE*)(key_cache + comp_col_base + PAGED_ATTENTION_BLOCK_SIZE);
+                INPUT0_TYPE* comp_ptr = (INPUT0_TYPE*)(ACTIVE_KEY_CACHE + comp_col_base + PAGED_ATTENTION_BLOCK_SIZE);
                 INPUT0_TYPE comp_scale = comp_ptr[0];
                 INPUT0_TYPE comp_zp = comp_ptr[1];
         #endif
                 unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
-                    k_vals[i] = BLOCK_READN(INPUT1_TYPE, 1, key_cache, key_block_offset + qk_idx * hidden_stride * KEY_VEC_SIZE + i * hidden_stride);
+                    k_vals[i] = BLOCK_READN(INPUT1_TYPE, 1, ACTIVE_KEY_CACHE, key_block_offset + qk_idx * hidden_stride * KEY_VEC_SIZE + i * hidden_stride);
                 #ifdef IS_KEY_BY_CHANNEL
                     k_vals[i] = ((INPUT0_TYPE)k_vals[i] - _sub_group_shuffle(comp_zp, i)) * _sub_group_shuffle(comp_scale, i);
                 #else
@@ -833,18 +816,12 @@ KERNEL(pa_sdpa_opt)(
             const uint head_idx = head_num_idx / KV_HEADS_GROUP_SIZE;
             const uint block_indice = block_indices[start_block_idx + block_num];
 
-#if HAS_CHUNK_TABLES
+#if HAS_CHUNK_TABLE
             uint table_local_block;
-            const ulong value_chunk_base = FUNC_CALL(pa_resolve_chunk_block)(value_cache, block_indice, &table_local_block);
+            const ulong value_chunk_base = FUNC_CALL(pa_resolve_chunk_block)(kv_chunk_table, kv_layer_idx, 1u, block_indice, &table_local_block);
             const __global PA_VALUE_CACHE_TYPE* value_cache_chunk =
-                (const __global PA_VALUE_CACHE_TYPE*)value_chunk_base + (ulong)table_local_block * (KV_HEADS_NUM * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE);
+                (const __global PA_VALUE_CACHE_TYPE*)value_chunk_base + (ulong)table_local_block * (KV_HEADS_NUM * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE);
             const uint local_block_idx = 0;
-#elif IS_CHUNKED_KV
-            // See new_plan.md Phase 5: resolve the physical block id to a (chunk, local block) pair and
-            // dereference the corresponding chunk's device pointer instead of indexing a single flat buffer.
-            const uint chunk_id = block_indice / BLOCKS_PER_CHUNK;
-            const uint local_block_idx = block_indice % BLOCKS_PER_CHUNK;
-            const __global PA_VALUE_CACHE_TYPE* value_cache_chunk = PA_VALUE_CHUNK_PTR(chunk_id);
 #else
             const uint local_block_idx = block_indice;
 #endif
@@ -854,16 +831,16 @@ KERNEL(pa_sdpa_opt)(
 
 
 #if IS_KV_COMPRESSED
-            const uint packed_block_offset = block_indice * KV_HEADS_NUM * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE
+            const uint packed_block_offset = local_block_idx * KV_HEADS_NUM * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE
                                                 + head_idx * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
 #if IS_INT4_COMPRESSED
             // INT4: per-token embedded scales at end of each token's row
-            INPUT0_TYPE* my_token_comp_ptr = (INPUT0_TYPE*)(value_cache + packed_block_offset + sglid * phys_adjusted_v_head_size + phys_v_head_size);
+            INPUT0_TYPE* my_token_comp_ptr = (INPUT0_TYPE*)(ACTIVE_VALUE_CACHE + packed_block_offset + sglid * phys_adjusted_v_head_size + phys_v_head_size);
             INPUT0_TYPE comp_scale = my_token_comp_ptr[0];
             INPUT0_TYPE comp_zp = my_token_comp_ptr[1];
 #else
             const uint value_comp_offset = packed_block_offset + phys_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
-            INPUT0_TYPE* value_comp_ptr = value_cache + value_comp_offset;
+            INPUT0_TYPE* value_comp_ptr = ACTIVE_VALUE_CACHE + value_comp_offset;
             INPUT0_TYPE comp_scale = value_comp_ptr[0 + sglid];
             INPUT0_TYPE comp_zp = value_comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + sglid];
 #endif
@@ -883,7 +860,7 @@ KERNEL(pa_sdpa_opt)(
             VALUE_BLOCK_UNCOMPRESSED value_vals_lo;
             VALUE_BLOCK_UNCOMPRESSED value_vals_hi;
             unroll_for (uint i = 0; i < VALUE_VEC_SIZE; i++) {
-                INPUT2_TYPE packed_byte = BLOCK_READN(INPUT2_TYPE, 1, value_cache, packed_block_offset + i * phys_adjusted_v_head_size + packed_byte_idx);
+                INPUT2_TYPE packed_byte = BLOCK_READN(INPUT2_TYPE, 1, ACTIVE_VALUE_CACHE, packed_block_offset + i * phys_adjusted_v_head_size + packed_byte_idx);
                 MAKE_VECTOR_TYPE(char, U4_ELEMS_PER_BYTE) buff = unpack_to_char(*(uint4x2_t *)&packed_byte);
                 value_vals_lo[i] = (TO_VALUE_UNCOMPRESSED_TYPE(buff.s0) - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
                 value_vals_hi[i] = (TO_VALUE_UNCOMPRESSED_TYPE(buff.s1) - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
@@ -908,7 +885,7 @@ KERNEL(pa_sdpa_opt)(
 
             unroll_for (uint i = 0; i < VALUE_VEC_SIZE; i++) {
                 uint token_offset = packed_block_offset + i * phys_adjusted_v_head_size + packed_byte_idx;
-                char packed_val = value_cache[token_offset];
+                char packed_val = ACTIVE_VALUE_CACHE[token_offset];
                 MAKE_VECTOR_TYPE(char, U4_ELEMS_PER_BYTE) buff = unpack_to_char(*(uint4x2_t *)&packed_val);
                 v_vals_packed[i] = (nibble_sel == 0) ? buff.s0 : buff.s1;
             }
@@ -960,18 +937,12 @@ KERNEL(pa_sdpa_opt)(
             const uint last_block_idx = start_block_idx + blocks_num_per_partition;
             const uint block_indice = block_indices[last_block_idx];
 
-#if HAS_CHUNK_TABLES
+#if HAS_CHUNK_TABLE
             uint table_local_block;
-            const ulong value_chunk_base = FUNC_CALL(pa_resolve_chunk_block)(value_cache, block_indice, &table_local_block);
+            const ulong value_chunk_base = FUNC_CALL(pa_resolve_chunk_block)(kv_chunk_table, kv_layer_idx, 1u, block_indice, &table_local_block);
             const __global PA_VALUE_CACHE_TYPE* value_cache_chunk =
-                (const __global PA_VALUE_CACHE_TYPE*)value_chunk_base + (ulong)table_local_block * (KV_HEADS_NUM * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE);
+                (const __global PA_VALUE_CACHE_TYPE*)value_chunk_base + (ulong)table_local_block * (KV_HEADS_NUM * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE);
             const uint local_block_idx = 0;
-#elif IS_CHUNKED_KV
-            // See new_plan.md Phase 5: resolve the physical block id to a (chunk, local block) pair and
-            // dereference the corresponding chunk's device pointer instead of indexing a single flat buffer.
-            const uint chunk_id = block_indice / BLOCKS_PER_CHUNK;
-            const uint local_block_idx = block_indice % BLOCKS_PER_CHUNK;
-            const __global PA_VALUE_CACHE_TYPE* value_cache_chunk = PA_VALUE_CHUNK_PTR(chunk_id);
 #else
             const uint local_block_idx = block_indice;
 #endif
@@ -979,11 +950,11 @@ KERNEL(pa_sdpa_opt)(
             const uint value_offset = block_offset + head_size_idx;
 
 #ifdef USE_DUAL_NIBBLE_V_OPT
-            const uint packed_block_offset = block_indice * KV_HEADS_NUM * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE
+            const uint packed_block_offset = local_block_idx * KV_HEADS_NUM * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE
                                                 + head_idx * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
 
             // INT4: per-token embedded scales
-            INPUT0_TYPE* my_token_comp_ptr = (INPUT0_TYPE*)(value_cache + packed_block_offset + sglid * phys_adjusted_v_head_size + phys_v_head_size);
+            INPUT0_TYPE* my_token_comp_ptr = (INPUT0_TYPE*)(ACTIVE_VALUE_CACHE + packed_block_offset + sglid * phys_adjusted_v_head_size + phys_v_head_size);
             INPUT0_TYPE comp_scale = my_token_comp_ptr[0];
             INPUT0_TYPE comp_zp = my_token_comp_ptr[1];
 
@@ -993,7 +964,7 @@ KERNEL(pa_sdpa_opt)(
             }
             for (uint i = 0; i < leftovers; i++) {
                 // Dual-nibble: BLOCK_READN reads 1 packed byte per lane
-                INPUT2_TYPE packed_val = BLOCK_READN(INPUT2_TYPE, 1, value_cache, packed_block_offset + i * phys_adjusted_v_head_size + packed_byte_idx);
+                INPUT2_TYPE packed_val = BLOCK_READN(INPUT2_TYPE, 1, ACTIVE_VALUE_CACHE, packed_block_offset + i * phys_adjusted_v_head_size + packed_byte_idx);
                 MAKE_VECTOR_TYPE(char, U4_ELEMS_PER_BYTE) buff = unpack_to_char(*(uint4x2_t *)&packed_val);
                 INPUT0_TYPE val_lo = (CAT(convert_, INPUT0_TYPE)(buff.s0) - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
                 INPUT0_TYPE val_hi = (CAT(convert_, INPUT0_TYPE)(buff.s1) - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
@@ -1007,16 +978,16 @@ KERNEL(pa_sdpa_opt)(
 #else  // !USE_DUAL_NIBBLE_V_OPT
 
 #if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
-            const uint packed_block_offset = block_indice * KV_HEADS_NUM * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE
+            const uint packed_block_offset = local_block_idx * KV_HEADS_NUM * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE
                                                 + head_idx * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
 
             // INT4: per-token embedded scales
-            INPUT0_TYPE* my_token_comp_ptr = (INPUT0_TYPE*)(value_cache + packed_block_offset + sglid * phys_adjusted_v_head_size + phys_v_head_size);
+            INPUT0_TYPE* my_token_comp_ptr = (INPUT0_TYPE*)(ACTIVE_VALUE_CACHE + packed_block_offset + sglid * phys_adjusted_v_head_size + phys_v_head_size);
             INPUT0_TYPE comp_scale = my_token_comp_ptr[0];
             INPUT0_TYPE comp_zp = my_token_comp_ptr[1];
 #elif IS_KV_COMPRESSED && !IS_INT4_COMPRESSED
             const uint value_comp_offset = block_offset + V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
-            INPUT0_TYPE* value_comp_ptr = value_cache + value_comp_offset;
+            INPUT0_TYPE* value_comp_ptr = ACTIVE_VALUE_CACHE + value_comp_offset;
             INPUT0_TYPE comp_scale = value_comp_ptr[0 + sglid];
             INPUT0_TYPE comp_zp = value_comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + sglid];
 #endif
@@ -1031,7 +1002,7 @@ KERNEL(pa_sdpa_opt)(
                 const uint packed_byte_idx = head_size_idx / 2;
                 const uint nibble_sel = head_size_idx & 1;
                 uint token_offset = packed_block_offset + i * phys_adjusted_v_head_size + packed_byte_idx;
-                char packed_value = value_cache[token_offset];
+                char packed_value = ACTIVE_VALUE_CACHE[token_offset];
                 MAKE_VECTOR_TYPE(char, U4_ELEMS_PER_BYTE) buff = unpack_to_char(*(uint4x2_t *)&packed_value);
                 INPUT2_TYPE value_packed = (nibble_sel == 0) ? buff.s0 : buff.s1;
 

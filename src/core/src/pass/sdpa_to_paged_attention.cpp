@@ -63,9 +63,7 @@ ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_per_layer_block_in
                                                      bool allow_adaptive_rkv,
                                                      bool allow_qq_bias,
                                                      bool is_draft_model,
-                                                     bool allow_chunked_kv_cache,
-                                                     size_t kv_cache_blocks_per_chunk,
-                                                     bool kv_cache_chunk_tables)
+                                                     bool allow_kv_chunk_table)
     : m_options{use_per_layer_block_indices_inputs,
                 use_score_outputs,
                 allow_score_aggregation,
@@ -74,9 +72,7 @@ ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_per_layer_block_in
                 allow_adaptive_rkv,
                 allow_qq_bias,
                 is_draft_model,
-                allow_chunked_kv_cache,
-                kv_cache_blocks_per_chunk,
-                kv_cache_chunk_tables} {}
+                allow_kv_chunk_table} {}
 
 bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(SDPAToPagedAttention);

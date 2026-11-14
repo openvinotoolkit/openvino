@@ -23,7 +23,8 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     validate_inputs_count(op, {28, 29});
     auto inputs = p.GetInputInfo(op);
     auto prim = cldnn::paged_attention(layer_type_name_ID(op), inputs);
-    prim.has_chunk_base_ptrs = op->has_chunk_base_ptrs();
+    prim.has_chunk_table = op->has_kv_chunk_table();
+    prim.kv_cache_layer_index = op->get_kv_cache_layer_index();
 
     const auto& rt_info = op->get_rt_info();
     const auto* const k_head_size_id = "k_head_size";
@@ -32,32 +33,12 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     const auto has_rt_params =
         rt_info.find(k_head_size_id) != rt_info.end() && rt_info.find(v_head_size_id) != rt_info.end() && rt_info.find(num_k_heads_id) != rt_info.end();
 
-    if (prim.has_chunk_base_ptrs) {
-        // chunk_base_ptrs is intentionally dynamically-shaped ([-1]): its length (2 * num_chunks) grows
-        // across inference steps as openvino.genai allocates new chunks. num_chunks is therefore not
-        // knowable at graph-compile time and is read from the runtime input shape at dispatch time
-        // instead (see KVCacheUpdateGenerator/PagedAttentionGeneratorBase's get_dispatch_data_func()).
-        const auto chunk_base_ptrs_ps = op->get_input_partial_shape(cldnn::paged_attention::PagedAttentionInputIdx::CHUNK_BASE_PTRS);
-        OPENVINO_ASSERT(chunk_base_ptrs_ps.rank().get_length() == 1,
-                        "[GPU] PagedAttentionExtension chunk_base_ptrs input must have rank 1");
-    }
-
-    // Alternative chunked mode: key_cache/value_cache are bound as i64 pointer tables, so there is no 29th input.
-    const auto* const chunk_tables_id = "kv_cache_chunk_tables";
-    const auto chunk_tables_it = rt_info.find(chunk_tables_id);
-    prim.has_chunk_tables = chunk_tables_it != rt_info.end() && chunk_tables_it->second.as<bool>();
-    OPENVINO_ASSERT(!(prim.has_chunk_base_ptrs && prim.has_chunk_tables),
-                    "[GPU] PagedAttentionExtension cannot use both a chunk_base_ptrs input and chunk pointer tables");
-
-    if (prim.has_chunk_base_ptrs) {
-        // Table mode needs no chunk size here: chunk geometry travels inside the key/value cache tables.
-        // alone (blocks_per_chunk is purely an openvino.genai-side allocation decision), so they travel
-        // as rt_info, the same mechanism already used for k_head_size/v_head_size/num_k_heads above.
-        const auto* const blocks_per_chunk_id = "blocks_per_chunk";
-        OPENVINO_ASSERT(rt_info.find(blocks_per_chunk_id) != rt_info.end(),
-                        "[GPU] Chunked PagedAttentionExtension is missing the 'blocks_per_chunk' rt_info attribute");
-        prim.blocks_per_chunk = static_cast<size_t>(rt_info.at(blocks_per_chunk_id).as<int64_t>());
-        OPENVINO_ASSERT(prim.blocks_per_chunk > 0, "[GPU] PagedAttentionExtension rt_info 'blocks_per_chunk' must be > 0");
+    if (prim.has_chunk_table) {
+        // The table is dynamically-shaped ([-1]) and grows in place of nothing: its content (chunk count, granule
+        // directory, per-layer chunk pointers) is read by the kernels at run time, never baked into the JIT.
+        const auto table_ps = op->get_input_partial_shape(cldnn::paged_attention::PagedAttentionInputIdx::KV_CHUNK_TABLE);
+        OPENVINO_ASSERT(table_ps.rank().get_length() == 1, "[GPU] PagedAttentionExtension kv_chunk_table input must have rank 1");
+        OPENVINO_ASSERT(prim.kv_cache_layer_index >= 0, "[GPU] PagedAttentionExtension with kv_chunk_table requires kv_cache_layer_index");
     }
 
     auto query_ps = op->get_input_partial_shape(0);

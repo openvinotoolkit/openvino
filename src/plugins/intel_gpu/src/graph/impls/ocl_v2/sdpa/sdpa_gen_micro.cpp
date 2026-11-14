@@ -275,11 +275,7 @@ inline size_t micro_get_value_cache_id(const kernel_impl_params& params) {
 }
 
 // Element type of the K/V matrices the micro-kernel reads: the paged cache (mixed stage) or the new tokens (prefill).
-// In chunk-table mode the cache inputs hold i64 pointer tables, so their layout type is not the element type.
 inline ov::element::Type_t micro_kv_data_type(const kernel_impl_params& params, bool is_key, bool from_cache) {
-    if (from_cache && params.typed_desc<paged_attention>()->has_chunk_tables) {
-        return get_chunk_table_cache_type(params);
-    }
     const size_t input_idx = from_cache ? (is_key ? 3 : 4) : (is_key ? 1 : 2);
     return params.input_layouts[input_idx].data_type;
 }
@@ -1350,7 +1346,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         jit.make("WITH_ATTN_MASK", 0);
         jit.make("PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size);
         const auto desc = params.typed_desc<paged_attention>();
-        jit.make("HAS_CHUNK_TABLES", desc->has_chunk_tables ? 1 : 0);
+        jit.make("HAS_CHUNK_TABLE", desc->has_chunk_table ? 1 : 0);
         if (desc->has_token_type_ids) {
             jit.make("HAS_TOKEN_TYPE_IDS", 1);
             // the kernel checks the runtime size: an empty token_type_ids input disables the bidirectional masking
@@ -1686,6 +1682,10 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
             args.push_back({ArgumentDescriptor::Types::INPUT, 5});  // past_lens
             args.push_back({ArgumentDescriptor::Types::INPUT, 7});  // block_indices
             args.push_back({ArgumentDescriptor::Types::INPUT, 8});  // block_indices_begins
+            if (desc->has_chunk_table) {
+                args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KV_CHUNK_TABLE});  // kv_chunk_table
+                args.push_back({ArgumentDescriptor::Types::SCALAR, 3});                                      // kv_layer_idx (must follow the table)
+            }
         }
         if (!config.has_const_scale_val) {
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SCALE});  // scale
@@ -1810,6 +1810,12 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
             ScalarDescriptor s_q{ScalarDescriptor::Types::INT32};
             s_q.v.s32 = to_int32(n_queries.get_length());
             scalars.push_back(s_q);
+
+            if (params.is_type<paged_attention>() && params.typed_desc<paged_attention>()->has_chunk_table) {
+                ScalarDescriptor s_layer{ScalarDescriptor::Types::UINT32};
+                s_layer.v.u32 = static_cast<uint32_t>(params.typed_desc<paged_attention>()->kv_cache_layer_index);
+                scalars.push_back(s_layer);
+            }
         }
     }};
 }

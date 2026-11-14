@@ -66,9 +66,8 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
                      desc->is_key_by_channel, " but exec_config : ", impl_param.get_program().get_config().get_key_cache_quant_mode());
 
     // Both INT4 and INT8 BY_CHANNEL use {0,1,3,2} dim order (block_size at dim[3]).
-    // In chunk-table mode the cache inputs are rank-1 i64 pointer tables, so there is no block size to check.
     const auto block_size_idx = desc->has_xattention ? 2 : 3;
-    bool valid_block_size = desc->has_chunk_tables || key_cache_ps.is_dynamic() ||
+    bool valid_block_size = key_cache_ps.is_dynamic() ||
                             (key_cache_ps[block_size_idx].get_length() == static_cast<ov::Dimension::value_type>(expected_block_size));
     OPENVINO_ASSERT(valid_block_size, "[GPU] Incorrect block size for Paged Attention operation for key cache quant mode "
                     , key_cache_quant_mode, ". Expected ", expected_block_size, ", but got ", key_cache_ps[block_size_idx].get_length());

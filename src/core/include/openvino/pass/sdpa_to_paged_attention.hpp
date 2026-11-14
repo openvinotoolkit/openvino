@@ -29,15 +29,10 @@ struct Options {
     bool allow_adaptive_rkv;
     bool allow_qq_bias;
     bool is_draft_model;  // Gemma4 MTP draft model
-    // See new_plan.md Phase 5: emits a per-layer `chunk_base_ptrs.N` input and `blocks_per_chunk` rt_info
-    // on the resulting PagedAttentionExtension node, enabling the GPU plugin's chunked KV cache
-    // addressing. `kv_cache_blocks_per_chunk` is only meaningful when this is true.
-    bool allow_chunked_kv_cache = false;
-    size_t kv_cache_blocks_per_chunk = 512;
-    // Only meaningful together with `allow_chunked_kv_cache`. Instead of a 29th `chunk_base_ptrs.N` input, the
-    // existing `key_cache.N`/`value_cache.N` inputs carry the chunk storage at runtime: an i64 tensor holding one
-    // device pointer per chunk. The PagedAttentionExtension node gets a `kv_cache_chunk_tables` rt_info marker.
-    bool kv_cache_chunk_tables = false;
+    // Emits the optional 29th PagedAttentionExtension input: a model-level global `kv_chunk_table` (i32 [-1])
+    // Parameter shared by all layers, plus the per-op `kv_cache_layer_index` attribute (the N of `key_cache.N`).
+    // key_cache.N/value_cache.N keep their declared cache type and shape (bound to the chunk-0 tensors).
+    bool allow_kv_chunk_table = false;
 };
 
 template <typename NodeT, typename VectorT>
@@ -175,9 +170,7 @@ public:
                                   bool allow_adaptive_rkv = false,
                                   bool allow_qq_bias = false,
                                   bool is_draft_model = false,
-                                  bool allow_chunked_kv_cache = false,
-                                  size_t kv_cache_blocks_per_chunk = 512,
-                                  bool kv_cache_chunk_tables = false);
+                                  bool allow_kv_chunk_table = false);
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 private:

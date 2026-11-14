@@ -42,21 +42,6 @@ bool is_convert_required(ov::element::Type src_et, ov::element::Type dst_et) {
     return src_et != dst_et && (dst_et != ov::element::boolean || src_et != ov::element::u8);
 }
 
-// PagedAttention chunked KV cache (table mode): the SDPAToPagedAttention pass marks the key_cache.N / value_cache.N
-// Parameters with this rt_info flag. Such a port is declared with the cache layout (f16/u8 [-1, H, B, D]) but at
-// runtime carries an i64 tensor [num_chunks] holding one device pointer per chunk, so the usual element type and
-// shape checks against the declared port must not be applied to it.
-bool is_chunk_table_port(const ov::Output<const ov::Node>& port) {
-    const char* const flag = "kv_cache_chunk_table";
-    const auto& port_rt_info = port.get_rt_info();
-    if (const auto it = port_rt_info.find(flag); it != port_rt_info.end()) {
-        return it->second.as<bool>();
-    }
-    const auto& node_rt_info = port.get_node()->get_rt_info();
-    const auto it = node_rt_info.find(flag);
-    return it != node_rt_info.end() && it->second.as<bool>();
-}
-
 bool same_host_mem(cldnn::memory::cptr memory, const uint8_t* host_ptr) {
     const uint8_t* device_ptr =
         memory->get_allocation_type() == cldnn::allocation_type::usm_host ? static_cast<uint8_t*>(memory->get_internal_params().mem) : nullptr;
@@ -244,30 +229,19 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
     const auto& shape = port.get_partial_shape();
 
     OPENVINO_ASSERT(tensor != nullptr, "[GPU] Failed to set empty tensor to port with index: \'", port_index, "\'");
-    const bool chunk_table_port = is_chunk_table_port(port);
-    if (chunk_table_port) {
-        OPENVINO_ASSERT(tensor->get_element_type() == ov::element::i64 && tensor->get_shape().size() == 1,
-                        "[GPU] KV cache chunk table port with index ",
-                        port_index,
-                        " expects a rank-1 i64 tensor of chunk pointers, got ",
-                        tensor->get_element_type(),
-                        " ",
-                        tensor->get_shape());
-    } else {
-        OPENVINO_ASSERT(port.get_element_type() == tensor->get_element_type(),
-                        "[GPU] Mismatch tensor and port type: ",
-                        port.get_element_type(),
-                        " vs ",
-                        tensor->get_element_type());
-        OPENVINO_ASSERT(shape.compatible(ov::PartialShape(tensor->get_shape())) || tensor->get_shape() == ov::Shape{0} || port.get_partial_shape().is_dynamic(),
-                        "[GPU] The tensor size is not equal to model, can't set input tensor with index: ",
-                        port_index,
-                        ", because model input (shape=",
-                        shape,
-                        ") and tensor (shape=",
-                        tensor->get_shape(),
-                        ") are incompatible");
-    }
+    OPENVINO_ASSERT(port.get_element_type() == tensor->get_element_type(),
+                    "[GPU] Mismatch tensor and port type: ",
+                    port.get_element_type(),
+                    " vs ",
+                    tensor->get_element_type());
+    OPENVINO_ASSERT(shape.compatible(ov::PartialShape(tensor->get_shape())) || tensor->get_shape() == ov::Shape{0} || port.get_partial_shape().is_dynamic(),
+                    "[GPU] The tensor size is not equal to model, can't set input tensor with index: ",
+                    port_index,
+                    ", because model input (shape=",
+                    shape,
+                    ") and tensor (shape=",
+                    tensor->get_shape(),
+                    ") are incompatible");
 
     auto update_tensors_maps = [](size_t port_index,
                                   std::unordered_map<size_t, ov::intel_gpu::TensorWrapper>& user_tensors,
@@ -299,12 +273,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
         update_tensors_maps(port_index, *outputs, m_plugin_outputs, tensor);
     }
 
-    // The base class stores the tensor and validates it against the declared port type/shape. A chunk table is
-    // intentionally not that type, so it lives only in the GPU-side maps; the base keeps its default tensor,
-    // which keeps check_tensors() valid.
-    if (!chunk_table_port) {
-        ov::ISyncInferRequest::set_tensor(port, tensor);
-    }
+    ov::ISyncInferRequest::set_tensor(port, tensor);
 }
 
 void SyncInferRequest::set_tensors_impl(const ov::Output<const ov::Node> port, const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
@@ -1120,7 +1089,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
 
     auto need_lockable_mem = network->does_node_need_lockable_output(internal_name);
 
-    OPENVINO_ASSERT(pshape.compatible(ov::PartialShape(user_tensor->get_shape())) || is_batched_input(port) || is_chunk_table_port(port),
+    OPENVINO_ASSERT(pshape.compatible(ov::PartialShape(user_tensor->get_shape())) || is_batched_input(port),
                     "[GPU] The input tensor size is not equal to model port shape, can't handle input tensor with name: ",
                     internal_name,
                     ", because model input (shape=",

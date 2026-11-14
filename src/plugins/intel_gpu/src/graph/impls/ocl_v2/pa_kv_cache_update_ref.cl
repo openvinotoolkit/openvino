@@ -341,32 +341,32 @@ inline void FUNC(quantize_and_save_by_channel_prefill)(__global const INPUT0_TYP
 }
 #endif  // IS_KEY_BY_CHANNEL
 
-#define IS_CHUNKED_KV (HAS_CHUNK_BASE_PTRS || HAS_CHUNK_TABLES)
+#define IS_CHUNKED_KV HAS_CHUNK_TABLE
 
-#if HAS_CHUNK_TABLES
-    // key_cache_data/value_cache_data arguments hold a chunk table (see kv_chunk_table.hpp); the layout dtype is
-    // i64, so the element type comes from KV_CACHE_TYPE.
-    #define PA_KEY_CACHE_TYPE KV_CACHE_TYPE
-    #define PA_VALUE_CACHE_TYPE KV_CACHE_TYPE
+// Tokens per key-cache block row: BY_CHANNEL key blocks are padded with per-channel scale/zp.
+#ifdef IS_KEY_BY_CHANNEL
+    #define PA_KEY_BLOCK_TOKENS ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE
+#else
+    #define PA_KEY_BLOCK_TOKENS PAGED_ATTENTION_BLOCK_SIZE
+#endif
 
-    // Table words: [0] granule_shift | num_chunks << 8 | generation << 32, [1] num_granules, then num_chunks chunk base
-    // pointers, then a u32 directory of (chunk_id << 20 | granule_in_chunk) per granule.
-    inline ulong FUNC(pa_resolve_chunk_block)(const __global ulong* table, uint gbid, uint* local_block) {
-        const ulong header = table[0];
-        const uint granule_shift = (uint)(header & 0xFFu);
-        const uint num_chunks = (uint)((header >> 8) & 0xFFFFFFu);
-        const __global uint* directory = (const __global uint*)(table + 2 + num_chunks);
+#define PA_KEY_CACHE_TYPE OUTPUT_TYPE
+#define PA_VALUE_CACHE_TYPE OUTPUT1_TYPE
+
+#if HAS_CHUNK_TABLE
+    // Global KV chunk table (see kv_chunk_table.hpp), viewed as u64 slots: [0] magic, [1] L, [2] C_max, [3] live chunks,
+    // [4] granule_shift, [5] live granules, [6] D_max; the u32 granule directory starts at slot 16 and is followed by the
+    // per-layer K/V chunk base pointers. Returns the chunk base pointer of `layer` (K when is_value == 0, V otherwise)
+    // and the block index inside that chunk.
+    inline ulong FUNC(pa_resolve_chunk_block)(const __global ulong* table, uint layer, uint is_value, uint gbid, uint* local_block) {
+        const uint max_chunks = (uint)table[2];
+        const uint granule_shift = (uint)table[4];
+        const uint max_granules = (uint)table[6];
+        const __global uint* directory = (const __global uint*)(table + 16);
         const uint entry = directory[gbid >> granule_shift];
         *local_block = ((entry & 0xFFFFFu) << granule_shift) | (gbid & ((1u << granule_shift) - 1u));
-        return table[2 + (entry >> 20)];
+        return table[16 + ((max_granules + 1u) >> 1) + (ulong)layer * 2u * max_chunks + (is_value ? max_chunks : 0u) + (entry >> 20)];
     }
-#else
-    #define PA_KEY_CACHE_TYPE OUTPUT_TYPE
-    #define PA_VALUE_CACHE_TYPE OUTPUT1_TYPE
-    #if HAS_CHUNK_BASE_PTRS
-        #define PA_KEY_CHUNK_PTR(chunk_id) ((__global OUTPUT_TYPE*)(chunk_base_ptrs[(chunk_id)]))
-        #define PA_VALUE_CHUNK_PTR(chunk_id) ((__global OUTPUT1_TYPE*)(chunk_base_ptrs[num_chunks + (chunk_id)]))
-    #endif
 #endif
 
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
@@ -379,33 +379,22 @@ KERNEL(pa_kv_cache_update)(
     __global const INPUT3_TYPE* block_indices,
     __global const INPUT4_TYPE* block_indices_begins,
     __global const INPUT5_TYPE* subsequence_begins,
-#if HAS_CHUNK_TABLES
-    __global const ulong* key_cache_data,
-    __global const ulong* value_cache_data,
-#else
     __global OUTPUT_TYPE* key_cache_data,
     __global OUTPUT1_TYPE* value_cache_data,
-#endif
-#if HAS_CHUNK_BASE_PTRS
-    // See new_plan.md Phase 5: `num_chunks` key chunk device pointers followed by `num_chunks` value chunk
-    // device pointers, one ulong (raw USM pointer) each. num_chunks itself is a runtime scalar (not a jit
-    // constant) because it grows across inference steps as new chunks are allocated.
-    __global const ulong* chunk_base_ptrs,
-    const uint num_chunks,
+#if HAS_CHUNK_TABLE
+    // Global KV chunk table shared by all layers (PagedAttentionExtension input 28, an i32 tensor read as u64 slots)
+    // and this layer's index. key_cache_data/value_cache_data are only the chunk-0 tensors in this mode.
+    __global const ulong* kv_chunk_table,
+    const uint kv_layer_idx,
 #endif
     const __global int* blocked_indexes_start,
     const __global int* blocked_indexes_end,
     const __global int* gws_seq_indexes_correspondence,
     const int is_prefill_stage
 ) {
-    // See new_plan.md Phase 5: chunked KV cache is only wired for the uncompressed cache path so far.
-#if IS_CHUNKED_KV && IS_KV_COMPRESSED
-#error "Chunked KV cache is not yet supported together with a compressed/quantized cache"
-#endif
-
     // ACTIVE_KEY_CACHE/ACTIVE_VALUE_CACHE resolve to the legacy single contiguous buffers when chunking is
-    // disabled, or to a per-write chunk-resolved pointer (declared locally, see below) when enabled. Only
-    // used by the uncompressed write sites below (guarded by !IS_KV_COMPRESSED).
+    // disabled, or to a per-write chunk-resolved pointer (declared locally, see below) when enabled.
+    // In both cases block offsets are relative to local_block_idx.
 #if IS_CHUNKED_KV
     #define ACTIVE_KEY_CACHE key_cache_chunk
     #define ACTIVE_VALUE_CACHE value_cache_chunk
@@ -447,23 +436,16 @@ KERNEL(pa_kv_cache_update)(
         const uint seq_block_idx = block_indices_begins[seq_idx] + past_seq_len / PAGED_ATTENTION_BLOCK_SIZE;
         const uint block_idx = block_indices[seq_block_idx];
 
-#if HAS_CHUNK_TABLES
+#if HAS_CHUNK_TABLE
         // The chunk pointers are biased by the block offset in 64-bit so large chunks cannot overflow 32-bit math.
         uint table_local_block;
-        const ulong key_chunk_base = FUNC_CALL(pa_resolve_chunk_block)(key_cache_data, block_idx, &table_local_block);
+        const ulong key_chunk_base = FUNC_CALL(pa_resolve_chunk_block)(kv_chunk_table, kv_layer_idx, 0u, block_idx, &table_local_block);
         __global PA_KEY_CACHE_TYPE* key_cache_chunk =
-            (__global PA_KEY_CACHE_TYPE*)key_chunk_base + (ulong)table_local_block * (KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE);
-        const ulong value_chunk_base = FUNC_CALL(pa_resolve_chunk_block)(value_cache_data, block_idx, &table_local_block);
+            (__global PA_KEY_CACHE_TYPE*)key_chunk_base + (ulong)table_local_block * (KV_HEADS_NUM * phys_adjusted_k_head_size * PA_KEY_BLOCK_TOKENS);
+        const ulong value_chunk_base = FUNC_CALL(pa_resolve_chunk_block)(kv_chunk_table, kv_layer_idx, 1u, block_idx, &table_local_block);
         __global PA_VALUE_CACHE_TYPE* value_cache_chunk =
-            (__global PA_VALUE_CACHE_TYPE*)value_chunk_base + (ulong)table_local_block * (KV_HEADS_NUM * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE);
+            (__global PA_VALUE_CACHE_TYPE*)value_chunk_base + (ulong)table_local_block * (KV_HEADS_NUM * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE);
         const uint local_block_idx = 0;
-#elif IS_CHUNKED_KV
-        // See new_plan.md Phase 5: resolve the physical block id to a (chunk, local block) pair and
-        // dereference the corresponding chunk's device pointer instead of indexing a single flat buffer.
-        const uint chunk_id = block_idx / BLOCKS_PER_CHUNK;
-        const uint local_block_idx = block_idx % BLOCKS_PER_CHUNK;
-        __global PA_KEY_CACHE_TYPE* key_cache_chunk = PA_KEY_CHUNK_PTR(chunk_id);
-        __global PA_VALUE_CACHE_TYPE* value_cache_chunk = PA_VALUE_CHUNK_PTR(chunk_id);
 #else
         const uint local_block_idx = block_idx;
 #endif
@@ -528,7 +510,7 @@ KERNEL(pa_kv_cache_update)(
                 FUNC_CALL(quantize_and_save_by_channel_block_with_requantize_int4)(key_data,
                                                                             key_in_offset,
                                                                             KEY_IN_STRIDE,
-                                                                            key_cache_data,
+                                                                            ACTIVE_KEY_CACHE,
                                                                             block_k_base_offset,
                                                                             k_hidden_stride,
                                                                             current_token_pos_in_block,
@@ -539,7 +521,7 @@ KERNEL(pa_kv_cache_update)(
                 FUNC_CALL(quantize_and_save_by_channel_block_with_requantize)(key_data,
                                                                             key_in_offset,
                                                                             KEY_IN_STRIDE,
-                                                                            key_cache_data,
+                                                                            ACTIVE_KEY_CACHE,
                                                                             block_k_base_offset,
                                                                             k_hidden_stride,
                                                                             current_token_pos_in_block,
@@ -557,7 +539,7 @@ KERNEL(pa_kv_cache_update)(
             const uint comp_v_offset = block_v_base_offset + phys_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
         #endif
             INPUT0_TYPE input_data[V_HEAD_SIZE / SUBGROUP_SIZE];
-            FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, value_cache_data, value_out_offset, 1, comp_v_offset,
+            FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, ACTIVE_VALUE_CACHE, value_out_offset, 1, comp_v_offset,
                 current_token_pos_in_block, sglid, V_HEAD_SIZE / SUBGROUP_SIZE, &input_data[0]);
         }
         #else
@@ -566,7 +548,7 @@ KERNEL(pa_kv_cache_update)(
             const uint comp_k_offset = block_k_base_offset + phys_k_head_size * PAGED_ATTENTION_BLOCK_SIZE;
             // key processing
             INPUT0_TYPE input_k_data[K_HEAD_SIZE / SUBGROUP_SIZE];
-            FUNC_CALL(quantize_and_save_per_token)(key_data, key_in_offset, key_cache_data, key_out_offset, PAGED_ATTENTION_BLOCK_SIZE, comp_k_offset,
+            FUNC_CALL(quantize_and_save_per_token)(key_data, key_in_offset, ACTIVE_KEY_CACHE, key_out_offset, PAGED_ATTENTION_BLOCK_SIZE, comp_k_offset,
                 current_token_pos_in_block, sglid, K_HEAD_SIZE / SUBGROUP_SIZE, &input_k_data[0]);
 
 #if IS_INT4_COMPRESSED
@@ -575,7 +557,7 @@ KERNEL(pa_kv_cache_update)(
             const uint comp_v_offset = block_v_base_offset + phys_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
 #endif
             INPUT0_TYPE input_v_data[V_HEAD_SIZE / SUBGROUP_SIZE];
-            FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, value_cache_data, value_out_offset, 1, comp_v_offset,
+            FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, ACTIVE_VALUE_CACHE, value_out_offset, 1, comp_v_offset,
                 current_token_pos_in_block, sglid, V_HEAD_SIZE / SUBGROUP_SIZE, &input_v_data[0]);
         }
         #endif
@@ -605,22 +587,15 @@ KERNEL(pa_kv_cache_update)(
         const uint block_offset = block_indices_begins[subsequence_idx] + current_block_idx;
         const uint physical_block_id = block_indices[block_offset];
 
-#if HAS_CHUNK_TABLES
+#if HAS_CHUNK_TABLE
         uint table_local_block;
-        const ulong key_chunk_base = FUNC_CALL(pa_resolve_chunk_block)(key_cache_data, physical_block_id, &table_local_block);
+        const ulong key_chunk_base = FUNC_CALL(pa_resolve_chunk_block)(kv_chunk_table, kv_layer_idx, 0u, physical_block_id, &table_local_block);
         __global PA_KEY_CACHE_TYPE* key_cache_chunk =
-            (__global PA_KEY_CACHE_TYPE*)key_chunk_base + (ulong)table_local_block * (KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE);
-        const ulong value_chunk_base = FUNC_CALL(pa_resolve_chunk_block)(value_cache_data, physical_block_id, &table_local_block);
+            (__global PA_KEY_CACHE_TYPE*)key_chunk_base + (ulong)table_local_block * (KV_HEADS_NUM * phys_adjusted_k_head_size * PA_KEY_BLOCK_TOKENS);
+        const ulong value_chunk_base = FUNC_CALL(pa_resolve_chunk_block)(kv_chunk_table, kv_layer_idx, 1u, physical_block_id, &table_local_block);
         __global PA_VALUE_CACHE_TYPE* value_cache_chunk =
-            (__global PA_VALUE_CACHE_TYPE*)value_chunk_base + (ulong)table_local_block * (KV_HEADS_NUM * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE);
+            (__global PA_VALUE_CACHE_TYPE*)value_chunk_base + (ulong)table_local_block * (KV_HEADS_NUM * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE);
         const uint local_block_idx = 0;
-#elif IS_CHUNKED_KV
-        // See new_plan.md Phase 5: resolve the physical block id to a (chunk, local block) pair and
-        // dereference the corresponding chunk's device pointer instead of indexing a single flat buffer.
-        const uint chunk_id = physical_block_id / BLOCKS_PER_CHUNK;
-        const uint local_block_idx = physical_block_id % BLOCKS_PER_CHUNK;
-        __global PA_KEY_CACHE_TYPE* key_cache_chunk = PA_KEY_CHUNK_PTR(chunk_id);
-        __global PA_VALUE_CACHE_TYPE* value_cache_chunk = PA_VALUE_CHUNK_PTR(chunk_id);
 #else
         const uint local_block_idx = physical_block_id;
 #endif
@@ -660,7 +635,7 @@ KERNEL(pa_kv_cache_update)(
                     FUNC_CALL(quantize_and_save_by_channel_block_with_requantize_int4)(key_data,
                                                                                 key_in_offset,
                                                                                 KEY_IN_STRIDE,
-                                                                                key_cache_data,
+                                                                                ACTIVE_KEY_CACHE,
                                                                                 block_k_base_offset,
                                                                                 k_hidden_stride,
                                                                                 token_start_pos_key,
@@ -671,7 +646,7 @@ KERNEL(pa_kv_cache_update)(
                     FUNC_CALL(quantize_and_save_by_channel_prefill)(key_data,
                                                                     key_in_offset,
                                                                     KEY_IN_STRIDE,
-                                                                    key_cache_data,
+                                                                    ACTIVE_KEY_CACHE,
                                                                     key_out_offset,
                                                                     tokens_num,
                                                                     sglid);
@@ -681,7 +656,7 @@ KERNEL(pa_kv_cache_update)(
             for (uint token_num = 0; token_num < tokens_num; token_num++) {
                 INPUT0_TYPE input_data[V_HEAD_SIZE / SUBGROUP_SIZE];
                 const uint comp_v = value_out_offset + phys_v_head_size;
-                FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, value_cache_data, value_out_offset, 1,
+                FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, ACTIVE_VALUE_CACHE, value_out_offset, 1,
                     comp_v, token_start_pos_val + token_num, sglid, V_HEAD_SIZE / SUBGROUP_SIZE, &input_data[0]);
                 value_in_offset += (KV_HEADS_NUM * V_HEAD_SIZE + INPUT1_PAD_AFTER_FEATURE_NUM + INPUT1_PAD_BEFORE_FEATURE_NUM);
                 value_out_offset += phys_adjusted_v_head_size;
@@ -693,7 +668,7 @@ KERNEL(pa_kv_cache_update)(
                 FUNC_CALL(quantize_and_save_by_channel_block_with_requantize)(key_data,
                                                                             key_in_offset,
                                                                             KEY_IN_STRIDE,
-                                                                            key_cache_data,
+                                                                            ACTIVE_KEY_CACHE,
                                                                             block_k_base_offset,
                                                                             k_hidden_stride,
                                                                             token_start_pos_key,
@@ -704,7 +679,7 @@ KERNEL(pa_kv_cache_update)(
                 FUNC_CALL(quantize_and_save_by_channel_prefill)(key_data,
                                                                 key_in_offset,
                                                                 KEY_IN_STRIDE,
-                                                                key_cache_data,
+                                                                ACTIVE_KEY_CACHE,
                                                                 key_out_offset,
                                                                 tokens_num,
                                                                 sglid);
@@ -712,7 +687,7 @@ KERNEL(pa_kv_cache_update)(
             // Value per token
             unroll_for (uint token_num = 0; token_num < tokens_num; token_num++) {
                 INPUT0_TYPE input_data[V_HEAD_SIZE / SUBGROUP_SIZE];
-                FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, value_cache_data, value_out_offset, 1,
+                FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, ACTIVE_VALUE_CACHE, value_out_offset, 1,
                     comp_v_offset, token_num, sglid, V_HEAD_SIZE / SUBGROUP_SIZE, &input_data[0]);
                 value_in_offset += (KV_HEADS_NUM * V_HEAD_SIZE + INPUT1_PAD_AFTER_FEATURE_NUM + INPUT1_PAD_BEFORE_FEATURE_NUM);
                 value_out_offset += phys_v_head_size;
@@ -837,17 +812,17 @@ KERNEL(pa_kv_cache_update)(
             {
                 // Key per token
                 INPUT0_TYPE input_k_data[K_HEAD_SIZE / SUBGROUP_SIZE];
-                FUNC_CALL(quantize_and_save_per_token)(key_data, key_in_offset, key_cache_data, key_out_offset, PAGED_ATTENTION_BLOCK_SIZE,
+                FUNC_CALL(quantize_and_save_per_token)(key_data, key_in_offset, ACTIVE_KEY_CACHE, key_out_offset, PAGED_ATTENTION_BLOCK_SIZE,
                     comp_k_offset, token_num, sglid, K_HEAD_SIZE / SUBGROUP_SIZE, &input_k_data[0]);
 
                 // Value per token
                 INPUT0_TYPE input_v_data[V_HEAD_SIZE / SUBGROUP_SIZE];
 #if IS_INT4_COMPRESSED
                 const uint cur_comp_v = value_out_offset + phys_v_head_size;
-                FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, value_cache_data, value_out_offset, 1,
+                FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, ACTIVE_VALUE_CACHE, value_out_offset, 1,
                     cur_comp_v, token_num, sglid, V_HEAD_SIZE / SUBGROUP_SIZE, &input_v_data[0]);
 #else
-                FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, value_cache_data, value_out_offset, 1,
+                FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, ACTIVE_VALUE_CACHE, value_out_offset, 1,
                     comp_v_offset, token_num, sglid, V_HEAD_SIZE / SUBGROUP_SIZE, &input_v_data[0]);
 #endif
             }
@@ -871,7 +846,7 @@ KERNEL(pa_kv_cache_update)(
                     FUNC_CALL(quantize_and_save_by_channel_block_with_requantize_int4)(key_data,
                                                                                 key_in_offset,
                                                                                 KEY_IN_STRIDE,
-                                                                                key_cache_data,
+                                                                                ACTIVE_KEY_CACHE,
                                                                                 block_k_base_offset,
                                                                                 k_hidden_stride,
                                                                                 token_start_pos_key,
@@ -882,7 +857,7 @@ KERNEL(pa_kv_cache_update)(
                     FUNC_CALL(quantize_and_save_by_channel_prefill)(key_data,
                                                                     key_in_offset,
                                                                     KEY_IN_STRIDE,
-                                                                    key_cache_data,
+                                                                    ACTIVE_KEY_CACHE,
                                                                     key_out_offset,
                                                                     tokens_num,
                                                                     sglid);
@@ -893,7 +868,7 @@ KERNEL(pa_kv_cache_update)(
             for (uint token_num = 0; token_num < tokens_num; token_num++) {
                 INPUT0_TYPE input_data[V_HEAD_SIZE / SUBGROUP_SIZE];
                 const uint comp_v = value_out_offset + phys_v_head_size;
-                FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, value_cache_data, value_out_offset, 1,
+                FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, ACTIVE_VALUE_CACHE, value_out_offset, 1,
                     comp_v, token_start_pos_val + token_num, sglid, V_HEAD_SIZE / SUBGROUP_SIZE, &input_data[0]);
                 value_in_offset += (KV_HEADS_NUM * V_HEAD_SIZE + INPUT1_PAD_AFTER_FEATURE_NUM + INPUT1_PAD_BEFORE_FEATURE_NUM);
                 value_out_offset += phys_adjusted_v_head_size;
@@ -905,7 +880,7 @@ KERNEL(pa_kv_cache_update)(
                 FUNC_CALL(quantize_and_save_by_channel_block_with_requantize)(key_data,
                                                                             key_in_offset,
                                                                             KEY_IN_STRIDE,
-                                                                            key_cache_data,
+                                                                            ACTIVE_KEY_CACHE,
                                                                             block_k_base_offset,
                                                                             k_hidden_stride,
                                                                             token_start_pos_key,
@@ -916,7 +891,7 @@ KERNEL(pa_kv_cache_update)(
                 FUNC_CALL(quantize_and_save_by_channel_prefill)(key_data,
                                                                 key_in_offset,
                                                                 KEY_IN_STRIDE,
-                                                                key_cache_data,
+                                                                ACTIVE_KEY_CACHE,
                                                                 key_out_offset,
                                                                 tokens_num,
                                                                 sglid);
@@ -925,7 +900,7 @@ KERNEL(pa_kv_cache_update)(
             // value processing per token
             for (uint token_num = 0; token_num < tokens_num; token_num++) {
                 INPUT0_TYPE input_data[V_HEAD_SIZE / SUBGROUP_SIZE];
-                FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, value_cache_data, value_out_offset, 1,
+                FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, ACTIVE_VALUE_CACHE, value_out_offset, 1,
                     comp_v_offset, token_start_pos_val + token_num, sglid, V_HEAD_SIZE / SUBGROUP_SIZE, &input_data[0]);
                 value_in_offset += (KV_HEADS_NUM * V_HEAD_SIZE + INPUT1_PAD_AFTER_FEATURE_NUM + INPUT1_PAD_BEFORE_FEATURE_NUM);
                 value_out_offset += phys_v_head_size;
@@ -961,17 +936,17 @@ KERNEL(pa_kv_cache_update)(
                 {
                     // key processing
                     INPUT0_TYPE input_k_data[K_HEAD_SIZE / SUBGROUP_SIZE];
-                    FUNC_CALL(quantize_and_save_per_token)(key_data, key_in_offset, key_cache_data, key_out_offset, PAGED_ATTENTION_BLOCK_SIZE,
+                    FUNC_CALL(quantize_and_save_per_token)(key_data, key_in_offset, ACTIVE_KEY_CACHE, key_out_offset, PAGED_ATTENTION_BLOCK_SIZE,
                         comp_k_offset, token_start_pos_key + token_num, sglid, K_HEAD_SIZE / SUBGROUP_SIZE, &input_k_data[0]);
 
                     // value processing
                     INPUT0_TYPE input_v_data[V_HEAD_SIZE / SUBGROUP_SIZE];
 #if IS_INT4_COMPRESSED
                     const uint cur_comp_v = value_out_offset + phys_v_head_size;
-                    FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, value_cache_data, value_out_offset, 1,
+                    FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, ACTIVE_VALUE_CACHE, value_out_offset, 1,
                         cur_comp_v, token_start_pos_val + token_num, sglid, V_HEAD_SIZE / SUBGROUP_SIZE, &input_v_data[0]);
 #else
-                    FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, value_cache_data, value_out_offset, 1,
+                    FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, ACTIVE_VALUE_CACHE, value_out_offset, 1,
                         comp_v_offset, token_start_pos_val + token_num, sglid, V_HEAD_SIZE / SUBGROUP_SIZE, &input_v_data[0]);
 #endif
                 }

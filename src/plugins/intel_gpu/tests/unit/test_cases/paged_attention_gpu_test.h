@@ -1846,7 +1846,7 @@ public:
         cldnn::memory::ptr key_cache_mem;
         cldnn::memory::ptr value_cache_mem;
         cldnn::network::ptr network;
-        // See new_plan.md Phase 5: kept alive here only when chunking_blocks_per_chunk > 0; unused
+        // Kept alive here only when chunking_blocks_per_chunk > 0; unused
         // (empty) for every other test.
         std::vector<cldnn::memory::ptr> chunk_mems;
     };
@@ -1968,47 +1968,43 @@ public:
         }
         result.value_cache_mem = pam.get_value_cache_memory();
 
-        // See new_plan.md Phase 5: split the already-populated legacy key_cache/value_cache buffers
-        // into `blocks_per_chunk`-sized chunks and build the CHUNK_BASE_PTRS table pointing at them.
-        // "key_cache"/"value_cache" stay bound as before (dead arguments in the chunked kernel path);
-        // the chunked kernels only actually read/write through the new chunk buffers.
-        cldnn::memory::ptr chunk_base_ptrs_mem = nullptr;
-        // What actually gets bound to the key_cache/value_cache network inputs: the legacy buffers, or the
-        // i64 pointer tables in chunking_use_tables mode.
-        cldnn::memory::ptr key_cache_input_mem = result.key_cache_mem;
-        cldnn::memory::ptr value_cache_input_mem = result.value_cache_mem;
-        size_t num_chunks = 0;
+        // Split the already-populated legacy key_cache/value_cache buffers into chunks and describe them through the
+        // global kv_chunk_table input. The table describes 3 layers and the primitive reads layer 1: layers 0 and 2 point
+        // at decoy storage (the other cache's chunks), so a kernel indexing the wrong layer produces wrong results.
+        // "key_cache"/"value_cache" stay bound to the full buffers: they carry dtype and block shape (standing in for the
+        // chunk-0 tensors) but the chunked kernels never read them.
+        cldnn::memory::ptr kv_chunk_table_mem = nullptr;
         if (p.chunking_blocks_per_chunk > 0) {
-            EXPECT_FALSE(p.kv_cache_compression) << "chunking test coverage is limited to the uncompressed cache path (see HAS_CHUNK_BASE_PTRS && IS_KV_COMPRESSED #error guard)";
             const size_t blocks_per_chunk = p.chunking_blocks_per_chunk;
             const size_t num_blocks = static_cast<size_t>(pam.block_indices.back() + 1);
-            // Explicit per-chunk block counts (table mode) or uniform chunks of blocks_per_chunk.
+            // Explicit per-chunk block counts or uniform chunks of blocks_per_chunk.
             std::vector<size_t> chunk_blocks = p.chunking_chunk_blocks;
             if (chunk_blocks.empty()) {
                 chunk_blocks.assign(cldnn::ceil_div(num_blocks, blocks_per_chunk), blocks_per_chunk);
             }
             EXPECT_GE(std::accumulate(chunk_blocks.begin(), chunk_blocks.end(), size_t{0}), num_blocks) << "chunks must cover every block";
-            num_chunks = chunk_blocks.size();
+            const size_t num_chunks = chunk_blocks.size();
 
+            // Byte-wise so the same split serves f16 and quantized (i8/u8/packed u4) caches.
             auto split_into_chunks = [&](cldnn::memory::ptr src_mem) {
                 std::vector<cldnn::memory::ptr> chunks;
-                const size_t elements_per_block = src_mem->count() / num_blocks;
-                cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> src_lock(src_mem, tests::get_test_stream());
+                const size_t bytes_per_block = src_mem->size() / num_blocks;
+                cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read> src_lock(src_mem, tests::get_test_stream());
                 size_t src_start_block = 0;
                 for (size_t chunk_id = 0; chunk_id < num_chunks; chunk_id++) {
                     const size_t chunk_size_blocks = chunk_blocks[chunk_id];
-                    auto chunk_layout = cldnn::layout{ov::PartialShape{static_cast<int64_t>(chunk_size_blocks * elements_per_block)},
-                                                      src_mem->get_layout().data_type,
+                    auto chunk_layout = cldnn::layout{ov::PartialShape{static_cast<int64_t>(chunk_size_blocks * bytes_per_block)},
+                                                      cldnn::data_types::u8,
                                                       cldnn::format::bfyx};
                     auto chunk_mem = tests::get_test_engine().allocate_memory(chunk_layout);
-                    std::vector<ov::float16> chunk_data(chunk_size_blocks * elements_per_block, ov::float16(0.f));
+                    std::vector<uint8_t> chunk_data(chunk_size_blocks * bytes_per_block, 0);
                     const size_t src_end_block = std::min(src_start_block + chunk_size_blocks, num_blocks);
                     for (size_t block = src_start_block; block < src_end_block; block++) {
-                        const size_t src_offset = block * elements_per_block;
-                        const size_t dst_offset = (block - src_start_block) * elements_per_block;
-                        std::copy_n(src_lock.data() + src_offset, elements_per_block, chunk_data.begin() + dst_offset);
+                        const size_t src_offset = block * bytes_per_block;
+                        const size_t dst_offset = (block - src_start_block) * bytes_per_block;
+                        std::copy_n(src_lock.data() + src_offset, bytes_per_block, chunk_data.begin() + dst_offset);
                     }
-                    tests::set_values<ov::float16>(chunk_mem, chunk_data);
+                    tests::set_values<uint8_t>(chunk_mem, chunk_data);
                     chunks.push_back(chunk_mem);
                     src_start_block += chunk_size_blocks;
                 }
@@ -2018,56 +2014,52 @@ public:
             auto key_chunks = split_into_chunks(result.key_cache_mem);
             auto value_chunks = split_into_chunks(result.value_cache_mem);
 
-            if (p.chunking_use_tables) {
-                auto make_pointer_table = [&](const std::vector<cldnn::memory::ptr>& chunks, bool corrupt_pointers) {
-                    std::vector<int64_t> ptrs(chunks.size());
-                    for (size_t i = 0; i < chunks.size(); i++) {
-                        ptrs[i] = reinterpret_cast<int64_t>(chunks[i]->buffer_ptr());
-                        EXPECT_NE(ptrs[i], 0) << "chunk buffer must provide a valid raw device pointer";
+            auto pointers_of = [&](const std::vector<cldnn::memory::ptr>& chunks, bool corrupt_pointers) {
+                std::vector<uint64_t> ptrs(chunks.size());
+                for (size_t i = 0; i < chunks.size(); i++) {
+                    ptrs[i] = reinterpret_cast<uint64_t>(chunks[i]->buffer_ptr());
+                    EXPECT_NE(ptrs[i], 0u) << "chunk buffer must provide a valid raw device pointer";
+                }
+                if (corrupt_pointers) {
+                    EXPECT_GE(ptrs.size(), 2u) << "corrupting a table needs at least two chunks";
+                    if (ptrs.size() >= 2) {
+                        std::swap(ptrs[0], ptrs[1]);
                     }
-                    if (corrupt_pointers) {
-                        EXPECT_GE(ptrs.size(), 2u) << "corrupting a table needs at least two chunks";
-                        if (ptrs.size() >= 2) {
-                            std::swap(ptrs[0], ptrs[1]);
-                        }
-                    }
-                    auto words = ov::intel_gpu::kv_chunk_table::build(p.chunking_granule_shift, /*generation=*/1, ptrs, chunk_blocks);
-                    if (p.chunking_corrupt_directory) {
-                        // Swap the first and last directory entries so those granules resolve to each other's storage.
-                        const auto header = ov::intel_gpu::kv_chunk_table::read_header(words.data());
-                        EXPECT_GE(header.num_granules, 2u) << "corrupting a directory needs at least two granules";
-                        auto* directory = reinterpret_cast<uint32_t*>(words.data() + ov::intel_gpu::kv_chunk_table::kHeaderWords + header.num_chunks);
-                        std::swap(directory[0], directory[header.num_granules - 1]);
-                    }
-                    auto table_layout = cldnn::layout{ov::PartialShape{static_cast<int64_t>(words.size())}, cldnn::data_types::i64, cldnn::format::bfyx};
-                    auto table_mem = tests::get_test_engine().allocate_memory(table_layout);
-                    tests::set_values<int64_t>(table_mem, words);
-                    return table_mem;
-                };
-                key_cache_input_mem = make_pointer_table(key_chunks, p.chunking_corrupt_key_table);
-                value_cache_input_mem = make_pointer_table(value_chunks, false);
+                }
+                return ptrs;
+            };
 
-                result.chunk_mems = key_chunks;
-                result.chunk_mems.insert(result.chunk_mems.end(), value_chunks.begin(), value_chunks.end());
-                result.chunk_mems.push_back(key_cache_input_mem);
-                result.chunk_mems.push_back(value_cache_input_mem);
-            } else {
-            std::vector<int64_t> chunk_ptrs(2 * num_chunks);
-            for (size_t i = 0; i < num_chunks; i++) {
-                chunk_ptrs[i] = reinterpret_cast<int64_t>(key_chunks[i]->buffer_ptr());
-                chunk_ptrs[num_chunks + i] = reinterpret_cast<int64_t>(value_chunks[i]->buffer_ptr());
-                EXPECT_NE(chunk_ptrs[i], 0) << "chunk buffer must provide a valid raw device pointer";
-                EXPECT_NE(chunk_ptrs[num_chunks + i], 0) << "chunk buffer must provide a valid raw device pointer";
+            namespace kv_chunk_table = ov::intel_gpu::kv_chunk_table;
+            const auto decoy_key_ptrs = pointers_of(value_chunks, false);
+            const auto decoy_value_ptrs = pointers_of(key_chunks, false);
+            const size_t granule_blocks = size_t{1} << p.chunking_granule_shift;
+            const size_t total_granules = std::accumulate(chunk_blocks.begin(), chunk_blocks.end(), size_t{0}) / granule_blocks;
+            // Spare chunk/granule capacity, as in a real table that is sized once for the whole cache capacity.
+            const auto max_chunks = static_cast<uint32_t>(num_chunks + 2);
+            const auto max_granules = static_cast<uint32_t>(total_granules + 3);
+            auto slots = kv_chunk_table::build(p.chunking_granule_shift,
+                                               /*generation=*/1,
+                                               max_chunks,
+                                               max_granules,
+                                               chunk_blocks,
+                                               {decoy_key_ptrs, pointers_of(key_chunks, p.chunking_corrupt_key_table), decoy_key_ptrs},
+                                               {decoy_value_ptrs, pointers_of(value_chunks, false), decoy_value_ptrs});
+            if (p.chunking_corrupt_directory) {
+                // Swap the first and last directory entries so those granules resolve to each other's storage.
+                EXPECT_GE(total_granules, 2u) << "corrupting a directory needs at least two granules";
+                auto* directory = reinterpret_cast<uint32_t*>(slots.data() + kv_chunk_table::kHeaderSlots);
+                std::swap(directory[0], directory[total_granules - 1]);
             }
-
-            auto chunk_base_ptrs_layout = cldnn::layout{ov::PartialShape{static_cast<int64_t>(2 * num_chunks)}, cldnn::data_types::i64, cldnn::format::bfyx};
-            chunk_base_ptrs_mem = tests::get_test_engine().allocate_memory(chunk_base_ptrs_layout);
-            tests::set_values<int64_t>(chunk_base_ptrs_mem, chunk_ptrs);
+            // The model input is an i32 tensor: every u64 slot is two i32 elements, low half first.
+            std::vector<int32_t> words(slots.size() * 2);
+            std::memcpy(words.data(), slots.data(), slots.size() * sizeof(uint64_t));
+            auto table_layout = cldnn::layout{ov::PartialShape{static_cast<int64_t>(words.size())}, cldnn::data_types::i32, cldnn::format::bfyx};
+            kv_chunk_table_mem = tests::get_test_engine().allocate_memory(table_layout);
+            tests::set_values<int32_t>(kv_chunk_table_mem, words);
 
             result.chunk_mems = key_chunks;
             result.chunk_mems.insert(result.chunk_mems.end(), value_chunks.begin(), value_chunks.end());
-            result.chunk_mems.push_back(chunk_base_ptrs_mem);
-            }
+            result.chunk_mems.push_back(kv_chunk_table_mem);
         }
 
         auto past_lens_mem = pam.get_past_lens_memory();
@@ -2219,8 +2211,8 @@ public:
                                                     cldnn::input_info("qq_bias"),
                                                     cldnn::input_info("qq_bias_begins")};
 
-        if (chunk_base_ptrs_mem != nullptr) {
-            pa_inputs.push_back(cldnn::input_info("chunk_base_ptrs"));
+        if (kv_chunk_table_mem != nullptr) {
+            pa_inputs.push_back(cldnn::input_info("kv_chunk_table"));
         }
 
         auto pa_prim = cldnn::paged_attention("paged_attention", pa_inputs);
@@ -2251,14 +2243,9 @@ public:
 
         pa_prim.has_qq_bias = p.has_qq_bias;
 
-        if (chunk_base_ptrs_mem != nullptr) {
-            pa_prim.has_chunk_base_ptrs = true;
-            pa_prim.blocks_per_chunk = p.chunking_blocks_per_chunk;
-            // num_chunks is intentionally not part of the primitive: it's read at dispatch time from
-            // chunk_base_ptrs_mem's own runtime shape (see new_plan.md Phase 5).
-        }
-        if (p.chunking_blocks_per_chunk > 0 && p.chunking_use_tables) {
-            pa_prim.has_chunk_tables = true;
+        if (kv_chunk_table_mem != nullptr) {
+            pa_prim.has_chunk_table = true;
+            pa_prim.kv_cache_layer_index = 1;
         }
 
         cldnn::topology topology;
@@ -2311,8 +2298,8 @@ public:
             topology.add(cldnn::input_layout("qq_bias_begins", qq_bias_begins_layout));
         }
 
-        if (chunk_base_ptrs_mem != nullptr) {
-            topology.add(cldnn::input_layout("chunk_base_ptrs", chunk_base_ptrs_mem->get_layout()));
+        if (kv_chunk_table_mem != nullptr) {
+            topology.add(cldnn::input_layout("kv_chunk_table", kv_chunk_table_mem->get_layout()));
         }
 
         ov::intel_gpu::ExecutionConfig config = tests::get_test_default_config(tests::get_test_engine());
@@ -2328,8 +2315,8 @@ public:
         network->set_input_data("query", query_mem);
         network->set_input_data("key", key_mem);
         network->set_input_data("value", value_mem);
-        network->set_input_data("key_cache", key_cache_input_mem);
-        network->set_input_data("value_cache", value_cache_input_mem);
+        network->set_input_data("key_cache", result.key_cache_mem);
+        network->set_input_data("value_cache", result.value_cache_mem);
         network->set_input_data("past_lens", past_lens_mem);
         network->set_input_data("subsequence_begins", subsequence_begins_mem);
         network->set_input_data("block_indices", block_indices_mem);
@@ -2355,8 +2342,8 @@ public:
         network->set_input_data("qq_bias", qq_bias);
         network->set_input_data("qq_bias_begins", qq_bias_begins);
 
-        if (chunk_base_ptrs_mem != nullptr) {
-            network->set_input_data("chunk_base_ptrs", chunk_base_ptrs_mem);
+        if (kv_chunk_table_mem != nullptr) {
+            network->set_input_data("kv_chunk_table", kv_chunk_table_mem);
         }
 
         last_key_cache_mem = result.key_cache_mem;
@@ -3150,18 +3137,15 @@ struct paged_attention_test_params {
     // Replaces generated Key inputs with zeros and validates BY_CHANNEL cache scales.
     bool zero_key_data = false;
 
-    // See new_plan.md Phase 5: when > 0, key_cache/value_cache are split into chunks of this many
-    // physical blocks each, exercised via the new CHUNK_BASE_PTRS primitive input. 0 = disabled
-    // (default, exact legacy single-buffer path, matches every other existing test case).
+    // When > 0, key_cache/value_cache are split into chunks of this many physical blocks each, described by the global
+    // kv_chunk_table primitive input. 0 = disabled (default, exact legacy single-buffer path, matches every other
+    // existing test case).
     size_t chunking_blocks_per_chunk = 0;
-    // When true (and chunking_blocks_per_chunk > 0), key_cache/value_cache are bound as i64 pointer tables
-    // (one per cache) instead of using the 29th CHUNK_BASE_PTRS input.
-    bool chunking_use_tables = false;
-    // Negative control for chunking_use_tables: swaps the first two key-table entries so the kernel reads the
-    // wrong chunk. A run with this set is expected to FAIL the output comparison.
+    // Negative control: swaps the first two key-table entries so the kernel reads the wrong chunk. A run with this
+    // set is expected to FAIL the output comparison.
     bool chunking_corrupt_key_table = false;
-    // Table mode only: explicit per-chunk block counts (each a multiple of 2^chunking_granule_shift) instead of
-    // uniform chunks of chunking_blocks_per_chunk, and the granule exponent written into the table header.
+    // Explicit per-chunk block counts (each a multiple of 2^chunking_granule_shift) instead of uniform chunks of
+    // chunking_blocks_per_chunk, and the granule exponent written into the table header.
     std::vector<size_t> chunking_chunk_blocks;
     uint32_t chunking_granule_shift = 0;
     // Negative control: swaps two directory entries so those granules resolve to each other's storage.

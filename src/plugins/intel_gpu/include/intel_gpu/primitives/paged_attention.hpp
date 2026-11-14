@@ -42,10 +42,10 @@ struct paged_attention : public primitive_base<paged_attention> {
         TOKEN_TYPE_IDS = 25,
         QQ_BIAS = 26,
         QQ_BIAS_BEGINS = 27,
-        // Optional, only present when the op was constructed with 29 inputs (see new_plan.md Phase 5):
-        // one i64 device pointer per KV cache chunk, absent (28 inputs total) means key_cache/value_cache
-        // are a single legacy contiguous allocation.
-        CHUNK_BASE_PTRS = 28
+        // Optional, only present when the op was constructed with 29 inputs (split_kv_cache_design-3.md):
+        // the global i32 chunk table shared by all layers; absent (28 inputs) means key_cache/value_cache are
+        // a single contiguous allocation.
+        KV_CHUNK_TABLE = 28
     };
 
     static constexpr size_t block_size = 16;
@@ -59,7 +59,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         OPENVINO_ASSERT((inputs.size() == 28 || inputs.size() == 29),
                         "[GPU] Unexpected inputs number for PagedAttention primitive: ",
                         inputs.size());
-        has_chunk_base_ptrs = inputs.size() == 29;
+        has_chunk_table = inputs.size() == 29;
     }
 
     bool has_scores_output() const {
@@ -82,9 +82,8 @@ struct paged_attention : public primitive_base<paged_attention> {
         seed = hash_combine(seed, has_token_type_ids);
         seed = hash_combine(seed, has_qq_bias);
         seed = hash_combine(seed, write_kv_cache);
-        seed = hash_combine(seed, has_chunk_base_ptrs);
-        seed = hash_combine(seed, has_chunk_tables);
-        seed = hash_combine(seed, blocks_per_chunk);
+        seed = hash_combine(seed, has_chunk_table);
+        seed = hash_combine(seed, kv_cache_layer_index);
         if (scale_val.has_value()) {
             seed = hash_combine(seed, scale_val.value());
         }
@@ -114,9 +113,8 @@ struct paged_attention : public primitive_base<paged_attention> {
                has_token_type_ids == rhs_casted.has_token_type_ids &&
                has_qq_bias == rhs_casted.has_qq_bias &&
                write_kv_cache == rhs_casted.write_kv_cache &&
-               has_chunk_base_ptrs == rhs_casted.has_chunk_base_ptrs &&
-               has_chunk_tables == rhs_casted.has_chunk_tables &&
-               blocks_per_chunk == rhs_casted.blocks_per_chunk &&
+               has_chunk_table == rhs_casted.has_chunk_table &&
+               kv_cache_layer_index == rhs_casted.kv_cache_layer_index &&
                scale_val.value_or(1.0f) == rhs_casted.scale_val.value_or(1.0f) &&
                is_key_by_channel == rhs_casted.is_key_by_channel;
     }
@@ -137,9 +135,8 @@ struct paged_attention : public primitive_base<paged_attention> {
         ob << has_token_type_ids;
         ob << has_qq_bias;
         ob << write_kv_cache;
-        ob << has_chunk_base_ptrs;
-        ob << has_chunk_tables;
-        ob << blocks_per_chunk;
+        ob << has_chunk_table;
+        ob << kv_cache_layer_index;
 
         if (scale_val.has_value()) {
             ob << true;
@@ -166,9 +163,8 @@ struct paged_attention : public primitive_base<paged_attention> {
         ib >> has_token_type_ids;
         ib >> has_qq_bias;
         ib >> write_kv_cache;
-        ib >> has_chunk_base_ptrs;
-        ib >> has_chunk_tables;
-        ib >> blocks_per_chunk;
+        ib >> has_chunk_table;
+        ib >> kv_cache_layer_index;
 
         bool has_scale;
         ib >> has_scale;
@@ -198,21 +194,13 @@ struct paged_attention : public primitive_base<paged_attention> {
     bool is_key_by_channel = false;
     bool has_qq_bias = false;
     bool write_kv_cache = true;
-    // See new_plan.md Phase 5: whether CHUNK_BASE_PTRS is present (key_cache/value_cache addressed as
-    // multiple independent chunks) rather than a single legacy contiguous allocation.
-    bool has_chunk_base_ptrs = false;
-    // Alternative chunked mode: the KEY_CACHE/VALUE_CACHE inputs themselves hold i64 tables of per-chunk
-    // device pointers (one table each), so no 29th input is needed. Mutually exclusive with has_chunk_base_ptrs.
-    bool has_chunk_tables = false;
+    // Whether KV_CHUNK_TABLE is present: the KV cache is a set of independently allocated chunks addressed through
+    // the global chunk table (see kv_chunk_table.hpp). KEY_CACHE/VALUE_CACHE then only carry dtype/block shape.
+    bool has_chunk_table = false;
+    // N of the `key_cache.N` parameter of this layer: selects the layer's K/V pointer region in the chunk table.
+    int64_t kv_cache_layer_index = -1;
     bool is_chunked() const {
-        return has_chunk_base_ptrs || has_chunk_tables;
+        return has_chunk_table;
     }
-    // Fixed number of blocks per chunk (uniform across chunks); only meaningful when is_chunked()
-    // is true. block_id resolves to (block_id / blocks_per_chunk, block_id % blocks_per_chunk). The
-    // current chunk COUNT is deliberately NOT stored here (or anywhere compile-time): chunk_base_ptrs
-    // grows across inference steps as new chunks are allocated, so kernels read it at dispatch time from
-    // the actual runtime input shape (see KVCacheUpdateGenerator/PagedAttentionGeneratorBase's
-    // get_dispatch_data_func()) instead of baking it into the JIT/kernel cache key.
-    size_t blocks_per_chunk = 0;
 };
 }  // namespace cldnn

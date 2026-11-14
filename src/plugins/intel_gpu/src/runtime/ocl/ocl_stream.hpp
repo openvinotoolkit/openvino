@@ -63,9 +63,8 @@ public:
 private:
     void sync_events(std::vector<event::ptr> const& deps, bool is_output = false);
 
-    // new_plan.md Phase 5: last chunk_base_ptrs USM pointer set registered via clSetKernelExecInfo
-    // per kernel, so set_arguments() can skip the (otherwise unconditional, per-dispatch) driver call
-    // once the chunk set is stable between steps -- it only actually changes on a growth event.
+    // Last KV chunk USM pointer set registered via clSetKernelExecInfo per kernel, so set_arguments() can skip
+    // the (otherwise unconditional, per-dispatch) driver call once the chunk set is stable between steps.
     std::unordered_map<void*, std::vector<void*>> _last_registered_chunk_exec_info;
 
     const ocl_engine& _engine;
