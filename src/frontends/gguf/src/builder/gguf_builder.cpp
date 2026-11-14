@@ -74,16 +74,24 @@ GraphBuilder make_gguf_builder(GGUFLoad loaded, const ArchRegistry& registry) {
                        ". Register an ArchitectureExtension.");
     }
     return [data, definition = *definition, projectors = registry.projectors()](
-               const std::unordered_map<std::string, CreatorFunction>& translators) {
+               const std::unordered_map<std::string, CreatorFunction>& translators,
+               const std::string& component) {
         const auto& [metadata, weights, mmap] = *data;
         const detail::MetadataStore meta_store{metadata};
         const GgufMetadata meta_view(meta_store);
         detail::WeightStore weight_store{weights, &translators};
         BuildContext ctx{meta_view, meta_view.architecture(), &weight_store, &projectors};
+        ctx.component = component;
         auto builder = definition.factory(ctx);
         OPENVINO_ASSERT(builder, "[GGUF] architecture handler '", definition.id, "' returned no builder");
         auto graph = builder->build();
         OPENVINO_ASSERT(graph, "[GGUF] architecture handler '", definition.id, "' returned no graph");
+        OPENVINO_ASSERT(graph->component == component,
+                        "[GGUF] architecture handler '",
+                        definition.id,
+                        "' does not implement component '",
+                        component,
+                        "'");
         graph->tokenizer_config = extract_tokenizer_config(metadata);
         graph->architecture = meta_view.architecture();
         return graph;

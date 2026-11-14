@@ -109,7 +109,8 @@ std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
         auto ops = merged_ops(m_impl->op_extension_translators);
         auto conversion_input = gguf_model;
         if (gguf_model->m_builder) {
-            auto graph = gguf_model->m_builder(ops);
+            const auto component = m_impl->genai_extension ? m_impl->genai_extension->m_component : std::string{};
+            auto graph = gguf_model->m_builder(ops, component);
             for (const auto& [output, adapter] : graph->model_adapters) {
                 if (adapter)
                     adapter->lifetime.insert(adapter->lifetime.end(),
@@ -131,6 +132,7 @@ std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
                                 "GenAIExtension requires a GGUF decoder with adaptable inputs");
         m_impl->genai_extension->m_embedding_model = adapter.get_embedding_model();
         m_impl->genai_extension->m_per_layer_embedding_model = adapter.get_per_layer_embedding_model();
+        m_impl->genai_extension->m_ngram_embedding_model = adapter.get_ngram_embedding_model();
     }
     return converted_model;
 }

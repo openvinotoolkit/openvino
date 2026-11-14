@@ -44,12 +44,17 @@ private:
     // Final norm, lm_head, and the optional logit scale / soft-cap.
     std::string build_head(const std::string& cur);
     bool selects_output_rows(int il) const {
-        return il == m_cfg.n_layer - 1 && !m_cfg.embedding_model;
+        return il == m_cfg.n_layer - 1 && !m_cfg.embedding_model && !m_export_hidden;
     }
+    std::string nextn_weight(const std::string& name) const;
+    std::string lm_head_weight() const;
 
     DecoderConfig m_cfg;
     GraphEmitter m_emit;
     blocks::KvCachePlan m_kv;
+    bool m_mtp = false;
+    int m_nextn_layer = -1;
+    bool m_export_hidden = false;
 };
 
 }  // namespace ov::frontend::gguf

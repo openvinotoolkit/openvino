@@ -61,6 +61,12 @@ public:
                    const std::vector<GgufValue>& inputs,
                    int op_case = 0,
                    const std::map<std::string, ov::Any>& attrs = {});
+    // Invoke a converter with `outputs` outputs and return them in order.
+    std::vector<GgufValue> node_outputs(const std::string& op_type,
+                                        const std::vector<GgufValue>& inputs,
+                                        size_t outputs,
+                                        int op_case = 0,
+                                        const std::map<std::string, ov::Any>& attrs = {});
 
     // Declare the position contract before emitting nodes; config.per_op selects per-node tables.
     void configure_rope(const RopeConfig& config);
@@ -77,6 +83,8 @@ public:
     // Put the data output before auxiliary cache outputs registered by decoder blocks.
     void set_primary_output(const GgufValue& value);
     void set_output(const GgufValue& value, const std::string& name);
+    // Acknowledge that this builder handles the component selected in BuildContext.
+    void acknowledge_component();
     // Record the sliding window for normalization passes.
     void set_sliding_window(int64_t tokens);
     // Registers an overwritten state, automatically marking the update as a model output.
