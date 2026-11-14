@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <intel_gpu/primitives/paged_attention.hpp>
 
 #include "test_utils.h"
@@ -35,6 +36,22 @@ inline bool dpas_kernel_enabled_by_config(cldnn::engine& engine) {
 // The device lane (expected_dpas_backend_for()) and the config (dpas_kernel_enabled_by_config()).
 inline dpas_backend expected_dpas_backend(cldnn::engine& engine) {
     return dpas_kernel_enabled_by_config(engine) ? expected_dpas_backend_for(engine.get_device_info()) : dpas_backend::none;
+}
+
+// Whether a one-query step (decode) of plain SDPA on the sdpa_ocl lane runs on the opt stages instead: on xe_hpg at the head
+// sizes the opt stages take (SDPAOptImpl, opt_stages_take_head()): 64 to min(max_work_group_size, 512) and even, and a head
+// size that is not a multiple of 16 only with an uncompressed K and V. PREFILL keeps sdpa_ocl.
+inline bool plain_decode_on_opt(const cldnn::device_info& info, size_t k_head_size, size_t v_head_size, bool compressed_kv) {
+    if (info.arch != cldnn::gpu_arch::xe_hpg) {
+        return false;
+    }
+    const size_t max_head = std::min<size_t>(info.max_work_group_size, 512);
+    for (const size_t head : {k_head_size, v_head_size}) {
+        if (head < 64 || head > max_head || head % 2 != 0) {
+            return false;
+        }
+    }
+    return !compressed_kv || (k_head_size % 16 == 0 && v_head_size % 16 == 0);
 }
 
 }  // namespace tests

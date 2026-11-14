@@ -2869,7 +2869,8 @@ TEST(sdpa_gpu_micro, broadcast_mask_multi_tile_k) {
     }
 }
 
-// Which kernel plain SDPA dispatches: sdpa_ocl on its lane (Xe2+ XMX), the opt kernels elsewhere. Dispatch
+// Which kernel plain SDPA dispatches: sdpa_ocl on its lane (but a one-query step on xe_hpg at the heads the opt stages take,
+// tests::plain_decode_on_opt()), the opt kernels elsewhere. Dispatch
 // only: accuracy is sdpa_gpu_test's (against its host reference) and the functional ScaledAttn tests'. Static shapes;
 // the second test rebuilds the impl through program save/load (default ctor plus the saved stage order), so the
 // dispatch must not depend on state only the params ctor had.
@@ -2880,17 +2881,12 @@ public:
         auto& engine = get_test_engine();
         const bool prefill = p.sequence_length_q > 1;
         const bool unaligned = p.head_size % 16 != 0;
-        const auto backend = tests::expected_dpas_backend(engine);
-        std::string expected;
-        switch (backend) {
-        case tests::dpas_backend::ocl:
-            // The sdpa_ocl single-token kernel also takes unaligned heads.
-            expected = prefill ? "sdpa_ocl_prefill" : "sdpa_ocl_mixed";
-            break;
-        case tests::dpas_backend::none:
-            expected = (prefill || unaligned) ? "sdpa_opt__multi_reg" : "sdpa_opt__single_reg";
-            break;
-        }
+        // On the lane, xe_hpg runs a one-query step on the opt stages at the heads they take.
+        const bool ocl = tests::expected_dpas_backend(engine) == tests::dpas_backend::ocl &&
+                         (prefill || !tests::plain_decode_on_opt(engine.get_device_info(), p.head_size, p.head_size, false));
+        // The sdpa_ocl single-token kernel also takes unaligned heads.
+        const std::string expected =
+            ocl ? (prefill ? "sdpa_ocl_prefill" : "sdpa_ocl_mixed") : ((prefill || unaligned) ? "sdpa_opt__multi_reg" : "sdpa_opt__single_reg");
 
         const auto q_layout = cldnn::layout({p.batch, p.sequence_length_q, p.num_heads, p.head_size}, p.dt, format::bfyx);
         const auto kv_layout = cldnn::layout({p.batch, p.sequence_length_kv, p.num_heads, p.head_size}, p.dt, format::bfyx);
@@ -2916,7 +2912,7 @@ public:
         ASSERT_NE(sdpa_inst->get_impl(), nullptr);
         const auto entries = sdpa_inst->get_impl()->get_kernels_dump_info(*sdpa_inst->get_impl_params()).get_entries();
         EXPECT_NE(entries.find(expected), std::string::npos) << "expected " << expected << ", dispatched: " << entries;
-        if (backend != tests::dpas_backend::ocl) {
+        if (!ocl) {
             EXPECT_EQ(entries.find("sdpa_ocl"), std::string::npos) << "dispatched: " << entries;
         }
 
@@ -3302,14 +3298,20 @@ TEST_P(sdpa_hpg_ext_test, plain_sdpa) {
     }
     auto output = net->execute().at("result").get_memory();
 
-    // The kernel that ran: sdpa_ocl, the prefill stage for q > 1 and the single-token stage for q == 1 (a dynamic op builds both).
+    // The kernel that ran: sdpa_ocl, the prefill stage for q > 1 and the single-token stage for q == 1 (a dynamic op builds both),
+    // but the opt stages for q == 1 at the heads they take (tests::plain_decode_on_opt()).
     auto sdpa_inst = net->get_primitive("sdpa");
     ASSERT_NE(sdpa_inst, nullptr);
     ASSERT_NE(sdpa_inst->get_impl(), nullptr);
     const auto entries = sdpa_inst->get_impl()->get_kernels_dump_info(*sdpa_inst->get_impl_params()).get_entries();
-    ASSERT_NE(entries.find("sdpa_ocl"), std::string::npos) << "dispatched: " << entries;
-    if (!p.dynamic) {
-        ASSERT_NE(entries.find(nq > 1 ? "sdpa_ocl_prefill" : "sdpa_ocl_mixed"), std::string::npos) << "dispatched: " << entries;
+    if (nq == 1 && tests::plain_decode_on_opt(engine.get_device_info(), d, d, false)) {
+        ASSERT_EQ(entries.find("sdpa_ocl"), std::string::npos) << "dispatched: " << entries;
+        ASSERT_NE(entries.find("sdpa_opt"), std::string::npos) << "dispatched: " << entries;
+    } else {
+        ASSERT_NE(entries.find("sdpa_ocl"), std::string::npos) << "dispatched: " << entries;
+        if (!p.dynamic) {
+            ASSERT_NE(entries.find(nq > 1 ? "sdpa_ocl_prefill" : "sdpa_ocl_mixed"), std::string::npos) << "dispatched: " << entries;
+        }
     }
 
     // CPU reference in double over the stored (rounded) inputs: softmax over [logits..., sink], the sink column dropped.
@@ -3402,7 +3404,7 @@ INSTANTIATE_TEST_SUITE_P(
         sdpa_hpg_ext_params{128, 100, 100, true, 2, 2, true, true, 0}, sdpa_hpg_ext_params{128, 100, 100, false, 2, 2, true, true, 0},
         sdpa_hpg_ext_params{64, 100, 100, true, 2, 0, true, false, 0}, sdpa_hpg_ext_params{64, 100, 100, true, 1, 0, true, false, 0},
         sdpa_hpg_ext_params{128, 100, 100, true, 2, 2, false, true, 0},
-        // single query (the sdpa_ocl_mixed stage)
+        // single query (on xe_hpg the opt stages at these heads, tests::plain_decode_on_opt(); elsewhere the sdpa_ocl_mixed stage)
         sdpa_hpg_ext_params{64, 1, 100, false, 0, 0, false, false, 0}, sdpa_hpg_ext_params{64, 1, 1000, false, 1, 0, false, false, 0},
         sdpa_hpg_ext_params{64, 1, 100, true, 1, 0, false, false, 0}, sdpa_hpg_ext_params{128, 1, 100, false, 0, 2, false, false, 0},
         sdpa_hpg_ext_params{64, 1, 100, false, 1, 0, true, false, 0}, sdpa_hpg_ext_params{64, 1, 100, false, 1, 0, false, true, 0},
@@ -3850,7 +3852,8 @@ TEST_P(sdpa_kv_compressed_test, matches_dequant_reference) {
     ASSERT_NE(sdpa_inst, nullptr);
     ASSERT_NE(sdpa_inst->get_impl(), nullptr);
     const auto entries = sdpa_inst->get_impl()->get_kernels_dump_info(*sdpa_inst->get_impl_params()).get_entries();
-    if (backend == tests::dpas_backend::ocl) {
+    // On the lane, xe_hpg runs a one-query step on the opt stages at the heads they take.
+    if (backend == tests::dpas_backend::ocl && (nq > 1 || !tests::plain_decode_on_opt(engine.get_device_info(), d, d, true))) {
         ASSERT_NE(entries.find("sdpa_ocl"), std::string::npos) << "dispatched: " << entries;
         ASSERT_NE(entries.find(nq > 1 ? "sdpa_ocl_prefill" : "sdpa_ocl_mixed"), std::string::npos) << "dispatched: " << entries;
     } else {
@@ -4597,7 +4600,8 @@ struct sdpa_sliding_window_test_params {
     bool causal_lower_right = true;
 };
 
-// dpas = true: the DPAS kernel (sdpa_ocl, on its lane only); false: the opt stage kernels (enable_sdpa_micro off), the
+// dpas = true: the DPAS kernel (sdpa_ocl, on its lane only; a one-query step on xe_hpg runs the opt stages at the heads they
+// take, tests::plain_decode_on_opt()); false: the opt stage kernels (enable_sdpa_micro off), the
 // default plain SDPA path of every XMX device off the lane. Each arm checks which kernel it compiled.
 struct sdpa_sliding_window_test : public ::testing::TestWithParam<std::tuple<sdpa_sliding_window_test_params, bool>> {
     tests::random_generator rg;
@@ -4709,10 +4713,11 @@ struct sdpa_sliding_window_test : public ::testing::TestWithParam<std::tuple<sdp
                 }
             }
             EXPECT_FALSE(info.empty()) << "no scaled_dot_product_attention primitive";
-            if (dpas) {
+            // On the lane, xe_hpg runs a one-query step on the opt stages at the heads they take.
+            if (dpas && !(seq_q == 1 && tests::plain_decode_on_opt(engine.get_device_info(), head_size, head_size, false))) {
                 EXPECT_NE(info.find("sdpa_ocl"), std::string::npos) << "sdpa_ocl was not selected:\n" << info;
             } else {
-                EXPECT_EQ(info.find("sdpa_ocl"), std::string::npos) << "sdpa_ocl was selected with enable_sdpa_micro off:\n" << info;
+                EXPECT_EQ(info.find("sdpa_ocl"), std::string::npos) << "sdpa_ocl was selected off its lane:\n" << info;
                 EXPECT_NE(info.find("sdpa_opt"), std::string::npos) << "no opt stage kernel was selected:\n" << info;
             }
             net->set_input_data("q", q_mem);
@@ -5158,7 +5163,8 @@ struct sdpa_broadcast_test_params {
           causal(is_causal) {}
 };
 
-// dpas = true: the DPAS kernel (sdpa_ocl, on its lane only); false: the opt stage kernels (enable_sdpa_micro off), the
+// dpas = true: the DPAS kernel (sdpa_ocl, on its lane only; a one-query step on xe_hpg runs the opt stages at the heads they
+// take, tests::plain_decode_on_opt()); false: the opt stage kernels (enable_sdpa_micro off), the
 // default plain SDPA path of every XMX device off the lane. Each arm checks which kernel it executed.
 struct sdpa_broadcast_test : public ::testing::TestWithParam<std::tuple<sdpa_broadcast_test_params, bool>> {
     tests::random_generator rg;
@@ -5248,9 +5254,12 @@ struct sdpa_broadcast_test : public ::testing::TestWithParam<std::tuple<sdpa_bro
         const bool is_reference = impl == "sdpa_ref";
         EXPECT_EQ(executed_kernels.find("sdpa_ref") != std::string::npos, is_reference) << "Executed kernels: " << executed_kernels;
         if (!is_reference) {
-            // The DPAS arm must run sdpa_ocl (a silent fallback to the opt kernels would hide its batch indexing).
-            EXPECT_EQ(executed_kernels.find("sdpa_ocl") != std::string::npos, dpas) << "Executed kernels: " << executed_kernels;
-            EXPECT_EQ(executed_kernels.find("sdpa_opt") != std::string::npos, !dpas) << "Executed kernels: " << executed_kernels;
+            // The DPAS arm must run sdpa_ocl (a silent fallback to the opt kernels would hide its batch indexing), but a one-query
+            // step on xe_hpg at the heads the opt stages take runs those.
+            const auto& p = std::get<0>(GetParam());
+            const bool ocl = dpas && !(p.seq_q == 1 && tests::plain_decode_on_opt(engine.get_device_info(), p.head_size, p.head_size, false));
+            EXPECT_EQ(executed_kernels.find("sdpa_ocl") != std::string::npos, ocl) << "Executed kernels: " << executed_kernels;
+            EXPECT_EQ(executed_kernels.find("sdpa_opt") != std::string::npos, !ocl) << "Executed kernels: " << executed_kernels;
         }
         RecordProperty(is_reference ? "reference_kernels" : "optimized_kernels", executed_kernels);
         EXPECT_EQ(result->get_layout().data_type, q_layout.data_type);
@@ -5460,7 +5469,8 @@ INSTANTIATE_TEST_SUITE_P(
 // sdpa_opt ignores the mask when is_causal is set; sdpa_ocl adds it, which a 0 scalar leaves unchanged. With the
 // lower-right causal mask and seq_q <= seq_kv, the last query sees every key, so the partial key block is computed.
 //
-// dpas = true: the DPAS kernel (sdpa_ocl, on its lane only), which also takes the single-element runtime mask; false:
+// dpas = true: the DPAS kernel (sdpa_ocl, on its lane only; a one-query step on xe_hpg runs the opt stages at the heads they
+// take, tests::plain_decode_on_opt()), which also takes the single-element runtime mask; false:
 // the opt stage kernels (enable_sdpa_micro off), whose key-leftover read this test was written for. Each arm checks
 // which kernel it executed, without stopping the accuracy compare.
 struct sdpa_opt_key_leftover_params {
@@ -5567,11 +5577,13 @@ protected:
         ASSERT_FALSE(sdpa_id.empty()) << "Expected an SDPA primitive";
         const auto inst = net->get_primitive(sdpa_id);
         const auto kernels = inst->get_impl()->get_kernels_dump_info(*inst->get_impl_params()).get_entries();
-        if (dpas) {
+        // On the lane, xe_hpg runs a one-query step on the opt stages at the heads they take.
+        if (dpas && !(p.seq_q == 1 && tests::plain_decode_on_opt(engine.get_device_info(), p.head_size, p.head_size, false))) {
             EXPECT_NE(kernels.find("sdpa_ocl"), std::string::npos) << "Executed kernels: " << kernels;
             EXPECT_EQ(kernels.find("sdpa_opt"), std::string::npos) << "Executed kernels: " << kernels;
         } else {
             EXPECT_NE(kernels.find("sdpa_opt__multi_reg"), std::string::npos) << "Executed kernels: " << kernels;
+            EXPECT_EQ(kernels.find("sdpa_ocl"), std::string::npos) << "Executed kernels: " << kernels;
         }
 
         const float scale = 1.0f / std::sqrt(static_cast<float>(head_size));

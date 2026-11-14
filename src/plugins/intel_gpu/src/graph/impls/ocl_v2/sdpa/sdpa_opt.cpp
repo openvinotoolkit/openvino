@@ -53,6 +53,26 @@ bool dpas_sdpa_enabled(const RuntimeParams& params) {
     }
     return true;
 }
+
+// Whether the opt stages take this plain SDPA op: the head sizes with which the op stays fused on an XMX device off the
+// sdpa_ocl lane (transformations_pipeline.cpp), 64 to 512 and even, and a head size that is not a multiple of 16 only
+// with f16 / bf16 K and V. On the lane the op stays fused at every head size up to 256, so on xe_hpg (below) an op
+// outside these keeps sdpa_ocl.
+bool opt_stages_take_head(const RuntimeParams& params) {
+    const auto desc = params.typed_desc<scaled_dot_product_attention>();
+    const auto& k_layout = params.get_input_layout(1);
+    const auto& v_layout = params.get_input_layout(2);
+    const auto k_head_size = get_head_size(k_layout, desc->input_k_transpose_order);
+    const auto v_head_size = get_head_size(v_layout, desc->input_v_transpose_order);
+    const auto max_head = std::min<int64_t>(static_cast<int64_t>(params.get_device_info().max_work_group_size), 512);
+    for (const auto head : {k_head_size, v_head_size}) {
+        if (head < 64 || head > max_head || head % 2 != 0) {
+            return false;
+        }
+    }
+    const bool f16_kv = ov::element::Type(k_layout.data_type).size() >= 2 && ov::element::Type(v_layout.data_type).size() >= 2;
+    return f16_kv || !unaligned_head_size(params);
+}
 }  // namespace
 #endif
 
@@ -102,6 +122,10 @@ public:
         auto dpas_supported = [&]() {
             return SDPAOpt::sdpa_ocl_serves_op(params, true);
         };
+        // xe_hpg (DG2, ARL-H) runs a one-query step (decode) of plain SDPA on the opt stages: 31-44 us per step where the
+        // generic SG8 kernel took 946-1464 us (A770, ATTENTION_BACKEND=SDPA, 1K-token prompts). PREFILL keeps sdpa_ocl on
+        // every arch, and so does a decode the opt stages do not take (opt_stages_take_head()).
+        const bool ocl_single_token_ok = params.get_device_info().arch != gpu_arch::xe_hpg || !opt_stages_take_head(params);
 #endif
         GPU_DEBUG_TRACE_DETAIL << "create stages for dynamic = " << params.is_dynamic() << ", sdpa_ocl lane = " << ocl_lane << "\n";
         if (params.is_dynamic()) {
@@ -118,7 +142,7 @@ public:
                 add_stage(ocl_multi_tokens, params);
                 // A rank-3 op keeps the opt single-token kernel: for one query it measured 2 us against sdpa_ocl's 10 us
                 // ([10, 1024, 64] keys, B70), while the prefill is 2.4-6.7x faster on sdpa_ocl.
-                if (params.typed_desc<scaled_dot_product_attention>()->input_q_transpose_order.size() != 3) {
+                if (ocl_single_token_ok && params.typed_desc<scaled_dot_product_attention>()->input_q_transpose_order.size() != 3) {
                     add_stage(ocl_single_token, params);
                 }
             }
@@ -133,7 +157,11 @@ public:
             // The opt single-token kernel does not support unaligned head sizes, and indirect keeps
             // its opt fallback, so both are excluded.
             const bool is_prefill = is_prefill_stage(params);
+#ifdef ENABLE_ONEDNN_FOR_GPU
+            const bool ocl_single_token_unaligned = ocl_lane && !is_indirect && ocl_single_token_ok;
+#else
             const bool ocl_single_token_unaligned = ocl_lane && !is_indirect;
+#endif
             if (is_prefill || (unaligned_head_size(params) && !ocl_single_token_unaligned)) {
                 if (is_indirect) {
                     GPU_DEBUG_TRACE_DETAIL << "add stage for indirect non-dynamic with prefill_stage \n";
@@ -156,7 +184,8 @@ public:
             } else {
                 GPU_DEBUG_TRACE_DETAIL << "add stage single_tokens \n";
 #ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
-                const bool use_sdpa_ocl = dpas_supported() && cldnn::paged_attention::sdpa_ocl_plain_single_token_ok(params.get_device_info()) && !is_indirect;
+                const bool use_sdpa_ocl =
+                    ocl_single_token_ok && dpas_supported() && cldnn::paged_attention::sdpa_ocl_plain_single_token_ok(params.get_device_info()) && !is_indirect;
                 if (use_sdpa_ocl) {
                     add_stage(ocl_single_token, params);
                 }
