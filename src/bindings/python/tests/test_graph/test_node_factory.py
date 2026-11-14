@@ -2,11 +2,12 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import gc
 import numpy as np
 import pytest
 from sys import platform
 from openvino import compile_model, Model
-from openvino import Extension
+from openvino import DiscreteTypeInfo, Extension, Op, OpExtension, Tensor, Type
 import openvino.opset8 as ov
 from openvino.exceptions import UserInputError
 from openvino.utils.node_factory import NodeFactory
@@ -139,3 +140,55 @@ def test_add_extension():
     data = ov.parameter([1, 2], dtype=np.float32)
     param = factory.create("Parameter", data.outputs())
     assert param is not None
+
+
+@pytest.mark.parametrize("registration", ["direct", "list"])
+def test_plain_extension_retains_owner(registration):
+    class PlainIdentity(Op):
+        class_type_info = DiscreteTypeInfo("PlainFactoryIdentity", "extension")
+
+        def __init__(self, inputs=None):
+            super().__init__(self)
+            if inputs is not None:
+                self.set_arguments(inputs)
+                self.constructor_validate_and_infer_types()
+
+        def get_type_info(self):
+            return self.class_type_info
+
+        def visit_attributes(self, visitor):
+            return True
+
+        def validate_and_infer_types(self):
+            self.set_output_type(0, self.get_input_element_type(0), self.get_input_partial_shape(0))
+
+        def clone_with_new_inputs(self, inputs):
+            return PlainIdentity(inputs)
+
+        def has_evaluate(self):
+            return True
+
+        def evaluate(self, outputs, inputs):
+            inputs[0].copy_to(outputs[0])
+            return True
+
+    class EmptyExtension(Extension):
+        def __init__(self):
+            super().__init__()
+
+    factory = NodeFactory()
+    extension = OpExtension(PlainIdentity)
+    factory.add_extension(extension if registration == "direct" else [EmptyExtension(), extension])
+    del extension
+    gc.collect()
+
+    input_parameter = ov.parameter([2, 3], dtype=np.float32)
+    node = factory.create("PlainFactoryIdentity", [input_parameter], {})
+    assert list(node.output(0).shape) == [2, 3]
+    assert node.output(0).element_type == Type.f32
+    model = Model([node], [input_parameter])
+    values = np.array([[1.25, -2.5, 0], [3.5, -1, 7.75]], dtype=np.float32)
+    output = Tensor(Type.f32, [2, 3])
+    assert model.evaluate([output], [Tensor(values)])
+    np.testing.assert_array_equal(output.data, values)
+    del model, node
