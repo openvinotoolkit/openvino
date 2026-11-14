@@ -233,6 +233,12 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipelines/kokoro/kokoro_split.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipelines/kokoro/kokoro_utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipelines/kokoro/kokoro_utils.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipelines/vision_merger/vision_merger_compiled_model.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipelines/vision_merger/vision_merger_compiled_model.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipelines/bagel/bagel_compiled_model.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipelines/bagel/bagel_compiled_model.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipelines/bagel/bagel_infer_request.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipelines/bagel/bagel_infer_request.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pyramid_attention.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pyramid_attention.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/serialization.cpp
@@ -259,4 +265,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/whisper/prepare_whisper_model.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/whisper/whisper_infer_request.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/whisper/whisper_infer_request.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/qwen3asr/prepare_qwen3_asr_model.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/qwen3asr/prepare_qwen3_asr_model.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/qwen3asr/qwen3_asr_infer_request.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/qwen3asr/qwen3_asr_infer_request.hpp
 )
