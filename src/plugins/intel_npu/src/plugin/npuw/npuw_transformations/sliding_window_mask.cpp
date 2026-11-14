@@ -145,6 +145,102 @@ bool is_zero_scalar_constant(const ov::Output<ov::Node>& output) {
     return !values.empty() && values.front() == 0;
 }
 
+// Return the Range at the base of the simple Unsqueeze/Convert chains used by
+// the LFM3 query and key indices.  Keeping this deliberately narrow avoids
+// treating arbitrary arithmetic expressions as token positions.
+std::shared_ptr<ov::op::v4::Range> get_index_range(const std::shared_ptr<ov::Node>& node) {
+    auto current = node;
+    while (current && (ov::is_type<ov::op::v0::Unsqueeze>(current) ||
+                       ov::is_type<ov::op::v0::Convert>(current))) {
+        current = current->get_input_node_shared_ptr(0);
+    }
+    return ov::as_type_ptr<ov::op::v4::Range>(current);
+}
+
+// LFM3 exports a float mask by selecting between -inf and zero twice instead
+// of building the boolean BitwiseAnd pattern handled by the matchers above.
+// Its window condition is (Q - K) >= window.  For padded static KV buffers,
+// use temporal position_ids for the old-token boundary while retaining the
+// cache-position boundary for present tokens.  This is the float-mask
+// equivalent of the Phi-3/Gemma rewrite above:
+//
+//   beyond = (position_ids - K >= window) |
+//            ((Q - K >= window) & (K >= past_kv_len))
+class LFM3SlidingMaskMatcher : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::patterns::LFM3SlidingMaskMatcher");
+
+    LFM3SlidingMaskMatcher(const std::shared_ptr<ov::Node>& position_ids_node_ptr) {
+        auto select = opp::wrap_type<ov::op::v1::Select>();
+        auto callback = [position_ids_node_ptr](opp::Matcher& m) {
+            auto window_mask = ov::as_type_ptr<ov::op::v1::Select>(m.get_match_root());
+            if (!window_mask || !window_mask->get_output_element_type(0).is_real())
+                return false;
+
+            // The LFM3 window Select is nested as a data input of another
+            // Select, which applies the causal/padding mask.
+            bool nested_in_mask = false;
+            for (const auto& input : window_mask->output(0).get_target_inputs()) {
+                auto parent = ov::as_type_ptr<ov::op::v1::Select>(input.get_node()->shared_from_this());
+                if (parent && (parent->input_value(1) == window_mask->output(0) ||
+                               parent->input_value(2) == window_mask->output(0))) {
+                    nested_in_mask = true;
+                    break;
+                }
+            }
+            if (!nested_in_mask)
+                return false;
+
+            auto beyond = window_mask->input_value(0).get_node_shared_ptr();
+            while (ov::is_type<ov::op::v0::Unsqueeze>(beyond))
+                beyond = beyond->get_input_node_shared_ptr(0);
+            auto beyond_cmp = ov::as_type_ptr<ov::op::v1::GreaterEqual>(beyond);
+            if (!beyond_cmp)
+                return false;
+            auto diff = ov::as_type_ptr<ov::op::v1::Subtract>(beyond_cmp->get_input_node_shared_ptr(0));
+            auto window_const = ov::as_type_ptr<ov::op::v0::Constant>(beyond_cmp->get_input_node_shared_ptr(1));
+            if (!diff || !window_const || window_const->cast_vector<int64_t>().empty())
+                return false;
+
+            auto query_range = get_index_range(diff->get_input_node_shared_ptr(0));
+            auto key_range = get_index_range(diff->get_input_node_shared_ptr(1));
+            if (!query_range || !key_range || !is_zero_scalar_constant(key_range->input_value(0)))
+                return false;
+
+            const auto window_size = window_const->cast_vector<int64_t>().front();
+            if (window_size <= 0)
+                return false;
+
+            auto axes_1_3 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{2},
+                                                                  std::vector<int64_t>{1, 3});
+            auto query_positions = std::make_shared<ov::op::v0::Unsqueeze>(position_ids_node_ptr, axes_1_3);
+            auto key_positions = diff->get_input_node_shared_ptr(1);
+            auto window = std::make_shared<ov::op::v1::GreaterEqual>(
+                std::make_shared<ov::op::v1::Subtract>(query_positions, key_positions),
+                window_const);
+            auto cache_window = ov::copy(beyond_cmp);
+            auto present_key = std::make_shared<ov::op::v1::GreaterEqual>(
+                key_positions, query_range->input_value(0).get_node_shared_ptr());
+            auto beyond_present = std::make_shared<ov::op::v13::BitwiseAnd>(cache_window, present_key);
+            auto adjusted_beyond = std::make_shared<ov::op::v13::BitwiseOr>(window, beyond_present);
+
+            // The original comparison is wrapped in unsqueezes to form the
+            // four-dimensional SDPA mask. Build the replacement Select from
+            // the broadcast-ready condition so those wrappers are not duplicated.
+            auto replacement = std::make_shared<ov::op::v1::Select>(
+                adjusted_beyond,
+                window_mask->input_value(1),
+                window_mask->input_value(2));
+            ov::copy_runtime_info(window_mask, replacement);
+            replacement->set_friendly_name(window_mask->get_friendly_name());
+            for (const auto& input : window_mask->output(0).get_target_inputs())
+                input.replace_source_output(replacement->output(0));
+            return true;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(select, "LFM3SlidingMaskMatcher"), std::move(callback));
+    }
+};
+
 class OldPhi3SlidingMaskMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::patterns::OldPhi3SlidingMaskMatcher");
@@ -678,6 +774,7 @@ bool SlidingWindowMask::run_on_model(const std::shared_ptr<ov::Model>& model) {
     ov::pass::Manager manager;
     manager.set_per_pass_validation(true);
     const auto rewriter = manager.register_pass<ov::pass::GraphRewrite>();
+    rewriter->add_matcher<LFM3SlidingMaskMatcher>(position_ids_node_ptr);
     rewriter->add_matcher<Gemma4SlidingMaskMatcher>(attention_mask_node_ptr, position_ids_node_ptr);
     rewriter->add_matcher<Gemma4UnifiedSlidingMaskMatcher>(attention_mask_node_ptr, position_ids_node_ptr);
     rewriter->add_matcher<Phi3SlidingMaskMatcher>(attention_mask_node_ptr, position_ids_node_ptr);
