@@ -248,7 +248,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |GatherBlockQuantized                                    |1                       |1                               |                                |
 |com.microsoft           |GatherND                                                |1                       |1                               |                                |
 |com.microsoft           |Gelu                                                    |1                       |1                               |                                |
-|com.microsoft           |GemmFastGelu                                            |                        |1                               |                                |
+|com.microsoft           |GemmFastGelu                                            |1                       |1                               |                                |
 |com.microsoft           |GemmFloat8                                              |                        |1                               |                                |
 |com.microsoft           |GemmaRotaryEmbedding                                    |                        |1                               |                                |
 |com.microsoft           |GreedySearch                                            |                        |1                               |                                |
