@@ -135,7 +135,7 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
         jit.make("K_HEAD_SIZE_LEFTOVER", k_head_size % subgroup_size);
         jit.make("V_HEAD_SIZE_LEFTOVER", v_head_size % subgroup_size);
     }
-    jit.make("SEQ_LEN_PARTITION_SIZE", get_seq_len_partition_size(info, v_head_size, stage));
+    jit.make("SEQ_LEN_PARTITION_SIZE", get_seq_len_partition_size(info, v_head_size, stage, k_head_size));
     jit.make("SG_SCALE_FACTOR", get_sg_number_scale_factor(info, v_head_size, stage));
 
     bool could_use_flashattn_v2 = params.get_program().get_config().get_could_use_flashattn_v2();

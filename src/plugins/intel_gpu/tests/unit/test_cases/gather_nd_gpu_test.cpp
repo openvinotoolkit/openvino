@@ -722,6 +722,28 @@ TEST(gather_nd_gpu_fp16, d22_i21_ir2_batch0) {
     DoTestV8(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 2, 2, 1, 1 });
 }
 
+TEST(gather_nd_gpu_bf16, copies_selected_rows) {
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::bf16, format::bfyx, {2, 2, 1, 1}});
+    auto indices = engine.allocate_memory({data_types::i32, format::bfyx, {2, 1, 1, 1}});
+    set_values<ov::bfloat16>(input, {ov::bfloat16(1.25f), ov::bfloat16(-2.0f), ov::bfloat16(3.5f), ov::bfloat16(4.0f)});
+    set_values<int32_t>(indices, {1, 0});
+
+    topology topology(input_layout("input", input->get_layout()),
+                      input_layout("indices", indices->get_layout()),
+                      gather_nd("gather", input_info("input"), input_info("indices"), 4, 2, 0, false));
+    auto network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), false);
+    network->set_input_data("input", input);
+    network->set_input_data("indices", indices);
+    auto output = network->execute().at("gather").get_memory();
+    cldnn::mem_lock<ov::bfloat16> output_data(output, get_test_stream());
+    const std::vector<float> expected = {3.5f, 4.0f, 1.25f, -2.0f};
+    ASSERT_EQ(output->get_layout().data_type, data_types::bf16);
+    for (size_t index = 0; index < expected.size(); ++index) {
+        EXPECT_EQ(static_cast<float>(output_data[index]), expected[index]);
+    }
+}
+
 TEST(gather_nd_gpu_fp16, d22_i32_ir2_batch0) {
     auto& engine = get_test_engine();
 

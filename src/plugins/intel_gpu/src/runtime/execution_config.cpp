@@ -317,6 +317,9 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         const auto auxiliary_kv_prec = get_auxiliary_kv_cache_precision(model);
         if (auxiliary_kv_prec != ov::element::dynamic) {
             m_kv_cache_precision = auxiliary_kv_prec;
+        } else if (is_paged_attention_model && get_inference_precision() == ov::element::bf16) {
+            m_kv_cache_precision = ov::element::f32;
+            GPU_DEBUG_INFO << "[Info] BF16 PagedAttention uses FP32 KV-cache and computation." << std::endl;
         } else if (is_paged_attention_model && has_4bit_weights && m_key_cache_quant_mode != ov::internal::CacheQuantMode::BY_TOKEN) {
             // Enable 4-bit KV-cache compression for PA models with 4-bit compressed weights
             m_kv_cache_precision = ov::element::u4;

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "include/batch_headers/bf16_utils.cl"
 #include "include/batch_headers/common.cl"
 
 KERNEL(paged_causal_conv1d_ref)
@@ -90,12 +91,12 @@ KERNEL(paged_causal_conv1d_ref)
 
     const int read_state_base = read_physical_block * state_block_stride + h * state_hidden_stride;
     for (int k = 0; k < CAUSAL_WINDOW; k++) {
-        state[k] = convert_float(conv_state_table[read_state_base + k * state_kernel_stride]);
+        state[k] = DECODE_INPUT1_COMPUTE_TYPE(conv_state_table[read_state_base + k * state_kernel_stride]);
     }
 
     float bias_val = 0.0f;
 #if HAS_BIAS
-    bias_val = convert_float(conv_bias[h * bias_hidden_stride]);
+    bias_val = DECODE_INPUT3_COMPUTE_TYPE(conv_bias[h * bias_hidden_stride]);
 #endif
 
     for (int t = 0; t < seq_tokens; t++) {
@@ -106,12 +107,12 @@ KERNEL(paged_causal_conv1d_ref)
         }
 
         const int in_off = token_idx * input_token_stride + h * input_hidden_stride;
-        state[CAUSAL_WINDOW - 1] = convert_float(input_embeds[in_off]);
+        state[CAUSAL_WINDOW - 1] = DECODE_INPUT0_COMPUTE_TYPE(input_embeds[in_off]);
 
         float sum = bias_val;
         const int w_base = h * weight_hidden_stride;
         for (int k = 0; k < NUM_TAPS; k++) {
-            sum = fma(state[k * DILATION], convert_float(conv_weight[w_base + k * weight_kernel_stride]), sum);
+            sum = fma(state[k * DILATION], convert_float(DECODE_INPUT2_COMPUTE_TYPE(conv_weight[w_base + k * weight_kernel_stride])), sum);
         }
 
         const int out_off = token_idx * output_token_stride + h * output_hidden_stride;

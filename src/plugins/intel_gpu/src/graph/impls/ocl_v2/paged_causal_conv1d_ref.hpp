@@ -28,6 +28,7 @@ struct PagedCausalConv1DRef : public ImplementationManager {
 
         static constexpr std::array supported_real_types = {
             ov::element::f16,
+            ov::element::bf16,
             ov::element::f32,
         };
 

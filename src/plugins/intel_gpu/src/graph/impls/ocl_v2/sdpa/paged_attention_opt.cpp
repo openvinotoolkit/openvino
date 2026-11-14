@@ -344,7 +344,8 @@ static int64_t get_aligned_seq_len(const kernel_impl_params& impl_param, const P
 size_t get_partitioning_size(const kernel_impl_params& params, size_t head_size, PagedAttentionStage stage) {
     size_t partition_size = 0;
     if (stage == PagedAttentionStage::PREFILL) {
-        partition_size = head_size * get_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::MULTI_TOKENS);
+        const auto desc = params.typed_desc<paged_attention>();
+        partition_size = get_seq_len_partition_size(params.get_device_info(), head_size, SDPAStage::MULTI_TOKENS, desc->k_head_size);
     } else {
         partition_size = seq_len_partition_size;
     }
@@ -1771,7 +1772,8 @@ public:
         if ((rt_params->stage == PagedAttentionStage::PREFILL || rt_params->stage == PagedAttentionStage::MIXED) && !params.is_dynamic())
             rt_params->paged_attention_aligned_seq_len = static_cast<size_t>(get_aligned_seq_len(params, rt_params->stage));
 
-        rt_params->sdpa_opt_seq_len_partition_size = get_seq_len_partition_size(params.get_device_info(), desc->v_head_size, SDPAStage::MULTI_TOKENS);
+        rt_params->sdpa_opt_seq_len_partition_size =
+            get_seq_len_partition_size(params.get_device_info(), desc->v_head_size, SDPAStage::MULTI_TOKENS, desc->k_head_size);
 
         if (desc->has_score_aggregation) {
             const auto& input_mem = params.memory_deps;
