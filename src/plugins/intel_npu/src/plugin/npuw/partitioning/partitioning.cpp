@@ -2097,6 +2097,12 @@ void Partitioner::attention(const std::string& func_name) {
     if (attn_mode == "HFA") {
         LOG_DEBUG("Attempting HostFlashAttention based on config");
 
+        const bool host_mask = ov::npuw::has_hfa_host_mask(f._model);
+        for (const auto& mdl : all_functions.at(func_name).mdls) {
+            OPENVINO_ASSERT(host_mask == ov::npuw::has_hfa_host_mask(mdl),
+                            "NPUW_ATTN_HFA_HOST_MASK: mixed host-mask and graph-mask instances are unsupported");
+        }
+
         // Consistency check: HostFlashAttention::from() inspects a single representative
         // instance (f._model) of this repeated "attn" function to decide whether the
         // compiled tile model can structurally drop the mask input. That decision is only

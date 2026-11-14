@@ -29,6 +29,8 @@ public:
 
 void log_detected_masks(const std::shared_ptr<ov::Model>& model);
 
+bool contains_window_check(const std::shared_ptr<ov::Node>& node);
+
 // rt_info key written by DetectAttentionMask onto each ScaledDotProductAttention
 // node, propagated onto the decomposed Add(QK, mask) node by
 // ScaledDotProductAttentionDecomposition::decompose() (via copy_runtime_info), and

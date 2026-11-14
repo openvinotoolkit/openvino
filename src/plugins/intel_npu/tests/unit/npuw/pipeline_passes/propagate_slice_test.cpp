@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include "npuw_transformations/detect_causal_mask.hpp"
 #include "openvino/op/ops.hpp"
 
 using namespace ov;
@@ -1188,6 +1189,51 @@ TEST(PropagateSliceTest, PropagateSliceThroughSDPA) {
     // K and V should remain the original (unsliced) Parameters
     EXPECT_TRUE(is_type<v0::Parameter>(sdpa_node->input_value(1).get_node_shared_ptr()));
     EXPECT_TRUE(is_type<v0::Parameter>(sdpa_node->input_value(2).get_node_shared_ptr()));
+}
+
+TEST(PropagateSliceTest, PropagateSliceThroughSDPA_PreservesDetectedMask) {
+    for (int64_t window : {-1, 4}) {
+        SCOPED_TRACE(window);
+        auto q = std::make_shared<v0::Parameter>(element::f32, Shape{1, 2, 8, 4});
+        auto k = std::make_shared<v0::Parameter>(element::f32, Shape{1, 2, 24, 4});
+        auto v = std::make_shared<v0::Parameter>(element::f32, Shape{1, 2, 24, 4});
+        auto zero = v0::Constant::create(element::i64, Shape{}, {0});
+        auto one = v0::Constant::create(element::i64, Shape{}, {1});
+        auto end = v0::Constant::create(element::i64, Shape{}, {24});
+        auto columns = std::make_shared<v0::Unsqueeze>(std::make_shared<v4::Range>(zero, end, one, element::i64),
+                                                       v0::Constant::create(element::i64, Shape{3}, {0, 1, 2}));
+        auto rows = std::make_shared<v0::Unsqueeze>(
+            std::make_shared<v4::Range>(v0::Constant::create(element::i64, Shape{}, {16}), end, one, element::i64),
+            v0::Constant::create(element::i64, Shape{3}, {0, 1, 3}));
+        Output<Node> visible = std::make_shared<v1::LessEqual>(columns, rows);
+        if (window > 0) {
+            auto lower = std::make_shared<v1::Add>(rows, v0::Constant::create(element::i64, Shape{}, {-window}));
+            auto in_window = std::make_shared<v13::BitwiseAnd>(v0::Constant::create(element::boolean, Shape{}, {true}),
+                                                               std::make_shared<v1::Greater>(columns, lower));
+            visible = std::make_shared<v13::BitwiseAnd>(in_window, visible);
+        }
+        auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(q, k, v, visible, false);
+        sdpa->set_friendly_name("sliced_attention");
+        auto result = std::make_shared<v0::Result>(make_slice(sdpa, 2, 7, 8));
+        auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{q, k, v});
+        npuw::DetectAttentionMask().run_on_model(model);
+        ASSERT_EQ(sdpa->get_rt_info().at(npuw::NPUW_SDPA_MASK_RT_KEY).as<int64_t>(), window);
+
+        apply_propagate_slice_up(model);
+
+        auto sliced = as_type_ptr<v13::ScaledDotProductAttention>(result->get_input_node_shared_ptr(0));
+        ASSERT_NE(sliced, nullptr);
+        EXPECT_NE(sliced, sdpa);
+        EXPECT_EQ(sliced->get_friendly_name(), "sliced_attention");
+        EXPECT_EQ(sliced->get_input_shape(0), (Shape{1, 2, 1, 4}));
+        EXPECT_EQ(sliced->input_value(1), k->output(0));
+        EXPECT_EQ(sliced->input_value(2), v->output(0));
+        EXPECT_EQ(sliced->get_input_shape(3), (Shape{1, 1, 1, 24}));
+        EXPECT_EQ(npuw::find_propagated_original_query_length(sliced), std::optional<size_t>{8});
+        const auto annotation = sliced->get_rt_info().find(npuw::NPUW_SDPA_MASK_RT_KEY);
+        ASSERT_NE(annotation, sliced->get_rt_info().end());
+        EXPECT_EQ(annotation->second.as<int64_t>(), window);
+    }
 }
 
 // Regression test: a mask with a DIFFERENT rank than the SDPA output (e.g. [B,Sq,Sk] vs a
