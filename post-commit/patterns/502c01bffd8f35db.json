@@ -1,22 +1,25 @@
 {
-    "schema_version": "1.0",
-    "signature": "GPU unit tests accuracy tolerance mismatch in fusion test (val_ref vs val_opt difference exceeds tolerance in fusion_test_common.hpp) followed by burst of concurrent gtest-parallel worker processes exiting with code 3|Flaky Test",
-    "signature_hash": "502c01bffd8f35db",
-    "title": "GPU unit tests fail with a burst of 37 gtest-parallel worker crashes/accuracy mismatches right after test pool startup",
-    "category": "Flaky Test",
-    "count": 2,
-    "first_seen": "2026-11-13T17:54:36Z",
-    "last_seen": "2026-11-13T22:10:58Z",
-    "recent_run_urls": [
-        "https://github.com/openvinotoolkit/openvino/actions/runs/43398624960",
-        "https://github.com/openvinotoolkit/openvino/actions/runs/43369335165"
-    ],
-    "affected_commits": [
-        "daad70df37bb008e7d4a0690e78d84989225f2d3",
-        "2ad63894cb2d0ee4df89cf8df03e2079810f7ece"
-    ],
-    "recent_timestamps": [
-        "2026-11-13T22:10:58Z",
-        "2026-11-13T17:54:36Z"
-    ]
+  "schema_version": "1.0",
+  "signature": "GPU unit tests accuracy tolerance mismatch in fusion test (val_ref vs val_opt difference exceeds tolerance in fusion_test_common.hpp) followed by burst of concurrent gtest-parallel worker processes exiting with code 3|Flaky Test",
+  "signature_hash": "502c01bffd8f35db",
+  "title": "GPU unit tests fail with a burst of 37 gtest-parallel worker crashes/accuracy mismatches right after test pool startup",
+  "category": "Flaky Test",
+  "count": 3,
+  "first_seen": "2026-11-13T17:54:36Z",
+  "last_seen": "2026-11-14T01:16:34Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/43430895182",
+    "https://github.com/openvinotoolkit/openvino/actions/runs/43398624960",
+    "https://github.com/openvinotoolkit/openvino/actions/runs/43369335165"
+  ],
+  "affected_commits": [
+    "7a48d2a0866400d89ae6067c0beee023dbafb64d",
+    "daad70df37bb008e7d4a0690e78d84989225f2d3",
+    "2ad63894cb2d0ee4df89cf8df03e2079810f7ece"
+  ],
+  "recent_timestamps": [
+    "2026-11-14T01:16:34Z",
+    "2026-11-13T22:10:58Z",
+    "2026-11-13T17:54:36Z"
+  ]
 }

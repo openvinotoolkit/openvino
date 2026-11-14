@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-14-01-16-34-000-43430895182",
+  "timestamp": "2026-11-14T01:16:34Z",
+  "run_id": "43430895182",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43430895182",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "7a48d2a0866400d89ae6067c0beee023dbafb64d",
+  "pr_number": null,
+  "pr_url": null,
+  "author": "sbutnari",
+  "category": "Flaky Test",
+  "title": "GPU unit tests fail with a burst of 37 gtest-parallel worker crashes right after fp16_scale_out accuracy mismatch",
+  "signature": "GPU unit tests accuracy tolerance mismatch in fusion test (val_ref vs val_opt difference exceeds tolerance in fusion_test_common.hpp) followed by burst of concurrent gtest-parallel worker processes exiting with code 3|Flaky Test",
+  "signature_hash": "502c01bffd8f35db",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "37/29264 ov_gpu_unit_tests failed, starting with a fusion accuracy tolerance mismatch followed by a burst of worker processes exiting with code 3"
+    }
+  ],
+  "key_errors": [
+    "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\plugins\\intel_gpu\\tests\\unit\\fusions\\fusion_test_common.hpp(90): error: The difference between val_ref[i] and val_opt[i] is 3.0517578125e-05, which exceeds tolerance, where\nval_ref[i] evaluates to -0.04473876953125,\nval_opt[i] evaluates to -0.044769287109375, and\ntolerance evaluates to 9.9999997473787516e-06.\n[  FAILED  ] fusings_gpu/pooling_f32_scale.fp16_scale_out/1",
+    "[2/29264] basic/convolution_random_smoke_test.u8s8f32/... returned with exit code 3 (4055 ms)\n[3/29264] basic/convolution_random_smoke_test.u8s8f32_scale/... returned with exit code 3 (4401 ms)\n... (34 more consecutive tests exit code 3 within the first few seconds of the run)",
+    "FAILED TESTS (37/29264):\n    4028 ms: ...ov_gpu_unit_tests.exe fusings_gpu/pooling_f32_scale.fp16_scale_out/1\n    4055 ms: ...ov_gpu_unit_tests.exe basic/convolution_random_smoke_test.u8s8f32/..."
+  ],
+  "root_cause": "The first scheduled test (fusings_gpu/pooling_f32_scale.fp16_scale_out/1) failed a floating-point accuracy comparison in fusion_test_common.hpp (difference 3.05e-05 vs tolerance 1e-05) while GPU kernels were cold (cl_cache_dir not set, so every kernel had to be JIT-compiled on first use). Immediately afterward, 34 more tests launched by gtest-parallel in the same startup burst exited with code 3 (an unhandled/aborted process exit, not a normal assertion failure) within the first ~8 seconds of the run, before settling down for the remaining ~29,200 tests which all passed. This matches the pre-existing 'Flaky Test' pattern 502c01bffd8f35db, now observed for the third time on different commits, always concentrated in the first few seconds of ov_gpu_unit_tests.exe execution. The clustering at test-pool startup (cold GPU driver/kernel cache, concurrent OpenCL context creation across gtest-parallel worker processes) strongly suggests an environment/resource race during initial GPU kernel compilation/driver warm-up rather than a genuine product regression, since the commit under test (#38855) only updates NPU driver versions and does not touch GPU plugin code.",
+  "reproduction_steps": "Not reliably reproducible in isolation; depends on concurrent GPU kernel compilation at process-pool startup. To attempt reproduction: on a Windows GPU runner, run `ov_gpu_unit_tests.exe` via gtest_parallel.py with the same worker count immediately after a fresh driver load (cold cl_cache_dir) and observe whether early-scheduled tests exit with code 3 or fail an fp16 tolerance check in fusion_test_common.hpp.",
+  "recommended_actions": [
+    "Pre-warm the OpenCL kernel cache (set cl_cache_dir) before starting the gtest-parallel GPU unit test pool to avoid cold-compilation races at startup.",
+    "Investigate why 34+ worker processes exit with code 3 (not a GTest failure signal) in the first few seconds \u2014 check for GPU driver/context-creation contention when many processes initialize concurrently.",
+    "Consider slightly loosening or revisiting the fp16 tolerance in fusion_test_common.hpp for fusings_gpu/pooling_f32_scale.fp16_scale_out if repeated runs show borderline numeric drift (3.05e-05 vs 1e-05 tolerance) tied to driver/kernel-cache state rather than a real optimization bug.",
+    "If this signature keeps recurring (now 3 occurrences), consider marking pooling_f32_scale.fp16_scale_out and the early-batch convolution_random_smoke_test cases as known-flaky/quarantined pending the cache/startup fix."
+  ],
+  "prevention_strategies": "Warm the GPU kernel/driver cache before the main gtest-parallel run starts (e.g., run a trivial warm-up kernel or set a persistent cl_cache_dir shared across CI runs). Stagger or rate-limit initial worker process launches to reduce concurrent OpenCL context creation. Track this signature's recurrence count via the pattern database and escalate to the intel_gpu plugin owners if it keeps appearing across unrelated commits.",
+  "historical_context": "This is the third occurrence of signature 502c01bffd8f35db (first seen 2026-11-13T17:54:36Z, previously recorded at 2026-11-13T22:10:58Z on commits daad70df37bb008e7d4a0690e78d84989225f2d3 and 2ad63894cb2d0ee4df89cf8df03e2079810f7ece, neither of which touched the GPU plugin either), reinforcing that this is an environment/startup flake rather than a code regression introduced by any specific commit."
+}
