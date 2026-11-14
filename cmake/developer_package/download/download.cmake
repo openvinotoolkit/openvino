@@ -6,12 +6,23 @@ function (Download from to fatal result output sha256)
 
   if((NOT EXISTS "${to}"))
     message(STATUS "Downloading from ${from} to ${to} ...")
-    file(DOWNLOAD ${from} ${to}
-      TIMEOUT 3600
-      LOG log
-      STATUS status
-      SHOW_PROGRESS
-      EXPECTED_HASH SHA256=${sha256})
+    GetDepsDownloadRefererHeader(referer_header)
+    if(referer_header)
+      file(DOWNLOAD ${from} ${to}
+        TIMEOUT 3600
+        LOG log
+        STATUS status
+        SHOW_PROGRESS
+        EXPECTED_HASH SHA256=${sha256}
+        HTTPHEADER "${referer_header}")
+    else()
+      file(DOWNLOAD ${from} ${to}
+        TIMEOUT 3600
+        LOG log
+        STATUS status
+        SHOW_PROGRESS
+        EXPECTED_HASH SHA256=${sha256})
+    endif()
 
     set (${output} ${status} PARENT_SCOPE)
   else()

@@ -44,6 +44,8 @@ jobs:
     defaults:
       run:
         shell: bash
+    env:
+      CI_DEPS_DOWNLOAD_REFERER: "${{ startsWith(inputs.runner, 'aks-') && 'http://github.com/openvinotoolkit/openvino/actions' || '' }}"
     steps:
       - name: Checkout workflow actions
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries

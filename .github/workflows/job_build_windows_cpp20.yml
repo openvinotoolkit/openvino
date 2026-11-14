@@ -44,6 +44,7 @@ jobs:
         shell: pwsh
     runs-on: ${{ inputs.runner }}
     env:
+      CI_DEPS_DOWNLOAD_REFERER: "${{ startsWith(inputs.runner, 'aks-') && 'http://github.com/openvinotoolkit/openvino/actions' || '' }}"
       CMAKE_BUILD_TYPE: ${{ inputs.build-type }}
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
       CMAKE_C_COMPILER_LAUNCHER: ccache
