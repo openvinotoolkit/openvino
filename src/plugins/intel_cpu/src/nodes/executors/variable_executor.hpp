@@ -30,11 +30,11 @@ public:
     using ExecutorImplementationRef = std::reference_wrapper<const ExecutorImplementation<Attrs>>;
 
     VariableExecutor(const MemoryArgs& memory [[maybe_unused]],
-                     Attrs attrs,
+                     const Attrs& attrs,
                      ExecutorContext::CPtr context,
                      std::vector<ExecutorImplementationRef> suitableImplementations,
                      bool init)
-        : m_attrs(std::move(attrs)),
+        : m_attrs(attrs),
           m_context(std::move(context)),
           m_suitableImplementations(std::move(suitableImplementations)),
           m_executors(m_suitableImplementations.size()) {

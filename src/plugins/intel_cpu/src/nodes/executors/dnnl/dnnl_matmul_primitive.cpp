@@ -549,7 +549,7 @@ DnnlShapeAgnosticDataPtr DnnlMatMulPrimitive::createShapeAgnosticData(const MatM
     const auto& biasDesc = memory.at(ARG_BIAS)->getDescPtr();
 
     const auto useWeightsDecompression = useWeightsDecompressionImpl(srcDesc->getPrecision(), weiDesc->getPrecision());
-    const auto postOpData =
+    auto postOpData =
         createPrimitiveAttrs(attrs, memory, context, useWeightsDecompression, attrs.weightsNonTransposed);
 
     if (srcDesc->getShape().isDynamic() || weiDesc->getShape().isDynamic()) {
@@ -613,7 +613,7 @@ DnnlShapeAgnosticDataPtr DnnlMatMulPrimitive::createShapeAgnosticData(const MatM
 
     const auto defaultImpType = parse_impl_name(primDesc.impl_info_str());
 
-    return std::make_shared<DnnlShapeAgnosticData>(postOpData, defaultImpType);
+    return std::make_shared<DnnlShapeAgnosticData>(std::move(postOpData), defaultImpType);
 }
 
 static impl_desc_type implTypeFromPrimDesc(const dnnl::primitive_desc& primDesc) {

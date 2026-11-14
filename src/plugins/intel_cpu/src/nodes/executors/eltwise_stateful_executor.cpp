@@ -36,10 +36,10 @@
 
 namespace ov::intel_cpu {
 
-EltwiseStatefulExecutor::EltwiseStatefulExecutor(EltwiseAttrs attrs,
+EltwiseStatefulExecutor::EltwiseStatefulExecutor(const EltwiseAttrs& attrs,
                                                  const MemoryArgs& memory,
                                                  ExecutorContext::CPtr context)
-    : m_attrs(std::move(attrs)),
+    : m_attrs(attrs),
       m_context(std::move(context)) {
     std::vector<ov::element::Type> input_precisions(memory.size() - 1);                    // -1 for output precision
     std::vector<ov::element::Type> output_precisions{memory.at(ARG_DST)->getPrecision()};  // -1 for output precision

@@ -279,17 +279,17 @@ EltwiseJitExecutor::EltwiseJitExecutor(const Key& key)
 
 #if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
-        m_kernel = std::make_unique<jit_uni_eltwise_generic<dnnl::impl::cpu::x64::avx512_core>>(jep,
+        m_kernel = std::make_unique<jit_uni_eltwise_generic<dnnl::impl::cpu::x64::avx512_core>>(std::move(jep),
                                                                                                 key.eltwise_data,
                                                                                                 key.ops_list,
                                                                                                 key.postOps);
     } else if (mayiuse(dnnl::impl::cpu::x64::avx2)) {
-        m_kernel = std::make_unique<jit_uni_eltwise_generic<dnnl::impl::cpu::x64::avx2>>(jep,
+        m_kernel = std::make_unique<jit_uni_eltwise_generic<dnnl::impl::cpu::x64::avx2>>(std::move(jep),
                                                                                          key.eltwise_data,
                                                                                          key.ops_list,
                                                                                          key.postOps);
     } else if (mayiuse(dnnl::impl::cpu::x64::sse41)) {
-        m_kernel = std::make_unique<jit_uni_eltwise_generic<dnnl::impl::cpu::x64::sse41>>(jep,
+        m_kernel = std::make_unique<jit_uni_eltwise_generic<dnnl::impl::cpu::x64::sse41>>(std::move(jep),
                                                                                           key.eltwise_data,
                                                                                           key.ops_list,
                                                                                           key.postOps);
@@ -300,8 +300,10 @@ EltwiseJitExecutor::EltwiseJitExecutor(const Key& key)
 
 #if defined(OPENVINO_ARCH_ARM64)
     if (mayiuse(aarch64::asimd)) {
-        m_kernel =
-            std::make_unique<jit_uni_eltwise_generic<aarch64::asimd>>(jep, key.eltwise_data, key.ops_list, key.postOps);
+        m_kernel = std::make_unique<jit_uni_eltwise_generic<aarch64::asimd>>(std::move(jep),
+                                                                             key.eltwise_data,
+                                                                             key.ops_list,
+                                                                             key.postOps);
     } else {
         OPENVINO_THROW("Can't create jit eltwise kernel");
     }
@@ -310,7 +312,7 @@ EltwiseJitExecutor::EltwiseJitExecutor(const Key& key)
 #if defined(OPENVINO_ARCH_RISCV64)
     if (mayiuse(ov::intel_cpu::riscv64::gv)) {
         m_kernel = std::make_unique<ov::intel_cpu::riscv64::jit_uni_eltwise_generic<ov::intel_cpu::riscv64::gv>>(
-            jep,
+            std::move(jep),
             key.eltwise_data);
     } else {
         OPENVINO_THROW("Can't create jit eltwise kernel");
