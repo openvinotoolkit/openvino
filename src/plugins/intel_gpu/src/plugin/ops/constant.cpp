@@ -23,6 +23,7 @@
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/deformable_convolution.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/gather_elements.hpp"
 #include "openvino/op/gather_nd.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/loop.hpp"
@@ -287,10 +288,13 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
         } else if (((is_binary_eltwise(outOp) || ov::is_type<ov::op::v0::SquaredDifference>(outOp)) && is_all_inputs_1d(outOp)) ||
                    is_convert_into_binary_eltwise(outOp)) {
             consts[op].needsBatchInterpretation = constDims.size() == 1;
-        } else if (ov::is_type<ov::op::v1::Gather>(outOp) || ov::is_type<ov::op::v7::Gather>(outOp) || ov::is_type<ov::op::v8::Gather>(outOp) ||
-                   ov::is_type<ov::op::v5::GatherND>(outOp) || ov::is_type<ov::op::v8::GatherND>(outOp) || ov::is_type<ov::op::v1::Split>(outOp) ||
-                   ov::is_type<ov::op::v1::VariadicSplit>(outOp) || ov::is_type<ov::op::util::ScatterBase>(outOp) ||
-                   ov::is_type<ov::op::util::ScatterElementsUpdateBase>(outOp) || ov::is_type<ov::op::util::ScatterNDBase>(outOp)) {
+        } else if (ov::is_type<ov::op::v1::Gather>(outOp) || ov::is_type<ov::op::v7::Gather>(outOp) ||
+                   ov::is_type<ov::op::v8::Gather>(outOp) || ov::is_type<ov::op::v5::GatherND>(outOp) ||
+                   ov::is_type<ov::op::v8::GatherND>(outOp) || ov::is_type<ov::op::v6::GatherElements>(outOp) ||
+                   ov::is_type<ov::op::v1::Split>(outOp) || ov::is_type<ov::op::v1::VariadicSplit>(outOp) ||
+                   ov::is_type<ov::op::util::ScatterBase>(outOp) ||
+                   ov::is_type<ov::op::util::ScatterElementsUpdateBase>(outOp) ||
+                   ov::is_type<ov::op::util::ScatterNDBase>(outOp)) {
             consts[op].needsBatchInterpretation = constDims.size() == 1;
         } else if (ov::is_type<ov::op::v0::PRelu>(outOp) && node.get_index() == 1) {
             // PReLU slope tensor reshape policy
