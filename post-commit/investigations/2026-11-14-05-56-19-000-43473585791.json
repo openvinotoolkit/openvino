@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-14-05-56-19-000-43473585791",
+  "timestamp": "2026-11-14T05:56:19Z",
+  "run_id": "43473585791",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43473585791",
+  "workflow_name": "GPU unit tests",
+  "commit_sha": "0c51a97339b7c5284ce3ec78c5e05ca6b2c1ddce",
+  "pr_number": null,
+  "pr_url": null,
+  "author": null,
+  "category": "Flaky Test",
+  "title": "GPU unit tests fail with a burst of 37 gtest-parallel worker crashes right after fp16_scale_out accuracy mismatch",
+  "signature": "GPU unit tests accuracy tolerance mismatch in fusion test (val_ref vs val_opt difference exceeds tolerance in fusion_test_common.hpp) followed by burst of concurrent gtest-parallel worker processes exiting with code 3|Flaky Test",
+  "signature_hash": "502c01bffd8f35db",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "fusings_gpu/pooling_f32_scale.fp16_scale_out/1 accuracy mismatch (diff 3.05e-05 > tolerance 1e-05), immediately followed by 36 more tests (mostly convolution_random_smoke_test and fusings_gpu cases) exiting with code 3 and GPU clFinish CL_OUT_OF_RESOURCES errors"
+    }
+  ],
+  "key_errors": [
+    "fusion_test_common.hpp(90): error: The difference between val_ref[i] and val_opt[i] is 3.0517578125e-05, which exceeds tolerance, where\nval_ref[i] evaluates to -0.04473876953125,\nval_opt[i] evaluates to -0.044769287109375, and\ntolerance evaluates to 9.9999997473787516e-06.\n[  FAILED  ] fusings_gpu/pooling_f32_scale.fp16_scale_out/1",
+    "fusion_test_common.hpp(87): error: Expected: val_opt = get_output_values_to_float(fused, outputs_fused.begin()->second) doesn't throw an exception.\n  Actual: it throws ov::Exception with description \"Exception from openvino\\src\\plugins\\intel_gpu\\src\\runtime\\ocl\\ocl_stream.cpp:421:\n[GPU] clFinish, error code: -5 CL_OUT_OF_RESOURCES\"",
+    "FAILED TESTS (37/29264): fusings_gpu/pooling_f32_scale.fp16_scale_out/1, convolution_grouped_fsv4_fsv16/convolution_grouped_gpu.base/..., basic/convolution_random_smoke_test.* (multiple), fusings_gpu/conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec.* (multiple)"
+  ],
+  "root_cause": "The first test (fusings_gpu/pooling_f32_scale.fp16_scale_out/1) fails on a borderline floating-point accuracy mismatch (3.05e-05 vs a 1e-05 tolerance) comparing fused vs. non-fused GPU kernel outputs - a known tight-tolerance flake on this Windows iGPU runner. Immediately afterward, 36 more gtest-parallel worker processes (running convolution and fusion tests in parallel) start failing with GPU runtime exception 'clFinish, error code: -5 CL_OUT_OF_RESOURCES', indicating the GPU/OpenCL driver ran out of resources under the concurrent parallel test load on the shared Windows iGPU runner. This is the same recurring pattern already tracked in the post-commit pattern database (signature_hash 502c01bffd8f35db), now observed for the 6th time across unrelated commits, strongly indicating a runner-level resource exhaustion issue triggered by gtest-parallel concurrency on iGPU rather than a code regression introduced by this specific commit.",
+  "reproduction_steps": "Not reliably reproducible outside the CI Windows iGPU runner. Locally: build ov_gpu_unit_tests, run with gtest_parallel.py at similar worker concurrency against an Intel iGPU device, and repeat fusings_gpu/pooling_f32_scale.fp16_scale_out/1 and nearby convolution_random_smoke_test cases many times; CL_OUT_OF_RESOURCES is more likely to reproduce under concurrent load on constrained GPU memory/compute resources.",
+  "recommended_actions": [
+    "Investigate reducing gtest-parallel worker concurrency for GPU unit tests on Windows iGPU runners to avoid CL_OUT_OF_RESOURCES under concurrent kernel execution.",
+    "Review/relax the fusion accuracy tolerance in fusion_test_common.hpp for fp16_scale_out-style comparisons, or adjust the reference computation to reduce the fp16/fp32 rounding gap.",
+    "Escalate to the iGPU CI runner pool owners: this is the 6th occurrence of the same signature in ~24h; consider temporarily marking affected convolution/fusion tests as known-flaky or capping test parallelism until root-caused.",
+    "Add retry-on-failure for CL_OUT_OF_RESOURCES specifically in gtest-parallel GPU test runs to avoid blocking post-commit merges on transient runner resource exhaustion."
+  ],
+  "prevention_strategies": "Add CI-level detection that treats a cluster of CL_OUT_OF_RESOURCES failures immediately following an accuracy-tolerance failure as a known runner-resource-exhaustion signature, auto-retrying the GPU unit test job once before failing the pipeline. Track GPU resource utilization/memory pressure metrics during gtest-parallel runs to correlate with worker concurrency.",
+  "historical_context": "This exact signature (502c01bffd8f35db) has recurred 5 times in roughly the last 24 hours across unrelated commits (runs 43369335165, 43398624960, 43430895182, 43440149471, 43461440649), always starting with the same fp16_scale_out accuracy mismatch followed by a burst of CL_OUT_OF_RESOURCES worker crashes. This run is the 6th occurrence, confirming it is a persistent runner/infrastructure-level flake rather than an isolated incident."
+}
