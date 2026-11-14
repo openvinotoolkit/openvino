@@ -746,6 +746,54 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(ov_dynamic)),
         OVRemoteTensorInputBlob_Test::getTestCaseName);
 
+TEST(OVRemoteTensorTests, smoke_cpuVaTensorParamsRoundTrip) {
+    ov::Core core;
+    auto context = core.get_default_context(ov::test::utils::DEVICE_GPU);
+
+    // CPU_VA memory has to be cacheline aligned and its size a multiple of the cacheline, page alignment satisfies both
+    const auto page_size = static_cast<size_t>(ov::util::get_system_page_size());
+    ASSERT_GT(page_size, 0u);
+    const ov::Shape shape{page_size / sizeof(float)};
+    const size_t element_count = ov::shape_size(shape);
+    const size_t byte_size = element_count * sizeof(float);
+
+    void* ptr = ov::util::aligned_alloc(byte_size, page_size);
+    ASSERT_NE(ptr, nullptr);
+    auto* data = static_cast<float*>(ptr);
+    for (size_t i = 0; i < element_count; ++i) {
+        data[i] = static_cast<float>(i);
+    }
+
+    {
+        const ov::AnyMap params{{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::CPU_VA},
+                                {ov::intel_gpu::cpu_va.name(), static_cast<ov::intel_gpu::gpu_handle_param>(ptr)},
+                                {ov::intel_gpu::cpu_va_size.name(), static_cast<int64_t>(byte_size)},
+                                {ov::intel_gpu::cpu_va_access.name(), ov::intel_gpu::AccessMode::READ}};
+        auto tensor = context.create_tensor(ov::element::f32, shape, params);
+
+        // get_params() must expose everything create_tensor() needs to wrap the same memory again:
+        // not only the address, but also the buffer size (mandatory for create_tensor) and the access mode.
+        const auto reported = tensor.get_params();
+        ASSERT_EQ(reported.count(ov::intel_gpu::cpu_va.name()), 1u);
+        ASSERT_EQ(reported.count(ov::intel_gpu::cpu_va_size.name()), 1u);
+        ASSERT_EQ(reported.count(ov::intel_gpu::cpu_va_access.name()), 1u);
+        EXPECT_EQ(reported.at(ov::intel_gpu::cpu_va.name()).as<ov::intel_gpu::gpu_handle_param>(), ptr);
+        EXPECT_EQ(reported.at(ov::intel_gpu::cpu_va_size.name()).as<int64_t>(), static_cast<int64_t>(byte_size));
+        EXPECT_EQ(reported.at(ov::intel_gpu::cpu_va_access.name()).as<ov::intel_gpu::AccessMode>(),
+                  ov::intel_gpu::AccessMode::READ);
+
+        auto alias = context.create_tensor(ov::element::f32, shape, reported);
+        ov::Tensor host(ov::element::f32, shape);
+        alias.copy_to(host);
+        const auto* host_data = host.data<float>();
+        for (size_t i = 0; i < element_count; ++i) {
+            ASSERT_FLOAT_EQ(host_data[i], static_cast<float>(i)) << "Mismatch at index " << i;
+        }
+    }
+
+    ov::util::aligned_free(ptr);
+}
+
 TEST(OVRemoteTensorTests, smoke_MixedTensorTypes) {
 #if defined(ANDROID)
     GTEST_SKIP();

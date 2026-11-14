@@ -569,14 +569,21 @@ void RemoteTensorImpl::update_properties() {
             ov::intel_gpu::mem_handle(params.mem),
         };
         break;
-    case TensorType::BT_CPU_VA:
+    case TensorType::BT_CPU_VA: {
+        // Report the size and access mode together with the pointer so that the properties returned by
+        // get_properties() are sufficient to re-wrap the same memory with create_tensor(), which requires
+        // cpu_va_size. The size matches what allocate() used (explicit size or the one derived from the layout).
+        const auto buffer_size = m_va_mem.size > -1 ? m_va_mem.size : static_cast<int64_t>(m_layout.bytes_count());
         m_properties = {
             ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::CPU_VA),
             ov::intel_gpu::ocl_context(params.context),
             ov::intel_gpu::mem_handle(params.mem),
             ov::intel_gpu::cpu_va(m_va_mem.ptr),
+            ov::intel_gpu::cpu_va_size(buffer_size),
+            ov::intel_gpu::cpu_va_access(m_va_mem.access),
         };
         break;
+    }
     case TensorType::BT_USM_HOST_INTERNAL:
         m_properties = {
             ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::USM_HOST_BUFFER),
