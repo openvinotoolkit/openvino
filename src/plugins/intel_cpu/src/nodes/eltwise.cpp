@@ -719,6 +719,21 @@ bool Eltwise::created() const {
 
 bool Eltwise::canFuse(const NodePtr& node) const {
     auto isIntegerComputeSupported = [](const Node* node) {
+#if defined(OPENVINO_ARCH_ARM64)
+        if (any_of(node->getAlgorithm(),
+                   Algorithm::EltwiseMinimum,
+                   Algorithm::EltwiseMaximum,
+                   Algorithm::EltwiseNegative,
+                   Algorithm::EltwiseFloor,
+                   Algorithm::EltwiseEqual,
+                   Algorithm::EltwiseNotEqual,
+                   Algorithm::EltwiseGreater,
+                   Algorithm::EltwiseGreaterEqual,
+                   Algorithm::EltwiseLess,
+                   Algorithm::EltwiseLessEqual)) {
+            return all_of_values(node->getOriginalInputPrecisions(), ov::element::i32);
+        }
+#endif
         if (none_of(node->getAlgorithm(),
                     Algorithm::EltwiseAdd,
                     Algorithm::EltwiseMultiply,
@@ -750,6 +765,15 @@ bool Eltwise::canFuse(const NodePtr& node) const {
         !EltwiseJitExecutor::supports(eltwise->attrs(), eltwise->getInputShapeAtPort(0).getRank())) {
         return false;
     }
+#    if defined(OPENVINO_ARCH_ARM64)
+    if (all_of_values(eltwise->getOriginalInputPrecisions(), ov::element::i32) &&
+        !EltwiseJitExecutor::supports(eltwise->attrs(),
+                                      eltwise->getInputShapeAtPort(0).getRank(),
+                                      eltwise->getOriginalInputPrecisions())) {
+        // Integer Divide needs the reference executor, including when it follows an integer arithmetic node.
+        return false;
+    }
+#    endif
 #endif
 
     if (any_of(getAlgorithm(),
@@ -1144,6 +1168,11 @@ bool Eltwise::canFuseParent(const NodePtr& parentNode) const {
         return false;
     }
     const auto& input_precisions = parentNode->getOriginalInputPrecisions();
+
+    if (parentNode->getOriginalOutputPrecisionAtPort(0) == ov::element::i32 && input_precisions[0].is_real()) {
+        // Removing this Convert can change execution precision and lose truncation before integer operations.
+        return false;
+    }
 
     return EltwiseJitExecutor::supports(m_attrs, inputShapes.front().getRank(), input_precisions);
 #else

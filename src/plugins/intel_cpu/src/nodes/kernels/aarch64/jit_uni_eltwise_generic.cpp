@@ -414,6 +414,21 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
 
     if (dst_prc != src_prc) {
         switch (dst_prc) {
+        case ov::element::i32:
+            switch (src_prc) {
+            case ov::element::f16:
+                fcvtl(data.s4, data.h4);
+                fcvtzs(data.s, data.s);
+                break;
+            case ov::element::i8:
+            case ov::element::u8:
+                // Byte inputs have already been widened to i32 above.
+                break;
+            default:
+                OPENVINO_THROW("src_prc " + src_prc.to_string() + " is not supported, dst_prc is " +
+                               dst_prc.to_string());
+            }
+            break;
         case ov::element::f32:
             switch (src_prc) {
             case ov::element::f16: {
@@ -489,6 +504,21 @@ void jit_uni_eltwise_generic<isa>::load_scalar(const SReg& data,
 
     if (dst_prc != src_prc) {
         switch (dst_prc) {
+        case ov::element::i32:
+            switch (src_prc) {
+            case ov::element::f16:
+                fcvt(Xbyak_aarch64::SReg(data.getIdx()), Xbyak_aarch64::HReg(data.getIdx()));
+                fcvtzs(data, data);
+                break;
+            case ov::element::i8:
+            case ov::element::u8:
+                // Byte inputs have already been widened to i32 above.
+                break;
+            default:
+                OPENVINO_THROW("src_prc " + src_prc.to_string() + " is not supported, dst_prc is " +
+                               dst_prc.to_string());
+            }
+            break;
         case ov::element::f32:
             switch (src_prc) {
             case ov::element::f16: {

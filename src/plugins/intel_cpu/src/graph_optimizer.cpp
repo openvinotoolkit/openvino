@@ -857,7 +857,8 @@ void GraphOptimizer::MergeConvertAndEltwise(Graph& graph) {
             graph.CreateEdge(parent, child, inNum, outNum);
         }
 
-        childNode->setOriginalInputPrecisionAtPort(0, parentNode->getOriginalInputPrecisionAtPort(0));
+        childNode->setOriginalInputPrecisionAtPort(edge->getOutputNum(),
+                                                   parentNode->getOriginalInputPrecisionAtPort(0));
         childNode->addOriginalLayer(parentNode->getOriginalLayers());
         graph.DropNode(parentNode);
     }
