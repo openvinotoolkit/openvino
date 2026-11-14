@@ -10101,3 +10101,24 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_query_seqlens_sliding_window_decod
          1.051573f,  -0.464264f, -0.082366f, 0.321527f,  0.057996f,  -0.504767f, 1.920703f,  -1.825270f});
     test_case.run_with_tolerance_as_fp();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_scaled_silu) {
+    const auto model = convert_model("com.microsoft/scaled_silu.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{5}, {-2.0f, -1.0f, 0.0f, 1.0f, 2.0f});
+    test_case.add_expected_output<float>(Shape{5}, {-0.268941f, -0.18877f, 0.0f, 0.31123f, 0.731059f});
+
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_scaled_silu_scale_input) {
+    const auto model = convert_model("com.microsoft/scaled_silu_scale_input.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{5}, {-2.0f, -1.0f, 0.0f, 1.0f, 2.0f});
+    test_case.add_input<float>(Shape{}, {2.0f});
+    test_case.add_expected_output<float>(Shape{5}, {-0.071945f, -0.238406f, 0.0f, 1.761594f, 3.928055f});
+
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
