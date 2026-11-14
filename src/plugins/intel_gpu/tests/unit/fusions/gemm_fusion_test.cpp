@@ -155,6 +155,9 @@ public:
 #define CASE_GEMM_2IN_FP16_5D_1 { { 2, 3, 5, 6, 4 }, { 2, 3, 5, 4, 6} }, { 2, 3, 5, 6, 6 }, data_types::f16, data_types::f16, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
 #define CASE_GEMM_2IN_FP16_6D_1 { { 2, 3, 2, 3, 5, 7 }, { 2, 3, 2, 3, 7, 5 } }, { 2, 3, 2, 3, 5, 5 }, data_types::f16, data_types::f16, data_types::f16, format::bfwzyx, data_types::f16, format::bfwzyx
 
+#define CASE_GEMM_2IN_FP32_5D_1 { { 1, 4, 2, 64, 32 }, { 1, 4, 2, 32, 64 } }, { 1, 4, 2, 64, 64 }, data_types::f32, data_types::f32, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_GEMM_2IN_FP32_6D_1 { { 2, 3, 2, 3, 5, 7 }, { 2, 3, 2, 3, 7, 5 } }, { 2, 3, 2, 3, 5, 5 }, data_types::f32, data_types::f32, data_types::f32, format::bfwzyx, data_types::f32, format::bfwzyx
+
 #define CASE_GEMM_2IN_U8U8_1 { { 1, 1, 2, 2 }, { 1, 1, 2, 2 } }, { 1, 1, 2, 2 }, data_types::u8, data_types::u8, data_types::u8, format::bfyx, data_types::f32, format::bfyx
 #define CASE_GEMM_2IN_U8U8_2 { { 1, 2, 128, 64 }, { 1, 2, 64, 256 } }, { 1, 2, 128, 256 }, data_types::u8, data_types::u8, data_types::u8, format::bfyx, data_types::f32, format::bfyx
 #define CASE_GEMM_2IN_U8U8_3 { { 1, 1, 16, 32 }, { 1, 1, 32, 16 } }, { 1, 1, 32, 32 }, data_types::u8, data_types::u8, data_types::u8, format::bfyx, data_types::f32, format::bfyx
@@ -487,6 +490,68 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_add, ::testing::ValuesIn(std::vec
     gemm_test_params{ CASE_GEMM_2IN_FP16_6D_1, 3, 4, "", broadcast_kinds::feature, eltwise_mode::prod },
     gemm_test_params{ CASE_GEMM_2IN_FP16_6D_1, 3, 4, "", broadcast_kinds::feature, eltwise_mode::sub },
 }));
+
+// Random (non-constant) eltwise input with a full w/z extent: a fused-op index that drops the z/w channel reads the wrong slice.
+class gemm_2in_add_nd_rand : public GemmFusingTest {
+public:
+    void run(gemm_test_params& p, const std::string& impl_name, bool is_dynamic) {
+        ov::intel_gpu::ImplementationDesc gemm_ocl_impl = { cldnn::format::type::any, impl_name, impl_types::ocl };
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "gemm_prim", gemm_ocl_impl } }));
+
+        auto in_layout0 = get_input_layout(p, 0);
+        auto in_layout1 = get_input_layout(p, 1);
+        auto add_data_layout = get_eltwise_layout(p);
+
+        if (is_dynamic) {
+            in_layout0.set_partial_shape(ov::PartialShape::dynamic(p.in_shapes[0].size()));
+            in_layout1.set_partial_shape(ov::PartialShape::dynamic(p.in_shapes[1].size()));
+        }
+
+        create_topologies(
+            input_layout("input0", in_layout0),
+            input_layout("input1", in_layout1),
+            data("add_data", get_mem(add_data_layout, -3, 3)),
+            gemm("gemm_prim", { input_info("input0"), input_info("input1") }, data_types::f32, false, false, 1.f, 0.f, in_layout0.get_rank(), in_layout1.get_rank()),
+            eltwise("add_prim", { input_info("gemm_prim"), input_info("add_data") }, p.eltwise_m, p.default_type),
+            reorder("reorder_bfyx", input_info("add_prim"), p.default_format, data_types::f32)
+        );
+
+        tolerance = default_tolerance(p.default_type);
+        execute(p, is_dynamic);
+    }
+};
+class gemm_2in_add_nd_rand_ref : public gemm_2in_add_nd_rand {};
+
+TEST_P(gemm_2in_add_nd_rand, eltwise_postop_static) {
+    auto p = GetParam();
+    run(p, "", false);
+}
+
+TEST_P(gemm_2in_add_nd_rand, eltwise_postop_dynamic) {
+    auto p = GetParam();
+    run(p, "", true);
+}
+
+TEST_P(gemm_2in_add_nd_rand_ref, eltwise_postop_static) {
+    auto p = GetParam();
+    run(p, "gemm_ref", false);
+}
+
+TEST_P(gemm_2in_add_nd_rand_ref, eltwise_postop_dynamic) {
+    auto p = GetParam();
+    run(p, "gemm_ref", true);
+}
+
+const std::vector<gemm_test_params> gemm_2in_add_nd_rand_params = {
+    gemm_test_params{ CASE_GEMM_2IN_FP32_5D_1, 3, 4, "", broadcast_kinds::none, eltwise_mode::prod },
+    gemm_test_params{ CASE_GEMM_2IN_FP32_5D_1, 3, 4, "", broadcast_kinds::none, eltwise_mode::sum },
+    gemm_test_params{ CASE_GEMM_2IN_FP32_5D_1, 3, 4, "", broadcast_kinds::batch, eltwise_mode::prod },
+    gemm_test_params{ CASE_GEMM_2IN_FP32_6D_1, 3, 4, "", broadcast_kinds::none, eltwise_mode::prod },
+    gemm_test_params{ CASE_GEMM_2IN_FP32_6D_1, 3, 4, "", broadcast_kinds::none, eltwise_mode::sum },
+    gemm_test_params{ CASE_GEMM_2IN_FP32_6D_1, 3, 4, "", broadcast_kinds::feature, eltwise_mode::sub },
+};
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_add_nd_rand, ::testing::ValuesIn(gemm_2in_add_nd_rand_params));
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_add_nd_rand_ref, ::testing::ValuesIn(gemm_2in_add_nd_rand_params));
 
 class gemm_2in_dynamic_add : public gemm_2in_add {};
 TEST_P(gemm_2in_dynamic_add, add) {
