@@ -148,9 +148,26 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 
 elseif(OV_COMPILER_IS_INTEL_LLVM AND WIN32)
     #
+    # MSVC-style base flags for IntelLLVM (mirrors the MSVC branch)
+    #
+
+    ov_add_compiler_flags(/D_CRT_SECURE_NO_WARNINGS /D_SCL_SECURE_NO_WARNINGS)
+    # no asynchronous structured exception handling
+    ov_add_compiler_flags(/EHsc)
+    # Allows the compiler to package individual functions in the form of packaged functions (COMDATs).
+    ov_add_compiler_flags(/Gy)
+    # This option helps ensure the fewest possible hard-to-find code defects. Similar to -Wall on GNU / Clang
+    ov_add_compiler_flags(/W3)
+
+    # Specifies both the source character set and the execution character set as UTF-8.
+    ov_add_compiler_flags(/utf-8)
+
+    #
     # Warnings as errors
     #
-    ov_add_compiler_flags(/WX)
+    if(CMAKE_COMPILE_WARNING_AS_ERROR)
+        ov_add_compiler_flags(/WX)
+    endif()
 else()
     #
     # Common enabled warnings
