@@ -260,12 +260,12 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |LongformerAttention                                     |                        |1                               |                                |
 |com.microsoft           |MatMulBnb4                                              |                        |1                               |                                |
 |com.microsoft           |MatMulFpQ4                                              |                        |1                               |                                |
-|com.microsoft           |MatMulInteger16                                         |                        |1                               |                                |
+|com.microsoft           |MatMulInteger16                                         |1                       |1                               |                                |
 |com.microsoft           |MatMulIntegerToFloat                                    |1                       |1                               |                                |
 |com.microsoft           |MatMulNBits                                             |1                       |1                               |                                |
 |com.microsoft           |MaxpoolWithMask                                         |                        |1                               |                                |
 |com.microsoft           |MoE                                                     |                        |1                               |                                |
-|com.microsoft           |MulInteger                                              |                        |1                               |                                |
+|com.microsoft           |MulInteger                                              |1                       |1                               |                                |
 |com.microsoft           |MultiHeadAttention                                      |1                       |1                               |                                |
 |com.microsoft           |MurmurHash3                                             |                        |1                               |                                |
 |com.microsoft           |NGramRepeatBlock                                        |                        |1                               |                                |
@@ -299,7 +299,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |QuantizeWithOrder                                       |                        |1                               |                                |
 |com.microsoft           |QuickGelu                                               |1                       |1                               |                                |
 |com.microsoft           |Range                                                   |1                       |1                               |                                |
-|com.microsoft           |ReduceSumInteger                                        |                        |1                               |                                |
+|com.microsoft           |ReduceSumInteger                                        |1                       |1                               |                                |
 |com.microsoft           |RelativePositionBias                                    |                        |1                               |                                |
 |com.microsoft           |RemovePadding                                           |                        |1                               |                                |
 |com.microsoft           |RestorePadding                                          |                        |1                               |                                |

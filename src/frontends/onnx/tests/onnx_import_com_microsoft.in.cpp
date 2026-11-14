@@ -10101,3 +10101,69 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_query_seqlens_sliding_window_decod
          1.051573f,  -0.464264f, -0.082366f, 0.321527f,  0.057996f,  -0.504767f, 1.920703f,  -1.825270f});
     test_case.run_with_tolerance_as_fp();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mul_integer) {
+    const auto model = convert_model("com.microsoft/mul_integer.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<uint8_t>(Shape{4}, {1, 2, 3, 4});
+    test_case.add_input<uint8_t>(Shape{}, {1});
+    test_case.add_input<uint8_t>(Shape{4}, {10, 20, 30, 40});
+    test_case.add_input<uint8_t>(Shape{}, {5});
+    test_case.add_expected_output<int32_t>(Shape{4}, {0, 15, 50, 105});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mul_integer_no_zero_points) {
+    const auto model = convert_model("com.microsoft/mul_integer_no_zero_points.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int8_t>(Shape{2, 2}, {-3, 2, 7, -8});
+    test_case.add_input<int8_t>(Shape{2, 2}, {4, -5, 6, 2});
+    test_case.add_expected_output<int32_t>(Shape{2, 2}, {-12, -10, 42, -16});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_integer) {
+    const auto model = convert_model("com.microsoft/reduce_sum_integer.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<uint8_t>(Shape{2, 3}, {1, 2, 3, 250, 251, 252});
+    test_case.add_expected_output<uint32_t>(Shape{2, 1}, {6, 753});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_integer_int8) {
+    const auto model = convert_model("com.microsoft/reduce_sum_integer_int8.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int8_t>(Shape{2, 3}, {-100, 50, 0, -100, 60, -1});
+    test_case.add_expected_output<int32_t>(Shape{3}, {-200, 110, -1});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_matmul_integer16) {
+    const auto model = convert_model("com.microsoft/matmul_integer16.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<int16_t>(Shape{2, 3}, {1000, -2000, 3, -4, 5000, 6});
+    test_case.add_input<int16_t>(Shape{3, 2}, {7, -8, 9, 10, -11, 12});
+    test_case.add_expected_output<int32_t>(Shape{2, 2}, {-11033, -27964, 44906, 50104});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_matmul_integer16_uint16) {
+    const auto model = convert_model("com.microsoft/matmul_integer16_uint16.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<uint16_t>(Shape{2, 3}, {300, 2, 3, 4, 5, 300});
+    test_case.add_input<uint16_t>(Shape{3, 2}, {40000, 1, 2, 3, 4, 40000});
+    test_case.add_expected_output<uint32_t>(Shape{2, 2}, {12000016, 120306, 161210, 12000019});
+
+    test_case.run();
+}
