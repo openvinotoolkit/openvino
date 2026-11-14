@@ -20,6 +20,7 @@ from fnmatch import fnmatch
 ALWAYS_SKIPPABLE_FILE_PATTERNS = (
     '.github/workflows/*.md',                          # agentic workflow sources
     '.github/workflows/*.lock.yml',                    # their compiled workflows
+    '.github/workflows/ci-doctor-mq-readd.yml',        # deterministic MQ companion
     '.github/workflows/shared/agentic-workflows/*',    # shared fragments they import
     '.github/aw/*',                                  # gh-aw action lock and configuration
     '.github/ci-doctor*/schemas/*',                   # persisted investigation schemas

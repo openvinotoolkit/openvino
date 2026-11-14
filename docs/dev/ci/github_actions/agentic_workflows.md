@@ -1,8 +1,8 @@
 # Agentic Workflows
 
-OpenVINO CI includes a set of **agentic workflows** — GitHub Actions workflows that hand control to
+OpenVINO CI includes four **agentic workflows** — GitHub Actions workflows that hand control to
 an AI agent to perform an investigative or maintenance task, rather than running a fixed sequence of
-shell commands. At the moment there are three of them, all dedicated to diagnosing CI failures:
+shell commands. The four workflows listed below include automatic investigation and maintenance:
 
 * [`ci-doctor.md`](../../../../.github/workflows/ci-doctor.md) — **CI Doctor**, an on-demand
   investigator for a pull request.
@@ -14,6 +14,11 @@ shell commands. At the moment there are three of them, all dedicated to diagnosi
 * [`ci-doctor-remediation.md`](../../../../.github/workflows/ci-doctor-remediation.md) — **CI Doctor
   (Weekly Remediation)**, a scheduled maintenance job that consumes the two doctors' knowledge base
   (read-only) and opens up to 3 draft remediation pull requests plus a Markdown report artifact.
+
+The Merge Queue doctor is paired with the deterministic
+[`ci-doctor-mq-readd.yml`](../../../../.github/workflows/ci-doctor-mq-readd.yml) workflow. It does no
+analysis: it checks for a transient-eligibility marker when a PR is dequeued, and retries after the MQ
+doctor completes to cover the marker-timing race.
 
 This document explains what they are, how they are built and invoked, the algorithm each one follows,
 and the reusable jobs from [`.github/workflows/shared`](../../../../.github/workflows/shared/agentic-workflows)
@@ -27,6 +32,7 @@ that they share.
 * [Workflows at a glance](#workflows-at-a-glance)
 * [CI Doctor (pull request, on-demand)](#ci-doctor-pull-request-on-demand)
 * [CI Doctor — Merge Queue (automatic)](#ci-doctor--merge-queue-automatic)
+* [CI Doctor MQ — Re-add (deterministic)](#ci-doctor-mq--re-add-deterministic)
 * [CI Doctor — Post-Commit (automatic)](#ci-doctor--post-commit-automatic)
 * [Shared reusable jobs and prompt fragments](#shared-reusable-jobs-and-prompt-fragments)
   * [Shared jobs and steps](#shared-jobs-and-steps)
@@ -85,6 +91,7 @@ workflow with the `.lock.yml` extension:
 | [`ci-doctor.md`](../../../../.github/workflows/ci-doctor.md) | [`ci-doctor.lock.yml`](../../../../.github/workflows/ci-doctor.lock.yml) |
 | [`ci-doctor-mq.md`](../../../../.github/workflows/ci-doctor-mq.md) | [`ci-doctor-mq.lock.yml`](../../../../.github/workflows/ci-doctor-mq.lock.yml) |
 | [`ci-doctor-post-commit.md`](../../../../.github/workflows/ci-doctor-post-commit.md) | [`ci-doctor-post-commit.lock.yml`](../../../../.github/workflows/ci-doctor-post-commit.lock.yml) |
+| [`ci-doctor-remediation.md`](../../../../.github/workflows/ci-doctor-remediation.md) | [`ci-doctor-remediation.lock.yml`](../../../../.github/workflows/ci-doctor-remediation.lock.yml) |
 
 The `.lock.yml` file is what GitHub Actions actually executes. It is **auto-generated — do not edit it
 by hand**. After changing a `.md` source (or any imported shared file), regenerate the lock file:
@@ -94,18 +101,20 @@ gh aw compile
 ```
 
 See [Maintaining the workflows](#maintaining-the-workflows) for details.
+The plain YAML [`ci-doctor-mq-readd.yml`](../../../../.github/workflows/ci-doctor-mq-readd.yml)
+companion is not compiled by `gh aw`.
 
 ## Workflows at a glance
 
-| | **CI Doctor** | **CI Doctor — Merge Queue** | **CI Doctor — Post-Commit** |
-| --- | --- | --- | --- |
-| Source | [`ci-doctor.md`](../../../../.github/workflows/ci-doctor.md) | [`ci-doctor-mq.md`](../../../../.github/workflows/ci-doctor-mq.md) | [`ci-doctor-post-commit.md`](../../../../.github/workflows/ci-doctor-post-commit.md) |
-| Trigger | On demand: `/ci-doctor` comment on a PR | Automatic: a monitored workflow finishes a `merge_group` run with `failure` | Automatic: a monitored workflow finishes a `push` run with `failure` |
-| Scope | **Every** failed pipeline on the PR head commit | A **single** failed merge-queue run | A **single** failed post-commit run |
-| Knowledge base | Reads the MQ pattern database (read-only) | **Writes** the MQ pattern database (investigations + patterns) | **Writes** its own post-commit pattern database (investigations + patterns) |
-| Output | One consolidated PR comment | Microsoft Teams notification (+ optional PR comment, re-run, re-queue) | Microsoft Teams notification only |
-| Remediation | Report only | Can re-run failed jobs, re-add the PR to the merge queue, escalate recurring failures | Report only (never re-runs or re-queues) |
-| Engine / model | `copilot` / `claude-sonnet-5` | `copilot` / `claude-sonnet-5` | `copilot` / `claude-sonnet-5` |
+| | **CI Doctor** | **CI Doctor — Merge Queue** | **CI Doctor — Post-Commit** | **MQ Re-add** |
+| --- | --- | --- | --- | --- |
+| Source | [`ci-doctor.md`](../../../../.github/workflows/ci-doctor.md) | [`ci-doctor-mq.md`](../../../../.github/workflows/ci-doctor-mq.md) | [`ci-doctor-post-commit.md`](../../../../.github/workflows/ci-doctor-post-commit.md) | [`ci-doctor-mq-readd.yml`](../../../../.github/workflows/ci-doctor-mq-readd.yml) |
+| Trigger | On demand: `/ci-doctor` comment on a PR | Automatic: a monitored workflow finishes a `merge_group` run with `failure` | Automatic: a monitored workflow finishes a `push` run with `failure` | PR `dequeued`, plus CI Doctor MQ completion fallback |
+| Scope | **Every** failed pipeline on the PR head commit | A **single** failed merge-queue run | A **single** failed post-commit run | One PR dequeue with a trusted transient marker |
+| Knowledge base | Reads the MQ pattern database (read-only) | **Writes** the MQ pattern database (investigations + patterns) | **Writes** its own post-commit pattern database (investigations + patterns) | None |
+| Output | One consolidated PR comment | Teams notification, optional PR comment, failed-job re-run, transient marker | Microsoft Teams notification only | Re-add eligible PR at most once |
+| Remediation | Report only | Re-runs failed jobs if still queued; marks transient failures for possible re-add | Report only (never re-runs or re-queues) | Re-adds only for `CI_FAILURE` after marker validation |
+| Engine / model | `copilot` / `claude-sonnet-5` | `copilot` / `claude-sonnet-5` | `copilot` / `claude-sonnet-5` | None (deterministic) |
 
 ## CI Doctor (pull request, on-demand)
 
@@ -175,6 +184,8 @@ always execute on GitHub-created `gh-readonly-queue/<base>/pr-<N>-<sha>` branche
 including for PRs from forks, so `gh-readonly-queue/**` still covers every merge-queue failure.
 
 A `workflow_dispatch` entry (with `run_id` or `link` inputs) is also provided for manual testing.
+The run title carries the source merge-queue branch so the re-add workflow can correlate its
+completion fallback with the affected PR.
 
 **What it does / benefits**
 
@@ -184,10 +195,16 @@ A `workflow_dispatch` entry (with `run_id` or `link` inputs) is also provided fo
   recurring failures accumulate statistics (`count`, `first_seen`, `last_seen`) over time.
 * **Escalation**: when the same failure signature is seen **3 or more times within 12 hours**, it sends
   a second, higher-visibility Teams alert.
-* **Automated remediation**: when a failure is transient the agent calls a single
-  `remediate_transient_failure` safe output; that job resolves the PR's live merge-queue status and
-  decides on its own whether to re-run only the failed jobs (PR still queued) or re-add the PR to the
-  merge queue (PR dropped). The agent never reasons about queue status.
+* **Transient-failure handling**: when a failure is transient the agent calls
+  `remediate_transient_failure`. That job resolves the live queue status, re-runs failed jobs if the
+  PR remains queued, and posts a bot-authored eligibility marker bound to the current PR head and
+  source run. It never re-adds the PR.
+* **Separate re-queueing**: [`ci-doctor-mq-readd.yml`](../../../../.github/workflows/ci-doctor-mq-readd.yml)
+  handles `pull_request_target: dequeued` and CI Doctor MQ completion. The completion trigger covers the
+  race where analysis posts its marker after the dequeue event. The workflow re-adds only if the
+  marker is authored by `github-actions[bot]`, matches the current PR head and source merge-group run,
+  the latest queue removal reason is `CI_FAILURE`, and the PR is not already queued. It never
+  checks out or executes PR code, supports fork PRs, and re-adds a PR at most once.
 * **Rerun-pattern proposals**: for a transient failure with a verified `rerun_search_string`
   candidate, the agent calls `propose_rerun_pattern`, which opens a **human-review pull request** against
   `master` adding it to `errors_to_look_for.json`. The workflow rerunner only uses a string after that PR is merged — see
@@ -211,6 +228,33 @@ A `workflow_dispatch` entry (with `run_id` or `link` inputs) is also provided fo
 The run always ends by calling exactly one (or a valid combination) of the safe outputs: `notify_teams`,
 `notify_teams_recurring`, `add_comment`, `remediate_transient_failure`, `propose_rerun_pattern`, `noop`, or
 `missing_data`.
+
+## CI Doctor MQ — Re-add (deterministic)
+
+The plain GitHub Actions workflow
+[`ci-doctor-mq-readd.yml`](../../../../.github/workflows/ci-doctor-mq-readd.yml) performs no AI analysis.
+It is triggered by a PR `dequeued` event and by completion of CI Doctor MQ. The latter is a bounded
+race fallback: if the dequeue trigger arrives before the agent has posted its marker, the analysis
+completion starts the same validation again.
+
+The workflow accepts only a bot-authored eligibility comment whose marker matches the PR number and
+current head SHA, and whose source run was a failed `merge_group` run for that PR. It also checks that
+the latest queue event is a removal, that the marker was created after the latest queue admission,
+and that live merge-queue state confirms the PR is out of the queue. For a dequeue event, it uses the
+required top-level webhook `reason`; on the completion fallback, it verifies the GraphQL
+`RemovedFromMergeQueueEvent.reason` field. Both paths accept only `CI_FAILURE`. Merged, closed, draft,
+stale, already-queued, unmarked, or previously re-added PRs are skipped. The workflow checks out only
+trusted repository scripts from the default branch and never checks out or executes PR code.
+The checks and enqueue operation are implemented in
+[`readd_transient_failure.py`](../../../../.github/scripts/agentic-workflows/readd_transient_failure.py).
+
+The dequeue webhook's top-level `reason` is a required string, using the
+[documented removal reasons](https://docs.github.com/en/webhooks/webhook-events-and-payloads#pull_request).
+Only `CI_FAILURE` is eligible; `CI_TIMEOUT`, manual removals, all other reasons, and unknown values are
+skipped. A dequeue event must have its documented top-level reason. The queue timeline is read from
+GraphQL because the REST timeline-event contract does not document a removal-reason field. A missing
+GraphQL reason is tolerated only on the direct webhook path, where the webhook provides the required
+reason; the completion fallback fails closed if GraphQL does not provide `CI_FAILURE`.
 
 ## CI Doctor — Post-Commit (automatic)
 
@@ -339,7 +383,7 @@ inputs, permissions, or step wiring, edit the shared `.md` and recompile.
 | [`collect-ci-doctor-history.md`](../../../../.github/workflows/shared/agentic-workflows/collect-ci-doctor-history.md) | Pre-agent step | Weekly Remediation | Pre-download the recent CI Doctor investigations and patterns from both memory branches (read-only) into `/tmp/gh-aw/agent/ci-doctor-remediation/` with a ranked `summary.txt`. |
 | [`notify-teams.md`](../../../../.github/workflows/shared/agentic-workflows/notify-teams.md) | Safe-output job | MQ, Post-Commit | Send the investigation summary to Microsoft Teams; upload the statistics artifact. A `source` input selects the `[MQ]` / `[PC]` badge and the artifact name. |
 | [`notify-teams-recurring.md`](../../../../.github/workflows/shared/agentic-workflows/notify-teams-recurring.md) | Safe-output job | MQ | Send a recurring-failure escalation alert to Teams. |
-| [`remediate-transient-failure.md`](../../../../.github/workflows/shared/agentic-workflows/remediate-transient-failure.md) | Safe-output job | MQ | Remediate a transient failure: the job resolves the PR's live merge-queue status and either re-runs the failed jobs (still queued) or re-adds the dropped PR (dropped). |
+| [`remediate-transient-failure.md`](../../../../.github/workflows/shared/agentic-workflows/remediate-transient-failure.md) | Safe-output job | MQ | For a transient failure, re-run failed jobs if the PR is still queued and post a trusted marker for the deterministic MQ re-add workflow. It never re-adds the PR. |
 | [`propose-rerun-pattern.md`](../../../../.github/workflows/shared/agentic-workflows/propose-rerun-pattern.md) | Safe-output job | MQ | Re-validate a `rerun_search_string` candidate and open a human-review PR against `master` appending it to `errors_to_look_for.json`. |
 
 **`download-failure-logs.md`** is a *step* fragment (it has no `on:` trigger). It auto-detects its mode
@@ -359,15 +403,20 @@ the full statistics JSON/Markdown as a workflow artifact. The agent-supplied `so
 recurred ≥ 3 times in 12 hours. It renders a condensed escalation card listing the affected PRs and the
 recent failure runs.
 
-**`remediate-transient-failure.md`** defines the `remediate-transient-failure` job, the single
-remediation entry point for transient failures. The agent calls it only when the failure is transient
-and knows nothing about the PR's merge-queue status; the job resolves that status live
-(`common.merge_queue_status`) and decides itself whether to **re-run the failed jobs** (PR still in the
-queue, via the GitHub `rerun-failed-jobs` API with a loop guard against a second attempt) or **re-add the
-dropped PR** to the queue (via `gh pr merge`, idempotent: it skips PRs that are merged, closed, draft, or
-already carry the CI Doctor re-add marker comment). It uses the default `GITHUB_TOKEN` (with
-`actions: write`) for the re-run and status reads, and the `MERGE_QUEUE_TOKEN` secret for the re-queue
-(the default `GITHUB_TOKEN` cannot re-trigger `merge_group` check runs).
+**`remediate-transient-failure.md`** defines the `remediate-transient-failure` job for transient
+failures. The job resolves the PR's live queue status (`common.merge_queue_status`), re-runs only failed
+jobs when the PR is still queued (with a loop guard against a second attempt), and posts a bot-authored
+marker bound to the current PR head, source failure run, and analysis run. It never re-adds the PR.
+The default `GITHUB_TOKEN` provides `actions: write` for re-runs and `pull-requests: write` for the
+marker comment.
+
+**`ci-doctor-mq-readd.yml`** is the deterministic companion workflow. It runs on PR dequeue and on CI
+Doctor MQ completion (to handle a marker posted after the dequeue trigger). It only re-adds after
+checking the bot-authored current-head marker, matching failed merge-group source run, latest
+`CI_FAILURE` queue removal, and live queue state. It skips merged, closed, draft, stale, already
+queued, or previously re-added PRs. It uses trusted default-branch scripts only; it never checks out
+PR code. `MERGE_QUEUE_TOKEN` performs the enqueue because `GITHUB_TOKEN` cannot re-trigger
+`merge_group` checks.
 
 **`propose-rerun-pattern.md`** defines the `propose-rerun-pattern` job
 ([`propose_rerun_pattern.py`](../../../../.github/scripts/agentic-workflows/propose_rerun_pattern.py)),
@@ -541,9 +590,9 @@ only the narrow permission it needs. The workflows rely on the following secrets
 | Secret | Used by | Purpose |
 | --- | --- | --- |
 | `TEAMS_WEBHOOK_URL` | `notify-teams` (MQ + Post-Commit), `notify-teams-recurring` | Microsoft Teams incoming webhook. |
-| `MERGE_QUEUE_TOKEN` | `remediate-transient-failure` | PAT / App token with `contents: write` + `pull_requests: write` to re-queue a PR (the default token cannot re-trigger `merge_group` runs). |
+| `MERGE_QUEUE_TOKEN` | `ci-doctor-mq-readd.yml` | PAT / App token with `contents: write` + `pull_requests: write` to re-queue a PR (the default token cannot re-trigger `merge_group` runs). |
 | `RERUNNER_DB_UPDATE` | `propose-rerun-pattern` | PAT / App token with `contents: write` + `pull_requests: write` to push `ci-doctor/rerun-pattern/*` branches and open review PRs against `master` that edit `errors_to_look_for.json` (unlike `GITHUB_TOKEN`, PRs it opens trigger CI). |
-| `GITHUB_TOKEN` | log download, `remediate-transient-failure` | Standard GitHub API access (re-run failed jobs, read live merge-queue status). |
+| `GITHUB_TOKEN` | log download, `remediate-transient-failure`, `ci-doctor-mq-readd.yml` | Standard GitHub API access (re-run failed jobs, read live merge-queue status and verify markers). |
 
 ## Maintaining the workflows
 

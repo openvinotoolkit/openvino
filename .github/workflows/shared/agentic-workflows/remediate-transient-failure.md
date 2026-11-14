@@ -1,21 +1,20 @@
 ---
 description: |
   Shared custom safe-output job for the CI Doctor MQ workflow.
-  Remediates a *transient* merge-queue pipeline failure. The agent calls it
-  whenever the failure is transient and knows nothing about the PR's merge-queue
-  status; this job resolves that status live and decides on its own whether to
-  re-run only the failed jobs (PR still queued) or re-add the PR to the merge
-  queue (PR was dropped on the failure).
+  Handles a *transient* merge-queue pipeline failure by re-running failed jobs
+  if the PR is still queued and posting a trusted eligibility marker. A
+  separate deterministic workflow validates the marker and dequeue reason
+  before it re-adds the PR.
 safe-outputs:
   jobs:
     remediate-transient-failure:
-      description: "Remediate a TRANSIENT merge-queue pipeline failure. Call this at most once and ONLY when the investigation concludes the failure is transient (Infrastructure, Flaky Test, Network, or External Service categories such as runner hiccups, network timeouts, cancelled jobs, or downstream outages). The job resolves the PR's live merge-queue status itself and decides whether to re-run the failed jobs (PR still in the queue) or re-add the PR to the merge queue (PR was dropped) — you do NOT know or provide the queue status. Do NOT call for deterministic Code Issue / Dependencies / Configuration failures that a restart or re-queue cannot fix."
+      description: "Mark a TRANSIENT merge-queue pipeline failure as eligible for re-queueing. Call this at most once and ONLY when the investigation concludes the failure is transient (Infrastructure, Flaky Test, Network, or External Service categories such as runner hiccups, network timeouts, cancelled jobs, or downstream outages). The job resolves the PR's live queue status, re-runs failed jobs if the PR is still queued, and posts a bot-authored marker bound to the current PR head and failed run. It never re-adds the PR; the separate dequeue workflow validates the marker and reason before re-queueing. Do NOT call for deterministic Code Issue / Dependencies / Configuration failures."
       runs-on: ubuntu-latest
-      output: "Transient-failure remediation requested for the analysed workflow run."
+      output: "Transient-failure eligibility marker requested for the analysed workflow run."
       permissions:
         actions: write         # re-run the failed jobs
         contents: read
-        pull-requests: write   # read live merge-queue status; post the re-run outcome comment
+        pull-requests: write   # read live merge-queue status and post the eligibility marker
       inputs:
         run_id:
           description: "Numeric ID of the analysed GitHub Actions workflow run (github.event.workflow_run.id for merge-queue triggers, or the run_id input for workflow_dispatch). Report as a numeric string."
@@ -44,32 +43,25 @@ safe-outputs:
           run: python -m pip install --quiet PyGithub==2.9.1
         - name: Remediate transient failure
           env:
-            # GITHUB_TOKEN (with actions: write) re-runs the failed jobs and reads
-            # the live merge-queue status. MERGE_QUEUE_TOKEN (a PAT or GitHub App
-            # token with contents: write + pull_requests: write) is required to
-            # re-add a dropped PR: the default GITHUB_TOKEN cannot re-trigger
-            # merge_group check runs, so a re-queue performed with it would stall.
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-            MERGE_QUEUE_TOKEN: ${{ secrets.MERGE_QUEUE_TOKEN }}
           run: |
             export PYTHONPATH=.github/scripts/agentic-workflows/:${PYTHONPATH}
             python .github/scripts/agentic-workflows/remediate_transient_failure.py
-        # The `echo` steps are for collecting and aggregating statistics in Grafana
+        # The `echo` steps are for collecting and aggregating statistics in Grafana.
         - name: Re-run of failed jobs was triggered
           if: ${{ env.RERUN_FAILED_JOBS == 'true' }}
           run: echo "CI Doctor re-ran the failed jobs for the analysed run (PR still in the merge queue)."
-        - name: Re-add to merge queue was triggered
-          if: ${{ env.READDED_TO_MQ == 'true' }}
-          run: echo "CI Doctor re-added the pull request to the merge queue (it had been dropped)."
+        - name: Transient eligibility marker was posted
+          if: ${{ env.TRANSIENT_ELIGIBILITY_MARKED == 'true' }}
+          run: echo "CI Doctor marked the PR as eligible for re-queueing after a CI_FAILURE dequeue."
 ---
 
 # CI Doctor MQ — Remediate Transient Failure
 
 Shared definition of the `remediate-transient-failure` custom safe-output job
-used by the CI Doctor Merge Queue workflow. It merges the former
-`rerun-failed-jobs` and `readd-to-merge-queue` jobs into a single remediation
-entry point so the agent only has to decide *whether the failure is transient*,
-not *which* remedy applies.
+used by the CI Doctor Merge Queue workflow. The agent decides only whether the
+failure is transient; this job handles a safe re-run when the PR remains queued
+and emits the trusted marker consumed by the deterministic re-queue workflow.
 
 When invoked, the job:
 
@@ -78,23 +70,21 @@ When invoked, the job:
    run's associated pull requests).
 2. Reads the PR's **live** merge-queue status (`common.merge_queue_status`, which
    prefers the GraphQL `mergeQueue` entries and falls back to the PR's add/remove
-   timeline events). Doing this at action time avoids acting on a stale snapshot.
-3. Picks the remedy:
-   - **`in_queue`** — re-runs only the failed jobs via
-     `POST /repos/{owner}/{repo}/actions/runs/{run_id}/rerun-failed-jobs`
-     (refuses a run already on its second attempt, to avoid restart loops) and
-     posts an outcome comment on the PR.
-   - **`not_in_queue`** — re-adds the PR via `gh pr merge` (which enqueues on a
-     merge-queue branch) and posts an outcome comment carrying the re-add marker.
-     Idempotent and loop-safe: it skips the PR when it is already merged, closed,
-     a draft, or when a previous CI Doctor re-add marker comment is present.
-   - **`merged`** / **`unknown`** — takes no action (fail safe).
+   timeline events).
+3. If the PR is still queued, re-runs only the failed jobs via
+   `POST /repos/{owner}/{repo}/actions/runs/{run_id}/rerun-failed-jobs`. It
+   refuses a run already on its second attempt to avoid restart loops.
+4. Posts a bot-authored comment with a visible eligibility explanation and a
+   machine-readable marker bound to the PR number, current head SHA, failed run
+   ID, and analysis run ID. It does this whether the PR is still queued or has
+   already been dequeued.
+5. Does not re-add the PR. The separate workflow validates the marker, the
+   latest `CI_FAILURE` dequeue event, current PR head, and live queue status before
+   using `MERGE_QUEUE_TOKEN` to re-queue it.
 
-It uses two tokens: the default `GITHUB_TOKEN` (with `actions: write`) re-runs the
-failed jobs and reads queue status, and a `MERGE_QUEUE_TOKEN` secret (a PAT or
-GitHub App token with `contents: write` + `pull_requests: write`) performs the
-re-queue — the default `GITHUB_TOKEN` cannot re-trigger `merge_group` check runs,
-so a re-queue performed with it would stall.
+Re-running uses the default ``GITHUB_TOKEN`` with ``actions: write``; the
+separate re-queue workflow uses ``MERGE_QUEUE_TOKEN`` because the default token
+cannot re-trigger ``merge_group`` check runs.
 
 Import it via `imports:` in the consuming workflow's frontmatter, and instruct
 the agent to call `remediate_transient_failure` only when the failure is
