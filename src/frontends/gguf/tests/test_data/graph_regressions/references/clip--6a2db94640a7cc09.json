@@ -1,0 +1,121 @@
+{
+  "recipe_sha256": "190cd0b95fcccf76024c68ad0e293258d6b55e303c31716eb46dfcb77fdedda6",
+  "stages": {
+    "deferred_plan": {
+      "map_sha256": "f563613d028ea56c52fd4e03a0e699969db40bc941e13124df82fd2ff92a846b",
+      "models": {
+        "native": {
+          "graph_sha256": "4213a5f626889bea55e962875b1788140226145ba13a0e01298b1d1b066d0c59",
+          "ops": [
+            [
+              "Add",
+              "opset1",
+              294
+            ],
+            [
+              "AvgPool",
+              "opset1",
+              1
+            ],
+            [
+              "Constant",
+              "opset1",
+              364
+            ],
+            [
+              "Convolution",
+              "opset1",
+              2
+            ],
+            [
+              "GGUFPlannedWeight",
+              "gguf",
+              491
+            ],
+            [
+              "Gather",
+              "opset8",
+              1
+            ],
+            [
+              "Gelu",
+              "opset7",
+              35
+            ],
+            [
+              "MVN",
+              "opset6",
+              65
+            ],
+            [
+              "MatMul",
+              "opset1",
+              194
+            ],
+            [
+              "Multiply",
+              "opset1",
+              97
+            ],
+            [
+              "Parameter",
+              "opset1",
+              2
+            ],
+            [
+              "Reshape",
+              "opset1",
+              133
+            ],
+            [
+              "Result",
+              "opset1",
+              1
+            ],
+            [
+              "ScaledDotProductAttention",
+              "opset13",
+              32
+            ],
+            [
+              "Squeeze",
+              "opset1",
+              1
+            ],
+            [
+              "Transpose",
+              "opset1",
+              131
+            ],
+            [
+              "Unsqueeze",
+              "opset1",
+              1
+            ]
+          ],
+          "projections": [
+            [
+              "MatMul",
+              "4",
+              "f32",
+              "ggml:8/group:32/weight:i8",
+              194
+            ]
+          ],
+          "projectors": [
+            "audio.musicflamingo"
+          ],
+          "totals": {
+            "edges": 1972,
+            "inputs": 2,
+            "nodes": 1845,
+            "outputs": 1,
+            "states": 0,
+            "top_level_nodes": 1845
+          }
+        }
+      }
+    }
+  },
+  "version": 1
+}

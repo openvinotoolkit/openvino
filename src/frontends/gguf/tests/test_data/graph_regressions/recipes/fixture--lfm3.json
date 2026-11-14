@@ -1,0 +1,166 @@
+{
+  "version": 1,
+  "metadata": [
+    {
+      "name": "general.architecture",
+      "type": 8,
+      "value": "lfm3"
+    },
+    {
+      "name": "lfm3.context_length",
+      "type": 4,
+      "value": 128
+    },
+    {
+      "name": "lfm3.embedding_length",
+      "type": 4,
+      "value": 32
+    },
+    {
+      "name": "lfm3.block_count",
+      "type": 4,
+      "value": 4
+    },
+    {
+      "name": "lfm3.feed_forward_length",
+      "type": 4,
+      "value": 48
+    },
+    {
+      "name": "lfm3.attention.head_count",
+      "type": 4,
+      "value": 4
+    },
+    {
+      "name": "lfm3.attention.head_count_kv",
+      "type": 9,
+      "element_type": 5,
+      "value": [
+        0,
+        2,
+        0,
+        2
+      ]
+    },
+    {
+      "name": "lfm3.attention.key_length",
+      "type": 4,
+      "value": 8
+    },
+    {
+      "name": "lfm3.attention.value_length",
+      "type": 4,
+      "value": 8
+    },
+    {
+      "name": "lfm3.rope.dimension_count",
+      "type": 4,
+      "value": 8
+    },
+    {
+      "name": "lfm3.rope.freq_base",
+      "type": 6,
+      "value": 1000000.0
+    },
+    {
+      "name": "lfm3.attention.layer_norm_rms_epsilon",
+      "type": 6,
+      "value": 9.999999747378752e-06
+    },
+    {
+      "name": "lfm3.shortconv.l_cache",
+      "type": 4,
+      "value": 3
+    },
+    {
+      "name": "lfm3.vocab_size",
+      "type": 4,
+      "value": 32
+    },
+    {
+      "name": "tokenizer.ggml.model",
+      "type": 8,
+      "value": "none"
+    },
+    {
+      "name": "lfm3.attention.sliding_window",
+      "type": 4,
+      "value": 2
+    },
+    {
+      "name": "lfm3.attention.sliding_window_pattern",
+      "type": 9,
+      "element_type": 7,
+      "value": [
+        false,
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "name": "lfm3.rope.freq_base_swa",
+      "type": 6,
+      "value": 10000.0
+    }
+  ],
+  "omitted_metadata": [],
+  "source_header_sha256": "444e2688b525d72ce29c012998dd01425ea82a298323cfa85c8551a285e30eb3",
+  "payload": {
+    "mode": "zeros",
+    "max_bytes": 67108864
+  },
+  "tensors": [
+    {"name":"token_embd.weight","shape":[32,32],"ggml_type":0,"storage_type":"f32","storage_shape":[32,32]},
+    {"name":"output_norm.weight","shape":[32],"ggml_type":0,"storage_type":"f32","storage_shape":[32]},
+    {"name":"rope_freqs.weight","shape":[4],"ggml_type":0,"storage_type":"f32","storage_shape":[4]},
+    {"name":"blk.0.attn_norm.weight","shape":[32],"ggml_type":0,"storage_type":"f32","storage_shape":[32]},
+    {"name":"blk.0.ffn_norm.weight","shape":[32],"ggml_type":0,"storage_type":"f32","storage_shape":[32]},
+    {"name":"blk.0.post_attention_norm.weight","shape":[32],"ggml_type":0,"storage_type":"f32","storage_shape":[32]},
+    {"name":"blk.0.post_ffw_norm.weight","shape":[32],"ggml_type":0,"storage_type":"f32","storage_shape":[32]},
+    {"name":"blk.0.shortconv.in_proj.weight","shape":[96,32],"ggml_type":0,"storage_type":"f32","storage_shape":[96,32]},
+    {"name":"blk.0.shortconv.conv.weight","shape":[32,3],"ggml_type":0,"storage_type":"f32","storage_shape":[32,3]},
+    {"name":"blk.0.shortconv.out_proj.weight","shape":[32,32],"ggml_type":0,"storage_type":"f32","storage_shape":[32,32]},
+    {"name":"blk.0.ffn_gate.weight","shape":[48,32],"ggml_type":0,"storage_type":"f32","storage_shape":[48,32]},
+    {"name":"blk.0.ffn_up.weight","shape":[48,32],"ggml_type":0,"storage_type":"f32","storage_shape":[48,32]},
+    {"name":"blk.0.ffn_down.weight","shape":[32,48],"ggml_type":0,"storage_type":"f32","storage_shape":[32,48]},
+    {"name":"blk.1.attn_norm.weight","shape":[32],"ggml_type":0,"storage_type":"f32","storage_shape":[32]},
+    {"name":"blk.1.ffn_norm.weight","shape":[32],"ggml_type":0,"storage_type":"f32","storage_shape":[32]},
+    {"name":"blk.1.post_attention_norm.weight","shape":[32],"ggml_type":0,"storage_type":"f32","storage_shape":[32]},
+    {"name":"blk.1.post_ffw_norm.weight","shape":[32],"ggml_type":0,"storage_type":"f32","storage_shape":[32]},
+    {"name":"blk.1.attn_q.weight","shape":[32,32],"ggml_type":0,"storage_type":"f32","storage_shape":[32,32]},
+    {"name":"blk.1.attn_k.weight","shape":[16,32],"ggml_type":0,"storage_type":"f32","storage_shape":[16,32]},
+    {"name":"blk.1.attn_v.weight","shape":[16,32],"ggml_type":0,"storage_type":"f32","storage_shape":[16,32]},
+    {"name":"blk.1.attn_q_norm.weight","shape":[8],"ggml_type":0,"storage_type":"f32","storage_shape":[8]},
+    {"name":"blk.1.attn_k_norm.weight","shape":[8],"ggml_type":0,"storage_type":"f32","storage_shape":[8]},
+    {"name":"blk.1.attn_output.weight","shape":[32,32],"ggml_type":0,"storage_type":"f32","storage_shape":[32,32]},
+    {"name":"blk.1.attn_gate.weight","shape":[4,32],"ggml_type":0,"storage_type":"f32","storage_shape":[4,32]},
+    {"name":"blk.1.ffn_gate.weight","shape":[48,32],"ggml_type":0,"storage_type":"f32","storage_shape":[48,32]},
+    {"name":"blk.1.ffn_up.weight","shape":[48,32],"ggml_type":0,"storage_type":"f32","storage_shape":[48,32]},
+    {"name":"blk.1.ffn_down.weight","shape":[32,48],"ggml_type":0,"storage_type":"f32","storage_shape":[32,48]},
+    {"name":"blk.2.attn_norm.weight","shape":[32],"ggml_type":0,"storage_type":"f32","storage_shape":[32]},
+    {"name":"blk.2.ffn_norm.weight","shape":[32],"ggml_type":0,"storage_type":"f32","storage_shape":[32]},
+    {"name":"blk.2.post_attention_norm.weight","shape":[32],"ggml_type":0,"storage_type":"f32","storage_shape":[32]},
+    {"name":"blk.2.post_ffw_norm.weight","shape":[32],"ggml_type":0,"storage_type":"f32","storage_shape":[32]},
+    {"name":"blk.2.shortconv.in_proj.weight","shape":[96,32],"ggml_type":0,"storage_type":"f32","storage_shape":[96,32]},
+    {"name":"blk.2.shortconv.conv.weight","shape":[32,3],"ggml_type":0,"storage_type":"f32","storage_shape":[32,3]},
+    {"name":"blk.2.shortconv.out_proj.weight","shape":[32,32],"ggml_type":0,"storage_type":"f32","storage_shape":[32,32]},
+    {"name":"blk.2.ffn_gate.weight","shape":[48,32],"ggml_type":0,"storage_type":"f32","storage_shape":[48,32]},
+    {"name":"blk.2.ffn_up.weight","shape":[48,32],"ggml_type":0,"storage_type":"f32","storage_shape":[48,32]},
+    {"name":"blk.2.ffn_down.weight","shape":[32,48],"ggml_type":0,"storage_type":"f32","storage_shape":[32,48]},
+    {"name":"blk.3.attn_norm.weight","shape":[32],"ggml_type":0,"storage_type":"f32","storage_shape":[32]},
+    {"name":"blk.3.ffn_norm.weight","shape":[32],"ggml_type":0,"storage_type":"f32","storage_shape":[32]},
+    {"name":"blk.3.post_attention_norm.weight","shape":[32],"ggml_type":0,"storage_type":"f32","storage_shape":[32]},
+    {"name":"blk.3.post_ffw_norm.weight","shape":[32],"ggml_type":0,"storage_type":"f32","storage_shape":[32]},
+    {"name":"blk.3.attn_q.weight","shape":[32,32],"ggml_type":0,"storage_type":"f32","storage_shape":[32,32]},
+    {"name":"blk.3.attn_k.weight","shape":[16,32],"ggml_type":0,"storage_type":"f32","storage_shape":[16,32]},
+    {"name":"blk.3.attn_v.weight","shape":[16,32],"ggml_type":0,"storage_type":"f32","storage_shape":[16,32]},
+    {"name":"blk.3.attn_q_norm.weight","shape":[8],"ggml_type":0,"storage_type":"f32","storage_shape":[8]},
+    {"name":"blk.3.attn_k_norm.weight","shape":[8],"ggml_type":0,"storage_type":"f32","storage_shape":[8]},
+    {"name":"blk.3.attn_output.weight","shape":[32,32],"ggml_type":0,"storage_type":"f32","storage_shape":[32,32]},
+    {"name":"blk.3.attn_gate.weight","shape":[4,32],"ggml_type":0,"storage_type":"f32","storage_shape":[4,32]},
+    {"name":"blk.3.ffn_gate.weight","shape":[48,32],"ggml_type":0,"storage_type":"f32","storage_shape":[48,32]},
+    {"name":"blk.3.ffn_up.weight","shape":[48,32],"ggml_type":0,"storage_type":"f32","storage_shape":[48,32]},
+    {"name":"blk.3.ffn_down.weight","shape":[32,48],"ggml_type":0,"storage_type":"f32","storage_shape":[32,48]}
+  ]
+}

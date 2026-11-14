@@ -115,6 +115,9 @@ set(FRONTEND_SRCS
 )
 
 set(TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/graph_regression_utils.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/graph_regression_main.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_graph_regressions.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_lfm3_media.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_lfm3_speech.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_mmproj.cpp"
@@ -150,6 +153,7 @@ ov_add_test_target(
         openvino::runtime::dev
         openvino::offline_transformations
         openvino::cnpy
+        nlohmann_json::nlohmann_json
     INCLUDES
         "${CMAKE_CURRENT_SOURCE_DIR}/../src"
         "${CMAKE_CURRENT_SOURCE_DIR}/../include"
@@ -180,6 +184,16 @@ install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/test_data"
             PATTERN "*.npy"
             PATTERN "*.npz"
             PATTERN "manifest.txt")
+
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/test_data/graph_regressions"
+        DESTINATION tests/test_data
+        COMPONENT tests
+        EXCLUDE_FROM_ALL
+        FILES_MATCHING PATTERN "*.json")
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/graph_fingerprint.py"
+        DESTINATION tests
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
 
 # tests/model_hub_tests/gguf/test_gguf_mmproj.py builds this oracle and reuses these helpers.
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/mmproj_oracle.cpp"

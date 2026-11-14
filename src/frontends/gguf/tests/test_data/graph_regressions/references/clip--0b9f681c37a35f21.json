@@ -1,0 +1,183 @@
+{
+  "recipe_sha256": "7a0622717bee54e032d401b143b93ed3299aef510c9af273c8a3801e23554a36",
+  "stages": {
+    "deferred_plan": {
+      "map_sha256": "4acb2fa39ba8255a46ffd93c4b497883e5ad1411fc946a1a5cd5f207fe9c03f9",
+      "models": {
+        "native": {
+          "graph_sha256": "7de92bcec851a377d1cc51acfaa38b7b89897e489abf8c5953639696120eba17",
+          "ops": [
+            [
+              "Add",
+              "opset1",
+              434
+            ],
+            [
+              "Broadcast",
+              "opset3",
+              17
+            ],
+            [
+              "Concat",
+              "opset1",
+              17
+            ],
+            [
+              "Constant",
+              "opset1",
+              737
+            ],
+            [
+              "Convolution",
+              "opset1",
+              3
+            ],
+            [
+              "GGUFPlannedWeight",
+              "gguf",
+              647
+            ],
+            [
+              "Gather",
+              "opset8",
+              51
+            ],
+            [
+              "GatherElements",
+              "opset6",
+              17
+            ],
+            [
+              "Gelu",
+              "opset7",
+              1
+            ],
+            [
+              "GroupConvolution",
+              "opset1",
+              19
+            ],
+            [
+              "MVN",
+              "opset6",
+              86
+            ],
+            [
+              "MatMul",
+              "opset1",
+              241
+            ],
+            [
+              "Multiply",
+              "opset1",
+              188
+            ],
+            [
+              "Pad",
+              "opset1",
+              17
+            ],
+            [
+              "Parameter",
+              "opset1",
+              2
+            ],
+            [
+              "Range",
+              "opset4",
+              17
+            ],
+            [
+              "Relu",
+              "opset1",
+              3
+            ],
+            [
+              "Reshape",
+              "opset1",
+              171
+            ],
+            [
+              "Result",
+              "opset1",
+              1
+            ],
+            [
+              "ShapeOf",
+              "opset3",
+              51
+            ],
+            [
+              "Sigmoid",
+              "opset1",
+              17
+            ],
+            [
+              "Softmax",
+              "opset8",
+              17
+            ],
+            [
+              "Squeeze",
+              "opset1",
+              17
+            ],
+            [
+              "Subtract",
+              "opset1",
+              34
+            ],
+            [
+              "Swish",
+              "opset4",
+              51
+            ],
+            [
+              "Transpose",
+              "opset1",
+              138
+            ],
+            [
+              "Unsqueeze",
+              "opset1",
+              36
+            ],
+            [
+              "VariadicSplit",
+              "opset1",
+              17
+            ]
+          ],
+          "projections": [
+            [
+              "MatMul",
+              "4",
+              "f32",
+              "computed",
+              51
+            ],
+            [
+              "MatMul",
+              "4",
+              "f32",
+              "ggml:2/group:32/weight:i4",
+              190
+            ]
+          ],
+          "projectors": [
+            "audio.lfm2a"
+          ],
+          "totals": {
+            "edges": 3283,
+            "inputs": 2,
+            "nodes": 3047,
+            "outputs": 1,
+            "states": 0,
+            "top_level_nodes": 3047
+          }
+        }
+      }
+    }
+  },
+  "version": 1
+}

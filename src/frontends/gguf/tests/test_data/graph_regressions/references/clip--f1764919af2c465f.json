@@ -1,0 +1,101 @@
+{
+  "recipe_sha256": "62c29b8c9dc022eba4fa2e382ee776e468db7637b41c2f58b7869169f8436f39",
+  "stages": {
+    "deferred_plan": {
+      "map_sha256": "5f57fdfa0d38eb49c65186a71082e471ee95191730a0d7de3ced5133e81212ca",
+      "models": {
+        "native": {
+          "graph_sha256": "6f156d775c1c3c557ff39e757fcf3b78fc8131f0c3504d415fce2e27bfb9bdc8",
+          "ops": [
+            [
+              "Add",
+              "opset1",
+              245
+            ],
+            [
+              "Constant",
+              "opset1",
+              267
+            ],
+            [
+              "Convolution",
+              "opset1",
+              1
+            ],
+            [
+              "GGUFPlannedWeight",
+              "gguf",
+              393
+            ],
+            [
+              "Gelu",
+              "opset7",
+              25
+            ],
+            [
+              "MVN",
+              "opset6",
+              49
+            ],
+            [
+              "MatMul",
+              "opset1",
+              146
+            ],
+            [
+              "Multiply",
+              "opset1",
+              73
+            ],
+            [
+              "Parameter",
+              "opset1",
+              1
+            ],
+            [
+              "Reshape",
+              "opset1",
+              97
+            ],
+            [
+              "Result",
+              "opset1",
+              1
+            ],
+            [
+              "ScaledDotProductAttention",
+              "opset13",
+              24
+            ],
+            [
+              "Transpose",
+              "opset1",
+              97
+            ]
+          ],
+          "projections": [
+            [
+              "MatMul",
+              "4",
+              "f32",
+              "ggml:8/group:32/weight:i8",
+              146
+            ]
+          ],
+          "projectors": [
+            "vision.janus_pro"
+          ],
+          "totals": {
+            "edges": 1514,
+            "inputs": 1,
+            "nodes": 1419,
+            "outputs": 1,
+            "states": 0,
+            "top_level_nodes": 1419
+          }
+        }
+      }
+    }
+  },
+  "version": 1
+}

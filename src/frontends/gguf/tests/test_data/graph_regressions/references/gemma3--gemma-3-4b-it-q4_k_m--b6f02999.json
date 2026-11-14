@@ -1,0 +1,173 @@
+{
+  "recipe_sha256": "bb2bc96162638456f0703db54921d7b57f685b72ecaa8cae45cc24f74eee0702",
+  "stages": {
+    "deferred_plan": {
+      "map_sha256": "37c6bad4b39a0d3e063326e576de2dde271a4475fab12de60dd8b69ea52046c2",
+      "models": {
+        "native": {
+          "graph_sha256": "fac2e6e0c1d46e31fffd6cf9c25169ecd0ad2a5019126fa1cf20eafabce3fba1",
+          "ops": [
+            [
+              "Add",
+              "opset1",
+              409
+            ],
+            [
+              "Broadcast",
+              "opset3",
+              68
+            ],
+            [
+              "Concat",
+              "opset1",
+              102
+            ],
+            [
+              "Constant",
+              "opset1",
+              2397
+            ],
+            [
+              "Convert",
+              "opset1",
+              206
+            ],
+            [
+              "Cos",
+              "opset1",
+              68
+            ],
+            [
+              "GGUFPlannedWeight",
+              "gguf",
+              444
+            ],
+            [
+              "Gather",
+              "opset8",
+              37
+            ],
+            [
+              "Gelu",
+              "opset7",
+              34
+            ],
+            [
+              "MatMul",
+              "opset1",
+              239
+            ],
+            [
+              "Multiply",
+              "opset1",
+              1057
+            ],
+            [
+              "Parameter",
+              "opset1",
+              75
+            ],
+            [
+              "Power",
+              "opset1",
+              410
+            ],
+            [
+              "ReduceMean",
+              "opset1",
+              205
+            ],
+            [
+              "Reshape",
+              "opset1",
+              544
+            ],
+            [
+              "Result",
+              "opset1",
+              69
+            ],
+            [
+              "ScaledDotProductAttention",
+              "opset13",
+              34
+            ],
+            [
+              "ScatterUpdate",
+              "opset3",
+              68
+            ],
+            [
+              "ShapeOf",
+              "opset3",
+              102
+            ],
+            [
+              "Sin",
+              "opset1",
+              68
+            ],
+            [
+              "Sqrt",
+              "opset1",
+              205
+            ],
+            [
+              "Squeeze",
+              "opset1",
+              73
+            ],
+            [
+              "Transpose",
+              "opset1",
+              476
+            ],
+            [
+              "Unsqueeze",
+              "opset1",
+              71
+            ],
+            [
+              "VariadicSplit",
+              "opset1",
+              68
+            ]
+          ],
+          "projections": [
+            [
+              "MatMul",
+              "3",
+              "f32",
+              "ggml:12/group:32/weight:u32",
+              68
+            ],
+            [
+              "MatMul",
+              "4",
+              "f32",
+              "ggml:12/group:32/weight:u32",
+              136
+            ],
+            [
+              "MatMul",
+              "4",
+              "f32",
+              "ggml:14/group:16/weight:i8",
+              35
+            ]
+          ],
+          "projectors": [],
+          "totals": {
+            "edges": 8817,
+            "inputs": 75,
+            "nodes": 7529,
+            "outputs": 69,
+            "states": 0,
+            "top_level_nodes": 7529
+          }
+        }
+      }
+    }
+  },
+  "version": 1
+}

@@ -1,0 +1,224 @@
+{
+  "version": 1,
+  "metadata": [
+    {
+      "name": "general.architecture",
+      "type": 8,
+      "value": "clip"
+    },
+    {
+      "name": "general.type",
+      "type": 8,
+      "value": "mmproj"
+    },
+    {
+      "name": "general.sampling.top_k",
+      "type": 5,
+      "value": 64
+    },
+    {
+      "name": "general.sampling.top_p",
+      "type": 6,
+      "value": 0.949999988079071
+    },
+    {
+      "name": "general.sampling.temp",
+      "type": 6,
+      "value": 1.0
+    },
+    {
+      "name": "general.finetune",
+      "type": 8,
+      "value": "12b-it"
+    },
+    {
+      "name": "general.basename",
+      "type": 8,
+      "value": "Gemma-4-12B-It"
+    },
+    {
+      "name": "general.quantized_by",
+      "type": 8,
+      "value": "Unsloth"
+    },
+    {
+      "name": "general.size_label",
+      "type": 8,
+      "value": "52M"
+    },
+    {
+      "name": "general.license.link",
+      "type": 8,
+      "value": "https://ai.google.dev/gemma/docs/gemma_4_license"
+    },
+    {
+      "name": "general.repo_url",
+      "type": 8,
+      "value": "https://huggingface.co/unsloth"
+    },
+    {
+      "name": "general.base_model.count",
+      "type": 4,
+      "value": 1
+    },
+    {
+      "name": "general.base_model.0.name",
+      "type": 8,
+      "value": "Gemma 4 12b It"
+    },
+    {
+      "name": "general.base_model.0.organization",
+      "type": 8,
+      "value": "Google"
+    },
+    {
+      "name": "general.base_model.0.repo_url",
+      "type": 8,
+      "value": "https://huggingface.co/google/gemma-4-12b-it"
+    },
+    {
+      "name": "general.file_type",
+      "type": 4,
+      "value": 1
+    },
+    {
+      "name": "clip.has_vision_encoder",
+      "type": 7,
+      "value": true
+    },
+    {
+      "name": "clip.vision.projection_dim",
+      "type": 4,
+      "value": 3840
+    },
+    {
+      "name": "clip.vision.image_size",
+      "type": 4,
+      "value": 224
+    },
+    {
+      "name": "clip.vision.patch_size",
+      "type": 4,
+      "value": 16
+    },
+    {
+      "name": "clip.vision.embedding_length",
+      "type": 4,
+      "value": 3840
+    },
+    {
+      "name": "clip.vision.feed_forward_length",
+      "type": 4,
+      "value": 0
+    },
+    {
+      "name": "clip.vision.block_count",
+      "type": 4,
+      "value": 0
+    },
+    {
+      "name": "clip.vision.attention.head_count",
+      "type": 4,
+      "value": 1
+    },
+    {
+      "name": "clip.vision.image_mean",
+      "type": 9,
+      "element_type": 6,
+      "value": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "clip.vision.image_std",
+      "type": 9,
+      "element_type": 6,
+      "value": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "clip.has_audio_encoder",
+      "type": 7,
+      "value": true
+    },
+    {
+      "name": "clip.audio.projection_dim",
+      "type": 4,
+      "value": 3840
+    },
+    {
+      "name": "clip.audio.embedding_length",
+      "type": 4,
+      "value": 640
+    },
+    {
+      "name": "clip.audio.feed_forward_length",
+      "type": 4,
+      "value": 0
+    },
+    {
+      "name": "clip.audio.block_count",
+      "type": 4,
+      "value": 0
+    },
+    {
+      "name": "clip.audio.attention.head_count",
+      "type": 4,
+      "value": 1
+    },
+    {
+      "name": "clip.vision.projector_type",
+      "type": 8,
+      "value": "gemma4uv"
+    },
+    {
+      "name": "clip.vision.attention.layer_norm_epsilon",
+      "type": 6,
+      "value": 9.999999974752427e-07
+    },
+    {
+      "name": "clip.audio.projector_type",
+      "type": 8,
+      "value": "gemma4ua"
+    },
+    {
+      "name": "clip.audio.num_mel_bins",
+      "type": 4,
+      "value": 128
+    },
+    {
+      "name": "clip.audio.attention.layer_norm_epsilon",
+      "type": 6,
+      "value": 9.999999974752427e-07
+    },
+    {
+      "name": "general.quantization_version",
+      "type": 4,
+      "value": 2
+    }
+  ],
+  "omitted_metadata": [
+    "general.license",
+    "general.name",
+    "general.tags"
+  ],
+  "source_header_sha256": "7f60a1bd2164efe9ce6e46fe3635e317126922e15c82d24eddacce6b85d8886c",
+  "tensors": [
+    {"name":"mm.a.input_projection.weight","shape":[3840,640],"ggml_type":1,"storage_type":"f16","storage_shape":[3840,640]},
+    {"name":"mm.input_projection.weight","shape":[3840,3840],"ggml_type":1,"storage_type":"f16","storage_shape":[3840,3840]},
+    {"name":"v.patch_embd.bias","shape":[3840],"ggml_type":0,"storage_type":"f32","storage_shape":[3840]},
+    {"name":"v.patch_embd.weight","shape":[3840,6912],"ggml_type":0,"storage_type":"f32","storage_shape":[3840,6912]},
+    {"name":"v.patch_norm.1.bias","shape":[6912],"ggml_type":0,"storage_type":"f32","storage_shape":[6912]},
+    {"name":"v.patch_norm.1.weight","shape":[6912],"ggml_type":0,"storage_type":"f32","storage_shape":[6912]},
+    {"name":"v.patch_norm.2.bias","shape":[3840],"ggml_type":0,"storage_type":"f32","storage_shape":[3840]},
+    {"name":"v.patch_norm.2.weight","shape":[3840],"ggml_type":0,"storage_type":"f32","storage_shape":[3840]},
+    {"name":"v.position_embd.weight","shape":[2,1120,3840],"ggml_type":0,"storage_type":"f32","storage_shape":[2,1120,3840]},
+    {"name":"v.patch_norm.3.bias","shape":[3840],"ggml_type":0,"storage_type":"f32","storage_shape":[3840]},
+    {"name":"v.patch_norm.3.weight","shape":[3840],"ggml_type":0,"storage_type":"f32","storage_shape":[3840]}
+  ]
+}

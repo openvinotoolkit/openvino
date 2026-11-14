@@ -1,0 +1,335 @@
+{
+  "recipe_sha256": "8b6fd6edf56a4cd6dad827cf2a36153ab05f6c81308e0bc6a0292048a6a80b6e",
+  "stages": {
+    "deferred_plan": {
+      "map_sha256": "73954c028ae3946e06197231b5c2f45a14c7d2850aae128348f5cd49e5d4830c",
+      "models": {
+        "native": {
+          "graph_sha256": "0cc64efa2f50e96b43200c293b94efea5d53bc6d809b2fcd17d65990ee4faf37",
+          "ops": [
+            [
+              "Add",
+              "opset1",
+              25
+            ],
+            [
+              "Concat",
+              "opset1",
+              6
+            ],
+            [
+              "Constant",
+              "opset1",
+              107
+            ],
+            [
+              "Convert",
+              "opset1",
+              16
+            ],
+            [
+              "Cos",
+              "opset1",
+              1
+            ],
+            [
+              "GGUFPlannedWeight",
+              "gguf",
+              27
+            ],
+            [
+              "Gather",
+              "opset8",
+              5
+            ],
+            [
+              "MatMul",
+              "opset1",
+              19
+            ],
+            [
+              "Multiply",
+              "opset1",
+              43
+            ],
+            [
+              "Parameter",
+              "opset1",
+              10
+            ],
+            [
+              "Power",
+              "opset1",
+              10
+            ],
+            [
+              "ReduceMean",
+              "opset1",
+              5
+            ],
+            [
+              "Reshape",
+              "opset1",
+              28
+            ],
+            [
+              "Result",
+              "opset1",
+              5
+            ],
+            [
+              "ScatterUpdate",
+              "opset3",
+              4
+            ],
+            [
+              "ShapeOf",
+              "opset3",
+              6
+            ],
+            [
+              "Sin",
+              "opset1",
+              1
+            ],
+            [
+              "Softmax",
+              "opset8",
+              2
+            ],
+            [
+              "Sqrt",
+              "opset1",
+              5
+            ],
+            [
+              "Squeeze",
+              "opset1",
+              9
+            ],
+            [
+              "Swish",
+              "opset4",
+              2
+            ],
+            [
+              "Tanh",
+              "opset1",
+              3
+            ],
+            [
+              "Transpose",
+              "opset1",
+              27
+            ],
+            [
+              "Unsqueeze",
+              "opset1",
+              3
+            ],
+            [
+              "VariadicSplit",
+              "opset1",
+              4
+            ]
+          ],
+          "projections": [
+            [
+              "MatMul",
+              "3",
+              "f32",
+              "ggml:0/group:1/weight:f32",
+              4
+            ],
+            [
+              "MatMul",
+              "4",
+              "f32",
+              "computed",
+              4
+            ],
+            [
+              "MatMul",
+              "4",
+              "f32",
+              "ggml:0/group:1/weight:f32",
+              11
+            ]
+          ],
+          "projectors": [],
+          "totals": {
+            "edges": 434,
+            "inputs": 10,
+            "nodes": 373,
+            "outputs": 5,
+            "states": 0,
+            "top_level_nodes": 373
+          }
+        }
+      }
+    },
+    "materialized": {
+      "map_sha256": "a611ab56ad2f341ca7bf68b8574b7ae26cbb09ca32e402c8b702140c85477ff2",
+      "models": {
+        "native": {
+          "graph_sha256": "d216e44b83f593ef3b96ca207d274a7460417674303273fab2ab5b59d08a413c",
+          "ops": [
+            [
+              "Add",
+              "opset1",
+              25
+            ],
+            [
+              "Concat",
+              "opset1",
+              6
+            ],
+            [
+              "Constant",
+              "opset1",
+              134
+            ],
+            [
+              "Convert",
+              "opset1",
+              16
+            ],
+            [
+              "Cos",
+              "opset1",
+              1
+            ],
+            [
+              "Gather",
+              "opset8",
+              5
+            ],
+            [
+              "MatMul",
+              "opset1",
+              19
+            ],
+            [
+              "Multiply",
+              "opset1",
+              43
+            ],
+            [
+              "Parameter",
+              "opset1",
+              10
+            ],
+            [
+              "Power",
+              "opset1",
+              10
+            ],
+            [
+              "ReduceMean",
+              "opset1",
+              5
+            ],
+            [
+              "Reshape",
+              "opset1",
+              28
+            ],
+            [
+              "Result",
+              "opset1",
+              5
+            ],
+            [
+              "ScatterUpdate",
+              "opset3",
+              4
+            ],
+            [
+              "ShapeOf",
+              "opset3",
+              6
+            ],
+            [
+              "Sin",
+              "opset1",
+              1
+            ],
+            [
+              "Softmax",
+              "opset8",
+              2
+            ],
+            [
+              "Sqrt",
+              "opset1",
+              5
+            ],
+            [
+              "Squeeze",
+              "opset1",
+              9
+            ],
+            [
+              "Swish",
+              "opset4",
+              2
+            ],
+            [
+              "Tanh",
+              "opset1",
+              3
+            ],
+            [
+              "Transpose",
+              "opset1",
+              27
+            ],
+            [
+              "Unsqueeze",
+              "opset1",
+              3
+            ],
+            [
+              "VariadicSplit",
+              "opset1",
+              4
+            ]
+          ],
+          "projections": [
+            [
+              "MatMul",
+              "3",
+              "f32",
+              "constant:f32",
+              4
+            ],
+            [
+              "MatMul",
+              "4",
+              "f32",
+              "computed",
+              4
+            ],
+            [
+              "MatMul",
+              "4",
+              "f32",
+              "constant:f32",
+              11
+            ]
+          ],
+          "projectors": [],
+          "totals": {
+            "edges": 434,
+            "inputs": 10,
+            "nodes": 373,
+            "outputs": 5,
+            "states": 0,
+            "top_level_nodes": 373
+          }
+        }
+      }
+    }
+  },
+  "version": 1
+}

@@ -1,0 +1,179 @@
+{
+  "recipe_sha256": "d56afa85aaad448e4d87762cbd8d7e50da8dd3e353c956b8f12a7ecde138de58",
+  "stages": {
+    "deferred_plan": {
+      "map_sha256": "32a3f146ba857a987b5802e14ef22f56b9a2ad1622b3e41fbaf8138c3a6d9531",
+      "models": {
+        "native": {
+          "graph_sha256": "c75a3b5da002f89e4a66369253fd217688cc064575bed0061c86915b48b49408",
+          "ops": [
+            [
+              "Add",
+              "opset1",
+              362
+            ],
+            [
+              "Broadcast",
+              "opset3",
+              72
+            ],
+            [
+              "Clamp",
+              "opset1",
+              1
+            ],
+            [
+              "Concat",
+              "opset1",
+              289
+            ],
+            [
+              "Constant",
+              "opset1",
+              2841
+            ],
+            [
+              "Convert",
+              "opset1",
+              146
+            ],
+            [
+              "Cos",
+              "opset1",
+              1
+            ],
+            [
+              "Divide",
+              "opset1",
+              1
+            ],
+            [
+              "GGUFPlannedWeight",
+              "gguf",
+              290
+            ],
+            [
+              "Gather",
+              "opset8",
+              401
+            ],
+            [
+              "MatMul",
+              "opset1",
+              145
+            ],
+            [
+              "Maximum",
+              "opset1",
+              1
+            ],
+            [
+              "Multiply",
+              "opset1",
+              693
+            ],
+            [
+              "Parameter",
+              "opset1",
+              78
+            ],
+            [
+              "Power",
+              "opset1",
+              290
+            ],
+            [
+              "ReduceMean",
+              "opset1",
+              145
+            ],
+            [
+              "Reshape",
+              "opset1",
+              866
+            ],
+            [
+              "Result",
+              "opset1",
+              73
+            ],
+            [
+              "ScaledDotProductAttention",
+              "opset13",
+              36
+            ],
+            [
+              "ScatterUpdate",
+              "opset3",
+              72
+            ],
+            [
+              "ShapeOf",
+              "opset3",
+              470
+            ],
+            [
+              "Sin",
+              "opset1",
+              1
+            ],
+            [
+              "Sqrt",
+              "opset1",
+              145
+            ],
+            [
+              "Squeeze",
+              "opset1",
+              77
+            ],
+            [
+              "Subtract",
+              "opset1",
+              4
+            ],
+            [
+              "Swish",
+              "opset4",
+              36
+            ],
+            [
+              "Transpose",
+              "opset1",
+              433
+            ],
+            [
+              "Unsqueeze",
+              "opset1",
+              75
+            ],
+            [
+              "VariadicSplit",
+              "opset1",
+              144
+            ]
+          ],
+          "projections": [
+            [
+              "MatMul",
+              "3",
+              "f32",
+              "ggml:142/group:128/weight:u2",
+              145
+            ]
+          ],
+          "projectors": [],
+          "totals": {
+            "edges": 9882,
+            "inputs": 78,
+            "nodes": 8188,
+            "outputs": 73,
+            "states": 0,
+            "top_level_nodes": 8188
+          }
+        }
+      }
+    }
+  },
+  "version": 1
+}

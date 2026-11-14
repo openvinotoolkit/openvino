@@ -1,0 +1,151 @@
+{
+  "recipe_sha256": "dce562cfb9c1a9be5905e41a1ffd8ce318116d8b9417ef86504d0afc20730002",
+  "stages": {
+    "deferred_plan": {
+      "map_sha256": "2afdfb74397927393e4a8317a80ed0e07c334678584a86e06cb84a0b309251ed",
+      "models": {
+        "native": {
+          "graph_sha256": "db15246f826461e3d8a4a8d2eec07134d1aec6cd5f71cb8772cbe3e3a781cc6b",
+          "ops": [
+            [
+              "Add",
+              "opset1",
+              293
+            ],
+            [
+              "Concat",
+              "opset1",
+              49
+            ],
+            [
+              "Constant",
+              "opset1",
+              813
+            ],
+            [
+              "Convert",
+              "opset1",
+              48
+            ],
+            [
+              "Convolution",
+              "opset1",
+              1
+            ],
+            [
+              "Cos",
+              "opset1",
+              48
+            ],
+            [
+              "GGUFPlannedWeight",
+              "gguf",
+              298
+            ],
+            [
+              "Gather",
+              "opset8",
+              51
+            ],
+            [
+              "Gelu",
+              "opset7",
+              25
+            ],
+            [
+              "Interpolate",
+              "opset4",
+              1
+            ],
+            [
+              "MVN",
+              "opset6",
+              49
+            ],
+            [
+              "MatMul",
+              "opset1",
+              98
+            ],
+            [
+              "Multiply",
+              "opset1",
+              457
+            ],
+            [
+              "Parameter",
+              "opset1",
+              3
+            ],
+            [
+              "Reshape",
+              "opset1",
+              149
+            ],
+            [
+              "Result",
+              "opset1",
+              1
+            ],
+            [
+              "ScaledDotProductAttention",
+              "opset13",
+              24
+            ],
+            [
+              "ShapeOf",
+              "opset3",
+              1
+            ],
+            [
+              "Sin",
+              "opset1",
+              48
+            ],
+            [
+              "Squeeze",
+              "opset1",
+              4
+            ],
+            [
+              "Transpose",
+              "opset1",
+              147
+            ],
+            [
+              "Unsqueeze",
+              "opset1",
+              98
+            ],
+            [
+              "VariadicSplit",
+              "opset1",
+              72
+            ]
+          ],
+          "projections": [
+            [
+              "MatMul",
+              "4",
+              "f32",
+              "ggml:1/group:1/weight:f16",
+              98
+            ]
+          ],
+          "projectors": [
+            "vision.qwen3vl_merger"
+          ],
+          "totals": {
+            "edges": 3306,
+            "inputs": 3,
+            "nodes": 2778,
+            "outputs": 1,
+            "states": 0,
+            "top_level_nodes": 2778
+          }
+        }
+      }
+    }
+  },
+  "version": 1
+}

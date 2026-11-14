@@ -1,0 +1,166 @@
+{
+  "recipe_sha256": "bc45fbcd8b6ebbe2452cd05eaaf87bfac12271e6a61d5ec4cfb21dbd3f5be484",
+  "stages": {
+    "deferred_plan": {
+      "map_sha256": "39074e3190ca82ae3cbd75e4ad7dcd349066fc55e3ebaf17ea1bfff3d4ef4401",
+      "models": {
+        "native": {
+          "graph_sha256": "957f6c11fd75db1e68b2ddf5f16d351e56684f6be1f8d4c5476a0acc20bdbd99",
+          "ops": [
+            [
+              "Add",
+              "opset1",
+              463
+            ],
+            [
+              "AvgPool",
+              "opset1",
+              1
+            ],
+            [
+              "Concat",
+              "opset1",
+              163
+            ],
+            [
+              "Constant",
+              "opset1",
+              2241
+            ],
+            [
+              "Convert",
+              "opset1",
+              108
+            ],
+            [
+              "Convolution",
+              "opset1",
+              1
+            ],
+            [
+              "Cos",
+              "opset1",
+              108
+            ],
+            [
+              "GGUFPlannedWeight",
+              "gguf",
+              356
+            ],
+            [
+              "Gather",
+              "opset8",
+              3
+            ],
+            [
+              "MatMul",
+              "opset1",
+              190
+            ],
+            [
+              "Multiply",
+              "opset1",
+              1435
+            ],
+            [
+              "Parameter",
+              "opset1",
+              3
+            ],
+            [
+              "Power",
+              "opset1",
+              380
+            ],
+            [
+              "ReduceMean",
+              "opset1",
+              190
+            ],
+            [
+              "Reshape",
+              "opset1",
+              220
+            ],
+            [
+              "Result",
+              "opset1",
+              1
+            ],
+            [
+              "ScaledDotProductAttention",
+              "opset13",
+              27
+            ],
+            [
+              "ShapeOf",
+              "opset3",
+              1
+            ],
+            [
+              "Sigmoid",
+              "opset1",
+              27
+            ],
+            [
+              "Sin",
+              "opset1",
+              108
+            ],
+            [
+              "Sqrt",
+              "opset1",
+              190
+            ],
+            [
+              "Squeeze",
+              "opset1",
+              4
+            ],
+            [
+              "Subtract",
+              "opset1",
+              1
+            ],
+            [
+              "Transpose",
+              "opset1",
+              651
+            ],
+            [
+              "Unsqueeze",
+              "opset1",
+              2
+            ],
+            [
+              "VariadicSplit",
+              "opset1",
+              163
+            ]
+          ],
+          "projections": [
+            [
+              "MatMul",
+              "4",
+              "f32",
+              "ggml:1/group:1/weight:f16",
+              190
+            ]
+          ],
+          "projectors": [
+            "vision.gemma4v"
+          ],
+          "totals": {
+            "edges": 8524,
+            "inputs": 3,
+            "nodes": 7037,
+            "outputs": 1,
+            "states": 0,
+            "top_level_nodes": 7037
+          }
+        }
+      }
+    }
+  },
+  "version": 1
+}

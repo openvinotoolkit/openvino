@@ -1,0 +1,199 @@
+{
+  "recipe_sha256": "47f7a3375d5a6613933f7b01904f8f4a0edf3917de4897085fd91d682d7adc6a",
+  "stages": {
+    "deferred_plan": {
+      "map_sha256": "8e6e209eed068432848dc3308b8dc943032b5bbcd0f992932b1c9e62ea768d04",
+      "models": {
+        "native": {
+          "graph_sha256": "0a21f4e3a636ca7182152aa764544a2cc47e84cd529ee89718945f1a9fc9b7a8",
+          "ops": [
+            [
+              "Add",
+              "opset1",
+              448
+            ],
+            [
+              "Concat",
+              "opset1",
+              120
+            ],
+            [
+              "Constant",
+              "opset1",
+              2104
+            ],
+            [
+              "Convert",
+              "opset1",
+              152
+            ],
+            [
+              "Cos",
+              "opset1",
+              50
+            ],
+            [
+              "Divide",
+              "opset1",
+              10
+            ],
+            [
+              "GGUFPlannedWeight",
+              "gguf",
+              541
+            ],
+            [
+              "Gather",
+              "opset8",
+              75
+            ],
+            [
+              "Gelu",
+              "opset7",
+              70
+            ],
+            [
+              "MatMul",
+              "opset1",
+              277
+            ],
+            [
+              "Multiply",
+              "opset1",
+              1030
+            ],
+            [
+              "Parameter",
+              "opset1",
+              37
+            ],
+            [
+              "Power",
+              "opset1",
+              484
+            ],
+            [
+              "ReduceMean",
+              "opset1",
+              242
+            ],
+            [
+              "Reshape",
+              "opset1",
+              347
+            ],
+            [
+              "Result",
+              "opset1",
+              31
+            ],
+            [
+              "ScaledDotProductAttention",
+              "opset13",
+              35
+            ],
+            [
+              "ScatterUpdate",
+              "opset3",
+              30
+            ],
+            [
+              "ShapeOf",
+              "opset3",
+              100
+            ],
+            [
+              "Sin",
+              "opset1",
+              50
+            ],
+            [
+              "Sqrt",
+              "opset1",
+              242
+            ],
+            [
+              "Squeeze",
+              "opset1",
+              38
+            ],
+            [
+              "Tanh",
+              "opset1",
+              1
+            ],
+            [
+              "Transpose",
+              "opset1",
+              392
+            ],
+            [
+              "Unsqueeze",
+              "opset1",
+              5
+            ],
+            [
+              "VariadicSplit",
+              "opset1",
+              51
+            ]
+          ],
+          "projections": [
+            [
+              "MatMul",
+              "3",
+              "f32",
+              "ggml:2/group:32/weight:i4",
+              70
+            ],
+            [
+              "MatMul",
+              "4",
+              "f32",
+              "ggml:0/group:1/weight:f32",
+              70
+            ],
+            [
+              "MatMul",
+              "4",
+              "f32",
+              "ggml:12/group:32/weight:u32",
+              1
+            ],
+            [
+              "MatMul",
+              "4",
+              "f32",
+              "ggml:2/group:32/weight:i4",
+              131
+            ],
+            [
+              "MatMul",
+              "4",
+              "f32",
+              "ggml:3/group:32/weight:u32",
+              4
+            ],
+            [
+              "MatMul",
+              "4",
+              "f32",
+              "ggml:30/group:1/weight:bf16",
+              1
+            ]
+          ],
+          "projectors": [],
+          "totals": {
+            "edges": 8155,
+            "inputs": 37,
+            "nodes": 6962,
+            "outputs": 31,
+            "states": 0,
+            "top_level_nodes": 6962
+          }
+        }
+      }
+    }
+  },
+  "version": 1
+}

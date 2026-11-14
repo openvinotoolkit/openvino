@@ -1,0 +1,149 @@
+{
+  "recipe_sha256": "29e5b7e891919d24e17b1b63cea81e2ca26aa32e20534b431dd56f575878c8de",
+  "stages": {
+    "deferred_plan": {
+      "map_sha256": "77d130fc164524c6cd0f7893636d30662d8b554b84ce32921dce8839d5c93a5b",
+      "models": {
+        "native": {
+          "graph_sha256": "e0dc92b4eba12d64a0b222c6cb81e216891a0be9a4ae7edd4bd5c698307fa9b8",
+          "ops": [
+            [
+              "Add",
+              "opset1",
+              145
+            ],
+            [
+              "Concat",
+              "opset1",
+              24
+            ],
+            [
+              "Constant",
+              "opset1",
+              784
+            ],
+            [
+              "GGUFPlannedWeight",
+              "gguf",
+              219
+            ],
+            [
+              "Gather",
+              "opset8",
+              51
+            ],
+            [
+              "GroupConvolution",
+              "opset1",
+              24
+            ],
+            [
+              "MatMul",
+              "opset1",
+              49
+            ],
+            [
+              "Multiply",
+              "opset1",
+              146
+            ],
+            [
+              "Parameter",
+              "opset1",
+              50
+            ],
+            [
+              "Power",
+              "opset1",
+              98
+            ],
+            [
+              "ReduceMean",
+              "opset1",
+              49
+            ],
+            [
+              "Reshape",
+              "opset1",
+              408
+            ],
+            [
+              "Result",
+              "opset1",
+              49
+            ],
+            [
+              "SelectiveSSM",
+              "extension",
+              24
+            ],
+            [
+              "ShapeOf",
+              "opset3",
+              72
+            ],
+            [
+              "Slice",
+              "opset8",
+              24
+            ],
+            [
+              "SoftPlus",
+              "opset4",
+              24
+            ],
+            [
+              "Sqrt",
+              "opset1",
+              49
+            ],
+            [
+              "Squeeze",
+              "opset1",
+              5
+            ],
+            [
+              "Swish",
+              "opset4",
+              48
+            ],
+            [
+              "Transpose",
+              "opset1",
+              48
+            ],
+            [
+              "Unsqueeze",
+              "opset1",
+              3
+            ],
+            [
+              "VariadicSplit",
+              "opset1",
+              48
+            ]
+          ],
+          "projections": [
+            [
+              "MatMul",
+              "4",
+              "f32",
+              "ggml:8/group:32/weight:i8",
+              49
+            ]
+          ],
+          "projectors": [],
+          "totals": {
+            "edges": 2801,
+            "inputs": 50,
+            "nodes": 2441,
+            "outputs": 49,
+            "states": 0,
+            "top_level_nodes": 2441
+          }
+        }
+      }
+    }
+  },
+  "version": 1
+}

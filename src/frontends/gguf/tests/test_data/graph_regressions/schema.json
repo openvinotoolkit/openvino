@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "openvino-gguf-graph-regressions-v1",
+  "oneOf": [
+    {"$ref": "#/$defs/catalog"},
+    {"$ref": "#/$defs/recipe"},
+    {"$ref": "#/$defs/reference"}
+  ],
+  "$defs": {
+    "version": {"const": 1},
+    "hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "shape": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4,
+      "items": {"type": "integer", "minimum": 1}
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["name", "type", "value"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "type": {"type": "integer", "minimum": 0, "maximum": 12},
+        "element_type": {"type": "integer", "minimum": 0, "maximum": 12},
+        "value": {
+          "oneOf": [
+            {"type": ["number", "boolean", "string", "array"]},
+            {
+              "type": "object",
+              "required": ["nonfinite"],
+              "properties": {"nonfinite": {"enum": ["nan", "+inf", "-inf"]}},
+              "additionalProperties": false
+            }
+          ]
+        }
+      }
+    },
+    "tensor": {
+      "type": "object",
+      "required": ["name", "shape", "ggml_type", "storage_type", "storage_shape"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "shape": {"$ref": "#/$defs/shape"},
+        "ggml_type": {
+          "enum": [0, 1, 2, 3, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 24, 25, 26, 27, 28, 30, 39, 41, 42, 142, 143]
+        },
+        "storage_type": {"enum": ["f32", "f16", "bf16", "f64", "i8", "i16", "i32", "i64", "u8"]},
+        "storage_shape": {"$ref": "#/$defs/shape"}
+      }
+    },
+    "recipe": {
+      "type": "object",
+      "required": ["version", "metadata", "tensors"],
+      "properties": {
+        "version": {"$ref": "#/$defs/version"},
+        "metadata": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/metadata"}},
+        "tensors": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/tensor"}},
+        "omitted_metadata": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "source_header_sha256": {"$ref": "#/$defs/hash"},
+        "payload": {
+          "type": "object",
+          "required": ["mode", "max_bytes"],
+          "properties": {
+            "mode": {"enum": ["zeros", "pattern"]},
+            "max_bytes": {"type": "integer", "minimum": 1, "maximum": 67108864},
+            "quant_scale": {"type": "number", "minimum": 0, "maximum": 65504}
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "case": {
+      "type": "object",
+      "required": ["id", "architecture", "models", "recipe", "reference", "source"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+$"},
+        "architecture": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["model", "representative", "controlled"]},
+        "fixture": {"type": "string", "minLength": 1},
+        "projectors": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "stage": {"enum": ["deferred_plan", "materialized", "controlled_values", "adapted"]},
+        "stages": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"enum": ["deferred_plan", "materialized", "controlled_values", "adapted"]}
+        },
+        "models": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "recipe": {"type": "string", "minLength": 1},
+        "reference": {"type": "string", "minLength": 1},
+        "source": {
+          "type": "object",
+          "required": ["filename", "header_sha256"],
+          "properties": {
+            "filename": {"type": "string", "minLength": 1},
+            "header_sha256": {"$ref": "#/$defs/hash"},
+            "repository": {"type": "string"},
+            "revision": {"type": "string"}
+          }
+        }
+      }
+    },
+    "catalog": {
+      "type": "object",
+      "required": ["version", "cases"],
+      "properties": {
+        "version": {"$ref": "#/$defs/version"},
+        "cases": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/case"}}
+      }
+    },
+    "histogram": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "prefixItems": [{"type": "string"}, {"type": "string"}, {"type": "integer", "minimum": 1}],
+        "minItems": 3,
+        "maxItems": 3
+      }
+    },
+    "projections": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "prefixItems": [
+          {"type": "string"}, {"type": "string"}, {"type": "string"},
+          {"type": "string"}, {"type": "integer", "minimum": 1}
+        ],
+        "minItems": 5,
+        "maxItems": 5
+      }
+    },
+    "snapshot": {
+      "type": "object",
+      "required": ["graph_sha256", "totals", "ops", "projections"],
+      "properties": {
+        "graph_sha256": {"$ref": "#/$defs/hash"},
+        "ops": {"$ref": "#/$defs/histogram"},
+        "projections": {"$ref": "#/$defs/projections"},
+        "projectors": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "totals": {
+          "type": "object",
+          "required": ["nodes", "top_level_nodes", "edges", "states"],
+          "properties": {
+            "nodes": {"type": "integer", "minimum": 1},
+            "top_level_nodes": {"type": "integer", "minimum": 1},
+            "inputs": {"type": "integer", "minimum": 0},
+            "outputs": {"type": "integer", "minimum": 1},
+            "edges": {"type": "integer", "minimum": 0},
+            "states": {"type": "integer", "minimum": 0}
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "stage": {
+      "type": "object",
+      "required": ["models", "map_sha256"],
+      "properties": {
+        "models": {"type": "object", "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/snapshot"}},
+        "map_sha256": {"$ref": "#/$defs/hash"}
+      },
+      "additionalProperties": false
+    },
+    "reference": {
+      "type": "object",
+      "required": ["version", "recipe_sha256", "stages"],
+      "properties": {
+        "version": {"$ref": "#/$defs/version"},
+        "recipe_sha256": {"$ref": "#/$defs/hash"},
+        "stages": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {"enum": ["deferred_plan", "materialized", "controlled_values", "adapted"]},
+          "additionalProperties": {"$ref": "#/$defs/stage"}
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

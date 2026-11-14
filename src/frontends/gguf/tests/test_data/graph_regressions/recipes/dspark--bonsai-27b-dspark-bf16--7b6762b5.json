@@ -1,0 +1,227 @@
+{
+  "version": 1,
+  "metadata": [
+    {
+      "name": "general.architecture",
+      "type": 8,
+      "value": "dspark"
+    },
+    {
+      "name": "general.type",
+      "type": 8,
+      "value": "model"
+    },
+    {
+      "name": "general.size_label",
+      "type": 8,
+      "value": "3.6B"
+    },
+    {
+      "name": "dspark.block_count",
+      "type": 4,
+      "value": 6
+    },
+    {
+      "name": "dspark.context_length",
+      "type": 4,
+      "value": 4096
+    },
+    {
+      "name": "dspark.embedding_length",
+      "type": 4,
+      "value": 5120
+    },
+    {
+      "name": "dspark.feed_forward_length",
+      "type": 4,
+      "value": 5120
+    },
+    {
+      "name": "dspark.attention.head_count",
+      "type": 4,
+      "value": 40
+    },
+    {
+      "name": "dspark.attention.head_count_kv",
+      "type": 4,
+      "value": 4
+    },
+    {
+      "name": "dspark.rope.freq_base",
+      "type": 6,
+      "value": 10000000.0
+    },
+    {
+      "name": "dspark.attention.layer_norm_rms_epsilon",
+      "type": 6,
+      "value": 9.999999974752427e-07
+    },
+    {
+      "name": "dspark.attention.key_length",
+      "type": 4,
+      "value": 128
+    },
+    {
+      "name": "dspark.attention.value_length",
+      "type": 4,
+      "value": 128
+    },
+    {
+      "name": "general.file_type",
+      "type": 4,
+      "value": 32
+    },
+    {
+      "name": "dspark.dspark.block_size",
+      "type": 4,
+      "value": 4
+    },
+    {
+      "name": "dspark.dspark.mask_token_id",
+      "type": 4,
+      "value": 248319
+    },
+    {
+      "name": "dspark.dspark.target_layers",
+      "type": 9,
+      "element_type": 5,
+      "value": [
+        1,
+        16,
+        31,
+        46,
+        61
+      ]
+    },
+    {
+      "name": "dspark.dspark.markov_rank",
+      "type": 4,
+      "value": 256
+    },
+    {
+      "name": "dspark.dspark.confidence_head",
+      "type": 7,
+      "value": true
+    },
+    {
+      "name": "dspark.dspark.confidence_head_with_markov",
+      "type": 7,
+      "value": true
+    },
+    {
+      "name": "dspark.dspark.log_snr_conditioning",
+      "type": 7,
+      "value": true
+    },
+    {
+      "name": "dspark.dspark.min_log_snr",
+      "type": 6,
+      "value": -9.0
+    },
+    {
+      "name": "dspark.dspark.max_log_snr",
+      "type": 6,
+      "value": 9.0
+    },
+    {
+      "name": "general.quantization_version",
+      "type": 4,
+      "value": 2
+    },
+    {
+      "name": "tokenizer.ggml.model",
+      "type": 8,
+      "value": "none"
+    },
+    {
+      "name": "dspark.vocab_size",
+      "type": 4,
+      "value": 248320
+    }
+  ],
+  "omitted_metadata": [
+    "general.name"
+  ],
+  "source_header_sha256": "7b6762b535dea852415203ba5dab5d147c14b6f228b82bfeceea0fb9accdeda7",
+  "tensors": [
+    {"name":"dspark.confidence_head.bias","shape":[1],"ggml_type":0,"storage_type":"f32","storage_shape":[1]},
+    {"name":"dspark.confidence_head.weight","shape":[1,5376],"ggml_type":30,"storage_type":"bf16","storage_shape":[1,5376]},
+    {"name":"token_embd.weight","shape":[248320,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[248320,5120]},
+    {"name":"dspark.fc.weight","shape":[5120,25600],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,25600]},
+    {"name":"dspark.hidden_norm.weight","shape":[5120],"ggml_type":0,"storage_type":"f32","storage_shape":[5120]},
+    {"name":"blk.0.attn_norm.weight","shape":[5120],"ggml_type":0,"storage_type":"f32","storage_shape":[5120]},
+    {"name":"blk.0.ffn_down.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.0.ffn_gate.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.0.ffn_up.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.0.ffn_norm.weight","shape":[5120],"ggml_type":0,"storage_type":"f32","storage_shape":[5120]},
+    {"name":"blk.0.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.0.attn_k.weight","shape":[512,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[512,5120]},
+    {"name":"blk.0.attn_output.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.0.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.0.attn_q.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.0.attn_v.weight","shape":[512,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[512,5120]},
+    {"name":"blk.1.attn_norm.weight","shape":[5120],"ggml_type":0,"storage_type":"f32","storage_shape":[5120]},
+    {"name":"blk.1.ffn_down.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.1.ffn_gate.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.1.ffn_up.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.1.ffn_norm.weight","shape":[5120],"ggml_type":0,"storage_type":"f32","storage_shape":[5120]},
+    {"name":"blk.1.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.1.attn_k.weight","shape":[512,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[512,5120]},
+    {"name":"blk.1.attn_output.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.1.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.1.attn_q.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.1.attn_v.weight","shape":[512,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[512,5120]},
+    {"name":"blk.2.attn_norm.weight","shape":[5120],"ggml_type":0,"storage_type":"f32","storage_shape":[5120]},
+    {"name":"blk.2.ffn_down.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.2.ffn_gate.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.2.ffn_up.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.2.ffn_norm.weight","shape":[5120],"ggml_type":0,"storage_type":"f32","storage_shape":[5120]},
+    {"name":"blk.2.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.2.attn_k.weight","shape":[512,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[512,5120]},
+    {"name":"blk.2.attn_output.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.2.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.2.attn_q.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.2.attn_v.weight","shape":[512,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[512,5120]},
+    {"name":"blk.3.attn_norm.weight","shape":[5120],"ggml_type":0,"storage_type":"f32","storage_shape":[5120]},
+    {"name":"blk.3.ffn_down.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.3.ffn_gate.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.3.ffn_up.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.3.ffn_norm.weight","shape":[5120],"ggml_type":0,"storage_type":"f32","storage_shape":[5120]},
+    {"name":"blk.3.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.3.attn_k.weight","shape":[512,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[512,5120]},
+    {"name":"blk.3.attn_output.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.3.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.3.attn_q.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.3.attn_v.weight","shape":[512,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[512,5120]},
+    {"name":"blk.4.attn_norm.weight","shape":[5120],"ggml_type":0,"storage_type":"f32","storage_shape":[5120]},
+    {"name":"blk.4.ffn_down.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.4.ffn_gate.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.4.ffn_up.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.4.ffn_norm.weight","shape":[5120],"ggml_type":0,"storage_type":"f32","storage_shape":[5120]},
+    {"name":"blk.4.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.4.attn_k.weight","shape":[512,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[512,5120]},
+    {"name":"blk.4.attn_output.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.4.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.4.attn_q.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.4.attn_v.weight","shape":[512,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[512,5120]},
+    {"name":"blk.5.attn_norm.weight","shape":[5120],"ggml_type":0,"storage_type":"f32","storage_shape":[5120]},
+    {"name":"blk.5.ffn_down.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.5.ffn_gate.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.5.ffn_up.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.5.ffn_norm.weight","shape":[5120],"ggml_type":0,"storage_type":"f32","storage_shape":[5120]},
+    {"name":"blk.5.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.5.attn_k.weight","shape":[512,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[512,5120]},
+    {"name":"blk.5.attn_output.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.5.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.5.attn_q.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"blk.5.attn_v.weight","shape":[512,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[512,5120]},
+    {"name":"output.weight","shape":[248320,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[248320,5120]},
+    {"name":"dspark.log_snr_fc1.bias","shape":[5120],"ggml_type":0,"storage_type":"f32","storage_shape":[5120]},
+    {"name":"dspark.log_snr_fc1.weight","shape":[5120,128],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,128]},
+    {"name":"dspark.log_snr_fc2.bias","shape":[5120],"ggml_type":0,"storage_type":"f32","storage_shape":[5120]},
+    {"name":"dspark.log_snr_fc2.weight","shape":[5120,5120],"ggml_type":30,"storage_type":"bf16","storage_shape":[5120,5120]},
+    {"name":"dspark.markov_head_a.weight","shape":[248320,256],"ggml_type":30,"storage_type":"bf16","storage_shape":[248320,256]},
+    {"name":"dspark.markov_head_b.weight","shape":[248320,256],"ggml_type":30,"storage_type":"bf16","storage_shape":[248320,256]},
+    {"name":"output_norm.weight","shape":[5120],"ggml_type":0,"storage_type":"f32","storage_shape":[5120]}
+  ]
+}

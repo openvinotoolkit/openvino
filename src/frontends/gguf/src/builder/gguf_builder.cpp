@@ -48,6 +48,8 @@ ov::AnyMap extract_tokenizer_config(const std::unordered_map<std::string, GGUFMe
     return cfg;
 }
 
+}  // namespace
+
 GraphBuilder make_gguf_builder(GGUFLoad loaded, const ArchRegistry& registry) {
     auto data = std::make_shared<GGUFLoad>(std::move(loaded));
     auto& metadata = std::get<0>(*data);
@@ -89,8 +91,6 @@ GraphBuilder make_gguf_builder(GGUFLoad loaded, const ArchRegistry& registry) {
         return graph;
     };
 }
-
-}  // namespace
 
 GraphBuilder load_gguf_builder(const std::filesystem::path& file, const ArchRegistry& registry) {
     return make_gguf_builder(get_gguf_data(file), registry);

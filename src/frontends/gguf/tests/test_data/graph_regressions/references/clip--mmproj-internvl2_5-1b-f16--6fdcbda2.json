@@ -1,0 +1,111 @@
+{
+  "recipe_sha256": "03ac2f598c39fd18cce6f3acdb2e9fc4d8318368d9a5772893ebde236a758c75",
+  "stages": {
+    "deferred_plan": {
+      "map_sha256": "ac770d7bdc2c25961c6638357bf24c59e79c994d093d0f9343c3eb631ff45949",
+      "models": {
+        "native": {
+          "graph_sha256": "7503c345e757711ddb74867359cb09f096d74cd9f5c8f3b999d2e7079bdc1e39",
+          "ops": [
+            [
+              "Add",
+              "opset1",
+              245
+            ],
+            [
+              "Concat",
+              "opset1",
+              1
+            ],
+            [
+              "Constant",
+              "opset1",
+              277
+            ],
+            [
+              "Convolution",
+              "opset1",
+              1
+            ],
+            [
+              "GGUFPlannedWeight",
+              "gguf",
+              442
+            ],
+            [
+              "Gelu",
+              "opset7",
+              25
+            ],
+            [
+              "MVN",
+              "opset6",
+              49
+            ],
+            [
+              "MatMul",
+              "opset1",
+              146
+            ],
+            [
+              "Multiply",
+              "opset1",
+              121
+            ],
+            [
+              "Parameter",
+              "opset1",
+              1
+            ],
+            [
+              "Reshape",
+              "opset1",
+              101
+            ],
+            [
+              "Result",
+              "opset1",
+              1
+            ],
+            [
+              "ScaledDotProductAttention",
+              "opset13",
+              24
+            ],
+            [
+              "Slice",
+              "opset8",
+              1
+            ],
+            [
+              "Transpose",
+              "opset1",
+              99
+            ]
+          ],
+          "projections": [
+            [
+              "MatMul",
+              "4",
+              "f32",
+              "ggml:1/group:1/weight:f16",
+              146
+            ]
+          ],
+          "projectors": [
+            "vision.internvl"
+          ],
+          "totals": {
+            "edges": 1629,
+            "inputs": 1,
+            "nodes": 1534,
+            "outputs": 1,
+            "states": 0,
+            "top_level_nodes": 1534
+          }
+        }
+      }
+    }
+  },
+  "version": 1
+}

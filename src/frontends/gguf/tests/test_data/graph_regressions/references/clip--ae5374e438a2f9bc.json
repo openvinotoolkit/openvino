@@ -1,0 +1,131 @@
+{
+  "recipe_sha256": "81f465fac621cd9abdb96e915594abac35a4470ee72e195579ea9fc643cf9341",
+  "stages": {
+    "deferred_plan": {
+      "map_sha256": "3174fe1c8a55e0e72901db8c6cef4be33a50d4b9ab2c0ece1d1c0d5a42182fb3",
+      "models": {
+        "native": {
+          "graph_sha256": "f42fb6fa9d0c5e19a6784dc82a39fd3d6900e48ff2e9fbac92370681fdf819ed",
+          "ops": [
+            [
+              "Add",
+              "opset1",
+              289
+            ],
+            [
+              "Concat",
+              "opset1",
+              6
+            ],
+            [
+              "Constant",
+              "opset1",
+              361
+            ],
+            [
+              "Convolution",
+              "opset1",
+              1
+            ],
+            [
+              "GGUFPlannedWeight",
+              "gguf",
+              459
+            ],
+            [
+              "Gather",
+              "opset8",
+              12
+            ],
+            [
+              "Gelu",
+              "opset7",
+              29
+            ],
+            [
+              "MVN",
+              "opset6",
+              58
+            ],
+            [
+              "MatMul",
+              "opset1",
+              170
+            ],
+            [
+              "Multiply",
+              "opset1",
+              86
+            ],
+            [
+              "Parameter",
+              "opset1",
+              13
+            ],
+            [
+              "Reshape",
+              "opset1",
+              113
+            ],
+            [
+              "Result",
+              "opset1",
+              1
+            ],
+            [
+              "ScaledDotProductAttention",
+              "opset13",
+              28
+            ],
+            [
+              "ShapeOf",
+              "opset3",
+              1
+            ],
+            [
+              "Slice",
+              "opset8",
+              1
+            ],
+            [
+              "Squeeze",
+              "opset1",
+              21
+            ],
+            [
+              "Transpose",
+              "opset1",
+              113
+            ],
+            [
+              "Unsqueeze",
+              "opset1",
+              11
+            ]
+          ],
+          "projections": [
+            [
+              "MatMul",
+              "4",
+              "f32",
+              "ggml:30/group:1/weight:bf16",
+              170
+            ]
+          ],
+          "projectors": [
+            "vision.minicpmv4_7"
+          ],
+          "totals": {
+            "edges": 1894,
+            "inputs": 13,
+            "nodes": 1773,
+            "outputs": 1,
+            "states": 0,
+            "top_level_nodes": 1773
+          }
+        }
+      }
+    }
+  },
+  "version": 1
+}

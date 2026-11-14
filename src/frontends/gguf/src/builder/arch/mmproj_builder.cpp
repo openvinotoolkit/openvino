@@ -81,14 +81,14 @@ constexpr ProjectorTopology projector_catalog[] = {
     {"audio", "gemma4a", EncoderTopology::GEMMA4_AUDIO},
     {"audio", "lfm2a", EncoderTopology::LFM2_AUDIO},
     {"audio", "gemma4ua", EncoderTopology::UNIFIED_AUDIO},
-    {"vision", "minicpmv4_6", EncoderTopology::MINICPM46},
+    {"vision", "minicpmv4_6", EncoderTopology::MINICPM46, SWAPPED_FFN},
     {"vision", "minicpmv4_7", EncoderTopology::MINICPM46, 0, ProjectorLayout::PackedPatches},
     {"vision", "gemma3", EncoderTopology::SIGLIP, SWAPPED_FFN, ProjectorLayout::Image},
     {"vision", "idefics3", EncoderTopology::SIGLIP, SWAPPED_FFN},
     {"vision", "janus_pro", EncoderTopology::SIGLIP},
     {"vision", "mlp", EncoderTopology::CLIP, SWAPPED_FFN},
     {"vision", "internvl", EncoderTopology::INTERNVL},
-    {"vision", "resampler", EncoderTopology::RESAMPLER},
+    {"vision", "resampler", EncoderTopology::RESAMPLER, SWAPPED_FFN},
     {"vision", "qwen2vl_merger", EncoderTopology::QWEN, SWAPPED_FFN},
     {"vision", "qwen2.5vl_merger", EncoderTopology::QWEN, RMS_NORM | SWAPPED_FFN},
     {"vision", "qwen3vl_merger", EncoderTopology::QWEN, 0, ProjectorLayout::SplitMerger},
@@ -1185,7 +1185,20 @@ private:
             return linear(x, "mm.a.mlp.2");
         }
         if (c.projector == "meralion") {
-            x = g.node("GGML_UNARY_OP_SILU", {linear(norm(x, "mm.a.norm_pre", c.eps), "mm.a.mlp.0")});
+            // Publisher exports keep a per-frame norm_pre; like ggml's broadcast, tile it over stacked frames.
+            const auto width = x.ne(0);
+            const auto tiled = [&](const GgufValue& v) {
+                if (!v || v.ne(0) == width)
+                    return v;
+                OPENVINO_ASSERT(v.ne(0) > 0 && width % v.ne(0) == 0,
+                                "[GGUF] MERaLiON norm_pre width must divide stacked width");
+                return g.node("GGML_OP_REPEAT", {v}, 0, {{"repeats", std::vector<int64_t>{width / v.ne(0)}}});
+            };
+            x = g.build_norm_ln(x,
+                                tiled(g.tensors().require("mm.a.norm_pre.weight")),
+                                tiled(g.tensors()("mm.a.norm_pre.bias")),
+                                c.eps);
+            x = g.node("GGML_UNARY_OP_SILU", {linear(x, "mm.a.mlp.0")});
             x = mul(g.node("GGML_UNARY_OP_SILU", {linear(x, "mm.a.mlp.1")}), linear(x, "mm.a.mlp.2"));
             return linear(x, "mm.a.mlp.3");
         }

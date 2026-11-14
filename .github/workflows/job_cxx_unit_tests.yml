@@ -56,6 +56,7 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       SOURCE_COMMAND: ${{ contains(inputs.runner, 'linux') && 'source' || '.' }}
       SETUPVARS: ${{ github.workspace }}/install/${{ contains(inputs.runner, 'win') && 'setupvars.ps1' || 'setupvars.sh' }}
+      PYTHON_COMMAND: ${{ contains(inputs.runner, 'win') && 'python' || 'python3' }}
     steps:
       - name: Download OpenVINO artifacts (package)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
@@ -141,6 +142,12 @@ jobs:
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_gguf_architecture_library_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-GGUFArchitectureLibrary.xml
+
+      - name: GGUF structural regression references
+        if: fromJSON(inputs.affected-components).GGUF_FE.test
+        run: |
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
+          ${{ env.PYTHON_COMMAND }} ${{ env.INSTALL_TEST_DIR }}/graph_fingerprint.py --runner ${{ env.INSTALL_TEST_DIR }}/ov_gguf_frontend_tests --report ${{ env.INSTALL_TEST_DIR }}/changed_cases.json
 
       - name: PaddlePaddle frontend tests
         if: ${{ fromJSON(inputs.affected-components).PDPD_FE.test && runner.os != 'Windows' }} # Ticket: 149651
@@ -294,5 +301,7 @@ jobs:
         if: ${{ !cancelled() }}
         with:
           name: test-results-cpp
-          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+            ${{ env.INSTALL_TEST_DIR }}/changed_cases.json
           if-no-files-found: 'warn'

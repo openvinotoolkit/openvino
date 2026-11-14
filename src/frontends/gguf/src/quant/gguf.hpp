@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -150,7 +151,10 @@ void dequant_row_q6_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 
 struct WeightTensors;
 
-WeightTensors allocate_gguf_weight(const GgufWeight& source, const ov::Shape& shape);
+using WeightTensorAllocator = std::function<ov::Tensor(const ov::element::Type&, const ov::Shape&)>;
+WeightTensors allocate_gguf_weight(const GgufWeight& source,
+                                   const ov::Shape& shape,
+                                   const WeightTensorAllocator& allocator = {});
 void unpack_gguf_weight_into(const GgufWeight& source, WeightTensors& destination);
 WeightTensors unpack_gguf_weight(const GgufWeight& source);
 bool gguf_column_groups_are_aligned(const GgufWeight& source, const std::vector<int64_t>& columns);

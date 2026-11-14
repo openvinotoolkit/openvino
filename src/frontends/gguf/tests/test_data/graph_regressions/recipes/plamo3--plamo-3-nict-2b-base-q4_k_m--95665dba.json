@@ -1,0 +1,508 @@
+{
+  "version": 1,
+  "metadata": [
+    {
+      "name": "general.architecture",
+      "type": 8,
+      "value": "plamo3"
+    },
+    {
+      "name": "general.type",
+      "type": 8,
+      "value": "model"
+    },
+    {
+      "name": "general.finetune",
+      "type": 8,
+      "value": "base"
+    },
+    {
+      "name": "general.basename",
+      "type": 8,
+      "value": "plamo-3-nict"
+    },
+    {
+      "name": "general.size_label",
+      "type": 8,
+      "value": "2B"
+    },
+    {
+      "name": "general.license.name",
+      "type": 8,
+      "value": "plamo-community-license"
+    },
+    {
+      "name": "general.license.link",
+      "type": 8,
+      "value": "https://plamo.preferredai.jp/info/plamo-community-license-en"
+    },
+    {
+      "name": "general.dataset.count",
+      "type": 4,
+      "value": 5
+    },
+    {
+      "name": "general.dataset.0.name",
+      "type": 8,
+      "value": "Fineweb 2"
+    },
+    {
+      "name": "general.dataset.0.version",
+      "type": 8,
+      "value": "2"
+    },
+    {
+      "name": "general.dataset.0.organization",
+      "type": 8,
+      "value": "HuggingFaceFW"
+    },
+    {
+      "name": "general.dataset.0.repo_url",
+      "type": 8,
+      "value": "https://huggingface.co/HuggingFaceFW/fineweb-2"
+    },
+    {
+      "name": "general.dataset.1.name",
+      "type": 8,
+      "value": "Smollm Corpus"
+    },
+    {
+      "name": "general.dataset.1.organization",
+      "type": 8,
+      "value": "HuggingFaceTB"
+    },
+    {
+      "name": "general.dataset.1.repo_url",
+      "type": 8,
+      "value": "https://huggingface.co/HuggingFaceTB/smollm-corpus"
+    },
+    {
+      "name": "general.dataset.2.name",
+      "type": 8,
+      "value": "The Stack v2 Train Smol Ids"
+    },
+    {
+      "name": "general.dataset.2.organization",
+      "type": 8,
+      "value": "Bigcode"
+    },
+    {
+      "name": "general.dataset.2.repo_url",
+      "type": 8,
+      "value": "https://huggingface.co/bigcode/the-stack-v2-train-smol-ids"
+    },
+    {
+      "name": "general.dataset.3.name",
+      "type": 8,
+      "value": "Nemotron Pretraining Dataset Sample"
+    },
+    {
+      "name": "general.dataset.3.organization",
+      "type": 8,
+      "value": "Nvidia"
+    },
+    {
+      "name": "general.dataset.3.repo_url",
+      "type": 8,
+      "value": "https://huggingface.co/nvidia/Nemotron-Pretraining-Dataset-sample"
+    },
+    {
+      "name": "general.dataset.4.name",
+      "type": 8,
+      "value": "Eai Taxonomy Stem W Dclm"
+    },
+    {
+      "name": "general.dataset.4.organization",
+      "type": 8,
+      "value": "EssentialAI"
+    },
+    {
+      "name": "general.dataset.4.repo_url",
+      "type": 8,
+      "value": "https://huggingface.co/EssentialAI/eai-taxonomy-stem-w-dclm"
+    },
+    {
+      "name": "general.languages",
+      "type": 9,
+      "element_type": 8,
+      "value": [
+        "en",
+        "ja"
+      ]
+    },
+    {
+      "name": "plamo3.block_count",
+      "type": 4,
+      "value": 24
+    },
+    {
+      "name": "plamo3.context_length",
+      "type": 4,
+      "value": 4096
+    },
+    {
+      "name": "plamo3.embedding_length",
+      "type": 4,
+      "value": 2560
+    },
+    {
+      "name": "plamo3.feed_forward_length",
+      "type": 4,
+      "value": 10240
+    },
+    {
+      "name": "plamo3.attention.head_count",
+      "type": 4,
+      "value": 24
+    },
+    {
+      "name": "plamo3.attention.head_count_kv",
+      "type": 4,
+      "value": 4
+    },
+    {
+      "name": "plamo3.rope.freq_base",
+      "type": 6,
+      "value": 1000000.0
+    },
+    {
+      "name": "plamo3.attention.layer_norm_rms_epsilon",
+      "type": 6,
+      "value": 9.999999974752427e-07
+    },
+    {
+      "name": "plamo3.attention.key_length",
+      "type": 4,
+      "value": 128
+    },
+    {
+      "name": "plamo3.attention.value_length",
+      "type": 4,
+      "value": 128
+    },
+    {
+      "name": "plamo3.vocab_size",
+      "type": 4,
+      "value": 107520
+    },
+    {
+      "name": "plamo3.attention.sliding_window",
+      "type": 4,
+      "value": 2048
+    },
+    {
+      "name": "plamo3.attention.sliding_window_pattern",
+      "type": 4,
+      "value": 8
+    },
+    {
+      "name": "plamo3.rope.freq_base_swa",
+      "type": 6,
+      "value": 10000.0
+    },
+    {
+      "name": "tokenizer.ggml.model",
+      "type": 8,
+      "value": "plamo2"
+    },
+    {
+      "name": "tokenizer.ggml.pre",
+      "type": 8,
+      "value": "default"
+    },
+    {
+      "name": "tokenizer.ggml.bos_token_id",
+      "type": 4,
+      "value": 1
+    },
+    {
+      "name": "tokenizer.ggml.eos_token_id",
+      "type": 4,
+      "value": 2
+    },
+    {
+      "name": "tokenizer.ggml.padding_token_id",
+      "type": 4,
+      "value": 3
+    },
+    {
+      "name": "tokenizer.ggml.unknown_token_id",
+      "type": 4,
+      "value": 0
+    },
+    {
+      "name": "tokenizer.ggml.eot_token_id",
+      "type": 4,
+      "value": 4
+    },
+    {
+      "name": "tokenizer.ggml.add_space_prefix",
+      "type": 7,
+      "value": false
+    },
+    {
+      "name": "general.quantization_version",
+      "type": 4,
+      "value": 2
+    },
+    {
+      "name": "general.file_type",
+      "type": 4,
+      "value": 15
+    }
+  ],
+  "omitted_metadata": [
+    "general.license",
+    "general.name",
+    "general.tags",
+    "tokenizer.chat_template",
+    "tokenizer.ggml.scores",
+    "tokenizer.ggml.token_type",
+    "tokenizer.ggml.tokens"
+  ],
+  "source_header_sha256": "efba4a46233a2d312c81cc0385924de5f5d833ee6afa3dfa56d734dc9436337f",
+  "tensors": [
+    {"name":"output_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"token_embd.weight","shape":[107520,2560],"ggml_type":14,"storage_type":"u8","storage_shape":[225792000]},
+    {"name":"blk.0.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.0.attn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.0.attn_output.weight","shape":[2560,3072],"ggml_type":12,"storage_type":"u8","storage_shape":[4423680]},
+    {"name":"blk.0.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.0.attn_qkv.weight","shape":[4096,2560],"ggml_type":13,"storage_type":"u8","storage_shape":[7208960]},
+    {"name":"blk.0.ffn_down.weight","shape":[2560,10240],"ggml_type":14,"storage_type":"u8","storage_shape":[21504000]},
+    {"name":"blk.0.ffn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.0.ffn_up.weight","shape":[20480,2560],"ggml_type":12,"storage_type":"u8","storage_shape":[29491200]},
+    {"name":"blk.0.post_attention_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.0.post_ffw_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.1.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.1.attn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.1.attn_output.weight","shape":[2560,3072],"ggml_type":12,"storage_type":"u8","storage_shape":[4423680]},
+    {"name":"blk.1.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.1.attn_qkv.weight","shape":[4096,2560],"ggml_type":13,"storage_type":"u8","storage_shape":[7208960]},
+    {"name":"blk.1.ffn_down.weight","shape":[2560,10240],"ggml_type":14,"storage_type":"u8","storage_shape":[21504000]},
+    {"name":"blk.1.ffn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.1.ffn_up.weight","shape":[20480,2560],"ggml_type":12,"storage_type":"u8","storage_shape":[29491200]},
+    {"name":"blk.1.post_attention_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.1.post_ffw_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.2.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.2.attn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.2.attn_output.weight","shape":[2560,3072],"ggml_type":12,"storage_type":"u8","storage_shape":[4423680]},
+    {"name":"blk.2.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.2.attn_qkv.weight","shape":[4096,2560],"ggml_type":13,"storage_type":"u8","storage_shape":[7208960]},
+    {"name":"blk.2.ffn_down.weight","shape":[2560,10240],"ggml_type":14,"storage_type":"u8","storage_shape":[21504000]},
+    {"name":"blk.2.ffn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.2.ffn_up.weight","shape":[20480,2560],"ggml_type":12,"storage_type":"u8","storage_shape":[29491200]},
+    {"name":"blk.2.post_attention_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.2.post_ffw_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.3.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.3.attn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.3.attn_output.weight","shape":[2560,3072],"ggml_type":12,"storage_type":"u8","storage_shape":[4423680]},
+    {"name":"blk.3.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.3.attn_qkv.weight","shape":[4096,2560],"ggml_type":13,"storage_type":"u8","storage_shape":[7208960]},
+    {"name":"blk.3.ffn_down.weight","shape":[2560,10240],"ggml_type":12,"storage_type":"u8","storage_shape":[14745600]},
+    {"name":"blk.3.ffn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.3.ffn_up.weight","shape":[20480,2560],"ggml_type":12,"storage_type":"u8","storage_shape":[29491200]},
+    {"name":"blk.3.post_attention_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.3.post_ffw_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.4.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.4.attn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.4.attn_output.weight","shape":[2560,3072],"ggml_type":12,"storage_type":"u8","storage_shape":[4423680]},
+    {"name":"blk.4.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.4.attn_qkv.weight","shape":[4096,2560],"ggml_type":13,"storage_type":"u8","storage_shape":[7208960]},
+    {"name":"blk.4.ffn_down.weight","shape":[2560,10240],"ggml_type":12,"storage_type":"u8","storage_shape":[14745600]},
+    {"name":"blk.4.ffn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.4.ffn_up.weight","shape":[20480,2560],"ggml_type":12,"storage_type":"u8","storage_shape":[29491200]},
+    {"name":"blk.4.post_attention_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.4.post_ffw_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.5.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.5.attn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.5.attn_output.weight","shape":[2560,3072],"ggml_type":12,"storage_type":"u8","storage_shape":[4423680]},
+    {"name":"blk.5.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.5.attn_qkv.weight","shape":[4096,2560],"ggml_type":13,"storage_type":"u8","storage_shape":[7208960]},
+    {"name":"blk.5.ffn_down.weight","shape":[2560,10240],"ggml_type":14,"storage_type":"u8","storage_shape":[21504000]},
+    {"name":"blk.5.ffn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.5.ffn_up.weight","shape":[20480,2560],"ggml_type":12,"storage_type":"u8","storage_shape":[29491200]},
+    {"name":"blk.5.post_attention_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.5.post_ffw_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.6.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.6.attn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.6.attn_output.weight","shape":[2560,3072],"ggml_type":12,"storage_type":"u8","storage_shape":[4423680]},
+    {"name":"blk.6.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.6.attn_qkv.weight","shape":[4096,2560],"ggml_type":13,"storage_type":"u8","storage_shape":[7208960]},
+    {"name":"blk.6.ffn_down.weight","shape":[2560,10240],"ggml_type":12,"storage_type":"u8","storage_shape":[14745600]},
+    {"name":"blk.6.ffn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.6.ffn_up.weight","shape":[20480,2560],"ggml_type":12,"storage_type":"u8","storage_shape":[29491200]},
+    {"name":"blk.6.post_attention_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.6.post_ffw_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.7.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.7.attn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.7.attn_output.weight","shape":[2560,3072],"ggml_type":12,"storage_type":"u8","storage_shape":[4423680]},
+    {"name":"blk.7.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.7.attn_qkv.weight","shape":[4096,2560],"ggml_type":13,"storage_type":"u8","storage_shape":[7208960]},
+    {"name":"blk.7.ffn_down.weight","shape":[2560,10240],"ggml_type":12,"storage_type":"u8","storage_shape":[14745600]},
+    {"name":"blk.7.ffn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.7.ffn_up.weight","shape":[20480,2560],"ggml_type":12,"storage_type":"u8","storage_shape":[29491200]},
+    {"name":"blk.7.post_attention_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.7.post_ffw_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.8.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.8.attn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.8.attn_output.weight","shape":[2560,3072],"ggml_type":12,"storage_type":"u8","storage_shape":[4423680]},
+    {"name":"blk.8.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.8.attn_qkv.weight","shape":[4096,2560],"ggml_type":13,"storage_type":"u8","storage_shape":[7208960]},
+    {"name":"blk.8.ffn_down.weight","shape":[2560,10240],"ggml_type":14,"storage_type":"u8","storage_shape":[21504000]},
+    {"name":"blk.8.ffn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.8.ffn_up.weight","shape":[20480,2560],"ggml_type":12,"storage_type":"u8","storage_shape":[29491200]},
+    {"name":"blk.8.post_attention_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.8.post_ffw_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.9.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.9.attn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.9.attn_output.weight","shape":[2560,3072],"ggml_type":12,"storage_type":"u8","storage_shape":[4423680]},
+    {"name":"blk.9.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.9.attn_qkv.weight","shape":[4096,2560],"ggml_type":13,"storage_type":"u8","storage_shape":[7208960]},
+    {"name":"blk.9.ffn_down.weight","shape":[2560,10240],"ggml_type":12,"storage_type":"u8","storage_shape":[14745600]},
+    {"name":"blk.9.ffn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.9.ffn_up.weight","shape":[20480,2560],"ggml_type":12,"storage_type":"u8","storage_shape":[29491200]},
+    {"name":"blk.9.post_attention_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.9.post_ffw_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.10.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.10.attn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.10.attn_output.weight","shape":[2560,3072],"ggml_type":12,"storage_type":"u8","storage_shape":[4423680]},
+    {"name":"blk.10.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.10.attn_qkv.weight","shape":[4096,2560],"ggml_type":13,"storage_type":"u8","storage_shape":[7208960]},
+    {"name":"blk.10.ffn_down.weight","shape":[2560,10240],"ggml_type":12,"storage_type":"u8","storage_shape":[14745600]},
+    {"name":"blk.10.ffn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.10.ffn_up.weight","shape":[20480,2560],"ggml_type":12,"storage_type":"u8","storage_shape":[29491200]},
+    {"name":"blk.10.post_attention_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.10.post_ffw_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.11.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.11.attn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.11.attn_output.weight","shape":[2560,3072],"ggml_type":12,"storage_type":"u8","storage_shape":[4423680]},
+    {"name":"blk.11.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.11.attn_qkv.weight","shape":[4096,2560],"ggml_type":13,"storage_type":"u8","storage_shape":[7208960]},
+    {"name":"blk.11.ffn_down.weight","shape":[2560,10240],"ggml_type":14,"storage_type":"u8","storage_shape":[21504000]},
+    {"name":"blk.11.ffn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.11.ffn_up.weight","shape":[20480,2560],"ggml_type":12,"storage_type":"u8","storage_shape":[29491200]},
+    {"name":"blk.11.post_attention_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.11.post_ffw_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.12.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.12.attn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.12.attn_output.weight","shape":[2560,3072],"ggml_type":12,"storage_type":"u8","storage_shape":[4423680]},
+    {"name":"blk.12.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.12.attn_qkv.weight","shape":[4096,2560],"ggml_type":13,"storage_type":"u8","storage_shape":[7208960]},
+    {"name":"blk.12.ffn_down.weight","shape":[2560,10240],"ggml_type":12,"storage_type":"u8","storage_shape":[14745600]},
+    {"name":"blk.12.ffn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.12.ffn_up.weight","shape":[20480,2560],"ggml_type":12,"storage_type":"u8","storage_shape":[29491200]},
+    {"name":"blk.12.post_attention_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.12.post_ffw_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.13.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.13.attn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.13.attn_output.weight","shape":[2560,3072],"ggml_type":12,"storage_type":"u8","storage_shape":[4423680]},
+    {"name":"blk.13.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.13.attn_qkv.weight","shape":[4096,2560],"ggml_type":13,"storage_type":"u8","storage_shape":[7208960]},
+    {"name":"blk.13.ffn_down.weight","shape":[2560,10240],"ggml_type":12,"storage_type":"u8","storage_shape":[14745600]},
+    {"name":"blk.13.ffn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.13.ffn_up.weight","shape":[20480,2560],"ggml_type":12,"storage_type":"u8","storage_shape":[29491200]},
+    {"name":"blk.13.post_attention_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.13.post_ffw_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.14.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.14.attn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.14.attn_output.weight","shape":[2560,3072],"ggml_type":12,"storage_type":"u8","storage_shape":[4423680]},
+    {"name":"blk.14.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.14.attn_qkv.weight","shape":[4096,2560],"ggml_type":13,"storage_type":"u8","storage_shape":[7208960]},
+    {"name":"blk.14.ffn_down.weight","shape":[2560,10240],"ggml_type":14,"storage_type":"u8","storage_shape":[21504000]},
+    {"name":"blk.14.ffn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.14.ffn_up.weight","shape":[20480,2560],"ggml_type":12,"storage_type":"u8","storage_shape":[29491200]},
+    {"name":"blk.14.post_attention_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.14.post_ffw_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.15.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.15.attn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.15.attn_output.weight","shape":[2560,3072],"ggml_type":12,"storage_type":"u8","storage_shape":[4423680]},
+    {"name":"blk.15.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.15.attn_qkv.weight","shape":[4096,2560],"ggml_type":13,"storage_type":"u8","storage_shape":[7208960]},
+    {"name":"blk.15.ffn_down.weight","shape":[2560,10240],"ggml_type":12,"storage_type":"u8","storage_shape":[14745600]},
+    {"name":"blk.15.ffn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.15.ffn_up.weight","shape":[20480,2560],"ggml_type":12,"storage_type":"u8","storage_shape":[29491200]},
+    {"name":"blk.15.post_attention_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.15.post_ffw_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.16.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.16.attn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.16.attn_output.weight","shape":[2560,3072],"ggml_type":12,"storage_type":"u8","storage_shape":[4423680]},
+    {"name":"blk.16.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.16.attn_qkv.weight","shape":[4096,2560],"ggml_type":13,"storage_type":"u8","storage_shape":[7208960]},
+    {"name":"blk.16.ffn_down.weight","shape":[2560,10240],"ggml_type":12,"storage_type":"u8","storage_shape":[14745600]},
+    {"name":"blk.16.ffn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.16.ffn_up.weight","shape":[20480,2560],"ggml_type":12,"storage_type":"u8","storage_shape":[29491200]},
+    {"name":"blk.16.post_attention_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.16.post_ffw_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.17.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.17.attn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.17.attn_output.weight","shape":[2560,3072],"ggml_type":12,"storage_type":"u8","storage_shape":[4423680]},
+    {"name":"blk.17.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.17.attn_qkv.weight","shape":[4096,2560],"ggml_type":13,"storage_type":"u8","storage_shape":[7208960]},
+    {"name":"blk.17.ffn_down.weight","shape":[2560,10240],"ggml_type":14,"storage_type":"u8","storage_shape":[21504000]},
+    {"name":"blk.17.ffn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.17.ffn_up.weight","shape":[20480,2560],"ggml_type":12,"storage_type":"u8","storage_shape":[29491200]},
+    {"name":"blk.17.post_attention_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.17.post_ffw_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.18.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.18.attn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.18.attn_output.weight","shape":[2560,3072],"ggml_type":12,"storage_type":"u8","storage_shape":[4423680]},
+    {"name":"blk.18.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.18.attn_qkv.weight","shape":[4096,2560],"ggml_type":13,"storage_type":"u8","storage_shape":[7208960]},
+    {"name":"blk.18.ffn_down.weight","shape":[2560,10240],"ggml_type":12,"storage_type":"u8","storage_shape":[14745600]},
+    {"name":"blk.18.ffn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.18.ffn_up.weight","shape":[20480,2560],"ggml_type":12,"storage_type":"u8","storage_shape":[29491200]},
+    {"name":"blk.18.post_attention_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.18.post_ffw_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.19.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.19.attn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.19.attn_output.weight","shape":[2560,3072],"ggml_type":12,"storage_type":"u8","storage_shape":[4423680]},
+    {"name":"blk.19.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.19.attn_qkv.weight","shape":[4096,2560],"ggml_type":13,"storage_type":"u8","storage_shape":[7208960]},
+    {"name":"blk.19.ffn_down.weight","shape":[2560,10240],"ggml_type":12,"storage_type":"u8","storage_shape":[14745600]},
+    {"name":"blk.19.ffn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.19.ffn_up.weight","shape":[20480,2560],"ggml_type":12,"storage_type":"u8","storage_shape":[29491200]},
+    {"name":"blk.19.post_attention_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.19.post_ffw_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.20.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.20.attn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.20.attn_output.weight","shape":[2560,3072],"ggml_type":12,"storage_type":"u8","storage_shape":[4423680]},
+    {"name":"blk.20.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.20.attn_qkv.weight","shape":[4096,2560],"ggml_type":13,"storage_type":"u8","storage_shape":[7208960]},
+    {"name":"blk.20.ffn_down.weight","shape":[2560,10240],"ggml_type":14,"storage_type":"u8","storage_shape":[21504000]},
+    {"name":"blk.20.ffn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.20.ffn_up.weight","shape":[20480,2560],"ggml_type":12,"storage_type":"u8","storage_shape":[29491200]},
+    {"name":"blk.20.post_attention_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.20.post_ffw_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.21.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.21.attn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.21.attn_output.weight","shape":[2560,3072],"ggml_type":12,"storage_type":"u8","storage_shape":[4423680]},
+    {"name":"blk.21.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.21.attn_qkv.weight","shape":[4096,2560],"ggml_type":13,"storage_type":"u8","storage_shape":[7208960]},
+    {"name":"blk.21.ffn_down.weight","shape":[2560,10240],"ggml_type":14,"storage_type":"u8","storage_shape":[21504000]},
+    {"name":"blk.21.ffn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.21.ffn_up.weight","shape":[20480,2560],"ggml_type":12,"storage_type":"u8","storage_shape":[29491200]},
+    {"name":"blk.21.post_attention_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.21.post_ffw_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.22.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.22.attn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.22.attn_output.weight","shape":[2560,3072],"ggml_type":12,"storage_type":"u8","storage_shape":[4423680]},
+    {"name":"blk.22.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.22.attn_qkv.weight","shape":[4096,2560],"ggml_type":13,"storage_type":"u8","storage_shape":[7208960]},
+    {"name":"blk.22.ffn_down.weight","shape":[2560,10240],"ggml_type":14,"storage_type":"u8","storage_shape":[21504000]},
+    {"name":"blk.22.ffn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.22.ffn_up.weight","shape":[20480,2560],"ggml_type":12,"storage_type":"u8","storage_shape":[29491200]},
+    {"name":"blk.22.post_attention_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.22.post_ffw_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.23.attn_k_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.23.attn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.23.attn_output.weight","shape":[2560,3072],"ggml_type":12,"storage_type":"u8","storage_shape":[4423680]},
+    {"name":"blk.23.attn_q_norm.weight","shape":[128],"ggml_type":0,"storage_type":"f32","storage_shape":[128]},
+    {"name":"blk.23.attn_qkv.weight","shape":[4096,2560],"ggml_type":13,"storage_type":"u8","storage_shape":[7208960]},
+    {"name":"blk.23.ffn_down.weight","shape":[2560,10240],"ggml_type":14,"storage_type":"u8","storage_shape":[21504000]},
+    {"name":"blk.23.ffn_norm.weight","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.23.ffn_up.weight","shape":[20480,2560],"ggml_type":12,"storage_type":"u8","storage_shape":[29491200]},
+    {"name":"blk.23.post_attention_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]},
+    {"name":"blk.23.post_ffw_norm","shape":[2560],"ggml_type":0,"storage_type":"f32","storage_shape":[2560]}
+  ]
+}

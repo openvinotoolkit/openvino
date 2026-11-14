@@ -1,0 +1,141 @@
+{
+  "recipe_sha256": "7d46bce72793ff9ecd3cd36bac317bb817aa31f1cfaa96429120d2909e3f88dd",
+  "stages": {
+    "deferred_plan": {
+      "map_sha256": "c8cf9a74c0e64bae3c5d217b44ae1ae20e646248c88169ecc00f24bbd8cfcd51",
+      "models": {
+        "native": {
+          "graph_sha256": "7bb0ec6a2ef0a78ced47d4d6ffe59424000447df5c683162052431d462ff4ff5",
+          "ops": [
+            [
+              "Add",
+              "opset1",
+              294
+            ],
+            [
+              "Concat",
+              "opset1",
+              3
+            ],
+            [
+              "Constant",
+              "opset1",
+              372
+            ],
+            [
+              "Convolution",
+              "opset1",
+              2
+            ],
+            [
+              "FloorMod",
+              "opset1",
+              2
+            ],
+            [
+              "GGUFPlannedWeight",
+              "gguf",
+              493
+            ],
+            [
+              "Gather",
+              "opset8",
+              2
+            ],
+            [
+              "Gelu",
+              "opset7",
+              35
+            ],
+            [
+              "MVN",
+              "opset6",
+              65
+            ],
+            [
+              "MatMul",
+              "opset1",
+              194
+            ],
+            [
+              "Multiply",
+              "opset1",
+              97
+            ],
+            [
+              "Pad",
+              "opset1",
+              1
+            ],
+            [
+              "Parameter",
+              "opset1",
+              2
+            ],
+            [
+              "Reshape",
+              "opset1",
+              136
+            ],
+            [
+              "Result",
+              "opset1",
+              1
+            ],
+            [
+              "ScaledDotProductAttention",
+              "opset13",
+              32
+            ],
+            [
+              "ShapeOf",
+              "opset3",
+              1
+            ],
+            [
+              "Squeeze",
+              "opset1",
+              1
+            ],
+            [
+              "Subtract",
+              "opset1",
+              1
+            ],
+            [
+              "Transpose",
+              "opset1",
+              129
+            ],
+            [
+              "Unsqueeze",
+              "opset1",
+              1
+            ]
+          ],
+          "projections": [
+            [
+              "MatMul",
+              "4",
+              "f32",
+              "ggml:30/group:1/weight:bf16",
+              194
+            ]
+          ],
+          "projectors": [
+            "audio.glma"
+          ],
+          "totals": {
+            "edges": 1994,
+            "inputs": 2,
+            "nodes": 1864,
+            "outputs": 1,
+            "states": 0,
+            "top_level_nodes": 1864
+          }
+        }
+      }
+    }
+  },
+  "version": 1
+}
