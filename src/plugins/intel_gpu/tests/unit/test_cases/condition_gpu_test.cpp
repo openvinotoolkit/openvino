@@ -10,6 +10,7 @@
 #include "condition_inst.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/concatenation.hpp>
 #include <intel_gpu/primitives/pooling.hpp>
 #include <intel_gpu/primitives/condition.hpp>
@@ -18,6 +19,7 @@
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 
+#include <cmath>
 #include <cstddef>
 
 using namespace cldnn;
@@ -830,6 +832,58 @@ public:
         ASSERT_TRUE(net->get_primitive(cond_id)->get_node().as<condition>().get_branch_false().inner_program->can_be_optimized());
         ASSERT_FALSE(net->get_primitive(cond_id)->get_node().as<condition>().get_branch_true().inner_program->can_be_optimized());
     }
+
+    // A skipped (identity) body passes the condition input buffer through as the condition output. "scale" runs while
+    // the output of "cond" is still to be read by "sum", so the memory pool must not give it the buffer of "abs".
+    void test_skipped_body_keeps_input_buffer(bool is_caching_test) {
+        auto& engine = get_test_engine();
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        const layout data_layout = { data_types::f32, format::bfyx, { 1, 1, 4, 4 } };
+        const layout pred_layout = { data_types::u8, format::bfyx, { 1, 1, 1, 1 } };
+        auto input_mem = engine.allocate_memory(data_layout);
+        auto predicate_mem = engine.allocate_memory(pred_layout);
+
+        auto identity_branch = [&](const primitive_id& outer_input_id, const std::string& suffix) {
+            condition::branch branch;
+            topology body;
+            body.add(input_layout("body_input" + suffix, data_layout),
+                     reorder("body_result" + suffix, input_info("body_input" + suffix), data_layout));
+            branch.inner_program = program::build_program(engine, body, config, false, false, true);
+            branch.input_map.insert({outer_input_id, "body_input" + suffix});
+            branch.output_map.insert({0, "body_result" + suffix});
+            return branch;
+        };
+
+        topology topology;
+        topology.add(input_layout("input", data_layout));
+        topology.add(input_layout("predicate", pred_layout));
+        topology.add(activation("abs", input_info("input"), activation_func::abs));
+        topology.add(condition("cond", {input_info("predicate"), input_info("abs")}, identity_branch("abs", "_t0"), identity_branch("abs", "_f0")));
+        topology.add(activation("scale", input_info("cond"), activation_func::linear, {2.f, 0.f}));
+        topology.add(condition("cond2", {input_info("predicate"), input_info("scale")}, identity_branch("scale", "_t1"), identity_branch("scale", "_f1")));
+        topology.add(eltwise("sum", {input_info("cond"), input_info("cond2")}, eltwise_mode::sum));
+
+        network::ptr net = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+        ASSERT_TRUE(net->get_primitive("cond")->get_node().as<condition>().get_branch_false().inner_program->can_be_optimized());
+        ASSERT_FALSE(engine.is_the_same_buffer(*net->get_primitive("scale")->output_memory_ptr(), *net->get_primitive("abs")->output_memory_ptr()));
+
+        std::vector<float> input_data(data_layout.count());
+        for (size_t i = 0; i < input_data.size(); ++i) {
+            input_data[i] = static_cast<float>(i) - 8.f;
+        }
+        set_values(input_mem, input_data);
+        set_values<uint8_t>(predicate_mem, {0});
+        net->set_input_data("input", input_mem);
+        net->set_input_data("predicate", predicate_mem);
+
+        auto outputs = net->execute();
+        auto output = outputs.at("sum").get_memory();
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        for (size_t i = 0; i < input_data.size(); ++i) {
+            ASSERT_FLOAT_EQ(output_ptr[i], 3.f * std::fabs(input_data[i])) << "i=" << i;
+        }
+    }
 };
 
 TEST_F(condition_gpu_tests, basic_range_equal_comp) {
@@ -898,6 +952,14 @@ TEST_F(condition_gpu_tests, empty_body) {
 
 TEST_F(condition_gpu_tests, empty_body_cached) {
     this->test_empty_body(true);
+}
+
+TEST_F(condition_gpu_tests, skipped_body_keeps_input_buffer) {
+    this->test_skipped_body_keeps_input_buffer(false);
+}
+
+TEST_F(condition_gpu_tests, skipped_body_keeps_input_buffer_cached) {
+    this->test_skipped_body_keeps_input_buffer(true);
 }
 
 TEST(condition_gpu, empty_body_with_different_shapes) {

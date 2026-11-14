@@ -3,10 +3,13 @@
 //
 
 #include "condition_inst.h"
+#include "data_inst.h"
+#include "input_layout_inst.h"
 #include "program_node.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include "primitive_type_base.h"
+#include <algorithm>
 #include <string>
 
 namespace cldnn {
@@ -205,6 +208,44 @@ std::string condition_inst::to_string(condition_node const& node) {
     std::stringstream primitive_description;
     node_info->dump(primitive_description);
     return primitive_description.str();
+}
+
+std::vector<program_node*> condition_node::get_inputs_forwarded_to_outputs() const {
+    std::vector<program_node*> forwarded;
+    auto collect = [&](const condition::branch& branch) {
+        if (!branch.inner_program) {
+            return;
+        }
+        const auto& body = *branch.inner_program;
+        // condition_impl takes the outer input memory as the output of a skipped body instead of running it
+        const bool body_is_skipped = body.can_be_optimized();
+        for (const auto& out : branch.output_map) {
+            if (!body.has_node(out.second)) {
+                continue;
+            }
+            const program_node* node = &body.get_node(out.second);
+            while (!node->is_type<input_layout>() && !node->is_type<data>() && !node->get_dependencies().empty() &&
+                   (body_is_skipped || node->can_be_optimized() || node->is_runtime_skippable())) {
+                node = &node->get_dependency(0);
+            }
+            if (!node->is_type<input_layout>()) {
+                continue;
+            }
+            for (const auto& in : branch.input_map) {
+                if (in.second != node->id()) {
+                    continue;
+                }
+                for (const auto& dep : get_dependencies()) {
+                    if (dep.first->id() == in.first && std::find(forwarded.begin(), forwarded.end(), dep.first) == forwarded.end()) {
+                        forwarded.push_back(dep.first);
+                    }
+                }
+            }
+        }
+    };
+    collect(_branch_true);
+    collect(_branch_false);
+    return forwarded;
 }
 
 /*

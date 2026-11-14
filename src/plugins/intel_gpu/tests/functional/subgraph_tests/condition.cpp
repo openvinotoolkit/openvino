@@ -8,6 +8,7 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "common_test_utils/node_builders/reduce.hpp"
 
+#include "openvino/op/abs.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/result.hpp"
@@ -710,6 +711,77 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConditionGPUTest_static, StaticConditionSingleLay
                     testing::ValuesIn(if_cond_types),
                     testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
                 StaticConditionLayerGPUTest::getTestCaseName);
+
+/// Static shape test with identity bodies: the GPU plugin skips them and passes the If input buffer through as the If output
+using ConditionIdentityBodyParams = typename std::tuple<
+        ov::Shape,           // Shape
+        ov::element::Type>;  // Precision
+
+class ConditionIdentityBodyGPUTest : public testing::WithParamInterface<ConditionIdentityBodyParams>,
+                                     virtual public ov::test::SubgraphBaseStaticTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<ConditionIdentityBodyParams>& obj) {
+        const auto& [data_shape, model_type] = obj.param;
+        std::ostringstream result;
+        result << "IS=" << ov::test::utils::vec2str(data_shape) << "_";
+        result << "netPRC=" << model_type;
+        return result.str();
+    }
+
+protected:
+    static std::shared_ptr<ov::Node> make_identity_if(const ov::Output<ov::Node>& predicate, const ov::Output<ov::Node>& data) {
+        auto make_body = [&]() {
+            auto param = std::make_shared<ov::op::v0::Parameter>(data.get_element_type(), data.get_partial_shape());
+            auto result = std::make_shared<ov::op::v0::Result>(param);
+            return std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{param});
+        };
+        auto then_body = make_body();
+        auto else_body = make_body();
+        auto if_op = std::make_shared<ov::op::v8::If>(predicate);
+        if_op->set_then_body(then_body);
+        if_op->set_else_body(else_body);
+        if_op->set_input(data, then_body->get_parameters().front(), else_body->get_parameters().front());
+        if_op->set_output(then_body->get_results().front(), else_body->get_results().front());
+        return if_op;
+    }
+
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        const auto& [data_shape, model_type] = GetParam();
+
+        // "scale" runs after the first If, whose output is the buffer of "abs", and before "add" reads that output
+        auto data = std::make_shared<ov::op::v0::Parameter>(model_type, data_shape);
+        auto predicate = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, ov::Shape{});
+        auto abs = std::make_shared<ov::op::v0::Abs>(data);
+        auto if_abs = make_identity_if(predicate, abs);
+        auto scale = std::make_shared<ov::op::v1::Multiply>(if_abs, ov::op::v0::Constant::create(model_type, ov::Shape{}, {2.0f}));
+        auto if_scale = make_identity_if(predicate, scale);
+        auto add = std::make_shared<ov::op::v1::Add>(if_abs, if_scale);
+        function = std::make_shared<ov::Model>(ov::OutputVector{std::make_shared<ov::op::v0::Result>(add)}, ov::ParameterVector{data, predicate});
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override {
+        inputs.clear();
+        const auto& model_inputs = function->inputs();
+        for (size_t i = 0; i < model_inputs.size(); ++i) {
+            const auto& model_input = model_inputs[i];
+            const auto gen_data = model_input.get_element_type() == ov::element::boolean ? ov::test::utils::InputGenerateData(0, 0)
+                                                                                         : ov::test::utils::InputGenerateData(-8, 16);
+            inputs.insert({model_input.get_node_shared_ptr(),
+                           ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), target_input_static_shapes[i], gen_data)});
+        }
+    }
+};
+
+TEST_P(ConditionIdentityBodyGPUTest, Inference) {
+    run();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConditionGPUTest_identity_body, ConditionIdentityBodyGPUTest,
+                testing::Combine(
+                    testing::Values(ov::Shape{1, 1, 4, 4}, ov::Shape{2, 16, 8, 8}),
+                    testing::Values(ov::element::f32, ov::element::f16)),
+                ConditionIdentityBodyGPUTest::getTestCaseName);
 
 
 /// Dynamic shape test
