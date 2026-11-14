@@ -649,6 +649,54 @@ TEST(prepare_primitive_fusing, fuse_constant_transposes_accuracy_test) {
     }
 }
 
+// Regression test for https://github.com/openvinotoolkit/openvino/issues/39700:
+// a rank-3 [1, N, K] weights constant transposed by {0, 2, 1} must not be fused as a swap of its outer dims.
+TEST(prepare_primitive_fusing, fuse_constant_transposes_3d_weights_accuracy_test) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad) {
+        GTEST_SKIP() << "FC with non-transposed constant weights is only produced for oneDNN (XMX) devices";
+    }
+
+    const size_t T = 2, K = 32, N = 4;
+    auto input = engine.allocate_memory({ { 1, T, K }, data_types::f16, format::bfyx });
+    auto weights = engine.allocate_memory({ { 1, N, K }, data_types::f16, format::bfyx });
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto input_data = rg.generate_random_1d<ov::float16>(T * K, -1, 1);
+    auto weights_data = rg.generate_random_1d<ov::float16>(N * K, -1, 1);
+    set_values(input, input_data);
+    set_values(weights, weights_data);
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        data("weights", weights),
+        permute("permute", input_info("weights"), {0, 2, 1}),
+        fully_connected("fc", input_info("input"), "permute", "", data_types::f16, 3, 3, false)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    cldnn::network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    auto output = outputs.at("fc").get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+
+    ASSERT_EQ(output_ptr.size(), T * N);
+    for (size_t t = 0; t < T; ++t) {
+        for (size_t n = 0; n < N; ++n) {
+            float ref = 0.f;
+            for (size_t k = 0; k < K; ++k) {
+                ref += static_cast<float>(input_data[t * K + k]) * static_cast<float>(weights_data[n * K + k]);
+            }
+            ASSERT_NEAR(static_cast<float>(output_ptr[t * N + n]), ref, 2e-2f) << "t=" << t << " n=" << n;
+        }
+    }
+}
+
 TEST(prepare_primitive_fusing, fuse_constant_transposes_multiple_users) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad) {
