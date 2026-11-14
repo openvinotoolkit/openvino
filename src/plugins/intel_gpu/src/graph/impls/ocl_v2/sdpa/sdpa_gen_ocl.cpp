@@ -997,13 +997,15 @@ bool hpg_pa_prefill_ok(const kernel_impl_params& params, bool is_prefill, size_t
 const layout* runtime_scale_layout(const kernel_impl_params& params);  // with the scale jit below
 
 // The same kernel serves plain SDPA (the PREFILL stage, q > 1) without causality, a runtime scalar mask, a runtime scale, a
-// sink or a compressed / indirect KV cache (flux, vision encoders), at the same heads and head 72 (phi-4-multimodal's vision
-// encoder; half a depth tile and half a value block past 64, plain SDPA only), when Q, K, V and the output are rank-4 f16
-// tensors whose head dimension is innermost and unpadded: every row then starts at a multiple of the head size (a crop
-// view of a fused QKV tensor pads another axis). A tensor mask must be f16, bfyx and unpadded (the kernel reads 8 keys of
-// a row with one load and adds no padding offset, as sdpa_ocl.cl). A static scalar mask is admitted when finite: it adds the
-// same value to every score of a row, which the softmax ignores (CLIP's vision encoder has 0, e.g. in phi-3.5-vision), so the
-// kernel leaves it out. SDPA_OCL_HPG_PLAIN_PREFILL=0 turns it off for A/B.
+// sink or a compressed KV cache (flux, vision encoders, the stateful LLMs of ATTENTION_BACKEND=SDPA), at the same heads and
+// head 72 (phi-4-multimodal's vision encoder; half a depth tile and half a value block past 64, plain SDPA only), when Q, K,
+// V and the output are rank-4 f16 tensors whose head dimension is innermost and unpadded: every row then starts at a
+// multiple of the head size (a crop view of a fused QKV tensor pads another axis). A tensor mask must be f16, bfyx and
+// unpadded (the kernel reads 8 keys of a row with one load and adds no padding offset, as sdpa_ocl.cl). A static scalar mask
+// is admitted when finite: it adds the same value to every score of a row, which the softmax ignores (CLIP's vision encoder
+// has 0, e.g. in phi-3.5-vision), so the kernel leaves it out. An indirect op (a stateful LLM with beam_idx) is admitted:
+// SDPAOptImpl::execute() dispatches the sdpa_ocl PREFILL only when no beam reorder is needed (need_indirect_load()), so no
+// sdpa_ocl kernel reads the beam table, as on Xe2. SDPA_OCL_HPG_PLAIN_PREFILL=0 turns it off for A/B.
 bool hpg_plain_prefill_ok(const kernel_impl_params& params, size_t k_head_size, size_t v_head_size) {
     const bool head_ok = k_head_size == v_head_size &&
                          (k_head_size == 64 || k_head_size == 72 || k_head_size == 96 || k_head_size == 128 || k_head_size == 256 || k_head_size == 512);
@@ -1017,7 +1019,7 @@ bool hpg_plain_prefill_ok(const kernel_impl_params& params, size_t k_head_size, 
     // A sliding window too: the kernel's window code is the PA one, which assumes causality (plain SDPA applies the window
     // with IS_CAUSAL only, and with a mask the mask holds it).
     if (desc->is_causal || (desc->attn_mask_val.has_value() && !std::isfinite(*desc->attn_mask_val)) || has_scalar_runtime_attn_mask_input(params) ||
-        runtime_scale_layout(params) != nullptr || desc->has_sink_input || desc->is_kv_compressed || desc->indirect_axis != -1 || desc->sliding_window != 0) {
+        runtime_scale_layout(params) != nullptr || desc->has_sink_input || desc->is_kv_compressed || desc->sliding_window != 0) {
         return false;
     }
     if (sdpa_has_runtime_attn_mask_input(params)) {
