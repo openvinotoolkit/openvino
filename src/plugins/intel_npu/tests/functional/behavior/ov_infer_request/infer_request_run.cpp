@@ -16,7 +16,6 @@
 #include "behavior/ov_infer_request/inference.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
-#include "common/zero_init_mock.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"

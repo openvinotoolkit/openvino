@@ -14,7 +14,6 @@
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
-#include "common/zero_init_mock.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
@@ -80,17 +79,14 @@ TEST_P(ZeroWrappersTests, DontDestroyZeroCommandListWhenZeroContextIsDestroyed) 
         logs.push_back('\n');
     };
 
-    auto zero_init_mock = std::make_shared<::intel_npu::ZeroInitStructsMock>();
-
-    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> zero_init_struct =
-        std::reinterpret_pointer_cast<::intel_npu::ZeroInitStructsHolder>(zero_init_mock);
+    auto zero_init_struct = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
 
     {
         utils::LogCallbackGuard log_callback_guard(log_cb);
         utils::LoggerLevelGuard logger_level_guard(ov::log::Level::WARNING);
 
         auto command_list = std::make_shared<::intel_npu::CommandList>(zero_init_struct);
-        ::intel_npu::ZeroInitStructsMock::destroyContextForInstance(zero_init_mock);
+        ::intel_npu::ZeroInitStructsHolder::destroyContextForInstance(zero_init_struct);
 
         try {
             command_list = {};
@@ -114,10 +110,7 @@ TEST_P(ZeroWrappersTests, DontDestroyZeroCommandQueueWhenZeroContextIsDestroyed)
         logs.push_back('\n');
     };
 
-    auto zero_init_mock = std::make_shared<::intel_npu::ZeroInitStructsMock>();
-
-    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> zero_init_struct =
-        std::reinterpret_pointer_cast<::intel_npu::ZeroInitStructsHolder>(zero_init_mock);
+    auto zero_init_struct = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
 
     {
         utils::LogCallbackGuard log_callback_guard(log_cb);
@@ -125,7 +118,7 @@ TEST_P(ZeroWrappersTests, DontDestroyZeroCommandQueueWhenZeroContextIsDestroyed)
 
         auto command_queue =
             std::make_shared<::intel_npu::CommandQueue>(zero_init_struct, ::intel_npu::CommandQueueDesc{});
-        ::intel_npu::ZeroInitStructsMock::destroyContextForInstance(zero_init_mock);
+        ::intel_npu::ZeroInitStructsHolder::destroyContextForInstance(zero_init_struct);
 
         try {
             command_queue = {};
@@ -149,10 +142,7 @@ TEST_P(ZeroWrappersTests, DontDestroyZeroFenceWhenZeroContextIsDestroyed) {
         logs.push_back('\n');
     };
 
-    auto zero_init_mock = std::make_shared<::intel_npu::ZeroInitStructsMock>();
-
-    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> zero_init_struct =
-        std::reinterpret_pointer_cast<::intel_npu::ZeroInitStructsHolder>(zero_init_mock);
+    auto zero_init_struct = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
 
     {
         utils::LogCallbackGuard log_callback_guard(log_cb);
@@ -161,7 +151,7 @@ TEST_P(ZeroWrappersTests, DontDestroyZeroFenceWhenZeroContextIsDestroyed) {
         auto command_queue =
             std::make_shared<::intel_npu::CommandQueue>(zero_init_struct, ::intel_npu::CommandQueueDesc{});
         auto fence = std::make_shared<::intel_npu::Fence>(command_queue);
-        ::intel_npu::ZeroInitStructsMock::destroyContextForInstance(zero_init_mock);
+        ::intel_npu::ZeroInitStructsHolder::destroyContextForInstance(zero_init_struct);
 
         try {
             fence = {};
@@ -186,17 +176,14 @@ TEST_P(ZeroWrappersTests, DontDestroyZeroEventPoolWhenZeroContextIsDestroyed) {
         logs.push_back('\n');
     };
 
-    auto zero_init_mock = std::make_shared<::intel_npu::ZeroInitStructsMock>();
-
-    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> zero_init_struct =
-        std::reinterpret_pointer_cast<::intel_npu::ZeroInitStructsHolder>(zero_init_mock);
+    auto zero_init_struct = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
 
     {
         utils::LogCallbackGuard log_callback_guard(log_cb);
         utils::LoggerLevelGuard logger_level_guard(ov::log::Level::WARNING);
 
         auto event_pool = std::make_shared<::intel_npu::EventPool>(zero_init_struct, 1);
-        ::intel_npu::ZeroInitStructsMock::destroyContextForInstance(zero_init_mock);
+        ::intel_npu::ZeroInitStructsHolder::destroyContextForInstance(zero_init_struct);
 
         try {
             event_pool = {};
@@ -220,10 +207,7 @@ TEST_P(ZeroWrappersTests, DontDestroyZeroEventWhenZeroContextIsDestroyed) {
         logs.push_back('\n');
     };
 
-    auto zero_init_mock = std::make_shared<::intel_npu::ZeroInitStructsMock>();
-
-    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> zero_init_struct =
-        std::reinterpret_pointer_cast<::intel_npu::ZeroInitStructsHolder>(zero_init_mock);
+    auto zero_init_struct = std::make_shared<::intel_npu::ZeroInitStructsHolder>();
 
     {
         utils::LogCallbackGuard log_callback_guard(log_cb);
@@ -231,7 +215,7 @@ TEST_P(ZeroWrappersTests, DontDestroyZeroEventWhenZeroContextIsDestroyed) {
 
         auto event_pool = std::make_shared<::intel_npu::EventPool>(zero_init_struct, 1);
         auto event = std::make_shared<::intel_npu::Event>(event_pool, 0);
-        ::intel_npu::ZeroInitStructsMock::destroyContextForInstance(zero_init_mock);
+        ::intel_npu::ZeroInitStructsHolder::destroyContextForInstance(zero_init_struct);
 
         try {
             event = {};
