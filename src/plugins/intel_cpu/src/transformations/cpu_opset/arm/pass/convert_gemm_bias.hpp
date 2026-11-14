@@ -61,10 +61,22 @@ inline ov::matcher_pass_callback make_int8_bias_reorder_callback(
         if (activation_out) {
             return false;
         }
-        // ACL int8 requantization requires the activation and FakeQuantize output types to match.
-        if (fakeQuantize->get_output_element_type(0) != gemm->get_input_element_type(0)) {
+
+        // Subtract could be optional
+        auto subtract_out = block->get_anchor("u8_subtract", pattern_map);
+        if (!subtract_out) {
+            subtract_out = block->get_anchor("i8_subtract", pattern_map);
+        }
+        // zero point is fused only into 4D convs due to ACL limit (see FuseConvolutionAndZeroPoints)
+        if (subtract_out && gemm->get_input_partial_shape(0).rank() != 4) {
             return false;
         }
+        const auto& activation_type =
+            subtract_out ? subtract_out->get_node()->get_input_element_type(0) : gemm->get_input_element_type(0);
+        if (fakeQuantize->get_output_element_type(0) != activation_type) {
+            return false;
+        }
+
         auto new_mul = ov::as_type_ptr<ov::opset1::Multiply>(
             ov::pass::low_precision::NetworkHelper::swapMultiplyAndAdd(ov::as_type_ptr<ov::opset1::Add>(add), 0));
         if (!new_mul) {
@@ -102,8 +114,9 @@ inline ov::matcher_pass_callback make_int8_bias_reorder_callback(
 template <class GemmBlock>
 class ConvertGemmBias : public ov::pass::MatcherPass {
 protected:
-    explicit ConvertGemmBias(const char* pass_name) {
-        auto block = std::make_shared<GemmBlock>(true);
+    template <class... BlockArgs>
+    explicit ConvertGemmBias(const char* pass_name, BlockArgs... block_args) {
+        auto block = std::make_shared<GemmBlock>(true, block_args...);
         register_matcher(std::make_shared<ov::pass::pattern::Matcher>(block, pass_name),
                          make_int8_bias_reorder_callback(block));
     }

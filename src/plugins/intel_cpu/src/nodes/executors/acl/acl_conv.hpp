@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 #include "acl_common_executor.hpp"
 #include "nodes/executors/convolution_config.hpp"
 
@@ -29,6 +31,7 @@ private:
     std::vector<float> fqOutputScale;
     std::vector<float> fqInputShift;
     std::vector<float> fqOutputShift;
+    int32_t srcZeroPoint = 0;
     std::vector<float> weightScale;
 };
 
