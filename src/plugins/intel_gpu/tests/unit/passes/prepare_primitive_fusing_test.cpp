@@ -563,6 +563,60 @@ TEST(prepare_primitive_fusing, eltwise_fusing_residual_connection) {
     ASSERT_TRUE(conv_inst->has_unfused_subgraph());
 }
 
+TEST(prepare_primitive_fusing, unfused_subgraph_waits_for_deps_in_oooq) {
+    // act -> conv(+eltw fused). When the fusion becomes invalid at runtime, conv is executed as an unfused subgraph
+    // which must still receive the dependency events of its producers in out-of-order queue.
+    auto& engine = get_test_engine();
+    if (engine.get_device_info().supports_immad)
+        return;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    topology topology;
+    auto conv_in_layout = layout{ ov::PartialShape{1, 3, -1, -1}, data_types::f16, format::bfyx};
+    auto weight_layout = layout{ ov::PartialShape{10, 3, 3, 3}, data_types::f16, format::bfyx};
+    auto weight_mem = engine.allocate_memory(weight_layout);
+    auto weight_data = rg.generate_random_4d<ov::float16>(10, 3, 3, 3, -1, 1);
+    set_values(weight_mem, weight_data);
+    auto elt_in_layout = layout{ ov::PartialShape{1, 10, -1, -1}, data_types::f16, format::bfyx};
+
+    topology.add(data("weights", weight_mem));
+    topology.add(input_layout("conv_input", conv_in_layout));
+    topology.add(input_layout("elt_input", elt_in_layout));
+    topology.add(activation("act", input_info("conv_input"), activation_func::relu));
+    topology.add(convolution("conv", input_info("act"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(eltwise("eltw", { input_info("conv"), input_info("elt_input") }, eltwise_mode::prod));
+    topology.add(reorder("reorder", input_info("eltw"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
+    ASSERT_NE(prog, nullptr);
+    ASSERT_FALSE(has_node_with_type<eltwise>(*prog));
+
+    cldnn::network net(prog, 0);
+
+    // conv output is 1x10x1x1 while eltwise input is 1x10x5x5 => invalid fusion
+    auto conv_input_data = rg.generate_random_4d<ov::float16>(1, 3, 3, 3, -1, 1);
+    auto conv_input_mem = engine.allocate_memory(layout{ov::PartialShape{1, 3, 3, 3}, data_types::f16, format::bfyx});
+    set_values(conv_input_mem, conv_input_data);
+
+    auto elt_input_data = rg.generate_random_4d<ov::float16>(1, 10, 5, 5, -10, 10);
+    auto elt_input_mem = engine.allocate_memory(layout{ov::PartialShape{1, 10, 5, 5}, data_types::f16, format::bfyx});
+    set_values(elt_input_mem, elt_input_data);
+
+    net.set_input_data("conv_input", conv_input_mem);
+    net.set_input_data("elt_input", elt_input_mem);
+    net.execute();
+
+    const auto& conv_inst = net.get_primitive("conv");
+    ASSERT_TRUE(conv_inst->has_unfused_subgraph());
+    ASSERT_FALSE(conv_inst->get_impl_params()->dep_events.empty());
+}
+
 TEST(prepare_primitive_fusing, fuse_constant_transposes_removal_check) {
     auto& engine = get_test_engine();
 
