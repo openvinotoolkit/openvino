@@ -440,21 +440,52 @@ static size_t get_group_size(const MOECompressed::Config& config, size_t k) {
     return config.group_size == std::numeric_limits<size_t>::max() ? k : config.group_size;
 }
 
-// Validate GEMV kernel compatibility: ELEMS_PER_LANE = FAKE_GROUP_SIZE / SUBGROUP_SIZE must be >= 2.
-// Smaller values have no kernel branch and would silently produce wrong results.
-static void check_gemv_group_size(const RuntimeParams& params) {
+// Validate the shape for the batched GEMV kernels (moe_3gemm_swiglu_mlp.cl). The constraints come from the kernels,
+// and they also keep the dispatch uniform (no non-uniform work-group).
+static void check_gemv_shape(const RuntimeParams& params) {
     const auto& config = params.typed_desc<moe_3gemm_fused_compressed>()->_config;
-    const auto gate_up_group_size = get_group_size(config, config.hidden_size);
+    const size_t hidden_size = config.hidden_size;
+    const size_t inter_size = config.inter_size;
+    const size_t gate_up_group_size = get_group_size(config, hidden_size);
+    const size_t down_group_size = get_group_size(config, inter_size);
     const size_t sg = (params.get_device_info().arch >= gpu_arch::xe2) ? 32u : 16u;
-    const size_t fake_gs = std::min(gate_up_group_size, size_t{128});
-    OPENVINO_ASSERT(fake_gs >= 2 * sg,
-                    "MoE GEMV kernel does not support group_size=",
+    const size_t fake_gs = std::min({gate_up_group_size, down_group_size, size_t{128}});
+
+    // The kernels have block-read branches for ELEMS_PER_LANE 2, 4 and 8 only.
+    OPENVINO_ASSERT(fake_gs % sg == 0 && one_of(fake_gs / sg, {size_t{2}, size_t{4}, size_t{8}}),
+                    "MoE GEMV kernel does not support gate_up_group_size=",
                     gate_up_group_size,
+                    ", down_group_size=",
+                    down_group_size,
                     " on this hardware (SUBGROUP_SIZE=",
                     sg,
-                    "). Minimum supported group_size is ",
-                    2 * sg,
-                    ". Use a larger quantization group size.");
+                    "): min(group sizes, 128)=",
+                    fake_gs,
+                    " must be 2, 4 or 8 times SUBGROUP_SIZE.");
+    // A chunk must not cross a quantization group, and K must be a whole number of chunks.
+    OPENVINO_ASSERT(gate_up_group_size % fake_gs == 0 && down_group_size % fake_gs == 0 && hidden_size % fake_gs == 0 && inter_size % fake_gs == 0,
+                    "MoE GEMV kernel does not support hidden_size=",
+                    hidden_size,
+                    ", inter_size=",
+                    inter_size,
+                    ", gate_up_group_size=",
+                    gate_up_group_size,
+                    ", down_group_size=",
+                    down_group_size,
+                    ": all of them must be multiples of ",
+                    fake_gs,
+                    ".");
+    // Implied by the checks above (fake_gs >= 2 * SUBGROUP_SIZE >= 32). The batched GEMV dispatch
+    // {.., SG, N / N_BLOCK} / {1, SG, SUBGROUP_NUM} is uniform only for N a multiple of N_BLOCK * SUBGROUP_NUM.
+    constexpr size_t n_align = N_BLOCK * SUBGROUP_NUM;
+    OPENVINO_ASSERT(hidden_size % n_align == 0 && inter_size % n_align == 0,
+                    "MoE GEMV kernel requires hidden_size=",
+                    hidden_size,
+                    " and inter_size=",
+                    inter_size,
+                    " to be multiples of ",
+                    n_align,
+                    ".");
 }
 
 static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
@@ -513,7 +544,6 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
-        check_gemv_group_size(params);
         add_common_consts(params, jit);
         jit.make("GATE_UP_ENABLE", 1);
         if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_TANH) {
@@ -553,7 +583,6 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
-        check_gemv_group_size(params);
         add_common_consts(params, jit);
         jit.make("DOWN_ENABLE", 1);
         if (!_disable_shared_experts && desc->_config.num_shared_expert > 0 &&
@@ -1157,6 +1186,8 @@ public:
         add_stage(scatter, params);
         // The batched GEMV kernels have no code path for this weight type, so they are not built
         if (decode_impl == MoeGemmImpl::batched_gemv) {
+            // Checked here: add_stage() swallows exceptions from kernel generation and drops the stage.
+            check_gemv_shape(params);
             add_stage(mlp_gate_up, params);
             add_stage(mlp_down, params);
             add_stage(mlp_reduce, params);
