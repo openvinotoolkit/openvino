@@ -72,7 +72,7 @@ Follow these guidelines for consistent results:
 Use the following formatting for different links:
 
 * link to an external page / file
-  * `` `text <url> `__ ``
+  * `` `text <url>`__ ``
   * use a double underscore for consistency
 
 * link to an internal documentation page / file
@@ -80,7 +80,7 @@ Use the following formatting for different links:
   * Link to an rst or md file within our documentation, so that it renders properly in html
 
 * link to a header on the same page
-  * `` 'a header in the same article <this-is-section-header-title>`__ ``
+  * `` `a header in the same article <#this-is-section-header-title>`__ ``
   * anchors are created automatically for all existing headers
   * such anchor looks like the header, with minor adjustments:
     * all letters are lower case,
@@ -88,12 +88,12 @@ Use the following formatting for different links:
     * replace spaces with hyphens 
 
 * Create an anchor in an article
-   * `` .. _anchor-in-the target-article:: ``
+   * `` .. _anchor-in-the-target-article: ``
    * put it before the header to which you want to link
    * See the rules for naming anchors / labels at the bottom of this article
    
 * link to an anchor on a different page in our documentation
-   * `` :ref:`the created anchor <anchor-in-the target-article>` ``
+   * `` :ref:`the created anchor <anchor-in-the-target-article>` ``
    * link to the anchor using just its name
 
 
