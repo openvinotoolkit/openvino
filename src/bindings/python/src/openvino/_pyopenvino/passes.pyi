@@ -7,7 +7,7 @@ import typing
 """
 Package openvino.passes wraps ov::passes
 """
-__all__: list[str] = ['AnyInput', 'BackwardGraphRewrite', 'ConstantFolding', 'ConvertFP32ToFP16', 'GraphRewrite', 'LowLatency2', 'MakeStateful', 'Manager', 'Matcher', 'MatcherPass', 'ModelPass', 'Optional', 'Or', 'PassBase', 'PatternSymbolValue', 'Predicate', 'Serialize', 'Version', 'VisualizeTree', 'WrapType', 'attrs_match', 'consumers_count', 'has_static_dim', 'has_static_dims', 'has_static_rank', 'has_static_shape', 'rank_equals', 'rank_more_than', 'shape_matches', 'type_matches', 'type_matches_any']
+__all__: list[str] = ['AnyInput', 'BackwardGraphRewrite', 'ConstantFolding', 'ConvertFP32ToFP16', 'GraphRewrite', 'LowLatency2', 'MakeStateful', 'MakeStateless', 'Manager', 'Matcher', 'MatcherPass', 'ModelPass', 'Optional', 'Or', 'PassBase', 'PatternSymbolValue', 'Predicate', 'Serialize', 'Version', 'VisualizeTree', 'WrapType', 'attrs_match', 'consumers_count', 'has_static_dim', 'has_static_dims', 'has_static_rank', 'has_static_shape', 'rank_equals', 'rank_more_than', 'shape_matches', 'type_matches', 'type_matches_any']
 class AnyInput(openvino._pyopenvino.Node):
     """
     openvino.passes.AnyInput wraps ov::pass::pattern::op::Label
@@ -135,6 +135,27 @@ class MakeStateful(ModelPass, PassBase):
         
                 :param pairs_to_replace: a dictionary of names of the provided Parameter and Result operations.
                 :type pairs_to_replace: dict[str, str]
+        """
+    def __repr__(self) -> str:
+        ...
+class MakeStateless(ModelPass, PassBase):
+    """
+    openvino.passes.MakeStateless transformation
+    """
+    @typing.overload
+    def __init__(self) -> None:
+        """
+         The transformation replaces the state operations ReadValue and Assign with Parameter and Result operations, making the model stateless.
+        
+         The inverse of the MakeStateful transformation: every ReadValue operation of a variable is replaced by a Parameter (named after the variable id), the input value of the corresponding Assign operation is exposed as a Result, and the variable together with its Assign sink is removed from the model. After the transformation the model has no variables, and its shapes can be changed with the regular Model.reshape.
+        """
+    @typing.overload
+    def __init__(self, variable_ids: set[str]) -> None:
+        """
+         The transformation replaces the state operations ReadValue and Assign of the given variables with Parameter and Result operations, making the model stateless.
+        
+                :param variable_ids: identifiers of the variables to convert.
+                :type variable_ids: set[str]
         """
     def __repr__(self) -> str:
         ...
