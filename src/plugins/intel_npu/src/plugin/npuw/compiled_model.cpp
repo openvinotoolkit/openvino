@@ -2413,6 +2413,10 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
             }
 
             hfa->set_compiled_tile_model(make_wrapped(hfa->_tile_model_to_compile, "/hfa_tile", devices));
+            if (hfa->_masked_tile_model_to_compile) {
+                hfa->set_compiled_masked_tile_model(
+                    make_wrapped(hfa->_masked_tile_model_to_compile, "/hfa_masked_tile", devices));
+            }
             hfa->set_compiled_final_tile_model(desc.compiled_model);
             LOG_INFO("Host flash attention compilation complete for Subgraph[" << id << "]");
 

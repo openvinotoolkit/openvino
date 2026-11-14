@@ -87,6 +87,7 @@ namespace function {
 struct HostFlashAttention {
     // Tiled model for flash attention execution (regular tiles)
     std::shared_ptr<ov::Model> _tile_model;
+    std::shared_ptr<ov::Model> _masked_tile_model;
 
     // Final tiled model for flash attention execution (with division and transpose)
     std::shared_ptr<ov::Model> _final_tile_model;
@@ -215,10 +216,12 @@ struct HostFlashAttention {
 
     // Models to compile (will be cleared after compilation)
     std::shared_ptr<ov::Model> _tile_model_to_compile;
+    std::shared_ptr<ov::Model> _masked_tile_model_to_compile;
     std::shared_ptr<ov::Model> _final_tile_model_to_compile;
 
     // Compiled tile model for NPU execution (regular tiles)
     ov::SoPtr<ov::ICompiledModel> _compiled_tile_model;
+    ov::SoPtr<ov::ICompiledModel> _compiled_masked_tile_model;
 
     // Compiled FINAL tile model for NPU execution (with division and transpose)
     ov::SoPtr<ov::ICompiledModel> _compiled_final_tile_model;
@@ -243,6 +246,11 @@ struct HostFlashAttention {
     void set_compiled_tile_model(ov::SoPtr<ov::ICompiledModel> compiled_model) {
         _compiled_tile_model = std::move(compiled_model);
         _tile_model_to_compile.reset();  // Free memory after compilation
+    }
+
+    void set_compiled_masked_tile_model(ov::SoPtr<ov::ICompiledModel> compiled_model) {
+        _compiled_masked_tile_model = std::move(compiled_model);
+        _masked_tile_model_to_compile.reset();
     }
 
     // Set the compiled FINAL tile model and clear the model to compile
@@ -311,6 +319,7 @@ struct HFARuntimeContext {
     /// Pre-allocated buffer for mask extraction on cache miss (FINAL tile only, at most one
     /// FINAL tile call per run() so a single buffer suffices).
     ov::SoPtr<ov::ITensor> m_final_mask_tile_buffer;
+    ov::SoPtr<ov::ITensor> m_masked_mask_tile_buffer;
 
     // ============================================================================
     // State Double-Buffering Optimization
@@ -334,6 +343,7 @@ struct HFARuntimeContext {
     void initialize_mask_cache(const HFADesc& hfa_desc, const std::string& device_name, AllocatorFn allocator) {
         m_mask_tile_buffers.clear();
         m_final_mask_tile_buffer = {};
+        m_masked_mask_tile_buffer = {};
 
         // _tile_input_indices.mask is built from final_tile_model only (see
         // build_tile_param_mapping), but create_hfa_tile_model always places the first 6 params
@@ -352,6 +362,10 @@ struct HFARuntimeContext {
         // Regular tile model may omit the mask input entirely when mask-skipping is enabled.
         const auto& regular_inputs = hfa_desc._compiled_tile_model->inputs();
         if (mask_input_idx >= regular_inputs.size()) {
+            if (hfa_desc._compiled_masked_tile_model) {
+                const auto& mask_port = hfa_desc._compiled_masked_tile_model->inputs()[mask_input_idx];
+                m_masked_mask_tile_buffer = allocator(mask_port.get_element_type(), mask_port.get_shape(), device_name);
+            }
             return;
         }
 
@@ -398,6 +412,13 @@ struct HFARuntimeContext {
             throw std::runtime_error("HFA: final tile mask buffer not initialized");
         }
         return m_final_mask_tile_buffer;
+    }
+
+    ov::SoPtr<ov::ITensor> get_masked_mask_tile_buffer() const {
+        if (!m_masked_mask_tile_buffer) {
+            throw std::runtime_error("HFA: masked tile mask buffer not initialized");
+        }
+        return m_masked_mask_tile_buffer;
     }
 
     /// Number of temporary mask tile buffers
@@ -493,18 +514,25 @@ public:
     virtual void prepare(int64_t past_len) = 0;
     virtual int64_t context_length() const = 0;
 
+    int64_t history_length() const {
+        return _history_length;
+    }
+
     Case this_case() const {
         return _case;
     }
 
 protected:
     Case _case = Case::UNKNOWN;
+    int64_t _history_length = 0;
 };
 
 // Selector that processes all tiles unconditionally (no dynamic range optimization)
 class All final : public Selector {
 public:
-    void prepare(int64_t past_len) override {}
+    void prepare(int64_t past_len) override {
+        _history_length = past_len;
+    }
 
     int64_t context_length() const override {
         OPENVINO_NOT_IMPLEMENTED;
@@ -515,7 +543,6 @@ public:
 class PositionIDs final : public Selector {
     std::size_t _position_ids_idx = 0u;
     int64_t _current_length = 0;
-    int64_t _past_length = 0;
     std::size_t _original_query_length = 0u;  // original query length before PropagateSliceUp
 
     std::reference_wrapper<const ov::ISyncInferRequest> _rq;
@@ -532,7 +559,6 @@ public:
 // "position_ids" input, driven by a host that reports the number of tokens already in the KV cache
 // through the npuw_history_size variable state (e.g. LiteRT). Prefill only, like HFA itself.
 class HistorySize final : public Selector {
-    int64_t _past_length = 0;
     std::size_t _original_query_length = 0u;  // original query length before PropagateSliceUp
 
 public:
