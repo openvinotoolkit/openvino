@@ -310,12 +310,12 @@ static void adjustInputSize(VectorDims& inputShape,
         size_t signalSize = signalSizes[i];
         if (signalSize <= inputSize) {
             inputShape[axis] = signalSize;
-        } else {
-            OPENVINO_ASSERT(isInverse, "Signal size greater than input size is not supported yet");
+        } else if (!isInverse) {
+            OPENVINO_ASSERT(false, "Signal size greater than input size is not supported yet");
         }
     }
     if (isInverse) {
-        inputShape[axes.back()] = signalSizes.back() / 2 + 1;
+        inputShape[axes.back()] = std::min<size_t>(inputShape[axes.back()], signalSizes.back() / 2 + 1);
     }
 }
 
@@ -465,6 +465,21 @@ static void fftCopyInverseInputData(float* dst,
                                     size_t signalSize,
                                     bool parallelize,
                                     const CpuParallelPtr& cpuParallel) {
+    const size_t hermitianInputSize = signalSize / 2 + 1;
+
+    // Missing Hermitian bins must be treated as zero, while the mirrored conjugate bins must
+    // still be reconstructed to satisfy the full-spectrum inverse transform.
+    if (inputSize < hermitianInputSize) {
+        std::fill_n(dst, 2 * signalSize, 0.0F);
+        cpu_memcpy(dst, src, inputSize * complex_type_size<float>());
+        for (size_t i = 1; i < inputSize; ++i) {
+            const size_t mirroredIndex = signalSize - i;
+            dst[2 * mirroredIndex] = dst[2 * i];
+            dst[2 * mirroredIndex + 1] = -dst[2 * i + 1];
+        }
+        return;
+    }
+
     if (!parallelize) {
         cpu_memcpy(dst, src, inputSize * complex_type_size<float>());
         src = src + 2 * inputSize - 4;
@@ -963,6 +978,16 @@ struct RDFTJitExecutor : public RDFTExecutor {
              enum dft_type type,
              bool parallelize,
              [[maybe_unused]] const CpuParallelPtr& cpuParallel) override {
+        std::vector<float> paddedInput;
+        if (type == complex_to_real && inputSize < signalSize / 2 + 1) {
+            // The JIT mirrors bins from the end of the Hermitian half-spectrum.
+            // Pad missing bins so its reverse traversal stays within the input.
+            paddedInput.resize(2 * (signalSize / 2 + 1), 0.0F);
+            std::copy_n(inputPtr, 2 * inputSize, paddedInput.data());
+            inputPtr = paddedInput.data();
+            inputSize = signalSize / 2 + 1;
+        }
+
         jit_dft_kernel* kernel = type == complex_to_complex ? dftKernel.get() : rdftKernel.get();
         if (parallelize) {
             const int cachelineSize = 64;
@@ -1041,7 +1066,7 @@ private:
         }
     }
 
-    void dftComplexToComplex(float* inputPtr,
+    void dftComplexToComplex(const float* inputPtr,
                              const float* twiddlesPtr,
                              float* outputPtr,
                              size_t inputSize,
@@ -1061,14 +1086,16 @@ private:
                 imag += inputImag * cos + inputReal * sin;
             }
             if (isInverse) {
-                float* inp = inputPtr + 2 * (inputSize - 2 + outputSize % 2);
-                for (size_t n = inputSize; n < signalSize; n++, inp -= 2) {
-                    float cos = twiddlesPtr[2 * (k * outputSize + n)];
-                    float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
-                    float inputReal = inp[0];
-                    float inputImag = -inp[1];
-                    real += inputReal * cos - inputImag * sin;
-                    imag += inputImag * cos + inputReal * sin;
+                for (size_t n = inputSize; n < signalSize; n++) {
+                    const size_t mirror = signalSize - n;
+                    if (mirror < inputSize) {
+                        float cos = twiddlesPtr[2 * (k * outputSize + n)];
+                        float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
+                        float inputReal = inputPtr[2 * mirror];
+                        float inputImag = -inputPtr[2 * mirror + 1];
+                        real += inputReal * cos - inputImag * sin;
+                        imag += inputImag * cos + inputReal * sin;
+                    }
                 }
                 real /= outputSize;
                 imag /= outputSize;
@@ -1085,7 +1112,7 @@ private:
         }
     }
 
-    void dftComplexToReal(float* inputPtr,
+    void dftComplexToReal(const float* inputPtr,
                           const float* twiddlesPtr,
                           float* outputPtr,
                           size_t inputSize,
@@ -1103,13 +1130,15 @@ private:
                 real += inputReal * cos - inputImag * sin;
             }
             if (isInverse) {
-                float* inp = inputPtr + 2 * (inputSize - 2 + outputSize % 2);
-                for (size_t n = inputSize; n < signalSize; n++, inp -= 2) {
-                    float cos = twiddlesPtr[2 * (k * outputSize + n)];
-                    float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
-                    float inputReal = inp[0];
-                    float inputImag = inp[1];
-                    real += inputReal * cos + inputImag * sin;
+                for (size_t n = inputSize; n < signalSize; n++) {
+                    const size_t mirror = signalSize - n;
+                    if (mirror < inputSize) {
+                        float cos = twiddlesPtr[2 * (k * outputSize + n)];
+                        float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
+                        float inputReal = inputPtr[2 * mirror];
+                        float inputImag = inputPtr[2 * mirror + 1];
+                        real += inputReal * cos + inputImag * sin;
+                    }
                 }
                 real /= outputSize;
             }
