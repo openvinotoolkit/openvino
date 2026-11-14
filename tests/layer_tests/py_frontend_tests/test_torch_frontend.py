@@ -3558,3 +3558,23 @@ def test_compressed_tensors_missing_format_still_converts():
         assert four_bit_consts, "Expected a packed 4-bit weight constant when format is None"
     finally:
         _restore_ct_modules(prior)
+
+
+class ModelWithOptionalInputs(torch.nn.Module):
+    def forward(self, x, y=None, z=None):
+        out = x * 10 + z
+        if y is not None:
+            out = out + y * 1000
+        return out
+
+
+def test_none_in_middle_of_tuple_example_keeps_input_names():
+    from openvino import convert_model, compile_model
+
+    x = torch.ones(2)
+    z = torch.full((2,), 5.0)
+    ov_model = convert_model(ModelWithOptionalInputs(), example_input=(x, None, z))
+
+    assert [i.get_names() for i in ov_model.inputs] == [{"x"}, {"z"}]
+    res = compile_model(ov_model, "CPU")({"z": z.numpy(), "x": x.numpy()})[0]
+    assert np.array_equal(res, ModelWithOptionalInputs()(x, None, z).numpy())
