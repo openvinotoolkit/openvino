@@ -198,13 +198,28 @@ void ov::npuw::util::pad_position_ids(const ov::SoPtr<ov::ITensor>& padded_posit
     auto padded_shape = padded_position_ids->get_shape();
     auto position_shape = position_ids->get_shape();
 
-    OPENVINO_ASSERT(position_shape.size() <= 3);
+    OPENVINO_ASSERT(
+        (position_shape.size() == 2 || position_shape.size() == 3) && padded_shape.size() == position_shape.size(),
+        "Position ids source and destination must have the same rank (2 or 3), got source rank ",
+        position_shape.size(),
+        " and destination rank ",
+        padded_shape.size(),
+        ".");
 
     size_t diff_dim = position_shape.size() - 1;
     for (size_t i = 0; i < diff_dim; ++i) {
         OPENVINO_ASSERT(padded_shape[i] == position_shape[i]);
     }
 
+    // The sequence axis is intentionally left out of the import-time validation (it legitimately
+    // varies with the actual prompt), so nothing bounds it before this call - a source longer than
+    // the destination would underflow the subtraction below into a huge offset.
+    OPENVINO_ASSERT(position_shape[diff_dim] <= padded_shape[diff_dim],
+                    "Position ids sequence length (",
+                    position_shape[diff_dim],
+                    ") exceeds the destination's capacity (",
+                    padded_shape[diff_dim],
+                    ").");
     size_t keep_elements = padded_shape[diff_dim] - position_shape[diff_dim];
 
     size_t batch_size = 1;

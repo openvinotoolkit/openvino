@@ -1607,6 +1607,15 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
     m_llm_profile["1/prefill:3a.prepare"].record([&]() {
         // NB: padded_input can be either fp32(VLM) or i64(LLM)
         auto padded_input = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
+        // The top-level batch dimension is legitimately dynamic, so import-time validation
+        // cannot bound it - check the actual runtime byte count against the destination's
+        // capacity directly, or an oversized input_ids writes starting before padded_input.
+        OPENVINO_ASSERT(input_ids->get_byte_size() <= padded_input->get_byte_size(),
+                        "Input ids (",
+                        input_ids->get_byte_size(),
+                        " bytes) do not fit the compiled prefill port's capacity (",
+                        padded_input->get_byte_size(),
+                        " bytes).");
         std::copy_n(reinterpret_cast<uint8_t*>(input_ids->data()),
                     input_ids->get_byte_size(),
                     reinterpret_cast<uint8_t*>(padded_input->data()) + padded_input->get_byte_size() -
@@ -1618,6 +1627,15 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
                                                       padded_attention_mask,
                                                       input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM]);
         } else {
+            // The top-level sequence length is legitimately dynamic (callers submit prompts of
+            // varying length), so import-time validation cannot bound it. Check the actual copy
+            // count before computing the right-aligned destination offset.
+            OPENVINO_ASSERT(attention_mask->get_size() <= padded_attention_mask->get_size(),
+                            "Input attention mask (",
+                            attention_mask->get_size(),
+                            " elements) is longer than the configured prefill capacity (",
+                            padded_attention_mask->get_size(),
+                            ").");
             std::copy_n(attention_mask->data<int64_t>(),
                         attention_mask->get_size(),
                         padded_attention_mask->data<int64_t>() + padded_attention_mask->get_size() -
@@ -1628,6 +1646,12 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
             auto padded_token_type_ids =
                 m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::token_type_ids));
 
+            OPENVINO_ASSERT(token_type_ids->get_byte_size() <= padded_token_type_ids->get_byte_size(),
+                            "Input token_type_ids (",
+                            token_type_ids->get_byte_size(),
+                            " bytes) do not fit the compiled prefill port's capacity (",
+                            padded_token_type_ids->get_byte_size(),
+                            " bytes).");
             std::fill_n(reinterpret_cast<uint8_t*>(padded_token_type_ids->data()), token_type_ids->get_byte_size(), 0);
             util::copy_to_right(token_type_ids, padded_token_type_ids);
         }
@@ -1719,6 +1743,23 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                        kvcache_desc.max_prompt_size,
                        ".\nPlease either setup bigger "
                        "\"NPUW_LLM_MAX_PROMPT_LEN\" or shorten the prompt.");
+    }
+
+    OPENVINO_ASSERT(attention_mask->get_size() >= prompt_length,
+                    "Input attention mask (",
+                    attention_mask->get_size(),
+                    " elements) does not cover the input prompt (",
+                    prompt_length,
+                    " tokens).");
+    if (token_type_ids) {
+        const uint64_t required_tokens =
+            static_cast<uint64_t>(m_continued_prefill_base) + static_cast<uint64_t>(prompt_length);
+        OPENVINO_ASSERT(token_type_ids->get_size() >= required_tokens,
+                        "Input token_type_ids (",
+                        token_type_ids->get_size(),
+                        " elements) do not cover the input prompt through token ",
+                        required_tokens,
+                        ".");
     }
 
     m_llm_profile["1/prefill:1.prepare_for_new_conversation"].record([&]() {
@@ -1956,6 +1997,15 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         // FIXME: these tensors should be shared between the parent & child models
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
         auto kv_input_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name));
+        // Same reasoning as infer_whole_prefill(): the batch dimension is never checked above
+        // (input_tokens_len only bounds the sequence axis), so an oversized input_ids would
+        // write starting before kv_input_ids's allocation.
+        OPENVINO_ASSERT(input_ids->get_byte_size() <= kv_input_ids->get_byte_size(),
+                        "Input ids (",
+                        input_ids->get_byte_size(),
+                        " bytes) do not fit the compiled generate port's capacity (",
+                        kv_input_ids->get_byte_size(),
+                        " bytes).");
         // NOTE: As `input_tokens_len` can be less than the value of `max_generation_token_len`, which
         //       input layers of generation model are resized to, then we need to put
         //       `input_tokens_len` prompt to the right of `max_generation_token_len`-sized tensors.
@@ -1977,6 +2027,19 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                                                        input_tokens_len,
                                                        kvcache_desc.max_generation_token_len);
         } else {
+            // Validate the binary [past, current] mask before deriving offsets or copy sizes.
+            OPENVINO_ASSERT(attention_mask->get_size() >= input_tokens_len,
+                            "Input attention mask (",
+                            attention_mask->get_size(),
+                            " elements) is shorter than the input token count (",
+                            input_tokens_len,
+                            ").");
+            OPENVINO_ASSERT(attention_mask->get_size() - input_tokens_len <= kv_attn_mask->get_size(),
+                            "Input attention mask history (",
+                            attention_mask->get_size() - input_tokens_len,
+                            " elements) exceeds the generate variant's capacity (",
+                            kv_attn_mask->get_size(),
+                            ").");
             stage_binary_attention_mask_for_generate(attention_mask,
                                                      kv_attn_mask,
                                                      kvcache_desc.num_stored_tokens,
@@ -2120,6 +2183,7 @@ void ov::npuw::LLMInferRequest::infer() {
         OPENVINO_ASSERT(ov::element::i64 == attention_mask->get_element_type());
     }
     OPENVINO_ASSERT(ov::element::i64 == position_ids->get_element_type());
+    OPENVINO_ASSERT(position_ids->get_size() > 0, "Position ids must contain at least one element.");
 
     // Eagle3: Store Eagle3 specific inputs with pre-validation
     if (m_eagle3_ext.is_eagle3_model()) {
