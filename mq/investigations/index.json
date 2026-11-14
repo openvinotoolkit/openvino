@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 447,
+  "total": 448,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -4898,6 +4898,17 @@
       "category": "Infrastructure",
       "signature_hash": "f9292bee76d60b31",
       "pr_number": "39824"
+    },
+    {
+      "investigation_id": "2026-11-14-06-02-41-000-43486543496",
+      "run_id": "43486543496",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43486543496",
+      "workflow_name": "GPU unit tests",
+      "timestamp": "2026-11-14T06:02:41Z",
+      "title": "fusings_gpu pooling_f32_scale fp16_scale_out fails GPU unit test tolerance check",
+      "category": "Flaky Test",
+      "signature_hash": "7b64fedfacbfda60",
+      "pr_number": "39548"
     }
   ]
 }
