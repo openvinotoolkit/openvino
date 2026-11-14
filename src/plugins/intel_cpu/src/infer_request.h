@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <memory>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "compiled_model.h"
@@ -132,6 +133,12 @@ private:
     std::unordered_map<std::size_t, ov::Output<const ov::Node>> m_input_ports_map;
     std::unordered_map<std::size_t, ov::Output<const ov::Node>> m_output_ports_map;
     std::unordered_map<std::size_t, ov::SoPtr<ov::ITensor>> m_outputs;
+    // Outputs that directly return a model input share the tensor descriptor with that input:
+    // m_outputs_sharing_input_desc: indices of all such outputs
+    // m_bound_outputs_sharing_input_desc: indices of such outputs whose tensor is set by the user, they must not share
+    //                                     the input tensor; the others keep sharing the input tensor
+    std::unordered_set<std::size_t> m_outputs_sharing_input_desc;
+    std::unordered_set<std::size_t> m_bound_outputs_sharing_input_desc;
 };
 
 }  // namespace ov::intel_cpu

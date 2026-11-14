@@ -4,6 +4,7 @@
 
 #include "infer_request.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstring>
 #include <exception>
@@ -60,6 +61,12 @@ SyncInferRequest::SyncInferRequest(CompiledModelHolder compiled_model)
     const auto& outputs = get_outputs();
     for (std::size_t output_index = 0; output_index < outputs.size(); output_index++) {
         m_output_ports_map[output_index] = outputs[output_index];
+        const auto& output_desc = outputs[output_index].get_tensor_ptr();
+        if (std::any_of(inputs.begin(), inputs.end(), [&output_desc](const ov::Output<const ov::Node>& input) {
+                return input.get_tensor_ptr() == output_desc;
+            })) {
+            m_outputs_sharing_input_desc.insert(output_index);
+        }
     }
     create_infer_request();
 }
@@ -338,6 +345,11 @@ void SyncInferRequest::throw_if_canceled() const {
 }
 
 ov::SoPtr<ov::ITensor> SyncInferRequest::get_tensor(const ov::Output<const ov::Node>& in_port) const {
+    auto port_find = find_port(in_port);
+    if (port_find.found() && port_find.is_output() && m_bound_outputs_sharing_input_desc.count(port_find.idx)) {
+        // the shared slot holds the input tensor, the output tensor set by the user is kept in m_outputs
+        return m_outputs.at(port_find.idx);
+    }
     auto port = get_internal_port(in_port);
     return ov::ISyncInferRequest::get_tensor(port);
 }
@@ -463,6 +475,13 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
 
         m_outputs[output_index] = tensor;
         m_outputControlBlocks.erase(output_index);  // now the memory is under user's control
+
+        if (m_outputs_sharing_input_desc.count(output_index)) {
+            // don't overwrite the input tensor stored in the shared slot
+            check_tensor(port, tensor);
+            m_bound_outputs_sharing_input_desc.insert(output_index);
+            return;
+        }
     }
     ov::ISyncInferRequest::set_tensor(port, tensor);
 }
