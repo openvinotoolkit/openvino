@@ -204,6 +204,7 @@ set(GPU_PLUGIN_TRANSFORMATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/print_model_statistics.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/reduce_fc_dimensions.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/remove_fq_before_dw_conv.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/scale_down_gated_mlp_input.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/sdpa_transpose_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/sink_reshape.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/stateless_kv_fusion.cpp

@@ -138,6 +138,7 @@
 #include "plugin/transformations/expand_broadcast_reshape_sdpa_fusion.hpp"
 #include "plugin/transformations/disable_fp16_comp_direct_multiply_sin_cos.hpp"
 #include "plugin/transformations/disable_fp16_comp_gated_residual.hpp"
+#include "plugin/transformations/scale_down_gated_mlp_input.hpp"
 #include "plugin/transformations/disable_fp16_comp_rms.hpp"
 #include "plugin/transformations/swiglu_fusion_with_clamp.hpp"
 #include "plugin/transformations/disable_fp16_comp_cumsum_sin_gen.hpp"
@@ -1960,6 +1961,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 manager.register_pass<ov::intel_gpu::LoRAHorizontalFusion>();
             }
         }
+        // After the horizontal fusion: a gate/up pair merged into SwiGLU no longer matches.
+        // ActivationsScaling, when enabled, already scales every MatMul.
+        if (infer_precision == ov::element::f16 && !(config.get_activations_scale_factor() > 0.f)) {
+            manager.register_pass<ov::intel_gpu::ScaleDownGatedMLPInput>();
+        }
+
         // After the horizontal fusion so a merged gate/up FC absorbs the shared
         // rotation once. Only the TernOCL impl applies a fused rotation, so without it
         // the rotation stays in the graph.
