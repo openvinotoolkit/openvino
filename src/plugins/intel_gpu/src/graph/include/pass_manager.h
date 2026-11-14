@@ -212,6 +212,7 @@ private:
     template <typename T>
     void optimize_weights(T& node, program& p);
     void select_implementation(program& p, program_node& node);
+    void add_weights_rotation(program& p, program_node& weights_reorder_node);
     void add_lstm_weights_reorder(primitive_id input_id,
                                   std::shared_ptr<WeightsReorderParams> reorder_params,
                                   program& p,
