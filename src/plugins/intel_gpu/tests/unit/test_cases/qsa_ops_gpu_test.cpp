@@ -624,8 +624,17 @@ paged_inputs paged_inputs_synthetic(const split_dims& dims, size_t past_len, siz
 
 enum class Stage { Pair, IndexerOnly, AttentionOnly };
 
+/// BLOCK_SCORES scratch budget applied to every network built by the tests; 0 keeps the default.
+int& test_score_budget_bytes() {
+    static int bytes = 0;
+    return bytes;
+}
+
 ExecutionConfig make_config(engine& engine) {
     ExecutionConfig cfg = get_test_default_config(engine);
+    if (test_score_budget_bytes() > 0) {
+        cfg.set_property(ov::intel_gpu::qsa_score_budget_bytes(test_score_budget_bytes()));
+    }
     cfg.set_property(ov::intel_gpu::optimize_data(true));
     cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     return cfg;
@@ -1653,33 +1662,13 @@ void run_dense_state_chain_test(const split_dims& d, const std::vector<size_t>& 
     }
 }
 
-// setenv/unsetenv are POSIX-only; MSVC provides _putenv_s, where an empty value removes the variable.
-void set_env_var(const char* name, const char* value) {
-#ifdef _WIN32
-    _putenv_s(name, value);
-#else
-    setenv(name, value, 1);
-#endif
-}
-
-void unset_env_var(const char* name) {
-#ifdef _WIN32
-    _putenv_s(name, "");
-#else
-    unsetenv(name);
-#endif
-}
-
-/// The budget override is a debug option: release builds ignore it, so the chunk loop cannot be forced there.
-constexpr bool score_budget_override_available = GPU_DEBUG_VALUE_OR(true, false);
-
-/// Caps the decode BLOCK_SCORES scratch so the Q2 chunk loop runs several times.
+/// Caps the BLOCK_SCORES scratch of every network built by the tests, so the score chunk loop runs several times.
 struct scoped_score_budget {
-    explicit scoped_score_budget(const char* bytes) {
-        set_env_var("OV_GPU_QSA_SCORE_BUDGET_BYTES", bytes);
+    explicit scoped_score_budget(size_t bytes) {
+        test_score_budget_bytes() = static_cast<int>(bytes);
     }
     ~scoped_score_budget() {
-        unset_env_var("OV_GPU_QSA_SCORE_BUDGET_BYTES");
+        test_score_budget_bytes() = 0;
     }
 };
 
@@ -1703,27 +1692,18 @@ TEST(qsa_ops_gpu_test, qwen38_dense_batch_decode_matches_reference) {
 // (past_lens stay in GPU memory), i.e. the whole 1948-block pool, so only one row fits per
 // chunk: 3 chunks of one sequence each.
 TEST(qsa_ops_gpu_test, qwen38_paged_batch_decode_chunked_scores_match_reference) {
-    if (!score_budget_override_available) {
-        GTEST_SKIP() << "QSA_SCORE_BUDGET_BYTES needs a build with debug capabilities";
-    }
-    scoped_score_budget budget("1");
+    scoped_score_budget budget(1);
     run_paged_batch_test(qwen38_dims(), {{2100, 1}, {2600, 1}, {3071, 1}}, {IndexerPath::Decode, AttnPath::GqaSplit, 3}, 3e-3f);
 }
 
 TEST(qsa_ops_gpu_test, qwen38_dense_batch_decode_chunked_scores_match_reference) {
-    if (!score_budget_override_available) {
-        GTEST_SKIP() << "QSA_SCORE_BUDGET_BYTES needs a build with debug capabilities";
-    }
-    scoped_score_budget budget("1");
+    scoped_score_budget budget(1);
     run_dense_batch_test(qwen38_dims(), 3, 3071, 1, {IndexerPath::Decode, AttnPath::GqaSplit, 3}, 3e-3f);
 }
 
 // Budget of exactly two 768-block rows: a full chunk followed by a partial one.
 TEST(qsa_ops_gpu_test, qwen38_dense_batch_decode_partial_last_chunk_matches_reference) {
-    if (!score_budget_override_available) {
-        GTEST_SKIP() << "QSA_SCORE_BUDGET_BYTES needs a build with debug capabilities";
-    }
-    scoped_score_budget budget("6144");
+    scoped_score_budget budget(6144);
     run_dense_batch_test(qwen38_dims(), 3, 3071, 1, {IndexerPath::Decode, AttnPath::GqaSplit, 2}, 3e-3f);
 }
 
@@ -1750,23 +1730,17 @@ const std::vector<std::pair<size_t, size_t>> qwen38_mixed_batch = {{2100, 1}, {1
 // Prefill under a 32-row BLOCK_SCORES budget: 66 rows in 3 chunks of whole query tiles. The middle sequence starts at
 // row 1, so the chunk edges at rows 32 and 64 cut through its tiles and each of those tiles is scored by both chunks.
 TEST(qsa_ops_gpu_test, qwen38_paged_batch_mixed_chunked_scores_match_reference) {
-    if (!score_budget_override_available) {
-        GTEST_SKIP() << "QSA_SCORE_BUDGET_BYTES needs a build with debug capabilities";
-    }
     const auto budget_bytes = 32 * paged_score_row_bytes(qwen38_dims(), qwen38_mixed_batch);
-    scoped_score_budget budget(std::to_string(budget_bytes).c_str());
+    scoped_score_budget budget(budget_bytes);
     run_paged_batch_test(qwen38_dims(), qwen38_mixed_batch, {IndexerPath::Dpas, AttnPath::GqaDpas, 3, budget_bytes}, 3e-3f);
 }
 
 // A budget below one query tile still gives the systolic scorer whole 16-row chunks: 66 rows in 5 chunks.
 TEST(qsa_ops_gpu_test, qwen38_paged_batch_mixed_tile_sized_chunks_match_reference) {
-    if (!score_budget_override_available) {
-        GTEST_SKIP() << "QSA_SCORE_BUDGET_BYTES needs a build with debug capabilities";
-    }
     if (!xmx_routes_enabled()) {
         GTEST_SKIP() << "without XMX the partition scorer runs one row per chunk";
     }
-    scoped_score_budget budget("1");
+    scoped_score_budget budget(1);
     const auto one_tile_bytes = 16 * paged_score_row_bytes(qwen38_dims(), qwen38_mixed_batch);
     run_paged_batch_test(qwen38_dims(), qwen38_mixed_batch, {IndexerPath::Dpas, AttnPath::GqaDpas, 5, one_tile_bytes}, 3e-3f);
 }
@@ -1774,12 +1748,9 @@ TEST(qsa_ops_gpu_test, qwen38_paged_batch_mixed_tile_sized_chunks_match_referenc
 // Two dense rows of 40 queries (3 tiles each) under a 32-row budget: chunks [0, 32), [32, 64), [64, 80); the edge at
 // row 64 falls inside row 1's second tile.
 TEST(qsa_ops_gpu_test, qwen38_dense_batch_prefill_chunked_scores_match_reference) {
-    if (!score_budget_override_available) {
-        GTEST_SKIP() << "QSA_SCORE_BUDGET_BYTES needs a build with debug capabilities";
-    }
     const std::vector<std::pair<size_t, size_t>> rows = {{2100, 40}, {2000, 40}};
     const auto budget_bytes = 32 * dense_score_row_bytes(qwen38_dims(), rows);
-    scoped_score_budget budget(std::to_string(budget_bytes).c_str());
+    scoped_score_budget budget(budget_bytes);
     run_dense_batch_test(qwen38_dims(), rows, {IndexerPath::Dpas, AttnPath::GqaDpas, 3, budget_bytes}, 3e-3f);
 }
 

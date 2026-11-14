@@ -382,21 +382,20 @@ public:
         auto* rtp = &rt();
         auto last = execute_stage(copy_state(events, instance), instance, prepare);
         const bool decode = is_decode_shape(params);
-        // Chunks reuse one bounded BLOCK_SCORES buffer, so they run strictly in sequence.
+        // A chunk of n rows spans at most n / seq_len + 2 batch rows.
         Stage& scorer = use_dpas_prefill(params) ? *score_dpas : *score_partition;
         Stage& finalizer = decode ? *topk_decode : *topk;
-        for (size_t begin = 0; begin < rtp->num_tokens; begin += rtp->chunk_rows) {
-            rtp->chunk_row_begin = begin;
-            rtp->chunk_row_end = std::min(rtp->num_tokens, begin + rtp->chunk_rows);
-            // A chunk of n rows spans at most n / L + 2 batch rows, each adding at most two partial query tiles.
-            const size_t rows = rtp->chunk_row_end - rtp->chunk_row_begin;
-            const size_t batch_rows = std::min(rtp->batch, rows / std::max<size_t>(1, rtp->seq_len) + 2);
-            rtp->chunk_tile_count = std::min(rtp->score_tile_count, (rows + qsa::dpas_query_tile - 1) / qsa::dpas_query_tile + 2 * batch_rows);
-            qsa::force_stage_refresh(scorer);
-            qsa::force_stage_refresh(finalizer);
-            auto scored = execute_stage({last}, instance, scorer);
-            last = execute_stage({scored}, instance, finalizer);
-        }
+        last = qsa::run_score_chunks(
+            *rtp,
+            last,
+            scorer,
+            finalizer,
+            [rtp](size_t rows) {
+                return std::min(rtp->batch, rows / std::max<size_t>(1, rtp->seq_len) + 2);
+            },
+            [&](const std::vector<event::ptr>& deps, Stage& stage) {
+                return execute_stage(deps, instance, stage);
+            });
         return last;
     }
 

@@ -92,10 +92,10 @@ inline void add_dense_cache_jit(JitConstants& jit, const std::string& cache, con
     jit.make(prefix + "ZP_F16", quant.enabled() && ov::intel_gpu::op::dense_zp_is_f16(quant) ? 1 : 0);
 }
 
-/// Upper bound on the BLOCK_SCORES scratch of every scoring path. The debug option QSA_SCORE_BUDGET_BYTES can shrink it to force the
-/// multi-chunk path with small shapes.
+/// Upper bound on the BLOCK_SCORES scratch of every scoring path (decode and prefill). The internal option
+/// QSA_SCORE_BUDGET_BYTES can shrink it to force the multi-chunk path with small shapes.
 inline size_t score_budget_bytes(const ov::intel_gpu::ExecutionConfig& config) {
-    const auto override_bytes = GPU_DEBUG_VALUE_OR(config.get_qsa_score_budget_bytes(), 0);
+    const auto override_bytes = config.get_qsa_score_budget_bytes();
     return override_bytes > 0 ? static_cast<size_t>(override_bytes) : size_t{128} * 1024 * 1024;
 }
 
@@ -124,6 +124,33 @@ inline size_t score_chunk_rows(size_t tokens, size_t capacity_rows, bool whole_t
         capacity_rows = capacity_rows / dpas_query_tile * dpas_query_tile;
     }
     return std::max<size_t>(1, capacity_rows);
+}
+
+/// Runs `scorer` then `finalizer` once per row chunk (`rtp.chunk_rows` rows each) of the BLOCK_SCORES scratch, which every
+/// chunk reuses, so the chunks run strictly in sequence. `rtp` provides num_tokens / chunk_rows / score_tile_count and
+/// receives the current chunk_row_begin / chunk_row_end / chunk_tile_count.
+/// A chunk of n rows that spans k sequences covers at most n / dpas_query_tile + 2k query tiles (each sequence may start and
+/// end in a partial tile); `sequences_in_chunk(n)` returns an upper bound of k.
+/// The stages are re-dispatched per chunk, hence the explicit refresh.
+/// `execute_stage(events, stage)` runs one stage of the owning impl.
+template <class RuntimeParams, class SequencesInChunk, class ExecuteStage>
+cldnn::event::ptr run_score_chunks(RuntimeParams& rtp,
+                                   cldnn::event::ptr last,
+                                   Stage& scorer,
+                                   Stage& finalizer,
+                                   SequencesInChunk&& sequences_in_chunk,
+                                   ExecuteStage&& execute_stage) {
+    for (size_t begin = 0; begin < rtp.num_tokens; begin += rtp.chunk_rows) {
+        rtp.chunk_row_begin = begin;
+        rtp.chunk_row_end = std::min<size_t>(rtp.num_tokens, begin + rtp.chunk_rows);
+        const size_t rows = rtp.chunk_row_end - rtp.chunk_row_begin;
+        rtp.chunk_tile_count = std::min<size_t>(rtp.score_tile_count, (rows + dpas_query_tile - 1) / dpas_query_tile + 2 * sequences_in_chunk(rows));
+        force_stage_refresh(scorer);
+        force_stage_refresh(finalizer);
+        auto scored = execute_stage({last}, scorer);
+        last = execute_stage({scored}, finalizer);
+    }
+    return last;
 }
 
 /// Most subgroups of a top-k work-group (sizes its SLM) and the count used by the longest rows.

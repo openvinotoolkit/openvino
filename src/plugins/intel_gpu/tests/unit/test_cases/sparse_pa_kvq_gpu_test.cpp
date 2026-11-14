@@ -711,6 +711,11 @@ void run_case(const kvq_case& tc) {
                         const double step = quants[which].mode == Mode::BY_TOKEN ? scale_s : ch_s[j];
                         const double diff = std::fabs(static_cast<double>(got[j]) - want[j]);
                         max_steps = std::max(max_steps, diff / step);
+                        // The kernel and this model use the same formulas, but the kernels build with -cl-mad-enable and OpenCL
+                        // does not round f32 divisions correctly by default, so their f32 results can differ in the last bits.
+                        // That can move an f16 scale / zero point by one ulp (a fraction of a step on every element of the
+                        // channel) or flip a value on a code rounding edge to the next code (a full step). Only the latter
+                        // counts as a mismatch.
                         differing += diff > 0.5 * step ? 1 : 0;
                         total++;
                     }
@@ -720,7 +725,7 @@ void run_case(const kvq_case& tc) {
         std::cout << "QSA_KVQ_CACHE " << tc.name << (which == 0 ? " key" : " value") << " max_diff_steps=" << max_steps << " differing=" << std::setprecision(4)
                   << 100.0 * static_cast<double>(differing) / static_cast<double>(total) << "%" << std::endl;
         EXPECT_LE(max_steps, 2.5) << tc.name << (which == 0 ? " key" : " value") << " cache differs from the prediction";
-        EXPECT_LE(static_cast<double>(differing) / static_cast<double>(total), 0.10) << tc.name << (which == 0 ? " key" : " value");
+        EXPECT_LE(static_cast<double>(differing) / static_cast<double>(total), 0.05) << tc.name << (which == 0 ? " key" : " value");
     }
 
     // 2. Attention over the GPU cache read back through the CPU dequantizer.
@@ -1025,7 +1030,7 @@ void run_decode_case(const decode_case& tc) {
         worst_steps = std::max(worst_steps, step_max);
         worst_differing = std::max(worst_differing, frac);
         ASSERT_LE(step_max, 2.0) << tc.name << " step " << step << ": key cache differs from the model";
-        ASSERT_LE(frac, 0.10) << tc.name << " step " << step;
+        ASSERT_LE(frac, 0.05) << tc.name << " step " << step;
     }
 
     // Final state: attention over the GPU cache, and the key error against the unquantized history.

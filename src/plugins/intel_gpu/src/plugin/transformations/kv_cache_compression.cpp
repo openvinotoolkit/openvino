@@ -110,8 +110,9 @@ std::shared_ptr<ov::intel_gpu::op::ReadValues> update_past_read_value(std::share
 
 std::shared_ptr<ov::intel_gpu::op::KVCacheCompressed> update_kv_cache(std::shared_ptr<ov::intel_gpu::op::ReadValue> past_rv_node,
                                                                       std::shared_ptr<ov::intel_gpu::op::KVCache> kv_cache_node,
+                                                                      const ov::Output<ov::Node>& beam_idx,
                                                                       const ov::op::internal::DynamicQuantize::Attributes& quantization_attrs) {
-    OutputVector kv_cache_inputs = {past_rv_node->output(0), kv_cache_node->input_value(1), kv_cache_node->input_value(2)};
+    OutputVector kv_cache_inputs = {past_rv_node->output(0), kv_cache_node->input_value(1), beam_idx};
     if (kv_cache_node->get_trim()) {
         kv_cache_inputs.push_back(kv_cache_node->input_value(3));
     }
@@ -135,30 +136,8 @@ std::shared_ptr<ov::intel_gpu::op::KVCacheCompressed> update_kv_cache(std::share
     return new_kv_cache;
 }
 
-// Compressed counterpart of a plain (non-indirect) KVCache, for consumers that do not read a beam table.
-std::shared_ptr<ov::intel_gpu::op::KVCacheCompressed> make_compressed_kv_cache(std::shared_ptr<ov::intel_gpu::op::ReadValue> past_rv_node,
-                                                                               std::shared_ptr<ov::intel_gpu::op::KVCache> kv_cache_node,
-                                                                               const ov::Output<ov::Node>& beam_idx,
-                                                                               int64_t gather_axis,
-                                                                               const ov::op::internal::DynamicQuantize::Attributes& quantization_attrs) {
-    OutputVector inputs = {past_rv_node->output(0), kv_cache_node->input_value(1), beam_idx, past_rv_node->output(1)};
-    if (quantization_attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric &&
-        quantization_attrs.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar) {
-        inputs.push_back(past_rv_node->output(2));
-    }
-    auto new_kv_cache = std::make_shared<op::KVCacheCompressed>(inputs,
-                                                                kv_cache_node->get_variable(),
-                                                                false,
-                                                                kv_cache_node->get_concat_axis(),
-                                                                gather_axis,
-                                                                quantization_attrs);
-    new_kv_cache->set_friendly_name(kv_cache_node->get_friendly_name());
-    ov::copy_runtime_info(kv_cache_node, new_kv_cache);
-    return new_kv_cache;
-}
-
-// Pattern of a plain KVCache feeding SparseSDPA exclusively: `KVCache(ReadValue, new)` of a single sequence (static batch),
-// or `KVCache(Gather(ReadValue, beam_idx), new)`.
+// Pattern of a plain KVCache feeding SparseSDPA exclusively: `KVCache(ReadValue, new)` with a static batch (one sequence per
+// batch row), or `KVCache(Gather(ReadValue, beam_idx), new)`.
 struct SparseCachePattern {
     std::shared_ptr<ov::Node> cache;
     std::shared_ptr<ov::Node> past;           // ReadValue of the single-sequence form
@@ -171,7 +150,7 @@ SparseCachePattern make_sparse_cache_pattern() {
     using namespace ov::pass::pattern;
     using ov::pass::pattern::op::Predicate;
 
-    // Exclusive consumers keep the shared Variable and the f16 cache from being left to other readers or writers.
+    // Exclusive consumers: no other node may read the f16 state or cache that the rewrite retypes.
     const auto f16_rank4_state = consumers_count(1) && type_matches(element::f16) && rank_equals(4);  // [B, Hkv, S, D]
     const auto static_batch = Predicate([](const ov::Output<ov::Node>& out) {
         const auto& ps = out.get_partial_shape();
@@ -184,7 +163,7 @@ SparseCachePattern make_sparse_cache_pattern() {
     });
     const auto batch_gather = Predicate([](const ov::Output<ov::Node>& out) {
         auto gather = ov::as_type_ptr<ov::op::v8::Gather>(out.get_node_shared_ptr());
-        return gather && gather->get_batch_dims() == 0 && gather->get_axis() == 0;
+        return gather && gather->get_batch_dims() == 0;
     });
 
     SparseCachePattern p;
@@ -192,7 +171,10 @@ SparseCachePattern make_sparse_cache_pattern() {
     p.past = wrap_type<ov::intel_gpu::op::ReadValue>(f16_rank4_state && static_batch);
     p.gathered_past = wrap_type<ov::intel_gpu::op::ReadValue>(f16_rank4_state);
     p.beam_idx = wrap_type<ov::op::v0::Parameter>();
-    p.gather = wrap_type<ov::op::v8::Gather>({p.gathered_past, p.beam_idx, any_input()}, consumers_count(1) && batch_gather);
+    const auto axis_zero = wrap_type<ov::op::v0::Constant>(ov::op::util::constant_predicate<int64_t>([](const std::vector<int64_t>& value) {
+        return value.size() == 1 && value[0] == 0;
+    }));
+    p.gather = wrap_type<ov::op::v8::Gather>({p.gathered_past, p.beam_idx, axis_zero}, consumers_count(1) && batch_gather);
     const auto cache_pred = f16_rank4_state && plain_cache;
     auto single_cache = wrap_type<ov::intel_gpu::op::KVCache>({p.past, new_token}, cache_pred);
     auto gathered_cache = wrap_type<ov::intel_gpu::op::KVCache>({p.gather, new_token}, cache_pred);
@@ -205,7 +187,6 @@ struct SparseSDPACache {
     std::shared_ptr<ov::intel_gpu::op::KVCache> kv_cache;
     std::shared_ptr<ov::intel_gpu::op::ReadValue> past;
     ov::Output<ov::Node> beam_idx;
-    int64_t gather_axis = 0;
 };
 
 SparseSDPACache extract_sparse_sdpa_cache(const ov::pass::pattern::PatternValueMap& pattern_map, const SparseCachePattern& p) {
@@ -336,8 +317,8 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compressi
         key_past_rv_node = update_past_read_value(key_past_rv_node, config);
         value_past_rv_node = update_past_read_value(value_past_rv_node, config);
 
-        auto new_key_cache = update_kv_cache(key_past_rv_node, key_cache_node, config);
-        auto new_value_cache = update_kv_cache(value_past_rv_node, value_cache_node, config);
+        auto new_key_cache = update_kv_cache(key_past_rv_node, key_cache_node, key_cache_node->input_value(2), config);
+        auto new_value_cache = update_kv_cache(value_past_rv_node, value_cache_node, value_cache_node->input_value(2), config);
 
         OutputVector sdpa_inputs;
         // Add Query, Key, Value, attention_mask, scale inputs
@@ -397,59 +378,55 @@ bool KVCacheCompression::run_on_model(const std::shared_ptr<ov::Model>& m) {
     return pass::GraphRewrite::run_on_model(m);
 }
 
-// SparseSDPA reads K/V as dense [B, Hkv, S, D] states without a beam table (every batch row keeps its own cache, i.e. the
-// beam_idx is the identity), so its caches are compressed per token with planar scales / zero points, as the QSA
-// configuration asks (asymmetric 8/4-bit following the KV cache precision without one, f16 caches stay uncompressed);
-// the beam table output of the compressed KVCache stays unused.
+// SparseSDPA reads K/V as dense [B, Hkv, S, D] states, so its caches are compressed per token with planar scales / zero
+// points: the KV cache precision selects the code width (8/4-bit; f16 caches stay uncompressed) and the zero point type
+// (see kv_cache_zp_type), as for the stateful SDPA (KVCacheCompressionMatcher). Unlike that matcher, it needs the planar
+// (immad) layout: without immad the caches stay uncompressed instead of using interleaved scales / zero points.
+//  - Per token is required: SparseSDPA::validate_config rejects any other mode for a dense cache (BY_CHANNEL keys are a
+//    paged-cache feature).
+//  - Asymmetric is the default choice here, mirroring KVCacheCompressionMatcher, which always asks for it. It is a policy,
+//    not a limit of the op: SparseSDPA also accepts symmetric dense caches (no zero point inputs). This pass takes no
+//    quantization parameter, so a producer that needs symmetric caches has to add one.
+//  - Beam reordering is not supported yet: SparseSDPA reads no beam table, so the beam table output of the compressed
+//    KVCache stays unused. The compressed KVCache does not physically reorder the past (it only records beam_idx in that
+//    table), so the `Gather(ReadValue, beam_idx)` form is only correct while beam_idx is the identity. Nothing checks
+//    this at runtime.
 class SparseSDPAKVCacheCompressionMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("SparseSDPAKVCacheCompressionMatcher");
-    SparseSDPAKVCacheCompressionMatcher(ov::element::Type compression_dt,
-                                        bool supports_immad,
-                                        const ov::intel_gpu::op::KVQuant& key_quant,
-                                        const ov::intel_gpu::op::KVQuant& value_quant);
+    SparseSDPAKVCacheCompressionMatcher(ov::element::Type compression_dt, bool supports_immad);
 };
 
-SparseSDPAKVCacheCompressionMatcher::SparseSDPAKVCacheCompressionMatcher(ov::element::Type compression_dt,
-                                                                         bool supports_immad,
-                                                                         const ov::intel_gpu::op::KVQuant& requested_key_quant,
-                                                                         const ov::intel_gpu::op::KVQuant& requested_value_quant) {
+SparseSDPAKVCacheCompressionMatcher::SparseSDPAKVCacheCompressionMatcher(ov::element::Type compression_dt, bool supports_immad) {
     using namespace ov::pass::pattern;
     using In = ov::intel_gpu::op::SparseSDPA::InputIdx;
     using ov::intel_gpu::op::KVQuant;
 
-    auto key_quant = requested_key_quant;
-    auto value_quant = requested_value_quant;
-    // The dense caches are quantized per token like the stateful SDPA's: only the paged caches support BY_CHANNEL keys.
-    if (key_quant.mode == KVQuant::Mode::BY_CHANNEL) {
-        key_quant.mode = KVQuant::Mode::BY_TOKEN;
-        key_quant.group_size = 0;
-    }
-    if (!key_quant.enabled() && !value_quant.enabled()) {
-        // No QSA quantization requested: an f16 KV cache precision keeps the f16 caches, an 8/4-bit one selects per-token
-        // asymmetric caches of that width.
-        if (!cldnn::one_of(compression_dt, {element::i8, element::u8, element::i4, element::u4})) {
-            return;
-        }
-        key_quant = value_quant = KVQuant{KVQuant::Mode::BY_TOKEN, static_cast<uint8_t>(compression_dt.bitwidth()), false, 0};
-    }
-    // The cache kernels pack the data after the global KV cache precision (4-bit rows hold two codes per byte), and the
-    // parameter layout needs the planar (immad) form.
-    if (!supports_immad || !compression_dt.is_static() || compression_dt.bitwidth() != key_quant.bits) {
+    // The cache kernels pack the codes at the width of the global KV cache precision (4-bit rows hold two codes per byte).
+    if (!supports_immad || !cldnn::one_of(compression_dt, {element::i8, element::u8, element::i4, element::u4})) {
         return;
     }
+    const auto quant = KVQuant{KVQuant::Mode::BY_TOKEN, static_cast<uint8_t>(compression_dt.bitwidth()), false, 0};
+    ov::op::internal::DynamicQuantize::Attributes attrs;
+    attrs.quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
+    attrs.output_storage_type = ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
+    attrs.group_sizes = {1, 1, 1, UINT64_MAX};  // one scale / zero point per token row
+    attrs.quantization_dt = element::i8;
+    attrs.scale_dt = element::f16;
+    attrs.zp_dt = kv_cache_zp_type(supports_immad, quant.bits, attrs.scale_dt);
+    attrs.scales_zp_output_order = {0, 1, 2, 3};
 
     const auto key_cache = make_sparse_cache_pattern();
     const auto value_cache = make_sparse_cache_pattern();
     // Uncompressed SparseSDPA without sinks (6 core inputs, plus the optional scale) whose compressed configuration is valid.
-    const auto compressible_sdpa = ov::pass::pattern::op::Predicate([key_quant, value_quant](const ov::Output<ov::Node>& out) {
+    const auto compressible_sdpa = ov::pass::pattern::op::Predicate([quant](const ov::Output<ov::Node>& out) {
         auto sdpa = ov::as_type_ptr<ov::intel_gpu::op::SparseSDPA>(out.get_node_shared_ptr());
         if (!sdpa || sdpa->get_config().kv_compressed()) {
             return false;
         }
         auto compressed_config = sdpa->get_config();
-        compressed_config.key_quant = key_quant;
-        compressed_config.value_quant = value_quant;
+        compressed_config.key_quant = quant;
+        compressed_config.value_quant = quant;
         std::string reason;
         return ov::intel_gpu::op::SparseSDPA::validate_config(compressed_config, reason);
     });
@@ -472,30 +449,16 @@ SparseSDPAKVCacheCompressionMatcher::SparseSDPAKVCacheCompressionMatcher(ov::ele
         const auto& sdpa_config = sdpa->get_config();
 
         auto compressed_config = sdpa_config;
-        compressed_config.key_quant = key_quant;
-        compressed_config.value_quant = value_quant;
+        compressed_config.key_quant = quant;
+        compressed_config.value_quant = quant;
 
         auto key = extract_sparse_sdpa_cache(pattern_map, key_cache);
         auto value = extract_sparse_sdpa_cache(pattern_map, value_cache);
-        auto make_attributes = [supports_immad](const KVQuant& quant) {
-            ov::op::internal::DynamicQuantize::Attributes config;
-            config.quantization_type = quant.symmetric ? ov::op::internal::DynamicQuantize::QuantizationType::Symmetric
-                                                       : ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
-            config.output_storage_type = ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
-            config.group_sizes = {1, 1, 1, UINT64_MAX};  // one scale / zero point per token row
-            config.quantization_dt = element::i8;
-            config.scale_dt = element::f16;
-            config.zp_dt = kv_cache_zp_type(supports_immad, quant.bits, config.scale_dt);
-            config.scales_zp_output_order = {0, 1, 2, 3};
-            return config;
-        };
-        const auto key_attrs = make_attributes(key_quant);
-        const auto value_attrs = make_attributes(value_quant);
 
-        auto key_rv = update_past_read_value(key.past, key_attrs);
-        auto value_rv = update_past_read_value(value.past, value_attrs);
-        auto new_key_cache = make_compressed_kv_cache(key_rv, key.kv_cache, key.beam_idx, key.gather_axis, key_attrs);
-        auto new_value_cache = make_compressed_kv_cache(value_rv, value.kv_cache, value.beam_idx, value.gather_axis, value_attrs);
+        auto key_rv = update_past_read_value(key.past, attrs);
+        auto value_rv = update_past_read_value(value.past, attrs);
+        auto new_key_cache = update_kv_cache(key_rv, key.kv_cache, key.beam_idx, attrs);
+        auto new_value_cache = update_kv_cache(value_rv, value.kv_cache, value.beam_idx, attrs);
 
         ov::OutputVector args(compressed_config.scale_input_idx());
         for (size_t i : {In::QUERY, In::SELECTED_BLOCK_INDICES, In::SELECTED_BLOCK_COUNT, In::KEY_LENGTH}) {
@@ -505,10 +468,8 @@ SparseSDPAKVCacheCompressionMatcher::SparseSDPAKVCacheCompressionMatcher(ov::ele
         args[In::VALUE] = new_value_cache->output(0);
         args[In::KEY_SCALE] = new_key_cache->output(2);
         args[In::VALUE_SCALE] = new_value_cache->output(2);
-        if (!key_quant.symmetric) {
-            args[In::KEY_ZP] = new_key_cache->output(3);
-            args[In::VALUE_ZP] = new_value_cache->output(3);
-        }
+        args[In::KEY_ZP] = new_key_cache->output(3);
+        args[In::VALUE_ZP] = new_value_cache->output(3);
         if (sdpa->has_scale_input()) {
             args.push_back(sdpa->input_value(sdpa_config.scale_input_idx()));
         }
@@ -524,12 +485,9 @@ SparseSDPAKVCacheCompressionMatcher::SparseSDPAKVCacheCompressionMatcher(ov::ele
     this->register_matcher(m, callback);
 }
 
-KVCacheCompression::KVCacheCompression(ov::element::Type compression_dt,
-                                       bool supports_immad,
-                                       const ov::intel_gpu::op::KVQuant& sparse_sdpa_key_quant,
-                                       const ov::intel_gpu::op::KVQuant& sparse_sdpa_value_quant) {
+KVCacheCompression::KVCacheCompression(ov::element::Type compression_dt, bool supports_immad) {
     add_matcher<ov::intel_gpu::KVCacheCompressionMatcher>(compression_dt, supports_immad);
-    add_matcher<ov::intel_gpu::SparseSDPAKVCacheCompressionMatcher>(compression_dt, supports_immad, sparse_sdpa_key_quant, sparse_sdpa_value_quant);
+    add_matcher<ov::intel_gpu::SparseSDPAKVCacheCompressionMatcher>(compression_dt, supports_immad);
 }
 
 }  // namespace ov::intel_gpu

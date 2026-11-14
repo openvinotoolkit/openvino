@@ -144,4 +144,4 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, record_replay_dynamic, false, "Enable leve
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, force_fp32_layer_types, std::vector<std::string>{}, "Space separated list of layer types to force FP32 precision; PASSTHROUGH_OPS selects data movement types (no automatic propagation)")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, force_fp32_layer_names, std::vector<std::string>{}, "Space separated list of layer name substrings to force FP32 precision (AND with layer_types if both set)")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, qsa_ocl_disable_xmx, false, "QSA OCL: route every stage to the scalar kernels, as on a device without XMX")
-OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, qsa_score_budget_bytes, 0, "QSA OCL: override the decode BLOCK_SCORES scratch budget in bytes to force the multi-chunk path with small shapes; 0 keeps the default")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, qsa_score_budget_bytes, 0, "QSA OCL: override the BLOCK_SCORES scratch budget (bytes) shared by the decode and prefill scorers, to force the multi-chunk path with small shapes; 0 keeps the default")
