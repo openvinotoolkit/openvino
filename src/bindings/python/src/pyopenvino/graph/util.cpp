@@ -14,6 +14,7 @@
 #include "pyopenvino/graph/node_output.hpp"
 #include "pyopenvino/graph/ops/constant.hpp"
 #include "pyopenvino/utils/utils.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 
 namespace py = pybind11;
 
@@ -48,6 +49,143 @@ void regmodule_graph_util(py::module m) {
             py::arg("target"),
             py::arg("replacement"),
             py::arg("outputs_order"));
+
+    using NodePtr = std::shared_ptr<ov::Node>;
+    using ov::element::Type;
+    using ov::element::TypeVector;
+
+    mod.def("disable_conversion",
+            overload_cast_<const NodePtr&, const Type&>()(&ov::disable_conversion),
+            py::arg("node"),
+            py::arg("to_type"),
+            R"(
+                Keeps a node in its original precision: marks it so that it is not converted
+                to `to_type` (from any type), e.g. by the f16 compression a GPU applies under
+                the f16 inference precision hint.
+
+                Python equivalent of the C++ `ov::disable_conversion(node, to)`.
+
+                :param node: The node to mark.
+                :type node: openvino.Node
+                :param to_type: The element type the node must not be converted to, e.g. `Type.f16`.
+                :type to_type: openvino.Type
+            )");
+
+    mod.def("disable_conversion",
+            overload_cast_<const NodePtr&, const Type&, const Type&>()(&ov::disable_conversion),
+            py::arg("node"),
+            py::arg("from_type"),
+            py::arg("to_type"),
+            R"(
+                Marks a node so that it is not converted from `from_type` to `to_type`.
+
+                :param node: The node to mark.
+                :type node: openvino.Node
+                :param from_type: The source element type.
+                :type from_type: openvino.Type
+                :param to_type: The target element type.
+                :type to_type: openvino.Type
+            )");
+
+    mod.def("disable_conversion",
+            overload_cast_<const NodePtr&, const TypeVector&, const TypeVector&>()(&ov::disable_conversion),
+            py::arg("node"),
+            py::arg("from_types"),
+            py::arg("to_types"),
+            R"(
+                Marks a node so that it is not converted from any of `from_types` to any of `to_types`.
+
+                :param node: The node to mark.
+                :type node: openvino.Node
+                :param from_types: The source element types.
+                :type from_types: list[openvino.Type]
+                :param to_types: The target element types.
+                :type to_types: list[openvino.Type]
+            )");
+
+    mod.def("enable_conversion",
+            overload_cast_<const NodePtr&, const Type&>()(&ov::enable_conversion),
+            py::arg("node"),
+            py::arg("to_type"),
+            R"(
+                Removes a mark set by `disable_conversion(node, to_type)`.
+
+                :param node: The node to unmark.
+                :type node: openvino.Node
+                :param to_type: The target element type.
+                :type to_type: openvino.Type
+            )");
+
+    mod.def("enable_conversion",
+            overload_cast_<const NodePtr&, const Type&, const Type&>()(&ov::enable_conversion),
+            py::arg("node"),
+            py::arg("from_type"),
+            py::arg("to_type"),
+            R"(
+                Removes a mark set by `disable_conversion(node, from_type, to_type)`.
+
+                :param node: The node to unmark.
+                :type node: openvino.Node
+                :param from_type: The source element type.
+                :type from_type: openvino.Type
+                :param to_type: The target element type.
+                :type to_type: openvino.Type
+            )");
+
+    mod.def("enable_conversion",
+            overload_cast_<const NodePtr&, const TypeVector&, const TypeVector&>()(&ov::enable_conversion),
+            py::arg("node"),
+            py::arg("from_types"),
+            py::arg("to_types"),
+            R"(
+                Removes the marks set by `disable_conversion(node, from_types, to_types)`.
+
+                :param node: The node to unmark.
+                :type node: openvino.Node
+                :param from_types: The source element types.
+                :type from_types: list[openvino.Type]
+                :param to_types: The target element types.
+                :type to_types: list[openvino.Type]
+            )");
+
+    mod.def(
+        "is_conversion_disabled",
+        [](const NodePtr& node, const Type& to_type) {
+            return ov::is_conversion_disabled(node, to_type);
+        },
+        py::arg("node"),
+        py::arg("to_type"),
+        R"(
+                Checks whether converting the node to `to_type` is disabled.
+
+                :param node: The node to check.
+                :type node: openvino.Node
+                :param to_type: The target element type.
+                :type to_type: openvino.Type
+                :return: True if the conversion is disabled.
+                :rtype: bool
+            )");
+
+    mod.def(
+        "is_conversion_disabled",
+        [](const NodePtr& node, const Type& from_type, const Type& to_type) {
+            return ov::is_conversion_disabled(node, from_type, to_type);
+        },
+        py::arg("node"),
+        py::arg("from_type"),
+        py::arg("to_type"),
+        R"(
+                Checks whether converting the node from `from_type` to `to_type` is disabled.
+
+                :param node: The node to check.
+                :type node: openvino.Node
+                :param from_type: The source element type.
+                :type from_type: openvino.Type
+                :param to_type: The target element type.
+                :type to_type: openvino.Type
+                :return: True if the conversion is disabled.
+                :rtype: bool
+            )");
 
     mod.def(
         "deprecation_warning",
