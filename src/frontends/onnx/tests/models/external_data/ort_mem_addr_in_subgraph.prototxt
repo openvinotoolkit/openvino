@@ -1,0 +1,119 @@
+ir_version: 8
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "cond"
+    output: "Y"
+    op_type: "If"
+    attribute {
+      name: "then_branch"
+      g {
+        node {
+          output: "then_out"
+          op_type: "Constant"
+          attribute {
+            name: "value"
+            t {
+              dims: 4
+              data_type: 1
+              name: "then_body_value"
+              external_data {
+                  key: "location",
+                  value: "*/_ORT_MEM_ADDR_/*"
+              }
+              external_data {
+                  key: "offset",
+                  value: "4096"
+              }
+              external_data {
+                  key: "length",
+                  value: "16"
+              }
+              data_location: 1
+            }
+            type: TENSOR
+          }
+        }
+        name: "then_body"
+        output {
+          name: "then_out"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 4
+                }
+              }
+            }
+          }
+        }
+      }
+      type: GRAPH
+    }
+    attribute {
+      name: "else_branch"
+      g {
+        node {
+          output: "else_out"
+          op_type: "Constant"
+          attribute {
+            name: "value"
+            t {
+              dims: 4
+              data_type: 1
+              name: "else_body_value"
+              float_data: 1
+              float_data: 2
+              float_data: 3
+              float_data: 4
+            }
+            type: TENSOR
+          }
+        }
+        name: "else_body"
+        output {
+          name: "else_out"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 4
+                }
+              }
+            }
+          }
+        }
+      }
+      type: GRAPH
+    }
+  }
+  name: "test_graph"
+  input {
+    name: "cond"
+    type {
+      tensor_type {
+        elem_type: 9
+        shape {
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 13
+}
