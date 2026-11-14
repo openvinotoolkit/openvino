@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <map>
@@ -233,6 +234,25 @@ std::shared_ptr<ov::Model> build_abc_attn_model(std::size_t repetitions = 30) {
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
 }
 
+// Relu -> Multiply(x, Convert(u16 q) * scale_i) -> Tanh per scale. FOLD keeps
+// the u16 constant in the body and lifts the f32 scale into a closure.
+std::shared_ptr<ov::Model> build_scalar_dq_scale_model(uint16_t q_value, const std::vector<float>& scales) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 32});
+    std::shared_ptr<ov::Node> prev = input;
+    for (float s : scales) {
+        auto q = ov::op::v0::Constant::create(ov::element::u16, ov::Shape{1}, {q_value});
+        auto q_f32 = std::make_shared<ov::op::v0::Convert>(q, ov::element::f32);
+        q_f32->set_friendly_name("q_f32");
+        q_f32->get_rt_info()["test_rebalance_key"] = true;
+        auto gamma =
+            std::make_shared<ov::op::v1::Multiply>(q_f32,
+                                                   ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {s}));
+        auto mul = std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v0::Relu>(prev), gamma);
+        prev = std::make_shared<ov::op::v0::Tanh>(mul);
+    }
+    return std::make_shared<ov::Model>(ov::OutputVector{prev}, ov::ParameterVector{input});
+}
+
 // Build a chain with exactly two Relu and two Sigmoid ops, but only ONE
 // Relu -> Sigmoid adjacency. The unary filler ops are all distinct types so they
 // never form repeating families of their own, and the chain is long enough to stay
@@ -448,6 +468,53 @@ TEST(PartitioningOptionsTest, FoldCreatesFunctionCallsForRepeatedBlocks) {
         std::any_of(partitioning.subgraphs.begin(), partitioning.subgraphs.end(), [](const ov::npuw::Subgraph& sg) {
             return !sg._funcall.empty();
         }));
+}
+
+// Folds the model and returns the number of calls whose closure was rebalanced by 2^k.
+std::size_t count_rebalanced_calls(uint16_t q_value, const std::vector<float>& scales, int k) {
+    auto cfg = make_cfg({{"NPUW_FOLD", "YES"}, {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"}});
+    auto partitioning = ov::npuw::getPartitioning(build_scalar_dq_scale_model(q_value, scales), cfg);
+
+    std::size_t calls = 0;
+    for (const auto& [func_name, func] : partitioning.functions) {
+        for (const auto& node : func._model->get_ordered_ops()) {
+            if (!ov::is_type<ov::op::v1::Multiply>(node)) {
+                continue;
+            }
+            auto cst = ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0));
+            auto param = ov::as_type_ptr<ov::op::v0::Parameter>(node->get_input_node_shared_ptr(1));
+            if (!cst || !param) {
+                continue;
+            }
+            EXPECT_EQ(cst->cast_vector<float>(), std::vector<float>{std::ldexp(static_cast<float>(q_value), -k)});
+            if (k != 0) {
+                // The replacement keeps the name and runtime info of the scalar it replaced
+                EXPECT_EQ(cst->get_friendly_name().rfind("q_f32", 0), 0u) << cst->get_friendly_name();
+                EXPECT_EQ(cst->get_rt_info().count("test_rebalance_key"), 1u);
+            }
+            const auto closure_idx = func._model->get_parameter_index(param) - func._param_offset;
+            for (const auto& sg : partitioning.subgraphs) {
+                if (sg._funcall == func_name) {
+                    const auto t = sg._lazy_closure[closure_idx].eval();
+                    const float original = std::ldexp(t.data<float>()[0], -k);
+                    EXPECT_NE(std::find(scales.begin(), scales.end(), original), scales.end());
+                    calls++;
+                }
+            }
+        }
+    }
+    return calls;
+}
+
+TEST(PartitioningOptionsTest, FoldRebalancesScalarClosuresOutOfF16Range) {
+    const std::vector<float> small = {1e-5f, 2e-5f, 3e-5f, 3.5e-5f, 4e-5f, 4.9e-5f, 5e-5f, 6e-5f, 1e-4f, 1e-3f};
+    const std::vector<float> normal = {1e-4f, 2e-4f, 5e-4f, 1e-3f, 2e-3f, 4e-3f, 6e-3f, 8e-3f, 1e-2f, 2e-2f};
+    // 65535 overflows f16: 65535 / 2^15 in the body, scale * 2^15 in the closures
+    EXPECT_GT(count_rebalanced_calls(65535, normal, 15), 1u);
+    // 1000 fits f16, but the scales are f16 subnormals: 1000 / 2^9 and scale * 2^9
+    EXPECT_GT(count_rebalanced_calls(1000, small, 9), 1u);
+    // Everything fits f16: nothing to do
+    EXPECT_EQ(count_rebalanced_calls(1000, normal, 0), 0u);
 }
 
 TEST(PartitioningOptionsTest, CwaiCreatesFunctionCallsForRepeatedBlocks) {
