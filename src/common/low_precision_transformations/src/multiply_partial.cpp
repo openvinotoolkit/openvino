@@ -144,21 +144,22 @@ bool MultiplyPartialTransformation::transform(ov::pass::pattern::Matcher& m) {
         auto newMultiplyValuesFullPath = fold<ov::opset1::Multiply>(multiplyValuesEmptyPath, multiplyValuesFullPath);
         OutputVector inputs{ {}, {} };
         inputs[emptyPathIndex] = scalingMode ? newMultiplyValuesFullPath : dequantizationEmptyPath.data;
-        auto input_for_fullPath = scalingMode ? dequantizationEmptyPath.data.get_node_shared_ptr() :
-                                                newMultiplyValuesFullPath;
+        const auto input_for_fullPath = scalingMode ? dequantizationEmptyPath.data :
+                                                      newMultiplyValuesFullPath->output(0);
 
         ov::Output<ov::Node> parent0 = dequantizationFullPath.subtract == nullptr ?
             (dequantizationFullPath.convert == nullptr ? dequantizationFullPath.data : dequantizationFullPath.convert) :
             dequantizationFullPath.subtract;
 
         inputs[fullPathIndex] =
-            parent0.get_node()->get_output_element_type(0) == input_for_fullPath->get_output_element_type(0) ?
+            parent0.get_element_type() == input_for_fullPath.get_element_type() ?
                 std::make_shared<ov::opset1::Multiply>(parent0, input_for_fullPath) :
                 std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
                       std::vector<element::Type>{element::f32, element::f32},
                       std::vector<element::Type>{element::f32},
                       ov::op::TemporaryReplaceOutputType(parent0, element::f32).get(),
                       ov::op::TemporaryReplaceOutputType(input_for_fullPath, element::f32).get());
+        ov::copy_runtime_info(multiply, inputs[fullPathIndex].get_node_shared_ptr());
 
         newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
                 std::vector<element::Type>{element::f32, element::f32},
