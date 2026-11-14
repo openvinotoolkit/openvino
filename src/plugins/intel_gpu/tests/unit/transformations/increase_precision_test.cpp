@@ -7,61 +7,61 @@
 #include <cmath>
 #include <limits>
 #include <map>
-#include <string>
 #include <memory>
+#include <openvino/core/model.hpp>
+#include <openvino/pass/constant_folding.hpp>
+#include <openvino/pass/manager.hpp>
+#include <plugin/transformations/increase_position_ids_precision.hpp>
+#include <plugin/transformations/increase_rms_input_precision.hpp>
+#include <string>
+#include <transformations/convert_precision.hpp>
+#include <transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp>
+#include <transformations/init_node_info.hpp>
+#include <transformations/utils/utils.hpp>
 #include <unordered_set>
 #include <utility>
 #include <vector>
 
+#include "common_test_utils/ov_test_utils.hpp"
 #include "intel_gpu/op/gemm.hpp"
-#include "ov_ops/rotary_positional_embeddings.hpp"
-
-#include <openvino/pass/manager.hpp>
-#include <openvino/pass/constant_folding.hpp>
-#include <openvino/core/model.hpp>
 #include "openvino/core/coordinate_diff.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/divide.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/result.hpp"
-#include "openvino/op/sin.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/add.hpp"
+#include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_nd.hpp"
-#include "openvino/op/strided_slice.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/variadic_split.hpp"
-#include "openvino/op/swish.hpp"
 #include "openvino/op/gelu.hpp"
 #include "openvino/op/matmul.hpp"
-#include "ov_ops/rms.hpp"
-#include "openvino/op/split.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/scatter_nd_update.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/sigmoid.hpp"
+#include "openvino/op/sin.hpp"
 #include "openvino/op/slice.hpp"
-#include "openvino/runtime/tensor.hpp"
-
-#include <plugin/transformations/increase_position_ids_precision.hpp>
-#include <plugin/transformations/increase_rms_input_precision.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/convert_precision.hpp>
-#include <transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp>
-#include <transformations/utils/utils.hpp>
+#include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/swish.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/visualize_tree.hpp"
-
-#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/runtime/tensor.hpp"
+#include "ov_ops/rms.hpp"
+#include "ov_ops/rotary_positional_embeddings.hpp"
 
 // Sin/Cos discovery helpers and regression tests.
 namespace {
@@ -1148,6 +1148,175 @@ TEST(IncreasePositionIdsLTXVideoCallbackTest, CollectsAndPreservesOriginalConsta
         EXPECT_NE(rounded->cast_vector<float>()[0], coefficient_values[0]);
         EXPECT_NO_THROW(graph.model->validate_nodes_and_infer_types());
     }
+}
+
+namespace {
+
+// Evaluates the angle feeding the (single) Sin of the model as f32 values.
+std::vector<float> evaluate_sin_angle(const std::shared_ptr<ov::Model>& model, const ov::TensorVector& inputs) {
+    std::shared_ptr<ov::Node> sin;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::v0::Sin>(node)) {
+            sin = node;
+        }
+    }
+    OPENVINO_ASSERT(sin, "No Sin in the model");
+    const auto angle = sin->input_value(0);
+    auto angle_model = std::make_shared<ov::Model>(ov::OutputVector{angle}, model->get_parameters());
+    ov::TensorVector outputs{ov::Tensor(angle.get_element_type(), angle.get_shape())};
+    OPENVINO_ASSERT(angle_model->evaluate(outputs, inputs), "Angle evaluation failed");
+    return ov::op::v0::Constant(outputs[0]).cast_vector<float>();
+}
+
+// Builds an f32 input tensor.
+ov::Tensor make_f32_tensor(const std::vector<float>& values) {
+    ov::Tensor tensor(ov::element::f32, ov::Shape{values.size()});
+    std::copy(values.begin(), values.end(), tensor.data<float>());
+    return tensor;
+}
+
+// Runs constant preservation, f32 -> f16 conversion and the FP32 angle reconstruction, then compares the angle with the
+// original FP32 one: identical when the coefficient was preserved, off by its f16 rounding otherwise.
+void expect_restored_angle(const std::shared_ptr<ov::Model>& model,
+                           const std::shared_ptr<ov::op::v0::Constant>& coefficient,
+                           const ov::TensorVector& inputs,
+                           bool collect_constants) {
+    const auto reference = evaluate_sin_angle(model, inputs);
+    const auto coefficient_values = coefficient->cast_vector<float>();
+    ASSERT_NE(static_cast<float>(ov::float16(coefficient_values[0])), coefficient_values[0]);
+
+    const auto constants = run_ltx_constant_precision_passes(model, collect_constants);
+    EXPECT_EQ(constants->count(coefficient.get()), collect_constants ? 1 : 0);
+    run_discovery(model);
+    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+
+    const auto actual = evaluate_sin_angle(model, inputs);
+    ASSERT_EQ(actual.size(), reference.size());
+    for (size_t i = 0; i < actual.size(); ++i) {
+        if (collect_constants) {
+            EXPECT_FLOAT_EQ(actual[i], reference[i]) << i;
+        } else {
+            EXPECT_GT(std::abs(actual[i] - reference[i]), 1.f) << i;
+        }
+    }
+    if (collect_constants) {
+        EXPECT_EQ(coefficient->get_element_type(), ov::element::f32);
+        EXPECT_EQ(coefficient->cast_vector<float>(), coefficient_values);
+    }
+}
+
+}  // namespace
+
+// An i64 coordinate constant converted to f32 is an angle input, not compressed weights: the frequency it is multiplied with must
+// keep its original FP32 value through preservation, precision conversion and the FP32 angle reconstruction.
+TEST(IncreasePositionIdsLTXVideoCallbackTest, PreservesFrequencyOfIntegerCoordinateAngle) {
+    for (const bool collect_constants : {false, true}) {
+        SCOPED_TRACE(::testing::Message() << "collector=" << collect_constants);
+        auto positions = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 3});
+        auto frequency = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{2}, {31415.927734f});
+        auto offset = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2});
+        auto scaled = std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v0::Convert>(positions, ov::element::f32), frequency);
+        auto angle = std::make_shared<ov::op::v1::Add>(scaled, offset);
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{std::make_shared<ov::op::v0::Sin>(angle), std::make_shared<ov::op::v0::Cos>(angle)},
+                                                 ov::ParameterVector{offset});
+        expect_restored_angle(model, frequency, {make_f32_tensor({0.25f, -0.5f})}, collect_constants);
+    }
+}
+
+// Layout-only ops between the angle arithmetic and Sin / Cos do not make a coefficient less relevant: every constant of an angle
+// path accepted by the FP32 reconstruction must be preserved, however far it is from the Sin / Cos.
+TEST(IncreasePositionIdsLTXVideoCallbackTest, PreservesCoefficientBehindLayoutChain) {
+    for (const bool collect_constants : {false, true}) {
+        SCOPED_TRACE(::testing::Message() << "collector=" << collect_constants);
+        auto positions = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2});
+        auto coefficient = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{2}, {31415.927734f});
+        ov::Output<ov::Node> angle = std::make_shared<ov::op::v1::Multiply>(positions, coefficient);
+        for (size_t i = 0; i < 7; ++i) {
+            if (i % 2 == 0) {
+                auto shape = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+                angle = std::make_shared<ov::op::v1::Reshape>(angle, shape, false);
+            } else {
+                auto order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+                angle = std::make_shared<ov::op::v1::Transpose>(angle, order);
+            }
+        }
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{std::make_shared<ov::op::v0::Sin>(angle), std::make_shared<ov::op::v0::Cos>(angle)},
+                                                 ov::ParameterVector{positions});
+        expect_restored_angle(model, coefficient, {make_f32_tensor({1.f, 3.f})}, collect_constants);
+    }
+}
+
+// DETR-style models feed Sin / Cos with a positional embedding of predicted boxes, i.e. with a value that depends on the whole
+// network. The FP32 reconstruction does not rebuild such deep angle paths, so none of their constants (network weights, biases,
+// quantization parameters) is preserved.
+TEST(IncreasePositionIdsLTXVideoCallbackTest, DoesNotCollectConstantsOfAnglesBeyondReconstructionDepth) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4, 16});
+    ov::Output<ov::Node> hidden = input;
+    std::vector<std::shared_ptr<ov::op::v0::Constant>> weights;
+    for (size_t i = 0; i < 60; ++i) {
+        auto weight = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{16, 16}, {0.01f});
+        weights.push_back(weight);
+        hidden = std::make_shared<ov::op::v0::MatMul>(hidden, weight, false, true);
+    }
+    auto coefficient = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{16}, {6.2831855f});
+    auto angle = std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v0::Sigmoid>(hidden), coefficient);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{std::make_shared<ov::op::v0::Sin>(angle), std::make_shared<ov::op::v0::Cos>(angle)},
+                                             ov::ParameterVector{input});
+
+    auto constants = std::make_shared<CollectSinCosConstantsForPrecisionPreservation::ConstantSet>();
+    ov::pass::Manager manager;
+    manager.register_pass<CollectSinCosConstantsForPrecisionPreservation>(constants);
+    manager.run_passes(model);
+
+    EXPECT_TRUE(constants->empty());
+}
+
+TEST(IncreasePositionIdsLTXVideoCallbackTest, DoesNotCollectQuantizationConstants) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4, 16});
+    // weight decompression: Convert(i8) * scale
+    auto int_weight = ov::op::v0::Constant::create(ov::element::i8, ov::Shape{16, 16}, {3});
+    auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{16, 1}, {0.02f});
+    auto dequantized = std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v0::Convert>(int_weight, ov::element::f32), scale);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(input, dequantized, false, true);
+    // activation FakeQuantize
+    auto low = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {-1.f});
+    auto high = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.f});
+    auto fake_quantize = std::make_shared<ov::op::v0::FakeQuantize>(matmul, low, high, low, high, 256);
+    auto coefficient = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{16}, {6.2831855f});
+    auto angle = std::make_shared<ov::op::v1::Multiply>(fake_quantize, coefficient);
+    auto sin = std::make_shared<ov::op::v0::Sin>(angle);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{sin}, ov::ParameterVector{input});
+
+    auto constants = std::make_shared<CollectSinCosConstantsForPrecisionPreservation::ConstantSet>();
+    ov::pass::Manager manager;
+    manager.register_pass<CollectSinCosConstantsForPrecisionPreservation>(constants);
+    manager.run_passes(model);
+
+    EXPECT_EQ(constants->count(coefficient.get()), 1);
+    EXPECT_EQ(constants->count(scale.get()), 0);
+    EXPECT_EQ(constants->count(low.get()), 0);
+    EXPECT_EQ(constants->count(high.get()), 0);
+}
+
+// The same quantization pattern below the Sin / Cos but behind a short chain must not be collected either.
+TEST(IncreasePositionIdsLTXVideoCallbackTest, DoesNotCollectDecompressionScaleNextToSinCos) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4, 16});
+    auto int_weight = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{16, 16}, {7});
+    auto zero_point = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{16, 1}, {128});
+    auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{16, 1}, {0.02f});
+    auto shifted = std::make_shared<ov::op::v1::Subtract>(std::make_shared<ov::op::v0::Convert>(int_weight, ov::element::f32),
+                                                          std::make_shared<ov::op::v0::Convert>(zero_point, ov::element::f32));
+    auto dequantized = std::make_shared<ov::op::v1::Multiply>(shifted, scale);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(input, dequantized, false, true);
+    auto sin = std::make_shared<ov::op::v0::Sin>(matmul);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{sin}, ov::ParameterVector{input});
+
+    auto constants = std::make_shared<CollectSinCosConstantsForPrecisionPreservation::ConstantSet>();
+    ov::pass::Manager manager;
+    manager.register_pass<CollectSinCosConstantsForPrecisionPreservation>(constants);
+    manager.run_passes(model);
+
+    EXPECT_EQ(constants->count(scale.get()), 0);
 }
 
 TEST(IncreasePositionIdsLTXVideoCallbackTest, RestoresOriginalFP32Angles) {
