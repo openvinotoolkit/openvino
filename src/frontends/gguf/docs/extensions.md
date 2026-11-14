@@ -104,6 +104,13 @@ in a separate projector registry. It builds one vision or audio branch; the `cli
 selects branches as described in [mmproj.md](mmproj.md#files-with-vision-and-audio-encoders), names
 outputs `vision.embeddings` / `audio.embeddings` and finishes the model.
 
+Decoder builders declare GenAI adaptation through `parameters.model_contract`. The optional
+`supports_genai_adaptation` takes precedence over `genai.enabled`; `genai` also specifies
+multimodal positions, causal or context-prefix attention, preserved inputs and auxiliary output
+mappings. Logits are first by default; `genai.logits_first` can preserve legacy ordering.
+Extensions may override these choices without changing `AdaptToGenAI`. Models saved without
+the contract use the builder-owned legacy resolver.
+
 A `ProjectorDefinition` has `id`, `architecture`, `modality` (`vision` or `audio`),
 `projector_type`, `build` and optional `match`, `genai_layout` and `genai_adapter`. `build` appends to the shared `GgufGraphContext` and
 returns `ProjectorResult`: the output and optional string configuration under the modality prefix.
@@ -156,6 +163,13 @@ and `lfm3a_gen` models the coordinator reads that declaration through `model_con
 adds built-in component groups only where the projector declared none; declared recurrent
 batching, outputs and state prefixes are preserved. `build_builtin_projector()` also builds
 `lfm3vl` (vision) and `lfm3a` (audio).
+
+A projector can declare equally sized feature blocks through string entries in
+`ProjectorResult.config`: `<modality>.embedding_output_count` gives the positive output count,
+and `<modality>.embedding_output.<index>` gives each nonempty, unique output name. These entries
+survive IR serialization and control generic output splitting. Built-in builders declare the
+standard feature names; the builder-owned resolver also handles legacy auxiliary-count metadata,
+or a single feature output if no count is present.
 
 A custom `genai_adapter` runs for both `EMBEDDINGS` and `VISION_ENCODERS` after generic extraction
 of the selected modality. It receives an independent model clone and returns `ModelAdapterResult`:

@@ -45,6 +45,9 @@ public:
     const ov::Shape& weight_shape(const std::string& name) const;
     int64_t weight_rows(const std::string& name) const;
     GgufTensorType weight_qtype(const std::string& base) const;
+    const GgufWeight& weight_source(const std::string& name) const {
+        return m_weights.at(name);
+    }
     // Whether selecting `columns` of a parser weight keeps its quantization groups whole.
     bool column_groups_aligned(const std::string& name, const std::vector<int64_t>& columns) const;
     void add_generated_weight(const std::string& name, const ov::Tensor& tensor);

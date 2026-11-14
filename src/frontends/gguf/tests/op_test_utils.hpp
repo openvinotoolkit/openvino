@@ -17,6 +17,7 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstring>
 #include <filesystem>
@@ -35,7 +36,9 @@
 #include "op_table.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/core/visibility.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/op/parameter.hpp"
@@ -44,6 +47,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/util/file_util.hpp"
+#include "quant/gguf.hpp"
 
 // TEST_DATA_DIR is injected by CMakeLists.txt as an absolute path to the source-tree
 // test_data/ directory; used as a fallback when running from the build tree.
@@ -336,6 +340,37 @@ inline const cnpy::NpyArray& npz_array(const cnpy::npz_t& arrays, const std::str
     });
     OPENVINO_ASSERT(it != arrays.end(), "Missing reference array ", name);
     return it->second;
+}
+
+inline void quantize_weight(GgufWeightTable& weights, const std::string& name, GgufTensorType type) {
+    const auto source = weights.at(name).data;
+    OPENVINO_ASSERT(source.get_element_type() == ov::element::f32);
+    const auto* values = source.data<const float>();
+    GgufWeight result;
+    result.shape = source.get_shape();
+    result.qtype = type;
+    result.source_name = name;
+    if (type == GGUF_TYPE_BF16) {
+        ov::Tensor converted(ov::element::bf16, source.get_shape());
+        std::transform(values, values + source.get_size(), converted.data<ov::bfloat16>(), [](float value) {
+            return ov::bfloat16(value);
+        });
+        result.data = std::move(converted);
+    } else {
+        OPENVINO_ASSERT(type == GGUF_TYPE_Q8_0 && !source.get_shape().empty() && source.get_shape().back() % 32 == 0);
+        ov::Tensor packed(ov::element::u8, {source.get_size() / 32 * 34});
+        for (size_t group = 0; group < source.get_size() / 32; ++group) {
+            std::array<int8_t, 32> codes;
+            ov::float16 scale;
+            quantize_row_q8_0_c(values + group * 32, codes.size(), codes.data(), scale);
+            const auto bits = scale.to_bits();
+            auto* block = packed.data<uint8_t>() + group * 34;
+            std::memcpy(block, &bits, sizeof(bits));
+            std::memcpy(block + sizeof(bits), codes.data(), codes.size());
+        }
+        result.data = std::move(packed);
+    }
+    weights.at(name) = std::move(result);
 }
 
 // Normalized MSE, the acceptance metric for the accuracy fixtures: sum((a-e)^2) / sum(e^2).

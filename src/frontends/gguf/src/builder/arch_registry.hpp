@@ -17,6 +17,7 @@ constexpr int ROPE_OP_CASE_NORMAL = 0x00000000;
 constexpr int ROPE_OP_CASE_NEOX = 0x00010000;
 constexpr int ROPE_OP_CASE_IMROPE = 0x00020000;
 bool arch_uses_neox_rope(const std::string& arch);
+bool is_qwen3_asr(const GgufMetadata& metadata);
 
 // Single catalog for built-in decoder and custom-family definitions.
 std::vector<ArchitectureDefinition> builtin_architectures();

@@ -26,7 +26,10 @@ may compute their expectations inline; see [operation tests](how_to_add_op.md#te
 Record both revisions, checkpoint and quantization, input tensors or token history, device,
 inference precision, activation quantization, and cache precision. Use reference-token replay
 after a greedy choice differs; comparing later logits on different histories hides the cause.
-Coherent text is a functional check, not numerical acceptance.
+Coherent text alone is a smoke check. Use [WWB model validation](../../../../.claude/skills/ov-gguf/references/wwb.md)
+to compare quantized generated-text quality against the same original-weight floating
+reference for llama.cpp and GenAI. A quantized token/logit mismatch can remain a numerical
+diagnostic while the measured model is supported; WWB does not replace graph/API checks.
 
 The same checkpoint does not imply the same arithmetic. Compare against both native quantized
 CPU execution and, when needed, F32 arithmetic on the checkpoint's represented weights. Expanding
@@ -40,6 +43,20 @@ quantizer, compare the expansion in both engines, and compare OV compressed agai
 Agreement of the expansions with a discrepancy only in quantized execution implicates CPU
 arithmetic; retain the original failed gate. A requantized fixture or a separately downloaded
 F16 checkpoint cannot establish parity for the original model.
+
+For attention, record flash versus nonflash execution and intermediate rounding separately
+from KV storage precision. The pinned llama.cpp nonflash F16-cache path rounds queries
+before QK and softmax probabilities before PV, with F32 outputs. Compare an attention
+subgraph on identical Q/K/V and masks before attributing full-model drift to cache updates.
+Sparse gates followed by normalization can amplify a small attention discrepancy.
+
+Check that diagnostic casts survive compilation. Under CPU F32 inference, an ordinary
+F32-to-F16-to-F32 pair can be removed by precision conversion. Inspect the executed graph
+and observe a known half-rounded tensor; use `ov::disable_conversion` from
+`transformations/rt_info/disable_precision_conversion.hpp` on the narrowing Convert when
+the experiment requires it. A passing manual QK/softmax/PV decomposition does not establish
+a production fix: retain the original gate and verify stateful execution and
+SDPA-to-PagedAttention conversion before changing the frontend's attention path.
 
 ## Localize the failing boundary
 

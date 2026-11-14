@@ -8,5 +8,4 @@
 
 namespace ov::frontend::gguf {
 std::shared_ptr<ModelBuilder> make_mmproj_builder(const BuildContext& context);
-
 }  // namespace ov::frontend::gguf

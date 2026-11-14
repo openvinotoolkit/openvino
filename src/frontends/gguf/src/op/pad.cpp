@@ -61,6 +61,16 @@ OutputVector translate_pad(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
 
     auto input = context.get_input(0);
+    const auto reflect = context.get_attribute<int64_t>("reflect_last_axis", 0);
+    if (reflect) {
+        FRONT_END_OP_CONVERSION_CHECK(reflect > 0 && input.get_partial_shape().rank().is_static(),
+                                      "Reflect padding requires a positive extent and static rank");
+        std::vector<int64_t> extents(input.get_partial_shape().size(), 0);
+        extents.back() = reflect;
+        auto pads = ov::op::v0::Constant::create(ov::element::i64, {extents.size()}, extents);
+        auto result = std::make_shared<ov::op::v1::Pad>(input, pads, pads, ov::op::PadMode::REFLECT);
+        return rename_outputs_with_suffix({result}, context.get_name());
+    }
     const auto multiple = context.get_attribute<int64_t>("pad_tokens_to_multiple", 0);
     if (multiple) {
         FRONT_END_OP_CONVERSION_CHECK(multiple > 0 && input.get_partial_shape().rank() == 4,

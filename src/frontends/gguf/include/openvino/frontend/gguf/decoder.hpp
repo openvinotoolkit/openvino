@@ -31,11 +31,32 @@ struct ModelComponentGroup {
     std::map<std::string, ModelComponentContract> models;
 };
 
+// Define this outside ModelContract so Clang can instantiate std::optional.
+struct ModelGenAIContract {
+    enum class PositionLayout { THREE_AXIS, SEQUENCE_THREE_AXIS };
+    struct AuxiliaryOutput {
+        std::string source_tensor;
+        std::string name;
+        std::optional<int64_t> squeeze_axis;
+    };
+
+    bool enabled = true;
+    PositionLayout position_layout = PositionLayout::SEQUENCE_THREE_AXIS;
+    bool causal_attention = true;
+    std::string attention_context_input;
+    std::vector<AuxiliaryOutput> auxiliary_outputs;
+    std::vector<std::string> preserved_inputs;
+    bool logits_first = true;
+};
+
 struct ModelContract {
     enum class ImageAttentionMode { CAUSAL, GLOBAL_AND_SLIDING, SLIDING_ONLY };
 
+    using GenAIContract = ModelGenAIContract;
+
     std::optional<bool> batchable_recurrent;
     ImageAttentionMode image_attention = ImageAttentionMode::CAUSAL;
+    std::optional<GenAIContract> genai;
     std::vector<std::string> sequence_outputs;
     std::map<std::string, ModelComponentGroup> component_groups;
     std::optional<bool> supports_genai_adaptation;

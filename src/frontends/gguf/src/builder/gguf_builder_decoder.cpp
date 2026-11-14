@@ -25,6 +25,8 @@ const GgufOp& GgufBuilderDecoder::node() const {
 // carry source shapes; converters infer them from their OpenVINO inputs.
 
 ov::Any GgufBuilderDecoder::get_attribute(const std::string& name) const {
+    if (name == "model_rt_info" && m_node_idx < 0)
+        return m_graph->model_rt_info;
     if (name == "architecture" && m_node_idx < 0)
         return m_graph->architecture;
     // RoPE config is queried at model scope (prepare_graph_inputs, to build the shared

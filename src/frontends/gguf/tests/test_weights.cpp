@@ -12,11 +12,12 @@
 // test_dequant_vs_ggml.cpp.
 
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
-#include <fstream>
 #include <vector>
 
 #include "common_test_utils/file_utils.hpp"
+#include "gguf_writer.hpp"
 #include "helper_ops/gguf_constant.hpp"
 #include "node_context.hpp"
 #include "op_test_utils.hpp"
@@ -937,6 +938,49 @@ TEST(GGUFWeight, UsesIntegerZeroPointForRequantizedMatmulWeights) {
     EXPECT_EQ(gguf_zero_point_type("blk.0.attn_q.weight", GGUF_TYPE_PTQ1_0), ov::element::f16);
 }
 
+TEST(GGUFWeight, SelectsFractionalZeroPointsForStrictMatmulWeights) {
+    using namespace ov::frontend::gguf;
+
+    for (const auto qtype : {GGUF_TYPE_Q4_K, GGUF_TYPE_Q4_1, GGUF_TYPE_Q5_K}) {
+        SCOPED_TRACE(qtype);
+        EXPECT_EQ(gguf_zero_point_type("blk.2.ffn_down_exps.weight", qtype, false), ov::element::u8);
+        EXPECT_EQ(gguf_zero_point_type("blk.2.ffn_down_exps.weight", qtype, true), ov::element::f16);
+        EXPECT_EQ(gguf_zero_point_type("token_embd.weight", qtype, false), ov::element::f16);
+        EXPECT_EQ(gguf_zero_point_type("output.weight", qtype, true), ov::element::f16);
+    }
+    EXPECT_EQ(gguf_zero_point_type("blk.2.ffn_down.weight", GGUF_TYPE_Q2_0, true), ov::element::u8);
+    for (const auto qtype : {GGUF_TYPE_PQ2_0, GGUF_TYPE_PTQ1_0}) {
+        EXPECT_EQ(gguf_zero_point_type("blk.2.ffn_down.weight", qtype, true), ov::element::f16);
+    }
+}
+
+TEST(GGUFWeight, FractionalQ5KPreservesSourceCodesAndMatchesGgmlToFloat) {
+    using namespace ov::frontend::gguf;
+
+    const auto bytes = load_npy<uint8_t>("q5_k_qbytes");
+    const auto reference = load_npy<float>("q5_k_deq");
+    GgufTensor tensor;
+    tensor.type = GGUF_TYPE_Q5_K;
+    tensor.bsize = bytes.size();
+    tensor.num_weights = kRows * kCols;
+    tensor.weights_data = bytes.data();
+    WeightTensors extracted{
+        ov::Tensor(ov::element::u8, {kRows, kCols}),
+        ov::Tensor(ov::element::f16, {kRows, kCols / 32}),
+        ov::Tensor(gguf_zero_point_type("blk.2.ffn_down_exps.weight", GGUF_TYPE_Q5_K, true), {kRows, kCols / 32})};
+    gguf_fill_asym(tensor, extracted.weight, extracted.scales, extracted.zero_point);
+    for (size_t i = 0; i < extracted.weight.get_size(); ++i) {
+        EXPECT_LE(extracted.weight.data<uint8_t>()[i], 31);
+    }
+    const auto node = make_weight_node(extracted, GGUF_TYPE_Q5_K, "blk.2.ffn_down_exps.weight");
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+    const auto output = run_on_cpu(model, {});
+    ASSERT_EQ(output.get_size(), reference.size());
+    for (size_t i = 0; i < reference.size(); ++i) {
+        EXPECT_NEAR(output.data<float>()[i], reference[i], kTolFaithful);
+    }
+}
+
 class GGUFQ5KNative : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -946,38 +990,22 @@ protected:
         ov::test::utils::removeFile(path);
     }
     void write_tensor(const std::string& name, const std::vector<uint8_t>& bytes) {
-        std::ofstream out(path, std::ios::binary);
-        ASSERT_TRUE(out);
-        const auto put = [&out](auto value) {
-            out.write(reinterpret_cast<const char*>(&value), sizeof(value));
-        };
-        put(uint32_t{0x46554747});
-        put(uint32_t{3});
-        put(uint64_t{1});
-        put(uint64_t{0});
-        put(uint64_t{name.size()});
-        out.write(name.data(), name.size());
-        put(uint32_t{3});
-        put(uint64_t{kCols});
-        put(uint64_t{2});
-        put(uint64_t{2});
-        put(uint32_t{ov::frontend::gguf::GGUF_TYPE_Q5_K});
-        put(uint64_t{0});
-        while (static_cast<size_t>(out.tellp()) % 32 != 0)
-            out.put('\0');
-        out.write(reinterpret_cast<const char*>(bytes.data()), bytes.size());
-        ASSERT_TRUE(out);
+        GgufWriter writer;
+        writer.raw_tensor(name, {kCols, 2, 2}, ov::frontend::gguf::GGUF_TYPE_Q5_K, bytes);
+        ASSERT_TRUE(writer.write(path));
     }
     std::string path;
 };
 
-TEST_F(GGUFQ5KNative, KeepsDiskTypeAndUsesSymmetricStorageForMatrices) {
+TEST_F(GGUFQ5KNative, KeepsDiskTypeAndUnpacksByTensorRole) {
     using namespace ov::frontend::gguf;
+    const auto* mode = std::getenv("OV_GGUF_Q4_K_ZP_F16");
+    const bool fractional = mode && *mode && std::strcmp(mode, "0") != 0;
     const auto bytes = load_npy<uint8_t>("q5_k_qbytes");
     for (const std::string name : {"blk.0.ffn_up", "token_embd", "output", "blk.0.attn_q.bias"}) {
         SCOPED_TRACE(name);
         const auto full_name = name == "blk.0.attn_q.bias" ? name : name + ".weight";
-        const bool symmetric = name == "blk.0.ffn_up";
+        const bool symmetric = name == "blk.0.ffn_up" && !fractional;
         ASSERT_NO_FATAL_FAILURE(write_tensor(full_name, bytes));
         const auto loaded = get_gguf_data(path);
         const auto& source = std::get<1>(loaded).at(full_name);
@@ -988,8 +1016,20 @@ TEST_F(GGUFQ5KNative, KeepsDiskTypeAndUsesSymmetricStorageForMatrices) {
         EXPECT_EQ(static_cast<bool>(tensors.zero_point), !symmetric);
         EXPECT_NO_THROW(make_weight_node(tensors, GGUF_TYPE_Q5_K, full_name));
         if (!symmetric) {
-            EXPECT_EQ(tensors.zero_point.get_element_type(),
-                      name == "blk.0.attn_q.bias" ? ov::element::u8 : ov::element::f16);
+            const auto zp_type = name == "blk.0.attn_q.bias" && !fractional ? ov::element::u8 : ov::element::f16;
+            EXPECT_EQ(tensors.zero_point.get_element_type(), zp_type);
+        }
+        if (fractional && name == "blk.0.ffn_up") {
+            const auto reference = load_npy<float>("q5_k_deq");
+            const auto model =
+                std::make_shared<ov::Model>(ov::OutputVector{make_weight_node(tensors, GGUF_TYPE_Q5_K, full_name)},
+                                            ov::ParameterVector{});
+            const auto output = run_on_cpu(model, {});
+            ASSERT_EQ(output.get_size(), reference.size());
+            for (size_t i = 0; i < reference.size(); ++i) {
+                EXPECT_LE(tensors.weight.data<const uint8_t>()[i], 31);
+                EXPECT_NEAR(output.data<const float>()[i], reference[i], kTolFaithful);
+            }
         }
     }
 }

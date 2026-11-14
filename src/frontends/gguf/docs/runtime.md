@@ -89,9 +89,11 @@ exposes GenAI's interface. Select the mode in the `GenAIExtension` constructor:
 
 | Mode | Inputs | Output |
 |---|---|---|
-| `IDS_TO_LOGITS` (default) | `input_ids [B,T]`, `attention_mask [B,KV]`, `position_ids [B,T]`, `beam_idx [B]` | `logits [B,T,vocab]` |
-| `EMBEDS_TO_LOGITS` | `inputs_embeds [B,T,D]` instead of `input_ids`; see [multimodal language models](mmproj.md#using-the-encoders-and-a-language-model) | `logits [B,T,vocab]` |
+| `IDS_TO_LOGITS` (default) | `input_ids [B,T]`, `attention_mask [B,KV]`, `position_ids [B,T]`, `beam_idx [B]` | `logits [B,N,vocab]` |
+| `EMBEDS_TO_LOGITS` | `inputs_embeds [B,T,D]` instead of `input_ids`; see [multimodal language models](mmproj.md#using-the-encoders-and-a-language-model) | `logits [B,N,vocab]` |
 
+- The number of output rows `N` depends on the model and attention backend. Standard SDPA decoders
+  generally select the last token per sequence; PagedAttention can expose a row for each token.
 - The leading dimensions are derived from the live inputs, so one graph serves both SDPA and
   `ov::pass::SDPAToPagedAttention`.
 - The LM head is connected directly to the logits Result with a rank-3 input, so GenAI's
