@@ -236,4 +236,29 @@ TEST(ze_usm_memory, copy_small_to_large_buffer) {
 	OV_ASSERT_NO_THROW(small_mem->copy_to(*ctx.ze_test_stream, *large_mem, true));
 }
 
+TEST(ze_usm_memory, zero_size_device_memory) {
+	auto ctx = create_ze_test_context();
+	const layout zero_layout = {{1, 0, 2}, data_types::f32, format::bfyx};
+
+	for (auto alloc_type : {allocation_type::usm_device, allocation_type::cl_mem}) {
+		if (!ctx.ze_test_engine->supports_allocation(alloc_type))
+			continue;
+		SCOPED_TRACE(alloc_type);
+		memory::ptr mem0 = nullptr;
+		memory::ptr mem1 = nullptr;
+		OV_ASSERT_NO_THROW(mem0 = ctx.ze_test_engine->allocate_memory(zero_layout, alloc_type));
+		OV_ASSERT_NO_THROW(mem1 = ctx.ze_test_engine->allocate_memory(zero_layout, alloc_type));
+		ASSERT_EQ(mem0->get_layout(), zero_layout);
+		ASSERT_EQ(mem0->size(), 0u);
+		ASSERT_NE(mem0->buffer_ptr(), nullptr);
+		ASSERT_NE(mem0->buffer_ptr(), mem1->buffer_ptr());
+
+		OV_ASSERT_NO_THROW(mem0->fill(*ctx.ze_test_stream));
+		void* ptr = nullptr;
+		OV_ASSERT_NO_THROW(ptr = mem0->lock(*ctx.ze_test_stream, mem_lock_type::read_write));
+		ASSERT_EQ(ptr, nullptr);
+		OV_ASSERT_NO_THROW(mem0->unlock(*ctx.ze_test_stream));
+	}
+}
+
 #endif  // OV_GPU_WITH_ZE_RT
