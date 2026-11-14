@@ -1599,7 +1599,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
 
             // Use mha_kv_cache pipeline for all single-token decoding.
             // This unifies quantized (u8/u4) and raw paths through a single codec-generic pipeline.
-            // temporary OV_TURBOQ_LEGACY_ATTN=1 reverts to the old per-type dispatch.
+            // temporary OV_CPU_LEGACY_ATTN=1 reverts to the old per-type dispatch.
             // ARM SIMD abstraction not yet wired through mha_kv_cache — fall back to legacy.
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
             const bool use_new_pipeline = false;
