@@ -810,7 +810,7 @@ def _run_cases(args, report):
                     path = Path(directory) / f"{case['id']}.expanded.json"
                     path.write_text(json.dumps(recipe), encoding="utf-8")
                     model = capture(path, runner)
-            elif stage in ("materialized", "controlled_values"):
+            elif stage == "materialized":
                 with tempfile.TemporaryDirectory(prefix="ov_gguf_materialized_") as directory:
                     path = Path(directory) / "synthetic.gguf"
                     materialize_recipe(recipe, path)

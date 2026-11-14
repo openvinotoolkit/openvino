@@ -3356,73 +3356,6 @@
       }
     },
     {
-      "id": "controlled--llama-q8-zero-scale",
-      "kind": "controlled",
-      "architecture": "llama",
-      "models": [
-        "InternVL2_5-1B-Q8_0.gguf",
-        "LiquidAI/LFM2.5-Audio-1.5B-GGUF-LEAP/mmproj-LFM2.5-Audio-1.5B-Q8_0.gguf",
-        "LiquidAI/LFM2.5-Audio-1.5B-GGUF/mmproj-LFM2.5-Audio-1.5B-Q8_0.gguf",
-        "Mellum2-12B-A2.5B-Instruct-Q4_0.gguf",
-        "Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf",
-        "Mellum2.1-12B-A2.5B-Thinking-Q4_K_M.gguf",
-        "MiniCPM-2B-dpo-q4km-gguf.gguf",
-        "Nemotron-3.5-Bolt-E4B-Q4_K_M.gguf",
-        "Qwen3-8B-Q8_0.gguf",
-        "Qwen3.5-0.8B-Q4_0.gguf",
-        "Qwen3.5-0.8B-Q4_K_M.gguf",
-        "Qwen3.5-2B-Q4_0.gguf",
-        "Qwen3.5-2B-Q4_K_M.gguf",
-        "Qwen3.5-35B-A3B-Q4_K_M.gguf",
-        "Qwen3.5-4B-Q4_0.gguf",
-        "Qwen3.5-4B-Q4_K_M.gguf",
-        "Qwen3.5-4B-Q5_K_M.gguf",
-        "Qwen3.5-9B-Q4_0.gguf",
-        "Qwen3.5-9B-Q4_K_M.gguf",
-        "Qwen3.5-9B-Q5_K_M.gguf",
-        "Qwen3.6-35B-A3B-Q4_K_M.gguf",
-        "Qwen_Qwen3.6-35B-A3B-Q4_0.gguf",
-        "Ternary-Bonsai-2-4B-PQ2_0-MTP-Q8_0.gguf",
-        "Ternary-Bonsai-2-9B-PQ2_0-MTP-Q8_0.gguf",
-        "baidu_ERNIE-4.5-21B-A3B-PT-Q4_K_M.gguf",
-        "concedo/GLM-ASR-Nano-2512-GGUF/mmproj-GLM-ASR-Nano-2512-Q8_0.gguf",
-        "deepseek-ocr-2-Q4_K_M.gguf",
-        "gemma-3-1b-it-Q4_0.gguf",
-        "gemma-3-1b-it-Q4_K_M.gguf",
-        "ggml-org/Qwen2-VL-2B-Instruct-GGUF/mmproj-Qwen2-VL-2B-Instruct-Q8_0.gguf",
-        "ggml-org/Qwen2.5-Omni-3B-GGUF/mmproj-Qwen2.5-Omni-3B-Q8_0.gguf",
-        "ggml-org/Qwen2.5-VL-3B-Instruct-GGUF/mmproj-Qwen2.5-VL-3B-Instruct-Q8_0.gguf",
-        "ggml-org/SmolVLM-256M-Instruct-GGUF/mmproj-SmolVLM-256M-Instruct-Q8_0.gguf",
-        "ggml-org/Voxtral-Mini-3B-2507-GGUF/mmproj-Voxtral-Mini-3B-2507-Q8_0.gguf",
-        "ggml-org/deepseek-ocr-GGUF/mmproj-DeepSeek-OCR-Q8_0.gguf",
-        "gpt-oss-20b-Q4_0.gguf",
-        "gpt-oss-20b-Q4_K_M.gguf",
-        "inclusionAI_Ling-mini-2.0-Q4_0.gguf",
-        "inclusionAI_Ling-mini-2.0-Q4_K_M.gguf",
-        "mamba2-130m-q8_0.gguf",
-        "mmproj-LFM2-VL-450M-Q8_0.gguf",
-        "mmproj-LFM3-Audio-2B-Q8_0.gguf",
-        "mmproj-LFM3-Omni-2B-Q8_0.gguf",
-        "mmproj-LFM3-VL-2B-Q8_0.gguf",
-        "mmproj-Ministral-3-3B-Instruct-2512-Q8_0.gguf",
-        "mmproj-gemma-4-E2B-it-Q8_0.gguf",
-        "mradermacher/Janus-Pro-1B-GGUF/Janus-Pro-1B.mmproj-Q8_0.gguf",
-        "mradermacher/music-flamingo-hf-GGUF/music-flamingo-hf.mmproj-Q8_0.gguf",
-        "qwen2.5-0.5b-instruct-q4_0.gguf"
-      ],
-      "recipe": "recipes/controlled--llama-q8-zero-scale.json",
-      "reference": "references/controlled--llama-q8-zero-scale.json",
-      "stages": [
-        "deferred_plan",
-        "controlled_values"
-      ],
-      "source": {
-        "filename": "controlled--llama-q8-zero-scale.gguf",
-        "revision": "synthetic-generator-v1",
-        "header_sha256": "8d036d21be5fb051e268f1870c3bcfb0cefbd76f1ff2e3e03bb0c0c418e158eb"
-      }
-    },
-    {
       "id": "controlled--llama-q8-nonzero-scale",
       "kind": "controlled",
       "architecture": "llama",
@@ -3481,7 +3414,7 @@
       "reference": "references/controlled--llama-q8-nonzero-scale.json",
       "stages": [
         "deferred_plan",
-        "controlled_values"
+        "materialized"
       ],
       "source": {
         "filename": "controlled--llama-q8-nonzero-scale.gguf",

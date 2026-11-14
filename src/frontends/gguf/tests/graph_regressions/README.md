@@ -43,7 +43,7 @@ not LFS:
 builder selection and weight allocation/layout planning without allocating checkpoint
 weights. This is the all-model precommit candidate, not final materialized IR.
 `materialized` runs bounded synthetic GGUF files through ordinary production loading.
-`controlled_values` additionally pins small zero/nonzero Q8_0 scale cases. The 31
+`controlled--llama-q8-nonzero-scale` materializes patterned Q8_0 payloads. The 31
 legacy positive architecture fingerprints have materialized references with identical
 top-level operation and input counts; rejection, broken-model and dependency tests remain.
 Numerical repacking, Hadamard and ternary tests remain in the C++ suite.
@@ -56,12 +56,36 @@ It never invents random checkpoint-sized payloads. Temporary files are cleaned u
 Nonzero quantization arithmetic is covered by the existing numerical tests;
 unrepresented value-dependent final-materialization paths can still escape this gate.
 
-Canonical capture includes ordered connectivity/ports, types, exact partial shapes,
-typed operation attributes, public IO names, states, control dependencies, nested bodies,
-GGUF runtime contracts and packed/unpacked materialization descriptors. Debug names,
-private tensor aliases, tokenizer payloads and bulk weight/scale values are excluded.
-GGUF-owned runtime keys must be explicitly classified; unsupported semantic attributes
-fail export. Large integral/boolean graph-control constants are retained.
+## Graph hash scope
+
+`graph_sha256` is the SHA-256 of a canonical JSON graph (sorted keys, no whitespace).
+The scope is meant to capture everything that can change how a plugin compiles or runs
+the model, and nothing that only changes numerical values or debug metadata.
+
+| Included | Excluded |
+| --- | --- |
+| Operation type and opset version of every node, including nested bodies | Friendly names, internal tensor names and node creation order |
+| Connectivity: source node and output port of each input, in input order; control dependencies | Floating-point Constant values (type and shape are kept) |
+| Every output's element type and partial shape, with dynamic dimensions and bounds | Large Constants narrower than 32 bits (type and shape are kept) |
+| All `visit_attributes` values: axes, modes, flags, target shapes, body port maps | Weight payloads, quantization scales and zero points |
+| Integral Constant values with at most 64 elements or at least 32-bit integers, and boolean Constants | Shape symbols |
+| Parameters, Results and Sinks in model order, with their tensor names | Tokenizer metadata and `fused_names`, `original_precision`, `WeightlessCacheAttribute` |
+| ReadValue/Assign variable IDs, types and shapes | |
+| GGUF weight descriptors: source tensor, GGML type, storage type/shape, group size, unpacked weight/scale/zero-point layouts and row/column plans | |
+| GGUF runtime keys (`gguf*`) on nodes and the model | |
+| Node markers that steer plugins: `decompression`, `dequantization_node`, `keep_const_precision`, `precise`, `DisableConstantFolding`, `DisablePrecisionConversion`, `primitives_priority`, `shape_subgraph` | |
+
+Node IDs are assigned by a depth-first walk from the Results in input-port order, so
+two builders that create the same graph in a different order produce the same hash.
+Capture fails on an unclassified GGUF or node-level OpenVINO runtime key and on an
+unsupported attribute type, so a new marker cannot silently fall outside the scope.
+
+The comparison has no numeric tolerance. Tolerance is expressed only through this scope:
+value-only changes, such as a new epsilon or RoPE scale, keep the hash and are covered by
+accuracy tests. Any in-scope change, such as one Convert, a rank or a dynamic dimension,
+fails the gate, because such changes are exactly what moves FullyConnected, dynamic
+quantization or KV-cache selection in a plugin. Changing the scope requires regenerating
+all references in the same PR.
 
 Header import preserves typed scalar/array and IEEE nonfinite metadata. Tokenizer
 tables/scores/merges/templates and informational labels are explicitly listed as omissions.

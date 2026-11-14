@@ -3,7 +3,7 @@
     "deferred_plan": {
       "models": {
         "native": {
-          "graph_sha256": "d2f5af5234b9feaaa5ff9274704ad54d0435c4ed15632facd8c02f2d267a2b03",
+          "graph_sha256": "429a0f65e7ef298521c9db592dd991d164ea947f7e26d5a1d847fd86647b21b5",
           "ops": [
             ["Add","opset1",294],
             ["AvgPool","opset1",1],

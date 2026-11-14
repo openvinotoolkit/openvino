@@ -426,9 +426,9 @@ Json attributes(const std::shared_ptr<ov::Node>& node, Json& bodies) {
         const auto size = ov::shape_size(constant->get_shape());
         if (size == 0) {
             result["values"] = Json::array();
-        } else if (size <= 64 || constant->get_element_type() == ov::element::boolean ||
+        } else if (constant->get_element_type() == ov::element::boolean ||
                    (constant->get_element_type().is_integral_number() &&
-                    constant->get_element_type().bitwidth() >= 32)) {
+                    (size <= 64 || constant->get_element_type().bitwidth() >= 32))) {
             try {
                 result["values"] = constant->get_value_strings();
             } catch (const ov::Exception& error) {
@@ -478,7 +478,24 @@ Json runtime_value(const ov::Any& value) {
     OPENVINO_THROW("Unclassified GGUF runtime value type");
 }
 
-Json runtime_keys(const ov::RTMap& info) {
+// Node-level OpenVINO markers that steer plugin precision, folding or kernel selection.
+const std::set<std::string> performance_markers{"decompression",
+                                                "dequantization_node",
+                                                "keep_const_precision",
+                                                "precise",
+                                                "DisableConstantFolding",
+                                                "primitives_priority",
+                                                "shape_subgraph",
+                                                "DisablePrecisionConversion"};
+const std::set<std::string> ignored_markers{"fused_names", "WeightlessCacheAttribute", "original_precision"};
+
+// Typed attributes are keyed as "<name>_<version>"; helpers may also use the bare name.
+std::string marker_name(const std::string& key) {
+    const auto suffix = key.rfind("_0");
+    return suffix != std::string::npos && suffix + 2 == key.size() ? key.substr(0, suffix) : key;
+}
+
+Json runtime_keys(const ov::RTMap& info, bool node = false) {
     static const std::set<std::string> semantic{"gguf.token_embedding",
                                                 "gguf.per_layer_token_embedding",
                                                 "gguf_u2_zero_point_shape",
@@ -492,8 +509,15 @@ Json runtime_keys(const ov::RTMap& info) {
                                                 "gguf_model_contract"};
     Json result = Json::object();
     for (const auto& [name, value] : info) {
-        if (name.compare(0, 4, "gguf") != 0)
+        if (name.compare(0, 4, "gguf") != 0) {
+            const auto marker = marker_name(name);
+            if (!node || ignored_markers.count(marker))
+                continue;
+            OPENVINO_ASSERT(performance_markers.count(marker), "Unclassified OpenVINO runtime key: ", name);
+            result[marker] = value.is<ov::RuntimeAttribute>() ? Json(value.as<ov::RuntimeAttribute>().to_string())
+                                                              : runtime_value(value);
             continue;
+        }
         if (name == std::string(ov::frontend::gguf::ModelAdapterAttribute::get_type_info_static()) ||
             name == "gguf_tokenizer_metadata")
             continue;
@@ -654,7 +678,7 @@ private:
                      {"outputs", outputs},
                      {"attributes", node_attributes},
                      {"control", controls},
-                     {"runtime", runtime_keys(node->get_rt_info())}};
+                     {"runtime", runtime_keys(node->get_rt_info(), true)}};
     }
 
     std::map<const ov::Node*, size_t> m_ids;

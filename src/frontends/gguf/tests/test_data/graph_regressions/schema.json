@@ -99,12 +99,12 @@
         "kind": {"enum": ["model", "representative", "controlled"]},
         "fixture": {"type": "string", "minLength": 1},
         "projectors": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
-        "stage": {"enum": ["deferred_plan", "materialized", "controlled_values", "adapted"]},
+        "stage": {"enum": ["deferred_plan", "materialized", "adapted"]},
         "stages": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": {"enum": ["deferred_plan", "materialized", "controlled_values", "adapted"]}
+          "items": {"enum": ["deferred_plan", "materialized", "adapted"]}
         },
         "models": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
         "recipe": {"type": "string", "minLength": 1},
@@ -189,7 +189,7 @@
         "stages": {
           "type": "object",
           "minProperties": 1,
-          "propertyNames": {"enum": ["deferred_plan", "materialized", "controlled_values", "adapted"]},
+          "propertyNames": {"enum": ["deferred_plan", "materialized", "adapted"]},
           "additionalProperties": {"$ref": "#/$defs/stage"}
         }
       },

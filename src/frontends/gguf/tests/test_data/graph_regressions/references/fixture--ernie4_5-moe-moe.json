@@ -3,7 +3,7 @@
     "deferred_plan": {
       "models": {
         "native": {
-          "graph_sha256": "484792e97be6a79ef5b7ee341efbc2ec811941616d89dbe26a6408fc08de795b",
+          "graph_sha256": "287545b94292eb820003dc7098bc9c3dad1c30e06d2a99e58021ce773dd3c516",
           "ops": [
             ["Add","opset1",24],
             ["Broadcast","opset3",8],
@@ -58,7 +58,7 @@
     "materialized": {
       "models": {
         "native": {
-          "graph_sha256": "f797c2206cf765a05e33af9d9e3fa76bb872e995d8dcf33625a35add475ebf5a",
+          "graph_sha256": "7b91863e6371b5357777d41482165f578bca9e836f3b162e7865c4a0e86d77ba",
           "ops": [
             ["Add","opset1",24],
             ["Broadcast","opset3",8],

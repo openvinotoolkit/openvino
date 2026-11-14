@@ -103,8 +103,27 @@ TEST(GGUFGraphRegression, RejectsUnknownOwnedRuntimeKeys) {
     model->get_parameters().front()->get_rt_info()["gguf.unclassified"] = true;
     EXPECT_ANY_THROW(ov_gguf_test::graph_snapshot(model));
     model->get_parameters().front()->get_rt_info().erase("gguf.unclassified");
-    model->get_parameters().front()->get_rt_info()["unrelated_debug_key"] = true;
+    model->get_parameters().front()->get_rt_info()["unclassified_marker"] = true;
+    EXPECT_ANY_THROW(ov_gguf_test::graph_snapshot(model));
+    model->get_parameters().front()->get_rt_info().erase("unclassified_marker");
+    model->get_parameters().front()->get_rt_info()["fused_names_0"] = std::string("debug");
+    model->get_rt_info()["unrelated_model_key"] = true;
     EXPECT_NO_THROW(ov_gguf_test::graph_snapshot(model));
+}
+
+TEST(GGUFGraphRegression, IgnoresFloatValuesButDetectsShapesAndPerformanceMarkers) {
+    const auto make_model = [](float scale, size_t size) {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2});
+        auto constant = ov::op::v0::Constant::create(ov::element::f32, {size}, std::vector<float>(size, scale));
+        return std::make_shared<ov::Model>(ov::OutputVector{std::make_shared<ov::op::v1::Multiply>(input, constant)},
+                                           ov::ParameterVector{input});
+    };
+    const auto reference = ov_gguf_test::graph_snapshot(make_model(0.0f, 2)).at("canonical");
+    EXPECT_EQ(reference, ov_gguf_test::graph_snapshot(make_model(0.125f, 2)).at("canonical"));
+    EXPECT_NE(reference, ov_gguf_test::graph_snapshot(make_model(0.0f, 1)).at("canonical"));
+    auto model = make_model(0.0f, 2);
+    model->get_results().front()->get_input_node_shared_ptr(0)->get_rt_info()["decompression_0"] = true;
+    EXPECT_NE(reference, ov_gguf_test::graph_snapshot(model).at("canonical"));
 }
 
 TEST(GGUFGraphRegression, CapturesEmptyOptionalConstantWithoutReadingValues) {
@@ -150,7 +169,7 @@ TEST(GGUFGraphRegression, CapturesLoopBodyAndPortMapping) {
     for (const auto& node : body->get_ops())
         node->set_friendly_name("body_debug_name");
     EXPECT_EQ(reference, ov_gguf_test::graph_snapshot(model));
-    auto replacement = ov::op::v0::Constant::create(ov::element::f32, {2}, {2, 2});
+    auto replacement = ov::op::v0::Constant::create(ov::element::f32, {1}, {1});
     sum->input(1).replace_source_output(replacement);
     EXPECT_NE(reference.at("canonical"), ov_gguf_test::graph_snapshot(model).at("canonical"));
     auto product = std::make_shared<ov::op::v1::Multiply>(body_input, increment);
