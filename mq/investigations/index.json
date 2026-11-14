@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 450,
+  "total": 451,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -4928,6 +4928,15 @@
       "title": "GPU unit tests fail in bulk with elevated durations near end of Windows test suite",
       "category": "Infrastructure",
       "signature_hash": "04b05470e7a3eb58",
+      "pr_number": "38762"
+    },
+    {
+      "investigation_id": "2026-11-14-12-13-50-409-43580153383",
+      "run_id": "43580153383",
+      "timestamp": "2026-11-14T12:13:50Z",
+      "title": "fusings_gpu pooling_f32_scale fp16_scale_out fails GPU unit test tolerance check",
+      "category": "Flaky Test",
+      "signature_hash": "7b64fedfacbfda60",
       "pr_number": "38762"
     }
   ]
