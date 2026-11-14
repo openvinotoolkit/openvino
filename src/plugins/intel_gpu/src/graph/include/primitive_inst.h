@@ -347,6 +347,7 @@ public:
     bool is_constant() const { return _is_constant; }
     bool needs_completion_event() const { return _needs_completion_event; }
     bool has_unfused_subgraph() const { return (_unfused_subgraph != nullptr); }
+    bool use_unfused_subgraph() const { return _use_unfused_subgraph; }
     bool has_node() const { return _node != nullptr; }
     bool has_inner_networks() const;
     void allocate_internal_buffers(bool reset = true);
@@ -439,6 +440,8 @@ protected:
     // Needed for dynamic path only, as fusion in some cases may be illegal, but it can't be checked on program build phase,
     // thus we do less restrictive fusion with runtime sanity check and unfusion when needed.
     cldnn::network::ptr _unfused_subgraph = nullptr;
+    // Fusion validity depends on runtime shapes, so the cached subgraph is used only when the current execution needs it.
+    bool _use_unfused_subgraph = false;
 
     // _output is optional because its initialization might be postponed (reshape_inst may either allocate it's own
     // buffer or attach input as output
