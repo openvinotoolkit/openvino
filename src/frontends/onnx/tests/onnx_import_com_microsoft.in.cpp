@@ -10101,3 +10101,25 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_query_seqlens_sliding_window_decod
          1.051573f,  -0.464264f, -0.082366f, 0.321527f,  0.057996f,  -0.504767f, 1.920703f,  -1.825270f});
     test_case.run_with_tolerance_as_fp();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_cdist) {
+    const auto model = convert_model("com.microsoft/cdist.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{2, 3}, {0.0f, 0.0f, 0.0f, 1.0f, 2.0f, 3.0f});
+    test_case.add_input<float>(Shape{3, 3}, {1.0f, 0.0f, 0.0f, 0.0f, 2.0f, 0.0f, 1.0f, 2.0f, 2.0f});
+    test_case.add_expected_output<float>(Shape{2, 3}, {1.0f, 2.0f, 3.0f, 3.605551f, 3.162278f, 1.0f});
+
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_cdist_sqeuclidean) {
+    const auto model = convert_model("com.microsoft/cdist_sqeuclidean.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{2, 3}, {0.0f, 0.0f, 0.0f, 1.0f, 2.0f, 3.0f});
+    test_case.add_input<float>(Shape{3, 3}, {1.0f, 0.0f, 0.0f, 0.0f, 2.0f, 0.0f, 1.0f, 2.0f, 2.0f});
+    test_case.add_expected_output<float>(Shape{2, 3}, {1.0f, 4.0f, 9.0f, 13.0f, 10.0f, 1.0f});
+
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}

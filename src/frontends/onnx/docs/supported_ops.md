@@ -222,7 +222,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |BifurcationDetector                                     |1                       |1                               |                                |
 |com.microsoft           |BitmaskBiasDropout                                      |                        |1                               |                                |
 |com.microsoft           |BitmaskDropout                                          |                        |1                               |                                |
-|com.microsoft           |CDist                                                   |                        |1                               |                                |
+|com.microsoft           |CDist                                                   |1                       |1                               |euclidean, sqeuclidean metrics  |
 |com.microsoft           |ComplexMul                                              |                        |1                               |                                |
 |com.microsoft           |ComplexMulConj                                          |                        |1                               |                                |
 |com.microsoft           |ConvTransposeWithDynamicPads                            |                        |1                               |                                |
