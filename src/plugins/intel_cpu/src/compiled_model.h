@@ -44,7 +44,8 @@ public:
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   Config cfg,
                   bool loaded_from_cache,
-                  std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr);
+                  std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr,
+                  std::string runtime_requirements = {});
 
     ~CompiledModel() override;
 
