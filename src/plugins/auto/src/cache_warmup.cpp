@@ -63,8 +63,16 @@ ov::AnyMap make_warmup_config(const ov::ICore& core, const DeviceInformation& de
     if (ov::util::contains(supported, ov::intel_gpu::hint::host_task_priority.name())) {
         config.emplace(ov::intel_gpu::hint::host_task_priority(ov::hint::Priority::LOW));
     }
-    if (ov::util::contains(supported, ov::compilation_num_threads.name())) {
-        config.emplace(ov::compilation_num_threads(std::max(1, static_cast<int>(std::thread::hardware_concurrency()) / 4)));
+    // Leave one thread for inference and one for other workloads, but use at least one thread.
+    const int warmup_threads = std::max(1, static_cast<int>(std::thread::hardware_concurrency()) - 2);
+    LOG_DEBUG("cache warm-up for device %s uses %d threads", device.device_name.c_str(), warmup_threads);
+    if (ov::DeviceIDParser(device.device_name).get_device_name() == "CPU") {
+        // CPU has no compilation_num_threads, its compile work runs on the inference threads.
+        if (ov::util::contains(supported, ov::inference_num_threads.name())) {
+            config.emplace(ov::inference_num_threads(warmup_threads));
+        }
+    } else if (ov::util::contains(supported, ov::compilation_num_threads.name())) {
+        config.emplace(ov::compilation_num_threads(warmup_threads));
     }
     if (config.size() == device.config.size()) {
         return config;
@@ -96,7 +104,7 @@ const std::string& CacheWarmup::get_log_tag() const noexcept {
 void CacheWarmup::start(const std::string& actual_device, const std::vector<DeviceInformation>& candidates) {
     std::vector<DeviceInformation> devices;
     for (const auto& device : candidates) {
-        if (device.device_name != actual_device && ov::DeviceIDParser(device.device_name).get_device_name() != "CPU") {
+        if (device.device_name != actual_device) {
             devices.push_back(device);
         }
     }

@@ -181,6 +181,21 @@ def part7():
     #! [part7]
 
 
+def part8():
+    #! [compile_for_all]
+    core = ov.Core()
+    compiled_model = core.compile_model(
+        model=model,
+        device_name="AUTO",
+        config={
+            device.priorities: "GPU,CPU",
+            properties.cache_dir: "model_cache",
+            intel_auto.compile_for_all: True,
+        },
+    )
+    #! [compile_for_all]
+
+
 def main():
     part3()
     part4()
@@ -192,3 +207,4 @@ def main():
         return 0
     part0()
     part1()
+    part8()

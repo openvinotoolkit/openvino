@@ -199,11 +199,11 @@ TEST_F(AutoCacheWarmupTest, ignoredWhenNoOtherCandidateDevice) {
     OV_ASSERT_NO_THROW(plugin->compile_model(model, config));
 }
 
-TEST_F(AutoCacheWarmupTest, excludesCpuFromBackgroundPreCompilation) {
+TEST_F(AutoCacheWarmupTest, warmsUpCpuAndOtherCandidates) {
     set_global_cache("test_cache_dir");
     set_devices({cpu_device, "GPU.0", actual_device});
     std::atomic<int> cpu_count{0};
-    std::atomic<int> warmup_count{0};
+    std::atomic<int> gpu_count{0};
     on_compile(cpu_device, [&]() -> ov::SoPtr<ov::ICompiledModel> {
         cpu_count++;
         return {mockIExeNet, {}};
@@ -213,7 +213,7 @@ TEST_F(AutoCacheWarmupTest, excludesCpuFromBackgroundPreCompilation) {
     });
     auto warmup_compiled_model = make_compiled_model();
     on_compile("GPU.0", [&]() -> ov::SoPtr<ov::ICompiledModel> {
-        warmup_count++;
+        gpu_count++;
         return {warmup_compiled_model, {}};
     });
     config.insert(ov::intel_auto::compile_for_all(true));
@@ -221,19 +221,70 @@ TEST_F(AutoCacheWarmupTest, excludesCpuFromBackgroundPreCompilation) {
     std::shared_ptr<ov::ICompiledModel> compiled_model;
     OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
     EXPECT_TRUE(wait_until([&] {
-        return warmup_count.load() == 1;
+        return gpu_count.load() == 1 && cpu_count.load() == 1;
     }));
-    EXPECT_FALSE(wait_until([&] {
-        return cpu_count.load() > 0;
-    }, std::chrono::milliseconds(200)));
 }
 
-TEST_F(AutoCacheWarmupTest, doesNotDisableCpuHelperWhenOnlyCpuWouldBeWarmedUp) {
+TEST_F(AutoCacheWarmupTest, warmupLimitsHostThreadsOfOtherCandidates) {
+    set_global_cache("test_cache_dir");
+    set_devices({cpu_device, "GPU.0", actual_device});
+    const std::vector<ov::PropertyName> cpu_props = {ov::inference_num_threads};
+    ON_CALL(*core, get_property(StrEq(cpu_device), StrEq(ov::supported_properties.name()), _))
+        .WillByDefault(Return(ov::Any(cpu_props)));
+    use_default_startup_compilation();
+    std::mutex configs_mutex;
+    ov::AnyMap cpu_config;
+    ov::AnyMap gpu_config;
+    std::atomic<int> compiled{0};
+    auto warmup_compiled_model = make_compiled_model();
+    const auto capture = [&](ov::AnyMap& target) {
+        return [&](const std::shared_ptr<const ov::Model>&, const std::string&, const ov::AnyMap& compile_config) {
+            std::lock_guard<std::mutex> lock(configs_mutex);
+            target = compile_config;
+            compiled++;
+            return ov::SoPtr<ov::ICompiledModel>{warmup_compiled_model, {}};
+        };
+    };
+    ON_CALL(*core,
+            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                          ::testing::Matcher<const std::string&>(StrEq(cpu_device)),
+                          _))
+        .WillByDefault(::testing::Invoke(capture(cpu_config)));
+    ON_CALL(*core,
+            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                          ::testing::Matcher<const std::string&>(StrEq("GPU.0")),
+                          _))
+        .WillByDefault(::testing::Invoke(capture(gpu_config)));
+    config.insert(ov::intel_auto::compile_for_all(true));
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    ASSERT_TRUE(wait_until([&] {
+        return compiled.load() == 2;
+    }));
+    // All hardware threads but two (one for inference, one for other work), at least one.
+    const int expected = std::max(1, static_cast<int>(std::thread::hardware_concurrency()) - 2);
+    std::lock_guard<std::mutex> lock(configs_mutex);
+    ASSERT_EQ(gpu_config.count(ov::compilation_num_threads.name()), 1u);
+    EXPECT_EQ(gpu_config.at(ov::compilation_num_threads.name()).as<int>(), expected);
+    EXPECT_EQ(gpu_config.count(ov::inference_num_threads.name()), 0u);
+    ASSERT_EQ(cpu_config.count(ov::inference_num_threads.name()), 1u);
+    EXPECT_EQ(cpu_config.at(ov::inference_num_threads.name()).as<int>(), expected);
+    EXPECT_EQ(cpu_config.count(ov::compilation_num_threads.name()), 0u);
+}
+
+TEST_F(AutoCacheWarmupTest, warmsUpCpuWhenItIsTheOnlyOtherCandidate) {
     set_global_cache("test_cache_dir");
     set_devices({cpu_device, actual_device});
-    use_default_startup_compilation();
+    std::atomic<bool> actual_ready{false};
+    on_compile(actual_device, [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        actual_ready = true;
+        return {mockIExeNetActual, {}};
+    });
     std::atomic<int> cpu_count{0};
     on_compile(cpu_device, [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        EXPECT_TRUE(actual_ready.load());
         cpu_count++;
         return {mockIExeNet, {}};
     });
@@ -246,16 +297,47 @@ TEST_F(AutoCacheWarmupTest, doesNotDisableCpuHelperWhenOnlyCpuWouldBeWarmedUp) {
     }));
 }
 
+TEST_F(AutoCacheWarmupTest, warmsUpOtherCpuIdWhenAllCandidatesAreCpu) {
+    set_global_cache("test_cache_dir");
+    const auto other_cpu = cpu_device + ".0";
+    const auto actual_cpu = cpu_device + ".1";
+    set_devices({other_cpu, actual_cpu});
+    std::atomic<int> actual_count{0};
+    std::atomic<int> warmup_count{0};
+    on_compile(actual_cpu, [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        actual_count++;
+        return {mockIExeNetActual, {}};
+    });
+    auto warmup_compiled_model = make_compiled_model();
+    on_compile(other_cpu, [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        warmup_count++;
+        return {warmup_compiled_model, {}};
+    });
+    config.insert(ov::intel_auto::compile_for_all(true));
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    EXPECT_TRUE(wait_until([&] {
+        return warmup_count.load() == 1;
+    }));
+    EXPECT_EQ(actual_count.load(), 1);
+}
+
 TEST_F(AutoCacheWarmupTest, disablesStartupAndRuntimeFallback) {
     set_global_cache("test_cache_dir");
     set_devices({cpu_device, "GPU.0", actual_device});
+    std::atomic<bool> actual_ready{false};
     std::atomic<int> cpu_count{0};
     std::atomic<int> warmup_count{0};
     on_compile(cpu_device, [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        // A startup CPU helper would compile concurrently with the actual device; warm-up only starts after it.
+        EXPECT_TRUE(actual_ready.load());
         cpu_count++;
         return {mockIExeNet, {}};
     });
-    on_compile(actual_device, [this]() -> ov::SoPtr<ov::ICompiledModel> {
+    on_compile(actual_device, [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        actual_ready = true;
         return {mockIExeNetActual, {}};
     });
     auto warmup_compiled_model = make_compiled_model();
@@ -280,10 +362,10 @@ TEST_F(AutoCacheWarmupTest, disablesStartupAndRuntimeFallback) {
     // No runtime fallback: the failure of the actual device reaches the caller.
     EXPECT_THROW(request->infer(), ov::Exception);
     EXPECT_TRUE(wait_until([&] {
-        return warmup_count.load() == 1;
+        return warmup_count.load() == 1 && cpu_count.load() == 1;
     }));
-    // The CPU helper and CPU background pre-compilation are both disabled.
-    EXPECT_EQ(cpu_count.load(), 0);
+    // CPU is compiled once, after the actual device is ready: warm-up, not a startup fallback helper.
+    EXPECT_EQ(cpu_count.load(), 1);
 }
 
 TEST_F(AutoCacheWarmupTest, delegatesCachedBlobValidationToCore) {
@@ -694,7 +776,9 @@ TEST_F(AutoCacheWarmupTest, warmsUpOtherDeviceWhenActualFailsAndCpuTakesOver) {
 TEST_F(AutoCacheWarmupTest, warmsUpOtherDeviceWhenCpuIsActualDevice) {
     set_global_cache("test_cache_dir");
     set_devices({"GPU.0", cpu_device});
-    on_compile(cpu_device, [this]() -> ov::SoPtr<ov::ICompiledModel> {
+    std::atomic<int> cpu_count{0};
+    on_compile(cpu_device, [this, &cpu_count]() -> ov::SoPtr<ov::ICompiledModel> {
+        cpu_count++;
         return {mockIExeNet, {}};
     });
     std::atomic<int> warmup_count{0};
@@ -710,9 +794,10 @@ TEST_F(AutoCacheWarmupTest, warmsUpOtherDeviceWhenCpuIsActualDevice) {
     EXPECT_TRUE(wait_until([&] {
         return warmup_count.load() == 1;
     }));
+    EXPECT_EQ(cpu_count.load(), 1);
 }
 
-TEST_F(AutoCacheWarmupTest, singleNonCpuCandidateWithoutCacheThrows) {
+TEST_F(AutoCacheWarmupTest, candidatesWithoutCacheThrows) {
     set_global_cache("");
     set_devices({"GPU.0", cpu_device});
     on_compile(cpu_device, [this]() -> ov::SoPtr<ov::ICompiledModel> {
@@ -725,9 +810,9 @@ TEST_F(AutoCacheWarmupTest, singleNonCpuCandidateWithoutCacheThrows) {
     EXPECT_THROW(plugin->compile_model(model, config), ov::Exception);
 }
 
-TEST_F(AutoCacheWarmupTest, noOtherCandidateWithoutCacheThrows) {
+TEST_F(AutoCacheWarmupTest, compileForAllWithoutCacheThrows) {
     set_global_cache("");
-    set_devices({cpu_device, actual_device});
+    set_devices({actual_device});
     use_default_startup_compilation();
     config.insert(ov::intel_auto::compile_for_all(true));
     EXPECT_THROW(plugin->compile_model(model, config), ov::Exception);

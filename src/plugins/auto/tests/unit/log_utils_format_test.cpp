@@ -115,6 +115,18 @@ TEST_F(LogUtilsFormatTest, format_s_d_ld_u_lu2) {
     EXPECT_TRUE(std::regex_search(printResult, regex));
 }
 
+TEST_F(LogUtilsFormatTest, format_zu) {
+    std::string printResult = "";
+    std::regex regex("size:42abc");
+    ON_CALL(*(HLogger), print(_)).WillByDefault([&](std::stringstream& stream) {
+        printResult = stream.str();
+    });
+    EXPECT_CALL(*(HLogger), print(_)).Times(1);
+    LOG_DEBUG("size:%zuabc", static_cast<size_t>(42));
+    EXPECT_TRUE(std::regex_search(printResult, regex)) << printResult;
+    EXPECT_FALSE(std::regex_search(printResult, std::regex("not valid")));
+}
+
 TEST_F(LogUtilsFormatTest, format_lf) {
     std::string printResult = "";
     std::string pattern{"abc"};
