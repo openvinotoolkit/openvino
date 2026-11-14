@@ -60,7 +60,9 @@ unrepresented value-dependent final-materialization paths can still escape this 
 
 `graph_sha256` is the SHA-256 of a canonical JSON graph (sorted keys, no whitespace).
 The scope is meant to capture everything that can change how a plugin compiles or runs
-the model, and nothing that only changes numerical values or debug metadata.
+the model, and nothing that only changes floating-point or weight values or debug metadata.
+Integral and boolean Constants are kept because they usually encode shapes, axes, indices
+and masks that select graph behavior.
 
 | Included | Excluded |
 | --- | --- |
@@ -81,8 +83,10 @@ Capture fails on an unclassified GGUF or node-level OpenVINO runtime key and on 
 unsupported attribute type, so a new marker cannot silently fall outside the scope.
 
 The comparison has no numeric tolerance. Tolerance is expressed only through this scope:
-value-only changes, such as a new epsilon or RoPE scale, keep the hash and are covered by
-accuracy tests. Any in-scope change, such as one Convert, a rank or a dynamic dimension,
+changes to floating-point Constants (such as a new epsilon or RoPE scale), weight payloads,
+quantization scales and zero points, or large sub-32-bit Constants keep the hash and are
+covered by accuracy tests. A change to a hashed integral or boolean Constant value, such as
+a reshape target or gather index, fails the gate. Any in-scope change, such as one Convert, a rank or a dynamic dimension,
 fails the gate, because such changes are exactly what moves FullyConnected, dynamic
 quantization or KV-cache selection in a plugin. Changing the scope requires regenerating
 all references in the same PR.
