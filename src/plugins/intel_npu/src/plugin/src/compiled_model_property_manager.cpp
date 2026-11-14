@@ -194,6 +194,7 @@ void CompiledModelPropertyManager::registerProperties() {
     registerConfigProperty(TURBO{}, true, true);
     registerConfigProperty(SEPARATE_WEIGHTS_VERSION{}, true, true);
     registerConfigProperty(SHARED_COMMON_QUEUE{}, true, true);
+    registerConfigProperty(SHARE_WEIGHTLESS_INIT_OUTPUTS{}, true, true);
     registerConfigProperty(WEIGHTS_PATH{}, true, true);
 
     registerConfigProperty(BATCH_MODE{}, false, false);

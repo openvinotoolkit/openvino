@@ -480,6 +480,7 @@ void PluginPropertyManager::registerProperties() {
     registerConfigProperty(BYPASS_UMD_CACHING{}, true);
     registerConfigProperty(CACHE_DIR{}, true);
     registerConfigProperty(DEFER_WEIGHTS_LOAD{}, true);
+    registerConfigProperty(SHARE_WEIGHTLESS_INIT_OUTPUTS{}, false);
     registerConfigProperty(MODEL_PRIORITY{}, true);
     registerConfigProperty(NUM_STREAMS{}, true);
     registerConfigProperty(PERF_COUNT{}, true);
