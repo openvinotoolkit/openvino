@@ -616,7 +616,7 @@ public:
                           const std::vector<ov::frontend::Place::Ptr>& outputs);
 
     std::map<std::string, std::string> get_metadata() const {
-        return m_loaded ? m_metadata : m_graph_iterator->get_metadata();
+        return m_loaded ? m_metadata : m_graph_iterator->get_metadata_ref();
     }
 
     std::shared_ptr<TelemetryExtension> get_telemetry_extension() const {
@@ -806,7 +806,7 @@ void InputModel::InputModelONNXImpl::load_model() {
         }
     }
 
-    m_metadata = m_graph_iterator->get_metadata();
+    m_metadata = m_graph_iterator->get_metadata_ref();
 }
 
 std::shared_ptr<TensorONNXPlace> InputModel::InputModelONNXImpl::register_tensor_place(
@@ -897,7 +897,7 @@ InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& gra
       m_reuse_const_data(reuse_const_data) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
     if (const auto graph_iterator = std::dynamic_pointer_cast<GraphIterator>(m_graph_iterator)) {
-        m_model_dir = graph_iterator->get_model_dir();
+        m_model_dir = graph_iterator->get_model_dir_ref();
     }
     if (m_enable_mmap) {
         m_mmap_cache = std::make_shared<std::map<std::filesystem::path, std::shared_ptr<ov::MappedMemory>>>();
@@ -923,7 +923,7 @@ InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& gra
       m_stream_cache(parent_model->_impl->m_stream_cache) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
     if (const auto graph_iterator = std::dynamic_pointer_cast<GraphIterator>(m_graph_iterator)) {
-        m_model_dir = graph_iterator->get_model_dir();
+        m_model_dir = graph_iterator->get_model_dir_ref();
     } else {
         m_model_dir = parent_model->_impl->m_model_dir;
     }
