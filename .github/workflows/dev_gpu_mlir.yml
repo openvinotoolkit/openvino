@@ -1,0 +1,261 @@
+name: GPU MLIR / Graph Compiler ( Ubuntu 24.04, Windows )
+
+# Validates the MLIR / Graph-Compiler path of the GPU plugin:
+#   * one build with -DENABLE_MLIR_FOR_GPU=ON (LLVM + Graph Compiler are built from source,
+#     LLVM install tree is cached on /mount, the cache is saved on push only)
+#   * all MLIR functional tests with MLIR enabled (OV_GPU_ENABLE_MLIR=1)
+#   * the same on Windows (MSVC build, PTL iGPU tests)
+#
+# `paths:` below narrows the trigger down to MLIR-related files.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
+      graph-compiler-ref:
+        description: 'Graph Compiler branch/tag/SHA; GRAPH_COMPILER_TAG from graph-compiler.cmake by default'
+        type: string
+        required: false
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+    paths: &mlir_paths
+      - '.github/workflows/dev_gpu_mlir.yml'
+      - '.github/workflows/job_build_gpu_mlir.yml'
+      - 'cmake/features.cmake'
+      - 'src/plugins/intel_gpu/CMakeLists.txt'
+      - 'src/plugins/intel_gpu/thirdparty/cmake/**'
+      - 'src/plugins/intel_gpu/include/intel_gpu/op/mlir_op.hpp'
+      - 'src/plugins/intel_gpu/include/intel_gpu/plugin/primitives_list.hpp'
+      - 'src/plugins/intel_gpu/include/intel_gpu/primitives/mlir_primitive.hpp'
+      - 'src/plugins/intel_gpu/include/intel_gpu/runtime/event.hpp'
+      - 'src/plugins/intel_gpu/include/intel_gpu/runtime/internal_properties.hpp'
+      - 'src/plugins/intel_gpu/include/intel_gpu/runtime/memory.hpp'
+      - 'src/plugins/intel_gpu/include/intel_gpu/runtime/options.inl'
+      - 'src/plugins/intel_gpu/include/intel_gpu/runtime/stream.hpp'
+      - 'src/plugins/intel_gpu/src/graph/impls/common/mlir_primitive.*'
+      - 'src/plugins/intel_gpu/src/graph/impls/common/register.*'
+      - 'src/plugins/intel_gpu/src/graph/include/mlir_primitive_inst.h'
+      - 'src/plugins/intel_gpu/src/graph/mlir_primitive.cpp'
+      - 'src/plugins/intel_gpu/src/graph/registry/mlir_primitive_impls.cpp'
+      - 'src/plugins/intel_gpu/src/graph/registry/registry.hpp'
+      - 'src/plugins/intel_gpu/src/plugin/ops/mlir_op.cpp'
+      - 'src/plugins/intel_gpu/src/plugin/transformations/mlir/**'
+      - 'src/plugins/intel_gpu/src/plugin/transformations/op/mlir_op.cpp'
+      - 'src/plugins/intel_gpu/src/plugin/transformations_pipeline.cpp'
+      - 'src/plugins/intel_gpu/src/runtime/ocl/ocl_base_event.hpp'
+      - 'src/plugins/intel_gpu/src/runtime/ocl/ocl_memory.hpp'
+      - 'src/plugins/intel_gpu/src/runtime/ocl/ocl_stream.*'
+      - 'src/plugins/intel_gpu/tests/functional/CMakeLists.txt'
+      - 'src/plugins/intel_gpu/tests/functional/mlir_op/**'
+  push:
+    branches:
+      - master
+      - 'releases/**'
+    paths: *mlir_paths
+
+concurrency:
+  # github.ref is not unique in post-commit
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-gpu-mlir-dev
+  cancel-in-progress: true
+
+permissions: read-all
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  Smart_CI:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false || github.run_attempt > 1
+    outputs:
+      affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
+      skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
+    steps:
+      - name: checkout action
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          sparse-checkout: .github/actions/smart-ci
+
+      - name: Get affected components
+        id: smart_ci
+        uses: ./.github/actions/smart-ci
+        with:
+          repository: ${{ github.repository }}
+          pr: ${{ github.event.number }}
+          commit_sha: ${{ github.sha }}
+          ref_name: ${{ github.ref_name }}
+          component_pattern: "category: (.*)"
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          skip_when_only_listed_labels_set: 'docs'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
+
+      - name: Show affected components
+        env:
+          AFFECTED_COMPONENTS: ${{ toJSON(steps.smart_ci.outputs.affected_components) }}
+        run: echo "${AFFECTED_COMPONENTS}"
+        shell: bash
+
+  Docker:
+    needs: Smart_CI
+    runs-on: aks-linux-4-cores-16gb-docker-build
+    container:
+      image: openvinogithubactions.azurecr.io/docker_build:0.2
+      volumes:
+        - /mount:/mount
+    outputs:
+      images: "${{ steps.handle_docker.outputs.images && steps.handle_docker.outputs.images || steps.mock_image.outputs.images }}"
+    steps:
+      - name: Set mock output images if pipeline should be skipped
+        if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
+        id: mock_image
+        run: echo "images={\"ov_test\":{\"ubuntu_24_04_x64_dgpu\":\"mock\"},\"ov_build\":{\"ubuntu_24_04_x64\":\"mock\"}}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+
+      - uses: ./.github/actions/handle_docker
+        if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
+        id: handle_docker
+        with:
+          images: |
+            ov_build/ubuntu_24_04_x64
+            ov_test/ubuntu_24_04_x64_dgpu
+          registry: 'openvinogithubactions.azurecr.io'
+          dockerfiles_root_dir: '.github/dockerfiles'
+          changed_components: ${{ needs.smart_ci.outputs.changed_components }}
+
+  Build:
+    name: Build Linux (LLVM + Graph Compiler + OpenVINO)
+    needs: [ Docker, Smart_CI ]
+    if: "!needs.smart_ci.outputs.skip_workflow && fromJSON(needs.smart_ci.outputs.affected_components).GPU"
+    uses: ./.github/workflows/job_build_gpu_mlir.yml
+    with:
+      runner: 'aks-linux-16-cores-64gb'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
+      target-branch: ${{ inputs.target-branch }}
+      graph-compiler-ref: ${{ inputs.graph-compiler-ref }}
+
+  Test:
+    name: Arc BMG dGPU MLIR Tests
+    needs: [ Build, Docker ]
+    uses: ./.github/workflows/job_gpu_tests.yml
+    with:
+      device: 'dgpu'
+      test_type: 'func'
+      runner: "[ 'self-hosted', 'dgpu', 'BMG-precommit', 'Linux' ]"
+      runner-group: 'Intel-GPU'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
+      # FIXME: Without OV_GPU_ALLOW_NEW_SHAPE_INFER, mlir_RMS test fails due to shape [1,64,1,1].
+      # To be fixed in a separate, memory layout related, PR.
+      options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129 -e OV_GPU_ENABLE_MLIR=1 -e OV_GPU_ALLOW_NEW_SHAPE_INFER=1"
+      test_filter: 'mlir_*'
+
+  Build_Windows:
+    name: Build Windows (LLVM + Graph Compiler + OpenVINO)
+    needs: Smart_CI
+    if: "!needs.smart_ci.outputs.skip_workflow && fromJSON(needs.smart_ci.outputs.affected_components).GPU"
+    uses: ./.github/workflows/job_build_gpu_mlir.yml
+    with:
+      runner: 'aks-win-16-cores-32gb-build'
+      artifacts-suffix: '_windows'
+      target-branch: ${{ inputs.target-branch }}
+      graph-compiler-ref: ${{ inputs.graph-compiler-ref }}
+      timeout-minutes: 240
+
+  Test_Windows:
+    name: PTL iGPU MLIR Tests (Windows)
+    needs: [ Build_Windows ]
+    continue-on-error: true
+    timeout-minutes: 80
+    defaults:
+      run:
+        shell: powershell
+    runs-on: [ self-hosted, Windows, ptl ]
+    env:
+      INSTALL_DIR: "${{ github.workspace }}\\install"
+      INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
+      SSL_CERT_FILE: 'C:\certs\IntelProxyRootCA.crt'
+      CURL_CA_BUNDLE: 'C:\certs\IntelProxyRootCA.crt'
+      REQUESTS_CA_BUNDLE: 'C:\certs\IntelProxyRootCA.crt'
+      NODE_EXTRA_CA_CERTS: 'C:\certs\IntelProxyRootCA.crt'
+      GTEST_PARALLEL_SCRIPT: "${{ github.workspace }}\\gtest-parallel\\gtest_parallel.py"
+      OV_GPU_ENABLE_MLIR: '1'
+      OV_GPU_ALLOW_NEW_SHAPE_INFER: '1'
+    steps:
+      - name: Download OpenVINO package
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          name: openvino_package_windows
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          name: openvino_tests_windows
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+          tar -xf "${{ env.INSTALL_DIR }}\\openvino_package.tar.gz" -C "${{ env.INSTALL_DIR }}"
+          tar -xf "${{ env.INSTALL_TEST_DIR }}\\openvino_tests.tar.gz" -C "${{ env.INSTALL_DIR }}"
+
+      - name: Fetch gtest-parallel
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          repository: 'google/gtest-parallel'
+          ref: 'cd488bdedc1d2cffb98201a17afc1b298b0b90f1'
+          path: 'gtest-parallel'
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      # MLIR XeVM target spawns `ocloc` from PATH when LLVM is built without libocloc
+      - name: Add ocloc to PATH
+        run: |
+          if (Get-Command ocloc -ErrorAction SilentlyContinue) { return }
+          $root = if ($env:ONEAPI_ROOT) { $env:ONEAPI_ROOT } else { "${env:ProgramFiles(x86)}\Intel\oneAPI" }
+          $ocloc = Get-ChildItem -Path $root -Filter ocloc.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $ocloc) { throw "ocloc.exe not found under $root" }
+          $ocloc.DirectoryName | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Run GPU MLIR functional tests
+        run: |
+          . "$env:INSTALL_DIR\setupvars.ps1"
+          python $env:GTEST_PARALLEL_SCRIPT "--gtest_filter=mlir_*" "--dump_json_test_results=$env:INSTALL_TEST_DIR\TEST-gpu-func-mlir.json" "$env:INSTALL_TEST_DIR\ov_gpu_func_tests.exe"
+
+      - name: Upload GPU MLIR test results
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        if: always()
+        with:
+          name: test-results-func-mlir-gpu-windows
+          path: ${{ env.INSTALL_TEST_DIR }}/TEST-gpu-func-mlir.json
+          if-no-files-found: 'ignore'
+
+  Overall_Status:
+    name: ci/gha_overall_status_dev_gpu_mlir
+    # Windows jobs are excluded until stable
+    needs: [ Smart_CI, Docker, Build, Test ]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check status of all jobs
+        if: >-
+          ${{
+            contains(needs.*.result, 'failure') ||
+            contains(needs.*.result, 'cancelled')
+          }}
+        run: exit 1
