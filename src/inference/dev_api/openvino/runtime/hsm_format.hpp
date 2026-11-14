@@ -283,7 +283,7 @@ static_assert(static_cast<uint32_t>(Tags::sentinel_count) <= core_tag_id_range_e
 inline constexpr uint32_t model_id = static_cast<uint32_t>(Tags::model_id);  //!< Model identifier (e.g. a hash).
 inline constexpr uint32_t model = static_cast<uint32_t>(Tags::model);        //!< The serialized compiled model itself.
 inline constexpr uint32_t runtime_requirements = static_cast<uint32_t>(Tags::runtime_requirements);
-inline constexpr uint32_t weights = static_cast<uint32_t>(Tags::weights);
+inline constexpr uint32_t weights = static_cast<uint32_t>(Tags::weights);  //!< Raw model weights buffer.
 inline constexpr uint32_t compiled_options = static_cast<uint32_t>(Tags::compiled_options);
 
 /// Wire tag for #model_id - always inline-mode.
