@@ -15,6 +15,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
@@ -142,6 +143,12 @@ struct weightless_cache_manager {
         reorder_rep = {input_layout, reorder};
     }
 
+    // The constant holds its weights-file data transposed with this order (applied after the precision conversion)
+    void apply_transpose(std::vector<size_t> order) {
+        OPENVINO_ASSERT(order.size() == shape.size(), "[GPU] Weightless cache: transpose order rank ", order.size(), " != constant rank ", shape.size());
+        transpose_order = std::move(order);
+    }
+
     bool save(BinaryOutputBuffer& ob, size_t data_size) const {
         if (!do_weightless_caching) {
             ob << false;
@@ -151,7 +158,8 @@ struct weightless_cache_manager {
         ob << true;
         ob << bin_offset;
         ob << do_precision_conversion;
-        if (do_precision_conversion) {
+        ob << transpose_order;
+        if (do_precision_conversion || should_run_transpose()) {
             ob << original_size;
             ob << make_data(&original_dtype, sizeof(ov::element::Type));
             ob << make_data(&curr_dtype, sizeof(ov::element::Type));
@@ -180,7 +188,8 @@ struct weightless_cache_manager {
 
         ib >> bin_offset;
         ib >> do_precision_conversion;
-        if (do_precision_conversion) {
+        ib >> transpose_order;
+        if (do_precision_conversion || should_run_transpose()) {
             ib >> original_size;
             ib >> make_data(&original_dtype, sizeof(ov::element::Type));
             ib >> make_data(&curr_dtype, sizeof(ov::element::Type));
@@ -222,6 +231,7 @@ struct weightless_cache_manager {
 private:
     bool do_weightless_caching = false;
     bool do_precision_conversion = false;
+    std::vector<size_t> transpose_order;
     reorder_replication reorder_rep{};
 
     size_t bin_offset = SIZE_MAX;
@@ -234,8 +244,22 @@ private:
         return reorder_rep.reorder != nullptr;
     }
 
+    bool should_run_transpose() const {
+        return !transpose_order.empty();
+    }
+
     bool should_run_transformations() {
-        return do_precision_conversion || should_run_reorder();
+        return do_precision_conversion || should_run_transpose() || should_run_reorder();
+    }
+
+    // Shape of the data in the weights file: `shape` before the transpose
+    ov::Shape get_original_shape() const {
+        if (!should_run_transpose())
+            return shape;
+        ov::Shape original_shape(shape.size());
+        for (size_t i = 0; i < transpose_order.size(); ++i)
+            original_shape[transpose_order[i]] = shape[i];
+        return original_shape;
     }
 
     void run_transformations(engine& engine,
@@ -266,14 +290,25 @@ private:
             return original_size;
         };
 
-        if (do_precision_conversion) {
+        if (do_precision_conversion || should_run_transpose()) {
             std::shared_ptr<ov::op::v0::Constant> orig_constant = nullptr;
             if (std::holds_alternative<std::shared_ptr<ov::op::v0::Constant>>(constant_ptr)) {
                 orig_constant = std::get<std::shared_ptr<ov::op::v0::Constant>>(constant_ptr);
+                // The model constant may have another rank (e.g. [N, G, 1] before the FC compression reshape)
+                if (should_run_transpose() && orig_constant->get_shape() != get_original_shape()) {
+                    OPENVINO_ASSERT(ov::shape_size(orig_constant->get_shape()) == ov::shape_size(get_original_shape()),
+                                    "[GPU] Weightless cache: model constant ",
+                                    orig_constant->get_shape(),
+                                    " does not match ",
+                                    get_original_shape());
+                    orig_constant = std::make_shared<ov::op::v0::Constant>(orig_constant->get_element_type(),
+                                                                           get_original_shape(),
+                                                                           orig_constant->get_data_ptr(),
+                                                                           orig_constant);
+                }
             } else {
                 auto shared_buf = std::get<shared_mapped_memory_ptr>(constant_ptr);
-                orig_constant =
-                    std::make_shared<ov::op::v0::Constant>(original_dtype, shape, get_intermediate_data(), shared_buf);
+                orig_constant = std::make_shared<ov::op::v0::Constant>(original_dtype, get_original_shape(), get_intermediate_data(), shared_buf);
             }
 
             ov::ParameterVector inputParams;
@@ -281,8 +316,15 @@ private:
             ov::pass::Manager manager("Plugin:GPU:weightless_cache_transformations");
             std::shared_ptr<ov::Model> model = nullptr;
 
-            auto convert_op = std::make_shared<ov::op::v0::Convert>(orig_constant, curr_dtype);
-            results.push_back(std::make_shared<ov::op::v0::Result>(convert_op->output(0)));
+            ov::Output<ov::Node> transformed = orig_constant;
+            if (do_precision_conversion) {
+                transformed = std::make_shared<ov::op::v0::Convert>(transformed, curr_dtype);
+            }
+            if (should_run_transpose()) {
+                auto order = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{transpose_order.size()}, transpose_order);
+                transformed = std::make_shared<ov::op::v1::Transpose>(transformed, order);
+            }
+            results.push_back(std::make_shared<ov::op::v0::Result>(transformed));
             model = std::make_shared<ov::Model>(results, inputParams, "aux");
             manager.register_pass<ov::pass::ConstantFolding>();
 

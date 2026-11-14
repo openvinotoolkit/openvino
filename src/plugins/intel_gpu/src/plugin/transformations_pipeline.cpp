@@ -132,6 +132,7 @@
 #include "plugin/transformations/reduce_fc_dimensions.hpp"
 #include "plugin/transformations/remove_fq_before_dw_conv.hpp"
 #include "plugin/transformations/sink_reshape.hpp"
+#include "plugin/transformations/transpose_fc_decompression_params.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/sdpa_transpose_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
@@ -2144,6 +2145,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                               << "quantizes activations internally with group_size " << config.get_dynamic_quantization_group_size()
                                               << std::endl;
         }
+
+        // After all FullyConnected passes, which read the scale / zp layout flags
+        manager.register_pass<ov::intel_gpu::TransposeFCDecompressionParams>();
 
         // Remove Pad in front of MaxPool if both the pads_begin and pads_end are zero.
         manager.register_pass<ov::pass::EliminatePad>();

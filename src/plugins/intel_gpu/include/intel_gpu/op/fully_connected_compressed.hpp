@@ -53,6 +53,8 @@ public:
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
     bool get_transpose_b_scale() const { return m_transpose_b_scale; }
     bool get_transpose_b_zp() const { return m_transpose_b_zp; }
+    void set_transpose_b_scale(bool transpose_b_scale) { m_transpose_b_scale = transpose_b_scale; }
+    void set_transpose_b_zp(bool transpose_b_zp) { m_transpose_b_zp = transpose_b_zp; }
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 

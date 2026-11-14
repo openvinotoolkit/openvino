@@ -331,6 +331,10 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
                                                          attr.original_dtype,
                                                          op.get_output_element_type(0),
                                                          op.get_output_shape(0));
+                auto transpose_order = rt_info.find("gpu_weightless_transpose_order");
+                if (transpose_order != rt_info.end()) {
+                    data_prim->cache_info->apply_transpose(transpose_order->second.as<std::vector<size_t>>());
+                }
             }
         }
     }
