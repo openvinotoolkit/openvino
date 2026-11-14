@@ -8,8 +8,11 @@
 
 #include <climits>
 #include <cmath>
+#include <vector>
 
 #include "common_test_utils/float_util.hpp"
+#include "openvino/core/type/float_util.hpp"
+#include "openvino/reference/fake_convert.hpp"
 namespace ov {
 namespace test {
 
@@ -168,10 +171,11 @@ TEST(F8E4M3Test, f32_gt_zero_le_f8_half_lowest_subnormal) {
     EXPECT_EQ(f8.to_bits(), 0x00);
 }
 
-TEST(F8E4M3Test, f32_in_f16_format_le_zero_gt_f8_half_lowest_subnormal) {
+TEST(F8E4M3Test, f32_gt_f8_half_lowest_subnormal_but_tie_in_f16) {
     const auto f8 = ov::float8_e4m3(0.00097656273283064365387f);
 
-    EXPECT_EQ(f8.to_bits(), 0x00);
+    // The value is rounded to half of f8 lowest subnormal in f16, but it is greater than it in f32, so it rounds up
+    EXPECT_EQ(f8.to_bits(), 0x01);
 }
 
 TEST(F8E4M3Test, f32_in_f16_format_gt_zero_gt_f8_half_lowest_subnormal) {
@@ -220,6 +224,33 @@ TEST(F8E4M3Test, f32_le_f8_lowest_not_within_round_to_lowest) {
 
     // f8 has no such value (NaN)
     EXPECT_EQ(f8.to_bits(), 0xff);
+}
+
+TEST(F8E4M3Test, f32_just_above_tie_round_up) {
+    // 1.0625 + 2^-20 is rounded to 1.0625 (tie between 1.0 and 1.125) in f16
+    const auto f8 = ov::float8_e4m3(ov::util::u32_bits_to_f32(0x3F880008));
+
+    EXPECT_EQ(f8.to_bits(), 0x39);
+}
+
+TEST(F8E4M3Test, f32_just_above_subnormal_tie_round_up) {
+    // 2^-10 + 2^-33 is rounded to 2^-10 (tie between 0 and 2^-9) in f16
+    const auto f8 = ov::float8_e4m3(ov::util::u32_bits_to_f32(0x3A800001));
+
+    EXPECT_EQ(f8.to_bits(), 0x01);
+}
+
+TEST(F8E4M3Test, f32_just_above_max_tie_round_to_nan) {
+    // 464 + 2^-15 is rounded to 464 (tie between f8 max 448 and overflow) in f16
+    const auto f8 = ov::float8_e4m3(ov::util::u32_bits_to_f32(0x43E80001));
+
+    EXPECT_EQ(f8.to_bits(), 0x7F);
+}
+
+TEST(F8E4M3Test, f32_negative_nan) {
+    const auto f8 = ov::float8_e4m3(ov::util::u32_bits_to_f32(0xFFC00000));
+
+    EXPECT_EQ(f8.to_bits(), 0xFF);
 }
 
 TEST(F8E4M3Test, stream_operator) {
@@ -297,6 +328,75 @@ TEST_P(F8E4M3PTest, f32_to_f8_bits) {
     const auto f8 = ov::float8_e4m3(value);
 
     EXPECT_EQ(f8.to_bits(), exp_value);
+}
+
+namespace {
+std::vector<ov::float16> emulate_f8e4m3(const std::vector<ov::float16>& input, bool use_clamp) {
+    std::vector<ov::float16> output(input.size());
+    ov::reference::func::emulate_f8e4m3_on_fp16(input.data(), output.data(), input.size(), use_clamp);
+    return output;
+}
+}  // namespace
+
+TEST(F8E4M3Test, emulate_on_fp16_overflow_inf_nan) {
+    const std::vector<ov::float16> input{ov::float16(448.f),
+                                         ov::float16(1000.f),
+                                         ov::float16(-1000.f),
+                                         ov::float16::from_bits(0x7C00),
+                                         ov::float16::from_bits(0xFC00),
+                                         ov::float16::from_bits(0x7E00),
+                                         ov::float16::from_bits(0x7C01)};
+    const auto clamped = emulate_f8e4m3(input, true);
+    EXPECT_EQ(static_cast<float>(clamped[0]), 448.f);
+    EXPECT_EQ(static_cast<float>(clamped[1]), 448.f);
+    EXPECT_EQ(static_cast<float>(clamped[2]), -448.f);
+    EXPECT_EQ(static_cast<float>(clamped[3]), 448.f);
+    EXPECT_EQ(static_cast<float>(clamped[4]), -448.f);
+    EXPECT_TRUE(std::isnan(static_cast<float>(clamped[5])));  // NaN is not saturated
+    EXPECT_TRUE(std::isnan(static_cast<float>(clamped[6])));
+
+    const auto not_clamped = emulate_f8e4m3(input, false);
+    EXPECT_EQ(static_cast<float>(not_clamped[0]), 448.f);
+    for (size_t i = 1; i < input.size(); ++i) {
+        EXPECT_TRUE(std::isnan(static_cast<float>(not_clamped[i]))) << "i: " << i;
+    }
+}
+
+// FakeConvert reference (used by constant folding): subnormal rounding, sign of zero and NaN
+TEST(F8E4M3Test, fake_convert_reference_subnormal_sign_nan) {
+    const std::vector<float> data{1.25f * 0x1p-10f, 3 * 0x1p-10f, 7 * 0x1p-10f, -0x1p-11f, std::nanf("")};
+    const std::vector<float> scale{1.f}, shift{0.f};
+    std::vector<float> out(data.size());
+    ov::reference::fake_convert(data.data(),
+                                scale.data(),
+                                shift.data(),
+                                out.data(),
+                                ov::Shape{data.size()},
+                                ov::Shape{1},
+                                ov::Shape{1},
+                                ov::element::f8e4m3);
+    EXPECT_EQ(out[0], 0x1p-9f);
+    EXPECT_EQ(out[1], 0x1p-8f);
+    EXPECT_EQ(out[2], 0x1p-7f);
+    EXPECT_EQ(out[3], 0.f);
+    EXPECT_TRUE(std::signbit(out[3])) << "sign of negative zero must be kept";
+    EXPECT_TRUE(std::isnan(out[4]));
+}
+
+TEST(F8E4M3Test, fake_convert_reference_f32_near_tie) {
+    // just above the tie 1.0625 in f32 must round up like Convert does, not go through a tie in f16
+    const std::vector<float> data{ov::util::u32_bits_to_f32(0x3F880008)};
+    const std::vector<float> scale{1.f}, shift{0.f};
+    std::vector<float> out(data.size());
+    ov::reference::fake_convert(data.data(),
+                                scale.data(),
+                                shift.data(),
+                                out.data(),
+                                ov::Shape{data.size()},
+                                ov::Shape{1},
+                                ov::Shape{1},
+                                ov::element::f8e4m3);
+    EXPECT_EQ(out[0], 1.125f);
 }
 }  // namespace test
 }  // namespace ov

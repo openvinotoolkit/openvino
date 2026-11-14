@@ -6,9 +6,13 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <climits>
+#include <cmath>
 
 #include "common_test_utils/float_util.hpp"
+#include "openvino/core/type/float_util.hpp"
+#include "openvino/reference/fake_convert.hpp"
 
 namespace ov {
 namespace test {
@@ -128,7 +132,8 @@ TEST(F8E5M2Test, f16_sig_nan) {
     const auto f8 = ov::float8_e5m2(std::numeric_limits<ov::float16>::signaling_NaN());
 
     EXPECT_TRUE(std::isnan(f8));
-    EXPECT_EQ(f8.to_bits(), 0b01111101);
+    // signaling NaN is converted to quiet NaN
+    EXPECT_EQ(f8.to_bits(), 0b01111111);
     EXPECT_EQ(std::numeric_limits<ov::float8_e5m2>::signaling_NaN().to_bits(), 0b01111101);
 }
 
@@ -144,8 +149,9 @@ TEST(F8E5M2Test, f32_sig_nan) {
     const auto f8 = ov::float8_e5m2(std::numeric_limits<float>::signaling_NaN());
     const auto f8_bits = f8.to_bits();
 
-    const auto allowed_nan = (f8_bits == 0b01111101) || (f8_bits == 0b01111110);
-    EXPECT_TRUE(allowed_nan);
+    // signaling NaN is converted to quiet NaN
+    const auto is_quiet_nan = (f8_bits & 0b01111110) == 0b01111110;
+    EXPECT_TRUE(is_quiet_nan);
 
     EXPECT_TRUE(std::isnan(f8));
     EXPECT_EQ(std::numeric_limits<ov::float8_e5m2>::signaling_NaN().to_bits(), 0b01111101);
@@ -213,6 +219,79 @@ TEST(F8E5M2Test, f32_lt_f16_lowest_lt_f8_lowest_round_to_minus_inf) {
     const auto f8 = ov::float8_e5m2(-65519.9f);
 
     EXPECT_EQ(f8.to_bits(), 0b11111100);
+}
+
+TEST(F8E5M2Test, f32_just_below_max_tie_round_to_max) {
+    // 61439.996 is rounded to 61440 (tie between f8 max 57344 and inf) in f16
+    const auto f8 = ov::float8_e5m2(ov::util::u32_bits_to_f32(0x476FFFFF));
+
+    EXPECT_EQ(f8.to_bits(), 0x7B);
+}
+
+TEST(F8E5M2Test, f32_just_above_subnormal_tie_round_up) {
+    // 2^-17 + 2^-40 is rounded to 2^-17 (tie between 0 and 2^-16) in f16
+    const auto f8 = ov::float8_e5m2(ov::util::u32_bits_to_f32(0x37000001));
+
+    EXPECT_EQ(f8.to_bits(), 0x01);
+}
+
+TEST(F8E5M2Test, f32_nan_without_f16_payload) {
+    // NaN payload bits are lost in f16, so the f16 quiet bit must be set to keep NaN
+    for (const auto bits : {0x7F800001u, 0xFF9FFFFFu}) {
+        const auto f8 = ov::float8_e5m2(ov::util::u32_bits_to_f32(bits));
+
+        EXPECT_TRUE(std::isnan(f8)) << std::hex << bits;
+        EXPECT_EQ(static_cast<uint32_t>(f8.to_bits() & 0x80), (bits >> 24) & 0x80) << std::hex << bits;
+    }
+}
+
+TEST(F8E5M2Test, emulate_f16_nan_without_f8_payload) {
+    for (const bool use_clamp : {false, true}) {
+        const std::vector<float16> input{float16::from_bits(0x7C01),
+                                         float16::from_bits(0xFC80),
+                                         float16::from_bits(0x7C00),
+                                         float16::from_bits(0x7E00)};
+        std::vector<float16> output(input.size());
+        reference::func::emulate_f8e5m2_on_fp16(input.data(), output.data(), input.size(), use_clamp);
+
+        EXPECT_EQ(output[0].to_bits(), 0x7E00) << "use_clamp: " << use_clamp;
+        EXPECT_EQ(output[1].to_bits(), 0xFE00) << "use_clamp: " << use_clamp;
+        EXPECT_EQ(output[2].to_bits(), use_clamp ? 0x7B00 : 0x7C00) << "use_clamp: " << use_clamp;
+        EXPECT_EQ(output[3].to_bits(), 0x7E00) << "use_clamp: " << use_clamp;
+    }
+}
+
+TEST(F8E5M2Test, fake_convert_reference_keeps_negative_zero) {
+    // -2^-18 is below half of the lowest f8e5m2 subnormal, so it rounds to -0
+    const std::vector<float> data{-0x1p-18f};
+    const std::vector<float> scale{1.f}, shift{0.f};
+    std::vector<float> out(data.size());
+    reference::fake_convert(data.data(),
+                            scale.data(),
+                            shift.data(),
+                            out.data(),
+                            Shape{data.size()},
+                            Shape{1},
+                            Shape{1},
+                            element::f8e5m2);
+    EXPECT_EQ(out[0], 0.f);
+    EXPECT_TRUE(std::signbit(out[0])) << "sign of negative zero must be kept";
+}
+
+TEST(F8E5M2Test, fake_convert_reference_f32_near_tie) {
+    // just above the tie 1.125 in f32 must round up like Convert does, not go through a tie in f16
+    const std::vector<float> data{1.125f + 0x1p-19f};
+    const std::vector<float> scale{1.f}, shift{0.f};
+    std::vector<float> out(data.size());
+    reference::fake_convert(data.data(),
+                            scale.data(),
+                            shift.data(),
+                            out.data(),
+                            Shape{data.size()},
+                            Shape{1},
+                            Shape{1},
+                            element::f8e5m2);
+    EXPECT_EQ(out[0], 1.25f);
 }
 
 template <class TContainer>
@@ -329,10 +408,10 @@ TEST_P(F8E5M2PTest, f32_to_f8_bits) {
         EXPECT_TRUE(std::isnan(f8));
         exp_value--;
     } else if (exp_value == 0x7D || exp_value == 0xFD) {  // signaling NaN
-        // signaling NaN representation can be implementation defined
-        const auto allowed_nan = (f8_bits == exp_value) || (f8_bits == ++exp_value);
+        // signaling NaN is converted to quiet NaN, its payload can be implementation defined
+        const auto is_quiet_nan = (f8_bits & 0x7E) == 0x7E && (f8_bits & 0x80) == (exp_value & 0x80);
         EXPECT_TRUE(std::isnan(f8));
-        EXPECT_TRUE(allowed_nan);
+        EXPECT_TRUE(is_quiet_nan);
         return;
     }
 
