@@ -10101,3 +10101,25 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_query_seqlens_sliding_window_decod
          1.051573f,  -0.464264f, -0.082366f, 0.321527f,  0.057996f,  -0.504767f, 1.920703f,  -1.825270f});
     test_case.run_with_tolerance_as_fp();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_inverse) {
+    const auto model = convert_model("com.microsoft/inverse.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{3, 3}, {4.0f, 7.0f, 2.0f, 3.0f, 6.0f, 1.0f, 2.0f, 5.0f, 3.0f});
+    test_case.add_expected_output<float>(
+        Shape{3, 3},
+        {1.444444f, -1.222222f, -0.555556f, -0.777778f, 0.888889f, 0.222222f, 0.333333f, -0.666667f, 0.333333f});
+
+    test_case.run_with_tolerance_as_fp(1e-4f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_inverse_batched) {
+    const auto model = convert_model("com.microsoft/inverse_batched.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{2, 2, 2}, {2.0f, 1.0f, 1.0f, 1.0f, 1.0f, 2.0f, 3.0f, 4.0f});
+    test_case.add_expected_output<float>(Shape{2, 2, 2}, {1.0f, -1.0f, -1.0f, 2.0f, -2.0f, 1.0f, 1.5f, -0.5f});
+
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}

@@ -255,7 +255,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |GridSample                                              |                        |1                               |                                |
 |com.microsoft           |GroupNorm                                               |1                       |1                               |                                |
 |com.microsoft           |GroupQueryAttention                                     |1                       |1                               |                                |
-|com.microsoft           |Inverse                                                 |                        |1                               |                                |
+|com.microsoft           |Inverse                                                 |1                       |1                               |                                |
 |com.microsoft           |Irfft                                                   |                        |1                               |                                |
 |com.microsoft           |LongformerAttention                                     |                        |1                               |                                |
 |com.microsoft           |MatMulBnb4                                              |                        |1                               |                                |
