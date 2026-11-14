@@ -15,6 +15,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/compilation_context.hpp"
+#include "openvino/runtime/hsm_model_struct.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/hash_util.hpp"
 
@@ -85,7 +86,7 @@ ModelStats measure_model(const std::shared_ptr<ov::Model>& model) {
 
 // Serializes the model in one pass: write_weights() streams the weights as produced and keeps the small XML for
 // write_structure(), so calling them in that order avoids a second pass.
-class ModelSerializer {
+class ModelSerializer final : public runtime::hsm::IModelStructSource {
 public:
     explicit ModelSerializer(std::shared_ptr<ov::Model> model) : m_model(std::move(model)) {}
 
@@ -100,9 +101,9 @@ public:
     }
 
     // Runs its own pass when write_weights() was not called before.
-    void write_structure(const runtime::hsm::SectionSink& sink) {
+    void write_structure(const runtime::hsm::SectionSink& sink) override {
         if (m_xml) {
-            sink({reinterpret_cast<const std::byte*>(m_xml->data()), m_xml->size()});
+            runtime::hsm::encode_model_struct(*m_xml, sink);
             m_xml.reset();
         } else {
             ForwardingStreamBuf xml_buf{sink}, discard_buf;
@@ -206,7 +207,7 @@ HsmWriterHandler::HsmWriterHandler(const std::shared_ptr<ov::Model>& model,
     const auto serializer = std::make_shared<ModelSerializer>(model);
     m_encoders.emplace(hsm::section_key(hsm::model_struct),
                        Slot{hsm::model_struct,
-                            std::make_shared<SerializeEncoder>(serializer, &ModelSerializer::write_structure),
+                            std::make_shared<runtime::hsm::ModelStructEncoder>(serializer),
                             std::nullopt,
                             page_alignment});
 
