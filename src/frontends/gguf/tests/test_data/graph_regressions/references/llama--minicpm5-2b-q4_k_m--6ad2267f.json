@@ -1,8 +1,6 @@
 {
-  "recipe_sha256": "0e684570b40c84b8c372c19bdca0ec1312b77812a9bac863f14eb4d7fe35e606",
   "stages": {
     "deferred_plan": {
-      "map_sha256": "e3969e1b1844b31b5a395d720bd78cf2569d213b9ef833cf45db873d9560fa64",
       "models": {
         "native": {
           "graph_sha256": "c85cb1b6f3c2cd57f850d64aee4dccfaa06f6940722ee9c9201900238a9c55f2",

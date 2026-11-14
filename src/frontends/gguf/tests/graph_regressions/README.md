@@ -34,10 +34,9 @@ not LFS:
   `[template, ggml_type, shape, layers]`, where one `{}` in the template expands over
   ascending, disjoint layer ranges such as `"0-2,4-63"`. Shapes use OpenVINO order,
   reversing GGUF's `ne[]`; source storage is derived from the GGML type. The runner
-  expands this to a per-tensor descriptor before conversion; `recipe_sha256` digests
-  the expanded descriptor.
+  expands this to a per-tensor descriptor before conversion.
 - `references/<case>.json`: complete operation type/version counts, projection summaries
-  and graph/model-map SHA-256 values. Histogram rows are kept one per line for readable
+  and one `graph_sha256` per captured model. Histogram rows are kept one per line for readable
   diffs; other value arrays are inline. Each reference is limited to **32 KiB across all stages**.
 
 `deferred_plan` uses descriptors that throw on payload access. It reuses production
@@ -67,8 +66,8 @@ fail export. Large integral/boolean graph-control constants are retained.
 Header import preserves typed scalar/array and IEEE nonfinite metadata. Tokenizer
 tables/scores/merges/templates and informational labels are explicitly listed as omissions.
 Record a publisher repository, immutable revision and filename whenever available.
-Legacy local profiles use an explicit `header-sha256:` revision when a publisher commit
-is unavailable; that checksum pins the header, **not the original weight payload**.
+When a publisher commit is unavailable, `revision` is omitted and the case's
+`header_sha256` alone pins the header, **not the original weight payload**.
 Never infer formats from filenames or replace a mixed-format primary profile with F32.
 
 ## Check and update
@@ -95,7 +94,9 @@ Every invocation writes `changed_cases.json` (in the current directory unless `-
 is supplied), including partial progress/errors. Keep reports and full graph dumps out of Git.
 `--import-gguf <local.gguf> --recipe-output <recipe.json>` reads only the header/tensor
 table. For a downloaded header prefix, pass the original file size with `--source-size`
-so packed-format detection sees the real final tensor span.
+so packed-format detection sees the real final tensor span. It prints the header SHA-256
+for the case's `source.header_sha256`, which is stored only in the catalog. References
+carry no recipe digest: a recipe edit that changes conversion changes `graph_sha256`.
 No checkpoint downloads occur in routine tests.
 
 Comparison is exact: no tolerance, automatic refresh or acceptance of fewer operations.

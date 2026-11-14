@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "source_header_sha256": "56776185642517f000d18f2ffb3211c782bc3e4b80f16ed0899b951f63158e29",
   "omitted_metadata": ["general.license", "general.name", "general.tags", "general.url", "tokenizer.chat_template", "tokenizer.ggml.merges", "tokenizer.ggml.token_type", "tokenizer.ggml.tokens"],
   "metadata": {
     "general.architecture": ["str", "exaone-moe"],

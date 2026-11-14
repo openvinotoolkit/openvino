@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "source_header_sha256": "c55c3b0f695df66cda472f38b32b5c2702c2134fc6db2f4bf602b5e2ffd5145d",
   "omitted_metadata": [],
   "metadata": {
     "general.architecture": ["str", "this model cannot be used as LLM, use it via --model-vocoder in TTS examples"],

@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "source_header_sha256": "2f3986807b35d3da1e9b0eee2c839d697b1706243210ac2510f7ea78b2a66352",
   "omitted_metadata": ["general.name", "tokenizer.chat_template", "tokenizer.ggml.merges", "tokenizer.ggml.token_type", "tokenizer.ggml.tokens"],
   "metadata": {
     "general.architecture": ["str", "hunyuan-dense"],

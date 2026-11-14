@@ -31,7 +31,6 @@
       "source": {
         "filename": "ERNIE-4.5-21B-A3B-PT-Q4_0.gguf",
         "header_sha256": "ffd366c3eccef8c6472adcc12392abb473aebaa393cebd8a14e2fa57dba18f5b",
-        "revision": "header-sha256:ffd366c3eccef8c6472adcc12392abb473aebaa393cebd8a14e2fa57dba18f5b",
         "repository": "https://huggingface.co/baidu/ERNIE-4.5-21B-A3B-PT"
       }
     },
@@ -46,8 +45,7 @@
       "reference": "references/exaone4--exaone-4.0-1.2b-gguf-q4_k_m--743d0b64.json",
       "source": {
         "filename": "EXAONE-4.0-1.2B-GGUF-Q4_K_M.gguf",
-        "header_sha256": "743fb2e25645d3faa6aa536c2162d4165a4a7cd5b3a80ef854de864d1540c2bf",
-        "revision": "header-sha256:743fb2e25645d3faa6aa536c2162d4165a4a7cd5b3a80ef854de864d1540c2bf"
+        "header_sha256": "743fb2e25645d3faa6aa536c2162d4165a4a7cd5b3a80ef854de864d1540c2bf"
       }
     },
     {
@@ -61,8 +59,7 @@
       "reference": "references/llama--llama-3.2-1b-instruct-q4_0--8bdbfa04.json",
       "source": {
         "filename": "Llama-3.2-1B-Instruct-Q4_0.gguf",
-        "header_sha256": "015f34c2e4402013443b766c7ad3e583a406310ee6bbe4fa4ae606b3d50adb63",
-        "revision": "header-sha256:015f34c2e4402013443b766c7ad3e583a406310ee6bbe4fa4ae606b3d50adb63"
+        "header_sha256": "015f34c2e4402013443b766c7ad3e583a406310ee6bbe4fa4ae606b3d50adb63"
       }
     },
     {
@@ -77,7 +74,6 @@
       "source": {
         "filename": "Maincoder-1B-Q4_K_M.gguf",
         "header_sha256": "223c138a750f857427b22d84eb34352cd5b6fd1573301b63341eee68877316d9",
-        "revision": "header-sha256:223c138a750f857427b22d84eb34352cd5b6fd1573301b63341eee68877316d9",
         "repository": "https://huggingface.co/Maincode/Maincoder-1B"
       }
     },
@@ -92,8 +88,7 @@
       "reference": "references/mellum--mellum2-12b-a2.5b-instruct-q4_0--f6045155.json",
       "source": {
         "filename": "Mellum2-12B-A2.5B-Instruct-Q4_0.gguf",
-        "header_sha256": "ce5160ea6f6fc90d5a2a9ffe382e411ccd3681e18cb0cecf5c873f155f546353",
-        "revision": "header-sha256:ce5160ea6f6fc90d5a2a9ffe382e411ccd3681e18cb0cecf5c873f155f546353"
+        "header_sha256": "ce5160ea6f6fc90d5a2a9ffe382e411ccd3681e18cb0cecf5c873f155f546353"
       }
     },
     {
@@ -107,8 +102,7 @@
       "reference": "references/minicpm--minicpm-2b-sft-bf16.q4_0--1f815eab.json",
       "source": {
         "filename": "MiniCPM-2B-sft-bf16.Q4_0.gguf",
-        "header_sha256": "deaa11948892105f89ac82c9c45c486cfbfd17a79c65f67deeaf8c51d7b33fda",
-        "revision": "header-sha256:deaa11948892105f89ac82c9c45c486cfbfd17a79c65f67deeaf8c51d7b33fda"
+        "header_sha256": "deaa11948892105f89ac82c9c45c486cfbfd17a79c65f67deeaf8c51d7b33fda"
       }
     },
     {
@@ -122,8 +116,7 @@
       "reference": "references/mistral3--ministral-3-3b-instruct-2512-q4_k_m--d6c11b14.json",
       "source": {
         "filename": "Ministral-3-3B-Instruct-2512-Q4_K_M.gguf",
-        "header_sha256": "d1440fcc0fa0d908e87984827604b4d6aa946dbf2a3ed45117eae647fea82d71",
-        "revision": "header-sha256:d1440fcc0fa0d908e87984827604b4d6aa946dbf2a3ed45117eae647fea82d71"
+        "header_sha256": "d1440fcc0fa0d908e87984827604b4d6aa946dbf2a3ed45117eae647fea82d71"
       }
     },
     {
@@ -137,8 +130,7 @@
       "reference": "references/llama--ministral-8b-instruct-2410.q4_k_m--3853bf26.json",
       "source": {
         "filename": "Ministral-8B-Instruct-2410.Q4_K_M.gguf",
-        "header_sha256": "da36cfd52920b3aacb5002448e133c44cbaf92e413459100dda1a63868ddacaa",
-        "revision": "header-sha256:da36cfd52920b3aacb5002448e133c44cbaf92e413459100dda1a63868ddacaa"
+        "header_sha256": "da36cfd52920b3aacb5002448e133c44cbaf92e413459100dda1a63868ddacaa"
       }
     },
     {
@@ -152,8 +144,7 @@
       "reference": "references/muse-glimmer--muse-glimmer-30b-q4_0--5bbf61da.json",
       "source": {
         "filename": "Muse-Glimmer-30B-Q4_0.gguf",
-        "header_sha256": "5fb031a0a6369d5311616a4111af9b13f49b912d3b203fdc175d1b852e813d17",
-        "revision": "header-sha256:5fb031a0a6369d5311616a4111af9b13f49b912d3b203fdc175d1b852e813d17"
+        "header_sha256": "5fb031a0a6369d5311616a4111af9b13f49b912d3b203fdc175d1b852e813d17"
       }
     },
     {
@@ -167,8 +158,7 @@
       "reference": "references/phi3--phi-3-mini-4k-instruct-q4_0--805e9e34.json",
       "source": {
         "filename": "Phi-3-mini-4k-instruct-Q4_0.gguf",
-        "header_sha256": "a765c9455ddbba81ad567dccb6ca9ecaaacf8ba94284df5d5c40aadaf9e998e1",
-        "revision": "header-sha256:a765c9455ddbba81ad567dccb6ca9ecaaacf8ba94284df5d5c40aadaf9e998e1"
+        "header_sha256": "a765c9455ddbba81ad567dccb6ca9ecaaacf8ba94284df5d5c40aadaf9e998e1"
       }
     },
     {
@@ -182,8 +172,7 @@
       "reference": "references/qwen3--qwen3-0.6b-q4_0--a36302f4.json",
       "source": {
         "filename": "Qwen3-0.6B-Q4_0.gguf",
-        "header_sha256": "e551e7ba5e9d4fbfa2116404543774446ae02f434df17efb093edb1c094a8ba1",
-        "revision": "header-sha256:e551e7ba5e9d4fbfa2116404543774446ae02f434df17efb093edb1c094a8ba1"
+        "header_sha256": "e551e7ba5e9d4fbfa2116404543774446ae02f434df17efb093edb1c094a8ba1"
       }
     },
     {
@@ -197,8 +186,7 @@
       "reference": "references/qwen3--qwen3-0.6b-q4_k_m--85aafe02.json",
       "source": {
         "filename": "Qwen3-0.6B-Q4_K_M.gguf",
-        "header_sha256": "aae638150ac9597a5c2b115bc573133336b156419799bb6b9f8ec75f678b40cb",
-        "revision": "header-sha256:aae638150ac9597a5c2b115bc573133336b156419799bb6b9f8ec75f678b40cb"
+        "header_sha256": "aae638150ac9597a5c2b115bc573133336b156419799bb6b9f8ec75f678b40cb"
       }
     },
     {
@@ -213,7 +201,6 @@
       "source": {
         "filename": "Qwen3-30B-A3B-Instruct-2507-Q4_0.gguf",
         "header_sha256": "a3637b381d35de8f6747635697cb1c90d859c2e96034a55c0ec1e02ba7459e72",
-        "revision": "header-sha256:a3637b381d35de8f6747635697cb1c90d859c2e96034a55c0ec1e02ba7459e72",
         "repository": "https://huggingface.co/Qwen/Qwen3-30B-A3B-Instruct-2507"
       }
     },
@@ -229,7 +216,6 @@
       "source": {
         "filename": "Qwen3.5-4B-Q4_0.gguf",
         "header_sha256": "b3d70c32e065e06c5040e5e35d9298e4742674d96a6089bcfdcf2f38b8b04e5b",
-        "revision": "header-sha256:b3d70c32e065e06c5040e5e35d9298e4742674d96a6089bcfdcf2f38b8b04e5b",
         "repository": "https://huggingface.co/Qwen/Qwen3.5-4B"
       }
     },
@@ -244,8 +230,7 @@
       "reference": "references/qwen35moe--qwen_qwen3.6-35b-a3b-q4_0--4fc162f3.json",
       "source": {
         "filename": "Qwen_Qwen3.6-35B-A3B-Q4_0.gguf",
-        "header_sha256": "ee0172464f75abd2c9db0ac0520fecae9270c827b564e6ba41bbb33400a496be",
-        "revision": "header-sha256:ee0172464f75abd2c9db0ac0520fecae9270c827b564e6ba41bbb33400a496be"
+        "header_sha256": "ee0172464f75abd2c9db0ac0520fecae9270c827b564e6ba41bbb33400a496be"
       }
     },
     {
@@ -260,7 +245,6 @@
       "source": {
         "filename": "SmolLM3-3B-Q4_K_M.gguf",
         "header_sha256": "c14a6f637cb0890120ca41690e296585f7174085c92d90d953fee8566d8881fc",
-        "revision": "header-sha256:c14a6f637cb0890120ca41690e296585f7174085c92d90d953fee8566d8881fc",
         "repository": "https://huggingface.co/HuggingFaceTB/SmolLM3-3B"
       }
     },
@@ -292,8 +276,7 @@
       "reference": "references/qwen35--ternary-bonsai-2-2b-pq2_0--fd8dc1f3.json",
       "source": {
         "filename": "Ternary-Bonsai-2-2B-PQ2_0.gguf",
-        "header_sha256": "cbc6c16db371dd64f924bff6e74c0e4a70d9bab483cd20a0b6066773226cc222",
-        "revision": "header-sha256:cbc6c16db371dd64f924bff6e74c0e4a70d9bab483cd20a0b6066773226cc222"
+        "header_sha256": "cbc6c16db371dd64f924bff6e74c0e4a70d9bab483cd20a0b6066773226cc222"
       }
     },
     {
@@ -307,8 +290,7 @@
       "reference": "references/qwen35--ternary-bonsai-2-2b-ptq1_0--14f49633.json",
       "source": {
         "filename": "Ternary-Bonsai-2-2B-PTQ1_0.gguf",
-        "header_sha256": "1459170824257ae3f6e332447b351fedda2cc7ee32ec6e95bbf9d589f191d367",
-        "revision": "header-sha256:1459170824257ae3f6e332447b351fedda2cc7ee32ec6e95bbf9d589f191d367"
+        "header_sha256": "1459170824257ae3f6e332447b351fedda2cc7ee32ec6e95bbf9d589f191d367"
       }
     },
     {
@@ -322,8 +304,7 @@
       "reference": "references/qwen35--ternary-bonsai-2-4b-pq2_0-mtp-q8_0--c5d82233.json",
       "source": {
         "filename": "Ternary-Bonsai-2-4B-PQ2_0-MTP-Q8_0.gguf",
-        "header_sha256": "76221072ca3634e39dda104d2e5c0240fdfc87ba4c47b81d5f70b9c5c7ecec2d",
-        "revision": "header-sha256:76221072ca3634e39dda104d2e5c0240fdfc87ba4c47b81d5f70b9c5c7ecec2d"
+        "header_sha256": "76221072ca3634e39dda104d2e5c0240fdfc87ba4c47b81d5f70b9c5c7ecec2d"
       }
     },
     {
@@ -337,8 +318,7 @@
       "reference": "references/qwen35--ternary-bonsai-2-4b-pq2_0--386ce9aa.json",
       "source": {
         "filename": "Ternary-Bonsai-2-4B-PQ2_0.gguf",
-        "header_sha256": "612eb3292ba22e87cad17af3f3e272e222547d15773d9cfd111a49b23ba322f8",
-        "revision": "header-sha256:612eb3292ba22e87cad17af3f3e272e222547d15773d9cfd111a49b23ba322f8"
+        "header_sha256": "612eb3292ba22e87cad17af3f3e272e222547d15773d9cfd111a49b23ba322f8"
       }
     },
     {
@@ -352,8 +332,7 @@
       "reference": "references/qwen35--ternary-bonsai-2-9b-pq2_0-mtp-q8_0--3f06eb0c.json",
       "source": {
         "filename": "Ternary-Bonsai-2-9B-PQ2_0-MTP-Q8_0.gguf",
-        "header_sha256": "0db9797e6e6b7cc94bf205c95800decb1b5a738c1dc55b93a6a56acc87379998",
-        "revision": "header-sha256:0db9797e6e6b7cc94bf205c95800decb1b5a738c1dc55b93a6a56acc87379998"
+        "header_sha256": "0db9797e6e6b7cc94bf205c95800decb1b5a738c1dc55b93a6a56acc87379998"
       }
     },
     {
@@ -367,8 +346,7 @@
       "reference": "references/qwen35--ternary-bonsai-2-9b-pq2_0--d9486c56.json",
       "source": {
         "filename": "Ternary-Bonsai-2-9B-PQ2_0.gguf",
-        "header_sha256": "de6741bcb7242508b76fba429d3893d4a421ab7a5167b250bf20a161b9cbb96e",
-        "revision": "header-sha256:de6741bcb7242508b76fba429d3893d4a421ab7a5167b250bf20a161b9cbb96e"
+        "header_sha256": "de6741bcb7242508b76fba429d3893d4a421ab7a5167b250bf20a161b9cbb96e"
       }
     },
     {
@@ -382,8 +360,7 @@
       "reference": "references/qwen35--ternary-bonsai-2-9b-ptq1_0--272c9b96.json",
       "source": {
         "filename": "Ternary-Bonsai-2-9B-PTQ1_0.gguf",
-        "header_sha256": "9dc5082d17cb7887c3bd7984a00a979165bf7b58abb481adbc9086b2d958fd08",
-        "revision": "header-sha256:9dc5082d17cb7887c3bd7984a00a979165bf7b58abb481adbc9086b2d958fd08"
+        "header_sha256": "9dc5082d17cb7887c3bd7984a00a979165bf7b58abb481adbc9086b2d958fd08"
       }
     },
     {
@@ -414,8 +391,7 @@
       "reference": "references/afmoe--trinity-nano-preview-bf16--bf9931a5.json",
       "source": {
         "filename": "Trinity-Nano-Preview-bf16.gguf",
-        "header_sha256": "5a795b8a5f11250a961938360536da684300de0a3d3ff0f8094a1e05e3c458df",
-        "revision": "header-sha256:5a795b8a5f11250a961938360536da684300de0a3d3ff0f8094a1e05e3c458df"
+        "header_sha256": "5a795b8a5f11250a961938360536da684300de0a3d3ff0f8094a1e05e3c458df"
       }
     },
     {
@@ -429,8 +405,7 @@
       "reference": "references/afmoe--trinity-nano-preview-original-f16--d3e6526e.json",
       "source": {
         "filename": "Trinity-Nano-Preview-original-f16.gguf",
-        "header_sha256": "3cc2d759f94e4ec7492716aef782bbdf408e40295b31480a3ea62a08e9b1ef6a",
-        "revision": "header-sha256:3cc2d759f94e4ec7492716aef782bbdf408e40295b31480a3ea62a08e9b1ef6a"
+        "header_sha256": "3cc2d759f94e4ec7492716aef782bbdf408e40295b31480a3ea62a08e9b1ef6a"
       }
     },
     {
@@ -446,7 +421,6 @@
       "source": {
         "filename": "K-EXAONE-236B-A23B.Q2_K.gguf",
         "header_sha256": "56776185642517f000d18f2ffb3211c782bc3e4b80f16ed0899b951f63158e29",
-        "revision": "header-sha256:56776185642517f000d18f2ffb3211c782bc3e4b80f16ed0899b951f63158e29",
         "repository": "https://huggingface.co/LGAI-EXAONE/K-EXAONE-236B-A23B"
       }
     },
@@ -463,7 +437,6 @@
       "source": {
         "filename": "ArliAI_GLM-4.5-Air-Derestricted_REAP50_Creative.i1-Q2_K.gguf",
         "header_sha256": "764107e5c6e46a86da2ad4c67751dc6faf184d02f7ec518e0b8b641f269d705f",
-        "revision": "header-sha256:764107e5c6e46a86da2ad4c67751dc6faf184d02f7ec518e0b8b641f269d705f",
         "repository": "https://huggingface.co/ArliAI/GLM-4.5-Air-Derestricted"
       }
     },
@@ -480,7 +453,6 @@
       "source": {
         "filename": "Hunyuan-A13B-Instruct-Q2_K.gguf",
         "header_sha256": "1632104fd0af42b0e80b7b56b6b92270ac714c632e672bb9e555d5cc053df838",
-        "revision": "header-sha256:1632104fd0af42b0e80b7b56b6b92270ac714c632e672bb9e555d5cc053df838",
         "repository": "https://huggingface.co/tencent/Hunyuan-A13B-Instruct"
       }
     },
@@ -495,8 +467,7 @@
       "reference": "references/jais2--q4_k_m--105ad4cc.json",
       "source": {
         "filename": "Q4_K_M.gguf",
-        "header_sha256": "bc370fe5d472119b3ced3cf39a8a0804c06fdfab69440181580f28a454600e27",
-        "revision": "header-sha256:bc370fe5d472119b3ced3cf39a8a0804c06fdfab69440181580f28a454600e27"
+        "header_sha256": "bc370fe5d472119b3ced3cf39a8a0804c06fdfab69440181580f28a454600e27"
       }
     },
     {
@@ -512,7 +483,6 @@
       "source": {
         "filename": "MiniMax-M2.1-REAP-50.i1-Q2_K.gguf",
         "header_sha256": "a57b82dfc33339dc1b6c892a9f928bee4edc4c5d63e9cddd318bf9e9fecf503b",
-        "revision": "header-sha256:a57b82dfc33339dc1b6c892a9f928bee4edc4c5d63e9cddd318bf9e9fecf503b",
         "repository": "https://huggingface.co/MiniMaxAI/MiniMax-M2.1"
       }
     },
@@ -544,8 +514,7 @@
       "reference": "references/deepseek2-ocr--deepseek-ocr-2-q4_k_m--e6ed4c0d.json",
       "source": {
         "filename": "deepseek-ocr-2-Q4_K_M.gguf",
-        "header_sha256": "40b43de71955ecde619d8c8cb53471926733cc045de1aa7d3373077098ae603e",
-        "revision": "header-sha256:40b43de71955ecde619d8c8cb53471926733cc045de1aa7d3373077098ae603e"
+        "header_sha256": "40b43de71955ecde619d8c8cb53471926733cc045de1aa7d3373077098ae603e"
       },
       "projectors": []
     },
@@ -562,7 +531,6 @@
       "source": {
         "filename": "Devstral-Small-2-24B-Instruct-2512-Q4_K_M.gguf",
         "header_sha256": "d150e324d8743292a4231308ef320f0961877efe9557058a28d8db7ee6d5b582",
-        "revision": "header-sha256:d150e324d8743292a4231308ef320f0961877efe9557058a28d8db7ee6d5b582",
         "repository": "https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Base-2503"
       }
     },
@@ -579,7 +547,6 @@
       "source": {
         "filename": "Devstral-Small-2507-Q4_K_M.gguf",
         "header_sha256": "5b8b8c67b88cdee0c451b38cc3d2ca56a73de94194b9912a7d225e41b3f7c1fa",
-        "revision": "header-sha256:5b8b8c67b88cdee0c451b38cc3d2ca56a73de94194b9912a7d225e41b3f7c1fa",
         "repository": "https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503"
       }
     },
@@ -611,8 +578,7 @@
       "reference": "references/gemma--gemma-2b.q4_k_m--bd56e625.json",
       "source": {
         "filename": "gemma-2b.Q4_K_M.gguf",
-        "header_sha256": "15e7b5e73798fb1d7329da544d290a5ea5303d50873cd2d68423d11596e1d95b",
-        "revision": "header-sha256:15e7b5e73798fb1d7329da544d290a5ea5303d50873cd2d68423d11596e1d95b"
+        "header_sha256": "15e7b5e73798fb1d7329da544d290a5ea5303d50873cd2d68423d11596e1d95b"
       }
     },
     {
@@ -626,8 +592,7 @@
       "reference": "references/gemma3--gemma-3-1b-it-q4_0--9af9428e.json",
       "source": {
         "filename": "gemma-3-1b-it-Q4_0.gguf",
-        "header_sha256": "e7b89d8a4b2db17cec5648f29078381dbabcfcf5f0b59dad127dbf97ca5df9bf",
-        "revision": "header-sha256:e7b89d8a4b2db17cec5648f29078381dbabcfcf5f0b59dad127dbf97ca5df9bf"
+        "header_sha256": "e7b89d8a4b2db17cec5648f29078381dbabcfcf5f0b59dad127dbf97ca5df9bf"
       }
     },
     {
@@ -658,8 +623,7 @@
       "reference": "references/gpt-oss--gpt-oss-20b-q4_0--e5e23040.json",
       "source": {
         "filename": "gpt-oss-20b-Q4_0.gguf",
-        "header_sha256": "14f51ec77b1dbcab110933b68aa2ac172483f6bc8d33042be37a191a1fe696e2",
-        "revision": "header-sha256:14f51ec77b1dbcab110933b68aa2ac172483f6bc8d33042be37a191a1fe696e2"
+        "header_sha256": "14f51ec77b1dbcab110933b68aa2ac172483f6bc8d33042be37a191a1fe696e2"
       }
     },
     {
@@ -674,7 +638,6 @@
       "source": {
         "filename": "inclusionAI_Ling-mini-2.0-Q4_0.gguf",
         "header_sha256": "c2f483ba06b930250128be87d14f1c1ca53e71f9c7d49450acc8c17d554fa15f",
-        "revision": "header-sha256:c2f483ba06b930250128be87d14f1c1ca53e71f9c7d49450acc8c17d554fa15f",
         "repository": "https://huggingface.co/inclusionAI/Ling-mini-base-2.0"
       }
     },
@@ -725,7 +688,6 @@
       "source": {
         "filename": "LFM2.5-8B-A1B-Q4_0.gguf",
         "header_sha256": "e4ebc888e454397321173e1056bdfa61a3b9077905b80d89a3b54363b640cb96",
-        "revision": "header-sha256:e4ebc888e454397321173e1056bdfa61a3b9077905b80d89a3b54363b640cb96",
         "repository": "https://huggingface.co/LiquidAI/LFM2.5-8B-A1B-Base"
       }
     },
@@ -761,7 +723,6 @@
       "source": {
         "filename": "lfm25-26b-xe2-20261103--LFM2.5-2.6B-Q4_0.gguf",
         "header_sha256": "a4170cd94bad408e01fb72736b7faca4b7cebf1bbc5d87480645d465d0286d12",
-        "revision": "header-sha256:a4170cd94bad408e01fb72736b7faca4b7cebf1bbc5d87480645d465d0286d12",
         "repository": "https://huggingface.co/LiquidAI/LFM2.5-2.6B-Base"
       }
     },
@@ -777,7 +738,6 @@
       "source": {
         "filename": "LFM3-1.7B-QAD-Q4_0.gguf",
         "header_sha256": "476fdb7fe1e75123be7bbccf6f4217cfc38a4965a9c8af0b8ea9d745619ced3a",
-        "revision": "header-sha256:476fdb7fe1e75123be7bbccf6f4217cfc38a4965a9c8af0b8ea9d745619ced3a",
         "repository": "https://huggingface.co/LiquidAI/LFM3-1.7B-Base"
       }
     },
@@ -792,8 +752,7 @@
       "reference": "references/lfm3--lfm3-audio-2b-q4_0--07f0bced.json",
       "source": {
         "filename": "LFM3-Audio-2B-Q4_0.gguf",
-        "header_sha256": "ccea77a7fb48415451c0cbe2b352c4c18af465522b6877c53651d18c1a6f70a6",
-        "revision": "header-sha256:ccea77a7fb48415451c0cbe2b352c4c18af465522b6877c53651d18c1a6f70a6"
+        "header_sha256": "ccea77a7fb48415451c0cbe2b352c4c18af465522b6877c53651d18c1a6f70a6"
       }
     },
     {
@@ -807,8 +766,7 @@
       "reference": "references/lfm3--lfm3-omni-2b-q4_0--77b864bb.json",
       "source": {
         "filename": "LFM3-Omni-2B-Q4_0.gguf",
-        "header_sha256": "28eada5871c34c86d26af3a793340b6ad0fc017e7375b340ef93b97fa34ee014",
-        "revision": "header-sha256:28eada5871c34c86d26af3a793340b6ad0fc017e7375b340ef93b97fa34ee014"
+        "header_sha256": "28eada5871c34c86d26af3a793340b6ad0fc017e7375b340ef93b97fa34ee014"
       }
     },
     {
@@ -823,7 +781,6 @@
       "source": {
         "filename": "LFM3-VL-2B-QAD-Q4_0.gguf",
         "header_sha256": "c71e16c480e14e71a446cd5dfbb7f80fbeb95e09de467417cafdb35e52908f99",
-        "revision": "header-sha256:c71e16c480e14e71a446cd5dfbb7f80fbeb95e09de467417cafdb35e52908f99",
         "repository": "https://huggingface.co/LiquidAI/LFM3-1.7B-Base"
       }
     },
@@ -838,8 +795,7 @@
       "reference": "references/clip--mmproj-lfm3-audio-2b-q8_0--4505250e.json",
       "source": {
         "filename": "mmproj-LFM3-Audio-2B-Q8_0.gguf",
-        "header_sha256": "c80b17911b64c5bc9cedf903f109ff57fb1cccfda15c8017ae4a936b63a90a0f",
-        "revision": "header-sha256:c80b17911b64c5bc9cedf903f109ff57fb1cccfda15c8017ae4a936b63a90a0f"
+        "header_sha256": "c80b17911b64c5bc9cedf903f109ff57fb1cccfda15c8017ae4a936b63a90a0f"
       },
       "projectors": [
         "audio.lfm3a",
@@ -857,8 +813,7 @@
       "reference": "references/clip--mmproj-lfm3-omni-2b-q8_0--5f9b1af8.json",
       "source": {
         "filename": "mmproj-LFM3-Omni-2B-Q8_0.gguf",
-        "header_sha256": "d37e657b7ff72ee10891f06f0ec4175f5a838e627e431bf5f0605f43ab704b44",
-        "revision": "header-sha256:d37e657b7ff72ee10891f06f0ec4175f5a838e627e431bf5f0605f43ab704b44"
+        "header_sha256": "d37e657b7ff72ee10891f06f0ec4175f5a838e627e431bf5f0605f43ab704b44"
       },
       "projectors": [
         "audio.lfm3a",
@@ -878,7 +833,6 @@
       "source": {
         "filename": "mmproj-LFM3-VL-2B-Q8_0.gguf",
         "header_sha256": "611468f23cd68ef6aa1794c6bf903a73585eb4645350dbf01a1665ad4861510f",
-        "revision": "header-sha256:611468f23cd68ef6aa1794c6bf903a73585eb4645350dbf01a1665ad4861510f",
         "repository": "https://huggingface.co/LiquidAI/LFM3-1.7B-Base"
       },
       "projectors": [
@@ -898,7 +852,6 @@
       "source": {
         "filename": "llama-nemotron-embed-1b-v2.Q4_K_M.gguf",
         "header_sha256": "a9a0e914bb22436f0276f9f6e7d6a1a5a33e4dd75ea2b67e30f31427364925cb",
-        "revision": "header-sha256:a9a0e914bb22436f0276f9f6e7d6a1a5a33e4dd75ea2b67e30f31427364925cb",
         "repository": "https://huggingface.co/nvidia/llama-nemotron-embed-1b-v2"
       }
     },
@@ -913,8 +866,7 @@
       "reference": "references/llama--mistral-7b-instruct-v0.1.q4_k_m--f99051cb.json",
       "source": {
         "filename": "mistral-7b-instruct-v0.1.Q4_K_M.gguf",
-        "header_sha256": "a581146c1d992f100ee8dba91eec7fbfe43ac3c03355e4d9ba1c8c3dc82aaf7d",
-        "revision": "header-sha256:a581146c1d992f100ee8dba91eec7fbfe43ac3c03355e4d9ba1c8c3dc82aaf7d"
+        "header_sha256": "a581146c1d992f100ee8dba91eec7fbfe43ac3c03355e4d9ba1c8c3dc82aaf7d"
       }
     },
     {
@@ -928,8 +880,7 @@
       "reference": "references/muse-glimmer--muse-glimmer-30b-kquant-17gb-q4_k_m--66eb42fa.json",
       "source": {
         "filename": "Muse-Glimmer-30B-KQuant-17GB-Q4_K_M.gguf",
-        "header_sha256": "43854d69fd1516539443555437346aada9159bda3ec64c702615831037ba7969",
-        "revision": "header-sha256:43854d69fd1516539443555437346aada9159bda3ec64c702615831037ba7969"
+        "header_sha256": "43854d69fd1516539443555437346aada9159bda3ec64c702615831037ba7969"
       }
     },
     {
@@ -943,8 +894,7 @@
       "reference": "references/clip--mmproj-muse-glimmer-30b-q4_k_m--ed945597.json",
       "source": {
         "filename": "mmproj-Muse-Glimmer-30B-Q4_K_M.gguf",
-        "header_sha256": "74636d4d4ff35890e408242ef674f1170e50299fda2651aa01149e1d8340d5b2",
-        "revision": "header-sha256:74636d4d4ff35890e408242ef674f1170e50299fda2651aa01149e1d8340d5b2"
+        "header_sha256": "74636d4d4ff35890e408242ef674f1170e50299fda2651aa01149e1d8340d5b2"
       },
       "projectors": [
         "vision.muse-glimmer"
@@ -962,7 +912,6 @@
       "source": {
         "filename": "Qwen3.5-0.8B-Q4_0.gguf",
         "header_sha256": "3890e616984ed6ab6e870dc8350881f83c21b66751df9e7a68cc57a487265b1c",
-        "revision": "header-sha256:3890e616984ed6ab6e870dc8350881f83c21b66751df9e7a68cc57a487265b1c",
         "repository": "https://huggingface.co/Qwen/Qwen3.5-0.8B"
       }
     },
@@ -978,7 +927,6 @@
       "source": {
         "filename": "Qwen3.5-0.8B-Q4_K_M.gguf",
         "header_sha256": "b3e9e53dc77ba19dee590364ee00ca1a4d8541631501cbf926e7bb4a01805b1f",
-        "revision": "header-sha256:b3e9e53dc77ba19dee590364ee00ca1a4d8541631501cbf926e7bb4a01805b1f",
         "repository": "https://huggingface.co/Qwen/Qwen3.5-0.8B"
       }
     },
@@ -995,7 +943,6 @@
       "source": {
         "filename": "mmproj-F16.gguf",
         "header_sha256": "9cd5ddb76ed03571148899645ed415bd4d44742a3ee50062e8c811714d123634",
-        "revision": "header-sha256:9cd5ddb76ed03571148899645ed415bd4d44742a3ee50062e8c811714d123634",
         "repository": "https://huggingface.co/Qwen/Qwen3.5-0.8B"
       },
       "projectors": [
@@ -1014,7 +961,6 @@
       "source": {
         "filename": "Qwen3.5-2B-Q4_0.gguf",
         "header_sha256": "ad86f36252be866b2c1f812ed5a77429d93498ae04eb82979c585fae4a51cd22",
-        "revision": "header-sha256:ad86f36252be866b2c1f812ed5a77429d93498ae04eb82979c585fae4a51cd22",
         "repository": "https://huggingface.co/Qwen/Qwen3.5-2B"
       }
     },
@@ -1030,7 +976,6 @@
       "source": {
         "filename": "Qwen3.5-2B-Q4_K_M.gguf",
         "header_sha256": "abc96529f402027c9bab24c8a9bc0d5a9a5bc2fce043377374ff039053321084",
-        "revision": "header-sha256:abc96529f402027c9bab24c8a9bc0d5a9a5bc2fce043377374ff039053321084",
         "repository": "https://huggingface.co/Qwen/Qwen3.5-2B"
       }
     },
@@ -1046,7 +991,6 @@
       "source": {
         "filename": "mmproj-F16.gguf",
         "header_sha256": "c7168daf8bc312a7c9a4e4269174d0828f5fcd44c35187d54a4cde7fac03870e",
-        "revision": "header-sha256:c7168daf8bc312a7c9a4e4269174d0828f5fcd44c35187d54a4cde7fac03870e",
         "repository": "https://huggingface.co/Qwen/Qwen3.5-2B"
       },
       "projectors": [
@@ -1065,7 +1009,6 @@
       "source": {
         "filename": "Qwen3.5-4B-Q4_K_M.gguf",
         "header_sha256": "43c907d3f4a31bae9456b9d265c2e89120bb28596c56c03c69ff2852e3260cc8",
-        "revision": "header-sha256:43c907d3f4a31bae9456b9d265c2e89120bb28596c56c03c69ff2852e3260cc8",
         "repository": "https://huggingface.co/Qwen/Qwen3.5-4B"
       }
     },
@@ -1081,7 +1024,6 @@
       "source": {
         "filename": "mmproj-F16.gguf",
         "header_sha256": "375554490acc24ff07e4d91681e12e882cf2f06aaa0c9d59653b995ec5d8c2e9",
-        "revision": "header-sha256:375554490acc24ff07e4d91681e12e882cf2f06aaa0c9d59653b995ec5d8c2e9",
         "repository": "https://huggingface.co/Qwen/Qwen3.5-4B"
       },
       "projectors": [
@@ -1100,7 +1042,6 @@
       "source": {
         "filename": "Qwen3.5-9B-Q4_0.gguf",
         "header_sha256": "3f942feac62df31e217869ee340f6dc65da146fe9eb184916ed6aa9535eb1469",
-        "revision": "header-sha256:3f942feac62df31e217869ee340f6dc65da146fe9eb184916ed6aa9535eb1469",
         "repository": "https://huggingface.co/Qwen/Qwen3.5-9B"
       }
     },
@@ -1116,7 +1057,6 @@
       "source": {
         "filename": "Qwen3.5-9B-Q4_K_M.gguf",
         "header_sha256": "9bad614aebb1afe8684ff5aa29663fdba686891acbbceaf46800fbf8e81c8cf1",
-        "revision": "header-sha256:9bad614aebb1afe8684ff5aa29663fdba686891acbbceaf46800fbf8e81c8cf1",
         "repository": "https://huggingface.co/Qwen/Qwen3.5-9B"
       }
     },
@@ -1132,7 +1072,6 @@
       "source": {
         "filename": "mmproj-F16.gguf",
         "header_sha256": "360f8af78844e6425614344782ea75134f60e2146cbd98deb3295378bc6615b7",
-        "revision": "header-sha256:360f8af78844e6425614344782ea75134f60e2146cbd98deb3295378bc6615b7",
         "repository": "https://huggingface.co/Qwen/Qwen3.5-9B"
       },
       "projectors": [
@@ -1151,7 +1090,6 @@
       "source": {
         "filename": "gemma-4-12b-it-Q4_0.gguf",
         "header_sha256": "17654412da79e05003079e18de71e015852959d89e4339ed1cbfc93e1ac5d480",
-        "revision": "header-sha256:17654412da79e05003079e18de71e015852959d89e4339ed1cbfc93e1ac5d480",
         "repository": "https://huggingface.co/google/gemma-4-12b-it"
       }
     },
@@ -1167,7 +1105,6 @@
       "source": {
         "filename": "gemma-4-12b-it-Q4_K_M.gguf",
         "header_sha256": "1f7368de546a49fbb0e07ed86d27c5d9c1b11cf6c535b7421a84341e29dcc7dd",
-        "revision": "header-sha256:1f7368de546a49fbb0e07ed86d27c5d9c1b11cf6c535b7421a84341e29dcc7dd",
         "repository": "https://huggingface.co/google/gemma-4-12b-it"
       }
     },
@@ -1183,7 +1120,6 @@
       "source": {
         "filename": "gemma-4-E2B-it-Q4_0.gguf",
         "header_sha256": "babe8dd63430fab17445a546e4d20c90e91b58379d6f6914a0b7ba164ebc24d6",
-        "revision": "header-sha256:babe8dd63430fab17445a546e4d20c90e91b58379d6f6914a0b7ba164ebc24d6",
         "repository": "https://huggingface.co/google/gemma-4-E2B-it"
       }
     },
@@ -1199,7 +1135,6 @@
       "source": {
         "filename": "gemma-4-E2B-it-Q4_K_M.gguf",
         "header_sha256": "979354696ab66103bc3cbb1a41464b37e8eafca98ce48d040b14bd904b83479f",
-        "revision": "header-sha256:979354696ab66103bc3cbb1a41464b37e8eafca98ce48d040b14bd904b83479f",
         "repository": "https://huggingface.co/google/gemma-4-E2B-it"
       }
     },
@@ -1216,7 +1151,6 @@
       "source": {
         "filename": "mmproj-F16.gguf",
         "header_sha256": "11530ad04ae56cf7c7ef5f84c67ce96c75a4a2d199bfad85c60187204c00c923",
-        "revision": "header-sha256:11530ad04ae56cf7c7ef5f84c67ce96c75a4a2d199bfad85c60187204c00c923",
         "repository": "https://huggingface.co/google/gemma-4-E2B-it"
       },
       "projectors": [
@@ -1236,7 +1170,6 @@
       "source": {
         "filename": "gemma-4-E4B-it-Q4_0.gguf",
         "header_sha256": "01e9aa1236f0d5f63944050f9be8372c3ce40bfb0ecaa1cf0cac70eaf6bb2a89",
-        "revision": "header-sha256:01e9aa1236f0d5f63944050f9be8372c3ce40bfb0ecaa1cf0cac70eaf6bb2a89",
         "repository": "https://huggingface.co/google/gemma-4-E4B-it"
       }
     },
@@ -1253,7 +1186,6 @@
       "source": {
         "filename": "gemma-4-E4B-it-Q4_K_M.gguf",
         "header_sha256": "5b853e77ce867da84d0d7ee6f1748eadd3633e29564212cac5241fd14217ea31",
-        "revision": "header-sha256:5b853e77ce867da84d0d7ee6f1748eadd3633e29564212cac5241fd14217ea31",
         "repository": "https://huggingface.co/google/gemma-4-E4B-it"
       }
     },
@@ -1269,7 +1201,6 @@
       "source": {
         "filename": "mmproj-F16.gguf",
         "header_sha256": "ae55e8b984a330ddaad930adc83302d875c653503179a2552be3560e244148d5",
-        "revision": "header-sha256:ae55e8b984a330ddaad930adc83302d875c653503179a2552be3560e244148d5",
         "repository": "https://huggingface.co/google/gemma-4-E4B-it"
       },
       "projectors": [
@@ -1289,7 +1220,6 @@
       "source": {
         "filename": "mmproj-Ministral-3-3B-Instruct-2512-Q8_0.gguf",
         "header_sha256": "e4f2e6fde66b8e90c9be77092cc616e487798f5f77cf9b69fc263edc33293198",
-        "revision": "header-sha256:e4f2e6fde66b8e90c9be77092cc616e487798f5f77cf9b69fc263edc33293198",
         "repository": "https://huggingface.co/mistralai/Ministral-3-3B-Base-2512"
       },
       "projectors": [
@@ -1308,7 +1238,6 @@
       "source": {
         "filename": "mmproj-Ministral-3-3B-Instruct-2512-dequant-F32.gguf",
         "header_sha256": "5dfd5728d69cf3c832bc6642dd18ffa1b4cd0722d14a246043e77cadb40a6032",
-        "revision": "header-sha256:5dfd5728d69cf3c832bc6642dd18ffa1b4cd0722d14a246043e77cadb40a6032",
         "repository": "https://huggingface.co/mistralai/Ministral-3-3B-Base-2512"
       },
       "projectors": [
@@ -1327,7 +1256,6 @@
       "source": {
         "filename": "mmproj-gemma-4-E2B-it-Q8_0.gguf",
         "header_sha256": "11b7bf0e855f235f2061fd96e543fd2dca2d87db2af0dfc742b638c200944a1e",
-        "revision": "header-sha256:11b7bf0e855f235f2061fd96e543fd2dca2d87db2af0dfc742b638c200944a1e",
         "repository": "https://huggingface.co/google/gemma-4-E2B"
       },
       "projectors": [
@@ -1347,7 +1275,6 @@
       "source": {
         "filename": "mmproj-gemma-4-E2B-it-dequant-F32.gguf",
         "header_sha256": "a23d62206828a8bdb5c5142734045e5a98f0bef9427c97a80b84a274236d4815",
-        "revision": "header-sha256:a23d62206828a8bdb5c5142734045e5a98f0bef9427c97a80b84a274236d4815",
         "repository": "https://huggingface.co/google/gemma-4-E2B"
       },
       "projectors": [
@@ -1367,7 +1294,6 @@
       "source": {
         "filename": "gemma-3-4b-it-Q4_K_M.gguf",
         "header_sha256": "5215c8ab96342abef76a2f04d8051a213f3e240c28404736f39644f8e15a2bdc",
-        "revision": "header-sha256:5215c8ab96342abef76a2f04d8051a213f3e240c28404736f39644f8e15a2bdc",
         "repository": "https://huggingface.co/google/gemma-3-4b-pt"
       }
     },
@@ -1383,7 +1309,6 @@
       "source": {
         "filename": "gemma-3-4b-it-dequant-f16.gguf",
         "header_sha256": "6f2c096fcb6967ad564d8ea094d17cace75e1954ec346d917454de2dee290f94",
-        "revision": "header-sha256:6f2c096fcb6967ad564d8ea094d17cace75e1954ec346d917454de2dee290f94",
         "repository": "https://huggingface.co/google/gemma-3-4b-pt"
       }
     },
@@ -1418,8 +1343,7 @@
       "reference": "references/nemotron_h--nvidia_nemotron-h-8b-reasoning-128k-q4_0--e44bf4ac.json",
       "source": {
         "filename": "nvidia_Nemotron-H-8B-Reasoning-128K-Q4_0.gguf",
-        "header_sha256": "93db40eb08268fb98ea1db67ed3843010b09cc1070c1678deff4326bae37f5af",
-        "revision": "header-sha256:93db40eb08268fb98ea1db67ed3843010b09cc1070c1678deff4326bae37f5af"
+        "header_sha256": "93db40eb08268fb98ea1db67ed3843010b09cc1070c1678deff4326bae37f5af"
       }
     },
     {
@@ -1433,8 +1357,7 @@
       "reference": "references/plamo3--plamo-3-nict-2b-base-q4_0--34835aa1.json",
       "source": {
         "filename": "plamo-3-nict-2b-base-Q4_0.gguf",
-        "header_sha256": "863787899cb8f56f59f3dcb409e0bfeea19c346098d2c3a6d81cf0782aac3463",
-        "revision": "header-sha256:863787899cb8f56f59f3dcb409e0bfeea19c346098d2c3a6d81cf0782aac3463"
+        "header_sha256": "863787899cb8f56f59f3dcb409e0bfeea19c346098d2c3a6d81cf0782aac3463"
       }
     },
     {
@@ -1465,8 +1388,7 @@
       "reference": "references/qwen35moe--qwen3.6-35b-a3b-q4_k_m--a5bc4777.json",
       "source": {
         "filename": "Qwen3.6-35B-A3B-Q4_K_M.gguf",
-        "header_sha256": "1ccf5f56897fd5e7588eff829d145589df008dd6e9be3b9e9cabb6638be840e2",
-        "revision": "header-sha256:1ccf5f56897fd5e7588eff829d145589df008dd6e9be3b9e9cabb6638be840e2"
+        "header_sha256": "1ccf5f56897fd5e7588eff829d145589df008dd6e9be3b9e9cabb6638be840e2"
       }
     },
     {
@@ -1481,7 +1403,6 @@
       "source": {
         "filename": "Qwen3-8B-Q8_0.gguf",
         "header_sha256": "ec7c585423d086729bb62fa1f62f8573f1cf7a485c9dba863ce875627de4daac",
-        "revision": "header-sha256:ec7c585423d086729bb62fa1f62f8573f1cf7a485c9dba863ce875627de4daac",
         "repository": "https://huggingface.co/Qwen/Qwen3-8B-Base"
       }
     },
@@ -1497,7 +1418,6 @@
       "source": {
         "filename": "mmproj-F16.gguf",
         "header_sha256": "bea70f3be9a15303580fdef4849b9fc9ee1ed27fefef592fd411c7e0d5392b8a",
-        "revision": "header-sha256:bea70f3be9a15303580fdef4849b9fc9ee1ed27fefef592fd411c7e0d5392b8a",
         "repository": "https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct"
       },
       "projectors": [
@@ -1517,7 +1437,6 @@
       "source": {
         "filename": "inclusionAI_Ling-mini-2.0-Q4_K_M.gguf",
         "header_sha256": "4f5ca691215024d13a2e61e5feaa3216df1be48b86dd6f1282568b59631c8d55",
-        "revision": "header-sha256:4f5ca691215024d13a2e61e5feaa3216df1be48b86dd6f1282568b59631c8d55",
         "repository": "https://huggingface.co/inclusionAI/Ling-mini-base-2.0"
       }
     },
@@ -1568,7 +1487,6 @@
       "source": {
         "filename": "mamba2-130m-q8_0.gguf",
         "header_sha256": "fba77e4df82e3217ed9959a8cac00cd7ae936f2fcf5a2bcb9a57535bebe0a130",
-        "revision": "header-sha256:fba77e4df82e3217ed9959a8cac00cd7ae936f2fcf5a2bcb9a57535bebe0a130",
         "repository": "https://huggingface.co/state-spaces/mamba2-130m"
       }
     },
@@ -1652,7 +1570,6 @@
       "source": {
         "filename": "Qwen3.5-35B-A3B-Q4_K_M.gguf",
         "header_sha256": "ae2935bb11bf6fe5722597030551da2855caef131d4a50a28d6141c1ac72b913",
-        "revision": "header-sha256:ae2935bb11bf6fe5722597030551da2855caef131d4a50a28d6141c1ac72b913",
         "repository": "https://huggingface.co/Qwen/Qwen3.5-35B-A3B"
       }
     },
@@ -1667,8 +1584,7 @@
       "reference": "references/clip--mmproj-deepseek-ocr-2-bf16--6cef512c.json",
       "source": {
         "filename": "mmproj-deepseek-ocr-2-bf16.gguf",
-        "header_sha256": "1864108605393f95d7ca9765ac173124fa737052f9ecf35ac17cd9e79783330b",
-        "revision": "header-sha256:1864108605393f95d7ca9765ac173124fa737052f9ecf35ac17cd9e79783330b"
+        "header_sha256": "1864108605393f95d7ca9765ac173124fa737052f9ecf35ac17cd9e79783330b"
       },
       "projectors": [
         "vision.deepseekocr2"
@@ -1686,7 +1602,6 @@
       "source": {
         "filename": "InternVL2_5-1B-Q8_0.gguf",
         "header_sha256": "ca52ab055418f6069d65933b3f2cba2c5a083d23b3cd057ba510d08f19db3406",
-        "revision": "header-sha256:ca52ab055418f6069d65933b3f2cba2c5a083d23b3cd057ba510d08f19db3406",
         "repository": "https://huggingface.co/OpenGVLab/InternViT-300M-448px-V2_5"
       }
     },
@@ -1702,7 +1617,6 @@
       "source": {
         "filename": "mmproj-InternVL2_5-1B-f16.gguf",
         "header_sha256": "09a023ecfa919248700a49c5cd4fa93eb3bea86e2d178496457e564b72035132",
-        "revision": "header-sha256:09a023ecfa919248700a49c5cd4fa93eb3bea86e2d178496457e564b72035132",
         "repository": "https://huggingface.co/OpenGVLab/InternViT-300M-448px-V2_5"
       },
       "projectors": [
@@ -1720,8 +1634,7 @@
       "reference": "references/llama--llava-v1.6-vicuna-7b.q4_k_m--c28f6ad7.json",
       "source": {
         "filename": "llava-v1.6-vicuna-7b.Q4_K_M.gguf",
-        "header_sha256": "30e798dc762242428e73a62ff83f25c572bfc8f58e86e5dd1e8972098e5a3239",
-        "revision": "header-sha256:30e798dc762242428e73a62ff83f25c572bfc8f58e86e5dd1e8972098e5a3239"
+        "header_sha256": "30e798dc762242428e73a62ff83f25c572bfc8f58e86e5dd1e8972098e5a3239"
       }
     },
     {
@@ -1735,8 +1648,7 @@
       "reference": "references/clip--mmproj-model-f16--adab99da.json",
       "source": {
         "filename": "mmproj-model-f16.gguf",
-        "header_sha256": "dbdbef025ca3af78c3e3d2de1bec88c3903e089483accf3165bb6996aa88d120",
-        "revision": "header-sha256:dbdbef025ca3af78c3e3d2de1bec88c3903e089483accf3165bb6996aa88d120"
+        "header_sha256": "dbdbef025ca3af78c3e3d2de1bec88c3903e089483accf3165bb6996aa88d120"
       },
       "projectors": [
         "vision.mlp"
@@ -1753,8 +1665,7 @@
       "reference": "references/llama--ggml-model-q4_k--2ccee2f3.json",
       "source": {
         "filename": "ggml-model-q4_k.gguf",
-        "header_sha256": "22618629bf94dbcc7cb0c4e6ea95eb691c1b1eee9803f6d5ba18b89029792b8b",
-        "revision": "header-sha256:22618629bf94dbcc7cb0c4e6ea95eb691c1b1eee9803f6d5ba18b89029792b8b"
+        "header_sha256": "22618629bf94dbcc7cb0c4e6ea95eb691c1b1eee9803f6d5ba18b89029792b8b"
       }
     },
     {
@@ -1768,8 +1679,7 @@
       "reference": "references/clip--llava-v1.5-7b-mmproj-model-f16--2687e65a.json",
       "source": {
         "filename": "llava-v1.5-7b-mmproj-model-f16.gguf",
-        "header_sha256": "29cfde5723f39e8cd6e6bf41242743aefc9272b560bcb24b193489f6b7ca4f5b",
-        "revision": "header-sha256:29cfde5723f39e8cd6e6bf41242743aefc9272b560bcb24b193489f6b7ca4f5b"
+        "header_sha256": "29cfde5723f39e8cd6e6bf41242743aefc9272b560bcb24b193489f6b7ca4f5b"
       },
       "projectors": [
         "vision.mlp"
@@ -1786,8 +1696,7 @@
       "reference": "references/qwen2--ggml-model-q4_0--208e9dab.json",
       "source": {
         "filename": "ggml-model-Q4_0.gguf",
-        "header_sha256": "edb5ebf6ef8076ce6b8441d152730bb0d93b270d37b7ee35088457b980302fb5",
-        "revision": "header-sha256:edb5ebf6ef8076ce6b8441d152730bb0d93b270d37b7ee35088457b980302fb5"
+        "header_sha256": "edb5ebf6ef8076ce6b8441d152730bb0d93b270d37b7ee35088457b980302fb5"
       }
     },
     {
@@ -1802,7 +1711,6 @@
       "source": {
         "filename": "EXAONE-4.0-1.2B.i1-Q4_0.gguf",
         "header_sha256": "362fd14d42eb6b994a98326c6f18b841250e892ca51a49dacd7238123a6243a9",
-        "revision": "header-sha256:362fd14d42eb6b994a98326c6f18b841250e892ca51a49dacd7238123a6243a9",
         "repository": "https://huggingface.co/LGAI-EXAONE/EXAONE-4.0-1.2B"
       }
     },
@@ -1817,8 +1725,7 @@
       "reference": "references/smollm3--huggingfacetb_smollm3-3b-q4_0--e3c6645a.json",
       "source": {
         "filename": "HuggingFaceTB_SmolLM3-3B-Q4_0.gguf",
-        "header_sha256": "754451568da349df950bce865db4c1c67987929d0883b3eaffb0cb4656408db6",
-        "revision": "header-sha256:754451568da349df950bce865db4c1c67987929d0883b3eaffb0cb4656408db6"
+        "header_sha256": "754451568da349df950bce865db4c1c67987929d0883b3eaffb0cb4656408db6"
       }
     },
     {
@@ -1833,7 +1740,6 @@
       "source": {
         "filename": "Hunyuan-0.5B-Instruct-Q4_0.gguf",
         "header_sha256": "060908953d149f3a9407563c18c9a82e15c1eb77a565bbdfc7e52b3891defdb8",
-        "revision": "header-sha256:060908953d149f3a9407563c18c9a82e15c1eb77a565bbdfc7e52b3891defdb8",
         "repository": "https://huggingface.co/tencent/Hunyuan-0.5B-Pretrain"
       }
     },
@@ -1849,7 +1755,6 @@
       "source": {
         "filename": "Maincoder-1B-Q4_0.gguf",
         "header_sha256": "d0a90ab2dcbba4a664ecb0c72ad9aed9570fc415d3c0fa0f3caea68685147b5d",
-        "revision": "header-sha256:d0a90ab2dcbba4a664ecb0c72ad9aed9570fc415d3c0fa0f3caea68685147b5d",
         "repository": "https://huggingface.co/Maincode/Maincoder-1B"
       }
     },
@@ -1864,8 +1769,7 @@
       "reference": "references/mistral3--ministral-3-3b-instruct-2512-q4_0--f3d004f9.json",
       "source": {
         "filename": "Ministral-3-3B-Instruct-2512-Q4_0.gguf",
-        "header_sha256": "11395c926ed9d807fa2ff1156486e01e20cf2b1e408256dadf21fe17d00f34d1",
-        "revision": "header-sha256:11395c926ed9d807fa2ff1156486e01e20cf2b1e408256dadf21fe17d00f34d1"
+        "header_sha256": "11395c926ed9d807fa2ff1156486e01e20cf2b1e408256dadf21fe17d00f34d1"
       }
     },
     {
@@ -1880,7 +1784,6 @@
       "source": {
         "filename": "OLMoE-1b-7b-0924-Instruct-Q4_0.gguf",
         "header_sha256": "107d8b073d275c7aced99285735b26ad04e548351f8e2c3468ce3362f2b92c00",
-        "revision": "header-sha256:107d8b073d275c7aced99285735b26ad04e548351f8e2c3468ce3362f2b92c00",
         "repository": "https://huggingface.co/allenai/OLMoE-1B-7B-0924-SFT"
       }
     },
@@ -1895,8 +1798,7 @@
       "reference": "references/qwen2--qwen2.5-0.5b-instruct-q4_0--67f27271.json",
       "source": {
         "filename": "qwen2.5-0.5b-instruct-q4_0.gguf",
-        "header_sha256": "3a8cf5b0f21659dc00d5a503798676916ed358223c5c5f1fb0d10c5b22b577aa",
-        "revision": "header-sha256:3a8cf5b0f21659dc00d5a503798676916ed358223c5c5f1fb0d10c5b22b577aa"
+        "header_sha256": "3a8cf5b0f21659dc00d5a503798676916ed358223c5c5f1fb0d10c5b22b577aa"
       }
     },
     {
@@ -1910,8 +1812,7 @@
       "reference": "references/llama--llama-3.2-3b-instruct-q5_k_m--453444b3.json",
       "source": {
         "filename": "Llama-3.2-3B-Instruct-Q5_K_M.gguf",
-        "header_sha256": "753ad2818a76d6813bd6277d215ec6f89ddb639b643a2e876ac90888b1a29dfd",
-        "revision": "header-sha256:753ad2818a76d6813bd6277d215ec6f89ddb639b643a2e876ac90888b1a29dfd"
+        "header_sha256": "753ad2818a76d6813bd6277d215ec6f89ddb639b643a2e876ac90888b1a29dfd"
       }
     },
     {
@@ -1925,8 +1826,7 @@
       "reference": "references/llama--llama-3.2-3b-instruct-f16--5064cd36.json",
       "source": {
         "filename": "Llama-3.2-3B-Instruct-f16.gguf",
-        "header_sha256": "3412e213887a9338c9f0504b4dc22dfdc3f505884f8bf52d35a2004c9220d824",
-        "revision": "header-sha256:3412e213887a9338c9f0504b4dc22dfdc3f505884f8bf52d35a2004c9220d824"
+        "header_sha256": "3412e213887a9338c9f0504b4dc22dfdc3f505884f8bf52d35a2004c9220d824"
       }
     },
     {
@@ -1941,7 +1841,6 @@
       "source": {
         "filename": "Mistral-7B-Instruct-v0.3.Q5_K_M.gguf",
         "header_sha256": "df2409975374e664ed3ded8d860904b8fd306bc59930af18fd6cff1b83c18bcf",
-        "revision": "header-sha256:df2409975374e664ed3ded8d860904b8fd306bc59930af18fd6cff1b83c18bcf",
         "repository": "https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3"
       }
     },
@@ -1957,7 +1856,6 @@
       "source": {
         "filename": "Mistral-7B-Instruct-v0.3.f16.gguf",
         "header_sha256": "f6a5ec00ce56ba6266e08fac62dc4027163285aee6af8507f8042514d0f6db5d",
-        "revision": "header-sha256:f6a5ec00ce56ba6266e08fac62dc4027163285aee6af8507f8042514d0f6db5d",
         "repository": "https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3"
       }
     },
@@ -1973,7 +1871,6 @@
       "source": {
         "filename": "Qwen2.5-7B-Instruct-Q5_K_M.gguf",
         "header_sha256": "0602cc7d69ae04c933f96b3e69d2990ca7fb784b5fc9e3d59a69f4050d0be2fd",
-        "revision": "header-sha256:0602cc7d69ae04c933f96b3e69d2990ca7fb784b5fc9e3d59a69f4050d0be2fd",
         "repository": "https://huggingface.co/Qwen/Qwen2.5-7B"
       }
     },
@@ -1989,7 +1886,6 @@
       "source": {
         "filename": "Qwen2.5-7B-Instruct-f16.gguf",
         "header_sha256": "1bf8fec0a7c8cb12010ba728592d41d327afd079689ea4596408341b8236b4d4",
-        "revision": "header-sha256:1bf8fec0a7c8cb12010ba728592d41d327afd079689ea4596408341b8236b4d4",
         "repository": "https://huggingface.co/Qwen/Qwen2.5-7B"
       }
     },
@@ -2005,7 +1901,6 @@
       "source": {
         "filename": "gemma-2-2b-it.Q5_K_M.gguf",
         "header_sha256": "783ec1bcc09f8a1c21ee9183bcf23b62d4186932d5c28dfbcd8cf07c9d41969c",
-        "revision": "header-sha256:783ec1bcc09f8a1c21ee9183bcf23b62d4186932d5c28dfbcd8cf07c9d41969c",
         "repository": "https://huggingface.co/google/gemma-2-2b"
       }
     },
@@ -2021,7 +1916,6 @@
       "source": {
         "filename": "gemma-2-2b-it.f16.gguf",
         "header_sha256": "762f470b61c862d3fbb477dcd4ecd2fc2551468bded0defbcca00ad621542e29",
-        "revision": "header-sha256:762f470b61c862d3fbb477dcd4ecd2fc2551468bded0defbcca00ad621542e29",
         "repository": "https://huggingface.co/google/gemma-2-2b"
       }
     },
@@ -2037,7 +1931,6 @@
       "source": {
         "filename": "Qwen3.5-4B-BF16.gguf",
         "header_sha256": "92c4bfc4e4647b7192618880a94a4dcd47e56b3ef28568f44a961560488ad72a",
-        "revision": "header-sha256:92c4bfc4e4647b7192618880a94a4dcd47e56b3ef28568f44a961560488ad72a",
         "repository": "https://huggingface.co/Qwen/Qwen3.5-4B"
       }
     },
@@ -2053,7 +1946,6 @@
       "source": {
         "filename": "Qwen3.5-4B-Q5_K_M.gguf",
         "header_sha256": "3297f59cc3cddb2d56f1cd22d204c64cd40219947c53a46278e044bfa7a1db8b",
-        "revision": "header-sha256:3297f59cc3cddb2d56f1cd22d204c64cd40219947c53a46278e044bfa7a1db8b",
         "repository": "https://huggingface.co/Qwen/Qwen3.5-4B"
       }
     },
@@ -2069,7 +1961,6 @@
       "source": {
         "filename": "Qwen3.5-9B-BF16.gguf",
         "header_sha256": "532b06ee3cef431fe06fbb79f50bab32e7a54f9949faee2aa7c7d5f6c560f138",
-        "revision": "header-sha256:532b06ee3cef431fe06fbb79f50bab32e7a54f9949faee2aa7c7d5f6c560f138",
         "repository": "https://huggingface.co/Qwen/Qwen3.5-9B"
       }
     },
@@ -2085,7 +1976,6 @@
       "source": {
         "filename": "Qwen3.5-9B-Q5_K_M.gguf",
         "header_sha256": "2640f00be3f577b8c7e750faba1b9eb8245024362d8db9e4985329a3a2002b61",
-        "revision": "header-sha256:2640f00be3f577b8c7e750faba1b9eb8245024362d8db9e4985329a3a2002b61",
         "repository": "https://huggingface.co/Qwen/Qwen3.5-9B"
       }
     },
@@ -2101,7 +1991,6 @@
       "source": {
         "filename": "gemma-4-E4B-it-BF16.gguf",
         "header_sha256": "7ed970ac4353e48c49f3f241bbe5c6f44bc817b3786c38657099ff44395d8963",
-        "revision": "header-sha256:7ed970ac4353e48c49f3f241bbe5c6f44bc817b3786c38657099ff44395d8963",
         "repository": "https://huggingface.co/google/gemma-4-E4B-it"
       }
     },
@@ -2117,7 +2006,6 @@
       "source": {
         "filename": "gemma-4-E4B-it-Q5_K_M.gguf",
         "header_sha256": "3c752d1b218033e4c07b780a7dc2d32190fc47714386174ffd547aaf3e8a689c",
-        "revision": "header-sha256:3c752d1b218033e4c07b780a7dc2d32190fc47714386174ffd547aaf3e8a689c",
         "repository": "https://huggingface.co/google/gemma-4-E4B-it"
       }
     },
@@ -2133,7 +2021,6 @@
       "source": {
         "filename": "Qwen2.5-1.5B-Instruct-Q5_K_M.gguf",
         "header_sha256": "512d0f94125a55de2e234e0a4319ae4a1184a7d82f4a28d80ead145c51b8aa7c",
-        "revision": "header-sha256:512d0f94125a55de2e234e0a4319ae4a1184a7d82f4a28d80ead145c51b8aa7c",
         "repository": "https://huggingface.co/Qwen/Qwen2.5-1.5B"
       }
     },
@@ -2149,7 +2036,6 @@
       "source": {
         "filename": "Qwen2.5-1.5B-Instruct-f16.gguf",
         "header_sha256": "3ab3d13f9f474f01f21791b2108a00634937bf29e5709871e2f5e6247116acb6",
-        "revision": "header-sha256:3ab3d13f9f474f01f21791b2108a00634937bf29e5709871e2f5e6247116acb6",
         "repository": "https://huggingface.co/Qwen/Qwen2.5-1.5B"
       }
     },
@@ -2164,8 +2050,7 @@
       "reference": "references/hunyuan-dense--hy-mt2-1.8b-q4_k_m--2b2e3b65.json",
       "source": {
         "filename": "Hy-MT2-1.8B-Q4_K_M.gguf",
-        "header_sha256": "8c4f273b294a91df5525774afda49dc2474d7e90a474847371615e6149a2626a",
-        "revision": "header-sha256:8c4f273b294a91df5525774afda49dc2474d7e90a474847371615e6149a2626a"
+        "header_sha256": "8c4f273b294a91df5525774afda49dc2474d7e90a474847371615e6149a2626a"
       }
     },
     {
@@ -2179,8 +2064,7 @@
       "reference": "references/hunyuan-dense--hy-mt2-7b-q4_k_m--1434abb9.json",
       "source": {
         "filename": "Hy-MT2-7B-Q4_K_M.gguf",
-        "header_sha256": "31624fdc6d0869c0435cca64190bcf2b2842b60269b107d55498d0c6975c0f3c",
-        "revision": "header-sha256:31624fdc6d0869c0435cca64190bcf2b2842b60269b107d55498d0c6975c0f3c"
+        "header_sha256": "31624fdc6d0869c0435cca64190bcf2b2842b60269b107d55498d0c6975c0f3c"
       }
     },
     {
@@ -2195,7 +2079,6 @@
       "source": {
         "filename": "Mellum2.1-12B-A2.5B-Thinking-Q4_K_M.gguf",
         "header_sha256": "05a36b478f78233b79455894a32c15e973c53682f0ac8d7bd77baa047550e3e8",
-        "revision": "header-sha256:05a36b478f78233b79455894a32c15e973c53682f0ac8d7bd77baa047550e3e8",
         "repository": "https://huggingface.co/JetBrains/Mellum2-12B-A2.5B-Base"
       }
     },
@@ -2210,8 +2093,7 @@
       "reference": "references/llama--minicpm5-2b-q4_k_m--6ad2267f.json",
       "source": {
         "filename": "MiniCPM5-2B-Q4_K_M.gguf",
-        "header_sha256": "a60349e84b4b4a10c742c78b993aa7dcecac13795e1924343a52f3c6be7b92ba",
-        "revision": "header-sha256:a60349e84b4b4a10c742c78b993aa7dcecac13795e1924343a52f3c6be7b92ba"
+        "header_sha256": "a60349e84b4b4a10c742c78b993aa7dcecac13795e1924343a52f3c6be7b92ba"
       }
     },
     {
@@ -2225,8 +2107,7 @@
       "reference": "references/gemma4--nemotron-3.5-bolt-e4b-q4_k_m--b24b6ba5.json",
       "source": {
         "filename": "Nemotron-3.5-Bolt-E4B-Q4_K_M.gguf",
-        "header_sha256": "2bbecfd6c2379f71bd87cb36112c59b1ea9de5c9dcbc69b48ca0dfc19df7cd6f",
-        "revision": "header-sha256:2bbecfd6c2379f71bd87cb36112c59b1ea9de5c9dcbc69b48ca0dfc19df7cd6f"
+        "header_sha256": "2bbecfd6c2379f71bd87cb36112c59b1ea9de5c9dcbc69b48ca0dfc19df7cd6f"
       }
     },
     {
@@ -2240,8 +2121,7 @@
       "reference": "references/qwen35--ornith-1.5-9b-q4_k_m--39b1a33b.json",
       "source": {
         "filename": "Ornith-1.5-9B-Q4_K_M.gguf",
-        "header_sha256": "b75b48ed051ba447b98ee11972f2c089471d12aef9080a829e8236bbb263d999",
-        "revision": "header-sha256:b75b48ed051ba447b98ee11972f2c089471d12aef9080a829e8236bbb263d999"
+        "header_sha256": "b75b48ed051ba447b98ee11972f2c089471d12aef9080a829e8236bbb263d999"
       }
     },
     {
@@ -2256,7 +2136,6 @@
       "source": {
         "filename": "gemma-4-12b-it-qat-q4_0.gguf",
         "header_sha256": "ed3965be40f10df4adc4d4cbc1e50129da78576a10660f1363f3378310566f01",
-        "revision": "header-sha256:ed3965be40f10df4adc4d4cbc1e50129da78576a10660f1363f3378310566f01",
         "repository": "https://huggingface.co/google/gemma-4-12B-it"
       }
     },
@@ -2271,7 +2150,6 @@
       "source": {
         "filename": "vocoder-LFM2.5-Audio-1.5B-Q4_0.gguf",
         "repository": "LiquidAI/LFM2.5-Audio-1.5B-GGUF",
-        "revision": "header-sha256:c55c3b0f695df66cda472f38b32b5c2702c2134fc6db2f4bf602b5e2ffd5145d",
         "header_sha256": "c55c3b0f695df66cda472f38b32b5c2702c2134fc6db2f4bf602b5e2ffd5145d"
       }
     },
@@ -2286,7 +2164,6 @@
       "source": {
         "filename": "mamba2-dense.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:478be083f77f111fdc2e7c7aca9d4433ce6e719215d3974c73d75564fe751aa7",
         "header_sha256": "478be083f77f111fdc2e7c7aca9d4433ce6e719215d3974c73d75564fe751aa7"
       },
       "kind": "representative",
@@ -2307,7 +2184,6 @@
       "source": {
         "filename": "nemotron_h-dense.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:091e0122f3df668b9ba842439d771a2473d6b2430933806fc5d01c7e90c5cb59",
         "header_sha256": "091e0122f3df668b9ba842439d771a2473d6b2430933806fc5d01c7e90c5cb59"
       },
       "kind": "representative",
@@ -2328,7 +2204,6 @@
       "source": {
         "filename": "bailingmoe2-moe.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:2ee65f351949df73e7e424d0e69dfcd9057f05cb66b43a23a0a26dab20e3b638",
         "header_sha256": "2ee65f351949df73e7e424d0e69dfcd9057f05cb66b43a23a0a26dab20e3b638"
       },
       "kind": "representative",
@@ -2349,7 +2224,6 @@
       "source": {
         "filename": "ernie4_5-moe-moe.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:ab5af072e160830f266347a666e37ff11520c9cc91076a4d22aab081310bc9b1",
         "header_sha256": "ab5af072e160830f266347a666e37ff11520c9cc91076a4d22aab081310bc9b1"
       },
       "kind": "representative",
@@ -2370,7 +2244,6 @@
       "source": {
         "filename": "exaone4-dense.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:58c6667f85aa2afefd4f9ea45e5f73a0d643ae06328d13bd1ad6d5d0e8d74adb",
         "header_sha256": "58c6667f85aa2afefd4f9ea45e5f73a0d643ae06328d13bd1ad6d5d0e8d74adb"
       },
       "kind": "representative",
@@ -2391,7 +2264,6 @@
       "source": {
         "filename": "gemma-dense.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:6d6ba6e695b2e990810d8007b87e5778102741e2ec50524c502cfa3ef60fe59a",
         "header_sha256": "6d6ba6e695b2e990810d8007b87e5778102741e2ec50524c502cfa3ef60fe59a"
       },
       "kind": "representative",
@@ -2412,7 +2284,6 @@
       "source": {
         "filename": "gemma2-dense.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:f4fa401708ff9b732126fbaaea26656057fc9e0426f649bf7c8b320149fa155a",
         "header_sha256": "f4fa401708ff9b732126fbaaea26656057fc9e0426f649bf7c8b320149fa155a"
       },
       "kind": "representative",
@@ -2433,7 +2304,6 @@
       "source": {
         "filename": "glm4moe-moe.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:cb006c799e66fdd48a7da6e10fcccad21534b80a4f729d05a86b37846a9a7981",
         "header_sha256": "cb006c799e66fdd48a7da6e10fcccad21534b80a4f729d05a86b37846a9a7981"
       },
       "kind": "representative",
@@ -2454,7 +2324,6 @@
       "source": {
         "filename": "gpt-oss-moe.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:71aa30a90d58454530ecb4d2aa280bd7791644ee83892167397060f65e0912e8",
         "header_sha256": "71aa30a90d58454530ecb4d2aa280bd7791644ee83892167397060f65e0912e8"
       },
       "kind": "representative",
@@ -2475,7 +2344,6 @@
       "source": {
         "filename": "hunyuan-dense-dense.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:0a98605c4f6804516eb20ad43f22723fa305880d431146aeeba2be63bed2e81b",
         "header_sha256": "0a98605c4f6804516eb20ad43f22723fa305880d431146aeeba2be63bed2e81b"
       },
       "kind": "representative",
@@ -2496,7 +2364,6 @@
       "source": {
         "filename": "hunyuan-moe-moe.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:c604c8f4c533232c7643089b73eb86847b429906963ce62ba9ba43f5296b8306",
         "header_sha256": "c604c8f4c533232c7643089b73eb86847b429906963ce62ba9ba43f5296b8306"
       },
       "kind": "representative",
@@ -2517,7 +2384,6 @@
       "source": {
         "filename": "llama-dense.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:cd383514c36bce38929d90683fe064a14739af93c1a7b42e19925c779476078e",
         "header_sha256": "cd383514c36bce38929d90683fe064a14739af93c1a7b42e19925c779476078e"
       },
       "kind": "representative",
@@ -2538,7 +2404,6 @@
       "source": {
         "filename": "lfm2-dense.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:293cee6eb7f6de5f6cbd3fcea1ee0bd08705adde63bdafe679e28c0fc4a13774",
         "header_sha256": "293cee6eb7f6de5f6cbd3fcea1ee0bd08705adde63bdafe679e28c0fc4a13774"
       },
       "kind": "representative",
@@ -2559,7 +2424,6 @@
       "source": {
         "filename": "lfm2moe-moe.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:4d560a63a67fa083a25a60f48a907e856c4598a022691d70fad2d5f44371dc87",
         "header_sha256": "4d560a63a67fa083a25a60f48a907e856c4598a022691d70fad2d5f44371dc87"
       },
       "kind": "representative",
@@ -2580,7 +2444,6 @@
       "source": {
         "filename": "llama-moe.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:baf139a7cf76222e3eb612f589c27e93bf7e82e7e9c465f5208a881f035213d1",
         "header_sha256": "baf139a7cf76222e3eb612f589c27e93bf7e82e7e9c465f5208a881f035213d1"
       },
       "kind": "representative",
@@ -2601,7 +2464,6 @@
       "source": {
         "filename": "maincoder-dense.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:82b25e8830470f503cb604483849f572b54deb783f4a335c3a235c460cad0815",
         "header_sha256": "82b25e8830470f503cb604483849f572b54deb783f4a335c3a235c460cad0815"
       },
       "kind": "representative",
@@ -2622,7 +2484,6 @@
       "source": {
         "filename": "minicpm-dense.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:3f0b86b8ba04fd7951130fe25e1356eba6c726fdc9d02926a8603c0ed0736a5a",
         "header_sha256": "3f0b86b8ba04fd7951130fe25e1356eba6c726fdc9d02926a8603c0ed0736a5a"
       },
       "kind": "representative",
@@ -2643,7 +2504,6 @@
       "source": {
         "filename": "minicpm-moe.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:3eca17fccaf05a7a7aa0cb1f3abfc551d8ba2e7ef46a4eceb691837c2c628ec8",
         "header_sha256": "3eca17fccaf05a7a7aa0cb1f3abfc551d8ba2e7ef46a4eceb691837c2c628ec8"
       },
       "kind": "representative",
@@ -2664,7 +2524,6 @@
       "source": {
         "filename": "minimax-m2-moe.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:0f34667d26ed30304882b0fd1fd3b7e9607de066fe9726a58d613071d03e2ec7",
         "header_sha256": "0f34667d26ed30304882b0fd1fd3b7e9607de066fe9726a58d613071d03e2ec7"
       },
       "kind": "representative",
@@ -2685,7 +2544,6 @@
       "source": {
         "filename": "mistral3-dense.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:46f0934d3e743eb112bdf85488e74b5bbe86e171cff54f8ff9928858d168e0d0",
         "header_sha256": "46f0934d3e743eb112bdf85488e74b5bbe86e171cff54f8ff9928858d168e0d0"
       },
       "kind": "representative",
@@ -2706,7 +2564,6 @@
       "source": {
         "filename": "mistral3-moe.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:6e5c64031857ebe0262a82efe40d53e4d5e9bc0b78fa6b577acf10ed6d96b368",
         "header_sha256": "6e5c64031857ebe0262a82efe40d53e4d5e9bc0b78fa6b577acf10ed6d96b368"
       },
       "kind": "representative",
@@ -2727,7 +2584,6 @@
       "source": {
         "filename": "olmoe-moe.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:3efdb304548201b95fe62b8b7bc3555cb3c19c8c7916393e4b1b689198c4b986",
         "header_sha256": "3efdb304548201b95fe62b8b7bc3555cb3c19c8c7916393e4b1b689198c4b986"
       },
       "kind": "representative",
@@ -2748,7 +2604,6 @@
       "source": {
         "filename": "phi3-dense.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:34f7f24ad0c2fd470c545f1d238ba7b4340be1b96f9053a610271e69e0d8318b",
         "header_sha256": "34f7f24ad0c2fd470c545f1d238ba7b4340be1b96f9053a610271e69e0d8318b"
       },
       "kind": "representative",
@@ -2769,7 +2624,6 @@
       "source": {
         "filename": "qwen2-dense.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:3e5f6d65df9a01316dcc23ffb51b59e16946bb6c93fa087c6da59d4c2030ad59",
         "header_sha256": "3e5f6d65df9a01316dcc23ffb51b59e16946bb6c93fa087c6da59d4c2030ad59"
       },
       "kind": "representative",
@@ -2790,7 +2644,6 @@
       "source": {
         "filename": "qwen3-dense.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:46bc11c3c2f22284b1c281ed503ec989e982012c9caf4041a648d11d2e5c45ed",
         "header_sha256": "46bc11c3c2f22284b1c281ed503ec989e982012c9caf4041a648d11d2e5c45ed"
       },
       "kind": "representative",
@@ -2811,7 +2664,6 @@
       "source": {
         "filename": "qwen3moe-moe.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:c3ecd486a72f3d4e58d433dfa491b621a74c162d67c08954e61eaaeba331ac88",
         "header_sha256": "c3ecd486a72f3d4e58d433dfa491b621a74c162d67c08954e61eaaeba331ac88"
       },
       "kind": "representative",
@@ -2832,7 +2684,6 @@
       "source": {
         "filename": "qwen35-dense.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:2a9f940a71ea4513540270682f363ed44da0fb582048699700ea0cdbe772a9c0",
         "header_sha256": "2a9f940a71ea4513540270682f363ed44da0fb582048699700ea0cdbe772a9c0"
       },
       "kind": "representative",
@@ -2853,7 +2704,6 @@
       "source": {
         "filename": "qwen35moe-moe.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:68355f5106a7a21c07c691b45db77984a37751c7410bc8616729c227be75bf82",
         "header_sha256": "68355f5106a7a21c07c691b45db77984a37751c7410bc8616729c227be75bf82"
       },
       "kind": "representative",
@@ -2874,7 +2724,6 @@
       "source": {
         "filename": "smollm3-dense.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:b7c29ed094d7b83ad95c695e998231f854baf1fcbb65b09f7e1105cdc3227ab6",
         "header_sha256": "b7c29ed094d7b83ad95c695e998231f854baf1fcbb65b09f7e1105cdc3227ab6"
       },
       "kind": "representative",
@@ -2895,7 +2744,6 @@
       "source": {
         "filename": "jais2-dense.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:14cdf05357aede881caee5dc87f2539a1ecb79e7c39378e53b35d6e893052acf",
         "header_sha256": "14cdf05357aede881caee5dc87f2539a1ecb79e7c39378e53b35d6e893052acf"
       },
       "kind": "representative",
@@ -2916,7 +2764,6 @@
       "source": {
         "filename": "lfm3.gguf.hdr",
         "repository": "ggml-org/llama.cpp",
-        "revision": "header-sha256:444e2688b525d72ce29c012998dd01425ea82a298323cfa85c8551a285e30eb3",
         "header_sha256": "444e2688b525d72ce29c012998dd01425ea82a298323cfa85c8551a285e30eb3"
       },
       "kind": "representative",

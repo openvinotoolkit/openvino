@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "source_header_sha256": "a9a0e914bb22436f0276f9f6e7d6a1a5a33e4dd75ea2b67e30f31427364925cb",
   "omitted_metadata": ["general.license", "general.name", "general.tags", "general.url", "tokenizer.ggml.merges", "tokenizer.ggml.token_type", "tokenizer.ggml.tokens"],
   "metadata": {
     "general.architecture": ["str", "llama-embed"],

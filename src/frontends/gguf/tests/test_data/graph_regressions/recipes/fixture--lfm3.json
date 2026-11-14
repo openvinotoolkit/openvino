@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "source_header_sha256": "444e2688b525d72ce29c012998dd01425ea82a298323cfa85c8551a285e30eb3",
   "omitted_metadata": [],
   "payload": {"mode": "zeros", "max_bytes": 67108864},
   "metadata": {

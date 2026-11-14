@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "source_header_sha256": "e4ebc888e454397321173e1056bdfa61a3b9077905b80d89a3b54363b640cb96",
   "omitted_metadata": ["general.license", "general.name", "general.tags", "tokenizer.chat_template", "tokenizer.ggml.merges", "tokenizer.ggml.token_type", "tokenizer.ggml.tokens"],
   "metadata": {
     "general.architecture": ["str", "lfm2moe"],

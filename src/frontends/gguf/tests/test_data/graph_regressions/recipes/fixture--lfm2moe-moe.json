@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "source_header_sha256": "4d560a63a67fa083a25a60f48a907e856c4598a022691d70fad2d5f44371dc87",
   "omitted_metadata": ["general.name", "tokenizer.ggml.merges", "tokenizer.ggml.scores", "tokenizer.ggml.token_type", "tokenizer.ggml.tokens"],
   "payload": {"mode": "zeros", "max_bytes": 67108864},
   "metadata": {

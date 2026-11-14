@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "source_header_sha256": "0af248d3cf4343c4661079463b0f9424b2e28035884d2b20e9433ecbe1fc884d",
   "omitted_metadata": ["general.license", "general.name", "general.tags", "tokenizer.chat_template", "tokenizer.ggml.merges", "tokenizer.ggml.token_type", "tokenizer.ggml.tokens"],
   "metadata": {
     "general.architecture": ["str", "gpt-oss"],

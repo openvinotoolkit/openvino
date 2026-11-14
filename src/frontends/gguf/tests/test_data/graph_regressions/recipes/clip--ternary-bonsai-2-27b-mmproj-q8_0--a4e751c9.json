@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "source_header_sha256": "a4e751c9fd8c98ad1c06294362121841d58a94db8adb38ae7be7638e7464fc74",
   "omitted_metadata": ["general.license", "general.name", "general.tags"],
   "metadata": {
     "general.architecture": ["str", "clip"],

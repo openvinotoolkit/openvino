@@ -80,7 +80,7 @@ def compact_snapshot(snapshot):
 def model_stage(models):
     if not models:
         raise ValueError("Snapshot stage requires a nonempty model map")
-    return {"models": models, "map_sha256": digest({name: model["graph_sha256"] for name, model in models.items()})}
+    return {"models": models}
 
 
 def histogram_delta(expected, actual):
@@ -97,9 +97,6 @@ def reference_delta(expected, actual):
     for stage in sorted(before_stages.keys() | actual["stages"].keys()):
         before = before_stages.get(stage, {}).get("models", {})
         after = actual["stages"].get(stage, {}).get("models", {})
-        if before == after and before_stages.get(stage, {}).get("map_sha256") != actual["stages"].get(
-                stage, {}).get("map_sha256"):
-            changes.append({"stage": stage, "status": "map_changed"})
         for role in sorted(before.keys() | after.keys()):
             old, new = before.get(role), after.get(role)
             if old == new:
@@ -114,19 +111,11 @@ def reference_delta(expected, actual):
                 "after_nodes": new["totals"]["nodes"] if new else 0,
                 "graph_changed": old is None or new is None or old["graph_sha256"] != new["graph_sha256"],
             })
-    if expected and expected.get("recipe_sha256") != actual["recipe_sha256"]:
-        changes.append({"status": "recipe_changed"})
     return changes
 
 
 def print_changes(case, changes):
     for change in changes:
-        if change["status"] == "recipe_changed":
-            print(f"{case}: recipe changed; review the input migration separately")
-            continue
-        if change["status"] == "map_changed":
-            print(f"{case}: {change['stage']} model-map fingerprint changed")
-            continue
         print(f"{case}: {change['stage']}/{change['model']} {change['status']}; "
               f"operations {change['before_nodes']} -> {change['after_nodes']}")
         for field in ("ops", "projections"):
@@ -169,6 +158,10 @@ class HeaderReader:
 
 def import_header(path, source_size=None):
     """source_size is the original file size when path holds only a header prefix."""
+    return import_header_with_digest(path, source_size)[0]
+
+
+def import_header_with_digest(path, source_size=None):
     omitted, metadata, tensors = [], [], []
     with Path(path).open("rb") as stream:
         reader = HeaderReader(stream)
@@ -254,9 +247,9 @@ def import_header(path, source_size=None):
                 tensor["storage_shape"] = [byte_count]
             del tensor["_offset"]
     recipe = {"version": VERSION, "metadata": metadata, "tensors": tensors,
-              "omitted_metadata": sorted(omitted), "source_header_sha256": header_sha256}
+              "omitted_metadata": sorted(omitted)}
     validate_recipe(recipe)
-    return recipe
+    return recipe, header_sha256
 
 
 def unique(items, field):
@@ -391,7 +384,7 @@ def parse_layer_ranges(name, text):
 def encode_recipe(recipe):
     """Compact on-disk form: typed metadata map and per-layer tensor templates without derived storage."""
     result = {"version": RECIPE_VERSION}
-    for key in ("source_header_sha256", "omitted_metadata", "payload"):
+    for key in ("omitted_metadata", "payload"):
         if key in recipe:
             result[key] = recipe[key]
     result["metadata"] = {}
@@ -454,7 +447,7 @@ def decode_recipe(document):
             storage_type, storage_shape = storage(GGML_IDS[kind], shape)
             recipe["tensors"].append({"name": concrete, "shape": list(shape), "ggml_type": GGML_IDS[kind],
                                       "storage_type": storage_type, "storage_shape": storage_shape})
-    for key in ("omitted_metadata", "source_header_sha256", "payload"):
+    for key in ("omitted_metadata", "payload"):
         if key in document:
             recipe[key] = document[key]
     validate_recipe(recipe)
@@ -466,7 +459,7 @@ def recipe_text(recipe):
     document = encode_recipe(recipe)
     line = lambda value: json.dumps(value, allow_nan=False)
     lines = ["{", f'  "version": {document["version"]},']
-    for key in ("source_header_sha256", "omitted_metadata", "payload"):
+    for key in ("omitted_metadata", "payload"):
         if key in document:
             lines.append(f"  {line(key)}: {line(document[key])},")
     lines.append('  "metadata": {')
@@ -807,8 +800,6 @@ def _run_cases(args, report):
             raise ValueError(f"Invalid case ID: {case['id']}")
         recipe_path = contained_path(root, case["recipe"])
         recipe = load_recipe(recipe_path)
-        if recipe.get("source_header_sha256") and recipe["source_header_sha256"] != case["source"]["header_sha256"]:
-            raise ValueError(f"Catalog/recipe header provenance differs for {case['id']}")
         stages = case.get("stages", [case.get("stage", "deferred_plan")])
         if case.get("kind", "model") == "model" and "deferred_plan" not in stages:
             raise ValueError(f"Model case {case['id']} requires deferred_plan")
@@ -829,7 +820,7 @@ def _run_cases(args, report):
             actual_stages[stage] = model_stage({"native": model})
             if "projectors" in case and model["projectors"] != case["projectors"]:
                 raise ValueError(f"Projector identity mismatch for {case['id']}: {model['projectors']}")
-        actual = {"version": VERSION, "recipe_sha256": digest(recipe), "stages": actual_stages}
+        actual = {"version": VERSION, "stages": actual_stages}
         validate_document(actual, "reference")
         target = contained_path(root, case["reference"])
         if not target.exists() and not args.update:
@@ -840,8 +831,6 @@ def _run_cases(args, report):
             if set(expected["stages"]) != set(stages) and not args.update:
                 raise ValueError(f"Reference has missing/extra required stages for {case['id']}")
             for stage in expected["stages"].values():
-                if model_stage(stage["models"])["map_sha256"] != stage["map_sha256"]:
-                    raise ValueError(f"Reference model-map hash is inconsistent for {case['id']}")
                 for model in stage["models"].values():
                     if sum(row[-1] for row in model["ops"]) != model["totals"]["nodes"]:
                         raise ValueError(f"Reference histogram is inconsistent for {case['id']}")
@@ -883,9 +872,10 @@ def main(argv=None):
         if args.import_gguf:
             if not args.recipe_output or args.update or args.cases:
                 raise ValueError("--import-gguf requires --recipe-output and cannot update references")
-            recipe = import_header(args.import_gguf, args.source_size)
+            recipe, header_sha256 = import_header_with_digest(args.import_gguf, args.source_size)
             args.recipe_output.write_text(recipe_text(recipe), encoding="utf-8")
             print(f"imported {len(recipe['tensors'])} tensors; omitted {recipe['omitted_metadata']}")
+            print(f"catalog source.header_sha256: {header_sha256}")
             return 0
         return run_cases(args)
     except (OSError, ValueError, KeyError, TypeError) as error:

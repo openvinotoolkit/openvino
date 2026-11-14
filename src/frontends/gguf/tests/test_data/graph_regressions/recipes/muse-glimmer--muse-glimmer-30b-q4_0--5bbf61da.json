@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "source_header_sha256": "5fb031a0a6369d5311616a4111af9b13f49b912d3b203fdc175d1b852e813d17",
   "omitted_metadata": ["general.license", "general.name", "general.tags", "tokenizer.chat_template", "tokenizer.ggml.merges", "tokenizer.ggml.token_type", "tokenizer.ggml.tokens"],
   "metadata": {
     "general.architecture": ["str", "muse-glimmer"],

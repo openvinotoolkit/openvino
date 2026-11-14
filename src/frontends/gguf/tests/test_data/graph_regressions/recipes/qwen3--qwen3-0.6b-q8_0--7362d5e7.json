@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "source_header_sha256": "7362d5e76c09e76a721ff0641a98c948f40be500a424f19257bb7a16e3f32d64",
   "omitted_metadata": ["general.name", "tokenizer.chat_template", "tokenizer.ggml.merges", "tokenizer.ggml.token_type", "tokenizer.ggml.tokens"],
   "metadata": {
     "general.architecture": ["str", "qwen3"],

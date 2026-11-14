@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "source_header_sha256": "09f06a2d0c895916d3a2cde16b1dc3948b85b7037a45641072230cad828d6079",
   "omitted_metadata": ["general.name"],
   "metadata": {
     "general.architecture": ["str", "dspark"],

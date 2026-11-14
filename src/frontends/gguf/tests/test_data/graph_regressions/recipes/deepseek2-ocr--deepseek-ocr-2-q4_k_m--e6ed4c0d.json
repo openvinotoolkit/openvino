@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "source_header_sha256": "40b43de71955ecde619d8c8cb53471926733cc045de1aa7d3373077098ae603e",
   "omitted_metadata": ["general.license", "general.name", "general.tags", "tokenizer.chat_template", "tokenizer.ggml.merges", "tokenizer.ggml.token_type", "tokenizer.ggml.tokens"],
   "metadata": {
     "general.architecture": ["str", "deepseek2-ocr"],

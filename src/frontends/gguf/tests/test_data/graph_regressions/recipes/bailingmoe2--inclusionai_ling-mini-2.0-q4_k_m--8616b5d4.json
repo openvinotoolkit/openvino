@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "source_header_sha256": "4f5ca691215024d13a2e61e5feaa3216df1be48b86dd6f1282568b59631c8d55",
   "omitted_metadata": ["general.license", "general.name", "general.tags", "tokenizer.chat_template", "tokenizer.ggml.merges", "tokenizer.ggml.token_type", "tokenizer.ggml.tokens"],
   "metadata": {
     "general.architecture": ["str", "bailingmoe2"],

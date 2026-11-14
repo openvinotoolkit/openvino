@@ -53,8 +53,8 @@ def test_detects_rewiring_with_unchanged_operation_counts(capsys):
     modified = snapshot()
     modified["canonical"]["nodes"][0]["inputs"].reverse()
     second = graph.compact_snapshot(modified)
-    before = {"recipe_sha256": "same", "stages": {"deferred_plan": {"models": {"native": first}}}}
-    after = {"recipe_sha256": "same", "stages": {"deferred_plan": {"models": {"native": second}}}}
+    before = {"stages": {"deferred_plan": {"models": {"native": first}}}}
+    after = {"stages": {"deferred_plan": {"models": {"native": second}}}}
     changes = graph.reference_delta(before, after)
     assert len(changes) == 1 and changes[0]["graph_changed"]
     assert changes[0]["ops"] == []
@@ -116,7 +116,7 @@ def test_import_omits_scores_and_preserves_typed_nonfinite_metadata(tmp_path):
     imported = graph.import_header(path)
     assert imported["omitted_metadata"] == ["tokenizer.ggml.scores"]
     assert imported["tensors"][0]["storage_shape"] == [1]
-    assert len(imported["source_header_sha256"]) == 64
+    assert len(graph.import_header_with_digest(path)[1]) == 64
     assert imported["metadata"][-1]["value"] == {"nonfinite": "-inf"}
     path.write_bytes(header)
     assert graph.import_header(path)["tensors"] == imported["tensors"]
@@ -169,7 +169,7 @@ def test_reference_size_ceiling_is_bytes_not_node_count():
 
 
 def test_reference_format_keeps_histogram_rows_diffable():
-    value = {"version": 1, "recipe_sha256": "0" * 64,
+    value = {"version": 1,
              "stages": {"deferred_plan": graph.model_stage({"native": graph.compact_snapshot(snapshot())})}}
     data = graph.reference_bytes(value).decode()
     assert '["MatMul","opset1",1]' in data
@@ -178,7 +178,7 @@ def test_reference_format_keeps_histogram_rows_diffable():
 
 def test_update_requires_selection_and_finishes_capture_before_writing(tmp_path, monkeypatch):
     value = recipe()
-    original = json.dumps({"version": 1, "recipe_sha256": "0" * 64,
+    original = json.dumps({"version": 1,
                            "stages": {"deferred_plan": graph.model_stage(
                                {"native": graph.compact_snapshot(snapshot())})}})
     cases = []
@@ -243,12 +243,13 @@ def test_update_requires_selection_and_finishes_capture_before_writing(tmp_path,
 
 @pytest.mark.parametrize("mutate", [
     lambda value: value.update(version=True),
-    lambda value: value["stages"]["deferred_plan"].pop("map_sha256"),
+    lambda value: value["stages"]["deferred_plan"].update(map_sha256="0" * 64),
+    lambda value: value.update(recipe_sha256="0" * 64),
     lambda value: value["stages"]["deferred_plan"]["models"]["native"].update(graph_sha256="short"),
     lambda value: value["stages"].update(unknown={}),
 ])
 def test_reference_schema_rejects_malformed_stages(mutate):
-    value = {"version": 1, "recipe_sha256": "0" * 64,
+    value = {"version": 1,
              "stages": {"deferred_plan": graph.model_stage({"native": graph.compact_snapshot(snapshot())})}}
     mutate(value)
     with pytest.raises(ValueError):

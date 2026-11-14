@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "source_header_sha256": "aa65b990fa863917dadb4eedddd8925ccf97c3a28a46734c3f22da5152324d1b",
   "omitted_metadata": ["general.license", "general.name", "tokenizer.ggml.merges", "tokenizer.ggml.token_type", "tokenizer.ggml.tokens"],
   "metadata": {
     "general.architecture": ["str", "mamba2"],

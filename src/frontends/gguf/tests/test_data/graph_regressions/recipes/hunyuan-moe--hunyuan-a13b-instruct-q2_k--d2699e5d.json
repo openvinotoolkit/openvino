@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "source_header_sha256": "1632104fd0af42b0e80b7b56b6b92270ac714c632e672bb9e555d5cc053df838",
   "omitted_metadata": ["general.license", "general.name", "general.tags", "tokenizer.chat_template", "tokenizer.ggml.merges", "tokenizer.ggml.token_type", "tokenizer.ggml.tokens"],
   "metadata": {
     "general.architecture": ["str", "hunyuan-moe"],

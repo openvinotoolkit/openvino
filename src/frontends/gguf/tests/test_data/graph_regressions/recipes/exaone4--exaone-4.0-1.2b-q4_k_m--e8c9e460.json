@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "source_header_sha256": "e8c9e460bc04076aa3f0b8687a2233c3b2a062bf9d8fd61c1222da7a69b48ec9",
   "omitted_metadata": ["general.name", "tokenizer.chat_template", "tokenizer.ggml.merges", "tokenizer.ggml.token_type", "tokenizer.ggml.tokens"],
   "metadata": {
     "general.architecture": ["str", "exaone4"],

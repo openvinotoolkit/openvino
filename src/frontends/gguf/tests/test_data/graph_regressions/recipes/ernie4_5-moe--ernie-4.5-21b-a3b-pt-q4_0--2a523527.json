@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "source_header_sha256": "ffd366c3eccef8c6472adcc12392abb473aebaa393cebd8a14e2fa57dba18f5b",
   "omitted_metadata": ["general.license", "general.name", "general.tags", "tokenizer.chat_template", "tokenizer.ggml.scores", "tokenizer.ggml.token_type", "tokenizer.ggml.tokens"],
   "metadata": {
     "general.architecture": ["str", "ernie4_5-moe"],

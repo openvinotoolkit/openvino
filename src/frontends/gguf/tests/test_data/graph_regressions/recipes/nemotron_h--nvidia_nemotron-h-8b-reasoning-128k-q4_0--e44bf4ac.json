@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "source_header_sha256": "93db40eb08268fb98ea1db67ed3843010b09cc1070c1678deff4326bae37f5af",
   "omitted_metadata": ["general.license", "general.name", "general.tags", "tokenizer.chat_template", "tokenizer.ggml.merges", "tokenizer.ggml.token_type", "tokenizer.ggml.tokens"],
   "metadata": {
     "general.architecture": ["str", "nemotron_h"],
