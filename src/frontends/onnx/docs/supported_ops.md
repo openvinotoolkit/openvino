@@ -269,7 +269,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |MultiHeadAttention                                      |1                       |1                               |                                |
 |com.microsoft           |MurmurHash3                                             |                        |1                               |                                |
 |com.microsoft           |NGramRepeatBlock                                        |                        |1                               |                                |
-|com.microsoft           |NhwcConv                                                |                        |1                               |                                |
+|com.microsoft           |NhwcConv                                                |1                       |1                               |                                |
 |com.microsoft           |NhwcFusedConv                                           |                        |1                               |                                |
 |com.microsoft           |NhwcMaxPool                                             |                        |1                               |                                |
 |com.microsoft           |PackedAttention                                         |                        |1                               |                                |

@@ -10101,3 +10101,26 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_query_seqlens_sliding_window_decod
          1.051573f,  -0.464264f, -0.082366f, 0.321527f,  0.057996f,  -0.504767f, 1.920703f,  -1.825270f});
     test_case.run_with_tolerance_as_fp();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_nhwc_conv) {
+    const auto model = convert_model("com.microsoft/nhwc_conv.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 3, 3, 1}, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f});
+    test_case.add_input<float>(Shape{1, 1, 2, 2}, {1.0f, 0.0f, 0.0f, 1.0f});
+    test_case.add_expected_output<float>(Shape{1, 2, 2, 1}, {6.0f, 8.0f, 12.0f, 14.0f});
+
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_nhwc_conv_bias) {
+    const auto model = convert_model("com.microsoft/nhwc_conv_bias.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 3, 3, 1}, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f});
+    test_case.add_input<float>(Shape{1, 1, 2, 2}, {1.0f, 0.0f, 0.0f, 1.0f});
+    test_case.add_input<float>(Shape{1}, {0.5f});
+    test_case.add_expected_output<float>(Shape{1, 2, 2, 1}, {6.5f, 8.5f, 12.5f, 14.5f});
+
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
