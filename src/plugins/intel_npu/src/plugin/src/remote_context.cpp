@@ -26,6 +26,7 @@ RemoteContextImpl::RemoteContextImpl(const ov::SoPtr<IEngineBackend>& engineBack
         _tensor_type_object = zeroUtils::extract_object(remote_properties, tensor_type);
         _mem_handle_object = zeroUtils::extract_object(remote_properties, mem_handle);
         _file_descriptor_object = zeroUtils::extract_object(remote_properties, file_descriptor);
+        _import_size_object = zeroUtils::extract_object(remote_properties, import_size);
     }
 }
 
@@ -41,6 +42,7 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
     std::optional<ov::intel_npu::TensorType> tensor_type_object = std::nullopt;
     std::optional<void*> mem_handle_object = std::nullopt;
     std::optional<ov::intel_npu::FileDescriptor> file_descriptor_object = std::nullopt;
+    std::optional<std::size_t> import_size_object = std::nullopt;
 
     if (!params.empty()) {
         // Save local remote properties.
@@ -48,6 +50,7 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
         tensor_type_object = zeroUtils::extract_object(params, tensor_type);
         mem_handle_object = zeroUtils::extract_object(params, mem_handle);
         file_descriptor_object = zeroUtils::extract_object(params, file_descriptor);
+        import_size_object = zeroUtils::extract_object(params, import_size);
     }
 
     // Merge local remote properties with global remote properties.
@@ -63,10 +66,13 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
     if (!file_descriptor_object.has_value() && _file_descriptor_object.has_value()) {
         file_descriptor_object = _file_descriptor_object;
     }
+    if (!import_size_object.has_value() && _import_size_object.has_value()) {
+        import_size_object = _import_size_object;
+    }
 
     // Mem_type shall be set if any other property is set.
-    if (!mem_type_object.has_value() &&
-        (mem_handle_object.has_value() || tensor_type_object.has_value() || file_descriptor_object.has_value())) {
+    if (!mem_type_object.has_value() && (mem_handle_object.has_value() || tensor_type_object.has_value() ||
+                                         file_descriptor_object.has_value() || import_size_object.has_value())) {
         OPENVINO_THROW("Parameter ", mem_type.name(), " must be set");
     }
 
@@ -80,6 +86,16 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
         OPENVINO_THROW("No parameter ", mem_handle.name(), " found in parameters map");
     }
 
+    // Import_size can be set only if mem_type is a shared memory type or a CPU virtual address.
+    if (import_size_object.has_value() && mem_type_object.value() != MemType::SHARED_BUF &&
+        mem_type_object.value() != MemType::CPU_VA) {
+        OPENVINO_THROW("Parameter ",
+                       import_size.name(),
+                       " can be set only when importing memory (",
+                       mem_type.name(),
+                       " SHARED_BUF or CPU_VA)");
+    }
+
     return {std::make_shared<ZeroRemoteTensor>(get_this_shared_ptr(),
                                                _init_structs,
                                                type,
@@ -87,7 +103,8 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
                                                tensor_type_object.value_or(ov::intel_npu::TensorType::BINDED),
                                                mem_type_object.value_or(ov::intel_npu::MemType::L0_INTERNAL_BUF),
                                                mem_handle_object.value_or(nullptr),
-                                               file_descriptor_object)};
+                                               file_descriptor_object,
+                                               import_size_object)};
 }
 
 ov::SoPtr<ov::ITensor> RemoteContextImpl::create_host_tensor(const ov::element::Type type, const ov::Shape& shape) {
