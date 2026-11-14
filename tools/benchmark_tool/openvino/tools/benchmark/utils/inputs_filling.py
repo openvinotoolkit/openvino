@@ -181,7 +181,8 @@ def get_image_tensors(image_paths: list[str], info: AppInputInfo, batch_sizes: l
             model_channel = int(str(info.channels))
             image_channel = image.shape[-1]
             if model_channel == 1 and image_channel == 3:
-                image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+                image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)[..., np.newaxis]
+                image_channel = 1
 
             if model_channel == image_channel and str(info.layout) in ['[N,C,H,W]', '[C,H,W]']:
                 image = image.transpose((2, 0, 1))
