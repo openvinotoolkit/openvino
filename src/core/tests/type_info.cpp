@@ -52,10 +52,15 @@ TEST(type_info, compare_new_with_old_type) {
 
 TEST(type_info, check_hash_value) {
     const auto& hash_val = [](const char* name, const char* version_id) -> size_t {
-        size_t name_hash = name ? std::hash<std::string>()(std::string(name)) : 0;
-        size_t version_id_hash = version_id ? std::hash<std::string>()(std::string(version_id)) : 0;
+        const auto& hash_c_str = [](const char* str) -> uint64_t {
+            uint64_t seed = 0;
+            for (; str && *str != '\0'; ++str) {
+                seed = ov::util::u64_hash_combine(seed, static_cast<uint64_t>(static_cast<unsigned char>(*str)));
+            }
+            return seed;
+        };
         // don't use parent for hash calculation, it is not a part of type (yet)
-        return ov::util::hash_combine(std::vector<size_t>{name_hash, version_id_hash});
+        return static_cast<size_t>(ov::util::u64_hash_combine(hash_c_str(name), hash_c_str(version_id)));
     };
     ov::DiscreteTypeInfo type("type1", "version1");
     ov::DiscreteTypeInfo type_old("type1");
@@ -67,6 +72,30 @@ TEST(type_info, check_hash_value) {
     EXPECT_EQ(hash_val(type_with_version.name, type_with_version.version_id), type_with_version.hash());
     EXPECT_EQ(hash_val(type_empty_name.name, type_empty_name.version_id), type_empty_name.hash());
     EXPECT_EQ(hash_val(type_empty_ver.name, type_empty_ver.version_id), type_empty_ver.hash());
+}
+
+namespace {
+struct RehashableTypeInfo : public ov::DiscreteTypeInfo {
+    using ov::DiscreteTypeInfo::DiscreteTypeInfo;
+    void rehash() {
+        update_hash();
+    }
+};
+}  // namespace
+
+TEST(type_info, update_hash_after_fields_change) {
+    const ov::DiscreteTypeInfo expected("Custom", "extension");
+    RehashableTypeInfo type("stale", "stale");
+    type.name = expected.name;
+    type.version_id = expected.version_id;
+
+    EXPECT_NE(expected.hash(), type.hash());
+    EXPECT_NE(expected, type);
+
+    type.rehash();
+
+    EXPECT_EQ(expected.hash(), type.hash());
+    EXPECT_EQ(expected, type);
 }
 
 TEST(type_info, find_in_map) {

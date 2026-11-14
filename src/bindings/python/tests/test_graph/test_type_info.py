@@ -52,6 +52,19 @@ def test_discrete_type_info():
     assert type_info.version_id == "extension"
 
 
+def test_discrete_type_info_comparison():
+    same_a = DiscreteTypeInfo("Custom", "extension")
+    same_b = DiscreteTypeInfo("Custom", "extension")
+    other_name = DiscreteTypeInfo("Other", "extension")
+    other_version = DiscreteTypeInfo("Custom", "other")
+
+    assert same_a == same_b
+    assert same_a.hash() == same_b.hash()
+    assert same_a != other_name
+    assert same_a != other_version
+    assert same_a.hash() != other_name.hash()
+
+
 def test_custom_add_op_type_info():
     data1 = np.array([1, 2, 3])
     data2 = np.array([4, 5, 6])

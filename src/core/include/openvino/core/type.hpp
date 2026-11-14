@@ -45,13 +45,13 @@ struct OPENVINO_API DiscreteTypeInfo {
         : name(_name),
           version_id(_version_id),
           parent(_parent),
-          hash_value(0) {}
+          hash_value(compute_hash(_name, _version_id)) {}
 
     constexpr DiscreteTypeInfo(const char* _name, const DiscreteTypeInfo* _parent = nullptr)
         : name(_name),
           version_id(nullptr),
           parent(_parent),
-          hash_value(0) {}
+          hash_value(compute_hash(_name)) {}
 
     bool is_castable(const DiscreteTypeInfo& target_type) const;
 
@@ -71,6 +71,32 @@ struct OPENVINO_API DiscreteTypeInfo {
     size_t hash();
 
 private:
+    // Murmur-style 64-bit mixer, duplicated from ov::util::u64_hash_combine().
+    static constexpr uint64_t u64_hash_combine(uint64_t h, uint64_t k) {
+        constexpr uint64_t m = 0xc6a4a7935bd1e995;
+        constexpr int r = 47;
+        k *= m;
+        k ^= k >> r;
+        k *= m;
+        h ^= k;
+        h *= m;
+        return h + 0xe6546b64;
+    }
+
+    static constexpr uint64_t hash_c_str(const char* str) {
+        uint64_t h = 0;
+        for (; *str != '\0'; ++str) {
+            h = u64_hash_combine(h, static_cast<uint64_t>(static_cast<unsigned char>(*str)));
+        }
+        return h;
+    }
+
+    static constexpr size_t compute_hash(const char* type_name, const char* type_version_id = nullptr) {
+        const auto name_hash = type_name ? hash_c_str(type_name) : 0;
+        const auto version_hash = type_version_id ? hash_c_str(type_version_id) : 0;
+        return static_cast<size_t>(u64_hash_combine(name_hash, version_hash));
+    }
+
     size_t hash_value;
 };
 
