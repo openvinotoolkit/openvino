@@ -138,6 +138,7 @@ std::string toCLType(WeightsType wType) {
         case WeightsType::INT4:
         case WeightsType::INT8:
             return GetTypeName<int8_t>();
+        case WeightsType::UINT2:
         case WeightsType::UINT4:
         case WeightsType::UINT8:
             return GetTypeName<uint8_t>();
@@ -159,6 +160,7 @@ std::string toCLType(Datatype dType) {
         case Datatype::INT4:
         case Datatype::INT8:
             return GetTypeName<int8_t>();
+        case Datatype::UINT2:
         case Datatype::UINT4:
         case Datatype::UINT8:
             return GetTypeName<uint8_t>();

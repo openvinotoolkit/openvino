@@ -7,10 +7,10 @@
 #include "reorder_kernel_base.h"
 
 namespace kernel_selector {
-class ReorderWeightsKernelInt4 : public ReorderKernelBase {
+class ReorderWeightsKernelCompressed : public ReorderKernelBase {
 public:
-    ReorderWeightsKernelInt4() : ReorderKernelBase("reorder_weights_int4") {}
-    ~ReorderWeightsKernelInt4() override = default;
+    ReorderWeightsKernelCompressed() : ReorderKernelBase("reorder_weights_compressed") {}
+    ~ReorderWeightsKernelCompressed() override = default;
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
