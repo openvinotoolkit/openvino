@@ -719,7 +719,7 @@ bool ov::Node::can_constant_fold(const OutputVector& input_values) const {
 bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::ov_core, "Node::constant_fold");
 
-    if (!Node::can_constant_fold(input_values)) {
+    if (!can_constant_fold(input_values) || !Node::can_constant_fold(input_values)) {
         return false;
     }
 
