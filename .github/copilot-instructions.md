@@ -1,4 +1,4 @@
-# OpenVINO Copilot Instructions
+# OpenVINO Agent Instructions
 
 ## Scope
 
@@ -10,7 +10,31 @@ documentation and local README files take precedence over general assumptions.
 For code reviews, start with `.agents/skills/code-review/SKILL.md` and then
 load the component references selected by its path-routing table. Ownership
 and automatic maintainer review requests are defined separately in
-`.github/CODEOWNERS`.
+`/.github/CODEOWNERS`.
+
+## Repository structure
+
+- `src/core/`: core `ov::Model`/`ov::Node` graph representation, opsets, and
+  base transformations.
+- `src/frontends/`: model format frontends (`onnx/`, `pytorch/`, `tensorflow/`,
+  `tensorflow_lite/`, `paddle/`, `jax/`, `ir/`, `gguf/`), plus shared
+  `common/`/`common_translators/` and `tests/`.
+- `src/plugins/`: inference device plugins (`intel_cpu/`, `intel_gpu/`,
+  `intel_npu/`, `auto/`, `auto_batch/`, `hetero/`, `proxy/`, `template/`).
+- `src/bindings/`: language bindings (`c/`, `python/`, `js/`).
+- `src/inference/`: the inference engine core (`ov::Core`, compiled models,
+  infer requests).
+- `src/common/`: shared utilities used across core, frontends, and plugins.
+- `src/tests/`: cross-component functional and conformance tests.
+- `docs/`: contributor and developer documentation (see links below).
+- `cmake/`, `thirdparty/`: build configuration and vendored dependencies.
+- `samples/`, `tools/`, `scripts/`: example applications and developer
+  tooling, not part of the product build.
+- `tests/`: top-level test assets distinct from `src/tests/`.
+
+Most of these directories have their own `README.md`; treat it, along with
+any closer skill or documentation match, as more specific and authoritative
+than this file for changes scoped to that directory.
 
 ## Repository practices
 
@@ -49,22 +73,22 @@ and automatic maintainer review requests are defined separately in
 
 ## Useful documentation
 
-- [Contributor and developer documentation](../docs/dev/index.md)
-- [Build guide](../docs/dev/build.md)
-- [Coding style](../docs/dev/coding_style.md)
-- [Testing and coverage](../docs/dev/test_coverage.md)
-- [Debug capabilities](../docs/dev/debug_capabilities.md)
-- [CI overview](../docs/dev/ci/github_actions/overview.md)
-- [Smart CI](../docs/dev/ci/github_actions/smart_ci.md)
-- [CI security](../docs/dev/ci/github_actions/security.md)
-- [Core documentation](../src/core/README.md)
-- [Frontend documentation](../src/frontends/README.md)
-- [Plugin documentation](../src/plugins/README.md)
-- [Python bindings](../src/bindings/python/README.md)
-- [C bindings](../src/bindings/c/README.md)
-- [JavaScript bindings](../src/bindings/js/README.md)
+- [Contributor and developer documentation](/docs/dev/index.md)
+- [Build guide](/docs/dev/build.md)
+- [Coding style](/docs/dev/coding_style.md)
+- [Testing and coverage](/docs/dev/test_coverage.md)
+- [Debug capabilities](/docs/dev/debug_capabilities.md)
+- [CI overview](/docs/dev/ci/github_actions/overview.md)
+- [Smart CI](/docs/dev/ci/github_actions/smart_ci.md)
+- [CI security](/docs/dev/ci/github_actions/security.md)
+- [Core documentation](/src/core/README.md)
+- [Frontend documentation](/src/frontends/README.md)
+- [Plugin documentation](/src/plugins/README.md)
+- [Python bindings](/src/bindings/python/README.md)
+- [C bindings](/src/bindings/c/README.md)
+- [JavaScript bindings](/src/bindings/js/README.md)
 
 When working in a component, first look for its nearest `README.md`,
 developer documentation, tests, and build instructions. For frontend work,
-use the [frontend index](../src/frontends/README.md) to find the relevant
+use the [frontend index](/src/frontends/README.md) to find the relevant
 documentation and source directory.
