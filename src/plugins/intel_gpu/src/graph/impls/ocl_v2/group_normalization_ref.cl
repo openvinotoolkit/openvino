@@ -2,144 +2,130 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/common.cl"
 #include "include/batch_headers/fetch_data.cl"
 
-#define NUM_CHANNELS_IN_GROUP (INPUT0_FEATURE_NUM / NUM_GROUPS)
-#define CHANNEL_SIZE (INPUT0_BATCH_PITCH / INPUT0_FEATURE_NUM)
-#define GROUP_SIZE (NUM_CHANNELS_IN_GROUP * CHANNEL_SIZE)
+#define CHANNELS_PER_GROUP (INPUT0_FEATURE_NUM / NUM_GROUPS)
+#define SPATIAL_SIZE (INPUT0_SIZE_W * INPUT0_SIZE_Z * INPUT0_SIZE_Y * INPUT0_SIZE_X)
 
-#if MEAN_KERNEL_ENABLED || STANDARD_DEVIATION_KERNEL_ENABLED
-inline void FUNC(kahan_summation)(INPUT0_TYPE elem, __private float* compensation, __private float* sum) {
-    if (isfinite(elem) && isfinite(*sum)) {
-        float temp = *sum + (elem - *compensation);
-        *compensation = (temp - *sum) - (elem - *compensation);
-        *sum = temp;
-    } else {
-        *sum += elem;
-    }
+// Index macros with all six coordinates. Unused coordinates are dropped for the tensor rank.
+#if INPUT0_DIMS == 6
+    #define INPUT_INDEX(b, f, w, z, y, x) INPUT0_GET_INDEX(b, f, w, z, y, x)
+    #define OUT_INDEX(b, f, w, z, y, x) OUTPUT_GET_INDEX(b, f, w, z, y, x)
+#elif INPUT0_DIMS == 5
+    #define INPUT_INDEX(b, f, w, z, y, x) INPUT0_GET_INDEX(b, f, z, y, x)
+    #define OUT_INDEX(b, f, w, z, y, x) OUTPUT_GET_INDEX(b, f, z, y, x)
+#else
+    #define INPUT_INDEX(b, f, w, z, y, x) INPUT0_GET_INDEX(b, f, y, x)
+    #define OUT_INDEX(b, f, w, z, y, x) OUTPUT_GET_INDEX(b, f, y, x)
+#endif
+
+#ifdef GROUP_NORM_KERNEL_CALC_STATS
+
+// f_begin: group index * CHANNELS_PER_GROUP
+// i: linear index in the group with x innermost.
+inline uint FUNC(group_element_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f_begin, uint i) {
+    const uint x = i % INPUT0_SIZE_X;
+    i /= INPUT0_SIZE_X;
+    const uint y = i % INPUT0_SIZE_Y;
+    i /= INPUT0_SIZE_Y;
+    const uint z = i % INPUT0_SIZE_Z;
+    i /= INPUT0_SIZE_Z;
+    const uint w = i % INPUT0_SIZE_W;
+    const uint f = f_begin + i / INPUT0_SIZE_W;
+    return INPUT_INDEX(b, f, w, z, y, x);
 }
-#endif
 
-#if MEAN_KERNEL_ENABLED
+// GWS = {LWS * NUM_GROUPS, B, 1}, LWS = {LWS, 1, 1}. One work-group computes the statistics of one (b, group).
+__attribute__((reqd_work_group_size(LWS, 1, 1)))
+KERNEL(calc_stats)(
+    OPTIONAL_SHAPE_INFO_ARG
+    const __global INPUT0_TYPE* input,
+    __global float* mean_buf,
+    __global float* inv_std_buf
+) {
+    const uint g = get_group_id(0);
+    const uint b = get_global_id(1);
+    const uint lid = get_local_id(0);
+    const uint f_begin = g * CHANNELS_PER_GROUP;
+    const uint n = CHANNELS_PER_GROUP * SPATIAL_SIZE;
 
-KERNEL (calc_mean_ref)(  __global INPUT0_TYPE* input
-                       , __global float* output
-#if HAS_FUSED_OPS_DECLS
-                       , FUSED_OPS_DECLS
-#endif
-)
-{
-    const int batch = get_global_id(0);
-    if (batch >= INPUT0_BATCH_NUM)
+    // Only for empty tensors. The condition is uniform in the work-group.
+    if (n == 0 || b >= INPUT0_BATCH_NUM)
         return;
-    const int group = get_global_id(1);
-    const int feature_begin = group * NUM_CHANNELS_IN_GROUP;
-    const int feature_end = group * NUM_CHANNELS_IN_GROUP + NUM_CHANNELS_IN_GROUP;
-    float variance = 0.f, error = 0.f, mean_value = 0.f;
-    for (int feature = feature_begin; feature < feature_end; feature++)
-    {
-        if (feature >= INPUT0_FEATURE_NUM)
-            continue;
-#if OUTPUT_DIMS > 4
-        for (int z = 0; z < INPUT0_SIZE_Z; z++)
-#endif
-        for (int y = 0; y < INPUT0_SIZE_Y; y++)
-            for (int x = 0; x < INPUT0_SIZE_X; x++)
-            {
-#if OUTPUT_DIMS == 5
-                size_t input_idx = INPUT0_GET_INDEX(batch, feature, z, y, x);
-#elif OUTPUT_DIMS == 4
-                size_t input_idx = INPUT0_GET_INDEX(batch, feature, y, x);
-#endif
-                FUNC_CALL(kahan_summation)(input[input_idx], &error, &mean_value);
-            }
+
+    float sum = 0.0f;
+    for (uint i = lid; i < n; i += LWS) {
+        sum += convert_float(input[FUNC_CALL(group_element_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f_begin, i)]);
     }
-    mean_value /= GROUP_SIZE;
-    output[batch * NUM_GROUPS + group] = mean_value;
+    const float approx_mean = work_group_reduce_add(sum) / n;
+
+    // Corrected two-pass: the second pass also sums the deviations. That sum is zero in exact arithmetic,
+    // so it measures the rounding error of approx_mean. It fixes the mean and removes the error from the variance.
+    float d_sum = 0.0f;
+    float sq_sum = 0.0f;
+    for (uint i = lid; i < n; i += LWS) {
+        const float d = convert_float(input[FUNC_CALL(group_element_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f_begin, i)]) - approx_mean;
+        d_sum += d;
+        sq_sum = fma(d, d, sq_sum);
+    }
+    d_sum = work_group_reduce_add(d_sum);
+    sq_sum = work_group_reduce_add(sq_sum);
+    const float mean = approx_mean + d_sum / n;
+    const float variance = fmax((sq_sum - d_sum * d_sum / n) / n, 0.0f);
+
+    if (lid == 0) {
+        mean_buf[b * NUM_GROUPS + g] = mean;
+        inv_std_buf[b * NUM_GROUPS + g] = rsqrt(variance + EPSILON);
+    }
 }
 
-#elif STANDARD_DEVIATION_KERNEL_ENABLED
+#elif defined(GROUP_NORM_KERNEL_NORMALIZE)
 
-KERNEL (calc_standard_deviation_ref)(  __global INPUT0_TYPE* input
-                                     , __global float* mean
-                                     , __global float* output
+// GWS = {W * Z * Y * X, F, B}
+KERNEL(normalize)(
+    OPTIONAL_SHAPE_INFO_ARG
+    const __global INPUT0_TYPE* input,
+    const __global INPUT1_TYPE* scale,
+    const __global INPUT2_TYPE* bias,
+    const __global float* mean_buf,
+    const __global float* inv_std_buf,
+    __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS
-                                     , FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
 #endif
-)
-{
-    const int batch = get_global_id(0);
-    if (batch >= INPUT0_BATCH_NUM)
+) {
+    uint s = get_global_id(0);
+    const uint f = get_global_id(1);
+    const uint b = get_global_id(2);
+
+    // Only for empty tensors, where GWS is clamped to 1.
+    if (s >= SPATIAL_SIZE || f >= INPUT0_FEATURE_NUM || b >= INPUT0_BATCH_NUM)
         return;
-    const int group = get_global_id(1);
-    const int output_idx = batch * NUM_GROUPS + group;
-    const int feature_begin = group * NUM_CHANNELS_IN_GROUP;
-    const int feature_end = group * NUM_CHANNELS_IN_GROUP + NUM_CHANNELS_IN_GROUP;
-    float variance = 0.f, error = 0.f;
 
-    for (int feature = feature_begin; feature < feature_end; feature++)
-    {
-        if (feature >= INPUT0_FEATURE_NUM)
-            continue;
-#if OUTPUT_DIMS > 4
-        for (int z = 0; z < INPUT0_SIZE_Z; z++)
-#endif
-        for (int y = 0; y < INPUT0_SIZE_Y; y++)
-            for (int x = 0; x < INPUT0_SIZE_X; x++)
-            {
-#if OUTPUT_DIMS == 5
-                size_t input_idx = INPUT0_GET_INDEX(batch, feature, z, y, x);
-#elif OUTPUT_DIMS == 4
-                size_t input_idx = INPUT0_GET_INDEX(batch, feature, y, x);
-#endif
-                FUNC_CALL(kahan_summation)(pow(input[input_idx] - mean[output_idx], 2), &error, &variance);
-            }
-    }
-    variance /= GROUP_SIZE;
-    float standard_deviation = sqrt(variance + EPSILON);
-    output[output_idx] = standard_deviation;
-}
-#elif NORMALIZE_KERNEL_ENABLED
-KERNEL (normalize_ref)(  __global INPUT0_TYPE* input
-                       , __global INPUT0_TYPE* scale_values
-                       , __global INPUT0_TYPE* bias_values
-                       , __global float* mean_values
-                       , __global float* standard_deviation_values
-                       , __global OUTPUT_TYPE* output
-#if HAS_FUSED_OPS_DECLS
-                       , FUSED_OPS_DECLS
-#endif
-)
-{
-    const int batch = get_global_id(0);
-#if OUTPUT_DIMS == 4
-    const int feature = get_global_id(1);
-#elif OUTPUT_DIMS == 5
-    const int feature = get_global_id(1) / OUTPUT_SIZE_Z;
-    const int z = get_global_id(1) % OUTPUT_SIZE_Z;
-#endif
-    const int y = get_global_id(2) / OUTPUT_SIZE_X;
-    const int x = get_global_id(2) % OUTPUT_SIZE_X;
-    const int group = feature / NUM_CHANNELS_IN_GROUP;
-    float mean = mean_values[batch * NUM_GROUPS + group];
-    float standard_deviation = standard_deviation_values[batch * NUM_GROUPS + group];
-#if OUTPUT_DIMS == 4
-    size_t output_idx = OUTPUT_GET_INDEX(batch, feature, y, x);
-#elif OUTPUT_DIMS == 5
-    size_t output_idx = OUTPUT_GET_INDEX(batch, feature, z, y, x);
-#endif
-    OUTPUT_TYPE res = ((input[output_idx] - mean) / standard_deviation) * scale_values[feature] + bias_values[feature];
+    const uint x = s % INPUT0_SIZE_X;
+    s /= INPUT0_SIZE_X;
+    const uint y = s % INPUT0_SIZE_Y;
+    s /= INPUT0_SIZE_Y;
+    const uint z = s % INPUT0_SIZE_Z;
+    const uint w = s / INPUT0_SIZE_Z;
+
+    const uint bg = b * NUM_GROUPS + f / CHANNELS_PER_GROUP;
+    // scale and bias hold C contiguous values. Their layout may be [C] or [1, C, 1, 1], so read them linearly.
+    float normalized = (convert_float(input[INPUT_INDEX(b, f, w, z, y, x)]) - mean_buf[bg]) * inv_std_buf[bg];
+    normalized = normalized * convert_float(scale[f]) + convert_float(bias[f]);
+
+    const uint output_idx = OUT_INDEX(b, f, w, z, y, x);
 #if HAS_FUSED_OPS
     FUSED_OPS;
     output[output_idx] = FUSED_OPS_RESULT;
 #else
-    output[output_idx] = res;
+    output[output_idx] = TO_OUTPUT_TYPE(normalized);
 #endif
 }
 
 #endif
 
-#undef NUM_CHANNELS_IN_GROUP
-#undef CHANNEL_SIZE
-#undef GROUP_SIZE
+#undef CHANNELS_PER_GROUP
+#undef SPATIAL_SIZE
+#undef INPUT_INDEX
+#undef OUT_INDEX
