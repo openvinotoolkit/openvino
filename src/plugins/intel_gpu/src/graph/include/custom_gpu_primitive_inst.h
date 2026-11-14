@@ -97,6 +97,7 @@ private:
             }
 
             auto op = impl_param.typed_desc<custom_gpu_primitive>()->op;
+            OPENVINO_ASSERT(op, "[GPU] Dynamic custom primitive requires a restored shape inference operation");
             auto new_op = op->clone_with_new_inputs(new_inputs);
             new_op->validate_and_infer_types();
             OPENVINO_ASSERT(output_layouts.size() == new_op->get_output_size(), "Output size should keep align.");

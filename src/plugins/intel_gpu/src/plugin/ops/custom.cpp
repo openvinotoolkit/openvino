@@ -191,7 +191,7 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
         // format::any needs the shape-based ctor for the same reason a dynamic shape does:
         // the tensor ctor stores an `any` layout's sizes in raw internal order at full
         // internal rank, transposing the WorkSizes resolution and the downstream shape.
-        if (dims.is_dynamic() || outputFormats[i] == cldnn::format::any) {
+        if (p.use_new_shape_infer() || dims.is_dynamic() || outputFormats[i] == cldnn::format::any) {
             outputLayouts[i] = cldnn::layout(dims, cldnn::element_type_to_data_type(op->get_output_element_type(i)), outputFormats[i]);
         } else {
             size_t N = (dims.size() > 0) ? dims[0].get_length() : 1;
