@@ -134,6 +134,7 @@ class OpenVINOGraphModule(torch.nn.Module):
 
     def __call__(self, *args):
         if self.perm_fallback:
+            logger.debug("Partition %s uses native PyTorch after an earlier OpenVINO failure", self.partition_id)
             return self.gm(*args)
 
         try:
@@ -144,10 +145,11 @@ class OpenVINOGraphModule(torch.nn.Module):
                 partition_id=self.partition_id,
                 options=self.options,
             )
-            logger.debug("OpenVINO graph execution successful")
+            logger.debug("Partition %s executed with OpenVINO", self.partition_id)
         except Exception as e:
             logger.debug(
-                f"OpenVINO execution failed with {e}. Falling back to native PyTorch execution."
+                "Partition %s failed in OpenVINO; falling back to native PyTorch: %s",
+                self.partition_id, e, exc_info=True,
             )
             self.perm_fallback = True
             return self.gm(*args)
@@ -162,6 +164,7 @@ def partition_graph(gm: GraphModule, use_python_fusion_cache: bool, model_hash_s
         # TODO: use a better way to identify fused submodule
         if node.op == "call_module" and "fused_" in node.name:
             openvino_submodule = getattr(gm, node.name)
+            logger.debug("OpenVINO partition %s (%s) FX graph:\n%s", partition_id, node.target, openvino_submodule.graph)
             gm.delete_submodule(node.target)
             gm.add_submodule(
                 node.target,
@@ -171,6 +174,10 @@ def partition_graph(gm: GraphModule, use_python_fusion_cache: bool, model_hash_s
             partition_id = partition_id + 1
 
     max_openvino_partitions = partition_id
+
+    logger.debug("Partitioned FX graph (remaining operations run in PyTorch):\n%s", gm.graph)
+    if not any(node.op == "call_module" and "fused_" in node.name for node in gm.graph.nodes):
+        logger.debug("No OpenVINO partitions; FX graph runs in native PyTorch")
 
     return gm
 
