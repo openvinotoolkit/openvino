@@ -74,7 +74,7 @@ protected:
 };
 
 TEST_F(InputNoReorderEltwiseFP16, smoke_CompareWithRefs) {
-    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16() || ov::with_cpu_neon_fp16())) {
         GTEST_SKIP() << "Skipping test, platform don't support precision f16";
     }
 
