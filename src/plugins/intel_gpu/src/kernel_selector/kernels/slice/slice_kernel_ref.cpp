@@ -128,10 +128,6 @@ bool SliceKernelRef::Validate(const Params &p) const {
 JitConstants SliceKernelRef::GetJitConstants(const slice_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    // Flag fp8 input so the kernel copies the byte instead of running ACTIVATION on the fp8 struct
-    // (see slice_ref.cl).
-    jit.AddConstant(MakeJitConstant("INPUT0_IS_F8E4M3", params.inputs[0].GetDType() == Datatype::F8E4M3));
-
     // Define axes size as constant:
     if (params.compile_time_axes.empty()) {
         kernel_selector::DimensionAccessHelperJit dims(params.inputs.back());
