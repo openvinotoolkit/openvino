@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 449,
+  "total": 450,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -4918,6 +4918,17 @@
       "category": "Infrastructure",
       "signature_hash": "f9292bee76d60b31",
       "pr_number": "39011"
+    },
+    {
+      "investigation_id": "2026-11-14-09-14-24-889-43558800317",
+      "run_id": "43558800317",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43558800317",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-11-14T09:14:24Z",
+      "title": "GPU unit tests fail in bulk with elevated durations near end of Windows test suite",
+      "category": "Infrastructure",
+      "signature_hash": "04b05470e7a3eb58",
+      "pr_number": "38762"
     }
   ]
 }

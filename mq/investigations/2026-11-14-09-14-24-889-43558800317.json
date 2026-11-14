@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-14-09-14-24-889-43558800317",
+  "timestamp": "2026-11-14T09:14:24Z",
+  "run_id": "43558800317",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43558800317",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "38762",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38762",
+  "author": "mmikolajcz",
+  "category": "Infrastructure",
+  "title": "GPU unit tests fail in bulk with elevated durations near end of Windows test suite",
+  "signature": "gpu unit tests large batch of unrelated tests fail with elevated execution durations and no error output near end of full suite run on windows runner|Infrastructure",
+  "signature_hash": "04b05470e7a3eb58",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "46/29276 ov_gpu_unit_tests cases failed near the end of the run; most show elevated durations (37-64s vs ~2s baseline) across unrelated kernels (convolution, arg_max_gpu_topk_radix, scatter_update), suggesting resource contention rather than a single logic bug."
+    },
+    {
+      "name": "NPU Models Tests / 6010",
+      "conclusion": "failure",
+      "symptom": "TensorFlow Models Tests - NPU compile-only (convert_model) step failed: multiprocessing.context.ProcessError downloading mobilenet_v1 from kaggle.com - URLError [Errno 11001] getaddrinfo failed."
+    },
+    {
+      "name": "NPU Models Tests / 3720",
+      "conclusion": "failure",
+      "symptom": "TensorFlow Models Tests - NPU compile-only (convert_model) step failed: multiprocessing.context.ProcessError downloading ResNet50 weights from storage.googleapis.com - URLError [Errno 11001] getaddrinfo failed (same DNS failure as job 6010, matches existing pattern 688d70acdbdfc8ce)."
+    }
+  ],
+  "key_errors": [
+    "FAILED TESTS (46/29276):\n    3019 ms: ...ov_gpu_unit_tests.exe fusings_gpu/pooling_f32_scale.fp16_scale_out/1\n    3796 ms: ...basic/convolution_random_smoke_test.u8s8f32/b_fs_yx_fsv32_i1x64x19x19_w64x64x3x3_s2x2_ofs1x1_d2x2_g64_bias_in_pad\n   43557 ms: ...basic/convolution_random_smoke_test.s8s8f32_fsv4_input/...\n   39412 ms: ...smoke_cm_xattention/xattention_test.basic/85\n##[error]Process completed with exit code 1.",
+    "E           multiprocessing.context.ProcessError: \nimagenet/mobilenet_v1_100_224/classification running failed: \n...\nE           URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+    "Exception: URL fetch failure on https://storage.googleapis.com/tensorflow/keras-applications/resnet/resnet50_weights_tf_dim_ordering_tf_kernels.h5: None -- [Errno 11001] getaddrinfo failed"
+  ],
+  "root_cause": "The GPU unit tests job failed 46 unrelated gtest cases (convolutions, arg-max, scatter-update, attention kernels) clustered near the end of a 29276-test run, many showing abnormal execution durations (37-64s versus a ~2s baseline for neighboring tests). No per-test assertion or error text was captured by the custom test harness, which only prints elapsed time and the binary path for failures - consistent with GPU driver/resource contention or thermal throttling on the shared Windows self-hosted runner rather than a logic defect introduced by this PR (the PR only touches CPU-plugin transformation/op code and does not modify any GPU-plugin file). Separately, both NPU Models Tests shards failed at the TensorFlow model-conversion step because DNS resolution for external model-hosting domains (kaggle.com, storage.googleapis.com) failed with [Errno 11001] getaddrinfo failed - an already-known, recorded DNS/network outage pattern (688d70acdbdfc8ce) unrelated to the PR.",
+  "reproduction_steps": "N/A - not reproducible outside CI; requires the same Windows self-hosted GPU runner under load (for the GPU failures) or a runner losing outbound DNS resolution to kaggle.com/storage.googleapis.com (for the NPU failures).",
+  "recommended_actions": [
+    "Re-run the failed GPU unit tests and NPU Models Tests jobs; both failure modes are transient and unrelated to PR #38762's CPU-plugin changes.",
+    "If GPU unit test failures recur with similarly elevated durations, inspect Windows GPU runner health (driver resets, thermal throttling, concurrent job contention) rather than the test code.",
+    "If NPU model-download DNS failures recur frequently, escalate to infra team to check outbound DNS/proxy reliability for kaggle.com and storage.googleapis.com from the Windows NPU runner pool."
+  ],
+  "prevention_strategies": "Add retry-with-backoff around external model downloads in model_hub_tests (TF Hub Kaggle/GCS model fetch) to absorb transient DNS blips. For the GPU unit tests, consider emitting the underlying gtest failure reason (assertion text) in the custom harness summary instead of only timing, to make future triage of bulk failures faster and to distinguish infra flakiness from real regressions.",
+  "historical_context": "The NPU DNS failure matches the existing Network pattern 688d70acdbdfc8ce (\"NPU Models Tests fail downloading external model artifacts due to network/DNS resolution failure\", first seen 2026-09-28, 1 prior occurrence) - now its 2nd occurrence, though this investigation keeps GPU unit tests as the primary signature. The GPU bulk-failure signature is new; related historical Infrastructure patterns on the same job name include 39e65673e42b712c (Windows runner shutdown signal), 95bb23aa2ed8a84d (tbb12.dll locked), and f9292bee76d60b31 (burst of 36 early-scheduled tests exiting code 3 with no output) - all indicative of recurring Windows GPU runner instability rather than code regressions."
+}

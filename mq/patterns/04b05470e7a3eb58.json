@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "gpu unit tests large batch of unrelated tests fail with elevated execution durations and no error output near end of full suite run on windows runner|Infrastructure",
+  "signature_hash": "04b05470e7a3eb58",
+  "title": "GPU unit tests fail in bulk with elevated durations near end of Windows test suite",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-11-14T09:14:24Z",
+  "last_seen": "2026-11-14T09:14:24Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/43558800317"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38762"
+  ],
+  "recent_timestamps": [
+    "2026-11-14T09:14:24Z"
+  ],
+  "rerun_search_string": null
+}
