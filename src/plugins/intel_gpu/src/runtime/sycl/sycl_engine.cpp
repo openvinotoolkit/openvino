@@ -11,7 +11,9 @@
 #include "sycl_memory.hpp"
 #include "sycl_stream.hpp"
 #include "sycl_engine_factory.hpp"
+#ifdef OV_GPU_VENDOR_INTEL
 #include "intel/sycl_kernel_builder.hpp"
+#endif
 #include <string>
 #include <vector>
 #include <memory>
@@ -57,7 +59,11 @@ backend_types sycl_engine::backend_type() const {
 #ifdef ENABLE_ONEDNN_FOR_GPU
 void sycl_engine::create_onednn_engine(const ExecutionConfig& config) {
     const std::lock_guard<std::mutex> lock(onednn_mutex);
+#if defined(OV_GPU_VENDOR_INTEL)
     OPENVINO_ASSERT(_device->get_info().vendor_id == INTEL_VENDOR_ID, "[GPU] OneDNN engine can be used for Intel GPUs only");
+#elif defined(OV_GPU_VENDOR_NVIDIA)
+    OPENVINO_ASSERT(_device->get_info().vendor_id == NVIDIA_VENDOR_ID, "[GPU] OneDNN engine can be used for NVIDIA GPUs only");
+#endif
     if (!_onednn_engine) {
         auto casted = std::dynamic_pointer_cast<sycl_device>(_device);
         OPENVINO_ASSERT(casted, "[GPU] Invalid device type stored in sycl_engine");
@@ -248,9 +254,12 @@ void* sycl_engine::get_user_context(runtime_types rt_type) const {
 std::shared_ptr<kernel_builder> sycl_engine::create_kernel_builder() const {
     auto& sycl_device = downcast<sycl::sycl_device>(*_device);
     switch (sycl_device.get_device().get_backend()) {
+#ifdef OV_GPU_VENDOR_INTEL
     case ::sycl::backend::opencl:
     case ::sycl::backend::ext_oneapi_level_zero:
         return std::make_shared<sycl::intel::sycl_kernel_builder>(sycl_device);
+#endif
+    // OpenCL kernels are not supported on NVIDIA GPUs yet.
     default:
         OPENVINO_THROW("[GPU] No kernel builder available for backend ",
                        sycl_device.get_device().get_backend());

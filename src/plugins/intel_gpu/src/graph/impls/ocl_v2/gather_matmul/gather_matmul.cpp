@@ -19,7 +19,7 @@
 #include "gather_matmul_inst.h"
 #include "ocl_v2/utils/fused_ops_jitter.hpp"
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
 #    include <algorithm>
 #    include <cstdlib>
 #    include <memory>
@@ -32,7 +32,7 @@
 
 namespace ov::intel_gpu::ocl {
 namespace {
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
 inline bool is_prefill_stage(const RuntimeParams& params) {
     const auto& input_shape = params.input_layouts[0].get_partial_shape();
     const auto n_tokens = input_shape[1];
@@ -104,7 +104,7 @@ enum GatherMatmulInternalBufferIdx {
 class GatherMatmulOCLImpl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::GatherMatmulOCLImpl)
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
     static constexpr bool prefill = true;
 
     // Per-token stages
@@ -122,7 +122,7 @@ public:
 #endif
 
     explicit GatherMatmulOCLImpl() : PrimitiveImplOCL(GatherMatmulImpl::get_type_info_static()) {
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
         // GATHER_MATMUL_USE_ONEDNN_PREFILL gates the dnnl-grouped large-prefill path (default off).
         _use_onednn_grouped = std::getenv("GATHER_MATMUL_USE_ONEDNN_PREFILL") != nullptr;
 #endif
@@ -131,7 +131,7 @@ public:
         auto params = impl_param;
         GPU_DEBUG_TRACE_DETAIL << "GatherMatmul create stages for dynamic = " << params.is_dynamic() << "\n";
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
         // Non-u4/i4 weights have no functional OCL path; force onednn-grouped.
         const bool need_onednn_for_weights = weights_need_onednn_grouped(params);
         if (need_onednn_for_weights) {
@@ -191,7 +191,7 @@ public:
         // 7: expert_offsets — cumulative exclusive ends per expert.
         descs.emplace_back(n_all_experts, ov::element::i32);
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
         // OR: env-var doesn't survive clone(), but execute() dispatches on dtype directly.
         if (_use_onednn_grouped || weights_need_onednn_grouped(params)) {
             // 8: packed dnnl::matmul output [total_tokens, N], unfused N.
@@ -225,7 +225,7 @@ public:
     }
 
     [[nodiscard]] event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
         const auto& params = *instance.get_impl_params();
         bool is_prefill = is_prefill_stage(params);
         update_rt_params(instance);
@@ -268,7 +268,7 @@ public:
     }
 
 private:
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
     // One entry per total_tokens; carries the wrappers we need at execute() time.
     struct OnednnGroupedKernel {
         dnnl::matmul::primitive_desc pd;
