@@ -199,6 +199,7 @@ set(CPU_UNIT_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/x64/convert_matmul_test_3d_weight.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/x64/convert_to_interaction.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/x64/qkv_proj_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/x64/sparse_attention_kv_cache_fusion_test.cpp
 )
 
 set(CPU_UNIT_TESTS_ARM_SRCS

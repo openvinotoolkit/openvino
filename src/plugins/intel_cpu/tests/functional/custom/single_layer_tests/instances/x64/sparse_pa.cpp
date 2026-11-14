@@ -84,9 +84,10 @@ constexpr auto kRecent = SparsePASelection::kRecent;
 constexpr auto kRandom = SparsePASelection::kRandom;
 constexpr auto kEmpty = SparsePASelection::kEmpty;
 
-// Plain caches on the vector kernels: every data precision, selection head counts of 1 / K heads / query heads, tiny
-// pages (selected blocks straddle pages) and every selection mode. The worker threads follow from the steps (see the
-// test's SetUp): the multi-token calls pack the query heads of a K head, the decode steps do not.
+// Plain caches on the vector kernels: every data precision, selection head counts of 1 / K heads / query heads and
+// every selection mode, on the 32-token pages ConvertPagedAttnInputs gives the caches (the chunked and long steps cross
+// the page boundaries). The worker threads follow from the steps (see the test's SetUp): the multi-token calls pack the
+// query heads of a K head, the decode steps do not.
 std::vector<SparsePALayerTestParams> plain_cases() {
     const auto f32 = ov::element::f32;
     const auto f16 = ov::element::f16;
@@ -96,7 +97,7 @@ std::vector<SparsePALayerTestParams> plain_cases() {
                       Batch::kSingle,
                       plain_config(/*sel_heads=*/1,
                                    /*key_block_size=*/2,
-                                   /*page_size=*/4,
+                                   /*page_size=*/32,
                                    /*max_blocks=*/4,
                                    /*selection=*/kRecent)),
             make_case(f16,
@@ -104,7 +105,7 @@ std::vector<SparsePALayerTestParams> plain_cases() {
                       Batch::kSingle,
                       plain_config(/*sel_heads=*/2,
                                    /*key_block_size=*/2,
-                                   /*page_size=*/8,
+                                   /*page_size=*/32,
                                    /*max_blocks=*/4,
                                    /*selection=*/kRandom)),
             make_case(bf16,
@@ -112,7 +113,7 @@ std::vector<SparsePALayerTestParams> plain_cases() {
                       Batch::kMixed,
                       plain_config(/*sel_heads=*/kNumHeads,
                                    /*key_block_size=*/2,
-                                   /*page_size=*/8,
+                                   /*page_size=*/32,
                                    /*max_blocks=*/4,
                                    /*selection=*/kRandom)),
             make_case(f32,
@@ -120,7 +121,7 @@ std::vector<SparsePALayerTestParams> plain_cases() {
                       Batch::kMixed,
                       plain_config(/*sel_heads=*/1,
                                    /*key_block_size=*/2,
-                                   /*page_size=*/4,
+                                   /*page_size=*/32,
                                    /*max_blocks=*/4,
                                    /*selection=*/kEmpty)),
             make_case(bf16,
@@ -128,7 +129,7 @@ std::vector<SparsePALayerTestParams> plain_cases() {
                       Batch::kMixed,
                       plain_config(/*sel_heads=*/2,
                                    /*key_block_size=*/2,
-                                   /*page_size=*/8,
+                                   /*page_size=*/32,
                                    /*max_blocks=*/4,
                                    /*selection=*/kRecent)),
             make_case(f16,
@@ -136,13 +137,13 @@ std::vector<SparsePALayerTestParams> plain_cases() {
                       Batch::kMixed,
                       plain_config(/*sel_heads=*/1,
                                    /*key_block_size=*/2,
-                                   /*page_size=*/4,
+                                   /*page_size=*/32,
                                    /*max_blocks=*/4,
                                    /*selection=*/kRandom))};
 }
 
-// AMX brgemm path (see sparse_brgemm_kernel.hpp), bf16 end to end (AMX f16 needs amx_fp16): key_block_size 4 with pages
-// that fit several blocks or only one, so adjacent selected blocks of a page are attended as one run. Head sizes 32,
+// AMX brgemm path (see attn_brgemm_tiles.hpp), bf16 end to end (AMX f16 needs amx_fp16): key_block_size 4 on 32-token
+// pages, so adjacent selected blocks of a page are attended as one run. Head sizes 32,
 // 128 and 256 (the Qwen head size). v_head_size differs from the key head size to catch any coupling of the two. A
 // selection head per query head (no pack) keeps the prefill on the per-head AMX path.
 std::vector<SparsePALayerTestParams> amx_cases() {
@@ -152,7 +153,7 @@ std::vector<SparsePALayerTestParams> amx_cases() {
                       Batch::kMixed,
                       plain_config(/*sel_heads=*/1,
                                    /*key_block_size=*/4,
-                                   /*page_size=*/16,
+                                   /*page_size=*/32,
                                    /*max_blocks=*/4,
                                    /*selection=*/kRecent)),
             make_case(bf16,
@@ -160,7 +161,7 @@ std::vector<SparsePALayerTestParams> amx_cases() {
                       Batch::kMixed,
                       plain_config(/*sel_heads=*/1,
                                    /*key_block_size=*/4,
-                                   /*page_size=*/64,
+                                   /*page_size=*/32,
                                    /*max_blocks=*/16,
                                    /*selection=*/kRandom)),
             make_case(bf16,
@@ -185,7 +186,7 @@ std::vector<SparsePALayerTestParams> amx_cases() {
                       Batch::kMixed,
                       plain_config(/*sel_heads=*/2,
                                    /*key_block_size=*/4,
-                                   /*page_size=*/64,
+                                   /*page_size=*/32,
                                    /*max_blocks=*/16,
                                    /*selection=*/kRecent)),
             make_case(bf16,
@@ -202,7 +203,7 @@ std::vector<SparsePALayerTestParams> amx_cases() {
                       Batch::kMixed,
                       plain_config(/*sel_heads=*/1,
                                    /*key_block_size=*/4,
-                                   /*page_size=*/16,
+                                   /*page_size=*/32,
                                    /*max_blocks=*/8,
                                    /*selection=*/kRecent,
                                    /*v_head_size=*/256)),
@@ -211,7 +212,7 @@ std::vector<SparsePALayerTestParams> amx_cases() {
                       Batch::kMixed,
                       plain_config(/*sel_heads=*/1,
                                    /*key_block_size=*/4,
-                                   /*page_size=*/64,
+                                   /*page_size=*/32,
                                    /*max_blocks=*/8,
                                    /*selection=*/kRandom,
                                    /*v_head_size=*/128)),
@@ -343,7 +344,7 @@ std::vector<SparsePALayerTestParams> f16_cache_cases() {
         cfg.cache_precision = ov::element::f16;
         return cfg;
     };
-    const auto small = plain_config(/*sel_heads=*/2, /*key_block_size=*/2, /*page_size=*/8, /*max_blocks=*/4, kRandom);
+    const auto small = plain_config(/*sel_heads=*/2, /*key_block_size=*/2, /*page_size=*/32, /*max_blocks=*/4, kRandom);
     const auto tile = plain_config(/*sel_heads=*/1, /*key_block_size=*/4, /*page_size=*/32, /*max_blocks=*/8, kRecent);
     return {make_case(f32, /*head_size=*/16, Batch::kSingle, with_f16_cache(small)),
             make_case(f32, /*head_size=*/16, Batch::kMixed, with_f16_cache(small)),

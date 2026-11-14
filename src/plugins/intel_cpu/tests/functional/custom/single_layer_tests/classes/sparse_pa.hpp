@@ -76,7 +76,7 @@ private:
     [[nodiscard]] float through_cache(float value) const;
     // New tokens of `sequence` in a step whose shape says `step_len`.
     [[nodiscard]] size_t sequence_len(size_t step_len, size_t sequence) const;
-    // Final key/value cache shapes: quantization parameters live inside the cache tensor (see SparsePAQuant).
+    // Final key/value cache shapes: quantization parameters live inside the cache tensor (see CacheSpec).
     [[nodiscard]] ov::Shape cache_shape(bool is_key) const;
 
     ov::element::Type m_data_precision = ov::element::f32;

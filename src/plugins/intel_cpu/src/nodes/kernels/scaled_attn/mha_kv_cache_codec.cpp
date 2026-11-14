@@ -17,6 +17,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "softmax_kernel.hpp"
+#include "visit_float_type.hpp"
 
 namespace ov::Extensions::Cpu::XARCH {
 
@@ -470,13 +471,10 @@ static void dispatch_q_precision(const PlainTensor& q_input,
                                  Fn&& fn,
                                  size_t q_idx = 0) {
     const size_t q_stride = q_input.stride(1);
-    if (q_precision == ov::element::f16) {
-        fn(StridedData<const ov::float16>{q_input.ptr<ov::float16>(b, h_start, q_idx), q_stride});
-    } else if (q_precision == ov::element::bf16) {
-        fn(StridedData<const ov::bfloat16>{q_input.ptr<ov::bfloat16>(b, h_start, q_idx), q_stride});
-    } else {
-        fn(StridedData<const float>{q_input.ptr<float>(b, h_start, q_idx), q_stride});
-    }
+    visit_float_type(q_precision, [&](auto tag) {
+        using T = decltype(tag);
+        fn(StridedData<const T>{q_input.ptr<T>(b, h_start, q_idx), q_stride});
+    });
 }
 
 // ---------------------------------------------------------------------------

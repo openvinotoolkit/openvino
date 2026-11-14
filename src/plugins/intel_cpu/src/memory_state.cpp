@@ -16,7 +16,6 @@
 #include <vector>
 
 #include "cpu_memory.h"
-#include "cpu_parallel.hpp"
 #include "cpu_tensor.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
@@ -26,11 +25,14 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/kernels/scaled_attn/attn_quant.hpp"
 #include "nodes/kernels/scaled_attn/cache_spec.hpp"
-#include "nodes/kernels/sparse_attn/sparse_sdpa_kernel.hpp"
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "cpu_parallel.hpp"
+#    include "nodes/kernels/sparse_attn/sparse_sdpa_kernel.hpp"
+#    include "openvino/runtime/intel_cpu/properties.hpp"
+#endif
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -447,8 +449,9 @@ void VariableStateKVcache::assign_hidden_state(const MemoryPtr& mem) {
     m_hidden_state = mem;
 }
 
+#if defined(OPENVINO_ARCH_X86_64)
 namespace {
-bool is_quantized_bhls(const ov::Extensions::Cpu::CacheSpec& spec) {
+bool is_quantized(const ov::Extensions::Cpu::CacheSpec& spec) {
     return spec.precision == ov::element::u8 || spec.precision == ov::element::u4;
 }
 }  // namespace
@@ -476,16 +479,12 @@ ov::SoPtr<ov::ITensor> VariableStateKVcacheBHLS::get_state() const {
     const auto S = src.size(3);
     // rows along L are contiguous in both the cache (capacity strides) and the dense external tensor
     OPENVINO_ASSERT(all_of(1U, src.stride(3), dst.stride(3)) && dst.stride(2) == S);
-    if (is_quantized_bhls(get_spec())) {
+    if (is_quantized(get_spec())) {
         // dequantize into f32 rows and convert them to the external precision
         auto& scale_zp = const_cast<VariableStateKVcacheBHLS*>(this)->get_scale_zp();
-        const ov::Extensions::Cpu::SparseKVQuant quant{get_spec().precision,
-                                                       get_spec().group_size,
-                                                       get_spec().by_channel,
-                                                       &scale_zp};
         parallel_for2d(B, H, [&](size_t b, size_t h) {
             std::vector<float> rows(L * S);
-            ov::Extensions::Cpu::XARCH::sparse_kv_dequantize_rows(src, quant, b, h, L, S, rows.data());
+            ov::Extensions::Cpu::XARCH::sparse_kv_dequantize_rows(src, get_spec(), scale_zp, b, h, L, S, rows.data());
             cpu_convert(rows.data(), dst.ptr_v(b, h, 0), ov::element::f32, dst.m_dt, L * S);
         });
         return std::make_shared<Tensor>(external_mem);
@@ -504,7 +503,7 @@ void VariableStateKVcacheBHLS::set_state_impl(const ov::SoPtr<ov::ITensor>& stat
     auto dense_internal_desc = internal_desc()->cloneWithNewDims(state_desc->getShape().getStaticDims());
     auto internal_mem = std::make_shared<Memory>(get_engine(), dense_internal_desc);
     Memory external_mem(get_engine(), state_desc, m_state->data());
-    if (is_quantized_bhls(get_spec())) {
+    if (is_quantized(get_spec())) {
         static const auto cpu_parallel = std::make_shared<CpuParallel>(ov::intel_cpu::TbbPartitioner::STATIC);
         auto&& dims = state_desc->getShape().getStaticDims();
         OPENVINO_ASSERT(dims.size() == 4, "BHLS KV cache state is expected to be 4D");
@@ -546,5 +545,6 @@ void VariableStateKVcacheBHLS::set_state_impl(const ov::SoPtr<ov::ITensor>& stat
     assign_internal_state_max_size(dense_internal_desc->getCurrentMemSize() /
                                    dense_internal_desc->getPrecision().size());
 }
+#endif  // OPENVINO_ARCH_X86_64
 
 }  // namespace ov::intel_cpu

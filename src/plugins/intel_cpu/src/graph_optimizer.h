@@ -54,7 +54,11 @@ private:
     static void RemoveMemoryInputConvert(Graph& graph);
     static void RemoveConvertMemoryOutput(Graph& graph);
     static void MatchSdpaKvCache(Graph& graph);
+#if defined(OPENVINO_ARCH_X86_64)
     static void MatchSparseSdpaKvCache(Graph& graph);
+#endif
+    template <typename NodeT, typename MemInputT>
+    static void matchKVCache(Graph& graph, Type nodeType);
     static void DropRedundantMemoryOutput(Graph& graph);
 
     static bool canBeInplaced(const NodePtr& parentNode, const NodePtr& childNode);

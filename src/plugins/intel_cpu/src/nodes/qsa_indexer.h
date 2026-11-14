@@ -12,32 +12,24 @@
 #include "cpu_types.h"
 #include "graph_context.h"
 #include "node.h"
+#include "nodes/kernels/sparse_attn/qsa_executor.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/node.hpp"
-#include "transformations/cpu_opset/common/op/qsa_indexer.hpp"
-
-namespace ov::intel_cpu::node::qsa {
-class QsaBrgemm;  // x64 only, see kernels/sparse_attn/qsa_brgemm.hpp
-}  // namespace ov::intel_cpu::node::qsa
+#include "transformations/cpu_opset/x64/op/qsa_indexer.hpp"
 
 namespace ov::intel_cpu::node {
 
-/// @brief CPU implementation of ov::intel_cpu::QSAIndexerNode (padding-aware,
-/// non-paged, caller-owned-cache block-level indexer for Qwen Sparse Attention).
+/// @brief CPU implementation of ov::intel_cpu::QSAIndexerNode: the non-paged block-level indexer of Qwen Sparse
+/// Attention with caller-owned caches.
 ///
-/// Unlike QSAIndexer, this op is fed a per-row `key_length` (total valid length, past + current,
-/// after this call) instead of a `past_lens` running counter: `past`/`current`/block-append-offset
-/// are all derived per row from `key_length` and this call's window length alone, so divergent
-/// per-row batches and intra-call left-padding are handled without any extra persisted state.
-/// `past_incomplete_raw_k` / `past_incomplete_rope` are FIXED-size (not growing) caller-owned
-/// state tensors holding the current incomplete block's raw rows / reference RoPE coefficients;
-/// they are fully rewritten every call rather than grown. The three state inputs
-/// (`summary_cache`, `past_incomplete_raw_k`, `past_incomplete_rope`) are never modified: the
-/// updated states are written to dedicated outputs for an outside Assign to consume. `summary_cache` grows like
-/// QSAPrepare-17's `block_index_keys`: the output has max(key_length) / key_block_size blocks, so the output shape
-/// depends on the `key_length` values. All floating-point ports (inputs and state outputs) share one
-/// precision (f32, f16 or bf16, that of `q_idx`); compute is always performed in fp32.
-/// `sel_indices`/`sel_count` are always i32.
+/// The op is fed a per-row `key_length` (total valid length, past + current, after this call): `past`, `current` and
+/// the block-append offset are derived per row from it and this call's window length, so divergent rows and left
+/// padding need no extra state. `past_incomplete_raw_k` / `past_incomplete_rope` are fixed-size states holding the
+/// current incomplete block, fully rewritten every call. The three state inputs (`summary_cache`,
+/// `past_incomplete_raw_k`, `past_incomplete_rope`) are never modified: the updated states go to dedicated outputs for
+/// an outside Assign. `summary_cache` has max(key_length) / key_block_size blocks, so its output shape depends on the
+/// `key_length` values. All floating-point ports share one precision (f32, f16 or bf16, that of `q_idx`); compute is
+/// in f32. `sel_indices`/`sel_count` are i32.
 class QSAIndexer : public Node {
     using InputIdx = ov::intel_cpu::QSAIndexerNode::InputIdx;
 
@@ -73,12 +65,13 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    // The computation is the cross-compiled kernel qsa_indexer_compute (AVX-512 / AVX2 / plain C++ by the CPU); the
-    // scoring of the blocks runs on brgemm instead where the CPU, the precision and the head counts allow it.
+    // The computation is the cross-compiled executor (AVX-512 / AVX2 / plain C++ by the CPU); the scoring of the blocks
+    // runs on the brgemm scorer instead where the CPU, the precision and the head counts allow it.
     ov::intel_cpu::QSAIndexerNode::Config m_config;
-#ifdef OPENVINO_ARCH_X86_64
-    std::shared_ptr<const qsa::QsaBrgemm> m_brgemm;  // null: the kernel scores the blocks itself
-#endif
+    size_t m_index_query_heads = 0;  // fixed by the model
+    size_t m_index_key_heads = 0;
+    std::shared_ptr<ov::Extensions::Cpu::qsa::DenseExecutor> m_executor;
+    std::shared_ptr<ov::Extensions::Cpu::qsa::DenseScorer> m_scorer;  // null: the executor scores the blocks itself
     impl_desc_type m_impl = impl_desc_type::ref;
 };
 

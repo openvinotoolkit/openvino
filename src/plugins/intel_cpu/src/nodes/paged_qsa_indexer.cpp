@@ -4,6 +4,7 @@
 
 #include "paged_qsa_indexer.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -11,12 +12,13 @@
 #include <string>
 #include <vector>
 
-#include "cpu_memory.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
+#include "nodes/kernels/sparse_attn/paged_page_table_check.hpp"
 #include "nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.hpp"
+#include "nodes/kernels/sparse_attn/qsa_executor.hpp"
 #include "nodes/kernels/sparse_attn/qsa_indexer_common.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
@@ -27,8 +29,8 @@
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #ifdef OPENVINO_ARCH_X86_64
-#    include "cpu_types.h"
 #    include "nodes/kernels/sparse_attn/qsa_brgemm.hpp"
+#    include "nodes/kernels/sparse_attn/qsa_brgemm_kernel.hpp"
 #endif
 
 namespace ov::intel_cpu::node {
@@ -36,7 +38,14 @@ namespace ov::intel_cpu::node {
 namespace {
 
 using InputIdx = ov::op::internal::PagedQSAIndexer::InputIdx;
-using OutputIdx = qsa::paged::OutputIdx;
+
+// Fixed output order of ov::op::internal::PagedQSAIndexer (not part of the op's public API).
+struct OutputIdx {
+    static constexpr size_t SEL_INDICES = 0;  // [tokens, h_sel, block_topk]
+    static constexpr size_t SEL_COUNT = 1;    // [tokens, h_sel]
+
+    static constexpr size_t COUNT = 2;
+};
 
 }  // namespace
 
@@ -49,6 +58,10 @@ PagedQSAIndexer::PagedQSAIndexer(const std::shared_ptr<ov::Node>& op, const Grap
     const auto paged_qsa_indexer = ov::as_type_ptr<const ov::op::internal::PagedQSAIndexer>(op);
     OPENVINO_ASSERT(paged_qsa_indexer, "Expected PagedQSAIndexer node");
     m_config = paged_qsa_indexer->get_config();
+    // Fixed by the model (isSupportedOperation checked they are static).
+    m_index_query_heads = paged_qsa_indexer->get_index_query_heads();
+    m_index_key_heads = paged_qsa_indexer->get_index_key_heads();
+    m_page_size = static_cast<size_t>(op->get_input_partial_shape(InputIdx::INDEX_KEY_CACHE)[2].get_length());
 }
 
 void PagedQSAIndexer::initSupportedPrimitiveDescriptors() {
@@ -73,37 +86,31 @@ void PagedQSAIndexer::initSupportedPrimitiveDescriptors() {
 }
 
 void PagedQSAIndexer::createPrimitive() {
-    m_impl = qsa::kernel_impl_type();
-#ifdef OPENVINO_ARCH_X86_64
     const auto summary_precision = getSrcMemoryAtPort(InputIdx::BLOCK_INDEX_KEYS_CACHE)->getDesc().getPrecision();
-    // Scoring on brgemm where the CPU, the precisions and the head counts allow it. Query and key rows are
-    // [tokens, heads * dim] with a dynamic token count. The brgemm products need the query in the summary precision,
-    // so it is used only when it already has it.
     const auto& c = m_config;
-    const auto query_precision = getSrcMemoryAtPort(InputIdx::INDEX_QUERY)->getDesc().getPrecision();
-    const auto q_width = getInputShapeAtPort(InputIdx::INDEX_QUERY).getDims()[1];
-    const auto k_width = getInputShapeAtPort(InputIdx::RAW_INDEX_KEYS).getDims()[1];
-    if (q_width != Shape::UNDEFINED_DIM && k_width != Shape::UNDEFINED_DIM && c.indexer_head_dim != 0 &&
-        query_precision == summary_precision) {
-        const size_t q_heads = q_width / c.indexer_head_dim;
-        const size_t k_heads = k_width / c.indexer_head_dim;
-        if (k_heads != 0 && q_heads % k_heads == 0) {
-            m_brgemm = qsa::QsaBrgemm::get(
-                context->getParamsCache(),
-                qsa::QsaBrgemm::Config{q_heads,
-                                       k_heads,
-                                       c.num_selection_heads,
-                                       c.indexer_head_dim,
-                                       c.indexer_rotary_dim,
-                                       c.block_topk,
-                                       static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads()),
-                                       c.epsilon,
-                                       ov::op::internal::PagedQSAIndexer::effective_scale(c),
-                                       summary_precision});
+    ov::Extensions::Cpu::qsa::Config config;
+    config.key_block_size = c.key_block_size;
+    config.num_selection_heads = c.num_selection_heads;
+    config.block_topk = c.block_topk;
+    config.head_dim = c.indexer_head_dim;
+    config.rotary_dim = c.indexer_rotary_dim;
+    config.index_query_heads = m_index_query_heads;
+    config.index_key_heads = m_index_key_heads;
+    config.page_size = m_page_size;
+    config.num_threads = static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads());
+    config.eps = c.epsilon;
+    config.scale = ov::op::internal::PagedQSAIndexer::effective_scale(c);
+    config.precision = summary_precision;
+    m_executor = ov::Extensions::Cpu::XARCH::make_paged_qsa_executor(config);
+    m_impl = qsa_kernel_impl_type();
+#ifdef OPENVINO_ARCH_X86_64
+    // Scoring on brgemm where the CPU, the precisions and the head counts allow it. The brgemm products need the query
+    // in the summary precision, so it is used only when it already has it.
+    if (getSrcMemoryAtPort(InputIdx::INDEX_QUERY)->getDesc().getPrecision() == summary_precision) {
+        if (const auto brgemm = ov::Extensions::Cpu::qsa::QsaBrgemm::get(context->getParamsCache(), config)) {
+            m_scorer = ov::Extensions::Cpu::XARCH::make_paged_qsa_scorer(brgemm);
+            m_impl = ov::Extensions::Cpu::qsa::QsaBrgemm::impl_type(summary_precision);
         }
-    }
-    if (m_brgemm) {
-        m_impl = qsa::score_impl_type(summary_precision);
     }
 #endif
     Node::createPrimitive();
@@ -111,46 +118,51 @@ void PagedQSAIndexer::createPrimitive() {
 }
 
 void PagedQSAIndexer::execute([[maybe_unused]] const dnnl::stream& strm) {
-    std::vector<MemoryPtr> inputs(getParentEdges().size());
-    for (size_t i = 0; i < inputs.size(); ++i) {
-        inputs[i] = getSrcMemoryAtPort(i);
-    }
-    std::vector<MemoryPtr> outputs(OutputIdx::COUNT);
-    for (size_t i = 0; i < outputs.size(); ++i) {
-        outputs[i] = getDstMemoryAtPort(i);
-    }
-    const qsa::paged::PagedPorts ports(inputs, outputs);
-    const auto cpu_parallel = context->getCpuParallel();
-    const auto stats = qsa::paged::seq_stats(ports, m_config);
+    ov::Extensions::Cpu::qsa::PagedCall call;
+    call.q_idx.reset(getSrcMemoryAtPort(InputIdx::INDEX_QUERY));
+    call.k_idx.reset(getSrcMemoryAtPort(InputIdx::RAW_INDEX_KEYS));
+    call.rope_cos.reset(getSrcMemoryAtPort(InputIdx::ROPE_COS));
+    call.rope_sin.reset(getSrcMemoryAtPort(InputIdx::ROPE_SIN));
+    call.q_norm_weight.reset(getSrcMemoryAtPort(InputIdx::Q_NORM_WEIGHT));
+    call.k_norm_weight.reset(getSrcMemoryAtPort(InputIdx::K_NORM_WEIGHT));
+    call.past_lens.reset(getSrcMemoryAtPort(InputIdx::PAST_LENS));
+    call.subsequence_begins.reset(getSrcMemoryAtPort(InputIdx::SUBSEQUENCE_BEGINS));
+    call.block_indices.reset(getSrcMemoryAtPort(InputIdx::BLOCK_INDICES));
+    call.block_indices_begins.reset(getSrcMemoryAtPort(InputIdx::BLOCK_INDICES_BEGINS));
+    call.raw_k_cache.reset(getSrcMemoryAtPort(InputIdx::INDEX_KEY_CACHE));
+    call.indexer_rope_cache.reset(getSrcMemoryAtPort(InputIdx::INDEX_BLOCK_ROPE_CACHE));
+    call.summary_cache.reset(getSrcMemoryAtPort(InputIdx::BLOCK_INDEX_KEYS_CACHE));
+    call.sel_indices.reset(getDstMemoryAtPort(OutputIdx::SEL_INDICES));
+    call.sel_count.reset(getDstMemoryAtPort(OutputIdx::SEL_COUNT));
 
-    // The calls that have complete blocks to score go to the brgemm scorer, which plans its scratch from the sizes of
-    // the call; the other calls are scored by the kernel itself.
-    const qsa::QsaBrgemm* brgemm = nullptr;
-    size_t scorer_shared_bytes = 0;
-    size_t scorer_thread_bytes = 0;
-#ifdef OPENVINO_ARCH_X86_64
-    if (m_brgemm && stats.max_blocks > 0) {
-        const auto plan = m_brgemm->plan(qsa::paged::num_sequences(ports), stats.max_q_len, stats.max_blocks);
-        brgemm = m_brgemm.get();
-        scorer_shared_bytes = plan.shared_bytes;
-        scorer_thread_bytes = plan.thread_bytes;
+    check_paged_page_table(call.past_lens,
+                           call.subsequence_begins,
+                           call.block_indices,
+                           call.block_indices_begins,
+                           call.q_idx.size(0),
+                           m_page_size,
+                           std::min(call.raw_k_cache.size(0), call.summary_cache.size(0)));
+
+    m_executor->find_batch_max_params(call);
+    size_t scratch_bytes = m_executor->scratch_bytes(call);
+    // A call whose sequences have a complete block to score goes to the brgemm scorer, the others are scored by the
+    // executor.
+    const bool brgemm = m_scorer && call.max_blocks > 0;
+    if (brgemm) {
+        scratch_bytes = std::max(scratch_bytes, m_scorer->scratch_bytes(call));
     }
-#endif
-    const qsa::paged::PagedScratchLayout layout(ports,
-                                                m_config,
-                                                stats.max_blocks,
-                                                scorer_shared_bytes,
-                                                scorer_thread_bytes,
-                                                static_cast<size_t>(cpu_parallel->get_num_worker_threads()));
+    // One scratch for both stages: a second createScratchPadMem() could free the memory of the first.
     const auto scratch = context->getScratchPad()->createScratchPadMem(
-        std::make_shared<CpuBlockedMemoryDesc>(ov::element::u8, Shape{layout.total_bytes}));
+        std::make_shared<CpuBlockedMemoryDesc>(ov::element::u8, Shape{scratch_bytes}));
+    auto* const memory = scratch->getDataAs<uint8_t>();
 
-    ov::Extensions::Cpu::XARCH::paged_qsa_indexer_compute(ports,
-                                                          m_config,
-                                                          layout,
-                                                          scratch->getDataAs<uint8_t>(),
-                                                          brgemm,
-                                                          cpu_parallel);
+    const auto cpu_parallel = context->getCpuParallel();
+    m_executor->prepare(call, memory, cpu_parallel);
+    if (brgemm) {
+        m_scorer->score(call, memory, cpu_parallel);
+    } else {
+        m_executor->score_tokens(call, memory, cpu_parallel);
+    }
 }
 
 bool PagedQSAIndexer::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
@@ -159,6 +171,16 @@ bool PagedQSAIndexer::isSupportedOperation(const std::shared_ptr<const ov::Node>
         const auto paged_qsa_indexer = ov::as_type_ptr<const ov::op::internal::PagedQSAIndexer>(op);
         if (!paged_qsa_indexer) {
             errorMessage = "Only PagedQSAIndexer operation is supported";
+            return false;
+        }
+        // The head counts and the page size are fixed once, when the executor is built.
+        const auto& query_ps = op->get_input_partial_shape(InputIdx::INDEX_QUERY);
+        const auto& key_ps = op->get_input_partial_shape(InputIdx::RAW_INDEX_KEYS);
+        const auto& cache_ps = op->get_input_partial_shape(InputIdx::INDEX_KEY_CACHE);
+        if (query_ps.rank().is_dynamic() || query_ps.size() != 2 || query_ps[1].is_dynamic() ||
+            key_ps.rank().is_dynamic() || key_ps.size() != 2 || key_ps[1].is_dynamic() ||
+            cache_ps.rank().is_dynamic() || cache_ps.size() != 4 || cache_ps[2].is_dynamic()) {
+            errorMessage = "PagedQSAIndexer CPU implementation requires static head counts and page size.";
             return false;
         }
         static constexpr size_t float_ports[] = {InputIdx::INDEX_QUERY,

@@ -65,7 +65,6 @@
 #include "openvino/op/selective_ssm.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/shuffle_channels.hpp"
-#include "openvino/op/sparse_attention.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -118,11 +117,11 @@
 #    include "transformations/snippets/common/op/store_convert.hpp"
 #endif
 #if defined(OPENVINO_ARCH_X86_64)
-#    include "transformations/cpu_opset/common/op/qsa_indexer.hpp"
-#    include "transformations/cpu_opset/common/op/sparse_attention_with_kv_cache.hpp"
 #    include "transformations/cpu_opset/x64/op/interaction.hpp"
 #    include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
 #    include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
+#    include "transformations/cpu_opset/x64/op/qsa_indexer.hpp"
+#    include "transformations/cpu_opset/x64/op/sparse_attention_with_kv_cache.hpp"
 #    include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #    include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #    include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
@@ -306,7 +305,6 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     std::make_shared<TypeRelaxedExtension<ov::op::v5::NonMaxSuppression>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v8::PriorBox>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v9::NonMaxSuppression>>(),
-    std::make_shared<TypeRelaxedExtension<ov::op::v17::SparseAttention>>(),
     std::make_shared<ov::OpExtension<ov::snippets::op::Brgemm>>(),
     std::make_shared<ov::OpExtension<ov::snippets::op::BroadcastLoad>>(),
     std::make_shared<ov::OpExtension<ov::snippets::op::BroadcastMove>>(),

@@ -185,12 +185,9 @@ private:
     ov::Extensions::Cpu::CacheSpec m_spec;
 };
 
-// KV cache state whose internal buffer is kept in the plain BHLS order (B, H, L, S), float precision only.
-// It is used by the sparse attention node, whose kernels require contiguous rows along L. The base class
-// get_state() / set_state_impl() assume the LBHS order and the beam table, so they are overridden here
-// instead of being generalized: VariableStateKVcache stays untouched.
-// The internal buffer may have a capacity larger than the logical length along L; the capacity is
-// carried by the strides of the internal memory descriptor.
+#if defined(OPENVINO_ARCH_X86_64)
+// KV cache state kept in the plain BHLS order (contiguous rows along L, capacity carried by the strides) for the
+// sparse attention node; overrides the LBHS / beam-table get_state() and set_state_impl() of the base.
 class VariableStateKVcacheBHLS : public VariableStateKVcache {
 public:
     using VariableStateKVcache::VariableStateKVcache;
@@ -202,6 +199,7 @@ private:
     // ov::intel_cpu::VariableStateBase
     void set_state_impl(const ov::SoPtr<ov::ITensor>& state) override;
 };
+#endif  // OPENVINO_ARCH_X86_64
 
 using MemStatePtr = std::shared_ptr<IVariableState>;
 using MemStateCPtr = std::shared_ptr<const IVariableState>;

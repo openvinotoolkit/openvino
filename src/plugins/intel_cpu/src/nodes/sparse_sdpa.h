@@ -14,8 +14,9 @@
 #include "graph_context.h"
 #include "memory_state.h"
 #include "node.h"
+#include "nodes/kernels/scaled_attn/attn_brgemm_common.hpp"
 #include "nodes/kernels/scaled_attn/cache_spec.hpp"
-#include "nodes/kernels/sparse_attn/sparse_brgemm.hpp"
+#include "nodes/kernels/sparse_attn/sparse_sdpa_kernel.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/sparse_attention.hpp"
@@ -108,9 +109,11 @@ private:
 
 #ifdef OPENVINO_ARCH_X86_64
     // AMX matrix products of the prefill over a pack of query heads (empty when the node is not eligible: no AMX, a non
-    // bf16/f16 cache, a non-causal op, dynamic head counts or a pack of one head), see SparseBrgemm.
-    ov::Extensions::Cpu::SparseBrgemmKernels m_brgemm;
+    // bf16/f16 cache, a non-causal op, dynamic head counts or a pack of one head), see TileBrgemm. Declared before the
+    // executor, which uses them.
+    ov::Extensions::Cpu::TileBrgemmKernels m_brgemm;
 #endif
+    std::shared_ptr<ov::Extensions::Cpu::SparseSdpaExecutor> m_executor;
 };
 
 }  // namespace ov::intel_cpu::node

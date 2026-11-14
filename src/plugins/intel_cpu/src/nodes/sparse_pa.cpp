@@ -18,15 +18,17 @@
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
+#include "nodes/kernels/scaled_attn/attn_brgemm_common.hpp"
 #include "nodes/kernels/scaled_attn/attn_memcpy.hpp"
 #include "nodes/kernels/scaled_attn/attn_quant.hpp"
-#include "nodes/kernels/sparse_attn/sparse_brgemm.hpp"
+#include "nodes/kernels/scaled_attn/cache_spec.hpp"
+#include "nodes/kernels/sparse_attn/paged_page_table_check.hpp"
+#include "nodes/kernels/sparse_attn/sparse_attn_common.hpp"
 #include "nodes/kernels/sparse_attn/sparse_pa_kernel.hpp"
 #include "nodes/paged_attn.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
@@ -39,8 +41,6 @@
 
 #ifdef OPENVINO_ARCH_X86_64
 #    include <cpu/x64/cpu_isa_traits.hpp>
-
-#    include "nodes/kernels/sparse_attn/sparse_kernel_cache.hpp"
 #endif
 
 namespace ov::intel_cpu::node {
@@ -63,7 +63,9 @@ bool SparsePA::deriveQuant(std::string& reason) {
     const auto value_prec = getOriginalInputPrecisionAtPort(InputIdx::VALUE_CACHE);
     const auto& key_dims = getInputShapeAtPort(InputIdx::KEY_CACHE).getDims();
     const auto& value_dims = getInputShapeAtPort(InputIdx::VALUE_CACHE).getDims();
-    m_quant = {};
+    m_config.key_spec = {};
+    m_config.value_spec = {};
+    m_config.page_size = 0;
     if (key_prec != ov::element::u8 && key_prec != ov::element::u4) {
         // Plain caches: the page size is read from the cache shape by the kernel.
         return true;
@@ -80,12 +82,14 @@ bool SparsePA::deriveQuant(std::string& reason) {
     // Both u8 and u4 store scale and zero point as f32; u4 counts them in half-byte elements.
     const size_t key_params = sizeof(float) * 2 * (key_prec == ov::element::u4 ? 2 : 1);
     const size_t value_params = sizeof(float) * 2 * (value_prec == ov::element::u4 ? 2 : 1);
-    m_quant.key_prec = key_prec;
-    m_quant.value_prec = value_prec;
-    m_quant.key_bychannel = PagedAttention::isQuantByChannel(cfg.keyCacheQuantMode, key_prec, true);
+    auto& key_spec = m_config.key_spec;
+    auto& value_spec = m_config.value_spec;
+    key_spec.precision = key_prec;
+    value_spec.precision = value_prec;
+    key_spec.by_channel = PagedAttention::isQuantByChannel(cfg.keyCacheQuantMode, key_prec, true);
     // A group size of 0 means one group per row; PagedAttention resolves it the same way before quantizing.
-    m_quant.key_group_size = cfg.keyCacheGroupSize ? cfg.keyCacheGroupSize : Dh;
-    m_quant.value_group_size = cfg.valueCacheGroupSize ? cfg.valueCacheGroupSize : Dv;
+    key_spec.group_size = cfg.keyCacheGroupSize ? cfg.keyCacheGroupSize : Dh;
+    value_spec.group_size = cfg.valueCacheGroupSize ? cfg.valueCacheGroupSize : Dv;
     if (PagedAttention::isQuantByChannel(cfg.valueCacheQuantMode, value_prec, false)) {
         reason = "SparsePA CPU implementation does not support by-channel quantized value caches.";
         return false;
@@ -96,26 +100,26 @@ bool SparsePA::deriveQuant(std::string& reason) {
     }
 
     // The page size is key_cache dim 2, plus parameter rows for by-channel keys.
-    if (m_quant.key_bychannel) {
+    if (key_spec.by_channel) {
         if (key_dims[3] != Dh || key_dims[2] <= key_params || (key_prec == ov::element::u4 && Dh % 2 != 0)) {
             reason = "SparsePA: by-channel key cache shape does not match the head size and quantization parameters.";
             return false;
         }
-        m_quant.block_size = key_dims[2] - key_params;
+        m_config.page_size = key_dims[2] - key_params;
     } else {
-        const size_t gs = m_quant.key_group_size;
+        const size_t gs = key_spec.group_size;
         if (Dh % gs != 0 || key_dims[3] != Dh + key_params * (Dh / gs)) {
             reason = "SparsePA: by-token key cache shape does not match the head size and group size.";
             return false;
         }
-        m_quant.block_size = key_dims[2];
+        m_config.page_size = key_dims[2];
     }
-    const size_t vgs = m_quant.value_group_size;
-    if (Dv % vgs != 0 || value_dims[3] != Dv + value_params * (Dv / vgs) || value_dims[2] != m_quant.block_size) {
+    const size_t vgs = value_spec.group_size;
+    if (Dv % vgs != 0 || value_dims[3] != Dv + value_params * (Dv / vgs) || value_dims[2] != m_config.page_size) {
         reason = "SparsePA: value cache shape does not match the head size, group size and key page size.";
         return false;
     }
-    if (m_quant.block_size % m_config.key_block_size != 0) {
+    if (m_config.page_size % m_config.key_block_size != 0) {
         reason = "SparsePA: the cache page size must be divisible by key_block_size.";
         return false;
     }
@@ -129,9 +133,10 @@ size_t SparsePA::writeKVSlotMappingBytes(size_t tokens) {
 size_t SparsePA::writeKVScratchBytes(size_t tokens, size_t block_size) const {
     const auto& c = m_config;
     size_t bytes = writeKVSlotMappingBytes(tokens);
-    if (m_quant.enabled() && m_quant.key_bychannel) {
-        bytes += static_cast<size_t>(parallel_get_max_threads()) * block_size * c.num_heads *
-                 std::max(c.k_head_size, c.v_head_size) * sizeof(float);
+    if (isQuantized() && m_config.key_spec.by_channel) {
+        // One page of dequantized keys per worker thread (only the keys can be quantized by channel).
+        bytes += static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads()) * block_size * c.k_head_size *
+                 sizeof(float);
     }
     return bytes;
 }
@@ -146,7 +151,7 @@ void SparsePA::writeKV(uint8_t* scratch) {
     PlainTensor block_indices(getSrcMemoryAtPort(InputIdx::BLOCK_INDICES));
     PlainTensor block_indices_begins(getSrcMemoryAtPort(InputIdx::BLOCK_INDICES_BEGINS));
     const auto& c = m_config;
-    const size_t block_size = m_quant.enabled() ? m_quant.block_size : key_cache.size(2);
+    const size_t block_size = m_config.page_size ? m_config.page_size : key_cache.size(2);
 
     // Physical slot (block * block_size + offset) of every new token, as PagedAttention builds it.
     const size_t tokens = key.size(0);
@@ -166,7 +171,7 @@ void SparsePA::writeKV(uint8_t* scratch) {
 
     const auto key_4d = key.reshape({tokens, c.num_kv_heads, 1, c.k_head_size});
     const auto value_4d = value.reshape({tokens, c.num_kv_heads, 1, c.v_head_size});
-    if (!m_quant.enabled()) {
+    if (!isQuantized()) {
         ov::Extensions::Cpu::XARCH::paged_attn_memcpy(key_4d,
                                                       value_4d,
                                                       key_cache,
@@ -175,18 +180,16 @@ void SparsePA::writeKV(uint8_t* scratch) {
                                                       context->getCpuParallel());
         return;
     }
-    ov::Extensions::Cpu::QuantizeParam quant_param{m_quant.key_bychannel,
+    ov::Extensions::Cpu::QuantizeParam quant_param{m_config.key_spec.by_channel,
                                                    false,
                                                    false,
-                                                   m_quant.key_group_size,
-                                                   m_quant.value_group_size};
+                                                   m_config.key_spec.group_size,
+                                                   m_config.value_spec.group_size};
     PlainTensor temp_buffer;
-    if (m_quant.key_bychannel) {
-        temp_buffer.resize<float>({static_cast<size_t>(parallel_get_max_threads()),
-                                   block_size,
-                                   c.num_heads,
-                                   std::max(c.k_head_size, c.v_head_size)},
-                                  reinterpret_cast<float*>(scratch + writeKVSlotMappingBytes(tokens)));
+    if (m_config.key_spec.by_channel) {
+        temp_buffer.resize<float>(
+            {static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads()), block_size, c.k_head_size},
+            reinterpret_cast<float*>(scratch + writeKVSlotMappingBytes(tokens)));
     }
     ov::Extensions::Cpu::XARCH::paged_attn_quantkv(key_4d,
                                                    value_4d,
@@ -213,22 +216,33 @@ bool SparsePA::deriveConfig(const ov::op::internal::PagedSparseAttention& op, Co
     };
     if (!rank_is(query_ps, 2) || !rank_is(key_ps, 2) || !rank_is(value_ps, 2) || !rank_is(key_cache_ps, 4) ||
         !rank_is(selected_ps, 3) || !query_ps[1].is_static() || !key_ps[1].is_static() || !value_ps[1].is_static() ||
-        !key_cache_ps[1].is_static() || !selected_ps[1].is_static()) {
+        !selected_ps[1].is_static()) {
         reason = "PagedSparseAttention CPU implementation requires static head dimensions.";
         return false;
     }
     const auto query_width = static_cast<size_t>(query_ps[1].get_length());
     const auto key_width = static_cast<size_t>(key_ps[1].get_length());
     const auto value_width = static_cast<size_t>(value_ps[1].get_length());
-    config.num_kv_heads = static_cast<size_t>(key_cache_ps[1].get_length());
     config.num_selection_heads = static_cast<size_t>(selected_ps[1].get_length());
-    // The head sizes are derived from the widths of the flattened inputs: they must split evenly.
-    if (config.num_kv_heads == 0 || key_width % config.num_kv_heads != 0 || value_width % config.num_kv_heads != 0) {
-        reason = "PagedSparseAttention: key and value widths must be multiples of the number of KV heads.";
+    // The head counts and sizes are fixed by the model. The transformation that creates the op records them in the
+    // runtime info (like PagedAttention), because the cache shapes are padded when the caches are quantized.
+    const auto& rt = op.get_rt_info();
+    for (const char* name : {"num_k_heads", "k_head_size", "num_v_heads", "v_head_size"}) {
+        if (rt.count(name) == 0UL) {
+            reason = std::string("PagedSparseAttention CPU implementation requires the runtime info ") + name;
+            return false;
+        }
+    }
+    config.num_kv_heads = rt.at("num_k_heads").as<size_t>();
+    config.k_head_size = rt.at("k_head_size").as<size_t>();
+    config.v_head_size = rt.at("v_head_size").as<size_t>();
+    if (config.num_kv_heads == 0 || rt.at("num_v_heads").as<size_t>() != config.num_kv_heads ||
+        key_width != config.num_kv_heads * config.k_head_size ||
+        value_width != config.num_kv_heads * config.v_head_size) {
+        reason =
+            "PagedSparseAttention: the key and value widths must match the head counts and sizes of the runtime info.";
         return false;
     }
-    config.k_head_size = key_width / config.num_kv_heads;
-    config.v_head_size = value_width / config.num_kv_heads;
     if (config.k_head_size == 0 || config.v_head_size == 0 || query_width % config.k_head_size != 0) {
         reason = "PagedSparseAttention: the query width must be a multiple of the key head size.";
         return false;
@@ -252,48 +266,39 @@ void SparsePA::createPrimitive() {
     [[maybe_unused]] const auto Dh = m_config.k_head_size;
     // The page size is KEY_CACHE's dim 2; if it is dynamic the merge-unit/page fit can't be decided.
     // By-channel quantized key pages carry parameter rows in dim 2, so quantized caches use the derived page size.
-    const auto page_size =
-        m_quant.enabled() ? m_quant.block_size : getInputShapeAtPort(InputIdx::KEY_CACHE).getDims()[2];
+    const auto page_size = isQuantized() ? m_config.page_size : getInputShapeAtPort(InputIdx::KEY_CACHE).getDims()[2];
+    CPU_NODE_ASSERT(page_size == Shape::UNDEFINED_DIM || page_size % m_config.key_block_size == 0,
+                    "the cache page size ",
+                    page_size,
+                    " must be divisible by key_block_size ",
+                    m_config.key_block_size);
     // Adjacent selected blocks of one page are attended as one run of up to a page of rows; with a dynamic page size
     // every block is its own run.
-    m_max_run_rows = page_size != Shape::UNDEFINED_DIM ? page_size : m_config.key_block_size;
+    m_config.max_run_rows = page_size != Shape::UNDEFINED_DIM ? page_size : m_config.key_block_size;
+    m_config.brgemm = {};
+    const auto query_prec = getOriginalInputPrecisionAtPort(InputIdx::QUERY);
+    m_config.data_precision = query_prec;
 #ifdef OPENVINO_ARCH_X86_64
-    // AMX matrix products over the selected rows of a work item (see sparse_brgemm_kernel.hpp), for the prefill and the
+    // AMX matrix products over the selected rows of a work item (see attn_brgemm_tiles.hpp), for the prefill and the
     // decode of a large selection: bf16 / f16 data on hardware with the matching AMX, a pack of several query heads
     // (the M of the products), and the causal selection.
-    const auto query_prec = getOriginalInputPrecisionAtPort(InputIdx::QUERY);
     const bool amx =
         (query_prec == ov::element::bf16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16)) ||
         (query_prec == ov::element::f16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_fp16));
     const size_t pack = ov::Extensions::Cpu::max_q_head_pack_size(m_config.num_heads,
                                                                   m_config.num_kv_heads,
                                                                   m_config.num_selection_heads);
-    if (amx && m_config.causal && ov::Extensions::Cpu::SparseBrgemmKernels::supports_pack(pack)) {
-        m_brgemm = get_sparse_brgemm_kernels(context->getParamsCache(),
-                                             pack,
-                                             Dh,
-                                             m_config.v_head_size,
-                                             ov::Extensions::Cpu::kGatherTileRows,
-                                             query_prec);
+    if (amx && m_config.causal && ov::Extensions::Cpu::TileBrgemmKernels::supports_pack(pack)) {
+        m_brgemm = ov::Extensions::Cpu::TileBrgemmKernels::get(context->getParamsCache(),
+                                                               pack,
+                                                               Dh,
+                                                               m_config.v_head_size,
+                                                               ov::Extensions::Cpu::kGatherTileRows,
+                                                               query_prec);
+        m_config.brgemm = m_brgemm.handle();
     }
 #endif
-}
-
-ov::Extensions::Cpu::SparsePAScratchLayout SparsePA::scratchLayout() const {
-#ifdef OPENVINO_ARCH_X86_64
-    const auto brgemm_sizes = ov::Extensions::Cpu::sparse_brgemm_sizes(m_brgemm.handle);
-#else
-    const ov::Extensions::Cpu::SparseBrgemmSizes brgemm_sizes{};
-#endif
-    return {m_config.k_head_size,
-            m_config.v_head_size,
-            m_max_run_rows,
-            ov::Extensions::Cpu::max_q_head_pack_size(m_config.num_heads,
-                                                      m_config.num_kv_heads,
-                                                      m_config.num_selection_heads),
-            getOriginalInputPrecisionAtPort(InputIdx::QUERY).size(),
-            m_quant,
-            brgemm_sizes};
+    m_executor = ov::Extensions::Cpu::XARCH::make_sparse_pa_executor(m_config);
 }
 
 void SparsePA::initSupportedPrimitiveDescriptors() {
@@ -308,7 +313,7 @@ void SparsePA::initSupportedPrimitiveDescriptors() {
     // Float ports keep the precision settled upstream: the caches grow every step, so a Reorder would convert the
     // whole history each call. The page table and selection inputs are i32; SCALE keeps its own precision and is read
     // as f32. Plain caches: the query type, or f16 next to f32 data like PagedAttention.
-    if (!m_quant.enabled()) {
+    if (!isQuantized()) {
         const auto query_prec = getOriginalInputPrecisionAtPort(InputIdx::QUERY);
         const auto cache_prec = getOriginalInputPrecisionAtPort(InputIdx::KEY_CACHE);
         CPU_NODE_ASSERT(cache_prec == query_prec || (query_prec == ov::element::f32 && cache_prec == ov::element::f16),
@@ -356,58 +361,46 @@ void SparsePA::execute([[maybe_unused]] const dnnl::stream& strm) {
         break;
     }
     PlainTensor out(getDstMemoryAtPort(0));
+    const auto& cpu_parallel = context->getCpuParallel();
 
-    // The width of selected_block_indices is only needed by phase 2 (it sizes the AMX run decomposition), so it need
-    // not be static.
-    const auto layout = scratchLayout();
-    // Phase 2 scratch: one block per worker thread, then one token id per token for the kernel's work list (see
-    // WorkList).
-    const size_t thread_scratch_bytes =
-        static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads()) * layout.total;
-    const size_t attention_bytes = thread_scratch_bytes + query.size(0) * sizeof(int32_t);
-    // Phase 1 scratch (the slot mapping and the by-channel requantization buffer). The phases are separated by a
-    // barrier, so they share the start of one scratchpad request: a second request would free the first one's memory.
-    const size_t block_size = m_quant.enabled() ? m_quant.block_size : key_cache.size(2);
+    const size_t block_size = m_config.page_size ? m_config.page_size : key_cache.size(2);
+    CPU_NODE_ASSERT(block_size % c.key_block_size == 0,
+                    "the cache page size ",
+                    block_size,
+                    " must be divisible by key_block_size ",
+                    c.key_block_size);
+    check_paged_page_table(past_lens,
+                           subsequence_begins,
+                           block_indices,
+                           block_indices_begins,
+                           query.size(0),
+                           block_size,
+                           std::min(key_cache.size(0), value_cache.size(0)));
+
+    const ov::Extensions::Cpu::SparsePATensors tensors{query,
+                                                       key_cache,
+                                                       value_cache,
+                                                       block_indices,
+                                                       block_indices_begins,
+                                                       subsequence_begins,
+                                                       past_lens,
+                                                       sel_indices,
+                                                       sel_count,
+                                                       out,
+                                                       scale};
+    // Phase 1 scratch (the slot mapping and the by-channel requantization buffer) and phase 2 scratch (the executor's).
+    // The phases are separated by a barrier, so they share the start of one scratchpad request: a second request would
+    // free the first one's memory.
     const size_t write_bytes = writeKVScratchBytes(query.size(0), block_size);
-    const auto scratch = context->getScratchPad()->createScratchPadMem(
-        std::make_shared<CpuBlockedMemoryDesc>(ov::element::u8,
-                                               ov::intel_cpu::Shape{std::max(attention_bytes, write_bytes)}));
+    const auto scratch = context->getScratchPad()->createScratchPadMem(std::make_shared<CpuBlockedMemoryDesc>(
+        ov::element::u8,
+        ov::intel_cpu::Shape{std::max(m_executor->scratch_bytes(tensors, cpu_parallel), write_bytes)}));
 
     // Phase 1: write the current K/V into the caches (parallel over token x kv head); it completes before phase 2,
     // the sparse attention, reads them.
     writeKV(scratch->getDataAs<uint8_t>());
-    // Phase 2: sparse attention, parallel over (query token, query head pack), with per-thread scratch that the kernel
-    // carves with the same layout.
-    ov::Extensions::Cpu::XARCH::sparse_pa_compute(
-        query,
-        key_cache,
-        value_cache,
-        block_indices,
-        block_indices_begins,
-        subsequence_begins,
-        past_lens,
-        sel_indices,
-        sel_count,
-        out,
-        c.num_heads,
-        c.num_kv_heads,
-        c.k_head_size,
-        c.v_head_size,
-        c.key_block_size,
-        c.num_selection_heads,
-        c.causal,
-        scale,
-        m_quant,
-        m_max_run_rows,
-#ifdef OPENVINO_ARCH_X86_64
-        m_brgemm.handle,
-#else
-        ov::Extensions::Cpu::SparseBrgemm{},
-#endif
-        scratch->getDataAs<uint8_t>(),
-        layout.total,
-        reinterpret_cast<int32_t*>(scratch->getDataAs<uint8_t>() + thread_scratch_bytes),
-        context->getCpuParallel());
+    // Phase 2: sparse attention, parallel over (query token, query head pack).
+    m_executor->execute(tensors, scratch->getDataAs<uint8_t>(), cpu_parallel);
 }
 
 bool SparsePA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
@@ -424,7 +417,7 @@ bool SparsePA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, s
                 return false;
             }
         }
-        // The caches are either both plain f32/f16/bf16 or both quantized to u8/u4 (see SparsePAQuant).
+        // The caches are either both plain f32/f16/bf16 or both quantized to u8/u4 (see CacheSpec).
         const auto is_plain = [](const ov::element::Type& prec) {
             return prec == ov::element::f32 || prec == ov::element::f16 || prec == ov::element::bf16;
         };

@@ -1888,13 +1888,9 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ov::N
                             prec);
         }
     }
-    m_key_spec.group_size = (cpuConfig.keyCacheGroupSize == 0 || keyS % cpuConfig.keyCacheGroupSize != 0)
-                                ? keyS
-                                : cpuConfig.keyCacheGroupSize;
+    m_key_spec.group_size = ov::Extensions::Cpu::resolve_group_size(cpuConfig.keyCacheGroupSize, keyS);
     m_key_spec.precision = keyCachePrecision;
-    m_value_spec.group_size = (cpuConfig.valueCacheGroupSize == 0 || valueS % cpuConfig.valueCacheGroupSize != 0)
-                                  ? valueS
-                                  : cpuConfig.valueCacheGroupSize;
+    m_value_spec.group_size = ov::Extensions::Cpu::resolve_group_size(cpuConfig.valueCacheGroupSize, valueS);
     m_value_spec.precision = valueCachePrecision;
 
     if (const auto node = ov::as_type_ptr<const ov::op::v13::ScaledDotProductAttention>(op)) {
