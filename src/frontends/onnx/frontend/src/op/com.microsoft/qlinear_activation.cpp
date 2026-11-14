@@ -104,6 +104,34 @@ ov::OutputVector qlinear_avg_pool(const ov::frontend::onnx::Node& node) {
     });
 }
 
+ov::OutputVector qlinear_global_average_pool(const ov::frontend::onnx::Node& node) {
+    // Original documentation:
+    // https://github.com/microsoft/onnxruntime/blob/main/docs/ContribOperators.md#commicrosoftqlinearglobalaveragepool
+    // Averages a quantized tensor over all of its spatial dimensions, which stay in the output with size 1.
+    return qlinear_activation(node, [&](const std::shared_ptr<ov::Node>& input_dequantized) {
+        const auto channels_last = node.get_attribute_value<int64_t>("channels_last", 0) != 0;
+
+        const auto input_rank = input_dequantized->get_output_partial_shape(0).rank();
+        CHECK_VALID_NODE(node, input_rank.is_static(), "Input rank must be static for QLinearGlobalAveragePool");
+        const auto rank = input_rank.get_length();
+        CHECK_VALID_NODE(node, rank >= 3, "QLinearGlobalAveragePool expects an input of rank 3 or more. Got: ", rank);
+
+        // The spatial dimensions are [2, rank) in the N x C x D1 x ... x Dn layout
+        // and [1, rank - 1) in the channels-last N x D1 x ... x Dn x C layout.
+        const int64_t first_spatial_axis = channels_last ? 1 : 2;
+        const int64_t end_spatial_axis = channels_last ? rank - 1 : rank;
+        std::vector<int64_t> axes;
+        for (int64_t axis = first_spatial_axis; axis < end_spatial_axis; ++axis) {
+            axes.push_back(axis);
+        }
+
+        const bool keep_dims = true;
+        return std::make_shared<v1::ReduceMean>(input_dequantized,
+                                                v0::Constant::create(element::i64, {axes.size()}, axes),
+                                                keep_dims);
+    });
+}
+
 ov::OutputVector qlinear_reduce_mean(const ov::frontend::onnx::Node& node) {
     return qlinear_activation(node, [&](const std::shared_ptr<ov::Node>& input_dequantized) {
         auto axes = node.get_attribute_value<std::vector<int64_t>>("axes");
@@ -138,6 +166,10 @@ bool register_multiple_operators(void) {
     ONNX_OP_M("QLinearSigmoid", OPSET_SINCE(1), com_microsoft::opset_1::qlinear_sigmoid, MICROSOFT_DOMAIN);
     ONNX_OP_M("QLinearLeakyRelu", OPSET_SINCE(1), com_microsoft::opset_1::qlinear_leaky_relu, MICROSOFT_DOMAIN);
     ONNX_OP_M("QLinearAveragePool", OPSET_SINCE(1), com_microsoft::opset_1::qlinear_avg_pool, MICROSOFT_DOMAIN);
+    ONNX_OP_M("QLinearGlobalAveragePool",
+              OPSET_SINCE(1),
+              com_microsoft::opset_1::qlinear_global_average_pool,
+              MICROSOFT_DOMAIN);
     ONNX_OP_M("QLinearReduceMean", OPSET_SINCE(1), com_microsoft::opset_1::qlinear_reduce_mean, MICROSOFT_DOMAIN);
     ONNX_OP_M("QLinearSoftmax", OPSET_SINCE(1), com_microsoft::opset_1::qlinear_softmax, MICROSOFT_DOMAIN);
 

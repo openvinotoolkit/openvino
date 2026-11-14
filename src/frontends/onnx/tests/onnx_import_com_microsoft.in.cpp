@@ -10101,3 +10101,31 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_query_seqlens_sliding_window_decod
          1.051573f,  -0.464264f, -0.082366f, 0.321527f,  0.057996f,  -0.504767f, 1.920703f,  -1.825270f});
     test_case.run_with_tolerance_as_fp();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_qlinear_global_average_pool) {
+    const auto model = convert_model("com.microsoft/qlinear_global_average_pool.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<uint8_t>(Shape{1, 2, 2, 2}, {128, 130, 132, 134, 128, 132, 136, 140});
+    test_case.add_input<float>(Shape{}, {0.5f});
+    test_case.add_input<uint8_t>(Shape{}, {128});
+    test_case.add_input<float>(Shape{}, {0.5f});
+    test_case.add_input<uint8_t>(Shape{}, {10});
+    test_case.add_expected_output<uint8_t>(Shape{1, 2, 1, 1}, {13, 16});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_qlinear_global_average_pool_channels_last) {
+    const auto model = convert_model("com.microsoft/qlinear_global_average_pool_channels_last.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<uint8_t>(Shape{1, 2, 2, 2}, {128, 128, 130, 132, 132, 136, 134, 140});
+    test_case.add_input<float>(Shape{}, {0.5f});
+    test_case.add_input<uint8_t>(Shape{}, {128});
+    test_case.add_input<float>(Shape{}, {0.5f});
+    test_case.add_input<uint8_t>(Shape{}, {10});
+    test_case.add_expected_output<uint8_t>(Shape{1, 1, 1, 2}, {13, 16});
+
+    test_case.run();
+}
