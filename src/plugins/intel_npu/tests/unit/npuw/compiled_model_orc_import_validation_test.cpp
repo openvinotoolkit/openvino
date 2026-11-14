@@ -5,7 +5,9 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "openvino/op/parameter.hpp"
@@ -89,9 +91,11 @@ private:
     std::shared_ptr<ov::Model> m_model;
 };
 
-std::shared_ptr<TestPlugin> make_test_plugin() {
+using TestCore = testing::NiceMock<ov::MockICore>;
+
+std::pair<std::shared_ptr<TestPlugin>, std::shared_ptr<TestCore>> make_test_plugin_with_core() {
     auto plugin = std::make_shared<TestPlugin>();
-    auto core = std::make_shared<testing::NiceMock<ov::MockICore>>();
+    auto core = std::make_shared<TestCore>();
 
     ON_CALL(*core, get_supported_property(testing::_, testing::_, testing::_))
         .WillByDefault([](const std::string&, const ov::AnyMap& properties, const bool) {
@@ -131,7 +135,11 @@ std::shared_ptr<TestPlugin> make_test_plugin() {
         });
 
     plugin->set_core(core);
-    return plugin;
+    return {plugin, core};
+}
+
+std::shared_ptr<TestPlugin> make_test_plugin() {
+    return make_test_plugin_with_core().first;
 }
 
 std::shared_ptr<ov::npuw::CompiledModel> make_compiled_model_with_input_link(
@@ -163,6 +171,76 @@ std::shared_ptr<ov::Model> make_simple_model(const std::string& name) {
     return std::make_shared<ov::Model>(ov::OutputVector{res->output(0)}, ov::ParameterVector{param}, name);
 }
 
+class ExportableSubCompiledModel final : public ov::ICompiledModel {
+public:
+    ExportableSubCompiledModel(const std::shared_ptr<ov::Model>& model,
+                               const std::shared_ptr<const ov::IPlugin>& plugin)
+        : ov::ICompiledModel(model, plugin, nullptr, nullptr),
+          m_model(model) {}
+
+    void export_model(std::ostream& stream) const override {
+        stream.write("compiled", 8);
+    }
+    std::shared_ptr<const ov::Model> get_runtime_model() const override {
+        return m_model;
+    }
+    void set_property(const ov::AnyMap&) override {}
+    ov::Any get_property(const std::string& name) const override {
+        if (name == ov::execution_devices.name()) {
+            return std::vector<std::string>{"NPU"};
+        }
+        return {};
+    }
+    std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
+        return {};
+    }
+    std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override {
+        return {};
+    }
+
+private:
+    std::shared_ptr<ov::Model> m_model;
+};
+
+std::string make_submodel_orc_blob(const std::shared_ptr<TestPlugin>& plugin, const std::shared_ptr<TestCore>& core) {
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(make_simple_model("outer"), plugin, true);
+    compiled->m_cfg.update({{"NPUW_DEVICES", "NPU"}});
+    compiled->m_dev_list = {"NPU"};
+    compiled->m_inputs_to_submodels_inputs = {ov::npuw::CompiledModel::NO_LINK};
+    compiled->m_outputs_to_submodels_outputs = {{0u, 0u}};
+    compiled->m_param_subscribers.clear();
+    compiled->m_submodels_input_to_prev_output.clear();
+    compiled->set_weights_bank(ov::npuw::weights::bank("test_bank", core, ""));
+
+    auto submodel_plugin = std::make_shared<TestPlugin>();
+    auto submodel_model = make_simple_model("submodel");
+    ov::npuw::CompiledModel::CompiledModelDesc desc;
+    desc.compiled_model =
+        ov::SoPtr<ov::ICompiledModel>{std::make_shared<ExportableSubCompiledModel>(submodel_model, submodel_plugin)};
+    compiled->m_compiled_submodels.push_back(std::move(desc));
+
+    std::stringstream stream(std::ios::in | std::ios::out | std::ios::binary);
+    compiled->export_model(stream);
+    return stream.str();
+}
+
+std::string shorten_submodel_section(std::string blob) {
+    std::stringstream stream(blob, std::ios::in | std::ios::out | std::ios::binary);
+    ov::npuw::orc::read_file_header(stream);
+    ov::npuw::orc::ScopedReadSection root(stream);
+    ov::npuw::orc::ScopedReadSection metadata(stream);
+    stream.seekg(static_cast<std::streamoff>(metadata.remaining()), std::ios::cur);
+    metadata.expect_end();
+
+    const auto section_header_pos = stream.tellg();
+    const auto short_size = static_cast<std::uint64_t>(sizeof(std::size_t) + sizeof(bool) + sizeof(std::size_t));
+    constexpr auto size_field_offset =
+        sizeof(ov::npuw::orc::TypeId) + sizeof(ov::npuw::orc::Version) + sizeof(ov::npuw::orc::SectionFlags);
+    stream.seekp(section_header_pos + static_cast<std::streamoff>(size_field_offset));
+    stream.write(reinterpret_cast<const char*>(&short_size), sizeof(short_size));
+    return stream.str();
+}
+
 void add_fake_submodel(const std::shared_ptr<ov::npuw::CompiledModel>& compiled) {
     auto model = make_simple_model("fake_sub");
     auto plugin = make_test_plugin();
@@ -187,6 +265,27 @@ TEST(CompiledModelOrcImportValidationTest, AcceptsNoLinkInputRouting) {
 
     ASSERT_NE(compiled, nullptr);
     EXPECT_NO_THROW(ov::npuw::CompiledModel::validate_import_routing_tables(compiled));
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsSubmodelBlobOverrunBeforeNestedImport) {
+    auto [plugin, core] = make_test_plugin_with_core();
+    auto blob = shorten_submodel_section(make_submodel_orc_blob(plugin, core));
+    std::stringstream stream(blob, std::ios::in | std::ios::binary);
+
+    EXPECT_CALL(*core, import_model(testing::A<std::istream&>(), testing::A<const std::string&>(), testing::_))
+        .Times(0);
+    EXPECT_THROW(ov::npuw::CompiledModel::import_model(stream, plugin, {}), ov::Exception);
+}
+
+TEST(CompiledModelOrcImportValidationTest, ImportsSubmodelWithValidSectionSize) {
+    auto [plugin, core] = make_test_plugin_with_core();
+    auto blob = make_submodel_orc_blob(plugin, core);
+    auto imported_model = std::make_shared<ExportableSubCompiledModel>(make_simple_model("imported"), plugin);
+    std::stringstream stream(blob, std::ios::in | std::ios::binary);
+
+    EXPECT_CALL(*core, import_model(testing::A<std::istream&>(), testing::A<const std::string&>(), testing::_))
+        .WillOnce(testing::Return(ov::SoPtr<ov::ICompiledModel>{imported_model}));
+    EXPECT_NO_THROW(ov::npuw::CompiledModel::import_model(stream, plugin, {}));
 }
 
 TEST(CompiledModelOrcImportValidationTest, RejectsInputRoutingToMissingSubmodel) {
