@@ -144,8 +144,8 @@ def graph_has_ops(graph, op_types: list) -> bool:
             return True
         for block in node.blocks():
             res = graph_has_ops(block, op_types)
-        if res:
-            return res
+            if res:
+                return res
     return res
 
 
