@@ -9,6 +9,7 @@
 #include <iostream>
 #include <list>
 #include <memory>
+#include <tuple>
 
 #include "common_test_utils/matcher.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
@@ -1759,3 +1760,33 @@ TEST(pattern, wrap_type_strict_index_output_grows_through_base_handle) {
     EXPECT_THROW(plain_p->output(1), ov::Exception);
     EXPECT_EQ(plain_p->get_output_size(), 1);
 }
+
+using CommutativeOperandOrder = std::tuple<bool, bool>;
+
+class pattern_commutative_arguments : public testing::TestWithParam<CommutativeOperandOrder> {};
+
+TEST_P(pattern_commutative_arguments, matches_any_operand_order) {
+    const auto& [swap0, swap1] = GetParam();
+
+    // (param * scale0) * scale1
+    auto p_param = pattern::wrap_type<op::v0::Parameter>();
+    auto p_scale0 = pattern::wrap_type<op::v0::Constant>();
+    auto p_mul0 = pattern::wrap_type<op::v1::Multiply>({p_param, p_scale0});
+    auto p_scale1 = pattern::wrap_type<op::v0::Constant>();
+    auto p_mul1 = pattern::wrap_type<op::v1::Multiply>({p_mul0, p_scale1});
+
+    const Shape shape{2, 3};
+    auto x = std::make_shared<op::v0::Parameter>(element::f32, shape);
+    auto c0 = op::v0::Constant::create(element::f32, shape, {2.0f});
+    auto c1 = op::v0::Constant::create(element::f32, shape, {3.0f});
+    auto mul0 = swap0 ? std::make_shared<op::v1::Multiply>(c0, x) : std::make_shared<op::v1::Multiply>(x, c0);
+    auto mul1 = swap1 ? std::make_shared<op::v1::Multiply>(c1, mul0) : std::make_shared<op::v1::Multiply>(mul0, c1);
+
+    TestMatcher tm;
+    ASSERT_TRUE(tm.match(p_mul1, mul1));
+    EXPECT_EQ(tm.get_pattern_map()[p_param], x);
+    EXPECT_EQ(tm.get_pattern_map()[p_scale0], c0);
+    EXPECT_EQ(tm.get_pattern_map()[p_scale1], c1);
+}
+
+INSTANTIATE_TEST_SUITE_P(pattern, pattern_commutative_arguments, testing::Combine(testing::Bool(), testing::Bool()));
