@@ -20,6 +20,7 @@
 #include "node_context.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/frontend/gguf/tokenizer_metadata.hpp"
@@ -121,7 +122,8 @@ void prepare_graph_inputs(TensorMap& tensor_map, GgufDecoder& gguf_model_decoder
 void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
                     std::shared_ptr<TensorMap>& tensor_map,
                     const std::unordered_map<std::string, CreatorFunction>& translators,
-                    const std::shared_ptr<ConstantCache>& constant_cache) {
+                    const std::shared_ptr<ConstantCache>& constant_cache,
+                    std::unordered_map<std::string, std::string>* storage_aliases) {
     const auto& operation_type = decoder->get_op_type();
     if (operation_type == "GGML_OP_NONE") {
         const bool is_builder_weight = decoder->get_attribute("gguf_source").is<GgufWeight>();
@@ -150,10 +152,90 @@ void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
                                   converted_outputs.size(),
                                   " respectively.");
 
+    if (!storage_aliases) {
+        for (size_t i = 0; i < node_output_names.size(); ++i) {
+            if (converted_outputs[i].get_node_shared_ptr())
+                (*tensor_map)[node_output_names[i]] = converted_outputs[i];
+        }
+        return;
+    }
+    const auto storage_name = [&](const std::string& name) {
+        const auto it = storage_aliases->find(name);
+        return it == storage_aliases->end() ? name : it->second;
+    };
+    // Operations that return their whole destination with a region rewritten update that storage in
+    // place: every later read of the storage, and the model output written back to it, must see the
+    // new value. SET_ROWS writes rows of input 2, a CPY update ("axis") writes a range of input 1, and a
+    // ranged SCALE (start/length inputs) rescales a range of input 0.
+    int updated_input = -1;
+    if (operation_type == "GGML_OP_SET_ROWS") {
+        updated_input = 2;
+    } else if (operation_type == "GGML_OP_CPY" && !decoder->get_attribute("axis").empty()) {
+        updated_input = 1;
+    } else if (operation_type == "GGML_OP_SCALE" && decoder->get_input_size() == 3) {
+        updated_input = 0;
+    }
+    std::string output_storage;
+    ov::Output<Node> updated_root;
+    if (updated_input >= 0) {
+        const auto destination = node_context.get_input(updated_input);
+        output_storage = storage_name(decoder->get_input_names().at(updated_input));
+        const auto previous_root = tensor_map->at(output_storage);
+        updated_root =
+            previous_root == destination
+                ? converted_outputs.at(0)
+                : std::make_shared<v1::Reshape>(converted_outputs.at(0),
+                                                std::make_shared<v3::ShapeOf>(previous_root, ov::element::i64),
+                                                false)
+                      ->output(0);
+        std::unordered_map<Node*, std::shared_ptr<Node>> rebound_nodes;
+        const auto rebind = [&](auto&& self, const ov::Output<Node>& value) -> ov::Output<Node> {
+            if (value == previous_root) {
+                return updated_root;
+            }
+            const auto node = value.get_node_shared_ptr();
+            const auto found = rebound_nodes.find(node.get());
+            if (found != rebound_nodes.end()) {
+                return found->second->output(value.get_index());
+            }
+            auto inputs = node->input_values();
+            bool changed = false;
+            for (auto& input : inputs) {
+                auto replacement = self(self, input);
+                changed = changed || replacement != input;
+                input = replacement;
+            }
+            auto rebound = changed ? node->clone_with_new_inputs(inputs) : node;
+            if (changed) {
+                ov::copy_runtime_info(node, rebound);
+            }
+            rebound_nodes.emplace(node.get(), rebound);
+            return rebound->output(value.get_index());
+        };
+        TensorMap updates;
+        // Source RESHAPE aliases share storage; CONT copies may share an OV node but must not be rebound.
+        // Replay their shape expressions on the new value, including ShapeOf, so growing state stays dynamic.
+        for (const auto& entry : *tensor_map) {
+            if (storage_name(entry.first) == output_storage) {
+                updates[entry.first] =
+                    entry.second == destination ? converted_outputs.at(0) : rebind(rebind, entry.second);
+            }
+        }
+        for (const auto& update : updates) {
+            (*tensor_map)[update.first] = update.second;
+        }
+    } else if (operation_type == "GGML_OP_RESHAPE") {
+        output_storage = storage_name(decoder->get_input_names().at(0));
+    }
     for (size_t i = 0; i < node_output_names.size(); ++i) {
         const auto& output_name = node_output_names[i];
-        if (i < converted_outputs.size() && converted_outputs[i].get_node_shared_ptr() != nullptr) {
-            (*tensor_map)[output_name] = converted_outputs[i];
+        if (converted_outputs[i].get_node_shared_ptr()) {
+            (*tensor_map)[output_name] =
+                updated_input >= 0 && output_name == output_storage ? updated_root : converted_outputs[i];
+        }
+        storage_aliases->erase(output_name);
+        if (!output_storage.empty() && output_storage != output_name) {
+            (*storage_aliases)[output_name] = output_storage;
         }
     }
 }
@@ -220,8 +302,9 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
     // lazy (never materialized to f32) and keeps one weight-loading path for both ingest paths.
 
     const auto constant_cache = std::make_shared<ConstantCache>();
+    std::unordered_map<std::string, std::string> storage_aliases;
     auto node_visitor = [&](std::shared_ptr<GgufDecoder> decoder) {
-        translate_node(decoder, tensor_map, m_translator_map, constant_cache);
+        translate_node(decoder, tensor_map, m_translator_map, constant_cache, &storage_aliases);
     };
 
     // Build the shared LLM scaffolding (sliced attention mask + rope sin/cos table) once, so all
@@ -350,19 +433,26 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
     // the same convention the GPU plugin uses for non-IR models (see
     // Plugin::set_weightless_cache_attributes in intel_gpu/src/plugin/plugin.cpp).
     // Each constant must have a distinct bin_offset, otherwise GPU's weightless cache
-    // import will map multiple constants to the same data.
+    // import will map multiple constants to the same data. A decoder that provides a
+    // weights-file resolver supplies real offsets in its own weights file instead.
     //
     // Small constants (< 16 elements) are excluded since they may be introduced by
     // optimization patterns and the overhead is negligible.
+    const auto weights_file = gguf_model_decoder->get_weights_file_resolver();
     size_t offset = 0;
     for (auto& node : resulting_model->get_ordered_ops()) {
         if (auto cnst = ov::as_type_ptr<ov::op::v0::Constant>(node);
             cnst && cnst->get_element_type().size() > 0 &&
             cnst->get_byte_size() / cnst->get_element_type().size() >= 16) {
             auto& rt_info = cnst->get_rt_info();
-            if (rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static()) == rt_info.end()) {
+            if (rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static()) != rt_info.end()) {
+                continue;
+            }
+            const auto bin_offset =
+                weights_file ? weights_file(cnst->get_data_ptr(), cnst->get_byte_size()) : std::optional{offset++};
+            if (bin_offset) {
                 rt_info[ov::WeightlessCacheAttribute::get_type_info_static()] =
-                    ov::WeightlessCacheAttribute(cnst->get_byte_size(), offset++, cnst->get_element_type());
+                    ov::WeightlessCacheAttribute(cnst->get_byte_size(), *bin_offset, cnst->get_element_type());
             }
         }
     }
@@ -387,6 +477,7 @@ std::shared_ptr<Model> TranslateSession::apply_transformations(std::shared_ptr<M
         ext->register_pass(manager);
     }
     manager.register_pass<pass::LowerSetRowsStateless>();
+    manager.register_pass<pass::SliceSharedKVReads>();
 
     manager.register_pass<ov::pass::ConvertConvertLike>();
     // The lowered ConvertLikes are frequently no-ops (k/v already share q's precision). Drop them:

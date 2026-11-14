@@ -455,6 +455,7 @@ bool GGUFMakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
         // Every remaining consumer of the write (attention's read of the cache) now reads the grown
         // Concat instead.
         ov::replace_node(set_rows, concat);
+        ov::replace_node(cache_param, past);
         model->add_variables({var});
 
         params_to_remove.push_back(cache_param);

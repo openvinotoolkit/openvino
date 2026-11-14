@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -9,12 +10,16 @@
 #include "node_context.hpp"
 #include "op_table.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sigmoid.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/tile.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
@@ -47,49 +52,52 @@ bool is_silu_div_pattern(const ov::Output<ov::Node>& numerator, const ov::Output
 
 // ggml broadcasts by integer repetition (a [.,n] tensor over a [.,k*n] tensor). OV's NUMPY divide
 // broadcast can't express that, so Tile the smaller input up to the target shape first.
-ov::Output<ov::Node> repeat_input_to_match(const NodeContext& context,
-                                           const ov::Output<ov::Node>& input,
-                                           const ov::Output<ov::Node>& target,
-                                           size_t input_index) {
-    const auto input_shape = context.get_input_shape(input_index);
-    const auto target_shape = context.get_input_shape(0);
+ov::Output<ov::Node> repeat_input_to_match(const ov::Output<ov::Node>& input, const ov::Output<ov::Node>& target) {
+    const auto input_shape = input.get_partial_shape();
+    const auto target_shape = target.get_partial_shape();
 
-    if (input_shape == target_shape) {
+    if (input_shape == target_shape && input_shape.rank().is_static()) {
         return input;
     }
 
     if (input_shape.rank().is_static() && target_shape.rank().is_static()) {
-        const auto rank = static_cast<size_t>(input_shape.rank().get_length());
+        const auto input_rank = static_cast<size_t>(input_shape.rank().get_length());
+        const auto target_rank = static_cast<size_t>(target_shape.rank().get_length());
+        const auto rank = std::max(input_rank, target_rank);
         std::vector<int64_t> repeats(rank, 1);
         bool needs_repeat = false;
 
         for (size_t axis = 0; axis < rank; ++axis) {
-            if (input_shape[axis].is_dynamic() || target_shape[axis].is_dynamic()) {
+            const auto input_dim =
+                axis < rank - input_rank ? ov::Dimension(1) : input_shape[axis - (rank - input_rank)];
+            const auto target_dim =
+                axis < rank - target_rank ? ov::Dimension(1) : target_shape[axis - (rank - target_rank)];
+            if (input_dim.is_dynamic() || target_dim.is_dynamic()) {
                 // Only the token axis is dynamic, and ggml never tiles it: both operands carry the
                 // same runtime count.
                 repeats[axis] = 1;
                 continue;
             }
 
-            const int64_t input_dim = input_shape[axis].get_length();
-            const int64_t target_dim = target_shape[axis].get_length();
+            const int64_t input_size = input_dim.get_length();
+            const int64_t target_size = target_dim.get_length();
 
             // An empty axis needs no repetition: repeating 0 elements any number of times still
             // yields 0. This is a real case, not a malformed graph -- an ubatch whose active token
             // count is 0 (the trailing chunk of a chunked prefill) reaches DIV as [.., 0, ..]
             // against a [.., 0, ..] target, where the divisibility test below would reject it.
-            if (input_dim == 0 && target_dim == 0) {
+            if (input_size == 0 && target_size == 0) {
                 repeats[axis] = 1;
                 continue;
             }
 
-            FRONT_END_OP_CONVERSION_CHECK(input_dim > 0 && target_dim > 0 && target_dim % input_dim == 0,
+            FRONT_END_OP_CONVERSION_CHECK(input_size > 0 && target_size % input_size == 0,
                                           "DIV input shape ",
                                           input_shape,
                                           " cannot repeat to match ",
                                           target_shape);
 
-            repeats[axis] = target_dim / input_dim;
+            repeats[axis] = target_size / input_size;
             needs_repeat = needs_repeat || repeats[axis] != 1;
         }
 
@@ -103,7 +111,21 @@ ov::Output<ov::Node> repeat_input_to_match(const NodeContext& context,
 
     auto input_shape_node = std::make_shared<ov::op::v3::ShapeOf>(input, ov::element::i64);
     auto target_shape_node = std::make_shared<ov::op::v3::ShapeOf>(target, ov::element::i64);
-    auto repeats_node = std::make_shared<ov::op::v1::Divide>(target_shape_node, input_shape_node);
+    auto input_rank = std::make_shared<ov::op::v3::ShapeOf>(input_shape_node, ov::element::i64);
+    auto target_rank = std::make_shared<ov::op::v3::ShapeOf>(target_shape_node, ov::element::i64);
+    auto rank = std::make_shared<ov::op::v1::Maximum>(input_rank, target_rank);
+    const auto pad_shape = [&](const ov::Output<ov::Node>& shape, const ov::Output<ov::Node>& shape_rank) {
+        auto prefix_size = std::make_shared<ov::op::v1::Subtract>(rank, shape_rank);
+        auto ones =
+            std::make_shared<ov::op::v3::Broadcast>(ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1}),
+                                                    prefix_size);
+        return std::make_shared<ov::op::v0::Concat>(ov::OutputVector{ones, shape}, 0);
+    };
+    auto safe_input_shape =
+        std::make_shared<ov::op::v1::Maximum>(pad_shape(input_shape_node, input_rank),
+                                              ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
+    auto repeats_node =
+        std::make_shared<ov::op::v1::Divide>(pad_shape(target_shape_node, target_rank), safe_input_shape);
     return std::make_shared<ov::op::v0::Tile>(input, repeats_node);
 }
 
@@ -125,7 +147,7 @@ OutputVector translate_div(const NodeContext& context) {
         return rename_outputs_with_suffix({std::move(res)}, context.get_name());
     }
 
-    input_1 = repeat_input_to_match(context, input_1, input_0, 1);
+    input_1 = repeat_input_to_match(input_1, input_0);
 
     const bool use_f32_compute = input_0.get_element_type() != ov::element::f32 ||
                                  input_1.get_element_type() != ov::element::f32 || output_type != ov::element::f32;

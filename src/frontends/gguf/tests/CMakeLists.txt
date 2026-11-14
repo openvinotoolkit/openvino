@@ -68,10 +68,12 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/builder/blocks/qkv_repack.cpp"
     "${FE_SRC_DIR}/op/add.cpp"
     "${FE_SRC_DIR}/op/add_id.cpp"
+    "${FE_SRC_DIR}/op/arange.cpp"
     "${FE_SRC_DIR}/op/argsort.cpp"
     "${FE_SRC_DIR}/op/clamp.cpp"
     "${FE_SRC_DIR}/op/concat.cpp"
     "${FE_SRC_DIR}/op/cont.cpp"
+    "${FE_SRC_DIR}/op/conv.cpp"
     "${FE_SRC_DIR}/op/cpy.cpp"
     "${FE_SRC_DIR}/op/cumsum.cpp"
     "${FE_SRC_DIR}/op/diag.cpp"
@@ -91,6 +93,7 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/op/permute.cpp"
     "${FE_SRC_DIR}/op/pool_2d.cpp"
     "${FE_SRC_DIR}/op/repeat.cpp"
+    "${FE_SRC_DIR}/op/reduce.cpp"
     "${FE_SRC_DIR}/op/reshape.cpp"
     "${FE_SRC_DIR}/op/rms_norm.cpp"
     "${FE_SRC_DIR}/op/roll.cpp"
@@ -110,6 +113,7 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/op/unary_elu.cpp"
     "${FE_SRC_DIR}/op/unary_gelu.cpp"
     "${FE_SRC_DIR}/op/unary_silu.cpp"
+    "${FE_SRC_DIR}/op/unary_math.cpp"
     "${FE_SRC_DIR}/op/view.cpp"
     "${FE_SRC_DIR}/op/weight.cpp"
 )
@@ -134,6 +138,7 @@ set(TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/test_weights.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_shared_linear_inputs.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_simplify_activation_shapes.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_slice_shared_kv_reads.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_hadamard_sign_folding.cpp"
 )
 

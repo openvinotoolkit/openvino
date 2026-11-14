@@ -19,7 +19,7 @@ with normalized MSE below `1e-5`.
 
 The standalone op tests in `test_ops.cpp` read `../mmproj_*.npy`, `../vision_rope_expected.npy`
 and `../multimodal_imrope_expected.npy`: window partition, SAM relative positions,
-vision/interleaved RoPE, antialiased bilinear resize and 2D im2col.
+vision/interleaved RoPE, antialiased bilinear resize and 2D/3D im2col.
 
 ## Reference revision
 
@@ -28,6 +28,9 @@ Base fixtures and op expectations come from llama.cpp
 which has aligned-corner position interpolation, the Muse Glimmer encoder, and a `ggml_clamp`
 that no longer clamps its source in place. The Gemma4 fixtures clip only the Q input, so
 clipping that leaks into the shared K/V input fails them.
+
+The 3D im2col expectations were generated with the same oracle against ggml commit
+`476c01efe88aad7880a8132d5d3a415f2ca75139`, covering partial windows, batching and dilation.
 
 ## Regenerating
 

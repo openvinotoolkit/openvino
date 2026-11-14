@@ -22,22 +22,24 @@ namespace ov::frontend::gguf::op {
 //   2 = LOWER_DIAG : keep where col <= row
 //   3 = LOWER      : keep where col <  row
 //
-// In OV layout (ggml [ne0, ne1, ne2, ne3] -> OV [ne3, ne2, ne1, ne0]): ggml dim 0 (ne0, cols) is
-// OV axis 3 and ggml dim 1 (ne1, rows) is OV axis 2. The matrix is square so ne0 == ne1.
-//
-// tri_type and n are both known at conversion time, so we build the exact [1,1,n,n] f32 keep-mask
-// (1.0 to keep, 0.0 to zero) as a constant and multiply. This avoids a Range/Compare/Select chain
-// over a folded boolean constant.
+// The last two OV axes are the square matrix; any leading axes are batch dimensions.
 OutputVector translate_tri(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
 
-    auto x = context.get_input(0);  // OV shape: [ne3, ne2, ne1, ne0]
+    auto x = context.get_input(0);
 
     auto tri_type = context.get_attribute<int>("tri_type");
 
-    auto shape = context.get_input_shape(0).to_shape();
-    size_t n = shape[3];  // ne0 == ne1
-    FRONT_END_GENERAL_CHECK(shape[2] == n, "translate_tri: expected a square matrix, got ", shape);
+    const auto shape = x.get_partial_shape();
+    FRONT_END_OP_CONVERSION_CHECK(shape.rank().is_static() && shape.rank().get_length() >= 2,
+                                  "TRI requires an operand of rank at least two");
+    const auto rank = static_cast<size_t>(shape.rank().get_length());
+    FRONT_END_OP_CONVERSION_CHECK(shape[rank - 2].is_static() && shape[rank - 1].is_static(),
+                                  "TRI requires static matrix dimensions");
+    const auto n = static_cast<size_t>(shape[rank - 1].get_length());
+    FRONT_END_GENERAL_CHECK(shape[rank - 2].get_length() == static_cast<int64_t>(n),
+                            "translate_tri: expected a square matrix, got ",
+                            shape);
 
     std::vector<float> mask(n * n, 0.0f);
     for (size_t row = 0; row < n; ++row) {
@@ -63,7 +65,7 @@ OutputVector translate_tri(const NodeContext& context) {
         }
     }
     // Build the mask in the node's own type, or an f16 input gets promoted to f32 by the Multiply.
-    auto keep_mask = ov::op::v0::Constant::create(x.get_element_type(), ov::Shape{1, 1, n, n}, mask);
+    auto keep_mask = ov::op::v0::Constant::create(x.get_element_type(), ov::Shape{n, n}, mask);
 
     auto res = std::make_shared<ov::op::v1::Multiply>(x, keep_mask);
 

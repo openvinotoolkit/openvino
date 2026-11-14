@@ -20,11 +20,71 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::op {
 
 OutputVector translate_cpy(const NodeContext& context) {
+    if (!context.get_attribute_as_any("axis").empty()) {
+        num_inputs_check(context, 2, 4);
+        const auto base = context.get_input(1);
+        const auto type = context.get_attribute<ov::element::Type>("dst_type", base.get_element_type());
+        const auto axis_value = context.get_attribute<int64_t>("axis");
+        auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+        auto limit = ov::op::v0::Constant::create(ov::element::i64, {1}, {INT64_MAX});
+        ov::Output<ov::Node> value = context.get_input(0);
+        const auto slice = context.get_attribute<std::vector<int64_t>>("source_slice", {});
+        if (!slice.empty()) {
+            FRONT_END_OP_CONVERSION_CHECK(slice.size() == 3, "CPY source_slice requires {axis, start, length}");
+            const ov::Output<ov::Node> begin =
+                context.get_input_size() == 4
+                    ? context.get_input(3)
+                    : ov::op::v0::Constant::create(ov::element::i64, {1}, {slice[1]})->output(0);
+            ov::Output<ov::Node> end = limit;
+            if (slice[2] >= 0) {
+                end =
+                    std::make_shared<ov::op::v1::Add>(begin,
+                                                      ov::op::v0::Constant::create(ov::element::i64, {1}, {slice[2]}));
+            }
+            value =
+                std::make_shared<ov::op::v8::Slice>(value,
+                                                    begin,
+                                                    end,
+                                                    one,
+                                                    ov::op::v0::Constant::create(ov::element::i64, {1}, {slice[0]}));
+        }
+        if (value.get_element_type() != type)
+            value = std::make_shared<ov::op::v0::Convert>(value, type);
+        const auto target = context.get_attribute<std::vector<int64_t>>("reshape_target", {});
+        if (!target.empty()) {
+            value = std::make_shared<ov::op::v1::Reshape>(
+                value,
+                ov::op::v0::Constant::create(ov::element::i64, {target.size()}, target),
+                context.get_attribute<bool>("special_zero", false));
+        }
+        const auto value_shape = value.get_partial_shape();
+        FRONT_END_OP_CONVERSION_CHECK(
+            value_shape.rank().is_static() && axis_value >= 0 && axis_value < value_shape.rank().get_length(),
+            "CPY update axis is outside the source rank");
+        if (value_shape[axis_value].is_static() && value_shape[axis_value].get_length() == 0)
+            return {base};
+        const ov::Output<ov::Node> begin =
+            context.get_input_size() >= 3
+                ? context.get_input(2)
+                : ov::op::v0::Constant::create(ov::element::i64,
+                                               {1},
+                                               {context.get_attribute<int64_t>("destination_offset", 0)})
+                      ->output(0);
+        auto end = std::make_shared<ov::op::v1::Add>(begin, get_dimensions(value, {static_cast<int>(axis_value)}));
+        auto axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {axis_value});
+        auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+        auto head = std::make_shared<ov::op::v8::Slice>(base, zero, begin, one, axis);
+        auto tail = std::make_shared<ov::op::v8::Slice>(base, end, limit, one, axis);
+        return rename_outputs_with_suffix(
+            {std::make_shared<ov::op::v0::Concat>(ov::OutputVector{head, value, tail}, axis_value)},
+            context.get_name());
+    }
     const int op_case = context.get_op_case();
     auto type = context.get_attribute<ov::element::Type>("dst_type", ov::element::dynamic);
     if (type.is_dynamic() && context.get_input_size() > 1 && context.has_input(context.get_input_names()[1])) {
@@ -160,6 +220,11 @@ OutputVector translate_cpy(const NodeContext& context) {
             src.get_node_shared_ptr()->set_friendly_name("conv_writeback_source_" + context.get_name());
         } else {
             src = context.get_input(0);
+            // Rows gathered from a [1, 1, slots, F] cache come back as [1, rows, F]; add the slot axis.
+            const auto src_rank = src.get_partial_shape().rank();
+            if (src_rank.is_static() && src_rank.get_length() == 3) {
+                src = std::make_shared<ov::op::v0::Unsqueeze>(src, zero);
+            }
         }
 
         if (src.get_element_type() != type) {
@@ -196,6 +261,22 @@ OutputVector translate_cpy(const NodeContext& context) {
     }
 
     ov::Output<ov::Node> res = std::make_shared<ov::op::v0::Convert>(value, type);
+    if (context.get_attribute_as_any("op_case").empty()) {
+        num_inputs_check(context, 1, 2);
+        const auto target = context.get_attribute<std::vector<int64_t>>("reshape_target", {});
+        if (!target.empty()) {
+            res = std::make_shared<ov::op::v1::Reshape>(
+                res,
+                ov::op::v0::Constant::create(ov::element::i64, {target.size()}, target),
+                context.get_attribute<bool>("special_zero", false));
+        } else if (context.get_input_size() == 2) {
+            res = std::make_shared<ov::op::v1::Reshape>(
+                res,
+                std::make_shared<ov::op::v3::ShapeOf>(context.get_input(1), ov::element::i64),
+                false);
+        }
+        return rename_outputs_with_suffix({res}, context.get_name());
+    }
 
     // A CPY may reinterpret the source layout into its destination's (e.g. qwen3-next's conv-state
     // writeback flattens the contiguous [S, F] conv_state_last into the flat [S*F] recurrent cache

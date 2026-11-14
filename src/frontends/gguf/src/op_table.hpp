@@ -18,6 +18,7 @@ GGUF_OP_CONVERTER(translate_add);
 GGUF_OP_CONVERTER(translate_concat);
 GGUF_OP_CONVERTER(translate_cont);
 GGUF_OP_CONVERTER(translate_cpy);
+GGUF_OP_CONVERTER(translate_dup);
 GGUF_OP_CONVERTER(translate_get_rows);
 GGUF_OP_CONVERTER(translate_get_rel_pos);
 GGUF_OP_CONVERTER(translate_win_part);
@@ -54,6 +55,10 @@ GGUF_OP_CONVERTER(translate_mul_mat_id);
 GGUF_OP_CONVERTER(translate_add_id);
 GGUF_OP_CONVERTER(translate_argsort);
 GGUF_OP_CONVERTER(translate_top_k);
+
+// Reductions.
+GGUF_OP_CONVERTER(translate_mean);
+GGUF_OP_CONVERTER(translate_sum);
 GGUF_OP_CONVERTER(translate_sum_rows);
 
 // Elementwise clamp and division.
@@ -68,8 +73,12 @@ GGUF_OP_CONVERTER(translate_unary_relu);
 GGUF_OP_CONVERTER(translate_unary_tanh);
 GGUF_OP_CONVERTER(translate_unary_sigmoid);
 GGUF_OP_CONVERTER(translate_unary_elu);
+GGUF_OP_CONVERTER(translate_unary_hardsigmoid);
 
 // Unary element-wise math.
+GGUF_OP_CONVERTER(translate_unary_expm1);
+GGUF_OP_CONVERTER(translate_unary_round);
+GGUF_OP_CONVERTER(translate_unary_step);
 GGUF_OP_CONVERTER(translate_sqr);
 GGUF_OP_CONVERTER(translate_sqrt);
 GGUF_OP_CONVERTER(translate_log);
@@ -81,11 +90,17 @@ GGUF_OP_CONVERTER(translate_cumsum);
 GGUF_OP_CONVERTER(translate_diag);
 GGUF_OP_CONVERTER(translate_tri);
 GGUF_OP_CONVERTER(translate_fill);
+GGUF_OP_CONVERTER(translate_arange);
 
 // Convolution-family / sequence ops.
 GGUF_OP_CONVERTER(translate_im2col);
+GGUF_OP_CONVERTER(translate_im2col_3d);
 GGUF_OP_CONVERTER(translate_pool_2d);
 GGUF_OP_CONVERTER(translate_conv_2d);
+GGUF_OP_CONVERTER(translate_conv_2d_dw);
+GGUF_OP_CONVERTER(translate_conv_3d);
+GGUF_OP_CONVERTER(translate_conv_transpose_1d);
+GGUF_OP_CONVERTER(translate_conv_transpose_2d);
 GGUF_OP_CONVERTER(translate_upscale);
 GGUF_OP_CONVERTER(translate_pad);
 GGUF_OP_CONVERTER(translate_roll);

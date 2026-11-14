@@ -127,15 +127,25 @@ OutputVector translate_soft_max(const NodeContext& context) {
         return rename_outputs_with_suffix({std::move(res)}, context.get_name());
     }
 
-    ov::Output<ov::Node> mask_node_sliced;
-    if (context.has_input("KQ_mask_sliced")) {
-        mask_node_sliced = context.get_input("KQ_mask_sliced");
-    } else {
-        auto token_len = get_dimensions(input0, {1});
+    ov::Output<ov::Node> mask_node_sliced = get_sliced_kq_mask(context, 1);
+    if (!mask_node_sliced.get_node()) {
         auto mask_node = context.get_input(1);
-        auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
-        auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
-        mask_node_sliced = std::make_shared<ov::op::v8::Slice>(mask_node, zero, token_len, one, one);
+        const auto rank = mask_node.get_partial_shape().rank();
+        FRONT_END_OP_CONVERSION_CHECK(rank.is_static() && rank.get_length() >= 2,
+                                      "SOFT_MAX mask requires rank at least two");
+        const int axis = static_cast<int>(rank.get_length()) - 2;
+        mask_node_sliced = mask_node;
+        if (mask_node.get_partial_shape()[axis] != 1) {
+            auto token_len = get_dimensions(input0, {-2});
+            auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+            auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+            mask_node_sliced =
+                std::make_shared<ov::op::v8::Slice>(mask_node,
+                                                    zero,
+                                                    token_len,
+                                                    one,
+                                                    ov::op::v0::Constant::create(ov::element::i64, {1}, {axis}));
+        }
     }
 
     auto output_type = input0.get_element_type();
@@ -155,18 +165,11 @@ OutputVector translate_soft_max(const NodeContext& context) {
         const int64_t head_axis = rank - 3;
         FRONT_END_OP_CONVERSION_CHECK(in_ps[head_axis].is_static(),
                                       "SOFT_MAX ALiBi requires a static head-count dimension");
-        const uint32_t n_head = static_cast<uint32_t>(in_ps[head_axis].get_length());
-        const uint32_t n_head_log2 = 1u << static_cast<uint32_t>(std::floor(std::log2(n_head)));
-        const float m0 = std::pow(2.0f, -max_bias / static_cast<float>(n_head_log2));
-        const float m1 = std::pow(2.0f, -(max_bias / 2.0f) / static_cast<float>(n_head_log2));
-        std::vector<float> slopes(n_head);
-        for (uint32_t h = 0; h < n_head; ++h) {
-            slopes[h] = h < n_head_log2 ? std::pow(m0, static_cast<float>(h + 1))
-                                        : std::pow(m1, static_cast<float>(2 * (h - n_head_log2) + 1));
-        }
-        ov::Shape slope_shape(rank, 1);
-        slope_shape[head_axis] = n_head;
-        auto slope_node = std::make_shared<ov::op::v0::Constant>(output_type, slope_shape, slopes);
+        const auto slope_node = make_alibi_slopes(output_type,
+                                                  static_cast<size_t>(rank),
+                                                  static_cast<size_t>(head_axis),
+                                                  static_cast<uint32_t>(in_ps[head_axis].get_length()),
+                                                  max_bias);
         auto slope_mask = std::make_shared<ov::op::v1::Multiply>(mask_node_sliced, slope_node);
         biased_input = std::make_shared<ov::op::v1::Add>(scaled_input, slope_mask);
     } else {
