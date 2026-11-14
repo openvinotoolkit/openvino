@@ -10101,3 +10101,25 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_query_seqlens_sliding_window_decod
          1.051573f,  -0.464264f, -0.082366f, 0.321527f,  0.057996f,  -0.504767f, 1.920703f,  -1.825270f});
     test_case.run_with_tolerance_as_fp();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_transpose_matmul) {
+    const auto model = convert_model("com.microsoft/transpose_matmul.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{3, 2}, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f});
+    test_case.add_input<float>(Shape{3, 2}, {0.5f, -1.0f, 2.0f, 0.25f, -0.75f, 1.5f});
+    test_case.add_expected_output<float>(Shape{2, 2}, {1.375f, 3.625f, 2.25f, 4.0f});
+
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_grid_sample) {
+    const auto model = convert_model("com.microsoft/grid_sample.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 2, 2}, {1.0f, 2.0f, 3.0f, 4.0f});
+    test_case.add_input<float>(Shape{1, 2, 2, 2}, {-1.0f, -1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.5f, -0.5f});
+    test_case.add_expected_output<float>(Shape{1, 1, 2, 2}, {1.0f, 4.0f, 2.5f, 2.25f});
+
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}

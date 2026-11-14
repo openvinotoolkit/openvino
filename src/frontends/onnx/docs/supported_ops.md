@@ -252,7 +252,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |GemmFloat8                                              |                        |1                               |                                |
 |com.microsoft           |GemmaRotaryEmbedding                                    |                        |1                               |                                |
 |com.microsoft           |GreedySearch                                            |                        |1                               |                                |
-|com.microsoft           |GridSample                                              |                        |1                               |                                |
+|com.microsoft           |GridSample                                              |1                       |1                               |                                |
 |com.microsoft           |GroupNorm                                               |1                       |1                               |                                |
 |com.microsoft           |GroupQueryAttention                                     |1                       |1                               |                                |
 |com.microsoft           |Inverse                                                 |                        |1                               |                                |
@@ -316,7 +316,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |SparseToDenseMatMul                                     |                        |1                               |                                |
 |com.microsoft           |Tokenizer                                               |                        |1                               |Supported through openvino_tokenizers|
 |com.microsoft           |TorchEmbedding                                          |                        |1                               |                                |
-|com.microsoft           |TransposeMatMul                                         |                        |1                               |                                |
+|com.microsoft           |TransposeMatMul                                         |1                       |1                               |                                |
 |com.microsoft           |Trilu                                                   |1                       |1                               |                                |
 |com.microsoft           |UnfoldTensor                                            |                        |1                               |                                |
 |com.microsoft           |Unique                                                  |                        |1                               |                                |
