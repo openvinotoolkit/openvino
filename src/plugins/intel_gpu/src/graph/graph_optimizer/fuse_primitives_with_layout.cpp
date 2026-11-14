@@ -41,6 +41,13 @@ void fuse_primitives_with_layout::run(program& p) {
                 return;
             }
 
+            // The fused quantize code supports only the scale/shift form, which prepare_quantization builds from
+            // constant ranges (prepare_primitive_fusing checks it as well). Fusing a quantize with runtime ranges
+            // would apply its input_low tensor as the input scale.
+            if (!node.get_scale_shift_opt()) {
+                return;
+            }
+
             auto& input_node = node.get_dependency(0);
             auto in_layout = input_node.get_output_layout();
             if (input_node.get_users().size() != 1 || input_node.get_dependencies().empty() ||

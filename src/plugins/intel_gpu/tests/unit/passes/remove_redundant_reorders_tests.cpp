@@ -23,6 +23,7 @@
 #include "shape_of_inst.h"
 #include "arg_max_min_inst.h"
 #include "gather_inst.h"
+#include "select_inst.h"
 #include "pass_manager.h"
 #include "to_string_utils.h"
 
@@ -437,6 +438,72 @@ TEST(remove_redundant_reorders, not_to_fuse_concat_with_reorder_inside_shape_of_
     auto concat_layout = concat_node.get_output_layout();
 
     ASSERT_EQ(concat_layout.data_type, data_types::f32);
+}
+
+namespace {
+// producer(f32) -> reorder(u8, truncate) -> reorder(f32, truncate)
+// A Convert from floating point to an integral type truncates toward zero and wraps out-of-range values. A producer other
+// than select would store the u8 result with its own output conversion, so the first Convert must stay. The select
+// kernel converts the same way as the Convert, but once the first Convert is fused into it, fusing the Convert back to
+// f32 as well would make it store the f32 result directly, dropping the truncation.
+void test_truncating_fp_to_int_to_fp_reorders(bool select_producer) {
+    auto& engine = get_test_engine();
+    const auto in_layout = layout{ ov::PartialShape{ 1, 4, 1, 1 }, data_types::f32, format::bfyx };
+    auto input = engine.allocate_memory(in_layout);
+    set_values(input, { -86.5f, -163.5f, 300.5f, 7.5f });
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    if (select_producer) {
+        auto mask = engine.allocate_memory({ ov::PartialShape{ 1, 4, 1, 1 }, data_types::i8, format::bfyx });
+        auto zeros = engine.allocate_memory(in_layout);
+        set_values<int8_t>(mask, { 1, 1, 1, 1 });
+        set_values(zeros, { 0.0f, 0.0f, 0.0f, 0.0f });
+        topology.add(data("mask", mask));
+        topology.add(data("zeros", zeros));
+        topology.add(cldnn::select("producer", input_info("mask"), input_info("input"), input_info("zeros")));
+    } else {
+        auto zero = engine.allocate_memory({ ov::PartialShape{ 1, 1, 1, 1 }, data_types::f32, format::bfyx });
+        set_values(zero, { 0.0f });
+        topology.add(data("zero", zero));
+        topology.add(eltwise("producer", input_info("input"), input_info("zero"), eltwise_mode::sum));
+    }
+    topology.add(reorder("to_u8", input_info("producer"), format::any, data_types::u8,
+                         std::vector<float>(), reorder_mean_mode::subtract, padding(), true));
+    topology.add(reorder("to_f32", input_info("to_u8"), format::any, data_types::f32,
+                         std::vector<float>(), reorder_mean_mode::subtract, padding(), true));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    auto prog = network.get_program();
+    ASSERT_NE(prog, nullptr);
+    // The eltwise keeps storing f32 and the Convert to u8 stays. The select stores the truncated u8 value itself, and
+    // the Convert back to f32 stays.
+    ASSERT_EQ(has_node(*prog, "to_u8"), !select_producer);
+    ASSERT_TRUE(has_node(*prog, "producer"));
+    ASSERT_EQ(prog->get_node("producer").get_output_layout().data_type, select_producer ? data_types::u8 : data_types::f32);
+
+    // -86.5 -> -86 -> 170, -163.5 -> -163 -> 93, 300.5 -> 300 -> 44, 7.5 -> 7
+    const std::vector<float> expected = { 170.0f, 93.0f, 44.0f, 7.0f };
+    auto output = outputs.at("to_f32").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_EQ(output_ptr[i], expected[i]) << "index " << i;
+    }
+}
+}  // namespace
+
+TEST(remove_redundant_reorders, not_to_fuse_truncating_fp_to_int_reorder_to_prev) {
+    test_truncating_fp_to_int_to_fp_reorders(false);
+}
+
+TEST(remove_redundant_reorders, not_to_fuse_reorder_to_select_storing_truncated_int) {
+    test_truncating_fp_to_int_to_fp_reorders(true);
 }
 
 TEST(remove_redundant_reorders, reorder_of_non_default_port) {
