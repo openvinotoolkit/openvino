@@ -65,6 +65,7 @@ set(GPU_PLUGIN_OPS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/grn.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/group_normalization.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/grouped_matmul.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/histc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/identity.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/interpolate.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/istft.cpp

@@ -211,6 +211,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/grid_sample_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/group_normalization_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/hash_key_gpu_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/test_cases/histc_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/istft_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/loop_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/lrn_gpu_test.cpp

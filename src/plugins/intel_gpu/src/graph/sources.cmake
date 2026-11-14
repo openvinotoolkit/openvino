@@ -99,6 +99,7 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/group_normalization.cpp
     ${CMAKE_CURRENT_LIST_DIR}/grouped_matmul.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gru_seq.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/histc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/include/activation_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/adaptive_pooling_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/allocation_order.hpp
@@ -148,6 +149,7 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/include/group_normalization_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/grouped_matmul_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/gru_seq_inst.h
+    ${CMAKE_CURRENT_LIST_DIR}/include/histc_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/input_layout_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/istft_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/json_object.h
@@ -315,6 +317,7 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/registry/group_normalization_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/grouped_matmul_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/gru_seq_impls.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/registry/histc_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/implementation_manager.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/implementation_manager.hpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/implementation_map.hpp
