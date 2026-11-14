@@ -52,6 +52,7 @@
 #include "space_to_depth_inst.h"
 #include "strided_slice_inst.h"
 #include "swiglu_inst.h"
+#include "paged_causal_conv1d_inst.h"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <impls/onednn/utils.hpp>
 #endif
@@ -883,6 +884,18 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             should_fuse |= input.is_type<mvn>();
 
             should_fuse |= input.is_type<rms>();
+
+            // Qwen3.5 / Gated-DeltaNet: PagedCausalConv1D is always followed by SiLU
+            // (aten::silu -> Swish), and PagedCausalConv1DFusion deliberately ends its
+            // pattern at the Slice, so the activation stays a standalone node. On a
+            // bandwidth-limited iGPU that standalone pass is pure overhead: it re-reads
+            // and re-writes the whole [tokens, hidden] conv output (~24 MB per layer for
+            // a 1k-token prefill) at a point where the conv kernel still holds the value
+            // in a register. The conv1d kernel implements a single SWISH epilogue, so the
+            // fusion is restricted to exactly that: a second fused op would be accepted by
+            // p.fuse_nodes but silently dropped by the kernel.
+            should_fuse |= input.is_type<paged_causal_conv1d>() && !input.has_fused_primitives() &&
+                           activation_func == cldnn::activation_func::swish;
 
             should_fuse |= input.is_type<group_normalization>();
 
