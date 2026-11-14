@@ -508,9 +508,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(smoke_Model_Distribution_MatMul_NoTranspose.*)"),
 #endif
 #if defined(OPENVINO_ARCH_ARM64)
-            // Issue: 149216. For low precision model from original framework, Snippets PropagatePrecision should insert ConvertTruncation instead
-            // of ConvertSaturation when converting larger integer to smaller integer to align with c++ standard and ngraph reference.
-            std::regex(R"(.*smoke_EltwiseChain_MergeConvert_int8/.*Op0=Prod.*Conversion=i8.*)"),
             // Tests to be enabled on ARM64
             std::regex(R"(smoke_Snippets_GroupNormalization.*)"),
 #endif
