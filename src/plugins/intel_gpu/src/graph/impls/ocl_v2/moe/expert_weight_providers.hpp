@@ -54,9 +54,11 @@ public:
 // The provider deduplicates the requested experts, assigns/streams slots, and
 // returns the slot index per requested expert.
 //
-// The resident device buffers are not owned here; they are bound at runtime via
+// The resident weight buffers are not owned here; they are bound at runtime via
 // bind() because in this back-end they alias the primitive's
-// input memory. Loading metadata (config / bin offsets / weights path) is captured
+// input memory. The scales and zero points stay fully resident in the primitive inputs:
+// bind() replaces them with slot buffers and keeps the inputs as the source of the per-expert copies.
+// Loading metadata (config / bin offsets / weights path) is captured
 // at construction from graph-build time information.
 class OffloadExpertWeightProvider : public IExpertWeightProvider {
 public:
@@ -97,6 +99,8 @@ private:
     std::shared_ptr<LRUCache> _cache;
     moe_otd::ParallelWeightReader _weight_reader;
     cldnn::moe_weights* _resident = nullptr;
+    // Scales and zero points with every expert, only the per-expert ones are set
+    cldnn::moe_weights _sources{};
     bool _bound = false;
 };
 

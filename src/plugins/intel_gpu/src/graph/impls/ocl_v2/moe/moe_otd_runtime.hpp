@@ -25,7 +25,6 @@ struct OtdPerfCounters {
     std::atomic<uint64_t> gpu_hits{0};
     std::atomic<uint64_t> gpu_misses{0};
     std::atomic<uint64_t> disk_io_ns{0};
-    std::atomic<uint64_t> transpose_ns{0};
     std::atomic<uint64_t> gpu_copy_ns{0};
     std::atomic<uint64_t> tensor_load_count{0};
     std::atomic<uint64_t> batched_fallbacks{0};
@@ -82,17 +81,14 @@ private:
     bool _opened = false;
 };
 
-void maybe_transpose_scale_zp(const cldnn::MOECompressed::Config& config,
-                              size_t offset_pos,
-                              const cldnn::layout& layout,
-                              std::vector<uint8_t>& payload,
-                              size_t per_expert_size);
-
+// Loads the experts into their resident slots: the weights are read from the weights file,
+// the scales and zero points are copied from the resident tensors in `sources` (null members are not sliced per expert).
 void fill_weights_memory(cldnn::stream& exec_stream,
                          const cldnn::MOECompressed::Config& config,
                          const std::vector<size_t>& weight_bin_offsets,
                          ParallelWeightReader& weight_reader,
-                         cldnn::moe_weights& wei_mem,
+                         cldnn::moe_weights& slots,
+                         const cldnn::moe_weights& sources,
                          const std::vector<uint32_t>& experts_list,
                          const std::vector<size_t>& lru_experts);
 
