@@ -10101,3 +10101,16 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_query_seqlens_sliding_window_decod
          1.051573f,  -0.464264f, -0.082366f, 0.321527f,  0.057996f,  -0.504767f, 1.920703f,  -1.825270f});
     test_case.run_with_tolerance_as_fp();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bias_split_gelu) {
+    const auto model = convert_model("com.microsoft/bias_split_gelu.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 2, 6},
+                               {-3.0f, -2.5f, -2.0f, -1.5f, -1.0f, -0.5f, 0.0f, 0.5f, 1.0f, 1.5f, 2.0f, 2.5f});
+    test_case.add_input<float>(Shape{6}, {0.1f, -0.2f, 0.3f, -0.4f, 0.5f, -0.6f});
+    test_case.add_expected_output<float>(Shape{1, 2, 3},
+                                         {0.158228f, 0.416526f, 0.253696f, 0.095077f, 0.745343f, 2.39907f});
+
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
