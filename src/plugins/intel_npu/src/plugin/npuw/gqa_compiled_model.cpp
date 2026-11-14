@@ -844,32 +844,11 @@ void ov::npuw::GQAInferRequest::ensure_inner_request_locked() const {
     if (m_inner_request == nullptr) {
         m_inner_request = m_compiled_model->m_inner_compiled_model->create_infer_request();
         OPENVINO_ASSERT(m_inner_request != nullptr, "GQA infer request requires a valid inner request");
-        const auto& inner_model = m_compiled_model->m_inner_compiled_model;
+        [[maybe_unused]] const auto& inner_model = m_compiled_model->m_inner_compiled_model;
         GQA_TRACE("ensure_inner_request_locked(): created inner infer request @ "
                   << m_inner_request.get() << ", inner model has " << inner_model->inputs().size() << " inputs, "
                   << inner_model->outputs().size() << " outputs");
 
-        // Zero-initialize every dynamic-axis KV-cache/bias input's full capacity, once.
-        [[maybe_unused]] size_t zeroed_count = 0;  // only read by the developer-build GQA_TRACE below
-        for (const auto& kv : m_compiled_model->m_dynamic_kv_cache_axes) {
-            // Pre-C++20: structured bindings can't be captured by lambdas, so use a named local.
-            const auto& name = kv.first;
-            auto input_it = std::find_if(inner_model->inputs().begin(),
-                                         inner_model->inputs().end(),
-                                         [&name](const ov::Output<const ov::Node>& input) {
-                                             return input.get_node()->get_friendly_name() == name;
-                                         });
-            if (input_it == inner_model->inputs().end()) {
-                continue;
-            }
-            auto tensor = m_inner_request->get_tensor(*input_it);
-            if (!tensor || tensor->get_byte_size() == 0) {
-                continue;
-            }
-            std::memset(tensor->data(), 0, tensor->get_byte_size());
-            ++zeroed_count;
-        }
-        GQA_TRACE("ensure_inner_request_locked(): zero-initialized " << zeroed_count << " dynamic-axis input(s)");
     }
 }
 
@@ -1164,7 +1143,6 @@ ov::SoPtr<ov::ITensor> ov::npuw::GQAInferRequest::get_tensor(const ov::Output<co
             // intel_cpu's convention for a never-set dynamic tensor -- a full-capacity
             // shape would wrongly look "already populated". Caller must set_shape()
             // before writing.
-            const auto& inner_tensor = m_inner_request->get_tensor(map_port_locked(port));
             const auto& port_shape = port.get_partial_shape();
             ov::Shape private_shape;
             private_shape.reserve(port_shape.size());
@@ -1176,7 +1154,7 @@ ov::SoPtr<ov::ITensor> ov::npuw::GQAInferRequest::get_tensor(const ov::Output<co
             // allocation since the host-write path is what matters, not device-read
             // locality (see that function's comment for the measured regression).
             auto private_tensor =
-                ov::SoPtr<ov::ITensor>(ov::make_tensor(inner_tensor->get_element_type(), private_shape));
+                ov::SoPtr<ov::ITensor>(ov::make_tensor(port.get_element_type(), private_shape));
             it = m_dynamic_kv_cache_tensors.emplace(name, private_tensor).first;
             GQA_TRACE(
                 "    -> no set_tensor() yet, allocated private fallback tensor, shape=" << private_tensor->get_shape());
@@ -1216,14 +1194,14 @@ void ov::npuw::GQAInferRequest::set_tensor(const ov::Output<const ov::Node>& por
         // letting a wrong-sized buffer reach the inner request unchecked. (Caller-driven
         // dynamic present-output sizing below the compiled capacity is a separate,
         // more involved problem -- tracked separately, not handled here.)
-        const auto& inner_tensor = m_inner_request->get_tensor(map_port_locked(port));
-        OPENVINO_ASSERT(tensor->get_shape() == inner_tensor->get_shape(),
+        const auto inner_shape = map_port_locked(port).get_shape();
+        OPENVINO_ASSERT(tensor->get_shape() == inner_shape,
                         "GQA present output '",
                         name,
                         "' shape ",
                         tensor->get_shape(),
                         " does not match the compiled static shape ",
-                        inner_tensor->get_shape());
+                        inner_shape);
         m_inner_request->set_tensor(map_port_locked(port), tensor);
         m_dynamic_kv_cache_output_tensors[name] = tensor;
         m_dynamic_kv_cache_output_externally_set.insert(name);
@@ -1240,13 +1218,20 @@ void ov::npuw::GQAInferRequest::set_tensor(const ov::Output<const ov::Node>& por
 
     // If the caller's tensor is EXACTLY the compiled static capacity, there's no prefix
     // to carve out: alias the inner request directly onto it and skip the copy.
-    // Otherwise keep the inner tensor and defer the prefix copy to infer() time.
+    // Otherwise defer padding allocation and the prefix copy to infer() time.
     const auto axis = it->second;
-    const auto& inner_tensor = m_inner_request->get_tensor(map_port_locked(port));
+    const auto& inner_port = map_port_locked(port);
+    const auto inner_shape = inner_port.get_shape();
     const auto requested_len = tensor->get_shape().at(axis);
-    const auto capacity = inner_tensor->get_shape().at(axis);
+    const auto capacity = inner_shape.at(axis);
     GQA_TRACE("    -> dynamic-axis input, axis=" << axis << " requested_len=" << requested_len << " capacity="
-                                                 << capacity << " inner_tensor_shape=" << inner_tensor->get_shape());
+                                                 << capacity << " inner_tensor_shape=" << inner_shape);
+    auto expected_shape = inner_shape;
+    expected_shape.at(axis) = requested_len;
+    OPENVINO_ASSERT(tensor->get_element_type() == inner_port.get_element_type() && tensor->get_shape() == expected_shape,
+                    "GQA input '",
+                    name,
+                    "' must match the compiled element type and non-capacity dimensions");
     OPENVINO_ASSERT(requested_len <= capacity,
                     "GQA KV-cache '",
                     name,
@@ -1256,28 +1241,11 @@ void ov::npuw::GQAInferRequest::set_tensor(const ov::Output<const ov::Node>& por
                     capacity,
                     ") it was compiled with");
     if (requested_len == capacity) {
-        // Exact match: alias instead of copying, nothing to carve out.
-        if (m_dynamic_kv_cache_input_aliased.count(name) == 0) {
-            // First alias of this port: stash the inner request's own buffer so a later,
-            // shorter set_tensor() can restore it.
-            m_dynamic_kv_cache_private_buffers[name] = inner_tensor;
-        }
         m_inner_request->set_tensor(map_port_locked(port), tensor);
+        m_dynamic_kv_cache_private_buffers.erase(name);
         m_dynamic_kv_cache_tensors[name] = tensor;
-        m_dynamic_kv_cache_input_aliased.insert(name);
         GQA_TRACE("    -> requested_len == capacity, aliased inner request tensor directly (no copy)");
         return;
-    }
-    if (m_dynamic_kv_cache_input_aliased.erase(name) != 0) {
-        // Previously aliased onto a now-stale caller tensor; restore the inner request's
-        // own private buffer before this shorter tensor is used.
-        auto priv_it = m_dynamic_kv_cache_private_buffers.find(name);
-        OPENVINO_ASSERT(priv_it != m_dynamic_kv_cache_private_buffers.end(),
-                        "GQA KV-cache '",
-                        name,
-                        "' was aliased but has no stashed private buffer to restore");
-        m_inner_request->set_tensor(map_port_locked(port), priv_it->second);
-        GQA_TRACE("    -> requested_len < capacity, restored inner request's own private buffer");
     }
     // Not copied here: the caller may keep writing into `tensor` until infer(); only
     // sync_dynamic_kv_cache_tensors_locked() is guaranteed to see live content.
@@ -1292,30 +1260,21 @@ void ov::npuw::GQAInferRequest::sync_dynamic_kv_cache_tensors_locked() const {
         const auto& name = kv.first;
         const auto axis = kv.second;
         auto tensor_it = m_dynamic_kv_cache_tensors.find(name);
-        if (tensor_it == m_dynamic_kv_cache_tensors.end()) {
-            continue;  // set_tensor() not called yet for this port
-        }
         auto port_it = std::find_if(outer_inputs.begin(), outer_inputs.end(), [&](const auto& input) {
             return input.get_node()->get_friendly_name() == name;
         });
         if (port_it == outer_inputs.end()) {
             continue;
         }
-        const auto& inner_tensor = m_inner_request->get_tensor(map_port_locked(*port_it));
-        if (&*tensor_it->second == &*inner_tensor) {
-            // Already aliased by set_tensor(); same object, nothing to copy.
-            GQA_TRACE("sync_dynamic_kv_cache_tensors_locked(): '" << name << "' already aliased, skipping copy");
-            continue;
-        }
-        GQA_TRACE("sync_dynamic_kv_cache_tensors_locked(): '"
-                  << name << "' axis=" << axis << " copying live prefix, shape=" << tensor_it->second->get_shape());
+        const auto& inner_port = map_port_locked(*port_it);
+        const auto inner_shape = inner_port.get_shape();
         // Re-check here: the tensor can still grow between set_tensor() (which checked
         // <= capacity at the time) and infer() -- e.g. a private fallback from
         // get_tensor() followed by set_shape(), or a caller tensor reshaped afterwards.
         // copy_by_planes() (axis 2) sizes each plane from the source, so an unchecked
         // over-capacity tensor here would write past the end of the static buffer.
-        const auto src_len = tensor_it->second->get_shape().at(axis);
-        const auto capacity = inner_tensor->get_shape().at(axis);
+        const auto src_len = tensor_it == m_dynamic_kv_cache_tensors.end() ? 0u : tensor_it->second->get_shape().at(axis);
+        const auto capacity = inner_shape.at(axis);
         OPENVINO_ASSERT(src_len <= capacity,
                         "GQA KV-cache '",
                         name,
@@ -1324,14 +1283,37 @@ void ov::npuw::GQAInferRequest::sync_dynamic_kv_cache_tensors_locked() const {
                         " exceeds the static capacity (",
                         capacity,
                         ") it was compiled with");
-        ov::npuw::GQAInferRequest::copy_kv_cache_prefix(tensor_it->second, inner_tensor, axis);
+        if (tensor_it != m_dynamic_kv_cache_tensors.end()) {
+            auto expected_shape = inner_shape;
+            expected_shape.at(axis) = src_len;
+            OPENVINO_ASSERT(tensor_it->second->get_element_type() == inner_port.get_element_type() &&
+                                tensor_it->second->get_shape() == expected_shape,
+                            "GQA input '",
+                            name,
+                            "' must match the compiled element type and non-capacity dimensions");
+            if (src_len == capacity) {
+                m_inner_request->set_tensor(inner_port, tensor_it->second);
+                m_dynamic_kv_cache_private_buffers.erase(name);
+                continue;
+            }
+        }
+        auto& private_buffer = m_dynamic_kv_cache_private_buffers[name];
+        if (!private_buffer) {
+            private_buffer = ov::SoPtr<ov::ITensor>(ov::make_tensor(inner_port.get_element_type(), inner_shape));
+            if (private_buffer->get_byte_size() != 0) {
+                std::memset(private_buffer->data(), 0, private_buffer->get_byte_size());
+            }
+        }
+        m_inner_request->set_tensor(inner_port, private_buffer);
+        if (tensor_it != m_dynamic_kv_cache_tensors.end()) {
+            ov::npuw::GQAInferRequest::copy_kv_cache_prefix(tensor_it->second, private_buffer, axis);
+        }
     }
 }
 
 void ov::npuw::GQAInferRequest::check_tensors() const {
     std::lock_guard<std::mutex> lock(m_mutex);
-    // Trigger lazy inner request initialization; the JustInferRequest constructor
-    // allocates all sub-tensors during construction, so nothing more is needed here.
+    // Keep top-level I/O lazy until the caller binds tensors or inference needs them.
     ensure_inner_request_locked();
 }
 

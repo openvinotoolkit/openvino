@@ -11,6 +11,8 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "common_test_utils/test_assertions.hpp"
@@ -1505,25 +1507,31 @@ TEST_F(GQACompiledModelTest, RejectsDynamicAttentionBiasAxisThatIsNotTheCapacity
 }
 
 namespace {
-// A minimal fake "inner" compiled model / infer request pair for exercising
-// GQAInferRequest::set_tensor()/get_tensor() end-to-end (unlike RecordingFactory/
-// MockSubCompiledModel, whose create_sync_infer_request() returns nullptr). Every port
-// gets a real, pre-allocated tensor -- mirrors TestInferRequest in failsafe.cpp.
+struct FakeInnerRequestState {
+    std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> tensors;
+    std::unordered_set<std::string> allocated_ports;
+};
+
 class FakeInnerSyncInferRequest final : public ov::ISyncInferRequest {
 public:
-    explicit FakeInnerSyncInferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model)
-        : ov::ISyncInferRequest(compiled_model) {
-        for (const auto& input : get_inputs()) {
-            ov::ISyncInferRequest::set_tensor(
-                input,
-                ov::get_tensor_impl(ov::Tensor(input.get_element_type(), input.get_shape())));
+    FakeInnerSyncInferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model,
+                              std::shared_ptr<FakeInnerRequestState> state)
+        : ov::ISyncInferRequest(compiled_model),
+          m_state(std::move(state)) {}
+    ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override {
+        const auto& name = port.get_node()->get_friendly_name();
+        auto& tensor = m_state->tensors[name];
+        if (!tensor) {
+            tensor = ov::get_tensor_impl(ov::Tensor(port.get_element_type(), port.get_shape()));
+            std::fill_n(static_cast<uint8_t*>(tensor->data()), tensor->get_byte_size(), uint8_t{0});
+            m_state->allocated_ports.insert(name);
         }
-        for (const auto& output : get_outputs()) {
-            ov::ISyncInferRequest::set_tensor(
-                output,
-                ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
-        }
+        return tensor;
     }
+    void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override {
+        m_state->tensors[port.get_node()->get_friendly_name()] = tensor;
+    }
+    void check_tensors() const override {}
     void infer() override {}
     std::vector<ov::ProfilingInfo> get_profiling_info() const override {
         return {};
@@ -1531,12 +1539,18 @@ public:
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
         return {};
     }
+
+private:
+    std::shared_ptr<FakeInnerRequestState> m_state;
 };
 
 class FakeInnerCompiledModel final : public ov::npuw::ICompiledModel {
 public:
-    FakeInnerCompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin)
-        : ov::npuw::ICompiledModel(model, plugin) {}
+        FakeInnerCompiledModel(const std::shared_ptr<ov::Model>& model,
+                                                     const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                     std::shared_ptr<FakeInnerRequestState> state)
+                : ov::npuw::ICompiledModel(model, plugin),
+                    m_state(std::move(state)) {}
     void export_model(std::ostream&) const override {}
     std::shared_ptr<const ov::Model> get_runtime_model() const override {
         return {};
@@ -1546,15 +1560,19 @@ public:
         return {};
     }
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
-        return std::make_shared<FakeInnerSyncInferRequest>(shared_from_this());
+        return std::make_shared<FakeInnerSyncInferRequest>(shared_from_this(), m_state);
     }
+
+private:
+    std::shared_ptr<FakeInnerRequestState> m_state;
 };
 
-ov::npuw::GQACompiledModel::CompiledModelFactory fake_inner_factory() {
-    return [](const std::shared_ptr<ov::Model>& model,
-              const std::shared_ptr<const ov::IPlugin>& plugin,
-              const ov::AnyMap&) -> std::shared_ptr<ov::npuw::ICompiledModel> {
-        return std::make_shared<FakeInnerCompiledModel>(model, plugin);
+ov::npuw::GQACompiledModel::CompiledModelFactory fake_inner_factory(
+    std::shared_ptr<FakeInnerRequestState> state = std::make_shared<FakeInnerRequestState>()) {
+    return [state](const std::shared_ptr<ov::Model>& model,
+                   const std::shared_ptr<const ov::IPlugin>& plugin,
+                   const ov::AnyMap&) -> std::shared_ptr<ov::npuw::ICompiledModel> {
+        return std::make_shared<FakeInnerCompiledModel>(model, plugin, state);
     };
 }
 
@@ -1585,6 +1603,93 @@ std::vector<float> to_vec(const ov::SoPtr<ov::ITensor>& t) {
     return std::vector<float>(data, data + t->get_size());
 }
 }  // namespace
+
+TEST_F(GQACompiledModelTest, SharedCallerKvBuffersDoNotAllocateInnerKvTensors) {
+    for (const size_t axis : {2u, 3u}) {
+        auto state = std::make_shared<FakeInnerRequestState>();
+        auto compiled = std::make_shared<ov::npuw::GQACompiledModel>(
+            build_gqa_model_with_dynamic_kv_cache(axis),
+            m_plugin,
+            ov::AnyMap{{"NPUW_GQA", "YES"}, {"NPUW_LLM_MAX_CONTEXT_LEN", "16"}},
+            fake_inner_factory(state));
+        auto request = compiled->create_infer_request();
+        request->query_state();
+        EXPECT_TRUE(state->tensors.empty());
+
+        for (const auto& input : compiled->inputs()) {
+            const auto& name = input.get_node()->get_friendly_name();
+            if (name != "past_keys_0" && name != "past_values_0") {
+                continue;
+            }
+            auto empty = request->get_tensor(input);
+            EXPECT_EQ(empty->get_shape().at(axis), 0u);
+            EXPECT_EQ(state->tensors.count(name), 0u);
+            auto shape = empty->get_shape();
+            shape.at(axis) = 16;
+            auto tensor = make_f16_kv_cache_tensor(shape, 1.f);
+            request->set_tensor(input, tensor);
+            const auto output_name = name == "past_keys_0" ? "present_keys_0" : "present_values_0";
+            const auto output = std::find_if(compiled->outputs().begin(), compiled->outputs().end(), [&](const auto& port) {
+                return port.get_node()->get_friendly_name() == output_name;
+            });
+            ASSERT_NE(output, compiled->outputs().end());
+            request->set_tensor(*output, tensor);
+            EXPECT_EQ(state->tensors.at(name)._ptr, tensor._ptr);
+            EXPECT_EQ(state->tensors.at(output_name)._ptr, tensor._ptr);
+        }
+        EXPECT_TRUE(state->allocated_ports.empty());
+        ASSERT_NO_THROW(request->infer());
+        for (const auto* name : {"past_keys_0", "past_values_0", "present_keys_0", "present_values_0"}) {
+            EXPECT_EQ(state->allocated_ports.count(name), 0u);
+        }
+    }
+}
+
+TEST_F(GQACompiledModelTest, PaddingBufferIsLazyZeroedAndReleasedWhenReplaced) {
+    for (const size_t axis : {2u, 3u}) {
+        auto state = std::make_shared<FakeInnerRequestState>();
+        auto compiled = std::make_shared<ov::npuw::GQACompiledModel>(
+            build_gqa_model_with_dynamic_kv_cache(axis),
+            m_plugin,
+            ov::AnyMap{{"NPUW_GQA", "YES"}, {"NPUW_LLM_MAX_CONTEXT_LEN", "16"}},
+            fake_inner_factory(state));
+        auto request = compiled->create_infer_request();
+        const auto input = std::find_if(compiled->inputs().begin(), compiled->inputs().end(), [](const auto& port) {
+            return port.get_node()->get_friendly_name() == "past_keys_0";
+        });
+        ASSERT_NE(input, compiled->inputs().end());
+        auto shape = request->get_tensor(*input)->get_shape();
+        shape.at(axis) = 4;
+        auto short_tensor = make_f16_kv_cache_tensor(shape, 1.f);
+        request->set_tensor(*input, short_tensor);
+        EXPECT_TRUE(state->tensors.empty());
+        ASSERT_NO_THROW(request->infer());
+        const auto& padded = state->tensors.at("past_keys_0");
+        EXPECT_EQ(padded->get_shape().at(axis), 16u);
+        const auto* data = static_cast<const ov::float16*>(padded->data());
+        const auto* source_data = static_cast<const ov::float16*>(short_tensor->data());
+        const auto row_size = padded->get_shape().back();
+        for (size_t index = 0; index < padded->get_size(); ++index) {
+            const auto sequence_index = axis == 2 ? (index / row_size) % 16 : index % 16;
+            if (sequence_index >= 4) {
+                EXPECT_FLOAT_EQ(static_cast<float>(data[index]), 0.f);
+            } else {
+                const auto source_index = axis == 2 ? (index / (16 * row_size)) * 4 * row_size + index % (16 * row_size)
+                                                     : (index / 16) * 4 + index % 16;
+                EXPECT_FLOAT_EQ(static_cast<float>(data[index]), static_cast<float>(source_data[source_index]));
+            }
+        }
+        const auto& untouched = state->tensors.at("past_values_0");
+        const auto* untouched_data = static_cast<const ov::float16*>(untouched->data());
+        for (size_t index = 0; index < untouched->get_size(); ++index) {
+            EXPECT_FLOAT_EQ(static_cast<float>(untouched_data[index]), 0.f);
+        }
+        std::weak_ptr<ov::ITensor> old_padding = padded._ptr;
+        shape.at(axis) = 16;
+        request->set_tensor(*input, make_f16_kv_cache_tensor(shape));
+        EXPECT_TRUE(old_padding.expired());
+    }
+}
 
 TEST_F(GQACompiledModelTest, SetTensorDoesNotCorruptStaleFullCapacityCallerTensorAfterShortTensor) {
     // Regression test: after a port's inner request got aliased onto a full-capacity
