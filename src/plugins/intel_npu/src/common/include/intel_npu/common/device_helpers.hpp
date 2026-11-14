@@ -16,6 +16,16 @@ namespace utils {
 bool isNPUDevice(const uint32_t deviceId);
 uint32_t getSliceIdBySwDeviceId(const uint32_t swDevId);
 std::string getPlatformByDeviceName(const std::string_view deviceName);
+
+/**
+ * @brief Resolves ov::compilation_target (if present in properties) into ov::intel_npu::platform,
+ * before platform/device resolution runs. ov::compilation_target itself is left in properties and
+ * never reaches the compiler. An empty target means no target: nothing is resolved.
+ * @throws ov::Exception if the target is AUTO_DETECT, or if properties also carries an explicit
+ * ov::intel_npu::platform naming a different platform. Whether the target's platform needs more than one blob is a
+ * separate, compiler-driven check - see ICompilerAdapter::resolve_compilation_target_bundles().
+ */
+void resolveCompilationTarget(ov::AnyMap& properties);
 std::string getCompilationPlatform(const ov::SoPtr<IEngineBackend>& engineBackend,
                                    const std::string_view platform,
                                    const std::string_view deviceId);

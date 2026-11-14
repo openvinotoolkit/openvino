@@ -97,6 +97,22 @@ ov::CompatibilityCheck validateCompatibilityDescriptor(const ov::SoPtr<intel_npu
     }
 }
 
+// The compiler answers, and no backend is handed over so that the answer cannot depend on the local hardware.
+// An absent or older compiler library yields an empty list rather than a failing property.
+std::vector<std::string> getOfflineCompilationTargets(
+    const std::shared_ptr<intel_npu::OptionSupportCache>& optionSupportCache,
+    intel_npu::Logger& logger) {
+    try {
+        auto compilerType = ov::intel_npu::CompilerType::PLUGIN;
+        return intel_npu::CompilerAdapterFactory()
+            .getCompiler({}, compilerType, "", optionSupportCache, true)
+            ->get_offline_compilation_targets();
+    } catch (const std::exception& ex) {
+        logger.warning("Could not enumerate the offline compilation targets: %s", ex.what());
+        return {};
+    }
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -343,6 +359,18 @@ std::string PluginPropertyManager::determineDeviceId(const ov::AnyMap& propertie
     return getDeviceIdOrDefault(properties);
 }
 
+std::optional<std::string> PluginPropertyManager::determineCompilationTarget(const ov::AnyMap& properties) const {
+    const auto it = properties.find(ov::compilation_target.name());
+    if (it != properties.end()) {
+        return it->second.as<std::string>();
+    }
+    std::lock_guard<std::mutex> lock(_mutex);
+    if (_config.has<COMPILATION_TARGET>()) {
+        return _config.get<COMPILATION_TARGET>();
+    }
+    return std::nullopt;
+}
+
 ov::intel_npu::CompilerType PluginPropertyManager::determineCompilerType(const ov::AnyMap& properties) const {
     auto it = properties.find(ov::intel_npu::compiler_type.name());
     if (it != properties.end()) {
@@ -479,6 +507,7 @@ void PluginPropertyManager::registerProperties() {
 
     registerConfigProperty(BYPASS_UMD_CACHING{}, true);
     registerConfigProperty(CACHE_DIR{}, true);
+    registerConfigProperty(COMPILATION_TARGET{}, true);
     registerConfigProperty(DEFER_WEIGHTS_LOAD{}, true);
     registerConfigProperty(MODEL_PRIORITY{}, true);
     registerConfigProperty(NUM_STREAMS{}, true);
@@ -805,6 +834,18 @@ void PluginPropertyManager::registerProperties() {
     }, readOnlySetter);
     register_property(ov::available_devices.name(), true, ov::PropertyMutability::RO, alwaysSupported, [this](const ov::AnyMap&) {
         return _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames();
+    }, readOnlySetter);
+    register_property(ov::offline_compilation_targets.name(), true, ov::PropertyMutability::RO, alwaysSupported, [this](const ov::AnyMap& arguments) {
+        // Takes no arguments: the list depends on the compiler alone. ov::device::id is tolerated (and ignored) since
+        // ov::Core adds it for a device name such as "NPU.0".
+        for (const auto& [argumentName, argumentValue] : arguments) {
+            OPENVINO_ASSERT(argumentName == ov::device::id.name(),
+                            ov::offline_compilation_targets.name(),
+                            " takes no arguments, got '",
+                            argumentName,
+                            "'. Filter the returned list instead.");
+        }
+        return getOfflineCompilationTargets(_compilerOptionSupportHelper->getOptionSupportCache(), _logger);
     }, readOnlySetter);
     register_property(ov::hint::model.name(), true, ov::PropertyMutability::WO,
         [this](const ov::AnyMap&) {

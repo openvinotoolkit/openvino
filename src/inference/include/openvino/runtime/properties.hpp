@@ -13,10 +13,12 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cstdint>
 #include <iomanip>
 #include <istream>
 #include <limits>
 #include <map>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -1528,4 +1530,47 @@ inline constexpr Property<std::string, PropertyMutability::RO> runtime_requireme
  * @endcode
  */
 static constexpr Property<CompatibilityCheck, PropertyMutability::RO> compatibility_check{"COMPATIBILITY_CHECK"};
+
+/**
+ * @brief Read-only: offline compilation targets supported by this device's compiler.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Each target is a platform identifier, equal to ov::device::architecture as reported by a device of
+ * that platform. Answerable with no device present. Takes no arguments; filter the returned list instead.
+ */
+static constexpr Property<std::vector<std::string>, PropertyMutability::RO> offline_compilation_targets{
+    "OFFLINE_COMPILATION_TARGETS"};
+
+/**
+ * @brief Select one offline compilation target, as listed by ov::offline_compilation_targets, for
+ * ov::Core::compile_model.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Compiles for every device of the target, independently of the device attached to the host, if any: the result
+ * depends only on the target and the other compile properties, so it is the same on any machine. It may hold
+ * several blobs (e.g. one per device variant of the target) in a single exported artifact.
+ *
+ * The compiled model is not loaded onto any device, so it cannot run inference directly: export it with
+ * ov::CompiledModel::export_model and import it with ov::Core::import_model on the device that will run it.
+ * Import picks the blob that fits that device. If the artifact holds several blobs, ov::runtime_requirements of
+ * the compiled model describes the first one only, so ov::compatibility_check reflects that blob alone: a device
+ * reported as unsupported may still be able to import the artifact through another blob.
+ *
+ * An empty value means no target: setting it with ov::Core::set_property clears a target set earlier, and
+ * passing it to ov::Core::compile_model overrides such a target for that call. A plugin that also has its own
+ * platform selector requires both to name the same platform. An identifier the plugin does not recognise is an
+ * error.
+ *
+ * @code
+ * ov::Core core;
+ * auto targets = core.get_property("NPU", ov::offline_compilation_targets);
+ * auto compiled = core.compile_model(model, "NPU", ov::compilation_target(targets.front()));
+ * std::ofstream blob("model.blob", std::ios::binary);
+ * compiled.export_model(blob);
+ * // later, on the target machine
+ * std::ifstream in("model.blob", std::ios::binary);
+ * auto runnable = core.import_model(in, "NPU");
+ * @endcode
+ */
+static constexpr Property<std::string, PropertyMutability::RW> compilation_target{"COMPILATION_TARGET"};
 }  // namespace ov

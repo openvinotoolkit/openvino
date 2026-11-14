@@ -324,6 +324,8 @@ void CompiledModelPropertyManager::registerProperties() {
         },
         readOnlySetter
     );
+    // For a model compiled for an ov::compilation_target that exports several blobs, this describes the primary graph
+    // (the first blob) only: the additional graphs are not part of the requirements.
     register_property(ov::runtime_requirements.name(), true, ov::PropertyMutability::RO,
         [this](const ov::AnyMap&) {
             return  _graph != nullptr && _graph->get_compatibility_descriptor().has_value();
