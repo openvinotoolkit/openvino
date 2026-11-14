@@ -193,6 +193,8 @@ set(OP_CONVERSIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie_internal.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_multiclass_nms_upgrade_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_mvn1_to_mvn6_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_linear_interpolate_to_gather_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_nearest_interpolate_to_gather_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_nms9_to_nms_ie_internal_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_nms_to_nms_ie_internal_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_onehot16_downgrade_test.cpp

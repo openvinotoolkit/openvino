@@ -182,6 +182,8 @@ set(OP_CONVERSIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_multiclass_nms_upgrade.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_mvn1_to_mvn6.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_linear_interpolate_to_gather.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_nearest_interpolate_to_gather.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_negative.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_nms9_to_nms_ie_internal.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_nms_rotated_to_nms_ie_internal.cpp
