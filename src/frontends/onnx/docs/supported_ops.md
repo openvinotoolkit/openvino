@@ -197,6 +197,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Sub                                                     |7, 1                    |14, 13, 7, 6, 1                 |                                |
 |                        |Sum                                                     |8, 1                    |13, 8, 6, 1                     |                                |
 |                        |Swish                                                   |24                      |24                              |                                |
+|                        |SwiGLU                                                  |28                      |28                              |                                |
 |                        |Tan                                                     |7                       |22, 7                           |                                |
 |                        |Tanh                                                    |1                       |13, 6, 1                        |                                |
 |                        |TensorScatter                                           |24                      |24                              |                                |
