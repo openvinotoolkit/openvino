@@ -6,6 +6,7 @@
 #include "program_helpers.h"
 
 #include "concatenation_inst.h"
+#include "condition_inst.h"
 #include "crop_inst.h"
 
 #include <utility>

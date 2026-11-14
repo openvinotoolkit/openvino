@@ -1045,3 +1045,207 @@ TEST(condition_gpu, set_empty_tensor) {
     OV_ASSERT_NO_THROW(outputs = net.execute());
     OV_ASSERT_NO_THROW(outputs.at(cond_id).get_memory());
 }
+
+TEST(condition_gpu, skip_subgraph_multiple_outputs_and_swapped_ports) {
+    auto& engine = get_test_engine();
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    const ov::PartialShape in_pshape = {1, 4, 1};
+    const ov::PartialShape out_concat_pshape = {1, 4, 2};
+    auto in0_mem = engine.allocate_memory({in_pshape, data_types::f32, format::bfyx});
+    auto in1_mem = engine.allocate_memory({in_pshape, data_types::f32, format::bfyx});
+    auto pred_mem = engine.allocate_memory({{1}, data_types::u8, format::bfyx});
+
+    set_values<float>(in0_mem, {1.f, 2.f, 3.f, 4.f});
+    set_values<float>(in1_mem, {10.f, 20.f, 30.f, 40.f});
+
+    condition::branch branch_true;
+    {
+        topology branch_true_topology;
+        branch_true_topology.add(
+            input_layout("true_in0", {in_pshape, data_types::f32, format::bfyx}),
+            input_layout("true_in1", {in_pshape, data_types::f32, format::bfyx}),
+            reorder("true_out0", input_info("true_in0"), format::bfyx, data_types::f32),
+            reorder("true_out1", input_info("true_in1"), format::bfyx, data_types::f32)
+        );
+        branch_true.inner_program = program::build_program(engine, branch_true_topology, config, false, false, true);
+        branch_true.input_map.insert({"in0", "true_in0"});
+        branch_true.input_map.insert({"in1", "true_in1"});
+        branch_true.output_map.insert({0, "true_out0"});
+        branch_true.output_map.insert({1, "true_out1"});
+    }
+
+    condition::branch branch_false;
+    {
+        topology branch_false_topology;
+        branch_false_topology.add(
+            input_layout("false_in0", {in_pshape, data_types::f32, format::bfyx}),
+            input_layout("false_in1", {in_pshape, data_types::f32, format::bfyx}),
+            reorder("z_false_out_for_port0", input_info("false_in1"), format::bfyx, data_types::f32),
+            reorder("a_false_out_for_port1", input_info("false_in0"), format::bfyx, data_types::f32)
+        );
+        branch_false.inner_program = program::build_program(engine, branch_false_topology, config, false, false, true);
+        branch_false.input_map.insert({"in0", "false_in0"});
+        branch_false.input_map.insert({"in1", "false_in1"});
+        branch_false.output_map.insert({0, "z_false_out_for_port0"});
+        branch_false.output_map.insert({1, "a_false_out_for_port1"});
+    }
+
+    topology topo;
+    topo.add(
+        input_layout("pred", pred_mem->get_layout()),
+        input_layout("in0", in0_mem->get_layout()),
+        input_layout("in1", in1_mem->get_layout()),
+        condition("cond", {input_info("pred"), input_info("in0"), input_info("in1")}, branch_true, branch_false, 2),
+        concatenation("concat", {input_info("cond", 0), input_info("cond", 1)}, 2),
+        reorder("out", input_info("concat"), {out_concat_pshape, data_types::f32, format::bfyx})
+    );
+
+    network net(engine, topo, config);
+    ASSERT_TRUE(net.get_primitive("cond")->get_node().as<condition>().get_branch_true().inner_program->can_be_optimized());
+    ASSERT_TRUE(net.get_primitive("cond")->get_node().as<condition>().get_branch_false().inner_program->can_be_optimized());
+
+    net.set_input_data("in0", in0_mem);
+    net.set_input_data("in1", in1_mem);
+
+    set_values<uint8_t>(pred_mem, {1});
+    net.set_input_data("pred", pred_mem);
+    auto outputs_true = net.execute();
+    ASSERT_TRUE(is_output_equal(outputs_true.at("out").get_memory(), std::vector<float>{1.f, 10.f, 2.f, 20.f, 3.f, 30.f, 4.f, 40.f}));
+
+    set_values<uint8_t>(pred_mem, {0});
+    net.set_input_data("pred", pred_mem);
+    auto outputs_false = net.execute();
+    ASSERT_TRUE(is_output_equal(outputs_false.at("out").get_memory(), std::vector<float>{10.f, 1.f, 20.f, 2.f, 30.f, 3.f, 40.f, 4.f}));
+}
+
+TEST(condition_gpu, executed_multiple_outputs_distinct_layouts_ordered_by_port) {
+    auto& engine = get_test_engine();
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    const layout in0_layout{ov::PartialShape{1, 4, 1}, data_types::f32, format::bfyx};
+    const layout in1_layout{ov::PartialShape{1, 4, 2}, data_types::f32, format::bfyx};
+    auto in0_mem = engine.allocate_memory(in0_layout);
+    auto in1_mem = engine.allocate_memory(in1_layout);
+    auto pred_mem = engine.allocate_memory({{1}, data_types::u8, format::bfyx});
+
+    const std::vector<float> in0_data{1.f, 2.f, 3.f, 4.f};
+    const std::vector<float> in1_data{10.f, 20.f, 30.f, 40.f, 50.f, 60.f, 70.f, 80.f};
+    set_values(in0_mem, in0_data);
+    set_values(in1_mem, in1_data);
+
+    // Inner output IDs sort opposite to the port order in output_map.
+    auto build_branch = [&](const std::string& prefix, float scale, float shift) {
+        topology branch_topo(
+            input_layout(prefix + "_in0", in0_layout),
+            input_layout(prefix + "_in1", in1_layout),
+            activation("z_" + prefix + "_port0", input_info(prefix + "_in0"), activation_func::linear, {scale, shift}),
+            activation("a_" + prefix + "_port1", input_info(prefix + "_in1"), activation_func::linear, {scale, shift})
+        );
+        condition::branch b;
+        b.inner_program = program::build_program(engine, branch_topo, config, false, false, true);
+        b.input_map.insert({"in0", prefix + "_in0"});
+        b.input_map.insert({"in1", prefix + "_in1"});
+        b.output_map.insert({0, "z_" + prefix + "_port0"});
+        b.output_map.insert({1, "a_" + prefix + "_port1"});
+        return b;
+    };
+    auto branch_true = build_branch("t", 1.f, 1.f);
+    auto branch_false = build_branch("f", 2.f, 0.f);
+
+    topology topo(
+        input_layout("pred", pred_mem->get_layout()),
+        input_layout("in0", in0_layout),
+        input_layout("in1", in1_layout),
+        condition("cond", {input_info("pred"), input_info("in0"), input_info("in1")}, branch_true, branch_false, 2),
+        reorder("out0", input_info("cond", 0), format::bfyx, data_types::f32),
+        reorder("out1", input_info("cond", 1), format::bfyx, data_types::f32)
+    );
+
+    network net(engine, topo, config);
+    ASSERT_FALSE(branch_true.inner_program->can_be_optimized());
+    ASSERT_FALSE(branch_false.inner_program->can_be_optimized());
+    net.set_input_data("in0", in0_mem);
+    net.set_input_data("in1", in1_mem);
+
+    for (uint8_t pred : {uint8_t{1}, uint8_t{0}}) {
+        const float scale = pred ? 1.f : 2.f;
+        const float shift = pred ? 1.f : 0.f;
+        set_values<uint8_t>(pred_mem, {pred});
+        net.set_input_data("pred", pred_mem);
+        auto outputs = net.execute();
+
+        auto out0 = outputs.at("out0").get_memory();
+        auto out1 = outputs.at("out1").get_memory();
+        ASSERT_EQ(out0->get_layout().get_partial_shape(), in0_layout.get_partial_shape()) << "pred=" << int(pred);
+        ASSERT_EQ(out1->get_layout().get_partial_shape(), in1_layout.get_partial_shape()) << "pred=" << int(pred);
+        cldnn::mem_lock<float, mem_lock_type::read> out0_ptr(out0, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> out1_ptr(out1, get_test_stream());
+        for (size_t i = 0; i < in0_data.size(); ++i)
+            ASSERT_FLOAT_EQ(out0_ptr[i], in0_data[i] * scale + shift) << "pred=" << int(pred) << " i=" << i;
+        for (size_t i = 0; i < in1_data.size(); ++i)
+            ASSERT_FLOAT_EQ(out1_ptr[i], in1_data[i] * scale + shift) << "pred=" << int(pred) << " i=" << i;
+    }
+}
+
+TEST(condition_gpu, executed_branch_switch_rebinds_static_consumer) {
+    auto& engine = get_test_engine();
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    const layout in_layout{ov::PartialShape{1, 4, 1}, data_types::f32, format::bfyx};
+    auto in_mem = engine.allocate_memory(in_layout);
+    auto pred_mem = engine.allocate_memory({{1}, data_types::u8, format::bfyx});
+    const std::vector<float> in_data{1.f, 2.f, 3.f, 4.f};
+    set_values(in_mem, in_data);
+
+    auto build_branch = [&](const std::string& prefix, float scale, float shift) {
+        topology branch_topo(
+            input_layout(prefix + "_in", in_layout),
+            activation(prefix + "_out", input_info(prefix + "_in"), activation_func::linear, {scale, shift})
+        );
+        condition::branch b;
+        b.inner_program = program::build_program(engine, branch_topo, config, false, false, true);
+        b.input_map.insert({"input", prefix + "_in"});
+        b.output_map.insert({0, prefix + "_out"});
+        return b;
+    };
+    auto branch_true = build_branch("t", 1.f, 1.f);
+    auto branch_false = build_branch("f", 2.f, 0.f);
+
+    topology topo(
+        input_layout("pred", pred_mem->get_layout()),
+        input_layout("input", in_layout),
+        condition("cond", {input_info("pred"), input_info("input")}, branch_true, branch_false),
+        activation("mid", input_info("cond"), activation_func::linear, {1.f, 100.f}),
+        // Second user keeps "mid" a separate non-output primitive.
+        reorder("out", input_info("mid"), format::bfyx, data_types::f32),
+        reorder("out_f16", input_info("mid"), format::bfyx, data_types::f16)
+    );
+
+    network net(engine, topo, config);
+    ASSERT_FALSE(net.get_primitive("cond")->is_dynamic());
+    ASSERT_FALSE(net.get_primitive("mid")->is_output());
+    ASSERT_FALSE(branch_true.inner_program->can_be_optimized());
+    ASSERT_FALSE(branch_false.inner_program->can_be_optimized());
+    net.set_input_data("input", in_mem);
+
+    for (uint8_t pred : {uint8_t{1}, uint8_t{0}, uint8_t{1}, uint8_t{0}}) {
+        const float scale = pred ? 1.f : 2.f;
+        const float shift = pred ? 1.f : 0.f;
+        set_values<uint8_t>(pred_mem, {pred});
+        net.set_input_data("pred", pred_mem);
+        auto outputs = net.execute();
+
+        auto out = outputs.at("out").get_memory();
+        cldnn::mem_lock<float, mem_lock_type::read> out_ptr(out, get_test_stream());
+        for (size_t i = 0; i < in_data.size(); ++i)
+            ASSERT_FLOAT_EQ(out_ptr[i], in_data[i] * scale + shift + 100.f) << "pred=" << int(pred) << " i=" << i;
+    }
+}
+

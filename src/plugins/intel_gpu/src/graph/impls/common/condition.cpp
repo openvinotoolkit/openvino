@@ -56,8 +56,9 @@ struct condition_impl : typed_primitive_impl<condition> {
 
         std::vector<event::ptr> output_events;
         if (can_skip_subgraph) {
-            for (size_t out_idx = 0; out_idx < branch.inner_program->get_outputs().size(); ++out_idx) {
-                const auto& output_internal_node = *branch.inner_program->get_outputs()[out_idx];
+            for (const auto& out_map : branch.output_map) {
+                const size_t out_idx = out_map.first;
+                const auto& output_internal_node = branch.inner_program->get_node(out_map.second);
                 layout output_layout = output_internal_node.get_output_layout();
                 cldnn::memory::ptr output_mem_ptr = nullptr;
                 if (output_internal_node.is_type<data>()) {
@@ -93,7 +94,7 @@ struct condition_impl : typed_primitive_impl<condition> {
 
                 if (output_layout.get_partial_shape().rank().get_length() == 0) {
                     auto other_branch = !pred ? instance.get_branch_true() : instance.get_branch_false();
-                    auto other_layout = other_branch.inner_program->get_outputs()[out_idx]->get_output_layout();
+                    auto other_layout = other_branch.inner_program->get_node(other_branch.output_map.at(out_idx)).get_output_layout();
                     output_layout = condition_inst::adjust_scalar_to_1d_layout(output_layout, other_layout);
                     OPENVINO_ASSERT(output_mem_ptr != nullptr, "output_mem_ptr should not be null.");
                     output_mem_ptr = instance.get_network().get_engine().reinterpret_buffer(*output_mem_ptr, output_layout);
@@ -101,7 +102,7 @@ struct condition_impl : typed_primitive_impl<condition> {
                 }
                 GPU_DEBUG_LOG << "    set output layout : " << output_layout.to_short_string() << std::endl;
                 instance.set_output_layout(output_layout, out_idx);
-                instance.set_output_memory(output_mem_ptr, out_idx != 0u);
+                instance.set_output_memory(output_mem_ptr, false, out_idx);
                 instance.set_flag(ExecutionFlags::MEMORY_CHANGED);
             }
             return stream.group_events(output_events);
@@ -140,6 +141,7 @@ struct condition_impl : typed_primitive_impl<condition> {
 
         // Set output memory of condition_inst to inner network output memory after inner network execution
         instance.postprocess_output_memory(executed_net, branch);
+        instance.set_flag(ExecutionFlags::MEMORY_CHANGED);
 
         for (auto& output : sub_net_results) {
             if (output.second.get_event() != nullptr) {
