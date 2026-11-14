@@ -69,8 +69,9 @@ function(ov_native_compile_external_project)
     if(ARG_EXTRA_COMPILE_FLAGS)
         set(compile_flags "${ARG_EXTRA_COMPILE_FLAGS}")
     endif()
-    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
-        set(compile_flags "${compile_flags} -Wno-undef -Wno-error -Wno-deprecated-declarations")
+    if((CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX)) AND
+        NOT (CMAKE_CROSSCOMPILING AND CMAKE_HOST_WIN32))
+            set(compile_flags "${compile_flags} -Wno-undef -Wno-error -Wno-deprecated-declarations")
     endif()
 
     if(ARG_NATIVE_SOURCE_SUBDIR)
@@ -97,6 +98,8 @@ function(ov_native_compile_external_project)
 
     if(compile_flags)
         list(APPEND ARG_CMAKE_ARGS "-DCMAKE_CXX_FLAGS=${compile_flags}" "-DCMAKE_C_FLAGS=${compile_flags}")
+    elseif(CMAKE_CROSSCOMPILING AND CMAKE_HOST_WIN32)
+        list(APPEND ARG_CMAKE_ARGS -U CMAKE_CXX_FLAGS -U CMAKE_C_FLAGS)
     endif()
 
     if(DEFINED CMAKE_CXX_COMPILER_LAUNCHER)
