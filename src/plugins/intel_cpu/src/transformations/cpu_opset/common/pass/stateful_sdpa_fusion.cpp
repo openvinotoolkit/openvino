@@ -33,6 +33,7 @@
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/util/sdpa_util.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
@@ -119,6 +120,14 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
+
+        // The node this fusion builds reads its key and value cache at the query's precision, so
+        // an integer one would be reinterpreted rather than converted. Decline: the unfused SDPA
+        // gets its key and value converted on the way in.
+        const auto sdpa_root = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(root);
+        if (sdpa_root && ov::op::util::sdpa_has_integer_kv(*sdpa_root)) {
+            return false;
+        }
 
         // Check concat axes equality first
         const auto concat_k_node = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_k).get_node_shared_ptr());
