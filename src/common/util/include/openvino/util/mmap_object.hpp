@@ -61,22 +61,12 @@ public:
     virtual void hint_evict(size_t offset, size_t size) noexcept = 0;
     void hint_evict() noexcept override final;
 
-    /**
-     * @brief Hint that the given region of the mapping will be accessed soon.
-     *
-     * @param offset Offset within the mapping where prefetching starts.
-     * @param size   Number of bytes to prefetch. Defaults to the rest of the
-     *               mapping when set to auto_size.
-     */
-    virtual void hint_prefetch(size_t offset, size_t size) noexcept = 0;
-
     /** @brief Starts asynchronous prefetching of the entire mapping and returns its completion handle. */
     util::PrefetchToken hint_prefetch() noexcept override final;
 
     /**
-     * @brief Asynchronous variant of @ref hint_prefetch: starts populating the region in the
-     * background and returns immediately. Any background work is joined before this object is
-     * destroyed.
+     * @brief Hint that the given region of the mapping will be accessed soon: starts populating it in the
+     * background and returns immediately. Any background work is joined before this object is destroyed.
      *
      * @param offset Offset within the mapping where prefetching starts.
      * @param size   Number of bytes to prefetch. Defaults to the rest of the

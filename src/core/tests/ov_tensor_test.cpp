@@ -1389,7 +1389,6 @@ public:
     }
 
     MOCK_METHOD(void, hint_evict, (size_t offset, size_t size), (noexcept, override));
-    MOCK_METHOD(void, hint_prefetch, (size_t offset, size_t size), (noexcept, override));
     MOCK_METHOD(ov::util::PrefetchToken, hint_prefetch_async, (size_t offset, size_t size), (noexcept, override));
 
 private:
