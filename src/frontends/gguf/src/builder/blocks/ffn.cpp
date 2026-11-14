@@ -25,7 +25,13 @@ std::string gated_gate_up(GraphEmitter& e,
     e.add_weight(gate_w);
     e.add_weight(up_w);
     const auto& shape = e.value(ffn_norm).get_partial_shape();
-    const bool rank3 = shape.rank() == 4 && shape[1] == 1 && shape[3].is_static() &&
+    const auto gate_type = e.weight_qtype(gate_w);
+    const auto up_type = e.weight_qtype(up_w);
+    // Retain Q4_K GeGLU rank 4 for GPU FC selection; u2 weights need rank 3 for fusion.
+    const bool rank4_geglu = glu_op == "GGML_GLU_OP_GEGLU" &&
+                             (gate_type == GGUF_TYPE_Q4_K || up_type == GGUF_TYPE_Q4_K) &&
+                             !gguf_has_u2_weights(gate_type) && !gguf_has_u2_weights(up_type);
+    const bool rank3 = !rank4_geglu && shape.rank() == 4 && shape[1] == 1 && shape[3].is_static() &&
                        e.value(gate_w).get_partial_shape().rank() == 2 && e.value(up_w).get_partial_shape().rank() == 2;
     const std::map<std::string, ov::Any> attributes{{"activation_rank", rank3 ? 3 : 4}};
     auto gate = e.add_op("GGML_OP_MUL_MAT", gate_name, {gate_w, ffn_norm}, 0, attributes);

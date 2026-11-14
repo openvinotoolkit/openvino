@@ -9,7 +9,7 @@
 namespace ov::frontend::gguf::pass {
 
 // Remove GGML's singleton activation axis through elementwise and normalization paths,
-// preserving the original layout at consumers that require it.
+// preserving layout at MatMul boundaries and fusion-sensitive RMS/RoPE paths.
 class SimplifyActivationShapes : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::frontend::gguf::pass::SimplifyActivationShapes");
