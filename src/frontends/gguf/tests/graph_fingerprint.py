@@ -685,7 +685,32 @@ def fingerprint(model_path, runner=None):
 
 
 def reference_bytes(reference):
-    data = (json.dumps(reference, sort_keys=True, indent=2, allow_nan=False) + "\n").encode("utf-8")
+    def format_value(value, level=0):
+        indent = "  " * level
+        if isinstance(value, dict):
+            if not value:
+                return "{}"
+            items = sorted(value.items())
+            lines = ["{"]
+            for index, (key, child) in enumerate(items):
+                comma = "," if index + 1 < len(items) else ""
+                lines.append(f'{"  " * (level + 1)}{json.dumps(key)}: {format_value(child, level + 1)}{comma}')
+            lines.append(indent + "}")
+            return "\n".join(lines)
+        if isinstance(value, list):
+            if not value:
+                return "[]"
+            if all(not isinstance(item, (dict, list)) for item in value):
+                return json.dumps(value, separators=(",", ":"), allow_nan=False)
+            if all(isinstance(item, list) and all(not isinstance(cell, (dict, list)) for cell in item)
+                   for item in value):
+                rows = [json.dumps(item, separators=(",", ":"), allow_nan=False) for item in value]
+                return "[\n" + ",\n".join("  " * (level + 1) + row for row in rows) + "\n" + indent + "]"
+            return "[\n" + ",\n".join("  " * (level + 1) + format_value(item, level + 1)
+                                     for item in value) + "\n" + indent + "]"
+        return json.dumps(value, allow_nan=False)
+
+    data = (format_value(reference) + "\n").encode("utf-8")
     if len(data) > MAX_REFERENCE_BYTES:
         raise ValueError(f"Reference exceeds 32 KiB: {len(data)} bytes")
     return data

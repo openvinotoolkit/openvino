@@ -37,7 +37,8 @@ not LFS:
   expands this to a per-tensor descriptor before conversion; `recipe_sha256` digests
   the expanded descriptor.
 - `references/<case>.json`: complete operation type/version counts, projection summaries
-  and graph/model-map SHA-256 values; at most **32 KiB per case across all stages**.
+  and graph/model-map SHA-256 values. Histogram rows are kept one per line for readable
+  diffs; other value arrays are inline. Each reference is limited to **32 KiB across all stages**.
 
 `deferred_plan` uses descriptors that throw on payload access. It reuses production
 builder selection and weight allocation/layout planning without allocating checkpoint

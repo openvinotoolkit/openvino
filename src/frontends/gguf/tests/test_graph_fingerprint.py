@@ -168,6 +168,14 @@ def test_reference_size_ceiling_is_bytes_not_node_count():
         graph.reference_bytes({"diagnostic": "x" * graph.MAX_REFERENCE_BYTES})
 
 
+def test_reference_format_keeps_histogram_rows_diffable():
+    value = {"version": 1, "recipe_sha256": "0" * 64,
+             "stages": {"deferred_plan": graph.model_stage({"native": graph.compact_snapshot(snapshot())})}}
+    data = graph.reference_bytes(value).decode()
+    assert '["MatMul","opset1",1]' in data
+    assert json.loads(data) == value
+
+
 def test_update_requires_selection_and_finishes_capture_before_writing(tmp_path, monkeypatch):
     value = recipe()
     original = json.dumps({"version": 1, "recipe_sha256": "0" * 64,
