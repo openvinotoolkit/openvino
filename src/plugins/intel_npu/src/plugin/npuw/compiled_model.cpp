@@ -1579,9 +1579,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
     // Read the model-level metadata fields.  In v0 these were written as raw
     // s11n bytes directly into the container body; v1 wraps them in an
     // explicit META leaf child so the section tree is fully self-describing.
-    auto read_meta_fields = [&]() {
-        auto meta_stream = ov::npuw::s11n::Stream::reader(stream);
-
+    auto read_meta_fields = [&](ov::npuw::s11n::Stream meta_stream) {
         std::string model_name;
         ov::ParameterVector parameters;
         ov::NodeVector results;
@@ -1608,15 +1606,15 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
 
     if (root.header().version == 0) {
         // v0: metadata written as raw s11n bytes at the start of the container body.
-        read_meta_fields();
+        read_meta_fields(root.reader());
     } else if (root.header().version == 1) {
         // v1: metadata wrapped in a META leaf child section.
-        ov::npuw::orc::ScopedReadSection meta(stream);
+        ov::npuw::orc::ScopedReadSection meta(stream, root.remaining());
         if (meta.header().type != ov::npuw::orc::META_SECTION_TYPE ||
             !ov::npuw::orc::has_flag(meta.header().flags, ov::npuw::orc::SectionFlag::LEAF)) {
             OPENVINO_THROW("Expected ORC NPUW metadata section, got type ", meta.header().type);
         }
-        read_meta_fields();
+        read_meta_fields(meta.reader());
         meta.expect_end();
     } else {
         OPENVINO_THROW("Unsupported ORC NPUW PartitionedModel version ", root.header().version);
@@ -1624,16 +1622,15 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
 
     compiled->m_import_weights_ctx = make_import_weights_ctx(properties, is_weightless, compiled->m_bf16_consts);
     bool have_weights = false;
-    auto peek_child_header = [](std::istream& child_source) {
+    auto peek_child_header = [](std::istream& child_source, const std::size_t available) {
         const auto saved = child_source.tellg();
-        auto peek_stream = ov::npuw::s11n::Stream::reader(child_source);
-        ov::npuw::orc::SectionHeader header;
-        peek_stream & header;
+        ov::npuw::orc::ScopedReadSection child(child_source, available);
+        const auto header = child.header();
         child_source.seekg(saved);
         return header;
     };
-    auto consume_submodel = [&](std::istream& child_source) {
-        ov::npuw::orc::ScopedReadSection child(child_source);
+    auto consume_submodel = [&](std::istream& child_source, const std::size_t available) {
+        ov::npuw::orc::ScopedReadSection child(child_source, available);
         if (child.header().type != CompiledModelDesc::kOrcType) {
             OPENVINO_THROW("Unexpected ORC child type ID ", child.header().type, " in NPUW CompiledModel container");
         }
@@ -1643,7 +1640,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
 
         compiled->m_compiled_submodels.emplace_back();
         auto& submodel = compiled->m_compiled_submodels.back();
-        auto child_stream = ov::npuw::s11n::Stream::reader(child_source);
+        auto child_stream = child.reader();
         ov::npuw::s11n::SubmodelDeserializeCtx submodel_ctx(
             plugin,
             submodel.compiled_model,
@@ -1657,8 +1654,8 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         child.expect_end();
     };
 
-    auto consume_weights_bank = [&](std::istream& child_source) {
-        ov::npuw::orc::ScopedReadSection child(child_source);
+    auto consume_weights_bank = [&](std::istream& child_source, const std::size_t available) {
+        ov::npuw::orc::ScopedReadSection child(child_source, available);
         if (child.header().type != weights::Bank::kOrcType) {
             OPENVINO_THROW("Unexpected ORC child type ID ", child.header().type, " in NPUW CompiledModel container");
         }
@@ -1666,7 +1663,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
             OPENVINO_THROW("Unsupported ORC NPUW weights version ", child.header().version);
         }
 
-        auto child_stream = ov::npuw::s11n::Stream::reader(child_source);
+        auto child_stream = child.reader();
         std::string bank_name;
         child_stream & bank_name;
         compiled->m_weights_bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
@@ -1686,25 +1683,26 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
 
         const auto decrypt_fn = decrypt ? decrypt : get_decrypt_callback_or_throw(properties);
         std::istringstream decrypted_stream(decrypt_fn(encrypted_payload));
-        while (decrypted_stream.peek() != std::char_traits<char>::eof() &&
-               peek_child_header(decrypted_stream).type == CompiledModelDesc::kOrcType) {
-            consume_submodel(decrypted_stream);
+        auto decrypted_reader = ov::npuw::orc::Stream::reader(decrypted_stream);
+        while (decrypted_reader.remaining() != 0u &&
+               peek_child_header(decrypted_stream, decrypted_reader.remaining()).type == CompiledModelDesc::kOrcType) {
+            consume_submodel(decrypted_stream, decrypted_reader.remaining());
         }
         if (require_weights_bank) {
-            if (decrypted_stream.peek() == std::char_traits<char>::eof()) {
+            if (decrypted_reader.remaining() == 0u) {
                 OPENVINO_THROW("Missing ORC weights bank container");
             }
-            consume_weights_bank(decrypted_stream);
+            consume_weights_bank(decrypted_stream, decrypted_reader.remaining());
         }
     } else {
-        while (!root.done() && peek_child_header(stream).type == CompiledModelDesc::kOrcType) {
-            consume_submodel(stream);
+        while (!root.done() && peek_child_header(stream, root.remaining()).type == CompiledModelDesc::kOrcType) {
+            consume_submodel(stream, root.remaining());
         }
         if (require_weights_bank) {
             if (root.done()) {
                 OPENVINO_THROW("Missing ORC weights bank container");
             }
-            consume_weights_bank(stream);
+            consume_weights_bank(stream, root.remaining());
         } else if (!root.done()) {
             OPENVINO_THROW("Unexpected ORC child after CompiledModelDesc containers");
         }
