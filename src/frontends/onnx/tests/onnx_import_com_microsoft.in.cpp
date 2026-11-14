@@ -10101,3 +10101,61 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_query_seqlens_sliding_window_decod
          1.051573f,  -0.464264f, -0.082366f, 0.321527f,  0.057996f,  -0.504767f, 1.920703f,  -1.825270f});
     test_case.run_with_tolerance_as_fp();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bias_softmax) {
+    const auto model = convert_model("com.microsoft/bias_softmax.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(
+        Shape{2, 2, 4},
+        {1.0f, 2.0f, 3.0f, 4.0f, 0.5f, -1.0f, 2.0f, 0.0f, -2.0f, 1.0f, 0.0f, 3.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+    test_case.add_input<float>(Shape{2, 1, 4}, {0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 1.0f, -1.0f, 2.0f});
+    test_case.add_expected_output<float>(Shape{2, 2, 4},
+                                         {0.037929f,
+                                          0.037929f,
+                                          0.462071f,
+                                          0.462071f,
+                                          0.113135f,
+                                          0.009287f,
+                                          0.835959f,
+                                          0.04162f,
+                                          0.000866f,
+                                          0.047273f,
+                                          0.002354f,
+                                          0.949507f,
+                                          0.087144f,
+                                          0.236883f,
+                                          0.032059f,
+                                          0.643914f});
+
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bias_softmax_axis_1) {
+    const auto model = convert_model("com.microsoft/bias_softmax_axis_1.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(
+        Shape{2, 2, 4},
+        {1.0f, 2.0f, 3.0f, 4.0f, 0.5f, -1.0f, 2.0f, 0.0f, -2.0f, 1.0f, 0.0f, 3.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+    test_case.add_input<float>(Shape{2, 1, 4}, {0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 1.0f, -1.0f, 2.0f});
+    test_case.add_expected_output<float>(Shape{2, 2, 4},
+                                         {0.03152f,
+                                          0.03152f,
+                                          0.383989f,
+                                          0.383989f,
+                                          0.019118f,
+                                          0.001569f,
+                                          0.141262f,
+                                          0.007033f,
+                                          0.000722f,
+                                          0.039409f,
+                                          0.001962f,
+                                          0.791544f,
+                                          0.014498f,
+                                          0.039409f,
+                                          0.005333f,
+                                          0.107124f});
+
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}

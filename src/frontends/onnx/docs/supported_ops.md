@@ -217,7 +217,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |BiasAdd                                                 |1                       |1                               |                                |
 |com.microsoft           |BiasDropout                                             |                        |1                               |                                |
 |com.microsoft           |BiasGelu                                                |1                       |1                               |                                |
-|com.microsoft           |BiasSoftmax                                             |                        |1                               |                                |
+|com.microsoft           |BiasSoftmax                                             |1                       |1                               |                                |
 |com.microsoft           |BiasSplitGelu                                           |                        |1                               |                                |
 |com.microsoft           |BifurcationDetector                                     |1                       |1                               |                                |
 |com.microsoft           |BitmaskBiasDropout                                      |                        |1                               |                                |
