@@ -218,6 +218,92 @@ TEST_P(OVCompiledGraphImportExportTestNPU, NonELFBlobExportThrows) {
     }
 }
 
+TEST_P(OVCompiledGraphImportExportTestNPU, SetExportRawBlobOnCompiledModel) {
+    ov::Core core;
+    std::stringstream rawBlobStream, setPropertyBlobStream;
+
+    auto model = ov::test::utils::make_conv_pool_relu();
+
+    auto rawBlobConfig = configuration;
+    rawBlobConfig.emplace(ov::intel_npu::export_raw_blob(true));
+    core.compile_model(model, target_device, rawBlobConfig).export_model(rawBlobStream);
+
+    auto compiledModel = core.compile_model(model, target_device, configuration);
+    ASSERT_FALSE(compiledModel.get_property(ov::intel_npu::export_raw_blob));
+    OV_ASSERT_NO_THROW(compiledModel.set_property({ov::intel_npu::export_raw_blob(true)}));
+    ASSERT_TRUE(compiledModel.get_property(ov::intel_npu::export_raw_blob));
+    compiledModel.export_model(setPropertyBlobStream);
+
+    ASSERT_EQ(rawBlobStream.str(), setPropertyBlobStream.str());
+
+    OV_ASSERT_NO_THROW(compiledModel.set_property({ov::intel_npu::export_raw_blob(false)}));
+    ASSERT_FALSE(compiledModel.get_property(ov::intel_npu::export_raw_blob));
+}
+
+TEST_P(OVCompiledGraphImportExportTestNPU, SetExportRawBlobOnNonELFCompiledModelThrows) {
+    ov::Core core;
+
+    auto config = configuration;
+    config.emplace(ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN));
+
+    {
+        // WS
+        std::stringstream modelIR, weights;
+        ov::pass::Serialize serialzePass(
+            modelIR,
+            weights);  // serialization needed to re-read the model with WeightlessCacheAttribute set
+        auto model = ov::test::utils::make_conv_pool_relu();
+        serialzePass.run_on_model(model);
+        const auto& weightsStr = weights.str();
+        ov::Tensor weightsTensor(ov::element::u8, ov::Shape{weightsStr.size()}, weightsStr.c_str());
+        model = core.read_model(modelIR.str(), weightsTensor);
+
+        config.emplace(ov::enable_weightless(true));
+        auto compiledModel = core.compile_model(model, target_device, config);
+        OV_EXPECT_THROW(compiledModel.set_property({ov::intel_npu::export_raw_blob(true)}),
+                        ov::Exception,
+                        testing::HasSubstr("requires metadata to be exported"));
+        ASSERT_FALSE(compiledModel.get_property(ov::intel_npu::export_raw_blob));
+        config.erase(ov::enable_weightless.name());
+    }
+
+    if (ov::intel_npu::Platform::standardize(ov::test::utils::getTestPlatform()) != ov::intel_npu::Platform::NPU3720) {
+        // HostCompile
+        auto model = createCustomNetModel();
+        config.emplace(ov::intel_npu::compilation_mode(HostCompile_Interpreter));
+        auto compiledModel = core.compile_model(model, target_device, config);
+        OV_EXPECT_THROW(compiledModel.set_property({ov::intel_npu::export_raw_blob(true)}),
+                        ov::Exception,
+                        testing::HasSubstr("Cannot enable NPU_EXPORT_RAW_BLOB"));
+        ASSERT_FALSE(compiledModel.get_property(ov::intel_npu::export_raw_blob));
+        config.erase(ov::intel_npu::compilation_mode.name());
+    }
+}
+
+TEST_P(OVCompiledGraphImportExportTestNPU, SetExportRawBlobOnPluginBatchedCompiledModelThrows) {
+    ov::Core core;
+
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 2, 2, 2});
+    input->set_friendly_name("input");
+    input->get_output_tensor(0).set_names({"tensor_input"});
+    input->set_layout("N...");
+    auto constant = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f});
+    auto add = std::make_shared<ov::op::v1::Add>(input, constant);
+    auto result = std::make_shared<ov::op::v0::Result>(add);
+    result->set_friendly_name("result");
+    result->get_output_tensor(0).set_names({"tensor_output"});
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
+
+    auto config = configuration;
+    config.emplace(ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::PLUGIN));
+
+    auto compiledModel = core.compile_model(model, target_device, config);
+    OV_EXPECT_THROW(compiledModel.set_property({ov::intel_npu::export_raw_blob(true)}),
+                    ov::Exception,
+                    testing::HasSubstr("holds batch information that requires metadata to be exported"));
+    ASSERT_FALSE(compiledModel.get_property(ov::intel_npu::export_raw_blob));
+}
+
 TEST_P(OVCompiledGraphImportExportTestNPU, CheckSizeOfExportedModelIfMultipleOfPageSize) {
     ov::Core core;
     std::stringstream sstream;

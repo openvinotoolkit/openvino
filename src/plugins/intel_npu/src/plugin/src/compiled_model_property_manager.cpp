@@ -182,7 +182,6 @@ void CompiledModelPropertyManager::registerProperties() {
     registerConfigProperty(DYNAMIC_SHAPE_TO_STATIC{}, false, true);
     registerConfigProperty(ENABLE_STRIDES_FOR{}, true, true);
     registerConfigProperty(ENABLE_WEIGHTLESS{}, true, true);
-    registerConfigProperty(EXPORT_RAW_BLOB{}, true, true);
     registerConfigProperty(IMPORT_RAW_BLOB{}, true, true);
     registerConfigProperty(PERF_COUNT{}, true, true);
     registerConfigProperty(PLATFORM{}, true, true);
@@ -255,6 +254,34 @@ void CompiledModelPropertyManager::registerProperties() {
             if (_graph != nullptr) {
                 _graph->set_workload_type(value.as<ov::WorkloadType>());
             }
+        }
+    );
+    register_property(ov::intel_npu::export_raw_blob.name(), true, ov::PropertyMutability::RW,
+        [this](const ov::AnyMap&) {
+            return _config.hasOpt(ov::intel_npu::export_raw_blob.name());
+        },
+        [this](const ov::AnyMap&) {
+            return _config.get<EXPORT_RAW_BLOB>();
+        },
+        [this](const ov::Any& value) {
+            const bool enableRawBlobExport =
+                value.is<bool>() ? value.as<bool>() : EXPORT_RAW_BLOB::parse(value.as<std::string>());
+            if (enableRawBlobExport) {
+                // A raw blob contains only the ELF main schedule. Anything that would have to be stored as metadata
+                // in order to import the model correctly cannot be represented, thus the request is rejected.
+                OPENVINO_ASSERT(_graph != nullptr, "Missing graph");
+                OPENVINO_ASSERT(_graph->get_blob_type() == BlobType::ELF,
+                                "Cannot enable ", ov::intel_npu::export_raw_blob.name(),
+                                ": the compiled model does not contain an ELF blob.");
+                OPENVINO_ASSERT(_graph->get_kind() == GraphKind::Weightful,
+                                "Cannot enable ", ov::intel_npu::export_raw_blob.name(),
+                                ": the compiled model is a ", to_string(_graph->get_kind()),
+                                " one and requires metadata to be exported.");
+                OPENVINO_ASSERT(!_batchSize.has_value(),
+                                "Cannot enable ", ov::intel_npu::export_raw_blob.name(),
+                                ": the compiled model holds batch information that requires metadata to be exported.");
+            }
+            _config.update(ov::intel_npu::export_raw_blob.name(), enableRawBlobExport);
         }
     );
     register_property(ov::cache_encryption_callbacks.name(), true, ov::PropertyMutability::WO,
