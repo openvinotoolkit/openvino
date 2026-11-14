@@ -233,6 +233,10 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipelines/kokoro/kokoro_split.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipelines/kokoro/kokoro_utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipelines/kokoro/kokoro_utils.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipelines/bagel/bagel_compiled_model.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipelines/bagel/bagel_compiled_model.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipelines/bagel/bagel_infer_request.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipelines/bagel/bagel_infer_request.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pyramid_attention.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pyramid_attention.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/serialization.cpp
