@@ -157,6 +157,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/patch_sliding_window_mask.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/remove_token_type_ids.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/remove_token_type_ids.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/restore_u2_gather_dequant.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/restore_u2_gather_dequant.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/replace_deepstack_scatter_with_add.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/replace_deepstack_scatter_with_add.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/reshape_sliced_head_to_static.cpp
@@ -177,6 +179,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/duplicate_shared_kv_concat.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/split_kvcache_into_blocks.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/split_kvcache_into_blocks.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/strip_noop_gather_ids_reshape.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/strip_noop_gather_ids_reshape.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/untangle_dq_scale.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/untangle_dq_scale.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/orc.cpp
