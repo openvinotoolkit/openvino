@@ -1,0 +1,69 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+set(BASE_FUNC_TESTS_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/include/behavior/compiled_model/compiled_model_base.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/behavior/compiled_model/import_export.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/behavior/compiled_model/properties.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/behavior/compiled_model/properties_hetero.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/behavior/ov_infer_request/batched_tensors.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/behavior/ov_infer_request/callback.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/behavior/ov_infer_request/cancellation.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/behavior/ov_infer_request/infer_consistency.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/behavior/ov_infer_request/infer_request_dynamic.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/behavior/ov_infer_request/inference.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/behavior/ov_infer_request/inference_chaining.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/behavior/ov_infer_request/io_tensor.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/behavior/ov_infer_request/iteration_chaining.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/behavior/ov_infer_request/memory_states.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/behavior/ov_infer_request/multithreading.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/behavior/ov_infer_request/perf_counters.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/behavior/ov_infer_request/properties_tests.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/behavior/ov_infer_request/wait.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/behavior/ov_plugin/auto_batching_tests.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/behavior/ov_plugin/caching_tests.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/behavior/ov_plugin/core_integration_sw.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/behavior/ov_plugin/core_threading.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/behavior/ov_plugin/hetero_synthetic.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/behavior/ov_plugin/life_time.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/behavior/ov_plugin/properties_tests.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/behavior/ov_plugin/query_model.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/behavior/ov_plugin/remote.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/behavior/ov_plugin/version.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/shared_test_classes/base/benchmark.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/shared_test_classes/base/low_precision_transformations/layer_transformation.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/shared_test_classes/base/ov_behavior_test_utils.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/shared_test_classes/base/ov_subgraph.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/shared_test_classes/base/snippets_test_utils.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/shared_test_classes/base/utils/calculate_thresholds.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/shared_test_classes/base/utils/compare_results.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/shared_test_classes/base/utils/generate_inputs.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/shared_test_classes/base/utils/ranges.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/base/low_precision_transformations/layer_transformation.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/base/ov_subgraph.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/base/snippets_test_utils.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/base/utils/calculate_thresholds.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/base/utils/compare_results.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/base/utils/generate_inputs.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/base/utils/ranges.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/behavior/compiled_model/import_export.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/behavior/compiled_model/properties.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/behavior/compiled_model/properties_hetero.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/behavior/ov_infer_request/batched_tensors.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/behavior/ov_infer_request/infer_correctness.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/behavior/ov_infer_request/infer_request_dynamic.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/behavior/ov_infer_request/inference.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/behavior/ov_infer_request/inference_chaining.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/behavior/ov_infer_request/io_tensor.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/behavior/ov_infer_request/iteration_chaining.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/behavior/ov_infer_request/memory_states.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/behavior/ov_infer_request/perf_counters.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/behavior/ov_infer_request/wait.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/behavior/ov_plugin/caching_tests.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/behavior/ov_plugin/hetero_synthetic.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/behavior/ov_plugin/life_time.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/behavior/ov_plugin/properties_tests.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/behavior/ov_plugin/remote.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/precomp.hpp
+)

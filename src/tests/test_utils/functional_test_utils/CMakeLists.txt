@@ -4,16 +4,16 @@
 
 set(TARGET_NAME func_test_utils)
 
+include(sources.cmake)
+
 ov_add_target(
     NAME ${TARGET_NAME}
     TYPE STATIC
-    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+    SOURCES ${FUNCTIONAL_TEST_UTILS_SOURCES}
     ADD_CLANG_FORMAT
     INCLUDES
         PUBLIC
             "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-    ADDITIONAL_SOURCE_DIRS
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
     LINK_LIBRARIES
         PUBLIC
             common_test_utils
