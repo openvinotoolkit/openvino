@@ -90,6 +90,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
     cache_root = _get_cache_dir(options)
     file_name = cached_model_name(model_hash_str, device, args, cache_root)
 
+    decoder = None
     if file_name is not None and os.path.isfile(file_name + ".xml") and os.path.isfile(file_name + ".bin"):
         om = core.read_model(file_name + ".xml")
     else:
@@ -132,7 +133,8 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
             om.inputs[idx].get_node().set_partial_shape(PartialShape(list(torch.Size([1]))))
         else:
             om.inputs[idx].get_node().set_element_type(dtype_mapping[input_data.dtype])
-            om.inputs[idx].get_node().set_partial_shape(PartialShape(list(decoder.input_shapes[idx])))
+            if decoder is not None:
+                om.inputs[idx].get_node().set_partial_shape(PartialShape(list(decoder.input_shapes[idx])))
 
     om.validate_nodes_and_infer_types()
 
