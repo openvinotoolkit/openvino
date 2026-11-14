@@ -10,18 +10,18 @@
 #include "openvino/core/node.hpp"
 #include "openvino/op/op.hpp"
 
-namespace ov::intel_gpu::op {
+namespace ov::op::internal {
 
-/// \brief GPU-internal non-paged, stateful complete-block plan producer for Qwen Sparse Attention (QSA).
+/// \brief Non-paged, stateful complete-block plan producer for Qwen Sparse Attention (QSA).
 ///
 /// Reads no page table and owns no opaque runtime state. The state (`block_index_keys_cache`, and the
 /// raw keys and first-token RoPE row of the incomplete block) is passed as inputs and
 /// returned, updated, as outputs (functional state interface). `key_length` is the number of
 /// valid tokens of each row after the call; rows shorter than `L` are left-padded.
 /// RoPE uses the caller-supplied per-token rotate-half `rope_cos`/`rope_sin`.
-class QSAIndexer : public ov::op::Op {
+class OPENVINO_API QSAIndexer : public ov::op::Op {
 public:
-    OPENVINO_OP("QSAIndexer", "gpu_opset");
+    OPENVINO_OP("QSAIndexer");
 
     /// @brief Fixed input order of the QSAIndexer op.
     struct InputIdx {
@@ -57,7 +57,9 @@ public:
         size_t indexer_rotary_dim = 0;   ///< <= indexer_head_dim, even
         size_t indexer_head_dim = 0;     ///< D_idx
         float epsilon = 1e-6f;           ///< RMSNorm epsilon
-        float scale = 0.0f;              ///< positive score multiplier; 0 selects the default 1 / sqrt(indexer_head_dim)
+        float scale = 0.0f;      ///< positive score multiplier; 0 selects the default 1 / sqrt(indexer_head_dim)
+        bool query_norm = true;  ///< Query RMSNorm is fused; false is an intermediate fusion state only.
+        bool query_rope = true;  ///< Query RoPE is fused; false is an intermediate fusion state only.
     };
 
     QSAIndexer() = default;
@@ -85,4 +87,4 @@ private:
     Config m_config{};
 };
 
-}  // namespace ov::intel_gpu::op
+}  // namespace ov::op::internal

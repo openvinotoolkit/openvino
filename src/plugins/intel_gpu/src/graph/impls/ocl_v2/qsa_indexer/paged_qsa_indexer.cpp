@@ -20,7 +20,7 @@
 namespace ov::intel_gpu::ocl {
 
 using namespace cldnn;
-using QSAIn = ov::intel_gpu::op::PagedQSAIndexer::InputIdx;
+using QSAIn = ov::op::internal::PagedQSAIndexer::InputIdx;
 
 namespace {
 
@@ -461,7 +461,7 @@ bool PagedQSAIndexerImplementationManager::validate_impl(const cldnn::program_no
 
     const auto desc = node.as<cldnn::paged_qsa_indexer>().get_primitive();
     std::string reason;
-    if (!ov::intel_gpu::op::PagedQSAIndexer::validate_config(desc->get_config(), reason)) {
+    if (!ov::op::internal::PagedQSAIndexer::validate_config(desc->get_config(), reason)) {
         return false;
     }
 
