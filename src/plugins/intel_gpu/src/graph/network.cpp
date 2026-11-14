@@ -296,13 +296,6 @@ network::network(engine& engine,
                  std::shared_ptr<ov::threading::IStreamsExecutor> task_executor)
     : network(program::build_program(engine, topo, config, task_executor, is_internal), is_internal, true) {}
 
-network::network(engine& engine,
-                 const std::set<std::shared_ptr<program_node>>& nodes,
-                 const ExecutionConfig& config,
-                 std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-                 bool is_internal)
-    : network(program::build_program(engine, nodes, config, task_executor, is_internal), is_internal, true) {}
-
 network::network(program::ptr program, uint16_t stream_id)
     : network(program, program->get_engine().create_stream(program->get_config()), false, stream_id == 0) {}
 
@@ -345,14 +338,6 @@ network::ptr network::build_network(engine& engine,
                                     std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                                     bool is_internal) {
     return std::make_shared<network>(engine, topology, config, is_internal, task_executor);
-}
-
-network::ptr network::build_network(engine& engine,
-                                    const std::set<std::shared_ptr<program_node>>& nodes,
-                                    const ExecutionConfig& config,
-                                    std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-                                    bool is_internal) {
-    return std::make_shared<network>(engine, nodes, config, task_executor, is_internal);
 }
 
 void network::validate_primitives() {
@@ -1342,6 +1327,24 @@ std::vector<std::pair<primitive_inst*, int>> network::get_primitives(const std::
         return std::make_pair(get_primitive(node.first->id()).get(), node.second);
     });
     return result;
+}
+
+std::shared_ptr<primitive_inst> network::add_primitive(const program_node& node) {
+    // Not allocate_primitive_instance: the instance is temporary, so it is neither an input or output of the network nor
+    // transferred to the device
+    auto inst = node.type()->create_instance(*this, node);
+    if (!node.is_type<data>()) {
+        inst->set_flag(ExecutionFlags::IMPL_CHANGED);
+        inst->set_flag(ExecutionFlags::SHAPE_CHANGED);
+        inst->set_flag(ExecutionFlags::MEMORY_CHANGED);
+    }
+    OPENVINO_ASSERT(_primitives.emplace(node.id(), inst).second, "[GPU] Primitive instance ", node.id(), " already exists");
+    inst->build_deps();
+    return inst;
+}
+
+void network::remove_primitive(const primitive_id& id) {
+    OPENVINO_ASSERT(_primitives.erase(id) == 1, "[GPU] No primitive instance ", id, " to remove");
 }
 
 void network::allocate_primitive_instance(const program_node& node) {

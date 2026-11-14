@@ -137,7 +137,7 @@ TEST(data_gpu, transfer_memory_padding_mismatch_forced) {
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
-    auto prog = std::make_shared<program>(engine, topology, config, nullptr, nullptr, false, false, false);
+    auto prog = program::build_program(engine, topology, config, nullptr, nullptr, false, false, false);
 
     auto& data_node = prog->get_node("const_data");
     padding node_padding;
