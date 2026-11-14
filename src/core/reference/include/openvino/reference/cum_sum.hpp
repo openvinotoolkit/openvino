@@ -7,19 +7,28 @@
 #include <cmath>
 
 #include "openvino/core/shape.hpp"
+#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 namespace reference {
 
+// The axis must be normalized: in [0, rank), or 0 for a scalar input.
 template <typename T, typename P>
 void cumsum(const T* arg, const P axis, T* out, const Shape& tensor_shape, const bool exclusive, const bool reverse) {
-    const auto normalized_axis = [axis, rank = tensor_shape.size()] {
-        if constexpr (std::is_unsigned_v<decltype(axis)>) {
-            return axis;
-        } else {
-            return axis < 0 ? axis + rank : axis;
-        }
-    }();
+    const auto rank = static_cast<int64_t>(tensor_shape.size());
+    const auto normalized_axis = static_cast<int64_t>(axis);
+    OPENVINO_ASSERT(normalized_axis >= 0 && ov::util::is_axis_valid(normalized_axis, rank),
+                    "CumSum axis ",
+                    axis,
+                    " is out of range for a tensor of rank ",
+                    rank);
+    if (rank == 0) {
+        out[0] = exclusive ? T{0} : arg[0];
+        return;
+    }
+    if (shape_size(tensor_shape) == 0) {
+        return;
+    }
     const auto axis_dim = tensor_shape[normalized_axis];
 
     const auto size_before_axis = shape_size(tensor_shape.begin(), tensor_shape.begin() + normalized_axis);
