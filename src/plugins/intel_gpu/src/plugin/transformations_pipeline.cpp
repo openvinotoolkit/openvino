@@ -1868,6 +1868,23 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     return (ov::is_dequantization_node(node) || ov::is_type<ov::opset1::FakeQuantize>(node));
                 });
 
+            // Only floating-point activations are scaled. Arithmetic on a tensor converted from an integer or boolean
+            // type also looks like a dequantization to LPT, e.g. the additive attention mask (1 - Convert(mask)) * lowest,
+            // which LPT turns into (Convert(mask) - 1) * 65504 in f16. Moving it through an Add would compute the other
+            // input x as (x - 65504) / 65504 in f16, which loses x (e.g. the T5 relative position bias).
+            pass_config->set_callback<AddTransformation>([&infer_precision](const std::shared_ptr<const ov::Node>& node) -> bool {
+                for (size_t i = 0; i < node->get_input_size(); ++i) {
+                    const auto dequantization = NetworkHelper::getDequantization(node, {infer_precision}, i);
+                    if (dequantization.empty())
+                        continue;
+                    const auto convert =
+                        dequantization.convert ? dequantization.convert : ov::as_type_ptr<ov::op::v0::Convert>(dequantization.data.get_node_shared_ptr());
+                    if (convert && !convert->get_input_element_type(0).is_real())
+                        return true;
+                }
+                return false;
+            });
+
             manager.register_pass<ov::pass::activations_scaling::ScaleDownSingleLayer>(activations_scale_factor, infer_precision);
             manager.register_pass<ov::pass::SharedOpOptimization>();
 
