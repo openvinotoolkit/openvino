@@ -22,15 +22,21 @@ struct condition : public primitive_base<condition> {
     /// @brief branch has compiled program, input_map and output_map
     ///
     struct branch {
-        std::map<primitive_id, primitive_id> input_map;
+        struct input_mapping {
+            input_info external_id;
+            primitive_id internal_id;
+        };
+
+        std::map<size_t, input_mapping> input_map;
         std::map<size_t, primitive_id> output_map;
         program::ptr inner_program;
 
         std::string str() {
             std::stringstream ss;
-            ss << "branch: {input_map : [(outer_id,inner_id),";
+            ss << "branch: {input_map : [(dependency_index,outer_id,inner_id),";
             for (auto& in_iter : input_map) {
-                ss << "(" << in_iter.first << "," << in_iter.second << "),";
+                ss << "(" << in_iter.first << "," << in_iter.second.external_id.to_string() << ","
+                   << in_iter.second.internal_id << "),";
             }
             ss << "],";
 
@@ -46,7 +52,8 @@ struct condition : public primitive_base<condition> {
             ob << input_map.size();
             for (const auto& input_pair : input_map) {
                 ob << input_pair.first;
-                ob << input_pair.second;
+                ob << input_pair.second.external_id;
+                ob << input_pair.second.internal_id;
             }
             ob << output_map.size();
             for (const auto& output_pair : output_map) {
@@ -61,10 +68,12 @@ struct condition : public primitive_base<condition> {
             ib >> map_size;
             input_map.clear();
             for (size_t i = 0; i < map_size; ++i) {
-                primitive_id input_first, input_second;
-                ib >> input_first;
-                ib >> input_second;
-                input_map.insert({input_first, input_second});
+                size_t input_index;
+                input_mapping mapping;
+                ib >> input_index;
+                ib >> mapping.external_id;
+                ib >> mapping.internal_id;
+                input_map.insert({input_index, mapping});
             }
             ib >> map_size;
             output_map.clear();
