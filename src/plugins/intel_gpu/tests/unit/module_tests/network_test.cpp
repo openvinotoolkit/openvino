@@ -13,6 +13,8 @@
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/primitives/gather.hpp"
+#include "intel_gpu/primitives/range.hpp"
 #include "intel_gpu/primitives/slice_scatter.hpp"
 #include "primitive_inst.h"
 
@@ -159,6 +161,70 @@ TEST(network_test, has_proper_event_for_in_order_queue_optimized_out) {
     ASSERT_TRUE(downcast<ocl::ocl_base_event>(concat_ev.get())->get().get() != nullptr);
     ASSERT_TRUE(downcast<ocl::ocl_base_event>(reorder_ev.get())->get().get() != nullptr);
     ASSERT_TRUE(downcast<ocl::ocl_base_event>(activation_ev.get())->get().get() != nullptr);
+}
+
+TEST(network_test, has_proper_event_for_shape_infer_dep_chain) {
+    auto& engine = get_test_engine();
+    layout shape_layout{ov::PartialShape{4}, data_types::i64, format::bfyx};
+    layout idx_layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
+    layout scalar_layout{ov::PartialShape{}, data_types::i64, format::bfyx};
+    auto shape_mem = engine.allocate_memory(shape_layout);
+    auto idx_mem = engine.allocate_memory(idx_layout);
+    auto start_mem = engine.allocate_memory(scalar_layout);
+    auto step_mem = engine.allocate_memory(scalar_layout);
+    set_values<int64_t>(shape_mem, {4, 1, 2, 3});
+    set_values<int32_t>(idx_mem, {0});
+    set_values<int64_t>(start_mem, {0});
+    set_values<int64_t>(step_mem, {1});
+
+    topology topology;
+    topology.add(input_layout("shape_input", shape_layout));
+    topology.add(data("indices", idx_mem));
+    topology.add(data("start", start_mem));
+    topology.add(data("step", step_mem));
+    topology.add(gather("gather", input_info("shape_input"), input_info("indices"), 0, 1, ov::Shape{1}));
+    topology.add(reshape("squeeze", input_info("gather"), false, std::vector<int64_t>{0}, ov::PartialShape{}, reshape::reshape_mode::squeeze));
+    topology.add(range("range", {input_info("start"), input_info("squeeze"), input_info("step")}, data_types::i64));
+
+    auto impl_desc = ov::intel_gpu::ImplementationDesc{format::bfyx, "", impl_types::cpu};
+    auto impl_forcing_map = ov::intel_gpu::ImplForcingMap{{"gather", impl_desc}};
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(impl_forcing_map));
+
+    network net(engine, topology, config);
+
+    net.set_input_data("shape_input", shape_mem);
+    auto outputs = net.execute();
+
+    ASSERT_TRUE(net.get_primitive("squeeze")->get_node().can_be_optimized());
+    ASSERT_TRUE(net.get_primitive("gather")->get_node().is_shape_infer_dep());
+    ASSERT_TRUE(net.get_primitive("squeeze")->get_node().is_shape_infer_dep());
+
+    ASSERT_TRUE(net.has_event("gather"));
+    ASSERT_TRUE(net.has_event("squeeze"));
+    ASSERT_TRUE(net.has_event("range"));
+
+    auto gather_ev = net.get_primitive_event("gather");
+    auto squeeze_ev = net.get_primitive_event("squeeze");
+    auto range_ev = net.get_primitive_event("range");
+
+    OV_ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(gather_ev.get()));
+    OV_ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(range_ev.get()));
+
+    ASSERT_TRUE(downcast<ocl::ocl_base_event>(gather_ev.get())->get().get() != nullptr);
+    ASSERT_TRUE(downcast<ocl::ocl_base_event>(range_ev.get())->get().get() != nullptr);
+
+    // optimized out squeeze forwards the event of its input
+    ASSERT_EQ(squeeze_ev.get(), gather_ev.get());
+
+    mem_lock<int64_t> output_ptr{outputs.at("range").get_memory(), get_test_stream()};
+    ASSERT_EQ(output_ptr.size(), 4u);
+    for (size_t i = 0; i < output_ptr.size(); ++i) {
+        ASSERT_EQ(output_ptr[i], static_cast<int64_t>(i));
+    }
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU

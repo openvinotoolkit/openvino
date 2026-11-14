@@ -139,7 +139,7 @@ struct reduce_impl : public typed_primitive_impl<reduce> {
             return stream.group_events(events);
         }
 
-        return make_output_event(stream, instance.is_output());
+        return make_output_event(stream, instance.needs_completion_event());
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
