@@ -11,6 +11,7 @@ import sys
 import logging
 import platform
 from pathlib import Path
+from typing import Union
 
 import torch
 import numpy as np
@@ -1270,6 +1271,66 @@ def test_patched_dataclass_outputs():
     assert dataclasses.is_dataclass(restored)
     assert torch.equal(restored.first, x + 1)
     assert restored.second is None
+
+
+class TensorSubclass(torch.Tensor):
+    pass
+
+
+class ModelWithTensorDefault(torch.nn.Module):
+    def forward(self, x, y=None, z: torch.Tensor = torch.zeros(2)):
+        out = x * 10 + z
+        if y is not None:
+            out = out + y * 1000
+        return out
+
+
+class ModelWithCustomAnnotation(torch.nn.Module):
+    def forward(self, x, y=None, z: TensorSubclass = None):
+        out = x * 10 + z
+        if y is not None:
+            out = out + y * 1000
+        return out
+
+
+class ModelWithCustomUnionAnnotation(torch.nn.Module):
+    def forward(self, x, y=None, z: Union[TensorSubclass, torch.Tensor] = None):
+        out = x * 10 + z
+        if y is not None:
+            out = out + y * 1000
+        return out
+
+
+@pytest.mark.parametrize(
+    "model_cls", [ModelWithTensorDefault, ModelWithCustomAnnotation, ModelWithCustomUnionAnnotation]
+)
+@pytest.mark.parametrize("as_dict", [True, False])
+def test_example_input_binds_to_right_params_when_inputs_are_skipped(model_cls, as_dict):
+    from openvino import convert_model, compile_model
+
+    x = torch.ones(2)
+    z = torch.full((2,), 5.0)
+    example = {"x": x, "z": z} if as_dict else (x, None, z)
+    ov_model = convert_model(model_cls(), example_input=example)
+
+    res = compile_model(ov_model, "CPU")([x.numpy(), z.numpy()])[0]
+    assert np.array_equal(res, model_cls()(x=x, z=z).numpy())
+
+
+def test_dict_example_with_none_in_tuple_and_custom_annotation():
+    from openvino import convert_model, compile_model
+
+    class Model(torch.nn.Module):
+        def forward(self, x, pair: TensorSubclass = None):
+            first, second = pair
+            return x * 10 + first + (0 if second is None else second * 1000)
+
+    x = torch.ones(2)
+    y = torch.full((2,), 5.0)
+    ov_model = convert_model(Model(), example_input={"x": x, "pair": (y, None)})
+
+    res = compile_model(ov_model, "CPU")([x.numpy(), y.numpy()])[0]
+    assert np.array_equal(res, Model()(x, (y, None)).numpy())
 
 
 def test_convert_model_with_dataclass_output():
