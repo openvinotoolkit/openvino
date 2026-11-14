@@ -95,9 +95,6 @@ public:
  * @param path Path to a file which memory will be mmaped.
  * @param offset Offset in the file where the mapping starts.
  * @param size Size of the mapping. If size is std::numeric_limits<size_t>::max(), maps from offset to EOF.
- * @param no_placeholder When true, skip the Windows 10+ placeholder/VEH mechanism and use the legacy
- *                       single-call MapViewOfFile path instead. This guarantees a uniform AllocationBase
- *                       across the whole mapping, required for NPU zero-copy blob import. On Linux ignored.
  * @param mode Access mode of the mapping. A read_write mapping requires the file to be writable and reports
  *             no_mapping_id, because get_id() marks an immutable data source that consumers may share.
  * @return MappedMemory shared ptr object which keep mmaped memory and control the lifetime.
@@ -105,7 +102,6 @@ public:
 std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& path,
                                                    size_t offset = 0,
                                                    size_t size = auto_size,
-                                                   bool no_placeholder = false,
                                                    MmapMode mode = MmapMode::READ);
 
 /**

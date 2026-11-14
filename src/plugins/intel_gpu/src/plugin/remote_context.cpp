@@ -330,8 +330,7 @@ std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory_from_file(con
                     alignment);
     // Memory-map the file. The mapping is retained inside the RemoteTensorImpl so it stays
     // alive for the whole tensor lifetime (GPU wraps the host pointer via CL_MEM_USE_HOST_PTR).
-    auto mapped_memory =
-        ov::load_mmap_object(file_path, offset, *byte_size, /*no_placeholder=*/false, to_util_mmap_mode(access));
+    auto mapped_memory = ov::load_mmap_object(file_path, offset, *byte_size, to_util_mmap_mode(access));
 
     auto import_size = *byte_size;
     const auto cacheline_size = static_cast<size_t>(get_engine().get_device_info().cacheline_size.value_or(0));

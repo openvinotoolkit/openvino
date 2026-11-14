@@ -16,6 +16,9 @@
 
 namespace ov::util {
 
+/** @brief Asks the OS to read [ptr, ptr + size) in large I/Os before its pages are touched; may be a no-op. */
+void populate_hint(const void* ptr, size_t size) noexcept;
+
 // Touches one byte per page over [m_begin, m_end) to force the pages resident. The volatile
 // accumulator keeps the compiler from eliminating the read loop.
 struct PageToucher {
@@ -24,6 +27,7 @@ struct PageToucher {
     const size_t m_page_size;
 
     void operator()() const noexcept {
+        populate_hint(m_begin, static_cast<size_t>(m_end - m_begin));
         volatile uint8_t local = 0;
         for (auto begin = m_begin; begin < m_end; begin += m_page_size) {
             local = static_cast<uint8_t>(local + *begin);
