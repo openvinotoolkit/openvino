@@ -22,6 +22,9 @@ public:
     AutoCompileContext                                                     m_compile_context[CONTEXTNUM];
     // device the latest dynamic inference was dispatched to, empty until one has been dispatched
     DeviceName get_dynamic_active_device() const;
+    // dynamic selection only: the device and compiled model answering the model level queries;
+    // the initial device until it is released, then a device that is still loaded
+    std::pair<DeviceName, SoCompiledModel> get_dynamic_query_model() const;
 
 private:
     void init() override;
@@ -58,6 +61,12 @@ private:
      * @note device is updated in place when the compilation falls back to another candidate device.
      */
     bool ensure_device_ready(DeviceInformation& device);
+    /**
+     * @brief Drop the compiled model and workers of a device that is no longer the active one.
+     * @note Only done with compile_for_all, and only for devices that support model caching and have a cache location
+     * to reload from. The model level queries are moved to active_device when the released device answered them.
+     */
+    void release_inactive_device(const DeviceName& device_name, const DeviceName& active_device);
     // disables the configured low_power_device override if it matches the failed device
     // @return true only for the call that disabled it, i.e. the first failure of that device
     bool check_and_disable_if_low_power_device_failed(const std::string& failed_device_name) const;
@@ -81,6 +90,12 @@ private:
     DeviceName                                                           m_gate_current_device;
     std::deque<std::pair<ov::threading::Task, DeviceName>>               m_gate_pending_tasks;
     DeviceMap<SoCompiledModel>                                           m_dynamic_compiled_models;
+    // guarded by m_context->m_mutex together with m_context->m_hw_compiled_model, which is its compiled model
+    DeviceName                                                           m_dynamic_query_device;
+    // whether Core writes a cache blob for the device, queried once per device
+    DeviceMap<bool>                                                      m_device_supports_caching;
+    // Cache keys are immutable for this compiled model/device configuration; file existence is still probed per release.
+    DeviceMap<std::string>                                               m_dynamic_cache_blob_ids;
     std::atomic<size_t>                                                  m_dynamic_infer_count = {0};
     std::atomic<size_t>                                                  m_dynamic_switch_count = {0};
 };
