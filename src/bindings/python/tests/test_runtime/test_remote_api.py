@@ -142,6 +142,37 @@ def test_create_tensor_from_host_address_gpu(device, to_address):
     "GPU" not in os.environ.get("TEST_DEVICE", ""),
     reason="Test can be only performed on GPU device!",
 )
+def test_cpu_va_tensor_params_round_trip_gpu(device):
+    core = ov.Core()
+    context = core.get_default_context(device)
+    cacheline_size = core.get_property(device, "GPU_CACHELINE_SIZE")
+    expected = np.arange(cacheline_size // 4, dtype=np.float32)
+    buffer = page_aligned_array(expected.shape, np.float32)
+    buffer[:] = expected
+
+    tensor = context.create_tensor(
+        ov.Type.f32,
+        ov.Shape(expected.shape),
+        {"SHARED_MEM_TYPE": "CPU_VA", "CPU_VA": buffer.ctypes.data, "CPU_VA_SIZE": buffer.nbytes},
+    )
+
+    # get_params() must expose everything create_tensor() needs to wrap the same memory again,
+    # including the buffer size and access mode, not only the address.
+    params = tensor.get_params()
+    assert params["CPU_VA_SIZE"].value == buffer.nbytes
+    assert "CPU_VA_ACCESS" in params
+
+    alias = context.create_tensor(ov.Type.f32, ov.Shape(expected.shape), params)
+    result = ov.Tensor(ov.Type.f32, ov.Shape(expected.shape))
+    alias.copy_to(result)
+
+    assert np.array_equal(result.data, expected)
+
+
+@pytest.mark.skipif(
+    "GPU" not in os.environ.get("TEST_DEVICE", ""),
+    reason="Test can be only performed on GPU device!",
+)
 def test_create_tensor_from_device_memory_handle_gpu(device):
     core = ov.Core()
     context = core.get_default_context(device)
