@@ -20,11 +20,11 @@ ov::OutputVector inverse(const ov::frontend::onnx::Node& node) {
 
     const auto& x = node.get_ov_inputs()[0];
     const auto& x_type = x.get_element_type();
-    CHECK_VALID_NODE(node,
-                     x_type.is_dynamic() || x_type == ov::element::f16 || x_type == ov::element::f32 ||
-                         x_type == ov::element::f64,
-                     "Unsupported input data type for X, expected FP16, FP32 or FP64 but got: ",
-                     x_type);
+    CHECK_VALID_NODE(
+        node,
+        x_type.is_dynamic() || x_type == ov::element::f16 || x_type == ov::element::f32 || x_type == ov::element::f64,
+        "Unsupported input data type for X, expected FP16, FP32 or FP64 but got: ",
+        x_type);
 
     return {std::make_shared<v14::Inverse>(x, false)};
 }
