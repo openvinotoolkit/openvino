@@ -404,6 +404,10 @@ private:
 // Does not consume any bytes — the stream position is restored on return.
 std::optional<OrcHeader> is_orc(std::istream& stream);
 
+// Peeks the file header and the root section header without consuming any bytes.
+// Returns nullopt when the stream is not an ORC blob.  Stream position is restored.
+TypeId peek_blob_id(std::istream& stream);
+
 class Schema {
 public:
     using Loader = std::function<std::any(const Section&, const Schema&)>;

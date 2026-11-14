@@ -92,6 +92,10 @@ public:
         V2,
     };
 
+    static constexpr ov::npuw::orc::TypeId kOrcType =
+        static_cast<ov::npuw::orc::TypeId>(ov::npuw::orc::schema_npuw::GQAModel::ID);
+    static constexpr ov::npuw::orc::Version kOrcVersion = 0u;
+
     static std::shared_ptr<ov::npuw::ICompiledModel> make_compiled_model(
         const std::shared_ptr<ov::Model>& model,
         const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -120,9 +124,9 @@ public:
 
     // Writes/reads outer-facing port metadata for export_model()/import_model(), keyed by
     // friendly name (GQAInferRequest's dynamic-axis lookups key off it too).
-    static void write_port_list(std::ostream& stream, const std::vector<ov::Output<const ov::Node>>& ports);
-    static ov::ParameterVector read_input_port_list(std::istream& stream);
-    static ov::NodeVector read_output_port_list(std::istream& stream);
+    static void write_port_list(ov::npuw::orc::Stream& stream, const std::vector<ov::Output<const ov::Node>>& ports);
+    static ov::ParameterVector read_input_port_list(ov::npuw::orc::Stream& stream);
+    static ov::NodeVector read_output_port_list(ov::npuw::orc::Stream& stream);
 
     GQACompiledModel(const std::shared_ptr<ov::Model>& model,
                      const std::shared_ptr<const ov::IPlugin>& plugin,

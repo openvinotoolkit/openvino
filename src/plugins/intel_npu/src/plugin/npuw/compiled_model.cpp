@@ -403,7 +403,15 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::import_model
     // The partitioned CompiledModel is a plain ORC container with no indicator
     // header of its own.
     if (is_partitioned_orc(stream)) {
-        return ov::npuw::CompiledModel::import_model(stream, plugin, properties);
+        auto typeID = ov::npuw::orc::peek_blob_id(stream);
+        switch (typeID) {
+        case ov::npuw::GQACompiledModel::kOrcType:
+            return ov::npuw::GQACompiledModel::import_model(stream, plugin, properties);
+        case ov::npuw::CompiledModel::kOrcType:
+            return ov::npuw::CompiledModel::import_model(stream, plugin, properties);
+        default:
+            NPUW_ASSERT(false && "Couldn't determine blob type from ORC root section");
+        }
     }
 
     const auto stream_start_pos = stream.tellg();
@@ -421,8 +429,6 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::import_model
 
     if (compiled_model_indicator == NPUW_FLUX2_COMPILED_MODEL_INDICATOR) {
         return ov::npuw::Flux2CompiledModel::import_model(stream, plugin, properties);
-    } else if (compiled_model_indicator == NPUW_GQA_COMPILED_MODEL_INDICATOR) {
-        return ov::npuw::GQACompiledModel::import_model(stream, plugin, properties);
     } else if (compiled_model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR) {
         // Properties are required for ov::weights_path
         return ov::npuw::LLMCompiledModel::import_model(stream, plugin, properties);
