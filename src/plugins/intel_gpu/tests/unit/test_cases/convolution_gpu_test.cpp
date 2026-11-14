@@ -36,6 +36,46 @@
 using namespace cldnn;
 using namespace ::tests;
 
+static void check_reference_convolution_output_type(data_types output_type) {
+    auto& engine = get_test_engine();
+    constexpr float operand = 1.0009765625f;
+    const tensor shape{1, 1, 1, 1};
+    auto input = engine.allocate_memory({data_types::f16, format::bfyx, shape});
+    auto weights = engine.allocate_memory({data_types::f16, format::bfyx, shape});
+    set_values<ov::float16>(input, {ov::float16(operand)});
+    set_values<ov::float16>(weights, {ov::float16(operand)});
+    auto convolution = std::make_shared<cldnn::convolution>(
+        "conv", input_info("input"), "weights", "", 1, ov::Strides{1, 1}, ov::Strides{1, 1},
+        ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, false);
+    convolution->output_data_types = {output_type};
+    topology topology(input_layout("input", input->get_layout()), data("weights", weights));
+    topology.add_primitive(convolution);
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"conv", {format::bfyx, "convolution_gpu_ref", impl_types::ocl}}}));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    auto output = network.execute().at("conv").get_memory();
+    ASSERT_NE(network.get_primitive("conv")->get_impl()->get_kernel_name().find("convolution_gpu_ref"),
+              std::string::npos);
+    ASSERT_EQ(output->get_layout().data_type, output_type);
+    if (output_type == data_types::f32) {
+        mem_lock<float> values(output, get_test_stream());
+        ASSERT_EQ(values[0], operand * operand);
+    } else {
+        mem_lock<ov::float16> values(output, get_test_stream());
+        ASSERT_EQ(values[0], ov::float16(operand * operand));
+    }
+}
+
+TEST(convolution_gpu, f16_inputs_f32_output_reference) {
+    check_reference_convolution_output_type(data_types::f32);
+}
+
+TEST(convolution_gpu, f16_output_reference_rounding_control) {
+    check_reference_convolution_output_type(data_types::f16);
+}
+
 namespace {
 const std::string no_bias = "";
 template<typename T>

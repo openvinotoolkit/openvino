@@ -89,6 +89,12 @@ static void CreateConvolutionOp(ProgramBuilder& p, const std::shared_ptr<ov::int
                                                     filter_rank);
     }
 
+    const auto output_type = op->get_output_element_type(0);
+    // Integer convolutions may be lowered through F32 inputs and weights;
+    // keep their inferred output type and the existing final integer reorder.
+    if (output_type == ov::element::f16 || output_type == ov::element::f32) {
+        prim->output_data_types = {output_type};
+    }
     p.add_primitive(*op, prim);
 }
 
