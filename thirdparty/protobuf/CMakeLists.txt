@@ -102,10 +102,13 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM
     if(protobuf_BUILD_PROTOC_BINARIES)
         list(APPEND _protoc_libs protoc libprotoc libprotobuf)
         set_target_properties(${_protoc_libs} PROPERTIES
-            CXX_VISIBILITY_PRESET default
-            C_VISIBILITY_PRESET default
-            VISIBILITY_INLINES_HIDDEN OFF
             INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
+        if(NOT APPLE)
+            set_target_properties(${_protoc_libs} PROPERTIES
+                CXX_VISIBILITY_PRESET default
+                C_VISIBILITY_PRESET default
+                VISIBILITY_INLINES_HIDDEN OFF)
+        endif()
     endif()
     # protobuf is incompatible with thread sanitizers
     if(ENABLE_THREAD_SANITIZER)
