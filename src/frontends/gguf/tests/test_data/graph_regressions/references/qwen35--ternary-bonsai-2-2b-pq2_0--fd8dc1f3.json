@@ -1,0 +1,62 @@
+{
+  "stages": {
+    "deferred_plan": {
+      "models": {
+        "native": {
+          "graph_sha256": "d2c755758d4dba451db88c07c5c4e0d3b409b52b59f742b914970293350665ab",
+          "ops": [
+            ["Add","opset1",157],
+            ["Broadcast","opset3",12],
+            ["Clamp","opset1",18],
+            ["Concat","opset1",211],
+            ["Constant","opset1",1782],
+            ["Convert","opset1",55],
+            ["Cos","opset1",12],
+            ["GGUFPlannedWeight","gguf",266],
+            ["GatedDeltaNet","extension",18],
+            ["Gather","opset8",263],
+            ["GroupConvolution","opset1",18],
+            ["MatMul","opset1",231],
+            ["Multiply","opset1",388],
+            ["Parameter","opset1",54],
+            ["Power","opset1",176],
+            ["ReduceL2","opset4",18],
+            ["ReduceMean","opset1",79],
+            ["Reshape","opset1",708],
+            ["Result","opset1",49],
+            ["ScaledDotProductAttention","opset13",6],
+            ["ScatterUpdate","opset3",12],
+            ["ShapeOf","opset3",260],
+            ["Sigmoid","opset1",24],
+            ["Sin","opset1",12],
+            ["Slice","opset8",18],
+            ["SoftPlus","opset4",18],
+            ["Split","opset1",18],
+            ["Sqrt","opset1",79],
+            ["Squeeze","opset1",53],
+            ["Swish","opset4",60],
+            ["Transpose","opset1",120],
+            ["Unsqueeze","opset1",33],
+            ["VariadicSplit","opset1",96]
+          ],
+          "projections": [
+            ["MatMul","3","f32","ggml:0/group:1/weight:f32",36],
+            ["MatMul","3","f32","ggml:142/group:128/weight:u2",97],
+            ["MatMul","4","f32","constant:f32",97],
+            ["MatMul","5","f32","constant:f32",1]
+          ],
+          "projectors": [],
+          "totals": {
+            "edges": 6384,
+            "inputs": 54,
+            "nodes": 5324,
+            "outputs": 49,
+            "states": 0,
+            "top_level_nodes": 5324
+          }
+        }
+      }
+    }
+  },
+  "version": 1
+}

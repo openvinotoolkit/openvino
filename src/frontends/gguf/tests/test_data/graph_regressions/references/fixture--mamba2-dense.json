@@ -1,0 +1,92 @@
+{
+  "stages": {
+    "deferred_plan": {
+      "models": {
+        "native": {
+          "graph_sha256": "a4e5d1ad7ef01a448f6777e8dd057e1ac2b0ba068fe2efae91489569e8f13be3",
+          "ops": [
+            ["Add","opset1",13],
+            ["Concat","opset1",2],
+            ["Constant","opset1",80],
+            ["GGUFPlannedWeight","gguf",21],
+            ["Gather","opset8",7],
+            ["GroupConvolution","opset1",2],
+            ["MatMul","opset1",5],
+            ["Multiply","opset1",14],
+            ["Parameter","opset1",6],
+            ["Power","opset1",10],
+            ["ReduceMean","opset1",5],
+            ["Reshape","opset1",34],
+            ["Result","opset1",5],
+            ["SelectiveSSM","extension",2],
+            ["ShapeOf","opset3",6],
+            ["Slice","opset8",2],
+            ["SoftPlus","opset4",2],
+            ["Sqrt","opset1",5],
+            ["Squeeze","opset1",5],
+            ["Swish","opset4",4],
+            ["Transpose","opset1",4],
+            ["Unsqueeze","opset1",3],
+            ["VariadicSplit","opset1",4]
+          ],
+          "projections": [
+            ["MatMul","4","f32","ggml:0/group:1/weight:f32",5]
+          ],
+          "projectors": [],
+          "totals": {
+            "edges": 271,
+            "inputs": 6,
+            "nodes": 241,
+            "outputs": 5,
+            "states": 0,
+            "top_level_nodes": 241
+          }
+        }
+      }
+    },
+    "materialized": {
+      "models": {
+        "native": {
+          "graph_sha256": "187fea1360013a6ddba2d80f6f7d6362c30a755ef7221558d1dbafeea6d9d0c2",
+          "ops": [
+            ["Add","opset1",13],
+            ["Concat","opset1",2],
+            ["Constant","opset1",101],
+            ["Gather","opset8",7],
+            ["GroupConvolution","opset1",2],
+            ["MatMul","opset1",5],
+            ["Multiply","opset1",14],
+            ["Parameter","opset1",6],
+            ["Power","opset1",10],
+            ["ReduceMean","opset1",5],
+            ["Reshape","opset1",34],
+            ["Result","opset1",5],
+            ["SelectiveSSM","extension",2],
+            ["ShapeOf","opset3",6],
+            ["Slice","opset8",2],
+            ["SoftPlus","opset4",2],
+            ["Sqrt","opset1",5],
+            ["Squeeze","opset1",5],
+            ["Swish","opset4",4],
+            ["Transpose","opset1",4],
+            ["Unsqueeze","opset1",3],
+            ["VariadicSplit","opset1",4]
+          ],
+          "projections": [
+            ["MatMul","4","f32","constant:f32",5]
+          ],
+          "projectors": [],
+          "totals": {
+            "edges": 271,
+            "inputs": 6,
+            "nodes": 241,
+            "outputs": 5,
+            "states": 0,
+            "top_level_nodes": 241
+          }
+        }
+      }
+    }
+  },
+  "version": 1
+}

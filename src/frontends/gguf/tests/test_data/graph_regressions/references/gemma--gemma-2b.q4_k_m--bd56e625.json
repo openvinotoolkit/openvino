@@ -1,0 +1,52 @@
+{
+  "stages": {
+    "deferred_plan": {
+      "models": {
+        "native": {
+          "graph_sha256": "82f59efc105b8333e9f440b74a1eb86f34113c299620e3d3d0d83ed42d38b90f",
+          "ops": [
+            ["Add","opset1",145],
+            ["Concat","opset1",54],
+            ["Constant","opset1",741],
+            ["Convert","opset1",74],
+            ["Cos","opset1",1],
+            ["GGUFPlannedWeight","gguf",164],
+            ["Gather","opset8",21],
+            ["Gelu","opset7",18],
+            ["MatMul","opset1",127],
+            ["Multiply","opset1",277],
+            ["Parameter","opset1",42],
+            ["Power","opset1",74],
+            ["ReduceMean","opset1",37],
+            ["Reshape","opset1",252],
+            ["Result","opset1",37],
+            ["ScaledDotProductAttention","opset13",18],
+            ["ScatterUpdate","opset3",36],
+            ["ShapeOf","opset3",54],
+            ["Sin","opset1",1],
+            ["Sqrt","opset1",37],
+            ["Squeeze","opset1",41],
+            ["Transpose","opset1",217],
+            ["Unsqueeze","opset1",3],
+            ["VariadicSplit","opset1",36]
+          ],
+          "projections": [
+            ["MatMul","3","f32","ggml:12/group:32/weight:u32",36],
+            ["MatMul","4","f32","ggml:12/group:32/weight:u32",73],
+            ["MatMul","4","f32","ggml:14/group:16/weight:i8",18]
+          ],
+          "projectors": [],
+          "totals": {
+            "edges": 3081,
+            "inputs": 42,
+            "nodes": 2507,
+            "outputs": 37,
+            "states": 0,
+            "top_level_nodes": 2507
+          }
+        }
+      }
+    }
+  },
+  "version": 1
+}

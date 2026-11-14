@@ -1,0 +1,41 @@
+{
+  "version": 2,
+  "omitted_metadata": ["general.name", "tokenizer.chat_template", "tokenizer.ggml.scores", "tokenizer.ggml.token_type", "tokenizer.ggml.tokens"],
+  "metadata": {
+    "general.architecture": ["str", "phi3"],
+    "phi3.context_length": ["u32", 4096],
+    "phi3.embedding_length": ["u32", 3072],
+    "phi3.feed_forward_length": ["u32", 8192],
+    "phi3.block_count": ["u32", 32],
+    "phi3.attention.head_count": ["u32", 32],
+    "phi3.attention.head_count_kv": ["u32", 32],
+    "phi3.attention.layer_norm_rms_epsilon": ["f32", 9.999999747378752e-06],
+    "phi3.rope.dimension_count": ["u32", 96],
+    "general.file_type": ["u32", 15],
+    "tokenizer.ggml.model": ["str", "llama"],
+    "tokenizer.ggml.pre": ["str", "default"],
+    "tokenizer.ggml.bos_token_id": ["u32", 1],
+    "tokenizer.ggml.eos_token_id": ["u32", 32000],
+    "tokenizer.ggml.unknown_token_id": ["u32", 0],
+    "tokenizer.ggml.padding_token_id": ["u32", 32000],
+    "tokenizer.ggml.add_bos_token": ["bool", true],
+    "tokenizer.ggml.add_eos_token": ["bool", false],
+    "general.quantization_version": ["u32", 2],
+    "quantize.imatrix.file": ["str", "/models/Phi-3-mini-4k-instruct-GGUF/Phi-3-mini-4k-instruct.imatrix"],
+    "quantize.imatrix.dataset": ["str", "/training_data/groups_merged.txt"],
+    "quantize.imatrix.entries_count": ["i32", 128],
+    "quantize.imatrix.chunks_count": ["i32", 108]
+  },
+  "tensors": [
+    ["token_embd.weight", "Q4_K", [32064, 3072]],
+    ["blk.{}.attn_norm.weight", "F32", [3072], "0-31"],
+    ["blk.{}.ffn_down.weight", "Q6_K", [3072, 8192], "0-2,4,7,10-11,14,17,21,24,27-31"],
+    ["blk.{}.ffn_up.weight", "Q4_K", [16384, 3072], "0-31"],
+    ["blk.{}.ffn_norm.weight", "F32", [3072], "0-31"],
+    ["blk.{}.attn_output.weight", "Q4_K", [3072, 3072], "0-31"],
+    ["blk.{}.attn_qkv.weight", "Q5_K", [9216, 3072], "0-31"],
+    ["blk.{}.ffn_down.weight", "Q4_K", [3072, 8192], "3,5-6,8-9,12-13,15-16,18-20,22-23,25-26"],
+    ["output.weight", "Q6_K", [32064, 3072]],
+    ["output_norm.weight", "F32", [3072]]
+  ]
+}

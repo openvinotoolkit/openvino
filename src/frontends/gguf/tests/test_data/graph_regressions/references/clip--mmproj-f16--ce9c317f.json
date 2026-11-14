@@ -1,0 +1,49 @@
+{
+  "stages": {
+    "deferred_plan": {
+      "models": {
+        "native": {
+          "graph_sha256": "9cd2520df26e6b233047ecec3cf4b054541fd1d381d6914815b21de2de999409",
+          "ops": [
+            ["Add","opset1",302],
+            ["Concat","opset1",52],
+            ["Constant","opset1",819],
+            ["Convert","opset1",48],
+            ["Convolution","opset1",1],
+            ["Cos","opset1",48],
+            ["GGUFPlannedWeight","gguf",316],
+            ["Gather","opset8",51],
+            ["Gelu","opset7",28],
+            ["Interpolate","opset4",1],
+            ["MVN","opset6",52],
+            ["MatMul","opset1",104],
+            ["Multiply","opset1",460],
+            ["Parameter","opset1",3],
+            ["Reshape","opset1",152],
+            ["Result","opset1",1],
+            ["ScaledDotProductAttention","opset13",24],
+            ["ShapeOf","opset3",1],
+            ["Sin","opset1",48],
+            ["Squeeze","opset1",4],
+            ["Transpose","opset1",147],
+            ["Unsqueeze","opset1",98],
+            ["VariadicSplit","opset1",72]
+          ],
+          "projections": [
+            ["MatMul","4","f32","ggml:1/group:1/weight:f16",104]
+          ],
+          "projectors": ["vision.qwen3vl_merger"],
+          "totals": {
+            "edges": 3363,
+            "inputs": 3,
+            "nodes": 2832,
+            "outputs": 1,
+            "states": 0,
+            "top_level_nodes": 2832
+          }
+        }
+      }
+    }
+  },
+  "version": 1
+}

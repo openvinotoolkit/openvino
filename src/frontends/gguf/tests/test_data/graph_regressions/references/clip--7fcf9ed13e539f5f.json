@@ -1,0 +1,43 @@
+{
+  "stages": {
+    "deferred_plan": {
+      "models": {
+        "native": {
+          "graph_sha256": "429a0f65e7ef298521c9db592dd991d164ea947f7e26d5a1d847fd86647b21b5",
+          "ops": [
+            ["Add","opset1",294],
+            ["AvgPool","opset1",1],
+            ["Constant","opset1",364],
+            ["Convolution","opset1",2],
+            ["GGUFPlannedWeight","gguf",491],
+            ["Gather","opset8",1],
+            ["Gelu","opset7",35],
+            ["MVN","opset6",65],
+            ["MatMul","opset1",194],
+            ["Multiply","opset1",97],
+            ["Parameter","opset1",2],
+            ["Reshape","opset1",133],
+            ["Result","opset1",1],
+            ["ScaledDotProductAttention","opset13",32],
+            ["Squeeze","opset1",1],
+            ["Transpose","opset1",131],
+            ["Unsqueeze","opset1",1]
+          ],
+          "projections": [
+            ["MatMul","4","f32","ggml:30/group:1/weight:bf16",194]
+          ],
+          "projectors": ["audio.musicflamingo"],
+          "totals": {
+            "edges": 1972,
+            "inputs": 2,
+            "nodes": 1845,
+            "outputs": 1,
+            "states": 0,
+            "top_level_nodes": 1845
+          }
+        }
+      }
+    }
+  },
+  "version": 1
+}

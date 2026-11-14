@@ -1,0 +1,49 @@
+{
+  "stages": {
+    "deferred_plan": {
+      "models": {
+        "native": {
+          "graph_sha256": "a71ba2405f5ca2a104dae73187c6e884ed8e284878421a2fbe7b3fe448335416",
+          "ops": [
+            ["Add","opset1",8],
+            ["Concat","opset1",1],
+            ["Constant","opset1",46],
+            ["Divide","opset1",1],
+            ["GGUFPlannedWeight","gguf",11],
+            ["Gather","opset8",6],
+            ["MVN","opset6",3],
+            ["MatMul","opset1",3],
+            ["Multiply","opset1",9],
+            ["Parameter","opset1",4],
+            ["Power","opset1",4],
+            ["ReduceMean","opset1",2],
+            ["Reshape","opset1",4],
+            ["Result","opset1",2],
+            ["ShapeOf","opset3",1],
+            ["Slice","opset8",2],
+            ["Sqrt","opset1",2],
+            ["Squeeze","opset1",4],
+            ["Subtract","opset1",1],
+            ["Transpose","opset1",1],
+            ["Unsqueeze","opset1",2],
+            ["VariadicSplit","opset1",1]
+          ],
+          "projections": [
+            ["MatMul","4","f32","ggml:0/group:1/weight:f32",1],
+            ["MatMul","4","f32","ggml:1/group:1/weight:f16",2]
+          ],
+          "projectors": ["audio.gemma4ua","vision.gemma4uv"],
+          "totals": {
+            "edges": 125,
+            "inputs": 4,
+            "nodes": 118,
+            "outputs": 2,
+            "states": 0,
+            "top_level_nodes": 118
+          }
+        }
+      }
+    }
+  },
+  "version": 1
+}

@@ -1,0 +1,100 @@
+{
+  "stages": {
+    "deferred_plan": {
+      "models": {
+        "native": {
+          "graph_sha256": "fd7501f88576129b717842d961ed9f556d931e8d76f49f271301790fe9638290",
+          "ops": [
+            ["Add","opset1",29],
+            ["Concat","opset1",6],
+            ["Constant","opset1",123],
+            ["Convert","opset1",16],
+            ["Cos","opset1",1],
+            ["GGUFPlannedWeight","gguf",31],
+            ["Gather","opset8",5],
+            ["MatMul","opset1",19],
+            ["Multiply","opset1",51],
+            ["Parameter","opset1",10],
+            ["Power","opset1",18],
+            ["ReduceMean","opset1",9],
+            ["Reshape","opset1",28],
+            ["Result","opset1",5],
+            ["ScatterUpdate","opset3",4],
+            ["ShapeOf","opset3",6],
+            ["Sin","opset1",1],
+            ["Softmax","opset8",2],
+            ["Sqrt","opset1",9],
+            ["Squeeze","opset1",9],
+            ["Swish","opset4",2],
+            ["Tanh","opset1",3],
+            ["Transpose","opset1",27],
+            ["Unsqueeze","opset1",3],
+            ["VariadicSplit","opset1",4]
+          ],
+          "projections": [
+            ["MatMul","3","f32","ggml:0/group:1/weight:f32",4],
+            ["MatMul","4","f32","computed",4],
+            ["MatMul","4","f32","ggml:0/group:1/weight:f32",11]
+          ],
+          "projectors": [],
+          "totals": {
+            "edges": 486,
+            "inputs": 10,
+            "nodes": 421,
+            "outputs": 5,
+            "states": 0,
+            "top_level_nodes": 421
+          }
+        }
+      }
+    },
+    "materialized": {
+      "models": {
+        "native": {
+          "graph_sha256": "ada46ca02702018b427cb4a7b4fd6e2e9dbfafb8001958c7be14771be6a2f951",
+          "ops": [
+            ["Add","opset1",29],
+            ["Concat","opset1",6],
+            ["Constant","opset1",154],
+            ["Convert","opset1",16],
+            ["Cos","opset1",1],
+            ["Gather","opset8",5],
+            ["MatMul","opset1",19],
+            ["Multiply","opset1",51],
+            ["Parameter","opset1",10],
+            ["Power","opset1",18],
+            ["ReduceMean","opset1",9],
+            ["Reshape","opset1",28],
+            ["Result","opset1",5],
+            ["ScatterUpdate","opset3",4],
+            ["ShapeOf","opset3",6],
+            ["Sin","opset1",1],
+            ["Softmax","opset8",2],
+            ["Sqrt","opset1",9],
+            ["Squeeze","opset1",9],
+            ["Swish","opset4",2],
+            ["Tanh","opset1",3],
+            ["Transpose","opset1",27],
+            ["Unsqueeze","opset1",3],
+            ["VariadicSplit","opset1",4]
+          ],
+          "projections": [
+            ["MatMul","3","f32","constant:f32",4],
+            ["MatMul","4","f32","computed",4],
+            ["MatMul","4","f32","constant:f32",11]
+          ],
+          "projectors": [],
+          "totals": {
+            "edges": 486,
+            "inputs": 10,
+            "nodes": 421,
+            "outputs": 5,
+            "states": 0,
+            "top_level_nodes": 421
+          }
+        }
+      }
+    }
+  },
+  "version": 1
+}

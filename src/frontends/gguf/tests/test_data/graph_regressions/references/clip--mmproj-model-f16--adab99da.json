@@ -1,0 +1,42 @@
+{
+  "stages": {
+    "deferred_plan": {
+      "models": {
+        "native": {
+          "graph_sha256": "b85402cf9542b53187295bea93f7d38ff9b60da7fc306336f2a0c8434587b672",
+          "ops": [
+            ["Add","opset1",224],
+            ["Concat","opset1",1],
+            ["Constant","opset1",272],
+            ["Convolution","opset1",1],
+            ["GGUFPlannedWeight","gguf",361],
+            ["Gelu","opset7",1],
+            ["MVN","opset6",45],
+            ["MatMul","opset1",134],
+            ["Multiply","opset1",111],
+            ["Parameter","opset1",1],
+            ["Reshape","opset1",90],
+            ["Result","opset1",1],
+            ["ScaledDotProductAttention","opset13",22],
+            ["Sigmoid","opset1",22],
+            ["Slice","opset8",1],
+            ["Transpose","opset1",89]
+          ],
+          "projections": [
+            ["MatMul","4","f32","ggml:1/group:1/weight:f16",134]
+          ],
+          "projectors": ["vision.mlp"],
+          "totals": {
+            "edges": 1485,
+            "inputs": 1,
+            "nodes": 1376,
+            "outputs": 1,
+            "states": 0,
+            "top_level_nodes": 1376
+          }
+        }
+      }
+    }
+  },
+  "version": 1
+}

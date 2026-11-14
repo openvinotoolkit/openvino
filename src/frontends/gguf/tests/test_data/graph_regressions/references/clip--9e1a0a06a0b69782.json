@@ -1,0 +1,48 @@
+{
+  "stages": {
+    "deferred_plan": {
+      "models": {
+        "native": {
+          "graph_sha256": "baaabf5c282c5e73ceef8873e3d5038898ccf78715d0ab3f2181a30a6fbce3cf",
+          "ops": [
+            ["Add","opset1",292],
+            ["AvgPool","opset1",1],
+            ["Concat","opset1",1],
+            ["Constant","opset1",372],
+            ["Convolution","opset1",2],
+            ["FloorMod","opset1",2],
+            ["GGUFPlannedWeight","gguf",489],
+            ["Gather","opset8",2],
+            ["Gelu","opset7",35],
+            ["MVN","opset6",65],
+            ["MatMul","opset1",194],
+            ["Multiply","opset1",97],
+            ["Pad","opset1",1],
+            ["Parameter","opset1",2],
+            ["Reshape","opset1",134],
+            ["Result","opset1",1],
+            ["ScaledDotProductAttention","opset13",32],
+            ["ShapeOf","opset3",1],
+            ["Squeeze","opset1",1],
+            ["Subtract","opset1",1],
+            ["Transpose","opset1",131],
+            ["Unsqueeze","opset1",1]
+          ],
+          "projections": [
+            ["MatMul","4","f32","ggml:8/group:32/weight:i8",194]
+          ],
+          "projectors": ["audio.voxtral"],
+          "totals": {
+            "edges": 1987,
+            "inputs": 2,
+            "nodes": 1857,
+            "outputs": 1,
+            "states": 0,
+            "top_level_nodes": 1857
+          }
+        }
+      }
+    }
+  },
+  "version": 1
+}

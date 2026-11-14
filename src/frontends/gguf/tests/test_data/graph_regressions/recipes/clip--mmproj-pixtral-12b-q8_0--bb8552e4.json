@@ -1,0 +1,41 @@
+{
+  "version": 2,
+  "omitted_metadata": ["general.license", "general.name", "general.tags"],
+  "metadata": {
+    "general.architecture": ["str", "clip"],
+    "general.type": ["str", "clip-vision"],
+    "general.size_label": ["str", "435M"],
+    "general.file_type": ["u32", 7],
+    "clip.vision.projection_dim": ["u32", 5120],
+    "clip.has_vision_encoder": ["bool", true],
+    "clip.vision.image_size": ["u32", 1024],
+    "clip.vision.patch_size": ["u32", 16],
+    "clip.vision.embedding_length": ["u32", 1024],
+    "clip.vision.feed_forward_length": ["u32", 4096],
+    "clip.vision.block_count": ["u32", 24],
+    "clip.vision.attention.head_count": ["u32", 16],
+    "clip.vision.image_mean": ["f32[]", [0.48145467042922974, 0.45782750844955444, 0.40821072459220886]],
+    "clip.vision.image_std": ["f32[]", [0.2686295509338379, 0.2613025903701782, 0.27577710151672363]],
+    "clip.projector_type": ["str", "pixtral"],
+    "clip.vision.attention.layer_norm_epsilon": ["f32", 9.999999747378752e-06],
+    "clip.use_silu": ["bool", true],
+    "general.quantization_version": ["u32", 2]
+  },
+  "tensors": [
+    ["v.token_embd.img_break", "F32", [5120]],
+    ["mm.{}.bias", "F32", [5120], "1-2"],
+    ["mm.1.weight", "Q8_0", [5120, 1024]],
+    ["mm.2.weight", "Q8_0", [5120, 5120]],
+    ["v.pre_ln.weight", "F32", [1024]],
+    ["v.patch_embd.weight", "F16", [1024, 3, 16, 16]],
+    ["v.blk.{}.attn_k.weight", "Q8_0", [1024, 1024], "0-23"],
+    ["v.blk.{}.attn_out.weight", "Q8_0", [1024, 1024], "0-23"],
+    ["v.blk.{}.attn_q.weight", "Q8_0", [1024, 1024], "0-23"],
+    ["v.blk.{}.attn_v.weight", "Q8_0", [1024, 1024], "0-23"],
+    ["v.blk.{}.ln1.weight", "F32", [1024], "0-23"],
+    ["v.blk.{}.ffn_down.weight", "Q8_0", [1024, 4096], "0-23"],
+    ["v.blk.{}.ffn_gate.weight", "Q8_0", [4096, 1024], "0-23"],
+    ["v.blk.{}.ffn_up.weight", "Q8_0", [4096, 1024], "0-23"],
+    ["v.blk.{}.ln2.weight", "F32", [1024], "0-23"]
+  ]
+}

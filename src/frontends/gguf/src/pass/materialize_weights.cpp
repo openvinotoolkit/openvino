@@ -374,7 +374,16 @@ bool MaterializeGGUFWeights::run_on_model(const std::shared_ptr<ov::Model>& mode
             roots.emplace_back(node, &*plan);
     }
     for (const auto& [node, plan] : roots) {
-        auto materialized = materialize_plan(*plan);
+        std::shared_ptr<ov::Node> materialized;
+        if (m_materializer) {
+            std::vector<SourceRows> sources;
+            for (const auto& run : plan->runs)
+                sources.push_back({run.source(), run.first, run.count});
+            materialized = m_materializer(node, sources, plan->columns);
+        } else {
+            materialized = materialize_plan(*plan);
+        }
+        OPENVINO_ASSERT(materialized, "GGUF weight materializer returned no node");
         OPENVINO_ASSERT(materialized->get_output_shape(0) == node->get_output_shape(0) &&
                             materialized->get_output_element_type(0) == node->get_output_element_type(0),
                         "Folded GGUF weight has unexpected shape or type");
@@ -383,7 +392,14 @@ bool MaterializeGGUFWeights::run_on_model(const std::shared_ptr<ov::Model>& mode
     }
     for (const auto& node : model->get_ordered_ops())
         if (const auto weight = ov::as_type_ptr<GGUFConstant>(node)) {
-            auto materialized = weight->materialize();
+            auto materialized =
+                m_materializer
+                    ? m_materializer(
+                          weight,
+                          {{weight->source(), 0, weight->source().shape.empty() ? 1 : weight->source().shape.front()}},
+                          {})
+                    : weight->materialize();
+            OPENVINO_ASSERT(materialized, "GGUF weight materializer returned no node");
             OPENVINO_ASSERT(materialized->get_output_partial_shape(0) == weight->get_output_partial_shape(0) &&
                                 materialized->get_output_element_type(0) == weight->get_output_element_type(0),
                             "Materialized GGUF weight has unexpected shape or type: ",

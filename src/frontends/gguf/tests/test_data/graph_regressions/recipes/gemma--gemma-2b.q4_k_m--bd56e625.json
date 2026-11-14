@@ -1,0 +1,40 @@
+{
+  "version": 2,
+  "omitted_metadata": ["general.name", "tokenizer.ggml.scores", "tokenizer.ggml.token_type", "tokenizer.ggml.tokens"],
+  "metadata": {
+    "general.architecture": ["str", "gemma"],
+    "gemma.context_length": ["u32", 8192],
+    "gemma.embedding_length": ["u32", 2048],
+    "gemma.block_count": ["u32", 18],
+    "gemma.feed_forward_length": ["u32", 16384],
+    "gemma.attention.head_count": ["u32", 8],
+    "gemma.attention.head_count_kv": ["u32", 1],
+    "gemma.attention.layer_norm_rms_epsilon": ["f32", 9.999999974752427e-07],
+    "gemma.attention.key_length": ["u32", 256],
+    "gemma.attention.value_length": ["u32", 256],
+    "tokenizer.ggml.model": ["str", "llama"],
+    "tokenizer.ggml.bos_token_id": ["u32", 2],
+    "tokenizer.ggml.eos_token_id": ["u32", 1],
+    "tokenizer.ggml.unknown_token_id": ["u32", 3],
+    "tokenizer.ggml.padding_token_id": ["u32", 0],
+    "tokenizer.ggml.add_bos_token": ["bool", true],
+    "tokenizer.ggml.add_eos_token": ["bool", false],
+    "general.quantization_version": ["u32", 2],
+    "general.file_type": ["u32", 15]
+  },
+  "tensors": [
+    ["token_embd.weight", "Q4_K", [256000, 2048]],
+    ["blk.{}.attn_norm.weight", "F32", [2048], "0-17"],
+    ["blk.{}.ffn_down.weight", "Q6_K", [2048, 16384], "0-1,3,6,8-9,12,15,17"],
+    ["blk.{}.ffn_gate.weight", "Q4_K", [16384, 2048], "0-17"],
+    ["blk.{}.ffn_up.weight", "Q4_K", [16384, 2048], "0-17"],
+    ["blk.{}.ffn_norm.weight", "F32", [2048], "0-17"],
+    ["blk.{}.attn_k.weight", "Q4_K", [256, 2048], "0-17"],
+    ["blk.{}.attn_output.weight", "Q4_K", [2048, 2048], "0-17"],
+    ["blk.{}.attn_q.weight", "Q4_K", [2048, 2048], "0-17"],
+    ["blk.{}.attn_v.weight", "Q6_K", [256, 2048], "0-2,5,7-9,12,15"],
+    ["blk.{}.ffn_down.weight", "Q4_K", [2048, 16384], "2,4-5,7,10-11,13-14,16"],
+    ["blk.{}.attn_v.weight", "Q4_K", [256, 2048], "3-4,6,10-11,13-14,16-17"],
+    ["output_norm.weight", "F32", [2048]]
+  ]
+}

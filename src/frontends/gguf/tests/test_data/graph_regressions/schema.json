@@ -1,0 +1,199 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "openvino-gguf-graph-regressions-v1",
+  "oneOf": [
+    {"$ref": "#/$defs/catalog"},
+    {"$ref": "#/$defs/recipe"},
+    {"$ref": "#/$defs/reference"}
+  ],
+  "$defs": {
+    "version": {"const": 1},
+    "hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "shape": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4,
+      "items": {"type": "integer", "minimum": 1}
+    },
+    "metadata": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "enum": ["u8", "i8", "u16", "i16", "u32", "i32", "f32", "bool", "str", "u64", "i64", "f64",
+                   "u8[]", "i8[]", "u16[]", "i16[]", "u32[]", "i32[]", "f32[]", "bool[]", "str[]",
+                   "u64[]", "i64[]", "f64[]"]
+        },
+        {
+          "oneOf": [
+            {"type": ["number", "boolean", "string", "array"]},
+            {
+              "type": "object",
+              "required": ["nonfinite"],
+              "properties": {"nonfinite": {"enum": ["nan", "+inf", "-inf"]}},
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": ["rle"],
+              "properties": {"rle": {"type": "array", "minItems": 1}},
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": ["signs", "count"],
+              "properties": {"signs": {"type": "string"}, "count": {"type": "integer", "minimum": 1}},
+              "additionalProperties": false
+            }
+          ]
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "tensor": {
+      "type": "array",
+      "prefixItems": [
+        {"type": "string", "minLength": 1},
+        {
+          "enum": ["F32", "F16", "Q4_0", "Q4_1", "Q5_0", "Q5_1", "Q8_0", "Q8_1", "Q2_K", "Q3_K", "Q4_K", "Q5_K",
+                   "Q6_K", "Q8_K", "I8", "I16", "I32", "I64", "F64", "BF16", "MXFP4", "Q1_0", "Q2_0", "PQ2_0",
+                   "PTQ1_0"]
+        },
+        {"$ref": "#/$defs/shape"},
+        {"type": "string", "pattern": "^\\d+(-\\d+)?(,\\d+(-\\d+)?)*$"}
+      ],
+      "minItems": 3,
+      "maxItems": 4
+    },
+    "recipe": {
+      "type": "object",
+      "required": ["version", "metadata", "tensors"],
+      "properties": {
+        "version": {"const": 2},
+        "metadata": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {"type": "string", "minLength": 1},
+          "additionalProperties": {"$ref": "#/$defs/metadata"}
+        },
+        "tensors": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/tensor"}},
+        "omitted_metadata": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "payload": {
+          "type": "object",
+          "required": ["mode", "max_bytes"],
+          "properties": {
+            "mode": {"enum": ["zeros", "pattern"]},
+            "max_bytes": {"type": "integer", "minimum": 1, "maximum": 67108864},
+            "quant_scale": {"type": "number", "minimum": 0, "maximum": 65504}
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "case": {
+      "type": "object",
+      "required": ["id", "architecture", "models", "recipe", "reference", "source"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+$"},
+        "architecture": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["model", "representative", "controlled"]},
+        "fixture": {"type": "string", "minLength": 1},
+        "projectors": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "stage": {"enum": ["deferred_plan", "materialized", "adapted"]},
+        "stages": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"enum": ["deferred_plan", "materialized", "adapted"]}
+        },
+        "models": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "recipe": {"type": "string", "minLength": 1},
+        "reference": {"type": "string", "minLength": 1},
+        "source": {
+          "type": "object",
+          "required": ["filename", "header_sha256"],
+          "properties": {
+            "filename": {"type": "string", "minLength": 1},
+            "header_sha256": {"$ref": "#/$defs/hash"},
+            "repository": {"type": "string"},
+            "revision": {"type": "string"}
+          }
+        }
+      }
+    },
+    "catalog": {
+      "type": "object",
+      "required": ["version", "cases"],
+      "properties": {
+        "version": {"$ref": "#/$defs/version"},
+        "cases": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/case"}}
+      }
+    },
+    "histogram": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "prefixItems": [{"type": "string"}, {"type": "string"}, {"type": "integer", "minimum": 1}],
+        "minItems": 3,
+        "maxItems": 3
+      }
+    },
+    "projections": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "prefixItems": [
+          {"type": "string"}, {"type": "string"}, {"type": "string"},
+          {"type": "string"}, {"type": "integer", "minimum": 1}
+        ],
+        "minItems": 5,
+        "maxItems": 5
+      }
+    },
+    "snapshot": {
+      "type": "object",
+      "required": ["graph_sha256", "totals", "ops", "projections"],
+      "properties": {
+        "graph_sha256": {"$ref": "#/$defs/hash"},
+        "ops": {"$ref": "#/$defs/histogram"},
+        "projections": {"$ref": "#/$defs/projections"},
+        "projectors": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "totals": {
+          "type": "object",
+          "required": ["nodes", "top_level_nodes", "edges", "states"],
+          "properties": {
+            "nodes": {"type": "integer", "minimum": 1},
+            "top_level_nodes": {"type": "integer", "minimum": 1},
+            "inputs": {"type": "integer", "minimum": 0},
+            "outputs": {"type": "integer", "minimum": 1},
+            "edges": {"type": "integer", "minimum": 0},
+            "states": {"type": "integer", "minimum": 0}
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "stage": {
+      "type": "object",
+      "required": ["models"],
+      "properties": {
+        "models": {"type": "object", "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/snapshot"}}
+      },
+      "additionalProperties": false
+    },
+    "reference": {
+      "type": "object",
+      "required": ["version", "stages"],
+      "properties": {
+        "version": {"$ref": "#/$defs/version"},
+        "stages": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {"enum": ["deferred_plan", "materialized", "adapted"]},
+          "additionalProperties": {"$ref": "#/$defs/stage"}
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

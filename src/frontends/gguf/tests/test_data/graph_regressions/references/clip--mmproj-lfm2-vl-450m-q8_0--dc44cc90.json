@@ -1,0 +1,53 @@
+{
+  "stages": {
+    "deferred_plan": {
+      "models": {
+        "native": {
+          "graph_sha256": "45ff7cd4db8a3e3178536c6fbd825aeb0b48727a63da7ff222c12653828279eb",
+          "ops": [
+            ["Abs","opset1",2],
+            ["Add","opset1",134],
+            ["Constant","opset1",170],
+            ["Convert","opset1",8],
+            ["Convolution","opset1",1],
+            ["Divide","opset1",10],
+            ["GGUFPlannedWeight","gguf",203],
+            ["Gather","opset8",6],
+            ["Gelu","opset7",13],
+            ["Less","opset1",2],
+            ["MVN","opset6",26],
+            ["MatMul","opset1",76],
+            ["Maximum","opset1",4],
+            ["Multiply","opset1",38],
+            ["Parameter","opset1",2],
+            ["Range","opset4",4],
+            ["ReduceSum","opset1",2],
+            ["Reshape","opset1",52],
+            ["Result","opset1",1],
+            ["ScaledDotProductAttention","opset13",12],
+            ["Select","opset1",2],
+            ["ShapeOf","opset3",2],
+            ["Squeeze","opset1",2],
+            ["Subtract","opset1",4],
+            ["Transpose","opset1",53],
+            ["Unsqueeze","opset1",9]
+          ],
+          "projections": [
+            ["MatMul","4","f32","computed",2],
+            ["MatMul","4","f32","ggml:8/group:32/weight:i8",74]
+          ],
+          "projectors": ["vision.lfm2"],
+          "totals": {
+            "edges": 924,
+            "inputs": 2,
+            "nodes": 838,
+            "outputs": 1,
+            "states": 0,
+            "top_level_nodes": 838
+          }
+        }
+      }
+    }
+  },
+  "version": 1
+}

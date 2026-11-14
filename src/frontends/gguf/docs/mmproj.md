@@ -185,6 +185,15 @@ Close greedy choices can diverge between engines because of different quantized 
 Q4_K_M conversion has a known accuracy loss relative to llama.cpp, so Q4_K_M differences alone
 do not indicate an mmproj integration regression.
 
+### Legacy export layouts
+
+- Older MiniCPM-V `resampler` and `minicpmv4_6` exports store the FFN up and down weights under
+  swapped names. As in llama.cpp, the swap is detected from tensor shapes and undone.
+- Published MERaLiON-2 projectors store a per-frame `mm.a.norm_pre` (encoder width). llama.cpp,
+  and therefore this frontend, normalizes the stacked frames as one vector and repeats the
+  per-frame weight and bias across them. Hugging Face MERaLiON-2 normalizes each frame before
+  stacking, so features differ from the original model, not from llama.cpp.
+
 ## Projector extensions
 
 Use [ProjectorExtension](extensions.md#extend-mmproj-with-a-projector-component) to add or

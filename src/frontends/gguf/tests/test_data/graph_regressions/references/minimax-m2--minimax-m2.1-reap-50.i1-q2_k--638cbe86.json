@@ -1,0 +1,63 @@
+{
+  "stages": {
+    "deferred_plan": {
+      "models": {
+        "native": {
+          "graph_sha256": "1423bd213bb4e093847d935b172e96b85fd4c7007a342bacc264b045a6205836",
+          "ops": [
+            ["Add","opset1",683],
+            ["Broadcast","opset3",124],
+            ["Clamp","opset1",62],
+            ["Concat","opset1",620],
+            ["Constant","opset1",6034],
+            ["Convert","opset1",250],
+            ["Cos","opset1",1],
+            ["Divide","opset1",62],
+            ["GGUFPlannedWeight","gguf",809],
+            ["Gather","opset8",499],
+            ["GatherElements","opset6",62],
+            ["GatherMatmul","extension",186],
+            ["MatMul","opset1",311],
+            ["Multiply","opset1",1246],
+            ["Parameter","opset1",130],
+            ["Power","opset1",498],
+            ["ReduceMean","opset1",249],
+            ["ReduceSum","opset1",124],
+            ["Reshape","opset1",1860],
+            ["Result","opset1",125],
+            ["ScaledDotProductAttention","opset13",62],
+            ["ScatterUpdate","opset3",124],
+            ["ShapeOf","opset3",620],
+            ["Sigmoid","opset1",62],
+            ["Sin","opset1",1],
+            ["Sqrt","opset1",249],
+            ["Squeeze","opset1",129],
+            ["Swish","opset4",62],
+            ["Tile","opset1",62],
+            ["TopK","opset11",62],
+            ["Transpose","opset1",1117],
+            ["Unsqueeze","opset1",127],
+            ["VariadicSplit","opset1",248]
+          ],
+          "projections": [
+            ["MatMul","3","f32","ggml:10/group:16/weight:u2",124],
+            ["MatMul","4","f32","ggml:0/group:1/weight:f32",62],
+            ["MatMul","4","f32","ggml:11/group:16/weight:i4",62],
+            ["MatMul","4","f32","ggml:12/group:32/weight:u32",62],
+            ["MatMul","4","f32","ggml:14/group:16/weight:i8",1]
+          ],
+          "projectors": [],
+          "totals": {
+            "edges": 19895,
+            "inputs": 130,
+            "nodes": 16860,
+            "outputs": 125,
+            "states": 0,
+            "top_level_nodes": 16860
+          }
+        }
+      }
+    }
+  },
+  "version": 1
+}

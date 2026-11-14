@@ -1,0 +1,38 @@
+{
+  "version": 2,
+  "omitted_metadata": ["general.name", "tokenizer.chat_template", "tokenizer.ggml.scores", "tokenizer.ggml.token_type", "tokenizer.ggml.tokens"],
+  "metadata": {
+    "general.architecture": ["str", "minicpm"],
+    "minicpm.context_length": ["u32", 2048],
+    "minicpm.embedding_length": ["u32", 2304],
+    "minicpm.block_count": ["u32", 40],
+    "minicpm.feed_forward_length": ["u32", 5760],
+    "minicpm.rope.dimension_count": ["u32", 64],
+    "minicpm.attention.head_count": ["u32", 36],
+    "minicpm.attention.head_count_kv": ["u32", 36],
+    "minicpm.attention.layer_norm_rms_epsilon": ["f32", 9.999999747378752e-06],
+    "general.file_type": ["u32", 15],
+    "tokenizer.ggml.model": ["str", "llama"],
+    "tokenizer.ggml.bos_token_id": ["u32", 1],
+    "tokenizer.ggml.eos_token_id": ["u32", 2],
+    "tokenizer.ggml.unknown_token_id": ["u32", 0],
+    "tokenizer.ggml.add_bos_token": ["bool", true],
+    "tokenizer.ggml.add_eos_token": ["bool", false],
+    "general.quantization_version": ["u32", 2]
+  },
+  "tensors": [
+    ["token_embd.weight", "Q4_K", [122753, 2304]],
+    ["output_norm.weight", "F32", [2304]],
+    ["blk.{}.attn_norm.weight", "F32", [2304], "0-39"],
+    ["blk.{}.attn_q.weight", "Q4_K", [2304, 2304], "0-39"],
+    ["blk.{}.attn_k.weight", "Q4_K", [2304, 2304], "0-39"],
+    ["blk.{}.attn_v.weight", "Q6_K", [2304, 2304], "0-4,7,10,13,16,19,22,25,28,31,34-39"],
+    ["blk.{}.attn_output.weight", "Q4_K", [2304, 2304], "0-39"],
+    ["blk.{}.ffn_norm.weight", "F32", [2304], "0-39"],
+    ["blk.{}.ffn_gate.weight", "Q4_K", [5760, 2304], "0-39"],
+    ["blk.{}.ffn_up.weight", "Q4_K", [5760, 2304], "0-39"],
+    ["blk.{}.ffn_down.weight", "Q8_0", [2304, 5760], "0-4,7,10,13,16,19,22,25,28,31,34-39"],
+    ["blk.{}.attn_v.weight", "Q4_K", [2304, 2304], "5-6,8-9,11-12,14-15,17-18,20-21,23-24,26-27,29-30,32-33"],
+    ["blk.{}.ffn_down.weight", "Q5_0", [2304, 5760], "5-6,8-9,11-12,14-15,17-18,20-21,23-24,26-27,29-30,32-33"]
+  ]
+}

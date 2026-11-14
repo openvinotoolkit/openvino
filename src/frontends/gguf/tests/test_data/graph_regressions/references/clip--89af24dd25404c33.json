@@ -1,0 +1,54 @@
+{
+  "stages": {
+    "deferred_plan": {
+      "models": {
+        "native": {
+          "graph_sha256": "c71d8ce41279615246f96fe78ca642ad9b23722842df114fa3931b7cd243fea1",
+          "ops": [
+            ["Add","opset1",316],
+            ["Concat","opset1",154],
+            ["Constant","opset1",1576],
+            ["Convolution","opset1",5],
+            ["Divide","opset1",16],
+            ["FloorMod","opset1",8],
+            ["GGUFPlannedWeight","gguf",475],
+            ["Gather","opset8",260],
+            ["Gelu","opset7",12],
+            ["Interpolate","opset4",26],
+            ["MVN","opset6",75],
+            ["MatMul","opset1",169],
+            ["Multiply","opset1",180],
+            ["Pad","opset1",8],
+            ["Parameter","opset1",5],
+            ["Reshape","opset1",281],
+            ["Result","opset1",1],
+            ["ScaledDotProductAttention","opset13",36],
+            ["ShapeOf","opset3",130],
+            ["Sigmoid","opset1",24],
+            ["Slice","opset8",25],
+            ["Squeeze","opset1",28],
+            ["Subtract","opset1",32],
+            ["Tile","opset1",1],
+            ["Transpose","opset1",254],
+            ["Unsqueeze","opset1",2],
+            ["VariadicSplit","opset1",36]
+          ],
+          "projections": [
+            ["MatMul","4","f32","computed",24],
+            ["MatMul","4","f32","ggml:8/group:32/weight:i8",145]
+          ],
+          "projectors": ["vision.deepseekocr"],
+          "totals": {
+            "edges": 4610,
+            "inputs": 5,
+            "nodes": 4135,
+            "outputs": 1,
+            "states": 0,
+            "top_level_nodes": 4135
+          }
+        }
+      }
+    }
+  },
+  "version": 1
+}

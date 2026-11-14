@@ -1424,7 +1424,9 @@ INSTANTIATE_TEST_SUITE_P(Reference,
                                            "voxtral_odd",
                                            "resampler",
                                            "resampler_v2",
-                                           "resampler_v4"));
+                                           "resampler_v4",
+                                           "resampler_legacy",
+                                           "meralion_frame_norm"));
 class GGUFMMProjGenAIVisionLayout : public GGUFMMProjAccuracy {
 protected:
     ov::Tensor reference(const std::string& step) {

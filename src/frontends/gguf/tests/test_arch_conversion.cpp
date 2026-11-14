@@ -44,6 +44,7 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <nlohmann/json.hpp>
 #include <set>
 #include <sstream>
 #include <string>
@@ -180,39 +181,30 @@ struct Fingerprint {
 };
 
 const std::map<std::string, Fingerprint>& fingerprints() {
-    static const std::map<std::string, Fingerprint> fp{
-        {"mamba2-dense.gguf.hdr", {241, 6}},
-        {"nemotron_h-dense.gguf.hdr", {254, 8}},
-        {"bailingmoe2-moe.gguf.hdr", {496, 10}},
-        {"ernie4_5-moe-moe.gguf.hdr", {471, 10}},
-        {"exaone4-dense.gguf.hdr", {422, 11}},
-        {"gemma-dense.gguf.hdr", {372, 10}},
-        {"gemma2-dense.gguf.hdr", {422, 11}},
-        {"glm4moe-moe.gguf.hdr", {508, 10}},
-        {"gpt-oss-moe.gguf.hdr", {598, 11}},
-        {"hunyuan-dense-dense.gguf.hdr", {421, 10}},
-        {"hunyuan-moe-moe.gguf.hdr", {607, 10}},
-        {"llama-dense.gguf.hdr", {405, 10}},
-        {"lfm2-dense.gguf.hdr", {307, 9}},
-        {"lfm2moe-moe.gguf.hdr", {382, 8}},
-        {"llama-moe.gguf.hdr", {532, 10}},
-        {"maincoder-dense.gguf.hdr", {437, 10}},
-        {"minicpm-dense.gguf.hdr", {413, 10}},
-        {"minicpm-moe.gguf.hdr", {540, 10}},
-        {"minimax-m2-moe.gguf.hdr", {572, 10}},
-        {"mistral3-dense.gguf.hdr", {405, 10}},
-        {"mistral3-moe.gguf.hdr", {532, 10}},
-        {"olmoe-moe.gguf.hdr", {560, 10}},
-        {"phi3-dense.gguf.hdr", {358, 10}},
-        {"qwen2-dense.gguf.hdr", {373, 10}},
-        {"qwen3-dense.gguf.hdr", {421, 10}},
-        {"qwen3moe-moe.gguf.hdr", {572, 10}},
-        {"qwen35-dense.gguf.hdr", {399, 10}},
-        {"qwen35moe-moe.gguf.hdr", {571, 10}},
-        {"smollm3-dense.gguf.hdr", {389, 10}},
-        {"jais2-dense.gguf.hdr", {334, 10}},
-        {"lfm3.gguf.hdr", {702, 12}},
-    };
+    static const auto fp = [] {
+        std::map<std::string, Fingerprint> result;
+        const auto root = std::filesystem::path(ov_gguf_test::test_data_dir()) / "graph_regressions";
+        std::ifstream catalog_input(root / "catalog.json");
+        OPENVINO_ASSERT(catalog_input, "Missing GGUF structural reference catalog");
+        nlohmann::json catalog;
+        catalog_input >> catalog;
+        for (const auto& entry : catalog.at("cases")) {
+            if (!entry.contains("fixture"))
+                continue;
+            std::ifstream reference_input(root / entry.at("reference").get<std::string>());
+            OPENVINO_ASSERT(reference_input, "Missing GGUF materialized fixture reference");
+            nlohmann::json reference;
+            reference_input >> reference;
+            const auto& totals = reference.at("stages").at("materialized").at("models").at("native").at("totals");
+            OPENVINO_ASSERT(
+                result
+                    .emplace(entry.at("fixture").get<std::string>(),
+                             Fingerprint{totals.at("top_level_nodes").get<size_t>(), totals.at("inputs").get<size_t>()})
+                    .second,
+                "Duplicate GGUF fixture reference");
+        }
+        return result;
+    }();
     return fp;
 }
 
@@ -305,10 +297,10 @@ TEST_P(GGUFArchConversion, MatchesManifestExpectation) {
         const auto it = fingerprints().find(fixture.header_file);
         ASSERT_NE(it, fingerprints().end())
             << fixture.header_file << " is marked `convert` in the manifest but has no fingerprint entry in "
-            << "test_arch_conversion.cpp; add one.";
+            << "the structural reference catalog; register its materialized recipe.";
         EXPECT_EQ(model->get_ops().size(), it->second.ops)
             << "graph op count for " << fixture.header_file << " changed. If the new structure is intended, "
-            << "update fingerprints() -- and say why in the commit message.";
+            << "update its selected structural reference and provide performance evidence.";
         EXPECT_EQ(model->inputs().size(), it->second.inputs)
             << "graph input count for " << fixture.header_file << " changed; see fingerprints().";
         if (const auto dependency_it = graph_dependencies().find(fixture.header_file);

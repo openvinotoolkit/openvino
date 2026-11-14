@@ -1,0 +1,62 @@
+{
+  "stages": {
+    "deferred_plan": {
+      "models": {
+        "native": {
+          "graph_sha256": "c186d3245f5a5b7a344d5fde6dda8a9d2ef85f4ffc035bb77906dc604a63593c",
+          "ops": [
+            ["Add","opset1",417],
+            ["Broadcast","opset3",32],
+            ["Clamp","opset1",48],
+            ["Concat","opset1",561],
+            ["Constant","opset1",4801],
+            ["Convert","opset1",145],
+            ["Cos","opset1",32],
+            ["GGUFPlannedWeight","gguf",659],
+            ["GatedDeltaNet","extension",48],
+            ["Gather","opset8",693],
+            ["GroupConvolution","opset1",48],
+            ["MatMul","opset1",563],
+            ["Multiply","opset1",1028],
+            ["Parameter","opset1",134],
+            ["Power","opset1",466],
+            ["ReduceL2","opset4",48],
+            ["ReduceMean","opset1",209],
+            ["Reshape","opset1",1878],
+            ["Result","opset1",129],
+            ["ScaledDotProductAttention","opset13",16],
+            ["ScatterUpdate","opset3",32],
+            ["ShapeOf","opset3",690],
+            ["Sigmoid","opset1",64],
+            ["Sin","opset1",32],
+            ["Slice","opset8",48],
+            ["SoftPlus","opset4",48],
+            ["Split","opset1",48],
+            ["Sqrt","opset1",209],
+            ["Squeeze","opset1",133],
+            ["Swish","opset4",160],
+            ["Transpose","opset1",320],
+            ["Unsqueeze","opset1",83],
+            ["VariadicSplit","opset1",304]
+          ],
+          "projections": [
+            ["MatMul","3","f32","ggml:42/group:64/weight:u2",257],
+            ["MatMul","4","f32","constant:f32",257],
+            ["MatMul","4","f32","ggml:30/group:1/weight:bf16",48],
+            ["MatMul","5","f32","constant:f32",1]
+          ],
+          "projectors": [],
+          "totals": {
+            "edges": 16952,
+            "inputs": 134,
+            "nodes": 14126,
+            "outputs": 129,
+            "states": 0,
+            "top_level_nodes": 14126
+          }
+        }
+      }
+    }
+  },
+  "version": 1
+}
