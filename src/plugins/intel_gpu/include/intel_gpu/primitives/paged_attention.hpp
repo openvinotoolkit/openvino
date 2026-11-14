@@ -5,6 +5,7 @@
 #pragma once
 #include "primitive.hpp"
 #include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/runtime/device_info.hpp"
 
 #include <vector>
 
@@ -46,6 +47,33 @@ struct paged_attention : public primitive_base<paged_attention> {
 
     static constexpr size_t block_size = 16;
     static constexpr size_t block_size_xattn = 256;
+
+    // Device predicates of the sdpa_ocl kernels; the stage x device table is in docs/sdpa_ocl.md, "Where it runs".
+
+    // The sdpa_ocl lane (plain SDPA, PA PREFILL/MIXED). immad is needed: the xe_hpg arch also covers MTL (no XMX).
+    static bool sdpa_ocl_selected(const device_info& info) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        return info.supports_immad && info.arch >= gpu_arch::xe_hpg;
+#else
+        (void)info;
+        return false;
+#endif
+    }
+
+    // Per-channel compressed KV in sdpa_ocl: the SG16 arms (xe_hpc, Xe2+) only. On top of sdpa_ocl_selected().
+    static bool sdpa_ocl_per_channel_kv_ok(const device_info& info) {
+        return info.arch >= gpu_arch::xe_hpc;
+    }
+
+    // ARL-H (gfx 12.74) keeps sdpa_opt for a static one-query plain SDPA (upstream PR #27387).
+    static bool sdpa_ocl_plain_single_token_ok(const device_info& info) {
+        return !(info.gfx_ver.major == 12 && info.gfx_ver.minor == 74);
+    }
+
+    // sdpa_ocl_decode serves PA GENERATE: the lane without xe_hpg.
+    static bool sdpa_ocl_decode_reader_available(const device_info& info) {
+        return sdpa_ocl_selected(info) && info.arch != gpu_arch::xe_hpg;
+    }
 
     paged_attention() : primitive_base("", {}) {}
 

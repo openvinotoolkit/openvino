@@ -87,7 +87,30 @@ bool SDPABase::is_int4_kv_cache(const kernel_impl_params& params) {
     return data_type_traits::is_i4_u4(kv_cache_dt);
 }
 
-// Returns the effective K head size as actually used by SDPA-family OCL kernels (SDPAOpt/SDPAMicro
+bool SDPABase::has_per_channel_compressed_kv(const kernel_impl_params& params) {
+    if (!params.is_type<scaled_dot_product_attention>()) {
+        return false;
+    }
+    const auto desc = params.typed_desc<scaled_dot_product_attention>();
+    if (!desc->is_kv_compressed) {
+        return false;
+    }
+    // The attribute decides when it says so (the scale shapes may be dynamic at build time): a head dim that is not
+    // grouped means a scale per channel. Per-token compression always groups it.
+    const auto& group_sizes = desc->quantization_attributes.group_sizes;
+    if (!group_sizes.empty() && group_sizes.back() == 1) {
+        return true;
+    }
+    const auto data_inputs_num = get_data_inputs_num(*desc);
+    const auto is_per_channel_scale = [&params](size_t scale_idx) {
+        const auto& shape = params.input_layouts[scale_idx].get_partial_shape();
+        return shape.rank().is_static() && shape.rank().get_length() == 4 && shape[2].is_static() && shape[2].get_length() == 1 && shape[3].is_static() &&
+               shape[3].get_length() > 1;
+    };
+    return is_per_channel_scale(data_inputs_num) || is_per_channel_scale(data_inputs_num + 1);
+}
+
+// Returns the effective K head size as actually used by SDPA-family OCL kernels (SDPAOpt/SDPAOcl
 // and PagedAttentionOpt share this via SDPABase). For PagedAttention this is simply the descriptor
 // field; for SDPA it is derived from the K input layout (honoring the transpose order), with the
 // int4 KV-cache override (physical K layout is packed to half size; use the logical, un-halved

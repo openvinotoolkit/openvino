@@ -1,0 +1,570 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "sdpa_gen_ocl_decode.hpp"
+
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <string>
+
+#include "common_utils/jitter.hpp"
+#include "intel_gpu/runtime/device_info.hpp"
+#include "intel_gpu/runtime/utils.hpp"  // ceil_div
+#include "sdpa_ocl_utils.hpp"
+
+namespace ov::intel_gpu::ocl {
+namespace {
+using namespace sdpa_ocl_utils;
+
+// The DPAS N dimension is the subgroup size: 16 on xe_hpc and Xe2+ (sdpa_ocl_decode.cl), 8 on xe_hpg
+// (sdpa_ocl_hpg_decode.cl, the SG8 DPAS form). The f16 DPAS depth is 16 on both, and a key group / S*V chunk is one
+// 16-token page: one SG16 DPAS column set, two SG8 ones. The kernels #error if they disagree.
+constexpr size_t dpas_k = 16;
+constexpr size_t page_keys = 16;
+
+size_t decode_subgroup_size(const RuntimeParams& params) {
+    return params.get_device_info().arch == gpu_arch::xe_hpg ? 8 : 16;
+}
+
+// The cache as this kernel reads it, shared by get_q_per_wg(), the jit constants and the dispatch.
+struct decode_config {
+    size_t sg = 16;           // subgroup size (DPAS N): 8 on xe_hpg
+    bool kv_u4 = false;       // from the config precision: a u4 cache is a u8 tensor
+    bool compressed = false;  // i8 or u4
+    bool by_channel = false;  // compressed with a BY_CHANNEL K
+    size_t k_row_bytes = 0;   // page data-row pitch in bytes, also the u4 K_ROW_ELEMS / V_ROW_ELEMS
+    size_t v_row_bytes = 0;
+    int k_2d = 0;  // after the SDPA_OCL_DECODE_K_2D / _V_2D bisection overrides
+    int v_2d = 0;
+    // Compressed K without block reads: tiles per per-lane load (K_LANE_TILES), a divisor of the tile count.
+    size_t k_lane_tiles = 1;
+    // Compressed V without block reads may take whole-page 1D reads with a key-only S*V split (V_PAGE_1D);
+    // q_tiling_for() makes the final call, as it must not cost M.
+    bool v_page_1d_ok = false;
+};
+
+decode_config make_decode_config(const RuntimeParams& params) {
+    const auto desc = params.typed_desc<paged_attention>();
+    const auto& key_cache = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE];
+    const auto& value_cache = params.input_layouts[PagedAttentionInputIdx::VALUE_CACHE];
+    decode_config c;
+    c.sg = decode_subgroup_size(params);
+    c.kv_u4 = pa_kv_cache_precision(params) == ov::element::u4;
+    c.compressed = c.kv_u4 || key_cache.data_type == ov::element::i8;
+    c.by_channel = c.compressed && desc->is_key_by_channel;
+    c.k_row_bytes = c.kv_u4 ? pa_u4_k_row_bytes(desc->k_head_size) : desc->k_head_size * ov::element::Type(key_cache.data_type).size();
+    c.v_row_bytes = c.kv_u4 ? pa_u4_v_row_bytes(desc->v_head_size, pa_u4_v_row_align) : desc->v_head_size * ov::element::Type(value_cache.data_type).size();
+    // The strict rule on the page row, which narrows by itself as the cache does: f16 needs
+    // head_size % 32 == 0, i8 % 64 and u4 K % 128 (u4 V is aligned up to 16). xe_hpg has no 2D block IO, and its
+    // SG8 reader (sdpa_ocl_hpg_decode.cl) has neither of the compressed fallbacks below.
+    if (c.sg != 16) {
+        return c;
+    }
+    c.k_2d = env_int("SDPA_OCL_DECODE_K_2D", block2d_surface_ok(c.k_row_bytes) ? 1 : 0);
+    c.v_2d = env_int("SDPA_OCL_DECODE_V_2D", block2d_surface_ok(c.v_row_bytes) ? 1 : 0);
+
+    // The per-lane fallback of a compressed K loads a dword vector per lane covering several tiles (u4: 2
+    // dwords a tile, up to 4 tiles; i8: 4 dwords a tile, up to 2), the same 32 bytes a block read hands
+    // each lane. Bit-identical: the tiles still feed the DPAS in ascending order. Measured on B70 against
+    // one load per tile: u4 head 64 -13% (llama-3.2-1b shape, 32K keys), u4 / i8 head 96 -5 / -11%.
+    if (c.compressed && c.k_2d == 0) {
+        const size_t k_tiles = desc->k_head_size / dpas_k;
+        size_t n = c.kv_u4 ? 4 : 2;
+        while (n > 1 && k_tiles % n != 0) {
+            n /= 2;
+        }
+        // Tuning / bisection override: 1, 2 or 4 where it divides the tile count.
+        if (const auto requested = static_cast<size_t>(env_int("SDPA_OCL_DECODE_K_LANE_TILES", 0));
+            (requested == 1 || requested == 2 || requested == 4) && k_tiles % requested == 0) {
+            n = requested;
+        }
+        c.k_lane_tiles = n;
+    }
+    // A compressed V row block2d does not take (u4 head 64 / 96: 32- / 48-byte rows; i8 head 96 under the
+    // strict rule) is otherwise read one byte per (token, lane, tile). The 1D reads need whole 16-byte
+    // column groups. SDPA_OCL_DECODE_V_PAGE_1D=0 restores the gather (bisection).
+    c.v_page_1d_ok = c.compressed && c.v_2d == 0 && c.v_row_bytes % c.sg == 0 && env_int("SDPA_OCL_DECODE_V_PAGE_1D", 1) != 0;
+    return c;
+}
+
+// How many of the workgroup's subgroups split the V head-dim axis during S*V; the rest split the keys, and
+// only those produce partial outputs to reduce. A power of two, so every dim subgroup gets an equal share
+// (v_tiles itself can be 3, e.g. head 48). V_PAGE_1D splits the keys only: each subgroup reads whole pages.
+size_t get_sv_dim_sgs(size_t sg_per_wg, size_t v_tiles, bool v_page_1d) {
+    if (v_page_1d) {
+        return 1;
+    }
+    size_t d = 1;
+    while (d * 2 <= std::min(sg_per_wg, v_tiles)) {
+        d *= 2;
+    }
+    return d;
+}
+
+// Registers per work-item that stay live across the KQ loop, in GRF (SIMD16: one half per lane is half a
+// GRF, one float a whole one). A coarse spill gate calibrated on gemma-4, not a predictor
+// ("sdpa_ocl_decode" in the docs).
+size_t live_grf_estimate(size_t m, size_t sg_per_wg, size_t k_head_size, bool compressed, bool by_channel, size_t k_tiles_per_read) {
+    const size_t k_tiles = k_head_size / dpas_k;
+    const size_t key_groups = (pa_seq_len_partition_size / sg_per_wg) / page_keys;
+
+    size_t grf = m * k_tiles / 2;  // q_reg[M][K_TILES], half
+    if (by_channel) {
+        grf += key_groups * k_tiles;  // k_sc + k_zp, [KEY_GROUPS][K_TILES] half each
+        grf += key_groups * m;        // k_corr[KEY_GROUPS][M], float
+    } else if (compressed) {
+        grf += key_groups;  // k_sc + k_zp, [KEY_GROUPS] half each
+        grf += m;           // q_sum[M], float
+    }
+    grf += key_groups * m;            // s[KEY_GROUPS], M floats each
+    grf += 5 * m;                     // m_sg, m_wg, l_sg, l_wg, inv_l
+    grf += m;                         // the S*V accumulator, one head-dim tile live at a time
+    grf += 8 + 8 * k_tiles_per_read;  // kt (uint8) and kb[K_TILES_PER_READ] (int8 each)
+    grf += m * k_tiles_per_read / 2;  // a[K_TILES_PER_READ], short M each
+    grf += 2 * key_groups;            // k_page_off[KEY_GROUPS], 64-bit
+    return grf;
+}
+
+// Below the 128-GRF file because the estimate omits compiler temporaries; brackets the measured optimum.
+constexpr size_t grf_budget = 112;
+
+// The same count for the low-register layout (Q_IN_SLM, K_COMP_PER_READ, V_COMP_IN_SLM, V_TWIN_PAIR in
+// sdpa_ocl_decode.cl): q_reg and the BY_CHANNEL comp arrays leave the register file, so nothing scales with
+// K_TILES any more, only with M and KEY_GROUPS. Same coarse role as live_grf_estimate(), with its own
+// budget: on B70 everything up to 148 measured spill-free (u4 head 128 at 8 subgroups and M = 8; head 512
+// at 16 and M = 8 with twin pairing scores 138) and 184 spilled 896 bytes (head 128, 4 subgroups, M = 8).
+size_t low_reg_grf_estimate(size_t m, size_t sg_per_wg, bool compressed, bool by_channel, size_t k_tiles_per_read, bool twin) {
+    const size_t key_groups = (pa_seq_len_partition_size / sg_per_wg) / page_keys;
+
+    size_t grf = key_groups * m;  // s[KEY_GROUPS], M floats each
+    if (by_channel) {
+        grf += key_groups * m;  // k_corr_acc[KEY_GROUPS], M floats each
+    } else if (compressed) {
+        grf += m;  // q_sum[M], float
+    }
+    if (compressed) {
+        grf += key_groups;  // v_sc_g + v_zp_g, [KEY_GROUPS] half each
+    }
+    grf += 5 * m;                     // m_sg, m_wg, l_sg, l_wg, inv_l
+    grf += (twin ? 2 : 1) * m;        // the S*V accumulators
+    grf += 8 + 8 * k_tiles_per_read;  // kt (uint8) and kb[K_TILES_PER_READ] (int8 each)
+    grf += m * k_tiles_per_read / 2;  // a[K_TILES_PER_READ], short M each
+    grf += m / 2 + k_tiles_per_read;  // the Q vector read back from local memory, kc[K_TILES_PER_READ]
+    grf += 2 * key_groups;            // k_page_off[KEY_GROUPS], 64-bit
+    return grf;
+}
+constexpr size_t low_reg_grf_budget = 160;
+
+// The same count for the SG8 reader (sdpa_ocl_hpg_decode.cl; SIMD8 on a 32-byte GRF, so again one GRF per 32-bit value
+// per lane): a lane holds two head dims of Q per tile and the scores of two keys per page, twice the SG16 share, and
+// the BY_CHANNEL pairs are read per tile and page. Same coarse role and budget as live_grf_estimate(); the low-register
+// layout is not implemented for SG8.
+size_t sg8_grf_estimate(size_t m, size_t sg_per_wg, size_t k_head_size, bool compressed, bool by_channel, bool kv_u4) {
+    const size_t k_tiles = k_head_size / dpas_k;
+    const size_t key_groups = (pa_seq_len_partition_size / sg_per_wg) / page_keys;
+
+    size_t grf = m * k_tiles;  // q_reg[M][K_TILES], half2
+    if (by_channel) {
+        grf += key_groups * m;  // k_corr_acc[KEY_GROUPS], M floats each
+        grf += 2;               // this page's two (scale, zp) pairs
+    } else if (compressed) {
+        grf += 2 * key_groups;  // k_sc + k_zp, [KEY_GROUPS][2] half each
+        grf += m;               // q_sum[M], float
+    }
+    grf += 2 * key_groups * m;  // s[KEY_GROUPS][2], M floats each
+    grf += 5 * m;               // m_sg, m_wg, l_sg, l_wg, inv_l
+    grf += m;                   // the S*V accumulator
+    grf += 2 * 8;               // kb[2], int8 each
+    grf += m;                   // a, M ints
+    grf += 2 * key_groups;      // k_page_off[KEY_GROUPS], 64-bit
+    if (kv_u4) {
+        grf += 8;  // the nibble unpacks: u4 head 128 at M = 4 spilled 224 bytes on DG2 at an estimate of 106
+    }
+    return grf;
+}
+
+// The longest K row, in tiles, at which the SG8 reader holds a compressed cache spill-free at M > 1. The count above
+// misses what grows along the row there: on DG2 (IGC 2.41.5, ocloc with the runtime options) M = 2 spilled from head
+// 384 for i8 and u4 BY_CHANNEL (384 bytes, then 128 more per tile, 1376 at head 512, where the count is 112) and from
+// head 480 for i8 BY_TOKEN (128 bytes, 512 at head 512), while heads 320 / 448 compiled at 0, as did every M = 4 shape
+// up to the budget (heads 112-192) and head 512 at M = 1. f16 is not capped: head 512 at M = 2 compiled at 0.
+size_t sg8_compressed_multi_q_max_k_tiles(bool by_channel) {
+    return by_channel ? 20 : 28;
+}
+
+// u4 V twin pairing (V_TWIN_PAIR): every V tile has a twin in the high nibbles of its byte column, and both
+// belong to the same subgroup.
+bool v_twin_pair_legal(const RuntimeParams& params, const decode_config& c, size_t sg_per_wg) {
+    const auto desc = params.typed_desc<paged_attention>();
+    const size_t v_tiles = desc->v_head_size / c.sg;
+    const size_t v_reads = c.v_row_bytes / c.sg;
+    return c.kv_u4 && c.v_2d != 0 && v_tiles == 2 * v_reads && v_reads % get_sv_dim_sgs(sg_per_wg, v_tiles, false) == 0;
+}
+
+// Local memory the kernel declares for a given M. The output staging term vanishes whenever one subgroup
+// per head-dim tile covers all the keys (v_tiles >= sg_per_wg). The low-register layout adds the query
+// (M halves per head dim) and, for a compressed cache, the staged V zero points. V_PAGE_1D stages a partial
+// output per subgroup.
+size_t slm_bytes_for(size_t m, size_t sg, size_t sg_per_wg, size_t k_head_size, size_t v_head_size, bool low_reg, bool compressed, bool v_page_1d) {
+    const size_t v_tiles = v_head_size / sg;
+    const size_t key_sgs = sg_per_wg / get_sv_dim_sgs(sg_per_wg, v_tiles, v_page_1d);
+    const size_t slm_p = m * pa_seq_len_partition_size * sizeof(uint16_t);
+    const size_t slm_out = (key_sgs > 1) ? key_sgs * m * v_head_size * sizeof(float) : 0;
+    const size_t slm_max_sum = 2 * sg_per_wg * m * sizeof(float);
+    const size_t slm_q = low_reg ? m * k_head_size * sizeof(uint16_t) : 0;
+    const size_t slm_vzp = (low_reg && compressed) ? pa_seq_len_partition_size * sizeof(uint16_t) : 0;
+    return slm_p + slm_out + slm_max_sum + slm_q + slm_vzp;
+}
+
+// M and the register layout that carries it.
+struct q_tiling {
+    size_t m = 1;
+    // The low-register layout. Bit-identical output: it only moves data out of registers.
+    bool low_reg = false;
+    // V_PAGE_1D, whose key-only S*V split stages SG_PER_WG partial outputs in local memory.
+    bool v_page_1d = false;
+};
+
+q_tiling q_tiling_with(const RuntimeParams& params, const decode_config& c, size_t sg_per_wg, bool v_page_1d) {
+    const auto desc = params.typed_desc<paged_attention>();
+    const size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
+    // K_LANE_TILES stays out of the count on purpose, so M comes out as without it. Checked on B70 over the
+    // shapes the host generates with it and V_PAGE_1D (u4 / i8 head 16..192, kv group 1..8): spill stayed
+    // or fell everywhere (head 160 / 192 at M = 8: 18.5-20 KB -> 0.4-3.5 KB) except u4 head 192 at M = 4
+    // (0 -> 1.25 KB, still 0.29x the time), and no shape got slower. V_PAGE_1D's accumulators live only
+    // after the KQ loop.
+    const size_t k_tiles_per_read = (c.kv_u4 && c.k_2d) ? 4 : ((c.compressed && c.k_2d) ? 2 : 1);
+    const bool twin = v_twin_pair_legal(params, c, sg_per_wg);
+
+    // M is the DPAS repeat count, which the ISA encodes only as 1/2/4/8. The kv group is rounded UP, so a
+    // group that is not a power of two still fits one workgroup (kv group 3 -> M 4): the surplus row is a
+    // masked leftover, and each K/V page is read once per kv head instead of once per half group.
+    size_t target = 1;
+    while (target < std::min<size_t>(8, kv_group_size)) {
+        target *= 2;
+    }
+
+    // The largest M the plain layout holds without spilling: every array live across the KQ loop scales with M.
+    const auto grf_estimate = [&](size_t m) {
+        return c.sg == 8 ? sg8_grf_estimate(m, sg_per_wg, desc->k_head_size, c.compressed, c.by_channel, c.kv_u4)
+                         : live_grf_estimate(m, sg_per_wg, desc->k_head_size, c.compressed, c.by_channel, k_tiles_per_read);
+    };
+    size_t plain_m = target;
+    while (plain_m > 1 && grf_estimate(plain_m) > grf_budget) {
+        plain_m /= 2;
+    }
+    if (c.sg == 8 && c.compressed && desc->k_head_size / dpas_k > sg8_compressed_multi_q_max_k_tiles(c.by_channel)) {
+        plain_m = 1;
+    }
+
+    q_tiling q;
+    q.v_page_1d = v_page_1d;
+    // The override bypasses the register caps, so configurations the heuristic rejects stay reachable, but
+    // not the local-memory clamp, which guards the build.
+    const auto requested = static_cast<size_t>(env_int("SDPA_OCL_DECODE_M", 0));
+    const bool forced = requested >= 1 && requested <= 8 && (requested & (requested - 1)) == 0 && requested < 2 * kv_group_size;
+    if (forced) {
+        q.m = requested;
+        q.low_reg = c.sg == 16 && requested > plain_m;
+    } else if (c.sg == 8) {
+        q.m = plain_m;
+    } else {
+        // When the plain layout caps M below the kv group, each K/V page is read and dequantized once per
+        // workgroup, i.e. target / M times per kv head -- decode is bandwidth bound and that redundancy
+        // grows with the context. The low-register layout keeps the whole group: gemma-4's head-512 layers
+        // (kv group 8) went from M = 1 to M = 8 at 0.23-0.85x the kernel time of the plain layout across
+        // 300 to 33K keys, and every other capped shape among the daily models measured 0.46-0.97x (B70;
+        // "sdpa_ocl_decode" in the docs). Not at head 64 once the plain M is 4: a page is read at most twice
+        // there, and halving the cheap workgroups' count lost up to 2K keys (i8 gpt-oss / minicpm4-0.5b,
+        // 1.06-1.15x).
+        q.m = plain_m;
+        if (plain_m < target && (plain_m < 4 || desc->k_head_size >= 128)) {
+            size_t m = target;
+            while (m > 1 && low_reg_grf_estimate(m, sg_per_wg, c.compressed, c.by_channel, k_tiles_per_read, twin) > low_reg_grf_budget) {
+                m /= 2;
+            }
+            if (m > plain_m) {
+                q.m = m;
+                q.low_reg = true;
+            }
+        }
+    }
+    // Tuning / bisection override of the layout alone (0 or 1).
+    if (const int low_reg = env_int("SDPA_OCL_DECODE_LOW_REG", -1); c.sg == 16 && (low_reg == 0 || low_reg == 1)) {
+        q.low_reg = low_reg == 1;
+    }
+
+    // An over-budget kernel does not build at all; half the arena keeps occupancy up as well.
+    const size_t budget = params.get_device_info().max_local_mem_size / 2;
+    while (q.m > 1 && slm_bytes_for(q.m, c.sg, sg_per_wg, desc->k_head_size, desc->v_head_size, q.low_reg, c.compressed, q.v_page_1d) > budget) {
+        q.m /= 2;
+    }
+    return q;
+}
+
+q_tiling q_tiling_for(const RuntimeParams& params, const decode_config& c, size_t sg_per_wg) {
+    const q_tiling gather = q_tiling_with(params, c, sg_per_wg, false);
+    if (!c.v_page_1d_ok) {
+        return gather;
+    }
+    // V_PAGE_1D only where its partial-output staging does not cost M (a large head with M = 8 at 16
+    // subgroups can push past the local-memory budget): the redundancy M avoids outweighs the gather.
+    // Measured on B70 against the gather, both at the shape's M: u4 head 96 MHA (phi-3.5) -36..-39%, u4
+    // head 64 at kv group 4 (llama-3.2-1b) -27..-30% and 8 (gpt-oss) -13..-15%, i8 head 96 MHA -17..-24%.
+    const q_tiling page = q_tiling_with(params, c, sg_per_wg, true);
+    return page.m >= gather.m ? page : gather;
+}
+
+size_t q_per_wg_for(const RuntimeParams& params, const decode_config& c, size_t sg_per_wg) {
+    return q_tiling_for(params, c, sg_per_wg).m;
+}
+
+size_t sg_per_wg_for(const RuntimeParams& params, const decode_config& c) {
+    // One subgroup is one thread, and thread-level parallelism is what this kernel was short of, but 16 only
+    // pays with at least 16 V head-dim tiles: past V_TILES the surplus subgroups split the keys, which adds
+    // the slm_out staging and a barrier ("sdpa_ocl_decode" in the docs). Below that, 16 pays only where a
+    // workgroup is slow (the u4 dequant) and does not multiply the workgroups: at M >= 4 a partition costs
+    // no more threads than 8 subgroups at M = 2. Measured for u4 head 64 and 128; i8 and the other heads
+    // lose with 16 once the GPU is full, so they keep 8.
+    const auto desc = params.typed_desc<paged_attention>();
+    const size_t v_tiles = desc->v_head_size / c.sg;
+    size_t value = 8;
+    // SG8: at most 8 subgroups (the cross-subgroup combine below).
+    if (c.sg == 16 && (v_tiles >= 16 || (c.kv_u4 && (v_tiles == 4 || v_tiles == 8) && q_per_wg_for(params, c, 16) >= 4))) {
+        value = 16;
+    }
+    // Head 96 MHA (phi-3.5): six tiles split unevenly over 8 subgroups, so S*V reduces over key slots at 8
+    // as well, and a one-head workgroup is the cheapest there is. 16 measured 0.85-0.98x the time of 8 from
+    // 700 to 13K keys for u4, i8 and f16 alike, except 1.06-1.09x at 1.1K (5 partitions: 2560 threads,
+    // just over one wave of B70's 2048), and parity past 18K.
+    if (c.sg == 16 && v_tiles == 6 && desc->heads_num == desc->kv_heads_num) {
+        value = 16;
+    }
+
+    // Tuning override; 0 or unset means not requested, an illegal value falls back to 8.
+    if (const auto requested = static_cast<size_t>(env_int("SDPA_OCL_DECODE_SG_PER_WG", 0)); requested != 0) {
+        value = requested;
+    }
+    // Every subgroup must get whole cache pages, and the cross-subgroup combine reduces one value per
+    // subgroup across the lanes of one subgroup.
+    const auto key_groups = pa_seq_len_partition_size / page_keys;
+    if (value > c.sg || key_groups % value != 0) {
+        return 8;
+    }
+    return value;
+}
+
+}  // namespace
+
+size_t SDPAOclDecodeGenerator::get_sg_per_wg(const RuntimeParams& params) {
+    return sg_per_wg_for(params, make_decode_config(params));
+}
+
+size_t SDPAOclDecodeGenerator::get_q_per_wg(const RuntimeParams& params) {
+    const auto c = make_decode_config(params);
+    return q_per_wg_for(params, c, sg_per_wg_for(params, c));
+}
+
+// An op refused here runs pa_single_token / pa_gqa_single_token, which read both K page layouts. The device part
+// lives in paged_attention.hpp.
+bool SDPAOclDecodeGenerator::supported(const RuntimeParams& params) {
+    const auto& device_info = params.get_device_info();
+    // The device part (paged_attention.hpp): xe_hpc and Xe2+ XMX. xe_hpg keeps the opt kernels, so the SG8 reader is not
+    // selected.
+    if (!paged_attention::sdpa_ocl_decode_reader_available(device_info)) {
+        return false;
+    }
+
+    const auto desc = params.typed_desc<paged_attention>();
+
+    // Not implemented: these keep the pa_single_token / pa_gqa_single_token path.
+    if (desc->has_scores_output() || desc->has_score_aggregation) {
+        return false;
+    }
+    // qq_bias is accepted: one new token per sequence makes its tree mask the 1 x 1 identity, which plain
+    // causal masking already gives.
+    if (desc->has_alibi || desc->has_xattention) {
+        return false;
+    }
+
+    const auto& query = params.input_layouts[PagedAttentionInputIdx::QUERY];
+    const auto& key_cache = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE];
+    const auto& value_cache = params.input_layouts[PagedAttentionInputIdx::VALUE_CACHE];
+    if (query.data_type != ov::element::f16 || params.output_layouts[0].data_type != ov::element::f16) {
+        return false;
+    }
+    // f16, i8 or u4, the same for both caches. i8 only among the 8-bit types: the dequant widens the byte as
+    // signed, as kv_cache_update wrote it. u4 comes from the config precision; i4 is not accepted.
+    const bool kv_u4 = pa_kv_cache_precision(params) == ov::element::u4 && key_cache.data_type == value_cache.data_type;
+    const bool kv_f16 = key_cache.data_type == ov::element::f16 && value_cache.data_type == ov::element::f16;
+    const bool kv_i8 = !kv_u4 && key_cache.data_type == ov::element::i8 && value_cache.data_type == ov::element::i8;
+    if (!kv_f16 && !kv_i8 && !kv_u4) {
+        return false;
+    }
+    // A u4 K cache is always BY_CHANNEL (4-bit BY_TOKEN keys are rejected by the execution config).
+    if (kv_u4 && !desc->is_key_by_channel) {
+        return false;
+    }
+    // A key group / S*V chunk is one page.
+    if (paged_attention::block_size != page_keys) {
+        return false;
+    }
+    // KQ tiles the head dim by the DPAS depth; S*V tiles it by the DPAS N dimension.
+    if (desc->k_head_size % dpas_k != 0 || desc->v_head_size % decode_subgroup_size(params) != 0) {
+        return false;
+    }
+    return desc->kv_heads_num != 0 && desc->heads_num % desc->kv_heads_num == 0;
+}
+
+std::string SDPAOclDecodeGenerator::get_build_options(const kernel_impl_params& params) const {
+    auto options = KernelGenerator::get_build_options(params);
+    // Tuning toggle for the larger M values, which are the ones at risk of spilling ("sdpa_ocl_decode" in
+    // the docs).
+    if (env_on("SDPA_OCL_DECODE_256GRF")) {
+        options += " -cl-intel-256-GRF-per-thread";
+    }
+    return options;
+}
+
+JitConstants SDPAOclDecodeGenerator::get_jit_constants(const RuntimeParams& params) const {
+    auto jit = make_base_jit_constants(params);
+    const auto desc = params.typed_desc<paged_attention>();
+    const auto c = make_decode_config(params);
+
+    jit.make("SUBGROUP_SIZE", c.sg);
+    const size_t sg_per_wg = sg_per_wg_for(params, c);
+    jit.make("SG_PER_WG", sg_per_wg);
+    jit.make("SEQ_LEN_PARTITION_SIZE", pa_seq_len_partition_size);
+    jit.make("PAGED_ATTENTION_BLOCK_SIZE", paged_attention::block_size);
+
+    const size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
+    const auto q = q_tiling_for(params, c, sg_per_wg);
+    jit.make("Q_PER_WG", q.m);
+    jit.make("HEAD_ITERS", ceil_div(kv_group_size, q.m));
+    jit.make("SV_DIM_SGS", get_sv_dim_sgs(sg_per_wg, desc->v_head_size / c.sg, q.v_page_1d));
+    jit.make("V_PAGE_1D", q.v_page_1d ? 1 : 0);
+    jit.make("K_LANE_TILES", c.k_lane_tiles);
+
+    // The low-register layout and the two S*V savings that ride with it, each where it applies.
+    jit.make("Q_IN_SLM", q.low_reg ? 1 : 0);
+    jit.make("K_COMP_PER_READ", (q.low_reg && c.by_channel) ? 1 : 0);
+    jit.make("V_COMP_IN_SLM", (q.low_reg && c.compressed) ? 1 : 0);
+    jit.make("V_TWIN_PAIR", (q.low_reg && v_twin_pair_legal(params, c, sg_per_wg)) ? 1 : 0);
+
+    // V prefetch distance in loop iterations, 0 = off ("sdpa_ocl_decode" in the docs); a 2D block prefetch, so not on
+    // xe_hpg.
+    jit.make("PREFETCH_DIST", c.sg == 16 ? std::max(0, env_int("SDPA_OCL_DECODE_PREFETCH", 4)) : 0);
+    // SDPA_OCL_NEG_SG8: the negative controls of the SG8 reader (30-35 in sdpa_ocl_hpg_decode.cl).
+    if (c.sg == 8) {
+        if (const int neg = env_int("SDPA_OCL_NEG_SG8", 0); neg != 0) {
+            jit.make("NEG_SG8", neg);
+        }
+    }
+
+    jit.make("K_HEAD_SIZE", desc->k_head_size);
+    jit.make("V_HEAD_SIZE", desc->v_head_size);
+
+    jit.make("IS_KV_COMPRESSED", c.compressed ? 1 : 0);
+    jit.make("IS_KV_U4", c.kv_u4 ? 1 : 0);
+    jit.make("IS_KEY_BY_CHANNEL", c.by_channel ? 1 : 0);
+    // Two values of the KEY input's precision, as paged_attention_opt.cpp derives it.
+    const size_t scales_zp_size = c.compressed ? 2 * ov::element::Type(params.input_layouts[PagedAttentionInputIdx::KEY].data_type).size() : 0;
+    add_pa_adjusted_jit(jit, desc->k_head_size, c.kv_u4 ? c.v_row_bytes : desc->v_head_size, c.kv_u4, c.by_channel, scales_zp_size);
+
+    // Data-row pitch in cache elements: the head size, or the packed pitch for u4.
+    jit.make("K_ROW_ELEMS", c.kv_u4 ? c.k_row_bytes : desc->k_head_size);
+    jit.make("V_ROW_ELEMS", c.kv_u4 ? c.v_row_bytes : desc->v_head_size);
+
+    jit.make("HEADS_NUM", desc->heads_num);
+    jit.make("KV_HEADS_NUM", desc->kv_heads_num);
+    jit.make("KV_HEADS_GROUP_SIZE", desc->heads_num / desc->kv_heads_num);
+    jit.make("SLIDING_WINDOW_SIZE", desc->sliding_window);
+
+    if (desc->scale_val.has_value()) {
+        jit.make("SCALE_VAL", desc->scale_val.value());
+    } else {
+        jit.make("HAS_SCALE_INPUT", 1);
+        jit.add(make_type_jit_constants("SCALE_INPUT", params.input_layouts[PagedAttentionInputIdx::SCALE].data_type));
+    }
+
+    if (desc->has_sink_input) {
+        add_sink_jit(jit, params.input_layouts[PagedAttentionInputIdx::SINKS]);
+    }
+
+    jit.add(make_type_jit_constants("SOFTMAX_ACCUMULATOR", pa_softmax_accumulator_type));
+
+    // Bisection toggles: 0 restores the per-lane load that builds the same DPAS operand.
+    jit.make("USE_2D_BLOCK_IO_K", c.k_2d);
+    jit.make("USE_2D_BLOCK_IO_V", c.v_2d);
+
+    // In the kernel's parameter order; INPUT0's layout carries the query's feature padding.
+    add_io_layouts_jit(jit,
+                       params,
+                       {PagedAttentionInputIdx::QUERY,
+                        PagedAttentionInputIdx::KEY_CACHE,
+                        PagedAttentionInputIdx::VALUE_CACHE,
+                        PagedAttentionInputIdx::PAST_LENS,
+                        PagedAttentionInputIdx::BLOCK_INDICES,
+                        PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});
+
+    return jit;
+}
+
+Arguments SDPAOclDecodeGenerator::get_arguments_desc(const RuntimeParams& params) const {
+    Arguments args;
+    const auto desc = params.typed_desc<paged_attention>();
+
+    if (params.is_dynamic()) {
+        args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+    }
+
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QUERY});
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY_CACHE});
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::VALUE_CACHE});
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::PAST_LENS});
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES});
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});
+    if (!desc->scale_val.has_value()) {
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SCALE});
+    }
+    if (desc->has_sink_input) {
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SINKS});
+    }
+    args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+
+    // exp_sums / max_logits / tmp_out. Buffers 0-2 are the kv_cache_update index buffers, and supported()
+    // rejects the scores output that would follow them (as add_intermediate_inputs lays them out).
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 5});
+
+    return args;
+}
+
+DispatchDataFunc SDPAOclDecodeGenerator::get_dispatch_data_func() const {
+    return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+        assert(!params.is_dynamic());
+        auto& wgs = kd.params.workGroups;
+        const auto desc = params.typed_desc<paged_attention>();
+        const auto* rtp = static_cast<const PagedAttentionRuntimeParams*>(rt_params);
+
+        // One query token per sequence in GENERATE, so dim 0 of the query is the sequence count.
+        const size_t total_tokens = params.input_layouts[PagedAttentionInputIdx::QUERY].get_partial_shape()[0].get_length();
+        const size_t subgroup_size = decode_subgroup_size(params);
+        const size_t sg_per_wg = SDPAOclDecodeGenerator::get_sg_per_wg(params);
+
+        // The head axis is head groups: one workgroup covers Q_PER_WG q-heads of a kv head.
+        const size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
+        const size_t q_per_wg = SDPAOclDecodeGenerator::get_q_per_wg(params);
+        const size_t head_groups = desc->kv_heads_num * ceil_div(kv_group_size, q_per_wg);
+
+        // Dim 2 is the partition, so get_num_groups(2) equals the finalization stage's total_partitions_num;
+        // (sequence, head group) share dim 1, which the kernel splits with % and / HEAD_GROUPS.
+        wgs.local = {subgroup_size, sg_per_wg, 1};
+        wgs.global = {subgroup_size, sg_per_wg * head_groups * total_tokens, rtp->num_of_partitions};
+    }};
+}
+
+}  // namespace ov::intel_gpu::ocl

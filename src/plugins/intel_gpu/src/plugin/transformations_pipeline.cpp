@@ -75,6 +75,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/read_value_base.hpp"
@@ -473,7 +474,6 @@ static bool should_decompose_sdpa_for_memory_size(size_t max_size,
 }
 
 namespace cldnn {
-extern bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config);
 extern bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config);
 }  // namespace cldnn
 
@@ -1027,7 +1027,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::FuseGroupedDepthToSpace>();
         manager.register_pass<ov::pass::CommonOptimizations>();
         pass_config->disable<ov::pass::GroupQueryAttentionDecomposition>();
-        manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>(device_info.supports_immad);
+        // Fused compressed K/V (SDPA reads the quantized cache and its per-channel scales) only where sdpa_ocl has that
+        // reader: xe_hpc and Xe2+ XMX (sdpa_ocl_per_channel_kv_ok(): the per-channel reads are SG16; xe_hpg's SG8 arms have none)
+        // with the DPAS kernel on (not OV_GPU_ENABLE_SDPA_MICRO=0) and f16 queries (it runs after ConvertPrecision).
+        // sdpa_opt reads one scale per token, so everywhere else the quantized K/V are dequantized before SDPA. A fused op
+        // sdpa_ocl still refuses runs on sdpa_ref (SDPAOpt::validate_impl()), correct but slow; the pass keeps the ops it
+        // can tell apart unfused, and heads above 256 (slower fused there).
+        const bool fuse_compressed_kv = cldnn::paged_attention::sdpa_ocl_selected(device_info) &&
+                                        cldnn::paged_attention::sdpa_ocl_per_channel_kv_ok(device_info) && config.get_enable_sdpa_micro() &&
+                                        infer_precision == ov::element::f16;
+        manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>(device_info.supports_immad, fuse_compressed_kv);
 
         // In the case of "zp/scale -> reshape -> transpose -> MOE",
         // "zp/scale -> reshape -> transpose" is constant-folded in the above "CommonOptimizations".
@@ -1086,14 +1095,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 }
             }
 
-            // KVCache layout with default attention -
-            // k: [num_blocks, num_kv_heads, head_size, block_size(16)]
+            // KVCache layout with default attention (token-major K on every device and for every kind of page,
+            // paged_attention.hpp) -
+            // k: [num_blocks, num_kv_heads, block_size(16), head_size]
             // v: [num_blocks, num_kv_heads, block_size(16), head_size]
             // KVCache layout with XAttention -
             // k: [num_blocks, num_kv_heads, block_size(256), head_size]
             // v: [num_blocks, num_kv_heads, block_size(256), head_size]
-            ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
             const auto key_cache_quant_mode = config.get_key_cache_quant_mode();
+
+            ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
             auto kv_cache_precision = config.get_kv_cache_precision();
             // Plain PA already falls back to compressed KV cache for BY_TOKEN on GPU.
             // XAttention builds its dedicated KV layout in this pass, so normalize the
@@ -1109,7 +1120,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 kv_cache_config.keyCacheDimOrder = {0, 1, 2, 3};  //  default dim order of [num_blocks, num_kv_heads, block_size, head_size]
             } else {
                 kv_cache_config.keyCacheBlockSize = cldnn::paged_attention::block_size;
-                kv_cache_config.keyCacheDimOrder = {0, 1, 3, 2};
+                kv_cache_config.keyCacheDimOrder = {0, 1, 2, 3};
             }
             kv_cache_config.keyCacheQuantBychannel = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL);
             kv_cache_config.keyCacheGroupSize = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) ? 16 : 0;
@@ -1139,8 +1150,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                             block_size);
                             block_size += (block_size / kv_sub_block_size) * infer_precision.size() * 2;
                         } else if (precision == ov::element::i4 || precision == ov::element::u4) {
-                            // INT4 BY_CHANNEL with {0,1,3,2}: block_size is innermost dim (packed)
-                            // Pack 16 u4 tokens → 8 bytes, plus scale/zp = 4 bytes → 12 bytes per column
+                            // INT4 BY_CHANNEL: a channel's 16 u4 tokens take 8 bytes, plus its scale/zp (4 bytes in f16):
+                            // the page is [16 tokens][head_size / 2] bytes, then the per-channel pairs (paged_attention.hpp)
                             block_size = block_size / 2 + infer_precision.size() * 2;
                         }
                     } else {
@@ -1215,7 +1226,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
              }
 
             const auto head_size = static_cast<uint64_t>(query_ps[query_ps.size() - 1].get_length());
-            if (device_info.supports_immad && cldnn::query_microkernels_supported(m_context->get_engine(), config) && head_size <= 256)
+            // The DPAS SDPA kernel serves the op: sdpa_ocl on its lane (no oneDNN microkernel support needed). Other XMX
+            // devices (xe_hp, unknown arch) take the rules below. The 256 limit predates sdpa_ocl (which serves heads
+            // up to 512); raising it would change which models keep SDPA fused.
+            if (device_info.supports_immad && cldnn::paged_attention::sdpa_ocl_selected(device_info) && head_size <= 256)
                 return true;
 
             // - Head size should be 128 for any model type; or should be in the range of 64 to 512 for stateful LLMs because of performance
