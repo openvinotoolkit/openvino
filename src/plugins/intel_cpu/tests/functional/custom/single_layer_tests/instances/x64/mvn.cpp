@@ -168,8 +168,7 @@ const auto Mvn4DStatic = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn4D_Static, MvnLayerCPUTest, Mvn4DStatic, MvnLayerCPUTest::getTestCaseName);
 
-// test cases of tails process of block layout with f32 precision.
-// could cover SSE41 code path on SSE41 platform(currrent bf16 cases are skipped on non-avx512 machine)
+// Test blocked-layout tails with f32 precision, including on non-AVX512 machines.
 const std::vector<ov::Shape>& inputShapesStatic_4D_CTails() {
     static const std::vector<ov::Shape> inputShapesStatic_4D = {
         {1, 3, 2, 2},

@@ -75,9 +75,6 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice4D() {
     } else if (with_cpu_x86_avx2()) {
         resCPUParams.push_back(CPUSpecificParams{{nchw}, {nchw}, {"jit_avx2"}, "jit_avx2"});
         resCPUParams.push_back(CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx2"}, "jit_avx2"});
-    } else if (with_cpu_x86_sse42()) {
-        resCPUParams.push_back(CPUSpecificParams{{nchw}, {nchw}, {"jit_sse42"}, "jit_sse42"});
-        resCPUParams.push_back(CPUSpecificParams{{nhwc}, {nhwc}, {"jit_sse42"}, "jit_sse42"});
     } else {
         resCPUParams.push_back(CPUSpecificParams{{nchw}, {nchw}, {"ref"}, "ref"});
     }
@@ -92,9 +89,6 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice5D() {
     } else if (with_cpu_x86_avx2()) {
         resCPUParams.push_back(CPUSpecificParams{{ncdhw}, {ncdhw}, {"jit_avx2"}, "jit_avx2"});
         resCPUParams.push_back(CPUSpecificParams{{ndhwc}, {ndhwc}, {"jit_avx2"}, "jit_avx2"});
-    } else if (with_cpu_x86_sse42()) {
-        resCPUParams.push_back(CPUSpecificParams{{ncdhw}, {ncdhw}, {"jit_sse42"}, "jit_sse42"});
-        resCPUParams.push_back(CPUSpecificParams{{ndhwc}, {ndhwc}, {"jit_sse42"}, "jit_sse42"});
     } else {
         resCPUParams.push_back(CPUSpecificParams{{ncdhw}, {ncdhw}, {"ref"}, "ref"});
     }
@@ -107,8 +101,6 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice4DBlock() {
         resCPUParams.push_back(CPUSpecificParams{{nChw16c}, {nChw16c}, {"jit_avx512"}, "jit_avx512"});
     } else if (with_cpu_x86_avx2()) {
         resCPUParams.push_back(CPUSpecificParams{{nChw8c}, {nChw8c}, {"jit_avx2"}, "jit_avx2"});
-    } else if (with_cpu_x86_sse42()) {
-        resCPUParams.push_back(CPUSpecificParams{{nChw8c}, {nChw8c}, {"jit_sse42"}, "jit_sse42"});
     }
     return resCPUParams;
 }
@@ -119,8 +111,6 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice5DBlock() {
         resCPUParams.push_back(CPUSpecificParams{{nCdhw16c}, {nCdhw16c}, {"jit_avx512"}, "jit_avx512"});
     } else if (with_cpu_x86_avx2()) {
         resCPUParams.push_back(CPUSpecificParams{{nCdhw8c}, {nCdhw8c}, {"jit_avx2"}, "jit_avx2"});
-    } else if (with_cpu_x86_sse42()) {
-        resCPUParams.push_back(CPUSpecificParams{{nCdhw8c}, {nCdhw8c}, {"jit_sse42"}, "jit_sse42"});
     }
     return resCPUParams;
 }

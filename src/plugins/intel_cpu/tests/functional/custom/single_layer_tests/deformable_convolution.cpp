@@ -216,8 +216,6 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice(bool enforceRef = false) {
         resCPUParams.push_back(CPUSpecificParams{{}, {}, {}, {"jit_avx512_FP32"}});
     } else if (with_cpu_x86_avx2()) {
         resCPUParams.push_back(CPUSpecificParams{{}, {}, {}, {"jit_avx2_FP32"}});
-    } else if (with_cpu_x86_sse42()) {
-        resCPUParams.push_back(CPUSpecificParams{{}, {}, {}, {"jit_sse42"}});
     } else {
         resCPUParams.push_back(CPUSpecificParams{{}, {}, {}, {"ref_FP32"}});
     }

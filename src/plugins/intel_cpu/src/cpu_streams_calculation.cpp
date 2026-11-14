@@ -53,7 +53,6 @@ namespace ThreadPreferenceConstants {
 [[maybe_unused]] constexpr int INT8_EFFICIENCY_THRESHOLD = 4;
 [[maybe_unused]] constexpr int FP32_EFFICIENCY_THRESHOLD = 2;
 
-[[maybe_unused]] constexpr float ISA_THRESHOLD_SSE41 = 0.5F;
 [[maybe_unused]] constexpr float ISA_THRESHOLD_AVX2 = 1.0F;
 [[maybe_unused]] constexpr float ISA_THRESHOLD_VNNI = 2.0F;
 [[maybe_unused]] constexpr float ISA_THRESHOLD_AMX = 4.0F;
@@ -111,8 +110,6 @@ namespace {
 float get_isa_threshold_multiplier(dnnl::cpu_isa isa) {
     using namespace ThreadPreferenceConstants;
     switch (isa) {
-    case dnnl::cpu_isa::sse41:
-        return ISA_THRESHOLD_SSE41;
     case dnnl::cpu_isa::avx2:
     case dnnl::cpu_isa::avx512_core:
         return ISA_THRESHOLD_AVX2;

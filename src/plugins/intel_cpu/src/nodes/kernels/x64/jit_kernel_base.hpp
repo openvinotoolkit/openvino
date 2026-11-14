@@ -185,6 +185,7 @@ protected:
         return dnnl::impl::cpu::x64::mayiuse(isa);
     }
 
+    const Xbyak::util::Cpu m_cpu;
     const dnnl::impl::cpu::x64::cpu_isa_t m_isa;
     RegistersPool::Ptr registersPool;
     size_t vlen;
@@ -239,16 +240,11 @@ public:
         std::shared_ptr<JitKernel<CompileParams, CallArgs>> res;
 
         try {
-#    define IF_ISA_CASE(ISA)                    \
-        if (dnnl::impl::cpu::x64::mayiuse(ISA)) \
-            res.reset(new KernelT<ISA>(jcp));   \
-        else
-
-            IF_ISA_CASE(dnnl::impl::cpu::x64::avx512_core)
-            IF_ISA_CASE(dnnl::impl::cpu::x64::avx2)
-            IF_ISA_CASE(dnnl::impl::cpu::x64::sse41);
-
-#    undef IF_ISA_CASE
+            if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
+                res.reset(new KernelT<dnnl::impl::cpu::x64::avx512_core>(jcp));
+            } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
+                res.reset(new KernelT<dnnl::impl::cpu::x64::avx2>(jcp));
+            }
 
             if (res) {
                 res->create_kernel();

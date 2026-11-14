@@ -6,10 +6,10 @@
 
 #include <xbyak/xbyak.h>
 
-#include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
 #include <cstddef>
+#include <type_traits>
 #include <vector>
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
@@ -40,9 +40,7 @@ jit_horizon_emitter::jit_horizon_emitter(dnnl::impl::cpu::x64::jit_generator_t* 
 }
 
 void jit_horizon_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
-        emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
-    } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
+    if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
         emit_isa<dnnl::impl::cpu::x64::avx2>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
@@ -53,11 +51,7 @@ void jit_horizon_emitter::emit_impl(const std::vector<size_t>& in, const std::ve
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_horizon_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
-                                                         Xbyak::Xmm,
-                                                         isa == dnnl::impl::cpu::x64::avx2,
-                                                         Xbyak::Ymm,
-                                                         Xbyak::Zmm>::type;
+    using Vmm = std::conditional_t<isa == dnnl::impl::cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>;
 
     auto src_vmm = Vmm(in[0]);
     auto dst_vmm = Vmm(out[0]);

@@ -76,11 +76,8 @@ struct jit_uni_matmul_small_kernel_f32 : public jit_uni_matmul_small_kernel,
 
 private:
     void apply_post_ops(ov::element::Type dst_prc, size_t vmm_idx, bool is_broadcast);
-    using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
-                                                         Xbyak::Xmm,
-                                                         isa == dnnl::impl::cpu::x64::avx2,
-                                                         Xbyak::Ymm,
-                                                         Xbyak::Zmm>::type;
+    using Vmm =
+        typename dnnl::impl::utils::conditional<isa == dnnl::impl::cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
     const int vlen = dnnl::impl::cpu::x64::cpu_isa_traits_t<isa>::vlen;
 

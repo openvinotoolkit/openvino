@@ -165,8 +165,7 @@ struct jit_uni_topk_kernel_f32 : public jit_uni_topk_kernel, public jit_generato
     }
 
 private:
-    using Vmm =
-        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm = typename conditional<isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     size_t vlen = cpu_isa_traits_t<isa>::vlen;
     dnnl::memory::data_type data_type = {};
     ov::element::Type precision_in_reg;
@@ -856,7 +855,7 @@ private:
     }
 
     void uni_vpcmpgtd(const Xbyak::Xmm& x1, const Xbyak::Xmm& x2, const Xbyak::Operand& op) {
-        if (is_valid_isa(cpu::x64::avx)) {
+        if (is_valid_isa(cpu::x64::avx2)) {
             vpcmpgtd(x1, x2, op);
         } else {
             if (x1.getIdx() != x2.getIdx()) {
@@ -1338,11 +1337,6 @@ private:
         {
             load(reg_src, vmm_val(0), vector_step, 0);
             uni_vmovdqu(vmm_idx(0), table_bubble_seq_idx(0));
-            if (isa == cpu::x64::sse41) {
-                load(reg_src, vmm_val(1), vector_step, 4 * jcp_.data_size);
-                uni_vmovdqu(vmm_idx(1), table_bubble_seq_idx(4));
-                swap_vector(vmm_val(0), vmm_idx(0), vmm_val(1), vmm_idx(1));
-            }
 
             Xbyak::Label topk_iter_label;
             Xbyak::Label topk_iter_end_label;
@@ -1357,12 +1351,6 @@ private:
                 load(reg_aux, vmm_val(1), vector_step);
                 table_to_vmm(vmm_idx(1), reg_bubble_seq_idx, reg_i, 0, sizeof(int));
                 swap_vector(vmm_val(0), vmm_idx(0), vmm_val(1), vmm_idx(1));
-                if (isa == cpu::x64::sse41) {
-                    add(reg_aux, 4 * jcp_.data_size);
-                    load(reg_aux, vmm_val(1), vector_step);
-                    table_to_vmm(vmm_idx(1), reg_bubble_seq_idx, reg_i, 4, sizeof(int));
-                    swap_vector(vmm_val(0), vmm_idx(0), vmm_val(1), vmm_idx(1));
-                }
 
                 add(reg_i, jcp_.blk_size);
                 jmp(topk_iter_label, T_NEAR);
@@ -1400,9 +1388,7 @@ private:
     // dst: xmm_val(0) and xmm_idx(0)
     // aux: xmm_val(2/3/4) and xmm_idx(2/3/4)
     void horiz_process() {
-        if (isa == cpu::x64::sse41) {
-            horize_top1();
-        } else if (isa == cpu::x64::avx2) {
+        if (isa == cpu::x64::avx2) {
             Xbyak::Ymm ymm_val_dst = Xbyak::Ymm(vmm_val(0).getIdx());
             vextractf128(xmm_val(2), ymm_val_dst, 0);
             vextractf128(xmm_val(3), ymm_val_dst, 1);
@@ -1981,14 +1967,11 @@ void TopK::initSupportedPrimitiveDescriptors() {
         if (ov::with_cpu_x86_avx2()) {
             return impl_desc_type::jit_avx2;
         }
-        if (ov::with_cpu_x86_sse42()) {
-            return impl_desc_type::jit_sse42;
-        }
         return impl_desc_type::ref;
     }();
 
 #if defined(OPENVINO_ARCH_X86_64)
-    jit_mode = ov::with_cpu_x86_sse42();
+    jit_mode = ov::with_cpu_x86_avx2();
 #else
     jit_mode = false;
 #endif
@@ -2049,7 +2032,7 @@ void TopK::preset_params() {
 
     if (ov::with_cpu_x86_avx512_core()) {
         blk_size = 16;
-    } else if (ov::with_cpu_x86_sse42()) {
+    } else if (ov::with_cpu_x86_avx2()) {
         blk_size = 8;
     }
 
@@ -2214,8 +2197,6 @@ void TopK::createPrimitive() {
             topk_kernel = std::make_shared<jit_uni_topk_kernel_f32<cpu::x64::avx512_core>>(jcp);
         } else if (ov::with_cpu_x86_avx2()) {
             topk_kernel = std::make_shared<jit_uni_topk_kernel_f32<cpu::x64::avx2>>(jcp);
-        } else if (ov::with_cpu_x86_sse42()) {
-            topk_kernel = std::make_shared<jit_uni_topk_kernel_f32<cpu::x64::sse41>>(jcp);
         }
 
         if (topk_kernel) {

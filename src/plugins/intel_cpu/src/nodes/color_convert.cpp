@@ -314,7 +314,7 @@ ColorConvert::Converter::PrimitiveDescs supportedPrimitiveDescs(Node* node) {
 
     descs.emplace_back(std::vector<PortConfigurator>{node->getOriginalInputsNumber(), {layout, precision}},
                        std::vector<PortConfigurator>{{layout, precision}},
-                       ov::with_cpu_x86_sse42() ? impl_desc_type::jit_uni : impl_desc_type::ref,
+                       ov::with_cpu_x86_avx2() ? impl_desc_type::jit_uni : impl_desc_type::ref,
                        true);
 
     return descs;
@@ -537,10 +537,6 @@ const jit_uni_converter& jit_converter_create() {
             auto converter = new JitConverter<T[8]>;
             kernel.reset(converter);
             converter->init();
-        } else if (ov::with_cpu_x86_sse42()) {
-            auto converter = new JitConverter<T[4]>;
-            kernel.reset(converter);
-            converter->init();
         } else {
             OPENVINO_THROW("Can't create jit color converter kernel");
         }
@@ -645,7 +641,7 @@ ColorConvert::Converter::PrimitiveDescs supportedPrimitiveDescs(Node* node) {
 
     descs.emplace_back(std::vector<PortConfigurator>{node->getOriginalInputsNumber(), {layout, precision}},
                        std::vector<PortConfigurator>{{layout, precision}},
-                       ov::with_cpu_x86_sse42() ? impl_desc_type::jit_uni : impl_desc_type::ref,
+                       ov::with_cpu_x86_avx2() ? impl_desc_type::jit_uni : impl_desc_type::ref,
                        true);
 
     return descs;
@@ -871,10 +867,6 @@ const jit_uni_converter& jit_converter_create() {
             converter->init();
         } else if (ov::with_cpu_x86_avx2()) {
             auto converter = new JitConverter<T[8]>;
-            kernel.reset(converter);
-            converter->init();
-        } else if (ov::with_cpu_x86_sse42()) {
-            auto converter = new JitConverter<T[4]>;
             kernel.reset(converter);
             converter->init();
         } else {
