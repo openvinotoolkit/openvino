@@ -147,7 +147,7 @@ protected:
     GraphDescriptor graphDescriptor;
 
     std::shared_ptr<ov::Model> model;
-    void* blob;
+    void* blob = nullptr;
 
     std::string targetDevice;
     std::string blobPath;

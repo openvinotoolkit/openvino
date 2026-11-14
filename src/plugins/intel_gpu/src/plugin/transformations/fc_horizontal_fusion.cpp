@@ -164,7 +164,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                 return false;
             }
             if (transpose_b != fc->get_transpose_b() || transpose_b_scale != fc->get_transpose_b_scale() ||
-                transpose_b_zp != fc->get_transpose_b_zp()) {
+                transpose_b_zp != fc->get_transpose_b_zp() || fc->get_weights_layout() == op::FcWeightsLayout::GNK) {
                 return false;
             }
             orig_n_sizes.push_back(fc->get_input_shape(weight_idx)[n_axis]);
@@ -327,7 +327,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
             }
         }
 
-        // Create new fc with merged weights, bias, scale, zp
+        // Create new fc with merged weights, bias, scale, zp. GNK FCs are rejected above, so the default NK / KN layout is correct.
         std::shared_ptr<ov::Node> new_fc;
         if (fused_zps) {
             new_fc = std::make_shared<op::FullyConnectedCompressed>(input_node,
