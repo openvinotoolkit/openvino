@@ -25,13 +25,11 @@ namespace intel_npu {
  * @param model The OpenVINO model to inspect
  * @param compilerType The resolved compiler type
  * @param compilationModeSet Whether NPU_COMPILATION_MODE was already provided
- * @param dynamicShapeToStatic Whether the dynamic-shape-to-static conversion is requested
  * @return true if 'HostCompile_Interpreter' should be selected, false otherwise
  */
 bool should_use_host_compile_interpreter(const std::shared_ptr<const ov::Model>& model,
                                          ov::intel_npu::CompilerType compilerType,
-                                         bool compilationModeSet,
-                                         bool dynamicShapeToStatic);
+                                         bool compilationModeSet);
 
 namespace batch_helpers {
 

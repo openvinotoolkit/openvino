@@ -83,7 +83,6 @@ protected:
         auto desc = std::make_shared<OptionsDesc>();
         desc->add<COMPILER_TYPE>();
         desc->add<COMPILATION_MODE>();
-        desc->add<DYNAMIC_SHAPE_TO_STATIC>();
         config = std::make_unique<Config>(desc);
         config->update({{ov::intel_npu::compiler_type.name(), "PLUGIN"}});
     }
@@ -91,8 +90,7 @@ protected:
     bool run(const std::shared_ptr<const ov::Model>& model) {
         return intel_npu::should_use_host_compile_interpreter(model,
                                                               config->get<COMPILER_TYPE>(),
-                                                              config->has<COMPILATION_MODE>(),
-                                                              config->get<DYNAMIC_SHAPE_TO_STATIC>());
+                                                              config->has<COMPILATION_MODE>());
     }
 
     std::unique_ptr<Config> config;
@@ -127,12 +125,6 @@ TEST_F(ShouldUseHostCompileInterpreterTest, ExplicitCompilationModeIsNotOverridd
 
     EXPECT_FALSE(run(make_relu_model({1, bounded(), 16, 32})));
     EXPECT_EQ(config->get<COMPILATION_MODE>(), "ReferenceSW");
-}
-
-TEST_F(ShouldUseHostCompileInterpreterTest, DynamicShapeToStaticDoesNotEnableHostCompile) {
-    config->update({{ov::intel_npu::dynamic_shape_to_static.name(), "YES"}});
-
-    EXPECT_FALSE(run(make_relu_model({1, bounded(), 16, 32})));
 }
 
 TEST_F(ShouldUseHostCompileInterpreterTest, StaticModelDoesNotEnableHostCompile) {

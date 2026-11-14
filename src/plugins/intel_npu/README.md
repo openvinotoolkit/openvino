@@ -253,9 +253,9 @@ While NPU plugin will publish all properties which are supported by the current 
 In practice, this means that the list of properties published by compiled_model can vary, even on the same system configuration, if the model compilation parameters differ. The purpose of this is to always publish **only** the properties which have been actively used by the model compilation.
 <br>
 
-### Performance Hint: Default Number of DPU Groups / DMA Engines
+### Performance Hint: Default Number of Tiles
 
-The following table shows the default values for the number of Tiles and DMA Engines selected by the plugin based on the performance mode (THROUGHPUT/LATENCY) and based on the platform:
+The following table shows the default values for the number of Tiles selected by the plugin based on the performance mode (THROUGHPUT/LATENCY) and based on the platform:
 
 | Performance hint | NPU Platform        | Number of Tiles      |
 | :---             | :---                | :---                 |

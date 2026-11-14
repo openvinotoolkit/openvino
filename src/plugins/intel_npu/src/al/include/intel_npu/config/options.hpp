@@ -565,26 +565,6 @@ struct EXECUTION_MODE_HINT final : OptionBase<EXECUTION_MODE_HINT, ov::hint::Exe
     }
 };
 
-struct DYNAMIC_SHAPE_TO_STATIC final : OptionBase<DYNAMIC_SHAPE_TO_STATIC, bool> {
-    static std::string_view key() {
-        return ov::intel_npu::dynamic_shape_to_static.name();
-    }
-
-#ifdef NPU_PLUGIN_DEVELOPER_BUILD
-    static std::string_view envVar() {
-        return "IE_NPU_DYNAMIC_SHAPE_TO_STATIC";
-    }
-#endif
-
-    static bool defaultValue() {
-        return false;
-    }
-
-    static OptionMode mode() {
-        return OptionMode::CompileTime;
-    }
-};
-
 struct COMPILATION_MODE_PARAMS final : OptionBase<COMPILATION_MODE_PARAMS, std::string> {
     static std::string_view key() {
         return ov::intel_npu::compilation_mode_params.name();
@@ -634,44 +614,6 @@ struct STEPPING final : OptionBase<STEPPING, int64_t> {
 
     static int64_t defaultValue() {
         return -1;
-    }
-
-    static OptionMode mode() {
-        return OptionMode::CompileTime;
-    }
-};
-
-struct DMA_ENGINES final : OptionBase<DMA_ENGINES, int64_t> {
-    static std::string_view key() {
-        return ov::intel_npu::dma_engines.name();
-    }
-
-    static std::vector<std::string_view> deprecatedKeys() {
-        return {};
-    }
-
-    static int64_t defaultValue() {
-        return -1;
-    }
-
-    static OptionMode mode() {
-        return OptionMode::CompileTime;
-    }
-
-#ifdef NPU_PLUGIN_DEVELOPER_BUILD
-    static std::string_view envVar() {
-        return "IE_NPU_DMA_ENGINES";
-    }
-#endif
-};
-
-struct BACKEND_COMPILATION_PARAMS final : OptionBase<BACKEND_COMPILATION_PARAMS, std::string> {
-    static std::string_view key() {
-        return ov::intel_npu::backend_compilation_params.name();
-    }
-
-    static std::string defaultValue() {
-        return {};
     }
 
     static OptionMode mode() {
@@ -840,20 +782,6 @@ struct ALLOW_BYTECODE final : OptionBase<ALLOW_BYTECODE, bool> {
 
     static OptionMode mode() {
         return OptionMode::RunTime;
-    }
-};
-
-struct BATCH_COMPILER_MODE_SETTINGS final : OptionBase<BATCH_COMPILER_MODE_SETTINGS, std::string> {
-    static std::string_view key() {
-        return ov::intel_npu::batch_compiler_mode_settings.name();
-    }
-
-    static std::string defaultValue() {
-        return {};
-    }
-
-    static OptionMode mode() {
-        return OptionMode::CompileTime;
     }
 };
 
