@@ -24,6 +24,7 @@ ov_add_test_target(
             ${CMAKE_CURRENT_SOURCE_DIR}/cpu_map_parser/valid_proc_check.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/cpu_reserve_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/cpu_stream_info_test.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/cpu_streams_executor_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/executor_config_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/executor_manager_tests.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/hsm_deferred_writer.cpp
