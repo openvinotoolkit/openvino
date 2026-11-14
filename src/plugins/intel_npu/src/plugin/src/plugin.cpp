@@ -150,10 +150,6 @@ void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel
         }
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    REGISTER_OPTION(ENABLE_CPU_PINNING);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
     // NPUW properties are requested by OV Core during caching and
     // have no effect on the NPU plugin. But we still need to enable
     // those for OV Core to query. Note: do this last to not filter
@@ -310,9 +306,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     // Read the default or explicit compilation mode so automatic and user-selected HostCompile take the same path.
     // HostCompile dynamic models retain their dynamic dimensions for the VM runtime instead of plugin debatching.
-    const bool useDynamicGraphForDynamicModel = model->is_dynamic() &&
-                                                compilerType == ov::intel_npu::CompilerType::PLUGIN &&
-                                                localConfig.get<COMPILATION_MODE>().find("HostCompile_Interpreter") == 0;
+    const bool useDynamicGraphForDynamicModel =
+        model->is_dynamic() && compilerType == ov::intel_npu::CompilerType::PLUGIN &&
+        localConfig.get<COMPILATION_MODE>().find("HostCompile_Interpreter") == 0;
 
     // Handle batch mode configuration
     std::optional<ov::Dimension> originalBatch = std::nullopt;
@@ -419,7 +415,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     adapterDesc.bypassCache = !localConfig.get<CACHE_DIR>().empty() || localConfig.get<BYPASS_UMD_CACHING>();
     // Request secure compilation if blob encryption is requested
     adapterDesc.secureCompile = localConfig.has(ov::cache_encryption_callbacks.name()) &&
-                               localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr;
+                                localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr;
 
     auto compileWithConfig = [&](auto&& modelToCompile, const auto& config) {
         if (!localConfig.get<ENABLE_WEIGHTLESS>()) {

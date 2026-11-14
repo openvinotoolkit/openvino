@@ -19,12 +19,6 @@
 
 namespace {
 
-void logCpuPinningDeprecationWarning(intel_npu::Logger& logger) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    logger.warning(intel_npu::ENABLE_CPU_PINNING::deprecationMessage());
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
-
 bool isCompatibilityCheckSupported(const ov::SoPtr<intel_npu::IEngineBackend>& backend,
                                    intel_npu::CompilerOptionSupportHelper& optionSupportHelper) {
     using namespace intel_npu;
@@ -121,10 +115,6 @@ PluginPropertyManager::PluginPropertyManager(const std::shared_ptr<OptionsDesc>&
 void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
     std::lock_guard<std::mutex> lock(_mutex);
 
-    if (properties.find(ov::hint::enable_cpu_pinning.name()) != properties.end()) {
-        logCpuPinningDeprecationWarning(_logger);
-    }
-
     for (auto&& value : properties) {
         const auto propertyDescriptorIt = _properties.find(value.first);
         if (propertyDescriptorIt == _properties.end()) {
@@ -163,10 +153,6 @@ void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
 ov::Any PluginPropertyManager::getProperty(const std::string& name, const ov::AnyMap& arguments) const {
     std::lock_guard<std::mutex> lock(_mutex);
 
-    if (name == ov::hint::enable_cpu_pinning.name()) {
-        logCpuPinningDeprecationWarning(_logger);
-    }
-
     const auto propertyDescriptorIt = _properties.find(name);
     if (propertyDescriptorIt != _properties.cend()) {
         OPENVINO_ASSERT(propertyDescriptorIt->second.isSupported(arguments), "Unsupported configuration key: ", name);
@@ -192,10 +178,6 @@ ov::Any PluginPropertyManager::getProperty(const std::string& name, const ov::An
 bool PluginPropertyManager::isPropertySupported(const std::string& name, const ov::AnyMap& arguments) const {
     std::lock_guard<std::mutex> lock(_mutex);
 
-    if (name == ov::hint::enable_cpu_pinning.name()) {
-        logCpuPinningDeprecationWarning(_logger);
-    }
-
     const auto propertyDescriptorIt = _properties.find(name);
     if (propertyDescriptorIt == _properties.end()) {
         // Property not found in the known properties list.
@@ -217,10 +199,6 @@ std::pair<Config, ov::AnyMap> PluginPropertyManager::getMergedConfigAndUnknownPr
     }
 
     std::lock_guard<std::mutex> lock(_mutex);
-
-    if (properties.find(ov::hint::enable_cpu_pinning.name()) != properties.end()) {
-        logCpuPinningDeprecationWarning(_logger);
-    }
 
     ov::AnyMap propertyArguments = properties;
     if (mergeMode == ConfigMergeMode::Import) {
@@ -495,10 +473,6 @@ void PluginPropertyManager::registerProperties() {
     registerConfigProperty(IMPORT_RAW_BLOB{}, false);
     registerConfigProperty(ALLOW_BYTECODE{}, false);
     registerConfigProperty(PROFILING_TYPE{}, false);
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    registerConfigProperty(ENABLE_CPU_PINNING{}, false);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     const auto registerCompilerProperty = [this, isCompilerOptionSupported](const auto optionTag, bool isPublic) {
         using OptionType = std::decay_t<decltype(optionTag)>;
