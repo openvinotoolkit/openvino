@@ -14,6 +14,8 @@
 #include "activation_inst.h"
 #include "convolution_inst.h"
 #include "crop_inst.h"
+#include "eltwise_inst.h"
+#include "permute_inst.h"
 #include "intel_gpu/graph/network.hpp"
 #include "reshape_inst.h"
 #include "pass_manager.h"
@@ -236,4 +238,42 @@ TEST(processing_order, bfs_order_restoring) {
     auto processing_number_diff = std::abs(act3_processing_number - act4_processing_number);
 
     ASSERT_EQ(processing_number_diff, 1);
+}
+
+TEST(processing_order, in_order_places_single_user_permute_next_to_consumer) {
+    auto& engine = get_test_engine();
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    config.set_property(ov::intel_gpu::optimize_data(false));
+
+    const layout input_layout{data_types::f32, format::bfyx, {1, 1, 4, 4}};
+    topology topology(
+        cldnn::input_layout("main_input", input_layout),
+        cldnn::input_layout("transpose_input_1", input_layout),
+        cldnn::input_layout("transpose_input_2", input_layout),
+        activation("main_1", input_info("main_input"), activation_func::relu),
+        activation("main_2", input_info("main_1"), activation_func::relu),
+        permute("transpose_1", input_info("transpose_input_1"), {0, 1, 3, 2}),
+        eltwise("consumer_1", {input_info("main_2"), input_info("transpose_1")}, eltwise_mode::sum),
+        activation("main_3", input_info("consumer_1"), activation_func::relu),
+        activation("main_4", input_info("main_3"), activation_func::relu),
+        permute("transpose_2", input_info("transpose_input_2"), {0, 1, 3, 2}),
+        eltwise("consumer_2", {input_info("main_4"), input_info("transpose_2")}, eltwise_mode::sum));
+
+    auto program = program::build_program(engine, topology, config);
+    const auto& processing_order = program->get_processing_order();
+    auto* transpose_1 = program->get_node_ptr("transpose_1").get();
+    auto* transpose_2 = program->get_node_ptr("transpose_2").get();
+
+    EXPECT_EQ(processing_order.get_processing_number(transpose_1) + 1,
+              processing_order.get_processing_number(program->get_node_ptr("consumer_1").get()));
+    EXPECT_EQ(processing_order.get_processing_number(transpose_2) + 1,
+              processing_order.get_processing_number(program->get_node_ptr("consumer_2").get()));
+
+    const auto& transpose_1_restrictions = transpose_1->get_memory_dependencies();
+    const auto& transpose_2_restrictions = transpose_2->get_memory_dependencies();
+    EXPECT_EQ(std::find(transpose_1_restrictions.begin(), transpose_1_restrictions.end(), transpose_2->get_unique_id()),
+              transpose_1_restrictions.end());
+    EXPECT_EQ(std::find(transpose_2_restrictions.begin(), transpose_2_restrictions.end(), transpose_1->get_unique_id()),
+              transpose_2_restrictions.end());
 }
