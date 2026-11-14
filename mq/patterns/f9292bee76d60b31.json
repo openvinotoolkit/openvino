@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "gpu unit tests burst of early parallel test workers exit with code 3 and produce no test output or error before process exit|Infrastructure",
+  "signature_hash": "f9292bee76d60b31",
+  "title": "GPU unit tests fail in a burst of 36 early-scheduled tests exiting with code 3 and no output on Windows runner",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-11-14T04:18:42Z",
+  "last_seen": "2026-11-14T04:18:42Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/43457425018"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39824"
+  ],
+  "recent_timestamps": [
+    "2026-11-14T04:18:42Z"
+  ],
+  "rerun_search_string": null
+}

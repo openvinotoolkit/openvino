@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-14-04-18-42-000-43457425018",
+  "timestamp": "2026-11-14T04:18:42Z",
+  "run_id": "43457425018",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43457425018",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "39824",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39824",
+  "author": "Roszczyk",
+  "category": "Infrastructure",
+  "title": "GPU unit tests fail in a burst of 36 early-scheduled tests exiting with code 3 and no output on Windows runner",
+  "signature": "gpu unit tests burst of early parallel test workers exit with code 3 and produce no test output or error before process exit|Infrastructure",
+  "signature_hash": "f9292bee76d60b31",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "37 of 29264 ov_gpu_unit_tests failed: 36 exit immediately with exit code 3 and zero output within the first ~11s of the run (tests #2-#37), plus 1 unrelated known-flaky fp16 tolerance assertion (fusings_gpu/pooling_f32_scale.fp16_scale_out/1, already tracked as pattern 7b64fedfacbfda60)"
+    }
+  ],
+  "key_errors": [
+    "[2/29264] convolution_grouped_fsv4_fsv16/convolution_grouped_gpu.base/in3x3y1z48f_output96f_filter2x2y1z_groups2_stride8_batch1_data_zp1_weights_zp1_comp1_format22 returned with exit code 3 (3811 ms)",
+    "[3/29264] basic/convolution_random_smoke_test.u8s8f32/b_fs_yx_fsv32_i1x64x19x19_w64x64x3x3_s1x1_ofs1x1_d2x2_g64_bias_in_pad returned with exit code 3 (4155 ms)",
+    "[7/29264] fusings_gpu/conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec.vector_ops_mixed_types/1 returned with exit code 3 (6091 ms)",
+    "FAILED TESTS (37/29264): ... 36 entries with no stack trace, only 'ov_gpu_unit_tests.exe <test name>' and elapsed time",
+    "[ RUN      ] convolution_grouped_fsv4_fsv16/convolution_grouped_gpu.base/... (immediately followed by 'returned with exit code 3' with no [ OK ]/[ FAILED ] gtest footer, no exception text, no assertion message)"
+  ],
+  "root_cause": "In the first ~11 seconds of the 'Run GPU unit tests' step (gtest-parallel driving ov_gpu_unit_tests.exe), 36 of the first 37 scheduled sub-process workers (test indices #2-#37, spanning unrelated suites: convolution_grouped_fsv4_fsv16, basic/convolution_random_smoke_test, fusings_gpu/conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec) exit with code 3 and emit no gtest footer, assertion message, or stack trace at all -- only the standard 'Running main()'/'[ RUN ]' preamble before the process disappears. After this initial burst the remaining ~29,227 tests (including many of the exact same suites/fixtures, e.g. later convolution_random_smoke_test cases) run and pass normally for the rest of the ~86-minute job. Because the failures cluster entirely within the first few seconds of worker startup, span many unrelated test fixtures, and never recur later in the same run, this is consistent with GPU/OpenCL driver or device-handle contention when gtest-parallel launches many ov_gpu_unit_tests.exe worker processes concurrently at start -- the early batch of workers race to acquire the GPU device/driver context before it is fully warmed up on this Windows self-hosted runner, and the losing workers are killed/exit before any test output is flushed. This is unrelated to the queued PR #39824, which only touches src/frontends/gguf/tests/test_parser.cpp (GGUF frontend unit test) and cannot affect the unrelated intel_gpu plugin unit test binary.",
+  "reproduction_steps": "Not reliably reproducible outside CI: it requires replicating the exact gtest-parallel worker concurrency and GPU/driver warm-up timing of the Windows self-hosted runner's integrated GPU at process startup. Locally, running `python gtest_parallel.py ov_gpu_unit_tests.exe` with a high worker count immediately after a cold driver/runner boot might reproduce a similar early-burst crash, but it is highly environment/timing dependent.",
+  "recommended_actions": [
+    "Capture crashpad/minidump or stderr output from ov_gpu_unit_tests.exe worker processes that exit with non-gtest exit codes (gtest-parallel currently swallows this output); add --dump_json_test_results and a worker stderr capture flag or run with GTEST_PARALLEL verbose logging to retain the OpenCL/driver error that causes exit code 3.",
+    "Investigate whether gtest-parallel's default worker concurrency for ov_gpu_unit_tests.exe on this Windows runner should be reduced or staggered during startup to avoid simultaneous GPU/driver context acquisition races.",
+    "Check the runner image/driver version for known OpenCL driver cold-start contention issues when many processes request a device handle within the same few seconds.",
+    "Re-run the failed GPU unit tests job; given the burst-then-recovery pattern a plain retry is likely to pass."
+  ],
+  "prevention_strategies": "Add stderr/crash capture for gtest-parallel worker processes so any future recurrence includes the actual OpenCL/driver error instead of a bare exit code, and consider a brief warm-up delay or reduced initial worker concurrency for the first wave of ov_gpu_unit_tests.exe processes on Windows GPU runners.",
+  "historical_context": "No prior pattern record matches this specific 36-test early-burst-exit-code-3 signature; this is the first recorded occurrence (pattern f9292bee76d60b31). A separate, already-tracked flaky test (fusings_gpu/pooling_f32_scale.fp16_scale_out/1, fp16 tolerance ULP mismatch, pattern 7b64fedfacbfda60) also failed in this same job run; it has been recorded twice before (runs 43417057783 and 43444472812, both within the last ~5 hours) and already has an open rerun-pattern review PR (#39838, not yet merged), so no duplicate action is taken for it here."
+}
