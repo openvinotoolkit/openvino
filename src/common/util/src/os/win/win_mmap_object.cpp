@@ -275,11 +275,13 @@ public:
         return m_handle;
     }
 
-    constexpr bool valid() const {
+    // dropped `constexpr`: INVALID_HANDLE_VALUE comparison involves a cast that is
+    // not a constant expression for clang-based compilers (icx)
+    bool valid() const {
         return valid(m_handle);
     }
 
-    static constexpr bool valid(HANDLE h) {
+    static bool valid(HANDLE h) {
         return h != INVALID_HANDLE_VALUE && h != nullptr;
     }
 };
