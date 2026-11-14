@@ -23,7 +23,7 @@ OPENVINO_API std::string make_default_tensor_name(const Output<const Node>& outp
 
 namespace op::util {
 /**
- * @brief Set name for both node and output tensor. Any other names will be overriden by a given single name
+ * @brief Set name for both node and output tensor. Any other names will be overridden by a given single name
  * @param node - node to rename
  * @param name - new name
  * @param output_port - output port to rename
