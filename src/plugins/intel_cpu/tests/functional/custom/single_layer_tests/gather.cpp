@@ -7,6 +7,7 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/general_utils.h"
@@ -306,6 +307,37 @@ std::vector<CPUSpecificParams> getCPUInfo() {
     }
     return resCPUParams;
 }
+
+// Cover thread starts beyond float32's exact integer range, including an
+// indices vector selected independently for each batch.
+const std::vector<GatherLayerTestCPUParams> largeOffsetParams = {
+    {
+        {{{-1, 4097}, {{4094, 4097}, {6284, 4097}, {6285, 4097}}},
+         {{4097}, {{4097}, {4097}, {4097}}}},
+        {1, 0},
+        ElementType::f32,
+        true,
+        getCPUInfo().front(),
+        {{ov::hint::inference_precision(ov::element::f32)},
+         {ov::inference_num_threads(32)},
+         {ov::hint::enable_hyper_threading(true)}},
+    },
+    {
+        {{{2, -1, 4097}, {{2, 3143, 4097}}}, {{2, 4097}, {{2, 4097}}}},
+        {2, 1},
+        ElementType::f32,
+        true,
+        getCPUInfo().front(),
+        {{ov::hint::inference_precision(ov::element::f32)},
+         {ov::inference_num_threads(32)},
+         {ov::hint::enable_hyper_threading(true)}},
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_dynamic_large_offsets,
+                         GatherLayerTestCPU,
+                         ::testing::ValuesIn(largeOffsetParams),
+                         GatherLayerTestCPU::getTestCaseName);
 
 ///// 1D /////
 const std::vector<std::vector<ov::test::InputShape>> staticInputShapes1D = {
