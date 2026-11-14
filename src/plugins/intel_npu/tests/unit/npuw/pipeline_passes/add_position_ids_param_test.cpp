@@ -2,14 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "npuw_transformations/add_position_ids_param.hpp"
+
 #include <gtest/gtest.h>
 
+#include <cmath>
+#include <cstdint>
 #include <queue>
 #include <set>
 #include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 
-#include "npuw_transformations/add_position_ids_param.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/concat.hpp"
@@ -280,6 +285,161 @@ bool gather_index_fed_by_position_ids(const std::shared_ptr<ov::Node>& gather) {
     }
     return false;
 }
+
+// LFM3 has independent RoPE frequency branches, not just Cos/Sin sharing one Convert.
+// Reuse the existing builder so each branch also has its own Range-based causal mask.
+std::shared_ptr<ov::Model> build_model_with_independent_rope_patterns(bool offset_positions,
+                                                                      bool with_range_clamp_consumer) {
+    ov::ResultVector results;
+    ov::ParameterVector params;
+    for (size_t branch = 0; branch < 2; ++branch) {
+        auto model = build_model_with_lfm2_like_pattern(offset_positions, with_range_clamp_consumer);
+        const auto prefix = "branch_" + std::to_string(branch) + "_";
+        for (const auto& op : model->get_ops()) {
+            op->set_friendly_name(prefix + op->get_friendly_name());
+            if (ov::is_type<ov::op::v1::LessEqual>(op)) {
+                // A nonzero key index makes accidental mask rewiring numerically visible.
+                op->input(0).replace_source_output(
+                    ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1, 1, 1}, {64})->output(0));
+            }
+        }
+        model->get_parameters().front()->output(0).set_names({prefix + "inv_freq"});
+        results.insert(results.end(), model->get_results().begin(), model->get_results().end());
+        params.insert(params.end(), model->get_parameters().begin(), model->get_parameters().end());
+    }
+    return std::make_shared<ov::Model>(results, params, "independent_rope_patterns");
+}
+
+class AddPositionIdsParamIndependentRopeTest : public testing::TestWithParam<std::tuple<bool, bool>> {
+protected:
+    void SetUp() override {
+        model = build_model_with_independent_rope_patterns(std::get<0>(GetParam()), std::get<1>(GetParam()));
+    }
+
+    std::shared_ptr<ov::Model> model;
+};
+
+TEST_P(AddPositionIdsParamIndependentRopeTest, SharesPositionIdsAcrossBothBranchesAndPreservesMasks) {
+    ov::NodeVector converts;
+    ov::NodeVector clamps;
+    std::set<ov::Node*> mask_ranges;
+    std::vector<std::pair<ov::Input<ov::Node>, ov::Output<ov::Node>>> mask_inputs;
+    for (const auto& op : model->get_ops()) {
+        if (ov::is_type<ov::op::v0::Convert>(op)) {
+            converts.push_back(op);
+        } else if (ov::is_type<ov::op::v0::Clamp>(op)) {
+            clamps.push_back(op);
+        } else if (ov::is_type<ov::op::v1::LessEqual>(op)) {
+            // Snapshot every data edge from this mask to its original Range, including Add.
+            mask_inputs.emplace_back(op->input(1), op->input_value(1));
+            auto node = op->input_value(1).get_node_shared_ptr();
+            while (!ov::is_type<ov::op::v4::Range>(node)) {
+                ASSERT_GT(node->get_input_size(), 0u);
+                mask_inputs.emplace_back(node->input(0), node->input_value(0));
+                node = node->input_value(0).get_node_shared_ptr();
+            }
+            mask_ranges.insert(node.get());
+        }
+    }
+    ASSERT_EQ(converts.size(), 2u);
+    ASSERT_EQ(mask_ranges.size(), 2u);
+    ASSERT_EQ(clamps.size(), std::get<1>(GetParam()) ? 2u : 0u);
+
+    ASSERT_NO_THROW(ov::npuw::AddPositionIdsParam().run_on_model(model));
+    ASSERT_EQ(count_parameters_named(model, "position_ids"), 1u);
+    ASSERT_EQ(model->get_parameters().size(), 3u);  // Two frequency tables, one position_ids.
+    std::shared_ptr<ov::op::v0::Parameter> position_ids;
+    for (const auto& param : model->get_parameters()) {
+        if (param->output(0).get_names().count("position_ids")) {
+            position_ids = param;
+        }
+    }
+    ASSERT_NE(position_ids, nullptr);
+    EXPECT_EQ(position_ids->get_element_type(), ov::element::i64);
+    EXPECT_EQ(position_ids->get_partial_shape(), (ov::PartialShape{-1, -1}));
+    for (const auto& convert : converts) {
+        SCOPED_TRACE(convert->get_friendly_name());
+        auto parent = convert->input_value(0).get_node_shared_ptr();
+        ASSERT_TRUE(ov::is_type<ov::op::v0::Unsqueeze>(parent));
+        EXPECT_EQ(parent->input_value(0), position_ids->output(0));
+    }
+    for (const auto& edge : mask_inputs) {
+        SCOPED_TRACE(edge.first.get_node()->get_friendly_name());
+        EXPECT_EQ(edge.first.get_source_output(), edge.second);
+    }
+    EXPECT_EQ(count_ops_of_type(model, "Range"), 2u);
+    for (const auto& clamp : clamps) {
+        SCOPED_TRACE(clamp->get_friendly_name());
+        auto parent = clamp->input_value(0).get_node_shared_ptr();
+        ASSERT_TRUE(ov::is_type<ov::op::v0::Squeeze>(parent));
+        EXPECT_EQ(parent->input_value(0), position_ids->output(0));
+    }
+
+    const auto ops_after_first = model->get_ops().size();
+    ASSERT_NO_THROW(ov::npuw::AddPositionIdsParam().run_on_model(model));
+    EXPECT_EQ(model->get_parameters().size(), 3u);
+    EXPECT_EQ(count_parameters_named(model, "position_ids"), 1u);
+    EXPECT_EQ(model->get_ops().size(), ops_after_first);
+}
+
+TEST_P(AddPositionIdsParamIndependentRopeTest, EvaluatesBothFrequencyTablesUsingExternalPositions) {
+    ASSERT_NO_THROW(ov::npuw::AddPositionIdsParam().run_on_model(model));
+    ASSERT_EQ(count_parameters_named(model, "position_ids"), 1u);
+    ASSERT_EQ(model->get_parameters().size(), 3u);
+
+    ov::TensorVector inputs;
+    for (const auto& param : model->get_parameters()) {
+        const auto& names = param->output(0).get_names();
+        if (names.count("position_ids")) {
+            ov::Tensor positions(ov::element::i64, ov::Shape{1, 128});
+            for (size_t i = 0; i < 128; ++i) {
+                // Padding and nonconsecutive absolute positions differ from both Range and Range + 8.
+                positions.data<int64_t>()[i] = i % 5 == 0 ? 0 : 37 + 2 * static_cast<int64_t>(i);
+            }
+            inputs.push_back(positions);
+        } else {
+            ASSERT_TRUE(names.count("branch_0_inv_freq") || names.count("branch_1_inv_freq"));
+            const float scale = names.count("branch_0_inv_freq") ? 0.01f : 0.03f;
+            ov::Tensor frequencies(ov::element::f32, ov::Shape{1, 8, 1});
+            for (size_t i = 0; i < 8; ++i) {
+                frequencies.data<float>()[i] = scale * static_cast<float>(i + 1);
+            }
+            inputs.push_back(frequencies);
+        }
+    }
+    ov::TensorVector outputs;
+    for (const auto& result : model->get_results()) {
+        outputs.emplace_back(result->get_element_type(), ov::Shape{});
+    }
+    ASSERT_TRUE(model->evaluate(outputs, inputs));
+
+    const size_t results_per_branch = std::get<1>(GetParam()) ? 4 : 3;
+    for (size_t branch = 0; branch < 2; ++branch) {
+        SCOPED_TRACE(branch);
+        const auto& cos = outputs[branch * results_per_branch];
+        const auto& sin = outputs[branch * results_per_branch + 1];
+        const auto& mask = outputs[branch * results_per_branch + 2];
+        ASSERT_EQ(cos.get_shape(), (ov::Shape{1, 128, 16}));
+        ASSERT_EQ(sin.get_shape(), cos.get_shape());
+        ASSERT_EQ(mask.get_shape(), (ov::Shape{1, 1, 1, 128}));
+        const float scale = branch == 0 ? 0.01f : 0.03f;
+        for (size_t i = 0; i < 128; ++i) {
+            SCOPED_TRACE(i);
+            const int64_t position = i % 5 == 0 ? 0 : 37 + 2 * static_cast<int64_t>(i);
+            for (size_t j = 0; j < 16; ++j) {
+                const float angle = (scale * static_cast<float>(j % 8 + 1)) * static_cast<float>(position);
+                EXPECT_NEAR(cos.data<const float>()[i * 16 + j], std::cos(angle), 1e-5f);
+                EXPECT_NEAR(sin.data<const float>()[i * 16 + j], std::sin(angle), 1e-5f);
+            }
+            const auto original_position = static_cast<int64_t>(i) + (std::get<0>(GetParam()) ? 8 : 0);
+            EXPECT_EQ(mask.data<const char>()[i] != 0, 64 <= original_position);
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(OffsetAndLegacyClamp,
+                         AddPositionIdsParamIndependentRopeTest,
+                         testing::Combine(testing::Bool(), testing::Bool()));
 
 // ===================== TESTS =====================
 TEST(AddPositionIdsParamTest, AddsPositionIdsParameter) {
