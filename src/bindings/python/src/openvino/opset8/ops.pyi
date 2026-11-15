@@ -1,6 +1,5 @@
 # type: ignore
 from __future__ import annotations
-from builtins import list as TensorShape
 from functools import partial
 from openvino._pyopenvino import Node
 from openvino._pyopenvino.op import Constant
@@ -17,6 +16,7 @@ from openvino.utils.types import as_nodes
 import functools
 import numpy as np
 import openvino._pyopenvino
+import types
 import typing
 """
 Factory functions for all openvino ops.
@@ -450,4 +450,5 @@ def softmax(*args, **kwargs) -> openvino._pyopenvino.Node:
         
     """
 NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
+TensorShape: types.GenericAlias  # value = list[int]
 _get_node_factory_opset8: functools.partial  # value = functools.partial(<function _get_node_factory at memory_address>, 'opset8')

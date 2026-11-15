@@ -189,14 +189,17 @@ bool divided_by(Scalar scalar, double divisor, Scalar& numerator) {
     }
     // Only accept an exact reciprocal (in particular, division by two in the
     // padding split). Do not approximate a precision-sensitive shape division.
+    if (divisor == 0.0)
+        return false;
     int exponent;
     if (std::frexp(divisor, &exponent) != 0.5)
         return false;
-    if (constant_is(a, 1.0 / divisor)) {
+    const auto reciprocal = 1.0 / divisor;
+    if (constant_is(a, reciprocal)) {
         numerator = b;
         return true;
     }
-    if (constant_is(b, 1.0 / divisor)) {
+    if (constant_is(b, reciprocal)) {
         numerator = a;
         return true;
     }

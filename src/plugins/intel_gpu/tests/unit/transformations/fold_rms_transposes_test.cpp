@@ -6,10 +6,12 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/manager.hpp"
+#include "ov_ops/dynamic_quantize.hpp"
 #include "ov_ops/rms.hpp"
 
 namespace ov::test::intel_gpu {
@@ -44,6 +46,44 @@ TEST_F(TransformationTestsF, FoldRMSTransposesRejectsNonInverseOrder) {
     model = std::make_shared<ov::Model>(ov::OutputVector{output_transpose}, ov::ParameterVector{input});
     model_ref = model->clone();
     manager.register_pass<ov::intel_gpu::FoldRMSTransposes>();
+}
+
+TEST_F(TransformationTestsF, RMSDynamicQuantizeFeatureAxisFusionPrevented) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 32, 4, 32});
+    auto gamma = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 32, 1, 1}, {1.0f});
+    auto rms = std::make_shared<ov::op::internal::RMS>(input, gamma, 1e-6, ov::element::f16, 1);
+
+    ov::op::internal::DynamicQuantize::Attributes dq_attrs;
+    dq_attrs.quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Symmetric;
+    dq_attrs.quantization_dt = ov::element::f8e4m3;
+    dq_attrs.scale_dt = ov::element::f8e8m0;
+    dq_attrs.zp_dt = ov::element::dynamic;
+    dq_attrs.group_sizes = {1, 32, 1, 1};
+    dq_attrs.scales_zp_output_order = {0, 1, 2, 3};
+    dq_attrs.output_storage_type = ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
+
+    auto dq = std::make_shared<ov::op::internal::DynamicQuantize>(rms, dq_attrs);
+    model = std::make_shared<ov::Model>(ov::OutputVector{dq->output(0), dq->output(1)}, ov::ParameterVector{input});
+    model_ref = model->clone();
+}
+
+TEST_F(TransformationTestsF, RMSDynamicQuantizeFusionAllowedWithoutFeatureAxis) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 32, 4, 32});
+    auto gamma = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 1, 1, 32}, {1.0f});
+    auto rms = std::make_shared<ov::op::internal::RMS>(input, gamma, 1e-6, ov::element::f16, 3);
+
+    ov::op::internal::DynamicQuantize::Attributes dq_attrs;
+    dq_attrs.quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Symmetric;
+    dq_attrs.quantization_dt = ov::element::f8e4m3;
+    dq_attrs.scale_dt = ov::element::f8e8m0;
+    dq_attrs.zp_dt = ov::element::dynamic;
+    dq_attrs.group_sizes = {1, 1, 1, 32};
+    dq_attrs.scales_zp_output_order = {0, 1, 2, 3};
+    dq_attrs.output_storage_type = ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
+
+    auto dq = std::make_shared<ov::op::internal::DynamicQuantize>(rms, dq_attrs);
+    model = std::make_shared<ov::Model>(ov::OutputVector{dq->output(0), dq->output(1)}, ov::ParameterVector{input});
+    model_ref = model->clone();
 }
 
 }  // namespace ov::test::intel_gpu

@@ -33,6 +33,9 @@ public:
     static std::vector<layout> calc_output_layouts(scaled_dot_product_attention_node const& /*node*/, const kernel_impl_params& impl_param);
     static layout calc_output_layout(scaled_dot_product_attention_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(scaled_dot_product_attention_node const& node);
+    // Packed INT4 KV-cache comes either from the plugin-wide KV-cache precision
+    // or from the primitive's own quantization attributes (e.g. GQA u4 cache).
+    static bool is_int4_kv_cache(const kernel_impl_params& impl_param);
     bool has_indirect_inputs() const {
         return get_typed_desc<scaled_dot_product_attention>()->indirect_axis != -1;
     }

@@ -25,7 +25,7 @@ TEST_P(PagedCausalConv1DLayerTest, Inference) {
 //   hidden_size, kernel_size, has_bias,
 //   seq_lengths_sets (multiple sets for dynamic shapes),
 //   cache_intervals_sets (matching intervals),
-//   element_type, target_device
+//   element_type, target_device, dilation (defaults to 1)
 
 std::vector<PagedCausalConv1DLayerParams> paged_conv1d_test_cases = {
     // --- Static shape tests (single seq_lengths set) ---
@@ -71,6 +71,14 @@ std::vector<PagedCausalConv1DLayerParams> paged_conv1d_test_cases = {
     {8, 3, true, {{3, 2}, {5, 1, 3}}, {{2, 3}, {1, 0, 2}}, ov::element::bf16, "CPU"},
     {64, 4, true, {{4, 2}, {15, 32, 33}}, {{3, 2}, {16, 16, 16}}, ov::element::bf16, "CPU"},
     {32, 3, true, {{2}, {5, 3}, {1, 1, 1, 1}}, {{1}, {2, 0}, {1, 1, 1, 1}}, ov::element::bf16, "CPU"},
+
+    // --- Dilated causal conv (dilation > 1): causal_window = (kernel_size-1)*dilation+1 ---
+    // Scalar path: num_taps=2, dilation=2 -> window=3
+    {1, 2, true, {{3, 2}}, {{2, 3}}, ov::element::f32, "CPU", /*dilation=*/2},
+    // AVX2/AVX512 fast-path num_taps=4 with PLE's ngram_size=3 dilation -> window=10
+    {8, 4, true, {{4, 2, 3}}, {{3, 2, 5}}, ov::element::f32, "CPU", /*dilation=*/3},
+    // AVX2/AVX512 fast-path num_taps=3, dilation=2 -> window=5, dynamic shapes
+    {32, 3, true, {{2}, {5, 3}, {1, 1, 1, 1}}, {{1}, {2, 0}, {1, 1, 1, 1}}, ov::element::f32, "CPU", /*dilation=*/2},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_PagedCausalConv1D,

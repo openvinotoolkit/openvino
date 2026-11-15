@@ -33,7 +33,11 @@ class LLMInferRequest;
 class StoredTokensState : public ov::IVariableState {
 public:
     friend class ov::npuw::LLMInferRequest;
-    StoredTokensState() : ov::IVariableState("npuw_stored_tokens_state") {
+
+    // External pipelines find this state by name, so the name is part of the contract.
+    static constexpr const char* state_name = "npuw_stored_tokens_state";
+
+    StoredTokensState() : ov::IVariableState(state_name) {
         auto tensor = ov::Tensor(ov::element::i64, ov::Shape{1});
         m_state = ov::get_tensor_impl(tensor);
         m_state->data<int64_t>()[0] = 0;
@@ -48,16 +52,18 @@ public:
 
     void set_state(const ov::SoPtr<ov::ITensor>& new_state) override {
         if (!has_continuation()) {
-            OPENVINO_THROW("npuw_stored_tokens_state: set_state() is a continuous prefill proposal and requires "
-                           "NPUW_LLM_ENABLE_CONTINUOUS_PREFILL on a model where "
-                           "NPUW_LLM_CONTINUOUS_PREFILL_SUPPORTED reports true.");
+            OPENVINO_THROW(state_name,
+                           ": set_state() is a continuous prefill proposal and requires a compiled model where "
+                           "NPUW_LLM_ENABLE_CONTINUOUS_PREFILL reports YES.");
         }
-        OPENVINO_ASSERT(new_state, "npuw_stored_tokens_state: set_state() received a null tensor.");
+        OPENVINO_ASSERT(new_state, state_name, ": set_state() received a null tensor.");
         OPENVINO_ASSERT(new_state->get_element_type() == ov::element::i64,
-                        "npuw_stored_tokens_state: proposal tensor must be i64, got ",
+                        state_name,
+                        ": proposal tensor must be i64, got ",
                         new_state->get_element_type());
         OPENVINO_ASSERT(new_state->get_size() == 1u,
-                        "npuw_stored_tokens_state: proposal tensor must be a scalar (one element), got ",
+                        state_name,
+                        ": proposal tensor must be a scalar (one element), got ",
                         new_state->get_size(),
                         " elements.");
         m_coordinator->propose(new_state->data<int64_t>()[0]);

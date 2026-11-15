@@ -158,6 +158,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_LLama2_no_gather) {
                                                       {{"config.slice_start", 0},
                                                        {"config.slice_stop", 0},
                                                        {"config.input_trans0213", true},
+                                                       {"config.input_interleaved", false},
                                                        {"config.output_trans0213", false},
                                                        {"config.is_interleaved", false},
                                                        {"config.is_chatglm", false},
@@ -198,6 +199,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_LLama2_with_gather) {
                                                       {{"config.slice_start", 0},
                                                        {"config.slice_stop", 0},
                                                        {"config.input_trans0213", true},
+                                                       {"config.input_interleaved", false},
                                                        {"config.output_trans0213", false},
                                                        {"config.is_interleaved", false},
                                                        {"config.is_chatglm", false},
@@ -395,6 +397,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTNEOX_no_gather) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", ndims},
                                                     {"config.input_trans0213", true},
+                                                    {"config.input_interleaved", false},
                                                     {"config.output_trans0213", false},
                                                     {"config.is_interleaved", false},
                                                     {"config.is_chatglm", false},
@@ -435,6 +438,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTNEOX_with_gather) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", ndims},
                                                     {"config.input_trans0213", true},
+                                                    {"config.input_interleaved", false},
                                                     {"config.output_trans0213", false},
                                                     {"config.is_interleaved", false},
                                                     {"config.is_chatglm", false},
@@ -450,6 +454,117 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTNEOX_with_gather) {
         model_ref =
             std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, gather_idx, batch_limit});
     }
+}
+
+static std::shared_ptr<ov::Model> make_rope_preprocess_model(int64_t slice_start,
+                                                             int64_t slice_stop,
+                                                             bool dynamic_ndims = false) {
+    const int batch = 2, seq_len = 16, num_heads = 32, ndims = 80, rotary_ndims = 20;
+
+    ov::Dimension ndims_dim = dynamic_ndims ? ov::Dimension::dynamic() : ov::Dimension(ndims);
+    auto input =
+        std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{batch, seq_len, num_heads, ndims_dim});
+    auto param_cos =
+        std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 1, (size_t)seq_len, (size_t)rotary_ndims});
+    auto param_sin =
+        std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 1, (size_t)seq_len, (size_t)rotary_ndims});
+    auto slice = makeOP<ov::op::v8::Slice>({input, {slice_start}, {slice_stop}, {1}, {3}});
+    auto transpose = makeOP<v1::Transpose>({slice, {0, 2, 1, 3}});
+
+    ov::op::internal::RoPE::Config config;
+    config.rotary_ndims = rotary_ndims;
+    auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{transpose, param_cos, param_sin}, config);
+    return std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, param_cos, param_sin});
+}
+
+// Already-fused reference graph: input feeds RoPE directly, config carries the absolute offsets.
+static std::shared_ptr<ov::Model> make_rope_fused_model(size_t slice_start, size_t slice_stop) {
+    const int batch = 2, seq_len = 16, num_heads = 32, ndims = 80, rotary_ndims = 20;
+
+    auto input =
+        std::make_shared<v0::Parameter>(ov::element::f32,
+                                        ov::Shape{(size_t)batch, (size_t)seq_len, (size_t)num_heads, (size_t)ndims});
+    auto param_cos =
+        std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 1, (size_t)seq_len, (size_t)rotary_ndims});
+    auto param_sin =
+        std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 1, (size_t)seq_len, (size_t)rotary_ndims});
+
+    ov::op::internal::RoPE::Config config;
+    config.rotary_ndims = rotary_ndims;
+    config.slice_start = slice_start;
+    config.slice_stop = slice_stop;
+    config.input_trans0213 = true;
+    auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{input, param_cos, param_sin}, config);
+    return std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, param_cos, param_sin});
+}
+
+// Dynamic sliced-axis reference graph: the real Slice can't be folded (its bounds can't be
+// resolved against an unknown extent), but Transpose still folds into RoPE's config.
+static std::shared_ptr<ov::Model> make_rope_transpose_folded_model(int64_t slice_start, int64_t slice_stop) {
+    const int batch = 2, seq_len = 16, num_heads = 32, rotary_ndims = 20;
+
+    auto input = std::make_shared<v0::Parameter>(ov::element::f32,
+                                                 ov::PartialShape{batch, seq_len, num_heads, ov::Dimension::dynamic()});
+    auto param_cos =
+        std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 1, (size_t)seq_len, (size_t)rotary_ndims});
+    auto param_sin =
+        std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 1, (size_t)seq_len, (size_t)rotary_ndims});
+    auto slice = makeOP<ov::op::v8::Slice>({input, {slice_start}, {slice_stop}, {1}, {3}});
+
+    ov::op::internal::RoPE::Config config;
+    config.rotary_ndims = rotary_ndims;
+    config.input_trans0213 = true;
+    auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{slice, param_cos, param_sin}, config);
+    return std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, param_cos, param_sin});
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_Preprocess_PositiveSliceBoundsFused) {
+    disable_rt_info_check();
+    model = make_rope_preprocess_model(0, 20);
+    manager.register_pass<ov::pass::RoPEFusionPreprocess>();
+    model_ref = make_rope_fused_model(0, 20);
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_Preprocess_NegativeSliceBoundsNormalizedFused) {
+    disable_rt_info_check();
+    model = make_rope_preprocess_model(-28, -8);
+    manager.register_pass<ov::pass::RoPEFusionPreprocess>();
+    model_ref = make_rope_fused_model(52, 72);
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_Preprocess_NegativeSliceBoundsDynamicDimTransposeFolded) {
+    disable_rt_info_check();
+    model = make_rope_preprocess_model(-28, -8, /*dynamic_ndims=*/true);
+    manager.register_pass<ov::pass::RoPEFusionPreprocess>();
+    model_ref = make_rope_transpose_folded_model(-28, -8);
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_Preprocess_InvertedSliceBoundsRejected) {
+    disable_rt_info_check();
+    model = make_rope_preprocess_model(20, 10);
+    manager.register_pass<ov::pass::RoPEFusionPreprocess>();
+    model_ref = make_rope_preprocess_model(20, 10);
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_Preprocess_EmptySliceBoundsRejected) {
+    disable_rt_info_check();
+    model = make_rope_preprocess_model(10, 10);
+    manager.register_pass<ov::pass::RoPEFusionPreprocess>();
+    model_ref = make_rope_preprocess_model(10, 10);
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_Preprocess_SliceBoundsExceedExtentRejected) {
+    disable_rt_info_check();
+    model = make_rope_preprocess_model(0, 90);
+    manager.register_pass<ov::pass::RoPEFusionPreprocess>();
+    model_ref = make_rope_preprocess_model(0, 90);
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_Preprocess_NegativeSliceBoundsOutOfRangeRejected) {
+    disable_rt_info_check();
+    model = make_rope_preprocess_model(-1000, -8);
+    manager.register_pass<ov::pass::RoPEFusionPreprocess>();
+    model_ref = make_rope_preprocess_model(-1000, -8);
 }
 
 TEST_F(TransformationTestsF, ConvertToROPE_GPTJ) {
@@ -555,6 +670,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", 0},
                                                     {"config.input_trans0213", false},
+                                                    {"config.input_interleaved", false},
                                                     {"config.output_trans0213", true},
                                                     {"config.is_interleaved", true},
                                                     {"config.is_chatglm", false},
@@ -680,6 +796,7 @@ TEST_P(ConvertToROPETest, ConvertToROPE_chatGLM) {
                                                    {{"config.slice_start", slice_start},
                                                     {"config.slice_stop", slice_stop},
                                                     {"config.input_trans0213", false},
+                                                    {"config.input_interleaved", false},
                                                     {"config.output_trans0213", false},
                                                     {"config.is_interleaved", false},
                                                     {"config.rotary_ndims", rotary_ndims},
@@ -769,6 +886,7 @@ TEST_P(ConvertToROPETest, ConvertToROPE_chatGLM_Slice) {
                                                    {{"config.slice_start", slice_start},
                                                     {"config.slice_stop", slice_stop},
                                                     {"config.input_trans0213", false},
+                                                    {"config.input_interleaved", false},
                                                     {"config.output_trans0213", false},
                                                     {"config.is_interleaved", false},
                                                     {"config.rotary_ndims", rotary_ndims},
@@ -816,6 +934,7 @@ TEST_P(ConvertToROPETestGPTNEOX_3D, ConvertToROPE_qwen) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", 0},
                                                     {"config.input_trans0213", false},
+                                                    {"config.input_interleaved", false},
                                                     {"config.output_trans0213", false},
                                                     {"config.is_interleaved", false},
                                                     {"config.is_chatglm", false},
@@ -908,6 +1027,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ_Slice) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", 0},
                                                     {"config.input_trans0213", false},
+                                                    {"config.input_interleaved", false},
                                                     {"config.output_trans0213", true},
                                                     {"config.is_interleaved", true},
                                                     {"config.is_chatglm", false},
@@ -1029,6 +1149,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM_2d_rope) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", 4096},
                                                     {"config.input_trans0213", false},
+                                                    {"config.input_interleaved", false},
                                                     {"config.output_trans0213", false},
                                                     {"config.is_interleaved", false},
                                                     {"config.rotary_ndims", rotary_ndims},
@@ -1141,6 +1262,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM_nano_2d_rope) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", 2048},
                                                     {"config.input_trans0213", false},
+                                                    {"config.input_interleaved", false},
                                                     {"config.output_trans0213", false},
                                                     {"config.is_interleaved", false},
                                                     {"config.rotary_ndims", rotary_ndims},
@@ -1218,6 +1340,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLMHF_2d_rope_GatherND_CPU) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", 0},
                                                     {"config.input_trans0213", false},
+                                                    {"config.input_interleaved", false},
                                                     {"config.output_trans0213", false},
                                                     {"config.is_interleaved", false},
                                                     {"config.rotary_ndims", rotary_ndims},
@@ -1321,6 +1444,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLMHF_2d_rope_GatherND_GPU) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", 0},
                                                     {"config.input_trans0213", false},
+                                                    {"config.input_interleaved", false},
                                                     {"config.output_trans0213", false},
                                                     {"config.is_interleaved", false},
                                                     {"config.rotary_ndims", rotary_ndims},
@@ -1414,6 +1538,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLMHF_2d_rope) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", 0},
                                                     {"config.input_trans0213", false},
+                                                    {"config.input_interleaved", false},
                                                     {"config.output_trans0213", false},
                                                     {"config.is_interleaved", false},
                                                     {"config.rotary_ndims", rotary_ndims},
@@ -1719,6 +1844,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM3_PagedAttention) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", 4096},
                                                     {"config.input_trans0213", false},
+                                                    {"config.input_interleaved", false},
                                                     {"config.output_trans0213", false},
                                                     {"config.is_interleaved", false},
                                                     {"config.rotary_ndims", rotary_ndims},
@@ -1800,6 +1926,7 @@ TEST_P(ConvertToROPETest, ConvertToROPE_Qwen_PagedAttention) {
                                                    {{"config.slice_start", slice_start},
                                                     {"config.slice_stop", slice_stop},
                                                     {"config.input_trans0213", false},
+                                                    {"config.input_interleaved", false},
                                                     {"config.output_trans0213", false},
                                                     {"config.is_interleaved", false},
                                                     {"config.rotary_ndims", 128},
@@ -1886,6 +2013,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ_PagedAttention) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", 0},
                                                     {"config.input_trans0213", false},
+                                                    {"config.input_interleaved", false},
                                                     {"config.output_trans0213", false},
                                                     {"config.is_interleaved", true},
                                                     {"config.rotary_ndims", rotary_ndims},
@@ -1962,6 +2090,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM4_PagedAttention) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", 4096},
                                                     {"config.input_trans0213", false},
+                                                    {"config.input_interleaved", false},
                                                     {"config.output_trans0213", false},
                                                     {"config.is_interleaved", false},
                                                     {"config.rotary_ndims", 64},
@@ -2050,6 +2179,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM4_PagedAttention_GPU) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", 4096},
                                                     {"config.input_trans0213", false},
+                                                    {"config.input_interleaved", false},
                                                     {"config.output_trans0213", false},
                                                     {"config.is_interleaved", false},
                                                     {"config.rotary_ndims", 64},
@@ -2119,6 +2249,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_LtxVideo) {
                                                {{"config.slice_start", 0},
                                                 {"config.slice_stop", 0},
                                                 {"config.input_trans0213", false},
+                                                {"config.input_interleaved", false},
                                                 {"config.output_trans0213", false},
                                                 {"config.is_interleaved", true},
                                                 {"config.rotary_ndims", rotary_ndims},
@@ -2179,6 +2310,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTOSS_negative_axis) {
                                                {{"config.slice_start", 0},
                                                 {"config.slice_stop", 0},
                                                 {"config.input_trans0213", false},
+                                                {"config.input_interleaved", false},
                                                 {"config.output_trans0213", false},
                                                 {"config.is_interleaved", false},
                                                 {"config.rotary_ndims", ndims},
@@ -2240,6 +2372,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTOSS_concat_axis_positive) {
                                                {{"config.slice_start", 0},
                                                 {"config.slice_stop", 0},
                                                 {"config.input_trans0213", false},
+                                                {"config.input_interleaved", false},
                                                 {"config.output_trans0213", false},
                                                 {"config.is_interleaved", false},
                                                 {"config.rotary_ndims", ndims},
@@ -2301,6 +2434,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTOSS_split_axis_positive) {
                                                {{"config.slice_start", 0},
                                                 {"config.slice_stop", 0},
                                                 {"config.input_trans0213", false},
+                                                {"config.input_interleaved", false},
                                                 {"config.output_trans0213", false},
                                                 {"config.is_interleaved", false},
                                                 {"config.rotary_ndims", ndims},
@@ -2400,6 +2534,7 @@ TEST_P(ConvertToROPECohereTest, basic) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", 0},
                                                     {"config.input_trans0213", has_transpose},
+                                                    {"config.input_interleaved", false},
                                                     {"config.output_trans0213", false},
                                                     {"config.is_interleaved", true},
                                                     {"config.is_chatglm", false},
@@ -2509,6 +2644,7 @@ std::shared_ptr<ov::Model> make_fused_rope_ref(bool flatten_result = false) {
                                                             {{"config.slice_start", 0},
                                                              {"config.slice_stop", 0},
                                                              {"config.input_trans0213", false},
+                                                             {"config.input_interleaved", false},
                                                              {"config.output_trans0213", false},
                                                              {"config.is_interleaved", false},
                                                              {"config.rotary_ndims", dim},

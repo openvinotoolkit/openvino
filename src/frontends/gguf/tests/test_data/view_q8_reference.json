@@ -1,0 +1,52 @@
+{
+  "oracle": "mmproj_ops_oracle.cpp:quantized_view",
+  "llama_revision": "9631fc03fbd5f7c6490b9552e622a213411e1459",
+  "input_shape_ggml": [
+    64,
+    4
+  ],
+  "view_shape_ggml": [
+    32,
+    2
+  ],
+  "row_stride_bytes": 136,
+  "offsets_bytes": [
+    34,
+    102
+  ],
+  "fixtures": [
+    {
+      "file": "view_q8_input.npy",
+      "shape": [
+        256
+      ],
+      "sha256": "451ed7e5d587800cf4e874cbcfc3cf1f82404db588c3123fc0f85b30b0f1cf3e",
+      "range": [
+        127.0,
+        1016.0
+      ]
+    },
+    {
+      "file": "view_q8_34.npy",
+      "shape": [
+        64
+      ],
+      "sha256": "0b509ced8574c1d3d49f9548a237a48818305383d3f4c2160c34a8dfac07874d",
+      "range": [
+        254.0,
+        762.0
+      ]
+    },
+    {
+      "file": "view_q8_102.npy",
+      "shape": [
+        64
+      ],
+      "sha256": "68ffe1b0c48e57f31af6920555e59b2e35c93d6bec2e21ea61cb4108dbb1baf3",
+      "range": [
+        508.0,
+        1016.0
+      ]
+    }
+  ]
+}

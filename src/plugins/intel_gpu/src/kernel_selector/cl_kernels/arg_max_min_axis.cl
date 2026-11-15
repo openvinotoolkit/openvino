@@ -25,19 +25,39 @@
     #define AXIS 4
 #endif
 
+// Value order shared with arg_max_min_topk_radix: NaN ranks above +inf as in PyTorch, and -0.0
+// equals +0.0. Plain float comparisons are false for NaN, so with them a NaN ranks first and races
+// with the true maximum for the same output position.
+#if INPUT0_IS_FP
+    #define ORDER_LT(a, b) (isnan(b) ? !isnan(a) : (a) < (b))
+    #define ORDER_LE(a, b) (isnan(b) || (a) <= (b))
+#else
+    #define ORDER_LT(a, b) ((a) < (b))
+    #define ORDER_LE(a, b) ((a) <= (b))
+#endif
+#define ORDER_GT(a, b) ORDER_LT(b, a)
+#define ORDER_GE(a, b) ORDER_LE(b, a)
+
+// The parallel sort ranks the work-item's own value a, which is not NaN there, by counting the
+// values b before it that rank at or above a (SIGN_1) and the later ones that rank above it
+// (SIGN_2). Ordered comparisons are false for a NaN b, which ranks above every number, so MIN
+// counts those values directly, while MAX counts the complement and PARALLEL_RANK subtracts it
+// from the number of compared values. A NaN check per comparison would be slower.
 #ifdef MAX_OUT
-    #define COMPARE_SIGN <
-    #define COMPARE_PARTIAL_SIGN >=
-    #define COMPARE_MERGE_SIGN >
-    #define COMPARE_PARALLEL_SIGN_1 <=
-    #define COMPARE_PARALLEL_SIGN_2 <
+    #define COMPARE_SIGN ORDER_LT
+    #define COMPARE_PARTIAL_SIGN ORDER_GE
+    #define COMPARE_MERGE_SIGN ORDER_GT
+    #define COMPARE_PARALLEL_SIGN_1(a, b) ((b) < (a))
+    #define COMPARE_PARALLEL_SIGN_2(a, b) ((b) <= (a))
+    #define PARALLEL_RANK(counted, compared) ((compared) - (counted))
     #define INPUT0_FILL_VAL INPUT0_VAL_MIN
 #else
-    #define COMPARE_SIGN >
-    #define COMPARE_PARTIAL_SIGN <=
-    #define COMPARE_MERGE_SIGN <
-    #define COMPARE_PARALLEL_SIGN_1 >=
-    #define COMPARE_PARALLEL_SIGN_2 >
+    #define COMPARE_SIGN ORDER_GT
+    #define COMPARE_PARTIAL_SIGN ORDER_LE
+    #define COMPARE_MERGE_SIGN ORDER_LT
+    #define COMPARE_PARALLEL_SIGN_1(a, b) ((a) >= (b))
+    #define COMPARE_PARALLEL_SIGN_2(a, b) ((a) > (b))
+    #define PARALLEL_RANK(counted, compared) (counted)
     #define INPUT0_FILL_VAL INPUT0_VAL_MAX
 #endif
 
@@ -164,62 +184,139 @@ KERNEL(arg_max_min_modified)(
     result.value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
     result.index = sort_idx;
 
-    for (uint i = 0; i < sort_idx / 8; i++) {
+    // Values before sort_idx rank ahead when they rank at or above this one, later values when
+    // they rank above it.
+    uint head_end = sort_idx;
+    uint tail_begin = sort_idx + 1;
+    uint counted = 0;
+#if INPUT0_IS_FP
+    // The comparisons below need a number. A NaN ranks above every number and after the NaNs
+    // before it, so its position is counted separately.
+    if (isnan(result.value)) {
+#ifdef MAX_OUT
+        for (uint i = 0; i < sort_idx && sort_position < TOP_K; i++) {
+            indices[AXIS] = i;
+            sort_position += isnan(input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])]) ? 1 : 0;
+        }
+#else
+        sort_position = sort_idx;
+        for (uint i = sort_idx + 1; i < VALUES_NUM && sort_position < TOP_K; i++) {
+            indices[AXIS] = i;
+            sort_position += isnan(input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])]) ? 0 : 1;
+        }
+#endif
+        head_end = 0;
+        tail_begin = VALUES_NUM;
+    }
+#endif
+
+    for (uint i = 0; i < head_end / 8; i++) {
         uint index_offset = i * 8;
         indices[AXIS] = index_offset;
         INPUT0_TYPE test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
-        if (result.value COMPARE_PARALLEL_SIGN_1 test_value)
-            sort_position++;
+        if (COMPARE_PARALLEL_SIGN_1(result.value, test_value))
+            counted++;
         indices[AXIS] = index_offset + 1;
         test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
-        if (result.value COMPARE_PARALLEL_SIGN_1 test_value)
-            sort_position++;
+        if (COMPARE_PARALLEL_SIGN_1(result.value, test_value))
+            counted++;
         indices[AXIS] = index_offset + 2;
         test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
-        if (result.value COMPARE_PARALLEL_SIGN_1 test_value)
-            sort_position++;
+        if (COMPARE_PARALLEL_SIGN_1(result.value, test_value))
+            counted++;
         indices[AXIS] = index_offset + 3;
         test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
-        if (result.value COMPARE_PARALLEL_SIGN_1 test_value)
-            sort_position++;
+        if (COMPARE_PARALLEL_SIGN_1(result.value, test_value))
+            counted++;
         indices[AXIS] = index_offset + 4;
         test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
-        if (result.value COMPARE_PARALLEL_SIGN_1 test_value)
-            sort_position++;
+        if (COMPARE_PARALLEL_SIGN_1(result.value, test_value))
+            counted++;
         indices[AXIS] = index_offset + 5;
         test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
-        if (result.value COMPARE_PARALLEL_SIGN_1 test_value)
-            sort_position++;
+        if (COMPARE_PARALLEL_SIGN_1(result.value, test_value))
+            counted++;
         indices[AXIS] = index_offset + 6;
         test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
-        if (result.value COMPARE_PARALLEL_SIGN_1 test_value)
-            sort_position++;
+        if (COMPARE_PARALLEL_SIGN_1(result.value, test_value))
+            counted++;
         indices[AXIS] = index_offset + 7;
         test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
-        if (result.value COMPARE_PARALLEL_SIGN_1 test_value)
-            sort_position++;
-        if (sort_position >= TOP_K)
+        if (COMPARE_PARALLEL_SIGN_1(result.value, test_value))
+            counted++;
+        if (sort_position + PARALLEL_RANK(counted, index_offset + 8) >= TOP_K)
             return;
     }
 
-    for (uint i = (sort_idx / 8) * 8; i < sort_idx; i++) {
+    for (uint i = (head_end / 8) * 8; i < head_end; i++) {
         indices[AXIS] = i;
         INPUT0_TYPE test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
-        if (result.value COMPARE_PARALLEL_SIGN_1 test_value)
-            sort_position++;
+        if (COMPARE_PARALLEL_SIGN_1(result.value, test_value))
+            counted++;
     }
 
+    sort_position += PARALLEL_RANK(counted, head_end);
     if (sort_position >= TOP_K)
         return;
 
-    for (uint i = sort_idx + 1; i < VALUES_NUM; i++) {
+    // As in the head loop, the unrolled blocks start at multiples of 8: f16 blocks at other offsets
+    // load much slower.
+    counted = 0;
+    const uint tail_aligned = min((tail_begin + 7) / 8 * 8, (uint)VALUES_NUM);
+    for (uint i = tail_begin; i < tail_aligned; i++) {
         indices[AXIS] = i;
         INPUT0_TYPE test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
-        if (result.value COMPARE_PARALLEL_SIGN_2 test_value)
-            sort_position++;
-        if (sort_position >= TOP_K)
+        if (COMPARE_PARALLEL_SIGN_2(result.value, test_value))
+            counted++;
+    }
+    for (uint i = tail_aligned / 8; i < VALUES_NUM / 8; i++) {
+        uint index_offset = i * 8;
+        indices[AXIS] = index_offset;
+        INPUT0_TYPE test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        if (COMPARE_PARALLEL_SIGN_2(result.value, test_value))
+            counted++;
+        indices[AXIS] = index_offset + 1;
+        test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        if (COMPARE_PARALLEL_SIGN_2(result.value, test_value))
+            counted++;
+        indices[AXIS] = index_offset + 2;
+        test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        if (COMPARE_PARALLEL_SIGN_2(result.value, test_value))
+            counted++;
+        indices[AXIS] = index_offset + 3;
+        test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        if (COMPARE_PARALLEL_SIGN_2(result.value, test_value))
+            counted++;
+        indices[AXIS] = index_offset + 4;
+        test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        if (COMPARE_PARALLEL_SIGN_2(result.value, test_value))
+            counted++;
+        indices[AXIS] = index_offset + 5;
+        test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        if (COMPARE_PARALLEL_SIGN_2(result.value, test_value))
+            counted++;
+        indices[AXIS] = index_offset + 6;
+        test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        if (COMPARE_PARALLEL_SIGN_2(result.value, test_value))
+            counted++;
+        indices[AXIS] = index_offset + 7;
+        test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        if (COMPARE_PARALLEL_SIGN_2(result.value, test_value))
+            counted++;
+        if (sort_position + PARALLEL_RANK(counted, index_offset + 8 - tail_begin) >= TOP_K)
             return;
     }
+
+    for (uint i = max(tail_aligned, (uint)(VALUES_NUM / 8) * 8); i < VALUES_NUM; i++) {
+        indices[AXIS] = i;
+        INPUT0_TYPE test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        if (COMPARE_PARALLEL_SIGN_2(result.value, test_value))
+            counted++;
+    }
+
+    sort_position += PARALLEL_RANK(counted, VALUES_NUM - tail_begin);
+    if (sort_position >= TOP_K)
+        return;
 
 // Using simple sorting for sorting by indices and when TOP_K == 1
 #elif TOP_K == 1
@@ -243,7 +340,7 @@ KERNEL(arg_max_min_modified)(
 
             indices[AXIS] = i;
             INPUT0_TYPE in_data = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
-            if (val COMPARE_SIGN in_data) {
+            if (COMPARE_SIGN(val, in_data)) {
                 result[top_k].index = i;
                 result[top_k].value = in_data;
                 val = in_data;
@@ -288,7 +385,7 @@ KERNEL(arg_max_min_modified)(
                 if (right_end > VALUES_NUM) right_end = VALUES_NUM;
                 m = i = left; j = right;
                 while ((i < right) && (j < right_end)) {
-                    if (result[i].value COMPARE_PARTIAL_SIGN result[j].value) {
+                    if (COMPARE_PARTIAL_SIGN(result[i].value, result[j].value)) {
                         temp_buf[m++] = result[i++];
                     } else {
                         temp_buf[m++] = result[j++];
@@ -339,7 +436,7 @@ KERNEL(arg_max_min_modified)(
                     if (right_end > group_size) right_end = group_size;
                     m = i = left; j = right;
                     while ((i < right) && (j < right_end)) {
-                        if (temp_buf[group_offset + i].value COMPARE_PARTIAL_SIGN temp_buf[group_offset + j].value) {
+                        if (COMPARE_PARTIAL_SIGN(temp_buf[group_offset + i].value, temp_buf[group_offset + j].value)) {
                             result[group_offset + (m++)] = temp_buf[group_offset + (i++)];
                         } else {
                             result[group_offset + (m++)] = temp_buf[group_offset + (j++)];
@@ -363,7 +460,7 @@ KERNEL(arg_max_min_modified)(
                 if (right_end > last_group_size) right_end = last_group_size;
                 m = i = left; j = right;
                 while ((i < right) && (j < right_end)) {
-                    if (temp_buf[last_group_offset + i].value COMPARE_PARTIAL_SIGN temp_buf[last_group_offset + j].value) {
+                    if (COMPARE_PARTIAL_SIGN(temp_buf[last_group_offset + i].value, temp_buf[last_group_offset + j].value)) {
                         result[last_group_offset + (m++)] = temp_buf[last_group_offset + (i++)];
                     } else {
                         result[last_group_offset + (m++)] = temp_buf[last_group_offset + (j++)];
@@ -417,7 +514,7 @@ KERNEL(arg_max_min_modified)(
                     continue;
                 }
 
-                if (temp_buf[test_index].value COMPARE_MERGE_SIGN merge_buf.value) {
+                if (COMPARE_MERGE_SIGN(temp_buf[test_index].value, merge_buf.value)) {
                     merge_buf = temp_buf[test_index];
                     merge_buf_index = j;
                 }
@@ -480,6 +577,11 @@ KERNEL(arg_max_min_modified)(
 #undef COMPARE_MERGE_SIGN
 #undef COMPARE_PARALLEL_SIGN_1
 #undef COMPARE_PARALLEL_SIGN_2
+#undef PARALLEL_RANK
+#undef ORDER_LT
+#undef ORDER_LE
+#undef ORDER_GT
+#undef ORDER_GE
 #undef INPUT0_FILL_VAL
 #undef AXIS
 #undef VALUES_NUM

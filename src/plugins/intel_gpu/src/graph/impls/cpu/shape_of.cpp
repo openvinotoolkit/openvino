@@ -84,6 +84,7 @@ namespace detail {
 attach_shape_of_impl::attach_shape_of_impl() {
     auto formats = {
         format::bfyx,
+        format::byxf,
         format::bfzyx,
         format::bfwzyx,
         format::bfuwzyx,
@@ -98,6 +99,8 @@ attach_shape_of_impl::attach_shape_of_impl() {
         data_types::i8,
         data_types::i32,
         data_types::i64,
+        data_types::f8e4m3,
+        data_types::f8e5m2,
     };
 
     implementation_map<shape_of>::add(impl_types::cpu, shape_types::static_shape, shape_of_impl::create, types, formats);

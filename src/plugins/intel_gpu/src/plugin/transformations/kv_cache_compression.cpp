@@ -231,7 +231,8 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compressi
         config.quantization_type = quantization_type;
         config.group_sizes = get_shape_group_sizes(sdpa_node->get_input1_transpose_order());
         config.quantization_dt = element::i8;
-        config.scale_dt = query_node->get_output_element_type(0);
+        const auto scale_dt = query_node->get_output_element_type(0);
+        config.scale_dt = scale_dt;
         config.scales_zp_output_order = get_scales_output_order(sdpa_node->get_input1_transpose_order());
         config.output_storage_type = output_storage_type;
 
@@ -241,7 +242,7 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compressi
             // introduces a large systematic bias: error = (zp - round(zp)) * scale
             // applied uniformly to every element in the group.
             bool is_int4 = ov::element::Type(compression_dt).bitwidth() == 4;
-            config.zp_dt = (supports_immad && !is_int4) ? element::i8 : query_node->get_output_element_type(0);
+            config.zp_dt = (supports_immad && !is_int4) ? element::i8 : scale_dt;
         }
 
         key_past_rv_node = update_past_read_value(key_past_rv_node, config);

@@ -44,11 +44,6 @@ const Xbyak_aarch64::XReg& jit_binary_call_emitter::get_call_address_reg() const
     return m_call_address_reg;
 }
 
-const Xbyak_aarch64::XReg& jit_binary_call_emitter::get_callee_saved_reg() const {
-    OV_CPU_JIT_EMITTER_ASSERT(m_regs_initialized, "Binary call registers must be initialized first");
-    return m_callee_saved_reg;
-}
-
 void jit_binary_call_emitter::init_binary_call_regs(size_t num_binary_args,
                                                     const std::vector<size_t>& used_gpr_idxs) const {
     if (m_regs_initialized) {
@@ -97,14 +92,6 @@ void jit_binary_call_emitter::init_binary_call_regs(size_t num_binary_args,
     all_used_idxs.push_back(call_reg);
     if (m_regs_to_spill.find({snippets::RegType::gpr, call_reg}) == m_regs_to_spill.end()) {
         m_regs_to_spill.emplace(snippets::RegType::gpr, call_reg);
-    }
-
-    // Allocate callee-saved register (X19-X28) for stack alignment
-    auto callee_reg = find_available(19, 29);
-    OV_CPU_JIT_EMITTER_ASSERT(callee_reg != SIZE_MAX, "No available callee-saved register");
-    m_callee_saved_reg = Xbyak_aarch64::XReg(static_cast<int>(callee_reg));
-    if (m_regs_to_spill.find({snippets::RegType::gpr, callee_reg}) == m_regs_to_spill.end()) {
-        m_regs_to_spill.emplace(snippets::RegType::gpr, callee_reg);
     }
 
     m_regs_initialized = true;

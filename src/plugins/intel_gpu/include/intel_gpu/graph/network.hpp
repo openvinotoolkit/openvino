@@ -8,6 +8,7 @@
 
 #include "intel_gpu/graph/topology.hpp"
 #include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/graph/record_replay_session.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -26,6 +27,9 @@
 
 namespace ov::intel_gpu {
 class OutputMemoryBlock;
+namespace mlir {
+struct MLIRGpuRuntime;
+}  // namespace mlir
 }  // namespace ov::intel_gpu
 
 namespace cldnn {
@@ -170,6 +174,8 @@ public:
     void set_arguments();
     // Implementation specific calls
     bool does_node_need_lockable_output(const primitive_id& id) const;
+    // Returns whether the buffer of network output `output_id` may be the buffer of network input `input_id`.
+    bool may_alias(const primitive_id& output_id, const primitive_id& input_id) const;
     std::shared_ptr<primitive_inst> get_primitive(const primitive_id& id);
     std::shared_ptr<const primitive_inst> get_primitive(const primitive_id& id) const;
     std::string get_primitive_info(const primitive_id& id) const;
@@ -184,6 +190,13 @@ public:
     uint32_t get_id() const { return net_id; }
     stream& get_stream() const { return *_stream; }
     stream::ptr get_stream_ptr() const { return _stream; }
+    ov::intel_gpu::mlir::MLIRGpuRuntime* gc_runtime() const {
+#ifdef ENABLE_MLIR_FOR_GPU
+        return _gc_runtime.get();
+#else
+        return nullptr;
+#endif
+    }
     bool is_internal() const { return _internal; }
     bool is_primary_stream() const { return _is_primary_stream; }
     bool is_dynamic() const { return _is_dynamic; }
@@ -201,6 +214,10 @@ public:
     /// @brief Unregister a previously registered output memory block for a primitive.
     /// Invalidates cached output memory so the graph falls back to its normal memory pool.
     void unregister_output_memory_block(const primitive_id& id);
+
+    /// @brief Detach output `id` from memory bound by an earlier set_output_memory(..., is_remote=true),
+    /// e.g. by another infer request sharing this network, so its writers re-acquire their memory.
+    void release_user_output_memory(const primitive_id& id);
 
     /// @brief Get the registered output memory block for a primitive, or nullptr if none.
     ov::intel_gpu::OutputMemoryBlock* get_output_memory_block(const primitive_id& id) const;
@@ -244,6 +261,7 @@ private:
     program::ptr _program;
     engine& _engine;
     stream::ptr _stream;
+    record_replay_session::ptr _record_replay_session = nullptr;
     std::unique_ptr<memory_pool> _memory_pool;
     bool _internal;
     bool _is_primary_stream;
@@ -256,6 +274,8 @@ private:
     memory::ptr _shape_info_ptr;
 
     std::unordered_map<primitive_id, memory::ptr> _output_remote_mem_ptrs;
+    // Unlike _output_remote_mem_ptrs, kept after wait(): primitives still hold this memory until released.
+    std::unordered_map<primitive_id, memory::ptr> _bound_user_output_memory;
     // Non-owning pointers to OutputMemoryBlocks, keyed by Result node's primitive_id.
     // Owned by SyncInferRequest::m_output_memory_blocks. One entry per OV model output.
     std::unordered_map<primitive_id, ov::intel_gpu::OutputMemoryBlock*> _output_memory_blocks;
@@ -265,6 +285,8 @@ private:
     std::vector<std::shared_ptr<primitive_inst>> _inputs;
     std::vector<std::shared_ptr<primitive_inst>> _outputs;
     std::list<std::shared_ptr<primitive_inst>> _exec_order;
+    // First position of each primitive in _exec_order.
+    std::unordered_map<const primitive_inst*, size_t> _exec_positions;
     std::list<std::shared_ptr<primitive_inst>> _data_outputs;
 
     ov::intel_gpu::VariablesMap _variables_states;
@@ -280,6 +302,11 @@ private:
 
     std::shared_ptr<ShapePredictor> _shape_predictor;
 
+    /// @brief Invalidate the recording of the previous iteration
+    void invalidate_recording();
+    /// @brief Prepares record and replay session
+    /// @note expects that exec_order is constructed
+    void prepare_record_replay();
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);
     void transfer_memory_to_device(std::shared_ptr<primitive_inst> instance, program_node const& node);
@@ -300,6 +327,10 @@ private:
     mutable int64_t iteration = 0;
     friend class NetworkDebugHelper;
     friend class NodeDebugHelper;
+#endif
+
+#ifdef ENABLE_MLIR_FOR_GPU
+    std::unique_ptr<ov::intel_gpu::mlir::MLIRGpuRuntime> _gc_runtime;
 #endif
 };
 }  // namespace cldnn

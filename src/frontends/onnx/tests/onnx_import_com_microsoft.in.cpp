@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cmath>
+#include <limits>
 #include <vector>
 
 // clang-format off
@@ -17,6 +19,7 @@
 #include "common_test_utils/test_case.hpp"
 #include "common_test_utils/test_control.hpp"
 #include "onnx_utils.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
 
 using namespace ov;
 using namespace ov::frontend::onnx::tests;
@@ -2462,6 +2465,21 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_3x32_zp) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_3x48_zp_unaligned) {
+    // Three 4-bit zero points per row occupy two bytes, with one padding nibble per row.
+    // Ensure unpacking at import preserves the valid values and inference result.
+    const auto model = convert_model("com.microsoft/matmulnbits_3x48_zp_unaligned.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>({1, 2, 3, 4,  5, 6,  7, 8,  9, 10, 1, 2, 3, 4,  5, 6,  7, 8,  9, 10, 1, 2, 3, 4,
+                                5, 6, 7, 8,  9, 10, 1, 2,  3, 4,  5, 6, 7, 8,  9, 10, 1, 2,  3, 4,  5, 6, 7, 8,
+                                3, 4, 5, 6,  7, 8,  9, 10, 1, 2,  3, 4, 5, 6,  7, 8,  9, 10, 1, 2,  3, 4, 5, 6,
+                                7, 8, 9, 10, 1, 2,  3, 4,  5, 6,  7, 8, 9, 10, 1, 2,  3, 4,  5, 6,  7, 8, 9, 10});
+    test_case.add_input<float>({1, 1, 1, 1, 1, 1, 1, 1, 1});
+    test_case.add_expected_output<float>(Shape{2, 3}, {352, 24, -72, 344, 28, -100});
+    test_case.run_with_tolerance_as_fp(0.01f);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_zp_size_mismatch) {
     // An undersized packed uint8 zero_points (1 byte where 6 are needed) must be rejected before the
     // Constant copy reads past it.
@@ -3434,12 +3452,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_0_input_1_rotary) {
     test_case.run_with_tolerance_as_fp();
 }
 
-// Regression test for the fully-masked query row. With a 2-token query but only 1 valid position
-// (seqlens_k = 0), the causal mask fully masks the second query row. The attention mask must use the
-// element type's finite lowest() (not -inf) so that row's softmax stays finite instead of 0/0 = NaN.
-// The expected values below are finite; if the mask ever regresses to -inf this row becomes NaN and
-// the comparison fails.
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_fully_masked_row_is_finite) {
+// Right-padded first prompt (sequence_length == total_sequence_length = 2, seqlens_k = 0): as in ONNX Runtime the
+// prompt starts at position 0 and the padded query row 1 only sees the one valid key, so no row is fully masked.
+// Expected values: ORT CPU.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_right_padded_first_prompt) {
     const auto model = convert_model("com.microsoft/gqa_rotary.onnx");
 
     std::vector<float> query = {
@@ -3460,7 +3476,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_fully_masked_row_is_finite) {
         -0.891500f, -0.015300f};
     std::vector<float> past_key = {};
     std::vector<float> past_value = {};
-    std::vector<int> seqlens_k = {0};  // only 1 valid position => query row 1 is fully masked
+    std::vector<int> seqlens_k = {0};  // total 1 of a 2-token first prompt: query row 1 is padding
     std::vector<int> total_sequence_length = {2};
     std::vector<float> cos_cache = {0.809800f,
                                     0.337700f,
@@ -3496,14 +3512,14 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_fully_masked_row_is_finite) {
                                     0.937100f};
 
     std::vector<float> expected_output = {
-        0.032050f,  -0.594800f, -0.075450f, -0.069000f, 0.013850f,  0.065450f, -0.437150f, -0.060400f,
-        -0.345600f, 0.605800f,  -0.586000f, 0.494350f,  -0.097450f, 0.009950f, -0.543900f, -0.109250f,
-        0.032050f,  -0.594800f, -0.075450f, -0.069000f, 0.013850f,  0.065450f, -0.437150f, -0.060400f,
-        -0.345600f, 0.605800f,  -0.586000f, 0.494350f,  -0.097450f, 0.009950f, -0.543900f, -0.109250f,
-        0.240200f,  -0.713700f, -0.166600f, 0.373700f,  0.280100f,  0.286900f, -0.590400f, 0.382300f,
-        -0.067200f, 0.662300f,  -0.138200f, 0.839800f,  0.207600f,  0.373800f, -0.196300f, -0.203200f,
-        0.240200f,  -0.713700f, -0.166600f, 0.373700f,  0.280100f,  0.286900f, -0.590400f, 0.382300f,
-        -0.067200f, 0.662300f,  -0.138200f, 0.839800f,  0.207600f,  0.373800f, -0.196300f, -0.203200f};
+        0.240200f,  -0.713700f, -0.166600f, 0.373700f, 0.280100f, 0.286900f, -0.590400f, 0.382300f,
+        -0.067200f, 0.662300f,  -0.138200f, 0.839800f, 0.207600f, 0.373800f, -0.196300f, -0.203200f,
+        0.240200f,  -0.713700f, -0.166600f, 0.373700f, 0.280100f, 0.286900f, -0.590400f, 0.382300f,
+        -0.067200f, 0.662300f,  -0.138200f, 0.839800f, 0.207600f, 0.373800f, -0.196300f, -0.203200f,
+        0.240200f,  -0.713700f, -0.166600f, 0.373700f, 0.280100f, 0.286900f, -0.590400f, 0.382300f,
+        -0.067200f, 0.662300f,  -0.138200f, 0.839800f, 0.207600f, 0.373800f, -0.196300f, -0.203200f,
+        0.240200f,  -0.713700f, -0.166600f, 0.373700f, 0.280100f, 0.286900f, -0.590400f, 0.382300f,
+        -0.067200f, 0.662300f,  -0.138200f, 0.839800f, 0.207600f, 0.373800f, -0.196300f, -0.203200f};
 
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<float>(Shape{1, 2, 64}, query);
@@ -5560,15 +5576,112 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_f8e4m3fnkv_present_type_is_f8e4m3)
     EXPECT_EQ(model->outputs()[2].get_element_type(), element::f8e4m3);
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_norm_unsupported_throws) {
-    // q_norm_weight/k_norm_weight (QK-Norm) inputs are not implemented and must be rejected.
+static std::vector<float> gqa_sink_query();
+
+// RoPE caches for gqa_qk_norm (head_size 16, base 10000): cos/sin of position * inv_freq, [rows, 8].
+static std::vector<float> gqa_qk_norm_rope_cache(size_t rows, bool is_sin) {
+    std::vector<float> cache;
+    for (size_t pos = 0; pos < rows; ++pos) {
+        for (size_t i = 0; i < 8; ++i) {
+            const float angle = static_cast<float>(pos) / std::pow(10000.0f, static_cast<float>(2 * i) / 16.0f);
+            cache.push_back(is_sin ? std::sin(angle) : std::cos(angle));
+        }
+    }
+    return cache;
+}
+
+// QK-Norm (q_norm_weight/k_norm_weight, qk_norm_epsilon = 1e-5) with packed QKV and RoPE: the new Q/K heads are
+// RMS-normalized before RoPE. Expected values: ORT GQA on the same inputs with Q/K pre-normalized (ORT CPU has no
+// QK-Norm kernel; this matches the CUDA semantics).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_norm_prefill) {
+    const auto model = convert_model("com.microsoft/gqa_qk_norm.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sink_query());
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_input<float>(Shape{4, 8}, gqa_qk_norm_rope_cache(4, false));
+    test_case.add_input<float>(Shape{4, 8}, gqa_qk_norm_rope_cache(4, true));
+    test_case.add_expected_output<float>(
+        Shape{1, 4, 32},
+        {
+            -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f,
+            -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.318165f, 0.124472f,
+            0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f, -1.400087f, 0.980181f,
+            0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.204647f, -0.064037f, 0.294030f,  0.750198f,
+            -0.175318f, -0.048703f, -0.573363f, 1.317654f,  0.312172f,  -1.404098f, 0.909337f,  0.566280f,  0.364273f,
+            0.346892f,  0.030539f,  -0.671584f, -0.153659f, -0.148707f, 0.317910f,  0.735134f,  -0.266219f, -0.693562f,
+            -0.588130f, 0.961974f,  0.648947f,  -1.405899f, 0.877516f,  0.387456f,  0.123936f,  -0.006459f, 0.375071f,
+            -0.779010f, -1.155333f, 0.250027f,  0.893889f,  -0.118486f, -0.838760f, 0.491369f,  -0.023320f, 0.067260f,
+            -0.979102f, -1.114991f, -0.079658f, 0.405205f,  1.170673f,  0.051460f,  -0.308740f, 0.538963f,  -0.754140f,
+            0.001410f,  0.736677f,  0.142586f,  -0.775254f, -0.790615f, -0.230226f, -0.128570f, 0.023670f,  -1.213541f,
+            0.192464f,  0.152344f,  0.493062f,  -0.455727f, 0.392945f,  -0.044632f, -1.249879f, 0.233084f,  1.068248f,
+            -0.391639f, -1.160778f, -0.117471f, 0.034006f,  -0.602607f, -1.016575f, -0.816298f, -0.423137f, 0.200362f,
+            1.031485f,  -0.377530f, 0.046297f,  0.882835f,  -0.840033f, 0.161139f,  0.737706f,  0.077764f,  -0.713160f,
+            0.284474f,  -0.214861f, 0.395778f,  -0.684357f, -1.021520f, 0.130751f,  0.459669f,  0.888890f,  0.130982f,
+            -0.153601f, 0.334657f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 4, 16},
+        {
+            2.077571f,  -1.879617f, 1.704428f,  0.941264f,  1.296135f,  -0.889845f, -0.726965f, 0.356442f,
+            -1.316610f, 0.853328f,  -0.728800f, 0.788628f,  -1.527661f, 1.044347f,  0.491763f,  -0.466484f,
+            -0.245946f, 2.148291f,  -1.667101f, 1.956976f,  1.842385f,  1.207076f,  -1.813506f, 1.023705f,
+            -0.387978f, 0.723597f,  -1.977550f, -0.319341f, 0.063797f,  0.315899f,  -0.101428f, 0.163809f,
+            -1.214118f, -1.504665f, -0.712130f, -2.127227f, -0.729039f, -1.448440f, 1.444658f,  0.588938f,
+            1.021935f,  -1.092042f, 0.706862f,  -0.177798f, -1.273036f, -0.123885f, 1.208566f,  1.077567f,
+            0.687034f,  -0.865623f, -0.957480f, -3.774457f, 0.724519f,  -0.274241f, 1.706604f,  0.425226f,
+            -0.514190f, -1.311056f, 1.215784f,  0.721253f,  -0.338950f, 0.315340f,  0.462329f,  -0.410953f,
+        });
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Decode: only the new key is normalized; the past rows of present_key are passed through unchanged.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_norm_decode) {
+    const auto model = convert_model("com.microsoft/gqa_qk_norm.onnx");
+
+    const auto data = gqa_sink_query();
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 64}, std::vector<float>(data.begin() + 192, data.end()));
+    test_case.add_input<float>(Shape{1, 1, 4, 16}, std::vector<float>(data.begin(), data.begin() + 64));
+    test_case.add_input<float>(Shape{1, 1, 4, 16}, std::vector<float>(data.begin() + 64, data.begin() + 128));
+    test_case.add_input<int>(Shape{1, 1}, {4});
+    test_case.add_input<int>(Shape{}, {5});
+    test_case.add_input<float>(Shape{5, 8}, gqa_qk_norm_rope_cache(5, false));
+    test_case.add_input<float>(Shape{5, 8}, gqa_qk_norm_rope_cache(5, true));
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 32},
+        {
+            0.180732f, 0.166091f,  -1.092899f, 0.433461f, -0.785875f, -1.266359f, -1.627180f, 0.987866f,
+            0.516814f, -0.151132f, 0.443130f,  0.060590f, 0.132206f,  1.483993f,  -0.027208f, 0.096251f,
+            0.273264f, 0.286686f,  -0.201092f, 0.969175f, -0.080065f, -0.571854f, -0.650118f, 0.181871f,
+            0.819878f, -0.665653f, 1.252989f,  0.003249f, -0.021254f, 1.981680f,  -0.379394f, -0.118771f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 5, 16},
+        {
+            -0.841560f, 0.961409f,  1.341610f,  0.219196f,  -1.070939f, 2.005177f,  -0.500984f, -1.122348f, 0.676705f,
+            -1.632419f, -0.926639f, 0.406092f,  0.120748f,  -0.908491f, -1.119538f, 0.678687f,  0.261504f,  1.661547f,
+            0.143510f,  -0.231519f, 0.039766f,  -0.485498f, 0.340751f,  -2.563714f, 1.088374f,  -1.234958f, -1.495851f,
+            0.031911f,  -0.138748f, -0.745854f, -1.181944f, -0.568151f, 1.091891f,  -1.021918f, 0.959766f,  0.549658f,
+            0.785998f,  -0.561202f, -0.477581f, 0.244346f,  -0.943581f, 0.640680f,  -0.574544f, 0.654430f,  -1.338133f,
+            0.968591f,  0.484597f,  -0.490332f, -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,
+            -0.540484f, 2.109540f,  -0.437625f, -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f,
+            -0.432411f, 0.803882f,  -0.414984f, -1.074072f, -3.795374f, 0.727872f,  -0.275237f, 1.706141f,  0.425356f,
+            0.300301f,  -1.515243f, 1.114122f,  0.601554f,  -0.331688f, 0.314471f,  0.464035f,  -0.410819f,
+        });
+    test_case.run_with_tolerance_as_fp();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_norm_unpaired_throws) {
+    // ORT requires q_norm_weight and k_norm_weight together.
     try {
-        convert_model("com.microsoft/gqa_qk_norm.onnx");
-        FAIL() << "ONNX Importer did not reject unsupported QK-Norm inputs for GroupQueryAttention";
-    } catch (const ::ov::frontend::OpConversionFailure& e) {
-        EXPECT_THAT(e.what(), testing::HasSubstr("QK-Norm"));
+        convert_model("com.microsoft/gqa_qk_norm_unpaired.onnx");
+        FAIL() << "ONNX Importer did not reject q_norm_weight without k_norm_weight for GroupQueryAttention";
     } catch (const std::exception& e) {
-        EXPECT_THAT(e.what(), testing::HasSubstr("QK-Norm"));
+        EXPECT_THAT(e.what(), testing::HasSubstr("q_norm_weight and k_norm_weight must be provided together"));
     } catch (...) {
         FAIL() << "Unexpected exception type thrown";
     }
@@ -5579,9 +5692,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_insufficient_inputs_throws) {
         convert_model("com.microsoft/gqa_oob.onnx");
         FAIL() << "ONNX Importer did not detect insufficient inputs for GroupQueryAttention";
     } catch (const ::ov::frontend::OpConversionFailure& e) {
-        EXPECT_THAT(e.what(), testing::AllOf(testing::HasSubstr("expected"), testing::HasSubstr(" 7 to 16 inputs")));
+        EXPECT_THAT(e.what(), testing::AllOf(testing::HasSubstr("expected"), testing::HasSubstr(" 7 to 17 inputs")));
     } catch (const std::exception& e) {
-        EXPECT_THAT(e.what(), testing::AllOf(testing::HasSubstr("expected"), testing::HasSubstr(" 7 to 16 inputs")));
+        EXPECT_THAT(e.what(), testing::AllOf(testing::HasSubstr("expected"), testing::HasSubstr(" 7 to 17 inputs")));
     } catch (...) {
         FAIL() << "Unexpected exception type thrown";
     }
@@ -5823,32 +5936,314 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_causal_window_conflict_throws) {
     }
 }
 
-// "Shared KV" (kv_sequence_length == 0): the past buffer already holds the complete KV and nothing new is
-// appended (ORT helper.h). The FE reshapes K/V using Q's sequence dim, so a genuinely empty K/V cannot be
-// reshaped to it; this must fail with a named diagnostic rather than an unrelated Reshape element-count error.
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_shared_kv_unsupported_throws) {
-    try {
-        convert_model("com.microsoft/gqa_shared_kv.onnx");
-        FAIL() << "ONNX Importer did not reject kv_sequence_length == 0 (shared KV) for GroupQueryAttention";
-    } catch (const std::exception& e) {
-        EXPECT_THAT(e.what(), testing::HasSubstr("kv_sequence_length"));
-    } catch (...) {
-        FAIL() << "Unexpected exception type thrown";
-    }
+// "Shared KV" (kv_sequence_length == 0, statically empty key/value): past already holds the complete KV and
+// nothing is appended. Decode step with total = 5 inside a capacity-6 past: the stale tail row must be ignored.
+// present beyond `total` is unspecified (ORT leaves it as scratch), so only the attention output is checked.
+// Reference: ORT CPU EP.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_shared_kv) {
+    const auto model = convert_model("com.microsoft/gqa_shared_kv.onnx");
+
+    std::vector<float> query = {-0.642130f, 0.279826f,  -0.065463f, -0.258999f, -0.290165f, 0.581036f,  0.810288f,
+                                -0.645294f, 0.305570f,  -0.403394f, 0.933924f,  0.839700f,  0.271742f,  0.505464f,
+                                0.030307f,  0.651791f,  -0.103239f, -0.322375f, -0.444202f, -0.547334f, 0.051634f,
+                                -0.138176f, 0.326361f,  -0.974319f, -0.104596f, -0.269638f, -0.609205f, 0.189732f,
+                                -0.129374f, -0.400017f, -0.581168f, 0.749248f};
+    std::vector<float> past_key = {
+        0.594925f,  0.213419f,  -0.309799f, 0.893640f,  0.126755f,  -0.134475f, 0.800899f,  -0.361316f, 0.391990f,
+        -0.372359f, -0.476894f, 0.401682f,  -0.544216f, -0.013779f, 0.160057f,  -0.622187f, 0.462481f,  0.096966f,
+        0.243007f,  -0.255711f, -0.159613f, -0.010341f, -0.060058f, 0.351278f,  0.154355f,  -0.167459f, -0.996395f,
+        0.588062f,  0.038768f,  -0.346911f, -0.000090f, -0.813108f, 0.809408f,  0.979472f,  -0.882530f, -0.283538f,
+        0.460129f,  -0.371524f, 0.134100f,  -0.166858f, 0.548424f,  0.916929f,  0.776791f,  0.241871f,  -0.679451f,
+        0.894124f,  -0.952735f, -0.404581f, -0.436773f, 0.343652f,  -0.025274f, -0.814223f, -0.974284f, 0.208631f,
+        -0.017033f, 0.202764f,  0.128048f,  0.780918f,  0.836794f,  -0.623486f, 0.884242f,  0.575453f,  0.278053f,
+        0.319215f,  0.092120f,  0.834527f,  -0.533474f, 0.198632f,  0.628486f,  -0.730477f, 0.231017f,  -0.194333f,
+        0.532073f,  -0.864571f, 0.213629f,  0.714157f,  0.256696f,  -0.357325f, 0.311592f,  -0.323694f, 0.337186f,
+        -0.743311f, -0.440017f, -0.934563f, -0.832181f, 0.109539f,  -0.536604f, 0.032165f,  0.319139f,  0.762372f,
+        -0.289878f, -0.362642f, -0.372667f, -0.764301f, 0.326367f,  0.639309f};
+    std::vector<float> past_value = {
+        -0.053990f, 0.116595f,  0.916960f,  0.397830f,  0.490070f,  0.778997f,  -0.568419f, 0.300332f,  0.434789f,
+        0.684456f,  -0.312429f, 0.377589f,  0.208801f,  -0.181278f, -0.796628f, -0.293903f, 0.926969f,  -0.566953f,
+        -0.772724f, -0.264641f, -0.798038f, -0.465602f, 0.828912f,  -0.362436f, 0.171779f,  -0.522510f, 0.335960f,
+        -0.744687f, 0.579619f,  -0.154108f, -0.632679f, 0.516499f,  0.108565f,  -0.123710f, -0.518748f, 0.562732f,
+        -0.269430f, -0.913819f, 0.930739f,  -0.939070f, -0.759062f, -0.068375f, -0.584290f, -0.329730f, 0.135130f,
+        0.915684f,  0.872624f,  -0.852208f, 0.706627f,  -0.664353f, 0.622866f,  -0.407306f, 0.435669f,  0.437586f,
+        0.701103f,  0.959252f,  -0.449038f, 0.256617f,  0.478522f,  -0.840741f, 0.325923f,  -0.356969f, -0.677062f,
+        0.098943f,  -0.076233f, 0.154160f,  0.283835f,  -0.002662f, 0.810301f,  -0.644172f, -0.422417f, -0.287557f,
+        0.548764f,  0.304196f,  -0.587155f, 0.488884f,  0.543074f,  0.540483f,  -0.843254f, -0.575722f, 0.790770f,
+        0.758864f,  -0.588855f, 0.102751f,  -0.474633f, -0.167430f, -0.958110f, -0.436480f, -0.458638f, 0.838261f,
+        0.175940f,  -0.644967f, -0.144871f, -0.014128f, 0.274720f,  0.064896f};
+    std::vector<float> expected_output = {
+        0.302928f,  -0.220744f, 0.189428f,  0.040332f,  0.230696f, -0.135914f, 0.288579f,  0.009537f,
+        -0.054404f, 0.177805f,  -0.134685f, -0.211563f, 0.347523f, 0.161091f,  -0.414124f, -0.263170f,
+        0.298691f,  -0.190490f, 0.104269f,  0.074724f,  0.139148f, -0.173134f, 0.251199f,  -0.097291f,
+        0.026974f,  0.137121f,  -0.162768f, -0.166412f, 0.362417f, 0.167309f,  -0.427226f, -0.234208f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 32}, query);
+    test_case.add_input<float>(Shape{1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 6, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 6, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, {4});
+    test_case.add_input<int>(Shape{}, {5});
+    test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
+    test_case.run_with_tolerance_as_fp();
 }
 
-// past_key/past_value are optional per spec and ORT (helper.h:283-293: both-absent means no past cache), but
-// the FE and internal op currently hard-require them. Lock in today's clean reject (not a crash/silent-wrong
-// result) so a future relaxation of this requirement is a deliberate change, not an accidental regression.
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_absent_past_unsupported_throws) {
-    try {
-        convert_model("com.microsoft/gqa_absent_past.onnx");
-        FAIL() << "ONNX Importer did not reject absent past_key/past_value for GroupQueryAttention";
-    } catch (const std::exception& e) {
-        EXPECT_THAT(e.what(), testing::HasSubstr("past_key"));
-    } catch (...) {
-        FAIL() << "Unexpected exception type thrown";
-    }
+namespace {
+std::vector<float> gqa_shared_kv_dynamic_cos() {
+    return {1.000000f,  1.000000f,  1.000000f, 1.000000f, 1.000000f, 1.000000f, 1.000000f, 1.000000f,
+            0.540302f,  0.950415f,  0.995004f, 0.999500f, 0.999950f, 0.999995f, 1.000000f, 1.000000f,
+            -0.416147f, 0.806578f,  0.980067f, 0.998001f, 0.999800f, 0.999980f, 0.999998f, 1.000000f,
+            -0.989992f, 0.582754f,  0.955336f, 0.995503f, 0.999550f, 0.999955f, 0.999996f, 1.000000f,
+            -0.653644f, 0.301137f,  0.921061f, 0.992011f, 0.999200f, 0.999920f, 0.999992f, 0.999999f,
+            0.283662f,  -0.010342f, 0.877583f, 0.987526f, 0.998750f, 0.999875f, 0.999988f, 0.999999f,
+            0.960170f,  -0.320796f, 0.825336f, 0.982054f, 0.998201f, 0.999820f, 0.999982f, 0.999998f,
+            0.753902f,  -0.599438f, 0.764842f, 0.975600f, 0.997551f, 0.999755f, 0.999976f, 0.999998f};
+}
+std::vector<float> gqa_shared_kv_dynamic_sin() {
+    return {0.000000f,  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.000000f,
+            0.841471f,  0.310984f, 0.099833f, 0.031618f, 0.010000f, 0.003162f, 0.001000f, 0.000316f,
+            0.909297f,  0.591127f, 0.198669f, 0.063203f, 0.019999f, 0.006325f, 0.002000f, 0.000632f,
+            0.141120f,  0.812649f, 0.295520f, 0.094726f, 0.029996f, 0.009487f, 0.003000f, 0.000949f,
+            -0.756802f, 0.953581f, 0.389418f, 0.126154f, 0.039989f, 0.012649f, 0.004000f, 0.001265f,
+            -0.958924f, 0.999947f, 0.479426f, 0.157456f, 0.049979f, 0.015811f, 0.005000f, 0.001581f,
+            -0.279416f, 0.947148f, 0.564642f, 0.188600f, 0.059964f, 0.018973f, 0.006000f, 0.001897f,
+            0.656987f,  0.800422f, 0.644218f, 0.219556f, 0.069943f, 0.022134f, 0.007000f, 0.002214f};
+}
+}  // namespace
+
+// Dynamic kv_sequence_length resolving to 0 at runtime (ORT shared KV): the same graph must attend to the first
+// `total` past rows with RoPE on Q only. Prompt S = total = 3 over a capacity-3 past. Reference: ORT CPU EP.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_shared_kv_dynamic_empty_kv) {
+    const auto model = convert_model("com.microsoft/gqa_shared_kv_dynamic.onnx");
+
+    std::vector<float> query = {
+        0.250191f,  0.794428f,  0.551371f,  -0.549586f, -0.399667f, 0.747107f,  -0.989469f, 0.642457f,  0.594139f,
+        -0.064130f, -0.393935f, -0.443149f, -0.490261f, -0.109847f, 0.009097f,  0.106995f,  0.991001f,  0.585324f,
+        0.244358f,  0.977920f,  -0.569383f, -0.679576f, 0.225079f,  -0.912116f, -0.928639f, 0.029778f,  -0.067588f,
+        0.834336f,  0.258453f,  0.028235f,  -0.006253f, -0.504970f, -0.976412f, -0.615196f, 0.384064f,  -0.598787f,
+        -0.260927f, -0.992532f, 0.660095f,  -0.691078f, -0.464801f, 0.760664f,  0.019582f,  0.694300f,  0.279434f,
+        0.483542f,  -0.817009f, 0.082288f,  0.015544f,  0.742679f,  -0.277472f, 0.196368f,  -0.881497f, -0.224736f,
+        -0.353927f, -0.699601f, 0.632676f,  -0.241108f, 0.957496f,  0.179983f,  0.210113f,  0.275993f,  0.352900f,
+        -0.698424f, -0.119373f, -0.520872f, -0.195003f, -0.806592f, 0.935656f,  -0.569992f, 0.343530f,  -0.399160f,
+        0.748154f,  0.324429f,  -0.736768f, 0.690149f,  0.889896f,  0.807834f,  0.139438f,  -0.709080f, -0.615073f,
+        0.855811f,  0.104653f,  -0.638895f, 0.768114f,  0.283143f,  0.139389f,  -0.247424f, -0.178089f, -0.521022f,
+        -0.923885f, 0.752438f,  -0.064540f, 0.095270f,  -0.355673f, 0.502650f};
+    std::vector<float> past_key = {-0.949606f, -0.255629f, -0.939299f, -0.754216f, 0.934296f,  0.315521f,  -0.143560f,
+                                   0.047480f,  0.745618f,  -0.311579f, 0.180582f,  0.367369f,  -0.289172f, 0.038197f,
+                                   0.530495f,  0.818359f,  -0.697875f, 0.866839f,  -0.989642f, 0.505955f,  0.621054f,
+                                   -0.726472f, -0.162193f, 0.630513f,  -0.971458f, 0.256924f,  0.586047f,  0.026007f,
+                                   0.451699f,  -0.547153f, -0.602958f, -0.273746f, -0.641188f, -0.307877f, 0.896248f,
+                                   0.146665f,  -0.319864f, -0.456951f, 0.904079f,  -0.111044f, 0.960790f,  0.031045f,
+                                   0.042332f,  0.793081f,  0.485535f,  0.161306f,  -0.146701f, 0.756376f};
+    std::vector<float> past_value = {-0.176708f, 0.845519f,  -0.862569f, -0.140006f, 0.039030f,  0.901876f,  -0.498002f,
+                                     0.612078f,  0.352942f,  0.434172f,  0.259244f,  0.943121f,  -0.334637f, -0.203449f,
+                                     -0.594176f, -0.898592f, -0.574184f, 0.830929f,  0.680338f,  -0.775189f, 0.207558f,
+                                     -0.041607f, 0.189370f,  0.318550f,  -0.386681f, 0.922702f,  -0.068320f, 0.256202f,
+                                     0.270452f,  -0.632221f, -0.876269f, -0.176966f, 0.528060f,  0.630444f,  0.459978f,
+                                     -0.773590f, 0.826710f,  0.604073f,  0.755383f,  0.046608f,  0.831271f,  -0.906696f,
+                                     -0.939422f, -0.959569f, -0.494463f, -0.502860f, -0.624993f, 0.134112f};
+    std::vector<float> expected_output = {
+        -0.176708f, 0.845519f,  -0.862569f, -0.140006f, 0.039030f,  0.901876f,  -0.498002f, 0.612078f,  0.352942f,
+        0.434172f,  0.259244f,  0.943121f,  -0.334637f, -0.203449f, -0.594176f, -0.898592f, -0.176708f, 0.845519f,
+        -0.862569f, -0.140006f, 0.039030f,  0.901876f,  -0.498002f, 0.612078f,  0.352942f,  0.434172f,  0.259244f,
+        0.943121f,  -0.334637f, -0.203449f, -0.594176f, -0.898592f, -0.415692f, 0.836747f,  0.065111f,  -0.521913f,
+        0.140358f,  0.334602f,  -0.084716f, 0.435593f,  -0.091760f, 0.727903f,  0.062295f,  0.530108f,  0.029176f,
+        -0.461250f, -0.763786f, -0.464711f, -0.404273f, 0.837166f,  0.020785f,  -0.503665f, 0.135517f,  0.361708f,
+        -0.104464f, 0.444026f,  -0.070511f, 0.713868f,  0.071705f,  0.549842f,  0.011792f,  -0.448932f, -0.755682f,
+        -0.485443f, -0.053633f, 0.767928f,  0.042653f,  -0.543037f, 0.357100f,  0.522449f,  0.131617f,  0.332908f,
+        0.298058f,  0.121153f,  -0.245731f, 0.092368f,  -0.210847f, -0.431794f, -0.687780f, -0.334085f, -0.085877f,
+        0.772962f,  0.063104f,  -0.549157f, 0.342737f,  0.496760f,  0.123591f,  0.337115f,  0.259554f,  0.173030f,
+        -0.226390f, 0.117163f,  -0.185320f, -0.439235f, -0.696963f, -0.335206f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 3, 32}, query);
+    test_case.add_input<float>(Shape{1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 3, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 3, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, {2});
+    test_case.add_input<int>(Shape{}, {3});
+    test_case.add_input<float>(Shape{8, 8}, gqa_shared_kv_dynamic_cos());
+    test_case.add_input<float>(Shape{8, 8}, gqa_shared_kv_dynamic_sin());
+    test_case.add_expected_output<float>(Shape{1, 3, 32}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 3, 16}, past_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 3, 16}, past_value);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Same dynamic-kv_sequence_length graph on a regular decode step (one new K/V token appended, RoPE on Q and K):
+// the shared-KV support must not change the normal path. Reference: ORT CPU EP.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_shared_kv_dynamic_regular_decode) {
+    const auto model = convert_model("com.microsoft/gqa_shared_kv_dynamic.onnx");
+
+    std::vector<float> query = {-0.922028f, 0.180776f,  -0.667978f, 0.355747f,  -0.957849f, -0.378860f, 0.876683f,
+                                0.076793f,  0.623175f,  0.316052f,  0.221502f,  -0.617495f, 0.148789f,  -0.920627f,
+                                0.603329f,  0.920142f,  0.708018f,  -0.898581f, -0.322680f, -0.363994f, -0.774566f,
+                                0.253224f,  0.594916f,  -0.372557f, 0.725618f,  0.594254f,  -0.741724f, 0.533718f,
+                                0.765241f,  -0.605435f, 0.147282f,  0.277500f};
+    std::vector<float> key = {0.218669f,
+                              -0.807509f,
+                              0.322383f,
+                              0.263909f,
+                              0.647771f,
+                              0.607025f,
+                              -0.345664f,
+                              0.444095f,
+                              0.734547f,
+                              0.785896f,
+                              -0.676975f,
+                              -0.946595f,
+                              0.301615f,
+                              -0.570647f,
+                              0.127419f,
+                              0.889609f};
+    std::vector<float> value = {-0.241361f,
+                                -0.494451f,
+                                -0.086980f,
+                                0.314488f,
+                                -0.797802f,
+                                -0.238830f,
+                                -0.732558f,
+                                0.324892f,
+                                0.661105f,
+                                -0.246292f,
+                                -0.256552f,
+                                0.079043f,
+                                -0.569884f,
+                                -0.505181f,
+                                -0.340295f,
+                                -0.085149f};
+    std::vector<float> past_key = {-0.836937f, 0.505464f,  0.158109f,  -0.400612f, -0.844907f, 0.526362f,  -0.737842f,
+                                   -0.733587f, -0.738632f, -0.837475f, 0.812785f,  -0.461511f, -0.387179f, 0.665589f,
+                                   0.239847f,  -0.625713f, -0.130373f, 0.767845f,  -0.249252f, 0.421763f,  -0.806385f,
+                                   0.454650f,  0.552947f,  0.651534f,  0.348402f,  -0.258534f, -0.871576f, 0.037552f,
+                                   0.514920f,  -0.618324f, -0.467526f, 0.072240f,  0.496663f,  0.793173f,  -0.748517f,
+                                   -0.631460f, 0.599074f,  0.289043f,  0.441946f,  0.993542f,  0.878360f,  0.686050f,
+                                   0.554232f,  -0.209962f, 0.282458f,  -0.631109f, 0.518989f,  0.515381f};
+    std::vector<float> past_value = {0.442590f,  -0.110402f, -0.243639f, -0.160458f, -0.933322f, 0.688640f,  0.084740f,
+                                     -0.224963f, 0.096058f,  0.443280f,  -0.237078f, 0.661281f,  0.838927f,  -0.225135f,
+                                     -0.724368f, 0.520747f,  0.985898f,  -0.704024f, 0.425351f,  0.650647f,  0.841144f,
+                                     -0.753237f, -0.816380f, 0.975743f,  -0.766487f, -0.646385f, 0.149906f,  -0.107454f,
+                                     0.500784f,  -0.618886f, 0.828856f,  -0.565610f, 0.538222f,  -0.864793f, -0.053195f,
+                                     -0.934883f, -0.372379f, -0.375539f, 0.439497f,  -0.089965f, -0.886451f, 0.990723f,
+                                     0.777399f,  0.832648f,  -0.506849f, -0.211779f, -0.545641f, -0.750187f};
+    std::vector<float> expected_output = {
+        0.444137f,  -0.613558f, 0.050316f, -0.029264f, -0.212586f, -0.301050f, -0.291404f, 0.313122f,
+        -0.297063f, 0.104865f,  0.175111f, 0.332029f,  -0.045064f, -0.411240f, -0.115589f, -0.340863f,
+        0.386999f,  -0.523759f, 0.039026f, 0.144328f,  -0.271743f, -0.210145f, -0.420910f, 0.346345f,
+        -0.105470f, -0.050137f, 0.010535f, 0.251543f,  0.073484f,  -0.438810f, -0.096597f, -0.187833f};
+    std::vector<float> expected_present_key = {
+        -0.836937f, 0.505464f,  0.158109f,  -0.400612f, -0.844907f, 0.526362f,  -0.737842f, -0.733587f,
+        -0.738632f, -0.837475f, 0.812785f,  -0.461511f, -0.387179f, 0.665589f,  0.239847f,  -0.625713f,
+        -0.130373f, 0.767845f,  -0.249252f, 0.421763f,  -0.806385f, 0.454650f,  0.552947f,  0.651534f,
+        0.348402f,  -0.258534f, -0.871576f, 0.037552f,  0.514920f,  -0.618324f, -0.467526f, 0.072240f,
+        0.496663f,  0.793173f,  -0.748517f, -0.631460f, 0.599074f,  0.289043f,  0.441946f,  0.993542f,
+        0.878360f,  0.686050f,  0.554232f,  -0.209962f, 0.282458f,  -0.631109f, 0.518989f,  0.515381f,
+        -0.320140f, -1.109237f, 0.508044f,  0.352389f,  0.638432f,  0.612411f,  -0.346045f, 0.443251f,
+        -0.696337f, -0.198237f, -0.551468f, -0.917339f, 0.320910f,  -0.564862f, 0.126382f,  0.890030f};
+    std::vector<float> expected_present_value = {
+        0.442590f,  -0.110402f, -0.243639f, -0.160458f, -0.933322f, 0.688640f,  0.084740f,  -0.224963f,
+        0.096058f,  0.443280f,  -0.237078f, 0.661281f,  0.838927f,  -0.225135f, -0.724368f, 0.520747f,
+        0.985898f,  -0.704024f, 0.425351f,  0.650647f,  0.841144f,  -0.753237f, -0.816380f, 0.975743f,
+        -0.766487f, -0.646385f, 0.149906f,  -0.107454f, 0.500784f,  -0.618886f, 0.828856f,  -0.565610f,
+        0.538222f,  -0.864793f, -0.053195f, -0.934883f, -0.372379f, -0.375539f, 0.439497f,  -0.089965f,
+        -0.886451f, 0.990723f,  0.777399f,  0.832648f,  -0.506849f, -0.211779f, -0.545641f, -0.750187f,
+        -0.241361f, -0.494451f, -0.086980f, 0.314488f,  -0.797802f, -0.238830f, -0.732558f, 0.324892f,
+        0.661105f,  -0.246292f, -0.256552f, 0.079043f,  -0.569884f, -0.505181f, -0.340295f, -0.085149f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 32}, query);
+    test_case.add_input<float>(Shape{1, 1, 16}, key);
+    test_case.add_input<float>(Shape{1, 1, 16}, value);
+    test_case.add_input<float>(Shape{1, 1, 3, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 3, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_input<float>(Shape{8, 8}, gqa_shared_kv_dynamic_cos());
+    test_case.add_input<float>(Shape{8, 8}, gqa_shared_kv_dynamic_sin());
+    test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 16}, expected_present_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 16}, expected_present_value);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Shared KV prompt step (S = total = 3) with RoPE: only Q is rotated (the past keys were rotated when they were
+// appended) and present equals the past. Reference: ORT CPU EP.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_shared_kv_rotary) {
+    const auto model = convert_model("com.microsoft/gqa_shared_kv_rotary.onnx");
+
+    std::vector<float> query = {
+        -0.158015f, -0.378414f, 0.149999f,  0.951664f,  0.105974f,  0.774024f,  -0.969455f, -0.593805f, 0.729536f,
+        0.138946f,  -0.024884f, -0.262391f, -0.409469f, 0.357660f,  -0.268530f, -0.129531f, 0.553697f,  0.892366f,
+        0.987314f,  -0.030170f, -0.723662f, -0.950153f, -0.010687f, -0.847290f, -0.764574f, -0.530322f, 0.983986f,
+        -0.675543f, -0.779736f, 0.831848f,  0.244139f,  0.479801f,  -0.290533f, 0.867665f,  0.952201f,  0.116911f,
+        0.973681f,  0.011589f,  -0.120519f, 0.570868f,  0.288495f,  -0.598939f, 0.029879f,  -0.967081f, 0.751320f,
+        0.084892f,  -0.907626f, 0.875518f,  0.998873f,  0.474611f,  -0.137353f, 0.182839f,  -0.979536f, -0.783101f,
+        -0.338001f, -0.177463f, 0.511898f,  -0.658540f, -0.767791f, 0.394928f,  0.776064f,  0.759335f,  0.483832f,
+        0.967135f,  0.044184f,  0.548938f,  -0.165645f, -0.293489f, 0.821644f,  -0.138586f, 0.492942f,  -0.005955f,
+        -0.775574f, -0.746248f, 0.020245f,  0.415356f,  0.484968f,  -0.328606f, -0.981579f, 0.066713f,  -0.620866f,
+        -0.359760f, 0.132898f,  -0.216334f, -0.081997f, -0.899082f, -0.633969f, 0.683791f,  0.023763f,  0.770235f,
+        0.714602f,  -0.613660f, -0.200806f, 0.051557f,  -0.804970f, -0.829288f};
+    std::vector<float> past_key = {0.682973f,  0.653427f,  -0.233421f, 0.413169f,  0.035866f,  0.495307f,  -0.369630f,
+                                   -0.051928f, 0.785913f,  0.633288f,  -0.380072f, 0.763542f,  -0.202562f, 0.364760f,
+                                   0.423021f,  -0.196630f, 0.654188f,  -0.069297f, 0.921377f,  0.873398f,  0.800531f,
+                                   0.816707f,  -0.705907f, 0.296668f,  0.482229f,  0.057518f,  0.058442f,  -0.597138f,
+                                   -0.678427f, 0.566269f,  -0.700789f, 0.456394f,  -0.845863f, -0.175496f, -0.951977f,
+                                   0.320745f,  -0.414168f, -0.064600f, -0.427103f, 0.031549f,  0.315294f,  -0.666173f,
+                                   0.554098f,  0.565031f,  0.884331f,  -0.238610f, 0.746263f,  -0.812629f};
+    std::vector<float> past_value = {0.987813f,  -0.575585f, -0.252302f, -0.812993f, 0.670283f,  -0.028134f, 0.924803f,
+                                     -0.710769f, 0.783644f,  -0.280908f, -0.527419f, 0.314246f,  -0.939623f, 0.050939f,
+                                     -0.052790f, -0.902990f, -0.131636f, -0.390162f, -0.502704f, 0.860587f,  0.196594f,
+                                     -0.691685f, 0.514263f,  -0.260867f, 0.197701f,  -0.240130f, 0.277092f,  0.363874f,
+                                     -0.432931f, 0.662115f,  0.236261f,  0.210537f,  -0.563988f, -0.492075f, -0.209246f,
+                                     -0.932255f, -0.890538f, 0.325364f,  -0.367043f, 0.440489f,  -0.850347f, 0.480262f,
+                                     -0.571642f, 0.739103f,  0.813064f,  0.378627f,  -0.211427f, -0.948704f};
+    std::vector<float> cos_cache = {
+        1.000000f,  1.000000f,  1.000000f, 1.000000f, 1.000000f, 1.000000f, 1.000000f, 1.000000f,
+        0.540302f,  0.950415f,  0.995004f, 0.999500f, 0.999950f, 0.999995f, 1.000000f, 1.000000f,
+        -0.416147f, 0.806578f,  0.980067f, 0.998001f, 0.999800f, 0.999980f, 0.999998f, 1.000000f,
+        -0.989992f, 0.582754f,  0.955336f, 0.995503f, 0.999550f, 0.999955f, 0.999996f, 1.000000f,
+        -0.653644f, 0.301137f,  0.921061f, 0.992011f, 0.999200f, 0.999920f, 0.999992f, 0.999999f,
+        0.283662f,  -0.010342f, 0.877583f, 0.987526f, 0.998750f, 0.999875f, 0.999988f, 0.999999f,
+        0.960170f,  -0.320796f, 0.825336f, 0.982054f, 0.998201f, 0.999820f, 0.999982f, 0.999998f,
+        0.753902f,  -0.599438f, 0.764842f, 0.975600f, 0.997551f, 0.999755f, 0.999976f, 0.999998f};
+    std::vector<float> sin_cache = {
+        0.000000f,  0.000000f, 0.000000f,  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.841471f,  0.310984f,
+        0.099833f,  0.031618f, 0.010000f,  0.003162f, 0.001000f, 0.000316f, 0.909297f, 0.591127f, 0.198669f,  0.063203f,
+        0.019999f,  0.006325f, 0.002000f,  0.000632f, 0.141120f, 0.812649f, 0.295520f, 0.094726f, 0.029996f,  0.009487f,
+        0.003000f,  0.000949f, -0.756802f, 0.953581f, 0.389418f, 0.126154f, 0.039989f, 0.012649f, 0.004000f,  0.001265f,
+        -0.958924f, 0.999947f, 0.479426f,  0.157456f, 0.049979f, 0.015811f, 0.005000f, 0.001581f, -0.279416f, 0.947148f,
+        0.564642f,  0.188600f, 0.059964f,  0.018973f, 0.006000f, 0.001897f, 0.656987f, 0.800422f, 0.644218f,  0.219556f,
+        0.069943f,  0.022134f, 0.007000f,  0.002214f};
+    std::vector<float> expected_output = {
+        0.987813f,  -0.575585f, -0.252302f, -0.812993f, 0.670283f,  -0.028134f, 0.924803f,  -0.710769f, 0.783644f,
+        -0.280908f, -0.527419f, 0.314246f,  -0.939623f, 0.050939f,  -0.052790f, -0.902990f, 0.987813f,  -0.575585f,
+        -0.252302f, -0.812993f, 0.670283f,  -0.028134f, 0.924803f,  -0.710769f, 0.783644f,  -0.280908f, -0.527419f,
+        0.314246f,  -0.939623f, 0.050939f,  -0.052790f, -0.902990f, 0.156831f,  -0.437943f, -0.438179f, 0.429329f,
+        0.318657f,  -0.520697f, 0.620053f,  -0.376800f, 0.348690f,  -0.250638f, 0.069781f,  0.351086f,  -0.563498f,
+        0.504623f,  0.161777f,  -0.076403f, 0.597357f,  -0.510911f, -0.339640f, -0.229261f, 0.505064f,  -0.259576f,
+        0.781610f,  -0.553846f, 0.579271f,  -0.266685f, -0.246811f, 0.331556f,  -0.762893f, 0.264113f,  0.048029f,
+        -0.514600f, 0.179632f,  -0.487374f, -0.330426f, -0.246512f, 0.090416f,  -0.172172f, 0.438261f,  -0.247154f,
+        0.144425f,  -0.066078f, -0.251656f, 0.443754f,  -0.297486f, 0.355486f,  0.008732f,  -0.517228f, -0.011548f,
+        -0.470421f, -0.340108f, -0.167512f, -0.067144f, -0.177531f, 0.306870f,  -0.125587f, -0.025316f, 0.000631f,
+        -0.212568f, 0.482419f,  -0.121901f, 0.415812f,  0.010672f,  -0.461813f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 3, 32}, query);
+    test_case.add_input<float>(Shape{1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 3, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 3, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, {2});
+    test_case.add_input<int>(Shape{}, {3});
+    test_case.add_input<float>(Shape{8, 8}, cos_cache);
+    test_case.add_input<float>(Shape{8, 8}, sin_cache);
+    test_case.add_expected_output<float>(Shape{1, 3, 32}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 3, 16}, past_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 3, 16}, past_value);
+    test_case.run_with_tolerance_as_fp();
 }
 
 // External attention_bias (input 10) combined with a sliding window: the window band must be added on
@@ -5920,6 +6315,25 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_with_bias) {
     test_case.run_with_tolerance_as_fp();
 }
 
+// f32 ORT reference of gqa_sliding_window.onnx on gqa_sliding_window_query().
+static std::vector<float> gqa_sliding_window_expected_output() {
+    return {0.269412f,  -0.524605f, 1.912019f,  0.237302f,  0.101434f,  0.252578f,  -0.132377f, -0.309476f, -1.434963f,
+            0.501624f,  -0.094775f, 1.193086f,  -0.368818f, -1.906370f, -0.099611f, 1.699537f,  0.269412f,  -0.524605f,
+            1.912019f,  0.237302f,  0.101434f,  0.252578f,  -0.132377f, -0.309476f, -1.434963f, 0.501624f,  -0.094775f,
+            1.193086f,  -0.368818f, -1.906370f, -0.099611f, 1.699537f,  0.740432f,  0.128438f,  0.028298f,  0.204723f,
+            0.054011f,  -0.155629f, -0.441223f, 0.922398f,  -0.809414f, -0.305360f, 0.343519f,  0.556826f,  -0.193352f,
+            -0.296847f, 0.252657f,  0.898662f,  0.830354f,  0.253109f,  -0.331320f, 0.198504f,  0.044958f,  -0.233559f,
+            -0.500184f, 1.157573f,  -0.689992f, -0.459420f, 0.427193f,  0.435358f,  -0.159853f, 0.010424f,  0.319908f,
+            0.745768f,  1.007791f,  0.563291f,  -1.279775f, 0.427717f,  -0.231890f, -0.015653f, -0.166504f, 1.479434f,
+            -0.133062f, -1.357522f, -0.381622f, 0.435451f,  -0.168452f, 0.962350f,  0.379397f,  -0.201881f, 1.010270f,
+            0.563424f,  -1.277395f, 0.415119f,  -0.218813f, -0.036927f, -0.191286f, 1.493233f,  -0.146303f, -1.331196f,
+            -0.329199f, 0.419765f,  -0.163685f, 0.953034f,  0.385018f,  -0.172855f, 0.501894f,  -0.472149f, -0.233213f,
+            0.394092f,  0.031529f,  -0.268758f, 0.715223f,  0.460533f,  0.022434f,  -1.663906f, -0.864902f, 0.327764f,
+            -0.227691f, 0.844354f,  0.183987f,  -0.025009f, 0.491418f,  -0.495716f, -0.208311f, 0.387906f,  0.043164f,
+            -0.283682f, 0.724681f,  0.443220f,  0.020286f,  -1.659573f, -0.853381f, 0.318560f,  -0.226992f, 0.837655f,
+            0.181946f,  -0.008489f};
+}
+
 // f16 sliding window: exercises the f16 finite-lowest() masked path (no NaN on masked positions).
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_fp16) {
     ov::frontend::FrontEnd::Ptr front_end;
@@ -5934,22 +6348,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_fp16) {
     for (float x : gqa_sliding_window_query())
         query.emplace_back(x);
 
-    std::vector<float> expected_output_f32 = {
-        0.269412f,  -0.524605f, 1.912019f,  0.237302f,  0.101434f,  0.252578f,  -0.132377f, -0.309476f, -1.434963f,
-        0.501624f,  -0.094775f, 1.193086f,  -0.368818f, -1.906370f, -0.099611f, 1.699537f,  0.269412f,  -0.524605f,
-        1.912019f,  0.237302f,  0.101434f,  0.252578f,  -0.132377f, -0.309476f, -1.434963f, 0.501624f,  -0.094775f,
-        1.193086f,  -0.368818f, -1.906370f, -0.099611f, 1.699537f,  0.740432f,  0.128438f,  0.028298f,  0.204723f,
-        0.054011f,  -0.155629f, -0.441223f, 0.922398f,  -0.809414f, -0.305360f, 0.343519f,  0.556826f,  -0.193352f,
-        -0.296847f, 0.252657f,  0.898662f,  0.830354f,  0.253109f,  -0.331320f, 0.198504f,  0.044958f,  -0.233559f,
-        -0.500184f, 1.157573f,  -0.689992f, -0.459420f, 0.427193f,  0.435358f,  -0.159853f, 0.010424f,  0.319908f,
-        0.745768f,  1.007791f,  0.563291f,  -1.279775f, 0.427717f,  -0.231890f, -0.015653f, -0.166504f, 1.479434f,
-        -0.133062f, -1.357522f, -0.381622f, 0.435451f,  -0.168452f, 0.962350f,  0.379397f,  -0.201881f, 1.010270f,
-        0.563424f,  -1.277395f, 0.415119f,  -0.218813f, -0.036927f, -0.191286f, 1.493233f,  -0.146303f, -1.331196f,
-        -0.329199f, 0.419765f,  -0.163685f, 0.953034f,  0.385018f,  -0.172855f, 0.501894f,  -0.472149f, -0.233213f,
-        0.394092f,  0.031529f,  -0.268758f, 0.715223f,  0.460533f,  0.022434f,  -1.663906f, -0.864902f, 0.327764f,
-        -0.227691f, 0.844354f,  0.183987f,  -0.025009f, 0.491418f,  -0.495716f, -0.208311f, 0.387906f,  0.043164f,
-        -0.283682f, 0.724681f,  0.443220f,  0.020286f,  -1.659573f, -0.853381f, 0.318560f,  -0.226992f, 0.837655f,
-        0.181946f,  -0.008489f};
+    const auto expected_output_f32 = gqa_sliding_window_expected_output();
     std::vector<f16> expected_output;
     for (float x : expected_output_f32)
         expected_output.emplace_back(x);
@@ -5964,23 +6363,41 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_fp16) {
     test_case.run_with_tolerance_as_fp(0.02f);
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_softcap_unsupported_throws) {
-    try {
-        convert_model("com.microsoft/gqa_softcap.onnx");
-        FAIL() << "ONNX Importer did not reject unsupported softcap for GroupQueryAttention";
-    } catch (const std::exception& e) {
-        EXPECT_THAT(e.what(), testing::HasSubstr("softcap"));
-    } catch (...) {
-        FAIL() << "Unexpected exception type thrown";
-    }
+// bf16 activations and KV cache (ONNX spec type T includes bfloat16): exercises the bf16 finite-lowest()
+// masked path.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_bf16) {
+    ov::frontend::FrontEnd::Ptr front_end;
+    auto input_model = load_model("com.microsoft/gqa_sliding_window.onnx", &front_end);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("query"), ov::element::bf16);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("past_key"), ov::element::bf16);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("past_value"), ov::element::bf16);
+    auto model = front_end->convert(input_model);
+    // The attention runs in bf16; read the output back as f32 for the absolute-tolerance comparison (the bf16
+    // comparison is bit-relative and too strict for values near zero).
+    ov::preprocess::PrePostProcessor ppp(model);
+    ppp.output("output").tensor().set_element_type(ov::element::f32);
+    model = ppp.build();
+
+    using bf16 = ov::bfloat16;
+    std::vector<bf16> query;
+    for (float x : gqa_sliding_window_query())
+        query.emplace_back(x);
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<bf16>(Shape{1, 4, 64}, query);
+    test_case.add_input<bf16>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<bf16>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<float>(Shape{1, 4, 32}, gqa_sliding_window_expected_output());
+    test_case.run_with_tolerance_as_fp(0.05f);
 }
 
-// qk_output (emit the QxK' matrix as a 4th output) is not produced by the decomposition, so a model that
-// requests it must be rejected at import rather than silently losing an output.
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_output_unsupported_throws) {
+// qk_output != 0 without the output_qk output (or vice versa) is rejected, as in ONNX Runtime.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_output_without_output_throws) {
     try {
         convert_model("com.microsoft/gqa_qk_output.onnx");
-        FAIL() << "ONNX Importer did not reject unsupported qk_output for GroupQueryAttention";
+        FAIL() << "ONNX Importer did not reject qk_output without output_qk for GroupQueryAttention";
     } catch (const std::exception& e) {
         EXPECT_THAT(e.what(), testing::HasSubstr("qk_output"));
     } catch (...) {
@@ -6123,6 +6540,873 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_head_sink) {
         0.789106f,  -0.130043f, 0.049275f,  0.626235f,  -0.815256f, 0.170577f,  0.713491f,  0.058472f,  -0.689773f,
         0.364511f,  -0.205088f, 0.415036f,  -0.733929f, -0.944356f, 0.106827f,  0.467892f,  0.887448f,  0.174467f,
         -0.191129f, 0.375977f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sink_query());
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_input<float>(Shape{2}, head_sink);
+    test_case.add_expected_output<float>(Shape{1, 4, 32}, expected_output);
+    test_case.run_with_tolerance_as_fp();
+}
+
+static std::vector<float> gqa_sink_query_causal_output();
+
+// Two batches with per-batch seqlens_k (dynamic batch). Identical batches give the single-batch result twice.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_dynamic_batch_two) {
+    const auto model = convert_model("com.microsoft/gqa_absent_past.onnx");
+    const auto one_batch = gqa_sink_query();
+    std::vector<float> query = one_batch;
+    query.insert(query.end(), one_batch.begin(), one_batch.end());
+    const auto one_batch_output = gqa_sink_query_causal_output();
+    std::vector<float> expected_output = one_batch_output;
+    expected_output.insert(expected_output.end(), one_batch_output.begin(), one_batch_output.end());
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{2, 4, 64}, query);
+    test_case.add_input<int>(Shape{2, 1}, {3, 3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<float>(Shape{2, 4, 32}, expected_output);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Batch 0 is gqa_sink_query(), batch 1 the same values reversed, so the two batches differ.
+static std::vector<float> gqa_batch_query() {
+    const auto one_batch = gqa_sink_query();
+    std::vector<float> query = one_batch;
+    query.insert(query.end(), one_batch.rbegin(), one_batch.rend());
+    return query;
+}
+
+// Rows [begin, end) of each batch's 256-value block of gqa_batch_query().
+static std::vector<float> gqa_batch_slice(size_t begin, size_t end) {
+    const auto query = gqa_batch_query();
+    std::vector<float> out;
+    for (size_t b = 0; b < 2; ++b)
+        out.insert(out.end(), query.begin() + b * 256 + begin, query.begin() + b * 256 + end);
+    return out;
+}
+
+// Batched first prompt with right padding (packed QKV + RoPE): batch 1 has 2 valid tokens of 4 (seqlens_k = [3, 1]),
+// so its keys beyond total are masked. Expected values: ORT CPU.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_batch_prefill_padded) {
+    const auto model = convert_model("com.microsoft/gqa_batch_prefill_padded.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{2, 4, 64}, gqa_batch_query());
+    test_case.add_input<float>(Shape{2, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{2, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{2, 1}, {3, 1});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<float>(
+        Shape{2, 4, 32},
+        {
+            -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f,
+            -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.318165f, 0.124472f,
+            0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f, -1.400087f, 0.980181f,
+            0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.204225f, -0.064736f, 0.294227f,  0.750073f,
+            -0.176069f, -0.054030f, -0.573485f, 1.314715f,  0.314954f,  -1.404113f, 0.909074f,  0.564803f,  0.362288f,
+            0.343973f,  0.033385f,  -0.672472f, -0.171401f, -0.119244f, 0.309601f,  0.740376f,  -0.234588f, -0.469172f,
+            -0.582992f, 1.085739f,  0.531761f,  -1.405272f, 0.888589f,  0.449681f,  0.207565f,  0.116495f,  0.255185f,
+            -0.741630f, -0.963257f, 0.173465f,  0.783527f,  0.045106f,  -0.729164f, 0.263220f,  -0.131603f, 0.238185f,
+            -0.666511f, -1.170753f, 0.103757f,  0.401518f,  0.969658f,  0.039795f,  -0.177121f, 0.286171f,  -0.716121f,
+            0.012358f,  0.693261f,  0.198694f,  -0.704885f, -0.598752f, -0.257329f, 0.067952f,  -0.017410f, -1.229852f,
+            0.261428f,  0.223759f,  0.529122f,  -0.315954f, 0.293409f,  -0.078312f, -1.044812f, 0.183356f,  0.966553f,
+            -0.269185f, -1.078582f, -0.198356f, -0.093013f, -0.360055f, -0.865445f, -0.734332f, -0.292378f, 0.253248f,
+            0.864749f,  -0.293848f, 0.122062f,  0.777257f,  -0.835625f, 0.173636f,  0.741337f,  0.060219f,  -0.723884f,
+            0.354747f,  -0.222320f, 0.429784f,  -0.757146f, -0.963333f, 0.108504f,  0.485644f,  0.906676f,  0.175392f,
+            -0.181552f, 0.398569f,  0.684437f,  -0.461686f, -0.793446f, -1.375511f, -0.957919f, -0.645995f, 0.016349f,
+            -0.872725f, -2.272386f, 0.228863f,  -0.473675f, -0.378941f, 0.006219f,  -2.043329f, -1.449158f, 0.058498f,
+            0.684437f,  -0.461686f, -0.793446f, -1.375511f, -0.957919f, -0.645995f, 0.016349f,  -0.872725f, -2.272386f,
+            0.228863f,  -0.473675f, -0.378941f, 0.006219f,  -2.043329f, -1.449158f, 0.058498f,  0.620419f,  -0.452307f,
+            -0.760900f, -1.308849f, -0.829499f, -0.578200f, 0.009832f,  -0.841186f, -2.154895f, 0.268786f,  -0.402615f,
+            -0.401477f, 0.001834f,  -1.910300f, -1.383642f, 0.061785f,  0.104048f,  -0.376651f, -0.498385f, -0.771148f,
+            0.206352f,  -0.031360f, -0.042735f, -0.586789f, -1.207202f, 0.590811f,  0.170564f,  -0.583257f, -0.033540f,
+            -0.837272f, -0.855183f, 0.088297f,  -0.135093f, -0.341614f, -0.376809f, -0.522129f, 0.686072f,  0.221891f,
+            -0.067079f, -0.468974f, -0.768308f, 0.739946f,  0.436013f,  -0.667442f, -0.049922f, -0.340334f, -0.610444f,
+            0.100575f,  -0.378639f, -0.305931f, -0.252994f, -0.268523f, 1.174629f,  0.479807f,  -0.091872f, -0.348988f,
+            -0.321331f, 0.891828f,  0.706352f,  -0.753178f, -0.066606f, 0.165757f,  -0.361198f, 0.113079f,  -0.127944f,
+            -0.342662f, -0.380444f, -0.529574f, 0.671730f,  0.214319f,  -0.066351f, -0.472496f, -0.781430f, 0.735487f,
+            0.428077f,  -0.664925f, -0.049433f, -0.355191f, -0.617761f, 0.100208f,  0.462462f,  -0.429164f, -0.680597f,
+            -1.144367f, -0.512634f, -0.410923f, -0.006248f, -0.763367f, -1.864998f, 0.367293f,  -0.227280f, -0.457083f,
+            -0.008987f, -1.582063f, -1.221987f, 0.069895f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 4, 16},
+        {
+            1.091891f,  -1.021918f, 0.959766f,  0.549658f,  0.785998f,  -0.561202f, -0.477581f, 0.244346f,  -0.943581f,
+            0.640680f,  -0.574544f, 0.654430f,  -1.338133f, 0.968591f,  0.484597f,  -0.490332f, -0.120719f, 1.093262f,
+            -0.841684f, 1.073608f,  1.046789f,  0.713062f,  -1.116338f, 0.657559f,  -0.191325f, 0.372258f,  -1.421710f,
+            -0.262488f, 0.047709f,  0.273473f,  -0.093098f, 0.161231f,  -0.956899f, -1.036736f, -0.554785f, -1.571382f,
+            -0.550972f, -1.155909f, 1.200208f,  0.510669f,  0.611458f,  -0.749636f, 0.736869f,  -0.144763f, -1.406201f,
+            -0.141981f, 1.506152f,  1.433396f,  0.479323f,  -0.630619f, -0.870133f, -3.053144f, 0.605754f,  -0.238113f,
+            1.534955f,  0.399442f,  -0.476915f, -0.986289f, 1.363366f,  0.937437f,  -0.414548f, 0.401616f,  0.621688f,
+            -0.591831f, 1.495406f,  -0.035300f, 0.015189f,  -0.135356f, -0.468090f, -0.978691f, -0.708250f, 0.215226f,
+            0.653427f,  -0.860494f, -0.308033f, -1.636424f, 0.056690f,  3.032897f,  -1.583204f, -0.579369f, 1.209471f,
+            0.407535f,  -1.406518f, -1.090109f, -0.272355f, 0.032906f,  -1.325438f, 0.986445f,  -0.622889f, -0.228535f,
+            0.051199f,  -1.109059f, 1.406024f,  -1.893424f, -0.007237f, -0.233262f, -1.274623f, 1.347539f,  1.420289f,
+            0.263154f,  0.074666f,  0.063762f,  0.002874f,  0.414386f,  -0.451801f, -1.540746f, -1.332893f, -1.052466f,
+            0.210307f,  -1.462336f, 0.102859f,  0.108326f,  0.924257f,  -0.965693f, -0.569067f, -0.141891f, 0.038841f,
+            -1.497145f, -1.239937f, 1.088125f,  2.457880f,  -0.761932f, -0.684229f, 0.026444f,  -0.230458f, 0.129313f,
+            1.657835f,  0.262536f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 4, 16},
+        {
+            -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f,
+            -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.093429f, -0.248725f,
+            0.346120f,  0.717340f,  -0.373598f, -1.455318f, -0.605575f, 0.541818f,  1.046772f,  -1.408027f, 0.839928f,
+            0.176214f,  -0.159969f, -0.423865f, 0.782059f,  -0.905910f, -1.817968f, 0.375994f,  1.388801f,  -0.808444f,
+            -1.474496f, 0.023879f,  0.380251f,  -1.383532f, -1.512560f, -0.894703f, -0.885275f, 0.036063f,  1.462681f,
+            -0.660346f, -0.098059f, 1.324486f,  0.450232f,  -0.054978f, 0.507649f,  0.001170f,  -1.102470f, -0.817775f,
+            -1.086352f, 0.921146f,  -0.763100f, 1.176417f,  -0.134350f, 0.695815f,  -0.398245f, 0.285846f,  0.884178f,
+            1.390027f,  0.684437f,  -0.461686f, -0.793446f, -1.375511f, -0.957919f, -0.645995f, 0.016349f,  -0.872725f,
+            -2.272386f, 0.228863f,  -0.473675f, -0.378941f, 0.006219f,  -2.043329f, -1.449158f, 0.058498f,  -0.549630f,
+            -0.280879f, -0.166065f, -0.090469f, 1.517640f,  0.660887f,  -0.109279f, -0.264747f, -0.007512f, 0.998463f,
+            0.896154f,  -0.813372f, -0.078320f, 0.521079f,  -0.186204f, 0.121858f,  -0.097781f, -0.789053f, 2.909682f,
+            -0.018879f, -0.027737f, 1.944939f,  -0.789237f, 1.017935f,  -0.163320f, -0.366611f, -0.418189f, 0.004950f,
+            1.158923f,  -0.039303f, 0.310293f,  0.436726f,  0.678687f,  -1.119538f, -0.908491f, 0.120748f,  0.406092f,
+            -0.926639f, -1.632419f, 0.676705f,  -1.122348f, -0.500984f, 2.005177f,  -1.070939f, 0.219196f,  1.341610f,
+            0.961409f,  -0.841560f,
+        });
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Batched decode on a growing cache: batch 0 has 4 past rows, batch 1 has 2, so the new key lands at a different
+// row (and RoPE position) per batch. ORT leaves present rows beyond a batch's total uninitialized, so only the
+// attention output is compared.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_batch_decode) {
+    const auto model = convert_model("com.microsoft/gqa_batch_decode.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{2, 1, 64}, gqa_batch_slice(192, 256));
+    test_case.add_input<float>(Shape{2, 1, 4, 16}, gqa_batch_slice(0, 64));
+    test_case.add_input<float>(Shape{2, 1, 4, 16}, gqa_batch_slice(64, 128));
+    test_case.add_input<int>(Shape{2, 1}, {4, 2});
+    test_case.add_input<int>(Shape{}, {5});
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 32},
+        {
+            0.176497f,  0.161230f,  -1.075928f, 0.409903f,  -0.800631f, -1.267084f, -1.639485f, 1.012060f,
+            0.473925f,  -0.109233f, 0.382190f,  0.075848f,  0.121989f,  1.403060f,  0.016952f,  0.126485f,
+            0.257404f,  0.259461f,  -0.154608f, 0.963659f,  -0.086425f, -0.607048f, -0.630661f, 0.186691f,
+            0.834736f,  -0.709746f, 1.247476f,  0.012993f,  -0.031949f, 1.867099f,  -0.324260f, -0.159897f,
+            1.281354f,  0.702141f,  -0.383030f, -0.499280f, 0.049238f,  0.150824f,  -0.470997f, 0.149589f,
+            -0.188584f, 0.731173f,  -0.358463f, -0.862522f, -1.101834f, 0.296172f,  -0.530359f, 0.030393f,
+            1.281471f,  0.176691f,  -0.560869f, 0.634239f,  0.056155f,  -0.477965f, -0.757145f, -0.768361f,
+            -0.901344f, 0.483304f,  -0.047305f, -1.216693f, -0.882895f, 0.955613f,  0.041793f,  -1.049077f,
+        });
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Batched decode on a preallocated static buffer (capacity 8, local_window_size 3): each batch's new key is written
+// in place at its own row and the window is applied per batch.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_batch_static_cache) {
+    const auto model = convert_model("com.microsoft/gqa_batch_static_cache.onnx");
+
+    // Zero-initialized capacity-8 buffers holding [4, 2] valid past rows (rows beyond total are unspecified in ORT).
+    auto past_key = gqa_batch_slice(0, 128), past_value = gqa_batch_slice(128, 256);
+    for (auto* past : {&past_key, &past_value}) {
+        std::fill(past->begin() + 4 * 16, past->begin() + 128, 0.0f);
+        std::fill(past->begin() + 128 + 2 * 16, past->end(), 0.0f);
+    }
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{2, 1, 64}, gqa_batch_slice(192, 256));
+    test_case.add_input<float>(Shape{2, 1, 8, 16}, past_key);
+    test_case.add_input<float>(Shape{2, 1, 8, 16}, past_value);
+    test_case.add_input<int>(Shape{2, 1}, {4, 2});
+    test_case.add_input<int>(Shape{}, {5});
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 32},
+        {
+            0.414526f,  -0.433350f, 0.279494f,  -0.611678f, -0.957887f, -0.856399f, -0.170699f, 0.570335f,
+            -0.361204f, 0.588092f,  0.126809f,  0.382532f,  -0.567969f, 0.055696f,  1.005675f,  1.398716f,
+            -0.767085f, -0.165474f, 0.765775f,  -0.965882f, -1.168630f, -0.412102f, 0.492835f,  -0.594868f,
+            -0.798208f, -0.428286f, -0.295116f, 0.072938f,  0.423881f,  -0.412985f, 0.478563f,  1.363478f,
+            0.009636f,  -0.069890f, -0.083617f, 0.007201f,  -0.071903f, -0.776515f, -0.582491f, 0.347511f,
+            0.331062f,  -0.898135f, 0.446455f,  0.371435f,  0.844189f,  -0.290696f, 0.807988f,  -0.300425f,
+            -0.480749f, 0.369244f,  -0.309064f, -0.082685f, 0.087527f,  0.130781f,  -1.091197f, 0.755863f,
+            0.391654f,  -0.716847f, -0.565373f, -0.107579f, 0.747363f,  0.134815f,  0.217088f,  -0.205244f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 8, 16},
+        {
+            -0.841560f, 0.961409f,  1.341610f,  0.219196f,  -1.070939f, 2.005177f,  -0.500984f, -1.122348f, 0.676705f,
+            -1.632419f, -0.926639f, 0.406092f,  0.120748f,  -0.908491f, -1.119538f, 0.678687f,  0.261504f,  1.661547f,
+            0.143510f,  -0.231519f, 0.039766f,  -0.485498f, 0.340751f,  -2.563714f, 1.088374f,  -1.234958f, -1.495851f,
+            0.031911f,  -0.138748f, -0.745854f, -1.181944f, -0.568151f, 1.091891f,  -1.021918f, 0.959766f,  0.549658f,
+            0.785998f,  -0.561202f, -0.477581f, 0.244346f,  -0.943581f, 0.640680f,  -0.574544f, 0.654430f,  -1.338133f,
+            0.968591f,  0.484597f,  -0.490332f, -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,
+            -0.540484f, 2.109540f,  -0.437625f, -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f,
+            -0.432411f, 0.660289f,  -0.292631f, -1.001896f, -3.081257f, 0.609869f,  -0.239382f, 1.534332f,  0.399629f,
+            0.145658f,  -1.133496f, 1.269686f,  0.840435f,  -0.408469f, 0.400861f,  0.623222f,  -0.591705f, 0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  1.390027f,  0.884178f,  0.285846f,  -0.398245f, 0.695815f,  -0.134350f, 1.176417f,
+            -0.763100f, 0.921146f,  -1.086352f, -0.817775f, -1.102470f, 0.001170f,  0.507649f,  -0.054978f, 0.450232f,
+            -0.592210f, 0.617080f,  0.403857f,  -0.432531f, 1.222434f,  1.559615f,  -0.062291f, 0.404500f,  0.398880f,
+            1.536813f,  -0.234292f, 0.593047f,  -2.950616f, -0.428368f, -1.169002f, -0.541828f, 2.567613f,  -1.154758f,
+            -0.634533f, -0.140984f, 0.036535f,  -1.496729f, -1.238279f, 1.088208f,  0.550263f,  -0.423837f, -0.623999f,
+            0.030917f,  -0.230835f, 0.134047f,  1.659074f,  0.262192f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 8, 16},
+        {
+            0.121858f,  -0.186204f, 0.521079f,  -0.078320f, -0.813372f, 0.896154f,  0.998463f,  -0.007512f, -0.264747f,
+            -0.109279f, 0.660887f,  1.517640f,  -0.090469f, -0.166065f, -0.280879f, -0.549630f, -0.233574f, -0.005912f,
+            -1.893519f, 1.408677f,  -1.074038f, 0.191361f,  -0.343940f, -1.354283f, 0.986371f,  -1.325445f, 0.026918f,
+            -0.258281f, -1.124630f, -1.394380f, 0.316257f,  0.129337f,  0.954208f,  -1.279339f, -0.397333f, -1.577390f,
+            -0.578984f, -1.156784f, 1.203218f,  0.511575f,  0.615649f,  0.008202f,  0.832399f,  -0.045157f, -1.394901f,
+            -0.134668f, 1.503749f,  1.433073f,  -1.817968f, 0.375994f,  1.388801f,  -0.808444f, -1.474496f, 0.023879f,
+            0.380251f,  -1.383532f, -1.512560f, -0.894703f, -0.885275f, 0.036063f,  1.462681f,  -0.660346f, -0.098059f,
+            1.324486f,  0.450232f,  -0.054978f, 0.507649f,  0.001170f,  -1.102470f, -0.817775f, -1.086352f, 0.921146f,
+            -0.763100f, 1.176417f,  -0.134350f, 0.695815f,  -0.398245f, 0.285846f,  0.884178f,  1.390027f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  -0.905910f, 0.782059f,  -0.423865f, -0.159969f, 0.176214f,  0.839928f,  -1.408027f,
+            1.046772f,  0.541818f,  -0.605575f, -1.455318f, -0.373598f, 0.717340f,  0.346120f,  -0.248725f, -0.093429f,
+            0.161023f,  -0.091982f, 0.271217f,  0.037239f,  -0.296302f, -1.330579f, 0.013813f,  -0.001792f, 0.657610f,
+            -1.116430f, 0.713923f,  1.047214f,  1.064772f,  -0.979413f, 1.154819f,  -0.226219f, 0.678687f,  -1.119538f,
+            -0.908491f, 0.120748f,  0.406092f,  -0.926639f, -1.632419f, 0.676705f,  -1.122348f, -0.500984f, 2.005177f,
+            -1.070939f, 0.219196f,  1.341610f,  0.961409f,  -0.841560f, 0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        });
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Same preallocated cache with a dynamic batch dimension: the fixed capacity (8) is still written in place, so present
+// keeps the capacity the op infers.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_batch_static_cache_dynamic_batch) {
+    const auto model = convert_model("com.microsoft/gqa_batch_static_cache_dynamic_batch.onnx");
+    EXPECT_EQ(model->output("present_key").get_partial_shape(), (PartialShape{Dimension::dynamic(), 1, 8, 16}));
+
+    auto past_key = gqa_batch_slice(0, 128), past_value = gqa_batch_slice(128, 256);
+    for (auto* past : {&past_key, &past_value}) {
+        std::fill(past->begin() + 4 * 16, past->begin() + 128, 0.0f);
+        std::fill(past->begin() + 128 + 2 * 16, past->end(), 0.0f);
+    }
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{2, 1, 64}, gqa_batch_slice(192, 256));
+    test_case.add_input<float>(Shape{2, 1, 8, 16}, past_key);
+    test_case.add_input<float>(Shape{2, 1, 8, 16}, past_value);
+    test_case.add_input<int>(Shape{2, 1}, {4, 2});
+    test_case.add_input<int>(Shape{}, {5});
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 32},
+        {
+            0.414526f,  -0.433350f, 0.279494f,  -0.611678f, -0.957887f, -0.856399f, -0.170699f, 0.570335f,
+            -0.361204f, 0.588092f,  0.126809f,  0.382532f,  -0.567969f, 0.055696f,  1.005675f,  1.398716f,
+            -0.767085f, -0.165474f, 0.765775f,  -0.965882f, -1.168630f, -0.412102f, 0.492835f,  -0.594868f,
+            -0.798208f, -0.428286f, -0.295116f, 0.072938f,  0.423881f,  -0.412985f, 0.478563f,  1.363478f,
+            0.009636f,  -0.069890f, -0.083617f, 0.007201f,  -0.071903f, -0.776515f, -0.582491f, 0.347511f,
+            0.331062f,  -0.898135f, 0.446455f,  0.371435f,  0.844189f,  -0.290696f, 0.807988f,  -0.300425f,
+            -0.480749f, 0.369244f,  -0.309064f, -0.082685f, 0.087527f,  0.130781f,  -1.091197f, 0.755863f,
+            0.391654f,  -0.716847f, -0.565373f, -0.107579f, 0.747363f,  0.134815f,  0.217088f,  -0.205244f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 8, 16},
+        {
+            -0.841560f, 0.961409f,  1.341610f,  0.219196f,  -1.070939f, 2.005177f,  -0.500984f, -1.122348f, 0.676705f,
+            -1.632419f, -0.926639f, 0.406092f,  0.120748f,  -0.908491f, -1.119538f, 0.678687f,  0.261504f,  1.661547f,
+            0.143510f,  -0.231519f, 0.039766f,  -0.485498f, 0.340751f,  -2.563714f, 1.088374f,  -1.234958f, -1.495851f,
+            0.031911f,  -0.138748f, -0.745854f, -1.181944f, -0.568151f, 1.091891f,  -1.021918f, 0.959766f,  0.549658f,
+            0.785998f,  -0.561202f, -0.477581f, 0.244346f,  -0.943581f, 0.640680f,  -0.574544f, 0.654430f,  -1.338133f,
+            0.968591f,  0.484597f,  -0.490332f, -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,
+            -0.540484f, 2.109540f,  -0.437625f, -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f,
+            -0.432411f, 0.660289f,  -0.292631f, -1.001896f, -3.081257f, 0.609869f,  -0.239382f, 1.534332f,  0.399629f,
+            0.145658f,  -1.133496f, 1.269686f,  0.840435f,  -0.408469f, 0.400861f,  0.623222f,  -0.591705f, 0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  1.390027f,  0.884178f,  0.285846f,  -0.398245f, 0.695815f,  -0.134350f, 1.176417f,
+            -0.763100f, 0.921146f,  -1.086352f, -0.817775f, -1.102470f, 0.001170f,  0.507649f,  -0.054978f, 0.450232f,
+            -0.592210f, 0.617080f,  0.403857f,  -0.432531f, 1.222434f,  1.559615f,  -0.062291f, 0.404500f,  0.398880f,
+            1.536813f,  -0.234292f, 0.593047f,  -2.950616f, -0.428368f, -1.169002f, -0.541828f, 2.567613f,  -1.154758f,
+            -0.634533f, -0.140984f, 0.036535f,  -1.496729f, -1.238279f, 1.088208f,  0.550263f,  -0.423837f, -0.623999f,
+            0.030917f,  -0.230835f, 0.134047f,  1.659074f,  0.262192f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 8, 16},
+        {
+            0.121858f,  -0.186204f, 0.521079f,  -0.078320f, -0.813372f, 0.896154f,  0.998463f,  -0.007512f, -0.264747f,
+            -0.109279f, 0.660887f,  1.517640f,  -0.090469f, -0.166065f, -0.280879f, -0.549630f, -0.233574f, -0.005912f,
+            -1.893519f, 1.408677f,  -1.074038f, 0.191361f,  -0.343940f, -1.354283f, 0.986371f,  -1.325445f, 0.026918f,
+            -0.258281f, -1.124630f, -1.394380f, 0.316257f,  0.129337f,  0.954208f,  -1.279339f, -0.397333f, -1.577390f,
+            -0.578984f, -1.156784f, 1.203218f,  0.511575f,  0.615649f,  0.008202f,  0.832399f,  -0.045157f, -1.394901f,
+            -0.134668f, 1.503749f,  1.433073f,  -1.817968f, 0.375994f,  1.388801f,  -0.808444f, -1.474496f, 0.023879f,
+            0.380251f,  -1.383532f, -1.512560f, -0.894703f, -0.885275f, 0.036063f,  1.462681f,  -0.660346f, -0.098059f,
+            1.324486f,  0.450232f,  -0.054978f, 0.507649f,  0.001170f,  -1.102470f, -0.817775f, -1.086352f, 0.921146f,
+            -0.763100f, 1.176417f,  -0.134350f, 0.695815f,  -0.398245f, 0.285846f,  0.884178f,  1.390027f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  -0.905910f, 0.782059f,  -0.423865f, -0.159969f, 0.176214f,  0.839928f,  -1.408027f,
+            1.046772f,  0.541818f,  -0.605575f, -1.455318f, -0.373598f, 0.717340f,  0.346120f,  -0.248725f, -0.093429f,
+            0.161023f,  -0.091982f, 0.271217f,  0.037239f,  -0.296302f, -1.330579f, 0.013813f,  -0.001792f, 0.657610f,
+            -1.116430f, 0.713923f,  1.047214f,  1.064772f,  -0.979413f, 1.154819f,  -0.226219f, 0.678687f,  -1.119538f,
+            -0.908491f, 0.120748f,  0.406092f,  -0.926639f, -1.632419f, 0.676705f,  -1.122348f, -0.500984f, 2.005177f,
+            -1.070939f, 0.219196f,  1.341610f,  0.961409f,  -0.841560f, 0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        });
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Plain causal GQA attention of gqa_sink_query() over an empty cache (no softcap/sink). Reference: ORT CPU EP.
+static std::vector<float> gqa_sink_query_causal_output() {
+    return {-0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f,
+            -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.318165f, 0.124472f,
+            0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f, -1.400087f, 0.980181f,
+            0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.223169f, -0.033279f, 0.285355f,  0.755670f,
+            -0.142297f, 0.185552f,  -0.567998f, 1.446860f,  0.189833f,  -1.403443f, 0.920896f,  0.631242f,  0.451579f,
+            0.475252f,  -0.094618f, -0.632560f, -0.174186f, -0.114620f, 0.308297f,  0.741198f,  -0.229624f, -0.433955f,
+            -0.582185f, 1.105164f,  0.513368f,  -1.405174f, 0.890326f,  0.459447f,  0.220691f,  0.135793f,  0.236369f,
+            -0.735763f, -0.916030f, 0.169364f,  0.744224f,  0.098714f,  -0.674760f, 0.340823f,  -0.161425f, 0.371981f,
+            -0.647726f, -1.187438f, 0.167276f,  0.441306f,  0.963017f,  0.117072f,  -0.215601f, 0.233242f,  -0.800164f,
+            0.042054f,  0.744694f,  0.123655f,  -0.759933f, -0.533471f, -0.209123f, -0.030549f, -0.139180f, -1.204685f,
+            0.176414f,  0.214857f,  0.606022f,  -0.331558f, 0.254124f,  0.029913f,  -0.939657f, 0.172058f,  0.883547f,
+            -0.156979f, -0.967515f, -0.053405f, -0.159229f, -0.084546f, -0.818667f, -0.761608f, -0.160362f, 0.333833f,
+            0.840787f,  -0.138559f, 0.052502f,  0.667249f,  -0.849203f, 0.177679f,  0.743201f,  0.060907f,  -0.718495f,
+            0.379690f,  -0.213628f, 0.432319f,  -0.764489f, -0.983679f, 0.111276f,  0.487376f,  0.924402f,  0.181732f,
+            -0.199088f, 0.391633f};
+}
+
+// past_key/past_value are optional in the spec: an absent past is an empty cache, so present holds just the
+// current K/V and attention is plain causal over the current tokens. Reference: ORT CPU EP.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_absent_past) {
+    const auto model = convert_model("com.microsoft/gqa_absent_past.onnx");
+
+    const auto expected_output = gqa_sink_query_causal_output();
+    std::vector<float> expected_present_key = {
+        1.091891f,  -1.021918f, 0.959766f,  0.549658f,  0.785998f,  -0.561202f, -0.477581f, 0.244346f,
+        -0.943581f, 0.640680f,  -0.574544f, 0.654430f,  -1.338133f, 0.968591f,  0.484597f,  -0.490332f,
+        -0.226219f, 1.154819f,  -0.979413f, 1.064772f,  1.047214f,  0.713923f,  -1.116430f, 0.657610f,
+        -0.001792f, 0.013813f,  -1.330579f, -0.296302f, 0.037239f,  0.271217f,  -0.091982f, 0.161023f,
+        0.954208f,  -1.279339f, -0.397333f, -1.577390f, -0.578984f, -1.156784f, 1.203218f,  0.511575f,
+        0.615649f,  0.008202f,  0.832399f,  -0.045157f, -1.394901f, -0.134668f, 1.503749f,  1.433073f,
+        -0.541828f, -1.169002f, -0.428368f, -2.950616f, 0.593047f,  -0.234292f, 1.536813f,  0.398880f,
+        0.404500f,  -0.062291f, 1.559615f,  1.222434f,  -0.432531f, 0.403857f,  0.617080f,  -0.592210f};
+    std::vector<float> expected_present_value = {
+        -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,
+        -0.437625f, -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f,
+        -0.093429f, -0.248725f, 0.346120f,  0.717340f,  -0.373598f, -1.455318f, -0.605575f, 0.541818f,
+        1.046772f,  -1.408027f, 0.839928f,  0.176214f,  -0.159969f, -0.423865f, 0.782059f,  -0.905910f,
+        -1.817968f, 0.375994f,  1.388801f,  -0.808444f, -1.474496f, 0.023879f,  0.380251f,  -1.383532f,
+        -1.512560f, -0.894703f, -0.885275f, 0.036063f,  1.462681f,  -0.660346f, -0.098059f, 1.324486f,
+        0.450232f,  -0.054978f, 0.507649f,  0.001170f,  -1.102470f, -0.817775f, -1.086352f, 0.921146f,
+        -0.763100f, 1.176417f,  -0.134350f, 0.695815f,  -0.398245f, 0.285846f,  0.884178f,  1.390027f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sink_query());
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<float>(Shape{1, 4, 32}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 16}, expected_present_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 16}, expected_present_value);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// A quantized KV cache needs a past tensor to carry its element type into present_key/present_value.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_absent_past_quantized_unsupported_throws) {
+    try {
+        convert_model("com.microsoft/gqa_absent_past_quantized_unsupported.onnx");
+        FAIL() << "ONNX Importer did not reject an absent past with a quantized KV cache for GroupQueryAttention";
+    } catch (const std::exception& e) {
+        EXPECT_THAT(e.what(), testing::HasSubstr("requires past_key and past_value"));
+    } catch (...) {
+        FAIL() << "Unexpected exception type thrown";
+    }
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_key_only_unsupported_throws) {
+    try {
+        convert_model("com.microsoft/gqa_past_key_only_unsupported.onnx");
+        FAIL() << "ONNX Importer did not reject past_key without past_value for GroupQueryAttention";
+    } catch (const std::exception& e) {
+        EXPECT_THAT(e.what(), testing::HasSubstr("must be provided together"));
+    } catch (...) {
+        FAIL() << "Unexpected exception type thrown";
+    }
+}
+
+// ORT rejects shared KV (kv_sequence_length == 0) combined with a windowed KV cache.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_shared_kv_sliding_window_cache_unsupported_throws) {
+    try {
+        convert_model("com.microsoft/gqa_shared_kv_sliding_window_cache_unsupported.onnx");
+        FAIL() << "ONNX Importer did not reject shared KV with sliding_window_cache=1 for GroupQueryAttention";
+    } catch (const std::exception& e) {
+        EXPECT_THAT(e.what(), testing::HasSubstr("is not supported with sliding_window_cache=1"));
+    } catch (...) {
+        FAIL() << "Unexpected exception type thrown";
+    }
+}
+
+// ORT applies softcap only when it is > 0: a negative value disables it (plain attention).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_softcap_negative_is_disabled) {
+    const auto model = convert_model("com.microsoft/gqa_softcap_negative.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sink_query());
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<float>(Shape{1, 4, 32}, gqa_sink_query_causal_output());
+    test_case.run_with_tolerance_as_fp();
+}
+
+// softcap (Gemma-style logit capping): scores become softcap * tanh(score / softcap) after scaling and before
+// the mask/softmax. softcap = 0.1 saturates tanh for these scores, so the capping is clearly visible. Reference:
+// ORT CPU EP.
+// f32 ORT reference of gqa_softcap.onnx (softcap = 0.1) on gqa_sink_query() over an empty cache.
+static std::vector<float> gqa_softcap_expected_output() {
+    return {-0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f,
+            -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.318165f, 0.124472f,
+            0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f, -1.400087f, 0.980181f,
+            0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.214008f, -0.048492f, 0.289645f,  0.752963f,
+            -0.158629f, 0.069689f,  -0.570651f, 1.382954f,  0.250342f,  -1.403767f, 0.915178f,  0.599112f,  0.408398f,
+            0.411765f,  -0.032716f, -0.651861f, -0.205174f, -0.063162f, 0.293783f,  0.750353f,  -0.174379f, -0.042039f,
+            -0.573210f, 1.321330f,  0.308692f,  -1.404079f, 0.909665f,  0.568129f,  0.366757f,  0.350544f,  0.026978f,
+            -0.670474f, -0.776449f, 0.098592f,  0.676533f,  0.203838f,  -0.623341f, 0.037592f,  -0.236826f, 0.401858f,
+            -0.360870f, -1.224903f, 0.281626f,  0.396794f,  0.772960f,  0.026209f,  -0.047133f, 0.040054f,  -0.767864f,
+            0.080564f,  0.683670f,  0.197873f,  -0.645680f, -0.105235f, -0.238494f, 0.318463f,  -0.289288f, -1.224444f,
+            0.271549f,  0.356260f,  0.721533f,  -0.053816f, 0.029024f,  0.019603f,  -0.511998f, 0.067603f,  0.651326f,
+            0.137345f,  -0.751427f, -0.166503f, -0.421785f, 0.484596f,  -0.473074f, -0.662645f, 0.162629f,  0.457485f,
+            0.512893f,  0.069955f,  0.170599f,  0.376285f,  -0.506949f, 0.069228f,  0.640191f,  0.154932f,  -0.730161f,
+            -0.123757f, -0.424875f, 0.528880f,  -0.472289f, -0.683008f, 0.184905f,  0.471328f,  0.523721f,  0.099038f,
+            0.145600f,  0.354213f};
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_softcap) {
+    const auto model = convert_model("com.microsoft/gqa_softcap.onnx");
+
+    const auto expected_output = gqa_softcap_expected_output();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sink_query());
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<float>(Shape{1, 4, 32}, expected_output);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// qk_output = 1: scaled logits + attention_bias before softmax; causal and window (2) masked positions read 0.
+// Expected values: ONNX Runtime CPU.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_output_before_softmax) {
+    const auto model = convert_model("com.microsoft/gqa_qk_output_before_softmax.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sink_query());
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<float>(
+        Shape{1, 4, 32},
+        {
+            -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f,
+            -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.318165f, 0.124472f,
+            0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f, -1.400087f, 0.980181f,
+            0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.209262f, -0.056373f, 0.291868f,  0.751561f,
+            -0.167090f, 0.009668f,  -0.572026f, 1.349849f,  0.281688f,  -1.403935f, 0.912217f,  0.582467f,  0.386028f,
+            0.378876f,  -0.000647f, -0.661860f, -0.254206f, 0.018261f,  0.270818f,  0.764839f,  -0.086963f, 0.578093f,
+            -0.559009f, 1.663371f,  -0.015170f, -1.402347f, 0.940265f,  0.740097f,  0.597879f,  0.690346f,  -0.304343f,
+            -0.567167f, -1.416333f, 0.230501f,  1.145967f,  -0.453098f, -1.218103f, -0.320617f, 0.150658f,  -0.935129f,
+            -0.916507f, -1.014253f, -0.483485f, 0.068703f,  1.084775f,  -0.605271f, 0.106915f,  0.805040f,  -0.972802f,
+            0.069830f,  0.877801f,  -0.060684f, -0.934965f, -0.701049f, -0.102885f, -0.439952f, -0.258276f, -1.146274f,
+            -0.039783f, 0.104749f,  0.667449f,  -0.544451f, 0.333271f,  0.231408f,  -1.204600f, 0.259450f,  1.150519f,
+            -0.589508f, -1.373893f, -0.203722f, -0.016349f, -0.760299f, -1.309891f, -0.334629f, -0.682209f, 0.214474f,
+            0.959448f,  -0.404476f, 0.167558f,  1.342210f,  -1.356797f, 0.288369f,  1.209645f,  -0.643833f, -1.398856f,
+            -0.147246f, 0.082061f,  -0.914944f, -1.360180f, -0.473603f, -0.732597f, 0.170204f,  1.084317f,  -0.467966f,
+            0.101650f,  1.337812f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 4, 16},
+        {
+            1.091891f,  -1.021918f, 0.959766f,  0.549658f,  0.785998f,  -0.561202f, -0.477581f, 0.244346f,
+            -0.943581f, 0.640680f,  -0.574544f, 0.654430f,  -1.338133f, 0.968591f,  0.484597f,  -0.490332f,
+            -0.226219f, 1.154819f,  -0.979413f, 1.064772f,  1.047214f,  0.713923f,  -1.116430f, 0.657610f,
+            -0.001792f, 0.013813f,  -1.330579f, -0.296302f, 0.037239f,  0.271217f,  -0.091982f, 0.161023f,
+            0.954208f,  -1.279339f, -0.397333f, -1.577390f, -0.578984f, -1.156784f, 1.203218f,  0.511575f,
+            0.615649f,  0.008202f,  0.832399f,  -0.045157f, -1.394901f, -0.134668f, 1.503749f,  1.433073f,
+            -0.541828f, -1.169002f, -0.428368f, -2.950616f, 0.593047f,  -0.234292f, 1.536813f,  0.398880f,
+            0.404500f,  -0.062291f, 1.559615f,  1.222434f,  -0.432531f, 0.403857f,  0.617080f,  -0.592210f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 4, 16},
+        {
+            -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,
+            -0.437625f, -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f,
+            -0.093429f, -0.248725f, 0.346120f,  0.717340f,  -0.373598f, -1.455318f, -0.605575f, 0.541818f,
+            1.046772f,  -1.408027f, 0.839928f,  0.176214f,  -0.159969f, -0.423865f, 0.782059f,  -0.905910f,
+            -1.817968f, 0.375994f,  1.388801f,  -0.808444f, -1.474496f, 0.023879f,  0.380251f,  -1.383532f,
+            -1.512560f, -0.894703f, -0.885275f, 0.036063f,  1.462681f,  -0.660346f, -0.098059f, 1.324486f,
+            0.450232f,  -0.054978f, 0.507649f,  0.001170f,  -1.102470f, -0.817775f, -1.086352f, 0.921146f,
+            -0.763100f, 1.176417f,  -0.134350f, 0.695815f,  -0.398245f, 0.285846f,  0.884178f,  1.390027f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 4, 4},
+        {
+            -2.074594f, 0.000000f,  0.000000f, 0.000000f, 0.510045f, 0.448357f,  0.000000f, 0.000000f,
+            0.000000f,  -1.152285f, 0.039756f, 0.000000f, 0.000000f, 0.000000f,  0.218147f, -0.774342f,
+            -1.164054f, 0.000000f,  0.000000f, 0.000000f, 0.891725f, -0.030046f, 0.000000f, 0.000000f,
+            0.000000f,  0.624511f,  0.664187f, 0.000000f, 0.000000f, 0.000000f,  0.347677f, -1.017994f,
+        });
+    test_case.run_with_tolerance_as_fp();
+}
+
+// qk_output = 1 with an attention_bias holding -3e38 on one visible and one out-of-window key: the visible one is
+// reported as logit + bias, the out-of-window one as 0, as in ORT (masked positions come from the bias-free mask).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_output_before_softmax_neg_bias) {
+    const auto model = convert_model("com.microsoft/gqa_qk_output_before_softmax_neg_bias.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sink_query());
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<float>(
+        Shape{1, 4, 32},
+        {
+            -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f,
+            -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.318165f, 0.124472f,
+            0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f, -1.400087f, 0.980181f,
+            0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.209262f, -0.056373f, 0.291868f,  0.751561f,
+            -0.167090f, 0.009668f,  -0.572026f, 1.349849f,  0.281688f,  -1.403935f, 0.912217f,  0.582467f,  0.386028f,
+            0.378876f,  -0.000647f, -0.661860f, -0.254206f, 0.018261f,  0.270818f,  0.764839f,  -0.086963f, 0.578093f,
+            -0.559009f, 1.663371f,  -0.015170f, -1.402347f, 0.940265f,  0.740097f,  0.597879f,  0.690346f,  -0.304343f,
+            -0.567167f, -1.416333f, 0.230501f,  1.145967f,  -0.453098f, -1.218103f, -0.320617f, 0.150658f,  -0.935129f,
+            -0.916507f, -1.014253f, -0.483485f, 0.068703f,  1.084775f,  -0.605271f, 0.106915f,  0.805040f,  -0.093429f,
+            -0.248725f, 0.346120f,  0.717340f,  -0.373598f, -1.455318f, -0.605575f, 0.541818f,  1.046772f,  -1.408027f,
+            0.839928f,  0.176214f,  -0.159969f, -0.423865f, 0.782059f,  -0.905910f, -1.204600f, 0.259450f,  1.150519f,
+            -0.589508f, -1.373893f, -0.203722f, -0.016349f, -0.760299f, -1.309891f, -0.334629f, -0.682209f, 0.214474f,
+            0.959448f,  -0.404476f, 0.167558f,  1.342210f,  -1.356797f, 0.288369f,  1.209645f,  -0.643833f, -1.398856f,
+            -0.147246f, 0.082061f,  -0.914944f, -1.360180f, -0.473603f, -0.732597f, 0.170204f,  1.084317f,  -0.467966f,
+            0.101650f,  1.337812f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 4, 16},
+        {
+            1.091891f,  -1.021918f, 0.959766f,  0.549658f,  0.785998f,  -0.561202f, -0.477581f, 0.244346f,
+            -0.943581f, 0.640680f,  -0.574544f, 0.654430f,  -1.338133f, 0.968591f,  0.484597f,  -0.490332f,
+            -0.226219f, 1.154819f,  -0.979413f, 1.064772f,  1.047214f,  0.713923f,  -1.116430f, 0.657610f,
+            -0.001792f, 0.013813f,  -1.330579f, -0.296302f, 0.037239f,  0.271217f,  -0.091982f, 0.161023f,
+            0.954208f,  -1.279339f, -0.397333f, -1.577390f, -0.578984f, -1.156784f, 1.203218f,  0.511575f,
+            0.615649f,  0.008202f,  0.832399f,  -0.045157f, -1.394901f, -0.134668f, 1.503749f,  1.433073f,
+            -0.541828f, -1.169002f, -0.428368f, -2.950616f, 0.593047f,  -0.234292f, 1.536813f,  0.398880f,
+            0.404500f,  -0.062291f, 1.559615f,  1.222434f,  -0.432531f, 0.403857f,  0.617080f,  -0.592210f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 4, 16},
+        {
+            -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,
+            -0.437625f, -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f,
+            -0.093429f, -0.248725f, 0.346120f,  0.717340f,  -0.373598f, -1.455318f, -0.605575f, 0.541818f,
+            1.046772f,  -1.408027f, 0.839928f,  0.176214f,  -0.159969f, -0.423865f, 0.782059f,  -0.905910f,
+            -1.817968f, 0.375994f,  1.388801f,  -0.808444f, -1.474496f, 0.023879f,  0.380251f,  -1.383532f,
+            -1.512560f, -0.894703f, -0.885275f, 0.036063f,  1.462681f,  -0.660346f, -0.098059f, 1.324486f,
+            0.450232f,  -0.054978f, 0.507649f,  0.001170f,  -1.102470f, -0.817775f, -1.086352f, 0.921146f,
+            -0.763100f, 1.176417f,  -0.134350f, 0.695815f,  -0.398245f, 0.285846f,  0.884178f,  1.390027f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 4, 4},
+        {
+            -2.074594f, 0.000000f,  0.000000f, 0.000000f, 0.510045f, 0.448357f,  0.000000f, 0.000000f,
+            0.000000f,  -1.152285f, 0.039756f, 0.000000f, 0.000000f, 0.000000f,  0.218147f, -0.774342f,
+            -1.164054f, 0.000000f,  0.000000f, 0.000000f, 0.891725f, -0.030046f, 0.000000f, 0.000000f,
+            0.000000f,  0.624511f,  -3e+38f,   0.000000f, 0.000000f, 0.000000f,  0.347677f, -1.017994f,
+        });
+    test_case.run_with_tolerance_as_fp();
+}
+
+// qk_output = 2: probabilities after softcap and head_sink renormalization (sink column not emitted).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_output_after_softmax) {
+    const auto model = convert_model("com.microsoft/gqa_qk_output_after_softmax.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sink_query());
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<float>(
+        Shape{1, 4, 32},
+        {
+            -0.159478f, 0.062391f,  0.120731f,  0.392842f,  0.013566f,  0.695231f,  -0.270914f, 1.057394f,  -0.219357f,
+            -0.701785f, 0.491310f,  0.483408f,  0.450799f,  0.568207f,  -0.369181f, -0.216743f, -0.072252f, 0.028266f,
+            0.054697f,  0.177978f,  0.006146f,  0.314976f,  -0.122738f, 0.479054f,  -0.099380f, -0.317945f, 0.222589f,
+            0.219009f,  0.204235f,  0.257427f,  -0.167258f, -0.098196f, -0.174354f, -0.027666f, 0.224546f,  0.593224f,
+            -0.113400f, 0.134085f,  -0.446367f, 1.129927f,  0.155175f,  -1.102283f, 0.722688f,  0.492542f,  0.350326f,
+            0.366877f,  -0.068090f, -0.498747f, -0.105900f, -0.050938f, 0.169338f,  0.418610f,  -0.114531f, -0.141426f,
+            -0.324585f, 0.677011f,  0.234877f,  -0.788792f, 0.505011f,  0.286362f,  0.162042f,  0.132289f,  0.078097f,
+            -0.396133f, -0.692266f, 0.110394f,  0.580308f,  0.121418f,  -0.530093f, 0.159004f,  -0.160985f, 0.314506f,
+            -0.415873f, -0.982554f, 0.180885f,  0.342207f,  0.710706f,  0.059665f,  -0.109749f, 0.114737f,  -0.465036f,
+            0.033284f,  0.426486f,  0.098667f,  -0.421382f, -0.211440f, -0.136247f, 0.080105f,  -0.114512f, -0.728426f,
+            0.136441f,  0.166442f,  0.388081f,  -0.124545f, 0.095733f,  0.007842f,  -0.623679f, 0.103972f,  0.659629f,
+            0.006331f,  -0.734335f, -0.072149f, -0.259656f, 0.209979f,  -0.558327f, -0.631471f, 0.019062f,  0.355666f,
+            0.592014f,  -0.009176f, 0.084373f,  0.438321f,  -0.472317f, 0.089116f,  0.469275f,  0.064900f,  -0.485942f,
+            0.114330f,  -0.202309f, 0.315352f,  -0.433908f, -0.569111f, 0.092302f,  0.322165f,  0.506522f,  0.099116f,
+            -0.036655f, 0.256701f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 4, 16},
+        {
+            1.091891f,  -1.021918f, 0.959766f,  0.549658f,  0.785998f,  -0.561202f, -0.477581f, 0.244346f,
+            -0.943581f, 0.640680f,  -0.574544f, 0.654430f,  -1.338133f, 0.968591f,  0.484597f,  -0.490332f,
+            -0.226219f, 1.154819f,  -0.979413f, 1.064772f,  1.047214f,  0.713923f,  -1.116430f, 0.657610f,
+            -0.001792f, 0.013813f,  -1.330579f, -0.296302f, 0.037239f,  0.271217f,  -0.091982f, 0.161023f,
+            0.954208f,  -1.279339f, -0.397333f, -1.577390f, -0.578984f, -1.156784f, 1.203218f,  0.511575f,
+            0.615649f,  0.008202f,  0.832399f,  -0.045157f, -1.394901f, -0.134668f, 1.503749f,  1.433073f,
+            -0.541828f, -1.169002f, -0.428368f, -2.950616f, 0.593047f,  -0.234292f, 1.536813f,  0.398880f,
+            0.404500f,  -0.062291f, 1.559615f,  1.222434f,  -0.432531f, 0.403857f,  0.617080f,  -0.592210f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 4, 16},
+        {
+            -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,
+            -0.437625f, -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f,
+            -0.093429f, -0.248725f, 0.346120f,  0.717340f,  -0.373598f, -1.455318f, -0.605575f, 0.541818f,
+            1.046772f,  -1.408027f, 0.839928f,  0.176214f,  -0.159969f, -0.423865f, 0.782059f,  -0.905910f,
+            -1.817968f, 0.375994f,  1.388801f,  -0.808444f, -1.474496f, 0.023879f,  0.380251f,  -1.383532f,
+            -1.512560f, -0.894703f, -0.885275f, 0.036063f,  1.462681f,  -0.660346f, -0.098059f, 1.324486f,
+            0.450232f,  -0.054978f, 0.507649f,  0.001170f,  -1.102470f, -0.817775f, -1.086352f, 0.921146f,
+            -0.763100f, 1.176417f,  -0.134350f, 0.695815f,  -0.398245f, 0.285846f,  0.884178f,  1.390027f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 4, 4},
+        {
+            0.501244f, 0.000000f, 0.000000f, 0.000000f, 0.449307f, 0.336084f, 0.000000f, 0.000000f,
+            0.308301f, 0.189777f, 0.317082f, 0.000000f, 0.208664f, 0.162241f, 0.338649f, 0.163298f,
+            0.227089f, 0.000000f, 0.000000f, 0.000000f, 0.237766f, 0.323785f, 0.000000f, 0.000000f,
+            0.116741f, 0.260192f, 0.221997f, 0.000000f, 0.237749f, 0.097726f, 0.237058f, 0.096443f,
+        });
+    test_case.run_with_tolerance_as_fp();
+}
+
+namespace {
+// Preallocated cache (capacity 8) decode with seqlens_k = 4: output_qk has total_sequence_length columns (ORT), while
+// seqlens_k alone drives the attention and the cache update.
+void run_gqa_qk_output_static_cache(int total, const std::vector<float>& expected_qk) {
+    const auto model = convert_model("com.microsoft/gqa_qk_output_static_cache.onnx");
+
+    // Zero-initialized buffer holding 4 past rows; rows beyond total are unspecified in ORT.
+    const auto data = gqa_sink_query();
+    std::vector<float> past_key(data.begin(), data.begin() + 64), past_value(data.begin() + 128, data.begin() + 192);
+    past_key.resize(128, 0.0f);
+    past_value.resize(128, 0.0f);
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 64}, std::vector<float>(data.begin() + 192, data.end()));
+    test_case.add_input<float>(Shape{1, 1, 8, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 8, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, {4});
+    test_case.add_input<int>(Shape{}, {total});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 32},
+        {
+            0.094738f,  -0.258927f, -0.917125f, 0.443725f,  -0.960666f, -0.096329f, 0.024586f, -0.527302f,
+            0.470633f,  -0.572888f, 0.219602f,  0.154630f,  -0.891648f, -0.760925f, 0.519642f, 0.463938f,
+            0.020994f,  -0.306558f, 0.323556f,  -0.373009f, -0.879975f, 0.287862f,  0.804064f, -0.127611f,
+            -0.207956f, -0.208519f, 0.427498f,  0.897348f,  -0.206569f, -0.275854f, 0.160090f, 0.182464f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 8, 16},
+        {
+            -0.841560f, 0.961409f,  1.341610f,  0.219196f,  -1.070939f, 2.005177f,  -0.500984f, -1.122348f, 0.676705f,
+            -1.632419f, -0.926639f, 0.406092f,  0.120748f,  -0.908491f, -1.119538f, 0.678687f,  0.261504f,  1.661547f,
+            0.143510f,  -0.231519f, 0.039766f,  -0.485498f, 0.340751f,  -2.563714f, 1.088374f,  -1.234958f, -1.495851f,
+            0.031911f,  -0.138748f, -0.745854f, -1.181944f, -0.568151f, 1.091891f,  -1.021918f, 0.959766f,  0.549658f,
+            0.785998f,  -0.561202f, -0.477581f, 0.244346f,  -0.943581f, 0.640680f,  -0.574544f, 0.654430f,  -1.338133f,
+            0.968591f,  0.484597f,  -0.490332f, -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,
+            -0.540484f, 2.109540f,  -0.437625f, -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f,
+            -0.432411f, -0.541828f, -1.169002f, -0.428368f, -2.950616f, 0.593047f,  -0.234292f, 1.536813f,  0.398880f,
+            0.404500f,  -0.062291f, 1.559615f,  1.222434f,  -0.432531f, 0.403857f,  0.617080f,  -0.592210f, 0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,
+        });
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 8, 16},
+        {
+            0.121858f,  -0.186204f, 0.521079f,  -0.078320f, -0.813372f, 0.896154f,  0.998463f,  -0.007512f, -0.264747f,
+            -0.109279f, 0.660887f,  1.517640f,  -0.090469f, -0.166065f, -0.280879f, -0.549630f, -0.233574f, -0.005912f,
+            -1.893519f, 1.408677f,  -1.074038f, 0.191361f,  -0.343940f, -1.354283f, 0.986371f,  -1.325445f, 0.026918f,
+            -0.258281f, -1.124630f, -1.394380f, 0.316257f,  0.129337f,  0.954208f,  -1.279339f, -0.397333f, -1.577390f,
+            -0.578984f, -1.156784f, 1.203218f,  0.511575f,  0.615649f,  0.008202f,  0.832399f,  -0.045157f, -1.394901f,
+            -0.134668f, 1.503749f,  1.433073f,  -1.817968f, 0.375994f,  1.388801f,  -0.808444f, -1.474496f, 0.023879f,
+            0.380251f,  -1.383532f, -1.512560f, -0.894703f, -0.885275f, 0.036063f,  1.462681f,  -0.660346f, -0.098059f,
+            1.324486f,  0.450232f,  -0.054978f, 0.507649f,  0.001170f,  -1.102470f, -0.817775f, -1.086352f, 0.921146f,
+            -0.763100f, 1.176417f,  -0.134350f, 0.695815f,  -0.398245f, 0.285846f,  0.884178f,  1.390027f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+            0.000000f,  0.000000f,
+        });
+    test_case.add_expected_output<float>(Shape{1, 2, 1, static_cast<size_t>(total)}, expected_qk);
+    test_case.run_with_tolerance_as_fp();
+}
+}  // namespace
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_output_static_cache) {
+    run_gqa_qk_output_static_cache(5,
+                                   {-0.290551f,
+                                    1.084145f,
+                                    -0.004623f,
+                                    -2.390336f,
+                                    -0.274342f,
+                                    1.730582f,
+                                    -0.621596f,
+                                    0.607299f,
+                                    0.223935f,
+                                    -1.017994f});
+}
+
+// total_sequence_length (4) below seqlens_k + 1 (5): output_qk keeps 4 columns, the attention still sees 5 keys.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_output_static_cache_total_below_seqlens) {
+    run_gqa_qk_output_static_cache(
+        4,
+        {-0.290551f, 1.084145f, -0.004623f, -2.390336f, 1.730582f, -0.621596f, 0.607299f, 0.223935f});
+}
+
+// softcap in f16: the capped chain runs in reduced precision, incl. the finite-lowest() mask clamp.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_softcap_fp16) {
+    ov::frontend::FrontEnd::Ptr front_end;
+    auto input_model = load_model("com.microsoft/gqa_softcap.onnx", &front_end);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("query"), ov::element::f16);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("past_key"), ov::element::f16);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("past_value"), ov::element::f16);
+    const auto model = front_end->convert(input_model);
+
+    using f16 = ov::float16;
+    std::vector<f16> query;
+    for (float x : gqa_sink_query())
+        query.emplace_back(x);
+    std::vector<f16> expected_output;
+    for (float x : gqa_softcap_expected_output())
+        expected_output.emplace_back(x);
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<f16>(Shape{1, 4, 64}, query);
+    test_case.add_input<f16>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<f16>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<f16>(Shape{1, 4, 32}, expected_output);
+    test_case.run_with_tolerance_as_fp(0.02f);
+}
+
+// softcap with an external attention_bias: ORT caps the scaled scores first and adds the bias afterwards
+// (gqa_attention_base.h). The bias is larger than the cap, so the opposite order would be clearly off.
+// Reference: ORT CPU EP.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_softcap_bias) {
+    const auto model = convert_model("com.microsoft/gqa_softcap_bias.onnx");
+
+    std::vector<float> attention_bias = {
+        -0.222858f, -0.000433f, 0.060899f,  -0.282787f, -0.211244f, 0.256927f,  -0.257748f, -0.222136f,
+        0.268997f,  0.073130f,  -0.078604f, 0.006834f,  0.097706f,  -0.134815f, -0.217219f, 0.172824f,
+        0.102216f,  0.007429f,  0.190042f,  0.029445f,  0.288548f,  -0.177294f, 0.032238f,  -0.009825f,
+        -0.088035f, 0.054957f,  -0.158819f, 0.181322f,  0.220400f,  -0.222744f, -0.019756f, -0.133713f};
+    std::vector<float> expected_output = {
+        -0.318165f, 0.124472f,  0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f,
+        -1.400087f, 0.980181f,  0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.318165f, 0.124472f,
+        0.240862f,  0.783735f,  0.027064f,  1.387012f,  -0.540484f, 2.109540f,  -0.437625f, -1.400087f, 0.980181f,
+        0.964417f,  0.899361f,  1.133594f,  -0.736529f, -0.432411f, -0.187873f, -0.091891f, 0.301886f,  0.745242f,
+        -0.205222f, -0.260847f, -0.578221f, 1.200643f,  0.422964f,  -1.404690f, 0.898868f,  0.507451f,  0.285208f,
+        0.230647f,  0.143882f,  -0.706925f, -0.230915f, -0.020416f, 0.281727f,  0.757958f,  -0.128486f, 0.283525f,
+        -0.565755f, 1.500898f,  0.138667f,  -1.403170f, 0.925730f,  0.658410f,  0.488094f,  0.528937f,  -0.146963f,
+        -0.616239f, -0.693024f, 0.087067f,  0.610641f,  0.294644f,  -0.535219f, 0.135808f,  -0.288577f, 0.611529f,
+        -0.310803f, -1.253513f, 0.388476f,  0.455249f,  0.748791f,  0.139420f,  -0.094513f, -0.056127f, -0.707495f,
+        0.056177f,  0.649251f,  0.248996f,  -0.611838f, -0.179881f, -0.272457f, 0.370167f,  -0.189764f, -1.241905f,
+        0.328791f,  0.354206f,  0.657414f,  -0.059245f, 0.071950f,  -0.060053f, -0.403506f, 0.055786f,  0.601837f,
+        0.184203f,  -0.717069f, -0.126667f, -0.493839f, 0.649894f,  -0.471827f, -0.565606f, 0.209731f,  0.513408f,
+        0.449519f,  0.163227f,  0.175107f,  0.384689f,  -0.532929f, 0.089328f,  0.625893f,  0.182083f,  -0.679826f,
+        0.059217f,  -0.410128f, 0.635827f,  -0.524990f, -0.751003f, 0.224549f,  0.514496f,  0.601670f,  0.192492f,
+        0.036533f,  0.322791f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sink_query());
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_input<float>(Shape{1, 2, 4, 4}, attention_bias);
+    test_case.add_expected_output<float>(Shape{1, 4, 32}, expected_output);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// softcap combined with a per-head head_sink: the sink logit joins the softmax after capping.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_softcap_head_sink) {
+    const auto model = convert_model("com.microsoft/gqa_softcap_head_sink.onnx");
+
+    std::vector<float> head_sink = {-1.088381f, -1.689387f};
+    std::vector<float> expected_output = {
+        -0.231868f, 0.090711f,  0.175533f,  0.571161f,  0.019723f,  1.010810f,  -0.393887f, 1.537365f,  -0.318927f,
+        -1.020339f, 0.714325f,  0.702836f,  0.655426f,  0.826127f,  -0.536759f, -0.315127f, -0.264246f, 0.103378f,
+        0.200043f,  0.650915f,  0.022477f,  1.151955f,  -0.448888f, 1.752036f,  -0.363461f, -1.162814f, 0.814070f,
+        0.800977f,  0.746946f,  0.941484f,  -0.611709f, -0.359130f, -0.183908f, -0.041672f, 0.248907f,  0.647060f,
+        -0.136318f, 0.059888f,  -0.490390f, 1.188443f,  0.215132f,  -1.206328f, 0.786460f,  0.514847f,  0.350957f,
+        0.353851f,  -0.028114f, -0.560178f, -0.189275f, -0.058268f, 0.271019f,  0.692211f,  -0.160867f, -0.038781f,
+        -0.528794f, 1.218945f,  0.284772f,  -1.295282f, 0.839179f,  0.524107f,  0.338338f,  0.323381f,  0.024888f,
+        -0.618522f, -0.697014f, 0.088505f,  0.607319f,  0.182984f,  -0.559570f, 0.033746f,  -0.212598f, 0.360746f,
+        -0.323951f, -1.099588f, 0.252814f,  0.356200f,  0.693882f,  0.023528f,  -0.042311f, 0.035957f,  -0.724795f,
+        0.076045f,  0.645323f,  0.186775f,  -0.609464f, -0.099332f, -0.225117f, 0.300601f,  -0.273062f, -1.155765f,
+        0.256318f,  0.336277f,  0.681063f,  -0.050798f, 0.027396f,  0.018503f,  -0.471413f, 0.062244f,  0.599696f,
+        0.126458f,  -0.691863f, -0.153304f, -0.388351f, 0.446183f,  -0.435574f, -0.610118f, 0.149738f,  0.421221f,
+        0.472237f,  0.064410f,  0.157076f,  0.346458f,  -0.484688f, 0.066188f,  0.612079f,  0.148128f,  -0.698099f,
+        -0.118323f, -0.406218f, 0.505656f,  -0.451550f, -0.653016f, 0.176786f,  0.450631f,  0.500723f,  0.094689f,
+        0.139206f,  0.338659f};
 
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<float>(Shape{1, 4, 64}, gqa_sink_query());
@@ -7526,4 +8810,1294 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_block_quantized_quantiz
     // the compressed-gather fusion reconstructs the table by merging the trailing dims, which is only
     // valid when the quantized axis is last, so importing a non-last quantize_axis is disallowed.
     EXPECT_THROW(convert_model("com.microsoft/gather_block_quantized_quantize_axis_not_last.onnx"), ov::Exception);
+}
+
+// query_seqlens (input 16): a right-padded chunk of S = 4 rows with Q = 2 valid rows after P = 3 past tokens.
+// Padded output rows and cache rows at or beyond the valid length are unspecified, so the models slice them off.
+// Expected values are from ONNX Runtime's CPU kernel.
+// Static-capacity cache, implicit rotary positions (padded rows use position 0).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_query_seqlens_static_cache) {
+    const auto model = convert_model("com.microsoft/gqa_query_seqlens_static_cache.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(
+        Shape{1, 4, 64},
+        {0.001230f,  0.298746f,  -0.274138f, -0.890592f, -0.454671f, -0.991647f, 0.060144f,  1.340215f,  -0.492207f,
+         -0.620475f, 0.489842f,  0.356887f,  0.105414f,  -0.930468f, -0.029252f, 0.695303f,  -1.344215f, -0.457616f,
+         -1.901223f, -1.289538f, -1.841735f, -0.235091f, -1.267447f, 0.271264f,  0.156751f,  -0.186931f, -2.516760f,
+         -0.538693f, -0.048501f, 0.113309f,  -1.530136f, -0.477753f, -0.978519f, -0.808837f, 1.060899f,  -0.807535f,
+         -0.032522f, 0.884390f,  -0.583600f, -0.111702f, 0.110464f,  0.063782f,  -1.225056f, 0.076140f,  1.358823f,
+         -1.547145f, 0.859383f,  0.119354f,  -0.641470f, 2.000417f,  0.762260f,  -1.199289f, 0.074516f,  0.576690f,
+         -0.188782f, 0.682910f,  -0.066517f, 0.667248f,  1.438523f,  -0.675662f, 0.203139f,  -0.463308f, 0.127268f,
+         -1.187195f, -0.579302f, -0.196196f, 0.898764f,  1.145222f,  -1.323528f, -0.794642f, 0.646903f,  -1.992420f,
+         -0.463170f, -0.097287f, 1.257015f,  0.689404f,  -0.327213f, -0.368576f, -0.250195f, 1.523529f,  -0.428025f,
+         -0.303680f, 0.352589f,  -0.120770f, -0.197284f, -1.114067f, -0.011521f, -0.443581f, 1.166128f,  0.653089f,
+         -0.024144f, 0.668381f,  -0.339870f, 1.052126f,  -0.005400f, 0.583382f,  -1.290893f, 0.346680f,  -1.688204f,
+         -2.035329f, -0.304477f, -0.899928f, 0.164053f,  2.244757f,  -0.831723f, -0.623944f, 0.205404f,  0.493013f,
+         -0.176406f, -0.205930f, 0.702463f,  0.519908f,  -1.033676f, -0.079181f, 0.035287f,  -1.054485f, 0.259839f,
+         -0.857956f, 0.972067f,  0.192746f,  0.089306f,  -0.591028f, -0.118610f, -1.997746f, -1.131407f, 0.362840f,
+         -2.128567f, 0.846609f,  -1.746096f, 0.756738f,  -0.845497f, 0.778991f,  0.130951f,  -1.536835f, 1.249149f,
+         1.441707f,  -0.065805f, -0.273916f, -0.159867f, -0.975152f, 1.098587f,  -0.542892f, -0.051190f, -0.793296f,
+         -0.626073f, -1.277725f, 1.257069f,  -0.154088f, 0.965922f,  0.013325f,  -0.694404f, -0.326685f, -0.560231f,
+         0.007959f,  -0.375267f, -0.299922f, -1.378575f, -0.806846f, 1.654058f,  -0.671233f, -1.054094f, 0.337326f,
+         1.407272f,  -1.454024f, -0.208522f, -0.632053f, -1.761019f, 0.734927f,  -0.023444f, 0.071442f,  -0.752311f,
+         0.454784f,  -0.539297f, -0.142903f, -1.108261f, -1.216103f, 1.335532f,  -0.507105f, 0.291680f,  -0.033790f,
+         -0.441145f, -0.507961f, 0.630083f,  -0.301868f, -0.151444f, 0.022222f,  1.176508f,  0.680511f,  0.382600f,
+         -0.563571f, -1.381969f, 0.949530f,  0.966447f,  -0.140708f, 0.541884f,  0.781443f,  0.831184f,  0.921384f,
+         -0.455618f, 1.514973f,  -1.246593f, 0.861723f,  0.493932f,  0.873619f,  1.879008f,  1.484445f,  -1.145177f,
+         -1.688672f, 0.816889f,  -1.015012f, -0.012405f, 0.839727f,  -1.643797f, -2.109980f, 0.259299f,  0.044386f,
+         -0.245803f, 0.038535f,  -0.860516f, -1.513494f, -0.166655f, -0.971709f, -1.643481f, 0.505681f,  -0.061399f,
+         0.406529f,  -0.989295f, -0.658059f, -0.999043f, -0.886642f, 0.195408f,  -0.782975f, 0.356066f,  0.339756f,
+         2.025161f,  -1.392789f, 0.887902f,  -0.089488f, -0.014030f, -1.449864f, -0.460194f, 0.743197f,  -0.082478f,
+         0.081054f,  -0.290717f, 1.154570f,  -0.021473f, -2.200416f, -0.692073f, -1.968797f, -3.251438f, -0.530115f,
+         1.333560f,  0.047120f,  -1.172546f, -0.940700f});
+    test_case.add_input<float>(
+        Shape{1, 1, 8, 16},
+        {1.130613f,  0.157627f,  0.047999f,  -0.053462f, 0.038400f,  0.805406f,  0.552567f,  0.215705f,  -1.042868f,
+         0.511109f,  -0.684247f, 1.093846f,  -1.271051f, -0.137621f, -0.007358f, -1.324646f, 1.721972f,  1.460407f,
+         -0.463584f, 0.771721f,  0.378676f,  -2.613559f, 0.250398f,  -0.061344f, 0.083217f,  -1.076875f, -0.269347f,
+         -0.178259f, 1.188094f,  0.334427f,  -0.005555f, 1.528970f,  -0.555248f, -0.389430f, -1.816755f, 1.569106f,
+         0.964332f,  0.916848f,  0.668898f,  0.110149f,  0.215489f,  -0.252007f, -0.203600f, 0.054304f,  1.511829f,
+         0.555688f,  -0.058460f, -0.579392f, -0.634999f, 1.602705f,  0.506687f,  0.067551f,  -0.346182f, -1.109053f,
+         -0.066862f, 0.873658f,  -0.392537f, -0.227243f, -0.221034f, 0.109594f,  -1.593011f, -0.235398f, -0.854396f,
+         0.884585f,  -0.770599f, 0.577047f,  1.524437f,  -0.313596f, -0.601576f, 0.191432f,  -0.002029f, -0.993616f,
+         0.460919f,  2.015516f,  -0.258112f, -0.202876f, -1.044932f, 0.319088f,  -1.246976f, -1.106931f, 1.279667f,
+         -0.905453f, 1.081358f,  1.524358f,  0.259326f,  0.553391f,  1.952251f,  -0.196728f, -0.593006f, -1.353231f,
+         0.041707f,  1.479144f,  0.959595f,  -0.942091f, -0.855375f, -0.504171f, 0.292268f,  -0.205311f, 0.214454f,
+         0.296739f,  -0.298774f, -0.040174f, 0.206592f,  -0.083970f, 0.503521f,  1.870876f,  0.591972f,  0.055811f,
+         -1.686119f, 0.387957f,  -1.946678f, -1.409034f, 0.854639f,  0.706235f,  -0.149939f, -1.710011f, -0.371349f,
+         -0.678738f, 0.636841f,  2.257730f,  0.216930f,  -0.779311f, -1.170552f, -0.056094f, -0.176793f, -1.151519f,
+         0.116355f,  -1.150913f});
+    test_case.add_input<float>(
+        Shape{1, 1, 8, 16},
+        {1.112107f,  1.062651f,  1.084751f,  -0.474050f, 0.514521f,  -0.132069f, -0.388812f, -0.339146f, -1.299715f,
+         -1.443864f, 0.794315f,  -0.191235f, 0.216425f,  1.001710f,  -1.733132f, -0.784130f, 0.175335f,  0.392095f,
+         -0.377074f, 1.029179f,  0.210395f,  -1.213382f, -0.930764f, 0.805471f,  0.463831f,  -1.899061f, 1.347712f,
+         0.598027f,  1.343343f,  -0.383701f, -0.295706f, -1.126457f, 2.536930f,  -0.175454f, 1.587533f,  -0.647292f,
+         0.163841f,  -1.671353f, -0.382867f, 0.983755f,  -1.251744f, 1.072228f,  0.337238f,  -1.043951f, -0.501597f,
+         -0.459066f, -0.049519f, -0.536144f, -0.827288f, -0.304588f, -1.026890f, -1.289527f, -0.048176f, 0.882874f,
+         -1.529372f, 0.003508f,  -0.649956f, -0.977145f, 0.853438f,  -0.518170f, 1.498302f,  -0.779839f, 0.386502f,
+         -0.227283f, -0.754022f, 0.587675f,  -0.154983f, 0.603211f,  -0.047292f, -1.085816f, -0.102069f, 0.051955f,
+         0.958463f,  -0.906269f, -0.039330f, -1.721879f, 0.651493f,  -1.081483f, -1.806360f, -0.059217f, 1.105685f,
+         -1.524447f, -1.088036f, -0.743275f, -1.129497f, 0.379428f,  -0.807367f, -0.721515f, 0.583305f,  -0.755515f,
+         0.432780f,  -0.971385f, -1.212139f, -1.835449f, 1.861203f,  -0.320259f, 0.243933f,  -0.031050f, 0.159962f,
+         0.049686f,  1.908217f,  -1.038927f, -1.557462f, -1.011960f, -1.334709f, 0.746962f,  0.820378f,  -0.961316f,
+         -1.390436f, -0.354797f, 1.391124f,  -2.819569f, 0.526627f,  -1.075755f, 1.040367f,  -1.077924f, -0.285416f,
+         -1.506279f, -0.977258f, 1.385839f,  0.820579f,  -0.401668f, -0.870172f, -1.893807f, -0.393657f, -0.030903f,
+         -0.084054f, -0.093792f});
+    test_case.add_input<int>(Shape{1}, {4});
+    test_case.add_input<int>(Shape{}, {8});
+    test_case.add_input<int>(Shape{1}, {2});
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 32},
+        {0.369150f,  0.774297f,  0.271889f, 0.168082f,  0.217853f, -0.724242f, -0.639433f, 0.640326f,
+         -0.068942f, -0.975471f, 1.187809f, 0.045251f,  0.752379f, -0.218800f, -0.375785f, -1.032099f,
+         0.422567f,  1.085695f,  0.643532f, -0.333664f, 0.262324f, -0.316173f, -0.464252f, 0.404517f,
+         -0.436841f, -0.659428f, 1.107763f, -0.217022f, 0.442986f, 0.039750f,  -0.610048f, -0.982513f,
+         0.362801f,  0.546609f,  0.154127f, 0.286173f,  0.221618f, -0.929029f, -0.598242f, 0.660253f,
+         0.006641f,  -1.118871f, 1.087424f, 0.004597f,  0.717687f, -0.217921f, -0.480313f, -0.897424f,
+         0.271508f,  0.627111f,  0.261482f, 0.040761f,  0.254372f, -0.757220f, -0.434565f, 0.500512f,
+         -0.128949f, -1.071932f, 0.980759f, -0.191822f, 0.506025f, -0.033058f, -0.741793f, -0.761786f});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 5, 16},
+        {1.130613f,  0.157627f,  0.047999f,  -0.053462f, 0.038400f,  0.805406f,  0.552567f,  0.215705f,  -1.042868f,
+         0.511109f,  -0.684247f, 1.093846f,  -1.271051f, -0.137621f, -0.007358f, -1.324646f, 1.721972f,  1.460407f,
+         -0.463584f, 0.771721f,  0.378676f,  -2.613559f, 0.250398f,  -0.061344f, 0.083217f,  -1.076875f, -0.269347f,
+         -0.178259f, 1.188094f,  0.334427f,  -0.005555f, 1.528970f,  -0.555248f, -0.389430f, -1.816755f, 1.569106f,
+         0.964332f,  0.916848f,  0.668898f,  0.110149f,  0.215489f,  -0.252007f, -0.203600f, 0.054304f,  1.511829f,
+         0.555688f,  -0.058460f, -0.579392f, 0.953138f,  -0.523185f, 1.375544f,  -0.811116f, -0.073266f, 0.899027f,
+         -0.586176f, -0.111815f, -0.247447f, -0.620132f, -0.856824f, -0.000697f, 1.357237f,  -1.538685f, 0.857628f,
+         0.119248f,  0.214334f,  0.699379f,  -1.634927f, -2.081264f, -0.297179f, -0.897251f, 0.161242f,  2.244097f,
+         1.520602f,  0.142695f,  -0.468228f, 0.232309f,  -0.188441f, -0.217297f, 0.703114f,  0.522747f});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 5, 16},
+        {1.112107f,  1.062651f,  1.084751f,  -0.474050f, 0.514521f,  -0.132069f, -0.388812f, -0.339146f, -1.299715f,
+         -1.443864f, 0.794315f,  -0.191235f, 0.216425f,  1.001710f,  -1.733132f, -0.784130f, 0.175335f,  0.392095f,
+         -0.377074f, 1.029179f,  0.210395f,  -1.213382f, -0.930764f, 0.805471f,  0.463831f,  -1.899061f, 1.347712f,
+         0.598027f,  1.343343f,  -0.383701f, -0.295706f, -1.126457f, 2.536930f,  -0.175454f, 1.587533f,  -0.647292f,
+         0.163841f,  -1.671353f, -0.382867f, 0.983755f,  -1.251744f, 1.072228f,  0.337238f,  -1.043951f, -0.501597f,
+         -0.459066f, -0.049519f, -0.536144f, -0.641470f, 2.000417f,  0.762260f,  -1.199289f, 0.074516f,  0.576690f,
+         -0.188782f, 0.682910f,  -0.066517f, 0.667248f,  1.438523f,  -0.675662f, 0.203139f,  -0.463308f, 0.127268f,
+         -1.187195f, -1.033676f, -0.079181f, 0.035287f,  -1.054485f, 0.259839f,  -0.857956f, 0.972067f,  0.192746f,
+         0.089306f,  -0.591028f, -0.118610f, -1.997746f, -1.131407f, 0.362840f,  -2.128567f, 0.846609f});
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Growing cache whose past buffer is longer than the valid past (batched path).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_query_seqlens_growing_cache) {
+    const auto model = convert_model("com.microsoft/gqa_query_seqlens_growing_cache.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(
+        Shape{1, 4, 64},
+        {-1.121810f, -0.066274f, -0.038673f, 1.290562f,  1.866733f,  -0.136989f, -0.766306f, -0.064982f, -0.607621f,
+         -0.742434f, -0.058650f, -1.043304f, 0.606107f,  -0.103916f, 0.250008f,  -0.182940f, -0.727254f, -0.947960f,
+         -0.237276f, -0.548760f, 0.233901f,  -0.004432f, -1.362307f, 0.067121f,  -1.342860f, -0.616478f, -0.294354f,
+         -2.075273f, 0.091507f,  0.150983f,  -0.158024f, -0.424317f, -0.373604f, -0.976539f, -0.269700f, -0.552612f,
+         0.091685f,  -1.204136f, 0.235590f,  0.143219f,  -0.141563f, -0.439205f, 0.552340f,  -1.664602f, 0.460453f,
+         0.243037f,  0.283376f,  0.383313f,  -0.653644f, -0.259460f, 0.637058f,  0.430639f,  0.206713f,  -1.514320f,
+         0.537887f,  1.169471f,  1.009671f,  0.233878f,  -1.557679f, 0.942545f,  -0.147255f, -2.532520f, 0.377207f,
+         -1.492172f, -1.296441f, -0.634959f, 1.272591f,  -0.370845f, 0.270992f,  1.747968f,  1.594030f,  -0.103353f,
+         -0.241521f, -1.260871f, -0.694458f, 0.425358f,  0.395731f,  0.110238f,  0.994802f,  -0.772368f, -0.056077f,
+         0.731243f,  0.584146f,  1.070946f,  0.397020f,  -0.309403f, 0.362192f,  -1.002595f, -1.639459f, 0.580672f,
+         -0.055140f, 0.308410f,  -1.697684f, -0.365114f, -0.599857f, -0.864212f, -2.255015f, -0.334873f, 0.897304f,
+         0.380998f,  -0.600947f, -0.014876f, 0.756800f,  -2.760418f, -0.124537f, 0.543200f,  0.682129f,  1.700730f,
+         1.135046f,  0.312563f,  0.301976f,  0.786945f,  -0.539327f, -0.040188f, 0.906239f,  1.957445f,  -0.159267f,
+         -0.048401f, 0.198480f,  1.343204f,  -0.030313f, 1.469359f,  -0.966657f, -0.186036f, -0.198165f, 0.786506f,
+         1.045260f,  -1.509444f, -0.915118f, 0.336852f,  -0.658694f, -1.522428f, 1.038480f,  0.493970f,  0.493178f,
+         -0.475446f, 1.028938f,  -0.239960f, 1.096435f,  -0.911665f, -0.854135f, 0.204663f,  -0.702332f, 0.675451f,
+         0.260088f,  -0.922971f, 0.072866f,  -0.351278f, 0.915833f,  -0.632553f, -0.439173f, 1.211237f,  2.238593f,
+         1.999009f,  0.063223f,  0.218855f,  1.533459f,  -0.124435f, -0.976349f, 0.116876f,  0.451517f,  -0.829150f,
+         -1.646231f, -1.436730f, 0.665429f,  -0.758377f, -0.141347f, 0.212559f,  0.619141f,  -0.334903f, 0.498716f,
+         -0.890060f, -0.361714f, -1.024416f, 1.131767f,  -0.027083f, -0.739307f, -0.352372f, -0.221728f, 0.700520f,
+         -1.595636f, -1.037206f, -0.378107f, 2.532306f,  0.955679f,  -0.111452f, 0.712000f,  2.057436f,  -0.233744f,
+         -0.366413f, 1.211944f,  0.494175f,  0.671333f,  -0.508222f, 1.924203f,  1.709591f,  0.565948f,  0.684290f,
+         -2.027261f, 0.637710f,  -0.194109f, 0.433906f,  0.682459f,  -0.341292f, -1.690482f, 0.367875f,  -0.741384f,
+         -0.330194f, -0.604510f, -0.341574f, -2.309521f, 1.216947f,  0.253346f,  1.111399f,  1.979842f,  0.022593f,
+         -1.802436f, -0.893887f, -1.206905f, -0.501875f, 0.079648f,  -2.002187f, 0.342476f,  -1.510357f, 0.297365f,
+         -0.109491f, -0.313631f, -0.073043f, -0.539778f, -0.612471f, -1.682756f, -0.029627f, 1.845534f,  1.980495f,
+         1.321818f,  0.705802f,  -0.676480f, 1.442751f,  -0.056128f, -0.068876f, -0.291227f, 0.091962f,  -0.435215f,
+         -0.083782f, -1.084599f, -0.373664f, 2.280556f,  -0.069594f, -0.238661f, 0.532374f,  0.708122f,  -1.113769f,
+         -0.207159f, 0.918276f,  0.269838f,  0.121954f});
+    test_case.add_input<float>(
+        Shape{1, 1, 5, 16},
+        {1.554018f,  -0.677773f, 0.082746f,  -0.520059f, 1.490308f,  -1.951860f, -0.670142f, -0.529157f, 0.663540f,
+         0.606275f,  1.395194f,  -1.574033f, 0.750475f,  -0.293280f, -0.665625f, 0.539569f,  -0.920140f, -2.076913f,
+         -0.370218f, -1.497771f, -0.648916f, 0.371555f,  0.312000f,  1.586899f,  -0.199655f, -1.533332f, -0.756097f,
+         -0.919384f, -1.217825f, 0.435367f,  -0.645232f, -1.977373f, 0.696923f,  -0.111427f, 0.356837f,  0.105722f,
+         0.631655f,  0.038019f,  1.236202f,  0.424983f,  0.392068f,  0.409867f,  -1.456638f, -0.164636f, -0.259317f,
+         0.207547f,  -1.358694f, 1.634115f,  0.104389f,  -1.211318f, -1.708887f, -0.281287f, -0.089675f, -0.718292f,
+         0.092114f,  -0.641176f, 0.551658f,  -0.724542f, -0.038500f, 0.978839f,  2.571669f,  -1.007643f, -0.464508f,
+         -0.839836f, 0.784328f,  -1.148099f, -0.484357f, -0.029601f, -0.978679f, -0.957325f, -0.475623f, -2.100440f,
+         -1.445478f, -0.413034f, 0.148231f,  -0.185760f, -1.773969f, -0.463786f, 0.798438f,  0.555866f});
+    test_case.add_input<float>(
+        Shape{1, 1, 5, 16},
+        {-0.078748f, -0.887370f, 0.631216f,  -0.578929f, -1.169248f, -0.802186f, 1.448345f,  0.220180f,  1.159247f,
+         -0.479336f, 0.938149f,  -0.601504f, -0.157427f, 2.486350f,  0.767149f,  -0.501170f, -0.084819f, 0.326223f,
+         1.210458f,  -0.489133f, -1.741319f, -0.279642f, 0.015385f,  0.109538f,  1.316690f,  0.316687f,  0.812917f,
+         -1.101114f, 0.867902f,  2.096220f,  0.772909f,  0.253556f,  0.153988f,  1.787142f,  -0.927181f, -0.111102f,
+         0.460208f,  0.744001f,  -0.437328f, 0.307321f,  -0.277921f, 0.120471f,  -0.132092f, -1.141594f, -0.021114f,
+         0.877152f,  -0.967018f, -0.241092f, 0.664780f,  -1.069865f, 0.182638f,  -1.060130f, 1.134630f,  2.312821f,
+         2.022255f,  -0.219181f, 0.740199f,  0.120998f,  0.102106f,  1.547757f,  -1.319180f, 1.055295f,  -0.048976f,
+         1.408541f,  0.187233f,  -0.672672f, 0.277140f,  0.735967f,  0.035764f,  0.488038f,  -0.521675f, -2.133884f,
+         0.900024f,  0.699160f,  0.148178f,  0.068411f,  1.036296f,  -0.457107f, -0.706534f, -0.188550f});
+    test_case.add_input<int>(Shape{1}, {4});
+    test_case.add_input<int>(Shape{}, {7});
+    test_case.add_input<int>(Shape{1}, {2});
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 32},
+        {-0.178732f, -0.297319f, 0.422433f,  -0.269993f, -0.626637f, -0.719076f, 0.901388f, 0.450894f,
+         0.916384f,  -0.193607f, 0.190867f,  -0.339633f, -0.096398f, 1.059231f,  0.418243f, -0.665876f,
+         -0.237471f, -0.193914f, 0.650993f,  -0.212608f, -0.760048f, -0.772600f, 0.677371f, 0.489993f,
+         1.039287f,  -0.022730f, 0.062632f,  -0.293056f, 0.103740f,  0.734824f,  0.514026f, -0.601162f,
+         -0.351924f, 0.255150f,  0.602023f,  1.004309f,  -0.281695f, -0.132022f, 0.157811f, 0.931908f,
+         0.274035f,  0.871087f,  -0.557105f, -0.374733f, -0.014513f, 0.718059f,  0.590605f, -1.007496f,
+         -0.229404f, 0.266082f,  0.513777f,  0.446859f,  -0.500134f, -0.181140f, 0.260673f, 0.660372f,
+         0.490630f,  0.509133f,  -0.147213f, -0.554391f, 0.077510f,  1.078335f,  0.457093f, -0.697130f});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 5, 16},
+        {1.554018f,  -0.677773f, 0.082746f,  -0.520059f, 1.490308f,  -1.951860f, -0.670142f, -0.529157f, 0.663540f,
+         0.606275f,  1.395194f,  -1.574033f, 0.750475f,  -0.293280f, -0.665625f, 0.539569f,  -0.920140f, -2.076913f,
+         -0.370218f, -1.497771f, -0.648916f, 0.371555f,  0.312000f,  1.586899f,  -0.199655f, -1.533332f, -0.756097f,
+         -0.919384f, -1.217825f, 0.435367f,  -0.645232f, -1.977373f, 0.696923f,  -0.111427f, 0.356837f,  0.105722f,
+         0.631655f,  0.038019f,  1.236202f,  0.424983f,  0.392068f,  0.409867f,  -1.456638f, -0.164636f, -0.259317f,
+         0.207547f,  -1.358694f, 1.634115f,  0.389842f,  -0.212163f, -0.420882f, -0.392446f, 0.077833f,  -1.206388f,
+         0.234739f,  0.142855f,  0.087423f,  -1.049532f, 0.447969f,  -1.709463f, 0.462996f,  0.231603f,  0.284082f,
+         0.383448f,  1.379727f,  -0.618828f, 0.560839f,  0.163400f,  -0.645856f, -0.018828f, 0.755586f,  -2.761411f,
+         1.788003f,  -0.155751f, 0.977709f,  1.735207f,  1.110106f,  0.312350f,  0.305001f,  0.783453f});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 5, 16},
+        {-0.078748f, -0.887370f, 0.631216f,  -0.578929f, -1.169248f, -0.802186f, 1.448345f,  0.220180f,  1.159247f,
+         -0.479336f, 0.938149f,  -0.601504f, -0.157427f, 2.486350f,  0.767149f,  -0.501170f, -0.084819f, 0.326223f,
+         1.210458f,  -0.489133f, -1.741319f, -0.279642f, 0.015385f,  0.109538f,  1.316690f,  0.316687f,  0.812917f,
+         -1.101114f, 0.867902f,  2.096220f,  0.772909f,  0.253556f,  0.153988f,  1.787142f,  -0.927181f, -0.111102f,
+         0.460208f,  0.744001f,  -0.437328f, 0.307321f,  -0.277921f, 0.120471f,  -0.132092f, -1.141594f, -0.021114f,
+         0.877152f,  -0.967018f, -0.241092f, -0.653644f, -0.259460f, 0.637058f,  0.430639f,  0.206713f,  -1.514320f,
+         0.537887f,  1.169471f,  1.009671f,  0.233878f,  -1.557679f, 0.942545f,  -0.147255f, -2.532520f, 0.377207f,
+         -1.492172f, -0.539327f, -0.040188f, 0.906239f,  1.957445f,  -0.159267f, -0.048401f, 0.198480f,  1.343204f,
+         -0.030313f, 1.469359f,  -0.966657f, -0.186036f, -0.198165f, 0.786506f,  1.045260f,  -1.509444f});
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Windowed cache (staging) that evicts while appending a padded chunk.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_query_seqlens_sliding_window_cache) {
+    const auto model = convert_model("com.microsoft/gqa_query_seqlens_sliding_window_cache.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(
+        Shape{1, 4, 64},
+        {1.189097f,  -1.387113f, 1.191830f,  -0.639253f, -1.100744f, 1.260062f,  -0.096890f, -1.300234f, -0.358733f,
+         0.931052f,  1.192074f,  -0.427099f, 0.406321f,  0.714085f,  -0.644626f, 0.355036f,  -0.031878f, -0.536024f,
+         -0.492148f, 0.067034f,  0.029853f,  -0.565490f, -0.425945f, 1.113337f,  0.213827f,  0.885094f,  1.201822f,
+         0.588842f,  2.270886f,  -0.825304f, 0.808410f,  -0.318144f, 1.855783f,  1.700440f,  -1.954211f, -0.968866f,
+         0.664313f,  0.789867f,  0.736564f,  -0.070865f, 0.455121f,  0.653021f,  -0.077871f, 1.027302f,  -2.259497f,
+         0.633794f,  -1.034053f, 0.958678f,  -0.228684f, -0.888787f, 0.373902f,  -0.911334f, -0.912768f, -1.567294f,
+         -0.026708f, 0.496824f,  1.023026f,  -0.141728f, 1.047855f,  0.017961f,  -0.093288f, 0.573563f,  1.058393f,
+         -0.341434f, -0.243762f, -0.160831f, 0.082769f,  -0.900408f, 1.028006f,  -0.400410f, 0.462443f,  -0.825473f,
+         0.358804f,  0.391593f,  -0.420681f, 2.020890f,  0.371040f,  1.776929f,  0.959139f,  -0.662275f, -0.382187f,
+         0.436102f,  0.061173f,  0.049461f,  -0.286205f, -1.808476f, -0.225433f, -2.218122f, 0.371820f,  -0.726058f,
+         -0.715417f, -0.219304f, 0.272672f,  -1.432006f, -1.748601f, -1.066066f, -2.041728f, -0.966850f, 1.590883f,
+         -1.056586f, 0.651405f,  -1.371635f, 0.299120f,  -0.319734f, -0.059813f, 0.568778f,  1.756240f,  0.194706f,
+         0.124359f,  -0.973368f, 0.583340f,  -0.246072f, 0.832007f,  -0.043706f, 1.740856f,  -1.982916f, -0.296599f,
+         0.881482f,  -0.350692f, -0.792173f, -0.265881f, -1.379929f, 0.118954f,  2.440462f,  1.145031f,  -1.109009f,
+         -0.873341f, -0.404728f, 1.004416f,  -0.821487f, -0.690231f, 0.884749f,  0.864653f,  -0.373815f, -1.117763f,
+         -1.549745f, -0.698990f, -2.230529f, 0.749820f,  -0.630031f, 0.481294f,  1.868325f,  1.172996f,  -1.151135f,
+         0.869249f,  1.157857f,  -0.746357f, -0.953297f, -0.109692f, -1.601423f, 1.470735f,  -2.405364f, -1.106807f,
+         -0.269565f, -0.227087f, 0.166124f,  0.271449f,  -0.213612f, 1.136886f,  -2.139376f, -0.000165f, -0.714584f,
+         0.132513f,  0.220760f,  -0.911829f, -0.640949f, 0.792587f,  0.349056f,  -0.680248f, 2.039891f,  2.309178f,
+         -1.462462f, 0.301795f,  2.508994f,  0.783899f,  0.221060f,  -0.208057f, -0.541194f, -0.212515f, -0.550729f,
+         0.744908f,  -0.398154f, -0.441151f, -1.202161f, -0.049590f, -0.894122f, -0.180750f, 1.041816f,  0.365925f,
+         0.504725f,  0.356091f,  0.059176f,  -0.127328f, -0.307806f, 0.759117f,  -1.084240f, 1.340723f,  0.034078f,
+         -0.748700f, -0.489146f, -0.676990f, 0.160206f,  -0.717843f, 1.142131f,  -0.781639f, -2.272522f, -0.730999f,
+         -2.008521f, -0.039869f, 1.059158f,  0.647760f,  -1.337590f, -0.762255f, 1.778634f,  0.318511f,  0.004119f,
+         1.056063f,  2.452741f,  1.296573f,  0.139415f,  0.354688f,  0.617080f,  -0.612698f, -1.058720f, 0.052449f,
+         -0.947211f, -0.061462f, 0.096123f,  2.341037f,  -0.851050f, -0.121789f, -0.164303f, 0.437311f,  1.046724f,
+         -0.490483f, -0.821352f, -1.640711f, -0.926205f, 0.536441f,  0.045647f,  -1.015434f, -0.372767f, 0.031473f,
+         0.503679f,  -0.593394f, -0.250440f, -1.818435f, -1.151386f, 1.617716f,  -2.188141f, -0.337803f, 0.219198f,
+         -0.374349f, -0.808158f, -0.061079f, -0.004965f});
+    test_case.add_input<float>(
+        Shape{1, 1, 4, 16},
+        {-0.082117f, -1.877712f, -0.147404f, -0.855113f, -0.547736f, 0.226975f,  0.640729f,  0.896777f,
+         -0.496413f, 0.924003f,  1.173728f,  1.136638f,  1.389768f,  -0.145682f, -0.174132f, 0.825051f,
+         -1.366524f, 0.209429f,  -0.530559f, -0.368789f, -1.741514f, -0.890544f, -0.020494f, 0.888453f,
+         0.990027f,  -0.080326f, -0.189288f, -0.830679f, 0.402357f,  -0.247578f, 0.605885f,  1.751687f,
+         -0.032375f, -1.497355f, -0.860850f, -1.458147f, -1.197110f, 1.305271f,  0.226660f,  -1.520174f,
+         0.653632f,  1.260375f,  -0.359875f, -0.675991f, -0.337378f, 0.284607f,  0.639970f,  1.182217f,
+         1.212478f,  1.185404f,  1.361921f,  0.661388f,  -1.530907f, -0.130964f, 0.313920f,  -0.383126f,
+         0.911261f,  -0.360214f, -0.925747f, 1.444299f,  0.666004f,  0.219254f,  0.926709f,  1.062534f});
+    test_case.add_input<float>(
+        Shape{1, 1, 4, 16},
+        {0.341036f,  -2.457661f, -0.675589f, -0.456579f, -0.984201f, 0.198677f,  1.192202f,  -0.484906f,
+         -1.134833f, 2.028035f,  -0.451438f, -1.232965f, 0.237677f,  0.425683f,  -0.705050f, 0.790454f,
+         -0.487319f, -0.922951f, 0.178591f,  0.770769f,  -0.633851f, 0.330626f,  -0.093492f, 2.824434f,
+         -0.708560f, 1.384172f,  -0.052346f, -0.126762f, 0.721665f,  0.893991f,  1.267016f,  0.328652f,
+         -0.600396f, -0.537646f, 0.509653f,  0.580900f,  1.398051f,  0.418430f,  1.060168f,  1.516771f,
+         0.164801f,  -1.485559f, -1.179277f, -1.437803f, 1.591590f,  -0.847409f, 1.231842f,  0.585732f,
+         1.715269f,  1.003094f,  -0.102370f, -0.200030f, 0.085168f,  0.175261f,  -0.530744f, -0.032628f,
+         1.609320f,  -1.702138f, 0.258488f,  -0.906953f, 0.187037f,  0.839856f,  -0.057610f, 0.772987f});
+    test_case.add_input<int>(Shape{1}, {4});
+    test_case.add_input<int>(Shape{}, {5});
+    test_case.add_input<int>(Shape{1}, {2});
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 32},
+        {-0.559081f, -0.593799f, 0.476747f,  0.454630f,  1.059493f,  0.229467f,  0.888757f,  1.502893f,
+         0.190434f,  -1.184874f, -0.904102f, -1.222614f, 1.382345f,  -0.608973f, 1.217970f,  0.484215f,
+         -0.495275f, -0.824073f, 0.276560f,  0.591490f,  -0.148409f, 0.203754f,  0.199781f,  2.315466f,
+         -0.354753f, 0.548052f,  -0.247456f, -0.442746f, 0.874970f,  0.434091f,  1.241878f,  0.340304f,
+         0.076472f,  -0.473163f, 0.931005f,  -0.922030f, -0.062140f, -0.104921f, 0.139470f,  0.277413f,
+         0.303132f,  -0.971709f, 0.100351f,  0.553192f,  0.827624f,  -0.446319f, 0.368459f,  -0.118472f,
+         0.379341f,  -0.282278f, 1.273438f,  -1.314993f, -0.083014f, 0.372785f,  -0.028856f, -0.134907f,
+         0.037130f,  -1.186791f, 0.033946f,  1.292179f,  1.016173f,  -0.770148f, -0.143908f, -0.207037f});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 3, 16},
+        {-0.032375f, -1.497355f, -0.860850f, -1.458147f, -1.197110f, 1.305271f,  0.226660f,  -1.520174f,
+         0.653632f,  1.260375f,  -0.359875f, -0.675991f, -0.337378f, 0.284607f,  0.639970f,  1.182217f,
+         1.855783f,  1.700440f,  -1.954211f, -0.968866f, 0.664313f,  0.789867f,  0.736564f,  -0.070865f,
+         0.455121f,  0.653021f,  -0.077871f, 1.027302f,  -2.259497f, 0.633794f,  -1.034053f, 0.958678f,
+         -2.041728f, -0.966850f, 1.590883f,  -1.056586f, 0.651405f,  -1.371635f, 0.299120f,  -0.319734f,
+         -0.059813f, 0.568778f,  1.756240f,  0.194706f,  0.124359f,  -0.973368f, 0.583340f,  -0.246072f});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 3, 16},
+        {-0.600396f, -0.537646f, 0.509653f,  0.580900f,  1.398051f,  0.418430f,  1.060168f,  1.516771f,
+         0.164801f,  -1.485559f, -1.179277f, -1.437803f, 1.591590f,  -0.847409f, 1.231842f,  0.585732f,
+         -0.228684f, -0.888787f, 0.373902f,  -0.911334f, -0.912768f, -1.567294f, -0.026708f, 0.496824f,
+         1.023026f,  -0.141728f, 1.047855f,  0.017961f,  -0.093288f, 0.573563f,  1.058393f,  -0.341434f,
+         0.832007f,  -0.043706f, 1.740856f,  -1.982916f, -0.296599f, 0.881482f,  -0.350692f, -0.792173f,
+         -0.265881f, -1.379929f, 0.118954f,  2.440462f,  1.145031f,  -1.109009f, -0.873341f, -0.404728f});
+    test_case.run_with_tolerance_as_fp();
+}
+
+// A single-token step with query_seqlens wired ignores it and equals the plain decode.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_query_seqlens_single_token) {
+    const auto model = convert_model("com.microsoft/gqa_query_seqlens_single_token.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(
+        Shape{1, 1, 64},
+        {0.001230f,  0.298746f,  -0.274138f, -0.890592f, -0.454671f, -0.991647f, 0.060144f,  1.340215f,
+         -0.492207f, -0.620475f, 0.489842f,  0.356887f,  0.105414f,  -0.930468f, -0.029252f, 0.695303f,
+         -1.344215f, -0.457616f, -1.901223f, -1.289538f, -1.841735f, -0.235091f, -1.267447f, 0.271264f,
+         0.156751f,  -0.186931f, -2.516760f, -0.538693f, -0.048501f, 0.113309f,  -1.530136f, -0.477753f,
+         -0.978519f, -0.808837f, 1.060899f,  -0.807535f, -0.032522f, 0.884390f,  -0.583600f, -0.111702f,
+         0.110464f,  0.063782f,  -1.225056f, 0.076140f,  1.358823f,  -1.547145f, 0.859383f,  0.119354f,
+         -0.641470f, 2.000417f,  0.762260f,  -1.199289f, 0.074516f,  0.576690f,  -0.188782f, 0.682910f,
+         -0.066517f, 0.667248f,  1.438523f,  -0.675662f, 0.203139f,  -0.463308f, 0.127268f,  -1.187195f});
+    test_case.add_input<float>(
+        Shape{1, 1, 8, 16},
+        {-0.579302f, -0.196196f, 0.898764f,  1.145222f,  -1.323528f, -0.794642f, 0.646903f,  -1.992420f, -0.463170f,
+         -0.097287f, 1.257015f,  0.689404f,  -0.327213f, -0.368576f, -0.250195f, 1.523529f,  -0.428025f, -0.303680f,
+         0.352589f,  -0.120770f, -0.197284f, -1.114067f, -0.011521f, -0.443581f, 1.166128f,  0.653089f,  -0.024144f,
+         0.668381f,  -0.339870f, 1.052126f,  -0.005400f, 0.583382f,  -1.290893f, 0.346680f,  -1.688204f, -2.035329f,
+         -0.304477f, -0.899928f, 0.164053f,  2.244757f,  -0.831723f, -0.623944f, 0.205404f,  0.493013f,  -0.176406f,
+         -0.205930f, 0.702463f,  0.519908f,  -1.033676f, -0.079181f, 0.035287f,  -1.054485f, 0.259839f,  -0.857956f,
+         0.972067f,  0.192746f,  0.089306f,  -0.591028f, -0.118610f, -1.997746f, -1.131407f, 0.362840f,  -2.128567f,
+         0.846609f,  -1.746096f, 0.756738f,  -0.845497f, 0.778991f,  0.130951f,  -1.536835f, 1.249149f,  1.441707f,
+         -0.065805f, -0.273916f, -0.159867f, -0.975152f, 1.098587f,  -0.542892f, -0.051190f, -0.793296f, -0.626073f,
+         -1.277725f, 1.257069f,  -0.154088f, 0.965922f,  0.013325f,  -0.694404f, -0.326685f, -0.560231f, 0.007959f,
+         -0.375267f, -0.299922f, -1.378575f, -0.806846f, 1.654058f,  -0.671233f, -1.054094f, 0.337326f,  1.407272f,
+         -1.454024f, -0.208522f, -0.632053f, -1.761019f, 0.734927f,  -0.023444f, 0.071442f,  -0.752311f, 0.454784f,
+         -0.539297f, -0.142903f, -1.108261f, -1.216103f, 1.335532f,  -0.507105f, 0.291680f,  -0.033790f, -0.441145f,
+         -0.507961f, 0.630083f,  -0.301868f, -0.151444f, 0.022222f,  1.176508f,  0.680511f,  0.382600f,  -0.563571f,
+         -1.381969f, 0.949530f});
+    test_case.add_input<float>(
+        Shape{1, 1, 8, 16},
+        {0.966447f,  -0.140708f, 0.541884f,  0.781443f,  0.831184f,  0.921384f,  -0.455618f, 1.514973f,  -1.246593f,
+         0.861723f,  0.493932f,  0.873619f,  1.879008f,  1.484445f,  -1.145177f, -1.688672f, 0.816889f,  -1.015012f,
+         -0.012405f, 0.839727f,  -1.643797f, -2.109980f, 0.259299f,  0.044386f,  -0.245803f, 0.038535f,  -0.860516f,
+         -1.513494f, -0.166655f, -0.971709f, -1.643481f, 0.505681f,  -0.061399f, 0.406529f,  -0.989295f, -0.658059f,
+         -0.999043f, -0.886642f, 0.195408f,  -0.782975f, 0.356066f,  0.339756f,  2.025161f,  -1.392789f, 0.887902f,
+         -0.089488f, -0.014030f, -1.449864f, -0.460194f, 0.743197f,  -0.082478f, 0.081054f,  -0.290717f, 1.154570f,
+         -0.021473f, -2.200416f, -0.692073f, -1.968797f, -3.251438f, -0.530115f, 1.333560f,  0.047120f,  -1.172546f,
+         -0.940700f, 1.130613f,  0.157627f,  0.047999f,  -0.053462f, 0.038400f,  0.805406f,  0.552567f,  0.215705f,
+         -1.042868f, 0.511109f,  -0.684247f, 1.093846f,  -1.271051f, -0.137621f, -0.007358f, -1.324646f, 1.721972f,
+         1.460407f,  -0.463584f, 0.771721f,  0.378676f,  -2.613559f, 0.250398f,  -0.061344f, 0.083217f,  -1.076875f,
+         -0.269347f, -0.178259f, 1.188094f,  0.334427f,  -0.005555f, 1.528970f,  -0.555248f, -0.389430f, -1.816755f,
+         1.569106f,  0.964332f,  0.916848f,  0.668898f,  0.110149f,  0.215489f,  -0.252007f, -0.203600f, 0.054304f,
+         1.511829f,  0.555688f,  -0.058460f, -0.579392f, -0.634999f, 1.602705f,  0.506687f,  0.067551f,  -0.346182f,
+         -1.109053f, -0.066862f, 0.873658f,  -0.392537f, -0.227243f, -0.221034f, 0.109594f,  -1.593011f, -0.235398f,
+         -0.854396f, 0.884585f});
+    test_case.add_input<int>(Shape{1}, {4});
+    test_case.add_input<int>(Shape{}, {8});
+    test_case.add_input<int>(Shape{1}, {1});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 32},
+        {-0.011559f, 0.419000f,  -0.502666f, -0.354335f, -0.736718f, -0.458506f, 0.090823f,  -0.611447f,
+         -0.001530f, 0.049210f,  0.837274f,  -1.058545f, 0.858180f,  -0.077582f, -0.403621f, -1.181695f,
+         -0.212542f, 0.746908f,  0.018113f,  -0.270141f, -0.482250f, 0.150647f,  -0.000228f, -0.724647f,
+         -0.285596f, -0.463897f, -0.577716f, -0.827129f, 0.739121f,  -0.226836f, -0.679666f, -0.906488f});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 5, 16},
+        {-0.579302f, -0.196196f, 0.898764f,  1.145222f,  -1.323528f, -0.794642f, 0.646903f,  -1.992420f, -0.463170f,
+         -0.097287f, 1.257015f,  0.689404f,  -0.327213f, -0.368576f, -0.250195f, 1.523529f,  -0.428025f, -0.303680f,
+         0.352589f,  -0.120770f, -0.197284f, -1.114067f, -0.011521f, -0.443581f, 1.166128f,  0.653089f,  -0.024144f,
+         0.668381f,  -0.339870f, 1.052126f,  -0.005400f, 0.583382f,  -1.290893f, 0.346680f,  -1.688204f, -2.035329f,
+         -0.304477f, -0.899928f, 0.164053f,  2.244757f,  -0.831723f, -0.623944f, 0.205404f,  0.493013f,  -0.176406f,
+         -0.205930f, 0.702463f,  0.519908f,  -1.033676f, -0.079181f, 0.035287f,  -1.054485f, 0.259839f,  -0.857956f,
+         0.972067f,  0.192746f,  0.089306f,  -0.591028f, -0.118610f, -1.997746f, -1.131407f, 0.362840f,  -2.128567f,
+         0.846609f,  0.723202f,  -0.304392f, 1.454212f,  -0.810688f, -0.086834f, 0.903889f,  -0.587033f, -0.111853f,
+         0.668342f,  -0.752085f, -0.715218f, -0.026342f, 1.356436f,  -1.535834f, 0.857041f,  0.119213f});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 5, 16},
+        {0.966447f,  -0.140708f, 0.541884f,  0.781443f,  0.831184f,  0.921384f,  -0.455618f, 1.514973f,  -1.246593f,
+         0.861723f,  0.493932f,  0.873619f,  1.879008f,  1.484445f,  -1.145177f, -1.688672f, 0.816889f,  -1.015012f,
+         -0.012405f, 0.839727f,  -1.643797f, -2.109980f, 0.259299f,  0.044386f,  -0.245803f, 0.038535f,  -0.860516f,
+         -1.513494f, -0.166655f, -0.971709f, -1.643481f, 0.505681f,  -0.061399f, 0.406529f,  -0.989295f, -0.658059f,
+         -0.999043f, -0.886642f, 0.195408f,  -0.782975f, 0.356066f,  0.339756f,  2.025161f,  -1.392789f, 0.887902f,
+         -0.089488f, -0.014030f, -1.449864f, -0.460194f, 0.743197f,  -0.082478f, 0.081054f,  -0.290717f, 1.154570f,
+         -0.021473f, -2.200416f, -0.692073f, -1.968797f, -3.251438f, -0.530115f, 1.333560f,  0.047120f,  -1.172546f,
+         -0.940700f, -0.641470f, 2.000417f,  0.762260f,  -1.199289f, 0.074516f,  0.576690f,  -0.188782f, 0.682910f,
+         -0.066517f, 0.667248f,  1.438523f,  -0.675662f, 0.203139f,  -0.463308f, 0.127268f,  -1.187195f});
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Explicit position_ids are honored for every row of a padded chunk.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_query_seqlens_position_ids) {
+    const auto model = convert_model("com.microsoft/gqa_query_seqlens_position_ids.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(
+        Shape{1, 4, 64},
+        {-0.770599f, 0.577047f,  1.524437f,  -0.313596f, -0.601576f, 0.191432f,  -0.002029f, -0.993616f, 0.460919f,
+         2.015516f,  -0.258112f, -0.202876f, -1.044932f, 0.319088f,  -1.246976f, -1.106931f, 1.279667f,  -0.905453f,
+         1.081358f,  1.524358f,  0.259326f,  0.553391f,  1.952251f,  -0.196728f, -0.593006f, -1.353231f, 0.041707f,
+         1.479144f,  0.959595f,  -0.942091f, -0.855375f, -0.504171f, 0.292268f,  -0.205311f, 0.214454f,  0.296739f,
+         -0.298774f, -0.040174f, 0.206592f,  -0.083970f, 0.503521f,  1.870876f,  0.591972f,  0.055811f,  -1.686119f,
+         0.387957f,  -1.946678f, -1.409034f, 0.854639f,  0.706235f,  -0.149939f, -1.710011f, -0.371349f, -0.678738f,
+         0.636841f,  2.257730f,  0.216930f,  -0.779311f, -1.170552f, -0.056094f, -0.176793f, -1.151519f, 0.116355f,
+         -1.150913f, 1.112107f,  1.062651f,  1.084751f,  -0.474050f, 0.514521f,  -0.132069f, -0.388812f, -0.339146f,
+         -1.299715f, -1.443864f, 0.794315f,  -0.191235f, 0.216425f,  1.001710f,  -1.733132f, -0.784130f, 0.175335f,
+         0.392095f,  -0.377074f, 1.029179f,  0.210395f,  -1.213382f, -0.930764f, 0.805471f,  0.463831f,  -1.899061f,
+         1.347712f,  0.598027f,  1.343343f,  -0.383701f, -0.295706f, -1.126457f, 2.536930f,  -0.175454f, 1.587533f,
+         -0.647292f, 0.163841f,  -1.671353f, -0.382867f, 0.983755f,  -1.251744f, 1.072228f,  0.337238f,  -1.043951f,
+         -0.501597f, -0.459066f, -0.049519f, -0.536144f, -0.827288f, -0.304588f, -1.026890f, -1.289527f, -0.048176f,
+         0.882874f,  -1.529372f, 0.003508f,  -0.649956f, -0.977145f, 0.853438f,  -0.518170f, 1.498302f,  -0.779839f,
+         0.386502f,  -0.227283f, -0.754022f, 0.587675f,  -0.154983f, 0.603211f,  -0.047292f, -1.085816f, -0.102069f,
+         0.051955f,  0.958463f,  -0.906269f, -0.039330f, -1.721879f, 0.651493f,  -1.081483f, -1.806360f, -0.059217f,
+         1.105685f,  -1.524447f, -1.088036f, -0.743275f, -1.129497f, 0.379428f,  -0.807367f, -0.721515f, 0.583305f,
+         -0.755515f, 0.432780f,  -0.971385f, -1.212139f, -1.835449f, 1.861203f,  -0.320259f, 0.243933f,  -0.031050f,
+         0.159962f,  0.049686f,  1.908217f,  -1.038927f, -1.557462f, -1.011960f, -1.334709f, 0.746962f,  0.820378f,
+         -0.961316f, -1.390436f, -0.354797f, 1.391124f,  -2.819569f, 0.526627f,  -1.075755f, 1.040367f,  -1.077924f,
+         -0.285416f, -1.506279f, -0.977258f, 1.385839f,  0.820579f,  -0.401668f, -0.870172f, -1.893807f, -0.393657f,
+         -0.030903f, -0.084054f, -0.093792f, -1.121810f, -0.066274f, -0.038673f, 1.290562f,  1.866733f,  -0.136989f,
+         -0.766306f, -0.064982f, -0.607621f, -0.742434f, -0.058650f, -1.043304f, 0.606107f,  -0.103916f, 0.250008f,
+         -0.182940f, -0.727254f, -0.947960f, -0.237276f, -0.548760f, 0.233901f,  -0.004432f, -1.362307f, 0.067121f,
+         -1.342860f, -0.616478f, -0.294354f, -2.075273f, 0.091507f,  0.150983f,  -0.158024f, -0.424317f, -0.373604f,
+         -0.976539f, -0.269700f, -0.552612f, 0.091685f,  -1.204136f, 0.235590f,  0.143219f,  -0.141563f, -0.439205f,
+         0.552340f,  -1.664602f, 0.460453f,  0.243037f,  0.283376f,  0.383313f,  -0.653644f, -0.259460f, 0.637058f,
+         0.430639f,  0.206713f,  -1.514320f, 0.537887f,  1.169471f,  1.009671f,  0.233878f,  -1.557679f, 0.942545f,
+         -0.147255f, -2.532520f, 0.377207f,  -1.492172f});
+    test_case.add_input<float>(
+        Shape{1, 1, 8, 16},
+        {-1.296441f, -0.634959f, 1.272591f,  -0.370845f, 0.270992f,  1.747968f,  1.594030f,  -0.103353f, -0.241521f,
+         -1.260871f, -0.694458f, 0.425358f,  0.395731f,  0.110238f,  0.994802f,  -0.772368f, -0.056077f, 0.731243f,
+         0.584146f,  1.070946f,  0.397020f,  -0.309403f, 0.362192f,  -1.002595f, -1.639459f, 0.580672f,  -0.055140f,
+         0.308410f,  -1.697684f, -0.365114f, -0.599857f, -0.864212f, -2.255015f, -0.334873f, 0.897304f,  0.380998f,
+         -0.600947f, -0.014876f, 0.756800f,  -2.760418f, -0.124537f, 0.543200f,  0.682129f,  1.700730f,  1.135046f,
+         0.312563f,  0.301976f,  0.786945f,  -0.539327f, -0.040188f, 0.906239f,  1.957445f,  -0.159267f, -0.048401f,
+         0.198480f,  1.343204f,  -0.030313f, 1.469359f,  -0.966657f, -0.186036f, -0.198165f, 0.786506f,  1.045260f,
+         -1.509444f, -0.915118f, 0.336852f,  -0.658694f, -1.522428f, 1.038480f,  0.493970f,  0.493178f,  -0.475446f,
+         1.028938f,  -0.239960f, 1.096435f,  -0.911665f, -0.854135f, 0.204663f,  -0.702332f, 0.675451f,  0.260088f,
+         -0.922971f, 0.072866f,  -0.351278f, 0.915833f,  -0.632553f, -0.439173f, 1.211237f,  2.238593f,  1.999009f,
+         0.063223f,  0.218855f,  1.533459f,  -0.124435f, -0.976349f, 0.116876f,  0.451517f,  -0.829150f, -1.646231f,
+         -1.436730f, 0.665429f,  -0.758377f, -0.141347f, 0.212559f,  0.619141f,  -0.334903f, 0.498716f,  -0.890060f,
+         -0.361714f, -1.024416f, 1.131767f,  -0.027083f, -0.739307f, -0.352372f, -0.221728f, 0.700520f,  -1.595636f,
+         -1.037206f, -0.378107f, 2.532306f,  0.955679f,  -0.111452f, 0.712000f,  2.057436f,  -0.233744f, -0.366413f,
+         1.211944f,  0.494175f});
+    test_case.add_input<float>(
+        Shape{1, 1, 8, 16},
+        {0.671333f,  -0.508222f, 1.924203f,  1.709591f,  0.565948f,  0.684290f,  -2.027261f, 0.637710f,  -0.194109f,
+         0.433906f,  0.682459f,  -0.341292f, -1.690482f, 0.367875f,  -0.741384f, -0.330194f, -0.604510f, -0.341574f,
+         -2.309521f, 1.216947f,  0.253346f,  1.111399f,  1.979842f,  0.022593f,  -1.802436f, -0.893887f, -1.206905f,
+         -0.501875f, 0.079648f,  -2.002187f, 0.342476f,  -1.510357f, 0.297365f,  -0.109491f, -0.313631f, -0.073043f,
+         -0.539778f, -0.612471f, -1.682756f, -0.029627f, 1.845534f,  1.980495f,  1.321818f,  0.705802f,  -0.676480f,
+         1.442751f,  -0.056128f, -0.068876f, -0.291227f, 0.091962f,  -0.435215f, -0.083782f, -1.084599f, -0.373664f,
+         2.280556f,  -0.069594f, -0.238661f, 0.532374f,  0.708122f,  -1.113769f, -0.207159f, 0.918276f,  0.269838f,
+         0.121954f,  1.554018f,  -0.677773f, 0.082746f,  -0.520059f, 1.490308f,  -1.951860f, -0.670142f, -0.529157f,
+         0.663540f,  0.606275f,  1.395194f,  -1.574033f, 0.750475f,  -0.293280f, -0.665625f, 0.539569f,  -0.920140f,
+         -2.076913f, -0.370218f, -1.497771f, -0.648916f, 0.371555f,  0.312000f,  1.586899f,  -0.199655f, -1.533332f,
+         -0.756097f, -0.919384f, -1.217825f, 0.435367f,  -0.645232f, -1.977373f, 0.696923f,  -0.111427f, 0.356837f,
+         0.105722f,  0.631655f,  0.038019f,  1.236202f,  0.424983f,  0.392068f,  0.409867f,  -1.456638f, -0.164636f,
+         -0.259317f, 0.207547f,  -1.358694f, 1.634115f,  0.104389f,  -1.211318f, -1.708887f, -0.281287f, -0.089675f,
+         -0.718292f, 0.092114f,  -0.641176f, 0.551658f,  -0.724542f, -0.038500f, 0.978839f,  2.571669f,  -1.007643f,
+         -0.464508f, -0.839836f});
+    test_case.add_input<int>(Shape{1}, {4});
+    test_case.add_input<int>(Shape{}, {8});
+    test_case.add_input<int>(Shape{1}, {2});
+    test_case.add_input<int64_t>(Shape{1, 4}, {3, 4, 0, 0});
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 32},
+        {0.480797f,  0.353083f,  -0.539372f, -0.774849f, -0.204506f, -0.217490f, 0.616267f,  1.504923f,
+         -0.111071f, -0.521438f, -0.887553f, -0.104609f, -0.232368f, -1.054121f, 0.111634f,  -1.102562f,
+         0.416136f,  -0.265776f, 0.521952f,  0.742107f,  0.021773f,  0.097970f,  -1.426967f, 0.378976f,
+         0.569329f,  0.931217f,  0.714675f,  0.108191f,  -1.039746f, 0.563690f,  -0.318633f, -0.353182f,
+         -0.088015f, -0.080761f, -0.711836f, -0.437286f, -0.138204f, 0.240495f,  -0.566889f, 0.477281f,
+         -0.041463f, -0.106162f, 0.204846f,  -0.114037f, 0.182618f,  -0.444895f, 0.143657f,  -0.598372f,
+         -0.218831f, -0.155625f, -1.046108f, -0.034697f, -0.022419f, 0.485243f,  -0.005367f, 0.371880f,
+         -0.506620f, -0.339945f, -0.119682f, -0.234825f, 0.169054f,  -0.835658f, 0.181688f,  -0.806471f});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 5, 16},
+        {-1.296441f, -0.634959f, 1.272591f,  -0.370845f, 0.270992f,  1.747968f,  1.594030f,  -0.103353f, -0.241521f,
+         -1.260871f, -0.694458f, 0.425358f,  0.395731f,  0.110238f,  0.994802f,  -0.772368f, -0.056077f, 0.731243f,
+         0.584146f,  1.070946f,  0.397020f,  -0.309403f, 0.362192f,  -1.002595f, -1.639459f, 0.580672f,  -0.055140f,
+         0.308410f,  -1.697684f, -0.365114f, -0.599857f, -0.864212f, -2.255015f, -0.334873f, 0.897304f,  0.380998f,
+         -0.600947f, -0.014876f, 0.756800f,  -2.760418f, -0.124537f, 0.543200f,  0.682129f,  1.700730f,  1.135046f,
+         0.312563f,  0.301976f,  0.786945f,  -0.360400f, -1.640011f, 0.029936f,  0.290118f,  -0.248063f, -0.043853f,
+         0.212431f,  -0.082633f, -0.457237f, 0.923413f,  0.628908f,  0.083669f,  -1.694322f, 0.387559f,  -1.946050f,
+         -1.409113f, -2.605571f, -1.075291f, 1.330888f,  -0.510422f, 0.183769f,  -1.665412f, -0.382666f, 0.984432f,
+         -1.101760f, 0.155578f,  0.928831f,  -1.117269f, -0.494644f, -0.480170f, -0.051050f, -0.534899f});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 5, 16},
+        {0.671333f,  -0.508222f, 1.924203f,  1.709591f,  0.565948f,  0.684290f,  -2.027261f, 0.637710f,  -0.194109f,
+         0.433906f,  0.682459f,  -0.341292f, -1.690482f, 0.367875f,  -0.741384f, -0.330194f, -0.604510f, -0.341574f,
+         -2.309521f, 1.216947f,  0.253346f,  1.111399f,  1.979842f,  0.022593f,  -1.802436f, -0.893887f, -1.206905f,
+         -0.501875f, 0.079648f,  -2.002187f, 0.342476f,  -1.510357f, 0.297365f,  -0.109491f, -0.313631f, -0.073043f,
+         -0.539778f, -0.612471f, -1.682756f, -0.029627f, 1.845534f,  1.980495f,  1.321818f,  0.705802f,  -0.676480f,
+         1.442751f,  -0.056128f, -0.068876f, 0.854639f,  0.706235f,  -0.149939f, -1.710011f, -0.371349f, -0.678738f,
+         0.636841f,  2.257730f,  0.216930f,  -0.779311f, -1.170552f, -0.056094f, -0.176793f, -1.151519f, 0.116355f,
+         -1.150913f, -0.827288f, -0.304588f, -1.026890f, -1.289527f, -0.048176f, 0.882874f,  -1.529372f, 0.003508f,
+         -0.649956f, -0.977145f, 0.853438f,  -0.518170f, 1.498302f,  -0.779839f, 0.386502f,  -0.227283f});
+    test_case.run_with_tolerance_as_fp();
+}
+
+// A padded chunk appended to an int8 per-tensor quantized cache.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_query_seqlens_i8kv) {
+    const auto model = convert_model("com.microsoft/gqa_query_seqlens_i8kv.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(
+        Shape{1, 4, 64},
+        {0.784328f,  -1.148099f, -0.484357f, -0.029601f, -0.978679f, -0.957325f, -0.475623f, -2.100440f, -1.445478f,
+         -0.413034f, 0.148231f,  -0.185760f, -1.773969f, -0.463786f, 0.798438f,  0.555866f,  -0.078748f, -0.887370f,
+         0.631216f,  -0.578929f, -1.169248f, -0.802186f, 1.448345f,  0.220180f,  1.159247f,  -0.479336f, 0.938149f,
+         -0.601504f, -0.157427f, 2.486350f,  0.767149f,  -0.501170f, -0.084819f, 0.326223f,  1.210458f,  -0.489133f,
+         -1.741319f, -0.279642f, 0.015385f,  0.109538f,  1.316690f,  0.316687f,  0.812917f,  -1.101114f, 0.867902f,
+         2.096220f,  0.772909f,  0.253556f,  0.153988f,  1.787142f,  -0.927181f, -0.111102f, 0.460208f,  0.744001f,
+         -0.437328f, 0.307321f,  -0.277921f, 0.120471f,  -0.132092f, -1.141594f, -0.021114f, 0.877152f,  -0.967018f,
+         -0.241092f, 0.664780f,  -1.069865f, 0.182638f,  -1.060130f, 1.134630f,  2.312821f,  2.022255f,  -0.219181f,
+         0.740199f,  0.120998f,  0.102106f,  1.547757f,  -1.319180f, 1.055295f,  -0.048976f, 1.408541f,  0.187233f,
+         -0.672672f, 0.277140f,  0.735967f,  0.035764f,  0.488038f,  -0.521675f, -2.133884f, 0.900024f,  0.699160f,
+         0.148178f,  0.068411f,  1.036296f,  -0.457107f, -0.706534f, -0.188550f, 1.189097f,  -1.387113f, 1.191830f,
+         -0.639253f, -1.100744f, 1.260062f,  -0.096890f, -1.300234f, -0.358733f, 0.931052f,  1.192074f,  -0.427099f,
+         0.406321f,  0.714085f,  -0.644626f, 0.355036f,  -0.031878f, -0.536024f, -0.492148f, 0.067034f,  0.029853f,
+         -0.565490f, -0.425945f, 1.113337f,  0.213827f,  0.885094f,  1.201822f,  0.588842f,  2.270886f,  -0.825304f,
+         0.808410f,  -0.318144f, 1.855783f,  1.700440f,  -1.954211f, -0.968866f, 0.664313f,  0.789867f,  0.736564f,
+         -0.070865f, 0.455121f,  0.653021f,  -0.077871f, 1.027302f,  -2.259497f, 0.633794f,  -1.034053f, 0.958678f,
+         -0.228684f, -0.888787f, 0.373902f,  -0.911334f, -0.912768f, -1.567294f, -0.026708f, 0.496824f,  1.023026f,
+         -0.141728f, 1.047855f,  0.017961f,  -0.093288f, 0.573563f,  1.058393f,  -0.341434f, -0.243762f, -0.160831f,
+         0.082769f,  -0.900408f, 1.028006f,  -0.400410f, 0.462443f,  -0.825473f, 0.358804f,  0.391593f,  -0.420681f,
+         2.020890f,  0.371040f,  1.776929f,  0.959139f,  -0.662275f, -0.382187f, 0.436102f,  0.061173f,  0.049461f,
+         -0.286205f, -1.808476f, -0.225433f, -2.218122f, 0.371820f,  -0.726058f, -0.715417f, -0.219304f, 0.272672f,
+         -1.432006f, -1.748601f, -1.066066f, -2.041728f, -0.966850f, 1.590883f,  -1.056586f, 0.651405f,  -1.371635f,
+         0.299120f,  -0.319734f, -0.059813f, 0.568778f,  1.756240f,  0.194706f,  0.124359f,  -0.973368f, 0.583340f,
+         -0.246072f, 0.832007f,  -0.043706f, 1.740856f,  -1.982916f, -0.296599f, 0.881482f,  -0.350692f, -0.792173f,
+         -0.265881f, -1.379929f, 0.118954f,  2.440462f,  1.145031f,  -1.109009f, -0.873341f, -0.404728f, 1.004416f,
+         -0.821487f, -0.690231f, 0.884749f,  0.864653f,  -0.373815f, -1.117763f, -1.549745f, -0.698990f, -2.230529f,
+         0.749820f,  -0.630031f, 0.481294f,  1.868325f,  1.172996f,  -1.151135f, 0.869249f,  1.157857f,  -0.746357f,
+         -0.953297f, -0.109692f, -1.601423f, 1.470735f,  -2.405364f, -1.106807f, -0.269565f, -0.227087f, 0.166124f,
+         0.271449f,  -0.213612f, 1.136886f,  -2.139376f});
+    test_case.add_input<int8_t>(
+        Shape{1, 1, 8, 16},
+        {96,  -74, 85,  -42, -81, 63,  -99, 98,  -59, 22,  -51, 74,  41,  96,  57,  48,  88,  28,  -58, -56, 31,  -26,
+         51,  24,  -93, 85,  94,  -40, -44, -21, 62,  -96, -65, 39,  -17, -12, 87,  59,  -78, -54, -48, 31,  -15, 34,
+         -56, -8,  -27, -63, -60, -20, 35,  49,  54,  -63, 15,  -82, -74, -8,  39,  -54, -66, 60,  19,  63,  -83, 89,
+         61,  67,  -80, 29,  8,   -63, 83,  64,  65,  45,  -65, 49,  -8,  39,  18,  66,  3,   -41, 32,  34,  -42, 3,
+         33,  -33, -66, -35, 66,  -69, -22, -2,  58,  -27, 98,  -16, -8,  70,  -10, 36,  -30, 36,  19,  96,  -21, -57,
+         -73, 1,   0,   -82, -98, -22, -93, 90,  58,  -83, 55,  51,  45,  73,  41,  1,   45,  59});
+    test_case.add_input<int8_t>(
+        Shape{1, 1, 8, 16},
+        {16,  -12, 14,  -30, -20, 1,   49,  -62, -14,  -39, -70, -39, -40, 97,  -23, -33, -21, -55, 82,  87,  -22, -73,
+         -97, 93,  66,  70,  17,  29,  53,  -15, 65,   -61, -12, -79, 54,  -80, 0,   -31, 98,  -19, -72, 84,  10,  7,
+         26,  98,  -95, 44,  -10, -71, 81,  10,  82,   -69, 35,  -93, 97,  88,  76,  -33, 39,  -63, 68,  -80, 46,  30,
+         -42, -8,  -6,  -98, -90, 43,  37,  -49, -11,  56,  35,  -3,  72,  7,   -99, -9,  -52, 35,  -80, 98,  21,  59,
+         -8,  -87, -13, -2,  -17, -54, -59, -80, -1,   -61, 25,  -51, -13, 91,  4,   48,  36,  70,  -89, 39,  -53, -37,
+         81,  -22, 3,   -12, -79, -42, -70, -16, -100, 54,  7,   -85, 98,  -45, -31, -5,  6,   35});
+    test_case.add_input<int>(Shape{1}, {4});
+    test_case.add_input<int>(Shape{}, {8});
+    test_case.add_input<int>(Shape{1}, {2});
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 32},
+        {-0.237889f, -1.204533f, 0.997294f,  -1.802284f, 0.154402f,  -0.512115f, 1.995614f,  -0.219333f,
+         -1.700204f, 2.067301f,  0.190382f,  -0.258940f, 0.641438f,  2.612902f,  -2.498350f, 0.846755f,
+         -0.297680f, -0.649239f, 1.516247f,  1.620020f,  -0.426287f, -1.289483f, -1.900889f, 1.702731f,
+         1.218885f,  1.289549f,  -0.091277f, 0.006667f,  0.871538f,  0.541237f,  0.923631f,  -1.558998f,
+         0.174793f,  -1.083731f, 0.809747f,  -1.136271f, -0.425556f, -0.475437f, 1.576236f,  -1.027104f,
+         -0.766763f, 0.260158f,  -1.087754f, -0.607927f, -0.064723f, 2.696358f,  -1.074354f, -0.469418f,
+         -0.164269f, -1.358267f, 0.665469f,  -1.247103f, -0.007257f, -0.703820f, 1.367056f,  0.110627f,
+         -1.061940f, 1.656631f,  0.470577f,  0.161980f,  1.291597f,  1.533085f,  -1.268812f, 0.395558f});
+    test_case.add_expected_output<int8_t>(
+        Shape{1, 1, 5, 16},
+        {96,  -74, 85,  -42, -81, 63,  -99, 98,  -59, 22,  -51, 74,  41,  96,  57,  48,  88,  28, -58, -56,
+         31,  -26, 51,  24,  -93, 85,  94,  -40, -44, -21, 62,  -96, -65, 39,  -17, -12, 87,  59, -78, -54,
+         -48, 31,  -15, 34,  -56, -8,  -27, -63, -2,  -1,  18,  -8,  -35, -6,  0,   2,   -26, 9,  23,  -23,
+         16,  42,  15,  5,   -21, -26, 13,  -12, -22, 25,  -2,  -26, -13, -21, 31,  -10, 7,   15, -13, 7});
+    test_case.add_expected_output<int8_t>(
+        Shape{1, 1, 5, 16},
+        {16,  -12, 14,  -30, -20, 1,   49,  -62, -14, -39, -70, -39, -40, 97,  -23, -33, -21, -55, 82, 87,
+         -22, -73, -97, 93,  66,  70,  17,  29,  53,  -15, 65,  -61, -12, -79, 54,  -80, 0,   -31, 98, -19,
+         -72, 84,  10,  7,   26,  98,  -95, 44,  4,   45,  -23, -3,  12,  19,  -11, 8,   -7,  3,   -3, -29,
+         -1,  22,  -24, -6,  -1,  -13, -12, 2,   1,   -14, -11, 28,  5,   22,  30,  15,  57,  -21, 20, -8});
+    // Mixed float output + int8 present KV: run() compares floats by ULP tolerance and int8 exactly.
+    test_case.run(11);
+}
+
+// Batched right-padded chunk with an idle entry (query_seqlens = 0); padded rows hold NaN.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_query_seqlens_batched_idle) {
+    const auto model = convert_model("com.microsoft/gqa_query_seqlens_batched.onnx");
+    const auto nan = std::numeric_limits<float>::quiet_NaN();
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(
+        Shape{2, 4, 32},
+        {nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        0.627583f,  -1.084430f, 0.055814f,  -1.277818f, 0.231998f,  1.647910f,  -0.172957f,
+         1.359424f,  -1.600115f, 2.134274f,  -2.971158f, 0.622260f,  -0.841129f, -1.072953f, 0.765743f,  -0.163608f,
+         -1.348036f, -1.298054f, 0.830849f,  0.954459f,  -1.946272f, -1.216022f, -0.003901f, 0.320825f,  -0.958855f,
+         0.604223f,  -0.807813f, 0.670475f,  -1.206352f, 0.051947f,  1.438376f,  0.247253f,  0.904643f,  -0.161498f,
+         1.438733f,  -0.611369f, 1.512368f,  1.571866f,  -0.151854f, -0.912376f, 0.647697f,  -0.310405f, 2.378684f,
+         -0.942145f, -1.192622f, -0.399063f, -1.092622f, -0.875352f, 1.468700f,  -0.706115f, -1.660713f, 0.967802f,
+         -1.480169f, 0.391352f,  0.951978f,  0.032083f,  -1.298855f, -0.031191f, -1.177737f, -0.906339f, 0.260105f,
+         1.147592f,  1.150346f,  0.344794f,  0.141982f,  0.381490f,  0.300530f,  -1.672457f, -0.102131f, 1.023091f,
+         1.038048f,  0.736590f,  0.699660f,  0.079104f,  -1.398341f, 1.754016f,  -1.047113f, -1.869314f, 0.153887f,
+         0.963321f,  0.678485f,  0.899094f,  0.873073f,  -0.935734f, -0.961026f, 0.850472f,  0.115032f,  -0.033284f,
+         0.515541f,  0.306654f,  -0.399698f, -0.245016f, -0.670706f, -2.161640f, 1.162963f,  0.350501f,  nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan});
+    test_case.add_input<float>(
+        Shape{2, 4, 16},
+        {nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        -1.277717f, 0.064969f,  1.935086f,  -0.738080f, -0.769135f, 1.156467f,  0.063278f,  0.844337f,
+         -0.781741f, 1.327423f,  -0.868364f, 2.634666f,  0.038407f,  -0.763211f, 0.464049f,  -1.021760f, -0.252319f,
+         1.415258f,  -0.212612f, 1.357791f,  -0.644688f, 1.264983f,  0.649355f,  -1.285782f, 1.359606f,  -0.098327f,
+         0.979355f,  -0.476365f, -0.560153f, 1.435775f,  1.474877f,  0.210710f,  -0.112544f, 0.337719f,  -0.683429f,
+         -1.527180f, 0.284003f,  0.158164f,  -0.829711f, 2.458812f,  -0.924805f, 0.970822f,  -0.256810f, -0.181181f,
+         1.425436f,  -0.161151f, -0.375925f, 1.793497f,  nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan});
+    test_case.add_input<float>(
+        Shape{2, 4, 16},
+        {nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        -0.938097f, 0.464903f,  1.274344f,  1.403334f,  -0.593315f, -1.210150f, 0.443523f,  0.414333f,
+         1.259510f,  -0.551336f, 0.341828f,  -0.134858f, -0.029113f, -0.284486f, 0.321988f,  -0.054041f, 0.012957f,
+         -0.821149f, 0.232938f,  0.575662f,  -0.080995f, 0.534905f,  -1.528792f, -1.140938f, -0.032850f, 1.060905f,
+         1.049808f,  0.162549f,  -1.463569f, -0.974470f, -0.594493f, -1.062120f, 0.294280f,  -1.103680f, 0.248770f,
+         0.302905f,  1.254501f,  -0.475798f, -0.072084f, 0.083599f,  1.448213f,  0.079610f,  1.019727f,  0.584843f,
+         1.670715f,  -0.625137f, -0.642078f, 0.670149f,  nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan});
+    test_case.add_input<float>(
+        Shape{2, 1, 5, 16},
+        {-0.511205f, -1.111018f, -2.462320f, -0.326595f, -0.464009f, 2.903030f,  0.291360f,  -0.616991f, 0.743773f,
+         -0.577394f, -0.172800f, 0.288573f,  0.721756f,  -0.350520f, -0.135002f, -0.131167f, 0.094104f,  0.471609f,
+         0.866374f,  0.305524f,  -0.015318f, -1.433897f, -0.980780f, -1.015014f, -0.394550f, -0.550969f, -0.021278f,
+         -1.565433f, -0.253018f, 1.744814f,  -1.458913f, -2.096403f, 1.103139f,  -0.057034f, -0.148587f, -2.199657f,
+         -0.764494f, -0.109801f, -0.425466f, -1.333040f, 1.188575f,  -0.080616f, 0.409905f,  -0.950821f, 0.616899f,
+         1.789201f,  -0.139751f, -1.778920f, 0.110473f,  -0.611510f, 0.942737f,  0.317008f,  -0.119781f, 1.371076f,
+         -0.591885f, 1.128812f,  1.042205f,  -0.563407f, 0.923709f,  0.070868f,  -1.119710f, 0.624527f,  -0.170855f,
+         -0.427253f, -1.305803f, 0.342596f,  0.613372f,  -0.370633f, -0.237514f, 1.259947f,  0.576387f,  -0.539290f,
+         0.279723f,  -0.922129f, -0.577066f, -0.592719f, 0.282746f,  0.796443f,  0.079377f,  1.073426f,  -0.700698f,
+         -0.908032f, -1.407391f, -0.130937f, -1.671010f, -0.724550f, -0.764592f, -0.228320f, -0.265246f, -1.418591f,
+         0.148525f,  0.972405f,  -0.172964f, -0.853541f, -1.076120f, 0.082400f,  -0.942367f, -0.344998f, 0.187861f,
+         -0.862812f, 2.572519f,  0.191176f,  0.266507f,  0.400071f,  0.994523f,  0.732837f,  -2.042581f, -1.321684f,
+         -0.806037f, -0.486001f, 0.081835f,  -0.158579f, -0.252363f, -0.627884f, -1.396542f, 1.144202f,  -1.597330f,
+         1.099560f,  0.444554f,  0.839281f,  0.989798f,  -0.018508f, -1.600855f, 1.189198f,  1.225343f,  0.850102f,
+         -0.594068f, 0.135608f,  -0.419056f, -0.924331f, -0.568140f, -0.109493f, 1.256546f,  0.396976f,  -0.887680f,
+         0.430411f,  0.222682f,  0.455237f,  -1.206042f, -0.025644f, 0.452048f,  -0.137201f, -0.038327f, 1.882840f,
+         -0.284287f, 0.130666f,  0.585303f,  -0.479755f, 2.033162f,  0.612182f,  -0.796909f, 1.976198f,  0.419397f,
+         -0.591710f, 0.031488f,  -0.910026f, 0.591449f,  -0.729250f, 0.021588f,  -0.271043f});
+    test_case.add_input<float>(
+        Shape{2, 1, 5, 16},
+        {0.363905f,  0.200671f,  0.310363f,  1.223833f,  -0.853505f, 0.146866f,  0.738539f,  -1.186998f, -0.795309f,
+         -1.894371f, 0.787998f,  0.082593f,  -0.070293f, 0.338638f,  0.043960f,  0.011803f,  -0.940971f, 0.841867f,
+         1.890052f,  1.247161f,  1.156469f,  0.530849f,  -0.443898f, -0.475561f, 1.184736f,  1.325320f,  1.826884f,
+         1.036709f,  -0.977984f, 0.705794f,  0.914985f,  0.959402f,  0.283160f,  -1.068116f, -0.329709f, 0.938934f,
+         -0.050084f, 0.052404f,  0.160460f,  -0.981746f, -0.531402f, 1.457362f,  1.428440f,  -0.744108f, -1.758031f,
+         0.626554f,  1.011795f,  -0.003543f, 1.052688f,  1.303132f,  -0.250341f, -0.205145f, -1.083779f, -0.389304f,
+         0.952091f,  -2.372132f, 1.375824f,  -0.693316f, 0.372338f,  -0.209892f, -0.829117f, 0.332872f,  -1.553573f,
+         -1.408258f, -0.216259f, 0.270738f,  -0.492838f, -1.753799f, 0.193557f,  0.743155f,  -0.142120f, 0.167535f,
+         -3.211583f, -1.843829f, 0.026833f,  -1.376183f, 0.106814f,  0.244252f,  0.517525f,  -0.237695f, 0.059491f,
+         -2.113070f, -1.319839f, 0.048570f,  0.444067f,  0.258691f,  1.314001f,  -0.508106f, 1.161978f,  -2.508150f,
+         -0.861987f, -0.133281f, 0.266409f,  0.119750f,  0.088658f,  0.573527f,  -1.096743f, -0.593098f, -1.154963f,
+         1.997887f,  1.454263f,  -0.767290f, 0.561065f,  -3.093713f, 0.595659f,  0.101808f,  -1.404396f, 0.175946f,
+         0.793123f,  0.414152f,  -1.021556f, 0.600332f,  -0.576813f, -0.634421f, -0.487799f, 0.651074f,  -1.202819f,
+         -0.364433f, -0.882963f, 0.028797f,  0.050445f,  0.318090f,  -0.237107f, -1.434925f, 1.078616f,  1.137225f,
+         0.757764f,  0.318817f,  -1.799017f, -0.757017f, 0.092697f,  1.547193f,  -0.325719f, 0.468540f,  0.221006f,
+         0.201294f,  -0.892791f, 1.298464f,  0.425970f,  -0.715854f, -0.037225f, 2.365024f,  0.503439f,  0.150343f,
+         1.175496f,  0.856425f,  0.159570f,  -0.662578f, 1.019598f,  -1.821482f, -0.606499f, 1.383888f,  0.052074f,
+         1.236229f,  -0.191401f, 0.927311f,  1.517998f,  0.288448f,  -1.983133f, 0.727477f});
+    test_case.add_input<int32_t>(Shape{2}, {4, 6});
+    test_case.add_input<int32_t>(Shape{}, {9});
+    test_case.add_input<int32_t>(Shape{2}, {0, 3});
+    test_case.add_input<int64_t>(Shape{2}, {5, 7});
+    test_case.add_expected_output<float>(
+        Shape{2, 4, 32},
+        {0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  -1.042166f, -0.162571f, 0.117662f,  1.561583f,  0.165028f,  -0.796981f, 0.409284f,
+         -0.919437f, 0.728022f,  -0.119625f, -0.340472f, -0.154110f, 0.335475f,  0.329530f,  -0.126767f, 0.238554f,
+         -0.711011f, -0.366941f, 0.274234f,  1.013152f,  -0.399151f, -0.656192f, 0.383212f,  0.017701f,  0.897985f,
+         -0.695744f, -0.071679f, -0.382759f, 0.259053f,  0.204044f,  0.311686f,  0.176880f,  -0.503150f, -0.753556f,
+         -0.131860f, 1.002721f,  0.193824f,  -0.003971f, -0.361251f, -1.145710f, 0.315541f,  0.267854f,  0.154385f,
+         -0.013060f, -0.445949f, -0.137413f, -0.371025f, -0.272281f, -0.527671f, -0.856775f, -0.404858f, 0.729138f,
+         -0.524556f, -0.058363f, -0.519742f, -0.423030f, 0.136618f,  0.167230f,  -0.051865f, -0.767988f, 0.323661f,
+         0.638530f,  0.271501f,  0.069025f,  -0.856127f, -0.002159f, 0.671148f,  1.317004f,  -0.156206f, -0.892520f,
+         0.356922f,  -0.111045f, 0.996588f,  -0.308137f, 0.148297f,  -0.112721f, 0.237540f,  -0.008135f, 0.085836f,
+         0.116135f,  -0.717878f, -0.245881f, 0.474148f,  1.165147f,  -0.076243f, -0.628681f, 0.157787f,  -0.272460f,
+         0.830215f,  -0.173084f, 0.213142f,  -0.090197f, 0.096810f,  -0.042427f, -0.008405f, 0.027927f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f});
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 9, 16},
+        {-0.511205f, -1.111018f, -2.462320f, -0.326595f, -0.464009f, 2.903030f,  0.291360f,  -0.616991f, 0.743773f,
+         -0.577394f, -0.172800f, 0.288573f,  0.721756f,  -0.350520f, -0.135002f, -0.131167f, 0.094104f,  0.471609f,
+         0.866374f,  0.305524f,  -0.015318f, -1.433897f, -0.980780f, -1.015014f, -0.394550f, -0.550969f, -0.021278f,
+         -1.565433f, -0.253018f, 1.744814f,  -1.458913f, -2.096403f, 1.103139f,  -0.057034f, -0.148587f, -2.199657f,
+         -0.764494f, -0.109801f, -0.425466f, -1.333040f, 1.188575f,  -0.080616f, 0.409905f,  -0.950821f, 0.616899f,
+         1.789201f,  -0.139751f, -1.778920f, 0.110473f,  -0.611510f, 0.942737f,  0.317008f,  -0.119781f, 1.371076f,
+         -0.591885f, 1.128812f,  1.042205f,  -0.563407f, 0.923709f,  0.070868f,  -1.119710f, 0.624527f,  -0.170855f,
+         -0.427253f, -1.305803f, 0.342596f,  0.613372f,  -0.370633f, -0.237514f, 1.259947f,  0.576387f,  -0.539290f,
+         0.279723f,  -0.922129f, -0.577066f, -0.592719f, 0.282746f,  0.796443f,  0.079377f,  1.073426f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         -0.700698f, -0.908032f, -1.407391f, -0.130937f, -1.671010f, -0.724550f, -0.764592f, -0.228320f, -0.265246f,
+         -1.418591f, 0.148525f,  0.972405f,  -0.172964f, -0.853541f, -1.076120f, 0.082400f,  -0.942367f, -0.344998f,
+         0.187861f,  -0.862812f, 2.572519f,  0.191176f,  0.266507f,  0.400071f,  0.994523f,  0.732837f,  -2.042581f,
+         -1.321684f, -0.806037f, -0.486001f, 0.081835f,  -0.158579f, -0.252363f, -0.627884f, -1.396542f, 1.144202f,
+         -1.597330f, 1.099560f,  0.444554f,  0.839281f,  0.989798f,  -0.018508f, -1.600855f, 1.189198f,  1.225343f,
+         0.850102f,  -0.594068f, 0.135608f,  -0.419056f, -0.924331f, -0.568140f, -0.109493f, 1.256546f,  0.396976f,
+         -0.887680f, 0.430411f,  0.222682f,  0.455237f,  -1.206042f, -0.025644f, 0.452048f,  -0.137201f, -0.038327f,
+         1.882840f,  0.243549f,  -1.246241f, 2.120489f,  -1.064557f, -0.770056f, 1.166028f,  0.061421f,  0.845629f,
+         1.477959f,  0.461689f,  -0.046259f, 2.520506f,  0.007619f,  -0.748522f, 0.464298f,  -1.020691f, 1.232186f,
+         0.083685f,  -0.656113f, 1.415860f,  -0.615886f, 1.242124f,  0.641973f,  -1.286114f, 0.627623f,  1.416200f,
+         0.757534f,  -0.256631f, -0.591674f, 1.455596f,  1.478106f,  0.208677f,  -0.366467f, -1.027851f, -0.419053f,
+         -1.465602f, 0.198017f,  0.161193f,  -0.827441f, 2.455405f,  -0.856523f, 0.008434f,  -0.597847f, -0.465956f,
+         1.439902f,  -0.158121f, -0.380897f, 1.798158f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f});
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 9, 16},
+        {0.363905f,  0.200671f,  0.310363f,  1.223833f,  -0.853505f, 0.146866f,  0.738539f,  -1.186998f, -0.795309f,
+         -1.894371f, 0.787998f,  0.082593f,  -0.070293f, 0.338638f,  0.043960f,  0.011803f,  -0.940971f, 0.841867f,
+         1.890052f,  1.247161f,  1.156469f,  0.530849f,  -0.443898f, -0.475561f, 1.184736f,  1.325320f,  1.826884f,
+         1.036709f,  -0.977984f, 0.705794f,  0.914985f,  0.959402f,  0.283160f,  -1.068116f, -0.329709f, 0.938934f,
+         -0.050084f, 0.052404f,  0.160460f,  -0.981746f, -0.531402f, 1.457362f,  1.428440f,  -0.744108f, -1.758031f,
+         0.626554f,  1.011795f,  -0.003543f, 1.052688f,  1.303132f,  -0.250341f, -0.205145f, -1.083779f, -0.389304f,
+         0.952091f,  -2.372132f, 1.375824f,  -0.693316f, 0.372338f,  -0.209892f, -0.829117f, 0.332872f,  -1.553573f,
+         -1.408258f, -0.216259f, 0.270738f,  -0.492838f, -1.753799f, 0.193557f,  0.743155f,  -0.142120f, 0.167535f,
+         -3.211583f, -1.843829f, 0.026833f,  -1.376183f, 0.106814f,  0.244252f,  0.517525f,  -0.237695f, 0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.059491f,  -2.113070f, -1.319839f, 0.048570f,  0.444067f,  0.258691f,  1.314001f,  -0.508106f, 1.161978f,
+         -2.508150f, -0.861987f, -0.133281f, 0.266409f,  0.119750f,  0.088658f,  0.573527f,  -1.096743f, -0.593098f,
+         -1.154963f, 1.997887f,  1.454263f,  -0.767290f, 0.561065f,  -3.093713f, 0.595659f,  0.101808f,  -1.404396f,
+         0.175946f,  0.793123f,  0.414152f,  -1.021556f, 0.600332f,  -0.576813f, -0.634421f, -0.487799f, 0.651074f,
+         -1.202819f, -0.364433f, -0.882963f, 0.028797f,  0.050445f,  0.318090f,  -0.237107f, -1.434925f, 1.078616f,
+         1.137225f,  0.757764f,  0.318817f,  -1.799017f, -0.757017f, 0.092697f,  1.547193f,  -0.325719f, 0.468540f,
+         0.221006f,  0.201294f,  -0.892791f, 1.298464f,  0.425970f,  -0.715854f, -0.037225f, 2.365024f,  0.503439f,
+         0.150343f,  -0.938097f, 0.464903f,  1.274344f,  1.403334f,  -0.593315f, -1.210150f, 0.443523f,  0.414333f,
+         1.259510f,  -0.551336f, 0.341828f,  -0.134858f, -0.029113f, -0.284486f, 0.321988f,  -0.054041f, 0.012957f,
+         -0.821149f, 0.232938f,  0.575662f,  -0.080995f, 0.534905f,  -1.528792f, -1.140938f, -0.032850f, 1.060905f,
+         1.049808f,  0.162549f,  -1.463569f, -0.974470f, -0.594493f, -1.062120f, 0.294280f,  -1.103680f, 0.248770f,
+         0.302905f,  1.254501f,  -0.475798f, -0.072084f, 0.083599f,  1.448213f,  0.079610f,  1.019727f,  0.584843f,
+         1.670715f,  -0.625137f, -0.642078f, 0.670149f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f});
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Batched right-padded chunk whose entries share a total but not a past length.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_query_seqlens_batched_equal_total) {
+    const auto model = convert_model("com.microsoft/gqa_query_seqlens_batched.onnx");
+    const auto nan = std::numeric_limits<float>::quiet_NaN();
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(
+        Shape{2, 4, 32},
+        {0.799336f,  0.639296f,  0.369664f,  1.366581f,  0.102758f,  0.421161f,  1.314459f,  0.993461f,  2.982421f,
+         0.663358f,  -0.552885f, -1.995703f, -0.503966f, -0.684025f, -1.899127f, -0.855519f, 0.782774f,  -0.449516f,
+         -1.405567f, 1.330850f,  0.616035f,  -1.178591f, -0.878775f, -0.258759f, -1.087008f, -0.796769f, -1.076120f,
+         -1.133555f, -1.318536f, 1.634362f,  -1.049642f, 0.260752f,  1.076478f,  -1.522349f, 0.250009f,  -0.655856f,
+         1.107075f,  -0.015577f, 0.910967f,  0.731746f,  -0.044568f, 0.022181f,  1.085181f,  0.519164f,  0.249937f,
+         -0.501459f, -0.989026f, -0.441378f, 0.013422f,  0.890763f,  -0.003336f, -0.190950f, 1.130102f,  0.812109f,
+         0.251403f,  -0.796811f, -1.177349f, -0.357119f, 1.400273f,  -0.177506f, -0.486167f, -0.224781f, -0.317241f,
+         -0.759100f, nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        -1.712544f, -1.337416f, -0.085172f, 0.118896f,  -1.836614f, 0.065985f,  -1.588328f,
+         0.755805f,  -1.574318f, 0.117926f,  0.216860f,  0.605993f,  -2.120103f, 0.808513f,  -0.233131f, -0.837084f,
+         -0.121566f, 0.154545f,  -0.165773f, -0.478912f, -0.434539f, -0.437219f, -0.840085f, 0.286454f,  -0.175045f,
+         -1.683337f, -0.106287f, -0.366002f, 0.252838f,  -1.233296f, 0.980933f,  -1.573991f, 2.194240f,  -0.003756f,
+         0.465519f,  -0.475125f, -1.094199f, -1.928828f, -1.376338f, -1.612162f, 0.235840f,  -0.958133f, -0.798376f,
+         1.807506f,  -0.324459f, 0.138947f,  -0.636959f, 0.515283f,  -1.335855f, 1.466483f,  0.194803f,  -0.509818f,
+         -0.445119f, 1.034373f,  -0.364005f, -1.467811f, -0.575798f, 0.921528f,  0.737331f,  -0.351682f, -0.253521f,
+         1.248457f,  0.698952f,  -0.506225f, -0.010272f, 0.066928f,  -0.192454f, 1.335010f,  0.059294f,  1.062187f,
+         0.282426f,  -1.068169f, -0.386979f, 1.473923f,  -0.171877f, -0.221543f, -2.057154f, -1.428162f, -0.357336f,
+         -1.392759f, -0.253422f, -0.723605f, 0.555441f,  -1.035901f, -1.790575f, 1.061504f,  -0.276269f, -0.473246f,
+         1.497816f,  -1.597512f, 0.188011f,  0.996729f,  0.505291f,  1.809920f,  -0.685409f, 1.294125f,  -0.336084f,
+         -1.598295f, -0.760187f, 0.177124f,  -1.213929f, 0.149817f,  -1.053003f, -0.022097f, 0.511724f,  -0.305676f,
+         -0.395968f, 1.394930f,  -0.614026f, -0.757313f, -0.005752f, 0.358235f,  -0.145902f, -0.870642f, -0.361018f,
+         0.429880f,  -0.532919f, -2.170854f, -0.475937f, 1.970700f,  -0.943716f, -1.991804f, -0.063224f, -0.429139f,
+         0.807235f,  -0.447836f, -0.662835f, 0.497149f});
+    test_case.add_input<float>(
+        Shape{2, 4, 16},
+        {-0.108515f, -0.635214f, -0.432965f, -0.535427f, -0.222332f, 0.589621f, 1.001497f,  0.274753f,  0.227033f,
+         -0.298098f, 0.869261f,  -1.158165f, 0.364062f,  0.150962f,  0.261057f, 0.312262f,  -1.517422f, 0.865735f,
+         1.349362f,  1.607994f,  -0.191347f, -0.122108f, -0.368497f, 0.038378f, 0.445814f,  -0.257303f, 1.395007f,
+         -0.391311f, 0.196809f,  -1.473772f, 1.216926f,  0.267709f,  nan,       nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,       nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,       nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,       nan,        nan,        nan,
+         nan,        -1.223372f, -1.044511f, -0.299918f, -0.135825f, 1.696364f, 1.372309f,  -0.140952f, 1.152840f,
+         -0.216296f, -0.856566f, 0.123757f,  1.434757f,  -2.813667f, 0.673455f, 0.055292f,  -2.152194f, -0.342247f,
+         1.572814f,  -0.179963f, -0.865744f, -1.440364f, 0.209285f,  1.125044f, -0.665307f, 0.652494f,  1.336406f,
+         -1.555515f, 0.742909f,  1.653920f,  2.816646f,  1.003738f,  0.186971f, 1.224997f,  -1.996685f, -0.201470f,
+         0.582868f,  -0.710101f, -0.237040f, -0.180787f, 1.102691f,  0.776152f, 0.960795f,  0.538313f,  -1.529168f,
+         0.503427f,  1.107709f,  1.677029f,  -0.987831f, 0.026781f,  0.787987f, -0.925033f, 0.319635f,  -1.304553f,
+         -0.532623f, 0.731064f,  0.266766f,  0.183252f,  1.901974f,  0.434234f, -0.337545f, -1.909434f, -0.294698f,
+         -0.460179f, 1.122997f});
+    test_case.add_input<float>(
+        Shape{2, 4, 16},
+        {1.552252f,  0.504466f,  -0.358871f, -0.470560f, 0.142873f,  -0.074559f, -1.984425f, 1.759444f,  0.283436f,
+         -0.756823f, 1.300155f,  0.285017f,  -0.460724f, 0.304319f,  0.665398f,  0.106218f,  -0.619022f, 1.177669f,
+         1.020832f,  1.491789f,  -0.319185f, -0.641918f, -0.952757f, 0.920450f,  -0.697297f, -0.528508f, -1.062007f,
+         -0.550486f, 0.431216f,  -0.523434f, 1.189562f,  0.993324f,  nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,        nan,
+         nan,        1.245743f,  0.963390f,  -0.521244f, -0.263426f, -0.934838f, 0.737059f,  -1.958452f, -1.129389f,
+         -0.210205f, 0.816176f,  -0.713699f, 0.932476f,  0.272728f,  0.128908f,  0.089615f,  -1.619567f, -1.034602f,
+         -1.105259f, -0.837421f, -1.595997f, -1.124961f, -0.823921f, -1.058998f, 2.543515f,  0.175851f,  -1.747310f,
+         -0.149982f, 0.492619f,  -1.876786f, -0.176303f, -0.227766f, -2.460019f, 0.303992f,  1.070014f,  -1.948833f,
+         -1.618643f, 0.085711f,  0.202638f,  1.075168f,  -0.425619f, -1.036989f, 0.411772f,  0.923300f,  -0.631160f,
+         0.890819f,  -1.589622f, -0.597455f, -1.206115f, -0.091276f, 0.206890f,  -1.620112f, -0.006529f, -2.734750f,
+         0.517161f,  -0.998644f, 0.107642f,  -1.468731f, 1.938765f,  -0.419800f, -0.272170f, 0.624675f,  -0.053541f,
+         1.285483f,  -0.739477f});
+    test_case.add_input<float>(
+        Shape{2, 1, 4, 16},
+        {0.246353f,  -0.589912f, 1.335224f,  -0.349555f, -1.543527f, -0.305454f, 1.845854f,  1.030314f,  -1.628789f,
+         1.361035f,  0.096167f,  0.274649f,  -1.451915f, 1.847030f,  -0.010783f, -0.633438f, 0.648672f,  -1.516726f,
+         0.798394f,  1.466992f,  -0.524788f, 1.644632f,  0.663062f,  0.869494f,  -0.870055f, 0.059500f,  -0.283858f,
+         -1.420535f, 1.310055f,  0.228459f,  1.111601f,  1.011162f,  0.492877f,  -0.877540f, -0.984611f, -0.380290f,
+         1.023063f,  -0.241803f, 1.552244f,  -0.201137f, 2.105137f,  -0.594395f, 3.464591f,  0.177961f,  1.615815f,
+         -2.019973f, -2.553787f, 0.182181f,  0.066723f,  0.391486f,  0.016803f,  -0.091022f, 0.105855f,  -1.168956f,
+         2.439018f,  -1.735603f, 0.378061f,  -1.935516f, -2.684984f, -0.860360f, -1.443966f, 1.962323f,  -0.468830f,
+         -0.580931f, 1.463257f,  0.847709f,  -1.288231f, -0.854059f, -1.242186f, -1.291215f, -2.417477f, 0.370665f,
+         0.104130f,  -2.510457f, -0.052518f, 0.833229f,  -0.619547f, -1.210869f, -0.933082f, -0.604589f, -0.261072f,
+         1.566016f,  0.745562f,  -0.794557f, -0.296542f, -0.201270f, 0.051325f,  -0.082961f, 1.226945f,  -0.426811f,
+         -0.466124f, 2.118793f,  0.011601f,  -0.343068f, 1.029888f,  -0.404932f, 0.288311f,  -0.326500f, 0.258756f,
+         -0.469894f, 0.196865f,  -0.423739f, 0.238281f,  0.244181f,  -1.151139f, -0.193437f, 1.039640f,  -0.672687f,
+         0.938471f,  -0.536645f, -0.231600f, -0.753068f, -1.278348f, 0.097768f,  -0.169611f, -1.769277f, 0.061613f,
+         -0.151382f, 0.812703f,  0.922426f,  -1.505440f, 0.612162f,  -0.584857f, 0.461560f,  -0.111730f, 0.585090f,
+         0.892416f,  -1.645464f});
+    test_case.add_input<float>(
+        Shape{2, 1, 4, 16},
+        {0.815233f,  0.582380f,  0.552011f,  -0.889895f, 0.539294f,  -1.696579f, -0.168277f, 0.543036f,  -0.166921f,
+         0.340706f,  0.368700f,  1.857739f,  -0.442941f, 0.246522f,  -0.177945f, -0.328699f, -1.311529f, 0.543626f,
+         -0.192845f, 0.720253f,  1.525757f,  -0.061315f, 0.291492f,  -1.935481f, 0.082734f,  0.221339f,  -0.420950f,
+         -1.906978f, -0.725680f, -2.070925f, -0.257850f, -0.430699f, 0.091395f,  -0.277796f, -0.258153f, -0.786015f,
+         2.085963f,  1.216636f,  2.243356f,  -1.375092f, -0.695531f, -0.837692f, -1.425228f, -0.562252f, 1.100849f,
+         -0.430284f, -0.740766f, 0.102489f,  0.362744f,  0.149401f,  0.730695f,  1.002242f,  0.719580f,  0.005334f,
+         -0.378974f, -0.620733f, 0.611619f,  1.052801f,  0.053094f,  0.115679f,  1.780252f,  -1.228139f, -0.763922f,
+         -1.458714f, -0.364173f, 2.809377f,  0.367676f,  1.248446f,  0.379627f,  0.524988f,  1.314870f,  1.201205f,
+         0.542081f,  -1.046838f, 0.171216f,  0.393689f,  2.222930f,  -2.700082f, 1.746509f,  -1.381937f, -0.515029f,
+         -0.294065f, 0.404377f,  0.536476f,  1.421982f,  -1.328565f, -0.625700f, -2.372205f, -0.835616f, 0.231419f,
+         -0.920885f, 0.687599f,  0.457109f,  1.637552f,  -1.270200f, -3.944848f, 0.880671f,  -0.846719f, -0.809194f,
+         1.107796f,  0.739615f,  -0.963579f, 1.296803f,  0.842159f,  -0.193386f, 0.259680f,  0.738756f,  -1.100498f,
+         0.047191f,  0.505015f,  0.154047f,  -2.484051f, -0.314955f, -1.454358f, -0.847165f, -0.488240f, -1.003350f,
+         0.545386f,  1.187579f,  -0.310944f, 0.598569f,  1.027070f,  -1.211900f, 0.004198f,  0.205683f,  0.368391f,
+         -0.768828f, 0.799421f});
+    test_case.add_input<int32_t>(Shape{2}, {5, 5});
+    test_case.add_input<int32_t>(Shape{}, {8});
+    test_case.add_input<int32_t>(Shape{2}, {2, 4});
+    test_case.add_input<int64_t>(Shape{2}, {6, 6});
+    test_case.add_expected_output<float>(
+        Shape{2, 4, 32},
+        {0.012965f,  0.491541f,  0.183299f,  -0.118219f, 0.960576f,  -0.711729f, -0.036937f, -0.460582f, -0.008493f,
+         0.212581f,  0.039207f,  0.104090f,  -0.318006f, -0.748850f, -0.213256f, -0.396443f, 0.384787f,  0.180605f,
+         0.665384f,  0.873996f,  0.717318f,  -0.048546f, -0.397619f, -0.531268f, 0.557080f,  0.942045f,  0.087780f,
+         0.138068f,  1.580329f,  -1.138649f, -0.687053f, -1.340369f, 0.241042f,  -0.039245f, -0.126614f, -0.522245f,
+         1.601787f,  0.726349f,  1.290157f,  -0.818101f, -0.440686f, -0.595117f, -0.867004f, -0.341860f, 0.780991f,
+         -0.425629f, -0.474847f, -0.013947f, 0.189336f,  0.269968f,  0.109602f,  -0.127536f, 1.074840f,  0.233630f,
+         0.491018f,  -0.272242f, -0.364174f, -0.465740f, -0.610737f, -0.224522f, 0.521089f,  -0.416818f, -0.090704f,
+         0.090681f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.349607f,  1.933799f,  -0.027252f, 0.563250f,  -0.187132f, 0.587038f,  -0.175593f,
+         0.101782f,  0.183291f,  -0.195509f, -0.241614f, 0.638574f,  1.324301f,  -1.365547f, 0.956589f,  -1.532373f,
+         -0.206818f, 2.032829f,  0.272315f,  0.945361f,  0.418389f,  0.212092f,  0.586055f,  0.283522f,  0.205065f,
+         -0.600414f, -0.129063f, 0.509011f,  1.677789f,  -1.586144f, 1.007447f,  -1.875517f, -0.462740f, 1.004261f,
+         0.244693f,  0.616977f,  0.663288f,  -0.426116f, 0.147419f,  -0.299612f, -0.121308f, -0.509517f, -0.364001f,
+         0.545508f,  0.989956f,  -0.465010f, 0.177031f,  -2.630252f, -0.731308f, -0.671523f, -0.646144f, -1.157879f,
+         -0.816277f, -0.660079f, -1.018734f, 1.674335f,  0.059143f,  -1.281720f, -0.264511f, 0.550913f,  -1.289412f,
+         -0.078209f, -0.214159f, -2.468417f, 0.882358f,  0.972484f,  -0.535365f, -0.259040f, -0.602462f, 0.504227f,
+         -1.349856f, -0.900848f, -0.264385f, 0.553683f,  -0.504998f, 0.727907f,  0.427110f,  -0.131847f, 0.047178f,
+         -1.736008f, -0.573540f, 0.367190f,  -0.366035f, -0.417244f, -0.276765f, -0.358439f, -0.249614f, 1.141637f,
+         0.061747f,  -1.024841f, -0.132716f, 0.453963f,  -0.113048f, -0.726125f, 0.203981f,  -2.230448f, -0.240584f,
+         2.036299f,  0.132802f,  0.865283f,  0.242938f,  0.268321f,  0.662678f,  0.473964f,  0.160065f,  -0.565411f,
+         -0.052403f, 0.415552f,  1.675277f,  -1.722610f, 1.110283f,  -1.718759f, -0.281038f, 1.879751f,  -0.041541f,
+         0.640575f,  0.286118f,  0.179745f,  0.759095f,  0.419462f,  0.034083f,  -0.528495f, 0.042666f,  0.300193f,
+         1.578804f,  -1.676846f, 0.916133f,  -1.745548f});
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 8, 16},
+        {0.246353f,  -0.589912f, 1.335224f,  -0.349555f, -1.543527f, -0.305454f, 1.845854f,  1.030314f,  -1.628789f,
+         1.361035f,  0.096167f,  0.274649f,  -1.451915f, 1.847030f,  -0.010783f, -0.633438f, 0.648672f,  -1.516726f,
+         0.798394f,  1.466992f,  -0.524788f, 1.644632f,  0.663062f,  0.869494f,  -0.870055f, 0.059500f,  -0.283858f,
+         -1.420535f, 1.310055f,  0.228459f,  1.111601f,  1.011162f,  0.492877f,  -0.877540f, -0.984611f, -0.380290f,
+         1.023063f,  -0.241803f, 1.552244f,  -0.201137f, 2.105137f,  -0.594395f, 3.464591f,  0.177961f,  1.615815f,
+         -2.019973f, -2.553787f, 0.182181f,  0.066723f,  0.391486f,  0.016803f,  -0.091022f, 0.105855f,  -1.168956f,
+         2.439018f,  -1.735603f, 0.378061f,  -1.935516f, -2.684984f, -0.860360f, -1.443966f, 1.962323f,  -0.468830f,
+         -0.580931f, 0.242749f,  0.092974f,  -0.737293f, -0.385042f, -0.236713f, 0.587664f,  1.000445f,  0.274358f,
+         -0.066274f, -0.695496f, 0.632038f,  -1.216459f, 0.354880f,  0.158408f,  0.265061f,  0.312609f,  -0.002933f,
+         0.248336f,  0.515375f,  1.649550f,  -0.200944f, -0.098791f, -0.374577f, 0.037955f,  1.581553f,  0.868350f,
+         1.871154f,  -0.133241f, 0.187000f,  -1.475518f, 1.215069f,  0.267769f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  1.463257f,  0.847709f,  -1.288231f, -0.854059f, -1.242186f, -1.291215f, -2.417477f,
+         0.370665f,  0.104130f,  -2.510457f, -0.052518f, 0.833229f,  -0.619547f, -1.210869f, -0.933082f, -0.604589f,
+         -0.261072f, 1.566016f,  0.745562f,  -0.794557f, -0.296542f, -0.201270f, 0.051325f,  -0.082961f, 1.226945f,
+         -0.426811f, -0.466124f, 2.118793f,  0.011601f,  -0.343068f, 1.029888f,  -0.404932f, 0.705780f,  -0.336140f,
+         -0.318526f, -0.226234f, 1.752295f,  1.368022f,  -0.141062f, 1.154200f,  -1.022398f, -1.308326f, 0.061706f,
+         1.423304f,  -2.779179f, 0.682121f,  0.055010f,  -2.151465f, 0.246742f,  -0.169465f, 0.287761f,  -0.932224f,
+         -1.489327f, 0.182554f,  1.122028f,  -0.665484f, -0.694262f, 2.056942f,  -1.539222f, 0.657560f,  1.609971f,
+         2.818505f,  1.007109f,  0.186340f,  -0.213319f, -1.517472f, -0.395195f, 0.771122f,  -0.729664f, -0.251032f,
+         -0.187494f, 1.103940f,  -1.434407f, -1.614670f, 0.417363f,  -1.443420f, 0.474628f,  1.104622f,  1.676293f,
+         -0.986435f, 0.183321f,  -1.910023f, -1.019976f, 0.368796f,  -1.207491f, -0.527897f, 0.733356f,  0.264990f,
+         0.026301f,  0.768275f,  -0.062408f, -0.283006f, -1.972247f, -0.303082f, -0.456518f, 1.123418f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f});
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 8, 16},
+        {0.815233f,  0.582380f,  0.552011f,  -0.889895f, 0.539294f,  -1.696579f, -0.168277f, 0.543036f,  -0.166921f,
+         0.340706f,  0.368700f,  1.857739f,  -0.442941f, 0.246522f,  -0.177945f, -0.328699f, -1.311529f, 0.543626f,
+         -0.192845f, 0.720253f,  1.525757f,  -0.061315f, 0.291492f,  -1.935481f, 0.082734f,  0.221339f,  -0.420950f,
+         -1.906978f, -0.725680f, -2.070925f, -0.257850f, -0.430699f, 0.091395f,  -0.277796f, -0.258153f, -0.786015f,
+         2.085963f,  1.216636f,  2.243356f,  -1.375092f, -0.695531f, -0.837692f, -1.425228f, -0.562252f, 1.100849f,
+         -0.430284f, -0.740766f, 0.102489f,  0.362744f,  0.149401f,  0.730695f,  1.002242f,  0.719580f,  0.005334f,
+         -0.378974f, -0.620733f, 0.611619f,  1.052801f,  0.053094f,  0.115679f,  1.780252f,  -1.228139f, -0.763922f,
+         -1.458714f, 1.552252f,  0.504466f,  -0.358871f, -0.470560f, 0.142873f,  -0.074559f, -1.984425f, 1.759444f,
+         0.283436f,  -0.756823f, 1.300155f,  0.285017f,  -0.460724f, 0.304319f,  0.665398f,  0.106218f,  -0.619022f,
+         1.177669f,  1.020832f,  1.491789f,  -0.319185f, -0.641918f, -0.952757f, 0.920450f,  -0.697297f, -0.528508f,
+         -1.062007f, -0.550486f, 0.431216f,  -0.523434f, 1.189562f,  0.993324f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  -0.364173f, 2.809377f,  0.367676f,  1.248446f,  0.379627f,  0.524988f,  1.314870f,
+         1.201205f,  0.542081f,  -1.046838f, 0.171216f,  0.393689f,  2.222930f,  -2.700082f, 1.746509f,  -1.381937f,
+         -0.515029f, -0.294065f, 0.404377f,  0.536476f,  1.421982f,  -1.328565f, -0.625700f, -2.372205f, -0.835616f,
+         0.231419f,  -0.920885f, 0.687599f,  0.457109f,  1.637552f,  -1.270200f, -3.944848f, 1.245743f,  0.963390f,
+         -0.521244f, -0.263426f, -0.934838f, 0.737059f,  -1.958452f, -1.129389f, -0.210205f, 0.816176f,  -0.713699f,
+         0.932476f,  0.272728f,  0.128908f,  0.089615f,  -1.619567f, -1.034602f, -1.105259f, -0.837421f, -1.595997f,
+         -1.124961f, -0.823921f, -1.058998f, 2.543515f,  0.175851f,  -1.747310f, -0.149982f, 0.492619f,  -1.876786f,
+         -0.176303f, -0.227766f, -2.460019f, 0.303992f,  1.070014f,  -1.948833f, -1.618643f, 0.085711f,  0.202638f,
+         1.075168f,  -0.425619f, -1.036989f, 0.411772f,  0.923300f,  -0.631160f, 0.890819f,  -1.589622f, -0.597455f,
+         -1.206115f, -0.091276f, 0.206890f,  -1.620112f, -0.006529f, -2.734750f, 0.517161f,  -0.998644f, 0.107642f,
+         -1.468731f, 1.938765f,  -0.419800f, -0.272170f, 0.624675f,  -0.053541f, 1.285483f,  -0.739477f, 0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f});
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Single-token step with query_seqlens: an idle entry keeps its cache unchanged.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_query_seqlens_idle_decode) {
+    const auto model = convert_model("com.microsoft/gqa_query_seqlens_batched.onnx");
+    const auto nan = std::numeric_limits<float>::quiet_NaN();
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(
+        Shape{2, 1, 32},
+        {nan,       nan,        nan,       nan,        nan,        nan,        nan,        nan,
+         nan,       nan,        nan,       nan,        nan,        nan,        nan,        nan,
+         nan,       nan,        nan,       nan,        nan,        nan,        nan,        nan,
+         nan,       nan,        nan,       nan,        nan,        nan,        nan,        nan,
+         0.367904f, 0.406843f,  0.530082f, 0.884275f,  -0.444825f, -0.392821f, 0.540196f,  -0.073339f,
+         1.151752f, 1.908892f,  1.595358f, 1.335406f,  0.985475f,  0.941507f,  0.862632f,  -0.020987f,
+         0.702372f, -0.041503f, 0.108975f, -0.052415f, -0.818977f, 0.997583f,  -0.537027f, 0.388820f,
+         0.674418f, 0.525002f,  0.250159f, 1.165749f,  -0.595102f, 1.520357f,  0.626611f,  -1.533934f});
+    test_case.add_input<float>(
+        Shape{2, 1, 16},
+        {nan,        nan,        nan,       nan,       nan,        nan,        nan,        nan,
+         nan,        nan,        nan,       nan,       nan,        nan,        nan,        nan,
+         -0.056977f, -1.076869f, 1.760405f, 0.507966f, 0.619269f,  -0.345664f, -1.448232f, 0.138537f,
+         0.308242f,  -1.398425f, 0.003546f, 0.317233f, -1.328463f, -0.400741f, 0.147916f,  -0.672578f});
+    test_case.add_input<float>(
+        Shape{2, 1, 16},
+        {nan,        nan,        nan,        nan,        nan,       nan,        nan,        nan,
+         nan,        nan,        nan,        nan,        nan,       nan,        nan,        nan,
+         -0.605500f, -0.556759f, -1.741645f, 1.483158f,  1.015569f, -1.269729f, -0.459088f, 1.614606f,
+         0.263957f,  2.027716f,  -0.693600f, -0.635652f, 0.880623f, -1.126104f, -0.854420f, 0.035484f});
+    test_case.add_input<float>(
+        Shape{2, 1, 6, 16},
+        {1.275024f,  -0.812245f, -0.542313f, 0.749648f,  0.545369f,  0.070925f,  0.471956f,  -1.363787f, 2.407830f,
+         -2.142386f, 1.302553f,  3.378363f,  0.687877f,  -1.185211f, 1.670577f,  -0.962410f, -0.334826f, -0.522956f,
+         0.353223f,  1.455764f,  1.353745f,  1.045708f,  -0.359332f, -0.191585f, -0.342627f, 0.686132f,  0.872864f,
+         1.095530f,  -1.672361f, 0.165164f,  -0.713202f, 0.905043f,  0.995493f,  -0.110472f, -0.767061f, -0.134948f,
+         -0.638231f, -0.673460f, 1.668942f,  -1.240141f, -0.668144f, 0.447847f,  -1.265060f, 0.144273f,  -2.539755f,
+         1.092407f,  1.675443f,  0.693876f,  0.139870f,  -0.614094f, 0.741214f,  0.313412f,  1.496415f,  0.741528f,
+         1.941468f,  -0.633559f, 1.356501f,  -0.236596f, -2.066535f, 1.490293f,  0.504847f,  -0.213407f, 0.138077f,
+         2.092520f,  -0.378638f, -0.479433f, 0.282109f,  0.420421f,  0.578601f,  -0.827534f, -1.057137f, -1.707744f,
+         1.080002f,  0.833275f,  0.654531f,  0.201106f,  -0.483115f, -1.611566f, 0.323874f,  -0.213647f, -0.646369f,
+         0.226717f,  -1.804664f, 0.016471f,  -0.854171f, 0.598878f,  2.486366f,  -1.219703f, 0.569407f,  -0.587293f,
+         -1.855960f, 1.113158f,  -0.223386f, 0.013885f,  -1.783310f, -0.044372f, 0.438845f,  -0.648128f, 1.073442f,
+         -0.273293f, -0.464913f, -0.243260f, -0.452986f, -1.725154f, -1.311847f, -0.333947f, 0.268144f,  -2.358638f,
+         1.145367f,  -2.474153f, -1.011840f, -0.109856f, -0.568023f, 1.372194f,  1.760667f,  0.892158f,  0.067302f,
+         0.918245f,  1.931988f,  1.236039f,  0.433323f,  -0.212353f, 1.690878f,  0.097497f,  -1.367717f, 1.185016f,
+         0.267758f,  -1.029415f, 1.100571f,  -0.238973f, -0.426142f, 1.357641f,  0.971457f,  -0.702997f, 1.501098f,
+         1.400526f,  -0.537457f, 0.707064f,  -0.689078f, 0.488712f,  0.242408f,  1.762604f,  1.096596f,  0.211981f,
+         -0.050298f, 0.200390f,  -1.293308f, 0.292216f,  -1.214751f, 0.498863f,  -1.492733f, -1.235152f, -0.225115f,
+         -0.727480f, 0.999360f,  1.600033f,  0.674497f,  -1.272651f, 2.095673f,  0.117753f,  0.120974f,  0.688193f,
+         -0.094003f, -0.649669f, -0.479761f, 1.536859f,  -1.354322f, -0.712195f, 0.066348f,  0.816977f,  -0.666364f,
+         -0.567504f, -1.089522f, -1.644422f, 1.109130f,  0.169357f,  -0.234812f, 0.864817f,  -0.420304f, 0.304565f,
+         0.352500f,  1.004058f,  0.264515f,  -1.468116f, -0.119449f, -0.867522f, -1.572752f, -0.076581f, -1.177887f,
+         0.087733f,  0.046017f,  0.723135f});
+    test_case.add_input<float>(
+        Shape{2, 1, 6, 16},
+        {-0.685991f, -0.602044f, -0.678653f, 0.082147f,  0.535397f,  0.690880f,  2.203624f,  0.258709f,  -0.782121f,
+         -0.169026f, 1.572640f,  -2.204850f, 0.035475f,  1.455926f,  -0.389976f, 0.057275f,  0.512134f,  -1.073511f,
+         1.652816f,  0.156937f,  -1.491666f, 1.408677f,  -0.928610f, 1.504478f,  -1.128435f, 1.082783f,  -1.021420f,
+         2.116989f,  0.845145f,  1.833844f,  -0.423084f, -0.425380f, 0.448387f,  -0.712317f, 1.068330f,  0.107709f,
+         -0.827633f, -0.334834f, -0.434023f, -0.230353f, 0.387177f,  -0.728370f, 0.197996f,  0.078423f,  -0.319137f,
+         -1.617330f, 0.738758f,  -0.723663f, -2.345493f, 0.853263f,  0.105235f,  -0.258354f, 1.127409f,  2.999391f,
+         -0.518910f, 1.944899f,  -1.203207f, -1.123397f, 1.530601f,  -0.286479f, -0.324314f, 1.867617f,  0.218157f,
+         0.141700f,  0.059535f,  -1.217214f, 1.339954f,  -0.481047f, 0.390373f,  -0.170348f, -2.081453f, -0.241503f,
+         -0.699831f, 3.040822f,  0.188978f,  0.619830f,  -0.035367f, -1.556886f, -1.432997f, -1.121109f, 0.025690f,
+         -0.968089f, -0.186637f, -0.726573f, 1.099623f,  -1.423556f, -1.688020f, 0.184428f,  -1.591965f, -0.971829f,
+         -0.007637f, 0.532748f,  -2.170492f, -1.821158f, 1.135972f,  0.084437f,  0.010473f,  -1.095812f, -0.226064f,
+         -0.425841f, -0.162053f, -1.170929f, 0.788263f,  1.593899f,  -1.381148f, -0.119685f, -0.820775f, 0.488714f,
+         1.784580f,  1.880445f,  -1.324462f, -1.154620f, -2.035255f, -1.007266f, 0.769484f,  -2.595685f, 1.726362f,
+         1.714479f,  0.243105f,  0.215127f,  0.925098f,  0.466374f,  3.242254f,  -1.589451f, -0.174766f, 1.841549f,
+         1.406225f,  -1.406864f, 0.279213f,  -0.825242f, 1.467296f,  -0.297104f, 1.621692f,  -0.729274f, -2.285827f,
+         0.023184f,  -0.350618f, 0.573175f,  -1.123489f, -0.506550f, -0.775737f, 1.363714f,  -1.197976f, -1.085498f,
+         0.094936f,  0.395905f,  0.584635f,  -0.267187f, 2.056289f,  -0.501958f, -0.410833f, -0.041318f, 0.760315f,
+         -0.018580f, -0.663263f, -2.975389f, 0.994211f,  -1.152212f, -1.648420f, -1.654954f, -0.093160f, 2.703855f,
+         -0.613348f, -1.056465f, 1.377396f,  0.284885f,  1.917743f,  -0.292255f, -0.254493f, -0.659562f, -0.313390f,
+         0.006556f,  -0.815581f, 2.180922f,  -0.047599f, -0.150770f, 0.525306f,  0.193513f,  -0.644901f, -0.887710f,
+         -0.981003f, -2.048927f, 0.256401f,  -3.232565f, -2.108511f, 1.050398f,  -0.097115f, -0.837919f, -0.774198f,
+         1.051759f,  1.655747f,  -0.096147f});
+    test_case.add_input<int32_t>(Shape{2}, {4, 6});
+    test_case.add_input<int32_t>(Shape{}, {7});
+    test_case.add_input<int32_t>(Shape{2}, {0, 1});
+    test_case.add_input<int64_t>(Shape{2}, {5, 7});
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 32},
+        {0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f, 0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f, 0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f, 0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f, 0.000000f,  0.000000f,  0.000000f,
+         -0.144478f, -0.237336f, 0.711069f,  -0.535928f, 1.651922f, -0.374727f, -0.852582f, 0.041705f,
+         0.216992f,  0.351200f,  -0.297006f, -1.627405f, 0.174881f, 0.308194f,  -0.926486f, -1.259599f,
+         -0.583189f, -0.159735f, 0.217206f,  -0.824776f, 1.395585f, -0.056766f, -0.237110f, 0.040226f,
+         0.187145f,  0.537626f,  0.466646f,  -1.282028f, 0.024292f, 0.712578f,  -0.142065f, -0.954660f});
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 7, 16},
+        {1.275024f,  -0.812245f, -0.542313f, 0.749648f,  0.545369f,  0.070925f,  0.471956f,  -1.363787f, 2.407830f,
+         -2.142386f, 1.302553f,  3.378363f,  0.687877f,  -1.185211f, 1.670577f,  -0.962410f, -0.334826f, -0.522956f,
+         0.353223f,  1.455764f,  1.353745f,  1.045708f,  -0.359332f, -0.191585f, -0.342627f, 0.686132f,  0.872864f,
+         1.095530f,  -1.672361f, 0.165164f,  -0.713202f, 0.905043f,  0.995493f,  -0.110472f, -0.767061f, -0.134948f,
+         -0.638231f, -0.673460f, 1.668942f,  -1.240141f, -0.668144f, 0.447847f,  -1.265060f, 0.144273f,  -2.539755f,
+         1.092407f,  1.675443f,  0.693876f,  0.139870f,  -0.614094f, 0.741214f,  0.313412f,  1.496415f,  0.741528f,
+         1.941468f,  -0.633559f, 1.356501f,  -0.236596f, -2.066535f, 1.490293f,  0.504847f,  -0.213407f, 0.138077f,
+         2.092520f,  -0.378638f, -0.479433f, 0.282109f,  0.420421f,  0.578601f,  -0.827534f, -1.057137f, -1.707744f,
+         1.080002f,  0.833275f,  0.654531f,  0.201106f,  -0.483115f, -1.611566f, 0.323874f,  -0.213647f, 0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.438845f,  -0.648128f, 1.073442f,  -0.273293f, -0.464913f,
+         -0.243260f, -0.452986f, -1.725154f, -1.311847f, -0.333947f, 0.268144f,  -2.358638f, 1.145367f,  -2.474153f,
+         -1.011840f, -0.109856f, -0.568023f, 1.372194f,  1.760667f,  0.892158f,  0.067302f,  0.918245f,  1.931988f,
+         1.236039f,  0.433323f,  -0.212353f, 1.690878f,  0.097497f,  -1.367717f, 1.185016f,  0.267758f,  -1.029415f,
+         1.100571f,  -0.238973f, -0.426142f, 1.357641f,  0.971457f,  -0.702997f, 1.501098f,  1.400526f,  -0.537457f,
+         0.707064f,  -0.689078f, 0.488712f,  0.242408f,  1.762604f,  1.096596f,  0.211981f,  -0.050298f, 0.200390f,
+         -1.293308f, 0.292216f,  -1.214751f, 0.498863f,  -1.492733f, -1.235152f, -0.225115f, -0.727480f, 0.999360f,
+         1.600033f,  0.674497f,  -1.272651f, 2.095673f,  0.117753f,  0.120974f,  0.688193f,  -0.094003f, -0.649669f,
+         -0.479761f, 1.536859f,  -1.354322f, -0.712195f, 0.066348f,  0.816977f,  -0.666364f, -0.567504f, -1.089522f,
+         -1.644422f, 1.109130f,  0.169357f,  -0.234812f, 0.864817f,  -0.420304f, 0.304565f,  0.352500f,  1.004058f,
+         0.264515f,  -1.468116f, -0.119449f, -0.867522f, -1.572752f, -0.076581f, -1.177887f, 0.087733f,  0.046017f,
+         0.723135f,  0.031420f,  1.669971f,  1.450923f,  0.439020f,  0.697815f,  -0.337999f, -1.449093f, 0.139813f,
+         0.311885f,  -0.571345f, 0.996925f,  0.407342f,  -1.288939f, -0.407227f, 0.139224f,  -0.672314f});
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 7, 16},
+        {-0.685991f, -0.602044f, -0.678653f, 0.082147f,  0.535397f,  0.690880f,  2.203624f,  0.258709f,  -0.782121f,
+         -0.169026f, 1.572640f,  -2.204850f, 0.035475f,  1.455926f,  -0.389976f, 0.057275f,  0.512134f,  -1.073511f,
+         1.652816f,  0.156937f,  -1.491666f, 1.408677f,  -0.928610f, 1.504478f,  -1.128435f, 1.082783f,  -1.021420f,
+         2.116989f,  0.845145f,  1.833844f,  -0.423084f, -0.425380f, 0.448387f,  -0.712317f, 1.068330f,  0.107709f,
+         -0.827633f, -0.334834f, -0.434023f, -0.230353f, 0.387177f,  -0.728370f, 0.197996f,  0.078423f,  -0.319137f,
+         -1.617330f, 0.738758f,  -0.723663f, -2.345493f, 0.853263f,  0.105235f,  -0.258354f, 1.127409f,  2.999391f,
+         -0.518910f, 1.944899f,  -1.203207f, -1.123397f, 1.530601f,  -0.286479f, -0.324314f, 1.867617f,  0.218157f,
+         0.141700f,  0.059535f,  -1.217214f, 1.339954f,  -0.481047f, 0.390373f,  -0.170348f, -2.081453f, -0.241503f,
+         -0.699831f, 3.040822f,  0.188978f,  0.619830f,  -0.035367f, -1.556886f, -1.432997f, -1.121109f, 0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+         0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.010473f,  -1.095812f, -0.226064f, -0.425841f, -0.162053f,
+         -1.170929f, 0.788263f,  1.593899f,  -1.381148f, -0.119685f, -0.820775f, 0.488714f,  1.784580f,  1.880445f,
+         -1.324462f, -1.154620f, -2.035255f, -1.007266f, 0.769484f,  -2.595685f, 1.726362f,  1.714479f,  0.243105f,
+         0.215127f,  0.925098f,  0.466374f,  3.242254f,  -1.589451f, -0.174766f, 1.841549f,  1.406225f,  -1.406864f,
+         0.279213f,  -0.825242f, 1.467296f,  -0.297104f, 1.621692f,  -0.729274f, -2.285827f, 0.023184f,  -0.350618f,
+         0.573175f,  -1.123489f, -0.506550f, -0.775737f, 1.363714f,  -1.197976f, -1.085498f, 0.094936f,  0.395905f,
+         0.584635f,  -0.267187f, 2.056289f,  -0.501958f, -0.410833f, -0.041318f, 0.760315f,  -0.018580f, -0.663263f,
+         -2.975389f, 0.994211f,  -1.152212f, -1.648420f, -1.654954f, -0.093160f, 2.703855f,  -0.613348f, -1.056465f,
+         1.377396f,  0.284885f,  1.917743f,  -0.292255f, -0.254493f, -0.659562f, -0.313390f, 0.006556f,  -0.815581f,
+         2.180922f,  -0.047599f, -0.150770f, 0.525306f,  0.193513f,  -0.644901f, -0.887710f, -0.981003f, -2.048927f,
+         0.256401f,  -3.232565f, -2.108511f, 1.050398f,  -0.097115f, -0.837919f, -0.774198f, 1.051759f,  1.655747f,
+         -0.096147f, -0.605500f, -0.556759f, -1.741645f, 1.483158f,  1.015569f,  -1.269729f, -0.459088f, 1.614606f,
+         0.263957f,  2.027716f,  -0.693600f, -0.635652f, 0.880623f,  -1.126104f, -0.854420f, 0.035484f});
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Windowed cache: an idle single-token step (query_seqlens = 0) leaves the resident rows unchanged.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_query_seqlens_sliding_window_idle_decode) {
+    const auto model = convert_model("com.microsoft/gqa_query_seqlens_sliding_window_decode.onnx");
+    const auto nan = std::numeric_limits<float>::quiet_NaN();
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 32},
+                               {nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan,
+                                nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan});
+    test_case.add_input<float>(Shape{1, 1, 16},
+                               {nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan});
+    test_case.add_input<float>(Shape{1, 1, 16},
+                               {nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan});
+    test_case.add_input<float>(
+        Shape{1, 1, 4, 16},
+        {-0.735420f, -2.352132f, -0.105137f, 1.058446f,  -1.056985f, -0.165748f, 0.647240f,  -1.235289f,
+         0.307702f,  0.490687f,  0.112803f,  1.337835f,  -2.229840f, 0.321195f,  0.280433f,  1.232413f,
+         0.566844f,  0.583737f,  -0.219653f, 0.986352f,  -0.710385f, -0.033704f, 0.179886f,  -1.599906f,
+         -0.944826f, -0.852998f, 0.895438f,  0.967439f,  -1.170174f, 0.796356f,  0.496066f,  -0.226459f,
+         -1.925212f, -0.496356f, 0.931818f,  -0.335165f, 0.735086f,  0.545687f,  0.096996f,  -0.792602f,
+         0.794702f,  -0.860949f, 0.370744f,  1.322762f,  0.250633f,  -0.445592f, 0.159246f,  3.811251f,
+         0.397137f,  0.677802f,  -1.006077f, 0.055329f,  0.165066f,  1.507033f,  -1.276394f, 0.375566f,
+         -1.035591f, 0.051493f,  0.332971f,  0.468763f,  -0.816297f, -2.428651f, 0.139713f,  -0.221144f});
+    test_case.add_input<float>(
+        Shape{1, 1, 4, 16},
+        {0.790308f,  -0.037426f, -1.177983f, 1.017233f,  1.122269f,  -0.455284f, 2.127623f,  -0.566481f,
+         -0.779623f, 1.210476f,  -0.470101f, 0.892839f,  0.498565f,  -0.779827f, -0.383811f, -0.570419f,
+         1.625311f,  -0.479224f, -0.379097f, 1.021150f,  -0.029792f, 0.594879f,  -0.633937f, -0.599054f,
+         -0.255425f, -0.345669f, -0.474950f, 1.139714f,  -1.321009f, 0.779937f,  -1.800832f, 0.592629f,
+         0.581112f,  -0.211427f, -1.929929f, 1.669991f,  0.020253f,  -2.344744f, 0.016774f,  0.929871f,
+         -0.871827f, -0.308090f, 0.201969f,  -1.408947f, -0.710237f, 0.466852f,  2.080658f,  1.048191f,
+         1.833178f,  0.142558f,  -1.732681f, 0.134535f,  -1.289570f, 1.197219f,  0.574528f,  -1.396965f,
+         0.237134f,  -0.214781f, 0.406789f,  -1.228678f, -0.795671f, -2.198250f, -0.345258f, -3.070871f});
+    test_case.add_input<int32_t>(Shape{1}, {5});
+    test_case.add_input<int32_t>(Shape{}, {6});
+    test_case.add_input<int32_t>(Shape{1}, {0});
+    test_case.add_input<int64_t>(Shape{1}, {4});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 32},
+        {0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.000000f,
+         0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.000000f,
+         0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.000000f,
+         0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.000000f});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 4, 16},
+        {-0.735420f, -2.352132f, -0.105137f, 1.058446f,  -1.056985f, -0.165748f, 0.647240f,  -1.235289f,
+         0.307702f,  0.490687f,  0.112803f,  1.337835f,  -2.229840f, 0.321195f,  0.280433f,  1.232413f,
+         0.566844f,  0.583737f,  -0.219653f, 0.986352f,  -0.710385f, -0.033704f, 0.179886f,  -1.599906f,
+         -0.944826f, -0.852998f, 0.895438f,  0.967439f,  -1.170174f, 0.796356f,  0.496066f,  -0.226459f,
+         -1.925212f, -0.496356f, 0.931818f,  -0.335165f, 0.735086f,  0.545687f,  0.096996f,  -0.792602f,
+         0.794702f,  -0.860949f, 0.370744f,  1.322762f,  0.250633f,  -0.445592f, 0.159246f,  3.811251f,
+         0.397137f,  0.677802f,  -1.006077f, 0.055329f,  0.165066f,  1.507033f,  -1.276394f, 0.375566f,
+         -1.035591f, 0.051493f,  0.332971f,  0.468763f,  -0.816297f, -2.428651f, 0.139713f,  -0.221144f});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 4, 16},
+        {0.790308f,  -0.037426f, -1.177983f, 1.017233f,  1.122269f,  -0.455284f, 2.127623f,  -0.566481f,
+         -0.779623f, 1.210476f,  -0.470101f, 0.892839f,  0.498565f,  -0.779827f, -0.383811f, -0.570419f,
+         1.625311f,  -0.479224f, -0.379097f, 1.021150f,  -0.029792f, 0.594879f,  -0.633937f, -0.599054f,
+         -0.255425f, -0.345669f, -0.474950f, 1.139714f,  -1.321009f, 0.779937f,  -1.800832f, 0.592629f,
+         0.581112f,  -0.211427f, -1.929929f, 1.669991f,  0.020253f,  -2.344744f, 0.016774f,  0.929871f,
+         -0.871827f, -0.308090f, 0.201969f,  -1.408947f, -0.710237f, 0.466852f,  2.080658f,  1.048191f,
+         1.833178f,  0.142558f,  -1.732681f, 0.134535f,  -1.289570f, 1.197219f,  0.574528f,  -1.396965f,
+         0.237134f,  -0.214781f, 0.406789f,  -1.228678f, -0.795671f, -2.198250f, -0.345258f, -3.070871f});
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Windowed cache: a single-token step with query_seqlens = 1 evicts and appends as a plain decode.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_query_seqlens_sliding_window_decode) {
+    const auto model = convert_model("com.microsoft/gqa_query_seqlens_sliding_window_decode.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(
+        Shape{1, 1, 32},
+        {-1.176010f, -1.675877f, 1.189677f,  -1.353264f, -1.603776f, -0.274002f, 1.012435f,  -1.225247f,
+         -0.637407f, 1.079155f,  1.345773f,  0.951369f,  -0.327242f, -1.291195f, 1.052862f,  -0.268626f,
+         0.892798f,  1.159710f,  -0.419051f, -0.647760f, -0.047990f, 1.529014f,  -0.667146f, -0.483604f,
+         0.379366f,  -1.095309f, -1.155251f, -1.242736f, -0.888099f, 0.316417f,  -0.771018f, 1.978663f});
+    test_case.add_input<float>(Shape{1, 1, 16},
+                               {0.325534f,
+                                0.017473f,
+                                0.728808f,
+                                -0.048721f,
+                                1.790936f,
+                                1.145783f,
+                                0.128518f,
+                                0.350996f,
+                                1.885239f,
+                                -1.291963f,
+                                0.896549f,
+                                0.394587f,
+                                -0.040936f,
+                                -0.674270f,
+                                -0.762355f,
+                                1.215289f});
+    test_case.add_input<float>(Shape{1, 1, 16},
+                               {1.560570f,
+                                -0.975584f,
+                                0.238936f,
+                                -1.246308f,
+                                0.369837f,
+                                1.207849f,
+                                1.782179f,
+                                1.478890f,
+                                1.051573f,
+                                -0.464264f,
+                                -0.082366f,
+                                0.321527f,
+                                0.057996f,
+                                -0.504767f,
+                                1.920703f,
+                                -1.825270f});
+    test_case.add_input<float>(
+        Shape{1, 1, 4, 16},
+        {0.842282f,  0.083647f,  -0.717136f, -0.215149f, 1.909177f,  1.032557f,  1.380312f,  0.138083f,
+         0.123940f,  1.115519f,  -1.300065f, 0.957614f,  -1.152128f, -0.454451f, -0.980611f, 0.421597f,
+         -0.604289f, 1.044649f,  2.138226f,  1.231245f,  0.068712f,  -0.095559f, 1.804814f,  -0.167775f,
+         0.648008f,  1.802481f,  0.871171f,  -1.274905f, -1.776615f, 0.543686f,  -0.945830f, -0.781297f,
+         -0.704354f, -0.660872f, -0.866482f, -1.893691f, -0.740046f, -0.355779f, -0.103283f, -0.384233f,
+         -0.147975f, 2.460142f,  -0.683049f, 1.256650f,  1.867264f,  -0.969937f, 0.166815f,  0.057893f,
+         -0.657577f, 0.406426f,  -2.004004f, -0.323489f, -0.156990f, 0.548061f,  0.317949f,  -0.541432f,
+         -0.652277f, -0.234219f, 0.849777f,  -0.576473f, -0.269792f, -1.331634f, 0.269876f,  -0.311019f});
+    test_case.add_input<float>(
+        Shape{1, 1, 4, 16},
+        {-0.413233f, -0.135634f, -0.267258f, 0.405678f,  1.213868f,  -1.489697f, 0.306468f,  -0.167148f,
+         -1.027391f, 0.123602f,  -0.662085f, -0.336829f, -0.343122f, 0.224783f,  -1.076613f, 1.108196f,
+         0.505042f,  0.374535f,  -0.757373f, 0.476053f,  -0.851154f, 0.001054f,  2.007378f,  -0.040888f,
+         1.054849f,  0.061097f,  -2.260695f, 0.127462f,  1.119862f,  0.711444f,  -0.449443f, 0.739543f,
+         1.075486f,  0.964970f,  0.380224f,  -1.182293f, 0.795458f,  0.763872f,  -0.387267f, -0.154403f,
+         -0.045802f, -0.112358f, 0.125178f,  0.117042f,  -1.107254f, -0.558209f, 0.337880f,  -1.393851f,
+         2.286380f,  0.123591f,  -0.071135f, -0.759327f, 1.076743f,  0.284443f,  -0.423837f, -0.640758f,
+         -1.705208f, -0.715107f, -0.971080f, 0.951486f,  1.820630f,  -0.710128f, 2.163108f,  1.241169f});
+    test_case.add_input<int32_t>(Shape{1}, {6});
+    test_case.add_input<int32_t>(Shape{}, {7});
+    test_case.add_input<int32_t>(Shape{1}, {1});
+    test_case.add_input<int64_t>(Shape{1}, {4});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 32},
+        {1.167511f,  0.723988f,  0.162383f,  -0.902348f, 0.595709f,  0.609000f,  -0.007650f, -0.159122f,
+         -0.082006f, -0.176173f, -0.348796f, 0.232208f,  -0.391942f, -0.402972f, 0.508891f,  -0.771347f,
+         1.589237f,  -0.510469f, 0.078163f,  -0.964567f, 0.420461f,  0.865420f,  1.224496f,  0.789720f,
+         0.402342f,  -0.449399f, -0.484362f, 0.429119f,  0.492517f,  -0.429609f, 1.660927f,  -0.881997f});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 4, 16},
+        {-0.604289f, 1.044649f,  2.138226f,  1.231245f,  0.068712f,  -0.095559f, 1.804814f,  -0.167775f,
+         0.648008f,  1.802481f,  0.871171f,  -1.274905f, -1.776615f, 0.543686f,  -0.945830f, -0.781297f,
+         -0.704354f, -0.660872f, -0.866482f, -1.893691f, -0.740046f, -0.355779f, -0.103283f, -0.384233f,
+         -0.147975f, 2.460142f,  -0.683049f, 1.256650f,  1.867264f,  -0.969937f, 0.166815f,  0.057893f,
+         -0.657577f, 0.406426f,  -2.004004f, -0.323489f, -0.156990f, 0.548061f,  0.317949f,  -0.541432f,
+         -0.652277f, -0.234219f, 0.849777f,  -0.576473f, -0.269792f, -1.331634f, 0.269876f,  -0.311019f,
+         0.325534f,  0.017473f,  0.728808f,  -0.048721f, 1.790936f,  1.145783f,  0.128518f,  0.350996f,
+         1.885239f,  -1.291963f, 0.896549f,  0.394587f,  -0.040936f, -0.674270f, -0.762355f, 1.215289f});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 4, 16},
+        {0.505042f,  0.374535f,  -0.757373f, 0.476053f,  -0.851154f, 0.001054f,  2.007378f,  -0.040888f,
+         1.054849f,  0.061097f,  -2.260695f, 0.127462f,  1.119862f,  0.711444f,  -0.449443f, 0.739543f,
+         1.075486f,  0.964970f,  0.380224f,  -1.182293f, 0.795458f,  0.763872f,  -0.387267f, -0.154403f,
+         -0.045802f, -0.112358f, 0.125178f,  0.117042f,  -1.107254f, -0.558209f, 0.337880f,  -1.393851f,
+         2.286380f,  0.123591f,  -0.071135f, -0.759327f, 1.076743f,  0.284443f,  -0.423837f, -0.640758f,
+         -1.705208f, -0.715107f, -0.971080f, 0.951486f,  1.820630f,  -0.710128f, 2.163108f,  1.241169f,
+         1.560570f,  -0.975584f, 0.238936f,  -1.246308f, 0.369837f,  1.207849f,  1.782179f,  1.478890f,
+         1.051573f,  -0.464264f, -0.082366f, 0.321527f,  0.057996f,  -0.504767f, 1.920703f,  -1.825270f});
+    test_case.run_with_tolerance_as_fp();
 }

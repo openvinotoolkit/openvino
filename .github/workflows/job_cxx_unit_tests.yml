@@ -130,6 +130,8 @@ jobs:
 
       - name: GGUF frontend tests
         if: fromJSON(inputs.affected-components).GGUF_FE.test
+        env:
+          OV_GGUF_REQUIRE_ARCH_FIXTURES: ${{ (inputs.os == 'ubuntu_22_04' || inputs.os == 'ubuntu_24_04') && runner.arch == 'X64' && '1' || '' }}
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_gguf_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-GGUFFrontend.xml

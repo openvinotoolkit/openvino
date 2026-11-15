@@ -16,8 +16,8 @@
 # resident memory recorded in that document's memory table (the largest entry kept here,
 # muse-glimmer, peaks around 37 GiB) -- hence the 16-core/64 GiB nightly runner.
 olmoe,allenai/OLMoE-1B-7B-0924-Instruct-GGUF,olmoe-1b-7b-0924-instruct-q4_0.gguf
-qwen3-q1_0,prism-ml/Bonsai-8B-gguf,Bonsai-8B-Q1_0.gguf
-qwen35-bonsai-q1_0,prism-ml/Bonsai-27B-gguf,Bonsai-27B-Q1_0.gguf
+qwen3-q1_0,prism-ml/Bonsai-8B-gguf,Bonsai-8B-Q1_0.gguf,skip,"CPU expands u1 Q1_0 weights to f32 at compile time (~60 GiB peak for 8B), which exhausts the 64 GiB runner"
+qwen35-bonsai-q1_0,prism-ml/Bonsai-27B-gguf,Bonsai-27B-Q1_0.gguf,skip,"CPU expands u1 Q1_0 weights to f32 at compile time (8B already peaks at ~60 GiB), which exceeds the 64 GiB runner"
 muse-glimmer,unsloth/Muse-Glimmer-30B-GGUF,Muse-Glimmer-30B-UD-Q4_K_XL.gguf
 qwen35-bonsai,prism-ml/Ternary-Bonsai-27B-gguf,Ternary-Bonsai-27B-Q2_g64.gguf
 ernie4_5-moe,bartowski/baidu_ERNIE-4.5-21B-A3B-PT-GGUF,baidu_ERNIE-4.5-21B-A3B-PT-Q4_K_M.gguf
@@ -34,3 +34,10 @@ minimax-m2,mradermacher/MiniMax-M2.1-REAP-50-i1-GGUF,MiniMax-M2.1-REAP-50.i1-Q2_
 jais2,mradermacher/JAIS2-IT-0.3-GGUF,JAIS2-IT-0.3.Q4_K_M.gguf
 nemotron_h,bartowski/nvidia_Nemotron-H-8B-Reasoning-128K-GGUF,nvidia_Nemotron-H-8B-Reasoning-128K-Q4_K_M.gguf
 mamba2-2.7b,Nicholas55555/mamba2-2.7b-Q8_0-GGUF,mamba2-2.7b-q8_0.gguf
+
+lfm2,LiquidAI/LFM2.5-1.2B-Instruct-GGUF,LFM2.5-1.2B-Instruct-Q4_0.gguf
+lfm2moe,LiquidAI/LFM2.5-8B-A1B-GGUF,LFM2.5-8B-A1B-Q4_0.gguf
+qwen35-bonsai-pq2_0,prism-ml/Ternary-Bonsai-27B-gguf,Ternary-Bonsai-27B-PQ2_0.gguf
+qwen35-bonsai2-pq2_0,prism-ml/Ternary-Bonsai-2-27B-gguf,Ternary-Bonsai-2-27B-PQ2_0.gguf
+qwen35-bonsai2-ptq1_0,prism-ml/Ternary-Bonsai-2-27B-gguf,Ternary-Bonsai-2-27B-PTQ1_0.gguf
+qwen35-bonsai2-q2_0,prism-ml/Ternary-Bonsai-2-27B-gguf-dev,Ternary-Bonsai-2-27B-Q2_0-prism-fork-required.gguf

@@ -156,6 +156,7 @@ attach_broadcast_impl::attach_broadcast_impl() {
 
     auto dyn_formats = {
         format::bfyx,
+        format::byxf,
         format::bfzyx,
         format::bfwzyx
     };
@@ -168,6 +169,7 @@ attach_broadcast_impl::attach_broadcast_impl() {
 
     auto static_formats = {
         format::bfyx,
+        format::byxf,
         format::b_fs_yx_fsv4,
         format::b_fs_yx_fsv16,
         format::b_fs_yx_fsv32,
