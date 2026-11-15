@@ -349,8 +349,14 @@ struct ExpertPrefetcher::State {
                             OPENVINO_ASSERT(prediction->prediction_event_mem && prediction->prediction_event_mem->count() >= count,
                                             "Invalid lookahead prediction buffer");
                             experts.resize(count);
-                            prediction->prediction_event_mem->copy_to(*dma, experts.data(), 0, 0,
-                                                                     count * sizeof(uint32_t), true);
+                            if (prediction->prediction_event_mem->get_allocation_type() == cldnn::allocation_type::usm_host) {
+                                cldnn::mem_lock<uint32_t, cldnn::mem_lock_type::read> indices(prediction->prediction_event_mem,
+                                                                                              *dma);
+                                std::copy(indices.data(), indices.data() + count, experts.begin());
+                            } else {
+                                prediction->prediction_event_mem->copy_to(*dma, experts.data(), 0, 0,
+                                                                         count * sizeof(uint32_t), true);
+                            }
                         }
                         consume(*prediction);
                     } catch (...) {

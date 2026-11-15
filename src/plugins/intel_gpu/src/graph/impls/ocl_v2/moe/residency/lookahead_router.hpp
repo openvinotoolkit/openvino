@@ -75,6 +75,10 @@ public:
                             ov::intel_gpu::custom_outputs(std::vector<std::string>{router}));
         auto program = cldnn::program::build_program(owner.get_engine(), topology, config, true);
         m_network = cldnn::network::allocate_network(owner.get_stream_ptr(), std::move(program), true);
+        auto router_instance = m_network->get_primitive(m_router);
+        auto indices = owner.get_engine().allocate_memory(router_instance->output_memory_ptr(1)->get_layout(),
+                                                          cldnn::allocation_type::usm_host, false);
+        router_instance->set_output_memory(std::move(indices), true, 1);
     }
 
     Result enqueue(const cldnn::memory::ptr& hidden, const cldnn::event::ptr& ready) {

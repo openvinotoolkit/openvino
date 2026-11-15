@@ -57,6 +57,63 @@ protected:
     }
 };
 
+TEST_F(moe_les_upload, packed_zero_point_transpose_handles_odd_dimensions) {
+    MOECompressed::Config config{};
+    config.hidden_size = 4;
+    config.inter_size = 3;
+    config.group_size = 2;
+    const layout packed{data_types::u4, format::bfyx, {1, 1, 1, 6}};
+    std::vector<uint8_t> payload{0x10, 0x32, 0x54};
+    otd::maybe_transpose_scale_zp(config, 6, packed, payload, payload.size());
+    EXPECT_EQ(payload, (std::vector<uint8_t>{0x20, 0x14, 0x53}));
+
+    config.hidden_size = 3;
+    config.inter_size = 2;
+    config.group_size = 1;
+    payload = {0x10, 0x32, 0x54};
+    otd::maybe_transpose_scale_zp(config, 6, packed, payload, payload.size());
+    EXPECT_EQ(payload, (std::vector<uint8_t>{0x30, 0x41, 0x52}));
+}
+
+TEST_F(moe_les_upload, packed_zero_point_transpose_matches_reference) {
+    for (const auto& dimensions : std::array<std::array<int, 3>, 5>{{
+             {{4, 3, 2}}, {{3, 2, 1}}, {{8, 6, 2}}, {{8, 6, 0}}, {{2048, 512, 64}}}}) {
+        MOECompressed::Config config{};
+        config.hidden_size = dimensions[0];
+        config.inter_size = dimensions[1];
+        config.group_size = dimensions[2];
+        for (size_t component : {6, 7, 8}) {
+            const size_t output_channels = component == 8 ? dimensions[0] : dimensions[1];
+            const size_t input_channels = component == 8 ? dimensions[1] : dimensions[0];
+            if (dimensions[2] != 0 && input_channels % dimensions[2] != 0) {
+                continue;
+            }
+            const size_t groups = dimensions[2] == 0 ? 1 : input_channels / dimensions[2];
+            const size_t count = output_channels * groups;
+            ASSERT_EQ(count % 2, 0U);
+            const layout packed{data_types::u4, format::bfyx, {1, 1, 1, static_cast<int>(count)}};
+            std::vector<uint8_t> payload(count / 2);
+            for (size_t index = 0; index < payload.size(); ++index) {
+                payload[index] = static_cast<uint8_t>((index * 37 + component * 19) % 256);
+            }
+            std::vector<uint8_t> values(count);
+            for (size_t index = 0; index < count; ++index) {
+                values[index] = (payload[index / 2] >> ((index % 2) * 4)) & 0x0F;
+            }
+            std::vector<uint8_t> expected(count / 2, 0);
+            for (size_t channel = 0; channel < output_channels; ++channel) {
+                for (size_t group = 0; group < groups; ++group) {
+                    const size_t destination = group * output_channels + channel;
+                    expected[destination / 2] |= values[channel * groups + group] << ((destination % 2) * 4);
+                }
+            }
+            otd::maybe_transpose_scale_zp(config, component, packed, payload, payload.size());
+            EXPECT_EQ(payload, expected) << "component=" << component << " dimensions="
+                                         << dimensions[0] << "," << dimensions[1] << "," << dimensions[2];
+        }
+    }
+}
+
 TEST_F(moe_les_upload, all_nine_components_are_ready_and_repacked) {
     MOECompressed::Config config{};
     config.num_expert = 2;
@@ -97,6 +154,38 @@ TEST_F(moe_les_upload, all_nine_components_are_ready_and_repacked) {
             EXPECT_EQ(actual, expected);
         }
     }
+}
+
+TEST_F(moe_les_upload, async_metadata_upload_matches_known_bytes) {
+    MOECompressed::Config config{};
+    config.num_expert = 1;
+    config.hidden_size = 4;
+    config.inter_size = 3;
+    config.group_size = 2;
+    const std::vector<uint8_t> source{0x00, 0x10, 0x01, 0x11, 0x02, 0x12,
+                                      0x03, 0x13, 0x04, 0x14, 0x05, 0x15,
+                                      0x10, 0x32, 0x54};
+    write(source);
+    auto transfer = copy_lane();
+    otd::ParallelWeightReader reader(path);
+    moe_weights weights;
+    weights.gate_s = buffer(6, data_types::f16);
+    weights.gate_z = buffer(6, data_types::u4);
+    std::vector<size_t> offsets(9, 0);
+    offsets[6] = 12;
+    otd::LookaheadStagingPool staging;
+    auto events = otd::fill_weights_memory_async(*transfer, config, offsets, reader, weights, {0}, {0}, nullptr, &staging);
+    ASSERT_EQ(events.size(), 2U);
+    for (const auto& event : events) {
+        event->wait();
+    }
+    std::vector<uint8_t> scale(12);
+    std::vector<uint8_t> zero_point(3);
+    weights.gate_s->copy_to(*transfer, scale.data(), 0, 0, scale.size(), true);
+    weights.gate_z->copy_to(*transfer, zero_point.data(), 0, 0, zero_point.size(), true);
+    EXPECT_EQ(scale, (std::vector<uint8_t>{0x00, 0x10, 0x02, 0x12, 0x04, 0x14,
+                                           0x01, 0x11, 0x03, 0x13, 0x05, 0x15}));
+    EXPECT_EQ(zero_point, (std::vector<uint8_t>{0x20, 0x14, 0x53}));
 }
 
 TEST_F(moe_les_upload, staging_reuse_preserves_large_tensor_source) {
@@ -153,6 +242,7 @@ TEST_F(moe_les_upload, native_lookahead_router_keeps_actual_outputs_independent)
     write(std::vector<uint8_t>(256, 11));
     MOECompressed::Config expert_config{};
     expert_config.num_expert = 16;
+    expert_config.top_k = 1;
     auto provider = std::make_shared<OffloadExpertWeightProvider>(4, expert_config, std::vector<size_t>(9), path);
     moe_weights expert_weights;
     expert_weights.gate_w = engine.reinterpret_buffer(*buffer(16, data_types::u8, 4),
@@ -206,9 +296,22 @@ TEST_F(moe_les_upload, native_lookahead_router_keeps_actual_outputs_independent)
     auto prediction = current_finished.get();
     prediction.ready->wait();
     uint32_t predicted_id = 0;
-    prediction.indices->copy_to(actual.get_stream(), &predicted_id, true);
+    EXPECT_EQ(prediction.indices->get_allocation_type(), allocation_type::usm_host);
+    {
+        mem_lock<uint32_t, mem_lock_type::read> indices(prediction.indices, compute);
+        predicted_id = indices[0];
+    }
     EXPECT_EQ(predicted_id, 5U);
     EXPECT_EQ(actual_id, 2U);
+    prefetcher.advance(1, 0);
+    auto consumed = std::make_shared<std::atomic<bool>>(false);
+    prefetcher.submit_prefetch({1, 1, prediction.indices, prediction.ready, provider, consumed});
+    prefetcher.drain();
+    EXPECT_TRUE(consumed->load(std::memory_order_acquire));
+    auto predicted = provider->cache().partition_3way({5}, [&] { return prefetcher.make_ready_event(); });
+    ASSERT_TRUE(predicted);
+    EXPECT_EQ(predicted->ready_pairs, std::vector<size_t>{0});
+    provider->cache().unpin_all(compute.enqueue_marker({}, true));
     std::vector<uint8_t> uploaded(16);
     expert_weights.gate_w->copy_to(compute, uploaded.data(), 0, 0, uploaded.size(), true);
     EXPECT_EQ(uploaded, std::vector<uint8_t>(16, 11));
@@ -375,7 +478,8 @@ TEST_F(moe_les_upload, current_demand_does_not_wait_for_next_prediction) {
     current_weights.gate_w = buffer(16, data_types::u8, 8);
     current_provider->bind(current_weights);
     auto compute = lane();
-    auto predicted_ids = buffer(1, data_types::i32);
+    auto predicted_ids = get_test_engine().allocate_memory(
+        layout{data_types::i32, format::bfyx, {1, 1, 1, 1}}, allocation_type::usm_host, false);
     const uint32_t predicted_expert = 1;
     predicted_ids->copy_from(*compute, &predicted_expert, true);
     compute->flush();
