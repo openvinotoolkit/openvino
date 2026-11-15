@@ -59,10 +59,12 @@ namespace v6 = ov::op::v6;
 namespace v8 = ov::op::v8;
 namespace v13 = ov::op::v13;
 namespace v15 = ov::op::v15;
+namespace state_management_rt_info {
 constexpr const char* NUM_K_HEADS = "num_k_heads";
 constexpr const char* K_HEAD_SIZE = "k_head_size";
 constexpr const char* NUM_V_HEADS = "num_v_heads";
 constexpr const char* V_HEAD_SIZE = "v_head_size";
+}  // namespace state_management_rt_info
 using namespace ov::pass;
 using ov::OutputVector;
 
@@ -883,10 +885,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
 
         auto paged_attention =
             std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments, kv_params.write_kv_cache);
-        paged_attention->get_rt_info()[NUM_K_HEADS] = num_k_heads;
-        paged_attention->get_rt_info()[K_HEAD_SIZE] = k_head_size;
-        paged_attention->get_rt_info()[NUM_V_HEADS] = num_v_heads;
-        paged_attention->get_rt_info()[V_HEAD_SIZE] = v_head_size;
+        paged_attention->get_rt_info()[state_management_rt_info::NUM_K_HEADS] = num_k_heads;
+        paged_attention->get_rt_info()[state_management_rt_info::K_HEAD_SIZE] = k_head_size;
+        paged_attention->get_rt_info()[state_management_rt_info::NUM_V_HEADS] = num_v_heads;
+        paged_attention->get_rt_info()[state_management_rt_info::V_HEAD_SIZE] = v_head_size;
 
         // The output shape of PagedAttention will be converted to [batch, 1, head_num, head_size_v], the head_size_v
         // may be different from head_size_q/head_size_k. The head_size_v could be got from the shape of value input
