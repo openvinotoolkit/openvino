@@ -132,6 +132,8 @@ private:
     bool isConstantInput[6] = {false};
     bool shapeHasDataDependency = false;
     bool hasConstAttrInputs = true;
+    // SliceScatter with non-constant start/stop/step/axes: output shape is static, but indices change per run
+    bool hasRuntimeScatterParams = false;
 
     std::vector<MemoryCPtr> srcMemory;
     std::vector<MemoryCPtr> dstMemory;

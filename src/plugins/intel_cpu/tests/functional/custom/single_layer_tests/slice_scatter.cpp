@@ -234,6 +234,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Plain_Dynamic_2D,
                                             ::testing::Values(emptyCPUSpec)),
                          SliceScatterLayerCPUTest::getTestCaseName);
 
+// Fully static data and updates keep the node static, so runtime start/stop/step/axes must be read per inference
+const std::vector<SliceScatterSpecificParams> paramsStaticUpdates2D = {
+    SliceScatterSpecificParams{{{{4, 6}, {{4, 6}}}}, {2, 5}, {6, 11}, {1, 1}, {}},
+    SliceScatterSpecificParams{{{{5, 8}, {{5, 8}}}}, {0, 1}, {16, 16}, {2, 3}, {1, 0}},
+    SliceScatterSpecificParams{{{{6, 4}, {{6, 4}}}}, {-8, -4}, {-2, 16}, {1, 1}, {}},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Plain_Static_2D_RuntimeIndices,
+                         SliceScatterLayerCPUTest,
+                         ::testing::Combine(::testing::Values(static_shapes_to_test_representation({{32, 16}})),
+                                            ::testing::ValuesIn(paramsStaticUpdates2D),
+                                            ::testing::ValuesIn(inputLayerTypes),
+                                            ::testing::ValuesIn(inputPrecisions),
+                                            ::testing::Values(emptyCPUSpec)),
+                         SliceScatterLayerCPUTest::getTestCaseName);
+
 const std::vector<SliceScatterSpecificParams> testCasesCommon4D = {
     SliceScatterSpecificParams{{{{-1, -1, -1, -1}, {{1, 2, 23, 23}}}}, {0, 2, 5, 4}, {1, 4, 28, 27}, {1, 1, 1, 1}, {}},
     SliceScatterSpecificParams{{{{1, 2, 32, 20}, {{1, 2, 32, 20}}}},
