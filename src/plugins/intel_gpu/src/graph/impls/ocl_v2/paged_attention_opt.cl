@@ -380,11 +380,32 @@ KERNEL(pa_sdpa_opt)(
             {
                 const __global uchar* k_page = (const __global uchar*)key_cache + key_block_offset;
                 const __global INPUT0_TYPE* k_comp = (const __global INPUT0_TYPE*)(k_page + (K_HEAD_SIZE / U4_ELEMS_PER_BYTE) * PAGED_ATTENTION_BLOCK_SIZE);
+#ifdef PA_U4_K_ROW_LOADS
+                // xe_hpg GQA single-token kernel (K_HEAD_SIZE % 32 == 0): the lane loads its whole row up front in
+                // 16-byte pieces. The per-step vload8 below is two 4-byte gathers over the 16 rows, each touching 16
+                // cache lines; the pieces carry 16 bytes per line touched, K_HEAD_SIZE / 32 messages per page instead
+                // of K_HEAD_SIZE / 8 ("u4 page reads of the opt kernels on xe_hpg" in sdpa_ocl.md).
+                uint k_row[K_HEAD_SIZE / 8];
+                {
+                    const __global uint* k_row_ptr = (const __global uint*)(k_page + sglid * (K_HEAD_SIZE / U4_ELEMS_PER_BYTE));
+                    unroll_for (uint w = 0; w < K_HEAD_SIZE / 8; w += 4) {
+                        const uint4 piece = vload4(0, k_row_ptr + w);
+                        k_row[w] = piece.s0;
+                        k_row[w + 1] = piece.s1;
+                        k_row[w + 2] = piece.s2;
+                        k_row[w + 3] = piece.s3;
+                    }
+                }
+#endif
                 unroll_for (uint qk_idx = 0; qk_idx < K_HEAD_SIZE / KEY_VEC_SIZE; qk_idx++) {
                     const uint comp_head_dim = qk_idx * KEY_VEC_SIZE + sglid;
                     const INPUT0_TYPE comp_scale = k_comp[2 * comp_head_dim];
                     const INPUT0_TYPE comp_zp = k_comp[2 * comp_head_dim + 1];
+#ifdef PA_U4_K_ROW_LOADS
+                    const uchar8 packed = as_uchar8((uint2)(k_row[2 * qk_idx], k_row[2 * qk_idx + 1]));
+#else
                     const uchar8 packed = vload8(0, k_page + sglid * (K_HEAD_SIZE / U4_ELEMS_PER_BYTE) + qk_idx * (KEY_VEC_SIZE / U4_ELEMS_PER_BYTE));
+#endif
                     unroll_for (uint j = 0; j < KEY_VEC_SIZE / U4_ELEMS_PER_BYTE; j++) {
                         k_vals[qk_idx][2 * j]     = ((INPUT0_TYPE)(packed[j] & 0x0F) - _sub_group_shuffle(comp_zp, 2 * j))     * _sub_group_shuffle(comp_scale, 2 * j);
                         k_vals[qk_idx][2 * j + 1] = ((INPUT0_TYPE)(packed[j] >> 4)   - _sub_group_shuffle(comp_zp, 2 * j + 1)) * _sub_group_shuffle(comp_scale, 2 * j + 1);
@@ -803,6 +824,19 @@ KERNEL(pa_sdpa_opt)(
             // Then unpack both nibbles → 2 dequantized values per lane
             VALUE_BLOCK_UNCOMPRESSED value_vals_lo;
             VALUE_BLOCK_UNCOMPRESSED value_vals_hi;
+#ifdef PA_U4_V_BYTE_PER_LANE
+            // xe_hpg single-token kernels: this lane owns byte packed_byte_idx of a row, head dims packed_byte_idx (low
+            // nibble, acc_lo) and packed_byte_idx + PACKED_V_HEAD_SIZE (high, acc_hi), so a subgroup reads its 16 bytes
+            // of a token with one block read, and each byte of the page once ("u4 page reads of the opt kernels on
+            // xe_hpg" in sdpa_ocl.md). PACKED_V_HEAD_SIZE % SUBGROUP_SIZE == 0 under USE_DUAL_NIBBLE_V_OPT, so the 16
+            // bytes are one aligned run.
+            const uint v_sg_byte = packed_byte_idx - sglid;
+            unroll_for (uint i = 0; i < VALUE_VEC_SIZE; i++) {
+                const uchar packed = as_uchar(BLOCK_READN(INPUT2_TYPE, 1, value_cache, packed_block_offset + i * phys_v_head_size + v_sg_byte));
+                value_vals_lo[i] = (TO_VALUE_UNCOMPRESSED_TYPE(packed & 0x0F) - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
+                value_vals_hi[i] = (TO_VALUE_UNCOMPRESSED_TYPE(packed >> 4) - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
+            }
+#else
             // Split packing: byte c of a row holds head dim c (low nibble) and c + PACKED_V_HEAD_SIZE (high). This lane
             // owns head dims 2 * packed_byte_idx and + 1 (acc_lo / acc_hi), i.e. bytes v_tm_byte and + 1, both low
             // nibbles or both high (PACKED_V_HEAD_SIZE == V_HEAD_SIZE / 2 is even under USE_DUAL_NIBBLE_V_OPT).
@@ -813,6 +847,7 @@ KERNEL(pa_sdpa_opt)(
                 value_vals_lo[i] = (TO_VALUE_UNCOMPRESSED_TYPE((packed_pair.s0 >> v_tm_shift) & 0x0F) - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
                 value_vals_hi[i] = (TO_VALUE_UNCOMPRESSED_TYPE((packed_pair.s1 >> v_tm_shift) & 0x0F) - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
             }
+#endif
 
             unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
                 OUTPUT_TYPE qk_val = slm_qk_vals[q_idx * SEQ_LEN_PARTITION_SIZE + block_num * PAGED_ATTENTION_BLOCK_SIZE + sglid];
@@ -889,17 +924,27 @@ KERNEL(pa_sdpa_opt)(
             const __global INPUT0_TYPE* v_comp_ptr = (const __global INPUT0_TYPE*)(value_cache + packed_block_offset + phys_v_head_size * PAGED_ATTENTION_BLOCK_SIZE);
             INPUT0_TYPE comp_scale = v_comp_ptr[sglid];
             INPUT0_TYPE comp_zp = v_comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + sglid];
+#ifdef PA_U4_V_BYTE_PER_LANE
+            const uint v_sg_byte = packed_byte_idx - sglid;
+#else
             const uint v_tm_byte = (2 * packed_byte_idx) % PACKED_V_HEAD_SIZE;
             const uint v_tm_shift = (2 * packed_byte_idx) < PACKED_V_HEAD_SIZE ? 0 : 4;
+#endif
 
             MAKE_VECTOR_TYPE(OUTPUT_TYPE, QUERIES_PER_WI) qk_val;
             unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
                 GET_VECTOR_ELEMENT(qk_val, q_idx) = slm_qk_vals[q_idx * SEQ_LEN_PARTITION_SIZE + blocks_num_per_partition * PAGED_ATTENTION_BLOCK_SIZE + sglid];
             }
             for (uint i = 0; i < leftovers; i++) {
+#ifdef PA_U4_V_BYTE_PER_LANE
+                const uchar packed = as_uchar(BLOCK_READN(INPUT2_TYPE, 1, value_cache, packed_block_offset + i * phys_v_head_size + v_sg_byte));
+                INPUT0_TYPE val_lo = (CAT(convert_, INPUT0_TYPE)(packed & 0x0F) - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
+                INPUT0_TYPE val_hi = (CAT(convert_, INPUT0_TYPE)(packed >> 4) - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
+#else
                 const uchar2 packed_pair = vload2(0, (const __global uchar*)value_cache + packed_block_offset + i * phys_v_head_size + v_tm_byte);
                 INPUT0_TYPE val_lo = (CAT(convert_, INPUT0_TYPE)((packed_pair.s0 >> v_tm_shift) & 0x0F) - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
                 INPUT0_TYPE val_hi = (CAT(convert_, INPUT0_TYPE)((packed_pair.s1 >> v_tm_shift) & 0x0F) - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
+#endif
 
                 unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
                     GET_VECTOR_ELEMENT(acc_lo, q_idx) = mad(sub_group_broadcast(GET_VECTOR_ELEMENT(qk_val, q_idx), i), val_lo, GET_VECTOR_ELEMENT(acc_lo, q_idx));
@@ -968,8 +1013,13 @@ KERNEL(pa_sdpa_opt)(
             if (sgid >= SUBGROUPS_PER_WG / SG_SCALE_FACTOR) {
 #ifdef USE_DUAL_NIBBLE_V_OPT
                 unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
+#ifdef PA_U4_V_BYTE_PER_LANE
+                    tmp_reduction_slm_mem[q_idx * V_HEAD_SIZE + packed_byte_idx] = GET_VECTOR_ELEMENT(acc_lo, q_idx);
+                    tmp_reduction_slm_mem[q_idx * V_HEAD_SIZE + packed_byte_idx + PACKED_V_HEAD_SIZE] = GET_VECTOR_ELEMENT(acc_hi, q_idx);
+#else
                     tmp_reduction_slm_mem[q_idx * V_HEAD_SIZE + packed_byte_idx * 2] = GET_VECTOR_ELEMENT(acc_lo, q_idx);
                     tmp_reduction_slm_mem[q_idx * V_HEAD_SIZE + packed_byte_idx * 2 + 1] = GET_VECTOR_ELEMENT(acc_hi, q_idx);
+#endif
                 }
 #else
                 unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
@@ -983,8 +1033,13 @@ KERNEL(pa_sdpa_opt)(
             if (sgid < SUBGROUPS_PER_WG / SG_SCALE_FACTOR) {
 #ifdef USE_DUAL_NIBBLE_V_OPT
                 unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
+#ifdef PA_U4_V_BYTE_PER_LANE
+                    GET_VECTOR_ELEMENT(acc_lo, q_idx) += tmp_reduction_slm_mem[q_idx * V_HEAD_SIZE + packed_byte_idx];
+                    GET_VECTOR_ELEMENT(acc_hi, q_idx) += tmp_reduction_slm_mem[q_idx * V_HEAD_SIZE + packed_byte_idx + PACKED_V_HEAD_SIZE];
+#else
                     GET_VECTOR_ELEMENT(acc_lo, q_idx) += tmp_reduction_slm_mem[q_idx * V_HEAD_SIZE + packed_byte_idx * 2];
                     GET_VECTOR_ELEMENT(acc_hi, q_idx) += tmp_reduction_slm_mem[q_idx * V_HEAD_SIZE + packed_byte_idx * 2 + 1];
+#endif
                 }
 #else
                 unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
@@ -1010,8 +1065,13 @@ KERNEL(pa_sdpa_opt)(
                                          (head_num_idx + q_idx) * (V_HEAD_SIZE * total_partitions_num) +
                                          partition_idx * V_HEAD_SIZE;
 
+#ifdef PA_U4_V_BYTE_PER_LANE
+                tmp_out[base_offset + packed_byte_idx] = GET_VECTOR_ELEMENT(acc_lo, q_idx);
+                tmp_out[base_offset + packed_byte_idx + PACKED_V_HEAD_SIZE] = GET_VECTOR_ELEMENT(acc_hi, q_idx);
+#else
                 tmp_out[base_offset + packed_byte_idx * 2] = GET_VECTOR_ELEMENT(acc_lo, q_idx);
                 tmp_out[base_offset + packed_byte_idx * 2 + 1] = GET_VECTOR_ELEMENT(acc_hi, q_idx);
+#endif
             }
         } else {
             unroll_for (uint q_idx = 0; q_idx < HEADS_PER_WI; q_idx++) {
@@ -1022,8 +1082,13 @@ KERNEL(pa_sdpa_opt)(
                 const uint base_offset = seq_idx * (HEADS_NUM * V_HEAD_SIZE) +
                                          (head_num_idx + q_idx) * V_HEAD_SIZE;
 
+#ifdef PA_U4_V_BYTE_PER_LANE
+                output[base_offset + packed_byte_idx] = GET_VECTOR_ELEMENT(acc_lo, q_idx);
+                output[base_offset + packed_byte_idx + PACKED_V_HEAD_SIZE] = GET_VECTOR_ELEMENT(acc_hi, q_idx);
+#else
                 output[base_offset + packed_byte_idx * 2] = GET_VECTOR_ELEMENT(acc_lo, q_idx);
                 output[base_offset + packed_byte_idx * 2 + 1] = GET_VECTOR_ELEMENT(acc_hi, q_idx);
+#endif
             }
         }
 #else  // !USE_DUAL_NIBBLE_V_OPT
