@@ -118,6 +118,7 @@ set(COMMON_OPTIMIZATIONS_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/multi_scale_deformable_attn_grid_sample_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/mvn_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/nearest_neighbor_upsampling_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/ngram_hash_function_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/nonzero_horizontal_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/nop_elimination.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/normalize_l2_fusion.hpp
