@@ -143,6 +143,108 @@ TEST_P(PoolingAndFQ, CompareWithRefs) {
     run();
 }
 
+using PoolingPerChannelFQTestParams = std::tuple<element::Type,  // Quantized precision
+                                                 element::Type   // Inference precision hint
+                                                 >;
+
+// ACL int8 pooling has a single destination scale and zero point, so a per-channel FakeQuantize after the pooling
+// must stay unfused instead of being reduced to channel 0.
+class PoolingAndPerChannelFQ : public testing::WithParamInterface<PoolingPerChannelFQTestParams>,
+                               virtual public SubgraphBaseStaticTest,
+                               public CPUTestsBase {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<PoolingPerChannelFQTestParams>& obj) {
+        const auto& [quantizedPrecision, inferencePrecision] = obj.param;
+        std::ostringstream result;
+        result << "QuantizedPRC=" << quantizedPrecision << "_InferencePRC=" << inferencePrecision;
+        return result.str();
+    }
+
+protected:
+    void SetUp() override {
+        const auto& [quantizedPrecision, inferencePrecision] = GetParam();
+        targetDevice = utils::DEVICE_CPU;
+        configuration = {ov::hint::inference_precision(inferencePrecision)};
+
+        const bool signedDomain = quantizedPrecision == element::i8;
+        const float outputLow = signedDomain ? -128.0f : 0.0f;
+        const float outputHigh = signedDomain ? 127.0f : 255.0f;
+        const std::vector<float> inputLow =
+            signedDomain ? std::vector<float>{-255.5f, -200.5f, -100.5f} : std::vector<float>{0.5f, 10.5f, 50.5f};
+        const std::vector<float> inputHigh =
+            signedDomain ? std::vector<float>{254.5f, 150.5f, 200.5f} : std::vector<float>{510.5f, 300.5f, 400.5f};
+        const ov::Shape inputShape{1, 3, 8, 8};
+        ov::ParameterVector params{std::make_shared<op::v0::Parameter>(element::f32, inputShape)};
+        const auto inputFQ = utils::make_fake_quantize(params[0],
+                                                       element::f32,
+                                                       256,
+                                                       {},
+                                                       {outputLow},
+                                                       {outputHigh},
+                                                       {outputLow},
+                                                       {outputHigh});
+        const auto pooling = std::make_shared<op::v1::AvgPool>(inputFQ,
+                                                               Strides{2, 2},
+                                                               Shape{0, 0},
+                                                               Shape{0, 0},
+                                                               Shape{2, 2},
+                                                               false,
+                                                               op::RoundingType::FLOOR,
+                                                               op::PadType::EXPLICIT);
+        const auto outputFQ = utils::make_fake_quantize(pooling,
+                                                        element::f32,
+                                                        256,
+                                                        {1, 3, 1, 1},
+                                                        inputLow,
+                                                        inputHigh,
+                                                        std::vector<float>(3, outputLow),
+                                                        std::vector<float>(3, outputHigh));
+        outputFQ->set_friendly_name("PerChannelFQ");
+
+        const auto order = op::v0::Constant::create(element::i32, Shape{4}, {0, 2, 3, 1});
+        const auto transpose = std::make_shared<op::v1::Transpose>(outputFQ, order);
+        const auto weights = op::v0::Constant::create(element::i8, Shape{3, 3}, {1, 0, 0, 0, 1, 0, 0, 0, 1});
+        const auto convert = std::make_shared<op::v0::Convert>(weights, element::f32);
+        const auto scale = op::v0::Constant::create(element::f32, Shape{}, {weightScale});
+        const auto multiply = std::make_shared<op::v1::Multiply>(convert, scale);
+        const auto matmul = std::make_shared<op::v0::MatMul>(transpose, multiply, false, false);
+        function = std::make_shared<Model>(OutputVector{matmul}, params, "PoolingPerChannelFQ");
+
+        // Integer pooling can round before requantization; allow one output quantum.
+        abs_threshold = weightScale + 1e-5f;
+        rel_threshold = 0;
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        const auto& param = function->get_parameters().front();
+        const bool signedDomain = std::get<0>(GetParam()) == element::i8;
+        utils::InputGenerateData inputData;
+        inputData.start_from = (signedDomain ? -128.0f : 0.0f) - 32.0f;
+        inputData.range = 320;
+        inputData.resolution = 4;
+        inputs.insert(
+            {param, utils::create_and_fill_tensor(param->get_element_type(), targetInputStaticShapes[0], inputData)});
+    }
+
+    void validate() override {
+        SubgraphBaseTest::validate();
+        for (const auto& node : GetNodesWithTypes(compiledModel.get_runtime_model(), {"Pooling"})) {
+            const auto& rtInfo = node->get_rt_info();
+            const auto it = rtInfo.find(ov::exec_model_info::ORIGINAL_NAMES);
+            ASSERT_NE(it, rtInfo.end());
+            EXPECT_EQ(it->second.as<std::string>().find("PerChannelFQ"), std::string::npos)
+                << "Per-channel FakeQuantize was fused into int8 Pooling";
+        }
+    }
+
+    static constexpr float weightScale = 0.125f;
+};
+
+TEST_P(PoolingAndPerChannelFQ, CompareWithRefs) {
+    run();
+}
+
 namespace {
 
 const std::vector<CPUSpecificParams> cpuParams{
@@ -180,6 +282,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_PoolingAndFQ_IncludePadding,
                                             ::testing::Values(element::f16, element::f32),
                                             ::testing::Values(cpuParams.front())),
                          PoolingAndFQ::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_PoolingAndPerChannelFQ,
+                         PoolingAndPerChannelFQ,
+                         ::testing::Combine(::testing::Values(element::i8, element::u8),
+                                            ::testing::Values(element::f16, element::f32)),
+                         PoolingAndPerChannelFQ::getTestCaseName);
 
 }  // namespace
 }  // namespace test
