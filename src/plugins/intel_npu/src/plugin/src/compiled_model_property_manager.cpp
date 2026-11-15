@@ -261,8 +261,8 @@ void CompiledModelPropertyManager::registerProperties() {
         [this](const ov::AnyMap&) {
             return _config.hasOpt(ov::cache_encryption_callbacks.name());
         },
-        [](const ov::AnyMap&) {
-            return ov::EncryptionCallbacks{nullptr, nullptr};
+        [](const ov::AnyMap&) -> ov::Any {
+            return ov::Any{};
         },
         [this](const ov::Any& value) {
             _config.update(ov::cache_encryption_callbacks.name(), value);
