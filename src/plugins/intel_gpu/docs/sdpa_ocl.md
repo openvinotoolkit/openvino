@@ -1637,10 +1637,11 @@ reads every page kind it accepts, so a gate that refuses an op changes only whic
 `paged_attention_opt.cl` (`pa_single_token`, `pa_gqa_single_token`, `pa_multi_token` and its GQA multi-token fallback)
 reads f16 and f32 with a per-lane `vload16` or, on Xe2 where the block2d pitch rule allows, a 32-bit transpose of the
 page (`USE_2D_BLOCK_IO_K_TM`); i8 BY_TOKEN and BY_CHANNEL with `vload16` rows; u4 BY_CHANNEL K by row bytes, and the
-relaid-out u4 V page (split nibbles, trailing per-token comp). It serves what `sdpa_ocl` and `sdpa_ocl_decode` refuse: an
-op with alibi, a scores output (cache eviction) or adaptive R-KV, a head size either rejects, k != v without an `sdpa_ocl`
-tiling, non-f16 inference, every device without those kernels (no XMX, xe_hpg off its lane, unknown arch, xe_hp), every GENERATE
-step on xe_hpg, and every MIXED step under `OV_GPU_ENABLE_SDPA_MICRO=0`.
+relaid-out u4 V page (split nibbles, trailing per-token comp); on xe_hpg its single-token kernels read the u4 pages with
+fewer, wider messages ("u4 page reads of the opt kernels on xe_hpg"). It serves what `sdpa_ocl` and `sdpa_ocl_decode`
+refuse: an op with alibi, a scores output (cache eviction) or adaptive R-KV, a head size either rejects, k != v without
+an `sdpa_ocl` tiling, non-f16 inference, every device without those kernels (no XMX, xe_hpg off its lane, unknown arch,
+xe_hp), every GENERATE step on xe_hpg, and every MIXED step under `OV_GPU_ENABLE_SDPA_MICRO=0`.
 `smoke_paged_attention_by_channel_tm_any_reader` and `smoke_paged_attention_tm_opt_reader_scores` run the opt kernels
 on BY_CHANNEL pages and on scores-output ops.
 
@@ -1873,6 +1874,33 @@ Per call (us, B70 at 1800 MHz, cliloader; prefill `-ic 1`, generate 2K prompt + 
 
 First-token latency after / before (llm_bench, 2 interleaved rounds, median of 6): qwen3-8b 0.995 / 0.997 at 8K / 32K
 (-5 / -23 ms), llama-3.2-1b 1.000 / 0.997, gemma-4-26b 0.993 / 0.992 (-9 / -38 ms).
+
+### u4 page reads of the opt kernels on xe_hpg
+
+Every GENERATE step on xe_hpg runs `paged_attention_opt.cl`, and with a u4 cache (the default of the 4-bit models) its
+single-token kernels read the token-major pages with more and narrower messages than DG2 serves well. Two JIT macros
+change the reads there; the page layout, the dequantisation and the order of the sums are unchanged, and every other
+device and stage compiles upstream's reads (`hpg_u4_generate_reads()` in `paged_attention_opt.cpp`):
+
+- `PA_U4_V_BYTE_PER_LANE`, both single-token kernels (`pa_single_token`, `pa_gqa_single_token`), with
+  `USE_DUAL_NIBBLE_V_OPT`. Upstream's lane owns head dims `2b` and `2b + 1`, which on the split-nibble V row are the
+  same nibble of bytes `2b % PACKED_V_HEAD_SIZE` and `+ 1`: a 2-byte gather per token, and every byte of the page read
+  by two subgroups, one for each nibble. The lane owns byte `b` instead, head dims `b` (low nibble, `acc_lo`) and
+  `b + PACKED_V_HEAD_SIZE` (high, `acc_hi`), so a subgroup reads its 16 bytes of a token with one block read and each
+  byte once. The SLM reduction of the two subgroup halves and the `tmp_out` / `output` stores write the lane's dims at
+  `b` and `b + PACKED_V_HEAD_SIZE`. The same mapping with a per-lane byte gather instead of the block read gained
+  nothing at 16K, so the message count, not the bytes, is the cost.
+- `PA_U4_K_ROW_LOADS`, the GQA kernel only, `K_HEAD_SIZE % 32 == 0`. The lane is the token, as upstream, and loads its
+  whole row (`K_HEAD_SIZE / 2` bytes) up front with `vload4` of `uint`: `K_HEAD_SIZE / 32` messages per page. Upstream
+  reads 8 bytes per 16-channel step, which IGC emits as two 4-byte gathers over the 16 rows: `K_HEAD_SIZE / 8`
+  messages, each touching 16 cache lines for 64 bytes. In `pa_single_token` the same loads measured 1.17-1.30x at 1K on
+  phi-3.5-mini, phi-4-mini and llama-3.2-1b against 0.97x on llama-3.1-8b and qwen3-8b, although phi-4-mini's kernel
+  has llama-3.1-8b's messages and its instruction count within 1% (the cost follows the shape, not the code), so that
+  kernel keeps upstream's K read.
+
+Measurements and checks: "u4 GENERATE page reads on xe_hpg (2026-11-15)" in "Change history". The B70 measured the
+token-major u4 read of the opt kernels faster than the d-major one ("Token-major K page by a static rule (2026-11-06)"),
+so Xe2 keeps upstream's reads.
 
 ## Dequantisation
 
@@ -2797,7 +2825,8 @@ off its lane, xe_hpc), non-f16 inference, and the pages the rule turned down on 
   1.04 at 16K and 1.20 / 1.19 / 1.02 at 32K (llama-3.1-8b 314.0 against 261.3 us). The token-major arm of that build
   matches this one within 0.5% and its d-major arm the default lane and the 2026.5 RC within 1%, so the long-context
   loss of the 8B models (32 / 8 heads, head 128) is the page, not the rest of the branch. Open (P11): the B70 measured
-  the token-major u4 read faster at 16K (-16%), DG2 slower from somewhere between 4K and 16K.
+  the token-major u4 read faster at 16K (-16%), DG2 slower from somewhere between 4K and 16K. On DG2 the reads changed
+  later ("u4 GENERATE page reads on xe_hpg (2026-11-15)").
 - Not checked: devices without XMX and xe_hpc (no such device on the test PC), Xe2 (the B70, owed), EAGLE3 / R-KV /
   `pa_small_q_opt.cl` with a non-f16 comp. The remote branch keeps the rule and the d-major page, so the two diverge
   until the same lands there.
@@ -3196,6 +3225,84 @@ check, and the single-token gate is true off xe_hpg; no kernel source or JIT con
   opt indirect stages, a path this change does not touch), prompts other than 1K tokens, that the PREFILL kernel runs
   for the indirect cases of `SDPAWithKVCacheTest` (they pass; only the real models' one-switch A/B shows the kernel), and
   the PA backend's timing (its code path is unchanged and its kit groups are identical).
+
+### u4 GENERATE page reads on xe_hpg (2026-11-15)
+
+On xe_hpg the single-token kernels of `paged_attention_opt.cl` read a u4 page with one V byte per lane, and the GQA one
+also with the whole K row per lane ("u4 page reads of the opt kernels on xe_hpg"). The values, the dequantisation and
+the order of every sum are unchanged. Other devices and the other stages keep upstream's reads: with
+`OV_GPU_ARCH_OVERRIDE=xe2` the 925 `paged_attention_opt` sources the PA suites generate preprocess (`cl /EP`) to the
+same text before and after.
+
+- Why: the token-major page cost ("Token-major K pages only (2026-11-08)"): `pa_gqa_single_token` on the u4 page took
+  1.19-1.22x the d-major page's time at 16K / 32K keys on llama-3.1-8b and qwen3-8b, and every GENERATE step on xe_hpg
+  runs it. In the ISA (head 128) the K read is 16 gathers per page, each touching 16 cache lines for 64 bytes, where the
+  d-major read was 128 one-line byte gathers. The V read is a 2-byte gather per token, and each byte is read by two
+  subgroups; the d-major page's adjacent nibbles gave one 16-byte block read per token.
+- Attribution: one switch each, on a build with experiment switches since removed. The table gives cliloader device
+  time per call of the GENERATE kernel against the same build without them. llm_bench, A770, driver 32.0.101.9175, the
+  daily 4-bit models (u4 BY_CHANNEL KV), 32 new tokens. 1K and 2K are 2 rounds, 4K and 16K 2 rounds on the first three
+  models; the rounds agree within 1%. The build without the switches is the same as the one before: its 16K times match
+  the earlier measurement of `p10g_table.txt` within 0.5%.
+
+  | model (heads, head) | V, 1K / 2K | K, 1K | K + V, 4K / 8K / 16K / 32K |
+  |---|---|---|---|
+  | llama-3.1-8b (32 / 8, 128) | 0.96 / 0.88 | 0.97 | 1.04 / 0.94 / 0.80 / 0.81 |
+  | qwen3-8b (32 / 8, 128) | 0.96 / 0.88 | 0.97 | 1.04 / 0.90 / 0.77 / 0.78 |
+  | llama-3.2-1b (32 / 8, 64) | 1.05 / 0.92 | 1.30 | 1.09 / 0.96 / 0.86 / 0.87 |
+  | phi-4-mini (24 / 8, 128) | 1.04 | 1.19 | 0.82 (4K) / 0.75 (16K) |
+  | gemma-2-9b (16 / 8, 256) | 1.00 | 1.05 | 0.71 (4K) |
+  | phi-3.5-mini (32 / 32, 96; `pa_single_token` only) | V: 0.89 / 0.83 / 0.88 at 1K / 4K / 16K | 1.17 | 1.16 / 0.90 / 0.89 at 1K / 4K / 16K |
+
+  Below 4K keys, and on MHA at every length, the kernel is `pa_single_token`; from 4K, with kv group > 1, it is
+  `pa_gqa_single_token`. So the rule is V in both kernels and K in the GQA one. Alone at 16K, V gives 0.89-0.90 (8B) and
+  0.83 (1B), and K gives 0.85-0.87 (8B) and 0.99 (1B). V by a per-lane byte gather instead of the block read gives
+  1.00-1.02 at 16K.
+- The final build against the 2026.5 RC (pip) and against the build before (`def` above), the same measurement in one
+  round:
+
+  | model | 1K | 4K | 16K | 32K |
+  |---|---|---|---|---|
+  | llama-3.1-8b | 45.2 us: 0.85x RC, 0.96x before | 64.9: 0.81x, 1.04x | 123.2: 0.97x, 0.80x | 206.8: 1.02x, 0.78x |
+  | qwen3-8b | 36.6: 0.85x, 0.96x | 51.9: 0.80x, 1.04x | 99.5: 0.97x, 0.77x | 183.4: 0.98x, 0.77x |
+  | llama-3.2-1b | 26.8: 0.89x, 1.06x | 37.0: 0.96x, 1.09x | 50.7: 0.90x, 0.85x | 115.1: 0.89x, 0.87x |
+  | phi-3.5-mini | 26.4: 0.66x, 0.89x | 59.0: 0.86x, 0.83x | 214.5: 0.88x, 0.87x | |
+  | phi-4-mini | 30.9: 0.85x, 1.04x | 45.5: 0.90x, 0.84x | 91.6: 0.92x, 0.75x | |
+  | gemma-2-9b | 39.0: 0.76x, 0.97x | 57.2: 0.67x, 0.71x | | |
+
+  Before, the RC was faster at 16K and 32K on the 8B models: 0.80-0.81x of this kernel's time, same measurement.
+- Latency on the ON install against the ON install of the commit before and the RC. llm_bench, 64 new tokens, 2
+  iterations, prompt permutation off. The generated text is identical before and after (MD5) on every model and length.
+
+  | context | models | second token / before | / RC | first token / before |
+  |---|---|---|---|---|
+  | 1K | the six above | 0.99-1.00 (phi-4-mini 0.92) | 0.96-1.00 | 0.99-1.00 |
+  | 4K | llama-3.1-8b, qwen3-8b, gemma-2-9b | 0.95-1.00 | 0.95-0.99 | 1.00 |
+  | 16K | llama-3.1-8b, qwen3-8b, phi-3.5-mini, phi-4-mini | 0.94-0.97 | 0.97-1.00 | 1.00 |
+  | 32K | llama-3.1-8b, qwen3-8b | 0.92-0.95 | 1.00 | 1.00 |
+
+  phi-4-mini's 4K prompt (3623 tokens, so `pa_single_token`) gave 1.13x in that run, with both iterations at 17.7-18.4
+  ms. In the cliloader runs of that shape the kernel took 0.84x its time before, the decode step's device time fell,
+  and the unchanged GEMM kernels moved by 5% from run to run. 3 rounds x 3 iterations again: 15.61 ms against the RC's
+  15.92 (0.98x), and 14.79 against 14.87 at 1K.
+- Checks:
+  - new `smoke_paged_attention` cases: u4 GENERATE on the GQA kernel, 4100-4200 keys at kv group 4 / 3 / 4 / 2 / 2 and
+    heads 128 / 128 / 64 / 256 / 96, plus five cases with fewer than 16 keys, whose whole context goes through the
+    leftover loop (heads 128 / 64 / 96 / 256). cliloader shows the GQA kernel for the first six and `pa_single_token`
+    for the others; the GQA cases also pass on the reads before the change.
+  - three negative controls of the new reads fail them. Swapping the two dwords of a K step fails the five sharp GQA
+    cases. Swapping the V nibbles in the page loop fails those five and three short-context cases of the opt-reader
+    suites. Swapping them in the leftover loop only fails the five short cases; it passed every case before they were
+    added, since a misread partial page at the end of 4K keys stays within the u4 tolerance.
+  - with the experiment switches on (both reads in both single-token kernels) the 1052 PA unit tests passed, apart from
+    `smoke_shared_kv_cache_cm/shared_kv_cache_test.reader_output_matches_reference/0` (not in the kit), which fails
+    without them too.
+  - the kit on all four lanes against the last baselines (`rb4`): every group identical, apart from the 11 new cases in
+    `U1` and `U1_hpg`, which pass on both lanes.
+- Not checked: the B70 and Xe2 (unchanged, preprocessed sources identical), ARL-H (xe_hpg, so it takes the new reads;
+  not measured), the Linux driver, the GQA kernel's leftover loop under a sharp oracle (the same source as
+  `pa_single_token`'s, which the short cases check), and MIXED steps on the opt kernels (`pa_multi_token` and the GQA
+  fallback keep upstream's reads).
 
 ## Known issues
 
