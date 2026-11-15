@@ -22,7 +22,7 @@
         template <>                                                                        \
         class bind_creator<buffer, type> {                                                 \
         private:                                                                           \
-            static const instance_creator<buffer, type>& creator;                          \
+            [[maybe_unused]] static const instance_creator<buffer, type>& creator;         \
         };                                                                                 \
         const instance_creator<buffer, type>& bind_creator<buffer, type>::creator =        \
             static_instance<instance_creator<buffer, type>>::get_instance().instantiate();

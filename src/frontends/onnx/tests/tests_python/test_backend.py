@@ -43,7 +43,6 @@ from tests import (
     xfail_issue_119896,
     skip_issue_119896,
     xfail_issue_119900,
-    xfail_issue_119903,
     xfail_issue_119919,
     xfail_issue_119922,
     xfail_issue_119925,
@@ -67,7 +66,6 @@ from tests import (
     xfail_issue_onnx122_flexattention,
     xfail_issue_onnx122_bitcast,
     xfail_issue_onnx122_cumprod,
-    xfail_issue_onnx122_tensorscatter,
     xfail_issue_onnx122_attention,
     xfail_issue_onnx122_newdtype,
     xfail_issue_onnx122_accuracy,
@@ -403,13 +401,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_resize_upsample_scales_linear_half_pixel_symmetric_cpu",
     ),
     (
-        xfail_issue_119903,
-        "OnnxBackendNodeModelTest.test_basic_deform_conv_with_padding_cpu",
-        "OnnxBackendNodeModelTest.test_basic_deform_conv_without_padding_cpu",
-        "OnnxBackendNodeModelTest.test_deform_conv_with_mask_bias_cpu",
-        "OnnxBackendNodeModelTest.test_deform_conv_with_multiple_offset_groups_cpu",
-    ),
-    (
         xfail_issue_119919,
         "OnnxBackendNodeModelTest.test_wrap_pad_cpu",
     ),
@@ -645,12 +636,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_cumprod_2d_axis_1_cpu",
         "OnnxBackendNodeModelTest.test_cumprod_2d_int32_cpu",
         "OnnxBackendNodeModelTest.test_cumprod_2d_negative_axis_cpu",
-    ),
-    (
-        xfail_issue_onnx122_tensorscatter,
-        "OnnxBackendNodeModelTest.test_tensorscatter_3d_cpu",
-        "OnnxBackendNodeModelTest.test_tensorscatter_circular_cpu",
-        "OnnxBackendNodeModelTest.test_tensorscatter_cpu",
     ),
     (
         xfail_issue_onnx122_attention,

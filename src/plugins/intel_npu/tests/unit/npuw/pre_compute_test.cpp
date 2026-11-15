@@ -164,11 +164,11 @@ std::shared_ptr<ov::Model> make_rope_model(bool with_concat2) {
     auto perm = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{0, 2, 1});
     auto transpose = std::make_shared<ov::op::v1::Transpose>(matmul, perm);  // [1,4,2]
 
-    // Sin/Cos either via Concat_2 (LLama2) or directly (GPT)
+    // Sin/Cos either via Concat_2 (LLama2's torch.cat([freqs, freqs], -1), i.e. transpose
+    // concatenated with itself) or directly (GPT)
     ov::Output<ov::Node> sin_cos_input = transpose->output(0);
     if (with_concat2) {
-        auto zeros = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 4, 2}, std::vector<float>(8, 0.f));
-        sin_cos_input = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{transpose, zeros}, -1)->output(0);
+        sin_cos_input = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{transpose, transpose}, -1)->output(0);
     }
 
     auto sin = std::make_shared<ov::op::v0::Sin>(sin_cos_input);
@@ -178,6 +178,173 @@ std::shared_ptr<ov::Model> make_rope_model(bool with_concat2) {
         ov::ResultVector{std::make_shared<ov::op::v0::Result>(sin), std::make_shared<ov::op::v0::Result>(cos)},
         ov::ParameterVector{data, position_ids},
         with_concat2 ? "llama2_rope_test_model" : "gpt_rope_test_model");
+}
+
+// Builds a Gemma 4-style model with hybrid attention, it has multiple independent RoPE blocks.
+// `result_order`, as (block index, is_cos) pairs, lets a test pick a non-default Results
+// ordering; empty means the natural per-block (sin_i, cos_i) grouping.
+std::shared_ptr<ov::Model> make_multi_rope_model(const std::vector<std::vector<float>>& inv_freqs,
+                                                 const std::vector<std::pair<size_t, bool>>& result_order = {}) {
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4, 4});
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 4});
+
+    // Shared shape-compute chain (ShapeOf->Gather->Concat_1).
+    auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(data);
+    auto gather_idx = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+    auto gather_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto gather = std::make_shared<ov::op::v8::Gather>(shape_of, gather_idx, gather_axis);
+    auto ndims_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+    auto one_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto concat_1 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{gather, ndims_const, one_const}, 0);
+
+    // Shared position_ids branch (Unsqueeze->Convert).
+    auto unsq_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(position_ids, unsq_axis);
+    auto convert = std::make_shared<ov::op::v0::Convert>(unsqueeze, ov::element::f32);
+
+    std::vector<ov::Output<ov::Node>> sin_outs(inv_freqs.size());
+    std::vector<ov::Output<ov::Node>> cos_outs(inv_freqs.size());
+    for (size_t i = 0; i < inv_freqs.size(); ++i) {
+        const auto& freqs = inv_freqs[i];
+        auto inv_freq = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, freqs.size(), 1}, freqs);
+
+        auto broadcast = std::make_shared<ov::op::v3::Broadcast>(inv_freq, concat_1);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(broadcast, convert);  // [1, freqs.size(), 4]
+        auto perm = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{0, 2, 1});
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(matmul, perm);  // [1, 4, freqs.size()]
+
+        auto concat_2 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{transpose, transpose}, -1);
+
+        auto sin = std::make_shared<ov::op::v0::Sin>(concat_2);
+        auto cos = std::make_shared<ov::op::v0::Cos>(concat_2);
+        sin->set_friendly_name("sin_" + std::to_string(i));
+        cos->set_friendly_name("cos_" + std::to_string(i));
+
+        sin_outs[i] = sin->output(0);
+        cos_outs[i] = cos->output(0);
+    }
+
+    ov::ResultVector results;
+    if (result_order.empty()) {
+        for (size_t i = 0; i < inv_freqs.size(); ++i) {
+            results.push_back(std::make_shared<ov::op::v0::Result>(sin_outs[i]));
+            results.push_back(std::make_shared<ov::op::v0::Result>(cos_outs[i]));
+        }
+    } else {
+        for (const auto& entry : result_order) {
+            results.push_back(
+                std::make_shared<ov::op::v0::Result>(entry.second ? cos_outs[entry.first] : sin_outs[entry.first]));
+        }
+    }
+
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{data, position_ids}, "multi_rope_test_model");
+}
+
+// A model with one full RoPE block (Sin+Cos) plus a second, independent Cos with no Sin partner.
+std::shared_ptr<ov::Model> make_rope_model_with_lone_cos(const std::vector<float>& paired_freqs,
+                                                         const std::vector<float>& lone_cos_freqs) {
+    auto model = make_multi_rope_model({paired_freqs, lone_cos_freqs});
+
+    // Drop the second block's Sin result, turning it into a Cos-only chain.
+    auto results = model->get_results();
+    model->remove_result(results[2]);  // sin_1
+    return model;
+}
+
+// Same as make_rope_model(/*with_concat2=*/true), but the Concat's 2nd input is zeros instead
+// of a duplicate of the transpose output - e.g. partial-rotary models that pad rather than
+// duplicate. The matcher must not mistake this for freq duplication.
+std::shared_ptr<ov::Model> make_rope_model_non_duplicating_concat() {
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4, 4});
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 4});
+
+    auto inv_freq = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 2, 1}, {0.5f, 0.1f});
+
+    auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(data);
+    auto gather_idx = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+    auto gather_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto gather = std::make_shared<ov::op::v8::Gather>(shape_of, gather_idx, gather_axis);
+    auto ndims_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+    auto one_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto concat_1 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{gather, ndims_const, one_const}, 0);
+
+    auto broadcast = std::make_shared<ov::op::v3::Broadcast>(inv_freq, concat_1);
+    auto unsq_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(position_ids, unsq_axis);
+    auto convert = std::make_shared<ov::op::v0::Convert>(unsqueeze, ov::element::f32);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(broadcast, convert);
+    auto perm = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{0, 2, 1});
+    auto transpose = std::make_shared<ov::op::v1::Transpose>(matmul, perm);
+
+    auto zeros = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 4, 2}, std::vector<float>(8, 0.f));
+    auto concat_2 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{transpose, zeros}, -1);
+
+    auto sin = std::make_shared<ov::op::v0::Sin>(concat_2);
+    auto cos = std::make_shared<ov::op::v0::Cos>(concat_2);
+
+    return std::make_shared<ov::Model>(
+        ov::ResultVector{std::make_shared<ov::op::v0::Result>(sin), std::make_shared<ov::op::v0::Result>(cos)},
+        ov::ParameterVector{data, position_ids},
+        "non_duplicating_concat_rope_test_model");
+}
+
+// Builds a RoPE model matching make_rope_model's two flavours, but where inv_freq is
+// already exported pre-broadcast to its final [1, half_dim, 1] shape, with no live
+// Broadcast node (and no ShapeOf->Gather->Concat shape-compute chain feeding it) - as
+// seen e.g. on Qwen3, where the exporter folds the broadcast away.
+std::shared_ptr<ov::Model> make_rope_model_no_broadcast(bool with_concat2) {
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 4});
+
+    // inv_freq already shaped as if Broadcast had run: [1, half_dim=2, 1]
+    auto inv_freq = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 2, 1}, {0.5f, 0.1f});
+
+    auto unsq_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(position_ids, unsq_axis);
+    auto convert = std::make_shared<ov::op::v0::Convert>(unsqueeze, ov::element::f32);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(inv_freq, convert);  // [1,2,4]
+    auto perm = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{0, 2, 1});
+    auto transpose = std::make_shared<ov::op::v1::Transpose>(matmul, perm);  // [1,4,2]
+
+    ov::Output<ov::Node> sin_cos_input = transpose->output(0);
+    if (with_concat2) {
+        sin_cos_input = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{transpose, transpose}, -1)->output(0);
+    }
+
+    auto sin = std::make_shared<ov::op::v0::Sin>(sin_cos_input);
+    auto cos = std::make_shared<ov::op::v0::Cos>(sin_cos_input);
+
+    return std::make_shared<ov::Model>(
+        ov::ResultVector{std::make_shared<ov::op::v0::Result>(sin), std::make_shared<ov::op::v0::Result>(cos)},
+        ov::ParameterVector{position_ids},
+        with_concat2 ? "llama2_rope_no_broadcast_test_model" : "gpt_rope_no_broadcast_test_model");
+}
+
+// Same as make_rope_model_no_broadcast(/*with_concat2=*/true), but inv_freq has a real (non-
+// singleton) leading batch dim - a shape the "no live Broadcast" fallback never validates.
+// Without a validity check, makeCosSinCache would flatten this into the frequency axis and
+// silently corrupt the LUT's shape, so the matcher must leave Sin/Cos untouched instead.
+std::shared_ptr<ov::Model> make_rope_model_no_broadcast_extra_batch_dim() {
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 4});
+
+    // inv_freq shaped [2, 2, 1] - batch=2, not the expected singleton batch dim.
+    auto inv_freq = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{2, 2, 1}, {0.5f, 0.1f, 0.5f, 0.1f});
+
+    auto unsq_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(position_ids, unsq_axis);
+    auto convert = std::make_shared<ov::op::v0::Convert>(unsqueeze, ov::element::f32);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(inv_freq, convert);  // [2,2,4]
+    auto perm = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{0, 2, 1});
+    auto transpose = std::make_shared<ov::op::v1::Transpose>(matmul, perm);  // [2,4,2]
+
+    auto concat_2 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{transpose, transpose}, -1);
+
+    auto sin = std::make_shared<ov::op::v0::Sin>(concat_2);
+    auto cos = std::make_shared<ov::op::v0::Cos>(concat_2);
+
+    return std::make_shared<ov::Model>(
+        ov::ResultVector{std::make_shared<ov::op::v0::Result>(sin), std::make_shared<ov::op::v0::Result>(cos)},
+        ov::ParameterVector{position_ids},
+        "llama2_rope_no_broadcast_extra_batch_dim_test_model");
 }
 
 bool has_input_name(const std::shared_ptr<ov::Model>& model, const std::string& name) {
@@ -325,11 +492,11 @@ TEST(PreComputeTest, LongRopeCosSinSerializationRoundTrip) {
 
         std::stringstream ss;
         auto writer = Stream::writer(ss);
-        writer& src;
+        writer & src;
 
         ov::npuw::patterns::pre_compute::LongRopeCosSin dst;
         auto reader = Stream::reader(ss);
-        reader& dst;
+        reader & dst;
 
         EXPECT_EQ(dst.max_len, src.max_len);
         EXPECT_EQ(dst.rotary_ndims, src.rotary_ndims);
@@ -357,12 +524,12 @@ TEST(PreComputeTest, LongRopeCosSinSerializationRoundTripEmpty) {
     ov::npuw::patterns::pre_compute::LongRopeCosSin src;
     std::stringstream ss;
     auto writer = Stream::writer(ss);
-    writer& src;
+    writer & src;
 
     ov::npuw::patterns::pre_compute::LongRopeCosSin dst;
     dst.max_len = 7;  // must be overwritten by the read
     auto reader = Stream::reader(ss);
-    reader& dst;
+    reader & dst;
 
     EXPECT_EQ(dst.max_len, 0u);
     EXPECT_EQ(dst.rotary_ndims, 0u);
@@ -423,6 +590,149 @@ TEST(PreComputeTest, RopeCacheTransformsGPTPattern) {
 
     EXPECT_EQ(sin_count, 0) << "Sin should be replaced by Gather from the non-duplicated LUT";
     EXPECT_EQ(cos_count, 0) << "Cos should be replaced by Gather from the non-duplicated LUT";
+}
+
+// A model can contain more than one independent RoPE block (e.g. Gemma 4's hybrid attention)
+// and every block must be cached, not just the first.
+TEST(PreComputeTest, RopeCacheTransformsTwoIndependentRopeBlocks) {
+    auto model = make_multi_rope_model({{0.5f, 0.1f}, {0.2f, 0.05f}});
+
+    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16);
+    ASSERT_NO_THROW(pass.run_on_model(model));
+
+    EXPECT_EQ(count_ops_of_type_sin_cos(model), 0u) << "both RoPE blocks must be cached, not just the first";
+
+    const auto& ops = model->get_ops();
+    const auto gather_count = std::count_if(ops.begin(), ops.end(), [](const auto& op) {
+        return ov::is_type<ov::op::v8::Gather>(op);
+    });
+    EXPECT_EQ(gather_count, 4u) << "one Gather for cos and one for sin, per block";
+
+    // Each block must get its own cache, not accidentally share one.
+    std::vector<const ov::op::v0::Constant*> caches;
+    for (const auto& op : ops) {
+        if (auto gather_op = ov::as_type_ptr<ov::op::v8::Gather>(op)) {
+            if (auto cache = ov::as_type_ptr<ov::op::v0::Constant>(gather_op->input_value(0).get_node_shared_ptr())) {
+                caches.push_back(cache.get());
+            }
+        }
+    }
+    ASSERT_EQ(caches.size(), 4u);
+    for (size_t i = 0; i < caches.size(); ++i) {
+        for (size_t j = i + 1; j < caches.size(); ++j) {
+            EXPECT_NE(std::memcmp(caches[i]->get_data_ptr(), caches[j]->get_data_ptr(), caches[i]->get_byte_size()), 0)
+                << "cache constants " << i << " and " << j << " are unexpectedly identical";
+        }
+    }
+}
+
+// Reads the f16 cache row a Result's Squeeze->Convert->Gather chain was bound to.
+std::vector<float> read_cache_row(const ov::Output<ov::Node>& result_input, size_t row) {
+    auto convert = result_input.get_node()->input_value(0).get_node();
+    auto gather = convert->input_value(0).get_node();
+    auto cache = ov::as_type_ptr<ov::op::v0::Constant>(gather->input_value(0).get_node_shared_ptr());
+    OPENVINO_ASSERT(cache, "Expected a cache Constant feeding the Gather");
+
+    const auto* data = cache->get_data_ptr<ov::float16>();
+    const auto rotary_ndims = cache->get_shape().back();
+    std::vector<float> values(rotary_ndims);
+    for (size_t k = 0; k < rotary_ndims; ++k) {
+        values[k] = static_cast<float>(data[row * rotary_ndims + k]);
+    }
+    return values;
+}
+
+// Match pairing must key off the shared input node, not vector index - MultiMatcher doesn't
+// guarantee a block's Sin and Cos land at the same index. Results are ordered here so naive
+// index-based pairing would cross-wire the two blocks' caches.
+TEST(PreComputeTest, RopeCacheTransformsTwoIndependentRopeBlocksWithScrambledMatchOrder) {
+    auto model = make_multi_rope_model({{0.5f, 0.1f}, {0.2f, 0.05f}},
+                                       /*result_order=*/{{0, false}, {1, false}, {1, true}, {0, true}});
+
+    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16);
+    ASSERT_NO_THROW(pass.run_on_model(model));
+
+    const auto& results = model->get_results();
+    auto sin0 = read_cache_row(results[0]->input_value(0), /*row=*/1);
+    auto sin1 = read_cache_row(results[1]->input_value(0), /*row=*/1);
+    auto cos1 = read_cache_row(results[2]->input_value(0), /*row=*/1);
+    auto cos0 = read_cache_row(results[3]->input_value(0), /*row=*/1);
+
+    for (size_t k = 0; k < sin0.size(); ++k) {
+        EXPECT_NEAR(cos0[k] * cos0[k] + sin0[k] * sin0[k], 1.0f, 0.01f) << "block 0 cos/sin mismatch at " << k;
+        EXPECT_NEAR(cos1[k] * cos1[k] + sin1[k] * sin1[k], 1.0f, 0.01f) << "block 1 cos/sin mismatch at " << k;
+    }
+}
+
+// A pattern match without its sin/cos counterpart (e.g. an unrelated Cos-only computation that
+// coincidentally matches the same antecedent chain) must be left in place, not rejected.
+TEST(PreComputeTest, RopeCacheLeavesUnpairedCosUntouched) {
+    auto model = make_rope_model_with_lone_cos({0.5f, 0.1f}, {0.2f, 0.05f});
+
+    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16);
+    ASSERT_NO_THROW(pass.run_on_model(model));
+
+    const auto& ops = model->get_ops();
+    EXPECT_EQ(std::count_if(ops.begin(),
+                            ops.end(),
+                            [](const auto& op) {
+                                return ov::is_type<ov::op::v0::Sin>(op);
+                            }),
+              0)
+        << "the paired Sin must be cached away";
+    EXPECT_EQ(std::count_if(ops.begin(),
+                            ops.end(),
+                            [](const auto& op) {
+                                return ov::is_type<ov::op::v0::Cos>(op);
+                            }),
+              1)
+        << "only the lone, unpaired Cos should remain";
+}
+
+// Qwen3-style export: inv_freq is already a pre-broadcast Constant, no live Broadcast
+// node and no ShapeOf->Gather->Concat chain feeding it. The matcher must still fire via
+// the optional Broadcast's fallback to matching inv_freq's output directly.
+TEST(PreComputeTest, RopeCacheTransformsLLama2PatternWithoutBroadcastChain) {
+    auto model = make_rope_model_no_broadcast(/*with_concat2=*/true);
+
+    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16);
+    ASSERT_NO_THROW(pass.run_on_model(model));
+
+    EXPECT_EQ(count_ops_of_type_sin_cos(model), 0u) << "Sin/Cos should be replaced by Gather from the LUT";
+}
+
+TEST(PreComputeTest, RopeCacheTransformsGPTPatternWithoutBroadcastChain) {
+    auto model = make_rope_model_no_broadcast(/*with_concat2=*/false);
+
+    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16);
+    ASSERT_NO_THROW(pass.run_on_model(model));
+
+    EXPECT_EQ(count_ops_of_type_sin_cos(model), 0u) << "Sin/Cos should be replaced by Gather from the LUT";
+}
+
+// When the Broadcast is bypassed, inv_freq must still have only the supported singleton
+// batch dim - anything else (e.g. a real batch dim) would be silently flattened into the
+// frequency axis by makeCosSinCache, corrupting the LUT's shape. The matcher must leave
+// Sin/Cos untouched rather than misfire on such a constant.
+TEST(PreComputeTest, RopeCacheLeavesNonSingletonBatchInvFreqUntouched) {
+    auto model = make_rope_model_no_broadcast_extra_batch_dim();
+
+    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16);
+    ASSERT_NO_THROW(pass.run_on_model(model));
+
+    EXPECT_EQ(count_ops_of_type_sin_cos(model), 2u) << "Sin/Cos must stay as-is, not be wrongly replaced by the LUT";
+}
+
+// A Concat following Transpose whose 2nd input isn't the same tensor (e.g. zero-padding for
+// partial-rotary models) must not be mistaken for freq duplication - the LUT's second half
+// would otherwise be wrong. The matcher must leave Sin/Cos untouched rather than misfire.
+TEST(PreComputeTest, RopeCacheLeavesNonDuplicatingConcatUntouched) {
+    auto model = make_rope_model_non_duplicating_concat();
+
+    ov::npuw::patterns::pre_compute::RopeCache pass(/*max_prompt_len=*/16);
+    ASSERT_NO_THROW(pass.run_on_model(model));
+
+    EXPECT_EQ(count_ops_of_type_sin_cos(model), 2u) << "Sin/Cos must stay as-is, not be wrongly replaced by the LUT";
 }
 
 }  // namespace

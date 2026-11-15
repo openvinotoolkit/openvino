@@ -425,8 +425,10 @@ public:
 
         ExecutionConfig config = get_test_default_config(*engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
+        // Must share the engine's OpenCL context with the device memory.
+        auto engine_stream = engine->create_stream(config);
 
-        network::ptr network_first = get_network(*engine, topo, config, get_test_stream_ptr(), is_caching_test);
+        network::ptr network_first = get_network(*engine, topo, config, engine_stream, is_caching_test);
         network_first->set_input_data("input", input_8);
         auto outputs = network_first->execute();
 
@@ -438,6 +440,10 @@ public:
         auto sum_internal_alloc = [](const network::ptr& net) -> uint64_t {
             uint64_t total = 0;
             for (auto& pi : net->get_primitives_info()) {
+                // Take into account primitive's intermediate buffers
+                auto inst = net->get_primitive(pi.original_id);
+                for (auto &m_ptr : inst->get_intermediates_memories())
+                    total += m_ptr->get_layout().bytes_count();
                 if (pi.original_id != "input")
                     total += pi.output_layout.bytes_count();
             }
@@ -452,7 +458,7 @@ public:
 
         topo.change_input_layout("input", input_1->get_layout());//change input layout to batch=1
 
-        network::ptr network_second = get_network(*engine, topo, config, get_test_stream_ptr(), is_caching_test);
+        network::ptr network_second = get_network(*engine, topo, config, engine_stream, is_caching_test);
         network_second->set_input_data("input", input_1);
         auto outputs_second = network_second->execute();
 

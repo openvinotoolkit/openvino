@@ -5,6 +5,8 @@
 #include "util.hpp"
 
 #include <algorithm>
+#include <cctype>
+#include <charconv>
 #include <intel_npu/config/config.hpp>
 #include <iomanip>
 #include <openvino/core/parallel.hpp>
@@ -198,6 +200,86 @@ bool ov::npuw::util::starts_with(const std::string& str, const std::string& pref
     return str.substr(0, prefix.size()) == prefix;
 }
 
+bool ov::npuw::util::contains_ignore_case(const std::string& str, const std::string& substr) {
+    auto it = std::search(str.begin(), str.end(), substr.begin(), substr.end(), [](unsigned char a, unsigned char b) {
+        return std::tolower(a) == std::tolower(b);
+    });
+    return it != str.end();
+}
+
+std::optional<int64_t> ov::npuw::util::parse_positive_int_env_var(const std::string& str) {
+    if (str.empty()) {
+        return std::nullopt;
+    }
+    int64_t parsed = 0;
+    const auto* begin = str.data();
+    const auto* end = str.data() + str.size();
+    const auto result = std::from_chars(begin, end, parsed);
+    if (result.ec != std::errc() || result.ptr != end || parsed <= 0) {
+        return std::nullopt;
+    }
+    return parsed;
+}
+
+std::shared_ptr<ov::op::v0::Parameter> ov::npuw::util::trace_back_to_parameter(std::shared_ptr<ov::Node> node) {
+    while (node && !ov::is_type<ov::op::v0::Parameter>(node)) {
+        if (node->get_input_size() != 1) {
+            return nullptr;
+        }
+        node = node->input_value(0).get_node_shared_ptr();
+    }
+    return ov::as_type_ptr<ov::op::v0::Parameter>(node);
+}
+
+std::shared_ptr<ov::op::v0::Result> ov::npuw::util::trace_forward_to_result(const ov::Output<ov::Node>& output) {
+    ov::Output<ov::Node> current = output;
+    while (true) {
+        const auto& targets = current.get_target_inputs();
+        if (targets.size() != 1) {
+            return nullptr;
+        }
+        auto node = targets.begin()->get_node()->shared_from_this();
+        if (auto result = ov::as_type_ptr<ov::op::v0::Result>(node)) {
+            return result;
+        }
+        if (node->get_output_size() != 1) {
+            return nullptr;
+        }
+        current = node->output(0);
+    }
+}
+
+bool ov::npuw::util::reaches(const ov::Node* start, const ov::Node* target) {
+    std::unordered_set<const ov::Node*> visited;
+    std::vector<const ov::Node*> stack{start};
+    while (!stack.empty()) {
+        const auto* node = stack.back();
+        stack.pop_back();
+        if (node == target) {
+            return true;
+        }
+        if (!visited.insert(node).second) {
+            continue;
+        }
+        for (const auto& output : node->outputs()) {
+            for (const auto& input : output.get_target_inputs()) {
+                stack.push_back(input.get_node());
+            }
+        }
+    }
+    return false;
+}
+
+std::unordered_set<int64_t> ov::npuw::util::parse_layer_index_list(const std::string& text) {
+    std::unordered_set<int64_t> result;
+    static const std::regex kNumberRe(R"(-?\d+)");
+    for (auto it = std::sregex_iterator(text.begin(), text.end(), kNumberRe), end = std::sregex_iterator(); it != end;
+         ++it) {
+        result.insert(std::stoll(it->str()));
+    }
+    return result;
+}
+
 std::unordered_set<std::string> ov::npuw::util::mutable_properties(
     const std::vector<ov::PropertyName>& supported_properties) {
     std::unordered_set<std::string> result;
@@ -207,6 +289,26 @@ std::unordered_set<std::string> ov::npuw::util::mutable_properties(
         }
     }
     return result;
+}
+
+std::optional<size_t> ov::npuw::util::find_single_dynamic_axis(const ov::PartialShape& shape) {
+    if (shape.rank().is_dynamic()) {
+        return std::nullopt;
+    }
+    std::optional<size_t> dynamic_axis;
+    for (size_t i = 0; i < shape.size(); ++i) {
+        if (shape[i].is_dynamic()) {
+            if (dynamic_axis.has_value()) {
+                return std::nullopt;  // more than one dynamic axis -- ambiguous
+            }
+            dynamic_axis = i;
+        }
+    }
+    return dynamic_axis;
+}
+
+bool ov::npuw::util::is_supported_kv_cache_capacity_axis(size_t axis, size_t rank) {
+    return rank == 4 && (axis == 2 || axis == 3);
 }
 
 bool ov::npuw::util::is_supported_position_ids_input(const ov::Output<const ov::Node>& p) {
@@ -809,10 +911,36 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
         }
         return tnew;
     } else if (axes[0] == 1 && axes[1] == 0 && axes[2] == 2) {
-        NPUW_ASSERT(t.get_element_type() == ov::element::i4 || t.get_element_type() == ov::element::f16);
+        NPUW_ASSERT(t.get_element_type() == ov::element::i4 || t.get_element_type() == ov::element::u2 ||
+                    t.get_element_type() == ov::element::f16);
         ov::Shape tshape = {shape[1], shape[0], shape[2]};
         ov::Tensor tnew(t.get_element_type(), tshape);
         switch (t.get_element_type()) {
+        case ov::element::u2: {
+            const uint8_t* src = static_cast<const uint8_t*>(t.data());
+            uint8_t* dst = static_cast<uint8_t*>(tnew.data());
+            if (shape[2] % 4 == 0) {
+                ov::parallel_for2d(shape[0], shape[1], [&](size_t p, size_t r) {
+                    std::copy_n(&src[(p * shape[1] + r) * shape[2] / 4],
+                                shape[2] / 4,
+                                &dst[(r * shape[0] + p) * shape[2] / 4]);
+                });
+            } else {
+                // Rows are not byte-aligned, so move the elements one by one (LSB-first packing)
+                std::fill_n(dst, tnew.get_byte_size(), uint8_t{0});
+                for (size_t p = 0; p < shape[0]; ++p) {
+                    for (size_t r = 0; r < shape[1]; ++r) {
+                        for (size_t k = 0; k < shape[2]; ++k) {
+                            const size_t src_idx = (p * shape[1] + r) * shape[2] + k;
+                            const size_t dst_idx = (r * shape[0] + p) * shape[2] + k;
+                            const uint8_t value = (src[src_idx / 4] >> (2 * (src_idx % 4))) & 0x3;
+                            dst[dst_idx / 4] |= static_cast<uint8_t>(value << (2 * (dst_idx % 4)));
+                        }
+                    }
+                }
+            }
+            break;
+        }
         case ov::element::i4: {
             NPUW_ASSERT(shape[2] % 2 == 0);
             const uint8_t* src = static_cast<const uint8_t*>(t.data());

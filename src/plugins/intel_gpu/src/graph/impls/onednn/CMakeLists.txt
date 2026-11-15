@@ -8,8 +8,11 @@ endif()
 
 set(TARGET_NAME "openvino_intel_gpu_onednn_obj${OV_GPU_SUFFIX}")
 
+include(${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
+
 ov_gpu_add_backend_target(
     NAME ${TARGET_NAME}
+    SOURCES ${GPU_ONEDNN_IMPL_SOURCES}
     LINK_LIBRARIES onednn_gpu_tgt${OV_GPU_SUFFIX}
 )
 

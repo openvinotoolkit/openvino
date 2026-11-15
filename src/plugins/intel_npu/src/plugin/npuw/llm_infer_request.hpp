@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <unordered_map>
 
 #include "base_sync_infer_request.hpp"
 #include "llm_compiled_model.hpp"
@@ -19,6 +20,13 @@
 #include "openvino/core/descriptor/output.hpp"
 #include "perf.hpp"
 
+template <>
+struct std::hash<ov::Output<const ov::Node>> {
+    std::size_t operator()(const ov::Output<const ov::Node>& port) const {
+        return ((hash<string>()(port.get_node()->get_name())) ^ (hash<std::size_t>()(port.get_index()) << 1));
+    }
+};
+
 namespace ov {
 namespace test {
 namespace npuw {
@@ -28,6 +36,7 @@ struct LLMPortNameRegistrationTestAccess;
 struct LLMContinuedPrefillTestAccess;
 struct LLMLongRopeModeTestAccess;
 struct LLMSwaCacheTestAccess;
+struct LLMNoPositionIdsTestAccess;
 }  // namespace npuw
 }  // namespace test
 }  // namespace ov
@@ -49,6 +58,8 @@ protected:
     void prepare_for_new_conversation(int64_t prompt_length);
     void apply_lora();
     void clear_chunk_prefill_kv_cache();
+    int64_t get_external_stored_tokens() const;
+    void publish_stored_tokens(int64_t num_tokens);
     void copy_kvcache();
     void update_kvcache_for(std::shared_ptr<ov::IAsyncInferRequest> request,
                             const PortsMap& in_ports,
@@ -93,6 +104,11 @@ protected:
                                ov::SoPtr<ov::ITensor> deepstack_visual_embeds);
     PrefixCachingHelper* get_prefix_caching_helper(const ov::SoPtr<ov::ITensor>& position_ids);
     bool use_longrope_prefix_cache(const ov::SoPtr<ov::ITensor>& position_ids) const;
+
+    void accumulate_other_chunked_outputs(uint32_t start_offset,
+                                          uint32_t chunk_token_count,
+                                          uint32_t processed_token_count,
+                                          uint32_t max_seq_len);
 
     void infer_whole_prefill(ov::SoPtr<ov::ITensor> input_ids,
                              ov::SoPtr<ov::ITensor> attention_mask,
@@ -174,6 +190,9 @@ protected:
     // This infer request is optional, so can be null.
     std::shared_ptr<ov::IAsyncInferRequest> m_lm_head_request;
     ov::SoPtr<ov::ITensor> m_logits;
+    std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_other_outputs;
+    std::map<ov::Output<const ov::Node>, std::size_t> m_prefill_other_outs_seqdims;
+    std::unordered_map<ov::Output<const ov::Node>, ov::SoPtr<ov::ITensor>> m_prefill_other_outs_accum;
 
     PortsMap m_prefill_in_ports;
     PortsMap m_prefill_out_ports;
@@ -208,6 +227,7 @@ protected:
     // coefficients. Meaningless for models without LongRoPE, where it stays false.
     bool m_longrope_long_mode = false;
 
+    bool m_position_ids_present = true;
     int64_t m_first_position_id = 0;
 
     uint64_t m_tokens_in_present_chunk = 0;
@@ -262,6 +282,7 @@ protected:
     friend struct ov::test::npuw::LLMContinuedPrefillTestAccess;
     friend struct ov::test::npuw::LLMLongRopeModeTestAccess;
     friend struct ov::test::npuw::LLMSwaCacheTestAccess;
+    friend struct ov::test::npuw::LLMNoPositionIdsTestAccess;
 };
 
 }  // namespace npuw

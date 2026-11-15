@@ -821,3 +821,82 @@ def test_pytorch_fx_pool_without_output_metadata(return_indices):
 def test_is_testing_flag(testing_value, expected):
     """Test that the _is_testing flag evaluates correctly."""
     assert _is_testing({"testing": testing_value}) == expected
+
+
+@pytest.mark.precommit
+@pytest.mark.parametrize("ir,expected", [
+    ("graph(%values : Tensor[]):\n  %a : Tensor, %b : Tensor = prim::ListUnpack(%values)\n  return (%a, %b)\n", [0, 1]),
+    ("graph(%values : (Tensor, Tensor)):\n  %a : Tensor, %b : Tensor = prim::TupleUnpack(%values)\n  return (%a, %b)\n", [0, 1]),
+    ("graph(%value : Tensor):\n  %a : Tensor = aten::alias(%value)\n  return (%a)\n", []),
+])
+def test_pytorch_decoder_input_sequence(ir, expected):
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    graph = torch._C.parse_ir(ir)
+    node = list(graph.nodes())[-1]
+    decoder = TorchScriptPythonDecoder(None, node, alias_db=graph.alias_db())
+    assert decoder.get_input_sequences() == ({0: expected} if expected else {})
+
+
+@pytest.mark.precommit
+@pytest.mark.parametrize("metadata", [False, True])
+@pytest.mark.parametrize("wrapped,legacy", [(False, True), (True, False), (True, True)])
+def test_pytorch_decoder_conversion_without_sequence_override(metadata, wrapped, legacy):
+    import numpy as np
+    import openvino as ov
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder
+
+    class LegacyDecoder(_FrontEndPytorchDecoder):
+        def __init__(self, wrapped):
+            super().__init__()
+            self.wrapped = wrapped
+            self.children = []
+
+        def __getattr__(self, name):
+            if name == "get_input_sequences":
+                raise AttributeError(name)
+            return getattr(self.wrapped, name)
+
+        def visit_subgraph(self, visitor):
+            def wrap_child(child):
+                decoder = LegacyDecoder(child)
+                self.children.append(decoder)
+                visitor(decoder)
+            self.wrapped.visit_subgraph(wrap_child)
+
+    ir = """graph(%left : Tensor, %right : Tensor):
+      %pair : (Tensor, Tensor) = prim::TupleConstruct(%left, %right)
+      %first : Tensor, %second : Tensor = prim::TupleUnpack(%pair)
+      %one : int = prim::Constant[value=1]()
+      %updated : Tensor = aten::add_(%second, %one, %one)
+      return (%left, %right, %first, %second)
+    """
+    if metadata:
+        ir = ir.replace("aten::add_(%second, %one, %one)", "aten::unsqueeze_(%second, %one)")
+    if wrapped:
+        ir = ir.replace("%first : Tensor, %second : Tensor = prim::TupleUnpack(%pair)", """
+      %wrapped : ((Tensor, Tensor)) = prim::TupleConstruct(%pair)
+      %alias : (Tensor, Tensor) = prim::TupleUnpack(%wrapped)
+      %first : Tensor, %second : Tensor = prim::TupleUnpack(%alias)""").replace(
+            "return (%left, %right, %first, %second)",
+            "return (%left, %right, %first, %second, %pair, %alias)")
+    graph = torch._C.parse_ir(ir)
+    decoder = TorchScriptPythonDecoder(None, graph, alias_db=graph.alias_db())
+    if legacy:
+        decoder = LegacyDecoder(decoder)
+    frontend = ov.frontend.FrontEndManager().load_by_framework("pytorch")
+    input_model = frontend.load(decoder)
+    for place in input_model.get_inputs():
+        input_model.set_element_type(place, ov.Type.f32)
+        input_model.set_partial_shape(place, ov.PartialShape([2, 3]))
+    converted = frontend.convert(input_model)
+    compiled = ov.Core().compile_model(converted, "CPU")
+    data = torch.arange(6, dtype=torch.float32).reshape(2, 3).numpy()
+    right = data + 10
+    actual = list(compiled([data, right]).values())
+    updated = right[:, None, :] if metadata else right + 1
+    expected = (data, updated, data, updated) + ((data, updated, data, updated) if wrapped else ())
+    assert len(actual) == len(expected)
+    for result, expected in zip(actual, expected):
+        np.testing.assert_array_equal(result, expected)
