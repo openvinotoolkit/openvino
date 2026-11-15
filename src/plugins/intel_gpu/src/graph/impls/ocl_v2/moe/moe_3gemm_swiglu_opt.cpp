@@ -756,7 +756,6 @@ public:
     std::shared_ptr<IExpertWeightProvider> _weight_provider;
     moe::LookaheadContext* _les_owner = nullptr;
     std::vector<memory::ptr> _les_decode_metadata = std::vector<memory::ptr>(3);
-    memory::ptr _les_topk_readback;
 
     // --- OTD helper methods (used when _weight_provider->is_offloaded()) ---
 
@@ -1739,39 +1738,22 @@ public:
         const bool split_les = _les_owner && token_num == 1 && _weight_provider->is_offloaded() &&
                        _weight_provider->resident_capacity() > 0;
         std::vector<uint32_t> experts;
-        event::ptr topk_readback;
+        if (split_les) {
+            stream.finish();
+        }
+        if (token_num == 1) {
+            enqueue_lookahead_prediction(events, instance);
+        }
         if (split_les) {
             experts.resize(token_num * static_cast<size_t>(max_topk));
-            if (!_les_topk_readback || _les_topk_readback->count() != experts.size()) {
-                _les_topk_readback = cur_net.get_engine().allocate_memory(
-                    cldnn::layout({1, 1, 1, static_cast<int64_t>(experts.size())}, ov::element::i32, format::bfyx),
-                    allocation_type::usm_host, false);
-            }
             stream.enqueue_barrier({stream.enqueue_marker({}, true)});
-            topk_readback = _les_topk_readback->copy_from(stream, *scratch.topk_id, 0, 0,
-                                                        experts.size() * sizeof(uint32_t), false);
-        }
-        try {
-            if (token_num == 1) {
-                enqueue_lookahead_prediction(events, instance);
+            scratch.topk_id->copy_to(stream, experts.data(), 0, 0, experts.size() * sizeof(uint32_t), true);
+            for (auto expert : experts) {
+                OPENVINO_ASSERT(expert < static_cast<uint32_t>(cur_moe->_config.num_expert),
+                                "Lookahead TopK readback outside expert range: layer=", instance.id(),
+                                ", expert=", expert, ", count=", cur_moe->_config.num_expert,
+                                ", layout=", scratch.topk_id->get_layout().to_short_string());
             }
-            if (topk_readback) {
-                stream.flush();
-                topk_readback->wait();
-                mem_lock<uint32_t, mem_lock_type::read> indices(_les_topk_readback, stream);
-                std::copy_n(indices.data(), experts.size(), experts.begin());
-                for (auto expert : experts) {
-                    OPENVINO_ASSERT(expert < static_cast<uint32_t>(cur_moe->_config.num_expert),
-                                    "Lookahead TopK readback outside expert range: layer=", instance.id(),
-                                    ", expert=", expert, ", count=", cur_moe->_config.num_expert,
-                                    ", layout=", scratch.topk_id->get_layout().to_short_string());
-                }
-            }
-        } catch (...) {
-            if (topk_readback) {
-                topk_readback->wait();
-            }
-            throw;
         }
         auto batch_mem_ptr = scratch.topk_id;
         if (!split_les) {
@@ -1899,8 +1881,10 @@ public:
                     const size_t first_pair = wave * wave_capacity;
                     const size_t last_pair = std::min(pair_count, first_pair + wave_capacity);
                     std::vector<uint32_t> wave_experts(experts.begin() + first_pair, experts.begin() + last_pair);
-                    auto partition = provider->cache().partition_3way(wave_experts,
-                        [&] { return prefetcher.make_ready_event(); }, wave > 0);
+                    auto partition = [&] {
+                        return provider->cache().partition_3way(wave_experts,
+                            [&] { return prefetcher.make_ready_event(); }, wave > 0);
+                    }();
                     OPENVINO_ASSERT(partition, "Lookahead demand cannot reserve its wave slots");
                     if (wave == 0) {
                         _lookahead->demand_partitioned(instance.id());
@@ -1950,7 +1934,9 @@ public:
                             dynamic_cast<cldnn::ocl::ocl_stream&>(stream).enqueue_external_barrier(partition->ready_events);
                         }
                         pass_a = true;
-                        ret_event = enqueue_pairs(dependencies, indices, ready_memory);
+                        {
+                            ret_event = enqueue_pairs(dependencies, indices, ready_memory);
+                        }
                         dependencies = {ret_event};
                         stream.flush();
                     }
@@ -1959,9 +1945,13 @@ public:
                         copy_events.push_back(demand_event);
                     }
                     if (!partition->inflight_pairs.empty() || !partition->missing_pairs.empty()) {
-                        dynamic_cast<cldnn::ocl::ocl_stream&>(stream).enqueue_external_barrier(copy_events);
+                        {
+                            dynamic_cast<cldnn::ocl::ocl_stream&>(stream).enqueue_external_barrier(copy_events);
+                        }
                         pass_a = false;
-                        ret_event = enqueue_pairs(dependencies, indices, pending_memory);
+                        {
+                            ret_event = enqueue_pairs(dependencies, indices, pending_memory);
+                        }
                     }
                     provider->cache().unpin_all(ret_event);
                     stream.flush();
