@@ -348,7 +348,7 @@ jobs:
       runner: "[ 'self-hosted', 'dgpu', 'BMG-precommit', 'Linux' ]"
       runner-group: 'Intel-GPU'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
-      options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
+      options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129 -e OV_GPU_ENABLE_MLIR=1 -e OV_GPU_ALLOW_NEW_SHAPE_INFER=1"
       test_filter: 'mlir_*'
 
   Overall_Status:
