@@ -2,19 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef ENABLE_MLIR_FOR_GPU
+#include <map>
+#include <memory>
+#include <vector>
 
-#    include <map>
-#    include <memory>
-#    include <vector>
-
-#    include "intel_gpu/graph/program.hpp"
-#    include "intel_gpu/primitives/data.hpp"
-#    include "intel_gpu/primitives/input_layout.hpp"
-#    include "intel_gpu/primitives/mlir_primitive.hpp"
-#    include "intel_gpu/runtime/engine.hpp"
-#    include "mlir_primitive_inst.h"
-#    include "test_utils.h"
+#include "common_test_utils/test_assertions.hpp"
+#include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/primitives/data.hpp"
+#include "intel_gpu/primitives/input_layout.hpp"
+#include "intel_gpu/primitives/mlir_primitive.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "mlir_primitive_inst.h"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -112,4 +111,23 @@ TEST(mlir_primitive_layouts, non_plain_inputs_are_reordered_to_plain) {
     EXPECT_EQ(node.get_output_layout().format, format::bfyx);
 }
 
-#endif  // ENABLE_MLIR_FOR_GPU
+// Rank-5 required format: bzyxf is not a "simple" data format, it's accepted only via
+// the special case in mlir_primitive::is_strided_format.
+TEST(mlir_primitive_layouts, rank5_bzyxf_required_format_is_delivered) {
+    auto& engine = get_test_engine();
+    const layout l{ov::PartialShape{2, 8, 4, 3, 5}, data_types::f16, format::bfzyx};
+
+    topology topology;
+    topology.add(input_layout("input", l));
+    topology.add(data("scale", engine.allocate_memory(l)));
+    topology.add(make_mlir_primitive({input_info("input"), input_info("scale")}, {{0, format::bzyxf}, {1, format::bzyxf}}));
+
+    auto prog = build(topology);
+    ASSERT_NE(prog, nullptr);
+
+    auto& node = prog->get_node("mlir");
+    EXPECT_EQ(node.get_input_layout(0).format, format::bzyxf);
+    EXPECT_EQ(node.get_input_layout(1).format, format::bzyxf);
+    EXPECT_TRUE(node.get_dependency(1).is_constant());
+    EXPECT_EQ(node.get_output_layout().format, format::bfzyx);
+}

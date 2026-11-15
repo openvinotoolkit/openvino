@@ -90,7 +90,6 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/passes/mark_shape_of_subgraphs_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/mark_state_init_subgraphs_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/memory_dependency_construction_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/passes/mlir_primitive_layouts_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/oooq_memory_dependencies_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/post_optimize_weights.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/prepare_buffer_fusing_test.cpp
@@ -531,6 +530,14 @@ set(GPU_UNIT_TESTS_ONEDNN_SRCS
 )
 if(ENABLE_ONEDNN_FOR_GPU)
     list(APPEND GPU_UNIT_TESTS_SRCS ${GPU_UNIT_TESTS_ONEDNN_SRCS})
+endif()
+
+# MLIR (Graph Compiler) tests - only compiled when ENABLE_MLIR_FOR_GPU is ON.
+set(GPU_UNIT_TESTS_MLIR_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/mlir/mlir_primitive_layouts_test.cpp
+)
+if(ENABLE_MLIR_FOR_GPU)
+    list(APPEND GPU_UNIT_TESTS_SRCS ${GPU_UNIT_TESTS_MLIR_SRCS})
 endif()
 
 # Tests with a dependency on the OpenCL runtime - excluded from the build with a different runtime.

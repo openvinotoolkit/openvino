@@ -54,7 +54,7 @@ on:
       - 'src/plugins/intel_gpu/src/runtime/ocl/ocl_stream.*'
       - 'src/plugins/intel_gpu/tests/functional/CMakeLists.txt'
       - 'src/plugins/intel_gpu/tests/functional/mlir_op/**'
-      - 'src/plugins/intel_gpu/tests/unit/passes/mlir_primitive_layouts_test.cpp'
+      - 'src/plugins/intel_gpu/tests/unit/mlir/**'
   push:
     branches:
       - master
