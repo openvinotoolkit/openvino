@@ -92,6 +92,14 @@ inline bool can_use_dual_nibble_v(bool is_kv_compressed, ov::element::Type kv_ca
     return is_kv_compressed && data_type_traits::is_i4_u4(kv_cache_dt) && is_v_head_aligned_for_dual_nibble(v_head_size);
 }
 
+// Whether the single-token (GENERATE) kernels read a u4 page with the xe_hpg reads of paged_attention_opt.cl ("u4 page
+// reads of the opt kernels on xe_hpg" in docs/sdpa_ocl.md): one V byte per lane in both (PA_U4_V_BYTE_PER_LANE), the
+// whole K row per lane in the GQA one (PA_U4_K_ROW_LOADS). Other devices and the other stages keep upstream's reads.
+inline bool hpg_u4_generate_reads(const kernel_impl_params& params) {
+    return params.get_device_info().arch == gpu_arch::xe_hpg && get_kv_compressed(params) &&
+           data_type_traits::is_i4_u4(params.get_program().get_config().get_kv_cache_precision());
+}
+
 inline size_t get_element_size(ov::element::Type_t type) {
     return ov::element::Type(type).size();
 }
@@ -622,6 +630,9 @@ public:
         const auto desc = params.typed_desc<paged_attention>();
         const auto has_alibi = params.get_input_layout(PagedAttentionInputIdx::ALIBI).count() > 0;
         const auto has_scale_input = !desc->scale_val.has_value();
+        if (hpg_u4_generate_reads(params) && is_v_head_aligned_for_dual_nibble(desc->v_head_size)) {
+            jit.make("PA_U4_V_BYTE_PER_LANE", 1);
+        }
 
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
         const auto& out_offsets_map = params.out_port_to_shape_info_offset;
@@ -714,6 +725,9 @@ public:
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override {
         auto jit = PagedAttentionGeneratorSingleToken::get_jit_constants(params);
         add_gqa_jit_constants(jit, params);
+        if (hpg_u4_generate_reads(params) && params.typed_desc<paged_attention>()->k_head_size % 32 == 0) {
+            jit.make("PA_U4_K_ROW_LOADS", 1);
+        }
         return jit;
     }
 
