@@ -41,6 +41,7 @@
 #include "reorg_yolo_inst.h"
 #include "eltwise_inst.h"
 #include "non_zero_inst.h"
+#include "random_uniform_inst.h"
 #include "softmax_inst.h"
 #include "permute_inst.h"
 #include "custom_gpu_primitive_inst.h"
@@ -651,7 +652,9 @@ void program::post_optimize_graph(bool is_internal) {
 
 // mark if the node is constant assuming that all dependencies are marked properly
 void program::mark_if_constant(program_node& node) {
-    if (node.get_dependencies().empty() || node.is_type<assign>() || node.is_type<read_value>() || node.is_type<gather_nonzero>()) {
+    // RandomUniform must produce a new sequence on every inference, so it must never be folded into a constant
+    if (node.get_dependencies().empty() || node.is_type<assign>() || node.is_type<read_value>() || node.is_type<gather_nonzero>() ||
+        node.is_type<random_uniform>()) {
         return;
     }
     node.constant = true;
