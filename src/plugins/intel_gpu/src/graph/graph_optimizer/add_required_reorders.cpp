@@ -12,6 +12,7 @@
 #include "fully_connected_inst.h"
 #include "mvn_inst.h"
 #include "pass_manager.h"
+#include "program_helpers.h"
 #include "program_node.h"
 
 using namespace cldnn;
@@ -80,7 +81,10 @@ void eliminate_pad_for_onednn_impl(program& p, program_node& node) {
                     layout_wo_padding.data_padding = cldnn::padding{};
                     layout_wo_padding.data_padding._lower_size[1] = in_layout.data_padding._lower_size[1];
                     layout_wo_padding.data_padding._upper_size[1] = in_layout.data_padding._upper_size[1];
-                    if (input.is_type<reorder>()) {
+                    // F7: an in-place concat predecessor's padding positions it inside the concat buffer (set earlier by
+                    // prepare_buffer_fusing); clearing it would make the predecessor write at the wrong offsets and corrupt the
+                    // concat output. Give this node an unpadded copy instead, exactly as for non-reorder inputs.
+                    if (input.is_type<reorder>() && program_helpers::in_place_concat_holder_of(input) == nullptr) {
                         input.set_output_padding(padding());
                         input.set_output_layout(layout_wo_padding, false, port);
                     } else {

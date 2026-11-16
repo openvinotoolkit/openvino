@@ -531,6 +531,7 @@ set(GPU_UNIT_TESTS_ONEDNN_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/conv_dynamic_batch_per_node_byxf_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/onednn/profiling_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/inplace_alias_conflict_f10_f11_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/passes/inplace_alias_conflict_f7_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/residual_sum_chain_dit_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/onednn/utils_test.cpp
 )
