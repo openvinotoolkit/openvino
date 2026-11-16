@@ -163,6 +163,14 @@ target_link_libraries(ov_onnx_frontend_tests PRIVATE
     ov_onnx_legacy_graph_iterator
 )
 
+if(RISCV64)
+    # Some static libraries pulled in through onnx_proto (abseil log) need libatomic for 1-byte atomics on riscv64.
+    # libatomic.so reaches the link line before those archives, and --as-needed then drops it, which ends with
+    # "DSO missing from command line". Keep it regardless of the order.
+    target_link_options(ov_onnx_frontend_tests PRIVATE -Wl,--no-as-needed)
+    target_link_libraries(ov_onnx_frontend_tests PRIVATE atomic)
+endif()
+
 if(OV_COMPILER_IS_CLANG)
     target_compile_options(ov_onnx_frontend_tests PRIVATE -Wno-undef -Wno-reserved-id-macro)
 endif()
