@@ -137,7 +137,7 @@ std::shared_ptr<ov::intel_gpu::op::KVCacheCompressed> update_kv_cache(std::share
 }
 
 // Pattern of a plain KVCache feeding SparseSDPA exclusively: `KVCache(ReadValue, new)` with a static batch (one sequence per
-// batch row), or `KVCache(Gather(ReadValue, beam_idx), new)`.
+// batch row), or `KVCache(Gather(ReadValue, beam_idx), new)` with a static batch of 1 (the Gather is then the identity).
 struct SparseCachePattern {
     std::shared_ptr<ov::Node> cache;
     std::shared_ptr<ov::Node> past;           // ReadValue of the single-sequence form
@@ -156,6 +156,12 @@ SparseCachePattern make_sparse_cache_pattern() {
         const auto& ps = out.get_partial_shape();
         return ps.rank().is_static() && ps[0].is_static() && ps[0].get_length() >= 1;
     });
+    // With a single batch row the only valid beam_idx is [0], so the Gather is the identity and dropping it is exact. For a larger or
+    // dynamic batch it may be a real beam reorder, which SparseSDPA cannot apply (see SparseSDPAKVCacheCompressionMatcher).
+    const auto single_batch = Predicate([](const ov::Output<ov::Node>& out) {
+        const auto& ps = out.get_partial_shape();
+        return ps.rank().is_static() && ps[0].is_static() && ps[0].get_length() == 1;
+    });
     const auto plain_cache = Predicate([](const ov::Output<ov::Node>& out) {
         auto kv_cache = ov::as_type_ptr<ov::intel_gpu::op::KVCache>(out.get_node_shared_ptr());
         return kv_cache && !ov::is_type<ov::intel_gpu::op::KVCacheCompressed>(kv_cache) && !kv_cache->get_indirect() && !kv_cache->get_trim() &&
@@ -169,7 +175,7 @@ SparseCachePattern make_sparse_cache_pattern() {
     SparseCachePattern p;
     auto new_token = any_input();
     p.past = wrap_type<ov::intel_gpu::op::ReadValue>(f16_rank4_state && static_batch);
-    p.gathered_past = wrap_type<ov::intel_gpu::op::ReadValue>(f16_rank4_state);
+    p.gathered_past = wrap_type<ov::intel_gpu::op::ReadValue>(f16_rank4_state && single_batch);
     p.beam_idx = wrap_type<ov::op::v0::Parameter>();
     const auto axis_zero = wrap_type<ov::op::v0::Constant>(ov::op::util::constant_predicate<int64_t>([](const std::vector<int64_t>& value) {
         return value.size() == 1 && value[0] == 0;
@@ -387,10 +393,12 @@ bool KVCacheCompression::run_on_model(const std::shared_ptr<ov::Model>& m) {
 //  - Asymmetric is the default choice here, mirroring KVCacheCompressionMatcher, which always asks for it. It is a policy,
 //    not a limit of the op: SparseSDPA also accepts symmetric dense caches (no zero point inputs). This pass takes no
 //    quantization parameter, so a producer that needs symmetric caches has to add one.
-//  - Beam reordering is not supported yet: SparseSDPA reads no beam table, so the beam table output of the compressed
-//    KVCache stays unused. The compressed KVCache does not physically reorder the past (it only records beam_idx in that
-//    table), so the `Gather(ReadValue, beam_idx)` form is only correct while beam_idx is the identity. Nothing checks
-//    this at runtime.
+//  - Beam search is not supported: SparseSDPA reads no beam table, and the compressed KVCache does not physically reorder
+//    the past (it only records beam_idx in a table nobody reads). Dropping a `Gather(ReadValue, beam_idx)` is therefore only
+//    exact when it is the identity, which is guaranteed only for a static batch of 1. Such a Gather is matched; for any other
+//    batch the Gather form is left uncompressed so that it keeps reordering the f16 past. Without a Gather every batch row
+//    keeps its own cache, which needs no reordering. Supporting beam search for a larger batch needs a beam table input on
+//    SparseSDPA (and on the QSA indexer), as IndirectSDPA has.
 class SparseSDPAKVCacheCompressionMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("SparseSDPAKVCacheCompressionMatcher");

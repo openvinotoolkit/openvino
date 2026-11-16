@@ -918,11 +918,11 @@ INSTANTIATE_TEST_SUITE_P(
     KVCacheCompression,
     KVCacheCompressionSparseSDPA,
     testing::Values(
-        // Gathered caches follow the KV cache precision.
-        SparseSdpaCompressionParams{"gather_i8", make_spec(true, false, true), ov::element::i8},
-        SparseSdpaCompressionParams{"gather_i8_scale", make_spec(true, true, true), ov::element::i8},
-        SparseSdpaCompressionParams{"gather_u8_scale", make_spec(true, true, true), ov::element::u8},
-        SparseSdpaCompressionParams{"gather_u4_scale", make_spec(true, true, true), ov::element::u4},
+        // A Gather over a static batch of 1 is the identity; the caches follow the KV cache precision.
+        SparseSdpaCompressionParams{"gather_i8", make_spec(true, false, false), ov::element::i8},
+        SparseSdpaCompressionParams{"gather_i8_scale", make_spec(true, true, false), ov::element::i8},
+        SparseSdpaCompressionParams{"gather_u8_scale", make_spec(true, true, false), ov::element::u8},
+        SparseSdpaCompressionParams{"gather_u4_scale", make_spec(true, true, false), ov::element::u4},
         // One sequence per batch row gets the constant identity beam index.
         SparseSdpaCompressionParams{"single_sequence_u8_scale", make_spec(false, true, false), ov::element::u8},
         SparseSdpaCompressionParams{"static_batch3_i8_scale", make_spec(false, true, false, 3), ov::element::i8},
@@ -960,6 +960,17 @@ TEST_F(TransformationTestsF, KVCacheCompressionSparseSDPA_NonBatchGatherAxisKeep
     auto spec = make_spec(true, true, false);
     spec.gather_axis = 1;
     model = make_sparse_sdpa_model(spec);
+    manager.register_pass<KVCacheCompression>(ov::element::i8, true);
+}
+
+// a Gather over a larger or dynamic batch may be a real beam reorder, which SparseSDPA cannot apply: it is not dropped
+TEST_F(TransformationTestsF, KVCacheCompressionSparseSDPA_GatherWithStaticBatch3KeepsCaches) {
+    model = make_sparse_sdpa_model(make_spec(true, true, false, 3));
+    manager.register_pass<KVCacheCompression>(ov::element::i8, true);
+}
+
+TEST_F(TransformationTestsF, KVCacheCompressionSparseSDPA_GatherWithDynamicBatchKeepsCaches) {
+    model = make_sparse_sdpa_model(make_spec(true, true, true));
     manager.register_pass<KVCacheCompression>(ov::element::i8, true);
 }
 
