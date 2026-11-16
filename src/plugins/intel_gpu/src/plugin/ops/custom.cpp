@@ -178,7 +178,8 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
             OPENVINO_THROW("Invalid custom layer param type: ", param.type, " in operation: ", op->get_friendly_name());
         }
     }
-    const std::string layerTitle("\n// Layer " + op->get_friendly_name() + " using Custom Layer " + customLayer->Name() + "\n");
+    // No layer name in the kernel source: identical custom layers then get identical kernel code and are compiled once
+    const std::string layerTitle("\n// Custom Layer " + customLayer->Name() + "\n");
     const std::string defineTitle("// Custom Layer User Defines\n");
 
     int iidx = customLayer->InputDimSourceIndex();
