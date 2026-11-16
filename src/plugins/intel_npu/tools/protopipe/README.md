@@ -494,14 +494,14 @@ Parameters:
 	- `confidence_threshold` - **Optional**. Detections with a score lower than this value are discarded. (**Default**: 0.0)
 	- `nms_threshold` - **Optional**. IoU threshold for per-class non-maximum suppression. Set to `0` to disable NMS for models with NMS-free heads (e.g. YOLOv10). (**Default**: 0.45)
 	- `num_classes` - **Optional**. Number of classes. **Required** only to decode raw (not post-processed) detection outputs.
-	- `box_format` - **Optional**. Box encoding of DETR-style `[N, 4]` outputs, `cxcywh` or `xyxy`. Detected from the reference output when not set.
+	- `box_format` - **Optional**. Box encoding of DETR-style `[N, 4]` outputs, `cxcywh` or `xyxy`. Detected from the reference output when not set: `xyxy` is only chosen when enough reference boxes have ordered corners, otherwise `cxcywh` (the DETR default) is assumed. Set it explicitly for models with only a few queries.
 
 	Supported detection output layouts (unit dimensions are ignored):
     - `[N, 6]` - `[x1, y1, x2, y2, score, label]`, e.g. post-processed YOLOv8/YOLOv10 output of shape `[1, 300, 6]`.
     - `[N, 7]` - `[image_id, label, score, x1, y1, x2, y2]`, e.g. SSD/`DetectionOutput` of shape `[1, 1, N, 7]`.
     - `[N, num_classes + 4]` or `[num_classes + 4, N]` - raw YOLOv8-style head: `[cx, cy, w, h, class scores...]`.
     - `[N, num_classes + 5]` or `[num_classes + 5, N]` - raw YOLOv5-style head: `[cx, cy, w, h, objectness, class scores...]`.
-    - `[N, 4]` boxes + `[N, num_classes]` class logits - DETR-family models (RF-DETR, RT-DETR, Deformable DETR) that emit them as two output layers, detected from the model's output shapes. The pair is merged into `[x1, y1, x2, y2, sigmoid(max logit), argmax label]` detections. Both layers must use the same `map` metric, so set it once for the whole model rather than per layer.
+    - `[N, 4]` boxes + `[N, num_classes]` class logits - DETR-family models (RF-DETR, RT-DETR, Deformable DETR) that emit them as two output layers, detected from the model's output shapes. The pair is merged into `[x1, y1, x2, y2, sigmoid(max logit), argmax label]` detections. Both layers must use the same `map` metric, so set it once for the whole model rather than per layer. When several DETR models run in one scenario, set `map` per model rather than globally - a global metric is shared by all of them and can't pair layers across models. DETR heads with 4, 6 or 7 classes can't be told apart from boxes or post-processed outputs by shape and are not supported.
 
 	An output matching none of these layouts fails the run, e.g. a raw head without `num_classes`.
 

@@ -260,14 +260,18 @@ std::string shapeToString(const cv::Mat& mat) {
 // Merges DETR-style boxes [N, 4] and class logits [N, C] into [N, 6] [x1, y1, x2, y2, score, label].
 cv::Mat mergeDetrOutputs(const cv::Mat& boxes, const cv::Mat& logits, MAP::BoxFormat box_format) {
     cv::Mat boxes_f32, logits_f32;
+
     boxes.convertTo(boxes_f32, CV_32F);
     logits.convertTo(logits_f32, CV_32F);
+
     const int num_queries = squeezeDims(boxes_f32)[0];
     const auto logits_dims = squeezeDims(logits_f32);
+
     if (logits_dims.size() != 2u || logits_dims[0] != num_queries) {
         THROW_ERROR("MAP metric cannot pair DETR boxes " << shapeToString(boxes) << " with class logits "
                                                        << shapeToString(logits));
     }
+
     const int num_classes = logits_dims[1];
     const auto boxes2d = boxes_f32.reshape(1, num_queries);
     const auto logits2d = logits_f32.reshape(1, num_queries);
@@ -276,8 +280,11 @@ cv::Mat mergeDetrOutputs(const cv::Mat& boxes, const cv::Mat& logits, MAP::BoxFo
     for (int q = 0; q < num_queries; ++q) {
         const float* b = boxes2d.ptr<float>(q);
         const float* l = logits2d.ptr<float>(q);
+
         const int label = static_cast<int>(std::max_element(l, l + num_classes) - l);
+
         float* out = merged.ptr<float>(q);
+
         if (box_format == MAP::BoxFormat::XYXY) {
             std::copy(b, b + 4, out);
         } else {
@@ -293,18 +300,38 @@ cv::Mat mergeDetrOutputs(const cv::Mat& boxes, const cv::Mat& logits, MAP::BoxFo
     return merged;
 }
 
+struct DetectedBoxFormat {
+    MAP::BoxFormat format;
+    // False when there was too little evidence and the DETR default was assumed.
+    bool detected;
+};
+
 // Corners of a valid xyxy box are always ordered, centre/size boxes of a DETR head almost never are for every query.
-MAP::BoxFormat detectBoxFormat(const cv::Mat& boxes) {
+// NB: A few ordered boxes prove nothing (large cxcywh boxes near the origin are ordered too), so xyxy is only
+// chosen with enough evidence - otherwise fall back to cxcywh, the encoding used by DETR-family heads.
+DetectedBoxFormat detectBoxFormat(const cv::Mat& boxes) {
+    constexpr int kMinOrderedBoxesForXyxy = 16;
     cv::Mat f32;
     boxes.convertTo(f32, CV_32F);
     const auto boxes2d = f32.reshape(1, static_cast<int>(f32.total() / 4));
+    int ordered = 0;
     for (int q = 0; q < boxes2d.rows; ++q) {
         const float* b = boxes2d.ptr<float>(q);
+        if (!std::isfinite(b[0]) || !std::isfinite(b[1]) || !std::isfinite(b[2]) || !std::isfinite(b[3])) {
+            continue;
+        }
         if (b[2] < b[0] || b[3] < b[1]) {
-            return MAP::BoxFormat::CXCYWH;
+            return {MAP::BoxFormat::CXCYWH, true};
+        }
+        // NB: Degenerate (e.g. all-zero padding) boxes are consistent with both encodings.
+        if (b[2] > b[0] && b[3] > b[1]) {
+            ++ordered;
         }
     }
-    return MAP::BoxFormat::XYXY;
+    if (ordered >= kMinOrderedBoxesForXyxy) {
+        return {MAP::BoxFormat::XYXY, true};
+    }
+    return {MAP::BoxFormat::CXCYWH, false};
 }
 
 std::vector<Detection> decodeDetections(const cv::Mat& mat, const MAP::Params& params) {
@@ -536,30 +563,59 @@ double computeMAP(const std::vector<Detection>& preds, const std::vector<Detecti
 MAP::MAP(const Params& params): m_params(params){};
 
 Result MAP::compare(const cv::Mat& lhs, const cv::Mat& rhs) {
-    // NB: lhs is the actual model output, rhs is the reference used as ground truth.
-    LOG_DEBUG() << "MAP: actual " << shapeToString(lhs) << ", reference " << shapeToString(rhs) << std::endl;
-    const auto dims = squeezeDims(lhs);
+    // NB: Validators pass the reference first (see accuracy_mode.cpp / validation_mode.cpp). Unlike the other
+    // metrics mAP is not symmetric - the reference is the ground truth and the actual output is the prediction.
+    const cv::Mat& reference = lhs;
+    const cv::Mat& actual = rhs;
+    LOG_DEBUG() << "MAP: actual " << shapeToString(actual) << ", reference " << shapeToString(reference)
+                << std::endl;
+    const auto dims = squeezeDims(actual);
     if (!m_detr_dims || (dims != m_detr_dims->first && dims != m_detr_dims->second)) {
-        return evaluate(lhs, rhs);
+        return evaluate(actual, reference);
     }
 
     // NB: DETR-style models split detections into boxes [N, 4] and class logits [N, C] layers,
     // which reach the shared metric one after another - buffer the first until its companion arrives.
-    (dims == m_detr_dims->first ? m_detr_boxes : m_detr_logits) = std::make_pair(lhs, rhs);
+    const bool is_boxes = dims == m_detr_dims->first;
+    auto& slot = is_boxes ? m_detr_boxes : m_detr_logits;
+
+    // NB: Within one model both layers arrive once per iteration. A second one before the companion means
+    // the metric is shared by several models/streams whose layers interleave - never pair across them.
+    if (slot) {
+        THROW_ERROR("MAP metric got two DETR " << (is_boxes ? "box" : "class logits")
+                    << " layers in a row before their companion. The metric is likely shared by several "
+                    << "models or streams, set \"map\" per model instead of globally");
+    }
+
+    slot = std::make_pair(actual, reference);
+
     if (!m_detr_boxes || !m_detr_logits) {
         return Success{"waiting for the companion DETR layer"};
     }
 
     // NB: Detect on the reference so both devices are decoded the same way.
-    const auto box_format = m_params.box_format.value_or(detectBoxFormat(m_detr_boxes->second));
-    LOG_DEBUG() << "MAP: DETR box format: " << (box_format == BoxFormat::XYXY ? "xyxy" : "cxcywh") << std::endl;
-    const auto actual = mergeDetrOutputs(m_detr_boxes->first, m_detr_logits->first, box_format);
-    const auto reference = mergeDetrOutputs(m_detr_boxes->second, m_detr_logits->second, box_format);
+    BoxFormat box_format;
+    const char* origin;
+
+    if (m_params.box_format) {
+        box_format = *m_params.box_format;
+        origin = "configured";
+    } else {
+        const auto detected = detectBoxFormat(m_detr_boxes->second);
+        box_format = detected.format;
+        origin = detected.detected ? "detected" : "assumed, too few boxes to tell - set \"box_format\" to override";
+    }
+
+    LOG_DEBUG() << "MAP: DETR box format: " << (box_format == BoxFormat::XYXY ? "xyxy" : "cxcywh") << " ("
+                << origin << ")" << std::endl;
+
+    const auto merged_actual = mergeDetrOutputs(m_detr_boxes->first, m_detr_logits->first, box_format);
+    const auto merged_reference = mergeDetrOutputs(m_detr_boxes->second, m_detr_logits->second, box_format);
 
     m_detr_boxes.reset();
     m_detr_logits.reset();
 
-    return evaluate(actual, reference);
+    return evaluate(merged_actual, merged_reference);
 }
 
 void MAP::bindLayer(const std::vector<int>& dims) {
