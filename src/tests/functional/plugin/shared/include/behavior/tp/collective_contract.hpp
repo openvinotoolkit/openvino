@@ -12,6 +12,7 @@
 
 #include "gtest/gtest.h"
 #include "openvino/runtime/core.hpp"
+#include "ov_ops/tp_collective.hpp"
 
 namespace ov {
 namespace tp {
@@ -39,6 +40,13 @@ protected:
     void SetUp() override;
 
     static constexpr int64_t default_timeout_ms = 5000;
+
+    /// x -> TPAllReduce -> result, for `rank` of `world_size`.
+    static std::shared_ptr<ov::Model> make_allreduce_model(
+        uint32_t rank,
+        uint32_t world_size,
+        uint32_t group_id = 0,
+        ov::op::internal::ReduceOp reduce_op = ov::op::internal::ReduceOp::SUM);
 
     uint32_t ranks() const;
     Group make_group(int64_t timeout_ms = default_timeout_ms) const;

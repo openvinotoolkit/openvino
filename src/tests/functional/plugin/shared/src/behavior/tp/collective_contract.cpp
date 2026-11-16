@@ -42,16 +42,6 @@ std::shared_ptr<ov::op::v0::Parameter> make_input(const ov::Shape& shape = {1, e
     return std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
 }
 
-/// x -> TPAllReduce -> result, for `rank` of `world_size`.
-std::shared_ptr<ov::Model> make_allreduce_model(uint32_t rank,
-                                                uint32_t world_size,
-                                                uint32_t group_id = 0,
-                                                ReduceOp reduce_op = ReduceOp::SUM) {
-    auto x = make_input();
-    auto reduce = std::make_shared<TPAllReduce>(x, rank, world_size, group_id, 0, reduce_op);
-    return std::make_shared<ov::Model>(ov::OutputVector{reduce}, ov::ParameterVector{x});
-}
-
 /// Rank r's input: (r + 1) * (i % 7) -- small integers, so every sum is exact in f32, f16 and bf16.
 ov::Tensor exact_input(size_t rank, const ov::Shape& shape = {1, elements}) {
     ov::Tensor tensor(ov::element::f32, shape);
@@ -100,6 +90,15 @@ void expect_same_bits(Requests& requests) {
 }
 
 }  // namespace
+
+std::shared_ptr<ov::Model> TPCollectiveContractTest::make_allreduce_model(uint32_t rank,
+                                                                          uint32_t world_size,
+                                                                          uint32_t group_id,
+                                                                          ReduceOp reduce_op) {
+    auto x = make_input();
+    auto reduce = std::make_shared<TPAllReduce>(x, rank, world_size, group_id, 0, reduce_op);
+    return std::make_shared<ov::Model>(ov::OutputVector{reduce}, ov::ParameterVector{x});
+}
 
 std::string TPCollectiveContractTest::get_test_case_name(
     const ::testing::TestParamInfo<TPCollectiveContractParams>& info) {

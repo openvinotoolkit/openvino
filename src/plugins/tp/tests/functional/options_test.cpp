@@ -29,11 +29,6 @@ using ::testing::HasSubstr;
 
 constexpr size_t world_size = 2;
 
-ov::Tensor make_input(const BlockConfig& config, size_t length = 16, int32_t seed = 7) {
-    ov::test::utils::InputGenerateData data(-1, 2, 32, seed);
-    return ov::test::utils::create_and_fill_tensor(ov::element::f32, ov::Shape{1, length, config.hidden}, data);
-}
-
 ov::Tensor to_host(const ov::Tensor& tensor) {
     ov::Tensor host(tensor.get_element_type(), tensor.get_shape());
     tensor.copy_to(host);
@@ -121,7 +116,7 @@ protected:
 TEST_F(TPOptionsOnDevicesTest, ACommBufferSizeReachesTheRankContexts) {
     const BlockConfig config;
     const auto model = make_transformer_block(config);
-    const auto input = make_input(config);
+    const auto input = make_block_input(config, 16);
     const auto whole = run(model, input);
     const auto chunked = run(model, input, {{ov::tp::internal::comm_buffer_size.name(), size_t{4096}}});
     expect_same_bits(whole, chunked);
@@ -140,7 +135,7 @@ TEST_F(TPOptionsOnDevicesTest, RejectsAStagingLargerThanADeviceAllocates) {
 TEST_F(TPOptionsOnDevicesTest, InputStagingDoesNotChangeTheResult) {
     const BlockConfig config;
     const auto model = make_transformer_block(config);
-    const auto input = make_input(config);
+    const auto input = make_block_input(config, 16);
     const auto staged = run(model, input);
     ScopedEnv never_staged("OV_TP_INPUT_STAGE_MAX_BYTES", "0");
     expect_same_bits(staged, run(model, input));
@@ -152,8 +147,8 @@ TEST_F(TPOptionsOnDevicesTest, ResetStateStartsEveryRankOver) {
     config.stateful = true;
     auto compiled = core.compile_model(make_transformer_block(config), tp_device(world_size));
     auto request = compiled.create_infer_request();
-    const auto prompt = make_input(config, 16, 1);
-    const auto other = make_input(config, 16, 2);
+    const auto prompt = make_block_input(config, 16, 1);
+    const auto other = make_block_input(config, 16, 2);
 
     const auto first = infer(request, prompt);
     const auto after_prompt = infer(request, other);
@@ -169,7 +164,7 @@ TEST_F(TPOptionsOnDevicesTest, ResetStateStartsEveryRankOver) {
 TEST_F(TPOptionsOnDevicesTest, AWholeVocabularyProjectionGivesTheSameLogits) {
     const BlockConfig config;
     const auto model = make_block_with_lm_head(config, 768);
-    const auto input = make_input(config);
+    const auto input = make_block_input(config, 16);
     const ov::AnyMap f32{ov::hint::inference_precision(ov::element::f32)};
     const auto sharded = run(model, input, f32);
     ScopedEnv whole("OV_TP_DISABLE_LM_HEAD_SHARDING", "YES");

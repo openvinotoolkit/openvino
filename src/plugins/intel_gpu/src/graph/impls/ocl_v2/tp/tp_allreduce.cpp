@@ -9,6 +9,7 @@
 #include "ze/ze_kernel.hpp"
 #include "ze/ze_stream.hpp"
 #include "tp_allreduce_recorder.hpp"
+#include "tp_common.hpp"
 
 #include "tp_allreduce.hpp"
 
@@ -42,12 +43,6 @@ protected:
     }
 };
 
-ze_command_list_handle_t model_queue_of(cldnn::stream& s) {
-    auto* ze = dynamic_cast<cldnn::ze::ze_stream*>(&s);
-    OPENVINO_ASSERT(ze != nullptr, "[GPU] tp_allreduce expects the Level Zero stream");
-    return ze->get_command_list().handle();
-}
-
 class TPAllReduceImpl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::TPAllReduceImpl)
@@ -65,11 +60,7 @@ public:
 
     cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance) override {
         auto& stream = instance.get_network().get_stream();
-
-        const auto& channel_ptr = instance.get_network().get_tp_channel();
-        OPENVINO_ASSERT(channel_ptr != nullptr,
-                        "[GPU] tp_allreduce has no TP channel; the model must be compiled or imported with a TP context");
-        auto& channel = *channel_ptr;
+        const auto& channel = require_channel(instance.get_network().get_tp_channel(), "tp_allreduce");
         const bool async = channel.run_spliced();
 
         if (channel.options().verbosity >= ov::log::Level::INFO) {
@@ -81,16 +72,7 @@ public:
             });
         }
 
-        // Spliced, the recording lands in the model's in-order queue after the
-        // operations that produced our input and before whatever reads our
-        // output. Draining is the fallback: on the group's own queue the
-        // collective has no ordering against the model at all.
-        if (!async) {
-            if (!events.empty()) {
-                stream.wait_for_events(events);
-            }
-            stream.finish();
-        }
+        drain_unless_spliced(stream, events, async);
 
         const auto& layout = instance.get_impl_params()->get_input_layout(0);
         const auto collective_id = instance.get_typed_desc<tp_allreduce>()->collective_id;
@@ -102,7 +84,7 @@ public:
                        layout.count(),
                        ov::element::Type{layout.data_type},
                        reduce_kernel(),
-                       async ? model_queue_of(stream) : nullptr);
+                       async ? model_queue_of(stream, "tp_allreduce") : nullptr);
 
         if (channel.options().validate_allreduce_output) {
             stream.finish();
@@ -115,12 +97,7 @@ public:
             }
             channel.group()->check_output(channel.rank(), collective_id, checksum, instance.id());
         }
-        // The stream is in-order, so consumers are ordered behind the collective;
-        // only a network output needs an event that completes with it.
-        if (instance.is_output()) {
-            return stream.enqueue_marker({}, true);
-        }
-        return stream.aggregate_events(events, false, false);
+        return collective_event(stream, events, instance.is_output());
     }
 
 private:

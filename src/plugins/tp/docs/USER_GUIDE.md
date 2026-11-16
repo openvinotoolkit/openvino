@@ -364,8 +364,9 @@ driver-level problem. Raise `COMMUNICATION_TIMEOUT_MS` for very large
 payloads on slow interconnects. The compiled model is not reusable after an
 abort.
 
-For a trace of what each rank's collectives were doing, build with
-`-DENABLE_DEBUG_CAPS=ON` and set `OV_GPU_TP_VERBOSE=LOG_TRACE`.
+For what each rank's collectives were doing, build with `-DENABLE_DEBUG_CAPS=ON` and set
+`OV_GPU_TP_VERBOSE=LOG_INFO` (group set-up, staging growth); every call is an ITT task of the
+`ov::tp::collective` domain, see [DEVELOPER_GUIDE.md § Tunables](DEVELOPER_GUIDE.md#tunables).
 
 ## Pointers
 

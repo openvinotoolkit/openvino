@@ -9,11 +9,13 @@
 
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <limits>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/paged_attention.hpp"
@@ -431,6 +433,26 @@ inline std::shared_ptr<ov::Model> make_paged_attention_block(const BlockConfig& 
                                                            subsequence_begins, block_indices,
                                                            block_indices_begins, max_context_len},
                                        "TPTestPagedAttentionBlock");
+}
+
+/// An f32 input of `shape` for the blocks above.
+///
+/// A narrow range keeps the u4 weights from saturating the activations, so a
+/// real mismatch is not masked by both sides producing garbage.
+inline ov::Tensor make_block_input(const ov::Shape& shape, int32_t seed = 7) {
+    ov::test::utils::InputGenerateData data(-1, 2, 32, seed);
+    return ov::test::utils::create_and_fill_tensor(ov::element::f32, shape, data);
+}
+
+/// `tokens` positions of one sequence for make_transformer_block() and
+/// make_block_with_lm_head(): [1, tokens, hidden].
+inline ov::Tensor make_block_input(const BlockConfig& config, size_t tokens, int32_t seed = 7) {
+    return make_block_input(ov::Shape{1, tokens, config.hidden}, seed);
+}
+
+/// `tokens` positions for make_paged_attention_block(): [tokens, 1, hidden].
+inline ov::Tensor make_paged_block_input(const BlockConfig& config, size_t tokens, int32_t seed = 7) {
+    return make_block_input(ov::Shape{tokens, 1, config.hidden}, seed);
 }
 
 }  // namespace ov::tp::tests

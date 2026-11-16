@@ -134,7 +134,7 @@ void CollectiveStats::start_window() {
     }
     for (auto& counter : seg_min_ns)
         counter.v.store(~uint64_t{0}, std::memory_order_relaxed);
-    for (auto* c : {&record_ns, &splice_ns, &prep_ns, &tail_ns, &rebuilds, &records, &chunked_calls, &chunks,
+    for (auto* c : {&record_ns, &splice_ns, &tail_ns, &rebuilds, &records, &chunked_calls, &chunks,
                     &max_chunks, &rec_drain_ns, &rec_reset_ns, &rec_build_ns, &rec_close_ns, &gather_close_ns,
                     &scratch_stall_ns, &ar_bytes, &dev_call_max}) {
         c->v.store(0, std::memory_order_relaxed);
@@ -300,7 +300,6 @@ GroupState::ScratchStats GroupState::get_scratch_stats() const {
         stats.growth_count = std::max(stats.growth_count, s.growth_count);
         stats.allocation_count += s.growth_count;
     }
-    stats.generation = stats.growth_count;
     return stats;
 }
 
@@ -474,8 +473,8 @@ void GroupState::ensure_staging(Staging& s,
         OV_ITT_SCOPED_TASK_BASE(ov::intel_gpu::itt::domains::tp_collective, "tp_staging_grow");
         ScopedTime stall(m_options.profiling_host, m_stats.scratch_stall_ns);
         if (Splice* last = m_last_splice[rank]) {
-            if (await_splice(*last, rank, collective_id) && m_options.profiling_host && last->allreduce) {
-                m_stats.ahead_now[rank].v.fetch_sub(1, std::memory_order_relaxed);
+            if (wait_splice(*last, rank, collective_id)) {
+                release_splice(*last, rank);
             }
         }
         drain(rank, "staging grow: compute queue drain");
@@ -755,13 +754,16 @@ void GroupState::untrack(uint32_t rank, Splice* splice) {
     }
 }
 
-bool GroupState::await_splice(Splice& splice, uint32_t rank, uint64_t collective_id) {
+bool GroupState::wait_splice(Splice& splice, uint32_t rank, uint64_t collective_id, bool* blocked) {
     if (!splice.in_flight.load(std::memory_order_acquire)) {
         return false;
     }
     // Query before waiting: a memory read, where zeEventHostSynchronize costs
     // microseconds even with nothing to wait for.
     ze_result_t r = ze_api()->zeEventQueryStatus(splice.done);
+    if (blocked != nullptr) {
+        *blocked = r == ZE_RESULT_NOT_READY;
+    }
     if (r == ZE_RESULT_NOT_READY) {
         r = ze_api()->zeEventHostSynchronize(splice.done, timeout_ns());
         if (r == ZE_RESULT_NOT_READY) {
@@ -769,9 +771,15 @@ bool GroupState::await_splice(Splice& splice, uint32_t rank, uint64_t collective
         }
     }
     OV_ZE_EXPECT(r);
+    return true;
+}
+
+void GroupState::release_splice(Splice& splice, uint32_t rank) {
     OV_ZE_EXPECT(ze_api()->zeEventHostReset(splice.done));
     splice.in_flight.store(0, std::memory_order_release);
-    return true;
+    if (m_options.profiling_host && splice.allreduce) {
+        m_stats.ahead_now[rank].v.fetch_sub(1, std::memory_order_relaxed);
+    }
 }
 
 void GroupState::handed_over(uint32_t rank, Splice* splice) {
@@ -1061,7 +1069,6 @@ void GroupState::report_host_totals() {
               << " (record=" << tms(st.record_ns.get()) << "ms"
               << ", splice=" << tms(st.splice_ns.get()) << "ms)"
               << "  per-call: ph1=" << tms(st.ph1_ns[0].get()) / c << "ms"
-              << " prep=" << tms(st.prep_ns.get()) / c << "ms"
               << " splice=" << tms(st.splice_ns.get()) / c << "ms"
               << " tail=" << tms(st.tail_ns.get()) / c << "ms" << std::endl;
     uint64_t pair = 0, ring = 0, halving = 0;
@@ -1092,7 +1099,7 @@ void GroupState::report_host_totals() {
     TP_REPORT << "[TP][TOTAL|host]   scratch: payload_capacity=" << (scratch.payload_capacity_bytes / (1024.0 * 1024.0))
               << "MB"
               << " total=" << (scratch.total_allocated_bytes / (1024.0 * 1024.0)) << "MB"
-              << " generation=" << scratch.generation << " grows=" << scratch.growth_count
+              << " grows=" << scratch.growth_count
               << " allocations=" << scratch.allocation_count
               << " stall=" << (static_cast<double>(st.scratch_stall_ns.get()) / 1.0e6) << "ms"
               << " fixed=" << (m_fixed_staging_bytes / (1024.0 * 1024.0)) << "MB" << std::endl;

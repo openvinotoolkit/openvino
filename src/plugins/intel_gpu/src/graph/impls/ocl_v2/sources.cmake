@@ -114,6 +114,7 @@ set(GPU_OCL_V2_IMPL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/tp/tp_allreduce.hpp
     ${CMAKE_CURRENT_LIST_DIR}/tp/tp_allreduce_recorder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/tp/tp_allreduce_recorder.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/tp/tp_common.hpp
     ${CMAKE_CURRENT_LIST_DIR}/tp/tp_gather.cpp
     ${CMAKE_CURRENT_LIST_DIR}/tp/tp_gather.hpp
     ${CMAKE_CURRENT_LIST_DIR}/tp/tp_gather_recorder.cpp

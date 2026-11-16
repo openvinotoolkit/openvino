@@ -110,15 +110,6 @@ protected:
         return bytes;
     }
 
-    static ov::Tensor make_input(const BlockConfig& config, size_t tokens, int32_t seed = 7) {
-        // A narrow range keeps the u4 weights from saturating the activations,
-        // so a real mismatch is not masked by both sides producing garbage.
-        ov::test::utils::InputGenerateData data(-1, 2, 32, seed);
-        return ov::test::utils::create_and_fill_tensor(ov::element::f32,
-                                                       ov::Shape{tokens, 1, config.hidden},
-                                                       data);
-    }
-
     /// Fills the scheduler metadata of a single sequence with `past` tokens
     /// cached and `tokens` new ones, its blocks listed in `blocks`.
     static void set_metadata(ov::InferRequest& request,
@@ -191,14 +182,14 @@ protected:
     /// The decode step following a prefill of `prompt_tokens`, writing to and
     /// attending over `blocks`.
     static ov::Tensor decode(ov::InferRequest& request, const BlockConfig& config, const std::vector<int32_t>& blocks) {
-        request.set_tensor("input", make_input(config, 1, 2));
+        request.set_tensor("input", make_paged_block_input(config, 1, 2));
         set_metadata(request, prompt_tokens, 1, blocks);
         request.infer();
         return to_host(request.get_output_tensor(0));
     }
 
     static void prefill(ov::InferRequest& request, const BlockConfig& config, size_t block_size) {
-        request.set_tensor("input", make_input(config, prompt_tokens, 1));
+        request.set_tensor("input", make_paged_block_input(config, prompt_tokens, 1));
         set_prefill_metadata(request, prompt_tokens, block_size);
         request.infer();
     }
@@ -352,7 +343,7 @@ TEST_F(TPPagedAttentionTest, RefusesToInferWithoutACache) {
     auto cache = cache_of(compiled);
 
     BlockConfig config;
-    request.set_tensor("input", make_input(config, prompt_tokens));
+    request.set_tensor("input", make_paged_block_input(config, prompt_tokens));
     set_prefill_metadata(request, prompt_tokens, block_size_of(cache));
 
     // Nothing allocated the cache, so there is nothing to attend over. Saying
@@ -386,7 +377,7 @@ TEST_F(TPPagedAttentionTest, MatchesSingleDeviceOnAPrefill) {
     // Created after the allocation: the cache is bound to it on creation.
     auto parallel = parallel_model.create_infer_request();
 
-    auto input = make_input(config, prompt_tokens);
+    auto input = make_paged_block_input(config, prompt_tokens);
     reference.set_tensor("input", input);
     parallel.set_tensor("input", input);
     set_prefill_metadata(reference, prompt_tokens, block_size);

@@ -208,7 +208,8 @@ TPL0SharedContextPtr make_shared_ctx(uint32_t min_gpus) {
 
 // ---------------------------------------------------------------------------
 // Per-rank scratch resources used to allocate and prime device USM buffers.
-// (The group owns its own queues; these helpers are independent.)
+// (The group owns its own queues; these helpers are independent.) What a test
+// does not free itself, because it stopped early, goes with the object.
 // ---------------------------------------------------------------------------
 struct RankScratch {
     ze_context_handle_t ctx{nullptr};
@@ -216,6 +217,13 @@ struct RankScratch {
     uint32_t ord{0};
     ze_command_queue_handle_t queue{nullptr};
     ze_command_list_handle_t list{nullptr};
+
+    RankScratch() = default;
+    RankScratch(const RankScratch&) = delete;
+    RankScratch& operator=(const RankScratch&) = delete;
+    ~RankScratch() {
+        destroy();
+    }
 
     static uint32_t pick_compute_ordinal(ze_device_handle_t d) {
         uint32_t qg = 0;
@@ -249,7 +257,15 @@ struct RankScratch {
         ze_device_mem_alloc_desc_t mad{ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC, nullptr};
         void* p = nullptr;
         EXPECT_ZE(ov::zeMemAllocDevice(ctx, &mad, bytes, 64, dev, &p));
+        if (p != nullptr)
+            allocations.push_back(p);
         return p;
+    }
+
+    /// Frees an allocation of this rank now.
+    void release(void* p) {
+        allocations.erase(std::remove(allocations.begin(), allocations.end(), p), allocations.end());
+        ov::zeMemFree(ctx, p);
     }
 
     void copy_from_host(void* dev_ptr, const void* host, size_t bytes) {
@@ -269,6 +285,17 @@ struct RankScratch {
     }
 
     void destroy() {
+        if (!allocations.empty() && !idle()) {
+            // Left by a test that stopped early while the device may still use them: leaked, not freed under it.
+            allocations.clear();
+            immediate = nullptr;
+            list = nullptr;
+            queue = nullptr;
+            return;
+        }
+        for (void* p : allocations)
+            ov::zeMemFree(ctx, p);
+        allocations.clear();
         if (immediate)
             ov::zeCommandListDestroy(immediate);
         if (list)
@@ -301,6 +328,14 @@ struct RankScratch {
     }
 
     ze_command_list_handle_t immediate{nullptr};
+    std::vector<void*> allocations;  // not released yet
+
+private:
+    bool idle() const {
+        constexpr uint64_t timeout_ns = 5'000'000'000;
+        return (queue == nullptr || ov::zeCommandQueueSynchronize(queue, timeout_ns) == ZE_RESULT_SUCCESS) &&
+               (immediate == nullptr || ov::zeCommandListHostSynchronize(immediate, timeout_ns) == ZE_RESULT_SUCCESS);
+    }
 };
 
 /// The model's reduction kernel (ocl_v2/tp_allreduce.cl), specialized the way
@@ -626,8 +661,8 @@ TEST_F(TPCollectivesTest, GatherToRootPlacesEveryRankSlice) {
                          << " elements";
 
     for (int r = 0; r < ranks; ++r) {
-        ov::zeMemFree(shared->context, ins[r]);
-        ov::zeMemFree(shared->context, outs[r]);
+        rs[r].release(ins[r]);
+        rs[r].release(outs[r]);
         rs[r].destroy();
     }
 }
@@ -664,8 +699,8 @@ TEST_F(TPCollectivesTest, AllReduceF16) {
     EXPECT_EQ(count_mismatches(r1, 3.0f, f16_tolerance), 0u) << "rank 1";
 
     for (int r = 0; r < 2; ++r) {
-        ov::zeMemFree(shared->context, ins[r]);
-        ov::zeMemFree(shared->context, outs[r]);
+        rs[r].release(ins[r]);
+        rs[r].release(outs[r]);
         rs[r].destroy();
     }
 }
@@ -700,8 +735,8 @@ TEST_F(TPCollectivesTest, AllReduceF32) {
     EXPECT_EQ(count_mismatches(r1, 3.75f, f32_tolerance), 0u) << "rank 1";
 
     for (int r = 0; r < 2; ++r) {
-        ov::zeMemFree(shared->context, ins[r]);
-        ov::zeMemFree(shared->context, outs[r]);
+        rs[r].release(ins[r]);
+        rs[r].release(outs[r]);
         rs[r].destroy();
     }
 }
@@ -744,8 +779,8 @@ TEST_F(TPCollectivesTest, ReusesPlanAcrossIterations) {
     }
 
     for (int r = 0; r < 2; ++r) {
-        ov::zeMemFree(shared->context, ins[r]);
-        ov::zeMemFree(shared->context, outs[r]);
+        rs[r].release(ins[r]);
+        rs[r].release(outs[r]);
         rs[r].destroy();
     }
 }
@@ -782,8 +817,8 @@ TEST_F(TPCollectivesTest, GrowsScratchOnSizeChange) {
         EXPECT_EQ(count_mismatches(r1, 12.0f, f16_tolerance), 0u) << "n=" << n << " rank 1";
 
         for (int r = 0; r < 2; ++r) {
-            ov::zeMemFree(shared->context, ins[r]);
-            ov::zeMemFree(shared->context, outs[r]);
+            rs[r].release(ins[r]);
+            rs[r].release(outs[r]);
         }
     }
 
@@ -857,8 +892,8 @@ TEST_F(TPCollectivesTest, ReusesCollectiveSlotsSequentially) {
 
     for (int s = 0; s < 2; ++s) {
         for (int r = 0; r < 2; ++r) {
-            ov::zeMemFree(shared->context, ins[s][r]);
-            ov::zeMemFree(shared->context, outs[s][r]);
+            rs[r].release(ins[s][r]);
+            rs[r].release(outs[s][r]);
         }
     }
     for (int r = 0; r < 2; ++r)
@@ -895,7 +930,7 @@ TEST_F(TPCollectivesTest, SupportsInPlaceAllReduce) {
     EXPECT_EQ(count_mismatches(r1, 3.0f, f16_tolerance), 0u) << "rank 1";
 
     for (int r = 0; r < 2; ++r) {
-        ov::zeMemFree(shared->context, buffers[r]);
+        rs[r].release(buffers[r]);
         rs[r].destroy();
     }
 }
@@ -950,8 +985,8 @@ TEST_F(TPCollectivesTest, AllReduceAcrossWiderWorlds) {
         }
 
         for (int r = 0; r < ranks; ++r) {
-            ov::zeMemFree(shared->context, ins[r]);
-            ov::zeMemFree(shared->context, outs[r]);
+            rs[r].release(ins[r]);
+            rs[r].release(outs[r]);
             rs[r].destroy();
         }
     }
@@ -984,8 +1019,8 @@ TEST_F(TPCollectivesTest, MissingRankTimesOut) {
     EXPECT_THROW(coord->allreduce(0, 0, in, out, elements, ov::element::f32, kernel), ov::Exception);
     EXPECT_LT(std::chrono::steady_clock::now() - before, std::chrono::milliseconds{300});
 
-    ov::zeMemFree(shared->context, in);
-    ov::zeMemFree(shared->context, out);
+    rank0.release(in);
+    rank0.release(out);
     rank0.destroy();
 }
 
@@ -1045,8 +1080,8 @@ TEST_F(TPCollectivesTest, RanksAtDifferentCollectivesFailTheCall) {
         EXPECT_NE(errors[r].find("ranks disagree on call"), std::string::npos) << "rank " << r << ": " << errors[r];
 
     for (int r = 0; r < 2; ++r) {
-        ov::zeMemFree(shared->context, ins[r]);
-        ov::zeMemFree(shared->context, outs[r]);
+        rs[r].release(ins[r]);
+        rs[r].release(outs[r]);
         rs[r].destroy();
     }
 }
@@ -1099,8 +1134,8 @@ TEST_F(TPCollectivesTest, WatchdogLeavesARunningGroupAlone) {
     EXPECT_FALSE(coord->is_aborted());
 
     for (int r = 0; r < 2; ++r) {
-        ov::zeMemFree(shared->context, ins[r]);
-        ov::zeMemFree(shared->context, outs[r]);
+        rs[r].release(ins[r]);
+        rs[r].release(outs[r]);
         rs[r].destroy();
     }
 }
@@ -1127,13 +1162,11 @@ TEST_F(TPCollectivesTest, WatchdogLeavesARunningGroupAlone) {
 struct CollectiveBuffers {
     std::vector<RankScratch> rs;
     std::vector<void*> ins, outs;
-    ze_context_handle_t ctx{nullptr};
 
     CollectiveBuffers(const TPL0SharedContextPtr& shared, int ranks, size_t bytes)
         : rs(ranks),
           ins(ranks),
-          outs(ranks),
-          ctx(shared->context) {
+          outs(ranks) {
         for (int r = 0; r < ranks; ++r) {
             rs[r].init(shared->context, shared->devices[r]);
             ins[r] = rs[r].alloc(bytes);
@@ -1143,8 +1176,8 @@ struct CollectiveBuffers {
 
     ~CollectiveBuffers() {
         for (size_t r = 0; r < rs.size(); ++r) {
-            ov::zeMemFree(ctx, ins[r]);
-            ov::zeMemFree(ctx, outs[r]);
+            rs[r].release(ins[r]);
+            rs[r].release(outs[r]);
             rs[r].destroy();
         }
     }
@@ -1604,8 +1637,8 @@ TEST_F(TPCollectivesTest, GatherHandlesASingleRow) {
     }
 
     for (int r = 0; r < ranks; ++r) {
-        ov::zeMemFree(shared->context, ins[r]);
-        ov::zeMemFree(shared->context, outs[r]);
+        rs[r].release(ins[r]);
+        rs[r].release(outs[r]);
         rs[r].destroy();
     }
 }
@@ -1669,9 +1702,9 @@ TEST_F(TPCollectivesTest, SplicedGathersInARowKeepEveryBand) {
     }
     for (int r = 0; r < ranks; ++r)
         rs[r].wait_for_model_queue();
-    ov::zeMemFree(shared->context, busy_src);
-    ov::zeMemFree(shared->context, busy_dst);
-    ov::zeMemFree(shared->context, poison);
+    rs[0].release(busy_src);
+    rs[0].release(busy_dst);
+    rs[0].release(poison);
     for (int k = 0; k < instances; ++k) {
         std::vector<float> got(rows * full);
         rs[0].copy_to_host(got.data(), outs[k][0], got.size() * sizeof(float));
@@ -1687,8 +1720,8 @@ TEST_F(TPCollectivesTest, SplicedGathersInARowKeepEveryBand) {
     coord.reset();
     for (int k = 0; k < instances; ++k) {
         for (int r = 0; r < ranks; ++r) {
-            ov::zeMemFree(shared->context, ins[k][r]);
-            ov::zeMemFree(shared->context, outs[k][r]);
+            rs[r].release(ins[k][r]);
+            rs[r].release(outs[k][r]);
         }
     }
     for (int r = 0; r < ranks; ++r)

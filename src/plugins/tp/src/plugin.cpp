@@ -13,7 +13,6 @@
 #include <limits>
 #include <memory>
 #include <sstream>
-#include <streambuf>
 #include <string>
 #include <vector>
 
@@ -31,6 +30,7 @@
 #include "openvino/runtime/icore.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/tp/collective_contract.hpp"
 #include "openvino/util/container_util.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -158,40 +158,6 @@ void strip_collectives(const std::shared_ptr<ov::Model>& shard) {
                    << " collectives short-circuited, " << widened
                    << " replaced by a self-concat. Results of this model are meaningless.";
 }
-
-/// \brief Read-only, seekable stream over an already materialized blob.
-///
-/// The rank readers want an `std::istream` and the TP container has to seek
-/// between rank boundaries, so a buffer view is enough -- no copy.
-class MemoryInputBuffer : public std::streambuf {
-public:
-    MemoryInputBuffer(const char* data, std::size_t size) {
-        auto* begin = const_cast<char*>(data);
-        setg(begin, begin, begin + size);
-    }
-
-protected:
-    pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which) override {
-        if ((which & std::ios_base::in) == 0) {
-            return pos_type(off_type(-1));
-        }
-        off_type target = off;
-        if (dir == std::ios_base::cur) {
-            target += gptr() - eback();
-        } else if (dir == std::ios_base::end) {
-            target += egptr() - eback();
-        }
-        if (target < 0 || target > egptr() - eback()) {
-            return pos_type(off_type(-1));
-        }
-        setg(eback(), eback() + target, egptr());
-        return pos_type(target);
-    }
-
-    pos_type seekpos(pos_type pos, std::ios_base::openmode which) override {
-        return seekoff(off_type(pos), std::ios_base::beg, which);
-    }
-};
 
 void log_analysis(const TPAnalysisReport& report, size_t num_collectives) {
     TP_LOG_INFO << "[TP] Analysis: attention blocks=" << report.attention_blocks
@@ -789,7 +755,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model, const ov::AnyMap& properties) const {
-    MemoryInputBuffer buffer(static_cast<const char*>(model.data()), model.get_byte_size());
+    ov::SharedStreamBuffer buffer{model.data(), model.get_byte_size()};
     std::istream stream(&buffer);
     return import_blob(stream, properties);
 }

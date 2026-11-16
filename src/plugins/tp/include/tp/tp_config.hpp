@@ -59,10 +59,6 @@ struct TPConfig : public ov::PluginConfig {
     /// something meant for the per-rank GPU compilations.
     bool owns(const std::string& name) const;
 
-    /// Drops everything this plugin owns, leaving only what should be
-    /// forwarded down to the GPU plugin.
-    void erase_own_properties(ov::AnyMap& config) const;
-
     /// The options a user is allowed to set through the public API.
     std::vector<ov::PropertyName> supported_properties() const;
 

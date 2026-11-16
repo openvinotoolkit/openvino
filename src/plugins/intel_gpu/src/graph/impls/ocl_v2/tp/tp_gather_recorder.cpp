@@ -5,8 +5,8 @@
 #ifdef ENABLE_TP
 
 #include "tp_gather_recorder.hpp"
+#include "tp_common.hpp"
 
-#include <limits>
 #include <string>
 #include <vector>
 
@@ -19,28 +19,6 @@ using cldnn::ze::tp::alloc_id_of;
 using cldnn::ze::tp::ScopedTime;
 using cldnn::ze::tp::Stopwatch;
 using cldnn::ze::tp::ze_api;
-
-namespace {
-
-std::size_t checked_multiply(std::size_t lhs, std::size_t rhs, const char* what) {
-    OPENVINO_ASSERT(rhs == 0 || lhs <= std::numeric_limits<std::size_t>::max() / rhs,
-                    "[TP][L0] ",
-                    what,
-                    " byte count overflow: ",
-                    lhs,
-                    " * ",
-                    rhs);
-    return lhs * rhs;
-}
-
-uint64_t ticks_to_ns(uint64_t start, uint64_t end, uint64_t mask, uint64_t ns_per_tick) {
-    const uint64_t s = start & mask;
-    const uint64_t e = end & mask;
-    const uint64_t delta = (e >= s) ? (e - s) : ((mask + 1 - s) + e);
-    return delta * ns_per_tick;
-}
-
-}  // namespace
 
 void TPGatherRecorder::record(uint32_t parity) {
     const Signature& sig = m_sig[parity];
@@ -137,19 +115,7 @@ void TPGatherRecorder::run(const cldnn::ze::tp::Channel& channel,
         st.gather_calls[rank].bump();
     }
 
-    struct AbortOnFailure {
-        cldnn::ze::tp::GroupState& group;
-        uint64_t collective_id;
-        const std::string& name;
-        uint32_t rank;
-        bool armed{true};
-        ~AbortOnFailure() {
-            if (armed) {
-                group.abort_all("[TP][L0] rank " + std::to_string(rank) + " failed while gathering collective " +
-                                std::to_string(collective_id) + " (" + name + ")");
-            }
-        }
-    } abort_guard{group, collective_id, name, rank};
+    AbortOnFailure abort_guard{group, collective_id, name, rank, "gathering"};
 
     Signature sig;
     sig.valid = true;
@@ -179,11 +145,9 @@ void TPGatherRecorder::run(const cldnn::ze::tp::Channel& channel,
 
     auto& splice = m_rec.splice(parity);
     if (model_queue != nullptr && channel.run_spliced()) {
-        // Read the previous instance's timestamps before await_splice clears
-        // them. Blocking: with the host far ahead, a query would skip almost
-        // every sample.
-        if (g_dev && splice.in_flight.load(std::memory_order_acquire)) {
-            if (ze_api()->zeEventHostSynchronize(splice.done, group.timeout_ns()) == ZE_RESULT_SUCCESS) {
+        if (group.wait_splice(splice, rank, collective_id)) {
+            if (g_dev) {
+                // The event holds the previous instance's timestamps until the release.
                 ze_kernel_timestamp_result_t kt{};
                 if (ze_api()->zeEventQueryKernelTimestamp(splice.done, &kt) == ZE_RESULT_SUCCESS) {
                     const uint64_t ns = ticks_to_ns(kt.global.kernelStart,
@@ -196,8 +160,8 @@ void TPGatherRecorder::run(const cldnn::ze::tp::Channel& channel,
                     st.gather_bytes[rank].add(splice.bytes);
                 }
             }
+            group.release_splice(splice, rank);
         }
-        group.await_splice(splice, rank, collective_id);
         record_if_stale();
         const Stopwatch splice_time(g_host);
         {

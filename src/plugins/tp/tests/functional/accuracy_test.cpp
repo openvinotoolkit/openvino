@@ -108,15 +108,6 @@ protected:
         }
     }
 
-    static ov::Tensor make_input(const BlockConfig& config, size_t length = sequence_length, int32_t seed = 7) {
-        // A narrow range keeps the u4 weights from saturating the activations,
-        // so a real mismatch is not masked by both sides producing garbage.
-        ov::test::utils::InputGenerateData data(-1, 2, 32, seed);
-        return ov::test::utils::create_and_fill_tensor(ov::element::f32,
-                                                       ov::Shape{1, length, config.hidden},
-                                                       data);
-    }
-
     static ov::AnyMap precision_config() {
         return {ov::hint::inference_precision(inference_precision())};
     }
@@ -132,7 +123,7 @@ TEST_P(TPAccuracyTest, MatchesSingleDeviceOnGatedMlpBlock) {
     BlockConfig config;
     auto model = make_transformer_block(config);
 
-    auto [reference, parallel] = run_both(model, make_input(config));
+    auto [reference, parallel] = run_both(model, make_block_input(config, sequence_length));
     expect_close(reference, parallel);
 }
 
@@ -141,7 +132,7 @@ TEST_P(TPAccuracyTest, MatchesSingleDeviceOnSingleBranchMlpBlock) {
     config.gated_mlp = false;
     auto model = make_transformer_block(config);
 
-    auto [reference, parallel] = run_both(model, make_input(config));
+    auto [reference, parallel] = run_both(model, make_block_input(config, sequence_length));
     expect_close(reference, parallel);
 }
 
@@ -150,7 +141,7 @@ TEST_P(TPAccuracyTest, MatchesSingleDeviceOnBiasedProjections) {
     config.with_bias = true;
     auto model = make_transformer_block(config);
 
-    auto [reference, parallel] = run_both(model, make_input(config));
+    auto [reference, parallel] = run_both(model, make_block_input(config, sequence_length));
     expect_close(reference, parallel);
 }
 
@@ -162,7 +153,7 @@ TEST_P(TPAccuracyTest, MatchesSingleDeviceOnUntransposedWeights) {
     config.transpose_b = false;
     auto model = make_transformer_block(config);
 
-    auto [reference, parallel] = run_both(model, make_input(config));
+    auto [reference, parallel] = run_both(model, make_block_input(config, sequence_length));
     expect_close(reference, parallel);
 }
 
@@ -179,7 +170,7 @@ TEST_P(TPAccuracyTest, MatchesSingleDeviceAcrossStatefulSteps) {
     for (size_t step = 0; step < 2; ++step) {
         SCOPED_TRACE("step " + std::to_string(step));
         // Prefill, then a single-token generation step reusing the cache.
-        auto input = make_input(config, step == 0 ? sequence_length : 1, static_cast<int32_t>(step) + 1);
+        auto input = make_block_input(config, step == 0 ? sequence_length : 1, static_cast<int32_t>(step) + 1);
 
         reference.set_input_tensor(input);
         parallel.set_input_tensor(input);
@@ -204,7 +195,7 @@ TEST_P(TPAccuracyTest, MatchesSingleDeviceAfterKvCacheTrim) {
 
     auto [reference, parallel] = compile_both(model);
 
-    auto prefill = make_input(config, sequence_length, 1);
+    auto prefill = make_block_input(config, sequence_length, 1);
     reference.set_input_tensor(prefill);
     parallel.set_input_tensor(prefill);
     reference.infer();
@@ -213,7 +204,7 @@ TEST_P(TPAccuracyTest, MatchesSingleDeviceAfterKvCacheTrim) {
     trim_kv_cache(reference, trimmed_tokens);
     trim_kv_cache(parallel, trimmed_tokens);
 
-    auto next = make_input(config, 1, 2);
+    auto next = make_block_input(config, 1, 2);
     reference.set_input_tensor(next);
     parallel.set_input_tensor(next);
     reference.infer();
@@ -230,7 +221,7 @@ TEST_P(TPAccuracyTest, MatchesSingleDeviceOnZeroPointsCutInsideAByte) {
     config.intermediate = 3 * 64 * world_size();
     auto model = make_transformer_block(config);
 
-    auto [reference, parallel] = run_both(model, make_input(config));
+    auto [reference, parallel] = run_both(model, make_block_input(config, sequence_length));
     expect_close(reference, parallel);
 }
 
@@ -247,7 +238,7 @@ TEST_P(TPAccuracyTest, MatchesSingleDeviceWithOneKvHead) {
     auto config = one_kv_head();
     auto model = make_transformer_block(config);
 
-    auto [reference, parallel] = run_both(model, make_input(config));
+    auto [reference, parallel] = run_both(model, make_block_input(config, sequence_length));
     expect_close(reference, parallel);
 }
 
@@ -259,7 +250,7 @@ TEST_P(TPAccuracyTest, MatchesSingleDeviceWithTwoKvHeadsOnMoreRanks) {
     config.num_kv_heads = 2;
     auto model = make_transformer_block(config);
 
-    auto [reference, parallel] = run_both(model, make_input(config));
+    auto [reference, parallel] = run_both(model, make_block_input(config, sequence_length));
     expect_close(reference, parallel);
 }
 
@@ -270,7 +261,7 @@ TEST_P(TPAccuracyTest, MatchesSingleDeviceWithOneKvHeadAfterKvCacheTrim) {
 
     auto [reference, parallel] = compile_both(model);
 
-    auto prefill = make_input(config, sequence_length, 1);
+    auto prefill = make_block_input(config, sequence_length, 1);
     reference.set_input_tensor(prefill);
     parallel.set_input_tensor(prefill);
     reference.infer();
@@ -282,7 +273,7 @@ TEST_P(TPAccuracyTest, MatchesSingleDeviceWithOneKvHeadAfterKvCacheTrim) {
     for (auto&& state : parallel.query_state())
         EXPECT_EQ(state.get_state().get_shape()[1], 1u) << state.get_name();
 
-    auto next = make_input(config, 1, 2);
+    auto next = make_block_input(config, 1, 2);
     reference.set_input_tensor(next);
     parallel.set_input_tensor(next);
     reference.infer();
@@ -298,7 +289,7 @@ TEST_P(TPAccuracyTest, MatchesSingleDeviceOnFusedProjections) {
     config.gate_up = Fused::SPLIT;
     auto model = make_transformer_block(config);
 
-    auto [reference, parallel] = run_both(model, make_input(config));
+    auto [reference, parallel] = run_both(model, make_block_input(config, sequence_length));
     expect_close(reference, parallel);
 }
 
@@ -309,7 +300,7 @@ TEST_P(TPAccuracyTest, MatchesSingleDeviceOnFusedProjectionsWithVariadicSplitsAn
     config.with_bias = true;
     auto model = make_transformer_block(config);
 
-    auto [reference, parallel] = run_both(model, make_input(config));
+    auto [reference, parallel] = run_both(model, make_block_input(config, sequence_length));
     expect_close(reference, parallel);
 }
 
@@ -324,7 +315,7 @@ TEST_P(TPAccuracyTest, MatchesSingleDeviceOnAFusedQkvWithOneKvHeadAfterKvCacheTr
 
     auto [reference, parallel] = compile_both(model);
 
-    auto prefill = make_input(config, sequence_length, 1);
+    auto prefill = make_block_input(config, sequence_length, 1);
     reference.set_input_tensor(prefill);
     parallel.set_input_tensor(prefill);
     reference.infer();
@@ -333,7 +324,7 @@ TEST_P(TPAccuracyTest, MatchesSingleDeviceOnAFusedQkvWithOneKvHeadAfterKvCacheTr
 
     trim_kv_cache(reference, 4);
     trim_kv_cache(parallel, 4);
-    auto next = make_input(config, 1, 2);
+    auto next = make_block_input(config, 1, 2);
     reference.set_input_tensor(next);
     parallel.set_input_tensor(next);
     reference.infer();
@@ -349,7 +340,7 @@ TEST_P(TPAccuracyTest, MatchesSingleDeviceOnAVocabularyProjection) {
     BlockConfig config;
     auto model = make_block_with_lm_head(config, 768);  // divides by every world size under test
 
-    auto [reference, parallel] = run_both(model, make_input(config));
+    auto [reference, parallel] = run_both(model, make_block_input(config, sequence_length));
     expect_close(reference, parallel);
 }
 
@@ -359,7 +350,7 @@ TEST_P(TPAccuracyTest, MatchesSingleDeviceOnAnIndivisibleVocabulary) {
     BlockConfig config;
     auto model = make_block_with_lm_head(config, 769);  // prime
 
-    auto [reference, parallel] = run_both(model, make_input(config));
+    auto [reference, parallel] = run_both(model, make_block_input(config, sequence_length));
     expect_close(reference, parallel);
 }
 

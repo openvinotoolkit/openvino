@@ -8,6 +8,7 @@
 // plain include of openvino/zero_api.hpp before it would drop.
 #include "ze/ze_stream.hpp"
 #include "tp_gather_recorder.hpp"
+#include "tp_common.hpp"
 
 #include "tp_gather.hpp"
 
@@ -16,12 +17,6 @@
 
 namespace ov::intel_gpu::ocl {
 namespace {
-
-ze_command_list_handle_t model_queue_of(cldnn::stream& s) {
-    auto* ze = dynamic_cast<cldnn::ze::ze_stream*>(&s);
-    OPENVINO_ASSERT(ze != nullptr, "[GPU] tp_gather expects the Level Zero stream");
-    return ze->get_command_list().handle();
-}
 
 // No kernel: the work is copies issued through Level Zero by the recorder.
 // Being an OCL impl (not a CPU one) is what places the buffers in usm_device.
@@ -67,22 +62,11 @@ public:
         }
         const size_t slice_elems = input_layout.count() / std::max<size_t>(rows, 1);
 
-        const auto& channel = instance.get_network().get_tp_channel();
-        OPENVINO_ASSERT(channel != nullptr,
-                        "[GPU] tp_gather has no TP channel; the model must be compiled or imported with a TP context");
+        const auto& channel = require_channel(instance.get_network().get_tp_channel(), "tp_gather");
+        const bool async = channel.run_spliced();
+        drain_unless_spliced(stream, events, async);
 
-        // Spliced, the recording lands in the model's in-order queue after the
-        // projection that produced our slice. Draining is the fallback: on the
-        // group's own queue the copy has no ordering against the model at all.
-        const bool async = channel->run_spliced();
-        if (!async) {
-            if (!events.empty()) {
-                stream.wait_for_events(events);
-            }
-            stream.finish();
-        }
-
-        m_recorder.run(*channel,
+        m_recorder.run(channel,
                        desc->collective_id,
                        instance.id(),
                        instance.input_memory_ptr()->buffer_ptr(),
@@ -90,12 +74,8 @@ public:
                        rows,
                        slice_elems,
                        ov::element::Type{input_layout.data_type},
-                       async ? model_queue_of(stream) : nullptr);
-        // In-order stream: only a network output needs an event that completes with the copy.
-        if (instance.is_output()) {
-            return stream.enqueue_marker({}, true);
-        }
-        return stream.aggregate_events(events, false, false);
+                       async ? model_queue_of(stream, "tp_gather") : nullptr);
+        return collective_event(stream, events, instance.is_output());
     }
 
 private:

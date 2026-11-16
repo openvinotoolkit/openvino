@@ -65,7 +65,7 @@ for the current file layout. Key entry points:
 | `include/tp/options.inl`    | The option table: defaults, validators, tiers.                                                                                                                                   |
 | intel_gpu `src/plugin/plugin.cpp` | `Plugin::create_tp_context` — the TP context from the `ov::tp::internal` parameters; `Graph::bind_collectives` in `graph.cpp` binds a model to it.                            |
 | intel_gpu `src/runtime/ze/tp/`  | `rank_communicator.cpp` (publish, connect, bind, group registry), `group_state.cpp` (the group's resources: call rendezvous, staging, peer events, fallback queues, watchdog, profiling report), `collective_backend.cpp` (backend names, the `L0_P2P` support check, resolving `AUTO`), `tp_l0_shared_context.cpp`. |
-| intel_gpu `impls/ocl_v2/tp/`, `impls/ocl_v2/tp_allreduce.cl` | `tp_allreduce.*`: the AllReduce impl, builds the reduction kernel with the model. `tp_allreduce_recorder.*`: the three schedules, their staging layout and the chunking of messages larger than a fixed staging. `tp_gather_recorder.*`: the gather's band copies into the root's output and its `ready` handshake. `tp_recording.*`: a primitive instance's command lists, completion events and splice. Registered from `graph/registry/tp_allreduce_impls.cpp`. |
+| intel_gpu `impls/ocl_v2/tp/`, `impls/ocl_v2/tp_allreduce.cl` | `tp_allreduce.*`: the AllReduce impl, builds the reduction kernel with the model. `tp_allreduce_recorder.*`: the three schedules, their staging layout and the chunking of messages larger than a fixed staging. `tp_gather_recorder.*`: the gather's band copies into the root's output and its `ready` handshake. `tp_recording.*`: a primitive instance's command lists, completion events and splice. `tp_common.hpp`: what the impls and the recorders share (overflow-checked sizes, timestamps, the abort guard, the TP channel and the model queue of a network). Registered from `graph/registry/tp_allreduce_impls.cpp`. |
 | intel_gpu `impls/ocl_v2/tp/tp_gather.*`  | The gather impl (no kernel); runs `TPGatherRecorder`. Registered from `graph/registry/tp_gather_impls.cpp`. |
 
 ## Tunables
@@ -110,7 +110,6 @@ so the guarded code folds away instead of costing a branch.
 |-------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------|
 | `OV_TP_VERBOSE=LOG_INFO`      | One-line summaries per compile: the analysis (blocks, geometry, collectives), rank contexts, and per rank its op count, MiB of constants and how its weights were cut (views into the original, copies and MiB copied). | First thing to reach for when something looks wrong. |
 | `OV_GPU_TP_VERBOSE=LOG_INFO`  | The collectives: group set-up, scratch growth, which queue the collective rides.                                                                            | Together with the above.                             |
-| `OV_GPU_TP_VERBOSE=LOG_TRACE` | Per-call `[TP][L0]` step-by-step tracing.                                                                                                                   | Only when chasing a hang or a correctness crash.     |
 | `OV_GPU_TP_PROFILING=HOST`    | Host-side measurement of the collectives: rendezvous phases, per-phase splits per rank, record breakdown, scratch arena, run-ahead depth.                    | The default choice when measuring.                   |
 |                               | Leaves the execution schedule alone.                                                                                                                        |                                                      |
 | `OV_GPU_TP_PROFILING=DEVICE`  | Device-side numbers: how long the collective owns the model queue, bytes moved, effective bandwidth, and what share of device time the collectives take.    | Only when the device-side numbers are the question.  |
@@ -174,7 +173,7 @@ per-call figures are divided by the window's AllReduce calls):
 [TP][TOTAL|host]   schedule of N recordings: pair=… ring=… halving=…
 [TP][TOTAL|host]   chunked: calls=… chunks/call=… max=…
 [TP][TOTAL|host]   record breakdown: records=… per-record=…ms (drain=… reset=… append=… close=…)
-[TP][TOTAL|host]   scratch: payload_capacity=…MB total=…MB generation=… grows=… allocations=… stall=…ms fixed=…MB
+[TP][TOTAL|host]   scratch: payload_capacity=…MB total=…MB grows=… allocations=… stall=…ms fixed=…MB
 [TP][TOTAL|host]   gather rank N: calls=… spliced=… records=… barrier=…us append=…us close=…ms total
 [TP][RANK|dev] of the calls handed over in inferences A..B schedule=… world=…
 [TP][RANK|dev]   rank N: queue busy mean=…us max=…us(cid N)  sent=…MB/call effective=… GB/s (N samples)
@@ -230,8 +229,9 @@ Field semantics:
   measurement has ended. `cid` names the collective responsible for the max.
 - **between collectives** — device time spent on the model rather than on a
   collective, and the duty cycle that follows from it.
-- **rebuilds / grows** — staging growths since process start (`grows` is the
-  maximum over ranks, `allocations` the sum; `payload_capacity` the minimum).
+- **rebuilds / grows** — staging growths: `rebuilds` those of rank 0 in this report's window, `grows`
+  those since the group was created (`grows` is the maximum over ranks, `allocations` the sum;
+  `payload_capacity` the minimum).
   After the first prefill of a given max-shape this should stop moving. With
   `fixed` non-zero (`TP_COMM_BUFFER_SIZE`) the staging never grows.
 - **chunked** — allreduces split because the fixed staging could not hold
@@ -249,7 +249,7 @@ Field semantics:
 
 ## Tests
 
-Each layer is tested where it lives: the TP plugin's two binaries under `tests/`
+Each layer ([ARCHITECTURE.md § Layers](ARCHITECTURE.md#layers)) is tested where it lives: the TP plugin's two binaries under `tests/`
 test L1 and L5 and name no device; the collective contract (L3) is a shared
 suite every device plugin runs for itself; the GPU's collectives (L4) have their
 own suites in intel_gpu.
@@ -299,6 +299,22 @@ and world sizes; intel_gpu does in
 a device may or may not support (MAX / MIN, other groups, the gather, several
 ranks on one device) is checked as "computed exactly or refused".
 
+The obligations, as the tests are named:
+
+| Id      | A device plugin taking TP ranks                                                                                         |
+|---------|-------------------------------------------------------------------------------------------------------------------------|
+| D1      | creates a TP context from the contract parameters without waiting for the other ranks, and rejects a wrong device, an unknown backend (listing the valid ones), an unknown parameter or a missing group |
+| D2      | compiles and imports rank models with the context; a collective needs a TP context and the context's rank and world size |
+| D3      | binds collectives only through the context: the TP parameters are not a compile config                                 |
+| D4      | runs the ops as their contract says: AllReduce within tolerance and bitwise equal on all ranks, other reduce ops and groups exact or refused, ids unique, ranks at different collectives fail the call, the gather on the root or refused, graph order over many inferences |
+| D5      | answers `TP_COLLECTIVE_BACKENDS` / `TP_COLLECTIVE_SUPPORT` without throwing, consistently with what the contexts accept |
+| D6      | refuses a model whose streams do not fit the context's channels                                                        |
+| D7      | times out the setup and a call the peers never join, and keeps the group failed afterwards                             |
+| D8      | reads host tensors of any rank's context on every rank                                                                 |
+| D9      | takes constants that are views of a host buffer as copies, never reading the buffer in place after compilation         |
+| D10     | reads and writes the rank's own device tensors in place                                                                |
+| D11     | counts the collectives' memory in `TP_DEVICE_MEMORY` before the first inference, and bounds it: a message larger than a fixed staging is still reduced exactly |
+
 ### intel_gpu (built with `ENABLE_TP`)
 
 | Binary / suite                            | What it covers                                                                                                                          | Needs GPUs |
@@ -333,7 +349,7 @@ cd bin/intel64/Release
 OV_TP_TEST_MODELS=/path/a.xml:/path/b.xml ./ov_tp_unit_tests --gtest_filter='TPAnalyzerModels*'
 ./ov_gpu_unit_tests --gtest_filter='TPCollectivesTest.*'
 ./ov_gpu_unit_tests --gtest_filter='TPCollectivesTest.RingAndHalvingAgree'
-./ov_gpu_func_tests --gtest_filter='*TPCollectiveContractTest*:GPUTPContextTest.*'
+./ov_gpu_func_tests --gtest_filter='*TPCollectiveContractTest*:*GPUTPContextTest*'
 
 # Parametrized suites carry the parameter in the name: world2/3/4, f16/f32, ranks=2/3/4.
 ./ov_tp_func_tests --gtest_filter='*world4*'

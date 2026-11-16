@@ -92,6 +92,18 @@ collective contract (`openvino/runtime/tp/collective_contract.hpp`).
 └──────────────────────────────────────────────────────────────┘
 ```
 
+## Layers
+
+The code is split in five layers; the documents and the tests refer to them by these labels.
+
+| Label | What                                                                                              | Where                                                                  | Tested by                                                    |
+|-------|---------------------------------------------------------------------------------------------------|------------------------------------------------------------------------|--------------------------------------------------------------|
+| L1    | The TP transformations: block passes, verifier, rank passes                                       | `src/plugins/tp/src/transformations/` (`openvino_tp_transformations`)  | `ov_tp_unit_tests`                                           |
+| L2    | The collective ops `TPAllReduce`, `TPGather`                                                      | `src/common/transformations/.../ov_ops/tp_collective.*`                | `ov_transformations_tests` (`TPCollectiveTest`)              |
+| L3    | The collective contract between an orchestrator and a device plugin                               | `src/inference/dev_api/openvino/runtime/tp/collective_contract.hpp`    | `ov_inference_unit_tests`, the shared `TPCollectiveContractTest` |
+| L4    | A device plugin's collectives: communicator, group state, primitives, impls                       | intel_gpu, `src/runtime/ze/tp/`, `src/graph/impls/ocl_v2/tp/`          | `ov_gpu_unit_tests`, `ov_gpu_func_tests`                     |
+| L5    | The TP plugin: compile and import, rank contexts, compiled model, infer request, cache            | `src/plugins/tp/src/`                                                  | `ov_tp_func_tests`                                           |
+
 ## Sharding Strategy (Megatron-style)
 
 For a standard decoder block with hidden size `H`,
@@ -202,8 +214,8 @@ that depends on OpenVINO core and the collective ops only. It runs in three stag
    elements that hold a split size, a fused part's length or a fused part's bound; KV-cache
    variables and PagedAttention head counts get the KV-head split. A weight shared with another
    reader (a tied embedding) is given a source of its own first, so cutting it leaves the other
-   reader whole. A linear layer no pass claims stays whole on every rank, with a warning naming it
-   and its size. Weights are split only when every constant of their chain is of 8 bits and
+   reader whole. Linear layers no pass claims stay whole on every rank, with a warning giving
+   their number, their size and the first of them. Weights are split only when every constant of their chain is of 8 bits and
    more or a 4-bit type; 1, 2, 3 or 6-bit constants fail the compilation, naming the weight.
    Packed 4-bit constants (weights, zero points) are cut at any element, copying
    element by element where a rank's range starts or ends inside a byte. Every weight is cut at
@@ -220,9 +232,7 @@ that depends on OpenVINO core and the collective ops only. It runs in three stag
    role must produce a Partial sum, which becomes Replicated at its `TPAllReduce`; a model output
    must be Replicated. A Split, VariadicSplit or Slice along a split axis is proven by simulating
    every rank with its own lengths or bounds. Anything it cannot prove fails the compilation with
-   the node, its type, the input shapes and states, and where each state came from. A split
-   with fewer units (whole heads, quantization groups) than ranks fails too, naming the largest
-   number of devices that works.
+   the node, its type, the input shapes and states, and where each state came from.
 3. **Per rank**, on a clone of the analyzed model: `TPWeightShardingPass(rank, N)` cuts the
    annotated constants (a zero-copy view of a single contiguous range, a copy otherwise) and gives
    the annotated shape elements, variable shapes and `rt_info` head counts the rank's values;
@@ -359,7 +369,8 @@ src/plugins/intel_gpu/   (compiled only with ENABLE_TP)
 │   ├── tp_gather.{hpp,cpp}                 ← Gather impl (copies only)
 │   ├── tp_allreduce_recorder.{hpp,cpp}     ← pair / ring / halving schedules
 │   ├── tp_gather_recorder.{hpp,cpp}        ← bands into the root's output
-│   └── tp_recording.{hpp,cpp}              ← lists, completion events, splice
+│   ├── tp_recording.{hpp,cpp}              ← lists, completion events, splice
+│   └── tp_common.hpp                       ← what the impls and the recorders share
 ├── src/graph/impls/ocl_v2/tp_allreduce.cl  ← the reduction kernel (codegen
 │                                          reads .cl from the ocl_v2 root only)
 ├── src/plugin/ops/tp_{allreduce,gather}.cpp       ← op → primitive
@@ -668,7 +679,7 @@ collective implementations accept only their own backend.
 `compile_model()` and `import_model()` with a TP context bind every stream
 graph of the model to the context's communicator (`Graph::build`):
 - every collective's rank and world size must match the context, and the ids
-  must number the model's collectives once each;
+  must be unique within the model;
 - the first binding collects the payloads, checks them, and finds or creates
   the group state (`GroupState`) in a process registry keyed by the rank-0
   communicator id; every rank model must have the same number of collectives;
@@ -720,9 +731,9 @@ model without `key_cache.N` / `value_cache.N` inputs), an
 - **One KEY_VALUE group, model-level.** Tensors `key_cache.N` /
   `value_cache.N` with the shapes a single GPU reports (block dimension
   dynamic): the head dimension is the sum over the ranks with a KV head kept by
-  several ranks (Case 2) counted once, and `block_size_in_bytes` is the block
+  several ranks (fewer KV heads than ranks) counted once, and `block_size_in_bytes` is the block
   of the whole model. A block index means the same tokens on every rank; every
-  operation is the same request repeated per rank and layer. Case 2 needs no
+  operation is the same request repeated per rank and layer. A shared KV head needs no
   mapping: each rank allocates from its own ports.
 - **Available memory**: the minimum over the ranks of
   `(total - 1.1 * used) / rank block bytes`, capped by
@@ -783,7 +794,7 @@ importing it against a different device set is rejected.
 `ov::cache_dir` works because the plugin advertises
 `ov::device::capability::EXPORT_IMPORT` and answers
 `ov::internal::caching_properties` — the rank device plugin's list plus the
-device list (`ov::device::priorities`), `TP_STRATEGY` and
+device list (`ov::device::priorities`), `TP_STRATEGY`, `TP_DISABLE_LM_HEAD_SHARDING` and
 `ov::device::properties`, so two topologies, or two configurations of the
 rank devices, cannot collide on one hash. A device plugin's caching property
 set on `TP` is taken as it is; otherwise the device plugin's values are
@@ -812,8 +823,8 @@ other slice, which then stays in the blob. On import the core passes
   It is declared last so its threads are joined before anything they touch
   goes away.
 - `infer_request.cpp` dispatches every rank, rank 0 included, to those
-  workers and waits for all of them. The TP plugin owns the rank threads
-  (option B of the design's rank execution): FIFO per rank and concurrent
+  workers and waits for all of them. The TP plugin owns the rank threads:
+  FIFO per rank and concurrent
   ranks follow from one worker per rank under the device locks, and the
   GPU plugin's async machinery (task executor, `EXCLUSIVE_ASYNC_REQUESTS`,
   external queues) is not on the path. Running rank 0 on the calling thread

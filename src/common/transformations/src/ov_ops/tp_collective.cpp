@@ -4,6 +4,8 @@
 
 #include "ov_ops/tp_collective.hpp"
 
+#include "openvino/core/validation_util.hpp"
+
 namespace ov {
 namespace op {
 namespace internal {
@@ -92,19 +94,12 @@ void TPGather::validate_and_infer_types() {
     auto pshape = get_input_partial_shape(0);
     // Only the root holds every slice; the others would otherwise each allocate the full tensor.
     if (m_rank == 0 && pshape.rank().is_static()) {
-        const auto rank_len = pshape.rank().get_length();
-        const auto norm_axis = m_axis >= 0 ? m_axis : m_axis + rank_len;
-        NODE_VALIDATION_CHECK(this,
-                              norm_axis >= 0 && norm_axis < rank_len,
-                              "axis ",
-                              m_axis,
-                              " is out of range for a rank-",
-                              rank_len,
-                              " input");
-        if (pshape[norm_axis].is_static()) {
-            pshape[norm_axis] = pshape[norm_axis].get_length() * m_world_size;
+        NODE_VALIDATION_CHECK(this, pshape.rank().get_length() > 0, "a scalar has no axis to gather along");
+        const auto axis = ov::util::try_normalize_axis(m_axis, pshape.rank(), *this);
+        if (pshape[axis].is_static()) {
+            pshape[axis] = pshape[axis].get_length() * m_world_size;
         } else {
-            pshape[norm_axis] = ov::Dimension::dynamic();
+            pshape[axis] = ov::Dimension::dynamic();
         }
     }
     set_output_type(0, get_input_element_type(0), pshape);

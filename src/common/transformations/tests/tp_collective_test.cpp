@@ -113,6 +113,14 @@ TEST(TPCollectiveTest, RejectsRankOutsideGroup) {
     EXPECT_THROW(std::make_shared<TPGather>(make_input({2}), 5, 2, 0, 0), ov::NodeValidationFailure);
 }
 
+TEST(TPCollectiveTest, GatherRejectsAnAxisItsInputDoesNotHave) {
+    EXPECT_THROW(std::make_shared<TPGather>(make_input({2, 8}), 0, 2, 0, 0, 2), ov::NodeValidationFailure);
+    EXPECT_THROW(std::make_shared<TPGather>(make_input({2, 8}), 0, 2, 0, 0, -3), ov::NodeValidationFailure);
+    EXPECT_THROW(std::make_shared<TPGather>(make_input(ov::PartialShape{}), 0, 2, 0, 0), ov::NodeValidationFailure);
+    EXPECT_EQ(std::make_shared<TPGather>(make_input({2, 8}), 0, 2, 0, 0, -2)->get_output_partial_shape(0),
+              (ov::PartialShape{4, 8}));
+}
+
 TEST(TPCollectiveTest, ReduceOpNames) {
     EXPECT_EQ(ov::as_string(ReduceOp::SUM), "sum");
     EXPECT_EQ(ov::as_enum<ReduceOp>("max"), ReduceOp::MAX);

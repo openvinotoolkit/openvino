@@ -65,13 +65,6 @@ protected:
         return {ov::hint::inference_precision(ov::element::f32)};
     }
 
-    static ov::Tensor make_input(const BlockConfig& config) {
-        ov::test::utils::InputGenerateData data(-1, 2, 32, 7);
-        return ov::test::utils::create_and_fill_tensor(ov::element::f32,
-                                                       ov::Shape{1, sequence_length, config.hidden},
-                                                       data);
-    }
-
     static ov::Tensor infer_to_host(ov::CompiledModel& compiled, const ov::Tensor& input) {
         auto request = compiled.create_infer_request();
         request.set_input_tensor(input);
@@ -102,7 +95,7 @@ private:
 TEST_F(TPSerializationTest, ImportedModelMatchesExportedOne) {
     BlockConfig config;
     auto model = make_transformer_block(config);
-    const auto input = make_input(config);
+    const auto input = make_block_input(config, sequence_length);
 
     std::stringstream blob;
     ov::Tensor exported;
@@ -123,7 +116,7 @@ TEST_F(TPSerializationTest, ImportedModelMatchesExportedOne) {
 TEST_F(TPSerializationTest, ImportedModelWithAGatherMatchesExportedOne) {
     BlockConfig config;
     auto model = make_block_with_lm_head(config, 768);
-    const auto input = make_input(config);
+    const auto input = make_block_input(config, sequence_length);
 
     std::stringstream blob;
     ov::Tensor exported;
@@ -148,7 +141,7 @@ TEST_F(TPSerializationTest, ImportedModelKeepsTheSharedKvCacheSlices) {
     std::stringstream blob;
     core.compile_model(model, tp_device(world_size), tp_config()).export_model(blob);
     auto request = core.import_model(blob, tp_device(world_size), tp_config()).create_infer_request();
-    request.set_input_tensor(make_input(config));
+    request.set_input_tensor(make_block_input(config, sequence_length));
     request.infer();
     for (auto&& state : request.query_state()) {
         auto whole = state.get_state();
@@ -193,7 +186,7 @@ TEST_F(TPSerializationTest, ImportedModelKeepsPorts) {
 TEST_F(TPSerializationTest, CacheDirTurnsSecondCompileIntoImport) {
     BlockConfig config;
     auto model = make_transformer_block(config);
-    const auto input = make_input(config);
+    const auto input = make_block_input(config, sequence_length);
 
     core.set_property(ov::cache_dir(cache_dir()));
 
@@ -318,7 +311,7 @@ TEST_F(TPSerializationTest, CacheKeyCoversPropertiesSetOnTP) {
 // the model's .bin, where they are whole; every rank needs its own slice.
 TEST_F(TPSerializationTest, WeightlessCacheRestoresTheRankWeights) {
     BlockConfig config;
-    const auto input = make_input(config);
+    const auto input = make_block_input(config, sequence_length);
     const auto xml = std::filesystem::path(cache_dir()) / "model" / "block.xml";
     ov::save_model(make_transformer_block(config), xml.string(), /*compress_to_fp16=*/false);
 

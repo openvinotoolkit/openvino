@@ -76,12 +76,6 @@ bool TPConfig::owns(const std::string& name) const {
     return m_options_map.find(name) != m_options_map.end();
 }
 
-void TPConfig::erase_own_properties(ov::AnyMap& config) const {
-    for (const auto& entry : m_options_map) {
-        config.erase(entry.first);
-    }
-}
-
 std::vector<ov::PropertyName> TPConfig::supported_properties() const {
     std::vector<ov::PropertyName> properties;
     for (const auto& entry : m_options_map) {

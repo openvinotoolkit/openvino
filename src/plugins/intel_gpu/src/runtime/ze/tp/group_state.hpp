@@ -154,7 +154,6 @@ struct CollectiveStats {
     // Rank-0 totals.
     Counter record_ns;
     Counter splice_ns;
-    Counter prep_ns;
     Counter tail_ns;
     Counter rebuilds;
     Counter records;
@@ -346,9 +345,13 @@ public:
     /// Withdraws it. The caller has made sure it is not in flight.
     void untrack(uint32_t rank, Splice* splice);
 
-    /// Waits until `splice` has finished on the device and clears it. Returns
-    /// whether it was in flight.
-    bool await_splice(Splice& splice, uint32_t rank, uint64_t collective_id);
+    /// Waits until `splice` has finished on the device. Returns whether it was
+    /// in flight; release_splice() must then follow. Until it does, `done`
+    /// still holds the finished hand-over's timestamps. `blocked`, if given,
+    /// tells whether the device was still running it.
+    bool wait_splice(Splice& splice, uint32_t rank, uint64_t collective_id, bool* blocked = nullptr);
+    /// Makes a splice wait_splice() found in flight ready for the next hand-over.
+    void release_splice(Splice& splice, uint32_t rank);
 
     /// Records that `rank` has just handed `splice` to its model queue.
     void handed_over(uint32_t rank, Splice* splice);
@@ -390,7 +393,6 @@ public:
         std::size_t payload_capacity_bytes{0};
         std::size_t total_allocated_bytes{0};
         std::vector<std::size_t> allocated_bytes_per_rank;
-        uint64_t generation{0};
         uint64_t growth_count{0};
         uint64_t allocation_count{0};
     };

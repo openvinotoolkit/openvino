@@ -5,6 +5,7 @@
 #ifdef ENABLE_TP
 
 #include "tp_allreduce_recorder.hpp"
+#include "tp_common.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -24,17 +25,6 @@ using cldnn::ze::tp::ScopedTime;
 using cldnn::ze::tp::ze_api;
 
 namespace {
-
-std::size_t checked_multiply(std::size_t lhs, std::size_t rhs, const char* what) {
-    OPENVINO_ASSERT(rhs == 0 || lhs <= std::numeric_limits<std::size_t>::max() / rhs,
-                    "[TP][L0] ",
-                    what,
-                    " byte count overflow: ",
-                    lhs,
-                    " * ",
-                    rhs);
-    return lhs * rhs;
-}
 
 std::size_t align_up(std::size_t value, std::size_t alignment) {
     return (value + alignment - 1) / alignment * alignment;
@@ -118,14 +108,6 @@ std::size_t halving_region_bytes(std::size_t payload_bytes, uint32_t level) {
     return align_up((span + 1) / 2 + kHalvingSlackBytes, 256);
 }
 
-// Duration between two kernel timestamps of one device, in nanoseconds.
-uint64_t ticks_to_ns(uint64_t start, uint64_t end, uint64_t mask, uint64_t ns_per_tick) {
-    const uint64_t s = start & mask;
-    const uint64_t e = end & mask;
-    const uint64_t delta = (e >= s) ? (e - s) : ((mask + 1 - s) + e);
-    return delta * ns_per_tick;
-}
-
 void barrier(ze_command_list_handle_t list) {
     OV_ZE_EXPECT(ze_api()->zeCommandListAppendBarrier(list, nullptr, 0, nullptr));
 }
@@ -143,6 +125,59 @@ std::string csv_quoted(const std::string& field) {
             out += '"';
     }
     return out + "\"";
+}
+
+// Device statistics of a finished splice whose event still holds its timestamps.
+void sample_device_time(cldnn::ze::tp::GroupState& group,
+                        const cldnn::ze::tp::Splice& splice,
+                        uint32_t rank,
+                        uint64_t collective_id,
+                        const std::string& name) {
+    ze_kernel_timestamp_result_t kt{};
+    if (ze_api()->zeEventQueryKernelTimestamp(splice.done, &kt) != ZE_RESULT_SUCCESS) {
+        return;
+    }
+    auto& st = group.stats();
+    const uint64_t mask = group.timestamp_mask(rank);
+    const uint64_t tick = group.timer_ns_per_tick(rank);
+    const uint64_t ns = ticks_to_ns(kt.global.kernelStart, kt.global.kernelEnd, mask, tick);
+    st.p2_dev_ns[rank].add(ns);
+    if (ns > st.p2_dev_max_ns[rank].get()) {
+        st.p2_dev_max_ns[rank].keep_max(ns);
+        st.p2_dev_max_cid[rank].v.store(collective_id, std::memory_order_relaxed);
+    }
+    st.p2_dev_count[rank].bump();
+
+    // Powers of two in microseconds, clamped into the end buckets.
+    const uint64_t us = ns / 1000u;
+    uint32_t bucket = 0;
+    for (uint64_t v = us; v > 1 && bucket < cldnn::ze::tp::CollectiveStats::kDevBuckets - 1; v >>= 1) {
+        ++bucket;
+    }
+    st.p2_dev_hist[std::size_t{rank} * cldnn::ze::tp::CollectiveStats::kDevBuckets + bucket].bump();
+
+    // Device time between the previous collective and this one: the model's
+    // own work. A window starting before the previous one ended means
+    // out-of-order readings or a wrap; skipped.
+    const uint64_t prev_end = st.dev_last_end_ticks[rank] & mask;
+    const uint64_t cur_start = kt.global.kernelStart & mask;
+    std::string gap_us;
+    if (st.dev_has_last[rank] && cur_start >= prev_end) {
+        st.dev_gap_ns[rank].add((cur_start - prev_end) * tick);
+        st.dev_gap_count[rank].bump();
+        gap_us = std::to_string(static_cast<double>((cur_start - prev_end) * tick) / 1.0e3);
+    }
+    st.dev_last_end_ticks[rank] = kt.global.kernelEnd;
+    st.dev_has_last[rank] = 1;
+    st.dev_bytes[rank].add(splice.bytes);
+    st.dev_call_min.keep_min(splice.call);
+    st.dev_call_max.keep_max(splice.call);
+    if (group.profiling_csv()) {
+        std::ostringstream row;
+        row << "device," << rank << "," << collective_id << "," << csv_quoted(name) << "," << splice.call << ",,"
+            << splice.bytes << ",,,," << static_cast<double>(ns) / 1.0e3 << "," << gap_us;
+        group.write_csv_row(row.str());
+    }
 }
 
 }  // namespace
@@ -640,19 +675,7 @@ void TPAllReduceRecorder::run(const cldnn::ze::tp::Channel& channel,
 
     // Whoever fails leaves the rest of the group waiting for something that
     // will never arrive.
-    struct AbortOnFailure {
-        cldnn::ze::tp::GroupState& group;
-        uint64_t collective_id;
-        const std::string& name;
-        uint32_t rank;
-        bool armed{true};
-        ~AbortOnFailure() {
-            if (armed) {
-                group.abort_all("[TP][L0] rank " + std::to_string(rank) + " failed while running collective " +
-                                std::to_string(collective_id) + " (" + name + ")");
-            }
-        }
-    } abort_guard{group, collective_id, name, rank};
+    AbortOnFailure abort_guard{group, collective_id, name, rank, "running"};
 
     Signature sig;
     sig.valid = true;
@@ -698,72 +721,20 @@ void TPAllReduceRecorder::run(const cldnn::ze::tp::Channel& channel,
         if (splice.in_flight.load(std::memory_order_acquire)) {
             OV_ITT_SCOPED_TASK_BASE(ov::intel_gpu::itt::domains::tp_collective, "tp_allreduce_wait_previous_splice");
             const auto w0 = stamp();
-            ze_result_t res = ze_api()->zeEventQueryStatus(splice.done);
-            if (res == ZE_RESULT_NOT_READY) {
-                if (measure_host) {
-                    st.p2_block_count[rank].bump();
-                }
-                res = ze_api()->zeEventHostSynchronize(splice.done, group.timeout_ns());
-                if (res == ZE_RESULT_NOT_READY) {
-                    group.fail_collective(true, collective_id, rank, "previous splice of this recording");
-                }
-            }
-            OV_ZE_EXPECT(res);
+            bool blocked = false;
+            group.wait_splice(splice, rank, collective_id, &blocked);
             const auto w1 = stamp();
             if (measure_dev) {
                 // The event still holds the timestamps of the splice that just
-                // finished; the reset below clears them.
-                ze_kernel_timestamp_result_t kt{};
-                if (ze_api()->zeEventQueryKernelTimestamp(splice.done, &kt) == ZE_RESULT_SUCCESS) {
-                    const uint64_t mask = group.timestamp_mask(rank);
-                    const uint64_t tick = group.timer_ns_per_tick(rank);
-                    const uint64_t ns = ticks_to_ns(kt.global.kernelStart, kt.global.kernelEnd, mask, tick);
-                    st.p2_dev_ns[rank].add(ns);
-                    if (ns > st.p2_dev_max_ns[rank].get()) {
-                        st.p2_dev_max_ns[rank].keep_max(ns);
-                        st.p2_dev_max_cid[rank].v.store(collective_id, std::memory_order_relaxed);
-                    }
-                    st.p2_dev_count[rank].bump();
-
-                    // Powers of two in microseconds, clamped into the end buckets.
-                    const uint64_t us = ns / 1000u;
-                    uint32_t bucket = 0;
-                    for (uint64_t v = us; v > 1 && bucket < cldnn::ze::tp::CollectiveStats::kDevBuckets - 1;
-                         v >>= 1) {
-                        ++bucket;
-                    }
-                    st.p2_dev_hist[std::size_t{rank} * cldnn::ze::tp::CollectiveStats::kDevBuckets + bucket].bump();
-
-                    // Device time between the previous collective and this one:
-                    // the model's own work. A window starting before the previous
-                    // one ended means out-of-order readings or a wrap; skipped.
-                    const uint64_t prev_end = st.dev_last_end_ticks[rank] & mask;
-                    const uint64_t cur_start = kt.global.kernelStart & mask;
-                    std::string gap_us;
-                    if (st.dev_has_last[rank] && cur_start >= prev_end) {
-                        st.dev_gap_ns[rank].add((cur_start - prev_end) * tick);
-                        st.dev_gap_count[rank].bump();
-                        gap_us = std::to_string(static_cast<double>((cur_start - prev_end) * tick) / 1.0e3);
-                    }
-                    st.dev_last_end_ticks[rank] = kt.global.kernelEnd;
-                    st.dev_has_last[rank] = 1;
-                    st.dev_bytes[rank].add(splice.bytes);
-                    st.dev_call_min.keep_min(splice.call);
-                    st.dev_call_max.keep_max(splice.call);
-                    if (group.profiling_csv()) {
-                        std::ostringstream row;
-                        row << "device," << rank << "," << collective_id << "," << csv_quoted(name) << ","
-                            << splice.call << ",," << splice.bytes
-                            << ",,,," << static_cast<double>(ns) / 1.0e3 << "," << gap_us;
-                        group.write_csv_row(row.str());
-                    }
-                }
+                // finished; the release below clears them.
+                sample_device_time(group, splice, rank, collective_id, name);
             }
-            OV_ZE_EXPECT(ze_api()->zeEventHostReset(splice.done));
-            splice.in_flight.store(0, std::memory_order_release);
+            group.release_splice(splice, rank);
             if (measure_host) {
-                st.ahead_now[rank].v.fetch_sub(1, std::memory_order_relaxed);
                 const auto w2 = clk::now();
+                if (blocked) {
+                    st.p2_block_count[rank].bump();
+                }
                 st.p2_wait_ns[rank].add(elapsed_ns(w0, w1));
                 st.p2_reset_ns[rank].add(elapsed_ns(w1, w2));
                 st.p2_wait_count[rank].bump();

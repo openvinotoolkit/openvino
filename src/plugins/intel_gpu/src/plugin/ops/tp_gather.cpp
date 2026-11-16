@@ -8,6 +8,7 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/primitives/tp_gather.hpp"
 
+#include "openvino/core/validation_util.hpp"
 #include "ov_ops/tp_collective.hpp"
 
 namespace ov::intel_gpu {
@@ -23,7 +24,7 @@ static void CreateTPGatherOp(ProgramBuilder& p,
     // Counted from the front: static layouts are padded to 4D at the back, where -1 would land on a padding axis.
     const auto input_rank = op->get_input_partial_shape(0).rank();
     OPENVINO_ASSERT(input_rank.is_static(), "TPGather ", op->get_friendly_name(), ": the input rank must be static");
-    const int64_t axis = op->get_axis() < 0 ? op->get_axis() + input_rank.get_length() : op->get_axis();
+    const auto axis = static_cast<int64_t>(ov::util::try_normalize_axis(op->get_axis(), input_rank, *op));
 
     auto prim = cldnn::tp_gather(layerName,
                                  inputs[0],
