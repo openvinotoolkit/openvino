@@ -433,7 +433,15 @@ void* gpu_usm::buffer_ptr() const {
 
 event::ptr gpu_usm::fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events, bool blocking) {
     if (_bytes_count == 0) {
-        return create_event(stream, _bytes_count);
+        if (dep_events.empty()) {
+            return create_event(stream, _bytes_count);
+        }
+        // Nothing to fill, but the returned event must still complete after dep_events like a real fill
+        auto ev = stream.enqueue_marker(dep_events);
+        if (blocking) {
+            ev->wait();
+        }
+        return ev;
     }
 
     auto& _ze_stream = downcast<ze_stream>(stream);

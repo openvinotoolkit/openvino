@@ -78,9 +78,6 @@ static void run_zero_size_remote_tensor_input(ov::intel_gpu::TensorType tensor_t
     OV_ASSERT_NO_THROW(net.set_input_data("input0", input_mem));
     ASSERT_EQ(net.get_primitive("input0")->output_memory().get_layout().get_partial_shape(), ov::PartialShape(zero_shape));
 
-    if (port_shape.is_static())
-        return;
-
     // Remote memory must keep the zero dim, otherwise shape inference sees a non-empty input
     auto outputs = net.execute();
     auto output_mem = outputs.at("output").get_memory();
