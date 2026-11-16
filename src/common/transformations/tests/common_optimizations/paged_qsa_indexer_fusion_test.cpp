@@ -26,9 +26,12 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/paged_qsa_indexer.hpp"
 #include "openvino/op/qsa_indexer.hpp"
+#include "openvino/op/qsa_prepare.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/sparse_attention_indexer.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -359,6 +362,83 @@ TEST_P(PagedQSAIndexerFusionNotConvertedTest, KeepsQSAIndexer) {
 INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
                          PagedQSAIndexerFusionNotConvertedTest,
                          testing::Values(GraphOptions{true, false, false}));
+
+TEST(PagedQSAIndexerFusion, SDPAToPagedAttentionConvertsStatefulQSAPrepareAndIndexer) {
+    ParameterVector params{make_named_param("input_ids", element::i64, PartialShape{-1, -1}),
+                           make_named_param("beam_idx", element::i32, PartialShape{-1})};
+    const auto param = [&params](element::Type type, const PartialShape& shape) {
+        params.push_back(std::make_shared<v0::Parameter>(type, shape));
+        return params.back();
+    };
+    // SDPAToPagedAttention requires an SDPA in the model.
+    const auto sdpa_input = param(element::f32, PartialShape{-1, query_heads, -1, head_size});
+    const auto sdpa =
+        std::make_shared<ov::op::v13::ScaledDotProductAttention>(sdpa_input, sdpa_input, sdpa_input, false);
+
+    const auto query = param(element::f32, PartialShape{-1, query_heads, -1, head_size});
+    const auto raw_keys = param(element::f32, PartialShape{-1, -1, head_size});
+    const auto key_length = param(element::i32, PartialShape{-1});
+    const auto rope_cos = param(element::f32, PartialShape{-1, -1, rotary_dim});
+    const auto rope_sin = param(element::f32, PartialShape{-1, -1, rotary_dim});
+    const auto k_norm_weight = v0::Constant::create(element::f32, Shape{head_size}, {0.5f});
+
+    std::vector<std::shared_ptr<op::util::Variable>> variables;
+    const auto read_state = [&](const std::string& id, const PartialShape& shape) {
+        variables.push_back(std::make_shared<op::util::Variable>(op::util::VariableInfo{shape, element::f32, id}));
+        return std::make_shared<v8::Gather>(std::make_shared<v6::ReadValue>(variables.back()),
+                                            params[1],
+                                            v0::Constant::create(element::i64, Shape{}, {0}));
+    };
+    const auto past_block_keys = read_state("block_keys", PartialShape{-1, -1, head_size});
+    const auto incomplete_raw_keys = read_state("incomplete_raw_keys", {-1, key_block_size - 1, head_size});
+    const auto incomplete_rope = read_state("incomplete_rope", {-1, 2 * rotary_dim});
+    const auto prepare = std::make_shared<ov::op::v17::QSAPrepare>(raw_keys,
+                                                                   past_block_keys,
+                                                                   key_length,
+                                                                   rope_cos,
+                                                                   rope_sin,
+                                                                   k_norm_weight,
+                                                                   incomplete_raw_keys,
+                                                                   incomplete_rope,
+                                                                   key_block_size,
+                                                                   epsilon);
+    const auto indexer = std::make_shared<ov::op::v17::SparseAttentionIndexer>(query,
+                                                                               prepare->output(0),
+                                                                               key_length,
+                                                                               key_block_size,
+                                                                               block_topk * key_block_size,
+                                                                               selection_heads);
+    SinkVector sinks;
+    for (size_t i = 0; i < variables.size(); ++i) {
+        sinks.push_back(std::make_shared<v6::Assign>(prepare->output(i), variables[i]));
+    }
+    const auto model = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(sdpa),
+                                                            std::make_shared<v0::Result>(indexer->output(0)),
+                                                            std::make_shared<v0::Result>(indexer->output(1))},
+                                               sinks,
+                                               params);
+
+    pass::Manager manager;
+    manager.register_pass<pass::SDPAToPagedAttention>();
+    manager.run_passes(model);
+
+    size_t paged_indexers = 0;
+    for (const auto& node : model->get_ops()) {
+        EXPECT_FALSE(
+            (ov::is_type_any_of<ov::op::v17::QSAPrepare, ov::op::v17::SparseAttentionIndexer, op_internal::QSAIndexer>(
+                node)))
+            << node;
+        paged_indexers += ov::is_type<op_internal::PagedQSAIndexer>(node);
+    }
+    EXPECT_EQ(paged_indexers, 1);
+    EXPECT_TRUE(model->get_sinks().empty());
+    const auto& model_params = model->get_parameters();
+    for (const auto& name : {"index_key_cache.0", "index_block_rope_cache.0", "block_index_keys_cache.0"}) {
+        EXPECT_TRUE(std::any_of(model_params.begin(), model_params.end(), [&name](const auto& p) {
+            return p->get_output_tensor(0).get_names().count(name) > 0;
+        })) << name;
+    }
+}
 
 std::shared_ptr<Model> make_model_with_modified_indexer(const std::string& name) {
     const auto model = make_model(GraphOptions{}, false);
