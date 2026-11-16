@@ -52,6 +52,7 @@ Const::Const(const std::shared_ptr<ov::op::v0::Constant>& n) : m_node(n) {
 
 std::size_t Const::hash() const {
     std::size_t seed = std::hash<const void*>()(m_cached_ptr) + 0x9e3779b9;
+    seed ^= std::hash<std::size_t>()(m_offset) + 0x9e3779b9;
     seed ^= m_cached_type.hash() + 0x9e3779b9;
     for (const auto& dim : m_cached_shape) {
         seed ^= std::hash<std::size_t>()(dim) + 0x9e3779b9;
@@ -59,9 +60,11 @@ std::size_t Const::hash() const {
     return seed;
 }
 
+// The data pointer alone is not an identity: the bank frees evaluated constants, so a constant created for another
+// model (e.g. a converted copy) can reuse the address. The weights file offset tells such constants apart.
 bool Const::operator==(const Const& other) const {
     return (m_cached_type == other.m_cached_type && m_cached_shape == other.m_cached_shape &&
-            m_cached_ptr == other.m_cached_ptr);
+            m_cached_ptr == other.m_cached_ptr && m_offset == other.m_offset);
 }
 
 void Const::validate_weight_range(std::size_t weights_size) const {
