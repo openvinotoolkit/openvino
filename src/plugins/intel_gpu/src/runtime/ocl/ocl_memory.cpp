@@ -84,7 +84,9 @@ void gpu_buffer::unlock(const stream& stream) {
     _lock_count--;
     if (0 == _lock_count) {
         try {
-            cl_stream.get_cl_queue().enqueueUnmapMemObject(_buffer, _mapped_ptr);
+            cl::Event ev;
+            cl_stream.get_cl_queue().enqueueUnmapMemObject(_buffer, _mapped_ptr, nullptr, &ev);
+            ev.wait();
         } catch (cl::Error const& err) {
             OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
         }
@@ -367,7 +369,9 @@ void gpu_image2d::unlock(const stream& stream) {
     _lock_count--;
     if (0 == _lock_count) {
         try {
-            cl_stream.get_cl_queue().enqueueUnmapMemObject(_buffer, _mapped_ptr);
+            cl::Event ev;
+            cl_stream.get_cl_queue().enqueueUnmapMemObject(_buffer, _mapped_ptr, nullptr, &ev);
+            ev.wait();
         } catch (cl::Error const& err) {
             OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
         }
