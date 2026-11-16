@@ -4,14 +4,65 @@
 
 #include "openvino/core/weights_prefetch.hpp"
 
+#include <algorithm>
+#include <exception>
+#include <tuple>
 #include <utility>
 
+#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 
 namespace ov::util {
+
+SequentialPrefetchScheduler::SequentialPrefetchScheduler(const ov::Tensor& tensor, size_t window, size_t step)
+    : m_tensor(tensor),
+      m_size(m_tensor.get_byte_size()),
+      m_window(window),
+      m_step(std::max<size_t>(step, 1)),
+      m_prefetched(0),
+      m_evicted(0),
+      m_evict(true) {
+    // Chunks are cut with a byte ROI, which needs a 1D u8 tensor.
+    const bool is_1d_byte_tensor = m_tensor.get_element_type() == ov::element::u8 && m_tensor.get_shape().size() == 1;
+    OPENVINO_ASSERT(is_1d_byte_tensor, "Prefetch tensor must be 1D u8");
+    advance(0, 0);
+}
+
+std::shared_ptr<IMemoryHints> SequentialPrefetchScheduler::chunk_hints(size_t begin, size_t end) const noexcept {
+    try {
+        return ov::get_memory_hints(ov::Tensor{m_tensor, ov::Coordinate{begin}, ov::Coordinate{end}});
+    } catch (const std::exception&) {
+        return {};
+    }
+}
+
+void SequentialPrefetchScheduler::advance(size_t begin, size_t end) noexcept {
+    begin = std::min(begin, m_size);
+    end = std::min(std::max(begin, end), m_size);
+    if (m_evict) {
+        // Whole steps only, the read position may be in the middle of a page.
+        const auto evict_end = begin == m_size ? m_size : begin / m_step * m_step;
+        if (evict_end > m_evicted) {
+            if (const auto hints = chunk_hints(m_evicted, evict_end)) {
+                hints->hint_evict();
+            }
+            m_evicted = evict_end;
+        }
+    }
+    m_prefetched = std::max(m_prefetched, begin);
+    const auto target = std::min(end + m_window, m_size);
+    while (m_prefetched < target) {
+        const auto chunk_end = std::min(m_prefetched + m_step, m_size);
+        if (const auto hints = chunk_hints(m_prefetched, chunk_end)) {
+            std::ignore = hints->hint_prefetch();
+        }
+        m_prefetched = chunk_end;
+    }
+}
 
 OrderedPrefetchScheduler::OrderedPrefetchScheduler(const std::vector<std::shared_ptr<ov::Node>>& ops,
                                                    size_t lookahead,

@@ -7,11 +7,13 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <limits>
 #include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "gqa_compiled_model.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "llm_test_helpers.hpp"
@@ -40,6 +42,18 @@ namespace {
 using ov::test::npuw::build_llm_test_model;
 using ov::test::npuw::MockSubCompiledModel;
 using ov::test::npuw::NullPlugin;
+
+std::string make_gqa_header(const std::size_t claimed_version_size, const std::string& version) {
+    std::ostringstream stream;
+    ov::npuw::s11n::write(stream, NPUW_SERIALIZATION_INDICATOR);
+    ov::npuw::s11n::write(stream, NPUW_GQA_COMPILED_MODEL_INDICATOR);
+    ov::npuw::s11n::write(stream, OPENVINO_VERSION_MAJOR);
+    ov::npuw::s11n::write(stream, OPENVINO_VERSION_MINOR);
+    ov::npuw::s11n::write(stream, OPENVINO_VERSION_PATCH);
+    ov::npuw::s11n::write(stream, claimed_version_size);
+    stream.write(version.data(), static_cast<std::streamsize>(version.size()));
+    return stream.str();
+}
 
 template <class Op>
 std::size_t count_ops(const std::shared_ptr<ov::Model>& model) {
@@ -2257,6 +2271,44 @@ TEST(GQACompiledModelPresentToPastParamNamesTest, MapsDotStyleNamesNotMatchingSu
     ASSERT_EQ(map.count("present.0.value"), 1u);
     EXPECT_EQ(map.at("present.0.key"), "past_key_values.0.key");
     EXPECT_EQ(map.at("present.0.value"), "past_key_values.0.value");
+}
+
+TEST_F(GQACompiledModelTest, ImportRejectsExcessiveSerializationVersionLengthBeforeAllocation) {
+    const auto header = make_gqa_header(std::numeric_limits<std::size_t>::max(), NPUW_SERIALIZATION_VERSION);
+    std::istringstream stream(header);
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "the maximum is 64");
+}
+
+TEST_F(GQACompiledModelTest, ImportRejectsSerializationVersionLongerThanCap) {
+    const std::string version(65u, 'x');
+    const auto header = make_gqa_header(version.size(), version);
+    std::istringstream stream(header);
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "serialization version string is 65 bytes, the maximum is 64");
+}
+
+TEST_F(GQACompiledModelTest, ImportReportsVersionMismatchForVersionAtCap) {
+    const std::string version(64u, 'x');
+    const auto header = make_gqa_header(version.size(), version);
+    std::istringstream stream(header);
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "NPUW serialized by version " + version);
+}
+
+TEST_F(GQACompiledModelTest, ImportReportsVersionMismatchForDifferentVersionLength) {
+    const auto header = make_gqa_header(3u, "0.3");
+    std::istringstream stream(header);
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "NPUW serialized by version 0.3");
 }
 
 }  // namespace

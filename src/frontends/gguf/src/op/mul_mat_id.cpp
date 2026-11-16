@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 
+#include "helper_ops/gguf_constant.hpp"
 #include "node_context.hpp"
 #include "op_table.hpp"
 #include "openvino/op/bitwise_and.hpp"
@@ -357,7 +358,7 @@ OutputVector translate_mul_mat_id(const NodeContext& context) {
     if (expert_weights.get_element_type() == ov::element::u8 && expert_weights.get_partial_shape().rank().is_static() &&
         expert_weights.get_partial_shape().rank().get_length() == 5) {
         result = translate_mul_mat_id_mxfp4_packed(expert_weights, activations, safe_ids);
-    } else if (ov::op::util::is_on_path<ov::op::v0::Constant>(expert_weights)) {
+    } else if (ov::op::util::is_on_path<ov::op::v0::Constant, GGUFConstant>(expert_weights)) {
         result = translate_mul_mat_id_gathermatmul(expert_weights, activations, safe_ids);
     } else {
         result = translate_mul_mat_id_generic(expert_weights, activations, safe_ids);

@@ -258,7 +258,9 @@ protected:
         abs_threshold = 1e-3;
         rel_threshold = 0.025;
         const ov::test::MoePatternParams moe_params{{-1, -1, 256}, 4, 8, 512};
-        init_input_shapes({{moe_params.data_shape, {{1, 40, 256}}}});
+        // Prefill, then decode steps on the batched GEMV, which falls back to the per-expert loop when the LRU holds
+        // fewer experts than top_k
+        init_input_shapes({{moe_params.data_shape, {{1, 40, 256}, {1, 1, 256}, {1, 4, 256}}}});
         function = ov::test::initMoE3GeMMSubgraph(moe_params,
                                                   ov::element::f16,
                                                   wp,
@@ -314,10 +316,11 @@ TEST_P(MoECompressedOffloadTest, Inference) {
     run();
 }
 
+// OFFLOAD_RATIO 50 keeps 4 of the 8 experts resident (= top_k), 75 keeps 2, so every step falls back.
 // A scalar zero point is supported for u3 weights only. Per-group u3 zero points are not supported (see skip_tests_config.cpp).
 INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedOffload_u3,
                          MoECompressedOffloadTest,
-                         ::testing::Combine(::testing::Values(size_t{50}),
+                         ::testing::Combine(::testing::Values(size_t{50}, size_t{75}),
                                             ::testing::Values(ov::element::u3),
                                             ::testing::Values(ov::test::utils::DecompressionType::full,
                                                               ov::test::utils::DecompressionType::scalar,
@@ -326,7 +329,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedOffload_u3,
 
 INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedOffload,
                          MoECompressedOffloadTest,
-                         ::testing::Combine(::testing::Values(size_t{50}),
+                         ::testing::Combine(::testing::Values(size_t{50}, size_t{75}),
                                             ::testing::Values(ov::element::u8, ov::element::u4),
                                             ::testing::Values(ov::test::utils::DecompressionType::full, ov::test::utils::DecompressionType::empty)),
                          MoECompressedOffloadTest::getTestCaseName);
@@ -456,7 +459,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedFusion,
                                             ::testing::Values(true)),   // use_weight_decompression
                          MoECompressedFusionTest::getTestCaseName);
 
-// u3 has no batched GEMV kernel: decode (<= 32 tokens) and prefill both run OneDNN grouped GEMM.
+// hidden_size 256 is too short for the u3 batched GEMV, so decode falls back to the grouped GEMM there;
+// hidden_size 2048 runs the batched GEMV for decode (up to GPU_MOE_BATCHED_GEMV_THRESHOLD tokens, by default 2 to 16
+// depending on the GPU).
 // Scalar zp is the NNCF int3 layout (symmetric u3 with zp = 4 for all experts).
 const std::vector<MoeTestShapeParams> moe_params_smoke_u3 = {
     {
@@ -466,10 +471,10 @@ const std::vector<MoeTestShapeParams> moe_params_smoke_u3 = {
         512                                                                       // intermediate_size
     },
     {
-        {{-1, -1, 2048}, {{1, 4, 2048}, {1, 1, 2048}}},  // prefill + decode
-        4,                                               // topk
-        8,                                               // number_of_experts
-        512                                              // intermediate_size
+        {{-1, -1, 2048}, {{1, 40, 2048}, {1, 1, 2048}, {1, 4, 2048}}},  // prefill + decode
+        4,                                                              // topk
+        8,                                                              // number_of_experts
+        512                                                             // intermediate_size
     },
 };
 
@@ -609,6 +614,28 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmGeluCompressed,
                                             ::testing::Values(true, false),  // use_per_expert_scale
                                             ::testing::Values(true, false),  // use_layernorm_multiply
                                             ::testing::Values(true)),        // use_weight_decompression
+                         MoECompressedFusionTest::getTestCaseName);
+
+// Gelu gate on u3: applied by the batched GEMV (decode) and by OneDNN (prefill).
+INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmGeluCompressed_u3,
+                         MoECompressedFusionTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_smoke_u3),
+                                            ::testing::Values(MoePatternType::GEMM3),
+                                            ::testing::Values(MoERoutingType::SOFTMAX),
+                                            ::testing::Values(ov::element::u3),   // weights_precision
+                                            ::testing::Values(ov::element::f16),  // decompression_precision
+                                            ::testing::Values(ov::element::f16),  // scale_precision
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full,
+                                                              ov::test::utils::DecompressionType::scalar),
+                                            ::testing::Values(true),  // reshape_on_decompression
+                                            ::testing::Values(128),
+                                            ::testing::Values(size_t{0}),  // gate_idx unused for GEMM3
+                                            ::testing::Values(false),      // force_gather_matmul
+                                            ::testing::Values(MoEActivationType::GELU, MoEActivationType::GELU_ERF),
+                                            ::testing::Values(false),  // use_per_expert_scale
+                                            ::testing::Values(false),  // use_layernorm_multiply
+                                            ::testing::Values(true)),  // use_weight_decompression
                          MoECompressedFusionTest::getTestCaseName);
 
 // Uncompressed (FP16) experts: dense Tile/MatMul ops run natively
