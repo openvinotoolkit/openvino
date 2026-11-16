@@ -32,7 +32,11 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/profiling.hpp"
 #include "runtime/ocl/offline_engine.hpp"
+#ifdef OV_GPU_WITH_ZE_RT
+#include "runtime/ze/ze_device.hpp"
+#else
 #include "runtime/ocl/ocl_device.hpp"
+#endif
 #include "openvino/core/any.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/weights_prefetch.hpp"
@@ -757,10 +761,18 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
 #ifdef ENABLE_ONEDNN_FOR_GPU
         if (device_info.supports_immad) {
             device->initialize();
+#ifdef OV_GPU_WITH_ZE_RT
+            auto* ze_dev = dynamic_cast<cldnn::ze::ze_device*>(device.get());
+            OPENVINO_ASSERT(ze_dev, "[GPU] Device descriptor export expects a ze_device");
+            auto engine = dnnl::ze_interop::make_engine(ze_dev->get_driver().handle(), ze_dev->get_device().handle(),
+                                                        ze_dev->get_context().handle());
+            onednn_device_info = dnnl::ze_interop::get_engine_cache_blob(engine);
+#else
             auto* ocl_dev = dynamic_cast<cldnn::ocl::ocl_device*>(device.get());
             OPENVINO_ASSERT(ocl_dev, "[GPU] Device descriptor export expects an ocl_device");
             auto engine = dnnl::ocl_interop::make_engine(ocl_dev->get_device().get(), ocl_dev->get_context().get());
             onednn_device_info = dnnl::ocl_interop::get_engine_cache_blob(engine);
+#endif
             onednn_version = cldnn::ocl::onednn_fingerprint();
         }
 #endif

@@ -13,7 +13,11 @@
 #include "openvino/core/except.hpp"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ZE_RT
+#include <oneapi/dnnl/dnnl_ze.hpp>
+#else
 #include <oneapi/dnnl/dnnl_ocl.hpp>
+#endif
 #endif
 
 #include <memory>
@@ -93,7 +97,11 @@ public:
         OPENVINO_ASSERT(!onednn_device_info.empty(),
                         "[GPU offline] the device descriptor carries no oneDNN device data. Re-export it "
                         "from a machine with the target GPU using a build that has oneDNN enabled.");
+#ifdef OV_GPU_WITH_ZE_RT
+        _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ze_interop::make_deviceless_engine(onednn_device_info));
+#else
         _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ocl_interop::make_deviceless_engine(onednn_device_info));
+#endif
     }
 #endif
 };
