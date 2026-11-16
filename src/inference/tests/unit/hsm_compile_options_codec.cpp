@@ -31,6 +31,7 @@
 #include "openvino/runtime/hsm_writer.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/hash_util.hpp"
+#include "openvino/util/memory.hpp"
 
 namespace ov::test {
 namespace hsm = ov::runtime::hsm;
@@ -57,7 +58,7 @@ static_assert(std::is_same_v<decltype(std::declval<hsm::IWriter&>().add_section(
               "CompileOptionsEncoder must fit the unsized IWriter::add_section(SectionEncoderPtr).");
 
 constexpr hsm::DeviceId fake_device_id = hsm::private_device_id_range_start + 42;
-constexpr size_t chunk_size = 4096;
+constexpr size_t chunk_size = ov::util::min_page_alignment;
 
 // Separators, spelled out here on purpose - the codec's own constants are not visible to the tests.
 const std::string US{"\x1f"};

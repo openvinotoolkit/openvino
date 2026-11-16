@@ -39,7 +39,7 @@ constexpr uint64_t hash_step(uint64_t hash, char byte) noexcept {
 // Sends every piece to the sink and folds it into the digest that closes the payload.
 class Emitter {
 public:
-    explicit Emitter(const SectionSink& sink) noexcept : m_sink{sink} {}
+    explicit Emitter(const SectionSink& sink) noexcept : m_sink{sink}, m_hash{0} {}
 
     void put(std::string_view bytes) {
         if (!bytes.empty()) {
@@ -61,7 +61,7 @@ public:
 
 private:
     const SectionSink& m_sink;
-    uint64_t m_hash = 0;
+    uint64_t m_hash;
 };
 
 void check_text(std::string_view what, std::string_view text, std::string_view key) {
@@ -85,8 +85,7 @@ bool set_precision(std::ostream& os, const ov::Any& value) {
 std::string to_option_string(const ov::Any& value) {
     std::ostringstream os;
     os.imbue(std::locale::classic());
-    (void)(set_precision<float>(os, value) || set_precision<double>(os, value) ||
-           set_precision<long double>(os, value));
+    (set_precision<float>(os, value) || set_precision<double>(os, value) || set_precision<long double>(os, value));
     value.print(os);
     return os.str();
 }
@@ -260,21 +259,31 @@ private:
     std::vector<Level> m_levels;
 };
 
-constexpr size_t chunk_size = 4096;
+constexpr size_t chunk_size = ov::util::min_page_alignment;
 
 std::optional<ov::AnyMap> decode(const Section& section) {
     const auto size = section.size();
+    if (size == 0) {
+        return std::nullopt;
+    }
+
     std::array<std::byte, chunk_size> chunk;
     Parser parser;
     uint64_t hash = 0;
 
+    const auto view = section.view();
+    ov::util::MemoryView block = view;
     for (size_t offset = 0; offset < size;) {
-        const auto count = std::min(chunk.size(), size - offset);
-        if (!section.read(offset, count, chunk.data())) {
-            return std::nullopt;
+        if (view.empty()) {  // No addressable memory (stream-backed): copy the next chunk.
+            const auto count = std::min(chunk.size(), size - offset);
+            if (!section.read(offset, count, chunk.data())) {
+                return std::nullopt;
+            }
+            block = {chunk.data(), count};
         }
-        for (size_t i = 0; i < count; ++i) {
-            const auto byte = static_cast<char>(chunk[i]);
+
+        for (size_t i = 0; i < block.size(); ++i) {
+            const auto byte = static_cast<char>(block.data()[i]);
             hash = hash_step(hash, byte);
             switch (parser.consume(byte)) {
             case Status::more:
@@ -290,7 +299,7 @@ std::optional<ov::AnyMap> decode(const Section& section) {
             }
             }
         }
-        offset += count;
+        offset += block.size();
     }
     return std::nullopt;
 }
@@ -299,7 +308,7 @@ std::optional<ov::AnyMap> decode(const Section& section) {
 
 void CompileOptionsEncoder::encode(const SectionSink& sink) const {
     Emitter out{sink};
-    write_entries(out, m_options);
+    write_entries(out, m_options.get());
     out.finish();
 }
 

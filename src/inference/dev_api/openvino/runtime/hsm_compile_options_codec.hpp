@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include <functional>
 #include <optional>
 
 #include "openvino/core/any.hpp"
@@ -65,7 +66,7 @@ public:
     void encode(const SectionSink& sink) const override;
 
 private:
-    const ov::AnyMap& m_options;
+    std::reference_wrapper<const ov::AnyMap> m_options;
 };
 
 /**
