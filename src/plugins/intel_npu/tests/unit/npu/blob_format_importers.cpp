@@ -192,4 +192,3 @@ TEST_F(BlobFormatImportersTest, MainScheduleRejectsInitWeightsDescriptors) {
     metadata.outputs.push_back(std::move(init_output));
     OV_EXPECT_THROW_HAS_SUBSTRING(validate_main_schedule_descriptors(metadata), ov::Exception, "init_output");
 }
-

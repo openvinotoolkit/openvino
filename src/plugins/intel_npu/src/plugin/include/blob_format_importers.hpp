@@ -148,6 +148,6 @@ namespace blob_format_importer_utils {
  */
 void validate_main_schedule_descriptors(const NetworkMetadata& metadata);
 
-} // namespace blob_format_importer_utils
+}  // namespace blob_format_importer_utils
 
 }  // namespace intel_npu

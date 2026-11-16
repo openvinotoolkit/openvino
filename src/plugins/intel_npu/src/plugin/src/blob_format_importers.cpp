@@ -499,19 +499,19 @@ std::unique_ptr<IBlobFormatImporter> create(BlobSource& npu_formatted_blob,
 }  // namespace blob_format_importer_factory
 namespace blob_format_importer_utils {
 
-    void validate_main_schedule_descriptors(const NetworkMetadata& metadata) {
-        auto check_descriptors = [](const std::vector<IODescriptor>& descriptors) {
-            for (const IODescriptor& descriptor : descriptors) {
-                OPENVINO_ASSERT(!descriptor.isInitInputWeights && !descriptor.isInitOutputWeights,
-                                "The I/O descriptor \"",
-                                descriptor.nameFromCompiler,
-                                "\" of the main schedule is marked as an init schedule weights descriptor");
-            }
-        };
+void validate_main_schedule_descriptors(const NetworkMetadata& metadata) {
+    auto check_descriptors = [](const std::vector<IODescriptor>& descriptors) {
+        for (const IODescriptor& descriptor : descriptors) {
+            OPENVINO_ASSERT(!descriptor.isInitInputWeights && !descriptor.isInitOutputWeights,
+                            "The I/O descriptor \"",
+                            descriptor.nameFromCompiler,
+                            "\" of the main schedule is marked as an init schedule weights descriptor");
+        }
+    };
 
-        check_descriptors(metadata.inputs);
-        check_descriptors(metadata.outputs);
-    }
+    check_descriptors(metadata.inputs);
+    check_descriptors(metadata.outputs);
+}
 
 }  // namespace blob_format_importer_utils
 
