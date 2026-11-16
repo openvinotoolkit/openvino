@@ -40,6 +40,7 @@
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
+#include "openvino/op/ngram_hash_function.hpp"
 #include "openvino/op/nms_rotated.hpp"
 #include "openvino/op/non_max_suppression.hpp"
 #include "openvino/op/normalize_l2.hpp"
@@ -226,6 +227,7 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     std::make_shared<ov::OpExtension<ov::op::internal::GatedResidual>>(),
     std::make_shared<ov::OpExtension<ov::op::internal::PagedQSAIndexer>>(),
     std::make_shared<ov::OpExtension<ov::op::internal::PagedSparseAttention>>(),
+    std::make_shared<ov::OpExtension<ov::op::internal::NGramHashFunction>>(),
     // clang-format off
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::InteractionNode>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::LLMMLPNode>>())
