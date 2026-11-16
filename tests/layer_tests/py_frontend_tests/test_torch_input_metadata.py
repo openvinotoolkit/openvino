@@ -101,6 +101,22 @@ def test_torchscript_function_example_matches_graph_input(dtype):
     np.testing.assert_array_equal(next(iter(compiled([timestep.numpy()]).values())), np.array([7], dtype=np.int32))
 
 
+@pytest.mark.parametrize("script_module", [False, True])
+def test_default_keeps_scripted_models_dynamic(script_module):
+    class Model(torch.nn.Module):
+        def forward(self, x):
+            return x.relu()
+
+    example = torch.ones(2, 4)
+    scripted = torch.jit.trace(Model(), example) if script_module else torch.jit.trace(lambda x: x.relu(), example)
+    converted = ov.convert_model(scripted, example_input=example)
+
+    assert converted.input().get_partial_shape() == ov.PartialShape([-1, -1])
+    compiled = ov.Core().compile_model(converted, "CPU")
+    data = np.ones((3, 4), dtype=np.float32)
+    np.testing.assert_array_equal(compiled([data])[0], data)
+
+
 def test_torchscript_alias_does_not_reuse_exact_match():
     model = torch.jit.script(TimestepModel().eval())
     examples = {'sample': torch.ones(2), 'timestep': torch.tensor(7.0)}

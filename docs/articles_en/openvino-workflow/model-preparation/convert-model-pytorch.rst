@@ -30,9 +30,11 @@ Here is the simplest example of PyTorch model conversion using a model from ``to
 * ``torch.jit.ScriptFunction``
 * ``torch.export.ExportedProgram``
 
-When using ``torch.nn.Module`` as an input model, ``openvino.convert_model`` often requires the
-``example_input`` parameter to be specified. Internally, it triggers the model tracing during
-the model conversion process, using the capabilities  of the ``torch.jit.trace`` function.
+When using ``torch.nn.Module`` as an input model, provide ``example_input`` to export the model
+with ``torch.export`` by default. This requires PyTorch 2.6 or newer. Without an example input,
+or with an older PyTorch version, conversion warns and uses ``torch.jit.script`` or
+``torch.jit.trace`` instead. Already scripted models continue to use TorchScript.
+Set ``dynamo=False`` to explicitly use TorchScript.
 
 The use of ``example_input`` can lead to a better quality OpenVINO model in terms of correctness
 and performance compared to converting the same original model without specifying
@@ -138,7 +140,7 @@ as a separate input or output. The same is true for ``dict`` values, where the k
 ``dict`` are used to form a model input/output name. The original non-tensor input or output is
 replaced by one or multiple new inputs or outputs resulting from this flattening process. This
 flattening procedure is applied recursively in the case of nested ``tuples``, ``lists``, and
-``dicts`` until it reaches the assumption that the most nested data type is a tensor.
+``dicts`` until it reaches their leaf values.
 
 For example, if the original model is called with ``example_input=(a, (b, c, (d, e)))``, where
 ``a``, ``b``, ... ``e`` are tensors, it means that the original model has two inputs. The first
@@ -148,8 +150,12 @@ and ``c`` and a nested tuple ``(d, e)``. Then the resulting OpenVINO model will 
 the original model.
 
 If your model has a ``dict`` input, such as, ``{"x": a, "y": b, "z": c}``, it will be decomposed
-into multiple inputs of the OpenVINO model signature: ``(a, b, c)``, where inputs assume the
-names of ``x``, ``y``, and ``z`` respectively.
+into multiple inputs of the OpenVINO model signature: ``(a, b, c)``. TorchScript conversion uses
+the dictionary keys as input names. With ``torch.export``, the names also include the enclosing
+argument name, for example ``values_x``, ``values_y``, and ``values_z`` for an argument named
+``values``. Constant values such as ``None`` and Python scalars are specialized to their example
+values and do not become OpenVINO inputs. Unambiguous dictionary keys may still be used to
+specify input shapes through the ``input`` parameter.
 
 .. note::
 
@@ -169,12 +175,10 @@ Check out more examples of model conversion with non-tensor data types in the fo
 Input and output names of the model
 ###################################
 
-PyTorch doesn't produce relevant names for model inputs and outputs in the TorchScript
-representation. OpenVINO will assign input names based on the signature of models's ``forward``
-method or ``dict`` keys provided in the ``example_input``. Output names will be assigned if
-there is a ``dict`` at the output or when there is some internal name available in the
-TorchScript model representation. In general, the output name is not assigned and stays empty.
-It is recommended to address model outputs by the index rather then the name.
+OpenVINO assigns input names from the model's ``forward`` signature and the flattened input
+structure. Names for nested inputs differ between TorchScript and ``torch.export``, as described
+above. Output names may be assigned from ``dict`` keys or internal model names. It is
+recommended to address model outputs by index rather than by name.
 
 Support for torch.export
 ########################
@@ -201,9 +205,11 @@ Here is an example of how to convert a model obtained with ``torch.export``:
 Using the ``dynamo`` parameter
 ++++++++++++++++++++++++++++++
 
-Instead of calling ``torch.export.export`` manually, you can pass ``dynamo=True`` to
-``openvino.convert_model`` and it will use ``torch.export`` internally. This approach
-requires ``example_input`` and PyTorch >= 2.6:
+``openvino.convert_model`` uses ``torch.export.export`` internally by default when converting
+a ``torch.nn.Module`` with ``example_input`` and PyTorch >= 2.6. Pass ``dynamo=False`` to use
+TorchScript instead. If export fails, conversion reports the error and does not retry with
+TorchScript. Module conversion with ``torch.export`` emits a ``DeprecationWarning`` about
+the change to the default:
 
 .. code-block:: py
    :force:
@@ -228,10 +234,18 @@ Dimensions marked as ``-1`` become dynamic, while fixed values remain static:
    # Only the batch dimension is dynamic
    ov_model = ov.convert_model(
        model,
-       example_input=torch.randn(1, 3, 224, 224),
+       example_input=torch.randn(2, 3, 224, 224),
        dynamo=True,
        input=PartialShape([-1, 3, 224, 224]),
    )
+
+The ``input`` shapes must be compatible with ``example_input``. ``torch.export`` can reject
+requested dynamic dimensions when they are specialized by the example or the model's shape
+constraints, including relationships between dimensions of different inputs. In particular,
+use an example dimension greater than one when possible. Pass ``dynamo=False`` to select
+TorchScript when export cannot support the requested shapes.
+Use separate tensor objects for distinct example inputs: passing the same tensor more than
+once can cause ``torch.export`` to specialize them as aliases and is rejected.
 
 You can also specify constrained dimensions using ``Dimension`` with min/max bounds.
 This maps to ``torch.export.Dim`` with explicit constraints, enabling tighter shape
@@ -245,7 +259,7 @@ validation during export:
    # Batch between 1 and 8, spatial dims between 128 and 512
    ov_model = ov.convert_model(
        model,
-       example_input=torch.randn(1, 3, 224, 224),
+       example_input=torch.randn(2, 3, 224, 224),
        dynamo=True,
        input=PartialShape([Dimension(1, 8), 3, Dimension(128, 512), Dimension(128, 512)]),
    )

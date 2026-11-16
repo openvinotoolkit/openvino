@@ -780,6 +780,8 @@ def test_pytorch_fx_decoder_extracts_signature():
     assert nc_decoder._input_signature == ["a", "b"]
 
 
+@pytest.mark.skipif(version.parse(torch.__version__) < version.parse("2.4.0"),
+                    reason="Unsupported on torch<2.4.0")
 def test_pytorch_fx_decoder_names_flattened_list_inputs():
     from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 
@@ -794,6 +796,8 @@ def test_pytorch_fx_decoder_names_flattened_list_inputs():
     assert decoder._input_signature == ["pair", "scale"]
 
 
+@pytest.mark.skipif(version.parse(torch.__version__) < version.parse("2.4.0"),
+                    reason="Unsupported on torch<2.4.0")
 def test_pytorch_fx_decoder_names_mixed_and_empty_container_inputs():
     from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 
@@ -809,6 +813,8 @@ def test_pytorch_fx_decoder_names_mixed_and_empty_container_inputs():
 
 
 @pytest.mark.precommit
+@pytest.mark.skipif(version.parse(torch.__version__) < version.parse("2.6.0"),
+                    reason="torch.export conversion requires torch>=2.6.0")
 def test_pytorch_dynamo_convert_builtin_named_input_with_list_input():
     import numpy as np
     from openvino import Core, convert_model
@@ -829,6 +835,8 @@ def test_pytorch_dynamo_convert_builtin_named_input_with_list_input():
     np.testing.assert_allclose(result, expected)
 
 
+@pytest.mark.skipif(version.parse(torch.__version__) < version.parse("2.4.0"),
+                    reason="Unsupported on torch<2.4.0")
 def test_pytorch_fx_decoder_flat_input_names_unchanged():
     from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 
@@ -842,6 +850,8 @@ def test_pytorch_fx_decoder_flat_input_names_unchanged():
 
 
 @pytest.mark.precommit
+@pytest.mark.skipif(version.parse(torch.__version__) < version.parse("2.6.0"),
+                    reason="torch.export conversion requires torch>=2.6.0")
 def test_pytorch_dynamo_convert_with_list_input_keeps_input_names():
     import numpy as np
     from openvino import Core, convert_model
