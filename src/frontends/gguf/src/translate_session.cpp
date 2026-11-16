@@ -13,7 +13,11 @@
 #include <unordered_set>
 
 #include "builder/gguf_builder_decoder.hpp"
+#include "hadamard_sign_folding.hpp"
+#include "helper_ops/gguf_constant.hpp"
 #include "input_model.hpp"
+#include "model_adapter_attribute.hpp"
+#include "model_contract.hpp"
 #include "node_context.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
@@ -42,8 +46,11 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
+#include "pass/isolate_precision_sensitive_outputs.hpp"
 #include "pass/lower_set_rows_stateless.hpp"
+#include "pass/materialize_weights.hpp"
 #include "pass/prune_orphaned_parameters.hpp"
+#include "quant/weights.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/optimize_strided_slice.hpp"
@@ -114,15 +121,11 @@ void prepare_graph_inputs(TensorMap& tensor_map, GgufDecoder& gguf_model_decoder
 
 void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
                     std::shared_ptr<TensorMap>& tensor_map,
-                    const std::unordered_map<std::string, CreatorFunction>& translators) {
+                    const std::unordered_map<std::string, CreatorFunction>& translators,
+                    const std::shared_ptr<ConstantCache>& constant_cache) {
     const auto& operation_type = decoder->get_op_type();
     if (operation_type == "GGML_OP_NONE") {
-        // A GGML_OP_NONE leaf is a weight if the decoder marks it as one: either the native
-        // builder's pre-extracted payload (bool "gguf_weight") or the cgraph decoder's raw
-        // bytes ("data"). Otherwise it is a model-input leaf (already seeded as a Parameter
-        // above) and there is nothing to translate.
-        const bool is_builder_weight =
-            decoder->get_attribute("gguf_weight").is<bool>() && decoder->get_attribute("gguf_weight").as<bool>();
+        const bool is_builder_weight = decoder->get_attribute("gguf_source").is<GgufWeight>();
         const bool is_cgraph_weight = decoder->get_attribute("data").is<ov::Tensor>();
         if (!is_builder_weight && !is_cgraph_weight) {
             return;
@@ -135,11 +138,15 @@ void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
                                   "Translation for operation type ",
                                   operation_type,
                                   " is not implemented.");
-    NodeContext node_context(decoder, tensor_map);
+    NodeContext node_context(decoder, tensor_map, constant_cache);
     for (size_t index = 0; index < node_context.get_input_size(); ++index) {
-        if (node_context.get_input(static_cast<int>(index)).get_element_type().is_gguf_block()) {
+        const auto input = node_context.get_input(static_cast<int>(index));
+        const auto deferred = ov::as_type_ptr<GGUFConstant>(input.get_node_shared_ptr());
+        if (input.get_element_type().is_gguf_block() || (deferred && deferred->source().preserve_raw)) {
             FRONT_END_OP_CONVERSION_CHECK((operation_type == "GGML_OP_MUL_MAT" ||
-                                          operation_type == "GGML_OP_GET_ROWS") && index == 0,
+                                          operation_type == "GGML_OP_GET_ROWS") && index == 0 ||
+                                             (deferred && (operation_type == "GGML_OP_VIEW" ||
+                                                           operation_type == "GGML_OP_CONCAT")),
                                           "Unsupported raw GGUF consumer ",
                                           operation_type,
                                           " at ",
@@ -228,8 +235,9 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
     // translate_weight turns into a compressed subgraph during the walk below, which keeps them
     // lazy (never materialized to f32) and keeps one weight-loading path for both ingest paths.
 
+    const auto constant_cache = std::make_shared<ConstantCache>();
     auto node_visitor = [&](std::shared_ptr<GgufDecoder> decoder) {
-        translate_node(decoder, tensor_map, m_translator_map);
+        translate_node(decoder, tensor_map, m_translator_map, constant_cache);
     };
 
     // Build the shared LLM scaffolding (sliced attention mask + rope sin/cos table) once, so all
@@ -302,12 +310,23 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
         }
     }
 
-    // The architecture and projector metadata select what the GenAI adapters change, including
-    // adapters registered as transformation extensions.
-    if (builder)
-        resulting_model->get_rt_info()["gguf_architecture"] = builder->get_attribute("architecture");
+    write_model_contract(resulting_model, gguf_model_decoder->get_model_contract());
+    if (const auto architecture = gguf_model_decoder->get_architecture(); !architecture.empty())
+        resulting_model->get_rt_info()["gguf_architecture"] = architecture;
     if (!gguf_model_decoder->get_mmproj_config().empty()) {
         resulting_model->get_rt_info()["gguf_mmproj"] = gguf_model_decoder->get_mmproj_config();
+    }
+
+    for (const auto& [output, adapter] : gguf_model_decoder->get_model_adapters()) {
+        OPENVINO_ASSERT(adapter && adapter->transform, "[GGUF] invalid model adapter for ", output);
+        bool found = false;
+        for (const auto& result : resulting_model->get_results()) {
+            if (!result->input_value(0).get_tensor().get_names().count(output))
+                continue;
+            result->get_rt_info()[ModelAdapterAttribute::get_type_info_static()] = ModelAdapterAttribute(adapter);
+            found = true;
+        }
+        OPENVINO_ASSERT(found, "[GGUF] model adapter has no output ", output);
     }
 
     if (builder) {
@@ -367,6 +386,9 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
 }
 
 std::shared_ptr<Model> TranslateSession::apply_transformations(std::shared_ptr<Model> model) {
+    ov::pass::Manager weight_normalization;
+    weight_normalization.register_pass<pass::MaterializeGGUFWeights>();
+    weight_normalization.run_passes(model);
     ov::pass::Manager manager;
     manager.set_per_pass_validation(true);
     manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
@@ -408,7 +430,11 @@ std::shared_ptr<Model> TranslateSession::apply_transformations(std::shared_ptr<M
         manager.register_pass<pass::PruneParametersOrphanedSince>(live_before_gdn);
     }
 
+    manager.register_pass<pass::IsolatePrecisionSensitiveOutputs>();
+
+    fold_hadamard_input_signs(model);
     manager.run_passes(model);
+    normalize_u2_zero_points(model);
     return model;
 }
 

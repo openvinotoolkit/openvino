@@ -31,12 +31,10 @@ struct MetadataAccess {
     }
 };
 
-// Borrowed parser weight and quantization tables.
+// Borrowed parser weight table.
 struct WeightStore {
-    std::unordered_map<std::string, ov::Tensor>& weights;
-    std::unordered_map<std::string, GgufTensorType>& qtypes;
+    const GgufWeightTable& weights;
     const std::unordered_map<std::string, CreatorFunction>* translators = nullptr;
-    const GGUFExternalWeights* external_weights = nullptr;
 };
 
 }  // namespace detail

@@ -574,6 +574,39 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_compressed_u4_wei
     }
 }
 
+TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_compressed_u2_weights_3D) {
+    {
+        auto data = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{3, 2, 2});
+        auto weights = ov::opset1::Constant::create(ov::element::u2, ov::Shape{3, 2, 2}, {1});
+        auto convert = std::make_shared<ov::opset1::Convert>(weights, ov::element::f16);
+        auto sub_const = ov::opset1::Constant::create(ov::element::f16, ov::Shape{3, 1, 2}, {1});
+        auto sub = std::make_shared<ov::opset1::Subtract>(convert, sub_const);
+        auto mul_const = ov::opset1::Constant::create(ov::element::f16, ov::Shape{3, 1, 2}, {1});
+        auto mul = std::make_shared<ov::opset1::Multiply>(sub, mul_const);
+        auto matmul = std::make_shared<ov::opset1::MatMul>(data, mul);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data});
+        bool support_immad = true;
+        manager.register_pass<ConvertMatMulToFullyConnected>(support_immad);
+    }
+    {
+        auto data = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{3, 2, 2});
+        auto weights = ov::opset1::Constant::create(ov::element::u2, ov::Shape{3, 2, 2}, {1});
+        auto convert = std::make_shared<ov::opset1::Convert>(weights, ov::element::f16);
+        auto sub_const = ov::opset1::Constant::create(ov::element::f16, ov::Shape{3, 1, 2}, {1});
+        auto sub = std::make_shared<ov::opset1::Subtract>(convert, sub_const);
+        auto mul_const = ov::opset1::Constant::create(ov::element::f16, ov::Shape{3, 1, 2}, {1});
+        auto mul = std::make_shared<ov::opset1::Multiply>(sub, mul_const);
+
+        auto transpose_const = ov::opset1::Constant::create(ov::element::i32, {3}, {0, 2, 1});
+        auto transpose = std::make_shared<ov::opset1::Transpose>(mul, transpose_const);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto matmul = std::make_shared<op::FullyConnected>(data, transpose, no_bias);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data});
+    }
+}
+
 TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_compressed_u4_weights_3D_scale_group) {
     {
         auto data = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::PartialShape{32, -1, 2880});
@@ -602,6 +635,132 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_compressed_u4_wei
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{data});
     }
 }
+
+TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_compressed_u8_weights_static_scale_zp_parameters) {
+    {
+        auto data = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::PartialShape{-1, 16});
+        auto weights = ov::opset1::Constant::create(ov::element::u8, ov::Shape{32, 16}, {1});
+        auto convert = std::make_shared<ov::opset1::Convert>(weights, ov::element::f16);
+        auto zp = std::make_shared<ov::opset1::Parameter>(ov::element::u8, ov::Shape{32, 1});
+        auto zp_convert = std::make_shared<ov::opset1::Convert>(zp, ov::element::f16);
+        auto sub = std::make_shared<ov::opset1::Subtract>(convert, zp_convert);
+        auto scale = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{32, 1});
+        auto mul = std::make_shared<ov::opset1::Multiply>(sub, scale);
+        auto matmul = std::make_shared<ov::opset1::MatMul>(data, mul, false, true);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data, zp, scale});
+        manager.register_pass<ConvertMatMulToFullyConnected>(true);
+        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
+    }
+    {
+        auto data = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::PartialShape{-1, 16});
+        auto weights = ov::opset1::Constant::create(ov::element::u8, ov::Shape{32, 16}, {1});
+        auto zp = std::make_shared<ov::opset1::Parameter>(ov::element::u8, ov::Shape{32, 1});
+        auto scale = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{32, 1});
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(data,
+                                                                                         weights,
+                                                                                         no_bias,
+                                                                                         scale,
+                                                                                         zp,
+                                                                                         ov::element::f16,
+                                                                                         true,
+                                                                                         true,
+                                                                                         true);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{data, zp, scale});
+    }
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+enum class DynamicScaleZpInput { Scale, ZeroPoint };
+enum class DynamicScaleZpSource { Parameter, ReshapeOfConvert, ConvertOfReshape };
+
+struct DynamicScaleZpParams {
+    DynamicScaleZpInput input;
+    DynamicScaleZpSource source;
+};
+
+class ConvertMatMulToFullyConnectedDynamicScaleZpTest : public testing::WithParamInterface<DynamicScaleZpParams>,
+                                                        public TransformationTestsF {
+public:
+    ConvertMatMulToFullyConnectedDynamicScaleZpTest() : TransformationTestsF() {
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+    }
+
+    static std::string getTestCaseName(const testing::TestParamInfo<DynamicScaleZpParams>& info) {
+        const auto& [input, source] = info.param;
+        std::string name = input == DynamicScaleZpInput::Scale ? "Scale" : "ZeroPoint";
+        switch (source) {
+        case DynamicScaleZpSource::Parameter:
+            return name + "_DynamicParameter";
+        case DynamicScaleZpSource::ReshapeOfConvert:
+            return name + "_ReshapeOfConvert_DynamicTarget";
+        case DynamicScaleZpSource::ConvertOfReshape:
+            return name + "_ConvertOfReshape_DynamicTarget";
+        }
+        return name;
+    }
+};
+
+// The scale or zero point has a dynamic shape, either as a dynamic Parameter [?, 1] or as a static Parameter reshaped to a
+// non-constant target shape. It broadcasts the decompressed weights to a dynamic shape, which FullyConnected can't take,
+// so the MatMul must be left unchanged instead of failing on shape_b.is_static() in ConvertMatMulToFullyConnected.
+TEST_P(ConvertMatMulToFullyConnectedDynamicScaleZpTest, KeepsMatMul) {
+    const auto& [input_kind, source] = GetParam();
+    const bool is_scale = input_kind == DynamicScaleZpInput::Scale;
+
+    auto data = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::PartialShape{-1, 16});
+    auto weights = ov::opset1::Constant::create(ov::element::u8, ov::Shape{1, 16}, {1});
+    std::shared_ptr<ov::Node> dequantized = std::make_shared<ov::opset1::Convert>(weights, ov::element::f16);
+    ov::ParameterVector params{data};
+
+    const auto param_type = is_scale ? ov::element::f32 : ov::element::u8;
+    std::shared_ptr<ov::Node> value;
+    if (source == DynamicScaleZpSource::Parameter) {
+        auto param = std::make_shared<ov::opset1::Parameter>(param_type, ov::PartialShape{-1, 1});
+        params.push_back(param);
+        value = std::make_shared<ov::opset1::Convert>(param, ov::element::f16);
+    } else {
+        auto param = std::make_shared<ov::opset1::Parameter>(param_type, ov::Shape{1, 1, 1});
+        auto target_shape = std::make_shared<ov::opset1::Parameter>(ov::element::i32, ov::Shape{2});
+        params.push_back(param);
+        params.push_back(target_shape);
+        if (source == DynamicScaleZpSource::ReshapeOfConvert) {
+            auto convert = std::make_shared<ov::opset1::Convert>(param, ov::element::f16);
+            value = std::make_shared<ov::opset1::Reshape>(convert, target_shape, false);
+        } else {
+            auto reshape = std::make_shared<ov::opset1::Reshape>(param, target_shape, false);
+            value = std::make_shared<ov::opset1::Convert>(reshape, ov::element::f16);
+        }
+    }
+
+    if (is_scale) {
+        dequantized = std::make_shared<ov::opset1::Multiply>(dequantized, value);
+    } else {
+        dequantized = std::make_shared<ov::opset1::Subtract>(dequantized, value);
+        auto scale = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1, 1}, {1});
+        dequantized = std::make_shared<ov::opset1::Multiply>(dequantized, scale);
+    }
+    ASSERT_TRUE(dequantized->get_output_partial_shape(0).is_dynamic());
+    auto matmul = std::make_shared<ov::opset1::MatMul>(data, dequantized, false, true);
+
+    // No model_ref: the model is expected to be unchanged.
+    model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, params);
+    manager.register_pass<ConvertMatMulToFullyConnected>(true);
+    manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    TransformationTests,
+    ConvertMatMulToFullyConnectedDynamicScaleZpTest,
+    testing::Values(DynamicScaleZpParams{DynamicScaleZpInput::Scale, DynamicScaleZpSource::Parameter},
+                    DynamicScaleZpParams{DynamicScaleZpInput::Scale, DynamicScaleZpSource::ReshapeOfConvert},
+                    DynamicScaleZpParams{DynamicScaleZpInput::Scale, DynamicScaleZpSource::ConvertOfReshape},
+                    DynamicScaleZpParams{DynamicScaleZpInput::ZeroPoint, DynamicScaleZpSource::Parameter},
+                    DynamicScaleZpParams{DynamicScaleZpInput::ZeroPoint, DynamicScaleZpSource::ReshapeOfConvert},
+                    DynamicScaleZpParams{DynamicScaleZpInput::ZeroPoint, DynamicScaleZpSource::ConvertOfReshape}),
+    ConvertMatMulToFullyConnectedDynamicScaleZpTest::getTestCaseName);
 
 // Checked blocked cases
 TEST(TransformationTests, ConvertMatMulToFullyConnectedExceptionTest_sibling_matmul_no_convert) {

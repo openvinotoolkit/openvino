@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include <ov_ops/rms.hpp>
-
 #include "../convert_common.hpp"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
+#include "ov_ops/rms.hpp"
 
 namespace ov::intel_gpu::mlir {
 

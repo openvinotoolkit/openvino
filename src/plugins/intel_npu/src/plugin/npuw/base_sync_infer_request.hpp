@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <functional>
 #include <map>
 #include <memory>
@@ -20,6 +21,7 @@
 #include "pyramid_attention.hpp"
 #include "spatial.hpp"
 #include "util.hpp"
+#include "variable_state.hpp"
 
 namespace ov {
 namespace npuw {
@@ -72,11 +74,12 @@ public:
     virtual bool supports_async_pipeline() const = 0;
 
     void update_history_size(int64_t history_size) {
-        m_history_size = history_size;
+        m_history_state->set(history_size);
     }
 
     int64_t get_history_size() const {
-        return m_history_size;
+        // An unset history behaves as an empty one.
+        return std::max<int64_t>(m_history_state->get(), 0);
     }
 
     std::size_t get_run_iteration() const {
@@ -88,7 +91,8 @@ public:
     }
 
 protected:
-    int64_t m_history_size = 0;
+    // Exposed through query_state() so callers holding only a public InferRequest can set it.
+    std::shared_ptr<ov::npuw::HistorySizeState> m_history_state = std::make_shared<ov::npuw::HistorySizeState>();
 
     // After set_tensor() has replaced block tensors with dummies on the outer (LLM-level)
     // request, call this to push those updated tensors into sub-requests via bind_global_params.

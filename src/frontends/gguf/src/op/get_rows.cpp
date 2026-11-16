@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "helper_ops/gguf_constant.hpp"
 #include "node_context.hpp"
 #include "op_table.hpp"
 #include "openvino/core/node.hpp"
@@ -34,17 +35,20 @@ OutputVector translate_get_rows(const NodeContext& context) {
     ov::Output<ov::Node> indices;
     if (!relative_shift)
         indices = context.get_input(1);
-    if (data.get_element_type().is_gguf_block()) {
-        const auto weight_type = data.get_element_type();
+    const auto deferred = ov::as_type_ptr<GGUFConstant>(data.get_node_shared_ptr());
+    const ov::Output<ov::Node> checked_data = deferred && deferred->source().preserve_raw
+                                                ? deferred->materialize()->output(0) : data;
+    if (checked_data.get_element_type().is_gguf_block()) {
+        const auto weight_type = checked_data.get_element_type();
         const bool supported = weight_type == ov::element::gguf_q4_k || weight_type == ov::element::gguf_q5_k ||
                                weight_type == ov::element::gguf_q6_k || weight_type == ov::element::gguf_q8_0 ||
                                weight_type == ov::element::gguf_q4_0 || weight_type == ov::element::gguf_q4_1;
         FRONT_END_OP_CONVERSION_CHECK(!relative_shift && !context.get_attribute<bool>("gather_elements", false) &&
                                           op_case == 0 && supported &&
-                                          ov::is_type<ov::op::v0::Constant>(data.get_node_shared_ptr()) &&
-                                          data.get_partial_shape().is_static() && data.get_shape().size() == 2 &&
-                                          data.get_shape()[0] > 0 && data.get_shape()[1] > 0 &&
-                                          data.get_shape()[1] % weight_type.block_elem_count() == 0 &&
+                                          ov::is_type<ov::op::v0::Constant>(checked_data.get_node_shared_ptr()) &&
+                                          checked_data.get_partial_shape().is_static() && checked_data.get_shape().size() == 2 &&
+                                          checked_data.get_shape()[0] > 0 && checked_data.get_shape()[1] > 0 &&
+                                          checked_data.get_shape()[1] % weight_type.block_elem_count() == 0 &&
                                           (indices.get_element_type() == ov::element::i32 ||
                                            indices.get_element_type() == ov::element::i64) &&
                                           indices.get_partial_shape().rank() == 4 &&

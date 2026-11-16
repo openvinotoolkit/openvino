@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <map>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <variant>
@@ -92,22 +93,27 @@ struct GgufTensor {
 using GGUFMetaData =
     std::variant<std::monostate, float, int, ov::Tensor, std::string, std::vector<std::string>, std::vector<int32_t>>;
 
-struct GGUFExternalWeight {
-    ov::Tensor tensor;
+struct GgufWeight {
+    ov::Tensor data;
     ov::Shape shape;
-    uint64_t size;
-    std::filesystem::path source;
-    uint64_t offset;
+    GgufTensorType qtype = GGUF_TYPE_F32;
+    std::string source_name;
+    bool native = true;
+    bool preserve_raw = false;
+    std::filesystem::path external_source;
+    uint64_t external_offset = 0;
+    std::shared_ptr<ov::MappedMemory> mapped;
+
+    GgufWeight() = default;
+    GgufWeight(const ov::Tensor& tensor);
 };
 
-using GGUFExternalWeights = std::unordered_map<std::string, GGUFExternalWeight>;
+using GgufWeightTable = std::unordered_map<std::string, GgufWeight>;
 
-// Parsed arrays own repacked buffers or retain mmap views according to the loading options.
+// Raw weight descriptors retain the source mapping without unpacking quantized tensors.
 using GGUFLoad = std::tuple<std::unordered_map<std::string, GGUFMetaData>,
-                            std::unordered_map<std::string, ov::Tensor>,
-                            std::unordered_map<std::string, GgufTensorType>,
-                            std::vector<std::shared_ptr<ov::MappedMemory>>,
-                            GGUFExternalWeights>;
+                            GgufWeightTable,
+                            std::vector<std::shared_ptr<ov::MappedMemory>>>;
 
 // Fill pre-allocated weights and f16 scales from a symmetric GGUF tensor
 // (Q8_0/Q8_1/Q5_0/Q6_K: i8 weights; Q4_0/Q3_K: i4 weights; Q1_0: u1 weights).
@@ -149,7 +155,7 @@ void dequant_row_q4_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 void dequant_row_q5_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 void dequant_row_q6_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 
-// Parse GGUF metadata and tensors. Default loading owns repacked quantized buffers.
+// Select formats to retain as native blocks during deferred weight materialization.
 struct GGUFLoadOptions {
     bool preserve_q4_k = false;
     bool preserve_q5_k = false;
@@ -166,22 +172,27 @@ struct GGUFLoadOptions {
 
 ov::element::Type gguf_raw_element_type(GgufTensorType type);
 
+struct WeightTensors;
+
+WeightTensors allocate_gguf_weight(const GgufWeight& source, const ov::Shape& shape);
+void unpack_gguf_weight_into(const GgufWeight& source, WeightTensors& destination);
+WeightTensors unpack_gguf_weight(const GgufWeight& source);
+bool gguf_column_groups_are_aligned(const GgufWeight& source, const std::vector<int64_t>& columns);
+size_t gguf_weight_group_size(const GgufWeight& source);
+// Q2_0, PQ2_0 and PTQ1_0 share the ternary Q2_0 code layout.
+bool gguf_is_q2_0_family(GgufTensorType type);
+// Whether rows of `a` and `b` unpack into tensors of the same types, so they can share one buffer.
+bool gguf_same_unpacked_layout(const GgufWeight& a, const GgufWeight& b);
+// Hint the OS to drop the mmap pages backing source.data after it has been unpacked.
+void evict_gguf_weight(const GgufWeight& source);
+// Types unpacked to u2 weights: the Q2_0 family plus Q2_K.
+bool gguf_has_u2_weights(GgufTensorType type);
+
+// Parse GGUF metadata and raw weight descriptors.
 GGUFLoad get_gguf_data(const std::filesystem::path& file);
 GGUFLoad get_gguf_data(const std::filesystem::path& file, const GGUFLoadOptions& options);
 GGUFLoad get_gguf_data(const std::vector<std::filesystem::path>& files);
 GGUFLoad get_gguf_data(const std::vector<std::filesystem::path>& files, const GGUFLoadOptions& options);
-
-// Extract the DECODER-family architecture config (architecture, layer_num, head_num, head_size,
-// head_num_kv, hidden_size, max_position_embeddings, rms_norm_eps, rope_freq_base, file_type, ...)
-// from parsed metadata.
-//
-// Every key it reads is prefixed with the LLM architecture name ("<arch>.block_count",
-// "<arch>.attention.head_count", ...), so it is only meaningful for a causal-decoder GGUF. Call
-// detect_model_kind() first: an mmproj file names its architecture "clip" and carries "clip.*"
-// keys instead, and would fail here on a missing block_count. A future non-decoder family gets its
-// own reader next to this one rather than extending it.
-std::map<std::string, GGUFMetaData> decoder_config_from_meta(
-    const std::unordered_map<std::string, GGUFMetaData>& metadata);
 
 // Reverse of the GGML dimension order (GGUF stores dims fastest-first).
 ov::Shape get_shape(const GgufTensor& tensor);
