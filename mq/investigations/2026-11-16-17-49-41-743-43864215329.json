@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-16-17-49-41-743-43864215329",
+  "timestamp": "2026-11-16T17:49:41Z",
+  "run_id": "43864215329",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43864215329",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "39556",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39556",
+  "author": "lslusarczyk",
+  "category": "Flaky Test",
+  "title": "fusings_gpu pooling_f32_scale fp16_scale_out fails GPU unit test tolerance check",
+  "signature": "gpu unit tests fusion pooling scale fp16 difference between val ref and val opt exceeds tolerance|Flaky Test",
+  "signature_hash": "7b64fedfacbfda60",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "fusings_gpu/pooling_f32_scale.fp16_scale_out/1 fails a numerical-tolerance comparison between fused and unfused kernel execution (difference 3.05e-05 vs tolerance 1e-05); 36 other unrelated tests also failed in the same run with elevated durations and no distinct error output."
+    }
+  ],
+  "key_errors": [
+    "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\plugins\\intel_gpu\\tests\\unit\\fusions\\fusion_test_common.hpp(90): error: The difference between val_ref[i] and val_opt[i] is 3.0517578125e-05, which exceeds tolerance, where\nval_ref[i] evaluates to -0.04473876953125,\nval_opt[i] evaluates to -0.044769287109375, and\ntolerance evaluates to 9.9999997473787516e-06.\ni = 14",
+    "[  FAILED  ] fusings_gpu/pooling_f32_scale.fp16_scale_out/1 (974 ms)",
+    "FAILED TESTS (37/29276): ... fusings_gpu/pooling_f32_scale.fp16_scale_out/1 (2852 ms) plus 36 basic/convolution_random_smoke_test.* / fusings_gpu/conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec.* cases"
+  ],
+  "root_cause": "fusings_gpu/pooling_f32_scale.fp16_scale_out/1 compares the fused (pooling+scale) and unfused GPU kernel execution paths in fp16 against a tight absolute tolerance of 1e-05. The observed 3.05e-05 delta is consistent with ordinary fp16 rounding-error variance between the fused and reference kernels on this runner's GPU, not with any code defect introduced by PR #39556 (whose only change is a numpy bool_ rejection guard in src/bindings/python/src/pyopenvino/utils/utils.cpp, unrelated to GPU kernel fusion math). This exact signature has recurred 5 times across unrelated PRs since 2026-11-13, confirming it is a known intermittent precision flake rather than a regression. The additional 36 failing tests in the same run show elevated per-test durations with no distinct error text, matching a separately tracked GPU-runner contention/slowness pattern (04b05470e7a3eb58) rather than this test's own tolerance issue; both are environment-level flakiness, not application logic bugs.",
+  "reproduction_steps": "Not reliably reproducible outside CI (fp16 GPU kernel precision race). To attempt locally on a Windows GPU runner: build ov_gpu_unit_tests, then run: ov_gpu_unit_tests.exe --gtest_filter=fusings_gpu/pooling_f32_scale.fp16_scale_out/1 repeatedly; failure is intermittent and hardware/driver dependent.",
+  "recommended_actions": [
+    "Loosen the fp16 comparison tolerance for fusings_gpu/pooling_f32_scale.fp16_scale_out in fusion_test_common.hpp (currently 1e-05 absolute) to account for known fp16 fused-vs-unfused rounding variance, or switch to a relative-tolerance comparison for fp16 cases.",
+    "Re-run the failed GPU unit tests job for this merge-queue run (handled automatically via remediate_transient_failure).",
+    "Approve the pending rerun-pattern PR (#39838) so the workflow rerunner can auto-retry this known flake on future occurrences without engineer intervention."
+  ],
+  "prevention_strategies": "Track fp16 GPU fusion tolerance flakiness as a known-issue class; consider widening tolerances for fp16 fused-kernel comparisons across intel_gpu unit tests, or marking chronically flaky fp16 fusion tests for a dedicated tolerance review. Monitor the 04b05470e7a3eb58 pattern (bulk slow/failing tests near the end of the Windows GPU suite) for runner contention trends.",
+  "historical_context": "Identical signature (7b64fedfacbfda60) recorded 5 times between 2026-11-13 and 2026-11-14 across PRs #38762, #39011, #39548, #39826, #38855, all on unrelated changes, confirming this is a long-standing fp16 GPU fusion tolerance flake unrelated to PR content. A rerun-pattern proposal for this signature is already open as PR #39838 (not yet merged)."
+}
