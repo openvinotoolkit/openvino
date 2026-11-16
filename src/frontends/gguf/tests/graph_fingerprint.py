@@ -655,18 +655,22 @@ def runner_path(explicit):
     return path
 
 
-def capture(input_path, runner, materialized=False):
+def capture(input_path, runner, materialized=False, adapted=None):
     with tempfile.TemporaryDirectory(prefix="ov_gguf_graph_") as directory:
         output = Path(directory) / "actual.json"
         command = [runner, "--gguf-snapshot", str(input_path), "--output", str(output)]
         if materialized:
             command.append("--materialized")
+        if adapted:
+            command += ["--adapted", adapted]
         try:
             result = subprocess.run(command, capture_output=True, text=True, check=False, timeout=120)
         except subprocess.TimeoutExpired as error:
             raise ValueError(f"Snapshot runner timed out after 120 seconds: {input_path}") from error
         if result.returncode:
             raise ValueError(f"Snapshot runner failed ({result.returncode}): {result.stderr[-4000:]}")
+        if adapted:
+            return {role: compact_snapshot(model) for role, model in load_json(output)["models"].items()}
         return compact_snapshot(load_json(output))
 
 
@@ -805,10 +809,15 @@ def _run_cases(args, report):
             raise ValueError(f"Model case {case['id']} requires deferred_plan")
         actual_stages = {}
         for stage in stages:
-            if stage == "deferred_plan":
+            if stage in ("deferred_plan", "adapted"):
                 with tempfile.TemporaryDirectory(prefix="ov_gguf_recipe_") as directory:
                     path = Path(directory) / f"{case['id']}.expanded.json"
                     path.write_text(json.dumps(recipe), encoding="utf-8")
+                    if stage == "adapted":
+                        models = capture(path, runner, adapted="ids")
+                        models.update(capture(path, runner, adapted="embeds"))
+                        actual_stages[stage] = model_stage(models)
+                        continue
                     model = capture(path, runner)
             elif stage == "materialized":
                 with tempfile.TemporaryDirectory(prefix="ov_gguf_materialized_") as directory:
@@ -816,7 +825,7 @@ def _run_cases(args, report):
                     materialize_recipe(recipe, path)
                     model = capture(path, runner, materialized=True)
             else:
-                raise ValueError(f"Stage {stage} is unavailable until the adapted-map API is merged")
+                raise ValueError(f"Unknown stage {stage}")
             actual_stages[stage] = model_stage({"native": model})
             if "projectors" in case and model["projectors"] != case["projectors"]:
                 raise ValueError(f"Projector identity mismatch for {case['id']}: {model['projectors']}")

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+
 #include "builder/arch_registry.hpp"
 #include "builder/projector_registry.hpp"
 #include "graph_regression_utils.hpp"
@@ -52,7 +54,9 @@ TEST(GGUFGraphRegression, CatalogCoversEveryNativeHandler) {
     const auto catalog = regression_catalog();
     std::set<std::string> covered;
     for (const auto& entry : catalog.at("cases")) {
-        if (entry.value("kind", "model") == "model" && entry.value("stage", "deferred_plan") == "deferred_plan")
+        auto stages = entry.value("stages", std::vector<std::string>{entry.value("stage", "deferred_plan")});
+        if (entry.value("kind", "model") == "model" &&
+            std::find(stages.begin(), stages.end(), "deferred_plan") != stages.end())
             covered.insert(entry.at("architecture").get<std::string>());
     }
     EXPECT_EQ(covered, ov::frontend::gguf::default_arch_registry().supported_archs())

@@ -9,7 +9,10 @@
         "prism-ml/Bonsai-8B-gguf/Bonsai-8B.gguf",
         "prism-ml/Bonsai-8B-gguf/Bonsai-8B-Q1_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen3--bonsai-8b-q1_0--f85eb4e5.json",
       "reference": "references/qwen3--bonsai-8b-q1_0--f85eb4e5.json",
       "source": {
@@ -25,7 +28,10 @@
       "models": [
         "ERNIE-4.5-21B-A3B-PT-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/ernie4_5-moe--ernie-4.5-21b-a3b-pt-q4_0--2a523527.json",
       "reference": "references/ernie4_5-moe--ernie-4.5-21b-a3b-pt-q4_0--2a523527.json",
       "source": {
@@ -40,7 +46,10 @@
       "models": [
         "EXAONE-4.0-1.2B-GGUF-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/exaone4--exaone-4.0-1.2b-gguf-q4_k_m--743d0b64.json",
       "reference": "references/exaone4--exaone-4.0-1.2b-gguf-q4_k_m--743d0b64.json",
       "source": {
@@ -54,7 +63,10 @@
       "models": [
         "Llama-3.2-1B-Instruct-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/llama--llama-3.2-1b-instruct-q4_0--8bdbfa04.json",
       "reference": "references/llama--llama-3.2-1b-instruct-q4_0--8bdbfa04.json",
       "source": {
@@ -68,7 +80,10 @@
       "models": [
         "Maincoder-1B-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/maincoder--maincoder-1b-q4_k_m--e14d444a.json",
       "reference": "references/maincoder--maincoder-1b-q4_k_m--e14d444a.json",
       "source": {
@@ -83,7 +98,10 @@
       "models": [
         "Mellum2-12B-A2.5B-Instruct-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/mellum--mellum2-12b-a2.5b-instruct-q4_0--f6045155.json",
       "reference": "references/mellum--mellum2-12b-a2.5b-instruct-q4_0--f6045155.json",
       "source": {
@@ -97,7 +115,10 @@
       "models": [
         "MiniCPM-2B-sft-bf16.Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/minicpm--minicpm-2b-sft-bf16.q4_0--1f815eab.json",
       "reference": "references/minicpm--minicpm-2b-sft-bf16.q4_0--1f815eab.json",
       "source": {
@@ -111,7 +132,10 @@
       "models": [
         "Ministral-3-3B-Instruct-2512-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/mistral3--ministral-3-3b-instruct-2512-q4_k_m--d6c11b14.json",
       "reference": "references/mistral3--ministral-3-3b-instruct-2512-q4_k_m--d6c11b14.json",
       "source": {
@@ -125,7 +149,10 @@
       "models": [
         "Ministral-8B-Instruct-2410.Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/llama--ministral-8b-instruct-2410.q4_k_m--3853bf26.json",
       "reference": "references/llama--ministral-8b-instruct-2410.q4_k_m--3853bf26.json",
       "source": {
@@ -139,7 +166,10 @@
       "models": [
         "Muse-Glimmer-30B-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/muse-glimmer--muse-glimmer-30b-q4_0--5bbf61da.json",
       "reference": "references/muse-glimmer--muse-glimmer-30b-q4_0--5bbf61da.json",
       "source": {
@@ -153,7 +183,10 @@
       "models": [
         "Phi-3-mini-4k-instruct-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/phi3--phi-3-mini-4k-instruct-q4_0--805e9e34.json",
       "reference": "references/phi3--phi-3-mini-4k-instruct-q4_0--805e9e34.json",
       "source": {
@@ -167,7 +200,10 @@
       "models": [
         "Qwen3-0.6B-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen3--qwen3-0.6b-q4_0--a36302f4.json",
       "reference": "references/qwen3--qwen3-0.6b-q4_0--a36302f4.json",
       "source": {
@@ -181,7 +217,10 @@
       "models": [
         "Qwen3-0.6B-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen3--qwen3-0.6b-q4_k_m--85aafe02.json",
       "reference": "references/qwen3--qwen3-0.6b-q4_k_m--85aafe02.json",
       "source": {
@@ -195,7 +234,10 @@
       "models": [
         "Qwen3-30B-A3B-Instruct-2507-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen3moe--qwen3-30b-a3b-instruct-2507-q4_0--143603d5.json",
       "reference": "references/qwen3moe--qwen3-30b-a3b-instruct-2507-q4_0--143603d5.json",
       "source": {
@@ -210,7 +252,10 @@
       "models": [
         "Qwen3.5-4B-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--qwen3.5-4b-q4_0--cb8f809f.json",
       "reference": "references/qwen35--qwen3.5-4b-q4_0--cb8f809f.json",
       "source": {
@@ -225,7 +270,10 @@
       "models": [
         "Qwen_Qwen3.6-35B-A3B-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35moe--qwen_qwen3.6-35b-a3b-q4_0--4fc162f3.json",
       "reference": "references/qwen35moe--qwen_qwen3.6-35b-a3b-q4_0--4fc162f3.json",
       "source": {
@@ -239,7 +287,10 @@
       "models": [
         "SmolLM3-3B-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/smollm3--smollm3-3b-q4_k_m--449485fc.json",
       "reference": "references/smollm3--smollm3-3b-q4_k_m--449485fc.json",
       "source": {
@@ -255,7 +306,10 @@
         "Ternary-Bonsai-2-27B-PQ2_0.gguf",
         "prism-ml/Ternary-Bonsai-2-27B-gguf/Ternary-Bonsai-2-27B-PQ2_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--ternary-bonsai-2-27b-pq2_0--729ece64.json",
       "reference": "references/qwen35--ternary-bonsai-2-27b-pq2_0--729ece64.json",
       "source": {
@@ -271,7 +325,10 @@
       "models": [
         "Ternary-Bonsai-2-2B-PQ2_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--ternary-bonsai-2-2b-pq2_0--fd8dc1f3.json",
       "reference": "references/qwen35--ternary-bonsai-2-2b-pq2_0--fd8dc1f3.json",
       "source": {
@@ -285,7 +342,10 @@
       "models": [
         "Ternary-Bonsai-2-2B-PTQ1_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--ternary-bonsai-2-2b-ptq1_0--14f49633.json",
       "reference": "references/qwen35--ternary-bonsai-2-2b-ptq1_0--14f49633.json",
       "source": {
@@ -299,7 +359,10 @@
       "models": [
         "Ternary-Bonsai-2-4B-PQ2_0-MTP-Q8_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--ternary-bonsai-2-4b-pq2_0-mtp-q8_0--c5d82233.json",
       "reference": "references/qwen35--ternary-bonsai-2-4b-pq2_0-mtp-q8_0--c5d82233.json",
       "source": {
@@ -313,7 +376,10 @@
       "models": [
         "Ternary-Bonsai-2-4B-PQ2_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--ternary-bonsai-2-4b-pq2_0--386ce9aa.json",
       "reference": "references/qwen35--ternary-bonsai-2-4b-pq2_0--386ce9aa.json",
       "source": {
@@ -327,7 +393,10 @@
       "models": [
         "Ternary-Bonsai-2-9B-PQ2_0-MTP-Q8_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--ternary-bonsai-2-9b-pq2_0-mtp-q8_0--3f06eb0c.json",
       "reference": "references/qwen35--ternary-bonsai-2-9b-pq2_0-mtp-q8_0--3f06eb0c.json",
       "source": {
@@ -341,7 +410,10 @@
       "models": [
         "Ternary-Bonsai-2-9B-PQ2_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--ternary-bonsai-2-9b-pq2_0--d9486c56.json",
       "reference": "references/qwen35--ternary-bonsai-2-9b-pq2_0--d9486c56.json",
       "source": {
@@ -355,7 +427,10 @@
       "models": [
         "Ternary-Bonsai-2-9B-PTQ1_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--ternary-bonsai-2-9b-ptq1_0--272c9b96.json",
       "reference": "references/qwen35--ternary-bonsai-2-9b-ptq1_0--272c9b96.json",
       "source": {
@@ -370,7 +445,10 @@
         "Ternary-Bonsai-27B-PQ2_0.gguf",
         "prism-ml/Ternary-Bonsai-27B-gguf/Ternary-Bonsai-27B-PQ2_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--ternary-bonsai-27b-pq2_0--9d2b5504.json",
       "reference": "references/qwen35--ternary-bonsai-27b-pq2_0--9d2b5504.json",
       "source": {
@@ -386,7 +464,10 @@
       "models": [
         "Trinity-Nano-Preview-bf16.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/afmoe--trinity-nano-preview-bf16--bf9931a5.json",
       "reference": "references/afmoe--trinity-nano-preview-bf16--bf9931a5.json",
       "source": {
@@ -400,7 +481,10 @@
       "models": [
         "Trinity-Nano-Preview-original-f16.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/afmoe--trinity-nano-preview-original-f16--d3e6526e.json",
       "reference": "references/afmoe--trinity-nano-preview-original-f16--d3e6526e.json",
       "source": {
@@ -415,7 +499,10 @@
         "K-EXAONE-236B-A23B.Q2_K.gguf",
         "mradermacher/K-EXAONE-236B-A23B-GGUF/K-EXAONE-236B-A23B.Q2_K.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/exaone-moe--k-exaone-236b-a23b.q2_k--31831988.json",
       "reference": "references/exaone-moe--k-exaone-236b-a23b.q2_k--31831988.json",
       "source": {
@@ -431,7 +518,10 @@
         "ArliAI_GLM-4.5-Air-Derestricted_REAP50_Creative.i1-Q2_K.gguf",
         "mradermacher/ArliAI_GLM-4.5-Air-Derestricted_REAP50_Creative-i1-GGUF/ArliAI_GLM-4.5-Air-Derestricted_REAP50_Creative.i1-Q2_K.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/glm4moe--arliai_glm-4.5-air-derestricted_reap50_creative.i1-q2_k--e76b262b.json",
       "reference": "references/glm4moe--arliai_glm-4.5-air-derestricted_reap50_creative.i1-q2_k--e76b262b.json",
       "source": {
@@ -447,7 +537,10 @@
         "Hunyuan-A13B-Instruct-Q2_K.gguf",
         "unsloth/Hunyuan-A13B-Instruct-GGUF/Hunyuan-A13B-Instruct-Q2_K.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/hunyuan-moe--hunyuan-a13b-instruct-q2_k--d2699e5d.json",
       "reference": "references/hunyuan-moe--hunyuan-a13b-instruct-q2_k--d2699e5d.json",
       "source": {
@@ -462,7 +555,10 @@
       "models": [
         "Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/jais2--q4_k_m--105ad4cc.json",
       "reference": "references/jais2--q4_k_m--105ad4cc.json",
       "source": {
@@ -477,7 +573,10 @@
         "MiniMax-M2.1-REAP-50.i1-Q2_K.gguf",
         "mradermacher/MiniMax-M2.1-REAP-50-i1-GGUF/MiniMax-M2.1-REAP-50.i1-Q2_K.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/minimax-m2--minimax-m2.1-reap-50.i1-q2_k--638cbe86.json",
       "reference": "references/minimax-m2--minimax-m2.1-reap-50.i1-q2_k--638cbe86.json",
       "source": {
@@ -493,7 +592,10 @@
         "baidu_ERNIE-4.5-21B-A3B-PT-Q4_K_M.gguf",
         "bartowski/baidu_ERNIE-4.5-21B-A3B-PT-GGUF/baidu_ERNIE-4.5-21B-A3B-PT-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/ernie4_5-moe--baidu_ernie-4.5-21b-a3b-pt-q4_k_m--dc0bcded.json",
       "reference": "references/ernie4_5-moe--baidu_ernie-4.5-21b-a3b-pt-q4_k_m--dc0bcded.json",
       "source": {
@@ -509,7 +611,10 @@
       "models": [
         "deepseek-ocr-2-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/deepseek2-ocr--deepseek-ocr-2-q4_k_m--e6ed4c0d.json",
       "reference": "references/deepseek2-ocr--deepseek-ocr-2-q4_k_m--e6ed4c0d.json",
       "source": {
@@ -525,7 +630,10 @@
         "Devstral-Small-2-24B-Instruct-2512-Q4_K_M.gguf",
         "bartowski/mistralai_Devstral-Small-2-24B-Instruct-2512-GGUF/mistralai_Devstral-Small-2-24B-Instruct-2512-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/mistral3--devstral-small-2-24b-instruct-2512-q4_k_m--d09200fa.json",
       "reference": "references/mistral3--devstral-small-2-24b-instruct-2512-q4_k_m--d09200fa.json",
       "source": {
@@ -541,7 +649,10 @@
         "Devstral-Small-2507-Q4_K_M.gguf",
         "bartowski/mistralai_Devstral-Small-2507-GGUF/mistralai_Devstral-Small-2507-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/llama--devstral-small-2507-q4_k_m--0bc56937.json",
       "reference": "references/llama--devstral-small-2507-q4_k_m--0bc56937.json",
       "source": {
@@ -557,7 +668,10 @@
         "gemma-2-2b-it-Q4_K_M.gguf",
         "bartowski/gemma-2-2b-it-GGUF/gemma-2-2b-it-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/gemma2--gemma-2-2b-it-q4_k_m--b2023d65.json",
       "reference": "references/gemma2--gemma-2-2b-it-q4_k_m--b2023d65.json",
       "source": {
@@ -573,7 +687,10 @@
       "models": [
         "gemma-2b.Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/gemma--gemma-2b.q4_k_m--bd56e625.json",
       "reference": "references/gemma--gemma-2b.q4_k_m--bd56e625.json",
       "source": {
@@ -587,7 +704,10 @@
       "models": [
         "gemma-3-1b-it-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/gemma3--gemma-3-1b-it-q4_0--9af9428e.json",
       "reference": "references/gemma3--gemma-3-1b-it-q4_0--9af9428e.json",
       "source": {
@@ -602,7 +722,10 @@
         "gemma-3-1b-it-Q4_K_M.gguf",
         "unsloth/gemma-3-1b-it-GGUF/gemma-3-1b-it-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/gemma3--gemma-3-1b-it-q4_k_m--4e4b9ae0.json",
       "reference": "references/gemma3--gemma-3-1b-it-q4_k_m--4e4b9ae0.json",
       "source": {
@@ -618,7 +741,10 @@
       "models": [
         "gpt-oss-20b-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/gpt-oss--gpt-oss-20b-q4_0--e5e23040.json",
       "reference": "references/gpt-oss--gpt-oss-20b-q4_0--e5e23040.json",
       "source": {
@@ -632,7 +758,10 @@
       "models": [
         "inclusionAI_Ling-mini-2.0-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/bailingmoe2--inclusionai_ling-mini-2.0-q4_0--ad31f949.json",
       "reference": "references/bailingmoe2--inclusionai_ling-mini-2.0-q4_0--ad31f949.json",
       "source": {
@@ -648,7 +777,10 @@
         "LFM2-350M-Q4_0.gguf",
         "LiquidAI/LFM2-350M-GGUF/LFM2-350M-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/lfm2--lfm2-350m-q4_0--c7fcf233.json",
       "reference": "references/lfm2--lfm2-350m-q4_0--c7fcf233.json",
       "source": {
@@ -665,7 +797,10 @@
         "LFM2.5-1.2B-Instruct-Q4_0.gguf",
         "LiquidAI/LFM2.5-1.2B-Instruct-GGUF/LFM2.5-1.2B-Instruct-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/lfm2--lfm2.5-1.2b-instruct-q4_0--cfa33de8.json",
       "reference": "references/lfm2--lfm2.5-1.2b-instruct-q4_0--cfa33de8.json",
       "source": {
@@ -682,7 +817,10 @@
         "LFM2.5-8B-A1B-Q4_0.gguf",
         "LiquidAI/LFM2.5-8B-A1B-GGUF/LFM2.5-8B-A1B-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/lfm2moe--lfm2.5-8b-a1b-q4_0--5c44a049.json",
       "reference": "references/lfm2moe--lfm2.5-8b-a1b-q4_0--5c44a049.json",
       "source": {
@@ -717,7 +855,10 @@
       "models": [
         "lfm25-26b-xe2-20261103--LFM2.5-2.6B-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/lfm2--lfm25-26b-xe2-20261103--lfm2.5-2.6b-q4_0--f714518a.json",
       "reference": "references/lfm2--lfm25-26b-xe2-20261103--lfm2.5-2.6b-q4_0--f714518a.json",
       "source": {
@@ -732,7 +873,10 @@
       "models": [
         "LFM3-1.7B-QAD-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/lfm3--lfm3-1.7b-qad-q4_0--d897a7f6.json",
       "reference": "references/lfm3--lfm3-1.7b-qad-q4_0--d897a7f6.json",
       "source": {
@@ -747,7 +891,10 @@
       "models": [
         "LFM3-Audio-2B-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/lfm3--lfm3-audio-2b-q4_0--07f0bced.json",
       "reference": "references/lfm3--lfm3-audio-2b-q4_0--07f0bced.json",
       "source": {
@@ -761,7 +908,10 @@
       "models": [
         "LFM3-Omni-2B-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/lfm3--lfm3-omni-2b-q4_0--77b864bb.json",
       "reference": "references/lfm3--lfm3-omni-2b-q4_0--77b864bb.json",
       "source": {
@@ -775,7 +925,10 @@
       "models": [
         "LFM3-VL-2B-QAD-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/lfm3--lfm3-vl-2b-qad-q4_0--a1b72b32.json",
       "reference": "references/lfm3--lfm3-vl-2b-qad-q4_0--a1b72b32.json",
       "source": {
@@ -861,7 +1014,10 @@
       "models": [
         "mistral-7b-instruct-v0.1.Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/llama--mistral-7b-instruct-v0.1.q4_k_m--f99051cb.json",
       "reference": "references/llama--mistral-7b-instruct-v0.1.q4_k_m--f99051cb.json",
       "source": {
@@ -875,7 +1031,10 @@
       "models": [
         "Muse-Glimmer-30B-KQuant-17GB-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/muse-glimmer--muse-glimmer-30b-kquant-17gb-q4_k_m--66eb42fa.json",
       "reference": "references/muse-glimmer--muse-glimmer-30b-kquant-17gb-q4_k_m--66eb42fa.json",
       "source": {
@@ -906,7 +1065,10 @@
       "models": [
         "Qwen3.5-0.8B-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--qwen3.5-0.8b-q4_0--0ee39436.json",
       "reference": "references/qwen35--qwen3.5-0.8b-q4_0--0ee39436.json",
       "source": {
@@ -921,7 +1083,10 @@
       "models": [
         "Qwen3.5-0.8B-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--qwen3.5-0.8b-q4_k_m--bc5bd19d.json",
       "reference": "references/qwen35--qwen3.5-0.8b-q4_k_m--bc5bd19d.json",
       "source": {
@@ -955,7 +1120,10 @@
       "models": [
         "Qwen3.5-2B-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--qwen3.5-2b-q4_0--b7d8e1b1.json",
       "reference": "references/qwen35--qwen3.5-2b-q4_0--b7d8e1b1.json",
       "source": {
@@ -970,7 +1138,10 @@
       "models": [
         "Qwen3.5-2B-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--qwen3.5-2b-q4_k_m--64ca7d78.json",
       "reference": "references/qwen35--qwen3.5-2b-q4_k_m--64ca7d78.json",
       "source": {
@@ -1003,7 +1174,10 @@
       "models": [
         "Qwen3.5-4B-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--qwen3.5-4b-q4_k_m--ed5ec8c5.json",
       "reference": "references/qwen35--qwen3.5-4b-q4_k_m--ed5ec8c5.json",
       "source": {
@@ -1036,7 +1210,10 @@
       "models": [
         "Qwen3.5-9B-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--qwen3.5-9b-q4_0--fdeca2f0.json",
       "reference": "references/qwen35--qwen3.5-9b-q4_0--fdeca2f0.json",
       "source": {
@@ -1051,7 +1228,10 @@
       "models": [
         "Qwen3.5-9B-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--qwen3.5-9b-q4_k_m--99656c08.json",
       "reference": "references/qwen35--qwen3.5-9b-q4_k_m--99656c08.json",
       "source": {
@@ -1084,7 +1264,10 @@
       "models": [
         "gemma-4-12b-it-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/gemma4--gemma-4-12b-it-q4_0--585df0bd.json",
       "reference": "references/gemma4--gemma-4-12b-it-q4_0--585df0bd.json",
       "source": {
@@ -1099,7 +1282,10 @@
       "models": [
         "gemma-4-12b-it-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/gemma4--gemma-4-12b-it-q4_k_m--a9c38470.json",
       "reference": "references/gemma4--gemma-4-12b-it-q4_k_m--a9c38470.json",
       "source": {
@@ -1114,7 +1300,10 @@
       "models": [
         "gemma-4-E2B-it-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/gemma4--gemma-4-e2b-it-q4_0--949a6eff.json",
       "reference": "references/gemma4--gemma-4-e2b-it-q4_0--949a6eff.json",
       "source": {
@@ -1129,7 +1318,10 @@
       "models": [
         "gemma-4-E2B-it-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/gemma4--gemma-4-e2b-it-q4_k_m--f35a3c3e.json",
       "reference": "references/gemma4--gemma-4-e2b-it-q4_k_m--f35a3c3e.json",
       "source": {
@@ -1164,7 +1356,10 @@
       "models": [
         "gemma-4-E4B-it-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/gemma4--gemma-4-e4b-it-q4_0--e7c11bc9.json",
       "reference": "references/gemma4--gemma-4-e4b-it-q4_0--e7c11bc9.json",
       "source": {
@@ -1180,7 +1375,10 @@
         "gemma-4-E4B-it-Q4_K_M.gguf",
         "unsloth/gemma-4-E4B-it-GGUF/gemma-4-E4B-it-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/gemma4--gemma-4-e4b-it-q4_k_m--effc86c1.json",
       "reference": "references/gemma4--gemma-4-e4b-it-q4_k_m--effc86c1.json",
       "source": {
@@ -1288,7 +1486,10 @@
       "models": [
         "gemma-3-4b-it-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/gemma3--gemma-3-4b-it-q4_k_m--b6f02999.json",
       "reference": "references/gemma3--gemma-3-4b-it-q4_k_m--b6f02999.json",
       "source": {
@@ -1303,7 +1504,10 @@
       "models": [
         "gemma-3-4b-it-dequant-f16.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/gemma3--gemma-3-4b-it-dequant-f16--8a5e9b95.json",
       "reference": "references/gemma3--gemma-3-4b-it-dequant-f16--8a5e9b95.json",
       "source": {
@@ -1338,7 +1542,10 @@
       "models": [
         "nvidia_Nemotron-H-8B-Reasoning-128K-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/nemotron_h--nvidia_nemotron-h-8b-reasoning-128k-q4_0--e44bf4ac.json",
       "reference": "references/nemotron_h--nvidia_nemotron-h-8b-reasoning-128k-q4_0--e44bf4ac.json",
       "source": {
@@ -1352,7 +1559,10 @@
       "models": [
         "plamo-3-nict-2b-base-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/plamo3--plamo-3-nict-2b-base-q4_0--34835aa1.json",
       "reference": "references/plamo3--plamo-3-nict-2b-base-q4_0--34835aa1.json",
       "source": {
@@ -1367,7 +1577,10 @@
         "plamo-3-nict-2b-base-Q4_K_M.gguf",
         "mmnga-o/plamo-3-nict-2b-base-gguf/plamo-3-nict-2b-base-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/plamo3--plamo-3-nict-2b-base-q4_k_m--95665dba.json",
       "reference": "references/plamo3--plamo-3-nict-2b-base-q4_k_m--95665dba.json",
       "source": {
@@ -1383,7 +1596,10 @@
       "models": [
         "Qwen3.6-35B-A3B-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35moe--qwen3.6-35b-a3b-q4_k_m--a5bc4777.json",
       "reference": "references/qwen35moe--qwen3.6-35b-a3b-q4_k_m--a5bc4777.json",
       "source": {
@@ -1397,7 +1613,10 @@
       "models": [
         "Qwen3-8B-Q8_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen3--qwen3-8b-q8_0--7fb80686.json",
       "reference": "references/qwen3--qwen3-8b-q8_0--7fb80686.json",
       "source": {
@@ -1431,7 +1650,10 @@
         "inclusionAI_Ling-mini-2.0-Q4_K_M.gguf",
         "bartowski/inclusionAI_Ling-mini-2.0-GGUF/inclusionAI_Ling-mini-2.0-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/bailingmoe2--inclusionai_ling-mini-2.0-q4_k_m--8616b5d4.json",
       "reference": "references/bailingmoe2--inclusionai_ling-mini-2.0-q4_k_m--8616b5d4.json",
       "source": {
@@ -1464,7 +1686,10 @@
         "gpt-oss-20b-Q4_K_M.gguf",
         "unsloth/gpt-oss-20b-GGUF/gpt-oss-20b-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/gpt-oss--gpt-oss-20b-q4_k_m--f8b15968.json",
       "reference": "references/gpt-oss--gpt-oss-20b-q4_k_m--f8b15968.json",
       "source": {
@@ -1481,7 +1706,10 @@
         "mamba2-130m-q8_0.gguf",
         "rpatel622/mamba2-130m-hf-Q8_0-GGUF/mamba2-130m-q8_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/mamba2--mamba2-130m-q8_0--c6313f57.json",
       "reference": "references/mamba2--mamba2-130m-q8_0--c6313f57.json",
       "source": {
@@ -1497,7 +1725,10 @@
         "Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf",
         "bartowski/Mellum2-12B-A2.5B-Instruct-GGUF/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/mellum--mellum2-12b-a2.5b-instruct-q4_k_m--0dfd2707.json",
       "reference": "references/mellum--mellum2-12b-a2.5b-instruct-q4_k_m--0dfd2707.json",
       "source": {
@@ -1514,7 +1745,10 @@
         "MiniCPM-2B-dpo-q4km-gguf.gguf",
         "runfuture/MiniCPM-2B-dpo-q4km-gguf/MiniCPM-2B-dpo-q4km-gguf.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/minicpm--minicpm-2b-dpo-q4km-gguf--52d5df46.json",
       "reference": "references/minicpm--minicpm-2b-dpo-q4km-gguf--52d5df46.json",
       "source": {
@@ -1531,7 +1765,10 @@
         "nvidia_Nemotron-H-8B-Reasoning-128K-Q4_K_M.gguf",
         "bartowski/nvidia_Nemotron-H-8B-Reasoning-128K-GGUF/nvidia_Nemotron-H-8B-Reasoning-128K-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/nemotron_h--nvidia_nemotron-h-8b-reasoning-128k-q4_k_m--35cc7109.json",
       "reference": "references/nemotron_h--nvidia_nemotron-h-8b-reasoning-128k-q4_k_m--35cc7109.json",
       "source": {
@@ -1548,7 +1785,10 @@
         "Phi-3-mini-4k-instruct-Q4_K_M.gguf",
         "bartowski/Phi-3-mini-4k-instruct-GGUF/Phi-3-mini-4k-instruct-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/phi3--phi-3-mini-4k-instruct-q4_k_m--d5340aca.json",
       "reference": "references/phi3--phi-3-mini-4k-instruct-q4_k_m--d5340aca.json",
       "source": {
@@ -1564,7 +1804,10 @@
       "models": [
         "Qwen3.5-35B-A3B-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35moe--qwen3.5-35b-a3b-q4_k_m--2040a7ec.json",
       "reference": "references/qwen35moe--qwen3.5-35b-a3b-q4_k_m--2040a7ec.json",
       "source": {
@@ -1596,7 +1839,10 @@
       "models": [
         "InternVL2_5-1B-Q8_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen2--internvl2_5-1b-q8_0--277ba40f.json",
       "reference": "references/qwen2--internvl2_5-1b-q8_0--277ba40f.json",
       "source": {
@@ -1629,7 +1875,10 @@
       "models": [
         "llava-v1.6-vicuna-7b.Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/llama--llava-v1.6-vicuna-7b.q4_k_m--c28f6ad7.json",
       "reference": "references/llama--llava-v1.6-vicuna-7b.q4_k_m--c28f6ad7.json",
       "source": {
@@ -1660,7 +1909,10 @@
       "models": [
         "ggml-model-q4_k.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/llama--ggml-model-q4_k--2ccee2f3.json",
       "reference": "references/llama--ggml-model-q4_k--2ccee2f3.json",
       "source": {
@@ -1691,7 +1943,10 @@
       "models": [
         "ggml-model-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen2--ggml-model-q4_0--208e9dab.json",
       "reference": "references/qwen2--ggml-model-q4_0--208e9dab.json",
       "source": {
@@ -1705,7 +1960,10 @@
       "models": [
         "EXAONE-4.0-1.2B.i1-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/exaone4--exaone-4.0-1.2b.i1-q4_0--b4be83d6.json",
       "reference": "references/exaone4--exaone-4.0-1.2b.i1-q4_0--b4be83d6.json",
       "source": {
@@ -1720,7 +1978,10 @@
       "models": [
         "HuggingFaceTB_SmolLM3-3B-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/smollm3--huggingfacetb_smollm3-3b-q4_0--e3c6645a.json",
       "reference": "references/smollm3--huggingfacetb_smollm3-3b-q4_0--e3c6645a.json",
       "source": {
@@ -1734,7 +1995,10 @@
       "models": [
         "Hunyuan-0.5B-Instruct-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/hunyuan-dense--hunyuan-0.5b-instruct-q4_0--a7ada4e8.json",
       "reference": "references/hunyuan-dense--hunyuan-0.5b-instruct-q4_0--a7ada4e8.json",
       "source": {
@@ -1749,7 +2013,10 @@
       "models": [
         "Maincoder-1B-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/maincoder--maincoder-1b-q4_0--6415a6db.json",
       "reference": "references/maincoder--maincoder-1b-q4_0--6415a6db.json",
       "source": {
@@ -1764,7 +2031,10 @@
       "models": [
         "Ministral-3-3B-Instruct-2512-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/mistral3--ministral-3-3b-instruct-2512-q4_0--f3d004f9.json",
       "reference": "references/mistral3--ministral-3-3b-instruct-2512-q4_0--f3d004f9.json",
       "source": {
@@ -1778,7 +2048,10 @@
       "models": [
         "OLMoE-1b-7b-0924-Instruct-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/olmoe--olmoe-1b-7b-0924-instruct-q4_0--024ec20e.json",
       "reference": "references/olmoe--olmoe-1b-7b-0924-instruct-q4_0--024ec20e.json",
       "source": {
@@ -1793,7 +2066,10 @@
       "models": [
         "qwen2.5-0.5b-instruct-q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen2--qwen2.5-0.5b-instruct-q4_0--67f27271.json",
       "reference": "references/qwen2--qwen2.5-0.5b-instruct-q4_0--67f27271.json",
       "source": {
@@ -1807,7 +2083,10 @@
       "models": [
         "Llama-3.2-3B-Instruct-Q5_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/llama--llama-3.2-3b-instruct-q5_k_m--453444b3.json",
       "reference": "references/llama--llama-3.2-3b-instruct-q5_k_m--453444b3.json",
       "source": {
@@ -1821,7 +2100,10 @@
       "models": [
         "Llama-3.2-3B-Instruct-f16.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/llama--llama-3.2-3b-instruct-f16--5064cd36.json",
       "reference": "references/llama--llama-3.2-3b-instruct-f16--5064cd36.json",
       "source": {
@@ -1835,7 +2117,10 @@
       "models": [
         "Mistral-7B-Instruct-v0.3.Q5_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/llama--mistral-7b-instruct-v0.3.q5_k_m--c2725465.json",
       "reference": "references/llama--mistral-7b-instruct-v0.3.q5_k_m--c2725465.json",
       "source": {
@@ -1850,7 +2135,10 @@
       "models": [
         "Mistral-7B-Instruct-v0.3.f16.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/llama--mistral-7b-instruct-v0.3.f16--64cf12c7.json",
       "reference": "references/llama--mistral-7b-instruct-v0.3.f16--64cf12c7.json",
       "source": {
@@ -1865,7 +2153,10 @@
       "models": [
         "Qwen2.5-7B-Instruct-Q5_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen2--qwen2.5-7b-instruct-q5_k_m--100012a9.json",
       "reference": "references/qwen2--qwen2.5-7b-instruct-q5_k_m--100012a9.json",
       "source": {
@@ -1880,7 +2171,10 @@
       "models": [
         "Qwen2.5-7B-Instruct-f16.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen2--qwen2.5-7b-instruct-f16--c648cd50.json",
       "reference": "references/qwen2--qwen2.5-7b-instruct-f16--c648cd50.json",
       "source": {
@@ -1895,7 +2189,10 @@
       "models": [
         "gemma-2-2b-it.Q5_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/gemma2--gemma-2-2b-it.q5_k_m--fe84960b.json",
       "reference": "references/gemma2--gemma-2-2b-it.q5_k_m--fe84960b.json",
       "source": {
@@ -1910,7 +2207,10 @@
       "models": [
         "gemma-2-2b-it.f16.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/gemma2--gemma-2-2b-it.f16--d673f636.json",
       "reference": "references/gemma2--gemma-2-2b-it.f16--d673f636.json",
       "source": {
@@ -1925,7 +2225,10 @@
       "models": [
         "Qwen3.5-4B-BF16.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--qwen3.5-4b-bf16--8495d3ac.json",
       "reference": "references/qwen35--qwen3.5-4b-bf16--8495d3ac.json",
       "source": {
@@ -1940,7 +2243,10 @@
       "models": [
         "Qwen3.5-4B-Q5_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--qwen3.5-4b-q5_k_m--85155546.json",
       "reference": "references/qwen35--qwen3.5-4b-q5_k_m--85155546.json",
       "source": {
@@ -1955,7 +2261,10 @@
       "models": [
         "Qwen3.5-9B-BF16.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--qwen3.5-9b-bf16--0d70e3e7.json",
       "reference": "references/qwen35--qwen3.5-9b-bf16--0d70e3e7.json",
       "source": {
@@ -1970,7 +2279,10 @@
       "models": [
         "Qwen3.5-9B-Q5_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--qwen3.5-9b-q5_k_m--c9516dd6.json",
       "reference": "references/qwen35--qwen3.5-9b-q5_k_m--c9516dd6.json",
       "source": {
@@ -1985,7 +2297,10 @@
       "models": [
         "gemma-4-E4B-it-BF16.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/gemma4--gemma-4-e4b-it-bf16--48345031.json",
       "reference": "references/gemma4--gemma-4-e4b-it-bf16--48345031.json",
       "source": {
@@ -2000,7 +2315,10 @@
       "models": [
         "gemma-4-E4B-it-Q5_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/gemma4--gemma-4-e4b-it-q5_k_m--3fa967db.json",
       "reference": "references/gemma4--gemma-4-e4b-it-q5_k_m--3fa967db.json",
       "source": {
@@ -2015,7 +2333,10 @@
       "models": [
         "Qwen2.5-1.5B-Instruct-Q5_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen2--qwen2.5-1.5b-instruct-q5_k_m--11afaf3e.json",
       "reference": "references/qwen2--qwen2.5-1.5b-instruct-q5_k_m--11afaf3e.json",
       "source": {
@@ -2030,7 +2351,10 @@
       "models": [
         "Qwen2.5-1.5B-Instruct-f16.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen2--qwen2.5-1.5b-instruct-f16--6ea3053d.json",
       "reference": "references/qwen2--qwen2.5-1.5b-instruct-f16--6ea3053d.json",
       "source": {
@@ -2045,7 +2369,10 @@
       "models": [
         "Hy-MT2-1.8B-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/hunyuan-dense--hy-mt2-1.8b-q4_k_m--2b2e3b65.json",
       "reference": "references/hunyuan-dense--hy-mt2-1.8b-q4_k_m--2b2e3b65.json",
       "source": {
@@ -2059,7 +2386,10 @@
       "models": [
         "Hy-MT2-7B-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/hunyuan-dense--hy-mt2-7b-q4_k_m--1434abb9.json",
       "reference": "references/hunyuan-dense--hy-mt2-7b-q4_k_m--1434abb9.json",
       "source": {
@@ -2073,7 +2403,10 @@
       "models": [
         "Mellum2.1-12B-A2.5B-Thinking-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/mellum--mellum2.1-12b-a2.5b-thinking-q4_k_m--c3b42237.json",
       "reference": "references/mellum--mellum2.1-12b-a2.5b-thinking-q4_k_m--c3b42237.json",
       "source": {
@@ -2088,7 +2421,10 @@
       "models": [
         "MiniCPM5-2B-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/llama--minicpm5-2b-q4_k_m--6ad2267f.json",
       "reference": "references/llama--minicpm5-2b-q4_k_m--6ad2267f.json",
       "source": {
@@ -2102,7 +2438,10 @@
       "models": [
         "Nemotron-3.5-Bolt-E4B-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/gemma4--nemotron-3.5-bolt-e4b-q4_k_m--b24b6ba5.json",
       "reference": "references/gemma4--nemotron-3.5-bolt-e4b-q4_k_m--b24b6ba5.json",
       "source": {
@@ -2116,7 +2455,10 @@
       "models": [
         "Ornith-1.5-9B-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--ornith-1.5-9b-q4_k_m--39b1a33b.json",
       "reference": "references/qwen35--ornith-1.5-9b-q4_k_m--39b1a33b.json",
       "source": {
@@ -2130,7 +2472,10 @@
       "models": [
         "gemma-4-12b-it-qat-q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/gemma4--gemma-4-12b-it-qat-q4_0--c44ee03e.json",
       "reference": "references/gemma4--gemma-4-12b-it-qat-q4_0--c44ee03e.json",
       "source": {
@@ -2170,7 +2515,8 @@
       "fixture": "mamba2-dense.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2190,7 +2536,8 @@
       "fixture": "nemotron_h-dense.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2210,7 +2557,8 @@
       "fixture": "bailingmoe2-moe.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2230,7 +2578,8 @@
       "fixture": "ernie4_5-moe-moe.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2250,7 +2599,8 @@
       "fixture": "exaone4-dense.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2270,7 +2620,8 @@
       "fixture": "gemma-dense.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2290,7 +2641,8 @@
       "fixture": "gemma2-dense.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2310,7 +2662,8 @@
       "fixture": "glm4moe-moe.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2330,7 +2683,8 @@
       "fixture": "gpt-oss-moe.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2350,7 +2704,8 @@
       "fixture": "hunyuan-dense-dense.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2370,7 +2725,8 @@
       "fixture": "hunyuan-moe-moe.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2390,7 +2746,8 @@
       "fixture": "llama-dense.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2410,7 +2767,8 @@
       "fixture": "lfm2-dense.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2430,7 +2788,8 @@
       "fixture": "lfm2moe-moe.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2450,7 +2809,8 @@
       "fixture": "llama-moe.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2470,7 +2830,8 @@
       "fixture": "maincoder-dense.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2490,7 +2851,8 @@
       "fixture": "minicpm-dense.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2510,7 +2872,8 @@
       "fixture": "minicpm-moe.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2530,7 +2893,8 @@
       "fixture": "minimax-m2-moe.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2550,7 +2914,8 @@
       "fixture": "mistral3-dense.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2570,7 +2935,8 @@
       "fixture": "mistral3-moe.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2590,7 +2956,8 @@
       "fixture": "olmoe-moe.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2610,7 +2977,8 @@
       "fixture": "phi3-dense.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2630,7 +2998,8 @@
       "fixture": "qwen2-dense.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2650,7 +3019,8 @@
       "fixture": "qwen3-dense.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2670,7 +3040,8 @@
       "fixture": "qwen3moe-moe.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2690,7 +3061,8 @@
       "fixture": "qwen35-dense.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2710,7 +3082,8 @@
       "fixture": "qwen35moe-moe.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2730,7 +3103,8 @@
       "fixture": "smollm3-dense.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2750,7 +3124,8 @@
       "fixture": "jais2-dense.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -2770,7 +3145,8 @@
       "fixture": "lfm3.gguf.hdr",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ]
     },
     {
@@ -3414,7 +3790,8 @@
       "reference": "references/controlled--llama-q8-nonzero-scale.json",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ],
       "source": {
         "filename": "controlled--llama-q8-nonzero-scale.gguf",
@@ -3481,7 +3858,8 @@
       "reference": "references/representative--llama-f16.json",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ],
       "source": {
         "filename": "representative--llama-f16.gguf",
@@ -3540,7 +3918,8 @@
       "reference": "references/representative--llama-ggml-2.json",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ],
       "source": {
         "filename": "representative--llama-ggml-2.gguf",
@@ -3580,7 +3959,8 @@
       "reference": "references/representative--llama-ggml-3.json",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ],
       "source": {
         "filename": "representative--llama-ggml-3.gguf",
@@ -3605,7 +3985,8 @@
       "reference": "references/representative--llama-ggml-6.json",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ],
       "source": {
         "filename": "representative--llama-ggml-6.gguf",
@@ -3624,7 +4005,8 @@
       "reference": "references/representative--llama-ggml-7.json",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ],
       "source": {
         "filename": "representative--llama-ggml-7.gguf",
@@ -3643,7 +4025,8 @@
       "reference": "references/representative--llama-ggml-9.json",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ],
       "source": {
         "filename": "representative--llama-ggml-9.gguf",
@@ -3665,7 +4048,8 @@
       "reference": "references/representative--llama-ggml-10.json",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ],
       "source": {
         "filename": "representative--llama-ggml-10.gguf",
@@ -3687,7 +4071,8 @@
       "reference": "references/representative--llama-ggml-11.json",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ],
       "source": {
         "filename": "representative--llama-ggml-11.gguf",
@@ -3755,7 +4140,8 @@
       "reference": "references/representative--llama-ggml-12.json",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ],
       "source": {
         "filename": "representative--llama-ggml-12.gguf",
@@ -3802,7 +4188,8 @@
       "reference": "references/representative--llama-ggml-13.json",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ],
       "source": {
         "filename": "representative--llama-ggml-13.gguf",
@@ -3905,7 +4292,8 @@
       "reference": "references/representative--llama-ggml-14.json",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ],
       "source": {
         "filename": "representative--llama-ggml-14.gguf",
@@ -3924,7 +4312,8 @@
       "reference": "references/representative--llama-ggml-15.json",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ],
       "source": {
         "filename": "representative--llama-ggml-15.gguf",
@@ -3944,7 +4333,8 @@
       "reference": "references/representative--llama-ggml-39.json",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ],
       "source": {
         "filename": "representative--llama-ggml-39.gguf",
@@ -3964,7 +4354,8 @@
       "reference": "references/representative--llama-ggml-41.json",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ],
       "source": {
         "filename": "representative--llama-ggml-41.gguf",
@@ -3983,7 +4374,8 @@
       "reference": "references/representative--llama-ggml-42.json",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ],
       "source": {
         "filename": "representative--llama-ggml-42.gguf",
@@ -4008,7 +4400,8 @@
       "reference": "references/representative--llama-ggml-142.json",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ],
       "source": {
         "filename": "representative--llama-ggml-142.gguf",
@@ -4028,7 +4421,8 @@
       "reference": "references/representative--llama-ggml-143.json",
       "stages": [
         "deferred_plan",
-        "materialized"
+        "materialized",
+        "adapted"
       ],
       "source": {
         "filename": "representative--llama-ggml-143.gguf",
@@ -4042,7 +4436,10 @@
       "models": [
         "bartowski/Llama-3.2-1B-Instruct-GGUF/Llama-3.2-1B-Instruct-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/llama--llama-3.2-1b-instruct-q4_k_m--65b8eaf8.json",
       "reference": "references/llama--llama-3.2-1b-instruct-q4_k_m--65b8eaf8.json",
       "source": {
@@ -4058,7 +4455,10 @@
       "models": [
         "Qwen/Qwen2.5-0.5B-Instruct-GGUF/qwen2.5-0.5b-instruct-q4_k_m.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen2--qwen2.5-0.5b-instruct-q4_k_m--8f5c49a4.json",
       "reference": "references/qwen2--qwen2.5-0.5b-instruct-q4_k_m--8f5c49a4.json",
       "source": {
@@ -4074,7 +4474,10 @@
       "models": [
         "Qwen/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q8_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen3--qwen3-0.6b-q8_0--7362d5e7.json",
       "reference": "references/qwen3--qwen3-0.6b-q8_0--7362d5e7.json",
       "source": {
@@ -4090,7 +4493,10 @@
       "models": [
         "bartowski/tencent_Hunyuan-0.5B-Instruct-GGUF/tencent_Hunyuan-0.5B-Instruct-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/hunyuan-dense--tencent_hunyuan-0.5b-instruct-q4_k_m--2f398680.json",
       "reference": "references/hunyuan-dense--tencent_hunyuan-0.5b-instruct-q4_k_m--2f398680.json",
       "source": {
@@ -4106,7 +4512,10 @@
       "models": [
         "mradermacher/Qwen3-0.9B-A0.6B-GGUF/Qwen3-0.9B-A0.6B.Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen3moe--qwen3-0.9b-a0.6b.q4_k_m--5e85cb30.json",
       "reference": "references/qwen3moe--qwen3-0.9b-a0.6b.q4_k_m--5e85cb30.json",
       "source": {
@@ -4122,7 +4531,10 @@
       "models": [
         "RichardErkhov/google_-_gemma-2b-it-gguf/gemma-2b-it.Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/llama--gemma-2b-it.q4_k_m--b12a3fb4.json",
       "reference": "references/llama--gemma-2b-it.q4_k_m--b12a3fb4.json",
       "source": {
@@ -4154,7 +4566,10 @@
       "models": [
         "LGAI-EXAONE/EXAONE-4.0-1.2B-GGUF/EXAONE-4.0-1.2B-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/exaone4--exaone-4.0-1.2b-q4_k_m--e8c9e460.json",
       "reference": "references/exaone4--exaone-4.0-1.2b-q4_k_m--e8c9e460.json",
       "source": {
@@ -4170,7 +4585,10 @@
       "models": [
         "bartowski/HuggingFaceTB_SmolLM3-3B-GGUF/HuggingFaceTB_SmolLM3-3B-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/smollm3--huggingfacetb_smollm3-3b-q4_k_m--1b8b7c2f.json",
       "reference": "references/smollm3--huggingfacetb_smollm3-3b-q4_k_m--1b8b7c2f.json",
       "source": {
@@ -4186,7 +4604,10 @@
       "models": [
         "mradermacher/Maincoder-1B-GGUF/Maincoder-1B.Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/maincoder--maincoder-1b.q4_k_m--3872917c.json",
       "reference": "references/maincoder--maincoder-1b.q4_k_m--3872917c.json",
       "source": {
@@ -4202,7 +4623,10 @@
       "models": [
         "mradermacher/Ministral-3b-instruct-GGUF/Ministral-3b-instruct.Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/llama--ministral-3b-instruct.q4_k_m--c7b704b5.json",
       "reference": "references/llama--ministral-3b-instruct.q4_k_m--c7b704b5.json",
       "source": {
@@ -4218,7 +4642,10 @@
       "models": [
         "prism-ml/Bonsai-27B-gguf/Bonsai-27B-Q1_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--bonsai-27b-q1_0--22953347.json",
       "reference": "references/qwen35--bonsai-27b-q1_0--22953347.json",
       "source": {
@@ -4234,7 +4661,10 @@
       "models": [
         "unsloth/Muse-Glimmer-30B-GGUF/Muse-Glimmer-30B-UD-Q4_K_XL.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/muse-glimmer--muse-glimmer-30b-ud-q4_k_xl--2acddbea.json",
       "reference": "references/muse-glimmer--muse-glimmer-30b-ud-q4_k_xl--2acddbea.json",
       "source": {
@@ -4250,7 +4680,10 @@
       "models": [
         "prism-ml/Ternary-Bonsai-27B-gguf/Ternary-Bonsai-27B-Q2_g64.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--ternary-bonsai-27b-q2_g64--81ccab64.json",
       "reference": "references/qwen35--ternary-bonsai-27b-q2_g64--81ccab64.json",
       "source": {
@@ -4266,7 +4699,10 @@
       "models": [
         "mradermacher/JAIS2-IT-0.3-GGUF/JAIS2-IT-0.3.Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/jais2--jais2-it-0.3.q4_k_m--61e5ba82.json",
       "reference": "references/jais2--jais2-it-0.3.q4_k_m--61e5ba82.json",
       "source": {
@@ -4282,7 +4718,10 @@
       "models": [
         "Nicholas55555/mamba2-2.7b-Q8_0-GGUF/mamba2-2.7b-q8_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/mamba2--mamba2-2.7b-q8_0--aa65b990.json",
       "reference": "references/mamba2--mamba2-2.7b-q8_0--aa65b990.json",
       "source": {
@@ -4298,7 +4737,10 @@
       "models": [
         "prism-ml/Ternary-Bonsai-2-27B-gguf/Ternary-Bonsai-2-27B-PTQ1_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--ternary-bonsai-2-27b-ptq1_0--9a9ab9ce.json",
       "reference": "references/qwen35--ternary-bonsai-2-27b-ptq1_0--9a9ab9ce.json",
       "source": {
@@ -4314,7 +4756,10 @@
       "models": [
         "prism-ml/Ternary-Bonsai-2-27B-gguf-dev/Ternary-Bonsai-2-27B-Q2_0-prism-fork-required.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--ternary-bonsai-2-27b-q2_0-prism-fork-required--ecbb4fe7.json",
       "reference": "references/qwen35--ternary-bonsai-2-27b-q2_0-prism-fork-required--ecbb4fe7.json",
       "source": {
@@ -4446,7 +4891,10 @@
       "models": [
         "prism-ml/Ternary-Bonsai-2-27B-gguf/Ternary-Bonsai-2-27B-F16.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--ternary-bonsai-2-27b-f16--45233492.json",
       "reference": "references/qwen35--ternary-bonsai-2-27b-f16--45233492.json",
       "source": {
@@ -4463,7 +4911,10 @@
         "prism-ml/Bonsai-27B-gguf/Bonsai-27B-F16.gguf",
         "prism-ml/Ternary-Bonsai-27B-gguf/Ternary-Bonsai-27B-F16.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--bonsai-27b-f16--6dc79693.json",
       "reference": "references/qwen35--bonsai-27b-f16--6dc79693.json",
       "source": {
@@ -4496,7 +4947,10 @@
       "models": [
         "prism-ml/Ternary-Bonsai-27B-gguf/Ternary-Bonsai-27B-Q2_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--ternary-bonsai-27b-q2_0--84e5eeb0.json",
       "reference": "references/qwen35--ternary-bonsai-27b-q2_0--84e5eeb0.json",
       "source": {
@@ -4528,7 +4982,10 @@
       "models": [
         "prism-ml/Ternary-Bonsai-8B-gguf/Ternary-Bonsai-8B-F16.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen3--ternary-bonsai-8b-f16--e047c4df.json",
       "reference": "references/qwen3--ternary-bonsai-8b-f16--e047c4df.json",
       "source": {
@@ -4544,7 +5001,10 @@
       "models": [
         "prism-ml/Ternary-Bonsai-8B-gguf/Ternary-Bonsai-8B-PQ2_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen3--ternary-bonsai-8b-pq2_0--7e177a0b.json",
       "reference": "references/qwen3--ternary-bonsai-8b-pq2_0--7e177a0b.json",
       "source": {
@@ -4561,7 +5021,10 @@
         "prism-ml/Bonsai-1.7B-gguf/Bonsai-1.7B-Q1_0.gguf",
         "prism-ml/Bonsai-1.7B-gguf/Bonsai-1.7B.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen3--bonsai-1.7b-q1_0--e5af3bc5.json",
       "reference": "references/qwen3--bonsai-1.7b-q1_0--e5af3bc5.json",
       "source": {
@@ -4577,7 +5040,10 @@
       "models": [
         "prism-ml/Ternary-Bonsai-1.7B-gguf/Ternary-Bonsai-1.7B-F16.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen3--ternary-bonsai-1.7b-f16--26ffb175.json",
       "reference": "references/qwen3--ternary-bonsai-1.7b-f16--26ffb175.json",
       "source": {
@@ -4593,7 +5059,10 @@
       "models": [
         "prism-ml/Ternary-Bonsai-1.7B-gguf/Ternary-Bonsai-1.7B-PQ2_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen3--ternary-bonsai-1.7b-pq2_0--4abee613.json",
       "reference": "references/qwen3--ternary-bonsai-1.7b-pq2_0--4abee613.json",
       "source": {
@@ -4609,7 +5078,10 @@
       "models": [
         "prism-ml/Ternary-Bonsai-4B-gguf/Ternary-Bonsai-4B-F16.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen3--ternary-bonsai-4b-f16--a6a87ab6.json",
       "reference": "references/qwen3--ternary-bonsai-4b-f16--a6a87ab6.json",
       "source": {
@@ -4625,7 +5097,10 @@
       "models": [
         "prism-ml/Ternary-Bonsai-4B-gguf/Ternary-Bonsai-4B-PQ2_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen3--ternary-bonsai-4b-pq2_0--3500d0aa.json",
       "reference": "references/qwen3--ternary-bonsai-4b-pq2_0--3500d0aa.json",
       "source": {
@@ -4642,7 +5117,10 @@
         "prism-ml/Bonsai-4B-gguf/Bonsai-4B-Q1_0.gguf",
         "prism-ml/Bonsai-4B-gguf/Bonsai-4B.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen3--bonsai-4b-q1_0--8b659c37.json",
       "reference": "references/qwen3--bonsai-4b-q1_0--8b659c37.json",
       "source": {
@@ -4658,7 +5136,10 @@
       "models": [
         "prism-ml/Ternary-Bonsai-8B-gguf/Ternary-Bonsai-8B-Q2_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen3--ternary-bonsai-8b-q2_0--68936d33.json",
       "reference": "references/qwen3--ternary-bonsai-8b-q2_0--68936d33.json",
       "source": {
@@ -4674,7 +5155,10 @@
       "models": [
         "prism-ml/Ternary-Bonsai-8B-gguf/Ternary-Bonsai-8B-Q2_0_g64.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen3--ternary-bonsai-8b-q2_0_g64--8a087353.json",
       "reference": "references/qwen3--ternary-bonsai-8b-q2_0_g64--8a087353.json",
       "source": {
@@ -4690,7 +5174,10 @@
       "models": [
         "prism-ml/Ternary-Bonsai-1.7B-gguf/Ternary-Bonsai-1.7B-Q2_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen3--ternary-bonsai-1.7b-q2_0--2d6a5613.json",
       "reference": "references/qwen3--ternary-bonsai-1.7b-q2_0--2d6a5613.json",
       "source": {
@@ -4706,7 +5193,10 @@
       "models": [
         "prism-ml/Ternary-Bonsai-1.7B-gguf/Ternary-Bonsai-1.7B-Q2_0_g64.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen3--ternary-bonsai-1.7b-q2_0_g64--c847b21f.json",
       "reference": "references/qwen3--ternary-bonsai-1.7b-q2_0_g64--c847b21f.json",
       "source": {
@@ -4722,7 +5212,10 @@
       "models": [
         "prism-ml/Ternary-Bonsai-4B-gguf/Ternary-Bonsai-4B-Q2_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen3--ternary-bonsai-4b-q2_0--574994c5.json",
       "reference": "references/qwen3--ternary-bonsai-4b-q2_0--574994c5.json",
       "source": {
@@ -4738,7 +5231,10 @@
       "models": [
         "prism-ml/Ternary-Bonsai-4B-gguf/Ternary-Bonsai-4B-Q2_0_g64.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen3--ternary-bonsai-4b-q2_0_g64--67809f7f.json",
       "reference": "references/qwen3--ternary-bonsai-4b-q2_0_g64--67809f7f.json",
       "source": {
@@ -4869,7 +5365,10 @@
       "models": [
         "aditya00196/DeepSeek-OCR-2-Q4_K_M.gguf/DeepSeek-OCR-2-Q4_K_M.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/deepseek2-ocr--deepseek-ocr-2-q4_k_m--707bcc65.json",
       "reference": "references/deepseek2-ocr--deepseek-ocr-2-q4_k_m--707bcc65.json",
       "source": {
@@ -4885,7 +5384,10 @@
       "models": [
         "allenai/OLMoE-1B-7B-0924-Instruct-GGUF/olmoe-1b-7b-0924-instruct-q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/olmoe--olmoe-1b-7b-0924-instruct-q4_0--4aaa2be7.json",
       "reference": "references/olmoe--olmoe-1b-7b-0924-instruct-q4_0--4aaa2be7.json",
       "source": {
@@ -4901,7 +5403,10 @@
       "models": [
         "ggml-org/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q4_0.gguf"
       ],
-      "stage": "deferred_plan",
+      "stages": [
+        "deferred_plan",
+        "adapted"
+      ],
       "recipe": "recipes/qwen35--qwen3.5-0.8b-q4_0--2010fccc.json",
       "reference": "references/qwen35--qwen3.5-0.8b-q4_0--2010fccc.json",
       "source": {

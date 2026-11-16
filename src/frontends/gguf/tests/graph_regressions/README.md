@@ -1,8 +1,8 @@
 # GGUF structural regression references
 
 These are structural alarms, not runtime benchmarks or numerical equivalence tests.
-The native foundation works offline; adapted GenAI model-map capture is blocked on
-the frontend adaptation API. Do not describe the deferred stage as final GenAI IR.
+Every stage works offline. The `adapted` stage captures the model map that GenAI
+compiles, so changes in GenAI-only passes are visible.
 
 ## Coverage status
 
@@ -42,6 +42,10 @@ not LFS:
 `deferred_plan` uses descriptors that throw on payload access. It reuses production
 builder selection and weight allocation/layout planning without allocating checkpoint
 weights. This is the all-model precommit candidate, not final materialized IR.
+`adapted` converts the same deferred recipe with `GenAIExtension`, in both `ids` and
+`embeds` modes, and records each produced model (`ids`, `embeds`, `embedding`,
+`per_layer_embedding`). Every case whose architecture GenAI adaptation supports has it;
+projectors, vocoders, embedding-only and draft-only checkpoints keep `deferred_plan`.
 `materialized` runs bounded synthetic GGUF files through ordinary production loading.
 `controlled--llama-q8-nonzero-scale` materializes patterned Q8_0 payloads. The 31
 legacy positive architecture fingerprints have materialized references with identical
