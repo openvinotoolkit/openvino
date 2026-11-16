@@ -83,6 +83,86 @@ coverage/intel_gpu_plugin/index.html
 coverage/intel_npu_plugin/index.html
 ```
 
+## Local Windows NPU coverage experiment
+
+The Windows coverage branch includes two experimental PowerShell scripts. They do
+not change the CI workflow, upload results, or install coverage tools automatically.
+Use PowerShell 7 and an **x64 VS2022 Developer PowerShell** environment, with the
+C++ workload, Windows SDK, CMake 3.26+, Ninja, Git and Python 3.11+ on PATH.
+VS2022 Professional is sufficient to build; availability of native coverage is
+what this experiment is intended to establish. CI uses MSVC toolset 14.42.
+
+From the repository root:
+
+```powershell
+pwsh -File scripts/build_windows_npu_coverage.ps1 -Jobs 8
+pwsh -File scripts/run_windows_npu_coverage.ps1 -Mode Plain
+```
+
+The build uses Ninja Multi-Config, Release, `ENABLE_COVERAGE=ON` and
+`ENABLE_PDB_IN_RELEASE=ON`, as in the Windows workflow. It keeps CPU (needed by
+NPUW), NPU and IR support, but omits Python/JS bindings, wheels, samples and other
+frontends to reduce dependencies. Other C++ tests may be built/installed, but only
+`ov_npu_unit_tests.exe` is run. There is no shared compiler cache or CI packaging
+metadata. Submodules and CMake dependencies require network access; configure
+your machine's proxy/CA trust if needed.
+
+Outputs are `build-windows-npu-coverage/package` and
+`build-windows-npu-coverage/openvino-npu-coverage.zip` (runtime, tests and PDBs
+together). The script refuses to reuse an existing package to avoid stale files;
+move it aside before rebuilding, or choose another `-WorkDir`.
+You can unpack the ZIP elsewhere and pass that directory as `-PackageDir`.
+Keep the matching source checkout available at its original path for symbol/source
+resolution during the first experiment.
+
+### Try standalone VSTest first
+
+With [NuGet CLI](https://learn.microsoft.com/nuget/install-nuget-client-tools)
+available, download the complete tool packages into an ignored local directory:
+
+```powershell
+nuget install Microsoft.TestPlatform -Version 18.0.0 -OutputDirectory build-windows-npu-coverage/tools -Source https://api.nuget.org/v3/index.json -NonInteractive
+nuget install GoogleTestAdapter -Version 0.18.0 -OutputDirectory build-windows-npu-coverage/tools -Source https://api.nuget.org/v3/index.json -NonInteractive
+
+$vstest = "$PWD/build-windows-npu-coverage/tools/Microsoft.TestPlatform.18.0.0/tools/net462/Common7/IDE/Extensions/TestPlatform/vstest.console.exe"
+$adapter = "$PWD/build-windows-npu-coverage/tools/GoogleTestAdapter.0.18.0/build/_common"
+pwsh -File scripts/run_windows_npu_coverage.ps1 -Mode VSTest -ToolPath $vstest -AdapterPath $adapter
+```
+
+This uses native **dynamic** instrumentation by default. Repeat with
+`-Instrumentation Static` to compare, if supported by the installed collector.
+The standalone runner requires the .NET Framework runtime appropriate to that
+package. Keep the entire packages, not just their EXEs. The old standalone Google
+Test adapter is an experimental compatibility dependency, not a validated CI choice.
+Alternatively, pass the DLL directory of the Google Test adapter installed with VS.
+
+### Try Microsoft.CodeCoverage.Console if available
+
+```powershell
+$collector = 'C:\path\to\Microsoft.CodeCoverage.Console.exe'
+pwsh -File scripts/run_windows_npu_coverage.ps1 -Mode Console -ToolPath $collector -Instrumentation Static
+```
+
+This uses the workflow's static native instrumentation approach. `CodeCoverage.exe`
+from the NuGet packages is **not** compatible with this command line.
+
+Every invocation writes to a new directory under `build-windows-npu-coverage/results`
+(override with `-ResultsDir`). It retains console logs, generated settings, test
+results and coverage diagnostics even when tests fail. Coverage modes request
+Cobertura and reject missing/zero-hit reports. Reports include production NPU
+sources from both the test EXE and plugin DLL, exclude test/third-party sources,
+and are not normalized/deduplicated for Codecov.
+
+All enabled NPU unit tests are selected, without the workflow's hardware/offline
+lane split or device checks. Inherited `GTEST_*` and `OV_DQ_TEST_DEVICE` variables
+are cleared for the run; hardware roundtrip is not opted into. An NPU/driver is not
+a prerequisite, although individual tests may fail. Failures remain visible and
+produce a nonzero script exit after retaining available reports.
+
+These are local investigation helpers, not evidence that native coverage works
+with VS2022 Professional or the standalone packages. Start with `Plain` to
+separate runtime/test failures from adapter/collector failures.
+
 ## See also
  * [OpenVINO™ README](../../README.md)
  * [Developer documentation](../../docs/dev/index.md)
