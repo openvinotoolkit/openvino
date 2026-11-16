@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <memory>
+#include <numeric>
 #include <optional>
 #include <string>
 #include <vector>
@@ -245,16 +246,12 @@ bool batch_replicated_branches(const std::shared_ptr<ov::op::v0::Concat>& output
         return false;
 
     // Restore the Concat layout, e.g. for axis 3: [N, C, H, W] -> [C, H, N, W] -> [1, C, H, N * W]
-    const auto rank = branch_shape.size();
+    const auto& output_shape = output_concat->get_output_shape(0);
+    const auto rank = output_shape.size();
     const auto concat_axis = static_cast<size_t>(ov::util::normalize(output_concat->get_axis(), rank));
-    std::vector<int64_t> transpose_order;
-    std::vector<int64_t> output_shape{1};
-    for (size_t axis = 1; axis < rank; ++axis) {
-        if (axis == concat_axis)
-            transpose_order.push_back(0);
-        transpose_order.push_back(static_cast<int64_t>(axis));
-        output_shape.push_back(static_cast<int64_t>(axis == concat_axis ? replica_count * branch_shape[axis] : branch_shape[axis]));
-    }
+    std::vector<int64_t> transpose_order(rank - 1);
+    std::iota(transpose_order.begin(), transpose_order.end(), int64_t{1});
+    transpose_order.insert(transpose_order.begin() + (concat_axis - 1), 0);
     auto repack_transpose = std::make_shared<ov::op::v1::Transpose>(batched, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, transpose_order));
     repack_transpose->set_friendly_name(output_concat->get_friendly_name() + "/replica_repack_transpose");
     auto repacked_output =
