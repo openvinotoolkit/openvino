@@ -12,6 +12,8 @@
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
+#include "deconvolution_inst.h"
+
 using namespace cldnn;
 using namespace ::tests;
 
@@ -3203,6 +3205,86 @@ TEST(deconvolution_gpu_onednn, spatial_1d) {
     for (size_t i = 0; i < output_memory_ref->count(); i++) {
         ASSERT_EQ(output_ptr_ref.data()[i], output_ptr_test_blocked.data()[i]);
         ASSERT_EQ(output_ptr_ref.data()[i], output_ptr_test_planar.data()[i]);
+    }
+}
+
+TEST(deconvolution_gpu_onednn, spatial_1d_static_not_reference_impl) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    ov::PartialShape input_pshape = {1, 32, 20};
+    ov::PartialShape weights_pshape = {16, 32, 4};
+    layout in_layout{ input_pshape, data_types::f16, format::bfyx };
+    layout weights_layout{ weights_pshape, data_types::f16, format::bfyx };
+
+    auto weights_data = rg.generate_random_1d<ov::float16>(weights_layout.count(), -1, 1);
+    auto weights_mem = engine.allocate_memory(weights_layout);
+    set_values(weights_mem, weights_data);
+
+    auto create_topology = [&]() {
+        topology topology;
+        topology.add(input_layout("input", in_layout));
+        topology.add(data("weights", weights_mem));
+        topology.add(deconvolution("deconv",
+                                   input_info("input"),
+                                   { "weights" },
+                                   1,
+                                   ov::Strides{2},
+                                   ov::CoordinateDiff{0},
+                                   ov::Strides{1}));
+        topology.add(reorder("reorder", input_info("deconv"), format::bfyx, data_types::f32));
+        return topology;
+    };
+
+    auto topology_test = create_topology();
+    auto topology_ref = create_topology();
+
+    ExecutionConfig config_test = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc deconv_impl_test = { format::any, "", impl_types::onednn };
+    config_test.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "deconv", deconv_impl_test } }));
+    config_test.set_property(ov::intel_gpu::optimize_data(true));
+    config_test.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    ExecutionConfig config_ref = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc deconv_impl_ref = { format::bfyx, "", impl_types::ocl };
+    config_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "deconv", deconv_impl_ref } }));
+    config_ref.set_property(ov::intel_gpu::optimize_data(true));
+    config_ref.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network_test(engine, topology_test, config_test);
+    network network_ref(engine, topology_ref, config_ref);
+
+    // A static 1D deconvolution keeps plain 3D activations, while its weights layout is left to oneDNN. Pinning the weights
+    // to a plain layout leaves only oneDNN's reference implementation.
+    auto deconv_impl = network_test.get_primitive("deconv")->get_impl();
+    ASSERT_NE(deconv_impl, nullptr);
+    ASSERT_TRUE(deconv_impl->is_onednn());
+    const auto impl_info = network_test.get_implementation_info("deconv");
+    ASSERT_EQ(impl_info.find("ref"), std::string::npos) << impl_info;
+
+    auto input_data = rg.generate_random_1d<ov::float16>(in_layout.count(), -1, 1);
+    auto input_mem = engine.allocate_memory(in_layout);
+    set_values(input_mem, input_data);
+
+    network_test.set_input_data("input", input_mem);
+    network_ref.set_input_data("input", input_mem);
+
+    auto outputs_test = network_test.execute();
+    auto outputs_ref = network_ref.execute();
+
+    auto output_memory_test = outputs_test.at("reorder").get_memory();
+    auto output_memory_ref = outputs_ref.at("reorder").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_test(output_memory_test, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_ref(output_memory_ref, get_test_stream());
+
+    ov::PartialShape expected_shape = {1, 16, 42};
+    ASSERT_EQ(output_memory_test->get_layout().get_partial_shape(), expected_shape);
+    ASSERT_EQ(output_memory_ref->get_layout().get_partial_shape(), expected_shape);
+
+    for (size_t i = 0; i < output_memory_ref->count(); i++) {
+        ASSERT_NEAR(output_ptr_ref.data()[i], output_ptr_test.data()[i], 1e-1f) << "i = " << i;
     }
 }
 

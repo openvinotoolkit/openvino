@@ -16,6 +16,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/icompiled_model.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/icompiler_adapter.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/igraph.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/iprofiling_decoder.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/iparser.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/isection_instance_evaluator.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/isection_type_evaluator.hpp

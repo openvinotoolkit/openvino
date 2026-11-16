@@ -11,7 +11,6 @@
 #include "hsm_sections/compiler_schedules.hpp"
 #include "hsm_sections/compiler_version.hpp"
 #include "hsm_sections/io_layouts.hpp"
-#include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/hsm_sections/encrypted_schedules_flag.hpp"
 #include "intel_npu/common/hsm_sections/runtime_requirements.hpp"
 #include "intel_npu/common/isection.hpp"
@@ -93,20 +92,30 @@ std::shared_ptr<void> get_shared_object_pointer(BlobSource& blob_source) {
 }
 
 /**
- * @brief Special case for PERF_COUNT as it requires compiler_type detection in case it is still set to PREFER_PLUGIN
+ * @brief Uses the provided decryption callback to decrypt the given payload.
  */
-void update_compiler_type_if_perf_count(Config& config,
-                                        const ov::SoPtr<IEngineBackend>& backend,
-                                        const std::string_view device_name) {
-    if (config.has<PERF_COUNT>() && config.get<PERF_COUNT>() &&
-        config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
-        ov::intel_npu::CompilerType compilerType = config.get<COMPILER_TYPE>();
-        CompilerAdapterFactory factory;
-        (void)factory.getCompiler(backend, compilerType, device_name);
-
-        config.update(ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType));
+void decrypt_payload(ov::Tensor& payload, const ov::EncryptionCallbacks& encryption_callbacks, const Logger& logger) {
+    std::string decryptedBlobStr;
+    {
+        std::string encryptedBlobStr(payload.data<const char>(), payload.get_byte_size());  // +1x blob size
+        decryptedBlobStr = encryption_callbacks.decrypt(encryptedBlobStr);                  // +1x blob size
+    }  // -1x blob size when deallocating temporary encrypted blob string
+    ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
+    size_t alignedSize = utils::align_size_to_standard_page_size(decryptedBlobStr.size());
+    size_t paddingSize = alignedSize - decryptedBlobStr.size();
+    payload = ov::Tensor(ov::element::u8, ov::Shape{alignedSize},
+                         customAllocator);  // +1x blob size
+    std::memcpy(payload.data<char>(), decryptedBlobStr.c_str(), decryptedBlobStr.size());
+    if (paddingSize > 0) {
+        // The blob obtained after decryption is expected to be the same as the blob we had before encryption.
+        // That means blobs compiled with the current plugin version are expected to be already aligned.
+        // However, the alignment might not be mandatory in a future plugin version. For this scenario, the
+        // padding is added here in order to make use of this "non-copy optimization".
+        logger.warning("Decrypted blob size was not page aligned, additional %zu bytes padding will be added",
+                       paddingSize);
+        std::memset(payload.data<char>() + decryptedBlobStr.size(), 0, paddingSize);
     }
-}
+}  // -1x blob size when deallocating decrypted blob string
 
 /**
  * @brief Creates an "ov::Model" object which contains only the given "parameter" and "result" nodes.
@@ -740,7 +749,6 @@ void IBlobFormatImporter::register_compiler_version() {
 }
 
 std::shared_ptr<IGraph> IBlobFormatImporter::create_graph(const std::string_view network_name,
-                                                          const std::string_view device_name,
                                                           const std::shared_ptr<ov::ICore>& core) {
     OV_ITT_TASK_CHAIN(PARSE_AND_CREATE_GRAPH, itt::domains::NPUPlugin, "IBlobFormatImporter", "create_graph");
     m_logger.debug("Creating a graph");
@@ -758,12 +766,11 @@ std::shared_ptr<IGraph> IBlobFormatImporter::create_graph(const std::string_view
     m_batch_size = extract_batch_size();
 
     OPENVINO_ASSERT(m_backend);
-    update_compiler_type_if_perf_count(m_config, m_backend, device_name);
 
     OV_ITT_TASK_NEXT(PARSE_AND_CREATE_GRAPH, "get_parser");
     m_logger.trace("Creating the parser");
     ParserFactory parserFactory;
-    auto parser = parserFactory.getParser(m_backend->getInitStructs());
+    auto parser = parserFactory.getParser(m_backend->getInitStructs(), m_config.get<PERF_COUNT>());
 
     std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::pair<std::string, std::shared_ptr<ov::ICore>>>
         weights_source;
@@ -787,6 +794,7 @@ std::shared_ptr<IGraph> IBlobFormatImporter::create_graph(const std::string_view
                             extract_blob_type());
 
     m_graph->update_network_name(network_name);
+    blob_format_importer_utils::validate_main_schedule_descriptors(m_graph->get_metadata());
     if (m_batch_size.has_value() && m_batch_size.value() > 0) {
         // Initial batch setup for static cases
         m_graph->set_batch_size(m_batch_size.value());
@@ -862,5 +870,22 @@ std::unique_ptr<IBlobFormatImporter> create(BlobSource& blob_source,
 }
 
 }  // namespace blob_format_importer_factory
+namespace blob_format_importer_utils {
+
+void validate_main_schedule_descriptors(const NetworkMetadata& metadata) {
+    auto check_descriptors = [](const std::vector<IODescriptor>& descriptors) {
+        for (const IODescriptor& descriptor : descriptors) {
+            OPENVINO_ASSERT(!descriptor.isInitInputWeights && !descriptor.isInitOutputWeights,
+                            "The I/O descriptor \"",
+                            descriptor.nameFromCompiler,
+                            "\" of the main schedule is marked as an init schedule weights descriptor");
+        }
+    };
+
+    check_descriptors(metadata.inputs);
+    check_descriptors(metadata.outputs);
+}
+
+}  // namespace blob_format_importer_utils
 
 }  // namespace intel_npu

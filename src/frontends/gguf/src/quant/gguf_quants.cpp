@@ -305,6 +305,27 @@ void fill_q8_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& sc
     });
 }
 
+void fill_q8_1(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
+    constexpr size_t weights_per_block = 32;
+    constexpr size_t bytes_per_block = 36;
+    OPENVINO_ASSERT(tensor.num_weights % weights_per_block == 0 && weights_arr.get_size() == tensor.num_weights &&
+                        scales_arr.get_size() == tensor.num_weights / weights_per_block,
+                    "[GGUF] invalid Q8_1 output sizes");
+    OPENVINO_ASSERT(tensor.bsize % bytes_per_block == 0 && tensor.bsize / bytes_per_block == scales_arr.get_size(),
+                    "[GGUF] invalid Q8_1 payload size");
+    const auto* data = static_cast<const uint8_t*>(tensor.weights_data);
+    auto* weights = weights_arr.data<int8_t>();
+    auto* scales = scales_arr.data<ov::float16>();
+    ov::parallel_for(scales_arr.get_size(), [&](size_t i) {
+        const auto* block = data + i * bytes_per_block;
+        uint16_t scale_bits;
+        std::memcpy(&scale_bits, block, sizeof(scale_bits));
+        scales[i] = ov::float16::from_bits(scale_bits);
+        // The second F16 field is a dot-product sum, not a weight offset.
+        std::memcpy(weights + i * weights_per_block, block + 4, weights_per_block);
+    });
+}
+
 // Q5_0 symmetric: block = |f16 scale d|32-bit qh|16 bytes ql (32x4bit low)|.
 // weight = lo|(hi<<4) in [0..31]; dequant = d*(w - 16). Output: i8 weights [-16..15].
 void fill_q5_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
@@ -935,7 +956,7 @@ void gguf_fill_q2_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tenso
     });
 }
 
-// Symmetric types (Q1_0, Q4_0, Q8_0, Q5_0, Q6_K, Q3_K): fill weights + scales (f16), no
+// Symmetric types (Q1_0, Q4_0, Q8_0, Q8_1, Q5_0, Q6_K, Q3_K): fill weights + scales (f16), no
 // zero-point. Q8_K uses f32 scales and is handled by a separate overload dispatched on
 // tensor.type.
 void gguf_fill_sym(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales) {
@@ -946,6 +967,8 @@ void gguf_fill_sym(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& sc
         return fill_q4_0(tensor, weights, scales);
     case GGUF_TYPE_Q8_0:
         return fill_q8_0(tensor, weights, scales);
+    case GGUF_TYPE_Q8_1:
+        return fill_q8_1(tensor, weights, scales);
     case GGUF_TYPE_Q5_0:
         return fill_q5_0(tensor, weights, scales);
     case GGUF_TYPE_Q6_K:

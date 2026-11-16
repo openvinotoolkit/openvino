@@ -11,8 +11,7 @@
 #include <vector>
 
 #include "graph.hpp"
-#include "hsm_sections/compiler_schedules.hpp"
-#include "intel_npu/common/hsm_sections/encrypted_schedules_flag.hpp"
+#include "intel_npu/common/iprofiling_decoder.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/common/option_support_cache.hpp"
 #include "intel_npu/config/config.hpp"
@@ -145,7 +144,9 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                    graphDesc,
                                    std::move(networkMeta),
                                    /* blob = */ std::nullopt,
-                                   get_compatibility_descriptor(graphDesc._handle));
+                                   get_compatibility_descriptor(graphDesc._handle),
+                                   false,
+                                   /* profilingDecoder = */ nullptr);
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
@@ -267,7 +268,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                                              /* initBlobs = */ std::nullopt,
                                              std::move(model),
                                              /* persistentBlob = */ false,
-                                             get_compatibility_descriptor(mainGraphHandle._handle));
+                                             get_compatibility_descriptor(mainGraphHandle._handle),
+                                             /* profilingDecoder = */ nullptr);
 }
 
 ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,

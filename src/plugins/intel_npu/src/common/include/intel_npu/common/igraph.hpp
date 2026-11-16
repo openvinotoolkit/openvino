@@ -14,9 +14,7 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "openvino/runtime/hsm_writer.hpp"
-#include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/profiling_info.hpp"
-#include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
 
@@ -48,7 +46,21 @@ public:
      */
     virtual uint64_t export_main_blob(const ov::runtime::hsm::SectionSink& sink) const = 0;
 
+    /**
+     * @brief Turns raw, driver-queried profiling bytes into per-layer records.
+     * @note Throws if this graph has no compiler-specific decoder, if the compiled blob it needs is
+     * unavailable, or if the decoder itself fails to decode. Check has_profiling_decoder() first to
+     * distinguish the expected "no decoder" case (fall back to driver layer statistics) from the other
+     * two, which indicate a real error.
+     */
     virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData) const;
+
+    /**
+     * @brief Whether this graph can decode raw profiling bytes via process_profiling_output().
+     * @note Non-throwing, so callers can pick the driver's own layer statistics up front instead of
+     * relying on a catch block to detect the "no decoder" case.
+     */
+    virtual bool has_profiling_decoder() const;
 
     virtual void set_argument_value(uint32_t id, const void* data) const;
     virtual void set_argument_value_with_strides(uint32_t id,
