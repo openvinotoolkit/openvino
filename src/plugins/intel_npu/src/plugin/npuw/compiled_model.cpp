@@ -2799,13 +2799,13 @@ std::shared_ptr<ov::npuw::IBaseInferRequest> ov::npuw::CompiledModel::create_bas
         });
     }
 
-    const bool submit_all = ov::npuw::util::submit_all_enabled();
+    const bool submit_all = ov::npuw::util::submit_all_enabled() || ov::npuw::util::exec_list_enabled_for(m_name);
     if (submit_all) {
         const bool spatial_unpack_ok = no_spatial_unpack();
         const bool failsafe_ok = no_failsafe_concern();
         const bool behavior_ok = no_subgraph_behavior_concern();
         if (!spatial_unpack_ok || !failsafe_ok || !behavior_ok) {
-            LOG_EXEC(m_name << ": OPENVINO_NPUW_SUBMIT_ALL requested but unfold is not possible (spatial/unpack ok="
+            LOG_EXEC(m_name << ": SUBMIT_ALL/EXEC_LIST requested but unfold is not possible (spatial/unpack ok="
                             << spatial_unpack_ok << ", failsafe ok=" << failsafe_ok
                             << ", runtime behaviors ok=" << behavior_ok << "); falling back to JustInferRequest");
         }

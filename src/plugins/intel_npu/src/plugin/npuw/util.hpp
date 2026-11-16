@@ -57,6 +57,13 @@ bool shared_queue_enabled();
 // on NPU submodels, keeping NPUW's submission pattern. Sync infer() calls become start_async()+wait(),
 // as the NPU plugin only accepts start_async() in that mode. Implied by submit-all.
 bool in_order_enabled();
+// PROTOTYPE (OPENVINO_NPUW_EXEC_LIST=YES): for GQA prefill models only (by model name), run all
+// subgraphs of an infer() as NPU execution lists: one command list on a queue owned by the list,
+// one submission and one wait. Other models are not affected.
+bool exec_list_enabled_for(const std::string& model_name);
+// PROTOTYPE (OPENVINO_NPUW_EXEC_LIST_MAX=N): at most N graph executes per execution list, the rest
+// go to further lists submitted one after another. 0 / unset = one list for the whole infer().
+std::size_t exec_list_max();
 
 // Strictly parses `str` as a positive base-10 integer (std::from_chars; whole string
 // consumed, no sign accepted, unlike std::stoull). Returns nullopt for anything else,

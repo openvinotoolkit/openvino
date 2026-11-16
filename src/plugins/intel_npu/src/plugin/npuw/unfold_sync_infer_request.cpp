@@ -8,6 +8,7 @@
 #include "compiled_model.hpp"
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/runtime/iremote_context.hpp"
 #include "util.hpp"
 
 ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
@@ -111,6 +112,52 @@ ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw:
                                                        : "ignored: not all subgraphs run on NPU")
                                       << ", max in flight=" << ov::npuw::util::submit_all_depth() << " (0 = unlimited)");
     }
+
+    if (ov::npuw::util::exec_list_enabled_for(m_npuw_model->m_name)) {
+        create_execution_lists();
+    }
+}
+
+void ov::npuw::UnfoldInferRequest::create_execution_lists() {
+    const auto max_executes = ov::npuw::util::exec_list_max();
+
+    // Check every subgraph first: falling back is only possible before the first append(), since an
+    // appended request is owned by its list and can't run on its own anymore.
+    std::vector<std::pair<std::size_t, std::shared_ptr<::intel_npu::IExecutionListFactory>>> members;
+    try {
+        for (std::size_t idx = 0; idx < m_num_submodels; idx++) {
+            if (!m_subrequests[idx]) {
+                continue;
+            }
+            const auto context = m_subrequests[idx]->get_compiled_model()->get_context();
+            auto factory = std::dynamic_pointer_cast<::intel_npu::IExecutionListFactory>(context._ptr);
+            OPENVINO_ASSERT(factory != nullptr, "Subgraph[", idx, "] is not on an NPU supporting execution lists");
+            members.emplace_back(idx, std::move(factory));
+        }
+    } catch (const std::exception& ex) {
+        LOG_EXEC(m_npuw_model->m_name << ": OPENVINO_NPUW_EXEC_LIST not used: " << ex.what());
+        return;
+    }
+
+    // No prepare() here: it would allocate device-visible buffers for every global parameter that is
+    // not bound yet (e.g. a full KV cache per attention call). The lists record on their first
+    // start_async(), after infer() has bound everything.
+    for (const auto& [idx, factory] : members) {
+        if (m_exec_lists.empty() || (max_executes > 0 && m_exec_lists.back().executes == max_executes)) {
+            // All lists of this request share one command queue, owned by the request
+            m_exec_lists.push_back({idx, idx, 0u, factory->create_execution_list(this)});
+        }
+        m_exec_lists.back().list->append(m_subrequests[idx]._ptr);
+        m_exec_lists.back().last = idx;
+        m_exec_lists.back().executes++;
+    }
+    for (const auto& el : m_exec_lists) {
+        LOG_EXEC(m_npuw_model->m_name << ": execution list Subgraph[" << el.first << ".." << el.last << "], "
+                                      << el.executes << " graph executes (recorded on first infer)");
+    }
+    LOG_EXEC(m_npuw_model->m_name << ": OPENVINO_NPUW_EXEC_LIST active, " << m_exec_lists.size()
+                                  << " execution list(s), max graph executes per list=" << max_executes
+                                  << " (0 = unlimited)");
 }
 
 bool ov::npuw::UnfoldInferRequest::valid_subrequest(std::size_t idx) const {
@@ -139,7 +186,22 @@ void ov::npuw::UnfoldInferRequest::infer() {
         previous_idx.clear();
     };
 
-    if (m_submit_all) {
+    if (!m_exec_lists.empty()) {
+        // PROTOTYPE: each list is one submission on its own queue; barriers inside it order the executes
+        for (auto& el : m_exec_lists) {
+            for (std::size_t idx = el.first; idx <= el.last; idx++) {
+                if (m_subrequests[idx]) {
+                    prepare(idx);
+                }
+            }
+            const std::string tag = " [execution list Subgraph[" + std::to_string(el.first) + ".." +
+                                    std::to_string(el.last) + "], " + std::to_string(el.executes) + " graph executes]";
+            exec_trace(el.first, m_subrequests[el.first], "start_async()", tag);
+            el.list->start_async();
+            el.list->wait();
+            exec_trace(el.last, m_subrequests[el.last], "wait() returned", tag);
+        }
+    } else if (m_submit_all) {
         // PROTOTYPE: all subgraphs sit on one in-order NPU queue (NPU_SHARED_COMMON_QUEUE +
         // NPU_RUN_INFERENCES_SEQUENTIALLY) fed by one start thread, so the device orders every
         // producer before its consumers. Submit everything, then wait once in submission order.

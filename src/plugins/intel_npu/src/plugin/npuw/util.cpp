@@ -237,6 +237,26 @@ bool ov::npuw::util::in_order_enabled() {
     return enabled || submit_all_enabled();
 }
 
+bool ov::npuw::util::exec_list_enabled_for(const std::string& model_name) {
+    static const bool enabled = [] {
+        const char* opt = std::getenv("OPENVINO_NPUW_EXEC_LIST");
+        if (!opt) {
+            return false;
+        }
+        const std::string str(opt);
+        return str == "YES" || str == "ON" || str == "1";
+    }();
+    return enabled && model_name.find("_gqa_prefill") != std::string::npos;
+}
+
+std::size_t ov::npuw::util::exec_list_max() {
+    static const std::size_t max = [] {
+        const char* opt = std::getenv("OPENVINO_NPUW_EXEC_LIST_MAX");
+        return opt ? static_cast<std::size_t>(std::strtoull(opt, nullptr, 10)) : std::size_t{0};
+    }();
+    return max;
+}
+
 std::size_t ov::npuw::util::submit_all_depth() {
     static const std::size_t depth = [] {
         const char* opt = std::getenv("OPENVINO_NPUW_SUBMIT_ALL_DEPTH");
