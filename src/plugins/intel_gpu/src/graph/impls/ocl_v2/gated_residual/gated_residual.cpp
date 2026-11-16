@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -42,6 +43,13 @@ constexpr size_t gr_read_dpas_nt = 2;
 
 size_t get_num_rows(const layout& l, size_t last_dim) {
     const auto count = l.count();
+    const auto& ps = l.get_partial_shape();
+    OPENVINO_ASSERT(ps.rank().is_static() && ps.size() >= 2 && last_dim <= static_cast<size_t>(std::numeric_limits<int64_t>::max()) &&
+                        ps[ps.size() - 1].is_static() && ps[ps.size() - 1] == ov::Dimension(static_cast<int64_t>(last_dim)),
+                    "[GPU][OCL] gated_residual: residual width must equal ",
+                    last_dim,
+                    ", got ",
+                    ps);
     OPENVINO_ASSERT(last_dim > 0 && count % last_dim == 0, "[GPU][OCL] gated_residual: input element count is not divisible by the last dimension");
     return count / last_dim;
 }

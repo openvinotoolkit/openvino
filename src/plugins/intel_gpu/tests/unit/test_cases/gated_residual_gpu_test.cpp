@@ -1856,4 +1856,167 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            gr_decomposed_quant_case{64, 32, false, true, false, 0, false, true}),
                          gated_residual_decomposed_quant_test::PrintToStringParamName);
 
+// --- Residual width at run time ------------------------------------------------------------------------------------------------
+//
+// With a dynamic last dimension the residual's width is only known at run time. A residual whose width is not hc_count * hidden_size has
+// to be rejected before any kernel runs: the kernels take their row count from the element count of the residual while the outputs are
+// sized from its leading dimensions, so a wider residual would make them write past the end of the outputs.
+constexpr size_t kWidthD = 64;
+constexpr size_t kWidthL = 32;
+
+/// [1, rows, width]
+ov::PartialShape width_shape(size_t rows, size_t width) {
+    return ov::PartialShape{1, static_cast<int64_t>(rows), static_cast<int64_t>(width)};
+}
+
+struct gr_width_model {
+    network::ptr net;
+    std::vector<float> gain;
+    std::vector<float> w_down;
+    std::vector<float> w_up;
+};
+
+gr_width_model make_dynamic_width_model(engine& eng, gated_residual::Mode mode, tests::random_generator& rg) {
+    const size_t C = kBranches;
+    const size_t D = kWidthD;
+    const size_t L = kWidthL;
+    const size_t CD = C * D;
+    const auto iD = static_cast<int64_t>(D);
+    const auto iC = static_cast<int64_t>(C);
+    gr_width_model m;
+    topology topology;
+    topology.add(input_layout("residual", layout{ov::PartialShape{-1, -1, -1}, data_types::f16, format::bfyx}));
+    if (mode == gated_residual::Mode::READ) {
+        m.gain = random_vec(rg, CD, 0.5f, 1.0f);
+        m.w_down = random_vec(rg, L * CD, 0.1f);
+        m.w_up = random_vec(rg, CD * L, 0.1f);
+        topology.add(data("gain", make_f16(eng, {static_cast<int64_t>(CD)}, m.gain)));
+        topology.add(data("w_down", make_f16(eng, {static_cast<int64_t>(L), static_cast<int64_t>(CD)}, m.w_down)));
+        topology.add(data("w_up", make_f16(eng, {static_cast<int64_t>(CD), static_cast<int64_t>(L)}, m.w_up)));
+        topology.add(gated_residual("gr",
+                                    {input_info("residual"), input_info("gain"), input_info("w_down"), input_info("w_up")},
+                                    gated_residual::Mode::READ,
+                                    C,
+                                    D,
+                                    L,
+                                    1e-6f,
+                                    false));
+    } else {
+        topology.add(input_layout("y", layout{ov::PartialShape{-1, -1, iD}, data_types::f16, format::bfyx}));
+        topology.add(input_layout("gate", layout{ov::PartialShape{-1, -1, iC}, data_types::f16, format::bfyx}));
+        topology.add(gated_residual("gr", {input_info("residual"), input_info("y"), input_info("gate")}, gated_residual::Mode::WRITE, C, D, 0, 1e-6f, false));
+    }
+    ExecutionConfig config = get_test_default_config(eng);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    m.net = get_network(eng, topology, config, get_test_stream_ptr(), false);
+    return m;
+}
+
+class gated_residual_runtime_width_test : public ::testing::TestWithParam<gated_residual::Mode> {
+public:
+    static std::string PrintToStringParamName(const testing::TestParamInfo<gated_residual::Mode>& info) {
+        return info.param == gated_residual::Mode::READ ? "read" : "write";
+    }
+};
+
+TEST_P(gated_residual_runtime_width_test, rejects_residual_wider_than_hc_count_times_hidden_size) {
+    if (!gr_available()) {
+        GTEST_SKIP() << "no GatedResidual implementation is available on this device";
+    }
+    const auto mode = GetParam();
+    const bool read = mode == gated_residual::Mode::READ;
+    const size_t C = kBranches;
+    const size_t D = kWidthD;
+    const size_t CD = C * D;
+    constexpr size_t rows = 2;
+    constexpr float marker = 1234.0f;
+
+    auto& engine = get_test_engine();
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    auto model = make_dynamic_width_model(engine, mode, rg);
+
+    // The output is the start of a larger buffer filled with a marker, so a write past the declared output can be seen.
+    const size_t out_width = read ? D : CD;
+    const size_t guarded_count = 16 * rows * out_width;
+    auto guarded = engine.allocate_memory(layout{ov::PartialShape{static_cast<int64_t>(guarded_count)}, data_types::f16, format::bfyx});
+    set_values(guarded, to_f16(std::vector<float>(guarded_count, marker)));
+    model.net->set_output_memory("gr", engine.reinterpret_buffer(*guarded, layout{width_shape(rows, out_width), data_types::f16, format::bfyx}));
+
+    // Twice the width: the element count is that of 2 * rows rows of C*D, while the leading dimensions say `rows`.
+    model.net->set_input_data("residual", make_f16(engine, width_shape(rows, 2 * CD), random_vec(rg, rows * 2 * CD, 1.0f)));
+    if (!read) {
+        // Y and the gate have a row per element-count row, so only the width check can reject the residual.
+        model.net->set_input_data("y", make_f16(engine, width_shape(2 * rows, D), random_vec(rg, 2 * rows * D, 1.0f)));
+        model.net->set_input_data("gate", make_f16(engine, width_shape(2 * rows, C), random_vec(rg, 2 * rows * C, 1.0f, 1.0f)));
+    }
+
+    std::string error;
+    try {
+        model.net->execute();
+    } catch (const std::exception& e) {
+        error = e.what();
+    }
+    EXPECT_NE(error.find("width must equal"), std::string::npos) << "the wider residual was not rejected; error: '" << error << "'";
+
+    cldnn::mem_lock<ov::float16> lock(guarded, get_test_stream());
+    size_t written = 0;
+    for (size_t i = 0; i < guarded_count; i++) {
+        if (static_cast<float>(lock[i]) != marker) {
+            written++;
+        }
+    }
+    EXPECT_EQ(written, 0u) << "elements of the output buffer were written although the residual was rejected";
+}
+
+// The width check must not reject a residual of the expected width whose last dimension is only known at run time.
+TEST_P(gated_residual_runtime_width_test, runs_residual_of_the_expected_width) {
+    if (!gr_available()) {
+        GTEST_SKIP() << "no GatedResidual implementation is available on this device";
+    }
+    const auto mode = GetParam();
+    const bool read = mode == gated_residual::Mode::READ;
+    const size_t C = kBranches;
+    const size_t D = kWidthD;
+    const size_t CD = C * D;
+    constexpr size_t rows = 3;
+
+    auto& engine = get_test_engine();
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    auto model = make_dynamic_width_model(engine, mode, rg);
+
+    const auto residual = random_vec(rg, rows * CD, 1.0f);
+    model.net->set_input_data("residual", make_f16(engine, width_shape(rows, CD), residual));
+    std::vector<float> expected;
+    if (read) {
+        gr_ref_params p;
+        p.rows = rows;
+        p.D = D;
+        p.L = kWidthL;
+        std::vector<float> gate;
+        reference_read(p, residual, model.gain, model.w_down, model.w_up, nullptr, expected, gate);
+    } else {
+        const auto y = random_vec(rg, rows * D, 1.0f);
+        const auto gate = random_vec(rg, rows * C, 1.0f, 1.0f);
+        model.net->set_input_data("y", make_f16(engine, width_shape(rows, D), y));
+        model.net->set_input_data("gate", make_f16(engine, width_shape(rows, C), gate));
+        expected = reference_write(rows, C, D, residual, y, gate);
+    }
+
+    auto outputs = model.net->execute();
+    ASSERT_EQ(model.net->get_primitive("gr")->get_output_layout(0).get_partial_shape(), width_shape(rows, read ? D : CD));
+    cldnn::mem_lock<ov::float16> out(outputs.at("gr").get_memory(), get_test_stream());
+    ASSERT_GE(out.size(), expected.size());
+    for (size_t i = 0; i < expected.size(); i++) {
+        ASSERT_NEAR(static_cast<float>(out[i]), expected[i], 2e-2f) << "mismatch at index " << i;
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         gated_residual_runtime_width_test,
+                         ::testing::Values(gated_residual::Mode::READ, gated_residual::Mode::WRITE),
+                         gated_residual_runtime_width_test::PrintToStringParamName);
+
 }  // namespace

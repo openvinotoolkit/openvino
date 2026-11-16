@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -33,10 +34,17 @@ std::vector<layout> gated_residual_inst::calc_output_layouts(const gated_residua
     const auto out_dt =
         desc->output_data_types.empty() || !desc->output_data_types[0].has_value() ? residual_layout.data_type : desc->output_data_types[0].value();
 
-    if (desc->mode == gated_residual::Mode::READ) {
-        OPENVINO_ASSERT(residual_layout.get_partial_shape().rank().is_static() && residual_layout.get_partial_shape().size() >= 2,
-                        "[GPU] gated_residual requires a static-rank residual input of rank >= 2");
-    }
+    OPENVINO_ASSERT(
+        desc->hc_count > 0 && desc->hidden_size > 0 && desc->hc_count <= static_cast<size_t>(std::numeric_limits<int64_t>::max()) / desc->hidden_size,
+        "[GPU] gated_residual: invalid or overflowing residual width");
+    const auto width = static_cast<int64_t>(desc->hc_count * desc->hidden_size);
+    const auto& residual_ps = residual_layout.get_partial_shape();
+    OPENVINO_ASSERT(residual_ps.rank().is_static() && residual_ps.size() >= 2, "[GPU] gated_residual requires a static-rank residual input of rank >= 2");
+    OPENVINO_ASSERT(residual_ps[residual_ps.size() - 1].compatible(width),
+                    "[GPU] gated_residual: the residual's width must equal hc_count * hidden_size = ",
+                    width,
+                    ", got ",
+                    residual_ps);
 
     const auto shapes = ov::intel_gpu::op::GatedResidual::infer_output_shapes(desc->mode,
                                                                               desc->hc_count,
