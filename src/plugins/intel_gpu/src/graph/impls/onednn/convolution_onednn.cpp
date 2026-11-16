@@ -178,6 +178,13 @@ protected:
                 const auto& conv_node = instance.get_node().as<convolution>();
                 auto& a_zp_node = conv_node.activations_zero_points().as<data>();
                 a_zp = a_zp_node.get_attached_memory_ptr();
+                // create() converts only the zero-points of the node it ran for; an impl reused from the cache needs it here
+                if (a_zp->get_layout().data_type != data_types::i32) {
+                    auto s32_mem = onednn::convert_zp_data_to_s32(a_zp);
+                    OPENVINO_ASSERT(s32_mem != nullptr, "[GPU] Unsupported activations zero-points type for oneDNN convolution ", instance.id());
+                    a_zp_node.attach_memory(s32_mem, false);
+                    a_zp = s32_mem;
+                }
             }
 
             dnnl::memory::desc desc = onednn::layout_to_memory_desc_flatten(a_zp->get_layout(), dnnl::memory::format_tag::a);
