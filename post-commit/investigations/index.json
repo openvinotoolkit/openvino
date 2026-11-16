@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 115,
+  "total": 116,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -1174,6 +1174,15 @@
       "category": "Dependencies",
       "signature_hash": "3006cd222bc46b05",
       "commit_sha": "7d511a670731b8474e1a515c1d79953e2769b18d"
+    },
+    {
+      "investigation_id": "2026-11-16-15-26-52-000-43882340553",
+      "run_id": "43882340553",
+      "timestamp": "2026-11-16T15:26:52Z",
+      "title": "smoke_ScatterUpdateGeneralPathOutOfRangeIndices tests fail - expected ov::Exception not thrown",
+      "category": "Code Issue",
+      "signature_hash": "c7d3b823733ac934",
+      "commit_sha": "ddfd1dd9e7317cf2416239815de6f235d34042bc"
     }
   ]
 }
