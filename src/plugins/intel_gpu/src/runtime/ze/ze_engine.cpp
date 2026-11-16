@@ -167,7 +167,7 @@ memory_ptr ze_engine::create_subbuffer(const memory& memory, const layout& new_l
         OPENVINO_NOT_IMPLEMENTED;
     }
     OPENVINO_ASSERT(memory_capabilities::is_usm_type(memory.get_allocation_type()), "[GPU] Trying to create subbuffer for non usm memory");
-    OPENVINO_ASSERT(byte_offset + new_layout.bytes_count() <= memory.size(),
+    OPENVINO_ASSERT(byte_offset <= memory.size() && new_layout.bytes_count() <= memory.size() - byte_offset,
                     "[GPU] Sub-buffer size (",
                     new_layout.bytes_count(),
                     ") + offset (",
