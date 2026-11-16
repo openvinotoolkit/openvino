@@ -23,8 +23,9 @@
 #include "op_table.hpp"
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/attribute_visitor.hpp"
-#include "openvino/frontend/gguf/extension/genai.hpp"
+#include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
+#include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/matmul.hpp"
@@ -192,8 +193,7 @@ ov::Shape recipe_shape(const Json& value, const std::string& name) {
     return ov::Shape(value.get<std::vector<size_t>>());
 }
 
-std::shared_ptr<ov::Model> convert_recipe(const Json& recipe,
-                                          const std::shared_ptr<ov::Extension>& extension = nullptr) {
+std::shared_ptr<ov::Model> convert_recipe(const Json& recipe) {
     using namespace ov::frontend::gguf;
     OPENVINO_ASSERT(recipe.at("version") == 1, "Unsupported recipe version");
     std::unordered_map<std::string, GGUFMetaData> metadata;
@@ -220,8 +220,7 @@ std::shared_ptr<ov::Model> convert_recipe(const Json& recipe,
     auto graph = builder(translators);
     FrontEnd frontend;
     frontend.add_extension(structural_weight_extension());
-    if (extension)
-        frontend.add_extension(extension);
+    frontend.add_extension(std::make_shared<ov::frontend::DecoderTransformationExtension>(pass::GGUFMakeStateful()));
     std::shared_ptr<GgufDecoder> decoder = std::make_shared<GgufBuilderDecoder>(graph);
     return frontend.convert(frontend.load(decoder));
 }
@@ -754,39 +753,13 @@ nlohmann::json graph_snapshot(const std::shared_ptr<ov::Model>& model) {
 }
 
 int graph_snapshot_main(int argc, char** argv) {
-    OPENVINO_ASSERT(
-        argc == 5 || argc == 6 || argc == 7,
-        "Usage: --gguf-snapshot <input> --output <snapshot.json> [--materialized | --adapted <ids|embeds>]");
+    OPENVINO_ASSERT(argc == 5, "Usage: --gguf-snapshot <recipe.json> --output <snapshot.json>");
     OPENVINO_ASSERT(std::string(argv[3]) == "--output", "Expected --output");
-    Json snapshot;
-    if (argc == 6) {
-        OPENVINO_ASSERT(std::string(argv[5]) == "--materialized", "Unknown snapshot option");
-        ov::frontend::gguf::FrontEnd frontend;
-        snapshot = graph_snapshot(frontend.convert(frontend.load(std::string(argv[2]))));
-    } else {
-        std::ifstream input(argv[2]);
-        OPENVINO_ASSERT(input, "Cannot read recipe: ", argv[2]);
-        Json recipe;
-        input >> recipe;
-        if (argc == 5) {
-            snapshot = graph_snapshot(convert_recipe(recipe));
-        } else {
-            using ov::frontend::gguf::GenAIExtension;
-            OPENVINO_ASSERT(std::string(argv[5]) == "--adapted", "Unknown snapshot option");
-            const std::string mode = argv[6];
-            OPENVINO_ASSERT(mode == "ids" || mode == "embeds", "Unknown adaptation mode: ", mode);
-            const bool embeds = mode == "embeds";
-            auto extension = std::make_shared<GenAIExtension>(embeds ? GenAIExtension::InputMode::EMBEDS_TO_LOGITS
-                                                                     : GenAIExtension::InputMode::IDS_TO_LOGITS);
-            Json models;
-            models[mode] = graph_snapshot(convert_recipe(recipe, extension));
-            if (const auto& embedding = extension->get_embedding_model())
-                models["embedding"] = graph_snapshot(embedding);
-            if (const auto& per_layer = extension->get_per_layer_embedding_model())
-                models["per_layer_embedding"] = graph_snapshot(per_layer);
-            snapshot = Json{{"models", models}};
-        }
-    }
+    std::ifstream input(argv[2]);
+    OPENVINO_ASSERT(input, "Cannot read recipe: ", argv[2]);
+    Json recipe;
+    input >> recipe;
+    const auto snapshot = graph_snapshot(convert_recipe(recipe));
     std::ofstream output(argv[4]);
     OPENVINO_ASSERT(output, "Cannot create snapshot: ", argv[4]);
     output << snapshot.dump() << '\n';

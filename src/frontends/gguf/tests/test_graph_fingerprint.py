@@ -53,12 +53,10 @@ def test_detects_rewiring_with_unchanged_operation_counts(capsys):
     modified = snapshot()
     modified["canonical"]["nodes"][0]["inputs"].reverse()
     second = graph.compact_snapshot(modified)
-    before = {"stages": {"deferred_plan": {"models": {"native": first}}}}
-    after = {"stages": {"deferred_plan": {"models": {"native": second}}}}
-    changes = graph.reference_delta(before, after)
-    assert len(changes) == 1 and changes[0]["graph_changed"]
-    assert changes[0]["ops"] == []
-    graph.print_changes("llama", changes)
+    change = graph.reference_delta({"version": 2, **first}, {"version": 2, **second})
+    assert change["graph_changed"] and change["ops"] == []
+    assert graph.reference_delta({"version": 2, **first}, {"version": 2, **first}) is None
+    graph.print_changes("llama", change)
     assert "structure/attributes changed; operation counts unchanged" in capsys.readouterr().out
     assert "canonical" not in first
 
@@ -169,8 +167,7 @@ def test_reference_size_ceiling_is_bytes_not_node_count():
 
 
 def test_reference_format_keeps_histogram_rows_diffable():
-    value = {"version": 1,
-             "stages": {"deferred_plan": graph.model_stage({"native": graph.compact_snapshot(snapshot())})}}
+    value = {"version": 2, **graph.compact_snapshot(snapshot())}
     data = graph.reference_bytes(value).decode()
     assert '["MatMul","opset1",1]' in data
     assert json.loads(data) == value
@@ -178,11 +175,10 @@ def test_reference_format_keeps_histogram_rows_diffable():
 
 def test_update_requires_selection_and_finishes_capture_before_writing(tmp_path, monkeypatch):
     value = recipe()
-    original = json.dumps({"version": 1,
-                           "stages": {"deferred_plan": graph.model_stage(
-                               {"native": graph.compact_snapshot(snapshot())})}})
+    original = json.dumps({"version": 2, **graph.compact_snapshot(snapshot())})
     cases = []
     for name in ("one", "two"):
+        value["tensors"][0]["name"] = name
         (tmp_path / f"{name}.recipe.json").write_text(graph.recipe_text(value))
         (tmp_path / f"{name}.reference.json").write_text(original)
         cases.append({"id": name, "recipe": f"{name}.recipe.json", "reference": f"{name}.reference.json",
@@ -195,8 +191,8 @@ def test_update_requires_selection_and_finishes_capture_before_writing(tmp_path,
     args.cases = "missing"
     with pytest.raises(ValueError, match="Unknown/empty"):
         graph.run_cases(args)
-    def capture(path, runner):
-        if Path(path).name.startswith("two"):
+    def capture(value, runner):
+        if value["tensors"][0]["name"] == "two":
             raise ValueError("intentional second-case failure")
         return graph.compact_snapshot(snapshot())
     monkeypatch.setattr(graph, "capture", capture)
@@ -207,7 +203,7 @@ def test_update_requires_selection_and_finishes_capture_before_writing(tmp_path,
     report = json.loads(args.report.read_text())
     assert report["selected"] == 2 and report["completed"] == 1
     assert "second-case failure" in report["errors"][0]
-    monkeypatch.setattr(graph, "capture", lambda path, runner: graph.compact_snapshot(snapshot()))
+    monkeypatch.setattr(graph, "capture", lambda value, runner: graph.compact_snapshot(snapshot()))
     replace = graph.os.replace
 
     def fail_second_publish(source, target):
@@ -242,48 +238,33 @@ def test_update_requires_selection_and_finishes_capture_before_writing(tmp_path,
 
 
 @pytest.mark.parametrize("mutate", [
-    lambda value: value.update(version=True),
-    lambda value: value["stages"]["deferred_plan"].update(map_sha256="0" * 64),
+    lambda value: value.update(version=1),
     lambda value: value.update(recipe_sha256="0" * 64),
-    lambda value: value["stages"]["deferred_plan"]["models"]["native"].update(graph_sha256="short"),
-    lambda value: value["stages"].update(unknown={}),
+    lambda value: value.update(graph_sha256="short"),
+    lambda value: value.update(stages={}),
+    lambda value: value.pop("ops"),
 ])
-def test_reference_schema_rejects_malformed_stages(mutate):
-    value = {"version": 1,
-             "stages": {"deferred_plan": graph.model_stage({"native": graph.compact_snapshot(snapshot())})}}
+def test_reference_schema_rejects_malformed_snapshots(mutate):
+    value = {"version": 2, **graph.compact_snapshot(snapshot())}
+    graph.validate_document(value, "reference")
     mutate(value)
     with pytest.raises(ValueError):
         graph.validate_document(value, "reference")
 
 
-def test_materialized_recipe_roundtrip_and_budget(tmp_path):
-    value = recipe()
-    value["tensors"][0].update(shape=[2, 3], storage_shape=[2, 3])
-    value["payload"] = {"mode": "pattern", "max_bytes": 32}
-    path = tmp_path / "synthetic.gguf"
-    graph.materialize_recipe(value, path)
-    assert graph.import_header(path)["tensors"] == value["tensors"]
-    value["payload"]["max_bytes"] = 4
-    with pytest.raises(ValueError, match="budget"):
-        graph.materialize_recipe(value, path)
-
-
-@pytest.mark.parametrize("kind", [3, 12, 39, 42, 142, 143])
-def test_packed_zero_payloads_preserve_block_layout(tmp_path, kind):
-    value = recipe()
-    block, size = graph.BLOCKS[kind]
-    value["tensors"][0].update(shape=[2, 256], storage_type="u8", storage_shape=[512 // block * size],
-                              ggml_type=kind)
-    value["payload"] = {"mode": "zeros", "max_bytes": 4096}
-    path = tmp_path / "synthetic.gguf"
-    graph.materialize_recipe(value, path)
-    assert graph.import_header(path)["tensors"] == value["tensors"]
-    if kind == 42:
-        prefix = tmp_path / "prefix.gguf"
-        prefix.write_bytes(path.read_bytes()[:-value["tensors"][0]["storage_shape"][0] // 2])
-        with pytest.raises(ValueError):
-            graph.import_header(prefix)
-        assert graph.import_header(prefix, path.stat().st_size)["tensors"] == value["tensors"]
-    value["payload"]["mode"] = "pattern"
-    with pytest.raises(ValueError, match="explicit zeros"):
-        graph.materialize_recipe(value, path)
+def test_import_accepts_packed_header_prefix_with_source_size(tmp_path):
+    block, size = graph.BLOCKS[42]
+    payload = 512 // block * size
+    name = b"weight"
+    key, arch = b"general.architecture", b"llama"
+    header = (b"GGUF" + struct.pack("<IQQ", 3, 1, 1) + struct.pack("<Q", len(key)) + key +
+              struct.pack("<IQ", 8, len(arch)) + arch + struct.pack("<Q", len(name)) + name +
+              struct.pack("<IQQIQ", 2, 256, 2, 42, 0))
+    header += bytes((-len(header)) % 32)
+    prefix = tmp_path / "prefix.gguf"
+    prefix.write_bytes(header + bytes(payload // 2))
+    with pytest.raises(ValueError):
+        graph.import_header(prefix)
+    tensors = graph.import_header(prefix, len(header) + payload)["tensors"]
+    assert tensors == [{"name": "weight", "shape": [2, 256], "ggml_type": 42,
+                        "storage_type": "u8", "storage_shape": [payload]}]

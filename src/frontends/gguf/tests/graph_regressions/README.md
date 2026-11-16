@@ -1,8 +1,8 @@
 # GGUF structural regression references
 
 These are structural alarms, not runtime benchmarks or numerical equivalence tests.
-Every stage works offline. The `adapted` stage captures the model map that GenAI
-compiles, so changes in GenAI-only passes are visible.
+Each case has exactly one reference: the stateful frontend graph before GenAI adaptation.
+Everything runs offline and no checkpoint weights are allocated.
 
 ## Coverage status
 
@@ -20,12 +20,12 @@ matches the case's `header_sha256`; filenames alone are never trusted.
 `test_catalog_maps_every_documented_checkpoint` enforces the mapping.
 Cross-architecture determinism remains an acceptance requirement.
 
-## Artifacts and stages
+## Artifacts
 
 All paths below are under `tests/test_data/graph_regressions`, in ordinary Git text,
 not LFS:
 
-- `catalog.json`: case/checkpoint identities, provenance, stages and projector contracts.
+- `catalog.json`: case/checkpoint identities, provenance and projector contracts.
 - `schema.json`: shared versioned catalog, recipe and reference definitions.
 - `recipes/<case>.json`: compact recipe version 2, one metadata entry or tensor group per
   line. Metadata maps each key to `[type, value]` (`"u32"`, `"f32[]"`, ...); arrays of at
@@ -35,30 +35,24 @@ not LFS:
   ascending, disjoint layer ranges such as `"0-2,4-63"`. Shapes use OpenVINO order,
   reversing GGUF's `ne[]`; source storage is derived from the GGML type. The runner
   expands this to a per-tensor descriptor before conversion.
-- `references/<case>.json`: complete operation type/version counts, projection summaries
-  and one `graph_sha256` per captured model. Histogram rows are kept one per line for readable
-  diffs; other value arrays are inline. Each reference is limited to **32 KiB across all stages**.
+- `references/<case>.json` (reference version 2): complete operation type/version counts,
+  projection summaries, totals and one `graph_sha256`. Histogram rows are kept one per line
+  for readable diffs; other value arrays are inline. Each reference is limited to **32 KiB**.
 
-`deferred_plan` uses descriptors that throw on payload access. It reuses production
-builder selection and weight allocation/layout planning without allocating checkpoint
-weights. This is the all-model precommit candidate, not final materialized IR.
-`adapted` converts the same deferred recipe with `GenAIExtension`, in both `ids` and
-`embeds` modes, and records each produced model (`ids`, `embeds`, `embedding`,
-`per_layer_embedding`). Every case whose architecture GenAI adaptation supports has it;
-projectors, vocoders, embedding-only and draft-only checkpoints keep `deferred_plan`.
-`materialized` runs bounded synthetic GGUF files through ordinary production loading.
-`controlled--llama-q8-nonzero-scale` materializes patterned Q8_0 payloads. The 31
-legacy positive architecture fingerprints have materialized references with identical
-top-level operation and input counts; rejection, broken-model and dependency tests remain.
-Numerical repacking, Hadamard and ternary tests remain in the C++ suite.
+## What is captured
 
-Synthetic payload generation is versioned by expanded descriptor/tool version 1, uses
-fixed finite patterns or zeros, and is limited to 64 MiB per recipe. F32/F16 and patterned Q8_0
-controls are supplemented by valid packed-zero blocks for the other supported GGML
-formats; each materialization class has a small ordinary-conversion reference.
-It never invents random checkpoint-sized payloads. Temporary files are cleaned up.
-Nonzero quantization arithmetic is covered by the existing numerical tests;
-unrepresented value-dependent final-materialization paths can still escape this gate.
+The runner converts the recipe with the production frontend and builders. Weights are
+descriptors that throw on payload access, so builder selection and weight layout planning
+run without allocating checkpoint-sized weights. `GGUFMakeStateful` is registered as a
+`DecoderTransformationExtension`, as GenAI does, so decoders are captured with their
+ReadValue/Assign KV-cache and recurrent states. Graphs without caches (projectors,
+vocoders, embedding-only models) are captured unchanged.
+
+GenAI adaptation (`AdaptToGenAI`) is not captured: it is still changing, and one
+reference per model keeps the gate small. Adaptation can move into this reference once it
+stabilizes. Weight loading and numerical behavior (repacking, Hadamard, ternary formats,
+quantization arithmetic) are not covered here; the existing C++ conversion and accuracy
+tests own them.
 
 ## Graph hash scope
 
@@ -117,11 +111,11 @@ python3 src/frontends/gguf/tests/graph_fingerprint.py \
 ```
 
 Default mode checks references; CI never updates. Updates require explicit IDs, capture
-all selected stages before writing, stage replacements, and roll back a publication failure.
+all selected cases before writing, stage replacements, and roll back a publication failure.
 If rollback fails, the error lists retained recovery backups. Existing malformed,
-inconsistent or oversized references must be repaired/reverted before updating; update
-mode does not silently replace invalid baselines.
-Missing/invalid inputs, missing stages, orphan recipes/references and empty selections fail.
+inconsistent or oversized references of the current version must be repaired/reverted
+before updating; only references of an older reference version are replaced as new.
+Missing/invalid inputs, orphan recipes/references and empty selections fail.
 Every invocation writes `changed_cases.json` (in the current directory unless `--report`
 is supplied), including partial progress/errors. Keep reports and full graph dumps out of Git.
 `--import-gguf <local.gguf> --recipe-output <recipe.json>` reads only the header/tensor
@@ -167,8 +161,7 @@ Within each group, cover every bucket the changed operations/projections actuall
 | Topology | dense, sliding-window (Gemma), MoE, hybrid/recurrent (LFM2, Mamba), projector (vision/audio) |
 | Size | the smallest real checkpoint in the bucket, plus one model of 7B or more per group |
 
-Use real checkpoints listed in the cases' `models`. Map each `representative` or
-`controlled` case to the real checkpoints that share its decision class. If fewer than
+Use real checkpoints listed in the cases' `models`. Map each `representative` case to the real checkpoints that share its decision class. If fewer than
 about three checkpoints are affected in total, benchmark all of them. A change affecting
 the whole catalog typically reduces to 8-10 models (for example Llama Q4_K_M, Qwen3 Q4_0,
 a Q6_K-heavy model, Qwen3-MoE, LFM2, Gemma-3, a BF16 model, one vision projector and one
@@ -223,6 +216,6 @@ Structural equality, synthetic timings or unrelated numerical tests do not subst
 for real-model results. Whether a regression is acceptable remains a reviewer decision.
 
 Adding support requires registering every relevant original-dimensional variant and format,
-recording provenance, capturing the required stages and reviewing the new references.
+recording provenance, capturing its reference and reviewing it.
 Equivalent descriptor profiles may share a recipe only if all checkpoint identities remain
 visible. A model hub list entry without a matching catalog identity fails the Python tests.

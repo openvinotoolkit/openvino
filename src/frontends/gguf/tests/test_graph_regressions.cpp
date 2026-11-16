@@ -54,9 +54,7 @@ TEST(GGUFGraphRegression, CatalogCoversEveryNativeHandler) {
     const auto catalog = regression_catalog();
     std::set<std::string> covered;
     for (const auto& entry : catalog.at("cases")) {
-        auto stages = entry.value("stages", std::vector<std::string>{entry.value("stage", "deferred_plan")});
-        if (entry.value("kind", "model") == "model" &&
-            std::find(stages.begin(), stages.end(), "deferred_plan") != stages.end())
+        if (entry.value("kind", "model") == "model")
             covered.insert(entry.at("architecture").get<std::string>());
     }
     EXPECT_EQ(covered, ov::frontend::gguf::default_arch_registry().supported_archs())

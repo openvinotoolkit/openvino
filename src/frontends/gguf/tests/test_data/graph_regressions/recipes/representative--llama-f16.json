@@ -1,7 +1,6 @@
 {
   "version": 2,
   "omitted_metadata": ["general.name", "tokenizer.ggml.merges", "tokenizer.ggml.scores", "tokenizer.ggml.token_type", "tokenizer.ggml.tokens"],
-  "payload": {"mode": "pattern", "max_bytes": 1048576, "quant_scale": 0.125},
   "metadata": {
     "general.architecture": ["str", "llama"],
     "llama.vocab_size": ["u32", 16],

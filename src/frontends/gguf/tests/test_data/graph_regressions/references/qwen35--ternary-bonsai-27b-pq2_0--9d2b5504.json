@@ -1,203 +1,52 @@
 {
-  "stages": {
-    "adapted": {
-      "models": {
-        "embedding": {
-          "graph_sha256": "d86c13429b7d0d0beb9298a1c78b623c8c740a25d6b82036136bff868b7e9bd2",
-          "ops": [
-            ["Constant","opset1",5],
-            ["Convert","opset1",1],
-            ["GGUFPlannedWeight","gguf",1],
-            ["Gather","opset8",1],
-            ["Parameter","opset1",1],
-            ["Result","opset1",1],
-            ["Squeeze","opset1",2],
-            ["Unsqueeze","opset1",2]
-          ],
-          "projections": [],
-          "projectors": [],
-          "totals": {
-            "edges": 13,
-            "inputs": 1,
-            "nodes": 14,
-            "outputs": 1,
-            "states": 0,
-            "top_level_nodes": 14
-          }
-        },
-        "embeds": {
-          "graph_sha256": "25a9e1559aa9e2dc627f4086af5448443bd5a38c01b412a9c0d08309a369c8e4",
-          "ops": [
-            ["Add","opset1",418],
-            ["Assign","opset6",128],
-            ["Broadcast","opset3",160],
-            ["Clamp","opset1",48],
-            ["Concat","opset1",392],
-            ["Constant","opset1",3762],
-            ["Convert","opset1",150],
-            ["Cos","opset1",32],
-            ["CumSum","opset3",1],
-            ["GGUFPlannedWeight","gguf",610],
-            ["GatedDeltaNet","extension",48],
-            ["Gather","opset8",268],
-            ["GroupConvolution","opset1",48],
-            ["LessEqual","opset1",1],
-            ["LogicalAnd","opset1",1],
-            ["MatMul","opset1",257],
-            ["Multiply","opset1",819],
-            ["NotEqual","opset1",1],
-            ["Parameter","opset1",4],
-            ["Power","opset1",466],
-            ["Range","opset4",1],
-            ["ReadValue","opset6",128],
-            ["ReduceL2","opset4",48],
-            ["ReduceMean","opset1",209],
-            ["Reshape","opset1",1007],
-            ["Result","opset1",1],
-            ["ScaledDotProductAttention","opset13",16],
-            ["Select","opset1",1],
-            ["ShapeOf","opset3",54],
-            ["Sigmoid","opset1",64],
-            ["Sin","opset1",32],
-            ["Slice","opset8",98],
-            ["SoftPlus","opset4",48],
-            ["Split","opset1",48],
-            ["Sqrt","opset1",209],
-            ["Squeeze","opset1",226],
-            ["Subtract","opset1",3],
-            ["Swish","opset4",160],
-            ["Transpose","opset1",417],
-            ["Unsqueeze","opset1",660],
-            ["VariadicSplit","opset1",304]
-          ],
-          "projections": [
-            ["MatMul","3","f32","ggml:142/group:128/weight:u2",257]
-          ],
-          "projectors": [],
-          "totals": {
-            "edges": 14001,
-            "inputs": 4,
-            "nodes": 11348,
-            "outputs": 1,
-            "states": 128,
-            "top_level_nodes": 11348
-          }
-        },
-        "ids": {
-          "graph_sha256": "3e45c6b50f8117ce0d1b7b28d912a6758a9fca969e496f813b188b69db901cb4",
-          "ops": [
-            ["Add","opset1",418],
-            ["Assign","opset6",128],
-            ["Broadcast","opset3",160],
-            ["Clamp","opset1",48],
-            ["Concat","opset1",392],
-            ["Constant","opset1",3759],
-            ["Convert","opset1",152],
-            ["Cos","opset1",32],
-            ["CumSum","opset3",1],
-            ["GGUFPlannedWeight","gguf",611],
-            ["GatedDeltaNet","extension",48],
-            ["Gather","opset8",267],
-            ["GroupConvolution","opset1",48],
-            ["LessEqual","opset1",1],
-            ["LogicalAnd","opset1",1],
-            ["MatMul","opset1",257],
-            ["Multiply","opset1",819],
-            ["NotEqual","opset1",1],
-            ["Parameter","opset1",4],
-            ["Power","opset1",466],
-            ["Range","opset4",1],
-            ["ReadValue","opset6",128],
-            ["ReduceL2","opset4",48],
-            ["ReduceMean","opset1",209],
-            ["Reshape","opset1",1007],
-            ["Result","opset1",1],
-            ["ScaledDotProductAttention","opset13",16],
-            ["Select","opset1",1],
-            ["ShapeOf","opset3",54],
-            ["Sigmoid","opset1",64],
-            ["Sin","opset1",32],
-            ["Slice","opset8",97],
-            ["SoftPlus","opset4",48],
-            ["Split","opset1",48],
-            ["Sqrt","opset1",209],
-            ["Squeeze","opset1",227],
-            ["Subtract","opset1",3],
-            ["Swish","opset4",160],
-            ["Tile","opset1",1],
-            ["Transpose","opset1",416],
-            ["Unsqueeze","opset1",660],
-            ["VariadicSplit","opset1",304]
-          ],
-          "projections": [
-            ["MatMul","3","f32","ggml:142/group:128/weight:u2",257]
-          ],
-          "projectors": [],
-          "totals": {
-            "edges": 13997,
-            "inputs": 4,
-            "nodes": 11347,
-            "outputs": 1,
-            "states": 128,
-            "top_level_nodes": 11347
-          }
-        }
-      }
-    },
-    "deferred_plan": {
-      "models": {
-        "native": {
-          "graph_sha256": "e46a4d12e935a362a4e6ba518cb5253dd01fcde025305c3f96031d6f6254ff6c",
-          "ops": [
-            ["Add","opset1",417],
-            ["Broadcast","opset3",32],
-            ["Clamp","opset1",48],
-            ["Concat","opset1",561],
-            ["Constant","opset1",4534],
-            ["Convert","opset1",145],
-            ["Cos","opset1",32],
-            ["GGUFPlannedWeight","gguf",611],
-            ["GatedDeltaNet","extension",48],
-            ["Gather","opset8",693],
-            ["GroupConvolution","opset1",48],
-            ["MatMul","opset1",257],
-            ["Multiply","opset1",770],
-            ["Parameter","opset1",134],
-            ["Power","opset1",466],
-            ["ReduceL2","opset4",48],
-            ["ReduceMean","opset1",209],
-            ["Reshape","opset1",1362],
-            ["Result","opset1",129],
-            ["ScaledDotProductAttention","opset13",16],
-            ["ScatterUpdate","opset3",32],
-            ["ShapeOf","opset3",690],
-            ["Sigmoid","opset1",64],
-            ["Sin","opset1",32],
-            ["Slice","opset8",48],
-            ["SoftPlus","opset4",48],
-            ["Split","opset1",48],
-            ["Sqrt","opset1",209],
-            ["Squeeze","opset1",133],
-            ["Swish","opset4",160],
-            ["Transpose","opset1",320],
-            ["Unsqueeze","opset1",83],
-            ["VariadicSplit","opset1",304]
-          ],
-          "projections": [
-            ["MatMul","3","f32","ggml:142/group:128/weight:u2",257]
-          ],
-          "projectors": [],
-          "totals": {
-            "edges": 14792,
-            "inputs": 134,
-            "nodes": 12731,
-            "outputs": 129,
-            "states": 0,
-            "top_level_nodes": 12731
-          }
-        }
-      }
-    }
+  "graph_sha256": "85068954b4dd7ce949269028da2aa75b1971183d57516c22a5bc7401c84f7717",
+  "ops": [
+    ["Add","opset1",417],
+    ["Assign","opset6",128],
+    ["Broadcast","opset3",64],
+    ["Clamp","opset1",48],
+    ["Concat","opset1",625],
+    ["Constant","opset1",4727],
+    ["Convert","opset1",145],
+    ["Cos","opset1",32],
+    ["GGUFPlannedWeight","gguf",611],
+    ["GatedDeltaNet","extension",48],
+    ["Gather","opset8",725],
+    ["GroupConvolution","opset1",48],
+    ["MatMul","opset1",257],
+    ["Multiply","opset1",770],
+    ["Parameter","opset1",7],
+    ["Power","opset1",466],
+    ["ReadValue","opset6",128],
+    ["ReduceL2","opset4",48],
+    ["ReduceMean","opset1",209],
+    ["Reshape","opset1",1330],
+    ["Result","opset1",1],
+    ["ScaledDotProductAttention","opset13",16],
+    ["ShapeOf","opset3",659],
+    ["Sigmoid","opset1",64],
+    ["Sin","opset1",32],
+    ["Slice","opset8",96],
+    ["SoftPlus","opset4",48],
+    ["Split","opset1",48],
+    ["Sqrt","opset1",209],
+    ["Squeeze","opset1",101],
+    ["Swish","opset4",160],
+    ["Transpose","opset1",416],
+    ["Unsqueeze","opset1",83],
+    ["VariadicSplit","opset1",304]
+  ],
+  "projections": [
+    ["MatMul","3","f32","ggml:142/group:128/weight:u2",257]
+  ],
+  "projectors": [],
+  "totals": {
+    "edges": 15353,
+    "inputs": 7,
+    "nodes": 13070,
+    "outputs": 1,
+    "states": 128,
+    "top_level_nodes": 13070
   },
-  "version": 1
+  "version": 2
 }

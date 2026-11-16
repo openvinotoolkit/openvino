@@ -1,7 +1,6 @@
 {
   "version": 2,
   "omitted_metadata": [],
-  "payload": {"mode": "zeros", "max_bytes": 67108864},
   "metadata": {
     "general.architecture": ["str", "lfm3"],
     "lfm3.context_length": ["u32", 128],

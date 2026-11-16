@@ -1,7 +1,6 @@
 {
   "version": 2,
   "omitted_metadata": ["general.name", "tokenizer.ggml.merges", "tokenizer.ggml.scores", "tokenizer.ggml.token_type", "tokenizer.ggml.tokens"],
-  "payload": {"mode": "zeros", "max_bytes": 67108864},
   "metadata": {
     "general.architecture": ["str", "phi3"],
     "phi3.vocab_size": ["u32", 128],

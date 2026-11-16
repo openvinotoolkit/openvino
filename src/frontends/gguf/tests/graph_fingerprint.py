@@ -23,6 +23,7 @@ HERE = Path(__file__).resolve().parent
 DATA = HERE / "test_data" / "graph_regressions"
 MAX_REFERENCE_BYTES = 32 * 1024
 VERSION = 1
+REFERENCE_VERSION = 2
 RECIPE_VERSION = 2
 
 # GGML block storage, not the frontend's unpacked representation.
@@ -77,12 +78,6 @@ def compact_snapshot(snapshot):
     return result
 
 
-def model_stage(models):
-    if not models:
-        raise ValueError("Snapshot stage requires a nonempty model map")
-    return {"models": models}
-
-
 def histogram_delta(expected, actual):
     before = {tuple(row[:-1]): row[-1] for row in expected}
     after = {tuple(row[:-1]): row[-1] for row in actual}
@@ -92,38 +87,28 @@ def histogram_delta(expected, actual):
 
 
 def reference_delta(expected, actual):
-    changes = []
-    before_stages = expected.get("stages", {}) if expected else {}
-    for stage in sorted(before_stages.keys() | actual["stages"].keys()):
-        before = before_stages.get(stage, {}).get("models", {})
-        after = actual["stages"].get(stage, {}).get("models", {})
-        for role in sorted(before.keys() | after.keys()):
-            old, new = before.get(role), after.get(role)
-            if old == new:
-                continue
-            changes.append({
-                "stage": stage, "model": role,
-                "status": "added" if old is None else "removed" if new is None else "changed",
-                "ops": histogram_delta(old["ops"] if old else [], new["ops"] if new else []),
-                "projections": histogram_delta(old["projections"] if old else [],
-                                              new["projections"] if new else []),
-                "before_nodes": old["totals"]["nodes"] if old else 0,
-                "after_nodes": new["totals"]["nodes"] if new else 0,
-                "graph_changed": old is None or new is None or old["graph_sha256"] != new["graph_sha256"],
-            })
-    return changes
+    old = {key: value for key, value in expected.items() if key != "version"} if expected else None
+    new = {key: value for key, value in actual.items() if key != "version"}
+    if old == new:
+        return None
+    return {
+        "status": "added" if old is None else "changed",
+        "ops": histogram_delta(old["ops"] if old else [], new["ops"]),
+        "projections": histogram_delta(old["projections"] if old else [], new["projections"]),
+        "before_nodes": old["totals"]["nodes"] if old else 0,
+        "after_nodes": new["totals"]["nodes"],
+        "graph_changed": old is None or old["graph_sha256"] != new["graph_sha256"],
+    }
 
 
-def print_changes(case, changes):
-    for change in changes:
-        print(f"{case}: {change['stage']}/{change['model']} {change['status']}; "
-              f"operations {change['before_nodes']} -> {change['after_nodes']}")
-        for field in ("ops", "projections"):
-            for row in change[field]:
-                kind = "added" if row["delta"] > 0 else "removed"
-                print(f"  {kind} {field}: {'/'.join(map(str, row['signature']))} {row['delta']:+d}")
-        if change["graph_changed"] and not change["ops"]:
-            print("  structure/attributes changed; operation counts unchanged")
+def print_changes(case, change):
+    print(f"{case}: {change['status']}; operations {change['before_nodes']} -> {change['after_nodes']}")
+    for field in ("ops", "projections"):
+        for row in change[field]:
+            kind = "added" if row["delta"] > 0 else "removed"
+            print(f"  {kind} {field}: {'/'.join(map(str, row['signature']))} {row['delta']:+d}")
+    if change["graph_changed"] and not change["ops"]:
+        print("  structure/attributes changed; operation counts unchanged")
 
 
 class HeaderReader:
@@ -384,7 +369,7 @@ def parse_layer_ranges(name, text):
 def encode_recipe(recipe):
     """Compact on-disk form: typed metadata map and per-layer tensor templates without derived storage."""
     result = {"version": RECIPE_VERSION}
-    for key in ("omitted_metadata", "payload"):
+    for key in ("omitted_metadata",):
         if key in recipe:
             result[key] = recipe[key]
     result["metadata"] = {}
@@ -447,7 +432,7 @@ def decode_recipe(document):
             storage_type, storage_shape = storage(GGML_IDS[kind], shape)
             recipe["tensors"].append({"name": concrete, "shape": list(shape), "ggml_type": GGML_IDS[kind],
                                       "storage_type": storage_type, "storage_shape": storage_shape})
-    for key in ("omitted_metadata", "payload"):
+    for key in ("omitted_metadata",):
         if key in document:
             recipe[key] = document[key]
     validate_recipe(recipe)
@@ -459,7 +444,7 @@ def recipe_text(recipe):
     document = encode_recipe(recipe)
     line = lambda value: json.dumps(value, allow_nan=False)
     lines = ["{", f'  "version": {document["version"]},']
-    for key in ("omitted_metadata", "payload"):
+    for key in ("omitted_metadata",):
         if key in document:
             lines.append(f"  {line(key)}: {line(document[key])},")
     lines.append('  "metadata": {')
@@ -558,89 +543,6 @@ def validate_document(value, kind):
     check(value, schema["$defs"][kind], kind)
 
 
-def materialize_recipe(recipe, path):
-    """Bounded synthetic floats/packed-zero blocks, plus patterned Q8_0 controls."""
-    payload = recipe.get("payload", {})
-    if payload.get("mode") not in ("zeros", "pattern"):
-        raise ValueError("Materialized recipe requires explicit zeros/pattern payload policy")
-    supported = {0, 1} | (BLOCKS.keys() - STORAGE_TYPES.keys())
-    if any(tensor["ggml_type"] not in supported for tensor in recipe["tensors"]):
-        raise ValueError("Materialized generator requires F32, F16 or a supported packed format")
-    if payload["mode"] != "zeros" and any(tensor["ggml_type"] not in (0, 1, 8)
-                                         for tensor in recipe["tensors"]):
-        raise ValueError("Packed formats other than Q8_0 require explicit zeros payload policy")
-    total = sum(math.prod(tensor["storage_shape"]) *
-                ({"f32": 4, "f16": 2, "u8": 1}.get(tensor["storage_type"], 0))
-                for tensor in recipe["tensors"])
-    if total > min(payload.get("max_bytes", 0), 64 * 1024 * 1024):
-        raise ValueError(f"Synthetic payload exceeds the 64 MiB/per-recipe budget: {total}")
-
-    def string(value):
-        encoded = value.encode("utf-8")
-        return struct.pack("<Q", len(encoded)) + encoded
-
-    def typed(kind, value):
-        if kind == 8:
-            return string(value)
-        if isinstance(value, dict):
-            value = {"nan": math.nan, "+inf": math.inf, "-inf": -math.inf}[value["nonfinite"]]
-        return struct.pack("<" + METADATA_FORMATS[kind], value)
-
-    header = bytearray(b"GGUF" + struct.pack("<IQQ", 3, len(recipe["tensors"]), len(recipe["metadata"])))
-    alignment = 32
-    for entry in recipe["metadata"]:
-        if entry["name"] == "general.alignment":
-            alignment = entry["value"]
-        header += string(entry["name"]) + struct.pack("<I", entry["type"])
-        if entry["type"] == 9:
-            header += struct.pack("<IQ", entry["element_type"], len(entry["value"]))
-            for value in entry["value"]:
-                header += typed(entry["element_type"], value)
-        else:
-            header += typed(entry["type"], entry["value"])
-    if not isinstance(alignment, int) or alignment < 1 or alignment > 4096 or alignment & (alignment - 1):
-        raise ValueError("Invalid synthetic GGUF alignment")
-    offsets, offset = [], 0
-    for tensor in recipe["tensors"]:
-        offsets.append(offset)
-        shape, kind = tensor["shape"], tensor["ggml_type"]
-        header += string(tensor["name"]) + struct.pack("<I", len(shape))
-        header += struct.pack("<" + "Q" * len(shape), *reversed(shape)) + struct.pack("<IQ", kind, offset)
-        block, size = BLOCKS[kind]
-        offset += math.prod(shape) // block * size
-        offset += (-offset) % alignment
-    with path.open("wb") as stream:
-        stream.write(header)
-        stream.write(bytes((-len(header)) % alignment))
-        start = stream.tell()
-        for tensor, offset in zip(recipe["tensors"], offsets):
-            stream.write(bytes(start + offset - stream.tell()))
-            count = math.prod(tensor["shape"])
-            if tensor["ggml_type"] == 8:
-                scale = payload.get("quant_scale", 0.0 if payload["mode"] == "zeros" else 0.125)
-                block = struct.pack("<e", scale) + bytes(
-                    0 if payload["mode"] == "zeros" else index % 16 for index in range(32))
-                for _ in range(count // 32):
-                    stream.write(block)
-            elif tensor["ggml_type"] in (0, 1):
-                code = "f" if tensor["ggml_type"] == 0 else "e"
-                value = 0.0 if payload["mode"] == "zeros" else (
-                    1.0 if "norm" in tensor["name"] else 0.125)
-                chunk = struct.pack("<" + code, value) * min(count, 16384)
-                while count:
-                    take = min(count, 16384)
-                    stream.write(chunk[:take * struct.calcsize(code)])
-                    count -= take
-            else:
-                block, size = BLOCKS[tensor["ggml_type"]]
-                remaining = count // block * size
-                zeros = bytes(16384)
-                while remaining:
-                    take = min(remaining, len(zeros))
-                    stream.write(zeros[:take])
-                    remaining -= take
-
-
 def contained_path(root, relative):
     path = (root / relative).resolve()
     if not path.is_relative_to(root.resolve()):
@@ -655,30 +557,19 @@ def runner_path(explicit):
     return path
 
 
-def capture(input_path, runner, materialized=False, adapted=None):
+def capture(recipe, runner):
     with tempfile.TemporaryDirectory(prefix="ov_gguf_graph_") as directory:
+        input_path = Path(directory) / "recipe.json"
+        input_path.write_text(json.dumps(recipe), encoding="utf-8")
         output = Path(directory) / "actual.json"
         command = [runner, "--gguf-snapshot", str(input_path), "--output", str(output)]
-        if materialized:
-            command.append("--materialized")
-        if adapted:
-            command += ["--adapted", adapted]
         try:
             result = subprocess.run(command, capture_output=True, text=True, check=False, timeout=120)
         except subprocess.TimeoutExpired as error:
-            raise ValueError(f"Snapshot runner timed out after 120 seconds: {input_path}") from error
+            raise ValueError("Snapshot runner timed out after 120 seconds") from error
         if result.returncode:
             raise ValueError(f"Snapshot runner failed ({result.returncode}): {result.stderr[-4000:]}")
-        if adapted:
-            return {role: compact_snapshot(model) for role, model in load_json(output)["models"].items()}
         return compact_snapshot(load_json(output))
-
-
-def fingerprint(model_path, runner=None):
-    """Explicit local-file compatibility mode; production materialization, no required-case skip."""
-    result = capture(model_path, runner_path(runner), materialized=True)
-    return {"sighash": result["graph_sha256"], "num_ops": result["totals"]["nodes"],
-            "ops": result["ops"], "projections": result["projections"]}
 
 
 def reference_bytes(reference):
@@ -804,50 +695,26 @@ def _run_cases(args, report):
             raise ValueError(f"Invalid case ID: {case['id']}")
         recipe_path = contained_path(root, case["recipe"])
         recipe = load_recipe(recipe_path)
-        stages = case.get("stages", [case.get("stage", "deferred_plan")])
-        if case.get("kind", "model") == "model" and "deferred_plan" not in stages:
-            raise ValueError(f"Model case {case['id']} requires deferred_plan")
-        actual_stages = {}
-        for stage in stages:
-            if stage in ("deferred_plan", "adapted"):
-                with tempfile.TemporaryDirectory(prefix="ov_gguf_recipe_") as directory:
-                    path = Path(directory) / f"{case['id']}.expanded.json"
-                    path.write_text(json.dumps(recipe), encoding="utf-8")
-                    if stage == "adapted":
-                        models = capture(path, runner, adapted="ids")
-                        models.update(capture(path, runner, adapted="embeds"))
-                        actual_stages[stage] = model_stage(models)
-                        continue
-                    model = capture(path, runner)
-            elif stage == "materialized":
-                with tempfile.TemporaryDirectory(prefix="ov_gguf_materialized_") as directory:
-                    path = Path(directory) / "synthetic.gguf"
-                    materialize_recipe(recipe, path)
-                    model = capture(path, runner, materialized=True)
-            else:
-                raise ValueError(f"Unknown stage {stage}")
-            actual_stages[stage] = model_stage({"native": model})
-            if "projectors" in case and model["projectors"] != case["projectors"]:
-                raise ValueError(f"Projector identity mismatch for {case['id']}: {model['projectors']}")
-        actual = {"version": VERSION, "stages": actual_stages}
+        model = capture(recipe, runner)
+        if "projectors" in case and model["projectors"] != case["projectors"]:
+            raise ValueError(f"Projector identity mismatch for {case['id']}: {model['projectors']}")
+        actual = {"version": REFERENCE_VERSION, **model}
         validate_document(actual, "reference")
         target = contained_path(root, case["reference"])
         if not target.exists() and not args.update:
             raise ValueError(f"Missing reference for {case['id']}; explicit --update required")
         expected = load_json(target) if target.exists() else None
+        if args.update and expected is not None and expected.get("version") != REFERENCE_VERSION:
+            expected = None
         if expected is not None:
             validate_document(expected, "reference")
-            if set(expected["stages"]) != set(stages) and not args.update:
-                raise ValueError(f"Reference has missing/extra required stages for {case['id']}")
-            for stage in expected["stages"].values():
-                for model in stage["models"].values():
-                    if sum(row[-1] for row in model["ops"]) != model["totals"]["nodes"]:
-                        raise ValueError(f"Reference histogram is inconsistent for {case['id']}")
+            if sum(row[-1] for row in expected["ops"]) != expected["totals"]["nodes"]:
+                raise ValueError(f"Reference histogram is inconsistent for {case['id']}")
             reference_bytes(expected)
         delta = reference_delta(expected, actual)
         if delta:
             print_changes(case["id"], delta)
-            changes.append({"case": case["id"], "models": case["models"], "changes": delta})
+            changes.append({"case": case["id"], "models": case["models"], "change": delta})
         pending.append((target, reference_bytes(actual)))
         report["changed_cases"] = changes
         report["completed"] = len(pending)
@@ -869,15 +736,8 @@ def main(argv=None):
     parser.add_argument("--import-gguf", type=Path)
     parser.add_argument("--recipe-output", type=Path)
     parser.add_argument("--source-size", type=int, help="original file size when importing a header prefix")
-    parser.add_argument("--materialized-file", type=Path,
-                        help="Explicit local-model diagnostic, not the required recipe gate")
     args = parser.parse_args(argv)
     try:
-        if args.materialized_file:
-            if args.update or args.cases or args.import_gguf:
-                raise ValueError("--materialized-file cannot select/update required cases")
-            print(json.dumps(fingerprint(args.materialized_file, args.runner), indent=2))
-            return 0
         if args.import_gguf:
             if not args.recipe_output or args.update or args.cases:
                 raise ValueError("--import-gguf requires --recipe-output and cannot update references")
