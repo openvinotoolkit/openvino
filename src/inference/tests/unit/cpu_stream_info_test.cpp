@@ -654,9 +654,8 @@ struct MapProcKindsTestCase {
     std::vector<std::vector<int>> _fallback_core_types;
 };
 
-class MapProcKindsToTbbCoreTypesTests
-    : public ov::test::TestsCommon,
-      public testing::WithParamInterface<std::tuple<MapProcKindsTestCase, bool>> {
+class MapProcKindsToTbbCoreTypesTests : public ov::test::TestsCommon,
+                                        public testing::WithParamInterface<std::tuple<MapProcKindsTestCase, bool>> {
 public:
     void SetUp() override {
         const auto& test_data = std::get<0>(GetParam());
@@ -796,13 +795,13 @@ const std::vector<MapProcKindsTestCase> map_proc_kinds_cases = {
      {{3}, {3}, {2}, {0}, {3, 2}, {2, 0}, {3, 2, 0}, {3, 0}, {}}},
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    CpuTopologies,
-    MapProcKindsToTbbCoreTypesTests,
-    testing::Combine(testing::ValuesIn(map_proc_kinds_cases), testing::Bool()),
-    [](const testing::TestParamInfo<MapProcKindsToTbbCoreTypesTests::ParamType>& info) {
-        return std::get<0>(info.param)._name + (std::get<1>(info.param) ? "WithCpuFreqTable" : "WithoutCpuFreqTable");
-    });
+INSTANTIATE_TEST_SUITE_P(CpuTopologies,
+                         MapProcKindsToTbbCoreTypesTests,
+                         testing::Combine(testing::ValuesIn(map_proc_kinds_cases), testing::Bool()),
+                         [](const testing::TestParamInfo<MapProcKindsToTbbCoreTypesTests::ParamType>& info) {
+                             return std::get<0>(info.param)._name +
+                                    (std::get<1>(info.param) ? "WithCpuFreqTable" : "WithoutCpuFreqTable");
+                         });
 
 #endif
 
