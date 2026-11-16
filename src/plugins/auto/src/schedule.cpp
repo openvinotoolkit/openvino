@@ -82,6 +82,11 @@ void Schedule::capture_hw_metadata(const SoCompiledModel& first_compiled_model) 
     metadata->outputs = first_compiled_model->outputs();
     metadata->so = first_compiled_model._so;
     try {
+        metadata->model_name = first_compiled_model->get_property(ov::model_name.name()).as<std::string>();
+    } catch (const ov::Exception&) {
+        LOG_DEBUG_TAG("underlying hardware does not report the model name");
+    }
+    try {
         metadata->context = first_compiled_model->get_context();
         if (!metadata->context._so) {
             metadata->context._so = first_compiled_model._so;

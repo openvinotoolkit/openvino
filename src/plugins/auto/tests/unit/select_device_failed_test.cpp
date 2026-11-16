@@ -163,6 +163,8 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
         .Times(loadSuccessCount);
     // only logged by AUTO after a compile
     EXPECT_CALL(*mockIExeNet.get(), get_property(StrEq(ov::loaded_from_cache.name()))).Times(AnyNumber());
+    // read once by AUTO from the first compiled model
+    EXPECT_CALL(*mockIExeNet.get(), get_property(StrEq(ov::model_name.name()))).Times(AnyNumber());
     // a single device is passthrough: its model is only held, no worker request is created
     EXPECT_CALL(*mockIExeNet.get(), create_infer_request())
         .Times(deviceConfigs.size() == 1 ? 0 : loadSuccessCount * 2);

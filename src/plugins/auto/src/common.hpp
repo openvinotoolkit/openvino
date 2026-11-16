@@ -234,6 +234,7 @@ struct CompiledModelMetadata {
     ov::SoPtr<ov::IRemoteContext> context;
     // keeps the device plugin library loaded for the ports
     std::shared_ptr<void> so;
+    std::string model_name;
 };
 
 class ScheduleContext : public std::enable_shared_from_this<ScheduleContext>  {

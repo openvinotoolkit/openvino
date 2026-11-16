@@ -96,6 +96,27 @@ TEST_F(DeviceExecutionContextTest, releaseDropsWorkersAndModel) {
     EXPECT_FALSE(context.try_release());
 }
 
+TEST_F(DeviceExecutionContextTest, loadedFromCacheIsRecordedWhenReadyAndKeptAfterRelease) {
+    DeviceExecutionContext context("GPU.0");
+    EXPECT_FALSE(context.loaded_from_cache());
+    ON_CALL(*mockIExeNetActual.get(), get_property(StrEq(ov::loaded_from_cache.name())))
+        .WillByDefault(Return(ov::Any(true)));
+    make_ready(context);
+    EXPECT_TRUE(context.loaded_from_cache());
+    EXPECT_TRUE(context.try_release());
+    EXPECT_TRUE(context.loaded_from_cache());
+}
+
+TEST_F(DeviceExecutionContextTest, loadedFromCacheIsFalseWhenTheDeviceCannotReportIt) {
+    DeviceExecutionContext context("GPU.0");
+    ON_CALL(*mockIExeNetActual.get(), get_property(StrEq(ov::loaded_from_cache.name())))
+        .WillByDefault([](const std::string&) -> ov::Any {
+            OPENVINO_THROW("not supported");
+        });
+    make_ready(context);
+    EXPECT_FALSE(context.loaded_from_cache());
+}
+
 TEST_F(DeviceExecutionContextTest, modelCopyTakenBeforeReleaseStaysValid) {
     DeviceExecutionContext context("GPU.0");
     make_ready(context);

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <functional>
 #include <list>
 #include <mutex>
@@ -51,6 +52,8 @@ public:
     State state() const;
     bool is_ready() const;
     bool is_kept_alive() const;
+    // whether the latest compilation on the device imported the model from the cache, kept after a release
+    bool loaded_from_cache() const;
     const DeviceName& name() const;
     // reason of the latest compile failure, empty unless Faulted
     const std::string& last_error() const;
@@ -77,6 +80,7 @@ private:
     bool m_keep_alive = false;
     State m_state = State::Unloaded;
     std::string m_last_error;
+    std::atomic<bool> m_loaded_from_cache{false};
     std::list<Time> m_released_start_times;
     std::list<Time> m_released_end_times;
     // the declaration order is the reverse of the destruction order: requests first, the model last
