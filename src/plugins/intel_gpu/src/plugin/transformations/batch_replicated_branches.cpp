@@ -222,20 +222,17 @@ bool batch_replicated_branches(const std::shared_ptr<ov::op::v0::Concat>& output
     ov::Output<ov::Node> reference_output = *reference.get("gather");
     ov::Output<ov::Node> batched = batched_input;
     for (const auto& name : {"conv", "pool", "add", "relu"}) {
-        if (!reference.get(name))
+        const auto matched = reference.get(name);
+        if (!matched)
             continue;
-        const auto replicas = replicas_of(name);
-        const auto& reference_node = replicas.front();
-        ov::OutputVector inputs = reference_node->input_values();
+        const auto node = matched->get_node_shared_ptr();
+        auto inputs = node->input_values();
         // Constant inputs are equal in all replicas, so the reference ones are reused as is with
         // their markers. Add is commutative, so the data input may be on any port
-        for (auto& input : inputs) {
-            if (input == reference_output)
-                input = batched;
-        }
-        const auto clone = reference_node->clone_with_new_inputs(inputs);
-        copy_metadata(replicas, clone);
-        reference_output = reference_node->output(0);
+        std::replace(inputs.begin(), inputs.end(), reference_output, batched);
+        const auto clone = node->clone_with_new_inputs(inputs);
+        copy_metadata(replicas_of(name), clone);
+        reference_output = *matched;
         batched = clone->output(0);
     }
 
