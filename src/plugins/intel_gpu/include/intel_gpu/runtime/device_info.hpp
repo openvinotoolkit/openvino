@@ -116,6 +116,7 @@ struct device_info {
 
     bool supports_imad;                         ///< Does engine support int8 mad.
     bool supports_immad;                        ///< Does engine support int8 multi mad.
+    bool supports_bf16;                         ///< Does engine support bf16 inference
 
     bool supports_mutable_command_list;         ///< [ZE] Does the target runtime/device support mutable command list feature
 

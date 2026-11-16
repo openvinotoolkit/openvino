@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <cstddef>
 
-#include "data_inst.h"
 #include "primitive_base.hpp"
 #include "slice/slice_kernel_ref.h"
 #include "slice/slice_kernel_selector.h"
@@ -13,42 +12,6 @@
 
 namespace cldnn {
 namespace ocl {
-
-namespace {
-template <typename T, class = typename std::enable_if<std::is_integral<T>::value>::type>
-std::vector<std::int64_t> extractIntegerData(const data_node& node, const stream& stream) {
-    mem_lock<T> lock{node.get_attached_memory_ptr(), stream};
-    T* data = lock.data();
-    std::vector<std::int64_t> integer_data;
-    integer_data.reserve(node.get_output_layout().count());
-    for (size_t i = 0; i < node.get_output_layout().count(); i++) {
-        integer_data.emplace_back(static_cast<std::int64_t>(data[i]));
-    }
-    return integer_data;
-}
-
-std::vector<std::int64_t> extractIntegerData(const data_node& node, const stream& stream) {
-    auto dt = node.get_output_layout().data_type;
-    switch (dt) {
-    case data_types::u8:
-        return extractIntegerData<std::uint8_t>(node, stream);
-    case data_types::i8:
-        return extractIntegerData<std::int8_t>(node, stream);
-    case data_types::i32:
-        return extractIntegerData<std::int32_t>(node, stream);
-    case data_types::i64:
-        return extractIntegerData<std::int64_t>(node, stream);
-    default:
-        OPENVINO_ASSERT(false,
-                        "[GPU] Slice parameters should be of integral type for node ",
-                        node.id(),
-                        " while got ",
-                        dt);
-    }
-    return {};
-}
-
-}  // namespace
 
 struct slice_impl : typed_primitive_impl_ocl<slice> {
     using parent = typed_primitive_impl_ocl<slice>;
@@ -92,14 +55,16 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
         auto params = get_default_params<kernel_selector::slice_params>(impl_param, is_shape_agnostic);
         const auto input_rank = params.inputs[0].Dimentions();
         const auto& arg = impl_param.prog->get_node(impl_param.desc->id);
+        const auto prim = impl_param.typed_desc<slice>();
 
         if (!PrepareInput(arg,
                           SliceKernelRefNeededInputs::kStart,
+                          prim->start_constant,
                           params.compile_time_start,
                           params.start_data_type,
                           params.inputs)) {
             // No kStart input - set it to default:
-            params.axes_data_type = kernel_selector::Datatype::INT64;
+            params.start_data_type = kernel_selector::Datatype::INT64;
             params.compile_time_start = std::vector<int64_t>(input_rank, 0);
         }
 
@@ -108,16 +73,18 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
 
         if (!PrepareInput(arg,
                           SliceKernelRefNeededInputs::kStep,
+                          prim->step_constant,
                           params.compile_time_step,
                           params.step_data_type,
                           params.inputs)) {
             // No kStep input - set it to default:
-            params.axes_data_type = kernel_selector::Datatype::INT64;
+            params.step_data_type = kernel_selector::Datatype::INT64;
             params.compile_time_step = std::vector<int64_t>(input_rank, 1);
         }
 
         if (!PrepareInput(arg,
                           SliceKernelRefNeededInputs::kAxes,
+                          prim->axes_constant,
                           params.compile_time_axes,
                           params.axes_data_type,
                           params.inputs)) {
@@ -154,10 +121,10 @@ private:
     // Returns true if input was prepared(was avaiable in node def), false otherwise.
     static bool PrepareInput(const slice_node& arg,
                              SliceKernelRefNeededInputs::InputIndices idx,
+                             const std::vector<std::int64_t>& constant_values,
                              std::vector<std::int64_t>& out_compile_time_buff,
                              kernel_selector::Datatype& out_buff_data_type,
                              kernel_selector::MultiDataTensor& out_runtime_inputs) {
-        const stream& stream = arg.get_program().get_stream();
         const auto& inputs = arg.get_dependencies();
 
         if (inputs.size() <= idx) {
@@ -172,7 +139,7 @@ private:
             out_runtime_inputs.push_back(convert_data_tensor(layout));
         } else {
             out_buff_data_type = kernel_selector::Datatype::INT64;
-            out_compile_time_buff = extractIntegerData(inputs[idx].first->as<data>(), stream);
+            out_compile_time_buff = constant_values;
         }
 
         return true;

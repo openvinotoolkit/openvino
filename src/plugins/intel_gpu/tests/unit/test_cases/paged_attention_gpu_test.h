@@ -131,7 +131,8 @@ struct PagedAttentionManager {
     std::vector<std::vector<uint8_t>> qq_bias;
     std::vector<int> qq_bias_begins;
 
-    // optional token_type_ids; when empty, a default single-element {0} buffer is used
+    // optional token_type_ids: one value per scheduled token (all subsequences, no past).
+    // When empty, a single {0} is used (only if has_token_type_ids is false).
     std::vector<int> token_type_ids;
     cldnn::engine& test_engine;
     cldnn::stream& test_stream;
@@ -1916,9 +1917,18 @@ public:
             pam.qq_bias_begins = p.qq_bias_config.qq_bias_begins;
         }
 
+        // token_type_ids: one value per scheduled token (all subsequences, no past).
+        size_t total_scheduled_tokens = 0;
+        for (const auto& desc : pam.subsequence_descs) {
+            total_scheduled_tokens += static_cast<size_t>(desc.num_tokens);
+        }
+
         if (p.token_type_ids.has_value()) {
             pam.token_type_ids = p.token_type_ids.value();
-            EXPECT_EQ(pam.token_type_ids.size(), static_cast<size_t>(pam.subsequence_descs.back().num_tokens + pam.subsequence_descs.back().past_len));
+            EXPECT_EQ(pam.token_type_ids.size(), total_scheduled_tokens);
+        } else if (p.has_sink_input) {
+            // Sink tests force has_token_type_ids on, so pass valid all-zero ids (text only).
+            pam.token_type_ids.assign(total_scheduled_tokens, 0);
         }
 
         if (p.has_sink_input && p.sink_values.has_value()) {
