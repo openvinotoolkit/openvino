@@ -103,10 +103,10 @@ INSTANTIATE_TEST_SUITE_P(QSAIndexer,
 TEST(QSAIndexerTest, RejectsDimensionsThatCannotBeRepresented) {
     auto config = make_config();
     config.block_topk = static_cast<size_t>(std::numeric_limits<int64_t>::max()) + 1;
-    EXPECT_THROW(std::make_shared<QSAIndexer>(make_inputs(), config), ov::NodeValidationFailure);
+    EXPECT_THROW(std::ignore = std::make_shared<QSAIndexer>(make_inputs(), config), ov::NodeValidationFailure);
     config = make_config();
     config.num_selection_heads = static_cast<size_t>(std::numeric_limits<int64_t>::max()) + 1;
-    EXPECT_THROW(std::make_shared<QSAIndexer>(make_inputs(), config), ov::NodeValidationFailure);
+    EXPECT_THROW(std::ignore = std::make_shared<QSAIndexer>(make_inputs(), config), ov::NodeValidationFailure);
 }
 
 TEST(QSAIndexerTest, SupportsDynamicShapes) {
