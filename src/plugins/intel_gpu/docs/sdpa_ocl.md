@@ -2890,8 +2890,8 @@ The rank-3 move above was measured on the B70 only, so `sdpa_ocl_plain_3d_ok()` 
   suites, 17 minutes): on the pre-commit tree with the kit's environment switch set (the widened predicate, which is the committed one on
   PTL-H) 2155 passed, 98 were skipped and none failed, `SDPAFusion.Inference/0` included; with the switch unset (the old predicate)
   `SDPAFusion.Inference/0` was the only failure. The 98 skips are all `ScaledAttn`, rank-4, and not from this change: 96 f16
-  `smoke_ScaledAttnStatic_GPU` cases that `skip_tests_config.cpp` disables on every device with immad, and 2 bf16 ones it disables on
-  Xe2 and newer. Not run: those groups on LNL, the committed tree itself on PTL-H, and the full unit and func suites on the B70 after
+  `smoke_ScaledAttnStatic_GPU` cases that `skip_tests_config.cpp` disabled on every device with immad, and 2 bf16 ones it disabled on
+  Xe2 and newer (those four entries are removed since: all 192 cases of the group pass on the B70 with the skips off, not run on PTL-H or LNL). Not run: those groups on LNL, the committed tree itself on PTL-H, and the full unit and func suites on the B70 after
   this change. Control: with the previous predicate (`arch == xe2` and a discrete GPU) `Plain3dOkTruthTable` fails on exactly the five
   rows where the two differ (xe2 integrated, xe3 and xe3p both device types) and the other four tests still pass.
 
