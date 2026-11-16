@@ -11,10 +11,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/gelu.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/minimum.hpp"
@@ -33,7 +30,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/pp.hpp"
 #include "ov_ops/gather_matmul.hpp"
-#include "ov_ops/gather_matmul_compressed.hpp"
 #include "transformations/pattern_blocks/compressed_weights_block.hpp"
 
 namespace {
