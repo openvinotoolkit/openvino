@@ -28,7 +28,8 @@ void CreateStatelessKVOp(ProgramBuilder& p, const std::shared_ptr<ov::op::intern
                                     inputs,
                                     ov::util::normalize(op->get_concat_axis(), rank),
                                     op->get_is_seq_len_present_len(),
-                                    op->get_window_size());
+                                    op->get_window_size(),
+                                    op->get_has_pos_idx());
 
     prim.num_outputs = op->get_output_size();
     prim.output_data_types = get_output_data_types(op);

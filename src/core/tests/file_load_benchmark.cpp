@@ -207,7 +207,7 @@ void loop_touch_mem_lock(const std::filesystem::path& path, size_t /*file_size*/
     auto mapped = load_mmap_object(path);
     volatile uint8_t sink = 0;
     for (auto *first = mapped->data_as<uint8_t>(), *last = first + mapped->size(); first < last; first += page_size) {
-        sink += *first;
+        sink = static_cast<uint8_t>(sink + *first);
     }
     ensure_memory_resident(mapped);  // should be near no-op and just lock/unlock resident pages
 }
@@ -259,7 +259,7 @@ void mmap_prefetch_then_memcpy_partial(const std::filesystem::path& path,
         const size_t copy_size = std::min(chunk_size, total_copy_size - i);
         std::memcpy(buffer.data(), mapped->data() + offset + i, copy_size);
         // Sample multiple positions to prevent memcpy optimization
-        sink += buffer[0] + buffer[copy_size / 2] + buffer[copy_size - 1];
+        sink = static_cast<char>(sink + buffer[0] + buffer[copy_size / 2] + buffer[copy_size - 1]);
     }
 }
 
