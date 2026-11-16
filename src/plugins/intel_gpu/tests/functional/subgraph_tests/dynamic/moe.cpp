@@ -256,7 +256,8 @@ protected:
             GTEST_SKIP() << "MoE pipeline requires a systolic GPU (HW_MATMUL capability)";
         }
         inType = outType = inference_precision = ov::element::f16;
-        abs_threshold = 1e-3;
+        // Without a zero point the weights are not centered and the outputs are ~20x larger (up to 0.5), so is the f16 error
+        abs_threshold = ds == ov::test::utils::DecompressionType::empty ? 1e-2 : 1e-3;
         rel_threshold = 0.025;
         const ov::test::MoePatternParams moe_params{{-1, -1, 256}, 4, 8, 512};
         // Prefill, then decode steps on the batched GEMV, which falls back to the per-expert loop when the LRU holds
