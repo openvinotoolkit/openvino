@@ -256,7 +256,7 @@ bool GatherBase::evaluate_symbol(TensorSymbolVector& output_symbols) const {
 }
 
 bool GatherBase::can_constant_fold(const OutputVector& input_values) const {
-    return get_output_partial_shape(0).is_static() && input_values.size() == 3;
+    return input_values.size() == 3 && (get_output_partial_shape(0).is_static() || Node::can_constant_fold(input_values));
 }
 
 bool GatherBase::constant_fold(OutputVector& output_values, const OutputVector& input_values) {

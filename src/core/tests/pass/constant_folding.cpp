@@ -4197,4 +4197,22 @@ TEST(constant_folding, random_uniform_respects_can_constant_fold_override) {
     auto folded = ov::util::constantfold_subgraph(rand_op->output(0));
     EXPECT_EQ(folded, nullptr);
 }
+
+TEST(constant_folding, gather_with_dynamic_output_shape_folds_when_inputs_resolve_to_constants) {
+    // Gather constructed with dynamic axis input (e.g. ConvertLike) has a dynamic output shape.
+    // When constantfold_subgraph resolves inputs to Constants, Gather must fold successfully.
+    auto data = op::v0::Constant::create(element::i32, Shape{3}, {10, 20, 30});
+    auto indices = op::v0::Constant::create(element::i64, Shape{1}, {1});
+    auto zero_f32 = op::v0::Constant::create(element::f32, Shape{}, {0.0f});
+    auto zero_i64 = op::v0::Constant::create(element::i64, Shape{}, {0});
+    auto axis = std::make_shared<op::v1::ConvertLike>(zero_f32, zero_i64);
+
+    auto gather = std::make_shared<op::v8::Gather>(data, indices, axis);
+    EXPECT_TRUE(gather->get_output_partial_shape(0).is_dynamic());
+
+    auto folded = ov::util::constantfold_subgraph(gather->output(0));
+    ASSERT_NE(folded, nullptr);
+    EXPECT_EQ(folded->get_shape(), Shape{1});
+    EXPECT_EQ(folded->cast_vector<int32_t>(), std::vector<int32_t>{20});
+}
 }  // namespace ov::test
