@@ -15,6 +15,7 @@ namespace cldnn {
 ///   @li N : number of values to normalize
 ///   @li b : value after normalization
 ///   @li a : value before normalization
+/// With @p log_softmax the primitive computes LogSoftmax: b = (a - max) - log(sum(N-1; j=0; e^(j - max))).
 struct softmax : public primitive_base<softmax> {
     CLDNN_DECLARE_PRIMITIVE(softmax)
 
@@ -24,10 +25,12 @@ struct softmax : public primitive_base<softmax> {
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param dimension Defines a scope of normalization
+    /// @param log_softmax Computes LogSoftmax instead of softmax
     softmax(const primitive_id& id,
             const input_info& input,
-            const int64_t dimension = 1)
-        : primitive_base(id, {input}), dimension(dimension) {}
+            const int64_t dimension = 1,
+            const bool log_softmax = false)
+        : primitive_base(id, {input}), dimension(dimension), log_softmax(log_softmax) {}
 
     /// @brief Defines a scope of a single softmax normalization.
     /// @details
@@ -40,9 +43,13 @@ struct softmax : public primitive_base<softmax> {
 
     int64_t dimension = 1;
 
+    /// @brief Computes LogSoftmax, (x - max) - log(sum(exp(x - max))), instead of softmax.
+    bool log_softmax = false;
+
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, dimension);
+        seed = hash_combine(seed, log_softmax);
         return seed;
     }
 
@@ -53,17 +60,19 @@ struct softmax : public primitive_base<softmax> {
 
         auto rhs_casted = downcast<const softmax>(rhs);
 
-        return dimension == rhs_casted.dimension;
+        return dimension == rhs_casted.dimension && log_softmax == rhs_casted.log_softmax;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<softmax>::save(ob);
         ob << dimension;
+        ob << log_softmax;
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<softmax>::load(ib);
         ib >> dimension;
+        ib >> log_softmax;
     }
 };
 }  // namespace cldnn

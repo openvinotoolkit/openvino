@@ -112,11 +112,22 @@ KERNEL(softmax)(
     for (cls = 0; cls < class_num; ++cls) {
         ACCUMULATOR_TYPE t = native_exp(data[cls*TMP_CLASS_PITCH] - max_value);
         denominator += t;
+#if !LOG_SOFTMAX
         data[cls*TMP_CLASS_PITCH] = t;
+#endif
     }
+#if LOG_SOFTMAX
+    // LogSoftmax keeps x instead of exp(x - max) and writes (x - max) - log(sum(exp(x - max))).
+    // log(softmax(x)) would give -inf as soon as softmax(x) underflows, e.g. for x - max < -17.3 in f16.
+    const ACCUMULATOR_TYPE log_denominator = log(denominator);
+#endif
 
     for (cls = 0; cls < class_num; ++cls) {
+#if LOG_SOFTMAX
+        const ACCUMULATOR_TYPE res = data[cls*TMP_CLASS_PITCH] - max_value - log_denominator;
+#else
         const ACCUMULATOR_TYPE res = data[cls*TMP_CLASS_PITCH] / denominator;
+#endif
 #if INPUT0_SIMPLE == 1
         const uint output_idx = out_depth_offset + cls*OUTPUT_CLASS_PITCH;
 #else

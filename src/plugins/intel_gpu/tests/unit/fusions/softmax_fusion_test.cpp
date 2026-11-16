@@ -223,6 +223,56 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, softmax_activation_bug_repro,
                         softmax_test_params{ CASE_SOFTMAX_FP32_BF_BUG_REPRO, 2, 3, "softmax_gpu_bf" }
 }));
 
+// LogSoftmax (softmax with log_softmax = true) with fused post-ops
+class log_softmax_quantize : public SoftmaxPrimitiveFusingTest {};
+TEST_P(log_softmax_quantize, basic) {
+    auto p = GetParam();
+    auto quant_layout = get_single_element_layout(p);
+    if (p.default_type == data_types::bf16) quant_layout.data_type = data_types::f32;
+    create_topologies(input_layout("input", get_input_layout(p)),
+        data("in_lo", get_mem(quant_layout, min_random, -1)),
+        data("in_hi", get_mem(quant_layout, 0)),
+        data("out_lo", get_mem(quant_layout, -127)),
+        data("out_hi", get_mem(quant_layout, 127)),
+        softmax("softmax", input_info("input"), p.dimension, true),
+        quantize("quantize", input_info("softmax"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
+        reorder("reorder_bfyx", input_info("quantize"), get_output_layout(p))
+    );
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, log_softmax_quantize,
+    ::testing::ValuesIn(std::vector<softmax_test_params>{
+                        softmax_test_params{ CASE_SOFTMAX_FP32_1, 2, 3 },
+                        softmax_test_params{ CASE_SOFTMAX_FP16_1, 2, 3 },
+                        softmax_test_params{ CASE_SOFTMAX_BF16_1, 2, 3 },
+}));
+
+class log_softmax_eltwise_per_element : public SoftmaxPrimitiveFusingTest {};
+TEST_P(log_softmax_eltwise_per_element, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("eltwise_data", get_mem(get_input_layout(p), min_random, max_random)),
+        softmax("softmax", input_info("input"), p.dimension, true),
+        eltwise("sum", { input_info("softmax"), input_info("eltwise_data") }, eltwise_mode::sum, p.default_type),
+        reorder("reorder_bfyx", input_info("sum"), get_output_layout(p))
+    );
+
+    tolerance = default_tolerance(p.data_type);
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, log_softmax_eltwise_per_element,
+    ::testing::ValuesIn(std::vector<softmax_test_params>{
+                        softmax_test_params{ CASE_SOFTMAX_FP32_BF_FUSED_INDEXING, 3, 3, "softmax_gpu_bf" },
+                        softmax_test_params{ CASE_SOFTMAX_FP16_3, 3, 3, "softmax_gpu_bf" },
+                        softmax_test_params{ CASE_SOFTMAX_BF16_3, 3, 3, "softmax_gpu_bf" }
+}));
+
 
 class softmax_quantize_fusing_through : public SoftmaxPrimitiveFusingTest {};
 TEST_P(softmax_quantize_fusing_through, reshape) {
