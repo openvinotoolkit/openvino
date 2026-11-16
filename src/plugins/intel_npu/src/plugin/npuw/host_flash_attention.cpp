@@ -38,6 +38,7 @@ struct HFATileInputs {
     std::shared_ptr<ov::op::v0::Parameter> mask_tile;
     std::shared_ptr<ov::op::v0::Parameter> scale;
     std::shared_ptr<ov::op::v0::Constant> scale_constant;
+    std::shared_ptr<ov::Node> scale_value;
 };
 
 // Helper struct: Holds f32-converted nodes from input parameters for computation
@@ -168,6 +169,16 @@ static HFATileInputs create_hfa_tile_inputs(const ov::Shape& q_shape,
         } else {
             OPENVINO_THROW("HFA attention scale must originate from a Parameter or Constant");
         }
+
+        std::vector<std::shared_ptr<ov::Node>> scale_conversions;
+        for (auto node = attention_scale; ov::is_type<ov::op::v0::Convert>(node);
+             node = node->get_input_node_shared_ptr(0)) {
+            scale_conversions.push_back(node);
+        }
+        inputs.scale_value = inputs.scale ? std::static_pointer_cast<ov::Node>(inputs.scale) : inputs.scale_constant;
+        for (auto conversion = scale_conversions.rbegin(); conversion != scale_conversions.rend(); ++conversion) {
+            inputs.scale_value = (*conversion)->clone_with_new_inputs({inputs.scale_value});
+        }
     }
 
     return inputs;
@@ -210,10 +221,7 @@ static HFATileF32Nodes convert_inputs_to_f32(const HFATileInputs& inputs,
         }
     }
 
-    std::shared_ptr<ov::Node> scale = inputs.scale;
-    if (!scale) {
-        scale = inputs.scale_constant;
-    }
+    const auto& scale = inputs.scale_value;
     if (scale) {
         if (scale->get_output_element_type(0) == compute_dtype) {
             f32_nodes.scale_f32 = scale;

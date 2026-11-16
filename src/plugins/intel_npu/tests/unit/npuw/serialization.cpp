@@ -2200,8 +2200,7 @@ TEST(SerializationTest, BlockKVHFAAllowsSmallerCompiledModel) {
     sdpa_indices.past_key_blocks = {0};
     sdpa_indices.past_value_blocks = {1};
     ov::npuw::attn::put_compiled_hfa(submodels[0].pipeline.context, hfa);
-    // Regular HFA has a single past K/V input each and still gets the check.
-    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels), ov::Exception);
+    EXPECT_NO_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels));
 
     sdpa_indices.past_key_blocks = {0, 2};
     sdpa_indices.past_value_blocks = {1, 3};
@@ -2238,6 +2237,41 @@ TEST(SerializationTest, BlockKVHFAFuncallUsesFunctionBodyBehavior) {
     sdpa_indices.past_key_blocks = {0};
     sdpa_indices.past_value_blocks = {1};
     ov::npuw::CompiledModelDescTestAccessor::param_base(submodels[0]) = 0;
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels), ov::Exception);
+}
+
+TEST(SerializationTest, HfaClosureUsesFunctionInputIndices) {
+    auto plugin = std::make_shared<NullPlugin>();
+    auto body = ov::npuw::CompiledModelDescTestAccessor::make();
+    ov::npuw::CompiledModelDescTestAccessor::compiled_model(body) = ov::SoPtr<ov::ICompiledModel>{
+        std::make_shared<MockSubCompiledModel>(make_validation_model(7), plugin, ov::AnyMap{}),
+        {}};
+    body.replaced_by = 0;
+    ov::npuw::CompiledModelDescTestAccessor::param_base(body) = 6;
+    auto& closure = ov::npuw::CompiledModelDescTestAccessor::closure(body).get();
+    closure.closure = {ov::Tensor(ov::element::f32, {1}), ov::Tensor(ov::element::f32, {1})};
+    closure.closure_uid.resize(2, -1);
+    closure.is_remote.resize(2, false);
+
+    auto hfa = std::make_shared<ov::npuw::compiled::HostFlashAttention>();
+    auto& indices = hfa->_sdpa_attention_info._sdpa_indices;
+    indices.past_key_blocks = {1};
+    indices.past_value_blocks = {2};
+    indices.attention_sink = 6;
+    indices.attention_scale = 7;
+    ov::npuw::attn::put_compiled_hfa(body.pipeline.context, hfa);
+
+    std::stringstream serialized;
+    auto stream = Stream::writer(serialized);
+    EXPECT_NO_THROW(body.serialize(stream, {}));
+
+    ov::npuw::CompiledModelDescTestAccessor::SubmodelVec submodels;
+    submodels.push_back(std::move(body));
+    EXPECT_NO_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels));
+    indices.attention_sink = 8;
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels), ov::Exception);
+    indices.attention_sink = 6;
+    indices.attention_scale = 8;
     EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels), ov::Exception);
 }
 

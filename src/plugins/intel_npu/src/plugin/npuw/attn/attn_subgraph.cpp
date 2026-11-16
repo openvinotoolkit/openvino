@@ -117,7 +117,11 @@ BehaviorIO& get_behavior_io(RuntimeState& state,
                             std::size_t subgraph_idx,
                             std::size_t num_inputs,
                             std::size_t num_outputs) {
-    auto& io = state.call_io[subgraph_idx];
+    auto it = state.call_io.find(subgraph_idx);
+    if (it == state.call_io.end()) {
+        it = state.call_io.emplace(subgraph_idx, BehaviorIO{}).first;
+    }
+    auto& io = it->second;
     if (io.inputs.size() != num_inputs) {
         io.inputs.resize(num_inputs);
     }
@@ -471,6 +475,12 @@ void prepare_hfa(ov::npuw::v1::subgraphs::InferContext& ctx) {
     auto& state = get_runtime_state(ctx);
     ensure_hfa_selector(ctx, state);
     ensure_hfa_requests(ctx, state);
+    const auto* hfa = ov::npuw::attn::get_compiled_hfa(get_subgraph_pipeline(ctx, ctx.real_subgraph_idx).context);
+    OPENVINO_ASSERT(hfa != nullptr, "Missing compiled HFA state");
+    get_behavior_io(state,
+                    ctx.subgraph_idx,
+                    get_param_base(ctx, ctx.real_subgraph_idx),
+                    hfa->_compiled_final_tile_model->outputs().size());
     state.hfa_selector->prepare(request.history_size());
     state.cached_attention_mask = {};
     if (state.hfa_runtime_ctx) {
@@ -1002,6 +1012,13 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         const auto& hfa_inputs = io.inputs;
                         const auto& sdpa_info = hfa_desc->_sdpa_attention_info;
                         const auto& sdpa_in = sdpa_info._sdpa_indices;
+                        const auto get_hfa_input = [&](std::size_t input_idx) {
+                            auto tensor = input_idx < hfa_inputs.size()
+                                              ? hfa_inputs.at(input_idx)
+                                              : get_request(ctx).function_closure_tensor(ctx.subgraph_idx, input_idx);
+                            OPENVINO_ASSERT(tensor, "HFA input tensor ", input_idx, " is not bound");
+                            return tensor;
+                        };
 
                         // Collect all KV block tensors (works for single-block and multi-block cases)
                         NPUW_ASSERT(!sdpa_in.past_key_blocks.empty() && !sdpa_in.past_value_blocks.empty() &&
@@ -1011,13 +1028,13 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         std::vector<ov::SoPtr<ov::ITensor>> past_key_blocks;
                         std::vector<ov::SoPtr<ov::ITensor>> past_value_blocks;
                         for (size_t i = 0; i < sdpa_in.past_key_blocks.size(); ++i) {
-                            past_key_blocks.push_back(hfa_inputs.at(sdpa_in.past_key_blocks[i]));
-                            past_value_blocks.push_back(hfa_inputs.at(sdpa_in.past_value_blocks[i]));
+                            past_key_blocks.push_back(get_hfa_input(sdpa_in.past_key_blocks[i]));
+                            past_value_blocks.push_back(get_hfa_input(sdpa_in.past_value_blocks[i]));
                         }
-                        auto query_tensor = hfa_inputs.at(sdpa_in.query);
-                        auto present_key_tensor = hfa_inputs.at(sdpa_in.present_key);
-                        auto attention_mask_tensor = hfa_inputs.at(sdpa_in.attention_mask);
-                        auto present_value_tensor = hfa_inputs.at(sdpa_in.present_value);
+                        auto query_tensor = get_hfa_input(sdpa_in.query);
+                        auto present_key_tensor = get_hfa_input(sdpa_in.present_key);
+                        auto attention_mask_tensor = get_hfa_input(sdpa_in.attention_mask);
+                        auto present_value_tensor = get_hfa_input(sdpa_in.present_value);
                         const uint32_t K_SEQ_DIM = static_cast<uint32_t>(sdpa_info._k_seq_dim);
                         OPENVINO_ASSERT(K_SEQ_DIM < present_key_tensor->get_shape().size(),
                                         "HFA: K sequence dimension is out of range for the present key tensor");
@@ -1051,15 +1068,11 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             final_tile_request->get_tensor(hfa_desc->_compiled_final_tile_model->outputs()[0]);
                         ov::SoPtr<ov::ITensor> attention_sink_tensor;
                         if (sdpa_in.attention_sink) {
-                            OPENVINO_ASSERT(*sdpa_in.attention_sink < hfa_inputs.size(),
-                                            "HFA attention sink input index out of range");
-                            attention_sink_tensor = hfa_inputs.at(*sdpa_in.attention_sink);
+                            attention_sink_tensor = get_hfa_input(*sdpa_in.attention_sink);
                         }
                         ov::SoPtr<ov::ITensor> attention_scale_tensor;
                         if (sdpa_in.attention_scale) {
-                            OPENVINO_ASSERT(*sdpa_in.attention_scale < hfa_inputs.size(),
-                                            "HFA attention scale input index out of range");
-                            attention_scale_tensor = hfa_inputs.at(*sdpa_in.attention_scale);
+                            attention_scale_tensor = get_hfa_input(*sdpa_in.attention_scale);
                         }
                         const auto& regular_tile_in = sdpa_info._tile_input_indices;
                         const auto& final_tile_in = sdpa_info._final_tile_input_indices;
@@ -1403,14 +1416,6 @@ const ov::npuw::compiled::HostFlashAttention* get_compiled_hfa(const v1::subgrap
 bool has_compiled_state(const v1::subgraphs::CompiledPipeline& pipeline) {
     return get_compiled_dynamic(pipeline.context) != nullptr || get_compiled_pyramid(pipeline.context) != nullptr ||
            get_compiled_hfa(pipeline.context) != nullptr;
-}
-
-bool has_block_kv_hfa(const v1::subgraphs::CompiledPipeline& pipeline) {
-    if (!pipeline.runtime_behavior.has_value() || !pipeline.runtime_behavior->handles_function_prologue) {
-        return false;
-    }
-    const auto* hfa = get_compiled_hfa(pipeline.context);
-    return hfa != nullptr && hfa->is_block_mode();
 }
 
 void serialize_compiled_state(v1::subgraphs::Context& context,

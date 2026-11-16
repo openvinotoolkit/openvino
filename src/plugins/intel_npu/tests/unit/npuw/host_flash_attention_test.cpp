@@ -359,6 +359,69 @@ TEST(HostFlashAttentionFromTest, EmbedsConstantPostQKScale) {
     }
 }
 
+TEST(HostFlashAttentionFromTest, PreservesPostQKScaleConversions) {
+    for (const bool constant_scale : {false, true}) {
+        for (const bool fused_flash_attention : {false, true}) {
+            SCOPED_TRACE(constant_scale);
+            SCOPED_TRACE(fused_flash_attention);
+            auto model = build_sdpa_model(QUERY_SIZE, PAST_LEN, NUM_HEADS, HEAD_DIM, false, true, constant_scale);
+            const auto pattern = ov::npuw::util::find_sdpa_pattern_nodes(model);
+            ASSERT_TRUE(pattern.attention_scale_node);
+            const auto scale_consumers = pattern.attention_scale_node->output(0).get_target_inputs();
+            std::shared_ptr<ov::Node> scale_source = pattern.attention_scale_node;
+            if (constant_scale) {
+                scale_source = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1e-8f});
+            }
+            const auto half = std::make_shared<ov::op::v0::Convert>(scale_source, ov::element::f16);
+            const auto converted = std::make_shared<ov::op::v0::Convert>(half, ov::element::f32);
+            for (auto input : scale_consumers) {
+                input.replace_source_output(converted);
+            }
+            model->validate_nodes_and_infer_types();
+
+            const auto result = ov::npuw::function::HostFlashAttention::from(model, fused_flash_attention);
+            ASSERT_TRUE(result.has_value());
+            for (const auto& tile_model : {result->_tile_model, result->_final_tile_model}) {
+                const auto tile_ops = tile_model->get_ops();
+                const auto scaled_query = std::find_if(tile_ops.begin(), tile_ops.end(), [](const auto& node) {
+                    return node->get_friendly_name() == "q_scaled";
+                });
+                ASSERT_NE(scaled_query, tile_ops.end());
+                ov::ParameterVector parameters;
+                ov::TensorVector inputs;
+                if (!constant_scale) {
+                    const auto tile_parameters = tile_model->get_parameters();
+                    const auto scale_parameter =
+                        std::find_if(tile_parameters.begin(), tile_parameters.end(), [](const auto& parameter) {
+                            return parameter->get_friendly_name() == "SCALE";
+                        });
+                    ASSERT_NE(scale_parameter, tile_parameters.end());
+                    parameters.push_back(*scale_parameter);
+                    inputs.emplace_back(ov::element::f32, ov::Shape{});
+                    inputs.back().data<float>()[0] = 1e-8f;
+                }
+                ov::Model scale_model(ov::OutputVector{(*scaled_query)->input_value(1)}, parameters);
+                ov::TensorVector outputs{ov::Tensor(ov::element::f32, ov::Shape{})};
+                ASSERT_TRUE(scale_model.evaluate(outputs, inputs));
+                EXPECT_FLOAT_EQ(outputs.front().data<const float>()[0], 0.0f);
+            }
+        }
+    }
+}
+
+TEST(HostFlashAttentionFromTest, SupportsFunctionClosureInputs) {
+    for (const bool fused_flash_attention : {false, true}) {
+        auto model = build_sdpa_model(QUERY_SIZE, PAST_LEN, NUM_HEADS, HEAD_DIM, true, true);
+        const auto num_inputs = model->get_parameters().size();
+        const auto hfa = ov::npuw::function::HostFlashAttention::from(model, fused_flash_attention);
+        ASSERT_TRUE(hfa);
+        ASSERT_TRUE(hfa->_attention_sink_param_idx);
+        ASSERT_TRUE(hfa->_attention_scale_param_idx);
+        EXPECT_GE(*hfa->_attention_sink_param_idx, num_inputs - 2);
+        EXPECT_GE(*hfa->_attention_scale_param_idx, num_inputs - 2);
+    }
+}
+
 TEST(HostFlashAttentionFromTest, RejectsGenerateAttention) {
     for (const bool with_sink : {false, true}) {
         auto model = build_sdpa_model(1, PAST_LEN, NUM_HEADS, HEAD_DIM, with_sink);

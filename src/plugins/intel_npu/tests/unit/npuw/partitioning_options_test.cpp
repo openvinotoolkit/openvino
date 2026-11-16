@@ -505,6 +505,51 @@ TEST(PartitioningOptionsTest, CwaiCreatesFunctionCallsForRepeatedBlocks) {
         }));
 }
 
+TEST(PartitioningOptionsTest, CwaiRunsDeferredPartitionStages) {
+    auto cfg = make_cfg({{"NPUW_CWAI", "YES"}, {"NPUW_FOLD", "NO"}, {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"}});
+    ov::npuw::v1::subgraphs::PatternRegistry registry;
+    size_t calls = 0;
+    ov::npuw::v1::subgraphs::PatternRegistration registration;
+    registration.partition_stage = [&](ov::npuw::Function&, ov::npuw::v1::subgraphs::Context& context) {
+        EXPECT_NE(context.get_if<ov::npuw::v1::subgraphs::PartitioningCallbacks>(), nullptr);
+        ++calls;
+    };
+    auto scoped_registration = registry.add(std::move(registration));
+    ov::npuw::PartitioningContext context;
+    context.subgraph_patterns = &registry;
+    auto partitioning = ov::npuw::getPartitioning(build_repeated_model(10), cfg, context);
+
+    ASSERT_FALSE(partitioning.functions.empty());
+    EXPECT_EQ(calls, partitioning.functions.size());
+    for (const auto& entry : partitioning.functions) {
+        EXPECT_EQ(entry.second._pipeline.context.get_if<ov::npuw::v1::subgraphs::PartitioningCallbacks>(), nullptr);
+    }
+}
+
+TEST(PartitioningOptionsTest, FoldOnlyAndCwaiRunPartitionStagesOncePerFunction) {
+    auto cfg = make_cfg({{"NPUW_ONLINE_PIPELINE", "REP"},
+                         {"NPUW_ONLINE_ISOLATE", "COMPUTE,ATTN"},
+                         {"NPUW_ONLINE_KEEP_BLOCKS", "2"},
+                         {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "1"},
+                         {"NPUW_FOLD_ONLY", "attn"},
+                         {"NPUW_FOLD", "NO"},
+                         {"NPUW_CWAI", "YES"},
+                         {"NPUW_ATTN", "STATIC"}});
+    ov::npuw::v1::subgraphs::PatternRegistry registry;
+    size_t calls = 0;
+    ov::npuw::v1::subgraphs::PatternRegistration registration;
+    registration.partition_stage = [&](ov::npuw::Function&, ov::npuw::v1::subgraphs::Context&) {
+        ++calls;
+    };
+    auto scoped_registration = registry.add(std::move(registration));
+    ov::npuw::PartitioningContext context;
+    context.subgraph_patterns = &registry;
+    auto partitioning = ov::npuw::getPartitioning(build_static_attention_mixed_llm_model(), cfg, context);
+
+    ASSERT_FALSE(partitioning.functions.empty());
+    EXPECT_EQ(calls, partitioning.functions.size());
+}
+
 TEST(PartitioningOptionsTest, FoldOnlyProcessesTaggedRepeatedFamiliesWithoutCwai) {
     auto cfg = make_cfg({{"NPUW_ONLINE_PIPELINE", "REP"},
                          {"NPUW_ONLINE_ISOLATE", "ATTN"},

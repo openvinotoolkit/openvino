@@ -2795,6 +2795,56 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
     p.identifySubgraphs();
 
     if (!ens.repeated.empty()) {
+        std::set<std::string> staged_functions;
+        auto run_partition_stages = [&](const std::vector<std::string>& functions) {
+            std::unordered_map<std::string, std::shared_ptr<ov::Node>> rt_info_node_cache;
+            for (const auto& func_group : functions) {
+                if (!staged_functions.insert(func_group).second) {
+                    continue;
+                }
+                auto& function = P.functions.at(func_group);
+                if (!function._pipeline.partition_stage) {
+                    continue;
+                }
+                auto find_tagged_model =
+                    [&P, &part_ctx = effective_ctx](const std::string& tag) -> std::shared_ptr<ov::Model> {
+                    auto cached = part_ctx.tagged_models.find(tag);
+                    if (cached != part_ctx.tagged_models.end()) {
+                        return cached->second;
+                    }
+                    for (const auto& [name, candidate] : P.functions) {
+                        if (candidate.gettag() == tag) {
+                            part_ctx.tagged_models.emplace(tag, candidate._model);
+                            return candidate._model;
+                        }
+                    }
+                    return nullptr;
+                };
+
+                auto find_node_with_rt_info =
+                    [&P, &cache = rt_info_node_cache](const std::string& key) -> std::shared_ptr<ov::Node> {
+                    auto cached = cache.find(key);
+                    if (cached != cache.end()) {
+                        return cached->second;
+                    }
+                    for (const auto& [name, func] : P.functions) {
+                        for (const auto& node : func._model->get_ordered_ops()) {
+                            if (node->get_rt_info().count(key) > 0) {
+                                cache.emplace(key, node);
+                                return node;
+                            }
+                        }
+                    }
+                    return nullptr;
+                };
+
+                function._pipeline.context.put<ov::npuw::v1::subgraphs::PartitioningCallbacks>(
+                    {std::move(find_tagged_model), std::move(find_node_with_rt_info)});
+                function._pipeline.partition_stage(function, function._pipeline.context);
+                function._pipeline.context.erase<ov::npuw::v1::subgraphs::PartitioningCallbacks>();
+            }
+        };
+
         auto run_fold_pipeline = [&]() {
             // Do full-featured folding.
             auto all_functions = p.initFunctionPipeline(Partitioner::FunctionPipelineType::FOLD);
@@ -2826,52 +2876,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
             // Pass 2: run deferred partition-stage transformations after all functions are registered.
             // Partitioning stays generic here: it only exposes shared lookup helpers through the
             // pipeline context and then runs the registered callbacks.
-            std::unordered_map<std::string, std::shared_ptr<ov::Node>> rt_info_node_cache;
-            for (auto&& func_group : all_functions) {
-                LOG_INFO("FOLD Pass 2: Partition-stage pipeline for " << func_group << "...");
-                LOG_BLOCK();
-                auto& function = P.functions.at(func_group);
-                if (function._pipeline.partition_stage) {
-                    auto find_tagged_model =
-                        [&P, &part_ctx = effective_ctx](const std::string& tag) -> std::shared_ptr<ov::Model> {
-                        auto cached = part_ctx.tagged_models.find(tag);
-                        if (cached != part_ctx.tagged_models.end()) {
-                            return cached->second;
-                        }
-                        for (const auto& [name, candidate] : P.functions) {
-                            if (candidate.gettag() == tag) {
-                                part_ctx.tagged_models.emplace(tag, candidate._model);
-                                return candidate._model;
-                            }
-                        }
-                        return nullptr;
-                    };
-
-                    auto find_node_with_rt_info =
-                        [&P, &cache = rt_info_node_cache](const std::string& key) -> std::shared_ptr<ov::Node> {
-                        auto cached = cache.find(key);
-                        if (cached != cache.end()) {
-                            return cached->second;
-                        }
-                        for (const auto& [name, func] : P.functions) {
-                            for (const auto& node : func._model->get_ordered_ops()) {
-                                if (node->get_rt_info().count(key) > 0) {
-                                    cache.emplace(key, node);
-                                    return node;
-                                }
-                            }
-                        }
-                        return nullptr;
-                    };
-
-                    function._pipeline.context.put<ov::npuw::v1::subgraphs::PartitioningCallbacks>(
-                        {std::move(find_tagged_model), std::move(find_node_with_rt_info)});
-                    function._pipeline.partition_stage(function, function._pipeline.context);
-                    // The callback captures partitioning state by reference, so keep it scoped to this
-                    // immediate partition-stage invocation and remove it before the context outlives us.
-                    function._pipeline.context.erase<ov::npuw::v1::subgraphs::PartitioningCallbacks>();
-                }
-            }
+            run_partition_stages(all_functions);
         };
 
         auto run_cwai_pipeline = [&]() {
@@ -2882,6 +2887,9 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
             // sense).
             auto all_functions = p.initFunctionPipeline(Partitioner::FunctionPipelineType::CWAI);
             for (auto&& func_group : all_functions) {
+                if (P.functions.count(func_group) != 0) {
+                    continue;
+                }
                 LOG_INFO("CWAI: Process function " << func_group << "...");
                 LOG_BLOCK();
                 p.saveTinyConstants(func_group);
@@ -2890,6 +2898,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.attention(func_group);
                 p.decompressionCutOff(func_group);
             }
+            run_partition_stages(all_functions);
         };
 
         auto select_repeated_ids_by_tag = [&](const std::set<std::string>& tags) {
