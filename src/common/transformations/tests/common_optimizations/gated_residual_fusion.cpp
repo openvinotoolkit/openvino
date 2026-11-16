@@ -160,25 +160,32 @@ std::shared_ptr<Model> make_read_model(const ReadOptions& opt) {
     return std::make_shared<Model>(results, params);
 }
 
-// R' = R + S * Y in the split domain, flattened back to [.., C*D]. `y_rows` are the leading dimensions of Y.
-std::shared_ptr<Model> make_write_model(const PartialShape& rows, const PartialShape& y_rows) {
+// R' = R + Reshape(S * Y), the exporter's form: the Multiply is flattened to [.., C*D] and added to the flat residual.
+// `y_rows` are the leading dimensions of Y. With `split` the Add is in the [.., C, D] domain instead (the expected
+// form).
+std::shared_ptr<Model> make_write_model(const PartialShape& rows, const PartialShape& y_rows, bool split) {
     auto residual = std::make_shared<op::v0::Parameter>(element::f32, with_last(rows, CD));
     auto y = std::make_shared<op::v0::Parameter>(element::f32, with_last(y_rows, D));
     auto gate = std::make_shared<op::v0::Parameter>(element::f32, with_last(rows, C));
 
     const auto leading = rows.size();
-    auto r3 = reshape_to(residual, keep_rows(leading, {static_cast<int64_t>(C), static_cast<int64_t>(D)}));
     auto s3 = std::make_shared<op::v0::Unsqueeze>(gate, op::v0::Constant::create(element::i64, Shape{1}, {-1}));
     auto y3 = std::make_shared<op::v0::Unsqueeze>(y, op::v0::Constant::create(element::i64, Shape{1}, {-2}));
     auto scaled = std::make_shared<op::v1::Multiply>(s3, y3);
-    auto updated = std::make_shared<op::v1::Add>(r3, scaled);
-    auto out = reshape_to(updated, keep_rows(leading, {static_cast<int64_t>(CD)}));
+    std::shared_ptr<Node> out;
+    if (split) {
+        auto r3 = reshape_to(residual, keep_rows(leading, {static_cast<int64_t>(C), static_cast<int64_t>(D)}));
+        out = reshape_to(std::make_shared<op::v1::Add>(r3, scaled), keep_rows(leading, {static_cast<int64_t>(CD)}));
+    } else {
+        out =
+            std::make_shared<op::v1::Add>(residual, reshape_to(scaled, keep_rows(leading, {static_cast<int64_t>(CD)})));
+    }
     return std::make_shared<Model>(ResultVector{std::make_shared<op::v0::Result>(out)},
                                    ParameterVector{residual, y, gate});
 }
 
-std::shared_ptr<Model> make_write_model(const PartialShape& rows = PartialShape::dynamic(2)) {
-    return make_write_model(rows, rows);
+std::shared_ptr<Model> make_write_model(const PartialShape& rows = PartialShape::dynamic(2), bool split = false) {
+    return make_write_model(rows, rows, split);
 }
 
 void run_fusion(const std::shared_ptr<Model>& model) {
@@ -192,10 +199,20 @@ void run_fusion_with_callback(const std::shared_ptr<Model>& model,
                               const std::function<bool(const std::shared_ptr<const Node>&)>& reject) {
     pass::Manager manager;
     manager.register_pass<pass::GatedResidualFusion>();
-    manager.get_pass_config()->set_callback<pass::GatedResidualReadFusion, pass::GatedResidualWriteFusion>(
-        [&reject](const std::shared_ptr<const Node>& node) {
+    manager.get_pass_config()
+        ->set_callback<pass::GatedResidualReadFusion,
+                       pass::GatedResidualWriteFusion,
+                       pass::GatedResidualWriteSinkReshape>([&reject](const std::shared_ptr<const Node>& node) {
             return reject(node);
         });
+    manager.run_passes(model);
+}
+
+// Runs the fusion pass with the WRITE fusion disabled (what the CPU plugin does), so the Add is only moved.
+void run_split(const std::shared_ptr<Model>& model) {
+    pass::Manager manager;
+    manager.register_pass<pass::GatedResidualFusion>();
+    manager.get_pass_config()->disable<pass::GatedResidualWriteFusion>();
     manager.run_passes(model);
 }
 
@@ -217,6 +234,17 @@ size_t count_ops(const std::shared_ptr<Model>& model, const DiscreteTypeInfo& ty
         }
     }
     return count;
+}
+
+// True when the result is Reshape(Add(.., Multiply)): the Add sits in the split domain next to the Multiply.
+bool add_is_split(const std::shared_ptr<Model>& model) {
+    const auto flat = model->get_results()[0]->get_input_node_shared_ptr(0);
+    if (!ov::is_type<op::v1::Reshape>(flat)) {
+        return false;
+    }
+    const auto add = flat->get_input_node_shared_ptr(0);
+    return ov::is_type<op::v1::Add>(add) && ov::is_type<op::v1::Multiply>(add->get_input_node_shared_ptr(1)) &&
+           ov::is_type<op::v1::Reshape>(add->get_input_node_shared_ptr(0));
 }
 
 }  // namespace
@@ -281,15 +309,17 @@ TEST(TransformationTests, GatedResidualRead_CompressedWeightsAreFedInGroupMajorL
     EXPECT_EQ(grs[0]->get_input_partial_shape(Gr::ReadInputIdx::SCALE_UP), (PartialShape{2, static_cast<int64_t>(CD)}));
 }
 
-TEST(TransformationTests, GatedResidualWrite_IsFused) {
+TEST(TransformationTests, GatedResidualWrite_AddMovesNextToTheMultiply) {
     auto model = make_write_model();
-    run_fusion(model);
+    run_split(model);
 
-    const auto grs = gated_residuals(model);
-    ASSERT_EQ(grs.size(), 1U);
-    EXPECT_EQ(grs[0]->get_mode(), Gr::Mode::WRITE);
-    EXPECT_EQ(grs[0]->get_input_size(), 3U);
-    EXPECT_EQ(grs[0]->get_output_partial_shape(0), with_last(PartialShape::dynamic(2), CD));
+    EXPECT_TRUE(add_is_split(model));
+    EXPECT_TRUE(gated_residuals(model).empty());
+    EXPECT_EQ(model->get_results()[0]->get_output_partial_shape(0), with_last(PartialShape::dynamic(2), CD));
+    const auto reference = make_write_model(PartialShape::dynamic(2), true);
+    EXPECT_TRUE(add_is_split(reference));
+    EXPECT_EQ(count_ops(model, op::v1::Reshape::get_type_info_static()),
+              count_ops(reference, op::v1::Reshape::get_type_info_static()));
 }
 
 TEST(TransformationTests, GatedResidualRead_BranchMixWithoutScaleIsNotFused) {
@@ -320,6 +350,7 @@ TEST(TransformationTests, GatedResidual_RejectedByTheCallbackStaysDecomposed) {
     run_fusion_with_callback(write, [](const std::shared_ptr<const Node>&) {
         return true;
     });
+    EXPECT_FALSE(add_is_split(write));
     EXPECT_TRUE(gated_residuals(write).empty());
 }
 
@@ -354,40 +385,86 @@ TEST(TransformationTests, GatedResidualRead_OneDynamicRowDimensionIsFused) {
     EXPECT_EQ(grs[0]->get_output_partial_shape(1), with_last(PartialShape::dynamic(1), C));
 }
 
-TEST(TransformationTests, GatedResidualWrite_AnyRowRankIsFused) {
+TEST(TransformationTests, GatedResidualWrite_AnyRowRankIsRewritten) {
     // [tokens, C*D] of paged attention, [B, T, C*D] of the other flows, and one more.
     for (const size_t leading : {size_t{1}, size_t{2}, size_t{3}}) {
         auto model = make_write_model(PartialShape::dynamic(leading));
-        run_fusion(model);
+        run_split(model);
 
-        const auto grs = gated_residuals(model);
-        ASSERT_EQ(grs.size(), 1U) << leading;
-        EXPECT_EQ(grs[0]->get_output_partial_shape(0), with_last(PartialShape::dynamic(leading), CD)) << leading;
+        EXPECT_TRUE(add_is_split(model)) << leading;
+        EXPECT_EQ(model->get_results()[0]->get_output_partial_shape(0), with_last(PartialShape::dynamic(leading), CD))
+            << leading;
     }
 }
 
-TEST(TransformationTests, GatedResidualWrite_StaticRowsOfTheSameSizeAreFused) {
+TEST(TransformationTests, GatedResidualWrite_StaticRowsOfTheSameSizeAreRewritten) {
     auto model = make_write_model(PartialShape{2, 3});
-    run_fusion(model);
+    run_split(model);
 
-    const auto grs = gated_residuals(model);
-    ASSERT_EQ(grs.size(), 1U);
-    EXPECT_EQ(grs[0]->get_output_partial_shape(0), (PartialShape{2, 3, static_cast<int64_t>(CD)}));
+    EXPECT_TRUE(add_is_split(model));
+    EXPECT_EQ(model->get_results()[0]->get_output_partial_shape(0), (PartialShape{2, 3, static_cast<int64_t>(CD)}));
+}
+
+TEST(TransformationTests, GatedResidualWrite_BroadcastRowsAreRewritten) {
+    // The rewrite keeps the broadcasting of the rows as it is, so it applies to them too.
+    auto broadcast_y = make_write_model(PartialShape::dynamic(2), PartialShape{1, 1}, false);
+    run_split(broadcast_y);
+    EXPECT_TRUE(add_is_split(broadcast_y));
+
+    auto static_broadcast_y = make_write_model(PartialShape{2, 3}, PartialShape{1, 3}, false);
+    run_split(static_broadcast_y);
+    EXPECT_TRUE(add_is_split(static_broadcast_y));
+}
+
+TEST(TransformationTests, GatedResidualWrite_ReshapeThatChangesTheRowsIsNotRewritten) {
+    // [2, 3, C, D] flattened to [6, C*D] would no longer line up with the rows of the residual.
+    auto residual = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{6, static_cast<int64_t>(CD)});
+    auto y = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 3, static_cast<int64_t>(D)});
+    auto gate = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 3, static_cast<int64_t>(C)});
+    auto s3 = std::make_shared<op::v0::Unsqueeze>(gate, op::v0::Constant::create(element::i64, Shape{1}, {-1}));
+    auto y3 = std::make_shared<op::v0::Unsqueeze>(y, op::v0::Constant::create(element::i64, Shape{1}, {-2}));
+    auto scaled = std::make_shared<op::v1::Multiply>(s3, y3);
+    auto flat = reshape_to(scaled, {6, static_cast<int64_t>(CD)});
+    auto out = std::make_shared<op::v1::Add>(residual, flat);
+    auto model = std::make_shared<Model>(ResultVector{std::make_shared<op::v0::Result>(out)},
+                                         ParameterVector{residual, y, gate});
+    run_split(model);
+    EXPECT_FALSE(add_is_split(model));
+}
+
+TEST(TransformationTests, GatedResidualWrite_IsFusedByDefault) {
+    // Both the exporter form and the split form fuse; the split is the alternative when the fusion is disabled.
+    for (const bool split : {false, true}) {
+        auto model = make_write_model(PartialShape::dynamic(2), split);
+        run_fusion(model);
+
+        const auto grs = gated_residuals(model);
+        ASSERT_EQ(grs.size(), 1U) << split;
+        EXPECT_EQ(grs[0]->get_mode(), Gr::Mode::WRITE);
+        EXPECT_EQ(grs[0]->get_input_size(), 3U);
+        EXPECT_EQ(grs[0]->get_output_partial_shape(0), with_last(PartialShape::dynamic(2), CD));
+        EXPECT_FALSE(add_is_split(model));
+    }
+}
+
+TEST(TransformationTests, GatedResidualWrite_FusionCanBeDisabledWithoutTheSplit) {
+    auto model = make_write_model();
+    pass::Manager manager;
+    manager.register_pass<pass::GatedResidualFusion>();
+    manager.get_pass_config()->disable<pass::GatedResidualWriteFusion>();
+    manager.get_pass_config()->disable<pass::GatedResidualWriteSinkReshape>();
+    manager.run_passes(model);
+
+    EXPECT_TRUE(gated_residuals(model).empty());
+    EXPECT_FALSE(add_is_split(model));
 }
 
 TEST(TransformationTests, GatedResidualWrite_RowsThatMayBroadcastAreNotFused) {
-    // A static 1 against dynamic rows may be a broadcast, which the row-wise kernel does not model.
-    auto broadcast_y = make_write_model(PartialShape::dynamic(2), PartialShape{1, 1});
+    auto broadcast_y = make_write_model(PartialShape::dynamic(2), PartialShape{1, 1}, true);
     run_fusion(broadcast_y);
     EXPECT_TRUE(gated_residuals(broadcast_y).empty());
 
-    // Static rows that broadcast.
-    auto static_broadcast_y = make_write_model(PartialShape{2, 3}, PartialShape{1, 3});
+    auto static_broadcast_y = make_write_model(PartialShape{2, 3}, PartialShape{1, 3}, true);
     run_fusion(static_broadcast_y);
     EXPECT_TRUE(gated_residuals(static_broadcast_y).empty());
-
-    // A different number of leading dimensions.
-    auto different_rank = make_write_model(PartialShape::dynamic(2), PartialShape::dynamic(1));
-    run_fusion(different_rank);
-    EXPECT_TRUE(gated_residuals(different_rank).empty());
 }

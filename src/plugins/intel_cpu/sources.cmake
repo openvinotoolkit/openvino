@@ -317,6 +317,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/inverse.hpp
     ${CPU_SRC_DIR}/nodes/istft.cpp
     ${CPU_SRC_DIR}/nodes/istft.h
+    ${CPU_SRC_DIR}/nodes/kernels/gated_residual_mix.cpp
+    ${CPU_SRC_DIR}/nodes/kernels/gated_residual_mix.hpp
     ${CPU_SRC_DIR}/nodes/kernels/jit_eltwise_common.cpp
     ${CPU_SRC_DIR}/nodes/kernels/jit_eltwise_common.hpp
     ${CPU_SRC_DIR}/nodes/kernels/kai/kleidi_kernel.hpp
@@ -873,10 +875,6 @@ set(CPU_PLUGIN_X64_SRCS
     ${CPU_SRC_DIR}/nodes/kernels/x64/rdft_kernel.cpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/rdft_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/registers_pool.hpp
-    ${CPU_SRC_DIR}/nodes/kernels/x64/gated_residual_mix_kernel.cpp
-    ${CPU_SRC_DIR}/nodes/kernels/x64/gated_residual_mix_kernel.hpp
-    ${CPU_SRC_DIR}/nodes/kernels/x64/gated_residual_write_kernel.cpp
-    ${CPU_SRC_DIR}/nodes/kernels/x64/gated_residual_write_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/rms_kernel.cpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/rms_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/rope_kernel.cpp

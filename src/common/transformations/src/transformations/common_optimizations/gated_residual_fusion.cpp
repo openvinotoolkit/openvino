@@ -315,6 +315,27 @@ std::optional<WriteGateBranch> match_write_gate_branch(const ov::Output<ov::Node
     return std::nullopt;
 }
 
+/// Rows of the two inputs of a node must match without naming their symbols: equal when static, both dynamic otherwise,
+/// same rank (a static 1 against a dynamic dimension may broadcast, which the row-wise WRITE does not model). The row
+/// symbols of Y and the residual are unrelated when the graph mixes independent inputs (e.g. attention_mask), so only
+/// the static sizes are named in the patterns. `tail` is the number of trailing non-row dimensions.
+auto same_rows(size_t tail) {
+    return [tail](const ov::Output<ov::Node>& out) {
+        const auto& lhs = out.get_node()->get_input_partial_shape(0);
+        const auto& rhs = out.get_node()->get_input_partial_shape(1);
+        if (lhs.rank().is_dynamic() || rhs.rank().is_dynamic() || lhs.size() != rhs.size()) {
+            return false;
+        }
+        for (size_t i = 0; i + tail < lhs.size(); ++i) {
+            const bool both_static = lhs[i].is_static() && rhs[i].is_static();
+            if (both_static ? lhs[i] != rhs[i] : (lhs[i].is_static() || rhs[i].is_static())) {
+                return false;
+            }
+        }
+        return true;
+    };
+}
+
 }  // namespace
 
 // READ / FINAL_MIX
@@ -589,28 +610,7 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
     using namespace ov::pass::pattern;
 
     // The gate is [..., C] and broadcasts as [..., C, 1], Y is [..., D] and broadcasts as [..., 1, D]; equal names are
-    // equal sizes. Both views look alike, so the shapes tell the commutative Multiply which operand is which. Only the
-    // static sizes are named: the row symbols of Y and the residual are unrelated when the graph mixes independent
-    // inputs (e.g. attention_mask). The rows of a node's two inputs must match without them: equal when static, both
-    // dynamic otherwise, same rank (a static 1 against a dynamic dimension may broadcast, which the row-wise WRITE does
-    // not model). `tail` is the number of trailing non-row dimensions.
-    const auto same_rows = [](size_t tail) {
-        return [tail](const Output<Node>& out) {
-            const auto& lhs = out.get_node()->get_input_partial_shape(0);
-            const auto& rhs = out.get_node()->get_input_partial_shape(1);
-            if (lhs.rank().is_dynamic() || rhs.rank().is_dynamic() || lhs.size() != rhs.size()) {
-                return false;
-            }
-            for (size_t i = 0; i + tail < lhs.size(); ++i) {
-                const bool both_static = lhs[i].is_static() && rhs[i].is_static();
-                if (both_static ? lhs[i] != rhs[i] : (lhs[i].is_static() || rhs[i].is_static())) {
-                    return false;
-                }
-            }
-            return true;
-        };
-    };
-
+    // equal sizes. Both views look alike, so the shapes tell the commutative Multiply which operand is which.
     auto write_gate = any_input(shape_matches("[..., C]"));
     auto gate_3d =
         wrap_type<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({write_gate, any_input()}, shape_matches("[..., C, 1]"));
@@ -673,12 +673,91 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
     this->register_matcher(matcher, callback);
 }
 
+// WRITE, moving the Add instead of fusing it
+GatedResidualWriteSinkReshape::GatedResidualWriteSinkReshape() {
+    using namespace ov::pass;
+    using namespace ov::pass::pattern;
+
+    // Same operand views as GatedResidualWriteFusion; see there.
+    auto write_gate = any_input(shape_matches("[..., C]"));
+    auto gate_3d =
+        wrap_type<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({write_gate, any_input()}, shape_matches("[..., C, 1]"));
+
+    auto y_src = any_input(shape_matches("[..., D]"));
+    auto y_3d =
+        wrap_type<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({y_src, any_input()}, shape_matches("[..., 1, D]"));
+
+    // Rows may broadcast: the rewrite only appends the [C, D] split to them, which keeps the broadcasting as it is.
+    auto scaled = wrap_type<ov::op::v1::Multiply>({gate_3d, y_3d}, consumers_count(1));
+
+    // The scaled value is flattened first and added to a flat residual; the Reshape between the Multiply and the Add
+    // keeps the CPU Eltwise fusion from absorbing the Multiply. It must only merge the last two dimensions, so the
+    // rows keep their rank and order.
+    const auto merges_last_two = [](const Output<Node>& out) {
+        const auto& in = out.get_node()->get_input_partial_shape(0);
+        const auto& flat = out.get_partial_shape();
+        if (in.rank().is_dynamic() || flat.rank().is_dynamic() || in.size() != flat.size() + 1) {
+            return false;
+        }
+        for (size_t i = 0; i + 1 < flat.size(); ++i) {
+            if (in[i].is_static() != flat[i].is_static() || (in[i].is_static() && in[i] != flat[i])) {
+                return false;
+            }
+        }
+        return true;
+    };
+    auto scaled_flat =
+        wrap_type<ov::op::v1::Reshape>({scaled, any_input()},
+                                       shape_matches("[..., CD]") && merges_last_two && consumers_count(1));
+    auto residual = any_input(shape_matches("[..., CD]"));
+    const auto same_rank = [](const Output<Node>& out) {
+        const auto& lhs = out.get_node()->get_input_partial_shape(0);
+        return lhs.rank().is_static() && lhs.rank() == out.get_node()->get_input_partial_shape(1).rank();
+    };
+    auto updated = wrap_type<ov::op::v1::Add>({residual, scaled_flat}, same_rank);
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        const auto& pm = m.get_pattern_value_map();
+        auto add = m.get_match_root();
+        if (transformation_callback(add)) {
+            return false;
+        }
+
+        const auto& y_ps = pm.at(y_src).get_partial_shape();
+        const auto& gate_ps = pm.at(write_gate).get_partial_shape();
+        const auto C = gate_ps[gate_ps.size() - 1].get_length();
+        const auto D = y_ps[y_ps.size() - 1].get_length();
+
+        // Add(R, Reshape(S * Y)) -> Reshape(Add(Reshape(R), S * Y)): one broadcasting Add in the split [.., C, D]
+        // domain. Zeros keep the leading dimensions, so the rows may stay dynamic.
+        std::vector<int64_t> split_dims(add->get_output_partial_shape(0).size() - 1, 0);
+        std::vector<int64_t> flat_dims = split_dims;
+        split_dims.insert(split_dims.end(), {C, D});
+        flat_dims.push_back(C * D);
+        auto split_shape = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{split_dims.size()}, split_dims);
+        auto flat_shape = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{flat_dims.size()}, flat_dims);
+        auto residual_3d = std::make_shared<ov::op::v1::Reshape>(pm.at(residual), split_shape, true);
+        auto updated_3d = std::make_shared<ov::op::v1::Add>(residual_3d, pm.at(scaled));
+        auto flat = std::make_shared<ov::op::v1::Reshape>(updated_3d, flat_shape, true);
+        if (!flat->get_output_partial_shape(0).compatible(add->get_output_partial_shape(0))) {
+            return false;
+        }
+
+        ov::copy_runtime_info(m.get_matched_nodes(), {split_shape, flat_shape, residual_3d, updated_3d, flat});
+        return ov::replace_output_update_name(add->output(0), flat->output(0));
+    };
+
+    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(updated, "GatedResidualWriteSinkReshape");
+    this->register_matcher(matcher, callback);
+}
+
 bool GatedResidualFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(GatedResidualFusion);
     SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
     auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
     symbolic_ctx_manager->register_pass<GatedResidualReadFusion>();
     symbolic_ctx_manager->register_pass<GatedResidualWriteFusion>();
+    symbolic_ctx_manager->register_pass<GatedResidualWriteSinkReshape>();
     return symbolic_optimizations.run_on_model(model);
 }
 

@@ -17,14 +17,13 @@
 namespace ov::intel_cpu {
 
 struct GatedResidualAttrs {
-    ov::op::internal::GatedResidual::Mode mode = ov::op::internal::GatedResidual::Mode::READ;
     size_t hc_count = 0;
     size_t hidden_size = 0;
     size_t lowrank = 0;
     float epsilon = 1e-6F;
     bool norm_gain_plus_one = true;
     bool produce_write_gate = false;
-    // Input form of a READ / FINAL_MIX node (unused for WRITE); see GatedResidual::ReadLayout.
+    // Input form of the node; see GatedResidual::ReadLayout.
     ov::op::internal::GatedResidual::ReadLayout read_layout{};
     // FullyConnected settings of the projections, taken from the plugin config as the FullyConnected node does.
     uint64_t dynamic_quantization_group_size = 0;

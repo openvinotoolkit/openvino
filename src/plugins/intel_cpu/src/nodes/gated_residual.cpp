@@ -43,18 +43,16 @@ namespace ov::intel_cpu::node {
 namespace {
 
 using ReadInputIdx = ov::op::internal::GatedResidual::ReadInputIdx;
-using WriteInputIdx = ov::op::internal::GatedResidual::WriteInputIdx;
 using Mode = ov::op::internal::GatedResidual::Mode;
 
 struct GatedResidualShapeConfig {
-    Mode mode = Mode::READ;
     size_t hc_count = 0;
     size_t hidden_size = 0;
     bool produce_write_gate = false;
 };
 
-// Output shapes follow the residual shape alone: the last dimension is C*D for WRITE, D for READ / FINAL_MIX, C for the
-// write gate. Needing no input data keeps the node from being a sync point.
+// Output shapes follow the residual shape alone: the last dimension is D for READ / FINAL_MIX, C for the write gate.
+// Needing no input data keeps the node from being a sync point.
 class GatedResidualShapeInfer : public ShapeInferEmptyPads {
 public:
     explicit GatedResidualShapeInfer(const GatedResidualShapeConfig& config) : m_config(config) {}
@@ -63,8 +61,7 @@ public:
                  [[maybe_unused]] const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         const auto& residual = input_shapes[ReadInputIdx::RESIDUAL].get();
         std::vector<VectorDims> out(m_config.produce_write_gate ? 2U : 1U, residual);
-        const bool is_write = m_config.mode == Mode::WRITE;
-        out[0].back() = is_write ? m_config.hc_count * m_config.hidden_size : m_config.hidden_size;
+        out[0].back() = m_config.hidden_size;
         if (m_config.produce_write_gate) {
             out[1].back() = m_config.hc_count;
         }
@@ -84,7 +81,7 @@ public:
     explicit GatedResidualShapeInferFactory(const std::shared_ptr<ov::Node>& op) {
         const auto gr = ov::as_type_ptr<const ov::op::internal::GatedResidual>(op);
         OPENVINO_ASSERT(gr, "Expected GatedResidual node");
-        m_config = {gr->get_mode(), gr->get_hc_count(), gr->get_hidden_size(), gr->get_produce_write_gate()};
+        m_config = {gr->get_hc_count(), gr->get_hidden_size(), gr->get_produce_write_gate()};
     }
 
     [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
@@ -105,18 +102,15 @@ GatedResidual::GatedResidual(const std::shared_ptr<ov::Node>& op, const GraphCon
     }
     const auto gr = ov::as_type_ptr<const ov::op::internal::GatedResidual>(op);
     OPENVINO_ASSERT(gr, "Expected GatedResidual node");
-    m_attrs.mode = gr->get_mode();
     m_attrs.hc_count = gr->get_hc_count();
     m_attrs.hidden_size = gr->get_hidden_size();
     m_attrs.lowrank = gr->get_lowrank();
     m_attrs.epsilon = gr->get_epsilon();
     m_attrs.norm_gain_plus_one = gr->get_norm_gain_plus_one();
     m_attrs.produce_write_gate = gr->get_produce_write_gate();
-    if (m_attrs.mode != Mode::WRITE) {
-        const auto layout = gr->get_read_layout();
-        OPENVINO_ASSERT(layout.has_value(), "GatedResidual (READ/FINAL_MIX) has an unexpected number of inputs");
-        m_attrs.read_layout = *layout;
-    }
+    const auto layout = gr->get_read_layout();
+    OPENVINO_ASSERT(layout.has_value(), "GatedResidual (READ/FINAL_MIX) has an unexpected number of inputs");
+    m_attrs.read_layout = *layout;
 }
 
 void GatedResidual::initSupportedPrimitiveDescriptors() {
@@ -134,7 +128,7 @@ void GatedResidual::initSupportedPrimitiveDescriptors() {
     // bytes the executor reads.
     const auto& layout = m_attrs.read_layout;
     std::set<size_t> native_precision_ports;
-    if (m_attrs.mode != Mode::WRITE && layout.compressed) {
+    if (layout.compressed) {
         native_precision_ports = {ReadInputIdx::W_DOWN,
                                   ReadInputIdx::SCALE_DOWN,
                                   ReadInputIdx::W_UP,
@@ -255,40 +249,43 @@ bool GatedResidual::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
             return false;
         }
 
-        const auto mode = gr->get_mode();
+        // WRITE is not executed here: GatedResidualWriteSinkReshape turns that pattern into one Eltwise.
+        if (gr->get_mode() == Mode::WRITE) {
+            errorMessage = "GatedResidual WRITE mode is not supported; the CPU plugin runs the pattern as Eltwise.";
+            return false;
+        }
+
         std::set<size_t> weight_ports;
         std::set<size_t> scale_ports;
         std::set<size_t> zero_point_ports;
-        if (mode != Mode::WRITE) {
-            const auto layout = gr->get_read_layout();
-            if (!layout.has_value()) {
-                errorMessage = "GatedResidual has an unexpected number of inputs.";
-                return false;
+        const auto layout = gr->get_read_layout();
+        if (!layout.has_value()) {
+            errorMessage = "GatedResidual has an unexpected number of inputs.";
+            return false;
+        }
+        if (layout->compressed) {
+            weight_ports = {ReadInputIdx::W_DOWN, ReadInputIdx::W_UP};
+            scale_ports = {ReadInputIdx::SCALE_DOWN, ReadInputIdx::SCALE_UP};
+            if (layout->has_zp) {
+                zero_point_ports = {ReadInputIdx::ZP_DOWN, ReadInputIdx::ZP_UP};
             }
-            if (layout->compressed) {
-                weight_ports = {ReadInputIdx::W_DOWN, ReadInputIdx::W_UP};
-                scale_ports = {ReadInputIdx::SCALE_DOWN, ReadInputIdx::SCALE_UP};
+            if (layout->write_gate) {
+                weight_ports.insert(layout->w_inject);
+                scale_ports.insert(layout->scale_inject);
                 if (layout->has_zp) {
-                    zero_point_ports = {ReadInputIdx::ZP_DOWN, ReadInputIdx::ZP_UP};
+                    zero_point_ports.insert(layout->zp_inject);
                 }
-                if (layout->write_gate) {
-                    weight_ports.insert(layout->w_inject);
-                    scale_ports.insert(layout->scale_inject);
-                    if (layout->has_zp) {
-                        zero_point_ports.insert(layout->zp_inject);
-                    }
-                }
+            }
 
-                // The scale is [G, N]; the op guarantees that G divides K, so any static group count is valid.
-                const auto groups_static = [&](size_t scale_port) {
-                    const auto& ps = op->get_input_partial_shape(scale_port);
-                    return ps.rank().is_static() && ps[0].is_static();
-                };
-                if (!groups_static(ReadInputIdx::SCALE_DOWN) || !groups_static(ReadInputIdx::SCALE_UP) ||
-                    (layout->write_gate && !groups_static(layout->scale_inject))) {
-                    errorMessage = "GatedResidual compressed weight scales must have a static group count.";
-                    return false;
-                }
+            // The scale is [G, N]; the op guarantees that G divides K, so any static group count is valid.
+            const auto groups_static = [&](size_t scale_port) {
+                const auto& ps = op->get_input_partial_shape(scale_port);
+                return ps.rank().is_static() && ps[0].is_static();
+            };
+            if (!groups_static(ReadInputIdx::SCALE_DOWN) || !groups_static(ReadInputIdx::SCALE_UP) ||
+                (layout->write_gate && !groups_static(layout->scale_inject))) {
+                errorMessage = "GatedResidual compressed weight scales must have a static group count.";
+                return false;
             }
         }
 
@@ -304,13 +301,10 @@ bool GatedResidual::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
         constant_ports.insert(weight_ports.begin(), weight_ports.end());
         constant_ports.insert(scale_ports.begin(), scale_ports.end());
         constant_ports.insert(zero_point_ports.begin(), zero_point_ports.end());
-        if (mode != Mode::WRITE) {
-            // Uncompressed weights are not in weight_ports (it only drives the compressed type check).
-            const auto layout = gr->get_read_layout();
-            constant_ports.insert({ReadInputIdx::W_DOWN, ReadInputIdx::W_UP});
-            if (layout->write_gate) {
-                constant_ports.insert(layout->w_inject);
-            }
+        // Uncompressed weights are not in weight_ports (it only drives the compressed type check).
+        constant_ports.insert({ReadInputIdx::W_DOWN, ReadInputIdx::W_UP});
+        if (layout->write_gate) {
+            constant_ports.insert(layout->w_inject);
         }
         for (const auto port : constant_ports) {
             if (!is_constant_input(port)) {

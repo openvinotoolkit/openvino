@@ -33,8 +33,7 @@
 #    include "nodes/executors/gated_residual_config.hpp"
 #    include "nodes/executors/implementation_utils.hpp"
 #    include "nodes/executors/memory_arguments.hpp"
-#    include "nodes/kernels/x64/gated_residual_mix_kernel.hpp"
-#    include "nodes/kernels/x64/gated_residual_write_kernel.hpp"
+#    include "nodes/kernels/gated_residual_mix.hpp"
 #    include "nodes/kernels/x64/rms_kernel.hpp"
 #    include "onednn/iml_type_mapper.h"
 #    include "openvino/core/except.hpp"
@@ -50,8 +49,6 @@ namespace ov::intel_cpu {
 namespace {
 
 using ReadInputIdx = ov::op::internal::GatedResidual::ReadInputIdx;
-using WriteInputIdx = ov::op::internal::GatedResidual::WriteInputIdx;
-using Mode = ov::op::internal::GatedResidual::Mode;
 using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
 
 // The ISA the JIT kernels are built for (supports() requires AVX2).
@@ -95,48 +92,6 @@ size_t normalize_rows(size_t m) {
     }
     return bucket;
 }
-
-struct WriteKernelKey {
-    ov::element::Type precision;
-    size_t data_size = 0;
-    cpu_isa_t isa = dnnl::impl::cpu::x64::avx2;
-
-    [[nodiscard]] size_t hash() const {
-        using namespace dnnl::impl;
-
-        size_t seed = 0;
-        seed = hash_combine(seed, precision.hash());
-        seed = hash_combine(seed, data_size);
-        seed = hash_combine(seed, static_cast<size_t>(isa));
-        return seed;
-    }
-
-    bool operator==(const WriteKernelKey& rhs) const {
-        return precision == rhs.precision && data_size == rhs.data_size && isa == rhs.isa;
-    }
-};
-
-struct MixKernelKey {
-    ov::element::Type precision;
-    size_t data_size = 0;
-    size_t branches = 0;
-    cpu_isa_t isa = dnnl::impl::cpu::x64::avx2;
-
-    [[nodiscard]] size_t hash() const {
-        using namespace dnnl::impl;
-
-        size_t seed = 0;
-        seed = hash_combine(seed, precision.hash());
-        seed = hash_combine(seed, data_size);
-        seed = hash_combine(seed, branches);
-        seed = hash_combine(seed, static_cast<size_t>(isa));
-        return seed;
-    }
-
-    bool operator==(const MixKernelKey& rhs) const {
-        return precision == rhs.precision && data_size == rhs.data_size && branches == rhs.branches && isa == rhs.isa;
-    }
-};
 
 struct RmsKernelKey {
     ov::element::Type precision;  // source and gain element type
@@ -183,7 +138,6 @@ GatedResidualDnnlExecutor::GatedResidualDnnlExecutor(const GatedResidualAttrs& a
                                                      const MemoryArgs& memory,
                                                      ExecutorContext::CPtr context)
     : m_context(std::move(context)),
-      m_mode(attrs.mode),
       m_hc_count(attrs.hc_count),
       m_hidden_size(attrs.hidden_size),
       m_lowrank(attrs.lowrank),
@@ -196,11 +150,9 @@ GatedResidualDnnlExecutor::GatedResidualDnnlExecutor(const GatedResidualAttrs& a
     m_precision = memory.at(gatedResidualSrcArg(ReadInputIdx::RESIDUAL))->getPrecision();
     m_gemm_precision = gemmPrecision(m_precision, m_weights_compressed);
 
-    if (m_mode != Mode::WRITE) {
-        m_tile_rows = maxTileRows();
-        // Built at compile time: packs the constant weights.
-        createProjections(attrs, memory);
-    }
+    m_tile_rows = maxTileRows();
+    // Built at compile time: packs the constant weights.
+    createProjections(attrs, memory);
 }
 
 size_t GatedResidualDnnlExecutor::maxTileRows() const {
@@ -221,9 +173,6 @@ size_t GatedResidualDnnlExecutor::maxTileRows() const {
 }
 
 void GatedResidualDnnlExecutor::createProjections(const GatedResidualAttrs& attrs, const MemoryArgs& memory) {
-    if (m_mode == Mode::WRITE) {
-        return;
-    }
     using Type = ActivationPostOp::Type;
     const size_t C = m_hc_count;
     const size_t L = m_lowrank;
@@ -360,63 +309,19 @@ void GatedResidualDnnlExecutor::bindProjection(Projection& p, TileExecutor& tile
 }
 
 impl_desc_type GatedResidualDnnlExecutor::implType() const {
-    // READ / FINAL_MIX are dominated by the projections: report the implementation chosen for the down GEMM.
+    // The projections dominate: report the implementation chosen for the down GEMM.
     if (m_proj[kDown].full.executor) {
         return m_proj[kDown].full.executor->implType();
     }
-    // WRITE has no GEMM, only the JIT elementwise kernel.
     return targetIsa() == dnnl::impl::cpu::x64::avx512_core ? impl_desc_type::jit_avx512 : impl_desc_type::jit_avx2;
 }
 
 void GatedResidualDnnlExecutor::execute(const MemoryArgs& memory) {
-    if (m_mode == Mode::WRITE) {
-        execute_write(memory);
-    } else {
-        execute_read_or_final_mix(memory);
-    }
+    execute_read_or_final_mix(memory);
 }
 
 bool GatedResidualDnnlExecutor::update(const MemoryArgs& memory) {
     const cpu_isa_t isa = targetIsa();
-
-    if (m_mode == Mode::WRITE) {
-        // Y and the gate are indexed per residual row, so their row counts must match. The op checks static shapes;
-        // dynamic ones are known only here.
-        const auto rows = shape_size(memory.at(gatedResidualSrcArg(WriteInputIdx::RESIDUAL))->getStaticDims()) /
-                          (m_hc_count * m_hidden_size);
-        OPENVINO_ASSERT(
-            shape_size(memory.at(gatedResidualSrcArg(WriteInputIdx::SUBLAYER_Y))->getStaticDims()) ==
-                    rows * m_hidden_size &&
-                shape_size(memory.at(gatedResidualSrcArg(WriteInputIdx::WRITE_GATE))->getStaticDims()) ==
-                    rows * m_hc_count,
-            "GatedResidual (WRITE): sub-layer output and write gate must have the same leading dimensions as the "
-            "residual");
-        if (!m_write_kernel) {
-            // Shared by every WRITE layer with the same (precision, D, ISA) through the runtime cache.
-            const WriteKernelKey key{m_precision, m_hidden_size, isa};
-            m_write_kernel =
-                m_context->getRuntimeCache()
-                    ->getOrCreate(
-                        key,
-                        [](const WriteKernelKey& k) -> std::shared_ptr<kernel::JitKernelBase> {
-                            kernel::jit_gated_residual_write_compile_params jcp;
-                            jcp.prc = k.precision;
-                            jcp.data_size = k.data_size;
-                            std::shared_ptr<kernel::JitKernelBase> kernel;
-                            if (k.isa == dnnl::impl::cpu::x64::avx512_core) {
-                                kernel = std::make_shared<
-                                    kernel::jit_gated_residual_write_kernel<dnnl::impl::cpu::x64::avx512_core>>(jcp);
-                            } else {
-                                kernel = std::make_shared<
-                                    kernel::jit_gated_residual_write_kernel<dnnl::impl::cpu::x64::avx2>>(jcp);
-                            }
-                            kernel->create_kernel();
-                            return kernel;
-                        })
-                    .first;
-        }
-        return true;
-    }
 
     const size_t C = m_hc_count;
     const size_t D = m_hidden_size;
@@ -462,31 +367,6 @@ bool GatedResidualDnnlExecutor::update(const MemoryArgs& memory) {
         if (m_gemm_precision != ov::element::f32) {
             m_rms_kernel_gemm = get_kernel(m_gemm_precision);
         }
-
-        const MixKernelKey mix_key{m_precision, D, C, isa};
-        m_mix_kernel =
-            m_context->getRuntimeCache()
-                ->getOrCreate(
-                    mix_key,
-                    [](const MixKernelKey& k) -> std::shared_ptr<kernel::JitKernelBase> {
-                        kernel::jit_gated_residual_mix_compile_params jcp;
-                        jcp.prc = k.precision;
-                        jcp.data_size = k.data_size;
-                        jcp.branches = k.branches;
-                        jcp.scale = 1.0F / static_cast<float>(k.branches);
-                        std::shared_ptr<kernel::JitKernelBase> kernel;
-                        if (k.isa == dnnl::impl::cpu::x64::avx512_core) {
-                            kernel = std::make_shared<
-                                kernel::jit_gated_residual_mix_kernel<dnnl::impl::cpu::x64::avx512_core>>(jcp);
-                        } else {
-                            kernel =
-                                std::make_shared<kernel::jit_gated_residual_mix_kernel<dnnl::impl::cpu::x64::avx2>>(
-                                    jcp);
-                        }
-                        kernel->create_kernel();
-                        return kernel;
-                    })
-                .first;
     }
 
     // Full tiles use the full executors, the last tile the partial ones with a bucketed row count (100 and 110 rows
@@ -582,10 +462,13 @@ void GatedResidualDnnlExecutor::execute_read_or_final_mix(const MemoryArgs& memo
 
         // Step 4: out = (1/C) * sum_c gate_c * rbar_c, one kernel call per row, converted to the output precision.
         m_context->getCpuParallel()->parallel_for(cur_rows, [&](size_t row) {
-            kernel::jit_gated_residual_mix_call_args args{logit + row * CD,
-                                                          rbar + row * CD,
-                                                          mixed_out + (tile_start + row) * D * residual_elem_size};
-            (*m_mix_kernel)(&args);
+            ov::Extensions::Cpu::XARCH::gated_residual_mix(logit + row * CD,
+                                                           rbar + row * CD,
+                                                           mixed_out + (tile_start + row) * D * residual_elem_size,
+                                                           m_precision,
+                                                           D,
+                                                           C,
+                                                           1.0F / static_cast<float>(C));
         });
 
         // Step 5: WriteGate[M,C] = 2 * sigmoid(Rbar @ w_inject^T / C). The GEMM writes a fixed scratch buffer; only the
@@ -598,31 +481,6 @@ void GatedResidualDnnlExecutor::execute_read_or_final_mix(const MemoryArgs& memo
                         cur_rows * C * wg_elem_size);
         }
     }
-}
-
-void GatedResidualDnnlExecutor::execute_write(const MemoryArgs& memory) {
-    const size_t C = m_hc_count;
-    const size_t D = m_hidden_size;
-    const size_t CD = C * D;
-
-    // Ports are contiguous ncsp in the port precision with leading dims flattened into `rows`: residual and out [rows,
-    // C*D], sublayer_y [rows, D], write_gate [rows, C].
-    const size_t rows = shape_size(memory.at(gatedResidualSrcArg(WriteInputIdx::RESIDUAL))->getStaticDims()) / CD;
-    const auto* residual = memory.at(gatedResidualSrcArg(WriteInputIdx::RESIDUAL))->getDataAs<const uint8_t>();
-    const auto* y = memory.at(gatedResidualSrcArg(WriteInputIdx::SUBLAYER_Y))->getDataAs<const uint8_t>();
-    auto* out = memory.at(gatedResidualDstArg(0))->getDataAs<uint8_t>();
-    const auto* gate = memory.at(gatedResidualSrcArg(WriteInputIdx::WRITE_GATE))->getDataAs<const uint8_t>();
-    const size_t elem_size = m_precision.size();
-
-    // One kernel call per (row, branch): out = residual + gate * y over D elements in f32, rounded once on store.
-    m_context->getCpuParallel()->parallel_for2d(rows, C, [&](size_t row, size_t c) {
-        const size_t branch_offset = (row * CD + c * D) * elem_size;
-        kernel::jit_gated_residual_write_call_args args{residual + branch_offset,
-                                                        y + row * D * elem_size,
-                                                        gate + (row * C + c) * elem_size,
-                                                        out + branch_offset};
-        (*m_write_kernel)(&args);
-    });
 }
 
 }  // namespace ov::intel_cpu

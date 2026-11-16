@@ -54,7 +54,26 @@ public:
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief Runs GatedResidualReadFusion and GatedResidualWriteFusion with symbolic shape propagation.
+ * @brief Sinks the Reshape of the Gated Residual WRITE pattern below the residual Add, so the Add sits next to the
+ * Multiply and a backend can fuse the two as one broadcasting eltwise.
+ *
+ *   Add(R, Reshape(S[.., C, 1] * Y[.., 1, D], [.., C*D]))
+ *     -> Reshape(Add(Reshape(R, [.., C, D]), S[.., C, 1] * Y[.., 1, D]), [.., C*D])
+ *
+ * The gate S is an opaque [*, C] input; the `2 * Sigmoid(...)` that produces it stays outside. The callback is asked
+ * about the matched Add; returning true keeps the original graph. The alternative to GatedResidualWriteFusion for
+ * backends that run the chain as plain eltwise: disable one of the two.
+ */
+class TRANSFORMATIONS_API GatedResidualWriteSinkReshape : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("GatedResidualWriteSinkReshape");
+    GatedResidualWriteSinkReshape();
+};
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief Runs GatedResidualReadFusion, GatedResidualWriteFusion and GatedResidualWriteSinkReshape with symbolic shape
+ * propagation.
  */
 class TRANSFORMATIONS_API GatedResidualFusion : public ov::pass::ModelPass {
 public:

@@ -1211,8 +1211,9 @@ void Transformations::PostLpt() {
             std::string errorMsg;
             return !node::GatedResidual::isSupportedOperation(node, errorMsg);
         },
-        ov::pass::GatedResidualReadFusion,
-        ov::pass::GatedResidualWriteFusion);
+        ov::pass::GatedResidualReadFusion);
+    // WRITE runs as one Eltwise (Multiply + Add) after GatedResidualWriteSinkReshape
+    CPU_DISABLE_PASS_X64(postLPTPassManager, ov::pass::GatedResidualWriteFusion);
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::DecomposeRMSNorm);
     CPU_SET_CALLBACK_X64(
         postLPTPassManager,

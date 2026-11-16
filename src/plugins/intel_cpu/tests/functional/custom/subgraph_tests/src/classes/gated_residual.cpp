@@ -229,11 +229,11 @@ std::shared_ptr<ov::Model> make_reference_model(Mode mode,
         auto gate = std::make_shared<v0::Parameter>(precision, rows_shape(hc_count));
         gate->set_friendly_name("write_gate");
 
-        auto r3 = reshape_keep_leading(residual, leading_rank, {c, d});
         auto s3 = std::make_shared<v0::Unsqueeze>(gate, v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
         auto y3 = std::make_shared<v0::Unsqueeze>(y, v0::Constant::create(ov::element::i64, ov::Shape{1}, {-2}));
-        auto updated = std::make_shared<v1::Add>(r3, std::make_shared<v1::Multiply>(s3, y3));
-        auto out = reshape_keep_leading(updated, leading_rank, {cd_i});
+        // The exporter's form: the Multiply is flattened and added to the flat residual.
+        auto scaled_flat = reshape_keep_leading(std::make_shared<v1::Multiply>(s3, y3), leading_rank, {cd_i});
+        auto out = std::make_shared<v1::Add>(residual, scaled_flat);
         return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<v0::Result>(out)},
                                            ov::ParameterVector{residual, y, gate});
     }
@@ -338,7 +338,7 @@ void GatedResidualLayerCPUTest::SetUp() {
                     "GatedResidual tests must use a dynamic input shape with at least one target shape");
 
     // The reference is the decomposed sub-graph; the device runs it after the common fusion pass, which must produce
-    // one GatedResidual node.
+    // one GatedResidual node (except WRITE, which the plugin runs as Eltwise).
     functionRefs = make_reference_model(mode,
                                         leading_ps,
                                         m_hc_count,
@@ -351,9 +351,12 @@ void GatedResidualLayerCPUTest::SetUp() {
                                         m_compression);
     function = functionRefs->clone();
 
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::GatedResidualFusion>();
-    manager.run_passes(function);
+    // WRITE is left to the plugin: it must run as one Eltwise, not as a GatedResidual node.
+    if (mode != Mode::WRITE) {
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::GatedResidualFusion>();
+        manager.run_passes(function);
+    }
 
     // Keep the native i4/u4/i8/u8 type of the compressed constants through the plugin's ConvertPrecision (it would
     // promote them). The fusion re-creates the constants, so the flags are set on the fused node's inputs.
@@ -451,7 +454,14 @@ TEST_P(GatedResidualLayerCPUTest, Inference) {
     }
     run();
     const auto runtime_model = compiledModel.get_runtime_model();
-    CheckNumberOfNodesWithType(runtime_model, {"GatedResidual"}, 1);
+    if (std::get<0>(GetParam()) == Mode::WRITE) {
+        // The Multiply and the residual Add are one Eltwise after GatedResidualWriteSinkReshape; the node does not run
+        // WRITE.
+        CheckNumberOfNodesWithType(runtime_model, {"GatedResidual"}, 0);
+        CheckNumberOfNodesWithType(runtime_model, {"Eltwise"}, 1);
+    } else {
+        CheckNumberOfNodesWithType(runtime_model, {"GatedResidual"}, 1);
+    }
 }
 
 // Weights that are not constants (here: model inputs) must leave the decomposed graph in place and still compile

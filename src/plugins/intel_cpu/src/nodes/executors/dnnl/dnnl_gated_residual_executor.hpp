@@ -42,11 +42,9 @@ private:
     // [rows, cols] tensor at `offset` bytes into the shared scratchpad block.
     [[nodiscard]] MemoryPtr tileMemory(size_t offset, ov::element::Type prc, size_t rows, size_t cols) const;
     void execute_read_or_final_mix(const MemoryArgs& memory);
-    void execute_write(const MemoryArgs& memory);
 
     ExecutorContext::CPtr m_context;
 
-    ov::op::internal::GatedResidual::Mode m_mode = ov::op::internal::GatedResidual::Mode::READ;
     size_t m_hc_count = 0;
     size_t m_hidden_size = 0;
     size_t m_lowrank = 0;
@@ -72,10 +70,6 @@ private:
 
     // RMSNorm kernel for one branch, run per (row, branch).
     std::shared_ptr<kernel::JitKernelBase> m_rms_kernel;
-    // WRITE: out = residual + gate * y for one (row, branch).
-    std::shared_ptr<kernel::JitKernelBase> m_write_kernel;
-    // Mix over branches: out = (1/C) * sum_c gate_c * rbar_c, converted to the output precision.
-    std::shared_ptr<kernel::JitKernelBase> m_mix_kernel;
     // The same normalization stored as the GEMM input precision; only set when that differs from f32.
     std::shared_ptr<kernel::JitKernelBase> m_rms_kernel_gemm;
 
