@@ -380,7 +380,7 @@ struct plain_prefill_shape {
     bool shape_agnostic = true;
     int64_t n_keys = 0;
     int64_t q_len = 0;
-    bool f16_qkv = false;  // f16 Q, K and V: what the tilings below were measured with (no bf16, no compressed KV)
+    bool f16_qkv = false;     // f16 Q, K and V: what the tilings below were measured with (no bf16, no compressed KV)
     bool mask_input = false;  // an attention mask input (not a const scalar): the op's, so compile time and dispatch agree
 };
 
@@ -1016,9 +1016,8 @@ bool hpg_plain_prefill_ok(const kernel_impl_params& params, size_t k_head_size, 
     const auto desc = params.typed_desc<scaled_dot_product_attention>();
     // A sliding window too: the kernel's window code is the PA one, which assumes causality (plain SDPA applies the window
     // with IS_CAUSAL only, and with a mask the mask holds it).
-    if (desc->is_causal || (desc->attn_mask_val.has_value() && !std::isfinite(*desc->attn_mask_val)) ||
-        has_scalar_runtime_attn_mask_input(params) || runtime_scale_layout(params) != nullptr ||
-        desc->has_sink_input || desc->is_kv_compressed || desc->indirect_axis != -1 || desc->sliding_window != 0) {
+    if (desc->is_causal || (desc->attn_mask_val.has_value() && !std::isfinite(*desc->attn_mask_val)) || has_scalar_runtime_attn_mask_input(params) ||
+        runtime_scale_layout(params) != nullptr || desc->has_sink_input || desc->is_kv_compressed || desc->indirect_axis != -1 || desc->sliding_window != 0) {
         return false;
     }
     if (sdpa_has_runtime_attn_mask_input(params)) {
@@ -1030,16 +1029,15 @@ bool hpg_plain_prefill_ok(const kernel_impl_params& params, size_t k_head_size, 
     const auto head_innermost = [](const std::vector<int64_t>& order) {
         return order.empty() || extend_order_in_num_heads_dim(order)[3] == 3;
     };
-    if (!head_innermost(desc->input_q_transpose_order) || !head_innermost(desc->input_k_transpose_order) ||
-        !head_innermost(desc->input_v_transpose_order) || !head_innermost(desc->output_transpose_order)) {
+    if (!head_innermost(desc->input_q_transpose_order) || !head_innermost(desc->input_k_transpose_order) || !head_innermost(desc->input_v_transpose_order) ||
+        !head_innermost(desc->output_transpose_order)) {
         return false;
     }
     const auto rows_ok = [](const layout& l) {
         return l.data_type == data_types::f16 && l.get_partial_shape().size() == 4 && format::is_simple_data_format(l.format) &&
                axis_unpadded(l, ChannelName::X);
     };
-    return rows_ok(params.input_layouts[0]) && rows_ok(params.input_layouts[1]) && rows_ok(params.input_layouts[2]) &&
-           rows_ok(params.output_layouts[0]);
+    return rows_ok(params.input_layouts[0]) && rows_ok(params.input_layouts[1]) && rows_ok(params.input_layouts[2]) && rows_ok(params.output_layouts[0]);
 }
 
 // Its tiling, by head size (keys x queries per workgroup, measured per call against sdpa_micro on DG2 in real models):
@@ -1070,8 +1068,15 @@ sdpa_ocl_config_t hpg_pa_prefill_tiling(size_t head_size) {
     const bool split = (t.kq_sg_tile_keys == 16 || t.kq_sg_tile_keys == 32) && solve_sv_split(t, (head_size + 15) / 16 * 16);
     OPENVINO_ASSERT(split && t.sv_sg_tile_scores == t.kq_sg_tile_queries && t.sv_sg_per_wg_values == t.kq_sg_per_wg_keys &&
                         (t.sv_sg_tile_values == 16 || t.sv_sg_tile_values == 32) && tiling_fits_device(gpu_arch::xe_hpg, head_size, t),
-                    "[GPU] sdpa_ocl: the xe_hpg PA PREFILL tiling (", t.kq_sg_tile_keys, ", ", t.kq_sg_per_wg_keys, ", ",
-                    t.kq_sg_per_wg_queries, ") at head ", head_size, " does not derive the S*V split its kernel is written for");
+                    "[GPU] sdpa_ocl: the xe_hpg PA PREFILL tiling (",
+                    t.kq_sg_tile_keys,
+                    ", ",
+                    t.kq_sg_per_wg_keys,
+                    ", ",
+                    t.kq_sg_per_wg_queries,
+                    ") at head ",
+                    head_size,
+                    " does not derive the S*V split its kernel is written for");
     return t;
 }
 
@@ -1104,12 +1109,11 @@ sdpa_ocl_problem make_problem(const kernel_impl_params& params, bool is_prefill,
         plain_shape.n_keys = aligned_seq_length(params, 1).get_length();
         plain_shape.q_len = aligned_seq_length(params, 0).get_length();
     }
-    const bool hpg_fast = is_pa ? hpg_pa_prefill_ok(params, is_prefill, p.k_head_size, p.v_head_size)
-                                : is_prefill && hpg_plain_prefill_ok(params, p.k_head_size, p.v_head_size);
+    const bool hpg_fast =
+        is_pa ? hpg_pa_prefill_ok(params, is_prefill, p.k_head_size, p.v_head_size) : is_prefill && hpg_plain_prefill_ok(params, p.k_head_size, p.v_head_size);
     p.tiling =
-        hpg_fast
-            ? hpg_pa_prefill_tiling(p.k_head_size)
-            : choose_config(info.arch, p.d_max, p.vd_max, is_pa && is_prefill, is_pa && !is_prefill, few_heads, plain_prefill, plain_shape, plain_decode);
+        hpg_fast ? hpg_pa_prefill_tiling(p.k_head_size)
+                 : choose_config(info.arch, p.d_max, p.vd_max, is_pa && is_prefill, is_pa && !is_prefill, few_heads, plain_prefill, plain_shape, plain_decode);
     return p;
 }
 
