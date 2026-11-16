@@ -231,8 +231,8 @@ TEST_F(BlobFormatImportersTest, BatchSizeRejectedForCompilerBatchedSchedule) {
 }
 
 /**
- * @brief States and shape tensors are not sliced per batch, thus they cannot coexist with a batch size from the
- * metadata
+ * @brief States and shape tensors are sliced by the pipeline but are not allocated per batch, thus they cannot coexist
+ * with a batch size from the metadata.
  */
 TEST_F(BlobFormatImportersTest, BatchSizeRejectedForStatesAndShapeTensors) {
     NetworkMetadata state_input = create_plugin_batched_metadata();
@@ -271,4 +271,20 @@ TEST_F(BlobFormatImportersTest, DynamicBatchSizeSurvivesMetadataRoundTrip) {
     const std::unique_ptr<MetadataBase> metadata = read_metadata_from(source);
     ASSERT_NE(metadata, nullptr);
     EXPECT_EQ(metadata->get_batch_size(), std::make_optional<int64_t>(DYNAMIC_BATCH_SIZE));
+}
+
+/**
+ * @brief Main weights inputs are not sliced by the pipeline, thus they may have any compiled shape. The same descriptor
+ * without the weights flag is a regular input compiled with a batch different than 1 and must be rejected.
+ */
+TEST_F(BlobFormatImportersTest, BatchSizeAcceptsNonBatchedMainWeightsOnly) {
+    NetworkMetadata metadata = create_plugin_batched_metadata();
+    metadata.inputs.push_back(create_descriptor("weights", ov::PartialShape{8, 16}));
+    for (const int64_t batch_size : {int64_t{1}, int64_t{3}, DYNAMIC_BATCH_SIZE}) {
+        SCOPED_TRACE("batch size: " + std::to_string(batch_size));
+        metadata.inputs.back().isMainInputWeights = true;
+        EXPECT_NO_THROW(validate_batch_size(batch_size, metadata));
+        metadata.inputs.back().isMainInputWeights = false;
+        OV_EXPECT_THROW(validate_batch_size(batch_size, metadata), ov::Exception, _);
+    }
 }

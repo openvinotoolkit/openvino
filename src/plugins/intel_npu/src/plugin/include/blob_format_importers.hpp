@@ -147,7 +147,7 @@ constexpr int64_t DYNAMIC_BATCH_SIZE = -1;
  * the driver for the compiled schedule.
  * @details The metadata is not authenticated, while the batch size stored within it controls the size of the Level Zero
  * buffers and the slicing applied by the inference pipeline. Plugin batching runs the compiled schedule once per batch
- * slice, which is memory safe only if every buffer sliced by the pipeline was compiled with a batch of 1.、
+ * slice, which is memory safe only if every buffer sliced by the pipeline was compiled with a batch of 1.
  *
  * @param batch_size The batch size found in the blob metadata.
  * @param metadata The I/O descriptors of the main schedule.

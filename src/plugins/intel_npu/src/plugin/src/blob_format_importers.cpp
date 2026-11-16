@@ -521,7 +521,8 @@ void validate_batch_size(const int64_t batch_size, const NetworkMetadata& metada
 
         const ov::PartialShape& shape = descriptor.shapeFromCompiler;
         const bool compiled_with_batch_one =
-            shape.rank().is_static() && shape.rank().get_length() > 0 && shape[utils::BATCH_AXIS].is_static() &&
+            shape.rank().is_static() && shape.rank().get_length() > static_cast<int64_t>(utils::BATCH_AXIS) &&
+            shape[utils::BATCH_AXIS].is_static() &&
             shape[utils::BATCH_AXIS].get_length() == static_cast<int64_t>(utils::DEFAULT_BATCH_SIZE);
         OPENVINO_ASSERT(compiled_with_batch_one,
                         "The blob metadata declares a batch size of ",
