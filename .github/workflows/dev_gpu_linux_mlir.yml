@@ -323,7 +323,7 @@ jobs:
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
 
-  Test:
+  Func_Test:
     name: Arc BMG dGPU MLIR Tests
     needs: [ Build, Docker ]
     uses: ./.github/workflows/job_gpu_tests.yml
@@ -353,7 +353,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_dev_gpu_linux_mlir
-    needs: [ Smart_CI, Docker, Build, Test, Unit_Test ]
+    needs: [ Smart_CI, Docker, Build, Func_Test, Unit_Test ]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
