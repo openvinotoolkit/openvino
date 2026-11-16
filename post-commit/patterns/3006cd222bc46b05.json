@@ -2,12 +2,13 @@
   "schema_version": "1.0",
   "signature": "ERROR: Could not find a version that satisfies the requirement openvino~=<VERSION> (from versions: ...); ERROR: No matching distribution found for openvino~=<VERSION>; installing build dependencies did not run successfully building openvino_tokenizers wheel|Dependencies",
   "signature_hash": "3006cd222bc46b05",
-  "title": "OpenVINO tokenizers wheel build fails on Windows: pip cannot find matching dev openvino version for build dependency",
+  "title": "OpenVINO tokenizers wheel build fails: pip cannot find matching dev openvino version for build dependency",
   "category": "Dependencies",
-  "count": 2,
+  "count": 3,
   "first_seen": "2026-11-06T17:07:13Z",
-  "last_seen": "2026-11-16T12:23:17Z",
+  "last_seen": "2026-11-16T13:30:00Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/43859635737",
     "https://github.com/openvinotoolkit/openvino/actions/runs/43859635810",
     "https://github.com/openvinotoolkit/openvino/actions/runs/42243497813"
   ],
@@ -16,6 +17,7 @@
     "feffa3c6f7301221131c40fe7354dddea47ef6c1"
   ],
   "recent_timestamps": [
+    "2026-11-16T13:30:00Z",
     "2026-11-16T12:23:17Z"
   ]
 }
