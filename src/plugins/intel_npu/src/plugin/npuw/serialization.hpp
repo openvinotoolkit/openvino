@@ -118,18 +118,6 @@ class Bank;
 // --------------------------------------------------------------------------
 namespace s11n {
 
-class PairHash {
-public:
-    template <typename T, typename U>
-    std::size_t operator()(const std::pair<T, U>& p) const {
-        return std::hash<T>()(p.first) ^ std::hash<U>()(p.second);
-    }
-};
-
-using BF16Cache = std::unordered_set<std::pair<std::size_t, std::size_t>, ov::npuw::s11n::PairHash>;
-using Weights = ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>;
-using WeightsPtr = std::shared_ptr<Weights>;
-
 // Maps the weights a FileHandleProvider points at.
 //
 // The weights do not have to be a file of their own: they may be a region embedded in a larger
@@ -284,7 +272,9 @@ void transfer_tensor(Stream& stream, ov::Tensor& var, const s11n::TensorAllocato
 // Reopen s11n for weightless helpers that need the orc declarations above.
 namespace s11n {
 
-inline void write_weightless(std::ostream& stream, const std::vector<ov::Tensor>& var, const ExportWeightsContext& ctx) {
+inline void write_weightless(std::ostream& stream,
+                             const std::vector<ov::Tensor>& var,
+                             const ExportWeightsContext& ctx) {
     auto stream_io = Stream::writer(stream);
     auto& mutable_var = const_cast<std::vector<ov::Tensor>&>(var);
     orc::serialize_weightless(stream_io, mutable_var, ctx);
