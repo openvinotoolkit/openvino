@@ -22,7 +22,7 @@ KERNEL(recurrent_cache_update_stage)(OPTIONAL_SHAPE_INFO_ARG const __global INPU
                                      __global OUTPUT_TYPE* output,
                                      __global float* staged) {
     const size_t i = get_global_id(0);
-    const int F = INPUT3_SIZE_X, S = INPUT3_SIZE_Y, B = INPUT0_BATCH_NUM;
+    const int F = INPUT3_SIZE_X, B = INPUT0_BATCH_NUM;
     const int rb = reset_begin[INPUT8_OFFSET], re = rb + reset_length[INPUT9_OFFSET];
     const int es = offsets[INPUT10_GET_INDEX(0, 0, 0, 1)], eb = offsets[INPUT10_OFFSET], E = INPUT7_SIZE_X - es;
 #    define OLD(r, f) old_cache[INPUT3_GET_INDEX(0, 0, r, f)]
@@ -49,7 +49,6 @@ KERNEL(recurrent_cache_update_stage)(OPTIONAL_SHAPE_INFO_ARG const __global INPU
 
 inline float FUNC(l2norm_scale)(float sum, float extra_scale, float eps) {
     sum = sub_group_reduce_add(sum);
-    sum = sub_group_broadcast(sum, 0);
     return rsqrt(sum + eps) * extra_scale;
 }
 
@@ -187,7 +186,7 @@ inline void FUNC(write_cache_state)(OPTIONAL_SHAPE_INFO_ARG __global INPUT3_TYPE
         if (offset >= 0 && offset < sequences && plane * sequences + offset < N)
             return;
     }
-    // Match the former materialized state tensor's rounding, followed by cache precision.
+    // Round through computation precision, then cache precision.
     cache[INPUT3_GET_INDEX(0, 0, dst, (h * V_HEAD_DIM + v) * K_HEAD_DIM + k)] = (INPUT3_TYPE)((INPUT0_TYPE)value);
 }
 
@@ -267,7 +266,6 @@ KERNEL(recurrent_gated_delta_net_update)
         return;
     }
 #    define LOAD_STATE(k, v) staged[b * INPUT3_SIZE_X + (h * V_len + (v)) * K_len + (k)]
-    const int STATE_BASE = (b * H_len + h) * (K_len * V_len);
     const int group_size = H_len / HK_len;
     const int hk = h / group_size;
     const int out_bh_base = b * T_len * H_len * V_len + h * V_len;

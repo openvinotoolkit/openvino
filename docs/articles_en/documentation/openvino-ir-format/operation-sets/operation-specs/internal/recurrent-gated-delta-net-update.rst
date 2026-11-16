@@ -37,6 +37,9 @@ maps, ranges, and destinations must be in bounds.
 
 * 0 attention: query precision, ``[B,T,H_v,V]``.
 
+The computation output must remain on a path to a model Result so that the
+operation executes its cache update.
+
 Reset source rows logically before gather. Active states read the original
 source before reorder. The extra-row suffix resets/reorders retained cache rows.
 GDN computes all token outputs, accumulating in FP32. The newest
@@ -47,9 +50,10 @@ the final state, and older entries support llama.cpp MTP rollback.
 
 Selected snapshot source row ``source_begin+r`` writes destination
 ``destination_begin+(r/sequence_count)*snapshot_stride+r%sequence_count``.
-Later source rows win overlaps, including zero snapshot stride. State reads,
-retained rows, and snapshot writes round through query precision, then cache
-precision, matching the former materialized computation path.
+Later source rows win overlaps, including zero snapshot stride.
+``sequence_count`` must be positive when any snapshot source rows are selected.
+State reads, retained rows, and snapshot writes round through query precision,
+then cache precision.
 
 **Writable cache input and GPU ordering**
 

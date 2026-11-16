@@ -8,6 +8,7 @@ namespace ov::op::internal {
 /// Inputs: original cache, active rows, extra rows, reset begin/length,
 /// extra offsets, QKV [1,B,C,T], windows and depthwise weights.
 /// Nine inputs; output 0 is convolution [1,B,T,C].
+/// Output 0 must remain reachable from a model Result to execute the cache update.
 /// Cache input 0 is a writable GPU RemoteTensor, updated in place.
 /// Other inputs and output 0 must not overlap its allocation.
 /// The cache must be a Parameter or an exclusive Reshape alias; no other op
@@ -36,6 +37,7 @@ private:
 /// under the same writable-input contract as RecurrentConvCacheUpdate.
 /// snapshot_count saves the newest min(T,count) states in cache, newest first.
 /// Active/nonidentity rows are staged before writes; identity rows need no copy.
+/// Selected snapshot writes require a positive write_control sequence_count.
 class OPENVINO_API RecurrentGatedDeltaNetUpdate : public Op {
 public:
     OPENVINO_OP("RecurrentGatedDeltaNetUpdate", "internal");

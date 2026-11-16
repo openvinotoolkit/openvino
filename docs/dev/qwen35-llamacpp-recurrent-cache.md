@@ -12,9 +12,9 @@ offsets and write controls remain tensor inputs.
 
 llama.cpp binds each full cache as a writable Parameter using a stable GPU USM
 allocation. Both ops update that input in place and return only their computation
-result. There are no cache Results, output alias bindings, rotation banks or pointer
-swaps. The primitive uses the ordinary output allocation path for its single output;
-no changes to primitive_inst or network output binding are needed.
+result. The primitive uses the ordinary output allocation path for its single output.
+The computation output must stay reachable from a model Result so that the cache
+update executes, including inference without requested logits.
 
 The GPU precision pass protects caller-owned cache Parameters and exclusive
 Reshape aliases. A cache with another graph reader or a computed temporary cache
@@ -34,14 +34,16 @@ retrying.
 `RecurrentConvCacheUpdate` takes nine inputs, including depthwise weights, and
 returns convolution `[1,B,T,C]`. `RecurrentGatedDeltaNetUpdate` takes twelve inputs
 and returns attention `[B,T,H,V]`. GDN stores the newest `min(T,snapshot_count)`
-states in its cache input, newest first. Ordinary GDN is unchanged. Unmatched
+states in its cache input, newest first. Selected snapshot writes require a positive
+`write_control.sequence_count`. Ordinary GDN is unchanged. Unmatched
 llama.cpp graphs obtain state snapshots with ordinary GDN token prefixes and
 functional writeback instead of mutating a temporary bank.
 
 Native tests compare convolution against a host calculation and GDN against
 ordinary GDN prefixes with independent host cache mapping. They cover reset,
 cycles, duplicates, overlapping writes, mixed precision, changing shapes, input
-rebinding, exclusive Reshapes, shared-reader rejection, host/device USM and
+rebinding, grouped heads, consecutive inference using the same cache allocation,
+exclusive Reshapes, shared-reader rejection, host/device USM and
 compiled-model export/import. Core shape/attribute tests enforce one output.
 
 ## Companion frontend
@@ -54,6 +56,4 @@ Unified attention KV is the recommended multi-slot layout because the current
 stateless attention KV fusion supports a single physical stream.
 
 Current configuration, validation, graph examples and measured results are indexed
-in llama.cpp at `ggml/src/ggml-openvino/dev_doc/README.md`. Historical rotation and
-separate-convolution comparisons are evidence for the selected default, not
-additional supported implementation modes.
+in llama.cpp at `ggml/src/ggml-openvino/dev_doc/README.md`.

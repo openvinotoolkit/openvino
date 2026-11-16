@@ -28,6 +28,9 @@ It supports in-place execution without changing the existing convolution operati
 
 * 0 convolution ``[1,B,T,C]`` in QKV precision, accumulated in FP32.
 
+The computation output must remain on a path to a model Result so that the
+operation executes its cache update.
+
 **Semantics**
 
 Logically reset source rows in ``[reset_begin,reset_begin+reset_length)`` before
@@ -40,8 +43,8 @@ reorder, and window writes occur in that order; later windows win overlaps.
 The caller supplies in-bounds maps, ranges, and windows. Runtime dimensions and
 metadata may change on one compiled model.
 
-Cache reads, retained rows, and history writes round through QKV precision,
-matching the prior materialized computation path. Cache input 0 is updated in place;
+Cache reads and retained rows round through QKV precision. History and retained-row
+writes then round through cache precision. Cache input 0 is updated in place;
 no cache output is allocated.
 
 **Writable cache input and GPU ordering**

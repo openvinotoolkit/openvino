@@ -8,15 +8,17 @@
 #include "utils/kernel_generator.hpp"
 namespace ov::intel_gpu::ocl {
 namespace {
+enum class UpdateStage { gather = 0, compute = 1 };
+
 size_t subgroup(gpu_arch arch) {
     return one_of(arch, {gpu_arch::gen9, gpu_arch::gen11, gpu_arch::xe_lp, gpu_arch::xe_hp, gpu_arch::xe_hpg}) ? 8 : 16;
 }
 class UpdateGenerator : public KernelGenerator {
-    int m_stage;
+    UpdateStage m_stage;
 
 public:
-    UpdateGenerator(bool conv, int stage)
-        : KernelGenerator(conv ? "recurrent_conv_cache_update" : "recurrent_gated_delta_net_update", std::to_string(stage)),
+    UpdateGenerator(bool conv, UpdateStage stage)
+        : KernelGenerator(conv ? "recurrent_conv_cache_update" : "recurrent_gated_delta_net_update", std::to_string(static_cast<int>(stage))),
           m_stage(stage) {}
 
 protected:
@@ -24,7 +26,7 @@ protected:
         auto j = KernelGenerator::get_jit_constants(p);
         auto d = p.typed_desc<recurrent_cache_update>();
         bool conv = d->history > 0;
-        j.make("INPLACE_STAGE", m_stage);
+        j.make("INPLACE_STAGE", static_cast<int>(m_stage));
         j.make("HISTORY", d->history);
         if (!conv) {
             auto q = p.get_input_layout(0).get_partial_shape(), v = p.get_input_layout(2).get_partial_shape();
@@ -50,7 +52,7 @@ protected:
             a.push_back({ArgumentDescriptor::Types::INPUT, i});
         a.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
         bool gdn = p.typed_desc<recurrent_cache_update>()->history == 0;
-        if (m_stage == 2 && gdn)
+        if (m_stage == UpdateStage::compute && gdn)
             for (uint32_t i = 0; i < 7; ++i)
                 a.push_back({ArgumentDescriptor::Types::SCALAR, i});
         a.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
@@ -63,7 +65,7 @@ protected:
             const auto cache = p.get_input_layout(conv ? 0 : 3);
             auto data = p.get_input_layout(conv ? 6 : 0).get_partial_shape();
             auto& wg = kd.params.workGroups;
-            if (stage == 2 && !conv) {
+            if (stage == UpdateStage::compute && !conv) {
                 auto v = p.get_input_layout(2).get_partial_shape();
                 auto sg = subgroup(p.get_device_info().arch);
                 wg.global = {size_t(data[0].get_length() + cache.get_partial_shape()[2].get_length()),
@@ -71,14 +73,15 @@ protected:
                              size_t((v[3].get_length() + 3) / 4) * sg};
                 wg.local = {1, 1, sg};
             } else {
-                size_t count = stage == 0 ? (size_t(p.get_input_layout(conv ? 1 : 6).count()) + p.get_input_layout(conv ? 2 : 7).count()) *
-                                                size_t(cache.get_partial_shape()[3].get_length())
-                                          : std::max(p.output_layouts[0].count(), cache.count());
+                size_t count = stage == UpdateStage::gather
+                                   ? (size_t(p.get_input_layout(conv ? 1 : 6).count()) + p.get_input_layout(conv ? 2 : 7).count()) *
+                                         size_t(cache.get_partial_shape()[3].get_length())
+                                   : std::max(p.output_layouts[0].count(), cache.count());
                 wg.global = {((count + 255) / 256) * 256, 1, 1};
                 wg.local = {256, 1, 1};
             }
             kd.params.scalars.clear();
-            if (stage == 2 && !conv) {
+            if (stage == UpdateStage::compute && !conv) {
                 std::vector<int32_t> s{int32_t(data[1].get_length())};
                 for (size_t i = 0; i < 3; ++i) {
                     auto pads = p.get_input_layout(i).data_padding._lower_size;
@@ -104,10 +107,10 @@ public:
     // The gather stage is a global read-before-write boundary. The compute
     // stage owns reset/reorder/writeback too, avoiding a third launch and allowing
     // recurrence owners to skip cache rows that their snapshots overwrite.
-    Stage::Ptr conv_gather = make_stage<UpdateGenerator>(true, 0);
-    Stage::Ptr conv_compute = make_stage<UpdateGenerator>(true, 2);
-    Stage::Ptr gdn_gather = make_stage<UpdateGenerator>(false, 0);
-    Stage::Ptr gdn_compute = make_stage<UpdateGenerator>(false, 2);
+    Stage::Ptr conv_gather = make_stage<UpdateGenerator>(true, UpdateStage::gather);
+    Stage::Ptr conv_compute = make_stage<UpdateGenerator>(true, UpdateStage::compute);
+    Stage::Ptr gdn_gather = make_stage<UpdateGenerator>(false, UpdateStage::gather);
+    Stage::Ptr gdn_compute = make_stage<UpdateGenerator>(false, UpdateStage::compute);
     CacheUpdateImpl() : PrimitiveImplOCL(RecurrentCacheUpdate::get_type_info_static()) {}
     CacheUpdateImpl(const program_node&, const RuntimeParams& p) : CacheUpdateImpl() {
         bool c = p.typed_desc<recurrent_cache_update>()->history > 0;

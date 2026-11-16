@@ -19,7 +19,7 @@ KERNEL(recurrent_cache_update_stage)(OPTIONAL_SHAPE_INFO_ARG __global INPUT0_TYP
                                      __global OUTPUT_TYPE* output,
                                      __global float* staged) {
     const size_t i = get_global_id(0);
-    const int F = INPUT0_SIZE_X, S = INPUT0_SIZE_Y, B = INPUT1_SIZE_X;
+    const int F = INPUT0_SIZE_X, B = INPUT1_SIZE_X;
     const int rb = reset_begin[INPUT3_OFFSET], re = rb + reset_length[INPUT4_OFFSET];
     const int es = offsets[INPUT5_GET_INDEX(0, 0, 0, 1)], eb = offsets[INPUT5_OFFSET], E = INPUT2_SIZE_X - es;
 #    define OLD(r, f) old_cache[INPUT0_GET_INDEX(0, 0, r, f)]
@@ -71,13 +71,11 @@ KERNEL(recurrent_conv_cache_update)
         const int c = T >= 16 ? (i / T) % C : i % C;
         const int t = T >= 16 ? i % T : (i / C) % T;
         const int b = i / (T * C);
-        const int row = active_rows[INPUT1_GET_INDEX(0, 0, 0, b)];
         float sum = 0.0f;
         for (int j = 0; j <= HISTORY; ++j) {
             const int x = t + j;
-            float v = x < HISTORY ? (row >= rb && row < re
-                                         ? 0.0f
-                                         : staged[b * F + c * HISTORY + x])
+            // Gather already applies logical reset to the active history.
+            float v = x < HISTORY ? staged[b * F + c * HISTORY + x]
                                   : convert_float(qkv[INPUT6_GET_INDEX(0, b, c, x - HISTORY)]);
             v = convert_float(TO_OUTPUT_TYPE(v));
             sum = fma(v, convert_float(weights[INPUT8_GET_INDEX(0, 0, c, j)]), sum);
@@ -92,7 +90,7 @@ KERNEL(recurrent_conv_cache_update)
         float v =
             row != dst ? staged[(B + dst - eb) * F + f] : (row >= rb && row < re ? 0.0f : convert_float(old_cache[INPUT0_GET_INDEX(0, 0, row, f)]));
         v = convert_float(TO_OUTPUT_TYPE(v));
-        // Later windows have the same precedence as the original ordered CPYs.
+        // Later windows overwrite earlier windows at overlapping destinations.
         for (int k = 0; k < INPUT7_SIZE_Y; ++k) {
             const int start = windows[INPUT7_GET_INDEX(0, 0, k, 0)];
             const int dest = windows[INPUT7_GET_INDEX(0, 0, k, 1)];
@@ -100,7 +98,7 @@ KERNEL(recurrent_conv_cache_update)
                 const int b = dst - dest, c = f / HISTORY, t = start + f % HISTORY;
                 v = t < HISTORY ? staged[b * F + c * HISTORY + t]
                                 : convert_float(qkv[INPUT6_GET_INDEX(0, b, c, t - HISTORY)]);
-                // Cache the materialized convolution input, including its precision conversion.
+                // History writes round through QKV precision before cache precision.
                 v = convert_float(TO_OUTPUT_TYPE(v));
             }
         }

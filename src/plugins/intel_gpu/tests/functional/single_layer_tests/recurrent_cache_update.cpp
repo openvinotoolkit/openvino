@@ -51,7 +51,9 @@ void run_update_case(bool conv,
                      ov::element::Type cache_type = ov::element::f32,
                      bool cache_view = false,
                      bool host_usm = false,
-                     bool static_shapes = false) {
+                     bool static_shapes = false,
+                     int key_heads = 2,
+                     bool reuse_cache = false) {
     constexpr int S = 12, H = 2, C = 7, history = 3;
     const int F = conv ? C * history : H * K * V;
     const size_t cache_port = conv ? 0 : 3;
@@ -73,8 +75,8 @@ void run_update_case(bool conv,
         add(indices, {1, 1, -1, 2});
         add(type, {1, 1, C, history + 1});
     } else {
-        add(type, {-1, -1, H, K});
-        add(type, {-1, -1, H, K});
+        add(type, {-1, -1, key_heads, K});
+        add(type, {-1, -1, key_heads, K});
         add(type, {-1, -1, H, V});
         add(cache_type, {1, 1, -1, F});
         for (int i = 0; i < 2; ++i)
@@ -91,7 +93,7 @@ void run_update_case(bool conv,
             ? std::vector<ov::Shape>{{1, 1, S, size_t(F)}, {1, 1, 1, 2}, {1, 1, 1, 3},
                                      {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 2},
                                      {1, 2, C, 3}, {1, 1, 3, 2}, {1, 1, C, history + 1}}
-            : std::vector<ov::Shape>{{2, 3, H, size_t(K)}, {2, 3, H, size_t(K)}, {2, 3, H, size_t(V)},
+            : std::vector<ov::Shape>{{2, 3, size_t(key_heads), size_t(K)}, {2, 3, size_t(key_heads), size_t(K)}, {2, 3, H, size_t(V)},
                                      {1, 1, S, size_t(F)}, {2, 3, H}, {2, 3, H},
                                      {1, 1, 1, 2}, {1, 1, 1, 3}, {1, 1, 1, 1}, {1, 1, 1, 1},
                                      {1, 1, 1, 2}, {1, 1, 1, 4}};
@@ -148,6 +150,7 @@ void run_update_case(bool conv,
         ov::InferRequest expected_req;
         if (!conv)
             expected_req = ref.create_infer_request();
+        ov::Tensor cache_memory, previous_cache;
         for (int step = 0; step < 9; ++step) {
             const size_t B = static_shapes ? 2 : step % 4 + 1;
             const size_t T = static_shapes ? 3 : step == 8 ? 17 : step % 4 + 1;
@@ -200,8 +203,8 @@ void run_update_case(bool conv,
                 ints({1, 1, windows.size() / 2, 2}, windows);
                 data(8, {1, 1, C, history + 1});
             } else {
-                data(0, {B, T, H, size_t(K)});
-                data(1, {B, T, H, size_t(K)});
+                data(0, {B, T, size_t(key_heads), size_t(K)});
+                data(1, {B, T, size_t(key_heads), size_t(K)});
                 data(2, {B, T, H, size_t(V)});
                 data(3, {1, 1, S, size_t(F)});
                 data(4, {B, T, H});
@@ -213,6 +216,10 @@ void run_update_case(bool conv,
                 ints({1, 1, 1, 2}, {0, int(suffix)});
                 ints({1, 1, 1, 4}, {0, int(B), step % 2 ? int(B) : 0, step % 2});
             }
+            // Continue from the previous expected state while the GPU keeps its
+            // updated cache allocation, without a host copy or input rebinding.
+            if (reuse_cache && step > 0)
+                inputs[cache_port] = previous_cache;
             auto integer = [&](size_t port, size_t i = 0) {
                 return indices == ov::element::i32 ? int(inputs[port].data<int32_t>()[i]) : int(inputs[port].data<int64_t>()[i]);
             };
@@ -298,19 +305,21 @@ void run_update_case(bool conv,
                 if (port != cache_port)
                     req.set_input_tensor(port, inputs[port]);
             }
-            auto remote = host_usm ? context.create_usm_host_tensor(cache_type, inputs[cache_port].get_shape())
-                                   : context.create_usm_device_tensor(cache_type, inputs[cache_port].get_shape());
-            inputs[cache_port].copy_to(remote);
-            req.set_input_tensor(cache_port, remote);
+            if (!reuse_cache || step == 0) {
+                cache_memory = host_usm ? context.create_usm_host_tensor(cache_type, inputs[cache_port].get_shape())
+                                       : context.create_usm_device_tensor(cache_type, inputs[cache_port].get_shape());
+                inputs[cache_port].copy_to(cache_memory);
+                req.set_input_tensor(cache_port, cache_memory);
+            }
             req.set_output_tensor(0, context.create_usm_device_tensor(type, expected[0].get_shape()));
-            auto other = context.create_usm_device_tensor(cache_type, remote.get_shape());
+            auto other = context.create_usm_device_tensor(cache_type, cache_memory.get_shape());
             if (independent_input) {
                 inputs[cache_port].copy_to(other);
                 req.set_input_tensor(inputs.size(), other);
             }
             req.infer();
             for (size_t port = 0; port < 2; ++port) {
-                auto out = port == 0 ? req.get_output_tensor(0) : remote;
+                auto out = port == 0 ? req.get_output_tensor(0) : cache_memory;
                 auto reference = expected[port];
                 ov::Tensor actual(out.get_element_type(), out.get_shape());
                 out.copy_to(actual);
@@ -331,7 +340,8 @@ void run_update_case(bool conv,
                     ASSERT_EQ(host.data<float>()[i], x * x);
                 }
             }
-
+            if (reuse_cache)
+                previous_cache = expected[1];
         }
     }
 }
@@ -348,6 +358,23 @@ TEST(RecurrentCacheUpdateNative, GdnCyclesSnapshotsAndExport) {
             for (int count : {1, 3})
                 for (const auto& dims : {std::pair<int, int>{128, 8}, std::pair<int, int>{8, 7}})
                     run_update_case(false, type, indices, dims.first, dims.second, count);
+}
+
+TEST(RecurrentCacheUpdateNative, GdnGroupedHeadsAndExport) {
+    for (auto type : {ov::element::f16, ov::element::f32})
+        for (const auto& dims : {std::pair<int, int>{128, 8}, std::pair<int, int>{8, 7}})
+            run_update_case(false, type, ov::element::i32, dims.first, dims.second, 3,
+                            false, false, ov::element::f32, false, false, false, /* key_heads */ 1);
+}
+
+TEST(RecurrentCacheUpdateNative, ConsecutiveInferenceUsesUpdatedCache) {
+    // Fixed shapes exercise repeated inference with the same bound cache input.
+    for (auto type : {ov::element::f16, ov::element::f32}) {
+        run_update_case(true, type, ov::element::i32, 0, 0, 1,
+                        false, false, ov::element::f32, false, false, true, 2, /* reuse_cache */ true);
+        run_update_case(false, type, ov::element::i32, 128, 8, 3,
+                        false, false, ov::element::f32, false, false, true, 2, /* reuse_cache */ true);
+    }
 }
 TEST(RecurrentCacheUpdateNative, SharedCacheReaderForbidsMutation) {
     run_update_case(true, ov::element::f16, ov::element::i32, 0, 0, 1, true);
