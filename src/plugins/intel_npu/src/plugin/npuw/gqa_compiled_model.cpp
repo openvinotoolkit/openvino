@@ -848,7 +848,7 @@ void ov::npuw::GQAInferRequest::ensure_inner_request_locked() const {
         GQA_TRACE("ensure_inner_request_locked(): created inner infer request @ "
                   << m_inner_request.get() << ", inner model has " << inner_model->inputs().size() << " inputs, "
                   << inner_model->outputs().size() << " outputs");
-
+    }
     }
 }
 
@@ -1228,10 +1228,11 @@ void ov::npuw::GQAInferRequest::set_tensor(const ov::Output<const ov::Node>& por
                                                  << capacity << " inner_tensor_shape=" << inner_shape);
     auto expected_shape = inner_shape;
     expected_shape.at(axis) = requested_len;
-    OPENVINO_ASSERT(tensor->get_element_type() == inner_port.get_element_type() && tensor->get_shape() == expected_shape,
-                    "GQA input '",
-                    name,
-                    "' must match the compiled element type and non-capacity dimensions");
+    OPENVINO_ASSERT(
+        tensor->get_element_type() == inner_port.get_element_type() && tensor->get_shape() == expected_shape,
+        "GQA input '",
+        name,
+        "' must match the compiled element type and non-capacity dimensions");
     OPENVINO_ASSERT(requested_len <= capacity,
                     "GQA KV-cache '",
                     name,
@@ -1273,7 +1274,8 @@ void ov::npuw::GQAInferRequest::sync_dynamic_kv_cache_tensors_locked() const {
         // get_tensor() followed by set_shape(), or a caller tensor reshaped afterwards.
         // copy_by_planes() (axis 2) sizes each plane from the source, so an unchecked
         // over-capacity tensor here would write past the end of the static buffer.
-        const auto src_len = tensor_it == m_dynamic_kv_cache_tensors.end() ? 0u : tensor_it->second->get_shape().at(axis);
+        const auto src_len =
+            tensor_it == m_dynamic_kv_cache_tensors.end() ? 0u : tensor_it->second->get_shape().at(axis);
         const auto capacity = inner_shape.at(axis);
         OPENVINO_ASSERT(src_len <= capacity,
                         "GQA KV-cache '",
