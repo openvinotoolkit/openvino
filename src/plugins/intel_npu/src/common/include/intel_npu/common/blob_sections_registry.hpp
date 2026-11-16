@@ -24,7 +24,13 @@ public:
      * @brief Add a new blob section to the writing queue.
      *
      * @param section The section to be added in the writing queue.
-     * @param id TODO
+     * @param id If provided, this section ID will be attributed to the section to be registered. Otherwise, the next
+     * available unique ID will be used.
+     * @note IDs are meant to be provided only while on the import path. That is because the imported sections already
+     * have IDs attached to them, and we'd like to preserve them for the sake of write idempotency (i.e. writing an
+     * imported blob should yield the same blob as the original one).
+     * @note If an ID is provided, then the next available unique ID is set to the max(current ID, provided ID + 1).
+     * Using the maximum ID we're aware of should help avoid using the same ID twice for the same blob.
      * @return The instance ID of the section. This number corresponds to the order within the writing queue and it is
      * used to distringuish between sections of the same type. This number is unique only among sections of the same
      * type.
@@ -74,12 +80,14 @@ public:
      */
     std::unordered_map<SectionType, size_t> get_content_summary() const;
 
-    // TODO update
     /**
      * @brief Builds the runtime requirements (CRE + individual "compatibility substrings") based on the sections
      * registered so far.
+     * @details The CRE is built by calling @ref ISection::get_cre_tokens on all registered sections and concatenating
+     * the result. The section requirement are procured via @ref ISection::get_individual_runtime_requirements .
      * @note The requirements are built on demand and not stored in order to make sure the requirements are aligned with
      * the content of the blob.
+     * @returns A runtime requirements section
      */
     std::shared_ptr<ISection> build_runtime_requirements_section() const;
 

@@ -73,7 +73,6 @@ TEST_F(ELFMainScheduleSectionTest, CtorSetsTheRightValue) {
     ASSERT_EQ(section->get_schedule().get_byte_size(), 0);
 }
 
-// TODO verify the negative tests are still correct
 TEST_F(ELFMainScheduleSectionTest, CompatibilityReqsSubexpression) {
     std::shared_ptr<ELFMainScheduleSection> section1 = create_section_using_dummy_content();
     OV_EXPECT_THROW(section1->get_cre_tokens({}), ov::Exception, _);

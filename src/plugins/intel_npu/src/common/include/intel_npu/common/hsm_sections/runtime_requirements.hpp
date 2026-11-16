@@ -37,10 +37,17 @@ public:
      * @brief Leverage the section type and instance evaluators to evaluate the runtime requirements.
      *
      * @param type_evaluators Instruct the CRE how to evaluate section types. Missing section types will be treated as
-     * "unsupported".
+     * "supported".
      * @param instance_evaluators Instruct the CRE how to evaluate section instances. Missing section instances will be
      * treated as "supported".
-     * @return TODO "NOT_APPLICABLE" in uncertain scenarios. "SUPPORTED" or "UNSUPPORTED" when the result is known.
+     * @return The final result of the evaluation, along with all types and instances that needed to be evaluated and
+     * their evaluation results. The final result can be "supported", "unsupported" or "not applicable". The latter can
+     * be returned if the final result if uncertain. This happens through the influence of section instances that
+     * evaluate to "not applicable".
+     *
+     * Only the section types and instances that were required to be evaluated are returned within the remaining
+     * attributes. The section types can only evaluate to true or false, while the instance evaluators can return
+     * "supported", "unsupported" or "not applicable".
      */
     RuntimeRequirementsEvaluationResult check_compatibility(
         const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& type_evaluators,

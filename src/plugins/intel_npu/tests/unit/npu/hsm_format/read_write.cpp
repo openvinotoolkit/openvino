@@ -8,6 +8,7 @@
 #include "hsm_read_write.hpp"
 #include "hsm_sections/batch_size.hpp"
 #include "hsm_sections/compiler_version.hpp"
+#include "hsm_sections/io_layouts.hpp"
 #include "intel_npu/common/hsm_sections/runtime_requirements.hpp"
 #include "openvino/runtime/hsm_deferred_writer.hpp"
 #include "openvino/runtime/hsm_reader.hpp"
@@ -320,6 +321,25 @@ TEST_P(HSMReadWriteTest, UnsupportedSectionTypeSkipped) {
                            hsm::read_from(base_reader, section_readers, type_evaluators, instance_evaluators));
     ASSERT_FALSE(registry.has_section_of_type(SectionTypeCode::IO_LAYOUTS));
     ASSERT_TRUE(runtime_requirements.has_value());
+}
+
+TEST_P(HSMReadWriteTest, NonInlineSection) {
+    const std::vector<ov::Layout> input_layouts{ov::Layout("NC")};
+    const std::vector<ov::Layout> output_layouts{ov::Layout("NCHW")};
+    sections_registry.register_section(std::make_shared<IOLayoutsSection>(input_layouts, output_layouts));
+    hsm::write_to(stream, sections_registry);
+
+    section_readers[SectionTypeCode::IO_LAYOUTS] = IOLayoutsSection::decode;
+    ov::runtime::hsm::Reader base_reader = create_base_reader(stream, use_tensor_source);
+    const auto& [registry, runtime_requirements] =
+        hsm::read_from(base_reader, section_readers, type_evaluators, instance_evaluators);
+
+    auto section = registry.retrieve_unique_section_of_type(SectionTypeCode::IO_LAYOUTS);
+    ASSERT_TRUE(section);
+    const auto casted_section = std::dynamic_pointer_cast<IOLayoutsSection>(section);
+    ASSERT_TRUE(casted_section);
+    ASSERT_EQ(casted_section->get_input_layouts(), input_layouts);
+    ASSERT_EQ(casted_section->get_output_layouts(), output_layouts);
 }
 
 TEST_P(HSMReadWriteTest, MixedCases) {
