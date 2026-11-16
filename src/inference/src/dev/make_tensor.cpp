@@ -9,7 +9,6 @@
 #include <utility>
 
 #include "openvino/core/memory_util.hpp"
-#include "openvino/core/shape_util.hpp"
 #include "openvino/core/type/element_type_info.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/properties.hpp"

@@ -388,7 +388,7 @@ def test_cannot_create_roi_from_packed_tensor(ov_type):
     ov_tensor = ov.Tensor(ov_type, [1, 3, 48, 48])
     with pytest.raises(RuntimeError) as e:
         ov.Tensor(ov_tensor, [0, 0, 24, 24], [1, 3, 48, 48])
-        assert expected_msg in str(e.value)
+    assert "cannot slice the innermost dimension" in str(e.value)
 
 
 def test_roi_from_packed_tensor_when_strided_two_heads():
@@ -418,7 +418,7 @@ def test_roi_from_packed_tensor_when_strided_two_heads():
         assert np.array_equal(dst_slice, src_slice)
 
 
-def test_roi_from_packed_tensor_when_strided_two_heads():
+def test_roi_from_packed_tensor_when_strided_two_heads_direct_access():
     ov_tensor = ov.Tensor(ov.Type.i4, [1, 2, 4095, 512])
     ov_tensor.data[:] = np.arange(ov_tensor.data.size, dtype=ov_tensor.data.dtype)
 
