@@ -20,15 +20,12 @@ struct GatherNDImplementationManager : public ImplementationManager {
             format::bfwzyx
         };
 
-        static const std::vector<ov::element::Type_t> supported_in_types = {
-            ov::element::f32,
-            ov::element::f16,
-            ov::element::i32
-        };
+        static const std::vector<ov::element::Type_t> supported_in_types = {ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::i32};
 
         static const std::vector<ov::element::Type_t> supported_out_types = {
             ov::element::f32,
             ov::element::f16,
+            ov::element::bf16,
             ov::element::i32,
             ov::element::i8,
             ov::element::u8,
@@ -41,8 +38,13 @@ struct GatherNDImplementationManager : public ImplementationManager {
             return false;
         }
 
-        if (!one_of(in0_layout.data_type, supported_in_types) || !one_of(in1_layout.data_type, supported_in_types)) {
+        if (!one_of(in0_layout.data_type, supported_in_types) || !one_of(in1_layout.data_type, supported_in_types) ||
+            in1_layout.data_type == ov::element::bf16) {
             return false;
+        }
+
+        if (in0_layout.data_type == ov::element::bf16 || out_layout.data_type == ov::element::bf16) {
+            return in0_layout.data_type == ov::element::bf16 && out_layout.data_type == ov::element::bf16;
         }
 
         return one_of(out_layout.data_type, supported_out_types);

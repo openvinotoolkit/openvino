@@ -301,6 +301,21 @@ TEST(type_prop, paged_attention_invalid_type_scale) {
                     HasSubstr("Element type of `scale`"));
 }
 
+TEST(type_prop, paged_attention_empty_bf16_optional_inputs) {
+    auto args = make_valid_pa_args(element::bf16);
+    args[16] = std::make_shared<op::v0::Parameter>(element::bf16, PartialShape{0});
+    args[17] = std::make_shared<op::v0::Parameter>(element::bf16, PartialShape{0});
+    EXPECT_NO_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args));
+}
+
+TEST(type_prop, paged_attention_nonempty_bf16_optional_inputs_rejected) {
+    for (const auto index : {16, 17}) {
+        auto args = make_valid_pa_args(element::bf16);
+        args[index] = std::make_shared<op::v0::Parameter>(element::bf16, PartialShape{1});
+        EXPECT_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args), ov::NodeValidationFailure);
+    }
+}
+
 TEST(type_prop, paged_attention_invalid_rank_key_cache) {
     auto args = make_valid_pa_args();
     args[3] = std::make_shared<op::v0::Parameter>(element::f32,

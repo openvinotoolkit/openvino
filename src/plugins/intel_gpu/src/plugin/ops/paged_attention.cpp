@@ -8,6 +8,7 @@
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 
 namespace ov {
 namespace op {
@@ -56,7 +57,11 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     if (query_merged_dim.is_static()) {
         heads_num = query_merged_dim.get_length() / k_head_size;
     } else {
-        auto reshape_input = op->get_input_node_shared_ptr(0)->get_input_partial_shape(0);
+        auto query_node = op->get_input_node_shared_ptr(0);
+        if (const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(query_node)) {
+            query_node = convert->get_input_node_shared_ptr(0);
+        }
+        auto reshape_input = query_node->get_input_partial_shape(0);
         heads_num = reshape_input[2].get_length();
     }
 

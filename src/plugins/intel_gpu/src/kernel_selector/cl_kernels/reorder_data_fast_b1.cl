@@ -181,8 +181,8 @@ KERNEL (reorder_data_fast_b1)(
 #endif
 
 #if CHANGE_DATA_TYPE_ONLY
-    const uint input_idx  = data_idx;
-    const uint output_idx = data_idx;
+    const uint input_idx = data_idx + INPUT0_OFFSET;
+    const uint output_idx = data_idx + OUTPUT_OFFSET;
 #else
     uint8 ov = RESHAPE_DIMS(OUTPUT, INPUT0, b, f, 0, 0, w, z, y, x);
     const uint input_idx = FUNC_CALL(get_input_index)(ov.s0, ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6, ov.s7);

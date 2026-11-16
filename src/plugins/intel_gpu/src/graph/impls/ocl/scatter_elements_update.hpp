@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "registry/implementation_manager.hpp"
-#include "program_node.h"
-
 #include <memory>
+
+#include "program_node.h"
+#include "registry/implementation_manager.hpp"
+#include "scatter_elements_update_inst.h"
 namespace cldnn {
 namespace ocl {
 
@@ -32,15 +33,12 @@ struct ScatterElementsUpdateImplementationManager : public ImplementationManager
             format::bfwzyx
         };
 
-        static const std::vector<ov::element::Type_t> supported_in_types = {
-            ov::element::f32,
-            ov::element::f16,
-            ov::element::i32
-        };
+        static const std::vector<ov::element::Type_t> supported_in_types = {ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::i32};
 
         static const std::vector<ov::element::Type_t> supported_out_types = {
             ov::element::f32,
             ov::element::f16,
+            ov::element::bf16,
             ov::element::i32,
             ov::element::i8,
             ov::element::u8,
@@ -48,13 +46,20 @@ struct ScatterElementsUpdateImplementationManager : public ImplementationManager
 
         const auto& in0_layout = node.get_input_layout(0);
         const auto& in1_layout = node.get_input_layout(1);
+        const auto& in2_layout = node.get_input_layout(2);
         const auto& out_layout = node.get_output_layout(0);
         if (!one_of(in0_layout.format, supported_fmts) || !one_of(out_layout.format, supported_fmts)) {
             return false;
         }
 
-        if (!one_of(in0_layout.data_type, supported_in_types) || !one_of(in1_layout.data_type, supported_in_types)) {
+        if (!one_of(in0_layout.data_type, supported_in_types) || !one_of(in1_layout.data_type, supported_in_types) ||
+            in1_layout.data_type == ov::element::bf16) {
             return false;
+        }
+
+        if (in0_layout.data_type == ov::element::bf16 || in2_layout.data_type == ov::element::bf16 || out_layout.data_type == ov::element::bf16) {
+            return everyone_is(ov::element::bf16, in0_layout.data_type, in2_layout.data_type, out_layout.data_type) &&
+                   node.as<scatter_elements_update>().get_primitive()->mode == ScatterElementsUpdateOp::Reduction::NONE && node.get_fused_primitives().empty();
         }
 
         return one_of(out_layout.data_type, supported_out_types);

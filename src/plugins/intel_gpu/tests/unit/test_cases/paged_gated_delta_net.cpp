@@ -332,8 +332,8 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
                       head_size,
                       ref_output);
 
-        const float atol = std::is_same<T, ov::float16>::value ? 4e-2f : 1e-3f;
-        const float rtol = std::is_same<T, ov::float16>::value ? 5e-4f : 1e-5f;
+        const float atol = std::is_same<T, ov::bfloat16>::value ? 8e-2f : (std::is_same<T, ov::float16>::value ? 4e-2f : 1e-3f);
+        const float rtol = std::is_same<T, ov::bfloat16>::value ? 4e-3f : (std::is_same<T, ov::float16>::value ? 5e-4f : 1e-5f);
 
         {
             cldnn::mem_lock<T, mem_lock_type::read> out_lock(out_mem, get_test_stream());
@@ -361,6 +361,11 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
     void execute(const paged_gated_delta_net_test_params& p) {
         if (p.precision == ov::element::f16) {
             execute_t<ov::float16>(p);
+            return;
+        }
+
+        if (p.precision == ov::element::bf16) {
+            execute_t<ov::bfloat16>(p);
             return;
         }
 
@@ -411,43 +416,45 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_gated_delta_net_gpu_test,
                          paged_gated_delta_net_gpu_test,
                          // Parameter order:
                          // {subsequence_tokens, past_lens, cache_intervals, qk_heads, v_heads, head_size, precision}
-                         ::testing::Values(
-                             // f16: decode stage (past_len > 0), head_size 16/64/128, different sequence counts.
-                             paged_gated_delta_net_test_params{{3, 3}, {2, 3}, {2, 3}, 2, 2, 16, ov::element::f16},
-                             paged_gated_delta_net_test_params{{2, 3, 2}, {1, 2, 4}, {2, 3, 2}, 2, 2, 64, ov::element::f16},
-                             paged_gated_delta_net_test_params{{1, 2, 3, 2}, {1, 3, 2, 4}, {2, 2, 3, 4}, 2, 2, 128, ov::element::f16},
-                             // f16: prefill stage (all past_len = 0), head_size 16/64/128, different sequence counts.
-                             paged_gated_delta_net_test_params{{3, 2}, {0, 0}, {2, 2}, 2, 2, 16, ov::element::f16},
-                             paged_gated_delta_net_test_params{{2, 2, 2}, {0, 0, 0}, {2, 2, 2}, 2, 2, 64, ov::element::f16},
-                             paged_gated_delta_net_test_params{{1, 2, 2, 3}, {0, 0, 0, 0}, {2, 2, 3, 2}, 2, 2, 128, ov::element::f16},
-                             // f16: mixed stage (some past_len = 0, some past_len > 0), head_size 16/64/128.
-                             paged_gated_delta_net_test_params{{4, 2}, {0, 3}, {2, 2}, 2, 2, 16, ov::element::f16},
-                             paged_gated_delta_net_test_params{{1, 4, 2}, {0, 2, 0}, {2, 3, 2}, 2, 2, 64, ov::element::f16},
-                             paged_gated_delta_net_test_params{{2, 1, 3, 2}, {0, 4, 0, 1}, {2, 2, 3, 2}, 2, 2, 128, ov::element::f16},
-                             // f16: blocking stress (cache_interval=16), seq lengths occupy 1/2/3/4 blocks.
-                             // fully occupied past blocks
-                             paged_gated_delta_net_test_params{{16, 32, 48, 64}, {16, 32, 48, 64}, {16, 16, 16, 16}, 2, 2, 64, ov::element::f16},
-                             // partially occupied past blocks
-                             paged_gated_delta_net_test_params{{16, 32, 48, 64}, {1, 17, 33, 49}, {16, 16, 16, 16}, 2, 2, 64, ov::element::f16},
+                         ::testing::Values(paged_gated_delta_net_test_params{{3, 3}, {2, 3}, {2, 3}, 2, 2, 16, ov::element::bf16},
+                                           paged_gated_delta_net_test_params{{4, 2}, {0, 3}, {2, 2}, 2, 2, 64, ov::element::bf16},
+                                           paged_gated_delta_net_test_params{{3, 3}, {2, 3}, {2, 3}, 2, 2, 17, ov::element::bf16},
+                                           // f16: decode stage (past_len > 0), head_size 16/64/128, different sequence counts.
+                                           paged_gated_delta_net_test_params{{3, 3}, {2, 3}, {2, 3}, 2, 2, 16, ov::element::f16},
+                                           paged_gated_delta_net_test_params{{2, 3, 2}, {1, 2, 4}, {2, 3, 2}, 2, 2, 64, ov::element::f16},
+                                           paged_gated_delta_net_test_params{{1, 2, 3, 2}, {1, 3, 2, 4}, {2, 2, 3, 4}, 2, 2, 128, ov::element::f16},
+                                           // f16: prefill stage (all past_len = 0), head_size 16/64/128, different sequence counts.
+                                           paged_gated_delta_net_test_params{{3, 2}, {0, 0}, {2, 2}, 2, 2, 16, ov::element::f16},
+                                           paged_gated_delta_net_test_params{{2, 2, 2}, {0, 0, 0}, {2, 2, 2}, 2, 2, 64, ov::element::f16},
+                                           paged_gated_delta_net_test_params{{1, 2, 2, 3}, {0, 0, 0, 0}, {2, 2, 3, 2}, 2, 2, 128, ov::element::f16},
+                                           // f16: mixed stage (some past_len = 0, some past_len > 0), head_size 16/64/128.
+                                           paged_gated_delta_net_test_params{{4, 2}, {0, 3}, {2, 2}, 2, 2, 16, ov::element::f16},
+                                           paged_gated_delta_net_test_params{{1, 4, 2}, {0, 2, 0}, {2, 3, 2}, 2, 2, 64, ov::element::f16},
+                                           paged_gated_delta_net_test_params{{2, 1, 3, 2}, {0, 4, 0, 1}, {2, 2, 3, 2}, 2, 2, 128, ov::element::f16},
+                                           // f16: blocking stress (cache_interval=16), seq lengths occupy 1/2/3/4 blocks.
+                                           // fully occupied past blocks
+                                           paged_gated_delta_net_test_params{{16, 32, 48, 64}, {16, 32, 48, 64}, {16, 16, 16, 16}, 2, 2, 64, ov::element::f16},
+                                           // partially occupied past blocks
+                                           paged_gated_delta_net_test_params{{16, 32, 48, 64}, {1, 17, 33, 49}, {16, 16, 16, 16}, 2, 2, 64, ov::element::f16},
 
-                             // f32: decode stage (past_len > 0), head_size 16/64/128, different sequence counts.
-                             paged_gated_delta_net_test_params{{3, 3}, {2, 3}, {2, 3}, 2, 2, 16, ov::element::f32},
-                             paged_gated_delta_net_test_params{{2, 3, 2}, {1, 2, 4}, {2, 3, 2}, 2, 2, 64, ov::element::f32},
-                             paged_gated_delta_net_test_params{{1, 2, 3, 2}, {1, 3, 2, 4}, {2, 2, 3, 4}, 2, 2, 128, ov::element::f32},
-                             // f32: prefill stage (all past_len = 0), head_size 16/64/128, different sequence counts.
-                             paged_gated_delta_net_test_params{{3, 2}, {0, 0}, {2, 2}, 2, 2, 16, ov::element::f32},
-                             paged_gated_delta_net_test_params{{2, 2, 2}, {0, 0, 0}, {2, 2, 2}, 2, 2, 64, ov::element::f32},
-                             paged_gated_delta_net_test_params{{1, 2, 2, 3}, {0, 0, 0, 0}, {2, 2, 3, 2}, 2, 2, 128, ov::element::f32},
-                             // f32: mixed stage (some past_len = 0, some past_len > 0), head_size 16/64/128.
-                             paged_gated_delta_net_test_params{{4, 2}, {0, 3}, {2, 2}, 2, 2, 16, ov::element::f32},
-                             paged_gated_delta_net_test_params{{1, 4, 2}, {0, 2, 0}, {2, 3, 2}, 2, 2, 64, ov::element::f32},
-                             paged_gated_delta_net_test_params{{2, 1, 3, 2}, {0, 4, 0, 1}, {2, 2, 3, 2}, 2, 2, 128, ov::element::f32},
-                             // f32: blocking stress (cache_interval=16), seq lengths occupy 1/2/3/4 blocks.
-                             // fully occupied past blocks
-                             paged_gated_delta_net_test_params{{16, 32, 48, 64}, {16, 32, 48, 64}, {16, 16, 16, 16}, 2, 2, 64, ov::element::f32},
-                             // partially occupied past blocks
-                             paged_gated_delta_net_test_params{{16, 32, 48, 64}, {1, 17, 33, 49}, {16, 16, 16, 16}, 2, 2, 64, ov::element::f32},
-                             paged_gated_delta_net_test_params{{3, 3}, {2, 3}, {2, 3}, 2, 2, 16, ov::element::f16, true}),
+                                           // f32: decode stage (past_len > 0), head_size 16/64/128, different sequence counts.
+                                           paged_gated_delta_net_test_params{{3, 3}, {2, 3}, {2, 3}, 2, 2, 16, ov::element::f32},
+                                           paged_gated_delta_net_test_params{{2, 3, 2}, {1, 2, 4}, {2, 3, 2}, 2, 2, 64, ov::element::f32},
+                                           paged_gated_delta_net_test_params{{1, 2, 3, 2}, {1, 3, 2, 4}, {2, 2, 3, 4}, 2, 2, 128, ov::element::f32},
+                                           // f32: prefill stage (all past_len = 0), head_size 16/64/128, different sequence counts.
+                                           paged_gated_delta_net_test_params{{3, 2}, {0, 0}, {2, 2}, 2, 2, 16, ov::element::f32},
+                                           paged_gated_delta_net_test_params{{2, 2, 2}, {0, 0, 0}, {2, 2, 2}, 2, 2, 64, ov::element::f32},
+                                           paged_gated_delta_net_test_params{{1, 2, 2, 3}, {0, 0, 0, 0}, {2, 2, 3, 2}, 2, 2, 128, ov::element::f32},
+                                           // f32: mixed stage (some past_len = 0, some past_len > 0), head_size 16/64/128.
+                                           paged_gated_delta_net_test_params{{4, 2}, {0, 3}, {2, 2}, 2, 2, 16, ov::element::f32},
+                                           paged_gated_delta_net_test_params{{1, 4, 2}, {0, 2, 0}, {2, 3, 2}, 2, 2, 64, ov::element::f32},
+                                           paged_gated_delta_net_test_params{{2, 1, 3, 2}, {0, 4, 0, 1}, {2, 2, 3, 2}, 2, 2, 128, ov::element::f32},
+                                           // f32: blocking stress (cache_interval=16), seq lengths occupy 1/2/3/4 blocks.
+                                           // fully occupied past blocks
+                                           paged_gated_delta_net_test_params{{16, 32, 48, 64}, {16, 32, 48, 64}, {16, 16, 16, 16}, 2, 2, 64, ov::element::f32},
+                                           // partially occupied past blocks
+                                           paged_gated_delta_net_test_params{{16, 32, 48, 64}, {1, 17, 33, 49}, {16, 16, 16, 16}, 2, 2, 64, ov::element::f32},
+                                           paged_gated_delta_net_test_params{{3, 3}, {2, 3}, {2, 3}, 2, 2, 16, ov::element::f16, true}),
                          paged_gated_delta_net_gpu_test::PrintToStringParamName);
 
 }  // namespace

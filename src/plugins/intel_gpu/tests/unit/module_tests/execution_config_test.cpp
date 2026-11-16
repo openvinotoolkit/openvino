@@ -233,6 +233,31 @@ TEST(execution_config, kv_cache_u4_weights_auto_detect_u4) {
     ASSERT_EQ(config.get_kv_cache_precision(), ov::element::u4);
 }
 
+TEST(execution_config, bf16_paged_attention_defaults_to_f32_kv_cache) {
+    auto& engine = get_test_engine();
+    auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto model = make_pa_matmul_model(ov::element::u4);
+
+    ExecutionConfig config;
+    config.set_user_property(ov::hint::inference_precision(ov::element::bf16));
+    config.finalize(ctx.get(), model.get());
+
+    ASSERT_EQ(config.get_kv_cache_precision(), ov::element::f32);
+}
+
+TEST(execution_config, bf16_paged_attention_keeps_user_kv_cache_precision) {
+    auto& engine = get_test_engine();
+    auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto model = make_pa_matmul_model(ov::element::u4);
+
+    ExecutionConfig config;
+    config.set_user_property(ov::hint::inference_precision(ov::element::bf16));
+    config.set_user_property(ov::hint::kv_cache_precision(ov::element::i8));
+    config.finalize(ctx.get(), model.get());
+
+    ASSERT_EQ(config.get_kv_cache_precision(), ov::element::i8);
+}
+
 TEST(execution_config, kv_cache_i4_weights_auto_detect_u4) {
     auto& engine = get_test_engine();
     auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});

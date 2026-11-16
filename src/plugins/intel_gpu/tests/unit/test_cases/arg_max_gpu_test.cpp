@@ -16,6 +16,12 @@
 
 #include "program_wrapper.h"
 
+#include <openvino/op/constant.hpp>
+#include <openvino/op/parameter.hpp>
+#include <openvino/op/tensor_iterator.hpp>
+#include <openvino/op/topk.hpp>
+#include <openvino/runtime/core.hpp>
+
 #include <cmath>
 #include <cstring>
 #include <functional>
@@ -24,6 +30,45 @@
 
 using namespace cldnn;
 using namespace ::tests;
+
+class bf16_topk_in_tensor_iterator_test : public testing::TestWithParam<size_t> {};
+
+TEST_P(bf16_topk_in_tensor_iterator_test, matches_reference) {
+    ov::Core core;
+    const auto device_id = cldnn::device_query::device_id;
+    const auto device = device_id >= 0 ? "GPU." + std::to_string(device_id) : "GPU";
+    const auto capabilities = core.get_property(device, ov::device::capabilities);
+    if (std::find(capabilities.begin(), capabilities.end(), "BF16") == capabilities.end())
+        GTEST_SKIP() << "GPU does not support BF16 inference";
+
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{GetParam(), 8});
+    auto body_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 8});
+    auto count = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {2});
+    auto topk = std::make_shared<ov::op::v3::TopK>(body_input, count, 1, "max", "value");
+    auto body = std::make_shared<ov::Model>(ov::OutputVector{topk->output(0), topk->output(1)}, ov::ParameterVector{body_input});
+    auto iterator = std::make_shared<ov::op::v0::TensorIterator>();
+    iterator->set_function(body);
+    iterator->set_sliced_input(body_input, input, 0, 1, 1, -1, 0);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{iterator->get_iter_value(topk->output(0), -1), iterator->get_iter_value(topk->output(1), -1)},
+                                             ov::ParameterVector{input});
+    auto compiled = core.compile_model(model, device, ov::hint::inference_precision(ov::element::bf16));
+    auto request = compiled.create_infer_request();
+    ov::Tensor input_tensor(ov::element::f32, ov::Shape{GetParam(), 8});
+    std::fill_n(input_tensor.data<float>(), GetParam() * 8, 0.0f);
+    const std::vector<float> values{1, 4, 3, 7, 5, 0, 2, 6};
+    auto* last_input = input_tensor.data<float>() + (GetParam() - 1) * 8;
+    std::copy(values.begin(), values.end(), last_input);
+    request.set_input_tensor(input_tensor);
+    request.infer();
+    const auto output_values = request.get_output_tensor(0);
+    const auto output_indices = request.get_output_tensor(1);
+    EXPECT_EQ(output_values.data<float>()[0], 7.0f);
+    EXPECT_EQ(output_values.data<float>()[1], 6.0f);
+    EXPECT_EQ(output_indices.data<int32_t>()[0], 3);
+    EXPECT_EQ(output_indices.data<int32_t>()[1], 7);
+}
+
+INSTANTIATE_TEST_SUITE_P(regression, bf16_topk_in_tensor_iterator_test, ::testing::Values(1, 2));
 
 template <format::type layoutFormat, typename DataType>
 struct arg_max_input_types {

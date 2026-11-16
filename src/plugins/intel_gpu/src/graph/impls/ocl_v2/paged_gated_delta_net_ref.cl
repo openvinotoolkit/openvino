@@ -6,6 +6,7 @@
 #include "include/batch_headers/sub_group_block_read.cl"
 #include "include/batch_headers/sub_group_block_write.cl"
 #include "include/batch_headers/sub_group_shuffle.cl"
+#include "paged_gated_delta_net_type_utils.cl"
 
 #ifndef FUSE_QK_L2NORM
 #    define FUSE_QK_L2NORM 0
@@ -86,7 +87,7 @@ KERNEL(paged_gated_delta_net_ref)
         for (int ks = 0; ks < K_SLICE_SIZE; ks++) {
             const int k_idx = lid + ks * SUBGROUP_SIZE;
             if (k_idx < K_HEAD_DIM) {
-                state[v_idx][ks] = convert_float(recurrent_state_table[base + k_idx]);
+                state[v_idx][ks] = PGDN_SDEC(S_KT, recurrent_state_table[base + k_idx]);
             }
         }
     }
@@ -108,8 +109,8 @@ KERNEL(paged_gated_delta_net_ref)
             for (int ks = 0; ks < K_SLICE_SIZE; ks++) {
                 const int k_idx = lid + ks * SUBGROUP_SIZE;
                 if (k_idx < K_HEAD_DIM) {
-                    const float q_val = convert_float(query[q_base + k_idx]);
-                    const float k_val = convert_float(key[k_base + k_idx]);
+                    const float q_val = PGDN_SDEC(Q_KT, query[q_base + k_idx]);
+                    const float k_val = PGDN_SDEC(K_KT, key[k_base + k_idx]);
                     q_norm[ks] = q_val;
                     k_norm[ks] = k_val;
                     q_sum_local = fma(q_val, q_val, q_sum_local);
@@ -134,8 +135,8 @@ KERNEL(paged_gated_delta_net_ref)
                 k_norm[ks] *= k_scale;
             }
 
-            const float b_g = exp(convert_float(gate[g_idx]));
-            const float b_beta = convert_float(beta[g_idx]);
+            const float b_g = exp(PGDN_SDEC(G_KT, gate[g_idx]));
+            const float b_beta = PGDN_SDEC(B_KT, beta[g_idx]);
 
 #pragma unroll
             for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
@@ -150,7 +151,7 @@ KERNEL(paged_gated_delta_net_ref)
 
                 const float h_k = sub_group_reduce_add(h_k_local);
                 const int v_idx_offset = v_base + curr_iv;
-                const float b_v = convert_float(value[v_idx_offset]);
+                const float b_v = PGDN_SDEC(V_KT, value[v_idx_offset]);
                 const float update_val = (b_v - h_k) * b_beta;
 
                 float out_val_local = 0.0f;
@@ -162,7 +163,7 @@ KERNEL(paged_gated_delta_net_ref)
 
                 if (lid == 0) {
                     const int out_offset = (token * V_HEAD_NUM + h) * V_HEAD_DIM + curr_iv;
-                    output[out_offset] = TO_OUTPUT_TYPE(out_val);
+                    output[out_offset] = PGDN_SENC(O_KT, out_val);
                 }
             }
         }
@@ -180,7 +181,7 @@ KERNEL(paged_gated_delta_net_ref)
             for (int ks = 0; ks < K_SLICE_SIZE; ks++) {
                 const int k_idx = lid + ks * SUBGROUP_SIZE;
                 if (k_idx < K_HEAD_DIM) {
-                    recurrent_state_table[base + k_idx] = (INPUT3_TYPE)(state[v_idx][ks]);
+                    recurrent_state_table[base + k_idx] = PGDN_SENC(S_KT, state[v_idx][ks]);
                 }
             }
         }
