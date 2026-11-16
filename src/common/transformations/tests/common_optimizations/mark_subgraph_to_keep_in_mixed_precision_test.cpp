@@ -57,8 +57,8 @@ TEST(TransformationTests, MarkReciprocalSqrtWithEpsToKeepInMixedPrecision) {
         pass::Manager manager;
         manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
         manager.run_passes(model);
-        for (const auto& node : std::vector<std::shared_ptr<Node>>{square, mean, stabilized, sqrt,
-                                                                reciprocal, normalized}) {
+        for (const auto& node :
+             std::vector<std::shared_ptr<Node>>{square, mean, stabilized, sqrt, reciprocal, normalized}) {
             EXPECT_TRUE(is_conversion_disabled(node, element::f16)) << node->get_friendly_name();
         }
     }
