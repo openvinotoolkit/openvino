@@ -47,7 +47,7 @@ constexpr bool is_geometry_supported(Mode mode, size_t hc_count, size_t hidden_s
     return hc_count * hidden_size <= max_total_width && lowrank != 0 && lowrank % 16 == 0 && lowrank <= max_lowrank;
 }
 
-/// Group size along K of a [G, N] scale, or 0 when K is not divisible by G.
+/// Group size along K (K / G) of a scale with G groups per output channel, or 0 when K is not divisible by G.
 constexpr size_t derive_group_size(size_t k, size_t g) {
     return (g == 0 || k % g != 0) ? 0 : k / g;
 }
@@ -57,7 +57,7 @@ constexpr bool is_group_size_supported(size_t k, size_t group_size) {
     return group_size != 0 && group_size % group_size_step == 0 && k % group_size == 0;
 }
 
-/// Compressed weight rows of K elements with G scale rows; `bits` is 4 (i4 / u4) or 8 (i8 / u8).
+/// Compressed weight rows of K elements with G scale groups per row; `bits` is 4 (i4 / u4) or 8 (i8 / u8).
 constexpr bool is_row_compression_supported(size_t bits, size_t k, size_t g) {
     return (bits == 4 || bits == 8) && k != 0 && k % 32 == 0 && is_group_size_supported(k, derive_group_size(k, g)) && (k * bits / 8) % 16 == 0;
 }

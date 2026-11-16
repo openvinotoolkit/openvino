@@ -43,14 +43,16 @@ GatedResidual::GatedResidual(const ov::OutputVector& args,
                              size_t hidden_size,
                              size_t lowrank,
                              float epsilon,
-                             bool produce_write_gate)
+                             bool produce_write_gate,
+                             bool scale_gn)
     : Op(args),
       m_mode(mode),
       m_hc_count(hc_count),
       m_hidden_size(hidden_size),
       m_lowrank(lowrank),
       m_epsilon(epsilon),
-      m_produce_write_gate(produce_write_gate) {
+      m_produce_write_gate(produce_write_gate),
+      m_scale_gn(scale_gn) {
     constructor_validate_and_infer_types();
 }
 
@@ -63,6 +65,7 @@ bool GatedResidual::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("lowrank", m_lowrank);
     visitor.on_attribute("epsilon", m_epsilon);
     visitor.on_attribute("produce_write_gate", m_produce_write_gate);
+    visitor.on_attribute("scale_gn", m_scale_gn);
     return true;
 }
 
@@ -188,16 +191,20 @@ void GatedResidual::validate_and_infer_types() {
         check_residual_type(ReadInputIdx::W_DOWN, "W_down");
         check_residual_type(ReadInputIdx::W_UP, "W_up");
     } else {
-        // scale/zp are [G, N] (N contiguous), unlike FC's [N, G]; the group size along K is K / G (not an attribute).
+        // scale/zp are [N, G] (or [G, N] with scale_gn); the group size along K is K / G (not an attribute).
+        const size_t n_axis = m_scale_gn ? 1 : 0;
+        const size_t g_axis = m_scale_gn ? 0 : 1;
         auto check_group = [&](size_t scale_idx, size_t zp_idx, size_t n, size_t k, const char* name) {
             const auto& sps = get_input_partial_shape(scale_idx);
             NODE_VALIDATION_CHECK(this,
-                                  sps.rank().is_dynamic() || (sps.rank().get_length() == 2 && sps[1].compatible(static_cast<int64_t>(n))),
+                                  sps.rank().is_dynamic() || (sps.rank().get_length() == 2 && sps[n_axis].compatible(static_cast<int64_t>(n))),
                                   "GatedResidual ",
                                   name,
-                                  " scale must have shape [G, ",
+                                  " scale must have shape ",
+                                  m_scale_gn ? "[G, " : "[",
                                   n,
-                                  "], got ",
+                                  m_scale_gn ? "]" : ", G]",
+                                  ", got ",
                                   sps);
             NODE_VALIDATION_CHECK(this,
                                   get_input_element_type(scale_idx).is_dynamic() || get_input_element_type(scale_idx) == ov::element::f16,
@@ -219,8 +226,8 @@ void GatedResidual::validate_and_infer_types() {
                                       " zero point must have the weight element type ",
                                       wd_et);
             }
-            if (sps.rank().is_static() && sps[0].is_static()) {
-                const auto g = static_cast<size_t>(sps[0].get_length());
+            if (sps.rank().is_static() && sps[g_axis].is_static()) {
+                const auto g = static_cast<size_t>(sps[g_axis].get_length());
                 NODE_VALIDATION_CHECK(this, g != 0 && k % g == 0, "GatedResidual ", name, ": K = ", k, " is not divisible by the scale group count G = ", g);
             }
         };
@@ -284,7 +291,7 @@ std::vector<ov::PartialShape> GatedResidual::infer_output_shapes(Mode mode,
 
 std::shared_ptr<Node> GatedResidual::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
-    return std::make_shared<GatedResidual>(new_args, m_mode, m_hc_count, m_hidden_size, m_lowrank, m_epsilon, m_produce_write_gate);
+    return std::make_shared<GatedResidual>(new_args, m_mode, m_hc_count, m_hidden_size, m_lowrank, m_epsilon, m_produce_write_gate, m_scale_gn);
 }
 
 }  // namespace ov::intel_gpu::op

@@ -51,12 +51,13 @@ public:
         static constexpr size_t W_DOWN = 2;       ///< [L, C*D]
         static constexpr size_t W_UP = 3;         ///< [C*D, L]
 
-        // Compressed weights (W_DOWN / W_UP are i4, u4, i8 or u8). scale/zp are [G, N] (N contiguous), unlike FC's [N, G]: one
-        // sub-group block read gives every lane the scale of its own output channel.
-        static constexpr size_t SCALE_DOWN = 4;  ///< f16 [G_d, L]
-        static constexpr size_t SCALE_UP = 5;    ///< f16 [G_u, C*D]
-        static constexpr size_t ZP_DOWN = 6;     ///< same type as the weights (4-bit packed) [G_d, L], only with zero points
-        static constexpr size_t ZP_UP = 7;       ///< same type as the weights (4-bit packed) [G_u, C*D], only with zero points
+        // Compressed weights (W_DOWN / W_UP are i4, u4, i8 or u8). scale/zp are [N, G] as in the operation specification, or
+        // [G, N] (N contiguous) when the op's `scale_gn` flag is set. The kernels read [G, N]: one sub-group block read gives
+        // every lane the scale of its own output channel; ConvertGatedResidualScaleLayout converts the former into the latter.
+        static constexpr size_t SCALE_DOWN = 4;  ///< f16 [L, G_d] ([G_d, L] with scale_gn)
+        static constexpr size_t SCALE_UP = 5;    ///< f16 [C*D, G_u] ([G_u, C*D] with scale_gn)
+        static constexpr size_t ZP_DOWN = 6;     ///< same type as the weights (4-bit packed), shape of SCALE_DOWN, only with zero points
+        static constexpr size_t ZP_UP = 7;       ///< same type as the weights (4-bit packed), shape of SCALE_UP, only with zero points
     };
 
     /// @brief Input form of a READ node. The write-gate inputs are always the last inputs, so their indices depend on
@@ -125,7 +126,14 @@ public:
 
     GatedResidual() = default;
 
-    GatedResidual(const ov::OutputVector& args, Mode mode, size_t hc_count, size_t hidden_size, size_t lowrank, float epsilon, bool produce_write_gate);
+    GatedResidual(const ov::OutputVector& args,
+                  Mode mode,
+                  size_t hc_count,
+                  size_t hidden_size,
+                  size_t lowrank,
+                  float epsilon,
+                  bool produce_write_gate,
+                  bool scale_gn = false);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
@@ -149,6 +157,10 @@ public:
     bool get_produce_write_gate() const {
         return m_produce_write_gate;
     }
+    /// True when the compressed scales / zero points are laid out [G, N] (the kernel layout) instead of [N, G].
+    bool get_scale_gn() const {
+        return m_scale_gn;
+    }
 
 private:
     Mode m_mode = Mode::READ;
@@ -157,6 +169,7 @@ private:
     size_t m_lowrank = 0;
     float m_epsilon = 1e-6f;
     bool m_produce_write_gate = false;
+    bool m_scale_gn = false;
 };
 
 }  // namespace ov::intel_gpu::op

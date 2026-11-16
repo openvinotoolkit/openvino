@@ -17,6 +17,11 @@ namespace ov::intel_gpu {
 static void CreateGatedResidualOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_gpu::op::GatedResidual>& op) {
     const auto inputs = p.GetInputInfo(op);
     const auto layer_name = layer_type_name_ID(op);
+    const auto layout = op->get_read_layout();
+    OPENVINO_ASSERT(op->get_mode() == op::GatedResidual::Mode::WRITE || !layout || !layout->compressed || op->get_scale_gn(),
+                    "[GPU] ",
+                    layer_name,
+                    ": compressed GatedResidual scales must be converted to the [G, N] kernel layout (ConvertGatedResidualScaleLayout)");
 
     cldnn::gated_residual
         prim(layer_name, inputs, op->get_mode(), op->get_hc_count(), op->get_hidden_size(), op->get_lowrank(), op->get_epsilon(), op->get_produce_write_gate());

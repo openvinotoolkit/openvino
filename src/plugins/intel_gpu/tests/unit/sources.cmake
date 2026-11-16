@@ -480,6 +480,7 @@ set(GPU_UNIT_TESTS_TRANSFORMATIONS_SRCS
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/preserve_single_selective_ssm_output.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/print_model_statistics.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/print_model_statistics.hpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_gated_residual_scale_layout.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/gated_residual_fusion.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/gated_residual_fusion.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/reduce_fc_dimensions.cpp

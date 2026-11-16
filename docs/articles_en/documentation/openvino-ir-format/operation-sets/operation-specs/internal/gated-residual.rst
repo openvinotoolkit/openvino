@@ -92,12 +92,12 @@ already unpacked to one value per element (signed types sign-extended) or ``None
    import torch.nn.functional as F
 
    def dequantize_weight(q, scale, zp=None):
-       # q: [N, K] i4/u4/i8/u8 values, scale / zp: [G, N]; the group size K // G is derived from the shapes
+       # q: [N, K] i4/u4/i8/u8 values, scale / zp: [N, G]; the group size K // G is derived from the shapes
        N, K = q.shape
-       G = scale.shape[0]
+       G = scale.shape[1]
        assert K % G == 0
-       s = scale.t().repeat_interleave(K // G, dim=1)   # [N, K]
-       z = zp.t().repeat_interleave(K // G, dim=1).float() if zp is not None else 0.0   # no zero points: 0
+       s = scale.repeat_interleave(K // G, dim=1)   # [N, K]
+       z = zp.repeat_interleave(K // G, dim=1).float() if zp is not None else 0.0   # no zero points: 0
        return ((q.float() - z) * s.float()).half()
 
    def branch_rms_norm(residual, norm_weight, C, D, epsilon):
@@ -229,8 +229,8 @@ inputs selects the form unambiguously.
 * **READ inputs 4-5 (compressed forms only)**: when the weights are ``i4``, ``u4``, ``i8`` or
   ``u8``, these inputs carry the scales of ``w_down`` and ``w_up``.
 
-  * input 4: ``scale_down``, ``f16``, shape ``[G_d, L]``
-  * input 5: ``scale_up``, ``f16``, shape ``[G_u, C*D]``
+  * input 4: ``scale_down``, ``f16``, shape ``[L, G_d]``
+  * input 5: ``scale_up``, ``f16``, shape ``[C*D, G_u]``
 
 * **READ inputs 6-7 (compressed forms with zero points only)**:
 
@@ -242,14 +242,14 @@ inputs selects the form unambiguously.
   * ``w_inject``: a 2D tensor of shape ``[C, C*D]`` used to compute the write gate. Floating-point
     in the five-input form (input 4), ``i4``, ``u4``, ``i8`` or ``u8`` in the compressed forms
     (input 6 without zero points, input 8 with them).
-  * ``scale_inject``, compressed forms only: ``f16``, shape ``[G_i, C]`` (the input after ``w_inject``).
+  * ``scale_inject``, compressed forms only: ``f16``, shape ``[C, G_i]`` (the input after ``w_inject``).
   * ``zp_inject``, compressed form with zero points only (input 10): same element type as ``w_inject``,
     same shape as ``scale_inject``.
 
-For every compressed weight, scales and zero points are laid out ``[G, N]`` with ``N`` (the output
-channel) contiguous. The group size is not an attribute: it is derived as ``group_size = K / G``,
+For every compressed weight, scales and zero points have shape ``[N, G]``, where ``N`` is the output
+channel count (the number of rows of the weight) and ``G`` the number of groups. The group size is not an attribute: it is derived as ``group_size = K / G``,
 where ``K`` is the number of columns of the weight (``C*D`` for ``w_down`` and ``w_inject``, ``L``
-for ``w_up``) and ``G`` the number of rows of the scale and zero point. ``K`` must be divisible by
+for ``w_up``) and ``G`` the number of columns of the scale and zero point. ``K`` must be divisible by
 ``G``; ``G = 1`` means per-channel quantization. ``w_down``, ``w_up`` and ``w_inject`` (when
 present) must all share one element type; ``i4``/``u4``/``i8``/``u8`` weights are accepted only in the compressed
 forms. 4-bit weights and zero points are packed two elements per byte in row-major order, the even
@@ -292,8 +292,8 @@ above.
   READ requires ``lowrank > 0``.
 * ``norm_weight`` must have shape ``[C*D]``, ``w_down`` ``[L, C*D]``, ``w_up`` ``[C*D, L]``, and
   ``w_inject`` (if present) ``[C, C*D]``. ``w_down``, ``w_up`` and ``w_inject`` (if present) must share one element type.
-* For the compressed form, scale tensors must be rank 2 with last dimension equal to the weight's
-  output channel count (``L`` for ``w_down``, ``C*D`` for ``w_up``, ``C`` for ``w_inject``), zero points (when present) must have the
+* For the compressed form, scale tensors must be rank 2 with first dimension equal to the weight's
+  output channel count (``L`` for ``w_down``, ``C*D`` for ``w_up``, ``C`` for ``w_inject``) and last dimension equal to the group count ``G``, zero points (when present) must have the
   same shape as their scales, scales must be ``f16``, zero points must have the weight element type (``i4``, ``u4``, ``i8`` or ``u8``), and ``K`` must be divisible by the group count ``G``
   (the group size ``K / G`` is derived from the shapes, see the compressed inputs above).
 * WRITE requires exactly three inputs and returns the residual shape. ``sublayer_y`` must have
@@ -398,17 +398,17 @@ so it is per-channel (group size 32 = K):
            <port id="3">  <!-- w_up: u4 [C*D,L] -->
                <dim>256</dim><dim>32</dim>
            </port>
-           <port id="4">  <!-- scale_down: f16 [G_d,L] -->
-               <dim>8</dim><dim>32</dim>
+           <port id="4">  <!-- scale_down: f16 [L,G_d] -->
+               <dim>32</dim><dim>8</dim>
            </port>
-           <port id="5">  <!-- scale_up: f16 [G_u,C*D] -->
-               <dim>1</dim><dim>256</dim>
+           <port id="5">  <!-- scale_up: f16 [C*D,G_u] -->
+               <dim>256</dim><dim>1</dim>
            </port>
-           <port id="6">  <!-- zp_down: u4 [G_d,L] -->
-               <dim>8</dim><dim>32</dim>
+           <port id="6">  <!-- zp_down: u4 [L,G_d] -->
+               <dim>32</dim><dim>8</dim>
            </port>
-           <port id="7">  <!-- zp_up: u4 [G_u,C*D] -->
-               <dim>1</dim><dim>256</dim>
+           <port id="7">  <!-- zp_up: u4 [C*D,G_u] -->
+               <dim>256</dim><dim>1</dim>
            </port>
        </input>
        <output>

@@ -28,11 +28,14 @@
 
 #include "gated_residual_inst.h"
 #include "intel_gpu/op/gated_residual.hpp"
+#include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "intel_gpu/primitives/gated_residual_caps.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/device_query.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
@@ -44,6 +47,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/sqrt.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/runtime/core.hpp"
 #include "random_generator.hpp"
@@ -1390,5 +1394,466 @@ TEST_P(gated_residual_decomposed_read_test, fuses_and_matches_reference) {
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke, gated_residual_decomposed_read_test, ::testing::Combine(::testing::Bool(), ::testing::Bool()));
+
+// End to end check of the compressed scale / zero point layout: a GatedResidual READ op carrying the operation layout ([N, G] scales /
+// zero points, scale_gn = false) is compiled through the normal plugin pipeline, where ConvertGatedResidualScaleLayout turns them into
+// the [G, N] the kernels read. The result must match the FP32 reference computed from the dequantized weights. The op is built
+// directly so the conversion is checked on its own; gated_residual_decomposed_quant_test below covers fusion + conversion.
+struct gr_e2e_quant_case {
+    size_t D;
+    size_t L;
+    bool u4;
+    bool is_signed;
+    bool has_zp;
+    size_t group;  // 0: default of the bit width, kPerChannel, or a group size
+    bool write_gate;
+};
+
+class gated_residual_e2e_quant_test : public ::testing::TestWithParam<gr_e2e_quant_case> {
+public:
+    static std::string PrintToStringParamName(const testing::TestParamInfo<gr_e2e_quant_case>& info) {
+        const auto& c = info.param;
+        std::ostringstream os;
+        os << "D" << c.D << "_L" << c.L << (c.u4 ? "_4bit" : "_8bit") << (c.is_signed ? "_signed" : "_unsigned") << (c.has_zp ? "_zp" : "_nozp");
+        os << (c.group == kPerChannel ? "_perchannel" : (c.group == 0 ? "_defgroup" : "_g" + std::to_string(c.group)));
+        os << (c.write_gate ? "_gate" : "");
+        return os.str();
+    }
+};
+
+TEST_P(gated_residual_e2e_quant_test, compressed_ir_matches_reference) {
+    if (!gr_compression_available()) {
+        GTEST_SKIP() << "compressed GatedResidual is not available on this device";
+    }
+    const auto tc = GetParam();
+    const size_t C = kBranches;
+    const size_t D = tc.D;
+    const size_t L = tc.L;
+    const size_t CD = C * D;
+    const float eps = 1e-5f;
+    const auto et = ov::element::f16;
+    const auto wt = tc.u4 ? (tc.is_signed ? ov::element::i4 : ov::element::u4) : (tc.is_signed ? ov::element::i8 : ov::element::u8);
+
+    std::mt19937 gen(static_cast<uint32_t>(D * 131 + L * 7 + (tc.u4 ? 3 : 0) + (tc.is_signed ? 5 : 0) + (tc.has_zp ? 11 : 0) + tc.group));
+    const auto m_down = make_quant_matrix(gen, L, CD, tc.u4, tc.is_signed, tc.has_zp, tc.group);
+    const auto m_up = make_quant_matrix(gen, CD, L, tc.u4, tc.is_signed, tc.has_zp, tc.group);
+    const auto m_inject = make_quant_matrix(gen, C, CD, tc.u4, tc.is_signed, tc.has_zp, tc.group);
+
+    // q / zp / scale of quant_matrix are [N, K] row-major / [G, N]; the op takes zp / scale as [N, G].
+    auto weights_const = [&](const quant_matrix& m) {
+        std::vector<int> q(m.N * m.K);
+        for (size_t i = 0; i < q.size(); i++) {
+            q[i] = m.value(m.q[i]);
+        }
+        return ov::op::v0::Constant::create(wt, ov::Shape{m.N, m.K}, q);
+    };
+    auto scale_const = [&](const quant_matrix& m) {
+        std::vector<float> scale(m.N * m.G);
+        for (size_t n = 0; n < m.N; n++) {
+            for (size_t g = 0; g < m.G; g++) {
+                scale[n * m.G + g] = m.scale[g * m.N + n];
+            }
+        }
+        return ov::op::v0::Constant::create(et, ov::Shape{m.N, m.G}, scale);
+    };
+    auto zp_const = [&](const quant_matrix& m) {
+        std::vector<int> zp(m.N * m.G);
+        for (size_t n = 0; n < m.N; n++) {
+            for (size_t g = 0; g < m.G; g++) {
+                zp[n * m.G + g] = m.value(m.zp[g * m.N + n]);
+            }
+        }
+        return ov::op::v0::Constant::create(wt, ov::Shape{m.N, m.G}, zp);
+    };
+
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    const auto gain_w = random_vec(rg, CD, 0.25f);
+    std::vector<float> gain_folded(gain_w);
+    for (auto& g : gain_folded) {
+        g += 1.0f;
+    }
+
+    auto residual_p = std::make_shared<ov::op::v0::Parameter>(et, ov::PartialShape{-1, static_cast<int64_t>(CD)});
+    auto gain_p = std::make_shared<ov::op::v0::Parameter>(et, ov::Shape{CD});
+    ov::OutputVector inputs{residual_p, gain_p, weights_const(m_down), weights_const(m_up), scale_const(m_down), scale_const(m_up)};
+    if (tc.has_zp) {
+        inputs.push_back(zp_const(m_down));
+        inputs.push_back(zp_const(m_up));
+    }
+    if (tc.write_gate) {
+        inputs.push_back(weights_const(m_inject));
+        inputs.push_back(scale_const(m_inject));
+        if (tc.has_zp) {
+            inputs.push_back(zp_const(m_inject));
+        }
+    }
+    auto gr = std::make_shared<ov::intel_gpu::op::GatedResidual>(inputs,
+                                                                 ov::intel_gpu::op::GatedResidual::Mode::READ,
+                                                                 C,
+                                                                 D,
+                                                                 L,
+                                                                 eps,
+                                                                 tc.write_gate,
+                                                                 /*scale_gn=*/false);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gr->output(0))};
+    if (tc.write_gate) {
+        results.push_back(std::make_shared<ov::op::v0::Result>(gr->output(1)));
+    }
+    auto model = std::make_shared<ov::Model>(results, ov::ParameterVector{residual_p, gain_p});
+
+    ov::Core core;
+    ov::CompiledModel compiled;
+    OV_ASSERT_NO_THROW(compiled = core.compile_model(model, test_device_name()));
+    size_t fused_nodes = 0;
+    size_t gemm_nodes = 0;
+    std::string runtime_layers;
+    for (const auto& op : compiled.get_runtime_model()->get_ops()) {
+        const auto it = op->get_rt_info().find("layerType");
+        const auto layer_type = it != op->get_rt_info().end() ? it->second.as<std::string>() : std::string("?");
+        if (layer_type == "GatedResidual" || layer_type == "gated_residual") {
+            fused_nodes++;
+        }
+        if (layer_type == "FullyConnected" || layer_type == "fully_connected" || layer_type == "Gemm" || layer_type == "gemm") {
+            gemm_nodes++;
+        }
+        runtime_layers += layer_type + " ";
+    }
+    ASSERT_EQ(fused_nodes, 1u) << "expected one gated_residual node; runtime layers: " << runtime_layers;
+    EXPECT_EQ(gemm_nodes, 0u) << "a MatMul is left; runtime layers: " << runtime_layers;
+
+    auto infer_request = compiled.create_infer_request();
+    auto fill = [](ov::Tensor tensor, const std::vector<float>& data) {
+        auto* dst = tensor.data<ov::float16>();
+        ASSERT_EQ(tensor.get_size(), data.size());
+        for (size_t i = 0; i < data.size(); i++) {
+            dst[i] = ov::float16(data[i]);
+        }
+    };
+    {
+        ov::Tensor gain_tensor(et, ov::Shape{CD});
+        fill(gain_tensor, gain_folded);
+        infer_request.set_tensor(gain_p, gain_tensor);
+    }
+    for (const size_t rows : {3, 64}) {
+        tests::random_generator input_rg;
+        input_rg.set_seed(static_cast<uint32_t>(rows));
+        const auto residual = random_vec(input_rg, rows * CD, 1.0f);
+        ov::Tensor residual_tensor(et, ov::Shape{rows, CD});
+        fill(residual_tensor, residual);
+        infer_request.set_tensor(residual_p, residual_tensor);
+
+        gr_ref_params p;
+        p.rows = rows;
+        p.C = C;
+        p.D = D;
+        p.L = L;
+        p.eps = eps;
+        std::vector<float> ref_mixed;
+        std::vector<float> ref_gate;
+        reference_read(p, residual, gain_folded, m_down.dequant, m_up.dequant, tc.write_gate ? &m_inject.dequant : nullptr, ref_mixed, ref_gate);
+
+        OV_ASSERT_NO_THROW(infer_request.infer());
+        const auto mixed_tensor = infer_request.get_output_tensor(0);
+        const auto* mixed_data = mixed_tensor.data<ov::float16>();
+        ASSERT_EQ(mixed_tensor.get_size(), ref_mixed.size());
+        for (size_t i = 0; i < ref_mixed.size(); i++) {
+            ASSERT_NEAR(static_cast<float>(mixed_data[i]), ref_mixed[i], 2e-2f) << "mixed mismatch at rows=" << rows << " index=" << i;
+        }
+        if (tc.write_gate) {
+            const auto gate_tensor = infer_request.get_output_tensor(1);
+            const auto* gate_data = gate_tensor.data<ov::float16>();
+            ASSERT_EQ(gate_tensor.get_size(), ref_gate.size());
+            for (size_t i = 0; i < ref_gate.size(); i++) {
+                ASSERT_NEAR(static_cast<float>(gate_data[i]), ref_gate[i], 2e-2f) << "write gate mismatch at rows=" << rows << " index=" << i;
+            }
+        }
+    }
+}
+
+// 4-bit default group (32): G_down = 8 / 12, G_up = 1 (K = L); 8-bit per channel: G = 1; an explicit group of 64 and per-channel 4-bit
+// give another G > 1 / G = 1 mix. D = 96 makes C*D = 384, so N is not a power of two.
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         gated_residual_e2e_quant_test,
+                         ::testing::Values(gr_e2e_quant_case{64, 32, true, false, true, 0, false},
+                                           gr_e2e_quant_case{64, 32, true, false, true, 0, true},
+                                           gr_e2e_quant_case{64, 32, true, true, true, 0, true},
+                                           gr_e2e_quant_case{64, 32, true, false, false, 0, true},
+                                           gr_e2e_quant_case{64, 32, true, true, false, 0, false},
+                                           gr_e2e_quant_case{96, 64, true, false, true, 0, true},
+                                           gr_e2e_quant_case{96, 64, true, true, true, 64, false},
+                                           gr_e2e_quant_case{96, 64, true, false, true, kPerChannel, true},
+                                           gr_e2e_quant_case{64, 32, false, false, true, 0, true},
+                                           gr_e2e_quant_case{64, 32, false, true, true, 0, false},
+                                           gr_e2e_quant_case{96, 64, false, false, false, 0, true},
+                                           gr_e2e_quant_case{96, 64, false, true, false, 0, false}),
+                         gated_residual_e2e_quant_test::PrintToStringParamName);
+
+// Full pipeline on a compressed decomposed READ in the form the model exporter produces: rank-3 activations [B, T, C*D], each weight
+// decompressed by Convert -> (Subtract zp) -> Multiply(scale [N, G, 1]) -> Reshape [N, K] (no Reshape for G = 1), and the 1/C of
+// the down / inject projections as Divide(Const [1, 1, 1]) after the MatMul. The graph must fuse into one gated_residual that keeps
+// the weights compressed (W_inject too with the write gate), ConvertGatedResidualScaleLayout must turn the [N, G] scales / zero
+// points into [G, N], and the outputs must match the FP32 reference of the dequantized weights.
+// Rank-2 activations are not covered: there MatMulMultiplyFusion folds the [1, 1] 1/C into W_down and the GPU pipeline then moves it
+// below the decompression Reshape, which the fusion does not look through.
+struct gr_decomposed_quant_case {
+    size_t D;
+    size_t L;
+    bool u4;
+    bool is_signed;
+    bool has_zp;
+    size_t group;  // see make_quant_matrix
+    bool write_gate;
+    bool divide;  // 1/C as Divide(Const [1, 1, 1] = C) like the exporter, otherwise Multiply(scalar 1/C)
+};
+
+class gated_residual_decomposed_quant_test : public ::testing::TestWithParam<gr_decomposed_quant_case> {
+public:
+    static std::string PrintToStringParamName(const testing::TestParamInfo<gr_decomposed_quant_case>& info) {
+        const auto& c = info.param;
+        std::ostringstream os;
+        os << "D" << c.D << "_L" << c.L << (c.u4 ? "_4bit" : "_8bit") << (c.is_signed ? "_signed" : "_unsigned") << (c.has_zp ? "_zp" : "_nozp");
+        os << (c.group == kPerChannel ? "_perchannel" : (c.group == 0 ? "_defgroup" : "_g" + std::to_string(c.group)));
+        os << (c.write_gate ? "_gate" : "") << (c.divide ? "_div111" : "_mulscalar");
+        return os.str();
+    }
+};
+
+TEST_P(gated_residual_decomposed_quant_test, fuses_compressed_and_matches_reference) {
+    if (!gr_compression_available()) {
+        GTEST_SKIP() << "compressed GatedResidual is not available on this device";
+    }
+    const auto tc = GetParam();
+    const size_t C = kBranches;
+    const size_t D = tc.D;
+    const size_t L = tc.L;
+    const size_t CD = C * D;
+    const auto iC = static_cast<int64_t>(C);
+    const auto iD = static_cast<int64_t>(D);
+    const auto iCD = static_cast<int64_t>(CD);
+    const float eps = 1e-6f;
+    const auto et = ov::element::f16;
+    const auto wt = tc.u4 ? (tc.is_signed ? ov::element::i4 : ov::element::u4) : (tc.is_signed ? ov::element::i8 : ov::element::u8);
+
+    std::mt19937 gen(static_cast<uint32_t>(D * 131 + L * 7 + (tc.u4 ? 3 : 0) + (tc.is_signed ? 5 : 0) + (tc.has_zp ? 11 : 0) + tc.group + 17));
+    const auto m_down = make_quant_matrix(gen, L, CD, tc.u4, tc.is_signed, tc.has_zp, tc.group);
+    const auto m_up = make_quant_matrix(gen, CD, L, tc.u4, tc.is_signed, tc.has_zp, tc.group);
+    const auto m_inject = make_quant_matrix(gen, C, CD, tc.u4, tc.is_signed, tc.has_zp, tc.group);
+
+    auto i64 = [](std::vector<int64_t> v) {
+        return ov::op::v0::Constant::create(ov::element::i64, ov::Shape{v.size()}, v);
+    };
+    auto scalar = [&](float v) {
+        return ov::op::v0::Constant::create(et, ov::Shape{}, {v});
+    };
+    // The exporter's decompression subgraph; quant_matrix keeps scale / zp as [G, N], the IR stores them as [N, G, 1].
+    auto decompress = [&](const quant_matrix& m) -> ov::Output<ov::Node> {
+        const size_t gs = m.K / m.G;
+        const ov::Shape w_shape = m.G == 1 ? ov::Shape{m.N, m.K} : ov::Shape{m.N, m.G, gs};
+        const ov::Shape s_shape = m.G == 1 ? ov::Shape{m.N, 1} : ov::Shape{m.N, m.G, 1};
+        std::vector<int> q(m.N * m.K);
+        for (size_t i = 0; i < q.size(); i++) {
+            q[i] = m.value(m.q[i]);
+        }
+        std::vector<float> scale(m.N * m.G);
+        std::vector<int> zp(m.N * m.G);
+        for (size_t n = 0; n < m.N; n++) {
+            for (size_t g = 0; g < m.G; g++) {
+                scale[n * m.G + g] = m.scale[g * m.N + n];
+                zp[n * m.G + g] = m.has_zp ? m.value(m.zp[g * m.N + n]) : 0;
+            }
+        }
+        ov::Output<ov::Node> x = std::make_shared<ov::op::v0::Convert>(ov::op::v0::Constant::create(wt, w_shape, q), et);
+        if (m.has_zp) {
+            x = std::make_shared<ov::op::v1::Subtract>(x, std::make_shared<ov::op::v0::Convert>(ov::op::v0::Constant::create(wt, s_shape, zp), et));
+        }
+        x = std::make_shared<ov::op::v1::Multiply>(x, ov::op::v0::Constant::create(et, s_shape, scale));
+        if (m.G != 1) {
+            x = std::make_shared<ov::op::v1::Reshape>(x, i64({static_cast<int64_t>(m.N), static_cast<int64_t>(m.K)}), false);
+        }
+        return x;
+    };
+    auto scale_by_inv_c = [&](const ov::Output<ov::Node>& x) -> ov::Output<ov::Node> {
+        if (tc.divide) {
+            return std::make_shared<ov::op::v1::Divide>(x, ov::op::v0::Constant::create(et, ov::Shape{1, 1, 1}, {static_cast<float>(C)}));
+        }
+        return std::make_shared<ov::op::v1::Multiply>(x, scalar(1.0f / static_cast<float>(C)));
+    };
+
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    const auto gain_w = random_vec(rg, CD, 0.25f);
+    std::vector<float> gain_folded(gain_w);
+    for (auto& g : gain_folded) {
+        g += 1.0f;
+    }
+
+    auto residual_p = std::make_shared<ov::op::v0::Parameter>(et, ov::PartialShape{-1, -1, iCD});
+    auto gain_p = std::make_shared<ov::op::v0::Parameter>(et, ov::Shape{CD});
+    auto split = [&](const ov::Output<ov::Node>& x) {
+        return std::make_shared<ov::op::v1::Reshape>(x, i64({0, 0, iC, iD}), true);
+    };
+    auto r4 = split(residual_p);
+    auto sq = std::make_shared<ov::op::v1::Power>(r4, scalar(2.0f));
+    auto mean = std::make_shared<ov::op::v1::ReduceMean>(sq, i64({-1}), true);
+    auto rms = std::make_shared<ov::op::v0::Sqrt>(std::make_shared<ov::op::v1::Add>(mean, scalar(eps)));
+    auto inv_rms = std::make_shared<ov::op::v1::Divide>(scalar(1.0f), rms);
+    auto normalized = std::make_shared<ov::op::v1::Multiply>(r4, inv_rms);
+    auto normalized_flat = std::make_shared<ov::op::v1::Reshape>(normalized, i64({0, 0, iCD}), true);
+    auto rbar = std::make_shared<ov::op::v1::Multiply>(normalized_flat, std::make_shared<ov::op::v1::Add>(gain_p, scalar(1.0f)));
+
+    auto low = scale_by_inv_c(std::make_shared<ov::op::v0::MatMul>(rbar, decompress(m_down), false, true));
+    auto up = std::make_shared<ov::op::v0::MatMul>(std::make_shared<ov::op::v4::Swish>(low), decompress(m_up), false, true);
+    auto weighted = std::make_shared<ov::op::v1::Multiply>(split(std::make_shared<ov::op::v0::Sigmoid>(up)), split(rbar));
+    auto mixed = std::make_shared<ov::op::v1::ReduceMean>(weighted, i64({-2}), false);
+
+    ov::OutputVector outputs{mixed};
+    if (tc.write_gate) {
+        auto inject = scale_by_inv_c(std::make_shared<ov::op::v0::MatMul>(rbar, decompress(m_inject), false, true));
+        outputs.push_back(std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v0::Sigmoid>(inject), scalar(2.0f)));
+    }
+    auto model = std::make_shared<ov::Model>(outputs, ov::ParameterVector{residual_p, gain_p});
+
+    ov::Core core;
+    ov::CompiledModel compiled;
+    OV_ASSERT_NO_THROW(compiled = core.compile_model(model, test_device_name(), ov::hint::inference_precision(ov::element::f16)));
+    size_t fused_nodes = 0;
+    size_t gemm_nodes = 0;
+    std::string runtime_layers;
+    for (const auto& op : compiled.get_runtime_model()->get_ops()) {
+        const auto it = op->get_rt_info().find("layerType");
+        const auto layer_type = it != op->get_rt_info().end() ? it->second.as<std::string>() : std::string("?");
+        if (layer_type == "GatedResidual" || layer_type == "gated_residual") {
+            fused_nodes++;
+        }
+        if (layer_type == "FullyConnected" || layer_type == "fully_connected" || layer_type == "Gemm" || layer_type == "gemm") {
+            gemm_nodes++;
+        }
+        runtime_layers += layer_type + " ";
+    }
+    ASSERT_EQ(fused_nodes, 1u) << "the compressed READ was not fused into one gated_residual; runtime layers: " << runtime_layers;
+    EXPECT_EQ(gemm_nodes, 0u) << "a MatMul is left; runtime layers: " << runtime_layers;
+
+    // The runtime model hides constant inputs, so the weight form is checked on the plugin's transformation pipeline: the op must take
+    // the compressed weights (W_inject too) and the scales / zero points converted to [G, N].
+    {
+        auto transformed = model->clone();
+        auto& engine = get_test_engine();
+        auto context = std::make_shared<ov::intel_gpu::RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+        auto config = get_test_default_config(engine);
+        config.set_user_property(ov::hint::inference_precision(ov::element::f16));
+        config.finalize(context.get(), transformed.get());
+        ov::intel_gpu::TransformationsPipeline(config, context).apply(transformed);
+        std::shared_ptr<ov::intel_gpu::op::GatedResidual> gr;
+        for (const auto& node : transformed->get_ordered_ops()) {
+            if (auto candidate = ov::as_type_ptr<ov::intel_gpu::op::GatedResidual>(node)) {
+                ASSERT_EQ(gr, nullptr) << "more than one GatedResidual";
+                gr = candidate;
+            }
+        }
+        ASSERT_NE(gr, nullptr);
+        using Idx = ov::intel_gpu::op::GatedResidual::ReadInputIdx;
+        // residual, gain, W_down, W_up, scale_down, scale_up [, zp_down, zp_up] [, W_inject, scale_inject [, zp_inject]]
+        const size_t expected_inputs = 6 + (tc.has_zp ? 2 : 0) + (tc.write_gate ? (tc.has_zp ? 3 : 2) : 0);
+        ASSERT_EQ(gr->get_input_size(), expected_inputs) << "the fused op does not take the compressed weights";
+        EXPECT_EQ(gr->get_produce_write_gate(), tc.write_gate);
+        EXPECT_TRUE(gr->get_scale_gn()) << "the scales were not converted to [G, N]";
+        // [G, N] scale / zero point constants must hold the values of the [N, G, 1] IR constants
+        auto check_group_major = [&](size_t scale_idx, size_t zp_idx, const quant_matrix& m, const char* name) {
+            auto scale = ov::as_type_ptr<ov::op::v0::Constant>(gr->get_input_node_shared_ptr(scale_idx));
+            ASSERT_NE(scale, nullptr) << name;
+            ASSERT_EQ(scale->get_shape(), (ov::Shape{m.G, m.N})) << name;
+            const auto sv = scale->cast_vector<float>();
+            for (size_t i = 0; i < sv.size(); i++) {
+                ASSERT_EQ(sv[i], m.scale[i]) << name << " scale at " << i;
+            }
+            if (m.has_zp) {
+                auto zp = ov::as_type_ptr<ov::op::v0::Constant>(gr->get_input_node_shared_ptr(zp_idx));
+                ASSERT_NE(zp, nullptr) << name;
+                ASSERT_EQ(zp->get_shape(), (ov::Shape{m.G, m.N})) << name;
+                ASSERT_EQ(zp->get_element_type(), wt) << name;
+                const auto zv = zp->cast_vector<int>();
+                for (size_t i = 0; i < zv.size(); i++) {
+                    ASSERT_EQ(zv[i], m.value(m.zp[i])) << name << " zero point at " << i;
+                }
+            }
+        };
+        EXPECT_EQ(gr->get_input_element_type(Idx::W_DOWN), wt);
+        EXPECT_EQ(gr->get_input_element_type(Idx::W_UP), wt);
+        check_group_major(Idx::SCALE_DOWN, Idx::ZP_DOWN, m_down, "W_down");
+        check_group_major(Idx::SCALE_UP, Idx::ZP_UP, m_up, "W_up");
+        if (tc.write_gate) {
+            const size_t w_inject = tc.has_zp ? 8 : 6;
+            EXPECT_EQ(gr->get_input_element_type(w_inject), wt);
+            check_group_major(w_inject + 1, w_inject + 2, m_inject, "W_inject");
+        }
+    }
+
+    auto infer_request = compiled.create_infer_request();
+    auto fill = [](ov::Tensor tensor, const std::vector<float>& data) {
+        auto* dst = tensor.data<ov::float16>();
+        ASSERT_EQ(tensor.get_size(), data.size());
+        for (size_t i = 0; i < data.size(); i++) {
+            dst[i] = ov::float16(data[i]);
+        }
+    };
+    {
+        ov::Tensor gain_tensor(et, ov::Shape{CD});
+        fill(gain_tensor, gain_w);
+        infer_request.set_tensor(gain_p, gain_tensor);
+    }
+    for (const size_t rows : {3, 64}) {
+        tests::random_generator input_rg;
+        input_rg.set_seed(static_cast<uint32_t>(rows));
+        const auto residual = random_vec(input_rg, rows * CD, 1.0f);
+        ov::Tensor residual_tensor(et, ov::Shape{1, rows, CD});
+        fill(residual_tensor, residual);
+        infer_request.set_tensor(residual_p, residual_tensor);
+
+        gr_ref_params p;
+        p.rows = rows;
+        p.C = C;
+        p.D = D;
+        p.L = L;
+        p.eps = eps;
+        std::vector<float> ref_mixed;
+        std::vector<float> ref_gate;
+        reference_read(p, residual, gain_folded, m_down.dequant, m_up.dequant, tc.write_gate ? &m_inject.dequant : nullptr, ref_mixed, ref_gate);
+
+        OV_ASSERT_NO_THROW(infer_request.infer());
+        const auto mixed_tensor = infer_request.get_output_tensor(0);
+        EXPECT_EQ(mixed_tensor.get_shape(), (ov::Shape{1, rows, D}));
+        const auto* mixed_data = mixed_tensor.data<ov::float16>();
+        ASSERT_EQ(mixed_tensor.get_size(), ref_mixed.size());
+        for (size_t i = 0; i < ref_mixed.size(); i++) {
+            ASSERT_NEAR(static_cast<float>(mixed_data[i]), ref_mixed[i], 2e-2f) << "mixed mismatch at rows=" << rows << " index=" << i;
+        }
+        if (tc.write_gate) {
+            const auto gate_tensor = infer_request.get_output_tensor(1);
+            EXPECT_EQ(gate_tensor.get_shape(), (ov::Shape{1, rows, C}));
+            const auto* gate_data = gate_tensor.data<ov::float16>();
+            ASSERT_EQ(gate_tensor.get_size(), ref_gate.size());
+            for (size_t i = 0; i < ref_gate.size(); i++) {
+                ASSERT_NEAR(static_cast<float>(gate_data[i]), ref_gate[i], 2e-2f) << "write gate mismatch at rows=" << rows << " index=" << i;
+            }
+        }
+    }
+}
+
+// The first case is the common exported form: u4 with zero points and group 128 (G_down = G_inject = C*D / 128; W_up has K = L, which
+// 128 does not divide, so it keeps the default group 32), the write gate and Divide(Const [1, 1, 1]). The others vary the group count
+// (incl. G = 1), the zero points, the bit width and the 1/C form.
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         gated_residual_decomposed_quant_test,
+                         ::testing::Values(gr_decomposed_quant_case{128, 64, true, false, true, 128, true, true},
+                                           gr_decomposed_quant_case{128, 64, true, false, true, 128, false, true},
+                                           gr_decomposed_quant_case{128, 64, true, false, true, 128, true, false},
+                                           gr_decomposed_quant_case{64, 32, true, false, true, 0, true, true},
+                                           gr_decomposed_quant_case{64, 32, true, true, false, 0, true, true},
+                                           gr_decomposed_quant_case{96, 64, true, false, true, 64, true, true},
+                                           gr_decomposed_quant_case{96, 64, true, false, true, kPerChannel, true, true},
+                                           gr_decomposed_quant_case{128, 64, false, false, true, 128, true, true},
+                                           gr_decomposed_quant_case{64, 32, false, true, false, 0, false, true}),
+                         gated_residual_decomposed_quant_test::PrintToStringParamName);
 
 }  // namespace

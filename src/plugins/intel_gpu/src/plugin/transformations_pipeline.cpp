@@ -91,6 +91,7 @@
 #include "plugin/transformations/clamp_fp16_output.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
+#include "plugin/transformations/convert_gated_residual_scale_layout.hpp"
 #include "transformations/op_conversions/convert_grouped_matmul_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/fuse_moe_shared_expert.hpp"
@@ -1837,6 +1838,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // The fusion also hides the Add / MatMul ops that the activation scaling has to rescale, so it is skipped then.
         if (cldnn::gated_residual_caps::is_device_supported(device_info) && !fp16_activation_scaling) {
             manager.register_pass<ov::intel_gpu::GatedResidualFusion>(cldnn::gated_residual_caps::uses_dpas_kernels(device_info, config));
+            // The fusion keeps the scales / zero points in the operation layout [N, G]; the kernels read [G, N].
+            manager.register_pass<ov::intel_gpu::ConvertGatedResidualScaleLayout>();
         }
         // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
         manager.register_pass<ov::pass::Validate>();

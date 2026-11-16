@@ -39,6 +39,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/rms.hpp"
+#include "plugin/transformations/convert_gated_residual_scale_layout.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 
@@ -276,12 +277,12 @@ void expect_compressed(const std::shared_ptr<op::GatedResidual>& gr, const ov::e
     EXPECT_EQ(gr->get_input_shape(op::GatedResidual::ReadInputIdx::W_DOWN), (ov::Shape{static_cast<size_t>(LQ), static_cast<size_t>(C * D)}));
     EXPECT_EQ(gr->get_input_shape(op::GatedResidual::ReadInputIdx::W_UP), (ov::Shape{static_cast<size_t>(C * D), static_cast<size_t>(LQ)}));
     EXPECT_EQ(gr->get_input_element_type(op::GatedResidual::ReadInputIdx::SCALE_DOWN), ov::element::f16);
-    EXPECT_EQ(gr->get_input_shape(op::GatedResidual::ReadInputIdx::SCALE_DOWN), (ov::Shape{groups_down, static_cast<size_t>(LQ)}));
-    EXPECT_EQ(gr->get_input_shape(op::GatedResidual::ReadInputIdx::SCALE_UP), (ov::Shape{groups_up, static_cast<size_t>(C * D)}));
+    EXPECT_EQ(gr->get_input_shape(op::GatedResidual::ReadInputIdx::SCALE_DOWN), (ov::Shape{static_cast<size_t>(LQ), groups_down}));
+    EXPECT_EQ(gr->get_input_shape(op::GatedResidual::ReadInputIdx::SCALE_UP), (ov::Shape{static_cast<size_t>(C * D), groups_up}));
     if (has_zp) {
         EXPECT_EQ(gr->get_input_element_type(op::GatedResidual::ReadInputIdx::ZP_DOWN), wt);
         EXPECT_EQ(gr->get_input_element_type(op::GatedResidual::ReadInputIdx::ZP_UP), wt);
-        EXPECT_EQ(gr->get_input_shape(op::GatedResidual::ReadInputIdx::ZP_UP), (ov::Shape{groups_up, static_cast<size_t>(C * D)}));
+        EXPECT_EQ(gr->get_input_shape(op::GatedResidual::ReadInputIdx::ZP_UP), (ov::Shape{static_cast<size_t>(C * D), groups_up}));
     }
 }
 
@@ -809,10 +810,10 @@ TEST(gated_residual_fusion, scalar_symmetric_zero_point_is_the_signed_form_witho
     EXPECT_EQ(signed_zp->get_input_size(), 4u);
 }
 
-TEST(gated_residual_fusion, compressed_scale_is_transposed_to_group_major) {
+TEST(gated_residual_fusion, compressed_scale_keeps_the_operation_layout) {
     const size_t cd = C * D;
     const size_t g = cd / 32;
-    // scale[n, g] = n * 10 + g, so [G, N] holds element (g, n) at g * N + n
+    // scale[n, g] = n * 10 + g
     std::vector<float> scale_ng(LQ * g);
     for (size_t n = 0; n < static_cast<size_t>(LQ); n++) {
         for (size_t i = 0; i < g; i++) {
@@ -829,12 +830,63 @@ TEST(gated_residual_fusion, compressed_scale_is_transposed_to_group_major) {
     expect_compressed(gr, ov::element::u4, g, LQ / 32);
     auto scale = ov::as_type_ptr<ov::op::v0::Constant>(gr->get_input_node_shared_ptr(op::GatedResidual::ReadInputIdx::SCALE_DOWN));
     ASSERT_NE(scale, nullptr);
-    const auto v = scale->cast_vector<float>();
-    for (size_t i = 0; i < g; i++) {
-        for (size_t n = 0; n < static_cast<size_t>(LQ); n++) {
-            ASSERT_EQ(v[i * LQ + n], scale_ng[n * g + i]);
+    EXPECT_EQ(scale->get_shape(), (ov::Shape{static_cast<size_t>(LQ), g}));
+    EXPECT_EQ(scale->cast_vector<float>(), scale_ng) << "the fusion passes the checkpoint's [N, G] scale through";
+}
+
+TEST(gated_residual_scale_layout, scales_and_zero_points_are_transposed_to_group_major) {
+    const size_t cd = C * D;
+    const size_t g = cd / 32;
+    const auto n_down = static_cast<size_t>(LQ);
+    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, C * D});
+    auto mixed = build_gr_read_with_weights(residual, make_decompressed(ov::element::u4, LQ, cd, 32), make_decompressed(ov::element::u4, cd, LQ, 32));
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{mixed}, ov::ParameterVector{residual});
+    ov::pass::Manager manager;
+    manager.register_pass<GatedResidualReadFusion>(true);
+    manager.run_passes(model);
+    std::shared_ptr<op::GatedResidual> before;
+    for (const auto& node : model->get_ops()) {
+        if (auto gr = ov::as_type_ptr<op::GatedResidual>(node)) {
+            before = gr;
         }
     }
+    ASSERT_NE(before, nullptr);
+    ASSERT_FALSE(before->get_scale_gn());
+    using Idx = op::GatedResidual::ReadInputIdx;
+    const auto scale_ng = ov::as_type_ptr<ov::op::v0::Constant>(before->get_input_node_shared_ptr(Idx::SCALE_DOWN))->cast_vector<float>();
+    const auto zp_ng = ov::as_type_ptr<ov::op::v0::Constant>(before->get_input_node_shared_ptr(Idx::ZP_DOWN))->cast_vector<int32_t>();
+    const auto scale_up_ng = ov::as_type_ptr<ov::op::v0::Constant>(before->get_input_node_shared_ptr(Idx::SCALE_UP))->cast_vector<float>();
+
+    ov::pass::Manager convert;
+    convert.register_pass<ConvertGatedResidualScaleLayout>();
+    convert.run_passes(model);
+    std::shared_ptr<op::GatedResidual> gr;
+    for (const auto& node : model->get_ops()) {
+        if (auto found = ov::as_type_ptr<op::GatedResidual>(node)) {
+            gr = found;
+        }
+    }
+    ASSERT_NE(gr, nullptr);
+    EXPECT_TRUE(gr->get_scale_gn());
+    EXPECT_EQ(gr->get_input_shape(Idx::SCALE_DOWN), (ov::Shape{g, n_down}));
+    EXPECT_EQ(gr->get_input_shape(Idx::ZP_DOWN), (ov::Shape{g, n_down}));
+    EXPECT_EQ(gr->get_input_shape(Idx::SCALE_UP), (ov::Shape{1, cd}));
+    EXPECT_EQ(gr->get_input_shape(Idx::ZP_UP), (ov::Shape{1, cd}));
+    const auto scale = ov::as_type_ptr<ov::op::v0::Constant>(gr->get_input_node_shared_ptr(Idx::SCALE_DOWN))->cast_vector<float>();
+    const auto zp = ov::as_type_ptr<ov::op::v0::Constant>(gr->get_input_node_shared_ptr(Idx::ZP_DOWN))->cast_vector<int32_t>();
+    for (size_t i = 0; i < g; i++) {
+        for (size_t n = 0; n < n_down; n++) {
+            ASSERT_EQ(scale[i * n_down + n], scale_ng[n * g + i]);
+            ASSERT_EQ(zp[i * n_down + n], zp_ng[n * g + i]);
+        }
+    }
+    // G = 1: [N, 1] and [1, N] have the same element order
+    EXPECT_EQ(ov::as_type_ptr<ov::op::v0::Constant>(gr->get_input_node_shared_ptr(Idx::SCALE_UP))->cast_vector<float>(), scale_up_ng);
+
+    // a second run leaves the op alone
+    ov::pass::Manager again;
+    again.register_pass<ConvertGatedResidualScaleLayout>();
+    EXPECT_FALSE(again.run_passes(model));
 }
 
 TEST(gated_residual_geometry, systolic_kernels_lift_the_scalar_limits) {
@@ -917,7 +969,14 @@ std::shared_ptr<op::GatedResidual> make_compressed_op(const ov::element::Type& w
         inputs.push_back(param(wt, {g_down, lq}));
         inputs.push_back(param(wt, {g_up, cd}));
     }
-    return std::make_shared<op::GatedResidual>(inputs, op::GatedResidual::Mode::READ, static_cast<size_t>(C), static_cast<size_t>(D), lq, EPS, false);
+    return std::make_shared<op::GatedResidual>(inputs,
+                                               op::GatedResidual::Mode::READ,
+                                               static_cast<size_t>(C),
+                                               static_cast<size_t>(D),
+                                               lq,
+                                               EPS,
+                                               false,
+                                               /*scale_gn=*/true);
 }
 
 }  // namespace
@@ -966,14 +1025,15 @@ TEST(gated_residual_group_size, op_validates_the_zero_point_type) {
                             param(ov::element::f16, {lq / 32, cd}),
                             param(ov::element::u4, {cd / 32, lq}),
                             param(ov::element::u4, {lq / 32, cd})};
-    EXPECT_THROW(static_cast<void>(std::make_shared<op::GatedResidual>(inputs, op::GatedResidual::Mode::READ, C, D, LQ, EPS, false)), ov::NodeValidationFailure)
+    EXPECT_THROW(static_cast<void>(std::make_shared<op::GatedResidual>(inputs, op::GatedResidual::Mode::READ, C, D, LQ, EPS, false, true)),
+                 ov::NodeValidationFailure)
         << "the zero point must have the weight element type";
 }
 
 TEST(gated_residual_group_size, derive_group_size) {
     EXPECT_EQ(caps::derive_group_size(256, 8), 32u);
     EXPECT_EQ(caps::derive_group_size(256, 1), 256u);
-    EXPECT_EQ(caps::derive_group_size(256, 0), 0u) << "no scale rows";
+    EXPECT_EQ(caps::derive_group_size(256, 0), 0u) << "no scale groups";
     EXPECT_EQ(caps::derive_group_size(256, 7), 0u) << "K is not divisible by G";
 }
 
@@ -1081,7 +1141,7 @@ std::shared_ptr<op::GatedResidual> make_compressed_gate_op(const ov::element::Ty
     if (has_zp) {
         inputs.push_back(param(inject_wt, scale_inject));
     }
-    return std::make_shared<op::GatedResidual>(inputs, op::GatedResidual::Mode::READ, c, static_cast<size_t>(D), lq, EPS, true);
+    return std::make_shared<op::GatedResidual>(inputs, op::GatedResidual::Mode::READ, c, static_cast<size_t>(D), lq, EPS, true, /*scale_gn=*/true);
 }
 
 }  // namespace
@@ -1376,10 +1436,10 @@ TEST(gated_residual_fusion_write_gate, compressed_weights_take_a_compressed_w_in
         EXPECT_EQ(r.gr->get_input_element_type(layout->w_inject), tc.wt);
         EXPECT_EQ(r.gr->get_input_shape(layout->w_inject), (ov::Shape{c, cd}));
         EXPECT_EQ(r.gr->get_input_element_type(layout->scale_inject), ov::element::f16);
-        EXPECT_EQ(r.gr->get_input_shape(layout->scale_inject), (ov::Shape{cd / tc.group_k_cd, c}));
+        EXPECT_EQ(r.gr->get_input_shape(layout->scale_inject), (ov::Shape{c, cd / tc.group_k_cd}));
         if (tc.has_zp) {
             EXPECT_EQ(r.gr->get_input_element_type(layout->zp_inject), tc.wt);
-            EXPECT_EQ(r.gr->get_input_shape(layout->zp_inject), (ov::Shape{cd / tc.group_k_cd, c}));
+            EXPECT_EQ(r.gr->get_input_shape(layout->zp_inject), (ov::Shape{c, cd / tc.group_k_cd}));
         }
     }
 }

@@ -167,15 +167,15 @@ bool get_branch_split(const ov::Output<ov::Node>& split, size_t& C, size_t& D) {
     return true;
 }
 
-/// A W_down / W_up decompression subgraph (NNCF INT4 / INT8, symmetric or asymmetric) split into its parts, laid out the way
-/// the GatedResidual kernels read them.
+/// A W_down / W_up decompression subgraph (NNCF INT4 / INT8, symmetric or asymmetric) split into its parts: the weights as [N, K]
+/// and the scale / zero point in the layout of the GatedResidual operation.
 struct CompressedWeight {
     ov::Output<ov::Node> weights;  // Constant i4/u4/i8/u8 [N, K], K contiguous (a metadata-only reshape of the checkpoint constant)
-    ov::Output<ov::Node> scale;    // Constant f16 [G, N]
-    ov::Output<ov::Node> zp;       // Constant of the weight type (4-bit packed) [G, N]; empty without zero points
+    ov::Output<ov::Node> scale;    // Constant f16 [N, G]
+    ov::Output<ov::Node> zp;       // Constant of the weight type (4-bit packed) [N, G]; empty without zero points
     ov::element::Type type;        // weight element type
     size_t bits = 0;               // 4 or 8
-    size_t groups = 0;             // scale rows G, the group size is K / G
+    size_t groups = 0;             // group count G (scale / zp columns), the group size is K / G
 
     bool has_zp() const {
         return zp.get_node() != nullptr;
@@ -242,32 +242,20 @@ std::optional<CompressedWeight> match_compressed_weight(const ov::Output<ov::Nod
         return std::nullopt;
     }
 
-    // scale / zp are [N, G] in the checkpoint; the kernels read [G, N] (n contiguous), see GatedResidual::ReadLayout.
-    const auto scale_ng = scale->cast_vector<float>();
-    std::vector<ov::float16> scale_gn(G * N);
-    for (size_t n = 0; n < N; ++n) {
-        for (size_t g = 0; g < G; ++g) {
-            scale_gn[g * N + n] = ov::float16(scale_ng[n * G + g]);
-        }
-    }
-
-    ov::Output<ov::Node> zp_gn_const;
+    // scale / zp stay [N, G] as in the checkpoint (the operation layout); ConvertGatedResidualScaleLayout turns them into the
+    // kernels' [G, N] later. The zero point must be representable in the weight type.
+    const auto scale_ng_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{N, G}, scale->cast_vector<ov::float16>());
+    ov::Output<ov::Node> zp_ng_const;
     if (has_zp) {
-        // the zero point must be representable in the weight type
         const int32_t zp_min = wt.is_signed() ? -(1 << (bits - 1)) : 0;
         const int32_t zp_max = wt.is_signed() ? (1 << (bits - 1)) - 1 : (1 << bits) - 1;
         const auto zp_ng = zp->cast_vector<int32_t>();
-        std::vector<int32_t> zp_gn(G * N);
-        for (size_t n = 0; n < N; ++n) {
-            for (size_t g = 0; g < G; ++g) {
-                const int32_t v = zp_ng[n * G + g];
-                if (v < zp_min || v > zp_max) {
-                    return std::nullopt;
-                }
-                zp_gn[g * N + n] = v;
+        for (const int32_t v : zp_ng) {
+            if (v < zp_min || v > zp_max) {
+                return std::nullopt;
             }
         }
-        zp_gn_const = ov::op::v0::Constant::create(wt, ov::Shape{G, N}, zp_gn)->output(0);
+        zp_ng_const = ov::op::v0::Constant::create(wt, ov::Shape{N, G}, zp_ng)->output(0);
     }
 
     std::shared_ptr<ov::op::v0::Constant> weights_2d;
@@ -288,8 +276,8 @@ std::optional<CompressedWeight> match_compressed_weight(const ov::Output<ov::Nod
     }
     CompressedWeight result;
     result.weights = weights_2d->output(0);
-    result.scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{G, N}, scale_gn)->output(0);
-    result.zp = zp_gn_const;
+    result.scale = scale_ng_const->output(0);
+    result.zp = zp_ng_const;
     result.type = wt;
     result.bits = bits;
     result.groups = G;
