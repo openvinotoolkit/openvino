@@ -2,77 +2,58 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <climits>
-#include <vector>
+#include <memory>
 
 #include "node_context.hpp"
 #include "op_table.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/concat.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/slice.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::op {
 
 OutputVector translate_scale(const NodeContext& context) {
     num_inputs_check(context, 1, 3);
-    FRONT_END_OP_CONVERSION_CHECK(context.get_input_size() != 2, "SCALE range requires start and length operands");
 
     // bias is optional in ggml SCALE; default it so a missing op-param does not abort conversion.
     float scale = context.get_attribute<float>("scale", 1.0f);
     float bias = context.get_attribute<float>("bias", 0.0f);
 
-    auto scale_node = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{scale});
     ov::Output<ov::Node> value = context.get_input(0);
     const auto output_type = value.get_element_type();
     if (output_type == ov::element::f16 || output_type == ov::element::bf16) {
         value = std::make_shared<ov::op::v0::Convert>(value, ov::element::f32);
     }
-    bool updated_cache = false;
-    const bool operand_range = context.get_input_size() == 3;
-    if (operand_range || (context.get_attribute<bool>("cache_reset", false) &&
-                          context.has_input("cache_rs_reset_idx") && context.has_input("cache_rs_reset_len"))) {
-        auto begin = operand_range ? context.get_input(1) : context.get_input("cache_rs_reset_idx");
-        auto length = operand_range ? context.get_input(2) : context.get_input("cache_rs_reset_len");
-        auto end = std::make_shared<ov::op::v1::Add>(begin, length);
-        auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
-        auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
-        auto int_max = ov::op::v0::Constant::create(ov::element::i64, {1}, {INT_MAX});
-        const auto axis_value = context.get_attribute<int64_t>("axis", 2);
-        auto axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {axis_value});
-        auto head = std::make_shared<ov::op::v8::Slice>(value, zero, begin, one, axis);
-        auto middle = std::make_shared<ov::op::v8::Slice>(value, begin, end, one, axis);
-        auto tail = std::make_shared<ov::op::v8::Slice>(value, end, int_max, one, axis);
-        ov::Output<ov::Node> scaled_middle = std::make_shared<ov::op::v1::Multiply>(middle, scale_node);
-        if (bias != 0.0f) {
-            scaled_middle =
-                std::make_shared<ov::op::v1::Add>(scaled_middle,
-                                                  ov::op::v0::Constant::create(ov::element::f32, {}, {bias}));
+    const auto range = get_update_range(context);
+    auto apply = [&](const ov::Output<ov::Node>& x) -> ov::Output<ov::Node> {
+        auto bias_node = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {bias});
+        if (range && scale == 0.0f) {
+            // A range update with scale 0 resets cache slots: do not keep a NaN or Inf of a cleared slot.
+            return std::make_shared<ov::op::v3::Broadcast>(bias_node,
+                                                           std::make_shared<ov::op::v3::ShapeOf>(x, ov::element::i64));
         }
-        value = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{head, scaled_middle, tail}, axis_value);
-        updated_cache = true;
-    }
-    ov::Output<ov::Node> scaled = value;
-    if (!updated_cache) {
-        scaled = std::make_shared<ov::op::v1::Multiply>(value, scale_node);
-    }
-
-    std::shared_ptr<ov::Node> res;
-    if (bias != 0.0f && !updated_cache) {
-        auto bias_node =
-            std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{bias});
-        res = std::make_shared<ov::op::v1::Add>(scaled, bias_node);
+        ov::Output<ov::Node> res =
+            std::make_shared<ov::op::v1::Multiply>(x, ov::op::v0::Constant::create(ov::element::f32, {}, {scale}));
+        if (bias != 0.0f) {
+            res = std::make_shared<ov::op::v1::Add>(res, bias_node);
+        }
+        return res;
+    };
+    ov::Output<ov::Node> res;
+    if (range) {
+        res = update_axis_range(value, range->first, range->second, context.get_attribute<int64_t>("axis", 2), apply);
     } else {
-        res = scaled.get_node_shared_ptr();
+        res = apply(value);
     }
-    if (res->get_output_element_type(0) != output_type) {
+    if (res.get_element_type() != output_type) {
         res = std::make_shared<ov::op::v0::Convert>(res, output_type);
     }
 
-    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
+    return rename_outputs_with_suffix({res}, context.get_name());
 }
 
 }  // namespace ov::frontend::gguf::op

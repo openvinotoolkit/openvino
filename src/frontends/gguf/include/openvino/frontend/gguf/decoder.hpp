@@ -55,6 +55,8 @@ struct RopeConfig {
     float attn_factor = 0.0f;
     float beta_fast = 0.0f;
     float beta_slow = 0.0f;
+    // Rounds the YaRN correction dims to whole dims, as ggml does unless ggml_rope_set_truncate disables it.
+    bool yarn_truncate = true;
     // When true, each ROPE op builds its own sin/cos from its per-op config (e.g. gemma4, where
     // SWA and global layers use different n_dims), so the shared rope_cos/rope_sin table that
     // TranslateSession::preprocess would otherwise pre-build is skipped.

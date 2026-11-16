@@ -91,6 +91,7 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/op/norm.cpp"
     "${FE_SRC_DIR}/op/pad.cpp"
     "${FE_SRC_DIR}/op/permute.cpp"
+    "${FE_SRC_DIR}/op/pool_1d.cpp"
     "${FE_SRC_DIR}/op/pool_2d.cpp"
     "${FE_SRC_DIR}/op/repeat.cpp"
     "${FE_SRC_DIR}/op/reduce.cpp"

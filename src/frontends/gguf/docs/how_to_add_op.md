@@ -37,7 +37,9 @@ the operation's layout.
 | `PERMUTE` | `perm`, in OpenVINO axis order |
 | `ROPE` | `rope_mode` (`normal`, `neox`, `imrope`, `mrope`, `vision`) and `rope_config` |
 | `CPY` | Update `axis`, optional `source_slice` / `reshape_target`, destination and optional offset operands |
-| `SCALE` | Optional start and length operands for an in-place range update |
+| `SCALE` / `FILL` | Optional start and length operands, or `cache_reset` with the recurrent cache reset inputs, for an in-place range update along `axis` |
+| `PAD` | Eight `pad_params`; with a second operand, `pad_to_input_axis` extends that ggml axis to the operand's last dimension at run time (no-cache K/V padded to the KQ mask width) |
+| `POOL_1D` | Four `pool_params`: mode, kernel, stride and padding of the innermost axis |
 | `POOL_2D` | Seven `pool_params`: mode, kernel width/height, strides and padding |
 
 Graph-walk storage updates rebind later reads of a cache and its reshape aliases; `CONT` snapshots

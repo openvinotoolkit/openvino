@@ -58,7 +58,7 @@ ov::Output<ov::Node> translate_circular_pad(ov::Output<ov::Node> input,
 // GGML_OP_PAD: constant (zero) pad, or circular pad. The 8 per-edge pad extents and the circular
 // flag are exposed by the decoder as typed attributes ("pad_params" / "pad_circular").
 OutputVector translate_pad(const NodeContext& context) {
-    num_inputs_check(context, 1, 1);
+    num_inputs_check(context, 1, 2);
 
     auto input = context.get_input(0);
     const auto multiple = context.get_attribute<int64_t>("pad_tokens_to_multiple", 0);
@@ -104,7 +104,27 @@ OutputVector translate_pad(const NodeContext& context) {
     const std::vector<int64_t> pads_begin = {pads[6], pads[4], pads[2], pads[0]};
     const std::vector<int64_t> pads_end = {pads[7], pads[5], pads[3], pads[1]};
     auto pads_begin_node = ov::op::v0::Constant::create(ov::element::i64, {pads_begin.size()}, pads_begin);
-    auto pads_end_node = ov::op::v0::Constant::create(ov::element::i64, {pads_end.size()}, pads_end);
+    ov::Output<ov::Node> pads_end_node = ov::op::v0::Constant::create(ov::element::i64, {pads_end.size()}, pads_end);
+    if (context.get_input_size() == 2) {
+        // The end padding of one axis extends it to the last dimension of input 1, known only at run time
+        const auto ggml_axis = context.get_attribute<int64_t>("pad_to_input_axis");
+        FRONT_END_OP_CONVERSION_CHECK(ggml_axis >= 0 && ggml_axis < 4 && input.get_partial_shape().rank() == 4,
+                                      "PAD to an input extent requires rank four and a ggml axis in [0, 3]");
+        const auto axis = static_cast<int>(3 - ggml_axis);
+        FRONT_END_OP_CONVERSION_CHECK(pads_begin[axis] == 0, "PAD to an input extent requires no begin padding");
+        auto target = context.get_input(1);
+        const auto target_rank = target.get_partial_shape().rank();
+        FRONT_END_OP_CONVERSION_CHECK(target_rank.is_static() && target_rank.get_length() > 0,
+                                      "PAD extent input requires a static rank");
+        auto extent = get_dimensions(target, {static_cast<int>(target_rank.get_length()) - 1});
+        auto pad = std::make_shared<ov::op::v1::Subtract>(extent, get_dimensions(input, {axis}));
+        ov::OutputVector parts;
+        for (int i = 0; i < 4; ++i) {
+            parts.push_back(i == axis ? pad->output(0)
+                                      : ov::op::v0::Constant::create(ov::element::i64, {1}, {pads_end[i]})->output(0));
+        }
+        pads_end_node = std::make_shared<ov::op::v0::Concat>(parts, 0);
+    }
     auto pad_value = ov::op::v0::Constant::create(input.get_element_type(), ov::Shape{}, {0});
     auto res =
         std::make_shared<ov::op::v1::Pad>(input, pads_begin_node, pads_end_node, pad_value, ov::op::PadMode::CONSTANT);

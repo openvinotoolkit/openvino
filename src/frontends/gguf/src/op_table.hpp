@@ -95,6 +95,7 @@ GGUF_OP_CONVERTER(translate_arange);
 // Convolution-family / sequence ops.
 GGUF_OP_CONVERTER(translate_im2col);
 GGUF_OP_CONVERTER(translate_im2col_3d);
+GGUF_OP_CONVERTER(translate_pool_1d);
 GGUF_OP_CONVERTER(translate_pool_2d);
 GGUF_OP_CONVERTER(translate_conv_2d);
 GGUF_OP_CONVERTER(translate_conv_2d_dw);

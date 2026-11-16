@@ -2324,6 +2324,70 @@ TEST(GGUFOps, RopeNeoxPartialRotary) {
     expect_near(out, expected, 1e-4f);
 }
 
+// YaRN NEOX RoPE against ggml's rope_yarn, with and without the whole-dim rounding of the correction dims that
+// ggml_rope_set_truncate controls. With these parameters the high correction dim is 1.008 or, rounded, 2.
+TEST(GGUFOps, RopeYarnTruncation) {
+    const int n_dims = 8, pos = 7;
+    RopeConfig cfg;
+    cfg.n_dims = n_dims;
+    cfg.n_ctx_orig = 64;
+    cfg.freq_base = 10000.0f;
+    cfg.freq_scale = 0.25f;
+    cfg.ext_factor = 1.0f;
+    cfg.attn_factor = 1.0f;
+    cfg.beta_fast = 32.0f;
+    cfg.beta_slow = 1.0f;
+    std::vector<float> data(n_dims);
+    std::iota(data.begin(), data.end(), 1.0f);
+    std::vector<std::vector<float>> outputs;
+    for (const bool truncate : {true, false}) {
+        SCOPED_TRACE(truncate ? "truncate" : "no truncate");
+        cfg.yarn_truncate = truncate;
+        auto model = SingleOpBuilder()
+                         .op("GGML_OP_ROPE")
+                         .input("data", ov::element::f32, {1, 1, 1, n_dims})
+                         .input("pos", ov::element::i32, {1, 1, 1, 1})
+                         .output("out", ov::element::f32, {1, 1, 1, n_dims})
+                         .attr<std::string>("rope_mode", "neox")
+                         .attr<RopeConfig>("rope_config", cfg)
+                         .build();
+        ov::Tensor pos_t(ov::element::i32, ov::Shape{1, 1, 1, 1});
+        pos_t.data<int32_t>()[0] = pos;
+        auto out =
+            run_on_cpu(model,
+                       {{"data", make_f32_tensor({1, 1, 1, static_cast<size_t>(n_dims)}, data)}, {"pos", pos_t}});
+
+        auto corr_dim = [&](float n_rot) {
+            return n_dims * std::log(cfg.n_ctx_orig / (n_rot * 2 * static_cast<float>(M_PI))) /
+                   (2 * std::log(cfg.freq_base));
+        };
+        float low = corr_dim(cfg.beta_fast);
+        float high = corr_dim(cfg.beta_slow);
+        if (truncate) {
+            low = std::floor(low);
+            high = std::ceil(high);
+        }
+        low = std::max(0.0f, low);
+        high = std::min(static_cast<float>(n_dims - 1), high);
+        const float mscale = cfg.attn_factor * (1.0f + 0.1f * std::log(1.0f / cfg.freq_scale));
+        std::vector<float> expected(n_dims);
+        for (int i = 0; i < n_dims / 2; ++i) {
+            const float theta_extrap = pos * std::pow(cfg.freq_base, -2.0f * i / n_dims);
+            const float theta_interp = cfg.freq_scale * theta_extrap;
+            const float y = (i - low) / std::max(0.001f, high - low);
+            const float ramp_mix = (1 - std::min(1.0f, std::max(0.0f, y))) * cfg.ext_factor;
+            const float theta = theta_interp * (1 - ramp_mix) + theta_extrap * ramp_mix;
+            const float c = std::cos(theta) * mscale;
+            const float sn = std::sin(theta) * mscale;
+            expected[i] = data[i] * c - data[i + n_dims / 2] * sn;
+            expected[i + n_dims / 2] = data[i] * sn + data[i + n_dims / 2] * c;
+        }
+        expect_near(out, expected, 1e-4f);
+        outputs.emplace_back(out.data<float>(), out.data<float>() + n_dims);
+    }
+    EXPECT_NE(outputs[0], outputs[1]);
+}
+
 // RoPE NEOX full rotary (n_dims == head_dim): no pass-through remainder (regression guard that the
 // partial-rotary change did not alter the common full-head path).
 TEST(GGUFOps, RopeNeoxFullRotary) {
@@ -3937,6 +4001,55 @@ TEST(GGUFOps, Pool2DRejectsInvalidParams) {
     }
 }
 
+TEST(GGUFOps, Pool1DMaxAndAverageSkipPadding) {
+    // ggml CPU semantics for k=3, s=2, p=1 over a width of 5: windows {0,1}, {1,2,3}, {3,4}; padded cells are
+    // skipped by max and are not counted by average.
+    const std::vector<float> input{1, 2, 3, 4, 5, -1, -2, -3, -4, -5};
+    const std::vector<std::pair<std::string, std::vector<float>>> cases{
+        {"max", {2, 4, 5, -1, -2, -4}},
+        {"average", {1.5f, 3, 4.5f, -1.5f, -3, -4.5f}},
+    };
+    for (const auto& [mode, expected] : cases) {
+        for (const auto& shape : {ov::Shape{1, 1, 2, 5}, ov::Shape{2, 5}}) {
+            SCOPED_TRACE(mode + " rank " + std::to_string(shape.size()));
+            auto out_shape = shape;
+            out_shape.back() = 3;
+            auto model = SingleOpBuilder()
+                             .op("GGML_OP_POOL_1D")
+                             .input("x", ov::element::f16, ov::PartialShape(shape))
+                             .output("out", ov::element::f32, ov::PartialShape(out_shape))
+                             .attr<std::string>("pool_mode", mode)
+                             .attr<std::vector<int32_t>>("pool_params", {mode == "max" ? 0 : 1, 3, 2, 1})
+                             .build();
+            auto out = run_on_cpu(model, {{"x", make_f16_tensor(shape, input)}});
+            ASSERT_EQ(out.get_element_type(), ov::element::f32);
+            ASSERT_EQ(out.get_shape(), out_shape);
+            expect_near(out, expected, 0.0f);
+        }
+    }
+}
+
+TEST(GGUFOps, Pool1DRejectsInvalidParams) {
+    const std::vector<std::pair<std::string, std::vector<int32_t>>> invalid{
+        {"max", {1, 2, 1, 0}},
+        {"max", {0, 0, 1, 0}},
+        {"max", {0, 2, 0, 0}},
+        {"max", {0, 2, 1, 2}},
+        {"average", {1, 2, 1, -1}},
+        {"max", {0, 2, 1}},
+    };
+    for (const auto& [mode, params] : invalid) {
+        EXPECT_THROW(SingleOpBuilder()
+                         .op("GGML_OP_POOL_1D")
+                         .input("x", ov::element::f32, {1, 1, 1, 4})
+                         .output("out", ov::element::f32, {1, 1, 1, 2})
+                         .attr<std::string>("pool_mode", mode)
+                         .attr<std::vector<int32_t>>("pool_params", params)
+                         .build(),
+                     ov::Exception);
+    }
+}
+
 TEST(GGUFOps, RollFourAxes) {
     auto model = SingleOpBuilder()
                      .op("GGML_OP_ROLL")
@@ -5255,6 +5368,65 @@ TEST(GGUFOps, ScaleRangeComesFromOperands) {
                             {"begin", make_i64_tensor({1}, {1})},
                             {"length", make_i64_tensor({1}, {3})}}),
                 {1, 5, 7, 9, 5});
+}
+
+TEST(GGUFOps, FillRangeComesFromOperands) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_FILL")
+                     .input("x", ov::element::f32, {5})
+                     .input("begin", ov::element::i64, {1})
+                     .input("length", ov::element::i64, {1})
+                     .output("out", ov::element::f32, {5})
+                     .attr("axis", int64_t{0})
+                     .attr("fill_value", 0.0f)
+                     .build();
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    expect_near(run_on_cpu(model,
+                           {{"x", make_f32_tensor({5}, {1, nan, 3, 4, 5})},
+                            {"begin", make_i64_tensor({1}, {1})},
+                            {"length", make_i64_tensor({1}, {3})}}),
+                {1, 0, 0, 0, 5});
+}
+
+TEST(GGUFOps, PadEndExtendsAxisToInputExtent) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_PAD")
+                     .input("k", ov::element::f32, ov::PartialShape{1, -1, 1, 2})
+                     .input("mask", ov::element::f32, ov::PartialShape{1, 1, -1, -1})
+                     .output("out", ov::element::f32, ov::PartialShape{1, -1, 1, 2})
+                     .attr<std::vector<int32_t>>("pad_params", {0, 0, 0, 0, 0, 3, 0, 0})
+                     .attr("pad_to_input_axis", int64_t{2})
+                     .build();
+    for (const size_t tokens : {2, 3}) {
+        std::vector<float> k(tokens * 2);
+        std::iota(k.begin(), k.end(), 1.0f);
+        std::vector<float> expected(4 * 2, 0.0f);
+        std::copy(k.begin(), k.end(), expected.begin());
+        expect_near(run_on_cpu(model,
+                               {{"k", make_f32_tensor({1, tokens, 1, 2}, k)},
+                                {"mask", make_f32_tensor({1, 1, tokens, 4}, std::vector<float>(tokens * 4))}}),
+                    expected);
+    }
+}
+
+TEST(GGUFOps, ScaleRangeResetClearsNonFiniteValues) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_SCALE")
+                     .input("x", ov::element::f32, {5})
+                     .input("begin", ov::element::i64, {1})
+                     .input("length", ov::element::i64, {1})
+                     .output("out", ov::element::f32, {5})
+                     .attr("axis", int64_t{0})
+                     .attr("scale", 0.0f)
+                     .attr("bias", 0.0f)
+                     .build();
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    const float inf = std::numeric_limits<float>::infinity();
+    expect_near(run_on_cpu(model,
+                           {{"x", make_f32_tensor({5}, {1, nan, inf, 4, 5})},
+                            {"begin", make_i64_tensor({1}, {1})},
+                            {"length", make_i64_tensor({1}, {2})}}),
+                {1, 0, 0, 4, 5});
 }
 
 TEST(GGUFOps, PermuteDescriptorSwapsHeadAndTokenAxes) {

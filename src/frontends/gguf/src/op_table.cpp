@@ -69,6 +69,7 @@ std::unordered_map<std::string, CreatorFunction> get_supported_ops() {
         {"GGML_OP_NORM", op::translate_norm},
         {"GGML_OP_PAD", op::translate_pad},
         {"GGML_OP_PERMUTE", op::translate_permute},
+        {"GGML_OP_POOL_1D", op::translate_pool_1d},
         {"GGML_OP_POOL_2D", op::translate_pool_2d},
         {"GGML_OP_REPEAT", op::translate_repeat},
         {"GGML_OP_RESHAPE", op::translate_reshape},

@@ -473,9 +473,14 @@ void gguf_rope_yarn_corr_dims(int n_dims,
                               float freq_base,
                               float beta_fast,
                               float beta_slow,
+                              bool truncate,
                               float dims[2]) {
-    float start = floorf(gguf_rope_yarn_corr_dim(n_dims, n_ctx_orig, beta_fast, freq_base));
-    float end = ceilf(gguf_rope_yarn_corr_dim(n_dims, n_ctx_orig, beta_slow, freq_base));
+    float start = gguf_rope_yarn_corr_dim(n_dims, n_ctx_orig, beta_fast, freq_base);
+    float end = gguf_rope_yarn_corr_dim(n_dims, n_ctx_orig, beta_slow, freq_base);
+    if (truncate) {
+        start = floorf(start);
+        end = ceilf(end);
+    }
     dims[0] = std::max(0.0f, start);
     dims[1] = std::min(static_cast<float>(n_dims - 1), end);
 }
@@ -587,7 +592,13 @@ std::pair<ov::Output<Node>, ov::Output<Node>> make_sin_cos(const RopeConfig& rop
             theta = theta_interp;
         } else {
             float corr_dims[2];
-            gguf_rope_yarn_corr_dims(n_dims, n_ctx_orig, freq_base, beta_fast, beta_slow, corr_dims);
+            gguf_rope_yarn_corr_dims(n_dims,
+                                     n_ctx_orig,
+                                     freq_base,
+                                     beta_fast,
+                                     beta_slow,
+                                     rope_config.yarn_truncate,
+                                     corr_dims);
             auto ramp_mix = rope_yarn_ramp_mix(n_dims, corr_dims, ext_factor);
             auto one = ov::op::v0::Constant::create(ov::element::f32, Shape{1, 1, 1, 1}, {1.0f});
             auto one_minus_ramp = std::make_shared<ov::op::v1::Subtract>(one, ramp_mix);
@@ -598,7 +609,13 @@ std::pair<ov::Output<Node>, ov::Output<Node>> make_sin_cos(const RopeConfig& rop
         }
     } else {
         float corr_dims[2];
-        gguf_rope_yarn_corr_dims(n_dims, n_ctx_orig, freq_base, beta_fast, beta_slow, corr_dims);
+        gguf_rope_yarn_corr_dims(n_dims,
+                                 n_ctx_orig,
+                                 freq_base,
+                                 beta_fast,
+                                 beta_slow,
+                                 rope_config.yarn_truncate,
+                                 corr_dims);
         factor[0] = 1.0f;
         for (size_t i = 1; i < factor.size(); i++) {
             factor[i] = theta_scale * factor[i - 1];
@@ -671,6 +688,34 @@ ov::Output<ov::Node> get_sliced_kq_mask(const NodeContext& context, size_t input
                                : name == "self_kq_mask"   ? "KQ_mask_sliced"
                                                           : std::string();
     return !sliced.empty() && context.has_input(sliced) ? context.get_input(sliced) : ov::Output<ov::Node>{};
+}
+
+std::optional<std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>>> get_update_range(const NodeContext& context) {
+    FRONT_END_OP_CONVERSION_CHECK(context.get_input_size() != 2, "A range update requires start and length operands");
+    if (context.get_input_size() == 3) {
+        return std::make_pair(context.get_input(1), context.get_input(2));
+    }
+    if (context.get_attribute<bool>("cache_reset", false) && context.has_input("cache_rs_reset_idx") &&
+        context.has_input("cache_rs_reset_len")) {
+        return std::make_pair(context.get_input("cache_rs_reset_idx"), context.get_input("cache_rs_reset_len"));
+    }
+    return std::nullopt;
+}
+
+ov::Output<ov::Node> update_axis_range(const ov::Output<ov::Node>& value,
+                                       const ov::Output<ov::Node>& begin,
+                                       const ov::Output<ov::Node>& length,
+                                       int64_t axis,
+                                       const std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>&)>& update) {
+    auto end = std::make_shared<ov::op::v1::Add>(begin, length);
+    auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+    auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+    auto int_max = ov::op::v0::Constant::create(ov::element::i64, {1}, {std::numeric_limits<int64_t>::max()});
+    auto axis_node = ov::op::v0::Constant::create(ov::element::i64, {1}, {axis});
+    auto head = std::make_shared<ov::op::v8::Slice>(value, zero, begin, one, axis_node);
+    auto middle = std::make_shared<ov::op::v8::Slice>(value, begin, end, one, axis_node);
+    auto tail = std::make_shared<ov::op::v8::Slice>(value, end, int_max, one, axis_node);
+    return std::make_shared<ov::op::v0::Concat>(ov::OutputVector{head, update(middle), tail}, axis);
 }
 
 ov::Output<ov::Node> process_view_input(const NodeContext& context, int input_index, int slice_len) {
