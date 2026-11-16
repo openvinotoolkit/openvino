@@ -75,8 +75,8 @@ bool ov::pass::PruneSharedKVRows::run_on_model(const std::shared_ptr<Model>& mod
 
     for (const auto& parameter : model->get_parameters()) {
         const auto& names = parameter->output(0).get_names();
-        if (names.count("token_type_ids") || names.count("shared_kv_tokens_indices") ||
-            parameter->get_friendly_name() == "token_type_ids" ||
+        if (names.count("token_type_ids") || names.count("qq_bias") || names.count("shared_kv_tokens_indices") ||
+            parameter->get_friendly_name() == "token_type_ids" || parameter->get_friendly_name() == "qq_bias" ||
             parameter->get_friendly_name() == "shared_kv_tokens_indices")
             return false;
     }
@@ -87,6 +87,8 @@ bool ov::pass::PruneSharedKVRows::run_on_model(const std::shared_ptr<Model>& mod
         const auto pa = as_type_ptr<PagedAttentionExtension>(node);
         if (!pa || pa->get_write_kv_cache())
             continue;
+        if (pa->get_input_partial_shape(26) != PartialShape{0})
+            return false;
         NodeSet layer_sources;
         for (auto* ancestor : ancestors(pa->input_value(0))) {
             const auto indices = row_selection_indices(ancestor);
