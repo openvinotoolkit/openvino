@@ -303,8 +303,8 @@ struct FullyConnectedWoqU2ImplementationManager : public ImplementationManager {
         const auto& in = in_layouts[0];
         const auto& wei = in_layouts[1];
         const auto& scale = in_layouts[woq_u2_scale_idx(has_bias)];
-        // The layout is stale when an upstream fusion changed a layout; the const getter would throw.
-        const auto out = node.is_valid_output_layout(0) ? node.get_output_layout(0) : node.calc_output_layouts()[0];
+        // Use the cached output layout if valid; otherwise compute it, since the const getter throws on an invalid layout.
+        const auto out = node.is_valid_output_layout(0) ? node.get_output_layout(0) : node.calc_output_layout();
 
         if (in.data_type != data_types::f16) {
             CM_FC_LOG_AND_RETURN_FALSE(node, "activation dtype != f16: " << in.data_type);
