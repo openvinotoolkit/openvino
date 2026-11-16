@@ -12,6 +12,7 @@
 
 #include "common_test_utils/ov_plugin_cache.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/group_query_attention.hpp"
@@ -156,6 +157,7 @@ public:
 };
 
 TEST_P(GQAQuantizedKVCacheTest, MatchesTemplate) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     const auto& p = GetParam();
     std::mt19937 gen(static_cast<uint32_t>(p.bits * 1000 + p.head_size * 10 + p.batch + (p.windowed ? 5 : 0)));
     const auto k_scale = make_scales(p, gen);
