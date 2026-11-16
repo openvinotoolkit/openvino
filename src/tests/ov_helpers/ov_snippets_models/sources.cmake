@@ -1,0 +1,53 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+set(OV_SNIPPETS_MODELS_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/include/fake_quantize_helper.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/function_helper.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/precision_propagation.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/precision_propagation_convertion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/snippets_helpers.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/subgraph_bitwise.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/subgraph_common_parent.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/subgraph_converts.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/subgraph_customizable.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/subgraph_fq.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/subgraph_gated_mlp.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/subgraph_gelu.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/subgraph_group_normalization.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/subgraph_lowered.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/subgraph_matmul.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/subgraph_mha.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/subgraph_mlp_seq.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/subgraph_reduce.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/subgraph_roll_matmul_roll.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/subgraph_simple.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/subgraph_softmax.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/subgraph_transpose.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/two_binary_ops.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/fake_quantize_helper.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/function_helper.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/precision_propagation.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/precision_propagation_convertion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/precomp.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/snippets_helpers.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/subgraph_bitwise.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/subgraph_common_parent.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/subgraph_convert.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/subgraph_customizable.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/subgraph_fq.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/subgraph_gated_mlp.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/subgraph_gelu.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/subgraph_group_normalization.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/subgraph_lowered.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/subgraph_matmul.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/subgraph_mha.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/subgraph_mlp_seq.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/subgraph_reduce.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/subgraph_roll_matmul_roll.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/subgraph_simple.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/subgraph_softmax.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/subgraph_transpose.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/two_binary_ops.cpp
+)
