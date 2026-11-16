@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-16-17-32-33-000-43897852421",
+  "timestamp": "2026-11-16T17:32:33Z",
+  "run_id": "43897852421",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43897852421",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "39833",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39833",
+  "author": "sbutnari",
+  "category": "Infrastructure",
+  "title": "GPU unit tests fail to extract OpenVINO package - PowerShell execution policy disabled scripts on Windows runner",
+  "signature": "cannot be loaded because running scripts is disabled on this system|Infrastructure",
+  "signature_hash": "c351b86e95419730",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "\"Extract OpenVINO packages\" step fails because the self-hosted runner's PowerShell is configured with a Restricted execution policy, so the generated PS1 wrapper for Expand-Archive cannot be loaded."
+    }
+  ],
+  "key_errors": [
+    "File C:\\actions-runner\\_work\\_temp\\f43cb258-40cc-4e0b-9fb9-9dbdc960e6c1.ps1 cannot be loaded because running scripts is disabled on this system. For more information, see about_Execution_Policies at https:/go.microsoft.com/fwlink/?LinkID=135170.",
+    "+ CategoryInfo          : SecurityError: (:) [], PSSecurityException",
+    "+ FullyQualifiedErrorId : UnauthorizedAccess",
+    "##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The job's 'Extract OpenVINO packages' step runs 'Expand-Archive ... -Force' via a GitHub Actions-generated temporary .ps1 wrapper script. On the self-hosted Windows GPU runner that executed this job, the PowerShell execution policy is set to Restricted (or similarly locked down) at the machine/user scope, so Windows PowerShell refuses to load any .ps1 file and raises PSSecurityException/UnauthorizedAccess. This is unrelated to the PR's source changes (NPU blob importer code) and is a runner environment misconfiguration - either the runner was freshly provisioned/reimaged without the expected 'RemoteSigned'/'Bypass' execution policy, or a GPO/local policy reset it. The step fails deterministically on this specific runner regardless of what script content is generated.",
+  "reproduction_steps": "On the same (or an identically configured) self-hosted Windows runner, open PowerShell and run 'Get-ExecutionPolicy -List'. If any scope resolves to 'Restricted' ahead of 'RemoteSigned'/'Unrestricted'/'Bypass', then running any .ps1 (e.g., a trivial 'Expand-Archive' wrapper) will reproduce the PSSecurityException seen in the job log. Not reproducible via a code change in the PR; this is runner-environment-specific and not reproducible purely from source.",
+  "recommended_actions": [
+    "Set the PowerShell execution policy to RemoteSigned (or Bypass for CI) at the LocalMachine scope on the affected runner via 'Set-ExecutionPolicy RemoteSigned -Scope LocalMachine -Force' (or equivalent GPO fix), then verify with 'Get-ExecutionPolicy -List'.",
+    "Re-run the failed 'GPU unit tests' job; GitHub Actions self-hosted runner pools often route to a different machine on retry, which may already have a correct policy.",
+    "Add a runner health check / startup script that asserts 'Get-ExecutionPolicy' is not 'Restricted' before accepting jobs, to fail fast with a clearer error instead of a late pipeline failure.",
+    "Audit the intel-gpu Windows self-hosted runner pool for other machines with the same misconfiguration to prevent recurrence."
+  ],
+  "prevention_strategies": "Add runner provisioning automation (or a scheduled compliance check) that enforces 'Set-ExecutionPolicy RemoteSigned -Scope LocalMachine' as part of the Windows self-hosted runner image/bootstrap, and alert if a runner drifts from this baseline before it picks up CI jobs.",
+  "historical_context": "Repo-memory contains a related but distinct pattern (95bb23aa2ed8a84d, count 12) for the same step/job ('GPU unit tests' Extract OpenVINO packages) failing with 'UnauthorizedAccessException' due to a locked tbb12.dll file. That is a file-lock issue, not an execution-policy issue - different root cause, so a separate pattern record is used. No prior occurrence of the execution-policy variant was found in the knowledge base; this is the first recorded instance (count 1)."
+}
