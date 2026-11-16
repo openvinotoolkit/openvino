@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -470,6 +471,7 @@ void temporal_packed_patch_layout(const std::shared_ptr<ov::Model>& model, int64
 void batched_image_layout(const std::shared_ptr<ov::Model>& model) {
     OPENVINO_ASSERT(model->get_parameters().size() == 1 && model->get_results().size() == 1,
                     "[GGUF] batched image vision requires one pixel input and one output");
+    const auto result = model->get_results().front();
     auto body = model->clone();
     const auto pixels = body->get_parameters().front();
     auto shape = pixels->get_partial_shape();
@@ -482,16 +484,24 @@ void batched_image_layout(const std::shared_ptr<ov::Model>& model) {
     shape[0] = ov::Dimension::dynamic();
     auto input = std::make_shared<v0::Parameter>(pixels->get_element_type(), shape);
     name_output(input, "pixel_values");
+    ov::copy_runtime_info(pixels, input);
     auto iterator = std::make_shared<v0::TensorIterator>();
     iterator->set_body(body);
     iterator->set_sliced_input(pixels, input, 0, 1, 1, -1, 0);
     auto output = iterator->get_concatenated_slices(features, 0, 1, 1, -1, 0);
     output.set_names({"last_hidden_state"});
     iterator->validate_and_infer_types();
+    ov::copy_runtime_info({features.get_node_shared_ptr(), result}, iterator);
+    if (!result->get_friendly_name().empty())
+        iterator->set_friendly_name(result->get_friendly_name());
     model->remove_result(model->get_results().front());
     model->remove_parameter(model->get_parameters().front());
     model->add_parameters({input});
-    model->add_results({std::make_shared<v0::Result>(output)});
+    auto adapted_result = std::make_shared<v0::Result>(output);
+    ov::copy_runtime_info(result, adapted_result);
+    if (!result->get_friendly_name().empty())
+        adapted_result->set_friendly_name(result->get_friendly_name());
+    model->add_results({adapted_result});
     model->validate_nodes_and_infer_types();
 }
 
@@ -585,18 +595,24 @@ void adapt_audio_layout(const std::shared_ptr<ov::Model>& model) {
     const auto features =
         std::make_shared<v0::Parameter>(original->get_element_type(), ov::PartialShape{1, -1, source[width_axis]});
     name_output(features, "input_features");
+    ov::NodeVector preprocessing{features};
     Value input = features;
     if (!unified) {
         // Valid frames form a prefix; the encoder sees them as [1, mel, frames].
         const auto mask = std::make_shared<v0::Parameter>(ov::element::boolean, ov::PartialShape{1, -1});
         name_output(mask, "input_features_mask");
-        const auto length =
-            std::make_shared<v1::ReduceSum>(std::make_shared<v0::Convert>(mask, ov::element::i64), ints({1}), false);
-        input = std::make_shared<v8::Slice>(input, ints({0}), length, ints({1}), ints({1}));
-        input = std::make_shared<v1::Transpose>(input, ints({0, 2, 1}));
+        auto converted_mask = std::make_shared<v0::Convert>(mask, ov::element::i64);
+        auto length = std::make_shared<v1::ReduceSum>(converted_mask, ints({1}), false);
+        auto sliced = std::make_shared<v8::Slice>(input, ints({0}), length, ints({1}), ints({1}));
+        auto transposed = std::make_shared<v1::Transpose>(sliced, ints({0, 2, 1}));
+        preprocessing.insert(preprocessing.end(), {converted_mask, length, sliced, transposed});
+        input = transposed;
         model->add_parameters({mask});
     }
-    ov::replace_node(original, std::make_shared<v0::Unsqueeze>(input, ints({1})));
+    auto expanded = std::make_shared<v0::Unsqueeze>(input, ints({1}));
+    preprocessing.push_back(expanded);
+    ov::copy_runtime_info(original, preprocessing);
+    ov::replace_node(original, expanded);
     model->remove_parameter(original);
     model->add_parameters({features});
     auto output = model->get_results().front()->input_value(0);

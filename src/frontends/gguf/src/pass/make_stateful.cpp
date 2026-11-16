@@ -62,6 +62,14 @@ void finalize_stateful_rewrite(const std::shared_ptr<ov::Model>& model,
     }
 }
 
+void copy_cache_write_runtime_info(const std::shared_ptr<ov::Node>& write,
+                                   const std::shared_ptr<ov::Node>& cache,
+                                   const ov::NodeVector& replacements) {
+    ov::copy_runtime_info({write, cache}, replacements);
+    for (const auto& replacement : replacements)
+        replacement->get_rt_info().erase(kv_cache_write_key());
+}
+
 // The axis the cache grows along. An un-preallocated cache Parameter states it by construction: it
 // is the one dynamic axis (the token count), every other being a static batch / head / head-size.
 // A caller that preallocates the cache must say which axis it is, since none is dynamic then.
@@ -455,7 +463,12 @@ bool GGUFMakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
         auto concat = std::make_shared<v0::Concat>(ov::OutputVector{past, new_rows}, axis);
         caches.push_back({read_value, concat.get(), init_shape});
         concat->set_friendly_name(write->get_friendly_name());
-        new_sinks.push_back(std::make_shared<v6::Assign>(concat, var));
+        auto assign = std::make_shared<v6::Assign>(concat, var);
+        copy_cache_write_runtime_info(
+            write,
+            cache_param,
+            {beam_idx, init, read_value, split_shape, new_rows.get_node_shared_ptr(), axis0, past, concat, assign});
+        new_sinks.push_back(assign);
 
         // The stateless graph returns each updated cache as a Result; in the stateful form the Assign
         // sink above takes that role, so those Results go. Identify them as the Results reading THIS

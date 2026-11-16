@@ -50,6 +50,15 @@ bool has_genai_vision_layout(const std::shared_ptr<ov::Model>& model) {
     return builtin_projector_layout(projector) != ProjectorLayout::Unsupported;
 }
 
+bool has_genai_adapter(const std::shared_ptr<ov::Model>& model, const std::string& modality) {
+    const auto embedding_name = modality + ".embeddings";
+    for (const auto& result : model->get_results()) {
+        if (result->input_value(0).get_names().count(embedding_name) && get_model_adapter(result))
+            return true;
+    }
+    return false;
+}
+
 ModelMap adapt_mmproj(const std::shared_ptr<ov::Model>& model) {
     ModelMap models;
     const auto add = [&](const std::string& name, const std::shared_ptr<ov::Model>& adapted) {
@@ -70,9 +79,16 @@ ModelMap adapt_mmproj(const std::shared_ptr<ov::Model>& model) {
     }
     if (model->has_rt_info({"gguf_mmproj", "audio.projector"})) {
         auto audio = model->clone();
-        AdaptMmprojToGenAI(AdaptMmprojToGenAI::Modality::AUDIO).run_on_model(audio);
-        adapt_audio_layout(audio);
-        add("audio_embeddings", audio);
+        const bool has_adapter = has_genai_adapter(audio, "audio");
+        AdaptMmprojToGenAI adapter(AdaptMmprojToGenAI::Modality::AUDIO);
+        adapter.run_on_model(audio);
+        if (!has_adapter)
+            adapt_audio_layout(audio);
+        const auto& audio_models = adapter.get_vision_models();
+        for (const auto& [name, component] : audio_models)
+            add(name, component);
+        if (audio_models.empty())
+            add("audio_embeddings", audio);
     }
     if (read_model_contract(model).component_groups.count("audio_generation")) {
         AdaptMmprojToGenAI adapter(AdaptMmprojToGenAI::Modality::AUDIO_GENERATION);

@@ -25,13 +25,22 @@
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gelu.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "transformations/rt_info/fused_names_attribute.hpp"
 
 namespace {
 class GGUFMMProj : public ::testing::Test {
@@ -439,6 +448,146 @@ TEST_F(GGUFMMProj, ProjectorCallbackCanReplaceThePrimaryGraph) {
     request.infer();
     for (size_t i = 0; i < 6; ++i)
         EXPECT_FLOAT_EQ(request.get_output_tensor().data<float>()[i], 11.f);
+}
+
+TEST_F(GGUFMMProj, GenAILayoutsPreserveRuntimeInfo) {
+    using ov::op::v0::Constant;
+    using ov::op::v0::Parameter;
+    using ov::op::v0::Result;
+
+    auto pixels = std::make_shared<Parameter>(ov::element::f32, ov::Shape{1, 3, 2, 2});
+    pixels->set_friendly_name("vision.pixel_values");
+    pixels->output(0).set_names({"vision.pixel_values"});
+    auto image_features =
+        std::make_shared<ov::op::v1::Reshape>(pixels, Constant::create(ov::element::i64, {4}, {1, 1, 1, 12}), false);
+    pixels->get_rt_info()[ov::FusedNames::get_type_info_static()] = ov::FusedNames("vision_input");
+    image_features->get_rt_info()[ov::FusedNames::get_type_info_static()] = ov::FusedNames("vision_features");
+    auto image_result = std::make_shared<Result>(image_features);
+    image_result->output(0).set_names({"vision.embeddings"});
+    image_result->get_rt_info()[ov::FusedNames::get_type_info_static()] = ov::FusedNames("vision_result");
+    auto vision = std::make_shared<ov::Model>(ov::ResultVector{image_result}, ov::ParameterVector{pixels});
+    vision->set_rt_info(std::string("custom"), {"gguf_mmproj", "vision.projector"});
+    vision->set_rt_info(std::string("batched_image"), {"gguf_mmproj", "vision.genai_layout"});
+
+    auto adapted_vision = ov::frontend::gguf::adapt_to_genai(vision).at("vision_embeddings");
+    const auto has_fused_name = [](const std::shared_ptr<ov::Node>& node, const std::string& name) {
+        const auto found = node->get_rt_info().find(ov::FusedNames::get_type_info_static());
+        if (found == node->get_rt_info().end())
+            return false;
+        const auto names = found->second.as<ov::FusedNames>().getVectorNames();
+        return std::find(names.begin(), names.end(), name) != names.end();
+    };
+    EXPECT_TRUE(has_fused_name(adapted_vision->get_parameters().front(), "vision_input"));
+    std::shared_ptr<ov::op::v0::TensorIterator> iterator;
+    for (const auto& node : adapted_vision->get_ops()) {
+        if (auto candidate = ov::as_type_ptr<ov::op::v0::TensorIterator>(node))
+            iterator = std::move(candidate);
+    }
+    ASSERT_TRUE(iterator);
+    EXPECT_TRUE(has_fused_name(iterator, "vision_features"));
+    EXPECT_TRUE(has_fused_name(iterator, "vision_result"));
+    EXPECT_TRUE(has_fused_name(adapted_vision->get_results().front(), "vision_result"));
+
+    auto features = std::make_shared<Parameter>(ov::element::f32, ov::Shape{1, 1, 4, 8});
+    features->set_friendly_name("audio.features");
+    features->output(0).set_names({"audio.features"});
+    auto audio_embeddings =
+        std::make_shared<ov::op::v1::Multiply>(features, Constant::create(ov::element::f32, {}, {1.f}));
+    auto audio_result = std::make_shared<Result>(audio_embeddings);
+    audio_result->output(0).set_names({"audio.embeddings"});
+    auto audio = std::make_shared<ov::Model>(ov::ResultVector{audio_result}, ov::ParameterVector{features});
+    audio->set_rt_info(std::string("gemma4a"), {"gguf_mmproj", "audio.projector"});
+    features->get_rt_info()[ov::FusedNames::get_type_info_static()] = ov::FusedNames("audio_input");
+
+    auto adapted_audio = ov::frontend::gguf::adapt_to_genai(audio).at("audio_embeddings");
+    const auto adapted_features = std::find_if(adapted_audio->get_parameters().begin(),
+                                               adapted_audio->get_parameters().end(),
+                                               [](const auto& parameter) {
+                                                   return parameter->get_friendly_name() == "input_features";
+                                               });
+    ASSERT_NE(adapted_features, adapted_audio->get_parameters().end());
+    EXPECT_TRUE(has_fused_name(*adapted_features, "audio_input"));
+    size_t converts = 0;
+    size_t reductions = 0;
+    size_t slices = 0;
+    size_t transposes = 0;
+    size_t unsqueezes = 0;
+    for (const auto& node : adapted_audio->get_ops()) {
+        if (ov::is_type<ov::op::v0::Convert>(node)) {
+            ++converts;
+            EXPECT_TRUE(has_fused_name(node, "audio_input"));
+        } else if (ov::is_type<ov::op::v1::ReduceSum>(node)) {
+            ++reductions;
+            EXPECT_TRUE(has_fused_name(node, "audio_input"));
+        } else if (ov::is_type<ov::op::v8::Slice>(node)) {
+            ++slices;
+            EXPECT_TRUE(has_fused_name(node, "audio_input"));
+        } else if (ov::is_type<ov::op::v1::Transpose>(node)) {
+            ++transposes;
+            EXPECT_TRUE(has_fused_name(node, "audio_input"));
+        } else if (ov::is_type<ov::op::v0::Unsqueeze>(node)) {
+            ++unsqueezes;
+            EXPECT_TRUE(has_fused_name(node, "audio_input"));
+        }
+    }
+    EXPECT_EQ(converts, 1);
+    EXPECT_EQ(reductions, 1);
+    EXPECT_EQ(slices, 1);
+    EXPECT_EQ(transposes, 1);
+    EXPECT_EQ(unsqueezes, 1);
+}
+
+TEST_F(GGUFMMProj, AdaptToGenAIRespectsAudioAdapterModels) {
+    using namespace ov::frontend::gguf;
+    writer.kv_bool("clip.has_audio_encoder", true);
+    writer.kv_str("clip.audio.projector_type", "custom-audio");
+    ASSERT_TRUE(writer.write(path));
+
+    for (const bool named_models : {false, true}) {
+        SCOPED_TRACE(named_models);
+        FrontEnd frontend;
+        auto extension = std::make_shared<ProjectorExtension>(ProjectorDefinition{
+            "clip.audio.custom-audio",
+            "clip",
+            "audio",
+            "custom-audio",
+            [](GgufGraphContext& graph) {
+                auto input = graph.add_input("audio.custom", ov::element::f32, {1, 1, 2, 3});
+                return ProjectorResult{graph.node("GGML_OP_SCALE", {input}, 0, {{"scale", 2.f}, {"bias", 0.f}}), {}};
+            },
+            {},
+            {},
+            [named_models](const std::shared_ptr<ov::Model>&) {
+                auto make_model = [](const std::string& input_name, const std::string& output_name) {
+                    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 3});
+                    input->set_friendly_name(input_name);
+                    input->output(0).set_names({input_name});
+                    auto output = std::make_shared<ov::op::v1::Multiply>(
+                        input,
+                        ov::op::v0::Constant::create(ov::element::f32, {}, {2.f}));
+                    output->output(0).set_names({output_name});
+                    return std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{input});
+                };
+                auto primary = make_model("custom_audio_values", "custom_audio_features");
+                ModelMap models;
+                if (named_models)
+                    models = {{"custom_audio", primary},
+                              {"audio_auxiliary", make_model("auxiliary_values", "auxiliary_features")}};
+                return ModelAdapterResult{primary, std::move(models)};
+            }});
+        frontend.add_extension(extension);
+        auto converted = frontend.convert(frontend.load(path));
+        auto models = adapt_to_genai(converted);
+        if (named_models) {
+            ASSERT_EQ(models.size(), 2u);
+            EXPECT_EQ(models.at("custom_audio")->input().get_any_name(), "custom_audio_values");
+            EXPECT_EQ(models.at("audio_auxiliary")->output().get_any_name(), "auxiliary_features");
+            EXPECT_FALSE(models.count("audio_embeddings"));
+        } else {
+            ASSERT_EQ(models.size(), 1u);
+            EXPECT_EQ(models.at("audio_embeddings")->input().get_any_name(), "custom_audio_values");
+        }
+    }
 }
 
 TEST_F(GGUFMMProj, EmbeddingsCallbacksOverrideBothModalitiesWithOptionalModelMaps) {
