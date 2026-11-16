@@ -25,12 +25,12 @@ namespace tp {
 /// bound to a TP context holds one; its collective implementations run over it.
 class Channel {
 public:
-    Channel(GroupStatePtr group, int rank) : m_group(std::move(group)), m_rank(rank) {}
+    Channel(GroupStatePtr group, uint32_t rank) : m_group(std::move(group)), m_rank(rank) {}
 
-    int rank() const {
+    uint32_t rank() const {
         return m_rank;
     }
-    int world_size() const {
+    uint32_t world_size() const {
         return m_group->world_size();
     }
     const CollectiveOptions& options() const {
@@ -49,7 +49,7 @@ public:
 
 private:
     GroupStatePtr m_group;
-    int m_rank;
+    uint32_t m_rank;
 };
 
 /// A collective of a model, as far as binding it to a communicator is concerned.
@@ -88,10 +88,10 @@ public:
     RankCommunicator(const RankCommunicator&) = delete;
     RankCommunicator& operator=(const RankCommunicator&) = delete;
 
-    int rank() const {
+    uint32_t rank() const {
         return m_rank;
     }
-    int world_size() const {
+    uint32_t world_size() const {
         return m_world_size;
     }
     const std::string& backend() const {
@@ -119,15 +119,15 @@ public:
 
 private:
     /// Collects the payloads, validates them and finds or creates the group state.
-    void connect(int num_collectives);
+    void connect(std::size_t num_collectives);
 
     std::shared_ptr<ov::tp::IExchange> m_exchange;
     std::string m_backend;
     TPL0SharedContextPtr m_shared;
     std::chrono::milliseconds m_timeout;
     CollectiveOptions m_options;
-    int m_rank;
-    int m_world_size;
+    uint32_t m_rank;
+    uint32_t m_world_size;
     uint64_t m_id;
     std::size_t m_staging_bytes{0};
     std::shared_ptr<void> m_staging;

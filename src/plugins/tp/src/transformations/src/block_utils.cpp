@@ -200,7 +200,7 @@ ReshapeAxisSpan map_reshape_axis_span(const std::shared_ptr<ov::Node>& reshape, 
 
 /// `segments` expressed in steps of `trailing` elements, splitting at the very same places,
 /// or empty when some boundary falls inside a step.
-std::vector<Segment> coarsen(const std::vector<Segment>& segments, int64_t trailing, size_t world_size) {
+std::vector<Segment> coarsen(const std::vector<Segment>& segments, int64_t trailing, uint32_t world_size) {
     const auto step = static_cast<size_t>(trailing);
     std::vector<Segment> result;
     for (const auto& segment : segments) {
@@ -208,7 +208,7 @@ std::vector<Segment> coarsen(const std::vector<Segment>& segments, int64_t trail
             return {};
         const size_t length = segment.length / step;
         const size_t unit = std::lcm(segment.unit, step) / step;
-        const size_t shares = segment.count ? segment.count : world_size;
+        const uint32_t shares = segment.count ? segment.count : world_size;
         if (length % unit != 0 || length / unit % shares != 0)
             return {};
         result.push_back({length, unit, segment.step, segment.count});
@@ -244,7 +244,7 @@ std::string walk_chain(ov::Input<ov::Node> input,
                        int64_t axis,
                        const std::vector<Segment>& segments,
                        ShardStrategy strategy,
-                       size_t world_size,
+                       uint32_t world_size,
                        const std::string& block,
                        bool annotate) {
     if (annotate)
@@ -368,7 +368,7 @@ int64_t chain_granularity(const ov::Output<ov::Node>& output, int64_t axis, int6
 std::string chain_cut_problem(ov::Input<ov::Node> input,
                               int64_t axis,
                               const std::vector<Segment>& segments,
-                              size_t world_size) {
+                              uint32_t world_size) {
     return walk_chain(input, axis, segments, ShardStrategy::REPLICATED, world_size, {}, false);
 }
 
@@ -376,7 +376,7 @@ void annotate_chain(ov::Input<ov::Node> input,
                     int64_t axis,
                     const std::vector<Segment>& segments,
                     ShardStrategy strategy,
-                    size_t world_size,
+                    uint32_t world_size,
                     const std::string& block) {
     check_weight_types(input);
     const auto problem = chain_cut_problem(input, axis, segments, world_size);
@@ -397,7 +397,7 @@ void annotate_projection(const std::shared_ptr<ov::Node>& matmul,
                          ShardStrategy strategy,
                          const std::vector<Segment>& segments,
                          Collective collective,
-                         size_t world_size,
+                         uint32_t world_size,
                          const std::string& block) {
     const auto axes = weight_axes(matmul);
     const int64_t axis = strategy == ShardStrategy::ROW_PARALLEL ? axes.in_features : axes.out_features;
@@ -416,7 +416,7 @@ void annotate_projection(const std::shared_ptr<ov::Node>& matmul,
                     " expects ",
                     total_length(segments));
 
-    set_role(matmul, ProjectionRole(strategy, collective, collective == Collective::NONE ? -1 : 0, block));
+    set_role(matmul, ProjectionRole(strategy, collective, 0, block));
     annotate_chain(matmul->input(1), axis, segments, strategy, world_size, block);
 
     // A row-parallel bias stays whole: its Add runs after the collective.

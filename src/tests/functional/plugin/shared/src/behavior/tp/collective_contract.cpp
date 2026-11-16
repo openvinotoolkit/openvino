@@ -43,9 +43,9 @@ std::shared_ptr<ov::op::v0::Parameter> make_input(const ov::Shape& shape = {1, e
 }
 
 /// x -> TPAllReduce -> result, for `rank` of `world_size`.
-std::shared_ptr<ov::Model> make_allreduce_model(int rank,
-                                                int world_size,
-                                                int group_id = 0,
+std::shared_ptr<ov::Model> make_allreduce_model(uint32_t rank,
+                                                uint32_t world_size,
+                                                uint32_t group_id = 0,
                                                 ReduceOp reduce_op = ReduceOp::SUM) {
     auto x = make_input();
     auto reduce = std::make_shared<TPAllReduce>(x, rank, world_size, group_id, 0, reduce_op);
@@ -118,49 +118,49 @@ void TPCollectiveContractTest::SetUp() {
     }
     if (ids.size() < m_world_size)
         GTEST_SKIP() << "need " << m_world_size << " " << m_device_type << " devices, found " << ids.size();
-    for (size_t rank = 0; rank < m_world_size; ++rank)
+    for (uint32_t rank = 0; rank < m_world_size; ++rank)
         m_devices.push_back(m_device_type + "." + ids[rank]);
 }
 
-int TPCollectiveContractTest::ranks() const {
-    return static_cast<int>(m_world_size);
+uint32_t TPCollectiveContractTest::ranks() const {
+    return m_world_size;
 }
 
-TPCollectiveContractTest::Group TPCollectiveContractTest::make_group(int timeout_ms) const {
+TPCollectiveContractTest::Group TPCollectiveContractTest::make_group(int64_t timeout_ms) const {
     return InProcessExchange::create_group(ranks(), std::chrono::milliseconds{timeout_ms});
 }
 
 ov::AnyMap TPCollectiveContractTest::rank_params(const Group& group,
-                                                 int rank,
+                                                 uint32_t rank,
                                                  const std::string& backend,
-                                                 int timeout_ms) const {
+                                                 int64_t timeout_ms) const {
     return {{ov::tp::internal::device_group.name(), m_devices},
             {ov::tp::internal::groups.name(),
-             std::map<int, CollectiveGroup>{{0, CollectiveGroup{group[static_cast<size_t>(rank)], backend}}}},
+             std::map<uint32_t, CollectiveGroup>{{0, CollectiveGroup{group[rank], backend}}}},
             {ov::tp::internal::communication_timeout_ms.name(), timeout_ms}};
 }
 
 TPCollectiveContractTest::Contexts TPCollectiveContractTest::create_contexts(
     const std::function<void(ov::AnyMap&)>& adjust,
-    int timeout_ms) {
+    int64_t timeout_ms) {
     const auto group = make_group(timeout_ms);
     Contexts contexts;
-    for (int rank = 0; rank < ranks(); ++rank) {
+    for (uint32_t rank = 0; rank < ranks(); ++rank) {
         auto params = rank_params(group, rank, ov::tp::auto_backend, timeout_ms);
         if (adjust)
             adjust(params);
-        contexts.push_back(m_core.create_context(m_devices[static_cast<size_t>(rank)], params));
+        contexts.push_back(m_core.create_context(m_devices[rank], params));
     }
     return contexts;
 }
 
 TPCollectiveContractTest::Requests TPCollectiveContractTest::compile(
     Contexts& contexts,
-    const std::function<std::shared_ptr<ov::Model>(int)>& make_model,
+    const std::function<std::shared_ptr<ov::Model>(uint32_t)>& make_model,
     const ov::AnyMap& config) {
     std::vector<ov::CompiledModel> compiled;
-    for (int rank = 0; rank < ranks(); ++rank)
-        compiled.push_back(m_core.compile_model(make_model(rank), contexts[static_cast<size_t>(rank)], config));
+    for (uint32_t rank = 0; rank < ranks(); ++rank)
+        compiled.push_back(m_core.compile_model(make_model(rank), contexts[rank], config));
     Requests requests;
     for (auto& model : compiled)
         requests.push_back(model.create_infer_request());
@@ -171,7 +171,7 @@ TPCollectiveContractTest::Requests TPCollectiveContractTest::compile_allreduce(C
                                                                                const ov::AnyMap& config) {
     return compile(
         contexts,
-        [this](int rank) {
+        [this](uint32_t rank) {
             return make_allreduce_model(rank, ranks());
         },
         config);
@@ -288,9 +288,8 @@ TEST_P(TPCollectiveContractTest, D2_ImportedRanksReduceThroughFreshContexts) {
     std::vector<std::string> blobs;
     {
         auto contexts = create_contexts();
-        for (int rank = 0; rank < ranks(); ++rank) {
-            auto compiled =
-                m_core.compile_model(make_allreduce_model(rank, ranks()), contexts[static_cast<size_t>(rank)]);
+        for (uint32_t rank = 0; rank < ranks(); ++rank) {
+            auto compiled = m_core.compile_model(make_allreduce_model(rank, ranks()), contexts[rank]);
             std::stringstream blob;
             compiled.export_model(blob);
             blobs.push_back(blob.str());
@@ -298,9 +297,9 @@ TEST_P(TPCollectiveContractTest, D2_ImportedRanksReduceThroughFreshContexts) {
     }
     auto contexts = create_contexts();
     Requests requests;
-    for (int rank = 0; rank < ranks(); ++rank) {
-        std::stringstream blob(blobs[static_cast<size_t>(rank)]);
-        requests.push_back(m_core.import_model(blob, contexts[static_cast<size_t>(rank)]).create_infer_request());
+    for (uint32_t rank = 0; rank < ranks(); ++rank) {
+        std::stringstream blob(blobs[rank]);
+        requests.push_back(m_core.import_model(blob, contexts[rank]).create_infer_request());
     }
     expect_exact_sum(requests);
 }
@@ -363,7 +362,7 @@ TEST_P(TPCollectiveContractTest, D4_ReduceOpsAreExactOrRejected) {
         auto contexts = create_contexts();
         Requests requests;
         try {
-            requests = compile(contexts, [&](int rank) {
+            requests = compile(contexts, [&](uint32_t rank) {
                 return make_allreduce_model(rank, ranks(), 0, reduce_op);
             });
         } catch (const ov::Exception&) {
@@ -401,7 +400,7 @@ TEST_P(TPCollectiveContractTest, D4_RejectsTwoCollectivesWithOneId) {
 // collectives at the first call, which fails instead of reducing one with the other.
 TEST_P(TPCollectiveContractTest, D4_RanksAtDifferentCollectivesFailTheCall) {
     auto contexts = create_contexts();
-    auto requests = compile(contexts, [&](int rank) {
+    auto requests = compile(contexts, [&](uint32_t rank) {
         const uint64_t first_id = rank == 0 ? 2 : 1;
         auto x = make_input();
         auto first = std::make_shared<TPAllReduce>(x, rank, ranks(), 0, first_id, ReduceOp::SUM);
@@ -423,7 +422,7 @@ TEST_P(TPCollectiveContractTest, D4_GatherConcatenatesOnTheRootOrIsRejected) {
         auto contexts = create_contexts();
         Requests requests;
         try {
-            requests = compile(contexts, [&](int rank) {
+            requests = compile(contexts, [&](uint32_t rank) {
                 auto x = make_input(shape);
                 auto gather = std::make_shared<TPGather>(x, rank, ranks(), 0, 0, -1);
                 return std::make_shared<ov::Model>(ov::OutputVector{gather}, ov::ParameterVector{x});
@@ -460,10 +459,10 @@ TEST_P(TPCollectiveContractTest, D4_CollectivesRunInGraphOrderAcrossManyInferenc
         return static_cast<float>(rank + 2);
     };
     auto contexts = create_contexts();
-    auto requests = compile(contexts, [&](int rank) {
+    auto requests = compile(contexts, [&](uint32_t rank) {
         auto x = make_input();
         auto first = std::make_shared<TPAllReduce>(x, rank, ranks(), 0, 300, ReduceOp::SUM);
-        auto scale = ov::op::v0::Constant::create(ov::element::f32, {}, {scale_of(static_cast<size_t>(rank))});
+        auto scale = ov::op::v0::Constant::create(ov::element::f32, {}, {scale_of(rank)});
         auto scaled = std::make_shared<ov::op::v1::Multiply>(first, scale);
         auto second = std::make_shared<TPAllReduce>(scaled, rank, ranks(), 0, 200, ReduceOp::SUM);
         auto branch = std::make_shared<TPAllReduce>(std::make_shared<ov::op::v1::Multiply>(x, scale),
@@ -551,7 +550,7 @@ TEST_P(TPCollectiveContractTest, D6_RejectsAModelWhoseStreamsDoNotFitTheChannels
 // ---- D7: timeout ----
 
 TEST_P(TPCollectiveContractTest, D7_TheSetupTimesOutWithoutThePeers) {
-    constexpr int short_timeout = 500;
+    constexpr int64_t short_timeout = 500;
     const auto group = make_group(short_timeout);
     auto context = m_core.create_context(m_devices[0], rank_params(group, 0, ov::tp::auto_backend, short_timeout));
     const auto started = std::chrono::steady_clock::now();
@@ -561,7 +560,7 @@ TEST_P(TPCollectiveContractTest, D7_TheSetupTimesOutWithoutThePeers) {
 
 // A call that the peers never join fails after the timeout, and the communicator stays failed.
 TEST_P(TPCollectiveContractTest, D7_ACallTimesOutWithoutThePeersAndTheGroupStaysFailed) {
-    constexpr int short_timeout = 500;
+    constexpr int64_t short_timeout = 500;
     auto contexts = create_contexts({}, short_timeout);
     auto requests = compile_allreduce(contexts);
     requests[0].set_input_tensor(exact_input(0));
@@ -603,8 +602,8 @@ TEST_P(TPCollectiveContractTest, D9_ConstantsAreViewsAndAreNotReadInPlace) {
             row[i] = static_cast<float>(rank + 1);
     }
     auto contexts = create_contexts();
-    auto requests = compile(contexts, [&](int rank) {
-        const auto r = static_cast<size_t>(rank);
+    auto requests = compile(contexts, [&](uint32_t rank) {
+        const size_t r = rank;
         ov::Tensor view(weights, {r, 0}, {r + 1, elements});
         auto x = make_input();
         auto add = std::make_shared<ov::op::v1::Add>(x, std::make_shared<ov::op::v0::Constant>(view));

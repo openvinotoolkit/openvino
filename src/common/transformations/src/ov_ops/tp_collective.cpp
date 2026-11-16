@@ -9,9 +9,9 @@ namespace op {
 namespace internal {
 
 TPCollectiveBase::TPCollectiveBase(const ov::OutputVector& arguments,
-                                   int rank,
-                                   int world_size,
-                                   int group_id,
+                                   uint32_t rank,
+                                   uint32_t world_size,
+                                   uint32_t group_id,
                                    uint64_t collective_id)
     : Op(arguments),
       m_rank(rank),
@@ -28,9 +28,9 @@ bool TPCollectiveBase::visit_attributes(ov::AttributeVisitor& visitor) {
 }
 
 TPAllReduce::TPAllReduce(const ov::Output<ov::Node>& input,
-                         int rank,
-                         int world_size,
-                         int group_id,
+                         uint32_t rank,
+                         uint32_t world_size,
+                         uint32_t group_id,
                          uint64_t collective_id,
                          ReduceOp reduce_op)
     : TPCollectiveBase({input}, rank, world_size, group_id, collective_id),
@@ -46,7 +46,7 @@ bool TPAllReduce::visit_attributes(ov::AttributeVisitor& visitor) {
 
 void TPAllReduce::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this,
-                          m_world_size >= 1 && m_rank >= 0 && m_rank < m_world_size,
+                          m_rank < m_world_size,
                           "rank ",
                           m_rank,
                           " is outside of a group of ",
@@ -65,9 +65,9 @@ std::shared_ptr<ov::Node> TPAllReduce::clone_with_new_inputs(const ov::OutputVec
 }
 
 TPGather::TPGather(const ov::Output<ov::Node>& input,
-                   int rank,
-                   int world_size,
-                   int group_id,
+                   uint32_t rank,
+                   uint32_t world_size,
+                   uint32_t group_id,
                    uint64_t collective_id,
                    int64_t axis)
     : TPCollectiveBase({input}, rank, world_size, group_id, collective_id),
@@ -83,7 +83,7 @@ bool TPGather::visit_attributes(ov::AttributeVisitor& visitor) {
 
 void TPGather::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this,
-                          m_world_size >= 1 && m_rank >= 0 && m_rank < m_world_size,
+                          m_rank < m_world_size,
                           "rank ",
                           m_rank,
                           " is outside of a group of ",
@@ -102,7 +102,7 @@ void TPGather::validate_and_infer_types() {
                               rank_len,
                               " input");
         if (pshape[norm_axis].is_static()) {
-            pshape[norm_axis] = pshape[norm_axis].get_length() * static_cast<int64_t>(m_world_size);
+            pshape[norm_axis] = pshape[norm_axis].get_length() * m_world_size;
         } else {
             pshape[norm_axis] = ov::Dimension::dynamic();
         }

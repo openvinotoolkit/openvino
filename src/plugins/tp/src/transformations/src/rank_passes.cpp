@@ -191,16 +191,16 @@ bool TPInsertCollectives::run_on_model(const std::shared_ptr<ov::Model>& model) 
         std::shared_ptr<ov::Node> collective;
         if (role->collective == Collective::ALL_REDUCE) {
             collective = std::make_shared<ov::op::internal::TPAllReduce>(node->output(0),
-                                                                         static_cast<int>(m_rank),
-                                                                         static_cast<int>(m_world_size),
+                                                                         m_rank,
+                                                                         m_world_size,
                                                                          role->group_id,
                                                                          role->collective_id,
                                                                          ov::op::internal::ReduceOp::SUM);
             collective->set_friendly_name("tp_allreduce/" + node->get_friendly_name());
         } else {
             collective = std::make_shared<ov::op::internal::TPGather>(node->output(0),
-                                                                      static_cast<int>(m_rank),
-                                                                      static_cast<int>(m_world_size),
+                                                                      m_rank,
+                                                                      m_world_size,
                                                                       role->group_id,
                                                                       role->collective_id,
                                                                       /*axis=*/-1);

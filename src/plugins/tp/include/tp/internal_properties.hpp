@@ -19,7 +19,7 @@ namespace tp {
 
 namespace internal {
 /// Number of ranks of a TP compiled model.
-static constexpr Property<int, PropertyMutability::RO> world_size{"TP_WORLD_SIZE"};
+static constexpr Property<uint32_t, PropertyMutability::RO> world_size{"TP_WORLD_SIZE"};
 }  // namespace internal
 
 // -----------------------------------------------------------------------------

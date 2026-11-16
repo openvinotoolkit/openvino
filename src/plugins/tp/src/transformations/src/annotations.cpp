@@ -94,8 +94,8 @@ bool ShardAnnotation::visit_attributes(ov::AttributeVisitor& visitor) {
     for (const auto& segment : segments) {
         lengths.push_back(static_cast<int64_t>(segment.length));
         units.push_back(static_cast<int64_t>(segment.unit));
-        steps.push_back(static_cast<int64_t>(segment.step));
-        counts.push_back(static_cast<int64_t>(segment.count));
+        steps.push_back(segment.step);
+        counts.push_back(segment.count);
     }
     for (const auto element : elements) {
         element_list.push_back(static_cast<int64_t>(element));
@@ -120,8 +120,8 @@ bool ShardAnnotation::visit_attributes(ov::AttributeVisitor& visitor) {
     for (size_t i = 0; i < lengths.size(); ++i) {
         segments.push_back({static_cast<size_t>(lengths[i]),
                             static_cast<size_t>(units[i]),
-                            static_cast<size_t>(steps[i]),
-                            static_cast<size_t>(counts[i])});
+                            static_cast<uint32_t>(steps[i]),
+                            static_cast<uint32_t>(counts[i])});
     }
     elements.assign(element_list.begin(), element_list.end());
     OPENVINO_ASSERT(mode >= 0 && mode <= static_cast<int64_t>(Elements::BOUNDS), "[TP] tp_shard: element mode ", mode);
@@ -178,9 +178,9 @@ bool ProjectionRole::visit_attributes(ov::AttributeVisitor& visitor) {
 
 std::string ProjectionRole::to_string() const {
     std::ostringstream out;
-    out << to_cstr(strategy) << " " << to_cstr(collective) << " group " << group_id;
+    out << to_cstr(strategy) << " " << to_cstr(collective);
     if (collective != Collective::NONE)
-        out << " id " << collective_id;
+        out << " group " << group_id << " id " << collective_id;
     out << " by " << block;
     return out.str();
 }
@@ -213,7 +213,7 @@ void strip_annotations(const ov::Model& model) {
     }
 }
 
-std::vector<Range> rank_ranges(const std::vector<Segment>& segments, size_t rank, size_t world_size) {
+std::vector<Range> rank_ranges(const std::vector<Segment>& segments, uint32_t rank, uint32_t world_size) {
     OPENVINO_ASSERT(world_size > 0 && rank < world_size, "[TP] rank ", rank, " of ", world_size);
     std::vector<Range> ranges;
     size_t segment_offset = 0;
@@ -224,7 +224,7 @@ std::vector<Range> rank_ranges(const std::vector<Segment>& segments, size_t rank
                         " elements in units of ",
                         segment.unit);
         const size_t units = segment.length / segment.unit;
-        const size_t shares = segment.count ? segment.count : world_size;
+        const uint32_t shares = segment.count ? segment.count : world_size;
         OPENVINO_ASSERT(segment.step > 0 && shares * segment.step <= world_size && world_size % segment.step == 0,
                         "[TP] ", shares, " shares of ", segment.step, " ranks each do not fit ", world_size, " ranks");
         OPENVINO_ASSERT(units % shares == 0,
@@ -242,7 +242,7 @@ std::vector<Range> rank_ranges(const std::vector<Segment>& segments, size_t rank
     return ranges;
 }
 
-size_t rank_length(const std::vector<Segment>& segments, size_t rank, size_t world_size) {
+size_t rank_length(const std::vector<Segment>& segments, uint32_t rank, uint32_t world_size) {
     size_t total = 0;
     for (const auto& range : rank_ranges(segments, rank, world_size)) {
         total += range.length;
@@ -250,7 +250,11 @@ size_t rank_length(const std::vector<Segment>& segments, size_t rank, size_t wor
     return total;
 }
 
-int64_t localize(const ShardAnnotation& annotation, size_t listed, int64_t global, size_t rank, size_t world_size) {
+int64_t localize(const ShardAnnotation& annotation,
+                 size_t listed,
+                 int64_t global,
+                 uint32_t rank,
+                 uint32_t world_size) {
     const auto& segments = annotation.segments;
     switch (annotation.element_mode) {
     case ShardAnnotation::Elements::SIZE:

@@ -24,14 +24,14 @@ size_t device_bytes(const ov::Model& model) {
 
 // Read off the analyzed model, the estimate is what each rank model holds once it is built.
 TEST(TPRankWeightsTest, MatchTheRankModels) {
-    for (const size_t world_size : {2u, 4u}) {
+    for (const uint32_t world_size : {2u, 4u}) {
         SCOPED_TRACE(world_size);
         auto analyzed = make_block_with_lm_head(BlockConfig{}, 768);
         analyze(analyzed, world_size);
         const auto weights = rank_weights(*analyzed, world_size);
         ASSERT_EQ(weights.per_rank.size(), world_size);
         EXPECT_GT(weights.split, weights.replicated);
-        for (size_t rank = 0; rank < world_size; ++rank) {
+        for (uint32_t rank = 0; rank < world_size; ++rank) {
             const auto model = rank_model(analyzed, rank, world_size);
             // Shape constants of the rank model differ in value, never in size; the collectives add none.
             EXPECT_EQ(weights.per_rank[rank], device_bytes(*model)) << "rank " << rank;

@@ -46,9 +46,9 @@ TEST(TPCollectiveTest, AllReduceKeepsShapeAndType) {
     const auto op = std::make_shared<TPAllReduce>(make_input({1, -1, 4096}), 1, 4, 0, 7, ReduceOp::SUM);
     EXPECT_EQ(op->get_output_element_type(0), ov::element::f16);
     EXPECT_EQ(op->get_output_partial_shape(0), (ov::PartialShape{1, -1, 4096}));
-    EXPECT_EQ(op->get_rank(), 1);
-    EXPECT_EQ(op->get_world_size(), 4);
-    EXPECT_EQ(op->get_group_id(), 0);
+    EXPECT_EQ(op->get_rank(), 1u);
+    EXPECT_EQ(op->get_world_size(), 4u);
+    EXPECT_EQ(op->get_group_id(), 0u);
     EXPECT_EQ(op->get_collective_id(), 7u);
     EXPECT_EQ(op->get_reduce_op(), ReduceOp::SUM);
 }
@@ -69,9 +69,9 @@ TEST(TPCollectiveTest, CloneKeepsAttributes) {
     const auto reduce = std::make_shared<TPAllReduce>(input, 2, 3, 1, 42, ReduceOp::MAX);
     const auto reduce_clone = ov::as_type_ptr<TPAllReduce>(reduce->clone_with_new_inputs({input}));
     ASSERT_NE(reduce_clone, nullptr);
-    EXPECT_EQ(reduce_clone->get_rank(), 2);
-    EXPECT_EQ(reduce_clone->get_world_size(), 3);
-    EXPECT_EQ(reduce_clone->get_group_id(), 1);
+    EXPECT_EQ(reduce_clone->get_rank(), 2u);
+    EXPECT_EQ(reduce_clone->get_world_size(), 3u);
+    EXPECT_EQ(reduce_clone->get_group_id(), 1u);
     EXPECT_EQ(reduce_clone->get_collective_id(), 42u);
     EXPECT_EQ(reduce_clone->get_reduce_op(), ReduceOp::MAX);
 
@@ -98,7 +98,7 @@ TEST(TPCollectiveTest, CollectiveIdSurvivesAttributeVisiting) {
     TPAllReduce restored;
     restored.visit_attributes(write);
     EXPECT_EQ(restored.get_collective_id(), id);
-    EXPECT_EQ(restored.get_rank(), 1);
+    EXPECT_EQ(restored.get_rank(), 1u);
 }
 
 TEST(TPCollectiveTest, BaseTypeMatchesCollectivesOnly) {
@@ -110,7 +110,7 @@ TEST(TPCollectiveTest, BaseTypeMatchesCollectivesOnly) {
 
 TEST(TPCollectiveTest, RejectsRankOutsideGroup) {
     EXPECT_THROW(std::make_shared<TPAllReduce>(make_input({2}), 2, 2, 0, 0, ReduceOp::SUM), ov::NodeValidationFailure);
-    EXPECT_THROW(std::make_shared<TPGather>(make_input({2}), -1, 2, 0, 0), ov::NodeValidationFailure);
+    EXPECT_THROW(std::make_shared<TPGather>(make_input({2}), 5, 2, 0, 0), ov::NodeValidationFailure);
 }
 
 TEST(TPCollectiveTest, ReduceOpNames) {

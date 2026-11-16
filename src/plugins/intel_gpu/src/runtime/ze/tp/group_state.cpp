@@ -98,8 +98,8 @@ uint64_t elapsed_ns(std::chrono::steady_clock::time_point a, std::chrono::steady
 
 }  // namespace
 
-CollectiveStats::CollectiveStats(int world_size) {
-    const auto n = static_cast<std::size_t>(world_size);
+CollectiveStats::CollectiveStats(uint32_t world_size) {
+    const std::size_t n = world_size;
     for (auto* c : {&ph1_ns,           &ph2_ns,           &late_ns,          &last_count,     &seg_ns,
                     &seg_max_ns,       &seg_count,        &p2_gate_ns,       &p2_rec_ns,      &p2_wait_ns,
                     &p2_reset_ns,      &p2_append_ns,     &p2_rec_count,     &p2_wait_count,  &p2_block_count,
@@ -110,7 +110,7 @@ CollectiveStats::CollectiveStats(int world_size) {
                     &ahead_sum,        &ahead_max,        &ahead_count}) {
         c->assign(n, Counter{});
     }
-    p2_dev_hist.assign(n * static_cast<std::size_t>(kDevBuckets), Counter{});
+    p2_dev_hist.assign(n * kDevBuckets, Counter{});
     dev_last_end_ticks.assign(n, 0);
     dev_has_last.assign(n, 0);
     // The only running minimum, so it cannot start at zero.
@@ -143,8 +143,8 @@ void CollectiveStats::start_window() {
 }
 
 GroupState::GroupState(TPL0SharedContextPtr shared,
-                       int world_size,
-                       int num_collectives,
+                       uint32_t world_size,
+                       std::size_t num_collectives,
                        std::chrono::milliseconds collective_timeout,
                        const CollectiveOptions& options,
                        std::size_t fixed_staging_bytes)
@@ -156,7 +156,7 @@ GroupState::GroupState(TPL0SharedContextPtr shared,
       m_fixed_staging_bytes(fixed_staging_bytes),
       m_stats(world_size),
       m_dump_period(options.dump_period) {
-    OPENVINO_ASSERT(m_shared && m_shared->context && static_cast<int>(m_shared->devices.size()) == world_size,
+    OPENVINO_ASSERT(m_shared && m_shared->context && m_shared->devices.size() == world_size,
                     "[TP][L0] the group requires a valid shared L0 context with ",
                     world_size,
                     " devices");
@@ -166,20 +166,19 @@ GroupState::GroupState(TPL0SharedContextPtr shared,
                     "[TP][L0] the fixed staging size must be a multiple of 512, got ",
                     fixed_staging_bytes);
 
-    const auto n_ranks = static_cast<std::size_t>(world_size);
-    m_ranks.resize(n_ranks);
-    for (int r = 0; r < world_size; ++r) {
-        m_ranks[static_cast<std::size_t>(r)].device = m_shared->devices[static_cast<std::size_t>(r)];
+    m_ranks.resize(world_size);
+    for (uint32_t r = 0; r < world_size; ++r) {
+        m_ranks[r].device = m_shared->devices[r];
     }
-    m_staging.assign(n_ranks, Staging{});
-    m_memory_accounts.assign(n_ranks, {});
-    m_seq.assign(n_ranks, 0);
-    m_allreduce_seq.assign(n_ranks, 0);
-    m_gather_seq.assign(n_ranks, 0);
-    m_last_splice.assign(n_ranks, nullptr);
-    m_last_late_ns.assign(n_ranks, 0);
+    m_staging.assign(world_size, Staging{});
+    m_memory_accounts.assign(world_size, {});
+    m_seq.assign(world_size, 0);
+    m_allreduce_seq.assign(world_size, 0);
+    m_gather_seq.assign(world_size, 0);
+    m_last_splice.assign(world_size, nullptr);
+    m_last_late_ns.assign(world_size, 0);
     if (!m_options.profiling_csv_dir.empty()) {
-        static std::atomic<int> groups{0};
+        static std::atomic<uint32_t> groups{0};
         std::filesystem::create_directories(m_options.profiling_csv_dir);
         const auto file = std::filesystem::path(m_options.profiling_csv_dir) /
                           ("tp_collectives_" + std::to_string(world_size) + "ranks_" + std::to_string(groups++) + ".csv");
@@ -190,10 +189,10 @@ GroupState::GroupState(TPL0SharedContextPtr shared,
                  "late_us,rendezvous_us,handover_us,device_us,model_gap_us\n";
         TP_REPORT << "[TP] Writing the collectives' profiling data to " << file.string() << std::endl;
     }
-    m_mailbox.slots[0].assign(n_ranks, MailboxSlot{});
-    m_mailbox.slots[1].assign(n_ranks, MailboxSlot{});
-    m_started = std::make_unique<std::atomic<uint64_t>[]>(n_ranks);
-    for (std::size_t r = 0; r < n_ranks; ++r) {
+    m_mailbox.slots[0].assign(world_size, MailboxSlot{});
+    m_mailbox.slots[1].assign(world_size, MailboxSlot{});
+    m_started = std::make_unique<std::atomic<uint64_t>[]>(world_size);
+    for (uint32_t r = 0; r < world_size; ++r) {
         m_started[r].store(0, std::memory_order_relaxed);
     }
 
@@ -202,10 +201,10 @@ GroupState::GroupState(TPL0SharedContextPtr shared,
             init_rank(rs);
         }
         create_event_sets();
-        m_made_ahead.resize(n_ranks);
-        for (int r = 0; r < world_size; ++r) {
-            for (int i = 0; i < num_collectives; ++i) {
-                m_made_ahead[static_cast<std::size_t>(r)].push_back(create_recording_resources(r));
+        m_made_ahead.resize(world_size);
+        for (uint32_t r = 0; r < world_size; ++r) {
+            for (std::size_t i = 0; i < num_collectives; ++i) {
+                m_made_ahead[r].push_back(create_recording_resources(r));
             }
         }
     } catch (...) {
@@ -251,7 +250,7 @@ void GroupState::write_csv_row(const std::string& row) {
     m_csv << row << '\n';
 }
 
-void GroupState::check_output(int rank, uint64_t collective_id, uint64_t checksum, const std::string& name) {
+void GroupState::check_output(uint32_t rank, uint64_t collective_id, uint64_t checksum, const std::string& name) {
     // A mismatch flood (every call of a broken collective) would bury the first ones.
     constexpr uint64_t kMaxReports = 20;
     std::lock_guard<std::mutex> lock(m_check_mutex);
@@ -272,7 +271,7 @@ void GroupState::check_output(int rank, uint64_t collective_id, uint64_t checksu
             std::ostringstream message;
             message << "[TP][CHECK] AllReduce output differs across ranks: " << name << " (collective "
                     << collective_id << ", call " << call << "):";
-            for (int r = 0; r < m_world_size; ++r)
+            for (uint32_t r = 0; r < m_world_size; ++r)
                 message << " r" << r << "=0x" << std::hex << sums[r] << std::dec;
             if (m_mismatches == kMaxReports)
                 message << "; further differences are only counted";
@@ -329,7 +328,7 @@ void GroupState::destroy_rank(RankState& rs) {
     }
 }
 
-GroupState::RecordingResources GroupState::create_recording_resources(int rank) const {
+GroupState::RecordingResources GroupState::create_recording_resources(uint32_t rank) const {
     RecordingResources res;
     try {
         // Host-visible: the rank asks before splicing the same list again, the
@@ -341,13 +340,12 @@ GroupState::RecordingResources GroupState::create_recording_resources(int rank) 
         }
         epd.count = 2;
         std::vector<ze_device_handle_t> devs(m_shared->devices.begin(), m_shared->devices.end());
-        OV_ZE_EXPECT(ov::zeEventPoolCreate(m_shared->context, &epd, static_cast<uint32_t>(devs.size()), devs.data(),
-                                           &res.pool));
-        for (int p = 0; p < 2; ++p) {
+        OV_ZE_EXPECT(ov::zeEventPoolCreate(m_shared->context, &epd, m_world_size, devs.data(), &res.pool));
+        for (uint32_t p = 0; p < 2; ++p) {
             ze_event_desc_t ed{ZE_STRUCTURE_TYPE_EVENT_DESC, nullptr};
             ed.signal = ZE_EVENT_SCOPE_FLAG_HOST;
             ed.wait = ZE_EVENT_SCOPE_FLAG_HOST;
-            ed.index = static_cast<uint32_t>(p);
+            ed.index = p;
             OV_ZE_EXPECT(ov::zeEventCreate(res.pool, &ed, &res.done[p]));
 
             ze_command_list_desc_t ld{ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC, nullptr};
@@ -361,11 +359,11 @@ GroupState::RecordingResources GroupState::create_recording_resources(int rank) 
     return res;
 }
 
-GroupState::RecordingResources GroupState::take_recording_resources(int rank) {
-    OPENVINO_ASSERT(rank >= 0 && rank < m_world_size, "[TP][L0] no recording resources for rank ", rank);
+GroupState::RecordingResources GroupState::take_recording_resources(uint32_t rank) {
+    OPENVINO_ASSERT(rank < m_world_size, "[TP][L0] no recording resources for rank ", rank);
     {
         std::lock_guard<std::mutex> lock(m_made_ahead_mutex);
-        auto& made = m_made_ahead[static_cast<std::size_t>(rank)];
+        auto& made = m_made_ahead[rank];
         if (!made.empty()) {
             const auto res = made.back();
             made.pop_back();
@@ -376,7 +374,7 @@ GroupState::RecordingResources GroupState::take_recording_resources(int rank) {
 }
 
 void GroupState::destroy_recording_resources(RecordingResources& res) {
-    for (int p = 0; p < 2; ++p) {
+    for (uint32_t p = 0; p < 2; ++p) {
         if (res.done[p])
             ov::zeEventDestroy(res.done[p]);
         if (res.lists[p])
@@ -389,7 +387,7 @@ void GroupState::destroy_recording_resources(RecordingResources& res) {
 
 void GroupState::create_event_sets() {
     auto ctx = m_shared->context;
-    const int N = m_world_size;
+    const uint32_t N = m_world_size;
     std::vector<ze_device_handle_t> devs(m_shared->devices.begin(), m_shared->devices.end());
     auto make = [&](ze_event_pool_handle_t pool, uint32_t index) {
         ze_event_desc_t ed{ZE_STRUCTURE_TYPE_EVENT_DESC, nullptr};
@@ -413,9 +411,9 @@ void GroupState::create_event_sets() {
             // One event per (step, rank) over 2*(N-1) ring steps, plus one
             // "reduce-scatter finished" per rank. Halving's 2*log2(N) steps fit.
             epd.flags = m_options.profiling_device ? ZE_EVENT_POOL_FLAG_KERNEL_TIMESTAMP : 0;
-            epd.count = static_cast<uint32_t>((2 * (N - 1) + 1) * N);
+            epd.count = (2 * (N - 1) + 1) * N;
         }
-        OV_ZE_EXPECT(ov::zeEventPoolCreate(ctx, &epd, static_cast<uint32_t>(devs.size()), devs.data(), &set.pool));
+        OV_ZE_EXPECT(ov::zeEventPoolCreate(ctx, &epd, N, devs.data(), &set.pool));
         auto& events = (N == 2) ? set.recv : set.step;
         for (uint32_t i = 0; i < epd.count; ++i) {
             events.push_back(make(set.pool, i));
@@ -424,11 +422,11 @@ void GroupState::create_event_sets() {
 
     for (auto& set : m_gather_events) {
         ze_event_pool_desc_t epd{ZE_STRUCTURE_TYPE_EVENT_POOL_DESC, nullptr};
-        epd.count = static_cast<uint32_t>(2 * N);
-        OV_ZE_EXPECT(ov::zeEventPoolCreate(ctx, &epd, static_cast<uint32_t>(devs.size()), devs.data(), &set.pool));
-        for (int i = 0; i < N; ++i) {
-            set.ev.push_back(make(set.pool, static_cast<uint32_t>(i)));
-            set.ready.push_back(make(set.pool, static_cast<uint32_t>(N + i)));
+        epd.count = 2 * N;
+        OV_ZE_EXPECT(ov::zeEventPoolCreate(ctx, &epd, N, devs.data(), &set.pool));
+        for (uint32_t i = 0; i < N; ++i) {
+            set.ev.push_back(make(set.pool, i));
+            set.ready.push_back(make(set.pool, N + i));
         }
     }
 }
@@ -458,7 +456,7 @@ void GroupState::destroy_event_sets() {
 }
 
 void GroupState::ensure_staging(Staging& s,
-                                int rank,
+                                uint32_t rank,
                                 std::size_t payload_bytes,
                                 std::size_t half_bytes,
                                 uint64_t collective_id) {
@@ -475,7 +473,7 @@ void GroupState::ensure_staging(Staging& s,
     } else if (need > s.bytes) {
         OV_ITT_SCOPED_TASK_BASE(ov::intel_gpu::itt::domains::tp_collective, "tp_staging_grow");
         ScopedTime stall(m_options.profiling_host, m_stats.scratch_stall_ns);
-        if (Splice* last = m_last_splice[static_cast<std::size_t>(rank)]) {
+        if (Splice* last = m_last_splice[rank]) {
             if (await_splice(*last, rank, collective_id) && m_options.profiling_host && last->allreduce) {
                 m_stats.ahead_now[rank].v.fetch_sub(1, std::memory_order_relaxed);
             }
@@ -522,8 +520,10 @@ void GroupState::ensure_staging(Staging& s,
     }
 }
 
-std::shared_ptr<void> GroupState::allocate_staging(const TPL0SharedContextPtr& shared, int rank, std::size_t bytes) {
-    OPENVINO_ASSERT(shared && rank >= 0 && static_cast<std::size_t>(rank) < shared->devices.size() && bytes > 0,
+std::shared_ptr<void> GroupState::allocate_staging(const TPL0SharedContextPtr& shared,
+                                                   uint32_t rank,
+                                                   std::size_t bytes) {
+    OPENVINO_ASSERT(shared && rank < shared->devices.size() && bytes > 0,
                     "[TP][L0] invalid fixed staging request: rank ",
                     rank,
                     ", ",
@@ -531,8 +531,7 @@ std::shared_ptr<void> GroupState::allocate_staging(const TPL0SharedContextPtr& s
                     " bytes");
     ze_device_mem_alloc_desc_t mad{ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC, nullptr};
     void* base = nullptr;
-    const auto result =
-        ov::zeMemAllocDevice(shared->context, &mad, bytes, 256, shared->devices[static_cast<std::size_t>(rank)], &base);
+    const auto result = ov::zeMemAllocDevice(shared->context, &mad, bytes, 256, shared->devices[rank], &base);
     OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
                     "[GPU][TP] rank ",
                     rank,
@@ -549,13 +548,13 @@ std::shared_ptr<void> GroupState::allocate_staging(const TPL0SharedContextPtr& s
     });
 }
 
-void GroupState::adopt_staging(int rank, std::shared_ptr<void> buffer) {
+void GroupState::adopt_staging(uint32_t rank, std::shared_ptr<void> buffer) {
     OPENVINO_ASSERT(m_fixed_staging_bytes != 0, "[TP][L0] the group has no fixed staging");
-    OPENVINO_ASSERT(rank >= 0 && rank < m_world_size && buffer != nullptr,
+    OPENVINO_ASSERT(rank < m_world_size && buffer != nullptr,
                     "[TP][L0] invalid fixed staging for rank ",
                     rank);
     std::lock_guard<std::mutex> lock(m_staging_mutex);
-    auto& s = m_staging[static_cast<std::size_t>(rank)];
+    auto& s = m_staging[rank];
     if (s.fixed == buffer) {
         return;
     }
@@ -571,10 +570,10 @@ void GroupState::adopt_staging(int rank, std::shared_ptr<void> buffer) {
 
 void GroupState::destroy_staging() {
     std::lock_guard<std::mutex> lock(m_staging_mutex);
-    for (std::size_t r = 0; r < m_staging.size(); ++r) {
+    for (uint32_t r = 0; r < m_staging.size(); ++r) {
         auto& s = m_staging[r];
         if (s.base) {
-            account_staging(static_cast<int>(r), s.bytes, false);
+            account_staging(r, s.bytes, false);
         }
         if (s.base && !s.fixed && m_shared && m_shared->context) {
             ov::zeMemFree(m_shared->context, s.base);
@@ -583,15 +582,15 @@ void GroupState::destroy_staging() {
     }
 }
 
-void GroupState::set_memory_account(int rank, std::weak_ptr<cldnn::engine> engine) {
-    OPENVINO_ASSERT(rank >= 0 && rank < m_world_size, "[TP][L0] invalid rank ", rank);
+void GroupState::set_memory_account(uint32_t rank, std::weak_ptr<cldnn::engine> engine) {
+    OPENVINO_ASSERT(rank < m_world_size, "[TP][L0] invalid rank ", rank);
     std::lock_guard<std::mutex> lock(m_staging_mutex);
-    m_memory_accounts[static_cast<std::size_t>(rank)] = std::move(engine);
+    m_memory_accounts[rank] = std::move(engine);
 }
 
 // Under m_staging_mutex. A rank whose engine is gone has nothing left to count in.
-void GroupState::account_staging(int rank, std::size_t bytes, bool allocated) {
-    const auto engine = m_memory_accounts[static_cast<std::size_t>(rank)].lock();
+void GroupState::account_staging(uint32_t rank, std::size_t bytes, bool allocated) {
+    const auto engine = m_memory_accounts[rank].lock();
     if (!engine) {
         return;
     }
@@ -602,22 +601,22 @@ void GroupState::account_staging(int rank, std::size_t bytes, bool allocated) {
     }
 }
 
-void GroupState::call_rendezvous(int rank, const MailboxSlot& mine, std::vector<MailboxSlot>& all) {
+void GroupState::call_rendezvous(uint32_t rank, const MailboxSlot& mine, std::vector<MailboxSlot>& all) {
     using clk = std::chrono::steady_clock;
     const bool skew = m_options.profiling_host && mine.allreduce;
-    const int p = static_cast<int>(mine.seq & 1u);
+    const auto p = static_cast<uint32_t>(mine.seq & 1u);
     auto& mb = m_mailbox;
     auto& st = m_stats;
     {
         std::unique_lock<std::mutex> lk(mb.mtx);
-        mb.slots[p][static_cast<std::size_t>(rank)] = mine;
+        mb.slots[p][rank] = mine;
         if (skew) {
             const auto t_arrive = clk::now();
             if (mb.arrived[p] == 0) {
                 mb.first_arrival[p] = t_arrive;
             }
             st.late_ns[rank].add(elapsed_ns(mb.first_arrival[p], t_arrive));
-            m_last_late_ns[static_cast<std::size_t>(rank)] = elapsed_ns(mb.first_arrival[p], t_arrive);
+            m_last_late_ns[rank] = elapsed_ns(mb.first_arrival[p], t_arrive);
             if (mb.arrived[p] + 1 == m_world_size) {
                 st.spread_ns += elapsed_ns(mb.first_arrival[p], t_arrive);
                 st.last_count[rank].bump();
@@ -647,8 +646,8 @@ void GroupState::call_rendezvous(int rank, const MailboxSlot& mine, std::vector<
         all = mb.slots[p];
     }
 
-    for (int q = 0; q < m_world_size; ++q) {
-        const auto& s = all[static_cast<std::size_t>(q)];
+    for (uint32_t q = 0; q < m_world_size; ++q) {
+        const auto& s = all[q];
         if (s.seq != mine.seq || s.allreduce != mine.allreduce || s.collective_id != mine.collective_id ||
             s.n != mine.n || s.rows != mine.rows || s.dtype != mine.dtype) {
             std::ostringstream oss;
@@ -662,7 +661,7 @@ void GroupState::call_rendezvous(int rank, const MailboxSlot& mine, std::vector<
     }
 }
 
-void GroupState::begin_allreduce(int rank,
+void GroupState::begin_allreduce(uint32_t rank,
                                  uint64_t collective_id,
                                  std::size_t n,
                                  ov::element::Type dtype,
@@ -671,18 +670,18 @@ void GroupState::begin_allreduce(int rank,
                                  AllreduceCall& call) {
     OPENVINO_ASSERT(chunks > 0, "[TP][L0] an allreduce call has at least one chunk");
     const Stopwatch staging_time(m_options.profiling_host);
-    auto& seq = m_allreduce_seq[static_cast<std::size_t>(rank)];
-    call.parity = static_cast<int>(seq & 1u);
+    auto& seq = m_allreduce_seq[rank];
+    call.parity = static_cast<uint32_t>(seq & 1u);
     seq += chunks;
     const std::size_t payload_bytes = checked_multiply(n, dtype.size(), "collective payload");
-    auto& staging = m_staging[static_cast<std::size_t>(rank)];
+    auto& staging = m_staging[rank];
     ensure_staging(staging, rank, payload_bytes, half_bytes, collective_id);
     if (m_options.profiling_host) {
         m_stats.p2_gate_ns[rank].add(staging_time.elapsed().ns());
     }
 
     MailboxSlot mine;
-    mine.seq = ++m_seq[static_cast<std::size_t>(rank)];
+    mine.seq = ++m_seq[rank];
     mine.allreduce = true;
     mine.collective_id = collective_id;
     mine.n = n;
@@ -696,10 +695,10 @@ void GroupState::begin_allreduce(int rank,
     std::vector<MailboxSlot> all;
     call_rendezvous(rank, mine, all);
 
-    for (int p = 0; p < 2; ++p) {
+    for (uint32_t p = 0; p < 2; ++p) {
         call.staging[p].resize(all.size());
         for (std::size_t q = 0; q < all.size(); ++q) {
-            call.staging[p][q] = static_cast<uint8_t*>(all[q].staging) + static_cast<std::size_t>(p) * all[q].staging_half;
+            call.staging[p][q] = static_cast<uint8_t*>(all[q].staging) + p * all[q].staging_half;
         }
         call.recv[p] = &m_events[p].recv;
         call.step[p] = &m_events[p].step;
@@ -710,17 +709,17 @@ void GroupState::begin_allreduce(int rank,
     }
 }
 
-void GroupState::begin_gather(int rank,
+void GroupState::begin_gather(uint32_t rank,
                               uint64_t collective_id,
                               std::size_t rows,
                               std::size_t slice_elems,
                               ov::element::Type dtype,
                               void* out,
                               GatherCall& call) {
-    call.parity = static_cast<int>(m_gather_seq[static_cast<std::size_t>(rank)]++ & 1u);
+    call.parity = static_cast<uint32_t>(m_gather_seq[rank]++ & 1u);
 
     MailboxSlot mine;
-    mine.seq = ++m_seq[static_cast<std::size_t>(rank)];
+    mine.seq = ++m_seq[rank];
     mine.allreduce = false;
     mine.collective_id = collective_id;
     mine.n = slice_elems;
@@ -745,18 +744,18 @@ void GroupState::track(Splice* splice) {
     m_tracked.push_back(splice);
 }
 
-void GroupState::untrack(int rank, Splice* splice) {
+void GroupState::untrack(uint32_t rank, Splice* splice) {
     {
         std::lock_guard<std::mutex> lock(m_tracked_mutex);
         m_tracked.erase(std::remove(m_tracked.begin(), m_tracked.end(), splice), m_tracked.end());
     }
-    auto& last = m_last_splice[static_cast<std::size_t>(rank)];
+    auto& last = m_last_splice[rank];
     if (last == splice) {
         last = nullptr;
     }
 }
 
-bool GroupState::await_splice(Splice& splice, int rank, uint64_t collective_id) {
+bool GroupState::await_splice(Splice& splice, uint32_t rank, uint64_t collective_id) {
     if (!splice.in_flight.load(std::memory_order_acquire)) {
         return false;
     }
@@ -775,19 +774,19 @@ bool GroupState::await_splice(Splice& splice, int rank, uint64_t collective_id) 
     return true;
 }
 
-void GroupState::handed_over(int rank, Splice* splice) {
-    m_last_splice[static_cast<std::size_t>(rank)] = splice;
+void GroupState::handed_over(uint32_t rank, Splice* splice) {
+    m_last_splice[rank] = splice;
     note_collective_started(rank);
 }
 
-void GroupState::execute_and_wait(int rank, ze_command_list_handle_t list, const char* what) {
-    auto& rs = m_ranks[static_cast<std::size_t>(rank)];
+void GroupState::execute_and_wait(uint32_t rank, ze_command_list_handle_t list, const char* what) {
+    auto& rs = m_ranks[rank];
     OV_ZE_EXPECT(ze_api()->zeCommandQueueExecuteCommandLists(rs.compute_queue, 1, &list, nullptr));
     sync_queue(rs.compute_queue, what);
 }
 
-void GroupState::drain(int rank, const char* what) {
-    auto& rs = m_ranks[static_cast<std::size_t>(rank)];
+void GroupState::drain(uint32_t rank, const char* what) {
+    auto& rs = m_ranks[rank];
     if (rs.compute_queue) {
         sync_queue(rs.compute_queue, what);
     }
@@ -831,7 +830,7 @@ void GroupState::throw_if_aborted() const {
     OPENVINO_THROW("[TP][L0] collective group is no longer usable: ", m_abort_reason);
 }
 
-void GroupState::fail_collective(bool timed_out, uint64_t collective_id, int rank, const char* stage) {
+void GroupState::fail_collective(bool timed_out, uint64_t collective_id, uint32_t rank, const char* stage) {
     if (timed_out) {
         std::ostringstream oss;
         oss << "[TP][L0] rank " << rank << " timed out after " << m_collective_timeout.count() << " ms at the "
@@ -845,11 +844,11 @@ void GroupState::fail_collective(bool timed_out, uint64_t collective_id, int ran
     OPENVINO_THROW("[TP][L0] collective ", collective_id, " failed on rank ", rank, " at the ", stage);
 }
 
-void GroupState::note_collective_started(int rank) {
+void GroupState::note_collective_started(uint32_t rank) {
     std::call_once(m_watchdog_once, [this] {
         start_watchdog();
     });
-    m_started[static_cast<std::size_t>(rank)].fetch_add(1, std::memory_order_release);
+    m_started[rank].fetch_add(1, std::memory_order_release);
 }
 
 void GroupState::start_watchdog() {
@@ -901,8 +900,8 @@ void GroupState::watchdog_loop() {
 
         uint64_t signature = 0;
         uint64_t outstanding = 0;
-        for (int r = 0; r < m_world_size; ++r) {
-            signature += m_started[static_cast<std::size_t>(r)].load(std::memory_order_acquire);
+        for (uint32_t r = 0; r < m_world_size; ++r) {
+            signature += m_started[r].load(std::memory_order_acquire);
         }
         {
             std::lock_guard<std::mutex> lock(m_tracked_mutex);
@@ -968,12 +967,12 @@ void GroupState::release_all_waits() {
     }
 }
 
-void GroupState::note_collective_done(int rank) {
+void GroupState::note_collective_done(uint32_t rank) {
     if (!(m_options.profiling_host || m_options.profiling_device) || rank != 0) {
         return;
     }
     // An inference runs every collective of the model once.
-    if (++m_rank0_collectives % static_cast<uint64_t>(m_num_collectives) != 0) {
+    if (++m_rank0_collectives % m_num_collectives != 0) {
         return;
     }
     if (!m_dump_period.due()) {
@@ -1014,7 +1013,7 @@ void GroupState::report_host_ranks() {
 
     TP_REPORT << "[TP][RANK|host] calls=" << calls << " arrival spread=" << us(st.spread_ns) << "us/call"
               << std::endl;
-    for (int r = 0; r < m_world_size; ++r) {
+    for (uint32_t r = 0; r < m_world_size; ++r) {
         const double last_share = 100.0 * static_cast<double>(st.last_count[r].get()) / c;
         const uint64_t segments = st.seg_count[r].get();
         std::ostringstream segment;
@@ -1066,7 +1065,7 @@ void GroupState::report_host_totals() {
               << " splice=" << tms(st.splice_ns.get()) / c << "ms"
               << " tail=" << tms(st.tail_ns.get()) / c << "ms" << std::endl;
     uint64_t pair = 0, ring = 0, halving = 0;
-    for (int r = 0; r < m_world_size; ++r) {
+    for (uint32_t r = 0; r < m_world_size; ++r) {
         pair += st.n_pair[r].get();
         ring += st.n_ring[r].get();
         halving += st.n_halving[r].get();
@@ -1097,7 +1096,7 @@ void GroupState::report_host_totals() {
               << " allocations=" << scratch.allocation_count
               << " stall=" << (static_cast<double>(st.scratch_stall_ns.get()) / 1.0e6) << "ms"
               << " fixed=" << (m_fixed_staging_bytes / (1024.0 * 1024.0)) << "MB" << std::endl;
-    for (int r = 0; r < m_world_size; ++r) {
+    for (uint32_t r = 0; r < m_world_size; ++r) {
         const uint64_t gc_calls = st.gather_calls[r].get();
         if (gc_calls == 0) {
             continue;
@@ -1117,7 +1116,7 @@ void GroupState::report_host_totals() {
 void GroupState::report_device() {
     const auto& st = m_stats;
     uint64_t total_samples = 0;
-    for (int r = 0; r < m_world_size; ++r) {
+    for (uint32_t r = 0; r < m_world_size; ++r) {
         total_samples += st.p2_dev_count[r].get();
     }
     if (total_samples == 0) {
@@ -1134,7 +1133,7 @@ void GroupState::report_device() {
               << " world=" << m_world_size << std::endl;
     uint64_t all_bytes = 0;
     uint64_t all_ns = 0;
-    for (int r = 0; r < m_world_size; ++r) {
+    for (uint32_t r = 0; r < m_world_size; ++r) {
         const uint64_t samples = st.p2_dev_count[r].get();
         if (samples == 0) {
             continue;
@@ -1159,11 +1158,8 @@ void GroupState::report_device() {
         auto pct_us = [&](double frac) -> uint64_t {
             const auto want = static_cast<uint64_t>(static_cast<double>(samples) * frac);
             uint64_t seen = 0;
-            for (int b = 0; b < CollectiveStats::kDevBuckets; ++b) {
-                seen += st.p2_dev_hist[static_cast<std::size_t>(r) *
-                                           static_cast<std::size_t>(CollectiveStats::kDevBuckets) +
-                                       static_cast<std::size_t>(b)]
-                            .get();
+            for (uint32_t b = 0; b < CollectiveStats::kDevBuckets; ++b) {
+                seen += st.p2_dev_hist[std::size_t{r} * CollectiveStats::kDevBuckets + b].get();
                 if (seen >= want) {
                     return uint64_t{1} << (b + 1);
                 }
@@ -1191,7 +1187,7 @@ void GroupState::report_device() {
                   << " GB/s"
                   << "  (time is queue occupancy, kernel and peer waits included)" << std::endl;
     }
-    for (int r = 0; r < m_world_size; ++r) {
+    for (uint32_t r = 0; r < m_world_size; ++r) {
         const uint64_t gd = st.gather_dev_count[r].get();
         if (gd == 0) {
             continue;

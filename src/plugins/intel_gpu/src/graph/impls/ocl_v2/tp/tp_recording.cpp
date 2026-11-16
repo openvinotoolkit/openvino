@@ -19,7 +19,7 @@ TPRecording::~TPRecording() {
     // A list or event the device may still touch must not be destroyed; one
     // that does not finish within the timeout is leaked instead.
     bool idle = true;
-    for (int p = 0; p < 2; ++p) {
+    for (uint32_t p = 0; p < 2; ++p) {
         auto& s = m_splices[p];
         if (s.in_flight.load(std::memory_order_acquire) &&
             ze_api()->zeEventHostSynchronize(s.done, m_group->timeout_ns()) != ZE_RESULT_SUCCESS) {
@@ -42,14 +42,14 @@ void TPRecording::bind(const cldnn::ze::tp::Channel& channel, bool allreduce) {
     m_splices = std::make_unique<cldnn::ze::tp::Splice[]>(2);
     m_group = channel.group();
     m_rank = channel.rank();
-    for (int p = 0; p < 2; ++p) {
+    for (uint32_t p = 0; p < 2; ++p) {
         m_splices[p].done = m_res.done[p];
         m_splices[p].allreduce = allreduce;
         m_group->track(&m_splices[p]);
     }
 }
 
-void TPRecording::reset(int parity, bool timed) {
+void TPRecording::reset(uint32_t parity, bool timed) {
     auto& st = m_group->stats();
     const bool measure = timed && m_group->options().profiling_host;
     {
@@ -60,7 +60,7 @@ void TPRecording::reset(int parity, bool timed) {
     OV_ZE_EXPECT(ze_api()->zeCommandListReset(m_res.lists[parity]));
 }
 
-void TPRecording::splice_into(ze_command_list_handle_t model_queue, int parity) {
+void TPRecording::splice_into(ze_command_list_handle_t model_queue, uint32_t parity) {
     // Up before the driver call, so a block inside it still looks outstanding to the watchdog.
     m_splices[parity].in_flight.store(1, std::memory_order_release);
     OV_ZE_EXPECT(ze_api()->zeCommandListImmediateAppendCommandListsExp(model_queue,

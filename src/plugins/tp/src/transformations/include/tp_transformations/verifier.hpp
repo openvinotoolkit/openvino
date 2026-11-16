@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <ostream>
 
 #include "openvino/pass/pass.hpp"
@@ -24,13 +25,13 @@ namespace tp {
 class TPShardingVerifier : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("TPShardingVerifier");
-    explicit TPShardingVerifier(size_t world_size, std::ostream* dump = nullptr)
+    explicit TPShardingVerifier(uint32_t world_size, std::ostream* dump = nullptr)
         : m_world_size(world_size),
           m_dump(dump) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 private:
-    size_t m_world_size;
+    uint32_t m_world_size;
     std::ostream* m_dump;
 };
 

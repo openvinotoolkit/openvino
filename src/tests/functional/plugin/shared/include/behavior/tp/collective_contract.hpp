@@ -22,7 +22,7 @@ namespace test {
 namespace behavior {
 
 /// Device type (e.g. "GPU") and number of ranks.
-using TPCollectiveContractParams = std::tuple<std::string, size_t>;
+using TPCollectiveContractParams = std::tuple<std::string, uint32_t>;
 
 /// L3 conformance tests: what a device plugin taking part in tensor parallelism guarantees (the device-plugin
 /// obligations D1-D11 and the op contract), checked through the contract only -- TP contexts from the internal
@@ -38,21 +38,21 @@ protected:
 
     void SetUp() override;
 
-    static constexpr int default_timeout_ms = 5000;
+    static constexpr int64_t default_timeout_ms = 5000;
 
-    int ranks() const;
-    Group make_group(int timeout_ms = default_timeout_ms) const;
+    uint32_t ranks() const;
+    Group make_group(int64_t timeout_ms = default_timeout_ms) const;
     /// The TP parameters of rank `rank` of the group.
     ov::AnyMap rank_params(const Group& group,
-                           int rank,
+                           uint32_t rank,
                            const std::string& backend = "AUTO",
-                           int timeout_ms = default_timeout_ms) const;
+                           int64_t timeout_ms = default_timeout_ms) const;
     /// One context per rank, created one after another on this thread.
     Contexts create_contexts(const std::function<void(ov::AnyMap&)>& adjust = {},
-                             int timeout_ms = default_timeout_ms);
+                             int64_t timeout_ms = default_timeout_ms);
     /// Compiles `make_model(rank)` on every rank's context.
     Requests compile(Contexts& contexts,
-                     const std::function<std::shared_ptr<ov::Model>(int)>& make_model,
+                     const std::function<std::shared_ptr<ov::Model>(uint32_t)>& make_model,
                      const ov::AnyMap& config = {});
     Requests compile_allreduce(Contexts& contexts, const ov::AnyMap& config = {});
     /// Runs every rank on its exact input and checks the exact sum on every rank.
@@ -63,7 +63,7 @@ protected:
 
     ov::Core m_core;
     std::string m_device_type;
-    size_t m_world_size = 0;
+    uint32_t m_world_size = 0;
     /// One device per rank, "<type>.<id>" in the order the device plugin lists them.
     std::vector<std::string> m_devices;
 };

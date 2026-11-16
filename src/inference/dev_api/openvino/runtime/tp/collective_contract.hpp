@@ -45,8 +45,8 @@ inline constexpr const char* auto_backend = "AUTO";
  * acts as a barrier.
  */
 struct IExchange {
-    virtual int rank() const = 0;
-    virtual int world_size() const = 0;
+    virtual uint32_t rank() const = 0;
+    virtual uint32_t world_size() const = 0;
     virtual void publish(const Blob& local) = 0;
     virtual std::vector<Blob> collect() = 0;
     virtual ~IExchange() = default;
@@ -57,25 +57,27 @@ namespace detail {
 struct InProcessGroupState {
     std::mutex mutex;
     std::condition_variable cv;
-    int world_size = 0;
+    uint32_t world_size = 0;
     std::chrono::milliseconds timeout{0};
     struct Round {
         std::vector<Blob> blobs;  // indexed by rank
-        int published = 0;
-        int collected = 0;
+        uint32_t published = 0;
+        uint32_t collected = 0;
     };
     std::map<uint64_t, Round> rounds;  // rounds in flight; erased once every rank has collected
 };
 
 class InProcessEndpoint final : public IExchange {
 public:
-    InProcessEndpoint(std::shared_ptr<InProcessGroupState> state, int rank) : m_state(std::move(state)), m_rank(rank) {}
+    InProcessEndpoint(std::shared_ptr<InProcessGroupState> state, uint32_t rank)
+        : m_state(std::move(state)),
+          m_rank(rank) {}
 
-    int rank() const override {
+    uint32_t rank() const override {
         return m_rank;
     }
 
-    int world_size() const override {
+    uint32_t world_size() const override {
         return m_state->world_size;
     }
 
@@ -85,9 +87,9 @@ public:
         std::lock_guard<std::mutex> lock(s.mutex);
         auto& round = s.rounds[m_round];
         if (round.blobs.empty()) {
-            round.blobs.resize(static_cast<size_t>(s.world_size));
+            round.blobs.resize(s.world_size);
         }
-        round.blobs[static_cast<size_t>(m_rank)] = local;
+        round.blobs[m_rank] = local;
         if (++round.published == s.world_size) {
             s.cv.notify_all();
         }
@@ -126,7 +128,7 @@ public:
 
 private:
     std::shared_ptr<InProcessGroupState> m_state;
-    int m_rank;
+    uint32_t m_rank;
     uint64_t m_round = 0;
     bool m_published = false;
 };
@@ -137,15 +139,16 @@ private:
 class InProcessExchange {
 public:
     /// One shared group state and one endpoint per rank. A zero timeout waits indefinitely.
-    static std::vector<std::shared_ptr<IExchange>> create_group(int world_size, std::chrono::milliseconds timeout) {
+    static std::vector<std::shared_ptr<IExchange>> create_group(uint32_t world_size,
+                                                                std::chrono::milliseconds timeout) {
         OPENVINO_ASSERT(world_size >= 1, "TP exchange: world size must be positive, got ", world_size);
         OPENVINO_ASSERT(timeout.count() >= 0, "TP exchange: timeout must not be negative");
         auto state = std::make_shared<detail::InProcessGroupState>();
         state->world_size = world_size;
         state->timeout = timeout;
         std::vector<std::shared_ptr<IExchange>> endpoints;
-        endpoints.reserve(static_cast<size_t>(world_size));
-        for (int rank = 0; rank < world_size; ++rank) {
+        endpoints.reserve(world_size);
+        for (uint32_t rank = 0; rank < world_size; ++rank) {
             endpoints.push_back(std::make_shared<detail::InProcessEndpoint>(state, rank));
         }
         return endpoints;
@@ -187,7 +190,7 @@ namespace internal {
 static constexpr ov::Property<std::vector<std::string>> device_group{"TP_DEVICE_GROUP"};
 
 /// group_id -> this rank's configuration of that group. Never serialized.
-static constexpr ov::Property<std::map<int, CollectiveGroup>> groups{"TP_GROUPS"};
+static constexpr ov::Property<std::map<uint32_t, CollectiveGroup>> groups{"TP_GROUPS"};
 
 /// Number of channels of the communicator (default 1): one per stream of the models bound to the context.
 static constexpr ov::Property<uint32_t> channels{"TP_CHANNELS"};
@@ -196,7 +199,7 @@ static constexpr ov::Property<uint32_t> channels{"TP_CHANNELS"};
 static constexpr ov::Property<size_t> comm_buffer_size{"TP_COMM_BUFFER_SIZE"};
 
 /// Timeout of the setup rendezvous, the per-call rendezvous, and of collectives that do not complete.
-static constexpr ov::Property<int> communication_timeout_ms{"COMMUNICATION_TIMEOUT_MS"};
+static constexpr ov::Property<int64_t> communication_timeout_ms{"COMMUNICATION_TIMEOUT_MS"};
 
 // ---- compile_model() / import_model() config ----
 

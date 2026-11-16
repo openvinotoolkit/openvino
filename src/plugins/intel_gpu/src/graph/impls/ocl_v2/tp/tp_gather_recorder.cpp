@@ -42,15 +42,15 @@ uint64_t ticks_to_ns(uint64_t start, uint64_t end, uint64_t mask, uint64_t ns_pe
 
 }  // namespace
 
-void TPGatherRecorder::record(int parity) {
+void TPGatherRecorder::record(uint32_t parity) {
     const Signature& sig = m_sig[parity];
     auto& group = m_rec.group();
     auto& ev = *m_call.events;
     auto& ready = *m_call.ready;
-    const int rank = m_rec.rank();
-    const int world_size = group.world_size();
+    const uint32_t rank = m_rec.rank();
+    const uint32_t world_size = group.world_size();
     const std::size_t slice_bytes = checked_multiply(sig.slice_elems, sig.dtype.size(), "gather slice");
-    const std::size_t full_bytes = checked_multiply(slice_bytes, static_cast<std::size_t>(world_size), "gather row");
+    const std::size_t full_bytes = checked_multiply(slice_bytes, world_size, "gather row");
 
     m_rec.reset(parity, false);
     ze_command_list_handle_t list = m_rec.list(parity);
@@ -61,7 +61,7 @@ void TPGatherRecorder::record(int parity) {
         for (std::size_t row = 0; row < sig.rows; ++row) {
             OV_ZE_EXPECT(ze_api()->zeCommandListAppendMemoryCopy(list,
                                                                  static_cast<uint8_t*>(sig.root_out) + row * full_bytes +
-                                                                     static_cast<std::size_t>(rank) * slice_bytes,
+                                                                     rank * slice_bytes,
                                                                  static_cast<const uint8_t*>(sig.in) + row * slice_bytes,
                                                                  slice_bytes,
                                                                  nullptr,
@@ -73,24 +73,24 @@ void TPGatherRecorder::record(int parity) {
     if (rank != 0) {
         // Not before the root's queue has reached this gather: until then its
         // output's memory may still be in use by whatever ran there before.
-        OV_ZE_EXPECT(ze_api()->zeCommandListAppendWaitOnEvents(list, 1, &ready[static_cast<std::size_t>(rank)]));
-        OV_ZE_EXPECT(ze_api()->zeCommandListAppendEventReset(list, ready[static_cast<std::size_t>(rank)]));
+        OV_ZE_EXPECT(ze_api()->zeCommandListAppendWaitOnEvents(list, 1, &ready[rank]));
+        OV_ZE_EXPECT(ze_api()->zeCommandListAppendEventReset(list, ready[rank]));
         copy_band();
         // Signalled once the reset and the copy are both done, so the root
         // cannot hand out the next ready of this parity before it is cleared.
-        OV_ZE_EXPECT(ze_api()->zeCommandListAppendBarrier(list, ev[static_cast<std::size_t>(rank)], 0, nullptr));
+        OV_ZE_EXPECT(ze_api()->zeCommandListAppendBarrier(list, ev[rank], 0, nullptr));
     } else {
         // Own band first: the barrier and the device-scope signals after it
         // write its cache lines back before any peer writes next to them.
         copy_band();
         OV_ZE_EXPECT(ze_api()->zeCommandListAppendBarrier(list, nullptr, 0, nullptr));
-        for (int r = 1; r < world_size; ++r) {
-            OV_ZE_EXPECT(ze_api()->zeCommandListAppendSignalEvent(list, ready[static_cast<std::size_t>(r)]));
+        for (uint32_t r = 1; r < world_size; ++r) {
+            OV_ZE_EXPECT(ze_api()->zeCommandListAppendSignalEvent(list, ready[r]));
         }
         // Holds everything queued behind this recording -- the rest of the
         // model on the root -- until every band is in place.
         std::vector<ze_event_handle_t> waits(ev.begin() + 1, ev.end());
-        OV_ZE_EXPECT(ze_api()->zeCommandListAppendWaitOnEvents(list, static_cast<uint32_t>(waits.size()), waits.data()));
+        OV_ZE_EXPECT(ze_api()->zeCommandListAppendWaitOnEvents(list, world_size - 1, waits.data()));
         for (auto* e : waits) {
             OV_ZE_EXPECT(ze_api()->zeCommandListAppendEventReset(list, e));
         }
@@ -110,7 +110,7 @@ void TPGatherRecorder::run(const cldnn::ze::tp::Channel& channel,
                            ov::element::Type dtype,
                            ze_command_list_handle_t model_queue) {
     auto& group = *channel.group();
-    const int rank = channel.rank();
+    const uint32_t rank = channel.rank();
     OPENVINO_ASSERT(in != nullptr, "[TP][L0] gather called with a null source on rank ", rank);
     OPENVINO_ASSERT(rank != 0 || out != nullptr, "[TP][L0] gather called with a null destination on the root rank");
     OPENVINO_ASSERT(rows > 0 && slice_elems > 0,
@@ -131,7 +131,7 @@ void TPGatherRecorder::run(const cldnn::ze::tp::Channel& channel,
         OV_ITT_SCOPED_TASK_BASE(ov::intel_gpu::itt::domains::tp_collective, "tp_gather_rendezvous");
         group.begin_gather(rank, collective_id, rows, slice_elems, dtype, out, m_call);
     }
-    const int parity = m_call.parity;
+    const uint32_t parity = m_call.parity;
     if (g_host) {
         st.gather_barrier_ns[rank].add(since_entry.elapsed().ns());
         st.gather_calls[rank].bump();
@@ -141,7 +141,7 @@ void TPGatherRecorder::run(const cldnn::ze::tp::Channel& channel,
         cldnn::ze::tp::GroupState& group;
         uint64_t collective_id;
         const std::string& name;
-        int rank;
+        uint32_t rank;
         bool armed{true};
         ~AbortOnFailure() {
             if (armed) {

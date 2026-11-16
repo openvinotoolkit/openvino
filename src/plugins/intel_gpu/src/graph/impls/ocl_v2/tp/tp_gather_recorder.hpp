@@ -60,7 +60,7 @@ private:
         }
     };
 
-    void record(int parity);
+    void record(uint32_t parity);
 
     TPRecording m_rec;
     Signature m_sig[2];

@@ -45,7 +45,7 @@ std::vector<std::shared_ptr<ov::Node>> producers_through_transparent(const ov::O
 /// The Reshape that flattens the heads back into features in front of the O projection.
 std::shared_ptr<ov::Node> output_reshape(const std::shared_ptr<ov::Node>& out_projection) {
     auto node = out_projection->get_input_node_shared_ptr(0);
-    for (int hops = 0; hops < 4 && node && !ov::is_type<ov::op::v1::Reshape>(node); ++hops) {
+    for (uint32_t hops = 0; hops < 4 && node && !ov::is_type<ov::op::v1::Reshape>(node); ++hops) {
         node = ov::is_type<ov::op::v0::Convert>(node) ? node->get_input_node_shared_ptr(0) : nullptr;
     }
     return node && ov::is_type<ov::op::v1::Reshape>(node) ? node : nullptr;
@@ -56,7 +56,7 @@ struct Geometry {
     int64_t kv_heads = 0;
     int64_t head_dim = 0;
     /// Ranks sharing one KV head: world_size / kv_heads when there are fewer KV heads than ranks.
-    size_t replicas = 1;
+    uint32_t replicas = 1;
     std::vector<Segment> q_heads;
     std::vector<Segment> kv_heads_split;
 };
@@ -122,7 +122,7 @@ Geometry annotate_attention(const std::shared_ptr<ov::Node>& attention,
     OPENVINO_ASSERT(q_features == g.heads * g.head_dim,
                     "[TP] The query projection produces ", q_features, " features, which does not match ", g.heads,
                     " heads x ", g.head_dim, " head_dim");
-    const auto world_size = static_cast<int64_t>(config.world_size);
+    const int64_t world_size = config.world_size;
     const bool even = world_size > g.kv_heads ? world_size % g.kv_heads == 0 && g.heads % world_size == 0
                                               : g.kv_heads % world_size == 0;
     OPENVINO_ASSERT(even,
@@ -130,14 +130,14 @@ Geometry annotate_attention(const std::shared_ptr<ov::Node>& attention,
                     " does not divide them evenly (required: KV heads % N == 0, or with fewer KV heads than ranks "
                     "N % KV heads == 0 and Q heads % N == 0). Every rank takes an equal share of the attention heads.");
     if (world_size > g.kv_heads)
-        g.replicas = static_cast<size_t>(world_size / g.kv_heads);
+        g.replicas = static_cast<uint32_t>(world_size / g.kv_heads);
 
     // Every rank owns whole query groups, or with fewer KV heads than ranks an equal share of one
     // group, next to the KV head(s) that group uses.
     const auto group = static_cast<size_t>(g.heads / g.kv_heads);
     const auto q_unit = group / g.replicas;
     const auto head_dim = static_cast<size_t>(g.head_dim);
-    const size_t kv_count = g.replicas > 1 ? config.world_size / g.replicas : 0;
+    const uint32_t kv_count = g.replicas > 1 ? config.world_size / g.replicas : 0;
     const std::vector<Segment> q_features_split{{static_cast<size_t>(q_features), q_unit * head_dim}};
     const std::vector<Segment> kv_features_split{{static_cast<size_t>(kv_features), head_dim, g.replicas, kv_count}};
     g.q_heads = {{static_cast<size_t>(g.heads), q_unit}};

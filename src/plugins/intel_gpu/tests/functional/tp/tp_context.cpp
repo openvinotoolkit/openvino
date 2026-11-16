@@ -28,9 +28,9 @@ using ov::tp::InProcessExchange;
 
 constexpr size_t elements = 4096;
 
-std::shared_ptr<ov::Model> make_allreduce_model(int rank,
-                                                int world_size,
-                                                int group_id = 0,
+std::shared_ptr<ov::Model> make_allreduce_model(uint32_t rank,
+                                                uint32_t world_size,
+                                                uint32_t group_id = 0,
                                                 ReduceOp reduce_op = ReduceOp::SUM) {
     auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, elements});
     auto reduce = std::make_shared<TPAllReduce>(x, rank, world_size, group_id, 0, reduce_op);
@@ -53,19 +53,19 @@ protected:
     }
 
     static ov::AnyMap rank_params(const std::vector<std::shared_ptr<IExchange>>& group,
-                                  int rank,
+                                  uint32_t rank,
                                   const std::string& backend = ov::tp::auto_backend) {
         return {{ov::tp::internal::device_group.name(), std::vector<std::string>{"GPU.0", "GPU.1"}},
                 {ov::tp::internal::groups.name(),
-                 std::map<int, CollectiveGroup>{{0, CollectiveGroup{group[static_cast<size_t>(rank)], backend}}}},
-                {ov::tp::internal::communication_timeout_ms.name(), 5000}};
+                 std::map<uint32_t, CollectiveGroup>{{0, CollectiveGroup{group[rank], backend}}}},
+                {ov::tp::internal::communication_timeout_ms.name(), int64_t{5000}}};
     }
 
     std::vector<ov::RemoteContext> create_contexts(const ov::AnyMap& extra = {},
                                                    const std::string& backend = ov::tp::auto_backend) {
         auto group = InProcessExchange::create_group(2, std::chrono::milliseconds{5000});
         std::vector<ov::RemoteContext> contexts;
-        for (int rank = 0; rank < 2; ++rank) {
+        for (uint32_t rank = 0; rank < 2; ++rank) {
             auto params = rank_params(group, rank, backend);
             for (const auto& entry : extra)
                 params[entry.first] = entry.second;
@@ -76,8 +76,8 @@ protected:
 
     void expect_two_ranks_reduce(std::vector<ov::RemoteContext>& contexts) {
         std::vector<ov::InferRequest> requests;
-        for (int rank = 0; rank < 2; ++rank) {
-            requests.push_back(core.compile_model(make_allreduce_model(rank, 2), contexts[static_cast<size_t>(rank)])
+        for (uint32_t rank = 0; rank < 2; ++rank) {
+            requests.push_back(core.compile_model(make_allreduce_model(rank, 2), contexts[rank])
                                    .create_infer_request());
             ov::Tensor input(ov::element::f32, ov::Shape{1, elements});
             auto* data = input.data<float>();

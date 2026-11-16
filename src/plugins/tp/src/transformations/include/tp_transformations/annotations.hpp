@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -25,8 +26,8 @@ namespace tp {
 struct Segment {
     size_t length = 0;  ///< elements along the split dimension
     size_t unit = 1;    ///< split granularity: a head (group), a quantization group, or 1
-    size_t step = 1;
-    size_t count = 0;
+    uint32_t step = 1;
+    uint32_t count = 0;
 
     bool operator==(const Segment& other) const {
         return length == other.length && unit == other.unit && step == other.step && count == other.count;
@@ -89,7 +90,7 @@ public:
     OPENVINO_RTTI("tp_role", "0", ov::RuntimeAttribute);
 
     ProjectionRole() = default;
-    ProjectionRole(ShardStrategy strategy, Collective collective, int group_id, std::string block)
+    ProjectionRole(ShardStrategy strategy, Collective collective, uint32_t group_id, std::string block)
         : strategy(strategy),
           collective(collective),
           group_id(group_id),
@@ -97,7 +98,7 @@ public:
 
     ShardStrategy strategy = ShardStrategy::REPLICATED;
     Collective collective = Collective::NONE;  ///< inserted on the MatMul's output
-    int group_id = -1;                         ///< collective group; -1 with no collective
+    uint32_t group_id = 0;                     ///< collective group; unused with no collective
     uint64_t collective_id = 0;                ///< numbered by TPLayerAnalyzer, so every rank model gets the same
     std::string block;
 
@@ -136,13 +137,17 @@ struct Range {
 ///
 /// Each segment is split in whole units, the same number for every share; a split
 /// that does not divide evenly throws.
-std::vector<Range> rank_ranges(const std::vector<Segment>& segments, size_t rank, size_t world_size);
+std::vector<Range> rank_ranges(const std::vector<Segment>& segments, uint32_t rank, uint32_t world_size);
 
 /// Total length of `rank`'s ranges.
-size_t rank_length(const std::vector<Segment>& segments, size_t rank, size_t world_size);
+size_t rank_length(const std::vector<Segment>& segments, uint32_t rank, uint32_t world_size);
 
 /// The rank's value of the `listed`-th element of an annotated shape constant whose global value is `global`.
-int64_t localize(const ShardAnnotation& annotation, size_t listed, int64_t global, size_t rank, size_t world_size);
+int64_t localize(const ShardAnnotation& annotation,
+                 size_t listed,
+                 int64_t global,
+                 uint32_t rank,
+                 uint32_t world_size);
 
 }  // namespace tp
 }  // namespace ov

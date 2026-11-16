@@ -125,7 +125,7 @@ at once is refused by name; below 512 bytes the GPU refuses it as too small.
 |----------------------------|------------|---------|------------------------------------------------------------------------------------------|
 | `TP_STRATEGY`              | string     | `COLUMN_ROW` | Partitioning strategy (Megatron-style column/row parallelism; the only value). |
 | `COLLECTIVE_BACKEND`       | string     | `AUTO`  | Collective implementation of the rank devices' plugin, passed to it unchanged. GPU: `L0_P2P`; an unknown name is rejected with the valid ones. |
-| `COMMUNICATION_TIMEOUT_MS` | `int`      | `5000`  | Longest a rank waits inside a collective before the group is aborted. `0` waits forever; a negative value is rejected at `compile_model`. |
+| `COMMUNICATION_TIMEOUT_MS` | `int64_t`  | `5000`  | Longest a rank waits inside a collective before the group is aborted. `0` waits forever; a negative value is rejected at `compile_model`. |
 | `TP_COMM_BUFFER_SIZE`      | `size_t`   | `0`     | Bytes of collective staging per rank, allocated once when the model is compiled. Larger messages are split into chunks. `0` lets the staging grow with the largest message. |
 
 A collective needs all ranks to participate. If one rank never arrives or its

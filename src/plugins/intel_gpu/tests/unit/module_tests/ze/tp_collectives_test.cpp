@@ -66,33 +66,33 @@ namespace {
 class Collectives {
 public:
     Collectives(TPL0SharedContextPtr shared,
-                int world_size,
-                int num_collectives,
+                uint32_t world_size,
+                size_t num_collectives,
                 std::chrono::milliseconds timeout = std::chrono::milliseconds{5000},
                 const CollectiveOptions& options = CollectiveOptions{},
                 size_t fixed_staging_bytes = 0)
         : m_group(std::make_shared<GroupState>(shared, world_size, num_collectives, timeout, options,
                                                fixed_staging_bytes)),
           m_world_size(world_size) {
-        for (int r = 0; r < world_size; ++r) {
+        for (uint32_t r = 0; r < world_size; ++r) {
             m_channels.push_back(std::make_shared<Channel>(m_group, r));
             if (fixed_staging_bytes != 0) {
                 m_group->adopt_staging(r, GroupState::allocate_staging(shared, r, fixed_staging_bytes));
             }
         }
-        for (int i = 0; i < num_collectives; ++i) {
+        for (size_t i = 0; i < num_collectives; ++i) {
             // Sparse and descending: the group may assume neither order nor density.
-            m_ids.push_back(1000 - 7 * static_cast<uint64_t>(i));
+            m_ids.push_back(1000 - 7 * i);
             m_names.push_back("collective " + std::to_string(i));
         }
-        for (int i = 0; i < num_collectives * world_size; ++i) {
+        for (size_t i = 0; i < num_collectives * world_size; ++i) {
             m_allreduce.push_back(std::make_unique<TPAllReduceRecorder>());
             m_gather.push_back(std::make_unique<TPGatherRecorder>());
         }
     }
 
-    void allreduce(int collective,
-                   int rank,
+    void allreduce(size_t collective,
+                   uint32_t rank,
                    void* in,
                    void* out,
                    size_t n,
@@ -103,8 +103,8 @@ public:
                                                  out, n, dtype, kernel, model_queue);
     }
 
-    void gather_to_root(int collective,
-                        int rank,
+    void gather_to_root(size_t collective,
+                        uint32_t rank,
                         void* in,
                         void* out,
                         size_t rows,
@@ -130,7 +130,7 @@ public:
     void abort_all(const std::string& reason) {
         m_group->abort_all(reason);
     }
-    void note_collective_started(int rank) {
+    void note_collective_started(uint32_t rank) {
         m_group->note_collective_started(rank);
     }
     GroupState::ScratchStats get_scratch_stats() const {
@@ -138,13 +138,13 @@ public:
     }
 
 private:
-    size_t slot(int collective, int rank) const {
-        return static_cast<size_t>(collective * m_world_size + rank);
+    size_t slot(size_t collective, uint32_t rank) const {
+        return collective * m_world_size + rank;
     }
 
     // Recorders last: they go first and hold the group until they have.
     std::shared_ptr<GroupState> m_group;
-    int m_world_size;
+    uint32_t m_world_size;
     std::vector<uint64_t> m_ids;       // [collective]: what the orchestrator assigned
     std::vector<std::string> m_names;  // [collective]: what the impls pass as the primitive id
     std::vector<std::shared_ptr<Channel>> m_channels;
@@ -161,7 +161,7 @@ private:
 // context.  Returns nullptr when no driver has enough discrete GPUs, which the
 // fixture treats as "skip".
 // ---------------------------------------------------------------------------
-TPL0SharedContextPtr make_shared_ctx(int min_gpus) {
+TPL0SharedContextPtr make_shared_ctx(uint32_t min_gpus) {
     EXPECT_ZE(ov::zeInit(0));
 
     uint32_t dcount = 0;
@@ -189,12 +189,12 @@ TPL0SharedContextPtr make_shared_ctx(int min_gpus) {
             if (is_dgpu)
                 gpus.push_back(dh);
         }
-        if (static_cast<int>(gpus.size()) >= min_gpus) {
+        if (gpus.size() >= min_gpus) {
             if (ov::zeContextCreateEx == nullptr)
                 return nullptr;
             ze_context_desc_t cd{ZE_STRUCTURE_TYPE_CONTEXT_DESC, nullptr, 0};
             ze_context_handle_t ctx = nullptr;
-            EXPECT_ZE(ov::zeContextCreateEx(drv, &cd, static_cast<uint32_t>(min_gpus), gpus.data(), &ctx));
+            EXPECT_ZE(ov::zeContextCreateEx(drv, &cd, min_gpus, gpus.data(), &ctx));
 
             auto shared = std::make_shared<TPL0SharedContext>();
             shared->driver = drv;
@@ -311,13 +311,13 @@ struct RankScratch {
 /// outlive every group of the test.
 class ReduceKernels {
 public:
-    static ze_kernel_handle_t get(const TPL0SharedContextPtr& shared, int rank, ov::element::Type dtype) {
+    static ze_kernel_handle_t get(const TPL0SharedContextPtr& shared, uint32_t rank, ov::element::Type dtype) {
         std::lock_guard<std::mutex> lock(mutex());
         auto& built = registry()[shared.get()];
         built.shared = shared;
         auto& entry = built.kernels[{rank, dtype}];
         if (entry.kernel == nullptr) {
-            entry = build(shared->context, shared->devices[static_cast<size_t>(rank)], dtype);
+            entry = build(shared->context, shared->devices[rank], dtype);
         }
         return entry.kernel;
     }
@@ -342,7 +342,7 @@ private:
     };
     struct Built {
         TPL0SharedContextPtr shared;
-        std::map<std::pair<int, ov::element::Type_t>, Entry> kernels;
+        std::map<std::pair<uint32_t, ov::element::Type_t>, Entry> kernels;
     };
 
     static std::mutex& mutex() {
@@ -410,7 +410,7 @@ private:
     }
 };
 
-ze_kernel_handle_t reduce_kernel(const Collectives& coord, int rank, ov::element::Type dtype) {
+ze_kernel_handle_t reduce_kernel(const Collectives& coord, uint32_t rank, ov::element::Type dtype) {
     return ReduceKernels::get(coord.shared_context(), rank, dtype);
 }
 
@@ -443,19 +443,19 @@ struct Watchdog {
 /// `queues` is empty for the blocking path and holds one immediate command
 /// list per rank for the spliced one.
 void run_collective(Collectives& coord,
-                    int collective_id,
+                    size_t collective,
                     const std::vector<void*>& ins,
                     const std::vector<void*>& outs,
                     size_t n,
                     ov::element::Type dtype,
                     const std::vector<ze_command_list_handle_t>& queues = {}) {
-    const int ranks = static_cast<int>(ins.size());
+    const auto ranks = static_cast<uint32_t>(ins.size());
     std::vector<std::thread> threads;
     threads.reserve(ranks);
-    for (int r = 0; r < ranks; ++r) {
+    for (uint32_t r = 0; r < ranks; ++r) {
         threads.emplace_back([&, r] {
             auto* queue = queues.empty() ? nullptr : queues[r];
-            EXPECT_NO_THROW(coord.allreduce(collective_id, r, ins[r], outs[r], n, dtype,
+            EXPECT_NO_THROW(coord.allreduce(collective, r, ins[r], outs[r], n, dtype,
                                             reduce_kernel(coord, r, dtype), queue))
                 << "rank " << r;
         });
@@ -467,21 +467,21 @@ void run_collective(Collectives& coord,
 /// Same, for the gather.  Only the root's buffer is written, so the other
 /// ranks pass their own (ignored) destination.
 void run_gather(Collectives& coord,
-                int collective_id,
+                size_t collective,
                 const std::vector<void*>& ins,
                 const std::vector<void*>& outs,
                 size_t rows,
                 size_t slice_elems,
                 ov::element::Type dtype,
                 const std::vector<ze_command_list_handle_t>& queues = {}) {
-    const int ranks = static_cast<int>(ins.size());
+    const auto ranks = static_cast<uint32_t>(ins.size());
     std::vector<std::thread> threads;
     threads.reserve(ranks);
-    for (int r = 0; r < ranks; ++r) {
+    for (uint32_t r = 0; r < ranks; ++r) {
         threads.emplace_back([&, r] {
             auto* queue = queues.empty() ? nullptr : queues[r];
             EXPECT_NO_THROW(
-                coord.gather_to_root(collective_id, r, ins[r], outs[r], rows, slice_elems, dtype, queue))
+                coord.gather_to_root(collective, r, ins[r], outs[r], rows, slice_elems, dtype, queue))
                 << "rank " << r;
         });
     }

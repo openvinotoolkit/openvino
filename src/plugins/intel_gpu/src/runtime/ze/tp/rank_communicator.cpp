@@ -59,7 +59,7 @@ ov::tp::Blob make_payload(const std::string& backend, const PayloadBody& body) {
     return blob;
 }
 
-PayloadBody parse_payload(const ov::tp::Blob& blob, int from_rank, const std::string& own_backend) {
+PayloadBody parse_payload(const ov::tp::Blob& blob, uint32_t from_rank, const std::string& own_backend) {
     OPENVINO_ASSERT(blob.size() == sizeof(ov::tp::PayloadHeader) + sizeof(PayloadBody),
                     "[GPU][TP] rank ", from_rank, " published a payload of ", blob.size(), " bytes, expected ",
                     sizeof(ov::tp::PayloadHeader) + sizeof(PayloadBody));
@@ -109,9 +109,9 @@ RankCommunicator::RankCommunicator(std::shared_ptr<ov::tp::IExchange> exchange,
     OPENVINO_ASSERT(m_shared != nullptr, "[GPU][TP] the communicator needs the device-group context");
     m_rank = m_exchange->rank();
     m_world_size = m_exchange->world_size();
-    OPENVINO_ASSERT(m_world_size >= 2 && m_rank >= 0 && m_rank < m_world_size,
+    OPENVINO_ASSERT(m_world_size >= 2 && m_rank < m_world_size,
                     "[GPU][TP] invalid rank ", m_rank, " of ", m_world_size);
-    OPENVINO_ASSERT(m_shared->devices.size() == static_cast<size_t>(m_world_size),
+    OPENVINO_ASSERT(m_shared->devices.size() == m_world_size,
                     "[GPU][TP] the device group has ", m_shared->devices.size(), " devices for ", m_world_size,
                     " ranks");
     OPENVINO_ASSERT(m_backend == l0_p2p_backend,
@@ -127,23 +127,23 @@ RankCommunicator::RankCommunicator(std::shared_ptr<ov::tp::IExchange> exchange,
     PayloadBody body;
     body.pid = current_pid();
     body.communicator_id = m_id;
-    body.rank = static_cast<uint32_t>(m_rank);
-    body.world_size = static_cast<uint32_t>(m_world_size);
+    body.rank = m_rank;
+    body.world_size = m_world_size;
     body.staging_bytes = m_staging_bytes;
     m_exchange->publish(make_payload(m_backend, body));
 }
 
-void RankCommunicator::connect(int num_collectives) {
+void RankCommunicator::connect(std::size_t num_collectives) {
     OV_ITT_SCOPED_TASK_BASE(ov::intel_gpu::itt::domains::tp_collective, "tp_communicator_connect");
     const auto blobs = m_exchange->collect();
-    OPENVINO_ASSERT(blobs.size() == static_cast<size_t>(m_world_size),
+    OPENVINO_ASSERT(blobs.size() == m_world_size,
                     "[GPU][TP] collected ", blobs.size(), " payloads for ", m_world_size, " ranks");
 
     const auto pid = current_pid();
     std::vector<PayloadBody> bodies;
-    for (int r = 0; r < m_world_size; ++r) {
-        const auto body = parse_payload(blobs[static_cast<size_t>(r)], r, m_backend);
-        OPENVINO_ASSERT(body.rank == static_cast<uint32_t>(r) && body.world_size == static_cast<uint32_t>(m_world_size),
+    for (uint32_t r = 0; r < m_world_size; ++r) {
+        const auto body = parse_payload(blobs[r], r, m_backend);
+        OPENVINO_ASSERT(body.rank == r && body.world_size == m_world_size,
                         "[GPU][TP] payload ", r, " claims rank ", body.rank, " of ", body.world_size);
         OPENVINO_ASSERT(body.pid == pid,
                         "[GPU][TP] rank ", r, " runs in another process; ranks of one group must share a process");
@@ -154,7 +154,7 @@ void RankCommunicator::connect(int num_collectives) {
                         " must be the same on every rank");
         bodies.push_back(body);
     }
-    OPENVINO_ASSERT(bodies[static_cast<size_t>(m_rank)].communicator_id == m_id,
+    OPENVINO_ASSERT(bodies[m_rank].communicator_id == m_id,
                     "[GPU][TP] the payload at this rank's index belongs to another communicator");
 
     std::lock_guard<std::mutex> lock(registry_mutex);
@@ -186,7 +186,7 @@ std::shared_ptr<Channel> RankCommunicator::bind(const std::vector<CollectiveUse>
 
     std::map<uint64_t, const std::string*> by_id;
     for (const auto& use : collectives) {
-        OPENVINO_ASSERT(use.rank == static_cast<uint32_t>(m_rank) && use.world_size == static_cast<uint32_t>(m_world_size),
+        OPENVINO_ASSERT(use.rank == m_rank && use.world_size == m_world_size,
                         "[GPU][TP] collective ", use.name, " is for rank ", use.rank, " of ", use.world_size,
                         ", the context is rank ", m_rank, " of ", m_world_size);
         const auto [it, inserted] = by_id.emplace(use.collective_id, &use.name);
@@ -197,7 +197,7 @@ std::shared_ptr<Channel> RankCommunicator::bind(const std::vector<CollectiveUse>
 
     std::lock_guard<std::mutex> lock(m_mutex);
     OPENVINO_ASSERT(m_channel.expired(), "[GPU][TP] channel ", channel, " of the TP context is already bound to a model");
-    const auto count = static_cast<int>(collectives.size());
+    const auto count = collectives.size();
     if (!m_group) {
         connect(count);
         m_group->set_memory_account(m_rank, m_memory_account);

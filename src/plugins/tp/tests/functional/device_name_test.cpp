@@ -46,7 +46,7 @@ TEST(TPDeviceNameTest, RequiresAtLeastTwoDevices) {
 TEST(TPDeviceNameTest, RejectsVirtualDevicesAsRanks) {
     ov::Core core;
     const auto model = make_transformer_block(BlockConfig{});
-    for (const std::string list : {"HETERO:" + named(0) + "," + named(1), "TP:" + named(0) + "," + named(1)})
+    for (const auto& list : {"HETERO:" + named(0) + "," + named(1), "TP:" + named(0) + "," + named(1)})
         OV_EXPECT_THROW(core.compile_model(model, "TP:" + list), ov::Exception, HasSubstr("one device type"));
 }
 
@@ -238,7 +238,7 @@ TEST_F(TPDevicePropertiesTest, NamedBackendAndWorldSize) {
                                        tp_device(2),
                                        ov::tp::collective_backend(backends.front()),
                                        ov::tp::tp_strategy(ov::tp::TPStrategy::COLUMN_ROW));
-    EXPECT_EQ(compiled.get_property(ov::tp::internal::world_size.name()).as<int>(), 2);
+    EXPECT_EQ(compiled.get_property(ov::tp::internal::world_size.name()).as<uint32_t>(), 2u);
     EXPECT_EQ(compiled.get_property(ov::num_streams), ov::streams::Num{1});
 }
 

@@ -32,13 +32,13 @@ public:
 
     TPCollectiveBase() = default;
 
-    int get_rank() const {
+    uint32_t get_rank() const {
         return m_rank;
     }
-    int get_world_size() const {
+    uint32_t get_world_size() const {
         return m_world_size;
     }
-    int get_group_id() const {
+    uint32_t get_group_id() const {
         return m_group_id;
     }
     uint64_t get_collective_id() const {
@@ -48,11 +48,15 @@ public:
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
 protected:
-    TPCollectiveBase(const ov::OutputVector& arguments, int rank, int world_size, int group_id, uint64_t collective_id);
+    TPCollectiveBase(const ov::OutputVector& arguments,
+                     uint32_t rank,
+                     uint32_t world_size,
+                     uint32_t group_id,
+                     uint64_t collective_id);
 
-    int m_rank = 0;
-    int m_world_size = 1;
-    int m_group_id = 0;
+    uint32_t m_rank = 0;
+    uint32_t m_world_size = 1;
+    uint32_t m_group_id = 0;
     uint64_t m_collective_id = 0;
 };
 
@@ -63,9 +67,9 @@ public:
 
     TPAllReduce() = default;
     TPAllReduce(const ov::Output<ov::Node>& input,
-                int rank,
-                int world_size,
-                int group_id,
+                uint32_t rank,
+                uint32_t world_size,
+                uint32_t group_id,
                 uint64_t collective_id,
                 ReduceOp reduce_op);
 
@@ -91,9 +95,9 @@ public:
 
     TPGather() = default;
     TPGather(const ov::Output<ov::Node>& input,
-             int rank,
-             int world_size,
-             int group_id,
+             uint32_t rank,
+             uint32_t world_size,
+             uint32_t group_id,
              uint64_t collective_id,
              int64_t axis = -1);
 

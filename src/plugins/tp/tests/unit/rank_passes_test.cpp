@@ -32,7 +32,7 @@ int64_t lm_head_rows(const std::shared_ptr<ov::Model>& model) {
 }
 
 /// KV heads every rank owns.
-int64_t local_kv_heads(const BlockConfig& config, size_t world_size) {
+int64_t local_kv_heads(const BlockConfig& config, uint32_t world_size) {
     return static_cast<int64_t>(config.num_kv_heads / world_size);
 }
 
@@ -62,10 +62,10 @@ std::vector<std::pair<std::string, uint64_t>> collective_ids(const std::shared_p
 
 }  // namespace
 
-class TPRankPassesTest : public ::testing::TestWithParam<size_t> {};
+class TPRankPassesTest : public ::testing::TestWithParam<uint32_t> {};
 
 TEST_P(TPRankPassesTest, GivesEveryRankOneBandOfTheVocabulary) {
-    const size_t world_size = GetParam();
+    const uint32_t world_size = GetParam();
     const size_t vocab = 1536;  // divides by two, three and four
     for (const auto& model : rank_models(make_block_with_lm_head(BlockConfig{}, vocab), world_size)) {
         EXPECT_EQ(lm_head_rows(model), static_cast<int64_t>(vocab / world_size));
@@ -74,7 +74,7 @@ TEST_P(TPRankPassesTest, GivesEveryRankOneBandOfTheVocabulary) {
 }
 
 TEST_P(TPRankPassesTest, OnlyRankZeroSeesTheWholeVocabulary) {
-    const size_t world_size = GetParam();
+    const uint32_t world_size = GetParam();
     const size_t vocab = 1536;
     const auto models = rank_models(make_block_with_lm_head(BlockConfig{}, vocab), world_size);
     for (size_t rank = 0; rank < world_size; ++rank) {
@@ -85,7 +85,7 @@ TEST_P(TPRankPassesTest, OnlyRankZeroSeesTheWholeVocabulary) {
 }
 
 TEST_P(TPRankPassesTest, KeepsTheVocabularyProjectionWholeOnRequest) {
-    const size_t world_size = GetParam();
+    const uint32_t world_size = GetParam();
     const size_t vocab = 1536;
     for (const auto& model : rank_models(make_block_with_lm_head(BlockConfig{}, vocab), world_size, false)) {
         EXPECT_EQ(lm_head_rows(model), static_cast<int64_t>(vocab));
@@ -145,7 +145,7 @@ TEST_P(TPRankPassesTest, GivesEveryRankTheSameUniqueCollectiveIds) {
 }
 
 TEST_P(TPRankPassesTest, LocalizesTheKvCacheVariables) {
-    const size_t world_size = GetParam();
+    const uint32_t world_size = GetParam();
     BlockConfig config;
     config.stateful = true;
     const auto models = rank_models(make_transformer_block(config), world_size);
@@ -160,7 +160,7 @@ TEST_P(TPRankPassesTest, LocalizesTheKvCacheVariables) {
 }
 
 TEST_P(TPRankPassesTest, LocalizesEveryKvCacheInitializer) {
-    const size_t world_size = GetParam();
+    const uint32_t world_size = GetParam();
     BlockConfig config;
     config.stateful = true;
     const auto models = rank_models(make_transformer_block(config), world_size);
@@ -179,7 +179,7 @@ TEST_P(TPRankPassesTest, LocalizesEveryKvCacheInitializer) {
 }
 
 TEST_P(TPRankPassesTest, LocalizesThePagedAttentionHeadCounts) {
-    const size_t world_size = GetParam();
+    const uint32_t world_size = GetParam();
     BlockConfig config;
     const auto models = rank_models(make_paged_attention_block(config), world_size);
     for (size_t rank = 0; rank < world_size; ++rank) {
@@ -199,7 +199,7 @@ TEST_P(TPRankPassesTest, LocalizesThePagedAttentionHeadCounts) {
 }
 
 TEST_P(TPRankPassesTest, LocalizesThePagedAttentionOperands) {
-    const size_t world_size = GetParam();
+    const uint32_t world_size = GetParam();
     BlockConfig config;
     const auto models = rank_models(make_paged_attention_block(config), world_size);
     for (size_t rank = 0; rank < world_size; ++rank) {
@@ -244,7 +244,7 @@ TEST_P(TPRankPassesTest, LeavesNoAnnotations) {
 INSTANTIATE_TEST_SUITE_P(TPRankPasses,
                          TPRankPassesTest,
                          ::testing::Values(2u, 3u, 4u),
-                         [](const ::testing::TestParamInfo<size_t>& info) {
+                         [](const ::testing::TestParamInfo<uint32_t>& info) {
                              return "world" + std::to_string(info.param);
                          });
 
@@ -261,7 +261,7 @@ TEST(TPRankPassesNibbleTest, CutsPacked4BitElementsInsideAByte) {
         const auto model = std::make_shared<ov::Model>(ov::OutputVector{constant}, ov::ParameterVector{});
         const std::vector<Segment> segments{{shape[axis], 1}};
         set_shard(constant, ShardAnnotation(ShardStrategy::COLUMN_PARALLEL, axis, segments, "test"));
-        for (size_t rank = 0; rank < 2; ++rank) {
+        for (uint32_t rank = 0; rank < 2; ++rank) {
             const auto rank_model = model->clone();
             TPWeightShardingPass(rank, 2).run_on_model(rank_model);
             const auto sliced = ov::as_type_ptr<ov::op::v0::Constant>(rank_model->get_results()[0]->get_input_node_shared_ptr(0));
@@ -280,8 +280,8 @@ TEST(TPRankPassesNibbleTest, CutsPacked4BitElementsInsideAByte) {
 
 // Fewer KV heads than ranks: every rank keeps the one KV head its query heads use.
 struct FewKvHeads {
-    size_t kv_heads;
-    size_t world_size;
+    uint32_t kv_heads;
+    uint32_t world_size;
 };
 
 class TPRankPassesFewKvHeadsTest : public ::testing::TestWithParam<FewKvHeads> {
@@ -378,7 +378,7 @@ static std::vector<FusedCase> fused_cases() {
     return cases;
 }
 
-class TPRankPassesFusedTest : public ::testing::TestWithParam<std::tuple<FusedCase, size_t>> {};
+class TPRankPassesFusedTest : public ::testing::TestWithParam<std::tuple<FusedCase, uint32_t>> {};
 
 TEST_P(TPRankPassesFusedTest, GivesEveryRankItsShareOfEveryPart) {
     const auto& [fused, world_size] = GetParam();
@@ -392,7 +392,7 @@ TEST_P(TPRankPassesFusedTest, GivesEveryRankItsShareOfEveryPart) {
     const auto replicas = world_size > c.num_kv_heads ? world_size / c.num_kv_heads : 1;
     const auto group = c.num_heads / c.num_kv_heads;
     const auto hd = static_cast<int64_t>(c.head_dim);
-    for (size_t rank = 0; rank < world_size; ++rank) {
+    for (uint32_t rank = 0; rank < world_size; ++rank) {
         SCOPED_TRACE("rank " + std::to_string(rank));
         const auto model = rank_model(analyzed, rank, world_size);
         const auto q_heads = static_cast<int64_t>(rank_length({{c.num_heads, group / replicas}}, rank, world_size));
@@ -422,7 +422,7 @@ TEST_P(TPRankPassesFusedTest, GivesEveryRankItsShareOfEveryPart) {
 INSTANTIATE_TEST_SUITE_P(TPRankPasses,
                          TPRankPassesFusedTest,
                          ::testing::Combine(::testing::ValuesIn(fused_cases()), ::testing::Values(2u, 3u, 4u)),
-                         [](const ::testing::TestParamInfo<std::tuple<FusedCase, size_t>>& info) {
+                         [](const ::testing::TestParamInfo<std::tuple<FusedCase, uint32_t>>& info) {
                              return std::get<0>(info.param).name + "_world" + std::to_string(std::get<1>(info.param));
                          });
 

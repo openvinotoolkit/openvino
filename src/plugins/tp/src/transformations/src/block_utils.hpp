@@ -62,7 +62,7 @@ int64_t chain_granularity(const ov::Output<ov::Node>& output, int64_t axis, int6
 std::string chain_cut_problem(ov::Input<ov::Node> input,
                               int64_t axis,
                               const std::vector<Segment>& segments,
-                              size_t world_size);
+                              uint32_t world_size);
 
 /// Annotates the constants of the chain feeding `input` for a split of its `axis` (`full_size`
 /// elements) into `segments`. Throws, saying why, when the chain cannot be cut at every rank's
@@ -71,7 +71,7 @@ void annotate_chain(ov::Input<ov::Node> input,
                     int64_t axis,
                     const std::vector<Segment>& segments,
                     ShardStrategy strategy,
-                    size_t world_size,
+                    uint32_t world_size,
                     const std::string& block);
 
 /// Annotates the role of a projection, its weight chain and, column-parallel, its bias.
@@ -79,7 +79,7 @@ void annotate_projection(const std::shared_ptr<ov::Node>& matmul,
                          ShardStrategy strategy,
                          const std::vector<Segment>& segments,
                          Collective collective,
-                         size_t world_size,
+                         uint32_t world_size,
                          const std::string& block);
 
 /// Annotates the listed elements of the shape constant feeding `node`'s `port`, if it is one.

@@ -18,14 +18,16 @@
 namespace ov::tp::tests {
 
 /// Annotates `model` in place.
-inline TPAnalysisReportPtr analyze(const std::shared_ptr<ov::Model>& model, size_t world_size, bool shard_lm_head = true) {
+inline TPAnalysisReportPtr analyze(const std::shared_ptr<ov::Model>& model, uint32_t world_size, bool shard_lm_head = true) {
     auto report = std::make_shared<TPAnalysisReport>();
     TPLayerAnalyzer(TPAnalyzerConfig{world_size, shard_lm_head}, report).run_on_model(model);
     return report;
 }
 
 /// The rank model the plugin builds from an analyzed model.
-inline std::shared_ptr<ov::Model> rank_model(const std::shared_ptr<const ov::Model>& analyzed, size_t rank, size_t world_size) {
+inline std::shared_ptr<ov::Model> rank_model(const std::shared_ptr<const ov::Model>& analyzed,
+                                             uint32_t rank,
+                                             uint32_t world_size) {
     auto model = analyzed->clone();
     TPWeightShardingPass(rank, world_size).run_on_model(model);
     TPInsertCollectives(rank, world_size).run_on_model(model);
@@ -34,12 +36,12 @@ inline std::shared_ptr<ov::Model> rank_model(const std::shared_ptr<const ov::Mod
 }
 
 inline std::vector<std::shared_ptr<ov::Model>> rank_models(const std::shared_ptr<const ov::Model>& model,
-                                                           size_t world_size,
+                                                           uint32_t world_size,
                                                            bool shard_lm_head = true) {
     auto analyzed = model->clone();
     analyze(analyzed, world_size, shard_lm_head);
     std::vector<std::shared_ptr<ov::Model>> models;
-    for (size_t rank = 0; rank < world_size; ++rank)
+    for (uint32_t rank = 0; rank < world_size; ++rank)
         models.push_back(rank_model(analyzed, rank, world_size));
     return models;
 }

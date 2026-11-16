@@ -67,12 +67,12 @@ std::shared_ptr<ov::Node> activation(const std::shared_ptr<ov::Node>& input) {
 Segment intermediate_split(int64_t size,
                            int64_t unit,
                            const std::shared_ptr<ov::Node>& down,
-                           size_t world_size,
+                           uint32_t world_size,
                            const std::string& block) {
     if (size % unit != 0)
         unit = 1;
     const int64_t units = size / unit;
-    OPENVINO_ASSERT(units % static_cast<int64_t>(world_size) == 0,
+    OPENVINO_ASSERT(units % world_size == 0,
                     "[TP] '", down->get_friendly_name(), "' (", block, "): world size ", world_size,
                     " does not divide the MLP's intermediate size ", size, " evenly",
                     unit > 1 ? " in quantization groups of " + std::to_string(unit) : std::string{}, " (", units,
@@ -219,7 +219,7 @@ TPVocabParallelBlock::TPVocabParallelBlock(const TPAnalyzerConfig& config, TPAna
             return false;
         const int64_t vocab = weight_dim(lm_head, weight_axes(lm_head).out_features);
         // The gather assumes equal slices.
-        if (vocab <= 0 || vocab % static_cast<int64_t>(config.world_size) != 0)
+        if (vocab <= 0 || vocab % config.world_size != 0)
             return false;
         const std::vector<Segment> bands{{static_cast<size_t>(vocab), 1}};
         // A weight that cannot be cut at compile time leaves it whole as well.

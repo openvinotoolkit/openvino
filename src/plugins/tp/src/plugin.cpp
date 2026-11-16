@@ -205,7 +205,7 @@ void log_analysis(const TPAnalysisReport& report, size_t num_collectives) {
                 << " sharded variables=" << report.sharded_variables.size() << std::endl;
     if (report.kv_replicas > 1) {
         TP_LOG_INFO << "[TP] " << report.num_kv_heads << " KV heads on "
-                    << static_cast<size_t>(report.num_kv_heads) * report.kv_replicas << " ranks: " << report.kv_replicas
+                    << report.num_kv_heads * report.kv_replicas << " ranks: " << report.kv_replicas
                     << " ranks share each KV head and compute its K/V projections alike" << std::endl;
     }
     if (report.lm_head_copy_bytes != 0) {
@@ -355,22 +355,22 @@ std::vector<ov::SoPtr<ov::IRemoteContext>> Plugin::create_rank_contexts(const st
     // The contexts are created one after another: creating one only publishes
     // the rank's setup payload, and the device plugin collects them all when
     // the first rank model is bound, by which time every rank has published.
-    const auto rank_count = static_cast<int>(device_names.size());
+    const auto rank_count = static_cast<uint32_t>(device_names.size());
     OV_ITT_SCOPED_TASK_BASE(itt::domains::tp_plugin, "TP::create_rank_contexts");
     const auto timeout_ms = config.get_communication_timeout_ms();
     auto endpoints = InProcessExchange::create_group(rank_count, std::chrono::milliseconds{timeout_ms});
 
     std::vector<ov::SoPtr<ov::IRemoteContext>> contexts(device_names.size());
-    for (int rank = 0; rank < rank_count; ++rank) {
+    for (uint32_t rank = 0; rank < rank_count; ++rank) {
         ov::AnyMap params;
         params[ov::tp::internal::device_group.name()] = device_names;
         params[ov::tp::internal::groups.name()] =
-            std::map<int, CollectiveGroup>{{0, CollectiveGroup{endpoints[static_cast<size_t>(rank)], config.get_collective_backend()}}};
+            std::map<uint32_t, CollectiveGroup>{{0, CollectiveGroup{endpoints[rank], config.get_collective_backend()}}};
         params[ov::tp::internal::communication_timeout_ms.name()] = timeout_ms;
         if (const auto comm_buffer_size = config.get_comm_buffer_size(); comm_buffer_size != 0) {
             params[ov::tp::internal::comm_buffer_size.name()] = comm_buffer_size;
         }
-        contexts[static_cast<size_t>(rank)] = get_core()->create_context(device_names[static_cast<size_t>(rank)], params);
+        contexts[rank] = get_core()->create_context(device_names[rank], params);
     }
 
     TP_LOG_INFO << "[TP] Created " << rank_count << " rank contexts" << std::endl;
@@ -570,7 +570,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                            std::move(device_names),
                                            std::move(device_keys),
                                            std::move(report->sharded_variables),
-                                           static_cast<uint32_t>(report->kv_replicas),
+                                           report->kv_replicas,
                                            /*loaded_from_cache=*/false,
                                            cfg);
 }

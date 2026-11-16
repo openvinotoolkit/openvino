@@ -13,7 +13,7 @@ using ov::test::behavior::TPCollectiveContractTest;
 INSTANTIATE_TEST_SUITE_P(smoke_TP,
                          TPCollectiveContractTest,
                          ::testing::Combine(::testing::Values(std::string(ov::test::utils::DEVICE_GPU)),
-                                            ::testing::Values(size_t{2}, size_t{3}, size_t{4})),
+                                            ::testing::Values(2u, 3u, 4u)),
                          TPCollectiveContractTest::get_test_case_name);
 
 }  // namespace

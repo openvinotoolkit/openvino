@@ -23,7 +23,7 @@ size_t device_bytes(const ov::op::v0::Constant& constant) {
 
 }  // namespace
 
-RankWeights rank_weights(const ov::Model& analyzed, size_t world_size) {
+RankWeights rank_weights(const ov::Model& analyzed, uint32_t world_size) {
     // The constants each rank holds a share of, with the annotation that says which.
     std::unordered_map<const ov::Node*, const ShardAnnotation*> split;
     for (const auto& node : analyzed.get_ops()) {
@@ -49,7 +49,7 @@ RankWeights rank_weights(const ov::Model& analyzed, size_t world_size) {
         const size_t total = std::accumulate(segments.begin(), segments.end(), size_t{0}, [](size_t sum, const Segment& s) {
             return sum + s.length;
         });
-        for (size_t rank = 0; rank < world_size; ++rank)
+        for (uint32_t rank = 0; rank < world_size; ++rank)
             weights.per_rank[rank] += total == 0 ? bytes : bytes / total * rank_length(segments, rank, world_size) +
                                                                bytes % total * rank_length(segments, rank, world_size) / total;
     }

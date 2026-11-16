@@ -28,8 +28,8 @@ static void CreateTPGatherOp(ProgramBuilder& p,
     auto prim = cldnn::tp_gather(layerName,
                                  inputs[0],
                                  op->get_collective_id(),
-                                 static_cast<uint32_t>(op->get_rank()),
-                                 static_cast<uint32_t>(op->get_world_size()),
+                                 op->get_rank(),
+                                 op->get_world_size(),
                                  axis);
 
     p.add_primitive(*op, prim);

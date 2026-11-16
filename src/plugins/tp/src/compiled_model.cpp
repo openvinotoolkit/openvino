@@ -190,7 +190,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     }
 
     if (name == ov::tp::internal::world_size.name()) {
-        return static_cast<int>(m_rank_compiled.size());
+        return static_cast<uint32_t>(m_rank_compiled.size());
     }
 
     if (name == ov::internal::supported_properties.name()) {

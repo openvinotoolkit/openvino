@@ -16,7 +16,7 @@ namespace ov {
 namespace tp {
 
 struct TPAnalyzerConfig {
-    size_t world_size = 2;
+    uint32_t world_size = 2;
     /// Split the vocabulary projection and gather it into rank 0.
     bool shard_lm_head = true;
     /// File to write the verifier's sharding states to; empty: none.
@@ -42,7 +42,7 @@ struct TPAnalysisReport {
     /// Variables split along the KV-head axis.
     std::vector<std::string> sharded_variables;
     /// Consecutive ranks sharing one KV head: world_size / num_kv_heads with fewer KV heads than ranks.
-    size_t kv_replicas = 1;
+    uint32_t kv_replicas = 1;
 };
 
 using TPAnalysisReportPtr = std::shared_ptr<TPAnalysisReport>;

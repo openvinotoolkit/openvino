@@ -25,15 +25,15 @@ struct TPShardingStats {
 class TPWeightShardingPass : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("TPWeightShardingPass");
-    TPWeightShardingPass(size_t rank, size_t world_size, std::shared_ptr<TPShardingStats> stats = nullptr)
+    TPWeightShardingPass(uint32_t rank, uint32_t world_size, std::shared_ptr<TPShardingStats> stats = nullptr)
         : m_rank(rank),
           m_world_size(world_size),
           m_stats(std::move(stats)) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 private:
-    size_t m_rank;
-    size_t m_world_size;
+    uint32_t m_rank;
+    uint32_t m_world_size;
     std::shared_ptr<TPShardingStats> m_stats;
 };
 
@@ -41,12 +41,12 @@ private:
 class TPInsertCollectives : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("TPInsertCollectives");
-    TPInsertCollectives(size_t rank, size_t world_size) : m_rank(rank), m_world_size(world_size) {}
+    TPInsertCollectives(uint32_t rank, uint32_t world_size) : m_rank(rank), m_world_size(world_size) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 private:
-    size_t m_rank;
-    size_t m_world_size;
+    uint32_t m_rank;
+    uint32_t m_world_size;
 };
 
 }  // namespace tp

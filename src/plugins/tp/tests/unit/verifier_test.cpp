@@ -37,7 +37,7 @@ std::shared_ptr<ov::op::v0::Constant> weight(ov::Shape shape, int64_t axis) {
 std::shared_ptr<ov::Node> column(const ov::Output<ov::Node>& x) {
     auto mm = std::make_shared<ov::op::v0::MatMul>(x, weight({features, hidden}, 0), false, true);
     mm->set_friendly_name("column");
-    set_role(mm, ProjectionRole(ShardStrategy::COLUMN_PARALLEL, Collective::NONE, -1, "test"));
+    set_role(mm, ProjectionRole(ShardStrategy::COLUMN_PARALLEL, Collective::NONE, 0, "test"));
     return mm;
 }
 
@@ -96,7 +96,7 @@ TEST(TPShardingVerifierTest, DumpsEverySplitOrAnnotatedNode) {
 
     const auto text = dump.str();
     EXPECT_THAT(text, HasSubstr("MatMul \"column\" [1,?,32]: Split(axis 2 r0:[0,16) r1:[16,32)) from Constant"));
-    EXPECT_THAT(text, HasSubstr("\n    tp_role: COLUMN_PARALLEL NONE group -1 by test\n"));
+    EXPECT_THAT(text, HasSubstr("\n    tp_role: COLUMN_PARALLEL NONE by test\n"));
     EXPECT_THAT(text, HasSubstr("Swish \"act\" [1,?,32]: Split(axis 2 r0:[0,16) r1:[16,32))"));
     // The row-parallel projection's Partial sum is Replicated past its TPAllReduce.
     EXPECT_THAT(text, HasSubstr("MatMul \"row\" [1,?,16]: Replicated\n    tp_role: ROW_PARALLEL ALL_REDUCE group 0 id 0 by test\n"));

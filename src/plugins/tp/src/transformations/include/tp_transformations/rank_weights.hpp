@@ -23,7 +23,7 @@ struct RankWeights {
     size_t split = 0;              ///< bytes of the constants the ranks share out
 };
 
-RankWeights rank_weights(const ov::Model& analyzed, size_t world_size);
+RankWeights rank_weights(const ov::Model& analyzed, uint32_t world_size);
 
 /// Fewest ranks whose share of the weights fits in `free_bytes`, splitting `split` evenly;
 /// 0 when the replicated weights alone do not fit.

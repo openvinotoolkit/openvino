@@ -29,27 +29,27 @@ public:
     cldnn::ze::tp::GroupState& group() const {
         return *m_group;
     }
-    int rank() const {
+    uint32_t rank() const {
         return m_rank;
     }
-    ze_command_list_handle_t list(int parity) const {
+    ze_command_list_handle_t list(uint32_t parity) const {
         return m_res.lists[parity];
     }
-    cldnn::ze::tp::Splice& splice(int parity) const {
+    cldnn::ze::tp::Splice& splice(uint32_t parity) const {
         return m_splices[parity];
     }
 
     /// Clears list(parity) for re-recording. Its previous splice must have
     /// been consumed: resetting a list the device still runs is undefined.
     /// `timed` books the time into the allreduce record breakdown.
-    void reset(int parity, bool timed);
+    void reset(uint32_t parity, bool timed);
 
     /// Appends list(parity) to the model queue, signalling its splice on completion.
-    void splice_into(ze_command_list_handle_t model_queue, int parity);
+    void splice_into(ze_command_list_handle_t model_queue, uint32_t parity);
 
 private:
-    cldnn::ze::tp::GroupStatePtr m_group;
-    int m_rank{-1};
+    cldnn::ze::tp::GroupStatePtr m_group;  // null until bound
+    uint32_t m_rank{0};
     cldnn::ze::tp::GroupState::RecordingResources m_res;
     std::unique_ptr<cldnn::ze::tp::Splice[]> m_splices;
 };

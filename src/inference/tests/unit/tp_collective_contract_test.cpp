@@ -14,7 +14,7 @@ using ov::tp::Blob;
 using ov::tp::InProcessExchange;
 
 namespace {
-Blob blob_of(int rank, int round) {
+Blob blob_of(uint32_t rank, uint32_t round) {
     return Blob{static_cast<uint8_t>(rank), static_cast<uint8_t>(round)};
 }
 }  // namespace
@@ -22,22 +22,22 @@ Blob blob_of(int rank, int round) {
 TEST(TPCollectiveContractTest, EndpointsKnowTheirRank) {
     const auto group = InProcessExchange::create_group(3, std::chrono::milliseconds{1000});
     ASSERT_EQ(group.size(), 3u);
-    for (int rank = 0; rank < 3; ++rank) {
+    for (uint32_t rank = 0; rank < 3; ++rank) {
         EXPECT_EQ(group[rank]->rank(), rank);
-        EXPECT_EQ(group[rank]->world_size(), 3);
+        EXPECT_EQ(group[rank]->world_size(), 3u);
     }
 }
 
 // One thread publishes for every rank first and collects afterwards: the way the TP plugin creates contexts.
 TEST(TPCollectiveContractTest, PublishAllThenCollectOnOneThread) {
     const auto group = InProcessExchange::create_group(4, std::chrono::milliseconds{1000});
-    for (int rank = 0; rank < 4; ++rank) {
+    for (uint32_t rank = 0; rank < 4; ++rank) {
         group[rank]->publish(blob_of(rank, 0));
     }
-    for (int rank = 0; rank < 4; ++rank) {
+    for (uint32_t rank = 0; rank < 4; ++rank) {
         const auto blobs = group[rank]->collect();
         ASSERT_EQ(blobs.size(), 4u);
-        for (int peer = 0; peer < 4; ++peer) {
+        for (uint32_t peer = 0; peer < 4; ++peer) {
             EXPECT_EQ(blobs[peer], blob_of(peer, 0)) << "rank " << rank << " peer " << peer;
         }
     }
@@ -57,17 +57,17 @@ TEST(TPCollectiveContractTest, RoundsStaySeparateWhenRanksRunAhead) {
 }
 
 TEST(TPCollectiveContractTest, ConcurrentRanksExchangeManyRounds) {
-    constexpr int world_size = 4;
-    constexpr int rounds = 50;
+    constexpr uint32_t world_size = 4;
+    constexpr uint32_t rounds = 50;
     const auto group = InProcessExchange::create_group(world_size, std::chrono::milliseconds{10000});
     std::vector<std::thread> threads;
-    std::vector<int> mismatches(world_size, 0);
-    for (int rank = 0; rank < world_size; ++rank) {
+    std::vector<uint32_t> mismatches(world_size, 0);
+    for (uint32_t rank = 0; rank < world_size; ++rank) {
         threads.emplace_back([&, rank] {
-            for (int round = 0; round < rounds; ++round) {
+            for (uint32_t round = 0; round < rounds; ++round) {
                 group[rank]->publish(blob_of(rank, round));
                 const auto blobs = group[rank]->collect();
-                for (int peer = 0; peer < world_size; ++peer) {
+                for (uint32_t peer = 0; peer < world_size; ++peer) {
                     mismatches[rank] += blobs[peer] != blob_of(peer, round) ? 1 : 0;
                 }
             }
@@ -76,8 +76,8 @@ TEST(TPCollectiveContractTest, ConcurrentRanksExchangeManyRounds) {
     for (auto& thread : threads) {
         thread.join();
     }
-    for (int rank = 0; rank < world_size; ++rank) {
-        EXPECT_EQ(mismatches[rank], 0) << "rank " << rank;
+    for (uint32_t rank = 0; rank < world_size; ++rank) {
+        EXPECT_EQ(mismatches[rank], 0u) << "rank " << rank;
     }
 }
 
@@ -109,10 +109,11 @@ TEST(TPCollectiveContractTest, PayloadHeaderLayout) {
 // The groups travel through an ov::AnyMap and may end up printed in a log.
 TEST(TPCollectiveContractTest, GroupsSurviveAnAnyMap) {
     const auto endpoints = InProcessExchange::create_group(2, std::chrono::milliseconds{50});
-    const std::map<int, ov::tp::CollectiveGroup> groups{{0, {endpoints[1], "L0_P2P"}}};
+    const std::map<uint32_t, ov::tp::CollectiveGroup> groups{{0, {endpoints[1], "L0_P2P"}}};
     const ov::AnyMap params{ov::tp::internal::groups(groups), ov::tp::internal::channels(1u)};
 
-    const auto restored = params.at(ov::tp::internal::groups.name()).as<std::map<int, ov::tp::CollectiveGroup>>();
+    const auto restored =
+        params.at(ov::tp::internal::groups.name()).as<std::map<uint32_t, ov::tp::CollectiveGroup>>();
     ASSERT_EQ(restored.count(0), 1u);
     EXPECT_EQ(restored.at(0).exchange, endpoints[1]);
     EXPECT_EQ(restored.at(0).backend, "L0_P2P");

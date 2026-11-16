@@ -133,7 +133,7 @@ RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextIm
     : m_tp_communicator(std::move(communicator)) {
     OPENVINO_ASSERT(m_tp_communicator != nullptr, "[GPU][TP] a TP context needs a communicator");
     const auto& shared = m_tp_communicator->shared_context();
-    const auto rank = static_cast<size_t>(m_tp_communicator->rank());
+    const auto rank = m_tp_communicator->rank();
 
     // Every rank of the group sits on one Level Zero context, which is what
     // lets a rank copy into a peer's memory. The context is borrowed: the

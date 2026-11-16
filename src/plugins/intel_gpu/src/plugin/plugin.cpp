@@ -485,7 +485,7 @@ std::shared_ptr<RemoteContextImpl> Plugin::create_tp_context(const ov::AnyMap& p
     OPENVINO_ASSERT(!channels.has_value() || *channels == 1,
                     "[GPU][TP] only one channel per TP context is supported, got ", channels.value_or(0));
     const auto comm_buffer_size = take(rest, ov::tp::internal::comm_buffer_size).value_or(0);
-    const auto timeout_ms = take(rest, ov::tp::internal::communication_timeout_ms).value_or(5000);
+    const auto timeout_ms = take(rest, ov::tp::internal::communication_timeout_ms).value_or(int64_t{5000});
     OPENVINO_ASSERT(timeout_ms >= 0, "[GPU][TP] ", ov::tp::internal::communication_timeout_ms.name(),
                     " must not be negative, got ", timeout_ms);
     const auto own_id = take(rest, ov::device::id).value_or(m_default_device_id);
@@ -506,16 +506,16 @@ std::shared_ptr<RemoteContextImpl> Plugin::create_tp_context(const ov::AnyMap& p
 
     const auto world_size = group.exchange->world_size();
     const auto rank = group.exchange->rank();
-    OPENVINO_ASSERT(group_names.size() == static_cast<size_t>(world_size),
+    OPENVINO_ASSERT(group_names.size() == world_size,
                     "[GPU][TP] the device group lists ", group_names.size(), " devices for ", world_size, " ranks");
-    OPENVINO_ASSERT(rank >= 0 && rank < world_size, "[GPU][TP] invalid rank ", rank, " of ", world_size);
+    OPENVINO_ASSERT(rank < world_size, "[GPU][TP] invalid rank ", rank, " of ", world_size);
 
     std::vector<std::string> ids;
     const auto device_group = describe_tp_device_group(group_names, ids);
     // Resolving the name is the binding support check: an unusable group or name fails here.
     const auto backend = cldnn::ze::tp::resolve_backend(device_group, group.backend);
-    OPENVINO_ASSERT(ids[static_cast<size_t>(rank)] == own_id,
-                    "[GPU][TP] rank ", rank, " runs on ", group_names[static_cast<size_t>(rank)],
+    OPENVINO_ASSERT(ids[rank] == own_id,
+                    "[GPU][TP] rank ", rank, " runs on ", group_names[rank],
                     " by the group, but its context is created on ", get_device_name(), ".", own_id);
 
     auto shared = cldnn::ze::tp::acquire_shared_context(device_group.driver, device_group.devices);

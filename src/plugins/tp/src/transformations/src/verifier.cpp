@@ -289,7 +289,7 @@ std::optional<std::pair<int64_t, Layout>> map_reshape(const ov::PartialShape& in
 
 class Verifier {
 public:
-    Verifier(size_t world_size, std::ostream* dump) : m_world_size(world_size), m_dump(dump) {}
+    Verifier(uint32_t world_size, std::ostream* dump) : m_world_size(world_size), m_dump(dump) {}
 
     void run(const ov::Model& model) {
         for (const auto& node : model.get_ordered_ops()) {
@@ -309,7 +309,7 @@ public:
     }
 
 private:
-    size_t m_world_size;
+    uint32_t m_world_size;
     std::ostream* m_dump;
     std::unordered_map<const ov::Node*, std::vector<State>> m_states;
     std::map<std::string, State> m_variables;
@@ -352,7 +352,7 @@ private:
 
     Layout layout(const std::vector<Segment>& segments) const {
         Layout result;
-        for (size_t rank = 0; rank < m_world_size; ++rank)
+        for (uint32_t rank = 0; rank < m_world_size; ++rank)
             result.push_back(coalesce(rank_ranges(segments, rank, m_world_size)));
         return result;
     }
@@ -790,7 +790,7 @@ private:
         const auto end = clamp((*global_stop)[position], length);
         const auto& l = in[0].axes.at(axis);
         Layout out(l.size());
-        for (size_t r = 0; r < l.size(); ++r) {
+        for (uint32_t r = 0; r < m_world_size; ++r) {
             const auto held = static_cast<int64_t>(sizes(Layout{l[r]})[0]);
             const auto local_start = local_values(node, 1, r);
             const auto local_stop = local_values(node, 2, r);
@@ -832,7 +832,7 @@ private:
             global_bounds.push_back(global_bounds.back() + dim.get_length());
         }
         std::vector<State> result(outputs, in[0]);
-        for (size_t r = 0; r < l.size(); ++r) {
+        for (uint32_t r = 0; r < m_world_size; ++r) {
             const auto held = static_cast<int64_t>(sizes(Layout{l[r]})[0]);
             std::vector<int64_t> lengths;
             if (ov::is_type<ov::op::v1::VariadicSplit>(&node)) {
@@ -867,7 +867,7 @@ private:
     }
 
     /// The rank's values of an integer input: its constant, with annotated elements given the rank's values.
-    std::optional<std::vector<int64_t>> local_values(const ov::Node& node, size_t port, size_t rank) const {
+    std::optional<std::vector<int64_t>> local_values(const ov::Node& node, size_t port, uint32_t rank) const {
         auto values = constant_values(node.input_value(port));
         const auto* source = node.get_input_node_ptr(port);
         if (!values || !ov::is_type<ov::op::v0::Constant>(source))

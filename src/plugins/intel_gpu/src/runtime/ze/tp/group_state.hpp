@@ -95,7 +95,7 @@ using CounterVec = std::vector<Counter>;
 /// that rank. With profiling off nothing here is written.
 struct CollectiveStats {
     /// Buckets of the device-occupancy histogram: bucket b covers [2^b, 2^(b+1)) us.
-    static constexpr int kDevBuckets = 20;
+    static constexpr uint32_t kDevBuckets = 20;
 
     // Arrival skew and the host phases of an allreduce.
     CounterVec ph1_ns;      // staging check + call rendezvous
@@ -178,7 +178,7 @@ struct CollectiveStats {
     Counter dev_call_min{~uint64_t{0}};
     Counter dev_call_max;
 
-    explicit CollectiveStats(int world_size);
+    explicit CollectiveStats(uint32_t world_size);
     /// Zeroes what a report covers; keeps the state carried from one collective to the next.
     void start_window();
 };
@@ -199,8 +199,8 @@ public:
     ///        512, handed over with adopt_staging(); zero lets each rank's
     ///        staging grow with the largest payload it has seen.
     GroupState(TPL0SharedContextPtr shared,
-               int world_size,
-               int num_collectives,
+               uint32_t world_size,
+               std::size_t num_collectives,
                std::chrono::milliseconds collective_timeout = std::chrono::milliseconds{5000},
                const CollectiveOptions& options = CollectiveOptions{},
                std::size_t fixed_staging_bytes = 0);
@@ -208,14 +208,14 @@ public:
     GroupState& operator=(const GroupState&) = delete;
     ~GroupState();
 
-    int world_size() const {
+    uint32_t world_size() const {
         return m_world_size;
     }
     const TPL0SharedContextPtr& shared_context() const {
         return m_shared;
     }
     ze_context_handle_t context() const;
-    int num_collectives() const {
+    std::size_t num_collectives() const {
         return m_num_collectives;
     }
     bool is_ready() const {
@@ -224,11 +224,11 @@ public:
     const CollectiveOptions& options() const {
         return m_options;
     }
-    ze_device_handle_t device(int rank) const {
-        return m_ranks[static_cast<std::size_t>(rank)].device;
+    ze_device_handle_t device(uint32_t rank) const {
+        return m_ranks[rank].device;
     }
-    uint32_t compute_ordinal(int rank) const {
-        return m_ranks[static_cast<std::size_t>(rank)].compute_ordinal;
+    uint32_t compute_ordinal(uint32_t rank) const {
+        return m_ranks[rank].compute_ordinal;
     }
 
     /// Whether the driver has the splice extension at all.
@@ -241,7 +241,7 @@ public:
 
     /// GPU_TP_VALIDATE_ALLREDUCE_OUTPUT: `rank`'s checksum of its output of its next call of `collective_id`.
     /// The rank completing a call compares the ranks' checksums and reports a difference with `name`.
-    void check_output(int rank, uint64_t collective_id, uint64_t checksum, const std::string& name);
+    void check_output(uint32_t rank, uint64_t collective_id, uint64_t checksum, const std::string& name);
 
     /// GPU_TP_DUMP_PROFILING_DATA_PATH: whether there is a CSV, and one row of it.
     bool profiling_csv() const {
@@ -249,8 +249,8 @@ public:
     }
     void write_csv_row(const std::string& row);
     /// How long after the first rank `rank` reached its last call rendezvous; host profiling only.
-    uint64_t last_late_ns(int rank) const {
-        return m_last_late_ns[static_cast<std::size_t>(rank)];
+    uint64_t last_late_ns(uint32_t rank) const {
+        return m_last_late_ns[rank];
     }
 
     // ---------------------------------------------------------------
@@ -258,13 +258,15 @@ public:
     // ---------------------------------------------------------------
 
     /// Device USM for `rank`'s fixed staging; freed when the last holder lets go.
-    static std::shared_ptr<void> allocate_staging(const TPL0SharedContextPtr& shared, int rank, std::size_t bytes);
+    static std::shared_ptr<void> allocate_staging(const TPL0SharedContextPtr& shared,
+                                                  uint32_t rank,
+                                                  std::size_t bytes);
     /// Gives `rank` its fixed staging, allocated with allocate_staging() for
     /// fixed_staging_bytes(). Before the rank's first collective.
-    void adopt_staging(int rank, std::shared_ptr<void> buffer);
+    void adopt_staging(uint32_t rank, std::shared_ptr<void> buffer);
     /// The engine `rank`'s staging is counted in (usm_device), so that the
     /// device's memory statistics include it. Before adopt_staging().
-    void set_memory_account(int rank, std::weak_ptr<cldnn::engine> engine);
+    void set_memory_account(uint32_t rank, std::weak_ptr<cldnn::engine> engine);
     /// Zero when the staging grows with the payload.
     std::size_t fixed_staging_bytes() const {
         return m_fixed_staging_bytes;
@@ -280,7 +282,7 @@ public:
 
     /// What an allreduce learns from the call rendezvous.
     struct AllreduceCall {
-        int parity{0};                      // of the call's first chunk; chunk c has (parity + c) & 1
+        uint32_t parity{0};                 // of the call's first chunk; chunk c has (parity + c) & 1
         std::vector<void*> staging[2];      // [parity][N] every rank's staging half
         std::vector<uint64_t> staging_ids;  // [N]
         std::vector<ze_event_handle_t>* recv[2]{};  // pair: [r] = "rank r pushed its payload"
@@ -293,7 +295,7 @@ public:
     /// chunks alternate staging halves and event sets like separate calls.
     /// Throws, and aborts the group, if the ranks disagree on the call or one
     /// of them does not arrive in time.
-    void begin_allreduce(int rank,
+    void begin_allreduce(uint32_t rank,
                          uint64_t collective_id,
                          std::size_t n,
                          ov::element::Type dtype,
@@ -303,7 +305,7 @@ public:
 
     /// What a gather learns from the call rendezvous.
     struct GatherCall {
-        int parity{0};
+        uint32_t parity{0};
         void* root_out{nullptr};
         uint64_t root_out_id{0};
         std::vector<ze_event_handle_t>* events{nullptr};  // [r] = "rank r's band is in the root's output", r > 0
@@ -312,7 +314,7 @@ public:
 
     /// The call rendezvous of a gather. `out` is the destination on the root
     /// and ignored on every other rank.
-    void begin_gather(int rank,
+    void begin_gather(uint32_t rank,
                       uint64_t collective_id,
                       std::size_t rows,
                       std::size_t slice_elems,
@@ -336,25 +338,25 @@ public:
     /// afterwards and releases them with destroy_recording_resources().
     /// Made ahead because creating them costs about a millisecond per
     /// collective and rank, which would otherwise land on the first inference.
-    RecordingResources take_recording_resources(int rank);
+    RecordingResources take_recording_resources(uint32_t rank);
     static void destroy_recording_resources(RecordingResources& res);
 
     /// Registers a recording's splice with the watchdog and the abort path.
     void track(Splice* splice);
     /// Withdraws it. The caller has made sure it is not in flight.
-    void untrack(int rank, Splice* splice);
+    void untrack(uint32_t rank, Splice* splice);
 
     /// Waits until `splice` has finished on the device and clears it. Returns
     /// whether it was in flight.
-    bool await_splice(Splice& splice, int rank, uint64_t collective_id);
+    bool await_splice(Splice& splice, uint32_t rank, uint64_t collective_id);
 
     /// Records that `rank` has just handed `splice` to its model queue.
-    void handed_over(int rank, Splice* splice);
+    void handed_over(uint32_t rank, Splice* splice);
 
     /// The synchronous fallback: runs `list` on the rank's own queue and waits.
-    void execute_and_wait(int rank, ze_command_list_handle_t list, const char* what);
+    void execute_and_wait(uint32_t rank, ze_command_list_handle_t list, const char* what);
     /// Waits for the rank's own queue to drain.
-    void drain(int rank, const char* what);
+    void drain(uint32_t rank, const char* what);
 
     // ---------------------------------------------------------------
     // Failure
@@ -371,13 +373,13 @@ public:
     void throw_if_aborted() const;
     /// Aborts the group and throws. `timed_out` distinguishes "this rank ran
     /// out of patience" from "somebody else already failed".
-    [[noreturn]] void fail_collective(bool timed_out, uint64_t collective_id, int rank, const char* stage);
+    [[noreturn]] void fail_collective(bool timed_out, uint64_t collective_id, uint32_t rank, const char* stage);
     /// The timeout in the nanoseconds Level Zero waits take; zero maps to no limit.
     uint64_t timeout_ns() const;
 
     /// Tells the watchdog that `rank` has handed a collective to a queue whose
     /// completion the host will not wait for.
-    void note_collective_started(int rank);
+    void note_collective_started(uint32_t rank);
 
     // ---------------------------------------------------------------
     // Diagnostics
@@ -397,16 +399,16 @@ public:
     CollectiveStats& stats() {
         return m_stats;
     }
-    uint64_t timer_ns_per_tick(int rank) const {
-        return m_ranks[static_cast<std::size_t>(rank)].timer_ns_per_tick;
+    uint64_t timer_ns_per_tick(uint32_t rank) const {
+        return m_ranks[rank].timer_ns_per_tick;
     }
-    uint64_t timestamp_mask(int rank) const {
-        return m_ranks[static_cast<std::size_t>(rank)].timestamp_mask;
+    uint64_t timestamp_mask(uint32_t rank) const {
+        return m_ranks[rank].timestamp_mask;
     }
 
     /// Closes out one collective for the measurement bookkeeping and prints a
     /// report when a dump period has gone by. Every collective calls it once.
-    void note_collective_done(int rank);
+    void note_collective_done(uint32_t rank);
 
 private:
     struct RankState {
@@ -475,7 +477,7 @@ private:
         std::mutex mtx;
         std::condition_variable cv;
         std::vector<MailboxSlot> slots[2];
-        int arrived[2]{0, 0};
+        uint32_t arrived[2]{0, 0};
         uint64_t released[2]{0, 0};
         std::chrono::steady_clock::time_point first_arrival[2]{};
     };
@@ -484,23 +486,23 @@ private:
     void destroy_rank(RankState& rs);
     void create_event_sets();
     void destroy_event_sets();
-    RecordingResources create_recording_resources(int rank) const;
+    RecordingResources create_recording_resources(uint32_t rank) const;
 
     /// Makes `s` -- `rank`'s staging -- hold two halves of `half_bytes`.
     /// Growing waits for the rank's own last hand-over: by then every peer
     /// write into the old staging has landed, because that collective waited
     /// for them.
     void ensure_staging(Staging& s,
-                        int rank,
+                        uint32_t rank,
                         std::size_t payload_bytes,
                         std::size_t half_bytes,
                         uint64_t collective_id);
     void destroy_staging();
-    void account_staging(int rank, std::size_t bytes, bool allocated);
+    void account_staging(uint32_t rank, std::size_t bytes, bool allocated);
 
     /// Publishes `mine` and waits until every rank has published the same call;
     /// `all` receives every rank's slot.
-    void call_rendezvous(int rank, const MailboxSlot& mine, std::vector<MailboxSlot>& all);
+    void call_rendezvous(uint32_t rank, const MailboxSlot& mine, std::vector<MailboxSlot>& all);
 
     void sync_queue(ze_command_queue_handle_t queue, const char* what) const;
 
@@ -517,8 +519,8 @@ private:
     void report_device();
 
     TPL0SharedContextPtr m_shared;
-    int m_world_size{0};
-    int m_num_collectives{0};
+    uint32_t m_world_size{0};
+    std::size_t m_num_collectives{0};
     bool m_ready{false};
     std::chrono::milliseconds m_collective_timeout{5000};
     CollectiveOptions m_options;
@@ -568,7 +570,7 @@ private:
     // GPU_TP_VALIDATE_ALLREDUCE_OUTPUT.
     struct OutputCheck {
         std::vector<uint64_t> checksums;  // [N]
-        int arrived = 0;
+        uint32_t arrived = 0;
     };
     std::mutex m_check_mutex;
     std::vector<std::map<uint64_t, uint64_t>> m_check_calls;  // [N]: calls of each collective checked so far

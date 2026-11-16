@@ -25,8 +25,8 @@ static void CreateTPAllReduceOp(ProgramBuilder& p,
     auto prim = cldnn::tp_allreduce(layerName,
                                     inputs[0],
                                     op->get_collective_id(),
-                                    static_cast<uint32_t>(op->get_rank()),
-                                    static_cast<uint32_t>(op->get_world_size()));
+                                    op->get_rank(),
+                                    op->get_world_size());
 
     p.add_primitive(*op, prim);
 }

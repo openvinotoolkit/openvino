@@ -96,7 +96,7 @@ TEST(TPOptionsTest, RejectsANegativeTimeout) {
     ov::Core core;
     OV_EXPECT_THROW(core.compile_model(make_transformer_block(BlockConfig{}),
                                        "TP:" + rank_device_type() + ".0," + rank_device_type() + ".1",
-                                       {{ov::tp::internal::communication_timeout_ms.name(), -1}}),
+                                       {{ov::tp::internal::communication_timeout_ms.name(), int64_t{-1}}}),
                     ov::Exception,
                     HasSubstr("COMMUNICATION_TIMEOUT_MS"));
 }

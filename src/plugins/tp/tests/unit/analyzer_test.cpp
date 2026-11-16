@@ -279,13 +279,13 @@ TEST(TPAnalyzerModels, BuildEveryRankModel) {
     while (std::getline(paths, path, ':')) {
         const auto model = core.read_model(path);
         const auto tables = gather_tables(model);
-        for (const size_t world_size : {2u, 4u}) {
+        for (const uint32_t world_size : {2u, 4u}) {
             SCOPED_TRACE(path + " on " + std::to_string(world_size) + " ranks");
             auto analyzed = model->clone();
             const auto report = analyze(analyzed, world_size);
             EXPECT_EQ(report->attention_blocks, report->mlp_blocks);
             EXPECT_TRUE(report->unclaimed.empty()) << report->unclaimed.front();
-            for (size_t rank = 0; rank < world_size; ++rank) {
+            for (uint32_t rank = 0; rank < world_size; ++rank) {
                 const auto model_of_rank = rank_model(analyzed, rank, world_size);
                 EXPECT_EQ(count_ops_of_type(model_of_rank, ov::op::internal::TPAllReduce::get_type_info_static()),
                           2 * report->attention_blocks);
@@ -355,7 +355,7 @@ TEST(TPAnalyzerTest, KeepsATiedEmbeddingTableWhole) {
     auto report = std::make_shared<TPAnalysisReport>();
     TPLayerAnalyzer(TPAnalyzerConfig{2, true}, report).run_on_model(model);
     ASSERT_TRUE(report->lm_head);
-    for (size_t rank = 0; rank < 2; ++rank) {
+    for (uint32_t rank = 0; rank < 2; ++rank) {
         const auto model_of_rank = rank_model(model, rank, 2);
         EXPECT_EQ(gather_tables(model_of_rank), tables) << "rank " << rank;
         for (const auto& node : model_of_rank->get_ordered_ops()) {

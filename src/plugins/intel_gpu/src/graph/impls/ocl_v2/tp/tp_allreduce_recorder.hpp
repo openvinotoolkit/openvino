@@ -85,13 +85,13 @@ private:
         void* in{nullptr};
         void* out{nullptr};
         std::size_t n{0};
-        int parity{0};
+        uint32_t parity{0};
         bool halving{false};
     };
 
     ChunkPlan plan_chunks(std::size_t n, ov::element::Type dtype);
 
-    void record(int parity);
+    void record(uint32_t parity);
     void record_pair(ze_command_list_handle_t list, const Signature& sig, const Piece& piece);
     void record_ring(ze_command_list_handle_t list, const Signature& sig, const Piece& piece);
     void record_halving(ze_command_list_handle_t list, const Signature& sig, const Piece& piece);
@@ -101,15 +101,15 @@ private:
     std::size_t staging_bytes(std::size_t payload_bytes, bool halving) const;
     std::size_t chunk_stride(std::size_t payload_bytes, bool halving) const;
     std::size_t half_bytes(std::size_t payload_bytes, bool halving) const;
-    void ring_chunk(std::size_t n, int chunk, std::size_t& offset, std::size_t& count) const;
-    void* ring_slot(const Signature& sig, const Piece& piece, int rank, int chunk) const;
-    void halving_range(std::size_t n, int rank, int level, std::size_t& lo, std::size_t& hi) const;
-    void* halving_stage(const Signature& sig, const Piece& piece, int rank, int region) const;
+    void ring_chunk(std::size_t n, uint32_t chunk, std::size_t& offset, std::size_t& count) const;
+    void* ring_slot(const Signature& sig, const Piece& piece, uint32_t rank, uint32_t chunk) const;
+    void halving_range(std::size_t n, uint32_t rank, uint32_t level, std::size_t& lo, std::size_t& hi) const;
+    void* halving_stage(const Signature& sig, const Piece& piece, uint32_t rank, uint32_t region) const;
 
     TPRecording m_rec;
     Signature m_sig[2];
     cldnn::ze::tp::GroupState::AllreduceCall m_call;
-    int m_world_size{0};
+    uint32_t m_world_size{0};
     uint64_t m_calls{0};  ///< calls of this collective so far: one per inference
     std::size_t m_max_chunk_elems[2]{};  // by element size: 2, 4 bytes
 };
