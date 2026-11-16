@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "windows gpu unit tests extract openvino packages setupvars.ps1 cannot be loaded because running scripts is disabled on this system pssecurityexception unauthorizedaccess|Infrastructure",
+  "signature_hash": "3be0e72d6ae29098",
+  "title": "Windows GPU unit tests job fails with PowerShell execution policy error before running tests",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-11-16T17:17:22Z",
+  "last_seen": "2026-11-16T17:17:22Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/43883526619"
+  ],
+  "affected_commits": [
+    "a1f0ea08348c50d407601b0fa2e451162aa939fb"
+  ],
+  "recent_timestamps": [
+    "2026-11-16T17:17:22Z"
+  ]
+}

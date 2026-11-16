@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-16-17-17-22-742-43883526619",
+  "timestamp": "2026-11-16T17:17:22Z",
+  "run_id": "43883526619",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43883526619",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "a1f0ea08348c50d407601b0fa2e451162aa939fb",
+  "pr_number": "39642",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39642",
+  "author": null,
+  "category": "Infrastructure",
+  "title": "Windows GPU unit tests job fails with PowerShell execution policy error before running tests",
+  "signature": "windows gpu unit tests extract openvino packages setupvars.ps1 cannot be loaded because running scripts is disabled on this system pssecurityexception unauthorizedaccess|Infrastructure",
+  "signature_hash": "3be0e72d6ae29098",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "Extract OpenVINO packages step failed with PSSecurityException/UnauthorizedAccess when PowerShell tried to dot-source a generated .ps1 wrapper script because script execution is disabled on the self-hosted Windows runner."
+    }
+  ],
+  "key_errors": [
+    ". : File C:\\actions-runner\\_work\\_temp\\2d01ed21-90a4-4241-8343-bd39b0dc542c.ps1 cannot be loaded because running scripts is disabled on this system. For more information, see about_Execution_Policies at https:/go.microsoft.com/fwlink/?LinkID=135170.",
+    "At line:1 char:3",
+    "+ . 'C:\\actions-runner\\_work\\_temp\\2d01ed21-90a4-4241-8343-bd39b0dc542c ...",
+    "    + CategoryInfo          : SecurityError: (:) [], PSSecurityException",
+    "    + FullyQualifiedErrorId : UnauthorizedAccess",
+    "##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The 'Extract OpenVINO packages' step runs under `shell: powershell` (Windows PowerShell 5.1). GitHub Actions implements this by writing the step's `run:` block to a generated temporary .ps1 file under _temp and dot-sourcing it. On this self-hosted Windows runner (ptl pool), the PowerShell execution policy for the account/session used by the Actions runner service is set to Restricted (or was reset, e.g. by a runner/image update or policy refresh), which blocks loading any unsigned script file, including the runner's own auto-generated wrapper. This is an environment/runner configuration issue on the self-hosted machine, not a problem with the workflow YAML or the extracted archives themselves - the same job previously failed on the same step due to a different infra issue (locked tbb12.dll from a stale extraction), confirming this runner has a history of extraction-step instability.",
+  "reproduction_steps": "N/A - requires the specific self-hosted Windows runner (ptl pool) whose PowerShell execution policy is restricted. Locally: set `Set-ExecutionPolicy Restricted -Scope Process` (or CurrentUser) then run any `shell: powershell` step to reproduce the PSSecurityException.",
+  "recommended_actions": [
+    "On the affected self-hosted Windows runner(s), run `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine -Force` (or Bypass/Unrestricted per org policy) for the account running the Actions runner service, then verify with `Get-ExecutionPolicy -List`.",
+    "Check whether a recent base-image update, group policy push, or security hardening script reset the execution policy on this runner pool and if so, bake the required policy into the runner image/provisioning script so it survives reimaging.",
+    "Add an explicit `Set-ExecutionPolicy` bootstrap step (or runner startup hook) to self-hosted Windows runner provisioning so execution policy drift is caught/corrected automatically rather than failing mid-pipeline.",
+    "Consider adding a lightweight runner health-check job that verifies `Get-ExecutionPolicy` before accepting GPU unit test workloads, to fail fast with a clearer message."
+  ],
+  "prevention_strategies": "Pin and periodically audit the PowerShell execution policy on all self-hosted Windows runners used for GPU/Windows jobs as part of runner provisioning/imaging, and add monitoring/alerting for execution-policy drift so it is caught before it blocks post-commit CI.",
+  "historical_context": "The same 'Extract OpenVINO packages' step on the Windows GPU unit tests job has failed repeatedly (11 recorded occurrences, pattern 514ffa2ab52ad344) due to a different root cause: 'Access to the path ... tbb12.dll is denied' from a locked DLL left over by a previous run. This is the first recorded occurrence of the distinct PSSecurityException/execution-policy failure signature on this step, indicating the step is fragile across multiple failure modes tied to this self-hosted Windows runner pool's environment state."
+}
