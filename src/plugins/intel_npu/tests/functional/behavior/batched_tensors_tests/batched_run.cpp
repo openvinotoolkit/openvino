@@ -1324,6 +1324,8 @@ namespace {
 
 constexpr size_t DYNAMIC_BATCH_LOWER_BOUND = 1;
 constexpr size_t DYNAMIC_BATCH_UPPER_BOUND = 10;
+// The deflation loops below count down with an unsigned index: a lower bound of 0 would never end them
+static_assert(DYNAMIC_BATCH_LOWER_BOUND >= 1, "The batch lower bound must be at least 1");
 
 // Makes the batch of a model with two independent inputs (tensor_input0/1) dynamic
 std::shared_ptr<ov::Model> reshapeToDynamicBatch(const std::shared_ptr<ov::Model>& model) {
@@ -1401,7 +1403,7 @@ TEST_P(DynamicBatchedTensorsRunTests, ReshapeAllInputTensorsWithoutSetTensorDefl
     req.set_tensor("tensor_input1", input1);
     fillInferAndCheckTwoInputs(req, input0, input1, 1.f);
 
-    for (size_t batch = DYNAMIC_BATCH_UPPER_BOUND - 1; batch >= DYNAMIC_BATCH_LOWER_BOUND; --batch) {
+    for (size_t batch = DYNAMIC_BATCH_UPPER_BOUND - 1; batch >= DYNAMIC_BATCH_LOWER_BOUND && batch > 0; --batch) {
         input0.set_shape(Shape{batch, 2, 2, 2});
         input1.set_shape(Shape{batch, 2, 2, 2});
         fillInferAndCheckTwoInputs(req, input0, input1, static_cast<float>(batch));
@@ -1467,7 +1469,54 @@ TEST_P(DynamicBatchedTensorsRunTests, ReshapeOnlyOneInputTensorFails) {
     fillInferAndCheckTwoInputs(req, input0, input1, 1.f);
 
     input0.set_shape(Shape{5, 2, 2, 2});
-    OV_EXPECT_THROW(req.infer(), ov::Exception, HasSubstr("batch size"));
+    OV_EXPECT_THROW(req.infer(), ov::Exception, HasSubstr("Input tensors have different batch sizes"));
+
+    // The error is reported again and the request state is not corrupted by the failed inference
+    OV_EXPECT_THROW(req.infer(), ov::Exception, HasSubstr("Input tensors have different batch sizes"));
+
+    // Updating the remaining input fixes the request
+    input1.set_shape(Shape{5, 2, 2, 2});
+    fillInferAndCheckTwoInputs(req, input0, input1, 2.f);
+}
+
+// Only one of the two inputs gets a new tensor (set_tensor) with another batch size: same error as for set_shape
+TEST_P(DynamicBatchedTensorsRunTests, SetTensorOnlyOneInputTensorFails) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto model = create_n_inputs(2, element::f32, Shape{4, 2, 2, 2}, "N...");
+    auto execNet = core->compile_model(reshapeToDynamicBatch(model), target_device, configuration);
+    auto req = execNet.create_infer_request();
+
+    ov::Tensor input0(ov::element::f32, Shape{2, 2, 2, 2});
+    ov::Tensor input1(ov::element::f32, Shape{2, 2, 2, 2});
+    req.set_tensor("tensor_input0", input0);
+    req.set_tensor("tensor_input1", input1);
+    fillInferAndCheckTwoInputs(req, input0, input1, 1.f);
+
+    ov::Tensor newInput0(ov::element::f32, Shape{5, 2, 2, 2});
+    req.set_tensor("tensor_input0", newInput0);
+    OV_EXPECT_THROW(req.infer(), ov::Exception, HasSubstr("Input tensors have different batch sizes"));
+    OV_EXPECT_THROW(req.infer(), ov::Exception, HasSubstr("Input tensors have different batch sizes"));
+
+    // Setting the other input with the same batch size fixes the request
+    ov::Tensor newInput1(ov::element::f32, Shape{5, 2, 2, 2});
+    req.set_tensor("tensor_input1", newInput1);
+    fillInferAndCheckTwoInputs(req, newInput0, newInput1, 3.f);
+}
+
+// Both inputs get a tensor with a different batch size on a fresh request: reported when inferring
+TEST_P(DynamicBatchedTensorsRunTests, SetTensorInputsWithDifferentBatchSizesFails) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto model = create_n_inputs(2, element::f32, Shape{4, 2, 2, 2}, "N...");
+    auto execNet = core->compile_model(reshapeToDynamicBatch(model), target_device, configuration);
+    auto req = execNet.create_infer_request();
+
+    ov::Tensor input0(ov::element::f32, Shape{3, 2, 2, 2});
+    ov::Tensor input1(ov::element::f32, Shape{6, 2, 2, 2});
+    req.set_tensor("tensor_input0", input0);
+    req.set_tensor("tensor_input1", input1);
+    OV_EXPECT_THROW(req.infer(), ov::Exception, HasSubstr("Input tensors have different batch sizes"));
 }
 
 TEST_P(DynamicBatchedTensorsRunTests, DynamicSetInputDifferentTensorsMultipleInfer) {

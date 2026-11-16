@@ -4,6 +4,8 @@
 
 #include "zero_infer_request.hpp"
 
+#include <algorithm>
+
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
@@ -608,16 +610,60 @@ void ZeroInferRequest::update_dynamic_batch_size(const size_t batchSizeCandidate
         }
     } else {
         _graph->set_batch_size(batchSizeCandidate);
+
+        // Without a batch size, the pipeline and the tensors returned by get_tensor use the default one. If something
+        // was already built or allocated with it (a pipeline, or output tensors obtained before the input batch was
+        // known), it must be rebuilt/reallocated when the new batch size is different.
+        const bool defaultBatchWasUsed =
+            _pipelineIsCreated || std::any_of(_levelZeroOutputTensors.begin(),
+                                              _levelZeroOutputTensors.end(),
+                                              [](const std::shared_ptr<ZeroTensor>& tensor) {
+                                                  return tensor != nullptr;
+                                              });
+        if (defaultBatchWasUsed && batchSizeCandidate != utils::DEFAULT_BATCH_SIZE) {
+            _dynamicBatchValueChanged = true;
+        }
     }
 }
 
 void ZeroInferRequest::update_batch_size_from_user_inputs() {
+    // All the inputs with a dynamic batch must have the same batch size. Validate this before changing any state, so
+    // the same clear error is reported whether only some of the tensors were reshaped (set_shape) or replaced
+    // (set_tensor/set_tensors), and the request can be fixed by updating the remaining inputs.
+    std::optional<size_t> commonBatchSize;
+    size_t commonBatchInputIndex = 0;
+    for (const size_t inputIndex : _dynamicBatchInputs) {
+        size_t inputBatchSize = 0;
+        if (is_batched_input(inputIndex)) {
+            inputBatchSize = get_user_inputs(inputIndex).size();
+        } else {
+            const auto& userTensor = get_user_input(inputIndex);
+            if (userTensor._ptr == nullptr || userTensor->get_shape().empty()) {
+                continue;
+            }
+            inputBatchSize = userTensor->get_shape()[utils::BATCH_AXIS];
+        }
+
+        if (!commonBatchSize.has_value()) {
+            commonBatchSize = inputBatchSize;
+            commonBatchInputIndex = inputIndex;
+        } else if (commonBatchSize.value() != inputBatchSize) {
+            OPENVINO_THROW("Input tensors have different batch sizes: input \"",
+                           _metadata.inputs.at(commonBatchInputIndex).nodeFriendlyName,
+                           "\" has batch size ",
+                           commonBatchSize.value(),
+                           " while input \"",
+                           _metadata.inputs.at(inputIndex).nodeFriendlyName,
+                           "\" has batch size ",
+                           inputBatchSize,
+                           ". All the inputs must have the same batch size.");
+        }
+    }
+
     // Intentionally read only once, before any set_tensor call below: when several inputs are reshaped, the first
     // set_tensor updates the graph batch size, and every other reshaped input still has to be synced with the graph.
-    const auto graphBatchSize = _graph->get_batch_size();
-    if (!graphBatchSize.has_value()) {
-        return;
-    }
+    // If no batch size was set yet (e.g. the tensors were obtained with get_tensor), the pipeline uses the default one.
+    const size_t graphBatchSize = _graph->get_batch_size().value_or(utils::DEFAULT_BATCH_SIZE);
 
     for (const size_t inputIndex : _dynamicBatchInputs) {
         if (is_batched_input(inputIndex)) {
@@ -631,7 +677,7 @@ void ZeroInferRequest::update_batch_size_from_user_inputs() {
         }
 
         const auto& shape = userTensor->get_shape();
-        if (shape.empty() || shape[utils::BATCH_AXIS] == graphBatchSize.value()) {
+        if (shape.empty() || shape[utils::BATCH_AXIS] == graphBatchSize) {
             continue;
         }
 
