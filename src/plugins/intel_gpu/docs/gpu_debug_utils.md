@@ -163,6 +163,43 @@ With `OV_VERBOSE=2` or higher, the pass logs changed graph output ports. Example
 
 `Region` is the number of operations selected by the filters, `Forced` counts nodes with logged promotions still present in the model, and `Outputs` counts their promoted ports. Unmatched or unchanged nodes have no `FORCED` entry. Logs describe the graph at the end of this pass, before automatic validation and GPU kernel selection; they do not confirm kernel execution precision.
 
+## Tagged verbose logs
+
+Some verbose logs belong to a feature family and carry a tag right after the regular log prefix, so all decisions of one feature can be collected with a single grep:
+
+```
+GPU_Debug: dynamic_quantize.cpp:43:should_skip_execution: [dynquan] dynamicquantize:DynamicQuantize_155332 skipped at runtime: ...
+```
+
+In code, use `GPU_DEBUG_TAGGED(level, "tag")` where `level` is one of `COUT`, `INFO`, `LOG`, `TRACE`, `TRACE_DETAIL` (the same levels as `OV_VERBOSE`):
+
+```cpp
+GPU_DEBUG_TAGGED(TRACE, "dynquan") << node.id() << " turned off: <reason>" << std::endl;
+```
+
+Tag naming convention: a short string literal of lowercase letters and digits only, without separators (no `_` or `-`). Reuse an existing tag for the same family and add new tags to the table below.
+
+| Tag | Feature | Useful `OV_VERBOSE` level |
+|---|---|---|
+| `dynquan` | Dynamic quantization of fully connected activations | `3` |
+
+## Why was dynamic quantization (not) applied?
+
+Dynamic quantization quantizes the activation of a fully connected (FC) layer with compressed (4/8-bit) weights to int8 at runtime, so that the matmul runs in int8. It is enabled by default, but the plugin decides per -FC and per-inference whether to use it. Every decision is logged with the `dynquan` tag:
+
+```
+$ OV_VERBOSE=3 OV_GPU_LOG_TO_FILE=dq.log ./benchmark_app ...    # or any application
+$ grep "\[dynquan\]" dq.log
+```
+
+Example of `grep "\[dynquan\]" dq.log` on an XMX GPU:
+
+```
+GPU_Debug: transformations_pipeline.cpp:1942:operator(): [dynquan] __module.lm_head/aten::linear/MatMul turned off: N == 1 (activation quantization is unprofitable; keep weight-only quantization with f16 activation)
+GPU_Debug: dynamic_quantize_fully_connected.cpp:159:operator(): [dynquan] __module.model.layers.0.mlp.down_proj/aten::linear/MatMul applied: group_size per-token, dt i8, sym
+GPU_Debug: dynamic_quantize.cpp:43:should_skip_execution: [dynquan] dynamicquantize:DynamicQuantize_155332 skipped at runtime: token count 1 <= dynamic_quantization_threshold 64
+```
+
 ## Dump execution graph
 
 The execution graph (also known as a runtime graph) is a device-specific graph after all transformations applied by the plugin. It is a very useful
