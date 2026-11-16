@@ -25,6 +25,9 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<convo
             [](const cldnn::program_node& node){
                 if (node.can_use(impl_types::onednn))
                     return false;
+                // Shape agnostic kernels are built for a fixed weights shape, so weights with dynamic shape need static impls
+                if (node.as<convolution>().weights().get_output_layout().is_dynamic())
+                    return false;
                 return node.as<convolution>().use_explicit_padding();
         })
     };

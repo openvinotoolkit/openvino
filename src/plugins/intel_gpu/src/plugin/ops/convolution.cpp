@@ -122,7 +122,8 @@ static void CreateConvolutionBackpropDataOp(ProgramBuilder& p, const std::shared
     // For Constant node on input transpose is not needed, because the data is transposed on const node creation
     {
         std::string permuteName = layerName + "_cldnn_weights_permute";
-        auto weights_rank = op->get_input_shape(1).size();
+        // Runtime weights may have a dynamic shape, only the rank is needed here
+        auto weights_rank = op->get_input_partial_shape(1).size();
         std::vector<uint16_t> permute_order(weights_rank);
         std::iota(std::begin(permute_order), std::end(permute_order), 0);
         // Should be 1, 0, 2, 3 {, 4} to swap O and I
@@ -197,7 +198,10 @@ static void CreateGroupConvolutionBackpropDataOp(ProgramBuilder& p, const std::s
 
     auto dilations = op->get_dilations();
 
-    uint32_t groups = static_cast<uint32_t>(op->get_input_shape(1)[0]);
+    const auto& weights_pshape = op->get_input_partial_shape(1);
+    OPENVINO_ASSERT(weights_pshape.rank().is_static() && weights_pshape[0].is_static(),
+                    "[GPU] GroupConvolutionBackpropData ", op->get_friendly_name(), " requires static groups count, but weights shape is ", weights_pshape);
+    uint32_t groups = static_cast<uint32_t>(weights_pshape[0].get_length());
 
     auto weightsName = inputs[1];
     // WA: For the cases like Const(weights)->Sub(zp)->Deconv. And also for the cases with real runtime weights.
@@ -206,7 +210,7 @@ static void CreateGroupConvolutionBackpropDataOp(ProgramBuilder& p, const std::s
     // For Constant node on input transpose is not needed, because the data is transposed on const node creation
     {
         std::string permuteName = layerName + "_cldnn_weights_permute";
-        auto weights_rank = op->get_input_shape(1).size();
+        auto weights_rank = weights_pshape.size();
         std::vector<uint16_t> permute_order(weights_rank);
         std::iota(std::begin(permute_order), std::end(permute_order), 0);
         // Should be 0, 2, 1, 3, 4 {, 5} to swap O and I

@@ -189,7 +189,9 @@ AsymmetricConvolutionMatcher::AsymmetricConvolutionMatcher() {
 
 ConvolutionMatcher::ConvolutionMatcher() {
     auto input_m = any_input();
-    auto weights_m = any_input(has_static_dim(0));
+    // Output channels of v1::Convolution may be dynamic, e.g. for runtime weights produced from a dynamic-shape input.
+    // Only the groups count of GroupConvolution must be static, it is checked in the callback.
+    auto weights_m = any_input(has_static_rank());
     auto bias_val_m = wrap_type<ov::op::v0::Constant>();
     auto convolution_m = wrap_type<ov::op::v1::Convolution, ov::op::v1::GroupConvolution>({input_m, weights_m});
 
