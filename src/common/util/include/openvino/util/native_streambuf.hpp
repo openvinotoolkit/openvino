@@ -89,7 +89,6 @@ private:
     std::streamoff m_cursor = 0;  //!< Absolute offset of the next byte to be fetched.
     std::streamoff m_start = 0;   //!< Absolute offset of the region start; maps to logical stream position 0.
     std::streamoff m_end = 0;     //!< Absolute offset one past the last readable byte of the region.
-    std::streamoff m_window_start = 0;  //!< Absolute offset of the first byte held in the window (valid if get-area set).
 
     size_t m_window_capacity = 0;                     //!< allocated capacity of m_window in bytes
     size_t m_bypass_size = default_native_threshold;  //!< minimum read size that bypasses the window
