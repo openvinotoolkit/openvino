@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-16-11-44-24-000-43843827684",
+  "timestamp": "2026-11-16T11:44:24Z",
+  "run_id": "43843827684",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43843827684",
+  "workflow_name": "GPU unit tests",
+  "pr_number": "39900",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39900",
+  "author": "dmatveev",
+  "category": "Infrastructure",
+  "title": "GPU unit tests fail to extract OpenVINO package - tbb12.dll locked on Windows self-hosted runner",
+  "signature": "remove item cannot remove item access to the path is denied unauthorizedaccessexception|Infrastructure",
+  "signature_hash": "95bb23aa2ed8a84d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "Extract OpenVINO packages step fails: Remove-Item cannot delete tbb12.dll, Access to the path is denied."
+    }
+  ],
+  "key_errors": [
+    "2026-11-16T10:46:37.6273705Z Remove-Item : Cannot remove item C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll:",
+    "2026-11-16T10:46:37.6274939Z Access to the path 'C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll' is denied.",
+    "2026-11-16T10:46:37.6280899Z    edAccessException",
+    "2026-11-16T10:46:37.6283498Z     + FullyQualifiedErrorId : RemoveFileSystemItemUnAuthorizedAccess,Microsoft.PowerShell.Commands.RemoveItemCommand",
+    "2026-11-16T10:46:37.6690978Z ##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The self-hosted Windows GPU runner re-extracts the openvino_package.zip/openvino_tests.zip archives into the shared install directory, and PowerShell's Expand-Archive tries to delete a pre-existing tbb12.dll before overwriting it. The DLL is held open (locked) by a lingering process from a previous job/run on the same persistent runner (antivirus scanning or a still-running OpenVINO process holding a handle to the DLL), so Remove-Item throws UnauthorizedAccessException and the extraction step fails with exit code 1. This is the same recurring Windows self-hosted runner workspace-locking issue seen 10 prior times in the pattern database (count now 11), not a code defect introduced by this PR.",
+  "reproduction_steps": "Not reproducible outside the actual Windows self-hosted GPU runner workspace: requires the shared persistent runner filesystem state (a locked tbb12.dll from a prior run) to trigger. Locally, this can be approximated by holding an open file handle to a DLL and then running Expand-Archive -Force to overwrite it, which raises the same UnauthorizedAccessException.",
+  "recommended_actions": [
+    "Ensure the Windows GPU runner workspace is fully cleaned/reset between jobs (e.g., kill lingering OpenVINO/test processes and release file handles before the next checkout/extract step).",
+    "Add a pre-extract cleanup step that retries Remove-Item/Expand-Archive with backoff, or use robocopy/7z extraction that tolerates locked files better than Expand-Archive.",
+    "Consider excluding or hard-killing any process holding tbb12.dll (e.g., via Get-Process/handle.exe) before extraction.",
+    "If runners are ephemeral-capable, prefer fresh runner instances per job to avoid locked-file carryover."
+  ],
+  "prevention_strategies": "Add workspace hygiene steps (process cleanup, retry-with-backoff for Expand-Archive, or handle-unlocking) to the GPU unit tests job on Windows self-hosted runners; consider migrating to ephemeral runners for this job to eliminate cross-run file-lock contamination.",
+  "historical_context": "This exact signature has recurred 11 times (first seen 2026-11-09T19:06:46Z), always on the GPU unit tests Windows job during the 'Extract OpenVINO packages' step with the same tbb12.dll UnauthorizedAccessException. A rerun-pattern proposal for this signature (PR #39664) was previously opened and subsequently closed/rejected, so no new rerun-pattern proposal is submitted this time."
+}
