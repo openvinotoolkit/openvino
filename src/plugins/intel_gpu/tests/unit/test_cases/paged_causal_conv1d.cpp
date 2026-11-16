@@ -29,6 +29,9 @@ enum class paging_mode {
     // cache_interval layout, but the first checkpoint slot reuses the read row when the step starts mid-interval
     // (past_lens % cache_interval != 0), so an early checkpoint overwrites the cached state that later outputs depend on
     interval_aliased,
+    // cache_interval larger than both tokens_per_item and kernel_size - 1, so the first interval hit lands after the
+    // head item's token range and the post-range checkpoint loop starts from it without re-alignment
+    wide_interval,
 };
 
 struct paged_causal_conv1d_test_params {
@@ -132,9 +135,10 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
 
             const bool mixed = p.mode == paging_mode::mixed;
             const bool interval_aliased = p.mode == paging_mode::interval_aliased;
-            if (p.mode == paging_mode::cache_interval || interval_aliased || (mixed && seq % 3 == 0)) {
+            const bool wide_interval = p.mode == paging_mode::wide_interval;
+            if (p.mode == paging_mode::cache_interval || interval_aliased || wide_interval || (mixed && seq % 3 == 0)) {
                 const int32_t seq_past_len = 1 + (seq % 3);
-                const int32_t seq_interval = 2 + (seq % 2);
+                const int32_t seq_interval = wide_interval ? 32 : 2 + (seq % 2);
                 d.past_lens.push_back(seq_past_len);
                 d.cache_interval.push_back(seq_interval);
 
@@ -465,6 +469,8 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
             mode_name = "_mixed_slots";
         } else if (p.mode == paging_mode::interval_aliased) {
             mode_name = "_interval_aliased_slot";
+        } else if (p.mode == paging_mode::wide_interval) {
+            mode_name = "_wide_interval";
         }
         return "paged_causal_conv1d_gpu_test_" + p.precision.to_string() + "_tokens_" + std::to_string(p.tokens) + "_seq_" + std::to_string(p.num_sequences) +
                "_hidden_" + std::to_string(p.hidden_size) + "_kernel_" + std::to_string(p.kernel_size) + (p.with_bias ? "_bias" : "_no_bias") +
@@ -514,7 +520,10 @@ INSTANTIATE_TEST_SUITE_P(
         paged_causal_conv1d_test_params{847, 8, 32, 7, ov::element::f32, true, false, true, 1, paging_mode::mixed, {701, 128, 2, 1, 3, 5, 6, 1}},
         // tokens_per_item = 5 and 3, both below kernel_size - 1 = 6
         paged_causal_conv1d_test_params{600, 3, 32, 7, ov::element::f16, true, false, false, 1, paging_mode::interval_aliased},
-        paged_causal_conv1d_test_params{300, 4, 48, 7, ov::element::f32, false, false, true, 1, paging_mode::interval_aliased, {3, 40, 1, 256}}),
+        paged_causal_conv1d_test_params{300, 4, 48, 7, ov::element::f32, false, false, true, 1, paging_mode::interval_aliased, {3, 40, 1, 256}},
+        // cache_interval (32) > max(tokens_per_item=16, kernel_size-1=6): first hit lt=30 > lt_end=16, exercising the
+        // `first_hit >= lt_end` branch of the post-range checkpoint loop.
+        paged_causal_conv1d_test_params{2100, 1, 64, 7, ov::element::f32, false, false, false, 1, paging_mode::wide_interval}),
     paged_causal_conv1d_gpu_test::PrintToStringParamName);
 
 }  // namespace
