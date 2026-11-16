@@ -7,8 +7,16 @@
 #include "data_inst.h"
 #include "pooling_inst.h"
 #include "fully_connected_inst.h"
+#include "resample_inst.h"
+#include "strided_slice_inst.h"
+#include "reorder_inst.h"
+#include "concatenation_inst.h"
+#include "read_value_inst.h"
+#include "input_layout_inst.h"
+#include "mutable_data_inst.h"
 #include "transformations/symbolic_transformations/utils.hpp"
 #include <algorithm>
+#include <optional>
 #include <utility>
 #include <vector>
 #include <sstream>
@@ -149,8 +157,105 @@ static bool is_direct_ancestor(const program_node& child, const program_node& ta
     return false;
 }
 
+bool program_helpers::is_buffer_view_of_input0(const program_node& n, view_resolution mode) {
+    if (n.get_dependencies().empty()) {
+        return false;
+    }
+    // owners or stop points of the walk
+    if (n.is_type<concatenation>() || n.is_type<read_value>() || n.is_type<input_layout>() || n.is_type<data>() ||
+        n.is_type<mutable_data>()) {
+        return false;
+    }
+    if (n.can_be_optimized() || n.is_runtime_skippable()) {
+        return true;
+    }
+    if (mode == view_resolution::settled_only) {
+        return false;
+    }
+    // Candidates that become views only AFTER the oneDNN attribute freeze (they mirror the passes that run after
+    // add_onednn_optimization_attributes: mark_runtime_skippable_nodes and the post-phase remove_redundant_reorders).
+    if (n.is_dynamic() || n.has_fused_primitives()) {
+        return false;
+    }
+    if (n.is_type<resample>()) {
+        return n.get_input_layout(0) == n.get_output_layout();
+    }
+    if (n.is_type<strided_slice>()) {
+        const auto& in = n.get_input_layout(0);
+        const auto& out = n.get_output_layout();
+        return in.format == out.format && in.data_type == out.data_type;
+    }
+    if (n.is_type<reorder>()) {
+        // The post-freeze remove_redundant_reorders rewrites reorders freely (chain shrinking, padding merges,
+        // duplicate merges), so any plain single-input reorder may end up as a view of its input.
+        return n.get_dependencies().size() == 1 && !n.as<reorder>().get_primitive()->has_surface_input();
+    }
+    return false;
+}
+
+const program_node* program_helpers::in_place_concat_holder_of(const program_node& n) {
+    for (const auto* u : n.get_users()) {
+        if (u->is_type<concatenation>() && u->can_be_optimized()) {
+            return u;
+        }
+    }
+    return nullptr;
+}
+
+program_helpers::buffer_owner program_helpers::resolve_buffer_owner(const program_node& n, view_resolution mode, bool collect_path) {
+    buffer_owner res;
+    // Backward view steps followed by forward slot steps; concat is never a view and settled views cannot be concat
+    // predecessors, so the walk is finite. The bound is a safety net only.
+    const size_t bound = n.get_program().get_processing_order().size();
+    size_t steps = 0;
+    const program_node* cur = &n;
+    if (collect_path) {
+        res.path.push_back(cur);
+    }
+    while (true) {
+        if (const auto* holder = in_place_concat_holder_of(*cur)) {
+            cur = holder;  // slot step takes precedence
+        } else if (is_buffer_view_of_input0(*cur, mode)) {
+            if (!is_buffer_view_of_input0(*cur, view_resolution::settled_only)) {
+                res.through_may_view = true;
+            }
+            cur = &cur->get_dependency(0);
+        } else {
+            break;
+        }
+        OPENVINO_ASSERT(++steps <= bound, "[GPU] buffer owner walk does not terminate from node ", n.id());
+        if (collect_path) {
+            res.path.push_back(cur);
+        }
+    }
+    res.owner = cur;
+    return res;
+}
+
+namespace {
+// F10 helper (allocation-free, recursive over concat cascades): true if any predecessor slot of the in-place concat
+// `holder` has a reader other than the holder (or is a network output), or is itself a concat holding such slots.
+bool concat_slots_have_other_readers(const program_node& holder) {
+    for (const auto& d : holder.get_dependencies()) {
+        const auto* s = d.first;
+        if (s->is_output()) {
+            return true;
+        }
+        for (const auto* u : s->get_users()) {
+            if (u != &holder) {
+                return true;
+            }
+        }
+        if (s->is_type<concatenation>() && s->can_be_optimized() && concat_slots_have_other_readers(*s)) {
+            return true;
+        }
+    }
+    return false;
+}
+}  // namespace
+
 add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
-    const program_node& p_node, const fused_primitive_desc& desc) {
+    const program_node& p_node, const fused_primitive_desc& desc, add_fusing_query q) {
     if (!desc.is_type<eltwise>()) {
         return add_fusing_type::not_supported;
     }
@@ -175,16 +280,49 @@ add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
         return add_fusing_type::not_supported;
     }
 
+    // dep_node's buffer owner, resolved at most once and only when a clause needs it (no path vector, no allocation);
+    // the F11 and F10 clauses below share it.
+    std::optional<program_helpers::buffer_owner> dep_owner_cache;
+    auto dep_owner = [&]() -> const program_helpers::buffer_owner& {
+        if (!dep_owner_cache) {
+            dep_owner_cache = program_helpers::resolve_buffer_owner(
+                dep_node, program_helpers::view_resolution::include_post_freeze_candidates, /*collect_path=*/false);
+        }
+        return *dep_owner_cache;
+    };
+
     // onednn accumulates a sum post-op into dep_node's buffer, so p_node must not also read it;
     // is_direct_ancestor answers yes for an own input too
     auto p_node_consumes_dep_node = [&]() {
         // has_outer_dep() above rejects a negative index.
         const auto outer_dep_start_idx = static_cast<size_t>(desc.outer_dep_start_idx);
         for (size_t i = 0; i < outer_dep_start_idx; i++) {
-            if (&p_node.get_dependency(i) == &dep_node)
+            const auto& in = p_node.get_dependency(i);
+            if (&in == &dep_node)
                 return true;
+            // F11: p_node must not read dep_node's buffer through a view on its own inputs either. Views that only
+            // appear after the freeze (static no-op resample/strided_slice, reorders) are included, so the freeze
+            // and the post-freeze callers resolve identically.
+            if (q == add_fusing_query::exact) {
+                if (program_helpers::resolve_buffer_owner(
+                        in, program_helpers::view_resolution::include_post_freeze_candidates).owner == dep_owner().owner)
+                    return true;
+            }
         }
         return false;
+    };
+
+    // F10: the dst would overwrite in-place concat slots that have readers other than the concat. Conservative
+    // Pre-0 placeholder for the Phase 1a war_safe rule (it also rejects readers that run before p_node); any
+    // relaxation must be applied to this predicate at the freeze, because F5 can only downgrade later.
+    // NOTE: until F5, the frozen value and this live value can still diverge for reasons outside F10/F11
+    // (users count, padding, the identity test after reorder removal).
+    auto overwrites_shared_concat_slot = [&]() {
+        if (q != add_fusing_query::exact) {
+            return false;
+        }
+        const auto* owner = dep_owner().owner;
+        return owner->is_type<concatenation>() && owner->can_be_optimized() && concat_slots_have_other_readers(*owner);
     };
 
     if (is_full_tensor(p_layout) && is_full_tensor(d_layout)) {
@@ -196,7 +334,8 @@ add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
             && !p_node.is_type<pooling>()
             && !p_node.is_output()
             && (!dep_node.is_type<input_layout>() || dep_node.get_users().size() <= 1)
-            && !p_node_consumes_dep_node()) {
+            && !p_node_consumes_dep_node()
+            && !overwrites_shared_concat_slot()) {
             return add_fusing_type::sum;
         }
         if (p_layout.get_tensor() == d_layout.get_tensor()) {

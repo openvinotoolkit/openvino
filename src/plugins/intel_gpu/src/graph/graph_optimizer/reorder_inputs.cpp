@@ -692,7 +692,7 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
         if (conv_node.get_preferred_impl_type() == impl_types::onednn) {
             onednn_eltwise_fusing_helpers::for_eltwise(conv_node, eltwise_mode::sum,
                 [&](const program_node& p_node, const fused_primitive_desc& desc) {
-                    auto fusing_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(p_node, desc);
+                    auto fusing_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(p_node, desc, onednn_eltwise_fusing_helpers::add_fusing_query::guard_superset);
                     if (fusing_type == add_fusing_type::binary_per_tensor && desc.has_outer_dep()) {
                         auto& dep_node = p_node.get_dependency(desc.outer_dep_start_idx);
                         auto d_layout = dep_node.get_output_layout();

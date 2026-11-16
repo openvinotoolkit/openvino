@@ -215,7 +215,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         for (auto& fused_op : next.get_fused_primitives()) {
             if (fused_op.is_type<eltwise>()) {
                 auto out_layout = next.get_output_layout();
-                auto add_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(next, fused_op);
+                auto add_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(next, fused_op, onednn_eltwise_fusing_helpers::add_fusing_query::guard_superset);
                 if (add_type == add_fusing_type::sum && prev.get_output_layout().format != out_layout.format)
                     return false;
             }

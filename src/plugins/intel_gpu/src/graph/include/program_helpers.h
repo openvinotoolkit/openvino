@@ -117,6 +117,25 @@ struct program_helpers {
             }
         }
     }
+
+    // ---- buffer-ownership resolution (F10/F11; reused by F6/F4) ----------------------------------------------
+    // A node whose output is a view of its input 0 (can_be_optimized / runtime_skippable), or a slot of an in-place
+    // concat, does not own its buffer. settled_only follows only flags already set on the node;
+    // include_post_freeze_candidates additionally follows nodes that become views AFTER the oneDNN attribute freeze
+    // (add_onednn_optimization_attributes): static no-op resample / strided_slice and any plain reorder that
+    // remove_redundant_reorders may still turn into a view or remove. The resolution is node-type based and therefore
+    // stable between the freeze and runtime.
+    enum class view_resolution { settled_only, include_post_freeze_candidates };
+    struct buffer_owner {
+        const program_node* owner = nullptr;          // node whose own allocation backs the queried node's output
+        std::vector<const program_node*> path;        // queried node .. owner, in walk order (only if collect_path)
+        bool through_may_view = false;                // some step used a post-freeze candidate, not a settled flag
+    };
+    static bool is_buffer_view_of_input0(const program_node& n, view_resolution mode);
+    // the optimized concat user of n (n is one of its slots) or nullptr
+    static const program_node* in_place_concat_holder_of(const program_node& n);
+    // collect_path == false performs no heap allocation (used on the per-inference get_reused_eltwmem_idx path)
+    static buffer_owner resolve_buffer_owner(const program_node& n, view_resolution mode, bool collect_path = false);
 };
 
 struct onednn_eltwise_fusing_helpers {
@@ -129,7 +148,13 @@ struct onednn_eltwise_fusing_helpers {
 
     static void for_eltwise(const program_node& conv_node, eltwise_mode mode,
                             std::function<void(const program_node&, const fused_primitive_desc&)> func);
-    static add_fusing_type get_add_fusing_type(const program_node& node, const fused_primitive_desc& desc);
+    // exact: the authoritative predicate S (the freeze, basic_memory_dependencies, get_reused_eltwmem_idx).
+    // guard_superset: the pre-F10/F11 predicate, a superset of exact (exact = guard_superset && !F10 && !F11), used by the
+    // early consistency guards that run before the freeze (reorder_inputs, layout_optimizer, prepare_buffer_fusing,
+    // remove_redundant_reorders). They must answer "may be sum", so they must not use the narrower exact result.
+    enum class add_fusing_query { exact, guard_superset };
+    static add_fusing_type get_add_fusing_type(const program_node& node, const fused_primitive_desc& desc,
+                                               add_fusing_query q = add_fusing_query::exact);
     static int32_t get_reused_eltwmem_idx(const program_node& node);
     static bool can_use_mul_inplace(const program_node& node, const fused_primitive_desc& desc);
 };
