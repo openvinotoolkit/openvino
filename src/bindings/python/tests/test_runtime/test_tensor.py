@@ -435,7 +435,7 @@ def test_roi_from_packed_tensor_when_strided_two_heads_direct_access():
     assert roi_tensor.data.shape == (1, 2, 10, row_bytes)
     for h in range(2):
         src_start = h * head_stride_bytes
-        expected = ov_tensor.data[src_start : src_start + 10 * row_bytes].reshape(10, row_bytes)
+        expected = ov_tensor.data[src_start: src_start + 10 * row_bytes].reshape(10, row_bytes)
         assert np.array_equal(roi_tensor.data[0, h], expected)
 
 
