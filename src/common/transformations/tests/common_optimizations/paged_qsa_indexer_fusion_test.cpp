@@ -84,7 +84,15 @@ struct GraphOptions {
     bool query_rope = true;
     int64_t rope_length = -1;
     float scale = 1.0f / std::sqrt(static_cast<float>(head_size));
+    // FuseQSAIndexer padding: the block-key cache is grown by a Concat.
+    bool padding = true;
 };
+
+GraphOptions unpadded() {
+    GraphOptions o;
+    o.padding = false;
+    return o;
+}
 
 // The dense QSAIndexer as created by FuseQSAIndexer, with its states kept in variables.
 std::shared_ptr<Model> make_model(const GraphOptions& o, bool paged) {
@@ -98,7 +106,6 @@ std::shared_ptr<Model> make_model(const GraphOptions& o, bool paged) {
     const auto rope_cos = param(element::f32, PartialShape{-1, o.rope_length, rotary_dim});
     const auto rope_sin = param(element::f32, PartialShape{-1, o.rope_length, rotary_dim});
     const auto key_length = param(element::i32, PartialShape{-1});
-    const auto cache_padding = param(element::f32, PartialShape{-1, key_heads, -1, head_size});
     const auto beam_idx = o.gathered_states ? param(element::i32, PartialShape{-1}) : nullptr;
 
     SinkVector sinks;
@@ -117,9 +124,11 @@ std::shared_ptr<Model> make_model(const GraphOptions& o, bool paged) {
     const auto past_block_keys = read_state("block_keys", PartialShape{-1, -1, head_size});
     const auto incomplete_raw_keys = read_state("incomplete_raw_keys", PartialShape{-1, key_block_size - 1, head_size});
     const auto incomplete_rope = read_state("incomplete_rope", PartialShape{-1, 2 * rotary_dim});
-    const auto block_keys_cache = std::make_shared<v0::Concat>(
-        OutputVector{std::make_shared<v0::Unsqueeze>(past_block_keys, i64({1})), cache_padding},
-        2);
+    Output<Node> block_keys_cache = std::make_shared<v0::Unsqueeze>(past_block_keys, i64({1}));
+    if (o.padding) {
+        const auto cache_padding = param(element::f32, PartialShape{-1, key_heads, -1, head_size});
+        block_keys_cache = std::make_shared<v0::Concat>(OutputVector{block_keys_cache, cache_padding}, 2);
+    }
     const auto incomplete_raw_keys_with_head = std::make_shared<v0::Unsqueeze>(incomplete_raw_keys, i64({1}));
     const auto q_norm_weight = v0::Constant::create(element::f32, Shape{head_size}, {1.0f});
     const auto k_norm_weight = v0::Constant::create(element::f32, Shape{head_size}, {0.5f});
@@ -320,7 +329,8 @@ INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
                                          GraphOptions{true, false, true, false},
                                          GraphOptions{false, false, true, false},
                                          GraphOptions{true, false, true, true, -1, 0.0f},
-                                         GraphOptions{true, false, true, true, -1, 0.5f}),
+                                         GraphOptions{true, false, true, true, -1, 0.5f},
+                                         unpadded()),
                          [](const testing::TestParamInfo<GraphOptions>& info) {
                              const auto& o = info.param;
                              std::string name = o.gathered_states ? "GatheredStates" : "DirectStates";
@@ -330,6 +340,9 @@ INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
                                  name += "_DefaultScale";
                              } else if (o.scale == 0.5f) {
                                  name += "_CustomScale";
+                             }
+                             if (!o.padding) {
+                                 name += "_NoPadding";
                              }
                              return name;
                          });

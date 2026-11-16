@@ -136,8 +136,9 @@ PagedQSAIndexerFusion::PagedQSAIndexerFusion(paged_attention::PaParams& pa_param
     const auto p_block_keys_read = wrap_type<ov::op::util::ReadValueBase>();
     const auto p_raw_keys_read = wrap_type<ov::op::util::ReadValueBase>();
     const auto p_rope_read = wrap_type<ov::op::util::ReadValueBase>();
+    // With FuseQSAIndexer padding, the block-key cache is grown by a Concat.
     const auto p_block_keys_cache =
-        wrap_type<v0::Concat>({wrap_type<v0::Unsqueeze>({read_state(p_block_keys_read), any_input()}), any_input()});
+        optional<v0::Concat>({wrap_type<v0::Unsqueeze>({read_state(p_block_keys_read), any_input()}), any_input()});
     const auto p_incomplete_raw_keys = wrap_type<v0::Unsqueeze>({read_state(p_raw_keys_read), any_input()});
 
     const auto p_indexer = wrap_type<op_internal::QSAIndexer>({p_query,

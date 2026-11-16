@@ -70,6 +70,8 @@ enum class QueryFusion {
 struct GraphOptions {
     std::string name;
     QueryFusion query_fusion = QueryFusion::Full;
+    // FuseQSAIndexer padding argument: the block-key cache is grown and trimmed around QSAIndexer.
+    bool padding = true;
     element::Type precision = element::f32;
     QueryLayout query_layout = QueryLayout::BLHDTransposed;
     // cos / sin have a single row, which QSAPrepare broadcasts over the batch.
@@ -318,18 +320,21 @@ std::shared_ptr<Model> getModelRef(const GraphOptions& o) {
         return std::make_shared<v3::Broadcast>(rope, target);
     };
 
-    // The block-key cache grows by zero blocks up to the complete blocks of the longest sequence.
-    const auto longest_i64 = std::make_shared<v0::Convert>(g.key_length, element::i64);
-    const auto longest = std::make_shared<v1::ReduceMax>(longest_i64, i64({0}), true);
-    const auto needed_blocks = std::make_shared<v1::Divide>(longest, i64({key_block_size}));
-    const auto missing_blocks = std::make_shared<v1::Subtract>(needed_blocks, dims_of(g.cache, {1}));
-    const auto growth = std::make_shared<v1::Maximum>(missing_blocks, i64({0}));
-    const auto growth_shape =
-        make_try_fold<v0::Concat>(OutputVector{dims_of(g.raw_keys, {0}), i64({1}), growth, i64({head_size})}, 0);
-    const auto zeros =
-        std::make_shared<v3::Broadcast>(v0::Constant::create(o.precision, Shape{}, {0.0f}), growth_shape);
-    const auto cache =
-        std::make_shared<v0::Concat>(OutputVector{std::make_shared<v0::Unsqueeze>(g.cache, i64({1})), zeros}, 2);
+    Output<Node> cache = std::make_shared<v0::Unsqueeze>(g.cache, i64({1}));
+    Output<Node> needed_blocks;
+    if (o.padding) {
+        // The block-key cache grows by zero blocks up to the complete blocks of the longest sequence.
+        const auto longest_i64 = std::make_shared<v0::Convert>(g.key_length, element::i64);
+        const auto longest = std::make_shared<v1::ReduceMax>(longest_i64, i64({0}), true);
+        needed_blocks = std::make_shared<v1::Divide>(longest, i64({key_block_size}));
+        const auto missing_blocks = std::make_shared<v1::Subtract>(needed_blocks, dims_of(g.cache, {1}));
+        const auto growth = std::make_shared<v1::Maximum>(missing_blocks, i64({0}));
+        const auto growth_shape =
+            make_try_fold<v0::Concat>(OutputVector{dims_of(g.raw_keys, {0}), i64({1}), growth, i64({head_size})}, 0);
+        const auto zeros =
+            std::make_shared<v3::Broadcast>(v0::Constant::create(o.precision, Shape{}, {0.0f}), growth_shape);
+        cache = std::make_shared<v0::Concat>(OutputVector{cache, zeros}, 2);
+    }
 
     OutputVector inputs(QSAIndexerInputIdx::COUNT);
     switch (o.query_fusion) {
@@ -366,24 +371,26 @@ std::shared_ptr<Model> getModelRef(const GraphOptions& o) {
     config.query_norm = o.query_fusion == QueryFusion::Full;
     config.query_rope = o.query_fusion != QueryFusion::None;
     const auto fused = std::make_shared<op_internal::QSAIndexer>(inputs, config);
-    const auto block_keys =
+    Output<Node> block_keys =
         std::make_shared<v0::Squeeze>(fused->output(QSAIndexerOutputIdx::BLOCK_INDEX_KEYS_CACHE), i64({1}));
-    Output<Node> block_count = needed_blocks;
-    if (!o.key_length_values.empty()) {
-        int64_t max_length = 0;
-        for (const auto length : o.key_length_values) {
-            max_length = std::max(max_length, length);
+    if (o.padding) {
+        Output<Node> block_count = needed_blocks;
+        if (!o.key_length_values.empty()) {
+            int64_t max_length = 0;
+            for (const auto length : o.key_length_values) {
+                max_length = std::max(max_length, length);
+            }
+            block_count = i64({max_length / key_block_size});
         }
-        block_count = i64({max_length / key_block_size});
+        block_keys = std::make_shared<v8::Slice>(block_keys, i64({0}), block_count, i64({1}), i64({1}));
     }
-    const auto trimmed_block_keys = std::make_shared<v8::Slice>(block_keys, i64({0}), block_count, i64({1}), i64({1}));
 
     const std::vector<Output<Node>> outputs{
         fused->output(QSAIndexerOutputIdx::SELECTED_BLOCK_INDICES),
         fused->output(QSAIndexerOutputIdx::SELECTED_BLOCK_COUNT),
         std::make_shared<v0::Squeeze>(fused->output(QSAIndexerOutputIdx::PAST_INCOMPLETE_RAW_K), i64({1})),
         fused->output(QSAIndexerOutputIdx::PAST_INCOMPLETE_ROPE),
-        trimmed_block_keys,
+        block_keys,
     };
     return make_model(g, outputs, o);
 }
@@ -401,7 +408,7 @@ protected:
         comparator.enable(FunctionsComparator::CONST_VALUES);
         manager.register_pass<pass::RoPEFusion>(true);
         manager.register_pass<pass::RMSFusion>(false, true);
-        manager.register_pass<pass::FuseQSAIndexer>();
+        manager.register_pass<pass::FuseQSAIndexer>(GetParam().padding);
         manager.register_pass<pass::FuseQSAIndexerQuery>();
     }
 };
@@ -460,6 +467,22 @@ const std::vector<GraphOptions> fused_cases{
          [](GraphOptions& o) {
              o.extra_query_consumer = true;
          }),
+    with("no_padding",
+         [](GraphOptions& o) {
+             o.padding = false;
+         }),
+    with("no_padding_oversized_cache_passes_through",
+         [](GraphOptions& o) {
+             o.padding = false;
+             o.cache_blocks = 3;
+             o.key_length_values = {8, 6};
+             o.extra_state_consumers = true;
+         }),
+    with("no_padding_dynamic_batch_and_sequence",
+         [](GraphOptions& o) {
+             o.padding = false;
+             o.dynamic_shapes = true;
+         }),
 };
 
 INSTANTIATE_TEST_SUITE_P(FuseQSAIndexer,
@@ -484,7 +507,7 @@ TEST_F(TransformationTestsF, FuseQSAIndexerLeavesQueryAndOtherNonAffineRMSNormUn
     comparator.enable(FunctionsComparator::ATTRIBUTES);
     comparator.enable(FunctionsComparator::CONST_VALUES);
     disable_result_friendly_names_check();
-    manager.register_pass<pass::FuseQSAIndexer>();
+    manager.register_pass<pass::FuseQSAIndexer>(true);
 }
 
 TEST_F(TransformationTestsF, FuseQSAIndexerLeavesCanonicalQueryUnchanged) {
@@ -495,18 +518,18 @@ TEST_F(TransformationTestsF, FuseQSAIndexerLeavesCanonicalQueryUnchanged) {
     comparator.enable(FunctionsComparator::ATTRIBUTES);
     comparator.enable(FunctionsComparator::CONST_VALUES);
     disable_result_friendly_names_check();
-    manager.register_pass<pass::FuseQSAIndexer>();
+    manager.register_pass<pass::FuseQSAIndexer>(true);
 }
 
 TEST_F(TransformationTestsF, FuseQSAIndexerHonorsDisabledPass) {
     model = getModel(GraphOptions{});
-    manager.register_pass<pass::FuseQSAIndexer>();
+    manager.register_pass<pass::FuseQSAIndexer>(true);
     manager.get_pass_config()->disable<pass::FuseQSAIndexer>();
 }
 
 TEST_F(TransformationTestsF, FuseQSAIndexerHonorsCallback) {
     model = getModel(GraphOptions{});
-    manager.register_pass<pass::FuseQSAIndexer>();
+    manager.register_pass<pass::FuseQSAIndexer>(true);
     manager.get_pass_config()->set_callback<pass::FuseQSAIndexer>([](const std::shared_ptr<const Node>&) {
         return true;
     });

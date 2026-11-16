@@ -917,6 +917,7 @@ void TransformationsPipeline::apply_activation_scaling_transformations(const std
     manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMovScalar>(allowed_data_movement_ops);
 
     manager.register_pass<ov::pass::RoPEFusion>(true);
+    manager.register_pass<ov::pass::FuseQSAIndexer>(true);
     manager.register_pass<ov::pass::FuseQSAIndexerQuery>();
     manager.register_pass<ov::intel_gpu::FuseRoPEInputDeinterleave>();
     pass_config->disable<ov::pass::RoPEFusionGPTJ>();
