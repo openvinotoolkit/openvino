@@ -243,7 +243,9 @@ bool batch_replicated_branches(const std::shared_ptr<ov::op::v0::Concat>& output
     auto batched_shape = branch_shape;
     batched_shape[0] = replica_count;
 
-    OPENVINO_ASSERT(batched.get_shape() == batched_shape, "Unexpected shape of the batched branch: ", batched.get_shape());
+    // The model is not modified yet, so skipping leaves it intact
+    if (batched.get_shape() != batched_shape)
+        return false;
 
     // Restore the Concat layout, e.g. for axis 3: [N, C, H, W] -> [C, H, N, W] -> [1, C, H, N * W]
     const auto rank = branch_shape.size();
