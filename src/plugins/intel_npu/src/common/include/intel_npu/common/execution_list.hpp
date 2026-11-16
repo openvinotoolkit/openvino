@@ -49,7 +49,11 @@ public:
  */
 class IExecutionListFactory {
 public:
-    virtual std::shared_ptr<IExecutionList> create_execution_list() = 0;
+    /**
+     * @param queue_owner Lists created with the same non-null owner submit on one shared command queue; with
+     * nullptr the list gets a queue of its own. The queue is not shared with the graphs' own queues either way.
+     */
+    virtual std::shared_ptr<IExecutionList> create_execution_list(const void* queue_owner = nullptr) = 0;
 
     virtual ~IExecutionListFactory() = default;
 };

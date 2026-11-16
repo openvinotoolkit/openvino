@@ -17,7 +17,8 @@ namespace {
 // Maps the requests the application holds to the plugin's requests and keeps them alive while they are in the list
 class ExecutionList final : public IExecutionList {
 public:
-    explicit ExecutionList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs) : _list(init_structs) {}
+    ExecutionList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const void* queue_owner)
+        : _list(init_structs, queue_owner) {}
 
     void append(const std::shared_ptr<ov::IAsyncInferRequest>& request) override {
         const auto async_request = std::dynamic_pointer_cast<AsyncInferRequest>(request);
@@ -143,8 +144,8 @@ const std::string& RemoteContextImpl::get_device_name() const {
     return _device_name;
 }
 
-std::shared_ptr<IExecutionList> RemoteContextImpl::create_execution_list() {
-    return std::make_shared<ExecutionList>(_init_structs);
+std::shared_ptr<IExecutionList> RemoteContextImpl::create_execution_list(const void* queue_owner) {
+    return std::make_shared<ExecutionList>(_init_structs, queue_owner);
 }
 
 std::shared_ptr<ov::IRemoteContext> RemoteContextImpl::get_this_shared_ptr() {

@@ -61,7 +61,7 @@ public:
      * @brief Proof of concept, see docs/execution-list-proposal.md.
      * Creates a list that submits requests created from compiled models of this context as a single command list.
      */
-    std::shared_ptr<IExecutionList> create_execution_list() override;
+    std::shared_ptr<IExecutionList> create_execution_list(const void* queue_owner) override;
 
 private:
     std::shared_ptr<ov::IRemoteContext> get_this_shared_ptr();

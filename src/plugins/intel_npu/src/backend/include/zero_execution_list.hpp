@@ -24,7 +24,8 @@ namespace intel_npu {
  */
 class ZeroExecutionList {
 public:
-    explicit ZeroExecutionList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs);
+    // Lists with the same non-null queue_owner share one command queue; nullptr gives the list its own
+    ZeroExecutionList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const void* queue_owner = nullptr);
 
     ZeroExecutionList(const ZeroExecutionList&) = delete;
     ZeroExecutionList& operator=(const ZeroExecutionList&) = delete;
@@ -49,6 +50,7 @@ private:
     void update_arguments();
 
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
+    const void* _queue_owner;
     std::vector<Member> _members;
 
     std::shared_ptr<CommandQueue> _command_queue;

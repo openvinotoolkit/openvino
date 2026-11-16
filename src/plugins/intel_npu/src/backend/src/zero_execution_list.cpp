@@ -28,8 +28,10 @@ unsigned long long to_ull(uint64_t value) {
 
 namespace intel_npu {
 
-ZeroExecutionList::ZeroExecutionList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs)
+ZeroExecutionList::ZeroExecutionList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                                     const void* queue_owner)
     : _init_structs(init_structs),
+      _queue_owner(queue_owner != nullptr ? queue_owner : this),
       _logger("ZeroExecutionList", Logger::global().level()) {
     OPENVINO_ASSERT(_init_structs != nullptr, "Execution list requires an initialized NPU device");
 }
@@ -50,16 +52,28 @@ void ZeroExecutionList::append(const std::shared_ptr<ZeroInferRequest>& request)
     OPENVINO_ASSERT(!graph->get_batch_size().has_value() || *graph->get_batch_size() == 1,
                     "Execution list doesn't support batching handled by the plugin");
 
-    const auto command_queue_desc = graph->get_command_queue_desc();
+    // The list submits on a queue of its own (or of its queue owner), so its members may come from different graphs
+    // (each graph has its own queue unless NPU_SHARED_COMMON_QUEUE is set). The barriers in the list order the
+    // executions, so the in-order option of a member's queue is not needed.
+    const auto member_desc = graph->get_command_queue_desc();
+    const auto list_options = member_desc.options() & ~static_cast<uint32_t>(ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC);
     if (_command_queue == nullptr) {
-        _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, command_queue_desc);
-        _logger.debug("append - command queue %p, options %#x, mutable command list ext version %u.%u",
-                      static_cast<void*>(_command_queue->handle()),
-                      command_queue_desc.options(),
-                      ZE_MAJOR_VERSION(_init_structs->getMutableCommandListExtVersion()),
-                      ZE_MINOR_VERSION(_init_structs->getMutableCommandListExtVersion()));
+        const CommandQueueDesc list_desc(member_desc.priority(),
+                                         member_desc.workload(),
+                                         list_options,
+                                         _queue_owner,
+                                         false);
+        _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, list_desc);
+        _logger.info("append - command queue %p (owner %p), options %#x, mutable command list ext version %u.%u",
+                     static_cast<void*>(_command_queue->handle()),
+                     _queue_owner,
+                     list_options,
+                     ZE_MAJOR_VERSION(_init_structs->getMutableCommandListExtVersion()),
+                     ZE_MINOR_VERSION(_init_structs->getMutableCommandListExtVersion()));
     } else {
-        OPENVINO_ASSERT(command_queue_desc.key() == _command_queue->desc().key(),
+        const auto& list_desc = _command_queue->desc();
+        OPENVINO_ASSERT(member_desc.priority() == list_desc.priority() && member_desc.workload() == list_desc.workload() &&
+                            list_options == list_desc.options(),
                         "All requests of an execution list must use the same command queue settings (priority, "
                         "turbo, workload type)");
     }
@@ -182,7 +196,10 @@ void ZeroExecutionList::update_arguments() {
     }
 
     if (updated > 0) {
-        _logger.debug("update_arguments - %zu arguments updated", updated);
+        // INFO (not DEBUG): a submission that patches the recorded commands is the prime suspect for device losses
+        _logger.info("update_arguments - before submission %llu: %zu arguments updated in the recorded command list",
+                     to_ull(_submissions + 1),
+                     updated);
     }
 }
 
