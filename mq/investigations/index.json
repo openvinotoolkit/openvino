@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 457,
+  "total": 458,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -5000,6 +5000,17 @@
       "category": "Flaky Test",
       "signature_hash": "43e136cf67333978",
       "pr_number": "39616"
+    },
+    {
+      "investigation_id": "2026-11-16-16-54-14-917-43897852365",
+      "run_id": "43897852365",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43897852365",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-11-16T16:54:14Z",
+      "title": "smoke_ScatterUpdateGeneralPathOutOfRangeIndices tests fail - reference plugin doesn't throw on out-of-range indices",
+      "category": "Code Issue",
+      "signature_hash": "e746e8e11c0fe156",
+      "pr_number": "39833"
     }
   ]
 }
