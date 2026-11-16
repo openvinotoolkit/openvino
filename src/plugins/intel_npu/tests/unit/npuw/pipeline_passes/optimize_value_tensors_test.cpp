@@ -147,8 +147,9 @@ TEST(OptimizeValueTensorsSinkTest, MatchesStandardDecompositionForSinkAndMasks) 
                 for (size_t input_idx = 0; input_idx < inputs.size(); ++input_idx) {
                     auto& tensor = inputs[input_idx];
                     for (size_t index = 0; index < tensor.get_size(); ++index) {
-                        const float number =
-                            input_idx == 4 ? 0.25f : static_cast<float>(static_cast<int>(index % 11) - 5) / 8.0f;
+                        const float number = input_idx == 4
+                                                 ? (per_query_sink ? -0.3f : 0.3f)
+                                                 : static_cast<float>(static_cast<int>(index % 11) - 5) / 8.0f;
                         if (tensor.get_element_type() == ov::element::boolean) {
                             tensor.data<bool>()[index] = index % 4 != 0;
                         } else if (tensor.get_element_type() == ov::element::f16) {
