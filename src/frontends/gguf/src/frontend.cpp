@@ -121,6 +121,7 @@ std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
         TranslateSession translate_session(conversion_input, ops, m_impl->transformation_extensions);
         converted_model = translate_session.get_converted_model();
     }
+    // TODO: Remove this compatibility path once GenAI no longer uses GenAIExtension.
     if (const auto& genai = m_impl->genai_extension) {
         FRONT_END_GENERAL_CHECK(!converted_model->has_rt_info("gguf_mmproj"),
                                 "GenAIExtension requires a GGUF decoder with adaptable inputs");
