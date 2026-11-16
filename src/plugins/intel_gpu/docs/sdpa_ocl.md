@@ -2893,8 +2893,13 @@ The rank-3 move above was measured on the B70 only, so `sdpa_ocl_plain_3d_ok()` 
   `smoke_ScaledAttnStatic_GPU` cases that `skip_tests_config.cpp` disabled on every device with immad, and 2 bf16 ones it disabled on
   Xe2 and newer (those four entries are removed since: all 192 cases of the group pass on the B70 with the skips off). The committed tree
   (`9bab9594c2`, the same command, no switch, so the widened predicate is the shipped one) on PTL-H: 2253 tests from 11 suites, 2253 passed,
-  none skipped, none failed (550 s); the same command on LNL (`9bab9594c2`): 2253 passed, none skipped, none failed (the run time was not recorded). Not run: the full unit and func suites on the B70 after
-  this change. Control: with the previous predicate (`arch == xe2` and a discrete GPU) `Plain3dOkTruthTable` fails on exactly the five
+  none skipped, none failed (550 s); the same command on LNL (`9bab9594c2`): 2253 passed, none skipped, none failed (the run time was not recorded). B70 on the same code (`--device_suffix=1`, 2026-11-16): unit
+  `--gtest_filter='*sdpa*:*SDPA*:*Sdpa*:*paged_attention*:*PagedAttention*'` 2102 tests, 2057 passed, 40 skipped, 5 failed, the five being
+  `SdpaOclHpg.OverrideIsCheckedAgainstTheDevice` and `smoke_paged_attention_comp_tm` 31, 32, 47 and 49 (the cases of "Known issues"); func in
+  three processes (the five groups above 2253 of 2253 passed; `*SDPAWithKVCache*:*gqa*:*GQA*:*kv_cache*` 135 of 135; the rest of
+  `*sdpa*:*SDPA*:*Sdpa*:*SDPATransposeFusion*:*transpose_fusion*` 33 passed, 19 skipped), none failed. Not run: the full suites on a GPU without XMX. There 19 of the 22
+  `GQAQuantizedKVCache` cases (attention output a few elements over the tolerance) and the four `GQATransposedVCache` `qk_output` cases (a
+  crash in `infer()`) fail, identically with the 11-14 plugin, so not from this change; open, cause not found. Control: with the previous predicate (`arch == xe2` and a discrete GPU) `Plain3dOkTruthTable` fails on exactly the five
   rows where the two differ (xe2 integrated, xe3 and xe3p both device types) and the other four tests still pass.
 
 ## Known issues
