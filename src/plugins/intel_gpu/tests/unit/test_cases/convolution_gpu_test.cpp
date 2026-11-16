@@ -5403,7 +5403,9 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                              convolution_yxfb_yxio_b16_params{data_types::f16, 64, 8, 32, false},
                              convolution_yxfb_yxio_b16_params{data_types::f32, 32, 3, 16, true},
                              convolution_yxfb_yxio_b16_params{data_types::f32, 32, 4, 24, true},
-                             convolution_yxfb_yxio_b16_params{data_types::f32, 64, 4, 32, false}),
+                             convolution_yxfb_yxio_b16_params{data_types::f32, 64, 4, 32, false},
+                             convolution_yxfb_yxio_b16_params{data_types::f32, 32, 8, 24, true},
+                             convolution_yxfb_yxio_b16_params{data_types::f32, 64, 8, 32, false}),
                          convolution_yxfb_yxio_b16_accuracy::get_test_name);
 
 TEST(convolution_yxfb_yxio_b16, f32_ofm_not_multiple_of_ofm_per_work_item_is_rejected) {

@@ -8,6 +8,7 @@
 #include "include/batch_headers/fetch_data.cl"
 #include "include/sub_group.cl"
 
+REQD_SUB_GROUP_SIZE(16)
 KERNEL(convolution_gpu_yxfb_yxio_b16)(
     const __global float* input,
     __global UNIT_TYPE* output,
