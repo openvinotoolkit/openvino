@@ -427,7 +427,6 @@ def decode_only_worker(args) -> list[dict]:
     ir = "openvino_language_model.xml" if is_vlm_layout(model_dir) else "openvino_model.xml"
     model = core.read_model(str(model_dir / ir))
     t0 = time.perf_counter()
-    # CACHE_DIR="" (see optimum_worker): the blob cache key ignores OV_MEGAKERNEL_DISABLE.
     compiled = core.compile_model(model, args.device, {"CACHE_DIR": ""})
     compile_s = time.perf_counter() - t0
     feeder = Feeder(core, model, model_dir, args.device)

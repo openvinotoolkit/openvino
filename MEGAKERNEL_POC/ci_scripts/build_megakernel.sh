@@ -26,8 +26,6 @@ main() {
         "openvino-tokenizers==${tokenizers_version}" \
         --force-reinstall --no-deps
     if [[ ! -d "${model_dir}" ]]; then
-        # Export next to the target and rename, so a killed export never leaves a half-written IR.
-        # shellcheck disable=SC2086  # EXPORT_ARGS is a list of CLI flags
         python "${repo_root}/MEGAKERNEL_POC/python/convert_to_openvino_ir.py" --overwrite \
             --model-id "${model_id}" --output-dir "${model_dir}.partial" ${EXPORT_ARGS:-}
         mv "${model_dir}.partial" "${model_dir}"
