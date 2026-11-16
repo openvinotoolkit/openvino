@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "npuw_transformations/add_position_ids_param.hpp"
-
 #include <gtest/gtest.h>
 
 #include <cmath>
@@ -15,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "npuw_transformations/add_position_ids_param.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/concat.hpp"

@@ -42,7 +42,8 @@ std::shared_ptr<ov::Node> expand_mask(const ov::Output<ov::Node>& mask) {
     return std::make_shared<ov::op::v0::Unsqueeze>(batch, i64_scalar(1));
 }
 
-// The attention masks of an LFM3 export (optimum-intel, transformers 5.20), shared by all layers:
+// Distance-based attention masks, as exported for LFM3 (optimum-intel, transformers 5.20) and shared by all
+// layers:
 //
 //   Q = Range(past_kv_len, past_kv_len + seq_len) as [seq, 1], K = Range(0, total_seq) as [1, total_seq]
 //   full    = Select(!(K <= Q && key_valid), fill, 0)
@@ -50,7 +51,7 @@ std::shared_ptr<ov::Node> expand_mask(const ov::Output<ov::Node>& mask) {
 //
 // Q is a position in the static KV buffer: past tokens are left-aligned at [0, past_kv_len), the current
 // chunk is right-aligned after them. past_kv_len is taken from the shape of the past key.
-struct Lfm3MaskModel {
+struct DistanceMaskModel {
     std::shared_ptr<ov::Model> model;
     std::shared_ptr<ov::op::v0::Parameter> input_ids;
     std::shared_ptr<ov::op::v0::Parameter> attention_mask;
@@ -67,8 +68,8 @@ std::shared_ptr<ov::op::v0::Parameter> make_param(ov::element::Type type,
     return param;
 }
 
-Lfm3MaskModel build_lfm3_mask_model(int64_t window = kWindow) {
-    Lfm3MaskModel r;
+DistanceMaskModel build_distance_mask_model(int64_t window = kWindow) {
+    DistanceMaskModel r;
     r.input_ids = make_param(ov::element::i64, ov::PartialShape{1, -1}, "input_ids");
     r.attention_mask = make_param(ov::element::i64, ov::PartialShape{1, -1}, "attention_mask");
     r.past_key = make_param(ov::element::f32, ov::PartialShape{1, 4, -1, 8}, "past_key_values.0.key");
@@ -115,7 +116,7 @@ Lfm3MaskModel build_lfm3_mask_model(int64_t window = kWindow) {
     r.model =
         std::make_shared<ov::Model>(ov::ResultVector{sliding_result, full_result},
                                     ov::ParameterVector{r.input_ids, r.attention_mask, r.past_key, r.position_ids},
-                                    "lfm3_mask");
+                                    "distance_mask");
     return r;
 }
 
@@ -126,7 +127,7 @@ struct StaticInputs {
 };
 
 // Evaluates {sliding, full} masks, each flattened [seq_len, total_seq].
-std::vector<std::vector<float>> evaluate(const Lfm3MaskModel& m, const StaticInputs& in) {
+std::vector<std::vector<float>> evaluate(const DistanceMaskModel& m, const StaticInputs& in) {
     const size_t seq_len = in.position_ids.size();
     const size_t total = in.attention_mask.size();
     ov::Tensor input_ids(ov::element::i64, ov::Shape{1, seq_len});
@@ -224,8 +225,8 @@ void expect_rows_eq(const std::vector<float>& actual,
 }  // namespace
 
 // Without the patch, Q is the static past length: every left-aligned past token is out of the window.
-TEST(Lfm3SlidingMaskTest, UnpatchedMaskDropsHistory) {
-    auto m = build_lfm3_mask_model();
+TEST(DistanceSlidingMaskTest, UnpatchedMaskDropsHistory) {
+    auto m = build_distance_mask_model();
     const auto in = generate_step();
     const auto sliding = evaluate(m, in)[0];
     for (size_t k = 0; k < 6; ++k) {
@@ -233,38 +234,38 @@ TEST(Lfm3SlidingMaskTest, UnpatchedMaskDropsHistory) {
     }
 }
 
-TEST(Lfm3SlidingMaskTest, PatchFires) {
-    auto m = build_lfm3_mask_model();
+TEST(DistanceSlidingMaskTest, PatchFires) {
+    auto m = build_distance_mask_model();
     EXPECT_TRUE(ov::npuw::PatchSlidingWindowMask().run_on_model(m.model));
     EXPECT_NO_THROW(m.model->validate_nodes_and_infer_types());
 }
 
-TEST(Lfm3SlidingMaskTest, GenerateStepUsesTemporalPositionsForHistory) {
-    auto m = build_lfm3_mask_model();
+TEST(DistanceSlidingMaskTest, GenerateStepUsesTemporalPositionsForHistory) {
+    auto m = build_distance_mask_model();
     ASSERT_TRUE(ov::npuw::PatchSlidingWindowMask().run_on_model(m.model));
     const auto in = generate_step();
     expect_rows_eq(evaluate(m, in)[0], reference_sliding_mask(in), in, /*only_valid_rows=*/false);
 }
 
-TEST(Lfm3SlidingMaskTest, PrefillChunkUsesTemporalPositionsForHistory) {
-    auto m = build_lfm3_mask_model();
+TEST(DistanceSlidingMaskTest, PrefillChunkUsesTemporalPositionsForHistory) {
+    auto m = build_distance_mask_model();
     ASSERT_TRUE(ov::npuw::PatchSlidingWindowMask().run_on_model(m.model));
     const auto in = prefill_chunk();
     expect_rows_eq(evaluate(m, in)[0], reference_sliding_mask(in), in, /*only_valid_rows=*/false);
 }
 
 // The full attention mask shares the causal/padding Select with the sliding one and must stay as it is.
-TEST(Lfm3SlidingMaskTest, FullAttentionMaskIsUnchanged) {
-    auto original = build_lfm3_mask_model();
-    auto patched = build_lfm3_mask_model();
+TEST(DistanceSlidingMaskTest, FullAttentionMaskIsUnchanged) {
+    auto original = build_distance_mask_model();
+    auto patched = build_distance_mask_model();
     ASSERT_TRUE(ov::npuw::PatchSlidingWindowMask().run_on_model(patched.model));
     for (const auto& in : {generate_step(), prefill_chunk()}) {
         expect_rows_eq(evaluate(patched, in)[1], evaluate(original, in)[1], in, /*only_valid_rows=*/false);
     }
 }
 
-TEST(Lfm3SlidingMaskTest, ReapplyIsNoOp) {
-    auto m = build_lfm3_mask_model();
+TEST(DistanceSlidingMaskTest, ReapplyIsNoOp) {
+    auto m = build_distance_mask_model();
     ASSERT_TRUE(ov::npuw::PatchSlidingWindowMask().run_on_model(m.model));
     const auto ops_after_first = m.model->get_ops().size();
     EXPECT_FALSE(ov::npuw::PatchSlidingWindowMask().run_on_model(m.model));
@@ -272,7 +273,7 @@ TEST(Lfm3SlidingMaskTest, ReapplyIsNoOp) {
 }
 
 // A non-positive window is not a sliding window: leave the mask alone.
-TEST(Lfm3SlidingMaskTest, IgnoresNonPositiveWindow) {
-    auto m = build_lfm3_mask_model(/*window=*/0);
+TEST(DistanceSlidingMaskTest, IgnoresNonPositiveWindow) {
+    auto m = build_distance_mask_model(/*window=*/0);
     EXPECT_FALSE(ov::npuw::PatchSlidingWindowMask().run_on_model(m.model));
 }

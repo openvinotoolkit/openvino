@@ -145,16 +145,23 @@ bool is_zero_scalar_constant(const ov::Output<ov::Node>& output) {
     return !values.empty() && values.front() == 0;
 }
 
-class Lfm3SlidingMaskMatcher : public ov::pass::MatcherPass {
+class DistanceSlidingMaskMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::patterns::Lfm3SlidingMaskMatcher");
+    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::patterns::DistanceSlidingMaskMatcher");
 
-    Lfm3SlidingMaskMatcher(const std::shared_ptr<ov::Node>& attention_mask,
-                           const std::shared_ptr<ov::Node>& position_ids) {
-        // LFM3 exports a negative (forget) mask inside two Selects:
-        // Select(!(K <= Q && key_valid), fill, Select(Q - K >= window, fill, 0)).
-        // Q is a physical cache position, NOT a temporal position_id. Keep it
-        // for the causal bound and for keys in the right-aligned current chunk.
+    DistanceSlidingMaskMatcher(const std::shared_ptr<ov::Node>& attention_mask,
+                               const std::shared_ptr<ov::Node>& position_ids) {
+        // Sliding window mask built from the query-key distance, nested in the causal/padding mask, as
+        // emitted by optimum-intel exports that keep the window extractable for SDPAToPagedAttention
+        // (ex.: LFM3):
+        //
+        //   Q = Range(past_kv_len, past_kv_len + seq_len) as [seq, 1], K = Range(0, total_seq) as [1, total_seq]
+        //   Select(!(K <= Q && key_valid), fill, Select(Q - K >= window, fill, 0))
+        //
+        // With static KV buffers Q is a physical cache position, NOT a temporal position_id. Past tokens are
+        // left-aligned in the buffer, so all of them end up out of the window and SWA layers drop the whole
+        // history. Measure the distance to past keys from position_ids instead. Keep Q for the causal bound and
+        // for keys of the current chunk, which is contiguous at the right end of the buffer.
         auto integer = [](int64_t value) {
             return opp::wrap_type<ov::op::v0::Constant>([value](const ov::Output<ov::Node>& output) {
                 auto c = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
@@ -217,8 +224,8 @@ public:
             // longer than a window. Do not replace the shared Q/K ranges.
             auto mapped_forget = std::make_shared<ov::op::v1::Select>(is_history, forget_history, values.at(forget));
 
-            // Padded query rows must not gain access to history, even if their
-            // position_ids are zero or repeat a real token's position.
+            // The outputs of padded query rows are discarded. Mask them out fully, so that they do not depend on
+            // whatever position_ids holds for the padding.
             auto vector = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
             auto start = std::make_shared<ov::op::v1::Reshape>(values.at(past_len), vector, false);
             auto stop = std::make_shared<ov::op::v1::Reshape>(values.at(mask_len), vector, false);
@@ -232,10 +239,11 @@ public:
             // Change only the inner condition; preserve both fill values and
             // the outer causal/key-padding Select, also shared by full attention.
             values.at(sliding_select).get_node_shared_ptr()->input(0).replace_source_output(heads);
-            LOG_INFO("LFM3 sliding window attention mask pattern found and patched.");
+            LOG_INFO("Distance-based sliding window attention mask pattern found and patched.");
             return true;
         };
-        register_matcher(std::make_shared<opp::Matcher>(mask_select, "Lfm3SlidingMaskMatcher"), std::move(callback));
+        register_matcher(std::make_shared<opp::Matcher>(mask_select, "DistanceSlidingMaskMatcher"),
+                         std::move(callback));
     }
 };
 
@@ -772,7 +780,7 @@ bool SlidingWindowMask::run_on_model(const std::shared_ptr<ov::Model>& model) {
     ov::pass::Manager manager;
     manager.set_per_pass_validation(true);
     const auto rewriter = manager.register_pass<ov::pass::GraphRewrite>();
-    rewriter->add_matcher<Lfm3SlidingMaskMatcher>(attention_mask_node_ptr, position_ids_node_ptr);
+    rewriter->add_matcher<DistanceSlidingMaskMatcher>(attention_mask_node_ptr, position_ids_node_ptr);
     rewriter->add_matcher<Gemma4SlidingMaskMatcher>(attention_mask_node_ptr, position_ids_node_ptr);
     rewriter->add_matcher<Gemma4UnifiedSlidingMaskMatcher>(attention_mask_node_ptr, position_ids_node_ptr);
     rewriter->add_matcher<Phi3SlidingMaskMatcher>(attention_mask_node_ptr, position_ids_node_ptr);
