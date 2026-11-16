@@ -33,7 +33,10 @@ enum class MoEConstantRole {
 /// Checks if an op is an OTD-capable MOE node (MOECompressed with GEMM3_SWIGLU).
 bool is_otd_capable_moe(const ov::Node* node);
 
-bool is_moe_otd_eligible(const ov::Node* node);
+/// Whether the routed weights of a MoE layer can be streamed from the weights file (if not, why, in `reason`).
+/// The layers sharing routed weights with it must be eligible too.
+bool is_moe_otd_eligible(const ov::Node* node, std::string* reason = nullptr);
+/// Whether the constant is a routed weight of eligible MoE layers only, i.e. partially uploaded when OFFLOAD_RATIO > 0.
 bool is_moe_constant_offloadable(const std::shared_ptr<ov::op::v0::Constant>& op);
 
 /// Determines the role of a Constant feeding into MOECompressed.

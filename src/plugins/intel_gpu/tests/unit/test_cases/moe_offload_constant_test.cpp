@@ -27,9 +27,9 @@ static std::shared_ptr<ov::op::v0::Constant> make_file_backed_const(ov::element:
     const auto byte_size = ov::util::get_memory_size(type, ov::shape_size(shape));
     auto weights_file = std::make_shared<ov::AlignedBuffer>(byte_size);
     auto view = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(weights_file->get_ptr<char>(),
-                                                                                        byte_size,
-                                                                                        weights_file,
-                                                                                        ov::create_base_descriptor(1, 0, weights_file));
+                                                                                       byte_size,
+                                                                                       weights_file,
+                                                                                       ov::create_base_descriptor(1, 0, weights_file));
     return std::make_shared<ov::op::v0::Constant>(type, shape, view);
 }
 
@@ -368,9 +368,8 @@ PartialUploadDesc prepare_partial_upload(const std::shared_ptr<ov::op::v0::Const
     auto config = tests::get_test_default_config(engine);
     config.set_property(ov::intel_gpu::offload_ratio(offload_ratio));
     const auto shape = constant->get_output_shape(0);
-    const auto layout = cldnn::layout(shape,
-                                      cldnn::element_type_to_data_type(constant->get_output_element_type(0)),
-                                      cldnn::format::get_default_format(shape.size()));
+    const auto layout =
+        cldnn::layout(shape, cldnn::element_type_to_data_type(constant->get_output_element_type(0)), cldnn::format::get_default_format(shape.size()));
     return try_prepare_partial_upload(engine, config, constant, shape, layout.data_type, layout.format, layout);
 }
 }  // namespace
@@ -467,19 +466,17 @@ TEST(moe_offload_constant, weights_file_offset_is_checked_against_the_file) {
     auto weights_file = std::make_shared<ov::AlignedBuffer>(file_data.size());
     std::copy(file_data.begin(), file_data.end(), weights_file->get_ptr<char>());
     auto view = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(weights_file->get_ptr<char>() + offset,
-                                                                                        size,
-                                                                                        weights_file,
-                                                                                        ov::create_base_descriptor(1, 0, weights_file));
+                                                                                       size,
+                                                                                       weights_file,
+                                                                                       ov::create_base_descriptor(1, 0, weights_file));
     const ov::op::v0::Constant constant(ov::element::u8, ov::Shape{size}, view);
     EXPECT_EQ(get_weights_file_offset(constant, path), offset);
 
     // The same bytes read without mmap into a buffer of their own: the offset is in the IR attribute
     auto region = std::make_shared<ov::AlignedBuffer>(size);
     std::copy_n(file_data.begin() + offset, size, region->get_ptr<char>());
-    auto region_view = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(region->get_ptr<char>(),
-                                                                                               size,
-                                                                                               region,
-                                                                                               ov::create_base_descriptor(2, 0, region));
+    auto region_view =
+        std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(region->get_ptr<char>(), size, region, ov::create_base_descriptor(2, 0, region));
     ov::op::v0::Constant read_constant(ov::element::u8, ov::Shape{size}, region_view);
     OV_EXPECT_THROW(get_weights_file_offset(read_constant, path), ov::Exception, testing::HasSubstr("cannot be located"));
     read_constant.get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] = ov::WeightlessCacheAttribute(size, offset, ov::element::u8);
@@ -514,5 +511,24 @@ TEST(moe_offload_constant, resident_estimate_counts_scale_and_zero_point_slots) 
         }
         // Ratio 50 keeps 2 of the 4 experts: half of the weights go, half of the per-expert scales and zero points come as slots
         EXPECT_EQ(get_model_resident_constant_bytes(model, 0) - get_model_resident_constant_bytes(model, 50), weights / 2 - params / 2);
+    }
+}
+
+// Layers sharing a routed weight read the same partially uploaded constant: one that stays resident keeps the other resident too
+TEST(moe_offload_constant, layer_sharing_weights_with_a_resident_layer_stays_resident) {
+    auto first = MoETestGraph::build();
+    auto second = MoETestGraph::build();
+    second.moe_node->input(3).replace_source_output(first.constants[0]);
+    const auto& up_weight = second.constants[3];
+    second.moe_node->input(6).replace_source_output(std::make_shared<ov::op::v0::Constant>(up_weight->get_element_type(), up_weight->get_shape(), 0));
+
+    std::string reason;
+    EXPECT_FALSE(is_moe_otd_eligible(first.moe_node.get(), &reason));
+    EXPECT_EQ(reason, "the routed weights are not unmodified views of the weights file");
+    EXPECT_EQ(get_moe_offload_slot_count(*first.moe_node, 50), 0U);
+    EXPECT_EQ(get_moe_offload_slot_count(*second.moe_node, 50), 0U);
+    for (const auto& constant : {first.constants[0], first.constants[3], second.constants[6]}) {
+        EXPECT_FALSE(is_moe_constant_offloadable(constant));
+        EXPECT_FALSE(prepare_partial_upload(constant, 50).enabled);
     }
 }
