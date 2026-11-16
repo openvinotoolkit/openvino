@@ -4183,8 +4183,8 @@ TEST(constant_folding, loop_with_node_which_has_no_evaluate) {
 
 TEST_F(TransformationTestsF, ConstantFoldingNodeWithDynamicTypeConstantInput) {
     // FullyConnected without bias gets an empty Constant of dynamic type as its bias input.
-    // With constant activations and weights, all its inputs are constants, but the dynamic type
-    // one cannot be wrapped in a tensor, so the node must be skipped instead of throwing.
+    // With constant activations and weights, all its inputs are constants. The dynamic type one
+    // cannot be wrapped in a tensor, and folding must not throw because of it.
     {
         auto activations = op::v0::Constant::create(element::i8, Shape{3, 4}, {1});
         auto weights = op::v0::Constant::create(element::i8, Shape{5, 4}, {1});
