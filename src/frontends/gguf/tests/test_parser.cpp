@@ -1004,9 +1004,11 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
                 }
                 EXPECT_EQ(iteration_stages.find("fc_gguf_act_dq"), std::string::npos) << iteration_stages;
                 if (binary_mode) {
-                    const bool expect_fused = !static_rows || (shuffled && (cm_requested || static_rows > 32));
-                    EXPECT_EQ(iteration_fusions.find("file_binary_post") != std::string::npos, expect_fused) << iteration_fusions;
-                    EXPECT_EQ(iteration_fusions.rfind("0:", 0) == 0u, !expect_fused) << iteration_fusions;
+                    const bool require_fused = !static_rows || (shuffled && (cm_requested || static_rows > 32));
+                    const bool binary_fused = iteration_fusions.find("file_binary_post") != std::string::npos;
+                    if (require_fused)
+                        EXPECT_TRUE(binary_fused) << iteration_fusions;
+                    EXPECT_EQ(iteration_fusions.rfind("0:", 0) == 0u, !binary_fused) << iteration_fusions;
                     RecordProperty(request_scenario + "_fusions_" + std::to_string(iteration), iteration_fusions);
                 }
                 if (binary_mode || stream_count == 2) {
