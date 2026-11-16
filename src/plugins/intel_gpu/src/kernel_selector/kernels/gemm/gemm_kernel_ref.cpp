@@ -99,15 +99,12 @@ JitConstants GemmKernelRef::GetJitConstants(const gemm_params& params) const {
         auto input_dt = GetActivationType(params);
         // Output dims above 4D (w, z) must reach the fused-op index, otherwise a fused eltwise input always reads w = z = 0.
         const auto out_rank = DataTensor::ChannelsCount(params.outputs[0].GetLayout());
-        std::vector<std::string> idx_order = {"b", "f"};
-        if (out_rank >= 6) {
-            idx_order.push_back("w");
+        std::vector<std::string> idx_order = {"b", "f", "y", "x"};
+        if (out_rank == 6) {
+            idx_order = {"b", "f", "w", "z", "y", "x"};
+        } else if (out_rank == 5) {
+            idx_order = {"b", "f", "z", "y", "x"};
         }
-        if (out_rank >= 5) {
-            idx_order.push_back("z");
-        }
-        idx_order.push_back("y");
-        idx_order.push_back("x");
         FusedOpsConfiguration conf = { "", idx_order, "dequantized", input_dt, 1 };
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }

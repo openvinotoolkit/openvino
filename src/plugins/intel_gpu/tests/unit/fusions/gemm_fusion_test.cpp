@@ -495,7 +495,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_add, ::testing::ValuesIn(std::vec
 class gemm_2in_add_nd_rand : public GemmFusingTest {
 public:
     void run(gemm_test_params& p, const std::string& impl_name, bool is_dynamic) {
-        ov::intel_gpu::ImplementationDesc gemm_ocl_impl = { cldnn::format::type::any, impl_name, impl_types::ocl };
+        // An empty name would let the selector fall back to gemm_ref and leave tiled_opt untested.
+        ov::intel_gpu::ImplementationDesc gemm_ocl_impl = { cldnn::format::type::any, impl_name.empty() ? "gemm_tiled_opt" : impl_name, impl_types::ocl };
         cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "gemm_prim", gemm_ocl_impl } }));
 
         auto in_layout0 = get_input_layout(p, 0);
