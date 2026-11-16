@@ -93,6 +93,7 @@ private:
     size_t m_window_capacity = 0;                     //!< allocated capacity of m_window in bytes
     size_t m_bypass_size = default_native_threshold;  //!< minimum read size that bypasses the window
     char* m_window = nullptr;                         //!< window buffer backing the get-area; null until first use
+    size_t m_fill_hint = 64 * 1024;                   //!< next window fill size; reset on seek, doubles per sequential fill
 };
 
 }  // namespace ov::util

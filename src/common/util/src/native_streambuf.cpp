@@ -17,6 +17,7 @@
 
 namespace ov::util {
 
+
 namespace {
 // Window size must be a multiple of the system page size.
 constexpr size_t window_alignment = min_page_alignment;
@@ -34,7 +35,8 @@ NativeStreamBuf::NativeStreamBuf(NativeStreamBuf&& other) noexcept
       m_end(other.m_end),
       m_window_capacity(std::exchange(other.m_window_capacity, 0)),
       m_bypass_size(other.m_bypass_size),
-      m_window(std::exchange(other.m_window, nullptr)) {
+      m_window(std::exchange(other.m_window, nullptr)),
+      m_fill_hint(other.m_fill_hint) {
     other.setg(nullptr, nullptr, nullptr);  // get-area still points into the stolen window — reset the source
 }
 
@@ -54,6 +56,7 @@ void NativeStreamBuf::swap(NativeStreamBuf& other) noexcept {
     std::swap(m_window_capacity, other.m_window_capacity);
     std::swap(m_bypass_size, other.m_bypass_size);
     std::swap(m_window, other.m_window);
+    std::swap(m_fill_hint, other.m_fill_hint);
 }
 
 NativeStreamBuf::NativeStreamBuf() noexcept : NativeStreamBuf(ov::invalid_handle, 0, 0) {}
@@ -133,7 +136,8 @@ bool NativeStreamBuf::fill_window() {
         return false;
     }
     const size_t to_read =
-        static_cast<size_t>(std::min(static_cast<std::streamoff>(m_window_capacity), m_end - m_cursor));
+        static_cast<size_t>(std::min(static_cast<std::streamoff>(std::min(m_fill_hint, m_window_capacity)), m_end - m_cursor));
+    m_fill_hint = std::min(m_fill_hint * 2, m_window_capacity);
     if (!read_into(m_window, to_read, m_cursor)) {
         return false;
     }
@@ -224,6 +228,7 @@ NativeStreamBuf::pos_type NativeStreamBuf::seekoff(off_type off,
         return pos_type(off_type(-1));
     }
 
+    m_fill_hint = 64 * 1024;
     setg(nullptr, nullptr, nullptr);  // drop the get-area; the next read refills from new_pos
     m_cursor = new_pos;
     return pos_type(new_pos - m_start);
