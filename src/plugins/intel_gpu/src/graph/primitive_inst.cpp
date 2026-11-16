@@ -667,16 +667,23 @@ bool primitive_inst::all_dependencies_cpu_impl() const {
 
 bool primitive_inst::need_reset_output_memory() const {
     for (const auto& user_inst : get_user_insts()) {
+        const auto dependency_idx = user_inst->get_node().get_dependency_index(get_node());
+
         // Check users of optimized_out inst, as the optimized out inst will not be able to
         // reset it's memory
         if (user_inst->can_be_optimized()) {
+            // The optimized out user aliases its data input only. Shape infer dependencies (e.g. the target shape of a reshape)
+            // are read on host to calculate the output shape, so they must not be reset. The reset is an asynchronous fill which
+            // may overwrite the values that a CPU impl (e.g. shape_of) has already written on host.
+            const auto shape_infer_deps = user_inst->get_node().get_shape_infer_dependencies();
+            if (std::find(shape_infer_deps.begin(), shape_infer_deps.end(), dependency_idx) != shape_infer_deps.end()) {
+                continue;
+            }
             if (user_inst->need_reset_output_memory()) {
                 return true;
             }
             continue;
         }
-
-        const auto dependency_idx = user_inst->get_node().get_dependency_index(get_node());
 
         if (user_inst->need_reset_input_memory(dependency_idx)) {
             return true;
