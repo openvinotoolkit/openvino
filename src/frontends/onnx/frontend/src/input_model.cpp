@@ -583,6 +583,10 @@ public:
         return m_reuse_const_data;
     }
 
+    const TensorOriginProvider* get_tensor_origin_provider() const {
+        return dynamic_cast<const TensorOriginProvider*>(m_graph_iterator.get());
+    }
+
     std::vector<ov::frontend::Place::Ptr> get_inputs() const;
     std::vector<ov::frontend::Place::Ptr> get_outputs() const;
     ov::frontend::Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const;
@@ -1065,6 +1069,10 @@ bool InputModel::is_loaded() const {
 
 bool InputModel::is_const_data_reusable() const {
     return _impl->is_const_data_reusable();
+}
+
+const ov::frontend::onnx::TensorOriginProvider* InputModel::get_tensor_origin_provider() const {
+    return _impl->get_tensor_origin_provider();
 }
 
 InputModel::InputModel(const GraphIterator::Ptr& graph_iterator,

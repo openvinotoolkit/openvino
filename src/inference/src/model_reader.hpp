@@ -10,6 +10,7 @@
 #include "openvino/core/extension.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/runtime/properties.hpp"
 
 namespace ov {
 
@@ -22,23 +23,27 @@ namespace util {
  * if bin file with the same name was not found, will load IR without weights.
  * @param extensions vector with OpenVINO extensions
  * @param enable_mmap boolean to enable/disable `mmap` use in Frontend
+ * @param weightless_constants which constants the frontend gives weightless identifiers (ov::weightless_constants)
  * @return Shared pointer to ov::Model
  */
 std::shared_ptr<ov::Model> read_model(const std::filesystem::path& model_path,
                                       const std::filesystem::path& bin_path,
                                       const std::vector<ov::Extension::Ptr>& extensions,
-                                      bool enable_mmap);
+                                      bool enable_mmap,
+                                      ov::WeightlessConstants weightless_constants = ov::WeightlessConstants::EXTERNAL);
 
 /**
  * @brief Reads model
  * @param model shared pointer to aligned buffer with IR.
  * @param weights shared pointer to aligned buffer with weights.
  * @param extensions vector with OpenVINO extensions
+ * @param weightless_constants which constants the frontend gives weightless identifiers (ov::weightless_constants)
  * @return Shared pointer to ov::Model
  */
 std::shared_ptr<ov::Model> read_model(const std::shared_ptr<ov::AlignedBuffer>& model,
                                       const std::shared_ptr<ov::AlignedBuffer>& weights,
-                                      const std::vector<ov::Extension::Ptr>& extensions);
+                                      const std::vector<ov::Extension::Ptr>& extensions,
+                                      ov::WeightlessConstants weightless_constants = ov::WeightlessConstants::EXTERNAL);
 
 /**
  * @brief Reads model
@@ -46,12 +51,14 @@ std::shared_ptr<ov::Model> read_model(const std::shared_ptr<ov::AlignedBuffer>& 
  * @param weights constant Tensor with weights
  * @param extensions vector with OpenVINO extensions
  * @param frontendMode read network without post-processing or other transformations
+ * @param weightless_constants which constants the frontend gives weightless identifiers (ov::weightless_constants)
  * @return Shared pointer to ov::Model
  */
 std::shared_ptr<ov::Model> read_model(const std::string& model,
                                       const ov::Tensor& weights,
                                       const std::vector<ov::Extension::Ptr>& extensions,
-                                      bool frontendMode = false);
+                                      bool frontendMode = false,
+                                      ov::WeightlessConstants weightless_constants = ov::WeightlessConstants::EXTERNAL);
 
 }  // namespace util
 }  // namespace ov

@@ -50,6 +50,7 @@
 #include "unconverted_ops_report.hpp"
 #include "utils/common.hpp"
 #include "utils/onnx_internal.hpp"
+#include "utils/weightless_constants.hpp"
 using namespace ov;
 using namespace ov::frontend::onnx;
 using namespace ov::frontend::onnx::common;
@@ -107,6 +108,11 @@ bool is_graph_iterator_enabled() {
 // If a model has such constants, the rest are left unmarked, otherwise all constants are marked
 // with an index in order of walking through the model.
 void enumerate_constants(const std::shared_ptr<ov::Model>& model) {
+    // When the weightless constants mode was applied (or the producer reported provenance), every constant that can
+    // be referenced already has its WeightlessCacheAttribute. Index-based IDs would not be stable.
+    if (weightless::has_weightless_constants_mode(model)) {
+        return;
+    }
     const auto& operations = model->get_ordered_ops();
     const auto has_external_data =
         std::any_of(operations.begin(), operations.end(), [](const std::shared_ptr<ov::Node>& operation) {
@@ -178,7 +184,34 @@ ONNX_FRONTEND_C_API void* get_front_end_data() {
     return res;
 }
 
-ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
+namespace ov::frontend::onnx {
+namespace {
+// Named load options are passed as one ov::AnyMap in any position after the model itself.
+ov::WeightlessConstants get_weightless_constants_option(const std::vector<ov::Any>& variants) {
+    for (size_t i = 1; i < variants.size(); ++i) {
+        if (!variants[i].is<ov::AnyMap>()) {
+            continue;
+        }
+        const auto& options = variants[i].as<ov::AnyMap>();
+        if (const auto it = options.find(ov::weightless_constants.name()); it != options.end()) {
+            return it->second.as<ov::WeightlessConstants>();
+        }
+    }
+    return ov::WeightlessConstants::EXTERNAL;
+}
+
+void stamp_weightless_constants_unify(const ov::frontend::InputModel::Ptr& input_model,
+                                      const std::shared_ptr<ov::Model>& model) {
+    if (const auto unify_model = std::dynamic_pointer_cast<unify::InputModel>(input_model)) {
+        weightless::stamp_weightless_constants(model,
+                                               unify_model->get_weightless_constants(),
+                                               unify_model->get_tensor_origin_provider() != nullptr);
+    }
+}
+
+// The model loading of FrontEnd::load_impl(), without the named load options.
+ov::frontend::InputModel::Ptr load_input_model(const std::vector<ov::Any>& variants,
+                                               const ov::frontend::ExtensionHolder& extensions) {
     const bool gi_enabled = is_graph_iterator_enabled();
     if (variants.empty()) {
         return nullptr;
@@ -195,12 +228,12 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
             std::make_shared<GraphIteratorProto>(enable_mmap ? Internal_MMAP : Internal_Stream);
         graph_iterator->initialize(model_path);
         graph_iterator->reset();
-        return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap, m_extensions.telemetry);
+        return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap, extensions.telemetry);
     };
 
     if (const auto path = get_path_from_any(variants[0])) {
         if (!gi_enabled) {
-            return std::make_shared<InputModel>(path.value(), enable_mmap, m_extensions);
+            return std::make_shared<InputModel>(path.value(), enable_mmap, extensions);
         }
         return create_iterator_model(path.value());
     }
@@ -216,12 +249,12 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
             }
         }
         if (!gi_enabled) {
-            return std::make_shared<InputModel>(*stream, model_path, enable_mmap, m_extensions);
+            return std::make_shared<InputModel>(*stream, model_path, enable_mmap, extensions);
         }
         auto graph_iterator = std::make_shared<GraphIteratorProto>(enable_mmap ? Internal_MMAP : Internal_Stream);
         graph_iterator->initialize(*stream, model_path);
         graph_iterator->reset();
-        return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap, m_extensions.telemetry);
+        return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap, extensions.telemetry);
     }
     // !!! Experimental feature, it may be changed or removed in the future !!!
     if (variants[0].is<uint64_t>()) {
@@ -233,12 +266,12 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
             "A ModelProto object contains unsupported IR version");
         auto model_proto = std::make_shared<ModelProto>(*model_proto_ptr);
         if (!gi_enabled) {
-            return std::make_shared<InputModel>(std::move(model_proto), m_extensions);
+            return std::make_shared<InputModel>(std::move(model_proto), extensions);
         }
         auto graph_iterator = std::make_shared<GraphIteratorProto>(enable_mmap ? Internal_MMAP : Internal_Stream);
         graph_iterator->initialize(std::move(model_proto));
         graph_iterator->reset();
-        return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap, m_extensions.telemetry);
+        return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap, extensions.telemetry);
     }
     // !!! End of Experimental feature
 
@@ -251,11 +284,24 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
 
         // enable_mmap is a hint for a fallback in case external GraphIterator cannot work with external data
         auto inputModel =
-            std::make_shared<unify::InputModel>(graph_iterator, enable_mmap, m_extensions.telemetry, reuse_const_data);
+            std::make_shared<unify::InputModel>(graph_iterator, enable_mmap, extensions.telemetry, reuse_const_data);
 
         return inputModel;
     }
     return nullptr;
+}
+}  // namespace
+}  // namespace ov::frontend::onnx
+
+ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
+    auto input_model = load_input_model(variants, m_extensions);
+    const auto weightless_constants = get_weightless_constants_option(variants);
+    if (const auto unify_model = std::dynamic_pointer_cast<unify::InputModel>(input_model)) {
+        unify_model->set_weightless_constants(weightless_constants);
+    } else if (const auto onnx_model = std::dynamic_pointer_cast<InputModel>(input_model)) {
+        onnx_model->set_weightless_constants(weightless_constants);
+    }
+    return input_model;
 }
 
 std::shared_ptr<ov::Model> FrontEnd::convert_partially(const ov::frontend::InputModel::Ptr& input_model) const {
@@ -280,6 +326,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const ov::frontend::Input
 
     const auto& converted_model = model_onnx->convert();
 
+    weightless::stamp_weightless_constants(converted_model, model_onnx->get_weightless_constants(), false);
     normalize(converted_model);
 
     // For convert_partially, we don't throw on unconverted ops but still send telemetry
@@ -293,6 +340,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     // !!! Experimental feature, it may be changed or removed in the future !!!
     enumerate_constants(model);
     // !!! End of Experimental feature
+    weightless::remove_initializer_ids(model);
 
     // Here, you can register transformations as a second step of importing process
     // In particular, you can operate on not supported ops (it allows to N:N ONNX->OV mapping).
@@ -371,6 +419,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& input_model)
 
     auto converted_model = model_onnx->convert();
 
+    weightless::stamp_weightless_constants(converted_model, model_onnx->get_weightless_constants(), false);
     normalize(converted_model);
 
     const auto report = ov::frontend::collect_unconverted_ops(converted_model, make_onnx_extractor());
@@ -485,6 +534,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert_unify(const InputModel::Ptr& input_
 
     translate_graph(input_model, false, false, ov_model);
 
+    stamp_weightless_constants_unify(input_model, ov_model);
     normalize(ov_model);
 
     const auto report = ov::frontend::collect_unconverted_ops(ov_model, make_onnx_extractor());
@@ -508,6 +558,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially_unify(const InputModel::P
     std::shared_ptr<ov::Model> ov_model;
     translate_graph(input_model, false, false, ov_model);
 
+    stamp_weightless_constants_unify(input_model, ov_model);
     normalize(ov_model);
 
     // For convert_partially, we don't throw on unconverted ops but still send telemetry

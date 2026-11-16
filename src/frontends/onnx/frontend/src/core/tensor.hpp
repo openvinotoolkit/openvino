@@ -308,6 +308,18 @@ public:
 
     std::shared_ptr<ov::op::v0::Constant> get_ov_constant() const;
 
+    /// \brief True if the data is referenced through an ORT in-memory address marker (ORT_MEM_ADDR). The "offset" of
+    /// such data is a memory address, so it can't be resolved from the source model.
+    bool has_in_memory_address_marker() const {
+        if (!has_external_data()) {
+            return false;
+        }
+        if (m_tensor_place != nullptr) {
+            return *m_tensor_place->get_data_location() == detail::ORT_MEM_ADDR;
+        }
+        return detail::TensorExternalData(*m_tensor_proto).data_location() == detail::ORT_MEM_ADDR;
+    }
+
 private:
     bool has_external_data() const {
         if (m_tensor_place != nullptr) {

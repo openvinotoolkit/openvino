@@ -9,6 +9,7 @@
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
@@ -111,13 +112,26 @@ void update_v10_model(std::shared_ptr<ov::Model>& model, bool frontendMode = fal
 }
 }  // namespace
 
+namespace {
+// Passes frontend options that are not the frontend's default as an ov::AnyMap load parameter. Only the ONNX frontend
+// supports weightless constants, so other frontends keep their load parameters unchanged.
+void add_frontend_options(const ov::frontend::FrontEnd::Ptr& frontend,
+                          ov::AnyVector& params,
+                          ov::WeightlessConstants weightless_constants) {
+    if (weightless_constants != ov::WeightlessConstants::EXTERNAL && frontend->get_name() == "onnx") {
+        params.emplace_back(ov::AnyMap{ov::weightless_constants(weightless_constants)});
+    }
+}
+}  // namespace
+
 namespace ov {
 namespace util {
 
 std::shared_ptr<ov::Model> read_model(const std::filesystem::path& model_path,
                                       const std::filesystem::path& bin_path,
                                       const std::vector<ov::Extension::Ptr>& extensions,
-                                      bool enable_mmap) {
+                                      bool enable_mmap,
+                                      ov::WeightlessConstants weightless_constants) {
     // Try to load with FrontEndManager
     ov::frontend::FrontEndManager manager;
     ov::frontend::FrontEnd::Ptr FE;
@@ -133,6 +147,7 @@ std::shared_ptr<ov::Model> read_model(const std::filesystem::path& model_path,
     FE = manager.load_by_model(params);
     if (FE) {
         FE->add_extension(extensions);
+        add_frontend_options(FE, params, weightless_constants);
         inputModel = FE->load(params);
     }
 
@@ -156,7 +171,8 @@ std::shared_ptr<ov::Model> read_model(const std::filesystem::path& model_path,
 std::shared_ptr<ov::Model> read_model(const std::string& model,
                                       const ov::Tensor& weights,
                                       const std::vector<ov::Extension::Ptr>& ov_exts,
-                                      bool frontendMode) {
+                                      bool frontendMode,
+                                      ov::WeightlessConstants weightless_constants) {
     StringViewStreamBuf mb(std::string_view{model});
     std::istream modelStream(&mb);
 
@@ -177,6 +193,7 @@ std::shared_ptr<ov::Model> read_model(const std::string& model,
     FE = manager.load_by_model(params);
     if (FE) {
         FE->add_extension(ov_exts);
+        add_frontend_options(FE, params, weightless_constants);
         inputModel = FE->load(params);
     }
     if (inputModel) {
@@ -190,7 +207,8 @@ std::shared_ptr<ov::Model> read_model(const std::string& model,
 
 std::shared_ptr<ov::Model> read_model(const std::shared_ptr<AlignedBuffer>& model,
                                       const std::shared_ptr<AlignedBuffer>& weights,
-                                      const std::vector<ov::Extension::Ptr>& ov_exts) {
+                                      const std::vector<ov::Extension::Ptr>& ov_exts,
+                                      ov::WeightlessConstants weightless_constants) {
     // Try to load with FrontEndManager
     ov::frontend::FrontEndManager manager;
     ov::frontend::FrontEnd::Ptr FE;
@@ -204,6 +222,7 @@ std::shared_ptr<ov::Model> read_model(const std::shared_ptr<AlignedBuffer>& mode
     FE = manager.load_by_model(params);
     if (FE) {
         FE->add_extension(ov_exts);
+        add_frontend_options(FE, params, weightless_constants);
         inputModel = FE->load(params);
     }
     if (inputModel) {

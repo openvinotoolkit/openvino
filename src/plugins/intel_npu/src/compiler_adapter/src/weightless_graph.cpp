@@ -19,6 +19,7 @@
 #include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/runtime/icore.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/mmap_object.hpp"
@@ -36,6 +37,74 @@ constexpr std::string_view WEIGHTS_ONNX_PROXY_EXTENSION = ".data_proxy";
 constexpr std::string_view ONNX_EXTENSION = ".onnx";
 
 constexpr std::string_view CONSTANT_OVERFLOW_MESSAGE = "Overflow while computing byte size for constant: ";
+
+// Synthetic weightless IDs, given by the ONNX frontend to initializers stored inside the source model
+// (ov::WeightlessConstants::ALL): bit 63 is set, bits 62-60 hold the ID scheme version, and the rest is a hash.
+// Real offsets into a weights file never have bit 63 set.
+constexpr uint64_t SYNTHETIC_ID_TAG = 1ull << 63;
+constexpr uint64_t SUPPORTED_SYNTHETIC_ID_SCHEME = 1;
+constexpr std::string_view RT_INFO_WEIGHTLESS_CONSTANTS = "weightless_constants";
+constexpr std::string_view RT_INFO_WEIGHTLESS_ID_SCHEME = "weightless_id_scheme";
+
+constexpr bool is_synthetic_id(uint64_t id) {
+    return (id & SYNTHETIC_ID_TAG) != 0;
+}
+
+constexpr uint64_t get_synthetic_id_scheme(uint64_t id) {
+    return (id >> 60) & 0x7;
+}
+
+/**
+ * @brief Finds the ID scheme of the synthetic IDs that the init schedules use, if any. A blob that uses synthetic IDs
+ * needs a source model read with ov::WeightlessConstants::ALL to resolve them.
+ */
+std::optional<uint64_t> get_synthetic_id_scheme(const std::vector<NetworkMetadata>& initNetworkMetadata) {
+    std::optional<uint64_t> scheme;
+    for (const auto& initMetadata : initNetworkMetadata) {
+        for (const IODescriptor& descriptor : initMetadata.inputs) {
+            const auto id = ov::util::view_to_number<size_t>(descriptor.nameFromCompiler);
+            if (!id.has_value() || !is_synthetic_id(id.value())) {
+                continue;
+            }
+            const auto id_scheme = get_synthetic_id_scheme(id.value());
+            OPENVINO_ASSERT(id_scheme == SUPPORTED_SYNTHETIC_ID_SCHEME,
+                            "The compiled model uses weightless ID scheme ",
+                            id_scheme,
+                            ", which this version of the plugin doesn't support (supported: ",
+                            SUPPORTED_SYNTHETIC_ID_SCHEME,
+                            "). Recompile the model.");
+            OPENVINO_ASSERT(!scheme.has_value() || scheme.value() == id_scheme,
+                            "The compiled model mixes weightless ID schemes ",
+                            scheme.value_or(0),
+                            " and ",
+                            id_scheme,
+                            ".");
+            scheme = id_scheme;
+        }
+    }
+    return scheme;
+}
+
+/**
+ * @brief Checks that a source model passed as the weights source was read the way the compiled model needs.
+ */
+void check_source_model_for_synthetic_ids(const ov::Model& model, const std::optional<uint64_t>& scheme) {
+    if (!scheme.has_value()) {
+        return;
+    }
+    const auto& rt_info = model.get_rt_info();
+    const auto mode_it = rt_info.find(std::string(RT_INFO_WEIGHTLESS_CONSTANTS));
+    const bool read_with_all =
+        mode_it != rt_info.end() && mode_it->second.as<ov::WeightlessConstants>() == ov::WeightlessConstants::ALL;
+    OPENVINO_ASSERT(read_with_all,
+                    "The compiled model references initializers stored inside the source model, but the source model "
+                    "was not read with ov::weightless_constants(ov::WeightlessConstants::ALL).");
+    const auto scheme_it = rt_info.find(std::string(RT_INFO_WEIGHTLESS_ID_SCHEME));
+    OPENVINO_ASSERT(scheme_it != rt_info.end() && scheme_it->second.as<uint64_t>() == scheme.value(),
+                    "The source model was read with a different weightless ID scheme than the compiled model uses (",
+                    scheme.value(),
+                    ").");
+}
 
 std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_constants_in_topological_order(
     const std::shared_ptr<const ov::Model>& model) {
@@ -127,7 +196,12 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> extract_consta
     std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::pair<std::string, std::shared_ptr<ov::ICore>>>&&
         weightsSource,
     const std::vector<NetworkMetadata>& initNetworkMetadata) {
+    // The compiled model needs ov::WeightlessConstants::ALL if its init schedules use synthetic IDs.
+    const auto synthetic_id_scheme = get_synthetic_id_scheme(initNetworkMetadata);
+
     if (const std::shared_ptr<const ov::Model>* model = std::get_if<std::shared_ptr<const ov::Model>>(&weightsSource)) {
+        OPENVINO_ASSERT(*model != nullptr, "Model is required to extract constants in topological order.");
+        check_source_model_for_synthetic_ids(**model, synthetic_id_scheme);
         return get_all_constants_in_topological_order(*model);
     } else if (const std::pair<std::string, std::shared_ptr<ov::ICore>>* weightsPathAndCore =
                    std::get_if<std::pair<std::string, std::shared_ptr<ov::ICore>>>(&weightsSource)) {
@@ -135,10 +209,20 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> extract_consta
 
         auto ext = ov::util::path_to_string(ov::util::make_path(weightsPath).extension());
         if (ext == ONNX_EXTENSION) {
-            const auto model = core->read_model(weightsPath, weightsPath, {});
+            ov::AnyMap properties;
+            if (synthetic_id_scheme.has_value()) {
+                properties.emplace(ov::weightless_constants(ov::WeightlessConstants::ALL));
+            }
+            const auto model = core->read_model(weightsPath, weightsPath, properties);
+            check_source_model_for_synthetic_ids(*model, synthetic_id_scheme);
             return get_all_constants_in_topological_order(model);
         } else if (ext == WEIGHTS_IR_EXTENSION || ext == WEIGHTS_ONNX_EXTENSION ||
                    ext == WEIGHTS_ONNX_PROXY_EXTENSION) {
+            OPENVINO_ASSERT(!synthetic_id_scheme.has_value(),
+                            "The compiled model references initializers stored inside the source model, which can't "
+                            "be resolved from the weights file ",
+                            weightsPath,
+                            ". Pass the source model with ov::hint::model, or the path of its \".onnx\" file.");
             return get_all_constants_memory_mapped(weightsPath, initNetworkMetadata);
         } else {
             OPENVINO_THROW("Invalid path to the weights: ",

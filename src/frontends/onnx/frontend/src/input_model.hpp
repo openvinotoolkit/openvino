@@ -14,6 +14,7 @@
 #include "openvino/frontend/extension/holder.hpp"
 #include "openvino/frontend/input_model.hpp"
 #include "openvino/frontend/onnx/graph_iterator.hpp"
+#include "openvino/runtime/properties.hpp"
 
 using ::ONNX_NAMESPACE::ModelProto;
 
@@ -63,6 +64,14 @@ public:
     std::shared_ptr<Model> decode();
     std::shared_ptr<Model> convert();
 
+    /// rief Which constants get weightless identifiers (ov::weightless_constants load option).
+    void set_weightless_constants(ov::WeightlessConstants value) {
+        m_weightless_constants = value;
+    }
+    ov::WeightlessConstants get_weightless_constants() const {
+        return m_weightless_constants;
+    }
+
     void cut_and_add_new_input(const ov::frontend::Place::Ptr& place,
                                const std::string& new_name_optional = "") override;
 
@@ -88,6 +97,8 @@ private:
 
     std::unordered_map<std::string, ov::PartialShape> m_inputs_to_reshape;
     void reshape_model_inputs(std::shared_ptr<Model>& model);
+
+    ov::WeightlessConstants m_weightless_constants = ov::WeightlessConstants::EXTERNAL;
 };
 
 // Forward declarations
@@ -125,6 +136,17 @@ public:
     /// Used by the single-pass converter, which materializes Constants without the Place graph.
     bool is_const_data_reusable() const;
 
+    /// rief The GraphIterator's TensorOriginProvider interface, or nullptr if it doesn't implement it.
+    const ov::frontend::onnx::TensorOriginProvider* get_tensor_origin_provider() const;
+
+    /// rief Which constants get weightless identifiers (ov::weightless_constants load option).
+    void set_weightless_constants(ov::WeightlessConstants value) {
+        m_weightless_constants = value;
+    }
+    ov::WeightlessConstants get_weightless_constants() const {
+        return m_weightless_constants;
+    }
+
     /////  Searching for places  /////
     std::vector<ov::frontend::Place::Ptr> get_inputs() const override;
     std::vector<ov::frontend::Place::Ptr> get_outputs() const override;
@@ -156,6 +178,9 @@ public:
     detail::MappedMemoryHandles get_mmap_cache() const;
     detail::LocalStreamHandles get_stream_cache() const;
     std::filesystem::path get_model_dir() const;
+
+private:
+    ov::WeightlessConstants m_weightless_constants = ov::WeightlessConstants::EXTERNAL;
 };
 }  // namespace unify
 

@@ -270,6 +270,7 @@ set(ONNX_FRONTEND_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/src/utils/reshape.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/utils/split.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/utils/tensor_external_data.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/utils/weightless_constants.cpp
 )
 
 set(ONNX_FRONTEND_HEADERS
@@ -312,6 +313,7 @@ set(ONNX_FRONTEND_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/src/utils/split.hpp
     ${CMAKE_CURRENT_LIST_DIR}/src/utils/tensor_external_data.hpp
     ${CMAKE_CURRENT_LIST_DIR}/src/utils/variadic.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/utils/weightless_constants.hpp
     ${CMAKE_CURRENT_LIST_DIR}/src/version_range.hpp
 )
 
