@@ -111,6 +111,51 @@ TEST_F(NativeStreamTest, ChunkedReads) {
     EXPECT_EQ(got, expected);
 }
 
+TEST_F(NativeStreamTest, InWindowSeekKeepsBufferedData) {
+    constexpr size_t k_size = 16 * 1024;
+    constexpr size_t k_window = 4 * 1024;
+    std::vector<char> expected(k_size);
+    fill_pattern(expected);
+    write_temp_file_impl(m_tmp_path, expected, 0);
+
+    HandleGuard hg{util::open_file(m_tmp_path)};
+    ASSERT_NE(hg.handle, ov::invalid_handle);
+    util::NativeStreamBuf buf(hg.handle,
+                              /*offset=*/0,
+                              static_cast<std::streamoff>(k_size),
+                              k_window,
+                              /*threshold=*/k_window);
+    std::istream stream(&buf);
+
+    char head[100];
+    ASSERT_TRUE(stream.read(head, sizeof(head)));  // fills the window [0, k_window)
+
+    // Alternate metadata reads with in-window skips: the window must survive every skip.
+    size_t pos = sizeof(head);
+    for (int i = 0; i < 3; ++i) {
+        pos += 500;
+        ASSERT_TRUE(stream.seekg(static_cast<std::streamoff>(pos)));
+        EXPECT_EQ(buf.in_avail(), static_cast<std::streamsize>(k_window - pos));
+        char meta[16];
+        ASSERT_TRUE(stream.read(meta, sizeof(meta)));
+        EXPECT_TRUE(std::equal(meta, meta + sizeof(meta), expected.begin() + static_cast<std::ptrdiff_t>(pos)));
+        pos += sizeof(meta);
+    }
+
+    // Backward seek inside the window is also served from the buffer.
+    ASSERT_TRUE(stream.seekg(10));
+    EXPECT_EQ(buf.in_avail(), static_cast<std::streamsize>(k_window - 10));
+    char back[8];
+    ASSERT_TRUE(stream.read(back, sizeof(back)));
+    EXPECT_TRUE(std::equal(back, back + sizeof(back), expected.begin() + 10));
+
+    // Seek beyond the window falls back to a refill and still returns correct data.
+    ASSERT_TRUE(stream.seekg(static_cast<std::streamoff>(k_window * 2 + 3)));
+    char far[8];
+    ASSERT_TRUE(stream.read(far, sizeof(far)));
+    EXPECT_TRUE(std::equal(far, far + sizeof(far), expected.begin() + static_cast<std::ptrdiff_t>(k_window * 2 + 3)));
+}
+
 class NativeStreamParallelTest : public NativeStreamTest, public ::testing::WithParamInterface<size_t> {};
 
 TEST_P(NativeStreamParallelTest, ParallelReadsAllWorkers) {

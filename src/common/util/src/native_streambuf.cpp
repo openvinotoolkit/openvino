@@ -32,6 +32,7 @@ NativeStreamBuf::NativeStreamBuf(NativeStreamBuf&& other) noexcept
       m_cursor(other.m_cursor),
       m_start(other.m_start),
       m_end(other.m_end),
+      m_window_start(other.m_window_start),
       m_window_capacity(std::exchange(other.m_window_capacity, 0)),
       m_bypass_size(other.m_bypass_size),
       m_window(std::exchange(other.m_window, nullptr)) {
@@ -51,6 +52,7 @@ void NativeStreamBuf::swap(NativeStreamBuf& other) noexcept {
     std::swap(m_cursor, other.m_cursor);
     std::swap(m_start, other.m_start);
     std::swap(m_end, other.m_end);
+    std::swap(m_window_start, other.m_window_start);
     std::swap(m_window_capacity, other.m_window_capacity);
     std::swap(m_bypass_size, other.m_bypass_size);
     std::swap(m_window, other.m_window);
@@ -138,6 +140,7 @@ bool NativeStreamBuf::fill_window() {
         return false;
     }
     setg(m_window, m_window, m_window + to_read);
+    m_window_start = m_cursor;
     m_cursor += static_cast<std::streamoff>(to_read);
     return true;
 }
@@ -222,6 +225,16 @@ NativeStreamBuf::pos_type NativeStreamBuf::seekoff(off_type off,
 
     if (new_pos < m_start || new_pos > m_end) {
         return pos_type(off_type(-1));
+    }
+
+    // Seek inside the buffered window: keep the data instead of discarding it and rereading.
+    if (eback() != nullptr) {
+        const std::streamoff window_end = m_window_start + static_cast<std::streamoff>(egptr() - eback());
+        if (new_pos >= m_window_start && new_pos <= window_end) {
+            setg(eback(), eback() + (new_pos - m_window_start), egptr());
+            m_cursor = window_end;
+            return pos_type(new_pos - m_start);
+        }
     }
 
     setg(nullptr, nullptr, nullptr);  // drop the get-area; the next read refills from new_pos
