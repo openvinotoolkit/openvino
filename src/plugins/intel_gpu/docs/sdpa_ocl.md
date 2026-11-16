@@ -2885,9 +2885,14 @@ The rank-3 move above was measured on the B70 only, so `sdpa_ocl_plain_3d_ok()` 
   and `sdpa_opt` 3.00 (LNL and PTL-H; `sdpa_opt` does not run these ops on the B70) ("Known issues", "Correctness"). The 2026-11-14 entries above are left as written.
 - Not changed: xe_hpg (DG2, ARL-H), xe_hpc and every other head, causal, a runtime scale, bf16.
 - Checks: unit `SdpaOclPredicates.*` 5 of 5 pass (host-only truth tables, `ov_gpu_unit_tests` built from this tree, run with
-  `--device_suffix=1`; `Plain3dOkTruthTable` covers arch x immad x device type); the kit rows quoted above. Not run: the func groups
-  (`SDPAFusion`, `SDPA3DBatchMask`, `SDPAInfMask`, `TransposeVLSDPATest`, `ScaledAttn`) on LNL and PTL-H, and the full unit and func suites on the
-  B70 after this change. Control: with the previous predicate (`arch == xe2` and a discrete GPU) `Plain3dOkTruthTable` fails on exactly the five
+  `--device_suffix=1`; `Plain3dOkTruthTable` covers arch x immad x device type); the kit rows quoted above. Func groups on PTL-H (Windows,
+  `ov_gpu_func_tests.exe --gtest_filter=*SDPAFusion*:*SDPA3DBatchMask*:*SDPAInfMask*:*TransposeVLSDPATest*:*ScaledAttn*`, 2253 tests from 11
+  suites, 17 minutes): on the pre-commit tree with the kit's environment switch set (the widened predicate, which is the committed one on
+  PTL-H) 2155 passed, 98 were skipped and none failed, `SDPAFusion.Inference/0` included; with the switch unset (the old predicate)
+  `SDPAFusion.Inference/0` was the only failure. The 98 skips are all `ScaledAttn`, rank-4, and not from this change: 96 f16
+  `smoke_ScaledAttnStatic_GPU` cases that `skip_tests_config.cpp` disables on every device with immad, and 2 bf16 ones it disables on
+  Xe2 and newer. Not run: those groups on LNL, the committed tree itself on PTL-H, and the full unit and func suites on the B70 after
+  this change. Control: with the previous predicate (`arch == xe2` and a discrete GPU) `Plain3dOkTruthTable` fails on exactly the five
   rows where the two differ (xe2 integrated, xe3 and xe3p both device types) and the other four tests still pass.
 
 ## Known issues
@@ -3128,7 +3133,7 @@ Measured on an Arc Pro B70 (Xe2), identical before and after the refactor. Of th
   `transformations_pipeline.cpp` decomposed a static 3D SDPA again on an XMX device whose Q.K buffer fits (the same on upstream
   master d6bbd41244; with the rule forced off it passed 8 of 8), so the runtime model had no SDPA node; not `sdpa_ocl`. Since
   2026-11-14 it passes on the B70: a rank-3 op that `sdpa_ocl` serves faster stays fused on Xe2 discrete GPUs, and since 2026-11-16 on
-  Xe2 and newer GPUs, integrated ones too ("Rank-3 plain SDPA"; the test itself ran on the B70 only). On every other XMX device the decomposition, and so the failure, remains.
+  Xe2 and newer GPUs, integrated ones too ("Rank-3 plain SDPA"; the test ran on the B70 and, with the widened predicate, on PTL-H, not on LNL). On every other XMX device the decomposition, and so the failure, remains.
 
 ### Test coverage gaps
 
