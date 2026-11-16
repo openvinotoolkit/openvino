@@ -310,7 +310,8 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
                                                                     fc->get_output_type(),
                                                                     fc->get_transpose_b(),
                                                                     transpose_b_scale,
-                                                                    transpose_b_zp);
+                                                                    transpose_b_zp,
+                                                                    fc->get_weights_layout());
         } else {
             new_fc = std::make_shared<op::FullyConnectedCompressed>(fc_input_a,
                                                                     fc_input_b,
@@ -319,7 +320,8 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
                                                                     fc->get_output_type(),
                                                                     fc->get_transpose_b(),
                                                                     transpose_b_scale,
-                                                                    transpose_b_zp);
+                                                                    transpose_b_zp,
+                                                                    fc->get_weights_layout());
         }
 
         result_nodes.push_back(new_fc);
