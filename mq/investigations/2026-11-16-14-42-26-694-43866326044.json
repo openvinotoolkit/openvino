@@ -1,0 +1,47 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-11-16-14-42-26-694-43866326044",
+    "timestamp": "2026-11-16T14:42:26Z",
+    "run_id": "43866326044",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43866326044",
+    "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+    "pr_number": "39742",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39742",
+    "author": "mvafin",
+    "category": "Infrastructure",
+    "title": "iGPU unit tests job cancelled after hitting the 80-minute job timeout near the end of the gtest suite",
+    "signature": "igpu unit tests job cancelled by concurrency cancel after 80 minute job timeout exceeded running unit test suite|Infrastructure",
+    "signature_hash": "75fb142987956bb4",
+    "confidence": "Medium",
+    "failed_jobs": [
+        {
+            "name": "iGPU Tests (unit) / GPU",
+            "conclusion": "cancelled",
+            "symptom": "The 'OpenVINO GPU unit Tests' step ran from 13:14:27Z to 14:31:42Z (~77 minutes, against the job's 80-minute timeout-minutes limit in job_gpu_tests.yml) and was aborted mid-test (at case 26049/29291) with 'context canceled' / '##[error]The operation was canceled.' - no assertion failure, no crash, just an external cancellation partway through the gtest run."
+        },
+        {
+            "name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+            "conclusion": "failure",
+            "symptom": "test_keras_lstm_flags_float32[...dropouts:(0.1, 0.3)...] fails: OV output [[-0., -0.41750297, 4.06798...]] vs TF reference [[-0., -0.41745982, 4.0690975...]] - small floating-point drift (~1e-3 relative) in a known-flaky dropout/activation LSTM parametrization."
+        },
+        {
+            "name": "ci/gha_overall_status",
+            "conclusion": "failure",
+            "symptom": "Downstream aggregate status check fails because iGPU and TensorFlow Layer Tests jobs did not both succeed."
+        }
+    ],
+    "key_errors": [
+        "2026-11-16T14:31:40.3870432Z [26049/29291] smoke_reverse_int8_mask/reverse_gpu_test_int8_mask.reverse_int8_mask/input tensor [b:4, f:3, x:1, y:1, z:1, w:1, u:1, v:1, g:1] axes {0,1,} format bfyx (2309 ms)\n2026-11-16T14:31:42.3911415Z context canceled\n2026-11-16T14:31:42.4168474Z ##[error]The operation was canceled.",
+        "E       AssertionError: Comparing with Framework failed: ie_res={'output_0': array([[-0.        , -0.41750297,  4.06798   ],\\n       [ 1.9310714 , -0.        , -1.0333058 ],\\n       [-2.092919  ,  0.        , -0.44978338],\\n       [ 0.78336006,  0.        , -0.        ]], dtype=float32)}; framework_res={'output_0': <tf.Tensor: ... numpy=\\narray([[-0.        , -0.41745982,  4.0690975 ],\\n       [ 1.9311169 , -0.        , -1.0320231 ],\\n       [-2.093101  ,  0.        , -0.44485778],\\n       [ 0.83363956,  0.        , -0.        ]], dtype=float32)>}."
+    ],
+    "root_cause": "The 'OpenVINO GPU unit Tests' step started at 13:14:27Z and was still running 29291 parametrized GPU gtest cases at 14:31:42Z, i.e. ~77 minutes in, right up against the job's 80-minute timeout-minutes cap defined in job_gpu_tests.yml (line 42). GitHub Actions reported 'context canceled' / 'The operation was canceled.' mid-suite (case 26049/29291, ~89% through), the classic signature of a step being killed by an enclosing timeout/cancellation rather than an application error - there is no gtest FAILED line or crash, just an abrupt stop. The PR's changed files (GGUF frontend fusion passes) are not exercised by this GPU-plugin unit-test binary, ruling out a PR-introduced regression; the suite appears to simply be running close to its time budget on this runner. Independently, the TensorFlow Layer Tests job failed one pre-existing flaky accuracy comparison (test_keras_lstm_flags_float32 with dropout), a signature already tracked 7 times in the pattern database (a284d27dfee44614) and unrelated to the PR's GGUF-only changes.",
+    "reproduction_steps": "N/A for the iGPU timeout - requires running the full ov_gpu_unit_tests binary (29291 cases) on the same igpu self-hosted runner class and observing whether it approaches/exceeds 80 minutes. For the TensorFlow flaky test: pytest install/tests/layer_tests/tensorflow2_keras_tests/test_tf2_keras_lstm.py::TestKerasLSTM::test_keras_lstm_flags_float32 -k 'dropouts' can intermittently reproduce the small FP drift locally.",
+    "recommended_actions": [
+        "Re-run the iGPU unit tests job; a plain rerun is expected to pass since this was a timeout/cancellation, not a code defect, and the PR does not touch the GPU plugin.",
+        "If GPU unit test runs are regularly approaching the 80-minute timeout-minutes limit in .github/workflows/job_gpu_tests.yml, consider raising the timeout or sharding the ov_gpu_unit_tests binary (e.g., via --gtest_filter shards) to leave headroom.",
+        "Track the TensorFlow test_keras_lstm_flags_float32 flakiness centrally (pattern a284d27dfee44614, now 8 occurrences) and consider tightening/loosening its comparison epsilon or marking it as a known-flaky xfail until the root LSTM/dropout numerical-drift cause is fixed.",
+        "Re-run the TensorFlow Layer Tests job in isolation to confirm only the known-flaky LSTM case regresses before blocking the PR on CI."
+    ],
+    "prevention_strategies": "Monitor GPU unit test suite wall-clock duration over time (e.g., via a CI dashboard) and add slack or early sharding before the suite creeps past the configured timeout-minutes; a suite finishing near 95%+ of its budget is an early warning sign before it starts intermittently timing out. For the TF LSTM flakiness, track it via the existing recurring pattern and prioritize a fix (tighter numerical comparison or deterministic seeding) given it has now recurred 8 times across unrelated PRs.",
+    "historical_context": "The TensorFlow LSTM dropout accuracy mismatch matches pattern a284d27dfee44614 (7 prior occurrences from 2026-08-27 to 2026-11-05, affecting PRs #37611, #37654, #38168, #39121, #39270, #39286, #39341) and the older related pattern 134f01149f41adcc (3 occurrences in June-July). The iGPU-job-timeout-near-the-80-minute-cap signature has not been previously recorded as its own pattern; related but distinct iGPU/GPU-unit-test Infrastructure patterns include 39e65673e42b712c (runner shutdown signal), 43ea0e2412b6a04f (iGPU job cancelled with no logs at all), and 04b05470e7a3eb58 (bulk GPU test failures with elevated per-test durations on Windows) - all point to recurring capacity/timing pressure on GPU test infrastructure rather than code regressions."
+}

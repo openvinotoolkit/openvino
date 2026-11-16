@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 454,
+  "total": 455,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -4969,6 +4969,15 @@
       "category": "Dependencies",
       "signature_hash": "8d60fd1266878935",
       "pr_number": "39556"
+    },
+    {
+      "investigation_id": "2026-11-16-14-42-26-694-43866326044",
+      "run_id": "43866326044",
+      "timestamp": "2026-11-16T14:42:26Z",
+      "title": "iGPU unit tests job cancelled after hitting the 80-minute job timeout near the end of the gtest suite",
+      "category": "Infrastructure",
+      "signature_hash": "75fb142987956bb4",
+      "pr_number": "39742"
     }
   ]
 }

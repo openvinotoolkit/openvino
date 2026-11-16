@@ -1,0 +1,20 @@
+{
+    "schema_version": "1.0",
+    "signature": "igpu unit tests job cancelled by concurrency cancel after 80 minute job timeout exceeded running unit test suite|Infrastructure",
+    "signature_hash": "75fb142987956bb4",
+    "title": "iGPU unit tests job cancelled after hitting the 80-minute job timeout near the end of the gtest suite",
+    "category": "Infrastructure",
+    "count": 1,
+    "first_seen": "2026-11-16T14:42:26Z",
+    "last_seen": "2026-11-16T14:42:26Z",
+    "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/43866326044"
+    ],
+    "affected_prs": [
+        "https://github.com/openvinotoolkit/openvino/pull/39742"
+    ],
+    "recent_timestamps": [
+        "2026-11-16T14:42:26Z"
+    ],
+    "rerun_search_string": null
+}
