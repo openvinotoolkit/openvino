@@ -16,11 +16,27 @@
 namespace ov {
 namespace auto_plugin {
 namespace {
-// the context can be released at any time, so the model is copied once and used from the copy
-SoCompiledModel model_of(const DeviceExecutionContext* context, const std::string& log_tag) {
-    auto model = context ? context->compiled_model() : SoCompiledModel{};
-    OPENVINO_ASSERT(model, log_tag, ": no compiled model is available");
-    return model;
+struct ActiveDevice {
+    DeviceName name;
+    SoCompiledModel model;
+};
+
+// the device in use can be released between the lookup and the copy, so the lookup is repeated
+ActiveDevice find_active_device(AutoSchedule& scheduler) {
+    for (int attempt = 0; attempt < 3; ++attempt) {
+        if (const auto* context = scheduler.get_active_context()) {
+            if (auto model = context->compiled_model()) {
+                return {context->name(), std::move(model)};
+            }
+        }
+    }
+    return {};
+}
+
+ActiveDevice require_active_device(AutoSchedule& scheduler, const std::string& log_tag) {
+    auto active = find_active_device(scheduler);
+    OPENVINO_ASSERT(active.model, log_tag, ": no compiled model is available");
+    return active;
 }
 }  // namespace
 
@@ -40,9 +56,9 @@ void AutoCompiledModel::set_property(const ov::AnyMap& properties) {
 }
 
 std::shared_ptr<const ov::Model> AutoCompiledModel::get_runtime_model() const {
-    const auto compiled_model = model_of(m_scheduler->get_active_context(), get_log_tag());
-    auto model = compiled_model->get_runtime_model();
-    set_model_shared_object(const_cast<ov::Model&>(*model), compiled_model._so);
+    const auto active = require_active_device(*m_scheduler, get_log_tag());
+    auto model = active.model->get_runtime_model();
+    set_model_shared_object(const_cast<ov::Model&>(*model), active.model._so);
     return model;
 }
 
@@ -83,9 +99,8 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
     } else if (name == ov::device::properties) {
         if (m_context->m_dynamic_device_selection) {
             // the initial device can be released, so the properties are the ones of the device in use
-            const auto* active = m_scheduler->get_active_context();
-            return get_device_supported_properties(active ? active->name() : DeviceName{},
-                                                   model_of(active, get_log_tag()));
+            const auto active = require_active_device(*m_scheduler, get_log_tag());
+            return get_device_supported_properties(active.name, active.model);
         }
         ov::AnyMap all_devices = {};
         {
@@ -252,7 +267,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         return execution_devices;
     } else if (name == ov::model_name) {
         if (m_context->m_dynamic_device_selection) {
-            return model_of(m_scheduler->get_active_context(), get_log_tag())->get_property(name);
+            return require_active_device(*m_scheduler, get_log_tag()).model->get_property(name);
         }
         std::lock_guard<std::mutex> lock(m_context->m_mutex);
         {
@@ -262,12 +277,11 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         }
     } else if (name == ov::loaded_from_cache) {
         if (m_context->m_dynamic_device_selection) {
-            const auto* active = m_scheduler->get_active_context();
-            const auto compiled_model = active ? active->compiled_model() : SoCompiledModel{};
+            const auto active = find_active_device(*m_scheduler);
             try {
-                return compiled_model ? compiled_model->get_property(name).as<bool>() : false;
+                return active.model ? active.model->get_property(name).as<bool>() : false;
             } catch (const ov::Exception&) {
-                LOG_DEBUG_TAG("get_property loaded_from_cache from %s failed", active->name().c_str());
+                LOG_DEBUG_TAG("get_property loaded_from_cache from %s failed", active.name.c_str());
                 return false;
             }
         }

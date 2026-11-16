@@ -64,10 +64,10 @@ private:
     /**
      * @brief Drop the compiled model and workers of a device that is no longer the active one.
      * @note Only done with compile_for_all, and only for devices that support model caching and have a cache location
-     * to reload from. Called before the next device is compiled, so a failed compilation has to reload it from the
-     * cache.
+     * to reload from. The next device is already dispatched when this runs, so a device is only released while the
+     * active one is loaded.
      */
-    void release_inactive_device(const DeviceName& device_name);
+    void release_inactive_device(const DeviceName& device_name, const DeviceName& active_device);
     /**
      * @brief Whether a model compiled for the device can be reloaded from the model cache, i.e. a cache blob exists.
      */

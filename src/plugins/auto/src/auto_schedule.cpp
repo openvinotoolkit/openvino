@@ -5,6 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <algorithm>
 #include <chrono>
+#include <utility>
 
 #include "auto_schedule.hpp"
 
@@ -705,17 +706,6 @@ void AutoSchedule::dispatch_dynamic_task(ov::threading::Task& pipeline_task, con
                           previous_device.c_str(),
                           previous_infer_ms);
         }
-        // released before the target is compiled, so at most two compiled models are resident
-        if (previous_device != requested_device_name) {
-            try {
-                release_inactive_device(previous_device);
-            } catch (const std::exception& ex) {
-                // releasing is only a memory optimization and must not fail a prepared inference
-                LOG_WARNING_TAG("[dynamic] failed to release inactive device:%s: %s",
-                                previous_device.c_str(),
-                                ex.what());
-            }
-        }
         OPENVINO_ASSERT(ensure_device_ready(device),
                         get_log_tag(),
                         ": failed to compile the model on the selected device ",
@@ -755,6 +745,17 @@ void AutoSchedule::dispatch_dynamic_task(ov::threading::Task& pipeline_task, con
             });
             get_device_context(device_name).idle_workers().try_push(std::make_pair(worker->m_index, worker));
             release_execution_slot();
+        }
+        // off the critical path: the next dispatch runs on this single stream executor, so it waits for the release
+        if (previous_device != device_name) {
+            try {
+                release_inactive_device(previous_device, device_name);
+            } catch (const std::exception& ex) {
+                // releasing is only a memory optimization and must not fail a dispatched inference
+                LOG_WARNING_TAG("[dynamic] failed to release inactive device:%s: %s",
+                                previous_device.c_str(),
+                                ex.what());
+            }
         }
     } catch (const std::exception&) {
         m_this_worker_infer_request = nullptr;
@@ -880,12 +881,14 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
     return true;
 }
 
-void AutoSchedule::release_inactive_device(const DeviceName& device_name) {
-    if (!m_context->m_compile_for_all || device_name.empty()) {
+void AutoSchedule::release_inactive_device(const DeviceName& device_name, const DeviceName& active_device) {
+    if (!m_context->m_compile_for_all || device_name.empty() || device_name == active_device) {
         return;
     }
     auto* context = find_device_context(device_name);
-    if (!context || !context->is_ready() || !has_reloadable_cache(*context)) {
+    const auto* active = find_device_context(active_device);
+    // the model level queries fall back on the active device, so it has to be loaded
+    if (!context || !context->is_ready() || !active || !active->is_ready() || !has_reloadable_cache(*context)) {
         return;
     }
     if (context->try_release()) {

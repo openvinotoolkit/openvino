@@ -37,8 +37,8 @@ static constexpr Property<bool> enable_runtime_fallback{"ENABLE_RUNTIME_FALLBACK
  * Requires ov::cache_dir or ov::cache_path, otherwise compiling the model throws on every host. Ignored in
  * cumulative throughput mode, when there is no other candidate device, and when
  * ov::cache_blob_id is set. Devices are skipped when the cache path is a single-file cache (*.bin).
- * In dynamic device selection, a device that is no longer selected releases its compiled model, which is loaded
- * from the cache when it is selected again; the initial device and devices without a cache location are kept.
+ * In dynamic device selection, an inactive device, including the initial device, releases its compiled model only
+ * if it supports model caching and has a cache location with an existing blob. It is reloaded when selected again.
  *
  * When ov::device::priorities (or a device string such as "AUTO:GPU,NPU") is set, it determines the candidates;
  * otherwise AUTO discovers its usual eligible devices. For example, to warm up the cache for GPU and NPU, so that

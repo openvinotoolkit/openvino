@@ -213,8 +213,8 @@ the following setup options:
 |                                              |                                                                    |
 |                                              | In dynamic device selection, a device that is no longer selected   |
 |                                              | releases its compiled model, which is loaded from the cache when   |
-|                                              | it is selected again. The initial device and devices without a     |
-|                                              | cache location are never released.                                 |
+|                                              | it is selected again. Devices without a cache location or a cache  |
+|                                              | blob are never released.                                           |
 |                                              |                                                                    |
 |                                              | Requires ``ov::cache_dir`` or ``ov::cache_path``. Without them,    |
 |                                              | compiling the model throws on every host.                          |
