@@ -676,9 +676,11 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_mixed_precision_pattern_r
 
 namespace {
 QuantizationParams get_fq_on_model_output_qp(const ov::element::Type& quantization_precision) {
-    if (quantization_precision == ov::element::u16)
-        return {0.f, 10.f, 0.f, 65535.f, 0};
-    return {-5.0000762939453125f, 4.9999237060546875f, -32768.f, 32767.f, 0};
+    static const std::unordered_map<ov::element::Type_t, QuantizationParams> quantization_params{
+        {ov::element::Type_t::u16, {0.f, 10.f, 0.f, 65535.f, 0}},
+        {ov::element::Type_t::i16, {-5.0000762939453125f, 4.9999237060546875f, -32768.f, 32767.f, 0}},
+    };
+    return quantization_params.at(quantization_precision);
 }
 }  // namespace
 
