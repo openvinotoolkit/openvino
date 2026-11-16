@@ -342,6 +342,23 @@ TEST_P(HSMReadWriteTest, NonInlineSection) {
     ASSERT_EQ(casted_section->get_output_layouts(), output_layouts);
 }
 
+TEST_P(HSMReadWriteTest, OptionalSectionParsingFailure) {
+    hsm::write_to(stream, sections_registry);
+
+    section_readers[SectionTypeCode::COMPILER_VERSION] =
+        [](const ov::runtime::hsm::Section&) -> std::optional<std::shared_ptr<ISection>> {
+        return std::nullopt;
+    };
+    ov::runtime::hsm::Reader base_reader = create_base_reader(stream, use_tensor_source);
+    BlobSectionsRegistry registry;
+    std::optional<RuntimeRequirements> runtime_requirements;
+    OV_ASSERT_NO_THROW(std::tie(registry, runtime_requirements) =
+                           hsm::read_from(base_reader, section_readers, type_evaluators, instance_evaluators));
+
+    auto section = registry.retrieve_unique_section_of_type(SectionTypeCode::IO_LAYOUTS);
+    ASSERT_EQ(std::dynamic_pointer_cast<CompilerVersionSection>(section), nullptr);
+}
+
 TEST_P(HSMReadWriteTest, MixedCases) {
     sections_registry.register_section(
         std::make_shared<MockSection>(std::vector<std::shared_ptr<CREToken>>{IO_LAYOUTS_PTR,
