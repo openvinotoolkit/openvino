@@ -4,17 +4,17 @@
 
 set(TARGET_NAME base_func_tests)
 
+include(sources.cmake)
+
 ov_add_target(
         NAME ${TARGET_NAME}
         TYPE STATIC
-        ROOT "${CMAKE_CURRENT_SOURCE_DIR}/include"
+        SOURCES ${BASE_FUNC_TESTS_SOURCES}
         INCLUDES
             PUBLIC
                 "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
             PRIVATE
                 "${OpenVINO_SOURCE_DIR}/src/plugins/template/include"
-        ADDITIONAL_SOURCE_DIRS
-            ${CMAKE_CURRENT_SOURCE_DIR}/src
         LINK_LIBRARIES
             PRIVATE
                 func_test_utils
