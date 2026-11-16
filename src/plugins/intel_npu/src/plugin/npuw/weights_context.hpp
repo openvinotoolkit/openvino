@@ -34,13 +34,11 @@ using BF16Cache = std::unordered_set<std::pair<std::size_t, std::size_t>, PairHa
 using Weights = ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>;
 using WeightsPtr = std::shared_ptr<Weights>;
 
-// Design assessment: clearer type-level separation; export carries only write-side metadata.
 struct ExportWeightsContext {
     bool is_weightless = false;
     std::unordered_map<const void*, std::size_t> const_to_offset;
 };
 
-// Import state stays separate; the descriptor codec still shares bidirectional control flow.
 struct ImportWeightsContext {
     struct CtxHash {
         std::size_t operator()(const std::pair<std::size_t, std::size_t>& p) const {
