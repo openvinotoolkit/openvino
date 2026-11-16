@@ -112,6 +112,9 @@ TEST_F(IOLayoutsSectionRead, WrongTagToDecoder) {
                     testing::_);
 }
 
+/**
+ * @brief The decoder should throw if it receives a section argument that is not inline.
+ */
 TEST_F(IOLayoutsSectionRead, InlineTagToDecoder) {
     std::vector<uint8_t> payload(8, 0);
     ov::runtime::hsm::ManifestEntry manifest_entry = create_manifest_entry_of_type(SectionTypeCode::IO_LAYOUTS, true);
@@ -120,6 +123,10 @@ TEST_F(IOLayoutsSectionRead, InlineTagToDecoder) {
     OV_EXPECT_THROW(IOLayoutsSection::decode(ov::runtime::hsm::Section(manifest_entry)), ov::Exception, testing::_);
 }
 
+/**
+ * @brief Trying to decode a number of layouts greater than the actual count stored in the section should fail
+ * gracefully.
+ */
 TEST_F(IOLayoutsSectionRead, LessLayoutsThanExpected) {
     IOLayoutsSection real_section({ov::Layout("NCHW"), ov::Layout("NHWC")}, {ov::Layout("NCHW"), ov::Layout("NHWC")});
     std::stringstream stream;
@@ -148,6 +155,9 @@ TEST_F(IOLayoutsSectionRead, LessLayoutsThanExpected) {
     ASSERT_FALSE(decode_result);
 }
 
+/**
+ * @brief Trying to decode a number of layouts lower than the actual count stored in the section should fail gracefully.
+ */
 TEST_F(IOLayoutsSectionRead, MoreLayoutsThanExpected) {
     IOLayoutsSection real_section({ov::Layout("NCHW"), ov::Layout("NHWC")}, {ov::Layout("NCHW"), ov::Layout("NHWC")});
     std::stringstream stream;
@@ -176,6 +186,10 @@ TEST_F(IOLayoutsSectionRead, MoreLayoutsThanExpected) {
     ASSERT_FALSE(decode_result);
 }
 
+/**
+ * @brief Something wrong happened if the whole content of the section was not read before returning. This scenario
+ * should fail.
+ */
 TEST_F(IOLayoutsSectionRead, DidNotReadWholeSection) {
     IOLayoutsSection real_section({ov::Layout("NCHW")}, {ov::Layout("NHWC")});
     std::stringstream stream;

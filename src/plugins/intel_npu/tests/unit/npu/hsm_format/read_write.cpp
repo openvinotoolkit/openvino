@@ -137,6 +137,9 @@ protected:
     std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>> instance_evaluators;
 };
 
+/**
+ * @brief The reader should not accept blobs containing multiple runtime requirements.
+ */
 TEST_P(HSMReadWriteTest, MultipleRuntimeRequirements) {
     auto deferred_writer = ov::runtime::hsm::DeferredWriter::open(stream);
     const auto runtime_requirements_section = sections_registry.build_runtime_requirements_section();
@@ -158,6 +161,9 @@ TEST_P(HSMReadWriteTest, MultipleRuntimeRequirements) {
                     _);
 }
 
+/**
+ * @brief Finding the same section ID more than once within the same blob should lead to failure.
+ */
 TEST_P(HSMReadWriteTest, SameIdTwice) {
     auto deferred_writer = ov::runtime::hsm::DeferredWriter::open(stream);
 
@@ -176,6 +182,9 @@ TEST_P(HSMReadWriteTest, SameIdTwice) {
                     _);
 }
 
+/**
+ * @brief A reader for the runtime requirements section is required when the section is stored in the blob.
+ */
 TEST_P(HSMReadWriteTest, MissingRuntimeRequirementsReader) {
     section_readers.erase(SectionTypeCode::RUNTIME_REQUIREMENTS);
     hsm::write_to(stream, sections_registry);
@@ -186,6 +195,10 @@ TEST_P(HSMReadWriteTest, MissingRuntimeRequirementsReader) {
                     _);
 }
 
+/**
+ * @brief All sections should be treated as optional if the runtime requirements are missing. Therefore, failure to
+ * parse any section should not halt exection.
+ */
 TEST_P(HSMReadWriteTest, OptionalSectionsIfMissingRuntimeRequirements) {
     section_readers.erase(SectionTypeCode::BATCH_SIZE);
     auto deferred_writer = ov::runtime::hsm::DeferredWriter::open(stream);
@@ -205,6 +218,10 @@ TEST_P(HSMReadWriteTest, OptionalSectionsIfMissingRuntimeRequirements) {
     ASSERT_FALSE(runtime_requirements.has_value());
 }
 
+/**
+ * @brief If the runtime requirements version is not compatible, then all sections should be treated as optional.
+ * Therefore, failure to parse any section should not halt exection.
+ */
 TEST_P(HSMReadWriteTest, OptionalSectionsIfIncompatibleRuntimeRequirements) {
     section_readers.erase(SectionTypeCode::BATCH_SIZE);
     auto deferred_writer = ov::runtime::hsm::DeferredWriter::open(stream);
@@ -227,6 +244,10 @@ TEST_P(HSMReadWriteTest, OptionalSectionsIfIncompatibleRuntimeRequirements) {
     ASSERT_FALSE(runtime_requirements.has_value());
 }
 
+/**
+ * @brief A section ID that evaluates to "supported" during CRE evaluation is considered mandatory. A missing reader for
+ * that section should lead to failure.
+ */
 TEST_P(HSMReadWriteTest, SupportedRuntimeRequirementsButMissingReader) {
     section_readers.erase(SectionTypeCode::IO_LAYOUTS);
     sections_registry.register_section(
@@ -240,6 +261,10 @@ TEST_P(HSMReadWriteTest, SupportedRuntimeRequirementsButMissingReader) {
                                   "No section reader found for mandatory section");
 }
 
+/**
+ * @brief A section ID that evaluates to "supported" during CRE evaluation is considered mandatory. A missing reader for
+ * that section should lead to failure. Even if the final result of the CRE is "not applicable" (or unknown).
+ */
 TEST_P(HSMReadWriteTest, UnknownRuntimeRequirementsButMissingReader) {
     section_readers.erase(SectionTypeCode::IO_LAYOUTS);
     sections_registry.register_section(
@@ -268,6 +293,9 @@ TEST_P(HSMReadWriteTest, UnsupportedRuntimeRequirements) {
                                   "The imported model is not compatible");
 }
 
+/**
+ * @brief The runtime requirements should not be part of the registry returned by the reader
+ */
 TEST_P(HSMReadWriteTest, RuntimeRequirementsNotPartOfRegistry) {
     hsm::write_to(stream, sections_registry);
 

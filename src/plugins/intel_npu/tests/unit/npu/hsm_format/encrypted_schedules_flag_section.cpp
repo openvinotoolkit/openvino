@@ -41,6 +41,10 @@ TEST_P(EncryptedSchedulesFlagSectionTest, SetFlag) {
     ASSERT_FALSE(section->get_flag());
 }
 
+/**
+ * @brief The section type should be returned as CRE token only if the flag is true (meaning that encryption has been
+ * applied).
+ */
 TEST_P(EncryptedSchedulesFlagSectionTest, CompatibilityReqsSubexpression) {
     const std::vector<std::shared_ptr<CREToken>> requirements = section->get_cre_tokens({});
 
@@ -58,6 +62,9 @@ TEST_P(EncryptedSchedulesFlagSectionTest, NullIndividualReqs) {
     ASSERT_FALSE(section->get_individual_runtime_requirements().has_value());
 }
 
+/**
+ * @brief No special alignment requirements
+ */
 TEST_P(EncryptedSchedulesFlagSectionTest, Alignment) {
     const ov::runtime::hsm::SectionAlignment reference({});
     ASSERT_EQ(section->get_alignment().offset_align, reference.offset_align);
@@ -68,6 +75,9 @@ TEST_P(EncryptedSchedulesFlagSectionTest, IsInline) {
     ASSERT_TRUE(section->is_inline());
 }
 
+/**
+ * @brief Only the raw value of the flag should be written
+ */
 TEST_P(EncryptedSchedulesFlagSectionTest, Write) {
     const ov::util::MemoryView encoded_flag = section->encode();
     ASSERT_EQ(encoded_flag.size(), sizeof(encrypted_flag));
@@ -113,6 +123,10 @@ TEST_P(EncryptedSchedulesFlagSectionTest, WrongTagToDecoder) {
                     testing::_);
 }
 
+/**/**
+ * @brief 
+ * 
+ */
 TEST_P(EncryptedSchedulesFlagSectionTest, NotInline) {
     ov::runtime::hsm::ManifestEntry manifest_entry =
         create_manifest_entry_of_type(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG, false);

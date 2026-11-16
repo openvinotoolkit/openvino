@@ -36,6 +36,9 @@ TEST(ISectionTypeEvaluatorTest, ReturnsTheCorrectResult) {
     ASSERT_FALSE(DumbSectionTypeEvaluator(false).get_result());
 }
 
+/**
+ * @brief The result should be evaluated in a lazy manner.
+ */
 TEST(ISectionTypeEvaluatorTest, Evaluated) {
     DumbSectionTypeEvaluator evaluator(false);
     ASSERT_FALSE(evaluator.evaluated());

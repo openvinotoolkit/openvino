@@ -38,6 +38,9 @@ TEST_F(CompilerVersionSectionTest, NullIndividualReqs) {
     ASSERT_FALSE(section->get_individual_runtime_requirements().has_value());
 }
 
+/**
+ * @brief The section doesn't have special alignment requirements
+ */
 TEST_F(CompilerVersionSectionTest, Alignment) {
     const ov::runtime::hsm::SectionAlignment reference({});
     ASSERT_EQ(section->get_alignment().offset_align, reference.offset_align);
@@ -48,6 +51,9 @@ TEST_F(CompilerVersionSectionTest, IsInline) {
     ASSERT_TRUE(section->is_inline());
 }
 
+/**
+ * @brief Only the raw value of the version is written.
+ */
 TEST_F(CompilerVersionSectionTest, Write) {
     const ov::util::MemoryView encoded_version = section->encode();
     ASSERT_EQ(encoded_version.size(), sizeof(compiler_version));
@@ -93,6 +99,9 @@ TEST_F(CompilerVersionSectionTest, WrongTagToDecoder) {
                     testing::_);
 }
 
+/**
+ * @brief Passign a section that is not inline to the decoder should throw.
+ */
 TEST_F(CompilerVersionSectionTest, NotInline) {
     ov::runtime::hsm::ManifestEntry manifest_entry =
         create_manifest_entry_of_type(SectionTypeCode::COMPILER_VERSION, false);
