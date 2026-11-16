@@ -44,6 +44,8 @@ namespace ov::intel_gpu {
 
 namespace {
 
+constexpr float optimum_intel_default_asf = 8.0f;
+
 ov::RTMap get_rt_info(const ov::Model& model) {
     ov::RTMap rt_info;
     if (model.has_rt_info("runtime_options")) {
@@ -194,7 +196,10 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
         apply_rt_info_property(ov::hint::kv_cache_precision, rt_info);
     }
 
-    if (!is_llm || (has_lora && !info.supports_immad)) {
+    // WA: Optimum Intel writes the default ASF to every LLM IR, so only a non-default value is applied. Remove when old IRs are gone.
+    const auto asf_it = rt_info.find(ov::hint::activations_scale_factor.name());
+    const bool has_non_default_asf = asf_it != rt_info.end() && asf_it->second.as<float>() != optimum_intel_default_asf;
+    if (!is_llm || (has_lora && !info.supports_immad) || has_non_default_asf) {
         apply_rt_info_property(ov::hint::activations_scale_factor, rt_info);
     }
 
@@ -366,8 +371,15 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
         m_enable_lp_transformations = info.supports_imad || info.supports_immad;
     }
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    if (!is_set_by_user(ov::intel_gpu::use_onednn) && info.supports_immad) {
+    if (!is_set_by_user(ov::intel_gpu::use_onednn)) {
+#if defined(OV_GPU_VENDOR_NVIDIA)
+        // oneDNN is the main backend on NVIDIA GPUs
         m_use_onednn = true;
+#else
+        if (info.supports_immad) {
+            m_use_onednn = true;
+        }
+#endif
     }
     if (m_use_onednn) {
         m_queue_type = QueueTypes::in_order;

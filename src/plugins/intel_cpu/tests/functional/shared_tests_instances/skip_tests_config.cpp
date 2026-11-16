@@ -481,25 +481,11 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*CPU/CoreThreadingTest.smoke_QueryModel.*)"),
             // Target Static Shape is empty
             std::regex(R"(.*proposal_params/.*)"),
-            // Quantized models unsupported
-            std::regex(R"(.*Quantized.*)"),
             std::regex(R"(.*smoke_Snippets_ExplicitTransposeMatMul.*)"),
             std::regex(R"(.*smoke_Snippets_FullyConnected.*)"),
-            std::regex(R"(.*smoke_Snippets_MHA(INT8|Quant|FQ).*)"),
             std::regex(R"(.*smoke_Snippets_MLP.*)"),
             std::regex(R"(.*smoke_Snippets_GatedMLP.*)"),
-            std::regex(R"(.*smoke_Snippets_SoftmaxSum.*\?\..*)"),
             std::regex(R"(.*smoke_Snippets_GroupNormalization.*)"),
-            std::regex(R"(.*smoke_Snippets_TransposeMatMulBias/ExplicitTransposeMatMulBias.*)"),
-            // Accuracy problem in dynamic MHA tests
-            std::regex(R"(.*smoke_Snippets_MHA_4D/MHA.*IS\[0\]=\[\?.\?.\?.\?\].*)"),
-            std::regex(R"(.*smoke_Snippets_MHA_4D/MHA.*IS\[0\]=\[\?.\?.12\.64\].*)"),
-            std::regex(R"(.*smoke_Snippets_MHA_3D/MHA.*IS\[0\]=\[\?.*)"),
-            std::regex(R"(.*smoke_Snippets_MHA_2D/MHA2D.*IS\[0\]=\[\?.*)"),
-            std::regex(R"(.*smoke_Snippets_MHA_4D_MHAParallelWAOptimizer/MHAWithThreadCount.*IS\[0\]=\[\?.*)"),
-            std::regex(R"(.*smoke_Snippets_MHA_3D_MHAParallelWAOptimizer/MHAWithThreadCount.*IS\[0\]=\[\?.*)"),
-            std::regex(R"(.*smoke_Snippets_MHA_4D_WithDynamicMul/MHAWithDynamicMul.*IS\[0\]=\[\?.\?.\?.\?\].*)"),
-            std::regex(R"(.*smoke_Snippets_MHA_4D_WithDynamicMul/MHAWithDynamicMul.*IS\[0\]=\[\?.\?.12\.64\].*)"),
 #endif
 #if !defined(OPENVINO_ARCH_X86_64)
             // very time-consuming test
@@ -613,6 +599,10 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // TODO: Issue 92895
             // on platforms which do not support AMX, we are disabling I8 input tests
             patterns.emplace_back(std::regex(R"(smoke_LPT/FakeQuantizeWithNotOptimalTransformation.CompareWithRefImpl.*CPU.*i8.*)"));
+        }
+        if (!ov::with_cpu_x86_avx512_core_amx_bf16()) {
+            // the AMX QK^T fast path of SparseSDPA requires AMX bf16
+            patterns.emplace_back(std::regex(R"(.*smoke_SparseSDPA_CPU_AMX.*)"));
         }
         // RNN/LSTM/GRU/AUGRU BF16 tests on avx512 core ISA
         if (ov::with_cpu_x86_avx512_core() && !ov::with_cpu_x86_avx512_core_amx_bf16()) {

@@ -62,7 +62,7 @@ public:
     Stage::Ptr indirect_finalization = make_stage<SDPAOptGeneratorFinalization>(indirect);
     Stage::Ptr regular_finalization = make_stage<SDPAOptGeneratorFinalization>(!indirect);
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
     Stage::Ptr regular_micro_single_token = make_stage<SDPAMicroGenerator>(!prefill);
     Stage::Ptr regular_micro_multi_tokens = make_stage<SDPAMicroGenerator>(prefill);
 #endif
@@ -79,7 +79,7 @@ public:
             add_stage(indirect_multi_tokens, params);
             add_stage(regular_finalization, params);
             add_stage(indirect_finalization, params);
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
             if (SDPAOpt::supports_micro_sdpa(params)) {
                 GPU_DEBUG_TRACE_DETAIL << "add stage for micro_sdpa  dynamic ...\n";
                 add_stage(regular_micro_multi_tokens, params);
@@ -94,7 +94,7 @@ public:
                 if (is_indirect) {
                     GPU_DEBUG_TRACE_DETAIL << "add stage for indirect non-dynamic with prefill_stage \n";
                     add_stage(indirect_multi_tokens, params);
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
                 } else if (SDPAOpt::supports_micro_sdpa(params)) {
                     GPU_DEBUG_TRACE_DETAIL << "add stage for micro_sdpa non-dynamic with prefill_stage \n";
                     add_stage(regular_micro_multi_tokens, params);
@@ -112,7 +112,7 @@ public:
                 }
             } else {
                 GPU_DEBUG_TRACE_DETAIL << "add stage single_tokens \n";
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
                 const auto& gfx_ver = params.get_program().get_engine().get_device_info().gfx_ver;
                 bool is_ARL_H = (gfx_ver.major == 12 && gfx_ver.minor == 74);
                 bool can_use_micro_sdpa = SDPAOpt::supports_micro_sdpa(params) && !is_ARL_H && !is_indirect;
@@ -139,7 +139,7 @@ public:
 
         kernel_dump_info.clear_entries();
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
         const auto k_dt = new_params.input_layouts[1].data_type;
         const bool is_kv_compressed = data_type_traits::is_i8_u8(k_dt) || data_type_traits::is_i4_u4(k_dt);
         const auto kv_cache_dt = new_params.get_program().get_config().get_kv_cache_precision();
@@ -159,7 +159,7 @@ public:
             GPU_DEBUG_TRACE_DETAIL << "execute multi_tokens with indirect = " << is_indirect << "\n";
             return execute_stage(events, instance, is_indirect ? indirect_multi_tokens : regular_multi_tokens);
         }
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
         if (has_stage(regular_micro_single_token) && !is_indirect) {
             return execute_stage(events, instance, regular_micro_single_token);
         }
@@ -199,7 +199,7 @@ public:
 };
 
 bool SDPAOpt::has_bf16_compressed_kv_zero_point(const kernel_impl_params& params) {
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
     const auto desc = params.typed_desc<scaled_dot_product_attention>();
     if (!desc->is_kv_compressed || desc->quantization_attributes.quantization_type != ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric ||
         desc->quantization_attributes.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar) {
@@ -226,7 +226,7 @@ bool SDPAOpt::has_bf16_compressed_kv_zero_point(const kernel_impl_params& params
 }
 
 bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
     // Knob (OV_GPU_ENABLE_SDPA_MICRO=0): force the SDPA backend onto the OCL sdpa_opt kernel
     // instead of the oneDNN-derived micro kernel, for accuracy A/B without rebuilding.
     if (!params.get_program().get_config().get_enable_sdpa_micro()) {

@@ -854,6 +854,7 @@ public:
                                         wait_list == nullptr ? nullptr : reinterpret_cast<const cl_event*>(&wait_list->front()),
                                         ret_event == nullptr ? nullptr : &tmp);
 
+        detail::errHandler(err, "clEnqueueMemcpyINTEL");
         if (ret_event != nullptr && err == CL_SUCCESS) {
             *ret_event = tmp;
         }
@@ -881,6 +882,7 @@ public:
                                           wait_list == nullptr ? nullptr : reinterpret_cast<const cl_event*>(&wait_list->front()),
                                           ret_event == nullptr ? nullptr : &tmp);
 
+        detail::errHandler(err, "clEnqueueMemFillINTEL");
         if (ret_event != nullptr && err == CL_SUCCESS) {
             *ret_event = tmp;
         }
@@ -906,6 +908,7 @@ public:
                                         wait_list == nullptr ? nullptr : reinterpret_cast<const cl_event*>(&wait_list->front()),
                                         ret_event == nullptr ? nullptr : &tmp);
 
+        detail::errHandler(err, "clEnqueueMemsetINTEL");
         if (ret_event != nullptr && err == CL_SUCCESS) {
             *ret_event = tmp;
         }

@@ -36,6 +36,7 @@ TEST(moe_offload_property_test, set_and_get_various_values) {
 
     config.set_property(ov::intel_gpu::offload_ratio(100));
     ASSERT_EQ(config.get_offload_ratio(), 100U);
+    EXPECT_ANY_THROW(config.set_property(ov::intel_gpu::offload_ratio(101)));
 }
 
 TEST(moe_offload_property_test, set_back_to_zero_disables) {
