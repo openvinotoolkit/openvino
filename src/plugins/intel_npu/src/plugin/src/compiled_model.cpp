@@ -35,10 +35,9 @@ bool blob_contains_only_main_schedule(const BlobSectionsRegistry& blobSectionsRe
 }
 
 /**
- * @brief TODO
- *
- * @param blobSectionsRegistry
- * @param config
+ * @brief Sets the encryption callbacks used by the compiler schedule sections to the values found in the config.
+ * @note The values found in the config right before exporting the model are the correct values. Doing this
+ * synchronization informs the sections whether or not encryption should happen, and what is the right callback for it.
  */
 void sync_encryption_callbacks(BlobSectionsRegistry& blobSectionsRegistry, const Config& config) {
     std::function<std::string(const std::string&)> encryptionCallback = nullptr;

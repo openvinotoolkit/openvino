@@ -85,8 +85,10 @@ public:
      * registered so far.
      * @details The CRE is built by calling @ref ISection::get_cre_tokens on all registered sections and concatenating
      * the result. The section requirement are procured via @ref ISection::get_individual_runtime_requirements .
-     * @note The requirements are built on demand and not stored in order to make sure the requirements are aligned with
-     * the content of the blob.
+     * @note The returned section is not registered within this class since the section is dynamically generated based
+     * on the current contents of the registry. Future calls to this function may yield different runtime requirements.
+     * Despite this, a section ID is set to this section. We are assuming the user of this function may want to write
+     * the current section, and a unique section ID may be required for that.
      * @returns A runtime requirements section
      */
     std::shared_ptr<ISection> build_runtime_requirements_section() const;

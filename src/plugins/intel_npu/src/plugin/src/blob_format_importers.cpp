@@ -52,10 +52,14 @@ constexpr size_t BRACKETS_SIZE = 2;
 constexpr char OPEN_BRACKET = '[';
 constexpr char CLOSE_BRACKET = ']';
 
-// TODO comment the design flaw
+/**
+ * @brief Identifies whether or not the blob source uses the HSM format. If it does, then the base reader for it is
+ * returned. "std::nullopt" otherwise.
+ */
 std::optional<ov::runtime::hsm::Reader> open_hsm_reader(BlobSource& blob_source) {
     std::optional<ov::runtime::hsm::Reader> reader = std::nullopt;
 
+    // The functions provided by OV for creating the reader require either a stream or a buffer object
     std::visit(
         ov::util::VariantVisitor{[&](std::reference_wrapper<std::istream> stream) {
                                      const auto position_before_read = stream.get().tellg();
@@ -210,6 +214,10 @@ public:
         m_main_schedule = compiler_main_schedule.create_roi_tensor(blob_size);
     }
 
+    /**
+     * @note The "raw" format consists of only one main schedule. Therefore, we return a registry containing just one
+     * such section.
+     */
     BlobSectionsRegistry get_blob_sections_registry() override {
         OPENVINO_ASSERT(m_graph, "Invalid state");
         OPENVINO_ASSERT(m_graph->get_kind() == GraphKind::Weightful,
@@ -219,7 +227,6 @@ public:
 
         BlobSectionsRegistry blob_sections_registry;
         blob_sections_registry.register_section(std::make_shared<ELFMainScheduleSection>(graph));
-        // TODO comment
         return blob_sections_registry;
     }
 

@@ -70,10 +70,8 @@ public:
     std::shared_ptr<ov::Model> create_dummy_model() const;
 
     /**
-     * @brief Creates a new BlobSectionsRegistry using the data parsed from the blob. The BlobSectionsRegistry can later
-     * be used to re-export the blob.
-     *
-     * @return TODO
+     * @brief Creates a new @ref BlobSectionsRegistry using the data parsed from the blob. The @ref BlobSectionsRegistry
+     * can later be used to re-export the blob.
      */
     virtual BlobSectionsRegistry get_blob_sections_registry() = 0;
 

@@ -56,14 +56,15 @@ bool unknown_token_in_cre(const CRE& cre) {
 
 namespace intel_npu {
 
-// TODO use logger
 RuntimeRequirements::RuntimeRequirements(const std::map<SectionID, std::string>& sections_requirements,
                                          const CRE& cre,
                                          const std::unordered_map<SectionID, SectionType>& section_id_to_type)
     : m_sections_requirements(sections_requirements),
       m_cre(cre),
       m_section_id_to_type(section_id_to_type),
-      m_logger("RuntimeRequirements", Logger::global().level()) {}
+      m_logger("RuntimeRequirements", Logger::global().level()) {
+    m_logger.debug("Initialized");
+}
 
 std::map<SectionID, std::string> RuntimeRequirements::get_sections_requirements() const {
     return m_sections_requirements;
@@ -126,11 +127,12 @@ void RuntimeRequirementsSection::encode(const ov::runtime::hsm::SectionSink& sin
     const CRE cre = m_runtime_requirements.get_cre();
     OPENVINO_ASSERT(!unknown_token_in_cre(cre), "Unknown CRE tokens should not be serialized inside the blob");
 
-    // TODO logs?
     // Version
+    m_logger.debug("Writing the version %s", CURRENT_RUNTIME_REQUIREMENTS_VERSION.to_string().data());
     write_requirements_entry(sink, VERSION_KEY, CURRENT_RUNTIME_REQUIREMENTS_VERSION.to_string(), true);
 
     // CRE
+    m_logger.debug("Writing the CRE");
     if (!cre.empty()) {
         write_requirements_entry(sink, CRE_KEY, cre.to_string());
     }
@@ -146,6 +148,10 @@ void RuntimeRequirementsSection::encode(const ov::runtime::hsm::SectionSink& sin
         std::string key = section_type_and_id_to_string(section_type, section_id);
         string_to_lower(key);
         write_requirements_entry(sink, key, section_requirements);
+
+        m_logger.debug("Written the individual requirements of section %s: %s",
+                       key.data(),
+                       section_requirements.data());
     }
 }
 
@@ -186,7 +192,10 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> RuntimeRequirementsS
     }
 
     // Check the format version
-    const MajorMinorVersion parsed_version = MajorMinorVersion::from_string(parsed_content.at(VERSION_KEY.data()));
+    const std::string& serialized_version = parsed_content.at(VERSION_KEY.data());
+    logger.debug("Parsing the version %s", serialized_version.data());
+
+    const MajorMinorVersion parsed_version = MajorMinorVersion::from_string(serialized_version);
     if (parsed_version != CURRENT_RUNTIME_REQUIREMENTS_VERSION) {
         logger.warning("Unsupported runtime requirements version: %s", parsed_version.to_string().data());
         return std::nullopt;
@@ -196,10 +205,11 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> RuntimeRequirementsS
     // Parse the CRE if available
     CRE cre;
     if (parsed_content.count(CRE_KEY.data())) {
-        logger.debug("Parsing the CRE");
+        const std::string& serialized_cre = parsed_content.at(CRE_KEY.data());
+        logger.debug("Parsing the CRE %s", serialized_cre.data());
 
         try {
-            cre = CRE::from_string(parsed_content.at(CRE_KEY.data()));
+            cre = CRE::from_string(serialized_cre);
         } catch (const std::exception& ex) {
             logger.warning("Failed to parse the CRE. Exception: %s", ex.what());
             return std::nullopt;
@@ -218,7 +228,7 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> RuntimeRequirementsS
     std::unordered_map<SectionID, SectionType> section_id_to_type;
 
     for (const auto& [section_type_and_id_string, value] : parsed_content) {
-        logger.trace("Parsing the key %s", section_type_and_id_string.data());
+        logger.trace("Parsing the key %s and value %s", section_type_and_id_string.data(), value.data());
 
         const auto [section_type, section_id] = section_type_and_id_from_string(section_type_and_id_string);
         if (!section_id.has_value()) {

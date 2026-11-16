@@ -3,6 +3,7 @@
 //
 
 #include "hsm_sections/compiler_schedules.hpp"
+
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/tensor_decryption.hpp"
@@ -62,11 +63,12 @@ void ELFMainScheduleSection::encode(const ov::runtime::hsm::SectionSink& sink) c
     OPENVINO_ASSERT(graph, INVALID_STATE_MESSAGE);
 
     if (!m_encryption_callback) {
+        m_logger.debug("Writing the schedule without encrypting it");
         (*graph)->export_main_blob(sink);
         return;
     }
 
-    // Encrypt the compiler payload, then write it
+    m_logger.debug("Encrypting and writing the schedule");
     std::string encrypted_payload;
     {
         std::string tmp_plain_payload;
@@ -105,6 +107,7 @@ void ELFMainScheduleSection::decrypt(const std::function<std::string(const std::
     auto* schedule = std::get_if<ov::Tensor>(&m_graph_or_schedule);
     OPENVINO_ASSERT(schedule, INVALID_STATE_MESSAGE);
 
+    m_logger.debug("Decrypting the schedule");
     utils::decrypt_payload(*schedule, decryption_callback, m_logger);
 }
 
@@ -122,6 +125,7 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> ELFMainScheduleSecti
     const size_t main_schedule_size = section.size();
     std::shared_ptr<ELFMainScheduleSection> result;
     const ov::util::MemoryView content_view = section.view();
+    logger.debug("Reading the schedule, size: %zu", main_schedule_size);
 
     if (content_view.empty()) {
         ov::Tensor main_schedule = utils::allocate_aligned_tensor(main_schedule_size);
@@ -133,6 +137,7 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> ELFMainScheduleSecti
         result = std::make_shared<ELFMainScheduleSection>(
             ov::Tensor(ov::element::Type_t::u8, ov::Shape({content_view.size()}), content_view.data()),
             nullptr);
+        logger.debug("A view tensor containing the schedule has been created");
     }
 
     return result;
@@ -173,7 +178,6 @@ std::vector<std::shared_ptr<CREToken>> ELFInitSchedulesSection::get_cre_tokens(
     return {std::make_shared<SectionType>(get_type()), std::make_shared<SectionID>(get_id().value())};
 }
 
-// TODO document the form of the section on disk
 void ELFInitSchedulesSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFInitSchedulesSection::write");
     const auto* weightless_graph = std::get_if<std::shared_ptr<WeightlessGraph>>(&m_graph_or_schedules);
@@ -252,6 +256,7 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> ELFInitSchedulesSect
         return std::nullopt;
     }
 
+    // The number of schedules is found at the end
     uint16_t number_of_inits;
     size_t offset = section.size() - sizeof(number_of_inits);
     section.read(offset, sizeof(number_of_inits), &number_of_inits);
@@ -272,7 +277,7 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> ELFInitSchedulesSect
         return std::make_shared<ELFInitSchedulesSection>(std::move(init_schedules), nullptr);
     }
 
-    // TODO comment
+    // The sizes of the schedules precede the number of schedules
     offset = section.size() - sizeof(number_of_inits) - number_of_inits * SIZE_OF_INIT_SCHEDULE_SIZE;
     uint16_t remaining_inits = number_of_inits;
     size_t total_init_sizes = 0;
@@ -344,6 +349,7 @@ std::vector<std::shared_ptr<CREToken>> DynamicScheduleSection::get_cre_tokens(
 
 void DynamicScheduleSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "DynamicScheduleSection::write");
+    m_logger.debug("Reusing the main schedule section encoder");
     m_impl.encode(sink);
 }
 
@@ -370,8 +376,8 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> DynamicScheduleSecti
     OPENVINO_ASSERT(section.tag().id() == static_cast<uint32_t>(SectionTypeCode::DYNAMIC_SCHEDULE),
                     "Logic error: the decoder received a section of the wrong type");
     OPENVINO_ASSERT(section.tag().is_pointer(), "Logic error: the payload is inline");
-    // TODO more logs
 
+    Logger("DynamicScheduleSection", Logger::global().level()).debug("Reusing the main schedule section decoder");
     const auto main_schedule_section = ELFMainScheduleSection::decode(section);
     if (!main_schedule_section.has_value()) {
         return std::nullopt;

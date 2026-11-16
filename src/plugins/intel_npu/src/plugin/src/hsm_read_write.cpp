@@ -17,11 +17,19 @@ constexpr std::string_view OPTIONAL_SECTION_PARSING_FAILED_MESSAGE = "The parsin
 const ov::runtime::hsm::SectionTag RUNTIME_REQUIREMENTS_TAG =
     ov::runtime::hsm::SectionTag::make(static_cast<uint32_t>(SectionTypeCode::RUNTIME_REQUIREMENTS), false);
 
-// TODO comment mirrors writer conversion
+/**
+ * @brief Converts the tag reserved bytes corresponding to a manifest entry to the section ID value it encodes.
+ * @note By convention, only the first two bytes correspond to the section id.
+ */
 SectionID tag_reserved_bytes_to_section_id(const std::array<uint8_t, 4>& reserved_bytes) {
     return SectionID(reserved_bytes.at(0) + (reserved_bytes.at(1) << 8));
 }
 
+/**
+ * @brief Builds a section tag (reserved bytes included) for the specified section.
+ * @details The tag alone is the value of the section type. The first two bytes of the reserved bytes array are used to
+ * store the section ID. The last two remain unused.
+ */
 ov::runtime::hsm::SectionTagReserved build_section_tag(const std::shared_ptr<ISection>& section) {
     OPENVINO_ASSERT(section->get_id().has_value());
     const SectionID id = section->get_id().value();

@@ -124,11 +124,7 @@ std::shared_ptr<ISection> BlobSectionsRegistry::build_runtime_requirements_secti
 
     const auto section = std::make_shared<RuntimeRequirementsSection>(
         RuntimeRequirements(sections_requirements, cre, section_id_to_type));
-    // TODO move to hpp
-    // This section is not registered within this class since the section is dynamically generated based on the current
-    // contents of the registry. Future calls to this function may yield different runtime requirements. Despite this, a
-    // section ID is set to this section. We are assuming the user of this function may want to write the current
-    // section, and a unique section ID may be required for that.
+
     section->set_id(m_next_section_id);
     return section;
 }

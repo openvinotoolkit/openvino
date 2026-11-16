@@ -3,11 +3,11 @@
 //
 
 #include "hsm_sections/batch_size.hpp"
+
 #include "intel_npu/common/itt.hpp"
 
 namespace intel_npu {
 
-// TODO comment why inline
 BatchSizeSection::BatchSizeSection(const int64_t batch_size)
     : ISection(SectionTypeCode::BATCH_SIZE, {}, true),
       m_batch_size(batch_size),

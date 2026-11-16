@@ -127,7 +127,7 @@ TEST_F(IOLayoutsSectionRead, LessLayoutsThanExpected) {
     std::string buffer = stream.str();
 
     // overwrite only the numbers of input layouts
-    const uint32_t fake_count = 20;
+    const uint32_t fake_count = 50;
     std::memcpy(buffer.data(), &fake_count, sizeof(fake_count));
 
     ov::runtime::hsm::ManifestEntry manifest_entry = create_manifest_entry_of_type(SectionTypeCode::IO_LAYOUTS);
@@ -176,6 +176,22 @@ TEST_F(IOLayoutsSectionRead, MoreLayoutsThanExpected) {
     ASSERT_FALSE(decode_result);
 }
 
+TEST_F(IOLayoutsSectionRead, DidNotReadWholeSection) {
+    IOLayoutsSection real_section({ov::Layout("NCHW")}, {ov::Layout("NHWC")});
+    std::stringstream stream;
+    real_section.encode(create_generic_section_sink(stream));
+    std::string buffer = stream.str() + '\0';
+
+    ov::runtime::hsm::ManifestEntry manifest_entry = create_manifest_entry_of_type(SectionTypeCode::IO_LAYOUTS);
+    manifest_entry.size = buffer.size();
+
+    const ov::runtime::hsm::Section section(
+        manifest_entry,
+        ov::util::MemoryView(reinterpret_cast<const std::byte*>(buffer.data()), buffer.size()));
+    auto decode_result = IOLayoutsSection::decode(section);
+    ASSERT_FALSE(decode_result);
+}
+
 TEST_F(IOLayoutsSectionRead, InvalidLayoutNoThrow) {
     IOLayoutsSection valid_section({ov::Layout("N")}, {});
     std::stringstream stream;
@@ -211,7 +227,7 @@ TEST_F(IOLayoutsSectionRead, AlteredLayoutSizeTooBig) {
     std::string buffer = stream.str();
 
     // overwrite both numbers of layouts
-    const uint16_t fake_layout_size = 5;
+    const uint16_t fake_layout_size = 500;
     std::memcpy(buffer.data() + 2 * LAYOUTS_COUNT_SIZE, &fake_layout_size, sizeof(fake_layout_size));
 
     ov::runtime::hsm::ManifestEntry manifest_entry = create_manifest_entry_of_type(SectionTypeCode::IO_LAYOUTS);

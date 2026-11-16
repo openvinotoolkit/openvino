@@ -8,6 +8,7 @@
 
 namespace intel_npu {
 
+// TODO comment why inline
 class BatchSizeSection final : public ISection {
 public:
     BatchSizeSection(const int64_t batch_size);

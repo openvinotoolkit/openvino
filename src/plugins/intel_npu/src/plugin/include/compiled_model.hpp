@@ -73,7 +73,6 @@ private:
 
     const std::shared_ptr<IDevice> _device;
     std::shared_ptr<IGraph> _graph;
-    // TODO optional comment
     mutable BlobSectionsRegistry _blobSectionsRegistry;
 
     std::unique_ptr<CompiledModelPropertyManager> _propertiesManager;
