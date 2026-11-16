@@ -240,10 +240,13 @@ public:
     propagate_constants() : base_pass("propagate_constants") {}
 
 private:
+    using cache_tuple = std::tuple<std::shared_ptr<weightless_cache_manager>, std::shared_ptr<layout>, std::shared_ptr<reorder>>;
+    using replacement_list = std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>>;
+
     void run(program& p) override;
-    std::list<std::tuple<primitive_id, memory::ptr, std::tuple<std::shared_ptr<weightless_cache_manager>, std::shared_ptr<layout>, std::shared_ptr<reorder>>>>
-    calculate(engine& engine, const ExecutionConfig& config, std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-              const std::map<primitive_type_id, bool>& onednn_impls);
+    replacement_list calculate(engine& engine, const ExecutionConfig& config, std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
+                               const std::map<primitive_type_id, bool>& onednn_impls);
+    replacement_list defer_to_import(program& p, const std::map<primitive_type_id, bool>& onednn_impls);
     bool has_non_const_user(program_node& node) const;
     void handle_constant(program& prog, program_node& node);
     void add_constant(program& prog, program_node& node);

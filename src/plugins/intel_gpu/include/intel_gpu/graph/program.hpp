@@ -184,6 +184,10 @@ public:
     bool contains_state(const std::string& variable_id);
     const std::vector<primitive_id>& get_initializers(const std::string& variable_id) { return state_initializers.at(variable_id); }
     const std::map<std::string, std::vector<primitive_id>>& get_state_initializers() const { return state_initializers; }
+    void set_const_program(ptr prog, std::vector<std::pair<primitive_id, memory::ptr>> inputs) {
+        _const_program = std::move(prog);
+        _const_program_inputs = std::move(inputs);
+    }
 
     // returns already existing program_node for given primitive 'prim' (lookup in 'nodes_map')
     // if it was previously created, otherwise creates and then returns program_node
@@ -356,6 +360,9 @@ private:
 
     std::map<std::string, std::vector<primitive_id>> state_initializers;
 
+    ptr _const_program;
+    std::vector<std::pair<primitive_id, memory::ptr>> _const_program_inputs;
+
     primitives_info get_current_stage_info() const;
     /*
     ** High-level functions, in order of usage
@@ -385,6 +392,8 @@ private:
     void pre_optimize_graph(bool is_internal);
     void post_optimize_graph(bool is_internal);
     void transfer_memory_to_device();
+    void align_constant_memory_layouts();
+    void assign_constant_alloc_types();
 
     /*
     ** Analysis functions

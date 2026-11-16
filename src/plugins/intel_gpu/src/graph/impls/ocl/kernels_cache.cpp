@@ -23,6 +23,10 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/file_util.hpp"
 
+#include "runtime/ocl/ocloc_offline_compiler.hpp"
+#include "runtime/ocl/offline_kernel.hpp"
+#include "runtime/ocl/offline_device.hpp"
+
 #ifdef _WIN32
 #include <sdkddkver.h>
 #ifdef NTDDI_WIN10_RS5
@@ -336,13 +340,50 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
     ///////////////////////////////////////////////////////////////////////////////////
     std::vector<uint8_t> precompiled;
     if (is_cache_enabled()) {
+        OPENVINO_ASSERT(!_offline_export,
+                        "[GPU offline] kernels cache (cl_cache) must be disabled for HW-free offline "
+                        "compile; a cached driver binary would bypass ocloc.");
         std::lock_guard<std::mutex> lock(cacheAccessMutex);
         precompiled = ov::util::load_binary(ov::util::make_path(cached_bin_name));
     }
     std::vector<kernel::ptr> kernels;
     if (!precompiled.empty()) {
         _builder->build_kernels(precompiled.data(), precompiled.size(), KernelFormat::NATIVE_BIN, "", kernels);
+    } else if (_offline_export) {
+        auto combined_source = join_strings(batch.source);
+
+        // OCLC_V2 is plain OpenCL C after process_batch_includes(); only CM can't go through ocloc.
+        OPENVINO_ASSERT(batch.language != kernel_language::CM,
+                        "[GPU offline] CM kernels can't be compiled by ocloc (batch ", batch.hash_value, ")");
+
+        const std::string device_arg = ocl::offline_ocloc_target(_device->get_info());
+
+        std::string ocloc_log;
+        std::vector<uint8_t> ocloc_bin =
+            cldnn::ocloc::ocloc_compile_ocl_c(combined_source, batch.options, device_arg, &ocloc_log);
+
+        OPENVINO_ASSERT(!ocloc_bin.empty(),
+                        "[GPU offline] ocloc compile produced no binary for batch ", batch.hash_value,
+                        " (device=", device_arg, "). Log:\n", ocloc_log);
+
+        if (batch.has_microkernels) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+            OPENVINO_ASSERT(batch.kernels_counter == 1);
+            gemmstone::microkernel::fuse(ocloc_bin, combined_source.c_str());
+#else
+            OPENVINO_THROW("[GPU offline] Can't compile kernel w/ microkernels as onednn is not available");
+#endif
+        }
+
+        for (const auto& ep : batch.entry_point_to_id)
+            kernels.push_back(std::make_shared<ocl::offline_kernel>(ep.first, ocloc_bin));
+        OPENVINO_ASSERT(kernels.size() == batch.kernels_counter,
+                        "[GPU offline] placeholder kernel count (", kernels.size(),
+                        ") != batch kernel count (", batch.kernels_counter, ") for batch ", batch.hash_value);
     } else {
+        OPENVINO_ASSERT(!_config.get_disallow_runtime_compilation(),
+                        "[GPU] Runtime compilation is disallowed: OCL source build of batch ", batch.hash_value,
+                        " (", batch.kernels_counter, " kernels, first entry point ", batch.entry_point_to_id.begin()->first, ")");
         auto combined_source = join_strings(batch.source);
         _builder->build_kernels(combined_source.data(), combined_source.size(), KernelFormat::SOURCE, batch.options, kernels);
         OPENVINO_ASSERT(!kernels.empty(), "[GPU] Expected to compile more than 0 kernels in the batch");

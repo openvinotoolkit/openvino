@@ -87,6 +87,7 @@ Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& con
     auto program_builder = std::make_shared<ProgramBuilder>(model, get_engine(), config, weight_sharing_ctx);
     m_config = program_builder->get_config();
 
+    m_compile_only = m_config.get_offline_compile();
     build(program_builder->get_compiled_program());
 
     primitiveIDs = program_builder->primitive_ids;
@@ -218,6 +219,11 @@ Graph::~Graph() {
 
 void Graph::build(std::shared_ptr<cldnn::program> program) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::build");
+
+    if (m_compile_only) {
+        m_program = program;
+        return;
+    }
 
     auto* external_queue = m_context->get_external_queue();
     if (external_queue) {
@@ -643,6 +649,13 @@ void Graph::export_model(cldnn::BinaryOutputBuffer &ob) {
     }
     OstreamAttributeVisitor<cldnn::BinaryOutputBuffer> visitor(ob);
     m_config.visit_attributes(visitor);
+
+    if (m_program) {
+        auto stream = get_engine().create_stream(m_config);
+        ob.set_stream(stream.get());
+        m_program->save(ob);
+        return;
+    }
 
     ob.set_stream(m_network->get_stream_ptr().get());
     m_network->get_program()->save(ob);

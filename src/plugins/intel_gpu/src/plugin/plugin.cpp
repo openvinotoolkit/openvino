@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdlib>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -30,6 +31,8 @@
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/profiling.hpp"
+#include "runtime/ocl/offline_engine.hpp"
+#include "runtime/ocl/ocl_device.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/weights_prefetch.hpp"
@@ -54,6 +57,13 @@
 
 #ifdef OV_GPU_MLIR_BACKEND_LINKED
 #    include "transformations/mlir/interface/gpu_runtime.hpp"
+#endif
+
+#if defined(_WIN32) && defined(OV_GPU_WITH_OCL_RT)
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    include <windows.h>
 #endif
 
 // Undef DEVICE_TYPE macro which can be defined somewhere in windows headers as DWORD and conflict with our metric
@@ -246,7 +256,36 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
 std::map<std::string, std::weak_ptr<RemoteContextImpl>> weak_singleton_default_contexts;
 std::mutex singleton_default_contexts_mutex;
 
+void Plugin::ensure_devices() const {
+    std::call_once(m_devices_once, [this]() {
+#if defined(_WIN32) && defined(OV_GPU_WITH_OCL_RT)
+        // OpenCL.dll is delay-loaded: without this check a missing DLL raises SEH on the first OpenCL call.
+        if (!LoadLibraryA("OpenCL.dll")) {
+            GPU_DEBUG_INFO << "[GPU] OpenCL.dll not found" << std::endl;
+            return;
+        }
+#endif
+        try {
+            cldnn::device_query device_query;
+            m_device_map = device_query.get_available_devices();
+        } catch (const std::exception& ex) {
+            GPU_DEBUG_INFO << "[GPU] device enumeration failed (" << ex.what() << ")" << std::endl;
+        }
+    });
+}
+
+ExecutionConfig Plugin::get_config(const std::string& device_id) const {
+    ExecutionConfig config(ov::device::id(device_id));
+    for (const auto& [id, user_config] : m_user_configs) {
+        if (id.empty() || id == device_id) {
+            config.set_user_property(user_config, OptionVisibility::RELEASE);
+        }
+    }
+    return config;
+}
+
 std::map<std::string, RemoteContextImpl::Ptr> Plugin::get_default_contexts() const {
+    ensure_devices();
     std::call_once(m_default_contexts_once, [this]() {
         std::lock_guard<std::mutex> lock(singleton_default_contexts_mutex);
         for (const auto& device : m_device_map) {
@@ -276,14 +315,6 @@ Plugin::Plugin() {
     set_device_name("GPU");
     register_primitives();
 
-    cldnn::device_query device_query;
-    m_device_map = device_query.get_available_devices();
-
-    // Set default configs for each device
-    for (const auto& device : m_device_map) {
-        m_configs_map.insert({device.first, ExecutionConfig(ov::device::id(device.first))});
-    }
-
     // Set common info for compiled_model_runtime_properties
     const auto& ov_version = ov::get_openvino_version();
     m_compiled_model_runtime_properties["OV_VERSION"] = ov_version.buildNumber;
@@ -292,15 +323,32 @@ Plugin::Plugin() {
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model");
     std::string device_id = get_device_id(orig_config);
-    auto context = get_default_context(device_id);
-    GPU_DEBUG_SET_ACTIVE_LUID(context->get_device().get_info().luid);
 
-    OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] compile_model: Couldn't find config for GPU with id ", device_id);
-
-    ExecutionConfig config = m_configs_map.at(device_id);
+    ExecutionConfig config = get_config(device_id);
     auto user_config = orig_config;
     auto weight_sharing_context = extract_weight_sharing_context(user_config);
     config.set_user_property(user_config, OptionVisibility::RELEASE);
+
+    // The env is read here because finalize() runs after the context is chosen.
+    bool offline = config.get_offline_compile();
+    std::string offline_target = config.get_offline_compile_device();
+    offline = ov::util::getenv_bool("OV_GPU_OFFLINE_COMPILE", offline);
+    if (offline && offline_target.empty()) {
+        if (const char* env_dev = std::getenv("OV_GPU_OFFLINE_COMPILE_DEVICE"))
+            offline_target = env_dev;
+    }
+
+    std::shared_ptr<RemoteContextImpl> context;
+    if (offline) {
+        auto dev = std::make_shared<cldnn::ocl::offline_device>(
+            cldnn::ocl::make_offline_device_info(offline_target),
+            cldnn::ocl::make_offline_onednn_device_info(offline_target));
+        context = std::make_shared<RemoteContextImpl>(get_device_name() + "." + device_id,
+                                                      std::vector<cldnn::device::ptr>{dev});
+    } else {
+        context = get_default_context(device_id);
+    }
+    GPU_DEBUG_SET_ACTIVE_LUID(context->get_device().get_info().luid);
 
     auto transformed_model = clone_and_transform_model(model, config, context);
 
@@ -327,9 +375,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto device_id = ov::DeviceIDParser{context_impl->get_device_name()}.get_device_id();
     GPU_DEBUG_SET_ACTIVE_LUID(context_impl->get_device().get_info().luid);
 
-    OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] compile_model: Couldn't find config for GPU with id ", device_id);
-
-    ExecutionConfig config = m_configs_map.at(device_id);
+    ExecutionConfig config = get_config(device_id);
     auto user_config = orig_config;
     auto weight_sharing_context = extract_weight_sharing_context(user_config);
     config.set_user_property(user_config, OptionVisibility::RELEASE);
@@ -380,23 +426,24 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const AnyMap& params) 
 void Plugin::apply_device_id_map(const std::map<std::string, std::string>& id_map) {
     // Core owns the numbering when several libraries share a device name; adopt its ids for every
     // device we enumerated, so nothing downstream (contexts, configs, metrics) sees our own.
+    ensure_devices();
     std::map<std::string, cldnn::device::ptr> renamed_devices;
-    std::map<std::string, ExecutionConfig> renamed_configs;
     for (const auto& [internal_id, device] : m_device_map) {
         const auto it = id_map.find(internal_id);
         OPENVINO_ASSERT(it != id_map.end(), "[GPU] Core did not assign an id for enumerated device \"", internal_id, "\", so it could not be addressed.");
         renamed_devices[it->second] = device;
-        renamed_configs.emplace(it->second, ExecutionConfig(ov::device::id(it->second)));
     }
     m_device_map = std::move(renamed_devices);
-    m_configs_map = std::move(renamed_configs);
+    m_user_configs.clear();
     // The assigned ids need not contain "0": another member may hold the device Core numbered 0.
     m_default_device_id = m_device_map.empty() ? std::string("0") : m_device_map.begin()->first;
 }
 
 void Plugin::set_property(const ov::AnyMap &config) {
-    auto update_config = [](ExecutionConfig& config, const ov::AnyMap& user_config) {
+    auto update_config = [this](const std::string& device_id, const ov::AnyMap& user_config) {
+        ExecutionConfig config;
         config.set_user_property(user_config, OptionVisibility::RELEASE);
+        m_user_configs.emplace_back(device_id, user_config);
         // Check that custom layers config can be loaded
         if (user_config.find(ov::intel_gpu::config_file.name()) != user_config.end()) {
             CustomLayerMap custom_layers;
@@ -418,16 +465,14 @@ void Plugin::set_property(const ov::AnyMap &config) {
         std::string device_id = config.at(ov::internal::config_device_id.name()).as<std::string>();
         auto config_for_device = config;
         config_for_device.erase(ov::internal::config_device_id.name());
-        update_config(m_configs_map.at(device_id), config_for_device);
+        update_config(device_id, config_for_device);
     } else {
         std::string device_id = get_device_id_from_config(config);
         if (!device_id.empty()) {
             m_default_device_id = device_id;
-            update_config(m_configs_map.at(device_id), config);
+            update_config(device_id, config);
         } else {
-            for (auto& conf : m_configs_map) {
-                update_config(conf.second, config);
-            }
+            update_config("", config);
         }
     }
 }
@@ -439,7 +484,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
     auto ctx = get_default_context(device_id);
 
-    ExecutionConfig config = m_configs_map.at(device_id);
+    ExecutionConfig config = get_config(device_id);
     config.set_user_property(orig_config, OptionVisibility::RELEASE);
     config.finalize(ctx.get(), model.get());
 
@@ -498,7 +543,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
 
     auto weight_sharing_context = extract_weight_sharing_context(_orig_config);
 
-    ExecutionConfig config = m_configs_map.at(device_id);
+    ExecutionConfig config = get_config(device_id);
     config.set_user_property(_orig_config, OptionVisibility::RELEASE);
     config.apply_weightless_options();
 
@@ -594,6 +639,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         return decltype(ov::internal::supported_properties)::value_type{get_supported_internal_properties()};
     }
     if (name == ov::available_devices) {
+        ensure_devices();
         std::vector<std::string> available_devices = { };
         for (const auto& dev : m_device_map) {
             available_devices.push_back(dev.first);
@@ -648,10 +694,10 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         return res;
     }
 
-    OPENVINO_ASSERT(!m_device_map.empty(), "[GPU] Can't get ", name, " property as no supported devices found or an error happened during devices query.\n"
-                                           "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n");
-
     if (is_metric(name)) {
+        ensure_devices();
+        OPENVINO_ASSERT(!m_device_map.empty(), "[GPU] Can't get ", name, " property as no supported devices found or an error happened during devices query.\n"
+                                               "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n");
         return get_metric(name, options);
     }
 
@@ -659,10 +705,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     if (options.find(ov::device::id.name()) != options.end()) {
         device_id = options.find(ov::device::id.name())->second.as<std::string>();
     }
-    OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] get_property: Couldn't find config for GPU with id ", device_id);
-
-    const auto& c = m_configs_map.at(device_id);
-    return c.get_property(name, OptionVisibility::RELEASE);
+    return get_config(device_id).get_property(name, OptionVisibility::RELEASE);
 }
 
 auto StringRightTrim = [](std::string string, std::string substring, bool case_sensitive = true) {
@@ -708,6 +751,22 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
     auto device = iter->second;
     auto device_info = device->get_info();
 
+    if (name == ov::intel_gpu::device_descriptor) {
+        std::string onednn_version;
+        std::vector<uint8_t> onednn_device_info;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        if (device_info.supports_immad) {
+            device->initialize();
+            auto* ocl_dev = dynamic_cast<cldnn::ocl::ocl_device*>(device.get());
+            OPENVINO_ASSERT(ocl_dev, "[GPU] Device descriptor export expects an ocl_device");
+            auto engine = dnnl::ocl_interop::make_engine(ocl_dev->get_device().get(), ocl_dev->get_context().get());
+            onednn_device_info = dnnl::ocl_interop::get_engine_cache_blob(engine);
+            onednn_version = cldnn::ocl::onednn_fingerprint();
+        }
+#endif
+        return decltype(ov::intel_gpu::device_descriptor)::value_type {
+            cldnn::ocl::serialize_device_info(device_info, onednn_version, onednn_device_info)};
+    }
     if (name == ov::intel_gpu::device_total_mem_size) {
         return decltype(ov::intel_gpu::device_total_mem_size)::value_type {device_info.max_global_mem_size};
     }
@@ -873,6 +932,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::device::capabilities.name(), PropertyMutability::RO},
         ov::PropertyName{ov::device::pci_info.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::device_id.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::intel_gpu::device_descriptor.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::device_total_mem_size.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::device_max_alloc_mem_size.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::uarch_version.name(), PropertyMutability::RO},
@@ -960,7 +1020,7 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
     auto context = get_default_contexts().at(device_id);
     GPU_DEBUG_SET_ACTIVE_LUID(context->get_device().get_info().luid);
     const auto& device_info = context->get_device().get_info();
-    auto config = m_configs_map.at(device_id);
+    auto config = get_config(device_id);
     config.set_property(ov::intel_gpu::partial_build_program(true));
     uint32_t n_streams = static_cast<uint32_t>(config.get_num_streams());
     uint64_t occupied_device_mem = 0;
@@ -1143,7 +1203,7 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
     context->initialize();
 
     float L3_cache_size = static_cast<float>(device_info.max_global_cache_size);
-    auto config = m_configs_map.at(device_id);
+    auto config = get_config(device_id);
     auto cloned_model = clone_and_transform_model(model, config, context);
     ov::MemBandwidthPressure memPressure = ov::mem_bandwidth_pressure_tolerance(cloned_model, L3_cache_size);
     uint32_t batch = 1;

@@ -101,7 +101,8 @@ void propagate_constants::run(program& p) {
     }
     // Get OneDNN impls from the main program and propagate them to the internal program
     auto onednn_impls = p.get_layout_optimizer().get_all_onednn_impls_optimization_attribute();
-    auto&& to_replace = calculate(p.get_engine(), p.get_config(), p.get_task_executor(), onednn_impls);
+    auto&& to_replace = p.get_config().get_offline_compile() ? defer_to_import(p, onednn_impls)
+                                                             : calculate(p.get_engine(), p.get_config(), p.get_task_executor(), onednn_impls);
 
     // remove all nodes which are no longer relevant, i.e. nodes which:
     // 1. are constants, and
@@ -234,12 +235,10 @@ bool propagate_constants::has_non_const_user(program_node& node) const {
     return false;
 }
 
-using cache_tuple = std::tuple<std::shared_ptr<weightless_cache_manager>, std::shared_ptr<layout>, std::shared_ptr<reorder>>;
-
-std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>> propagate_constants::calculate(engine& engine,
-                                                                                             const ExecutionConfig& config,
-                                                                                             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-                                                                                             const std::map<primitive_type_id, bool>& onednn_impls) {
+propagate_constants::replacement_list propagate_constants::calculate(engine& engine,
+                                                                    const ExecutionConfig& config,
+                                                                    std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
+                                                                    const std::map<primitive_type_id, bool>& onednn_impls) {
     if (!has_non_trivial_constants) {
         return {};
     }
@@ -279,6 +278,53 @@ std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>> propagate_constant
         ret.push_back({out->id(), out->output_memory_ptr(), cache_info});
     }
 
+    return ret;
+}
+
+propagate_constants::replacement_list propagate_constants::defer_to_import(program& p, const std::map<primitive_type_id, bool>& onednn_impls) {
+    if (!has_non_trivial_constants) {
+        return {};
+    }
+
+    std::vector<std::string> unsupported;
+    for (const auto& out_id : const_outputs) {
+        auto& node = p.get_node(out_id);
+        // Shape inference reads these values on the host, so they can't be deferred.
+        if (node.is_shape_infer_dep()) {
+            std::string s = out_id + " (" + node.get_primitive()->type_string() + " <- ";
+            for (const auto& dep : node.get_dependencies())
+                s += dep.first->get_primitive()->type_string() + std::string(" ");
+            unsupported.push_back(s + "): value is a shape inference dependency");
+        }
+    }
+    if (!unsupported.empty()) {
+        std::string msg = "[GPU] HW-free compile cannot defer " + std::to_string(unsupported.size()) +
+                          " constant chain(s) to import time:\n";
+        for (const auto& u : unsupported)
+            msg += "  - " + u + "\n";
+        OPENVINO_THROW(msg);
+    }
+
+    auto& engine = p.get_engine();
+    ExecutionConfig cf_config = p.get_config().clone();
+    cf_config.set_property(ov::intel_gpu::optimize_data(false));
+    cf_config.set_property(ov::intel_gpu::custom_outputs(const_outputs));
+    cf_config.finalize(engine);
+    auto const_prog = program::build_program(engine, nodes, cf_config, p.get_task_executor(), true, onednn_impls);
+
+    std::vector<std::pair<primitive_id, memory::ptr>> inputs;
+    for (auto& cin : const_inputs)
+        inputs.emplace_back(cin->id(), cin->get_attached_memory_ptr());
+
+    replacement_list ret;
+    for (const auto& out_id : const_outputs) {
+        auto manager = std::make_shared<weightless_cache_manager>();
+        manager->set_const_program();
+        const auto out_layout = const_prog->get_node(out_id).get_output_layout();
+        auto alloc_type = engine.get_preferred_memory_allocation_type(out_layout.format.is_image_2d());
+        ret.push_back({out_id, engine.allocate_memory(out_layout, alloc_type, false), cache_tuple{manager, nullptr, nullptr}});
+    }
+    p.set_const_program(const_prog, std::move(inputs));
     return ret;
 }
 

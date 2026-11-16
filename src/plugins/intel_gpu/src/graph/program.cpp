@@ -93,6 +93,7 @@
 
 // TODO: Remove once we have interface for kernels cache
 #include "impls/ocl/kernels_cache.hpp"
+#include "runtime/ocl/offline_memory.hpp"
 
 // TODO: implement self-registration for impls
 #include "impls/ocl/register.hpp"
@@ -121,6 +122,14 @@
 
 using namespace cldnn;
 using namespace ov::intel_gpu;
+
+// input_layout and data only wait for events on the host; they compute nothing.
+static void assert_no_cpu_impl(const program_node& node) {
+    const auto* impl = node.get_selected_impl();
+    OPENVINO_ASSERT(!impl || !impl->is_cpu() || node.is_type<input_layout>() || node.is_type<data>(),
+                    "[GPU] CPU implementation is disallowed: ", node.id(), " (", node.get_primitive()->type_string(), " ",
+                    impl->get_kernel_name(), ")");
+}
 
 static ov::threading::IStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags, int num_streams = 0) {
     int streams = (num_streams > 0) ? num_streams : config.get_compilation_num_threads();
@@ -254,6 +263,7 @@ void program::init_program() {
                                                                       kernel_selector::KernelBase::get_db().get_batch_headers()));
 
     _kernels_cache->set_kernels_reuse(_config.get_enable_kernels_reuse());
+    _kernels_cache->set_offline_export(get_engine().is_hw_free());
 
     if (!_compilation_context)
         _compilation_context = program::make_compilation_context(_config);
@@ -519,12 +529,22 @@ void program::build_program(bool is_internal) {
 #endif
         prepare_memory_dependencies();
         apply_opt_pass<build_implementations>();
+        if (_config.get_disallow_cpu_impl()) {
+            for (const auto& node : processing_order)
+                assert_no_cpu_impl(*node);
+        }
     }
 
     if (!is_internal) {
         prim_info = get_current_stage_info();
-        if (get_engine().get_device_info().has_separate_cache)
+        if (_config.get_offline_compile()) {
+            // No device to transfer to, but the blob records the memory layout, so align it here.
+            align_constant_memory_layouts();
+            if (get_engine().get_device_info().has_separate_cache)
+                assign_constant_alloc_types();
+        } else if (get_engine().get_device_info().has_separate_cache) {
             transfer_memory_to_device();
+        }
     }
 }
 
@@ -714,6 +734,46 @@ void program::mark_if_gemm_data_flow() {
                 }
             }
         }
+    }
+}
+
+void program::align_constant_memory_layouts() {
+    for (const auto& node : processing_order) {
+        if (node->is_shape_infer_dep() || !node->is_type<data>())
+            continue;
+        auto& data_node = node->as<data>();
+        const auto node_layout = data_node.get_output_layout();
+        auto& mem = data_node.get_attached_memory();
+        if (mem.get_layout() == node_layout || mem.get_layout().count() == 0)
+            continue;
+        auto fixed = get_engine().reinterpret_buffer(mem, node_layout);
+        data_node.attach_memory(fixed);
+        const_cast<memory::ptr&>(data_node.get_primitive()->mem) = fixed;
+    }
+}
+
+void program::assign_constant_alloc_types() {
+    if (!get_engine().supports_allocation(allocation_type::usm_device))
+        return;
+
+    const auto& info = get_engine().get_device_info();
+    for (const auto& node : processing_order) {
+        if (node->is_shape_infer_dep() || !node->is_type<data>() || node->need_lockable_memory())
+            continue;
+        auto& data_node = node->as<data>();
+        auto& mem = data_node.get_attached_memory();
+        const auto alloc_type = mem.get_allocation_type();
+        if (data_node.get_primitive()->skip_device_transfer() || mem.get_layout().count() == 0)
+            continue;
+        if ((alloc_type != allocation_type::usm_host && alloc_type != allocation_type::usm_shared) ||
+            (info.arch >= gpu_arch::xe2 && info.dev_type == device_type::integrated_gpu))
+            continue;
+        const auto* offline_mem = dynamic_cast<const ocl::offline_memory*>(&mem);
+        OPENVINO_ASSERT(offline_mem, "[GPU offline] constant memory must be offline_memory");
+        auto retagged = std::make_shared<ocl::offline_memory>(&get_engine(), mem.get_layout(), allocation_type::usm_device,
+                                                              offline_mem->shared_buffer());
+        data_node.attach_memory(retagged);
+        const_cast<memory::ptr&>(data_node.get_primitive()->mem) = retagged;
     }
 }
 
@@ -2000,6 +2060,25 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
         ob << state_initializer.second;
     }
 
+    ob << (_const_program != nullptr);
+    if (_const_program) {
+        _const_program->save(ob);
+        ob << _const_program_inputs.size();
+        for (const auto& [id, mem] : _const_program_inputs) {
+            mem_lock<uint8_t, mem_lock_type::read> lock(mem, mem->get_engine()->get_service_stream());
+            ob << id;
+            ob << mem->get_layout();
+            ob << mem->size();
+            ob << make_data(lock.data(), mem->size());
+        }
+        std::vector<primitive_id> const_outputs;
+        for (const auto* out : _const_program->get_outputs()) {
+            if (has_node(out->id()))
+                const_outputs.push_back(out->id());
+        }
+        ob << const_outputs;
+    }
+
     const auto& dev_info = get_engine().get_device_info();
     if (!ob.is_encrypted() && get_engine().can_use_host_usm_zero_copy()) {
         if (const auto pad = ov::util::align_padding_size(dev_info.cacheline_size.value_or(0), ob.get_offset()); pad > 0) {
@@ -2163,6 +2242,8 @@ void program::load(cldnn::BinaryInputBuffer& ib,
             ib >> p_node.selected_impl;
 
             p_node.selected_impl->m_manager = impl_manager.get();
+            if (_config.get_disallow_cpu_impl())
+                assert_no_cpu_impl(p_node);
 
             std::vector<std::string> cached_kernel_ids;
             ib >> cached_kernel_ids;
@@ -2254,6 +2335,40 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         ib >> variable_id;
         ib >> initializers;
         state_initializers[variable_id] = initializers;
+    }
+
+    bool has_const_program = false;
+    ib >> has_const_program;
+    if (has_const_program) {
+        // Run the constant sub-program once to fill the folded constants.
+        auto const_prog = std::make_shared<program>(get_engine(), _config);
+        const_prog->load(ib);
+        auto net = std::make_shared<network>(const_prog, true, true);
+        size_t num_inputs = 0;
+        ib >> num_inputs;
+        for (size_t i = 0; i < num_inputs; i++) {
+            primitive_id id;
+            layout mem_layout;
+            size_t size = 0;
+            ib >> id;
+            ib >> mem_layout;
+            ib >> size;
+            auto mem = get_engine().allocate_memory(mem_layout, false);
+            OPENVINO_ASSERT(mem->size() == size, "[GPU] Corrupt cache blob: constant program input ", id, " size mismatch");
+            std::vector<uint8_t> bytes(size);
+            ib >> make_data(bytes.data(), size);
+            mem->copy_from(net->get_stream(), bytes.data());
+            net->set_input_data(id, mem);
+        }
+        std::vector<primitive_id> const_outputs;
+        ib >> const_outputs;
+        for (const auto& id : const_outputs) {
+            auto& dst = get_node(id).as<data>().get_attached_memory();
+            // align_constant_memory_layouts() may have given the data node a different layout over the same buffer.
+            net->set_output_memory(id, get_engine().reinterpret_buffer(dst, const_prog->get_node(id).get_output_layout()));
+        }
+        net->execute({});
+        net->reset_execution(true);
     }
 
     const auto& dev_info = get_engine().get_device_info();
