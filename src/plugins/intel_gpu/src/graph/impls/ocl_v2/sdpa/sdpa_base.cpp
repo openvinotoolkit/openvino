@@ -497,7 +497,12 @@ kernel_impl_params SDPABase::static_canonicalize_shapes(const kernel_impl_params
     // it to a false higher-rank shape, otherwise it becomes indistinguishable from a real static mask.
     if (updated_impl_params.input_layouts.size() > attn_mask_idx) {
         const auto attn_mask_shape = updated_impl_params.input_layouts[attn_mask_idx].get_partial_shape();
-        if (attn_mask_shape.size() != 0) {
+        // A rank-3 mask [B, Lq, Lk] of a rank-3 SDPA (Q/K/V [B, L, E]) is aligned with Q/K/V, which get the num_heads
+        // dim (1) inserted below ([B, 1, L, E]). Prepending a 1 instead ([1, B, Lq, Lk]) would make the kernel read B
+        // as num_heads and broadcast the batch, i.e. every batch would use mask[0]. The generic loop below inserts
+        // the num_heads dim for this case (shape and padding), so skip the prepend here.
+        const bool mask_aligned_with_3d_qkv = attn_mask_shape.size() == 3 && updated_impl_params.input_layouts[0].get_partial_shape().size() == 3;
+        if (attn_mask_shape.size() != 0 && !mask_aligned_with_3d_qkv) {
             updated_impl_params.input_layouts[attn_mask_idx].set_partial_shape(extend_shape_to_rank_from_begin(attn_mask_shape));
         }
     }

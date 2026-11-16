@@ -116,7 +116,11 @@ public:
             if (dpas_supported()) {
                 GPU_DEBUG_TRACE_DETAIL << "add stage for sdpa_ocl dynamic ...\n";
                 add_stage(ocl_multi_tokens, params);
-                add_stage(ocl_single_token, params);
+                // A rank-3 op keeps the opt single-token kernel: for one query it measured 2 us against sdpa_ocl's 10 us
+                // ([10, 1024, 64] keys, B70), while the prefill is 2.4-6.7x faster on sdpa_ocl.
+                if (params.typed_desc<scaled_dot_product_attention>()->input_q_transpose_order.size() != 3) {
+                    add_stage(ocl_single_token, params);
+                }
             }
 #endif
             GPU_DEBUG_TRACE_DETAIL << "add stage for dynamic done \n";
@@ -285,8 +289,10 @@ bool SDPAOpt::has_bf16_compressed_kv_zero_point(const kernel_impl_params& params
 
 bool SDPAOpt::dpas_lane_op_supported(const RuntimeParams& params, bool allow_scalar_mask) {
 #ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
+    // dpas_sdpa_op_supported() reads 4D layouts; a rank-3 op reaches here with rank-3 ones.
+    const SDPACanonicalParams canonical(params);
     return cldnn::paged_attention::sdpa_ocl_selected(params.get_device_info()) && dpas_sdpa_enabled(params) &&
-           dpas_sdpa_op_supported(params, allow_scalar_mask);
+           dpas_sdpa_op_supported(canonical.get(), allow_scalar_mask);
 #else
     UNUSED(params);
     UNUSED(allow_scalar_mask);
@@ -348,8 +354,9 @@ bool SDPAOpt::dpas_sdpa_op_supported(const RuntimeParams& params, bool allow_sca
         return false;
     }
 
-    // Known limitation: In vision encoding model of qwen-vl, when the shape of sdpa is 3D and num_heads is 1,
-    // there is an accuracy issue with sdpa_micro kernel. Therefore, it is currently restricted to execute with sdpa_opt kernel.
+    // A rank-3 op (Q/K/V [B, L, E]) was kept off the DPAS kernel because of an accuracy issue of the removed sdpa_micro in the
+    // vision encoder of qwen-vl (3D, one head). sdpa_ocl serves it where it was measured and verified
+    // (sdpa_ocl_plain_3d_ok()); everywhere else it runs on sdpa_opt.
     const bool is_output_rank_4d = desc->output_transpose_order.size() == 4;
 
     // Asymmetric compressed KV with a bf16 zero-point buffer stays off the DPAS kernels: the removed oneDNN micro SDPA
@@ -358,7 +365,8 @@ bool SDPAOpt::dpas_sdpa_op_supported(const RuntimeParams& params, bool allow_sca
         return false;
     }
 
-    return is_output_rank_4d;
+    return is_output_rank_4d ||
+           (cldnn::paged_attention::sdpa_ocl_plain_3d_ok(params.get_device_info()) && cldnn::paged_attention::sdpa_ocl_plain_3d_head_ok(K_head_size));
 #else
     UNUSED(params);
     UNUSED(allow_scalar_mask);
