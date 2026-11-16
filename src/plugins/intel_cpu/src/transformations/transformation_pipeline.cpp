@@ -475,8 +475,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     ov::pass::Manager decompression_handling_manager("CPU:DecompressionHandling");
     decompression_handling_manager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::InitNodeInfo);
-    // Match before no-op elimination can remove a zero-offset Add from a valid hash block.
-    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::NGramHashFunctionFusion);
     const bool useLpt = !defaultPrecisions.empty();
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::CompressedGatherTransformation);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::MarkShapeOfSubgraphs);
