@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include "../primitive_ocl_base.hpp"
 #include "../utils/kernel_generator.hpp"
 #include "common_utils/jitter.hpp"
@@ -127,6 +129,29 @@ public:
         bool is_prefill = state_layout.count() == 0;
         return !is_prefill;
     }
+};
+
+// The params of a rank-3 SDPA seen as the canonical 4D problem (SDPABase::static_canonicalize_shapes), which is what the
+// sdpa_ocl kernels' orders and layouts are written against. Any other op, the 4D hot path included, is referenced as it
+// is: no copy of the params.
+class SDPACanonicalParams {
+public:
+    explicit SDPACanonicalParams(const kernel_impl_params& params) : m_params(&params) {
+        if (params.is_type<scaled_dot_product_attention>() && SDPABase::requires_shape_canonicalization(params)) {
+            m_canonical.emplace(SDPABase::static_canonicalize_shapes(params));
+            m_params = &*m_canonical;
+        }
+    }
+    SDPACanonicalParams(const SDPACanonicalParams&) = delete;
+    SDPACanonicalParams& operator=(const SDPACanonicalParams&) = delete;
+
+    [[nodiscard]] const kernel_impl_params& get() const {
+        return *m_params;
+    }
+
+private:
+    std::optional<kernel_impl_params> m_canonical;
+    const kernel_impl_params* m_params;
 };
 
 }  // namespace ov::intel_gpu::ocl

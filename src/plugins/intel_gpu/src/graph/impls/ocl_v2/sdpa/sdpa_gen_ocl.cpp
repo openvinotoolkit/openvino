@@ -846,14 +846,15 @@ inline ov::Dimension aligned_seq_length(const kernel_impl_params& params, int32_
         return aligned_seq_len;
     }
 
+    // The layouts here are the canonical 4D ones (SDPACanonicalParams); a rank-3 op's orders are extended to match.
     const auto desc = params.typed_desc<scaled_dot_product_attention>();
     switch (qkv_idx) {
     case 0:
-        return get_seq_length(params.input_layouts[0], desc->input_q_transpose_order);
+        return get_seq_length(params.input_layouts[0], extend_order_in_num_heads_dim(desc->input_q_transpose_order));
     case 1:
-        return get_seq_length(params.input_layouts[1], desc->input_k_transpose_order);
+        return get_seq_length(params.input_layouts[1], extend_order_in_num_heads_dim(desc->input_k_transpose_order));
     case 2:
-        return get_seq_length(params.input_layouts[2], desc->input_v_transpose_order);
+        return get_seq_length(params.input_layouts[2], extend_order_in_num_heads_dim(desc->input_v_transpose_order));
     default:
         OPENVINO_THROW("Invalid qkv index for scaled dot product attention");
     }
@@ -1766,7 +1767,9 @@ void add_strides_jit(JitConstants& jit, const jit_inputs& in) {
 
 }  // namespace
 
-std::string SDPAOclGenerator::get_build_options(const kernel_impl_params& params) const {
+std::string SDPAOclGenerator::get_build_options(const kernel_impl_params& params_in) const {
+    const SDPACanonicalParams canonical(params_in);
+    const auto& params = canonical.get();
     auto base_options = KernelGenerator::get_build_options(params);
     std::string extra_options = " -Dcl_intel_dot_accumulate";
     extra_options += " -Dcl_intel_global_float_atomic";
@@ -1892,7 +1895,9 @@ bool per_channel_kv_supported(const kernel_impl_params& params) {
 }
 }  // namespace
 
-bool SDPAOclGenerator::supported(const kernel_impl_params& params) {
+bool SDPAOclGenerator::supported(const kernel_impl_params& params_in) {
+    const SDPACanonicalParams canonical(params_in);
+    const auto& params = canonical.get();
     const auto is_f16 = [](data_types dt) {
         return dt == ov::element::f16 || dt == ov::element::bf16;
     };
@@ -1976,7 +1981,9 @@ bool SDPAOclGenerator::supported(const kernel_impl_params& params) {
     return is_compilable_kv(params.input_layouts[1].data_type) && is_compilable_kv(params.input_layouts[2].data_type);
 }
 
-JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& params) const {
+JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& params_in) const {
+    const SDPACanonicalParams canonical(params_in);
+    const auto& params = canonical.get();
     const auto in = make_jit_inputs(params, m_is_prefill);
     auto jit = make_base_jit_constants(params);
     if (in.is_pa) {
@@ -2004,7 +2011,9 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     return jit;
 }
 
-Arguments SDPAOclGenerator::get_arguments_desc(const kernel_impl_params& params) const {
+Arguments SDPAOclGenerator::get_arguments_desc(const kernel_impl_params& params_in) const {
+    const SDPACanonicalParams canonical(params_in);
+    const auto& params = canonical.get();
     Arguments args;
     const auto config = make_sdpa_configuration(params);
     if (params.is_dynamic())
@@ -2089,7 +2098,9 @@ Arguments SDPAOclGenerator::get_arguments_desc(const kernel_impl_params& params)
 }
 
 DispatchDataFunc SDPAOclGenerator::get_dispatch_data_func() const {
-    return DispatchDataFunc{[is_prefill = m_is_prefill](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
+    return DispatchDataFunc{[is_prefill = m_is_prefill](const RuntimeParams& params_in, KernelData& kd, ImplRuntimeParams*) {
+        const SDPACanonicalParams canonical(params_in);
+        const auto& params = canonical.get();
         auto& wgs = kd.params.workGroups;
         auto& scalars = kd.params.scalars;
         scalars.clear();

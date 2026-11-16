@@ -65,6 +65,23 @@
 #define SDPA_MASK_SAT_FOR(scale) ldexp(1.0f, min(126, 30 - max(ilogb(scale), -96)))
 #define SDPA_SAT_MASK(x, sat) clamp((x), -(sat), (sat))
 
+// A key the mask saturates has a raw score of about -bound, so a row whose keys are all masked so far has a log2-domain
+// maximum m_log2 of about -2^30, where floats are 64-128 apart. The softmax argument S * scale - m_log2 is at most 0 in exact
+// arithmetic. The default form is contracted to a mad (see the bullet above on why the bound is a power of two), so the
+// argument of the maximum entry itself is the rounding error of m_log2, exactly 0 only while the product is exact, which holds
+// while the saturated score absorbs S. With logits near 100 it does not: the argument came out positive, exp2 of it
+// overflowed, and the output of a row with a later visible key tile turned to NaN (a '-inf' mask with 128 or more leading
+// masked keys; sdpa_micro, which subtracts before it scales, gave none). Forbidding the contraction with a pragma changed
+// nothing. Saturating the exp2 result to [0, 1] is the same as capping the argument at 0 (bit-identical to an fmin of it) and,
+// as a saturate modifier, costs less: 1-2 % of a head 128 prefill with a mask on the B70 (an fmin: 2-3 %). Only a mask can
+// put a saturated score into a row, so only a build with one pays; paged attention has no mask and is unchanged, and a build
+// without a mask is bit-identical.
+#if WITH_ATTN_MASK || defined(STATIC_SCALAR_ATTN_MASK_VALUE) || defined(HAS_SCALAR_ATTN_MASK)
+#  define SDPA_SOFTMAX_EXP(x) clamp(native_exp2(x), 0.0f, 1.0f)
+#else
+#  define SDPA_SOFTMAX_EXP(x) native_exp2(x)
+#endif
+
 // Runtime scale input: SCALE_DATA_T is the input's own storage type (half, float, or ushort for bf16). A bf16
 // value is the upper half of the f32 with the same bits, so it widens with a shift (no bf16 helper needed,
 // which the include of bf16_utils.cl in sdpa_ocl.cl only provides for a bf16 Q).

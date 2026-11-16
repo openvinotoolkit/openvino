@@ -355,7 +355,9 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/qdq_stripping.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/read_value_assign.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/rms_norm_decomposition.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/sdpa_3d_batch_mask.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/sdpa_batch_broadcast.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/sdpa_neg_inf_mask.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/split_reshape_eltwise.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/swiglu_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/transpose_matmul_fusion.cpp

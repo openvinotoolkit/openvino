@@ -1106,10 +1106,10 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     lsum += exp_tile[mm];
 #else
     #if SOFTMAX_BRANCHLESS
-                float8 exp_tile = native_exp2(S_tile[mb][qb] * scale - m_log2);
+                float8 exp_tile = SDPA_SOFTMAX_EXP(S_tile[mb][qb] * scale - m_log2);
                 exp_tile = select((float8)0.0f, exp_tile, (int8)(ok ? -1 : 0));
     #else
-                float8 exp_tile = ok ? native_exp2(S_tile[mb][qb] * scale - m_log2) : (float8)0.0f;
+                float8 exp_tile = ok ? SDPA_SOFTMAX_EXP(S_tile[mb][qb] * scale - m_log2) : (float8)0.0f;
     #endif
                 lsum += exp_tile[0] + exp_tile[1] + exp_tile[2] + exp_tile[3]
                       + exp_tile[4] + exp_tile[5] + exp_tile[6] + exp_tile[7];
