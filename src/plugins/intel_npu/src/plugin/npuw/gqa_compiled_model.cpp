@@ -1153,8 +1153,7 @@ ov::SoPtr<ov::ITensor> ov::npuw::GQAInferRequest::get_tensor(const ov::Output<co
             // investigated device-context allocation here too, but kept as a plain CPU
             // allocation since the host-write path is what matters, not device-read
             // locality (see that function's comment for the measured regression).
-            auto private_tensor =
-                ov::SoPtr<ov::ITensor>(ov::make_tensor(port.get_element_type(), private_shape));
+            auto private_tensor = ov::SoPtr<ov::ITensor>(ov::make_tensor(port.get_element_type(), private_shape));
             it = m_dynamic_kv_cache_tensors.emplace(name, private_tensor).first;
             GQA_TRACE(
                 "    -> no set_tensor() yet, allocated private fallback tensor, shape=" << private_tensor->get_shape());
@@ -1224,8 +1223,8 @@ void ov::npuw::GQAInferRequest::set_tensor(const ov::Output<const ov::Node>& por
     const auto inner_shape = inner_port.get_shape();
     const auto requested_len = tensor->get_shape().at(axis);
     const auto capacity = inner_shape.at(axis);
-    GQA_TRACE("    -> dynamic-axis input, axis=" << axis << " requested_len=" << requested_len << " capacity="
-                                                 << capacity << " inner_tensor_shape=" << inner_shape);
+    GQA_TRACE("    -> dynamic-axis input, axis=" << axis << " requested_len=" << requested_len
+                                                 << " capacity=" << capacity << " inner_tensor_shape=" << inner_shape);
     auto expected_shape = inner_shape;
     expected_shape.at(axis) = requested_len;
     OPENVINO_ASSERT(
