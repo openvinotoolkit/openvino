@@ -95,6 +95,15 @@ bool is_chunkable_pa_model(const std::shared_ptr<ov::Model>& model) {
            lshape[2].is_static();
 }
 
+// The plan as the verbose log prints it, e.g. "1024+128+dyn:86".
+std::string plan_str(const std::vector<ov::npuw::pa::Chunk>& chunks) {
+    std::ostringstream os;
+    for (std::size_t i = 0; i < chunks.size(); ++i) {
+        os << (i ? "+" : "") << (chunks[i].dynamic() ? "dyn:" : "") << chunks[i].tokens;
+    }
+    return os.str();
+}
+
 std::shared_ptr<ov::Model> derive_pa_semi_static_model(const std::shared_ptr<ov::Model>& base_model,
                                                        std::size_t chunk_size) {
     for (const char* name : {"input_ids", "position_ids"}) {
@@ -288,12 +297,7 @@ ov::npuw::pa::Dispatch ov::npuw::PAInferRequest::parse_dispatch() const {
     return d;
 }
 
-void ov::npuw::PAInferRequest::run_chunk(ChunkRequest& chunk,
-                                         const pa::Dispatch& d,
-                                         int64_t seq,
-                                         int64_t seq_offset,
-                                         int64_t n_chunk_tokens) {
-    const auto global_start = d.subsequence_begins[seq] + seq_offset;
+void ov::npuw::PAInferRequest::run_chunk(ChunkRequest& chunk, const pa::Dispatch& d, const pa::Chunk& c) {
     const auto set = [&](const char* name, const ov::SoPtr<ov::ITensor>& tensor) {
         auto it = chunk.inputs.find(name);
         OPENVINO_ASSERT(it != chunk.inputs.end(), "PA chunk model has no '", name, "' input");
@@ -308,18 +312,19 @@ void ov::npuw::PAInferRequest::run_chunk(ChunkRequest& chunk,
         return ov::npuw::util::view(inner(name), 0, static_cast<std::size_t>(start), static_cast<std::size_t>(n));
     };
 
-    set("input_ids", slice("input_ids", global_start, n_chunk_tokens));
-    set("position_ids", slice("position_ids", global_start, n_chunk_tokens));
+    set("input_ids", slice("input_ids", c.begin, c.tokens));
+    set("position_ids", slice("position_ids", c.begin, c.tokens));
 
-    // One subsequence, past its first seq_offset tokens, with its full block table.
-    set("past_lens", make_vec_tensor<int32_t>({static_cast<int32_t>(d.past_lens[seq] + seq_offset)}));
-    set("subsequence_begins", make_vec_tensor<int32_t>({0, static_cast<int32_t>(n_chunk_tokens)}));
-    const auto blocks_begin = d.block_indices_begins[seq];
-    const auto n_seq_blocks = d.block_indices_begins[seq + 1] - blocks_begin;
-    set("block_indices", slice("block_indices", blocks_begin, n_seq_blocks));
-    set("block_indices_begins", make_vec_tensor<int32_t>({0, n_seq_blocks}));
+    const auto controls = pa::chunk_controls(d, c);
+    const auto n_seqs = static_cast<int64_t>(controls.past_lens.size());
+    set("past_lens", make_vec_tensor(controls.past_lens));
+    set("subsequence_begins", make_vec_tensor(controls.subsequence_begins));
+    set("block_indices", make_vec_tensor(controls.block_indices));
+    set("block_indices_begins", make_vec_tensor(controls.block_indices_begins));
+    // One window per chunk subsequence. Only SnapKV reads it, and a model with
+    // score outputs is not chunkable.
     if (m_inputs_by_name.count("score_aggregation_window") > 0) {
-        set("score_aggregation_window", slice("score_aggregation_window", seq, 1));
+        set("score_aggregation_window", slice("score_aggregation_window", controls.first_sequence, n_seqs));
     }
 
     set("max_context_len", inner("max_context_len"));
@@ -329,39 +334,26 @@ void ov::npuw::PAInferRequest::run_chunk(ChunkRequest& chunk,
         }
     }
 
-    // Sampled rows in this chunk, with their row in the caller's output.
-    std::vector<int64_t> local_sti;
-    std::vector<std::size_t> out_rows;
-    for (std::size_t i = 0; i < d.sampled_tokens_indices.size(); ++i) {
-        const auto g = d.sampled_tokens_indices[i];
-        if (g >= global_start && g < global_start + n_chunk_tokens) {
-            local_sti.push_back(g - global_start);
-            out_rows.push_back(i);
-        }
-    }
-    set("sampled_tokens_indices", make_vec_tensor<int64_t>(local_sti));
+    set("sampled_tokens_indices", make_vec_tensor(controls.sampled_tokens_indices));
 
-    // The logits port is dynamic (one row per sampled token) and NPUW sizes
-    // unset outputs from the port, so set an exact-sized tensor.
+    // One logits row per sampled token of this chunk.
     const auto& oshape = m_chunked_logits->get_shape();
-    const auto out = ov::get_tensor_impl(
-        ov::Tensor(m_chunked_logits->get_element_type(), ov::Shape{local_sti.size(), oshape.at(1), oshape.at(2)}));
+    const auto out =
+        ov::get_tensor_impl(ov::Tensor(m_chunked_logits->get_element_type(),
+                                       ov::Shape{controls.logits_rows.size(), oshape.at(1), oshape.at(2)}));
     chunk.request->set_tensor(chunk.logits, out);
 
     chunk.request->infer();
 
-    if (out_rows.empty()) {
-        return;
-    }
     const auto row_bytes = oshape.at(1) * oshape.at(2) * m_chunked_logits->get_element_type().size();
     const auto* src = static_cast<const uint8_t*>(out->data());
     auto* dst = static_cast<uint8_t*>(m_chunked_logits->data());
-    for (std::size_t j = 0; j < out_rows.size(); ++j) {
-        std::memcpy(dst + out_rows[j] * row_bytes, src + j * row_bytes, row_bytes);
+    for (std::size_t j = 0; j < controls.logits_rows.size(); ++j) {
+        std::memcpy(dst + controls.logits_rows[j] * row_bytes, src + j * row_bytes, row_bytes);
     }
 }
 
-void ov::npuw::PAInferRequest::infer_chunked(const pa::Dispatch& d) {
+void ov::npuw::PAInferRequest::infer_chunked(const pa::Dispatch& d, const std::vector<pa::Chunk>& chunks) {
     const auto& logits_port = get_outputs().front();
     const auto& lshape = logits_port.get_partial_shape();
     m_chunked_logits = ov::get_tensor_impl(ov::Tensor(logits_port.get_element_type(),
@@ -369,37 +361,12 @@ void ov::npuw::PAInferRequest::infer_chunked(const pa::Dispatch& d) {
                                                                 static_cast<std::size_t>(lshape[1].get_length()),
                                                                 static_cast<std::size_t>(lshape[2].get_length())}));
 
-    const bool verbose = ov::npuw::get_log_level() >= ov::npuw::LogLevel::Verbose;
-    std::ostringstream plan;
-
-    for (int64_t s = 0; s < d.sequences(); ++s) {
-        const auto seq_len = d.subsequence_begins[s + 1] - d.subsequence_begins[s];
-        int64_t off = 0;
-        if (verbose) {
-            plan << (s ? "; " : "") << "seq" << s << "=";
-        }
-        while (off < seq_len) {
-            const auto remaining = seq_len - off;
-            // Largest variant that fits; the 1-token one only for a single
-            // remaining token. Anything else goes to the dynamic model.
-            std::size_t pick = 0u;
-            for (const auto& [chunk_size, _] : m_chunk_requests) {
-                if (static_cast<int64_t>(chunk_size) <= remaining && (chunk_size > 1u || remaining == 1)) {
-                    pick = chunk_size;
-                    break;
-                }
-            }
-            auto& chunk = pick ? m_chunk_requests.at(pick) : m_tail_request;
-            const auto n = pick ? static_cast<int64_t>(pick) : remaining;
-            if (verbose) {
-                plan << (off ? "+" : "") << (pick ? "" : "dyn:") << n;
-            }
-            run_chunk(chunk, d, s, off, n);
-            off += n;
-        }
-    }
-    if (verbose) {
-        LOG_VERB("PA dispatch #" << m_dispatch_idx << ": chunked " << plan.str());
+    // Equal to one infer: chunks run in row order, so a subsequence's earlier
+    // rows are cached before its later rows attend to them, and no subsequence
+    // reads a block another one writes in this dispatch (GenAI forks blocks
+    // copy-on-write and caches only computed prefixes).
+    for (const auto& c : chunks) {
+        run_chunk(c.dynamic() ? m_tail_request : m_chunk_requests.at(c.chunk_size), d, c);
     }
 }
 
@@ -423,11 +390,15 @@ void ov::npuw::PAInferRequest::infer() {
     LOG_VERB("PA dispatch #" << m_dispatch_idx << ": " << dispatch.sequences() << " subsequence(s), "
                              << dispatch.tokens() << " token(s), " << dispatch.sampled_tokens_indices.size()
                              << " sampled");
-    if (pa::variants_serve(dispatch, m_chunk_sizes)) {
-        infer_chunked(dispatch);
-        m_serve_chunked_logits = true;
+    // A model without variants runs 1:1, and so does a plan of one dynamic
+    // chunk: that chunk is the whole dispatch.
+    const auto chunks = m_chunk_sizes.empty() ? std::vector<pa::Chunk>{} : pa::plan_chunks(dispatch, m_chunk_sizes);
+    m_serve_chunked_logits = chunks.size() > 1u || (chunks.size() == 1u && !chunks.front().dynamic());
+    LOG_VERB("PA dispatch #" << m_dispatch_idx << ": " << (m_serve_chunked_logits ? "chunked " : "1:1 ")
+                             << plan_str(chunks));
+    if (m_serve_chunked_logits) {
+        infer_chunked(dispatch, chunks);
     } else {
-        m_serve_chunked_logits = false;
         m_inner_request->infer();
     }
     log_dispatch_io(/*outputs=*/true);

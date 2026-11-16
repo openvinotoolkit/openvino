@@ -58,33 +58,6 @@ void ov::npuw::pa::validate_dispatch(const Dispatch& d, std::size_t block_size, 
     }
 }
 
-bool ov::npuw::pa::variants_serve(const Dispatch& dispatch, const std::vector<std::size_t>& chunk_sizes) {
-    if (chunk_sizes.empty() || dispatch.tokens() == 0) {
-        return false;
-    }
-
-    bool has_one_token_variant = false;
-    std::size_t min_multi_token = 0u;
-    for (const auto chunk_size : chunk_sizes) {
-        has_one_token_variant |= (chunk_size == 1u);
-        if (chunk_size > 1u && (min_multi_token == 0u || chunk_size < min_multi_token)) {
-            min_multi_token = chunk_size;
-        }
-    }
-
-    if (dispatch.sequences() == 1 && dispatch.tokens() == 1) {
-        return has_one_token_variant;
-    }
-
-    for (int64_t s = 0; min_multi_token > 0u && s < dispatch.sequences(); ++s) {
-        const auto seq_len = dispatch.subsequence_begins[s + 1] - dispatch.subsequence_begins[s];
-        if (seq_len >= static_cast<int64_t>(min_multi_token)) {
-            return true;
-        }
-    }
-    return false;
-}
-
 std::vector<ov::npuw::pa::Chunk> ov::npuw::pa::plan_chunks(const Dispatch& d,
                                                            const std::vector<std::size_t>& chunk_sizes) {
     OPENVINO_ASSERT(!chunk_sizes.empty(), "PA chunk plan: no chunk sizes");
