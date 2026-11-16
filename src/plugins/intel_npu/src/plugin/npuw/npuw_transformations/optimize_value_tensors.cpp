@@ -5,7 +5,6 @@
 #include "optimize_value_tensors.hpp"
 
 #include <algorithm>
-#include <transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp>
 #include <unordered_set>
 #include <vector>
 
@@ -472,7 +471,21 @@ public:
             scaled_atten = register_new_node<v1::Add>(scaled_atten, atten_mask);
         }
 
-        scaled_atten = register_new_node<v8::Softmax>(scaled_atten, -1);
+        if (node->get_input_size() == 6) {
+            auto start = register_new_node(v0::Constant::create(element::i32, Shape{1}, {0}));
+            auto step = register_new_node(v0::Constant::create(element::i32, Shape{1}, {1}));
+            auto last_dim = register_new_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
+            auto query_rank = register_new_node<v3::ShapeOf>(q_shape, element::i32);
+            auto prefix_length = register_new_node<v1::Subtract>(query_rank, one_i);
+            auto query_prefix = register_new_node<v8::Slice>(q_shape, start, prefix_length, step);
+            auto sink_shape = register_new_node<v0::Concat>(OutputVector{query_prefix, step}, 0);
+            auto sink = register_new_node<v1::Broadcast>(node->input_value(5), sink_shape);
+            auto logits = register_new_node<v0::Concat>(OutputVector{scaled_atten, sink}, -1);
+            auto probabilities = register_new_node<v8::Softmax>(logits, -1);
+            scaled_atten = register_new_node<v8::Slice>(probabilities, start, last_dim, step, last_dim);
+        } else {
+            scaled_atten = register_new_node<v8::Softmax>(scaled_atten, -1);
+        }
         auto result = register_new_node<v0::MatMul>(scaled_atten, value);
         result->set_friendly_name(node->get_friendly_name());
         copy_runtime_info(node, get_new_nodes());
@@ -489,23 +502,7 @@ public:
 bool ov::npuw::util::OptimizeValueTensors::run_on_model(const std::shared_ptr<ov::Model>& model) {
     ov::pass::GraphRewrite rewr;
 
-    // Check if any SDPA has sink input
-    bool has_sdpa_with_sink = false;
-    for (const auto& op : model->get_ops()) {
-        if (auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(op)) {
-            if (sdpa->get_input_size() == 6) {
-                has_sdpa_with_sink = true;
-                break;
-            }
-        }
-    }
-
-    if (has_sdpa_with_sink) {
-        // TODO:  evaluate performance by older npu-drivers
-        rewr.add_matcher<ov::pass::ScaledDotProductAttentionDecomposition>();
-    } else {
-        rewr.add_matcher<ScaledDotProductAttentionDecomposition>(m_is_prefill);
-    }
+    rewr.add_matcher<ScaledDotProductAttentionDecomposition>(m_is_prefill);
 
     TransposeValueTensors::Context ctx;
     rewr.add_matcher<TransposeValueTensors_MHA>(std::ref(ctx));

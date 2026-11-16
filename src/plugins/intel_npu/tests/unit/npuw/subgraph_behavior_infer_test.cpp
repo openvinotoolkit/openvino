@@ -29,6 +29,7 @@
 #undef private
 #include "attn/attn_subgraph.hpp"
 #include "embedding/redirect_new_kv_to_output.hpp"
+#include "intel_npu/ops/flash_attention_tile.hpp"
 #include "just_sync_infer_request.hpp"
 #include "llm_test_helpers.hpp"
 #include "model_builder.hpp"
@@ -1043,6 +1044,100 @@ TEST_F(SubgraphBehaviorInferTest, CwaiWithoutFoldRunsNoSinkAttention) {
         request->set_tensor(input, ov::get_tensor_impl(tensor));
     }
     EXPECT_NO_THROW(request->infer());
+}
+
+TEST_F(SubgraphBehaviorInferTest, CustomSinkDecompositionSelectsAttentionModes) {
+    for (const auto& mode : {std::make_pair(std::string("HFA"), false),
+                             std::make_pair(std::string("HFA"), true),
+                             std::make_pair(std::string("PYRAMID"), false)}) {
+        const auto& attention_mode = mode.first;
+        const bool fused = mode.second;
+        SCOPED_TRACE(attention_mode);
+        SCOPED_TRACE(fused);
+        auto model = ov::test::npuw::build_dynamic_attention_llm_model();
+        size_t sink_layers = 0;
+        for (const auto& node : model->get_ordered_ops()) {
+            auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(node);
+            if (!sdpa) {
+                continue;
+            }
+            ASSERT_EQ(sdpa->get_input_size(), 5u);
+            auto sink = ov::op::v0::Constant::create(ov::element::f32,
+                                                     ov::Shape{1, 4, 1, 1},
+                                                     {sink_layers++ == 0 ? -2.0f : 2.0f});
+            auto with_sink = std::make_shared<ov::op::v13::ScaledDotProductAttention>(sdpa->input_value(0),
+                                                                                      sdpa->input_value(1),
+                                                                                      sdpa->input_value(2),
+                                                                                      sdpa->input_value(3),
+                                                                                      sdpa->input_value(4),
+                                                                                      sink,
+                                                                                      sdpa->get_causal());
+            with_sink->set_friendly_name(sdpa->get_friendly_name());
+            ov::replace_node(sdpa, with_sink);
+        }
+        ASSERT_EQ(sink_layers, 2u);
+        ov::npuw::util::OptimizeValueTensors(true).run_on_model(model);
+        ov::npuw::RedirectNewKvToOutput().run_on_model(model);
+        auto reference = model->clone();
+
+        auto evaluation = std::make_shared<EvaluationLog>();
+        auto plugin = std::make_shared<TestPlugin>();
+        auto core = make_core(plugin, /*own_ports_only=*/true, evaluation);
+        plugin->set_core(core);
+        auto props = base_props();
+        props["NPUW_ATTN"] = attention_mode;
+        props["NPUW_ATTN_HFA_FUSED"] = fused ? std::string("YES") : std::string("NO");
+        props["NPUW_FALLBACK_EXEC"] = std::string("NO");
+        auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, props);
+        size_t attention_calls = 0;
+        for (const auto& desc : compiled->m_compiled_submodels) {
+            if (!desc.replaced_by) {
+                continue;
+            }
+            const auto& body = compiled->m_compiled_submodels[*desc.replaced_by];
+            const auto* hfa = ov::npuw::attn::get_compiled_hfa(body.pipeline.context);
+            if ((hfa && hfa->_sdpa_attention_info._sdpa_indices.attention_sink) ||
+                (attention_mode == "PYRAMID" && ov::npuw::attn::get_compiled_pyramid(body.pipeline.context))) {
+                ++attention_calls;
+            }
+            if (hfa) {
+                EXPECT_FALSE(hfa->_sdpa_attention_info._sdpa_indices.attention_scale.has_value());
+                for (const auto& op : hfa->_compiled_tile_model->get_runtime_model()->get_ordered_ops()) {
+                    if (auto tile = ov::as_type_ptr<ov::intel_npu::op::FlashAttentionTile>(op)) {
+                        EXPECT_LE(tile->get_input_size(), 7u);
+                    }
+                }
+            }
+        }
+        ASSERT_GE(attention_calls, 2u);
+        auto request = compiled->create_infer_request();
+        ov::TensorVector inputs;
+        for (const auto& input : compiled->inputs()) {
+            ov::Tensor tensor(input.get_element_type(), input.get_shape());
+            std::memset(tensor.data(), 0, tensor.get_byte_size());
+            if (input.get_names().count("position_ids")) {
+                std::iota(tensor.data<int64_t>(), tensor.data<int64_t>() + tensor.get_size(), int64_t{0});
+            }
+            inputs.push_back(tensor);
+            request->set_tensor(input, ov::get_tensor_impl(tensor));
+        }
+        ov::TensorVector expected;
+        for (const auto& output : reference->outputs()) {
+            expected.emplace_back(output.get_element_type(), output.get_shape());
+        }
+        ASSERT_TRUE(reference->evaluate(expected, inputs));
+        ASSERT_NO_THROW(request->infer());
+        for (size_t output_idx = 0; output_idx < expected.size(); ++output_idx) {
+            const auto actual = request->get_tensor(compiled->outputs()[output_idx]);
+            ASSERT_EQ(actual->get_element_type(), ov::element::f32);
+            ASSERT_EQ(actual->get_shape(), expected[output_idx].get_shape());
+            for (size_t element_idx = 0; element_idx < expected[output_idx].get_size(); ++element_idx) {
+                EXPECT_NEAR(actual->data<const float>()[element_idx],
+                            expected[output_idx].data<const float>()[element_idx],
+                            1e-3f);
+            }
+        }
+    }
 }
 
 class HfaClosureInferTest : public SubgraphBehaviorInferTest,

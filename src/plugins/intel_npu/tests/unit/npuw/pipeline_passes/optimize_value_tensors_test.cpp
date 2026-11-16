@@ -16,6 +16,7 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
@@ -24,6 +25,9 @@
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 
 namespace {
 
@@ -70,6 +74,126 @@ TEST_P(OptimizeValueTensorsNoSDPATest, NoSDPAOpsAfterOptimization) {
     const auto& sub = require_sub_model_containing(recorder, fragment);
 
     EXPECT_EQ(count_ops<ov::op::v13::ScaledDotProductAttention>(sub.model), 0u);
+}
+
+TEST(OptimizeValueTensorsSinkTest, ScalesQueriesBeforeMatMulInMixedModel) {
+    auto query = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 3, 4});
+    auto key = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 5, 4});
+    auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 5, 4});
+    auto mask = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 3, 5});
+    auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{});
+    auto sink = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 1, 1});
+    auto with_sink =
+        std::make_shared<ov::op::v13::ScaledDotProductAttention>(query, key, value, mask, scale, sink, false);
+    auto without_sink = std::make_shared<ov::op::v13::ScaledDotProductAttention>(query, key, value, mask, scale, false);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{with_sink, without_sink},
+                                             ov::ParameterVector{query, key, value, mask, scale, sink});
+
+    ASSERT_NO_THROW(ov::npuw::util::OptimizeValueTensors(true).run_on_model(model));
+    size_t scaled_queries = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(node);
+        if (!matmul) {
+            continue;
+        }
+        const auto multiply = ov::as_type_ptr<ov::op::v1::Multiply>(matmul->get_input_node_shared_ptr(0));
+        if (multiply && multiply->get_input_node_shared_ptr(0) == query &&
+            multiply->get_input_node_shared_ptr(1) == scale) {
+            ++scaled_queries;
+        }
+    }
+    EXPECT_EQ(scaled_queries, 2u);
+}
+
+TEST(OptimizeValueTensorsSinkTest, MatchesStandardDecompositionForSinkAndMasks) {
+    for (const auto& data_type : {ov::element::f32, ov::element::f16}) {
+        for (const bool boolean_mask : {false, true}) {
+            for (const bool per_query_sink : {false, true}) {
+                SCOPED_TRACE(data_type);
+                SCOPED_TRACE(boolean_mask);
+                SCOPED_TRACE(per_query_sink);
+                const ov::Shape query_shape{2, 2, 3, 4};
+                const ov::Shape kv_shape{2, 2, 5, 4};
+                const ov::Shape mask_shape{2, 1, 3, 5};
+                const ov::Shape sink_shape{1, 2, per_query_sink ? size_t{3} : size_t{1}, 1};
+                auto query = std::make_shared<ov::op::v0::Parameter>(data_type, query_shape);
+                auto key = std::make_shared<ov::op::v0::Parameter>(data_type, kv_shape);
+                auto value = std::make_shared<ov::op::v0::Parameter>(data_type, kv_shape);
+                auto mask = std::make_shared<ov::op::v0::Parameter>(boolean_mask ? ov::element::boolean : data_type,
+                                                                    mask_shape);
+                auto scale = std::make_shared<ov::op::v0::Parameter>(data_type, ov::Shape{});
+                auto sink = std::make_shared<ov::op::v0::Parameter>(data_type, sink_shape);
+                auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(query,
+                                                                                     key,
+                                                                                     value,
+                                                                                     mask,
+                                                                                     scale,
+                                                                                     sink,
+                                                                                     false);
+                auto model = std::make_shared<ov::Model>(ov::OutputVector{sdpa},
+                                                         ov::ParameterVector{query, key, value, mask, scale, sink});
+                auto reference = model->clone();
+                ov::pass::Manager manager;
+                manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
+                manager.run_passes(reference);
+                ov::npuw::util::OptimizeValueTensors(true).run_on_model(model);
+                ov::pass::ConstantFolding().run_on_model(reference);
+                ov::pass::ConstantFolding().run_on_model(model);
+
+                ov::TensorVector inputs;
+                for (const auto& input : model->inputs()) {
+                    inputs.emplace_back(input.get_element_type(), input.get_shape());
+                }
+                for (size_t input_idx = 0; input_idx < inputs.size(); ++input_idx) {
+                    auto& tensor = inputs[input_idx];
+                    for (size_t index = 0; index < tensor.get_size(); ++index) {
+                        const float number =
+                            input_idx == 4 ? 0.25f : static_cast<float>(static_cast<int>(index % 11) - 5) / 8.0f;
+                        if (tensor.get_element_type() == ov::element::boolean) {
+                            tensor.data<bool>()[index] = index % 4 != 0;
+                        } else if (tensor.get_element_type() == ov::element::f16) {
+                            tensor.data<ov::float16>()[index] = ov::float16(number);
+                        } else {
+                            tensor.data<float>()[index] = number;
+                        }
+                    }
+                }
+                ov::TensorVector actual{ov::Tensor(data_type, model->output().get_shape())};
+                ov::TensorVector expected{ov::Tensor(data_type, reference->output().get_shape())};
+                ASSERT_TRUE(model->evaluate(actual, inputs));
+                ASSERT_TRUE(reference->evaluate(expected, inputs));
+                for (size_t index = 0; index < actual[0].get_size(); ++index) {
+                    const float actual_value = data_type == ov::element::f16
+                                                   ? static_cast<float>(actual[0].data<const ov::float16>()[index])
+                                                   : actual[0].data<const float>()[index];
+                    const float expected_value = data_type == ov::element::f16
+                                                     ? static_cast<float>(expected[0].data<const ov::float16>()[index])
+                                                     : expected[0].data<const float>()[index];
+                    EXPECT_NEAR(actual_value, expected_value, data_type == ov::element::f16 ? 0.002f : 1e-6f);
+                }
+            }
+        }
+    }
+}
+
+TEST(OptimizeValueTensorsSinkTest, SupportsDynamicSequenceLengths) {
+    auto query = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 2, -1, 4});
+    auto key = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 2, -1, 4});
+    auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 2, -1, 4});
+    auto mask = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 1, -1, -1});
+    auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{});
+    auto sink = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 1, 1});
+    auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(query, key, value, mask, scale, sink, false);
+    auto model =
+        std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{query, key, value, mask, scale, sink});
+    ASSERT_NO_THROW(ov::npuw::util::OptimizeValueTensors(true).run_on_model(model));
+    const auto parameters = model->get_parameters();
+    parameters[0]->set_partial_shape(ov::PartialShape{2, 2, 3, 4});
+    parameters[1]->set_partial_shape(ov::PartialShape{2, 2, 5, 4});
+    parameters[2]->set_partial_shape(ov::PartialShape{2, 2, 5, 4});
+    parameters[3]->set_partial_shape(ov::PartialShape{2, 1, 3, 5});
+    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+    EXPECT_EQ(model->output().get_shape(), (ov::Shape{2, 2, 3, 4}));
 }
 
 // After SDPA decomposition each layer produces two MatMul ops (QK and SV multiplications).
