@@ -27,7 +27,7 @@ jobs:
       MODEL_ID: ${{ matrix.model_id }}
       EXPORT_ARGS: ${{ matrix.export_args }}
       # Exported IRs persist across runs.
-      MODELS_HOST_DIR: /opt/home/sys_ovwindev/megakernel_models
+      MODELS_HOST_DIR: /opt/home/sys_ovwindev/CI_pkowalc1/persistent/megakernel_models
       MODELS_DIR: /models
     steps:
       - name: Cleanup workspace
