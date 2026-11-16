@@ -236,6 +236,14 @@ struct CompiledModelMetadata {
     std::shared_ptr<void> so;
 };
 
+// What one compilation produces; the device context takes both when its workers are created.
+// The compiled model is empty if the compilation failed or the device was already ready.
+struct CompileResult {
+    SoCompiledModel compiled_model;
+    // the config of the device that compiled the model
+    ov::AnyMap compiled_config;
+};
+
 class ScheduleContext : public std::enable_shared_from_this<ScheduleContext>  {
 public:
     using Ptr = std::shared_ptr<ScheduleContext>;
@@ -281,10 +289,6 @@ struct AutoCompileContext {
     std::atomic<bool> m_is_reload_success = {false};
     std::future<void> m_future;
     std::promise<void> m_promise;
-    // output of try_to_compile_model(), handed over to the device context once its workers are created
-    SoCompiledModel m_compile_result;
-    // the config of the device that compiled m_compile_result
-    ov::AnyMap m_compiled_config;
     // owner of the compiled model after the hand-over, never reset so readers keep seeing the last loaded model
     std::atomic<DeviceExecutionContext*> m_device_context = {nullptr};
     DeviceInformation  m_device_info;
@@ -295,7 +299,7 @@ struct AutoCompileContext {
     std::string m_worker_name = "";
     // the priority registration of m_device_info has already been dropped by the caller
     bool m_priority_released = false;
-    // the compiled model of the device context, or the compile result if no device context owns it
+    // the compiled model of the device context, empty before the compile result was handed over
     SoCompiledModel compiled_model() const;
 };
 

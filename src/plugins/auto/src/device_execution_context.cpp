@@ -9,7 +9,7 @@ namespace auto_plugin {
 
 SoCompiledModel AutoCompileContext::compiled_model() const {
     const auto* device_context = m_device_context.load();
-    return device_context ? device_context->compiled_model() : m_compile_result;
+    return device_context ? device_context->compiled_model() : SoCompiledModel{};
 }
 
 DeviceExecutionContext::DeviceExecutionContext(DeviceName name) : m_name(std::move(name)) {}

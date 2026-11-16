@@ -111,12 +111,15 @@ DeviceExecutionContext* Schedule::find_device_context(const DeviceName& name) {
     return iter == m_device_contexts.end() ? nullptr : iter->second.get();
 }
 
-void Schedule::register_compile_result(AutoCompileContext& context) {
-    generate_workers(context.m_worker_name, context.m_compile_result);
+void Schedule::register_compile_result(AutoCompileContext& context, CompileResult compiled_result) {
+    OPENVINO_ASSERT(compiled_result.compiled_model,
+                    get_log_tag(),
+                    ": no compiled model to register for ",
+                    context.m_worker_name);
+    generate_workers(context.m_worker_name, compiled_result.compiled_model);
     auto& device_context = get_device_context(context.m_worker_name);
-    device_context.cache_info().compile_config = context.m_compiled_config;
+    device_context.cache_info().compile_config = std::move(compiled_result.compiled_config);
     context.m_device_context = &device_context;
-    context.m_compile_result = {};
 }
 
 void Schedule::mark_compile_failure(const AutoCompileContext& context, const std::string& reason) {

@@ -37,7 +37,8 @@ private:
      * @note An exception will be thrown if all loading of model to hw device fails.
      */
     SoCompiledModel wait_first_compiled_model_ready() override;
-    void try_to_compile_model(AutoCompileContext& context, const std::shared_ptr<ov::Model>& model) override;
+    CompileResult try_to_compile_model(AutoCompileContext& context,
+                                       const std::shared_ptr<ov::Model>& model) override;
     bool select_other_device(const std::string& cur_dev_name) override;
     // Null unless ov::intel_auto::compile_for_all is enabled; set before any background task starts.
     std::shared_ptr<CachePrecompiler>                                    m_cache_precompiler;
@@ -63,8 +64,8 @@ private:
     /**
      * @brief Drop the compiled model and workers of a device that is no longer the active one.
      * @note Only done with compile_for_all, and only for devices that support model caching and have a cache location
-     * to reload from. The initial device is kept because it backs inputs()/outputs() and the property queries of the
-     * compiled model. Called before the next device is compiled, so a failed compilation has to reload it from the cache.
+     * to reload from. Called before the next device is compiled, so a failed compilation has to reload it from the
+     * cache.
      */
     void release_inactive_device(const DeviceName& device_name);
     /**

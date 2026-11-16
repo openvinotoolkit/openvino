@@ -87,12 +87,12 @@ void CumuSchedule::init() {
 
     auto load_device_task = [&](AutoCompileContext* context_ptr,
                                 const std::shared_ptr<ov::Model>& model) {
-        try_to_compile_model(*context_ptr, model);
+        auto compiled_result = try_to_compile_model(*context_ptr, model);
         if (context_ptr->m_is_load_success) {
             if (context_ptr->m_worker_name.empty()) {
                 context_ptr->m_worker_name = context_ptr->m_device_info.device_name;
             }
-            register_compile_result(*context_ptr);
+            register_compile_result(*context_ptr, std::move(compiled_result));
             context_ptr->m_is_already = true;
             // reloadsuccess flag only for m_compile_context[FALLBACKDEVICE]
             context_ptr->m_is_reload_success = true;
@@ -164,7 +164,9 @@ void CumuSchedule::init() {
     capture_hw_metadata(wait_first_compiled_model_ready());
 }
 
-void CumuSchedule::try_to_compile_model(AutoCompileContext& context, const std::shared_ptr<ov::Model>& model) {
+CompileResult CumuSchedule::try_to_compile_model(AutoCompileContext& context,
+                                                 const std::shared_ptr<ov::Model>& model) {
+    CompileResult compiled_result;
     auto& device = context.m_device_info.device_name;
     auto& device_config = context.m_device_info.config;
     bool cur_dev_is_gpu = (device.find("GPU") != std::string::npos);
@@ -192,13 +194,13 @@ void CumuSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     }
     try {
         if (!(m_context->m_model_path.empty())) {
-            context.m_compile_result =
+            compiled_result.compiled_model =
                 m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
         } else {
-            context.m_compile_result = m_context->m_ov_core->compile_model(model, device, device_config);
+            compiled_result.compiled_model = m_context->m_ov_core->compile_model(model, device, device_config);
         }
         context.m_is_load_success = true;
-        context.m_compiled_config = device_config;
+        compiled_result.compiled_config = device_config;
     } catch (const ov::Exception& e) {
         context.m_err_message += device + ":" + e.what();
         context.m_is_load_success = false;
@@ -208,7 +210,9 @@ void CumuSchedule::try_to_compile_model(AutoCompileContext& context, const std::
         context.m_is_load_success = false;
         mark_compile_failure(context, e.what());
     }
+    return compiled_result;
 }
+
 DeviceExecutionContext* CumuSchedule::get_active_context() {
     for (size_t i = 0; i < m_n_ctput_devicenums; i++) {
         auto* context = m_p_ctput_loadcontext[i].m_is_already ? m_p_ctput_loadcontext[i].m_device_context.load()
