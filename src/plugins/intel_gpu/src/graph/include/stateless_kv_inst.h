@@ -16,13 +16,20 @@ namespace cldnn {
 struct stateless_kv_runtime_state {
     int64_t past_seq_len = 0;
     int64_t present_seq_len = 0;
-    int64_t new_token_len = 0;
+    int64_t new_token_size = 0;
+    int64_t new_seq_len = 0;
+    int64_t padded_seq_len = 0;
     int64_t past_front_idx = 0;
     int64_t present_front_idx = 0;
+    int64_t padded_front_idx = 0;
     int64_t sdpa_front_idx = 0;
 
     bool is_rolling() const {
         return present_front_idx > past_front_idx;
+    }
+
+    bool is_capacity_overflow() const {
+        return padded_front_idx > past_front_idx;
     }
 
     int64_t get_new_in_present_offset() const {
@@ -53,6 +60,8 @@ struct stateless_kv_runtime_state {
         return window_size > 0 ? present_seq_len - sdpa_front_idx : present_seq_len;
     }
 
+    layout get_new_input_layout(const layout& input_layout, int64_t concat_axis) const;
+
     layout get_past_to_sdpa_input_layout(const layout& input_layout, int64_t concat_axis) const;
 
     layout get_sdpa_to_present_input_layout(const layout& input_layout, int64_t concat_axis) const;
@@ -71,15 +80,17 @@ public:
     }
 
     std::vector<size_t> get_shape_infer_dependencies() const override {
+        if (get_primitive()->has_cur_len())
+            return {2, 3};
         return {2};
     }
 
     std::vector<layout> get_shape_info_input_layouts() const override {
         auto layouts = parent::get_shape_info_input_layouts();
-        if (get_primitive()->input.size() != 3)
+        if (get_primitive()->has_pos_idx)
             return layouts;
 
-        OPENVINO_ASSERT(layouts.size() == 3);
+        OPENVINO_ASSERT(layouts.size() == get_primitive()->input.size());
         const auto rank = layouts.front().get_rank();
         const auto axis = get_primitive()->concat_axis;
         OPENVINO_ASSERT(axis >= 0 && axis < static_cast<int64_t>(rank));
@@ -93,6 +104,8 @@ public:
         };
         // concat-based always treats input0 as dynamic in case input0 need to be copied
         layouts[0] = get_dynamic_layout(layouts[0]);
+        // only the first new_seq_len tokens of input1 are copied
+        layouts[1] = get_dynamic_layout(layouts[1]);
         if (get_primitive()->window_size != 0) {
             layouts.push_back(layouts[0]);
             layouts.push_back(is_valid_output_layout(1) ? get_dynamic_layout(get_output_layout(1)) : layouts[0]);
@@ -136,15 +149,9 @@ public:
     typed_primitive_inst(network& network, const stateless_kv_node& desc);
     typed_primitive_inst(network& network) : parent(network) {}
 
-    // Kept across executions while present can't be written into the Result buffer in place.
-    memory::ptr& private_present() {
-        return m_private_present;
-    }
-
 private:
     void on_execute() override;
     bool m_is_inplace = false;
-    memory::ptr m_private_present;
     std::optional<stateless_kv_runtime_state> m_runtime_state;
 };
 
