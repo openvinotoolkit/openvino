@@ -6,7 +6,6 @@
 
 #include <filesystem>
 #include <map>
-#include <mutex>
 #include <string>
 
 #include "openvino/core/deprecated.hpp"
@@ -53,48 +52,67 @@ public:
 
     /// \brief Retrieves metadata associated with the graph.
     /// \deprecated Returning a std::map by value lets an implementation living in another shared library (possibly
-    /// linked against a different C runtime) allocate memory that this library frees. Override get_metadata_ref()
-    /// instead. This method is still required to be implemented, and it is only called by the default
-    /// implementation of get_metadata_ref().
+    /// linked against a different C runtime) allocate memory that this library frees. Additionally implement
+    /// GraphIteratorV2::get_metadata_ref() by deriving from GraphIteratorV2: the frontend uses it and never calls this
+    /// function for such an iterator. It remains pure virtual so that the layout and the vtable of GraphIterator stay
+    /// unchanged for iterators that were built against an earlier version of this header.
     OPENVINO_DEPRECATED("Returns by value, which is not safe across shared libraries with different C runtimes. "
-                        "Implement get_metadata_ref() instead.")
+                        "Derive from GraphIteratorV2 and implement get_metadata_ref().")
     virtual std::map<std::string, std::string> get_metadata() const = 0;
 
     /// \brief Returns the directory path where the model is located.
     /// \deprecated Returning a std::filesystem::path by value lets an implementation living in another shared library
-    /// (possibly linked against a different C runtime) allocate memory that this library frees. Override
-    /// get_model_dir_ref() instead. This method is still required to be implemented, and it is only called by the
-    /// default implementation of get_model_dir_ref().
+    /// (possibly linked against a different C runtime) allocate memory that this library frees. Implement
+    /// GraphIteratorV2::get_model_dir_ref() by deriving from GraphIteratorV2: the frontend uses it and never calls this
+    /// function for such an iterator. It remains pure virtual so that the layout and the vtable of GraphIterator stay
+    /// unchanged for iterators that were built against an earlier version of this header.
     OPENVINO_DEPRECATED("Returns by value, which is not safe across shared libraries with different C runtimes. "
-                        "Implement get_model_dir_ref() instead.")
+                        "Derive from GraphIteratorV2 and implement get_model_dir_ref().")
     virtual std::filesystem::path get_model_dir() const = 0;
 
     /// \brief Destructor
     virtual ~GraphIterator();
+};
 
-    // NOTE: the virtual functions below are declared after the destructor on purpose, so that the position of every
-    // virtual function declared above stays unchanged in the vtable.
-
+/// \brief GraphIterator that returns shared data by reference. Derive from it instead of GraphIterator.
+///
+/// GraphIterator itself must not change (data layout and vtable): iterators built against an earlier header are
+/// loaded into the same process as a newer frontend. Instead of adding virtual functions or data members to it, the
+/// newer accessors live in this derived class. An iterator opts in by deriving from GraphIteratorV2 instead of
+/// GraphIterator and implementing the two reference accessors; the deprecated by-value functions are implemented here
+/// (as copies of the referenced values) and do not have to be written again.
+///
+/// The frontend works with GraphIterator pointers only. It discovers this class with
+/// `dynamic_cast<const GraphIteratorV2*>(iterator)`. An iterator that is not a GraphIteratorV2 (for example, one built
+/// against an earlier header) is served by the deprecated by-value functions of GraphIterator, exactly as before.
+///
+/// The references must stay valid for the lifetime of the iterator. The frontend copies the values with its own code,
+/// so the memory is allocated and released by the same module. This is not guaranteed for values returned by value
+/// from a library that uses a different C runtime.
+///
+/// Later revisions must be new classes (for example GraphIteratorV3 deriving from GraphIteratorV2) and must not add
+/// virtual functions to this one, so that every revision keeps a stable vtable. When the deprecated by-value functions
+/// are removed from GraphIterator in a release that is allowed to break the ABI, the accessors below move into
+/// GraphIterator and GraphIteratorV2 becomes an alias of it.
+class ONNX_FRONTEND_API GraphIteratorV2 : public GraphIterator {
+public:
     /// \brief Retrieves metadata associated with the graph.
-    /// The map is returned by reference and must stay valid for the lifetime of the iterator. The caller copies it
-    /// with its own code, so the nodes of the map are allocated and released by the same module.
-    /// The default implementation calls the deprecated get_metadata() once and keeps the result, so iterators that
-    /// were written against the previous interface keep working (they still allocate in their own module).
-    virtual const std::map<std::string, std::string>& get_metadata_ref() const;
+    virtual const std::map<std::string, std::string>& get_metadata_ref() const = 0;
 
     /// \brief Returns the directory path where the model is located.
-    /// The path is returned by reference and must stay valid for the lifetime of the iterator. The caller copies it
-    /// with its own code, so the storage of the path is allocated and released by the same module.
-    /// The default implementation calls the deprecated get_model_dir() once and keeps the result, so iterators that
-    /// were written against the previous interface keep working (they still allocate in their own module).
-    virtual const std::filesystem::path& get_model_dir_ref() const;
+    virtual const std::filesystem::path& get_model_dir_ref() const = 0;
 
-private:
-    // Storage for the default implementations of get_metadata_ref() and get_model_dir_ref().
-    mutable std::once_flag m_legacy_metadata_once;
-    mutable std::map<std::string, std::string> m_legacy_metadata;
-    mutable std::once_flag m_legacy_model_dir_once;
-    mutable std::filesystem::path m_legacy_model_dir;
+    /// \brief Implements the deprecated by-value function as a copy of get_metadata_ref(). The frontend does not call
+    /// it for a GraphIteratorV2.
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    std::map<std::string, std::string> get_metadata() const override;
+
+    /// \brief Implements the deprecated by-value function as a copy of get_model_dir_ref(). The frontend does not call
+    /// it for a GraphIteratorV2.
+    std::filesystem::path get_model_dir() const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
+
+    ~GraphIteratorV2() override;
 };
 
 }  // namespace ov::frontend::onnx

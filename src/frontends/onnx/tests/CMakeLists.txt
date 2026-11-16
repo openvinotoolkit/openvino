@@ -147,12 +147,20 @@ if(ONNX_TESTS_DEPENDENCIES)
     add_dependencies(ov_onnx_frontend_tests ${ONNX_TESTS_DEPENDENCIES})
 endif()
 
+# An iterator library compiled against a frozen copy of the earlier GraphIterator header. It stands for a prebuilt
+# third-party library and is linked into the tests to exercise the current frontend with a binary that does not know
+# GraphIteratorV2 and whose class has the original layout and vtable only.
+add_library(ov_onnx_legacy_graph_iterator SHARED legacy_graph_iterator/legacy_graph_iterator.cpp)
+target_include_directories(ov_onnx_legacy_graph_iterator PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/legacy_graph_iterator")
+target_link_libraries(ov_onnx_legacy_graph_iterator PRIVATE openvino::frontend::onnx)
+
 target_link_libraries(ov_onnx_frontend_tests PRIVATE
     gtest_main_manifest
     frontend_shared_test_classes
     openvino::frontend::onnx
     openvino_onnx_common
     func_test_utils
+    ov_onnx_legacy_graph_iterator
 )
 
 if(OV_COMPILER_IS_CLANG)

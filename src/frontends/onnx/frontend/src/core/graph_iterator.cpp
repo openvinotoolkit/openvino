@@ -8,20 +8,14 @@ using namespace ov::frontend::onnx;
 
 GraphIterator::~GraphIterator() = default;
 
-const std::map<std::string, std::string>& GraphIterator::get_metadata_ref() const {
-    std::call_once(m_legacy_metadata_once, [this] {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        m_legacy_metadata = get_metadata();
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    });
-    return m_legacy_metadata;
+GraphIteratorV2::~GraphIteratorV2() = default;
+
+OPENVINO_SUPPRESS_DEPRECATED_START
+std::map<std::string, std::string> GraphIteratorV2::get_metadata() const {
+    return get_metadata_ref();
 }
 
-const std::filesystem::path& GraphIterator::get_model_dir_ref() const {
-    std::call_once(m_legacy_model_dir_once, [this] {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        m_legacy_model_dir = get_model_dir();
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    });
-    return m_legacy_model_dir;
+std::filesystem::path GraphIteratorV2::get_model_dir() const {
+    return get_model_dir_ref();
 }
+OPENVINO_SUPPRESS_DEPRECATED_END

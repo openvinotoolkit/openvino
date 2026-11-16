@@ -41,7 +41,7 @@ enum GraphIteratorProtoMemoryManagementMode : int {
 
 bool is_valid_model(std::istream& model);
 
-class GraphIteratorProto : public ov::frontend::onnx::GraphIterator {
+class GraphIteratorProto : public ov::frontend::onnx::GraphIteratorV2 {
     size_t node_index = 0;
     std::shared_ptr<ModelProto> m_model;
     const GraphProto* m_graph{};
@@ -50,7 +50,7 @@ class GraphIteratorProto : public ov::frontend::onnx::GraphIterator {
     std::map<std::string, std::shared_ptr<DecoderProtoTensor>> m_tensors{};
     std::filesystem::path m_model_dir;
     // Cached copy of the model metadata. get_metadata_ref() returns it by reference, see
-    // GraphIterator::get_metadata_ref().
+    // GraphIteratorV2::get_metadata_ref().
     std::map<std::string, std::string> m_metadata;
     GraphIteratorProtoMemoryManagementMode m_mode;
     // This is used for keeping MMAP cache handles
@@ -124,18 +124,6 @@ public:
     const std::filesystem::path& get_model_dir_ref() const override {
         return m_model_dir;
     }
-
-    // Deprecated by-value interface, kept because it is still pure virtual in GraphIterator.
-    // Nothing in the frontend calls it.
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    std::map<std::string, std::string> get_metadata() const override {
-        return m_metadata;
-    }
-
-    std::filesystem::path get_model_dir() const override {
-        return m_model_dir;
-    }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     GraphIteratorProtoMemoryManagementMode get_memory_management_mode() const {
         return m_mode;
