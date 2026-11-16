@@ -119,9 +119,8 @@ bool should_use_weightless_flow(const ov::AnyMap& non_npuw_props,
     return is_weightless;
 }
 
-ov::npuw::s11n::ImportWeightsContext make_weightless_import_weights_ctx(
-    const ov::AnyMap& properties,
-    const ov::npuw::s11n::BF16Cache& bf16_consts) {
+ov::npuw::s11n::ImportWeightsContext make_weightless_import_weights_ctx(const ov::AnyMap& properties,
+                                                                        const ov::npuw::s11n::BF16Cache& bf16_consts) {
     using namespace ov::npuw::s11n;
 
     std::string weights_path;
@@ -144,9 +143,8 @@ ov::npuw::s11n::ImportWeightsContext make_weightless_import_weights_ctx(
         auto model_ptr = std::const_pointer_cast<ov::Model>(
                              properties.at(ov::hint::model.name()).as<std::shared_ptr<const ov::Model>>())
                              ->clone();
-        NPUW_ASSERT(
-            model_ptr &&
-            "Empty model passed in MODEL_PTR. Please provide WEIGHTS_PATH or MODEL_PTR in the configuration.");
+        NPUW_ASSERT(model_ptr &&
+                    "Empty model passed in MODEL_PTR. Please provide WEIGHTS_PATH or MODEL_PTR in the configuration.");
         pre_load_transform(model_ptr, {});
         for (const auto& node : model_ptr->get_ordered_ops()) {
             if (!ov::op::util::is_constant(node)) {
@@ -155,7 +153,7 @@ ov::npuw::s11n::ImportWeightsContext make_weightless_import_weights_ctx(
 
             const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node);
             std::optional<ov::weight_sharing::WeightOriginMetaData> origin_metadata =
-                ov::weight_sharing::Extension::get_constant_origin(c);
+                ov::weight_sharing::Extension::get_constant_origin(*c);
             if (!origin_metadata) {
                 continue;
             }
@@ -1194,9 +1192,6 @@ void ov::npuw::CompiledModel::validate_submodels(const std::vector<CompiledModel
     }
 }
 
-// Design assessment: The unified method is less clear than separate serialize/deserialize implementations because direction is selected by
-// both IsImport and stream state. IsImport preserves the existing wire layout while keeping this refactor scoped;
-// a follow-up should split the control flows and factor only the genuinely shared encoding.
 template <typename WeightsCtx, bool IsImport>
 void ov::npuw::CompiledModel::CompiledModelDesc::serialize_impl(
     ov::npuw::s11n::Stream& stream,
@@ -2067,7 +2062,8 @@ void ov::npuw::CompiledModel::store_const_offsets(const std::shared_ptr<ov::Mode
     for (auto&& node_ptr : model->get_ordered_ops()) {
         if (ov::op::util::is_constant(node_ptr)) {
             const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node_ptr);
-            std::optional<ov::weight_sharing::WeightOriginMetaData> origin_metadata = ov::weight_sharing::Extension::get_constant_origin(c);
+            std::optional<ov::weight_sharing::WeightOriginMetaData> origin_metadata =
+                ov::weight_sharing::Extension::get_constant_origin(*c);
             if (!origin_metadata) {
                 continue;
             }
