@@ -192,14 +192,14 @@ void AutoSchedule::init() {
     }
 
     auto load_device_task = [&](AutoCompileContext* context_ptr, const std::shared_ptr<ov::Model>& model) {
-        auto compiled_result = try_to_compile_model(*context_ptr, model);
+        auto compiled_model = try_to_compile_model(*context_ptr, model);
         if (context_ptr->m_is_load_success) {
             // release cloned model here
             const_cast<std::shared_ptr<ov::Model>&>(model).reset();
             if (context_ptr->m_worker_name.empty()) {
                 context_ptr->m_worker_name = context_ptr->m_device_info.device_name;
             }
-            register_compile_result(*context_ptr, std::move(compiled_result));
+            register_compile_result(*context_ptr, std::move(compiled_model));
             context_ptr->m_is_already = true;
             // reloadsuccess flag only for m_compile_context[FALLBACKDEVICE]
             context_ptr->m_is_reload_success = true;
@@ -385,9 +385,9 @@ void AutoSchedule::init() {
     }
 }
 
-CompileResult AutoSchedule::try_to_compile_model(AutoCompileContext& context,
-                                                 const std::shared_ptr<ov::Model>& model) {
-    CompileResult compiled_result;
+SoCompiledModel AutoSchedule::try_to_compile_model(AutoCompileContext& context,
+                                                   const std::shared_ptr<ov::Model>& model) {
+    SoCompiledModel compiled_model;
     auto& device = context.m_device_info.device_name;
     auto& device_config = context.m_device_info.config;
     auto& device_list = context.m_meta_devices;
@@ -421,13 +421,11 @@ CompileResult AutoSchedule::try_to_compile_model(AutoCompileContext& context,
     try {
         auto compile_start_time = std::chrono::high_resolution_clock::now();
         if (!(m_context->m_model_path.empty())) {
-            compiled_result.compiled_model =
-                m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
+            compiled_model = m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
         } else {
-            compiled_result.compiled_model = m_context->m_ov_core->compile_model(model, device, device_config);
+            compiled_model = m_context->m_ov_core->compile_model(model, device, device_config);
         }
         context.m_is_load_success = true;
-        compiled_result.compiled_config = device_config;
         auto compile_end_time = std::chrono::high_resolution_clock::now();
         auto compiled_time =
             std::chrono::duration_cast<std::chrono::nanoseconds>(compile_end_time - compile_start_time).count() *
@@ -435,7 +433,7 @@ CompileResult AutoSchedule::try_to_compile_model(AutoCompileContext& context,
         const char* loaded_from_cache = "unknown";
         try {
             loaded_from_cache =
-                compiled_result.compiled_model->get_property(ov::loaded_from_cache.name()).as<bool>() ? "yes" : "no";
+                compiled_model->get_property(ov::loaded_from_cache.name()).as<bool>() ? "yes" : "no";
         } catch (const ov::Exception&) {
         }
         LOG_INFO_TAG("Device: [%s]: Compile model took %lf ms, loaded from cache: %s",
@@ -459,7 +457,7 @@ CompileResult AutoSchedule::try_to_compile_model(AutoCompileContext& context,
     const bool retry_actual_low_power_device =
         low_power_first_failure && &context == &m_compile_context[ACTUALDEVICE];
     if (context.m_is_load_success || (cur_dev_is_cpu && !retry_actual_low_power_device)) {
-        return compiled_result;
+        return compiled_model;
     }
     // need to recompile model, unregister it's priority
     // there maybe potential issue.
@@ -820,7 +818,7 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
     }
     // select_dynamic_device() reserved nothing for the requested device
     context.m_priority_released = true;
-    auto compiled_result = try_to_compile_model(context, m_dynamic_model ? m_dynamic_model->clone() : nullptr);
+    auto compiled_model = try_to_compile_model(context, m_dynamic_model ? m_dynamic_model->clone() : nullptr);
     const bool fell_back_to_other_device = context.m_device_info.device_name != requested_device_name;
     // try_to_compile_model() drops every device that failed to compile from its own candidate list
     std::vector<std::string> failed_devices;
@@ -868,7 +866,7 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
     device = context.m_device_info;
     if (!get_device_context(device.device_name).is_ready()) {
         context.m_worker_name = device.device_name;
-        register_compile_result(context, std::move(compiled_result));
+        register_compile_result(context, std::move(compiled_model));
     } else {
         // the fallback landed on a device this schedule already compiled and has a worker for;
         // reuse it instead of generating a second (duplicate) worker for the same device
@@ -888,25 +886,11 @@ void AutoSchedule::release_inactive_device(const DeviceName& device_name, const 
     auto* context = find_device_context(device_name);
     const auto* active = find_device_context(active_device);
     // the model level queries fall back on the active device, so it has to be loaded
-    if (!context || !context->is_ready() || !active || !active->is_ready() || !has_reloadable_cache(*context)) {
+    if (!context || !context->is_ready() || !active || !active->is_ready()) {
         return;
     }
     if (context->try_release()) {
         LOG_INFO_TAG("[dynamic] device:%s is inactive, its compiled model is released", device_name.c_str());
-    }
-}
-
-bool AutoSchedule::has_reloadable_cache(DeviceExecutionContext& context) {
-    try {
-        return CacheManager::is_reloadable(*m_context->m_ov_core,
-                                           context.name(),
-                                           context.cache_info(),
-                                           m_dynamic_model,
-                                           m_context->m_model_path);
-    } catch (const std::exception& ex) {
-        // A cache probe is only an optimization; retain the compiled model if the probe fails.
-        LOG_DEBUG_TAG("[dynamic] cache probe failed for %s: %s", context.name().c_str(), ex.what());
-        return false;
     }
 }
 

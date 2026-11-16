@@ -21,14 +21,6 @@ namespace auto_plugin {
 
 class CacheManager;
 
-// What AUTO has learned about the model cache of a device, each value is queried at most once.
-struct DeviceCacheInfo {
-    std::optional<bool> supports_caching;
-    std::optional<std::string> blob_id;
-    // the config the model was compiled with, it decides the cache key
-    std::optional<ov::AnyMap> compile_config;
-};
-
 // Pre-compilation state of one compiled model, used when ov::intel_auto::compile_for_all is enabled. While AUTO serves
 // requests on the actual device, the other candidate devices are compiled in the background so that their cache blobs
 // exist the next time the model is loaded (e.g. when a different device is picked later). Needs a cache dir/path.
@@ -128,13 +120,6 @@ public:
                                const ov::AnyMap& config,
                                const std::shared_ptr<const ov::Model>& model,
                                const std::filesystem::path& model_path);
-    // Whether a released compiled model can be imported from the cache again. The first call queries and memoizes
-    // supports_caching and blob_id in info, the blob file itself is checked on every call.
-    static bool is_reloadable(const ov::ICore& core,
-                              const std::string& device_name,
-                              DeviceCacheInfo& info,
-                              const std::shared_ptr<const ov::Model>& model,
-                              const std::filesystem::path& model_path);
     // Makes the device skip the cache: Core rejects a config that holds both ov::cache_dir and ov::cache_path.
     // Returns false if the device would not use a cache anyway.
     static bool disable_caching(const ov::ICore& core, const std::string& device_name, ov::AnyMap& config);

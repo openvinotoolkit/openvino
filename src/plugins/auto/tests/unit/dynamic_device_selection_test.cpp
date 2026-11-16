@@ -1179,9 +1179,6 @@ public:
             .WillByDefault(Return(ov::Any(std::filesystem::path())));
         ON_CALL(*core, create_compile_config(_, _))
             .WillByDefault([this](const std::string& device, const ov::AnyMap& compile_config) {
-                if (device == "CPU") {
-                    ++m_cpu_cache_key_compute_count;
-                }
                 // as in Core, different devices never share a cache blob
                 ov::AnyMap key{{"TEST_CACHE_KEY_DEVICE", device}};
                 if (const auto id = compile_config.find(ov::device::id.name()); id != compile_config.end()) {
@@ -1322,7 +1319,6 @@ public:
 
     std::atomic<int> m_gpu0_compile_count{0};
     std::atomic<int> m_cpu_compile_count{0};
-    std::atomic<int> m_cpu_cache_key_compute_count{0};
     std::filesystem::path m_cache_dir;
     bool m_write_cpu_cache_blob = true;
     // a concurrent model level query may hold the released model a little longer
@@ -1380,27 +1376,12 @@ TEST_F(AutoDynamicInactiveDeviceReleaseTest, cpu_is_released_without_a_non_cpu_p
     EXPECT_EQ(m_cpu_compile_count.load(), 2);
 }
 
-TEST_F(AutoDynamicInactiveDeviceReleaseTest, cpu_is_kept_when_cache_blob_was_not_written) {
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, cpu_is_released_even_when_cache_blob_was_not_written) {
     m_write_cpu_cache_blob = false;
     std::shared_ptr<ov::ICompiledModel> compiled_model;
     switch_between_devices(true, &compiled_model);
-    EXPECT_EQ(m_cpu_compile_count.load(), 1);
-    EXPECT_FALSE(m_cpu_model.expired());
-}
-
-TEST_F(AutoDynamicInactiveDeviceReleaseTest, cpu_cache_key_is_computed_once_across_releases) {
-    config.erase(ov::device::priorities.name());
-    config.insert(ov::device::priorities("GPU.0,CPU"));
-    config.insert(ov::intel_auto::compile_for_all(true));
-    expect_selected_devices({"GPU.0", "CPU", "GPU.0", "CPU", "GPU.0"});
-
-    std::shared_ptr<ov::ICompiledModel> compiled_model;
-    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
-    run_inferences(compiled_model, 4);
-
+    // a missing blob does not keep the device, compiling it again writes the blob
     EXPECT_EQ(m_cpu_compile_count.load(), 2);
-    // Two CPU compiles write the mock cache entry; the release probe computes the key only once.
-    EXPECT_EQ(m_cpu_cache_key_compute_count.load(), 3);
 }
 
 TEST_F(AutoDynamicInactiveDeviceReleaseTest, profiling_does_not_keep_the_inactive_device_alive) {
@@ -1464,17 +1445,17 @@ TEST_F(AutoDynamicInactiveDeviceReleaseTest, profiling_of_a_failed_inference_doe
     EXPECT_THROW(request->get_profiling_info(), ov::Exception);
 }
 
-TEST_F(AutoDynamicInactiveDeviceReleaseTest, device_without_cache_is_kept) {
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, device_without_cache_is_released) {
     // The mock Core handles nested device properties, not the DEVICE_PROPERTIES_CPU shorthand.
     config.insert(ov::device::properties(ov::AnyMap{{"CPU", ov::AnyMap{ov::cache_dir("")}}}));
     switch_between_devices(true);
-    EXPECT_EQ(m_cpu_compile_count.load(), 1);
+    EXPECT_EQ(m_cpu_compile_count.load(), 2);
 }
 
-TEST_F(AutoDynamicInactiveDeviceReleaseTest, device_without_caching_support_is_kept) {
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, device_without_caching_support_is_released) {
     ON_CALL(*core, device_supports_model_caching(StrEq(ov::test::utils::DEVICE_CPU))).WillByDefault(Return(false));
     switch_between_devices(true);
-    EXPECT_EQ(m_cpu_compile_count.load(), 1);
+    EXPECT_EQ(m_cpu_compile_count.load(), 2);
 }
 
 TEST_F(AutoDynamicInactiveDeviceReleaseTest, previous_device_is_kept_when_the_new_device_fails_to_compile) {
@@ -1496,9 +1477,10 @@ TEST_F(AutoDynamicInactiveDeviceReleaseTest, previous_device_is_kept_when_the_ne
     EXPECT_FALSE(m_cpu_model.expired());
 }
 
-TEST_F(AutoDynamicInactiveDeviceReleaseTest, initial_device_is_kept_without_cache_blob) {
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, initial_device_is_released_without_cache_blob) {
     switch_between_devices(true);
-    EXPECT_EQ(m_gpu0_compile_count.load(), 1);
+    // released when the requests moved to CPU, compiled again when GPU.0 was selected again
+    EXPECT_EQ(m_gpu0_compile_count.load(), 2);
 }
 
 TEST_F(AutoDynamicInactiveDeviceReleaseTest, initial_device_is_released_when_it_has_cache_blob) {

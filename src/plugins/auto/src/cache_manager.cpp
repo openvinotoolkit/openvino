@@ -311,27 +311,6 @@ bool CacheManager::is_blob_cached(const ov::ICore& core,
     return is_blob_cached(cache_location, get_blob_id(core, device_name, config, model, model_path));
 }
 
-bool CacheManager::is_reloadable(const ov::ICore& core,
-                                 const std::string& device_name,
-                                 DeviceCacheInfo& info,
-                                 const std::shared_ptr<const ov::Model>& model,
-                                 const std::filesystem::path& model_path) {
-    const ov::AnyMap no_config;
-    const auto& config = info.compile_config ? *info.compile_config : no_config;
-    if (!info.supports_caching) {
-        info.supports_caching = device_supports_caching(core, device_name);
-    }
-    const auto cache_location = get_cache_location(core, config, device_name);
-    if (!*info.supports_caching || cache_location.empty()) {
-        return false;
-    }
-    if (!info.blob_id) {
-        info.blob_id = get_blob_id(core, device_name, config, model, model_path);
-    }
-    // The cache entry may have been removed after the blob ID was computed, so the file is checked every time.
-    return is_blob_cached(cache_location, *info.blob_id);
-}
-
 bool CacheManager::disable_caching(const ov::ICore& core, const std::string& device_name, ov::AnyMap& config) {
     if (get_cache_location(core, config, device_name).empty()) {
         return false;

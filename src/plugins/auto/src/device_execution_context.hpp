@@ -12,7 +12,6 @@
 #include <utility>
 #include <vector>
 
-#include "cache_manager.hpp"
 #include "common.hpp"
 
 namespace ov {
@@ -60,7 +59,6 @@ public:
     std::vector<WorkerInferRequest>& workers();
     NotBusyPriorityWorkerRequests& idle_workers();
     TaskQueue& pending_tasks();
-    DeviceCacheInfo& cache_info();
 
     /**
      * @brief Log the infer count and fps of the device, including the workers released earlier.
@@ -79,7 +77,6 @@ private:
     bool m_keep_alive = false;
     State m_state = State::Unloaded;
     std::string m_last_error;
-    DeviceCacheInfo m_cache_info;
     std::list<Time> m_released_start_times;
     std::list<Time> m_released_end_times;
     // the declaration order is the reverse of the destruction order: requests first, the model last

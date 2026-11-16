@@ -39,9 +39,9 @@ protected:
     static bool run_pipeline_task(ov::threading::Task& pipeline_task, NotBusyPriorityWorkerRequests& idle_worker_request,
                                   const DeviceName& preferred_device);
     virtual void generate_workers(const std::string& device_name, const SoCompiledModel& compiled_model);
-    // the compiled model of the result is empty if the compilation failed or the context reuses a ready device
-    virtual CompileResult try_to_compile_model(AutoCompileContext& context,
-                                               const std::shared_ptr<ov::Model>& model) = 0;
+    // the result is empty if the compilation failed or the context reuses a ready device
+    virtual SoCompiledModel try_to_compile_model(AutoCompileContext& context,
+                                                 const std::shared_ptr<ov::Model>& model) = 0;
     virtual bool schedule_to_worker_infer_request(ov::threading::Task, DeviceName preferred_device = "") = 0;
     virtual bool select_other_device(const std::string& cur_dev_name) = 0;
     virtual SoCompiledModel wait_first_compiled_model_ready() = 0;
@@ -54,8 +54,8 @@ protected:
     DeviceExecutionContext& get_device_context(const DeviceName& name);
     DeviceExecutionContext* find_device_context(const DeviceName& name);
     // moves a successful compilation into the context named by m_worker_name (it differs from the device name only
-    // for CPU_HELP): creates the workers, records the compile config, and the context becomes the owner of the model
-    void register_compile_result(AutoCompileContext& context, CompileResult output);
+    // for CPU_HELP): creates the workers, and the context becomes the owner of the model
+    void register_compile_result(AutoCompileContext& context, SoCompiledModel compiled_model);
     // records a failed compilation in the context of the device the compile context targets
     void mark_compile_failure(const AutoCompileContext& context, const std::string& reason);
     std::shared_ptr<ov::threading::IStreamsExecutor>                     m_executor;

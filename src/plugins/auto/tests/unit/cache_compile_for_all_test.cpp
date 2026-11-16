@@ -832,26 +832,6 @@ TEST_F(AutoCachePrecompileTest, blobProbeIgnoresDeviceWithoutModelCachingSupport
     std::filesystem::remove_all(cache_dir);
 }
 
-TEST_F(AutoCachePrecompileTest, reloadableCheckMemoizesTheDeviceCacheInfoButNotTheFile) {
-    const auto cache_dir = std::filesystem::temp_directory_path() /
-                           ("ov_auto_cache_reloadable_" +
-                            std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
-    std::filesystem::create_directories(cache_dir);
-    const auto blob = cache_dir / "746352.blob";
-    std::ofstream(blob) << "blob";
-    ov::auto_plugin::DeviceCacheInfo info;
-    info.compile_config = ov::AnyMap{ov::cache_dir(cache_dir.string()), ov::cache_blob_id(746352)};
-    // the device is only asked once, the later calls reuse the recorded answer
-    EXPECT_CALL(*core, device_supports_model_caching(StrEq("GPU.0"))).Times(1).WillOnce(Return(true));
-    EXPECT_TRUE(ov::auto_plugin::CacheManager::is_reloadable(*core, "GPU.0", info, model, {}));
-    EXPECT_EQ(info.supports_caching, std::optional<bool>(true));
-    EXPECT_EQ(info.blob_id, std::optional<std::string>("746352"));
-    // the blob is checked again each time, it may have been removed meanwhile
-    std::filesystem::remove(blob);
-    EXPECT_FALSE(ov::auto_plugin::CacheManager::is_reloadable(*core, "GPU.0", info, model, {}));
-    std::filesystem::remove_all(cache_dir);
-}
-
 TEST_F(AutoCachePrecompileTest, disableCachingKeepsOnlyAnEmptyCacheDir) {
     ov::AnyMap config = {ov::cache_path(std::filesystem::path("test_cache.bin"))};
     EXPECT_TRUE(ov::auto_plugin::CacheManager::disable_caching(*core, "CPU", config));

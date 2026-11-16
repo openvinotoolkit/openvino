@@ -236,14 +236,6 @@ struct CompiledModelMetadata {
     std::shared_ptr<void> so;
 };
 
-// What one compilation produces; the device context takes both when its workers are created.
-// The compiled model is empty if the compilation failed or the device was already ready.
-struct CompileResult {
-    SoCompiledModel compiled_model;
-    // the config of the device that compiled the model
-    ov::AnyMap compiled_config;
-};
-
 class ScheduleContext : public std::enable_shared_from_this<ScheduleContext>  {
 public:
     using Ptr = std::shared_ptr<ScheduleContext>;

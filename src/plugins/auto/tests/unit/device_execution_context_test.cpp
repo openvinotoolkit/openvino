@@ -222,17 +222,6 @@ TEST_F(DeviceExecutionContextTest, pendingTasksAreOwnedByTheContext) {
     EXPECT_FALSE(context.pending_tasks().try_pop(task));
 }
 
-TEST_F(DeviceExecutionContextTest, cacheInfoIsKeptPerContext) {
-    DeviceExecutionContext context("GPU.0");
-    EXPECT_FALSE(context.cache_info().supports_caching.has_value());
-    context.cache_info().supports_caching = true;
-    context.cache_info().blob_id = "blob";
-    make_ready(context);
-    ASSERT_TRUE(context.try_release());
-    EXPECT_EQ(context.cache_info().supports_caching, std::optional<bool>(true));
-    EXPECT_EQ(context.cache_info().blob_id, std::optional<std::string>("blob"));
-}
-
 TEST_F(DeviceExecutionContextTest, logSummaryIncludesReleasedWorkers) {
     DeviceExecutionContext context("GPU.0");
     make_ready(context, 1);

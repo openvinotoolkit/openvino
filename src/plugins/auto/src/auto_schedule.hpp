@@ -37,8 +37,8 @@ private:
      * @note An exception will be thrown if all loading of model to hw device fails.
      */
     SoCompiledModel wait_first_compiled_model_ready() override;
-    CompileResult try_to_compile_model(AutoCompileContext& context,
-                                       const std::shared_ptr<ov::Model>& model) override;
+    SoCompiledModel try_to_compile_model(AutoCompileContext& context,
+                                         const std::shared_ptr<ov::Model>& model) override;
     bool select_other_device(const std::string& cur_dev_name) override;
     // Null unless ov::intel_auto::compile_for_all is enabled; set before any background task starts.
     std::shared_ptr<CachePrecompiler>                                    m_cache_precompiler;
@@ -63,15 +63,10 @@ private:
     bool ensure_device_ready(DeviceInformation& device);
     /**
      * @brief Drop the compiled model and workers of a device that is no longer the active one.
-     * @note Only done with compile_for_all, and only for devices that support model caching and have a cache location
-     * to reload from. The next device is already dispatched when this runs, so a device is only released while the
-     * active one is loaded.
+     * @note Only done with compile_for_all. The next device is already dispatched when this runs, so a device is only
+     * released while the active one is loaded.
      */
     void release_inactive_device(const DeviceName& device_name, const DeviceName& active_device);
-    /**
-     * @brief Whether a model compiled for the device can be reloaded from the model cache, i.e. a cache blob exists.
-     */
-    bool has_reloadable_cache(DeviceExecutionContext& context);
     // disables the configured low_power_device override if it matches the failed device
     // @return true only for the call that disabled it, i.e. the first failure of that device
     bool check_and_disable_if_low_power_device_failed(const std::string& failed_device_name) const;

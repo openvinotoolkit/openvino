@@ -126,10 +126,6 @@ TaskQueue& DeviceExecutionContext::pending_tasks() {
     return m_pending_tasks;
 }
 
-DeviceCacheInfo& DeviceExecutionContext::cache_info() {
-    return m_cache_info;
-}
-
 void DeviceExecutionContext::collect_worker_stats() {
     for (auto& worker : m_workers) {
         m_released_start_times.splice(m_released_start_times.end(), worker.m_start_times);
