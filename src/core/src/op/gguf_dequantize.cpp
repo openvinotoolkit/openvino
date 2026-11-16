@@ -106,12 +106,12 @@ bool GGUFDequantize::evaluate(TensorVector& outputs, const TensorVector& inputs)
     }
 }
 
-}  // namespace internal
-}  // namespace op
-
-std::ostream& operator<<(std::ostream& s, const ov::op::internal::GGUFDequantize::Format& format) {
+std::ostream& operator<<(std::ostream& s, const GGUFDequantize::Format& format) {
     return s << as_string(format);
 }
+
+}  // namespace internal
+}  // namespace op
 
 template <>
 OPENVINO_API EnumNames<ov::op::internal::GGUFDequantize::Format>&
