@@ -67,9 +67,12 @@ struct OPENVINO_API DiscreteTypeInfo {
 
     operator std::string() const;
 
-    // CVS-199851: The hash is computed in the constructors. The fallback to compute it lazily when it is 0 (and the
-    // non-const overload caching it) is kept only for binaries built with older headers, whose inlined
-    // constructors leave it 0. Will be removed in 2028.0 release, leaving hash() a plain getter.
+    /**
+     * @brief Returns the hash of the type info.
+     * @note The hash is computed in the constructors. The fallback to compute it lazily when it is 0 (and the non-const
+     * overload caching it) is kept only for binaries built with older headers, whose inlined constructors leave it 0.
+     * Will be removed in 2028.0 release, leaving hash() a plain getter.
+     */
     size_t hash() const;
     size_t hash();
 

@@ -14,9 +14,7 @@ namespace ov {
 
 // CVS-199851: Compatibility path for hash_value == 0 (objects built by older binaries). Remove in 2028.0 release.
 size_t DiscreteTypeInfo::hash() const {
-    if (hash_value != 0)
-        return hash_value;
-    return compute_hash(name, version_id);
+    return (hash_value != 0) ? hash_value : compute_hash(name, version_id);
 }
 
 // CVS-199851: Lazy caching kept only for old binaries, never reached for objects built with the current header.
