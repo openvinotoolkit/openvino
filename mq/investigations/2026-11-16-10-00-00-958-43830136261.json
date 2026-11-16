@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-16-10-00-00-958-43830136261",
+  "timestamp": "2026-11-16T10:00:00Z",
+  "run_id": "43830136261",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43830136261",
+  "workflow_name": "GPU unit tests",
+  "pr_number": "39781",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39781",
+  "author": "gburgessiv",
+  "category": "Infrastructure",
+  "title": "GPU unit tests fail to extract OpenVINO package - tbb12.dll locked (Access denied) on Windows self-hosted runner",
+  "signature": "remove item cannot remove item access to the path is denied unauthorizedaccessexception|Infrastructure",
+  "signature_hash": "95bb23aa2ed8a84d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "Extract OpenVINO packages step fails: Expand-Archive cannot overwrite tbb12.dll because Access to the path is denied."
+    }
+  ],
+  "key_errors": [
+    "Remove-Item : Cannot remove item C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll:\nAccess to the path 'C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll' is denied.\n+ CategoryInfo          : PermissionDenied: (C:\\actions-runn...b\\bin\\tbb12.dll:FileInfo) [Remove-Item], UnauthorizedAccessException\n+ FullyQualifiedErrorId : RemoveFileSystemItemUnAuthorizedAccess,Microsoft.PowerShell.Commands.RemoveItemCommand\n##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "On the Windows self-hosted GPU runner, Expand-Archive -Force tries to overwrite the previous install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll left on disk from a prior job, but the file is still locked (handle held open) by a lingering process (e.g. a test binary or prior job's OpenVINO runtime process that was not fully torn down), so Remove-Item inside Expand-Archive raises UnauthorizedAccessException and the extraction step fails with exit code 1. This is the 10th occurrence of the identical signature on this runner pool and is unrelated to the PR's actual change (adding missing <iterator>/<algorithm> includes in concat.cpp), confirming it is a pre-existing runner/workspace-hygiene issue, not a regression introduced by the PR.",
+  "reproduction_steps": "Not reliably reproducible locally; occurs only on the specific Windows self-hosted GPU runner when a previous job's process still holds a handle on install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll. Can sometimes be reproduced by running two back-to-back GPU unit test jobs on the same runner without a full workspace/process cleanup between them.",
+  "recommended_actions": [
+    "Add a pre-extraction cleanup step that forcibly kills any lingering OpenVINO/gtest processes and retries Remove-Item/Expand-Archive with a short backoff before failing.",
+    "Ensure the self-hosted runner's post-job cleanup fully stops child processes (e.g. gtest_parallel workers) that keep DLL handles open in install\\runtime\\3rdparty\\tbb\\bin.",
+    "Consider extracting to a fresh/unique directory per run instead of overwriting install\\ in place to avoid file-lock contention.",
+    "Re-run the failed job; this is the standard transient remedy for this recurring signature."
+  ],
+  "prevention_strategies": "Harden the Windows self-hosted runner job cleanup/teardown to guarantee all child processes holding handles under the install directory are terminated before the next job starts extracting a new package there; consider a scheduled/triggered runner workspace reset when this signature recurs beyond a threshold.",
+  "historical_context": "Identical signature (hash 95bb23aa2ed8a84d) has recurred 10 times between 2026-11-09 and 2026-11-11 across multiple unrelated PRs (e.g. #39568, #39653, #39617, #37406, #39577, #39668, #39034, #39444), always on the GPU unit tests Windows job's 'Extract OpenVINO packages' step with the same tbb12.dll Access-denied error. This confirms a persistent runner-pool infrastructure issue, not a code regression."
+}
