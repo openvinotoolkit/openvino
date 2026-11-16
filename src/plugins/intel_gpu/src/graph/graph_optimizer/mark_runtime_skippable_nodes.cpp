@@ -306,6 +306,22 @@ void mark_runtime_skippable_nodes::run(program& p) {
         });
 
         program_helpers::do_for_types<resample>(*node, [](resample_node& node) {
+            // F8: an output must own its buffer, as for the other skippable types.
+            // resample_inst::update_output_memory re-aliases _outputs[0] to the input on every execution, which discards
+            // a buffer bound via set_output_memory (plugin host outputs are rescued by the copy-back in sync_infer_request;
+            // remote outputs and direct set_output_memory callers are not).
+            if (node.is_output()) {
+                return;
+            }
+            // F8 (as F3): a static in-place concat predecessor writes into the concat buffer; skipping it would leave
+            // the slot unwritten.
+            if (!node.is_dynamic()) {
+                for (const auto* user : node.get_users()) {
+                    if (user->is_type<concatenation>() && user->can_be_optimized()) {
+                        return;
+                    }
+                }
+            }
             // try to skip resample when inpu/ouput are same
             auto impl_params = node.get_kernel_impl_params();
             auto prim = impl_params->typed_desc<resample>();
