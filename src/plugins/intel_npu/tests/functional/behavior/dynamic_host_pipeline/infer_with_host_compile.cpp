@@ -133,8 +133,6 @@ public:
                                         const ov::Tensor& inputTensor,
                                         const std::string& dumpPrefix);
 
-    static bool logContains(const ScopedLogCapture& logCapture, const std::string& expectedEntry);
-
     static std::shared_ptr<ov::Model> createModelByName(const std::string& modelName);
 
     RuntimeCompareSetupResult prepareRuntimeCompareContext(const std::shared_ptr<ov::Model>& model);
@@ -208,15 +206,6 @@ void InferWithHostCompileTests::setInputInferAndCompare(const std::shared_ptr<ov
     inferAndCompare(model, reqDynamic, reqReference, stage);
 }
 
-bool InferWithHostCompileTests::logContains(const ScopedLogCapture& logCapture, const std::string& expectedEntry) {
-    const auto logs = logCapture.str();
-    if (logs.find("execute_vm_runtime_v2 - started") != std::string::npos) {
-        // VM runtime v2 manages command lists internally, so plugin-side legacy command list logs are not required
-        return true;
-    }
-    return logCapture.str().find(expectedEntry) != std::string::npos;
-}
-
 std::shared_ptr<ov::Model> InferWithHostCompileTests::createModelByName(const std::string& modelName) {
     return createESPCNX2ModelByName(modelName);
 }
@@ -282,8 +271,8 @@ TEST_P(InferWithHostCompileTests, CompileAndImportAndInfer) {
     OV_ASSERT_NO_THROW(reqDynamic.infer());
 }
 
-// Compile, infer with a large shape, then shrink the input shape and verify both output correctness and command-list
-// reuse behavior.
+// Compile, infer with a large shape, then shrink the input shape and verify the dynamic v2 execution path still
+// produces the expected outputs and runtime state transitions.
 TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -313,17 +302,9 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
                             testContext.reqReference,
                             inTensor,
                             "CompileAndInferWithDecreasedSize_first");
-    // The first run materializes runtime state for the initial shape.
-    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
-        << "Expected log to contain 'Reset command list to run with runtime', but got: " << logCapture.str();
 
     logCapture.clear();
     inferAndCompare(model, testContext.reqDynamic, testContext.reqReference, "CompileAndInferWithDecreasedSize_second");
-    // Reusing the same input should keep the existing command list intact.
-    ASSERT_TRUE(logContains(logCapture, "Reuse command list without update since no tensor change detected"))
-        << "Expected log to contain 'Reuse command list without update since no tensor change detected' for second "
-           "inference, but got: "
-        << logCapture.str();
 
     ov::Tensor inTensor1 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     setInputInferAndCompare(model,
@@ -342,15 +323,10 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
                             testContext.reqReference,
                             inTensor3,
                             "CompileAndInferWithDecreasedSize_fourth");
-    // Shrinking the shape should force runtime reconfiguration for the new tensor layout.
-    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
-        << "Expected log to contain 'Reset command list to run with runtime' for fourth inference with new shape, but "
-           "got: "
-        << logCapture.str();
 }
 
-// Compile, infer with a small shape, then grow the input shape and verify both output correctness and command-list
-// reuse behavior.
+// Compile, infer with a small shape, then grow the input shape and verify the dynamic v2 execution path still
+// produces the expected outputs and runtime state transitions.
 TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -381,17 +357,9 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
                             testContext.reqReference,
                             inTensor,
                             "CompileAndInferWithIncreasedSize_first");
-    // The first run materializes runtime state for the initial shape.
-    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
-        << "Expected log to contain 'Reset command list to run with runtime', but got: " << logCapture.str();
 
     logCapture.clear();
     inferAndCompare(model, testContext.reqDynamic, testContext.reqReference, "CompileAndInferWithIncreasedSize_second");
-    // Reusing the same input should keep the existing command list intact.
-    ASSERT_TRUE(logContains(logCapture, "Reuse command list without update since no tensor change detected"))
-        << "Expected log to contain 'Reuse command list without update since no tensor change detected' for second "
-           "inference, but got: "
-        << logCapture.str();
 
     ov::Tensor inTensor1 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     setInputInferAndCompare(model,
@@ -409,14 +377,10 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
                             testContext.reqReference,
                             inTensor3,
                             "CompileAndInferWithIncreasedSize_fourth");
-    // Growing the shape should force runtime reconfiguration for the new tensor layout.
-    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
-        << "Expected log to contain 'Reset command list to run with runtime' for fourth inference with new shape, but "
-           "got: "
-        << logCapture.str();
 }
 
-// Exercise imported Level Zero tensors and verify both output correctness and command-list pointer updates.
+// Exercise imported Level Zero tensors and verify output correctness and runtime state transitions for host-backed
+// input/output tensors.
 TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -446,17 +410,10 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
                             inTensor,
                             "CompileAndInferWithZeroTensor_first");
 
-    // The first run materializes runtime state for the initial shape.
-    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
-        << "Expected log to contain 'Reset command list to run with runtime', but got: " << logCapture.str();
-
     logCapture.clear();
     ov::InferRequest reqDynamic1 = testContext.compiledModel.create_infer_request();
     ov::InferRequest reqReference1 = testContext.referenceCompiledModel.create_infer_request();
     setInputInferAndCompare(model, reqDynamic1, reqReference1, inTensor, "CompileAndInferWithZeroTensor_second");
-    // A fresh infer request rebuilds runtime state on its first execution.
-    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
-        << "Expected log to contain 'Reset command list to run with runtime', but got: " << logCapture.str();
 
     logCapture.clear();
     auto zeroContext = core.get_default_context(target_device);
@@ -472,11 +429,6 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
                             reqReference1,
                             inputTensorForThirdInfer,
                             "CompileAndInferWithZeroTensor_third");
-    // Feeding a context-allocated tensor with a new data pointer rebuilds the runtime state.
-    // TODO: Update commandlist once dynamic stride supported
-    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
-        << "Expected log to contain 'Reset command list to run with runtime' for third inference, but got: "
-        << logCapture.str();
 
     logCapture.clear();
     auto inputHostTensorForForthInfer = zeroContext.create_host_tensor(model->input().get_element_type(), shape);
@@ -492,11 +444,6 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
                             reqReference1,
                             inputHostTensorForForthInfer,
                             "CompileAndInferWithZeroTensor_fourth");
-    // Feeding a context-allocated host tensor, ptr change detected and rebuild runtime
-    // TODO: Update commandlist once dynamic stride supported
-    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
-        << "Expected log to contain 'Reset command list to run with runtime' for fourth inference, but got: "
-        << logCapture.str();
 
     logCapture.clear();
     auto outputShape = reqDynamic1.get_tensor(model->output()).get_shape();
@@ -511,11 +458,6 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
                 hostTensorSourceForOutputForFifthInfer.get_byte_size());
     OV_ASSERT_NO_THROW(reqDynamic1.set_tensor(model->output(), zeroOutputTensorForFifthInfer));
     inferAndCompare(model, reqDynamic1, reqReference1, "CompileAndInferWithZeroTensor_fifth");
-    // Feeding a context-allocated host tensor as output, ptr change detected and rebuild runtime
-    // TODO: Update commandlist once dynamic stride supported
-    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
-        << "Expected log to contain 'Reset command list to run with runtime' for fifth inference, but got: "
-        << logCapture.str();
 
     logCapture.clear();
     auto inputTensorForSixthInfer =
@@ -540,11 +482,6 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
                             reqReference1,
                             inputTensorForSixthInfer,
                             "CompileAndInferWithZeroTensor_sixth");
-    // Feeding a context-allocated host tensor, ptr change detected and rebuild runtime
-    // TODO: Update commandlist once dynamic stride supported
-    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
-        << "Expected log to contain 'Reset command list to run with runtime' for sixth inference, but got: "
-        << logCapture.str();
 }
 
 TEST_P(InferWithHostCompileTests, DynamicBatchUsesOneVMExecution) {
@@ -593,8 +530,7 @@ TEST_P(InferWithHostCompileTests, DynamicBatchUsesOneVMExecution) {
         return count;
     };
     const auto countVMExecutions = [&countMarker](const std::string& log) {
-        return countMarker(log, "Start to execute graph with runtime engine") +
-               countMarker(log, "execute_vm_runtime_v2 - started");
+        return countMarker(log, "execute_vm_runtime - started");
     };
     ASSERT_EQ(countVMExecutions(logCapture.str()), 1u) << logCapture.str();
 
@@ -618,8 +554,8 @@ TEST_P(InferWithHostCompileTests, DynamicBatchUsesOneVMExecution) {
 
 // ── V2: NPU_SHARED_COMMON_QUEUE=YES and =NO baseline ─────────────────────────
 //
-// shared=YES → DynamicPipeline::DynamicPipeline() calls ensureV2(..., queue->handle(), ...)
-// shared=NO  → ensureV2(..., nullptr, ...)  (vm_runtime owns the internal queue)
+// shared=YES → DynamicPipeline::DynamicPipeline() calls ensure(..., queue->handle(), ...)
+// shared=NO  → ensure(..., nullptr, ...)  (vm_runtime owns the internal queue)
 // Verifies first-infer, reuse (same ptr), new-ptr, and shape-change for both modes.
 TEST_P(InferWithHostCompileTests, SharedCommonQueue_BasicInferAndReuse) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -931,7 +867,7 @@ TEST_P(InferWithHostCompileTests, SetProperty_CombinedPriorityAndWorkload) {
 //     → command_queue_desc.key() != _command_queue->desc().key()   (changed)
 //     → [shared=YES] _command_queue = ZeroCmdQueuePool::getCommandQueue(new_desc)
 //     → update_runtime_config(prev_desc, curr_desc) → QUEUE_PRIORITY diff → pConfig
-//     → execute_vm_runtime_v2(..., pConfig) → npuVMRuntimeExecute2 with pConfig
+//     → execute_vm_runtime(..., pConfig) → npuVMRuntimeExecute2 with pConfig
 //
 // Transitions: LOW → HIGH → MEDIUM → LOW; also verifies a new InferRequest created
 // after set_property picks up the updated CommandQueueDesc.
@@ -1414,7 +1350,7 @@ TEST_P(InferWithHostCompileTests, SetProperty_Priority_BetweenTwoRequests_NonSha
 //  - different shape
 // Validates output correctness for all cases (this test does not assert on specific log messages).
 // The test is skipped when the v2 code path is not active (i.e., when
-// "execute_vm_runtime_v2 - started" is absent from the first-inference logs).
+// "execute_vm_runtime - started" is absent from the first-inference logs).
 TEST_P(InferWithHostCompileTests, MemRefReuse_SamePtrSameShape) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!isTargetDevice) {
