@@ -27,7 +27,9 @@ ov::OutputVector causal_conv_with_state(const ov::frontend::onnx::Node& node) {
     common::default_op_checks(node, 2, 4);
     const auto inputs = node.get_ov_inputs();
 
-    CHECK_VALID_NODE(node, node.get_attribute_value<int64_t>("ndim", 1) == 1, "CausalConvWithState: only ndim=1 is supported");
+    CHECK_VALID_NODE(node,
+                     node.get_attribute_value<int64_t>("ndim", 1) == 1,
+                     "CausalConvWithState: only ndim=1 is supported");
     CHECK_VALID_NODE(node,
                      node.get_attribute_value<int64_t>("channels_last", 0) == 0,
                      "CausalConvWithState: channels_last=1 is not supported");
@@ -58,10 +60,10 @@ ov::OutputVector causal_conv_with_state(const ov::frontend::onnx::Node& node) {
                      "CausalConvWithState: input must be [batch, channels, length] for ndim=1");
     const auto& weight = inputs[1];
     const auto& weight_shape = weight.get_partial_shape();
-    CHECK_VALID_NODE(node,
-                     weight_shape.rank().is_static() && weight_shape.rank().get_length() == 3 &&
-                         weight_shape[2].is_static(),
-                     "CausalConvWithState: weight must be [channels, 1, kernel_size] with a static kernel_size");
+    CHECK_VALID_NODE(
+        node,
+        weight_shape.rank().is_static() && weight_shape.rank().get_length() == 3 && weight_shape[2].is_static(),
+        "CausalConvWithState: weight must be [channels, 1, kernel_size] with a static kernel_size");
     const int64_t state_len = (weight_shape[2].get_length() - 1) * dilation;
     const auto state_length_attr = node.get_attribute_value<int64_t>("state_length", 0);
     CHECK_VALID_NODE(node,
@@ -103,7 +105,9 @@ ov::OutputVector causal_conv_with_state(const ov::frontend::onnx::Node& node) {
 
     const auto present = std::make_shared<v8::Slice>(
         full,
-        v0::Constant::create(element::i64, Shape{1}, {state_len > 0 ? -state_len : std::numeric_limits<int64_t>::max()}),
+        v0::Constant::create(element::i64,
+                             Shape{1},
+                             {state_len > 0 ? -state_len : std::numeric_limits<int64_t>::max()}),
         v0::Constant::create(element::i64, Shape{1}, {std::numeric_limits<int64_t>::max()}),
         v0::Constant::create(element::i64, Shape{1}, {1}),
         axis_2);
