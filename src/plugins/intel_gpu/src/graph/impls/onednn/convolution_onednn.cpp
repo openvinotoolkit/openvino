@@ -148,6 +148,9 @@ struct convolution_onednn : typed_primitive_onednn_impl<convolution> {
 private:
     int _zero_point_mask;
     dnnl::memory::data_type _wzp_data_type = dnnl::memory::data_type::undef;
+    // s32 copy of the activations zero-points of this impl's node, and the memory it was converted from
+    mutable memory::ptr _azp_s32;
+    mutable memory::ptr _azp_s32_src;
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
@@ -178,12 +181,14 @@ protected:
                 const auto& conv_node = instance.get_node().as<convolution>();
                 auto& a_zp_node = conv_node.activations_zero_points().as<data>();
                 a_zp = a_zp_node.get_attached_memory_ptr();
-                // create() converts only the zero-points of the node it ran for; an impl reused from the cache needs it here
+                // create() converts only the zero-points of its own node. Keep the s32 copy in this impl: the data node is shared
                 if (a_zp->get_layout().data_type != data_types::i32) {
-                    auto s32_mem = onednn::convert_zp_data_to_s32(a_zp);
-                    OPENVINO_ASSERT(s32_mem != nullptr, "[GPU] Unsupported activations zero-points type for oneDNN convolution ", instance.id());
-                    a_zp_node.attach_memory(s32_mem, false);
-                    a_zp = s32_mem;
+                    if (_azp_s32_src != a_zp) {
+                        _azp_s32 = onednn::convert_zp_data_to_s32(a_zp);
+                        OPENVINO_ASSERT(_azp_s32 != nullptr, "[GPU] Unsupported activations zero-points type for oneDNN convolution ", instance.id());
+                        _azp_s32_src = a_zp;
+                    }
+                    a_zp = _azp_s32;
                 }
             }
 
