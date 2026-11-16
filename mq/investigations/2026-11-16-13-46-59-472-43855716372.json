@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-16-13-46-59-472-43855716372",
+  "timestamp": "2026-11-16T13:46:59Z",
+  "run_id": "43855716372",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43855716372",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "39556",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39556",
+  "author": "lslusarczyk",
+  "category": "Dependencies",
+  "title": "OpenVINO tokenizers wheel build fails - openvino~=2027.0.0.dev not yet available on pip",
+  "signature": "could not find a version that satisfies the requirement openvino dev tokenizers build dependencies failed|Dependencies",
+  "signature_hash": "8d60fd1266878935",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "OpenVINO tokenizers extension / OpenVINO tokenizers extension",
+      "conclusion": "failure",
+      "symptom": "pip wheel build for openvino_tokenizers fails installing build deps because openvino~=2027.0.0.dev is not yet published"
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Overall status check fails because the tokenizers job failed"
+    }
+  ],
+  "key_errors": [
+    "ERROR: Could not find a version that satisfies the requirement openvino~=2027.0.0.dev (from versions: ... 2026.4.1, 2026.5.1.dev20261116)",
+    "ERROR: No matching distribution found for openvino~=2027.0.0.dev",
+    "ERROR: Failed to build 'file:///C:/actions-runner/_work/openvino/openvino/openvino_tokenizers' when installing build dependencies"
+  ],
+  "root_cause": "The tokenizers extension build step installs the just-built local openvino wheel (openvino-2026.5.1.dev20261116), but openvino_tokenizers' pyproject.toml pins its runtime dependency via a floating dev constraint (openvino~=2027.0.0.dev) that tracks the NEXT unreleased minor version rather than the version actually produced by this build. Since no openvino~=2027.0.0.dev package has ever been published to the pip index (the newest available is 2026.5.1.dev20261116), pip's build-dependency resolution for openvino_tokenizers fails outright on Windows, independent of the PR's own change (src/bindings/python/src/pyopenvino/utils/utils.cpp), which is unrelated to tokenizers packaging. This mirrors a long-standing, recurring version-skew issue between the main repo's dev version bump and the openvino_tokenizers submodule/requirement pin.",
+  "reproduction_steps": "On a Windows build matching the CI image: build the core openvino wheel as done in the workflow (set-up to produce openvino-2026.5.1.dev20261116), then run `python3 -m pip wheel -v --no-deps --wheel-dir build --find-links install/wheels --config-settings override=cmake.build_args=... .` from the openvino_tokenizers checkout. pip will fail resolving `openvino~=2027.0.0.dev` as a build dependency because no such package version is published on PyPI/the internal pip proxy.",
+  "recommended_actions": [
+    "Pin/update the openvino_tokenizers submodule (or its pyproject.toml/setup.cfg openvino dependency constraint) to track the currently published dev series (e.g. ~=2026.5.0.dev or a floating range covering 2026.x) rather than the next unreleased 2027.0.0 series.",
+    "Alternatively, have the tokenizers build step pass --no-build-isolation or supply the locally built openvino wheel to satisfy the build-time dependency instead of resolving from the pip index.",
+    "Coordinate the openvino_tokenizers version bump with the main repo's dev version bump schedule so this constraint window never points at an unpublished next-major/minor series."
+  ],
+  "prevention_strategies": "Add a CI check (or dependabot-like bot) that validates the openvino_tokenizers submodule's required openvino version range against the currently publishable dev version range before merging a version bump to the main repo. Consider a scheduled smoke job that runs just the tokenizers wheel build against the nightly openvino dev wheel to catch this drift before it blocks the merge queue.",
+  "historical_context": "This is a recurring pattern (signature_hash 8d60fd1266878935) observed 6 times since 2026-08-27, previously affecting PRs #39236, #37686, #37690, and now #39556. Every occurrence has the identical root cause: the openvino_tokenizers build-time openvino version constraint lags or over-shoots the version actually available on pip."
+}
