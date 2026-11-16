@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-16-16-38-25-000-43866240882",
+  "timestamp": "2026-11-16T16:38:25Z",
+  "run_id": "43866240882",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43866240882",
+  "workflow_name": "C++ unit tests",
+  "pr_number": "39616",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39616",
+  "author": "RhoninSeiei",
+  "category": "Flaky Test",
+  "title": "CachingTest LoadMultiWithConfig_race import_model call count mismatch on Windows",
+  "signature": "Actual function call count doesnt match EXPECT_CALL import_model Expected called times Actual called times unsatisfied and active|Flaky Test",
+  "signature_hash": "43e136cf67333978",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "C++ unit tests / C++ unit tests",
+      "conclusion": "failure",
+      "symptom": "CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache gmock EXPECT_CALL mismatch on import_model (6 vs 7 calls)"
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed because the C++ unit tests job failed"
+    }
+  ],
+  "key_errors": [
+    "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\inference\\tests\\functional\\caching_test.cpp(2673): error: Actual function call count doesn't match EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _))...\n         Expected: to be called 7 times\n           Actual: called 6 times - unsatisfied and active",
+    "[  FAILED  ] CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache, where GetParam() = ((4-byte object <02-00 00-00>, \"ByModelName\", false), \"testCache\") (2043 ms)"
+  ],
+  "root_cause": "CachingTest.LoadMultiWithConfig_race exercises concurrent model loads through a MULTI/AUTO device and asserts a mocked plugin's import_model is invoked an exact number of times. On the Windows runner this is a well-known timing-sensitive race: thread scheduling occasionally lets one of the concurrent load_network calls return before its import_model call completes/registers, so the gmock expectation (7 calls) observes only 6. This is a pre-existing test flakiness unrelated to the PR under test (#39616 only touches the GPU reorder_data_fast_b1 kernel and its unit test); this exact signature has recurred 10 times since 2026-07-13 across unrelated PRs.",
+  "reproduction_steps": "Not reliably reproducible outside CI; requires Windows runner timing conditions. Locally, repeatedly run `ov_inference_functional_tests --gtest_filter=CachingTest*LoadMultiWithConfig_race*` under load on a Windows machine to attempt reproduction; a tight loop may eventually surface the same gmock call-count mismatch.",
+  "recommended_actions": [
+    "Make CachingTest.LoadMultiWithConfig_race deterministic: replace the exact EXPECT_CALL count assertion with a synchronization barrier (e.g., a condition variable or atomic counter with a wait/timeout) so the test does not depend on background thread scheduling completing within the measurement window.",
+    "Consider using EXPECT_CALL(...).Times(AtLeast(N)) or waiting on all async load futures to complete before verifying mock expectations, matching the pattern already fixed for sibling tests if any exist.",
+    "For this run: no code fix is required on PR #39616; simply re-run the failed job (the PR's own changes are unrelated to inference/tests/functional/caching_test.cpp)."
+  ],
+  "prevention_strategies": "Track and prioritize fixing src/inference/tests/functional/caching_test.cpp race-prone parameterized cases (LoadMulti_race, LoadMultiWithConfig_race) since they have now recurred 10+ times in the merge-queue pattern database; consider marking them disabled or quarantined until a deterministic rewrite lands, to stop blocking unrelated merge-queue PRs.",
+  "historical_context": "This exact signature (signature_hash 43e136cf67333978) has been recorded 10 times since 2026-07-13 against unrelated PRs (#36488, #36684, #36872, #37114, #37187, #37197, #37500, #37653, #39663, and now #39616), all on Windows C++ unit tests jobs. Related sibling signatures also exist for LoadMulti_race variants (0528d54ff68248cd, 5f5789b1a8659a47) and a file-lock TearDown flake (1bf590cbb88911b2), confirming this test file is a chronic source of merge-queue flakiness."
+}
