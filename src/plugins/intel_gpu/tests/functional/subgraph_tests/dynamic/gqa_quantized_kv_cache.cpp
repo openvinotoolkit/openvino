@@ -42,6 +42,18 @@ constexpr size_t kv_num_heads = 2;
 constexpr int64_t window = 16;
 constexpr size_t capacity = 24;
 
+// Rows of a windowed present cache that hold keys after `total` (past + current) tokens: ONNX Runtime's WindowedCacheEnd,
+// x <= capacity ? x : x - gap * ceil((x - capacity) / gap) with gap = capacity - window + 1. The rows after them are not
+// part of the result: the reference zero-fills them while StatelessKV leaves them as they were, and neither reads them back,
+// so they are not compared.
+size_t resident_rows(size_t total) {
+    if (total <= capacity) {
+        return total;
+    }
+    const size_t gap = capacity - static_cast<size_t>(window) + 1;
+    return total - gap * ((total - capacity + gap - 1) / gap);
+}
+
 size_t cache_head_size(const GQAQuantParams& p) {
     return p.bits == 4 ? p.head_size / 2 : p.head_size;
 }
@@ -199,11 +211,18 @@ TEST_P(GQAQuantizedKVCacheTest, MatchesTemplate) {
             ASSERT_EQ(expected.get_shape(), actual.get_shape()) << "output " << o;
             if (o > 0) {
                 ASSERT_EQ(expected.get_element_type(), actual.get_element_type()) << "output " << o;
-                // Present caches: copied past bytes plus exactly quantized new rows.
+                // Present caches: copied past bytes plus exactly quantized new rows (a windowed cache: its resident rows, see
+                // resident_rows()).
                 const auto* e = static_cast<const uint8_t*>(expected.data());
                 const auto* a = static_cast<const uint8_t*>(actual.data());
+                // [B, KVH, capacity, D] with D packed for u4: the bytes of one row.
+                const size_t row_bytes = p.windowed ? expected.get_byte_size() / (p.batch * kv_num_heads * capacity) : 0;
+                const size_t valid_rows = p.windowed ? resident_rows(past + current) : 0;
                 size_t mismatches = 0;
                 for (size_t i = 0; i < expected.get_byte_size(); ++i) {
+                    if (p.windowed && (i / row_bytes) % capacity >= valid_rows) {  // a row past the resident ones
+                        continue;
+                    }
                     mismatches += e[i] != a[i];
                 }
                 EXPECT_EQ(mismatches, 0u) << "output " << o << ": " << mismatches << " of " << expected.get_byte_size() << " bytes differ";

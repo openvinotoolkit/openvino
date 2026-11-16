@@ -43,6 +43,18 @@ bool windowed_cache(const GQAWindowParams& p) {
     return p.path != Path::FULL_CACHE_MASK;
 }
 
+// Rows of a windowed present cache that hold keys after `total` (past + current) tokens: ONNX Runtime's WindowedCacheEnd,
+// x <= capacity ? x : x - gap * ceil((x - capacity) / gap) with gap = capacity - window + 1. The rows after them are not
+// part of the result: the reference zero-fills them while StatelessKV leaves them as they were, and neither reads them back,
+// so they are not compared.
+size_t resident_rows(size_t total) {
+    if (total <= capacity) {
+        return total;
+    }
+    const size_t gap = capacity - static_cast<size_t>(window) + 1;
+    return total - gap * ((total - capacity + gap - 1) / gap);
+}
+
 std::shared_ptr<ov::Model> make_gqa_model(const GQAWindowParams& p) {
     const auto f16 = ov::element::f16;
     const auto D = static_cast<int64_t>(p.head_size);
@@ -149,14 +161,20 @@ TEST_P(GQASlidingWindowTest, MatchesTemplate) {
             const auto actual = gpu.get_output_tensor(o);
             ASSERT_EQ(expected.get_shape(), actual.get_shape()) << "output " << o;
             ASSERT_EQ(expected.get_element_type(), actual.get_element_type()) << "output " << o;
-            // Present caches (outputs 1, 2) are copied rows: exact. Attention output: f16 compute.
+            // Present caches (outputs 1, 2) are copied rows: exact, over the resident rows of a windowed cache (resident_rows()).
+            // Attention output: f16 compute.
             const float tolerance = o == 0 ? 0.02f : 0.0f;
+            const bool windowed_present = o > 0 && windowed_cache(p);
+            const size_t valid_rows = windowed_present ? resident_rows(past + current) : 0;
             const auto* e = expected.data<const ov::float16>();
             const auto* a = actual.data<const ov::float16>();
             size_t mismatches = 0;
             float max_diff = 0.0f;
             size_t first_mismatch = 0;
             for (size_t i = 0; i < expected.get_size(); ++i) {
+                if (windowed_present && (i / D) % capacity >= valid_rows) {  // [1, KVH, capacity, D]: a row past the resident ones
+                    continue;
+                }
                 const float diff = std::fabs(static_cast<float>(e[i]) - static_cast<float>(a[i]));
                 if (!(diff <= tolerance)) {  // NaN counts as a mismatch
                     if (mismatches++ == 0) {
