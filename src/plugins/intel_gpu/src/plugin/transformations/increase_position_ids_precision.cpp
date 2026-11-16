@@ -22,6 +22,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/cos.hpp"
+#include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_nd.hpp"
 #include "openvino/op/gelu.hpp"
@@ -83,6 +84,11 @@ bool CollectSinCosConstantsForPrecisionPreservation::run_on_model(const std::sha
             if (output.get_element_type() == ov::element::f32) {
                 m_constants->insert(node.get());
             }
+            continue;
+        }
+
+        // The ranges of FakeQuantize must stay foldable constants.
+        if (ov::is_type<ov::op::v0::FakeQuantize>(node)) {
             continue;
         }
 
