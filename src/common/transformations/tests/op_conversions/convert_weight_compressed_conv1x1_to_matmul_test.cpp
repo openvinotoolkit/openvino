@@ -333,6 +333,52 @@ TEST_F(ConvertWeightCompressedConv1x1ToMatmulTest_Blocked, conv3x3) {
     model = CreateConv3x3();
 }
 
+// The scale is not folded yet (Convert(Constant)): the pass must skip the convolution instead of asserting.
+TEST_F(ConvertWeightCompressedConv1x1ToMatmulTest_Blocked, conv1x1_scale_as_convert) {
+    auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 1, 1, 10});
+    auto transpose_constant1 = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {0, 3, 1, 2});
+    auto transpose_constant2 = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 3, 1});
+    auto weights = ov::opset1::Constant::create(ov::element::i4, ov::Shape{15, 10, 1, 1}, {1});
+    auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f16);
+    auto scale = ov::opset1::Constant::create(ov::element::f32, ov::Shape{15, 1, 1, 1}, {1});
+    auto scale_convert = std::make_shared<ov::op::v0::Convert>(scale, ov::element::f16);
+    auto mul = std::make_shared<ov::opset1::Multiply>(weights_convert, scale_convert);
+    auto transpose1 = std::make_shared<ov::opset1::Transpose>(input, transpose_constant1);
+    auto conv = std::make_shared<ov::opset1::Convolution>(transpose1,
+                                                          mul,
+                                                          ov::Strides{1, 1},
+                                                          ov::CoordinateDiff{0, 0},
+                                                          ov::CoordinateDiff{0, 0},
+                                                          ov::Strides{1, 1},
+                                                          ov::op::PadType::EXPLICIT);
+    auto transpose2 = std::make_shared<ov::opset1::Transpose>(conv, transpose_constant2);
+
+    model = std::make_shared<ov::Model>(ov::OutputVector{transpose2}, ov::ParameterVector{input});
+}
+
+// The 3x3 weights must not be matched as the scale of a Convert(Constant) scale (the pass must not assert).
+TEST_F(ConvertWeightCompressedConv1x1ToMatmulTest_Blocked, conv3x3_scale_as_convert) {
+    auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 2, 2, 4});
+    auto transpose_constant1 = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {0, 3, 1, 2});
+    auto transpose_constant2 = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 3, 1});
+    auto weights = ov::opset1::Constant::create(ov::element::i4, ov::Shape{4, 4, 3, 3}, {1});
+    auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f16);
+    auto scale = ov::opset1::Constant::create(ov::element::f32, ov::Shape{4, 1, 1, 1}, {1});
+    auto scale_convert = std::make_shared<ov::op::v0::Convert>(scale, ov::element::f16);
+    auto mul = std::make_shared<ov::opset1::Multiply>(weights_convert, scale_convert);
+    auto transpose1 = std::make_shared<ov::opset1::Transpose>(input, transpose_constant1);
+    auto conv = std::make_shared<ov::opset1::Convolution>(transpose1,
+                                                          mul,
+                                                          ov::Strides{1, 1},
+                                                          ov::CoordinateDiff{1, 1},
+                                                          ov::CoordinateDiff{1, 1},
+                                                          ov::Strides{1, 1},
+                                                          ov::op::PadType::EXPLICIT);
+    auto transpose2 = std::make_shared<ov::opset1::Transpose>(conv, transpose_constant2);
+
+    model = std::make_shared<ov::Model>(ov::OutputVector{transpose2}, ov::ParameterVector{input});
+}
+
 // Regression test for the NCHW/NHWC layout mismatch when the Convolution output is consumed by a
 // Reshape and the spatial size H*W > 1 (see PR #37133). This mirrors the self-attention projections
 // of the machine-translation Transformer model that regressed: a weight-compressed 1x1 Convolution

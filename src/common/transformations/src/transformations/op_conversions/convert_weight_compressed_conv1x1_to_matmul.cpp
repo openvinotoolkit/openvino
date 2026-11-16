@@ -53,8 +53,8 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
                                                             pattern::shape_matches("[?, ?, ?, 1, 1]"));
     auto weights_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{weights_const_m, weights_param_m});
     auto weight_convert_m = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({weights_m});
-    auto weights_scales_m = ov::pass::pattern::any_input();
-    auto weights_zp_m = ov::pass::pattern::any_input();
+    auto weights_scales_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto weights_zp_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto weights_zp_convert_m = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({weights_zp_m});
     auto weight_subtract_m =
         ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({weight_convert_m, weights_zp_convert_m});
