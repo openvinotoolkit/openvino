@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <cstdint>
 
 #include "behavior/ov_plugin/properties_tests.hpp"
@@ -109,9 +110,15 @@ TEST_P(OVPropertiesTests, SetCorrectProperties) {
 
 TEST_P(OVPropertiesTests, canSetPropertyAndCheckGetProperty) {
     core->set_property(target_device, properties);
+    const auto supported_properties = core->get_property(target_device, ov::supported_properties);
     for (const auto& property_item : properties) {
+        const auto supported_property =
+            std::find(supported_properties.begin(), supported_properties.end(), property_item.first);
         Any property;
         OV_ASSERT_NO_THROW(property = core->get_property(target_device, property_item.first));
+        if (supported_property != supported_properties.end() && supported_property->get_mutability() == ov::PropertyMutability::WO) {
+            continue;
+        }
         ASSERT_FALSE(property.empty());
         std::cout << property_item.first << ":" << property.as<std::string>() << std::endl;
     }
@@ -164,8 +171,11 @@ TEST_P(OVPropertiesDefaultSupportedTests, CanSetDefaultValueBackToPlugin) {
     for (auto& supported_property : supported_properties) {
         Any property;
         OV_ASSERT_NO_THROW(property = core.get_property(target_device, supported_property));
-        ASSERT_FALSE(property.empty());
-        if (supported_property.is_mutable()) {
+        if (supported_property.get_mutability() != ov::PropertyMutability::WO) {
+            ASSERT_FALSE(property.empty());
+        }
+        // By definition, write-only properties have no readable value to set back
+        if (supported_property.get_mutability() == ov::PropertyMutability::RW) {
             OV_ASSERT_NO_THROW(core.set_property(target_device, {{ supported_property, property}}));
         }
     }
@@ -662,7 +672,9 @@ TEST_P(OVSpecificDeviceGetConfigTest, GetConfigSpecificDeviceNoThrow) {
     for (auto &&confKey : configValues) {
         ov::Any defaultValue;
         OV_ASSERT_NO_THROW(defaultValue = ie.get_property(target_device, confKey));
-        ASSERT_FALSE(defaultValue.empty());
+        if (confKey.get_mutability() != ov::PropertyMutability::WO) {
+            ASSERT_FALSE(defaultValue.empty());
+        }
     }
 }
 

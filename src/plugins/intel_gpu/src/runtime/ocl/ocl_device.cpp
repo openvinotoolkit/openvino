@@ -380,6 +380,7 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
 #else   // ENABLE_ONEDNN_FOR_GPU
     info.arch = gpu_arch::unknown;
 #endif  // ENABLE_ONEDNN_FOR_GPU
+    info.supports_bf16 = info.supports_immad;
 
     auto arch_to_string = [](gpu_arch arch) -> const char* {
         switch (arch) {
