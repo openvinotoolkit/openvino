@@ -1,0 +1,62 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+set(OV_NPU_PROTOPIPE_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/main.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/graph.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/graph.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/parser/config.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/parser/config.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/parser/config_node.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/parser/parser.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/parser/parser.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/result.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/result.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/scenario/accuracy_metrics.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/scenario/accuracy_metrics.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/scenario/criterion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/scenario/criterion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/scenario/inference.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/scenario/inference.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/scenario/scenario_graph.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/scenario/scenario_graph.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/simulation/accuracy_mode.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/simulation/accuracy_mode.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/simulation/computation.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/simulation/computation.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/simulation/computation_builder.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/simulation/computation_builder.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/simulation/dummy_source.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/simulation/dummy_source.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/simulation/executor.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/simulation/executor.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/simulation/failed_iter.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/simulation/layer_validator.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/simulation/layer_validator.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/simulation/layers_data.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/simulation/layers_data.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/simulation/layers_reader.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/simulation/layers_reader.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/simulation/operations.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/simulation/operations.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/simulation/ov_layers_reader.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/simulation/performance_mode.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/simulation/performance_mode.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/simulation/reference_mode.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/simulation/reference_mode.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/simulation/simulation.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/simulation/simulation.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/simulation/validation_mode.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/simulation/validation_mode.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/simulation/workload_type.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/utils/data_providers.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/utils/data_providers.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/utils/error.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/utils/logger.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/utils/logger.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/utils/timer.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/utils/timer.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/utils/utils.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/utils/utils.hpp
+)
