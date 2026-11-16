@@ -121,10 +121,6 @@ constexpr int64_t key_block_size = 4;
 constexpr int64_t token_budget = 8;
 constexpr float epsilon = 1e-6f;
 
-Output<Node> i64(const std::vector<int64_t>& values) {
-    return v0::Constant::create(element::i64, Shape{values.size()}, values);
-}
-
 // The model inputs, which FuseQSAIndexer keeps, and the SparseAttentionIndexer query built from the raw query.
 struct SharedGraph {
     ParameterVector parameters;
@@ -136,14 +132,15 @@ struct SharedGraph {
 };
 
 Output<Node> head_transpose(const Output<Node>& data) {
-    return std::make_shared<v1::Transpose>(data, i64({0, 2, 1, 3}));
+    return std::make_shared<v1::Transpose>(data, v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3}));
 }
 
 // The non-affine RMSNorm as exported: x * 1 / sqrt(mean(x ^ 2) + eps).
 Output<Node> decomposed_rms(const Output<Node>& x, int64_t axis, float eps) {
     const auto type = x.get_element_type();
     const auto square = std::make_shared<v1::Power>(x, v0::Constant::create(type, Shape{}, {2.0f}));
-    const auto mean = std::make_shared<v1::ReduceMean>(square, i64({axis}), true);
+    const auto mean =
+        std::make_shared<v1::ReduceMean>(square, v0::Constant::create(element::i64, Shape{1}, {axis}), true);
     const auto sum = std::make_shared<v1::Add>(mean, v0::Constant::create(type, Shape{}, {eps}));
     const auto inv =
         std::make_shared<v1::Divide>(v0::Constant::create(type, Shape{}, {1.0f}), std::make_shared<v0::Sqrt>(sum));
@@ -210,12 +207,19 @@ SharedGraph make_shared_graph(const GraphOptions& o) {
         constexpr int64_t last_axis = 3;
         const auto x = head_transpose(rms);
         const auto half = rotary / 2;
-        const auto halves = std::make_shared<v1::VariadicSplit>(x, i64({last_axis}), i64({half, half}));
+        const auto halves =
+            std::make_shared<v1::VariadicSplit>(x,
+                                                v0::Constant::create(element::i64, Shape{1}, {last_axis}),
+                                                v0::Constant::create(element::i64, Shape{2}, {half, half}));
         const auto minus_x2 =
             std::make_shared<v1::Multiply>(halves->output(1), v0::Constant::create(o.precision, Shape{}, {-1.0f}));
         const auto rotated = std::make_shared<v0::Concat>(OutputVector{minus_x2, halves->output(0)}, -1);
-        const auto mul_cos = std::make_shared<v1::Multiply>(x, std::make_shared<v0::Unsqueeze>(cos, i64({1})));
-        const auto mul_sin = std::make_shared<v1::Multiply>(rotated, std::make_shared<v0::Unsqueeze>(sin, i64({1})));
+        const auto mul_cos = std::make_shared<v1::Multiply>(
+            x,
+            std::make_shared<v0::Unsqueeze>(cos, v0::Constant::create(element::i64, Shape{1}, {1})));
+        const auto mul_sin = std::make_shared<v1::Multiply>(
+            rotated,
+            std::make_shared<v0::Unsqueeze>(sin, v0::Constant::create(element::i64, Shape{1}, {1})));
         g.query = std::make_shared<v1::Add>(mul_cos, mul_sin);
     } else if (o.query_rope) {
         const auto query_cos = o.distinct_query_rope ? parameter(o.precision, rope_shape) : cos;
@@ -228,9 +232,12 @@ SharedGraph make_shared_graph(const GraphOptions& o) {
         rope_config.input_trans0213 = o.query_layout == QueryLayout::BLHDTransposed;
         rope_config.output_trans0213 = o.query_layout == QueryLayout::BLHDRoPEBeforeTranspose;
         g.query = std::make_shared<op_internal::RoPE>(
-            OutputVector{rms,
-                         std::make_shared<v0::Unsqueeze>(query_cos, i64({o.query_rope_axis})),
-                         std::make_shared<v0::Unsqueeze>(query_sin, i64({o.query_rope_axis}))},
+            OutputVector{
+                rms,
+                std::make_shared<v0::Unsqueeze>(query_cos,
+                                                v0::Constant::create(element::i64, Shape{1}, {o.query_rope_axis})),
+                std::make_shared<v0::Unsqueeze>(query_sin,
+                                                v0::Constant::create(element::i64, Shape{1}, {o.query_rope_axis}))},
             rope_config);
         if (o.query_layout == QueryLayout::BLHDTransposeAfterRoPE) {
             g.query = head_transpose(g.query);
@@ -305,7 +312,7 @@ std::shared_ptr<Model> getModelRef(const GraphOptions& o) {
     const auto g = make_shared_graph(o);
     const auto rotary = o.rotary_dim != 0 ? o.rotary_dim : head_size;
     const auto dims_of = [](const Output<Node>& data, const std::vector<size_t>& axes) {
-        return ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(data, axes);
+        return ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(data, axes, {}, element::i32);
     };
 
     Output<Node> key_length = g.key_length;
@@ -316,21 +323,33 @@ std::shared_ptr<Model> getModelRef(const GraphOptions& o) {
         if (!o.single_row_rope && !o.dynamic_shapes) {
             return rope;
         }
-        const auto target = make_try_fold<v0::Concat>(OutputVector{dims_of(g.raw_keys, {0, 1}), i64({rotary})}, 0);
+        const auto target = make_try_fold<v0::Concat>(
+            OutputVector{dims_of(g.raw_keys, {0, 1}), v0::Constant::create(element::i32, Shape{1}, {rotary})},
+            0);
         return std::make_shared<v3::Broadcast>(rope, target);
     };
 
-    Output<Node> cache = std::make_shared<v0::Unsqueeze>(g.cache, i64({1}));
+    const auto zero = v0::Constant::create(element::i32, Shape{1}, {0});
+    const auto one = v0::Constant::create(element::i32, Shape{1}, {1});
+    const Output<Node> key_length_i32 = key_length.get_element_type() == element::i64
+                                            ? std::make_shared<v0::Convert>(key_length, element::i32)
+                                            : key_length;
+
+    Output<Node> cache = std::make_shared<v0::Unsqueeze>(g.cache, v0::Constant::create(element::i64, Shape{1}, {1}));
     Output<Node> needed_blocks;
     if (o.padding) {
         // The block-key cache grows by zero blocks up to the complete blocks of the longest sequence.
-        const auto longest_i64 = std::make_shared<v0::Convert>(g.key_length, element::i64);
-        const auto longest = std::make_shared<v1::ReduceMax>(longest_i64, i64({0}), true);
-        needed_blocks = std::make_shared<v1::Divide>(longest, i64({key_block_size}));
+        const auto longest = std::make_shared<v1::ReduceMax>(key_length_i32, zero, true);
+        needed_blocks =
+            std::make_shared<v1::Divide>(longest, v0::Constant::create(element::i32, Shape{1}, {key_block_size}));
         const auto missing_blocks = std::make_shared<v1::Subtract>(needed_blocks, dims_of(g.cache, {1}));
-        const auto growth = std::make_shared<v1::Maximum>(missing_blocks, i64({0}));
+        const auto growth = std::make_shared<v1::Maximum>(missing_blocks, zero);
         const auto growth_shape =
-            make_try_fold<v0::Concat>(OutputVector{dims_of(g.raw_keys, {0}), i64({1}), growth, i64({head_size})}, 0);
+            make_try_fold<v0::Concat>(OutputVector{dims_of(g.raw_keys, {0}),
+                                                   one,
+                                                   growth,
+                                                   v0::Constant::create(element::i32, Shape{1}, {head_size})},
+                                      0);
         const auto zeros =
             std::make_shared<v3::Broadcast>(v0::Constant::create(o.precision, Shape{}, {0.0f}), growth_shape);
         cache = std::make_shared<v0::Concat>(OutputVector{cache, zeros}, 2);
@@ -348,16 +367,16 @@ std::shared_ptr<Model> getModelRef(const GraphOptions& o) {
         inputs[QSAIndexerInputIdx::INDEX_QUERY] = g.raw_query;
         break;
     }
-    inputs[QSAIndexerInputIdx::RAW_INDEX_KEYS] = std::make_shared<v0::Unsqueeze>(g.raw_keys, i64({2}));
+    inputs[QSAIndexerInputIdx::RAW_INDEX_KEYS] =
+        std::make_shared<v0::Unsqueeze>(g.raw_keys, v0::Constant::create(element::i64, Shape{1}, {2}));
     inputs[QSAIndexerInputIdx::ROPE_COS] = rope_for_batch(g.rope_cos);
     inputs[QSAIndexerInputIdx::ROPE_SIN] = rope_for_batch(g.rope_sin);
-    inputs[QSAIndexerInputIdx::KEY_LENGTH] = key_length.get_element_type() == element::i64
-                                                 ? std::make_shared<v0::Convert>(key_length, element::i32)
-                                                 : key_length;
+    inputs[QSAIndexerInputIdx::KEY_LENGTH] = key_length_i32;
     inputs[QSAIndexerInputIdx::Q_NORM_WEIGHT] = v0::Constant::create(o.precision, Shape{head_size}, {1.0f});
     inputs[QSAIndexerInputIdx::K_NORM_WEIGHT] = g.key_weight;
     inputs[QSAIndexerInputIdx::BLOCK_INDEX_KEYS_CACHE] = cache;
-    inputs[QSAIndexerInputIdx::PAST_INCOMPLETE_RAW_K] = std::make_shared<v0::Unsqueeze>(g.incomplete_keys, i64({1}));
+    inputs[QSAIndexerInputIdx::PAST_INCOMPLETE_RAW_K] =
+        std::make_shared<v0::Unsqueeze>(g.incomplete_keys, v0::Constant::create(element::i64, Shape{1}, {1}));
     inputs[QSAIndexerInputIdx::PAST_INCOMPLETE_ROPE] = g.incomplete_rope;
 
     op_internal::QSAIndexer::Config config;
@@ -371,8 +390,8 @@ std::shared_ptr<Model> getModelRef(const GraphOptions& o) {
     config.query_norm = o.query_fusion == QueryFusion::Full;
     config.query_rope = o.query_fusion != QueryFusion::None;
     const auto fused = std::make_shared<op_internal::QSAIndexer>(inputs, config);
-    Output<Node> block_keys =
-        std::make_shared<v0::Squeeze>(fused->output(QSAIndexerOutputIdx::BLOCK_INDEX_KEYS_CACHE), i64({1}));
+    Output<Node> block_keys = std::make_shared<v0::Squeeze>(fused->output(QSAIndexerOutputIdx::BLOCK_INDEX_KEYS_CACHE),
+                                                            v0::Constant::create(element::i64, Shape{1}, {1}));
     if (o.padding) {
         Output<Node> block_count = needed_blocks;
         if (!o.key_length_values.empty()) {
@@ -380,15 +399,16 @@ std::shared_ptr<Model> getModelRef(const GraphOptions& o) {
             for (const auto length : o.key_length_values) {
                 max_length = std::max(max_length, length);
             }
-            block_count = i64({max_length / key_block_size});
+            block_count = v0::Constant::create(element::i32, Shape{1}, {max_length / key_block_size});
         }
-        block_keys = std::make_shared<v8::Slice>(block_keys, i64({0}), block_count, i64({1}), i64({1}));
+        block_keys = std::make_shared<v8::Slice>(block_keys, zero, block_count, one, one);
     }
 
     const std::vector<Output<Node>> outputs{
         fused->output(QSAIndexerOutputIdx::SELECTED_BLOCK_INDICES),
         fused->output(QSAIndexerOutputIdx::SELECTED_BLOCK_COUNT),
-        std::make_shared<v0::Squeeze>(fused->output(QSAIndexerOutputIdx::PAST_INCOMPLETE_RAW_K), i64({1})),
+        std::make_shared<v0::Squeeze>(fused->output(QSAIndexerOutputIdx::PAST_INCOMPLETE_RAW_K),
+                                      v0::Constant::create(element::i64, Shape{1}, {1})),
         fused->output(QSAIndexerOutputIdx::PAST_INCOMPLETE_ROPE),
         block_keys,
     };

@@ -193,11 +193,10 @@ PagedQSAIndexerFusion::PagedQSAIndexerFusion(paged_attention::PaParams& pa_param
         }
 
         ov::pass::NodeRegistry rg;
-        const auto i64 = [&rg](const std::vector<int64_t>& values) {
-            return rg.make<v0::Constant>(ov::element::i64, ov::Shape{values.size()}, values);
-        };
         const auto flatten = [&](const ov::Output<ov::Node>& data, int64_t width) {
-            return rg.make<v1::Reshape>(data, i64({-1, width}), false);
+            return rg.make<v1::Reshape>(data,
+                                        v0::Constant::create(ov::element::i64, ov::Shape{2}, {int64_t{-1}, width}),
+                                        false);
         };
         ov::OutputVector inputs(PagedQSAIndexerInputIdx::COUNT);
         inputs[PagedQSAIndexerInputIdx::INDEX_QUERY] = flatten(query, query_shape[heads_axis].get_length() * head_dim);
@@ -221,9 +220,13 @@ PagedQSAIndexerFusion::PagedQSAIndexerFusion(paged_attention::PaParams& pa_param
         const auto batch_and_length = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(query, {0, 1});
         const auto selection_heads = static_cast<int64_t>(config.num_selection_heads);
         const auto restore = [&](size_t output, const std::vector<int64_t>& tail, const std::vector<int64_t>& order) {
-            const auto shape = rg.make<v0::Concat>(ov::OutputVector{batch_and_length, i64(tail)}, 0);
+            const auto shape = rg.make<v0::Concat>(
+                ov::OutputVector{batch_and_length,
+                                 v0::Constant::create(ov::element::i64, ov::Shape{tail.size()}, tail)},
+                0);
             const auto token_major = rg.make<v1::Reshape>(paged->output(output), shape, false);
-            return rg.make<v1::Transpose>(token_major, i64(order));
+            return rg.make<v1::Transpose>(token_major,
+                                          v0::Constant::create(ov::element::i64, ov::Shape{order.size()}, order));
         };
         const auto indices = restore(0, {selection_heads, static_cast<int64_t>(config.block_topk)}, {0, 2, 1, 3});
         const auto count = restore(1, {selection_heads}, {0, 2, 1});

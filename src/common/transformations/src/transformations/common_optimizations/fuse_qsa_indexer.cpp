@@ -127,18 +127,22 @@ FuseQSAIndexer::FuseQSAIndexer(bool padding) {
         // QSAIndexer takes [B, L, H, D] activations and head-first states, while the public ops are head-first for
         // the query and head-less for the keys.
         ov::pass::NodeRegistry rg;
-        const auto i64 = [&rg](const std::vector<int64_t>& values) {
-            return rg.make<v0::Constant>(ov::element::i64, ov::Shape{values.size()}, values);
-        };
         const ov::NodeVector sources{prepare, indexer};
+        // The shape and length subgraphs are built in i32: plugins may run this pass after lowering i64, so i64
+        // tensors created here could reach kernels or shape subgraphs that support only i32.
         const auto dims_of = [&sources](const ov::Output<ov::Node>& data, const std::vector<size_t>& axes) {
-            return ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(data, axes, sources);
+            return ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(data,
+                                                                                      axes,
+                                                                                      sources,
+                                                                                      ov::element::i32);
         };
 
         const auto q_norm_weight =
             rg.make<v0::Constant>(data_type, ov::Shape{config.indexer_head_dim}, std::vector<float>{1.0f});
-        const auto activation_head_axis = i64({2});
-        const auto state_head_axis = i64({1});
+        const auto zero = v0::Constant::create(ov::element::i32, ov::Shape{1}, {0});
+        const auto one = v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
+        const auto activation_head_axis = v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+        const auto state_head_axis = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
         const auto raw_keys_blhd = rg.make<v0::Unsqueeze>(raw_keys, activation_head_axis);
         const auto incomplete_raw_keys_with_head = rg.make<v0::Unsqueeze>(incomplete_raw_keys, state_head_axis);
         // The Broadcasts below are skipped only when the batches are proven equal by static values.
@@ -158,10 +162,14 @@ FuseQSAIndexer::FuseQSAIndexer(bool padding) {
             }
             const auto target = rg.add(ov::op::util::make_try_fold<v0::Concat>(
                 ov::OutputVector{dims_of(raw_keys, {0, keys_sequence_axis}),
-                                 i64({static_cast<int64_t>(config.indexer_rotary_dim)})},
+                                 v0::Constant::create(ov::element::i32, ov::Shape{1}, {config.indexer_rotary_dim})},
                 0));
             return rg.make<v3::Broadcast>(rope, target);
         };
+
+        const auto key_length_i32 = key_length.get_element_type() == ov::element::i32
+                                        ? batched_key_length
+                                        : rg.make<v0::Convert>(batched_key_length, ov::element::i32);
 
         // Without padding, QSAIndexer follows the QSAPrepare cache contract and takes the cache as is.
         // With padding, QSAIndexer keeps the cache shape, while QSAPrepare output 0 holds the complete blocks of the
@@ -169,31 +177,27 @@ FuseQSAIndexer::FuseQSAIndexer(bool padding) {
         ov::Output<ov::Node> block_keys_cache = rg.make<v0::Unsqueeze>(past_block_keys, state_head_axis);
         ov::Output<ov::Node> needed_blocks;
         if (padding) {
-            const auto key_length_i64 = key_length.get_element_type() == ov::element::i64
-                                            ? key_length
-                                            : rg.make<v0::Convert>(key_length, ov::element::i64);
-            const auto max_key_length = rg.make<v1::ReduceMax>(key_length_i64, i64({0}), true);
-            needed_blocks = rg.make<v1::Divide>(max_key_length, i64({key_block_size}));
+            const auto max_key_length = rg.make<v1::ReduceMax>(key_length_i32, zero, true);
+            needed_blocks = rg.make<v1::Divide>(max_key_length,
+                                                v0::Constant::create(ov::element::i32, ov::Shape{1}, {key_block_size}));
             const auto past_block_count = dims_of(past_block_keys, {1});
             const auto missing_blocks = rg.make<v1::Subtract>(needed_blocks, past_block_count);
-            const auto cache_growth_blocks = rg.make<v1::Maximum>(missing_blocks, i64({0}));
+            const auto cache_growth_blocks = rg.make<v1::Maximum>(missing_blocks, zero);
             const auto cache_growth_shape = rg.add(ov::op::util::make_try_fold<v0::Concat>(
                 ov::OutputVector{dims_of(raw_keys, {0}),
-                                 i64({1}),
+                                 one,
                                  cache_growth_blocks,
-                                 i64({static_cast<int64_t>(config.indexer_head_dim)})},
+                                 v0::Constant::create(ov::element::i32, ov::Shape{1}, {config.indexer_head_dim})},
                 0));
-            const auto zero = rg.make<v0::Constant>(data_type, ov::Shape{}, std::vector<float>{0.0f});
-            const auto cache_padding = rg.make<v3::Broadcast>(zero, cache_growth_shape);
+            const auto zero_key = rg.make<v0::Constant>(data_type, ov::Shape{}, std::vector<float>{0.0f});
+            const auto cache_padding = rg.make<v3::Broadcast>(zero_key, cache_growth_shape);
             constexpr int64_t state_blocks_axis = 2;
             block_keys_cache =
                 rg.make<v0::Concat>(ov::OutputVector{block_keys_cache, cache_padding}, state_blocks_axis);
         }
 
-        const auto query_blhd = rg.make<v1::Transpose>(query, i64({0, 2, 1, 3}));
-        const auto key_length_i32 = key_length.get_element_type() == ov::element::i32
-                                        ? batched_key_length
-                                        : rg.make<v0::Convert>(batched_key_length, ov::element::i32);
+        const auto query_blhd =
+            rg.make<v1::Transpose>(query, v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3}));
         const auto fused = rg.make<op_internal::QSAIndexer>(ov::OutputVector{query_blhd,
                                                                              raw_keys_blhd,
                                                                              rope_for_batch(rope_cos),
@@ -223,12 +227,12 @@ FuseQSAIndexer::FuseQSAIndexer(bool padding) {
                 const auto values = lengths->cast_vector<int64_t>();
                 if (!values.empty()) {
                     const auto max_length = *std::max_element(values.begin(), values.end());
-                    block_count = i64({max_length / key_block_size});
+                    block_count = v0::Constant::create(ov::element::i32, ov::Shape{1}, {max_length / key_block_size});
                 }
             }
             block_keys.get_node()->set_friendly_name(prepare->get_friendly_name() + ".0.capacity");
             // Expose only the required block range, not any extra capacity added before QSAIndexer.
-            const auto sliced = rg.make<v8::Slice>(block_keys, i64({0}), block_count, i64({1}), i64({1}));
+            const auto sliced = rg.make<v8::Slice>(block_keys, zero, block_count, one, one);
             sliced->set_friendly_name(prepare->get_friendly_name() + ".0");
             block_keys = sliced;
         }
