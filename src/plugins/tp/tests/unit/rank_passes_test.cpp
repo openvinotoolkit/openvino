@@ -5,7 +5,9 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "l1_test_utils.hpp"
@@ -47,6 +49,16 @@ std::shared_ptr<ov::Node> paged_attention(const std::shared_ptr<ov::Model>& mode
 
 const auto& all_reduce = ov::op::internal::TPAllReduce::get_type_info_static();
 const auto& gather = ov::op::internal::TPGather::get_type_info_static();
+
+/// The collectives' names and ids, in graph order.
+std::vector<std::pair<std::string, uint64_t>> collective_ids(const std::shared_ptr<ov::Model>& model) {
+    std::vector<std::pair<std::string, uint64_t>> ids;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (const auto collective = ov::as_type_ptr<ov::op::internal::TPCollectiveBase>(op))
+            ids.emplace_back(collective->get_friendly_name(), collective->get_collective_id());
+    }
+    return ids;
+}
 
 }  // namespace
 
@@ -107,6 +119,29 @@ TEST_P(TPRankPassesTest, InsertsOneAllReducePerRowParallelProjection) {
     }
     for (const auto& model : rank_models(make_paged_attention_block(BlockConfig{}), GetParam()))
         EXPECT_EQ(count_ops_of_type(model, all_reduce), 2u);
+}
+
+// The device plugins check that the ranks reach the same collective by its id.
+TEST_P(TPRankPassesTest, GivesEveryRankTheSameUniqueCollectiveIds) {
+    const size_t vocab = 1536;
+    const auto models = rank_models(make_block_with_lm_head(BlockConfig{}, vocab), GetParam());
+    const auto expected = collective_ids(models[0]);
+    ASSERT_EQ(expected.size(), 3u);  // o_proj, down_proj, lm_head
+    std::set<uint64_t> unique;
+    for (const auto& collective : expected)
+        unique.insert(collective.second);
+    EXPECT_EQ(unique.size(), expected.size());
+    for (size_t rank = 1; rank < models.size(); ++rank)
+        EXPECT_EQ(collective_ids(models[rank]), expected) << "rank " << rank;
+
+    // The same model built again is numbered the same way.
+    const auto rebuilt = rank_models(make_block_with_lm_head(BlockConfig{}, vocab), GetParam());
+    std::vector<uint64_t> first, again;
+    for (const auto& collective : expected)
+        first.push_back(collective.second);
+    for (const auto& collective : collective_ids(rebuilt[0]))
+        again.push_back(collective.second);
+    EXPECT_EQ(again, first);
 }
 
 TEST_P(TPRankPassesTest, LocalizesTheKvCacheVariables) {

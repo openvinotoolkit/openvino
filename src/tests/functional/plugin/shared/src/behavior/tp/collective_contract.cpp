@@ -48,7 +48,7 @@ std::shared_ptr<ov::Model> make_allreduce_model(int rank,
                                                 int group_id = 0,
                                                 ReduceOp reduce_op = ReduceOp::SUM) {
     auto x = make_input();
-    auto reduce = std::make_shared<TPAllReduce>(x, rank, world_size, group_id, reduce_op);
+    auto reduce = std::make_shared<TPAllReduce>(x, rank, world_size, group_id, 0, reduce_op);
     return std::make_shared<ov::Model>(ov::OutputVector{reduce}, ov::ParameterVector{x});
 }
 
@@ -388,6 +388,31 @@ TEST_P(TPCollectiveContractTest, D4_RejectsACollectiveOfAGroupTheContextDoesNotH
                                   "");
 }
 
+TEST_P(TPCollectiveContractTest, D4_RejectsTwoCollectivesWithOneId) {
+    auto contexts = create_contexts();
+    auto x = make_input();
+    auto first = std::make_shared<TPAllReduce>(x, 0, ranks(), 0, 5, ReduceOp::SUM);
+    auto second = std::make_shared<TPAllReduce>(first, 0, ranks(), 0, 5, ReduceOp::SUM);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{second}, ov::ParameterVector{x});
+    OV_EXPECT_THROW_HAS_SUBSTRING(m_core.compile_model(model, contexts[0]), ov::Exception, "");
+}
+
+// One graph, but rank 0 numbers its two collectives the other way round: the ranks reach different
+// collectives at the first call, which fails instead of reducing one with the other.
+TEST_P(TPCollectiveContractTest, D4_RanksAtDifferentCollectivesFailTheCall) {
+    auto contexts = create_contexts();
+    auto requests = compile(contexts, [&](int rank) {
+        const uint64_t first_id = rank == 0 ? 2 : 1;
+        auto x = make_input();
+        auto first = std::make_shared<TPAllReduce>(x, rank, ranks(), 0, first_id, ReduceOp::SUM);
+        auto second = std::make_shared<TPAllReduce>(first, rank, ranks(), 0, 3 - first_id, ReduceOp::SUM);
+        return std::make_shared<ov::Model>(ov::OutputVector{second}, ov::ParameterVector{x});
+    });
+    for (size_t rank = 0; rank < m_world_size; ++rank)
+        requests[rank].set_input_tensor(exact_input(rank));
+    OV_EXPECT_THROW_HAS_SUBSTRING(run_ranks(requests), ov::Exception, "");
+}
+
 // The root gets the slices of all ranks in rank order, row by row; the others' outputs have the shape of
 // their slice and unspecified contents. A device that does not implement the gather rejects it.
 TEST_P(TPCollectiveContractTest, D4_GatherConcatenatesOnTheRootOrIsRejected) {
@@ -400,7 +425,7 @@ TEST_P(TPCollectiveContractTest, D4_GatherConcatenatesOnTheRootOrIsRejected) {
         try {
             requests = compile(contexts, [&](int rank) {
                 auto x = make_input(shape);
-                auto gather = std::make_shared<TPGather>(x, rank, ranks(), 0, -1);
+                auto gather = std::make_shared<TPGather>(x, rank, ranks(), 0, 0, -1);
                 return std::make_shared<ov::Model>(ov::OutputVector{gather}, ov::ParameterVector{x});
             });
         } catch (const ov::Exception&) {
@@ -427,7 +452,8 @@ TEST_P(TPCollectiveContractTest, D4_GatherConcatenatesOnTheRootOrIsRejected) {
 }
 
 // Two chained collectives with rank-local work between them and a third on a parallel branch, over many
-// inferences: every call pairs with the same call on the other ranks.
+// inferences: every call pairs with the same call on the other ranks. The ids are sparse and against the
+// graph order: they only identify a collective.
 TEST_P(TPCollectiveContractTest, D4_CollectivesRunInGraphOrderAcrossManyInferences) {
     // Rank r scales by r + 2: the rank models differ in constants only, never by a multiplication by one.
     auto scale_of = [](size_t rank) {
@@ -436,14 +462,15 @@ TEST_P(TPCollectiveContractTest, D4_CollectivesRunInGraphOrderAcrossManyInferenc
     auto contexts = create_contexts();
     auto requests = compile(contexts, [&](int rank) {
         auto x = make_input();
-        auto first = std::make_shared<TPAllReduce>(x, rank, ranks(), 0, ReduceOp::SUM);
+        auto first = std::make_shared<TPAllReduce>(x, rank, ranks(), 0, 300, ReduceOp::SUM);
         auto scale = ov::op::v0::Constant::create(ov::element::f32, {}, {scale_of(static_cast<size_t>(rank))});
         auto scaled = std::make_shared<ov::op::v1::Multiply>(first, scale);
-        auto second = std::make_shared<TPAllReduce>(scaled, rank, ranks(), 0, ReduceOp::SUM);
+        auto second = std::make_shared<TPAllReduce>(scaled, rank, ranks(), 0, 200, ReduceOp::SUM);
         auto branch = std::make_shared<TPAllReduce>(std::make_shared<ov::op::v1::Multiply>(x, scale),
                                                     rank,
                                                     ranks(),
                                                     0,
+                                                    100,
                                                     ReduceOp::SUM);
         auto sum = std::make_shared<ov::op::v1::Add>(second, branch);
         return std::make_shared<ov::Model>(ov::OutputVector{sum}, ov::ParameterVector{x});
@@ -581,7 +608,7 @@ TEST_P(TPCollectiveContractTest, D9_ConstantsAreViewsAndAreNotReadInPlace) {
         ov::Tensor view(weights, {r, 0}, {r + 1, elements});
         auto x = make_input();
         auto add = std::make_shared<ov::op::v1::Add>(x, std::make_shared<ov::op::v0::Constant>(view));
-        auto reduce = std::make_shared<TPAllReduce>(add, rank, ranks(), 0, ReduceOp::SUM);
+        auto reduce = std::make_shared<TPAllReduce>(add, rank, ranks(), 0, 0, ReduceOp::SUM);
         return std::make_shared<ov::Model>(ov::OutputVector{reduce}, ov::ParameterVector{x});
     });
     std::fill_n(weights.data<float>(), weights.get_size(), 1000.0f);

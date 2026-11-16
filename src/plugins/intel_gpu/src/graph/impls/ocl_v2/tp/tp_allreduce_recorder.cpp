@@ -134,6 +134,17 @@ void* byte_offset(void* base, std::size_t bytes) {
     return static_cast<uint8_t*>(base) + bytes;
 }
 
+// A primitive id may hold a comma or a quote.
+std::string csv_quoted(const std::string& field) {
+    std::string out = "\"";
+    for (const char c : field) {
+        out += c;
+        if (c == '"')
+            out += '"';
+    }
+    return out + "\"";
+}
+
 }  // namespace
 
 bool TPAllReduceRecorder::uses_halving(std::size_t payload_bytes) const {
@@ -542,7 +553,8 @@ void TPAllReduceRecorder::record_halving(ze_command_list_handle_t list, const Si
 }
 
 void TPAllReduceRecorder::run(const cldnn::ze::tp::Channel& channel,
-                              int collective_id,
+                              uint64_t collective_id,
+                              const std::string& name,
                               void* in,
                               void* out,
                               std::size_t n,
@@ -551,19 +563,20 @@ void TPAllReduceRecorder::run(const cldnn::ze::tp::Channel& channel,
                               ze_command_list_handle_t model_queue) {
     auto& group = *channel.group();
     const int rank = channel.rank();
-    OPENVINO_ASSERT(collective_id >= 0 && collective_id < group.num_collectives(),
-                    "[TP][L0] collective_id out of range: ",
-                    collective_id);
     // A null device pointer reaches the driver as a request to wrap a host
     // allocation at address 0 and aborts the process.
     OPENVINO_ASSERT(in != nullptr && out != nullptr,
-                    "[TP][L0] null device buffer passed to allreduce (collective ",
+                    "[TP][L0] null device buffer passed to allreduce ",
+                    name,
+                    " (collective ",
                     collective_id,
                     ", rank ",
                     rank,
                     ")");
     OPENVINO_ASSERT(kernel != nullptr,
-                    "[TP][L0] allreduce called without a reduction kernel (collective ",
+                    "[TP][L0] allreduce ",
+                    name,
+                    " called without a reduction kernel (collective ",
                     collective_id,
                     ", rank ",
                     rank,
@@ -583,7 +596,7 @@ void TPAllReduceRecorder::run(const cldnn::ze::tp::Channel& channel,
 
     collective_payload_bytes(n, dtype);
     m_world_size = channel.world_size();
-    m_rec.bind(channel, collective_id, true);
+    m_rec.bind(channel, true);
     const uint64_t call = m_calls++;
 
     // A message larger than the fixed staging goes in chunks, all of them in
@@ -625,16 +638,17 @@ void TPAllReduceRecorder::run(const cldnn::ze::tp::Channel& channel,
     // will never arrive.
     struct AbortOnFailure {
         cldnn::ze::tp::GroupState& group;
-        int collective_id;
+        uint64_t collective_id;
+        const std::string& name;
         int rank;
         bool armed{true};
         ~AbortOnFailure() {
             if (armed) {
                 group.abort_all("[TP][L0] rank " + std::to_string(rank) + " failed while running collective " +
-                                std::to_string(collective_id));
+                                std::to_string(collective_id) + " (" + name + ")");
             }
         }
-    } abort_guard{group, collective_id, rank};
+    } abort_guard{group, collective_id, name, rank};
 
     Signature sig;
     sig.valid = true;
@@ -703,8 +717,7 @@ void TPAllReduceRecorder::run(const cldnn::ze::tp::Channel& channel,
                     st.p2_dev_ns[rank].add(ns);
                     if (ns > st.p2_dev_max_ns[rank].get()) {
                         st.p2_dev_max_ns[rank].keep_max(ns);
-                        st.p2_dev_max_cid[rank].v.store(static_cast<uint64_t>(collective_id),
-                                                        std::memory_order_relaxed);
+                        st.p2_dev_max_cid[rank].v.store(collective_id, std::memory_order_relaxed);
                     }
                     st.p2_dev_count[rank].bump();
 
@@ -726,19 +739,20 @@ void TPAllReduceRecorder::run(const cldnn::ze::tp::Channel& channel,
                     const uint64_t prev_end = st.dev_last_end_ticks[rank] & mask;
                     const uint64_t cur_start = kt.global.kernelStart & mask;
                     std::string gap_us;
-                    if (st.dev_last_cid[rank] >= 0 && cur_start >= prev_end) {
+                    if (st.dev_has_last[rank] && cur_start >= prev_end) {
                         st.dev_gap_ns[rank].add((cur_start - prev_end) * tick);
                         st.dev_gap_count[rank].bump();
                         gap_us = std::to_string(static_cast<double>((cur_start - prev_end) * tick) / 1.0e3);
                     }
                     st.dev_last_end_ticks[rank] = kt.global.kernelEnd;
-                    st.dev_last_cid[rank] = collective_id;
+                    st.dev_has_last[rank] = 1;
                     st.dev_bytes[rank].add(splice.bytes);
                     st.dev_call_min.keep_min(splice.call);
                     st.dev_call_max.keep_max(splice.call);
                     if (group.profiling_csv()) {
                         std::ostringstream row;
-                        row << "device," << rank << "," << collective_id << "," << splice.call << ",," << splice.bytes
+                        row << "device," << rank << "," << collective_id << "," << csv_quoted(name) << ","
+                            << splice.call << ",," << splice.bytes
                             << ",,,," << static_cast<double>(ns) / 1.0e3 << "," << gap_us;
                         group.write_csv_row(row.str());
                     }
@@ -806,7 +820,8 @@ void TPAllReduceRecorder::run(const cldnn::ze::tp::Channel& channel,
         if (group.profiling_csv()) {
             const char* schedule = m_world_size == 2 ? "pair" : plan.halving ? "halving" : "ring";
             std::ostringstream row;
-            row << "host," << rank << "," << collective_id << "," << call << "," << schedule << "," << payload_bytes
+            row << "host," << rank << "," << collective_id << "," << csv_quoted(name) << "," << call << ","
+                << schedule << "," << payload_bytes
                 << "," << static_cast<double>(group.last_late_ns(rank)) / 1.0e3 << ","
                 << static_cast<double>(elapsed_ns(t0, t1)) / 1.0e3 << "," << static_cast<double>(elapsed_ns(t1, t2)) / 1.0e3
                 << ",,";

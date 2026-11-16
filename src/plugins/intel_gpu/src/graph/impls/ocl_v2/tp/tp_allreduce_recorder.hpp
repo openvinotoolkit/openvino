@@ -30,14 +30,16 @@ public:
     TPAllReduceRecorder& operator=(const TPAllReduceRecorder&) = delete;
 
     /// Sums `in` over all ranks into `out` (they may alias), each rank calling
-    /// with the same `collective_id`, `n` and `dtype`. `kernel` is this rank's
-    /// reduction kernel (tp_allreduce.cl) for `dtype`; the recording names it.
+    /// with the same `collective_id`, `n` and `dtype`; `name` only labels this
+    /// rank's diagnostics. `kernel` is this rank's reduction kernel
+    /// (tp_allreduce.cl) for `dtype`; the recording names it.
     ///
     /// With `model_queue` -- the in-order immediate list the model runs on --
     /// and run_spliced(), the recording is spliced there and the call returns
     /// without waiting. Otherwise it runs on the group's queue and blocks.
     void run(const cldnn::ze::tp::Channel& channel,
-             int collective_id,
+             uint64_t collective_id,
+             const std::string& name,
              void* in,
              void* out,
              std::size_t n,

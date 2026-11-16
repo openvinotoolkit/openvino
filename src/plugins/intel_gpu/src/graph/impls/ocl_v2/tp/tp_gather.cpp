@@ -83,7 +83,8 @@ public:
         }
 
         m_recorder.run(*channel,
-                       static_cast<int>(desc->collective_id),
+                       desc->collective_id,
+                       instance.id(),
                        instance.input_memory_ptr()->buffer_ptr(),
                        instance.output_memory_ptr()->buffer_ptr(),
                        rows,

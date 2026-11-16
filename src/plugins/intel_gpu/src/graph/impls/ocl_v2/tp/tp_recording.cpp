@@ -32,13 +32,13 @@ TPRecording::~TPRecording() {
     }
 }
 
-void TPRecording::bind(const cldnn::ze::tp::Channel& channel, int collective_id, bool allreduce) {
+void TPRecording::bind(const cldnn::ze::tp::Channel& channel, bool allreduce) {
     if (m_group) {
         OPENVINO_ASSERT(m_group == channel.group() && m_rank == channel.rank(),
                         "[TP][L0] a collective recording cannot move to another channel");
         return;
     }
-    m_res = channel.group()->take_recording_resources(collective_id, channel.rank());
+    m_res = channel.group()->take_recording_resources(channel.rank());
     m_splices = std::make_unique<cldnn::ze::tp::Splice[]>(2);
     m_group = channel.group();
     m_rank = channel.rank();

@@ -126,7 +126,7 @@ struct CollectiveStats {
     CounterVec dev_gap_ns;
     CounterVec dev_gap_count;
     std::vector<uint64_t> dev_last_end_ticks;
-    std::vector<int> dev_last_cid;
+    std::vector<uint8_t> dev_has_last;  // whether dev_last_end_ticks holds a sample
     CounterVec dev_bytes;
     // Which schedule the recordings used.
     CounterVec n_pair;
@@ -241,7 +241,7 @@ public:
 
     /// GPU_TP_VALIDATE_ALLREDUCE_OUTPUT: `rank`'s checksum of its output of its next call of `collective_id`.
     /// The rank completing a call compares the ranks' checksums and reports a difference with `name`.
-    void check_output(int rank, int collective_id, uint64_t checksum, const std::string& name);
+    void check_output(int rank, uint64_t collective_id, uint64_t checksum, const std::string& name);
 
     /// GPU_TP_DUMP_PROFILING_DATA_PATH: whether there is a CSV, and one row of it.
     bool profiling_csv() const {
@@ -294,7 +294,7 @@ public:
     /// Throws, and aborts the group, if the ranks disagree on the call or one
     /// of them does not arrive in time.
     void begin_allreduce(int rank,
-                         int collective_id,
+                         uint64_t collective_id,
                          std::size_t n,
                          ov::element::Type dtype,
                          std::size_t half_bytes,
@@ -313,7 +313,7 @@ public:
     /// The call rendezvous of a gather. `out` is the destination on the root
     /// and ignored on every other rank.
     void begin_gather(int rank,
-                      int collective_id,
+                      uint64_t collective_id,
                       std::size_t rows,
                       std::size_t slice_elems,
                       ov::element::Type dtype,
@@ -331,12 +331,12 @@ public:
         ze_event_handle_t done[2]{};
     };
 
-    /// The resources made for (`collective_id`, `rank`) when the group was
-    /// created, or new ones once those are taken. The caller owns them
+    /// Resources made for `rank` when the group was created, one per
+    /// collective, or new ones once those are taken. The caller owns them
     /// afterwards and releases them with destroy_recording_resources().
     /// Made ahead because creating them costs about a millisecond per
     /// collective and rank, which would otherwise land on the first inference.
-    RecordingResources take_recording_resources(int collective_id, int rank);
+    RecordingResources take_recording_resources(int rank);
     static void destroy_recording_resources(RecordingResources& res);
 
     /// Registers a recording's splice with the watchdog and the abort path.
@@ -346,7 +346,7 @@ public:
 
     /// Waits until `splice` has finished on the device and clears it. Returns
     /// whether it was in flight.
-    bool await_splice(Splice& splice, int rank, int collective_id);
+    bool await_splice(Splice& splice, int rank, uint64_t collective_id);
 
     /// Records that `rank` has just handed `splice` to its model queue.
     void handed_over(int rank, Splice* splice);
@@ -371,7 +371,7 @@ public:
     void throw_if_aborted() const;
     /// Aborts the group and throws. `timed_out` distinguishes "this rank ran
     /// out of patience" from "somebody else already failed".
-    [[noreturn]] void fail_collective(bool timed_out, int collective_id, int rank, const char* stage);
+    [[noreturn]] void fail_collective(bool timed_out, uint64_t collective_id, int rank, const char* stage);
     /// The timeout in the nanoseconds Level Zero waits take; zero maps to no limit.
     uint64_t timeout_ns() const;
 
@@ -453,7 +453,7 @@ private:
     struct MailboxSlot {
         uint64_t seq{0};
         bool allreduce{true};
-        int collective_id{-1};
+        uint64_t collective_id{0};
         std::size_t n{0};
         ov::element::Type dtype{ov::element::dynamic};
         std::size_t rows{0};
@@ -490,7 +490,11 @@ private:
     /// Growing waits for the rank's own last hand-over: by then every peer
     /// write into the old staging has landed, because that collective waited
     /// for them.
-    void ensure_staging(Staging& s, int rank, std::size_t payload_bytes, std::size_t half_bytes, int collective_id);
+    void ensure_staging(Staging& s,
+                        int rank,
+                        std::size_t payload_bytes,
+                        std::size_t half_bytes,
+                        uint64_t collective_id);
     void destroy_staging();
     void account_staging(int rank, std::size_t bytes, bool allocated);
 
@@ -554,7 +558,7 @@ private:
     GatherEvents m_gather_events[2];
 
     std::mutex m_made_ahead_mutex;
-    std::vector<RecordingResources> m_made_ahead;  // [collective * N + rank]
+    std::vector<std::vector<RecordingResources>> m_made_ahead;  // [N]: not taken yet
 
     CollectiveStats m_stats;
     DumpPeriod m_dump_period;  ///< in inferences: every collective of the model once
@@ -567,8 +571,8 @@ private:
         int arrived = 0;
     };
     std::mutex m_check_mutex;
-    std::vector<std::vector<uint64_t>> m_check_calls;  // [N][collective]: calls checked so far
-    std::map<std::pair<int, uint64_t>, OutputCheck> m_checks;  // (collective, call) still collecting
+    std::vector<std::map<uint64_t, uint64_t>> m_check_calls;  // [N]: calls of each collective checked so far
+    std::map<std::pair<uint64_t, uint64_t>, OutputCheck> m_checks;  // (collective, call) still collecting
     uint64_t m_checked = 0;
     uint64_t m_mismatches = 0;
 

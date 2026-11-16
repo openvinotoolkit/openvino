@@ -22,9 +22,9 @@ public:
     TPRecording& operator=(const TPRecording&) = delete;
     ~TPRecording();
 
-    /// Takes over the lists and completion events the group made for this
-    /// collective and rank on first use, and registers the events with it.
-    void bind(const cldnn::ze::tp::Channel& channel, int collective_id, bool allreduce);
+    /// Takes over lists and completion events the group made for this rank on
+    /// first use, and registers the events with it.
+    void bind(const cldnn::ze::tp::Channel& channel, bool allreduce);
 
     cldnn::ze::tp::GroupState& group() const {
         return *m_group;

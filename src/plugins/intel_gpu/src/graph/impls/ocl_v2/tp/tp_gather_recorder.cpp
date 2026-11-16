@@ -101,7 +101,8 @@ void TPGatherRecorder::record(int parity) {
 }
 
 void TPGatherRecorder::run(const cldnn::ze::tp::Channel& channel,
-                           int collective_id,
+                           uint64_t collective_id,
+                           const std::string& name,
                            void* in,
                            void* out,
                            std::size_t rows,
@@ -110,9 +111,6 @@ void TPGatherRecorder::run(const cldnn::ze::tp::Channel& channel,
                            ze_command_list_handle_t model_queue) {
     auto& group = *channel.group();
     const int rank = channel.rank();
-    OPENVINO_ASSERT(collective_id >= 0 && collective_id < group.num_collectives(),
-                    "[TP][L0] collective_id out of range: ",
-                    collective_id);
     OPENVINO_ASSERT(in != nullptr, "[TP][L0] gather called with a null source on rank ", rank);
     OPENVINO_ASSERT(rank != 0 || out != nullptr, "[TP][L0] gather called with a null destination on the root rank");
     OPENVINO_ASSERT(rows > 0 && slice_elems > 0,
@@ -122,7 +120,7 @@ void TPGatherRecorder::run(const cldnn::ze::tp::Channel& channel,
                     slice_elems,
                     ")");
     group.throw_if_aborted();
-    m_rec.bind(channel, collective_id, false);
+    m_rec.bind(channel, false);
 
     auto& st = group.stats();
     const bool g_host = group.options().profiling_host;
@@ -141,16 +139,17 @@ void TPGatherRecorder::run(const cldnn::ze::tp::Channel& channel,
 
     struct AbortOnFailure {
         cldnn::ze::tp::GroupState& group;
-        int collective_id;
+        uint64_t collective_id;
+        const std::string& name;
         int rank;
         bool armed{true};
         ~AbortOnFailure() {
             if (armed) {
                 group.abort_all("[TP][L0] rank " + std::to_string(rank) + " failed while gathering collective " +
-                                std::to_string(collective_id));
+                                std::to_string(collective_id) + " (" + name + ")");
             }
         }
-    } abort_guard{group, collective_id, rank};
+    } abort_guard{group, collective_id, name, rank};
 
     Signature sig;
     sig.valid = true;

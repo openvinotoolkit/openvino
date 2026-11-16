@@ -184,15 +184,15 @@ std::shared_ptr<Channel> RankCommunicator::bind(const std::vector<CollectiveUse>
                     "[GPU][TP] the TP context has one channel, stream ", channel,
                     " cannot be bound; compile the rank model with a single stream");
 
-    std::vector<bool> seen(collectives.size(), false);
+    std::map<uint64_t, const std::string*> by_id;
     for (const auto& use : collectives) {
         OPENVINO_ASSERT(use.rank == static_cast<uint32_t>(m_rank) && use.world_size == static_cast<uint32_t>(m_world_size),
                         "[GPU][TP] collective ", use.name, " is for rank ", use.rank, " of ", use.world_size,
                         ", the context is rank ", m_rank, " of ", m_world_size);
-        OPENVINO_ASSERT(use.collective_id < collectives.size() && !seen[use.collective_id],
-                        "[GPU][TP] collective ", use.name, " has id ", use.collective_id,
-                        "; ids must number the model's ", collectives.size(), " collectives once each");
-        seen[use.collective_id] = true;
+        const auto [it, inserted] = by_id.emplace(use.collective_id, &use.name);
+        OPENVINO_ASSERT(inserted,
+                        "[GPU][TP] collectives ", *it->second, " and ", use.name, " share the id ", use.collective_id,
+                        "; a model's collectives need unique ids");
     }
 
     std::lock_guard<std::mutex> lock(m_mutex);

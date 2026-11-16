@@ -19,8 +19,12 @@ enum class ReduceOp { SUM, MAX, MIN };
 
 /// \brief Base of the tensor-parallel collectives.
 ///
-/// Carries the collective group a call belongs to and this rank's place in it; nothing about how the
-/// call is carried out. The device plugin compiling the op provides the communication.
+/// Carries the collective group a call belongs to, this rank's place in it and the collective's id; nothing
+/// about how the call is carried out. The device plugin compiling the op provides the communication.
+///
+/// The id is set by whoever inserts the collectives: unique within the model, the same on every rank for
+/// the same collective, and stable for the same model. Device plugins compare ids across the ranks and
+/// may not assume they are dense or ordered.
 class TRANSFORMATIONS_API TPCollectiveBase : public ov::op::Op {
 public:
     // Own RTTI, so that is_type<TPCollectiveBase> matches the collectives only.
@@ -37,15 +41,19 @@ public:
     int get_group_id() const {
         return m_group_id;
     }
+    uint64_t get_collective_id() const {
+        return m_collective_id;
+    }
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
 protected:
-    TPCollectiveBase(const ov::OutputVector& arguments, int rank, int world_size, int group_id);
+    TPCollectiveBase(const ov::OutputVector& arguments, int rank, int world_size, int group_id, uint64_t collective_id);
 
     int m_rank = 0;
     int m_world_size = 1;
     int m_group_id = 0;
+    uint64_t m_collective_id = 0;
 };
 
 /// \brief Element-wise reduction of the inputs of all ranks of the group; every rank gets the result.
@@ -54,7 +62,12 @@ public:
     OPENVINO_OP("TPAllReduce", "ie_internal_opset", TPCollectiveBase);
 
     TPAllReduce() = default;
-    TPAllReduce(const ov::Output<ov::Node>& input, int rank, int world_size, int group_id, ReduceOp reduce_op);
+    TPAllReduce(const ov::Output<ov::Node>& input,
+                int rank,
+                int world_size,
+                int group_id,
+                uint64_t collective_id,
+                ReduceOp reduce_op);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
@@ -77,7 +90,12 @@ public:
     OPENVINO_OP("TPGather", "ie_internal_opset", TPCollectiveBase);
 
     TPGather() = default;
-    TPGather(const ov::Output<ov::Node>& input, int rank, int world_size, int group_id, int64_t axis = -1);
+    TPGather(const ov::Output<ov::Node>& input,
+             int rank,
+             int world_size,
+             int group_id,
+             uint64_t collective_id,
+             int64_t axis = -1);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;

@@ -31,7 +31,8 @@ public:
     /// waits for every other rank's slice, which holds the root's model queue
     /// until the buffer is whole.
     void run(const cldnn::ze::tp::Channel& channel,
-             int collective_id,
+             uint64_t collective_id,
+             const std::string& name,
              void* in,
              void* out,
              std::size_t rows,

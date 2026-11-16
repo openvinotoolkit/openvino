@@ -55,7 +55,7 @@ private:
 /// A collective of a model, as far as binding it to a communicator is concerned.
 struct CollectiveUse {
     std::string name;
-    uint32_t collective_id = 0;
+    uint64_t collective_id = 0;
     uint32_t rank = 0;
     uint32_t world_size = 0;
 };

@@ -35,6 +35,22 @@ size_t weight_bytes(const std::shared_ptr<ov::Node>& matmul) {
     return bytes;
 }
 
+// In graph order, so the same model is numbered the same every time.
+void number_collectives(const ov::Model& model) {
+    uint64_t next = 0;
+    for (const auto& node : model.get_ordered_ops()) {
+        auto& rt_info = node->get_rt_info();
+        const auto it = rt_info.find(ProjectionRole::get_type_info_static());
+        if (it == rt_info.end())
+            continue;
+        auto role = it->second.as<ProjectionRole>();
+        if (role.collective == Collective::NONE)
+            continue;
+        role.collective_id = next++;
+        it->second = role;
+    }
+}
+
 }  // namespace
 
 TPLayerAnalyzer::TPLayerAnalyzer(const TPAnalyzerConfig& config, TPAnalysisReportPtr report)
@@ -64,6 +80,7 @@ bool TPLayerAnalyzer::run_on_model(const std::shared_ptr<ov::Model>& model) {
                     "PagedAttentionExtension nor ScaledDotProductAttention with recognizable projections. "
                     "Model may not be supported.");
     OPENVINO_ASSERT(m_report->mlp_blocks > 0, "[TP] Could not locate an MLP block. Model may not be supported.");
+    number_collectives(*model);
 
     for (const auto& node : model->get_ordered_ops()) {
         if (blocks::is_linear_layer(node.get()) && get_role(*node) == nullptr) {

@@ -630,14 +630,15 @@ TEST_F(SharedTransformationTestsF, SharedRelu) {
     }
 }
 
-// Each collective is a call every rank joins; merging two on one rank would leave the others waiting.
+// Each collective is a call every rank joins; merging two on one rank would leave the others waiting. Equal ids,
+// so only the collective guard keeps them apart.
 TEST_F(SharedTransformationTestsF, CollectivesAreNotShared) {
     {
         auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, 64});
-        auto op_0 = std::make_shared<ov::op::internal::TPAllReduce>(data, 0, 2, 0, ov::op::internal::ReduceOp::SUM);
-        auto op_1 = std::make_shared<ov::op::internal::TPAllReduce>(data, 0, 2, 0, ov::op::internal::ReduceOp::SUM);
-        auto gather_0 = std::make_shared<ov::op::internal::TPGather>(data, 0, 2, 0, -1);
-        auto gather_1 = std::make_shared<ov::op::internal::TPGather>(data, 0, 2, 0, -1);
+        auto op_0 = std::make_shared<ov::op::internal::TPAllReduce>(data, 0, 2, 0, 0, ov::op::internal::ReduceOp::SUM);
+        auto op_1 = std::make_shared<ov::op::internal::TPAllReduce>(data, 0, 2, 0, 0, ov::op::internal::ReduceOp::SUM);
+        auto gather_0 = std::make_shared<ov::op::internal::TPGather>(data, 0, 2, 0, 0, -1);
+        auto gather_1 = std::make_shared<ov::op::internal::TPGather>(data, 0, 2, 0, 0, -1);
 
         auto concat = std::make_shared<v0::Concat>(OutputVector{op_0, op_1}, 0);
         auto gathers = std::make_shared<v0::Concat>(OutputVector{gather_0, gather_1}, 0);

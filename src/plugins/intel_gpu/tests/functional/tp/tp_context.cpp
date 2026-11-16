@@ -33,7 +33,7 @@ std::shared_ptr<ov::Model> make_allreduce_model(int rank,
                                                 int group_id = 0,
                                                 ReduceOp reduce_op = ReduceOp::SUM) {
     auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, elements});
-    auto reduce = std::make_shared<TPAllReduce>(x, rank, world_size, group_id, reduce_op);
+    auto reduce = std::make_shared<TPAllReduce>(x, rank, world_size, group_id, 0, reduce_op);
     return std::make_shared<ov::Model>(ov::OutputVector{reduce}, ov::ParameterVector{x});
 }
 

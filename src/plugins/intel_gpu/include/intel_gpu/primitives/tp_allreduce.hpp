@@ -23,7 +23,7 @@ struct tp_allreduce : public primitive_base<tp_allreduce> {
 
     tp_allreduce(const primitive_id& id,
                  const input_info& input,
-                 uint32_t collective_id,
+                 uint64_t collective_id,
                  uint32_t rank,
                  uint32_t world_size)
         : primitive_base(id, {input}),
@@ -31,7 +31,7 @@ struct tp_allreduce : public primitive_base<tp_allreduce> {
           rank(rank),
           world_size(world_size) {}
 
-    uint32_t collective_id = 0;
+    uint64_t collective_id = 0;
     uint32_t rank = 0;
     uint32_t world_size = 1;
 

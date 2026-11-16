@@ -93,9 +93,10 @@ public:
         }
 
         const auto& layout = instance.get_impl_params()->get_input_layout(0);
-        const auto collective_id = static_cast<int>(instance.get_typed_desc<tp_allreduce>()->collective_id);
+        const auto collective_id = instance.get_typed_desc<tp_allreduce>()->collective_id;
         m_recorder.run(channel,
                        collective_id,
+                       instance.id(),
                        instance.input_memory_ptr()->buffer_ptr(),
                        instance.output_memory_ptr()->buffer_ptr(),
                        layout.count(),

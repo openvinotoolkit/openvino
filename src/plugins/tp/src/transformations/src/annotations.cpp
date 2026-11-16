@@ -169,6 +169,7 @@ bool ProjectionRole::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("strategy", strategy_name);
     visitor.on_attribute("collective", collective_name);
     visitor.on_attribute("group_id", group_id);
+    visitor.on_attribute("collective_id", collective_id);
     visitor.on_attribute("block", block);
     strategy = from_string(strategy_name);
     collective = collective_from_string(collective_name);
@@ -177,7 +178,10 @@ bool ProjectionRole::visit_attributes(ov::AttributeVisitor& visitor) {
 
 std::string ProjectionRole::to_string() const {
     std::ostringstream out;
-    out << to_cstr(strategy) << " " << to_cstr(collective) << " group " << group_id << " by " << block;
+    out << to_cstr(strategy) << " " << to_cstr(collective) << " group " << group_id;
+    if (collective != Collective::NONE)
+        out << " id " << collective_id;
+    out << " by " << block;
     return out.str();
 }
 

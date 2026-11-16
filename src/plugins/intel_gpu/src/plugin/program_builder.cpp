@@ -142,7 +142,6 @@ std::shared_ptr<cldnn::program> ProgramBuilder::get_compiled_program() const {
 
 void ProgramBuilder::prepare_build() {
     m_topology.reset(new cldnn::topology());
-    m_tp_collective_count = 0;
 }
 
 void ProgramBuilder::cleanup_build() {

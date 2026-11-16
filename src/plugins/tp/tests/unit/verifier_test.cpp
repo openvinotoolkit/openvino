@@ -99,7 +99,7 @@ TEST(TPShardingVerifierTest, DumpsEverySplitOrAnnotatedNode) {
     EXPECT_THAT(text, HasSubstr("\n    tp_role: COLUMN_PARALLEL NONE group -1 by test\n"));
     EXPECT_THAT(text, HasSubstr("Swish \"act\" [1,?,32]: Split(axis 2 r0:[0,16) r1:[16,32))"));
     // The row-parallel projection's Partial sum is Replicated past its TPAllReduce.
-    EXPECT_THAT(text, HasSubstr("MatMul \"row\" [1,?,16]: Replicated\n    tp_role: ROW_PARALLEL ALL_REDUCE group 0 by test\n"));
+    EXPECT_THAT(text, HasSubstr("MatMul \"row\" [1,?,16]: Replicated\n    tp_role: ROW_PARALLEL ALL_REDUCE group 0 id 0 by test\n"));
     EXPECT_THAT(text, HasSubstr("\n    tp_shard: COLUMN_PARALLEL axis 0 segments [32/8] by test\n"));
     // Parameter and Result.
     EXPECT_THAT(text, HasSubstr("# 2 other nodes are Replicated\n# Verified\n"));

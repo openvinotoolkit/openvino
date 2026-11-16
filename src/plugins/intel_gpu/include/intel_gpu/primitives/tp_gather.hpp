@@ -23,7 +23,7 @@ struct tp_gather : public primitive_base<tp_gather> {
 
     tp_gather(const primitive_id& id,
               const input_info& input,
-              uint32_t collective_id,
+              uint64_t collective_id,
               uint32_t rank,
               uint32_t world_size,
               int64_t axis)
@@ -33,7 +33,7 @@ struct tp_gather : public primitive_base<tp_gather> {
           world_size(world_size),
           axis(axis) {}
 
-    uint32_t collective_id = 0;
+    uint64_t collective_id = 0;
     uint32_t rank = 0;
     uint32_t world_size = 1;
     int64_t axis = -1;

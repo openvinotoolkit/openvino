@@ -194,7 +194,9 @@ that depends on OpenVINO core and the collective ops only. It runs in three stag
    recognize a block structurally and annotate it in `rt_info`:
    `TPPagedAttentionBlock`, `TPStatefulSDPABlock` (both also for a fused `qkv_proj`),
    `TPGatedMLPBlock`, `TPFusedGateUpMLPBlock`, `TPDenseMLPBlock`, `TPVocabParallelBlock`.
-   A projection gets a `tp_role` (column- or row-parallel, the collective after it); every
+   A projection gets a `tp_role` (column- or row-parallel, the collective after it, and that
+   collective's id: the analyzer numbers the collectives once, in graph order, so every rank
+   model and every compilation of the model gets the same ids); every
    constant to cut gets a `tp_shard` (axis and segments; a segment is split in whole units, can
    be shared by consecutive ranks or split into shares of a group); shape constants get the
    elements that hold a split size, a fused part's length or a fused part's bound; KV-cache
@@ -685,9 +687,9 @@ Both primitives:
 - Have `is_cpu() == false`, which forces intel_gpu to allocate inputs and
   outputs in `usm_device`. This is required for cross-PCIe peer copies.
 - During `execute()`, read the `collective_id` carried by the primitive
-  (`collective_id` is the op's position among the TP collectives of the
-  program, assigned by the GPU `ProgramBuilder`; transitional until calls
-  carry a sequence number) and run their recorder over the network's
+  (the op's id, set by whoever inserted the collectives and the same on
+  every rank; the GPU plugin only compares it across the ranks and assumes
+  no order or density) and run their recorder over the network's
   `Channel` with the model's own command list, so the recording is spliced
   there. The recorder's lists and events belong to the primitive instance; a
   cloned impl starts without them. Because the primitive stores only PODs, it

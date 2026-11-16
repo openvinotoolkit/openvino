@@ -98,6 +98,7 @@ public:
     ShardStrategy strategy = ShardStrategy::REPLICATED;
     Collective collective = Collective::NONE;  ///< inserted on the MatMul's output
     int group_id = -1;                         ///< collective group; -1 with no collective
+    uint64_t collective_id = 0;                ///< numbered by TPLayerAnalyzer, so every rank model gets the same
     std::string block;
 
     bool is_copyable() const override {

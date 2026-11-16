@@ -194,6 +194,7 @@ bool TPInsertCollectives::run_on_model(const std::shared_ptr<ov::Model>& model) 
                                                                          static_cast<int>(m_rank),
                                                                          static_cast<int>(m_world_size),
                                                                          role->group_id,
+                                                                         role->collective_id,
                                                                          ov::op::internal::ReduceOp::SUM);
             collective->set_friendly_name("tp_allreduce/" + node->get_friendly_name());
         } else {
@@ -201,6 +202,7 @@ bool TPInsertCollectives::run_on_model(const std::shared_ptr<ov::Model>& model) 
                                                                       static_cast<int>(m_rank),
                                                                       static_cast<int>(m_world_size),
                                                                       role->group_id,
+                                                                      role->collective_id,
                                                                       /*axis=*/-1);
             collective->set_friendly_name(node->get_friendly_name() + "/tp_gather");
         }

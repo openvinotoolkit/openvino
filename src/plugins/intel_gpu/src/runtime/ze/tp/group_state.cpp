@@ -112,7 +112,7 @@ CollectiveStats::CollectiveStats(int world_size) {
     }
     p2_dev_hist.assign(n * static_cast<std::size_t>(kDevBuckets), Counter{});
     dev_last_end_ticks.assign(n, 0);
-    dev_last_cid.assign(n, -1);
+    dev_has_last.assign(n, 0);
     // The only running minimum, so it cannot start at zero.
     seg_min_ns.assign(n, Counter{~uint64_t{0}});
     last_exit.assign(n, std::chrono::steady_clock::time_point{});
@@ -186,7 +186,8 @@ GroupState::GroupState(TPL0SharedContextPtr shared,
         m_csv.open(file);
         OPENVINO_ASSERT(m_csv, "[TP][L0] Cannot write the profiling CSV to ", file.string());
         // host: the call's host phases; device: the queue time of a splice, read when its recording is reused.
-        m_csv << "kind,rank,collective,call,schedule,bytes,late_us,rendezvous_us,handover_us,device_us,model_gap_us\n";
+        m_csv << "kind,rank,collective,name,call,schedule,bytes,"
+                 "late_us,rendezvous_us,handover_us,device_us,model_gap_us\n";
         TP_REPORT << "[TP] Writing the collectives' profiling data to " << file.string() << std::endl;
     }
     m_mailbox.slots[0].assign(n_ranks, MailboxSlot{});
@@ -201,15 +202,17 @@ GroupState::GroupState(TPL0SharedContextPtr shared,
             init_rank(rs);
         }
         create_event_sets();
-        m_made_ahead.reserve(static_cast<std::size_t>(num_collectives) * n_ranks);
-        for (int i = 0; i < num_collectives; ++i) {
-            for (int r = 0; r < world_size; ++r) {
-                m_made_ahead.push_back(create_recording_resources(r));
+        m_made_ahead.resize(n_ranks);
+        for (int r = 0; r < world_size; ++r) {
+            for (int i = 0; i < num_collectives; ++i) {
+                m_made_ahead[static_cast<std::size_t>(r)].push_back(create_recording_resources(r));
             }
         }
     } catch (...) {
-        for (auto& res : m_made_ahead) {
-            destroy_recording_resources(res);
+        for (auto& rank_res : m_made_ahead) {
+            for (auto& res : rank_res) {
+                destroy_recording_resources(res);
+            }
         }
         destroy_event_sets();
         for (auto& rs : m_ranks) {
@@ -231,8 +234,10 @@ GroupState::~GroupState() {
     // Before anything it watches goes away. Every recording holds the group,
     // so none is left to use the staging or the events below.
     stop_watchdog();
-    for (auto& res : m_made_ahead) {
-        destroy_recording_resources(res);
+    for (auto& rank_res : m_made_ahead) {
+        for (auto& res : rank_res) {
+            destroy_recording_resources(res);
+        }
     }
     destroy_staging();
     destroy_event_sets();
@@ -246,12 +251,12 @@ void GroupState::write_csv_row(const std::string& row) {
     m_csv << row << '\n';
 }
 
-void GroupState::check_output(int rank, int collective_id, uint64_t checksum, const std::string& name) {
+void GroupState::check_output(int rank, uint64_t collective_id, uint64_t checksum, const std::string& name) {
     // A mismatch flood (every call of a broken collective) would bury the first ones.
     constexpr uint64_t kMaxReports = 20;
     std::lock_guard<std::mutex> lock(m_check_mutex);
     if (m_check_calls.empty())
-        m_check_calls.assign(m_world_size, std::vector<uint64_t>(m_num_collectives, 0));
+        m_check_calls.resize(m_world_size);
     const auto call = m_check_calls[rank][collective_id]++;
     auto& check = m_checks[{collective_id, call}];
     if (check.checksums.empty())
@@ -356,18 +361,15 @@ GroupState::RecordingResources GroupState::create_recording_resources(int rank) 
     return res;
 }
 
-GroupState::RecordingResources GroupState::take_recording_resources(int collective_id, int rank) {
-    OPENVINO_ASSERT(collective_id >= 0 && collective_id < m_num_collectives && rank >= 0 && rank < m_world_size,
-                    "[TP][L0] no recording resources for collective ",
-                    collective_id,
-                    " on rank ",
-                    rank);
+GroupState::RecordingResources GroupState::take_recording_resources(int rank) {
+    OPENVINO_ASSERT(rank >= 0 && rank < m_world_size, "[TP][L0] no recording resources for rank ", rank);
     {
         std::lock_guard<std::mutex> lock(m_made_ahead_mutex);
-        auto& made = m_made_ahead[static_cast<std::size_t>(collective_id) * static_cast<std::size_t>(m_world_size) +
-                                  static_cast<std::size_t>(rank)];
-        if (made.pool != nullptr) {
-            return std::exchange(made, RecordingResources{});
+        auto& made = m_made_ahead[static_cast<std::size_t>(rank)];
+        if (!made.empty()) {
+            const auto res = made.back();
+            made.pop_back();
+            return res;
         }
     }
     return create_recording_resources(rank);
@@ -459,7 +461,7 @@ void GroupState::ensure_staging(Staging& s,
                                 int rank,
                                 std::size_t payload_bytes,
                                 std::size_t half_bytes,
-                                int collective_id) {
+                                uint64_t collective_id) {
     const std::size_t need = checked_multiply(half_bytes, 2, "staging");
     if (m_fixed_staging_bytes != 0) {
         OPENVINO_ASSERT(s.fixed != nullptr, "[TP][L0] rank ", rank, " has not been given its fixed staging");
@@ -661,7 +663,7 @@ void GroupState::call_rendezvous(int rank, const MailboxSlot& mine, std::vector<
 }
 
 void GroupState::begin_allreduce(int rank,
-                                 int collective_id,
+                                 uint64_t collective_id,
                                  std::size_t n,
                                  ov::element::Type dtype,
                                  std::size_t half_bytes,
@@ -709,7 +711,7 @@ void GroupState::begin_allreduce(int rank,
 }
 
 void GroupState::begin_gather(int rank,
-                              int collective_id,
+                              uint64_t collective_id,
                               std::size_t rows,
                               std::size_t slice_elems,
                               ov::element::Type dtype,
@@ -754,7 +756,7 @@ void GroupState::untrack(int rank, Splice* splice) {
     }
 }
 
-bool GroupState::await_splice(Splice& splice, int rank, int collective_id) {
+bool GroupState::await_splice(Splice& splice, int rank, uint64_t collective_id) {
     if (!splice.in_flight.load(std::memory_order_acquire)) {
         return false;
     }
@@ -829,7 +831,7 @@ void GroupState::throw_if_aborted() const {
     OPENVINO_THROW("[TP][L0] collective group is no longer usable: ", m_abort_reason);
 }
 
-void GroupState::fail_collective(bool timed_out, int collective_id, int rank, const char* stage) {
+void GroupState::fail_collective(bool timed_out, uint64_t collective_id, int rank, const char* stage) {
     if (timed_out) {
         std::ostringstream oss;
         oss << "[TP][L0] rank " << rank << " timed out after " << m_collective_timeout.count() << " ms at the "

@@ -80,13 +80,18 @@ public:
                 m_group->adopt_staging(r, GroupState::allocate_staging(shared, r, fixed_staging_bytes));
             }
         }
+        for (int i = 0; i < num_collectives; ++i) {
+            // Sparse and descending: the group may assume neither order nor density.
+            m_ids.push_back(1000 - 7 * static_cast<uint64_t>(i));
+            m_names.push_back("collective " + std::to_string(i));
+        }
         for (int i = 0; i < num_collectives * world_size; ++i) {
             m_allreduce.push_back(std::make_unique<TPAllReduceRecorder>());
             m_gather.push_back(std::make_unique<TPGatherRecorder>());
         }
     }
 
-    void allreduce(int collective_id,
+    void allreduce(int collective,
                    int rank,
                    void* in,
                    void* out,
@@ -94,11 +99,11 @@ public:
                    ov::element::Type dtype,
                    ze_kernel_handle_t kernel,
                    ze_command_list_handle_t model_queue = nullptr) {
-        m_allreduce[slot(collective_id, rank)]->run(*m_channels[rank], collective_id, in, out, n, dtype, kernel,
-                                                    model_queue);
+        m_allreduce[slot(collective, rank)]->run(*m_channels[rank], m_ids.at(collective), m_names.at(collective), in,
+                                                 out, n, dtype, kernel, model_queue);
     }
 
-    void gather_to_root(int collective_id,
+    void gather_to_root(int collective,
                         int rank,
                         void* in,
                         void* out,
@@ -106,8 +111,8 @@ public:
                         size_t slice_elems,
                         ov::element::Type dtype,
                         ze_command_list_handle_t model_queue = nullptr) {
-        m_gather[slot(collective_id, rank)]->run(*m_channels[rank], collective_id, in, out, rows, slice_elems, dtype,
-                                                 model_queue);
+        m_gather[slot(collective, rank)]->run(*m_channels[rank], m_ids.at(collective), m_names.at(collective), in, out,
+                                              rows, slice_elems, dtype, model_queue);
     }
 
     const TPL0SharedContextPtr& shared_context() const {
@@ -133,15 +138,15 @@ public:
     }
 
 private:
-    size_t slot(int collective_id, int rank) const {
-        // Out-of-range ids reach the recorder, which is what rejects them.
-        const int id = std::max(0, std::min(collective_id, static_cast<int>(m_allreduce.size()) / m_world_size - 1));
-        return static_cast<size_t>(id * m_world_size + rank);
+    size_t slot(int collective, int rank) const {
+        return static_cast<size_t>(collective * m_world_size + rank);
     }
 
     // Recorders last: they go first and hold the group until they have.
     std::shared_ptr<GroupState> m_group;
     int m_world_size;
+    std::vector<uint64_t> m_ids;       // [collective]: what the orchestrator assigned
+    std::vector<std::string> m_names;  // [collective]: what the impls pass as the primitive id
     std::vector<std::shared_ptr<Channel>> m_channels;
     std::vector<std::unique_ptr<TPAllReduceRecorder>> m_allreduce;
     std::vector<std::unique_ptr<TPGatherRecorder>> m_gather;
@@ -1000,6 +1005,50 @@ TEST_F(TPCollectivesTest, AbortReleasesWaitingRank) {
 
     waiter.join();
     EXPECT_TRUE(coord->is_aborted());
+}
+
+// Ranks that reach different collectives at the same call must fail it rather
+// than reduce unrelated tensors together.
+TEST_F(TPCollectivesTest, RanksAtDifferentCollectivesFailTheCall) {
+    Watchdog watchdog(30);
+    auto shared = make_shared_ctx(2);
+    auto coord = std::make_shared<Collectives>(shared, 2, 2);
+
+    RankScratch rs[2];
+    std::vector<void*> ins(2);
+    std::vector<void*> outs(2);
+    const size_t bytes = elements * sizeof(ov::float16);
+    for (int r = 0; r < 2; ++r) {
+        rs[r].init(shared->context, shared->devices[r]);
+        ins[r] = rs[r].alloc(bytes);
+        outs[r] = rs[r].alloc(bytes);
+    }
+
+    // Same size and type, so only the collective's id tells the calls apart.
+    std::vector<std::string> errors(2);
+    std::vector<std::thread> threads;
+    for (int r = 0; r < 2; ++r) {
+        threads.emplace_back([&, r] {
+            try {
+                coord->allreduce(/*collective=*/r, r, ins[r], outs[r], elements, ov::element::f16,
+                                 reduce_kernel(*coord, r, ov::element::f16));
+            } catch (const ov::Exception& e) {
+                errors[r] = e.what();
+            }
+        });
+    }
+    for (auto& t : threads)
+        t.join();
+
+    EXPECT_TRUE(coord->is_aborted());
+    for (int r = 0; r < 2; ++r)
+        EXPECT_NE(errors[r].find("ranks disagree on call"), std::string::npos) << "rank " << r << ": " << errors[r];
+
+    for (int r = 0; r < 2; ++r) {
+        ov::zeMemFree(shared->context, ins[r]);
+        ov::zeMemFree(shared->context, outs[r]);
+        rs[r].destroy();
+    }
 }
 
 // Once a collective rides in the model's queue there is no host-side wait left
