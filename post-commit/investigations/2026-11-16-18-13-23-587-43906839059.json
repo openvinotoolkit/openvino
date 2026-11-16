@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-16-18-13-23-587-43906839059",
+  "timestamp": "2026-11-16T18:13:23Z",
+  "run_id": "43906839059",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43906839059",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "739714d6de9660afe2be5670313cf8a55434da78",
+  "pr_number": "39742",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39742",
+  "author": "mvafin",
+  "category": "Infrastructure",
+  "title": "Windows GPU unit tests job fails with PowerShell execution policy error before running tests",
+  "signature": "windows gpu unit tests extract openvino packages setupvars.ps1 cannot be loaded because running scripts is disabled on this system pssecurityexception unauthorizedaccess|Infrastructure",
+  "signature_hash": "3be0e72d6ae29098",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "Extract OpenVINO packages step failed with PSSecurityException/UnauthorizedAccess when PowerShell tried to dot-source a generated .ps1 wrapper script because script execution is disabled on the self-hosted Windows runner."
+    },
+    {
+      "name": "NPU Models Tests / 3720",
+      "conclusion": "failure",
+      "symptom": "TensorFlow Models Tests - NPU compile-only step failed one parametrized case (facebook/convnext-tiny-224) with a HuggingFace Hub LocalEntryNotFoundError while fetching model weights; all other cases in the same step passed."
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Aggregate status-check job that simply runs `exit 1` because upstream jobs in the Windows pipeline failed; not an independent failure."
+    }
+  ],
+  "key_errors": [
+    ". : File C:\\actions-runner\\_work\\_temp\\6bd0742f-3413-44c3-85c3-f808cc3f3f32.ps1 cannot be loaded because running scripts is disabled on this system. For more information, see about_Execution_Policies at https:/go.microsoft.com/fwlink/?LinkID=135170.",
+    "At line:1 char:3",
+    "+ . 'C:\\actions-runner\\_work\\_temp\\6bd0742f-3413-44c3-85c3-f808cc3f3f32 ...",
+    "    + CategoryInfo          : SecurityError: (:) [], PSSecurityException",
+    "    + FullyQualifiedErrorId : UnauthorizedAccess",
+    "##[error]Process completed with exit code 1.",
+    "E           facebook/convnext-tiny-224 running failed: \nLocalEntryNotFoundError: An error happened while trying to locate the files on the Hub and we cannot find the appropriate snapshot folder for the specified revision on the local disk. Please check your internet connection and try again."
+  ],
+  "root_cause": "The dominant failure is the 'Extract OpenVINO packages' step on the 'GPU unit tests' job, which runs under `shell: powershell` (Windows PowerShell 5.1). GitHub Actions implements this by writing the step's `run:` block to a generated temporary .ps1 file under _temp and dot-sourcing it. On this self-hosted Windows runner, the PowerShell execution policy for the account/session used by the Actions runner service is Restricted (or was reset, e.g. by a runner/image update or group policy refresh), which blocks loading any unsigned script file including the runner's own auto-generated wrapper. This is an environment/runner configuration issue on the self-hosted machine, not a problem with the workflow YAML, PR #39742's GGUF frontend changes, or the extracted archives themselves. This is the second recorded occurrence of this exact PSSecurityException signature in roughly 24 hours (previously on run 43883526619), indicating the execution-policy drift on this runner pool has not been remediated and is recurring. Separately, the NPU Models Tests job failed one unrelated parametrized case (facebook/convnext-tiny-224) with a HuggingFace Hub LocalEntryNotFoundError, a transient external-network/Hub availability issue unconnected to the PR's GGUF changes or the GPU runner issue; it is reported as context but is not the primary signature for this investigation.",
+  "reproduction_steps": "N/A - requires the specific self-hosted Windows GPU runner whose PowerShell execution policy is restricted. Locally: run `Set-ExecutionPolicy Restricted -Scope Process` then invoke any `shell: powershell` step to reproduce the PSSecurityException. For the NPU HuggingFace failure: rerun `pytest install/tests/model_hub_tests/tensorflow/test_tf_convert_model.py -k convnext-tiny-224` while the HF Hub snapshot cache is cold/unreachable.",
+  "recommended_actions": [
+    "On the affected self-hosted Windows GPU runner(s), run `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine -Force` for the account running the Actions runner service, then verify with `Get-ExecutionPolicy -List`.",
+    "Audit whether a recent base-image update, group policy push, or security hardening script reset the execution policy on this runner pool (second occurrence in 24h), and bake the required policy into the runner provisioning/imaging script so it survives reimaging or policy refreshes.",
+    "Add a runner startup health-check step that verifies `Get-ExecutionPolicy` before accepting GPU unit test workloads, failing fast with a clear diagnostic instead of a late PSSecurityException mid-pipeline.",
+    "For the NPU HuggingFace failure, consider adding retry/backoff around model-hub downloads in `model_hub_tests`, or caching the facebook/convnext-tiny-224 snapshot, to reduce sensitivity to transient Hub/network availability."
+  ],
+  "prevention_strategies": "Pin and periodically audit the PowerShell execution policy on all self-hosted Windows runners used for GPU/Windows jobs as part of runner provisioning/imaging, with monitoring/alerting for execution-policy drift so it is caught before it blocks post-commit CI again (this is its second occurrence). For model-hub tests, add download retries/caching to reduce flakiness from third-party Hub availability.",
+  "historical_context": "This exact PSSecurityException/execution-policy signature (pattern 3be0e72d6ae29098) was first recorded one day earlier on run 43883526619 (commit a1f0ea08348c50d407601b0fa2e451162aa939fb) and is now recurring. The same 'Extract OpenVINO packages' step has also failed 11 times previously (pattern 514ffa2ab52ad344) due to a distinct locked tbb12.dll issue, confirming this step is fragile to multiple failure modes tied to self-hosted Windows runner environment state. The NPU HuggingFace LocalEntryNotFoundError has no prior matching pattern in the database and appears to be a new, isolated transient network issue."
+}
