@@ -174,6 +174,14 @@ ov_build_target_faster(ov_onnx_frontend_tests PCH)
 install(TARGETS ov_onnx_frontend_tests
         RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
 
+# The tests link the helper library, so the installed test executable cannot start without it. CI runs the installed
+# executable on a separate runner after sourcing setupvars, which puts OV_CPACK_RUNTIMEDIR on PATH (Windows) or on
+# LD_LIBRARY_PATH / DYLD_LIBRARY_PATH (Linux, macOS). The archive packaging does not set an install RPATH, so a
+# directory next to the executable would not be searched on Linux and macOS.
+install(TARGETS ov_onnx_legacy_graph_iterator
+        RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT tests EXCLUDE_FROM_ALL
+        LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT tests EXCLUDE_FROM_ALL)
+
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         DESTINATION tests/onnx
         COMPONENT tests EXCLUDE_FROM_ALL

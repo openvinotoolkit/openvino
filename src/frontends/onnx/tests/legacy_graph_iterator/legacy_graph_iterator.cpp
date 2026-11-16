@@ -62,6 +62,14 @@ private:
 
 }  // namespace
 
+// Declarations of the exported functions. They precede the definitions so that -Wmissing-declarations (enabled for
+// the whole source tree) stays quiet. The tests declare the same functions on their side.
+LEGACY_ITERATOR_API void* legacy_iterator_create(const char* model_dir);
+LEGACY_ITERATOR_API void legacy_iterator_destroy(void* iterator);
+LEGACY_ITERATOR_API size_t legacy_iterator_get_model_dir_calls();
+LEGACY_ITERATOR_API size_t legacy_iterator_get_metadata_calls();
+LEGACY_ITERATOR_API size_t legacy_iterator_base_class_size();
+
 /// Creates the iterator. The caller owns it and must release it with legacy_iterator_destroy().
 /// The pointer is the address of the ov::frontend::onnx::GraphIterator base subobject.
 LEGACY_ITERATOR_API void* legacy_iterator_create(const char* model_dir) {
