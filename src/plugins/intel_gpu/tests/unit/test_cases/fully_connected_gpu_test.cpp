@@ -20,6 +20,11 @@
 
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "fully_connected_inst.h"
+#include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/plugin/transformations_pipeline.hpp"
+
+#include "openvino/op/ops.hpp"
+#include "openvino/runtime/core.hpp"
 
 #include <cmath>
 
@@ -3275,6 +3280,102 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         }
     }
 
+    void test_compressed_int8_parameter_scale_zp(bool is_per_group, bool transpose_scale_zp) {
+        auto& engine = get_test_engine();
+
+        constexpr int64_t ofm = 4;
+        constexpr int64_t ifm = 32;
+        const int64_t groups = is_per_group ? 2 : 1;
+        const int64_t group_size = ifm / groups;
+
+        // Non-transposed scale/zp are [groups, N]; transposed scale/zp are [N, groups].
+        const ov::PartialShape param_shape = transpose_scale_zp ? ov::PartialShape{ofm, groups} : ov::PartialShape{groups, ofm};
+        auto param_offset = [&](int64_t group, int64_t output) {
+            return static_cast<size_t>(transpose_scale_zp ? output * groups + group : group * ofm + output);
+        };
+
+        auto input_mem = engine.allocate_memory({ {1, 2, ifm}, data_types::f16, format::bfyx });
+        auto weights_mem = engine.allocate_memory({ {ofm, ifm}, data_types::u8, format::bfyx });
+        auto scale_mem = engine.allocate_memory({ param_shape, data_types::f16, format::bfyx });
+        auto zp_mem = engine.allocate_memory({ param_shape, data_types::u8, format::bfyx });
+
+        std::vector<float> input_data(2 * ifm);
+        for (size_t i = 0; i < input_data.size(); ++i) {
+            input_data[i] = static_cast<float>(static_cast<int64_t>(i % 3) - 1);
+        }
+        std::vector<uint8_t> weights_data(ofm * ifm);
+        for (int64_t output = 0; output < ofm; ++output) {
+            for (int64_t k = 0; k < ifm; ++k) {
+                weights_data[output * ifm + k] = static_cast<uint8_t>((output * 3 + k) % 8);
+            }
+        }
+        std::vector<float> scale_data(ofm * groups);
+        std::vector<uint8_t> zp_data(ofm * groups);
+        for (int64_t group = 0; group < groups; ++group) {
+            for (int64_t output = 0; output < ofm; ++output) {
+                scale_data[param_offset(group, output)] = 0.5f * static_cast<float>((group + output) % 2 + 1);
+                zp_data[param_offset(group, output)] = static_cast<uint8_t>((group + output) % 3);
+            }
+        }
+
+        std::vector<ov::float16> input_f16(input_data.begin(), input_data.end());
+        std::vector<ov::float16> scale_f16(scale_data.begin(), scale_data.end());
+        set_values(input_mem, input_f16);
+        set_values(weights_mem, weights_data);
+        set_values(scale_mem, scale_f16);
+        set_values(zp_mem, zp_data);
+
+        topology topology(
+            input_layout("input", input_mem->get_layout()),
+            data("weights", weights_mem),
+            input_layout("scale", scale_mem->get_layout()),
+            input_layout("zp", zp_mem->get_layout()),
+            fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "zp", data_types::f16, 3, 2, true,
+                            transpose_scale_zp, transpose_scale_zp));
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::optimize_data(true));
+
+        network network(engine, topology, config);
+        network.set_input_data("input", input_mem);
+        network.set_input_data("scale", scale_mem);
+        network.set_input_data("zp", zp_mem);
+
+        // Grouped transposed scale/zp [N, groups] must be reordered from bfyx to fbyx to make N innermost.
+        // Per-channel [N, 1] already has N innermost, so it stays as the bfyx parameter.
+        const bool expect_reorder = transpose_scale_zp && is_per_group;
+        auto fc_inst = network.get_primitive("fc_prim");
+        for (size_t idx : {size_t{2}, size_t{3}}) {
+            const auto& dep = fc_inst->get_node().get_dependency(idx);
+            if (expect_reorder) {
+                EXPECT_TRUE(dep.is_type<reorder>()) << "input " << idx;
+                EXPECT_EQ(fc_inst->get_input_layout(idx).format, format::fbyx) << "input " << idx;
+            } else {
+                EXPECT_TRUE(dep.is_type<input_layout>()) << "input " << idx;
+                EXPECT_EQ(fc_inst->get_input_layout(idx).format, format::bfyx) << "input " << idx;
+            }
+        }
+
+        auto outputs = network.execute();
+        auto output_mem = outputs.at("fc_prim").get_memory();
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
+        ASSERT_EQ((ov::PartialShape{1, 2, ofm}), output_mem->get_layout().get_partial_shape());
+
+        for (int64_t token = 0; token < 2; ++token) {
+            for (int64_t output = 0; output < ofm; ++output) {
+                float expected = 0.0f;
+                for (int64_t k = 0; k < ifm; ++k) {
+                    const auto offset = param_offset(k / group_size, output);
+                    const float weight = (static_cast<float>(weights_data[output * ifm + k]) - zp_data[offset]) * scale_data[offset];
+                    expected += input_data[token * ifm + k] * weight;
+                }
+                EXPECT_NEAR(static_cast<float>(output_ptr[token * ofm + output]), expected, 1e-2f)
+                    << "token = " << token << ", output = " << output;
+            }
+        }
+    }
+
     void test_dynamic(bool is_caching_test) {
         auto& engine = get_test_engine();
 
@@ -6113,6 +6214,107 @@ TEST_F(fully_connected_gpu_tests, compressed_int8_scale_zp_scalar) {
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_transpose_scale_zp) {
     this->test_compressed_int8_transpose_scale_zp(true);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int8_parameter_scale_zp_per_channel) {
+    this->test_compressed_int8_parameter_scale_zp(false, false);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int8_parameter_scale_zp_per_channel_transposed) {
+    this->test_compressed_int8_parameter_scale_zp(false, true);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int8_parameter_scale_zp_per_group) {
+    this->test_compressed_int8_parameter_scale_zp(true, false);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int8_parameter_scale_zp_per_group_transposed) {
+    this->test_compressed_int8_parameter_scale_zp(true, true);
+}
+
+// ov::Core resolves plain "GPU" to the first enumerated device and ignores --device_suffix, so pin the
+// execution device to the one behind get_test_engine() (the plugin reports the very cldnn device_info uuid).
+static std::string get_engine_gpu_device_name() {
+    auto& engine = get_test_engine();
+    const auto engine_uuid = engine.get_device_info().uuid;
+    ov::Core core;
+    for (const auto& device : core.get_available_devices()) {
+        if (device.rfind("GPU", 0) != 0) {
+            continue;
+        }
+        try {
+            if (core.get_property(device, ov::device::uuid).uuid == engine_uuid.uuid) {
+                return device;
+            }
+        } catch (const ov::Exception&) {
+        }
+    }
+    return "GPU";
+}
+
+// Full-pipeline regression for runtime scale/zp: an f32 scale Parameter and a u8 zp Parameter feeding a
+// compressed MatMul reach GPU:PostLPT through ConvertPrecision, so the scale arrives as a bare
+// Convert(Parameter) and the zp as Convert(Parameter) over the Subtract operand. The pipeline must
+// create FullyConnectedCompressed with an f16 scale (Convert preserved) and a u8 integer zero point,
+// and the device must compute the dequantized values.
+TEST_F(fully_connected_gpu_tests, compressed_int8_parameter_scale_zp_full_pipeline) {
+    auto& engine = get_test_engine();
+    auto context = std::make_shared<ov::intel_gpu::RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+
+    // weights u8 [N=4, K=16] = 5, data all ones -> out[n] = 16 * (5 - zp[n]) * scale[n]
+    auto make_model = [](ov::PartialShape data_ps) {
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, data_ps);
+        auto weights = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{4, 16}, {5});
+        auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f32);
+        auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4, 1});
+        auto zp = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::PartialShape{4, 1});
+        auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp, ov::element::f32);
+        auto sub = std::make_shared<ov::op::v1::Subtract>(weights_convert, zp_convert);
+        auto mul = std::make_shared<ov::op::v1::Multiply>(sub, scale);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(data, mul, false, true);
+        return std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data, scale, zp});
+    };
+
+    auto model = make_model({2, 16});
+    auto config = get_test_default_config(engine);
+    config.finalize(context.get(), model.get());
+    ov::intel_gpu::TransformationsPipeline pipeline(config, context);
+    pipeline.apply(model);
+
+    std::shared_ptr<ov::Node> fc_compressed;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (op->get_type_name() == std::string("FullyConnectedCompressed")) {
+            fc_compressed = op;
+        }
+    }
+    ASSERT_TRUE(fc_compressed != nullptr) << "runtime scale/zp graph was not compressed";
+    EXPECT_EQ(fc_compressed->get_input_element_type(3), ov::element::f16) << "scale input must keep the graph precision (its Convert must not be stripped)";
+    EXPECT_EQ(fc_compressed->get_input_element_type(4), ov::element::u8) << "zero point input must stay an integer value";
+
+    // Execute through the real plugin entry point, on the device selected by --device_suffix.
+    ov::Core core;
+    const auto device_name = get_engine_gpu_device_name();
+    auto compiled = core.compile_model(make_model({2, 16}), device_name, ov::hint::inference_precision(ov::element::f16));
+    const auto execution_devices = compiled.get_property(ov::execution_devices);
+    ASSERT_FALSE(execution_devices.empty());
+    // A single GPU is listed as "GPU" but reported as "GPU.0", so compare by uuid rather than by name.
+    EXPECT_EQ(core.get_property(execution_devices.front(), ov::device::uuid).uuid, engine.get_device_info().uuid.uuid)
+        << "test must run on the get_test_engine() device";
+    auto request = compiled.create_infer_request();
+    std::vector<float> data_data(2 * 16, 1.0f);
+    std::vector<float> scale_data = {2.f, 1.f, 1.f, 2.f};
+    std::vector<uint8_t> zp_data = {4, 4, 5, 4};
+    request.set_input_tensor(0, ov::Tensor(ov::element::f32, {2, 16}, data_data.data()));
+    request.set_input_tensor(1, ov::Tensor(ov::element::f32, {4, 1}, scale_data.data()));
+    request.set_input_tensor(2, ov::Tensor(ov::element::u8, {4, 1}, zp_data.data()));
+    request.infer();
+    const float* output = request.get_output_tensor().data<const float>();
+    const float expected[4] = {32.f, 16.f, 0.f, 32.f};  // 16 * (5 - zp) * scale
+    for (int b = 0; b < 2; ++b) {
+        for (int n = 0; n < 4; ++n) {
+            EXPECT_NEAR(expected[n], output[b * 4 + n], 1e-1f) << "batch = " << b << ", output = " << n;
+        }
+    }
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_b1) {
