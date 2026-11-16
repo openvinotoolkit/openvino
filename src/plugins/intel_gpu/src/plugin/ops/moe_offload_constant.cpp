@@ -6,9 +6,9 @@
 
 #include <algorithm>
 #include <array>
+#include <fstream>
 #include <functional>
 #include <limits>
-#include <sstream>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -197,55 +197,85 @@ uint64_t get_routed_param_slot_bytes(const std::shared_ptr<ov::op::v0::Constant>
 }
 }  // namespace
 
-const char* to_string(MoEResidencyReason reason) {
-    switch (reason) {
-    case MoEResidencyReason::Offloaded:
-        return "offloaded";
-    case MoEResidencyReason::OffloadDisabled:
-        return "OFFLOAD_RATIO is 0";
-    case MoEResidencyReason::UnsupportedExpertType:
-        return "the expert type is not supported";
-    case MoEResidencyReason::RoutedWeightsNotExclusive:
-        return "the routed weights are not constants used by MoE layers only";
-    case MoEResidencyReason::RoutedWeightsNotFileViews:
-        return "the routed weights are not unmodified views of the weights file (recomputed by the transformations, or the model was not "
-               "read from a file)";
-    case MoEResidencyReason::DecompressionNotPerExpert:
-        return "a scale or zero point is neither shared by all the experts nor sliced per expert";
-    }
-    return "unknown";
-}
-
-MoEOffloadDecision get_moe_offload_decision(const ov::op::internal::MOECompressed& moe, size_t offload_ratio) {
+size_t get_moe_offload_slot_count(const ov::op::internal::MOECompressed& moe, size_t offload_ratio, std::string* reason) {
+    const auto resident = [reason](const char* why) -> size_t {
+        if (reason) {
+            *reason = why;
+        }
+        return 0;
+    };
     const auto& moe_config = moe.get_config();
     // ratio=0 keeps all experts resident
     if (offload_ratio == 0) {
-        return {0, MoEResidencyReason::OffloadDisabled};
+        return resident("OFFLOAD_RATIO is 0");
     }
     if (moe_config.expert_type != ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU || moe_config.num_expert == 0 ||
         moe.get_input_size() <= routed_param_inputs.back()) {
-        return {0, MoEResidencyReason::UnsupportedExpertType};
+        return resident("the expert type is not supported");
     }
     if (!is_moe_otd_eligible(&moe)) {
-        return {0, MoEResidencyReason::RoutedWeightsNotExclusive};
+        return resident("the routed weights are not constants used by MoE layers only");
     }
     const auto num_expert = static_cast<size_t>(moe_config.num_expert);
     for (const auto index : routed_weight_inputs) {
         if (!is_weights_file_view(moe.input_value(index), num_expert)) {
-            return {0, MoEResidencyReason::RoutedWeightsNotFileViews};
+            return resident("the routed weights are not unmodified views of the weights file");
         }
     }
     for (const auto index : routed_param_inputs) {
         if (!is_shared_or_sliced_per_expert(moe.input_value(index), num_expert)) {
-            return {0, MoEResidencyReason::DecompressionNotPerExpert};
+            return resident("a scale or zero point is neither shared by all the experts nor sliced per expert");
         }
     }
     // offload_ratio is the % on disk; GPU-resident experts = max(1, total * (100 - ratio) / 100)
-    return {std::max<size_t>(1, num_expert * (100 - offload_ratio) / 100), MoEResidencyReason::Offloaded};
+    return std::max<size_t>(1, num_expert * (100 - offload_ratio) / 100);
 }
 
-size_t get_moe_offload_slot_count(const ov::op::internal::MOECompressed& moe, size_t offload_ratio) {
-    return get_moe_offload_decision(moe, offload_ratio).slot_count;
+size_t get_weights_file_offset(const ov::op::v0::Constant& constant, const std::filesystem::path& weights_path) {
+    std::ifstream weights_file(weights_path, std::ios::binary);
+    OPENVINO_ASSERT(weights_file.is_open(), "OTD weights file cannot be opened: ", weights_path);
+    const auto file_size = static_cast<size_t>(std::filesystem::file_size(weights_path));
+    const auto source = ov::weight_sharing::Extension::get_constant_source_buffer(constant);
+    const auto byte_size = constant.get_byte_size();
+    // With mmap the descriptor offset is relative to the whole file. Without it, it is relative to a buffer read for one constant,
+    // whose file range is in the IR attribute.
+    auto offset = static_cast<size_t>(ov::weight_sharing::Extension::get_constant_id(constant));
+    if (!source || source->size() != file_size) {
+        const auto origin = ov::weight_sharing::Extension::get_constant_origin(constant);
+        OPENVINO_ASSERT(source && origin && origin->m_size == byte_size,
+                        "OTD: constant ",
+                        constant.get_friendly_name(),
+                        " cannot be located in ",
+                        weights_path);
+        offset = origin->m_offset;
+    }
+    OPENVINO_ASSERT(offset <= file_size && byte_size <= file_size - offset,
+                    "OTD: constant ",
+                    constant.get_friendly_name(),
+                    " at offset ",
+                    offset,
+                    " (",
+                    byte_size,
+                    " bytes) is out of ",
+                    weights_path,
+                    " (",
+                    file_size,
+                    " bytes)");
+    // The slices are streamed from this file: compare its first and last bytes with the constant
+    const auto* data = static_cast<const char*>(constant.get_data_ptr());
+    const size_t sample_size = std::min<size_t>(byte_size, 64);
+    for (const size_t sample_offset : {size_t{0}, byte_size - sample_size}) {
+        std::array<char, 64> sample{};
+        weights_file.seekg(static_cast<std::streamoff>(offset + sample_offset));
+        weights_file.read(sample.data(), static_cast<std::streamsize>(sample_size));
+        OPENVINO_ASSERT(weights_file && std::equal(sample.begin(), sample.begin() + sample_size, data + sample_offset),
+                        "OTD: ",
+                        weights_path,
+                        " does not contain the data of constant ",
+                        constant.get_friendly_name(),
+                        ": ov::weights_path must be the weights file the model was read from");
+    }
+    return offset;
 }
 
 uint64_t get_model_resident_constant_bytes(const ov::Model& model, size_t offload_ratio) {
@@ -299,27 +329,22 @@ void validate_model_resident_constant_memory(const ov::Model& model, size_t offl
 
     // A model without MoE layers is not affected (OFFLOAD_RATIO may be set for every model of a pipeline), but a MoE model
     // where no layer can be offloaded would silently keep every expert resident
-    size_t moe_layers = 0;
-    size_t offloaded_layers = 0;
-    std::ostringstream reasons;
+    std::string resident_layer;
     for (const auto& node : model.get_ordered_ops()) {
         const auto moe = ov::as_type_ptr<ov::op::internal::MOECompressed>(node);
         if (!moe || !is_otd_capable_moe(moe.get())) {
             continue;
         }
-        const auto decision = get_moe_offload_decision(*moe, offload_ratio);
-        if (decision.slot_count > 0) {
-            offloaded_layers++;
-        } else if (moe_layers - offloaded_layers < 3) {
-            reasons << "\n  " << moe->get_friendly_name() << ": " << to_string(decision.reason);
+        std::string reason;
+        if (get_moe_offload_slot_count(*moe, offload_ratio, &reason) > 0) {
+            resident_layer.clear();
+            break;
         }
-        moe_layers++;
+        if (resident_layer.empty()) {
+            resident_layer = moe->get_friendly_name() + ": " + reason;
+        }
     }
-    OPENVINO_ASSERT(moe_layers == 0 || offloaded_layers > 0,
-                    "[GPU] OFFLOAD_RATIO=",
-                    offload_ratio,
-                    " has no effect: no MoE layer can be offloaded, the experts would all stay resident.",
-                    reasons.str());
+    OPENVINO_ASSERT(resident_layer.empty(), "[GPU] OFFLOAD_RATIO=", offload_ratio, " has no effect: no MoE layer can be offloaded (", resident_layer, ")");
 
     if (device_memory_bytes == 0)
         return;

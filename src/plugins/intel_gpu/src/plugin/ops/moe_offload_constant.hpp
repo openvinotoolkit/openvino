@@ -7,6 +7,7 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <memory>
 #include <string>
 
@@ -38,26 +39,12 @@ bool is_moe_constant_offloadable(const std::shared_ptr<ov::op::v0::Constant>& op
 /// Determines the role of a Constant feeding into MOECompressed.
 MoEConstantRole get_moe_constant_role(const std::shared_ptr<ov::op::v0::Constant>& op);
 
-/// Number of device-resident expert slots of an offloaded (OTD) MoE layer, 0 if the layer stays fully resident.
+/// Number of device-resident expert slots of an offloaded (OTD) MoE layer, 0 if the layer stays fully resident (and why, in `reason`).
 /// Only the routed weights are offloaded, and only if they are unmodified views of the weights file.
-size_t get_moe_offload_slot_count(const ov::op::internal::MOECompressed& moe, size_t offload_ratio);
+size_t get_moe_offload_slot_count(const ov::op::internal::MOECompressed& moe, size_t offload_ratio, std::string* reason = nullptr);
 
-/// Why a MoE layer is offloaded or stays fully resident
-enum class MoEResidencyReason {
-    Offloaded,
-    OffloadDisabled,
-    UnsupportedExpertType,
-    RoutedWeightsNotExclusive,
-    RoutedWeightsNotFileViews,
-    DecompressionNotPerExpert,
-};
-const char* to_string(MoEResidencyReason reason);
-
-struct MoEOffloadDecision {
-    size_t slot_count = 0;
-    MoEResidencyReason reason = MoEResidencyReason::OffloadDisabled;
-};
-MoEOffloadDecision get_moe_offload_decision(const ov::op::internal::MOECompressed& moe, size_t offload_ratio);
+/// Offset of the data of `constant` in `weights_path`. Throws if the constant is not a view of that file.
+size_t get_weights_file_offset(const ov::op::v0::Constant& constant, const std::filesystem::path& weights_path);
 
 struct PartialUploadDesc {
     bool enabled = false;

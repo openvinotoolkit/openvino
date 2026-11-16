@@ -1167,6 +1167,10 @@ public:
         const auto& weight_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0)).data_type;
         decode_impl = select_decode_impl(params, weight_dt);
         prefill_impl = select_prefill_impl(config, weight_dt, params.prog->get_engine().get_device_info().arch);
+        // The micro-GEMM reads the scales and zero points of every expert, not of the expert slots
+        if (prefill_impl == MoeGemmImpl::micro_gemm && node.as<moe_3gemm_fused_compressed>().get_primitive()->_otd.lru_expert_num > 0) {
+            prefill_impl = MoeGemmImpl::per_expert_onednn;
+        }
 
         GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): prefill_impl=" << static_cast<int>(prefill_impl)
                                << ", decode_impl=" << static_cast<int>(decode_impl) << std::endl;

@@ -81,15 +81,17 @@ private:
     bool _opened = false;
 };
 
-// Loads the experts into their resident slots: the weights are read from the weights file,
-// the scales and zero points are copied from the resident tensors in `sources` (null members are not sliced per expert).
-void fill_weights_memory(cldnn::stream& exec_stream,
-                         const cldnn::MOECompressed::Config& config,
-                         const std::vector<size_t>& weight_bin_offsets,
-                         ParallelWeightReader& weight_reader,
-                         cldnn::moe_weights& slots,
-                         const cldnn::moe_weights& sources,
-                         const std::vector<uint32_t>& experts_list,
-                         const std::vector<size_t>& lru_experts);
+// A constant sliced along its outer dimension (e.g. one slice per expert) whose slices are loaded on demand into a slot buffer
+struct SlicedTensor {
+    cldnn::memory::ptr slots;   // slice `i` of the buffer holds the slice loaded into slot `i`
+    size_t slice_size = 0;      // bytes
+    cldnn::memory::ptr source;  // device-resident tensor with every slice; null: the slices are read from the weights file
+    size_t file_offset = 0;     // of slice 0 in the weights file, used without `source`
+};
+
+/// Loads slice `index` of each tensor into slot `slot` of its slot buffer.
+/// Slices are read from the weights file as stored, or copied on the device from `source`. The file reads are complete on return;
+/// the device copies are not waited for on an in-order queue, where the kernels that read the slots are enqueued after them.
+void fill_weights_memory(cldnn::stream& exec_stream, ParallelWeightReader& weight_reader, const std::vector<SlicedTensor>& tensors, size_t index, size_t slot);
 
 }  // namespace ov::intel_gpu::ocl::moe_otd

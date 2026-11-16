@@ -4,6 +4,10 @@
 
 #include <gtest/gtest.h>
 
+#include <filesystem>
+#include <fstream>
+#include <numeric>
+
 #include "test_utils.h"
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/memory_util.hpp"
@@ -416,22 +420,6 @@ TEST(moe_offload_constant, zero_point_shared_with_other_layers_does_not_block_of
     EXPECT_FALSE(is_moe_constant_offloadable(zp));
 }
 
-TEST(moe_offload_constant, residency_reasons) {
-    using reason = MoEResidencyReason;
-    EXPECT_EQ(get_moe_offload_decision(*MoETestGraph::build().moe_node, 0).reason, reason::OffloadDisabled);
-    EXPECT_EQ(get_moe_offload_decision(*MoETestGraph::build().moe_node, 50).reason, reason::Offloaded);
-
-    auto in_memory = MoETestGraph::build(4, 128, 256, 128, ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU, /*file_backed_weights=*/false);
-    EXPECT_EQ(get_moe_offload_decision(*in_memory.moe_node, 50).reason, reason::RoutedWeightsNotFileViews);
-
-    auto shared_weight = MoETestGraph::build();
-    auto other_consumer = std::make_shared<ov::op::v0::Relu>(shared_weight.constants[0]);
-    EXPECT_EQ(get_moe_offload_decision(*shared_weight.moe_node, 50).reason, reason::RoutedWeightsNotExclusive);
-
-    auto gemm2 = MoETestGraph::build(4, 128, 256, 128, ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP);
-    EXPECT_EQ(get_moe_offload_decision(*gemm2.moe_node, 50).reason, reason::UnsupportedExpertType);
-}
-
 // The slots copy each expert's slice of a scale / zero point: one shared by the experts but not a scalar cannot be sliced,
 // so the layer stays resident at compilation instead of failing at the first inference
 TEST(moe_offload_constant, scale_without_expert_slices_keeps_layer_resident) {
@@ -439,7 +427,7 @@ TEST(moe_offload_constant, scale_without_expert_slices_keeps_layer_resident) {
     graph.moe_node->input(4).replace_source_output(std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, 256, 1, 1}, 0));
     ov::Model model(ov::ResultVector{std::make_shared<ov::op::v0::Result>(graph.moe_node)}, graph.parameters);
 
-    EXPECT_EQ(get_moe_offload_decision(*graph.moe_node, 50).reason, MoEResidencyReason::DecompressionNotPerExpert);
+    EXPECT_EQ(get_moe_offload_slot_count(*graph.moe_node, 50), 0U);
     EXPECT_FALSE(prepare_partial_upload(graph.constants[0], 50).enabled);
     EXPECT_EQ(get_model_resident_constant_bytes(model, 50), get_model_resident_constant_bytes(model, 0));
 }
@@ -460,6 +448,37 @@ TEST(moe_offload_constant, no_offloadable_moe_layer_is_rejected) {
     ov::Model mixed(ov::ResultVector{std::make_shared<ov::op::v0::Result>(in_memory.moe_node), std::make_shared<ov::op::v0::Result>(file_backed.moe_node)},
                     parameters);
     EXPECT_NO_THROW(validate_model_resident_constant_memory(mixed, 50, 0));
+}
+
+// The slices are streamed from ov::weights_path: it must hold the data of the constant at its offset
+TEST(moe_offload_constant, weights_file_offset_is_checked_against_the_file) {
+    const auto path = std::filesystem::temp_directory_path() / "moe_offload_constant_weights_file_offset.bin";
+    const auto write_file = [&](const std::vector<char>& data) {
+        std::ofstream file(path, std::ios::binary);
+        file.write(data.data(), static_cast<std::streamsize>(data.size()));
+    };
+    std::vector<char> file_data(256);
+    std::iota(file_data.begin(), file_data.end(), char{0});
+    write_file(file_data);
+
+    // Bytes 64..191 of the file, viewed as read with mmap
+    constexpr size_t offset = 64, size = 128;
+    auto weights_file = std::make_shared<ov::AlignedBuffer>(file_data.size());
+    std::copy(file_data.begin(), file_data.end(), weights_file->get_ptr<char>());
+    auto view = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(weights_file->get_ptr<char>() + offset,
+                                                                                        size,
+                                                                                        weights_file,
+                                                                                        ov::create_base_descriptor(1, 0, weights_file));
+    const ov::op::v0::Constant constant(ov::element::u8, ov::Shape{size}, view);
+    EXPECT_EQ(get_weights_file_offset(constant, path), offset);
+
+    const ov::op::v0::Constant in_memory(ov::element::u8, ov::Shape{size}, 0);
+    OV_EXPECT_THROW(get_weights_file_offset(in_memory, path), ov::Exception, testing::HasSubstr("cannot be located"));
+
+    // Another file of the same size
+    write_file(std::vector<char>(file_data.size(), 0));
+    OV_EXPECT_THROW(get_weights_file_offset(constant, path), ov::Exception, testing::HasSubstr("does not contain the data of constant"));
+    std::filesystem::remove(path);
 }
 
 // The estimate keeps the scales and zero points fully resident and adds their slot copies: slots x bytes per expert

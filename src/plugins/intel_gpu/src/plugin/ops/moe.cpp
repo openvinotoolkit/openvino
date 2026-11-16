@@ -8,11 +8,9 @@
 #include <intel_gpu/primitives/moe_scatter_reduction.hpp>
 #include <intel_gpu/primitives/swiglu.hpp>
 
-#include <algorithm>
 #include <array>
 #include <cstdlib>
 #include <filesystem>
-#include <fstream>
 #include <limits>
 
 #include "ov_ops/moe_compressed.hpp"
@@ -41,11 +39,11 @@ static bool prepare_moe_otd_params(ProgramBuilder& p,
                                    std::filesystem::path& weights_path,
                                    size_t& lru_expert_num) {
     using input_idx = cldnn::moe_3gemm_fused_compressed::input_index;
-    const auto decision = get_moe_offload_decision(*op, p.get_config().get_offload_ratio());
-    lru_expert_num = decision.slot_count;
+    std::string resident_reason;
+    lru_expert_num = get_moe_offload_slot_count(*op, p.get_config().get_offload_ratio(), &resident_reason);
     if (lru_expert_num == 0) {
         GPU_DEBUG_IF(p.get_config().get_offload_ratio() > 0) {
-            GPU_DEBUG_INFO << "MOE OTD disabled for " << op->get_friendly_name() << ": " << to_string(decision.reason) << std::endl;
+            GPU_DEBUG_INFO << "MOE OTD disabled for " << op->get_friendly_name() << ": " << resident_reason << std::endl;
         }
         return false;
     }
@@ -54,59 +52,10 @@ static bool prepare_moe_otd_params(ProgramBuilder& p,
     OPENVINO_ASSERT(!weights_path.empty(),
                     "ov::weights_path property is not set. OTD requires a valid path to the model .bin file. "
                     "Please set ov::weights_path when compiling the model.");
-    std::ifstream weights_file(weights_path, std::ios::binary);
-    OPENVINO_ASSERT(weights_file.is_open(), "OTD weights file cannot be opened: ", weights_path);
-    const auto weights_file_size = static_cast<size_t>(std::filesystem::file_size(weights_path));
-
-    // With mmap the descriptor offset is relative to the whole weights file. Without mmap it is relative to a region read for one
-    // constant, and the IR attribute (restored by restore_routed_weight_file_offsets) gives the file range of the weights.
-    // The experts are streamed from ov::weights_path, so it must hold these bytes: compare the first and the last bytes of each weight.
+    // Without mmap the file offsets are the IR attributes restored by restore_routed_weight_file_offsets
     for (const auto index : {input_idx::weight_0, input_idx::weight_1, input_idx::weight_2}) {
         const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(static_cast<size_t>(index)));
-        const auto source_size = ov::weight_sharing::Extension::get_constant_source_buffer(*constant)->size();
-        const auto byte_size = constant->get_byte_size();
-        auto offset = static_cast<size_t>(ov::weight_sharing::Extension::get_constant_id(*constant));
-        if (source_size != weights_file_size) {
-            const auto origin = ov::weight_sharing::Extension::get_constant_origin(*constant);
-            OPENVINO_ASSERT(origin && origin->m_size == byte_size,
-                            "OTD: the weights of ",
-                            op->get_friendly_name(),
-                            " (",
-                            byte_size,
-                            " bytes) cannot be located in ov::weights_path ",
-                            weights_path,
-                            " (",
-                            weights_file_size,
-                            " bytes), ",
-                            origin ? "their IR size is " + std::to_string(origin->m_size) : std::string("they have no IR offset"));
-            offset = origin->m_offset;
-        }
-        OPENVINO_ASSERT(offset <= weights_file_size && byte_size <= weights_file_size - offset,
-                        "OTD: the weights of ",
-                        op->get_friendly_name(),
-                        " at offset ",
-                        offset,
-                        " (",
-                        byte_size,
-                        " bytes) are out of the weights file ",
-                        weights_path,
-                        " (",
-                        weights_file_size,
-                        " bytes)");
-        const auto* data = static_cast<const char*>(constant->get_data_ptr());
-        const size_t sample_size = std::min<size_t>(byte_size, 64);
-        for (const size_t sample_offset : {size_t{0}, byte_size - sample_size}) {
-            std::array<char, 64> sample{};
-            weights_file.seekg(static_cast<std::streamoff>(offset + sample_offset));
-            weights_file.read(sample.data(), static_cast<std::streamsize>(sample_size));
-            OPENVINO_ASSERT(weights_file && std::equal(sample.begin(), sample.begin() + sample_size, data + sample_offset),
-                            "OTD: ov::weights_path ",
-                            weights_path,
-                            " does not contain the weights of ",
-                            op->get_friendly_name(),
-                            ": it must be the weights file the model was read from");
-        }
-        weight_bin_offsets.push_back(offset);
+        weight_bin_offsets.push_back(get_weights_file_offset(*constant, weights_path));
     }
     return true;
 }

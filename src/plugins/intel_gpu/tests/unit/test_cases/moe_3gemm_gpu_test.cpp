@@ -27,8 +27,8 @@
 using namespace cldnn;
 using namespace ::tests;
 
-// tokens, u4 weights, shared expert, offloaded expert slots (0: resident), grouped GEMM prefill
-using moe_3gemm_offload_params = std::tuple<size_t, bool, bool, size_t, bool>;
+// tokens, u4 weights, shared expert, offloaded expert slots (0: resident)
+using moe_3gemm_offload_params = std::tuple<size_t, bool, bool, size_t>;
 
 class moe_3gemm_offload_fallback : public ::testing::TestWithParam<moe_3gemm_offload_params> {
 protected:
@@ -140,10 +140,9 @@ protected:
         return topo;
     }
 
-    static ExecutionConfig get_config(bool grouped_prefill) {
+    static ExecutionConfig get_config() {
         auto config = get_test_default_config(get_test_engine());
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-        config.set_property(ov::intel_gpu::moe_use_grouped_gemm_prefill(grouped_prefill));
         return config;
     }
 
@@ -204,12 +203,12 @@ protected:
 };
 
 TEST_P(moe_3gemm_offload_fallback, one_slot_matches_reference) {
-    const auto [tokens, is_u4, shared, capacity, grouped_prefill] = GetParam();
+    const auto [tokens, is_u4, shared, capacity] = GetParam();
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad) {
         GTEST_SKIP() << "No immad support";
     }
-    network net(engine, build_topology(tokens, is_u4, shared, capacity), get_config(grouped_prefill));
+    network net(engine, build_topology(tokens, is_u4, shared, capacity), get_config());
     const auto moe_inst = net.get_primitive("moe");
     std::vector<memory::ptr> constant_inputs;
     for (size_t i = 3; i < moe_inst->dependencies().size(); ++i) {
@@ -232,7 +231,7 @@ TEST_F(moe_3gemm_offload_streams, second_network_is_rejected) {
         GTEST_SKIP() << "No immad support";
     }
     constexpr size_t tokens = 1;
-    auto prog = program::build_program(engine, build_topology(tokens, false, false, 2), get_config(true));
+    auto prog = program::build_program(engine, build_topology(tokens, false, false, 2), get_config());
     network first(prog, 0);
     network second(prog, 1);
     run_and_check(first, tokens, false, 2);
@@ -244,17 +243,7 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                          ::testing::Combine(::testing::Values(size_t{1}, size_t{2}, size_t{16}, size_t{33}),
                                             ::testing::Bool(),
                                             ::testing::Bool(),
-                                            ::testing::Values(size_t{0}, size_t{1}, size_t{2}),
-                                            ::testing::Values(true)));
-
-// Without the grouped GEMM the prefill runs the micro-GEMM (u4, Xe2+) or the per-expert loop
-INSTANTIATE_TEST_SUITE_P(smoke_no_grouped_prefill,
-                         moe_3gemm_offload_fallback,
-                         ::testing::Combine(::testing::Values(size_t{33}),
-                                            ::testing::Bool(),
-                                            ::testing::Bool(),
-                                            ::testing::Values(size_t{0}, size_t{1}, size_t{2}),
-                                            ::testing::Values(false)));
+                                            ::testing::Values(size_t{0}, size_t{1}, size_t{2})));
 
 struct Moe3GemmConfig {
     size_t batch_size;

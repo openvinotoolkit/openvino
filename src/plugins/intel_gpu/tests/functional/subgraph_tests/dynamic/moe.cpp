@@ -3,13 +3,10 @@
 //
 
 #include <algorithm>
-#include <filesystem>
-#include <fstream>
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/node_builders/moe_builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "common_test_utils/test_assertions.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -339,31 +336,13 @@ protected:
         ov::test::utils::removeIRFiles(xml_path, bin_path);
     }
 
+private:
     std::string xml_path;
     std::string bin_path;
 };
 
 TEST_P(MoECompressedOffloadTest, Inference) {
     run();
-}
-
-// ov::weights_path must be the file the model was read from: a file of the same size with other bytes is rejected at compilation
-TEST_P(MoECompressedOffloadTest, OtherWeightsFileIsRejected) {
-    const auto other_bin_path = ov::test::utils::generateTestFilePrefix() + "_other.bin";
-    {
-        std::ofstream other(other_bin_path, std::ios::binary);
-        const std::vector<char> zeros(static_cast<size_t>(std::filesystem::file_size(bin_path)), 0);
-        other.write(zeros.data(), static_cast<std::streamsize>(zeros.size()));
-    }
-    auto other_configuration = configuration;
-    other_configuration[ov::weights_path.name()] = other_bin_path;
-    OV_EXPECT_THROW(core->compile_model(function, targetDevice, other_configuration), ov::Exception, testing::HasSubstr("does not contain the weights"));
-    std::filesystem::remove(other_bin_path);
-}
-
-// A model built in memory has no weights file to stream from: OFFLOAD_RATIO would have no effect, which is an error
-TEST_P(MoECompressedOffloadTest, InMemoryModelIsRejected) {
-    OV_EXPECT_THROW(core->compile_model(functionRefs, targetDevice, configuration), ov::Exception, testing::HasSubstr("no MoE layer can be offloaded"));
 }
 
 // OFFLOAD_RATIO 50 keeps 4 of the 8 experts resident (= top_k), 75 keeps 2, so every step falls back.
