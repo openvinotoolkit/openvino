@@ -45,7 +45,9 @@ struct mlir_primitive_impl : typed_primitive_impl<mlir_primitive> {
 
         // The memref types are baked into the compiled program, so the physical layout must match exactly.
         for (size_t i = 0; i < instance.inputs_memory_count(); ++i) {
-            const auto& l = instance.input_memory_ptr(i)->get_layout();
+            const auto mem = instance.input_memory_ptr(i);
+            OPENVINO_ASSERT(mem != nullptr, "[GPU] mlir_primitive '", prim->id, "': input ", i, " memory is not allocated");
+            const auto& l = mem->get_layout();
             const auto required = prim->get_required_input_format(i, l.get_rank());
             OPENVINO_ASSERT(l.format == required && !l.data_padding,
                             "[GPU] mlir_primitive '",
