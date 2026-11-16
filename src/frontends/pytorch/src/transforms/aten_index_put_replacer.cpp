@@ -5,6 +5,7 @@
 #include "aten_index_put_replacer.hpp"
 
 #include <algorithm>
+#include <numeric>
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -100,32 +101,37 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
         // None value corresponds to `:` that means to update all slices by this dimension
         // compute permutation vector so that all None's are moved to the tail like tensor[2, :, :, :] = update
         // so that it will be possible to use ScatterNDUpdate operation
+        // Positions in the index list, used to permute values: each index contributes one
+        // dimension to the indexed result.
         std::vector<int64_t> dims_with_none_idx;
         std::vector<int64_t> dims_with_value_idx;
+        // Input dimensions covered by each index: a boolean mask covers as many dimensions as its rank.
+        std::vector<int64_t> input_dims_with_none_idx;
+        std::vector<int64_t> input_dims_with_value_idx;
+        int64_t covered_input_dims = 0;
         ov::OutputVector indices_inputs_without_nones;
         for (int64_t idx = 0; idx < indices_list_len; ++idx) {
-            if (is_none_node(indices_inputs[idx])) {
+            const bool is_none = is_none_node(indices_inputs[idx]);
+            int64_t span = 1;
+            if (is_none) {
                 dims_with_none_idx.push_back(idx);
             } else {
                 dims_with_value_idx.push_back(idx);
                 indices_inputs_without_nones.push_back(indices_inputs[idx]);
+                const auto index_rank = indices_inputs[idx].get_partial_shape().rank();
+                if (indices_inputs[idx].get_element_type() == element::boolean && index_rank.is_static()) {
+                    span = index_rank.get_length();
+                }
             }
-        }
-
-        // In some exported graphs, when index_put_ is used with None indices, shape of values
-        // might be missing the first dimension of 1. For example, a value shape can be provided
-        // as (x,y,z) instead of (1,x,y,z). Both cases are valid for aten.index_put_.default.
-        auto input_rank = input.get_partial_shape().rank();
-        auto values_rank = values.get_partial_shape().rank();
-        if (static_cast<int64_t>(dims_with_none_idx.size()) > 0 && input_rank.is_static() && values_rank.is_static() &&
-            input_rank.get_length() > 1 && input_rank.get_length() == values_rank.get_length() + 1 &&
-            static_cast<int64_t>(dims_with_none_idx.size()) == indices_list_len - 1 &&
-            !(is_none_node(indices_inputs[indices_list_len - 1]))) {
-            values = rg.make<v0::Unsqueeze>(values, const_0);
+            auto& input_dims = is_none ? input_dims_with_none_idx : input_dims_with_value_idx;
+            for (int64_t i = 0; i < span; ++i) {
+                input_dims.push_back(covered_input_dims++);
+            }
         }
 
         std::vector<int64_t> perm_vector_before;
         std::vector<int64_t> perm_vector_after;
+        std::vector<int64_t> values_perm;
         if (static_cast<int64_t>(dims_with_none_idx.size()) == indices_list_len) {
             // if there is an expression: tensor[:, :, :] = update
             // the whole tensor is replaced with update
@@ -144,22 +150,29 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
                 return false;
             }
             auto input_rank = input.get_partial_shape().rank().get_length();
-            // initial values for both permutation vectors
-            // [0, 1, ..., rank - 1]
-            perm_vector_before.resize(input_rank);
-            std::iota(perm_vector_before.begin(), perm_vector_before.end(), 0);
-            perm_vector_after.resize(input_rank);
-            std::iota(perm_vector_after.begin(), perm_vector_after.end(), 0);
-
-            int64_t num_not_nones = static_cast<int64_t>(dims_with_value_idx.size());
-            for (int64_t idx = 0; idx < num_not_nones; ++idx) {
-                perm_vector_before[idx] = dims_with_value_idx[idx];
-                perm_vector_after[dims_with_value_idx[idx]] = idx;
+            if (covered_input_dims > input_rank) {
+                add_exception_to_fw_node(index_op, "aten::index_put_: indices cover more dimensions than the input.");
+                return false;
             }
-            int64_t num_nones = static_cast<int64_t>(dims_with_none_idx.size());
-            for (int64_t idx = 0; idx < num_nones; ++idx) {
-                perm_vector_before[idx + num_not_nones] = dims_with_none_idx[idx];
-                perm_vector_after[dims_with_none_idx[idx]] = idx + num_not_nones;
+            // Indexed dimensions first, then None dimensions, then the trailing dimensions in place.
+            perm_vector_before = input_dims_with_value_idx;
+            perm_vector_before.insert(perm_vector_before.end(),
+                                      input_dims_with_none_idx.begin(),
+                                      input_dims_with_none_idx.end());
+            for (int64_t dim = covered_input_dims; dim < input_rank; ++dim) {
+                perm_vector_before.push_back(dim);
+            }
+            perm_vector_after.resize(input_rank);
+            for (int64_t idx = 0; idx < input_rank; ++idx) {
+                perm_vector_after[perm_vector_before[idx]] = idx;
+            }
+
+            // The same reordering for values: an index contributes a single result dimension.
+            values_perm = dims_with_value_idx;
+            values_perm.insert(values_perm.end(), dims_with_none_idx.begin(), dims_with_none_idx.end());
+            const auto values_result_rank = input_rank - covered_input_dims + indices_list_len;
+            for (int64_t dim = indices_list_len; dim < values_result_rank; ++dim) {
+                values_perm.push_back(dim);
             }
         }
 
@@ -174,8 +187,19 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
             input = rg.make<v1::Transpose>(input, perm_before);
             input_shape = rg.make<v3::ShapeOf>(input, element::i32);
             // A scalar broadcasts in any dimension order and must not be transposed.
-            if (values.get_partial_shape().rank() != 0) {
-                values = rg.make<v1::Transpose>(values, perm_before);
+            const auto values_rank = values.get_partial_shape().rank();
+            if (values_rank != 0) {
+                // Values broadcast from the right: add missing leading dimensions before transposing.
+                const auto perm_size = static_cast<int64_t>(values_perm.size());
+                if (values_rank.is_static() && values_rank.get_length() < perm_size) {
+                    std::vector<int64_t> axes(perm_size - values_rank.get_length());
+                    std::iota(axes.begin(), axes.end(), 0);
+                    values =
+                        rg.make<v0::Unsqueeze>(values, v0::Constant::create(element::i64, Shape{axes.size()}, axes));
+                }
+                values =
+                    rg.make<v1::Transpose>(values,
+                                           v0::Constant::create(element::i64, Shape{values_perm.size()}, values_perm));
             }
         }
 
@@ -187,7 +211,7 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
                 result = rg.make<v1::Transpose>(result, perm_after);
             }
             copy_runtime_info_and_name(index_op, rg.get(), rt_copy_from);
-            index_op->output(0).replace(result);
+            replace_node(index_op, OutputVector{result});
             return true;
         };
 
@@ -245,16 +269,29 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
                         mask =
                             rg.make<v0::Unsqueeze>(mask, v0::Constant::create(element::i64, Shape{axes.size()}, axes));
                     }
-                    return finish(masked_fill(rg, input, mask, values));
+                    // A mask selects each element at most once, so accumulation is a plain add.
+                    Output<Node> fill = values;
+                    if (accumulate) {
+                        fill = rg.make<v1::Add>(input, rg.make<v1::ConvertLike>(values, input));
+                    }
+                    return finish(masked_fill(rg, input, mask, fill));
                 }
-                values = rg.make<v1::ConvertLike>(values, input);
                 // then apply masked scatter
-                auto input_shape = rg.make<v3::ShapeOf>(input, element::i32);
-                auto input_rank = rg.make<v3::ShapeOf>(input_shape, element::i32);
-                auto one_const = v0::Constant::create(element::i32, Shape{1}, {1});
                 auto nonzero = rg.make<v3::NonZero>(index);
                 auto input_order = v0::Constant::create(element::i32, Shape{2}, {1, 0});
                 index = rg.make<v1::Transpose>(nonzero, input_order);
+                // Broadcast values to [number of selected elements, input dimensions not covered by the mask].
+                auto index_shape = rg.make<v3::ShapeOf>(index, element::i32);
+                auto const_0_1d = v0::Constant::create(element::i32, Shape{1}, {0});
+                auto num_selected = rg.make<v8::Gather>(index_shape, const_0_1d, const_0);
+                auto mask_rank = rg.make<v8::Gather>(index_shape, const_1, const_0);
+                auto sub_shape = rg.make<v8::Slice>(input_shape, mask_rank, const_max_int, const_1);
+                auto masked_values_shape = rg.make<v0::Concat>(OutputVector{num_selected, sub_shape}, 0);
+                values = rg.make<v3::Broadcast>(rg.make<v1::ConvertLike>(values, input), masked_values_shape);
+                if (accumulate) {
+                    return finish(
+                        rg.make<v15::ScatterNDUpdate>(input, index, values, v15::ScatterNDUpdate::Reduction::SUM));
+                }
                 return finish(rg.make<v3::ScatterNDUpdate>(input, index, values));
             } else {
                 // change negative indices to positive indices

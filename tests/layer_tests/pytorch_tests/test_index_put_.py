@@ -322,6 +322,56 @@ class TestIndexPut_IndexDtypes(PytorchLayerTest):
         self._test(*self.create_model(accumulate), ie_device, precision, ir_version, trace_model=True)
 
 
+MASK_1D = [False, True, False]
+# 5 selected elements
+MASK_2D = [[True, False, True, False], [False, False, True, True], [True, False, False, False]]
+
+
+class TestIndexPut_MaskAccumulate(PytorchLayerTest):
+    def _prepare_input(self):
+        return (
+            self.random.randn(*self.input_shape).astype(np.float32),
+            np.array(self.random.randn(*self.value_shape), dtype=np.float32),
+        )
+
+    def create_model(self, mask, leading_none, accumulate):
+        class aten_index_put_mask(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.mask = torch.tensor(mask)
+
+            def forward(self, x, values):
+                x = x.clone()
+                indices = [None, self.mask] if leading_none else [self.mask]
+                return torch.ops.aten.index_put_.default(x, indices, values, accumulate)
+
+        return aten_index_put_mask(), "aten::index_put_"
+
+    @pytest.mark.parametrize("input_shape,mask,leading_none,value_shape", [
+        ([2, 3], MASK_1D, True, []),
+        ([2, 3], MASK_1D, True, [2, 1]),
+        ([2, 3, 4], MASK_2D, True, []),
+        ([2, 3, 4], MASK_2D, True, [2, 5]),
+        ([2, 3, 4], MASK_2D, True, [5]),
+        ([2, 3, 4], MASK_2D, True, [1]),
+        ([3, 4, 2], MASK_2D, False, []),
+        ([3, 4, 2], MASK_2D, False, [5, 2]),
+        ([3, 4, 2], MASK_2D, False, [2]),
+    ])
+    @pytest.mark.parametrize("accumulate", [False, True])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_index_put_mask_accumulate(self, ie_device, precision, ir_version,
+                                       input_shape, mask, leading_none, value_shape, accumulate):
+        if ie_device == "GPU" and accumulate and value_shape:
+            pytest.skip("GPU does not support ScatterNDUpdate with SUM reduction")
+        self.input_shape = input_shape
+        self.value_shape = value_shape
+        self._test(*self.create_model(mask, leading_none, accumulate),
+                   ie_device, precision, ir_version, trace_model=True)
+
+
 class TestMaskKosmos_IndexPut(PytorchLayerTest):
     def _prepare_input(self):
         mask = self.random.randint(0, 2, [1, 30], dtype=np.bool_)
