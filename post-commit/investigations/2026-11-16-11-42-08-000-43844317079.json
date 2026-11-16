@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-16-11-42-08-000-43844317079",
+  "timestamp": "2026-11-16T11:42:08Z",
+  "run_id": "43844317079",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43844317079",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "9d3f47860d983bc68a4ccd517010691c6c0a2bce",
+  "pr_number": "39781",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39781",
+  "author": "not_found",
+  "category": "Infrastructure",
+  "title": "Windows GPU unit tests job fails extracting OpenVINO packages due to locked tbb12.dll",
+  "signature": "windows runner extract openvino packages expand-archive remove-item access to the path denied unauthorizedaccessexception locked dll file|Infrastructure",
+  "signature_hash": "514ffa2ab52ad344",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "Extract OpenVINO packages step fails: Remove-Item cannot delete tbb12.dll, Access to the path is denied (UnauthorizedAccessException)"
+    }
+  ],
+  "key_errors": [
+    "Remove-Item : Cannot remove item C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll:\nAccess to the path 'C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll' is denied.\nAt C:\\Windows\\system32\\WindowsPowerShell\\v1.0\\Modules\\Microsoft.PowerShell.Archive\\Microsoft.PowerShell.Archive.psm1:1029\n+ CategoryInfo          : PermissionDenied: (C:\\actions-runn...b\\bin\\tbb12.dll:FileInfo) [Remove-Item], UnauthorizedAccessException\n+ FullyQualifiedErrorId : RemoveFileSystemItemUnAuthorizedAccess,Microsoft.PowerShell.Commands.RemoveItemCommand\n##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The 'Extract OpenVINO packages' step uses Expand-Archive -Force to overwrite a pre-existing install directory on a Windows self-hosted runner. Expand-Archive's overwrite logic deletes existing files before extracting replacements; tbb12.dll from a prior job/process on the same runner is still memory-mapped/locked (e.g., by a lingering test process, antivirus scan, or a previous job's unfinished cleanup), so the OS denies the delete with UnauthorizedAccessException. This is a recurring Windows runner hygiene issue (observed 10 times in the last week), not a code regression from the head commit, which only touched src/core/reference/src/op/concat.cpp include statements.",
+  "reproduction_steps": "N/A - requires a Windows self-hosted runner with a stale/locked DLL handle from a prior job; not reliably reproducible locally. To investigate: RDP into the affected runner during a reproduction window and run `handle.exe tbb12.dll` (Sysinternals) to identify the locking process.",
+  "recommended_actions": [
+    "Add a pre-extraction cleanup step that force-closes any processes holding handles on install/runtime/3rdparty/tbb/bin/*.dll before Expand-Archive (e.g., via Sysinternals handle.exe or a short retry-with-backoff wrapper around Remove-Item).",
+    "Replace the bare Expand-Archive -Force call with a retry loop (3-5 attempts with short delay) around the extraction step for Windows jobs, since this is the 11th occurrence of the same locked-DLL symptom.",
+    "Ensure prior jobs on the runner fully terminate child/test processes (e.g., gtest-parallel workers) before the workspace is reused, possibly via an explicit job-teardown step.",
+    "Consider using ephemeral/clean Windows runners per job instead of reusing a persistent self-hosted runner workspace, to eliminate stale file locks entirely."
+  ],
+  "prevention_strategies": "Add a process-cleanup/handle-release step at the end of every Windows job that touches install/runtime/3rdparty/tbb/bin, and wrap Expand-Archive's delete-then-extract step in a retry loop with backoff to tolerate transient file locks on shared self-hosted runners.",
+  "historical_context": "This exact signature (locked tbb12.dll during Expand-Archive -Force in the 'Extract OpenVINO packages' step) has recurred 10 times between 2026-11-09 and 2026-11-11 across multiple unrelated commits, confirming this is a runner/infrastructure hygiene issue rather than a code regression. A related but distinct pattern (missing onednn_third-party-programs.txt license file causing a stale-workspace extraction failure) was also seen once on 2026-11-11."
+}
