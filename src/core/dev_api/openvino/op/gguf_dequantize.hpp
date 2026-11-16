@@ -63,11 +63,11 @@ private:
     ov::element::Type m_output_type = ov::element::f32;
 };
 
+OPENVINO_API std::ostream& operator<<(std::ostream& s, const GGUFDequantize::Format& format);
+
 }  // namespace ov::op::internal
 
 namespace ov {
-OPENVINO_API std::ostream& operator<<(std::ostream& s, const ov::op::internal::GGUFDequantize::Format& format);
-
 template <>
 class AttributeAdapter<ov::op::internal::GGUFDequantize::Format>
     : public EnumAttributeAdapterBase<ov::op::internal::GGUFDequantize::Format> {
