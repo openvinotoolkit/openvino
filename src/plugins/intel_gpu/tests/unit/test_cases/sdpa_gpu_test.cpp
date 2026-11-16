@@ -41,8 +41,7 @@
 using namespace cldnn;
 using namespace ::tests;
 // #define ENABLE_ONEDNN_FOR_GPU
-namespace  {
-#ifdef ENABLE_ONEDNN_FOR_GPU
+namespace {
 // Host SDPA reference (ov::reference, f32) for the suites below. A network forced to "sdpa_ref" is no reference here:
 // force_implementations takes only the impl type for the ocl_v2 SDPA impls (the kernel name reaches kernel_selector impls
 // only), so it ran SDPAOpt like the network under test. Q / K / V / output are [batch, heads, seq, head]; K / V may have
@@ -157,6 +156,7 @@ sdpa_ref_diff sdpa_compare_with_reference(const std::vector<float>& ref, const s
     return r;
 }
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
 struct sdpa_test_params {
     int head_size;
     int num_heads;
@@ -5133,7 +5133,8 @@ struct sdpa_sliding_window_test : public ::testing::TestWithParam<std::tuple<sdp
 };
 
 TEST_P(sdpa_sliding_window_test, basic) {
-    const auto& [p, dpas] = GetParam();
+    const auto& p = std::get<0>(GetParam());
+    const bool dpas = std::get<1>(GetParam());
     execute(p, dpas);
 }
 
@@ -5644,7 +5645,9 @@ struct sdpa_broadcast_test : public ::testing::TestWithParam<std::tuple<sdpa_bro
     }
 
     void check_broadcast() {
-        const auto& [p, dpas] = GetParam();
+        // Not a structured binding: the lambdas below capture p.
+        const auto& p = std::get<0>(GetParam());
+        const bool dpas = std::get<1>(GetParam());
         auto& engine = get_test_engine();
         if (dpas) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
