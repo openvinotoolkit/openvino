@@ -27,7 +27,6 @@ void register_fused_qkv(GraphEmitter& e, const DecoderConfig& cfg, int il) {
                 names[i],
                 "GGML_OP_VIEW",
                 {fused},
-                3,
                 {{"view_slice",
                   std::vector<int64_t>{0, static_cast<int64_t>(starts[i]), static_cast<int64_t>(lengths[i])}}});
         }

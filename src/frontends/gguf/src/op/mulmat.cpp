@@ -34,11 +34,13 @@ namespace ov::frontend::gguf::op {
 OutputVector translate_mulmat(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
 
-    int op_case = context.get_attribute<int>("op_case", 0);
-
     ov::Output<Node> res;
     ov::Output<ov::Node> B = context.get_input(0);
     ov::Output<ov::Node> A = context.get_input(1);
+    const auto matmul_mode = context.get_attribute<std::string>("matmul_mode", "default");
+    FRONT_END_CHECK_IMPLEMENTED(
+        matmul_mode == "default" || matmul_mode == "transposed_weight" || matmul_mode == "view_operands",
+        "Unsupported MUL_MAT mode: " + matmul_mode);
     const auto activation = A;
     auto weight = B.get_node_shared_ptr();
     while (weight->get_input_size() > 0)
@@ -50,7 +52,7 @@ OutputVector translate_mulmat(const NodeContext& context) {
     const auto& shape = A.get_partial_shape();
     const bool rank3_output = context.get_attribute<int>("activation_rank", 4) == 3;
     const bool rank3_projection = u2_weights && shape.rank() == 4 && shape[1] == 1 && shape[3].is_static() &&
-                                  B.get_partial_shape().rank() == 2 && op_case != 3;
+                                  B.get_partial_shape().rank() == 2 && matmul_mode != "view_operands";
     if (rank3_output) {
         FRONT_END_OP_CONVERSION_CHECK(shape.rank() == 4 && shape[1] == 1 && shape[3].is_static(),
                                       "Rank-3 projection requires [batch, 1, tokens, features] activations");
@@ -71,10 +73,10 @@ OutputVector translate_mulmat(const NodeContext& context) {
     };
 
     bool transpose_b = true;
-    if (op_case == 2) {
+    if (matmul_mode == "transposed_weight") {
         B = B.get_node_shared_ptr()->input_value(0);
         transpose_b = false;
-    } else if (op_case == 3) {
+    } else if (matmul_mode == "view_operands") {
         B = process_view_input(context, 0);
         A = process_view_input(context, 1);
     }

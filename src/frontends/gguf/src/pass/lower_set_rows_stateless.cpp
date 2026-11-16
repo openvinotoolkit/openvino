@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 
+#include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/gguf/set_rows_op.hpp"
@@ -68,7 +69,7 @@ LowerSetRowsStateless::LowerSetRowsStateless() {
             std::shared_ptr<ov::Node> scattered =
                 std::make_shared<ov::op::v3::ScatterUpdate>(dst, indices, tokens, axis);
             scattered->set_friendly_name(set_rows->get_friendly_name());
-            ov::copy_runtime_info(set_rows, scattered);
+            ov::copy_runtime_info(set_rows, ov::NodeVector{tokens, scattered});
             ov::replace_node(set_rows, scattered);
             return true;
         }
@@ -78,15 +79,16 @@ LowerSetRowsStateless::LowerSetRowsStateless() {
         auto flat_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, 1, -1, row_size});
         auto flat_dst = std::make_shared<ov::op::v1::Reshape>(dst, flat_shape, true);
         auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {2});
-        std::shared_ptr<ov::Node> res = std::make_shared<ov::op::v3::ScatterUpdate>(flat_dst, indices, data, axes);
+        std::shared_ptr<ov::Node> scattered =
+            std::make_shared<ov::op::v3::ScatterUpdate>(flat_dst, indices, data, axes);
 
-        ov::Output<ov::Node> output_shape = std::make_shared<ov::op::v3::ShapeOf>(dst, ov::element::i64);
+        auto output_shape = std::make_shared<ov::op::v3::ShapeOf>(dst, ov::element::i64);
 
         // Keep the destination's logical layout. Storage aliases are rebound by TranslateSession.
-        res = std::make_shared<ov::op::v1::Reshape>(res, output_shape, false);
+        auto res = std::make_shared<ov::op::v1::Reshape>(scattered, output_shape, false);
 
         res->set_friendly_name(set_rows->get_friendly_name());
-        ov::copy_runtime_info(set_rows, res);
+        ov::copy_runtime_info(set_rows, ov::NodeVector{flat_dst, scattered, output_shape, res});
         ov::replace_node(set_rows, res);
         return true;
     };
@@ -116,6 +118,7 @@ std::shared_ptr<ov::op::v0::Concat> kv_read_lengths(const std::shared_ptr<ov::op
 }  // namespace
 
 bool SliceSharedKVReads::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_MODEL_SCOPE(SliceSharedKVReads);
     std::map<ov::Output<ov::Node>, std::vector<std::shared_ptr<ov::op::v1::VariadicSplit>>> reads;
     for (const auto& node : model->get_ordered_ops()) {
         if (auto split = ov::as_type_ptr<ov::op::v1::VariadicSplit>(node); split && kv_read_lengths(split)) {

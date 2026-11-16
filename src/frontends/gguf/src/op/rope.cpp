@@ -39,8 +39,6 @@ namespace ov::frontend::gguf::op {
 OutputVector translate_rope(const NodeContext& context) {
     num_inputs_check(context, 2, 3);
 
-    int op_case = context.get_op_case();
-
     ov::Output<Node> res;
 
     auto data = context.get_input(0);
@@ -49,25 +47,21 @@ OutputVector translate_rope(const NodeContext& context) {
         output_shape = context.get_input_shape(0);
     }
     auto rope_config = context.get_attribute<RopeConfig>("rope_config");
-    int mode = (op_case & 0xFFFF0000) >> 16;
-    op_case = (op_case & 0x0000FFFF);
 
     constexpr int TYPE_NORMAL = 0;
     constexpr int TYPE_NEOX = 1;
     constexpr int TYPE_IMROPE = 2;
     constexpr int TYPE_VISION = 3;
     constexpr int TYPE_MROPE = 4;
-    const auto explicit_mode = context.get_attribute<std::string>("rope_mode", "");
-    if (!explicit_mode.empty()) {
-        FRONT_END_CHECK_IMPLEMENTED(explicit_mode == "normal" || explicit_mode == "neox" || explicit_mode == "imrope" ||
-                                        explicit_mode == "vision" || explicit_mode == "mrope",
-                                    "Unsupported ROPE mode: " + explicit_mode);
-        mode = explicit_mode == "normal"   ? TYPE_NORMAL
-               : explicit_mode == "neox"   ? TYPE_NEOX
-               : explicit_mode == "imrope" ? TYPE_IMROPE
-               : explicit_mode == "mrope"  ? TYPE_MROPE
-                                           : TYPE_VISION;
-    }
+    const auto explicit_mode = context.get_attribute<std::string>("rope_mode", "normal");
+    FRONT_END_CHECK_IMPLEMENTED(explicit_mode == "normal" || explicit_mode == "neox" || explicit_mode == "imrope" ||
+                                    explicit_mode == "vision" || explicit_mode == "mrope",
+                                "Unsupported ROPE mode: " + explicit_mode);
+    const int mode = explicit_mode == "normal"   ? TYPE_NORMAL
+                     : explicit_mode == "neox"   ? TYPE_NEOX
+                     : explicit_mode == "imrope" ? TYPE_IMROPE
+                     : explicit_mode == "mrope"  ? TYPE_MROPE
+                                                 : TYPE_VISION;
 
     if (mode == TYPE_VISION) {
         // ggml vision RoPE rotates the full head in two halves; n_dims is half the
@@ -130,7 +124,15 @@ OutputVector translate_rope(const NodeContext& context) {
 
     Output<Node> cos_theta_node;
     Output<Node> sin_theta_node;
-    if (explicit_mode.empty() && context.has_input("rope_cos")) {
+    // The shared table (TranslateSession::add_rope_sin_cos) applies the graph-wide "rope_freqs.weight",
+    // so reuse it only when this op uses the same frequency factors and table layout.
+    const bool has_shared_freqs = context.has_input("rope_freqs.weight");
+    const bool same_freqs = context.get_input_size() == 3
+                                ? has_shared_freqs && context.get_input("rope_freqs.weight") == context.get_input(2)
+                                : !has_shared_freqs;
+    const bool shared_table_layout = (mode == TYPE_NORMAL || mode == TYPE_NEOX || mode == TYPE_IMROPE) &&
+                                     rope_config.is_imrope == (mode == TYPE_IMROPE);
+    if (shared_table_layout && same_freqs && context.has_input("rope_cos")) {
         cos_theta_node = context.get_input("rope_cos");
         sin_theta_node = context.get_input("rope_sin");
     } else {
@@ -163,7 +165,7 @@ OutputVector translate_rope(const NodeContext& context) {
             std::vector<int64_t>{0, -1, (int64_t)output_shape[2].get_length(), (int64_t)output_shape[3].get_length()});
     };
 
-    if (op_case == 2) {
+    if (context.get_attribute<bool>("rope_input_view", false)) {
         // The input comes from a VIEW
         int slice_len = static_cast<int>(output_shape[2].get_length() * output_shape[3].get_length());
         data = process_view_input(context, 0, slice_len);

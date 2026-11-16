@@ -87,7 +87,7 @@ public:
     // ── Node scope (the bound node; used by the op translators) ──────────────────────────────
 
     // Typed attribute access. The op translators use this to read scalar operation parameters
-    // (e.g. "eps", "scale", "bias", "swapped", "op_case", "output_type", "rope_config") without
+    // (e.g. "eps", "scale", "bias", "swapped", "output_type", "rope_config") without
     // dereferencing ggml's raw op_params layout.
     ov::Any get_attribute(const std::string& name) const override = 0;
 

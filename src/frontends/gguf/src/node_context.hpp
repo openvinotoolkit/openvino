@@ -88,10 +88,6 @@ public:
         return m_decoder->get_output_shape();
     }
 
-    int get_op_case() const {
-        return get_attribute<int>("op_case", 0);
-    }
-
     Output<Node> get_input(int idx) const override {
         return m_tensor_map->at(m_input_names[idx]);
     }

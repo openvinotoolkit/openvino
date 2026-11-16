@@ -26,6 +26,7 @@ namespace ov::frontend::gguf::op {
 
 OutputVector translate_reshape(const NodeContext& context) {
     num_inputs_check(context, 1, 2);
+    const auto reshape_mode = context.get_attribute<std::string>("reshape_mode", "target");
     if (context.get_input_size() == 2) {
         if (context.get_attribute<std::vector<int64_t>>("shape_axes", {}).empty()) {
             return rename_outputs_with_suffix(
@@ -59,7 +60,7 @@ OutputVector translate_reshape(const NodeContext& context) {
             context.get_name());
     }
     const auto target = context.get_attribute<std::vector<int64_t>>("reshape_target", {});
-    if (!target.empty() && (context.get_op_case() == 0 || context.get_op_case() == 6)) {
+    if (!target.empty() && reshape_mode == "target") {
         auto pattern = ov::op::v0::Constant::create(ov::element::i64, {target.size()}, target);
         return rename_outputs_with_suffix(
             {std::make_shared<ov::op::v1::Reshape>(context.get_input(0),
@@ -67,7 +68,7 @@ OutputVector translate_reshape(const NodeContext& context) {
                                                    context.get_attribute<bool>("special_zero", false))},
             context.get_name());
     }
-    if (context.get_attribute<bool>("merge_heads", false)) {
+    if (reshape_mode == "merge_heads" || context.get_attribute<bool>("merge_heads", false)) {
         const auto input = context.get_input(0);
         const auto shape = input.get_partial_shape();
         FRONT_END_OP_CONVERSION_CHECK(shape.rank() == 4, "Head merging requires a rank-4 input");
@@ -94,28 +95,25 @@ OutputVector translate_reshape(const NodeContext& context) {
         return rename_outputs_with_suffix({std::make_shared<ov::op::v1::Reshape>(input, pattern, true)},
                                           context.get_name());
     }
+    if (reshape_mode == "identity") {
+        return {context.get_input(0)};
+    }
+    if (reshape_mode == "identity_input") {
+        return {context.get_input(0).get_node_shared_ptr()->input_value(0)};
+    }
     if (!context.get_attribute<bool>("preserve_dynamic_layout", false) &&
         context.get_input_shape(0) == context.get_output_shape()) {
         return {context.get_input(0)};
     }
 
-    // One numbering for both ingest paths: every case below is reachable from the llama.cpp cgraph
-    // decoder (see ggml-decoder.cpp::compute_op_case) and from the native .gguf builder, which
-    // describes its reshapes so that the same case applies.
-    int op_case = context.get_op_case();
-    FRONT_END_CHECK_IMPLEMENTED(op_case == 1 || op_case == 2 || op_case == 3 || op_case == 4 || op_case == 5 ||
-                                    op_case == 6 || op_case == 7 || op_case == 8,
-                                "Unsupported RESHAPE case");
-
-    if (op_case == 8) {
-        // Identity reshape (ggml src ne == node ne): a no-op. Pass the input through so any dynamic
-        // token axis it carries is preserved (a static reshape would bake in the compile-time count).
-        return {context.get_input(0)};
-    }
+    FRONT_END_CHECK_IMPLEMENTED(reshape_mode == "split_heads" || reshape_mode == "flatten_set_rows" ||
+                                    reshape_mode == "identity" || reshape_mode == "identity_input" ||
+                                    reshape_mode == "flat_tokens" || reshape_mode == "static_output",
+                                "Unsupported RESHAPE mode: " + reshape_mode);
 
     auto output_shape = context.get_output_shape().to_shape();
     std::shared_ptr<ov::Node> new_shape_node;
-    if (op_case == 1) {
+    if (reshape_mode == "split_heads") {
         // [B, 1, T, n_head*head_size] -> [B, T, n_head, head_size]: split the last dim into heads
         // and flatten whatever leads it into dim 1. The 3D form was causing RoPE broadcasting to
         // T×T when the trailing dimensions are 1 (MQA, n_head_kv=1).
@@ -133,24 +131,7 @@ OutputVector translate_reshape(const NodeContext& context) {
         return rename_outputs_with_suffix(
             {std::make_shared<ov::op::v1::Reshape>(context.get_input(0), new_shape_node, /*special_zero=*/true)},
             context.get_name());
-    } else if (op_case == 2) {
-        // Merge the heads back after attention. Like op_case 1, the leading dim is copied
-        // (special_zero) so the token axis stays wherever the active attention backend put it.
-        //
-        // Rank stays 4 because the next op is the residual Add against the layer input, and OV
-        // broadcasts elementwise operands from the right: every activation is rank 4 (ggml's own
-        // convention), so a rank-3 result would right-align and silently form a token x token
-        // outer product once the token count is not on the expected axis.
-        //   in [1, T, H, S] -> [1, 1, T, H*S]
-        new_shape_node = ov::op::v0::Constant::create(
-            ov::element::i64,
-            {4},
-            std::vector<int64_t>{0, (int64_t)output_shape[1], -1, (int64_t)output_shape[3]});
-        return rename_outputs_with_suffix(
-            {std::make_shared<ov::op::v1::Reshape>(context.get_input(0), new_shape_node, /*special_zero=*/true)},
-            context.get_name());
-
-    } else if (op_case == 3) {
+    } else if (reshape_mode == "flatten_set_rows") {
         // Flatten-for-SET_ROWS: [F, tok, 1, 1] -> [1, F*tok, -1, 1] (the KV-cache write path, e.g.
         // gpt-oss cache_v). Token count stays on the dynamic axis via -1.
         new_shape_node = ov::op::v0::Constant::create(
@@ -158,25 +139,11 @@ OutputVector translate_reshape(const NodeContext& context) {
             {4},
             std::vector<int64_t>{(int64_t)output_shape[0], (int64_t)output_shape[1], -1, 1});
 
-    } else if (op_case == 4) {
-        return {context.get_input(0).get_node_shared_ptr()->input_value(0)};
-
-    } else if (op_case == 5) {
+    } else if (reshape_mode == "flat_tokens") {
         std::vector<int64_t> shape_vec = {1, 1, -1, (int64_t)context.get_output_shape().to_shape()[3]};
         new_shape_node = ov::op::v0::Constant::create(ov::element::i64, {4}, shape_vec);
 
-    } else if (op_case == 6) {
-        // The output layout rearranges dims relative to the input (e.g. qwen3-next q/k_conv_predelta:
-        // [128,2,8,T] -> [128,16,T,1]). The decoder supplies the OV-order target with -1 on the dynamic
-        // token axis so the stateful model reuses across token counts; fall back to the static output
-        // shape when no dynamic axis was inferred.
-        auto tgt = context.get_attribute<std::vector<int64_t>>("reshape_target", {});
-        if (tgt.empty()) {
-            tgt.assign(output_shape.begin(), output_shape.end());
-        }
-        new_shape_node = ov::op::v0::Constant::create(ov::element::i64, {tgt.size()}, tgt);
-
-    } else if (op_case == 7) {
+    } else if (reshape_mode == "static_output") {
         // General fully-static reshape (no dynamic token axis): reshape straight to the static
         // output shape. Used by qwen3-next's recurrent-state predelta reshape [262144]->[16,128,128].
         new_shape_node = ov::op::v0::Constant::create(ov::element::i64,

@@ -87,7 +87,6 @@ const ov::Output<ov::Node>& GraphEmitter::value(const std::string& name) const {
 std::string GraphEmitter::add_op(const std::string& op_type,
                                  const std::string& name,
                                  const std::vector<std::string>& inputs,
-                                 int op_case,
                                  std::map<std::string, ov::Any> attrs,
                                  std::vector<std::string> extra_outputs) {
     if (!inputs.empty() && ((op_type == "GGML_OP_MUL_MAT" && m_hadamard_weights.count(inputs[0])) ||
@@ -115,7 +114,6 @@ std::string GraphEmitter::add_op(const std::string& op_type,
     op.input_names = inputs;
     op.output_name = name;
     op.extra_output_names = std::move(extra_outputs);
-    op.op_case = op_case;
     op.attributes = std::move(attrs);
     m_graph->nodes.push_back(std::move(op));
     auto decoder = std::make_shared<GgufBuilderDecoder>(m_graph);
@@ -263,7 +261,7 @@ void GraphEmitter::emit_weight(const std::string& name, const GgufWeight& source
     if (m_emitted_weights.count(name)) {
         return;
     }
-    add_op("GGML_OP_NONE", name, {}, 0, {{"gguf_source", source}});
+    add_op("GGML_OP_NONE", name, {}, {{"gguf_source", source}});
     m_emitted_weights.insert(name);
 }
 
@@ -289,13 +287,12 @@ void GraphEmitter::add_weight_from(const std::string& node_name, const std::stri
     if (m_emitted_weights.count(node_name)) {
         return;
     }
-    derive_weight(node_name, "GGML_OP_VIEW", {src_base + ".weight"}, 3);
+    derive_weight(node_name, "GGML_OP_VIEW", {src_base + ".weight"}, {{"view_mode", std::string("identity")}});
 }
 
 std::string GraphEmitter::derive_weight(const std::string& name,
                                         const std::string& op_type,
                                         const std::vector<std::string>& sources,
-                                        int op_case,
                                         std::map<std::string, ov::Any> attrs) {
     OPENVINO_ASSERT(!sources.empty(), "[GGUF] derived weight requires sources: ", name);
     const bool rotated = m_hadamard_weights.count(sources.front()) > 0;
@@ -305,7 +302,7 @@ std::string GraphEmitter::derive_weight(const std::string& name,
                         "[GGUF] derived weight mixes Hadamard-rotated and plain sources: ",
                         name);
     }
-    add_op(op_type, name, sources, op_case, std::move(attrs));
+    add_op(op_type, name, sources, std::move(attrs));
     register_graph_weight(name, weight_qtype(sources.front()));
     if (rotated) {
         m_hadamard_weights.insert(name);

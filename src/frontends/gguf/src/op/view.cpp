@@ -425,12 +425,14 @@ OutputVector translate_kv_view(const NodeContext& context, const std::vector<int
 
 }  // namespace
 
-// Cases 2-5 are shared by both ingest paths: the llama.cpp cgraph decoder classifies a ggml view
-// into them (see ggml-decoder.cpp::compute_op_case) and the native .gguf builder describes its own
-// views the same way. The native builder can supply an optional second shape-reference input
-// for case 3 to preserve the runtime token layout. Builder-only case 104 also uses that input.
-// See its comment below and docs/frontend_design.md for the builder-only cases.
+// The decoder and native builder describe nontrivial views with explicit attributes. A second
+// input may provide the runtime shape for a packed recurrent output.
 OutputVector translate_view(const NodeContext& context) {
+    const auto view_mode = context.get_attribute<std::string>("view_mode", "auto");
+    FRONT_END_CHECK_IMPLEMENTED(view_mode == "auto" || view_mode == "weight_gather" || view_mode == "input_view" ||
+                                    view_mode == "interleaved" || view_mode == "gdn_output" || view_mode == "slice" ||
+                                    view_mode == "layer_slice" || view_mode == "identity",
+                                "Unsupported VIEW mode: " + view_mode);
     const auto kv_view = context.get_attribute<std::vector<int64_t>>("kv_view", {});
     if (!kv_view.empty()) {
         num_inputs_check(context, 1, 3);
@@ -438,8 +440,12 @@ OutputVector translate_view(const NodeContext& context) {
     }
     num_inputs_check(context, 1, 2);
 
-    // op_case 105 (builder): constant row or column permutation of a weight.
-    if (context.get_op_case() == 105) {
+    if (view_mode == "identity") {
+        num_inputs_check(context, 1, 1);
+        return {context.get_input(0)};
+    }
+
+    if (view_mode == "weight_gather") {
         const auto gather_indices = context.get_attribute<std::vector<int64_t>>("gather_indices");
         const auto axis = context.get_attribute<int64_t>("gather_axis");
         auto indices = ov::op::v0::Constant::create(ov::element::i64, {gather_indices.size()}, gather_indices);
@@ -458,14 +464,14 @@ OutputVector translate_view(const NodeContext& context) {
         return {context.get_input(0)};
     }
 
-    if (context.get_op_case() == 2) {
+    if (view_mode == "input_view") {
         auto dst_shape = context.get_output_shape().to_shape();
         return rename_outputs_with_suffix(
             {process_view_input(context, 0, static_cast<int>(dst_shape[2] * dst_shape[3]))},
             context.get_name());
     }
-    if (context.get_attribute<int>("op_case", 0) == 5) {
-        // qwen3.5 interleaved Q/gate split. The source is a contiguous [F, T] projection whose feature
+    if (view_mode == "interleaved") {
+        // Interleaved Q/gate split. The source is a contiguous [F, T] projection whose feature
         // axis packs G groups of `group_stride` elements, and this view selects a `inner_len`-wide
         // sub-block at `inner_off` within every group (e.g. Qcur_full packs [Q(256), gate(256)] per
         // head; the Q view takes inner [0,256), the gate view inner [256,512)). A plain contiguous
@@ -480,8 +486,8 @@ OutputVector translate_view(const NodeContext& context) {
         const int64_t inner_off = iw[2];
         const int64_t inner_len = iw[3];
 
-        // Restore the original ggml (base) shape if the OV input was already reshaped, mirroring
-        // op_case 3. The base is [F, T] (ggml) == OV [.., T, F]; we then split F into G x group_stride.
+        // Restore the original ggml (base) shape if the OV input was already reshaped. The base is
+        // [F, T] (ggml) == OV [.., T, F]; we then split F into G x group_stride.
         auto input_ggml_shape = context.get_attribute<ov::Shape>("input_ggml_shape", {});
         auto input_ov_shape = input.get_partial_shape();
         if (!input_ggml_shape.empty() && input_ov_shape.rank().is_static() &&
@@ -521,8 +527,8 @@ OutputVector translate_view(const NodeContext& context) {
         }
         return rename_outputs_with_suffix({std::move(sliced)}, context.get_name());
     }
-    if (context.get_attribute<int>("op_case", 0) == 4) {
-        // qwen3-next GDN packed output view. The GATED_DELTA_NET result is [1, 1, T + S_v, S_v*H_v]
+    if (view_mode == "gdn_output") {
+        // GDN packed output view. The GATED_DELTA_NET result is [1, 1, T + S_v, S_v*H_v]
         // with the T attention rows stacked on top of the S_v recurrent-state rows (see
         // translate_gated_delta_net). attn_output-0 reads the first T rows; new_state-0 reads the last
         // S_v rows. T (token count) is dynamic, S_v is static, so we slice OV axis 2 with bounds
@@ -563,8 +569,9 @@ OutputVector translate_view(const NodeContext& context) {
         }
         return rename_outputs_with_suffix({std::move(sliced)}, context.get_name());
     }
-    if (context.get_op_case() == 3 || !context.get_attribute<std::vector<int64_t>>("view_slice", {}).empty() ||
-        !context.get_attribute<std::vector<int64_t>>("view_reshape", {}).empty()) {
+    if (view_mode != "layer_slice" &&
+        (view_mode == "slice" || !context.get_attribute<std::vector<int64_t>>("view_slice", {}).empty() ||
+         !context.get_attribute<std::vector<int64_t>>("view_reshape", {}).empty() || context.get_input_size() == 2)) {
         auto input = context.get_input(0);
         auto input_ov_shape = input.get_partial_shape();
         auto input_ggml_shape = context.get_attribute<ov::Shape>("input_ggml_shape", {});
@@ -649,9 +656,9 @@ OutputVector translate_view(const NodeContext& context) {
         }
         return rename_outputs_with_suffix({std::move(result)}, context.get_name());
     }
-    // op_case 104 (builder): layer-index slice for per-layer embedding.
+    // Layer-index slice for per-layer embedding.
     // Input [1, n_layer, T, D] -> slice the layer axis (1) -> [1, 1, T, D].
-    if (context.get_op_case() == 104) {
+    if (view_mode == "layer_slice") {
         const int64_t layer_idx = context.get_attribute<int64_t>("layer_idx");
         auto input = context.get_input(0);
         auto start = ov::op::v0::Constant::create(ov::element::i64, {1}, {layer_idx});
@@ -672,11 +679,11 @@ OutputVector translate_view(const NodeContext& context) {
             const auto& ref = context.get_input(1);
             const auto ref_rank = ref.get_partial_shape().rank();
             FRONT_END_OP_CONVERSION_CHECK(ref_rank.is_static(),
-                                          "VIEW case 104 shape reference must have a static rank");
+                                          "Layer-index VIEW shape reference must have a static rank");
             const auto d_ps = input.get_partial_shape();
             const int64_t rank = ref_rank.get_length();
             FRONT_END_OP_CONVERSION_CHECK(d_ps.rank().is_static() && d_ps[d_ps.rank().get_length() - 1].is_static(),
-                                          "VIEW case 104 requires a static per-layer embedding width");
+                                          "Layer-index VIEW requires a static per-layer embedding width");
             const int64_t d = d_ps[d_ps.rank().get_length() - 1].get_length();
 
             std::vector<int64_t> lead(rank - 1);

@@ -85,7 +85,7 @@ OutputVector translate_cpy(const NodeContext& context) {
             {std::make_shared<ov::op::v0::Concat>(ov::OutputVector{head, value, tail}, axis_value)},
             context.get_name());
     }
-    const int op_case = context.get_op_case();
+    const auto copy_mode = context.get_attribute<std::string>("copy_mode", "generic");
     auto type = context.get_attribute<ov::element::Type>("dst_type", ov::element::dynamic);
     if (type.is_dynamic() && context.get_input_size() > 1 && context.has_input(context.get_input_names()[1])) {
         type = context.get_input(1).get_element_type();
@@ -98,7 +98,8 @@ OutputVector translate_cpy(const NodeContext& context) {
     const auto input_shape = context.get_input_shape(0);
     const auto output_shape = context.get_output_shape();
 
-    if (op_case == 1 && (context.get_input_size() == 1 || !context.has_input(context.get_input_names()[1]))) {
+    if (copy_mode == "gdn_state" &&
+        (context.get_input_size() == 1 || !context.has_input(context.get_input_names()[1]))) {
         ov::Output<ov::Node> value = context.get_input(0);
         // The translated GDN value intentionally has a dynamic packed-row axis, while the CPY's
         // declared input layout may already be reinterpreted as the destination cache. Get the
@@ -119,17 +120,17 @@ OutputVector translate_cpy(const NodeContext& context) {
         return rename_outputs_with_suffix({std::move(res)}, context.get_name());
     }
 
-    if (op_case == 3 && input_shape.is_static() && ov::shape_size(input_shape.to_shape()) == 0) {
+    if (copy_mode == "empty_source" && input_shape.is_static() && ov::shape_size(input_shape.to_shape()) == 0) {
         return {context.get_input(1)};
     }
 
-    if (op_case == 5) {
+    if (copy_mode == "empty_compaction") {
         // Empty recurrent compaction is a true no-op. Do not rename the shared cache producer:
         // it can feed other nodes and its stable name is used by stateful passes/fingerprints.
         return {context.get_input(1)};
     }
 
-    if (op_case == 4) {
+    if (copy_mode == "direct_scatter") {
         ov::Output<ov::Node> src = context.get_input(0);
         auto base = context.get_input(1);
 
@@ -160,7 +161,8 @@ OutputVector translate_cpy(const NodeContext& context) {
 
     const std::string writeback_name = context.get_attribute<std::string>("rs_writeback_name", context.get_name());
     const std::string slot_begin_name = "rs_slot_begin_" + writeback_name;
-    if (context.has_input(slot_begin_name) && op_case >= 1 && op_case <= 3) {
+    if (context.has_input(slot_begin_name) &&
+        (copy_mode == "gdn_state" || copy_mode == "conv_state" || copy_mode == "recurrent_rows")) {
         const int64_t slot_axis = 2;
         auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
         auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
@@ -186,7 +188,7 @@ OutputVector translate_cpy(const NodeContext& context) {
 
         ov::Output<ov::Node> src;
         auto begin = context.get_input(slot_begin_name);
-        if (op_case == 1) {
+        if (copy_mode == "gdn_state") {
             const int64_t packed_width = context.get_attribute<int64_t>("gdn_packed_width", -1);
             FRONT_END_OP_CONVERSION_CHECK(packed_width > 0, "GDN writeback requires a static packed-row width");
             const int64_t state_rows = output_shape[3].get_length() / packed_width;
@@ -194,7 +196,7 @@ OutputVector translate_cpy(const NodeContext& context) {
             auto state_part = std::make_shared<ov::op::v8::Slice>(context.get_input(0), src_begin, int_max, one, axis);
             src = reshape_writeback(state_part);
             src.get_node_shared_ptr()->set_friendly_name("gdn_writeback_source_" + context.get_name());
-        } else if (op_case == 2) {
+        } else if (copy_mode == "conv_state") {
             const int64_t window_size = input_shape[3].get_length();
             const std::string src_begin_name = "rs_src_begin_" + writeback_name;
             ov::Output<ov::Node> window;
@@ -244,7 +246,7 @@ OutputVector translate_cpy(const NodeContext& context) {
     }
 
     ov::Output<ov::Node> value = context.get_input(0);
-    if (op_case == 2) {
+    if (copy_mode == "conv_state") {
         // A recurrent convolution update copies the trailing d_conv - 1 columns from the
         // [state | current chunk] window.  The VIEW carrying that slice can be folded out of the
         // decoder graph, so recover the logical window from its declared shape before flattening
@@ -261,7 +263,7 @@ OutputVector translate_cpy(const NodeContext& context) {
     }
 
     ov::Output<ov::Node> res = std::make_shared<ov::op::v0::Convert>(value, type);
-    if (context.get_attribute_as_any("op_case").empty()) {
+    if (copy_mode == "generic") {
         num_inputs_check(context, 1, 2);
         const auto target = context.get_attribute<std::vector<int64_t>>("reshape_target", {});
         if (!target.empty()) {

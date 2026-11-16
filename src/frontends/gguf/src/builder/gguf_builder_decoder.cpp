@@ -54,10 +54,6 @@ ov::Any GgufBuilderDecoder::get_attribute(const std::string& name) const {
     if (name == "output_shape")
         return ov::PartialShape::dynamic();
 
-    // Per-node op case (the op translators read it via get_attribute<int>("op_case", 0)).
-    if (name == "op_case")
-        return n.op_case;
-
     // Named op attributes
     auto it = n.attributes.find(name);
     return it != n.attributes.end() ? it->second : ov::Any{};

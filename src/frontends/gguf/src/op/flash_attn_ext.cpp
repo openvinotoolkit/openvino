@@ -75,14 +75,14 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
     auto q_f32 = context.get_input(0);
     auto k = context.get_input(1);
     auto v = context.get_input(2);
-    const auto op_case = context.get_op_case();
-    if (op_case == 1 || op_case == 2) {
-        const char* length_name = op_case == 1 ? "attention_size" : "attention_size_static";
+    const auto attention_layout = context.get_attribute<std::string>("attention_layout", "standard");
+    if (attention_layout == "flat_dynamic" || attention_layout == "flat_static") {
+        const char* length_name = attention_layout == "flat_dynamic" ? "attention_size" : "attention_size_static";
         FRONT_END_OP_CONVERSION_CHECK(context.has_input(length_name), "Flat FLASH_ATTN_EXT KV requires ", length_name);
         k = reshape_flat_kv(context, 1, k, context.get_input(length_name));
         v = reshape_flat_kv(context, 2, v, context.get_input(length_name));
     }
-    if (op_case == 100) {
+    if (attention_layout == "native") {
         const auto transpose = [](const ov::Output<Node>& value) -> ov::Output<Node> {
             return std::make_shared<ov::op::v1::Transpose>(
                 value,
@@ -282,19 +282,15 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
                             n_head_kv > 1 && shared_head_mask && kq_soft_cap == 0.0f && !has_sinks &&
                             k_shape[3] == q_shape[3] && v_shape[3] == q_shape[3];
 
-    // GPU fused SDPA works on key blocks: a block fully masked with -inf gives exp(-inf - -inf) = NaN. Clamp the mask
-    // to a large finite value and zero the fully masked rows explicitly.
+    // Keep -inf mask values intact; finite substitutes can make masked keys contribute to the result.
     ov::Output<ov::Node> fully_masked;
-    if (has_mask && (op_case != 100 || manual_gqa) && kq_soft_cap == 0.0f) {
+    if (has_mask && (attention_layout != "native" || manual_gqa) && kq_soft_cap == 0.0f) {
         const auto masked =
             std::make_shared<ov::op::v10::IsInf>(unscaled_mask, ov::op::v10::IsInf::Attributes(true, false));
         fully_masked =
             std::make_shared<ov::op::v1::ReduceLogicalAnd>(masked,
                                                            ov::op::v0::Constant::create(ov::element::i64, {1}, {3}),
                                                            true);
-        mask_sliced = std::make_shared<ov::op::v1::Maximum>(
-            mask_sliced,
-            ov::op::v0::Constant::create(mask_sliced.get_element_type(), {}, {-30000.0f}));
     }
 
     ov::Output<ov::Node> sdpa;

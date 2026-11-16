@@ -62,7 +62,6 @@ public:
     std::string add_op(const std::string& op_type,
                        const std::string& name,
                        const std::vector<std::string>& inputs,
-                       int op_case = 0,
                        std::map<std::string, ov::Any> attrs = {},
                        std::vector<std::string> extra_outputs = {});
 
@@ -81,7 +80,6 @@ public:
     std::string derive_weight(const std::string& name,
                               const std::string& op_type,
                               const std::vector<std::string>& sources,
-                              int op_case,
                               std::map<std::string, ov::Any> attrs = {});
 
     bool weight_emitted(const std::string& name) const {

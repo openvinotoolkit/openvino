@@ -228,7 +228,8 @@ OutputVector translate_win_unpart(const NodeContext& context) {
 
 OutputVector translate_get_rel_pos(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
-    FRONT_END_OP_CONVERSION_CHECK(context.get_op_case() == 1, "Indexed relative positions require case 1");
+    FRONT_END_OP_CONVERSION_CHECK(context.get_attribute<bool>("relative_shift", false),
+                                  "Indexed relative positions require relative_shift");
     using namespace ov::op;
     auto table = context.get_input(0), indices = context.get_input(1);
     const auto& c = i64_const;

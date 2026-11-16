@@ -25,22 +25,22 @@ namespace ov::frontend::gguf::op {
 OutputVector translate_permute(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
 
-    int op_case = context.get_op_case();
-    FRONT_END_OP_CONVERSION_CHECK(op_case != 0 || !context.get_attribute_as_any("perm").empty(),
-                                  "PERMUTE requires a permutation descriptor");
-    FRONT_END_CHECK_IMPLEMENTED(op_case >= 0 && op_case <= 4, "Unsupported PERMUTE case");
-
     ov::Output<Node> res;
     auto src = context.get_input(0);
+    const auto mode = context.get_attribute<std::string>("permute_mode", "plain");
+    FRONT_END_CHECK_IMPLEMENTED(mode == "plain" || mode == "cache" || mode == "active_cache",
+                                "Unsupported PERMUTE mode: " + mode);
+    FRONT_END_OP_CONVERSION_CHECK(mode != "plain" || !context.get_attribute_as_any("perm").empty(),
+                                  "PERMUTE requires a permutation descriptor");
     auto perm_order = context.get_attribute<std::vector<int64_t>>("perm", {0, 2, 1, 3});
-    if (op_case <= 1 && src.get_partial_shape().rank() == 3 && perm_order.size() == 4 && perm_order[0] == 0) {
+    if (mode == "plain" && src.get_partial_shape().rank() == 3 && perm_order.size() == 4 && perm_order[0] == 0) {
         perm_order = {perm_order[1] - 1, perm_order[2] - 1, perm_order[3] - 1};
     }
     auto perm = ov::op::v0::Constant::create(ov::element::i64, {perm_order.size()}, perm_order);
 
-    if (op_case <= 1) {
+    if (mode == "plain") {
         res = std::make_shared<ov::op::v1::Transpose>(src, perm);
-    } else if (op_case == 4) {
+    } else if (mode == "active_cache") {
         auto output_shape = context.get_output_shape().to_shape();
         const auto n_heads = static_cast<int64_t>(output_shape[1]);
         const auto head_size = static_cast<int64_t>(output_shape[3]);

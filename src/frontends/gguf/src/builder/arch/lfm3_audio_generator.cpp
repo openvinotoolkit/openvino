@@ -33,13 +33,13 @@ public:
 
 private:
     GgufValue reshape(const GgufValue& x, const std::vector<int64_t>& shape) {
-        return g.node("GGML_OP_RESHAPE", {x}, 0, {{"reshape_target", shape}});
+        return g.node("GGML_OP_RESHAPE", {x}, {{"reshape_target", shape}});
     }
     GgufValue slice(const GgufValue& x, int axis, int64_t start, int64_t length) {
-        return g.node("GGML_OP_VIEW", {x}, 3, {{"view_slice", std::vector<int64_t>{axis, start, length}}});
+        return g.node("GGML_OP_VIEW", {x}, {{"view_slice", std::vector<int64_t>{axis, start, length}}});
     }
     GgufValue concat(const GgufValue& x, const GgufValue& y, int axis) {
-        return g.node("GGML_OP_CONCAT", {x, y}, 0, {{"concat_axis", axis}});
+        return g.node("GGML_OP_CONCAT", {x, y}, {{"concat_axis", axis}});
     }
     GgufValue add(const GgufValue& x, const GgufValue& y) {
         return g.node("GGML_OP_ADD", {x, y});
@@ -91,8 +91,8 @@ private:
         rope.freq_scale = 1.f;
         rope.attn_factor = 1.f;
         rope.per_op = true;
-        q = g.node("GGML_OP_ROPE", {q, positions}, 1 << 16, {{"rope_config", rope}});
-        k = g.node("GGML_OP_ROPE", {k, positions}, 1 << 16, {{"rope_config", rope}});
+        q = g.node("GGML_OP_ROPE", {q, positions}, {{"rope_mode", std::string("neox")}, {"rope_config", rope}});
+        k = g.node("GGML_OP_ROPE", {k, positions}, {{"rope_mode", std::string("neox")}, {"rope_config", rope}});
         if (streaming) {
             const auto state = [&](const std::string& kind, const GgufValue& current) {
                 auto input = g.add_input("audio.codec.state." + kind + "." + std::to_string(layer),
@@ -110,8 +110,9 @@ private:
             inputs.push_back(mask);
         auto output = g.node("GGML_OP_FLASH_ATTN_EXT",
                              inputs,
-                             100,
-                             {{"f32_attention", true}, {"scale", 1.f / std::sqrt(float(head))}});
+                             {{"f32_attention", true},
+                              {"scale", 1.f / std::sqrt(float(head))},
+                              {"attention_layout", std::string("native")}});
         if (auto gate_weight = g.tensors()(prefix + "attn_gate.weight")) {
             OPENVINO_ASSERT(gate_weight.ne(1) == qwidth / head,
                             "[GGUF] LFM3 audio requires one sigmoid gate per query head");
@@ -171,7 +172,7 @@ private:
             auto revealed = slice(mask, 3, book, 1);
             token = add(mul(token, revealed),
                         mul(g.tensors().require("a.gen.code.mask_embd"),
-                            g.node("GGML_OP_SCALE", {revealed}, 0, {{"scale", -1.f}, {"bias", 1.f}})));
+                            g.node("GGML_OP_SCALE", {revealed}, {{"scale", -1.f}, {"bias", 1.f}})));
             token = reshape(token, {-1, 1, 1, width});
             embedded = embedded ? concat(embedded, token, 1) : token;
         }
@@ -221,14 +222,13 @@ private:
         const auto channels = current.ne(0);
         current = g.node("GGML_OP_REPEAT",
                          {reshape(current, {1, -1, 1, channels})},
-                         0,
                          {{"repeats", std::vector<int64_t>{1, 1, 6, 1}}});
         current = reshape(current, {1, 1, -1, channels});
         const auto positions = g.add_input("audio.codec.positions", ov::element::i32, {1, 1, 1, -1});
         const auto mask = g.add_input("audio.codec.attention_mask", ov::element::f32, {1, 1, -1, -1});
         const auto position = g.add_input("audio.codec.state.pos", ov::element::f32, {1, 1, 1, 1});
         auto count = g.node("GGML_OP_TRANSPOSE", {slice(current, 3, 0, 1)});
-        count = g.node("GGML_OP_SUM_ROWS", {g.node("GGML_OP_FILL", {count}, 0, {{"fill_value", 1.f}})});
+        count = g.node("GGML_OP_SUM_ROWS", {g.node("GGML_OP_FILL", {count}, {{"fill_value", 1.f}})});
         g.add_recurrent_state(position, add(position, count));
         int layer = 0;
         for (; g.tensors().has("a.gen.wav.tfm.blk." + std::to_string(layer) + ".ln1.weight"); ++layer)

@@ -170,7 +170,7 @@ TEST(GGUFBuilderAPI, GeneratedNamesDoNotOverwriteInputs) {
     Environment env;
     GgufGraphContext graph(env.context);
     auto input = graph.add_input("GGML_OP_SCALE_0", ov::element::f32, {1, 1, 1, 4});
-    auto output = graph.node("GGML_OP_SCALE", {input}, 0, {{"scale", 2.f}});
+    auto output = graph.node("GGML_OP_SCALE", {input}, {{"scale", 2.f}});
     EXPECT_NE(output.name(), input.name());
     EXPECT_THROW(graph.add_input(output.name(), ov::element::f32, input.shape()), ov::Exception);
     graph.set_output(input);
@@ -229,8 +229,7 @@ TEST(GGUFBuilderAPI, GeneralReshapeDoesNotCopyTheAttentionBatchAxis) {
     Environment env;
     GgufGraphContext graph(env.context);
     auto input = graph.add_input("x", ov::element::f32, {2, 3, 4, 5});
-    graph.set_output(
-        graph.node("GGML_OP_RESHAPE", {input}, 6, {{"reshape_target", std::vector<int64_t>{1, 4, 3, 10}}}));
+    graph.set_output(graph.node("GGML_OP_RESHAPE", {input}, {{"reshape_target", std::vector<int64_t>{1, 4, 3, 10}}}));
     auto model = convert(graph.finish());
     EXPECT_EQ(model->output().get_shape(), (ov::Shape{1, 4, 3, 10}));
     ov::Tensor data(ov::element::f32, {2, 3, 4, 5});
@@ -245,8 +244,7 @@ TEST(GGUFBuilderAPI, ExplicitInferredReshapeRemainsDynamicAcrossTokenCounts) {
     Environment env;
     GgufGraphContext graph(env.context);
     auto input = graph.add_input("x", ov::element::f32, {1, 1, -1, 8});
-    graph.set_output(
-        graph.node("GGML_OP_RESHAPE", {input}, 6, {{"reshape_target", std::vector<int64_t>{1, -1, 2, 4}}}));
+    graph.set_output(graph.node("GGML_OP_RESHAPE", {input}, {{"reshape_target", std::vector<int64_t>{1, -1, 2, 4}}}));
     auto model = convert(graph.finish());
     for (size_t tokens : {1u, 3u, 7u}) {
         ov::Tensor data(ov::element::f32, {1, 1, tokens, 8});
@@ -332,7 +330,7 @@ TEST(GGUFBuilderAPI, RecurrentStateDeclarationReachesMakeStateful) {
     auto input = graph.add_input("x", ov::element::f32, {1, 1, 1, 4});
     auto update = graph.node("GGML_OP_ADD", {state, input});
     graph.add_recurrent_state(state, update);
-    const auto output = graph.node("GGML_OP_SCALE", {update}, 0, {{"scale", float{2}}, {"bias", 0.0f}});
+    const auto output = graph.node("GGML_OP_SCALE", {update}, {{"scale", float{2}}, {"bias", 0.0f}});
     graph.set_primary_output(output);
     const auto built = graph.finish();
     ASSERT_EQ(built->model_output_names.front(), output.name());
@@ -492,10 +490,9 @@ TEST(GGUFBuilderAPI, SingleHeadSplitPreservesDynamicTokens) {
     auto input = graph.add_input("x", ov::element::f32, {1, 1, -1, 8});
     auto heads = graph.node("GGML_OP_RESHAPE",
                             {input},
-                            6,
                             {{"reshape_target", std::vector<int64_t>{0, -1, 1, 8}}, {"special_zero", true}});
     graph.set_output(heads);
-    graph.set_output(graph.node("GGML_OP_RESHAPE", {heads}, 2, {{"merge_heads", true}}));
+    graph.set_output(graph.node("GGML_OP_RESHAPE", {heads}, {{"merge_heads", true}}));
     auto model = convert(graph.finish());
     ov::Tensor data(ov::element::f32, {1, 1, 3, 8});
     std::iota(data.data<float>(), data.data<float>() + data.get_size(), 1.0f);
@@ -817,7 +814,7 @@ TEST(GGUFBuilderAPI, BroadcastAndConcatShapesComeFromOpenVINO) {
     auto b = graph.add_input("b", ov::element::f32, {1, 3, 1, 4});
     auto sum = graph.node("GGML_OP_ADD", {a, b});
     EXPECT_EQ(sum.shape(), (ov::PartialShape{2, 3, -1, 4}));
-    auto joined = graph.node("GGML_OP_CONCAT", {sum, sum}, 0, {{"concat_axis", 0}});
+    auto joined = graph.node("GGML_OP_CONCAT", {sum, sum}, {{"concat_axis", 0}});
     EXPECT_EQ(joined.shape(), (ov::PartialShape{2, 3, -1, 8}));
     auto output = graph.node("GGML_OP_TRANSPOSE", {joined});
     EXPECT_EQ(output.shape(), (ov::PartialShape{2, 3, 8, -1}));
@@ -841,10 +838,10 @@ TEST(GGUFBuilderAPI, GenericNodesNeedOnlySemanticAttributes) {
     Environment env;
     GgufGraphContext graph(env.context);
     auto input = graph.add_input("x", ov::element::f32, {1, 1, -1, 5});
-    auto selected = graph.node("GGML_OP_TOP_K", {input}, 0, {{"k", int64_t{2}}});
+    auto selected = graph.node("GGML_OP_TOP_K", {input}, {{"k", int64_t{2}}});
     EXPECT_EQ(selected.shape(), (ov::PartialShape{1, 1, -1, 2}));
     EXPECT_EQ(selected.type(), ov::element::i32);
-    auto repeated = graph.node("GGML_OP_REPEAT", {selected}, 0, {{"repeats", std::vector<int64_t>{1, 2, 1, 3}}});
+    auto repeated = graph.node("GGML_OP_REPEAT", {selected}, {{"repeats", std::vector<int64_t>{1, 2, 1, 3}}});
     EXPECT_EQ(repeated.shape(), (ov::PartialShape{1, 2, -1, 6}));
     graph.set_output(repeated);
     auto model = convert(graph.finish());
@@ -855,7 +852,7 @@ TEST(GGUFBuilderAPI, MergeHeadsAcceptsRuntimeTokenAndHeadDimensions) {
     Environment env;
     GgufGraphContext graph(env.context);
     auto input = graph.add_input("x", ov::element::f32, {2, -1, 3, -1});
-    auto merged = graph.node("GGML_OP_RESHAPE", {input}, 2, {{"merge_heads", true}});
+    auto merged = graph.node("GGML_OP_RESHAPE", {input}, {{"merge_heads", true}});
     EXPECT_EQ(merged.shape(), (ov::PartialShape{2, 1, -1, -1}));
     graph.set_output(merged);
     auto model = convert(graph.finish());
@@ -876,9 +873,9 @@ TEST(GGUFBuilderAPI, ViewReusesWholeConcatInputsAndPreservesNames) {
     GgufGraphContext graph(env.context);
     auto prefix = graph.add_input("prefix", ov::element::f32, {1, 2, 1, -1});
     auto suffix = graph.add_input("suffix", ov::element::f32, {1, 2, 1, 3});
-    auto packed = graph.node("GGML_OP_CONCAT", {prefix, suffix}, 0, {{"concat_axis", 0}});
+    auto packed = graph.node("GGML_OP_CONCAT", {prefix, suffix}, {{"concat_axis", 0}});
     for (const auto& slice : std::vector<std::vector<int64_t>>{{3, 0, -3}, {3, -3, 3}, {3, 0, -2}})
-        graph.set_output(graph.node("GGML_OP_VIEW", {packed}, 3, {{"view_slice", slice}}));
+        graph.set_output(graph.node("GGML_OP_VIEW", {packed}, {{"view_slice", slice}}));
     auto model = convert(graph.finish());
     EXPECT_EQ(model->get_results()[0]->input_value(0), model->input("prefix"));
     EXPECT_EQ(model->get_results()[1]->input_value(0), model->input("suffix"));
@@ -901,8 +898,7 @@ TEST(GGUFBuilderAPI, GenericNodesValidateAttributesThroughConverters) {
         auto input = graph.add_input("x", ov::element::f32, {1, 1, 2, 4});
         const auto inputs =
             invalid.first == "GGML_OP_CONCAT" ? std::vector<GgufValue>{input, input} : std::vector<GgufValue>{input};
-        const int op_case = invalid.first == "GGML_OP_PERMUTE" ? 1 : 0;
-        EXPECT_THROW(graph.node(invalid.first, inputs, op_case, invalid.second), ov::Exception);
+        EXPECT_THROW(graph.node(invalid.first, inputs, invalid.second), ov::Exception);
     }
 }
 
@@ -925,7 +921,9 @@ TEST(GGUFBuilderAPI, GenericRopeNodesPreserveModelPositionContract) {
             auto input = graph.add_input("x", ov::element::f32, {1, -1, 2, 4});
             auto positions = graph.build_inp_pos();
             auto rotated =
-                graph.node("GGML_OP_ROPE", {input, positions}, (multimodal ? 2 : 1) << 16, {{"rope_config", config}});
+                graph.node("GGML_OP_ROPE",
+                           {input, positions},
+                           {{"rope_mode", std::string(multimodal ? "imrope" : "neox")}, {"rope_config", config}});
             EXPECT_EQ(rotated.shape(), input.shape());
             graph.set_output(rotated);
             auto built = graph.finish();
@@ -1005,8 +1003,8 @@ TEST(GGUFBuilderAPI, ElementwiseNodesPreserveF16) {
     auto input = graph.add_input("x", ov::element::f16, {1, 1, 1, 4});
     auto sum = graph.node("GGML_OP_ADD", {input, input});
     auto ratio = graph.node("GGML_OP_DIV", {sum, input});
-    auto joined = graph.node("GGML_OP_CONCAT", {ratio, ratio}, 0, {{"concat_axis", 0}});
-    auto output = graph.node("GGML_OP_FILL", {joined}, 0, {{"fill_value", 3.f}});
+    auto joined = graph.node("GGML_OP_CONCAT", {ratio, ratio}, {{"concat_axis", 0}});
+    auto output = graph.node("GGML_OP_FILL", {joined}, {{"fill_value", 3.f}});
     for (const auto& value : {sum, ratio, joined, output}) {
         EXPECT_EQ(value.type(), ov::element::f16);
     }
@@ -1022,7 +1020,7 @@ TEST(GGUFBuilderAPI, CopyAndStateWritesUseDestinationType) {
     auto indices = graph.add_input("ids", ov::element::i32, {1, 1, 1, 1});
     auto source = graph.add_input("src", ov::element::f32, {1, 1, 1, 4});
     auto copy = graph.node("GGML_OP_CPY", {source, destination});
-    auto set = graph.node("GGML_OP_SET", {destination, source}, 0, {{"set_offset_elems", int64_t{0}}});
+    auto set = graph.node("GGML_OP_SET", {destination, source}, {{"set_offset_elems", int64_t{0}}});
     auto rows = graph.node("GGML_OP_SET_ROWS", {source, indices, destination});
     for (const auto& value : {copy, set, rows}) {
         EXPECT_EQ(value.type(), ov::element::f16);
@@ -1047,9 +1045,9 @@ TEST(GGUFBuilderAPI, CastAndIm2colRequireExplicitDestinationType) {
             inputs = {kernel, input};
             attrs["im2col_params"] = std::vector<int32_t>{1, 0, 0, 0, 1, 0, 0};
         }
-        EXPECT_THROW(graph.node(op, inputs, 0, attrs), ov::Exception);
+        EXPECT_THROW(graph.node(op, inputs, attrs), ov::Exception);
         attrs["dst_type"] = ov::element::f16;
-        auto output = graph.node(op, inputs, 0, attrs);
+        auto output = graph.node(op, inputs, attrs);
         EXPECT_EQ(output.type(), ov::element::f16);
     }
 }

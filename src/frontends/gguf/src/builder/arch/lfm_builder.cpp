@@ -161,16 +161,16 @@ GgufValue build_lfm_short_conv(GgufGraphContext& g,
                                const std::string& state_name,
                                bool batch_major) {
     const auto slice = [&](const GgufValue& value, int64_t start, int64_t length) {
-        return g.node("GGML_OP_VIEW", {value}, 3, {{"view_slice", std::vector<int64_t>{3, start, length}}});
+        return g.node("GGML_OP_VIEW", {value}, {{"view_slice", std::vector<int64_t>{3, start, length}}});
     };
     const auto taps = conv_weight.ne(0) - 1;
     const auto bx =
         g.node("GGML_OP_TRANSPOSE",
                {g.node("GGML_OP_MUL", {slice(projected, 0, channels), slice(projected, 2 * channels, channels)})});
     const auto state = g.add_input(state_name, ov::element::f32, {1, 1, channels, taps});
-    const auto window = g.node("GGML_OP_CONCAT", {state, bx}, 0, {{"concat_axis", 0}});
+    const auto window = g.node("GGML_OP_CONCAT", {state, bx}, {{"concat_axis", 0}});
     g.add_recurrent_state(state, slice(window, -taps, taps));
-    const auto conv = g.node("GGML_OP_SSM_CONV", {window, conv_weight}, 0, {{"batch_major", batch_major}});
+    const auto conv = g.node("GGML_OP_SSM_CONV", {window, conv_weight}, {{"batch_major", batch_major}});
     return g.node("GGML_OP_MUL", {slice(projected, channels, channels), conv});
 }
 std::shared_ptr<ModelBuilder> make_lfm_builder(const BuildContext& context) {

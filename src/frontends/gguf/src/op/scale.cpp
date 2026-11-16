@@ -33,8 +33,8 @@ OutputVector translate_scale(const NodeContext& context) {
     }
     bool updated_cache = false;
     const bool operand_range = context.get_input_size() == 3;
-    if (operand_range || (context.get_op_case() == 1 && context.has_input("cache_rs_reset_idx") &&
-                          context.has_input("cache_rs_reset_len"))) {
+    if (operand_range || (context.get_attribute<bool>("cache_reset", false) &&
+                          context.has_input("cache_rs_reset_idx") && context.has_input("cache_rs_reset_len"))) {
         auto begin = operand_range ? context.get_input(1) : context.get_input("cache_rs_reset_idx");
         auto length = operand_range ? context.get_input(2) : context.get_input("cache_rs_reset_len");
         auto end = std::make_shared<ov::op::v1::Add>(begin, length);

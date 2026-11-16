@@ -49,10 +49,6 @@ enum class EncoderTopology {
     OCR2
 };
 
-// ggml rope mode bits, as passed in the op_case.
-constexpr int ROPE_NEOX = 1 << 16;
-constexpr int ROPE_VISION = 3 << 16;
-
 // Per-projector traits follow llama.cpp's clip.cpp choices.
 enum ProjectorTraits : unsigned {
     RMS_NORM = 1,     // encoder norms are RMS rather than layer norms
@@ -285,13 +281,10 @@ private:
     int64_t muse_window = 0;
 
     GgufValue reshape(const GgufValue& x, std::vector<int64_t> shape, bool special_zero = false) {
-        return g.node("GGML_OP_RESHAPE",
-                      {x},
-                      0,
-                      {{"reshape_target", std::move(shape)}, {"special_zero", special_zero}});
+        return g.node("GGML_OP_RESHAPE", {x}, {{"reshape_target", std::move(shape)}, {"special_zero", special_zero}});
     }
     GgufValue transpose(const GgufValue& x, std::vector<int64_t> perm = {0, 1, 3, 2}) {
-        return g.node("GGML_OP_TRANSPOSE", {x}, 0, {{"perm", std::move(perm)}});
+        return g.node("GGML_OP_TRANSPOSE", {x}, {{"perm", std::move(perm)}});
     }
     GgufValue add(const GgufValue& x, const GgufValue& y) {
         return g.node("GGML_OP_ADD", {x, y});
@@ -300,13 +293,13 @@ private:
         return g.node("GGML_OP_MUL", {x, y});
     }
     GgufValue scale(const GgufValue& x, float value, float bias = 0.f) {
-        return g.node("GGML_OP_SCALE", {x}, 0, {{"scale", value}, {"bias", bias}});
+        return g.node("GGML_OP_SCALE", {x}, {{"scale", value}, {"bias", bias}});
     }
     GgufValue slice(const GgufValue& x, int64_t axis, int64_t begin, int64_t count) {
-        return g.node("GGML_OP_VIEW", {x}, 3, {{"view_slice", std::vector<int64_t>{axis, begin, count}}});
+        return g.node("GGML_OP_VIEW", {x}, {{"view_slice", std::vector<int64_t>{axis, begin, count}}});
     }
     GgufValue concat(const GgufValue& a, const GgufValue& b, int64_t axis = 0) {
-        return g.node("GGML_OP_CONCAT", {a, b}, 0, {{"concat_axis", axis}});
+        return g.node("GGML_OP_CONCAT", {a, b}, {{"concat_axis", axis}});
     }
     GgufValue grid(const GgufValue& x, const GgufValue& reference, int64_t width) {
         return reshape_like(x, reference, {1, width, 0, 0}, {-1, -1, 2, 3});
@@ -357,7 +350,9 @@ private:
         std::vector<GgufValue> inputs{q, k, v};
         if (mask)
             inputs.push_back(mask);
-        return g.node("GGML_OP_FLASH_ATTN_EXT", inputs, 100, {{"f32_attention", true}, {"scale", factor}});
+        return g.node("GGML_OP_FLASH_ATTN_EXT",
+                      inputs,
+                      {{"f32_attention", true}, {"scale", factor}, {"attention_layout", std::string("native")}});
     }
     GgufValue patch_embeddings(const GgufValue& spatial, int64_t width, bool with_bias = true) {
         auto x = transpose(reshape(spatial, {1, 1, width, -1}));
@@ -379,12 +374,12 @@ private:
         return linear(y, down, with_bias);
     }
     GgufValue pool(const GgufValue& x, int64_t kx, int64_t ky) {
-        // op_case 2: average pooling; params are kx, ky, sx, sy, px, py.
+        // Average pooling; params are kx, ky, sx, sy, px, py.
         return g.node(
             "GGML_OP_POOL_2D",
             {x},
-            2,
-            {{"pool_params", std::vector<int32_t>{int32_t(kx), int32_t(ky), int32_t(kx), int32_t(ky), 0, 0}}});
+            {{"pool_mode", std::string("average")},
+             {"pool_params", std::vector<int32_t>{int32_t(kx), int32_t(ky), int32_t(kx), int32_t(ky), 0, 0}}});
     }
     GgufValue vit(GgufValue x,
                   const EncoderConfig& c,
@@ -501,23 +496,23 @@ private:
         const auto head = int(c.width / c.heads);
         RopeConfig r;
         r.freq_scale = r.attn_factor = 1.f;
-        const auto rope = [&](const GgufValue& value, const GgufValue& pos, int mode) {
-            return g.node("GGML_OP_ROPE", {value, pos}, mode, {{"rope_config", r}});
+        const auto rope = [&](const GgufValue& value, const GgufValue& pos, const std::string& mode) {
+            return g.node("GGML_OP_ROPE", {value, pos}, {{"rope_mode", mode}, {"rope_config", r}});
         };
         if (c.topology == EncoderTopology::OCR2) {
             r.n_dims = head;
             r.freq_base = 1000000.f;
-            return rope(x, positions, ROPE_NEOX);
+            return rope(x, positions, "neox");
         }
         r.n_dims = head / 2;
         if (!positions_b) {
             r.freq_base = 10000.f;
             r.sections.fill(int32_t(head / 4));
-            return rope(x, positions, ROPE_VISION);
+            return rope(x, positions, "vision");
         }
         // Two position axes, each rotating one half of the head.
         const bool gemma4 = c.topology == EncoderTopology::GEMMA4;
-        const int mode = gemma4 ? ROPE_NEOX : 0;
+        const std::string mode = gemma4 ? "neox" : "normal";
         r.freq_base = gemma4 ? 100.f : 10000.f;
         auto a = rope(slice(x, 3, 0, r.n_dims), positions, mode);
         if (c.topology == EncoderTopology::PIXTRAL)
@@ -535,7 +530,6 @@ private:
         OPENVINO_ASSERT(side * side == table.ne(1), "[GGUF] ", family, " position table must be square");
         return g.node("GGML_OP_UPSCALE",
                       {transpose(reshape(table, {1, side, side, width}), {0, 3, 1, 2}), like},
-                      0,
                       {{"resize_like", true}, {"interpolation_mode", interpolation_mode}});
     }
     GgufValue index_input(const std::string& name) {
@@ -612,7 +606,6 @@ private:
     GgufValue convolution(const GgufValue& pixels, const GgufValue& weight, int64_t stride, int64_t padding = 0) {
         return g.node("GGML_OP_CONV_2D",
                       {weight, pixels},
-                      0,
                       {{"conv_params", std::vector<int64_t>{stride, stride, padding, padding, 1, 1}}});
     }
     GgufValue convolution(const GgufValue& pixels, const std::string& weight, int64_t stride, int64_t padding = 0) {
@@ -621,7 +614,6 @@ private:
     GgufValue unfold(const GgufValue& x, int64_t channels, int64_t kernel) {
         return g.node("GGML_OP_IM2COL",
                       {x},
-                      0,
                       {{"im2col_params", std::vector<int32_t>{int32_t(kernel), int32_t(kernel), 0, 0, 1, 1, 1}},
                        {"kernel_shape", ov::Shape{1, size_t(channels), size_t(kernel), size_t(kernel)}},
                        {"dst_type", ov::element::f32}});
@@ -859,7 +851,6 @@ private:
                            std::vector<int64_t> axes) {
         return g.node("GGML_OP_RESHAPE",
                       {x, reference},
-                      0,
                       {{"reshape_target", std::move(pattern)}, {"shape_axes", std::move(axes)}});
     }
     GgufValue sam(const GgufValue& pixels) {
@@ -876,7 +867,6 @@ private:
         pos = reshape(pos, {1, pos.ne(2), pos.ne(1), width});
         pos = g.node("GGML_OP_UPSCALE",
                      {transpose(pos, {0, 3, 1, 2}), transpose(x, {0, 3, 1, 2})},
-                     0,
                      {{"resize_like", true}, {"interpolation_mode", 2}});
         x = add(x, transpose(pos, {0, 2, 3, 1}));
         auto local = g.add_input("vision.relative_indices_local", ov::element::i32, {1, 1, window, window});
@@ -886,7 +876,7 @@ private:
             const bool global_layer = i == 2 || i == 5 || i == 8 || i == 11;
             auto z = norm(x, p + "pre_ln", 1e-6f);
             if (!global_layer)
-                z = g.node("GGML_OP_WIN_PART", {z}, 0, {{"window", window}});
+                z = g.node("GGML_OP_WIN_PART", {z}, {{"window", window}});
             auto geometry = z;
             auto qkv = linear(z, p + "attn.qkv");
             const auto project = [&](int part) {
@@ -897,7 +887,7 @@ private:
             const auto rel_pos = [&](const std::string& axis) {
                 return g.node("GGML_OP_GET_REL_POS",
                               {g.tensors().require(p + "attn.pos_" + axis + ".weight"), global_layer ? global : local},
-                              1);
+                              {{"relative_shift", true}});
             };
             auto rw = rel_pos("w");
             auto rh = rel_pos("h");
@@ -909,7 +899,7 @@ private:
             z = attention(q, k, v, 1.f / std::sqrt(float(head)), mask);
             z = linear(reshape_like(z, geometry, {0, 0, 0, 0}, {0, 1, 2, 3}), p + "attn.out");
             if (!global_layer)
-                z = g.node("GGML_OP_WIN_UNPART", {z, x}, 0, {{"window", window}});
+                z = g.node("GGML_OP_WIN_UNPART", {z, x}, {{"window", window}});
             x = add(x, z);
             x = add(x, ffn(norm(x, p + "post_ln", 1e-6f), p + "mlp.lin1", p + "mlp.lin2", "GGML_UNARY_OP_GELU"));
         }
@@ -933,7 +923,7 @@ private:
             auto positions = index_input("position_ids");
             auto mask = g.add_input("vision.attention_mask", ov::element::f32, {1, 1, -1, -1});
             x = vit(x, c, {}, positions, mask);
-            x = g.node("GGML_OP_GET_ROWS", {x, index_input("query_output_indices")}, 4);
+            x = g.node("GGML_OP_GET_ROWS", {x, index_input("query_output_indices")}, {{"gather_rows", true}});
         } else {
             auto cls = reshape(g.tensors().require("v.class_embd"), {1, 1, 1, c.width});
             // Repeat the class token once per independently encoded tile.
@@ -948,9 +938,8 @@ private:
             auto old = slice(original, 2, 0, side * side);
             auto resized = g.node("GGML_OP_UPSCALE",
                                   {old, slice(spatial, 0, 0, 1)},
-                                  0,
                                   {{"resize_like", true}, {"interpolation_mode", 2}});
-            resized = g.node("GGML_OP_REPEAT", {resized}, 0, {{"repeats", std::vector<int64_t>{1, c.width, 1, 1}}});
+            resized = g.node("GGML_OP_REPEAT", {resized}, {{"repeats", std::vector<int64_t>{1, c.width, 1, 1}}});
             resized = reshape(resized, {1, 1, -1, c.width});
             auto cls_pos = slice(reshape(pos, {1, 1, 1, -1}), 3, side * side / int64_t(pos.type().size()), c.width);
             auto tables = concat(original, concat(resized, cls_pos, 1), 1);
@@ -977,7 +966,6 @@ private:
             const int64_t stride = i == 0 || depthwise ? 2 : 1;
             x = g.node("GGML_OP_CONV_2D",
                        {g.tensors().require(p + ".weight"), x},
-                       0,
                        {{"conv_params", std::vector<int64_t>{stride, stride, stride - 1, stride - 1, 1, 1}},
                         {"depthwise", depthwise}});
             x = add(x, g.tensors().require(p + ".bias"));
@@ -1011,10 +999,9 @@ private:
                 transpose(reshape(linear(positions, p + "linear_pos", false), {1, -1, c.heads, head}), {0, 2, 1, 3});
             auto content = g.node("GGML_OP_MUL_MAT", {k, biased_query("pos_bias_u")});
             auto relative = g.node("GGML_OP_MUL_MAT", {pos, biased_query("pos_bias_v")});
-            relative = g.node("GGML_OP_GET_ROWS", {relative}, 0, {{"relative_shift", true}});
+            relative = g.node("GGML_OP_GET_ROWS", {relative}, {{"relative_shift", true}});
             auto probability = g.node("GGML_OP_SOFT_MAX",
                                       {scale(add(content, relative), 1.f / std::sqrt(float(head)))},
-                                      0,
                                       {{"scale", 1.f}});
             z = g.node("GGML_OP_MUL_MAT", {v, probability});
             x = add(x, linear(reshape(transpose(z, {0, 2, 1, 3}), {1, 1, -1, c.width}), p + "attn_out"));
@@ -1026,7 +1013,6 @@ private:
             z = g.node(
                 "GGML_OP_PAD",
                 {z},
-                0,
                 {{"pad_params", std::vector<int32_t>{int32_t(kernel / 2), int32_t(kernel / 2), 0, 0, 0, 0, 0, 0}}});
             z = add(g.node("GGML_OP_SSM_CONV", {z, g.tensors().require(p + "conv_dw.weight")}),
                     g.tensors().require(p + "conv_dw.bias"));
@@ -1067,12 +1053,12 @@ private:
             }
         auto positions = g.add_constant("mmproj.audio.relative_positions", table);
         const auto clamp = [&](const GgufValue& value, float lo, float hi) {
-            return g.node("GGML_OP_CLAMP", {value}, 0, {{"clamp_min", lo}, {"clamp_max", hi}});
+            return g.node("GGML_OP_CLAMP", {value}, {{"clamp_min", lo}, {"clamp_max", hi}});
         };
         auto index = scale(g.node("GGML_OP_CUMSUM", {transpose(scale(slice(x, 3, 0, 1), 0.f, 1.f))}), 1.f, -1.f);
         auto distance = g.node("GGML_OP_SUB", {transpose(index), index});  // query - key
         const auto ahead = scale(distance, -1.f, float(horizon));
-        auto relative = g.node("GGML_OP_CPY", {clamp(ahead, 0.f, float(horizon))}, 0, {{"dst_type", ov::element::i32}});
+        auto relative = g.node("GGML_OP_CPY", {clamp(ahead, 0.f, float(horizon))}, {{"dst_type", ov::element::i32}});
         auto inside = mul(clamp(scale(distance, 1.f, 1.f), 0.f, 1.f), clamp(ahead, 0.f, 1.f));
         auto mask = scale(inside, 1e9f, -1e9f);
         const auto rms = [&](const GgufValue& value, const std::string& name) {
@@ -1115,18 +1101,18 @@ private:
                 auto pos = g.node("GGML_OP_MUL_MAT", {g.tensors().require(p + "attn_k_rel.weight"), positions});
                 pos = transpose(reshape(pos, {1, 13, c.heads, head}), {0, 2, 1, 3});
                 auto bias = g.node("GGML_OP_MUL_MAT", {pos, q});
-                bias = g.node("GGML_OP_GET_ROWS", {bias, relative}, 0, {{"gather_elements", true}});
+                bias = g.node("GGML_OP_GET_ROWS", {bias, relative}, {{"gather_row_elements", true}});
                 scores = add(scores, bias);
             }
             scores = add(scale(g.node("GGML_UNARY_OP_TANH", {scale(scores, 1.f / 50.f)}), 50.f), mask);
-            auto probability = g.node("GGML_OP_SOFT_MAX", {scores}, 0, {{"scale", 1.f}});
+            auto probability = g.node("GGML_OP_SOFT_MAX", {scores}, {{"scale", 1.f}});
             z = g.node("GGML_OP_MUL_MAT", {v, probability});
             z = linear(reshape(transpose(z, {0, 2, 1, 3}), {1, 1, -1, c.width}), p + "attn_out");
             x = add(x, maybe_rms(z, p + "attn_post_norm"));
             z = linear(rms(x, p + "conv_norm"), p + "conv_pw1", false);
             z = mul(slice(z, 3, 0, c.width), g.node("GGML_UNARY_OP_SIGMOID", {slice(z, 3, c.width, c.width)}));
             z = transpose(z);
-            z = g.node("GGML_OP_PAD", {z}, 0, {{"pad_params", std::vector<int32_t>{4, 0, 0, 0, 0, 0, 0, 0}}});
+            z = g.node("GGML_OP_PAD", {z}, {{"pad_params", std::vector<int32_t>{4, 0, 0, 0, 0, 0, 0, 0}}});
             z = g.node("GGML_OP_SSM_CONV", {z, g.tensors().require(p + "conv_dw.weight")});
             if (auto bias = g.tensors()(p + "conv_dw.bias"))
                 z = add(z, bias);
@@ -1156,10 +1142,7 @@ private:
             auto w = g.tensors().require(base + ".weight");
             const auto kernel = w.ne(0), in = w.ne(1), out = w.ne(2);
             w = reshape(w, {out, in, 1, kernel});
-            x = g.node("GGML_OP_CONV_2D",
-                       {w, x},
-                       0,
-                       {{"conv_params", std::vector<int64_t>{i, 1, kernel / 2, 0, 1, 1}}});
+            x = g.node("GGML_OP_CONV_2D", {w, x}, {{"conv_params", std::vector<int64_t>{i, 1, kernel / 2, 0, 1, 1}}});
             x = add(x, reshape(g.tensors().require(base + ".bias"), {1, out, 1, 1}));
             x = g.node("GGML_UNARY_OP_GELU_ERF", {x});
         }
@@ -1174,13 +1157,13 @@ private:
         if (c.projector == "ultravox" || c.projector == "voxtral" || c.projector == "meralion" ||
             c.projector == "glma") {
             const auto stack = positive(g.metadata(), "clip.audio.projector.stack_factor");
-            x = g.node("GGML_OP_PAD", {x}, 0, {{"pad_tokens_to_multiple", stack}});
+            x = g.node("GGML_OP_PAD", {x}, {{"pad_tokens_to_multiple", stack}});
             x = reshape(x, {1, 1, -1, c.width * stack});
         }
         if (c.projector == "ultravox") {
             x = g.build_norm(x, g.tensors().require("mm.a.norm_pre.weight"), 1e-6f);
             x = linear(x, "mm.a.mlp.1");
-            x = g.node("GGML_GLU_OP_SWIGLU", {x}, 0, {{"swapped", true}});
+            x = g.node("GGML_GLU_OP_SWIGLU", {x}, {{"swapped", true}});
             x = g.build_norm(x, g.tensors().require("mm.a.norm_mid.weight"), 1e-6f);
             return linear(x, "mm.a.mlp.2");
         }

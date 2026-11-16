@@ -128,7 +128,7 @@ std::string attention(GraphEmitter& e,
         qk_norm();
     // gemma4: V gets a plain RMSNorm (no multiplicative weight, just normalize).
     if (cfg.has_v_norm && has_own_kv)
-        v = e.add_op("GGML_OP_RMS_NORM", p + "Vcur_normed", {v}, 0, {{"eps", cfg.rms_eps}});
+        v = e.add_op("GGML_OP_RMS_NORM", p + "Vcur_normed", {v}, {{"eps", cfg.rms_eps}});
 
     // RoPE. rope_freqs.weight (per-dim frequency factor) is an optional 3rd input.
     // For gemma4: global layers use rope_freqs (proportional/NTK scaling), SWA layers don't.
@@ -142,7 +142,10 @@ std::string attention(GraphEmitter& e,
             std::vector<std::string> inputs{x, "inp_pos"};
             if (use_rope_freqs)
                 inputs.emplace_back("rope_freqs.weight");
-            return e.add_op("GGML_OP_ROPE", name, inputs, cfg.rope_op_case, {{"rope_config", rope_config_l}});
+            return e.add_op("GGML_OP_ROPE",
+                            name,
+                            inputs,
+                            {{"rope_mode", cfg.rope_mode}, {"rope_config", rope_config_l}});
         };
         q = rope(q, p + "Qcur_rope");
         if (has_own_kv)
@@ -153,17 +156,16 @@ std::string attention(GraphEmitter& e,
         qk_norm();
 
     if (cfg.attention_temperature_scale != 0.0f) {
-        auto temp = e.add_op("GGML_OP_CPY", p + "temp_pos", {"inp_pos"}, 0, {{"dst_type", f32}});
+        auto temp = e.add_op("GGML_OP_CPY", p + "temp_pos", {"inp_pos"}, {{"dst_type", f32}});
         temp = scale(e, temp, 1.0f / cfg.rope_config.n_ctx_orig, p + "temp_window");
         // Positions are nonnegative: integer conversion implements floor(position / context).
-        temp = e.add_op("GGML_OP_CPY", p + "temp_floor", {temp}, 0, {{"dst_type", ov::element::i32}});
-        temp = e.add_op("GGML_OP_CPY", p + "temp_float", {temp}, 0, {{"dst_type", f32}});
-        temp = e.add_op("GGML_OP_SCALE", p + "temp_offset", {temp}, 0, {{"bias", 1.0f}});
+        temp = e.add_op("GGML_OP_CPY", p + "temp_floor", {temp}, {{"dst_type", ov::element::i32}});
+        temp = e.add_op("GGML_OP_CPY", p + "temp_float", {temp}, {{"dst_type", f32}});
+        temp = e.add_op("GGML_OP_SCALE", p + "temp_offset", {temp}, {{"bias", 1.0f}});
         temp = e.add_op("GGML_OP_LOG", p + "temp_log", {temp});
         temp = e.add_op("GGML_OP_SCALE",
                         p + "temp_scale",
                         {temp},
-                        0,
                         {{"scale", cfg.attention_temperature_scale}, {"bias", 1.0f}});
         temp = reshape(e, temp, {0, -1, 1, 1}, p + "temp_broadcast");
         q = e.add_op("GGML_OP_MUL", p + "Qcur_temp_scaled", {q, temp});
@@ -208,8 +210,8 @@ std::string attention(GraphEmitter& e,
             // layer sharing a wider global anchor's cache slices it to its own head size, mirroring
             // llama.cpp's ggml_view_4d with n_embd_head_k(il).
             const std::vector<int64_t> hs_slice{3, 0, head_size_l};
-            k = e.add_op("GGML_OP_VIEW", p + "k_hslice", {kc}, 3, {{"view_slice", hs_slice}});
-            v = e.add_op("GGML_OP_VIEW", p + "v_hslice", {vc}, 3, {{"view_slice", hs_slice}});
+            k = e.add_op("GGML_OP_VIEW", p + "k_hslice", {kc}, {{"view_slice", hs_slice}});
+            v = e.add_op("GGML_OP_VIEW", p + "v_hslice", {vc}, {{"view_slice", hs_slice}});
         } else {
             k = kc;
             v = vc;
@@ -234,11 +236,8 @@ std::string attention(GraphEmitter& e,
         attn_attrs["f32_attention"] = true;
     if (cfg.attn_soft_cap != 0.0f)
         attn_attrs["kq_soft_cap"] = cfg.attn_soft_cap;
-    auto attn = e.add_op("GGML_OP_FLASH_ATTN_EXT",
-                         p + "kqv",
-                         attn_in,
-                         100,  // builder layout: q/k/v are ggml-natural [1, T, n_head, head_size]
-                         std::move(attn_attrs));
+    attn_attrs["attention_layout"] = std::string("native");
+    auto attn = e.add_op("GGML_OP_FLASH_ATTN_EXT", p + "kqv", attn_in, std::move(attn_attrs));
 
     // reshape back to [1, 1, n_tokens, n_head*head_size]
     auto attn_2d = reshape(e, attn, merged_shape, p + "kqv_merged");
@@ -263,7 +262,6 @@ std::string attention(GraphEmitter& e,
             gate = e.add_op("GGML_OP_MUL_MAT",
                             p + "attn_gate",
                             {p + "attn_gate.weight", attn_norm},
-                            0,
                             {{"activation_rank", rank3_gate ? 3 : 4}});
         }
         gate = e.add_op("GGML_UNARY_OP_SIGMOID", p + "attn_gate_sig", {gate});

@@ -110,7 +110,7 @@ struct DecoderConfig {
     int swa_window_size = 0;
 
     // ---- RoPE ----
-    int rope_op_case = 0;
+    std::string rope_mode = "normal";
     RopeConfig rope_config{};
     bool use_per_op_rope = false;
 

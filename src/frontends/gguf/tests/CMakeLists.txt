@@ -154,6 +154,7 @@ ov_add_test_target(
         openvino::runtime
         openvino::runtime::dev
         openvino::offline_transformations
+        openvino::conditional_compilation
         openvino::cnpy
     INCLUDES
         "${CMAKE_CURRENT_SOURCE_DIR}/../src"
