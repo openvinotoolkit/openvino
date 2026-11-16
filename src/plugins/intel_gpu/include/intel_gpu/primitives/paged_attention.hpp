@@ -87,7 +87,7 @@ struct paged_attention : public primitive_base<paged_attention> {
 
     // ARL-H (gfx 12.74) keeps sdpa_opt for a static one-query plain SDPA (upstream PR #27387).
     static bool sdpa_ocl_plain_single_token_ok(const device_info& info) {
-        return !(info.gfx_ver.major == 12 && info.gfx_ver.minor == 74);
+        return info.gfx_ver.major != 12 || info.gfx_ver.minor != 74;
     }
 
     // sdpa_ocl_decode serves PA GENERATE: the lane without xe_hpg.
