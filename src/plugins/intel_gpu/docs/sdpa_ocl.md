@@ -3427,6 +3427,16 @@ re-measures against the opt kernels.
     PREFILL (cliloader) was lower than the RC's on all five models, mostly from `pa_kv_cache_update_ref` (2-4x faster).
     `sdpa_ocl_prefill` itself took 0.3-0.4x `sdpa_micro__prefill` on the llama models and 1.05-1.7x on phi-3.5-mini,
     phi-4-mini and gemma-3-4b; at 32 tokens one kernel's calls spread 2-6x, so only the direction holds.
+  - PREFILL kernel at 4K-32K tokens (the whole prompt in one PREFILL; cliloader device time per call against
+    `sdpa_micro__prefill`, 2026-11-13 at 4K and 11-16 at 16K / 32K): llama-3.1-8b 1.08 / 1.09 / 1.11 at 4K / 16K / 32K,
+    qwen3-8b 1.11 / 1.13 / 1.14, phi-4-mini 1.10 at 16K, phi-3.5-mini (head 96) 1.17 / 1.22 / 1.22, gemma-2-9b (head
+    256) 1.22 at 4K, gemma-3-4b 1.17 on its head-256 global layers and 1.12 on its window layers at 16K, and 0.85 on its
+    vision encoder (plain SDPA, head 72, 4096 tokens). The first token (ON build) follows this kernel alone, the other
+    kernels staying within 4 ms per PREFILL: 1.02-1.05x at 4K, 1.05-1.14x at 16K (llama-3.1-8b +182 ms, phi-3.5-mini
+    +577), 1.08-1.10x at 32K (qwen3-8b +1.32 s) and 1.17x on phi-3.5-mini at 32K (+2.4 s); gemma-3-4b 1.01x at 16K, its
+    vision encoder gaining back what its text layers lose. V read as a dynamically padded view of the fused QKV output
+    (`INPUT2_OFFSET` and the row pitch from the shape info) costs 2.4-3.3% per call on the same shape (llama-3.1-8b
+    layer 0 against its layers 1-31; `sdpa_micro` 0%); qwen3-8b and phi-3.5-mini read V that way on every layer.
   - MIXED of 256-token chunks (a 4K prompt, `max_num_batched_tokens` 256): `sdpa_ocl_mixed` 1.26-1.40x
     `sdpa_micro__generate` per call (llama-3.1-8b 1142 against 904 us, qwen3-8b 1158 / 882, llama-3.2-1b 699 / 500),
     first token 1.09-1.16x.
@@ -3464,6 +3474,19 @@ re-measures against the opt kernels.
   or strength-reduced V row addresses (7338 / 7803), keys (l, l + 8) per lane for consecutive V rows (7266) or IGC's bank
   conflict reduction (`IGC_EnableBCR=1`: 7300, and it hits the hazard below). Left: a softmax in the KQ output layout
   (lane = key), which drops the transpose.
+- Bounds on the Windows driver 32.0.101.9175 (2026-11-16, a 16K-token PREFILL in the product, one switch at a time,
+  wrong output, per call against the same build without it; llama-3.1-8b / qwen3-8b / phi-3.5-mini, two rounds within
+  0.1%): K of depth tile 0 for every depth tile 0.870 / 0.844 / 0.860, no V load in the S*V loop 0.864 / 0.851 / 0.936
+  (no V traffic at all 0.856 / 0.839 / 0.937), P read from SLM once 0.908 / 0.936 / 0.959, no score transpose 0.951 /
+  0.942 / 0.937, Q read from SLM once 0.948 / 0.947 / 0.959, P without exp2 0.965 / 0.969 / 0.976; `sdpa_micro` takes
+  0.913 / 0.884 / 0.817 of the kernel's time. K is loaded about one depth tile ahead of its DPAS (7.5 DPAS on average at
+  head 128, ISA), but none of these brought it earlier for less: a ring of K loaded D depth tiles ahead took 1.02-1.04x
+  at D = 1 and spilled from D = 2 (1.13-1.44x; the kernel already uses r225 of its 256 GRF); an LSC prefetch of the next
+  tile's K (one address per 64 B line over the workgroup's lanes, after the P barrier arrive) took 1.05-1.08x, the same
+  into L1 as into L3 only, of this tile's V 1.06-1.08x, both 1.10-1.17x; two depth tiles of K per load (64 B per lane)
+  come back from IGC as two 32 B gathers (1.07-1.09x). That points at the K messages themselves rather than a latency
+  left to hide (not measured apart). Not tried: fewer K bytes per query (a query tile shared by more subgroups, which
+  needs the registers the accumulators hold), the V loads of the S*V loop (where the codegen hazard below lives).
 - IGC can compile the S*V loop of the xe_hpg PA PREFILL kernel so that one 8 x 8 accumulator tile of a random subgroup and
   head comes out as garbage (inf, NaN, values in the thousands), differently from run to run. `SDPA_OCL_HPG_PA_V_LEAD=3`
   at head 128 does it with a dynamic K / V padding: `smoke_paged_attention_prefill_h128/16` and `/40` fail every run (the default lead
