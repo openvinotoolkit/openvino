@@ -281,7 +281,7 @@ ov::pass::NGramHashBlockFusion::NGramHashBlockFusion() {
         const auto mod = pm.at(mod_m).get_node_shared_ptr();
         const bool has_add = pm.count(add_m) != 0;
         if (!has_add) {
-            // The FloorMod can be matched as root before the optional Add is visited, 
+            // The FloorMod can be matched as root before the optional Add is visited,
             // return false if it has an Add consumer, it will be handled by the match rooted at the Add.
             for (const auto& target : mod->get_output_target_inputs(0)) {
                 if (ov::as_type<ov::op::v1::Add>(target.get_node())) {
