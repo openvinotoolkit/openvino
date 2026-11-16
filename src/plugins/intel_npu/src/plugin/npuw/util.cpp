@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cctype>
 #include <charconv>
+#include <cstdlib>
 #include <intel_npu/config/config.hpp>
 #include <iomanip>
 #include <openvino/core/parallel.hpp>
@@ -198,6 +199,50 @@ ov::Tensor ov::npuw::util::copy_tensor_from_const(const std::shared_ptr<ov::Node
 
 bool ov::npuw::util::starts_with(const std::string& str, const std::string& prefix) {
     return str.substr(0, prefix.size()) == prefix;
+}
+
+bool ov::npuw::util::submit_all_enabled() {
+    static const bool enabled = [] {
+        const char* opt = std::getenv("OPENVINO_NPUW_SUBMIT_ALL");
+        if (!opt) {
+            return false;
+        }
+        const std::string str(opt);
+        return str == "YES" || str == "ON" || str == "1";
+    }();
+    return enabled;
+}
+
+bool ov::npuw::util::shared_queue_enabled() {
+    static const bool enabled = [] {
+        const char* opt = std::getenv("OPENVINO_NPUW_SHARED_QUEUE");
+        if (!opt) {
+            return false;
+        }
+        const std::string str(opt);
+        return str == "YES" || str == "ON" || str == "1";
+    }();
+    return enabled || submit_all_enabled();
+}
+
+bool ov::npuw::util::in_order_enabled() {
+    static const bool enabled = [] {
+        const char* opt = std::getenv("OPENVINO_NPUW_IN_ORDER");
+        if (!opt) {
+            return false;
+        }
+        const std::string str(opt);
+        return str == "YES" || str == "ON" || str == "1";
+    }();
+    return enabled || submit_all_enabled();
+}
+
+std::size_t ov::npuw::util::submit_all_depth() {
+    static const std::size_t depth = [] {
+        const char* opt = std::getenv("OPENVINO_NPUW_SUBMIT_ALL_DEPTH");
+        return opt ? static_cast<std::size_t>(std::strtoull(opt, nullptr, 10)) : std::size_t{0};
+    }();
+    return depth;
 }
 
 bool ov::npuw::util::contains_ignore_case(const std::string& str, const std::string& substr) {

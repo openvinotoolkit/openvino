@@ -36,6 +36,11 @@ public:
 
 private:
     void infer() override;
+
+    // PROTOTYPE: submit every subgraph without host barriers, then wait once (see
+    // ov::npuw::util::submit_all_enabled()). Only set when all active subgraphs run on NPU,
+    // since ordering then comes from the shared in-order NPU command queue.
+    bool m_submit_all = false;
 };
 
 }  // namespace npuw

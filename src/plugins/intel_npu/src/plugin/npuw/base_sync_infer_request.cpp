@@ -62,6 +62,8 @@ ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_re
     auto& comp_model = comp_model_desc.compiled_model;
     for (std::size_t i = 0u; i < nireq; i++) {
         rqs.emplace_back(comp_model->create_infer_request(), comp_model._so);
+        LOG_EXEC(m_npuw_model->m_name << " Subgraph[" << id << "] on " << m_npuw_model->submodel_device(id)
+                                      << ": create_infer_request() -> ireq@" << rqs.back()._ptr.get());
     }
     NPUW_ASSERT(rqs.size() == nireq);
 
@@ -226,6 +228,7 @@ std::string ov::npuw::IBaseInferRequest::profile_tag(std::size_t idx) const {
 }
 
 void ov::npuw::IBaseInferRequest::infer() {
+    exec_trace_begin("JustInferRequest");
     m_now_idx.reset();
     prepare_for_infer();
     for (std::size_t idx = 0u; idx < m_num_submodels; idx++) {
@@ -243,6 +246,50 @@ void ov::npuw::IBaseInferRequest::infer() {
     // Increment counter regardless if dumps etc are enabled or not.
     m_run_iter++;
     m_now_idx.reset();
+    exec_trace_end();
+}
+
+void ov::npuw::IBaseInferRequest::exec_trace_begin(const char* request_kind) {
+    if (!ov::npuw::exec_trace_enabled()) {
+        return;
+    }
+    m_exec_submits = 0u;
+    m_exec_t0 = std::chrono::steady_clock::now();
+    LOG_EXEC(m_npuw_model->m_name << " infer#" << m_exec_iter << " begin (" << request_kind << "@" << this << ", "
+                                  << m_num_submodels << " subgraphs)");
+}
+
+void ov::npuw::IBaseInferRequest::exec_trace_end() {
+    if (!ov::npuw::exec_trace_enabled()) {
+        return;
+    }
+    const auto elapsed =
+        std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - m_exec_t0).count();
+    LOG_EXEC(m_npuw_model->m_name << " infer#" << m_exec_iter << " end: " << m_exec_submits << " submissions in "
+                                  << elapsed << "us");
+    m_exec_iter++;
+}
+
+void ov::npuw::IBaseInferRequest::exec_trace(std::size_t idx,
+                                             const ov::SoPtr<ov::IAsyncInferRequest>& request,
+                                             const char* api,
+                                             const std::string& extra) {
+    if (!ov::npuw::exec_trace_enabled()) {
+        return;
+    }
+    if (std::string_view(api) == "start_async()" || std::string_view(api) == "infer()") {
+        m_exec_submits++;
+    }
+    const auto elapsed =
+        std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - m_exec_t0).count();
+    const auto& desc = m_npuw_model->m_compiled_submodels[idx];
+    std::stringstream role;
+    if (desc.replaced_by) {
+        role << " (call of func Subgraph[" << desc.replaced_by.value() << "])";
+    }
+    LOG_EXEC(m_npuw_model->m_name << " infer#" << m_exec_iter << " +" << elapsed << "us Subgraph[" << idx << "]"
+                                  << role.str() << " on " << m_npuw_model->submodel_device(idx) << " ireq@"
+                                  << request._ptr.get() << ": " << api << extra);
 }
 
 std::size_t ov::npuw::IBaseInferRequest::total_subrequests() const {

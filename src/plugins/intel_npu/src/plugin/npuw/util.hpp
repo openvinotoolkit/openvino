@@ -43,6 +43,21 @@ bool starts_with(const std::string& str, const std::string& prefix);
 // Case-insensitive substring search.
 bool contains_ignore_case(const std::string& str, const std::string& substr);
 
+// PROTOTYPE (OPENVINO_NPUW_SUBMIT_ALL=YES): run NPUW models through UnfoldInferRequest with all
+// NPU submodels on one shared in-order command queue, so infer() submits every subgraph up front
+// and waits once at the end instead of at every function boundary. Read once per process.
+bool submit_all_enabled();
+// PROTOTYPE (OPENVINO_NPUW_SUBMIT_ALL_DEPTH=N): with submit-all active, keep at most N subgraph
+// requests in flight (wait for the oldest before submitting more). 0 / unset = no limit.
+std::size_t submit_all_depth();
+// PROTOTYPE (OPENVINO_NPUW_SHARED_QUEUE=YES): only put NPU submodels on the shared common command
+// queue (NPU_SHARED_COMMON_QUEUE), without changing request types or submission. Implied by submit-all.
+bool shared_queue_enabled();
+// PROTOTYPE (OPENVINO_NPUW_IN_ORDER=YES): only enable in-order execution (NPU_RUN_INFERENCES_SEQUENTIALLY)
+// on NPU submodels, keeping NPUW's submission pattern. Sync infer() calls become start_async()+wait(),
+// as the NPU plugin only accepts start_async() in that mode. Implied by submit-all.
+bool in_order_enabled();
+
 // Strictly parses `str` as a positive base-10 integer (std::from_chars; whole string
 // consumed, no sign accepted, unlike std::stoull). Returns nullopt for anything else,
 // including an empty string or 0.

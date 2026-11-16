@@ -23,6 +23,10 @@ bool debug_groups();
 
 bool profiling_enabled();
 
+// OPENVINO_NPUW_EXEC_TRACE=YES: traces how NPUW partitions a model and submits each
+// subgraph through the OV infer request API. Independent of OPENVINO_NPUW_LOG_LEVEL.
+bool exec_trace_enabled();
+
 class __logging_indent__ {
     static thread_local int this_indent;
 
@@ -69,6 +73,15 @@ std::string tensor_stats_string(const ov::SoPtr<ov::ITensor>& tensor);
 #define LOG_ERROR(str) LOG_IMPL(str, Error, " ERR")
 #define LOG_DEBUG(str) LOG_IMPL(str, Debug, " DBG")
 #define LOG_VERB(str)  LOG_IMPL(str, Verbose, "VERB")
+
+#define LOG_EXEC(msg)                                \
+    do {                                             \
+        if (ov::npuw::exec_trace_enabled()) {        \
+            std::stringstream log_stream;            \
+            log_stream << "[ NPUW:EXEC ] " << msg;   \
+            ov::util::log_message(log_stream.str()); \
+        }                                            \
+    } while (0)
 
 #define LOG_BLOCK() ov::npuw::__logging_indent__ object_you_should_never_use__##__LINE__
 

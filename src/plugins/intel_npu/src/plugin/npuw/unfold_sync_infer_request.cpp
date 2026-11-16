@@ -8,6 +8,7 @@
 #include "compiled_model.hpp"
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
+#include "util.hpp"
 
 ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
     : ov::npuw::IBaseInferRequest(compiled_model) {
@@ -40,6 +41,11 @@ ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw:
         auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
         // NB: UnfoldInferRequest is _NOT_ fail-safe! Fail means fail here
         m_subrequests[i] = proto_comp_model_desc.compiled_model->create_infer_request();
+        LOG_EXEC(m_npuw_model->m_name << " Subgraph[" << i << "] on " << m_npuw_model->submodel_device(i)
+                                      << ": create_infer_request() -> ireq@" << m_subrequests[i]._ptr.get()
+                                      << (comp_model_desc.replaced_by ? " (from func Subgraph[" +
+                                                                            std::to_string(real_idx) + "])"
+                                                                      : std::string{}));
         LOG_INFO("DONE");
     }  // for(submodels)
 
@@ -91,6 +97,20 @@ ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw:
         }
         LOG_VERB("Done");
     }
+
+    if (ov::npuw::util::submit_all_enabled()) {
+        m_submit_all = true;
+        for (std::size_t i = 0; i < m_num_submodels; i++) {
+            if (m_subrequests[i] && !ov::npuw::util::starts_with(m_npuw_model->submodel_device(i), "NPU")) {
+                m_submit_all = false;
+                break;
+            }
+        }
+        LOG_EXEC(m_npuw_model->m_name << ": OPENVINO_NPUW_SUBMIT_ALL "
+                                      << (m_submit_all ? "active: no host barriers between subgraphs"
+                                                       : "ignored: not all subgraphs run on NPU")
+                                      << ", max in flight=" << ov::npuw::util::submit_all_depth() << " (0 = unlimited)");
+    }
 }
 
 bool ov::npuw::UnfoldInferRequest::valid_subrequest(std::size_t idx) const {
@@ -98,6 +118,7 @@ bool ov::npuw::UnfoldInferRequest::valid_subrequest(std::size_t idx) const {
 }
 
 void ov::npuw::UnfoldInferRequest::infer() {
+    exec_trace_begin("UnfoldInferRequest");
     const bool do_async = m_npuw_model->m_cfg.get<::intel_npu::NPUW_FUNCALL_ASYNC>();
 
     auto prepare = [&](std::size_t idx) {
@@ -107,14 +128,51 @@ void ov::npuw::UnfoldInferRequest::infer() {
         bind_global_params(idx, m_subrequests[idx]);
         bind_global_results(idx, m_subrequests[idx]);
     };
-    auto wait_and_clear = [](RqPtrs& rqs) {
-        for (auto&& r : rqs) {
-            r->wait();
+    // Subgraph index of each request passed to wait_and_clear(), for exec tracing only
+    std::vector<std::size_t> previous_idx;
+    auto wait_and_clear = [&](RqPtrs& rqs) {
+        for (std::size_t i = 0; i < rqs.size(); i++) {
+            rqs[i]->wait();
+            exec_trace(previous_idx[i], rqs[i], "wait() returned");
         }
         rqs.clear();
+        previous_idx.clear();
     };
 
-    if (do_async) {
+    if (m_submit_all) {
+        // PROTOTYPE: all subgraphs sit on one in-order NPU queue (NPU_SHARED_COMMON_QUEUE +
+        // NPU_RUN_INFERENCES_SEQUENTIALLY) fed by one start thread, so the device orders every
+        // producer before its consumers. Submit everything, then wait once in submission order.
+        // OPENVINO_NPUW_SUBMIT_ALL_DEPTH optionally caps the number of requests in flight.
+        const std::size_t max_in_flight = ov::npuw::util::submit_all_depth();
+        RqPtrs submitted_requests;
+        std::size_t next_to_wait = 0u;
+        auto wait_oldest = [&]() {
+            submitted_requests[next_to_wait]->wait();
+            exec_trace(previous_idx[next_to_wait], submitted_requests[next_to_wait], "wait() returned");
+            next_to_wait++;
+        };
+        prepare(0);
+        for (std::size_t idx = 0; idx < m_num_submodels; idx++) {
+            auto& subr = m_subrequests[idx];
+            if (!subr) {
+                prepare(idx + 1);
+                continue;
+            }
+            if (max_in_flight > 0 && submitted_requests.size() - next_to_wait >= max_in_flight) {
+                wait_oldest();
+            }
+            exec_trace(idx, subr, "start_async()");
+            subr->start_async();
+            submitted_requests.push_back(subr);
+            previous_idx.push_back(idx);
+            prepare(idx + 1);
+        }
+        while (next_to_wait < submitted_requests.size()) {
+            wait_oldest();
+        }
+        previous_idx.clear();
+    } else if (do_async) {
         std::size_t past_repl_id = 0u;
         RqPtrs previous_requests;
 
@@ -134,8 +192,10 @@ void ov::npuw::UnfoldInferRequest::infer() {
                 wait_and_clear(previous_requests);
                 past_repl_id = this_repl_id;
             }
+            exec_trace(idx, subr, "start_async()");
             subr->start_async();
             previous_requests.push_back(subr);
+            previous_idx.push_back(idx);
             prepare(idx + 1);
         }
         wait_and_clear(previous_requests);
@@ -147,9 +207,12 @@ void ov::npuw::UnfoldInferRequest::infer() {
                 prepare(idx + 1);
                 continue;
             }
+            exec_trace(idx, subr, "start_async()");
             subr->start_async();
             prepare(idx + 1);
             subr->wait();
+            exec_trace(idx, subr, "wait() returned");
         }
     }  // (async)
+    exec_trace_end();
 }

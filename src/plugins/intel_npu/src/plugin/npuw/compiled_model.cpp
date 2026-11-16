@@ -5,8 +5,10 @@
 
 #include <algorithm>
 #include <cstring>
+#include <map>
 #include <memory>
 #include <set>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 
@@ -225,10 +227,26 @@ namespace ov {
 namespace npuw {
 
 namespace {
+// For OPENVINO_NPUW_EXEC_TRACE: the command-queue related options passed to a submodel.
+std::string queue_options_str(const ov::AnyMap& config) {
+    std::string str;
+    for (const char* key : {"NPU_RUN_INFERENCES_SEQUENTIALLY", "NPU_SHARED_COMMON_QUEUE"}) {
+        if (auto it = config.find(key); it != config.end()) {
+            str += std::string(" ") + key + "=" + it->second.as<std::string>();
+        }
+    }
+    return str.empty() ? " (default queue options)" : str;
+}
+
 ov::AnyMap make_submodel_import_config(const std::string& device, const ::intel_npu::Config& cfg) {
     ov::AnyMap import_config;
-    if (ov::npuw::util::starts_with(device, "NPU") && cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>()) {
+    const bool in_order = ov::npuw::util::in_order_enabled();
+    if (ov::npuw::util::starts_with(device, "NPU") && (cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>() || in_order)) {
         import_config["NPU_RUN_INFERENCES_SEQUENTIALLY"] = "YES";
+    }
+    if (ov::npuw::util::starts_with(device, "NPU") && ov::npuw::util::shared_queue_enabled()) {
+        // PROTOTYPE: one queue for all submodels, see shared_queue_enabled() / submit_all_enabled()
+        import_config["NPU_SHARED_COMMON_QUEUE"] = "YES";
     }
     return import_config;
 }
@@ -369,6 +387,7 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
         compiled_model = std::make_shared<ov::npuw::CompiledModel>(model, plugin, config);
     }
     LOG_INFO("Done");
+    LOG_EXEC("compile_model('" << model->get_friendly_name() << "') -> top-level NPUW model@" << compiled_model.get());
     return compiled_model;
 }
 
@@ -394,6 +413,7 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::import_model
     const ov::AnyMap& properties) {
     LOG_INFO("Choosing which NPUW CompiledModel to import");
     LOG_BLOCK();
+    LOG_EXEC("import_model(): importing a top-level NPUW model blob");
 
     const auto orc_header = orc::is_orc(stream);
     if (orc_header.has_value()) {
@@ -1231,6 +1251,8 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
                 std::string model_blob;
                 stream & model_blob;
                 std::stringstream buffer(model_blob, std::ios::in | std::ios::out | std::ios::binary);
+                LOG_EXEC("core->import_model(<" << model_blob.size() << " byte blob>, " << device << ")"
+                                                 << queue_options_str(import_config));
                 imported_compiled_model = submodel_ctx->plugin->get_core()->import_model(buffer, device, import_config);
             }
             compiled_model = imported_compiled_model;
@@ -2454,8 +2476,13 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
         }
     }
 
-    if (ov::npuw::util::starts_with(device, "NPU") && m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>()) {
+    const bool in_order = ov::npuw::util::in_order_enabled();
+    if (ov::npuw::util::starts_with(device, "NPU") && (m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>() || in_order)) {
         device_config["NPU_RUN_INFERENCES_SEQUENTIALLY"] = "YES";
+    }
+    if (ov::npuw::util::starts_with(device, "NPU") && ov::npuw::util::shared_queue_enabled()) {
+        // PROTOTYPE: one queue for all submodels, see shared_queue_enabled() / submit_all_enabled()
+        device_config["NPU_SHARED_COMMON_QUEUE"] = "YES";
     }
 
     if (ov::npuw::util::starts_with(device, "NPU")) {
@@ -2479,6 +2506,8 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
             device_config.insert(ov::internal::exclusive_async_requests(true));
         }
     }  // if(subgraphs > 1)
+    LOG_EXEC(m_name << ": core->compile_model('" << submodel->get_friendly_name() << "', " << device << ")"
+                    << queue_options_str(device_config));
     return core->compile_model(submodel, device, device_config);
 }
 
@@ -2764,14 +2793,37 @@ std::shared_ptr<ov::npuw::IBaseInferRequest> ov::npuw::CompiledModel::create_bas
         return true;
     };
 
+    if (ov::npuw::exec_trace_enabled()) {
+        std::call_once(m_exec_layout_reported, [this]() {
+            report_exec_layout();
+        });
+    }
+
+    const bool submit_all = ov::npuw::util::submit_all_enabled();
+    if (submit_all) {
+        const bool spatial_unpack_ok = no_spatial_unpack();
+        const bool failsafe_ok = no_failsafe_concern();
+        const bool behavior_ok = no_subgraph_behavior_concern();
+        if (!spatial_unpack_ok || !failsafe_ok || !behavior_ok) {
+            LOG_EXEC(m_name << ": OPENVINO_NPUW_SUBMIT_ALL requested but unfold is not possible (spatial/unpack ok="
+                            << spatial_unpack_ok << ", failsafe ok=" << failsafe_ok
+                            << ", runtime behaviors ok=" << behavior_ok << "); falling back to JustInferRequest");
+        }
+    }
+
     std::shared_ptr<ov::npuw::IBaseInferRequest> result;
-    if (m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>() && no_spatial_unpack() && no_failsafe_concern() &&
+    if ((m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>() || submit_all) && no_spatial_unpack() && no_failsafe_concern() &&
         no_subgraph_behavior_concern()) {
         result = std::make_shared<ov::npuw::UnfoldInferRequest>(non_const_this_sptr);
     } else {
         result = std::make_shared<ov::npuw::JustInferRequest>(non_const_this_sptr);
     }
     NPUW_ASSERT(result);
+    LOG_EXEC(m_name << ": created " << (std::dynamic_pointer_cast<ov::npuw::UnfoldInferRequest>(result)
+                                            ? "UnfoldInferRequest"
+                                            : "JustInferRequest")
+                    << "@" << result.get() << " (NPUW_UNFOLD_IREQS=" << m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>()
+                    << ", NPUW_FUNCALL_ASYNC=" << m_cfg.get<::intel_npu::NPUW_FUNCALL_ASYNC>() << ")");
     return result;
 }
 
@@ -3029,6 +3081,72 @@ void ov::npuw::CompiledModel::log_device_dist() const {
     if (stats_for_optimized_out.gflops > 0 || stats_for_optimized_out.ops > 0) {
         LOG_BLOCK();
         print_stats("Optimized out", stats_for_optimized_out);
+    }
+}
+
+void ov::npuw::CompiledModel::report_exec_layout() const {
+    const auto num_subgraphs = m_compiled_submodels.size();
+    std::map<std::size_t, std::size_t> calls_per_function;  // function body idx -> number of calls
+    std::size_t num_standalone = 0u, num_optimized_out = 0u;
+    for (std::size_t id = 0u; id < num_subgraphs; id++) {
+        const auto& desc = m_compiled_submodels[id];
+        if (desc.replaced_by) {
+            calls_per_function[desc.replaced_by.value()]++;
+        } else if (desc.compiled_model) {
+            num_standalone++;
+        } else {
+            num_optimized_out++;
+        }
+    }
+    const auto num_calls = num_subgraphs - num_standalone - num_optimized_out;
+    LOG_EXEC(m_name << ": partitioned into " << num_subgraphs << " subgraphs: " << num_standalone << " standalone, "
+                    << calls_per_function.size() << " functions called " << num_calls << " times, "
+                    << num_optimized_out << " optimized out -> " << (num_standalone + calls_per_function.size())
+                    << " distinct OV compiled models" << (m_loaded_from_cache ? " (imported)" : ""));
+
+    for (std::size_t id = 0u; id < num_subgraphs; id++) {
+        const auto& desc = m_compiled_submodels[id];
+        const auto real_id = desc.replaced_by.value_or(id);
+        const auto& real_desc = m_compiled_submodels[real_id];
+        std::stringstream line;
+        line << m_name << ":   Subgraph[" << id << "] ";
+        if (!desc.compiled_model && !desc.replaced_by) {
+            line << "optimized out";
+            LOG_EXEC(line.str());
+            continue;
+        }
+        if (!desc.replaced_by) {
+            line << "standalone";
+        } else if (real_id == id) {
+            line << "function body (" << calls_per_function[id] << " calls)";
+        } else {
+            line << "call of func Subgraph[" << real_id << "]";
+        }
+        line << " on " << submodel_device(id);
+        if (real_desc.compiled_model) {
+            line << ", " << real_desc.compiled_model->inputs().size() << " in/"
+                 << real_desc.compiled_model->outputs().size() << " out";
+        }
+        if (real_desc.stat.ops > 0) {
+            line << ", " << real_desc.stat.ops << " ops";
+        }
+        if (ov::npuw::attn::get_compiled_dynamic(real_desc.pipeline.context)) {
+            line << ", attention=DYNAMIC";
+        } else if (ov::npuw::attn::get_compiled_pyramid(real_desc.pipeline.context)) {
+            line << ", attention=PYRAMID";
+        } else if (ov::npuw::attn::get_compiled_hfa(real_desc.pipeline.context)) {
+            line << ", attention=HFA";
+        }
+        if (ov::npuw::moe::has_compiled_experts(real_desc.pipeline)) {
+            line << ", MoE experts";
+        }
+        if (real_desc.spatial) {
+            line << ", spatial nway=" << real_desc.spatial->nway << " iters=" << real_desc.spatial->nway_iters;
+        }
+        if (real_desc.pipeline.runtime_behavior.has_value()) {
+            line << ", runtime behavior";
+        }
+        LOG_EXEC(line.str());
     }
 }
 

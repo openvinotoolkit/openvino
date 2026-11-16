@@ -272,6 +272,10 @@ void ensure_pyramid_requests(ov::npuw::v1::subgraphs::InferContext& ctx, Runtime
         if (is_piped) {
             state.pyramid_requests.pipeline_requests[model_idx] = pyramid_models[model_idx]->create_infer_request();
         }
+        LOG_EXEC("Subgraph[" << ctx.real_subgraph_idx << "] pyramid variant " << model_idx
+                             << ": create_infer_request() -> ireq@"
+                             << state.pyramid_requests.infer_requests[model_idx]._ptr.get()
+                             << (is_piped ? " (+1 pipelined)" : ""));
 
         auto share_inputs_for_req = [&](ov::SoPtr<ov::IAsyncInferRequest>& req,
                                         ov::SoPtr<ov::IAsyncInferRequest>& main_req) {
@@ -352,6 +356,10 @@ void ensure_hfa_requests(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
             hfa->_compiled_tile_model->create_infer_request();
         state.hfa_requests.pipeline_requests[HFARequestSet::FINAL_TILE] = state.base_pipeline_request;
     }
+    LOG_EXEC("Subgraph[" << ctx.real_subgraph_idx << "] HFA regular tile: create_infer_request() -> ireq@"
+                         << state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE]._ptr.get()
+                         << (is_piped ? " (+1 pipelined)" : "") << "; final tile reuses ireq@"
+                         << state.base_request._ptr.get());
 
     // The regular and the final tile models share the same leading input layout by construction
     // (see build_tile_param_mapping) - the final tile model may only have extra trailing inputs.
@@ -1179,13 +1187,19 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                 }
                             }
 
+                            const std::string tile_tag = " [HFA tile mask_offset=" +
+                                                         std::to_string(mask_offset) +
+                                                         " len=" + std::to_string(tile_length) + "]";
                             if (async) {
+                                ctx.infer_request.exec_trace(ctx.subgraph_idx, request, "start_async()", tile_tag);
                                 request->start_async();
                                 if (state.hfa_runtime_ctx && state.hfa_runtime_ctx->has_state_buffers()) {
                                     state.hfa_runtime_ctx->prepare_next_state_buffers();
                                 }
                                 request->wait();
+                                ctx.infer_request.exec_trace(ctx.subgraph_idx, request, "wait() returned", tile_tag);
                             } else {
+                                ctx.infer_request.exec_trace(ctx.subgraph_idx, request, "infer()", tile_tag);
                                 request->infer();
                             }
                         };

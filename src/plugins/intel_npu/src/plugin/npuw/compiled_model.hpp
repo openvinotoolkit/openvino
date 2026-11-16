@@ -208,6 +208,10 @@ private:
     bool unpack_required(const std::size_t idx, const std::size_t cidx) const;
 
     void log_device_dist() const;
+    // OPENVINO_NPUW_EXEC_TRACE: one-shot summary of the partitioning as it will be executed.
+    // Emitted on the first infer request creation, so it covers both compiled and imported models.
+    void report_exec_layout() const;
+    mutable std::once_flag m_exec_layout_reported;
     void implement_properties();
 
     bool should_use_quantized_host_gather(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties) const;
