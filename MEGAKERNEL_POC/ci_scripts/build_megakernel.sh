@@ -7,10 +7,10 @@ build_dir="${repo_root}/build"
 venv_dir="${build_dir}/venv"
 openvino_version="2026.3.0"
 tokenizers_version="2026.3.0.0"
-megakernel="${MEGAKERNEL:-Qwen06BPOC_prefill_separate_kernels}"
-model_id="${MODEL_ID:-Qwen/Qwen3-0.6B}"
+megakernel="${MEGAKERNEL:?MEGAKERNEL must be set}"
+model_id="${MODEL_ID:?MODEL_ID must be set}"
 model_name="${model_id##*/}"
-model_dir="${MODELS_DIR:-${repo_root}/MEGAKERNEL_POC/python}/${model_name,,}-openvino-ir"
+model_dir="${MODELS_DIR:?MODELS_DIR must be set}/${model_name,,}-openvino-ir"
 
 main() {
     python3 -m venv "${venv_dir}"

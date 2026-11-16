@@ -462,25 +462,10 @@ def decode_only_worker(args) -> list[dict]:
     for _ in range(args.warmup):
         req.infer(decode_input)
     lat = []
-    if args.decode_mode == "greedy":
-        greq = compiled.create_infer_request()
-        r = greq.infer(prefill_inputs(feeder, ids))
-        cur = int(np.array(r[0])[0, -1, :].argmax())
-        pos = prompt_len
-        for i in range(args.warmup + args.tokens):
-            step_in = single_token_inputs(feeder, cur, pos)
-            t = time.perf_counter()
-            r = greq.infer(step_in)
-            if i >= args.warmup:
-                lat.append((time.perf_counter() - t) * 1e3)
-            cur = int(np.array(r[0])[0, -1, :].argmax())
-            pos += 1
-        decode_pos = pos
-    else:
-        for _ in range(args.tokens):
-            t = time.perf_counter()
-            req.infer(decode_input)
-            lat.append((time.perf_counter() - t) * 1e3)
+    for _ in range(args.tokens):
+        t = time.perf_counter()
+        req.infer(decode_input)
+        lat.append((time.perf_counter() - t) * 1e3)
 
     # Greedy-decode real text for baseline vs megakernel comparison (untimed,
     # fresh request so the timed loop above is unaffected).
@@ -712,7 +697,7 @@ def spawn(framework: str, path: str, args) -> list[dict]:
         sys.executable, __file__, "--worker", framework, "--path", path,
         "--model-dir", str(args.model_dir), "--device", args.device,
         "--warmup", str(args.warmup), "--tokens", str(args.tokens),
-        "--decode-ctx", str(args.decode_ctx), "--decode-mode", args.decode_mode,
+        "--decode-ctx", str(args.decode_ctx),
         "--torch-threads", str(args.torch_threads),
         "--gen-warmup", str(args.gen_warmup), "--gen-iters", str(args.gen_iters),
     ]
@@ -753,21 +738,17 @@ def _maybe_print_text(base: list[dict], mega: list[dict]) -> None:
             print(f"    megakernel: {mt!r}")
 
 
-def print_decode_only_table(base: list[dict], mega: list[dict], mode: str = "fixed") -> None:
+def print_decode_only_table(base: list[dict], mega: list[dict]) -> None:
     W = 86
     print()
     print("=" * W)
-    print(f" DECODE-ONLY  (OV native API, --decode-mode {mode})")
+    print(" DECODE-ONLY  (OV native API)")
     print("=" * W)
     print(" How it works:")
     print("   Prefill is executed once (untimed) to warm the KV cache.")
-    if mode == "greedy":
-        print("   Then N real autoregressive greedy steps are timed (infer() only);")
-        print("   ctx is the final KV-cache length.  No prefill latency is reported.")
-    else:
-        print("   Then N identical single-token decode steps are timed at a fixed")
-        print("   KV-cache position.  No prefill latency is measured or reported.")
-        print("   Prompt content does not affect the measured decode cost.")
+    print("   Then N identical single-token decode steps are timed at a fixed")
+    print("   KV-cache position.  No prefill latency is measured or reported.")
+    print("   Prompt content does not affect the measured decode cost.")
     print("   decode_x is the per-token decode speedup (primary metric).")
     print()
 
@@ -892,10 +873,6 @@ def main() -> None:
                     help="If >0, prime the KV cache to this length before timing decode "
                          "(isolates kernel cost from O(context) attention growth). "
                          "decode_only path only.")
-    ap.add_argument("--decode-mode", choices=("fixed", "greedy"), default="fixed",
-                    help="decode_only: 'fixed' re-runs one token at a fixed position; "
-                         "'greedy' times real autoregressive steps (use for MoE models, "
-                         "whose expert routing changes every token).")
     # optimum / genai generate() benchmark
     ap.add_argument("--torch-threads", type=int, default=23,
                     help="Cap torch intra-op threads in the optimum path "
@@ -935,7 +912,7 @@ def main() -> None:
         base = all_results[fw]["baseline"]
         mega = all_results[fw]["megakernel"]
         if fw == "decode_only":
-            print_decode_only_table(base, mega, args.decode_mode)
+            print_decode_only_table(base, mega)
         elif fw == "optimum":
             print_optimum_table(base, mega, args.tokens)
         elif fw == "genai":
