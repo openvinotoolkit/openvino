@@ -44,14 +44,18 @@ Shape make_roi_shape(const Shape& tensor_shape, const Coordinate& begin, const C
 
 // Extends strides to the rank of shape (which must be greater), which adds leading dimensions to the strides' shape.
 // Strides of a scalar are empty, so then the innermost added dimension is set to the element size.
-Strides extend_strides(const Strides& strides, const Shape& shape, const size_t element_size) {
+// The innermost stride of a sub-byte type is not a byte step, so a dimension added above it gets the packed row size.
+Strides extend_strides(const Strides& strides, const Shape& shape, const element::Type& element_type) {
     auto dim = shape.size() - strides.size();
     Strides extended;
     extended.reserve(shape.size());
     extended.resize(dim);
     extended.insert(extended.end(), strides.begin(), strides.end());
     if (strides.empty()) {
-        extended[--dim] = element_size;
+        extended[--dim] = element_type.size();
+    } else if (strides.size() == 1 && element_type.bitwidth() < 8) {
+        extended[dim - 1] = util::get_dense_byte_strides(element_type, Shape{1, shape.back()}).front();
+        --dim;
     }
     while (dim-- > 0) {
         extended[dim] = shape[dim + 1] * extended[dim + 1];
@@ -565,7 +569,7 @@ private:
     void update_strides() {
         const auto& owner_strides = m_owner->get_strides();
         if (m_shape.size() > owner_strides.size()) {
-            m_strides = extend_strides(owner_strides, m_shape, m_owner->get_element_type().size());
+            m_strides = extend_strides(owner_strides, m_shape, m_owner->get_element_type());
         } else {
             m_strides.clear();
         }

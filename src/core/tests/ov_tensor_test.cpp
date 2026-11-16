@@ -696,6 +696,20 @@ TEST_F(OVTensorTest, expandRankOnScalarRoiTensor) {
     ASSERT_EQ(roi.get_strides(), ov::Strides({4, 4}));
 }
 
+TEST_F(OVTensorTest, expandRankOnSubByteRoiTensor) {
+    ov::Tensor owner{ov::element::u4, {2, 8}};
+    ov::Tensor row{owner, {1, 0}, {2, 8}};
+    ov::Tensor vector_owner{ov::element::u4, {8}};
+    ov::Tensor vector{vector_owner, {0}, {8}};
+
+    row.set_shape({1, 1, 8});
+    vector.set_shape({1, 1, 8});
+
+    ASSERT_EQ(row.get_strides(), ov::Strides({4, 4, 1}));
+    ASSERT_EQ(vector.get_strides(), ov::Strides({4, 4, 1}));
+    ASSERT_TRUE(vector.is_continuous());
+}
+
 TEST_F(OVTensorTest, setSmallerShapeOnRoiTensor) {
     ov::Tensor t{ov::element::i32, {1, 3, 6, 5}};
     ov::Tensor roi_tensor{t, {0, 0, 1, 2}, {1, 2, 5, 4}};
