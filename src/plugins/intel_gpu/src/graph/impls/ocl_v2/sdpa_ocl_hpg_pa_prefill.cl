@@ -1104,7 +1104,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             float lsum = 0.0f;
             #pragma unroll
             for (int mb = 0; mb < kq_key_blocks; ++mb) {
-                const float8 p = ok ? native_exp2(S_tile[mb][qb] * scale - m_log2) : (float8)0.0f;
+                // SDPA_SOFTMAX_EXP (sdpa_ocl_config.cl): with a mask, exp2 saturated to [0, 1], or a '-inf' mask over the
+                // first 128 or more keys of a row and logits near 100 give NaN; native_exp2 without one (PA unchanged).
+                const float8 p = ok ? SDPA_SOFTMAX_EXP(S_tile[mb][qb] * scale - m_log2) : (float8)0.0f;
                 lsum += p[0] + p[1] + p[2] + p[3] + p[4] + p[5] + p[6] + p[7];
 #if HPG_COMP
                 // Past keys: P times each key's V scale (rounded once); a key at/past lim has scale 0 and P 0.
