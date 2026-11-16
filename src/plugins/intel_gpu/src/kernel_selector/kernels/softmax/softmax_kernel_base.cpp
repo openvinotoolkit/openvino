@@ -10,6 +10,7 @@ JitConstants SoftmaxKernelBase::GetJitConstants(const softmax_params& params,
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     jit.AddConstants({MakeJitConstant("ALONG_" + toString(params.dim), "1")});
+    jit.AddConstant(MakeJitConstant("LOG_SOFTMAX", params.log_softmax));
 
     return jit;
 }
