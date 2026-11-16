@@ -413,8 +413,9 @@ public:
         // The cache the kernels work on is the output buffer (max(key_length) / r rows), so its row count is the batch pitch.
         rtp->summary_stride = params.get_output_layout(QSAOut::BLOCK_INDEX_KEYS_CACHE).get_shape()[2];
 
-        // key_length stays in GPU memory: every size below is a bound from shapes only and the kernels derive the real
-        // work (and drop the excess) from key_length.
+        // The impl never reads key_length on the host: every size below is a bound from shapes only and the kernels
+        // derive the real work (and drop the excess) from key_length on the device. (Only shape inference reads it on
+        // the host, see qsa_indexer_inst.h.)
         const auto r = desc->key_block_size;
         rtp->prepare_blocks_per_row = seq_len == 0 ? 0 : (seq_len - 1) / r + 2;
         rtp->prepare_wg_count = batch * rtp->prepare_blocks_per_row;

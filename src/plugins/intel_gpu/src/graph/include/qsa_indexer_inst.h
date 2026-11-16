@@ -25,8 +25,10 @@ public:
     }
 
     // The block_index_keys_cache output has max(key_length) / r rows, so the output shape depends on the key_length
-    // values. As for paged_attention's past_lens, a key_length network input is uploaded blocking into lockable memory,
-    // so shape inference reads it on the host without synchronizing the queue.
+    // values and shape inference reads them on the host. As paged_attention does for past_lens, a key_length that is
+    // a network input is uploaded blocking into lockable (host-visible USM) memory, so that read does not synchronize
+    // the queue. This holds only when key_length is directly a network input: if another GPU primitive produces it,
+    // the host read waits for that primitive to finish.
     std::set<size_t> get_lockable_input_ids() const override {
         return {qsa_indexer::InputIdx::KEY_LENGTH};
     }
