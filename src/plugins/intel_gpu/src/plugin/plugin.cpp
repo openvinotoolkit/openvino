@@ -79,6 +79,11 @@ using ms = std::chrono::duration<double, std::ratio<1, 1000>>;
 using Time = std::chrono::high_resolution_clock;
 thread_local const size_t* g_current_tensor_base = nullptr;
 
+namespace cldnn {
+extern bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config);
+extern bool query_register_file_size_option_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config);
+}  // namespace cldnn
+
 namespace ov::intel_gpu {
 
 namespace {
@@ -344,8 +349,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::shared_ptr<RemoteContextImpl> context;
     if (offline) {
+        auto info = cldnn::ocl::make_offline_device_info(offline_target);
         auto dev = std::make_shared<cldnn::ocl::offline_device>(
-            cldnn::ocl::make_offline_device_info(offline_target),
+            info,
+            cldnn::ocl::deserialize_device_probes(offline_target),
             cldnn::ocl::make_offline_onednn_device_info(offline_target));
         context = std::make_shared<RemoteContextImpl>(get_device_name() + "." + device_id,
                                                       std::vector<cldnn::device::ptr>{dev});
@@ -776,8 +783,12 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
             onednn_version = cldnn::ocl::onednn_fingerprint();
         }
 #endif
+        auto& engine = get_default_context(iter->first)->get_engine();
+        auto config = get_config(iter->first);
+        cldnn::ocl::device_probes probes{cldnn::query_microkernels_supported(engine, config),
+                                         cldnn::query_register_file_size_option_supported(engine, config)};
         return decltype(ov::intel_gpu::device_descriptor)::value_type {
-            cldnn::ocl::serialize_device_info(device_info, onednn_version, onednn_device_info)};
+            cldnn::ocl::serialize_device_info(device_info, probes, onednn_version, onednn_device_info)};
     }
     if (name == ov::intel_gpu::device_total_mem_size) {
         return decltype(ov::intel_gpu::device_total_mem_size)::value_type {device_info.max_global_mem_size};

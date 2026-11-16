@@ -352,9 +352,9 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
     } else if (_offline_export) {
         auto combined_source = join_strings(batch.source);
 
-        // OCLC_V2 is plain OpenCL C after process_batch_includes(); only CM can't go through ocloc.
+        // CM kernels aren't supported in HW-free compilation.
         OPENVINO_ASSERT(batch.language != kernel_language::CM,
-                        "[GPU offline] CM kernels can't be compiled by ocloc (batch ", batch.hash_value, ")");
+                        "[GPU offline] CM kernels aren't supported in HW-free compilation (batch ", batch.hash_value, ")");
 
         const std::string device_arg = ocl::offline_ocloc_target(_device->get_info());
 

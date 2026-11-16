@@ -47,6 +47,7 @@
 #include "program_node.h"
 #include "quantize_inst.h"
 #include "reorder_inst.h"
+#include "runtime/ocl/offline_device.hpp"
 #include "swiglu_inst.h"
 #include "to_string_utils.h"
 
@@ -69,6 +70,10 @@ kernel_selector::dev_type get_device_type(cldnn::device_type type) {
 namespace cldnn {
 
 bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
+    // HW-free compilation doesn't support CM kernels
+    if (e.is_hw_free())
+        return false;
+
     // Even though CM frontend is a component of Intel GPU driver on Windows, the version
     // may still be incompatible to existing CM kernels.
     auto* device = e.get_device().get();
@@ -159,6 +164,9 @@ static bool driver_version_supports_microkernels(const std::string& driver_versi
 }
 
 bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
+    if (e.is_hw_free())
+        return static_cast<ocl::offline_device*>(e.get_device().get())->probes().microkernels_supported;
+
     auto* device = e.get_device().get();
 
     static std::mutex m;
@@ -214,6 +222,9 @@ bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig
 }
 
 bool query_register_file_size_option_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
+    if (e.is_hw_free())
+        return static_cast<ocl::offline_device*>(e.get_device().get())->probes().register_file_size_option_supported;
+
     auto* device = e.get_device().get();
     if (device->get_info().arch < gpu_arch::xe3) {
         return false;

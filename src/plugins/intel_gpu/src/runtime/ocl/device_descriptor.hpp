@@ -114,14 +114,23 @@ inline std::vector<size_t> split_sizes(const std::string& s) {
     STR(dev_name)                                                     \
     STR(driver_version)
 
+// Results of the probe kernels, which need the real device to run.
+struct device_probes {
+    bool microkernels_supported = false;
+    bool register_file_size_option_supported = false;
+};
+
 // oneDNN device_info is an opaque blob; onednn_version guards its layout.
 inline std::string serialize_device_info(const device_info& info,
+                                         const device_probes& probes,
                                          const std::string& onednn_version = "",
                                          const std::vector<uint8_t>& onednn_device_info = {}) {
     std::ostringstream os;
     os << "version=" << device_descriptor_version << "\n";
     os << "onednn_version=" << onednn_version << "\n";
     os << "onednn_device_info=" << detail::to_hex(onednn_device_info.data(), onednn_device_info.size()) << "\n";
+    os << "microkernels_supported=" << probes.microkernels_supported << "\n";
+    os << "register_file_size_option_supported=" << probes.register_file_size_option_supported << "\n";
 #define OV_GPU_DD_NUM(field) os << #field "=" << static_cast<uint64_t>(info.field) << "\n";
 #define OV_GPU_DD_STR(field) os << #field "=" << info.field << "\n";
     OV_GPU_DEVICE_DESCRIPTOR_FIELDS(OV_GPU_DD_NUM, OV_GPU_DD_STR)
@@ -152,6 +161,16 @@ inline std::vector<uint8_t> deserialize_onednn_device_info(const std::string& de
 
 inline std::string deserialize_onednn_version(const std::string& descriptor) {
     return detail::parse_kv(descriptor)["onednn_version"];
+}
+
+inline device_probes deserialize_device_probes(const std::string& descriptor) {
+    auto kv = detail::parse_kv(descriptor);
+    auto flag = [&](const char* k) {
+        auto it = kv.find(k);
+        OPENVINO_ASSERT(it != kv.end(), "[GPU] Device descriptor is missing field '", k, "'");
+        return it->second == "1";
+    };
+    return {flag("microkernels_supported"), flag("register_file_size_option_supported")};
 }
 
 inline device_info deserialize_device_info(const std::string& descriptor) {

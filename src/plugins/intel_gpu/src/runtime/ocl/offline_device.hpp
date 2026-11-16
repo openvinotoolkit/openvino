@@ -25,8 +25,9 @@ namespace ocl {
 // Device restored from an enumeration-time descriptor; no cl::Device.
 class offline_device : public device {
 public:
-    explicit offline_device(const device_info& info, std::vector<uint8_t> onednn_device_info = {})
+    offline_device(const device_info& info, const device_probes& probes, std::vector<uint8_t> onednn_device_info = {})
         : _info(info)
+        , _probes(probes)
         , _onednn_device_info(std::move(onednn_device_info))
         , _mem_caps(info.supports_usm
                         ? std::vector<allocation_type>{allocation_type::cl_mem, allocation_type::usm_host,
@@ -41,9 +42,11 @@ public:
     void set_mem_caps(const memory_capabilities& memory_capabilities) override { _mem_caps = memory_capabilities; }
 
     const std::vector<uint8_t>& onednn_device_info() const { return _onednn_device_info; }
+    const device_probes& probes() const { return _probes; }
 
 private:
     device_info _info;
+    device_probes _probes;
     std::vector<uint8_t> _onednn_device_info;
     memory_capabilities _mem_caps;
 };
