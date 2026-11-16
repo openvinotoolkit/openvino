@@ -186,8 +186,8 @@ public:
             } else {
                 GPU_DEBUG_TRACE_DETAIL << "add stage single_tokens \n";
 #ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
-                const bool use_sdpa_ocl =
-                    dpas_supported() && cldnn::paged_attention::sdpa_ocl_plain_single_token_ok(params.get_device_info()) && !is_indirect && single_query_row(params);
+                const bool use_sdpa_ocl = dpas_supported() && cldnn::paged_attention::sdpa_ocl_plain_single_token_ok(params.get_device_info()) && !is_indirect &&
+                                          single_query_row(params);
                 if (use_sdpa_ocl) {
                     add_stage(ocl_single_token, params);
                 }

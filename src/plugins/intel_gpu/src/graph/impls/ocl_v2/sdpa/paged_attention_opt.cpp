@@ -1297,7 +1297,6 @@ protected:
             jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size);
         }
 
-
         // Give the PREFILL stage one extra workgroup along gws[2] that only quantizes V. V is
         // BY_TOKEN over all of its head dims (a sub_group reduction), so a single workgroup has to own
         // it -- and in prefill that same workgroup also quantizes K for every channel, then loops over
@@ -1439,7 +1438,6 @@ protected:
             jit.make("ADJUSTED_HEAD_SIZE", desc->k_head_size);
             jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
         }
-
 
         return jit;
     }
@@ -1770,10 +1768,7 @@ public:
         }
         // sdpa_ocl takes the KQ contraction depth from k_head_size and the S*V value split from v_head_size
         // independently, so it only needs a tiling to exist for the pair.
-        if (desc->k_head_size != desc->v_head_size && !SDPAOclGenerator::supports_head_sizes(info.arch, desc->k_head_size, desc->v_head_size)) {
-            return false;
-        }
-        return true;
+        return desc->k_head_size == desc->v_head_size || SDPAOclGenerator::supports_head_sizes(info.arch, desc->k_head_size, desc->v_head_size);
     }
 
     size_t get_query_block_size(const kernel_impl_params& params, const PagedAttentionStage& stage, const bool use_sdpa_ocl) const {
