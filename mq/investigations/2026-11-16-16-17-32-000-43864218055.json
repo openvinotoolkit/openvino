@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-16-16-17-32-000-43864218055",
+  "timestamp": "2026-11-16T16:17:32Z",
+  "run_id": "43864218055",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43864218055",
+  "workflow_name": "C++ unit tests",
+  "pr_number": "39663",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39663",
+  "author": "john-rocky",
+  "category": "Flaky Test",
+  "title": "CachingTest LoadMultiWithConfig_race import_model call count mismatch on Windows",
+  "signature": "Actual function call count doesnt match EXPECT_CALL import_model Expected called times Actual called times unsatisfied and active|Flaky Test",
+  "signature_hash": "43e136cf67333978",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "C++ unit tests / C++ unit tests",
+      "conclusion": "failure",
+      "symptom": "CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache fails: mock import_model() called 4 times instead of expected 5"
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Aggregate status job fails because the C++ unit tests job it depends on failed"
+    }
+  ],
+  "key_errors": [
+    "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\inference\\tests\\functional\\caching_test.cpp(2673): error: Actual function call count doesn't match EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _))...\n Expected: to be called 5 times\n   Actual: called 4 times - unsatisfied and active",
+    "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\inference\\tests\\functional\\caching_test.cpp(318): error: Value of: Mock::VerifyAndClearExpectations(mockPlugin.get())\n  Actual: false\nExpected: true",
+    "[  FAILED  ] CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache, where GetParam() = ((4-byte object <02-00 00-00>, \"ByModelName\", false), \"testCache\") (2050 ms)"
+  ],
+  "root_cause": "CachingTest's LoadMultiWithConfig_race / LoadMulti_race test family spins up multiple threads racing to compile/import the same cached model concurrently on a MockPlugin, and asserts a fixed expected call count for import_model(). On Windows runners the thread-scheduling timing is not fully deterministic, so occasionally one of the racing threads loses the race before its import_model() call is dispatched, leading to an observed call count one short of the expected value. This is a pre-existing flaky test unrelated to the PR's LPT (MultiplyPartialTransformation) changes - the PR only touches src/common/low_precision_transformations, which CachingTest does not exercise. This exact failure signature has recurred 10 times since 2026-07-13 across many unrelated PRs, confirming it is a known timing-dependent flaky test rather than a regression caused by this change.",
+  "reproduction_steps": "Run `ov_inference_functional_tests --gtest_filter=CachingTest/CachingTest.LoadMultiWithConfig_race*` repeatedly (ideally in a loop, e.g. --gtest_repeat=50) on a Windows runner/VM under load; the race is timing-dependent and may not reproduce on a single run or on a lightly-loaded local machine.",
+  "recommended_actions": [
+    "Re-run only the failed job (safe since the failure is a flaky test unrelated to the PR changes); no code change is required for this PR.",
+    "File/track a dedicated flakiness ticket for src/inference/tests/functional/caching_test.cpp CachingTest.*_race tests to either loosen the EXPECT_CALL cardinality (e.g. AtLeast/AtMost or a retry-tolerant assertion) or add explicit synchronization so the race condition does not affect the assertion.",
+    "Mark the CachingTest.*_race parametrized cases as known-flaky (e.g., via a retry mechanism or gtest_repeat with failure tolerance) until the synchronization fix lands."
+  ],
+  "prevention_strategies": "Avoid asserting an exact EXPECT_CALL count on inherently racy, multi-threaded test scenarios; either add explicit thread synchronization barriers before verifying mock expectations, or use a tolerant cardinality (e.g., Between(n-1, n)) to absorb benign scheduling variance on slower/busier Windows runners.",
+  "historical_context": "This exact signature (hash 43e136cf67333978) has now recurred 10 times since 2026-07-13T10:41:15Z (most recently 2026-08-28T21:27:20Z before this run), across at least 9 different unrelated PRs (#36488, #36872, #37114, #37187, #36684, #37197, #37500, #37653). Closely related variants also exist for LoadMulti_race (hashes 5f5789b1a8659a47, 0528d54ff68248cd, 18324e8563a426a9) and a TearDown file-lock flake (1bf590cbb88911b2), all pointing at the same CachingTest Windows timing flakiness family."
+}

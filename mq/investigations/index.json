@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 455,
+  "total": 456,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -4978,6 +4978,17 @@
       "category": "Infrastructure",
       "signature_hash": "75fb142987956bb4",
       "pr_number": "39742"
+    },
+    {
+      "investigation_id": "2026-11-16-16-17-32-000-43864218055",
+      "run_id": "43864218055",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43864218055",
+      "workflow_name": "C++ unit tests",
+      "timestamp": "2026-11-16T16:17:32Z",
+      "title": "CachingTest LoadMultiWithConfig_race import_model call count mismatch on Windows",
+      "category": "Flaky Test",
+      "signature_hash": "43e136cf67333978",
+      "pr_number": "39663"
     }
   ]
 }
