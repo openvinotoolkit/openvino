@@ -6,7 +6,7 @@ if (NOT ENABLE_ONEDNN_FOR_GPU)
     return()
 endif()
 
-set(TARGET_NAME "openvino_intel_gpu_onednn_obj${OV_GPU_SUFFIX}")
+set(TARGET_NAME "openvino_intel_gpu_onednn_backend${OV_GPU_SUFFIX}")
 
 include(${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
 
