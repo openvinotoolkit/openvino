@@ -4,7 +4,10 @@
 
 #include "openvino/op/gated_residual.hpp"
 
+#include <limits>
+
 #include "itt.hpp"
+#include "openvino/util/math_util.hpp"
 
 namespace ov::op::internal {
 
@@ -47,6 +50,10 @@ bool GatedResidual::visit_attributes(ov::AttributeVisitor& visitor) {
     OV_OP_SCOPE(internal_GatedResidual_visit_attributes);
     auto mode = static_cast<int64_t>(m_mode);
     visitor.on_attribute("mode", mode);
+    // Checked before the narrowing cast: a wrapped value would otherwise name a valid mode.
+    OPENVINO_ASSERT(mode >= static_cast<int64_t>(Mode::READ) && mode <= static_cast<int64_t>(Mode::FINAL_MIX),
+                    "GatedResidual: unknown mode ",
+                    mode);
     m_mode = static_cast<Mode>(mode);
     visitor.on_attribute("hc_count", m_hc_count);
     visitor.on_attribute("hidden_size", m_hidden_size);
@@ -62,8 +69,24 @@ void GatedResidual::validate_and_infer_types() {
     const auto input_size = get_input_size();
     const auto out_et = get_input_element_type(0);
 
+    NODE_VALIDATION_CHECK(this,
+                          m_mode == Mode::READ || m_mode == Mode::WRITE || m_mode == Mode::FINAL_MIX,
+                          "GatedResidual got an unknown mode ",
+                          static_cast<int64_t>(m_mode));
     NODE_VALIDATION_CHECK(this, m_hc_count > 0, "GatedResidual requires a positive branch count C.");
     NODE_VALIDATION_CHECK(this, m_hidden_size > 0, "GatedResidual requires a positive hidden size D.");
+    // C, D, L and C*D must fit in int64, the dimension type of the shape system.
+    constexpr auto max_dim = static_cast<size_t>(std::numeric_limits<int64_t>::max());
+    NODE_VALIDATION_CHECK(this,
+                          m_hidden_size <= max_dim && m_lowrank <= max_dim && m_hc_count <= max_dim,
+                          "GatedResidual C, D and L must fit in int64.");
+    size_t cd = 0;
+    NODE_VALIDATION_CHECK(this,
+                          !ov::util::mul_overflow(m_hc_count, m_hidden_size, cd) && cd <= max_dim,
+                          "GatedResidual C*D overflows: C = ",
+                          m_hc_count,
+                          ", D = ",
+                          m_hidden_size);
     NODE_VALIDATION_CHECK(this,
                           out_et.is_dynamic() || out_et.is_real(),
                           "GatedResidual residual must have a floating-point element type, got ",
@@ -74,9 +97,9 @@ void GatedResidual::validate_and_infer_types() {
                           residual_ps.rank().is_dynamic() || residual_ps.rank().get_length() >= 2,
                           "GatedResidual requires the residual input rank to be at least 2.");
     NODE_VALIDATION_CHECK(this,
-                          last_dim_matches(residual_ps, m_hc_count * m_hidden_size),
+                          last_dim_matches(residual_ps, cd),
                           "GatedResidual residual last dimension must be C*D = ",
-                          m_hc_count * m_hidden_size,
+                          cd,
                           ", got ",
                           residual_ps);
 
@@ -109,11 +132,11 @@ void GatedResidual::validate_and_infer_types() {
             y_ps,
             " and ",
             gate_ps);
-        // R' has exactly the residual layout, its width is known even when the residual's is not.
+        // R' has the residual layout; its width is known even when the residual's is not.
         auto output_ps = residual_ps.rank().is_static() ? residual_ps : ov::PartialShape::dynamic(rank);
         if (rank.is_static()) {
             const auto last = static_cast<size_t>(rank.get_length()) - 1;
-            // An input of dynamic rank has no dimensions to merge (it was only checked against the other ranks above).
+            // A dynamic-rank input has no dimensions to merge.
             for (const auto* other : {&y_ps, &gate_ps}) {
                 if (other->rank().is_dynamic()) {
                     continue;
@@ -130,7 +153,7 @@ void GatedResidual::validate_and_infer_types() {
                                           gate_ps);
                 }
             }
-            output_ps[last] = static_cast<int64_t>(m_hc_count * m_hidden_size);
+            output_ps[last] = static_cast<int64_t>(cd);
         }
         set_output_type(0, merged_et, output_ps);
         return;
@@ -151,7 +174,6 @@ void GatedResidual::validate_and_infer_types() {
                           "GatedResidual (FINAL_MIX) must not produce a write gate.");
     NODE_VALIDATION_CHECK(this, m_lowrank > 0, "GatedResidual (READ/FINAL_MIX) requires a positive low rank L.");
 
-    const size_t cd = m_hc_count * m_hidden_size;
     const auto& gain_ps = get_input_partial_shape(ReadInputIdx::NORM_WEIGHT);
     NODE_VALIDATION_CHECK(this,
                           gain_ps.rank().is_dynamic() ||
@@ -190,7 +212,7 @@ void GatedResidual::validate_and_infer_types() {
                           wd_et.is_dynamic() || (compressed == wd_quant),
                           "GatedResidual takes i4/u4/i8/u8 weights exactly with the compressed input forms.");
     if (compressed) {
-        // scale/zp are [G, N] (N contiguous), unlike FC's [N, G]; the group size along K is K / G (not an attribute).
+        // scale / zp are [G, N]; the group size along K is K / G (not an attribute).
         auto check_group = [&](size_t scale_idx, size_t zp_idx, size_t n, size_t k, const char* name) {
             const auto& sps = get_input_partial_shape(scale_idx);
             NODE_VALIDATION_CHECK(

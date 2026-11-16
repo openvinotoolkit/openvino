@@ -42,9 +42,9 @@ const std::vector<std::vector<InputShape>> shapes{
     },
 };
 
-// Decomposition path (gain shape [1,8,64] is not a vector, so the RMS op is decomposed into primitives). The
-// decomposition multiplies the gain and the normalized data without a Convert, so the gain must have the data
-// precision here; the mixed data/gain precisions below only apply to shapes handled by the RMSNorm node.
+// Decomposition path (a [1,8,64] gain is not a vector, so the RMS op is decomposed). The decomposition multiplies
+// without a Convert, so the gain has the data precision; the mixed precisions below apply to shapes the RMSNorm node
+// handles.
 const std::vector<std::vector<InputShape>> decomposedShapes{
     {
         // data shape

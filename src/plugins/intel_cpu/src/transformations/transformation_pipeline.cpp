@@ -71,6 +71,7 @@
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
+#include "transformations/common_optimizations/gated_residual_fusion.hpp"
 #include "transformations/common_optimizations/lora_subgraph_fusion.hpp"
 #include "transformations/common_optimizations/lstm_cell_fusion.hpp"
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
@@ -201,6 +202,7 @@
 #    include "low_precision/fold_convert.hpp"
 #    include "low_precision/fuse_convert.hpp"
 #    include "low_precision/weightable_layer_transformation.hpp"
+#    include "nodes/gated_residual.h"
 #    include "nodes/llm_mlp.h"
 #    include "nodes/qkv_proj.h"
 #    include "nodes/rms_norm.h"
@@ -1200,6 +1202,17 @@ void Transformations::PostLpt() {
                           ov::pass::RMSFusion,
                           false /* force_tail_convert */,
                           enable_without_gamma);
+    // Before DecomposeRMSNorm: the READ pattern matches the fused RMS or its decomposed form. GatedResidual is the only
+    // executor of it on x86-64.
+    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::GatedResidualFusion);
+    CPU_SET_CALLBACK_X64(
+        postLPTPassManager,
+        [](const_node_ptr& node) -> bool {
+            std::string errorMsg;
+            return !node::GatedResidual::isSupportedOperation(node, errorMsg);
+        },
+        ov::pass::GatedResidualReadFusion,
+        ov::pass::GatedResidualWriteFusion);
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::DecomposeRMSNorm);
     CPU_SET_CALLBACK_X64(
         postLPTPassManager,

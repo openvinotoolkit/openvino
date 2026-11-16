@@ -521,4 +521,47 @@ TEST(type_prop, gated_residual_write_mismatched_rank) {
                     testing::HasSubstr("must have the same rank"));
 }
 
+TEST(type_prop, gated_residual_unknown_mode_is_rejected) {
+    OV_EXPECT_THROW(std::ignore = make_read(element::f32,
+                                            Shape{2, 3, 16},
+                                            Shape{16},
+                                            Shape{8, 16},
+                                            Shape{16, 8},
+                                            4,
+                                            4,
+                                            8,
+                                            // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
+                                            static_cast<Mode>(7)),
+                    NodeValidationFailure,
+                    testing::HasSubstr("unknown mode"));
+}
+
+TEST(type_prop, gated_residual_c_times_d_size_t_overflow_is_rejected) {
+    // C * D = 2^64 wraps to 0 in size_t.
+    OV_EXPECT_THROW(std::ignore = make_read(element::f32,
+                                            PartialShape::dynamic(),
+                                            PartialShape::dynamic(),
+                                            Shape{8, 16},
+                                            Shape{16, 8},
+                                            size_t{1} << 32,
+                                            size_t{1} << 32,
+                                            8),
+                    NodeValidationFailure,
+                    testing::HasSubstr("overflows"));
+}
+
+TEST(type_prop, gated_residual_c_times_d_int64_overflow_is_rejected) {
+    // C * D = 2^63 fits in size_t but not in the int64 dimensions of the shape system.
+    OV_EXPECT_THROW(std::ignore = make_read(element::f32,
+                                            PartialShape::dynamic(),
+                                            PartialShape::dynamic(),
+                                            Shape{8, 16},
+                                            Shape{16, 8},
+                                            2,
+                                            size_t{1} << 62,
+                                            8),
+                    NodeValidationFailure,
+                    testing::HasSubstr("overflows"));
+}
+
 }  // namespace ov::test

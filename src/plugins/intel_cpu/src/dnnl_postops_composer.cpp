@@ -27,6 +27,8 @@
 #include "cpu_shape.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/executors/common/common_utils.hpp"
@@ -731,6 +733,16 @@ void DnnlPostOpsComposer::appendZeroPointsLegacy(const MemoryArgs& memory) {
     }
 }
 
+// True for a rank-2 blocked descriptor with a permuted order, e.g. [G, N] data described as the logical [N, G] tensor.
+static bool hasPermutedLayout(const MemoryDesc& desc) {
+    const auto* blocked = dynamic_cast<const BlockedMemoryDesc*>(&desc);
+    if (blocked == nullptr || desc.getShape().getRank() != 2) {
+        return false;
+    }
+    const auto& order = blocked->getOrder();
+    return !std::is_sorted(order.begin(), order.end());
+}
+
 static MemoryPtr prepackDecompressionParams(const MemoryCPtr& paramsPtr,
                                             bool needTranspose,
                                             ov::element::Type dstPrc,
@@ -754,12 +766,15 @@ static MemoryPtr prepackDecompressionParams(const MemoryCPtr& paramsPtr,
                                         DnnlExtensionUtils::ElementTypeToDataType(dstPrc),
                                         dnnl::memory::format_tag::io);
     auto dstMem = std::make_shared<Memory>(engine, dstMemoryDesc);
-    auto srcFormat = needTranspose ? dnnl::memory::format_tag::oi : dnnl::memory::format_tag::io;
 
-    DnnlBlockedMemoryDesc srcMemoryDesc(
-        dstShape,
-        DnnlExtensionUtils::ElementTypeToDataType(paramsPtr->getDescPtr()->getPrecision()),
-        srcFormat);
+    // A permuted descriptor states the source layout itself; for the others it is given by `needTranspose`.
+    MemoryDescPtr srcMemoryDesc = paramsPtr->getDescPtr();
+    if (!hasPermutedLayout(*srcMemoryDesc)) {
+        srcMemoryDesc = std::make_shared<DnnlBlockedMemoryDesc>(
+            dstShape,
+            DnnlExtensionUtils::ElementTypeToDataType(paramsPtr->getDescPtr()->getPrecision()),
+            needTranspose ? dnnl::memory::format_tag::oi : dnnl::memory::format_tag::io);
+    }
     auto srcMem = std::make_shared<Memory>(engine, srcMemoryDesc, paramsPtr->getData());
 
     dstMem->load(*srcMem, true, false);

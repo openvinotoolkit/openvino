@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "openvino/core/any.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/gated_residual.hpp"
 #include "openvino/op/parameter.hpp"
@@ -17,9 +18,9 @@
 
 namespace ov::test {
 
-// Describes how w_down/w_up/(w_inject) are compressed. `compressed == false` ignores every other
-// field and the weights are generated directly at `GatedResidualLayerParams`'s precision. Scales are [G, N]
-// floating-point tensors (f16 / bf16 / f32); zero points, when present, are [G, N] tensors of the weights' type.
+// How w_down/w_up/(w_inject) are compressed. `compressed == false` ignores the other fields (plain constants of the
+// case's precision). Compressed weights are NNCF-style decompression subgraphs: scales of `scale_precision`, zero
+// points of the weight type, one group per `group_size` input channels.
 struct GatedResidualWeightCompression {
     bool compressed = false;
     ov::element::Type weights_precision = ov::element::dynamic;
@@ -28,10 +29,8 @@ struct GatedResidualWeightCompression {
     ov::element::Type scale_precision = ov::element::f16;
 };
 
-// Bundles the shape dimensions with precision and compression because they aren't freely combinable: a compressed
-// weight's group size must divide hc_count*hidden_size and lowrank, and each compression spec is paired with one
-// precision for coverage diversity rather than tested against all of them. A test case is then a single ValuesIn axis
-// instead of a ::testing::Combine that would generate invalid combinations.
+// Shape, precision and compression are bundled because they are not freely combinable: a group size must divide C*D and
+// L, and each compression spec is paired with one precision for coverage. A case is then one ValuesIn axis.
 struct GatedResidualShapeParams {
     size_t hc_count;     // C
     size_t hidden_size;  // D
@@ -44,11 +43,11 @@ using GatedResidualLayerParams = std::tuple<ov::op::internal::GatedResidual::Mod
                                             GatedResidualShapeParams,
                                             bool,  // produce_write_gate
                                             bool,  // norm_gain_plus_one
-                                            // Leading [B, T] dims of every data-path input (residual, sublayer_y,
-                                            // write_gate): `first` is the dynamic partial shape (must be dynamic),
-                                            // `second` the static [B, T] used for each successive inference. The
-                                            // fixture appends each input's last dim (C*D, D or C).
+                                            // Leading [B, T] dims of the data-path inputs: `first` is the dynamic
+                                            // partial shape, `second` the static [B, T] per inference. The fixture
+                                            // appends each input's last dim (C*D, D or C).
                                             ov::test::InputShape,
+                                            ov::AnyMap,    // plugin configuration
                                             std::string>;  // target device
 
 class GatedResidualLayerCPUTest : public testing::WithParamInterface<GatedResidualLayerParams>,
@@ -58,7 +57,6 @@ public:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 
 protected:
-    std::vector<ov::Tensor> calculate_refs() override;
     void compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) override;
     void SetUp() override;
 
@@ -72,12 +70,6 @@ private:
     float m_epsilon = 1e-6F;
     ov::element::Type m_precision = ov::element::f32;
     GatedResidualWeightCompression m_compression{};
-
-    // Dequantized (compressed) or upconverted (uncompressed) f32 weight matrices, cached by SetUp() so calculate_refs()
-    // never has to unpack the graph's (possibly sub-byte) constants.
-    std::vector<float> m_down_weight_f32;    // [L, CD]
-    std::vector<float> m_up_weight_f32;      // [CD, L]
-    std::vector<float> m_inject_weight_f32;  // [C, CD], only when m_produce_write_gate
 };
 
 }  // namespace ov::test

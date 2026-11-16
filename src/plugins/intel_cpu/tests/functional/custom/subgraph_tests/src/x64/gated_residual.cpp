@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "custom/single_layer_tests/classes/gated_residual.hpp"
+#include "custom/subgraph_tests/src/classes/gated_residual.hpp"
 
 #include <utility>
 #include <vector>
 
 #include "common_test_utils/test_constants.hpp"
+#include "openvino/runtime/properties.hpp"
 
 namespace ov::test {
 
@@ -17,16 +18,9 @@ using Mode = ov::op::internal::GatedResidual::Mode;
 
 const GatedResidualWeightCompression kNoCompression{};
 
-// Every case runs with a dynamic input shape: rank-2 [rows, C*D], so C*D is fixed per case and only
-// the row count changes. `second` lists the row counts of the successive inferences through the one compiled model,
-// and one sequence covers everything the executor does with a changing M:
-//   - small M buckets (2, 4, 8, 16) and their boundaries (1/2, 3/4, 5/8, 9/16, 17), where the bucketed GEMMs and
-//     their SiLU/sigmoid/write-gate epilogues run over padded rows;
-//   - M buckets in steps of 16 below 512 and two row counts sharing a bucket (100 and 110 -> 112);
-//   - the 512-row tile cap: exactly 512 and 1024 (no remainder), 511 (just below), 513 (remainder of one row), and
-//     several tiles with a bucketed remainder (1100, 2051);
-//   - prefill -> decode flips (1100 -> 1, 2051 -> 1 -> 1), repeated counts and a tiny chunk, so update() runs with
-//     changed, unchanged and revisited GEMM shapes.
+// Dynamic rows [rows, C*D]; `second` lists the row counts of successive inferences through one compiled model. It
+// covers the small-M buckets and their boundaries (padded rows), a shared bucket (100 and 110 -> 112), the 512-row tile
+// cap with and without a remainder, and prefill -> decode flips.
 const ov::test::InputShape kDynRows{{-1}, {{1},    {2},   {3},   {4},    {5},   {8},   {9},   {16},   {17},
                                            {31},   {100}, {110}, {300},  {511}, {512}, {513}, {1100}, {1024},
                                            {2051}, {1},   {1},   {1100}, {1},   {64},  {1}}};
@@ -37,38 +31,35 @@ const std::vector<GatedResidualShapeParams> batch_seq_shapes{
     {4, 8, 16, ov::element::bf16, kNoCompression},
 };
 
-// The op accepts any number of leading batch dims; this is the only place with rank 3 [B, T, C*D], to keep the
-// flattening of leading dims covered (rank-2 is the usual form).
+// Rank-3 [B, T, C*D] activations (rank-2 [rows, C*D] is the usual form of the other cases), covering the flattening of
+// leading dims.
 const ov::test::InputShape kDynBatchSeq{{-1, -1}, {{2, 3}, {4, 1}, {3, 7}, {2, 100}, {1, 1}}};
 
-// Large-model shape: hc_count=4, hidden_size=2560 (so C*D = 10240), lowrank=320.
-// Rank-2 dynamic rows, kept short because the reference GEMMs are scalar.
-// Prefill-sized chunk first, then decode (1 row), a short chunk, and decode again.
+// Large-model shape (C=4, D=2560, L=320), rank-2 dynamic rows, kept short because the reference GEMMs are scalar. A
+// prefill-sized chunk first, then decode, a short chunk and decode again.
 const ov::test::InputShape kDynQwenRows{{-1}, {{300}, {1}, {33}, {1}}};
 const std::vector<GatedResidualShapeParams> qwen_shapes{
     {4, 2560, 320, ov::element::f32, kNoCompression},
     {4, 2560, 320, ov::element::bf16, kNoCompression},
 };
 
-// Uncompressed shapes: power-of-two and non-power-of-two C/D/L (exercising any SIMD-tail paths) at
-// every supported data precision.
+// Uncompressed shapes: power-of-two and other C/D/L (SIMD-tail paths) at every supported data precision.
 const std::vector<GatedResidualShapeParams> uncompressed_shapes{
     {4, 8, 16, ov::element::f32, kNoCompression},
     {4, 8, 16, ov::element::bf16, kNoCompression},
     {4, 8, 16, ov::element::f16, kNoCompression},
     {3, 5, 7, ov::element::f32, kNoCompression},
     {3, 5, 7, ov::element::bf16, kNoCompression},
-    // D = 1: every branch is a single element, so the RMS kernel's scalar-scale path reads the gain at the port
-    // precision and applies norm_gain_plus_one.
+    // D = 1: every branch is one element, so the RMS kernel's scalar-scale path reads the gain in the port precision
+    // and applies norm_gain_plus_one.
     {4, 1, 8, ov::element::f32, kNoCompression},
     {4, 1, 8, ov::element::bf16, kNoCompression},
     {4, 1, 8, ov::element::f16, kNoCompression},
 };
 
-// Compressed-weight shapes: u8/i8/u4/i4, per-channel and grouped, with and without zero points. Scales are [G, N]
-// floating-point tensors (f16 / bf16 / f32) and zero points have the weights' type. The CPU node requires a scale to
-// have a static group count G that divides K (the op validates it): 1 (per-channel), 2, 3, 4, ... CD/L below are sized
-// per case so that the group size K / G is 16..128.
+// Compressed shapes: u8/i8/u4/i4, per-channel and grouped, with and without zero points; scales are f16/bf16/f32 [G,
+// N], zero points have the weight type. G must be static and divide K; CD/L are sized so the group size K / G is
+// 16..128.
 using Compression = GatedResidualWeightCompression;
 const Compression u8_per_channel{true, ov::element::u8, false, 0, ov::element::f32};
 const Compression u8_grouped_zp{true, ov::element::u8, true, 16, ov::element::f16};
@@ -87,8 +78,7 @@ const Compression u8_grouped_zp_gs64{true, ov::element::u8, true, 64, ov::elemen
 const Compression u8_grouped_zp_gs128{true, ov::element::u8, true, 128, ov::element::f16};
 const Compression u4_grouped_zp_gs128{true, ov::element::u4, true, 128, ov::element::f16};  // group size 128
 
-// All compressed shapes except i4_per_channel, instantiated with produce_write_gate=true to also
-// exercise the inject projection.
+// Compressed shapes with produce_write_gate=true, which also covers the inject projection.
 const std::vector<GatedResidualShapeParams> compressed_shapes_with_inject{
     {4, 8, 16, ov::element::f32, u8_per_channel},
     {4, 16, 64, ov::element::f16, u8_grouped_zp},
@@ -112,18 +102,22 @@ const std::vector<GatedResidualShapeParams> compressed_shapes_no_inject{
     {4, 8, 16, ov::element::bf16, i4_per_channel},
 };
 
-// Every compressed shape above (both subsets), reused for Mode::FINAL_MIX, which always forces
-// produce_write_gate off -- so i4_per_channel's "no inject" shape fits here naturally too.
+// All compressed shapes, reused for FINAL_MIX (which forces produce_write_gate off).
 std::vector<GatedResidualShapeParams> all_compressed_shapes() {
     std::vector<GatedResidualShapeParams> shapes = compressed_shapes_with_inject;
     shapes.insert(shapes.end(), compressed_shapes_no_inject.begin(), compressed_shapes_no_inject.end());
     return shapes;
 }
 
+// Compressed cases run with the default dynamic quantization (int8 activations where oneDNN supports it) and with it
+// disabled, which isolates the decompression numerics.
+const std::vector<ov::AnyMap> default_configs{{}};
+const std::vector<ov::AnyMap> compressed_configs{{}, {{ov::hint::dynamic_quantization_group_size.name(), uint64_t{0}}}};
+
 }  // namespace
 
-// One suite per mode: produce_write_gate is only valid for READ, and WRITE has no weights/RMSNorm
-// gain, so a free Combine across Mode would generate cases the op rejects or that are redundant.
+// One suite per mode: produce_write_gate is valid only for READ, and WRITE has no weights or gain, so a free Combine
+// would produce invalid or redundant cases.
 INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualRead,
                          GatedResidualLayerCPUTest,
                          ::testing::Combine(::testing::Values(Mode::READ),
@@ -131,6 +125,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualRead,
                                             ::testing::Values(false, true),  // produce_write_gate
                                             ::testing::Values(false, true),  // norm_gain_plus_one
                                             ::testing::Values(kDynRows),
+                                            ::testing::ValuesIn(default_configs),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          GatedResidualLayerCPUTest::getTestCaseName);
 
@@ -141,6 +136,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualFinalMix,
                                             ::testing::Values(false),        // produce_write_gate
                                             ::testing::Values(false, true),  // norm_gain_plus_one
                                             ::testing::Values(kDynRows),
+                                            ::testing::ValuesIn(default_configs),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          GatedResidualLayerCPUTest::getTestCaseName);
 
@@ -151,6 +147,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualWrite,
                                             ::testing::Values(false),  // produce_write_gate
                                             ::testing::Values(true),   // norm_gain_plus_one
                                             ::testing::Values(kDynRows),
+                                            ::testing::ValuesIn(default_configs),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          GatedResidualLayerCPUTest::getTestCaseName);
 
@@ -162,6 +159,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualBatchSeqRead,
                                             ::testing::Values(true),  // produce_write_gate
                                             ::testing::Values(true),  // norm_gain_plus_one
                                             ::testing::Values(kDynBatchSeq),
+                                            ::testing::ValuesIn(default_configs),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          GatedResidualLayerCPUTest::getTestCaseName);
 
@@ -172,6 +170,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualBatchSeqWrite,
                                             ::testing::Values(false),  // produce_write_gate
                                             ::testing::Values(true),   // norm_gain_plus_one
                                             ::testing::Values(kDynBatchSeq),
+                                            ::testing::ValuesIn(default_configs),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          GatedResidualLayerCPUTest::getTestCaseName);
 
@@ -182,6 +181,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualQwenRead,
                                             ::testing::Values(true),  // produce_write_gate
                                             ::testing::Values(true),  // norm_gain_plus_one
                                             ::testing::Values(kDynQwenRows),
+                                            ::testing::ValuesIn(default_configs),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          GatedResidualLayerCPUTest::getTestCaseName);
 
@@ -192,6 +192,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualQwenWrite,
                                             ::testing::Values(false),  // produce_write_gate
                                             ::testing::Values(false),  // norm_gain_plus_one
                                             ::testing::Values(kDynQwenRows),
+                                            ::testing::ValuesIn(default_configs),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          GatedResidualLayerCPUTest::getTestCaseName);
 
@@ -202,13 +203,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualQwenFinalMix,
                                             ::testing::Values(false),  // produce_write_gate
                                             ::testing::Values(true),   // norm_gain_plus_one
                                             ::testing::Values(kDynQwenRows),
+                                            ::testing::ValuesIn(default_configs),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          GatedResidualLayerCPUTest::getTestCaseName);
 
-// WRITE is excluded from the compressed suites below: it has no weight projections. READ and FINAL_MIX are separate
-// instantiations (instead of combining Mode freely with produce_write_gate) to avoid the invalid FINAL_MIX +
-// produce_write_gate=true combination the op rejects; both are covered so a mode-dispatch regression can't hide
-// behind "only READ was tested".
+// WRITE is excluded below (no weights). READ and FINAL_MIX are separate instantiations to avoid the FINAL_MIX +
+// produce_write_gate=true combination the op rejects, so a mode-dispatch regression cannot hide.
 INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualCompressed,
                          GatedResidualLayerCPUTest,
                          ::testing::Combine(::testing::Values(Mode::READ),
@@ -216,6 +216,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualCompressed,
                                             ::testing::Values(true),  // produce_write_gate
                                             ::testing::Values(true),  // norm_gain_plus_one
                                             ::testing::Values(kDynRows),
+                                            ::testing::ValuesIn(compressed_configs),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          GatedResidualLayerCPUTest::getTestCaseName);
 
@@ -226,6 +227,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualCompressedNoWriteGate,
                                             ::testing::Values(false),  // produce_write_gate
                                             ::testing::Values(true),   // norm_gain_plus_one
                                             ::testing::Values(kDynRows),
+                                            ::testing::ValuesIn(compressed_configs),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          GatedResidualLayerCPUTest::getTestCaseName);
 
@@ -236,6 +238,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualCompressedFinalMix,
                                             ::testing::Values(false),  // produce_write_gate
                                             ::testing::Values(true),   // norm_gain_plus_one
                                             ::testing::Values(kDynRows),
+                                            ::testing::ValuesIn(compressed_configs),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          GatedResidualLayerCPUTest::getTestCaseName);
 

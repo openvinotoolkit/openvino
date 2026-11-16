@@ -19,11 +19,9 @@
 
 namespace ov::intel_cpu::kernel {
 
-// GatedResidual READ/FINAL_MIX mix for one row:
-//   out[d] = scale * sum_{c < branches} gate[c * data_size + d] * rbar[c * data_size + d],  d in [0, data_size).
-// gate and rbar are contiguous f32 rows of branches * data_size elements; out is stored at `prc`, converting
-// from f32 with a single rounding. The multiply-accumulate over branches, the scale and the conversion are one
-// pass over the data.
+// GatedResidual mix for one row: out[d] = scale * sum_c gate[c * data_size + d] * rbar[c * data_size + d]. gate and
+// rbar are contiguous f32 rows; out is stored at `prc`, rounded once. The multiply-accumulate, the scale and the
+// conversion are one pass.
 struct jit_gated_residual_mix_compile_params {
     ov::element::Type prc;  // output element type
     size_t data_size = 0UL;

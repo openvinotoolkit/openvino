@@ -22,10 +22,8 @@
 
 namespace ov::intel_cpu::node {
 
-/// @brief CPU node for ov::op::internal::GatedResidual. Accepts f32/bf16/f16 on its data-path ports
-/// (all internal accumulation happens in f32) and, optionally, u8/i8/u4/i4 weights with f32
-/// decompression scale/zero-point ports. The computation lives in the executor selected through
-/// ExecutorFactory<GatedResidualAttrs> (see nodes/executors/dnnl/dnnl_gated_residual_executor.hpp).
+/// @brief CPU node for ov::op::internal::GatedResidual (x86-64 only). Data ports are f32/bf16/f16; compressed
+/// weights are u8/i8/u4/i4. The computation lives in the executor from ExecutorFactory<GatedResidualAttrs>.
 class GatedResidual : public Node {
 public:
     GatedResidual(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
@@ -45,7 +43,7 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    void updateMemoryArgs();
+    void bindMemoryArgs();
 
     GatedResidualAttrs m_attrs;
     ExecutorFactoryPtr<GatedResidualAttrs> m_factory;

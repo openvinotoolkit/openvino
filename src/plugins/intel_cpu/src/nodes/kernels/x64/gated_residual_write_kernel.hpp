@@ -19,9 +19,8 @@
 
 namespace ov::intel_cpu::kernel {
 
-// GatedResidual WRITE mode for one (row, branch): out[d] = residual[d] + gate * y[d], d in [0, data_size).
-// residual, y, gate and out share one element type; the gate is a single element that the kernel loads and
-// broadcasts itself. The arithmetic is f32 with a single rounding on store.
+// GatedResidual WRITE for one (row, branch): out[d] = residual[d] + gate * y[d]. All tensors share one element type;
+// the kernel loads and broadcasts the single gate element itself. Arithmetic is f32, rounded once on store.
 struct jit_gated_residual_write_compile_params {
     ov::element::Type prc;
     size_t data_size = 0UL;

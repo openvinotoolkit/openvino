@@ -86,6 +86,13 @@ public:
         return scratchPads[curNumaNodeId];
     }
 
+    // A copy of this context that uses `scratchPad` instead of the scratchpad of its NUMA node.
+    [[nodiscard]] Ptr withScratchPad(DnnlScratchPadPtr scratchPad) const {
+        auto context = std::make_shared<ExecutorContext>(*this);
+        context->scratchPads[curNumaNodeId] = std::move(scratchPad);
+        return context;
+    }
+
     [[nodiscard]] std::shared_ptr<std::unordered_map<std::string, MemoryPtr>> getPrivateWeightCache() const {
         return privateWeighCache;
     }

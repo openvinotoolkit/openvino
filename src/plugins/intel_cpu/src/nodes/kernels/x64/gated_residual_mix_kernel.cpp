@@ -92,8 +92,8 @@ void jit_gated_residual_mix_kernel<isa>::mix_store(size_t step) {
     load(vmm_rbar, reg_rbar, ov::element::f32, elt_num, 0);
     uni_vmulps(vmm_acc, vmm_acc, vmm_rbar);
 
-    // Branches 1..C-1. Few branches are unrolled at generation time; many run in a loop over groups of
-    // branch_unroll branches, so the code size stays bounded however large C is. The remainder is unrolled.
+    // Branches 1..C-1: few are unrolled at generation time, many run in a loop over groups of branch_unroll, which
+    // bounds the code size for any C. The remainder is unrolled.
     const size_t rest = m_jcp.branches - 1;
     const size_t groups = rest / branch_unroll;
     if (groups >= 2) {
