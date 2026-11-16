@@ -24,14 +24,14 @@ namespace ov::frontend::gguf::op {
 
 OutputVector translate_get_rows(const NodeContext& context) {
     const bool relative_shift = context.get_attribute<bool>("relative_shift", false);
-    num_inputs_check(context, relative_shift ? 1 : 2, relative_shift ? 1 : 2);
-
     int op_case = context.get_op_case();
+    const bool last_query_row = op_case == 11;
+    num_inputs_check(context, relative_shift || last_query_row ? 1 : 2, relative_shift || last_query_row ? 1 : 2);
 
     Output<Node> res;
     auto data = context.get_input(0);
     ov::Output<ov::Node> indices;
-    if (!relative_shift)
+    if (!relative_shift && !last_query_row)
         indices = context.get_input(1);
     // GGML gathers integer rows as I32 and all floating/quantized rows as F32.
     const auto type = data.get_element_type() == ov::element::i32 ? ov::element::i32 : ov::element::f32;
@@ -41,6 +41,15 @@ OutputVector translate_get_rows(const NodeContext& context) {
         }
         return rows;
     };
+
+    if (last_query_row) {
+        FRONT_END_OP_CONVERSION_CHECK(data.get_partial_shape().rank() == 4,
+                                      "Selecting the last attention-mask query row requires rank four");
+        auto index = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+        auto axis = ov::op::v0::Constant::create(ov::element::i64, {}, {2});
+        res = std::make_shared<ov::op::v8::Gather>(data, index, axis);
+        return rename_outputs_with_suffix({convert_rows(res)}, context.get_name());
+    }
 
     if (relative_shift) {
         const auto scalar = [](int64_t value) {

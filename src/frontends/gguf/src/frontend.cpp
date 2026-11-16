@@ -109,7 +109,7 @@ std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
         auto ops = merged_ops(m_impl->op_extension_translators);
         auto conversion_input = gguf_model;
         if (gguf_model->m_builder) {
-            auto graph = gguf_model->m_builder(ops);
+            auto graph = gguf_model->m_builder(ops, static_cast<bool>(m_impl->genai_extension));
             for (const auto& [output, adapter] : graph->model_adapters) {
                 if (adapter)
                     adapter->lifetime.insert(adapter->lifetime.end(),

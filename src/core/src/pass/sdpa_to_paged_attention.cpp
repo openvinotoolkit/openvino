@@ -25,6 +25,7 @@
 #include "transformations/paged_attention/paged_selective_ssm_fusion.hpp"
 #include "transformations/paged_attention/position_ids_replacer.hpp"
 #include "transformations/paged_attention/prev_sequence_length_pattern.hpp"
+#include "transformations/paged_attention/prune_shared_kv_rows.hpp"
 #include "transformations/paged_attention/state_management_pattern.hpp"
 #include "transformations/paged_attention/total_sequence_length_pattern.hpp"
 #include "transformations/utils/print_model.hpp"
@@ -223,6 +224,8 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     model->add_results(m_results.items());
     model->add_parameters(m_params.items());
     model->validate_nodes_and_infer_types();
+
+    PruneSharedKVRows().run_on_model(model);
 
     return true;
 }

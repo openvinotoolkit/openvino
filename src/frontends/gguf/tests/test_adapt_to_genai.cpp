@@ -15,6 +15,7 @@
 #include <memory>
 #include <numeric>
 #include <sstream>
+#include <unordered_set>
 
 #include "common_test_utils/node_builders/constant.hpp"
 #include "gtest/gtest.h"
@@ -1128,6 +1129,61 @@ std::shared_ptr<v0::MatMul> find_genai_lm_head(const std::shared_ptr<ov::Model>&
 }
 
 }  // namespace
+
+TEST(GGUFAdaptToGenAI, IndependentAttentionCachesDoNotImplySharedKvPruning) {
+    constexpr int64_t hidden = 4;
+    auto model = build_attention_gguf_model(8, hidden);
+    auto beam = find_parameter(model, "beam_idx");
+    auto row_ids = ov::test::utils::make_param(ov::element::i32, ov::PartialShape{1, 1, 1, -1}, "inp_out_ids");
+    model->add_parameters({row_ids});
+    const auto first_hidden = model->get_results()[0]->input_value(0);
+    auto axis0 = v0::Constant::create(ov::element::i64, {1}, {0});
+    auto axes01 = v0::Constant::create(ov::element::i64, {2}, {0, 1});
+    auto hidden_4d = std::make_shared<v0::Unsqueeze>(first_hidden, axis0);
+    auto selected =
+        std::make_shared<v0::Unsqueeze>(std::make_shared<v8::Gather>(std::make_shared<v0::Squeeze>(hidden_4d, axes01),
+                                                                     std::make_shared<v0::Squeeze>(row_ids, axes01),
+                                                                     axis0),
+                                        axis0);
+
+    auto current_4d = std::make_shared<v0::Unsqueeze>(first_hidden, axis0);
+    auto make_cache = [&](const std::string& id) {
+        auto variable = std::make_shared<util::Variable>(
+            util::VariableInfo{ov::PartialShape{-1, 1, -1, hidden}, ov::element::f32, id});
+        auto initial = v0::Constant::create(ov::element::f32, {1, 1, 0, hidden}, {});
+        auto read = std::make_shared<v6::ReadValue>(initial, variable);
+        auto past = std::make_shared<v8::Gather>(read, beam, axis0);
+        auto cache = std::make_shared<v0::Concat>(ov::OutputVector{past, current_4d}, 2);
+        model->add_sinks({std::make_shared<v6::Assign>(cache, variable)});
+        return cache;
+    };
+    auto second = std::make_shared<v13::ScaledDotProductAttention>(selected,
+                                                                   make_cache("attn_k_cache.1"),
+                                                                   make_cache("attn_v_cache.1"),
+                                                                   v0::Constant::create(ov::element::f32, {}, {0}),
+                                                                   v0::Constant::create(ov::element::f32, {}, {1}),
+                                                                   false);
+    attach_lm_head(model, second, 8, hidden, false);
+    ASSERT_TRUE(AdaptToGenAI().run_on_model(model));
+    EXPECT_EQ(model->get_rt_info().count("shared_kv_row_selection"), 0);
+    auto head = find_genai_lm_head(model, false);
+    ASSERT_NE(head, nullptr);
+    auto reshape = ov::as_type_ptr<v1::Reshape>(head->get_input_node_shared_ptr(0));
+    ASSERT_NE(reshape, nullptr);
+    auto shape = ov::as_type_ptr<v0::Concat>(reshape->get_input_node_shared_ptr(1));
+    ASSERT_NE(shape, nullptr);
+    std::unordered_set<const ov::Node*> visited;
+    std::vector<const ov::Node*> pending{shape->input_value(0).get_node()};
+    while (!pending.empty()) {
+        const auto* node = pending.back();
+        pending.pop_back();
+        if (!visited.insert(node).second)
+            continue;
+        EXPECT_NE(node, second.get());
+        for (const auto& input : node->input_values())
+            pending.push_back(input.get_node());
+    }
+}
 
 TEST(GGUFAdaptToGenAI, PackedTernaryEmbeddingSurvivesPagedAttentionPrefill) {
     constexpr size_t vocab = 4;
