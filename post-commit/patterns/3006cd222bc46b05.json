@@ -4,16 +4,18 @@
   "signature_hash": "3006cd222bc46b05",
   "title": "OpenVINO tokenizers wheel build fails on Windows: pip cannot find matching dev openvino version for build dependency",
   "category": "Dependencies",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-11-06T17:07:13Z",
-  "last_seen": "2026-11-06T17:07:13Z",
+  "last_seen": "2026-11-16T12:23:17Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/43859635810",
     "https://github.com/openvinotoolkit/openvino/actions/runs/42243497813"
   ],
   "affected_commits": [
+    "7d511a670731b8474e1a515c1d79953e2769b18d",
     "feffa3c6f7301221131c40fe7354dddea47ef6c1"
   ],
   "recent_timestamps": [
-    "2026-11-06T17:07:13Z"
+    "2026-11-16T12:23:17Z"
   ]
 }

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 112,
+  "total": 113,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -1141,6 +1141,17 @@
       "category": "Infrastructure",
       "signature_hash": "514ffa2ab52ad344",
       "commit_sha": "9d3f47860d983bc68a4ccd517010691c6c0a2bce"
+    },
+    {
+      "investigation_id": "2026-11-16-12-23-17-000-43859635810",
+      "run_id": "43859635810",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43859635810",
+      "workflow_name": "ci/gha_overall_status_linux_arm64",
+      "timestamp": "2026-11-16T12:23:17Z",
+      "title": "OpenVINO tokenizers wheel build fails: pip cannot find matching dev openvino version for build dependency",
+      "category": "Dependencies",
+      "signature_hash": "3006cd222bc46b05",
+      "commit_sha": "7d511a670731b8474e1a515c1d79953e2769b18d"
     }
   ]
 }
