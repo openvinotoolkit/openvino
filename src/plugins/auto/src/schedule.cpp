@@ -143,6 +143,15 @@ void Schedule::generate_workers(const std::string& device, const SoCompiledModel
                     bool returned_to_idle =
                         idleGuard.release()->try_push(std::make_pair(worker_request_ptr->m_index, worker_request_ptr));
                     if (m_context->m_dynamic_device_selection) {
+                        // only recorded here, it is logged by the next dispatch so the slot is released without delay
+                        INFO_RUN([&] {
+                            if (!worker_request_ptr->m_start_times.empty()) {
+                                m_last_infer_ms = std::chrono::duration<double, std::milli>(
+                                                      std::chrono::steady_clock::now() -
+                                                      worker_request_ptr->m_start_times.back())
+                                                      .count();
+                            }
+                        });
                         // released unconditionally, otherwise queued requests would hang once destruction has began
                         release_execution_slot();
                     } else if (returned_to_idle) {
@@ -216,6 +225,7 @@ Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, Worker
             // if the request is coming with device-specific remote tensors make sure it is scheduled to the specific device only:
             Stage {
                 /*TaskExecutor*/ first_executor, /*task*/ [this, &infer_request]() {
+                    std::static_pointer_cast<InferRequest>(infer_request)->reset_scheduled_profiling();
                     // by default, no preferred device:
                     m_this_preferred_device_name = "";
                     auto compiled_model = m_context->m_compiled_model.lock();
@@ -304,7 +314,18 @@ Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, Worker
                     if (m_context->m_need_perf_counters) {
                         auto auto_request = std::dynamic_pointer_cast<InferRequest>
                             (infer_request);
-                        auto_request->set_scheduled_request((*worker_infer_request)->m_inferrequest);
+                        if (!m_context->m_dynamic_device_selection) {
+                            auto_request->set_scheduled_request((*worker_infer_request)->m_inferrequest);
+                            return;
+                        }
+                        // dynamic selection may release the device, so snapshot instead of pinning it
+                        try {
+                            auto_request->set_scheduled_profiling_info(
+                                (*worker_infer_request)->m_inferrequest->get_profiling_info());
+                        } catch (...) {
+                            // surfaced from get_profiling_info(), the inference itself succeeded
+                            auto_request->set_scheduled_profiling_error(std::current_exception());
+                        }
                     }
                 }}
         };
@@ -321,6 +342,11 @@ Schedule::~Schedule() {
         for (auto&& worker_request : m_worker_requests) {
             std::list<Time> req_all_start_times;
             std::list<Time> req_all_end_times;
+            if (const auto released = m_released_infer_times.find(worker_request.first);
+                released != m_released_infer_times.end()) {
+                req_all_start_times.splice(req_all_start_times.end(), released->second.first);
+                req_all_end_times.splice(req_all_end_times.end(), released->second.second);
+            }
             for (auto& request : worker_request.second) {
                 req_all_start_times.splice(req_all_start_times.end(), request.m_start_times);
                 req_all_end_times.splice(req_all_end_times.end(), request.m_end_times);
@@ -332,6 +358,15 @@ Schedule::~Schedule() {
                              : std::chrono::duration<double, std::milli>(0.0);
             req_all_start_times.sort(std::less<Time>());
             req_all_end_times.sort(std::less<Time>());
+            // the inferences are serialized there, so the sum is the time the device was busy
+            std::chrono::duration<double, std::milli> busy_duration{0.0};
+            if (m_context && m_context->m_dynamic_device_selection) {
+                for (auto start = req_all_start_times.begin(), end = req_all_end_times.begin();
+                     start != req_all_start_times.end();
+                     ++start, ++end) {
+                    busy_duration += *end - *start;
+                }
+            }
             {
                 auto n = req_all_start_times.size();
                 Time time;
@@ -348,9 +383,9 @@ Schedule::~Schedule() {
                     LOG_INFO_TAG("%s: first inference time:%lf ms",
                                  worker_request.first.c_str(),
                                  first_infer_duration.count());
-                    LOG_INFO_TAG("%s:infer:%zu", worker_request.first.c_str(), count);
+                    LOG_INFO_TAG("%s:infer:%lu", worker_request.first.c_str(), static_cast<unsigned long>(count));
                     std::chrono::duration<double, std::milli> durtation =
-                        req_all_end_times.back() - time;
+                        busy_duration.count() > 0.0 ? busy_duration : req_all_end_times.back() - time;
                     LOG_INFO_TAG("%s:fps:%lf", worker_request.first.c_str(),
                         n * 1000 / durtation.count());
                 }
