@@ -1950,6 +1950,8 @@ TEST(prepare_buffer_fusing, redundant_reorder_permute) {
     topology.add(input_layout("input", in_layout));
     topology.add(reorder("reorder", input_info("input"), format::bfyx, data_types::f16));
     topology.add(permute("permute", input_info("reorder"), {0, 2, 1, 3}));
+    // non-fusing user so that the permute is not a network output (F12)
+    topology.add(softmax("softmax", input_info("permute"), 3));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
@@ -1958,6 +1960,8 @@ TEST(prepare_buffer_fusing, redundant_reorder_permute) {
 
     auto& permute_node = prog->get_node("permute").as<permute>();
     auto& reorder_node = prog->get_node("reorder").as<reorder>();
+    ASSERT_FALSE(permute_node.is_output());
+    ASSERT_TRUE(permute_node.get_fused_primitives().empty());
     ASSERT_TRUE(reorder_node.can_be_optimized());
     ASSERT_TRUE(permute_node.can_be_optimized());
 }

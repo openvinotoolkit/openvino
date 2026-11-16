@@ -448,6 +448,12 @@ bool crop_in_place_optimization::can_crop_be_optimized_simple_data_format(const 
 }
 
 static bool can_read_value_be_optimize(const read_value_node& node) {
+    // F14: an optimized read_value returns the variable buffer itself; a network output is read
+    // after assign overwrites it. read_value bypasses run()::can_optimize's is_output/fused filter.
+    // Old cached blobs keep the old flag (no recompute on import).
+    if (node.is_output() || node.has_fused_primitives()) {
+        return false;
+    }
     std::unordered_set<const cldnn::program_node*> unique_users;
     for (const auto* const user : node.get_users()) {
         if (!user->is_type<shape_of>()) {
@@ -1236,6 +1242,12 @@ void prepare_buffer_fusing::run(program& p) {
             }
             auto &permute_node = users.front()->as<permute>();
             if (!permute_node.get_fused_primitives().empty()) {
+                return;
+            }
+            // F12: an optimized-out output permute would alias the network output onto the reorder's
+            // input (often an input_layout) and drop set_output_memory() bindings at on_execute().
+            // Old cached blobs keep the old flag (no recompute on import).
+            if (permute_node.is_output()) {
                 return;
             }
 

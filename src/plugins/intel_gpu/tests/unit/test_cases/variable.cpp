@@ -353,12 +353,16 @@ TEST(variable_test_common, variables_release) {
     topology topology;
     topology.add(input_layout("input", input_data->get_layout()));
     topology.add(read_value{"read_value", {input_info("input")}, "v0", {variable_layout}});
+    // read_value must not be a network output: F14 keeps output read_values non-optimized, and release_variable()
+    // is a no-op for those by design.
+    topology.add(activation("act", input_info("read_value"), activation_func::relu));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
     auto context = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
     auto read_value_inst = network->get_primitive("read_value");
+    ASSERT_TRUE(read_value_inst->can_be_optimized());
     VariableStateInfo var_info{"v0", variable_layout};
     var_info.m_release_variable_inst.emplace_back(std::dynamic_pointer_cast<memory_state::releasable_variable>(read_value_inst));
     auto variable = std::make_shared<VariableState>(var_info, context, network->get_shape_predictor());

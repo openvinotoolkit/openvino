@@ -87,6 +87,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/passes/fuse_primitives_with_layout.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/handle_reshape.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/inplace_alias_conflict_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/passes/inplace_alias_conflict_f12_f14_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/kernels_cache_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/mark_shape_of_subgraphs_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/mark_state_init_subgraphs_test.cpp
