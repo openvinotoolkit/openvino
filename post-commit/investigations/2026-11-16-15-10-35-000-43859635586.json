@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-16-15-10-35-000-43859635586",
+  "timestamp": "2026-11-16T15:10:35Z",
+  "run_id": "43859635586",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43859635586",
+  "workflow_name": "OpenVINO tokenizers extension",
+  "commit_sha": "7d511a670731b8474e1a515c1d79953e2769b18d",
+  "pr_number": null,
+  "pr_url": null,
+  "author": null,
+  "category": "Dependencies",
+  "title": "OpenVINO tokenizers wheel build fails: pip cannot find matching dev openvino version for build dependency",
+  "signature": "ERROR: Could not find a version that satisfies the requirement openvino~=<VERSION> (from versions: ...); ERROR: No matching distribution found for openvino~=<VERSION>; installing build dependencies did not run successfully building openvino_tokenizers wheel|Dependencies",
+  "signature_hash": "3006cd222bc46b05",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "OpenVINO tokenizers extension / OpenVINO tokenizers extension",
+      "conclusion": "failure",
+      "symptom": "Build tokenizers wheel (Windows) step fails: pip cannot resolve build-dependency 'openvino~=2027.0.0.dev' from the pip-proxy index, which only serves up to 2026.5.1.dev20261116."
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails because the tokenizers job failed (exit 1, no independent error)."
+    }
+  ],
+  "key_errors": [
+    "ERROR: Could not find a version that satisfies the requirement openvino~=2027.0.0.dev (from versions: ... 2026.4.0, 2026.4.1, 2026.5.1.dev20261116)",
+    "ERROR: No matching distribution found for openvino~=2027.0.0.dev",
+    "ERROR: Failed to build 'file:///C:/actions-runner/_work/openvino/openvino/openvino_tokenizers' when installing build dependencies"
+  ],
+  "root_cause": "The job_tokenizers.yml workflow clones openvino_tokenizers at the target branch (master) and builds its wheel using 'pip wheel ... .' on that checkout. The openvino_tokenizers pyproject.toml build-system requires 'openvino~=2027.0.0.dev', but the pip-proxy index used by CI only serves openvino builds up to 2026.5.1.dev20261116 (this repository's current dev version line). The openvino_tokenizers repository's declared openvino version constraint has advanced ahead of what this repository (and its mirrored package index) currently publishes, so pip's build-isolation step cannot resolve a matching build dependency and the wheel build aborts before compilation starts. This is a cross-repository version-pin desynchronization, not a code defect in this repository's commit.",
+  "reproduction_steps": "1. Checkout openvinotoolkit/openvino_tokenizers at its master branch.\n2. Build an openvino wheel for this repo's master (version 2026.5.1.devYYYYMMDD) and place it in a local find-links directory.\n3. Run: python -m pip wheel -v --no-deps --wheel-dir build --find-links <wheels-dir> --config-settings=\"override=cmake.build_args={...}\" <openvino_tokenizers-checkout>\n4. Observe pip's build-isolation step fail resolving 'openvino~=2027.0.0.dev' against the locally built 2026.5.1.dev wheel.",
+  "recommended_actions": [
+    "Align the openvino version constraint in openvinotoolkit/openvino_tokenizers's pyproject.toml (build-system requires) with the openvino version actually published from this repository's current master (2026.5.x.dev), or bump this repo's VERSION if 2027.0.0 is the intended next line.",
+    "Add a CI guard/smoke check that compares the openvino version pin in openvino_tokenizers against the version produced by this repository's build, failing fast with a clear message instead of a cryptic pip resolution error.",
+    "Coordinate the openvino_tokenizers version bump with the owning team so it lands only after the corresponding openvino 2027.0.0.dev wheels are actually published to the pip-proxy index."
+  ],
+  "prevention_strategies": "When bumping an open-ended '~=X.Y.dev' build dependency in a companion repository (openvino_tokenizers) ahead of the corresponding version bump/publish in this repository, gate the merge on a cross-repo CI check that verifies the pinned openvino version is resolvable in the current index before merging to master. Avoid merging version-bump commits into downstream repos' master until the upstream package is actually published.",
+  "historical_context": "This exact signature has now recurred 4 times since 2026-11-06 (pattern 3006cd222bc46b05), including runs 43859635737, 43859635810, 42243497813, and this run, all on the same job_tokenizers.yml Windows build step. The recurring cause has consistently been the openvino_tokenizers repo's build-dependency version pin outstripping what this repository's package index serves; the underlying cross-repo desync has not yet been fixed upstream."
+}
