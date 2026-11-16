@@ -32,7 +32,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/blob_source.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/cre.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/device_helpers.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/encrypted_schedules_flag_section.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/encrypted_schedules_flag.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/igraph.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/isection_type_evaluator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/isection.cpp

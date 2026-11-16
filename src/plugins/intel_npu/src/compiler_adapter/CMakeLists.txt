@@ -22,7 +22,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/xml_serializer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/ze_graph_ext_wrappers.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiler_adapter_factory.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/compiler_schedules_sections.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/compiler_schedules.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/option_support_cache.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiler_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/driver_compiler_adapter.cpp

@@ -24,17 +24,17 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/transformations.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/async_infer_request.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/backends_registry.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/batch_size_section.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/batch_size.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/blob_format_importers.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiler_option_support_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model_property_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiler_schedule_instance_evaluator.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/compiler_version_section.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/compiler_version.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/executor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/extension.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/hsm_read_write.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/io_layouts_section.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/io_layouts.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/metadata.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_property_manager.cpp
