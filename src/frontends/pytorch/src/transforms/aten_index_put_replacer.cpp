@@ -4,6 +4,8 @@
 
 #include "aten_index_put_replacer.hpp"
 
+#include <algorithm>
+
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -171,14 +173,41 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
             auto perm_before = v0::Constant::create(element::i64, Shape{perm_vector_before.size()}, perm_vector_before);
             input = rg.make<v1::Transpose>(input, perm_before);
             input_shape = rg.make<v3::ShapeOf>(input, element::i32);
-            values = rg.make<v1::Transpose>(values, perm_before);
+            // A scalar broadcasts in any dimension order and must not be transposed.
+            if (values.get_partial_shape().rank() != 0) {
+                values = rg.make<v1::Transpose>(values, perm_before);
+            }
         }
+
+        // Restore the original dimension order for both masked and integer updates.
+        auto finish = [&](Output<Node> result) {
+            if (!perm_vector_after.empty()) {
+                auto perm_after =
+                    v0::Constant::create(element::i64, Shape{perm_vector_after.size()}, perm_vector_after);
+                result = rg.make<v1::Transpose>(result, perm_after);
+            }
+            copy_runtime_info_and_name(index_op, rg.get(), rt_copy_from);
+            index_op->output(0).replace(result);
+            return true;
+        };
 
         auto const_indices_list_len = v0::Constant::create(element::i32, Shape{1}, {indices_list_len});
 
         std::shared_ptr<Node> broadcast_index_shape;
         Output<Node> index;
         if (indices_list_len > 1) {
+            // PyTorch accepts mixed i32/i64 indices. Broadcast arithmetic and Concat
+            // require a common type; widen i32 indices to avoid narrowing i64 values.
+            const auto i64_index = std::find_if(indices_inputs.begin(), indices_inputs.end(), [](const auto& idx) {
+                return idx.get_element_type() == element::i64;
+            });
+            if (i64_index != indices_inputs.end()) {
+                for (auto& idx : indices_inputs) {
+                    if (idx.get_element_type() == element::i32) {
+                        idx = rg.make<v1::ConvertLike>(idx, *i64_index);
+                    }
+                }
+            }
             index = indices_inputs[0];
             for (int i = 1; i < indices_list_len; i++) {
                 index = rg.make<v1::Add>(index, indices_inputs[i]);
@@ -206,10 +235,17 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
             if (index_dtype == element::boolean) {
                 auto value_pshape_rank = values.get_partial_shape().rank();
                 if (value_pshape_rank.is_static() && value_pshape_rank.get_length() == 0) {
-                    auto res = masked_fill(rg, input, index, values);
-                    copy_runtime_info_and_name(index_op, rg.get(), rt_copy_from);
-                    index_op->output(0).replace(res);
-                    return true;
+                    // The mask covers the leading dimensions, but Select broadcasts from the right.
+                    auto mask = index;
+                    auto in_rank = input.get_partial_shape().rank();
+                    auto mask_rank = mask.get_partial_shape().rank();
+                    if (in_rank.is_static() && mask_rank.is_static() && mask_rank.get_length() < in_rank.get_length()) {
+                        std::vector<int64_t> axes(in_rank.get_length() - mask_rank.get_length());
+                        std::iota(axes.begin(), axes.end(), mask_rank.get_length());
+                        mask =
+                            rg.make<v0::Unsqueeze>(mask, v0::Constant::create(element::i64, Shape{axes.size()}, axes));
+                    }
+                    return finish(masked_fill(rg, input, mask, values));
                 }
                 values = rg.make<v1::ConvertLike>(values, input);
                 // then apply masked scatter
@@ -219,10 +255,7 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
                 auto nonzero = rg.make<v3::NonZero>(index);
                 auto input_order = v0::Constant::create(element::i32, Shape{2}, {1, 0});
                 index = rg.make<v1::Transpose>(nonzero, input_order);
-                auto result = rg.make<v3::ScatterNDUpdate>(input, index, values);
-                copy_runtime_info_and_name(index_op, rg.get(), rt_copy_from);
-                replace_node(index_op, result);
-                return true;
+                return finish(rg.make<v3::ScatterNDUpdate>(input, index, values));
             } else {
                 // change negative indices to positive indices
                 auto dim_0 = (rg.make<v8::Gather>(input_shape, const_0, const_0));
@@ -239,21 +272,10 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
         values = rg.make<v3::Broadcast>(values, values_shape);
         values = rg.make<v1::ConvertLike>(values, input);
 
-        std::shared_ptr<ov::Node> result;
         if (accumulate) {
-            result = rg.make<v15::ScatterNDUpdate>(input, index, values, v15::ScatterNDUpdate::Reduction::SUM);
-        } else {
-            result = rg.make<v3::ScatterNDUpdate>(input, index, values);
+            return finish(rg.make<v15::ScatterNDUpdate>(input, index, values, v15::ScatterNDUpdate::Reduction::SUM));
         }
-
-        if (!perm_vector_after.empty()) {
-            auto perm_after = v0::Constant::create(element::i64, Shape{perm_vector_after.size()}, perm_vector_after);
-            result = rg.make<v1::Transpose>(result, perm_after);
-        }
-
-        copy_runtime_info_and_name(index_op, rg.get(), rt_copy_from);
-        replace_node(index_op, result);
-        return true;
+        return finish(rg.make<v3::ScatterNDUpdate>(input, index, values));
     };
 
     auto m =
