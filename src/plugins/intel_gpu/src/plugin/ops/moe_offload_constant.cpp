@@ -9,12 +9,10 @@
 #include <fstream>
 #include <functional>
 #include <limits>
-#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
 #include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
-#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 
@@ -356,45 +354,6 @@ void validate_model_resident_constant_memory(const ov::Model& model, size_t offl
                     " bytes, exceeding the device global memory size of ",
                     device_memory_bytes,
                     " bytes. Increase OFFLOAD_RATIO or use a GPU with more memory.");
-}
-
-void restore_routed_weight_file_offsets(const ov::Model& original, const ov::Model& transformed) {
-    std::unordered_map<const ov::AlignedBuffer*, size_t> region_offsets;
-    for (const auto& node : original.get_ordered_ops()) {
-        const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
-        if (!constant) {
-            continue;
-        }
-        const auto source = ov::weight_sharing::Extension::get_constant_source_buffer(*constant);
-        const auto origin = ov::weight_sharing::Extension::get_constant_origin(*constant);
-        if (source && origin && origin->m_size == source->size()) {
-            region_offsets.emplace(source.get(), origin->m_offset);
-        }
-    }
-    if (region_offsets.empty()) {
-        return;
-    }
-    for (const auto& node : transformed.get_ordered_ops()) {
-        if (!is_otd_capable_moe(node.get())) {
-            continue;
-        }
-        for (const auto index : routed_weight_inputs) {
-            if (index >= node->get_input_size()) {
-                break;
-            }
-            const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(index));
-            if (!constant || ov::weight_sharing::Extension::get_constant_origin(*constant)) {
-                continue;
-            }
-            const auto source = ov::weight_sharing::Extension::get_constant_source_buffer(*constant);
-            const auto region = source ? region_offsets.find(source.get()) : region_offsets.end();
-            if (region != region_offsets.end()) {
-                const auto offset = region->second + static_cast<size_t>(ov::weight_sharing::Extension::get_constant_id(*constant));
-                constant->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
-                    ov::WeightlessCacheAttribute(constant->get_byte_size(), offset, constant->get_element_type());
-            }
-        }
-    }
 }
 
 PartialUploadLogState& get_partial_upload_log_state() {

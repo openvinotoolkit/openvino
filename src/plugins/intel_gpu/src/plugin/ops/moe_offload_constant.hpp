@@ -59,10 +59,6 @@ uint64_t get_model_resident_constant_bytes(const ov::Model& model, size_t offloa
 /// Throws if OFFLOAD_RATIO cannot apply to any MoE layer of the model or the resident constants exceed the device memory
 void validate_model_resident_constant_memory(const ov::Model& model, size_t offload_ratio, uint64_t device_memory_bytes);
 
-/// Without mmap every constant is read into a buffer of its own, and only the IR attribute of the constant that was read holds its
-/// file offset; the transformations do not copy it. Gives it back to the routed weights of `transformed` that view such a buffer.
-void restore_routed_weight_file_offsets(const ov::Model& original, const ov::Model& transformed);
-
 class PartialUploadLogState {
 public:
     static constexpr size_t max_detailed_logs = 3;

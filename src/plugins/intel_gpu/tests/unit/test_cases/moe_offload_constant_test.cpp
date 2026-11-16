@@ -11,6 +11,7 @@
 #include "test_utils.h"
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/memory_util.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
@@ -471,6 +472,18 @@ TEST(moe_offload_constant, weights_file_offset_is_checked_against_the_file) {
                                                                                         ov::create_base_descriptor(1, 0, weights_file));
     const ov::op::v0::Constant constant(ov::element::u8, ov::Shape{size}, view);
     EXPECT_EQ(get_weights_file_offset(constant, path), offset);
+
+    // The same bytes read without mmap into a buffer of their own: the offset is in the IR attribute
+    auto region = std::make_shared<ov::AlignedBuffer>(size);
+    std::copy_n(file_data.begin() + offset, size, region->get_ptr<char>());
+    auto region_view = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(region->get_ptr<char>(),
+                                                                                               size,
+                                                                                               region,
+                                                                                               ov::create_base_descriptor(2, 0, region));
+    ov::op::v0::Constant read_constant(ov::element::u8, ov::Shape{size}, region_view);
+    OV_EXPECT_THROW(get_weights_file_offset(read_constant, path), ov::Exception, testing::HasSubstr("cannot be located"));
+    read_constant.get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] = ov::WeightlessCacheAttribute(size, offset, ov::element::u8);
+    EXPECT_EQ(get_weights_file_offset(read_constant, path), offset);
 
     const ov::op::v0::Constant in_memory(ov::element::u8, ov::Shape{size}, 0);
     OV_EXPECT_THROW(get_weights_file_offset(in_memory, path), ov::Exception, testing::HasSubstr("cannot be located"));

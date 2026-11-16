@@ -307,7 +307,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     config.finalize(context.get(), transformed_model.get());
 
     if (config.get_offload_ratio() > 0) {
-        restore_routed_weight_file_offsets(*model, *transformed_model);
         validate_model_resident_constant_memory(*transformed_model,
                                                 config.get_offload_ratio(),
                                                 context->get_device().get_info().max_global_mem_size);
@@ -340,7 +339,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     config.finalize(context_impl.get(), transformed_model.get());
 
     if (config.get_offload_ratio() > 0) {
-        restore_routed_weight_file_offsets(*model, *transformed_model);
         validate_model_resident_constant_memory(*transformed_model,
                                                 config.get_offload_ratio(),
                                                 context_impl->get_device().get_info().max_global_mem_size);

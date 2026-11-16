@@ -52,7 +52,7 @@ static bool prepare_moe_otd_params(ProgramBuilder& p,
     OPENVINO_ASSERT(!weights_path.empty(),
                     "ov::weights_path property is not set. OTD requires a valid path to the model .bin file. "
                     "Please set ov::weights_path when compiling the model.");
-    // Without mmap the file offsets are the IR attributes restored by restore_routed_weight_file_offsets
+    // Without mmap the file offsets are in the IR attributes of the constants
     for (const auto index : {input_idx::weight_0, input_idx::weight_1, input_idx::weight_2}) {
         const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(static_cast<size_t>(index)));
         weight_bin_offsets.push_back(get_weights_file_offset(*constant, weights_path));

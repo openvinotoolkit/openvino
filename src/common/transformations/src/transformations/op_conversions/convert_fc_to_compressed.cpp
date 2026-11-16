@@ -9,6 +9,7 @@
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -69,7 +70,9 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
             new_OC = OC;
             new_IC = n_groups * group_size;
         }
-        return std::make_shared<v0::Constant>(*constant, new_shape);
+        auto new_constant = std::make_shared<v0::Constant>(*constant, new_shape);
+        ov::copy_weightless_cache_attr(constant, new_constant);
+        return new_constant;
     };
 
     auto convert_u4const_to_u8 = [convert_u4zp_to_u8](std::shared_ptr<ov::Node> node) -> std::shared_ptr<ov::Node> {
