@@ -2893,7 +2893,8 @@ The rank-3 move above was measured on the B70 only, so `sdpa_ocl_plain_3d_ok()` 
   `smoke_ScaledAttnStatic_GPU` cases that `skip_tests_config.cpp` disabled on every device with immad, and 2 bf16 ones it disabled on
   Xe2 and newer (those four entries are removed since: all 192 cases of the group pass on the B70 with the skips off). The committed tree
   (`9bab9594c2`, the same command, no switch, so the widened predicate is the shipped one) on PTL-H: 2253 tests from 11 suites, 2253 passed,
-  none skipped, none failed (550 s). Not run: those groups on LNL, and the full unit and func suites on the B70 after this change. Control: with the previous predicate (`arch == xe2` and a discrete GPU) `Plain3dOkTruthTable` fails on exactly the five
+  none skipped, none failed (550 s); the same command on LNL (`9bab9594c2`): 2253 passed, none skipped, none failed (the run time was not recorded). Not run: the full unit and func suites on the B70 after
+  this change. Control: with the previous predicate (`arch == xe2` and a discrete GPU) `Plain3dOkTruthTable` fails on exactly the five
   rows where the two differ (xe2 integrated, xe3 and xe3p both device types) and the other four tests still pass.
 
 ## Known issues
@@ -3134,7 +3135,7 @@ Measured on an Arc Pro B70 (Xe2), identical before and after the refactor. Of th
   `transformations_pipeline.cpp` decomposed a static 3D SDPA again on an XMX device whose Q.K buffer fits (the same on upstream
   master d6bbd41244; with the rule forced off it passed 8 of 8), so the runtime model had no SDPA node; not `sdpa_ocl`. Since
   2026-11-14 it passes on the B70: a rank-3 op that `sdpa_ocl` serves faster stays fused on Xe2 discrete GPUs, and since 2026-11-16 on
-  Xe2 and newer GPUs, integrated ones too ("Rank-3 plain SDPA"; the test ran on the B70 and, with the widened predicate, on PTL-H, not on LNL). On every other XMX device the decomposition, and so the failure, remains.
+  Xe2 and newer GPUs, integrated ones too ("Rank-3 plain SDPA"; the test ran on the B70, PTL-H and LNL). On every other XMX device the decomposition, and so the failure, remains.
 
 ### Test coverage gaps
 
