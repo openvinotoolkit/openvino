@@ -9,9 +9,26 @@ on:
 
 jobs:
   Megakernel-CI:
+    name: Megakernel-CI (${{ matrix.megakernel }})
     runs-on: self-hosted
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - megakernel: Qwen06BPOC_prefill_separate_kernels
+            model_id: Qwen/Qwen3-0.6B
+          - megakernel: Gemma4POC
+            model_id: google/gemma-4-26B-A4B-it
+            export_args: --task image-text-to-text --weight-format int4
+    env:
+      MEGAKERNEL: ${{ matrix.megakernel }}
+      MODEL_ID: ${{ matrix.model_id }}
+      EXPORT_ARGS: ${{ matrix.export_args }}
+      # Exported IRs persist across runs.
+      MODELS_HOST_DIR: /opt/home/sys_ovwindev/megakernel_models
+      MODELS_DIR: /models
     steps:
       - name: Cleanup workspace
         if: always()
@@ -32,8 +49,9 @@ jobs:
         run: |
           docker run --rm \
             -v "$WORKSPACE_REPO:/workspace/repo" \
+            -v "$MODELS_HOST_DIR:$MODELS_DIR" \
             -w /workspace/repo \
-            -e GITHUB_TOKEN \
+            -e GITHUB_TOKEN -e MEGAKERNEL -e MODEL_ID -e EXPORT_ARGS -e MODELS_DIR \
             --device /dev/dri --group-add=$(stat -c "%g" /dev/dri/render* | sort -u) \
             ci_megakernel_image \
             bash -lc '
@@ -55,7 +73,9 @@ jobs:
         run: |
           docker run --rm \
             -v "$WORKSPACE_REPO:/workspace/repo" \
+            -v "$MODELS_HOST_DIR:$MODELS_DIR:ro" \
             -w /workspace/repo \
+            -e MODEL_ID -e MODELS_DIR \
             --device /dev/dri --group-add=$(stat -c "%g" /dev/dri/render* | sort -u) \
             ci_megakernel_image \
             bash -lc '
