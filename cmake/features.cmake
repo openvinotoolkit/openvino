@@ -42,9 +42,9 @@ else()
     set(ENABLE_ONEDNN_FOR_GPU_DEFAULT ON)
 endif()
 
-# Set default GPU runtime to OCL. COMBINED (build ZE and OCL plugins side by side) is
+# Set default GPU runtime to ZE. COMBINED (build ZE and OCL plugins side by side) is
 # opt-in only; the default is never flipped.
-set(OV_GPU_DEFAULT_RT "OCL")
+set(OV_GPU_DEFAULT_RT "ZE")
 if (ENABLE_INTEL_GPU)
     ov_option_enum (GPU_RT_TYPE "Type of GPU runtime. Supported values: OCL (default), SYCL, ZE (L0 alias), and COMBINED (ZE+OCL, shared builds only)" ${OV_GPU_DEFAULT_RT} ALLOWED_VALUES ZE OCL L0 SYCL COMBINED)
     if(GPU_RT_TYPE STREQUAL "L0")
