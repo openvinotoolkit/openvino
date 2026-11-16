@@ -83,6 +83,11 @@ public:
  * It relies on that contract rather than revalidating the layouts. The patterns use optional rank-2
  * Reshape adapters, which the dense path bypasses. The query Reshape must feed only the indexer; it is rewired
  * to the unprocessed query.
+ * The paged single-token form may use a Reshape instead of the input Transpose, with no output Transpose before
+ * the flattening Reshape. The input Reshape is not checked and must preserve the corresponding query layout:
+ *
+ *   x[B, 1, H, D] ─► Reshape[B, H, 1, D] ─► RoPE ─► Reshape[B, H * D] ─► PagedQSAIndexer
+ *
  * Both specializations share PassConfig disable settings and callbacks, which receive the concrete indexer node.
  */
 template <class Indexer>

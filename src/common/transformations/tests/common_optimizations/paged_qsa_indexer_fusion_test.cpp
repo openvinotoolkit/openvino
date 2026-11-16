@@ -569,6 +569,9 @@ struct QueryOptions {
     bool absorb_norm = true;
     bool absorb_rope = true;
     bool rope_rows_special_zero = false;
+    // A static single-token query whose head transposes around a head-first RoPE are Reshapes, as in SDPAToPA output.
+    bool single_token_head_first = false;
+    bool query_is_reshape = false;
     int64_t rope_length = -1;
     int64_t rope_axis = 1;
     // Reshape target expressing the cos / sin head-axis Unsqueeze; empty keeps the Unsqueeze.
@@ -608,6 +611,15 @@ QueryGraph<Indexer> make_query_graph(const QueryOptions& o) {
         }
     };
     graph.raw_query = o.flat_norm ? graph.inputs[In::INDEX_QUERY] : unflatten(graph.inputs[In::INDEX_QUERY]);
+    if (o.single_token_head_first) {
+        const auto query = ov::as_type_ptr<v0::Parameter>(graph.raw_query.get_node_shared_ptr());
+        OPENVINO_ASSERT(query, "Expected the query Parameter");
+        query->set_partial_shape(PartialShape{-1, 1, query_heads, head_size});
+        graph.model->validate_nodes_and_infer_types();
+    }
+    if (o.query_is_reshape) {
+        graph.raw_query = std::make_shared<v1::Reshape>(graph.raw_query, i64({0, 0, 0, 0}), true);
+    }
     const auto make_norm = [&](const Output<Node>& input) -> Output<Node> {
         const auto norm_input =
             o.changes_precision ? Output<Node>(std::make_shared<v0::Convert>(input, element::f16)) : input;
@@ -631,7 +643,7 @@ QueryGraph<Indexer> make_query_graph(const QueryOptions& o) {
     const auto make_rope = [&](const Output<Node>& input) -> Output<Node> {
         op_internal::RoPE::Config config;
         config.rotary_ndims = rotary_dim;
-        config.input_trans0213 = true;
+        config.input_trans0213 = !o.single_token_head_first;
         config.is_interleaved = o.interleaved;
         const auto with_head_axis = [&o](const Output<Node>& rows) -> Output<Node> {
             if (o.rope_rows_target.empty()) {
@@ -639,10 +651,17 @@ QueryGraph<Indexer> make_query_graph(const QueryOptions& o) {
             }
             return std::make_shared<v1::Reshape>(rows, i64(o.rope_rows_target), o.rope_rows_special_zero);
         };
-        rope = std::make_shared<op_internal::RoPE>(OutputVector{input,
+        auto rope_input = input;
+        if (o.single_token_head_first) {
+            rope_input = std::make_shared<v1::Reshape>(input, i64({0, query_heads, 1, head_size}), true);
+        }
+        rope = std::make_shared<op_internal::RoPE>(OutputVector{rope_input,
                                                                 with_head_axis(o.distinct_cos ? other_rows(cos) : cos),
                                                                 with_head_axis(o.distinct_sin ? other_rows(sin) : sin)},
                                                    config);
+        if (o.single_token_head_first) {
+            return rope;
+        }
         return std::make_shared<v1::Transpose>(rope, i64({0, 2, 1, 3}));
     };
     graph.norm = graph.raw_query;
@@ -803,6 +822,21 @@ const std::vector<QueryOptions> query_cases = [] {
     o.rope_rows_target = {-1, 1, 1, rotary_dim};
     o.absorb_norm = o.absorb_rope = false;
     cases.push_back(o);
+    o = QueryOptions{"single_token_head_first"};
+    o.rope_length = 1;
+    o.single_token_head_first = true;
+    cases.push_back(o);
+    o = QueryOptions{"single_token_head_first_without_norm"};
+    o.rope_length = 1;
+    o.single_token_head_first = true;
+    o.with_norm = false;
+    o.absorb_norm = false;
+    cases.push_back(o);
+    o = QueryOptions{"query_reshape_before_transposing_rope"};
+    o.with_norm = false;
+    o.absorb_norm = false;
+    o.query_is_reshape = true;
+    cases.push_back(o);
     o = QueryOptions{"moved_rope_rows"};
     o.rope_length = 1;
     o.rope_rows_target = {1, -1, 1, rotary_dim};
@@ -817,6 +851,40 @@ INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
                          [](const testing::TestParamInfo<QueryOptions>& info) {
                              return info.param.name;
                          });
+
+TEST_F(TransformationTestsF, FuseQSAIndexerQueryWithDynamicHeadFirstReshapeTarget) {
+    QueryOptions options;
+    options.rope_length = 1;
+    options.single_token_head_first = true;
+    model = getQueryModel(options);
+    model_ref = getQueryModelRef(options);
+    for (const auto& function : {model, model_ref}) {
+        function->get_parameters().front()->set_partial_shape(PartialShape{-1, 1, -1, head_size});
+        function->validate_nodes_and_infer_types();
+    }
+
+    size_t rope_count = 0;
+    for (const auto& node : model->get_ops()) {
+        const auto rope = ov::as_type_ptr<op_internal::RoPE>(node);
+        if (!rope) {
+            continue;
+        }
+        ++rope_count;
+        const auto reshape = ov::as_type_ptr<v1::Reshape>(rope->get_input_node_shared_ptr(0));
+        ASSERT_NE(reshape, nullptr);
+        const auto shape = std::make_shared<v0::ShapeOf>(reshape->input_value(0));
+        const auto batch =
+            std::make_shared<v8::Gather>(shape, i64({0}), v0::Constant::create(element::i64, Shape{}, {0}));
+        const auto target = std::make_shared<v0::Concat>(OutputVector{batch, i64({query_heads, 1, head_size})}, 0);
+        reshape->input(1).replace_source_output(target);
+    }
+    ASSERT_EQ(rope_count, 1);
+    model->validate_nodes_and_infer_types();
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    manager.register_pass<pass::FuseQSAIndexerQuery>();
+}
 
 TEST_F(TransformationTestsF, FuseQSAIndexerQueryAfterNopElimination) {
     QueryOptions options;

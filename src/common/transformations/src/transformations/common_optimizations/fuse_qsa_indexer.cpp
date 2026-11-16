@@ -272,8 +272,9 @@ FuseQSAIndexerQueryRoPE<Indexer>::FuseQSAIndexerQueryRoPE() {
         });
         return unsqueeze | reshape;
     };
+    const auto p_head_first = optional<v1::Reshape>({p_query, any_input()});
     const auto p_rope = wrap_type<op_internal::RoPE>(
-        {p_query, with_head_axis(p_rope_cos), with_head_axis(p_rope_sin)},
+        {p_head_first, with_head_axis(p_rope_cos), with_head_axis(p_rope_sin)},
         [](const ov::Output<ov::Node>& output) {
             const auto rope = ov::as_type<op_internal::RoPE>(output.get_node());
             auto config = rope->get_config();
@@ -282,11 +283,10 @@ FuseQSAIndexerQueryRoPE<Indexer>::FuseQSAIndexerQueryRoPE() {
             return op_internal::is_plain_rotate_half(config) && cos_shape.rank().is_static() &&
                    cos_shape[-1] == static_cast<int64_t>(config.rotary_ndims);
         },
-        {{"config.input_trans0213", true}, {"config.input_interleaved", false}, {"config.use_rope_cache", false}});
-    const auto p_query_transpose =
-        wrap_type<v1::Transpose>({p_rope, wrap_type<v0::Constant>(value_matches("0, 2, 1, 3"))});
+        {{"config.input_interleaved", false}, {"config.use_rope_cache", false}});
+    const auto p_token_major = optional<v1::Transpose>({p_rope, wrap_type<v0::Constant>(value_matches("0, 2, 1, 3"))});
     const auto p_query_reshape =
-        optional<v1::Reshape>({p_query_transpose, any_input()}, rank_equals(2) && consumers_count(1));
+        optional<v1::Reshape>({p_token_major, any_input()}, rank_equals(2) && consumers_count(1));
     // FuseQSAIndexer broadcasts the cos / sin rows with a v3 Broadcast, which ConvertBroadcast3 may turn into a
     // numpy v1 Broadcast before this pass.
     const auto rope_rows = [](const ov::Output<ov::Node>& rows) {
@@ -312,19 +312,32 @@ FuseQSAIndexerQueryRoPE<Indexer>::FuseQSAIndexerQueryRoPE() {
         if (transformation_callback(indexer)) {
             return false;
         }
+        const auto rope = ov::as_type_ptr<op_internal::RoPE>(pattern_map.at(p_rope).get_node_shared_ptr());
+        const bool head_first = pattern_map.count(p_head_first) != 0;
+        const bool transposed = pattern_map.count(p_token_major) != 0;
+        if (rope->get_config().input_trans0213 != transposed ||
+            (!transposed && (!head_first || !pattern_map.count(p_query_reshape)))) {
+            return false;
+        }
+        const auto query = transposed ? rope->input_value(0) : pattern_map.at(p_query);
         auto config = indexer->get_config();
         config.query_rope = true;
         auto inputs = indexer->input_values();
         NodeRegistry rg;
-        NodeVector sources{pattern_map.at(p_rope).get_node_shared_ptr(),
-                           pattern_map.at(p_query_transpose).get_node_shared_ptr()};
+        NodeVector sources{rope};
+        if (head_first && !transposed) {
+            sources.push_back(pattern_map.at(p_head_first).get_node_shared_ptr());
+        }
+        if (transposed) {
+            sources.push_back(pattern_map.at(p_token_major).get_node_shared_ptr());
+        }
         if (pattern_map.count(p_query_reshape)) {
             // The layout Reshape feeds only this indexer, so it is rewired to the unprocessed query.
             const auto query_reshape = pattern_map.at(p_query_reshape).get_node_shared_ptr();
-            query_reshape->input(0).replace_source_output(pattern_map.at(p_query));
+            query_reshape->input(0).replace_source_output(query);
             query_reshape->validate_and_infer_types();
         } else {
-            inputs[In::INDEX_QUERY] = pattern_map.at(p_query);
+            inputs[In::INDEX_QUERY] = query;
         }
         const auto fused = rg.make<Indexer>(inputs, config);
         fused->set_friendly_name(indexer->get_friendly_name());
