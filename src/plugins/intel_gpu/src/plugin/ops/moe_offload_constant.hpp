@@ -42,6 +42,23 @@ MoEConstantRole get_moe_constant_role(const std::shared_ptr<ov::op::v0::Constant
 /// Only the routed weights are offloaded, and only if they are unmodified views of the weights file.
 size_t get_moe_offload_slot_count(const ov::op::internal::MOECompressed& moe, size_t offload_ratio);
 
+/// Why a MoE layer is offloaded or stays fully resident
+enum class MoEResidencyReason {
+    Offloaded,
+    OffloadDisabled,
+    UnsupportedExpertType,
+    RoutedWeightsNotExclusive,
+    RoutedWeightsNotFileViews,
+    DecompressionNotPerExpert,
+};
+const char* to_string(MoEResidencyReason reason);
+
+struct MoEOffloadDecision {
+    size_t slot_count = 0;
+    MoEResidencyReason reason = MoEResidencyReason::OffloadDisabled;
+};
+MoEOffloadDecision get_moe_offload_decision(const ov::op::internal::MOECompressed& moe, size_t offload_ratio);
+
 struct PartialUploadDesc {
     bool enabled = false;
     cldnn::memory::ptr memory = nullptr;
@@ -52,7 +69,12 @@ struct PartialUploadDesc {
 bool is_moe_related_constant(const std::shared_ptr<ov::op::v0::Constant>& op);
 
 uint64_t get_model_resident_constant_bytes(const ov::Model& model, size_t offload_ratio);
+/// Throws if OFFLOAD_RATIO cannot apply to any MoE layer of the model or the resident constants exceed the device memory
 void validate_model_resident_constant_memory(const ov::Model& model, size_t offload_ratio, uint64_t device_memory_bytes);
+
+/// Without mmap every constant is read into a buffer of its own, and only the IR attribute of the constant that was read holds its
+/// file offset; the transformations do not copy it. Gives it back to the routed weights of `transformed` that view such a buffer.
+void restore_routed_weight_file_offsets(const ov::Model& original, const ov::Model& transformed);
 
 class PartialUploadLogState {
 public:

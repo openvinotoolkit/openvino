@@ -110,13 +110,15 @@ void fill_weights_memory(cldnn::stream& exec_stream,
             }
         }
 
-        // Scales and zero points are already in their final form (converted and reordered by the regular pipeline)
+        // Scales and zero points are already in their final form (converted and reordered by the regular pipeline). Their sources and
+        // slots outlive the copy, so on an in-order queue it needs no wait: the kernels that read the slots are enqueued after it.
+        const bool blocking = exec_stream.get_queue_type() != cldnn::QueueTypes::in_order;
         for (const auto& [source, slot_mem] : param_slots) {
             if (!source) {
                 continue;
             }
             const size_t per_expert_size = source->get_layout().bytes_count() / num_expert;
-            slot_mem->copy_from(exec_stream, *source, expert * per_expert_size, slot * per_expert_size, per_expert_size, true);
+            slot_mem->copy_from(exec_stream, *source, expert * per_expert_size, slot * per_expert_size, per_expert_size, blocking);
         }
     }
 }

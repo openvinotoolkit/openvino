@@ -28,6 +28,9 @@ struct RoutedWeightViews {
 // A scale / zero point shared by all the experts (scalar) is used as is, it has no per-expert slices
 bool is_per_expert(const cldnn::layout& layout, size_t num_expert);
 
+// Whether the slice of each expert is one contiguous byte range, which the slot copies require
+bool has_contiguous_expert_slices(const cldnn::layout& layout, size_t num_expert);
+
 // Layout of the slot buffer of an input with a slice per expert: the same slice, `capacity` times
 cldnn::layout get_slot_layout(const cldnn::layout& input, size_t capacity, size_t num_expert);
 

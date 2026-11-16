@@ -13,6 +13,7 @@
 // clang-format on
 
 using ov::intel_gpu::ocl::moe::get_slot_layout;
+using ov::intel_gpu::ocl::moe::has_contiguous_expert_slices;
 using ov::intel_gpu::ocl::moe::IExpertWeightProvider;
 using ov::intel_gpu::ocl::moe::is_per_expert;
 using ov::intel_gpu::ocl::moe::OffloadExpertWeightProvider;
@@ -1191,6 +1192,26 @@ public:
                                                                              cur_moe->_otd.weights_path);
         } else {
             _weight_provider = std::make_shared<ResidentExpertWeightProvider>();
+        }
+        // The slot buffers of a dynamic model are laid out at the first inference: check their layouts at compilation
+        if (_weight_provider->is_offloaded()) {
+            const auto num_expert = static_cast<size_t>(cur_moe->_config.num_expert);
+            for (const auto input : {MOE3GemmInputIndex::SCALE_0,
+                                     MOE3GemmInputIndex::ZP_0,
+                                     MOE3GemmInputIndex::SCALE_1,
+                                     MOE3GemmInputIndex::ZP_1,
+                                     MOE3GemmInputIndex::SCALE_2,
+                                     MOE3GemmInputIndex::ZP_2}) {
+                const auto& layout = params.get_input_layout(static_cast<size_t>(input));
+                OPENVINO_ASSERT(!is_per_expert(layout, num_expert) || has_contiguous_expert_slices(layout, num_expert),
+                                "MoE offload of ",
+                                node.id(),
+                                ": the expert slices of input ",
+                                static_cast<size_t>(input),
+                                " (",
+                                layout.to_short_string(),
+                                ") are not contiguous");
+            }
         }
 
         // Don't change the order of stages

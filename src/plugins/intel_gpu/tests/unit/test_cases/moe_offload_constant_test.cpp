@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "test_utils.h"
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
@@ -413,4 +414,73 @@ TEST(moe_offload_constant, zero_point_shared_with_other_layers_does_not_block_of
     EXPECT_EQ(get_moe_offload_slot_count(*graph.moe_node, 50), 4U);
     EXPECT_TRUE(prepare_partial_upload(graph.constants[0], 50).enabled);
     EXPECT_FALSE(is_moe_constant_offloadable(zp));
+}
+
+TEST(moe_offload_constant, residency_reasons) {
+    using reason = MoEResidencyReason;
+    EXPECT_EQ(get_moe_offload_decision(*MoETestGraph::build().moe_node, 0).reason, reason::OffloadDisabled);
+    EXPECT_EQ(get_moe_offload_decision(*MoETestGraph::build().moe_node, 50).reason, reason::Offloaded);
+
+    auto in_memory = MoETestGraph::build(4, 128, 256, 128, ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU, /*file_backed_weights=*/false);
+    EXPECT_EQ(get_moe_offload_decision(*in_memory.moe_node, 50).reason, reason::RoutedWeightsNotFileViews);
+
+    auto shared_weight = MoETestGraph::build();
+    auto other_consumer = std::make_shared<ov::op::v0::Relu>(shared_weight.constants[0]);
+    EXPECT_EQ(get_moe_offload_decision(*shared_weight.moe_node, 50).reason, reason::RoutedWeightsNotExclusive);
+
+    auto gemm2 = MoETestGraph::build(4, 128, 256, 128, ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP);
+    EXPECT_EQ(get_moe_offload_decision(*gemm2.moe_node, 50).reason, reason::UnsupportedExpertType);
+}
+
+// The slots copy each expert's slice of a scale / zero point: one shared by the experts but not a scalar cannot be sliced,
+// so the layer stays resident at compilation instead of failing at the first inference
+TEST(moe_offload_constant, scale_without_expert_slices_keeps_layer_resident) {
+    auto graph = MoETestGraph::build();
+    graph.moe_node->input(4).replace_source_output(std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, 256, 1, 1}, 0));
+    ov::Model model(ov::ResultVector{std::make_shared<ov::op::v0::Result>(graph.moe_node)}, graph.parameters);
+
+    EXPECT_EQ(get_moe_offload_decision(*graph.moe_node, 50).reason, MoEResidencyReason::DecompressionNotPerExpert);
+    EXPECT_FALSE(prepare_partial_upload(graph.constants[0], 50).enabled);
+    EXPECT_EQ(get_model_resident_constant_bytes(model, 50), get_model_resident_constant_bytes(model, 0));
+}
+
+// OFFLOAD_RATIO that cannot offload any MoE layer of the model is an error, not a silent full residency
+TEST(moe_offload_constant, no_offloadable_moe_layer_is_rejected) {
+    auto in_memory = MoETestGraph::build(4, 128, 256, 128, ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU, /*file_backed_weights=*/false);
+    ov::Model model(ov::ResultVector{std::make_shared<ov::op::v0::Result>(in_memory.moe_node)}, in_memory.parameters);
+    OV_EXPECT_THROW(validate_model_resident_constant_memory(model, 50, 0),
+                    ov::Exception,
+                    testing::AllOf(testing::HasSubstr("no MoE layer can be offloaded"), testing::HasSubstr("not unmodified views of the weights file")));
+    EXPECT_NO_THROW(validate_model_resident_constant_memory(model, 0, 0));
+
+    // One offloadable layer is enough
+    auto file_backed = MoETestGraph::build();
+    auto parameters = in_memory.parameters;
+    parameters.insert(parameters.end(), file_backed.parameters.begin(), file_backed.parameters.end());
+    ov::Model mixed(ov::ResultVector{std::make_shared<ov::op::v0::Result>(in_memory.moe_node), std::make_shared<ov::op::v0::Result>(file_backed.moe_node)},
+                    parameters);
+    EXPECT_NO_THROW(validate_model_resident_constant_memory(mixed, 50, 0));
+}
+
+// The estimate keeps the scales and zero points fully resident and adds their slot copies: slots x bytes per expert
+TEST(moe_offload_constant, resident_estimate_counts_scale_and_zero_point_slots) {
+    for (const bool scalar_zp : {false, true}) {
+        SCOPED_TRACE(scalar_zp);
+        auto graph = MoETestGraph::build(/*num_experts=*/4);
+        if (scalar_zp) {
+            auto zp = std::make_shared<ov::op::v0::Constant>(ov::element::u8, ov::Shape{}, 4);
+            for (const size_t index : {5, 8, 11}) {
+                graph.moe_node->input(index).replace_source_output(zp);
+            }
+        }
+        ov::Model model(ov::ResultVector{std::make_shared<ov::op::v0::Result>(graph.moe_node)}, graph.parameters);
+        uint64_t weights = 0;
+        uint64_t params = 0;
+        for (size_t index = 3; index <= 11; ++index) {
+            const auto* constant = ov::as_type<ov::op::v0::Constant>(graph.moe_node->get_input_node_ptr(index));
+            ((index % 3 == 0) ? weights : params) += ov::shape_size(constant->get_shape()) > 1 ? constant->get_byte_size() : 0;
+        }
+        // Ratio 50 keeps 2 of the 4 experts: half of the weights go, half of the per-expert scales and zero points come as slots
+        EXPECT_EQ(get_model_resident_constant_bytes(model, 0) - get_model_resident_constant_bytes(model, 50), weights / 2 - params / 2);
+    }
 }

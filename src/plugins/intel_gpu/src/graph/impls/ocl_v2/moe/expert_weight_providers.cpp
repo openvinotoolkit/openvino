@@ -19,11 +19,12 @@ bool is_per_expert(const cldnn::layout& layout, size_t num_expert) {
     return layout.is_static() && layout.count() > 1 && !layout.get_shape().empty() && layout.get_shape()[0] == num_expert;
 }
 
+bool has_contiguous_expert_slices(const cldnn::layout& layout, size_t num_expert) {
+    return cldnn::format::is_simple_data_format(layout.format) && layout.format.order().front() == 'b' && layout.bytes_count() % num_expert == 0;
+}
+
 cldnn::layout get_slot_layout(const cldnn::layout& input, size_t capacity, size_t num_expert) {
-    OPENVINO_ASSERT(cldnn::format::is_simple_data_format(input.format) && input.format.order().front() == 'b' && input.bytes_count() % num_expert == 0,
-                    "OTD: expert slices of ",
-                    input.to_short_string(),
-                    " are not contiguous");
+    OPENVINO_ASSERT(has_contiguous_expert_slices(input, num_expert), "OTD: expert slices of ", input.to_short_string(), " are not contiguous");
     auto slots_shape = input.get_shape();
     slots_shape[0] = capacity;
     return cldnn::layout(slots_shape, input.data_type, input.format);

@@ -8,10 +8,13 @@
 #include <array>
 #include <functional>
 #include <limits>
+#include <sstream>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
 #include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 
@@ -84,9 +87,19 @@ using moe_input_index = cldnn::moe_3gemm_fused_compressed::input_index;
 constexpr std::array<size_t, 3> routed_weight_inputs = {static_cast<size_t>(moe_input_index::weight_0),
                                                         static_cast<size_t>(moe_input_index::weight_1),
                                                         static_cast<size_t>(moe_input_index::weight_2)};
+constexpr std::array<size_t, 6> routed_param_inputs = {static_cast<size_t>(moe_input_index::scale_0),
+                                                       static_cast<size_t>(moe_input_index::zp_0),
+                                                       static_cast<size_t>(moe_input_index::scale_1),
+                                                       static_cast<size_t>(moe_input_index::zp_1),
+                                                       static_cast<size_t>(moe_input_index::scale_2),
+                                                       static_cast<size_t>(moe_input_index::zp_2)};
 
 bool is_routed_weight_input(size_t index) {
     return std::find(routed_weight_inputs.begin(), routed_weight_inputs.end(), index) != routed_weight_inputs.end();
+}
+
+bool is_routed_param_input(size_t index) {
+    return std::find(routed_param_inputs.begin(), routed_param_inputs.end(), index) != routed_param_inputs.end();
 }
 }  // namespace
 
@@ -142,6 +155,16 @@ bool is_weights_file_view(const ov::Output<ov::Node>& input, size_t num_expert) 
     return !shape.empty() && shape[0] == num_expert && (ov::shape_size(shape) * constant->get_element_type().bitwidth()) % (8 * num_expert) == 0;
 }
 
+// The slots of an offloaded layer copy a scale / zero point per expert, unless it is shared by all the experts (at most one element)
+bool is_shared_or_sliced_per_expert(const ov::Output<ov::Node>& input, size_t num_expert) {
+    if (input.get_partial_shape().is_dynamic()) {
+        return false;
+    }
+    const auto& shape = input.get_shape();
+    const auto count = ov::shape_size(shape);
+    return count <= 1 || (shape[0] == num_expert && (count * input.get_element_type().bitwidth()) % (8 * num_expert) == 0);
+}
+
 // Slot count of the offloaded layer that consumes the constant as a routed weight, 0 for any other constant
 size_t get_routed_weight_slot_count(const std::shared_ptr<ov::op::v0::Constant>& op, size_t offload_ratio) {
     for (const auto& input : op->get_output_target_inputs(0)) {
@@ -152,23 +175,77 @@ size_t get_routed_weight_slot_count(const std::shared_ptr<ov::op::v0::Constant>&
     }
     return 0;
 }
+
+// Bytes of the slot copies of a per-expert scale / zero point, one set per offloaded layer that consumes it
+uint64_t get_routed_param_slot_bytes(const std::shared_ptr<ov::op::v0::Constant>& op, size_t offload_ratio) {
+    const auto& shape = op->get_shape();
+    if (ov::shape_size(shape) <= 1) {
+        return 0;
+    }
+    uint64_t bytes = 0;
+    for (const auto& input : op->get_output_target_inputs(0)) {
+        const auto* moe = ov::as_type<const ov::op::internal::MOECompressed>(input.get_node());
+        if (!moe || !is_routed_param_input(input.get_index())) {
+            continue;
+        }
+        const auto slot_count = get_moe_offload_slot_count(*moe, offload_ratio);
+        if (slot_count > 0 && shape[0] > 0) {
+            bytes += op->get_byte_size() / shape[0] * std::min<size_t>(shape[0], slot_count);
+        }
+    }
+    return bytes;
+}
 }  // namespace
 
-size_t get_moe_offload_slot_count(const ov::op::internal::MOECompressed& moe, size_t offload_ratio) {
+const char* to_string(MoEResidencyReason reason) {
+    switch (reason) {
+    case MoEResidencyReason::Offloaded:
+        return "offloaded";
+    case MoEResidencyReason::OffloadDisabled:
+        return "OFFLOAD_RATIO is 0";
+    case MoEResidencyReason::UnsupportedExpertType:
+        return "the expert type is not supported";
+    case MoEResidencyReason::RoutedWeightsNotExclusive:
+        return "the routed weights are not constants used by MoE layers only";
+    case MoEResidencyReason::RoutedWeightsNotFileViews:
+        return "the routed weights are not unmodified views of the weights file (recomputed by the transformations, or the model was not "
+               "read from a file)";
+    case MoEResidencyReason::DecompressionNotPerExpert:
+        return "a scale or zero point is neither shared by all the experts nor sliced per expert";
+    }
+    return "unknown";
+}
+
+MoEOffloadDecision get_moe_offload_decision(const ov::op::internal::MOECompressed& moe, size_t offload_ratio) {
     const auto& moe_config = moe.get_config();
     // ratio=0 keeps all experts resident
-    if (offload_ratio == 0 || moe_config.expert_type != ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU || moe_config.num_expert == 0 ||
-        moe.get_input_size() <= routed_weight_inputs.back() || !is_moe_otd_eligible(&moe)) {
-        return 0;
+    if (offload_ratio == 0) {
+        return {0, MoEResidencyReason::OffloadDisabled};
+    }
+    if (moe_config.expert_type != ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU || moe_config.num_expert == 0 ||
+        moe.get_input_size() <= routed_param_inputs.back()) {
+        return {0, MoEResidencyReason::UnsupportedExpertType};
+    }
+    if (!is_moe_otd_eligible(&moe)) {
+        return {0, MoEResidencyReason::RoutedWeightsNotExclusive};
     }
     const auto num_expert = static_cast<size_t>(moe_config.num_expert);
     for (const auto index : routed_weight_inputs) {
         if (!is_weights_file_view(moe.input_value(index), num_expert)) {
-            return 0;
+            return {0, MoEResidencyReason::RoutedWeightsNotFileViews};
+        }
+    }
+    for (const auto index : routed_param_inputs) {
+        if (!is_shared_or_sliced_per_expert(moe.input_value(index), num_expert)) {
+            return {0, MoEResidencyReason::DecompressionNotPerExpert};
         }
     }
     // offload_ratio is the % on disk; GPU-resident experts = max(1, total * (100 - ratio) / 100)
-    return std::max<size_t>(1, num_expert * (100 - offload_ratio) / 100);
+    return {std::max<size_t>(1, num_expert * (100 - offload_ratio) / 100), MoEResidencyReason::Offloaded};
+}
+
+size_t get_moe_offload_slot_count(const ov::op::internal::MOECompressed& moe, size_t offload_ratio) {
+    return get_moe_offload_decision(moe, offload_ratio).slot_count;
 }
 
 uint64_t get_model_resident_constant_bytes(const ov::Model& model, size_t offload_ratio) {
@@ -204,6 +281,8 @@ uint64_t get_model_resident_constant_bytes(const ov::Model& model, size_t offloa
                     constant_resident_bytes / shape[0] + (constant_resident_bytes % shape[0] != 0 ? 1 : 0);
                 constant_resident_bytes = bytes_per_expert * resident_experts;
             }
+            // Per-expert scales and zero points stay resident and also have slot copies
+            constant_resident_bytes += get_routed_param_slot_bytes(constant, offload_ratio);
 
             OPENVINO_ASSERT(constant_resident_bytes <= std::numeric_limits<uint64_t>::max() - resident_bytes, "MoE resident weight size overflows uint64_t");
             resident_bytes += constant_resident_bytes;
@@ -215,7 +294,34 @@ uint64_t get_model_resident_constant_bytes(const ov::Model& model, size_t offloa
 }
 
 void validate_model_resident_constant_memory(const ov::Model& model, size_t offload_ratio, uint64_t device_memory_bytes) {
-    if (offload_ratio == 0 || device_memory_bytes == 0)
+    if (offload_ratio == 0)
+        return;
+
+    // A model without MoE layers is not affected (OFFLOAD_RATIO may be set for every model of a pipeline), but a MoE model
+    // where no layer can be offloaded would silently keep every expert resident
+    size_t moe_layers = 0;
+    size_t offloaded_layers = 0;
+    std::ostringstream reasons;
+    for (const auto& node : model.get_ordered_ops()) {
+        const auto moe = ov::as_type_ptr<ov::op::internal::MOECompressed>(node);
+        if (!moe || !is_otd_capable_moe(moe.get())) {
+            continue;
+        }
+        const auto decision = get_moe_offload_decision(*moe, offload_ratio);
+        if (decision.slot_count > 0) {
+            offloaded_layers++;
+        } else if (moe_layers - offloaded_layers < 3) {
+            reasons << "\n  " << moe->get_friendly_name() << ": " << to_string(decision.reason);
+        }
+        moe_layers++;
+    }
+    OPENVINO_ASSERT(moe_layers == 0 || offloaded_layers > 0,
+                    "[GPU] OFFLOAD_RATIO=",
+                    offload_ratio,
+                    " has no effect: no MoE layer can be offloaded, the experts would all stay resident.",
+                    reasons.str());
+
+    if (device_memory_bytes == 0)
         return;
 
     const uint64_t resident_bytes = get_model_resident_constant_bytes(model, offload_ratio);
@@ -225,6 +331,45 @@ void validate_model_resident_constant_memory(const ov::Model& model, size_t offl
                     " bytes, exceeding the device global memory size of ",
                     device_memory_bytes,
                     " bytes. Increase OFFLOAD_RATIO or use a GPU with more memory.");
+}
+
+void restore_routed_weight_file_offsets(const ov::Model& original, const ov::Model& transformed) {
+    std::unordered_map<const ov::AlignedBuffer*, size_t> region_offsets;
+    for (const auto& node : original.get_ordered_ops()) {
+        const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
+        if (!constant) {
+            continue;
+        }
+        const auto source = ov::weight_sharing::Extension::get_constant_source_buffer(*constant);
+        const auto origin = ov::weight_sharing::Extension::get_constant_origin(*constant);
+        if (source && origin && origin->m_size == source->size()) {
+            region_offsets.emplace(source.get(), origin->m_offset);
+        }
+    }
+    if (region_offsets.empty()) {
+        return;
+    }
+    for (const auto& node : transformed.get_ordered_ops()) {
+        if (!is_otd_capable_moe(node.get())) {
+            continue;
+        }
+        for (const auto index : routed_weight_inputs) {
+            if (index >= node->get_input_size()) {
+                break;
+            }
+            const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(index));
+            if (!constant || ov::weight_sharing::Extension::get_constant_origin(*constant)) {
+                continue;
+            }
+            const auto source = ov::weight_sharing::Extension::get_constant_source_buffer(*constant);
+            const auto region = source ? region_offsets.find(source.get()) : region_offsets.end();
+            if (region != region_offsets.end()) {
+                const auto offset = region->second + static_cast<size_t>(ov::weight_sharing::Extension::get_constant_id(*constant));
+                constant->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
+                    ov::WeightlessCacheAttribute(constant->get_byte_size(), offset, constant->get_element_type());
+            }
+        }
+    }
 }
 
 PartialUploadLogState& get_partial_upload_log_state() {
