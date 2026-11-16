@@ -40,8 +40,8 @@ output, alibi, ...) the last column's kernel runs.
 
 | Stage | xe_hpc, Xe2+ XMX | xe_hpg XMX (DG2, ARL-H) | non-XMX, unknown arch |
 |---|---|---|---|
-| SDPA, prefill | `sdpa_ocl` | `sdpa_ocl` (SG8) | `sdpa_opt` |
-| SDPA, one query | `sdpa_ocl` | `sdpa_ocl` (SG8); ARL-H: `sdpa_opt` (1) | `sdpa_opt` |
+| SDPA, prefill | `sdpa_ocl` (3) | `sdpa_ocl` (SG8) | `sdpa_opt` |
+| SDPA, one query | `sdpa_ocl` (3) | `sdpa_ocl` (SG8); ARL-H: `sdpa_opt` (1) | `sdpa_opt` |
 | SDPA, per-channel KV | `sdpa_ocl` | `sdpa_ref` | `sdpa_ref` |
 | PA PREFILL | `sdpa_ocl` | `sdpa_ocl` (xe_hpg PA PREFILL) | `sdpa_opt` |
 | PA MIXED | `sdpa_ocl` | `sdpa_ocl` (SG8) | `paged_attention_opt.cl` |
@@ -63,6 +63,9 @@ output, alibi, ...) the last column's kernel runs.
   kernel; it was not measured against `sdpa_ocl`.
 - (2) `sdpa_ocl_decode`'s SG8 reader (`sdpa_ocl_hpg_decode.cl`) is not selected (`sdpa_ocl_decode_reader_available()`;
   "xe_hpg reader (SG8)").
+- (3) A rank-3 SDPA (Q/K/V `[B, L, E]`) takes `sdpa_ocl` on Xe2 and newer GPUs only (discrete or integrated; xe3p unmeasured), for heads of 64..256 that are multiples of 16
+  (`sdpa_ocl_plain_3d_ok()`, `sdpa_ocl_plain_3d_head_ok()`; "Rank-3 plain SDPA"). A dynamic one keeps `sdpa_opt` for one
+  query. Every other device and head runs `sdpa_opt`, and a static rank-3 op on an XMX device is still decomposed.
 - `OV_GPU_ENABLE_SDPA_MICRO=0` moves every `sdpa_ocl` cell but PA GENERATE to the last column; PA GENERATE does not read
   it.
 
@@ -1238,6 +1241,96 @@ saved and loaded blob), all against the host reference with Q in [-4, 4] (bound 
 16-key S*V block of every decode workgroup tile failed exactly the 22 decode rows that have keys there (0.038-0.10), and
 passed the 17-key row and `sdpa_gpu_causal_mask.decode_40q_10kv_444seq`, which have none.
 
+### Rank-3 plain SDPA
+
+A plain SDPA with Q/K/V `[B, L, E]` (heads folded into B; a mask `[B, Lq, Lk]`, `[1, Lq, Lk]` or `[Lq, Lk]`) ran `sdpa_opt` when it
+was dynamic or the device had no XMX, because `dpas_sdpa_op_supported()` asked for a rank-4 descriptor, and on an XMX device a
+static one was decomposed into Gemm + Softmax + Gemm (`should_decompose_sdpa_for_memory_size()`). Only without a mask did a fused
+static one reach `sdpa_ocl` (the plugin reshapes it to 4D). Since 2026-11-14 ("Rank-3 plain SDPA on sdpa_ocl (2026-11-14)" in
+"Change history") it takes `sdpa_ocl` on Xe2 discrete GPUs, and since 2026-11-16 on every Xe2 and newer GPU, discrete or integrated ("Rank-3 plain
+SDPA on LNL and PTL-H (2026-11-16)"):
+
+- Where: `sdpa_ocl_plain_3d_ok()` (the `sdpa_ocl` lane, `arch >= xe2`, a discrete or an integrated GPU; measured on the B70 (xe2,
+  discrete), LNL (xe2, integrated) and PTL-H (xe3, integrated), one SKU each; xe3p is included by the comparison and was not measured) and
+  heads that `sdpa_ocl_plain_3d_head_ok()` accepts (64..256, a multiple of 16: the measured ones).
+- Static: `transformations_pipeline.cpp` skips the decomposition rule (`is_fused_sdpa_ocl_3d_faster()`: DPAS kernel on, f16,
+  non-causal, no mask or one f16 mask of rank >= 2, at most a constant scalar scale, equal static heads), so the op stays fused.
+  A SDPAFusion graph carries a scale as a fifth input; a runtime scale is another kernel path and keeps the decomposition.
+- Dynamic: `dpas_sdpa_op_supported()` accepts a rank-3 descriptor there, and only `ocl_multi_tokens` is staged: for one query
+  the opt kernel is 2 us against `sdpa_ocl`'s 10 us (`[10, 1024, 64]` keys), while the multi-token stage is 2.4-6.7x faster.
+- How: `SDPACanonicalParams` gives the `sdpa_ocl` generator the canonical 4D params (`SDPABase::static_canonicalize_shapes()`,
+  a copy-free reference for rank 4 and paged attention) at every entry that reads layouts together with the descriptor orders
+  (lane check, build options, `supported()`, jit, arguments, dispatch), and `aligned_seq_length()` extends the order to match;
+  the stages used to be built from canonical params while the dispatch and the gate read the rank-3 ones.
+
+Measured on the B70 (Arc Pro B70, pinned 1800 MHz, f16, static, one process per case,
+`benchmark_app -hint latency -use_device_mem -t 3`: inputs and outputs in device memory, median of 3 interleaved reps,
+spread <= 0.5 %, load average <= 1.2); D = decomposed, opt = fused on sdpa_opt, ocl = fused on sdpa_ocl, microseconds:
+
+A one-axis sweep from `10 x 1024 x 1024 x 64` (Lq 1..4096, Lk 16..4096, B 1..32, E 80..256; 19 shapes, with and without a mask,
+one pass each) never has ocl slower than D: the worst ratios are 0.95 (Lq 8, masked, 47.9 against 50.6 us, host-launch bound)
+and 0.90 (E 256, no mask); opt is 1.2-3.6x slower than D with a mask. Kernel device time (sum of node `real_time`, the same
+inputs copied to device memory) agrees: ocl is 0.22-0.78x of D at the masked shapes. Dynamic shapes (kernel device time, ten
+masked shapes including vision-encoder-like `[16, 2048, 80]` and `[1, 4096, 80]`): ocl / opt = 0.15-0.41, except one query
+(2 us on opt, 10 us on ocl). Output against the TEMPLATE reference, max diff <= 0.002 on moderate data (Q/K/V in [-1, 1],
+mask in [-3, 0]): 30 runs (10 shapes, D, opt and ocl), 57 runs of the 38 sweep IRs, 34 dynamic runs (17 shapes).
+
+What stood in the way: with the move, 4 existing func tests failed (`TransposeVLSDPATest` with 1 or 2 heads, head 16 or 64 and
+`cu_seqlens` of 5 entries: the qwen-vl vision encoder pattern, Transpose, rank-3 SDPA, a block-diagonal `-inf` mask, integer data
+with logits of several hundred). It was an `sdpa_ocl` NaN with a `-inf` mask that master's `sdpa_micro` did not have, on a native
+4D op too ("sdpa_ocl NaN with a -inf mask (2026-11-14)" in "Change history"); once it was fixed they pass. What was left
+open that day, a head-128 `-inf` block mask with large logits that looked like a wrong output of `sdpa_ocl` and `sdpa_micro` alike, was
+the f16 reference's error ("Known issues", "Correctness": an f32 reference puts `sdpa_ocl` 0.0049 off, `sdpa_opt` 3.00). At very large
+logits the output of `sdpa_ocl` is that of `sdpa_micro` (within one f16 step of it in every case measured), not that of the decomposed graph
+(a finite-mask case at logits near 250: 0.23 off the TEMPLATE reference against 0.023; that reference computes in f16 and the case was not
+re-judged against an f32 one, see "Measured on LNL and PTL-H" for the rows that were).
+
+Method traps (they inverted an earlier conclusion): `benchmark_app` by default fills the infer request's own input tensors,
+which are host-visible memory, and the fused kernel re-reads K/V once per query tile, so over PCIe it takes 1047 us where
+device-resident inputs take 65 us (`10 x 1024 x 1024 x 64`, no mask; the decomposed chain 462 against 199 us). That A/B
+(default `benchmark_app`) had the fused op 1.4-2.8x slower than D. A wall-clock bench that copies its own host tensors
+includes about 350 us of host-to-device copy at these sizes, so use `-use_device_mem` (the IR output needs a name) or the sum
+of node `real_time`.
+
+Measured on LNL and PTL-H (2026-11-16, Windows, one process per case, one plugin build that ran the old predicate (A) and the widened one (B)
+through an environment switch, so A and B differ in that one thing; device time = sum of node `real_time` with inputs given through
+`set_input_tensor`, median of 3 rounds with the arm order alternated, wall time of `infer()` for reference; AC power, best performance mode,
+no frequency pin, driver versions not recorded; the PTL-H sweep run has no note, so its conditions are not recorded):
+
+- Devices: LNL = Arc 140V (gfx 20.4.4, xe2, integrated); PTL-H = Arc B390 (gfx 30.0.4, xe3, integrated). A is decomposed for a static
+  op and `sdpa_opt` for a dynamic one; cliloader shows B on `sdpa_ocl` in every case checked: 6 on LNL (five static incl. `10 x 4096 x 4096`
+  no mask and head 128, one dynamic) and 13 on PTL-H (the same 6 plus `s_Lq1_m` / `s_Lq1_n` on `sdpa_ocl_mixed`, the single-token stage,
+  `s_Lq8_m`, `s_B1_n`, `s_D80_m`, `s_D96_m`, `s_D256_m` on `sdpa_ocl_prefill`).
+- Output against the f16 TEMPLATE reference: the 14 static shapes (the B70 set with its two 4096 x 4096 shapes replaced by the B = 1 form), 5 dynamic runs and 26 sweep
+  shapes (Lq 1..512, Lk 16..256, B 1 and 4, E 80, 96 and 256, masked and not) pass on both devices (core and dynamic rows: max diff
+  <= 0.0017; the sweep rows pass the 0.02 gate, A-vs-B <= 0.001) and no run has a NaN. Both devices give the same A-vs-B max diff in every
+  row; the negative control (a corrupted input) fails as it must.
+- Stress, `-inf` masks (left padding of 128 keys, 4 block-diagonal segments, and the f16 lowest), Q/K/V uniform in [0, 6] (|logit| about 70
+  for head 64 and 100 for head 128), `[2, 256, 64]` and `[2, 256, 128]`, static and dynamic, 7 runs, and 4 more with integers 0..9 (the VLSDPA gtest data, logits of several
+  hundred) and the 4-segment `-inf` block mask: no NaN on either device. Against an f32 reference (the same f16
+  values through TEMPLATE on an f32 copy of the IR) the largest error of the device output is `sdpa_ocl` 0.0026-0.0029 (one f16 step of the
+  output), the decomposed graph 0.0615-0.0907, and `sdpa_opt` (the dynamic runs) 0.4288 and 0.8190; the f16 TEMPLATE reference itself is
+  0.40-0.81 away from the f32 one, which is why the f16 reference is no judge at these logits. LNL and PTL-H gave identical numbers in all
+  eleven. The integer rows: `sdpa_ocl` 0.0049 in all four; head 128: decomposed 0.50, `sdpa_opt` 2.997, f16 reference 3.00; head 64: decomposed
+  0.0152, `sdpa_opt` 0.0149, f16 reference 0.0172. Not re-measured with an f32 reference: the logits-near-250 finite-mask case above. The B70 (rank-3, both arms `sdpa_ocl`) gave the same
+  `sdpa_ocl` errors (0.0026-0.0049) on the same eleven rows and 3.00 for the f16 reference on the head-128 integer rows; one row differs in the third
+  digit (`[2, 256, 128]`, `data=pos`, block mask: f16 reference 0.7032 against 0.7040): the reference runs on the host CPU, a Linux PC for the B70
+  and Windows PCs for the others, which was not investigated.
+- Speed, static, device time B / A (median of 3): PTL-H 0.16-0.51 over the 14 shapes (`10 x 4096 x 4096` masked 20340 -> 6158 us, no mask
+  12670 -> 2089), LNL 0.13-0.73 (27630 -> 5729, 16106 -> 2155); wall time 0.23-0.76 and 0.17-0.82. Dynamic (`dynseq`, four shapes): 0.15-0.37 on PTL-H,
+  0.08-0.37 on LNL; the one-query dynamic control stays on `sdpa_opt` in both arms and ties. Sweep (38 shapes): LNL is faster at all 38
+  (0.14-0.73). PTL-H is faster at 33, ties at one and is slower at four tiny ops by 3-7 us of device time: `s_Lq1_m` 45 -> 50, `s_Lq1_n`
+  45 -> 48, `s_Lq8_m` 49 -> 53, `s_B1_n` 50 -> 57 us (B ran `sdpa_ocl_mixed` for the two one-query shapes and `sdpa_ocl_prefill` for the other
+  two); the wall time of `infer()` is not slower there (0.94, 0.97, 0.95, 0.80), and the same four shapes are 2.1-2.7x faster on LNL (76 -> 28,
+  75 -> 28, 82 -> 39, 77 -> 30 us). The slowdown was accepted without a shape gate. A re-run of the four shapes (5 rounds, arm order alternated, AC power, best performance)
+  reproduced it: device time medians A 45, 46, 49 and 50 us against B 50, 48, 53 and 57 us (spread <= 2.2 %), wall time of `infer()` B / A 0.93,
+  0.95, 0.96 and 0.79.
+
+Not measured: xe3p (the predicate includes it, `arch >= xe2`); xe_hpg (DG2, ARL-H) and xe_hpc, so the lane stays as it was there; other Xe2
+integrated and Xe3 SKUs than the two above;
+bf16, causal, a runtime scale input; heads outside 64..256 or unaligned (an unaligned head still reaches `unaligned_head_size()`'s rank-3 misread under
+"Known issues"); real models (a Qwen-VL vision encoder IR was not available); the first-shape effect on a dynamic model.
+
 ### Kernel flow
 
 1. Q is staged to SLM (`Q_slm`) cooperatively: the `q_blocks x DKS_ACTIVE` (query block, depth
@@ -1820,6 +1913,9 @@ garbage, on SG8 and SG16 alike (upstream #38532 made the path reachable and fixe
     -65504). A row with any unmasked key also keeps its bits, because exp2 of a clamped score is still exactly 0. PA has
     no mask terms and is unaffected.
   - A NaN mask is clamped to the lower bound.
+  - The softmax exponent of a build with a mask is saturated (`SDPA_SOFTMAX_EXP`, `clamp(exp2(x), 0, 1)`, since 2026-11-14,
+    "sdpa_ocl NaN with a -inf mask (2026-11-14)" in "Change history"): the contracted `S * scale - m_log2` of a row whose keys
+    are all masked so far is the rounding error of `m_log2`, which the saturated score absorbs only while |q.k| is small.
   - `smoke_sdpa_mask_fill` checks it: 16 of 16 pass on the B70.
 - `HAS_QQ_BIAS` (MIXED only): the speculative-decoding tree mask over the new keys.
 
@@ -2684,6 +2780,116 @@ off its lane, xe_hpc), non-f16 inference, and the pages the rule turned down on 
   `pa_small_q_opt.cl` with a non-f16 comp. The remote branch keeps the rule and the d-major page, so the two diverge
   until the same lands there.
 
+### Rank-3 plain SDPA mask canonicalization (2026-11-14)
+
+A rank-3 attention mask of a rank-3 SDPA was canonicalized to `[1, B, Lq, Lk]` (`SDPABase::static_canonicalize_shapes()`
+prepended a 1) while Q/K/V and the output got the head dim at 1 (`[B, 1, L, E]`), so the `sdpa_opt` kernel
+(`INPUT3_GET_INDEX_SAFE(b, h, ...)`) read B as the head count, broadcast the batch, and every batch used `mask[0]`: max diff
+0.263 against the reference on `[10, 1024, 77]` with a `[10, 1024, 77]` mask, batch 0 right and every other batch wrong at every
+query row, bit-identical on this branch and upstream master d6bbd41244. It reached users for a dynamic rank-3 op on any
+device, and for a static one on any device without XMX (UHD 770: the same 0.262878 before, right after); an XMX device
+decomposes a static one and so hid it. Now a rank-3 mask of a rank-3 op gets the head dim at 1 like Q/K/V; a mask of rank 2,
+a batch-1 mask and a rank-4 op get the same layout as before.
+
+- Found and checked with an oracle that runs one IR on the device (static, or with the sequence dims made dynamic) and on
+  TEMPLATE with the same random f16 inputs. Before the fix a reference that copies `mask[0]` into every batch matched the
+  dynamic GPU output at <= 0.001 in all ten batches (the correct static path did not). Controls that each differ from the failing
+  op in one thing (mask of rank 2, batch 1, the same data as 4D) are right before and after, a corrupted device mask fails
+  (0.70). After the fix: 13 of 13 on the B70 and the same on GPU.0, and the sdpa_ocl path with the rank-4 gate lifted (an
+  experiment) is right too, and wrong without the fix (0.2628).
+- New func test `smoke_SDPA3DBatchMask` (`sdpa_3d_batch_mask.cpp`, 16 cases: head 64 and 128, a per-batch, batch-1 and rank-2
+  mask or none, dynamic and static): its own mask data, because the 3D func tests used a batch-1 mask and the base generator's
+  mask data (`InputGenerateData(-1, 2, 1)`, range x resolution a power of two) repeats with period 2, so every batch had the
+  same mask. Without the fix the per-batch cases fail on the B70 (dynamic) and on GPU.0 (dynamic and static).
+- Checks, B70: `*sdpa*:*SDPA*:*Sdpa*` unit 1025 tests, 710 pass, 16 fail, the same 16 without the fix; func
+  `*ScaledAttn*`, `SDPAWithKVCache`, gqa, transpose fusion, kv-cache and sdpa groups 2418 tests, 2300 pass, 117 skipped by the
+  framework, only `SDPAFusion.Inference/0` fails (known). GPU.0: 86 func tests, `SDPAFusion.Inference/6` and `/7` (bf16) fail
+  with and without the fix.
+- The same ops on `sdpa_ocl`: "Rank-3 plain SDPA on sdpa_ocl (2026-11-14)".
+
+### sdpa_ocl NaN with a -inf mask (2026-11-14)
+
+A plain SDPA with a `-inf` mask gave NaN where master's `sdpa_micro` did not (B70, found when moving rank-3 SDPA onto
+`sdpa_ocl` broke 4 `TransposeVLSDPATest` cases). It needs all of: a `-inf` mask value (the f16 lowest, -65504, never gave NaN),
+128 or more leading keys masked for a query block (left padding, a block-diagonal mask; 32, 64 and 96 gave none), and logits
+`q.k / sqrt(d)` near 100 (up to 72 none, 104: 2752 NaN of 32768, 234: 31744). A causal `-inf` mask and no mask gave none.
+Real LLM IRs feed SDPA a finite -65504 mask (llama-3.2-1b, phi-4-mini, qwen3-8b) with layer logits of 16-61 (phi-4-mini layer 0:
+455), so no real model that meets all three is known; the vision encoder pattern that `TransposeVLSDPATest` imitates (`-inf`
+block mask, integer data, logits about 250) does.
+
+- Cause: the softmax argument `S * scale - m_log2` of a row whose keys are all masked so far came out positive and exp2 of it
+  overflowed; capping the argument of `exp_tile` at 0 removed the NaN, capping `alpha`'s did nothing. Why positive: most likely
+  the mad contraction described under "Masks" (the rounding error of `m_log2` of about -2^30 enters the argument once S is no
+  longer absorbed); forbidding the contraction with `#pragma OPENCL FP_CONTRACT OFF` changed nothing, so that is not proven.
+- Change: `SDPA_SOFTMAX_EXP` (`sdpa_ocl_config.cl`) saturates the exp2 result to [0, 1] in a build with a mask (a runtime or
+  constant scalar mask included). It is bit-identical to an `fmin` of the argument. Builds without a mask, so paged attention
+  and plain SDPA without a mask, compile the old line.
+- Output, same inputs on the B70, 12 cases (head 64 and 128, `-inf` and causal and left-padding masks, logits 1-300): no NaN
+  after (14912 / 29440 / 1408 / 31744 before in the failing ones); against master's `sdpa_micro` the finite values differ by at
+  most 0.0078 (one f16 step), as before; against the old kernel a build without a mask is bit-identical and a build with a mask
+  and moderate logits too; with large logits a few elements move by one f16 step (up to 183 of 65536). A NaN in Q reaches the
+  output as 0 NaN before and after (this kernel never propagated it).
+- Cost (device time of the op, B70 1800 MHz, 4 interleaved reps, spread < 1 %): no mask 1.000 on `[1, 32, 2048, 64]`,
+  `[1, 32, 4096, 128]`, `[1, 16, 4096, 256]`; with a mask 1.016 on `[1, 32, 4096, 128]` with a 4K mask (5692 -> 5784 us),
+  1.024 on `[1, 8, 1024, 64]` (64 -> 65 us), 0.996 on `[1, 32, 2048, 64]`.
+- Test: `smoke_SDPAInfMask` (`sdpa_neg_inf_mask.cpp`, 12 cases: head 64 and 128, left padding and block-diagonal `-inf`, left
+  padding with -65504 as the control, static and dynamic): finite output, every element in the range of V, loose agreement
+  with an fp32 reference. The old kernel fails the 4 head 64 `-inf` cases (1280-2816 NaN of 32768) and passes the rest.
+- Not changed: head 128 gives a wrong output that master's `sdpa_micro` gives too ("Known issues", "Correctness").
+
+### Rank-3 plain SDPA on sdpa_ocl (2026-11-14)
+
+A rank-3 SDPA ran `sdpa_opt`, or was decomposed into Gemm + Softmax + Gemm on an XMX device, although `sdpa_ocl` is faster for
+it. The first A/B (default `benchmark_app`) said the opposite, fused 1.4-2.8x slower, and was an artifact: it fills the infer
+request's own input tensors, which are host-visible memory, and the fused kernel re-reads K/V once per query tile, so over PCIe
+it took 1047 us where device-resident inputs take 65 us (`10 x 1024 x 1024 x 64`); a bench with its own tensors reproduced
+`benchmark_app` exactly when it filled the request's tensors in place. Measured with `-use_device_mem` the move is faster at
+every shape ("Rank-3 plain SDPA": 14 shapes, a 38-IR sweep, dynamic shapes).
+
+- Change: see "Rank-3 plain SDPA" (the device and head predicates, the rule skip, the rank-3 gate, canonical params at every
+  `sdpa_ocl` generator entry, the dynamic one-query exception). Xe2 discrete GPUs only, heads 64..256 that are multiples of 16.
+- Needed first: the mask canonicalization fix of the same day ("Rank-3 plain SDPA mask canonicalization (2026-11-14)": without
+  it `sdpa_ocl` gave the same wrong output, 0.2628, batch 0 only right) and the `sdpa_ocl` NaN fix ("sdpa_ocl NaN with a -inf
+  mask (2026-11-14)": without it 4 `TransposeVLSDPATest` cases failed).
+- Output against the TEMPLATE reference (moderate data, max diff <= 0.002): 30 runs (10 shapes; decomposed, opt and ocl), 57 runs
+  of the 38 sweep IRs, 34 dynamic runs (17 shapes, `dynseq` and `dynfull`), including vision-like `[16, 2048, 80]` and
+  `[1, 4096, 80]`; `smoke_SDPA3DBatchMask` (16 cases) runs both the static and the dynamic path.
+- Speed on the B70 (pinned 1800 MHz, `benchmark_app -hint latency -use_device_mem`): the shipped build's default against the
+  decomposed graph (`OV_GPU_ENABLE_SDPA_MICRO=0`), microseconds: `10 x 1024 x 77 x 64` with a `[Lq, Lk]` mask 60.1 against 85.6;
+  `10 x 1024 x 1024` 125.9 against 264.8; with a `[B, Lq, Lk]` mask 59.9 against 79.0; `10 x 4096 x 4096` 1.17 ms against 4.05 ms;
+  no mask `10 x 1024 x 1024` 77.8 against 165.6 and `10 x 4096 x 4096` 616 against 1890. Dynamic ocl / opt kernel time 0.15-0.41,
+  except one query (kept on opt).
+- Checks, B70: func `*ScaledAttn*`, `SDPAWithKVCache`, gqa, kv-cache, `PagedAttention`, transpose fusion, VLSDPA and sdpa groups in
+  three processes, 2512 tests, 2395 pass, 117 skipped by the framework, 0 fail (`SDPAFusion.Inference/0` passes for the first
+  time; `TransposeVLSDPATest` 18 of 18); unit `*sdpa*:*SDPA*:*Sdpa*:*paged_attention*:*PagedAttention*` 2101 tests, 1407 pass,
+  669 skipped, 25 fail: the 16 `sdpa_gpu_*` / `SdpaOclHpg` / sink cases that fail without these changes, and 9
+  `paged_attention_gqa_multi_tokens*` cases that fail with the old kernel too (A/B). GPU.0 (no XMX, unchanged): 138 func tests,
+  `SDPAFusion.Inference/6` and `/7` (bf16) fail as before. A single process over the 2512 tests aborted once with
+  `CL_OUT_OF_RESOURCES` in `SDPAWithKVCacheTest.MultipleIterationStateful` (indirect SDPA, `sdpa_opt`, not this code), which passes
+  alone with either plugin; master aborted in a long run at the same test before.
+- Not changed: every other device and head, causal, a runtime scale, bf16.
+
+### Rank-3 plain SDPA on LNL and PTL-H (2026-11-16)
+
+The rank-3 move above was measured on the B70 only, so `sdpa_ocl_plain_3d_ok()` asked for `arch == xe2` and a discrete GPU. A measurement kit
+(one plugin build, an environment switch for the old and the widened predicate) ran it on LNL (xe2, integrated) and PTL-H (xe3, integrated).
+
+- Change: `sdpa_ocl_plain_3d_ok()` is `sdpa_ocl_selected()` and `arch >= xe2`, the discrete clause is gone, there is no
+  shape gate, and xe3p is included although it was not measured. Heads, the static rule skip, the rank-3 gate and the dynamic one-query exception are as before. `SdpaOclPredicates.Plain3dOkTruthTable`
+  covers the predicate.
+- Evidence: "Rank-3 plain SDPA" ("Measured on LNL and PTL-H"): output passes on both devices, no NaN in the `-inf` stress rows, against an f32
+  reference `sdpa_ocl` is the closest of the paths in them, faster at every static and dynamic shape measured except four tiny ops on PTL-H
+  (3-7 us of device time, not slower in wall time).
+- Correction of the 2026-11-14 entries: the head-128 `-inf` block-mask "wrong output" that `sdpa_ocl` and `sdpa_micro` shared (3.00 off the
+  TEMPLATE reference, `sdpa_opt` 0.016) was the f16 reference's own error: against an f32 reference `sdpa_ocl` is 0.0049 off (B70, LNL and PTL-H)
+  and `sdpa_opt` 3.00 (LNL and PTL-H; `sdpa_opt` does not run these ops on the B70) ("Known issues", "Correctness"). The 2026-11-14 entries above are left as written.
+- Not changed: xe_hpg (DG2, ARL-H), xe_hpc and every other head, causal, a runtime scale, bf16.
+- Checks: unit `SdpaOclPredicates.*` 5 of 5 pass (host-only truth tables, `ov_gpu_unit_tests` built from this tree, run with
+  `--device_suffix=1`; `Plain3dOkTruthTable` covers arch x immad x device type); the kit rows quoted above. Not run: the func groups
+  (`SDPAFusion`, `SDPA3DBatchMask`, `SDPAInfMask`, `TransposeVLSDPATest`, `ScaledAttn`) on LNL and PTL-H, and the full unit and func suites on the
+  B70 after this change. Control: with the previous predicate (`arch == xe2` and a discrete GPU) `Plain3dOkTruthTable` fails on exactly the five
+  rows where the two differ (xe2 integrated, xe3 and xe3p both device types) and the other four tests still pass.
+
 ## Known issues
 
 Found in the 2026-09 review of these files and deliberately left out of the refactor, because each
@@ -2692,6 +2898,19 @@ result is quoted.
 
 ### Correctness
 
+- A `-inf` block-diagonal or left-padding mask with large logits on head 128 was recorded here as a wrong output of `sdpa_ocl` and
+  master's `sdpa_micro` (measured 2026-11-14, B70, native 4D `[1, 2, 256, 128]` f16, Q/K/V random integers 0..9, logits about 300, a
+  block-diagonal mask of 4 segments): the two agreed within 0.008 and were 3.00 off the TEMPLATE reference, where `sdpa_opt` was 0.016
+  off (left padding of 64 instead: 1.98 for both). Re-judged on 2026-11-16 against an f32 reference (the same f16 values through TEMPLATE
+  on an f32 copy of the IR; PTL-H and LNL, rank-3 `[2, 256, 128]`, integers 0..9, a 4-segment `-inf` block mask, static and dynamic, identical
+  numbers on both devices): `sdpa_ocl` is 0.0049 off (one f16 step of the output), the decomposed graph 0.50 (static), `sdpa_opt` 3.00
+  (dynamic), and the f16 TEMPLATE reference itself is 3.00 off the f32 one. So the 3.00 was the error of the f16 reference, and `sdpa_opt`
+  (2.997) reproduces it; `sdpa_ocl` is the accurate path in this case and no wrong output of `sdpa_ocl` was found. Head 64 with the same data:
+  `sdpa_ocl` 0.0049, decomposed 0.0152, `sdpa_opt` 0.0149, f16 reference 0.0172, no NaN (the NaN that used to go with it is fixed,
+  "sdpa_ocl NaN with a -inf mask (2026-11-14)"). The same rows on the B70 (rank-3 `[2, 256, 128]`; both arms are `sdpa_ocl` there) give `sdpa_ocl` 0.0049 and the f16 reference 3.00 off. Not
+  repeated: the native 4D `[1, 2, 256, 128]` shape of the original measurement and the left-padding-of-64 case (1.98). For
+  uniform Q/K in [-4, 4] / [-6, 6] (0.08 / 0.27 off the f16 reference for the decomposed graph and `sdpa_ocl` alike) no f32 reference was run; with
+  Q/K/V uniform in [0, 6] it puts `sdpa_ocl` at 0.003 and the decomposed graph at 0.06-0.09 ("Rank-3 plain SDPA", "Measured on LNL and PTL-H").
 - Plain SDPA with `is_causal` and an attention mask: the spec ignores the mask when `causal` is true, and so do the
   CPU reference, `sdpa_ref.cl` and `sdpa_opt.cl` (`#elif !IS_CAUSAL && HAS_ATTN_MASK_INPUT`), but `sdpa_ocl.cl` adds
   it on top of the causal mask (`STATIC_SCALAR_ATTN_MASK_VALUE`, `HAS_SCALAR_ATTN_MASK` and `WITH_ATTN_MASK` in the
@@ -2766,7 +2985,7 @@ result is quoted.
   or 112 take the same route harmlessly; a logical head of 72 would be wrong.
 - `unaligned_head_size()` gives the rank-3 descriptor orders of a 3D SDPA to layouts canonicalized
   to 4D, so it reads the sequence length instead of the head size. A 3D decode with an unaligned
-  head and a key length divisible by 16 runs the opt single-token kernel (as on master).
+  head and a key length divisible by 16 runs the opt single-token kernel (as on master). A rank-3 op reaches `sdpa_ocl` only with heads that are multiples of 16 (`sdpa_ocl_plain_3d_head_ok()`), so the misread does not move a static op that `sdpa_ocl` serves (its single-token stage is staged); a dynamic rank-3 op has no such stage and routes as before.
 - `tiling_fits_device()` allows 1,024 work-items per group whatever the GRF mode, but a 256 GRF kernel
   cannot dispatch that many: `SDPA_OCL_KQ_PER_WG_KEYS=16 SDPA_OCL_KQ_PER_WG_QUERIES=4` (64 subgroups) on a
   PA PREFILL tiling compiled with 256 GRF fails at enqueue with `CL_INVALID_WORK_GROUP_SIZE` (B70,
@@ -2893,8 +3112,8 @@ re-measures against the opt kernels.
 
 ### Test failures that predate the refactor
 
-Measured on an Arc Pro B70 (Xe2), identical before and after the refactor. Of these only `SDPAFusion.Inference/0` still
-fails (kit F2, 2026-11-06):
+Measured on an Arc Pro B70 (Xe2), identical before and after the refactor. Of these only `SDPAFusion.Inference/0` failed
+(kit F2, 2026-11-06); it passes on the B70 since 2026-11-14 (see its entry):
 
 - `SDPAWithKVCacheTest.MultipleIterationStateful`, f16 with compressed KV at head 512
   (`..._et=f16_num_iter=5_num_groups=4_..._compressed=1k_head=512v_head=512`): 4724 of 8192
@@ -2905,9 +3124,11 @@ fails (kit F2, 2026-11-06):
   `dynamicquantize`) before an SDPA implementation was chosen. Upstream #38532 made them reach SDPA,
   and `sdpa_ocl` then misread their bf16 scales ("Dequantisation"; fixed). The 13 bf16 compressed cases F2 has today
   pass.
-- `SDPAFusion.Inference/0` does not find the fused SDPA node. It is the only 3D case, and from the code (not run)
-  `should_decompose_sdpa_for_memory_size()` in `transformations_pipeline.cpp` decomposes a static 3D SDPA again on an
-  XMX device whose Q.K buffer fits, so the runtime model has no SDPA node; not `sdpa_ocl`.
+- `SDPAFusion.Inference/0` did not find the fused SDPA node. It is the only 3D case: `should_decompose_sdpa_for_memory_size()` in
+  `transformations_pipeline.cpp` decomposed a static 3D SDPA again on an XMX device whose Q.K buffer fits (the same on upstream
+  master d6bbd41244; with the rule forced off it passed 8 of 8), so the runtime model had no SDPA node; not `sdpa_ocl`. Since
+  2026-11-14 it passes on the B70: a rank-3 op that `sdpa_ocl` serves faster stays fused on Xe2 discrete GPUs, and since 2026-11-16 on
+  Xe2 and newer GPUs, integrated ones too ("Rank-3 plain SDPA"; the test itself ran on the B70 only). On every other XMX device the decomposition, and so the failure, remains.
 
 ### Test coverage gaps
 

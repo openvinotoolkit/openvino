@@ -470,6 +470,49 @@ static bool should_decompose_sdpa_for_memory_size(size_t max_size,
     return false;
 }
 
+// A static rank-3 SDPA that sdpa_ocl runs faster than the decomposed Gemm + Softmax + Gemm: the DPAS kernel is on and the
+// device is one where it was measured (sdpa_ocl_plain_3d_ok()), f16, non-causal, no mask or one f16 mask of rank >= 2, at most
+// a constant scalar scale, one equal static head size that sdpa_ocl_plain_3d_head_ok() accepts. Anything else keeps
+// should_decompose_sdpa_for_memory_size(). Measurements, method and
+// limits: docs/sdpa_ocl.md, "Rank-3 plain SDPA".
+static bool is_fused_sdpa_ocl_3d_faster(const cldnn::device_info& info,
+                                        bool dpas_kernel_enabled,
+                                        const std::shared_ptr<const ov::op::v13::ScaledDotProductAttention>& sdpa) {
+    if (!dpas_kernel_enabled || !cldnn::paged_attention::sdpa_ocl_plain_3d_ok(info) || sdpa->get_causal()) {
+        return false;
+    }
+    for (size_t i = 0; i < 3; ++i) {
+        if (sdpa->get_input_element_type(i) != ov::element::f16) {
+            return false;
+        }
+    }
+    const auto inputs = sdpa->get_input_size();
+    if (inputs > 5) {
+        return false;
+    }
+    if (inputs >= 4 && (sdpa->get_input_element_type(3) != ov::element::f16 || sdpa->get_input_partial_shape(3).rank().is_dynamic() ||
+                        sdpa->get_input_partial_shape(3).size() < 2)) {
+        return false;
+    }
+    // A scale is a constant scalar (a jit constant of the kernel); a runtime scale input is another kernel path.
+    if (inputs == 5) {
+        const auto scale = ov::as_type_ptr<ov::op::v0::Constant>(sdpa->get_input_node_shared_ptr(4));
+        if (!scale || ov::shape_size(scale->get_shape()) != 1) {
+            return false;
+        }
+    }
+    const auto& q = sdpa->get_input_partial_shape(0);
+    const auto& k = sdpa->get_input_partial_shape(1);
+    const auto& v = sdpa->get_input_partial_shape(2);
+    if (q.size() != 3 || k.size() != 3 || v.size() != 3 || q[2].is_dynamic() || k[2].is_dynamic() || v[2].is_dynamic()) {
+        return false;
+    }
+    // Only the heads that were measured: an unaligned head or one outside the DPAS tilings may be refused by sdpa_ocl, and the
+    // op would then run sdpa_opt, which is slower than the decomposition.
+    const auto head_size = q[2].get_length();
+    return head_size == k[2].get_length() && head_size == v[2].get_length() && cldnn::paged_attention::sdpa_ocl_plain_3d_head_ok(head_size);
+}
+
 namespace cldnn {
 extern bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config);
 }  // namespace cldnn
@@ -1435,15 +1478,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return false;
             }
 
-            // sdpa_opt will be selected for 3d-tensor sdpa.
+            // sdpa_opt will be selected for 3d-tensor sdpa, except where sdpa_ocl serves it and is faster (is_fused_sdpa_ocl_3d_faster()).
             // sdpa_opt has performance issue on GPUs with XMX. If memory size allows, it is preferrable to decompose sdpa.
             // If intermediate buffer is expected to be very large, we need to use sdpa_opt to be functional.
             const auto max_size = m_context->get_engine().get_max_memory_size();
-            if (device_info.supports_immad && should_decompose_sdpa_for_memory_size(max_size, sdpa)) {
+            if (device_info.supports_immad && !is_fused_sdpa_ocl_3d_faster(device_info, config.get_enable_sdpa_micro(), sdpa) &&
+                should_decompose_sdpa_for_memory_size(max_size, sdpa)) {
                 GPU_DEBUG_TRACE << " Expect sdpa_usage with systolic-arry architectures. mem size is decomposable. Q*K size : query " << query_ps
                                 << " key " << key_ps << " dt " << sdpa->get_element_type().size() << std::endl;
                  return false;
-             }
+            }
 
             const auto head_size = static_cast<uint64_t>(query_ps[query_ps.size() - 1].get_length());
             // The DPAS SDPA kernel serves the op: sdpa_ocl on its lane (no oneDNN microkernel support needed). Other XMX

@@ -26,6 +26,7 @@ const std::vector<gpu_arch> kArchs = {gpu_arch::unknown,
                                       gpu_arch::xe3,
                                       gpu_arch::xe3p};
 const std::vector<bool> kBools = {false, true};
+const std::vector<cldnn::device_type> kDevTypes = {cldnn::device_type::integrated_gpu, cldnn::device_type::discrete_gpu};
 
 // The SG16 arms: xe_hpc and Xe2+. Not unknown or xe_hp, which have no SG16 DPAS / 2D block IO arch to stand on.
 bool sg16_arch(gpu_arch a) {
@@ -58,6 +59,21 @@ TEST(SdpaOclPredicates, SelectedTruthTable) {
             SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a) << " immad=" << immad);
             const bool want = kOneDnn && immad && (sg16_arch(a) || a == gpu_arch::xe_hpg);
             EXPECT_EQ(pa::sdpa_ocl_selected(make_info(a, immad)), want);
+        }
+    }
+}
+
+TEST(SdpaOclPredicates, Plain3dOkTruthTable) {
+    for (auto a : kArchs) {
+        for (bool immad : kBools) {
+            for (auto t : kDevTypes) {
+                SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a) << " immad=" << immad << " dev_type=" << static_cast<int>(t));
+                auto info = make_info(a, immad);
+                info.dev_type = t;
+                // Xe2 and newer, discrete or integrated, on the lane's oneDNN / XMX term; not xe_hpg or xe_hpc.
+                const bool want = kOneDnn && immad && (a == gpu_arch::xe2 || a == gpu_arch::xe3 || a == gpu_arch::xe3p);  // spelled out, NOT '>='
+                EXPECT_EQ(pa::sdpa_ocl_plain_3d_ok(info), want);
+            }
         }
     }
 }
