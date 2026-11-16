@@ -125,8 +125,6 @@ void parse_section(
 
 namespace intel_npu::hsm {
 
-// TODO ITT traces
-
 std::pair<BlobSectionsRegistry, std::optional<RuntimeRequirements>> read_from(
     ov::runtime::hsm::Reader& base_reader,
     const std::unordered_map<SectionType, ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>>>& section_readers,

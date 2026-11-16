@@ -47,7 +47,9 @@ ov::CompatibilityCheck MockInstanceEvaluator::evaluate(std::string_view runtime_
 MockSection::MockSection(const std::vector<std::shared_ptr<CREToken>>& cre_tokens,
                          const std::optional<std::string>& individual_requirements,
                          const ov::runtime::hsm::SectionAlignment& alignment)
-    : ISection(SectionTypeCode::IO_LAYOUTS, alignment, true),  // TODO comment
+    : ISection(SectionTypeCode::IO_LAYOUTS,  // Cannot define a new section type, so we're reusing the layouts one
+               alignment,
+               true),
       m_cre_tokens(cre_tokens),
       m_individual_requirements(individual_requirements) {}
 

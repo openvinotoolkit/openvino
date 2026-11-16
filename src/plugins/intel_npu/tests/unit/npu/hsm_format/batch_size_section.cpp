@@ -29,6 +29,9 @@ TEST_F(BatchSizeSectionTest, CtorSetsTheRightValue) {
     ASSERT_EQ(section->get_batch_size(), batch_size);
 }
 
+/**
+ * @brief The section should return its section type as CRE token.
+ */
 TEST_F(BatchSizeSectionTest, CompatibilityReqsSubexpression) {
     const std::vector<std::shared_ptr<CREToken>> requirements = section->get_cre_tokens({});
     ASSERT_EQ(requirements.size(), 1);
@@ -37,6 +40,9 @@ TEST_F(BatchSizeSectionTest, CompatibilityReqsSubexpression) {
               SectionType(SectionTypeCode::BATCH_SIZE));
 }
 
+/**
+ * @brief The batch size section has no alignment requirements.
+ */
 TEST_F(BatchSizeSectionTest, Alignment) {
     const ov::runtime::hsm::SectionAlignment reference({});
     ASSERT_EQ(section->get_alignment().offset_align, reference.offset_align);
@@ -51,6 +57,9 @@ TEST_F(BatchSizeSectionTest, NullIndividualReqs) {
     ASSERT_FALSE(section->get_individual_runtime_requirements().has_value());
 }
 
+/**
+ * @brief The encoder of the section writes only the raw batch size value.
+ */
 TEST_F(BatchSizeSectionTest, Write) {
     const ov::util::MemoryView encoded_batch_size = section->encode();
     ASSERT_EQ(encoded_batch_size.size(), sizeof(batch_size));
@@ -93,6 +102,10 @@ TEST_F(BatchSizeSectionTest, WrongTagToDecoder) {
     OV_EXPECT_THROW(BatchSizeSection::decode(ov::runtime::hsm::Section(manifest_entry)), ov::Exception, testing::_);
 }
 
+/**
+ * @brief The batch size section is an inline one. If the decoder receives a pointer type of section, then the decoder
+ * should throw.
+ */
 TEST_F(BatchSizeSectionTest, NotInline) {
     ov::runtime::hsm::ManifestEntry manifest_entry = create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE, false);
     std::memcpy(&manifest_entry.inline_bytes, &batch_size, sizeof(batch_size));
