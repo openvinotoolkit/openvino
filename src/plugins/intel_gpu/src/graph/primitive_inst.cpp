@@ -79,6 +79,19 @@ bool requires_imad_isv4_padding_initialization(const layout& weights_layout) {
            weights_layout.feature() % 4 != 0;
 }
 
+bool is_weightable_node(const program_node& node) {
+    return node.is_type<fully_connected>() || node.is_type<convolution>() || node.is_type<deconvolution>();
+}
+
+// Weights which are computed at runtime instead of being a constant can change their values on each execution
+bool has_runtime_weights(const program_node& node) {
+    if (!is_weightable_node(node)) {
+        return false;
+    }
+    const auto weights_idx = node.get_primitive()->input.size();
+    return weights_idx < node.get_dependencies().size() && !node.get_dependency(weights_idx).is_constant();
+}
+
 template <typename T>
 bool is_optimized_output_user(const T user) {
     if (user->can_be_optimized()) {
@@ -339,6 +352,15 @@ void primitive_inst::update_shape() {
                                    << " was: " << _impl_params->get_input_layout(i).to_short_string() << " now: " << new_shape.to_short_string() << std::endl;
             _impl_params->input_layouts[i] = new_shape;
             input_shape_changed = true;
+        }
+    }
+    // Shape inference and impl selection of convolution / deconvolution use weights_layout. It is taken from the node,
+    // so for runtime weights with a dynamic shape it must follow the actual weights input
+    if (_impl_params->weights_layout.has_value() && (get_node().is_type<convolution>() || get_node().is_type<deconvolution>())) {
+        const auto weights_idx = get_node().get_primitive()->input.size();
+        const auto& weights_pshape = _impl_params->get_input_layout(weights_idx).get_partial_shape();
+        if (_impl_params->weights_layout->get_partial_shape() != weights_pshape) {
+            _impl_params->weights_layout = _impl_params->weights_layout->clone_with_other_shape(weights_pshape);
         }
     }
     if (get_node().is_type<read_value>()) {
@@ -2646,6 +2668,12 @@ void primitive_inst::prepare_primitive() {
             }
         }
 
+        // Runtime weights may get new values (or a new buffer) with the same shape, so the weights used by the impl
+        // must be refreshed on every execution, not only when the impl is changed
+        if (!get_flag(ExecutionFlags::IMPL_CHANGED) && has_runtime_weights(get_node())) {
+            update_weights();
+        }
+
         // StatelessKV uses following result's memory, which may change due to SetOutput or other reason.
         // So call realloc to update memory even if the input shapes haven't been changed
         if (get_node().is_type<stateless_kv>() && !get_flag(ExecutionFlags::IMPL_CHANGED)) {
@@ -3073,8 +3101,7 @@ void primitive_inst::update_weights() {
         return;
     }
 
-    bool weightable_node = get_node().is_type<fully_connected>() || get_node().is_type<convolution>() || get_node().is_type<deconvolution>();
-    if (!weightable_node) {
+    if (!is_weightable_node(get_node())) {
         return;
     }
 
@@ -3101,8 +3128,10 @@ void primitive_inst::update_weights() {
         auto expected_layout = reorder_kernel_params->get_output_layout().clone_with_other_shape(original_layout.get_partial_shape());
         _impl_params->weights_layout = optional_layout(expected_layout);
 
+        // Reordered runtime weights are stale once the weights are recomputed, so they can't be reused
+        const bool runtime_weights = has_runtime_weights(get_node());
         auto cached_weights_memory = _reordered_weights_cache.get(expected_layout);
-        if (cached_weights_memory &&
+        if (!runtime_weights && cached_weights_memory &&
             // WA: for custom format, we need to check traits to know what it really represents
             (expected_layout.format != cldnn::format::custom || expected_layout.format.traits() == cached_weights_memory->get_layout().format.traits()) &&
             (!requires_imad_isv4_padding_initialization(expected_layout) ||
@@ -3151,9 +3180,15 @@ void primitive_inst::update_weights() {
 
         bool can_reuse = false;
         memory::ptr weights_memory = nullptr;
-        if (_reordered_weights_cache.is_full()) {
+        if (runtime_weights && cached_weights_memory && cached_weights_memory->size() >= expected_layout.bytes_count() &&
+            !engine.is_the_same_buffer(*cached_weights_memory, *original_weights_memory)) {
+            // Reorder the new values of runtime weights into the buffer used at the previous execution
+            weights_memory = cached_weights_memory;
+            can_reuse = true;
+        } else if (_reordered_weights_cache.is_full()) {
+            // The evicted buffer can be reused only if the new layout fits into it
             weights_memory = _reordered_weights_cache.get_lru_element().second;
-            can_reuse = weights_memory->size() <= expected_layout.bytes_count() && (weights_memory->buffer_ptr() != original_weights_memory->buffer_ptr());
+            can_reuse = weights_memory->size() >= expected_layout.bytes_count() && (weights_memory->buffer_ptr() != original_weights_memory->buffer_ptr());
         }
 
         if (can_reuse) {
@@ -3173,9 +3208,19 @@ void primitive_inst::update_weights() {
         args.inputs.push_back(original_weights_memory);
         args.outputs.push_back(weights_memory);
 
+        // Runtime weights are produced by the previous primitives, so with out-of-order queue the reorder must wait for them
+        std::vector<event::ptr> reorder_dep_events;
+        if (runtime_weights && stream.get_queue_type() == QueueTypes::out_of_order) {
+            for (const auto* dep : _exec_deps) {
+                if (dep->get_impl_params()->out_event) {
+                    reorder_dep_events.push_back(dep->get_impl_params()->out_event);
+                }
+            }
+        }
+
         auto* reorder_impl = reorder_inst->get_impl();
         reorder_impl->set_arguments(*reorder_inst, args);
-        add_dep_event(reorder_impl->execute({}, *reorder_inst));
+        add_dep_event(reorder_impl->execute(reorder_dep_events, *reorder_inst));
 
         GPU_DEBUG_IF(!get_config().get_dump_profiling_data_path().empty() || !get_config().get_average_counters().empty()) {
             stream.wait_for_events(_impl_params->dep_events);
