@@ -86,7 +86,7 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     auto qkv_rnd = rg.generate_random_1d<ov::float16>(qkv_mem_layout.count(), 0, 10);
     set_values(qkv_mem, qkv_rnd);
 
-    auto key_cache_mem_layout = layout{ov::PartialShape{1, 2, 64, 16}, data_types::f16, format::bfyx};
+    auto key_cache_mem_layout = layout{ov::PartialShape{1, 2, 16, 64}, data_types::f16, format::bfyx};
     auto value_cache_mem_layout = layout{ov::PartialShape{1, 2, 16, 64}, data_types::f16, format::bfyx};
     auto key_cache_mem = engine.allocate_memory(key_cache_mem_layout);
     auto value_cache_mem = engine.allocate_memory(value_cache_mem_layout);
@@ -133,7 +133,7 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     auto query_layout = layout{ov::PartialShape{-1, 128}, data_types::f16, format::bfyx};
     auto key_layout = query_layout;
     auto value_layout = query_layout;
-    auto key_cache_layout = layout{ov::PartialShape{-1, 2, 64, 16}, data_types::f16, format::bfyx};
+    auto key_cache_layout = layout{ov::PartialShape{-1, 2, 16, 64}, data_types::f16, format::bfyx};
     auto dynamic_i32_layout = layout{ov::PartialShape::dynamic(1), data_types::i32, format::bfyx};
     auto value_cache_layout = key_cache_layout;
     auto past_lens_layout = dynamic_i32_layout;
