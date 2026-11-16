@@ -849,7 +849,6 @@ void ov::npuw::GQAInferRequest::ensure_inner_request_locked() const {
                   << m_inner_request.get() << ", inner model has " << inner_model->inputs().size() << " inputs, "
                   << inner_model->outputs().size() << " outputs");
     }
-    }
 }
 
 // FIXME: Online search every time; a static mapping could be built once.
