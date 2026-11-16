@@ -3,6 +3,7 @@
 //
 
 #include "broadcast_inst.h"
+#include "concatenation_inst.h"
 #include "dynamic_quantize_inst.h"
 #include "gather_inst.h"
 #include "gemm_inst.h"
@@ -114,6 +115,16 @@ void mark_runtime_skippable_nodes::run(program& p) {
             if (node.is_output() || node.has_fused_primitives() || (impl_params->get_input_layout(0).format != impl_params->get_output_layout().format) ||
                 (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type)) {
                 return;
+            }
+
+            // If the user is an in-place concatenation, priority should be given to the in place concat optimization.
+            // Concat in-place is decided earlier and already counts on strided_slice writing into the concat buffer.
+            if (!node.is_dynamic()) {
+                for (const auto* user : node.get_users()) {
+                    if (user->is_type<concatenation>() && user->can_be_optimized()) {
+                        return;
+                    }
+                }
             }
 
             auto prim = impl_params->typed_desc<strided_slice>();

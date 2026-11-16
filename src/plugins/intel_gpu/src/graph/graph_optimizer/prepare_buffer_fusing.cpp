@@ -1239,9 +1239,27 @@ void prepare_buffer_fusing::run(program& p) {
                 return;
             }
 
+            // Permute rebinds its output to the memory of the (optimized) reorder, which in turn aliases the reorder input.
+            // If a user of permute is an in-place concat, it may have already planned to write permute output into its own buffer
+            // (concat in-place runs earlier and cannot see this later mark). Keep permute as a real primitive in that case.
+            for (const auto* permute_user : permute_node.get_users()) {
+                if (permute_user->is_type<concatenation>() && permute_user->can_be_optimized()) {
+                    return;
+                }
+            }
+
             const auto& input_layout = node.get_input_layout(0);
             const auto& output_layout = node.get_output_layout(false);
             if (!format::is_simple_data_format(input_layout.format) || input_layout.data_type != output_layout.data_type) {
+                return;
+            }
+
+            // The pair is a physical no-op only if both the reorder output and the permute output are in the default format
+            // of their rank: then the permute order (equal to the source dims order) maps the logical bfyx-like view of the
+            // reorder output onto the very same bytes of the source memory.
+            const auto& permute_output_layout = permute_node.get_output_layout(false);
+            if (output_layout.format != format::get_default_format(output_layout.get_rank()) ||
+                permute_output_layout.format != format::get_default_format(permute_output_layout.get_rank())) {
                 return;
             }
 
