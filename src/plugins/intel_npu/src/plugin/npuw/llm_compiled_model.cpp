@@ -2029,6 +2029,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
 
         // Deserialize config
         stream & compiled->m_cfg;
+        compiled->m_is_qwen3_asr = compiled->m_cfg.get<::intel_npu::NPUW_QWEN3_ASR>();
         compiled->implement_properties();
 
         // Deserialize KV cache model variants
