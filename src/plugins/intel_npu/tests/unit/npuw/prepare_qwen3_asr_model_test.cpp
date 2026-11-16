@@ -13,8 +13,13 @@
 #include <string>
 #include <vector>
 
+#include "llm_stored_tokens_state.hpp"
+#include "llm_test_helpers.hpp"
+#include "npuw_transformations/reshape_to_static.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/openvino.hpp"
+#include "qwen3asr/qwen3_asr_infer_request.hpp"
+#include "util.hpp"
 
 namespace {
 
@@ -160,6 +165,124 @@ TEST(PrepareQwen3ASRModelTest, SharesInputsAcrossMultipleAttentionAndPositionBra
         EXPECT_EQ(count_inputs(model, "attention_mask"), 1u);
         EXPECT_EQ(count_inputs(model, "position_ids"), 1u);
     }
+}
+
+TEST(PrepareQwen3ASRModelTest, CanonicalKVShapesStayIndependentOfEncoderLength) {
+    constexpr uint32_t capacity = 128;
+    constexpr uint32_t encoder_length = 64;
+    const ov::npuw::KVAxesPosition axes{0, 2};
+    for (const bool prefill : {true, false}) {
+        SCOPED_TRACE(prefill);
+        auto model = make_decoder_mask_model();
+        if (prefill) {
+            ov::npuw::PrepareQwen3ASRPrefillModel().run_on_model(model);
+        } else {
+            ov::npuw::PrepareQwen3ASRKVCacheModel().run_on_model(model);
+        }
+        const uint32_t input_size = prefill ? capacity : 1;
+        ov::npuw::ReshapeToStatic(input_size, capacity, axes, 0, encoder_length, prefill, false).run_on_model(model);
+
+        EXPECT_EQ(model->input("past_key_values.0.key").get_shape(), (ov::Shape{1, 1, capacity - input_size, 1}));
+        EXPECT_EQ(model->input("attention_mask").get_shape(), (ov::Shape{1, capacity}));
+        EXPECT_EQ(model->input("position_ids").get_shape(), (ov::Shape{input_size}));
+        EXPECT_EQ(model->output(0).get_shape(), (ov::Shape{1, 1, input_size, capacity}));
+    }
+}
+
+TEST(PrepareQwen3ASRModelTest, WhisperCacheShapesStillUseEncoderLength) {
+    constexpr uint32_t capacity = 128;
+    constexpr uint32_t encoder_length = 64;
+    const ov::npuw::KVAxesPosition axes{0, 2};
+    for (const bool prefill : {true, false}) {
+        SCOPED_TRACE(prefill);
+        const uint32_t input_size = prefill ? capacity : 1;
+        auto encoder_cache = make_decoder_mask_model();
+        ov::npuw::ReshapeToStatic(input_size, capacity, axes, 0, encoder_length, prefill, true)
+            .run_on_model(encoder_cache);
+        EXPECT_EQ(encoder_cache->input("past_key_values.0.key").get_shape(), (ov::Shape{1, 1, encoder_length, 1}));
+
+        auto decoder_cache = make_decoder_mask_model();
+        decoder_cache->input("past_key_values.0.key").get_tensor().set_names({"past_key_values.0.decoder.key"});
+        ov::npuw::ReshapeToStatic(input_size, capacity, axes, 0, encoder_length, prefill, true)
+            .run_on_model(decoder_cache);
+        EXPECT_EQ(decoder_cache->input("past_key_values.0.decoder.key").get_shape(),
+                  (ov::Shape{1, 1, capacity - input_size, 1}));
+    }
+}
+
+TEST(Qwen3ASRInferRequestTest, ResetRestartsSingleTokenPrefillAndPublishesState) {
+    auto model = ov::test::npuw::build_llm_test_model();
+    auto encoder = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, 64});
+    encoder->output(0).set_names({"encoder_hidden_states"});
+    model->add_parameters({encoder});
+    auto plugin = std::make_shared<ov::test::npuw::NullPlugin>();
+    ov::test::npuw::RecordingFactory recorder;
+    ov::AnyMap properties{{"NPUW_LLM", "YES"},
+                          {"NPUW_QWEN3_ASR", "YES"},
+                          {"NPUW_QWEN3_ASR_MAX_ENCODER_LEN", "16"},
+                          {"NPUW_LLM_MAX_PROMPT_LEN", "64"},
+                          {"NPUW_LLM_MIN_RESPONSE_LEN", "64"},
+                          {"NPUW_LLM_PREFILL_HINT", "STATIC"},
+                          {"NPUW_DEVICES", "CPU"}};
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, properties, recorder.make_factory());
+    ov::npuw::Qwen3ASRInferRequest request(compiled);
+
+    const auto set_input =
+        [](ov::npuw::Qwen3ASRInferRequest& target, const std::string& name, const ov::Tensor& tensor) {
+            const auto port = ov::npuw::util::find_port_by_name(target.get_inputs(), name);
+            ASSERT_TRUE(port.has_value()) << "Missing input " << name;
+            target.set_tensor(*port, ov::get_tensor_impl(tensor));
+        };
+    ov::Tensor encoder_hidden_states(ov::element::f32, {1, 1, 64});
+    std::fill_n(encoder_hidden_states.data<float>(), encoder_hidden_states.get_size(), 1.0f);
+    ov::Tensor one_token(ov::element::i64, {1, 1});
+    one_token.data<int64_t>()[0] = 1;
+    ov::npuw::Qwen3ASRInferRequest fresh(compiled);
+    set_input(fresh, "encoder_hidden_states", encoder_hidden_states);
+    set_input(fresh, "input_ids", one_token);
+    ASSERT_NO_THROW(fresh.infer());
+    const auto fresh_logits_port = ov::npuw::util::find_port_by_name(fresh.get_outputs(), "logits");
+    ASSERT_TRUE(fresh_logits_port.has_value());
+    auto fresh_logits = fresh.get_tensor(*fresh_logits_port);
+    ov::Tensor expected_logits(fresh_logits->get_element_type(), fresh_logits->get_shape());
+    std::memcpy(expected_logits.data(), fresh_logits->data(), fresh_logits->get_byte_size());
+
+    set_input(request, "encoder_hidden_states", encoder_hidden_states);
+    ov::Tensor prompt(ov::element::i64, {1, 2});
+    std::fill_n(prompt.data<int64_t>(), prompt.get_size(), 1);
+    set_input(request, "input_ids", prompt);
+    ASSERT_NO_THROW(request.infer());
+
+    const auto states = request.query_state();
+    const auto state = std::find_if(states.begin(), states.end(), [](const auto& candidate) {
+        return candidate->get_name() == ov::npuw::StoredTokensState::state_name;
+    });
+    ASSERT_NE(state, states.end());
+    EXPECT_EQ((*state)->get_state()->data<int64_t>()[0], 2);
+
+    set_input(request, "input_ids", one_token);
+    ASSERT_NO_THROW(request.infer());
+    EXPECT_EQ((*state)->get_state()->data<int64_t>()[0], 3);
+
+    ASSERT_NO_THROW(fresh.infer());
+    const auto fresh_states = fresh.query_state();
+    const auto fresh_state = std::find_if(fresh_states.begin(), fresh_states.end(), [](const auto& candidate) {
+        return candidate->get_name() == ov::npuw::StoredTokensState::state_name;
+    });
+    ASSERT_NE(fresh_state, fresh_states.end());
+    EXPECT_EQ((*fresh_state)->get_state()->data<int64_t>()[0], 2);
+    EXPECT_EQ((*state)->get_state()->data<int64_t>()[0], 3);
+
+    (*state)->reset();
+    EXPECT_EQ((*state)->get_state()->data<int64_t>()[0], 0);
+    ASSERT_NO_THROW(request.infer());
+    EXPECT_EQ((*state)->get_state()->data<int64_t>()[0], 1);
+    const auto logits_port = ov::npuw::util::find_port_by_name(request.get_outputs(), "logits");
+    ASSERT_TRUE(logits_port.has_value());
+    const auto actual_logits = request.get_tensor(*logits_port);
+    ASSERT_EQ(actual_logits->get_shape(), expected_logits.get_shape());
+    ASSERT_EQ(actual_logits->get_byte_size(), expected_logits.get_byte_size());
+    EXPECT_EQ(std::memcmp(actual_logits->data(), expected_logits.data(), expected_logits.get_byte_size()), 0);
 }
 
 TEST(PrepareQwen3ASRModelTest, RejectsUnsupportedExportInsteadOfSilentlyFreezingAttention) {

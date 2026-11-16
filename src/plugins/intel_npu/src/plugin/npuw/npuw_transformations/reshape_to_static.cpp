@@ -160,7 +160,7 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;
             new_shape[kv_axes_position.batch] = 1;
-            if (lhs_seq_size) {  // Whisper model
+            if (is_whisper && lhs_seq_size) {
                 new_shape[kv_axes_position.seq_len] = (input_name.find(".decoder") != std::string::npos)
                                                           ? kvcache_size - input_size  // kv_size for decoder
                                                           : lhs_seq_size;  // sequence size for encoder hidden states

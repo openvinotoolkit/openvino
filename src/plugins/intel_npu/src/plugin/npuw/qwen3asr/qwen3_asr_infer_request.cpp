@@ -34,12 +34,21 @@ void ov::npuw::Qwen3ASRInferRequest::infer() {
     OPENVINO_ASSERT(enc_hs_opt.has_value(), "Qwen3-ASR model must expose 'encoder_hidden_states' input");
     auto enc_hidden_states = get_tensor(enc_hs_opt.value());
 
-    if (input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM] != 1u ||
-        m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens == 0u) {
+    auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
+    const auto stored_tokens = get_external_stored_tokens();
+    OPENVINO_ASSERT(stored_tokens >= 0 && static_cast<uint64_t>(stored_tokens) <= kvcache_desc.total_size,
+                    "Qwen3-ASR stored token count is outside the KV-cache capacity.");
+    kvcache_desc.num_stored_tokens = static_cast<uint32_t>(stored_tokens);
+    if (stored_tokens == 0) {
+        m_generate_initialized = false;
+    }
+
+    if (input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM] != 1u || kvcache_desc.num_stored_tokens == 0u) {
         infer_prefill(input_ids, enc_hidden_states);
     } else {
         infer_generate(input_ids);
     }
+    publish_stored_tokens(static_cast<int64_t>(kvcache_desc.num_stored_tokens));
 }
 
 // ---------------------------------------------------------------------------

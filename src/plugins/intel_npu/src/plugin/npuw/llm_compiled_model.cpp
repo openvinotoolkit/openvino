@@ -1233,7 +1233,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                   axes,
                                   m_max_lora_rank,
                                   whisper_lhs_seq_size,
-                                  true)
+                                  /*is_prefill=*/true,
+                                  /*is_whisper=*/m_is_whisper)
             .run_on_model(prefill_model);
     }
     if (!m_attention_mask_is_4d_float) {
