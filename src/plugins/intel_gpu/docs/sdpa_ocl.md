@@ -1965,6 +1965,7 @@ garbage, on SG8 and SG16 alike (upstream #38532 made the path reachable and fixe
   - The softmax exponent of a build with a mask is saturated (`SDPA_SOFTMAX_EXP`, `clamp(exp2(x), 0, 1)`, since 2026-11-14,
     "sdpa_ocl NaN with a -inf mask (2026-11-14)" in "Change history"): the contracted `S * scale - m_log2` of a row whose keys
     are all masked so far is the rounding error of `m_log2`, which the saturated score absorbs only while |q.k| is small.
+    The xe_hpg PREFILL kernel too since 2026-11-16 ("-inf mask NaN in the xe_hpg PREFILL kernel (2026-11-16)").
   - `smoke_sdpa_mask_fill` checks it: 16 of 16 pass on the B70.
 - `HAS_QQ_BIAS` (MIXED only): the speculative-decoding tree mask over the new keys.
 
@@ -3303,6 +3304,29 @@ same text before and after.
   not measured), the Linux driver, the GQA kernel's leftover loop under a sharp oracle (the same source as
   `pa_single_token`'s, which the short cases check), and MIXED steps on the opt kernels (`pa_multi_token` and the GQA
   fallback keep upstream's reads).
+
+### -inf mask NaN in the xe_hpg PREFILL kernel (2026-11-16)
+
+On xe_hpg a plain SDPA PREFILL runs `sdpa_ocl_hpg_pa_prefill.cl`, which the fix of "sdpa_ocl NaN with a -inf mask
+(2026-11-14)" did not reach: its softmax kept `native_exp2`. After the rebase onto that fix, `smoke_SDPAInfMask` failed on
+the A770 the same 4 head-64 `-inf` cases the old `sdpa_ocl.cl` failed on the B70 (left padding 2816, block-diagonal 1280 NaN
+or inf of 32768 outputs, static and dynamic). With `SDPA_OCL_HPG_PLAIN_PREFILL=0` (the generic SG8 kernel, which has the
+fix) and on the opt kernels (`OV_GPU_ENABLE_SDPA_MICRO=0`) all 28 cases of `smoke_SDPAInfMask` and `smoke_SDPA3DBatchMask`
+passed.
+
+- Change: the kernel's softmax exponent takes `SDPA_SOFTMAX_EXP` (`sdpa_ocl_config.cl`: saturated to [0, 1] in a build
+  with a mask, `native_exp2` without one), as `sdpa_ocl.cl` does; `alpha` keeps `native_exp2`, as there. PA builds have
+  no mask terms and compile the old line.
+- Checks (A770, driver 9175):
+  - the xe_hpg PREFILL builds the PA and plain-SDPA unit suites generate (896): the 852 without a mask preprocess
+    (`cl /EP`) to the same text before and after; all 44 with one change (37 with a tensor mask, 7 with a static scalar
+    mask; heads 64, 72, 96, 128, 256 and 512).
+  - `smoke_SDPAInfMask` and `smoke_SDPA3DBatchMask`: 28 of 28 pass (24 before).
+  - the kit against the build before the change (`rb5`): every group identical. `SDPA_OCL_NEG_SG8=11` / `12` / `13`
+    (the kernel's mask NEGs) fail the same cases by name as on 2026-11-14 (18 / 14 / 24 of 24).
+- Not checked: the cost on DG2 (on the B70 `sdpa_ocl.cl` took 1.016-1.024x with a mask, 1.000 without; a plain SDPA
+  with a mask input takes the saturated form, PA and plain SDPA without a mask are unchanged), the output against an
+  f32 reference beyond the test's loose agreement, ARL-H and the Linux driver.
 
 ## Known issues
 
