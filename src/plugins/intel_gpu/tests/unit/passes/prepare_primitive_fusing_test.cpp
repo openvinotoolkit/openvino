@@ -14,6 +14,7 @@
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
 #include "intel_gpu/primitives/permute.hpp"
+#include "intel_gpu/primitives/pooling.hpp"
 #include "intel_gpu/primitives/scatter_update.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "pass_manager.h"
@@ -577,6 +578,90 @@ TEST(prepare_primitive_fusing, eltwise_fusing_residual_connection) {
     ASSERT_TRUE(conv_inst->has_unfused_subgraph());
     ASSERT_FALSE(conv_inst->use_unfused_subgraph());
     ASSERT_EQ(fused_ref, fused_again);
+}
+
+// Reproducer for two issues found in the unfused-subgraph path (PR #39126 review):
+//  - N1 (High): a non-output consumer reads a stale fused buffer on every valid -> invalid transition,
+//    because the unfused execution swaps _outputs[0] without publishing MEMORY_CHANGED.
+//  - F1 (Medium): one pooled fused output buffer is orphaned per fused -> unfused transition.
+// Sequence: valid(b2,x1) -> INVALID(b1,x2) -> valid(b2,x1) -> INVALID(b1,x3) -> valid(b2,x1).
+// Expected per step (fc weights all-ones [4,8], dep = [[1,1,1,1],[2,2,2,2]], pool = 1x1 identity):
+//   valid:   fc = [2,4] (all 8), fused prod dep -> rows (8,16)
+//   INVALID: fc = [1,4] (all 16), unfused broadcast -> rows (16,32)  (N1 stale-read gives (8,16))
+//   INVALID x3: fc = [1,4] (all 24) -> rows (24,48)                  (N1 stale-read gives (8,16))
+TEST(prepare_primitive_fusing, unfused_subgraph_stale_consumer_and_pool_growth) {
+    auto& engine = get_test_engine();
+
+    auto w_mem = engine.allocate_memory(layout{ov::PartialShape{4, 8}, data_types::f16, format::bfyx});
+    set_values(w_mem, std::vector<ov::float16>(32, ov::float16(1.0f)));
+    auto d_mem = engine.allocate_memory(layout{ov::PartialShape{2, 4}, data_types::f16, format::bfyx});
+    {
+        std::vector<ov::float16> dv(8, ov::float16(1.0f));
+        for (size_t i = 4; i < 8; ++i) dv[i] = ov::float16(2.0f);
+        set_values(d_mem, dv);
+    }
+
+    topology topo;
+    topo.add(input_layout("fc_input", layout{ov::PartialShape{-1, 8}, data_types::f16, format::bfyx}));
+    topo.add(data("weights", w_mem));
+    topo.add(data("dep", d_mem));
+    topo.add(fully_connected("fc", input_info("fc_input"), {"weights"}, "", data_types::f16));
+    topo.add(eltwise("eltw", { input_info("fc"), input_info("dep") }, eltwise_mode::prod));
+    topo.add(pooling("pool", input_info("eltw"), pooling_mode::max, {1, 1}, {1, 1}));
+    topo.add(reorder("reorder", input_info("pool"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    // Full program pipeline: production memory restrictions are required for the F1 pool-growth
+    // assertion to be meaningful (a partial build has no self-restriction and self-heals the pool).
+    auto prog = program::build_program(engine, topo, config, false, false);
+    ASSERT_NE(prog, nullptr);
+    cldnn::network net(prog, 0);
+
+    const auto fc_inst = net.get_primitive("fc");
+    ASSERT_NE(fc_inst, nullptr);
+
+    auto make_in = [&](size_t batch, float v) {
+        auto m = engine.allocate_memory(layout{ov::PartialShape{(int)batch, 8}, data_types::f16, format::bfyx});
+        set_values(m, std::vector<ov::float16>(batch * 8, ov::float16(v)));
+        return m;
+    };
+    auto read_out = [&](const std::map<primitive_id, network_output>& outputs) {
+        auto om = outputs.at("reorder").get_memory();
+        mem_lock<float, mem_lock_type::read> lock(om, get_test_stream());
+        return std::vector<float>(lock.data(), lock.data() + 8);
+    };
+    auto ex = [&]() { return net.execute(); };
+
+    net.set_input_data("fc_input", make_in(2, 1.0f));
+    auto o1 = read_out(ex());
+    const size_t pool_after_first_valid = net.get_memory_pool().get_non_padded_pool_size();
+
+    net.set_input_data("fc_input", make_in(1, 2.0f));
+    auto o2 = read_out(ex());
+    ASSERT_TRUE(fc_inst->use_unfused_subgraph()) << "invalid step must run the unfused subgraph";
+
+    net.set_input_data("fc_input", make_in(2, 1.0f));
+    auto o3 = read_out(ex());
+    ASSERT_FALSE(fc_inst->use_unfused_subgraph()) << "switch back to fused";
+
+    net.set_input_data("fc_input", make_in(1, 3.0f));
+    auto o4 = read_out(ex());
+
+    net.set_input_data("fc_input", make_in(2, 1.0f));
+    auto o5 = read_out(ex());
+    const size_t pool_final = net.get_memory_pool().get_non_padded_pool_size();
+
+    // N1: non-output consumer (pool) must see the fresh subgraph result on invalid steps
+    EXPECT_EQ(o1[0], 8.0f); EXPECT_EQ(o1[4], 16.0f);
+    EXPECT_EQ(o2[0], 16.0f); EXPECT_EQ(o2[4], 32.0f) << "N1: consumer read stale fused buffer";
+    EXPECT_EQ(o3[0], 8.0f); EXPECT_EQ(o3[4], 16.0f);
+    EXPECT_EQ(o4[0], 24.0f); EXPECT_EQ(o4[4], 48.0f) << "N1: consumer read stale fused buffer";
+    EXPECT_EQ(o5[0], 8.0f); EXPECT_EQ(o5[4], 16.0f);
+
+    // F1: pool must not grow across the valid <-> invalid transitions
+    EXPECT_LE(pool_final, pool_after_first_valid) << "F1: pooled fused output buffer orphaned per transition";
 }
 
 TEST(prepare_primitive_fusing, fuse_constant_transposes_removal_check) {
