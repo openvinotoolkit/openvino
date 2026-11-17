@@ -32,9 +32,6 @@ inline bool expert_gemm_compute(
 #ifdef BIAS_DT
     const global BIAS_DT* bias_ptr,
 #endif
-#ifdef POST_PROC_SILU_MUL
-    const global OUTPUT_TYPE* post_op_input,
-#endif
 #ifdef USE_SLM
     local int* slm,
 #endif
@@ -193,46 +190,6 @@ inline bool expert_gemm_compute(
                     int i = i0 + sglid;
                     if (sg_i0 + i < m) {
                         c_tile_half.x[i0 / br + nbr * (j / bc)][(i0 % br) / sg + (j % bc) * (br / sg)] += bias_base[sg_i0 + i];
-                    }
-                }
-            }
-        }
-    }
-#endif
-
-    // SiLU-gated multiply (gate * SiLU(up)).
-#ifdef POST_PROC_SILU_MUL
-    {
-        int sglid = get_sub_group_local_id();
-        const int br = UGEMM_C_TYPE_BLOCK0;
-        const int nbr = UGEMM_C_TYPE_NBLOCK0;
-        const int bc = UGEMM_C_TYPE_BLOCK1;
-        const int nbc = UGEMM_C_TYPE_NBLOCK1;
-        int sg = SUBGROUP_SIZE;
-
-        const global OUTPUT_TYPE* post_op_base = post_op_input + sg_j0 * m + sg_i0;
-        unroll_for (int j = 0; j < bc * nbc; j++) {
-            if (sg_j0 + j < cur_n_tokens) {
-                const global OUTPUT_TYPE* post_op_row = post_op_base + j * m;
-                unroll_for (int i0 = 0; i0 < br * nbr; i0 += sg) {
-                    int i = i0 + sglid;
-                    if (sg_i0 + i < m) {
-                        float post_val = post_op_row[i];
-                        int reg_idx_i = (i0 / br) + nbr * (j / bc);
-                        int reg_idx_j = (i0 % br) / sg + (j % bc) * (br / sg);
-                        float val = c_tile_half.x[reg_idx_i][reg_idx_j];
-#ifdef GATE_ACT_GELU_ERF
-                        float z_v = fabs(val) * 0.7071067811865475f;
-                        float t_v = 1.0f / (1.0f + 0.3275911f * z_v);
-                        float erf_v = 1.0f - (((((1.061405429f * t_v + (-1.453152027f)) * t_v + 1.421413741f) * t_v + (-0.284496736f)) * t_v + 0.254829592f)) * t_v * native_exp(-(z_v * z_v));
-                        float act = 0.5f * val * (1.0f + ((val >= 0.0f) ? erf_v : -erf_v));
-#elif defined(GATE_ACT_GELU_TANH)
-                        float act = 0.5f * val * (1.0f + (tanh(0.79788458347320556640625f * val * (1.0f + 0.044715f * val * val))));
-#else
-                        float act = val / (1.0f + native_exp(-val));
-#endif
-                        float res = post_val * act;
-                        c_tile_half.x[reg_idx_i][reg_idx_j] = res;
                     }
                 }
             }
