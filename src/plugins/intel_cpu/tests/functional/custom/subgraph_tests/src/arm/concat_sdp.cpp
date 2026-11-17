@@ -41,6 +41,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTest,
                                             ::testing::Values<int64_t>(8)),
                          ConcatSDPTest::getTestCaseName);
 
+const std::vector<InputShape> zeroPointOverflowInputShapes = {
+    {{1, 8, -1, 64}, {{1, 8, 1, 64}}},
+    {{1, 8, -1, 64}, {{1, 8, 0, 64}}},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPU8ZeroPointTest,
+                         ConcatSDPU8ZeroPointTest,
+                         ::testing::Values(ConcatSDPTestParams{ElementType::f16,
+                                                               zeroPointOverflowInputShapes,
+                                                               cfg_u8_sym,
+                                                               false,
+                                                               8,
+                                                               8}),
+                         ConcatSDPTest::getTestCaseName);
+
 }  // namespace
 }  // namespace test
 }  // namespace ov
