@@ -1550,6 +1550,21 @@ def test_shared_consts_reused():
         const_names) == 0, f"Not all constants were found: {const_names}"
 
 
+@pytest.mark.precommit
+@pytest.mark.parametrize("dtype", [torch.bfloat16, torch.float8_e4m3fn, torch.float8_e5m2])
+def test_constant_of_a_non_contiguous_tensor_keeps_its_data(dtype):
+    from openvino.frontend.pytorch.utils import torch_tensor_to_ov_const
+
+    tensor = torch.arange(1, 65, dtype=torch.float32).reshape(8, 8).to(dtype).t()
+    expected = tensor.contiguous().view(torch.uint8).numpy().tobytes()
+    constant = torch_tensor_to_ov_const(tensor)
+    # Reuse the memory that the contiguous copy of `tensor` held during the conversion.
+    overwrites = [torch.zeros(8, 8, dtype=dtype) for _ in range(16)]
+
+    assert constant.get_data().tobytes() == expected
+    del overwrites
+
+
 @pytest.mark.parametrize(
     ("l_type", "r_type"),
     itertools.product(
