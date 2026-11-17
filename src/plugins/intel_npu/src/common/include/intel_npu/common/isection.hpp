@@ -39,7 +39,7 @@ std::string section_type_and_id_to_string(const SectionType type, const SectionI
 std::pair<SectionType, std::optional<SectionID>> section_type_and_id_from_string(std::string_view type_and_id);
 
 /**
- * @brief Interface that should be implemented by all blob section handlers. Its role is to standardize the
+ * @brief Abstract class that should be implemented by all blob section handlers. Its role is to standardize the
  * identification of the section, along with the signatures of the read & writer handlers.
  */
 class ISection : public ov::runtime::hsm::ISectionEncoder {
@@ -51,13 +51,22 @@ public:
     /**
      * @brief Get the section ID, unique per compiled model.
      *
-     * @return Either the ID or a std::nullopt. This value exists only if the current section has been added to a
+     * @return Either the ID or std::nullopt. This value exists only if the current section has been added to a
      * blob sections registry.
      */
     std::optional<SectionID> get_id() const;
 
+    /**
+     * @return The alignment requirements of the payload within the blob
+     */
     ov::runtime::hsm::SectionAlignment get_alignment() const;
 
+    /**
+     * @see @ref ov::runtime::hsm::ManifestEntry
+     * @note Sections that have payloads <= 24 bytes are best markes as inline
+     * @note Inline sections should override "ov::util::MemoryView encode()". Pointer ones should override
+     * "void encode(const ov::runtime::hsm::SectionSink& sink)".
+     */
     bool is_inline() const;
 
     void encode(const ov::runtime::hsm::SectionSink& sink) const override;
@@ -66,7 +75,8 @@ public:
 
     /**
      * @brief Builds and returns the runtime requirements of the current section instance as a string.
-     * @note The returned string should follow the "value" format dictated by the "compatibility string" parser:
+     * @note The returned string should follow the "value" format dictated by the "compatibility string" parser. If no
+     * recursivity is involved, then the form should be:
      * value ::= [A-Z0-9][_A-Z0-9\.]*
      *
      * @return The requirements as a string if any. std::nullopt otherwise.
@@ -77,13 +87,13 @@ public:
      * @brief Get the compatibility requirements subexpression corresponding to the current section.
      * @details The base implementation doesn't return any requirements. If there are any compatibility requirements,
      * these would typically be <section type> (e.g. ELF_INIT_SCHEDULE) or <section type> + <section ID> (e.g.
-     * ELF_INIT_SCHEDULE_1). This method can be overriden correspondingly.
+     * ELF_INIT_SCHEDULE_1). This method can be overriden as required.
      *
      * More complex expressions, that take into account some other registered sections can also be returned. For
      * example, if we wish to register something like "ELF_INIT_SCHEDULE_1 OR ELF_INIT_SCHEDULE_2", then we may override
-     * this function to have the section of the first schedule write the OR relationship. The other section could then
-     * write nothing (to avoid redundancy).
-     * @note The subexpression returned by this function will be stitched to the main CRE using a logical "AND".
+     * this function to have the section instance of the first schedule write the whole subexpression. The other section
+     * could then write nothing (to avoid redundancy).
+     * @note The subexpression returned by this function will be stitched to the main CRE by using a logical "AND".
      * @param all_registered_sections A map offering access to all sections registered for the current writing
      * section. Relevant if the requirements should take other sections into account.
      * @return The subexpression describing the requirements of the current section.
@@ -101,9 +111,9 @@ private:
     friend class BlobSectionsRegistry;
 
     /**
-     * @note Only BlobWriters & BlobReaders should be allowed to manipulate the section ID. This is because the
-     * instance ID denotes, by convention, the order in which the sections of the given type have been registered within
-     * the writing queue.
+     * @note Only BlobSectionsRegistry should be allowed to manipulate the section ID. This is because the instance ID
+     * denotes, by convention, the order in which the sections of the given type have been registered within the writing
+     * queue.
      */
     void set_id(const SectionID& id) const;
 
@@ -112,7 +122,16 @@ private:
      * @note This value exists only if the current section has been added to a blob sections registry.
      */
     mutable std::optional<SectionID> m_id;
+    /**
+     * @brief The alignment requirements of the payload within the blob
+     */
     ov::runtime::hsm::SectionAlignment m_alignment;
+    /**
+     * @see @ref ov::runtime::hsm::ManifestEntry
+     * @note Sections that have payloads <= 24 bytes are best markes as inline
+     * @note Inline sections should override "ov::util::MemoryView encode()". Pointer ones should override
+     * "void encode(const ov::runtime::hsm::SectionSink& sink)".
+     */
     bool m_is_inline;
 };
 

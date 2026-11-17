@@ -43,9 +43,9 @@ public:
      * @param config Will be passed to the compiler. Additionally, the "SEPARATE_WEIGHTS_VERSION" option will determine
      * which weights separation implementation will be used. See the weights separation specific methods within
      * "icompiler.hpp".
-     * @param adapterDesc Adapter - specific settings, not forwarded to the compiler.See "AdapterDescriptor".*
-     * @param blobSectionsRegistry Used to register the resulted compiler schedules.
-     * @return A "WeightlessGraph" type of object.*/
+     * @param adapterDesc Adapter-specific settings, not forwarded to the compiler. See "AdapterDescriptor".
+     * @return A "WeightlessGraph" type of object.
+     */
     virtual std::shared_ptr<IGraph> compileWS(std::shared_ptr<ov::Model>&& model,
                                               const Config& config,
                                               const AdapterDescriptor& adapterDesc) const = 0;

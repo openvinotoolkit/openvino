@@ -18,6 +18,9 @@
 
 namespace intel_npu {
 
+/**
+ * @warning Do not change these values, otherwise blob compatibility may be affected. New values can be added however.
+ */
 enum class BlobType : uint8_t { ELF = 0, BYTECODE = 1 };
 
 enum class GraphKind : uint8_t { Weightful, Weightless, Dynamic };
@@ -39,9 +42,10 @@ public:
     IGraph() = default;
 
     /**
-     * @brief Writes the compiler main schedule to the provided stream.
+     * @brief Writes the compiler main schedule inside the provided sink.
      *
-     * @param stream Where the content is placed
+     * @param sink Object that is meant to consume the data and append it to some buffer. Controlling the write cursor
+     * is not possible.
      * @return The total size written into the stream
      */
     virtual uint64_t export_main_blob(const ov::runtime::hsm::SectionSink& sink) const = 0;
