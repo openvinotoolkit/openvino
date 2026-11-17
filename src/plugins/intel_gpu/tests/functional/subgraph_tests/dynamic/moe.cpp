@@ -7,6 +7,11 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/node_builders/moe_builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -659,5 +664,57 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmUncompressed,
                                             ::testing::Values(false),   // use_layernorm_multiply
                                             ::testing::Values(false)),  // use_weight_decompression
                          MoECompressedFusionTest::getTestCaseName);
+
+// GGUF Q4_1/Q4_K store integer zero points as u8 next to u4 weights; kernels must not assume packed u4 zero points.
+class MoECompressedU8ZeroPointTest : public MoECompressedFusionTest {
+protected:
+    void SetUp() override {
+        MoECompressedFusionTest::SetUp();
+        if (IsSkipped() || HasFailure()) {
+            return;
+        }
+        size_t widened_zero_points = 0;
+        for (const auto& op : function->get_ordered_ops()) {
+            if (!ov::is_type<ov::op::v1::Subtract>(op)) {
+                continue;
+            }
+            auto zp_node = op->get_input_node_shared_ptr(1);
+            while (ov::is_type<ov::op::v1::Reshape>(zp_node) || ov::is_type<ov::op::v0::Convert>(zp_node)) {
+                zp_node = zp_node->get_input_node_shared_ptr(0);
+            }
+            const auto zp = ov::as_type_ptr<ov::op::v0::Constant>(zp_node);
+            if (zp && zp->get_element_type() == ov::element::u4) {
+                ov::replace_node(zp, std::make_shared<ov::op::v0::Constant>(ov::element::u8, zp->get_shape(), zp->cast_vector<uint8_t>()));
+                ++widened_zero_points;
+            }
+        }
+        ASSERT_GT(widened_zero_points, 0u) << "No u4 zero point found to convert to u8";
+    }
+};
+
+TEST_P(MoECompressedU8ZeroPointTest, Inference) {
+    run();
+}
+
+// Token counts cover the fused batched GEMV and the GatherMatmul single-token, multi-token and batched kernels.
+INSTANTIATE_TEST_SUITE_P(smoke_MoECompressedU8ZeroPoint,
+                         MoECompressedU8ZeroPointTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
+                                            ::testing::Values(MoePatternType::GEMM3, MoePatternType::GEMM2),
+                                            ::testing::Values(MoERoutingType::SOFTMAX),
+                                            ::testing::Values(ov::element::u4),   // weights_precision
+                                            ::testing::Values(ov::element::f16),  // decompression_precision
+                                            ::testing::Values(ov::element::f16),  // scale_precision
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(true),  // reshape_on_decompression
+                                            ::testing::Values(128),
+                                            ::testing::Values(size_t{0}),    // gate_idx
+                                            ::testing::Values(false, true),  // force_gather_matmul
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::Values(false),  // use_per_expert_scale
+                                            ::testing::Values(false),  // use_layernorm_multiply
+                                            ::testing::Values(true)),  // use_weight_decompression
+                         MoECompressedU8ZeroPointTest::getTestCaseName);
 
 }  // namespace
