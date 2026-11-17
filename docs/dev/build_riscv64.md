@@ -13,7 +13,8 @@ The software was validated on the following devices:
 ## Software requirements
 
 - [CMake](https://cmake.org/download/) 3.26 or higher
-- GCC 7.5 or higher (for non-RVV) / [riscv-gnu-toolchain](https://github.com/riscv-collab/riscv-gnu-toolchain.git) (for RVV)
+- GCC 10 or higher (for non-RVV) /
+  [riscv-gnu-toolchain](https://github.com/riscv-collab/riscv-gnu-toolchain.git) (for RVV)
 - Python 3.10 for the optional OpenVINO Runtime Python API cross-build described below
 
 ## How to build
