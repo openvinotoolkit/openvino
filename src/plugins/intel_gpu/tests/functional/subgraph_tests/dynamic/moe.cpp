@@ -665,12 +665,39 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmUncompressed,
                                             ::testing::Values(false)),  // use_weight_decompression
                          MoECompressedFusionTest::getTestCaseName);
 
+void set_env_var(const char* name, const char* value) {
+#ifdef _WIN32
+    _putenv_s(name, value);
+#else
+    ::setenv(name, value, 1);
+#endif
+}
+
+void unset_env_var(const char* name) {
+#ifdef _WIN32
+    _putenv_s(name, "");
+#else
+    ::unsetenv(name);
+#endif
+}
+
 // GGUF Q4_1/Q4_K store integer zero points as u8 next to u4 weights; kernels must not assume packed u4 zero points.
-class MoECompressedU8ZeroPointTest : public MoECompressedFusionTest {
+// opt_in_prefill selects the non-default prefill kernels: fused MoE micro-GEMM (Xe2+) or GatherMatmul oneDNN grouped matmul.
+class MoECompressedZeroPointTest : public MoECompressedFusionTest {
 protected:
+    MoECompressedZeroPointTest(ov::element::Type zero_point_type, bool opt_in_prefill) : zero_point_type(zero_point_type), opt_in_prefill(opt_in_prefill) {}
+
     void SetUp() override {
         MoECompressedFusionTest::SetUp();
         if (IsSkipped() || HasFailure()) {
+            return;
+        }
+        if (opt_in_prefill) {
+            const bool force_gather_matmul = std::get<11>(GetParam());
+            prefill_env_var = force_gather_matmul ? "GATHER_MATMUL_USE_ONEDNN_PREFILL" : "OV_GPU_MOE_USE_GROUPED_GEMM_PREFILL";
+            set_env_var(prefill_env_var, force_gather_matmul ? "1" : "0");
+        }
+        if (zero_point_type != ov::element::u8) {
             return;
         }
         size_t widened_zero_points = 0;
@@ -690,9 +717,44 @@ protected:
         }
         ASSERT_GT(widened_zero_points, 0u) << "No u4 zero point found to convert to u8";
     }
+
+    void TearDown() override {
+        MoECompressedFusionTest::TearDown();
+        if (prefill_env_var) {
+            unset_env_var(prefill_env_var);
+        }
+    }
+
+private:
+    ov::element::Type zero_point_type;
+    bool opt_in_prefill;
+    const char* prefill_env_var = nullptr;
+};
+
+class MoECompressedU8ZeroPointTest : public MoECompressedZeroPointTest {
+public:
+    MoECompressedU8ZeroPointTest() : MoECompressedZeroPointTest(ov::element::u8, false) {}
+};
+
+class MoECompressedU4ZeroPointOptInPrefillTest : public MoECompressedZeroPointTest {
+public:
+    MoECompressedU4ZeroPointOptInPrefillTest() : MoECompressedZeroPointTest(ov::element::u4, true) {}
+};
+
+class MoECompressedU8ZeroPointOptInPrefillTest : public MoECompressedZeroPointTest {
+public:
+    MoECompressedU8ZeroPointOptInPrefillTest() : MoECompressedZeroPointTest(ov::element::u8, true) {}
 };
 
 TEST_P(MoECompressedU8ZeroPointTest, Inference) {
+    run();
+}
+
+TEST_P(MoECompressedU4ZeroPointOptInPrefillTest, Inference) {
+    run();
+}
+
+TEST_P(MoECompressedU8ZeroPointOptInPrefillTest, Inference) {
     run();
 }
 
@@ -716,5 +778,47 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoECompressedU8ZeroPoint,
                                             ::testing::Values(false),  // use_layernorm_multiply
                                             ::testing::Values(true)),  // use_weight_decompression
                          MoECompressedU8ZeroPointTest::getTestCaseName);
+
+// Prefill above the fused batched GEMV (32 tokens) and the GatherMatmul batched kernel (16 tokens) thresholds.
+const std::vector<MoeTestShapeParams> moe_params_prefill = {
+    {
+        {{-1, -1, 256}, {{1, 40, 256}, {1, 64, 256}, {1, 1, 256}}},  // prefill + decode
+        4,                                                           // topk
+        8,                                                           // number_of_experts
+        512                                                          // intermediate_size
+    },
+};
+
+const auto moe_zero_point_prefill_params = ::testing::Combine(::testing::ValuesIn(moe_params_prefill),
+                                                              ::testing::Values(MoePatternType::GEMM3),
+                                                              ::testing::Values(MoERoutingType::SOFTMAX),
+                                                              ::testing::Values(ov::element::u4),   // weights_precision
+                                                              ::testing::Values(ov::element::f16),  // decompression_precision
+                                                              ::testing::Values(ov::element::f16),  // scale_precision
+                                                              ::testing::Values(ov::test::utils::DecompressionType::full),
+                                                              ::testing::Values(ov::test::utils::DecompressionType::full),
+                                                              ::testing::Values(true),  // reshape_on_decompression
+                                                              ::testing::Values(128),
+                                                              ::testing::Values(size_t{0}),    // gate_idx unused for GEMM3
+                                                              ::testing::Values(false, true),  // force_gather_matmul
+                                                              ::testing::Values(MoEActivationType::SWISH),
+                                                              ::testing::Values(false),  // use_per_expert_scale
+                                                              ::testing::Values(false),  // use_layernorm_multiply
+                                                              ::testing::Values(true));  // use_weight_decompression
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoECompressedU8ZeroPointPrefill,
+                         MoECompressedU8ZeroPointTest,
+                         moe_zero_point_prefill_params,
+                         MoECompressedU8ZeroPointTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoECompressedU4ZeroPointOptInPrefill,
+                         MoECompressedU4ZeroPointOptInPrefillTest,
+                         moe_zero_point_prefill_params,
+                         MoECompressedU4ZeroPointOptInPrefillTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoECompressedU8ZeroPointOptInPrefill,
+                         MoECompressedU8ZeroPointOptInPrefillTest,
+                         moe_zero_point_prefill_params,
+                         MoECompressedU8ZeroPointOptInPrefillTest::getTestCaseName);
 
 }  // namespace
