@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-17-10-32-13-538-44051380184",
+  "timestamp": "2026-11-17T10:32:13Z",
+  "run_id": "44051380184",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44051380184",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "39423",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39423",
+  "author": "dchigarev",
+  "category": "Infrastructure",
+  "title": "GPU unit tests fail to extract OpenVINO package - PowerShell execution policy disabled scripts on Windows runner",
+  "signature": "cannot be loaded because running scripts is disabled on this system|Infrastructure",
+  "signature_hash": "c351b86e95419730",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "Extract OpenVINO packages step failed while running an auto-generated Expand-Archive PowerShell script"
+    }
+  ],
+  "key_errors": [
+    "2026-11-17T09:46:04.4252334Z . : File C:\\actions-runner\\_work\\_temp\\c4c7cb60-ea91-4388-84f0-fad1778e1cbe.ps1 cannot be loaded because running scripts is disabled on this system. For more information, see about_Execution_Policies at https:/go.microsoft.com/fwlink/?LinkID=135170.",
+    "2026-11-17T09:46:04.4257447Z     + CategoryInfo          : SecurityError: (:) [], PSSecurityException",
+    "2026-11-17T09:46:04.4258019Z     + FullyQualifiedErrorId : UnauthorizedAccess",
+    "2026-11-17T09:46:04.4382924Z ##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The 'Extract OpenVINO packages' step on this Windows runner runs two Expand-Archive PowerShell commands via GitHub Actions' generated temp .ps1 script. The runner's PowerShell execution policy (Restricted, per machine configuration) blocks loading any .ps1 script file (PSSecurityException / UnauthorizedAccess), even though the commands themselves are benign Expand-Archive calls. This is a Windows-runner image/environment misconfiguration unrelated to the PR's code changes (the PR only touches GPU plugin MLIR reorder_inputs logic and a GPU-specific CI workflow file, neither of which affects the Windows VS2022 job's execution policy). This exact signature was first seen on 2026-11-16 (run 43897852421, PR #39833) and recurs intermittently depending on which Windows runner instance is assigned to the job.",
+  "reproduction_steps": "N/A - this is a Windows-runner image/environment issue (PowerShell execution policy) triggered non-deterministically depending on the specific self-hosted/ephemeral runner instance assigned to the job; it does not reproduce locally or depend on the PR diff.",
+  "recommended_actions": [
+    "Ensure the Windows runner image / bootstrap sets PowerShell execution policy to RemoteSigned or Bypass for the actions-runner service account (e.g., via `Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process` in the runner setup, or a machine/user policy) so GitHub Actions' auto-generated .ps1 wrapper scripts can be loaded.",
+    "Alternatively, have the 'Extract OpenVINO packages' step invoke PowerShell explicitly with `-ExecutionPolicy Bypass` (e.g. `shell: pwsh -ExecutionPolicy Bypass -Command \"...\"`) instead of relying on the default shell wrapper.",
+    "Audit the Windows runner pool/image provisioning scripts for a recent regression that reset or omitted the execution-policy configuration, since this was not previously observed before 2026-11-16."
+  ],
+  "prevention_strategies": "Bake execution-policy configuration into the Windows runner image provisioning (Packer/Ansible/etc.) and add a post-provisioning smoke test that runs a trivial Expand-Archive PowerShell step to catch regressions before the image is promoted to production use.",
+  "historical_context": "Identical signature observed once before on 2026-11-16 in run 43897852421 (PR #39833), also on the 'GPU unit tests' job's 'Extract OpenVINO packages' step. This is the 2nd occurrence recorded in the CI Doctor MQ pattern database (pattern c351b86e95419730), not yet reaching the 3-occurrence/12-hour recurring-escalation threshold (the two occurrences are ~17 hours apart)."
+}
