@@ -155,6 +155,10 @@ TEST_F(BlobFormatImportersTest, CannotCreateModelBeforeGraph) {
     OV_EXPECT_THROW(importer->create_dummy_model(), ov::Exception, _);
 }
 
+using blob_format_importer_utils::DYNAMIC_BATCH_SIZE;
+using blob_format_importer_utils::validate_batch_size;
+using blob_format_importer_utils::validate_main_schedule_descriptors;
+
 namespace {
 
 IODescriptor create_descriptor(const std::string& name, const ov::PartialShape& shape_from_compiler) {
@@ -177,10 +181,6 @@ NetworkMetadata create_plugin_batched_metadata() {
 }
 
 }  // namespace
-
-using blob_format_importer_utils::DYNAMIC_BATCH_SIZE;
-using blob_format_importer_utils::validate_batch_size;
-using blob_format_importer_utils::validate_main_schedule_descriptors;
 
 /**
  * @brief Static and dynamic batch sizes are accepted if the schedule was compiled with a batch of 1

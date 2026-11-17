@@ -524,7 +524,7 @@ void validate_batch_size(int64_t batch_size, const NetworkMetadata& metadata) {
                     batch_size);
 
     // Mirrors the buffers sliced by the inference pipeline: all outputs and all inputs except the weights ones
-    const auto check_descriptor = [batch_size](const IODescriptor& descriptor, const std::string_view io_type) {
+    const auto check_descriptor = [batch_size](const IODescriptor& descriptor, std::string_view io_type) {
         OPENVINO_ASSERT(!descriptor.isStateInput && !descriptor.isStateOutput && !descriptor.isShapeTensor,
                         "The blob metadata declares a batch size of ",
                         batch_size,
