@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-17-12-53-14-000-44082333313",
+  "timestamp": "2026-11-17T12:53:14Z",
+  "run_id": "44082333313",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44082333313",
+  "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+  "commit_sha": "33c6a789908a1a79c1a7cf1880f7455763dc918c",
+  "pr_number": "39424",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39424",
+  "author": "clemlesne",
+  "category": "Infrastructure",
+  "title": "Windows CC build fails with compiler/linker out-of-memory errors under high parallelism",
+  "signature": "Windows Release build runs out of memory - compiler fatal error C1060 (out of heap space) and linker fatal error LNK1102 (out of memory) under high parallelism|Infrastructure",
+  "signature_hash": "80cfa127185fbf3e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build_And_Run_Collect_Mode",
+      "conclusion": "failure",
+      "symptom": "Ninja/MSVC link step for multiple Release targets fails with LNK1102 fatal error: out of memory"
+    },
+    {
+      "name": "ci/gha_overall_status_windows_cc",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails because Build_And_Run_Collect_Mode failed"
+    }
+  ],
+  "key_errors": [
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/ov_ir_frontend_tests.exe\nLINK : fatal error LNK1102: out of memory",
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/throughput_benchmark.exe\nLINK : fatal error LNK1102: out of memory",
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/ov_gpu_unit_tests.exe\nLINK : fatal error LNK1102: out of memory\nninja: build stopped: subcommand failed."
+  ],
+  "root_cause": "The Windows Conditional Compilation Release build links many large test/sample binaries in parallel via ninja. With the default ninja job pool sized off CPU core count rather than available memory, several concurrent MSVC link.exe invocations (several of them producing multi-hundred-MB PDBs/binaries, e.g. ov_ir_frontend_tests, ov_gpu_unit_tests, ov_transformations_tests) exhaust the Windows runner's RAM/virtual-memory, causing link.exe to abort with LNK1102 'out of memory'. This is the same recurring infrastructure signature seen 7 prior times (first observed 2026-11-03), unrelated to the PR's actual code change (an ARM64-only CPU plugin kernel change, #39424) which does not touch the Windows CC build configuration.",
+  "reproduction_steps": "N/A - requires reproducing the exact Windows CI runner's memory pressure under full parallel ninja linking of the Release CC build; not practically reproducible on a local workstation without matching RAM/CPU core ratio.",
+  "recommended_actions": [
+    "Reduce ninja/MSBuild parallel link job count on Windows CC build runners (e.g. via CMAKE_JOB_POOLS or ninja -j with a lower value) so concurrent link.exe memory use stays under the runner's available RAM.",
+    "Consider using larger-memory Windows runners for the Conditional Compilation build job, or splitting it so fewer large test binaries link concurrently.",
+    "Track and consider incremental linking / /DEBUG:FASTLINK or reducing per-binary PDB size for the heaviest test executables (ov_ir_frontend_tests, ov_gpu_unit_tests, ov_transformations_tests) to reduce peak link memory.",
+    "This is the 8th occurrence of the same signature since 2026-11-03; escalate to CI infrastructure owners for a durable fix (runner sizing or ninja pool limits) rather than continuing to re-investigate recurrences."
+  ],
+  "prevention_strategies": "Cap ninja/MSBuild link-job parallelism with a dedicated CMake job pool for link steps on memory-constrained Windows runners, and monitor runner memory headroom during Release CC builds so regressions in binary/PDB size are caught before they push total concurrent link memory over the limit.",
+  "historical_context": "Identical LNK1102 out-of-memory signature recorded 7 times previously (first seen 2026-11-03T07:07:04Z, most recently 2026-11-16T16:45:40Z) in pattern 80cfa127185fbf3e, always on the Windows Conditional Compilation build job, across unrelated commits/PRs - confirming this is a persistent CI infrastructure capacity issue rather than a code regression."
+}
