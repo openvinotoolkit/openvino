@@ -20,8 +20,6 @@
 
 #include <memory>
 
-#include "openvino/core/except.hpp"
-
 #if defined(HAVE_AVX512F)
 
 #    include <immintrin.h>
@@ -40,6 +38,7 @@
 #    include "nodes/kernels/sparse_attn/qsa_executor.hpp"
 #    include "nodes/kernels/sparse_attn/qsa_kernel_utils.hpp"
 #    include "nodes/kernels/x64/brgemm_kernel.hpp"
+#    include "openvino/core/except.hpp"
 #    include "openvino/core/parallel.hpp"
 #    include "openvino/core/type/bfloat16.hpp"
 #    include "openvino/core/type/element_type.hpp"
