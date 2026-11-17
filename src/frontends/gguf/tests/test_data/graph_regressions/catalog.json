@@ -4,6 +4,7 @@
     {
       "id": "qwen3--bonsai-8b-q1_0--f85eb4e5",
       "architecture": "qwen3",
+      "input_modes": ["ids"],
       "models": [
         "Bonsai-8B-Q1_0.gguf",
         "prism-ml/Bonsai-8B-gguf/Bonsai-8B.gguf",
@@ -21,6 +22,7 @@
     {
       "id": "ernie4_5-moe--ernie-4.5-21b-a3b-pt-q4_0--2a523527",
       "architecture": "ernie4_5-moe",
+      "input_modes": ["ids"],
       "models": [
         "ERNIE-4.5-21B-A3B-PT-Q4_0.gguf"
       ],
@@ -35,6 +37,7 @@
     {
       "id": "exaone4--exaone-4.0-1.2b-gguf-q4_k_m--743d0b64",
       "architecture": "exaone4",
+      "input_modes": ["ids"],
       "models": [
         "EXAONE-4.0-1.2B-GGUF-Q4_K_M.gguf"
       ],
@@ -48,6 +51,7 @@
     {
       "id": "llama--llama-3.2-1b-instruct-q4_0--8bdbfa04",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "Llama-3.2-1B-Instruct-Q4_0.gguf"
       ],
@@ -61,6 +65,7 @@
     {
       "id": "maincoder--maincoder-1b-q4_k_m--e14d444a",
       "architecture": "maincoder",
+      "input_modes": ["ids"],
       "models": [
         "Maincoder-1B-Q4_K_M.gguf"
       ],
@@ -75,6 +80,7 @@
     {
       "id": "mellum--mellum2-12b-a2.5b-instruct-q4_0--f6045155",
       "architecture": "mellum",
+      "input_modes": ["ids"],
       "models": [
         "Mellum2-12B-A2.5B-Instruct-Q4_0.gguf"
       ],
@@ -88,6 +94,7 @@
     {
       "id": "minicpm--minicpm-2b-sft-bf16.q4_0--1f815eab",
       "architecture": "minicpm",
+      "input_modes": ["ids"],
       "models": [
         "MiniCPM-2B-sft-bf16.Q4_0.gguf"
       ],
@@ -101,6 +108,7 @@
     {
       "id": "mistral3--ministral-3-3b-instruct-2512-q4_k_m--d6c11b14",
       "architecture": "mistral3",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Ministral-3-3B-Instruct-2512-Q4_K_M.gguf"
       ],
@@ -114,6 +122,7 @@
     {
       "id": "llama--ministral-8b-instruct-2410.q4_k_m--3853bf26",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "Ministral-8B-Instruct-2410.Q4_K_M.gguf"
       ],
@@ -127,6 +136,7 @@
     {
       "id": "muse-glimmer--muse-glimmer-30b-q4_0--5bbf61da",
       "architecture": "muse-glimmer",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Muse-Glimmer-30B-Q4_0.gguf"
       ],
@@ -140,6 +150,7 @@
     {
       "id": "phi3--phi-3-mini-4k-instruct-q4_0--805e9e34",
       "architecture": "phi3",
+      "input_modes": ["ids"],
       "models": [
         "Phi-3-mini-4k-instruct-Q4_0.gguf"
       ],
@@ -153,6 +164,7 @@
     {
       "id": "qwen3--qwen3-0.6b-q4_0--a36302f4",
       "architecture": "qwen3",
+      "input_modes": ["ids"],
       "models": [
         "Qwen3-0.6B-Q4_0.gguf"
       ],
@@ -166,6 +178,7 @@
     {
       "id": "qwen3--qwen3-0.6b-q4_k_m--85aafe02",
       "architecture": "qwen3",
+      "input_modes": ["ids"],
       "models": [
         "Qwen3-0.6B-Q4_K_M.gguf"
       ],
@@ -179,6 +192,7 @@
     {
       "id": "qwen3moe--qwen3-30b-a3b-instruct-2507-q4_0--143603d5",
       "architecture": "qwen3moe",
+      "input_modes": ["ids"],
       "models": [
         "Qwen3-30B-A3B-Instruct-2507-Q4_0.gguf"
       ],
@@ -193,6 +207,7 @@
     {
       "id": "qwen35--qwen3.5-4b-q4_0--cb8f809f",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Qwen3.5-4B-Q4_0.gguf"
       ],
@@ -207,6 +222,7 @@
     {
       "id": "qwen35moe--qwen_qwen3.6-35b-a3b-q4_0--4fc162f3",
       "architecture": "qwen35moe",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Qwen_Qwen3.6-35B-A3B-Q4_0.gguf"
       ],
@@ -220,6 +236,7 @@
     {
       "id": "smollm3--smollm3-3b-q4_k_m--449485fc",
       "architecture": "smollm3",
+      "input_modes": ["ids"],
       "models": [
         "SmolLM3-3B-Q4_K_M.gguf"
       ],
@@ -234,6 +251,7 @@
     {
       "id": "qwen35--ternary-bonsai-2-27b-pq2_0--729ece64",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Ternary-Bonsai-2-27B-PQ2_0.gguf",
         "prism-ml/Ternary-Bonsai-2-27B-gguf/Ternary-Bonsai-2-27B-PQ2_0.gguf"
@@ -250,6 +268,7 @@
     {
       "id": "qwen35--ternary-bonsai-2-2b-pq2_0--fd8dc1f3",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Ternary-Bonsai-2-2B-PQ2_0.gguf"
       ],
@@ -263,6 +282,7 @@
     {
       "id": "qwen35--ternary-bonsai-2-2b-ptq1_0--14f49633",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Ternary-Bonsai-2-2B-PTQ1_0.gguf"
       ],
@@ -276,6 +296,7 @@
     {
       "id": "qwen35--ternary-bonsai-2-4b-pq2_0-mtp-q8_0--c5d82233",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Ternary-Bonsai-2-4B-PQ2_0-MTP-Q8_0.gguf"
       ],
@@ -289,6 +310,7 @@
     {
       "id": "qwen35--ternary-bonsai-2-4b-pq2_0--386ce9aa",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Ternary-Bonsai-2-4B-PQ2_0.gguf"
       ],
@@ -302,6 +324,7 @@
     {
       "id": "qwen35--ternary-bonsai-2-9b-pq2_0-mtp-q8_0--3f06eb0c",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Ternary-Bonsai-2-9B-PQ2_0-MTP-Q8_0.gguf"
       ],
@@ -315,6 +338,7 @@
     {
       "id": "qwen35--ternary-bonsai-2-9b-pq2_0--d9486c56",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Ternary-Bonsai-2-9B-PQ2_0.gguf"
       ],
@@ -328,6 +352,7 @@
     {
       "id": "qwen35--ternary-bonsai-2-9b-ptq1_0--272c9b96",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Ternary-Bonsai-2-9B-PTQ1_0.gguf"
       ],
@@ -341,6 +366,7 @@
     {
       "id": "qwen35--ternary-bonsai-27b-pq2_0--9d2b5504",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Ternary-Bonsai-27B-PQ2_0.gguf",
         "prism-ml/Ternary-Bonsai-27B-gguf/Ternary-Bonsai-27B-PQ2_0.gguf"
@@ -357,6 +383,7 @@
     {
       "id": "afmoe--trinity-nano-preview-bf16--bf9931a5",
       "architecture": "afmoe",
+      "input_modes": ["ids"],
       "models": [
         "Trinity-Nano-Preview-bf16.gguf"
       ],
@@ -370,6 +397,7 @@
     {
       "id": "afmoe--trinity-nano-preview-original-f16--d3e6526e",
       "architecture": "afmoe",
+      "input_modes": ["ids"],
       "models": [
         "Trinity-Nano-Preview-original-f16.gguf"
       ],
@@ -383,6 +411,7 @@
     {
       "id": "exaone-moe--k-exaone-236b-a23b.q2_k--31831988",
       "architecture": "exaone-moe",
+      "input_modes": ["ids"],
       "models": [
         "K-EXAONE-236B-A23B.Q2_K.gguf",
         "mradermacher/K-EXAONE-236B-A23B-GGUF/K-EXAONE-236B-A23B.Q2_K.gguf"
@@ -398,6 +427,7 @@
     {
       "id": "glm4moe--arliai_glm-4.5-air-derestricted_reap50_creative.i1-q2_k--e76b262b",
       "architecture": "glm4moe",
+      "input_modes": ["ids"],
       "models": [
         "ArliAI_GLM-4.5-Air-Derestricted_REAP50_Creative.i1-Q2_K.gguf",
         "mradermacher/ArliAI_GLM-4.5-Air-Derestricted_REAP50_Creative-i1-GGUF/ArliAI_GLM-4.5-Air-Derestricted_REAP50_Creative.i1-Q2_K.gguf"
@@ -413,6 +443,7 @@
     {
       "id": "hunyuan-moe--hunyuan-a13b-instruct-q2_k--d2699e5d",
       "architecture": "hunyuan-moe",
+      "input_modes": ["ids"],
       "models": [
         "Hunyuan-A13B-Instruct-Q2_K.gguf",
         "unsloth/Hunyuan-A13B-Instruct-GGUF/Hunyuan-A13B-Instruct-Q2_K.gguf"
@@ -428,6 +459,7 @@
     {
       "id": "jais2--q4_k_m--105ad4cc",
       "architecture": "jais2",
+      "input_modes": ["ids"],
       "models": [
         "Q4_K_M.gguf"
       ],
@@ -441,6 +473,7 @@
     {
       "id": "minimax-m2--minimax-m2.1-reap-50.i1-q2_k--638cbe86",
       "architecture": "minimax-m2",
+      "input_modes": ["ids"],
       "models": [
         "MiniMax-M2.1-REAP-50.i1-Q2_K.gguf",
         "mradermacher/MiniMax-M2.1-REAP-50-i1-GGUF/MiniMax-M2.1-REAP-50.i1-Q2_K.gguf"
@@ -456,6 +489,7 @@
     {
       "id": "ernie4_5-moe--baidu_ernie-4.5-21b-a3b-pt-q4_k_m--dc0bcded",
       "architecture": "ernie4_5-moe",
+      "input_modes": ["ids"],
       "models": [
         "baidu_ERNIE-4.5-21B-A3B-PT-Q4_K_M.gguf",
         "bartowski/baidu_ERNIE-4.5-21B-A3B-PT-GGUF/baidu_ERNIE-4.5-21B-A3B-PT-Q4_K_M.gguf"
@@ -472,6 +506,7 @@
     {
       "id": "deepseek2-ocr--deepseek-ocr-2-q4_k_m--e6ed4c0d",
       "architecture": "deepseek2-ocr",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "deepseek-ocr-2-Q4_K_M.gguf"
       ],
@@ -486,6 +521,7 @@
     {
       "id": "mistral3--devstral-small-2-24b-instruct-2512-q4_k_m--d09200fa",
       "architecture": "mistral3",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Devstral-Small-2-24B-Instruct-2512-Q4_K_M.gguf",
         "bartowski/mistralai_Devstral-Small-2-24B-Instruct-2512-GGUF/mistralai_Devstral-Small-2-24B-Instruct-2512-Q4_K_M.gguf"
@@ -501,6 +537,7 @@
     {
       "id": "llama--devstral-small-2507-q4_k_m--0bc56937",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "Devstral-Small-2507-Q4_K_M.gguf",
         "bartowski/mistralai_Devstral-Small-2507-GGUF/mistralai_Devstral-Small-2507-Q4_K_M.gguf"
@@ -516,6 +553,7 @@
     {
       "id": "gemma2--gemma-2-2b-it-q4_k_m--b2023d65",
       "architecture": "gemma2",
+      "input_modes": ["ids"],
       "models": [
         "gemma-2-2b-it-Q4_K_M.gguf",
         "bartowski/gemma-2-2b-it-GGUF/gemma-2-2b-it-Q4_K_M.gguf"
@@ -532,6 +570,7 @@
     {
       "id": "gemma--gemma-2b.q4_k_m--bd56e625",
       "architecture": "gemma",
+      "input_modes": ["ids"],
       "models": [
         "gemma-2b.Q4_K_M.gguf"
       ],
@@ -545,6 +584,7 @@
     {
       "id": "gemma3--gemma-3-1b-it-q4_0--9af9428e",
       "architecture": "gemma3",
+      "input_modes": ["ids"],
       "models": [
         "gemma-3-1b-it-Q4_0.gguf"
       ],
@@ -558,6 +598,7 @@
     {
       "id": "gemma3--gemma-3-1b-it-q4_k_m--4e4b9ae0",
       "architecture": "gemma3",
+      "input_modes": ["ids"],
       "models": [
         "gemma-3-1b-it-Q4_K_M.gguf",
         "unsloth/gemma-3-1b-it-GGUF/gemma-3-1b-it-Q4_K_M.gguf"
@@ -574,6 +615,7 @@
     {
       "id": "gpt-oss--gpt-oss-20b-q4_0--e5e23040",
       "architecture": "gpt-oss",
+      "input_modes": ["ids"],
       "models": [
         "gpt-oss-20b-Q4_0.gguf"
       ],
@@ -587,6 +629,7 @@
     {
       "id": "bailingmoe2--inclusionai_ling-mini-2.0-q4_0--ad31f949",
       "architecture": "bailingmoe2",
+      "input_modes": ["ids"],
       "models": [
         "inclusionAI_Ling-mini-2.0-Q4_0.gguf"
       ],
@@ -601,6 +644,7 @@
     {
       "id": "lfm2--lfm2-350m-q4_0--c7fcf233",
       "architecture": "lfm2",
+      "input_modes": ["ids"],
       "models": [
         "LFM2-350M-Q4_0.gguf",
         "LiquidAI/LFM2-350M-GGUF/LFM2-350M-Q4_0.gguf"
@@ -617,6 +661,7 @@
     {
       "id": "lfm2--lfm2.5-1.2b-instruct-q4_0--cfa33de8",
       "architecture": "lfm2",
+      "input_modes": ["ids"],
       "models": [
         "LFM2.5-1.2B-Instruct-Q4_0.gguf",
         "LiquidAI/LFM2.5-1.2B-Instruct-GGUF/LFM2.5-1.2B-Instruct-Q4_0.gguf"
@@ -633,6 +678,7 @@
     {
       "id": "lfm2moe--lfm2.5-8b-a1b-q4_0--5c44a049",
       "architecture": "lfm2moe",
+      "input_modes": ["ids"],
       "models": [
         "LFM2.5-8B-A1B-Q4_0.gguf",
         "LiquidAI/LFM2.5-8B-A1B-GGUF/LFM2.5-8B-A1B-Q4_0.gguf"
@@ -667,6 +713,7 @@
     {
       "id": "lfm2--lfm25-26b-xe2-20261103--lfm2.5-2.6b-q4_0--f714518a",
       "architecture": "lfm2",
+      "input_modes": ["ids"],
       "models": [
         "lfm25-26b-xe2-20261103--LFM2.5-2.6B-Q4_0.gguf"
       ],
@@ -681,6 +728,7 @@
     {
       "id": "lfm3--lfm3-1.7b-qad-q4_0--d897a7f6",
       "architecture": "lfm3",
+      "input_modes": ["ids"],
       "models": [
         "LFM3-1.7B-QAD-Q4_0.gguf"
       ],
@@ -695,6 +743,7 @@
     {
       "id": "lfm3--lfm3-audio-2b-q4_0--07f0bced",
       "architecture": "lfm3",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "LFM3-Audio-2B-Q4_0.gguf"
       ],
@@ -708,6 +757,7 @@
     {
       "id": "lfm3--lfm3-omni-2b-q4_0--77b864bb",
       "architecture": "lfm3",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "LFM3-Omni-2B-Q4_0.gguf"
       ],
@@ -721,6 +771,7 @@
     {
       "id": "lfm3--lfm3-vl-2b-qad-q4_0--a1b72b32",
       "architecture": "lfm3",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "LFM3-VL-2B-QAD-Q4_0.gguf"
       ],
@@ -803,6 +854,7 @@
     {
       "id": "llama--mistral-7b-instruct-v0.1.q4_k_m--f99051cb",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "mistral-7b-instruct-v0.1.Q4_K_M.gguf"
       ],
@@ -816,6 +868,7 @@
     {
       "id": "muse-glimmer--muse-glimmer-30b-kquant-17gb-q4_k_m--66eb42fa",
       "architecture": "muse-glimmer",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Muse-Glimmer-30B-KQuant-17GB-Q4_K_M.gguf"
       ],
@@ -845,6 +898,7 @@
     {
       "id": "qwen35--qwen3.5-0.8b-q4_0--0ee39436",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Qwen3.5-0.8B-Q4_0.gguf"
       ],
@@ -859,6 +913,7 @@
     {
       "id": "qwen35--qwen3.5-0.8b-q4_k_m--bc5bd19d",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Qwen3.5-0.8B-Q4_K_M.gguf"
       ],
@@ -891,6 +946,7 @@
     {
       "id": "qwen35--qwen3.5-2b-q4_0--b7d8e1b1",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Qwen3.5-2B-Q4_0.gguf"
       ],
@@ -905,6 +961,7 @@
     {
       "id": "qwen35--qwen3.5-2b-q4_k_m--64ca7d78",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Qwen3.5-2B-Q4_K_M.gguf"
       ],
@@ -936,6 +993,7 @@
     {
       "id": "qwen35--qwen3.5-4b-q4_k_m--ed5ec8c5",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Qwen3.5-4B-Q4_K_M.gguf"
       ],
@@ -967,6 +1025,7 @@
     {
       "id": "qwen35--qwen3.5-9b-q4_0--fdeca2f0",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Qwen3.5-9B-Q4_0.gguf"
       ],
@@ -981,6 +1040,7 @@
     {
       "id": "qwen35--qwen3.5-9b-q4_k_m--99656c08",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Qwen3.5-9B-Q4_K_M.gguf"
       ],
@@ -1012,6 +1072,7 @@
     {
       "id": "gemma4--gemma-4-12b-it-q4_0--585df0bd",
       "architecture": "gemma4",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "gemma-4-12b-it-Q4_0.gguf"
       ],
@@ -1026,6 +1087,7 @@
     {
       "id": "gemma4--gemma-4-12b-it-q4_k_m--a9c38470",
       "architecture": "gemma4",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "gemma-4-12b-it-Q4_K_M.gguf"
       ],
@@ -1040,6 +1102,7 @@
     {
       "id": "gemma4--gemma-4-e2b-it-q4_0--949a6eff",
       "architecture": "gemma4",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "gemma-4-E2B-it-Q4_0.gguf"
       ],
@@ -1054,6 +1117,7 @@
     {
       "id": "gemma4--gemma-4-e2b-it-q4_k_m--f35a3c3e",
       "architecture": "gemma4",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "gemma-4-E2B-it-Q4_K_M.gguf"
       ],
@@ -1087,6 +1151,7 @@
     {
       "id": "gemma4--gemma-4-e4b-it-q4_0--e7c11bc9",
       "architecture": "gemma4",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "gemma-4-E4B-it-Q4_0.gguf"
       ],
@@ -1101,6 +1166,7 @@
     {
       "id": "gemma4--gemma-4-e4b-it-q4_k_m--effc86c1",
       "architecture": "gemma4",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "gemma-4-E4B-it-Q4_K_M.gguf",
         "unsloth/gemma-4-E4B-it-GGUF/gemma-4-E4B-it-Q4_K_M.gguf"
@@ -1204,6 +1270,7 @@
     {
       "id": "gemma3--gemma-3-4b-it-q4_k_m--b6f02999",
       "architecture": "gemma3",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "gemma-3-4b-it-Q4_K_M.gguf"
       ],
@@ -1218,6 +1285,7 @@
     {
       "id": "gemma3--gemma-3-4b-it-dequant-f16--8a5e9b95",
       "architecture": "gemma3",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "gemma-3-4b-it-dequant-f16.gguf"
       ],
@@ -1251,6 +1319,7 @@
     {
       "id": "nemotron_h--nvidia_nemotron-h-8b-reasoning-128k-q4_0--e44bf4ac",
       "architecture": "nemotron_h",
+      "input_modes": ["ids"],
       "models": [
         "nvidia_Nemotron-H-8B-Reasoning-128K-Q4_0.gguf"
       ],
@@ -1264,6 +1333,7 @@
     {
       "id": "plamo3--plamo-3-nict-2b-base-q4_0--34835aa1",
       "architecture": "plamo3",
+      "input_modes": ["ids"],
       "models": [
         "plamo-3-nict-2b-base-Q4_0.gguf"
       ],
@@ -1277,6 +1347,7 @@
     {
       "id": "plamo3--plamo-3-nict-2b-base-q4_k_m--95665dba",
       "architecture": "plamo3",
+      "input_modes": ["ids"],
       "models": [
         "plamo-3-nict-2b-base-Q4_K_M.gguf",
         "mmnga-o/plamo-3-nict-2b-base-gguf/plamo-3-nict-2b-base-Q4_K_M.gguf"
@@ -1293,6 +1364,7 @@
     {
       "id": "qwen35moe--qwen3.6-35b-a3b-q4_k_m--a5bc4777",
       "architecture": "qwen35moe",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Qwen3.6-35B-A3B-Q4_K_M.gguf"
       ],
@@ -1306,6 +1378,7 @@
     {
       "id": "qwen3--qwen3-8b-q8_0--7fb80686",
       "architecture": "qwen3",
+      "input_modes": ["ids"],
       "models": [
         "Qwen3-8B-Q8_0.gguf"
       ],
@@ -1337,6 +1410,7 @@
     {
       "id": "bailingmoe2--inclusionai_ling-mini-2.0-q4_k_m--8616b5d4",
       "architecture": "bailingmoe2",
+      "input_modes": ["ids"],
       "models": [
         "inclusionAI_Ling-mini-2.0-Q4_K_M.gguf",
         "bartowski/inclusionAI_Ling-mini-2.0-GGUF/inclusionAI_Ling-mini-2.0-Q4_K_M.gguf"
@@ -1369,6 +1443,7 @@
     {
       "id": "gpt-oss--gpt-oss-20b-q4_k_m--f8b15968",
       "architecture": "gpt-oss",
+      "input_modes": ["ids"],
       "models": [
         "gpt-oss-20b-Q4_K_M.gguf",
         "unsloth/gpt-oss-20b-GGUF/gpt-oss-20b-Q4_K_M.gguf"
@@ -1385,6 +1460,7 @@
     {
       "id": "mamba2--mamba2-130m-q8_0--c6313f57",
       "architecture": "mamba2",
+      "input_modes": ["ids"],
       "models": [
         "mamba2-130m-q8_0.gguf",
         "rpatel622/mamba2-130m-hf-Q8_0-GGUF/mamba2-130m-q8_0.gguf"
@@ -1400,6 +1476,7 @@
     {
       "id": "mellum--mellum2-12b-a2.5b-instruct-q4_k_m--0dfd2707",
       "architecture": "mellum",
+      "input_modes": ["ids"],
       "models": [
         "Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf",
         "bartowski/Mellum2-12B-A2.5B-Instruct-GGUF/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf"
@@ -1416,6 +1493,7 @@
     {
       "id": "minicpm--minicpm-2b-dpo-q4km-gguf--52d5df46",
       "architecture": "minicpm",
+      "input_modes": ["ids"],
       "models": [
         "MiniCPM-2B-dpo-q4km-gguf.gguf",
         "runfuture/MiniCPM-2B-dpo-q4km-gguf/MiniCPM-2B-dpo-q4km-gguf.gguf"
@@ -1432,6 +1510,7 @@
     {
       "id": "nemotron_h--nvidia_nemotron-h-8b-reasoning-128k-q4_k_m--35cc7109",
       "architecture": "nemotron_h",
+      "input_modes": ["ids"],
       "models": [
         "nvidia_Nemotron-H-8B-Reasoning-128K-Q4_K_M.gguf",
         "bartowski/nvidia_Nemotron-H-8B-Reasoning-128K-GGUF/nvidia_Nemotron-H-8B-Reasoning-128K-Q4_K_M.gguf"
@@ -1448,6 +1527,7 @@
     {
       "id": "phi3--phi-3-mini-4k-instruct-q4_k_m--d5340aca",
       "architecture": "phi3",
+      "input_modes": ["ids"],
       "models": [
         "Phi-3-mini-4k-instruct-Q4_K_M.gguf",
         "bartowski/Phi-3-mini-4k-instruct-GGUF/Phi-3-mini-4k-instruct-Q4_K_M.gguf"
@@ -1464,6 +1544,7 @@
     {
       "id": "qwen35moe--qwen3.5-35b-a3b-q4_k_m--2040a7ec",
       "architecture": "qwen35moe",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Qwen3.5-35B-A3B-Q4_K_M.gguf"
       ],
@@ -1494,6 +1575,7 @@
     {
       "id": "qwen2--internvl2_5-1b-q8_0--277ba40f",
       "architecture": "qwen2",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "InternVL2_5-1B-Q8_0.gguf"
       ],
@@ -1525,6 +1607,7 @@
     {
       "id": "llama--llava-v1.6-vicuna-7b.q4_k_m--c28f6ad7",
       "architecture": "llama",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "llava-v1.6-vicuna-7b.Q4_K_M.gguf"
       ],
@@ -1554,6 +1637,7 @@
     {
       "id": "llama--ggml-model-q4_k--2ccee2f3",
       "architecture": "llama",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "ggml-model-q4_k.gguf"
       ],
@@ -1583,6 +1667,7 @@
     {
       "id": "qwen2--ggml-model-q4_0--208e9dab",
       "architecture": "qwen2",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "ggml-model-Q4_0.gguf"
       ],
@@ -1596,6 +1681,7 @@
     {
       "id": "exaone4--exaone-4.0-1.2b.i1-q4_0--b4be83d6",
       "architecture": "exaone4",
+      "input_modes": ["ids"],
       "models": [
         "EXAONE-4.0-1.2B.i1-Q4_0.gguf"
       ],
@@ -1610,6 +1696,7 @@
     {
       "id": "smollm3--huggingfacetb_smollm3-3b-q4_0--e3c6645a",
       "architecture": "smollm3",
+      "input_modes": ["ids"],
       "models": [
         "HuggingFaceTB_SmolLM3-3B-Q4_0.gguf"
       ],
@@ -1623,6 +1710,7 @@
     {
       "id": "hunyuan-dense--hunyuan-0.5b-instruct-q4_0--a7ada4e8",
       "architecture": "hunyuan-dense",
+      "input_modes": ["ids"],
       "models": [
         "Hunyuan-0.5B-Instruct-Q4_0.gguf"
       ],
@@ -1637,6 +1725,7 @@
     {
       "id": "maincoder--maincoder-1b-q4_0--6415a6db",
       "architecture": "maincoder",
+      "input_modes": ["ids"],
       "models": [
         "Maincoder-1B-Q4_0.gguf"
       ],
@@ -1651,6 +1740,7 @@
     {
       "id": "mistral3--ministral-3-3b-instruct-2512-q4_0--f3d004f9",
       "architecture": "mistral3",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Ministral-3-3B-Instruct-2512-Q4_0.gguf"
       ],
@@ -1664,6 +1754,7 @@
     {
       "id": "olmoe--olmoe-1b-7b-0924-instruct-q4_0--024ec20e",
       "architecture": "olmoe",
+      "input_modes": ["ids"],
       "models": [
         "OLMoE-1b-7b-0924-Instruct-Q4_0.gguf"
       ],
@@ -1678,6 +1769,7 @@
     {
       "id": "qwen2--qwen2.5-0.5b-instruct-q4_0--67f27271",
       "architecture": "qwen2",
+      "input_modes": ["ids"],
       "models": [
         "qwen2.5-0.5b-instruct-q4_0.gguf"
       ],
@@ -1691,6 +1783,7 @@
     {
       "id": "llama--llama-3.2-3b-instruct-q5_k_m--453444b3",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "Llama-3.2-3B-Instruct-Q5_K_M.gguf"
       ],
@@ -1704,6 +1797,7 @@
     {
       "id": "llama--llama-3.2-3b-instruct-f16--5064cd36",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "Llama-3.2-3B-Instruct-f16.gguf"
       ],
@@ -1717,6 +1811,7 @@
     {
       "id": "llama--mistral-7b-instruct-v0.3.q5_k_m--c2725465",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "Mistral-7B-Instruct-v0.3.Q5_K_M.gguf"
       ],
@@ -1731,6 +1826,7 @@
     {
       "id": "llama--mistral-7b-instruct-v0.3.f16--64cf12c7",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "Mistral-7B-Instruct-v0.3.f16.gguf"
       ],
@@ -1745,6 +1841,7 @@
     {
       "id": "qwen2--qwen2.5-7b-instruct-q5_k_m--100012a9",
       "architecture": "qwen2",
+      "input_modes": ["ids"],
       "models": [
         "Qwen2.5-7B-Instruct-Q5_K_M.gguf"
       ],
@@ -1759,6 +1856,7 @@
     {
       "id": "qwen2--qwen2.5-7b-instruct-f16--c648cd50",
       "architecture": "qwen2",
+      "input_modes": ["ids"],
       "models": [
         "Qwen2.5-7B-Instruct-f16.gguf"
       ],
@@ -1773,6 +1871,7 @@
     {
       "id": "gemma2--gemma-2-2b-it.q5_k_m--fe84960b",
       "architecture": "gemma2",
+      "input_modes": ["ids"],
       "models": [
         "gemma-2-2b-it.Q5_K_M.gguf"
       ],
@@ -1787,6 +1886,7 @@
     {
       "id": "gemma2--gemma-2-2b-it.f16--d673f636",
       "architecture": "gemma2",
+      "input_modes": ["ids"],
       "models": [
         "gemma-2-2b-it.f16.gguf"
       ],
@@ -1801,6 +1901,7 @@
     {
       "id": "qwen35--qwen3.5-4b-bf16--8495d3ac",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Qwen3.5-4B-BF16.gguf"
       ],
@@ -1815,6 +1916,7 @@
     {
       "id": "qwen35--qwen3.5-4b-q5_k_m--85155546",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Qwen3.5-4B-Q5_K_M.gguf"
       ],
@@ -1829,6 +1931,7 @@
     {
       "id": "qwen35--qwen3.5-9b-bf16--0d70e3e7",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Qwen3.5-9B-BF16.gguf"
       ],
@@ -1843,6 +1946,7 @@
     {
       "id": "qwen35--qwen3.5-9b-q5_k_m--c9516dd6",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Qwen3.5-9B-Q5_K_M.gguf"
       ],
@@ -1857,6 +1961,7 @@
     {
       "id": "gemma4--gemma-4-e4b-it-bf16--48345031",
       "architecture": "gemma4",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "gemma-4-E4B-it-BF16.gguf"
       ],
@@ -1871,6 +1976,7 @@
     {
       "id": "gemma4--gemma-4-e4b-it-q5_k_m--3fa967db",
       "architecture": "gemma4",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "gemma-4-E4B-it-Q5_K_M.gguf"
       ],
@@ -1885,6 +1991,7 @@
     {
       "id": "qwen2--qwen2.5-1.5b-instruct-q5_k_m--11afaf3e",
       "architecture": "qwen2",
+      "input_modes": ["ids"],
       "models": [
         "Qwen2.5-1.5B-Instruct-Q5_K_M.gguf"
       ],
@@ -1899,6 +2006,7 @@
     {
       "id": "qwen2--qwen2.5-1.5b-instruct-f16--6ea3053d",
       "architecture": "qwen2",
+      "input_modes": ["ids"],
       "models": [
         "Qwen2.5-1.5B-Instruct-f16.gguf"
       ],
@@ -1913,6 +2021,7 @@
     {
       "id": "hunyuan-dense--hy-mt2-1.8b-q4_k_m--2b2e3b65",
       "architecture": "hunyuan-dense",
+      "input_modes": ["ids"],
       "models": [
         "Hy-MT2-1.8B-Q4_K_M.gguf"
       ],
@@ -1926,6 +2035,7 @@
     {
       "id": "hunyuan-dense--hy-mt2-7b-q4_k_m--1434abb9",
       "architecture": "hunyuan-dense",
+      "input_modes": ["ids"],
       "models": [
         "Hy-MT2-7B-Q4_K_M.gguf"
       ],
@@ -1939,6 +2049,7 @@
     {
       "id": "mellum--mellum2.1-12b-a2.5b-thinking-q4_k_m--c3b42237",
       "architecture": "mellum",
+      "input_modes": ["ids"],
       "models": [
         "Mellum2.1-12B-A2.5B-Thinking-Q4_K_M.gguf"
       ],
@@ -1953,6 +2064,7 @@
     {
       "id": "llama--minicpm5-2b-q4_k_m--6ad2267f",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "MiniCPM5-2B-Q4_K_M.gguf"
       ],
@@ -1966,6 +2078,7 @@
     {
       "id": "gemma4--nemotron-3.5-bolt-e4b-q4_k_m--b24b6ba5",
       "architecture": "gemma4",
+      "input_modes": ["ids"],
       "models": [
         "Nemotron-3.5-Bolt-E4B-Q4_K_M.gguf"
       ],
@@ -1979,6 +2092,7 @@
     {
       "id": "qwen35--ornith-1.5-9b-q4_k_m--39b1a33b",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "Ornith-1.5-9B-Q4_K_M.gguf"
       ],
@@ -1992,6 +2106,7 @@
     {
       "id": "gemma4--gemma-4-12b-it-qat-q4_0--c44ee03e",
       "architecture": "gemma4",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "gemma-4-12b-it-qat-q4_0.gguf"
       ],
@@ -2021,6 +2136,7 @@
     {
       "id": "fixture--mamba2-dense",
       "architecture": "mamba2",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/mamba2-dense.gguf.hdr"
       ],
@@ -2037,6 +2153,7 @@
     {
       "id": "fixture--nemotron_h-dense",
       "architecture": "nemotron_h",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/nemotron_h-dense.gguf.hdr"
       ],
@@ -2053,6 +2170,7 @@
     {
       "id": "fixture--bailingmoe2-moe",
       "architecture": "bailingmoe2",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/bailingmoe2-moe.gguf.hdr"
       ],
@@ -2069,6 +2187,7 @@
     {
       "id": "fixture--ernie4_5-moe-moe",
       "architecture": "ernie4_5-moe",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/ernie4_5-moe-moe.gguf.hdr"
       ],
@@ -2085,6 +2204,7 @@
     {
       "id": "fixture--exaone4-dense",
       "architecture": "exaone4",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/exaone4-dense.gguf.hdr"
       ],
@@ -2101,6 +2221,7 @@
     {
       "id": "fixture--gemma-dense",
       "architecture": "gemma",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/gemma-dense.gguf.hdr"
       ],
@@ -2117,6 +2238,7 @@
     {
       "id": "fixture--gemma2-dense",
       "architecture": "gemma2",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/gemma2-dense.gguf.hdr"
       ],
@@ -2133,6 +2255,7 @@
     {
       "id": "fixture--glm4moe-moe",
       "architecture": "glm4moe",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/glm4moe-moe.gguf.hdr"
       ],
@@ -2149,6 +2272,7 @@
     {
       "id": "fixture--gpt-oss-moe",
       "architecture": "gpt-oss",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/gpt-oss-moe.gguf.hdr"
       ],
@@ -2165,6 +2289,7 @@
     {
       "id": "fixture--hunyuan-dense-dense",
       "architecture": "hunyuan-dense",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/hunyuan-dense-dense.gguf.hdr"
       ],
@@ -2181,6 +2306,7 @@
     {
       "id": "fixture--hunyuan-moe-moe",
       "architecture": "hunyuan-moe",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/hunyuan-moe-moe.gguf.hdr"
       ],
@@ -2197,6 +2323,7 @@
     {
       "id": "fixture--llama-dense",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/llama-dense.gguf.hdr"
       ],
@@ -2213,6 +2340,7 @@
     {
       "id": "fixture--lfm2-dense",
       "architecture": "lfm2",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/lfm2-dense.gguf.hdr"
       ],
@@ -2229,6 +2357,7 @@
     {
       "id": "fixture--lfm2moe-moe",
       "architecture": "lfm2moe",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/lfm2moe-moe.gguf.hdr"
       ],
@@ -2245,6 +2374,7 @@
     {
       "id": "fixture--llama-moe",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/llama-moe.gguf.hdr"
       ],
@@ -2261,6 +2391,7 @@
     {
       "id": "fixture--maincoder-dense",
       "architecture": "maincoder",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/maincoder-dense.gguf.hdr"
       ],
@@ -2277,6 +2408,7 @@
     {
       "id": "fixture--minicpm-dense",
       "architecture": "minicpm",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/minicpm-dense.gguf.hdr"
       ],
@@ -2293,6 +2425,7 @@
     {
       "id": "fixture--minicpm-moe",
       "architecture": "minicpm",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/minicpm-moe.gguf.hdr"
       ],
@@ -2309,6 +2442,7 @@
     {
       "id": "fixture--minimax-m2-moe",
       "architecture": "minimax-m2",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/minimax-m2-moe.gguf.hdr"
       ],
@@ -2325,6 +2459,7 @@
     {
       "id": "fixture--mistral3-dense",
       "architecture": "mistral3",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/mistral3-dense.gguf.hdr"
       ],
@@ -2341,6 +2476,7 @@
     {
       "id": "fixture--mistral3-moe",
       "architecture": "mistral3",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/mistral3-moe.gguf.hdr"
       ],
@@ -2357,6 +2493,7 @@
     {
       "id": "fixture--olmoe-moe",
       "architecture": "olmoe",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/olmoe-moe.gguf.hdr"
       ],
@@ -2373,6 +2510,7 @@
     {
       "id": "fixture--phi3-dense",
       "architecture": "phi3",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/phi3-dense.gguf.hdr"
       ],
@@ -2389,6 +2527,7 @@
     {
       "id": "fixture--qwen2-dense",
       "architecture": "qwen2",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/qwen2-dense.gguf.hdr"
       ],
@@ -2405,6 +2544,7 @@
     {
       "id": "fixture--qwen3-dense",
       "architecture": "qwen3",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/qwen3-dense.gguf.hdr"
       ],
@@ -2421,6 +2561,7 @@
     {
       "id": "fixture--qwen3moe-moe",
       "architecture": "qwen3moe",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/qwen3moe-moe.gguf.hdr"
       ],
@@ -2437,6 +2578,7 @@
     {
       "id": "fixture--qwen35-dense",
       "architecture": "qwen35",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/qwen35-dense.gguf.hdr"
       ],
@@ -2453,6 +2595,7 @@
     {
       "id": "fixture--qwen35moe-moe",
       "architecture": "qwen35moe",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/qwen35moe-moe.gguf.hdr"
       ],
@@ -2469,6 +2612,7 @@
     {
       "id": "fixture--smollm3-dense",
       "architecture": "smollm3",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/smollm3-dense.gguf.hdr"
       ],
@@ -2485,6 +2629,7 @@
     {
       "id": "fixture--jais2-dense",
       "architecture": "jais2",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/jais2-dense.gguf.hdr"
       ],
@@ -2501,6 +2646,7 @@
     {
       "id": "fixture--lfm3",
       "architecture": "lfm3",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/lfm3.gguf.hdr"
       ],
@@ -3100,6 +3246,7 @@
       "id": "representative--llama-f16",
       "kind": "representative",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "InternVL2_5-1B-Q8_0.gguf",
         "LiquidAI/LFM2.5-Audio-1.5B-GGUF-LEAP/mmproj-LFM2.5-Audio-1.5B-Q8_0.gguf",
@@ -3163,6 +3310,7 @@
       "id": "representative--llama-ggml-2",
       "kind": "representative",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "ArliAI_GLM-4.5-Air-Derestricted_REAP50_Creative.i1-Q2_K.gguf",
         "ERNIE-4.5-21B-A3B-PT-Q4_0.gguf",
@@ -3218,6 +3366,7 @@
       "id": "representative--llama-ggml-3",
       "kind": "representative",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "Bonsai-27B-dspark-Q4_1.gguf",
         "ERNIE-4.5-21B-A3B-PT-Q4_0.gguf",
@@ -3254,6 +3403,7 @@
       "id": "representative--llama-ggml-6",
       "kind": "representative",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf",
         "Mellum2.1-12B-A2.5B-Thinking-Q4_K_M.gguf",
@@ -3275,6 +3425,7 @@
       "id": "representative--llama-ggml-7",
       "kind": "representative",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/llama-ggml-7"
       ],
@@ -3290,6 +3441,7 @@
       "id": "representative--llama-ggml-9",
       "kind": "representative",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/llama-ggml-9"
       ],
@@ -3305,6 +3457,7 @@
       "id": "representative--llama-ggml-10",
       "kind": "representative",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "ArliAI_GLM-4.5-Air-Derestricted_REAP50_Creative.i1-Q2_K.gguf",
         "Hunyuan-A13B-Instruct-Q2_K.gguf",
@@ -3323,6 +3476,7 @@
       "id": "representative--llama-ggml-11",
       "kind": "representative",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "ArliAI_GLM-4.5-Air-Derestricted_REAP50_Creative.i1-Q2_K.gguf",
         "Hunyuan-A13B-Instruct-Q2_K.gguf",
@@ -3341,6 +3495,7 @@
       "id": "representative--llama-ggml-12",
       "kind": "representative",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "ArliAI_GLM-4.5-Air-Derestricted_REAP50_Creative.i1-Q2_K.gguf",
         "Devstral-Small-2-24B-Instruct-2512-Q4_K_M.gguf",
@@ -3405,6 +3560,7 @@
       "id": "representative--llama-ggml-13",
       "kind": "representative",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "ERNIE-4.5-21B-A3B-PT-Q4_0.gguf",
         "Llama-3.2-3B-Instruct-Q5_K_M.gguf",
@@ -3448,6 +3604,7 @@
       "id": "representative--llama-ggml-14",
       "kind": "representative",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "ArliAI_GLM-4.5-Air-Derestricted_REAP50_Creative.i1-Q2_K.gguf",
         "Devstral-Small-2-24B-Instruct-2512-Q4_K_M.gguf",
@@ -3547,6 +3704,7 @@
       "id": "representative--llama-ggml-15",
       "kind": "representative",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/llama-ggml-15"
       ],
@@ -3562,6 +3720,7 @@
       "id": "representative--llama-ggml-39",
       "kind": "representative",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "gpt-oss-20b-Q4_0.gguf",
         "gpt-oss-20b-Q4_K_M.gguf"
@@ -3578,6 +3737,7 @@
       "id": "representative--llama-ggml-41",
       "kind": "representative",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "Bonsai-27B-dspark-Q4_1.gguf",
         "Bonsai-8B-Q1_0.gguf"
@@ -3594,6 +3754,7 @@
       "id": "representative--llama-ggml-42",
       "kind": "representative",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "synthetic/llama-ggml-42"
       ],
@@ -3609,6 +3770,7 @@
       "id": "representative--llama-ggml-142",
       "kind": "representative",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "Ternary-Bonsai-2-27B-PQ2_0.gguf",
         "Ternary-Bonsai-2-2B-PQ2_0.gguf",
@@ -3630,6 +3792,7 @@
       "id": "representative--llama-ggml-143",
       "kind": "representative",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "Ternary-Bonsai-2-2B-PTQ1_0.gguf",
         "Ternary-Bonsai-2-9B-PTQ1_0.gguf"
@@ -3645,6 +3808,7 @@
     {
       "id": "llama--llama-3.2-1b-instruct-q4_k_m--65b8eaf8",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "bartowski/Llama-3.2-1B-Instruct-GGUF/Llama-3.2-1B-Instruct-Q4_K_M.gguf"
       ],
@@ -3660,6 +3824,7 @@
     {
       "id": "qwen2--qwen2.5-0.5b-instruct-q4_k_m--8f5c49a4",
       "architecture": "qwen2",
+      "input_modes": ["ids"],
       "models": [
         "Qwen/Qwen2.5-0.5B-Instruct-GGUF/qwen2.5-0.5b-instruct-q4_k_m.gguf"
       ],
@@ -3675,6 +3840,7 @@
     {
       "id": "qwen3--qwen3-0.6b-q8_0--7362d5e7",
       "architecture": "qwen3",
+      "input_modes": ["ids"],
       "models": [
         "Qwen/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q8_0.gguf"
       ],
@@ -3690,6 +3856,7 @@
     {
       "id": "hunyuan-dense--tencent_hunyuan-0.5b-instruct-q4_k_m--2f398680",
       "architecture": "hunyuan-dense",
+      "input_modes": ["ids"],
       "models": [
         "bartowski/tencent_Hunyuan-0.5B-Instruct-GGUF/tencent_Hunyuan-0.5B-Instruct-Q4_K_M.gguf"
       ],
@@ -3705,6 +3872,7 @@
     {
       "id": "qwen3moe--qwen3-0.9b-a0.6b.q4_k_m--5e85cb30",
       "architecture": "qwen3moe",
+      "input_modes": ["ids"],
       "models": [
         "mradermacher/Qwen3-0.9B-A0.6B-GGUF/Qwen3-0.9B-A0.6B.Q4_K_M.gguf"
       ],
@@ -3720,6 +3888,7 @@
     {
       "id": "llama--gemma-2b-it.q4_k_m--b12a3fb4",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "RichardErkhov/google_-_gemma-2b-it-gguf/gemma-2b-it.Q4_K_M.gguf"
       ],
@@ -3751,6 +3920,7 @@
     {
       "id": "exaone4--exaone-4.0-1.2b-q4_k_m--e8c9e460",
       "architecture": "exaone4",
+      "input_modes": ["ids"],
       "models": [
         "LGAI-EXAONE/EXAONE-4.0-1.2B-GGUF/EXAONE-4.0-1.2B-Q4_K_M.gguf"
       ],
@@ -3766,6 +3936,7 @@
     {
       "id": "smollm3--huggingfacetb_smollm3-3b-q4_k_m--1b8b7c2f",
       "architecture": "smollm3",
+      "input_modes": ["ids"],
       "models": [
         "bartowski/HuggingFaceTB_SmolLM3-3B-GGUF/HuggingFaceTB_SmolLM3-3B-Q4_K_M.gguf"
       ],
@@ -3781,6 +3952,7 @@
     {
       "id": "maincoder--maincoder-1b.q4_k_m--3872917c",
       "architecture": "maincoder",
+      "input_modes": ["ids"],
       "models": [
         "mradermacher/Maincoder-1B-GGUF/Maincoder-1B.Q4_K_M.gguf"
       ],
@@ -3796,6 +3968,7 @@
     {
       "id": "llama--ministral-3b-instruct.q4_k_m--c7b704b5",
       "architecture": "llama",
+      "input_modes": ["ids"],
       "models": [
         "mradermacher/Ministral-3b-instruct-GGUF/Ministral-3b-instruct.Q4_K_M.gguf"
       ],
@@ -3811,6 +3984,7 @@
     {
       "id": "qwen35--bonsai-27b-q1_0--22953347",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "prism-ml/Bonsai-27B-gguf/Bonsai-27B-Q1_0.gguf"
       ],
@@ -3826,6 +4000,7 @@
     {
       "id": "muse-glimmer--muse-glimmer-30b-ud-q4_k_xl--2acddbea",
       "architecture": "muse-glimmer",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "unsloth/Muse-Glimmer-30B-GGUF/Muse-Glimmer-30B-UD-Q4_K_XL.gguf"
       ],
@@ -3841,6 +4016,7 @@
     {
       "id": "qwen35--ternary-bonsai-27b-q2_g64--81ccab64",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "prism-ml/Ternary-Bonsai-27B-gguf/Ternary-Bonsai-27B-Q2_g64.gguf"
       ],
@@ -3856,6 +4032,7 @@
     {
       "id": "jais2--jais2-it-0.3.q4_k_m--61e5ba82",
       "architecture": "jais2",
+      "input_modes": ["ids"],
       "models": [
         "mradermacher/JAIS2-IT-0.3-GGUF/JAIS2-IT-0.3.Q4_K_M.gguf"
       ],
@@ -3871,6 +4048,7 @@
     {
       "id": "mamba2--mamba2-2.7b-q8_0--aa65b990",
       "architecture": "mamba2",
+      "input_modes": ["ids"],
       "models": [
         "Nicholas55555/mamba2-2.7b-Q8_0-GGUF/mamba2-2.7b-q8_0.gguf"
       ],
@@ -3886,6 +4064,7 @@
     {
       "id": "qwen35--ternary-bonsai-2-27b-ptq1_0--9a9ab9ce",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "prism-ml/Ternary-Bonsai-2-27B-gguf/Ternary-Bonsai-2-27B-PTQ1_0.gguf"
       ],
@@ -3901,6 +4080,7 @@
     {
       "id": "qwen35--ternary-bonsai-2-27b-q2_0-prism-fork-required--ecbb4fe7",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "prism-ml/Ternary-Bonsai-2-27B-gguf-dev/Ternary-Bonsai-2-27B-Q2_0-prism-fork-required.gguf"
       ],
@@ -4026,6 +4206,7 @@
     {
       "id": "qwen35--ternary-bonsai-2-27b-f16--45233492",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "prism-ml/Ternary-Bonsai-2-27B-gguf/Ternary-Bonsai-2-27B-F16.gguf"
       ],
@@ -4041,6 +4222,7 @@
     {
       "id": "qwen35--bonsai-27b-f16--6dc79693",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "prism-ml/Bonsai-27B-gguf/Bonsai-27B-F16.gguf",
         "prism-ml/Ternary-Bonsai-27B-gguf/Ternary-Bonsai-27B-F16.gguf"
@@ -4074,6 +4256,7 @@
     {
       "id": "qwen35--ternary-bonsai-27b-q2_0--84e5eeb0",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "prism-ml/Ternary-Bonsai-27B-gguf/Ternary-Bonsai-27B-Q2_0.gguf"
       ],
@@ -4105,6 +4288,7 @@
     {
       "id": "qwen3--ternary-bonsai-8b-f16--e047c4df",
       "architecture": "qwen3",
+      "input_modes": ["ids"],
       "models": [
         "prism-ml/Ternary-Bonsai-8B-gguf/Ternary-Bonsai-8B-F16.gguf"
       ],
@@ -4120,6 +4304,7 @@
     {
       "id": "qwen3--ternary-bonsai-8b-pq2_0--7e177a0b",
       "architecture": "qwen3",
+      "input_modes": ["ids"],
       "models": [
         "prism-ml/Ternary-Bonsai-8B-gguf/Ternary-Bonsai-8B-PQ2_0.gguf"
       ],
@@ -4135,6 +4320,7 @@
     {
       "id": "qwen3--bonsai-1.7b-q1_0--e5af3bc5",
       "architecture": "qwen3",
+      "input_modes": ["ids"],
       "models": [
         "prism-ml/Bonsai-1.7B-gguf/Bonsai-1.7B-Q1_0.gguf",
         "prism-ml/Bonsai-1.7B-gguf/Bonsai-1.7B.gguf"
@@ -4151,6 +4337,7 @@
     {
       "id": "qwen3--ternary-bonsai-1.7b-f16--26ffb175",
       "architecture": "qwen3",
+      "input_modes": ["ids"],
       "models": [
         "prism-ml/Ternary-Bonsai-1.7B-gguf/Ternary-Bonsai-1.7B-F16.gguf"
       ],
@@ -4166,6 +4353,7 @@
     {
       "id": "qwen3--ternary-bonsai-1.7b-pq2_0--4abee613",
       "architecture": "qwen3",
+      "input_modes": ["ids"],
       "models": [
         "prism-ml/Ternary-Bonsai-1.7B-gguf/Ternary-Bonsai-1.7B-PQ2_0.gguf"
       ],
@@ -4181,6 +4369,7 @@
     {
       "id": "qwen3--ternary-bonsai-4b-f16--a6a87ab6",
       "architecture": "qwen3",
+      "input_modes": ["ids"],
       "models": [
         "prism-ml/Ternary-Bonsai-4B-gguf/Ternary-Bonsai-4B-F16.gguf"
       ],
@@ -4196,6 +4385,7 @@
     {
       "id": "qwen3--ternary-bonsai-4b-pq2_0--3500d0aa",
       "architecture": "qwen3",
+      "input_modes": ["ids"],
       "models": [
         "prism-ml/Ternary-Bonsai-4B-gguf/Ternary-Bonsai-4B-PQ2_0.gguf"
       ],
@@ -4211,6 +4401,7 @@
     {
       "id": "qwen3--bonsai-4b-q1_0--8b659c37",
       "architecture": "qwen3",
+      "input_modes": ["ids"],
       "models": [
         "prism-ml/Bonsai-4B-gguf/Bonsai-4B-Q1_0.gguf",
         "prism-ml/Bonsai-4B-gguf/Bonsai-4B.gguf"
@@ -4227,6 +4418,7 @@
     {
       "id": "qwen3--ternary-bonsai-8b-q2_0--68936d33",
       "architecture": "qwen3",
+      "input_modes": ["ids"],
       "models": [
         "prism-ml/Ternary-Bonsai-8B-gguf/Ternary-Bonsai-8B-Q2_0.gguf"
       ],
@@ -4242,6 +4434,7 @@
     {
       "id": "qwen3--ternary-bonsai-8b-q2_0_g64--8a087353",
       "architecture": "qwen3",
+      "input_modes": ["ids"],
       "models": [
         "prism-ml/Ternary-Bonsai-8B-gguf/Ternary-Bonsai-8B-Q2_0_g64.gguf"
       ],
@@ -4257,6 +4450,7 @@
     {
       "id": "qwen3--ternary-bonsai-1.7b-q2_0--2d6a5613",
       "architecture": "qwen3",
+      "input_modes": ["ids"],
       "models": [
         "prism-ml/Ternary-Bonsai-1.7B-gguf/Ternary-Bonsai-1.7B-Q2_0.gguf"
       ],
@@ -4272,6 +4466,7 @@
     {
       "id": "qwen3--ternary-bonsai-1.7b-q2_0_g64--c847b21f",
       "architecture": "qwen3",
+      "input_modes": ["ids"],
       "models": [
         "prism-ml/Ternary-Bonsai-1.7B-gguf/Ternary-Bonsai-1.7B-Q2_0_g64.gguf"
       ],
@@ -4287,6 +4482,7 @@
     {
       "id": "qwen3--ternary-bonsai-4b-q2_0--574994c5",
       "architecture": "qwen3",
+      "input_modes": ["ids"],
       "models": [
         "prism-ml/Ternary-Bonsai-4B-gguf/Ternary-Bonsai-4B-Q2_0.gguf"
       ],
@@ -4302,6 +4498,7 @@
     {
       "id": "qwen3--ternary-bonsai-4b-q2_0_g64--67809f7f",
       "architecture": "qwen3",
+      "input_modes": ["ids"],
       "models": [
         "prism-ml/Ternary-Bonsai-4B-gguf/Ternary-Bonsai-4B-Q2_0_g64.gguf"
       ],
@@ -4426,6 +4623,7 @@
     {
       "id": "deepseek2-ocr--deepseek-ocr-2-q4_k_m--707bcc65",
       "architecture": "deepseek2-ocr",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "aditya00196/DeepSeek-OCR-2-Q4_K_M.gguf/DeepSeek-OCR-2-Q4_K_M.gguf"
       ],
@@ -4441,6 +4639,7 @@
     {
       "id": "olmoe--olmoe-1b-7b-0924-instruct-q4_0--4aaa2be7",
       "architecture": "olmoe",
+      "input_modes": ["ids"],
       "models": [
         "allenai/OLMoE-1B-7B-0924-Instruct-GGUF/olmoe-1b-7b-0924-instruct-q4_0.gguf"
       ],
@@ -4456,6 +4655,7 @@
     {
       "id": "qwen35--qwen3.5-0.8b-q4_0--2010fccc",
       "architecture": "qwen35",
+      "input_modes": ["ids", "embeds"],
       "models": [
         "ggml-org/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q4_0.gguf"
       ],

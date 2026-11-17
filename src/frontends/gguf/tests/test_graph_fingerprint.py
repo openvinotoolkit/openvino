@@ -57,6 +57,73 @@ def test_catalog_maps_every_documented_checkpoint():
     assert sorted(documented - mapped) == [], "Documented checkpoints need a catalog case listing repo/filename"
 
 
+@pytest.mark.parametrize(("case_id", "has_embeddings"), [
+    ("representative--llama-ggml-2", False),
+    ("llama--llava-v1.6-vicuna-7b.q4_k_m--c28f6ad7", True),
+    ("llama--ggml-model-q4_k--2ccee2f3", True),
+    ("qwen2--ggml-model-q4_0--208e9dab", True),
+    ("gemma3--gemma-3-1b-it-q4_0--9af9428e", False),
+    ("gemma3--gemma-3-4b-it-q4_k_m--b6f02999", True),
+    ("gemma4--nemotron-3.5-bolt-e4b-q4_k_m--b24b6ba5", False),
+    ("gemma4--gemma-4-e4b-it-q4_0--e7c11bc9", True),
+    ("lfm3--lfm3-1.7b-qad-q4_0--d897a7f6", False),
+    ("lfm3--lfm3-audio-2b-q4_0--07f0bced", True),
+    ("deepseek2-ocr--deepseek-ocr-2-q4_k_m--e6ed4c0d", True),
+    ("llama--devstral-small-2507-q4_k_m--0bc56937", False),
+    ("mistral3--devstral-small-2-24b-instruct-2512-q4_k_m--d09200fa", True),
+    ("muse-glimmer--muse-glimmer-30b-q4_0--5bbf61da", True),
+    ("qwen35--ternary-bonsai-2-2b-pq2_0--fd8dc1f3", True),
+    ("qwen35--ornith-1.5-9b-q4_k_m--39b1a33b", True),
+])
+def test_catalog_distinguishes_text_and_multimodal_cases(case_id, has_embeddings):
+    case = next(case for case in graph.load_json(graph.DATA / "catalog.json")["cases"] if case["id"] == case_id)
+    modes = ["ids", "embeds"] if has_embeddings else ["ids"]
+    assert case["input_modes"] == modes
+    models = graph.load_json(graph.DATA / case["reference"])["models"]
+    assert ("embeds/language" in models) == has_embeddings
+    assert "ids/language" in models
+
+
+@pytest.mark.parametrize("changes", [
+    {},
+    {"input_modes": ["embeds"]},
+    {"input_modes": ["ids", "ids"]},
+    {"architecture": "clip", "input_modes": ["ids"]},
+    {"native_only": "unsupported adapter", "input_modes": ["ids"]},
+])
+def test_catalog_rejects_missing_or_inapplicable_input_modes(tmp_path, changes):
+    case = {"id": "test", "architecture": "llama", "models": ["test"], "recipe": "recipe.json",
+            "reference": "reference.json", "source": {"filename": "test.gguf", "header_sha256": "0" * 64}}
+    case.update(changes)
+    (tmp_path / "catalog.json").write_text(json.dumps({"version": 1, "cases": [case]}))
+    args = Namespace(data=tmp_path, cases=None, runner="unused", report=tmp_path / "report.json", update=False)
+    with pytest.raises(ValueError, match="input_modes"):
+        graph.run_cases(args)
+
+
+def test_decoder_capture_uses_selected_input_modes():
+    cases = graph.load_json(graph.DATA / "catalog.json")["cases"]
+    case = next(case for case in cases if case["id"] == "fixture--llama-dense")
+    value = graph.load_recipe(graph.DATA / case["recipe"])
+    runner = graph.runner_path(None)
+
+    value["input_modes"] = ["ids"]
+    ids = graph.capture(value, runner)
+    assert set(ids["models"]) == {"ids/language"}
+
+    value["input_modes"] = ["ids", "embeds"]
+    both = graph.capture(value, runner)
+    assert set(both["models"]) == {"ids/language", "embeds/language", "embeds/text_embeddings"}
+    assert ids["models"]["ids/language"] == both["models"]["ids/language"]
+
+    value.pop("input_modes")
+    assert graph.capture(value, runner) == both
+
+    value["input_modes"] = ["embeds"]
+    with pytest.raises(ValueError, match="Invalid decoder input modes"):
+        graph.capture(value, runner)
+
+
 def test_detects_rewiring_with_unchanged_operation_counts(capsys):
     first = graph.compact_snapshot(snapshot())
     modified = snapshot()
@@ -194,7 +261,7 @@ def test_update_requires_selection_and_finishes_capture_before_writing(tmp_path,
         (tmp_path / f"{name}.recipe.json").write_text(graph.recipe_text(value))
         (tmp_path / f"{name}.reference.json").write_text(original)
         cases.append({"id": name, "recipe": f"{name}.recipe.json", "reference": f"{name}.reference.json",
-                      "models": [name], "architecture": "llama",
+                      "models": [name], "architecture": "llama", "input_modes": ["ids"],
                       "source": {"filename": "test.gguf", "header_sha256": "0" * 64}})
     (tmp_path / "catalog.json").write_text(json.dumps({"version": 1, "cases": cases}))
     args = Namespace(data=tmp_path, cases=None, runner="runner", report=tmp_path / "changed_cases.json", update=True)
@@ -293,7 +360,7 @@ def test_check_failure_explains_update_and_evidence_in_ci(tmp_path, monkeypatch,
         (tmp_path / f"{name}.recipe.json").write_text(graph.recipe_text(value))
         (tmp_path / f"{name}.reference.json").write_text(reference_text)
         cases.append({"id": name, "recipe": f"{name}.recipe.json", "reference": f"{name}.reference.json",
-                      "models": [name], "architecture": "llama",
+                      "models": [name], "architecture": "llama", "input_modes": ["ids"],
                       "source": {"filename": "test.gguf", "header_sha256": "0" * 64}})
     (tmp_path / "catalog.json").write_text(json.dumps({"version": 1, "cases": cases}))
 

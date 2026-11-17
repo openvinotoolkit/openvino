@@ -784,11 +784,17 @@ int graph_snapshot_main(int argc, char** argv) {
         }
     };
     using namespace ov::frontend::gguf;
+    OPENVINO_ASSERT(!recipe.contains("input_modes") || (!mmproj && !recipe.value("native_only", false)),
+                    "Input modes are only valid for adapted decoders");
     if (mmproj) {
         capture("", adapt_to_genai(model));
     } else if (!recipe.value("native_only", false)) {
+        const auto modes = recipe.value("input_modes", std::vector<std::string>{"ids", "embeds"});
+        const bool embeddings = modes == std::vector<std::string>{"ids", "embeds"};
+        OPENVINO_ASSERT(embeddings || modes == std::vector<std::string>{"ids"}, "Invalid decoder input modes");
         capture("ids/", adapt_to_genai(model->clone()));
-        capture("embeds/", adapt_to_genai(model, {pass::AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS}));
+        if (embeddings)
+            capture("embeds/", adapt_to_genai(model, {pass::AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS}));
     } else {
         pass::GGUFMakeStateful().run_on_model(model);
         snapshot["models"]["native"] = graph_snapshot(model);

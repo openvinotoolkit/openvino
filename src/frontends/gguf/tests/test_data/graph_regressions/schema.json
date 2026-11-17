@@ -88,6 +88,7 @@
         "architecture": {"type": "string", "minLength": 1},
         "kind": {"enum": ["model", "representative"]},
         "native_only": {"type": "string", "minLength": 1},
+        "input_modes": {"enum": [["ids"], ["ids", "embeds"]]},
         "fixture": {"type": "string", "minLength": 1},
         "projectors": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
         "models": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},

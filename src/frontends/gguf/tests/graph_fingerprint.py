@@ -764,6 +764,10 @@ def _run_cases(args, report):
     validate_document(catalog, "catalog")
     unique(catalog["cases"], "id")
     unique(catalog["cases"], "reference")
+    for case in catalog["cases"]:
+        decoder = case["architecture"] != "clip" and "native_only" not in case
+        if decoder != ("input_modes" in case):
+            raise ValueError(f"{case['id']}: input_modes must be set only for adapted decoders")
     declared_recipes = {contained_path(root, case["recipe"]) for case in catalog["cases"]}
     declared_references = {contained_path(root, case["reference"]) for case in catalog["cases"]}
     if len(declared_references) != len(catalog["cases"]):
@@ -793,6 +797,8 @@ def _run_cases(args, report):
         recipe = load_recipe(recipe_path)
         if "native_only" in case:
             recipe["native_only"] = True
+        elif "input_modes" in case:
+            recipe["input_modes"] = case["input_modes"]
         model = capture(recipe, runner)
         if "projectors" in case and model["projectors"] != case["projectors"]:
             raise ValueError(f"Projector identity mismatch for {case['id']}: {model['projectors']}")

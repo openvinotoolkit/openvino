@@ -2,8 +2,9 @@
 
 These are structural alarms, not runtime benchmarks or numerical equivalence tests.
 Each case has exactly one reference file containing every named graph returned by
-`adapt_to_genai`. Decoder cases cover both token-ID and embedding input modes.
-Everything runs offline and no checkpoint weights are allocated.
+`adapt_to_genai` for its selected input modes. Text-only decoders cover token IDs;
+multimodal decoders also cover embedding inputs. Everything runs offline and no checkpoint
+weights are allocated.
 
 ## Coverage status
 
@@ -27,6 +28,11 @@ All paths below are under `tests/test_data/graph_regressions`, in ordinary Git t
 not LFS:
 
 - `catalog.json`: case/checkpoint identities, provenance and projector contracts.
+  Adapted decoder cases require `input_modes`: `["ids"]` for text-only checkpoints
+  and synthetic text-only fixtures, or `["ids", "embeds"]` for vision or audio
+  checkpoints. Classify each checkpoint rather than assuming an entire architecture
+  has the same modalities. If its modalities are unknown, retain both modes until
+  verified. Projectors and `native_only` cases omit `input_modes`.
   `native_only` records the reason when a case has no GenAI adaptation: embedding-only
   encoders, DFlash drafts and the standalone LFM2.5 vocoder. These cases keep a native
   stateful snapshot; adaptation errors in all other cases fail, never silently fall back.
@@ -53,9 +59,9 @@ run without allocating checkpoint-sized weights. After conversion, the runner ca
 production `adapt_to_genai` entry point, which makes decoders stateful and adapts their IO.
 Every returned model is checked, not just the language model:
 
-- Decoders: `ids/language` for `IDS_TO_LOGITS`; `embeds/language`,
-  `embeds/text_embeddings` and any `embeds/text_embeddings_per_layer` for
-  `EMBEDS_TO_LOGITS`. Each mode consumes an independent converted graph.
+- Decoders: `ids/language` for `IDS_TO_LOGITS`. Cases with embedding inputs also check
+  `embeds/language`, `embeds/text_embeddings` and any `embeds/text_embeddings_per_layer`
+  for `EMBEDS_TO_LOGITS`. Each mode consumes an independent converted graph.
 - Projectors: every returned key, including split vision encoders, position/merger
   graphs, audio encoders and all `audio_generation_*` components.
 - Explicit `native_only` cases: `native`, after `GGUFMakeStateful`.
@@ -236,6 +242,6 @@ Structural equality, synthetic timings or unrelated numerical tests do not subst
 for real-model results. Whether a regression is acceptable remains a reviewer decision.
 
 Adding support requires registering every relevant original-dimensional variant and format,
-recording provenance, capturing its reference and reviewing it.
+recording provenance and applicable input modes, capturing its reference and reviewing it.
 Equivalent descriptor profiles may share a recipe only if all checkpoint identities remain
 visible. A model hub list entry without a matching catalog identity fails the Python tests.
