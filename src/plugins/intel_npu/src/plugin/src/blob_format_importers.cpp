@@ -86,7 +86,7 @@ void decrypt_payload(ov::Tensor& payload, const ov::EncryptionCallbacks& encrypt
  */
 std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& inputDescriptors,
                                               const std::vector<IODescriptor>& outputDescriptors,
-                                              const std::optional<int> batchSize,
+                                              const std::optional<int64_t> batchSize,
                                               const std::optional<std::vector<ov::Layout>>& inputLayouts,
                                               const std::optional<std::vector<ov::Layout>>& outputLayouts) {
     ov::ParameterVector parameters;
@@ -215,7 +215,7 @@ private:
      * @note N/A
      * @return Always std::nullopt
      */
-    std::optional<int> extract_batch_size() const override {
+    std::optional<int64_t> extract_batch_size() const override {
         return std::nullopt;
     }
 
@@ -326,13 +326,12 @@ private:
         return init_schedules;
     }
 
-    std::optional<int> extract_batch_size() const override {
+    std::optional<int64_t> extract_batch_size() const override {
         const std::optional<int64_t> batch_size = m_metadata->get_batch_size();
         if (batch_size.has_value()) {
-            m_logger.debug("Extracted batch size: %d", batch_size.value());
-            return std::make_optional<int>(static_cast<int>(batch_size.value()));
+            m_logger.debug("Extracted batch size: %lld", static_cast<long long>(batch_size.value()));
         }
-        return std::nullopt;
+        return batch_size;
     }
 
     std::optional<std::pair<std::vector<ov::Layout>, std::vector<ov::Layout>>> extract_layouts() const override {
