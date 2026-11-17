@@ -42,12 +42,11 @@ public:
         static constexpr size_t W_DOWN = 2;       ///< [L, C*D]
         static constexpr size_t W_UP = 3;         ///< [C*D, L]
 
-        // Compressed weights are i4/u4/i8/u8. scale / zp are [G, N], N contiguous (FC uses [N, G]): a sub-group block
-        // read then gives each lane its own channel's scale.
-        static constexpr size_t SCALE_DOWN = 4;  ///< floating-point (f16 / bf16 / f32) [G_d, L]
-        static constexpr size_t SCALE_UP = 5;    ///< floating-point (f16 / bf16 / f32) [G_u, C*D]
-        static constexpr size_t ZP_DOWN = 6;     ///< weight type [G_d, L], only with zero points
-        static constexpr size_t ZP_UP = 7;       ///< weight type [G_u, C*D], only with zero points
+        // Compressed weights are i4/u4/i8/u8. scale / zp are [N, G]: N output channels, G groups along K.
+        static constexpr size_t SCALE_DOWN = 4;  ///< floating-point (f16 / bf16 / f32) [L, G_d]
+        static constexpr size_t SCALE_UP = 5;    ///< floating-point (f16 / bf16 / f32) [C*D, G_u]
+        static constexpr size_t ZP_DOWN = 6;     ///< weight type [L, G_d], only with zero points
+        static constexpr size_t ZP_UP = 7;       ///< weight type [C*D, G_u], only with zero points
     };
 
     /// @brief Input form of a READ / FINAL_MIX node; the write-gate inputs come last, so their indices depend on it:

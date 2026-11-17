@@ -277,10 +277,10 @@ bool GatedResidual::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
                 }
             }
 
-            // The scale is [G, N]; the op guarantees that G divides K, so any static group count is valid.
+            // The scale is [N, G]; the op guarantees that G divides K, so any static group count is valid.
             const auto groups_static = [&](size_t scale_port) {
                 const auto& ps = op->get_input_partial_shape(scale_port);
-                return ps.rank().is_static() && ps[0].is_static();
+                return ps.rank().is_static() && ps[1].is_static();
             };
             if (!groups_static(ReadInputIdx::SCALE_DOWN) || !groups_static(ReadInputIdx::SCALE_UP) ||
                 (layout->write_gate && !groups_static(layout->scale_inject))) {

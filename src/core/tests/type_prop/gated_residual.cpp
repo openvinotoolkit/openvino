@@ -216,7 +216,7 @@ TEST(type_prop, gated_residual_invalid_residual_rank) {
 
 namespace {
 
-// C = D = 4 -> C*D = 16, L = 8. Scales / zero points are [G, N] with the group size along K being K / G.
+// C = D = 4 -> C*D = 16, L = 8. Scales / zero points are [N, G] with the group size along K being K / G.
 struct CompressedCfg {
     element::Type weight_et = element::u4;
     element::Type scale_et = element::f16;
@@ -238,17 +238,17 @@ std::shared_ptr<op::internal::GatedResidual> make_read_compressed(const Compress
                       param(element::f32, Shape{16}),
                       param(c.weight_et, Shape{8, 16}),
                       param(c.weight_et, Shape{16, 8}),
-                      param(c.scale_et, Shape{c.g_down, 8}),
-                      param(c.scale_et, Shape{c.g_up, 16})};
+                      param(c.scale_et, Shape{8, c.g_down}),
+                      param(c.scale_et, Shape{16, c.g_up})};
     if (c.has_zp) {
-        args.push_back(param(zp_et, Shape{c.g_down, 8}));
-        args.push_back(param(zp_et, Shape{c.g_up, 16}));
+        args.push_back(param(zp_et, Shape{8, c.g_down}));
+        args.push_back(param(zp_et, Shape{16, c.g_up}));
     }
     if (c.write_gate) {
         args.push_back(param(c.weight_et, Shape{4, 16}));
-        args.push_back(param(c.scale_et, Shape{c.g_inject, 4}));
+        args.push_back(param(c.scale_et, Shape{4, c.g_inject}));
         if (c.has_zp) {
-            args.push_back(param(zp_et, Shape{c.g_inject, 4}));
+            args.push_back(param(zp_et, Shape{4, c.g_inject}));
         }
     }
     return std::make_shared<op::internal::GatedResidual>(args, c.mode, 4, 4, 8, 1e-6F, true, c.write_gate);
@@ -319,7 +319,7 @@ TEST(type_prop, gated_residual_compressed_wrong_input_count) {
     auto norm_weight = std::make_shared<op::v0::Parameter>(element::f32, Shape{16});
     auto w_down = std::make_shared<op::v0::Parameter>(element::u4, Shape{8, 16});
     auto w_up = std::make_shared<op::v0::Parameter>(element::u4, Shape{16, 8});
-    auto w_down_scale = std::make_shared<op::v0::Parameter>(element::f16, Shape{4, 8});
+    auto w_down_scale = std::make_shared<op::v0::Parameter>(element::f16, Shape{8, 4});
 
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GatedResidual>(
                         OutputVector{residual, norm_weight, w_down, w_up, w_down_scale},
@@ -367,13 +367,13 @@ TEST(type_prop, gated_residual_compressed_group_count_must_divide_k) {
                     testing::HasSubstr("not divisible by the scale group count"));
 }
 
-TEST(type_prop, gated_residual_compressed_scale_shape_is_group_major) {
-    // [N, G] (the FC layout) instead of [G, N].
+TEST(type_prop, gated_residual_compressed_scale_shape_is_n_by_g) {
+    // [G, N] instead of [N, G].
     auto residual = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3, 16});
     auto norm_weight = std::make_shared<op::v0::Parameter>(element::f32, Shape{16});
     auto w_down = std::make_shared<op::v0::Parameter>(element::u4, Shape{8, 16});
     auto w_up = std::make_shared<op::v0::Parameter>(element::u4, Shape{16, 8});
-    auto scale_down = std::make_shared<op::v0::Parameter>(element::f16, Shape{8, 4});
+    auto scale_down = std::make_shared<op::v0::Parameter>(element::f16, Shape{4, 8});
     auto scale_up = std::make_shared<op::v0::Parameter>(element::f16, Shape{2, 16});
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GatedResidual>(
                         OutputVector{residual, norm_weight, w_down, w_up, scale_down, scale_up},
@@ -385,7 +385,7 @@ TEST(type_prop, gated_residual_compressed_scale_shape_is_group_major) {
                         true,
                         false),
                     NodeValidationFailure,
-                    testing::HasSubstr("scale must have shape [G, 8]"));
+                    testing::HasSubstr("scale must have shape [8, G]"));
 }
 
 TEST(type_prop, gated_residual_quantized_weights_need_compressed_form) {

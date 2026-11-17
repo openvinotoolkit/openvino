@@ -212,17 +212,17 @@ void GatedResidual::validate_and_infer_types() {
                           wd_et.is_dynamic() || (compressed == wd_quant),
                           "GatedResidual takes i4/u4/i8/u8 weights exactly with the compressed input forms.");
     if (compressed) {
-        // scale / zp are [G, N]; the group size along K is K / G (not an attribute).
+        // scale / zp are [N, G]; the group size along K is K / G (not an attribute).
         auto check_group = [&](size_t scale_idx, size_t zp_idx, size_t n, size_t k, const char* name) {
             const auto& sps = get_input_partial_shape(scale_idx);
             NODE_VALIDATION_CHECK(
                 this,
-                sps.rank().is_dynamic() || (sps.rank().get_length() == 2 && sps[1].compatible(static_cast<int64_t>(n))),
+                sps.rank().is_dynamic() || (sps.rank().get_length() == 2 && sps[0].compatible(static_cast<int64_t>(n))),
                 "GatedResidual ",
                 name,
-                " scale must have shape [G, ",
+                " scale must have shape [",
                 n,
-                "], got ",
+                ", G], got ",
                 sps);
             NODE_VALIDATION_CHECK(
                 this,
@@ -247,8 +247,8 @@ void GatedResidual::validate_and_infer_types() {
                     " zero point must have the weight element type ",
                     wd_et);
             }
-            if (sps.rank().is_static() && sps[0].is_static()) {
-                const auto g = static_cast<size_t>(sps[0].get_length());
+            if (sps.rank().is_static() && sps[1].is_static()) {
+                const auto g = static_cast<size_t>(sps[1].get_length());
                 NODE_VALIDATION_CHECK(this,
                                       g != 0 && k % g == 0,
                                       "GatedResidual ",

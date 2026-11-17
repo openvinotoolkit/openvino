@@ -55,11 +55,11 @@ bool holds_value(const ov::Output<ov::Node>& constant, float expected) {
 /// A W_down / W_up decompression subgraph (NNCF int4 / int8) split into its parts, laid out as the op takes them.
 struct CompressedWeight {
     ov::Output<ov::Node> weights;  // Constant i4/u4/i8/u8 [N, K]
-    ov::Output<ov::Node> scale;    // Constant, floating point [G, N]
-    ov::Output<ov::Node> zp;       // Constant of the weight type [G, N]; empty without zero points
+    ov::Output<ov::Node> scale;    // Constant, floating point [N, G]
+    ov::Output<ov::Node> zp;       // Constant of the weight type [N, G]; empty without zero points
     ov::element::Type type;
     size_t bits = 0;    // 4 or 8
-    size_t groups = 0;  // scale rows G; the group size is K / G
+    size_t groups = 0;  // scale columns G; the group size is K / G
 
     bool has_zp() const {
         return zp.get_node() != nullptr;
@@ -187,33 +187,19 @@ std::optional<CompressedWeight> match_compressed_weight(const ov::Output<ov::Nod
         return std::nullopt;
     }
 
-    // scale / zp are [N, G] in the checkpoint; the op takes [G, N], see GatedResidual::ReadLayout.
-    const auto scale_ng = scale->cast_vector<float>();
-    std::vector<float> scale_gn(G * N);
-    for (size_t n = 0; n < N; ++n) {
-        for (size_t g = 0; g < G; ++g) {
-            scale_gn[g * N + n] = scale_ng[n * G + g];
-        }
-    }
-
-    ov::Output<ov::Node> zp_gn_const;
+    // scale / zp are [N, G, 1] (or [N, 1]) in the checkpoint and [N, G] in the op: the same data, no transpose.
+    ov::Output<ov::Node> zp_ng_const;
     if (has_zp) {
         // The zero point must fit the weight type.
         const int32_t zp_min = wt.is_signed() ? -(1 << (bits - 1)) : 0;
         const int32_t zp_max = wt.is_signed() ? (1 << (bits - 1)) - 1 : (1 << bits) - 1;
-        const auto zp_ng = zp->cast_vector<int32_t>();
-        std::vector<int32_t> zp_gn(G * N);
-        for (size_t n = 0; n < N; ++n) {
-            for (size_t g = 0; g < G; ++g) {
-                const int32_t v = zp_ng[n * G + g];
-                if (v < zp_min || v > zp_max) {
-                    return std::nullopt;
-                }
-                zp_gn[g * N + n] = v;
+        for (const int32_t v : zp->cast_vector<int32_t>()) {
+            if (v < zp_min || v > zp_max) {
+                return std::nullopt;
             }
         }
-        zp_gn_const = ov::op::v0::Constant::create(wt, ov::Shape{G, N}, zp_gn)->output(0);
-        ov::copy_runtime_info(zp, zp_gn_const.get_node_shared_ptr());
+        zp_ng_const = std::make_shared<ov::op::v0::Constant>(*zp, ov::Shape{N, G})->output(0);
+        ov::copy_runtime_info(zp, zp_ng_const.get_node_shared_ptr());
     }
 
     std::shared_ptr<ov::op::v0::Constant> weights_2d;
@@ -237,9 +223,9 @@ std::optional<CompressedWeight> match_compressed_weight(const ov::Output<ov::Nod
     // promoted to i8/u8.
     ov::copy_runtime_info(weights, weights_2d);
     result.weights = weights_2d->output(0);
-    result.scale = ov::op::v0::Constant::create(scale->get_element_type(), ov::Shape{G, N}, scale_gn)->output(0);
+    result.scale = std::make_shared<ov::op::v0::Constant>(*scale, ov::Shape{N, G})->output(0);
     ov::copy_runtime_info(scale, result.scale.get_node_shared_ptr());
-    result.zp = zp_gn_const;
+    result.zp = zp_ng_const;
     result.type = wt;
     result.bits = bits;
     result.groups = G;

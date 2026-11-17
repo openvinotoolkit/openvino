@@ -28,7 +28,7 @@ namespace ov::pass {
  *
  * The callback is asked about the fused op; returning true keeps the matched sub-graph (a READ with a rejected write
  * gate is retried without it). Compressed weights (Constant -> Convert -> Subtract(zp) -> Multiply(scale)) are fed in
- * the op's [G, N] scale layout. The graph stays untouched unless the per-branch norm, the branch-axis reduction and
+ * the op's [N, G] scale layout. The graph stays untouched unless the per-branch norm, the branch-axis reduction and
  * both 1/C scalings are proven.
  */
 class TRANSFORMATIONS_API GatedResidualReadFusion : public ov::pass::MatcherPass {

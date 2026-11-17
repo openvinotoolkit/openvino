@@ -56,17 +56,6 @@ cpu_isa_t targetIsa() {
     return ov::with_cpu_x86_avx512_core() ? dnnl::impl::cpu::x64::avx512_core : dnnl::impl::cpu::x64::avx2;
 }
 
-// A decompression parameter port ([G, N], N contiguous) as the logical [N, G] tensor FC expects: a view that FC's
-// prepacking converts once.
-MemoryPtr make_decompression_view(const MemoryPtr& port, const dnnl::engine& engine) {
-    const auto& dims = port->getStaticDims();
-    OPENVINO_ASSERT(dims.size() == 2, "GatedResidual: decompression parameters must be rank 2, got ", dims.size());
-    const size_t groups = dims[0];
-    const size_t n = dims[1];
-    const CpuBlockedMemoryDesc desc(port->getPrecision(), Shape(VectorDims{n, groups}), {groups, n}, {1, 0});
-    return std::make_shared<Memory>(engine, desc, port->getData());
-}
-
 // For compressed weights oneDNN decompresses only f32 (and natively supported bf16) activations; FC maps the other
 // precisions to f32 too.
 ov::element::Type gemmPrecision(ov::element::Type data, bool compressed) {
@@ -277,10 +266,10 @@ void GatedResidualDnnlExecutor::createProjections(const GatedResidualAttrs& attr
         p.args[ARG_BIAS] = std::make_shared<StaticMemory>(engine, MemoryDescUtils::makeEmptyDesc(), nullptr);
         if (m_weights_compressed) {
             p.args[ARG_WEI | ARG_ATTR_SCALES] =
-                make_decompression_view(memory.at(gatedResidualSrcArg(spec.scales)), engine);
+                memory.at(gatedResidualSrcArg(spec.scales));
             if (m_weights_have_zero_points) {
                 p.args[ARG_WEI | ARG_ATTR_ZERO_POINTS] =
-                    make_decompression_view(memory.at(gatedResidualSrcArg(spec.zero_points)), engine);
+                    memory.at(gatedResidualSrcArg(spec.zero_points));
             }
         }
         // Both executors are built for a full tile; the second finds the packed weights in the private cache. update()

@@ -73,7 +73,7 @@ std::shared_ptr<op::v0::Constant> random_f32(const Shape& shape, float value) {
 }
 
 // NNCF-style compressed weight [N, G, K/G] -> Convert -> Subtract(zp) -> Multiply(scale) -> Reshape [N, K]. The
-// scale and zero point are [N, G, 1]; the pass turns them into the op's [G, N] layout.
+// scale and zero point are [N, G, 1]; the pass turns them into the op's [N, G] layout.
 Output<Node> compressed_weight(size_t n, size_t k, size_t groups) {
     const size_t gs = k / groups;
     Tensor w_tensor(element::u4, Shape{n, groups, gs});
@@ -292,7 +292,7 @@ TEST(TransformationTests, GatedResidualRead_WriteGateIsFused) {
     EXPECT_EQ(count_ops(model, op::v0::MatMul::get_type_info_static()), 0U);
 }
 
-TEST(TransformationTests, GatedResidualRead_CompressedWeightsAreFedInGroupMajorLayout) {
+TEST(TransformationTests, GatedResidualRead_CompressedScalesKeepTheNGLayout) {
     ReadOptions opt;
     opt.compressed = true;
     auto model = make_read_model(opt);
@@ -305,8 +305,8 @@ TEST(TransformationTests, GatedResidualRead_CompressedWeightsAreFedInGroupMajorL
     EXPECT_EQ(grs[0]->get_input_element_type(Gr::ReadInputIdx::ZP_DOWN), element::u4);
     EXPECT_EQ(grs[0]->get_input_element_type(Gr::ReadInputIdx::W_DOWN), element::u4);
     EXPECT_EQ(grs[0]->get_input_partial_shape(Gr::ReadInputIdx::SCALE_DOWN),
-              (PartialShape{2, static_cast<int64_t>(L)}));
-    EXPECT_EQ(grs[0]->get_input_partial_shape(Gr::ReadInputIdx::SCALE_UP), (PartialShape{2, static_cast<int64_t>(CD)}));
+              (PartialShape{static_cast<int64_t>(L), 2}));
+    EXPECT_EQ(grs[0]->get_input_partial_shape(Gr::ReadInputIdx::SCALE_UP), (PartialShape{static_cast<int64_t>(CD), 2}));
 }
 
 TEST(TransformationTests, GatedResidualWrite_AddMovesNextToTheMultiply) {

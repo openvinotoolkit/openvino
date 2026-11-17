@@ -48,10 +48,10 @@ TEST(attributes, gated_residual_read_compressed_weights_attrs) {
     const auto norm_weight = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{16});
     const auto w_down = std::make_shared<op::v0::Parameter>(element::u4, PartialShape{8, 16});
     const auto w_up = std::make_shared<op::v0::Parameter>(element::u4, PartialShape{16, 8});
-    const auto w_down_scale = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{2, 8});
-    const auto w_up_scale = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{2, 16});
-    const auto w_down_zp = std::make_shared<op::v0::Parameter>(element::u4, PartialShape{2, 8});
-    const auto w_up_zp = std::make_shared<op::v0::Parameter>(element::u4, PartialShape{2, 16});
+    const auto w_down_scale = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{8, 2});
+    const auto w_up_scale = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{16, 2});
+    const auto w_down_zp = std::make_shared<op::v0::Parameter>(element::u4, PartialShape{8, 2});
+    const auto w_up_zp = std::make_shared<op::v0::Parameter>(element::u4, PartialShape{16, 2});
 
     const OutputVector args{residual, norm_weight, w_down, w_up, w_down_scale, w_up_scale, w_down_zp, w_up_zp};
     const auto op = std::make_shared<op::internal::GatedResidual>(args,
