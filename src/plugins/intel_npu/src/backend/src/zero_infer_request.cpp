@@ -34,6 +34,24 @@ bool has_related_shape_tensor(const std::vector<intel_npu::IODescriptor>& metada
     return relatedDescriptor.has_value() && metadata.at(relatedDescriptor.value()).isShapeTensor;
 }
 
+// True if the Level Zero tensor of an input/output (if any) already has the given batch size. Tensors with a related
+// shape tensor are always considered matching, since their Level Zero allocation is kept at the max shape.
+bool is_level_zero_batch_matching(const std::shared_ptr<intel_npu::ZeroTensor>& levelZeroTensor,
+                                  const std::vector<intel_npu::IODescriptor>& metadata,
+                                  size_t descriptorIdx,
+                                  size_t batchSize) {
+    return levelZeroTensor == nullptr || levelZeroTensor->get_shape().empty() ||
+           has_related_shape_tensor(metadata, descriptorIdx) ||
+           levelZeroTensor->get_shape()[intel_npu::utils::BATCH_AXIS] == batchSize;
+}
+
+[[noreturn]] void throw_batch_change_not_supported(const std::string& inputName) {
+    OPENVINO_THROW("Changing the batch size of the input \"",
+                   inputName,
+                   "\" after its tensor was allocated is not available using this driver version. Please update the "
+                   "driver to the latest version.");
+}
+
 void copy_tensor_with_optional_shape_view(const std::shared_ptr<ov::ITensor>& srcTensor,
                                           const std::shared_ptr<ov::ITensor>& dstTensor,
                                           bool srcTensorIsUserTensor,
@@ -209,6 +227,10 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
       _logger("ZeroInferRequest", _config.get<LOG_LEVEL>()) {
     OPENVINO_ASSERT(!get_outputs().empty(), "Inference request creation: no output found for network ", _metadata.name);
 
+    if (_graph->get_kind() != GraphKind::Dynamic) {
+        _batchSize = _graph->get_batch_size();
+    }
+
     // Create map of empty tensors and cache ports from the compiled model
     // See the ov::ISyncInferRequest constructor
     auto portType = ZeroInferRequest::FoundPort::Type::INPUT;
@@ -220,6 +242,24 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
             _cachedPorts[portHash] = {i, portType};
         }
         portType = ZeroInferRequest::FoundPort::Type::OUTPUT;
+    }
+
+    // Cache the outputs whose batch size follows the one of the inputs, so only these are validated before each
+    // inference
+    if (_graph->get_kind() != GraphKind::Dynamic) {
+        for (size_t i = 0; i < _metadata.outputs.size(); ++i) {
+            const auto& descriptor = _metadata.outputs.at(i);
+            if (descriptor.isStateOutput || descriptor.isShapeTensor ||
+                has_related_shape_tensor(_metadata.outputs, i)) {
+                continue;
+            }
+
+            const auto& ioShape = _compiledModel->outputs()[i].get_partial_shape();
+            if (determine_dynamic_batch_size(descriptor, ioShape, nullptr, 1).has_value() &&
+                has_default_batch_axis(descriptor)) {
+                _dynamicBatchOutputs.push_back(i);
+            }
+        }
     }
 
     // Cache the inputs whose batch size can change, so only these are checked for reshapes before each inference
@@ -385,7 +425,7 @@ void ZeroInferRequest::setup_pipeline() {
 
     std::optional<size_t> batchSize;
     if (_graph->get_kind() != GraphKind::Dynamic) {
-        batchSize = _graph->get_batch_size();
+        batchSize = _batchSize;
     }
 
     for (size_t inputIndex = 0; inputIndex < _metadata.inputs.size(); ++inputIndex) {
@@ -395,6 +435,21 @@ void ZeroInferRequest::setup_pipeline() {
         }
 
         if (is_batched_input(inputIndex) && batchSize.has_value()) {
+            // One command list is created per sample of the batch, so the number of tensors set for this input must
+            // match the batch size. Otherwise samples would be silently skipped (or the memory would be exceeded).
+            // Only the inputs with a dynamic batch are reconciled with the batch size of the request, the rest keep
+            // the batch size reported by the graph.
+            if (std::find(_dynamicBatchInputs.begin(), _dynamicBatchInputs.end(), inputIndex) !=
+                _dynamicBatchInputs.end()) {
+                OPENVINO_ASSERT(get_user_inputs(inputIndex).size() == batchSize.value(),
+                                "Input ",
+                                _metadata.inputs.at(inputIndex).nodeFriendlyName,
+                                " has ",
+                                get_user_inputs(inputIndex).size(),
+                                " tensors, which does not match the batch size ",
+                                batchSize.value());
+            }
+
             if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
                 _logger.debug("setup_pipeline - tensors %s were already allocated",
                               _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str());
@@ -495,7 +550,7 @@ void ZeroInferRequest::setup_pipeline() {
 
 void ZeroInferRequest::create_pipeline_impl() {
     _logger.debug("create_pipeline_impl - constructing pipeline");
-    auto batchSize = _graph->get_batch_size();
+    auto batchSize = _batchSize;
     // Construct pipeline
     _pipeline = std::make_unique<Pipeline>(_initStructs,
                                            _graph,
@@ -532,15 +587,13 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
         // The same tensor object may have been reshaped since the previous call, so the pointer alone is not enough:
         // the batch size derived from its current shape must also match the one already set on the graph.
         // The Level Zero tensor must also match: when several inputs are reshaped, the first set_tensor already updated
-        // the graph batch size, but the Level Zero tensors of the other inputs still have to be synced.
-        const auto& levelZeroInput = get_level_zero_input(foundPort.idx);
-        const bool levelZeroInputMatches = !batchSizeCandidate.has_value() || levelZeroInput == nullptr ||
-                                           levelZeroInput->get_shape().empty() ||
-                                           has_related_shape_tensor(_metadata.inputs, foundPort.idx) ||
-                                           levelZeroInput->get_shape()[utils::BATCH_AXIS] == batchSizeCandidate.value();
+        // the batch size, but the Level Zero tensors of the other inputs still have to be synced.
+        const bool levelZeroInputMatches =
+            !batchSizeCandidate.has_value() ||
+            is_level_zero_input_batch_matching(foundPort.idx, batchSizeCandidate.value());
 
         if (get_user_input(foundPort.idx)._ptr == tensor._ptr && levelZeroInputMatches &&
-            (!batchSizeCandidate.has_value() || batchSizeCandidate == _graph->get_batch_size())) {
+            (!batchSizeCandidate.has_value() || batchSizeCandidate == _batchSize)) {
             // set_tensor called with the same tensor object and same shape; no action needed
             _logger.debug("set_tensor - got the same input tensor, do nothing");
             return;
@@ -574,18 +627,23 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
                 determine_dynamic_batch_size(_metadata.outputs.at(foundPort.idx), ioShape, tensor._ptr, std::nullopt);
         }
 
-        if (_userOutputTensors.at(foundPort.idx)._ptr == tensor._ptr &&
-            (!batchSizeCandidate.has_value() || batchSizeCandidate == _graph->get_batch_size())) {
+        // Same as for the inputs: the same tensor object may have been reshaped since the previous call (e.g. a tensor
+        // imported in Level Zero memory), so its Level Zero tensor must have the same batch size as well. Otherwise it
+        // would keep writing the results using the old shape.
+        const bool levelZeroOutputMatches =
+            !batchSizeCandidate.has_value() || is_level_zero_batch_matching(_levelZeroOutputTensors.at(foundPort.idx),
+                                                                            _metadata.outputs,
+                                                                            foundPort.idx,
+                                                                            batchSizeCandidate.value());
+
+        if (_userOutputTensors.at(foundPort.idx)._ptr == tensor._ptr && levelZeroOutputMatches &&
+            (!batchSizeCandidate.has_value() || batchSizeCandidate == _batchSize)) {
             // set_tensor called with the same tensor object and same shape; no action needed
             _logger.debug("set_tensor - got the same output tensor, do nothing");
             return;
         }
-        if (batchSizeCandidate.has_value()) {
-            update_dynamic_batch_size(
-                batchSizeCandidate.value(),
-                _userOutputTensors.at(foundPort.idx)._ptr != nullptr &&
-                    _userOutputTensors.at(foundPort.idx)->get_byte_size() != tensor->get_byte_size());
-        }
+        // Outputs never decide the batch size of the request, the inputs do. The batch size of the output is only
+        // checked against it when running, see validate_output_batch_sizes.
         _userOutputTensors.at(foundPort.idx) = tensor;
     }
 
@@ -593,24 +651,13 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
 }
 
 void ZeroInferRequest::update_dynamic_batch_size(const size_t batchSizeCandidate, const bool tensorSizeChanged) {
-    if (_dynamicBatchValueChanged) {
-        if (batchSizeCandidate != _graph->get_batch_size().value()) {
-            OPENVINO_THROW("Batching size is not matching all the tensors.");
-        }
-        return;
-    }
-
-    if (tensorSizeChanged) {
-        _dynamicBatchValueChanged = true;
-        _graph->set_batch_size(batchSizeCandidate);
-    } else if (_graph->get_batch_size().has_value()) {
-        if (batchSizeCandidate != _graph->get_batch_size().value()) {
-            _dynamicBatchValueChanged = true;
-            _graph->set_batch_size(batchSizeCandidate);
-        }
+    // This only tracks the requested batch size and whether the pipeline/tensors must be rebuilt for it. Whether all
+    // the inputs agree on the batch size is not checked here, since inputs are usually set one at a time: that is
+    // validated when running, in update_batch_size_from_user_inputs.
+    bool batchSizeIsNew = false;
+    if (_batchSize.has_value()) {
+        batchSizeIsNew = batchSizeCandidate != _batchSize.value();
     } else {
-        _graph->set_batch_size(batchSizeCandidate);
-
         // Without a batch size, the pipeline and the tensors returned by get_tensor use the default one. If something
         // was already built or allocated with it (a pipeline, or output tensors obtained before the input batch was
         // known), it must be rebuilt/reallocated when the new batch size is different.
@@ -620,10 +667,52 @@ void ZeroInferRequest::update_dynamic_batch_size(const size_t batchSizeCandidate
                                               [](const std::shared_ptr<ZeroTensor>& tensor) {
                                                   return tensor != nullptr;
                                               });
-        if (defaultBatchWasUsed && batchSizeCandidate != utils::DEFAULT_BATCH_SIZE) {
-            _dynamicBatchValueChanged = true;
+        batchSizeIsNew = defaultBatchWasUsed && batchSizeCandidate != utils::DEFAULT_BATCH_SIZE;
+    }
+
+    // The rebuild flag is only cleared once the pipeline is rebuilt, so a pending rebuild is never lost if the batch
+    // size is updated again before running (e.g. a tensor replaced twice, or reverted after a rejected inference)
+    if (tensorSizeChanged || batchSizeIsNew) {
+        _dynamicBatchValueChanged = true;
+    }
+
+    _batchSize = batchSizeCandidate;
+}
+
+void ZeroInferRequest::validate_output_batch_sizes() const {
+    if (_dynamicBatchOutputs.empty()) {
+        return;
+    }
+
+    const size_t batchSize = _batchSize.value_or(utils::DEFAULT_BATCH_SIZE);
+    for (const size_t outputIndex : _dynamicBatchOutputs) {
+        const auto& userOutput = _userOutputTensors.at(outputIndex);
+        if (userOutput._ptr == nullptr || userOutput->get_shape().empty()) {
+            continue;
+        }
+
+        // Outputs allocated by the plugin (the user tensor is the Level Zero one) are reallocated when the batch size
+        // changes. Only tensors set by the user must already have the batch size of the inputs.
+        if (userOutput._ptr.get() == static_cast<const ov::ITensor*>(_levelZeroOutputTensors.at(outputIndex).get())) {
+            continue;
+        }
+
+        const size_t outputBatchSize = userOutput->get_shape()[utils::BATCH_AXIS];
+        if (outputBatchSize != batchSize) {
+            OPENVINO_THROW("Output tensor \"",
+                           _metadata.outputs.at(outputIndex).nodeFriendlyName,
+                           "\" has batch size ",
+                           outputBatchSize,
+                           " while the batch size of the inputs is ",
+                           batchSize,
+                           ". Set an output tensor with the same batch size, or do not set one to let the plugin "
+                           "allocate it.");
         }
     }
+}
+
+bool ZeroInferRequest::is_level_zero_input_batch_matching(const size_t inputIndex, const size_t batchSize) const {
+    return is_level_zero_batch_matching(get_level_zero_input(inputIndex), _metadata.inputs, inputIndex, batchSize);
 }
 
 void ZeroInferRequest::update_batch_size_from_user_inputs() {
@@ -660,10 +749,20 @@ void ZeroInferRequest::update_batch_size_from_user_inputs() {
         }
     }
 
-    // Intentionally read only once, before any set_tensor call below: when several inputs are reshaped, the first
-    // set_tensor updates the graph batch size, and every other reshaped input still has to be synced with the graph.
+    // The inputs decide the batch size: the pipeline creates one command list per sample, so a batch size that is
+    // smaller than the number of samples of the inputs would silently skip samples. The batch size may have been
+    // changed by other setters since the inputs were set (e.g. set_tensor on an output with another batch size, or
+    // set_tensors/set_tensor on a different input), so reconcile it with the inputs before running.
+    if (commonBatchSize.has_value()) {
+        update_dynamic_batch_size(commonBatchSize.value(), false);
+    }
+
+    // The batch size of this request (not the graph one, which is shared with the other requests of the compiled
+    // model), already reconciled with the inputs above. It is read only once, before the set_tensor calls below: those
+    // calls do not change it, since they use the batch size of the same tensors. An input is skipped only if its
+    // Level Zero tensor also has this batch size, so reshaped inputs are still synced.
     // If no batch size was set yet (e.g. the tensors were obtained with get_tensor), the pipeline uses the default one.
-    const size_t graphBatchSize = _graph->get_batch_size().value_or(utils::DEFAULT_BATCH_SIZE);
+    const size_t requestBatchSize = _batchSize.value_or(utils::DEFAULT_BATCH_SIZE);
 
     for (const size_t inputIndex : _dynamicBatchInputs) {
         if (is_batched_input(inputIndex)) {
@@ -676,8 +775,11 @@ void ZeroInferRequest::update_batch_size_from_user_inputs() {
             continue;
         }
 
+        // Having the request batch size is not enough to skip the input: another input might have already updated it
+        // (e.g. through set_tensor) while this one was only reshaped, so its Level Zero tensor must be checked as well.
         const auto& shape = userTensor->get_shape();
-        if (shape.empty() || shape[utils::BATCH_AXIS] == graphBatchSize) {
+        if (shape.empty() || (shape[utils::BATCH_AXIS] == requestBatchSize &&
+                              is_level_zero_input_batch_matching(inputIndex, shape[utils::BATCH_AXIS]))) {
             continue;
         }
 
@@ -723,7 +825,7 @@ void ZeroInferRequest::sync_zero_tensor_with_graph(const ZeroInferRequest::Found
                 _logger.debug("sync_zero_tensor_with_graph - allocate locally L0 tensor");
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "allocate_tensor");
 
-                levelZeroTensor = allocate_tensor(foundPort.idx, foundPort.is_input(), _graph->get_batch_size());
+                levelZeroTensor = allocate_tensor(foundPort.idx, foundPort.is_input(), _batchSize);
                 updateCommandListArg = true;
             } else {
                 _logger.debug("sync_zero_tensor_with_graph - reusing the level zero tensor since it "
@@ -751,7 +853,20 @@ void ZeroInferRequest::sync_zero_tensor_with_graph(const ZeroInferRequest::Found
     } else {
         // If command list updates are not supported, fallback to copying tensors every time.
         if (levelZeroTensor == nullptr) {
-            levelZeroTensor = allocate_tensor(foundPort.idx, foundPort.is_input(), _graph->get_batch_size());
+            levelZeroTensor = allocate_tensor(foundPort.idx, foundPort.is_input(), _batchSize);
+        } else if (foundPort.is_input() && _batchSize.has_value() && _graph->get_kind() != GraphKind::Dynamic &&
+                   _initStructs->getMutableCommandListExtVersion() < ZE_MAKE_VERSION(1, 0) &&
+                   !has_related_shape_tensor(metadata, foundPort.idx) && !levelZeroTensor->get_shape().empty() &&
+                   determine_dynamic_batch_size(_metadata.inputs.at(foundPort.idx),
+                                                _compiledModel->inputs()[foundPort.idx].get_partial_shape(),
+                                                tensor._ptr,
+                                                std::nullopt)
+                       .has_value() &&
+                   levelZeroTensor->get_shape()[utils::BATCH_AXIS] != _batchSize.value()) {
+            // The Level Zero tensor is kept as it is in this mode, but it was allocated for another batch size and
+            // the pipeline cannot use it. Reallocating it for an already running request is not supported with this
+            // driver version.
+            throw_batch_change_not_supported(_metadata.inputs.at(foundPort.idx).nodeFriendlyName);
         }
 
         const auto& userTensorElementType = tensor->get_element_type();
@@ -789,7 +904,7 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
     if (batchSizeCandidate.has_value()) {
         update_dynamic_batch_size(batchSizeCandidate.value(), get_user_inputs(foundPort.idx).size() != tensors.size());
     } else if (_graph->get_kind() != GraphKind::Dynamic) {
-        batchSizeCandidate = _graph->get_batch_size();
+        batchSizeCandidate = _batchSize;
     }
 
     get_user_inputs(foundPort.idx).resize(tensors.size());
@@ -901,7 +1016,7 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
 
     std::optional<size_t> batchSize;
     if (_graph->get_kind() != GraphKind::Dynamic) {
-        batchSize = _graph->get_batch_size();
+        batchSize = _batchSize;
     }
 
     // LIMITATION for dynamic batch implementation:
@@ -942,9 +1057,16 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
                   metadata.nodeFriendlyName.c_str());
 
     auto& levelZeroTensor = isInput ? get_level_zero_input(ioIndex) : _levelZeroOutputTensors.at(ioIndex);
+
+    // Must be checked before the Level Zero tensor is replaced: the user tensor is the Level Zero one if it was
+    // allocated by the plugin, and it has to follow the new allocation. Otherwise it would be mistaken for a tensor
+    // set by the user (with the old batch size) afterwards.
+    const bool userTensorIsPluginAllocated =
+        userTensor._ptr != nullptr && userTensor._ptr.get() == static_cast<const ov::ITensor*>(levelZeroTensor.get());
+
     levelZeroTensor = allocate_tensor(ioIndex, isInput, batchSize);
 
-    if (!_dynamicBatchValueChanged) {
+    if (!_dynamicBatchValueChanged || userTensorIsPluginAllocated) {
         userTensor = levelZeroTensor;
     }
 
@@ -1108,13 +1230,13 @@ void ZeroInferRequest::infer_async() {
 void ZeroInferRequest::prepare_inputs() {
     OV_ITT_TASK_CHAIN(ZERO_INFER, itt::domains::LevelZeroBackend, "infer_async", "prepare_inputs");
 
+    // A user tensor can be reshaped without calling set_tensor again, so make sure the batch size is up to date. The
+    // batch size is per request state, so the graph mutex (shared with the other requests) is not needed here
+    update_batch_size_from_user_inputs();
+    validate_output_batch_sizes();
+
     {
         std::lock_guard<std::mutex> lock(_graph->get_mutex());
-
-        // A user tensor can be reshaped without calling set_tensor again, so make sure the batch size is up to date.
-        // The graph batch size is shared state, so it is read and updated under the graph mutex like in setup_pipeline.
-        // Note: set_tensor does not lock the graph mutex, so calling it from here cannot deadlock.
-        update_batch_size_from_user_inputs();
 
         if (!_pipelineIsCreated || _dynamicBatchValueChanged) {
             OV_ITT_TASK_NEXT(ZERO_INFER, "create_pipeline");
@@ -1129,7 +1251,7 @@ void ZeroInferRequest::prepare_inputs() {
 
     std::optional<size_t> batch_size;
     if (_graph->get_kind() != GraphKind::Dynamic) {
-        batch_size = _graph->get_batch_size();
+        batch_size = _batchSize;
     }
     size_t inputIndex = 0;
     for (const auto& userTensor : _userInputTensors) {

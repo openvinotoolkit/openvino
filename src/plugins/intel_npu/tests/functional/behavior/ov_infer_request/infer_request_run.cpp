@@ -2310,7 +2310,36 @@ TEST_P(DynamicBatchingTests, DynamicBatchGetOutputTensorBeforeReshapeInputTensor
     fillInferAndCheckAddOne(inferenceRequest, inputTensor, 4.f);
 }
 
-// Same as above, but the batch is changed by setting a new input tensor instead of reshaping: the output allocated
+// The output is requested first, then the input is replaced twice with different batch sizes before the first
+// inference: the second set_tensor must not be rejected because of the first one, and the last one must be used
+TEST_P(DynamicBatchingTests, DynamicBatchGetOutputTensorThenReplaceInputTensorTwiceBeforeInfer) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    const auto modelShape = PartialShape{ov::Dimension(1, 16), 3, 224, 224};
+    auto model = createModel(element::f32, modelShape, "N...");
+    ov::CompiledModel compiledModel = core->compile_model(model, target_device, configuration);
+    auto inferenceRequest = compiledModel.create_infer_request();
+
+    auto outputTensorBeforeSet = inferenceRequest.get_output_tensor();
+    ASSERT_EQ(outputTensorBeforeSet.get_shape()[0], 1u);
+
+    ov::Tensor inputTensor2(ov::element::f32, Shape{2, 3, 224, 224});
+    ov::Tensor inputTensor3(ov::element::f32, Shape{3, 3, 224, 224});
+    OV_ASSERT_NO_THROW(inferenceRequest.set_input_tensor(inputTensor2));
+    OV_ASSERT_NO_THROW(inferenceRequest.set_input_tensor(inputTensor3));
+
+    fillInferAndCheckAddOne(inferenceRequest, inputTensor3, 1.f);
+    ASSERT_EQ(inferenceRequest.get_output_tensor().get_shape()[0], 3u);
+
+    // Going back to the first size, and to the same size twice, keeps working
+    OV_ASSERT_NO_THROW(inferenceRequest.set_input_tensor(inputTensor2));
+    OV_ASSERT_NO_THROW(inferenceRequest.set_input_tensor(inputTensor3));
+    OV_ASSERT_NO_THROW(inferenceRequest.set_input_tensor(inputTensor2));
+    fillInferAndCheckAddOne(inferenceRequest, inputTensor2, 2.f);
+}
+
+// Like DynamicBatchGetOutputTensorBeforeReshapeInputTensor, but the batch is changed by setting a new input tensor
+// instead of reshaping: the output allocated
 // with the default batch before the first inference must follow the new batch size
 TEST_P(DynamicBatchingTests, DynamicBatchGetOutputTensorBeforeSetInputTensor) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
@@ -2334,6 +2363,150 @@ TEST_P(DynamicBatchingTests, DynamicBatchGetOutputTensorBeforeSetInputTensor) {
     ov::Tensor biggerInputTensor(ov::element::f32, Shape{12, 3, 224, 224});
     inferenceRequest.set_input_tensor(biggerInputTensor);
     fillInferAndCheckAddOne(inferenceRequest, biggerInputTensor, 6.f);
+}
+
+// Two requests of the same compiled model work with different batch sizes and their inferences are interleaved. The
+// batch size is per request: running one request must not change what the other one is going to run with.
+TEST_P(DynamicBatchingTests, DynamicBatchTwoRequestsInterleavedInferences) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    const auto modelShape = PartialShape{ov::Dimension(1, 10), 2, 64, 64};
+    auto model = createModel(element::f32, modelShape, "N...");
+    ov::CompiledModel compiledModel = core->compile_model(model, target_device, configuration);
+    auto requestA = compiledModel.create_infer_request();
+    auto requestB = compiledModel.create_infer_request();
+
+    ov::Tensor inputA(ov::element::f32, Shape{2, 2, 64, 64});
+    requestA.set_input_tensor(inputA);
+    fillInferAndCheckAddOne(requestA, inputA, 1.f);
+
+    // B gets a batch-5 input, but it does not run yet
+    ov::Tensor inputB(ov::element::f32, Shape{5, 2, 64, 64});
+    requestB.set_input_tensor(inputB);
+
+    // A runs again with its unchanged tensor, between B's set_tensor and B's first inference
+    fillInferAndCheckAddOne(requestA, inputA, 2.f);
+
+    // B must still run with its own batch size
+    fillInferAndCheckAddOne(requestB, inputB, 3.f);
+
+    // Keep alternating
+    for (size_t run = 0; run < 3; ++run) {
+        fillInferAndCheckAddOne(requestA, inputA, 10.f + static_cast<float>(run));
+        fillInferAndCheckAddOne(requestB, inputB, 20.f + static_cast<float>(run));
+    }
+}
+
+// Same, but one of the requests changes its batch (set_shape and set_tensor) while the other one keeps its own
+TEST_P(DynamicBatchingTests, DynamicBatchTwoRequestsInterleavedBatchChanges) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    const auto modelShape = PartialShape{ov::Dimension(1, 10), 2, 64, 64};
+    auto model = createModel(element::f32, modelShape, "N...");
+    ov::CompiledModel compiledModel = core->compile_model(model, target_device, configuration);
+    auto requestA = compiledModel.create_infer_request();
+    auto requestB = compiledModel.create_infer_request();
+
+    ov::Tensor inputA(ov::element::f32, Shape{2, 2, 64, 64});
+    ov::Tensor inputB(ov::element::f32, Shape{5, 2, 64, 64});
+    requestA.set_input_tensor(inputA);
+    requestB.set_input_tensor(inputB);
+    fillInferAndCheckAddOne(requestA, inputA, 1.f);
+    fillInferAndCheckAddOne(requestB, inputB, 2.f);
+
+    for (size_t batch = 3; batch <= 9; ++batch) {
+        // A grows with set_shape, B follows with a new tensor of a different size
+        inputA.set_shape(Shape{batch, 2, 64, 64});
+        ov::Tensor newInputB(ov::element::f32, Shape{10 - batch + 1, 2, 64, 64});
+        requestB.set_input_tensor(newInputB);
+
+        fillInferAndCheckAddOne(requestB, newInputB, static_cast<float>(batch));
+        fillInferAndCheckAddOne(requestA, inputA, static_cast<float>(batch) + 100.f);
+        fillInferAndCheckAddOne(requestB, newInputB, static_cast<float>(batch) + 200.f);
+    }
+}
+
+// After a batch-2 inference, a batch-3 input is set and the output is requested with get_output_tensor() before the
+// next inference. No output was set by the user, so the plugin-allocated output must follow the new batch instead of
+// being rejected as an output with the old batch size, and the tensor returned by the getter must receive the results.
+TEST_P(DynamicBatchingTests, DynamicBatchGetOutputTensorAfterBatchChangeBeforeInfer) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    const auto modelShape = PartialShape{ov::Dimension(1, 10), 2, 64, 64};
+    auto model = createModel(element::f32, modelShape, "N...");
+    ov::CompiledModel compiledModel = core->compile_model(model, target_device, configuration);
+    auto inferenceRequest = compiledModel.create_infer_request();
+
+    ov::Tensor inputTensor2(ov::element::f32, Shape{2, 2, 64, 64});
+    inferenceRequest.set_input_tensor(inputTensor2);
+    fillInferAndCheckAddOne(inferenceRequest, inputTensor2, 1.f);
+
+    ov::Tensor inputTensor3(ov::element::f32, Shape{3, 2, 64, 64});
+    inferenceRequest.set_input_tensor(inputTensor3);
+
+    ov::Tensor outputTensor;
+    OV_ASSERT_NO_THROW(outputTensor = inferenceRequest.get_output_tensor());
+    ASSERT_EQ(outputTensor.get_shape(), (Shape{3, 2, 64, 64}));
+
+    auto* inputData = inputTensor3.data<float>();
+    std::fill(inputData, inputData + inputTensor3.get_size(), 7.f);
+    OV_ASSERT_NO_THROW(inferenceRequest.infer());
+
+    // The tensor obtained before the inference is the one the results were written to
+    const auto* outputData = outputTensor.data<float>();
+    for (size_t j = 0; j < outputTensor.get_size(); ++j) {
+        ASSERT_EQ(outputData[j], 8.f) << "index " << j;
+    }
+
+    // And it is still the output of the request afterwards
+    fillInferAndCheckAddOne(inferenceRequest, inputTensor3, 9.f);
+    ASSERT_EQ(inferenceRequest.get_output_tensor().data(), outputTensor.data());
+}
+
+// After a batch-3 inference, a batch-6 output tensor (imported in Level Zero memory) is bound, shrunk to batch 3 and
+// set again. The second set_tensor call must not be skipped: the backing Level Zero tensor still has batch 6, which
+// would place the results of the 3 samples using the offsets of a batch of 6 samples.
+TEST_P(DynamicBatchingTests, DynamicBatchSetSameOutputTensorAfterShrinkingIt) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    const auto modelShape = PartialShape{ov::Dimension(1, 10), 2, 64, 64};
+    auto model = createModel(element::f32, modelShape, "N...");
+    auto context = core->get_default_context(target_device);
+    ov::CompiledModel compiledModel = core->compile_model(model, target_device, configuration);
+    auto inferenceRequest = compiledModel.create_infer_request();
+
+    const Shape oneSampleShape{1, 2, 64, 64};
+    const size_t oneSampleSize = ov::shape_size(oneSampleShape);
+    auto fillSamples = [&](ov::Tensor& tensor, const size_t batch) {
+        auto* data = tensor.data<float>();
+        for (size_t sample = 0; sample < batch; ++sample) {
+            std::fill(data + sample * oneSampleSize, data + (sample + 1) * oneSampleSize, static_cast<float>(sample));
+        }
+    };
+    auto checkSamples = [&](const ov::Tensor& tensor, const size_t batch) {
+        ASSERT_EQ(tensor.get_shape()[0], batch);
+        const auto* data = tensor.data<float>();
+        for (size_t j = 0; j < batch * oneSampleSize; ++j) {
+            ASSERT_EQ(data[j], static_cast<float>(j / oneSampleSize) + 1.f)
+                << "Sample " << j / oneSampleSize << ", index " << j;
+        }
+    };
+
+    ov::Tensor inputTensor(ov::element::f32, Shape{3, 2, 64, 64});
+    inferenceRequest.set_input_tensor(inputTensor);
+    fillSamples(inputTensor, 3);
+    inferenceRequest.infer();
+    checkSamples(inferenceRequest.get_output_tensor(), 3);
+
+    auto outputTensor = context.create_host_tensor(ov::element::f32, Shape{6, 2, 64, 64});
+    OV_ASSERT_NO_THROW(inferenceRequest.set_output_tensor(outputTensor));
+    outputTensor.set_shape(Shape{3, 2, 64, 64});
+    OV_ASSERT_NO_THROW(inferenceRequest.set_output_tensor(outputTensor));
+
+    fillSamples(inputTensor, 3);
+    inferenceRequest.infer();
+    // The results must be in the tensor set by the user, sample by sample
+    checkSamples(outputTensor, 3);
 }
 
 using ROITensorInference = OVInferRequestInferenceTests;

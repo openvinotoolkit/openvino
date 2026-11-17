@@ -102,9 +102,9 @@ protected:
                                               const std::optional<size_t>& batchSize = std::nullopt);
 
     /**
-     * @brief Updates the batch size of the graph based on the batch size candidate deduced from a user tensor.
-     * Sets the "batch changed" flag if a new pipeline needs to be created. Throws if the candidate does not match the
-     * batch size already set by other tensors in the same inference request.
+     * @brief Updates the batch size of this request based on the batch size candidate deduced from a user tensor.
+     * Sets the "batch changed" flag if a new pipeline needs to be created; the flag is only cleared once the pipeline
+     * is rebuilt. It does not check that the other inputs have the same batch size: that is validated when running.
      *
      * @param batchSizeCandidate Batch size deduced from the new tensor(s)
      * @param tensorSizeChanged Whether the new tensor(s) have a different size than the previous ones
@@ -115,6 +115,21 @@ protected:
      * @brief Checks if any user input with a dynamic batch size was reshaped since the last set_tensor call.
      */
     void update_batch_size_from_user_inputs();
+
+    /**
+     * @brief Checks that the Level Zero tensor of an input (if any) already has the given batch size. Inputs with a
+     * related shape tensor are always considered matching, since their Level Zero tensor is kept at the max shape.
+     *
+     * @param inputIndex Index of the input
+     * @param batchSize Batch size the Level Zero tensor is expected to have
+     */
+    bool is_level_zero_input_batch_matching(size_t inputIndex, size_t batchSize) const;
+
+    /**
+     * @brief Checks that the output tensors set by the user have the batch size decided by the inputs. Outputs never
+     * decide the batch size, they are only validated against it. Throws if one of them does not match.
+     */
+    void validate_output_batch_sizes() const;
 
     virtual void prepare_inputs();
     virtual void prepare_outputs();
@@ -179,8 +194,14 @@ protected:
     std::unique_ptr<IPipeline> _pipeline;
     bool _pipelineIsCreated = false;
     bool _dynamicBatchValueChanged = false;
+    // Batch size this request works with. It is per request on purpose: the graph is shared by all the requests of a
+    // compiled model, so the graph batch size cannot be updated by one request without affecting the others. The
+    // initial value is the one reported by the graph (e.g. the batch detected while compiling the model).
+    std::optional<size_t> _batchSize;
     // Indices of the inputs that have a dynamic batch size (empty for dynamic graphs)
     std::vector<size_t> _dynamicBatchInputs;
+    // Indices of the outputs that follow the batch size of the inputs (empty for dynamic graphs)
+    std::vector<size_t> _dynamicBatchOutputs;
 
     Logger _logger;
 
