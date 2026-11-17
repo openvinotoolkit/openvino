@@ -1062,8 +1062,7 @@ bool hpg_plain_prefill_ok(const kernel_impl_params& params, size_t k_head_size, 
 sdpa_ocl_config_t hpg_pa_prefill_tiling(size_t head_size, bool comp_mixed) {
     sdpa_ocl_config_t t;
     t.subgroup_size = static_cast<int>(get_subgroup_size(gpu_arch::xe_hpg));
-    const bool q32 = comp_mixed && (head_size == 64 || head_size == 96 || head_size == 128 || head_size == 256) &&
-                     env_int("SDPA_OCL_HPG_PA_COMP_Q32", 1) != 0;
+    const bool q32 = comp_mixed && (head_size == 64 || head_size == 96 || head_size == 128 || head_size == 256) && env_int("SDPA_OCL_HPG_PA_COMP_Q32", 1) != 0;
     t.kq_sg_tile_keys = (head_size <= 128 && !q32) ? 32 : 16;
     t.kq_sg_tile_queries = q32 ? 32 : 16;
     t.kq_sg_per_wg_keys = head_size == 64 ? (q32 ? 8 : 4) : head_size == 72 ? 5 : head_size == 96 ? 6 : head_size == 128 ? 8 : head_size == 512 ? 32 : 16;
@@ -1078,8 +1077,7 @@ sdpa_ocl_config_t hpg_pa_prefill_tiling(size_t head_size, bool comp_mixed) {
     // The value columns round up to 16 (head 72: 80), a whole S*V subgroup width.
     const bool split = (t.kq_sg_tile_keys == 16 || t.kq_sg_tile_keys == 32) && solve_sv_split(t, (head_size + 15) / 16 * 16);
     OPENVINO_ASSERT(split && (t.kq_sg_tile_queries == 16 || t.kq_sg_tile_queries == 32) && t.sv_sg_tile_scores == t.kq_sg_tile_queries &&
-                        t.sv_sg_per_wg_values == t.kq_sg_per_wg_keys &&
-                        (t.sv_sg_tile_values == 8 || t.sv_sg_tile_values == 16 || t.sv_sg_tile_values == 32) &&
+                        t.sv_sg_per_wg_values == t.kq_sg_per_wg_keys && (t.sv_sg_tile_values == 8 || t.sv_sg_tile_values == 16 || t.sv_sg_tile_values == 32) &&
                         tiling_fits_device(gpu_arch::xe_hpg, head_size, t),
                     "[GPU] sdpa_ocl: the xe_hpg PA PREFILL tiling (",
                     t.kq_sg_tile_keys,
