@@ -79,7 +79,10 @@ attach_rms_impl::attach_rms_impl() {
 
     auto formats = {
         format::bfyx,
-        format::bfzyx
+        format::bfzyx,
+        // feature-axis only, static only: gated by Registry<rms> (registry/rms_impls.cpp)
+        format::b_fs_yx_fsv16,
+        format::b_fs_zyx_fsv16
     };
 
     implementation_map<rms>::add(impl_types::ocl,
