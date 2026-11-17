@@ -6,100 +6,13 @@
 #include "openvino/core/node.hpp"
 
 #include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/plugin/custom_layer_source.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/simple_math.hpp"
 #include "intel_gpu/primitives/custom_gpu_primitive.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 
 namespace ov::intel_gpu {
-
-template<typename T>
-static inline std::string vecToString(std::vector<T> vec) {
-    if (vec.empty()) {
-        return "";
-    }
-
-    std::string res = std::to_string(vec[0]);
-    for (size_t i = 1; i < vec.size(); i++) {
-        res += "," + std::to_string(vec[i]);
-    }
-    return res;
-}
-
-template<>
-inline std::string vecToString<std::string>(std::vector<std::string> vec) {
-    if (vec.empty()) {
-        return "";
-    }
-
-    std::string res = vec[0];
-    for (size_t i = 1; i < vec.size(); i++) {
-        res += "," + vec[i];
-    }
-    return res;
-}
-
-class CustomLayerAttributeVisitor : public ov::AttributeVisitor {
-public:
-    CustomLayerAttributeVisitor() : m_values({}) { }
-
-    void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
-        OPENVINO_THROW("Attribute ", name, " can't be processed\n");
-    }
-    // The remaining adapter methods fall back on the void adapter if not implemented
-    void on_adapter(const std::string& name, ov::ValueAccessor<std::string>& adapter) override {
-        m_values[name] = adapter.get();
-    }
-    void on_adapter(const std::string& name, ov::ValueAccessor<bool>& adapter) override {
-        m_values[name] = std::to_string(static_cast<int>(adapter.get()));
-    }
-    void on_adapter(const std::string& name, ov::ValueAccessor<int64_t>& adapter) override {
-        m_values[name] = std::to_string(adapter.get());
-    }
-    void on_adapter(const std::string& name, ov::ValueAccessor<double>& adapter) override {
-        m_values[name] = std::to_string(adapter.get());
-    }
-    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<std::string>>& adapter) override {
-        m_values[name] = vecToString(adapter.get());
-    }
-    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<float>>& adapter) override {
-        m_values[name] = vecToString(adapter.get());
-    }
-    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<double>>& adapter) override {
-        m_values[name] = vecToString(adapter.get());
-    }
-    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int8_t>>& adapter) override {
-        m_values[name] = vecToString(adapter.get());
-    }
-    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int16_t>>& adapter) override {
-        m_values[name] = vecToString(adapter.get());
-    }
-    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int32_t>>& adapter) override {
-        m_values[name] = vecToString(adapter.get());
-    }
-    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int64_t>>& adapter) override {
-        m_values[name] = vecToString(adapter.get());
-    }
-    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<uint8_t>>& adapter) override {
-        m_values[name] = vecToString(adapter.get());
-    }
-    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<uint16_t>>& adapter) override {
-        m_values[name] = vecToString(adapter.get());
-    }
-    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<uint32_t>>& adapter) override {
-        m_values[name] = vecToString(adapter.get());
-    }
-    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<uint64_t>>& adapter) override {
-        m_values[name] = vecToString(adapter.get());
-    }
-
-    std::map<std::string, std::string> get_parameters() const {
-        return m_values;
-    }
-
-protected:
-    std::map<std::string, std::string> m_values;
-};
 
 void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, CustomLayerPtr customLayer) {
     if (!p.use_new_shape_infer()) {
@@ -108,22 +21,7 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
-    CustomLayerAttributeVisitor visitor;
-    op->visit_attributes(visitor);
-    auto params = visitor.get_parameters();
-
-    // Handle defines
-    std::string layerDefines;
-    for (const auto& def : customLayer->Defines()) {
-        std::string singleDefine("#define " + def.name + " " + def.prefix);
-        if (params.find(def.param) != params.end()) {
-            singleDefine += params.at(def.param);
-        } else {
-            singleDefine += def.default_value;
-        }
-        singleDefine += def.postfix + "\n";
-        layerDefines.append(singleDefine);
-    }
+    const auto kernel_sources = make_custom_layer_source(op, *customLayer);
 
     // reserve
     std::vector<cldnn::input_info> reordered_inputs;
@@ -178,9 +76,6 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
             OPENVINO_THROW("Invalid custom layer param type: ", param.type, " in operation: ", op->get_friendly_name());
         }
     }
-    const std::string layerTitle("\n// Layer " + op->get_friendly_name() + " using Custom Layer " + customLayer->Name() + "\n");
-    const std::string defineTitle("// Custom Layer User Defines\n");
-
     int iidx = customLayer->InputDimSourceIndex();
     OPENVINO_ASSERT(outputFormats.size() == op->get_output_size(), "The number of outputFormats should be same as op->get_output_size().");
 
@@ -242,7 +137,7 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
 
     auto customPrim = cldnn::custom_gpu_primitive(genericLayerName,
                                                   reordered_inputs,
-                                                  {layerTitle, defineTitle, layerDefines, customLayer->KernelSource()},
+                                                  kernel_sources,
                                                   customLayer->KernelEntry(),
                                                   kernelParameters,
                                                   customLayer->CompilerOptions(),
