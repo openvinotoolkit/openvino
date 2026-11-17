@@ -134,7 +134,7 @@ struct ReduceImplementationManager : public ImplementationManager {
             case reduce_mode::sum:
             case reduce_mode::prod:
                 break;
-#ifdef OV_GPU_VENDOR_NVIDIA
+#ifndef OV_GPU_VENDOR_NVIDIA
             case reduce_mode::sum_square:
 #endif
             case reduce_mode::l1:
