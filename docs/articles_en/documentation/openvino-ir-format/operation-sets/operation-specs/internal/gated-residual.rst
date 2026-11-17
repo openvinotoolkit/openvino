@@ -173,6 +173,13 @@ already unpacked to one value per element (signed types sign-extended) or ``None
   * **Default value**: ``false``
   * **Required**: *no*
 
+* *scale_gn*
+
+  * **Description**: Plugin-internal. When true, the scales and zero points of the compressed weights are laid out ``[G, N]`` instead of ``[N, G]``. The GPU plugin sets it when it converts the layout for its kernels; IR producers should leave it unset.
+  * **Type**: ``bool``
+  * **Default value**: ``false``
+  * **Required**: *no*
+
 **Inputs**
 
 Input indices depend on ``mode``. All dimensions below use ``B`` for batch, ``T`` for tokens,

@@ -667,7 +667,7 @@ KERNEL(gr_down_proj_dpas)(const __global ushort* rbar,
                 for (uint i = 0; i < 8; i++) {
                     const uint tok = t0 + m * 8 + i;
                     if (tok < num_tokens) {
-                        write_gate_out[tok * GR_BRANCHES + lane] = as_ushort(convert_half_rte(tmp[i]));
+                        write_gate_out[(size_t)tok * GR_BRANCHES + lane] = as_ushort(convert_half_rte(tmp[i]));
                     }
                 }
             }
@@ -834,7 +834,7 @@ KERNEL(gr_up_proj_dpas)(const __global ushort* t_in,
         for (uint i = 0; i < 8; i++) {
             const uint tok = t0 + m * 8 + i;
             if (tok < num_tokens) {
-                intel_sub_group_block_write_us(mixed + tok * GR_HIDDEN + d0, tmp[i]);
+                intel_sub_group_block_write_us(mixed + (size_t)tok * GR_HIDDEN + d0, tmp[i]);
             }
         }
     }
@@ -956,7 +956,7 @@ KERNEL(gr_up_proj_dpas)(const __global ushort* t_in,
         unroll_for (uint i_ = 0; i_ < 8; i_++) {
             const uint tok = t0 + m_ * 8 + i_;
             if (tok < num_tokens) {
-                intel_sub_group_block_write_us(mixed + tok * GR_HIDDEN + d0, tmp[i_]);
+                intel_sub_group_block_write_us(mixed + (size_t)tok * GR_HIDDEN + d0, tmp[i_]);
             }
         }
     }
@@ -1263,7 +1263,7 @@ KERNEL(gr_up_proj_dpas)(const __global ushort* t_in,
         for (uint i = 0; i < 8; i++) {
             const uint tok = t0 + m * 8 + i;
             if (tok < num_tokens) {
-                intel_sub_group_block_write_us(mixed + tok * GR_HIDDEN + d0, tmp[i]);
+                intel_sub_group_block_write_us(mixed + (size_t)tok * GR_HIDDEN + d0, tmp[i]);
             }
         }
     }

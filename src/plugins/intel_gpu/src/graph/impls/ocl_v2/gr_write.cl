@@ -22,12 +22,12 @@ KERNEL(gr_write)(const __global ushort* residual, const __global ushort* sublaye
         return;
     }
 
-    const float4 gate = convert_float4(as_half4(vload4(0, write_gate + row * GR_BRANCHES)));
-    const GR_FT(GR_WRITE_NV) y = GR_LDF(GR_WRITE_NV, sublayer_y + row * GR_HIDDEN + d0);
+    const float4 gate = convert_float4(as_half4(vload4(0, write_gate + (size_t)row * GR_BRANCHES)));
+    const GR_FT(GR_WRITE_NV) y = GR_LDF(GR_WRITE_NV, sublayer_y + (size_t)row * GR_HIDDEN + d0);
 
     // All branch loads are issued before the first store: residual_out may alias residual (in-place), which would otherwise
     // keep the compiler from moving the next load above the previous store.
-    const uint base = row * GR_BRANCHES * GR_HIDDEN + d0;
+    const size_t base = (size_t)row * GR_BRANCHES * GR_HIDDEN + d0;
     GR_UT(GR_WRITE_NV) r[GR_BRANCHES];
     __attribute__((opencl_unroll_hint)) for (uint c = 0; c < GR_BRANCHES; c++) {
         r[c] = GR_BRU(GR_WRITE_NV, residual + base + c * GR_HIDDEN);

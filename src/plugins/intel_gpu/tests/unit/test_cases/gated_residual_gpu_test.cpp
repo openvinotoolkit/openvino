@@ -984,8 +984,20 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            gr_write_case{37, 256, true}));
 
 // A cached dynamic READ holds the stages of every row-count route; the imported network has to run each of them.
-TEST(gated_residual_caching, dynamic_read_runs_every_row_route) {
-    if (!gr_available()) {
+// decode, mid and wide tilings, then the single kernel, and back (entry 4 is also the static row count)
+const std::vector<size_t> kRowRoutes = {5, 37, 1, 300, 1500, 2};
+
+struct gr_caching_case {
+    bool u4;
+    bool write_gate;
+    bool dynamic;
+};
+
+class gated_residual_caching_test : public ::testing::TestWithParam<gr_caching_case> {};
+
+TEST_P(gated_residual_caching_test, imported_network_runs_every_row_route) {
+    const auto tc = GetParam();
+    if (!(tc.u4 ? gr_compression_available() : gr_available())) {
         GTEST_SKIP() << "no GatedResidual implementation is available on this device";
     }
 
@@ -997,25 +1009,45 @@ TEST(gated_residual_caching, dynamic_read_runs_every_row_route) {
     tests::random_generator rg;
     rg.set_seed(GET_SUITE_NAME);
     const auto gain = random_vec(rg, CD, 0.5f, 1.0f);
-    const auto w_down = random_vec(rg, L * CD, 0.1f);
-    const auto w_up = random_vec(rg, CD * L, 0.1f);
-    const auto w_inject = random_vec(rg, C * CD, 0.1f);
+    std::mt19937 gen(4321);
+    const auto wd = make_quant_matrix(gen, L, CD, true, false, true, 0);
+    const auto wu = make_quant_matrix(gen, CD, L, true, false, true, 0);
+    const auto wi = make_quant_matrix(gen, C, CD, true, false, true, 0);
+    // f16 weights, or the decompressed values of the u4 weights (the reference is the same either way)
+    const auto w_down = tc.u4 ? wd.dequant : random_vec(rg, L * CD, 0.1f);
+    const auto w_up = tc.u4 ? wu.dequant : random_vec(rg, CD * L, 0.1f);
+    const auto w_inject = tc.u4 ? wi.dequant : random_vec(rg, C * CD, 0.1f);
 
     auto& engine = get_test_engine();
     topology topology;
-    topology.add(input_layout("residual", layout{ov::PartialShape{-1, static_cast<int64_t>(CD)}, data_types::f16, format::bfyx}));
+    const int64_t rows_dim = tc.dynamic ? -1 : static_cast<int64_t>(kRowRoutes[4]);
+    topology.add(input_layout("residual", layout{ov::PartialShape{rows_dim, static_cast<int64_t>(CD)}, data_types::f16, format::bfyx}));
     topology.add(data("gain", make_f16(engine, {static_cast<int64_t>(CD)}, gain)));
-    topology.add(data("w_down", make_f16(engine, {static_cast<int64_t>(L), static_cast<int64_t>(CD)}, w_down)));
-    topology.add(data("w_up", make_f16(engine, {static_cast<int64_t>(CD), static_cast<int64_t>(L)}, w_up)));
-    topology.add(data("w_inject", make_f16(engine, {static_cast<int64_t>(C), static_cast<int64_t>(CD)}, w_inject)));
-    topology.add(gated_residual("gr",
-                                {input_info("residual"), input_info("gain"), input_info("w_down"), input_info("w_up"), input_info("w_inject")},
-                                gated_residual::Mode::READ,
-                                C,
-                                D,
-                                L,
-                                1e-6f,
-                                true));
+    std::vector<input_info> inputs = {input_info("residual"), input_info("gain")};
+    auto add_weight = [&](const std::string& id, memory::ptr mem) {
+        topology.add(data(id, mem));
+        inputs.emplace_back(id);
+    };
+    if (tc.u4) {
+        add_weight("w_down", make_quant_weights(engine, wd));
+        add_weight("w_up", make_quant_weights(engine, wu));
+        add_weight("s_down", make_quant_scale(engine, wd));
+        add_weight("s_up", make_quant_scale(engine, wu));
+        add_weight("z_down", make_quant_zp(engine, wd));
+        add_weight("z_up", make_quant_zp(engine, wu));
+        if (tc.write_gate) {
+            add_weight("w_inject", make_quant_weights(engine, wi));
+            add_weight("s_inject", make_quant_scale(engine, wi));
+            add_weight("z_inject", make_quant_zp(engine, wi));
+        }
+    } else {
+        add_weight("w_down", make_f16(engine, {static_cast<int64_t>(L), static_cast<int64_t>(CD)}, w_down));
+        add_weight("w_up", make_f16(engine, {static_cast<int64_t>(CD), static_cast<int64_t>(L)}, w_up));
+        if (tc.write_gate) {
+            add_weight("w_inject", make_f16(engine, {static_cast<int64_t>(C), static_cast<int64_t>(CD)}, w_inject));
+        }
+    }
+    topology.add(gated_residual("gr", inputs, gated_residual::Mode::READ, C, D, L, 1e-6f, tc.write_gate));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
@@ -1023,7 +1055,7 @@ TEST(gated_residual_caching, dynamic_read_runs_every_row_route) {
     network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), true);
 
     // decode, mid and wide tilings, then the single kernel, and back
-    for (const size_t rows : {size_t{5}, size_t{37}, size_t{1}, size_t{300}, size_t{1500}, size_t{2}}) {
+    for (const size_t rows : tc.dynamic ? kRowRoutes : std::vector<size_t>{kRowRoutes[4]}) {
         gr_ref_params p;
         p.rows = rows;
         p.D = D;
@@ -1031,26 +1063,38 @@ TEST(gated_residual_caching, dynamic_read_runs_every_row_route) {
         const auto residual = random_vec(rg, rows * CD, 1.0f);
         std::vector<float> ref_mixed;
         std::vector<float> ref_gate;
-        reference_read(p, residual, gain, w_down, w_up, &w_inject, ref_mixed, ref_gate);
+        reference_read(p, residual, gain, w_down, w_up, tc.write_gate ? &w_inject : nullptr, ref_mixed, ref_gate);
 
         network->set_input_data("residual", make_f16(engine, {static_cast<int64_t>(rows), static_cast<int64_t>(CD)}, residual));
         auto outputs = network->execute();
         // A dynamic output buffer may be larger than the shape of this run, so check the layout and read the used part only.
         const auto inst = network->get_primitive("gr");
         ASSERT_EQ(inst->get_output_layout(0).get_partial_shape(), (ov::PartialShape{static_cast<int64_t>(rows), static_cast<int64_t>(D)})) << "rows=" << rows;
-        ASSERT_EQ(inst->get_output_layout(1).get_partial_shape(), (ov::PartialShape{static_cast<int64_t>(rows), static_cast<int64_t>(C)})) << "rows=" << rows;
         cldnn::mem_lock<ov::float16> mixed(outputs.at("gr").get_memory(), get_test_stream());
         ASSERT_GE(mixed.size(), ref_mixed.size()) << "rows=" << rows;
         for (size_t i = 0; i < ref_mixed.size(); i++) {
             ASSERT_NEAR(static_cast<float>(mixed[i]), ref_mixed[i], 2e-2f) << "mixed mismatch at rows=" << rows << " index=" << i;
         }
-        cldnn::mem_lock<ov::float16> gate(inst->output_memory_ptr(1), get_test_stream());
-        ASSERT_GE(gate.size(), ref_gate.size()) << "rows=" << rows;
-        for (size_t i = 0; i < ref_gate.size(); i++) {
-            ASSERT_NEAR(static_cast<float>(gate[i]), ref_gate[i], 2e-2f) << "write gate mismatch at rows=" << rows << " index=" << i;
+        if (tc.write_gate) {
+            ASSERT_EQ(inst->get_output_layout(1).get_partial_shape(), (ov::PartialShape{static_cast<int64_t>(rows), static_cast<int64_t>(C)}))
+                << "rows=" << rows;
+            cldnn::mem_lock<ov::float16> gate(inst->output_memory_ptr(1), get_test_stream());
+            ASSERT_GE(gate.size(), ref_gate.size()) << "rows=" << rows;
+            for (size_t i = 0; i < ref_gate.size(); i++) {
+                ASSERT_NEAR(static_cast<float>(gate[i]), ref_gate[i], 2e-2f) << "write gate mismatch at rows=" << rows << " index=" << i;
+            }
         }
     }
 }
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         gated_residual_caching_test,
+                         ::testing::Values(gr_caching_case{false, true, true},
+                                           gr_caching_case{false, false, true},
+                                           gr_caching_case{true, true, true},
+                                           gr_caching_case{true, false, true},
+                                           gr_caching_case{false, true, false},
+                                           gr_caching_case{true, false, false}));
 
 // --- ov::Model / ov::Core level tests (plugin pipeline, dynamic rows) ----------
 //
