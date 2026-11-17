@@ -11,6 +11,7 @@
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/rms.hpp>
 
+#include "random_generator.hpp"
 #include "rms_inst.h"
 #include "test_utils.h"
 
@@ -21,7 +22,7 @@ using OutputStorageType = ov::op::internal::DynamicQuantize::OutputStorageType;
 
 class rms_gpu_test : public ::testing::TestWithParam<cldnn::format> {};
 
-template <typename T>
+template <typename T, typename G = T>
 void rms_ref(const memory::ptr input, const memory::ptr gamma, memory::ptr output, float epsilon) {
     auto input_layout = input->get_layout();
 
@@ -33,9 +34,9 @@ void rms_ref(const memory::ptr input, const memory::ptr gamma, memory::ptr outpu
     cldnn::mem_lock<T> src(input, get_test_stream());
     cldnn::mem_lock<T> dst(output, get_test_stream());
 
-    std::unique_ptr<cldnn::mem_lock<T>> weight;
+    std::unique_ptr<cldnn::mem_lock<G>> weight;
     if (gamma) {
-        weight = std::make_unique<cldnn::mem_lock<T>>(gamma, get_test_stream());
+        weight = std::make_unique<cldnn::mem_lock<G>>(gamma, get_test_stream());
     }
     const bool scalar_gamma = gamma && gamma->count() == 1;
 
@@ -1308,3 +1309,48 @@ INSTANTIATE_TEST_SUITE_P(rms_mxfp8,
                          ::testing::Combine(::testing::Values(size_t{32}, size_t{320}, size_t{4096}),
                                             ::testing::Values(data_types::f8e4m3, data_types::f8e5m2),
                                             ::testing::Values(true, false)));
+
+template <typename T, typename G>
+static void run_rms_mixed_gamma_type(const ov::PartialShape& in_shape) {
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+    const auto norm_size = in_shape[in_shape.size() - 1].get_length();
+
+    auto input = engine.allocate_memory({in_shape, ov::element::from<T>(), format::bfyx});
+    auto gamma = engine.allocate_memory({ov::PartialShape{1, norm_size}, ov::element::from<G>(), format::bfyx});
+    auto output_ref = engine.allocate_memory({in_shape, ov::element::from<T>(), format::bfyx});
+    set_values(input, rg.generate_random_1d<T>(input->count(), -2, 2));
+    set_values(gamma, rg.generate_random_1d<G>(gamma->count(), 0, 2));
+    rms_ref<T, G>(input, gamma, output_ref, 1e-5f);
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("gamma", gamma->get_layout()));
+    topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplForcingMap forced{
+        {"rms", ov::intel_gpu::ImplementationDesc{format::bfyx, "rms_gpu_bfyx_opt"}},
+    };
+    config.set_property(ov::intel_gpu::force_implementations(forced));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    network.set_input_data("gamma", gamma);
+    auto output = network.execute().at("rms").get_memory();
+
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ref_ptr(output_ref, get_test_stream());
+    for (size_t i = 0; i < output_ref->count(); ++i) {
+        ASSERT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(output_ref_ptr[i]), 1e-2f) << "i=" << i;
+    }
+}
+
+// IncreasePrecisionForQwenVLMerger converts the RMS input to f32 and keeps gamma in f16
+TEST(rms_gpu_test, rms_test_bfyx_opt_f32_input_f16_gamma) {
+    run_rms_mixed_gamma_type<float, ov::float16>(ov::PartialShape{2, 1, 4096});
+}
+
+TEST(rms_gpu_test, rms_test_bfyx_opt_f16_input_f32_gamma) {
+    run_rms_mixed_gamma_type<ov::float16, float>(ov::PartialShape{2, 1, 4096});
+}
