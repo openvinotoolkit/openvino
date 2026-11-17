@@ -19,6 +19,7 @@
 #include "llm_compiled_model_utils.hpp"
 #include "llm_test_helpers.hpp"
 #include "moe_transformations/moe_topology.hpp"
+#include "npuw_transformations/insert_vocab_sub128.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -32,6 +33,7 @@
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "serialization.hpp"
+#include "transformations/rt_info/decompression.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 #include "whisper/prepare_whisper_model.hpp"
 
@@ -1249,6 +1251,76 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperInt8DisablesWsStageOptions) {
         expect_missing_prop(call->props, "NPUW_CWAI");
         expect_prop(call->props, "NPUW_WEIGHTS_BANK", "whisper-shared");
     }
+}
+
+// Makes the embedding and the LM head (proj_out) of the synthetic Whisper decoder read one u8
+// asymmetric vocabulary, as in an INT4 Whisper model with tied weights. As in a real IR, each reader
+// has its own dequantization over the same constants.
+void share_u8_asym_vocabulary(const std::shared_ptr<ov::Model>& model) {
+    std::shared_ptr<ov::Node> embedding_weight;
+    std::shared_ptr<ov::Node> head;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (node->get_friendly_name() == "model.decoder.embed_tokens.weight") {
+            embedding_weight = node;
+        } else if (ov::is_type<ov::op::v0::MatMul>(node) && node->get_friendly_name() == "proj_out/MatMul") {
+            head = node;
+        }
+    }
+    ASSERT_NE(embedding_weight, nullptr);
+    ASSERT_NE(head, nullptr);
+    const auto vocab_shape = embedding_weight->get_output_shape(0);
+    ASSERT_EQ(head->get_input_shape(1), vocab_shape);
+
+    const ov::Shape channel_shape{vocab_shape[0], 1};
+    auto weight = ov::op::v0::Constant::create(ov::element::u8,
+                                               vocab_shape,
+                                               std::vector<uint8_t>(ov::shape_size(vocab_shape), 200));
+    auto zero_point = ov::op::v0::Constant::create(ov::element::u8,
+                                                   channel_shape,
+                                                   std::vector<uint8_t>(vocab_shape[0], 128));
+    auto scale =
+        ov::op::v0::Constant::create(ov::element::f32, channel_shape, std::vector<float>(vocab_shape[0], 0.01f));
+    auto dequantize = [&]() -> ov::Output<ov::Node> {
+        auto weight_f32 = std::make_shared<ov::op::v0::Convert>(weight, ov::element::f32);
+        auto zero_point_f32 = std::make_shared<ov::op::v0::Convert>(zero_point, ov::element::f32);
+        ov::mark_as_decompression(weight_f32);
+        ov::mark_as_decompression(zero_point_f32);
+        auto shifted = std::make_shared<ov::op::v1::Subtract>(weight_f32, zero_point_f32);
+        return std::make_shared<ov::op::v1::Multiply>(shifted, scale);
+    };
+    for (const auto& reader : embedding_weight->output(0).get_target_inputs()) {
+        reader.replace_source_output(dequantize());
+    }
+    head->input(1).replace_source_output(dequantize());
+}
+
+std::size_t count_sub128_shifts(const std::shared_ptr<ov::Model>& model) {
+    const auto ops = model->get_ordered_ops();
+    return std::count_if(ops.begin(), ops.end(), [](const auto& op) {
+        return op->get_rt_info().count(ov::npuw::NPUW_SUB128_SHIFT_RT_INFO) > 0;
+    });
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperDoesNotUseSharedVocabulary) {
+    auto model = build_whisper_decoder_model();
+    share_u8_asym_vocabulary(model);
+    bool shared = false;
+    ov::npuw::DetectVocabSharing(shared).run_on_model(model->clone());
+    ASSERT_TRUE(shared) << "The test model must have a shared u8 asymmetric vocabulary";
+
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+    ASSERT_NO_THROW(compiled = create_compiled_model(model,
+                                                     {{"NPUW_WHISPER", "YES"},
+                                                      {"NPUW_WHISPER_EOS_TOKEN", "42"},
+                                                      {"NPUW_LLM_VOCAB_ASYM_SHARED", "YES"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& prefill = require_call(recorder, "_prefill");
+    const auto& generate = require_call_containing(recorder, "_kv");
+    EXPECT_EQ(count_sub128_shifts(prefill.model), 0u);
+    EXPECT_EQ(count_sub128_shifts(generate.model), 0u);
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperPreparationAddsKvCacheInputsAndPresentOutputs) {
