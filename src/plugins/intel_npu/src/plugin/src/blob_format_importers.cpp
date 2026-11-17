@@ -518,22 +518,25 @@ void validate_batch_size(const NetworkMetadata& metadata, const std::optional<in
         return;
     }
 
-    // A dynamic batch is known only at inference time, so there is no batch size to compare the schedule with. Any
-    // other non-positive value cannot be produced by a valid export.
+    // Any non-positive value other than the dynamic batch marker cannot be produced by a valid export.
     OPENVINO_ASSERT(batch_size.value() > 0 || batch_size.value() == utils::DYNAMIC_BATCH_SIZE,
                     "The blob metadata declares an invalid batch size: ",
                     batch_size.value());
-    if (batch_size.value() == utils::DYNAMIC_BATCH_SIZE) {
-        return;
-    }
 
-    auto check_descriptors = [&batch_size](const std::vector<IODescriptor>& descriptors, const char* kind) {
+    // The schedule is compiled with a batch of 1 for both a static and a dynamic batch handled by the plugin. The
+    // plugin runs it once per batch slice, advancing the I/O buffers by one slice per execution, so a descriptor which
+    // is not batched would be written out of bounds when the actual batch is greater than 1.
+    const std::string declared_batch_size = batch_size.value() == utils::DYNAMIC_BATCH_SIZE
+                                                ? "a dynamic batch size"
+                                                : "a batch size of " + std::to_string(batch_size.value());
+
+    auto check_descriptors = [&declared_batch_size](const std::vector<IODescriptor>& descriptors, const char* kind) {
         for (const IODescriptor& descriptor : descriptors) {
             // States and shape tensors cannot be combined with the plugin batching: models with variables or with
             // dynamic dimensions other than the batch are compiled by the compiler as a whole
             OPENVINO_ASSERT(!descriptor.isStateInput && !descriptor.isStateOutput && !descriptor.isShapeTensor,
-                            "The blob metadata declares a batch size of ",
-                            batch_size.value(),
+                            "The blob metadata declares ",
+                            declared_batch_size,
                             ", but the ",
                             kind,
                             " \"",
@@ -554,8 +557,8 @@ void validate_batch_size(const NetworkMetadata& metadata, const std::optional<in
             }
 
             OPENVINO_ASSERT(static_cast<size_t>(shape[utils::BATCH_AXIS].get_length()) == utils::DEFAULT_BATCH_SIZE,
-                            "The blob metadata declares a batch size of ",
-                            batch_size.value(),
+                            "The blob metadata declares ",
+                            declared_batch_size,
                             ", but the ",
                             kind,
                             " \"",
