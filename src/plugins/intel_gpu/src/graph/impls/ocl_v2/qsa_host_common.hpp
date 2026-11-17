@@ -131,6 +131,9 @@ inline size_t score_chunk_rows(size_t tokens, size_t capacity_rows, bool whole_t
 /// receives the current chunk_row_begin / chunk_row_end / chunk_tile_count.
 /// A chunk of n rows that spans k sequences covers at most n / dpas_query_tile + 2k query tiles (each sequence may start and
 /// end in a partial tile); `sequences_in_chunk(n)` returns an upper bound of k.
+/// Proof: tiles restart at every sequence start, so with m_j rows of the chunk in sequence j, only the first of them can
+/// begin mid-tile: tiles <= sum_j ceil(m_j / T) + 1 <= ceil(n / T) + k + 1 <= ceil(n / T) + 2k for k >= 1 (T = dpas_query_tile).
+/// These tiles are consecutive from the one holding chunk_row_begin, where the scorer starts.
 /// The stages are re-dispatched per chunk, hence the explicit refresh.
 /// `execute_stage(events, stage)` runs one stage of the owning impl.
 template <class RuntimeParams, class SequencesInChunk, class ExecuteStage>

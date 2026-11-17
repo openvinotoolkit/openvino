@@ -1754,6 +1754,21 @@ TEST(qsa_ops_gpu_test, qwen38_dense_batch_prefill_chunked_scores_match_reference
     run_dense_batch_test(qwen38_dims(), rows, {IndexerPath::Dpas, AttnPath::GqaDpas, 3, budget_bytes}, 3e-3f);
 }
 
+// Short dense rows (5 queries, one partial tile each) under a 16-row budget: 60 rows in chunks [0, 16), [16, 32), [32, 48),
+// [48, 60), each spanning 3-4 batch rows; the last three start mid-row (rows 16, 32, 48 sit at positions 1, 2, 3 of
+// batch rows 3, 6, 9). Here the per-row term of the tile bound dominates: a chunk dispatches
+// ceil(16 / 16) + 2 * (16 / 5 + 2) = 11 of the 12 tiles, starting at the tile that holds its first row.
+// Every row is long enough (> block_topk * r keys) to be scored rather than take the dense-prefix bypass.
+TEST(qsa_ops_gpu_test, qwen38_dense_batch_short_rows_chunked_scores_match_reference) {
+    std::vector<std::pair<size_t, size_t>> rows;
+    for (size_t b = 0; b < 12; b++) {
+        rows.emplace_back(2060 + 7 * b, 5);
+    }
+    const auto budget_bytes = 16 * dense_score_row_bytes(qwen38_dims(), rows);
+    scoped_score_budget budget(budget_bytes);
+    run_dense_batch_test(qwen38_dims(), rows, {IndexerPath::Dpas, AttnPath::GqaDpas, 4, budget_bytes}, 3e-3f);
+}
+
 // Mixed batches (decode + prefill sequences in one call): dpas Q2 with qwen38 dims, the
 // fused non-dpas Q2 with the toy dims (Di = 16 fails the dpas score gate).
 TEST(qsa_ops_gpu_test, qwen38_paged_batch_mixed_matches_reference) {
