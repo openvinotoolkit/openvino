@@ -26,11 +26,7 @@ KERNEL(normalize_gpu_across_spatial_ref)
             }
         }
     }
-    if (norm <= THRESHOLD) {
-        norm = 0;
-    } else {
-        norm = native_powr(norm, -0.5f);
-    }
+    norm = rsqrt(norm);
 
     uint output_idx = OUTPUT_OFFSET + b * OUTPUT_BATCH_PITCH;
 

@@ -30,14 +30,7 @@ KERNEL (normalize_gpu_within_spatial_ref)(
 
     uint output_idx;
 
-    if(norm <= THRESHOLD)
-    {
-        norm = 0;
-    }
-    else
-    {
-        norm = native_powr(norm, -0.5f);
-    }
+    norm = rsqrt(norm);
 
     for (int f = 0; f < INPUT0_FEATURE_NUM; f++)
     {
