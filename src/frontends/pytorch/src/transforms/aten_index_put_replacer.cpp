@@ -50,6 +50,13 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
         auto const_1 = v0::Constant::create(element::i32, Shape{1}, {1});
         auto const_max_int = v0::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int32_t>::max()});
         auto const_neg_1 = v0::Constant::create(element::i32, Shape{}, {-1});
+        // Fold constant-only subgraphs immediately rather than leaving them to later passes.
+        auto try_fold = [&rg](const Output<Node>& output) -> Output<Node> {
+            if (auto folded = ov::util::get_constant_from_source(output)) {
+                return rg.add(folded);
+            }
+            return output;
+        };
 
         auto input = index_op->input_value(0);
         auto input_shape = rg.make<v3::ShapeOf>(input, element::i32);
@@ -198,9 +205,9 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
                     values =
                         rg.make<v0::Unsqueeze>(values, v0::Constant::create(element::i64, Shape{axes.size()}, axes));
                 }
-                values =
+                values = try_fold(
                     rg.make<v1::Transpose>(values,
-                                           v0::Constant::create(element::i64, Shape{values_perm.size()}, values_perm));
+                                           v0::Constant::create(element::i64, Shape{values_perm.size()}, values_perm)));
             }
         }
 
@@ -229,7 +236,7 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
             if (i64_index != indices_inputs.end()) {
                 for (auto& idx : indices_inputs) {
                     if (idx.get_element_type() == element::i32) {
-                        idx = rg.make<v1::ConvertLike>(idx, *i64_index);
+                        idx = try_fold(rg.make<v1::ConvertLike>(idx, *i64_index));
                     }
                 }
             }
@@ -267,8 +274,8 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
                     if (in_rank.is_static() && mask_rank.is_static() && mask_rank.get_length() < in_rank.get_length()) {
                         std::vector<int64_t> axes(in_rank.get_length() - mask_rank.get_length());
                         std::iota(axes.begin(), axes.end(), mask_rank.get_length());
-                        mask =
-                            rg.make<v0::Unsqueeze>(mask, v0::Constant::create(element::i64, Shape{axes.size()}, axes));
+                        mask = try_fold(
+                            rg.make<v0::Unsqueeze>(mask, v0::Constant::create(element::i64, Shape{axes.size()}, axes)));
                     }
                     // A mask selects each element at most once, so accumulation is a plain add.
                     // For booleans, add means logical or, as in aten::add.
@@ -286,14 +293,14 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
                 // then apply masked scatter
                 auto nonzero = rg.make<v3::NonZero>(index);
                 auto input_order = v0::Constant::create(element::i32, Shape{2}, {1, 0});
-                index = rg.make<v1::Transpose>(nonzero, input_order);
+                index = try_fold(rg.make<v1::Transpose>(nonzero, input_order));
                 // Broadcast values to [number of selected elements, input dimensions not covered by the mask].
                 auto index_shape = rg.make<v3::ShapeOf>(index, element::i32);
                 auto const_0_1d = v0::Constant::create(element::i32, Shape{1}, {0});
                 auto num_selected = rg.make<v8::Gather>(index_shape, const_0_1d, const_0);
                 auto mask_rank = rg.make<v8::Gather>(index_shape, const_1, const_0);
                 auto sub_shape = rg.make<v8::Slice>(input_shape, mask_rank, const_max_int, const_1);
-                auto masked_values_shape = rg.make<v0::Concat>(OutputVector{num_selected, sub_shape}, 0);
+                auto masked_values_shape = try_fold(rg.make<v0::Concat>(OutputVector{num_selected, sub_shape}, 0));
                 values = rg.make<v3::Broadcast>(rg.make<v1::ConvertLike>(values, input), masked_values_shape);
                 if (accumulate) {
                     return finish(
