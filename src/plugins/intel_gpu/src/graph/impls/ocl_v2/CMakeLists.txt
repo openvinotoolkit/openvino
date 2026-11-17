@@ -31,7 +31,7 @@ add_custom_command(OUTPUT "${CODEGEN_CACHE_DIR}/${KERNEL_SOURCES}"
                                                       -in_kernels_dir "${CMAKE_CURRENT_SOURCE_DIR}/"
                                                       -in_headers_dir "${MAIN_DIR}/src/kernel_selector/cl_kernels/include"
                                                       -lang "ocl"
-  DEPENDS ${KERNELS} "${CODEGEN_SCRIPT}"
+    DEPENDS ${KERNELS} "${CODEGEN_SCRIPT}" "${CMAKE_CURRENT_SOURCE_DIR}/gguf/gguf_iq_tables.hpp"
   COMMENT "Generating ${CODEGEN_CACHE_DIR}/${KERNEL_SOURCES} ..."
 )
 

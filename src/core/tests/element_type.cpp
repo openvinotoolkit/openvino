@@ -4,14 +4,55 @@
 
 #include "openvino/core/type/element_type.hpp"
 
+#include <array>
 #include <map>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "gtest/gtest.h"
+#include "openvino/core/enum_names.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/util/container_util.hpp"
 
 using namespace ov;
+
+TEST(element_type, gguf_fc_block_geometry) {
+    struct BlockCase {
+        element::Type type;
+        const char* name;
+        size_t elements;
+        size_t bytes;
+    };
+    const std::array<BlockCase, 11> cases{{
+        {element::gguf_q4_k, "gguf_q4_k", 256, 144},
+        {element::gguf_q4_0, "gguf_q4_0", 32, 18},
+        {element::gguf_q4_1, "gguf_q4_1", 32, 20},
+        {element::gguf_q5_k, "gguf_q5_k", 256, 176},
+        {element::gguf_q6_k, "gguf_q6_k", 256, 210},
+        {element::gguf_q8_0, "gguf_q8_0", 32, 34},
+        {element::gguf_q3_k, "gguf_q3_k", 256, 110},
+        {element::gguf_iq2_xs, "gguf_iq2_xs", 256, 74},
+        {element::gguf_iq2_s, "gguf_iq2_s", 256, 82},
+        {element::gguf_iq3_xxs, "gguf_iq3_xxs", 256, 98},
+        {element::gguf_iq3_s, "gguf_iq3_s", 256, 110},
+    }};
+    for (const auto& test_case : cases) {
+        SCOPED_TRACE(test_case.name);
+        EXPECT_EQ(element::Type(test_case.name), test_case.type);
+        EXPECT_EQ(test_case.type.get_type_name(), test_case.name);
+        EXPECT_EQ(as_string(static_cast<element::Type_t>(test_case.type)), test_case.name);
+        EXPECT_EQ(test_case.type.block_elem_count(), test_case.elements);
+        EXPECT_EQ(test_case.type.block_byte_size(), test_case.bytes);
+        EXPECT_TRUE(test_case.type.is_gguf_block());
+        EXPECT_TRUE(test_case.type.is_quantized());
+        EXPECT_FALSE(test_case.type.is_integral());
+        EXPECT_EQ(test_case.type.size(), 1);
+        EXPECT_EQ(util::get_memory_size(test_case.type, 0), 0);
+        EXPECT_EQ(util::get_memory_size(test_case.type, test_case.elements), test_case.bytes);
+        EXPECT_EQ(util::get_memory_size(test_case.type, test_case.elements + 1), 2 * test_case.bytes);
+    }
+    EXPECT_EQ(element::Type("GGUF_Q8_0"), element::gguf_q8_0);
+}
 
 TEST(element_type, from) {
     EXPECT_EQ(element::from<char>(), element::boolean);
@@ -75,6 +116,8 @@ constexpr auto element_type_cases = util::make_array(std::pair{"boolean", elemen
                                                      std::pair{"F4E2M1", element::f4e2m1},
                                                      std::pair{"f8e8m0", element::f8e8m0},
                                                      std::pair{"F8E8M0", element::f8e8m0},
+                                                     std::pair{"gguf_q4_k", element::gguf_q4_k},
+                                                     std::pair{"GGUF_Q4_K", element::gguf_q4_k},
                                                      std::pair{"dynamic", element::dynamic});
 
 constexpr auto element_type_cases_invalid =
@@ -90,6 +133,17 @@ TEST(element_type, from_string_invalid) {
     for (const auto& str : element_type_cases_invalid) {
         OV_EXPECT_THROW(std::ignore = element::Type(str), ov::Exception, testing::_);
     }
+}
+
+TEST(element_type, gguf_block_contract) {
+    EXPECT_EQ(as_enum<element::Type_t>("gguf_q4_k"), element::Type_t::gguf_q4_k);
+    EXPECT_EQ(as_string(element::Type_t::gguf_q4_k), "gguf_q4_k");
+    EXPECT_TRUE(element::gguf_q4_k.is_static());
+    EXPECT_TRUE(element::gguf_q4_k.is_quantized());
+    EXPECT_FALSE(element::gguf_q4_k.is_real());
+    EXPECT_FALSE(element::gguf_q4_k.is_integral());
+    EXPECT_FALSE(element::gguf_q4_k.is_integral_number());
+    EXPECT_EQ(static_cast<int>(element::Type_t::gguf_q4_k), static_cast<int>(element::Type_t::f8e8m0) + 1);
 }
 
 TEST(element_type, from_istringstream) {

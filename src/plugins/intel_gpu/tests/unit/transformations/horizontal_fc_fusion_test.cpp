@@ -10,6 +10,7 @@
 
 #include <string>
 #include <memory>
+#include <cstring>
 
 #include "openvino/core/model.hpp"
 #include "openvino/core/node_vector.hpp"
@@ -35,6 +36,122 @@ using namespace ov::intel_gpu;
 namespace ov {
 namespace test {
 namespace intel_gpu {
+
+TEST(FullyConnectedHorizontalFusionGGUF, PreservesRawRowsAndOutputOrder) {
+    const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, 512});
+    const std::vector<size_t> rows{64, 32, 16};
+    std::vector<std::shared_ptr<ov::op::v0::Constant>> weights;
+    ov::ResultVector results;
+    for (size_t index = 0; index < rows.size(); ++index) {
+        const auto weight = std::make_shared<ov::op::v0::Constant>(ov::element::gguf_q4_1, ov::Shape{rows[index], 512});
+        auto* bytes = const_cast<uint8_t*>(weight->get_data_ptr<uint8_t>());
+        for (size_t offset = 0; offset < weight->get_byte_size(); ++offset) {
+            bytes[offset] = static_cast<uint8_t>(offset * 13 + index * 71);
+        }
+        weights.push_back(weight);
+        const auto absent = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        const auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.0f});
+        const auto fc = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weight, absent, scale, absent);
+        results.push_back(std::make_shared<ov::op::v0::Result>(fc));
+    }
+    const auto model = std::make_shared<ov::Model>(results, ov::ParameterVector{input});
+    ov::pass::Manager manager;
+    manager.register_pass<FullyConnectedHorizontalFusion>();
+    manager.run_passes(model);
+    std::shared_ptr<ov::Node> fused_fc;
+    for (size_t index = 0; index < results.size(); ++index) {
+        const auto split = ov::as_type_ptr<ov::op::v1::VariadicSplit>(results[index]->get_input_node_shared_ptr(0));
+        ASSERT_TRUE(split);
+        const auto fc = ov::as_type_ptr<ov::intel_gpu::op::FullyConnectedCompressed>(split->get_input_node_shared_ptr(0));
+        ASSERT_TRUE(fc);
+        if (fused_fc) {
+            EXPECT_EQ(fused_fc, fc);
+        }
+        fused_fc = fc;
+        const auto weight = ov::as_type_ptr<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(1));
+        ASSERT_TRUE(weight);
+        EXPECT_EQ(weight->get_shape(), (ov::Shape{112, 512}));
+        EXPECT_EQ(weight->get_element_type(), ov::element::gguf_q4_1);
+        const auto lengths = ov::as_type_ptr<ov::op::v0::Constant>(split->get_input_node_shared_ptr(2));
+        ASSERT_TRUE(lengths);
+        const auto split_rows = lengths->cast_vector<int64_t>();
+        const auto port = results[index]->input_value(0).get_index();
+        size_t first_row = 0;
+        for (size_t preceding = 0; preceding < port; ++preceding) {
+            first_row += static_cast<size_t>(split_rows[preceding]);
+        }
+        EXPECT_EQ(split_rows[port], rows[index]);
+        const auto row_bytes = weights[index]->get_byte_size() / rows[index];
+        EXPECT_EQ(std::memcmp(weight->get_data_ptr<uint8_t>() + first_row * row_bytes,
+                              weights[index]->get_data_ptr(), weights[index]->get_byte_size()), 0);
+        EXPECT_TRUE(ov::is_type<ov::intel_gpu::op::Placeholder>(fc->get_input_node_shared_ptr(4)));
+    }
+}
+
+TEST(FullyConnectedHorizontalFusionGGUF, RejectsUnsupportedPatternsWithoutChangingGraph) {
+    for (const bool fuse_mlp : {false, true}) {
+        for (const std::string scenario : {"two", "four", "mixed_type", "other_gguf", "different_k", "different_precision",
+                                           "parameter_weight", "transposed_weight", "scale", "zero_point", "shuffled",
+                                           "different_output", "other_q4_0", "bias", "static_input"}) {
+            SCOPED_TRACE(scenario);
+            SCOPED_TRACE(fuse_mlp);
+            const auto input_shape = scenario == "static_input" ? ov::PartialShape{1, 2, 512} : ov::PartialShape{1, -1, -1};
+            const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
+            ov::ParameterVector parameters{input};
+            std::shared_ptr<ov::op::v1::VariadicSplit> input_split;
+            if (scenario == "different_output") {
+                input_split = std::make_shared<ov::op::v1::VariadicSplit>(
+                    input, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {2}),
+                    ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {512, 512}));
+            }
+            const size_t count = scenario == "two" ? 2 : scenario == "four" ? 4 : 3;
+            ov::NodeVector projections;
+            ov::ResultVector results;
+            for (size_t index = 0; index < count; ++index) {
+                const bool special = index + 1 == count;
+                    const auto type = scenario == "other_q4_0" ? ov::element::gguf_q4_0
+                              : scenario == "other_gguf" || (special && scenario == "mixed_type")
+                                  ? ov::element::gguf_q4_k : ov::element::gguf_q4_1;
+                const size_t columns = special && scenario == "different_k" ? 256 : 512;
+                std::shared_ptr<ov::Node> weight = std::make_shared<ov::op::v0::Constant>(type, ov::Shape{64, columns});
+                if (special && scenario == "parameter_weight") {
+                    const auto parameter = std::make_shared<ov::op::v0::Parameter>(type, ov::Shape{64, columns});
+                    parameters.push_back(parameter);
+                    weight = parameter;
+                }
+                if (special && scenario == "shuffled") {
+                    weight->get_rt_info()["intel_gpu_gguf_weights_shuffled"] = true;
+                }
+                const auto absent = std::make_shared<ov::intel_gpu::op::Placeholder>();
+                std::shared_ptr<ov::Node> bias = absent;
+                if (scenario == "bias") {
+                    bias = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{64}, {1.0f});
+                }
+                const auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1},
+                                                               {special && scenario == "scale" ? 2.0f : 1.0f});
+                std::shared_ptr<ov::Node> zero_point = absent;
+                if (special && scenario == "zero_point") {
+                    zero_point = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{1}, {0});
+                }
+                const ov::Output<ov::Node> activation = input_split ? input_split->output(special ? 1 : 0) : input->output(0);
+                const auto precision = special && scenario == "different_precision" ? ov::element::f16 : ov::element::f32;
+                const auto fc = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(
+                    activation, weight, bias, scale, zero_point, precision, !(special && scenario == "transposed_weight"));
+                projections.push_back(fc);
+                results.push_back(std::make_shared<ov::op::v0::Result>(fc));
+            }
+            const auto model = std::make_shared<ov::Model>(results, parameters);
+            const auto operation_count = model->get_ops().size();
+            ov::pass::Manager manager;
+            manager.register_pass<FullyConnectedHorizontalFusion>(fuse_mlp);
+            manager.run_passes(model);
+            EXPECT_EQ(model->get_ops().size(), operation_count);
+            for (size_t index = 0; index < results.size(); ++index) {
+                EXPECT_EQ(results[index]->get_input_node_shared_ptr(0), projections[index]);
+            }
+        }
+    }
+}
 
 TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_no_bias_no_zp) {
     std::vector<int64_t> pattern = {7, -1};

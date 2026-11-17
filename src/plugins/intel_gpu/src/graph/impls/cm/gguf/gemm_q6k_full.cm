@@ -1,0 +1,725 @@
+/*
+ * gemm_q6k_full.cm -- Dense Q6_K GEMM, unified layout (v7, cooperative).
+ *
+ * fp16 activations, SG-transposed weights, REAL cm_dpas systolic engine
+ *
+ *   - one thread owns the whole K range (no K-split, no SLM reduction, no
+ *     barrier), which both removes the reduction overhead and creates an
+ *     outer K-block loop to pipeline against;
+ *   - each decoded VNNI weight tile pair is consumed by TOKEN_GROUPS dpas
+ *     pairs instead of one, cutting the dequant cost per output element by
+ *     TOKEN_GROUPS (this kernel is dequant-bound, not dpas-bound);
+ *   - activations are streamed 64 B per token per sub-block instead of held
+ *     in a 4 KB register tile, so the accumulators fit without spilling;
+ *   - activations are streamed per sub-block with an LSC 2D block load
+ *     (`block_2d_desc<half,2,8,16>` + `cm_load<lsc::Normal>`, the same
+ *     mechanism the CM SDPA/PagedAttention kernels use for K/V), which
+ *     yields [Alo | Ahi] in dpas operand order with no register moves and
+ *     clamps out-of-range tokens in hardware;
+ *   - PF_W / PF_A issue register-free cache prefetches for the next K-block
+ *     (only useful with COOP_SLM=0, see below);
+ *   - COOP_SLM splits the 8 sub-block decodes of a K-block across the
+ *     TOKEN_LOCAL threads of the work-group and publishes the decoded VNNI
+ *     tiles through a double-buffered SLM ring, so each thread does 1/8 of
+ *     the dequant work instead of all of it. This is the CM SDPA/PA
+ *     cooperative K/V staging pattern (cm_sdpa_common.hpp) applied to
+ *     dequant. TOKEN_LOCAL is therefore a CORRECTNESS requirement now (the
+ *     work-group size must equal the producer count), not just a locality
+ *     hint that made neighbouring threads share weight bytes in L1.
+ *
+ * min-of-N:
+ *   K=N=2048 tok=1024  1.031 -> 0.246 ms  (4.19x, 35.0 TFLOPS)
+ *   K=N=2048 tok=4096  4.119 -> 0.837 ms  (4.92x, 41.1 TFLOPS)
+ *   K=N=4096 tok=1024  3.303 -> 0.859 ms  (3.84x, 40.0 TFLOPS)
+ * COOP_SLM=1 vs COOP_SLM=0:
+ *   K=N=2048 tok=1024  0.234 -> 0.142 ms  (1.65x, 60.5 TFLOPS)
+ *   K=N=2048 tok=4096  0.818 -> 0.470 ms  (1.74x, 73.1 TFLOPS)
+ *   K=N=4096 tok=1024  0.856 -> 0.506 ms  (1.69x, 67.9 TFLOPS)
+ * Q6_K gains the most from BOTH structural changes because it has the
+ * heaviest dequant per decoded tile -- and all three quants land
+ * within a few percent of each other, i.e. the kernel is no longer
+ * dequant-bound. See gemm_q4k_full.cm for the full list of
+ * measured-and-rejected alternatives; they were re-checked here.
+ *
+ * == Weight layout
+ *   pql_T: num_blocks * OPG * 128 bytes
+ *   pqh_T: num_blocks * OPG * 64 bytes
+ *   ps_T:  num_blocks * OPG * 16 bytes
+ *   pd_T:  num_blocks * OPG * 2 bytes
+ *   weights = pql_T || pqh_T || ps_T || pd_T
+ *
+ * Dispatch (see test_dense_gemm_full.py):
+ *   global (threads) = (output_len/OPG, ceil(ntiles/TOKEN_LOCAL)*TOKEN_LOCAL)
+ *   local  (threads) = (1, TOKEN_LOCAL)
+ *   ntiles = ceil(token_len / (8*TOKEN_GROUPS))
+ */
+
+#include <cm/cm.h>
+#include <cm/cmtl.h>
+
+#pragma OPENCL EXTENSION cl_khr_fp16 : enable
+
+#define OPG 16
+#define TOKENS_PER_TILE 8          /* dpas RepeatCount */
+
+#ifdef CM_OUTPUT_F32
+typedef float cm_output_t;
+#define CM_OUTPUT_BYTES 4
+#else
+typedef half cm_output_t;
+#define CM_OUTPUT_BYTES 2
+#endif
+
+/* ---- decode compute precision (v8) -------------------------------------
+ * The SYCL original dequants ENTIRELY in fp16; only the dpas accumulator is
+ * fp32. DECODE_HALF=1 restores that (scale tiles + (q-32)*scale math in half,
+ * accumulators fp32) -- both more faithful and lower GRF pressure.
+ * MEASURED perf-NEUTRAL (0.94-1.02x, ab_decode_half.py): decode temps are not
+ * the occupancy-capping resource. fp16 double-rounding gives rel ~3.5e-4 vs
+ * the fp32-round-once reference (fails the tight test). Default 0. */
+#ifndef DECODE_HALF
+#define DECODE_HALF 0
+#endif
+#if DECODE_HALF
+typedef half  dect_t;
+#else
+typedef float dect_t;
+#endif
+
+/* ---- cooperative SLM weight-decode staging (v7) ------------------------
+ * See gemm_q4k_full.cm for the full rationale: the TOKEN_LOCAL threads of a
+ * work-group share the row group `h` and used to decode the SAME VNNI weight
+ * tiles TOKEN_LOCAL times over; with COOP_SLM they split the sub-blocks of a
+ * phase between them and publish the decoded tiles through an SLM ring, the
+ * way the CM SDPA kernel stages K/V (cm_sdpa_common.hpp).
+ * SLM bytes = SLM_SLOTS * SLM_JBLK * 2 * 512. */
+#ifndef COOP_SLM
+#define COOP_SLM 1
+#endif
+
+/* ---- N-blocking: ROW_GROUPS row groups per thread (see gemm_q4k_full.cm for
+ * the ablation that motivates it and the full measurement table). The A tile
+ * of a given (sub-block, token group) is the same for every weight row group,
+ * so owning ROW_GROUPS of them makes each A load feed ROW_GROUPS times as many
+ * dpas. SLM_JBLK is halved with it so the ring stays at 16 KB/work-group
+ * (= 8 work-groups per Xe-core). Q6_K measures 1.11-1.15x on the big shapes
+ * (K=N=4096 tok>=4096, or tok=8192), neutral-to-0.89x on small ones. */
+#ifndef ROW_GROUPS
+#define ROW_GROUPS 2
+#endif
+#if ROW_GROUPS > 1 && !COOP_SLM
+#error "ROW_GROUPS > 1 requires COOP_SLM"
+#endif
+
+#ifndef ROW_BLOCKS
+#define ROW_BLOCKS 1               /* row-group blocks per work-group; >1 lets
+                                    * the threads sharing a token slot share
+                                    * the activation tile in L1. See
+                                    * gemm_q4k_full.cm. */
+#endif
+#if ROW_BLOCKS > 1 && !COOP_SLM
+#error "ROW_BLOCKS > 1 requires COOP_SLM"
+#endif
+
+#ifndef SLM_JBLK
+#if ROW_GROUPS > 1
+#define SLM_JBLK 4                 /* RG*JBLK tile pairs per phase = TOKEN_LOCAL */
+#else
+#define SLM_JBLK 8                 /* sub-blocks per phase (8 = 1 K-block)   */
+#endif
+#endif
+#ifndef SLM_DEPTH
+#define SLM_DEPTH 1                /* phases produced ahead of consumption   */
+#endif
+#ifndef SLM_SLOTS
+#define SLM_SLOTS 2                /* ring depth (>= DEPTH+1 full-barrier,
+                                      >= DEPTH+2 split-barrier)              */
+#endif
+#ifndef SLM_FULLBAR
+#define SLM_FULLBAR 1              /* 1 = cm_barrier, 0 = cm_sbarrier split  */
+#endif
+
+#ifndef TOKEN_GROUPS
+#define TOKEN_GROUPS 4             /* dpas pairs fed by one decoded tile */
+#endif
+#ifndef TOKEN_LOCAL
+#if COOP_SLM
+#define TOKEN_LOCAL 8              /* = producers per phase */
+#else
+#define TOKEN_LOCAL 4              /* threads/work-group sharing one row group */
+#endif
+#endif
+#ifndef WALK_HBLK
+#define WALK_HBLK 0                /* 0/1 = plain walker; remap measured slower */
+#endif
+#ifndef PF_W
+#if COOP_SLM
+#define PF_W 0                     /* redundant once staging runs a phase ahead */
+#else
+#define PF_W 2                     /* 256 B cm_ptr_prefetch's of K-block kb+1's payload */
+#endif
+#endif
+#ifndef PF_A
+#if COOP_SLM && ROW_GROUPS == 1
+#define PF_A 0                     /* measured a net loss at ROW_GROUPS=1 */
+#else
+#define PF_A 1                     /* 1.01-1.08x once ROW_GROUPS=2 halved the A
+                                    * traffic; see gemm_q4k_full.cm */
+#endif
+#endif
+#ifndef A_LOAD_2D
+#define A_LOAD_2D 1                /* 1 = lsc 2D block load for the dpas A operands */
+#endif
+#ifndef CONS_DBUF
+#define CONS_DBUF 0                /* consumer SLM-read double-buffer: MEASURED
+                                    * A/B net loss -- 1.05x at tok=1024/K=2048
+                                    * but 0.96-0.98x at tok=4096 and K=4096.
+                                    * The extra 1 KB tile pair pushes past the
+                                    * spill cliff (Peak occ already 0.8) and the
+                                    * 8x-unrolled jl loop already lets the
+                                    * compiler overlap the SLM reads. Kept as a
+                                    * knob; do not re-enable by default. */
+#endif
+#if CONS_DBUF && ROW_GROUPS > 1
+#error "CONS_DBUF is only implemented for ROW_GROUPS == 1"
+#endif
+
+#ifndef SLM_PAD
+#define SLM_PAD 0                                /* per-tile SLM stride pad (bytes); shifts bank mapping */
+#endif
+#ifndef MERGE_STORE
+#define MERGE_STORE 1              /* one contiguous ROW_GROUPS*OPG store per token */
+#endif
+#ifndef A_OUTER
+#define A_OUTER 0                  /* 1 = hold the activation tiles and stream
+                                    * B one row group at a time, so live B does
+                                    * not scale with ROW_GROUPS. See
+                                    * gemm_q4k_full.cm. */
+#endif
+#define SLM_NPROD   (SLM_JBLK * ROW_GROUPS * ROW_BLOCKS)  /* tile pairs per phase */
+#define TOKEN_SLOTS (TOKEN_LOCAL / ROW_BLOCKS)   /* distinct token tiles per WG */
+#define SLM_TILE_B  ((8 * 32 * 2) + SLM_PAD)     /* VNNI tile STRIDE (data=512B, +pad); r/w size from vector */
+#define SLM_PHASE_B (SLM_NPROD * 2 * SLM_TILE_B) /* Blo+Bhi per (row group, sub-block) */
+#define SLM_TOTAL_B (SLM_SLOTS * SLM_PHASE_B)
+#define SLM_JPS     (8 / SLM_JBLK)               /* phases per K-block      */
+
+#define TOKENS_PER_THREAD (TOKENS_PER_TILE * TOKEN_GROUPS)
+
+/* A 2D block descriptor tops out at 32 rows. */
+#if TOKENS_PER_THREAD > 32
+#define PFA_ROWS 32
+#else
+#define PFA_ROWS TOKENS_PER_THREAD
+#endif
+#define PFA_SETS (TOKENS_PER_THREAD / PFA_ROWS)
+
+/* Decode all 4 chunks of one sub-block in ONE SIMD64 pass.
+ * See gemm_q4k_full.cm's q4k_vnni_decode for the full rationale: pql_T
+ * stores chunk c at +c*64 bytes, so the 64 consecutive uints in `q` are
+ * exactly [c=0..3][n=0..15] and the same 8 bit-field extractions run once at
+ * SIMD64 instead of 4x at SIMD16. Destination is the strided 2D region
+ * .select<4,2,16,2>(kpair, kbit) of the VNNI tile.
+ *
+ * HL, HH: pqh_T lanes for the lo/hi halves of this (blk, j).
+ * clo_j, chi_j: per-row scale x d for the lo/hi halves.
+ * The upper-2-bit shift is (8*k3 + 2c); pre-applying the >>2c part when
+ * replicating H means each extraction only shifts by a scalar immediate and
+ * no per-element c vector has to stay live. */
+_GENX_ inline void q6k_vnni_decode(
+    vector<uint, 4*OPG> q,
+    vector<uint, OPG> HL, vector<uint, OPG> HH,
+    vector<dect_t, 4*OPG> clo4, vector<dect_t, 4*OPG> chi4,
+    vector_ref<half, 8*32> Blo, vector_ref<half, 8*32> Bhi)
+{
+    vector<uint, 4*OPG> HLs, HHs;
+    #pragma unroll
+    for (int c = 0; c < 4; c++) {
+        HLs.select<OPG,1>(c*OPG) = HL >> (uint)(2*c);
+        HHs.select<OPG,1>(c*OPG) = HH >> (uint)(2*c);
+    }
+
+    matrix_ref<half, 8, 32> Bl = Blo.format<half, 8, 32>();
+    matrix_ref<half, 8, 32> Bh = Bhi.format<half, 8, 32>();
+
+    /* k3=0..3 use upper-bit shifts 2c+0, 2c+8, 2c+16, 2c+24 */
+    { vector<dect_t,4*OPG> r=(q & 0xFu);     r+=(HLs&3u)<<4;        r=(r-(dect_t)32.0f)*clo4; Bl.select<4,2,16,2>(0,0)=r.format<dect_t,4,OPG>(); }
+    { vector<dect_t,4*OPG> r=((q>>8) &0xFu); r+=((HLs>>8 )&3u)<<4;  r=(r-(dect_t)32.0f)*clo4; Bl.select<4,2,16,2>(0,1)=r.format<dect_t,4,OPG>(); }
+    { vector<dect_t,4*OPG> r=((q>>16)&0xFu); r+=((HLs>>16)&3u)<<4;  r=(r-(dect_t)32.0f)*clo4; Bl.select<4,2,16,2>(1,0)=r.format<dect_t,4,OPG>(); }
+    { vector<dect_t,4*OPG> r=((q>>24)&0xFu); r+=((HLs>>24)&3u)<<4;  r=(r-(dect_t)32.0f)*clo4; Bl.select<4,2,16,2>(1,1)=r.format<dect_t,4,OPG>(); }
+    { vector<dect_t,4*OPG> r=((q>>4) &0xFu); r+=(HHs&3u)<<4;        r=(r-(dect_t)32.0f)*chi4; Bh.select<4,2,16,2>(0,0)=r.format<dect_t,4,OPG>(); }
+    { vector<dect_t,4*OPG> r=((q>>12)&0xFu); r+=((HHs>>8 )&3u)<<4;  r=(r-(dect_t)32.0f)*chi4; Bh.select<4,2,16,2>(0,1)=r.format<dect_t,4,OPG>(); }
+    { vector<dect_t,4*OPG> r=((q>>20)&0xFu); r+=((HHs>>16)&3u)<<4;  r=(r-(dect_t)32.0f)*chi4; Bh.select<4,2,16,2>(1,0)=r.format<dect_t,4,OPG>(); }
+    { vector<dect_t,4*OPG> r=((q>>28)&0xFu); r+=((HHs>>24)&3u)<<4;  r=(r-(dect_t)32.0f)*chi4; Bh.select<4,2,16,2>(1,1)=r.format<dect_t,4,OPG>(); }
+}
+
+extern "C" _GENX_MAIN_ void gemm_q6k_full(
+    half*  inputs  [[type("svmptr_t")]],   /* [token_len * input_len]  fp16 */
+    uchar* weights [[type("svmptr_t")]],   /* pql_T||pqh_T||ps_T||pd_T      */
+    cm_output_t* outputs [[type("svmptr_t")]],   /* [token_len * output_len] */
+    uint token_len,
+    uint input_len,
+    uint output_len
+#ifdef CM_POST_OPS_DECLS
+    CM_POST_OPS_DECLS
+#endif
+)
+{
+    const uint nbpr       = input_len / 256;
+    const uint num_blocks = input_len * output_len / 256;
+
+    /* ---- thread walker remap: keep a WALK_HBLK-wide band of row groups
+     * L2-resident while token tiles sweep past it (see header). ---------- */
+    uint gh = cm_group_id(0);
+    uint gt = cm_group_id(1);
+#if WALK_HBLK > 1
+    {
+        const uint nh = cm_group_count(0);
+        const uint nt = cm_group_count(1);
+        if ((nh % WALK_HBLK) == 0) {
+            const uint lin  = gt * nh + gh;      /* driver walks dim0 fastest */
+            const uint band = WALK_HBLK * nt;
+            const uint hb   = lin / band;
+            const uint rem  = lin - hb * band;
+            gt = rem / WALK_HBLK;
+            gh = hb * WALK_HBLK + (rem - gt * WALK_HBLK);
+        }
+    }
+#endif
+    const uint lid = cm_local_id(1);
+    const uint rb = lid % ROW_BLOCKS;
+    const uint ts = lid / ROW_BLOCKS;
+    const uint h0 = (gh * ROW_BLOCKS + rb) * ROW_GROUPS;
+    const uint t = gt * TOKEN_SLOTS + ts;
+
+    const uint tile_base = t * TOKENS_PER_THREAD;
+    const uint tok_max   = token_len - 1;
+
+    uchar* pql_base = weights;
+    uchar* pqh_base = weights + num_blocks * 128u;
+    uchar* ps_base  = weights + num_blocks * 192u;
+    uchar* pd_base  = weights + num_blocks * 208u;
+
+    vector<float, TOKENS_PER_TILE * OPG> acc[ROW_GROUPS * TOKEN_GROUPS];
+    #pragma unroll
+    for (int i = 0; i < ROW_GROUPS * TOKEN_GROUPS; i++) acc[i] = 0.0f;
+
+#if PF_A
+    /* [PFA_ROWS rows x 32 halves] activation prefetch window; out-of-range
+     * rows are clamped by the surface height. */
+    lsc::block_2d_desc<half, 1, PFA_ROWS, 32> pfA(
+        inputs, token_len - 1, input_len * (uint)sizeof(half) - 1,
+        input_len * (uint)sizeof(half) - 1, 0, (int)tile_base);
+#endif
+#if A_LOAD_2D
+    /* 2 blocks x [8 tokens x 16 halves]: one load yields [Alo | Ahi]. */
+    lsc::block_2d_desc<half, 2, TOKENS_PER_TILE, 16> b2dA(
+        inputs, token_len - 1, input_len * (uint)sizeof(half) - 1,
+        input_len * (uint)sizeof(half) - 1, 0, 0);
+#endif
+
+#if COOP_SLM
+    /* ================= cooperative decode through an SLM ring ============
+     * phase s  <->  (K-block s/SLM_JPS, sub-block window s%SLM_JPS).
+     * Producer: thread `lid` decodes sub-blocks lid, lid+TOKEN_LOCAL, ... of
+     * the window into slot (s & SLM_SLOTS-1); every thread then reads all
+     * SLM_JBLK tile pairs back and feeds TOKEN_GROUPS dpas pairs each.
+     * See gemm_q4k_full.cm for the barrier protocol proof. */
+    cm_slm_init(SLM_TOTAL_B);
+    uint slm = cm_slm_alloc(SLM_TOTAL_B);
+
+    const uint nstages = nbpr * SLM_JPS;
+
+    auto stage_fn = [&](int s) {
+        if (s >= (int)nstages) return;
+        const uint sbase = ((uint)s & (SLM_SLOTS - 1)) * SLM_PHASE_B;
+        const uint kb    = (uint)s / SLM_JPS;
+        const uint jb    = (uint)s - kb * SLM_JPS;
+
+#if SLM_NPROD >= TOKEN_LOCAL
+        #pragma unroll
+        for (int u = 0; u < SLM_NPROD / TOKEN_LOCAL; u++) {
+            const uint w = lid + (uint)u * TOKEN_LOCAL;
+#else
+        if (lid < SLM_NPROD) {
+            const uint w = lid;
+#endif
+            /* work item w -> (row block rbp, row group rg, sub-block jl) */
+            const uint rgj = ROW_GROUPS * SLM_JBLK;
+            const uint rbp = w / rgj;
+            const uint rem2 = w - rbp * rgj;
+            const uint rg  = rem2 / SLM_JBLK;
+            const uint jl  = rem2 - rg * SLM_JBLK;
+            const uint blk = ((gh * ROW_BLOCKS + rbp) * ROW_GROUPS + rg) * nbpr + kb;
+            const uint j   = jb * SLM_JBLK + jl;
+
+            vector<uint, OPG/2> pd_u = cm_ptr_load<uint, OPG/2>((uint*)pd_base, blk * (OPG * 2u));
+            vector<half, OPG> dh = pd_u.format<half>();
+            vector<float, OPG> dF; dF = dh;
+
+            const uint pql_byte = blk * (OPG * 128u);
+            const uint pqh_byte = blk * (OPG * 64u);
+            const uint ps_byte  = blk * (OPG * 16u);
+
+            vector<uint, 4*OPG> q =
+                cm_ptr_load<uint, 4*OPG>((uint*)pql_base, pql_byte + j * 256u);
+
+            vector<uint, OPG/4> sc_lo_u =
+                cm_ptr_load<uint, OPG/4>((uint*)ps_base, ps_byte + (2*j+0) * 16u);
+            vector<uint, OPG/4> sc_hi_u =
+                cm_ptr_load<uint, OPG/4>((uint*)ps_base, ps_byte + (2*j+1) * 16u);
+            vector<char, OPG> sc_lo = sc_lo_u.format<char>();
+            vector<char, OPG> sc_hi = sc_hi_u.format<char>();
+            vector<float, OPG> sc_lo_f, sc_hi_f; sc_lo_f = sc_lo; sc_hi_f = sc_hi;
+            vector<float, OPG> clo_j = dF * sc_lo_f;
+            vector<float, OPG> chi_j = dF * sc_hi_f;
+
+            vector<uint, OPG> HL =
+                cm_ptr_load<uint, OPG>((uint*)pqh_base, pqh_byte + (j*2+0) * 64u);
+            vector<uint, OPG> HH =
+                cm_ptr_load<uint, OPG>((uint*)pqh_base, pqh_byte + (j*2+1) * 64u);
+
+            vector<dect_t, 4*OPG> clo4, chi4;
+            #pragma unroll
+            for (int c = 0; c < 4; c++) {
+                clo4.select<OPG,1>(c*OPG) = clo_j;
+                chi4.select<OPG,1>(c*OPG) = chi_j;
+            }
+
+            vector<half, 8*32> Blo, Bhi;
+            q6k_vnni_decode(q, HL, HH, clo4, chi4, Blo, Bhi);
+            cm_slm_block_write(slm, (int)(sbase + (w * 2 + 0) * SLM_TILE_B), Blo);
+            cm_slm_block_write(slm, (int)(sbase + (w * 2 + 1) * SLM_TILE_B), Bhi);
+        }
+    };
+
+    #pragma unroll
+    for (int d = 0; d < SLM_DEPTH; d++) stage_fn(d);
+#if !SLM_FULLBAR
+    cm_slm_fence(CM_LOCAL_BARRIER);
+    cm_sbarrier(1);
+#endif
+
+    for (uint s = 0; s < nstages; s++) {
+#if SLM_FULLBAR
+        cm_slm_fence(CM_LOCAL_BARRIER);
+        cm_barrier();
+#else
+        cm_fence(CM_LOCAL_BARRIER);
+        cm_sbarrier(0);
+        if (s + 1 < nstages) cm_sbarrier(1);
+#endif
+
+        stage_fn((int)s + SLM_DEPTH);
+
+        const uint kb = s / SLM_JPS;
+        const uint jb = s - kb * SLM_JPS;
+#if PF_A
+        if (jb == 0 && kb + 1 < nbpr) {
+            #pragma unroll
+            for (int r = 0; r < PFA_SETS; r++) {
+                pfA.set_block_y((int)(tile_base + r * PFA_ROWS));
+                #pragma unroll
+                for (int p = 0; p < PF_A; p++)
+                    cm_prefetch<CacheHint::Cached, CacheHint::Cached>(
+                        pfA.set_block_x((int)((kb + 1) * 256u) + p * 32));
+            }
+        }
+#endif
+        const uint sbase = (s & (SLM_SLOTS - 1)) * SLM_PHASE_B;
+
+#if CONS_DBUF
+        /* ---- consumer-side SLM double-buffer: issue the SLM read for
+         * sub-block jl+1 BEFORE consuming jl, so the SLM read latency
+         * overlaps jl's dpas chain instead of stalling it. Profiling showed
+         * the consumer was SBID-stall bound (~0.5-0.74 of all cycles) with
+         * XMX active only ~0.36-0.53: the cm_slm_block_read sat directly on
+         * the dpas critical path. `jl` is a compile-time constant in this
+         * fully-unrolled loop, so cur/nxt and Btile[cur]/Btile[nxt] resolve
+         * statically; the double buffer costs one extra tile pair (1 KB). */
+        vector<half, 8*32> Blo2[2], Bhi2[2];
+        cm_slm_block_read(slm, GENX_NONE, (int)(sbase + 0u * SLM_TILE_B), Blo2[0]);
+        cm_slm_block_read(slm, GENX_NONE, (int)(sbase + 1u * SLM_TILE_B), Bhi2[0]);
+
+        #pragma unroll
+        for (int jl = 0; jl < SLM_JBLK; jl++) {
+            const int cur = jl & 1;
+            const int nxt = cur ^ 1;
+            if (jl + 1 < SLM_JBLK) {
+                cm_slm_block_read(slm, GENX_NONE,
+                    (int)(sbase + (uint)((jl + 1) * 2 + 0) * SLM_TILE_B), Blo2[nxt]);
+                cm_slm_block_read(slm, GENX_NONE,
+                    (int)(sbase + (uint)((jl + 1) * 2 + 1) * SLM_TILE_B), Bhi2[nxt]);
+            }
+
+            const int j = (int)jb * SLM_JBLK + jl;
+            #pragma unroll
+            for (int tg = 0; tg < TOKEN_GROUPS; tg++) {
+                vector<half, 2 * TOKENS_PER_TILE * 16> A2;
+                b2dA.set_block_y((int)(tile_base + tg * TOKENS_PER_TILE));
+                cm_load<lsc::Normal>(A2, b2dA.set_block_x((int)(kb * 256u) + j * 32));
+                auto Alo = A2.select<TOKENS_PER_TILE * 16, 1>(0);
+                auto Ahi = A2.select<TOKENS_PER_TILE * 16, 1>(TOKENS_PER_TILE * 16);
+                acc[tg] = cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                              acc[tg], Blo2[cur].format<int32_t>(), Alo.format<int32_t>());
+                acc[tg] = cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                              acc[tg], Bhi2[cur].format<int32_t>(), Ahi.format<int32_t>());
+            }
+        }
+#else
+#if A_OUTER
+        /* hold A, stream B: live B is one tile pair regardless of ROW_GROUPS */
+        #pragma unroll
+        for (int jl = 0; jl < SLM_JBLK; jl++) {
+            const int j = (int)jb * SLM_JBLK + jl;
+            vector<half, 2 * TOKENS_PER_TILE * 16> A2[TOKEN_GROUPS];
+            #pragma unroll
+            for (int tg = 0; tg < TOKEN_GROUPS; tg++) {
+                b2dA.set_block_y((int)(tile_base + tg * TOKENS_PER_TILE));
+                cm_load<lsc::Normal>(A2[tg], b2dA.set_block_x((int)(kb * 256u) + j * 32));
+            }
+            #pragma unroll
+            for (int rg = 0; rg < ROW_GROUPS; rg++) {
+                const uint ti = (rb * ROW_GROUPS + (uint)rg) * SLM_JBLK + (uint)jl;
+                vector<half, 8*32> Blo, Bhi;
+                cm_slm_block_read(slm, GENX_NONE,
+                    (int)(sbase + (ti * 2 + 0) * SLM_TILE_B), Blo);
+                cm_slm_block_read(slm, GENX_NONE,
+                    (int)(sbase + (ti * 2 + 1) * SLM_TILE_B), Bhi);
+                #pragma unroll
+                for (int tg = 0; tg < TOKEN_GROUPS; tg++) {
+                    auto Alo = A2[tg].select<TOKENS_PER_TILE * 16, 1>(0);
+                    auto Ahi = A2[tg].select<TOKENS_PER_TILE * 16, 1>(TOKENS_PER_TILE * 16);
+                    acc[rg * TOKEN_GROUPS + tg] =
+                        cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                            acc[rg * TOKEN_GROUPS + tg], Blo.format<int32_t>(), Alo.format<int32_t>());
+                    acc[rg * TOKEN_GROUPS + tg] =
+                        cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                            acc[rg * TOKEN_GROUPS + tg], Bhi.format<int32_t>(), Ahi.format<int32_t>());
+                }
+            }
+        }
+#else
+        #pragma unroll
+        for (int jl = 0; jl < SLM_JBLK; jl++) {
+            /* ROW_GROUPS tile pairs live at once; each is fed by the SAME A
+             * register, which is what halves the activation traffic. */
+            vector<half, 8*32> Blo[ROW_GROUPS], Bhi[ROW_GROUPS];
+            #pragma unroll
+            for (int rg = 0; rg < ROW_GROUPS; rg++) {
+                const uint ti = (rb * ROW_GROUPS + (uint)rg) * SLM_JBLK + (uint)jl;
+                cm_slm_block_read(slm, GENX_NONE,
+                    (int)(sbase + (ti * 2 + 0) * SLM_TILE_B), Blo[rg]);
+                cm_slm_block_read(slm, GENX_NONE,
+                    (int)(sbase + (ti * 2 + 1) * SLM_TILE_B), Bhi[rg]);
+            }
+
+            const int j = (int)jb * SLM_JBLK + jl;
+            #pragma unroll
+            for (int tg = 0; tg < TOKEN_GROUPS; tg++) {
+                vector<half, 2 * TOKENS_PER_TILE * 16> A2;
+                b2dA.set_block_y((int)(tile_base + tg * TOKENS_PER_TILE));
+                cm_load<lsc::Normal>(A2, b2dA.set_block_x((int)(kb * 256u) + j * 32));
+                auto Alo = A2.select<TOKENS_PER_TILE * 16, 1>(0);
+                auto Ahi = A2.select<TOKENS_PER_TILE * 16, 1>(TOKENS_PER_TILE * 16);
+                #pragma unroll
+                for (int rg = 0; rg < ROW_GROUPS; rg++) {
+                    acc[rg * TOKEN_GROUPS + tg] =
+                        cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                            acc[rg * TOKEN_GROUPS + tg], Blo[rg].format<int32_t>(), Alo.format<int32_t>());
+                    acc[rg * TOKEN_GROUPS + tg] =
+                        cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                            acc[rg * TOKEN_GROUPS + tg], Bhi[rg].format<int32_t>(), Ahi.format<int32_t>());
+                }
+            }
+        }
+#endif /* A_OUTER */
+#endif /* CONS_DBUF */
+    }
+#else
+
+    for (uint kb = 0; kb < nbpr; kb++) {
+        const uint blk = h0 * nbpr + kb;
+        /* ---- register-free software pipeline: pull the NEXT K-block into
+         * cache without allocating a destination GRF, so its latency
+         * overlaps this iteration's dequant + dpas work. (The same thing
+         * done by loading early into registers spills and is much slower --
+         * see gemm_q4k_full.cm's header.) */
+#if PF_W
+        if (kb + 1 < nbpr) {
+            #pragma unroll
+            for (int p = 0; p < PF_W; p++)
+                cm_ptr_prefetch<64, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(
+                    (const unsigned*)pql_base, (blk + 1) * (OPG * 128u) + p * 256u);
+            #pragma unroll
+            for (int p = 0; p < 2; p++)
+                cm_ptr_prefetch<64, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(
+                    (const unsigned*)pqh_base, (blk + 1) * (OPG * 64u) + p * 256u);
+            cm_ptr_prefetch<64, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(
+                (const unsigned*)ps_base, (blk + 1) * (OPG * 16u));
+        }
+#endif
+#if PF_A
+        if (kb + 1 < nbpr) {
+            #pragma unroll
+            for (int r = 0; r < PFA_SETS; r++) {
+                pfA.set_block_y((int)(tile_base + r * PFA_ROWS));
+                #pragma unroll
+                for (int p = 0; p < PF_A; p++)
+                    cm_prefetch<CacheHint::Cached, CacheHint::Cached>(
+                        pfA.set_block_x((int)((kb + 1) * 256u) + p * 32));
+            }
+        }
+#endif
+        /* per-row fp16 super-scale d */
+        vector<uint, OPG/2> pd_u = cm_ptr_load<uint, OPG/2>((uint*)pd_base, blk * (OPG * 2u));
+        vector<half, OPG> dh = pd_u.format<half>();
+        vector<float, OPG> dF; dF = dh;
+
+        const uint pql_byte = blk * (OPG * 128u);
+        const uint pqh_byte = blk * (OPG * 64u);
+        const uint ps_byte  = blk * (OPG * 16u);
+        const uint a_koff   = kb * 256u * (uint)sizeof(half);
+
+        #pragma unroll
+        for (int j = 0; j < 8; j++) {
+            vector<uint, 4*OPG> q = cm_ptr_load<uint, 4*OPG>((uint*)pql_base, pql_byte + j*256);
+
+            /* scale factors: lo half (sc[2j]) and hi half (sc[2j+1]) per row */
+            vector<uint, OPG/4> sc_lo_u = cm_ptr_load<uint, OPG/4>((uint*)ps_base, ps_byte + (2*j+0)*16);
+            vector<uint, OPG/4> sc_hi_u = cm_ptr_load<uint, OPG/4>((uint*)ps_base, ps_byte + (2*j+1)*16);
+            vector<char, OPG> sc_lo = sc_lo_u.format<char>();
+            vector<char, OPG> sc_hi = sc_hi_u.format<char>();
+            vector<float, OPG> sc_lo_f, sc_hi_f; sc_lo_f = sc_lo; sc_hi_f = sc_hi;
+            vector<float, OPG> clo_j = dF * sc_lo_f;
+            vector<float, OPG> chi_j = dF * sc_hi_f;
+
+            vector<uint, OPG> HL = cm_ptr_load<uint, OPG>((uint*)pqh_base, pqh_byte + (j*2+0)*64);
+            vector<uint, OPG> HH = cm_ptr_load<uint, OPG>((uint*)pqh_base, pqh_byte + (j*2+1)*64);
+
+            vector<dect_t, 4*OPG> clo4, chi4;
+            #pragma unroll
+            for (int c = 0; c < 4; c++) {
+                clo4.select<OPG,1>(c*OPG) = clo_j;
+                chi4.select<OPG,1>(c*OPG) = chi_j;
+            }
+
+            vector<half, 8*32> Blo, Bhi;
+            q6k_vnni_decode(q, HL, HH, clo4, chi4, Blo, Bhi);
+
+            /* ONE decoded tile pair feeds TOKEN_GROUPS dpas pairs */
+            #pragma unroll
+            for (int tg = 0; tg < TOKEN_GROUPS; tg++) {
+#if A_LOAD_2D
+                /* One 2D block load pulls both dpas A-operands for all 8
+                 * tokens of this group: NBlocks=2 stacks the j*32+0 and
+                 * j*32+16 column blocks along X, so the result vector is
+                 * already [Alo | Ahi] with no register moves, and the surface
+                 * height clamps out-of-range tokens for free. */
+                vector<half, 2 * TOKENS_PER_TILE * 16> A2;
+                b2dA.set_block_y((int)(tile_base + tg * TOKENS_PER_TILE));
+                cm_load<lsc::Normal>(A2, b2dA.set_block_x((int)(kb * 256u) + j * 32));
+                auto Alo = A2.select<TOKENS_PER_TILE * 16, 1>(0);
+                auto Ahi = A2.select<TOKENS_PER_TILE * 16, 1>(TOKENS_PER_TILE * 16);
+#else
+                vector<half, TOKENS_PER_TILE * 16> Alo, Ahi;
+                #pragma unroll
+                for (int i = 0; i < TOKENS_PER_TILE; i++) {
+                    /* clamp rather than branch: out-of-range tokens accumulate
+                     * garbage that is simply never stored */
+                    uint tok = tile_base + tg * TOKENS_PER_TILE + i;
+                    tok = (tok < token_len) ? tok : tok_max;
+                    const uint ab = tok * input_len * (uint)sizeof(half) + a_koff + j * 64u;
+                    vector<half, 32> ah =
+                        cm_ptr_load<uint, 16>((uint*)inputs, ab).format<half>();
+                    Alo.select<16,1>(i*16) = ah.select<16,1>(0);
+                    Ahi.select<16,1>(i*16) = ah.select<16,1>(16);
+                }
+#endif
+                acc[tg] = cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                              acc[tg], Blo.format<int32_t>(), Alo.format<int32_t>());
+                acc[tg] = cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                              acc[tg], Bhi.format<int32_t>(), Ahi.format<int32_t>());
+            }
+        }
+    }
+#endif /* COOP_SLM */
+
+#if MERGE_STORE
+    #pragma unroll
+    for (int tg = 0; tg < TOKEN_GROUPS; tg++) {
+        #pragma unroll
+        for (int i = 0; i < TOKENS_PER_TILE; i++) {
+            uint tok = tile_base + tg * TOKENS_PER_TILE + i;
+            if (tok < token_len) {
+                vector<float, ROW_GROUPS * OPG> ov;
+                #pragma unroll
+                for (int rg = 0; rg < ROW_GROUPS; rg++)
+                    ov.select<OPG, 1>(rg * OPG) =
+                        acc[rg * TOKEN_GROUPS + tg].select<OPG, 1>(i * OPG);
+#if CM_POST_OPS_NUM > 0
+                /* Vectorized post-ops: mutate the WHOLE 'ov' vector in a
+                 * couple of SIMD instructions -- never a per-lane scalar
+                 * loop (that regressed perf badly: unrolled over
+                 * ROW_GROUPS*OPG lanes x up to TOKEN_GROUPS*TOKENS_PER_TILE
+                 * token stores = hundreds of scalar ops, plus non-coalesced
+                 * scalar loads of the fused operand). */
+                { const uint _po_base = tok * output_len + h0 * OPG;
+                  #ifdef CM_APPLY_POST_OP_0
+                  CM_APPLY_POST_OP_0(ov, _po_base, ROW_GROUPS * OPG)
+                  #endif
+                  #ifdef CM_APPLY_POST_OP_1
+                  CM_APPLY_POST_OP_1(ov, _po_base, ROW_GROUPS * OPG)
+                  #endif
+                  #ifdef CM_APPLY_POST_OP_2
+                  CM_APPLY_POST_OP_2(ov, _po_base, ROW_GROUPS * OPG)
+                  #endif
+                }
+#endif
+                vector<cm_output_t, ROW_GROUPS * OPG> ov_h = ov;
+#ifdef CM_OUTPUT_F32
+                cm_ptr_store<float, ROW_GROUPS * OPG>((float*)outputs,
+                    (tok * output_len + h0 * OPG) * (uint)sizeof(float), ov_h);
+#else
+                cm_ptr_store<uint, ROW_GROUPS * OPG / 2>((uint*)outputs,
+                    (tok * output_len + h0 * OPG) * (uint)sizeof(half), ov_h.format<uint>());
+#endif
+            }
+        }
+    }
+#else
+    #pragma unroll
+    for (int rg = 0; rg < ROW_GROUPS; rg++) {
+        #pragma unroll
+        for (int tg = 0; tg < TOKEN_GROUPS; tg++) {
+            #pragma unroll
+            for (int i = 0; i < TOKENS_PER_TILE; i++) {
+                uint tok = tile_base + tg * TOKENS_PER_TILE + i;
+                if (tok < token_len) {
+                    vector<float, OPG> ov_rg = acc[rg * TOKEN_GROUPS + tg].select<OPG, 1>(i * OPG);
+#if CM_POST_OPS_NUM > 0
+                    { const uint _po_base = tok * output_len + (h0 + (uint)rg) * OPG;
+                      #ifdef CM_APPLY_POST_OP_0
+                      CM_APPLY_POST_OP_0(ov_rg, _po_base, OPG)
+                      #endif
+                      #ifdef CM_APPLY_POST_OP_1
+                      CM_APPLY_POST_OP_1(ov_rg, _po_base, OPG)
+                      #endif
+                      #ifdef CM_APPLY_POST_OP_2
+                      CM_APPLY_POST_OP_2(ov_rg, _po_base, OPG)
+                      #endif
+                    }
+#endif
+                    { vector<cm_output_t, OPG> ov_out = ov_rg;
+#ifdef CM_OUTPUT_F32
+                      cm_ptr_store<float, OPG>((float*)outputs,
+                          (tok * output_len + (h0 + rg) * OPG) * (uint)sizeof(float), ov_out); }
+#else
+                      cm_ptr_store<uint, OPG / 2>((uint*)outputs,
+                          (tok * output_len + (h0 + rg) * OPG) * (uint)sizeof(half), ov_out.format<uint>()); }
+#endif
+                }
+            }
+        }
+    }
+#endif
+}

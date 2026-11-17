@@ -347,6 +347,7 @@ public:
     bool is_constant() const { return _is_constant; }
     bool needs_completion_event() const { return _needs_completion_event; }
     bool has_unfused_subgraph() const { return (_unfused_subgraph != nullptr); }
+    const network* get_unfused_subgraph_if_exists() const { return _unfused_subgraph.get(); }
     bool has_node() const { return _node != nullptr; }
     bool has_inner_networks() const;
     void allocate_internal_buffers(bool reset = true);

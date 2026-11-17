@@ -1055,6 +1055,41 @@ TEST(prepare_buffer_fusing, do_runtime_in_place_crop_skips_non_propagatable_resh
     ASSERT_FALSE(crop_inst->can_be_optimized());
 }
 
+TEST(prepare_buffer_fusing, preupdated_shape_refreshes_changed_dependencies) {
+    auto& engine = get_test_engine();
+    const auto dynamic_layout = layout{ov::PartialShape{-1, 4}, data_types::f32, format::bfyx};
+    topology topology(
+        input_layout("input", dynamic_layout),
+        input_layout("factor", dynamic_layout),
+        eltwise("product", {input_info("input"), input_info("factor")}, eltwise_mode::prod));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(false));
+    network network(engine, topology, config);
+
+    for (int64_t rows : {2, 3}) {
+        const auto concrete_layout = layout{ov::PartialShape{rows, 4}, data_types::f32, format::bfyx};
+        auto input_memory = engine.allocate_memory(concrete_layout);
+        auto factor_memory = engine.allocate_memory(concrete_layout);
+        set_values<float>(input_memory, std::vector<float>(rows * 4, 3.0f));
+        set_values<float>(factor_memory, std::vector<float>(rows * 4, 2.0f));
+        network.set_input_data("input", input_memory);
+        network.set_input_data("factor", factor_memory);
+        if (rows == 3) {
+            PrimitiveInstTestHelper::set_update_shape_done_by_other(network.get_primitive("product"), true);
+        }
+
+        auto outputs = network.execute();
+        auto output_memory = outputs.at("product").get_memory();
+        ASSERT_EQ(output_memory->get_layout().get_partial_shape(), concrete_layout.get_partial_shape());
+        cldnn::mem_lock<float> output_values(output_memory, get_test_stream());
+        for (size_t index = 0; index < static_cast<size_t>(rows * 4); ++index) {
+            EXPECT_EQ(output_values[index], 6.0f);
+        }
+    }
+}
+
 TEST(prepare_buffer_fusing, in_place_crop_axis1_rank_reducing_to_1d_not_optimized) {
     auto& engine = get_test_engine();
 

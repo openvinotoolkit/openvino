@@ -35,7 +35,7 @@ For a logical weight shape `[..., K]` and group size `G`, the decompression grap
 as `[..., K/G, G]` and scales/zero points as `[..., K/G, 1]`. It computes
 `weight = (code - zero_point) * scale`, or `code * scale` for symmetric formats, then reshapes
 back to `[..., K]`. Codes, scales and zero points are separate Constants. GGUF type identifiers
-select the import algorithm; they do not become new OpenVINO element types.
+select the default import algorithm; they do not become new OpenVINO element types in that path.
 
 Sub-byte Constants remain packed: `u1` holds eight binary codes per byte, with the first element
 in the most significant bit. `u2` holds four codes per byte, and `i4`/`u4` hold two per byte,
@@ -117,6 +117,122 @@ Code 3 retains a grouped Constant and the existing GPU fallback, using 36 bytes 
 Projections sharing an activation input retain grouped zero points if any projection needs
 that fallback, including a singleton group. This keeps their layouts compatible with
 horizontal fusion without changing plugins; all-ternary projection groups remain scalar.
+
+## Experimental Raw GPU Loading
+
+`OV_GGUF_NATIVE_WEIGHTS=1` opts the file-based FrontEnd loader into preserving Q4_K,
+Q5_K, Q6_K, Q8_0, Q4_0 and Q4_1 blocks. This also applies to GenAI with `GGUF_READER="FRONTEND"`.
+The variable is an internal experimental control, not a stable FrontEnd property or
+GenAI configuration option. Unset or `0` retains the default decomposed representation;
+other values are rejected. Use a matching runtime/frontend/GPU build, not an older install.
+
+The internal `GGUFLoadOptions` fields select raw formats independently and default
+to false; the existing `GGUFLoadOptions{true}` still selects only Q4_K. A preserved tensor
+uses the corresponding `gguf_*` element type and logical shape, with scales/minima inside
+the original bytes and no separate scale/zero-point tensors. Tensor/Constant ownership
+retains the file mapping. Each row must contain whole blocks; file bounds and checked
+element/byte counts apply before creating a view. Other formats retain their default path.
+
+The appended `preserve_q3_k` field additionally permits explicit internal file-to-FC
+loading of Q3_K (GGUF type 11, 110 bytes per 256 values). The existing OCL FC reads its
+raw blocks; default large-M prefill can transcode to F16. Q3_K has no raw Gather, SG or
+CM implementation and is not added to the environment variable's six-format selection.
+Its file regression checks F32/F16 inference, shuffle on/off without selecting SG,
+dynamic input rebinding and actual raw/transcode stages against existing ggml fixtures.
+Unsupported GetRows and other raw consumers remain rejected. This is not a full Q3_K
+checkpoint or GenAI support claim; the default Q3_K decomposed path is unchanged.
+
+The appended `preserve_iq2_xs` field permits explicit internal file-to-FC loading
+of IQ2_XS (GGUF type 17, 74 bytes per 256 values). It uses the existing raw OCL FC
+and default large-M F16 transcode, without adding Gather, SG or CM support.
+IQ2_XS is not part of the environment variable's six-format selection. There is
+no default decomposed IQ2_XS representation: unset/false, independent opt-out and
+the old `{true}` option continue to reject this format. Its file regression uses
+independent ggml CPU quantize/to_float fixtures with fixed provenance in
+[iq2_xs_fixture.json](../tests/test_data/iq2_xs_fixture.json), checks F32/F16
+inference, dynamic rebinding and actual raw/transcode stages, and verifies OCL
+fallback when CM is requested. This is not a full IQ2_XS checkpoint or GenAI
+support claim; no model-specific graph or default threshold is changed.
+
+The appended `preserve_iq2_s` field provides the same explicit internal file-to-FC
+path for IQ2_S (GGUF type 22, 82 bytes per 256 values), using the existing raw OCL
+and default large-M F16 transcode implementations. Default loading, independent
+opt-out and the old `{true}` option still reject IQ2_S; no compatible decomposed
+representation is added. The format is not included in the global six-format
+selection and does not gain Gather, SG or CM support. Its F32/F16 dynamic file
+regression uses independent ggml CPU fixtures with provenance in
+[iq2_s_fixture.json](../tests/test_data/iq2_s_fixture.json), checks actual
+raw/transcode stages and verifies OCL fallback when CM is requested. This is
+not a full IQ2_S checkpoint or GenAI support claim.
+
+The appended `preserve_iq3_xxs` field permits explicit internal file-to-FC loading
+of IQ3_XXS (GGUF type 18, 98 bytes per 256 values), reusing the existing raw OCL
+and default large-M F16 transcode implementations. Default loading, independent
+opt-out and the old `{true}` option continue to reject this format; no decomposed
+representation is added. It is not included in the global six-format selection
+and has no Gather, SG or CM support. Independent ggml CPU fixtures and fixed
+provenance are recorded in
+[iq3_xxs_fixture.json](../tests/test_data/iq3_xxs_fixture.json). The F32/F16 dynamic
+file regression checks actual raw/transcode stages and safe OCL fallback when CM
+is requested. This is not a full IQ3_XXS checkpoint or GenAI support claim.
+
+The appended `preserve_iq3_s` field provides explicit internal file-to-FC loading
+for IQ3_S (GGUF type 21, 110 bytes per 256 values), using the existing raw OCL
+and default large-M F16 transcode implementations. Default loading, independent
+opt-out and the old `{true}` option still reject IQ3_S; no decomposed representation
+is added. The format is not part of the global six-format selection and does not
+gain Gather, SG or CM support. Its F32/F16 dynamic file regression uses independent
+ggml CPU fixtures with provenance in
+[iq3_s_fixture.json](../tests/test_data/iq3_s_fixture.json), checks actual
+raw/transcode stages and verifies OCL fallback when CM is requested. This is not
+a full IQ3_S checkpoint or GenAI support claim.
+
+For the six formats selected by the environment variable, supported raw consumers are
+ordinary MatMul and embedding GetRows with nonempty static 2D weights. MatMul uses the
+existing internal `FullyConnectedCompressed`; frontend
+activation/output semantics remain F32, while device precision conversion can select F16.
+GPU lowering flattens rank-4 activations and restores their dynamic leading dimensions.
+Embedding GetRows uses `GatherCompressed`; the source GPU kernel decodes selected rows
+to F16, followed by an explicit conversion to the frontend's F32 output. This does not
+recover precision lost in the F16 decode. Special view/transpose MatMul, special GetRows
+cases and other raw consumers are rejected. MoE is not enabled by this dense path.
+
+Whole-row weight splitting preserves block bytes. Column permutations must also move
+whole quantization blocks; otherwise existing non-permuted execution is retained.
+SG shuffle is lossless repacking. With the source defaults, large prefill batches use
+F16 transcode plus GEMM rather than native block computation; preserving raw input does
+not mean every inference stage computes directly from GGUF blocks. The default prefill
+threshold is 32 flattened activation rows. Model accuracy requires independent validation.
+
+For rank-4 raw FC outputs with singleton leading dimensions, GPU lowering can move a
+same-rank, same-channel NumPy Add/Multiply before the output shape restore, preserving
+row broadcasting. Actual fusion remains subject to implementation and runtime shape
+checks; static OCL may execute the binary operation separately. The file-based regression
+checks sum/prod followed by ReLU, not that every post-op is fused or every shape is supported.
+
+A single-input Swish with default beta can also move before the rank-4 output
+shape restore when the FC has no effective bias and no other consumers. Unlike
+binary broadcasting, this elementwise operation does not require singleton
+leading dimensions, so a dynamic batch is allowed. The original output shape
+is retained. This exposes the existing FC post-op implementation without changing
+modeling or guaranteeing a performance gain; actual fusion and numerical acceptance
+must still be checked for the selected runtime path.
+
+The GGUF kernels do not consume the FC primitive's bias input. GPU lowering represents a
+nonempty, nonzero public `FullyConnectedCompressed` bias as an Add after the FC output
+shape is restored. Leading singleton dimensions align the bias for late-introduced
+NumPy broadcasting; parameter bias remains a runtime input. Empty optional inputs and
+exactly zero Constants need no Add. Constant channel-wise Adds must not be folded into
+the GGUF primitive's unread bias slot. They can execute as supported eltwise post-ops
+or remain separate, with the existing shape and implementation guards unchanged.
+This does not add native bias support to private GPU FC primitives or guarantee CM
+bias fusion. Six-format F16/F32 GPU regressions cover nonuniform constant/parameter
+bias, constant Add, static/dynamic shapes and same-shape fresh input buffers. Rank-4
+bias execution is also checked with leading batch dimensions of 1 and 2, both alone
+and before Add/Multiply followed by ReLU. The reference preserves the FC, bias and
+post-op rounding order. Flattened FC row counts determine execution thresholds,
+not an individual rank-4 dimension. These checks do not establish every bias shape;
+a full-model pass alone does not prove that the model exercises nonzero bias.
 
 ## Floating-point formats
 

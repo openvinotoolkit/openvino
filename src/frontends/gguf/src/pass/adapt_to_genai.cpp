@@ -53,6 +53,7 @@
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "ov_ops/fully_connected_compressed.hpp"
 #include "pass/simplify_activation_shapes.hpp"
 #include "utils.hpp"
 
@@ -680,11 +681,12 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // genai's gather/slice-before-matmul only finds the LM head as Result <- MatMul (optionally
     // behind Add / Transpose / Divide -> Tanh -> Multiply) with a rank-3 input. Without it, PA
     // prefill projects every prompt token to vocab, which exhausts GPU memory at long context.
-    std::shared_ptr<v0::MatMul> lm_head;
+    std::shared_ptr<ov::Node> lm_head;
     std::vector<std::shared_ptr<ov::Node>> head_chain;  // ops between the head and the Result
     for (auto out = logits_src; head_chain.size() < 4;) {
         const auto node = out.get_node_shared_ptr();
-        if ((lm_head = ov::as_type_ptr<v0::MatMul>(node))) {
+        if (ov::is_type<v0::MatMul>(node) || ov::is_type<ov::op::internal::FullyConnectedCompressed>(node)) {
+            lm_head = node;
             break;
         }
         if (ov::is_type<v0::Unsqueeze>(node) || ov::is_type<v1::Reshape>(node)) {
@@ -714,6 +716,9 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
             make_shared<v1::Reshape>(lm_head->input_value(0), hidden_3d_shape, false);  // [batch, seq, hidden]
         lm_head->input(0).replace_source_output(hidden_3d);
         lm_head->revalidate_and_infer_types();
+        if (ov::is_type<ov::op::internal::FullyConnectedCompressed>(lm_head)) {
+            lm_head->get_rt_info()["gguf_lm_head"] = true;
+        }
         // Softcap (x * (1/cap) -> tanh -> * cap): scalar constants keep the chain rank-3, and the
         // first scale becomes x / cap, the form genai matches (MatMul -> Divide -> Tanh).
         for (auto it = head_chain.rbegin(); it != head_chain.rend(); ++it) {

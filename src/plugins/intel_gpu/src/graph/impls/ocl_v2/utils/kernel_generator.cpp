@@ -102,7 +102,7 @@ KernelData KernelGenerator::get_kernel_data(const RuntimeParams& params) const {
     kd.code->options = get_build_options(params);
     kd.code->batch_compilation = true;
     kd.code->has_microkernels = false;
-    kd.code->str = build_code(m_kernel_name, jit, kd.code->entry_point);
+    kd.code->str = build_code(m_template_name, jit, kd.code->entry_point);
 
     kd.params.arguments = get_arguments_desc(params);
     kd.params.layerID = params.desc->id;

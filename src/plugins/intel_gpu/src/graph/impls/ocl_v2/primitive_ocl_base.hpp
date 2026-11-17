@@ -316,15 +316,18 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         OPENVINO_ASSERT(kernels.size() == 1, "Only the kernels of the single primitive should be allowed.");
         auto& kernel_vec = kernels.begin()->second;
         for (auto& [kernel, sub_kernel_idx] : kernel_vec) {
-            // sub_kernel_idx is a LOCAL index (0..get_kernels_source().size()-1), i.e. a position
-            // within the source list returned by get_kernels_source(), which iterates `_order` -
-            // it is NOT a global `_stages` index. Multi-stage impls (any node whose add_stage()
-            // calls registered more than one stage, or a single-stage node whose stage isn't at
-            // _stages[0]) need
-            // the same local->global translation init_kernels()/init_by_cached_kernels() already do
-            // via `_order[i]`, otherwise this silently binds the compiled kernel to the wrong Stage
-            // object (or leaves the real stage's kernel null) - a guaranteed crash on execute().
-            _stages[_order[sub_kernel_idx]]->kernel = kernel;
+            OPENVINO_ASSERT(sub_kernel_idx < _order.size(),
+                            "[GPU] Invalid kernel part index: ",
+                            sub_kernel_idx,
+                            ", order size: ",
+                            _order.size());
+            const auto stage_idx = _order[sub_kernel_idx];
+            OPENVINO_ASSERT(stage_idx < _stages.size(),
+                            "[GPU] Invalid stage index: ",
+                            stage_idx,
+                            ", stages size: ",
+                            _stages.size());
+            _stages[stage_idx]->kernel = kernel;
         }
     }
 

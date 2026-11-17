@@ -25,6 +25,8 @@
 #include "openvino/op/slice.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "ov_ops/fully_connected_compressed.hpp"
+#include "ov_ops/gather_compressed.hpp"
 #include "quant/weights.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -204,6 +206,9 @@ GgufWeight source_rows(const GgufWeight& source, size_t first, size_t count) {
 
 std::shared_ptr<ov::Node> materialize_plan(const WeightPlan& plan) {
     const auto& first_source = plan.runs.front().source();
+    if (first_source.preserve_raw && plan.runs.size() == 1 && plan.runs.front().first == 0 &&
+        plan.runs.front().count == first_source.shape[0] && plan.columns.empty() && plan.shape == first_source.shape)
+        return make_weight_node(first_source);
     auto output = allocate_gguf_weight(first_source, plan.shape);
     const auto outputs = components(output);
     size_t begin = 0;
@@ -246,6 +251,8 @@ std::shared_ptr<ov::Node> materialize_plan(const WeightPlan& plan) {
         }
         begin = end;
     }
+    if (first_source.preserve_raw)
+        return std::make_shared<ov::op::v0::Constant>(output.weight);
     return make_weight_node(output, first_source.qtype, first_source.source_name);
 }
 
@@ -350,6 +357,49 @@ void gather_packed_rows(const std::shared_ptr<ov::Model>& model) {
     }
 }
 
+void lower_native_weights(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& node : model->get_ordered_ops()) {
+        if (const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(node)) {
+            const auto weight = matmul->input_value(1);
+            if (!weight.get_element_type().is_gguf_block())
+                continue;
+            OPENVINO_ASSERT(!matmul->get_transpose_a() && matmul->get_transpose_b() &&
+                                ov::is_type<ov::op::v0::Constant>(weight.get_node_shared_ptr()),
+                            "Unsupported raw GGUF MatMul: ", matmul->get_friendly_name());
+            const auto absent = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
+            auto replacement = std::make_shared<ov::op::internal::FullyConnectedCompressed>(
+                matmul->input_value(0), weight, absent, absent, absent, ov::element::dynamic);
+            ov::copy_runtime_info(matmul, replacement);
+            replacement->set_friendly_name(matmul->get_friendly_name());
+            ov::replace_node(matmul, replacement);
+        } else if (const auto gather = ov::as_type_ptr<ov::op::v8::Gather>(node)) {
+            const auto weight = gather->input_value(0);
+            if (!weight.get_element_type().is_gguf_block())
+                continue;
+            OPENVINO_ASSERT(gather->get_batch_dims() == 0 &&
+                                constant_values(gather->get_input_node_shared_ptr(2)) == std::vector<int64_t>{0} &&
+                                ov::is_type<ov::op::v0::Constant>(weight.get_node_shared_ptr()),
+                            "Unsupported raw GGUF GetRows: ", gather->get_friendly_name());
+            auto scale = ov::op::v0::Constant::create(ov::element::f16, {}, {1.f});
+            auto compressed = std::make_shared<ov::op::internal::GatherCompressed>(
+                weight, gather->input_value(1), gather->input_value(2), 0, scale);
+            auto replacement = std::make_shared<ov::op::v0::Convert>(compressed, ov::element::f32);
+            ov::copy_runtime_info(gather, {compressed, replacement});
+            ov::replace_node_update_name(gather, replacement);
+        }
+    }
+    for (const auto& node : model->get_ordered_ops()) {
+        for (const auto& input : node->inputs()) {
+            if (!input.get_element_type().is_gguf_block())
+                continue;
+            OPENVINO_ASSERT((ov::is_type<ov::op::internal::FullyConnectedCompressed>(node) && input.get_index() == 1) ||
+                                (ov::is_type<ov::op::internal::GatherCompressed>(node) && input.get_index() == 0),
+                                "Unsupported raw GGUF consumer: ", node->get_friendly_name(),
+                                " (", node->get_type_name(), ", input ", input.get_index(), ")");
+        }
+    }
+}
+
 }  // namespace
 
 bool MaterializeGGUFWeights::run_on_model(const std::shared_ptr<ov::Model>& model) {
@@ -376,7 +426,8 @@ bool MaterializeGGUFWeights::run_on_model(const std::shared_ptr<ov::Model>& mode
     for (const auto& [node, plan] : roots) {
         auto materialized = materialize_plan(*plan);
         OPENVINO_ASSERT(materialized->get_output_shape(0) == node->get_output_shape(0) &&
-                            materialized->get_output_element_type(0) == node->get_output_element_type(0),
+                            (materialized->get_output_element_type(0) == node->get_output_element_type(0) ||
+                             plan->runs.front().source().preserve_raw),
                         "Folded GGUF weight has unexpected shape or type");
         ov::replace_node_update_name(node, materialized);
         changed = true;
@@ -385,14 +436,17 @@ bool MaterializeGGUFWeights::run_on_model(const std::shared_ptr<ov::Model>& mode
         if (const auto weight = ov::as_type_ptr<GGUFConstant>(node)) {
             auto materialized = weight->materialize();
             OPENVINO_ASSERT(materialized->get_output_partial_shape(0) == weight->get_output_partial_shape(0) &&
-                                materialized->get_output_element_type(0) == weight->get_output_element_type(0),
+                                (materialized->get_output_element_type(0) == weight->get_output_element_type(0) ||
+                                 weight->source().preserve_raw),
                             "Materialized GGUF weight has unexpected shape or type: ",
                             weight->source().source_name);
             ov::replace_node_update_name(weight, materialized);
             changed = true;
         }
-    if (changed)
+    if (changed) {
+        lower_native_weights(model);
         gather_packed_rows(model);
+    }
     return changed;
 }
 

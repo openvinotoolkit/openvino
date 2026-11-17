@@ -22,6 +22,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "ov_ops/fully_connected_compressed.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::op {
@@ -39,6 +40,8 @@ OutputVector translate_mulmat(const NodeContext& context) {
     while (weight->get_input_size() > 0)
         weight = weight->get_input_node_shared_ptr(0);
     const auto deferred = ov::as_type_ptr<GGUFConstant>(weight);
+    FRONT_END_OP_CONVERSION_CHECK(!deferred || !deferred->source().preserve_raw || op_case == 0,
+                                 "Unsupported raw GGUF MatMul weight or op_case: ", context.get_name());
     const bool u2_weights =
         (ov::is_type<ov::op::v0::Constant>(weight) && weight->get_output_element_type(0) == ov::element::u2) ||
         (deferred && gguf_has_u2_weights(deferred->qtype()));
@@ -64,6 +67,39 @@ OutputVector translate_mulmat(const NodeContext& context) {
             0);
         return std::make_shared<ov::op::v1::Reshape>(output, restored_shape, false);
     };
+
+    if (B.get_element_type().is_gguf_block()) {
+        const auto weight_type = B.get_element_type();
+        const bool supported = weight_type == ov::element::gguf_q4_k || weight_type == ov::element::gguf_q5_k ||
+                               weight_type == ov::element::gguf_q6_k || weight_type == ov::element::gguf_q8_0 ||
+                               weight_type == ov::element::gguf_q4_0 || weight_type == ov::element::gguf_q4_1 ||
+                               weight_type == ov::element::gguf_q3_k || weight_type == ov::element::gguf_iq2_xs ||
+                               weight_type == ov::element::gguf_iq2_s || weight_type == ov::element::gguf_iq3_xxs ||
+                               weight_type == ov::element::gguf_iq3_s;
+        FRONT_END_OP_CONVERSION_CHECK(op_case == 0 && supported &&
+                                          ov::is_type<ov::op::v0::Constant>(B.get_node_shared_ptr()) &&
+                                          B.get_partial_shape().is_static() && B.get_shape().size() == 2 &&
+                                          B.get_shape()[0] > 0 && B.get_shape()[1] > 0 &&
+                                          B.get_shape()[1] % B.get_element_type().block_elem_count() == 0,
+                                      "Unsupported raw GGUF MatMul weight or op_case: ",
+                                      context.get_name());
+        FRONT_END_OP_CONVERSION_CHECK(A.get_element_type() == ov::element::f32 ||
+                                          A.get_element_type() == ov::element::f16,
+                                      "Raw GGUF MatMul requires F16/F32 activation: ",
+                                      context.get_name());
+        if (A.get_element_type() != ov::element::f32) {
+            A = std::make_shared<ov::op::v0::Convert>(A, ov::element::f32);
+        }
+        const auto absent = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
+        return rename_outputs_with_suffix(
+            {std::make_shared<ov::op::internal::FullyConnectedCompressed>(A,
+                                                                         B,
+                                                                         absent,
+                                                                         absent,
+                                                                         absent,
+                                                                         ov::element::dynamic)},
+            context.get_name());
+    }
 
     bool transpose_b = true;
     if (op_case == 2) {

@@ -9,6 +9,7 @@
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "common_test_utils/common_utils.hpp"
 #include "test_utils.h"
 #include "random_generator.hpp"
 #include "network_test.h"
@@ -20,16 +21,1767 @@
 
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "fully_connected_inst.h"
+#include "impls/ocl_v2/primitive_ocl_base.hpp"
+#include "impls/ocl_v2/gguf/gguf_weight_shuffle.hpp"
+#include "registry/registry.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
 
 #include "openvino/op/ops.hpp"
 #include "openvino/runtime/core.hpp"
 
+#include "intel_gpu/op/fully_connected_compressed.hpp"
+#include "intel_gpu/op/placeholder.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/negative.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/swish.hpp"
+#include "openvino/op/assign.hpp"
+#include "openvino/op/read_value.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/util/variable.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/openvino.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
+#include "openvino/runtime/exception.hpp"
+#include "openvino/runtime/intel_gpu/remote_properties.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
+#include "ov_ops/fully_connected_compressed.hpp"
+#include "ov_ops/gather_compressed.hpp"
+#include "plugin/transformations/repack_gguf_weights.hpp"
+#include "plugin/transformations/convert_fc_to_compressed.hpp"
+#include "plugin/transformations/fc_horizontal_fusion.hpp"
+#include <algorithm>
+#include <array>
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <cmath>
+#include <filesystem>
+#include <iostream>
+#include <optional>
+#include <utility>
 
 using namespace cldnn;
 using namespace ::tests;
+
+namespace {
+class gguf_scoped_env_var {
+public:
+    gguf_scoped_env_var(const char* name, const char* value) : name(name) {
+        if (const char* previous = std::getenv(name)) {
+            had_previous = true;
+            previous_value = previous;
+        }
+        set(value);
+    }
+
+    ~gguf_scoped_env_var() {
+        set(had_previous ? previous_value.c_str() : nullptr);
+    }
+
+    gguf_scoped_env_var(const gguf_scoped_env_var&) = delete;
+    gguf_scoped_env_var& operator=(const gguf_scoped_env_var&) = delete;
+
+private:
+    void set(const char* value) {
+#ifdef _WIN32
+        _putenv_s(name, value ? value : "");
+#else
+        if (value)
+            ::setenv(name, value, 1);
+        else
+            ::unsetenv(name);
+#endif
+    }
+
+    const char* name;
+    std::string previous_value;
+    bool had_previous = false;
+};
+
+enum class gguf_bias_mode { none, constant, parameter, add };
+
+struct gguf_fc_mode {
+    std::string name;
+    bool shuffle;
+    const char* threshold;
+    bool rank3 = false;
+    size_t channels = 32;
+    size_t columns = 256;
+    ov::element::Type weight_type = ov::element::gguf_q4_k;
+    bool cm = false;
+    ov::element::Type precision = ov::element::f32;
+    bool use_cm = true;
+    activation_func post_activation = activation_func::none;
+    size_t static_rows = 0;
+    std::optional<eltwise_mode> post_eltwise;
+    bool broadcast_peer = false;
+    gguf_bias_mode bias_mode = gguf_bias_mode::none;
+    size_t rank4_batch = 0;
+    bool low_bit_prefill = false;
+};
+
+class gguf_fc_dynamic_reference : public ::testing::TestWithParam<gguf_fc_mode> {};
+
+// True when the OCL / CM prefill GEMM can run on this device for a shuffled GGUF weight whose output channel
+// count is `channels` (mirrors gguf_select_prefill_kernel in fc_gguf_opt.cpp).
+TEST(fully_connected_gpu, gguf_gpu_shuffle_matches_cpu_bytes) {
+    auto& engine = get_test_engine();
+    gguf_scoped_env_var shuffle("OV_GPU_GGUF_SHUFFLE", "1");
+    const std::vector<ov::element::Type> formats = {ov::element::gguf_q4_k, ov::element::gguf_q5_k,
+        ov::element::gguf_q6_k, ov::element::gguf_q4_0, ov::element::gguf_q4_1, ov::element::gguf_q8_0};
+    for (const auto& type : formats) {
+        cldnn::kernel::ptr kernel;
+        for (const auto& shape : std::vector<ov::Shape>{{16, 256}, {32, 512}, {48, 768}}) {
+            SCOPED_TRACE(type.to_string() + "_" + std::to_string(shape[0]) + "_" + std::to_string(shape[1]));
+            const size_t bytes = ov::shape_size(shape) / type.block_elem_count() * type.block_byte_size();
+            std::vector<uint8_t> payload(bytes);
+            for (size_t index = 0; index < bytes; ++index)
+                payload[index] = static_cast<uint8_t>((index * 37 + index / 97 + 19) % 256);
+            auto raw = std::make_shared<ov::op::v0::Constant>(type, shape, payload.data());
+            auto activation = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, shape[1]});
+            auto absent = std::make_shared<ov::intel_gpu::op::Placeholder>();
+            auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.f});
+            auto fc = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(activation, raw, absent, scale, absent, ov::element::f32);
+            auto graph = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{activation});
+            ov::pass::Manager manager;
+            manager.register_pass<ov::intel_gpu::RepackGGUFWeightsShuffle>();
+            manager.run_passes(graph);
+            auto reference = ov::as_type_ptr<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(1));
+            ASSERT_NE(reference, raw);
+            const cldnn::layout layout(shape, cldnn::element_type_to_data_type(type), cldnn::format::bfyx);
+            auto output = ov::intel_gpu::ocl::upload_shuffled_gguf_weights(engine, layout, type, shape, payload.data(), kernel);
+            cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read> actual(output, get_test_stream());
+            EXPECT_EQ(std::memcmp(actual.data(), reference->get_data_ptr(), bytes), 0);
+        }
+    }
+}
+
+bool gguf_gemm_capable(cldnn::engine& engine, bool shuffled, size_t channels) {
+    const auto& info = engine.get_device_info();
+    const size_t alignment = info.arch >= gpu_arch::xe3 ? 64 : 32;
+    return shuffled && channels % alignment == 0 && info.arch >= gpu_arch::xe2 && info.supports_immad && info.supports_intel_subgroups_short &&
+           info.supports_intel_subgroups_char && info.supports_intel_subgroup_2d_block_io &&
+           info.supports_intel_subgroup_matrix_multiply_accumulate;
+}
+
+std::string gguf_ocl_gemm_stage(const ov::element::Type& type) {
+    return type == ov::element::gguf_q4_k ? "fc_gguf_gemm_q4k"
+         : type == ov::element::gguf_q5_k ? "fc_gguf_gemm_q5k"
+         : type == ov::element::gguf_q6_k ? "fc_gguf_gemm_q6k"
+         : type == ov::element::gguf_q4_0 ? "fc_gguf_gemm_q4_0"
+         : type == ov::element::gguf_q4_1 ? "fc_gguf_gemm_q4_1"
+                                          : "fc_gguf_gemm_q8_0";
+}
+}
+
+TEST(fully_connected_gpu, gguf_gpu_shuffle_shared_gather_export) {
+    gguf_scoped_env_var shuffle("OV_GPU_GGUF_SHUFFLE", "1");
+    gguf_scoped_env_var prefill("OV_GPU_GGUF_PREFILL_GEMM", "ocl");
+    const ov::Shape weight_shape{32, 256};
+    std::vector<uint8_t> payload(32 * 8 * 18);
+    for (size_t channel = 0; channel < 32; ++channel) {
+        for (size_t block = 0; block < 8; ++block) {
+            auto* bytes = payload.data() + (channel * 8 + block) * 18;
+            const ov::float16 scale(static_cast<float>(channel + 1));
+            std::memcpy(bytes, &scale, sizeof(scale));
+            std::memset(bytes + 2, 0x99, 16);
+        }
+    }
+    const auto weight = std::make_shared<ov::op::v0::Constant>(ov::element::gguf_q4_0, weight_shape, payload.data());
+    const auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.f});
+    const auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
+    ov::ParameterVector parameters;
+    ov::OutputVector outputs;
+    for (size_t index = 0; index < 2; ++index) {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 256});
+        outputs.push_back(std::make_shared<ov::op::internal::FullyConnectedCompressed>(
+            input, weight, bias, scale, ov::element::f32));
+        parameters.push_back(input);
+    }
+    const auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2});
+    const auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    outputs.push_back(std::make_shared<ov::op::internal::GatherCompressed>(weight, indices, axis, 0, scale));
+    parameters.push_back(indices);
+    ov::Core core;
+    auto compiled = core.compile_model(std::make_shared<ov::Model>(outputs, parameters), "GPU",
+                                       ov::hint::inference_precision(ov::element::f32));
+    EXPECT_EQ(std::memcmp(weight->get_data_ptr(), payload.data(), payload.size()), 0);
+    std::stringstream binary;
+    compiled.export_model(binary);
+    auto imported = core.import_model(binary, "GPU", ov::hint::inference_precision(ov::element::f32));
+    for (auto execution : {compiled, imported}) {
+        auto request = execution.create_infer_request();
+        ov::Tensor selected(ov::element::i32, {2});
+        selected.data<int32_t>()[0] = 0;
+        selected.data<int32_t>()[1] = 31;
+        request.set_input_tensor(2, selected);
+        for (const size_t rows : {size_t{1}, size_t{33}, size_t{1}}) {
+            for (size_t input = 0; input < 2; ++input) {
+                ov::Tensor tensor(ov::element::f32, {rows, 256});
+                std::fill_n(tensor.data<float>(), rows * 256, static_cast<float>(input + 1));
+                request.set_input_tensor(input, tensor);
+            }
+            request.infer();
+            for (size_t output = 0; output < 2; ++output) {
+                const auto tensor = request.get_output_tensor(output);
+                for (size_t row = 0; row < rows; ++row)
+                    for (size_t channel = 0; channel < 32; ++channel)
+                        EXPECT_NEAR(tensor.data<const float>()[row * 32 + channel],
+                                    256.f * (channel + 1) * (output + 1), 0.1f);
+            }
+            const auto gathered = request.get_output_tensor(2);
+            for (size_t column = 0; column < 256; ++column) {
+                EXPECT_EQ(gathered.data<const float>()[column], 1.f);
+                EXPECT_EQ(gathered.data<const float>()[256 + column], 32.f);
+            }
+        }
+    }
+}
+
+TEST(fully_connected_gpu, gguf_constant_source_sharing) {
+#if !defined(OV_GPU_WITH_OCL_RT) || !defined(ENABLE_ONEDNN_FOR_GPU)
+    GTEST_SKIP() << "GGUF implementation requires OCL and oneDNN build support";
+#else
+    gguf_scoped_env_var shuffle("OV_GPU_GGUF_SHUFFLE", "0");
+    gguf_scoped_env_var cm("OV_GPU_GGUF_PREFILL_GEMM", "ocl");
+    gguf_scoped_env_var threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", "64");
+    const auto cache_value = std::getenv("OV_GPU_GGUF_TEST_CACHE_DIR");
+    const auto external_cache = cache_value ? std::optional<std::string>{cache_value} : std::nullopt;
+    const auto hit_value = std::getenv("OV_GPU_GGUF_TEST_CACHE_HIT");
+    const auto expected_hit = hit_value ? std::optional<std::string>{hit_value} : std::nullopt;
+    ASSERT_EQ(external_cache.has_value(), expected_hit.has_value());
+    if (expected_hit) {
+        ASSERT_TRUE(*expected_hit == "0" || *expected_hit == "1");
+        ASSERT_TRUE(std::filesystem::is_directory(*external_cache));
+    }
+    const bool initial_hit = expected_hit && *expected_hit == "1";
+    const auto weight_delta = std::getenv("OV_GPU_GGUF_TEST_WEIGHT_DELTA");
+    if (weight_delta)
+        ASSERT_TRUE(external_cache && (std::string(weight_delta) == "0" || std::string(weight_delta) == "1"));
+    const bool shifted_tail = weight_delta && std::string(weight_delta) == "1";
+    const ov::Shape weight_shape{32, 256};
+    const size_t bytes = 32 * 8 * 18;
+    const auto make_weight = [&](bool changed, size_t source_id) {
+        auto buffer = std::make_shared<ov::AlignedBuffer>(bytes);
+        for (size_t channel = 0; channel < 32; ++channel) {
+            for (size_t block = 0; block < 8; ++block) {
+                const ov::float16 scale(static_cast<float>(channel + 1 + (changed && channel == 0) +
+                                                          (shifted_tail && channel == 31 && block == 7)));
+                auto* data = buffer->get_ptr<char>() + (channel * 8 + block) * 18;
+                std::memcpy(data, &scale, sizeof(scale));
+                std::memset(data + 2, 0x99, 16);
+            }
+        }
+        auto shared = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
+            buffer->get_ptr<char>(), bytes, buffer, ov::create_base_descriptor(source_id, 0, buffer));
+        return std::make_shared<ov::op::v0::Constant>(ov::element::gguf_q4_0, weight_shape, shared);
+    };
+    for (const size_t second_source : {size_t{42}, size_t{43}, size_t{0}}) {
+        const std::vector<std::shared_ptr<ov::op::v0::Constant>> weights{
+            make_weight(false, 42), make_weight(false, second_source), make_weight(true, 42), make_weight(true, 42)};
+        ASSERT_NE(weights[0]->get_data_ptr(), weights[1]->get_data_ptr());
+        ov::ParameterVector parameters;
+        ov::OutputVector outputs;
+        for (const auto& weight : weights) {
+            auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 256});
+            auto bias = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{32}, {0.f});
+            auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.f});
+            outputs.push_back(std::make_shared<ov::op::internal::FullyConnectedCompressed>(
+                input, weight, bias, scale, ov::element::f32));
+            parameters.push_back(input);
+        }
+        const auto model = std::make_shared<ov::Model>(outputs, parameters);
+        ov::Core core;
+        auto compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(ov::element::f32));
+        auto request = compiled.create_infer_request();
+        for (const size_t rows : {size_t{1}, size_t{2}}) {
+            for (size_t input = 0; input < weights.size(); ++input) {
+                ov::Tensor tensor(ov::element::f32, {rows, 256});
+                std::fill_n(tensor.data<float>(), rows * 256, 1.f);
+                request.set_input_tensor(input, tensor);
+            }
+            request.infer();
+            for (size_t output = 0; output < weights.size(); ++output) {
+                const auto tensor = request.get_output_tensor(output);
+                for (size_t row = 0; row < rows; ++row) {
+                    for (size_t channel = 0; channel < 32; ++channel) {
+                        EXPECT_NEAR(tensor.data<const float>()[row * 32 + channel],
+                                    256.f * (channel + 1 + (output >= 2 && channel == 0)) +
+                                        (shifted_tail && channel == 31 ? 32.f : 0.f), 0.1f);
+                    }
+                }
+            }
+        }
+        std::stringstream binary;
+        compiled.export_model(binary);
+        const auto exported = binary.str();
+        for (const size_t index : {size_t{0}, size_t{2}}) {
+            const std::string payload(weights[index]->get_data_ptr<char>(), bytes);
+            size_t count = 0;
+            size_t position = 0;
+            while ((position = exported.find(payload, position)) != std::string::npos) {
+                ++count;
+                position += bytes;
+            }
+            RecordProperty(std::string(index == 0 ? "same_source_payload_copies_" : "changed_source_payload_copies_") +
+                               std::to_string(second_source),
+                           std::to_string(count));
+            EXPECT_EQ(count, index == 0 && second_source != 42 ? 2 : 1);
+        }
+        ov::Core import_core;
+        auto imported = import_core.import_model(binary, "GPU", ov::hint::inference_precision(ov::element::f32));
+        const auto check_requests = [&](ov::CompiledModel& execution, bool changed_tail = false,
+                                        const std::vector<size_t>& row_counts = {1, 2, 1, 1, 2}) {
+            std::array<ov::InferRequest, 2> requests{execution.create_infer_request(), execution.create_infer_request()};
+            for (size_t iteration = 0; iteration < row_counts.size(); ++iteration) {
+                const auto rows = row_counts[iteration];
+                for (size_t request_index = 0; request_index < requests.size(); ++request_index) {
+                    for (size_t input = 0; input < weights.size(); ++input) {
+                        ov::Tensor tensor(ov::element::f32, {rows, 256});
+                        std::fill_n(tensor.data<float>(), rows * 256,
+                                    static_cast<float>((request_index + 1) * (iteration + 1)));
+                        requests[request_index].set_input_tensor(input, tensor);
+                    }
+                    requests[request_index].start_async();
+                }
+                for (auto& pending : requests) {
+                    pending.wait();
+                }
+                for (size_t request_index = 0; request_index < requests.size(); ++request_index) {
+                    const auto factor = static_cast<float>((request_index + 1) * (iteration + 1));
+                    for (size_t output = 0; output < weights.size(); ++output) {
+                        const auto tensor = requests[request_index].get_output_tensor(output);
+                        ASSERT_EQ(tensor.get_shape(), (ov::Shape{rows, 32}));
+                        for (size_t row = 0; row < rows; ++row) {
+                            for (size_t channel = 0; channel < 32; ++channel) {
+                                const float expected = factor *
+                                    (256.f * (channel + 1 + (output >= 2 && channel == 0)) +
+                                     (shifted_tail && channel == 31 ? 32.f : 0.f) +
+                                     (changed_tail && output == 0 && channel == 31 ? 32.f : 0.f));
+                                EXPECT_NEAR(tensor.data<const float>()[row * 32 + channel], expected, 0.1f);
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        check_requests(imported);
+        RecordProperty("source_sharing_import_" + std::to_string(second_source), "1");
+        struct CacheDirectory {
+            std::filesystem::path path;
+            bool cleanup;
+            ~CacheDirectory() {
+                if (!cleanup)
+                    return;
+                std::error_code error;
+                std::filesystem::remove_all(path, error);
+                EXPECT_FALSE(error) << error.message();
+            }
+        } cache{external_cache ? std::filesystem::path(*external_cache) / std::to_string(second_source)
+                               : std::filesystem::temp_directory_path() / ov::test::utils::generateTestFilePrefix(),
+            !external_cache};
+        size_t cache_hits = 0;
+        size_t cache_misses = 0;
+        const auto check_cache = [&](const std::shared_ptr<ov::Model>& graph, bool hit, bool changed_tail,
+                                     const std::vector<size_t>& rows = {1, 2, 1, 1, 2}) {
+            ov::Core cache_core;
+            const auto directory = cache.path / (std::string(std::getenv("OV_GPU_GGUF_SHUFFLE")) == "1" ? "sg" : "raw");
+            const auto cache_graph = graph->clone();
+            cache_graph->set_friendly_name("gguf_source_cache");
+            size_t node_index = 0;
+            for (const auto& node : cache_graph->get_ordered_ops()) {
+                const auto name = "gguf_cache_node_" + std::to_string(node_index++);
+                node->set_friendly_name(name);
+                for (size_t output = 0; output < node->get_output_size(); ++output)
+                    node->output(output).set_names({name + "_" + std::to_string(output)});
+            }
+            auto cached = cache_core.compile_model(cache_graph, "GPU", ov::cache_dir(directory.string()),
+                                                  ov::hint::inference_precision(ov::element::f32),
+                                                  ov::enable_profiling(true));
+            const bool actual_hit = cached.get_property(ov::loaded_from_cache);
+            EXPECT_EQ(actual_hit, hit);
+            actual_hit ? ++cache_hits : ++cache_misses;
+            check_requests(cached, changed_tail, rows);
+            bool found_stage = false;
+            std::string executed_stages;
+            for (const auto& node : cached.get_runtime_model()->get_ops()) {
+                const auto& info = node->get_rt_info();
+                const auto stage = info.find("gguf_last_executed_kernels");
+                if (stage == info.end())
+                    continue;
+                for (const auto& name : stage->second.as<std::vector<std::string>>()) {
+                    found_stage = true;
+                    executed_stages += name + ";";
+                    EXPECT_NE(name.find(std::string(std::getenv("OV_GPU_GGUF_SHUFFLE")) == "1"
+                                            ? "_sg_" : "fc_gguf_opt_"), std::string::npos) << name;
+                }
+            }
+            EXPECT_TRUE(found_stage);
+            if (external_cache)
+                std::cout << "GGUF_CACHE_CHECK source=" << second_source << " hit=" << actual_hit
+                          << " shape=" << (graph->is_dynamic() ? "dynamic" : "static")
+                          << " tail=" << changed_tail << " stages=" << executed_stages << std::endl;
+        };
+        check_cache(model, initial_hit, false);
+        check_cache(model, true, false);
+        const auto changed_model = model->clone();
+        std::vector<char> changed_payload(weights[0]->get_data_ptr<char>(), weights[0]->get_data_ptr<char>() + bytes);
+        const ov::float16 changed_scale(shifted_tail ? 34.f : 33.f);
+        std::memcpy(changed_payload.data() + bytes - 18, &changed_scale, sizeof(changed_scale));
+        changed_model->get_results()[0]->get_input_node_shared_ptr(0)->input(1).replace_source_output(
+            std::make_shared<ov::op::v0::Constant>(ov::element::gguf_q4_0, weight_shape, changed_payload.data()));
+        check_cache(changed_model, initial_hit, true);
+        check_cache(changed_model, true, true);
+        const auto static_model = model->clone();
+        for (const auto& parameter : static_model->get_parameters()) {
+            parameter->set_partial_shape(ov::Shape{2, 256});
+        }
+        static_model->validate_nodes_and_infer_types();
+        check_cache(static_model, initial_hit, false, {2, 2});
+        check_cache(static_model, true, false, {2, 2});
+        {
+            gguf_scoped_env_var sg_shuffle("OV_GPU_GGUF_SHUFFLE", "1");
+            check_cache(model, initial_hit, false);
+            check_cache(model, true, false);
+            check_cache(changed_model, initial_hit, true);
+            check_cache(changed_model, true, true);
+            check_cache(static_model, initial_hit, false, {2, 2});
+            check_cache(static_model, true, false, {2, 2});
+        }
+        if (second_source == 42) {
+            auto& engine = get_test_engine();
+            const auto device_config = get_test_default_config(engine);
+            const bool cm_available = engine.get_device_info().supports_immad &&
+                check_cm_jit_support(engine, device_config) && device_config.get_use_cm();
+            RecordProperty("fusion_cache_cm_available", cm_available ? "1" : "0");
+            std::vector<char> fusion_payload(bytes * 2);
+            std::memcpy(fusion_payload.data(), weights[0]->get_data_ptr(), bytes);
+            std::memcpy(fusion_payload.data() + bytes, weights[0]->get_data_ptr(), bytes);
+            const auto fusion_weight = std::make_shared<ov::op::v0::Constant>(
+                ov::element::gguf_q4_0, ov::Shape{64, 256}, fusion_payload.data());
+            size_t fusion_hits = 0;
+            size_t fusion_misses = 0;
+            const std::array<std::pair<std::string, int>, 6> cache_modes{{
+                {"raw", 1}, {"sg", 1}, {"cm", 1}, {"raw", 2}, {"sg", 2}, {"cm", 2}}};
+            for (const auto& mode : cache_modes) {
+                const auto& route = mode.first;
+                const auto stream_count = mode.second;
+                const auto cache_mode = route + (stream_count == 1 ? "" : "_streams2");
+                if (route == "cm" && !cm_available)
+                    continue;
+                gguf_scoped_env_var fusion_shuffle("OV_GPU_GGUF_SHUFFLE", route == "raw" ? "0" : "1");
+                gguf_scoped_env_var fusion_cm("OV_GPU_GGUF_PREFILL_GEMM", route == "cm" ? "cm" : "ocl");
+                gguf_scoped_env_var fusion_threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", route == "cm" ? "32" : "64");
+                const auto directory = cache.path / "fusion" / cache_mode;
+                for (const std::string signature : {"plain", "bias", "relu", "swish", "add", "multiply", "stateful"}) {
+                    const bool binary_post = signature == "add" || signature == "multiply";
+                    const bool stateful = signature == "stateful";
+                    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 256});
+                    ov::Output<ov::Node> activation_input = input;
+                    ov::SinkVector sinks;
+                    if (stateful) {
+                        const auto variable = std::make_shared<ov::op::util::Variable>(
+                            ov::op::util::VariableInfo{ov::PartialShape{256}, ov::element::f32, "gguf_fc_state"});
+                        const auto initial = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{256}, {0.f});
+                        const auto previous = std::make_shared<ov::op::v6::ReadValue>(initial, variable);
+                        activation_input = std::make_shared<ov::op::v1::Add>(input, previous);
+                        const auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+                        const auto update = std::make_shared<ov::op::v1::ReduceMean>(activation_input, axes, false);
+                        sinks.push_back(std::make_shared<ov::op::v6::Assign>(update, variable));
+                    }
+                    const auto bias = ov::op::v0::Constant::create(
+                        ov::element::f32, ov::Shape{64}, {signature == "bias" ? 0.25f : 0.f});
+                    const auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.f});
+                    ov::Output<ov::Node> result = std::make_shared<ov::op::internal::FullyConnectedCompressed>(
+                        activation_input, fusion_weight, bias, scale, ov::element::f32);
+                    ov::ParameterVector inputs{input};
+                    if (signature == "relu")
+                        result = std::make_shared<ov::op::v0::Relu>(result);
+                    else if (signature == "swish")
+                        result = std::make_shared<ov::op::v4::Swish>(result);
+                    else if (binary_post) {
+                        const auto peer = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 64});
+                        inputs.push_back(peer);
+                        if (signature == "add")
+                            result = std::make_shared<ov::op::v1::Add>(result, peer);
+                        else
+                            result = std::make_shared<ov::op::v1::Multiply>(result, peer);
+                        result.get_node_shared_ptr()->set_friendly_name("binary_post");
+                        result = std::make_shared<ov::op::v0::Relu>(result);
+                    }
+                    const auto graph = std::make_shared<ov::Model>(ov::OutputVector{result}, sinks, inputs);
+                    graph->set_friendly_name("gguf_fusion_cache");
+                    size_t node_index = 0;
+                    for (const auto& node : graph->get_ordered_ops()) {
+                        const auto name = "gguf_fusion_node_" + std::to_string(node_index++);
+                        if (node->get_friendly_name() != "binary_post")
+                            node->set_friendly_name(name);
+                        for (size_t output = 0; output < node->get_output_size(); ++output)
+                            node->output(output).set_names({name + "_" + std::to_string(output)});
+                    }
+                    for (const bool repeated : {false, true}) {
+                        SCOPED_TRACE("route=" + cache_mode + ", signature=" + signature + ", repeated=" + std::to_string(repeated));
+                        ov::Core fusion_core;
+                        auto execution = fusion_core.compile_model(graph, "GPU", ov::cache_dir(directory.string()),
+                            ov::hint::inference_precision(ov::element::f32), ov::enable_profiling(true), ov::num_streams(stream_count));
+                        const int actual_streams = execution.get_property(ov::num_streams);
+                        EXPECT_EQ(actual_streams, stream_count);
+                        RecordProperty("request_streams_" + cache_mode, std::to_string(actual_streams));
+                        const bool hit = execution.get_property(ov::loaded_from_cache);
+                        EXPECT_EQ(hit, initial_hit || repeated);
+                        hit ? ++fusion_hits : ++fusion_misses;
+                        std::array<ov::InferRequest, 2> fusion_requests{
+                            execution.create_infer_request(), execution.create_infer_request()};
+                        size_t cancelled_requests = 0;
+                        size_t completed_cancel_requests = 0;
+                        std::array<float, 2> state_history{0.f, 0.f};
+                        const std::array<size_t, 4> row_counts{1, 33, 1, 33};
+                        for (size_t iteration = 0; iteration < row_counts.size(); ++iteration) {
+                            const auto rows = row_counts[iteration];
+                            const bool cancel_request = !stateful && iteration % 2 == 0;
+                            if (iteration == (stateful ? 3u : 2u)) {
+                                fusion_requests[0] = execution.create_infer_request();
+                                state_history[0] = 0.f;
+                            }
+                            if (stateful && iteration == 1) {
+                                fusion_requests[0].reset_state();
+                                state_history[0] = 0.f;
+                            }
+                            if (stateful && iteration == 2) {
+                                auto states = fusion_requests[1].query_state();
+                                ASSERT_EQ(states.size(), 1u);
+                                states[0].reset();
+                                state_history[1] = 0.f;
+                            }
+                            for (size_t request_index = 0; request_index < fusion_requests.size(); ++request_index) {
+                                const float factor = static_cast<float>((request_index + 1) * (iteration + 1)) *
+                                    (iteration % 2 == 0 ? 1.f : -1.f);
+                                ov::Tensor activation(ov::element::f32, {rows, 256});
+                                std::fill_n(activation.data<float>(), rows * 256, factor / 256.f);
+                                fusion_requests[request_index].set_input_tensor(0, activation);
+                                if (binary_post) {
+                                    ov::Tensor peer(ov::element::f32, {rows, 64});
+                                    for (size_t index = 0; index < rows * 64; ++index)
+                                        peer.data<float>()[index] = static_cast<float>(static_cast<int>(index % 7) - 3) / 4.f;
+                                    fusion_requests[request_index].set_input_tensor(1, peer);
+                                }
+                                fusion_requests[request_index].start_async();
+                            }
+                            if (cancel_request)
+                                fusion_requests[0].cancel();
+                            for (size_t request_index = 0; request_index < fusion_requests.size(); ++request_index) {
+                                try {
+                                    fusion_requests[request_index].wait();
+                                    if (cancel_request && request_index == 0)
+                                        ++completed_cancel_requests;
+                                } catch (const ov::Cancelled&) {
+                                    if (!cancel_request || request_index != 0)
+                                        throw;
+                                    ++cancelled_requests;
+                                }
+                            }
+                            if (cancel_request) {
+                                for (size_t input_index = 0; input_index < inputs.size(); ++input_index) {
+                                    const auto previous = fusion_requests[0].get_input_tensor(input_index);
+                                    ov::Tensor replacement(previous.get_element_type(), previous.get_shape());
+                                    previous.copy_to(replacement);
+                                    if (input_index == 0) {
+                                        for (size_t element = 0; element < replacement.get_size(); ++element)
+                                            replacement.data<float>()[element] *= 3.f;
+                                    }
+                                    fusion_requests[0].set_input_tensor(input_index, replacement);
+                                }
+                                fusion_requests[0].start_async();
+                                fusion_requests[0].wait();
+                            }
+                            for (size_t request_index = 0; request_index < fusion_requests.size(); ++request_index) {
+                                float factor = static_cast<float>((request_index + 1) * (iteration + 1)) *
+                                    (iteration % 2 == 0 ? 1.f : -1.f);
+                                if (cancel_request && request_index == 0)
+                                    factor *= 3.f;
+                                if (stateful) {
+                                    factor += state_history[request_index];
+                                    state_history[request_index] = factor;
+                                    const auto states = fusion_requests[request_index].query_state();
+                                    ASSERT_EQ(states.size(), 1u);
+                                    EXPECT_EQ(states[0].get_name(), "gguf_fc_state");
+                                    const auto state = states[0].get_state();
+                                    ASSERT_EQ(state.get_element_type(), ov::element::f32);
+                                    ASSERT_EQ(state.get_shape(), (ov::Shape{256}));
+                                    for (size_t element = 0; element < state.get_size(); ++element)
+                                        EXPECT_NEAR(state.data<const float>()[element], factor / 256.f, 1e-6f);
+                                }
+                                const auto output = fusion_requests[request_index].get_output_tensor();
+                                ASSERT_EQ(output.get_shape(), (ov::Shape{rows, 64}));
+                                for (size_t index = 0; index < rows * 64; ++index) {
+                                    float expected = factor * static_cast<float>(index % 32 + 1) +
+                                        (shifted_tail && index % 32 == 31 ? factor / 8.f : 0.f);
+                                    if (signature == "bias")
+                                        expected += 0.25f;
+                                    if (signature == "swish")
+                                        expected /= 1.f + std::exp(-expected);
+                                    if (binary_post) {
+                                        const float peer = static_cast<float>(static_cast<int>(index % 7) - 3) / 4.f;
+                                        expected = signature == "add" ? expected + peer : expected * peer;
+                                    }
+                                    if (signature == "relu" || binary_post)
+                                        expected = std::max(0.f, expected);
+                                    EXPECT_NEAR(output.data<const float>()[index], expected, 0.1f);
+                                }
+                            }
+                            size_t executed_fcs = 0;
+                            for (const auto& node : execution.get_runtime_model()->get_ops()) {
+                                if (std::string(node->get_type_name()) == "Result")
+                                    continue;
+                                const auto& info = node->get_rt_info();
+                                const auto found = info.find("gguf_last_executed_kernels");
+                                if (found == info.end())
+                                    continue;
+                                ++executed_fcs;
+                                const std::string expected_stage = route == "cm" && signature != "bias" && rows > 32 ? "gemm_q40_full"
+                                    : route == "raw" ? "fc_gguf_opt_gguf_q4_0" : "fc_gguf_q4_0_sg";
+                                std::string stages;
+                                for (const auto& name : found->second.as<std::vector<std::string>>())
+                                    stages += name + ";";
+                                EXPECT_TRUE(stages.find(expected_stage) != std::string::npos ||
+                                            (route == "cm" && rows > 32 && stages.find("fc_gguf_gemm_q4_0") != std::string::npos))
+                                    << stages;
+                                const auto fused_count = info.at("gguf_runtime_fused_count").as<std::string>();
+                                if (binary_post) {
+                                    EXPECT_NE(fused_count, "0");
+                                    EXPECT_NE(info.at("gguf_runtime_fused_ids").as<std::string>().find("binary_post"), std::string::npos);
+                                } else {
+                                    EXPECT_EQ(fused_count, signature == "plain" || stateful ? "0" : "1");
+                                }
+                            }
+                            EXPECT_EQ(executed_fcs, 1u);
+                        }
+                        if (stateful) {
+                            RecordProperty("request_state_" + cache_mode + (repeated ? "_repeat" : "_initial"),
+                                           "request_reset=1,variable_reset=1,recreated=1,outputs=8,states=8");
+                        } else {
+                            EXPECT_EQ(cancelled_requests + completed_cancel_requests, 2u);
+                            const auto lifecycle = "cancelled=" + std::to_string(cancelled_requests) +
+                                ",completed=" + std::to_string(completed_cancel_requests) + ",recovered=2,recreated=1";
+                            RecordProperty("request_lifecycle_" + cache_mode + "_" + signature + (repeated ? "_repeat" : "_initial"), lifecycle);
+                        }
+                        RecordProperty("fusion_cache_" + cache_mode + "_" + signature + (repeated ? "_repeat" : "_initial"), hit ? "hit" : "miss");
+                        if (external_cache)
+                            std::cout << "GGUF_FUSION_CACHE_CHECK route=" << cache_mode << " signature=" << signature
+                                      << " hit=" << hit << " repeated=" << repeated << std::endl;
+                    }
+                }
+            }
+            RecordProperty("fusion_cache_hits", std::to_string(fusion_hits));
+            RecordProperty("fusion_cache_misses", std::to_string(fusion_misses));
+        }
+        RecordProperty("source_sharing_cache_miss_hit_" + std::to_string(second_source), "1");
+        RecordProperty("source_sharing_cache_hits_" + std::to_string(second_source), std::to_string(cache_hits));
+        RecordProperty("source_sharing_cache_misses_" + std::to_string(second_source), std::to_string(cache_misses));
+    }
+    if (external_cache) {
+        RecordProperty("cross_process_initial_cache_hit", initial_hit ? "1" : "0");
+        RecordProperty("cross_process_weight_tail_changed", shifted_tail ? "1" : "0");
+    }
+#endif
+}
+
+TEST_P(gguf_fc_dynamic_reference, matches_reference) {
+#if !defined(OV_GPU_WITH_OCL_RT) || !defined(ENABLE_ONEDNN_FOR_GPU)
+    GTEST_SKIP() << "GGUF implementation requires OCL and oneDNN build support";
+#else
+    auto& engine = get_test_engine();
+    if (GetParam().cm && GetParam().use_cm) {
+        const auto device_config = get_test_default_config(engine);
+        if (!engine.get_device_info().supports_immad ||
+            !check_cm_jit_support(engine, device_config) || !device_config.get_use_cm()) {
+            GTEST_SKIP() << "CM build, JIT, IMMAD and enabled CM config required";
+        }
+    }
+    gguf_scoped_env_var shuffle("OV_GPU_GGUF_SHUFFLE", GetParam().shuffle ? "1" : "0");
+    gguf_scoped_env_var threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", GetParam().threshold);
+    gguf_scoped_env_var prefill_f16("OV_GPU_GGUF_PREFILL_F16", GetParam().low_bit_prefill ? "0" : nullptr);
+    gguf_scoped_env_var dq_act("OV_GPU_GGUF_PREFILL_DQ_ACT", GetParam().low_bit_prefill ? "0" : nullptr);
+    gguf_scoped_env_var dq_group("OV_GPU_GGUF_PREFILL_DQ_GROUP_SIZE", nullptr);
+    gguf_scoped_env_var dq_asymmetric("OV_GPU_GGUF_PREFILL_DQ_ASYMMETRIC", nullptr);
+    gguf_scoped_env_var requant_group("OV_GPU_GGUF_REQUANT_GROUP", nullptr);
+    gguf_scoped_env_var cm("OV_GPU_GGUF_PREFILL_GEMM", GetParam().cm ? "cm" : "ocl");
+    std::array<float, 32> reference = {
+        47592.5f, -49073.5f, 51735.f, -21023.f, 21752.5f, -15406.f, 11638.f, -308.5f,
+        3469.5f, 41631.f, -34432.f, 39985.5f, -18508.5f, 49953.f, -14508.f, 23126.5f,
+        -3821.f, 11636.5f, -10495.5f, 2470.f, 39943.f, -22691.5f, 23110.5f, -11534.f,
+        40024.f, -12852.5f, 18133.5f, 6516.5f, 8414.5f, -5952.f, -10262.f, 43670.5f};
+    const auto channels = GetParam().channels;
+    const auto columns = GetParam().columns;
+    const auto weight_type = GetParam().weight_type;
+    const auto precision = GetParam().precision;
+    const bool half_precision = precision == ov::element::f16;
+    const bool has_bias = GetParam().bias_mode != gguf_bias_mode::none;
+    const bool signed_binary_weights = (GetParam().post_eltwise || has_bias) && weight_type != ov::element::gguf_q4_k;
+    const float input_scale = GetParam().post_eltwise || has_bias ? (signed_binary_weights ? 1.f / 64.f : 1.f / 16384.f)
+                            : GetParam().post_activation == activation_func::swish ? 1.f / 1024.f
+                                                                                : half_precision ? 1.f / 64.f : 1.f;
+    const auto block_columns = std::min(columns, size_t{256});
+    ASSERT_EQ(columns % block_columns, 0);
+    ASSERT_EQ(block_columns % weight_type.block_elem_count(), 0);
+    const auto blocks = columns / block_columns;
+    const auto native_blocks = block_columns / weight_type.block_elem_count();
+    const auto block_bytes = native_blocks * weight_type.block_byte_size();
+    if (weight_type != ov::element::gguf_q4_k) {
+        float activation_sum = 0.f;
+        for (size_t column = 0; column < block_columns; ++column) {
+            activation_sum += static_cast<float>(static_cast<int>((column * 13) % 31) - 15);
+        }
+        for (size_t channel = 0; channel < reference.size(); ++channel) {
+            const float sign = signed_binary_weights && channel % 2 ? -1.f : 1.f;
+            reference[channel] = sign * static_cast<float>(channel + 1) * activation_sum;
+        }
+    }
+    float block_factor = 0.f;
+    for (size_t block = 0; block < blocks; ++block) {
+        block_factor += std::ldexp(static_cast<float>(block + 1), -static_cast<int>(block % 4));
+    }
+    std::vector<uint8_t> payload(channels * blocks * block_bytes);
+    for (size_t channel = 0; channel < channels; ++channel) {
+        for (size_t block = 0; block < blocks; ++block) {
+            const auto offset = (channel * blocks + block) * block_bytes;
+            if (weight_type != ov::element::gguf_q4_k) {
+                const float sign = signed_binary_weights && channel % 2 ? -1.f : 1.f;
+                const ov::float16 scale(std::ldexp(sign * static_cast<float>(channel % reference.size() + 1),
+                                                  -static_cast<int>(block % 4)));
+                for (size_t native_block = 0; native_block < native_blocks; ++native_block) {
+                    auto* bytes = payload.data() + offset + native_block * weight_type.block_byte_size();
+                    if (weight_type == ov::element::gguf_q5_k) {
+                        std::memcpy(bytes, &scale, sizeof(scale));
+                        std::fill_n(bytes + 4, 12, uint8_t{1});
+                        std::fill_n(bytes + 48, 128, uint8_t{0x11});
+                    } else if (weight_type == ov::element::gguf_q6_k) {
+                        std::fill_n(bytes, 128, uint8_t{0x11});
+                        std::fill_n(bytes + 128, 64, uint8_t{0xaa});
+                        std::fill_n(bytes + 192, 16, uint8_t{1});
+                        std::memcpy(bytes + 208, &scale, sizeof(scale));
+                    } else if (weight_type == ov::element::gguf_q4_0) {
+                        std::memcpy(bytes, &scale, sizeof(scale));
+                        std::fill_n(bytes + 2, 16, uint8_t{0x99});
+                    } else if (weight_type == ov::element::gguf_q4_1) {
+                        std::memcpy(bytes, &scale, sizeof(scale));
+                        std::fill_n(bytes + 4, 16, uint8_t{0x11});
+                    } else {
+                        ASSERT_EQ(weight_type, ov::element::gguf_q8_0);
+                        std::memcpy(bytes, &scale, sizeof(scale));
+                        std::fill_n(bytes + 2, 32, uint8_t{1});
+                    }
+                }
+                continue;
+            }
+            for (size_t byte = 0; byte < 144; ++byte) {
+                const auto index = (channel % reference.size()) * 144 + byte;
+                payload[offset + byte] = static_cast<uint8_t>((index * 37 + index / 97 + 19) % 256);
+            }
+            payload[offset] = 0;
+            payload[offset + 1] = static_cast<uint8_t>(0x3c - (block % 4) * 4);
+            payload[offset + 2] = 0;
+            payload[offset + 3] = static_cast<uint8_t>(0x38 - (block % 4) * 4);
+        }
+    }
+    const ov::Shape weight_shape{channels, columns};
+    auto raw = std::make_shared<ov::op::v0::Constant>(weight_type, weight_shape, payload.data());
+    auto input_shape = ov::PartialShape::dynamic(GetParam().rank3 ? 3 : 2);
+    input_shape[input_shape.size() - 1] = columns;
+    if (GetParam().rank3)
+        input_shape[0] = 1;
+    if (GetParam().static_rows)
+        input_shape[input_shape.size() - 2] = GetParam().static_rows * std::max(size_t{1}, GetParam().rank4_batch);
+    auto parameter = std::make_shared<ov::op::v0::Parameter>(precision, input_shape);
+    auto absent = std::make_shared<ov::intel_gpu::op::Placeholder>();
+    auto scale_node = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.f});
+    auto fc = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(parameter, raw, absent,
+                                                                          scale_node, absent, precision);
+    auto graph = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{parameter});
+    ov::pass::Manager manager;
+    manager.register_pass<ov::intel_gpu::RepackGGUFWeightsShuffle>();
+    manager.run_passes(graph);
+    auto packed = ov::as_type_ptr<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(1));
+    const bool shuffled = GetParam().shuffle && channels % 16 == 0 && columns % 256 == 0;
+    ASSERT_EQ(packed == raw, !shuffled);
+    auto public_parameter = parameter;
+    if (GetParam().rank4_batch) {
+        ov::PartialShape public_shape{GetParam().rank4_batch, 1, -1, columns};
+        if (GetParam().static_rows)
+            public_shape[2] = GetParam().static_rows;
+        public_parameter = std::make_shared<ov::op::v0::Parameter>(precision, public_shape);
+    }
+    RecordProperty("public_input_rank", static_cast<int>(public_parameter->get_partial_shape().size()));
+    RecordProperty("public_rank4_batch", std::to_string(GetParam().rank4_batch));
+    auto make_bias_values = [channels](size_t iteration) {
+        std::vector<float> values(channels);
+        for (size_t channel = 0; channel < channels; ++channel)
+            values[channel] = 8.f + static_cast<float>(channel % 7) / 4.f + static_cast<float>(iteration % 2) * 4.f;
+        return values;
+    };
+    const auto bias_values = make_bias_values(0);
+    ov::Output<ov::Node> bias = ov::op::v0::Constant::create(precision, ov::Shape{channels}, {0.f});
+    ov::ParameterVector public_parameters{public_parameter};
+    if (GetParam().bias_mode == gguf_bias_mode::constant) {
+        bias = ov::op::v0::Constant::create(precision, ov::Shape{channels}, bias_values);
+    } else if (GetParam().bias_mode == gguf_bias_mode::parameter) {
+        const auto bias_parameter = std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{channels});
+        bias = bias_parameter;
+        public_parameters.push_back(bias_parameter);
+    }
+    auto public_fc = std::make_shared<ov::op::internal::FullyConnectedCompressed>(public_parameter, raw, bias,
+                                                                                scale_node, precision);
+    ov::Output<ov::Node> public_result = public_fc;
+    if (GetParam().bias_mode == gguf_bias_mode::add) {
+        const auto bias_constant = ov::op::v0::Constant::create(precision, ov::Shape{channels}, bias_values);
+        public_result = std::make_shared<ov::op::v1::Add>(public_result, bias_constant);
+        public_result.get_node_shared_ptr()->set_friendly_name("bias_post");
+    }
+    if (GetParam().post_activation == activation_func::relu)
+        public_result = std::make_shared<ov::op::v0::Relu>(public_result);
+    else if (GetParam().post_activation == activation_func::swish)
+        public_result = std::make_shared<ov::op::v4::Swish>(public_result);
+    else if (GetParam().post_activation == activation_func::negative)
+        public_result = std::make_shared<ov::op::v0::Negative>(public_result);
+    auto peer_shape = public_parameter->get_partial_shape();
+    peer_shape[peer_shape.size() - 1] = channels;
+    auto direct_peer_shape = input_shape;
+    direct_peer_shape[direct_peer_shape.size() - 1] = channels;
+    const auto public_peer_index = public_parameters.size();
+    if (GetParam().post_eltwise) {
+        const auto peer = std::make_shared<ov::op::v0::Parameter>(precision, peer_shape);
+        public_parameters.push_back(peer);
+        if (*GetParam().post_eltwise == eltwise_mode::sum)
+            public_result = std::make_shared<ov::op::v1::Add>(public_result, peer);
+        else
+            public_result = std::make_shared<ov::op::v1::Multiply>(public_result, peer);
+        public_result.get_node_shared_ptr()->set_friendly_name("binary_post");
+        public_result = std::make_shared<ov::op::v0::Relu>(public_result);
+    }
+    auto public_graph = std::make_shared<ov::Model>(ov::OutputVector{public_result}, public_parameters);
+    ov::Core core;
+    auto compiled = core.compile_model(public_graph, "GPU", ov::hint::inference_precision(precision),
+                                       ov::enable_profiling(true), ov::num_streams(1));
+    auto request = compiled.create_infer_request();
+    for (const auto& operation : compiled.get_runtime_model()->get_ordered_ops())
+        EXPECT_EQ(operation->get_rt_info().count("gguf_last_executed_kernels"), 0u);
+    const bool gemm_capable = gguf_gemm_capable(engine, shuffled, channels);
+    const bool cm_selected = GetParam().cm && GetParam().use_cm && gemm_capable;
+    // Without a usable CM kernel (or without a request for it) a capable node uses the OCL GEMM.
+    const bool ocl_selected = gemm_capable && !cm_selected;
+    auto weights = engine.allocate_memory({ov::PartialShape(weight_shape), weight_type, format::bfyx});
+    {
+        mem_lock<uint8_t, mem_lock_type::write> bytes(weights, get_test_stream());
+        std::memcpy(bytes.data(), packed->get_data_ptr(), packed->get_byte_size());
+    }
+    auto scale = engine.allocate_memory({ov::PartialShape{1}, data_types::f32, format::bfyx});
+    set_values(scale, {1.f});
+    topology topology(input_layout("input", {input_shape, precision, format::bfyx}),
+                      data("weights", weights), data("scale", scale),
+                      fully_connected("fc", input_info("input"), "weights", "", "scale", "", precision));
+    const bool has_post_activation = GetParam().post_activation != activation_func::none;
+    const std::string output_id = GetParam().post_eltwise ? "binary_relu" : has_post_activation ? "post" : "fc";
+    if (has_post_activation)
+        topology.add(activation("post", input_info("fc"), GetParam().post_activation,
+                                {GetParam().post_activation == activation_func::swish ? 1.f : 0.f, 0.f}));
+    if (GetParam().post_eltwise) {
+        topology.add(input_layout("peer", {direct_peer_shape, precision, format::bfyx}));
+        topology.add(eltwise("post", std::vector<input_info>{input_info("fc"), input_info("peer")}, *GetParam().post_eltwise));
+        topology.add(activation("binary_relu", input_info("post"), activation_func::relu));
+    }
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    if (has_post_activation || GetParam().post_eltwise)
+        config.set_property(ov::intel_gpu::optimize_data(true));
+    if (!GetParam().use_cm)
+        config.set_property(ov::intel_gpu::use_cm(false));
+    network network(engine, topology, config);
+    std::vector<size_t> row_counts = {1, 2, 31, 32, 33, 1, 1, 33, 2};
+    if (GetParam().cm) {
+        row_counts.push_back(128);
+        row_counts.push_back(1);
+    }
+    if (GetParam().static_rows)
+        row_counts = {GetParam().static_rows, GetParam().static_rows};
+    for (size_t iteration = 0; iteration < row_counts.size(); ++iteration) {
+        const auto rows = row_counts[iteration] * std::max(size_t{1}, GetParam().rank4_batch);
+        const auto concrete_input = GetParam().rank3 ? ov::Shape{1, rows, columns} : ov::Shape{rows, columns};
+        const auto expected_output = GetParam().rank3 ? ov::Shape{1, rows, channels} : ov::Shape{rows, channels};
+        const auto public_input_shape = GetParam().rank4_batch
+            ? ov::Shape{GetParam().rank4_batch, 1, row_counts[iteration], columns} : concrete_input;
+        const auto public_expected_output = GetParam().rank4_batch
+            ? ov::Shape{GetParam().rank4_batch, 1, row_counts[iteration], channels} : expected_output;
+        const bool broadcast_peer = GetParam().broadcast_peer && rows > 1 && iteration % 2 == 0;
+        auto peer_output = expected_output;
+        if (broadcast_peer)
+            peer_output[peer_output.size() - 2] = 1;
+        auto input = engine.allocate_memory({ov::PartialShape(concrete_input), precision, format::bfyx});
+        std::vector<float> values(rows * columns);
+        for (size_t row = 0; row < rows; ++row) {
+            const float batch_factor = GetParam().rank4_batch
+                ? 1.f + static_cast<float>(row / row_counts[iteration]) / 4.f : 1.f;
+            const float factor = static_cast<float>((row % 3 + 1) * (iteration % 2 + 1)) * batch_factor;
+            for (size_t column = 0; column < columns; ++column) {
+                values[row * columns + column] = input_scale * factor * static_cast<float>(column / block_columns + 1) *
+                    static_cast<float>(static_cast<int>(((column % block_columns) * 13) % 31) - 15);
+            }
+        }
+        ov::Tensor public_input(precision, public_input_shape);
+        if (half_precision) {
+            const std::vector<ov::float16> half_values(values.begin(), values.end());
+            set_values(input, half_values);
+            std::memcpy(public_input.data<ov::float16>(), half_values.data(), half_values.size() * sizeof(ov::float16));
+        } else {
+            set_values(input, values);
+            std::memcpy(public_input.data<float>(), values.data(), values.size() * sizeof(float));
+        }
+        request.set_input_tensor(0, public_input);
+        const auto current_bias = GetParam().bias_mode == gguf_bias_mode::parameter ? make_bias_values(iteration) : bias_values;
+        if (GetParam().bias_mode == gguf_bias_mode::parameter) {
+            ov::Tensor bias_tensor(precision, ov::Shape{channels});
+            if (half_precision) {
+                const std::vector<ov::float16> converted(current_bias.begin(), current_bias.end());
+                std::memcpy(bias_tensor.data(), converted.data(), converted.size() * sizeof(ov::float16));
+            } else {
+                std::memcpy(bias_tensor.data(), current_bias.data(), current_bias.size() * sizeof(float));
+            }
+            request.set_input_tensor(1, bias_tensor);
+        }
+        std::vector<float> peer_values((broadcast_peer ? 1 : rows) * channels);
+        if (GetParam().post_eltwise) {
+            auto peer_memory = engine.allocate_memory({ov::PartialShape(peer_output), precision, format::bfyx});
+            auto public_peer_output = public_expected_output;
+            if (broadcast_peer)
+                public_peer_output[public_peer_output.size() - 2] = 1;
+            ov::Tensor peer_tensor(precision, public_peer_output);
+            for (size_t index = 0; index < peer_values.size(); ++index) {
+                peer_values[index] = static_cast<float>(static_cast<int>((index + iteration * 3) % 7) - 3) / 4.f;
+                if (half_precision)
+                    peer_tensor.data<ov::float16>()[index] = ov::float16(peer_values[index]);
+                else
+                    peer_tensor.data<float>()[index] = peer_values[index];
+            }
+            if (half_precision)
+                set_values(peer_memory, std::vector<ov::float16>(peer_values.begin(), peer_values.end()));
+            else
+                set_values(peer_memory, peer_values);
+            request.set_input_tensor(public_peer_index, peer_tensor);
+            network.set_input_data("peer", peer_memory);
+        }
+        request.infer();
+        std::string public_entries;
+        std::string public_fusions;
+        std::string public_diagnostics;
+        for (const auto& operation : compiled.get_runtime_model()->get_ordered_ops()) {
+            if (std::string(operation->get_type_name()) == "Result")
+                continue;
+            const auto& info = operation->get_rt_info();
+            if (info.count("weights_precision")) {
+                public_diagnostics += operation->get_friendly_name() + ":" +
+                    info.at(ov::exec_model_info::IMPL_TYPE).as<std::string>() + ":" +
+                    info.at(ov::exec_model_info::PERF_COUNTER).as<std::string>() + " ";
+            }
+            const auto found = info.find("gguf_last_executed_kernels");
+            if (found == info.end())
+                continue;
+            public_entries += found->second.as<std::string>() + " ";
+            const auto fused_count = info.at("gguf_runtime_fused_count").as<std::string>();
+            const auto fused_ids = info.at("gguf_runtime_fused_ids").as<std::string>();
+            EXPECT_EQ(fused_count == "0", fused_ids.empty());
+            public_fusions += fused_count + ":" + fused_ids + " ";
+            EXPECT_EQ(info.at("gguf_weights_bytes").as<std::string>(), std::to_string(packed->get_byte_size()));
+            EXPECT_FALSE(info.at("gguf_weights_storage_id").as<std::string>().empty());
+        }
+        ASSERT_FALSE(public_entries.empty()) << "iteration=" << iteration << " " << public_diagnostics;
+        RecordProperty("public_stage_iteration_" + std::to_string(iteration), public_entries);
+        RecordProperty("public_fusions_iteration_" + std::to_string(iteration), public_fusions);
+        if (has_post_activation && rows == 128) {
+            std::string public_implementations;
+            for (const auto& operation : compiled.get_runtime_model()->get_ordered_ops()) {
+                const auto& info = operation->get_rt_info();
+                const auto found = info.find(ov::exec_model_info::IMPL_TYPE);
+                if (found != info.end()) {
+                    const auto name = found->second.as<std::string>();
+                    if (name.find("fc_gguf") != std::string::npos)
+                        public_implementations += name + " ";
+                }
+            }
+            RecordProperty("public_compile_implementations", public_implementations);
+            ASSERT_FALSE(public_implementations.empty());
+        }
+        auto public_output = request.get_output_tensor();
+        ASSERT_EQ(public_output.get_shape(), public_expected_output);
+        RecordProperty("public_rows_iteration_" + std::to_string(iteration), std::to_string(rows));
+        network.set_input_data("input", input);
+        auto outputs = network.execute();
+        ASSERT_EQ(outputs.at(output_id).get_layout().get_shape(), expected_output);
+        auto output = outputs.at(output_id).get_memory();
+        EXPECT_NE(network.get_primitive("fc")->get_impl()->get_kernel_name().find("gguf"), std::string::npos);
+        auto* implementation = dynamic_cast<ov::intel_gpu::ocl::PrimitiveImplOCL*>(network.get_primitive("fc")->get_impl());
+        ASSERT_NE(implementation, nullptr);
+        const auto entries = implementation->kernel_dump_info.get_entries();
+        if (has_post_activation) {
+            const auto& fused = network.get_primitive("fc")->get_impl_params()->fused_desc;
+            EXPECT_TRUE(fused.empty());
+        }
+        if (GetParam().post_eltwise) {
+            bool found_binary = false;
+            for (const auto& descriptor : network.get_primitive("fc")->get_impl_params()->fused_desc) {
+                if (descriptor.is_type<eltwise>()) {
+                    found_binary = true;
+                    EXPECT_EQ(descriptor.typed_desc<eltwise>()->mode, *GetParam().post_eltwise);
+                    EXPECT_TRUE(descriptor.has_outer_dep());
+                }
+            }
+            EXPECT_TRUE(found_binary);
+        }
+        RecordProperty("stage_iteration_" + std::to_string(iteration), entries);
+        const bool prefill = !GetParam().threshold && rows > 32;
+        const std::string sg_stage = weight_type == ov::element::gguf_q4_k ? "fc_gguf_q4k_sg"
+                         : weight_type == ov::element::gguf_q5_k ? "fc_gguf_q5k_sg"
+                         : weight_type == ov::element::gguf_q6_k ? "fc_gguf_q6k_sg"
+                         : weight_type == ov::element::gguf_q4_0 ? "fc_gguf_q4_0_sg"
+                         : weight_type == ov::element::gguf_q4_1 ? "fc_gguf_q4_1_sg"
+                                           : "fc_gguf_q8_0_sg";
+        const std::string cm_stage = weight_type == ov::element::gguf_q4_k ? "gemm_q4k_full"
+                         : weight_type == ov::element::gguf_q5_k ? "gemm_q5k_full"
+                         : weight_type == ov::element::gguf_q6_k ? "gemm_q6k_full"
+                         : weight_type == ov::element::gguf_q4_0 ? "gemm_q40_full"
+                         : weight_type == ov::element::gguf_q4_1 ? "gemm_q41_full"
+                                           : "gemm_q80_full";
+        const bool cm_for_iteration = cm_selected && !broadcast_peer;
+        const bool ocl_for_iteration = ocl_selected && !broadcast_peer;
+        const std::string expected_stage = broadcast_peer ? sg_stage
+                  : prefill && cm_for_iteration ? cm_stage
+                          : prefill && ocl_for_iteration ? gguf_ocl_gemm_stage(weight_type)
+                          : prefill ? "fc_gguf_transcode_" + weight_type.to_string()
+                          : shuffled ? sg_stage : "fc_gguf_opt_" + weight_type.to_string();
+        EXPECT_NE(entries.find(expected_stage), std::string::npos) << "iteration=" << iteration << " entries=" << entries;
+        if (!has_bias && GetParam().post_activation != activation_func::negative && GetParam().use_cm)
+            EXPECT_NE(public_entries.find(expected_stage), std::string::npos) << public_entries;
+        if (has_bias) {
+            EXPECT_TRUE(public_entries.find(sg_stage) != std::string::npos ||
+                public_entries.find(cm_stage) != std::string::npos ||
+                public_entries.find(gguf_ocl_gemm_stage(weight_type)) != std::string::npos ||
+                public_entries.find("fc_gguf_opt_" + weight_type.to_string()) != std::string::npos ||
+                public_entries.find("fc_gguf_transcode_" + weight_type.to_string()) != std::string::npos)
+            << public_entries;
+        }
+        if (GetParam().post_activation == activation_func::relu || GetParam().post_activation == activation_func::swish)
+            EXPECT_EQ(public_fusions.rfind("1:", 0), 0u) << public_fusions;
+        if (GetParam().post_eltwise && !GetParam().rank4_batch) {
+            EXPECT_NE(public_fusions.rfind("0:", 0), 0u) << public_fusions;
+            EXPECT_NE(public_fusions.find("binary_post"), std::string::npos) << public_fusions;
+        }
+        EXPECT_EQ(entries.find("fc_gguf_act_dq"), std::string::npos) << entries;
+        EXPECT_EQ(public_entries.find("fc_gguf_act_dq"), std::string::npos) << public_entries;
+        if (!prefill) {
+            EXPECT_EQ(entries.find("fc_gguf_transcode"), std::string::npos) << entries;
+            EXPECT_EQ(entries.find("gemm_q"), std::string::npos) << entries;
+            EXPECT_EQ(public_entries.find("fc_gguf_transcode"), std::string::npos) << public_entries;
+            EXPECT_EQ(public_entries.find("gemm_q"), std::string::npos) << public_entries;
+        }
+        if (cm_for_iteration) {
+            EXPECT_EQ(entries.find("fc_gguf_transcode"), std::string::npos) << entries;
+            EXPECT_EQ(entries.find("fc_gguf_gemm_q"), std::string::npos) << entries;
+            EXPECT_EQ(entries.find("convert_act_f32_to_f16") != std::string::npos, prefill && !half_precision) << entries;
+        } else if (ocl_for_iteration && prefill) {
+            EXPECT_EQ(entries.find("fc_gguf_transcode"), std::string::npos) << entries;
+            EXPECT_EQ(entries.find("_full"), std::string::npos) << entries;
+            EXPECT_EQ(entries.find("convert_act_f32_to_f16"), std::string::npos) << entries;
+        } else if (broadcast_peer) {
+            EXPECT_EQ(entries.find("fc_gguf_transcode"), std::string::npos);
+            EXPECT_EQ(public_entries.find("gemm_q"), std::string::npos);
+            EXPECT_EQ(public_entries.find("fc_gguf_transcode"), std::string::npos);
+        }
+        std::vector<float> actual;
+        if (half_precision) {
+            mem_lock<ov::float16, mem_lock_type::read> locked_output(output, get_test_stream());
+            actual.assign(locked_output.data(), locked_output.data() + rows * channels);
+        } else {
+            mem_lock<float, mem_lock_type::read> locked_output(output, get_test_stream());
+            actual.assign(locked_output.data(), locked_output.data() + rows * channels);
+        }
+        bool detects_missing_fc = false;
+        bool detects_missing_binary = false;
+        bool detects_missing_bias = false;
+        bool detects_bias_order = false;
+        for (size_t row = 0; row < rows; ++row) {
+            const float batch_factor = GetParam().rank4_batch
+                ? 1.f + static_cast<float>(row / row_counts[iteration]) / 4.f : 1.f;
+            const float factor = static_cast<float>((row % 3 + 1) * (iteration % 2 + 1)) * batch_factor;
+            for (size_t channel = 0; channel < channels; ++channel) {
+            const float fc_value = reference[channel % reference.size()] * input_scale * factor * block_factor;
+            float expected = fc_value;
+                if (GetParam().post_activation == activation_func::relu)
+                    expected = std::max(expected, 0.f);
+                else if (GetParam().post_activation == activation_func::swish)
+                    expected = expected / (1.f + std::exp(-expected));
+                else if (GetParam().post_activation == activation_func::negative)
+                    expected = -expected;
+                if (half_precision)
+                    expected = static_cast<float>(ov::float16(expected));
+                if (GetParam().post_eltwise) {
+                    const float fc_reference = expected;
+                    const auto peer = peer_values[(broadcast_peer ? 0 : row) * channels + channel];
+                    expected = *GetParam().post_eltwise == eltwise_mode::sum ? expected + peer : expected * peer;
+                    if (half_precision)
+                        expected = static_cast<float>(ov::float16(expected));
+                    expected = std::max(expected, 0.f);
+                    const float without_fc = *GetParam().post_eltwise == eltwise_mode::sum ? std::max(peer, 0.f) : 0.f;
+                    detects_missing_fc |= std::abs(expected - without_fc) > 0.2f;
+                    detects_missing_binary |= std::abs(expected - std::max(fc_reference, 0.f)) > 0.2f;
+                }
+                const float public_actual = half_precision
+                    ? static_cast<float>(public_output.data<const ov::float16>()[row * channels + channel])
+                    : public_output.data<const float>()[row * channels + channel];
+                EXPECT_NEAR(actual[row * channels + channel], expected, 0.1f)
+                    << "iteration=" << iteration << " row=" << row << " channel=" << channel;
+                if (has_bias) {
+                    float biased = half_precision ? static_cast<float>(ov::float16(fc_value)) : fc_value;
+                    biased += current_bias[channel];
+                    if (half_precision)
+                        biased = static_cast<float>(ov::float16(biased));
+                    if (GetParam().post_activation == activation_func::relu)
+                        biased = std::max(biased, 0.f);
+                    else if (GetParam().post_activation == activation_func::swish)
+                        biased = biased / (1.f + std::exp(-biased));
+                    else if (GetParam().post_activation == activation_func::negative)
+                        biased = -biased;
+                    if (half_precision)
+                        biased = static_cast<float>(ov::float16(biased));
+                    if (GetParam().post_eltwise) {
+                        const auto peer = peer_values[(broadcast_peer ? 0 : row) * channels + channel];
+                        biased = *GetParam().post_eltwise == eltwise_mode::sum ? biased + peer : biased * peer;
+                        if (half_precision)
+                            biased = static_cast<float>(ov::float16(biased));
+                        biased = std::max(biased, 0.f);
+                        detects_bias_order |= std::abs(biased - (expected + current_bias[channel])) > 0.2f;
+                    }
+                    detects_missing_bias |= std::abs(biased - expected) > 0.2f;
+                    ASSERT_NEAR(public_actual, biased, 0.1f)
+                        << "public bias iteration=" << iteration << " row=" << row << " channel=" << channel;
+                    continue;
+                }
+                EXPECT_NEAR(public_actual, expected, 0.1f)
+                    << "public pipeline iteration=" << iteration << " row=" << row << " channel=" << channel;
+            }
+        }
+        if (signed_binary_weights && GetParam().post_eltwise) {
+            EXPECT_TRUE(detects_missing_fc) << "iteration=" << iteration;
+            EXPECT_TRUE(detects_missing_binary) << "iteration=" << iteration;
+        }
+        if (has_bias) {
+            EXPECT_TRUE(detects_missing_bias) << "iteration=" << iteration;
+            if (GetParam().post_eltwise == eltwise_mode::prod)
+                EXPECT_TRUE(detects_bias_order) << "iteration=" << iteration;
+        }
+    }
+#endif
+}
+
+namespace {
+struct gguf_qkv_mode {
+    const char* name;
+    bool shuffle;
+    bool cm;
+    ov::element::Type precision;
+    bool rank3;
+    bool post_bias;
+};
+
+class gguf_qkv_dynamic_reference : public ::testing::TestWithParam<gguf_qkv_mode> {};
+}
+
+TEST_P(gguf_qkv_dynamic_reference, matches_unfused_and_reference) {
+#if !defined(OV_GPU_WITH_OCL_RT) || !defined(ENABLE_ONEDNN_FOR_GPU)
+    GTEST_SKIP() << "GGUF implementation requires OCL and oneDNN build support";
+#else
+    const auto mode = GetParam();
+    auto& engine = get_test_engine();
+    if (mode.cm) {
+        const auto config = get_test_default_config(engine);
+        if (!engine.get_device_info().supports_immad || !check_cm_jit_support(engine, config) || !config.get_use_cm())
+            GTEST_SKIP() << "CM build, JIT, IMMAD and enabled CM config required";
+    }
+    gguf_scoped_env_var shuffle("OV_GPU_GGUF_SHUFFLE", mode.shuffle ? "1" : "0");
+    gguf_scoped_env_var cm("OV_GPU_GGUF_PREFILL_GEMM", mode.cm ? "cm" : "ocl");
+    gguf_scoped_env_var threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", nullptr);
+    gguf_scoped_env_var prefill_f16("OV_GPU_GGUF_PREFILL_F16", nullptr);
+    const size_t columns = 512;
+    const std::array<size_t, 3> channels{16, 48, 64};
+    const auto type = ov::element::gguf_q4_1;
+    const auto shape = mode.rank3 ? ov::PartialShape{1, -1, columns} : ov::PartialShape{-1, columns};
+    const auto shared_input = std::make_shared<ov::op::v0::Parameter>(mode.precision, shape);
+    ov::ParameterVector independent_inputs;
+    ov::OutputVector fused_outputs;
+    ov::OutputVector unfused_outputs;
+    ov::OutputVector unfused_fc_outputs;
+    std::array<std::vector<float>, 3> decoded;
+    std::array<std::vector<float>, 3> biases;
+    size_t total_bytes = 0;
+    for (size_t head = 0; head < channels.size(); ++head) {
+        std::vector<uint8_t> payload(channels[head] * columns / type.block_elem_count() * type.block_byte_size());
+        decoded[head].resize(channels[head] * columns);
+        biases[head].resize(channels[head]);
+        for (size_t channel = 0; channel < channels[head]; ++channel) {
+            biases[head][channel] = static_cast<float>(head + 1) / 4.f + static_cast<float>(channel) / 128.f;
+            for (size_t block = 0; block < columns / 32; ++block) {
+                const ov::float16 scale(std::ldexp(static_cast<float>(head + channel % 3 + 1) / 16.f,
+                                                   -static_cast<int>(block % 3)));
+                const ov::float16 offset(static_cast<float>(static_cast<int>(head) - 1) / 8.f);
+                auto* bytes = payload.data() + (channel * columns / 32 + block) * type.block_byte_size();
+                std::memcpy(bytes, &scale, sizeof(scale));
+                std::memcpy(bytes + 2, &offset, sizeof(offset));
+                for (size_t column = 0; column < 16; ++column) {
+                    const auto low = static_cast<uint8_t>((channel + block + column) % 16);
+                    const auto high = static_cast<uint8_t>(15 - low);
+                    bytes[4 + column] = static_cast<uint8_t>(low | (high << 4));
+                    decoded[head][channel * columns + block * 32 + column] = float(scale) * low + float(offset);
+                    decoded[head][channel * columns + block * 32 + column + 16] = float(scale) * high + float(offset);
+                }
+            }
+        }
+        const auto weight = std::make_shared<ov::op::v0::Constant>(type, ov::Shape{channels[head], columns}, payload.data());
+        total_bytes += weight->get_byte_size();
+        const auto absent = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
+        const auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.f});
+        const auto independent = std::make_shared<ov::op::v0::Parameter>(mode.precision, shape);
+        independent_inputs.push_back(independent);
+        for (const bool shared : {true, false}) {
+            const auto fc = std::make_shared<ov::op::internal::FullyConnectedCompressed>(
+                shared ? shared_input : independent, weight, absent, scale, mode.precision);
+            fc->set_friendly_name(std::string(shared ? "qkv_" : "separate_") + std::to_string(head));
+            if (!shared && mode.post_bias)
+                unfused_fc_outputs.push_back(fc);
+            ov::Output<ov::Node> output = fc;
+            if (mode.post_bias) {
+                const auto bias = ov::op::v0::Constant::create(mode.precision, ov::Shape{channels[head]}, biases[head]);
+                output = std::make_shared<ov::op::v1::Add>(output, bias);
+            }
+            (shared ? fused_outputs : unfused_outputs).push_back(output);
+        }
+    }
+    const auto fused_model = std::make_shared<ov::Model>(fused_outputs, ov::ParameterVector{shared_input});
+    unfused_outputs.insert(unfused_outputs.end(), unfused_fc_outputs.begin(), unfused_fc_outputs.end());
+    const auto unfused_model = std::make_shared<ov::Model>(unfused_outputs, independent_inputs);
+    const auto repack_model = fused_model->clone();
+    ov::pass::Manager manager;
+    manager.register_pass<ov::intel_gpu::ConvertGGUFFullyConnectedCompressed>();
+    manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>();
+    manager.register_pass<ov::intel_gpu::RepackGGUFWeightsShuffle>();
+    manager.run_passes(repack_model);
+    std::shared_ptr<ov::intel_gpu::op::FullyConnectedCompressed> repacked_fc;
+    for (const auto& operation : repack_model->get_ordered_ops()) {
+        if (const auto fc = ov::as_type_ptr<ov::intel_gpu::op::FullyConnectedCompressed>(operation)) {
+            ASSERT_FALSE(repacked_fc);
+            repacked_fc = fc;
+        }
+    }
+    ASSERT_TRUE(repacked_fc);
+    const auto packed = ov::as_type_ptr<ov::op::v0::Constant>(repacked_fc->get_input_node_shared_ptr(1));
+    ASSERT_TRUE(packed);
+    ASSERT_EQ(packed->get_shape(), (ov::Shape{128, columns}));
+    ASSERT_EQ(packed->get_byte_size(), total_bytes);
+    ASSERT_EQ(packed->get_rt_info().count("intel_gpu_gguf_weights_shuffled"), mode.shuffle ? 1u : 0u);
+    const std::vector<uint8_t> packed_bytes(packed->get_data_ptr<uint8_t>(), packed->get_data_ptr<uint8_t>() + total_bytes);
+    manager.run_passes(repack_model);
+    EXPECT_EQ(repacked_fc->get_input_node_shared_ptr(1), packed);
+    EXPECT_EQ(std::memcmp(packed->get_data_ptr(), packed_bytes.data(), total_bytes), 0);
+    ov::Core core;
+    const auto properties = ov::AnyMap{ov::hint::inference_precision(mode.precision), ov::enable_profiling(true), ov::num_streams(1)};
+    auto fused = core.compile_model(fused_model, "GPU", properties);
+    auto unfused = core.compile_model(unfused_model, "GPU", properties);
+    auto fused_request = fused.create_infer_request();
+    auto unfused_request = unfused.create_infer_request();
+    const bool half_precision = mode.precision == ov::element::f16;
+    const std::vector<size_t> row_counts{1, 2, 31, 32, 33, 1, 1, 33, 2, 128, 1};
+    for (size_t iteration = 0; iteration < row_counts.size(); ++iteration) {
+        SCOPED_TRACE(iteration);
+        const auto rows = row_counts[iteration];
+        const auto input_shape = mode.rank3 ? ov::Shape{1, rows, columns} : ov::Shape{rows, columns};
+        ov::Tensor input(mode.precision, input_shape);
+        std::vector<float> values(rows * columns);
+        for (size_t index = 0; index < values.size(); ++index) {
+            values[index] = static_cast<float>(static_cast<int>((index % columns * 13 + iteration * 7) % 31) - 15) *
+                            static_cast<float>(index / columns % 3 + 1) / 64.f;
+            if (half_precision)
+                input.data<ov::float16>()[index] = ov::float16(values[index]);
+            else
+                input.data<float>()[index] = values[index];
+        }
+        fused_request.set_input_tensor(input);
+        for (size_t head = 0; head < channels.size(); ++head)
+            unfused_request.set_input_tensor(head, input);
+        fused_request.infer();
+        unfused_request.infer();
+        for (const bool shared : {true, false}) {
+            size_t executed = 0;
+            size_t weight_bytes = 0;
+            std::string stages;
+            for (const auto& operation : (shared ? fused : unfused).get_runtime_model()->get_ordered_ops()) {
+                const auto& info = operation->get_rt_info();
+                const auto found = info.find("gguf_last_executed_kernels");
+                if (found == info.end())
+                    continue;
+                ++executed;
+                stages += found->second.as<std::string>() + " ";
+                weight_bytes += std::stoull(info.at("gguf_weights_bytes").as<std::string>());
+                EXPECT_FALSE(info.at("gguf_weights_storage_id").as<std::string>().empty());
+            }
+            ASSERT_EQ(executed, shared ? 1u : 3u) << stages;
+            EXPECT_EQ(weight_bytes, total_bytes);
+            RecordProperty(std::string(shared ? "fused_stage_" : "unfused_stage_") + std::to_string(iteration), stages);
+            if (shared) {
+                const std::string expected = rows > 32 ? mode.cm ? "gemm_q41_full"
+                                                               : gguf_gemm_capable(engine, mode.shuffle, 128) ? "fc_gguf_gemm_q4_1"
+                                                                                                              : "fc_gguf_transcode_gguf_q4_1"
+                                                       : mode.shuffle ? "fc_gguf_q4_1_sg" : "fc_gguf_opt_gguf_q4_1";
+                EXPECT_NE(stages.find(expected), std::string::npos) << stages;
+            }
+        }
+        for (size_t head = 0; head < channels.size(); ++head) {
+            const auto fused_output = fused_request.get_output_tensor(head);
+            const auto unfused_output = unfused_request.get_output_tensor(head);
+            const auto output_shape = mode.rank3 ? ov::Shape{1, rows, channels[head]} : ov::Shape{rows, channels[head]};
+            ASSERT_EQ(fused_output.get_shape(), output_shape);
+            ASSERT_EQ(unfused_output.get_shape(), output_shape);
+            for (size_t row = 0; row < rows; ++row) {
+                for (size_t channel = 0; channel < channels[head]; ++channel) {
+                    float expected = 0.f;
+                    for (size_t column = 0; column < columns; ++column)
+                        expected += values[row * columns + column] * decoded[head][channel * columns + column];
+                    if (half_precision)
+                        expected = float(ov::float16(expected));
+                    if (mode.post_bias)
+                        expected += biases[head][channel];
+                    if (half_precision)
+                        expected = float(ov::float16(expected));
+                    const auto index = row * channels[head] + channel;
+                    const float fused_value = half_precision ? float(fused_output.data<const ov::float16>()[index])
+                                                             : fused_output.data<const float>()[index];
+                    const float unfused_value = half_precision ? float(unfused_output.data<const ov::float16>()[index])
+                                                               : unfused_output.data<const float>()[index];
+                    ASSERT_NEAR(fused_value, expected, 0.1f) << "head=" << head << " row=" << row << " channel=" << channel;
+                    ASSERT_NEAR(unfused_value, expected, 0.1f) << "head=" << head << " row=" << row << " channel=" << channel;
+                    ASSERT_NEAR(fused_value, unfused_value, 0.1f);
+                }
+            }
+        }
+    }
+#endif
+}
+
+INSTANTIATE_TEST_SUITE_P(gguf,
+                        gguf_qkv_dynamic_reference,
+                        ::testing::Values(gguf_qkv_mode{"raw_f32_rank2", false, false, ov::element::f32, false, false},
+                                          gguf_qkv_mode{"raw_f16_rank3", false, false, ov::element::f16, true, false},
+                                          gguf_qkv_mode{"sg_f32_rank3", true, false, ov::element::f32, true, false},
+                                          gguf_qkv_mode{"sg_f16_rank2", true, false, ov::element::f16, false, false},
+                                          gguf_qkv_mode{"cm_f32_rank2", true, true, ov::element::f32, false, false},
+                                          gguf_qkv_mode{"cm_f16_rank3", true, true, ov::element::f16, true, false},
+                                          gguf_qkv_mode{"cm_bias_f32_rank3", true, true, ov::element::f32, true, true},
+                                          gguf_qkv_mode{"cm_bias_f16_rank2", true, true, ov::element::f16, false, true}),
+                        [](const ::testing::TestParamInfo<gguf_qkv_mode>& info) { return info.param.name; });
+
+INSTANTIATE_TEST_SUITE_P(gguf_nondefault_prefill,
+                        gguf_fc_dynamic_reference,
+                        ::testing::ValuesIn([] {
+                            std::vector<gguf_fc_mode> modes;
+                            for (const std::string name : {"q5k_f16_baseline", "q5k_woq"}) {
+                                gguf_fc_mode mode{name, false, nullptr};
+                                mode.channels = 32;
+                                mode.columns = 512;
+                                mode.weight_type = ov::element::gguf_q5_k;
+                                mode.precision = ov::element::f16;
+                                mode.low_bit_prefill = name != "q5k_f16_baseline";
+                                modes.push_back(mode);
+                            }
+                            return modes;
+                        }()),
+                        [](const ::testing::TestParamInfo<gguf_fc_mode>& info) { return info.param.name; });
+
+INSTANTIATE_TEST_SUITE_P(gguf,
+                        gguf_fc_dynamic_reference,
+                        ::testing::Values(gguf_fc_mode{"sg_native", true, "64"},
+                                          gguf_fc_mode{"raw_native", false, "64"},
+                                          gguf_fc_mode{"sg_default_prefill", true, nullptr},
+                                          gguf_fc_mode{"raw_default_prefill", false, nullptr},
+                                          gguf_fc_mode{"sg_native_rank3", true, "64", true},
+                                          gguf_fc_mode{"raw_native_rank3", false, "64", true},
+                                          gguf_fc_mode{"sg_default_prefill_rank3", true, nullptr, true},
+                                          gguf_fc_mode{"raw_default_prefill_rank3", false, nullptr, true},
+                                          gguf_fc_mode{"sg_native_n16_k512", true, "64", false, 16, 512},
+                                          gguf_fc_mode{"sg_prefill_n16_k512", true, nullptr, true, 16, 512},
+                                          gguf_fc_mode{"raw_native_n17_k512", false, "64", true, 17, 512},
+                                          gguf_fc_mode{"shuffle_fallback_n17_k512", true, "64", false, 17, 512},
+                                          gguf_fc_mode{"prefill_fallback_n17_k512", true, nullptr, true, 17, 512},
+                                          gguf_fc_mode{"sg_native_n48_k1024", true, "64", true, 48, 1024},
+                                          gguf_fc_mode{"raw_native_n48_k1024", false, "64", false, 48, 1024},
+                                          gguf_fc_mode{"sg_prefill_n48_k1024", true, nullptr, false, 48, 1024},
+                                          gguf_fc_mode{"raw_prefill_n48_k1024", false, nullptr, true, 48, 1024},
+                                          gguf_fc_mode{"q5k_sg_native", true, "64", false, 32, 512, ov::element::gguf_q5_k},
+                                          gguf_fc_mode{"q5k_raw_native", false, "64", true, 32, 512, ov::element::gguf_q5_k},
+                                          gguf_fc_mode{"q5k_sg_prefill", true, nullptr, true, 32, 512, ov::element::gguf_q5_k},
+                                          gguf_fc_mode{"q5k_raw_prefill", false, nullptr, false, 32, 512, ov::element::gguf_q5_k},
+                                          gguf_fc_mode{"q6k_sg_native", true, "64", true, 16, 1024, ov::element::gguf_q6_k},
+                                          gguf_fc_mode{"q6k_raw_native", false, "64", false, 16, 1024, ov::element::gguf_q6_k},
+                                          gguf_fc_mode{"q6k_sg_prefill", true, nullptr, false, 16, 1024, ov::element::gguf_q6_k},
+                                          gguf_fc_mode{"q6k_raw_prefill", false, nullptr, true, 16, 1024, ov::element::gguf_q6_k},
+                                          gguf_fc_mode{"q8_sg_native_k4096", true, "64", false, 32, 4096, ov::element::gguf_q8_0},
+                                          gguf_fc_mode{"q8_raw_native_k4096", false, "64", true, 32, 4096, ov::element::gguf_q8_0},
+                                          gguf_fc_mode{"q8_sg_prefill_k4096", true, nullptr, true, 32, 4096, ov::element::gguf_q8_0},
+                                          gguf_fc_mode{"q8_raw_prefill_k4096", false, nullptr, false, 32, 4096, ov::element::gguf_q8_0},
+                                          gguf_fc_mode{"q5k_shuffle_fallback_n17", true, "64", false, 17, 512, ov::element::gguf_q5_k},
+                                          gguf_fc_mode{"q6k_prefill_fallback_n17", true, nullptr, true, 17, 1024, ov::element::gguf_q6_k},
+                                          gguf_fc_mode{"q8_prefill_fallback_k64", true, nullptr, false, 32, 64, ov::element::gguf_q8_0},
+                                          gguf_fc_mode{"cm_q4k", true, nullptr, false, 32, 256, ov::element::gguf_q4_k, true},
+                                          gguf_fc_mode{"cm_q4k_n64", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true},
+                                          gguf_fc_mode{"cm_q4k_n96", true, nullptr, false, 96, 512, ov::element::gguf_q4_k, true},
+                                          gguf_fc_mode{"cm_q5k_n64", true, nullptr, false, 64, 512, ov::element::gguf_q5_k, true},
+                                          gguf_fc_mode{"cm_q6k_n64", true, nullptr, true, 64, 512, ov::element::gguf_q6_k, true},
+                                          gguf_fc_mode{"cm_q40_n64", true, nullptr, false, 64, 512, ov::element::gguf_q4_0, true},
+                                          gguf_fc_mode{"cm_q41_n64", true, nullptr, true, 64, 512, ov::element::gguf_q4_1, true},
+                                          gguf_fc_mode{"cm_q80_n64", true, nullptr, false, 64, 512, ov::element::gguf_q8_0, true},
+                                          gguf_fc_mode{"cm_q4k_f16", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f16},
+                                          gguf_fc_mode{"cm_q5k_f16", true, nullptr, true, 64, 512, ov::element::gguf_q5_k, true, ov::element::f16},
+                                          gguf_fc_mode{"cm_q6k_f16", true, nullptr, false, 64, 512, ov::element::gguf_q6_k, true, ov::element::f16},
+                                          gguf_fc_mode{"cm_q40_f16", true, nullptr, true, 64, 512, ov::element::gguf_q4_0, true, ov::element::f16},
+                                          gguf_fc_mode{"cm_q41_f16", true, nullptr, false, 64, 512, ov::element::gguf_q4_1, true, ov::element::f16},
+                                          gguf_fc_mode{"cm_q80_f16", true, nullptr, true, 64, 512, ov::element::gguf_q8_0, true, ov::element::f16},
+                                          gguf_fc_mode{"cm_config_disabled", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f32, false},
+                                          gguf_fc_mode{"cm_post_relu", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f32, true, activation_func::relu},
+                                          gguf_fc_mode{"cm_post_relu_f16", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f16, true, activation_func::relu},
+                                          gguf_fc_mode{"cm_post_swish", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f32, true, activation_func::swish},
+                                          gguf_fc_mode{"cm_post_swish_f16", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f16, true, activation_func::swish},
+                                          gguf_fc_mode{"cm_post_negative_broadcast", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f32, true, activation_func::negative},
+                                          gguf_fc_mode{"cm_static_prefill", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f32, true, activation_func::none, 128},
+                                          gguf_fc_mode{"cm_static_decode_f16", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f16, true, activation_func::none, 1},
+                                          gguf_fc_mode{"raw_static_decode", false, nullptr, false, 64, 512, ov::element::gguf_q4_k, false, ov::element::f32, true, activation_func::none, 1},
+                                          gguf_fc_mode{"raw_static_prefill_f16", false, nullptr, true, 64, 512, ov::element::gguf_q4_k, false, ov::element::f16, true, activation_func::none, 128},
+                                          gguf_fc_mode{"sg_static_decode_f16", true, nullptr, true, 64, 512, ov::element::gguf_q4_k, false, ov::element::f16, true, activation_func::none, 1},
+                                          gguf_fc_mode{"cm_post_sum", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"cm_post_sum_f16", true, nullptr, true, 64, 512, ov::element::gguf_q4_k, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"cm_post_prod", true, nullptr, true, 64, 512, ov::element::gguf_q4_k, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_post_prod_f16", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"raw_post_sum", false, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"raw_post_prod_f16", false, nullptr, true, 64, 512, ov::element::gguf_q4_k, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_static_sum", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f32, true, activation_func::none, 128, eltwise_mode::sum},
+                                          gguf_fc_mode{"cm_static_sum_f16", true, nullptr, true, 64, 512, ov::element::gguf_q4_k, true, ov::element::f16, true, activation_func::none, 128, eltwise_mode::sum},
+                                          gguf_fc_mode{"cm_static_prod", true, nullptr, true, 64, 512, ov::element::gguf_q4_k, true, ov::element::f32, true, activation_func::none, 128, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_static_prod_f16", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f16, true, activation_func::none, 128, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_sum_broadcast_rebind", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum, true},
+                                          gguf_fc_mode{"cm_prod_broadcast_rebind_f16", true, nullptr, true, 64, 512, ov::element::gguf_q4_k, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod, true},
+                                          gguf_fc_mode{"cm_q41_sum", true, nullptr, false, 64, 512, ov::element::gguf_q4_1, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"cm_q41_sum_f16", true, nullptr, true, 64, 512, ov::element::gguf_q4_1, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"cm_q41_prod", true, nullptr, true, 64, 512, ov::element::gguf_q4_1, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_q41_prod_f16", true, nullptr, false, 64, 512, ov::element::gguf_q4_1, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_q41_sum_broadcast", true, nullptr, false, 64, 512, ov::element::gguf_q4_1, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum, true},
+                                          gguf_fc_mode{"cm_q41_prod_broadcast_f16", true, nullptr, true, 64, 512, ov::element::gguf_q4_1, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod, true},
+                                          gguf_fc_mode{"raw_q41_sum", false, nullptr, true, 64, 512, ov::element::gguf_q4_1, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"raw_q41_prod_f16", false, nullptr, false, 64, 512, ov::element::gguf_q4_1, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_q40_sum", true, nullptr, false, 64, 512, ov::element::gguf_q4_0, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"cm_q40_sum_f16", true, nullptr, true, 64, 512, ov::element::gguf_q4_0, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"cm_q40_prod", true, nullptr, true, 64, 512, ov::element::gguf_q4_0, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_q40_prod_f16", true, nullptr, false, 64, 512, ov::element::gguf_q4_0, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_q40_sum_broadcast", true, nullptr, false, 64, 512, ov::element::gguf_q4_0, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum, true},
+                                          gguf_fc_mode{"cm_q40_prod_broadcast_f16", true, nullptr, true, 64, 512, ov::element::gguf_q4_0, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod, true},
+                                          gguf_fc_mode{"raw_q40_sum", false, nullptr, true, 64, 512, ov::element::gguf_q4_0, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"raw_q40_prod_f16", false, nullptr, false, 64, 512, ov::element::gguf_q4_0, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_q5k_sum", true, nullptr, false, 64, 512, ov::element::gguf_q5_k, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"cm_q5k_sum_f16", true, nullptr, true, 64, 512, ov::element::gguf_q5_k, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"cm_q5k_prod", true, nullptr, true, 64, 512, ov::element::gguf_q5_k, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_q5k_prod_f16", true, nullptr, false, 64, 512, ov::element::gguf_q5_k, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_q5k_sum_broadcast", true, nullptr, false, 64, 512, ov::element::gguf_q5_k, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum, true},
+                                          gguf_fc_mode{"cm_q5k_prod_broadcast_f16", true, nullptr, true, 64, 512, ov::element::gguf_q5_k, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod, true},
+                                          gguf_fc_mode{"raw_q5k_sum", false, nullptr, true, 64, 512, ov::element::gguf_q5_k, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"raw_q5k_prod_f16", false, nullptr, false, 64, 512, ov::element::gguf_q5_k, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_q6k_sum", true, nullptr, false, 64, 512, ov::element::gguf_q6_k, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"cm_q6k_sum_f16", true, nullptr, true, 64, 512, ov::element::gguf_q6_k, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"cm_q6k_prod", true, nullptr, true, 64, 512, ov::element::gguf_q6_k, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_q6k_prod_f16", true, nullptr, false, 64, 512, ov::element::gguf_q6_k, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_q6k_sum_broadcast", true, nullptr, false, 64, 512, ov::element::gguf_q6_k, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum, true},
+                                          gguf_fc_mode{"cm_q6k_prod_broadcast_f16", true, nullptr, true, 64, 512, ov::element::gguf_q6_k, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod, true},
+                                          gguf_fc_mode{"raw_q6k_sum", false, nullptr, true, 64, 512, ov::element::gguf_q6_k, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"raw_q6k_prod_f16", false, nullptr, false, 64, 512, ov::element::gguf_q6_k, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_q80_sum", true, nullptr, false, 64, 512, ov::element::gguf_q8_0, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"cm_q80_sum_f16", true, nullptr, true, 64, 512, ov::element::gguf_q8_0, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"cm_q80_prod", true, nullptr, true, 64, 512, ov::element::gguf_q8_0, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_q80_prod_f16", true, nullptr, false, 64, 512, ov::element::gguf_q8_0, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_q80_sum_broadcast", true, nullptr, false, 64, 512, ov::element::gguf_q8_0, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum, true},
+                                          gguf_fc_mode{"cm_q80_prod_broadcast_f16", true, nullptr, true, 64, 512, ov::element::gguf_q8_0, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod, true},
+                                          gguf_fc_mode{"raw_q80_sum", false, nullptr, true, 64, 512, ov::element::gguf_q8_0, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"raw_q80_prod_f16", false, nullptr, false, 64, 512, ov::element::gguf_q8_0, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod}),
+                        [](const ::testing::TestParamInfo<gguf_fc_mode>& info) { return info.param.name; });
+
+INSTANTIATE_TEST_SUITE_P(gguf_rank4_swish,
+                        gguf_fc_dynamic_reference,
+                        ::testing::ValuesIn([] {
+                            std::vector<gguf_fc_mode> modes;
+                            for (const auto& weight_type : {ov::element::gguf_q4_k, ov::element::gguf_q5_k,
+                                                          ov::element::gguf_q6_k, ov::element::gguf_q8_0,
+                                                          ov::element::gguf_q4_0, ov::element::gguf_q4_1}) {
+                                for (const auto& precision : {ov::element::f32, ov::element::f16}) {
+                                    for (size_t profile = 0; profile < 3; ++profile) {
+                                        gguf_fc_mode mode{"", profile != 0, profile < 2 ? "128" : nullptr};
+                                        mode.name = weight_type.to_string() + "_" + precision.to_string() + "_" + std::to_string(profile);
+                                        mode.channels = 64;
+                                        mode.columns = 512;
+                                        mode.weight_type = weight_type;
+                                        mode.precision = precision;
+                                        mode.rank4_batch = 2;
+                                        mode.cm = profile == 2;
+                                        mode.post_activation = activation_func::swish;
+                                        modes.push_back(mode);
+                                    }
+                                }
+                            }
+                            return modes;
+                        }()),
+                        [](const ::testing::TestParamInfo<gguf_fc_mode>& info) { return info.param.name; });
+
+INSTANTIATE_TEST_SUITE_P(gguf_bias,
+                        gguf_fc_dynamic_reference,
+                        ::testing::ValuesIn([] {
+                            std::vector<gguf_fc_mode> modes;
+                            for (const auto& weight_type : {ov::element::gguf_q4_k, ov::element::gguf_q5_k,
+                                                          ov::element::gguf_q6_k, ov::element::gguf_q8_0,
+                                                          ov::element::gguf_q4_0, ov::element::gguf_q4_1}) {
+                                for (const auto& precision : {ov::element::f32, ov::element::f16}) {
+                                    for (const auto& bias : {std::make_pair(gguf_bias_mode::constant, "constant"),
+                                                            std::make_pair(gguf_bias_mode::parameter, "parameter"),
+                                                            std::make_pair(gguf_bias_mode::add, "add")}) {
+                                        for (size_t profile = 0; profile < 5; ++profile) {
+                                            gguf_fc_mode mode{"", profile != 0, profile < 2 ? "128" : nullptr};
+                                            mode.name = weight_type.to_string() + "_" + precision.to_string() + "_" +
+                                                bias.second + "_" + std::to_string(profile);
+                                            mode.channels = 64;
+                                            mode.columns = 512;
+                                            mode.weight_type = weight_type;
+                                            mode.precision = precision;
+                                            mode.bias_mode = bias.first;
+                                            mode.cm = profile >= 3;
+                                            mode.rank3 = profile == 2;
+                                            mode.static_rows = profile == 1 || profile == 4 ? 33 : 0;
+                                            modes.push_back(mode);
+                                        }
+                                    }
+                                }
+                            }
+                            return modes;
+                        }()),
+                        [](const ::testing::TestParamInfo<gguf_fc_mode>& info) { return info.param.name; });
+
+INSTANTIATE_TEST_SUITE_P(gguf_rank4_bias,
+                        gguf_fc_dynamic_reference,
+                        ::testing::ValuesIn([] {
+                            std::vector<gguf_fc_mode> modes;
+                            for (const auto& weight_type : {ov::element::gguf_q4_k, ov::element::gguf_q5_k,
+                                                          ov::element::gguf_q6_k, ov::element::gguf_q8_0,
+                                                          ov::element::gguf_q4_0, ov::element::gguf_q4_1}) {
+                                for (const auto& precision : {ov::element::f32, ov::element::f16}) {
+                                    for (const auto& bias : {std::make_pair(gguf_bias_mode::constant, "constant"),
+                                                            std::make_pair(gguf_bias_mode::parameter, "parameter")}) {
+                                        for (size_t post = 0; post < 3; ++post) {
+                                            for (size_t profile = 0; profile < 2; ++profile) {
+                                                gguf_fc_mode mode{"", profile != 0 || post == 2,
+                                                                  profile == 0 && post != 2 ? "128" : nullptr};
+                                                const std::string post_name = post == 0 ? "plain" : post == 1 ? "sum" : "prod";
+                                                mode.name = weight_type.to_string() + "_" + precision.to_string() + "_" +
+                                                    bias.second + "_" + post_name + "_" + std::to_string(profile);
+                                                mode.channels = 64;
+                                                mode.columns = 512;
+                                                mode.weight_type = weight_type;
+                                                mode.precision = precision;
+                                                mode.bias_mode = bias.first;
+                                                mode.rank4_batch = (profile == 0 && post == 0) ||
+                                                                   (profile == 1 && post == 1) ? 1 : 2;
+                                                mode.cm = profile == 1;
+                                                mode.static_rows = profile == 1 ? 33 : 0;
+                                                if (post)
+                                                    mode.post_eltwise = post == 1 ? eltwise_mode::sum : eltwise_mode::prod;
+                                                modes.push_back(mode);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            return modes;
+                        }()),
+                        [](const ::testing::TestParamInfo<gguf_fc_mode>& info) { return info.param.name; });
+
+namespace {
+struct gguf_perf_config {
+    const char* name;
+    const char* gemm;     // OV_GPU_GGUF_PREFILL_GEMM value
+    const char* shuffle;  // OV_GPU_GGUF_SHUFFLE value
+    const char* stage;    // substring expected in the executed kernel list
+};
+
+struct gguf_perf_result {
+    double wall_us = -1.0;    // median infer() time with device-resident input/output
+    double kernel_us = -1.0;  // median GPU time of the executed primitives (profiling)
+};
+
+// Negative times mean the configuration is not available (e.g. CM kernels are not built).
+gguf_perf_result gguf_measure_prefill(const ov::element::Type& weight_type, size_t rows, size_t channels, size_t columns,
+                                     const gguf_perf_config& config, std::string& executed) {
+    gguf_scoped_env_var gemm("OV_GPU_GGUF_PREFILL_GEMM", config.gemm);
+    gguf_scoped_env_var shuffle("OV_GPU_GGUF_SHUFFLE", config.shuffle);
+    ov::Tensor payload(weight_type, ov::Shape{channels, columns});
+    auto* bytes = static_cast<uint8_t*>(payload.data());
+    uint32_t state = 12345u;
+    for (size_t i = 0; i < payload.get_byte_size(); ++i) {
+        state = state * 1664525u + 1013904223u;
+        bytes[i] = static_cast<uint8_t>(state >> 24);
+    }
+    auto raw = std::make_shared<ov::op::v0::Constant>(payload);
+    auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{rows, columns});
+    auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.f});
+    auto bias = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{channels}, {0.f});
+    auto fc = std::make_shared<ov::op::internal::FullyConnectedCompressed>(parameter, raw, bias, scale, ov::element::f16);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{parameter});
+    ov::Core core;
+    ov::CompiledModel compiled;
+    try {
+        compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(ov::element::f16), ov::num_streams(1),
+                                      ov::enable_profiling(true));
+    } catch (const ov::Exception&) {
+        return {};
+    }
+    auto request = compiled.create_infer_request();
+    ov::Tensor host_input(ov::element::f16, ov::Shape{rows, columns});
+    auto* values = host_input.data<ov::float16>();
+    // Pseudo-random activations: short periodic patterns are partially compressible by the memory subsystem
+    // and distort the timing of the activation loads.
+    uint32_t act_state = 54321u;
+    for (size_t i = 0; i < host_input.get_size(); ++i) {
+        act_state = act_state * 1664525u + 1013904223u;
+        values[i] = ov::float16(static_cast<float>(act_state >> 8) / 16777216.f - 0.5f);
+    }
+    // Device-resident I/O keeps host<->device copies out of the measurement (host tensors when USM is unavailable).
+    try {
+        auto context = compiled.get_context();
+        const ov::AnyMap usm_device{ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::USM_DEVICE_BUFFER)};
+        auto input = context.create_tensor(ov::element::f16, ov::Shape{rows, columns}, usm_device);
+        input.copy_from(host_input);
+        auto output = context.create_tensor(ov::element::f16, ov::Shape{rows, channels}, usm_device);
+        request.set_input_tensor(input);
+        request.set_output_tensor(output);
+    } catch (const ov::Exception&) {
+        request.set_input_tensor(host_input);
+    }
+    for (int i = 0; i < 5; ++i)
+        request.infer();
+    executed.clear();
+    for (const auto& operation : compiled.get_runtime_model()->get_ordered_ops()) {
+        const auto found = operation->get_rt_info().find("gguf_last_executed_kernels");
+        if (found != operation->get_rt_info().end())
+            executed += found->second.as<std::string>() + " ";
+    }
+    std::vector<double> times;
+    std::vector<double> kernel_times;
+    for (int i = 0; i < 30; ++i) {
+        const auto begin = std::chrono::steady_clock::now();
+        request.infer();
+        const auto end = std::chrono::steady_clock::now();
+        times.push_back(std::chrono::duration<double, std::micro>(end - begin).count());
+        double kernel = 0.0;
+        for (const auto& info : request.get_profiling_info()) {
+            if (info.status == ov::ProfilingInfo::Status::EXECUTED)
+                kernel += static_cast<double>(info.real_time.count());
+        }
+        kernel_times.push_back(kernel);
+    }
+    std::sort(times.begin(), times.end());
+    std::sort(kernel_times.begin(), kernel_times.end());
+    return {times[times.size() / 2], kernel_times[kernel_times.size() / 2]};
+}
+}  // namespace
+
+// Opt-in performance comparison (OV_GPU_GGUF_PERF=1): OCL GEMM vs CM GEMM vs transcode + oneDNN fallback.
+TEST(fully_connected_gpu, gguf_gemm_perf_compare) {
+#if !defined(OV_GPU_WITH_OCL_RT) || !defined(ENABLE_ONEDNN_FOR_GPU)
+    GTEST_SKIP() << "GGUF implementation requires OCL and oneDNN build support";
+#endif
+    if (!std::getenv("OV_GPU_GGUF_PERF"))
+        GTEST_SKIP() << "Set OV_GPU_GGUF_PERF=1 to run the GGUF prefill GEMM performance comparison";
+    auto& engine = get_test_engine();
+    if (!gguf_gemm_capable(engine, true, 64))
+        GTEST_SKIP() << "Device does not support the GGUF prefill GEMM";
+    const std::array<gguf_perf_config, 3> configs = {{{"ocl", "ocl", "1", "fc_gguf_gemm_"},
+                                                       {"cm", "cm", "1", "_full"},
+                                                       {"onednn", "ocl", "0", "fc_gguf_transcode_"}}};
+    const size_t channels = 4096;
+    const size_t columns = 4096;
+    std::cout << "GGUF prefill GEMM performance, f16 activations, K=" << columns << " N=" << channels
+              << ", device-resident I/O. *_k = GPU kernel time (profiling), *_w = infer() wall time; us / TFLOPS.\n"
+              << "ocl_vs_cm = cm_k / ocl_k (>1: OCL faster). onednn_w covers transcode + oneDNN.\n";
+    std::cout << "type      M      ocl_k    ocl_TF  cm_k     cm_TF   ocl_vs_cm  ocl_w    cm_w     onednn_w\n";
+    for (const auto& type : {ov::element::gguf_q4_0, ov::element::gguf_q4_1, ov::element::gguf_q4_k,
+                             ov::element::gguf_q5_k, ov::element::gguf_q6_k, ov::element::gguf_q8_0}) {
+        for (const size_t rows : {size_t{1024}, size_t{2048}, size_t{4096}, size_t{8192}, size_t{16384}}) {
+            std::array<gguf_perf_result, 3> r{};
+            for (size_t c = 0; c < configs.size(); ++c) {
+                std::string executed;
+                r[c] = gguf_measure_prefill(type, rows, channels, columns, configs[c], executed);
+                if (r[c].wall_us > 0)
+                    EXPECT_NE(executed.find(configs[c].stage), std::string::npos)
+                        << configs[c].name << " executed: " << executed;
+            }
+            const double flops = 2.0 * static_cast<double>(rows) * channels * columns;
+            auto tf = [&](double t) { return t > 0 ? flops / (t * 1e-6) / 1e12 : -1.0; };
+            const double ocl_k = r[0].kernel_us;
+            const double cm_k = r[1].kernel_us;
+            char line[256];
+            std::snprintf(line, sizeof(line), "%-9s %-6zu %-8.0f %-7.2f %-8.0f %-7.2f %-10.3f %-8.0f %-8.0f %-8.0f\n",
+                          type.to_string().c_str(), rows, ocl_k, tf(ocl_k), cm_k, tf(cm_k),
+                          ocl_k > 0 && cm_k > 0 ? cm_k / ocl_k : -1.0, r[0].wall_us, r[1].wall_us, r[2].wall_us);
+            std::cout << line << std::flush;
+        }
+    }
+}
+
+// OV_GPU_GGUF_PREFILL_GEMM_STRICT=1 must fail loudly instead of silently falling back to transcode + oneDNN.
+TEST(fully_connected_gpu, gguf_gemm_strict_rejects_fallback) {
+#if !defined(OV_GPU_WITH_OCL_RT) || !defined(ENABLE_ONEDNN_FOR_GPU)
+    GTEST_SKIP() << "GGUF implementation requires OCL and oneDNN build support";
+#endif
+    auto& engine = get_test_engine();
+    if (!gguf_gemm_capable(engine, true, 64))
+        GTEST_SKIP() << "Device does not support the GGUF prefill GEMM";
+    // 48 output channels are shuffled (multiple of 16) but not aligned for the GEMM kernels.
+    const size_t channels = 48;
+    const size_t columns = 256;
+    const size_t rows = 64;
+    auto run = [&](const char* strict) {
+        gguf_scoped_env_var strict_env("OV_GPU_GGUF_PREFILL_GEMM_STRICT", strict);
+        ov::Tensor payload(ov::element::gguf_q4_k, ov::Shape{channels, columns});
+        std::memset(payload.data(), 0, payload.get_byte_size());
+        auto raw = std::make_shared<ov::op::v0::Constant>(payload);
+        auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{rows, columns});
+        auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.f});
+        auto bias = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{channels}, {0.f});
+        auto fc = std::make_shared<ov::op::internal::FullyConnectedCompressed>(parameter, raw, bias, scale, ov::element::f16);
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{parameter});
+        ov::Core core;
+        auto compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(ov::element::f16));
+        auto request = compiled.create_infer_request();
+        ov::Tensor input(ov::element::f16, ov::Shape{rows, columns});
+        std::memset(input.data(), 0, input.get_byte_size());
+        request.set_input_tensor(input);
+        request.infer();
+    };
+    EXPECT_NO_THROW(run(nullptr));
+    EXPECT_THROW(run("1"), ov::Exception);
+}
 
 TEST(fully_connected_gpu, dynamic_byxf) {
     auto& engine = get_test_engine();

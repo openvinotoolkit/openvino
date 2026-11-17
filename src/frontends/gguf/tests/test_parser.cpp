@@ -4,23 +4,87 @@
 
 #include <array>
 #include <cmath>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
+#include <limits>
+#include <set>
+#include <sstream>
 #include <tuple>
 #include <utility>
+#include <pugixml.hpp>
 
 #include "builder/graph_emitter.hpp"
+#include "builder/gguf_builder_decoder.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "gguf_writer.hpp"
 #include "op_test_utils.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/swish.hpp"
+#include "openvino/pass/serialize.hpp"
+#include "openvino/runtime/properties.hpp"
+#include "ov_ops/fully_connected_compressed.hpp"
 #include "quant/weights.hpp"
 
 using namespace ov_gguf_test;
 
 namespace {
+
+#ifdef GGUF_GPU_NATIVE_TESTS
+class GgufScopedEnvironment {
+public:
+    GgufScopedEnvironment(const char* name, const char* value) : name(name) {
+        if (const char* previous = std::getenv(name)) {
+            had_previous = true;
+            previous_value = previous;
+        }
+        set(value);
+    }
+
+    ~GgufScopedEnvironment() {
+        set(had_previous ? previous_value.c_str() : nullptr);
+    }
+
+    GgufScopedEnvironment(const GgufScopedEnvironment&) = delete;
+    GgufScopedEnvironment& operator=(const GgufScopedEnvironment&) = delete;
+
+private:
+    void set(const char* value) {
+#ifdef _WIN32
+        _putenv_s(name, value ? value : "");
+#else
+        if (value)
+            ::setenv(name, value, 1);
+        else
+            ::unsetenv(name);
+#endif
+    }
+
+    const char* name;
+    std::string previous_value;
+    bool had_previous = false;
+};
+#endif
+
+struct GgufRawFormat {
+    const char* name;
+    GgufTensorType type;
+};
+
+const std::array<GgufRawFormat, 11> kRawFormats{{
+    {"q4_k", GGUF_TYPE_Q4_K}, {"q5_k", GGUF_TYPE_Q5_K},
+    {"q6_k", GGUF_TYPE_Q6_K}, {"q8_0", GGUF_TYPE_Q8_0},
+    {"q4_0", GGUF_TYPE_Q4_0}, {"q4_1", GGUF_TYPE_Q4_1},
+    {"q3_k", GGUF_TYPE_Q3_K}, {"iq2_xs", GGUF_TYPE_IQ2_XS},
+    {"iq2_s", GGUF_TYPE_IQ2_S}, {"iq3_xxs", GGUF_TYPE_IQ3_XXS},
+    {"iq3_s", GGUF_TYPE_IQ3_S}}};
 
 class GGUFParser : public ::testing::Test {
 protected:
@@ -30,6 +94,11 @@ protected:
 
     void TearDown() override {
         ov::test::utils::removeFile(m_path);
+        ov::test::utils::removeFile(m_path + ".xml");
+        ov::test::utils::removeFile(m_path + ".bin");
+        std::filesystem::remove(ov::util::make_path(m_path + u8"_\u6a21\u578b_\u017c\u00f3\u0142\u0107.gguf"));
+        ov::test::utils::removeFile(m_path + ".unicode.xml");
+        ov::test::utils::removeFile(m_path + ".unicode.bin");
     }
 
     // One tensor, no metadata. Dimensions use GGUF order (columns first).
@@ -39,7 +108,8 @@ protected:
                       uint64_t rows,
                       const std::vector<uint8_t>& data = {},
                       const std::string& architecture = {},
-                      const std::vector<uint64_t>& extra_dims = {}) {
+                      const std::vector<uint64_t>& extra_dims = {},
+                      uint64_t tensor_offset = 0) {
         std::ofstream out(m_path, std::ios::binary);
         ASSERT_TRUE(out);
         const auto put = [&out](auto value) {
@@ -65,7 +135,7 @@ protected:
         for (const auto dim : extra_dims)
             put(dim);
         put(static_cast<uint32_t>(type));
-        put(uint64_t{0});  // tensor offset
+        put(tensor_offset);
         while (static_cast<size_t>(out.tellp()) % 32 != 0) {
             out.put('\0');
         }
@@ -323,6 +393,1058 @@ TEST_F(GGUFParser, Q4KZeroPointModeAppliesToLanguageAndProjectorModels) {
     }
 }
 
+TEST_F(GGUFParser, RawFormatsPayloadAndOwnerOutliveParserResult) {
+    for (const auto& format : kRawFormats) {
+        SCOPED_TRACE(format.name);
+        const auto bytes = load_npy<uint8_t>(std::string(format.name) + "_qbytes");
+        ASSERT_NO_FATAL_FAILURE(write_tensor("blk.0.attn_q.weight", format.type, 256, 4, bytes));
+        const GGUFLoadOptions unselected{format.type != GGUF_TYPE_Q4_K, format.type != GGUF_TYPE_Q5_K,
+                                         format.type != GGUF_TYPE_Q6_K, format.type != GGUF_TYPE_Q8_0,
+                                         format.type != GGUF_TYPE_Q4_0, format.type != GGUF_TYPE_Q4_1,
+                                         format.type != GGUF_TYPE_Q3_K, format.type != GGUF_TYPE_IQ2_XS,
+                                         format.type != GGUF_TYPE_IQ2_S, format.type != GGUF_TYPE_IQ3_XXS,
+                                         format.type != GGUF_TYPE_IQ3_S};
+        if (format.type == GGUF_TYPE_IQ2_XS || format.type == GGUF_TYPE_IQ2_S ||
+            format.type == GGUF_TYPE_IQ3_XXS || format.type == GGUF_TYPE_IQ3_S) {
+            const auto error = "unsupported non-quantized type " + std::to_string(format.type);
+            OV_EXPECT_THROW(get_gguf_data(m_path), ov::Exception,
+                            testing::HasSubstr(error));
+            OV_EXPECT_THROW(get_gguf_data(m_path, GGUFLoadOptions{true}), ov::Exception,
+                            testing::HasSubstr(error));
+            OV_EXPECT_THROW(get_gguf_data(m_path, unselected), ov::Exception,
+                            testing::HasSubstr(error));
+        } else {
+            const auto legacy = get_gguf_data(m_path);
+            EXPECT_FALSE(unpack_gguf_weight(std::get<1>(legacy).at("blk.0.attn_q.weight"))
+                             .weight.get_element_type().is_gguf_block());
+            const auto original_option = get_gguf_data(m_path, GGUFLoadOptions{true});
+            EXPECT_EQ(unpack_gguf_weight(std::get<1>(original_option).at("blk.0.attn_q.weight"))
+                          .weight.get_element_type().is_gguf_block(),
+                      format.type == GGUF_TYPE_Q4_K);
+            const auto decomposed = get_gguf_data(m_path, unselected);
+            EXPECT_FALSE(unpack_gguf_weight(std::get<1>(decomposed).at("blk.0.attn_q.weight"))
+                             .weight.get_element_type().is_gguf_block());
+        }
+        const GGUFLoadOptions options{true, true, true, true, true, true, true, true, true, true, true};
+        std::shared_ptr<ov::op::v0::Constant> constant;
+        std::weak_ptr<ov::MappedMemory> owner;
+        {
+            const auto loaded = get_gguf_data(m_path, options);
+            const auto& arrays = std::get<1>(loaded);
+            ASSERT_EQ(arrays.size(), 1);
+            const auto raw = unpack_gguf_weight(arrays.at("blk.0.attn_q.weight")).weight;
+            ASSERT_EQ(raw.get_element_type(), gguf_raw_element_type(format.type));
+            EXPECT_EQ(raw.get_shape(), (ov::Shape{4, 256}));
+            ASSERT_EQ(raw.get_byte_size(), bytes.size());
+            EXPECT_EQ(std::memcmp(raw.data(), bytes.data(), bytes.size()), 0);
+            EXPECT_EQ(arrays.at("blk.0.attn_q.weight").qtype, format.type);
+            owner = std::get<2>(loaded).at(0);
+            constant = std::make_shared<ov::op::v0::Constant>(raw);
+            EXPECT_EQ(constant->get_data_ptr(), raw.data());
+        }
+        EXPECT_FALSE(owner.expired());
+        ASSERT_EQ(constant->get_byte_size(), bytes.size());
+        EXPECT_EQ(std::memcmp(constant->get_data_ptr(), bytes.data(), bytes.size()), 0);
+        constant.reset();
+        EXPECT_TRUE(owner.expired());
+    }
+}
+
+TEST_F(GGUFParser, Q4KRawIsOptInAndRejectsLegacyWeightGraph) {
+    const auto bytes = load_npy<uint8_t>("q4_k_qbytes");
+    ASSERT_NO_FATAL_FAILURE(write_tensor("blk.0.attn_q.weight", GGUF_TYPE_Q4_K, 256, 4, bytes));
+    const auto legacy = get_gguf_data(m_path);
+    const auto unpacked = unpack_gguf_weight(std::get<1>(legacy).at("blk.0.attn_q.weight"));
+    EXPECT_EQ(unpacked.weight.get_element_type(), ov::element::u32);
+    EXPECT_TRUE(unpacked.scales);
+    EXPECT_TRUE(unpacked.zero_point);
+    const auto loaded = get_gguf_data(std::vector<std::filesystem::path>{m_path}, GGUFLoadOptions{true});
+    const auto raw = unpack_gguf_weight(std::get<1>(loaded).at("blk.0.attn_q.weight")).weight;
+    OV_EXPECT_THROW(make_weight_node({raw, {}, {}}, GGUF_TYPE_Q4_K, "blk.0.attn_q"),
+                    ov::Exception,
+                    testing::HasSubstr("raw GGUF weights require a supported graph boundary"));
+}
+
+class GGUFParserGpu : public GGUFParser, public ::testing::WithParamInterface<GgufRawFormat> {};
+
+TEST_F(GGUFParser, ActivationDqPreservesFp32Input) {
+#ifndef GGUF_GPU_NATIVE_TESTS
+    GTEST_SKIP() << "Requires the OCL GPU plugin with oneDNN support";
+#else
+    ov::Core core;
+    const auto devices = core.get_available_devices();
+    if (std::none_of(devices.begin(), devices.end(), [](const std::string& device) {
+            return device == "GPU" || device.rfind("GPU.", 0) == 0;
+        })) {
+        GTEST_SKIP() << "GPU device unavailable";
+    }
+    GgufScopedEnvironment cm("OV_GPU_GGUF_GEMM_CM", "0");
+    GgufScopedEnvironment shuffle("OV_GPU_GGUF_SHUFFLE", "0");
+    GgufScopedEnvironment threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", "32");
+    GgufScopedEnvironment prefill_f16("OV_GPU_GGUF_PREFILL_F16", "0");
+    GgufScopedEnvironment dq("OV_GPU_GGUF_PREFILL_DQ_ACT", "1");
+    GgufScopedEnvironment group("OV_GPU_GGUF_PREFILL_DQ_GROUP_SIZE", "0");
+    GgufScopedEnvironment asymmetric("OV_GPU_GGUF_PREFILL_DQ_ASYMMETRIC", "0");
+    constexpr size_t rows = 33;
+    constexpr size_t columns = 512;
+    constexpr size_t channels = 64;
+    std::array<uint8_t, 176> block{};
+    const ov::float16 scale(0.03125f);
+    std::memcpy(block.data(), &scale, sizeof(scale));
+    std::fill(block.begin() + 4, block.begin() + 16, 1);
+    std::fill(block.begin() + 48, block.end(), 0x11);
+    std::vector<uint8_t> payload(channels * columns / 256 * block.size());
+    for (size_t offset = 0; offset < payload.size(); offset += block.size())
+        std::memcpy(payload.data() + offset, block.data(), block.size());
+    ASSERT_NO_FATAL_FAILURE(write_tensor("projection.weight", GGUF_TYPE_Q5_K, columns, channels, payload));
+    auto loaded = get_gguf_data(m_path, GGUFLoadOptions{false, true});
+    for (const auto& precision : {ov::element::f32, ov::element::f16}) {
+        SCOPED_TRACE(precision.get_type_name());
+        GraphEmitter emitter(std::get<1>(loaded), "test");
+        emitter.add_input("activation", precision, {1, 1, rows, columns});
+        emitter.add_weight("projection.weight");
+        emitter.add_op("GGML_OP_MUL_MAT", "output", {"projection.weight", "activation"});
+        emitter.graph()->model_output_names = {"output"};
+        std::shared_ptr<GgufDecoder> decoder = std::make_shared<GgufBuilderDecoder>(emitter.graph());
+        FrontEnd frontend;
+        const auto model = frontend.convert(frontend.load(decoder));
+        auto compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(precision),
+                           ov::num_streams(1));
+        auto request = compiled.create_infer_request();
+        ov::Tensor input(precision, {1, 1, rows, columns});
+        if (precision == ov::element::f32)
+            std::fill_n(input.data<float>(), input.get_size(), 0.03125f);
+        else
+            std::fill_n(input.data<ov::float16>(), input.get_size(), scale);
+        request.set_input_tensor(input);
+        request.infer();
+        const auto output = request.get_output_tensor();
+        ASSERT_EQ(output.get_size(), rows * channels);
+        for (size_t index = 0; index < output.get_size(); ++index) {
+            const float actual = output.get_element_type() == ov::element::f32
+                                     ? output.data<const float>()[index]
+                                     : static_cast<float>(output.data<const ov::float16>()[index]);
+            ASSERT_NEAR(actual, 0.5f, 0.001f) << index;
+        }
+        if (precision == ov::element::f16) {
+            for (const bool compile_asymmetric : {true, false}) {
+                SCOPED_TRACE(compile_asymmetric);
+                GgufScopedEnvironment compile_group("OV_GPU_GGUF_PREFILL_DQ_GROUP_SIZE", "128");
+                GgufScopedEnvironment compile_asym("OV_GPU_GGUF_PREFILL_DQ_ASYMMETRIC",
+                                                  compile_asymmetric ? "1" : "0");
+                GgufScopedEnvironment compile_requant("OV_GPU_GGUF_REQUANT_GROUP", "64");
+                auto cached = core.compile_model(model, "GPU", ov::hint::inference_precision(precision),
+                                                 ov::num_streams(1));
+                std::stringstream blob;
+                cached.export_model(blob);
+                GgufScopedEnvironment import_group("OV_GPU_GGUF_PREFILL_DQ_GROUP_SIZE", "512");
+                GgufScopedEnvironment import_asym("OV_GPU_GGUF_PREFILL_DQ_ASYMMETRIC",
+                                                 compile_asymmetric ? "0" : "1");
+                GgufScopedEnvironment import_requant("OV_GPU_GGUF_REQUANT_GROUP", "32");
+                ov::Core import_core;
+                auto imported = import_core.import_model(blob, "GPU", ov::hint::inference_precision(precision),
+                                                          ov::num_streams(1));
+                for (auto* compiled_model : {&cached, &imported}) {
+                    auto restored_request = compiled_model->create_infer_request();
+                    for (size_t index = 0; index < input.get_size(); ++index)
+                        input.data<ov::float16>()[index] = ov::float16(0.015625f *
+                            static_cast<float>(1 << ((index % columns) / 128)));
+                    restored_request.set_input_tensor(input);
+                    restored_request.infer();
+                    const auto restored_output = restored_request.get_output_tensor();
+                    ASSERT_EQ(restored_output.get_size(), rows * channels);
+                    for (size_t index = 0; index < restored_output.get_size(); ++index) {
+                        const float actual = restored_output.get_element_type() == ov::element::f32
+                            ? restored_output.data<const float>()[index]
+                            : static_cast<float>(restored_output.data<const ov::float16>()[index]);
+                        ASSERT_NEAR(actual, 0.9375f, 0.001f) << index;
+                    }
+                }
+            }
+        }
+    }
+#endif
+}
+
+TEST_F(GGUFParser, AsymmetricWeightTranscodePreservesSingleSignGroups) {
+#ifndef GGUF_GPU_NATIVE_TESTS
+    GTEST_SKIP() << "Requires the OCL GPU plugin with oneDNN support";
+#else
+    ov::Core core;
+    const auto devices = core.get_available_devices();
+    if (std::none_of(devices.begin(), devices.end(), [](const std::string& device) {
+            return device == "GPU" || device.rfind("GPU.", 0) == 0;
+        })) {
+        GTEST_SKIP() << "GPU device unavailable";
+    }
+    GgufScopedEnvironment cm("OV_GPU_GGUF_GEMM_CM", "0");
+    GgufScopedEnvironment shuffle("OV_GPU_GGUF_SHUFFLE", "0");
+    GgufScopedEnvironment threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", "32");
+    GgufScopedEnvironment prefill_f16("OV_GPU_GGUF_PREFILL_F16", "0");
+    GgufScopedEnvironment group("OV_GPU_GGUF_PREFILL_DQ_GROUP_SIZE", "0");
+    GgufScopedEnvironment asymmetric("OV_GPU_GGUF_PREFILL_DQ_ASYMMETRIC", "0");
+    GgufScopedEnvironment requant_group("OV_GPU_GGUF_REQUANT_GROUP", "32");
+    constexpr size_t rows = 33;
+    constexpr size_t columns = 512;
+    constexpr size_t channels = 64;
+    const std::array<uint8_t, 6> codes{0x99, 0x77, 0xb9, 0x75, 0x88, 0xa7};
+    const std::array<float, 6> expected{0.5f, -0.5f, 1.f, -1.f, 0.f, 0.25f};
+    const ov::float16 scale(0.03125f);
+    std::vector<uint8_t> payload(channels * columns / 32 * 18);
+    for (size_t channel = 0; channel < channels; ++channel) {
+        for (size_t block = 0; block < columns / 32; ++block) {
+            auto* destination = payload.data() + (channel * columns / 32 + block) * 18;
+            std::memcpy(destination, &scale, sizeof(scale));
+            std::fill_n(destination + 2, 16, codes[channel % codes.size()]);
+        }
+    }
+    ASSERT_NO_FATAL_FAILURE(write_tensor("projection.weight", GGUF_TYPE_Q4_0, columns, channels, payload));
+    auto loaded = get_gguf_data(m_path, GGUFLoadOptions{false, false, false, false, true});
+    GraphEmitter emitter(std::get<1>(loaded), "test");
+    emitter.add_input("activation", ov::element::f16, {1, 1, rows, columns});
+    emitter.add_weight("projection.weight");
+    emitter.add_op("GGML_OP_MUL_MAT", "output", {"projection.weight", "activation"});
+    emitter.graph()->model_output_names = {"output"};
+    std::shared_ptr<GgufDecoder> decoder = std::make_shared<GgufBuilderDecoder>(emitter.graph());
+    FrontEnd frontend;
+    const auto model = frontend.convert(frontend.load(decoder));
+    for (const char* dq_value : {"0", "1"}) {
+        SCOPED_TRACE(dq_value);
+        GgufScopedEnvironment dq("OV_GPU_GGUF_PREFILL_DQ_ACT", dq_value);
+        auto compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(ov::element::f16),
+                                           ov::num_streams(1));
+        auto request = compiled.create_infer_request();
+        ov::Tensor input(ov::element::f16, {1, 1, rows, columns});
+        std::fill_n(input.data<ov::float16>(), input.get_size(), scale);
+        request.set_input_tensor(input);
+        request.infer();
+        const auto output = request.get_output_tensor();
+        ASSERT_TRUE(output.get_element_type() == ov::element::f16 ||
+                output.get_element_type() == ov::element::f32);
+        ASSERT_EQ(output.get_size(), rows * channels);
+        std::array<float, 6> max_errors{};
+        for (size_t index = 0; index < output.get_size(); ++index) {
+            const auto pattern = (index % channels) % codes.size();
+            const float actual = output.get_element_type() == ov::element::f32
+                         ? output.data<const float>()[index]
+                         : static_cast<float>(output.data<const ov::float16>()[index]);
+            ASSERT_TRUE(std::isfinite(actual)) << index;
+            max_errors[pattern] = std::max(max_errors[pattern], std::abs(actual - expected[pattern]));
+        }
+        for (size_t pattern = 0; pattern < codes.size(); ++pattern)
+            EXPECT_LE(max_errors[pattern], 0.001f) << "pattern=" << pattern;
+    }
+#endif
+}
+
+TEST_F(GGUFParser, CmFusedSwishPreservesBeta) {
+#ifndef GGUF_GPU_NATIVE_TESTS
+    GTEST_SKIP() << "Requires the OCL GPU plugin with oneDNN support";
+#else
+    ov::Core core;
+    const auto devices = core.get_available_devices();
+    if (std::none_of(devices.begin(), devices.end(), [](const std::string& device) {
+            return device == "GPU" || device.rfind("GPU.", 0) == 0;
+        })) {
+        GTEST_SKIP() << "GPU device unavailable";
+    }
+    GgufScopedEnvironment cm("OV_GPU_GGUF_PREFILL_GEMM", "cm");
+    GgufScopedEnvironment shuffle("OV_GPU_GGUF_SHUFFLE", "1");
+    GgufScopedEnvironment threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", "32");
+    constexpr size_t rows = 33;
+    constexpr size_t columns = 512;
+    constexpr size_t channels = 64;
+    const ov::float16 scale(0.03125f);
+    ov::Tensor weights(ov::element::gguf_q4_0, {channels, columns});
+    for (size_t offset = 0; offset < weights.get_byte_size(); offset += 18) {
+        auto* block = static_cast<uint8_t*>(weights.data()) + offset;
+        std::memcpy(block, &scale, sizeof(scale));
+        std::fill_n(block + 2, 16, 0x99);
+    }
+    const auto weight = std::make_shared<ov::op::v0::Constant>(weights);
+    const auto absent = ov::op::v0::Constant::create(ov::element::f32, {0}, {});
+    for (const float beta : {0.f, 1.f, 2.f, -1.f}) {
+        SCOPED_TRACE(beta);
+        const auto activation = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
+                                                                      ov::Shape{rows, columns});
+        const auto fc = std::make_shared<ov::op::internal::FullyConnectedCompressed>(
+            activation, weight, absent, absent, absent, ov::element::f16);
+        const auto swish = std::make_shared<ov::op::v4::Swish>(
+            fc, ov::op::v0::Constant::create(ov::element::f16, {}, {beta}));
+        const auto model = std::make_shared<ov::Model>(ov::OutputVector{swish}, ov::ParameterVector{activation});
+        auto compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(ov::element::f16),
+                                           ov::num_streams(1), ov::enable_profiling(true));
+        auto request = compiled.create_infer_request();
+        ov::Tensor input(ov::element::f16, {rows, columns});
+        std::fill_n(input.data<ov::float16>(), input.get_size(), scale);
+        request.set_input_tensor(input);
+        request.infer();
+        const auto runtime_operations = compiled.get_runtime_model()->get_ordered_ops();
+        const bool used_cm = std::any_of(runtime_operations.begin(), runtime_operations.end(), [](const auto& operation) {
+            const auto& info = operation->get_rt_info();
+            const auto kernels = info.find("gguf_last_executed_kernels");
+            return kernels != info.end() && kernels->second.template as<std::string>().find("gemm_q40_full") != std::string::npos;
+        });
+        ASSERT_TRUE(used_cm) << "Requires CM GGUF FC execution";
+        const auto output = request.get_output_tensor();
+        ASSERT_EQ(output.get_element_type(), ov::element::f16);
+        ASSERT_EQ(output.get_size(), rows * channels);
+        const float expected = 0.5f / (1.f + std::exp(-beta * 0.5f));
+        for (size_t index = 0; index < output.get_size(); ++index)
+            EXPECT_NEAR(static_cast<float>(output.data<const ov::float16>()[index]), expected, 0.001f) << index;
+    }
+#endif
+}
+
+TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
+#ifndef GGUF_GPU_NATIVE_TESTS
+    GTEST_SKIP() << "Requires the OCL GPU plugin with oneDNN support";
+#else
+    ov::Core core;
+    const auto devices = core.get_available_devices();
+    if (std::none_of(devices.begin(), devices.end(), [](const std::string& device) {
+            return device == "GPU" || device.rfind("GPU.", 0) == 0;
+        })) {
+        GTEST_SKIP() << "GPU device unavailable";
+    }
+    const auto format = GetParam();
+    const bool has_gather = format.type != GGUF_TYPE_Q3_K && format.type != GGUF_TYPE_IQ2_XS &&
+                            format.type != GGUF_TYPE_IQ2_S && format.type != GGUF_TYPE_IQ3_XXS &&
+                            format.type != GGUF_TYPE_IQ3_S;
+    const auto cache_directory_value = std::getenv("OV_GPU_GGUF_TEST_CACHE_DIR");
+    const std::string cache_directory = cache_directory_value ? cache_directory_value : "";
+    const auto cache_hit_value = std::getenv("OV_GPU_GGUF_TEST_CACHE_HIT");
+    const std::string expected_cache_hit = cache_hit_value ? cache_hit_value : "";
+    const auto weight_delta_value = std::getenv("OV_GPU_GGUF_TEST_WEIGHT_DELTA");
+    const std::string weight_delta = weight_delta_value ? weight_delta_value : "";
+    ASSERT_EQ(cache_directory.empty(), expected_cache_hit.empty());
+    ASSERT_TRUE(weight_delta.empty() || (!cache_directory.empty() && (weight_delta == "0" || weight_delta == "1")));
+    if (!cache_directory.empty()) {
+        ASSERT_TRUE(std::filesystem::is_directory(cache_directory));
+        ASSERT_TRUE(expected_cache_hit == "0" || expected_cache_hit == "1");
+        const auto source_directory = std::filesystem::path(cache_directory) / "sources";
+        std::filesystem::create_directories(source_directory);
+        m_path = (source_directory / (std::string(format.name) + ".gguf")).string();
+    }
+    const auto qbytes = load_npy<uint8_t>(std::string(format.name) + "_qbytes");
+    const auto decoded = load_npy<float>(std::string(format.name) + "_deq");
+    ASSERT_EQ(decoded.size(), 4 * 256);
+    constexpr size_t channels = 64;
+    constexpr size_t columns = 512;
+    const auto row_bytes = qbytes.size() / 4;
+    const size_t source_row_offset = weight_delta == "1" ? 1 : 0;
+    RecordProperty("file_source_row_offset", std::to_string(source_row_offset));
+    if (source_row_offset)
+        ASSERT_NE(std::memcmp(qbytes.data(), qbytes.data() + row_bytes, row_bytes), 0);
+    std::vector<uint8_t> payload(channels * 2 * row_bytes);
+    for (size_t channel = 0; channel < channels; ++channel) {
+        for (size_t block = 0; block < 2; ++block) {
+            std::memcpy(payload.data() + (channel * 2 + block) * row_bytes,
+                        qbytes.data() + ((channel + source_row_offset) % 4) * row_bytes,
+                        row_bytes);
+        }
+    }
+    ASSERT_NO_FATAL_FAILURE(write_tensor("projection.weight", format.type, columns, channels, payload));
+    std::shared_ptr<ov::Model> model;
+    std::weak_ptr<ov::MappedMemory> owner;
+    {
+        const GGUFLoadOptions options{format.type == GGUF_TYPE_Q4_K, format.type == GGUF_TYPE_Q5_K,
+                          format.type == GGUF_TYPE_Q6_K, format.type == GGUF_TYPE_Q8_0,
+                          format.type == GGUF_TYPE_Q4_0, format.type == GGUF_TYPE_Q4_1,
+                          format.type == GGUF_TYPE_Q3_K, format.type == GGUF_TYPE_IQ2_XS,
+                          format.type == GGUF_TYPE_IQ2_S, format.type == GGUF_TYPE_IQ3_XXS,
+                          format.type == GGUF_TYPE_IQ3_S};
+        if (format.type == GGUF_TYPE_Q4_K) {
+            const auto unicode_path = ov::util::make_path(m_path + u8"_\u6a21\u578b_\u017c\u00f3\u0142\u0107.gguf");
+            ASSERT_TRUE(std::filesystem::copy_file(m_path, unicode_path));
+            auto unicode_data = get_gguf_data(unicode_path, options);
+            const auto unicode_raw = make_weight_node(std::get<1>(unicode_data).at("projection.weight"));
+            EXPECT_EQ(unicode_raw->get_rt_info().at("gguf_ext_source").as<std::string>(),
+                      ov::util::path_to_string(unicode_path.filename()));
+            auto unicode_model = std::make_shared<ov::Model>(
+                ov::OutputVector{unicode_raw, ov::op::v0::Constant::create(ov::element::f32, {1}, {1.f})},
+                ov::ParameterVector{});
+            ov::pass::Serialize(m_path + ".unicode.xml", m_path + ".unicode.bin").run_on_model(unicode_model);
+            const auto restored = core.read_model(m_path + ".unicode.xml");
+            const auto restored_raw = ov::as_type_ptr<ov::op::v0::Constant>(
+                restored->get_results().at(0)->get_input_node_shared_ptr(0));
+            ASSERT_TRUE(restored_raw);
+            EXPECT_EQ(std::memcmp(restored_raw->get_data_ptr(), payload.data(), payload.size()), 0);
+            std::stringstream unicode_xml, unicode_binary;
+            ov::pass::Serialize(unicode_xml, unicode_binary).run_on_model(restored);
+            EXPECT_LT(unicode_binary.str().size(), payload.size());
+            RecordProperty("unicode_automatic_reference_roundtrip", "1");
+        }
+        auto loaded = get_gguf_data(m_path, options);
+        auto& weights = std::get<1>(loaded);
+        const auto raw = unpack_gguf_weight(weights.at("projection.weight")).weight;
+        ASSERT_EQ(raw.get_element_type(), gguf_raw_element_type(format.type));
+        ASSERT_EQ(raw.get_shape(), (ov::Shape{channels, columns}));
+        ASSERT_EQ(raw.get_byte_size(), payload.size());
+        ASSERT_EQ(std::memcmp(raw.data(), payload.data(), payload.size()), 0);
+        owner = std::get<2>(loaded).at(0);
+        GraphEmitter emitter(weights, "test");
+        emitter.add_input("activation", ov::element::f32, {1, 1, -1, columns});
+        emitter.add_weight("projection.weight");
+        emitter.add_op("GGML_OP_MUL_MAT", "output", {"projection.weight", "activation"});
+        emitter.graph()->model_output_names = {"output"};
+        if (has_gather) {
+            emitter.add_input("indices", ov::element::i64, {1, 1, 1, -1});
+            emitter.add_op("GGML_OP_GET_ROWS", "embedding", {"projection.weight", "indices"});
+            emitter.graph()->model_output_names.push_back("embedding");
+        }
+        std::shared_ptr<GgufDecoder> decoder = std::make_shared<GgufBuilderDecoder>(emitter.graph());
+        FrontEnd frontend;
+        model = frontend.convert(frontend.load(decoder));
+        const auto fc = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(
+            model->get_results().at(0)->get_input_node_shared_ptr(0));
+        ASSERT_TRUE(fc);
+        const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(1));
+        ASSERT_TRUE(constant);
+        EXPECT_EQ(constant->get_data_ptr(), raw.data());
+        EXPECT_EQ(std::memcmp(constant->get_data_ptr(), payload.data(), payload.size()), 0);
+        ASSERT_TRUE(constant->get_rt_info().count("gguf_ext_source"));
+        EXPECT_EQ(constant->get_rt_info().at("gguf_ext_source").as<std::string>(),
+                  std::filesystem::path(m_path).filename().string());
+        emitter.add_weight_from("alias.weight", "projection");
+        emitter.add_op("GGML_OP_MUL_MAT", "alias_output", {"alias.weight", "activation"});
+        emitter.graph()->model_output_names = {"alias_output"};
+        std::shared_ptr<GgufDecoder> alias_decoder = std::make_shared<GgufBuilderDecoder>(emitter.graph());
+        const auto alias_model = frontend.convert(frontend.load(alias_decoder));
+        const auto alias_fc = alias_model->get_results().at(0)->get_input_node_shared_ptr(0);
+        const auto alias = ov::as_type_ptr<ov::op::v0::Constant>(alias_fc->get_input_node_shared_ptr(1));
+        ASSERT_TRUE(alias);
+        EXPECT_EQ(alias->get_rt_info().at("gguf_ext_offset").as<uint64_t>(),
+              constant->get_rt_info().at("gguf_ext_offset").as<uint64_t>());
+        ov::Tensor copied(raw.get_element_type(), raw.get_shape());
+        std::memcpy(copied.data(), raw.data(), raw.get_byte_size());
+        const auto local_weight = [&](const ov::Tensor& data) {
+            GgufWeight source;
+            source.data = data;
+            source.shape = data.get_shape();
+            source.qtype = format.type;
+            source.source_name = "projection.weight";
+            source.preserve_raw = true;
+            return make_weight_node(source);
+        };
+        const auto copy = local_weight(copied);
+        EXPECT_EQ(copy->get_rt_info().count("gguf_ext_source"), 0);
+        ov::Tensor sliced(raw.get_element_type(), {channels / 2, columns});
+        std::memcpy(sliced.data(), raw.data(), sliced.get_byte_size());
+        const auto slice = local_weight(sliced);
+        EXPECT_EQ(slice->get_rt_info().count("gguf_ext_source"), 0);
+        RecordProperty("automatic_external_source", "1");
+        RecordProperty("copied_sliced_sources_absent", "1");
+    }
+    EXPECT_FALSE(owner.expired());
+    std::set<std::string> executed_stages;
+    bool ir_roundtrip = false;
+    bool external_reference = false;
+    bool compiled_import = false;
+    int stream_count = 1;
+    const auto run = [&](const char* threshold_value, const char* shuffle_value,
+                         ov::element::Type inference_type = ov::element::f32, const char* binary_mode = nullptr,
+                         size_t static_rows = 0, bool rebind_broadcast = false) {
+        SCOPED_TRACE(threshold_value ? "native" : "default_f16_transcode");
+        SCOPED_TRACE(shuffle_value);
+        GgufScopedEnvironment threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", threshold_value);
+        GgufScopedEnvironment prefill_f16("OV_GPU_GGUF_PREFILL_F16", nullptr);
+        GgufScopedEnvironment shuffle("OV_GPU_GGUF_SHUFFLE", shuffle_value);
+        SCOPED_TRACE(inference_type.get_type_name());
+        auto run_model = model->clone();
+        if (binary_mode) {
+            const auto fc_output = run_model->get_results().at(0)->input_value(0);
+            const auto peer = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, fc_output.get_partial_shape());
+            ov::Output<ov::Node> binary;
+            if (std::string(binary_mode) == "sum")
+                binary = std::make_shared<ov::op::v1::Add>(fc_output, peer);
+            else
+                binary = std::make_shared<ov::op::v1::Multiply>(fc_output, peer);
+            binary.get_node_shared_ptr()->set_friendly_name("file_binary_post");
+            run_model->get_results().at(0)->input(0).replace_source_output(std::make_shared<ov::op::v0::Relu>(binary));
+            run_model->add_parameters({peer});
+            run_model->validate_nodes_and_infer_types();
+        }
+        if (static_rows) {
+            run_model->get_parameters().at(0)->set_partial_shape(ov::Shape{1, 1, static_rows, columns});
+            run_model->get_parameters().at(1)->set_partial_shape(ov::Shape{1, 1, 1, static_rows});
+            run_model->get_parameters().at(2)->set_partial_shape(ov::Shape{1, 1, static_rows, channels});
+            run_model->validate_nodes_and_infer_types();
+            ASSERT_FALSE(run_model->is_dynamic());
+        }
+        const bool cm_requested = std::getenv("OV_GPU_GGUF_PREFILL_GEMM") &&
+                                  std::string(std::getenv("OV_GPU_GGUF_PREFILL_GEMM")) == "cm";
+        GgufScopedEnvironment cm("OV_GPU_GGUF_PREFILL_GEMM", cm_requested ? "cm" : "ocl");
+        const bool shuffled = std::string(shuffle_value) == "1";
+        const std::string scenario = std::string(binary_mode ? binary_mode : "plain") + "_" +
+            inference_type.get_type_name() + "_s" + shuffle_value + (threshold_value ? "_native" : "_default") +
+            (static_rows ? "_static" : "_dynamic") + (rebind_broadcast ? "_broadcast" : "") +
+            (ir_roundtrip ? "_ir" : "") + (external_reference ? "_external" : "") +
+            (compiled_import ? "_import" : "") + (stream_count == 2 ? "_streams2" : "");
+        SCOPED_TRACE(scenario);
+        const bool check_cache = !cache_directory.empty() && !binary_mode && !ir_roundtrip;
+        std::string model_cache_directory;
+        if (check_cache) {
+            model_cache_directory = (std::filesystem::path(cache_directory) / format.name / scenario).string();
+            std::filesystem::create_directories(model_cache_directory);
+            run_model->set_friendly_name(std::string("gguf_file_cache_") + format.name);
+        }
+        auto compiled = core.compile_model(run_model, "GPU", ov::hint::inference_precision(inference_type),
+                           ov::enable_profiling(true), ov::num_streams(stream_count),
+                           ov::cache_dir(model_cache_directory));
+        if (check_cache) {
+            const bool cache_hit = compiled.get_property(ov::loaded_from_cache);
+            EXPECT_EQ(cache_hit, expected_cache_hit == "1");
+            RecordProperty(scenario + "_cache_hit", cache_hit ? "1" : "0");
+        }
+        const int compiled_streams = compiled.get_property(ov::num_streams);
+        EXPECT_EQ(compiled_streams, stream_count);
+        RecordProperty(scenario + "_compiled_streams", std::to_string(compiled_streams));
+        if (compiled_import) {
+            std::stringstream blob;
+            compiled.export_model(blob);
+            RecordProperty(scenario + "_compiled_blob_bytes", std::to_string(blob.str().size()));
+            compiled = ov::CompiledModel{};
+            ov::Core import_core;
+            GgufScopedEnvironment import_threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", "0");
+            GgufScopedEnvironment import_f16("OV_GPU_GGUF_PREFILL_F16", "0");
+            GgufScopedEnvironment import_dq("OV_GPU_GGUF_PREFILL_DQ_ACT", "1");
+            compiled = import_core.import_model(blob, "GPU", ov::hint::inference_precision(inference_type),
+                                                ov::enable_profiling(true), ov::num_streams(stream_count));
+            const int imported_streams = compiled.get_property(ov::num_streams);
+            EXPECT_EQ(imported_streams, stream_count);
+            RecordProperty(scenario + "_imported_streams", std::to_string(imported_streams));
+        }
+        std::vector<ov::InferRequest> requests{compiled.create_infer_request()};
+        if (stream_count == 2)
+            requests.push_back(compiled.create_infer_request());
+        RecordProperty(scenario + "_requests", std::to_string(requests.size()));
+        const std::vector<size_t> row_counts = static_rows ? std::vector<size_t>{static_rows, static_rows}
+                                                        : std::vector<size_t>{1, 2, 33, 1, 1, 33, 2};
+        for (size_t iteration = 0; iteration < row_counts.size(); ++iteration) {
+            const auto rows = row_counts[iteration];
+            const bool broadcast_peer = rebind_broadcast && rows > 1 && iteration % 2 == 0;
+            for (size_t request_index = 0; request_index < requests.size(); ++request_index) {
+                auto& request = requests[request_index];
+                ov::Tensor input(ov::element::f32, ov::Shape{1, 1, rows, columns});
+                for (size_t row = 0; row < rows; ++row) {
+                    const float factor = static_cast<float>((row % 3 + 1) * (iteration % 2 + 1) *
+                                                            (request_index * 2 + 1));
+                    for (size_t column = 0; column < columns; ++column) {
+                        input.data<float>()[row * columns + column] = (binary_mode ? 1.f / 64.f : 1.f) * factor *
+                            static_cast<float>(column / 256 + 1) *
+                            static_cast<float>(static_cast<int>(((column % 256) * 13) % 31) - 15);
+                    }
+                }
+                request.set_input_tensor(0, input);
+                ov::Tensor indices;
+                if (has_gather) {
+                    indices = ov::Tensor(ov::element::i64, ov::Shape{1, 1, 1, rows});
+                    for (size_t row = 0; row < rows; ++row) {
+                        indices.data<int64_t>()[row] = static_cast<int64_t>((row * 7 + iteration + request_index) % channels);
+                    }
+                    request.set_input_tensor(1, indices);
+                }
+                ov::Tensor peer;
+                if (binary_mode) {
+                    peer = ov::Tensor(ov::element::f32, ov::Shape{1, 1, broadcast_peer ? 1 : rows, channels});
+                    for (size_t index = 0; index < peer.get_size(); ++index) {
+                        peer.data<float>()[index] = static_cast<float>(static_cast<int>((index + iteration * 3) % 7) - 3) / 4.f;
+                        if (std::string(binary_mode) == "sum") {
+                            float fc_reference = 0.f;
+                            for (size_t column = 0; column < columns; ++column)
+                                fc_reference += decoded[((index % channels + source_row_offset) % 4) * 256 + column % 256] *
+                                                input.data<const float>()[index / channels * columns + column];
+                            peer.data<float>()[index] += std::ceil(std::abs(fc_reference)) + 2.f;
+                        }
+                    }
+                    request.set_input_tensor(2, peer);
+                }
+                request.start_async();
+            }
+            for (auto& request : requests)
+                request.wait();
+            for (size_t request_index = 0; request_index < requests.size(); ++request_index) {
+                auto& request = requests[request_index];
+                SCOPED_TRACE(request_index);
+                const auto request_scenario = scenario + (stream_count == 2 ? "_request" + std::to_string(request_index) : "");
+                const auto input = request.get_input_tensor(0);
+                const auto indices = has_gather ? request.get_input_tensor(1) : ov::Tensor{};
+                const auto peer = binary_mode ? request.get_input_tensor(2) : ov::Tensor{};
+                std::string iteration_stages;
+                std::string iteration_fusions;
+                for (const auto& operation : compiled.get_runtime_model()->get_ops()) {
+                    const auto& info = operation->get_rt_info();
+                    const auto stages = info.find("gguf_last_executed_kernels");
+                    if (stages != info.end()) {
+                        const auto& names = stages->second.as<std::vector<std::string>>();
+                        executed_stages.insert(names.begin(), names.end());
+                        for (const auto& name : names)
+                            iteration_stages += name + ";";
+                    }
+                    const auto fusions = info.find("gguf_runtime_fused_ids");
+                    if (fusions != info.end()) {
+                        iteration_fusions += info.at("gguf_runtime_fused_count").as<std::string>() + ":" +
+                                             fusions->second.as<std::string>() + ";";
+                    }
+                }
+                RecordProperty(request_scenario + "_stage_" + std::to_string(iteration), iteration_stages);
+                if (!has_gather) {
+                    const auto weight_name = gguf_raw_element_type(format.type).to_string();
+                    const bool prefill_stage = !threshold_value && rows > 32;
+                    const std::string expected_stage = prefill_stage
+                        ? "fc_gguf_transcode_" + weight_name : "fc_gguf_opt_" + weight_name;
+                    // A shuffled prefill node may run the OCL GEMM when the device supports it.
+                    const bool ocl_gemm_executed = prefill_stage && shuffled && !cm_requested &&
+                                                   iteration_stages.find("fc_gguf_gemm_") != std::string::npos;
+                    EXPECT_TRUE(ocl_gemm_executed || iteration_stages.find(expected_stage) != std::string::npos)
+                        << iteration_stages;
+                    EXPECT_EQ(iteration_stages.find("_sg"), std::string::npos) << iteration_stages;
+                    EXPECT_EQ(iteration_stages.find("_full"), std::string::npos) << iteration_stages;
+                }
+                EXPECT_EQ(iteration_stages.find("fc_gguf_act_dq"), std::string::npos) << iteration_stages;
+                if (binary_mode) {
+                    const bool require_fused = !static_rows || (shuffled && (cm_requested || static_rows > 32));
+                    const bool binary_fused = iteration_fusions.find("file_binary_post") != std::string::npos;
+                    if (require_fused)
+                        EXPECT_TRUE(binary_fused) << iteration_fusions;
+                    EXPECT_EQ(iteration_fusions.rfind("0:", 0) == 0u, !binary_fused) << iteration_fusions;
+                    RecordProperty(request_scenario + "_fusions_" + std::to_string(iteration), iteration_fusions);
+                }
+                if (binary_mode || stream_count == 2) {
+                    const bool prefill = !threshold_value && rows > 32;
+                    const std::string sg_stage = format.type == GGUF_TYPE_Q4_0 ? "fc_gguf_q4_0_sg"
+                        : format.type == GGUF_TYPE_Q4_1 ? "fc_gguf_q4_1_sg"
+                        : format.type == GGUF_TYPE_Q4_K ? "fc_gguf_q4k_sg"
+                        : format.type == GGUF_TYPE_Q5_K ? "fc_gguf_q5k_sg"
+                        : format.type == GGUF_TYPE_Q6_K ? "fc_gguf_q6k_sg" : "fc_gguf_q8_0_sg";
+                    const std::string cm_stage = format.type == GGUF_TYPE_Q4_0 ? "gemm_q40_full"
+                        : format.type == GGUF_TYPE_Q4_1 ? "gemm_q41_full"
+                        : format.type == GGUF_TYPE_Q4_K ? "gemm_q4k_full"
+                        : format.type == GGUF_TYPE_Q5_K ? "gemm_q5k_full"
+                        : format.type == GGUF_TYPE_Q6_K ? "gemm_q6k_full" : "gemm_q80_full";
+                    const auto weight_name = gguf_raw_element_type(format.type).to_string();
+                    const std::string expected_stage = broadcast_peer ? sg_stage
+                        : prefill ? (cm_requested && shuffled ? cm_stage : "fc_gguf_transcode_" + weight_name)
+                        : shuffled ? sg_stage : "fc_gguf_opt_" + weight_name;
+                    const bool ocl_gemm_executed = prefill && shuffled && !cm_requested && !broadcast_peer &&
+                                                   iteration_stages.find("fc_gguf_gemm_") != std::string::npos;
+                    EXPECT_TRUE(ocl_gemm_executed || iteration_stages.find(expected_stage) != std::string::npos)
+                        << iteration_stages;
+                }
+                const auto output = request.get_output_tensor(0);
+                ASSERT_EQ(output.get_shape(), (ov::Shape{1, 1, rows, channels}));
+                bool detects_missing_fc = false;
+                bool detects_missing_binary = false;
+                float max_fc_error = 0.f;
+                for (size_t row = 0; row < rows; ++row) {
+                    for (size_t channel = 0; channel < channels; ++channel) {
+                        float expected = 0.f;
+                        for (size_t column = 0; column < columns; ++column) {
+                            const float weight = decoded[((channel + source_row_offset) % 4) * 256 + column % 256];
+                            const float reference = !threshold_value && rows > 32
+                                                        ? static_cast<float>(ov::float16(weight)) : weight;
+                            expected += reference * input.data<const float>()[row * columns + column];
+                        }
+                        if (inference_type == ov::element::f16) {
+                            expected = ov::float16(expected);
+                        }
+                        if (binary_mode) {
+                            const float fc_reference = expected;
+                            const auto operand = peer.data<const float>()[(broadcast_peer ? 0 : row) * channels + channel];
+                            expected = std::string(binary_mode) == "sum" ? expected + operand : expected * operand;
+                            if (inference_type == ov::element::f16)
+                                expected = ov::float16(expected);
+                            expected = std::max(expected, 0.f);
+                            const float without_fc = std::string(binary_mode) == "sum" ? std::max(operand, 0.f) : 0.f;
+                            detects_missing_fc |= std::abs(expected - without_fc) > 0.2f;
+                            detects_missing_binary |= std::abs(expected - std::max(fc_reference, 0.f)) > 0.2f;
+                        }
+                        max_fc_error = std::max(max_fc_error,
+                            std::abs(output.data<const float>()[row * channels + channel] - expected));
+                        EXPECT_NEAR(output.data<const float>()[row * channels + channel], expected, 0.1f)
+                            << "iteration=" << iteration << " row=" << row << " channel=" << channel;
+                    }
+                }
+                RecordProperty(request_scenario + "_max_error_" + std::to_string(iteration), max_fc_error);
+                if (binary_mode) {
+                    EXPECT_TRUE(detects_missing_fc) << iteration;
+                    EXPECT_TRUE(detects_missing_binary) << iteration;
+                }
+                if (has_gather) {
+                    const auto embedding = request.get_output_tensor(1);
+                    ASSERT_EQ(embedding.get_element_type(), ov::element::f32);
+                    ASSERT_EQ(embedding.get_shape(), (ov::Shape{1, 1, rows, columns}));
+                    for (size_t row = 0; row < rows; ++row) {
+                        const auto channel = static_cast<size_t>(indices.data<const int64_t>()[row]);
+                        for (size_t column = 0; column < columns; ++column) {
+                            const float expected = ov::float16(decoded[((channel + source_row_offset) % 4) * 256 + column % 256]);
+                            EXPECT_EQ(embedding.data<const float>()[row * columns + column], expected)
+                                << "iteration=" << iteration << " row=" << row << " column=" << column;
+                        }
+                    }
+                }
+                EXPECT_EQ(owner.expired(), ir_roundtrip);
+            }
+        }
+        RecordProperty(scenario + "_completed_requests", std::to_string(row_counts.size() * requests.size()));
+        if (check_cache) {
+            std::cout << "GGUF_FILE_CACHE_CHECK format=" << format.name << " scenario=" << scenario
+                      << " hit=" << compiled.get_property(ov::loaded_from_cache) << std::endl;
+        }
+        if (stream_count == 2) {
+            std::cout << "GGUF_FILE_STREAM_CHECK format=" << format.name << " scenario=" << scenario
+                      << " requests=" << row_counts.size() * requests.size() << std::endl;
+        }
+    };
+    for (const int streams : {1, 2}) {
+        if (streams == 2 && !has_gather)
+            continue;
+        stream_count = streams;
+        run("64", "1");
+        run("64", "0");
+        run(nullptr, "1");
+        run(nullptr, "0");
+        run("64", "1", ov::element::f16);
+        run("64", "0", ov::element::f16);
+        run(nullptr, "1", ov::element::f16);
+        run(nullptr, "0", ov::element::f16);
+    }
+    stream_count = 1;
+    if (has_gather) {
+        for (const auto& precision : {ov::element::f32, ov::element::f16}) {
+            for (const char* binary : {"sum", "prod"}) {
+                for (const char* shuffle : {"0", "1"}) {
+                    for (const char* threshold : {"64", static_cast<const char*>(nullptr)}) {
+                        run(threshold, shuffle, precision, binary);
+                        run(threshold, shuffle, precision, binary, 33);
+                    }
+                }
+                run(nullptr, "1", precision, binary, 0, true);
+            }
+        }
+    }
+    {
+        const auto mapped = owner.lock();
+        ASSERT_TRUE(mapped);
+        const auto fc = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(
+            model->get_results().at(0)->get_input_node_shared_ptr(0));
+        ASSERT_TRUE(fc);
+        const auto raw = ov::as_type_ptr<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(1));
+        ASSERT_TRUE(raw);
+        auto& info = raw->get_rt_info();
+        EXPECT_EQ(info.at("gguf_ext_offset").as<uint64_t>(), static_cast<uint64_t>(
+            static_cast<const std::byte*>(raw->get_data_ptr()) - mapped->data()));
+        EXPECT_EQ(info.at("gguf_ext_size").as<uint64_t>(), raw->get_byte_size());
+        std::stringstream external_xml, external_binary;
+        ov::pass::Serialize(external_xml, external_binary).run_on_model(model);
+        EXPECT_LT(external_binary.str().size(), payload.size());
+        RecordProperty("external_reference_bin_bytes", std::to_string(external_binary.str().size()));
+        RecordProperty("external_reference_raw_bytes", std::to_string(payload.size()));
+        ov::pass::Serialize(m_path + ".xml", m_path + ".bin").run_on_model(model);
+        {
+            const auto external_model = core.read_model(m_path + ".xml");
+            const auto external_fc = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(
+                external_model->get_results().at(0)->get_input_node_shared_ptr(0));
+            ASSERT_TRUE(external_fc);
+            const auto external_raw = ov::as_type_ptr<ov::op::v0::Constant>(external_fc->get_input_node_shared_ptr(1));
+            ASSERT_TRUE(external_raw);
+            ASSERT_EQ(external_raw->get_byte_size(), payload.size());
+            EXPECT_EQ(std::memcmp(external_raw->get_data_ptr(), payload.data(), payload.size()), 0);
+            std::stringstream chained_xml, chained_binary;
+            ov::pass::Serialize(chained_xml, chained_binary).run_on_model(external_model);
+            RecordProperty("external_reference_chained_bin_bytes", std::to_string(chained_binary.str().size()));
+            EXPECT_EQ(chained_binary.str().size(), external_binary.str().size());
+            pugi::xml_document chained_document;
+            ASSERT_TRUE(chained_document.load_string(chained_xml.str().c_str()));
+            size_t chained_sources = 0;
+            for (const auto layer : chained_document.child("net").child("layers").children("layer")) {
+                if (const auto source = layer.child("data").attribute("source")) {
+                    ++chained_sources;
+                    EXPECT_EQ(std::string(source.value()), std::filesystem::path(m_path).filename().string());
+                }
+            }
+            EXPECT_EQ(chained_sources, 1);
+            {
+                std::ofstream file(m_path + ".chain.xml");
+                file << chained_xml.str();
+                ASSERT_TRUE(file);
+            }
+            {
+                std::ofstream file(m_path + ".chain.bin", std::ios::binary);
+                const auto bytes = chained_binary.str();
+                file.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+                ASSERT_TRUE(file);
+            }
+            {
+                const auto chained_model = core.read_model(m_path + ".chain.xml");
+                std::stringstream next_xml, next_binary;
+                ov::pass::Serialize(next_xml, next_binary).run_on_model(chained_model);
+                EXPECT_EQ(next_binary.str().size(), external_binary.str().size());
+                RecordProperty("external_reference_next_bin_bytes", std::to_string(next_binary.str().size()));
+            }
+            std::filesystem::remove(m_path + ".chain.xml");
+            std::filesystem::remove(m_path + ".chain.bin");
+            const auto second_model = core.read_model(m_path + ".xml");
+            const auto second_fc = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(
+                second_model->get_results().at(0)->get_input_node_shared_ptr(0));
+            ASSERT_TRUE(second_fc);
+            const auto second_raw = ov::as_type_ptr<ov::op::v0::Constant>(second_fc->get_input_node_shared_ptr(1));
+            ASSERT_TRUE(second_raw);
+            ASSERT_NE(second_raw->get_data_ptr(), external_raw->get_data_ptr());
+            for (const auto& operation : second_model->get_ordered_ops()) {
+                operation->set_friendly_name("sharing_second_" + operation->get_friendly_name());
+                for (auto output : operation->outputs()) {
+                    output.set_names({operation->get_friendly_name() + "_" + std::to_string(output.get_index())});
+                }
+            }
+            auto results = external_model->get_results();
+            auto parameters = external_model->get_parameters();
+            results.insert(results.end(), second_model->get_results().begin(), second_model->get_results().end());
+            parameters.insert(parameters.end(), second_model->get_parameters().begin(), second_model->get_parameters().end());
+            const auto shared_model = std::make_shared<ov::Model>(results, parameters);
+            GgufScopedEnvironment sharing_shuffle("OV_GPU_GGUF_SHUFFLE", "0");
+            GgufScopedEnvironment sharing_cm("OV_GPU_GGUF_PREFILL_GEMM", "ocl");
+            auto compiled = core.compile_model(shared_model, "GPU");
+            std::stringstream exported_binary;
+            compiled.export_model(exported_binary);
+            const std::string raw_bytes(reinterpret_cast<const char*>(payload.data()), payload.size());
+            const auto exported = exported_binary.str();
+            size_t copies = 0;
+            size_t position = 0;
+            while ((position = exported.find(raw_bytes, position)) != std::string::npos) {
+                ++copies;
+                position += raw_bytes.size();
+            }
+            RecordProperty("external_source_payload_copies", std::to_string(copies));
+            EXPECT_EQ(copies, 1);
+        }
+        ov::Tensor external_weights(ov::element::u8, {external_binary.str().size()});
+        const auto bin_bytes = external_binary.str();
+        std::memcpy(external_weights.data(), bin_bytes.data(), bin_bytes.size());
+        EXPECT_ANY_THROW(core.read_model(external_xml.str(), external_weights));
+        const auto invalid_reference = [&](const char* attribute, const std::string& value) {
+            pugi::xml_document document;
+            ASSERT_TRUE(document.load_string(external_xml.str().c_str()));
+            pugi::xml_node data;
+            for (const auto layer : document.child("net").child("layers").children("layer")) {
+                if (layer.child("data").attribute("source")) {
+                    data = layer.child("data");
+                    break;
+                }
+            }
+            ASSERT_TRUE(data);
+            data.attribute(attribute).set_value(value.c_str());
+            {
+                std::ofstream file(m_path + ".xml");
+                ASSERT_TRUE(file);
+                document.save(file);
+            }
+            EXPECT_ANY_THROW(core.read_model(m_path + ".xml"));
+        };
+        for (const char* source : {"", ".", "..", "../missing.gguf", "..\\missing.gguf", "C:missing.gguf"}) {
+            invalid_reference("source", source);
+        }
+        invalid_reference("source", std::filesystem::path(m_path).filename().string() + ".missing");
+        invalid_reference("offset", "18446744073709551615");
+        invalid_reference("size", std::to_string(payload.size() - 1));
+        info["gguf_ext_size"] = static_cast<uint64_t>(payload.size() - 1);
+        std::stringstream invalid_xml, invalid_binary;
+        EXPECT_ANY_THROW(ov::pass::Serialize(invalid_xml, invalid_binary).run_on_model(model));
+        info["gguf_ext_size"] = static_cast<uint64_t>(payload.size());
+        ov::pass::Serialize(m_path + ".xml", m_path + ".bin").run_on_model(model);
+        info.erase("gguf_ext_source");
+        info.erase("gguf_ext_offset");
+        info.erase("gguf_ext_size");
+        info.erase("gguf_ext_source_path");
+    }
+    std::stringstream xml, binary;
+    ov::pass::Serialize(xml, binary).run_on_model(model);
+    const auto serialized = binary.str();
+    ov::Tensor constants(ov::element::u8, {serialized.size()});
+    std::memcpy(constants.data(), serialized.data(), serialized.size());
+    model = core.read_model(xml.str(), constants);
+    ir_roundtrip = true;
+    EXPECT_TRUE(owner.expired());
+    size_t raw_constants = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
+        if (constant && constant->get_element_type().is_gguf_block()) {
+            ++raw_constants;
+            EXPECT_EQ(constant->get_element_type(), gguf_raw_element_type(format.type));
+            EXPECT_EQ(constant->get_shape(), (ov::Shape{channels, columns}));
+            ASSERT_EQ(constant->get_byte_size(), payload.size());
+            EXPECT_EQ(std::memcmp(constant->get_data_ptr(), payload.data(), payload.size()), 0);
+        }
+    }
+    EXPECT_EQ(raw_constants, 1);
+    RecordProperty("ir_roundtrip_raw_constants", std::to_string(raw_constants));
+    run("64", "0");
+    run("64", "1", ov::element::f16);
+    run(nullptr, "0");
+    run(nullptr, "1", ov::element::f16);
+    model = core.read_model(m_path + ".xml");
+    external_reference = true;
+    EXPECT_TRUE(owner.expired());
+    auto replacement_payload = payload;
+    std::rotate(replacement_payload.begin(), replacement_payload.begin() + 2 * row_bytes, replacement_payload.end());
+    ASSERT_NO_FATAL_FAILURE(write_tensor("projection.weight", format.type, columns, channels, replacement_payload));
+    {
+        const auto replacement_model = core.read_model(m_path + ".xml");
+        const auto replacement_fc = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(
+            replacement_model->get_results().at(0)->get_input_node_shared_ptr(0));
+        ASSERT_TRUE(replacement_fc);
+        const auto replacement_raw = ov::as_type_ptr<ov::op::v0::Constant>(replacement_fc->get_input_node_shared_ptr(1));
+        ASSERT_TRUE(replacement_raw);
+        EXPECT_EQ(std::memcmp(replacement_raw->get_data_ptr(), replacement_payload.data(), payload.size()), 0);
+        const auto original_fc = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(
+            model->get_results().at(0)->get_input_node_shared_ptr(0));
+        ASSERT_TRUE(original_fc);
+        const auto original_raw = ov::as_type_ptr<ov::op::v0::Constant>(original_fc->get_input_node_shared_ptr(1));
+        ASSERT_TRUE(original_raw);
+        EXPECT_EQ(std::memcmp(original_raw->get_data_ptr(), payload.data(), payload.size()), 0);
+        std::stringstream stale_xml, stale_binary;
+        EXPECT_ANY_THROW(ov::pass::Serialize(stale_xml, stale_binary).run_on_model(model));
+        RecordProperty("external_reference_stale_snapshot_rejected", "1");
+        const auto materialized_model = model->clone();
+        for (const auto& operation : materialized_model->get_ordered_ops()) {
+            auto& metadata = operation->get_rt_info();
+            for (const auto* key : {"gguf_ext_source", "gguf_ext_offset", "gguf_ext_size", "gguf_ext_source_path"}) {
+                metadata.erase(key);
+            }
+        }
+        std::stringstream materialized_xml, materialized_binary;
+        ov::pass::Serialize(materialized_xml, materialized_binary).run_on_model(materialized_model);
+        const auto materialized_bytes = materialized_binary.str();
+        ASSERT_GE(materialized_bytes.size(), payload.size());
+        ov::Tensor materialized_weights(ov::element::u8, {materialized_bytes.size()});
+        std::memcpy(materialized_weights.data(), materialized_bytes.data(), materialized_bytes.size());
+        const auto materialized = core.read_model(materialized_xml.str(), materialized_weights);
+        const auto materialized_fc = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(
+            materialized->get_results().at(0)->get_input_node_shared_ptr(0));
+        ASSERT_TRUE(materialized_fc);
+        const auto materialized_raw = ov::as_type_ptr<ov::op::v0::Constant>(materialized_fc->get_input_node_shared_ptr(1));
+        ASSERT_TRUE(materialized_raw);
+        EXPECT_EQ(std::memcmp(materialized_raw->get_data_ptr(), payload.data(), payload.size()), 0);
+        std::stringstream fresh_xml, fresh_binary;
+        EXPECT_NO_THROW(ov::pass::Serialize(fresh_xml, fresh_binary).run_on_model(replacement_model));
+        EXPECT_LT(fresh_binary.str().size(), payload.size());
+    }
+    run("64", "0");
+    run("64", "1", ov::element::f16);
+    run(nullptr, "0");
+    run(nullptr, "1", ov::element::f16);
+    compiled_import = true;
+    for (const int streams : {1, 2}) {
+        if (streams == 2 && !has_gather)
+            continue;
+        stream_count = streams;
+        run("64", "0");
+        run("64", "1", ov::element::f16);
+        run(nullptr, "0");
+        run(nullptr, "1", ov::element::f16);
+    }
+    EXPECT_FALSE(executed_stages.empty());
+    std::string stage_summary;
+    for (const auto& stage : executed_stages) {
+        stage_summary += stage + ";";
+    }
+    RecordProperty("gguf_executed_kernels", stage_summary);
+    model.reset();
+    EXPECT_TRUE(owner.expired());
+#endif
+}
+
+INSTANTIATE_TEST_SUITE_P(RawFormats,
+                        GGUFParserGpu,
+                        ::testing::ValuesIn(kRawFormats),
+                        [](const ::testing::TestParamInfo<GgufRawFormat>& info) { return info.param.name; });
+
+TEST_F(GGUFParser, Q4KRawRejectsInvalidRowsAndTruncatedPayload) {
+    const GGUFLoadOptions options{true};
+    for (const uint64_t cols : {128, 255, 257}) {
+        SCOPED_TRACE(cols);
+        ASSERT_NO_FATAL_FAILURE(write_tensor("invalid.weight", GGUF_TYPE_Q4_K, cols, 2, std::vector<uint8_t>(288)));
+        OV_EXPECT_THROW(get_gguf_data(m_path, options), ov::Exception, testing::HasSubstr("block size"));
+    }
+    for (const uint64_t rows : {1, 2}) {
+        SCOPED_TRACE(rows);
+        ASSERT_NO_FATAL_FAILURE(
+            write_tensor("truncated.weight", GGUF_TYPE_Q4_K, 256, rows, std::vector<uint8_t>(rows * 144 - 1)));
+        OV_EXPECT_THROW(get_gguf_data(m_path, options), ov::Exception, testing::HasSubstr("past EOF"));
+    }
+}
+
+TEST_F(GGUFParser, RawFormatsRejectInvalidRowsAndTruncatedPayload) {
+    const GGUFLoadOptions options{true, true, true, true, true, true, true, true, true, true, true};
+    for (const auto& format : kRawFormats) {
+        SCOPED_TRACE(format.name);
+        const auto block = gguf_raw_element_type(format.type).block_elem_count();
+        for (const auto columns : {block - 1, block + 1}) {
+            ASSERT_NO_FATAL_FAILURE(write_tensor("invalid.weight", format.type, columns, 2));
+            OV_EXPECT_THROW(get_gguf_data(m_path, options), ov::Exception, testing::HasSubstr("block size"));
+        }
+        const auto bytes = load_npy<uint8_t>(std::string(format.name) + "_qbytes");
+        ASSERT_NO_FATAL_FAILURE(write_tensor("truncated.weight", format.type, 256, 4,
+                                             std::vector<uint8_t>(bytes.size() - 1)));
+        OV_EXPECT_THROW(get_gguf_data(m_path, options), ov::Exception, testing::HasSubstr("past EOF"));
+    }
+}
+
+TEST_F(GGUFParser, Q4KRawRejectsOverflowAndInvalidOffsets) {
+    const GGUFLoadOptions options{true};
+    ASSERT_NO_FATAL_FAILURE(write_tensor("overflow.weight",
+                                         GGUF_TYPE_Q4_K,
+                                         256,
+                                         std::numeric_limits<uint64_t>::max() / 256 + 1));
+    OV_EXPECT_THROW(get_gguf_data(m_path, options), ov::Exception, testing::HasSubstr("element count overflows"));
+    ASSERT_NO_FATAL_FAILURE(write_tensor("offset.weight",
+                                         GGUF_TYPE_Q4_K,
+                                         256,
+                                         1,
+                                         std::vector<uint8_t>(144),
+                                         {},
+                                         {},
+                                         std::numeric_limits<uint64_t>::max()));
+    OV_EXPECT_THROW(get_gguf_data(m_path, options), ov::Exception, testing::HasSubstr("offset"));
+}
+
+TEST_F(GGUFParser, Q4KRawAcceptsEmptyTensorAndKeepsOtherFormatsDecomposed) {
+    ASSERT_NO_FATAL_FAILURE(write_tensor("empty.weight", GGUF_TYPE_Q4_K, 256, 0));
+    {
+        const auto empty = get_gguf_data(m_path, GGUFLoadOptions{true});
+        const auto raw = unpack_gguf_weight(std::get<1>(empty).at("empty.weight")).weight;
+        EXPECT_EQ(raw.get_element_type(), ov::element::gguf_q4_k);
+        EXPECT_EQ(raw.get_shape(), (ov::Shape{0, 256}));
+        EXPECT_EQ(raw.get_byte_size(), 0);
+    }
+    ASSERT_NO_FATAL_FAILURE(write_tensor("other.weight", GGUF_TYPE_Q8_0, 32, 1, std::vector<uint8_t>(34)));
+    const auto other = get_gguf_data(m_path, GGUFLoadOptions{true});
+    const auto unpacked = unpack_gguf_weight(std::get<1>(other).at("other.weight"));
+    EXPECT_EQ(unpacked.weight.get_element_type(), ov::element::i8);
+    EXPECT_TRUE(unpacked.scales);
+}
+
+TEST_F(GGUFParser, QuantizedBuffersOutliveParserResult) {
+    const auto bytes = load_npy<uint8_t>("q2_k_qbytes");
+    const auto reference = load_npy<float>("q2_k_deq");
+    ASSERT_NO_FATAL_FAILURE(write_tensor("blk.0.attn_q.weight", GGUF_TYPE_Q2_K, 256, 4, bytes));
+    WeightTensors tensors;
+    {
+        const auto loaded = get_gguf_data(m_path);
+        const auto& arrays = std::get<1>(loaded);
+        tensors = unpack_gguf_weight(arrays.at("blk.0.attn_q.weight"));
+    }
+    ov::test::utils::removeFile(m_path);
+    const auto node = make_weight_node(tensors, GGUF_TYPE_Q2_K, "blk.0.attn_q");
+    tensors = {};
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+    const auto output = run_on_cpu(model, {});
+    ASSERT_EQ(output.get_size(), reference.size());
+    for (size_t i = 0; i < reference.size(); ++i)
+        EXPECT_NEAR(output.data<const float>()[i], reference[i], 3e-3f);
+}
+
 TEST_F(GGUFParser, AcceptsEmptyQuantizedTensors) {
     constexpr std::array types{
         std::pair{"Q4_0", GGUF_TYPE_Q4_0},
@@ -387,7 +1509,8 @@ protected:
                      uint16_t count = 2,
                      int32_t total = 2,
                      const std::string& name = {},
-                     const std::string& architecture = {}) {
+                     const std::string& architecture = {},
+                     bool raw = false) {
         GgufWriter writer;
         writer.kv_u16("split.no", number);
         writer.kv_u16("split.count", count);
@@ -395,9 +1518,12 @@ protected:
         if (index == 0 || !architecture.empty()) {
             writer.kv_str("general.architecture", architecture.empty() ? "qwen3" : architecture);
         }
-        writer.tensor(name.empty() ? "weight" + std::to_string(index) + ".weight" : name,
-                      {2},
-                      {float(index + 1), float(index + 2)});
+        const auto tensor_name = name.empty() ? "weight" + std::to_string(index) + ".weight" : name;
+        if (raw) {
+            writer.raw_tensor(tensor_name, {256, 4}, GGUF_TYPE_Q4_K, load_npy<uint8_t>("q4_k_qbytes"));
+        } else {
+            writer.tensor(tensor_name, {2}, {float(index + 1), float(index + 2)});
+        }
         const auto file = path(index);
         m_paths.push_back(file);
         ASSERT_TRUE(writer.write(file));
@@ -425,17 +1551,25 @@ TEST_F(GGUFShards, DiscoversSiblingsFromEitherShardAndKeepsMappingsAlive) {
 }
 
 TEST_F(GGUFShards, ExplicitListAllowsRenamedFilesInDifferentDirectoriesAndReversedOrder) {
-    ASSERT_NO_FATAL_FAILURE(write_shard(0, 0));
-    ASSERT_NO_FATAL_FAILURE(write_shard(1, 1));
-    const auto renamed =
-        (std::filesystem::temp_directory_path() / (std::filesystem::path(m_base).filename().string() + "_renamed.gguf"))
-            .string();
-    m_paths.push_back(renamed);
-    ASSERT_TRUE(std::filesystem::copy_file(path(1), renamed));
-    const auto loaded = get_gguf_data(std::vector<std::filesystem::path>{renamed, path(0)});
-    EXPECT_EQ(std::get<1>(loaded).size(), 2);
-    EXPECT_EQ(std::get<std::string>(std::get<0>(loaded).at("general.architecture")), "qwen3");
-    OV_EXPECT_THROW(get_gguf_data(renamed), ov::Exception, testing::HasSubstr("explicit list"));
+    for (const bool raw : {false, true}) {
+        ASSERT_NO_FATAL_FAILURE(write_shard(0, 0, 2, 2, {}, {}, raw));
+        ASSERT_NO_FATAL_FAILURE(write_shard(1, 1, 2, 2, {}, {}, raw));
+        const auto filename = raw ? std::filesystem::path(path(0)).filename().string()
+                                  : std::filesystem::path(m_base).filename().string() + "_renamed.gguf";
+        const auto renamed = (std::filesystem::temp_directory_path() / filename).string();
+        m_paths.push_back(renamed);
+        ASSERT_TRUE(std::filesystem::copy_file(path(1), renamed));
+        const auto loaded = get_gguf_data(std::vector<std::filesystem::path>{renamed, path(0)}, GGUFLoadOptions{raw});
+        EXPECT_EQ(std::get<1>(loaded).size(), 2);
+        EXPECT_EQ(std::get<std::string>(std::get<0>(loaded).at("general.architecture")), "qwen3");
+        if (raw) {
+            EXPECT_TRUE(std::get<1>(loaded).at("weight0.weight").external_source.empty());
+            EXPECT_TRUE(std::get<1>(loaded).at("weight1.weight").external_source.empty());
+        }
+        EXPECT_EQ(unpack_gguf_weight(std::get<1>(loaded).at("weight0.weight")).weight.get_element_type(),
+                  raw ? ov::element::gguf_q4_k : ov::element::f32);
+        OV_EXPECT_THROW(get_gguf_data(renamed), ov::Exception, testing::HasSubstr("explicit list"));
+    }
 }
 
 TEST_F(GGUFShards, LegacyGroup128PackingMatchesMergedFileAcrossShards) {

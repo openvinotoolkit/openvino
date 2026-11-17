@@ -1,0 +1,595 @@
+/*
+ * gemm_q41_full.cm -- Dense Q4_1 GEMM, unified layout (v8, cooperative).
+ *
+ * fp16 activations, SG-transposed Q4_1 weights (pqs_T || pd_T || pm_T), cm_dpas
+ * systolic engine with VNNI-packed fp16-dequantized weight operands.
+ *
+ * ==========================================================================
+ * WHY Q4_1 IS THE SAME DECODE AS Q4_K
+ * ==========================================================================
+ * A GGUF Q4_1 block is 32 weights with an fp16 scale AND an fp16 offset:
+ *                           w = q * d + m,   q in [0,15]
+ * A Q4_K sub-block decodes as  w = q * scale - minv, so Q4_1 is
+ *                           scale = d,  minv = -m
+ * and the nibble packing convention is the same (byte p: low nibble =
+ * K-pos p, high nibble = K-pos p+16). q41_vnni_decode is therefore
+ * bit-identical to q4k_vnni_decode; only the scale front-end changes.
+ *
+ * d and m live in TWO SEPARATE SoA PLANES (pd_T then pm_T) -- the layout the
+ * OpenVINO GPU plugin's compile-time repack produces (see
+ * RepackGGUFWeightsShuffle in
+ * src/plugins/intel_gpu/src/plugin/transformations/repack_gguf_weights.cpp:
+ * off_pd = N*nbpr*128, off_pm = off_pd + N*nbpr*16, and field j of lane lid
+ * at j*16*2 + lid*2). An earlier standalone-only variant interleaved the two
+ * halves so the producer needed ONE 64 B load instead of two 32 B ones; that
+ * measured NEUTRAL (this kernel is activation-latency bound, not
+ * producer-message bound), so the plugin layout wins on the grounds of
+ * having exactly ONE weight layout to maintain across the whole family.
+ *
+ * Nibble layout per lane uint32 for chunk c (same as Q4_K / Q4_0):
+ *   bits 0..3:   lo K-pos 4c+0    bits 4..7:   hi K-pos 4c+16
+ *   bits 8..11:  lo K-pos 4c+1    bits 12..15: hi K-pos 4c+17
+ *   bits 16..19: lo K-pos 4c+2    bits 20..23: hi K-pos 4c+18
+ *   bits 24..27: lo K-pos 4c+3    bits 28..31: hi K-pos 4c+19
+ * VNNI: B_half[sd][2*n+k_bit] = W_fp16[k=2*sd+k_bit][n]
+ *
+ * == Weight layout ==  (num_blocks = input_len*output_len/256, OPG=16)
+ *   pqs_T: num_blocks * OPG * 128 bytes
+ *          [row group][K-block][sub-block j=0..7][chunk c=0..3][lane n=0..15][byte b=0..3]
+ *   pd_T:  num_blocks * OPG *  16 bytes   (scale d,  fp16 per lane)
+ *          [row group][K-block][sub-block j=0..7][lane n=0..15][d fp16]
+ *   pm_T:  num_blocks * OPG *  16 bytes   (offset m, fp16 per lane)
+ *          [row group][K-block][sub-block j=0..7][lane n=0..15][m fp16]
+ *   weights = pqs_T || pd_T || pm_T
+ *   (Identical to Q4_0/Q8_0: two separate SoA planes after pqs_T;
+ *    matches RepackGGUFWeightsShuffle small-block layout.)
+ *
+ * Dispatch: see test_dense_gemm_full.py and gemm_q4k_full.cm.
+ *
+ * ==========================================================================
+ * MEASURED on Arc B580 (ab_lowbit_config.py, one process, interleaved
+ * round-robin, min-of-N -- see gemm_q40_full.cm for the methodology note)
+ * ==========================================================================
+ * Baseline = the adopted K-type BMG tile RG=2 TG=4 TL=8 RB=1 SLM_JBLK=4
+ * PF_A=1 A_OUTER=0, at token_len=1024:
+ *   A_OUTER=1     K4096/N4096 1.11x  K1024/N4096 1.14x
+ *                 K12288/N4096 1.13x K4096/N12288 1.34x   <-- ADOPTED
+ * On top of A_OUTER=1: TOKEN_GROUPS=2 0.85-0.97x, TOKEN_GROUPS=8
+ * 0.17-0.19x (spills), ROW_GROUPS=1 0.70-0.99x, ROW_GROUPS=4/TL=16
+ * 0.20-0.24x (spills), TOKEN_LOCAL=16 0.98-1.04x, TOKEN_LOCAL=32/RB=2
+ * 0.94-1.09x, PF_A=0 1.01-1.06x. 128 registers, no spill.
+ */
+
+#include <cm/cm.h>
+#include <cm/cmtl.h>
+
+#pragma OPENCL EXTENSION cl_khr_fp16 : enable
+
+#define OPG 16
+#define TOKENS_PER_TILE 8          /* dpas RepeatCount */
+
+#ifdef CM_OUTPUT_F32
+typedef float cm_output_t;
+#define CM_OUTPUT_BYTES 4
+#else
+typedef half cm_output_t;
+#define CM_OUTPUT_BYTES 2
+#endif
+
+#ifdef CM_INPUT_F32
+typedef float cm_input_t;
+#else
+typedef half cm_input_t;
+#endif
+
+#ifndef DECODE_HALF
+#define DECODE_HALF 0
+#endif
+#if DECODE_HALF
+typedef half  dect_t;
+#else
+typedef float dect_t;
+#endif
+
+#ifndef COOP_SLM
+#define COOP_SLM 1
+#endif
+
+#ifndef ROW_GROUPS
+#define ROW_GROUPS 2
+#endif
+#if ROW_GROUPS > 1 && !COOP_SLM
+#error "ROW_GROUPS > 1 requires COOP_SLM"
+#endif
+
+#ifndef ROW_BLOCKS
+#define ROW_BLOCKS 1
+#endif
+#if ROW_BLOCKS > 1 && !COOP_SLM
+#error "ROW_BLOCKS > 1 requires COOP_SLM"
+#endif
+
+#ifndef SLM_JBLK
+#if ROW_GROUPS > 1
+#define SLM_JBLK 4
+#else
+#define SLM_JBLK 8
+#endif
+#endif
+#ifndef SLM_DEPTH
+#define SLM_DEPTH 1
+#endif
+#ifndef SLM_SLOTS
+#define SLM_SLOTS 2
+#endif
+#ifndef SLM_FULLBAR
+#define SLM_FULLBAR 1
+#endif
+
+#ifndef TOKEN_GROUPS
+#define TOKEN_GROUPS 4
+#endif
+#ifndef TOKEN_LOCAL
+#if COOP_SLM
+#define TOKEN_LOCAL 8
+#else
+#define TOKEN_LOCAL 4
+#endif
+#endif
+#ifndef WALK_HBLK
+#define WALK_HBLK 0
+#endif
+#ifndef PF_W
+#if COOP_SLM
+#define PF_W 0
+#else
+#define PF_W 2
+#endif
+#endif
+#ifndef PF_A
+#if COOP_SLM && ROW_GROUPS == 1
+#define PF_A 0
+#else
+#define PF_A 1
+#endif
+#endif
+#ifndef A_LOAD_2D
+#define A_LOAD_2D 1
+#endif
+#ifndef MERGE_STORE
+#define MERGE_STORE 1
+#endif
+#ifndef A_OUTER
+#define A_OUTER 0
+#endif
+#ifndef SLM_PAD
+#define SLM_PAD 0
+#endif
+#ifndef A_L1H
+#define A_L1H Default
+#endif
+#ifndef A_L2H
+#define A_L2H Default
+#endif
+
+#define SLM_NPROD   (SLM_JBLK * ROW_GROUPS * ROW_BLOCKS)
+#define TOKEN_SLOTS (TOKEN_LOCAL / ROW_BLOCKS)
+#define SLM_TILE_B  ((8 * 32 * 2) + SLM_PAD)
+#define SLM_PHASE_B (SLM_NPROD * 2 * SLM_TILE_B)
+#define SLM_TOTAL_B (SLM_SLOTS * SLM_PHASE_B)
+#define SLM_JPS     (8 / SLM_JBLK)
+
+#define TOKENS_PER_THREAD (TOKENS_PER_TILE * TOKEN_GROUPS)
+
+#if TOKENS_PER_THREAD > 32
+#define PFA_ROWS 32
+#else
+#define PFA_ROWS TOKENS_PER_THREAD
+#endif
+#define PFA_SETS (TOKENS_PER_THREAD / PFA_ROWS)
+
+/* Decode all 4 chunks of one sub-block in ONE SIMD64 pass.
+ * Bit-identical to gemm_q4k_full.cm's q4k_vnni_decode. For Q4_1 the caller
+ * passes scale4 = d, minv4 = -m, so w = q*d + m. */
+_GENX_ inline void q41_vnni_decode(
+    vector<uint, 4*OPG> q,
+    vector<dect_t, 4*OPG> scale4, vector<dect_t, 4*OPG> minv4,
+    vector_ref<half, 8*32> Blo, vector_ref<half, 8*32> Bhi)
+{
+    matrix_ref<half, 8, 32> Bl = Blo.format<half, 8, 32>();
+    matrix_ref<half, 8, 32> Bh = Bhi.format<half, 8, 32>();
+
+    { vector<dect_t,4*OPG> w=(q & 0xFu);       w=w*scale4-minv4; Bl.select<4,2,16,2>(0,0)=w.format<dect_t,4,OPG>(); }
+    { vector<dect_t,4*OPG> w=((q>>8)  & 0xFu); w=w*scale4-minv4; Bl.select<4,2,16,2>(0,1)=w.format<dect_t,4,OPG>(); }
+    { vector<dect_t,4*OPG> w=((q>>16) & 0xFu); w=w*scale4-minv4; Bl.select<4,2,16,2>(1,0)=w.format<dect_t,4,OPG>(); }
+    { vector<dect_t,4*OPG> w=((q>>24) & 0xFu); w=w*scale4-minv4; Bl.select<4,2,16,2>(1,1)=w.format<dect_t,4,OPG>(); }
+    { vector<dect_t,4*OPG> w=((q>>4)  & 0xFu); w=w*scale4-minv4; Bh.select<4,2,16,2>(0,0)=w.format<dect_t,4,OPG>(); }
+    { vector<dect_t,4*OPG> w=((q>>12) & 0xFu); w=w*scale4-minv4; Bh.select<4,2,16,2>(0,1)=w.format<dect_t,4,OPG>(); }
+    { vector<dect_t,4*OPG> w=((q>>20) & 0xFu); w=w*scale4-minv4; Bh.select<4,2,16,2>(1,0)=w.format<dect_t,4,OPG>(); }
+    { vector<dect_t,4*OPG> w=((q>>28) & 0xFu); w=w*scale4-minv4; Bh.select<4,2,16,2>(1,1)=w.format<dect_t,4,OPG>(); }
+}
+
+extern "C" _GENX_MAIN_ void gemm_q41_full(
+    cm_input_t* inputs [[type("svmptr_t")]], /* [token_len * input_len] */
+    uchar* weights [[type("svmptr_t")]],   /* pqs_T || pd_T || pm_T         */
+    cm_output_t* outputs [[type("svmptr_t")]],   /* [token_len * output_len] */
+    uint token_len, uint input_len, uint output_len
+#ifdef CM_POST_OPS_DECLS
+    CM_POST_OPS_DECLS
+#endif
+)
+{
+    const uint nbpr       = input_len / 256;
+    const uint num_blocks = input_len * output_len / 256;
+
+    uint gh = cm_group_id(0);
+    uint gt = cm_group_id(1);
+#if WALK_HBLK > 1
+    {
+        const uint nh = cm_group_count(0);
+        const uint nt = cm_group_count(1);
+        if ((nh % WALK_HBLK) == 0) {
+            const uint lin  = gt * nh + gh;
+            const uint band = WALK_HBLK * nt;
+            const uint hb   = lin / band;
+            const uint rem  = lin - hb * band;
+            gt = rem / WALK_HBLK;
+            gh = hb * WALK_HBLK + (rem - gt * WALK_HBLK);
+        }
+    }
+#endif
+    const uint lid = cm_local_id(1);
+    const uint rb = lid % ROW_BLOCKS;
+    const uint ts = lid / ROW_BLOCKS;
+    const uint h0 = (gh * ROW_BLOCKS + rb) * ROW_GROUPS;
+    const uint t = gt * TOKEN_SLOTS + ts;
+
+    const uint tile_base = t * TOKENS_PER_THREAD;
+    const uint tok_max   = token_len - 1;
+
+    uchar* pqs_base = weights;
+    uchar* pd_base  = weights + num_blocks * 128u;
+    uchar* pm_base  = weights + num_blocks * 144u;   /* off_pd + num_blocks*16 */
+
+    vector<float, TOKENS_PER_TILE * OPG> acc[ROW_GROUPS * TOKEN_GROUPS];
+    #pragma unroll
+    for (int i = 0; i < ROW_GROUPS * TOKEN_GROUPS; i++) acc[i] = 0.0f;
+
+#if PF_A
+    lsc::block_2d_desc<half, 1, PFA_ROWS, 32> pfA(
+        inputs, token_len - 1, input_len * (uint)sizeof(half) - 1,
+        input_len * (uint)sizeof(half) - 1, 0, (int)tile_base);
+#endif
+#if A_LOAD_2D
+    lsc::block_2d_desc<half, 2, TOKENS_PER_TILE, 16> b2dA(
+        inputs, token_len - 1, input_len * (uint)sizeof(half) - 1,
+        input_len * (uint)sizeof(half) - 1, 0, 0);
+#endif
+
+#if COOP_SLM
+    cm_slm_init(SLM_TOTAL_B);
+    uint slm = cm_slm_alloc(SLM_TOTAL_B);
+
+    const uint nstages = nbpr * SLM_JPS;
+
+    auto stage_fn = [&](int s) {
+        if (s >= (int)nstages) return;
+        const uint sbase = ((uint)s & (SLM_SLOTS - 1)) * SLM_PHASE_B;
+        const uint kb    = (uint)s / SLM_JPS;
+        const uint jb    = (uint)s - kb * SLM_JPS;
+
+#if SLM_NPROD >= TOKEN_LOCAL
+        #pragma unroll
+        for (int u = 0; u < SLM_NPROD / TOKEN_LOCAL; u++) {
+            const uint w = lid + (uint)u * TOKEN_LOCAL;
+#else
+        if (lid < SLM_NPROD) {
+            const uint w = lid;
+#endif
+            const uint rgj = ROW_GROUPS * SLM_JBLK;
+            const uint rbp = w / rgj;
+            const uint rem = w - rbp * rgj;
+            const uint rg = rem / SLM_JBLK;
+            const uint jl = rem - rg * SLM_JBLK;
+            const uint blk = ((gh * ROW_BLOCKS + rbp) * ROW_GROUPS + rg) * nbpr + kb;
+            const uint j  = jb * SLM_JBLK + jl;
+
+#if PF_W
+            if (s + 1 < (int)nstages)
+                cm_ptr_prefetch<64, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(
+                    (const unsigned*)pqs_base, blk * (OPG * 128u) + (j + SLM_JBLK) * 256u);
+#endif
+            vector<uint, 4*OPG> q =
+                cm_ptr_load<uint, 4*OPG>((uint*)pqs_base, blk * (OPG * 128u) + j * 256u);
+
+            /* two SoA fp16 planes, 32 B each (plugin repack order: d then m) */
+            const uint meta_off = blk * (OPG * 16u) + j * 32u;
+            vector<uint, OPG/2> pd_u = cm_ptr_load<uint, OPG/2>((uint*)pd_base, meta_off);
+            vector<uint, OPG/2> pm_u = cm_ptr_load<uint, OPG/2>((uint*)pm_base, meta_off);
+            vector<half, OPG> dh = pd_u.format<half>();
+            vector<half, OPG> mh = pm_u.format<half>();
+            vector<float, OPG> dF, mF; dF = dh; mF = mh;
+
+            vector<dect_t, 4*OPG> scale4, minv4;
+            #pragma unroll
+            for (int c = 0; c < 4; c++) {
+                scale4.select<OPG,1>(c*OPG) = dF;
+                minv4 .select<OPG,1>(c*OPG) = -mF;   /* w = q*d + m */
+            }
+
+            vector<half, 8*32> Blo, Bhi;
+            q41_vnni_decode(q, scale4, minv4, Blo, Bhi);
+            cm_slm_block_write(slm, (int)(sbase + (w * 2 + 0) * SLM_TILE_B), Blo);
+            cm_slm_block_write(slm, (int)(sbase + (w * 2 + 1) * SLM_TILE_B), Bhi);
+        }
+    };
+
+    #pragma unroll
+    for (int d = 0; d < SLM_DEPTH; d++) stage_fn(d);
+#if !SLM_FULLBAR
+    cm_slm_fence(CM_LOCAL_BARRIER);
+    cm_sbarrier(1);
+#endif
+
+    for (uint s = 0; s < nstages; s++) {
+#if SLM_FULLBAR
+        cm_slm_fence(CM_LOCAL_BARRIER);
+        cm_barrier();
+#else
+        cm_fence(CM_LOCAL_BARRIER);
+        cm_sbarrier(0);
+        if (s + 1 < nstages) cm_sbarrier(1);
+#endif
+
+        stage_fn((int)s + SLM_DEPTH);
+
+        const uint kb = s / SLM_JPS;
+        const uint jb = s - kb * SLM_JPS;
+#if PF_A
+        if (jb == 0 && kb + 1 < nbpr) {
+            #pragma unroll
+            for (int r = 0; r < PFA_SETS; r++) {
+                pfA.set_block_y((int)(tile_base + r * PFA_ROWS));
+                #pragma unroll
+                for (int p = 0; p < PF_A; p++)
+                    cm_prefetch<CacheHint::Cached, CacheHint::Cached>(
+                        pfA.set_block_x((int)((kb + 1) * 256u) + p * 32));
+            }
+        }
+#endif
+        const uint sbase = (s & (SLM_SLOTS - 1)) * SLM_PHASE_B;
+
+#if A_OUTER
+        #pragma unroll
+        for (int jl = 0; jl < SLM_JBLK; jl++) {
+            const int j = (int)jb * SLM_JBLK + jl;
+            vector<half, 2 * TOKENS_PER_TILE * 16> A2[TOKEN_GROUPS];
+            #pragma unroll
+            for (int tg = 0; tg < TOKEN_GROUPS; tg++) {
+                b2dA.set_block_y((int)(tile_base + tg * TOKENS_PER_TILE));
+                cm_load<lsc::Normal, CacheHint::A_L1H, CacheHint::A_L2H>(
+                    A2[tg], b2dA.set_block_x((int)(kb * 256u) + j * 32));
+            }
+            #pragma unroll
+            for (int rg = 0; rg < ROW_GROUPS; rg++) {
+                const uint ti = (rb * ROW_GROUPS + (uint)rg) * SLM_JBLK + (uint)jl;
+                vector<half, 8*32> Blo, Bhi;
+                cm_slm_block_read(slm, GENX_NONE,
+                    (int)(sbase + (ti * 2 + 0) * SLM_TILE_B), Blo);
+                cm_slm_block_read(slm, GENX_NONE,
+                    (int)(sbase + (ti * 2 + 1) * SLM_TILE_B), Bhi);
+                #pragma unroll
+                for (int tg = 0; tg < TOKEN_GROUPS; tg++) {
+                    auto Alo = A2[tg].select<TOKENS_PER_TILE * 16, 1>(0);
+                    auto Ahi = A2[tg].select<TOKENS_PER_TILE * 16, 1>(TOKENS_PER_TILE * 16);
+                    acc[rg * TOKEN_GROUPS + tg] =
+                        cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                            acc[rg * TOKEN_GROUPS + tg], Blo.format<int32_t>(), Alo.format<int32_t>());
+                    acc[rg * TOKEN_GROUPS + tg] =
+                        cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                            acc[rg * TOKEN_GROUPS + tg], Bhi.format<int32_t>(), Ahi.format<int32_t>());
+                }
+            }
+        }
+#else
+        #pragma unroll
+        for (int jl = 0; jl < SLM_JBLK; jl++) {
+            vector<half, 8*32> Blo[ROW_GROUPS], Bhi[ROW_GROUPS];
+            #pragma unroll
+            for (int rg = 0; rg < ROW_GROUPS; rg++) {
+                const uint ti = (rb * ROW_GROUPS + (uint)rg) * SLM_JBLK + (uint)jl;
+                cm_slm_block_read(slm, GENX_NONE,
+                    (int)(sbase + (ti * 2 + 0) * SLM_TILE_B), Blo[rg]);
+                cm_slm_block_read(slm, GENX_NONE,
+                    (int)(sbase + (ti * 2 + 1) * SLM_TILE_B), Bhi[rg]);
+            }
+
+            const int j = (int)jb * SLM_JBLK + jl;
+            #pragma unroll
+            for (int tg = 0; tg < TOKEN_GROUPS; tg++) {
+                vector<half, 2 * TOKENS_PER_TILE * 16> A2;
+                b2dA.set_block_y((int)(tile_base + tg * TOKENS_PER_TILE));
+                cm_load<lsc::Normal, CacheHint::A_L1H, CacheHint::A_L2H>(
+                    A2, b2dA.set_block_x((int)(kb * 256u) + j * 32));
+                auto Alo = A2.select<TOKENS_PER_TILE * 16, 1>(0);
+                auto Ahi = A2.select<TOKENS_PER_TILE * 16, 1>(TOKENS_PER_TILE * 16);
+                #pragma unroll
+                for (int rg = 0; rg < ROW_GROUPS; rg++) {
+                    acc[rg * TOKEN_GROUPS + tg] =
+                        cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                            acc[rg * TOKEN_GROUPS + tg], Blo[rg].format<int32_t>(), Alo.format<int32_t>());
+                    acc[rg * TOKEN_GROUPS + tg] =
+                        cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                            acc[rg * TOKEN_GROUPS + tg], Bhi[rg].format<int32_t>(), Ahi.format<int32_t>());
+                }
+            }
+        }
+#endif /* A_OUTER */
+    }
+#else  /* !COOP_SLM */
+
+    for (uint kb = 0; kb < nbpr; kb++) {
+        const uint blk = h0 * nbpr + kb;
+#if PF_W
+        if (kb + 1 < nbpr) {
+            #pragma unroll
+            for (int p = 0; p < PF_W; p++)
+                cm_ptr_prefetch<64, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(
+                    (const unsigned*)pqs_base, (blk + 1) * (OPG * 128u) + p * 256u);
+            cm_ptr_prefetch<64, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(
+                (const unsigned*)pd_base, (blk + 1) * (OPG * 16u));
+        }
+#endif
+#if PF_A
+        if (kb + 1 < nbpr) {
+            #pragma unroll
+            for (int r = 0; r < PFA_SETS; r++) {
+                pfA.set_block_y((int)(tile_base + r * PFA_ROWS));
+                #pragma unroll
+                for (int p = 0; p < PF_A; p++)
+                    cm_prefetch<CacheHint::Cached, CacheHint::Cached>(
+                        pfA.set_block_x((int)((kb + 1) * 256u) + p * 32));
+            }
+        }
+#endif
+        const uint pqs_byte = blk * (OPG * 128u);
+        const uint meta_byte = blk * (OPG * 16u);
+        const uint a_koff   = kb * 256u * (uint)sizeof(half);
+
+        #pragma unroll
+        for (int j = 0; j < 8; j++) {
+            vector<uint, 4*OPG> q =
+                cm_ptr_load<uint, 4*OPG>((uint*)pqs_base, pqs_byte + j*256);
+            vector<uint, OPG/2> pd_u =
+                cm_ptr_load<uint, OPG/2>((uint*)pd_base, meta_byte + j*32);
+            vector<uint, OPG/2> pm_u =
+                cm_ptr_load<uint, OPG/2>((uint*)pm_base, meta_byte + j*32);
+            vector<half, OPG> dh = pd_u.format<half>();
+            vector<half, OPG> mh = pm_u.format<half>();
+            vector<float, OPG> dF, mF; dF = dh; mF = mh;
+
+            vector<dect_t, 4*OPG> scale4, minv4;
+            #pragma unroll
+            for (int c = 0; c < 4; c++) {
+                scale4.select<OPG,1>(c*OPG) = dF;
+                minv4 .select<OPG,1>(c*OPG) = -mF;
+            }
+
+            vector<half, 8*32> Blo, Bhi;
+            q41_vnni_decode(q, scale4, minv4, Blo, Bhi);
+
+            #pragma unroll
+            for (int tg = 0; tg < TOKEN_GROUPS; tg++) {
+#if A_LOAD_2D
+                vector<half, 2 * TOKENS_PER_TILE * 16> A2;
+                b2dA.set_block_y((int)(tile_base + tg * TOKENS_PER_TILE));
+                cm_load<lsc::Normal>(A2, b2dA.set_block_x((int)(kb * 256u) + j * 32));
+                auto Alo = A2.select<TOKENS_PER_TILE * 16, 1>(0);
+                auto Ahi = A2.select<TOKENS_PER_TILE * 16, 1>(TOKENS_PER_TILE * 16);
+#else
+                vector<half, TOKENS_PER_TILE * 16> Alo, Ahi;
+                #pragma unroll
+                for (int i = 0; i < TOKENS_PER_TILE; i++) {
+                    uint tok = tile_base + tg * TOKENS_PER_TILE + i;
+                    tok = (tok < token_len) ? tok : tok_max;
+                    const uint ab = tok * input_len * (uint)sizeof(half) + a_koff + j * 64u;
+#ifdef CM_INPUT_F32
+                    vector<float, 32> ahf = cm_ptr_load<float, 32>((float*)inputs, ab);
+                    vector<half, 32> ah;
+                    ah = ahf;
+#else
+                    vector<half, 32> ah =
+                        cm_ptr_load<uint, 16>((uint*)inputs, ab).format<half>();
+#endif
+                    Alo.select<16,1>(i*16) = ah.select<16,1>(0);
+                    Ahi.select<16,1>(i*16) = ah.select<16,1>(16);
+                }
+#endif
+                acc[tg] = cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                              acc[tg], Blo.format<int32_t>(), Alo.format<int32_t>());
+                acc[tg] = cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                              acc[tg], Bhi.format<int32_t>(), Ahi.format<int32_t>());
+            }
+        }
+    }
+#endif /* COOP_SLM */
+
+#if MERGE_STORE
+    #pragma unroll
+    for (int tg = 0; tg < TOKEN_GROUPS; tg++) {
+        #pragma unroll
+        for (int i = 0; i < TOKENS_PER_TILE; i++) {
+            uint tok = tile_base + tg * TOKENS_PER_TILE + i;
+            if (tok < token_len) {
+                vector<float, ROW_GROUPS * OPG> ov;
+                #pragma unroll
+                for (int rg = 0; rg < ROW_GROUPS; rg++)
+                    ov.select<OPG, 1>(rg * OPG) =
+                        acc[rg * TOKEN_GROUPS + tg].select<OPG, 1>(i * OPG);
+#if CM_POST_OPS_NUM > 0
+                /* Vectorized post-ops: mutate the WHOLE 'ov' vector in a
+                 * couple of SIMD instructions -- never a per-lane scalar
+                 * loop (that regressed perf badly: unrolled over
+                 * ROW_GROUPS*OPG lanes x up to TOKEN_GROUPS*TOKENS_PER_TILE
+                 * token stores = hundreds of scalar ops, plus non-coalesced
+                 * scalar loads of the fused operand). */
+                { const uint _po_base = tok * output_len + h0 * OPG;
+                  #ifdef CM_APPLY_POST_OP_0
+                  CM_APPLY_POST_OP_0(ov, _po_base, ROW_GROUPS * OPG)
+                  #endif
+                  #ifdef CM_APPLY_POST_OP_1
+                  CM_APPLY_POST_OP_1(ov, _po_base, ROW_GROUPS * OPG)
+                  #endif
+                  #ifdef CM_APPLY_POST_OP_2
+                  CM_APPLY_POST_OP_2(ov, _po_base, ROW_GROUPS * OPG)
+                  #endif
+                }
+#endif
+                vector<cm_output_t, ROW_GROUPS * OPG> ov_h = ov;
+#ifdef CM_OUTPUT_F32
+                cm_ptr_store<float, ROW_GROUPS * OPG>((float*)outputs,
+                    (tok * output_len + h0 * OPG) * (uint)sizeof(float), ov_h);
+#else
+                cm_ptr_store<uint, ROW_GROUPS * OPG / 2>((uint*)outputs,
+                    (tok * output_len + h0 * OPG) * (uint)sizeof(half), ov_h.format<uint>());
+#endif
+            }
+        }
+    }
+#else
+    #pragma unroll
+    for (int rg = 0; rg < ROW_GROUPS; rg++) {
+        #pragma unroll
+        for (int tg = 0; tg < TOKEN_GROUPS; tg++) {
+            #pragma unroll
+            for (int i = 0; i < TOKENS_PER_TILE; i++) {
+                uint tok = tile_base + tg * TOKENS_PER_TILE + i;
+                if (tok < token_len) {
+                    vector<float, OPG> ov_rg = acc[rg * TOKEN_GROUPS + tg].select<OPG, 1>(i * OPG);
+#if CM_POST_OPS_NUM > 0
+                    { const uint _po_base = tok * output_len + (h0 + (uint)rg) * OPG;
+                      #ifdef CM_APPLY_POST_OP_0
+                      CM_APPLY_POST_OP_0(ov_rg, _po_base, OPG)
+                      #endif
+                      #ifdef CM_APPLY_POST_OP_1
+                      CM_APPLY_POST_OP_1(ov_rg, _po_base, OPG)
+                      #endif
+                      #ifdef CM_APPLY_POST_OP_2
+                      CM_APPLY_POST_OP_2(ov_rg, _po_base, OPG)
+                      #endif
+                    }
+#endif
+                    { vector<cm_output_t, OPG> ov_out = ov_rg;
+#ifdef CM_OUTPUT_F32
+                      cm_ptr_store<float, OPG>((float*)outputs,
+                          (tok * output_len + (h0 + rg) * OPG) * (uint)sizeof(float), ov_out); }
+#else
+                      cm_ptr_store<uint, OPG / 2>((uint*)outputs,
+                          (tok * output_len + (h0 + rg) * OPG) * (uint)sizeof(half), ov_out.format<uint>()); }
+#endif
+                }
+            }
+        }
+    }
+#endif
+}

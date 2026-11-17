@@ -1,0 +1,49 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+// convert_act_f32_to_f16.cm -- flat fp32 -> fp16 activation pre-pass for the
+// GGUF CM GEMM kernels (gemm_q{4k,5k,6k,40,41,80}_full.cm).
+//
+// Those kernels are written for a single fp16 activation ABI (2D block
+// descriptor / flat loads with byte strides in units of sizeof(half)).  Some
+// GGUF FullyConnected nodes receive an fp32 activation instead (e.g. produced
+// by an upstream op that raises precision).  Rather than special-casing every
+// big GEMM kernel for a second input ABI, this tiny kernel performs one
+// linear pass over the flattened [token_len * input_len] activation,
+// converting fp32 -> fp16 into a scratch buffer; the scratch buffer is then
+// fed, completely unmodified, into the existing fp16-only GEMM kernel.
+//
+// Dispatch: 1D, CONV_BLOCK elements converted per thread, CONV_LOCAL threads
+// per work-group (both baked in via -D build options, host-side constants).
+// The host only ever calls this kernel when total_elems == token_len *
+// input_len, and input_len is always a multiple of 256 (CM GEMM dispatch
+// constraint enforced in FCGGUFCm::support_shapes), so as long as CONV_BLOCK
+// divides 256 every thread gets a full, in-bounds CONV_BLOCK-element chunk
+// except possibly threads at/after the end, which are skipped outright.
+#include <cm/cm.h>
+#include <cm/cmtl.h>
+
+#ifndef CONV_BLOCK
+#define CONV_BLOCK 64    /* elements converted per thread */
+#endif
+#ifndef CONV_LOCAL
+#define CONV_LOCAL 16    /* threads per work-group        */
+#endif
+
+extern "C" _GENX_MAIN_ void convert_act_f32_to_f16(
+    float* inputs  [[type("svmptr_t")]],   /* [total_elems] fp32 */
+    half*  outputs [[type("svmptr_t")]],   /* [total_elems] fp16 */
+    uint   total_elems)
+{
+    const uint gid = cm_group_id(0);
+    const uint lid = cm_local_id(0);
+    const uint tid = gid * CONV_LOCAL + lid;
+    const uint base = tid * CONV_BLOCK;
+    if (base >= total_elems)
+        return;
+
+    vector<float, CONV_BLOCK> vf =
+        cm_ptr_load<float, CONV_BLOCK>(inputs, base * (uint)sizeof(float));
+    vector<half, CONV_BLOCK> vh = vf;
+    cm_ptr_store<uint, CONV_BLOCK / 2>((uint*)outputs, base * (uint)sizeof(half), vh.format<uint>());
+}

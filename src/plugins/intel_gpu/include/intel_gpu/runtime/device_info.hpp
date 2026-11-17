@@ -108,6 +108,8 @@ struct device_info {
     bool supports_intel_subgroups;              ///< Does engine support cl_intel_subgroups extension.
     bool supports_intel_subgroups_short;        ///< Does engine support cl_intel_subgroups_short extension.
     bool supports_intel_subgroups_char;         ///< Does engine support cl_intel_subgroups_char extension.
+    bool supports_intel_subgroup_2d_block_io;   ///< Does engine support cl_intel_subgroup_2d_block_io extension.
+    bool supports_intel_subgroup_matrix_multiply_accumulate; ///< Does engine support cl_intel_subgroup_matrix_multiply_accumulate extension.
     bool supports_intel_required_subgroup_size; ///< Does engine support cl_intel_required_subgroup_size extension.
     bool supports_queue_families;               ///< Does engine support cl_intel_command_queue_families extension.
     bool supports_image;                        ///< Does engine support images (CL_DEVICE_IMAGE_SUPPORT cap).

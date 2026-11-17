@@ -36,7 +36,7 @@ std::string strip_weight_suffix(const std::string& name) {
 
 GraphEmitter::GraphEmitter(const GgufWeightTable& weights,
                            std::string arch,
-                           const std::unordered_map<std::string, CreatorFunction>* translators)
+               const std::unordered_map<std::string, CreatorFunction>* translators)
     : m_weights(weights),
       m_arch(std::move(arch)),
       m_graph(std::make_shared<GgufGraph>()),

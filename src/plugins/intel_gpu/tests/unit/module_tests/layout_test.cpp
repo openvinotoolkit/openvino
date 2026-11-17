@@ -6,9 +6,41 @@
 
 #include "intel_gpu/runtime/layout.hpp"
 #include "impls/ocl/kernel_selector_helper.h"
+#include "openvino/op/constant.hpp"
 
 using namespace cldnn;
 using namespace ::tests;
+
+TEST(layout_test, gguf_q4_k_uses_block_storage) {
+    const std::vector<ov::Shape> shapes{{1, 256}, {32, 256}, {3, 512}};
+    for (const auto& shape : shapes) {
+        ov::op::v0::Constant weight(ov::element::gguf_q4_k, shape);
+        auto raw_layout = layout(ov::PartialShape(shape), data_types::gguf_q4_k, format::bfyx);
+        auto legacy_layout = layout(data_types::gguf_q4_k,
+                                    format::bfyx,
+                                    tensor(static_cast<tensor::value_type>(shape[0]),
+                                           static_cast<tensor::value_type>(shape[1]),
+                                           1,
+                                           1));
+        EXPECT_EQ(raw_layout.bytes_count(), shape[0] * (shape[1] / 256) * 144);
+        EXPECT_EQ(raw_layout.bytes_count(), weight.get_byte_size());
+        EXPECT_EQ(legacy_layout.bytes_count(), raw_layout.bytes_count());
+    }
+}
+
+TEST(layout_test, gguf_q4_k_is_not_an_element_sized_integer) {
+    EXPECT_THROW(data_type_traits::size_of(data_types::gguf_q4_k), ov::Exception);
+    EXPECT_FALSE(data_type_traits::is_i4_u4(data_types::gguf_q4_k));
+    EXPECT_FALSE(data_type_traits::is_i8_u8(data_types::gguf_q4_k));
+    EXPECT_EQ(element_type_to_data_type(ov::element::gguf_q4_k), data_types::gguf_q4_k);
+}
+
+TEST(layout_test, ordinary_types_keep_their_storage_size) {
+    EXPECT_EQ(layout(ov::PartialShape{32, 256}, data_types::f32, format::bfyx).bytes_count(), 32768);
+    EXPECT_EQ(layout(ov::PartialShape{32, 256}, data_types::f16, format::bfyx).bytes_count(), 16384);
+    EXPECT_EQ(layout(ov::PartialShape{32, 256}, data_types::u8, format::bfyx).bytes_count(), 8192);
+    EXPECT_EQ(layout(ov::PartialShape{32, 256}, data_types::u4, format::bfyx).bytes_count(), 4096);
+}
 
 
 struct layout_test_params {

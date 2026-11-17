@@ -43,6 +43,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/file_util.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf {
@@ -702,6 +703,9 @@ std::shared_ptr<ov::Node> make_weight_node(const WeightTensors& tensors,
                                            GgufTensorType qtype,
                                            const std::string& name) {
     OPENVINO_ASSERT(tensors.weight, "[GGUF] missing weight tensor: ", name);
+    OPENVINO_ASSERT(!tensors.weight.get_element_type().is_gguf_block(),
+                    "[GGUF] raw GGUF weights require a supported graph boundary: ",
+                    name);
     const auto format = get_weight_format(qtype, tensors.weight, tensors.zero_point, name);
     OPENVINO_ASSERT(!format.has_scales() || tensors.scales, "[GGUF] missing scales tensor: ", name);
     OPENVINO_ASSERT(!format.has_zero_point() || tensors.zero_point, "[GGUF] missing zero-point tensor: ", name);
@@ -932,6 +936,23 @@ ov::Shape mxfp4_packed_shape(const ov::Shape& shape) {
 }
 
 std::shared_ptr<ov::Node> make_weight_node(const GgufWeight& source) {
+    if (source.preserve_raw) {
+        const auto tensors = unpack_gguf_weight(source);
+        const auto type = tensors.weight.get_element_type();
+        OPENVINO_ASSERT(type == gguf_raw_element_type(source.qtype) && source.shape.size() == 2 &&
+                            source.shape[0] > 0 && source.shape[1] > 0 &&
+                            source.shape[1] % type.block_elem_count() == 0,
+                        "Unsupported raw GGUF weight contract: ", source.source_name);
+        auto constant = std::make_shared<ov::op::v0::Constant>(tensors.weight);
+        if (!source.external_source.empty()) {
+            auto& info = constant->get_rt_info();
+            info["gguf_ext_source"] = ov::util::path_to_string(source.external_source.filename());
+            info["gguf_ext_source_path"] = ov::util::path_to_string(source.external_source);
+            info["gguf_ext_offset"] = source.external_offset;
+            info["gguf_ext_size"] = static_cast<uint64_t>(source.data.get_byte_size());
+        }
+        return constant;
+    }
     if (source.native)
         return make_weight_node(unpack_gguf_weight(source), source.qtype, source.source_name);
     const auto& shape = source.shape;

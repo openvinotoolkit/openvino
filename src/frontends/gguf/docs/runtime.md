@@ -128,13 +128,212 @@ These core `ov::op::internal` operations can remain in the converted model:
 | `SelectiveSSM` | `SSM_SCAN`, Mamba 2 scalar decay | None |
 | `GatedDeltaNet` | `GATED_DELTA_NET`, scalar gate | `Loop` reference path for per-key gating or `force_ref`; not available with `split_outputs` |
 | `GatherMatmul` | `MUL_MAT_ID`, eligible constant expert weights | Generic Gather/MatMul for other weights |
+| `FullyConnectedCompressed` | Experimental raw GGUF matrix weights | Default decomposed weight path |
+| `GatherCompressed` | Experimental raw GGUF embedding weights in the six supported formats | Default decomposed weight path |
 
 See [`ssm_scan.cpp`](../src/op/ssm_scan.cpp), [`gated_delta_net.cpp`](../src/op/gated_delta_net.cpp)
 and [`mul_mat_id.cpp`](../src/op/mul_mat_id.cpp) for exact selection conditions.
 
 Internal operations are outside the public IR opsets. Saving IR can succeed and still produce a file
-the IR frontend cannot read back, so test the save/read round trip. Compiled-model export, import
-and caching are plugin-specific; test them on the target device. In-process conversion needs no IR.
+the IR frontend cannot read back, so test the save/read round trip. The IR reader explicitly restores
+`FullyConnectedCompressed` and `GatherCompressed` from `ie_internal_opset`, including their raw GGUF
+Constants, using block-aware byte counts. Without external-reference metadata, ordinary XML and BIN retain the raw payload; this does not
+automatically create external GGUF references or preserve the original file mapping. File regressions
+check payload identity, shared weights and GPU results after the original mapping is released.
+
+Explicit external references are supported for unchanged raw Constants carrying all three internal
+`gguf_ext_source`, `gguf_ext_offset` and `gguf_ext_size` metadata fields. The serializer writes the bare
+GGUF filename, byte offset and exact block-aware payload size into the Const data attributes instead
+of copying that payload to BIN. Load the paired XML/BIN through the model-file entrance: the reader
+resolves the source relative to the weights-file directory and checks the filename, GGUF magic,
+type/shape/size and overflow-safe file range. In-memory XML has no such directory and is rejected.
+The current entrance also requires the accompanying BIN path; external-only XML without BIN is not
+covered. The target FileWeightsProvider shares providers/regions within a read and returns owned,
+copy-backed buffers with existing descriptors, not mx's zero-copy mmap. Its no-mmap guard is unchanged.
+Loaded payloads remain snapshots if the source is subsequently replaced; a fresh read observes the
+replacement. This is not a content-integrity check or a symlink-confinement guarantee.
+
+Reading an external reference restores its three metadata fields and an internal resolved
+`gguf_ext_source_path`. Before another external export, the serializer checks that resolved file's
+identity, magic, range and complete payload against the loaded Constant snapshot. Missing, truncated
+or changed sources raise an error instead of silently exporting a stale reference. Explicitly remove
+all four fields to materialize the snapshot into an ordinary BIN. Manually supplied three-field
+metadata without a resolved path remains caller-explicit and does not receive this snapshot check.
+File regressions cover successive same-directory exports/read-backs, stale-source rejection and
+explicit BIN materialization. This does not guarantee relocation to another directory or atomic
+integrity if a source changes after validation; snapshot comparison also reads the complete payload.
+
+The native file loader records source information for explicitly preserved raw GGUF tensors. The
+shared weight converter automatically annotates a Constant only while its original Tensor pointer,
+type, shape and complete byte size still match. Unchanged tied aliases retain the source; copied
+or row-sliced allocations do not inherit it. Compatibility unpack/requantization and supplied
+decoders without parser source records remain unchanged. SG repacking clears all four source
+fields on its new Constant while leaving the original raw Constant intact. These checks are not a
+general provenance guarantee for arbitrary transforms or mutable aliases.
+
+Source paths use UTF-8 metadata and native filesystem paths, including external IR read-back.
+Shards with the same bare filename disable automatic references for those sources, so they can
+still be saved into ordinary BIN without ambiguous sibling references. Otherwise place the source
+GGUF files beside the exported BIN before loading it; arbitrary destination relocation is not
+automatically resolved. File regressions cover automatic sources in eleven raw formats, shared
+aliases, copied/sliced payloads, and a Unicode Q4_K source through external IR read-back/re-export.
+
+During one GPU graph build, descriptor-backed
+raw GGUF Constants can reuse a previously uploaded primitive despite different CPU pointers. The
+source index includes descriptor identity/offset, byte size, shape, type and batch interpretation;
+candidate payloads must match byte-for-byte, so source-ID collisions or changed snapshots cannot
+merge different data. Only full uploads enter this index; SG-marked Constants and builds using a
+cross-device weight-sharing context bypass it. Existing pointer caching and shared-buffer ownership
+remain in place. This is not a cache across compiled models or processes. Broader transformation
+provenance and complete-model external IR remain separate acceptance work. Other internal
+operations in the table do not gain IR support from this path. Compiled-model export, import and
+caching are plugin-specific; test them on the target device. In-process conversion needs no IR.
+
+The real-checkpoint architecture-accuracy test has a separate, explicit external-IR mode using
+paired `OV_GGUF_ACCURACY_IR_DIR` and `OV_GGUF_ACCURACY_IR_MODE=save/load` values. It currently
+accepts only a real Qwen3.5 GPU checkpoint, an existing caller-owned directory and no compiled
+cache. Save mode checks source annotations and exports the uncompiled graph before saving the
+direct-GGUF full-vocabulary logits; load mode reads XML/BIN instead of converting GGUF and requires
+bitwise-identical logits on the same history. Both retain the original CPU-reference gates and
+request one stream. Source GGUF files must accompany the exported BIN as described above.
+
+The first local Qwen3.5-9B attempt was blocked before serialization: the converted graph contained
+234 raw Constants, 233 raw FCs and one raw Gather, but none of its raw Constants has external-source
+annotations. The native loader supplies the existing external-weight table to WeightStore, while
+DecoderBuilder previously omitted GraphEmitter's optional external-weight argument. The minimal
+fix passes that existing pointer through the decoder factory and constructor without changing
+model calculations. The first failed attempt remains separate evidence, not a successful export.
+
+A follow-up strict short-history replay exports the graph with 194 externally referenced raw
+Constants; the other 40 unannotated raw Constants remain in ordinary BIN. Reading this hybrid
+Qwen3.5 graph also requires explicitly registering the existing internal GatedDeltaNet operation
+with `core.add_extension(std::make_shared<ov::OpExtension<ov::op::internal::GatedDeltaNet>>())`
+before `read_model`. The opt-in load test does this; Core's global IR registration and the operator
+implementation are unchanged. Without this registration, read-back fails at that extension op.
+With it, all 13 full-vocabulary logits rows match the direct-GGUF baseline bitwise, retaining the
+original CPU-reference gates. This covers one GPU request/stream, F16 inference/KV and activation
+DQ disabled on the tested build, not default Core-only read-back, default-zero-point schedules,
+other devices/versions, LLMPipeline or general internal-op IR support. The opt-in is inactive by
+default and does not change the separate failing multi-request cache diagnostic below.
+
+A strict-long replay on the same build also passes with a 60-token prefill and 12 single-token
+decode steps. Fresh save/load processes match all 13 full-vocabulary logits rows bitwise and
+retain the original CPU gates (13/13 top-1 matches, NMSE 0.000732 to 0.005171, not CPU bitwise
+equality). Actual runtime records in each process show 229 CM FCs and four SG FCs in prefill;
+all 233 FCs use SG in every decode step. This extends only the strict single-request IR scope
+above, with explicit GatedDeltaNet registration, unchanged routing thresholds and no compiled cache.
+
+GPU GGUF implementations serialize their execution-selection state with the compiled kernels:
+OCL shuffle flags, prefill threshold and F16/DQ selection, and CM weight format and threshold.
+Import restores these values rather than using the import process's environment defaults;
+temporary transcode and activation scratch buffers remain lazily allocated. This fixes missing
+derived state also missing in the fixed source, without changing kernels or default routing.
+No compatibility with blobs exported before this state was serialized is asserted.
+
+File regressions export and import eleven raw FC formats through a fresh Core after external IR
+read-back, checking dynamic rows, new input buffers, original numerical limits and executed stages.
+The six applicable formats also exercise actual CM after import. A Q4_0 regression separately
+checks same-process, fresh-Core cache misses/hits for static and dynamic raw/SG graphs, payload-tail
+invalidation, and two independent asynchronous requests. These are full compiled blobs, not
+weightless or encrypted caches.
+
+Separate Q4_0 process replays check generation, reuse, a changed payload tail, reuse of that variant,
+and return to the original weights using a caller-owned test cache and stable graph/tensor names.
+They cover F32 static M2 and dynamic M1/2 raw/SG graphs, assert actual cache-hit status and executed
+stages, and keep the original numerical limits. Hit phases leave compiled blobs unchanged; changed
+weights add distinct entries without replacing the original blobs. This acceptance is limited to
+the tested device, build and configuration; these raw/SG replays alone do not establish CM support.
+
+Additional Q4_0 replays share identical weights and one cache directory per raw, SG or CM-enabled
+configuration across plain, nonzero bias, ReLU, Swish, Add+ReLU and Multiply+ReLU graphs. They check
+first misses, repeated and fresh-process hits, changed payload tails and restoration of the original
+weights. Dynamic M1/33 execution with new buffers and two independent asynchronous requests retains
+the original numerical limits and checks actual fused operations and stages. Eligible CM graphs
+execute CM at M33 and SG at M1; channel-broadcast bias uses the existing safe SG fallback, not CM.
+
+These stateless graphs also exercise cancel calls followed by wait, restart of the same request
+with different activation data in new buffers, dynamic shape changes, and request destruction and
+recreation. Both requests' outputs retain independent analytical checks. Cold and fresh-process
+warm cache replays record cancelled and normally completed outcomes separately: the tested GPU
+completed every submitted task, so this validates recovery after a cancel call, not device-task
+interruption or the Cancelled-exception branch.
+
+A separate stateful Q4_0 variant adds a fixed-size feedback state to the FC input and updates it
+with the mean activation over dynamic rows. Cold and fresh-process warm cache replays check two
+independent request histories, resetting one request without resetting the other, resetting an
+individual VariableState, and recreating a request with fresh initial state. Both FC outputs and
+state tensors use independent analytical references, with actual raw/SG and eligible CM execution
+checks. The stateful variant does not cancel requests; it does not establish cancellation rollback
+or complete-model KV/recurrent-state semantics.
+
+The seven Q4_0 graph variants also run with explicitly requested one- and two-stream compiled
+models, querying the returned stream configuration after each cold compilation or cache import.
+They retain both requests' independent output/state checks, reset/recreation and actual execution
+checks, with distinct cache directories for each stream configuration. This establishes isolation
+under the tested two-stream configuration, not physical hardware overlap, blob interchange between
+stream configurations, other formats or complete-model multi-request support. Arbitrary fused
+signatures, cross-device execution, cross-version compatibility,
+weightless/encrypted caching and complete checkpoints remain separate acceptance work.
+
+The existing raw-file FC/Gather test separately covers Q4_K, Q5_K, Q6_K, Q8_0, Q4_0 and Q4_1
+with explicit one/two-stream configurations and F32/F16 inference settings. The two-stream
+plain graphs submit two asynchronous requests with distinct activations and Gather indices,
+checking both against the existing independent ggml references through dynamic row changes and
+new buffers. Full compiled-model export/import also checks the returned stream configuration
+and repeats the numerical checks. All requests finish before querying the shared runtime model;
+its stage records are completed-batch snapshots, not per-stream execution timelines. This is
+stateless file-level coverage, not six-format state isolation, cross-process warm-cache reuse,
+physical overlap or full-checkpoint acceptance.
+
+An opt-in extension of the six-format file test reuses caller-owned cache directories across
+fresh processes: original payload miss/hit, changed payload miss/hit at the same source path,
+then the original payload again. It retains the independent FC/Gather references and one/two-stream
+checks, while verifying that changed payloads add blobs without replacing the original ones.
+Only this test mode uses stable source filenames; callers must serialize access to its cache root.
+The deterministic model-hash serializer includes external GGUF Constant contents through the existing
+ConstantWriter. Ordinary external IR serialization still stores references rather than copying these
+weights into BIN. This prevents stale compiled-cache reuse when the source path, offset, size and
+shape stay unchanged but the payload changes. It does not establish full-checkpoint cache support,
+cross-version or weightless/encrypted compatibility.
+
+The same opt-in cache sequence also covers the five FC-only formats Q3_K, IQ2_XS,
+IQ2_S, IQ3_XXS and IQ3_S with one stream and one request. It checks F32/F16 inference,
+native raw/default transcode routes and independent FC references across payload changes.
+It does not enable Gather, SG/CM kernels or additional streams for these formats, and
+does not extend the full-checkpoint, source-transformation or cache-compatibility claims.
+
+The existing real-checkpoint architecture-accuracy test can opt into a separate compiled-cache
+check with paired `OV_GGUF_ACCURACY_CACHE_DIR` and `OV_GGUF_ACCURACY_CACHE_HIT=0/1` values.
+The caller supplies an existing directory and serializes access, using separate directories for
+different checkpoints, reference schedules or configurations. Cold runs save the full vocabulary
+logits for each reference step; fresh-process cache hits require bitwise-identical logits and retain
+the original CPU-reference gates. The test records actual cache-hit and stream properties.
+Local Qwen3.5-9B coverage uses the stateful GenAIExtension graph, one GPU stream/request, F16 inference
+and KV cache, activation DQ disabled, strict/default zero points and short/long prefill schedules.
+This does not validate LLMPipeline/tokenizer integration, serialized IR reload, changed full-model
+weights, repeated-request state isolation, other devices/versions, weightless/encrypted caches
+or performance. The file-level cache checks above retain their separate scope.
+
+The Qwen3.5 cache test also checks reset/replay and interleaved requests with distinct token
+histories against isolated execution baselines. This extension currently exposes a failing GPU
+request-isolation check and is not accepted support: isolated reset/replay matches bitwise, but
+some interleaved logits differ even though the peer's 64 state arrays survive the other request's
+reset unchanged. The original CPU and bitwise gates remain in force; no checkpoint fix is claimed.
+
+This checkpoint isolation issue is deferred, not waived. It does not block unrelated GGUF GPU
+migration work scoped to one InferRequest and one stream, with no interleaving between different
+requests. It does block claiming complete-checkpoint multi-request isolation, including serial
+interleaving; multi-request or concurrent deployment requires a separate fix and acceptance.
+The failing check and evidence remain intact. Small-graph or stateless multi-stream results do
+not override this restriction, and separate compiled models are not a validated workaround here.
+
+A separate local public ReadValue/Assign control also reproduced GPU request-switching failures
+without GGUF. State-object identity binding and per-execution Assign layout synchronization were
+evaluated as diagnostic probes, but did not resolve the Qwen3.5 checkpoint failure. Both generic
+GPU changes and their added memory regression have been withdrawn from this migration. Their
+small-control passes and the checkpoint's 22 bitwise failures under those probes remain historical
+evidence, not validation of the current code. No generic GPU state-management fix is retained;
+the checkpoint isolation check remains unaccepted.
 
 A new internal-op path should keep a public-op reference path where practical, test both against
 the same oracle and update the table above. Frontend placeholders need a normalization lowering.

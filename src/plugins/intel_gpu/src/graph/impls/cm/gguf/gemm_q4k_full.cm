@@ -1,0 +1,1086 @@
+/*
+ * gemm_q4k_full.cm -- Dense Q4_K GEMM, unified layout (v7, cooperative).
+ *
+ * fp16 activations, SG-transposed Q4_K weights (pqs_T || psl_T, identical to
+ * gemv_q4k_sg.cm / gemm_q4k_slim.cm), cm_dpas systolic engine with
+ * VNNI-packed fp16-dequantized weight operands.
+ * Converted from sycl_gguf_kernel/gemm_q4k_L1.xmx-xe2.cpp.
+ *
+ * Nibble layout per lane uint32 for chunk c:
+ *   bits 0..3:  lo K-pos 4c+0   bits 4..7:  hi K-pos 4c+16
+ *   bits 8..11: lo K-pos 4c+1   bits 12..15: hi K-pos 4c+17
+ *   bits 16..19: lo K-pos 4c+2  bits 20..23: hi K-pos 4c+18
+ *   bits 24..27: lo K-pos 4c+3  bits 28..31: hi K-pos 4c+19
+ * VNNI: B_half[sd][2*n+k_bit] = W_fp16[k=2*sd+k_bit][n]
+ *
+ * ==========================================================================
+ *  DEQUANT : dpas ratio
+ * ==========================================================================
+ * A decoded VNNI tile pair (Blo/Bhi) covers K=32 x N=16 weights and costs
+ * ~8 SIMD64 bit-field extractions plus scale/min MADs.
+ *
+ * Keeps SIMD64 decode arithmetic verbatim but AMORTIZES it over
+ * TOKEN_GROUPS x 8 tokens: the decoded tile stays live in registers while
+ * TOKEN_GROUPS dpas pairs consume it, cutting dequant cost per output
+ * element by TOKEN_GROUPS. Three co-operating changes make that possible:
+ *
+ *  1. NO K-SPLIT / NO SLM REDUCTION. One thread the whole
+ *     K range, so the accumulator never leaves registers, there is no
+ *     barrier, and -- crucially -- there is now an OUTER K-block loop to
+ *     software-pipeline against. (v4's SLM budget could not scale anyway:
+ *     nbpr * TOKEN_GROUPS * 8 * 16 * 4 B blows past the 64 KB SLM limit as
+ *     soon as TOKEN_GROUPS > 1.)
+ *
+ *  2. ACTIVATIONS ARE STREAMED, NOT TILED IN REGISTERS.
+ * Loads only the 32 halves each token needs for the
+ *     current sub-block j -- still exactly ONE load per A element over the
+ *     whole kernel, no redundant traffic -- so register pressure grows only
+ *     with the accumulators.
+ *
+ *  2b. THOSE STREAMED LOADS USE AN LSC 2D BLOCK DESCRIPTOR, the same
+ *     mechanism the CM SDPA/PagedAttention kernels use for K/V. A single
+ *     `cm_load<lsc::Normal>` on a `block_2d_desc<half, 2, 8, 16>` replaces
+ *     8 flat `cm_ptr_load`s + 16 register moves + 8 bounds-clamp selects:
+ *     NBlocks=2 stacks the j*32+0 and j*32+16 column blocks along X so the
+ *     destination vector is ALREADY [Alo | Ahi] in dpas operand order, and
+ *     the descriptor's surface height clamps out-of-range tokens in
+ *     hardware. Worth 1.83-1.96x on its own, and it frees enough registers
+ *     that Q5_K (which used to spill at TOKEN_GROUPS=4) now runs there too.
+ *
+ *  3. SOFTWARE PIPELINE + PREFETCH (PF_W / PF_A). The next K-block's
+ *     quantized payload and activation window are pulled into cache with
+ *     cm_ptr_prefetch / 2D-block cm_prefetch while the current K-block is
+ *     still being dequantized and fed to the dpas, so their memory latency
+ *     overlaps compute. These are CACHE prefetches: unlike an early load
+ *     into a register they cost no GRF, which matters because this kernel
+ *     sits right at the spill cliff.
+ *
+ * THREAD WALKER (TOKEN_LOCAL / WALK_HBLK) -- cache locality:
+ *   The default walker retires work-groups dim0-fastest, i.e. it sweeps the
+ *   ENTIRE weight matrix once per token tile. TOKEN_LOCAL threads of a
+ *   work-group share the same row group `h` and differ only in token tile,
+ *   so neighbouring threads read the SAME weight bytes and hit in L1 --
+ *   worth ~10% at the larger shapes (TOKEN_LOCAL=1 measures 2.34x where
+ *   TOKEN_LOCAL=4 measures 2.60x). WALK_HBLK additionally re-linearizes the
+ *   group grid into WALK_HBLK-wide bands of row groups; that was worth ~4%
+ *   BEFORE the cache prefetches existed, but with PF_W/PF_A enabled it is
+ *   consistently 3-8% SLOWER (the swizzle breaks the sequential stream the
+ *   prefetcher likes), so it defaults to off and is kept only as a knob.
+ *
+ * ==========================================================================
+ * COOPERATIVE SLM WEIGHT-DECODE STAGING (COOP_SLM, default ON)
+ * ==========================================================================
+ * The TOKEN_LOCAL threads of a work-group all share the row group `h`, so up
+ * to v6 they each ran the SAME 8 sub-block decodes per K-block -- TOKEN_LOCAL
+ * times redundant work. Ablation measurements on v6 (macro-selected variants
+ * benchmarked in one process) showed where the time went:
+ *      dequant removed  -> 1.52-1.65x     A-reload removed -> 1.19-1.31x
+ *      both removed     -> 2.04-2.26x  (110-124 TFLOPS = the dpas roofline)
+ * so dequant was ~40% of the runtime and was the single biggest target.
+ *
+ * splits it: in each phase thread `lid` decodes only sub-block `lid` and
+ * publishes the VNNI tile pair through SLM; every thread then reads all 8
+ * pairs back. Decode work per thread drops 8x, replaced by an SLM read that
+ * is ~4x cheaper than the arithmetic it removes. This is the CM SDPA/PA
+ * cooperative K/V staging pattern (cm_sdpa_common.hpp) applied to dequant
+ * instead of to a global load.
+ *
+ * ==========================================================================
+ * MEASURED on Arc B580 (interleaved A/B in one process, min-of-N, because
+ * this machine's clocks drift +-40% between process runs)
+ * ==========================================================================
+ * min latency:
+ *   K=N=2048 tok=1024  0.735 -> 0.170 ms  (4.32x, 50.5 TFLOPS)
+ *   K=N=2048 tok=4096  2.935 -> 0.589 ms  (4.98x, 58.3 TFLOPS)
+ *   K=N=4096 tok=1024  2.272 -> 0.595 ms  (3.82x, 57.8 TFLOPS)
+ * COOP_SLM=1 vs COOP_SLM=0):
+ *   K=N=2048 tok=1024  0.177 -> 0.136 ms  (1.30x, 63.1 TFLOPS)
+ *   K=N=2048 tok=4096  0.578 -> 0.474 ms  (1.22x, 72.4 TFLOPS)
+ *   K=N=4096 tok=1024  0.597 -> 0.496 ms  (1.20x, 69.3 TFLOPS)
+ *   (q5k gains 1.44-1.46x and q6k 1.65-1.74x -- their dequant is heavier, so
+ *    sharing it pays more. All three now land at 60-73 TFLOPS, i.e. 52-63%
+ *    of the 116 TFLOPS fp16 dpas roofline, up from ~10% at v4.)
+ *
+ * ADOPTED: TOKEN_GROUPS=4, TOKEN_LOCAL=8, WALK_HBLK=0, A_LOAD_2D=1,
+ *   COOP_SLM=1 with SLM_JBLK=8 / SLM_DEPTH=1 / SLM_SLOTS=2 / SLM_FULLBAR=1,
+ *   PF_W=0, PF_A=0.
+ *   TOKEN_GROUPS alone was worth 1.4-2.2x; the 2D block load another
+ *   1.83-1.96x; cooperative staging another 1.2-1.7x.
+ *
+ * MEASURED AND REJECTED (do not redo):
+ *   - Prefetching by LOADING kb+1 / j+1 into registers early (the obvious
+ *     software pipeline): 2.3x SLOWER. It spills (2048-3648 B reported at
+ *     build time). Use cm_ptr_prefetch/cm_prefetch instead -- same latency
+ *     hiding, zero GRF cost.
+ *   - TOKEN_GROUPS=3/5/6/8: 0.44-0.95x (spills above 4, under-amortized
+ *     below). TOKEN_GROUPS>4 also needs PFA_ROWS to split the activation
+ *     prefetch, since a 2D block descriptor tops out at 32 rows.
+ *   - Splitting each 64 B activation load into two 32 B FLAT loads landing
+ *     directly in the dpas operand rows (to avoid 2 register moves): 0.9x.
+ *     The 2D block descriptor is the right way to get that effect.
+ *   - WALK_HBLK=2/4/8/16/32 band swizzle: a net loss (0.89-1.16x relative to
+ *     the plain walker) both with and without COOP_SLM.
+ *   - -Qxcm_register_file_size=256 (large GRF): 0.91-1.17x vs the same
+ *     kernel in default GRF mode -- fewer threads/EU costs more than the
+ *     extra registers save, with or without COOP_SLM.
+ *   - PF_W / PF_A once COOP_SLM is on: 0.94-0.98x. Staging already runs a
+ *     phase ahead, so the cache prefetches only burn issue slots. (Without
+ *     COOP_SLM they are still worth ~0-5%, hence the conditional defaults.)
+ *   - SDPA's exact protocol -- split barrier (cm_sbarrier(1)/cm_sbarrier(0))
+ *     with a 4-slot ring: CORRECT but 0.97-1.49x, i.e. consistently slower
+ *     than the 2-slot full-barrier version. The split barrier only proves
+ *     that every thread finished phase s-2 when phase s starts, so it needs
+ *     SLM_SLOTS >= SLM_DEPTH+2 = 4 => 32 KB/work-group, and the resulting
+ *     occupancy loss costs more than the barrier overlap saves. A plain
+ *     cm_barrier proves everybody finished phase s-1, so SLM_SLOTS=2 (16 KB,
+ *     2 KB/thread at TOKEN_LOCAL=8 = no occupancy loss) suffices. Kept as
+ *     the SLM_FULLBAR=0 knob.
+ *   - SLM_DEPTH=1 with the SPLIT barrier: silently WRONG (relerr ~0.25) for
+ *     exactly the reason above -- the signal that releases phase s is issued
+ *     before phase s-1's producer stores.
+ *   - SLM_JBLK=4 (two phases/K-block, 8 KB): 1.16-1.22x, slightly below
+ *     SLM_JBLK=8. TOKEN_LOCAL=4 (0.99-1.34x) and 16 (1.10-1.13x) both worse
+ *     than 8. One 1 KB SLM read instead of 2x512 B: no difference.
+ *
+ * Dispatch (see test_dense_gemm_full.py):
+ *   global (threads) = (output_len/OPG, ceil(ntiles/TOKEN_LOCAL)*TOKEN_LOCAL)
+ *   local  (threads) = (1, TOKEN_LOCAL)
+ *   ntiles = ceil(token_len / (8*TOKEN_GROUPS))
+ *   NOTE COOP_SLM makes TOKEN_LOCAL a CORRECTNESS requirement, not just a
+ *   locality hint: the work-group size must equal the producer count.
+ */
+
+#include <cm/cm.h>
+#include <cm/cmtl.h>
+
+#pragma OPENCL EXTENSION cl_khr_fp16 : enable
+
+#define OPG 16
+#define TOKENS_PER_TILE 8          /* dpas RepeatCount */
+
+#ifdef CM_OUTPUT_F32
+typedef float cm_output_t;
+#define CM_OUTPUT_BYTES 4
+#else
+typedef half cm_output_t;
+#define CM_OUTPUT_BYTES 2
+#endif
+
+/* ---- decode compute precision (v8) -------------------------------------
+ * The SYCL original dequants ENTIRELY in fp16 (simd<fp16,256> BData_tik,
+ * scales_buf is simd<fp16,32>, BData = BData*s - z all fp16); only the dpas
+ * accumulator is fp32. The earlier CM port widened the decode intermediates
+ * to fp32, which both DIVERGED from the original and inflated GRF pressure
+ * (this kernel sits at the spill cliff). DECODE_HALF=1 restores fp16 decode:
+ * the scale/min tiles and the q*scale-min math are half, accumulators fp32.
+ * MEASURED (ab_decode_half.py, interleaved min-of-N): perf-NEUTRAL, 0.94-1.02x
+ * -- the decode temporaries are NOT what caps occupancy at 0.8 (the acc[4]
+ * fp32 tiles + Blo/Bhi SLM buffers are), so fp16 decode frees GRF that does
+ * not translate into more resident threads. It also rounds q*scale-min twice
+ * (rel ~3.5e-4 vs the fp32-round-once numpy reference, which FAILS the tight
+ * test although it matches the SYCL original's own fp16 dequant). Default 0
+ * to keep the reference-accurate fp32 path; flip to 1 only for a faithful
+ * fp16 port (would need the test reference updated to dequant in fp16). */
+#ifndef DECODE_HALF
+#define DECODE_HALF 0
+#endif
+#if DECODE_HALF
+typedef half  dect_t;
+#else
+typedef float dect_t;
+#endif
+
+/* ---- cooperative SLM weight-decode staging (v7) ------------------------
+ * The TOKEN_LOCAL threads of a work-group share the SAME row group `h` and
+ * therefore used to decode the SAME VNNI weight tiles TOKEN_LOCAL times
+ * over. With COOP_SLM they split the sub-blocks of a staging phase between
+ * them, publish the decoded tiles through an SLM ring buffer, and every
+ * thread reads all of them back -- dividing the dominant dequant cost by
+ * TOKEN_LOCAL. Structure borrowed from the CM SDPA kernel's K/V staging
+ * (cm_sdpa_common.hpp): a multi-slot ring so that phase s+SLM_DEPTH is
+ * produced while phase s is consumed.
+ *   SLM_JBLK    sub-blocks published per phase (must divide 8; 8 = a whole
+ *               K-block per phase, i.e. exactly one barrier per K-block)
+ *   SLM_DEPTH   how many phases ahead the producer runs
+ *   SLM_SLOTS   ring depth (power of two)
+ *   SLM_FULLBAR 1 = plain cm_barrier, needs SLM_SLOTS >= SLM_DEPTH+1
+ *               0 = SDPA-style split barrier (cm_sbarrier(1)/cm_sbarrier(0)),
+ *                   needs SLM_SLOTS >= SLM_DEPTH+2 because clearing the wait
+ *                   of phase s only proves everybody finished phase s-2
+ * SLM bytes = SLM_SLOTS * SLM_JBLK * 2 * 512.
+ *
+ * ADOPTED: SLM_JBLK=8, SLM_DEPTH=1, SLM_SLOTS=2, SLM_FULLBAR=1,
+ *          TOKEN_LOCAL=8  ->  16 KB of SLM shared by 8 threads (2 KB/thread,
+ *          so occupancy is unchanged) and one barrier per K-block.
+ * Worth 1.22-1.29x on top of v6 (see the MEASURED block in the header). */
+#ifndef COOP_SLM
+#define COOP_SLM 1
+#endif
+
+/* ---- N-blocking: ROW_GROUPS row groups (16 output channels each) per thread
+ * -------------------------------------------------------------------------
+ * Ablation (ab_bottleneck.py) on v7 showed dequant (0.93-1.04x) and the SLM
+ * read (1.00-1.08x) are DONE, and that the ACTIVATION operand is now the only
+ * significant cost left: removing it entirely is 1.44-1.53x, of which
+ * 1.11-1.35x is its cache traffic and the rest LSC message/latency.
+ *
+ * The A tile for a given (sub-block j, token group tg) is INDEPENDENT of the
+ * weight row group, so giving one thread ROW_GROUPS row groups makes each A
+ * load feed ROW_GROUPS times as many dpas: A bytes AND A messages per dpas
+ * both drop by ROW_GROUPS. SLM_JBLK is halved with it so the staging ring
+ * stays at 16 KB/work-group, which is exactly the point where 8 work-groups
+ * still fit in the 128 KB of SLM per Xe-core (any more and occupancy drops).
+ * NOTE the loop order matters: the ROW_GROUPS dpas share ONE A register, so
+ * the rg loop must sit INSIDE the tg loop (hoisting all TOKEN_GROUPS A tiles
+ * up front is the "Abig" variant, measured 0.78-0.99x -- too much live A).
+ *
+ * MEASURED (ab_rowgroups.py, interleaved min-of-N, vs ROW_GROUPS=1):
+ *   K=N=4096 tok=8192   q4k 1.40x  q5k 1.22x  q6k 1.15x
+ *   K=N=4096 tok=4096   q4k 1.35x  q5k 1.28x  q6k 1.13x
+ *   K=N=2048 tok=8192   q4k 1.14x  q5k 1.17x  q6k 1.11x
+ *   K=N=2048 tok<=4096  0.95-1.03x (neutral: the working set already fits)
+ *   K=N=4096 tok=1024   0.89-0.94x (the one regression; costs +0.12 ms where
+ *                       the tok=8192 case saves 0.63 ms, so net strongly +)
+ * ROW_GROUPS=2 with TOKEN_GROUPS=2 (i.e. holding the accumulator count at 4
+ * instead of 8) is consistently WEAKER: 1.18/1.16/1.02-1.15x on the same big
+ * shapes. ROW_GROUPS=4 needs TOKEN_GROUPS=1 to avoid a 2560 B spill and is
+ * 0.73-0.87x -- 8 tokens/thread under-amortizes everything else.
+ *
+ * LARGE GRF + a bigger tile (the obvious follow-up) is a WASH -- do not redo:
+ * -Qxcm_register_file_size=256 halves the resident threads per XVE (8 -> 4),
+ * and this kernel is A-LOAD LATENCY bound, so latency hiding scales with
+ * THREADS, not registers. Growing the tile cuts the number of loads by
+ * exactly the same factor, so the two effects cancel:
+ *   same tile (RG=2,TG=4) + GRF256          0.87-0.96x
+ *   2x tokens (RG=2,TG=8) + GRF256          0.95-0.99x  (215 regs)
+ *   4x tile   (RG=4,TG=4) + GRF256          0.94-1.08x, mean ~1.00x (232 regs)
+ *   RG=4,TG=2 + GRF256                      0.75-0.91x
+ * i.e. the best large-GRF config only ties the default while sitting at
+ * 232/256 registers (any future change spills). Getting further needs the
+ * latency EXPOSURE removed (staging A in SLM / deeper prefetch), not threads
+ * traded for registers.
+ *
+ * ==========================================================================
+ * WHERE THE REMAINING ~40% GOES, AND WHAT WAS TRIED AGAINST IT (v8 ablation)
+ * ==========================================================================
+ * Re-running ab_bottleneck.py on the ROW_GROUPS=2 kernel shows the balance
+ * has shifted -- the two operand fetches now cost about the same:
+ *   noAload 1.46-1.80x | noSLMrd 1.22-1.51x | nodecode 0.93-1.14x
+ *   noAtraf 1.29-1.46x | halfAtraf 1.10-1.23x | dpasonly 1.58-1.93x
+ * Both are LATENCY exposure, not bandwidth or message count. Tried and
+ * measured (do not redo):
+ *   - SLM_RD1K: one 1 KB consumer read per tile pair instead of 2x512 B
+ *     (halves the SLM messages on the critical path): 0.99-1.00x.
+ *   - Activation cache hints A_L1H/A_L2H: Cached/Cached and Streaming/Cached
+ *     are both 0.99-1.01x (Default already behaves as Cached); Uncached is
+ *     0.91-0.95x, which at least confirms L1 is doing something.
+ *   - SLM_DEPTH=2 + SLM_SLOTS=4 (producer two phases ahead): 0.72-0.80x --
+ *     32 KB/work-group halves the work-groups per Xe-core.
+ *   - TOKEN_LOCAL=16 with SLM_JBLK=8 (16 threads, 32 KB, one barrier per
+ *     K-block, occupancy preserved): 0.98-1.07x, not consistent.
+ *   - PF_W (weight payload prefetch), alone or with PF_A: no better than
+ *     PF_A alone.
+ *   - Hoisting the whole B path out of the kernel by PRE-DECODING weights to
+ *     fp16 VNNI at load time (explore_gemm_fp16vnni.cm -- no decode, no SLM,
+ *     no barrier at all): 0.69-0.93x, i.e. SLOWER. fp16 weights are 3.5x
+ *     larger than Q4_K in memory, and that extra weight traffic costs more
+ *     than the entire decode + SLM round-trip it removes. This is the proof
+ *     that the cooperative-decode structure is not the thing to attack.
+ * The one thing that DID help is PF_A=1 (now the default).
+ *
+ * ==========================================================================
+ * WHY ROW_GROUPS=2 / TOKEN_GROUPS=4 IS THE OPTIMUM OF THIS DATAFLOW
+ * ==========================================================================
+ * With the rg-inside-tg loop order the memory-hierarchy traffic per dpas is
+ *      bytes/dpas = 256/ROW_GROUPS + 512/TOKEN_GROUPS
+ * (one 512 B A tile per (j,tg) feeds 2*ROW_GROUPS dpas; one 1 KB B tile PAIR
+ * per (j,rg) feeds 2*TOKEN_GROUPS dpas -- B costs twice as much per unit of
+ * reuse, so the optimum wants TOKEN_GROUPS = 2*ROW_GROUPS). The accumulator
+ * is ROW_GROUPS*TOKEN_GROUPS*512 B and has to fit in ~4 KB of the 8 KB
+ * register file, i.e. ROW_GROUPS*TOKEN_GROUPS <= 8:
+ *      (1,8) 320 B    (2,4) 256 B  <-- minimum    (4,2) 320 B    (8,1) 544 B
+ * and the measurements track that model: RG=1/TG=8 0.63-0.66x, RG=4/TG=2
+ * 0.75-0.91x, RG=2/TG=2 0.86-0.96x, RG=2/TG=1 0.56-0.63x.
+ * Spending a smaller accumulator's freed registers on an explicit operand
+ * double buffer does NOT recover the loss: at the same RG=2/TG=2 tile,
+ * CONS_DBUF=1 is 0.85-0.88x vs CONS_DBUF=0's 0.86-0.93x -- operand REUSE
+ * dominates in-flight buffering, and the compiler was never the limitation.
+ * K-SPLITTING is ruled out by the same data: it adds parallelism and a
+ * reduction pass while leaving bytes/dpas unchanged, and this grid is not
+ * parallelism-starved (3.2 waves at K=N=4096 tok=1024, 12.8 waves at
+ * tok=4096, against 160 XVE x 8 threads). Every variant that traded reuse
+ * for more thread-tiles lost. It would only pay at token_len <= 32, which is
+ * the gemv/slim kernels' domain anyway.
+ *
+ * ==========================================================================
+ * PTL / Xe3 iGPU (Arc B390) WANTS THE OPPOSITE TILE -- select it on the host
+ * ==========================================================================
+ * Everything above is tuned for BMG (Arc B580: Xe2, 160 XVE @ 2.9 GHz,
+ * 8 threads/XVE, 128 KB SLM per Xe-core, 456 GB/s GDDR6). The Panther Lake
+ * iGPU (Arc B390: Xe3, 96 XVE @ 2.4 GHz, 10 threads/XVE, 16 MB L2, SHARED
+ * LPDDR) has a different balance and the SAME source needs different macros.
+ * Its ablation (ab_bottleneck.py, run over ssh on the PTL box):
+ *     noAtraf 1.52-2.19x  (vs 1.29-1.46x on BMG -- A cache traffic hurts far
+ *                          more with LPDDR behind a 16 MB L2)
+ *     nodecode 1.14-1.45x (vs ~1.00x on BMG -- the dequant ALU matters again)
+ *     noSLMrd 1.36-1.59x
+ * MEASURED BEST ON PTL: ROW_GROUPS=2 TOKEN_GROUPS=2 TOKEN_LOCAL=16
+ *     SLM_JBLK=8 PF_A=0  ->  1.11-1.40x over the BMG config, on all three
+ *     quants and every shape tried. i.e. a SMALLER accumulator (2 KB, to fit
+ *     10 threads/XVE) in a WIDER work-group (decode shared 16 ways instead of
+ *     8, one barrier per K-block instead of two).
+ * ALSO MEASURED ON PTL (do not redo): PF_A is a small LOSS (0.93-1.00x);
+ *     WALK_HBLK=4/8 is catastrophic (0.32-0.55x); ROW_GROUPS=4 spills 2048 B;
+ *     TOKEN_LOCAL=32 is 0.92-1.11x; SLM_JBLK=4 with TOKEN_LOCAL=16 ties.
+ *
+ * PTL round 2 -- ROW_BLOCKS and A_OUTER (see those knobs below). Final PTL
+ * config: RG=2 TG=2 TL=32 RB=2 SLM_JBLK=8 PF_A=0 A_OUTER=1 (102 registers).
+ * The KEY LESSON is the opposite of BMG's: on Xe3 (10 threads/XVE) REGISTER
+ * PRESSURE buys more than activation traffic. Once A_OUTER removes the spill
+ * wall, ROW_GROUPS=4 compiles clean at 128 registers and is STILL 0.86-0.95x,
+ * and every other lower-A-traffic variant loses too (ROW_BLOCKS=4
+ * 0.83-0.90x, =8 0.59-0.76x, ROW_GROUPS=1/ROW_BLOCKS=4 0.79-0.86x,
+ * TOKEN_LOCAL=64 0.92-0.94x). Also rejected there: GRF 96 (0.85-0.99x) /
+ * 64 (0.17x, spills) / 128 (0.98x), SLM_PAD=32 (0.74-0.79x), SLM_DEPTH=2
+ * (0.72-0.80x), TOKEN_GROUPS=1 (0.72-0.85x), and DECODE_HALF=1 (q4k
+ * 0.96-0.99x, q5k 0.99-1.02x, q6k 1.00-1.07x -- neutral, and it costs an
+ * extra fp16 rounding). A_LOAD_2D=0 does not compile in the COOP_SLM path.
+ * PTL sweep progression (--warmup 100 --iters 1000, 13 shapes, mean/median/
+ * min of the 59 TFLOPS roofline): TL16 39.7/41.0/44.6 % -> +ROW_BLOCKS=2,
+ * TL=32 41.3/42.6/46.8 % -> +A_OUTER 42.2/43.5/48.0 %.
+ * The kernel source is unchanged between parts -- test_dense_gemm_full.py
+ * picks the macro set from the device name (TUNED_CONFIGS / pick_config) and
+ * matches the dispatch to it. `-mCM_printregusage` is silently ignored by the
+ * Windows driver on that box, so screen configs there by measurement (and by
+ * the spill warning, which does come through). */
+#ifndef ROW_GROUPS
+#define ROW_GROUPS 2
+#endif
+#if ROW_GROUPS > 1 && !COOP_SLM
+#error "ROW_GROUPS > 1 requires COOP_SLM"
+#endif
+
+#ifndef ROW_BLOCKS
+#define ROW_BLOCKS 1
+#endif
+#if ROW_BLOCKS > 1 && !COOP_SLM
+#error "ROW_BLOCKS > 1 requires COOP_SLM"
+#endif
+
+#ifndef SLM_JBLK
+#if ROW_GROUPS > 1
+#define SLM_JBLK 4                 /* RG*JBLK tile pairs per phase = 8 = TOKEN_LOCAL */
+#else
+#define SLM_JBLK 8
+#endif
+#endif
+#ifndef SLM_DEPTH
+#define SLM_DEPTH 1
+#endif
+#ifndef SLM_SLOTS
+#define SLM_SLOTS 2
+#endif
+#ifndef SLM_FULLBAR
+#define SLM_FULLBAR 1
+#endif
+
+#ifndef TOKEN_GROUPS
+#define TOKEN_GROUPS 4             /* dpas pairs fed by one decoded tile */
+#endif
+#ifndef TOKEN_LOCAL
+#if COOP_SLM
+#define TOKEN_LOCAL 8              /* = producers per phase; 4 and 16 both slower */
+#else
+#define TOKEN_LOCAL 4              /* threads/work-group sharing one row group */
+#endif
+#endif
+#ifndef WALK_HBLK
+#define WALK_HBLK 0                /* 0/1 = plain walker; see header, remap measured slower */
+#endif
+#ifndef PF_W
+#if COOP_SLM
+#define PF_W 0                     /* redundant once staging runs a phase ahead */
+#else
+#define PF_W 2                     /* 256 B cm_ptr_prefetch's of K-block kb+1's payload */
+#endif
+#endif
+#ifndef PF_A
+#if COOP_SLM && ROW_GROUPS == 1
+#define PF_A 0                     /* measured a net loss at ROW_GROUPS=1 */
+#else
+#define PF_A 1                     /* 64 B-wide 2D block prefetches of kb+1's
+                                    * activations. A net LOSS before N-blocking
+                                    * (staging already ran a phase ahead), but a
+                                    * consistent 1.01-1.08x once ROW_GROUPS=2
+                                    * halved the A traffic and left the A load
+                                    * latency as the exposed cost. Adding PF_W
+                                    * on top of it is not better. */
+#endif
+#endif
+#ifndef A_LOAD_2D
+#define A_LOAD_2D 1                /* 1 = lsc 2D block load for the dpas A operands */
+#endif
+#ifndef CONS_DBUF
+#define CONS_DBUF 0                /* consumer SLM-read double-buffer: MEASURED
+                                    * A/B net loss -- 1.05x at tok=1024/K=2048
+                                    * but 0.88-0.98x at tok=4096 and K=4096.
+                                    * The extra 1 KB tile pair pushes past the
+                                    * spill cliff (Peak occ already 0.8) and the
+                                    * 8x-unrolled jl loop already lets the
+                                    * compiler overlap the SLM reads. Kept as a
+                                    * knob; do not re-enable by default. */
+#endif
+
+#ifndef MERGE_STORE
+#define MERGE_STORE 1              /* one contiguous ROW_GROUPS*OPG store per
+                                    * token instead of ROW_GROUPS separate
+                                    * 64 B ones -- the row groups a thread
+                                    * owns are adjacent in N, so this halves
+                                    * (at RG=2) the store message count and
+                                    * is bit-identical. */
+#endif
+
+/* ---- consumer loop order ------------------------------------------------
+ * A_OUTER=0 (default): hold the ROW_GROUPS decoded B tile pairs and stream
+ *   the activation tile per (sub-block, token group). Live B = ROW_GROUPS KB,
+ *   live A = 512 B. This is what caps ROW_GROUPS at 2 -- at RG=4 the 4 KB of
+ *   B plus the 4 KB accumulator fills the whole register file and spills.
+ * A_OUTER=1: the other way round -- hold the TOKEN_GROUPS activation tiles
+ *   and stream B one row group at a time. Live A = TOKEN_GROUPS*512 B, live
+ *   B = 1 KB REGARDLESS OF ROW_GROUPS, which is what makes ROW_GROUPS=4/8
+ *   feasible at all. Bit-identical, same number of loads of each operand.
+ * Why it matters: per dpas the activation traffic is 256/(ROW_BLOCKS*
+ * ROW_GROUPS) bytes, so cutting it needs a bigger product. Raising
+ * ROW_BLOCKS costs barriers (SLM_JBLK = TOKEN_LOCAL/(RG*RB)) and decode
+ * redundancy (spread over TOKEN_LOCAL/ROW_BLOCKS token slots) -- measured a
+ * loss. Raising ROW_GROUPS costs neither; it only cost registers, which is
+ * exactly what A_OUTER removes.
+ * UPDATE (measured with ab_lowbit_config.py while adding the Q4_0/Q4_1/Q8_0
+ * kernels): A_OUTER=1 is now the BMG DEFAULT TOO, and NOT for the register
+ * reason -- on BMG it COSTS registers (120 -> 128 here) and still measures
+ * 1.05-1.34x on q4k/q5k/q6k and 1.11-1.39x on q40/q41/q80, over all four
+ * (N,K) transformer shapes at token_len=1024 and 1.00-1.09x at token_len
+ * 4096/8192. The mechanism is latency, not capacity: this kernel is A-load
+ * bound (noAload 1.46-1.80x), and hoisting the A loads issues all
+ * TOKEN_GROUPS independent 2D block loads back-to-back before the first
+ * dpas instead of injecting one into the middle of every dpas chain. The
+ * host sets it (TUNED_CONFIGS in test_dense_gemm_full.py); this file's
+ * default stays 0 so the older A/B harnesses keep their baseline. */
+#ifndef A_OUTER
+#define A_OUTER 0
+#endif
+
+#ifndef SLM_PAD
+#define SLM_PAD 0                  /* per-tile SLM stride pad (bytes); shifts bank mapping */
+#endif
+#ifndef SLM_RD1K
+#define SLM_RD1K 0                 /* 1 = one 1 KB consumer read per tile pair
+                                    * (requires SLM_PAD == 0 so the pair is
+                                    * contiguous). MEASURED 0.99-1.00x -- the
+                                    * SLM message COUNT is not the problem,
+                                    * its latency is. Kept as a knob. */
+#endif
+#if SLM_RD1K && SLM_PAD
+#error "SLM_RD1K needs SLM_PAD == 0"
+#endif
+
+/* ---- activation load cache hints ---------------------------------------
+ * `cm_load` defaults to CacheHint::Default for both levels. A thread's own
+ * activation slice is 32 tokens x K x 2 B (256 KB at K=4096), so it can never
+ * stay in the 256 KB L1 that 64 threads share -- every A load is an L2 hit,
+ * which is what `noAtraf` (1.29-1.46x) measures. Override with e.g.
+ * -DA_L1H=Cached -DA_L2H=Cached or -DA_L1H=Streaming. */
+#ifndef A_L1H
+#define A_L1H Default
+#endif
+#ifndef A_L2H
+#define A_L2H Default
+#endif
+#define SLM_NPROD   (SLM_JBLK * ROW_GROUPS * ROW_BLOCKS)  /* tile pairs per phase */
+#define TOKEN_SLOTS (TOKEN_LOCAL / ROW_BLOCKS)   /* distinct token tiles per WG */
+#define SLM_TILE_B  ((8 * 32 * 2) + SLM_PAD)     /* VNNI tile STRIDE (data=512B, +pad); r/w size from vector */
+#define SLM_PHASE_B (SLM_NPROD * 2 * SLM_TILE_B) /* Blo+Bhi per (row group, sub-block) */
+#define SLM_TOTAL_B (SLM_SLOTS * SLM_PHASE_B)
+#define SLM_JPS     (8 / SLM_JBLK)               /* phases per K-block      */
+
+#define TOKENS_PER_THREAD (TOKENS_PER_TILE * TOKEN_GROUPS)
+
+/* A 2D block descriptor tops out at 32 rows, so tall token tiles need
+ * several prefetch descriptors' worth of rows. */
+#if TOKENS_PER_THREAD > 32
+#define PFA_ROWS 32
+#else
+#define PFA_ROWS TOKENS_PER_THREAD
+#endif
+#define PFA_SETS (TOKENS_PER_THREAD / PFA_ROWS)
+
+/* Decode all 4 chunks of one sub-block in ONE SIMD64 pass (v4 math, verbatim).
+ *
+ * pqs_T stores chunk c at +c*64 bytes, so the 64 consecutive uints in `q` are
+ * exactly [c=0..3][n=0..15] and the same 8 bit-field extractions that used to
+ * run 4x at SIMD16 run once at SIMD64 -- 8 ops instead of 32, identical
+ * arithmetic.
+ *
+ * Scatter back into the VNNI tile is a pure register-region write, no
+ * shuffle: source element (c,n) belongs at VNNI [sd=2c+kpair][2n+kbit], so
+ * viewing the tile as matrix<half,8,32> the destination for a whole
+ * extraction is exactly the strided 2D region
+ * .select<4,2,16,2>(kpair, kbit) (rows 2c+kpair, cols 2n+kbit).
+ *
+ * `q` and the pre-replicated scale/min vectors are passed in rather than
+ * loaded here so the caller can hoist the load ahead of the previous
+ * iteration's compute (see PIPE_PREFETCH). */
+_GENX_ inline void q4k_vnni_decode(
+    vector<uint, 4*OPG> q,
+    vector<dect_t, 4*OPG> scale4, vector<dect_t, 4*OPG> minv4,
+    vector_ref<half, 8*32> Blo, vector_ref<half, 8*32> Bhi)
+{
+    matrix_ref<half, 8, 32> Bl = Blo.format<half, 8, 32>();
+    matrix_ref<half, 8, 32> Bh = Bhi.format<half, 8, 32>();
+
+    /* lo nibbles -> Blo, hi nibbles -> Bhi; (kpair, kbit) picks the region */
+    { vector<dect_t,4*OPG> w=(q & 0xFu);       w=w*scale4-minv4; Bl.select<4,2,16,2>(0,0)=w.format<dect_t,4,OPG>(); }
+    { vector<dect_t,4*OPG> w=((q>>8)  & 0xFu); w=w*scale4-minv4; Bl.select<4,2,16,2>(0,1)=w.format<dect_t,4,OPG>(); }
+    { vector<dect_t,4*OPG> w=((q>>16) & 0xFu); w=w*scale4-minv4; Bl.select<4,2,16,2>(1,0)=w.format<dect_t,4,OPG>(); }
+    { vector<dect_t,4*OPG> w=((q>>24) & 0xFu); w=w*scale4-minv4; Bl.select<4,2,16,2>(1,1)=w.format<dect_t,4,OPG>(); }
+    { vector<dect_t,4*OPG> w=((q>>4)  & 0xFu); w=w*scale4-minv4; Bh.select<4,2,16,2>(0,0)=w.format<dect_t,4,OPG>(); }
+    { vector<dect_t,4*OPG> w=((q>>12) & 0xFu); w=w*scale4-minv4; Bh.select<4,2,16,2>(0,1)=w.format<dect_t,4,OPG>(); }
+    { vector<dect_t,4*OPG> w=((q>>20) & 0xFu); w=w*scale4-minv4; Bh.select<4,2,16,2>(1,0)=w.format<dect_t,4,OPG>(); }
+    { vector<dect_t,4*OPG> w=((q>>28) & 0xFu); w=w*scale4-minv4; Bh.select<4,2,16,2>(1,1)=w.format<dect_t,4,OPG>(); }
+}
+
+extern "C" _GENX_MAIN_ void gemm_q4k_full(
+    half*  inputs  [[type("svmptr_t")]],   /* [token_len * input_len]  fp16 */
+    uchar* weights [[type("svmptr_t")]],   /* pqs_T || psl_T                */
+    cm_output_t* outputs [[type("svmptr_t")]],   /* [token_len * output_len] */
+    uint token_len, uint input_len, uint output_len
+#ifdef CM_POST_OPS_DECLS
+    CM_POST_OPS_DECLS
+#endif
+)
+{
+    const uint nbpr       = input_len / 256;
+    const uint num_blocks = input_len * output_len / 256;
+
+    /* ---- thread walker remap: keep a WALK_HBLK-wide band of row groups
+     * L2-resident while token tiles sweep past it (see header). ---------- */
+    uint gh = cm_group_id(0);
+    uint gt = cm_group_id(1);
+#if WALK_HBLK > 1
+    {
+        const uint nh = cm_group_count(0);
+        const uint nt = cm_group_count(1);
+        if ((nh % WALK_HBLK) == 0) {
+            const uint lin  = gt * nh + gh;      /* driver walks dim0 fastest */
+            const uint band = WALK_HBLK * nt;
+            const uint hb   = lin / band;
+            const uint rem  = lin - hb * band;
+            gt = rem / WALK_HBLK;
+            gh = hb * WALK_HBLK + (rem - gt * WALK_HBLK);
+        }
+    }
+#endif
+    const uint lid = cm_local_id(1);
+    /* ---- ROW_BLOCKS: split the work-group into ROW_BLOCKS row-group blocks
+     * x TOKEN_SLOTS token tiles. The ROW_BLOCKS threads that share a token
+     * slot issue the SAME activation addresses, so only the first misses L1
+     * and the L2-side A traffic drops by ROW_BLOCKS. They still share the
+     * cooperative decode, which is what makes this different from simply
+     * raising ROW_GROUPS (that needs more accumulators and spills).
+     * ROW_BLOCKS=1 reproduces the previous mapping exactly. */
+    const uint rb = lid % ROW_BLOCKS;
+    const uint ts = lid / ROW_BLOCKS;
+    const uint h0 = (gh * ROW_BLOCKS + rb) * ROW_GROUPS;  /* first row group */
+    const uint t = gt * TOKEN_SLOTS + ts;
+
+    const uint tile_base = t * TOKENS_PER_THREAD;
+    const uint tok_max   = token_len - 1;
+
+    uchar* pqs_base = weights;
+    uchar* psl_base = weights + num_blocks * 128u;
+
+    vector<float, TOKENS_PER_TILE * OPG> acc[ROW_GROUPS * TOKEN_GROUPS];
+    #pragma unroll
+    for (int i = 0; i < ROW_GROUPS * TOKEN_GROUPS; i++) acc[i] = 0.0f;
+
+/* psl_T descriptor set (6 loads) for K-block `kbi` of row group `hh` */
+#define LOAD_PSL(d_sl, d_ml, d_sh, d_mh, d_d, d_dm, hh, kbi)                   \
+    { const uint _b = ((hh) * nbpr + (kbi)) * (OPG * 16u);                      \
+      d_sl = cm_ptr_load<uint, OPG>  ((uint*)psl_base, _b +   0);              \
+      d_ml = cm_ptr_load<uint, OPG>  ((uint*)psl_base, _b +  64);              \
+      d_sh = cm_ptr_load<uint, OPG/2>((uint*)psl_base, _b + 128);              \
+      d_mh = cm_ptr_load<uint, OPG/2>((uint*)psl_base, _b + 160);              \
+      d_d  = cm_ptr_load<uint, OPG/2>((uint*)psl_base, _b + 192);              \
+      d_dm = cm_ptr_load<uint, OPG/2>((uint*)psl_base, _b + 224); }
+
+#if !COOP_SLM
+    vector<uint, OPG>   sl,   ml;
+    vector<uint, OPG/2> sh_u, mh_u, d_u, dm_u;
+#endif
+
+#if PF_A
+    /* [PFA_ROWS rows x 32 halves] activation prefetch window; out-of-range
+     * rows are clamped by the surface height, so padding threads are
+     * harmless. */
+    lsc::block_2d_desc<half, 1, PFA_ROWS, 32> pfA(
+        inputs, token_len - 1, input_len * (uint)sizeof(half) - 1,
+        input_len * (uint)sizeof(half) - 1, 0, (int)tile_base);
+#endif
+#if A_LOAD_2D
+    /* 2 blocks x [8 tokens x 16 halves]: one load yields [Alo | Ahi]. */
+    lsc::block_2d_desc<half, 2, TOKENS_PER_TILE, 16> b2dA(
+        inputs, token_len - 1, input_len * (uint)sizeof(half) - 1,
+        input_len * (uint)sizeof(half) - 1, 0, 0);
+#endif
+
+#if COOP_SLM
+    /* ================= cooperative decode through an SLM ring ============
+     * phase s  <->  (K-block s/SLM_JPS, sub-block window s%SLM_JPS).
+     * Producer: thread `lid` decodes sub-blocks lid, lid+TOKEN_LOCAL, ...
+     * of the window and publishes Blo/Bhi into slot (s & SLM_SLOTS-1).
+     * Consumer: every thread reads all SLM_JBLK tile pairs back and feeds
+     * TOKEN_GROUPS dpas pairs each.
+     * Barrier protocol copied from cm_sdpa_common.hpp:
+     *   stage(0..DEPTH-1); fence; signal
+     *   loop s: fence; wait; signal; stage(s+DEPTH); consume(s)
+     * so a thread that clears the wait of phase s knows every thread has
+     * completed the whole body of phase s-2 -- hence SLM_SLOTS >= DEPTH+2. */
+    cm_slm_init(SLM_TOTAL_B);
+    uint slm = cm_slm_alloc(SLM_TOTAL_B);
+
+    const uint nstages = nbpr * SLM_JPS;
+
+    auto stage_fn = [&](int s) {
+        if (s >= (int)nstages) return;
+        const uint sbase = ((uint)s & (SLM_SLOTS - 1)) * SLM_PHASE_B;
+        const uint kb    = (uint)s / SLM_JPS;
+        const uint jb    = (uint)s - kb * SLM_JPS;
+
+#if SLM_NPROD >= TOKEN_LOCAL
+        #pragma unroll
+        for (int u = 0; u < SLM_NPROD / TOKEN_LOCAL; u++) {
+            const uint w = lid + (uint)u * TOKEN_LOCAL;
+#else
+        /* more threads than tile pairs in a phase: the surplus idles */
+        if (lid < SLM_NPROD) {
+            const uint w = lid;
+#endif
+            /* work item w -> (row block rbp, row group rg, sub-block jl) */
+            const uint rgj = ROW_GROUPS * SLM_JBLK;
+            const uint rbp = w / rgj;
+            const uint rem = w - rbp * rgj;
+            const uint rg = rem / SLM_JBLK;
+            const uint jl = rem - rg * SLM_JBLK;
+            const uint hh = (gh * ROW_BLOCKS + rbp) * ROW_GROUPS + rg;
+            const uint j  = jb * SLM_JBLK + jl;
+
+            vector<uint, OPG>   sl,   ml;
+            vector<uint, OPG/2> sh_u, mh_u, d_u, dm_u;
+            LOAD_PSL(sl, ml, sh_u, mh_u, d_u, dm_u, hh, kb)
+            vector<ushort, OPG> sh16 = sh_u.format<ushort>(), mh16 = mh_u.format<ushort>();
+            vector<half,   OPG> dh = d_u.format<half>(), dminh = dm_u.format<half>();
+            vector<uint,   OPG> shu = sh16, mhu = mh16;
+            vector<float,  OPG> dF, dminF; dF = dh; dminF = dminh;
+
+            const uint pe_byte = (hh * nbpr + kb) * (OPG * 128u);
+#if PF_W
+            /* pull this thread's share of the NEXT phase into cache */
+            if (s + 1 < (int)nstages)
+                cm_ptr_prefetch<64, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(
+                    (const unsigned*)pqs_base, pe_byte + (j + SLM_JBLK) * 256u);
+#endif
+            vector<uint, 4*OPG> q =
+                cm_ptr_load<uint, 4*OPG>((uint*)pqs_base, pe_byte + j * 256u);
+            vector<uint, OPG> sq = ((sl >> (j*4)) & 0xFu) | (((shu >> (j*2)) & 0x3u) << 4);
+            vector<uint, OPG> mq = ((ml >> (j*4)) & 0xFu) | (((mhu >> (j*2)) & 0x3u) << 4);
+            vector<float, OPG> sqf, mqf; sqf = sq; mqf = mq;
+            vector<float, OPG> scale_j = sqf * dF, minv_j = mqf * dminF;
+
+            vector<dect_t, 4*OPG> scale4, minv4;
+            #pragma unroll
+            for (int c = 0; c < 4; c++) {
+                scale4.select<OPG,1>(c*OPG) = scale_j;
+                minv4 .select<OPG,1>(c*OPG) = minv_j;
+            }
+
+            vector<half, 8*32> Blo, Bhi;
+            q4k_vnni_decode(q, scale4, minv4, Blo, Bhi);
+            cm_slm_block_write(slm, (int)(sbase + (w * 2 + 0) * SLM_TILE_B), Blo);
+            cm_slm_block_write(slm, (int)(sbase + (w * 2 + 1) * SLM_TILE_B), Bhi);
+        }
+    };
+
+    #pragma unroll
+    for (int d = 0; d < SLM_DEPTH; d++) stage_fn(d);
+#if !SLM_FULLBAR
+    cm_slm_fence(CM_LOCAL_BARRIER);
+    cm_sbarrier(1);
+#endif
+
+    for (uint s = 0; s < nstages; s++) {
+#if SLM_FULLBAR
+        cm_slm_fence(CM_LOCAL_BARRIER);
+        cm_barrier();
+#else
+        cm_fence(CM_LOCAL_BARRIER);
+        cm_sbarrier(0);
+        if (s + 1 < nstages) cm_sbarrier(1);
+#endif
+
+        stage_fn((int)s + SLM_DEPTH);
+
+        const uint kb = s / SLM_JPS;
+        const uint jb = s - kb * SLM_JPS;
+#if PF_A
+        if (jb == 0 && kb + 1 < nbpr) {
+            #pragma unroll
+            for (int r = 0; r < PFA_SETS; r++) {
+                pfA.set_block_y((int)(tile_base + r * PFA_ROWS));
+                #pragma unroll
+                for (int p = 0; p < PF_A; p++)
+                    cm_prefetch<CacheHint::Cached, CacheHint::Cached>(
+                        pfA.set_block_x((int)((kb + 1) * 256u) + p * 32));
+            }
+        }
+#endif
+        const uint sbase = (s & (SLM_SLOTS - 1)) * SLM_PHASE_B;
+
+#if CONS_DBUF
+        /* ---- consumer-side SLM double-buffer: issue the SLM read for
+         * sub-block jl+1 BEFORE consuming jl, so the SLM read latency
+         * overlaps jl's dpas chain instead of stalling it. `jl` is a
+         * compile-time constant in this fully-unrolled loop, so cur/nxt and
+         * Btile[cur]/Btile[nxt] resolve statically; the double buffer costs
+         * one extra tile pair per row group (ROW_GROUPS KB).
+         * This is the "smaller acc, more operands in flight" dataflow: it
+         * only makes sense paired with a reduced ROW_GROUPS*TOKEN_GROUPS,
+         * since acc already owns half the register file at 2x4. */
+        vector<half, 8*32> Blo2[2][ROW_GROUPS], Bhi2[2][ROW_GROUPS];
+        #pragma unroll
+        for (int rg = 0; rg < ROW_GROUPS; rg++) {
+            cm_slm_block_read(slm, GENX_NONE,
+                (int)(sbase + (uint)((rg * SLM_JBLK) * 2 + 0) * SLM_TILE_B), Blo2[0][rg]);
+            cm_slm_block_read(slm, GENX_NONE,
+                (int)(sbase + (uint)((rg * SLM_JBLK) * 2 + 1) * SLM_TILE_B), Bhi2[0][rg]);
+        }
+
+        #pragma unroll
+        for (int jl = 0; jl < SLM_JBLK; jl++) {
+            const int cur = jl & 1;
+            const int nxt = cur ^ 1;
+            if (jl + 1 < SLM_JBLK) {
+                #pragma unroll
+                for (int rg = 0; rg < ROW_GROUPS; rg++) {
+                    cm_slm_block_read(slm, GENX_NONE,
+                        (int)(sbase + (uint)((rg * SLM_JBLK + jl + 1) * 2 + 0) * SLM_TILE_B),
+                        Blo2[nxt][rg]);
+                    cm_slm_block_read(slm, GENX_NONE,
+                        (int)(sbase + (uint)((rg * SLM_JBLK + jl + 1) * 2 + 1) * SLM_TILE_B),
+                        Bhi2[nxt][rg]);
+                }
+            }
+
+            const int j = (int)jb * SLM_JBLK + jl;
+            #pragma unroll
+            for (int tg = 0; tg < TOKEN_GROUPS; tg++) {
+                vector<half, 2 * TOKENS_PER_TILE * 16> A2;
+                b2dA.set_block_y((int)(tile_base + tg * TOKENS_PER_TILE));
+                cm_load<lsc::Normal, CacheHint::A_L1H, CacheHint::A_L2H>(
+                    A2, b2dA.set_block_x((int)(kb * 256u) + j * 32));
+                auto Alo = A2.select<TOKENS_PER_TILE * 16, 1>(0);
+                auto Ahi = A2.select<TOKENS_PER_TILE * 16, 1>(TOKENS_PER_TILE * 16);
+                #pragma unroll
+                for (int rg = 0; rg < ROW_GROUPS; rg++) {
+                    acc[rg * TOKEN_GROUPS + tg] =
+                        cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                            acc[rg * TOKEN_GROUPS + tg], Blo2[cur][rg].format<int32_t>(), Alo.format<int32_t>());
+                    acc[rg * TOKEN_GROUPS + tg] =
+                        cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                            acc[rg * TOKEN_GROUPS + tg], Bhi2[cur][rg].format<int32_t>(), Ahi.format<int32_t>());
+                }
+            }
+        }
+#else
+#if A_OUTER
+        /* ---- hold A, stream B: live B is one tile pair no matter how big
+         * ROW_GROUPS is, so ROW_GROUPS can be raised to cut the activation
+         * traffic (256/(ROW_BLOCKS*ROW_GROUPS) bytes per dpas) without the
+         * register blow-up that caps the default order at ROW_GROUPS=2. */
+        #pragma unroll
+        for (int jl = 0; jl < SLM_JBLK; jl++) {
+            const int j = (int)jb * SLM_JBLK + jl;
+            vector<half, 2 * TOKENS_PER_TILE * 16> A2[TOKEN_GROUPS];
+            #pragma unroll
+            for (int tg = 0; tg < TOKEN_GROUPS; tg++) {
+                b2dA.set_block_y((int)(tile_base + tg * TOKENS_PER_TILE));
+                cm_load<lsc::Normal, CacheHint::A_L1H, CacheHint::A_L2H>(
+                    A2[tg], b2dA.set_block_x((int)(kb * 256u) + j * 32));
+            }
+            #pragma unroll
+            for (int rg = 0; rg < ROW_GROUPS; rg++) {
+                const uint ti = (rb * ROW_GROUPS + (uint)rg) * SLM_JBLK + (uint)jl;
+                vector<half, 8*32> Blo, Bhi;
+                cm_slm_block_read(slm, GENX_NONE,
+                    (int)(sbase + (ti * 2 + 0) * SLM_TILE_B), Blo);
+                cm_slm_block_read(slm, GENX_NONE,
+                    (int)(sbase + (ti * 2 + 1) * SLM_TILE_B), Bhi);
+                #pragma unroll
+                for (int tg = 0; tg < TOKEN_GROUPS; tg++) {
+                    auto Alo = A2[tg].select<TOKENS_PER_TILE * 16, 1>(0);
+                    auto Ahi = A2[tg].select<TOKENS_PER_TILE * 16, 1>(TOKENS_PER_TILE * 16);
+                    acc[rg * TOKEN_GROUPS + tg] =
+                        cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                            acc[rg * TOKEN_GROUPS + tg], Blo.format<int32_t>(), Alo.format<int32_t>());
+                    acc[rg * TOKEN_GROUPS + tg] =
+                        cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                            acc[rg * TOKEN_GROUPS + tg], Bhi.format<int32_t>(), Ahi.format<int32_t>());
+                }
+            }
+        }
+#else
+        #pragma unroll
+        for (int jl = 0; jl < SLM_JBLK; jl++) {
+            /* ROW_GROUPS tile pairs live at once; each is fed by the SAME A
+             * register, which is what halves the activation traffic. */
+#if SLM_RD1K
+            /* Blo and Bhi of a (rg, jl) are ADJACENT in the ring (tile index
+             * (rg*SLM_JBLK+jl)*2 + {0,1}), so with SLM_PAD=0 one 1 KB read
+             * fetches both -- half the SLM messages on the dpas critical
+             * path. Worth retesting whenever the operand balance changes: it
+             * was neutral at ROW_GROUPS=1 (where the SLM read cost ~1.05x)
+             * but the read is 1.22-1.51x once N-blocking has halved the
+             * activation traffic. */
+            vector<half, 2 * 8 * 32> Bpair[ROW_GROUPS];
+            #pragma unroll
+            for (int rg = 0; rg < ROW_GROUPS; rg++)
+                cm_slm_block_read(slm, GENX_NONE,
+                    (int)(sbase + (uint)((rg * SLM_JBLK + jl) * 2) * SLM_TILE_B), Bpair[rg]);
+#else
+            vector<half, 8*32> Blo[ROW_GROUPS], Bhi[ROW_GROUPS];
+            #pragma unroll
+            for (int rg = 0; rg < ROW_GROUPS; rg++) {
+                const uint ti = (rb * ROW_GROUPS + (uint)rg) * SLM_JBLK + (uint)jl;
+                cm_slm_block_read(slm, GENX_NONE,
+                    (int)(sbase + (ti * 2 + 0) * SLM_TILE_B), Blo[rg]);
+                cm_slm_block_read(slm, GENX_NONE,
+                    (int)(sbase + (ti * 2 + 1) * SLM_TILE_B), Bhi[rg]);
+            }
+#endif
+
+            const int j = (int)jb * SLM_JBLK + jl;
+            #pragma unroll
+            for (int tg = 0; tg < TOKEN_GROUPS; tg++) {
+                vector<half, 2 * TOKENS_PER_TILE * 16> A2;
+                b2dA.set_block_y((int)(tile_base + tg * TOKENS_PER_TILE));
+                cm_load<lsc::Normal, CacheHint::A_L1H, CacheHint::A_L2H>(
+                    A2, b2dA.set_block_x((int)(kb * 256u) + j * 32));
+                auto Alo = A2.select<TOKENS_PER_TILE * 16, 1>(0);
+                auto Ahi = A2.select<TOKENS_PER_TILE * 16, 1>(TOKENS_PER_TILE * 16);
+                #pragma unroll
+                for (int rg = 0; rg < ROW_GROUPS; rg++) {
+#if SLM_RD1K
+                    auto Blo = Bpair[rg].select<8*32, 1>(0);
+                    auto Bhi = Bpair[rg].select<8*32, 1>(8*32);
+                    acc[rg * TOKEN_GROUPS + tg] =
+                        cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                            acc[rg * TOKEN_GROUPS + tg], Blo.format<int32_t>(), Alo.format<int32_t>());
+                    acc[rg * TOKEN_GROUPS + tg] =
+                        cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                            acc[rg * TOKEN_GROUPS + tg], Bhi.format<int32_t>(), Ahi.format<int32_t>());
+#else
+                    acc[rg * TOKEN_GROUPS + tg] =
+                        cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                            acc[rg * TOKEN_GROUPS + tg], Blo[rg].format<int32_t>(), Alo.format<int32_t>());
+                    acc[rg * TOKEN_GROUPS + tg] =
+                        cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                            acc[rg * TOKEN_GROUPS + tg], Bhi[rg].format<int32_t>(), Ahi.format<int32_t>());
+#endif
+                }
+            }
+        }
+#endif /* A_OUTER */
+#endif /* CONS_DBUF */
+    }
+#else
+
+    for (uint kb = 0; kb < nbpr; kb++) {
+        /* ---- register-free software pipeline -------------------------------
+         * cm_ptr_prefetch pulls the NEXT K-block into cache without
+         * allocating a destination GRF, so the fetch latency overlaps this
+         * iteration's dequant + dpas work. (Doing the same thing by loading
+         * kb+1 / j+1 into registers early instead spills and is 2.3x SLOWER --
+         * see the header.) */
+#if PF_W
+        if (kb + 1 < nbpr) {
+            const uint pf_w = (h0 * nbpr + kb + 1) * (OPG * 128u);
+            #pragma unroll
+            for (int p = 0; p < PF_W; p++)
+                cm_ptr_prefetch<64, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(
+                    (const unsigned*)pqs_base, pf_w + p * 256u);
+            cm_ptr_prefetch<64, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(
+                (const unsigned*)psl_base, (h0 * nbpr + kb + 1) * (OPG * 16u));
+        }
+#endif
+#if PF_A
+        if (kb + 1 < nbpr) {
+            /* one 2D block prefetch covers PFA_ROWS rows of a 64 B activation
+             * column slice -- PF_A of them cover the next K-block. Doing this
+             * with flat per-token prefetches instead costs TOKENS_PER_THREAD x
+             * more issue slots. */
+            #pragma unroll
+            for (int r = 0; r < PFA_SETS; r++) {
+                pfA.set_block_y((int)(tile_base + r * PFA_ROWS));
+                #pragma unroll
+                for (int p = 0; p < PF_A; p++)
+                    cm_prefetch<CacheHint::Cached, CacheHint::Cached>(
+                        pfA.set_block_x((int)((kb + 1) * 256u) + p * 32));
+            }
+        }
+#endif
+        LOAD_PSL(sl, ml, sh_u, mh_u, d_u, dm_u, h0, kb)
+        vector<ushort, OPG> sh16 = sh_u.format<ushort>(), mh16 = mh_u.format<ushort>();
+        vector<half,   OPG> dh = d_u.format<half>(), dminh = dm_u.format<half>();
+        vector<uint,   OPG> shu = sh16, mhu = mh16;
+        vector<float,  OPG> dF, dminF; dF = dh; dminF = dminh;
+
+        const uint pe_byte = (h0 * nbpr + kb) * (OPG * 128u);
+        const uint a_koff  = kb * 256u * (uint)sizeof(half);
+
+        #pragma unroll
+        for (int j = 0; j < 8; j++) {
+            vector<uint, 4*OPG> q = cm_ptr_load<uint, 4*OPG>((uint*)pqs_base, pe_byte + j*256);
+            vector<uint, OPG> sq = ((sl >> (j*4)) & 0xFu) | (((shu >> (j*2)) & 0x3u) << 4);
+            vector<uint, OPG> mq = ((ml >> (j*4)) & 0xFu) | (((mhu >> (j*2)) & 0x3u) << 4);
+            vector<float, OPG> sqf, mqf; sqf = sq; mqf = mq;
+            vector<float, OPG> scale_j = sqf * dF, minv_j = mqf * dminF;
+
+            vector<dect_t, 4*OPG> scale4, minv4;
+            #pragma unroll
+            for (int c = 0; c < 4; c++) {
+                scale4.select<OPG,1>(c*OPG) = scale_j;
+                minv4 .select<OPG,1>(c*OPG) = minv_j;
+            }
+
+            vector<half, 8*32> Blo, Bhi;
+            q4k_vnni_decode(q, scale4, minv4, Blo, Bhi);
+
+            /* ONE decoded tile pair feeds TOKEN_GROUPS dpas pairs */
+            #pragma unroll
+            for (int tg = 0; tg < TOKEN_GROUPS; tg++) {
+#if A_LOAD_2D
+                /* One 2D block load pulls both dpas A-operands for all 8
+                 * tokens of this group: NBlocks=2 stacks the j*32+0 and
+                 * j*32+16 column blocks along X, so the result vector is
+                 * already [Alo | Ahi] with no register moves, and the surface
+                 * height clamps out-of-range tokens for free. */
+                vector<half, 2 * TOKENS_PER_TILE * 16> A2;
+                b2dA.set_block_y((int)(tile_base + tg * TOKENS_PER_TILE));
+                cm_load<lsc::Normal>(A2, b2dA.set_block_x((int)(kb * 256u) + j * 32));
+                auto Alo = A2.select<TOKENS_PER_TILE * 16, 1>(0);
+                auto Ahi = A2.select<TOKENS_PER_TILE * 16, 1>(TOKENS_PER_TILE * 16);
+#else
+                vector<half, TOKENS_PER_TILE * 16> Alo, Ahi;
+                #pragma unroll
+                for (int i = 0; i < TOKENS_PER_TILE; i++) {
+                    /* clamp rather than branch: out-of-range tokens accumulate
+                     * garbage that is simply never stored */
+                    uint tok = tile_base + tg * TOKENS_PER_TILE + i;
+                    tok = (tok < token_len) ? tok : tok_max;
+                    const uint ab = tok * input_len * (uint)sizeof(half) + a_koff + j * 64u;
+                    vector<half, 32> ah =
+                        cm_ptr_load<uint, 16>((uint*)inputs, ab).format<half>();
+                    Alo.select<16,1>(i*16) = ah.select<16,1>(0);
+                    Ahi.select<16,1>(i*16) = ah.select<16,1>(16);
+                }
+#endif
+                acc[tg] = cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                              acc[tg], Blo.format<int32_t>(), Alo.format<int32_t>());
+                acc[tg] = cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                              acc[tg], Bhi.format<int32_t>(), Ahi.format<int32_t>());
+            }
+        }
+    }
+#endif /* COOP_SLM */
+#undef LOAD_PSL
+
+#if MERGE_STORE
+    /* the ROW_GROUPS row groups of a thread are adjacent in N, so one store
+     * per token covers all of them */
+    #pragma unroll
+    for (int tg = 0; tg < TOKEN_GROUPS; tg++) {
+        #pragma unroll
+        for (int i = 0; i < TOKENS_PER_TILE; i++) {
+            uint tok = tile_base + tg * TOKENS_PER_TILE + i;
+            if (tok < token_len) {
+                vector<float, ROW_GROUPS * OPG> ov;
+                #pragma unroll
+                for (int rg = 0; rg < ROW_GROUPS; rg++)
+                    ov.select<OPG, 1>(rg * OPG) =
+                        acc[rg * TOKEN_GROUPS + tg].select<OPG, 1>(i * OPG);
+#if CM_POST_OPS_NUM > 0
+                /* Vectorized post-ops: mutate the WHOLE 'ov' vector in a
+                 * couple of SIMD instructions -- never a per-lane scalar
+                 * loop (that regressed perf badly: unrolled over
+                 * ROW_GROUPS*OPG lanes x up to TOKEN_GROUPS*TOKENS_PER_TILE
+                 * token stores = hundreds of scalar ops, plus non-coalesced
+                 * scalar loads of the fused operand). */
+                { const uint _po_base = tok * output_len + h0 * OPG;
+                  #ifdef CM_APPLY_POST_OP_0
+                  CM_APPLY_POST_OP_0(ov, _po_base, ROW_GROUPS * OPG)
+                  #endif
+                  #ifdef CM_APPLY_POST_OP_1
+                  CM_APPLY_POST_OP_1(ov, _po_base, ROW_GROUPS * OPG)
+                  #endif
+                  #ifdef CM_APPLY_POST_OP_2
+                  CM_APPLY_POST_OP_2(ov, _po_base, ROW_GROUPS * OPG)
+                  #endif
+                }
+#endif
+                vector<cm_output_t, ROW_GROUPS * OPG> ov_h = ov;
+#ifdef CM_OUTPUT_F32
+                cm_ptr_store<float, ROW_GROUPS * OPG>((float*)outputs,
+                    (tok * output_len + h0 * OPG) * (uint)sizeof(float), ov_h);
+#else
+                cm_ptr_store<uint, ROW_GROUPS * OPG / 2>((uint*)outputs,
+                    (tok * output_len + h0 * OPG) * (uint)sizeof(half), ov_h.format<uint>());
+#endif
+            }
+        }
+    }
+#else
+    #pragma unroll
+    for (int rg = 0; rg < ROW_GROUPS; rg++) {
+        #pragma unroll
+        for (int tg = 0; tg < TOKEN_GROUPS; tg++) {
+            #pragma unroll
+            for (int i = 0; i < TOKENS_PER_TILE; i++) {
+                uint tok = tile_base + tg * TOKENS_PER_TILE + i;
+                if (tok < token_len) {
+                    vector<float, OPG> ov_rg = acc[rg * TOKEN_GROUPS + tg].select<OPG, 1>(i * OPG);
+#if CM_POST_OPS_NUM > 0
+                    { const uint _po_base = tok * output_len + (h0 + (uint)rg) * OPG;
+                      #ifdef CM_APPLY_POST_OP_0
+                      CM_APPLY_POST_OP_0(ov_rg, _po_base, OPG)
+                      #endif
+                      #ifdef CM_APPLY_POST_OP_1
+                      CM_APPLY_POST_OP_1(ov_rg, _po_base, OPG)
+                      #endif
+                      #ifdef CM_APPLY_POST_OP_2
+                      CM_APPLY_POST_OP_2(ov_rg, _po_base, OPG)
+                      #endif
+                    }
+#endif
+                    { vector<cm_output_t, OPG> ov_out = ov_rg;
+#ifdef CM_OUTPUT_F32
+                      cm_ptr_store<float, OPG>((float*)outputs,
+                          (tok * output_len + (h0 + rg) * OPG) * (uint)sizeof(float), ov_out); }
+#else
+                      cm_ptr_store<uint, OPG / 2>((uint*)outputs,
+                          (tok * output_len + (h0 + rg) * OPG) * (uint)sizeof(half), ov_out.format<uint>()); }
+#endif
+                }
+            }
+        }
+    }
+#endif
+}

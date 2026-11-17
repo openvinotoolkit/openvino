@@ -15,6 +15,7 @@
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "impls/ocl_v2/gguf/gguf_weight_shuffle.hpp"
 #include "moe_offload_constant.hpp"
 #include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/bucketize.hpp"
@@ -116,6 +117,7 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
     cldnn::primitive_id initialconstPrimID = layer_type_name_ID(op);
     cldnn::primitive_id constPrimID;
     const auto* data = op->get_data_ptr<char>();
+    const bool shuffle_pending = op->get_rt_info().count("intel_gpu_gguf_shuffle_pending") != 0;
 
     // Check whether this constant comes from a shared source buffer that may be used across devices.
     // The imported view may not own the underlying storage; though the actual backing buffer is not kept alive by the
@@ -126,7 +128,7 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
     // the instance of CompiledModel takes on the ownership of the buffer.
     // This ensures the validity of the buffer during the lifetime of the compiled model.
     std::shared_ptr<ov::AlignedBuffer> weight_sharing_constant_buffer_view;
-    if (p.get_weight_sharing_ctx()) {
+    if (p.get_weight_sharing_ctx() && !shuffle_pending) {
         // It's assumed that the constant is a shared constant with cross-device visibility if the model has
         // a weight sharing context and a valid source buffer and a constant id is registered in the weight sharing context.
         auto constant_source_id = weight_sharing::Extension::get_constant_source_id(*op);
@@ -139,7 +141,32 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         }
     }
     const auto cache_key =
-        std::make_tuple(data, const_shape, op->get_output_element_type(0), weight_sharing_constant_buffer_view != nullptr);
+        std::make_tuple(data, const_shape, op->get_output_element_type(0), weight_sharing_constant_buffer_view != nullptr,
+                shuffle_pending);
+
+    const auto source_id = op->get_element_type().is_gguf_block()
+                               ? weight_sharing::Extension::get_constant_source_id(*op)
+                               : weight_sharing::invalid_source_id;
+    const bool use_gguf_source = source_id != weight_sharing::invalid_source_id &&
+                                 !p.get_weight_sharing_ctx() && const_shape == op->get_shape() &&
+                                 !op->get_rt_info().count("intel_gpu_gguf_weights_shuffled") &&
+                                 constLayout.bytes_count() == op->get_byte_size();
+    ProgramBuilder::GgufBlobCacheKey gguf_key;
+    if (use_gguf_source) {
+        gguf_key = std::make_tuple(source_id, weight_sharing::Extension::get_constant_id(*op),
+                                   op->get_byte_size(), const_shape, op->get_element_type(),
+                                   props.needsBatchInterpretation);
+        const auto candidates = p.ggufBlobMemCache.equal_range(gguf_key);
+        for (auto candidate = candidates.first; candidate != candidates.second; ++candidate) {
+            if (std::memcmp(data, candidate->second.first->get_data_ptr(), op->get_byte_size()) == 0) {
+                constPrimID = candidate->second.second;
+                p.primitive_ids[initialconstPrimID] = constPrimID;
+                p.profiling_ids.push_back(initialconstPrimID);
+                p.blobMemCache[cache_key] = constPrimID;
+                return;
+            }
+        }
+    }
 
     auto bufIter = p.blobMemCache.find(cache_key);
 
@@ -166,9 +193,23 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
                           << ", layout: " << constLayout.to_short_string() << std::endl;
             return;
         }
-        auto partial_upload = try_prepare_partial_upload(p.get_engine(), p.get_config(), op, const_shape, out_dtype, constFormat, constLayout);
+        PartialUploadDesc partial_upload;
+        if (!shuffle_pending) {
+            partial_upload = try_prepare_partial_upload(p.get_engine(),
+                                 p.get_config(),
+                                 op,
+                                 const_shape,
+                                 out_dtype,
+                                 constFormat,
+                                 constLayout);
+        }
 
-        if (partial_upload.enabled) {
+        if (shuffle_pending) {
+            OPENVINO_ASSERT(const_shape == op->get_shape() && !props.needsBatchInterpretation,
+                            "GGUF shuffle requires the original weight shape");
+            mem = ocl::upload_shuffled_gguf_weights(p.get_engine(), constLayout, op->get_element_type(),
+                                                   const_shape, data, p.ggufShuffleKernels[op->get_element_type()]);
+        } else if (partial_upload.enabled) {
             mem = partial_upload.memory;
         } else if (constLayout.bytes_count() > 0) {
             mem = p.get_engine().allocate_memory(constLayout, false);
@@ -183,7 +224,7 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant] layout: " << constLayout.to_short_string() << ", mem_ptr(" << mem << ", " << mem->size()
                       << " bytes)" << std::endl;
 
-        if (!partial_upload.enabled) {
+        if (!partial_upload.enabled && !shuffle_pending) {
             auto& stream = p.get_engine().get_service_stream();
             cldnn::mem_lock<char> lock{mem, stream};
             auto* buf = lock.data();
@@ -205,6 +246,9 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         p.add_primitive(*op, data_prim);
         p.blobMemCache[cache_key] = initialconstPrimID;
         constPrimID = initialconstPrimID;
+        if (use_gguf_source && !partial_upload.enabled) {
+            p.ggufBlobMemCache.emplace(gguf_key, std::make_pair(op, initialconstPrimID));
+        }
     }
 }
 

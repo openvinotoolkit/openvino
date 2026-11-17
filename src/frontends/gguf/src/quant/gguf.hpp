@@ -36,6 +36,10 @@ enum GgufTensorType {
     GGUF_TYPE_Q5_K = 13,
     GGUF_TYPE_Q6_K = 14,
     GGUF_TYPE_Q8_K = 15,
+    GGUF_TYPE_IQ2_XS = 17,
+    GGUF_TYPE_IQ3_XXS = 18,
+    GGUF_TYPE_IQ3_S = 21,
+    GGUF_TYPE_IQ2_S = 22,
     GGUF_TYPE_I8 = 24,
     GGUF_TYPE_I16 = 25,
     GGUF_TYPE_I32 = 26,
@@ -95,6 +99,9 @@ struct GgufWeight {
     GgufTensorType qtype = GGUF_TYPE_F32;
     std::string source_name;
     bool native = true;
+    bool preserve_raw = false;
+    std::filesystem::path external_source;
+    uint64_t external_offset = 0;
     std::shared_ptr<ov::MappedMemory> mapped;
 
     GgufWeight() = default;
@@ -148,6 +155,23 @@ void dequant_row_q4_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 void dequant_row_q5_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 void dequant_row_q6_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 
+// Select formats to retain as native blocks during deferred weight materialization.
+struct GGUFLoadOptions {
+    bool preserve_q4_k = false;
+    bool preserve_q5_k = false;
+    bool preserve_q6_k = false;
+    bool preserve_q8_0 = false;
+    bool preserve_q4_0 = false;
+    bool preserve_q4_1 = false;
+    bool preserve_q3_k = false;
+    bool preserve_iq2_xs = false;
+    bool preserve_iq2_s = false;
+    bool preserve_iq3_xxs = false;
+    bool preserve_iq3_s = false;
+};
+
+ov::element::Type gguf_raw_element_type(GgufTensorType type);
+
 struct WeightTensors;
 
 WeightTensors allocate_gguf_weight(const GgufWeight& source, const ov::Shape& shape);
@@ -166,7 +190,9 @@ bool gguf_has_u2_weights(GgufTensorType type);
 
 // Parse GGUF metadata and raw weight descriptors.
 GGUFLoad get_gguf_data(const std::filesystem::path& file);
+GGUFLoad get_gguf_data(const std::filesystem::path& file, const GGUFLoadOptions& options);
 GGUFLoad get_gguf_data(const std::vector<std::filesystem::path>& files);
+GGUFLoad get_gguf_data(const std::vector<std::filesystem::path>& files, const GGUFLoadOptions& options);
 
 // Reverse of the GGML dimension order (GGUF stores dims fastest-first).
 ov::Shape get_shape(const GgufTensor& tensor);

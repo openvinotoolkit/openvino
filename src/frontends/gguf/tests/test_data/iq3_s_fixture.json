@@ -1,0 +1,17 @@
+{
+  "llama_cpp_commit": "03fa73cb27f5c251b9528489b18d303b1366aca4",
+  "ggml_quants_c_sha256": "07143d7068936ae46b3c528b2f3d4bbb666e74d88992165716174d243573965d",
+  "ggml_common_h_sha256": "0061131b615c5721fc88a78feeb22c1f8c450f1c2646a317d80796a653bf595c",
+  "shape": [4, 256],
+  "numpy_version": "2.5.4",
+  "seed": 42,
+  "input": "(numpy.random.default_rng(42).standard_normal((4, 256)) * 0.05).astype(numpy.float32)",
+  "imatrix": "numpy.ones(256, dtype=numpy.float32)",
+  "quantizer": "ggml_quantize_chunk(GGML_TYPE_IQ3_S, input, qbytes, 0, 4, 256, imatrix)",
+  "oracle": "ggml_get_type_traits(GGML_TYPE_IQ3_S)->to_float per 256-value row, F32 output",
+  "gguf_type": 21,
+  "block_elements": 256,
+  "block_bytes": 110,
+  "qbytes_sha256": "25f206993551c61110488f14d4bd4494262aabb398216ca5ccc656cce8b83da0",
+  "deq_sha256": "e9531f580b5bf394d9a9df4158b1e61664953dd116325f08dab1abb010cc76d7"
+}

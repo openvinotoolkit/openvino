@@ -8,7 +8,9 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <limits>
+#include <map>
 #include <set>
 #include <tuple>
 
@@ -26,6 +28,7 @@
 #include "gtest/gtest.h"
 #include "helper_ops/gguf_constant.hpp"
 #include "op_test_utils.hpp"
+#include "openvino/core/op_extension.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "openvino/frontend/gguf/adapt_mmproj_to_genai.hpp"
@@ -46,7 +49,9 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/util/common_util.hpp"
 #include "quant/gguf.hpp"
 #include "utils.hpp"
@@ -1324,23 +1329,118 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
         temporary = std::make_unique<ov_gguf_test::TemporaryGguf>(array("model"));
         model_path = temporary->path;
     }
+    const auto* ir_dir_env = std::getenv("OV_GGUF_ACCURACY_IR_DIR");
+    const std::string ir_directory = ir_dir_env ? ir_dir_env : "";
+    const auto* ir_mode_env = std::getenv("OV_GGUF_ACCURACY_IR_MODE");
+    const std::string ir_mode = ir_mode_env ? ir_mode_env : "";
+    ASSERT_EQ(ir_directory.empty(), ir_mode.empty());
+    const auto ir_prefix = std::filesystem::path(ir_directory) / (std::string(GetParam()) + ".external");
+    if (!ir_directory.empty()) {
+        ASSERT_TRUE(real_checkpoint);
+        ASSERT_EQ(std::string(GetParam()), "qwen35");
+        ASSERT_TRUE(std::filesystem::is_directory(ir_directory));
+        ASSERT_TRUE(ir_mode == "save" || ir_mode == "load");
+        const auto* cache_dir = std::getenv("OV_GGUF_ACCURACY_CACHE_DIR");
+        ASSERT_TRUE(!cache_dir || !*cache_dir);
+        RecordProperty("external_ir_mode", ir_mode);
+    }
+    ov::Core core;
+    if (ir_mode == "load")
+        core.add_extension(std::make_shared<ov::OpExtension<ov::op::internal::GatedDeltaNet>>());
     ov::frontend::gguf::FrontEnd fe;
     fe.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
-    auto model = fe.convert(fe.load(model_path));
+    auto model = ir_mode == "load" ? core.read_model(ir_prefix.string() + ".xml")
+                                    : fe.convert(fe.load(model_path));
+    size_t raw_bytes = 0, raw_constants = 0, raw_fcs = 0, raw_gathers = 0, external_constants = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        const std::string type = node->get_type_name();
+        if (type == "Constant" && node->get_output_element_type(0).is_gguf_block()) {
+            raw_bytes += ov::as_type_ptr<ov::op::v0::Constant>(node)->get_byte_size();
+            ++raw_constants;
+            external_constants += node->get_rt_info().count("gguf_ext_source");
+        } else if (type == "FullyConnectedCompressed" && node->get_input_element_type(1).is_gguf_block()) {
+            ++raw_fcs;
+        } else if (type == "GatherCompressed" && node->get_input_element_type(0).is_gguf_block()) {
+            ++raw_gathers;
+        }
+    }
+    RecordProperty("raw_constant_bytes", std::to_string(raw_bytes));
+    RecordProperty("raw_constants", std::to_string(raw_constants));
+    RecordProperty("raw_fc_nodes", std::to_string(raw_fcs));
+    RecordProperty("raw_gather_nodes", std::to_string(raw_gathers));
+    if (!ir_directory.empty()) {
+        ASSERT_GT(external_constants, 0u);
+        RecordProperty("external_ir_constants", std::to_string(external_constants));
+    }
     if (mamba) {
         EXPECT_EQ(model->input("input_ids").get_partial_shape(), (ov::PartialShape{lfm2 ? -1 : 1, -1}));
         EXPECT_NO_THROW(model->input("beam_idx"));
     }
-    ov::Core core;
-    auto compiled = core.compile_model(model,
-                                       "CPU",
-                                       ov::hint::inference_precision(ov::element::f32),
-                                       ov::num_streams(1),
-                                       ov::inference_num_threads(4),
-                                       ov::hint::dynamic_quantization_group_size(0),
-                                       ov::hint::kv_cache_precision(ov::element::f16));
+    const auto device_override = std::getenv("OV_GGUF_ACCURACY_DEVICE");
+    const std::string device = device_override ? device_override : "CPU";
+    const auto precision = device == "CPU" ? ov::element::f32 : ov::element::f16;
+    ov::AnyMap properties{ov::hint::inference_precision(precision),
+                          ov::num_streams(1),
+                          ov::hint::dynamic_quantization_group_size(0),
+                          ov::hint::kv_cache_precision(ov::element::f16)};
+    if (device == "CPU") {
+        properties.insert(ov::inference_num_threads(4));
+    } else if (device.rfind("GPU", 0) == 0 && raw_fcs > 0) {
+        properties.insert(ov::enable_profiling(true));
+    }
+    RecordProperty("device", device);
+    RecordProperty("inference_precision", precision.get_type_name());
+    const auto* cache_dir_env = std::getenv("OV_GGUF_ACCURACY_CACHE_DIR");
+    const std::string cache_directory = cache_dir_env ? cache_dir_env : "";
+    const auto* cache_hit_env = std::getenv("OV_GGUF_ACCURACY_CACHE_HIT");
+    const std::string cache_hit = cache_hit_env ? cache_hit_env : "";
+    ASSERT_EQ(cache_directory.empty(), cache_hit.empty());
+    if (!cache_directory.empty()) {
+        ASSERT_TRUE(real_checkpoint);
+        ASSERT_EQ(device.rfind("GPU", 0), 0u);
+        ASSERT_GT(raw_fcs, 0u);
+        ASSERT_TRUE(std::filesystem::is_directory(cache_directory));
+        ASSERT_TRUE(cache_hit == "0" || cache_hit == "1");
+        properties.insert(ov::cache_dir(cache_directory));
+    }
+    const auto route_directory = std::getenv("OV_GGUF_ACCURACY_ROUTE_DIR");
+    const bool audit_routes = route_directory && *route_directory && device.rfind("GPU", 0) == 0 && raw_fcs > 0;
+    if (audit_routes)
+        std::filesystem::create_directories(route_directory);
+    std::fstream ir_logits;
+    if (!ir_directory.empty()) {
+        ASSERT_EQ(device.rfind("GPU", 0), 0u);
+        ASSERT_GT(raw_fcs, 0u);
+        if (ir_mode == "save") {
+            ASSERT_FALSE(std::filesystem::exists(ir_prefix.string() + ".xml"));
+            ASSERT_FALSE(std::filesystem::exists(ir_prefix.string() + ".bin"));
+            ASSERT_FALSE(std::filesystem::exists(ir_prefix.string() + ".logits.bin"));
+            ov::serialize(model, ir_prefix.string() + ".xml", ir_prefix.string() + ".bin");
+        }
+        ir_logits.open(ir_prefix.string() + ".logits.bin",
+                       std::ios::binary | (ir_mode == "load" ? std::ios::in : std::ios::out | std::ios::trunc));
+        ASSERT_TRUE(ir_logits);
+    }
+    auto compiled = core.compile_model(model, device, properties);
+    if (!ir_directory.empty()) {
+        EXPECT_FALSE(compiled.get_property(ov::loaded_from_cache));
+        EXPECT_EQ(compiled.get_property(ov::num_streams), 1);
+    }
+    std::fstream cache_logits;
+    bool loaded_from_cache = false;
+    if (!cache_directory.empty()) {
+        loaded_from_cache = compiled.get_property(ov::loaded_from_cache);
+        RecordProperty("compiled_cache_hit", loaded_from_cache ? 1 : 0);
+        EXPECT_EQ(loaded_from_cache, cache_hit == "1");
+        const auto streams = compiled.get_property(ov::num_streams);
+        RecordProperty("compiled_cache_streams", streams);
+        EXPECT_EQ(streams, 1);
+        cache_logits.open(std::filesystem::path(cache_directory) / (std::string(GetParam()) + ".logits.bin"),
+                          std::ios::binary | (cache_hit == "1" ? std::ios::in : std::ios::out | std::ios::trunc));
+        ASSERT_TRUE(cache_logits);
+    }
     auto request = compiled.create_infer_request();
-    const auto infer = [&](const std::vector<int64_t>& tokens, size_t past) {
+    const auto infer = [&](ov::InferRequest& active_request, const std::vector<int64_t>& tokens, size_t past) {
         const auto count = tokens.size();
         ov::Tensor ids(ov::element::i64, {1, count});
         ov::Tensor positions(ov::element::i64, ids.get_shape());
@@ -1352,25 +1452,29 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
             positions.data<int64_t>()[i] = static_cast<int64_t>(past + i);
         }
         std::fill_n(mask.data<int64_t>(), mask.get_size(), 1);
-        request.set_tensor("input_ids", ids);
-        request.set_tensor("position_ids", positions);
-        request.set_tensor("attention_mask", mask);
+        active_request.set_tensor("input_ids", ids);
+        active_request.set_tensor("position_ids", positions);
+        active_request.set_tensor("attention_mask", mask);
         if (std::any_of(compiled.inputs().begin(), compiled.inputs().end(), [](const ov::Output<const ov::Node>& p) {
                 return p.get_names().count("beam_idx");
             }))
-            request.set_tensor("beam_idx", beam);
-        request.infer();
-        return request.get_tensor("logits");
+            active_request.set_tensor("beam_idx", beam);
+        active_request.infer();
+    return active_request.get_tensor("logits");
     };
+    const bool check_state_isolation = !cache_directory.empty() && std::string(GetParam()) == "qwen35";
+    std::vector<std::vector<float>> original_logits;
     size_t past = 0;
     size_t step = 0;
     size_t matching_tokens = 0;
     for (const auto& tokens : schedule) {
         SCOPED_TRACE("past=" + std::to_string(past) + ", tokens=" + std::to_string(tokens.size()));
-        const auto result = infer(tokens, past);
+        const auto result = infer(request, tokens, past);
         ASSERT_EQ(result.get_element_type(), ov::element::f32);
         ASSERT_GE(result.get_size(), static_cast<size_t>(vocab));
         const auto* actual = result.data<const float>() + result.get_size() - vocab;
+        if (check_state_isolation)
+            original_logits.emplace_back(actual, actual + vocab);
         const auto* expected = reference.data() + step++ * vocab;
         const auto metric = ov_gguf_test::nmse(actual, expected, static_cast<size_t>(vocab));
         ASSERT_TRUE(metric.all_finite());
@@ -1380,6 +1484,22 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
         matching_tokens += predicted == wanted;
         RecordProperty("top1_match_step_" + std::to_string(step), predicted == wanted ? 1 : 0);
         RecordProperty("nmse_step_" + std::to_string(step), std::to_string(metric.value()));
+        if (audit_routes) {
+            const auto runtime_model = compiled.get_runtime_model();
+            size_t audited_fcs = 0;
+            for (const auto& operation : runtime_model->get_ordered_ops()) {
+                if (std::string(operation->get_type_name()) == "Result")
+                    continue;
+                const auto& info = operation->get_rt_info();
+                if (info.count("gguf_last_executed_kernels"))
+                    ++audited_fcs;
+            }
+            EXPECT_EQ(audited_fcs, raw_fcs) << "Missing per-step GGUF FC execution records";
+            RecordProperty("route_step_" + std::to_string(step) + "_tokens", std::to_string(tokens.size()));
+            RecordProperty("route_step_" + std::to_string(step) + "_fc_nodes", std::to_string(audited_fcs));
+            const auto prefix = std::filesystem::path(route_directory) / ("step-" + std::to_string(step));
+            ov::serialize(runtime_model, prefix.string() + ".xml", prefix.string() + ".bin");
+        }
         if (real_checkpoint) {
             // Real checkpoints can use different quantization arithmetic. Check the first prediction
             // and continuation agreement; keep their full-logit metrics in the XML report.
@@ -1389,14 +1509,168 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
         } else {
             EXPECT_LT(metric.value(), 1e-5) << "Normalized MSE against llama.cpp CPU";
         }
+        if (cache_logits.is_open()) {
+            const auto bytes = static_cast<std::streamsize>(vocab) * sizeof(float);
+            if (cache_hit == "0") {
+                cache_logits.write(reinterpret_cast<const char*>(actual), bytes);
+            } else {
+                std::vector<float> original(vocab);
+                cache_logits.read(reinterpret_cast<char*>(original.data()), bytes);
+                ASSERT_TRUE(cache_logits);
+                EXPECT_EQ(std::memcmp(actual, original.data(), bytes), 0) << "Cached full logits changed";
+            }
+            ASSERT_TRUE(cache_logits);
+            RecordProperty("compiled_cache_logits_step_" + std::to_string(step), cache_hit == "1" ? "matched" : "saved");
+            std::cout << "GGUF_CHECKPOINT_CACHE_STEP format=" << GetParam() << " hit=" << loaded_from_cache
+                      << " step=" << step << std::endl;
+        }
+        if (ir_logits.is_open()) {
+            const auto bytes = static_cast<std::streamsize>(vocab) * sizeof(float);
+            bool matched = true;
+            if (ir_mode == "save") {
+                ir_logits.write(reinterpret_cast<const char*>(actual), bytes);
+            } else {
+                std::vector<float> original(vocab);
+                ir_logits.read(reinterpret_cast<char*>(original.data()), bytes);
+                ASSERT_TRUE(ir_logits);
+                matched = std::memcmp(actual, original.data(), bytes) == 0;
+                EXPECT_TRUE(matched) << "External IR full logits changed";
+            }
+            ASSERT_TRUE(ir_logits);
+            RecordProperty("external_ir_logits_step_" + std::to_string(step),
+                           ir_mode == "save" ? "saved" : matched ? "matched" : "different");
+            std::cout << "GGUF_CHECKPOINT_IR_STEP format=" << GetParam() << " mode=" << ir_mode
+                      << " step=" << step << std::endl;
+        }
         past += tokens.size();
+    }
+    if (ir_mode == "load")
+        EXPECT_EQ(ir_logits.peek(), std::char_traits<char>::eof());
+    if (cache_hit == "1")
+        EXPECT_EQ(cache_logits.peek(), std::char_traits<char>::eof());
+    if (check_state_isolation) {
+        const auto recurrent_info = model->get_rt_info().find("gguf_recurrent_states");
+        ASSERT_NE(recurrent_info, model->get_rt_info().end());
+        const auto recurrent_names = recurrent_info->second.as<std::vector<std::string>>();
+        const auto states = request.query_state();
+        size_t recurrent_count = 0;
+        for (const auto& state : states)
+            recurrent_count += std::count(recurrent_names.begin(), recurrent_names.end(), state.get_name());
+        ASSERT_GT(recurrent_count, 0u);
+        ASSERT_GT(states.size(), recurrent_count);
+        RecordProperty("state_recurrent_count", std::to_string(recurrent_count));
+        RecordProperty("state_nonrecurrent_count", std::to_string(states.size() - recurrent_count));
+        const auto audit_state_routes = [&](const std::string& phase) {
+            if (!audit_routes)
+                return;
+            const auto runtime_model = compiled.get_runtime_model();
+            size_t audited_fcs = 0;
+            for (const auto& operation : runtime_model->get_ordered_ops())
+                audited_fcs += operation->get_rt_info().count("gguf_last_executed_kernels");
+            EXPECT_EQ(audited_fcs, raw_fcs);
+            RecordProperty("state_route_" + phase + "_fc_nodes", std::to_string(audited_fcs));
+            const auto prefix = std::filesystem::path(route_directory) / ("state-" + phase);
+            ov::serialize(runtime_model, prefix.string() + ".xml", prefix.string() + ".bin");
+        };
+        const auto check_logits = [&](const ov::Tensor& result,
+                                      const std::vector<float>& expected,
+                                      const std::string& phase) {
+            SCOPED_TRACE(phase);
+            ASSERT_EQ(result.get_element_type(), ov::element::f32);
+            ASSERT_GE(result.get_size(), static_cast<size_t>(vocab));
+            const auto* actual = result.data<const float>() + result.get_size() - vocab;
+            const auto comparison = std::memcmp(actual, expected.data(), expected.size() * sizeof(float));
+            float max_error = 0;
+            for (size_t element = 0; element < expected.size(); ++element)
+                max_error = std::max(max_error, std::abs(actual[element] - expected[element]));
+            const auto metric = ov_gguf_test::nmse(actual, expected.data(), expected.size());
+            EXPECT_EQ(comparison, 0) << phase << ", max_error=" << max_error << ", nmse=" << metric.value();
+            RecordProperty("state_logits_" + phase, comparison == 0 ? "matched" : "different");
+            RecordProperty("state_max_error_" + phase, std::to_string(max_error));
+            RecordProperty("state_nmse_" + phase, std::to_string(metric.value()));
+            audit_state_routes(phase);
+        };
+        request.reset_state();
+        size_t control_past = 0;
+        for (size_t index = 0; index < schedule.size(); ++index) {
+            check_logits(infer(request, schedule[index], control_past),
+                         original_logits[index],
+                         "control-" + std::to_string(index + 1));
+            control_past += schedule[index].size();
+        }
+        auto peer = compiled.create_infer_request();
+        auto peer_schedule = schedule;
+        for (auto& tokens : peer_schedule)
+            for (auto& token : tokens)
+                token = (token + 17) % vocab;
+        std::vector<std::vector<float>> peer_logits;
+        size_t peer_past = 0;
+        for (size_t index = 0; index < peer_schedule.size(); ++index) {
+            const auto result = infer(peer, peer_schedule[index], peer_past);
+            ASSERT_EQ(result.get_element_type(), ov::element::f32);
+            ASSERT_GE(result.get_size(), static_cast<size_t>(vocab));
+            const auto* actual = result.data<const float>() + result.get_size() - vocab;
+            ASSERT_TRUE(std::all_of(actual, actual + vocab, [](float value) {
+                return std::isfinite(value);
+            }));
+            peer_logits.emplace_back(actual, actual + vocab);
+            audit_state_routes("baseline-" + std::to_string(index + 1));
+            peer_past += peer_schedule[index].size();
+        }
+        ASSERT_NE(std::memcmp(original_logits.front().data(), peer_logits.front().data(), vocab * sizeof(float)), 0);
+        request.reset_state();
+        peer.reset_state();
+        past = peer_past = 0;
+        for (size_t index = 0; index < schedule.size(); ++index) {
+            check_logits(infer(request, schedule[index], past),
+                         original_logits[index],
+                         "main-" + std::to_string(index + 1));
+            past += schedule[index].size();
+            check_logits(infer(peer, peer_schedule[index], peer_past),
+                         peer_logits[index],
+                         "peer-" + std::to_string(index + 1));
+            peer_past += peer_schedule[index].size();
+            if (index != schedule.size() / 2)
+                continue;
+            const auto peer_states = peer.query_state();
+            ASSERT_EQ(peer_states.size(), states.size());
+            std::vector<ov::Tensor> snapshots;
+            for (const auto& state : peer_states) {
+                const auto value = state.get_state();
+                ov::Tensor snapshot(value.get_element_type(), value.get_shape());
+                value.copy_to(snapshot);
+                snapshots.push_back(std::move(snapshot));
+            }
+            request.reset_state();
+            past = 0;
+            for (size_t replay = 0; replay <= index; ++replay) {
+                check_logits(infer(request, schedule[replay], past),
+                             original_logits[replay],
+                             "reset-" + std::to_string(replay + 1));
+                past += schedule[replay].size();
+            }
+            for (size_t state_index = 0; state_index < peer_states.size(); ++state_index) {
+                SCOPED_TRACE(peer_states[state_index].get_name());
+                const auto value = peer_states[state_index].get_state();
+                const auto& snapshot = snapshots[state_index];
+                ASSERT_EQ(value.get_element_type(), snapshot.get_element_type());
+                ASSERT_EQ(value.get_shape(), snapshot.get_shape());
+                ASSERT_EQ(value.get_byte_size(), snapshot.get_byte_size());
+                EXPECT_EQ(std::memcmp(value.data(), snapshot.data(), value.get_byte_size()), 0);
+            }
+            RecordProperty("state_peer_arrays_unchanged", std::to_string(peer_states.size()));
+        }
+        RecordProperty("state_interleaved_requests", 2);
+        RecordProperty("state_reset_calls", 4);
+        std::cout << "GGUF_CHECKPOINT_STATE_CHECK format=" << GetParam() << " hit=" << loaded_from_cache
+                  << " steps=" << schedule.size() << std::endl;
     }
     if (mamba || std::string(GetParam()) == "afmoe") {
         const auto states = request.query_state();
         ASSERT_FALSE(states.empty());
         for (auto state : states)
             state.reset();
-        const auto logits = infer(schedule.front(), 0);
+        const auto logits = infer(request, schedule.front(), 0);
         const auto* actual = logits.data<const float>() + logits.get_size() - vocab;
         const auto metric = ov_gguf_test::nmse(actual, reference.data(), static_cast<size_t>(vocab));
         ASSERT_TRUE(metric.all_finite());
@@ -1409,6 +1683,32 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
     }
     if (real_checkpoint) {
         EXPECT_GE(matching_tokens * 10, schedule.size() * 9) << "Fewer than 90% of greedy choices match";
+    }
+    if (device.rfind("GPU", 0) == 0 && raw_fcs > 0) {
+        size_t executed_fcs = 0, executed_gathers = 0;
+        std::map<std::string, size_t> weight_types;
+        for (const auto& node : compiled.get_runtime_model()->get_ordered_ops()) {
+            const auto& info = node->get_rt_info();
+            const auto impl = info.find(ov::exec_model_info::IMPL_TYPE);
+            if (impl == info.end())
+                continue;
+            const auto name = impl->second.as<std::string>();
+            if (name.find("fc_gguf") != std::string::npos) {
+                ++executed_fcs;
+                ++weight_types[info.at("weights_precision").as<std::string>()];
+            } else if (name.find("gather_gguf") != std::string::npos) {
+                ++executed_gathers;
+            } else {
+                continue;
+            }
+            EXPECT_NE(info.at(ov::exec_model_info::PERF_COUNTER).as<std::string>(), "not_executed");
+        }
+        RecordProperty("executed_gguf_fc_nodes", std::to_string(executed_fcs));
+        RecordProperty("executed_gguf_gather_nodes", std::to_string(executed_gathers));
+        for (const auto& [type, count] : weight_types)
+            RecordProperty("executed_fc_" + type, std::to_string(count));
+        EXPECT_EQ(executed_fcs, raw_fcs);
+        EXPECT_EQ(executed_gathers, raw_gathers);
     }
 }
 

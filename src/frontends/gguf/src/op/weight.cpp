@@ -23,6 +23,9 @@ OutputVector translate_weight(const NodeContext& context) {
         source.source_name = context.get_name();
         source.native = false;
     }
+    FRONT_END_OP_CONVERSION_CHECK(!source.preserve_raw || !source.data.get_element_type().is_gguf_block() ||
+                                     source.data.get_element_type() == gguf_raw_element_type(source.qtype),
+                                 "Mismatched raw GGUF weight quantization type: ", context.get_name());
     auto node = std::make_shared<GGUFConstant>(source);
     node->set_friendly_name(context.get_name());
     return rename_outputs_with_suffix({node}, context.get_name());

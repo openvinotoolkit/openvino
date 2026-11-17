@@ -498,6 +498,8 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
         } else if (replace_candidate.is_type<fully_connected>()) {
             auto& fc = replace_candidate.as<fully_connected>();
             auto desc = fc.get_primitive();
+            if (ov::element::is_gguf_block(fc.get_input_layout(1).data_type))
+                continue;
 
             // If the primitive has biases, then we try to combine the values, or do nothing and keep as fused sum.
             if (fc.bias_term()) {
@@ -1112,6 +1114,15 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             std::vector<bool> can_fuse_parents = { false, false };
 
+            // Static GGUF FC + binary eltwise is fused only when the prefill GEMM kernels of FCGGUFOpt can run on
+            // this device (they apply the fused post-ops); otherwise the pair stays unfused.
+            const auto& gguf_device_info = p.get_engine().get_device_info();
+            const bool gguf_gemm_supported = gguf_device_info.arch >= gpu_arch::xe2 && gguf_device_info.supports_immad &&
+                                             gguf_device_info.supports_intel_subgroups_short &&
+                                             gguf_device_info.supports_intel_subgroups_char &&
+                                             gguf_device_info.supports_intel_subgroup_2d_block_io &&
+                                             gguf_device_info.supports_intel_subgroup_matrix_multiply_accumulate;
+
             for (size_t i = 0; i < parents.size(); i++) {
                 can_fuse_parents[i] = (parents[i].first->is_type<convolution>() &&
                                        conv_supports_fusings(parents[i].first->as<convolution>())) ||
@@ -1125,7 +1136,14 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i].first->is_type<resample>()) ||
                                       (parents[i].first->is_type<space_to_depth>()) ||
                                       (parents[i].first->is_type<fully_connected>() &&
-                                       fc_supports_fusings(parents[i].first->as<fully_connected>())) ||
+                                                    (fc_supports_fusings(parents[i].first->as<fully_connected>()) ||
+                                                     ((prim->mode == eltwise_mode::sum || prim->mode == eltwise_mode::prod) &&
+                                                      prim->coefficients.empty() &&
+                                                      ov::element::is_gguf_block(parents[i].first->get_input_layout(1).data_type) &&
+                                                      gguf_gemm_supported &&
+                                                      parents[i].first->get_output_layout().is_static() &&
+                                                      parents[1 - i].first->get_output_layout().is_static() &&
+                                                      parents[i].first->get_output_pshape() == parents[1 - i].first->get_output_pshape()))) ||
                                       (parents[i].first->is_type<gemm>() &&
                                        gemm_supports_fusings(parents[i].first->as<gemm>())) ||
                                       (parents[i].first->is_type<batch_to_space>()) ||

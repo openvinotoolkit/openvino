@@ -16,8 +16,13 @@ namespace ov::intel_gpu::ocl {
 class KernelGenerator : public KernelGeneratorBase {
 public:
     // kernel name is the id used to find kernel in database while suffix is an optional identifier of specific stage
-    // for multi-stage implementations which makes kernel names more clear in any kind of profiles
-    explicit KernelGenerator(std::string_view name, std::string_view suffix = "") : m_kernel_name(name), m_stage_suffix(suffix) {}
+    // for multi-stage implementations which makes kernel names more clear in any kind of profiles.
+    // template_name selects the source in the database when it differs from the kernel name (several kernels
+    // sharing one source file and told apart by jit constants).
+    explicit KernelGenerator(std::string_view name, std::string_view suffix = "", std::string_view template_name = "")
+        : m_kernel_name(name),
+          m_stage_suffix(suffix),
+          m_template_name(template_name.empty() ? name : template_name) {}
 
     // Code generator is not supposed to be copied/moved as it's mainly used once to produce KernelData
     // or to query DispatchDataFunc during importing compiled blob. After that generators can be removed
@@ -55,6 +60,7 @@ protected:
 private:
     std::string m_kernel_name;
     std::string m_stage_suffix;
+    std::string m_template_name;
 };
 
 }  // namespace ov::intel_gpu::ocl

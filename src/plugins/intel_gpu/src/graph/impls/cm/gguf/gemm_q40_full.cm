@@ -1,0 +1,720 @@
+/*
+ * gemm_q40_full.cm -- Dense Q4_0 GEMM, unified layout (v8, cooperative).
+ *
+ * fp16 activations, SG-transposed Q4_0 weights (pqs_T || pd_T), cm_dpas
+ * systolic engine with VNNI-packed fp16-dequantized weight operands.
+ *
+ * Structure:
+ *   - one thread owns the whole K range (no K-split, no SLM reduction);
+ *   - one decoded VNNI tile pair feeds TOKEN_GROUPS dpas pairs;
+ *   - activations stream through an LSC 2D block descriptor;
+ *   - COOP_SLM stages the dequant cooperatively through an SLM ring;
+ *   - ROW_GROUPS N-blocking makes one A load feed several row groups.
+ *
+ * ==========================================================================
+ * WHY Q4_0 IS ALMOST FREE ONCE Q4_K EXISTS
+ * ==========================================================================
+ * A GGUF Q4_0 block is 32 weights with ONE fp16 scale and a fixed zero point
+ * of 8:                     w = (q - 8) * d,   q in [0,15]
+ * A Q4_K sub-block is also 32 weights, decoded as
+ *                           w = q * scale - minv
+ * so Q4_0 is exactly the Q4_K sub-block decode with
+ *                           scale = d,  minv = 8*d
+ * and the nibble packing is the same convention as Q4_K's shuffled pqs
+ * (byte p: low nibble = K-pos p, high nibble = K-pos p+16). The SIMD64
+ * bit-field extraction / VNNI scatter of q4k_vnni_decode is therefore reused
+ * VERBATIM -- this file only replaces Q4_K's 6-load 6-bit packed-scale
+ * front-end with a single 32 B fp16 scale load, which makes the producer
+ * side STRICTLY CHEAPER than Q4_K's. Do not "optimize" the decode itself:
+ * ab_bottleneck.py on the Q4_K kernel already measures nodecode at
+ * 0.93-1.14x, i.e. the dequant ALU is not the bottleneck; the activation
+ * operand is.
+ *
+ * Nibble layout per lane uint32 for chunk c (same as Q4_K):
+ *   bits 0..3:   lo K-pos 4c+0    bits 4..7:   hi K-pos 4c+16
+ *   bits 8..11:  lo K-pos 4c+1    bits 12..15: hi K-pos 4c+17
+ *   bits 16..19: lo K-pos 4c+2    bits 20..23: hi K-pos 4c+18
+ *   bits 24..27: lo K-pos 4c+3    bits 28..31: hi K-pos 4c+19
+ * VNNI: B_half[sd][2*n+k_bit] = W_fp16[k=2*sd+k_bit][n]
+ *
+ * == Weight layout ==  (num_blocks = input_len*output_len/256, OPG=16)
+ *   pqs_T: num_blocks * OPG * 128 bytes
+ *          [row group][K-block][sub-block j=0..7][chunk c=0..3][lane n=0..15][byte b=0..3]
+ *          (byte-for-byte the same shape as Q4_K's pqs_T)
+ *   pd_T:  num_blocks * OPG *  16 bytes
+ *          [row group][K-block][sub-block j=0..7][lane n=0..15] fp16 d
+ *   weights = pqs_T || pd_T
+ * i.e. one fp16 scale per (32-weight block, output row) instead of Q4_K's
+ * 6-bit packed scale+min pair, which is why pd_T is 16 B/lane/K-block where
+ * Q4_K's psl_T is 16 B/lane/K-block too but has to be unpacked.
+ *
+ * Dispatch (see test_dense_gemm_full.py) -- identical to the other full
+ * kernels:
+ *   global (threads) = (output_len/(OPG*ROW_GROUPS*ROW_BLOCKS),
+ *                       ceil(ntiles/TOKEN_SLOTS)*TOKEN_LOCAL)
+ *   local  (threads) = (1, TOKEN_LOCAL)
+ *   ntiles = ceil(token_len / (8*TOKEN_GROUPS))
+ *   TOKEN_LOCAL is a CORRECTNESS requirement (it is the COOP_SLM producer
+ *   count): SLM_JBLK*ROW_GROUPS*ROW_BLOCKS must equal it.
+ *
+ * ==========================================================================
+ * MEASURED on Arc B580 (ab_lowbit_config.py: all variants built from this
+ * source in ONE process, same buffers, correctness checked per variant,
+ * round-robin interleaved with a flush between every timed launch,
+ * min-of-N -- this board's clock drifts 2900 -> 1150 MHz under sustained
+ * load, so cross-process A/B is worthless)
+ * ==========================================================================
+ * Baseline = the adopted K-type BMG tile RG=2 TG=4 TL=8 RB=1 SLM_JBLK=4
+ * PF_A=1 A_OUTER=0, at token_len=1024:
+ *   A_OUTER=1     K4096/N4096 1.13x  K1024/N4096 1.13x
+ *                 K12288/N4096 1.11x K4096/N12288 1.25x   <-- ADOPTED
+ * and on top of A_OUTER=1 (vs it):
+ *   PF_A=0        1.01-1.07x   (small but not consistent across quants;
+ *                               kept at 1 to match the K-type kernels)
+ *   TOKEN_GROUPS=2   0.88-0.99x      TOKEN_GROUPS=8  0.17-0.19x (spills)
+ *   ROW_GROUPS=1     0.70-0.97x      ROW_GROUPS=4/TL=16  0.21-0.23x (spills:
+ *                                     4x4 fp32 accumulators = 8 KB)
+ *   TOKEN_LOCAL=16   0.95-1.03x      TOKEN_LOCAL=32/RB=2  0.91-1.07x
+ * i.e. the K-type dataflow conclusions carry over unchanged; only A_OUTER
+ * flips, and it flips for the K-types on this part too (1.05-1.34x, see
+ * test_dense_gemm_full.py's TUNED_CONFIGS comment). 128 registers, no spill.
+ */
+
+#include <cm/cm.h>
+#include <cm/cmtl.h>
+
+#pragma OPENCL EXTENSION cl_khr_fp16 : enable
+
+#define OPG 16
+#define TOKENS_PER_TILE 8          /* dpas RepeatCount */
+
+#ifdef CM_OUTPUT_F32
+typedef float cm_output_t;
+#define CM_OUTPUT_BYTES 4
+#else
+typedef half cm_output_t;
+#define CM_OUTPUT_BYTES 2
+#endif
+
+/* ---- decode compute precision ------------------------------------------
+ * See gemm_q4k_full.cm: measured perf-NEUTRAL (the decode temporaries are
+ * not the occupancy-capping resource) and it double-rounds, so the default
+ * keeps the fp32-decode path the numpy reference models. */
+#ifndef DECODE_HALF
+#define DECODE_HALF 0
+#endif
+#if DECODE_HALF
+typedef half  dect_t;
+#else
+typedef float dect_t;
+#endif
+
+/* ---- cooperative SLM weight-decode staging ------------------------------
+ * SLM bytes = SLM_SLOTS * SLM_NPROD * 2 * 512. See gemm_q4k_full.cm. */
+#ifndef COOP_SLM
+#define COOP_SLM 1
+#endif
+
+#ifndef ROW_GROUPS
+#define ROW_GROUPS 2
+#endif
+#if ROW_GROUPS > 1 && !COOP_SLM
+#error "ROW_GROUPS > 1 requires COOP_SLM"
+#endif
+
+#ifndef ROW_BLOCKS
+#define ROW_BLOCKS 1
+#endif
+#if ROW_BLOCKS > 1 && !COOP_SLM
+#error "ROW_BLOCKS > 1 requires COOP_SLM"
+#endif
+
+#ifndef SLM_JBLK
+#if ROW_GROUPS > 1
+#define SLM_JBLK 4                 /* RG*JBLK tile pairs per phase = TOKEN_LOCAL */
+#else
+#define SLM_JBLK 8
+#endif
+#endif
+#ifndef SLM_DEPTH
+#define SLM_DEPTH 1
+#endif
+#ifndef SLM_SLOTS
+#define SLM_SLOTS 2
+#endif
+#ifndef SLM_FULLBAR
+#define SLM_FULLBAR 1
+#endif
+
+#ifndef TOKEN_GROUPS
+#define TOKEN_GROUPS 4             /* dpas pairs fed by one decoded tile */
+#endif
+#ifndef TOKEN_LOCAL
+#if COOP_SLM
+#define TOKEN_LOCAL 8              /* = producers per phase */
+#else
+#define TOKEN_LOCAL 4
+#endif
+#endif
+#ifndef WALK_HBLK
+#define WALK_HBLK 0                /* band swizzle: measured a loss, kept as a knob */
+#endif
+#ifndef PF_W
+#if COOP_SLM
+#define PF_W 0
+#else
+#define PF_W 2
+#endif
+#endif
+#ifndef PF_A
+#if COOP_SLM && ROW_GROUPS == 1
+#define PF_A 0
+#else
+#define PF_A 1
+#endif
+#endif
+#ifndef A_LOAD_2D
+#define A_LOAD_2D 1
+#endif
+#ifndef MERGE_STORE
+/* One contiguous ROW_GROUPS*OPG store per token instead of ROW_GROUPS 64 B
+ * ones -- the row groups a thread owns are adjacent in N, so this halves (at
+ * RG=2) the store message count and is bit-identical. A flat cm_ptr_store
+ * tops out at 64 elements, so it has to fall back for ROW_GROUPS > 4. */
+#if (ROW_GROUPS * OPG) <= 64
+#define MERGE_STORE 1
+#else
+#define MERGE_STORE 0
+#endif
+#endif
+#if MERGE_STORE && (ROW_GROUPS * OPG) > 64
+#error "MERGE_STORE needs ROW_GROUPS*OPG <= 64 (LSC flat store vector limit)"
+#endif
+#ifndef A_OUTER
+#define A_OUTER 0                  /* 1 = hold A, stream B (adopted, see header) */
+#endif
+
+/* ---- A_BIG: ONE wide 2D block load for all TOKEN_GROUPS (A_OUTER only) ----
+ * With A_OUTER=1 the kernel already holds all TOKEN_GROUPS activation tiles
+ * live before the first dpas, so the "load them one 8-row block at a time"
+ * shape buys nothing -- it just costs TOKEN_GROUPS LSC messages and
+ * TOKEN_GROUPS set_block_y payload updates instead of one. A_BIG=1 replaces
+ * them with a single block_2d_desc<half, 2, TOKENS_PER_THREAD, 16> load; the
+ * destination register file is bit-identical (block 0 = columns j*32+0..15
+ * for all TOKENS_PER_THREAD rows, block 1 = columns j*32+16..31), so token
+ * group tg reads rows tg*8..tg*8+7 out of each block by region select.
+ * NOTE this is NOT the old "Abig" experiment, which was measured 0.78-0.99x
+ * at A_OUTER=0 -- there it serialized the whole 2 KB tile in front of a dpas
+ * chain that only needed 512 B of it. At A_OUTER=1 that serialization is
+ * already the adopted dataflow, so only the message/descriptor cost changes.
+ * Requires TOKENS_PER_THREAD <= 32 (2D block descriptor BlockH limit). */
+#ifndef A_BIG
+#define A_BIG 0
+#endif
+#if A_BIG && !A_OUTER
+#error "A_BIG requires A_OUTER=1"
+#endif
+
+/* ---- A_DESC_TG: one 2D descriptor per token group (A_OUTER only) ---------
+ * block_y of a token group's activation tile is loop-invariant (tile_base +
+ * tg*8) but the shared descriptor has to be re-pointed at it on every single
+ * load. The ISA dump of the K-type kernel showed ~64 scalar mov/or per hot
+ * loop doing nothing but descriptor payload updates. Giving each token group
+ * its own descriptor, initialised once, leaves only the set_block_x update
+ * on the critical path. Costs TOKEN_GROUPS-1 extra descriptor payloads
+ * (1 GRF each). */
+#ifndef A_DESC_TG
+#define A_DESC_TG 0
+#endif
+#if A_DESC_TG && !A_OUTER
+#error "A_DESC_TG requires A_OUTER=1"
+#endif
+#if A_DESC_TG && A_BIG
+#error "A_DESC_TG and A_BIG are mutually exclusive"
+#endif
+#ifndef SLM_PAD
+#define SLM_PAD 0
+#endif
+#ifndef A_L1H
+#define A_L1H Default
+#endif
+#ifndef A_L2H
+#define A_L2H Default
+#endif
+
+#define SLM_NPROD   (SLM_JBLK * ROW_GROUPS * ROW_BLOCKS)  /* tile pairs per phase */
+#define TOKEN_SLOTS (TOKEN_LOCAL / ROW_BLOCKS)   /* distinct token tiles per WG */
+#define SLM_TILE_B  ((8 * 32 * 2) + SLM_PAD)     /* VNNI tile STRIDE (data=512B) */
+#define SLM_PHASE_B (SLM_NPROD * 2 * SLM_TILE_B)
+#define SLM_TOTAL_B (SLM_SLOTS * SLM_PHASE_B)
+#define SLM_JPS     (8 / SLM_JBLK)               /* phases per K-block */
+
+#define TOKENS_PER_THREAD (TOKENS_PER_TILE * TOKEN_GROUPS)
+
+/* A 2D block descriptor tops out at 32 rows. */
+#if TOKENS_PER_THREAD > 32
+#define PFA_ROWS 32
+#else
+#define PFA_ROWS TOKENS_PER_THREAD
+#endif
+#define PFA_SETS (TOKENS_PER_THREAD / PFA_ROWS)
+
+/* Decode all 4 chunks of one sub-block in ONE SIMD64 pass.
+ * Bit-identical to gemm_q4k_full.cm's q4k_vnni_decode -- see that file for
+ * why the destination is the strided region .select<4,2,16,2>(kpair,kbit)
+ * and why no shuffle is needed. For Q4_0 the caller passes
+ * scale4 = d, minv4 = 8*d, so w = q*d - 8*d = (q-8)*d. */
+_GENX_ inline void q40_vnni_decode(
+    vector<uint, 4*OPG> q,
+    vector<dect_t, 4*OPG> scale4, vector<dect_t, 4*OPG> minv4,
+    vector_ref<half, 8*32> Blo, vector_ref<half, 8*32> Bhi)
+{
+    matrix_ref<half, 8, 32> Bl = Blo.format<half, 8, 32>();
+    matrix_ref<half, 8, 32> Bh = Bhi.format<half, 8, 32>();
+
+    { vector<dect_t,4*OPG> w=(q & 0xFu);       w=w*scale4-minv4; Bl.select<4,2,16,2>(0,0)=w.format<dect_t,4,OPG>(); }
+    { vector<dect_t,4*OPG> w=((q>>8)  & 0xFu); w=w*scale4-minv4; Bl.select<4,2,16,2>(0,1)=w.format<dect_t,4,OPG>(); }
+    { vector<dect_t,4*OPG> w=((q>>16) & 0xFu); w=w*scale4-minv4; Bl.select<4,2,16,2>(1,0)=w.format<dect_t,4,OPG>(); }
+    { vector<dect_t,4*OPG> w=((q>>24) & 0xFu); w=w*scale4-minv4; Bl.select<4,2,16,2>(1,1)=w.format<dect_t,4,OPG>(); }
+    { vector<dect_t,4*OPG> w=((q>>4)  & 0xFu); w=w*scale4-minv4; Bh.select<4,2,16,2>(0,0)=w.format<dect_t,4,OPG>(); }
+    { vector<dect_t,4*OPG> w=((q>>12) & 0xFu); w=w*scale4-minv4; Bh.select<4,2,16,2>(0,1)=w.format<dect_t,4,OPG>(); }
+    { vector<dect_t,4*OPG> w=((q>>20) & 0xFu); w=w*scale4-minv4; Bh.select<4,2,16,2>(1,0)=w.format<dect_t,4,OPG>(); }
+    { vector<dect_t,4*OPG> w=((q>>28) & 0xFu); w=w*scale4-minv4; Bh.select<4,2,16,2>(1,1)=w.format<dect_t,4,OPG>(); }
+}
+
+extern "C" _GENX_MAIN_ void gemm_q40_full(
+    half*  inputs  [[type("svmptr_t")]],   /* [token_len * input_len]  fp16 */
+    uchar* weights [[type("svmptr_t")]],   /* pqs_T || pd_T                 */
+    cm_output_t* outputs [[type("svmptr_t")]],   /* [token_len * output_len] */
+    uint token_len, uint input_len, uint output_len
+#ifdef CM_POST_OPS_DECLS
+    CM_POST_OPS_DECLS
+#endif
+)
+{
+    const uint nbpr       = input_len / 256;
+    const uint num_blocks = input_len * output_len / 256;
+
+    uint gh = cm_group_id(0);
+    uint gt = cm_group_id(1);
+#if WALK_HBLK > 1
+    {
+        const uint nh = cm_group_count(0);
+        const uint nt = cm_group_count(1);
+        if ((nh % WALK_HBLK) == 0) {
+            const uint lin  = gt * nh + gh;      /* driver walks dim0 fastest */
+            const uint band = WALK_HBLK * nt;
+            const uint hb   = lin / band;
+            const uint rem  = lin - hb * band;
+            gt = rem / WALK_HBLK;
+            gh = hb * WALK_HBLK + (rem - gt * WALK_HBLK);
+        }
+    }
+#endif
+    const uint lid = cm_local_id(1);
+    const uint rb = lid % ROW_BLOCKS;
+    const uint ts = lid / ROW_BLOCKS;
+    const uint h0 = (gh * ROW_BLOCKS + rb) * ROW_GROUPS;  /* first row group */
+    const uint t = gt * TOKEN_SLOTS + ts;
+
+    const uint tile_base = t * TOKENS_PER_THREAD;
+    const uint tok_max   = token_len - 1;
+
+    uchar* pqs_base = weights;
+    uchar* pd_base  = weights + num_blocks * 128u;
+
+    vector<float, TOKENS_PER_TILE * OPG> acc[ROW_GROUPS * TOKEN_GROUPS];
+    #pragma unroll
+    for (int i = 0; i < ROW_GROUPS * TOKEN_GROUPS; i++) acc[i] = 0.0f;
+
+#if PF_A
+    lsc::block_2d_desc<half, 1, PFA_ROWS, 32> pfA(
+        inputs, token_len - 1, input_len * (uint)sizeof(half) - 1,
+        input_len * (uint)sizeof(half) - 1, 0, (int)tile_base);
+#endif
+#if A_LOAD_2D
+    /* 2 blocks x [8 tokens x 16 halves]: one load yields [Alo | Ahi]. */
+    lsc::block_2d_desc<half, 2, TOKENS_PER_TILE, 16> b2dA(
+        inputs, token_len - 1, input_len * (uint)sizeof(half) - 1,
+        input_len * (uint)sizeof(half) - 1, 0, 0);
+#endif
+#if A_BIG
+    /* 2 blocks x [TOKENS_PER_THREAD tokens x 16 halves]: one load yields the
+     * activation operands of ALL token groups, block 0 = [.. +0..15],
+     * block 1 = [.. +16..31]. block_y is loop-invariant. */
+    lsc::block_2d_desc<half, 2, TOKENS_PER_THREAD, 16> b2dAbig(
+        inputs, token_len - 1, input_len * (uint)sizeof(half) - 1,
+        input_len * (uint)sizeof(half) - 1, 0, (int)tile_base);
+#endif
+#if A_DESC_TG
+    /* one descriptor per token group, block_y baked in at construction */
+    lsc::block_2d_desc<half, 2, TOKENS_PER_TILE, 16> b2dAtg[TOKEN_GROUPS] = {
+#if TOKEN_GROUPS > 0
+        lsc::block_2d_desc<half, 2, TOKENS_PER_TILE, 16>(
+            inputs, token_len - 1, input_len * (uint)sizeof(half) - 1,
+            input_len * (uint)sizeof(half) - 1, 0,
+            (int)(tile_base + 0 * TOKENS_PER_TILE)),
+#endif
+#if TOKEN_GROUPS > 1
+        lsc::block_2d_desc<half, 2, TOKENS_PER_TILE, 16>(
+            inputs, token_len - 1, input_len * (uint)sizeof(half) - 1,
+            input_len * (uint)sizeof(half) - 1, 0,
+            (int)(tile_base + 1 * TOKENS_PER_TILE)),
+#endif
+#if TOKEN_GROUPS > 2
+        lsc::block_2d_desc<half, 2, TOKENS_PER_TILE, 16>(
+            inputs, token_len - 1, input_len * (uint)sizeof(half) - 1,
+            input_len * (uint)sizeof(half) - 1, 0,
+            (int)(tile_base + 2 * TOKENS_PER_TILE)),
+        lsc::block_2d_desc<half, 2, TOKENS_PER_TILE, 16>(
+            inputs, token_len - 1, input_len * (uint)sizeof(half) - 1,
+            input_len * (uint)sizeof(half) - 1, 0,
+            (int)(tile_base + 3 * TOKENS_PER_TILE)),
+#endif
+    };
+#endif
+
+#if COOP_SLM
+    cm_slm_init(SLM_TOTAL_B);
+    uint slm = cm_slm_alloc(SLM_TOTAL_B);
+
+    const uint nstages = nbpr * SLM_JPS;
+
+    auto stage_fn = [&](int s) {
+        if (s >= (int)nstages) return;
+        const uint sbase = ((uint)s & (SLM_SLOTS - 1)) * SLM_PHASE_B;
+        const uint kb    = (uint)s / SLM_JPS;
+        const uint jb    = (uint)s - kb * SLM_JPS;
+
+#if SLM_NPROD >= TOKEN_LOCAL
+        #pragma unroll
+        for (int u = 0; u < SLM_NPROD / TOKEN_LOCAL; u++) {
+            const uint w = lid + (uint)u * TOKEN_LOCAL;
+#else
+        if (lid < SLM_NPROD) {
+            const uint w = lid;
+#endif
+            /* work item w -> (row block rbp, row group rg, sub-block jl) */
+            const uint rgj = ROW_GROUPS * SLM_JBLK;
+            const uint rbp = w / rgj;
+            const uint rem = w - rbp * rgj;
+            const uint rg = rem / SLM_JBLK;
+            const uint jl = rem - rg * SLM_JBLK;
+            const uint blk = ((gh * ROW_BLOCKS + rbp) * ROW_GROUPS + rg) * nbpr + kb;
+            const uint j  = jb * SLM_JBLK + jl;
+
+#if PF_W
+            if (s + 1 < (int)nstages)
+                cm_ptr_prefetch<64, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(
+                    (const unsigned*)pqs_base, blk * (OPG * 128u) + (j + SLM_JBLK) * 256u);
+#endif
+            /* payload: 4 chunks x 16 lanes x 4 bytes = one SIMD64 uint load */
+            vector<uint, 4*OPG> q =
+                cm_ptr_load<uint, 4*OPG>((uint*)pqs_base, blk * (OPG * 128u) + j * 256u);
+
+            /* one fp16 scale per (sub-block, lane): a single 32 B load */
+            vector<uint, OPG/2> pd_u =
+                cm_ptr_load<uint, OPG/2>((uint*)pd_base, blk * (OPG * 16u) + j * 32u);
+            vector<half,  OPG> dh = pd_u.format<half>();
+            vector<float, OPG> dF; dF = dh;
+
+            vector<dect_t, 4*OPG> scale4, minv4;
+            #pragma unroll
+            for (int c = 0; c < 4; c++) {
+                scale4.select<OPG,1>(c*OPG) = dF;
+                minv4 .select<OPG,1>(c*OPG) = dF * 8.0f;   /* fixed zero point */
+            }
+
+            vector<half, 8*32> Blo, Bhi;
+            q40_vnni_decode(q, scale4, minv4, Blo, Bhi);
+            cm_slm_block_write(slm, (int)(sbase + (w * 2 + 0) * SLM_TILE_B), Blo);
+            cm_slm_block_write(slm, (int)(sbase + (w * 2 + 1) * SLM_TILE_B), Bhi);
+        }
+    };
+
+    #pragma unroll
+    for (int d = 0; d < SLM_DEPTH; d++) stage_fn(d);
+#if !SLM_FULLBAR
+    cm_slm_fence(CM_LOCAL_BARRIER);
+    cm_sbarrier(1);
+#endif
+
+    for (uint s = 0; s < nstages; s++) {
+#if SLM_FULLBAR
+        cm_slm_fence(CM_LOCAL_BARRIER);
+        cm_barrier();
+#else
+        cm_fence(CM_LOCAL_BARRIER);
+        cm_sbarrier(0);
+        if (s + 1 < nstages) cm_sbarrier(1);
+#endif
+
+        stage_fn((int)s + SLM_DEPTH);
+
+        const uint kb = s / SLM_JPS;
+        const uint jb = s - kb * SLM_JPS;
+#if PF_A
+        if (jb == 0 && kb + 1 < nbpr) {
+            #pragma unroll
+            for (int r = 0; r < PFA_SETS; r++) {
+                pfA.set_block_y((int)(tile_base + r * PFA_ROWS));
+                #pragma unroll
+                for (int p = 0; p < PF_A; p++)
+                    cm_prefetch<CacheHint::Cached, CacheHint::Cached>(
+                        pfA.set_block_x((int)((kb + 1) * 256u) + p * 32));
+            }
+        }
+#endif
+        const uint sbase = (s & (SLM_SLOTS - 1)) * SLM_PHASE_B;
+
+#if A_OUTER
+        /* hold A, stream B: live B is one tile pair regardless of ROW_GROUPS,
+         * and all TOKEN_GROUPS activation loads are issued back-to-back
+         * before the first dpas so their latency overlaps compute. */
+        #pragma unroll
+        for (int jl = 0; jl < SLM_JBLK; jl++) {
+            const int j = (int)jb * SLM_JBLK + jl;
+#if A_BIG
+            vector<half, 2 * TOKENS_PER_THREAD * 16> Abig;
+            cm_load<lsc::Normal, CacheHint::A_L1H, CacheHint::A_L2H>(
+                Abig, b2dAbig.set_block_x((int)(kb * 256u) + j * 32));
+#else
+            vector<half, 2 * TOKENS_PER_TILE * 16> A2[TOKEN_GROUPS];
+            #pragma unroll
+            for (int tg = 0; tg < TOKEN_GROUPS; tg++) {
+#if A_DESC_TG
+                cm_load<lsc::Normal, CacheHint::A_L1H, CacheHint::A_L2H>(
+                    A2[tg], b2dAtg[tg].set_block_x((int)(kb * 256u) + j * 32));
+#else
+                b2dA.set_block_y((int)(tile_base + tg * TOKENS_PER_TILE));
+                cm_load<lsc::Normal, CacheHint::A_L1H, CacheHint::A_L2H>(
+                    A2[tg], b2dA.set_block_x((int)(kb * 256u) + j * 32));
+#endif
+            }
+#endif
+            #pragma unroll
+            for (int rg = 0; rg < ROW_GROUPS; rg++) {
+                const uint ti = (rb * ROW_GROUPS + (uint)rg) * SLM_JBLK + (uint)jl;
+                vector<half, 8*32> Blo, Bhi;
+                cm_slm_block_read(slm, GENX_NONE,
+                    (int)(sbase + (ti * 2 + 0) * SLM_TILE_B), Blo);
+                cm_slm_block_read(slm, GENX_NONE,
+                    (int)(sbase + (ti * 2 + 1) * SLM_TILE_B), Bhi);
+                #pragma unroll
+                for (int tg = 0; tg < TOKEN_GROUPS; tg++) {
+#if A_BIG
+                    auto Alo = Abig.select<TOKENS_PER_TILE * 16, 1>(
+                                   tg * TOKENS_PER_TILE * 16);
+                    auto Ahi = Abig.select<TOKENS_PER_TILE * 16, 1>(
+                                   TOKENS_PER_THREAD * 16 + tg * TOKENS_PER_TILE * 16);
+#else
+                    auto Alo = A2[tg].select<TOKENS_PER_TILE * 16, 1>(0);
+                    auto Ahi = A2[tg].select<TOKENS_PER_TILE * 16, 1>(TOKENS_PER_TILE * 16);
+#endif
+                    acc[rg * TOKEN_GROUPS + tg] =
+                        cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                            acc[rg * TOKEN_GROUPS + tg], Blo.format<int32_t>(), Alo.format<int32_t>());
+                    acc[rg * TOKEN_GROUPS + tg] =
+                        cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                            acc[rg * TOKEN_GROUPS + tg], Bhi.format<int32_t>(), Ahi.format<int32_t>());
+                }
+            }
+        }
+#else
+        #pragma unroll
+        for (int jl = 0; jl < SLM_JBLK; jl++) {
+            /* ROW_GROUPS tile pairs live at once; each is fed by the SAME A
+             * register, which is what halves the activation traffic. */
+            vector<half, 8*32> Blo[ROW_GROUPS], Bhi[ROW_GROUPS];
+            #pragma unroll
+            for (int rg = 0; rg < ROW_GROUPS; rg++) {
+                const uint ti = (rb * ROW_GROUPS + (uint)rg) * SLM_JBLK + (uint)jl;
+                cm_slm_block_read(slm, GENX_NONE,
+                    (int)(sbase + (ti * 2 + 0) * SLM_TILE_B), Blo[rg]);
+                cm_slm_block_read(slm, GENX_NONE,
+                    (int)(sbase + (ti * 2 + 1) * SLM_TILE_B), Bhi[rg]);
+            }
+
+            const int j = (int)jb * SLM_JBLK + jl;
+            #pragma unroll
+            for (int tg = 0; tg < TOKEN_GROUPS; tg++) {
+                vector<half, 2 * TOKENS_PER_TILE * 16> A2;
+                b2dA.set_block_y((int)(tile_base + tg * TOKENS_PER_TILE));
+                cm_load<lsc::Normal, CacheHint::A_L1H, CacheHint::A_L2H>(
+                    A2, b2dA.set_block_x((int)(kb * 256u) + j * 32));
+                auto Alo = A2.select<TOKENS_PER_TILE * 16, 1>(0);
+                auto Ahi = A2.select<TOKENS_PER_TILE * 16, 1>(TOKENS_PER_TILE * 16);
+                #pragma unroll
+                for (int rg = 0; rg < ROW_GROUPS; rg++) {
+                    acc[rg * TOKEN_GROUPS + tg] =
+                        cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                            acc[rg * TOKEN_GROUPS + tg], Blo[rg].format<int32_t>(), Alo.format<int32_t>());
+                    acc[rg * TOKEN_GROUPS + tg] =
+                        cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                            acc[rg * TOKEN_GROUPS + tg], Bhi[rg].format<int32_t>(), Ahi.format<int32_t>());
+                }
+            }
+        }
+#endif /* A_OUTER */
+    }
+#else  /* !COOP_SLM: every thread decodes its own row group (v6 path) */
+
+    for (uint kb = 0; kb < nbpr; kb++) {
+        const uint blk = h0 * nbpr + kb;
+#if PF_W
+        if (kb + 1 < nbpr) {
+            #pragma unroll
+            for (int p = 0; p < PF_W; p++)
+                cm_ptr_prefetch<64, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(
+                    (const unsigned*)pqs_base, (blk + 1) * (OPG * 128u) + p * 256u);
+            cm_ptr_prefetch<64, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(
+                (const unsigned*)pd_base, (blk + 1) * (OPG * 16u));
+        }
+#endif
+#if PF_A
+        if (kb + 1 < nbpr) {
+            #pragma unroll
+            for (int r = 0; r < PFA_SETS; r++) {
+                pfA.set_block_y((int)(tile_base + r * PFA_ROWS));
+                #pragma unroll
+                for (int p = 0; p < PF_A; p++)
+                    cm_prefetch<CacheHint::Cached, CacheHint::Cached>(
+                        pfA.set_block_x((int)((kb + 1) * 256u) + p * 32));
+            }
+        }
+#endif
+        const uint pqs_byte = blk * (OPG * 128u);
+        const uint pd_byte  = blk * (OPG * 16u);
+        const uint a_koff   = kb * 256u * (uint)sizeof(half);
+
+        #pragma unroll
+        for (int j = 0; j < 8; j++) {
+            vector<uint, 4*OPG> q =
+                cm_ptr_load<uint, 4*OPG>((uint*)pqs_base, pqs_byte + j*256);
+            vector<uint, OPG/2> pd_u =
+                cm_ptr_load<uint, OPG/2>((uint*)pd_base, pd_byte + j*32);
+            vector<half,  OPG> dh = pd_u.format<half>();
+            vector<float, OPG> dF; dF = dh;
+
+            vector<dect_t, 4*OPG> scale4, minv4;
+            #pragma unroll
+            for (int c = 0; c < 4; c++) {
+                scale4.select<OPG,1>(c*OPG) = dF;
+                minv4 .select<OPG,1>(c*OPG) = dF * 8.0f;
+            }
+
+            vector<half, 8*32> Blo, Bhi;
+            q40_vnni_decode(q, scale4, minv4, Blo, Bhi);
+
+            /* ONE decoded tile pair feeds TOKEN_GROUPS dpas pairs */
+            #pragma unroll
+            for (int tg = 0; tg < TOKEN_GROUPS; tg++) {
+#if A_LOAD_2D
+                vector<half, 2 * TOKENS_PER_TILE * 16> A2;
+                b2dA.set_block_y((int)(tile_base + tg * TOKENS_PER_TILE));
+                cm_load<lsc::Normal>(A2, b2dA.set_block_x((int)(kb * 256u) + j * 32));
+                auto Alo = A2.select<TOKENS_PER_TILE * 16, 1>(0);
+                auto Ahi = A2.select<TOKENS_PER_TILE * 16, 1>(TOKENS_PER_TILE * 16);
+#else
+                vector<half, TOKENS_PER_TILE * 16> Alo, Ahi;
+                #pragma unroll
+                for (int i = 0; i < TOKENS_PER_TILE; i++) {
+                    uint tok = tile_base + tg * TOKENS_PER_TILE + i;
+                    tok = (tok < token_len) ? tok : tok_max;
+                    const uint ab = tok * input_len * (uint)sizeof(half) + a_koff + j * 64u;
+                    vector<half, 32> ah =
+                        cm_ptr_load<uint, 16>((uint*)inputs, ab).format<half>();
+                    Alo.select<16,1>(i*16) = ah.select<16,1>(0);
+                    Ahi.select<16,1>(i*16) = ah.select<16,1>(16);
+                }
+#endif
+                acc[tg] = cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                              acc[tg], Blo.format<int32_t>(), Alo.format<int32_t>());
+                acc[tg] = cm_dpas<CM_PRECISION_HF,CM_PRECISION_HF,8,TOKENS_PER_TILE>(
+                              acc[tg], Bhi.format<int32_t>(), Ahi.format<int32_t>());
+            }
+        }
+    }
+#endif /* COOP_SLM */
+
+#if MERGE_STORE
+    /* the ROW_GROUPS row groups of a thread are adjacent in N, so one store
+     * per token covers all of them */
+    #pragma unroll
+    for (int tg = 0; tg < TOKEN_GROUPS; tg++) {
+        #pragma unroll
+        for (int i = 0; i < TOKENS_PER_TILE; i++) {
+            uint tok = tile_base + tg * TOKENS_PER_TILE + i;
+            if (tok < token_len) {
+                vector<float, ROW_GROUPS * OPG> ov;
+                #pragma unroll
+                for (int rg = 0; rg < ROW_GROUPS; rg++)
+                    ov.select<OPG, 1>(rg * OPG) =
+                        acc[rg * TOKEN_GROUPS + tg].select<OPG, 1>(i * OPG);
+#if CM_POST_OPS_NUM > 0
+                /* Vectorized post-ops: mutate the WHOLE 'ov' vector in a
+                 * couple of SIMD instructions -- never a per-lane scalar
+                 * loop (that regressed perf badly: unrolled over
+                 * ROW_GROUPS*OPG lanes x up to TOKEN_GROUPS*TOKENS_PER_TILE
+                 * token stores = hundreds of scalar ops, plus non-coalesced
+                 * scalar loads of the fused operand). */
+                { const uint _po_base = tok * output_len + h0 * OPG;
+                  #ifdef CM_APPLY_POST_OP_0
+                  CM_APPLY_POST_OP_0(ov, _po_base, ROW_GROUPS * OPG)
+                  #endif
+                  #ifdef CM_APPLY_POST_OP_1
+                  CM_APPLY_POST_OP_1(ov, _po_base, ROW_GROUPS * OPG)
+                  #endif
+                  #ifdef CM_APPLY_POST_OP_2
+                  CM_APPLY_POST_OP_2(ov, _po_base, ROW_GROUPS * OPG)
+                  #endif
+                }
+#endif
+                vector<cm_output_t, ROW_GROUPS * OPG> ov_h = ov;
+#ifdef CM_OUTPUT_F32
+                cm_ptr_store<float, ROW_GROUPS * OPG>((float*)outputs,
+                    (tok * output_len + h0 * OPG) * (uint)sizeof(float), ov_h);
+#else
+                cm_ptr_store<uint, ROW_GROUPS * OPG / 2>((uint*)outputs,
+                    (tok * output_len + h0 * OPG) * (uint)sizeof(half), ov_h.format<uint>());
+#endif
+            }
+        }
+    }
+#else
+    #pragma unroll
+    for (int rg = 0; rg < ROW_GROUPS; rg++) {
+        #pragma unroll
+        for (int tg = 0; tg < TOKEN_GROUPS; tg++) {
+            #pragma unroll
+            for (int i = 0; i < TOKENS_PER_TILE; i++) {
+                uint tok = tile_base + tg * TOKENS_PER_TILE + i;
+                if (tok < token_len) {
+                    vector<float, OPG> ov_rg = acc[rg * TOKEN_GROUPS + tg].select<OPG, 1>(i * OPG);
+#if CM_POST_OPS_NUM > 0
+                    { const uint _po_base = tok * output_len + (h0 + (uint)rg) * OPG;
+                      #ifdef CM_APPLY_POST_OP_0
+                      CM_APPLY_POST_OP_0(ov_rg, _po_base, OPG)
+                      #endif
+                      #ifdef CM_APPLY_POST_OP_1
+                      CM_APPLY_POST_OP_1(ov_rg, _po_base, OPG)
+                      #endif
+                      #ifdef CM_APPLY_POST_OP_2
+                      CM_APPLY_POST_OP_2(ov_rg, _po_base, OPG)
+                      #endif
+                    }
+#endif
+                    { vector<cm_output_t, OPG> ov_out = ov_rg;
+#ifdef CM_OUTPUT_F32
+                      cm_ptr_store<float, OPG>((float*)outputs,
+                          (tok * output_len + (h0 + rg) * OPG) * (uint)sizeof(float), ov_out); }
+#else
+                      cm_ptr_store<uint, OPG / 2>((uint*)outputs,
+                          (tok * output_len + (h0 + rg) * OPG) * (uint)sizeof(half), ov_out.format<uint>()); }
+#endif
+                }
+            }
+        }
+    }
+#endif
+}

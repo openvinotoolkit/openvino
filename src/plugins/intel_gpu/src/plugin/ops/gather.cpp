@@ -11,6 +11,7 @@
 #include "ov_ops/gather_compressed.hpp"
 
 #include "intel_gpu/primitives/gather.hpp"
+#include "intel_gpu/primitives/gather_gguf.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
 #include "intel_gpu/primitives/crop.hpp"
@@ -223,6 +224,44 @@ REGISTER_FACTORY_IMPL(v8, Gather);
 
 static void CreateGatherCompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::GatherCompressed>& op) {
     validate_inputs_count(op, {4, 5});
+    if (op->get_input_element_type(0).is_gguf_block()) {
+        auto inputs = p.GetInputInfo(op);
+        const std::string layerName = layer_type_name_ID(op);
+        const auto& data_pshape = op->get_input_partial_shape(0);
+        const auto scale = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(3));
+        OPENVINO_ASSERT(data_pshape.rank() == 2 && data_pshape.is_static() &&
+                            data_pshape[0].get_length() > 0 && data_pshape[1].get_length() > 0 &&
+                            data_pshape[1].get_length() % op->get_input_element_type(0).block_elem_count() == 0 &&
+                            ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(0)) &&
+                            op->get_axis() == 0 && op->get_batch_dims() == 0 &&
+                            (op->get_output_element_type(0) == ov::element::f16 ||
+                             op->get_output_element_type(0) == ov::element::f32) &&
+                            scale && scale->cast_vector<float>() == std::vector<float>{1.f} &&
+                            op->get_input_size() == 4,
+                        "[GPU] gather_gguf requires static block-aligned weights, axis=0, batch_dims=0, "
+                        "F16/F32 output and a unit scale without a separate zero point; output=",
+                        op->get_output_element_type(0), ", scale=", op->get_input_element_type(3),
+                        ", shape=", data_pshape, ", axis=", op->get_axis(),
+                        ", batch_dims=", op->get_batch_dims(), ", inputs=", op->get_input_size());
+        const int64_t vocab = data_pshape[0].get_length();
+        const int64_t hidden = data_pshape[1].get_length();
+        const bool convert_output = op->get_output_element_type(0) != ov::element::f16;
+        auto prim = cldnn::gather_gguf(convert_output ? layerName + "_gguf_f16" : layerName,
+                                     inputs[0],
+                                     inputs[1],
+                                     op->get_input_element_type(0),
+                                     vocab,
+                                     hidden);
+        p.add_primitive(*op, prim);
+        if (convert_output) {
+            auto reorder = cldnn::reorder(layerName,
+                                         cldnn::input_info(prim.id),
+                                         cldnn::format::get_default_format(op->get_output_partial_shape(0).size()),
+                                         cldnn::element_type_to_data_type(op->get_output_element_type(0)));
+            p.add_primitive(*op, reorder);
+        }
+        return;
+    }
     CreateGatherOpBase<ov::op::internal::GatherCompressed>(p, op, op->get_batch_dims(), true, true);
 }
 

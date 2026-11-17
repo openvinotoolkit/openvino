@@ -17,6 +17,7 @@
 
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
@@ -36,6 +37,9 @@ using data_types = ov::element::Type_t;
 struct data_type_traits {
     static size_t size_of(data_types data_type) {
         auto et = ov::element::Type(data_type);
+        OPENVINO_ASSERT(!et.is_gguf_block(),
+                        "[GPU] data_type_traits::size_of is not defined for opaque GGUF block types; "
+                        "use layout::bytes_count() / ov::util::get_memory_size() instead.");
         OPENVINO_ASSERT(et.bitwidth() >= 8, "[GPU] Unexpected data_type_traits::size_of call for type with bitwidth < 8 (", et.get_type_name(), ")");
         return et.size();
     }
@@ -51,7 +55,7 @@ struct data_type_traits {
 
     static bool is_i4_u4(data_types data_type) {
         auto et = ov::element::Type(data_type);
-        return et.bitwidth() == 4;
+        return !et.is_gguf_block() && et.bitwidth() == 4;
     }
 
     static ov::element::Type max_type(ov::element::Type t1, ov::element::Type t2) {
@@ -343,13 +347,15 @@ struct layout {
 
     /// Number of bytes needed to store this layout
     size_t bytes_count() const {
+        const auto bytes_of_layout = ov::element::is_gguf_block(data_type)
+                                         ? ov::util::get_memory_size(ov::element::Type(data_type), get_linear_size())
+                                         : ((ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3);
         if (format == cldnn::format::custom) {
-            auto bytes_of_layout = (ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3;
             auto desc_size = format.traits().desc_size;
             OPENVINO_ASSERT(desc_size > 0, "[GPU] Invalid layout descriptor size: ", desc_size);
             return desc_size > bytes_of_layout ? desc_size : bytes_of_layout;
         }
-        return (ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3;
+        return bytes_of_layout;
     }
 
     const cldnn::format& get_format() const;

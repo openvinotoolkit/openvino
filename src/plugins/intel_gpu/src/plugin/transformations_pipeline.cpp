@@ -143,6 +143,7 @@
 #include "plugin/transformations/disable_fp16_comp_cumsum_sin_gen.hpp"
 #include "plugin/transformations/disable_fp16_comp_sin_gen.hpp"
 #include "plugin/transformations/increase_rms_input_precision.hpp"
+#include "plugin/transformations/repack_gguf_weights.hpp"
 #include "plugin/transformations/force_fp32_selective.hpp"
 #include "plugin/transformations/l2_norm_to_rms.hpp"
 #include "transformations/common_optimizations/activations_scaling.hpp"
@@ -1923,6 +1924,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (!device_info.supports_immad) {
             manager.register_pass<ov::intel_gpu::ReduceFCDimensions>();
         }
+        manager.register_pass<ov::intel_gpu::ConvertGGUFFullyConnectedCompressed>();
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
         manager.register_pass<ov::intel_gpu::FoldActivationTranspose>();
 
@@ -1987,6 +1989,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         });
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
+    #ifdef ENABLE_ONEDNN_FOR_GPU
+        manager.register_pass<ov::intel_gpu::RepackGGUFWeightsShuffle>(true);
+    #endif
         manager.register_pass<ov::intel_gpu::TransposeFusion>(device_info.supports_immad);
         // Absorb a trailing Transpose({0,2,1,3}) into the SDPA output order so
         // the attention output-projection FC reads a contiguous [S, H*D] input.

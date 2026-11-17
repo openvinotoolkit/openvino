@@ -38,6 +38,35 @@
 
 namespace ov::frontend::gguf {
 
+ov::element::Type gguf_raw_element_type(GgufTensorType type) {
+    switch (type) {
+    case GGUF_TYPE_Q4_0:
+        return ov::element::gguf_q4_0;
+    case GGUF_TYPE_Q4_1:
+        return ov::element::gguf_q4_1;
+    case GGUF_TYPE_Q3_K:
+        return ov::element::gguf_q3_k;
+    case GGUF_TYPE_Q4_K:
+        return ov::element::gguf_q4_k;
+    case GGUF_TYPE_Q5_K:
+        return ov::element::gguf_q5_k;
+    case GGUF_TYPE_Q6_K:
+        return ov::element::gguf_q6_k;
+    case GGUF_TYPE_Q8_0:
+        return ov::element::gguf_q8_0;
+    case GGUF_TYPE_IQ2_XS:
+        return ov::element::gguf_iq2_xs;
+    case GGUF_TYPE_IQ2_S:
+        return ov::element::gguf_iq2_s;
+    case GGUF_TYPE_IQ3_XXS:
+        return ov::element::gguf_iq3_xxs;
+    case GGUF_TYPE_IQ3_S:
+        return ov::element::gguf_iq3_s;
+    default:
+        return ov::element::dynamic;
+    }
+}
+
 namespace {
 
 constexpr uint32_t GGUF_MAGIC = 0x46554747;  // "GGUF" little-endian
@@ -87,6 +116,14 @@ TypeTraits type_traits(uint32_t type) {
         return {256, 210};
     case GGUF_TYPE_Q8_K:
         return {256, 292};
+    case GGUF_TYPE_IQ2_XS:
+        return {256, 74};
+    case GGUF_TYPE_IQ2_S:
+        return {256, 82};
+    case GGUF_TYPE_IQ3_XXS:
+        return {256, 98};
+    case GGUF_TYPE_IQ3_S:
+        return {256, 110};
     case GGUF_TYPE_I8:
         return {1, 1};
     case GGUF_TYPE_I16:
@@ -376,6 +413,10 @@ GgufWeight::GgufWeight(const ov::Tensor& tensor) : data(tensor), shape(tensor.ge
 
 WeightTensors allocate_gguf_weight(const GgufWeight& source, const ov::Shape& shape) {
     WeightTensors result;
+    if (source.preserve_raw) {
+        result.weight = ov::Tensor(gguf_raw_element_type(source.qtype), shape);
+        return result;
+    }
     const auto layout = quant_layout(source.qtype, source.source_name);
     if (!layout) {
         result.weight = ov::Tensor(source.data.get_element_type(), shape);
@@ -396,6 +437,12 @@ WeightTensors allocate_gguf_weight(const GgufWeight& source, const ov::Shape& sh
 }
 
 void unpack_gguf_weight_into(const GgufWeight& source, WeightTensors& destination) {
+    if (source.preserve_raw) {
+        OPENVINO_ASSERT(destination.weight.get_element_type() == gguf_raw_element_type(source.qtype) &&
+                        source.data.get_byte_size() == destination.weight.get_byte_size());
+        std::memcpy(destination.weight.data(), source.data.data(), source.data.get_byte_size());
+        return;
+    }
     const auto layout = quant_layout(source.qtype, source.source_name);
     if (!layout) {
         OPENVINO_ASSERT(source.data.get_element_type() == destination.weight.get_element_type() &&
@@ -427,6 +474,10 @@ void unpack_gguf_weight_into(const GgufWeight& source, WeightTensors& destinatio
 }
 
 WeightTensors unpack_gguf_weight(const GgufWeight& source) {
+    if (source.preserve_raw) {
+        ov::Tensor view(gguf_raw_element_type(source.qtype), source.shape, source.data.data());
+        return {ov::Tensor(view, std::make_shared<ov::Tensor>(source.data)), {}, {}};
+    }
     if (!quant_layout(source.qtype, source.source_name))
         return {source.data, {}, {}};
     auto result = allocate_gguf_weight(source, source.shape);
@@ -440,7 +491,7 @@ bool gguf_is_q2_0_family(GgufTensorType type) {
 }
 
 bool gguf_same_unpacked_layout(const GgufWeight& a, const GgufWeight& b) {
-    if (a.qtype != b.qtype || a.native != b.native)
+    if (a.qtype != b.qtype || a.native != b.native || a.preserve_raw != b.preserve_raw)
         return false;
     const auto lhs = quant_layout(a.qtype, a.source_name);
     const auto rhs = quant_layout(b.qtype, b.source_name);
@@ -465,6 +516,8 @@ bool gguf_has_u2_weights(GgufTensorType type) {
 }
 
 size_t gguf_weight_group_size(const GgufWeight& source) {
+    if (source.preserve_raw)
+        return gguf_raw_element_type(source.qtype).block_elem_count();
     const auto layout = quant_layout(source.qtype, source.source_name);
     return layout ? layout->group_size : 1;
 }
@@ -500,6 +553,7 @@ struct GgufFile {
     std::shared_ptr<ov::MappedMemory> mapped;
     uint64_t alignment;
     uint64_t data_off;
+    std::filesystem::path source;
 };
 
 GgufFile read_gguf_file(const std::filesystem::path& file) {
@@ -568,7 +622,8 @@ GgufFile read_gguf_file(const std::filesystem::path& file) {
     // Tensor data starts at the next `alignment`-aligned offset after the info section.
     uint64_t data_off = cur.offset() + ov::util::align_padding_size(alignment, cur.offset());
     OPENVINO_ASSERT(data_off <= fsize, "[load_gguf] tensor data section starts past EOF");
-    return {std::move(metadata), std::move(infos), std::move(mapped), alignment, data_off};
+        return {std::move(metadata), std::move(infos), std::move(mapped), alignment, data_off,
+            std::filesystem::absolute(file)};
 }
 
 void detect_legacy_q2_layout(std::vector<GgufFile>& files) {
@@ -629,8 +684,8 @@ void detect_legacy_q2_layout(std::vector<GgufFile>& files) {
     }
 }
 
-void load_gguf_tensors(GgufFile& file, GgufWeightTable& arrays) {
-    auto& [metadata, infos, mapped, alignment, data_off] = file;
+void load_gguf_tensors(GgufFile& file, GgufWeightTable& arrays, const GGUFLoadOptions& options) {
+    auto& [metadata, infos, mapped, alignment, data_off, file_source] = file;
     const auto* base = reinterpret_cast<const uint8_t*>(mapped->data());
     const uint64_t fsize = mapped->size();
 
@@ -662,7 +717,24 @@ void load_gguf_tensors(GgufFile& file, GgufWeightTable& arrays) {
         return {bytes(ql.weight_type, weight_shape), bytes(ql.scale_type, scale_shape), z_bytes};
     };
 
+    const auto preserve_raw = [&options](uint32_t type) {
+        return (options.preserve_q4_k && type == GGUF_TYPE_Q4_K) ||
+               (options.preserve_q5_k && type == GGUF_TYPE_Q5_K) ||
+               (options.preserve_q6_k && type == GGUF_TYPE_Q6_K) ||
+             (options.preserve_q8_0 && type == GGUF_TYPE_Q8_0) ||
+             (options.preserve_q4_0 && type == GGUF_TYPE_Q4_0) ||
+             (options.preserve_q4_1 && type == GGUF_TYPE_Q4_1) ||
+             (options.preserve_q3_k && type == GGUF_TYPE_Q3_K) ||
+             (options.preserve_iq2_xs && type == GGUF_TYPE_IQ2_XS) ||
+             (options.preserve_iq2_s && type == GGUF_TYPE_IQ2_S) ||
+             (options.preserve_iq3_xxs && type == GGUF_TYPE_IQ3_XXS) ||
+             (options.preserve_iq3_s && type == GGUF_TYPE_IQ3_S);
+    };
     for (const auto& info : infos) {
+        if (preserve_raw(info.type)) {
+            OPENVINO_ASSERT(info.ndim != 0, "[load_gguf] tensor '", info.name, "' is quantized but has rank 0");
+            continue;
+        }
         if (const auto layout = quant_layout(info.type, info.name)) {
             quant_sizes(info, *layout);
         }
@@ -678,7 +750,14 @@ void load_gguf_tensors(GgufFile& file, GgufWeightTable& arrays) {
         uint64_t nelem = 1;
         for (uint32_t d = 0; d < ti.ndim; d++) {
             tensor.dim[d] = ti.dim[d];
-            nelem *= ti.dim[d];
+            OPENVINO_ASSERT(ti.dim[d] <= std::numeric_limits<size_t>::max(),
+                            "[load_gguf] tensor '",
+                            ti.name,
+                            "' dimension exceeds size_t");
+            OPENVINO_ASSERT(!ov::util::mul_overflow(nelem, ti.dim[d], nelem),
+                            "[load_gguf] tensor '",
+                            ti.name,
+                            "' element count overflows uint64_t");
         }
         tensor.num_weights = nelem;
         tensor.offset = ti.offset;
@@ -697,7 +776,12 @@ void load_gguf_tensors(GgufFile& file, GgufWeightTable& arrays) {
                         ti.dim[0],
                         " is not a multiple of its block size ",
                         tr.items_per_block);
-        tensor.bsize = (nelem / tr.items_per_block) * tr.bytes_per_block;
+        OPENVINO_ASSERT(!ov::util::mul_overflow<uint64_t>(nelem / tr.items_per_block,
+                                tr.bytes_per_block,
+                                tensor.bsize),
+                "[load_gguf] tensor '",
+                ti.name,
+                "' byte count overflows uint64_t");
 
         // Subtraction-based bounds checks: ti.offset comes straight from the file, so a crafted
         // value must not be allowed to wrap either addition below back into a valid-looking range.
@@ -713,7 +797,10 @@ void load_gguf_tensors(GgufFile& file, GgufWeightTable& arrays) {
         source.qtype = static_cast<GgufTensorType>(ti.type);
         source.source_name = name;
         source.mapped = mapped;
-        if (quant_layout(ti.type, ti.name)) {
+        source.preserve_raw = preserve_raw(ti.type);
+        source.external_source = file_source;
+        source.external_offset = abs_off;
+        if (source.preserve_raw || quant_layout(ti.type, ti.name)) {
             auto bytes = ov::Tensor(ov::element::u8,
                                     {static_cast<size_t>(tensor.bsize)},
                                     const_cast<uint8_t*>(tensor.weights_data));
@@ -766,7 +853,7 @@ std::string split_suffix(uint64_t index, uint64_t count) {
     return suffix.str();
 }
 
-GGUFLoad load_gguf_files(std::vector<GgufFile> files) {
+GGUFLoad load_gguf_files(std::vector<GgufFile> files, const GGUFLoadOptions& options) {
     const uint64_t count = split_count(files.front());
     if (count != 0) {
         OPENVINO_ASSERT(files.size() == count, "[load_gguf] expected ", count, " GGUF shards, got ", files.size());
@@ -818,8 +905,20 @@ GGUFLoad load_gguf_files(std::vector<GgufFile> files) {
     mappings.reserve(files.size());
     detect_legacy_q2_layout(files);
     for (auto& file : files) {
-        load_gguf_tensors(file, arrays);
+        load_gguf_tensors(file, arrays, options);
         mappings.push_back(std::move(file.mapped));
+    }
+    std::unordered_set<std::string> basenames;
+    std::unordered_set<std::string> ambiguous_sources;
+    for (const auto& file : files) {
+        const auto basename = ov::util::path_to_string(file.source.filename());
+        if (!basenames.insert(basename).second) {
+            ambiguous_sources.insert(basename);
+        }
+    }
+    for (auto& [name, weight] : arrays) {
+        if (ambiguous_sources.count(ov::util::path_to_string(weight.external_source.filename())))
+            weight.external_source.clear();
     }
     return {std::move(files.front().metadata), std::move(arrays), std::move(mappings)};
 }
@@ -827,12 +926,16 @@ GGUFLoad load_gguf_files(std::vector<GgufFile> files) {
 }  // namespace
 
 GGUFLoad get_gguf_data(const std::filesystem::path& file) {
+    return get_gguf_data(file, GGUFLoadOptions{});
+}
+
+GGUFLoad get_gguf_data(const std::filesystem::path& file, const GGUFLoadOptions& options) {
     auto initial = read_gguf_file(file);
     const auto count = split_count(initial);
     if (count <= 1) {
         std::vector<GgufFile> files;
         files.push_back(std::move(initial));
-        return load_gguf_files(std::move(files));
+        return load_gguf_files(std::move(files), options);
     }
     const auto index = split_value(initial, "split.no", ov::element::u16);
     OPENVINO_ASSERT(index < count, "[load_gguf] split.no is out of range: ", index);
@@ -861,17 +964,21 @@ GGUFLoad get_gguf_data(const std::filesystem::path& file) {
                         "'");
         files.push_back(std::move(next));
     }
-    return load_gguf_files(std::move(files));
+    return load_gguf_files(std::move(files), options);
 }
 
 GGUFLoad get_gguf_data(const std::vector<std::filesystem::path>& paths) {
+    return get_gguf_data(paths, GGUFLoadOptions{});
+}
+
+GGUFLoad get_gguf_data(const std::vector<std::filesystem::path>& paths, const GGUFLoadOptions& options) {
     OPENVINO_ASSERT(!paths.empty(), "[load_gguf] GGUF shard list is empty");
     std::vector<GgufFile> files;
     files.reserve(paths.size());
     for (const auto& path : paths) {
         files.push_back(read_gguf_file(path));
     }
-    return load_gguf_files(std::move(files));
+    return load_gguf_files(std::move(files), options);
 }
 
 }  // namespace ov::frontend::gguf

@@ -14,6 +14,7 @@
 
 #include "builder/gguf_builder_decoder.hpp"
 #include "hadamard_sign_folding.hpp"
+#include "helper_ops/gguf_constant.hpp"
 #include "input_model.hpp"
 #include "model_adapter_attribute.hpp"
 #include "model_contract.hpp"
@@ -138,6 +139,21 @@ void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
                                   operation_type,
                                   " is not implemented.");
     NodeContext node_context(decoder, tensor_map, constant_cache);
+    for (size_t index = 0; index < node_context.get_input_size(); ++index) {
+        const auto input = node_context.get_input(static_cast<int>(index));
+        const auto deferred = ov::as_type_ptr<GGUFConstant>(input.get_node_shared_ptr());
+        if (input.get_element_type().is_gguf_block() || (deferred && deferred->source().preserve_raw)) {
+            FRONT_END_OP_CONVERSION_CHECK((operation_type == "GGML_OP_MUL_MAT" ||
+                                          operation_type == "GGML_OP_GET_ROWS") && index == 0 ||
+                                             (deferred && (operation_type == "GGML_OP_VIEW" ||
+                                                           operation_type == "GGML_OP_CONCAT")),
+                                          "Unsupported raw GGUF consumer ",
+                                          operation_type,
+                                          " at ",
+                                          decoder->get_op_name(),
+                                          "; only the MatMul or GetRows weight input is supported");
+        }
+    }
     converted_outputs = it->second(node_context);
 
     const auto& node_output_names = decoder->get_output_names();
