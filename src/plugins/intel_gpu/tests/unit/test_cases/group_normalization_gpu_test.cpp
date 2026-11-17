@@ -636,9 +636,10 @@ namespace {
 // sum_i32: the second eltwise input is i32, a type gn itself does not accept.
 enum class gn_fused { none, relu, sum, sum_relu, sum_i32 };
 // Input values. large_mean: uniform in [999, 1001]. constant: every value is 1000.1, so the variance is 0.
-// large_constant: every value is 99999.9.
+// large_constant: every value is 99999.9. large_alternating: 99999.8 and 100000.0 alternate, so the variance is
+// about 0.01 and is lost if the first-pass mean drifts.
 // All make the f32 rounding error of the first-pass mean visible.
-enum class gn_dist { uniform, large_mean, constant, large_constant };
+enum class gn_dist { uniform, large_mean, constant, large_constant, large_alternating };
 
 struct gn_ref_params {
     std::string name;
@@ -817,6 +818,11 @@ TEST_P(group_normalization_ref_gpu_test, accuracy) {
             data.assign(count, 1000.1f);
         } else if (p.dist == gn_dist::large_constant) {
             data.assign(count, 99999.9f);
+        } else if (p.dist == gn_dist::large_alternating) {
+            data.resize(count);
+            for (size_t i = 0; i < count; i++) {
+                data[i] = i % 2 == 0 ? 99999.8f : 100000.0f;
+            }
         } else {
             data = gn_ref_values(rg, count, p.in_dt, -1.0f, 1.0f);
         }
@@ -897,6 +903,8 @@ const std::vector<gn_ref_params> gn_ref_cases = {
     {"bfyx_large_n_constant", {{1, 16, 256, 256}}, 1, format::bfyx, padding(), padding(), dt_f32, dt_f32, dt_f32, false, true, false, gn_fused::none, gn_dist::constant},
     // 4M elements per group: the plain f32 sum of the deviations also has a large rounding error.
     {"bfyx_4m_large_constant", {{1, 16, 512, 512}}, 1, format::bfyx, padding(), padding(), dt_f32, dt_f32, dt_f32, false, true, false, gn_fused::none, gn_dist::large_constant},
+    // 4M elements per group: the plain f32 sum of the first pass drifts, and the variance cancels without the Kahan sum.
+    {"bfwzyx_4m_large_alternating", {{1, 16, 1, 1, 512, 512}}, 1, format::bfwzyx, padding(), padding(), dt_f32, dt_f32, dt_f32, false, true, false, gn_fused::none, gn_dist::large_alternating},
     {"bfyx_spatial_pad_1x32x1x1", {{1, 32, 1, 1}}, 8, format::bfyx, padding({0, 0, 1, 2}, {0, 0, 2, 1}), padding(), dt_f32, dt_f32, dt_f32, false, true, false, gn_fused::none, gn_dist::uniform},
     {"bfyx_rank2_feature_pad", {{1, 40}}, 5, format::bfyx, padding({0, 2}, {0, 3}), padding(), dt_f32, dt_f32, dt_f32, false, true, true, gn_fused::none, gn_dist::uniform},
     {"bfzyx_f32_out_pad", {{2, 16, 3, 5, 7}}, 4, format::bfzyx, padding(), padding({0, 0, 1, 0, 1}, {0, 0, 0, 2, 0}), dt_f32, dt_f32, dt_f32, false, true, false, gn_fused::none, gn_dist::uniform},
