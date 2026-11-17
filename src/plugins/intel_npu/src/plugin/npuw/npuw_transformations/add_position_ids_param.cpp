@@ -97,6 +97,13 @@ public:
             // static cache capacity. Share one parameter across all matched paths.
             auto [position_ids, position_ids_squeezed] = make_position_ids();
             std::unordered_set<ov::Node*> handled_converts;
+            // All the branches unsqueeze the positions the same way: share one copy when the axes match.
+            std::shared_ptr<ov::Node> position_ids_unsqueezed;
+            const auto same_axes = [](const ov::Output<ov::Node>& lhs, const ov::Output<ov::Node>& rhs) {
+                const auto lhs_const = ov::as_type_ptr<ov::op::v0::Constant>(lhs.get_node_shared_ptr());
+                const auto rhs_const = ov::as_type_ptr<ov::op::v0::Constant>(rhs.get_node_shared_ptr());
+                return lhs_const && rhs_const && lhs_const->cast_vector<int64_t>() == rhs_const->cast_vector<int64_t>();
+            };
             for (const auto& root : {cos, sin}) {
                 const auto matches = m.find(root);
                 if (matches == m.end()) {
@@ -112,9 +119,12 @@ public:
 
                     // Clone only the RoPE side of the branch, preserving Range-based
                     // causal-mask indexing and each branch's inverse frequencies.
-                    auto unsqueeze1_node_copy =
-                        unsqueeze1_node->clone_with_new_inputs({position_ids, unsqueeze1_node->input_value(1)});
-                    convert_node->input(0).replace_source_output(unsqueeze1_node_copy->output(0));
+                    if (!position_ids_unsqueezed ||
+                        !same_axes(position_ids_unsqueezed->input_value(1), unsqueeze1_node->input_value(1))) {
+                        position_ids_unsqueezed =
+                            unsqueeze1_node->clone_with_new_inputs({position_ids, unsqueeze1_node->input_value(1)});
+                    }
+                    convert_node->input(0).replace_source_output(position_ids_unsqueezed->output(0));
 
                     // Preserve the existing rewrite of legacy short-convolution indexing.
                     OPENVINO_ASSERT(range_node->get_output_size() == 1, "Range node should have exactly one output");

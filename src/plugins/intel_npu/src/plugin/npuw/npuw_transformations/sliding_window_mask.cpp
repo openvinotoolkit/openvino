@@ -5,12 +5,15 @@
 #include "sliding_window_mask.hpp"
 
 #include "../logging.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 
 namespace opp = ov::pass::pattern;
 
@@ -172,15 +175,25 @@ public:
         auto past_shape = opp::wrap_type<ov::op::v3::ShapeOf>({opp::any_input()});
         auto past_len = opp::wrap_type<ov::op::v8::Gather>({past_shape, integer(2), integer(0)});
         auto full_len = opp::wrap_type<ov::op::v1::Add>({past_len, opp::any_input()});
-        auto query_range = opp::wrap_type<ov::op::v4::Range>({past_len, full_len, integer(1)});
+        auto query_range =
+            opp::wrap_type<ov::op::v4::Range>({past_len, full_len, integer(1)}, opp::type_matches(ov::element::i64));
         auto query_col = opp::wrap_type<ov::op::v0::Unsqueeze>({query_range, integer(1)});
-        auto mask_param = opp::wrap_type<ov::op::v0::Parameter>();
+        // The attention mask of the model itself, [batch, total_seq].
+        auto mask_param = opp::wrap_type<ov::op::v0::Parameter>([attention_mask](const ov::Output<ov::Node>& output) {
+            return output.get_node() == attention_mask.get() && output.get_partial_shape().rank() == 2;
+        });
         auto mask_shape = opp::wrap_type<ov::op::v3::ShapeOf>({mask_param});
         auto mask_len = opp::wrap_type<ov::op::v8::Gather>({mask_shape, integer(1), integer(0)});
-        auto key_range = opp::wrap_type<ov::op::v4::Range>({integer(0), mask_len, integer(1)});
+        auto key_range =
+            opp::wrap_type<ov::op::v4::Range>({integer(0), mask_len, integer(1)}, opp::type_matches(ov::element::i64));
         auto key_row = opp::wrap_type<ov::op::v0::Unsqueeze>({key_range, integer(0)});
         auto distance = opp::wrap_type<ov::op::v1::Subtract>({query_col, key_row});
-        auto window = opp::wrap_type<ov::op::v0::Constant>();
+        // A positive scalar-broadcast window. The distance is a signed i64, so is the window.
+        auto window = opp::wrap_type<ov::op::v0::Constant>([](const ov::Output<ov::Node>& output) {
+            auto c = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
+            return c && c->get_element_type() == ov::element::i64 && ov::shape_size(c->get_shape()) == 1 &&
+                   c->get_shape().size() <= 2 && c->cast_vector<int64_t>().front() > 0;
+        });
         auto forget = opp::wrap_type<ov::op::v1::GreaterEqual>({distance, window});
         auto expand_mask = [&](const std::shared_ptr<ov::Node>& mask) {
             auto batch = opp::wrap_type<ov::op::v0::Unsqueeze>({mask, integer(0)});
@@ -193,20 +206,9 @@ public:
             opp::wrap_type<ov::op::v1::Select>({expand_mask(forget), opp::any_input(), opp::any_input()});
         auto mask_select = opp::wrap_type<ov::op::v1::Select>({invalid, opp::any_input(), sliding_select});
 
-        auto callback = [=](opp::Matcher& m) {
+        auto callback = [OV_CAPTURE_CPY_AND_THIS](opp::Matcher& m) {
             const auto& values = m.get_pattern_value_map();
-            auto matched_window = ov::as_type_ptr<ov::op::v0::Constant>(values.at(window).get_node_shared_ptr());
-            // Only the exported signed integer, scalar-broadcast distance form.
-            // In particular, do not reinterpret vector windows or unsigned subtraction.
-            if (values.at(mask_param).get_node() != attention_mask.get() ||
-                values.at(query_range).get_element_type() != ov::element::i64 ||
-                values.at(key_range).get_element_type() != ov::element::i64 ||
-                matched_window->get_element_type() != ov::element::i64 ||
-                ov::shape_size(matched_window->get_shape()) != 1 || matched_window->get_shape().size() > 2 ||
-                matched_window->cast_vector<int64_t>().front() <= 0 ||
-                attention_mask->get_output_partial_shape(0).rank() != 2) {
-                return false;
-            }
+            const auto matched_window = values.at(window);
 
             auto zero = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
             auto one = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
@@ -238,7 +240,23 @@ public:
             auto heads = std::make_shared<ov::op::v0::Unsqueeze>(batch, one);
             // Change only the inner condition; preserve both fill values and
             // the outer causal/key-padding Select, also shared by full attention.
-            values.at(sliding_select).get_node_shared_ptr()->input(0).replace_source_output(heads);
+            auto sliding_select_node = values.at(sliding_select).get_node_shared_ptr();
+            ov::copy_runtime_info(sliding_select_node->get_input_node_shared_ptr(0),
+                                  {logical_query_col,
+                                   logical_distance,
+                                   forget_history,
+                                   is_history,
+                                   mapped_forget,
+                                   start,
+                                   stop,
+                                   query_valid,
+                                   query_valid_bool,
+                                   query_valid_col,
+                                   query_invalid,
+                                   clean_forget,
+                                   batch,
+                                   heads});
+            sliding_select_node->input(0).replace_source_output(heads);
             LOG_INFO("Distance-based sliding window attention mask pattern found and patched.");
             return true;
         };
