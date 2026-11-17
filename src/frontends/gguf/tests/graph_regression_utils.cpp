@@ -254,6 +254,9 @@ Json source_descriptor(const ov::frontend::gguf::GgufWeight& source) {
             {"group_size", source.shape.empty() ? 1 : ov::frontend::gguf::gguf_weight_group_size(source)}};
 }
 
+}  // namespace
+
+// OPENVINO_OP adds a visibility attribute that GCC rejects for internal-linkage classes.
 class PlannedWeight : public ov::op::util::FrameworkNode {
 public:
     OPENVINO_OP("GGUFPlannedWeight", "gguf", ov::op::util::FrameworkNode);
@@ -284,6 +287,8 @@ private:
     ov::element::Type m_type;
     Json m_plan;
 };
+
+namespace {
 
 template <typename T>
 Json scalar_value(T value) {
