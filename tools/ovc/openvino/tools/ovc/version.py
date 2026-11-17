@@ -34,7 +34,7 @@ def get_simplified_ie_version(version=None):
         version = get_version()
 
     # To support legacy OV versions
-    m = re.match(r"^([0-9]+)\.([0-9]+)\.((?:[0-9]{4}\.|.*_releases/).*)", version)
+    m = re.match(r"^([0-9]+)\.([0-9]+)\.((?:[0-9]{4}\.|[^-]*_releases/).*)", version)
     if m and len(m.groups()) == 3:
         return simplify_version(m.group(3))
     return simplify_version(version)
