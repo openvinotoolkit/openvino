@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/core/node.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/op/parameter.hpp"
 
@@ -15,6 +16,7 @@
 #include "intel_gpu/graph/topology.hpp"
 #include "intel_gpu/graph/program.hpp"
 
+#include <functional>
 #include <vector>
 #include <map>
 #include <memory>
@@ -51,6 +53,8 @@ void __register ## _ ## op_name ## _ ## op_version() {                          
 
 namespace ov::intel_gpu {
 
+class RemoteContextImpl;
+
 template<class T>
 struct is_smart_pointer : std::false_type {};
 template<class T>
@@ -86,8 +90,12 @@ public:
                    std::shared_ptr<ov::threading::IStreamsExecutor> task_executor = nullptr,
                    std::shared_ptr<cldnn::ICompilationContext> compilation_context = nullptr,
                    bool is_inner_program = false,
-                   ov::internal::WeightSharingCtxPtr weight_sharing_ctx = nullptr);
-    ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& engine, const ExecutionConfig& config, ov::internal::WeightSharingCtxPtr weight_sharing_ctx);
+                   ov::internal::WeightSharingCtxPtr weight_sharing_ctx = nullptr,
+                   std::shared_ptr<RemoteContextImpl> context = nullptr);
+    ProgramBuilder(std::shared_ptr<ov::Model> model,
+                   const std::shared_ptr<RemoteContextImpl>& context,
+                   const ExecutionConfig& config,
+                   ov::internal::WeightSharingCtxPtr weight_sharing_ctx);
     ProgramBuilder(cldnn::engine& engine, const ExecutionConfig& config);
 
     static const cldnn::primitive_id m_preProcessTag;
@@ -156,6 +164,11 @@ public:
     std::set<std::shared_ptr<ov::AlignedBuffer>> get_weight_sharing_source_buffers() const {
         return m_weight_sharing_source_buffers;
     }
+    /// Device memory of a weight-sharing constant, shared by all compiled models of the context (see RemoteContextImpl)
+    cldnn::memory::ptr get_or_create_shared_constant(const std::shared_ptr<ov::AlignedBuffer>& source,
+                                                     ov::weight_sharing::DataID constant_id,
+                                                     const cldnn::layout& layout,
+                                                     const std::function<cldnn::memory::ptr()>& create);
 private:
     static factories_map_t factories_map;
     std::shared_ptr<cldnn::program> m_program;
@@ -175,6 +188,7 @@ private:
     bool m_is_inner_program = false;
     ov::internal::WeightSharingCtxPtr m_weight_sharing_ctx;
     std::set<std::shared_ptr<ov::AlignedBuffer>> m_weight_sharing_source_buffers;
+    std::shared_ptr<RemoteContextImpl> m_context;
 
     void EnableQueryMode() { queryMode = true; }
     void DisableQueryMode() { queryMode = false; }

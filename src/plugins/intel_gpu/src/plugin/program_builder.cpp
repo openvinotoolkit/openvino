@@ -7,6 +7,7 @@
 #include "intel_gpu/op/fully_connected_compressed.hpp"
 #include "intel_gpu/op/placeholder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
@@ -61,15 +62,18 @@ std::string layer_type_name_ID(const std::shared_ptr<ov::Node>& op) {
 }
 
 
-ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& engine, const ExecutionConfig& config, ov::internal::WeightSharingCtxPtr weight_sharing_ctx) :
-    ProgramBuilder(model, engine, config, nullptr, nullptr, false, weight_sharing_ctx) {
-}
+ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model,
+                               const std::shared_ptr<RemoteContextImpl>& context,
+                               const ExecutionConfig& config,
+                               ov::internal::WeightSharingCtxPtr weight_sharing_ctx)
+    : ProgramBuilder(model, context->get_engine(), config, nullptr, nullptr, false, weight_sharing_ctx, context) {}
 
 ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& engine, const ExecutionConfig& config,
                                std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                                std::shared_ptr<cldnn::ICompilationContext> compilation_context,
                                bool is_inner_program,
-                               ov::internal::WeightSharingCtxPtr weight_sharing_ctx)
+                               ov::internal::WeightSharingCtxPtr weight_sharing_ctx,
+                               std::shared_ptr<RemoteContextImpl> context)
     : m_model(model)
     , m_config(config)
     , m_engine(engine)
@@ -79,6 +83,7 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
     , m_is_inner_program(is_inner_program) {
     // Remember weight sharing context for the program builder, so that it can be used to share weights across multiple compiled models
     m_weight_sharing_ctx = weight_sharing_ctx;
+    m_context = std::move(context);
 
     // Constant GPU uploads use the engine before cldnn::program ctor syncs config to the engine.
     m_engine.set_enable_large_allocations(m_config.get_enable_large_allocations());
@@ -376,6 +381,14 @@ int64_t ProgramBuilder::get_result_index(const ov::Output<const ov::Node>& value
 
 void ProgramBuilder::register_weight_sharing_source_buffer(std::shared_ptr<ov::AlignedBuffer> source) {
     m_weight_sharing_source_buffers.insert(source);
+}
+
+cldnn::memory::ptr ProgramBuilder::get_or_create_shared_constant(const std::shared_ptr<ov::AlignedBuffer>& source,
+                                                                 ov::weight_sharing::DataID constant_id,
+                                                                 const cldnn::layout& layout,
+                                                                 const std::function<cldnn::memory::ptr()>& create) {
+    OPENVINO_ASSERT(m_context, "[GPU] Constants of a weight-sharing context need the remote context of the compiled model");
+    return m_context->get_or_create_shared_constant(source, constant_id, layout, create);
 }
 
 void validate_inputs_count(const std::shared_ptr<ov::Node>& op, std::vector<size_t> valid_inputs_count) {

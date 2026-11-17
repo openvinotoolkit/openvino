@@ -4,6 +4,8 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <cstdint>
 #include <cstring>
 #include <filesystem>
 #include <functional>
@@ -22,6 +24,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/memory.hpp"
@@ -42,6 +45,20 @@ std::tuple<std::shared_ptr<ov::Model>, size_t> makeModelWithWeights(size_t elem_
     m->input(0).set_names({"input"});
     m->output(0).set_names({"output"});
     return std::make_tuple(std::move(m), weight_count);
+}
+
+// Two outputs with one constant each, so that no transformation can fold the constants into new ones
+std::tuple<std::shared_ptr<ov::Model>, size_t> makeModelWithIndependentWeights(size_t elem_count) {
+    auto s = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{elem_count});
+    auto one = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{elem_count}, {1});
+    auto three = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{elem_count}, {3});
+    auto add = std::make_shared<ov::op::v1::Add>(s, one);
+    auto mul = std::make_shared<ov::op::v1::Multiply>(s, three);
+    auto m = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(add), std::make_shared<ov::op::v0::Result>(mul)},
+                                         ov::ParameterVector{s},
+                                         "producer");
+    m->input(0).set_names({"input"});
+    return std::make_tuple(std::move(m), size_t{2});
 }
 
 std::vector<std::shared_ptr<ov::op::v0::Constant>> collectConstants(ov::Model& model) {
@@ -145,6 +162,15 @@ protected:
         return properties;
     }
 
+    // A discrete GPU uploads shared constants to device memory instead of importing the host buffer
+    static bool isDiscreteGpu(ov::Core& core) {
+        return core.get_property("GPU", ov::device::type) == ov::device::Type::DISCRETE;
+    }
+
+    static uint64_t usedDeviceMemory(ov::Core& core) {
+        return core.get_property("GPU", ov::intel_gpu::memory_statistics).at("usm_device");
+    }
+
 private:
     ov::AnyMap properties;
 };
@@ -163,7 +189,11 @@ TEST_F(WeightContextTest, smoke_weightContextCannotBeConsumedDueToUnsupportedAli
     ASSERT_TRUE(sourceBuffer->size() >= weight_size * weight_count);
 
     enableWeightSharingContext(weightCtx);
-    EXPECT_THROW(core.compile_model(model, "GPU", getProperties()), ov::Exception);
+    if (isDiscreteGpu(core)) {
+        OV_ASSERT_NO_THROW(core.compile_model(model, "GPU", getProperties()));
+    } else {
+        EXPECT_THROW(core.compile_model(model, "GPU", getProperties()), ov::Exception);
+    }
 }
 
 TEST_F(WeightContextTest, smoke_weightContextInferenceWithSharedWeights) {
@@ -192,4 +222,49 @@ TEST_F(WeightContextTest, smoke_weightContextInferenceWithSharedWeights) {
     ASSERT_EQ(
         std::memcmp(intact_inf_req.get_output_tensor().data(), mutated_inf_req.get_output_tensor().data(), intact_inf_req.get_output_tensor().get_byte_size()),
         0);
+}
+
+TEST_F(WeightContextTest, smoke_weightContextSharesDeviceMemoryOnDiscreteGpu) {
+    auto core = ov::Core();
+    if (!isDiscreteGpu(core)) {
+        GTEST_SKIP() << "Shared constants stay in the imported host buffer on integrated GPUs";
+    }
+    const size_t weight_size = 4 * 1024 * 1024;
+    auto [model, weight_count] = makeModelWithIndependentWeights(weight_size);
+    auto [weightCtx, sourceBuffer] = makeCorrectWeightSharingContext(collectConstants(*model), []() {
+        return 3;
+    });
+    // No model cache: a model imported from the cache does not use the weight-sharing context
+    const ov::internal::WeightSharingCtxPtr shared_ctx = weightCtx;
+    const ov::AnyMap properties{{ov::internal::model_sharing_context.name(), ov::Any{shared_ctx}}};
+
+    const auto before_first = usedDeviceMemory(core);
+    auto first = core.compile_model(model, "GPU", properties);
+    const auto first_growth = usedDeviceMemory(core) - before_first;
+
+    const auto before_second = usedDeviceMemory(core);
+    auto second = core.compile_model(model, "GPU", properties);
+    const auto second_growth = usedDeviceMemory(core) - before_second;
+
+    // The second compiled model reuses the device copies of the constants
+    ASSERT_GE(first_growth, second_growth + weight_size * weight_count);
+
+    auto [intact_model, intact_weight_count] = makeModelWithIndependentWeights(weight_size);
+    auto intact = core.compile_model(intact_model, "GPU");
+    ov::Tensor input_tensor(ov::element::u8, ov::Shape{weight_size});
+    std::fill_n(input_tensor.data<uint8_t>(), weight_size, uint8_t{5});
+    auto expected_request = intact.create_infer_request();
+    expected_request.set_input_tensor(input_tensor);
+    expected_request.infer();
+    for (auto* compiled : {&first, &second}) {
+        auto request = compiled->create_infer_request();
+        request.set_input_tensor(input_tensor);
+        OV_ASSERT_NO_THROW(request.infer());
+        for (size_t i = 0; i < intact_model->outputs().size(); ++i) {
+            ASSERT_EQ(std::memcmp(expected_request.get_output_tensor(i).data(),
+                                  request.get_output_tensor(i).data(),
+                                  expected_request.get_output_tensor(i).get_byte_size()),
+                      0);
+        }
+    }
 }
