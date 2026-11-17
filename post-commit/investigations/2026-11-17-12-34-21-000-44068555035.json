@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-17-12-34-21-000-44068555035",
+  "timestamp": "2026-11-17T12:34:21Z",
+  "run_id": "44068555035",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44068555035",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "d07632e9530196158b0714c659f1e97aff5490ea",
+  "pr_number": "39839",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39839",
+  "author": "ZackyLake",
+  "category": "Infrastructure",
+  "title": "Windows GPU unit tests job fails with PowerShell execution policy error before running tests",
+  "signature": "windows gpu unit tests extract openvino packages setupvars.ps1 cannot be loaded because running scripts is disabled on this system pssecurityexception unauthorizedaccess|Infrastructure",
+  "signature_hash": "3be0e72d6ae29098",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "Extract OpenVINO packages step failed with PSSecurityException/UnauthorizedAccess when PowerShell tried to dot-source a generated .ps1 wrapper script because script execution is disabled on the self-hosted Windows runner."
+    },
+    {
+      "name": "JS API (24)",
+      "conclusion": "failure",
+      "symptom": "tests/setup.js crashed with an unhandled promise rejection after the v3-small_224 model .bin download from storage.openvinotoolkit.org failed with 'read ECONNRESET', a transient TCP reset unrelated to the PR."
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Aggregate status-check job that runs `exit 1` because upstream jobs in the Windows pipeline failed; not an independent failure."
+    }
+  ],
+  "key_errors": [
+    ". : File C:\\actions-runner\\_work\\_temp\\b15e0891-4697-4e57-af04-be745dfa17b1.ps1 cannot be loaded because running scripts is disabled on this system. For more information, see about_Execution_Policies at https:/go.microsoft.com/fwlink/?LinkID=135170.",
+    "At line:1 char:3",
+    "+ . 'C:\\actions-runner\\_work\\_temp\\b15e0891-4697-4e57-af04-be745dfa17b1 ...",
+    "    + CategoryInfo          : SecurityError: (:) [], PSSecurityException",
+    "    + FullyQualifiedErrorId : UnauthorizedAccess",
+    "##[error]Process completed with exit code 1.",
+    "Failed to download the model: Failed to send request: Error: read ECONNRESET..",
+    "UnhandledPromiseRejection: This error originated either by throwing inside of an async function without a catch block, or by rejecting a promise which was not handled with .catch(). The promise rejected with the reason \"Failed to send request: Error: read ECONNRESET.\"."
+  ],
+  "root_cause": "The dominant, recurring failure is the 'Extract OpenVINO packages' step on the 'GPU unit tests' job, which runs under `shell: powershell` (Windows PowerShell 5.1). GitHub Actions implements this step by writing its `run:` block to a generated temporary .ps1 file under _temp and dot-sourcing it; on this self-hosted Windows runner the PowerShell execution policy for the Actions runner service account is Restricted (or was reset by a runner/image update or group policy refresh), which blocks loading any unsigned script file including the runner's own auto-generated wrapper. This is an environment/runner configuration issue on the self-hosted machine, not a problem introduced by commit d07632e9530196158b0714c659f1e97aff5490ea (#39839, GPU plugin shape-infer event generation), which does not touch Windows CI configuration. This is the 4th recorded occurrence of this exact PSSecurityException signature, indicating the execution-policy drift on this runner pool has not been remediated. Separately, the 'JS API (24)' job failed because tests/setup.js downloading v3-small_224_1.0_float.bin from storage.openvinotoolkit.org hit a TCP connection reset ('read ECONNRESET'); as with the earlier raw/media.githubusercontent.com timeout variants (patterns 6519f63a719d4f66, 49e48b464b80bcb7), the download promise's rejection is not wrapped in try/catch, so Node.js crashes the whole test run with an unhandled promise rejection instead of failing gracefully or retrying. This is reported as context but the PowerShell execution-policy issue is tracked as the primary signature for this investigation given its higher recurrence count and infrastructure-blocking nature.",
+  "reproduction_steps": "N/A - requires the specific self-hosted Windows GPU runner whose PowerShell execution policy is restricted. Locally: run `Set-ExecutionPolicy Restricted -Scope Process` then invoke any `shell: powershell` step to reproduce the PSSecurityException. For the JS API ECONNRESET: cd src/bindings/js/node && npm run test_setup repeatedly, or with a throttled/reset network route to storage.openvinotoolkit.org, to reproduce the connection reset.",
+  "recommended_actions": [
+    "On the affected self-hosted Windows GPU runner(s), run `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine -Force` for the account running the Actions runner service, then verify with `Get-ExecutionPolicy -List`.",
+    "Audit whether a recent base-image update, group policy push, or security hardening script keeps resetting the execution policy on this runner pool (4th occurrence), and bake the required policy into the runner provisioning/imaging script so it survives reimaging or policy refreshes.",
+    "Add a runner startup health-check step that verifies `Get-ExecutionPolicy` before accepting GPU unit test workloads, failing fast with a clear diagnostic instead of a late PSSecurityException mid-pipeline.",
+    "Wrap all three model download calls in src/bindings/js/node/tests/setup.js in try/catch (or add .catch handlers) with retry/backoff so a transient ECONNRESET produces a clear test failure/retry instead of an unhandled promise rejection crash.",
+    "Consider caching the JS API test model artifacts (e.g., via actions/cache) to reduce dependence on live network access to storage.openvinotoolkit.org on every run."
+  ],
+  "prevention_strategies": "Bake the required PowerShell execution policy into the Windows GPU runner image/provisioning script and add a pre-flight health check that fails fast with a clear diagnostic if the policy drifts. Separately, add network-call resiliency (timeout + retry + explicit error handling) to any CI step that downloads external resources at test time, including the JS API test setup script, and prefer committing/caching small fixed test assets instead of fetching them from remote hosts on every run.",
+  "historical_context": "The PowerShell execution-policy signature (hash 3be0e72d6ae29098) has now recurred 4 times in under 24 hours (runs 43883526619, 43906839059, 44059103925, and this run 44068555035), confirming the runner-pool configuration drift has not been fixed. The JS API model-download-crash failure pattern has two prior sibling signatures for raw.githubusercontent.com (6519f63a719d4f66, count 2) and media.githubusercontent.com (49e48b464b80bcb7, count 1) timeouts; this run's storage.openvinotoolkit.org ECONNRESET is a related but distinct host/error combination and is noted as secondary context rather than updating a new pattern file, consistent with this investigation's focus on the dominant blocking signature."
+}

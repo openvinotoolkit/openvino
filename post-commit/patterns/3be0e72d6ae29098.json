@@ -4,20 +4,23 @@
   "signature_hash": "3be0e72d6ae29098",
   "title": "Windows GPU unit tests job fails with PowerShell execution policy error before running tests",
   "category": "Infrastructure",
-  "count": 3,
+  "count": 4,
   "first_seen": "2026-11-16T17:17:22Z",
-  "last_seen": "2026-11-17T11:23:57Z",
+  "last_seen": "2026-11-17T12:34:21Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/44068555035",
     "https://github.com/openvinotoolkit/openvino/actions/runs/44059103925",
     "https://github.com/openvinotoolkit/openvino/actions/runs/43906839059",
     "https://github.com/openvinotoolkit/openvino/actions/runs/43883526619"
   ],
   "affected_commits": [
+    "d07632e9530196158b0714c659f1e97aff5490ea",
     "dace268bdd3690110ce4a86663f39a7a23d3c1ec",
     "739714d6de9660afe2be5670313cf8a55434da78",
     "a1f0ea08348c50d407601b0fa2e451162aa939fb"
   ],
   "recent_timestamps": [
+    "2026-11-17T12:34:21Z",
     "2026-11-17T11:23:57Z",
     "2026-11-16T18:13:23Z",
     "2026-11-16T17:17:22Z"
