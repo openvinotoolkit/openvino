@@ -108,8 +108,9 @@ public:
  *
  *   x ─► RMS ─► QSAIndexer   ──►   x ─► QSAIndexer(query_norm)
  *
- * The RMS is the non-affine RMS of the last axis that keeps the precision, and its epsilon equals the
- * QSAIndexer epsilon. It is fused while query_norm is disabled, regardless of query_rope.
+ * The RMS is the last-axis RMS that keeps the precision, and its epsilon equals the QSAIndexer epsilon. Both
+ * non-affine RMS and affine RMS with a per-feature gamma statically matching the indexer head size are supported;
+ * the affine gamma is reused as q_norm_weight. It is fused while query_norm is disabled, regardless of query_rope.
  * The PagedQSAIndexer specialization requires the layout adapters produced by PagedQSAIndexerFusion.
  * It matches RMS before the query's [B, L, H, D] -> [B * L, H * D] Reshape. The RMS axis
  * must be static and equal to indexer_head_dim, so a norm across flattened heads remains outside the indexer.

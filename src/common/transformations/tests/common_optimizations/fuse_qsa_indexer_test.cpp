@@ -372,7 +372,8 @@ std::shared_ptr<Model> getModelRef(const GraphOptions& o) {
     inputs[QSAIndexerInputIdx::ROPE_COS] = rope_for_batch(g.rope_cos);
     inputs[QSAIndexerInputIdx::ROPE_SIN] = rope_for_batch(g.rope_sin);
     inputs[QSAIndexerInputIdx::KEY_LENGTH] = key_length_i32;
-    inputs[QSAIndexerInputIdx::Q_NORM_WEIGHT] = v0::Constant::create(o.precision, Shape{head_size}, {1.0f});
+    inputs[QSAIndexerInputIdx::Q_NORM_WEIGHT] =
+        v0::Constant::create(o.precision, Shape{head_size}, {o.affine_query ? 0.5f : 1.0f});
     inputs[QSAIndexerInputIdx::K_NORM_WEIGHT] = g.key_weight;
     inputs[QSAIndexerInputIdx::BLOCK_INDEX_KEYS_CACHE] = cache;
     inputs[QSAIndexerInputIdx::PAST_INCOMPLETE_RAW_K] =
@@ -477,6 +478,10 @@ const std::vector<GraphOptions> fused_cases{
     with("decomposed_query_norm_and_rope",
          [](GraphOptions& o) {
              o.decomposed_query = true;
+         }),
+    with("affine_query_norm_and_rope",
+         [](GraphOptions& o) {
+             o.affine_query = true;
          }),
     with("extra_state_consumers",
          [](GraphOptions& o) {
@@ -628,13 +633,6 @@ const std::vector<GraphOptions> partially_fused_cases{
          [](GraphOptions& o) {
              o.query_fusion = QueryFusion::None;
              o.query_rotary_dim = head_size / 2;
-         }),
-    // The query RoPE input is not the non-affine RMSNorm of the last axis with the key epsilon that keeps the
-    // precision, so only the RoPE is absorbed.
-    with("affine_query",
-         [](GraphOptions& o) {
-             o.query_fusion = QueryFusion::RoPE;
-             o.affine_query = true;
          }),
     with("rms_changes_precision",
          [](GraphOptions& o) {

@@ -37,6 +37,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
@@ -724,7 +725,9 @@ std::shared_ptr<Model> getQueryModelRef(const QueryOptions& o) {
     auto config = graph.indexer->get_config();
     config.query_norm = o.indexer_query_norm || (o.with_norm && o.absorb_norm);
     config.query_rope = o.indexer_query_rope || (o.with_rope && o.absorb_rope);
-    if (o.non_unit_unused_weight && !o.absorb_norm) {
+    if (o.affine && o.with_norm && o.absorb_norm) {
+        graph.inputs[In::Q_NORM_WEIGHT] = v0::Constant::create(element::f32, Shape{head_size}, {0.5f});
+    } else if (o.non_unit_unused_weight && !o.absorb_norm) {
         graph.inputs[In::Q_NORM_WEIGHT] = v0::Constant::create(element::f32, Shape{head_size}, {0.5f});
     }
     const bool norm_outside = o.with_norm && !o.absorb_norm;
@@ -784,9 +787,10 @@ const std::vector<QueryOptions> query_cases = [] {
             o.norm_epsilon = 2 * epsilon;
         else if (o.name == "wrong_axis")
             o.norm_axis = -2;
-        else if (o.name == "affine")
+        else if (o.name == "affine") {
             o.affine = true;
-        else
+            o.absorb_norm = true;
+        } else
             o.changes_precision = true;
         cases.push_back(o);
     }
@@ -1005,6 +1009,61 @@ TEST_F(TransformationTestsF, FuseQSAIndexerQueryIgnoresInactiveNormWeights) {
     manager.register_pass<pass::FuseQSAIndexerQuery>();
 }
 
+class FuseQSAIndexerQueryGammaTest : public TransformationTestsF, public testing::WithParamInterface<std::string> {};
+
+TEST_P(FuseQSAIndexerQueryGammaTest, KeepsRMSWithUnsupportedGamma) {
+    const auto& param = GetParam();
+    QueryOptions options;
+    options.affine = param != "missing";
+    options.with_rope = false;
+    model = combine_query_models(getQueryModel(options), getQueryModel<op_internal::QSAIndexer>(options));
+    const auto check_pattern = [&](bool expected) {
+        pass::FuseQSAIndexerQueryNorm<op_internal::QSAIndexer> dense_matcher;
+        pass::FuseQSAIndexerQueryNorm<op_internal::PagedQSAIndexer> paged_matcher;
+        size_t indexer_count = 0;
+        for (const auto& node : model->get_ops()) {
+            if (ov::is_type<op_internal::QSAIndexer>(node)) {
+                EXPECT_EQ(dense_matcher.get_matcher()->match(node), expected);
+                ++indexer_count;
+            } else if (ov::is_type<op_internal::PagedQSAIndexer>(node)) {
+                EXPECT_EQ(paged_matcher.get_matcher()->match(node), expected);
+                ++indexer_count;
+            }
+        }
+        EXPECT_EQ(indexer_count, 2);
+    };
+    check_pattern(true);
+
+    size_t rms_count = 0;
+    for (const auto& node : model->get_ops()) {
+        if (const auto rms = ov::as_type_ptr<op_internal::RMS>(node)) {
+            if (param == "missing" || param == "inactive") {
+                // Make elementwise_affine disagree with the number of RMS inputs.
+                rms->set_elementwise_affine(param == "missing");
+            } else {
+                const auto type = param == "mixed_precision" ? element::f16 : element::f32;
+                const auto shape = param == "dynamic"  ? PartialShape{-1}
+                                   : param == "scalar" ? PartialShape{1}
+                                                       : PartialShape{head_size};
+                const auto gamma = std::make_shared<v0::Parameter>(type, shape);
+                model->add_parameters({gamma});
+                rms->input(1).replace_source_output(gamma);
+            }
+            ++rms_count;
+        }
+    }
+    ASSERT_EQ(rms_count, 2);
+    check_pattern(false);
+    manager.register_pass<pass::FuseQSAIndexerQuery>();
+}
+
+INSTANTIATE_TEST_SUITE_P(FuseQSAIndexerQuery,
+                         FuseQSAIndexerQueryGammaTest,
+                         testing::Values("dynamic", "scalar", "mixed_precision", "missing", "inactive"),
+                         [](const testing::TestParamInfo<std::string>& info) {
+                             return info.param;
+                         });
+
 TEST_F(TransformationTestsF, FuseQSAIndexerQueryNormIgnoresEnabledQueryRoPE) {
     QueryOptions options;
     options.with_rope = false;
@@ -1180,6 +1239,9 @@ TEST_P(FuseQSAIndexerQueryPolicyTest, HonorsIndividualMatcherConfiguration) {
     comparator.enable(FunctionsComparator::ATTRIBUTES);
     comparator.enable(FunctionsComparator::CONST_VALUES);
     manager.register_pass<pass::FuseQSAIndexerQuery>();
+    if (!policy.norm) {
+        manager.get_pass_config()->disable<pass::FuseQSAIndexerQueryNorm<op_internal::QSAIndexer>>();
+    }
     const auto configure = [&](auto matcher) {
         using Pass = decltype(matcher);
         if (policy.callback) {

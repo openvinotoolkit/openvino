@@ -356,13 +356,22 @@ FuseQSAIndexerQueryNorm<Indexer>::FuseQSAIndexerQueryNorm() {
     using namespace ov::pass::pattern;
     using In = typename Indexer::InputIdx;
 
-    const auto p_query = any_input();
-    const auto p_rms = wrap_type<op_internal::RMS>({p_query},
-                                                   [](const ov::Output<ov::Node>& output) {
-                                                       return output.get_element_type() ==
-                                                              output.get_node()->get_input_element_type(0);
-                                                   },
-                                                   {{"axis", -1}, {"elementwise_affine", false}});
+    const auto keeps_precision = rank_more_than(0) && [](const ov::Output<ov::Node>& output) {
+        return output.get_element_type() == output.get_node()->get_input_element_type(0);
+    };
+    const auto gamma_matches = [](const ov::Output<ov::Node>& output) {
+        // Predicates run before inputs are matched, so guard the gamma access.
+        const auto rms = output.get_node();
+        return rms->get_input_size() == 2 && rms->get_input_element_type(1) == output.get_element_type() &&
+               rms->get_input_partial_shape(1) == PartialShape{output.get_partial_shape()[-1]};
+    };
+    const auto p_gamma = any_input();
+    const auto p_rms_affine = wrap_type<op_internal::RMS>({any_input(), p_gamma},
+                                                          keeps_precision && gamma_matches,
+                                                          {{"axis", -1}, {"elementwise_affine", true}});
+    const auto p_rms_non_affine =
+        wrap_type<op_internal::RMS>({any_input()}, keeps_precision, {{"axis", -1}, {"elementwise_affine", false}});
+    const auto p_rms = p_rms_affine | p_rms_non_affine;
     const auto p_query_reshape = optional<v1::Reshape>({p_rms, any_input()}, rank_equals(2) && consumers_count(1));
     OutputVector pattern_inputs(In::COUNT);
     for (auto& input : pattern_inputs) {
@@ -379,35 +388,33 @@ FuseQSAIndexerQueryNorm<Indexer>::FuseQSAIndexerQueryNorm() {
         const auto rms = ov::as_type_ptr<op_internal::RMS>(pattern_map.at(p_rms).get_node_shared_ptr());
         OPENVINO_ASSERT(rms, "FuseQSAIndexerQueryNorm: expected RMS");
         // The indexer normalizes each head separately; an RMS spanning several heads is not equivalent.
-        const auto& rms_shape = rms->get_input_partial_shape(0);
-        if (rms->get_epsilon() != config.epsilon || rms_shape.rank().is_dynamic() || rms_shape.rbegin()->is_dynamic() ||
-            rms_shape.rbegin()->get_length() != static_cast<int64_t>(config.indexer_head_dim)) {
-            return false;
-        }
-        if (transformation_callback(indexer)) {
+        const auto head_dim = Dimension(static_cast<int64_t>(config.indexer_head_dim));
+        if (rms->get_epsilon() != config.epsilon || rms->get_output_partial_shape(0)[-1] != head_dim ||
+            transformation_callback(indexer)) {
             return false;
         }
         config.query_norm = true;
         auto inputs = indexer->input_values();
         NodeRegistry rg;
-        NodeVector sources{pattern_map.at(p_rms).get_node_shared_ptr()};
         if (pattern_map.count(p_query_reshape)) {
             // The layout Reshape feeds only this indexer, so it is rewired to the unprocessed query.
             const auto query_reshape = pattern_map.at(p_query_reshape).get_node_shared_ptr();
-            query_reshape->input(0).replace_source_output(pattern_map.at(p_query));
+            query_reshape->input(0).replace_source_output(rms->input_value(0));
             query_reshape->validate_and_infer_types();
         } else {
-            inputs[In::INDEX_QUERY] = pattern_map.at(p_query);
+            inputs[In::INDEX_QUERY] = rms->input_value(0);
         }
-        // The external RMS was non-affine; enabling normalization must not activate unused scaling.
-        // The unused weight already has the element type shared by all floating-point indexer inputs.
-        inputs[In::Q_NORM_WEIGHT] = rg.make<v0::Constant>(inputs[In::Q_NORM_WEIGHT].get_element_type(),
-                                                          Shape{config.indexer_head_dim},
-                                                          std::vector<float>{1.0f});
+        if (pattern_map.count(p_gamma)) {
+            inputs[In::Q_NORM_WEIGHT] = pattern_map.at(p_gamma);
+        } else {
+            // The non-affine RMS has no learned scaling, so use unit weights.
+            inputs[In::Q_NORM_WEIGHT] = rg.make<v0::Constant>(inputs[In::Q_NORM_WEIGHT].get_element_type(),
+                                                              Shape{config.indexer_head_dim},
+                                                              std::vector<float>{1.0f});
+        }
         const auto fused = rg.make<Indexer>(inputs, config);
         fused->set_friendly_name(indexer->get_friendly_name());
-        sources.push_back(indexer);
-        ov::copy_runtime_info(sources, rg.get());
+        ov::copy_runtime_info(NodeVector{rms, indexer}, rg.get());
         ov::replace_node(indexer, fused);
         register_new_node(fused);
         return true;
