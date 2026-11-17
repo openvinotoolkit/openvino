@@ -67,7 +67,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: aks-win-32-cores-128gb-build
+    runs-on: aks-win-8-cores-32gb-build
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
@@ -86,7 +86,7 @@ jobs:
       SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
       # Hard-coded manually; nproc and NUMBER_OF_PROCESSORS do not respect Kubernetes pod CPU limits.
       # Nested cmake --build (e.g. intel_gpu onednn_gpu ExternalProject) does not inherit --parallel from the top-level build.
-      CMAKE_BUILD_PARALLEL_LEVEL: '31'
+      CMAKE_BUILD_PARALLEL_LEVEL: '7'
 
       # TODO: specify version of compiler here
     if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
@@ -167,7 +167,7 @@ jobs:
             -DSELECTIVE_BUILD=COLLECT `
             -DENABLE_UNITY_BUILD=ON `
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
-            -DCMAKE_JOB_POOLS:STRING=link_jobs=20 `
+            -DCMAKE_JOB_POOLS:STRING=link_jobs=7 `
             -DCMAKE_JOB_POOL_LINK:STRING=link_jobs `
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
             -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config" `
