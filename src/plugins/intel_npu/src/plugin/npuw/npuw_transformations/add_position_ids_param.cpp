@@ -6,6 +6,7 @@
 
 #include <unordered_set>
 
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/manager.hpp"
@@ -116,6 +117,10 @@ public:
                     }
                     auto range_node = pattern_to_output.at(range).get_node_shared_ptr();
                     auto unsqueeze1_node = pattern_to_output.at(unsqueeze1).get_node_shared_ptr();
+                    // position_ids replaces the positions computed from the Range.
+                    ov::copy_runtime_info(
+                        range_node,
+                        {position_ids, position_ids_squeezed, position_ids_squeezed->get_input_node_shared_ptr(1)});
 
                     // Clone only the RoPE side of the branch, preserving Range-based
                     // causal-mask indexing and each branch's inverse frequencies.
@@ -123,6 +128,7 @@ public:
                         !same_axes(position_ids_unsqueezed->input_value(1), unsqueeze1_node->input_value(1))) {
                         position_ids_unsqueezed =
                             unsqueeze1_node->clone_with_new_inputs({position_ids, unsqueeze1_node->input_value(1)});
+                        ov::copy_runtime_info(unsqueeze1_node, position_ids_unsqueezed);
                     }
                     convert_node->input(0).replace_source_output(position_ids_unsqueezed->output(0));
 

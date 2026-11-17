@@ -8,6 +8,7 @@
 #include <map>
 #include <vector>
 
+#include "common_test_utils/ov_test_utils.hpp"
 #include "npuw_transformations/patch_sliding_window_mask.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/bitwise_and.hpp"
@@ -16,14 +17,19 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater_eq.hpp"
+#include "openvino/op/less.hpp"
 #include "openvino/op/less_eq.hpp"
 #include "openvino/op/logical_and.hpp"
 #include "openvino/op/logical_not.hpp"
+#include "openvino/op/logical_or.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/openvino.hpp"
@@ -51,12 +57,16 @@ std::shared_ptr<ov::Node> expand_mask(const ov::Output<ov::Node>& mask) {
 //
 // Q is a position in the static KV buffer: past tokens are left-aligned at [0, past_kv_len), the current
 // chunk is right-aligned after them. past_kv_len is taken from the shape of the past key.
-struct DistanceMaskModel {
-    std::shared_ptr<ov::Model> model;
-    std::shared_ptr<ov::op::v0::Parameter> input_ids;
-    std::shared_ptr<ov::op::v0::Parameter> attention_mask;
-    std::shared_ptr<ov::op::v0::Parameter> past_key;
-    std::shared_ptr<ov::op::v0::Parameter> position_ids;
+struct MaskParts {
+    ov::ParameterVector params;  // input_ids, attention_mask, past_key, position_ids[, length_mask]
+    std::shared_ptr<ov::Node> length_mask;
+    std::shared_ptr<ov::Node> past_len;
+    std::shared_ptr<ov::Node> mask_len;
+    std::shared_ptr<ov::Node> q_col;
+    std::shared_ptr<ov::Node> k_row;
+    std::shared_ptr<ov::Node> invalid;
+    std::shared_ptr<ov::Node> window;
+    std::shared_ptr<ov::Node> forget;
 };
 
 std::shared_ptr<ov::op::v0::Parameter> make_param(ov::element::Type type,
@@ -68,56 +78,93 @@ std::shared_ptr<ov::op::v0::Parameter> make_param(ov::element::Type type,
     return param;
 }
 
-DistanceMaskModel build_distance_mask_model(int64_t window = kWindow) {
-    DistanceMaskModel r;
-    r.input_ids = make_param(ov::element::i64, ov::PartialShape{1, -1}, "input_ids");
-    r.attention_mask = make_param(ov::element::i64, ov::PartialShape{1, -1}, "attention_mask");
-    r.past_key = make_param(ov::element::f32, ov::PartialShape{1, 4, -1, 8}, "past_key_values.0.key");
-    r.position_ids = make_param(ov::element::i64, ov::PartialShape{1, -1}, "position_ids");
+// `separate_length_mask` takes the K range and the window from another mask than the model's attention_mask.
+MaskParts build_mask_parts(int64_t window = kWindow, bool separate_length_mask = false) {
+    MaskParts r;
+    auto input_ids = make_param(ov::element::i64, ov::PartialShape{1, -1}, "input_ids");
+    auto attention_mask = make_param(ov::element::i64, ov::PartialShape{1, -1}, "attention_mask");
+    auto past_key = make_param(ov::element::f32, ov::PartialShape{1, 4, -1, 8}, "past_key_values.0.key");
+    auto position_ids = make_param(ov::element::i64, ov::PartialShape{1, -1}, "position_ids");
+    r.params = {input_ids, attention_mask, past_key, position_ids};
+    r.length_mask = attention_mask;
+    if (separate_length_mask) {
+        auto length_mask = make_param(ov::element::i64, ov::PartialShape{1, -1}, "length_mask");
+        r.params.push_back(length_mask);
+        r.length_mask = length_mask;
+    }
 
-    auto seq_len = std::make_shared<ov::op::v8::Gather>(std::make_shared<ov::op::v3::ShapeOf>(r.input_ids),
+    auto seq_len = std::make_shared<ov::op::v8::Gather>(std::make_shared<ov::op::v3::ShapeOf>(input_ids),
                                                         i64_scalar(1),
                                                         i64_scalar(0));
-    auto past_len = std::make_shared<ov::op::v8::Gather>(std::make_shared<ov::op::v3::ShapeOf>(r.past_key),
-                                                         i64_scalar(2),
-                                                         i64_scalar(0));
-    auto full_len = std::make_shared<ov::op::v1::Add>(past_len, seq_len);
-    auto q_range = std::make_shared<ov::op::v4::Range>(past_len, full_len, i64_scalar(1), ov::element::i64);
-    auto q_col = std::make_shared<ov::op::v0::Unsqueeze>(q_range, i64_scalar(1));
+    r.past_len = std::make_shared<ov::op::v8::Gather>(std::make_shared<ov::op::v3::ShapeOf>(past_key),
+                                                      i64_scalar(2),
+                                                      i64_scalar(0));
+    auto full_len = std::make_shared<ov::op::v1::Add>(r.past_len, seq_len);
+    auto q_range = std::make_shared<ov::op::v4::Range>(r.past_len, full_len, i64_scalar(1), ov::element::i64);
+    r.q_col = std::make_shared<ov::op::v0::Unsqueeze>(q_range, i64_scalar(1));
 
-    auto mask_len = std::make_shared<ov::op::v8::Gather>(std::make_shared<ov::op::v3::ShapeOf>(r.attention_mask),
-                                                         i64_scalar(1),
-                                                         i64_scalar(0));
-    auto k_range = std::make_shared<ov::op::v4::Range>(i64_scalar(0), mask_len, i64_scalar(1), ov::element::i64);
-    auto k_row = std::make_shared<ov::op::v0::Unsqueeze>(k_range, i64_scalar(0));
+    r.mask_len = std::make_shared<ov::op::v8::Gather>(std::make_shared<ov::op::v3::ShapeOf>(r.length_mask),
+                                                      i64_scalar(1),
+                                                      i64_scalar(0));
+    auto k_range = std::make_shared<ov::op::v4::Range>(i64_scalar(0), r.mask_len, i64_scalar(1), ov::element::i64);
+    r.k_row = std::make_shared<ov::op::v0::Unsqueeze>(k_range, i64_scalar(0));
 
-    auto causal = std::make_shared<ov::op::v1::LessEqual>(k_row, q_col);
-    auto key_valid_2d = std::make_shared<ov::op::v0::Unsqueeze>(r.attention_mask, i64_scalar(1));
+    auto causal = std::make_shared<ov::op::v1::LessEqual>(r.k_row, r.q_col);
+    auto key_valid_2d = std::make_shared<ov::op::v0::Unsqueeze>(attention_mask, i64_scalar(1));
     auto key_valid =
         std::make_shared<ov::op::v0::Convert>(std::make_shared<ov::op::v0::Unsqueeze>(key_valid_2d, i64_scalar(2)),
                                               ov::element::boolean);
     auto valid = std::make_shared<ov::op::v13::BitwiseAnd>(expand_mask(causal), key_valid);
-    auto invalid = std::make_shared<ov::op::v13::BitwiseNot>(valid);
+    r.invalid = std::make_shared<ov::op::v13::BitwiseNot>(valid);
 
+    auto distance = std::make_shared<ov::op::v1::Subtract>(r.q_col, r.k_row);
+    r.window = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1, 1}, {window});
+    r.forget = std::make_shared<ov::op::v1::GreaterEqual>(distance, r.window);
+    return r;
+}
+
+std::shared_ptr<ov::Model> make_mask_model(const MaskParts& parts, const ov::Output<ov::Node>& window_condition) {
     auto fill = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {kFill});
     auto zero = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});
-
-    auto distance = std::make_shared<ov::op::v1::Subtract>(q_col, k_row);
-    auto window_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1, 1}, {window});
-    auto forget = std::make_shared<ov::op::v1::GreaterEqual>(distance, window_const);
-    auto window_mask = std::make_shared<ov::op::v1::Select>(expand_mask(forget), fill, zero);
-    auto sliding_mask = std::make_shared<ov::op::v1::Select>(invalid, fill, window_mask);
-    auto full_mask = std::make_shared<ov::op::v1::Select>(invalid, fill, zero);
-
+    auto window_mask = std::make_shared<ov::op::v1::Select>(window_condition, fill, zero);
+    auto sliding_mask = std::make_shared<ov::op::v1::Select>(parts.invalid, fill, window_mask);
+    auto full_mask = std::make_shared<ov::op::v1::Select>(parts.invalid, fill, zero);
     auto sliding_result = std::make_shared<ov::op::v0::Result>(sliding_mask);
     sliding_result->set_friendly_name("sliding_mask");
     auto full_result = std::make_shared<ov::op::v0::Result>(full_mask);
     full_result->set_friendly_name("full_mask");
-    r.model =
-        std::make_shared<ov::Model>(ov::ResultVector{sliding_result, full_result},
-                                    ov::ParameterVector{r.input_ids, r.attention_mask, r.past_key, r.position_ids},
-                                    "distance_mask");
-    return r;
+    return std::make_shared<ov::Model>(ov::ResultVector{sliding_result, full_result}, parts.params, "distance_mask");
+}
+
+std::shared_ptr<ov::Model> getModel(int64_t window = kWindow, bool separate_length_mask = false) {
+    const auto parts = build_mask_parts(window, separate_length_mask);
+    return make_mask_model(parts, expand_mask(parts.forget));
+}
+
+// The window condition after the patch: past keys measure the distance from the query position among the valid
+// tokens, keys of the current chunk keep Q - K, and padded query rows are fully masked.
+std::shared_ptr<ov::Model> getModelRef() {
+    const auto parts = build_mask_parts();
+    const auto& mask = parts.length_mask;
+    auto one_1d = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto column = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {-1, 1});
+    auto past_len_1d = std::make_shared<ov::op::v1::Reshape>(parts.past_len, one_1d, false);
+    auto mask_len_1d = std::make_shared<ov::op::v1::Reshape>(parts.mask_len, one_1d, false);
+
+    auto num_valid = std::make_shared<ov::op::v1::ReduceSum>(mask, one_1d, false);
+    auto num_invalid = std::make_shared<ov::op::v1::Subtract>(parts.mask_len, num_valid);
+    auto query_cache_col = std::make_shared<ov::op::v1::Subtract>(parts.q_col, num_invalid);
+    auto history_distance = std::make_shared<ov::op::v1::Subtract>(query_cache_col, parts.k_row);
+    auto forget_history = std::make_shared<ov::op::v1::GreaterEqual>(history_distance, parts.window);
+    auto is_history = std::make_shared<ov::op::v1::Less>(parts.k_row, parts.past_len);
+    auto mapped_forget = std::make_shared<ov::op::v1::Select>(is_history, forget_history, parts.forget);
+
+    auto query_valid = std::make_shared<ov::op::v8::Slice>(mask, past_len_1d, mask_len_1d, one_1d, one_1d);
+    auto query_valid_bool = std::make_shared<ov::op::v0::Convert>(query_valid, ov::element::boolean);
+    auto query_valid_col = std::make_shared<ov::op::v1::Reshape>(query_valid_bool, column, false);
+    auto query_invalid = std::make_shared<ov::op::v1::LogicalNot>(query_valid_col);
+    auto clean_forget = std::make_shared<ov::op::v1::LogicalOr>(mapped_forget, query_invalid);
+    return make_mask_model(parts, expand_mask(clean_forget));
 }
 
 struct StaticInputs {
@@ -127,7 +174,7 @@ struct StaticInputs {
 };
 
 // Evaluates {sliding, full} masks, each flattened [seq_len, total_seq].
-std::vector<std::vector<float>> evaluate(const DistanceMaskModel& m, const StaticInputs& in) {
+std::vector<std::vector<float>> evaluate(const std::shared_ptr<ov::Model>& original, const StaticInputs& in) {
     const size_t seq_len = in.position_ids.size();
     const size_t total = in.attention_mask.size();
     ov::Tensor input_ids(ov::element::i64, ov::Shape{1, seq_len});
@@ -139,7 +186,7 @@ std::vector<std::vector<float>> evaluate(const DistanceMaskModel& m, const Stati
     std::copy(in.position_ids.begin(), in.position_ids.end(), position_ids.data<int64_t>());
 
     // Evaluate with static shapes, as NPUW compiles the prefill and generate models.
-    auto model = m.model->clone();
+    auto model = original->clone();
     std::map<ov::Output<ov::Node>, ov::PartialShape> shapes;
     const ov::TensorVector inputs{input_ids, attention_mask, past_key, position_ids};
     const auto params = model->get_parameters();
@@ -175,22 +222,28 @@ std::vector<std::vector<float>> evaluate(const DistanceMaskModel& m, const Stati
     return masks;
 }
 
-// Reference sliding mask in temporal positions: past keys at slot k hold position k, keys of the current
-// chunk hold position_ids. A key is visible if it is valid, not in the future and within the window.
-// Padded query rows see nothing.
+// Reference sliding mask in cache coordinates: the history keeps the k-th valid token in slot k, and the
+// valid tokens of the current chunk follow it. A key is visible if it is valid, not in the future and within
+// the window. Padded query rows see nothing. position_ids are not used: the window does not depend on their
+// baseline.
 std::vector<float> reference_sliding_mask(const StaticInputs& in) {
     const size_t seq_len = in.position_ids.size();
     const size_t total = in.attention_mask.size();
+    int64_t num_invalid = 0;
+    for (const auto valid : in.attention_mask) {
+        num_invalid += valid == 0 ? 1 : 0;
+    }
     std::vector<float> mask(seq_len * total, kFill);
     for (size_t q = 0; q < seq_len; ++q) {
         const size_t q_slot = in.past_capacity + q;
         if (in.attention_mask[q_slot] == 0) {
             continue;
         }
+        const int64_t q_pos = static_cast<int64_t>(q_slot) - num_invalid;
         for (size_t k = 0; k < total; ++k) {
             const bool is_past = k < in.past_capacity;
-            const int64_t k_pos = is_past ? static_cast<int64_t>(k) : in.position_ids[k - in.past_capacity];
-            const bool visible = in.attention_mask[k] != 0 && k <= q_slot && in.position_ids[q] - k_pos < kWindow;
+            const int64_t distance = is_past ? q_pos - static_cast<int64_t>(k) : static_cast<int64_t>(q_slot - k);
+            const bool visible = in.attention_mask[k] != 0 && k <= q_slot && distance < kWindow;
             mask[q * total + k] = visible ? 0.0f : kFill;
         }
     }
@@ -205,6 +258,15 @@ StaticInputs generate_step() {
 // Second prefill chunk: 5 past tokens in an 8-slot past buffer, a 4-token chunk with one left pad.
 StaticInputs prefill_chunk() {
     return {8, {1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1}, {0, 5, 6, 7}};
+}
+
+// The same steps when the request's positions start at 37 instead of 0.
+StaticInputs generate_step_with_position_baseline() {
+    return {12, {1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1}, {43}};
+}
+
+StaticInputs prefill_chunk_with_position_baseline() {
+    return {8, {1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1}, {0, 42, 43, 44}};
 }
 
 void expect_rows_eq(const std::vector<float>& actual,
@@ -222,58 +284,76 @@ void expect_rows_eq(const std::vector<float>& actual,
     }
 }
 
+class DistanceSlidingMaskTransformationTest : public TransformationTestsF {
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        manager.register_pass<ov::npuw::PatchSlidingWindowMask>();
+    }
+};
+
+std::shared_ptr<ov::Model> patched(std::shared_ptr<ov::Model> model) {
+    ov::npuw::PatchSlidingWindowMask().run_on_model(model);
+    return model;
+}
+
 }  // namespace
+
+TEST_F(DistanceSlidingMaskTransformationTest, RewritesOnlyTheWindowCondition) {
+    model = getModel();
+    model_ref = getModelRef();
+}
+
+TEST_F(DistanceSlidingMaskTransformationTest, SecondRunLeavesTheGraphUnchanged) {
+    model = getModel();
+    model_ref = getModelRef();
+    manager.register_pass<ov::npuw::PatchSlidingWindowMask>();
+}
+
+// A non-positive window is not a sliding window.
+TEST_F(DistanceSlidingMaskTransformationTest, NotAppliedForNonPositiveWindow) {
+    model = getModel(/*window=*/0);
+}
+
+// The ranges must be built from the model's own attention mask.
+TEST_F(DistanceSlidingMaskTransformationTest, NotAppliedForAnotherMask) {
+    model = getModel(kWindow, /*separate_length_mask=*/true);
+}
 
 // Without the patch, Q is the static past length: every left-aligned past token is out of the window.
 TEST(DistanceSlidingMaskTest, UnpatchedMaskDropsHistory) {
-    auto m = build_distance_mask_model();
-    const auto in = generate_step();
-    const auto sliding = evaluate(m, in)[0];
+    const auto sliding = evaluate(getModel(), generate_step())[0];
     for (size_t k = 0; k < 6; ++k) {
         EXPECT_EQ(sliding[k], kFill) << "key " << k;
     }
 }
 
-TEST(DistanceSlidingMaskTest, PatchFires) {
-    auto m = build_distance_mask_model();
-    EXPECT_TRUE(ov::npuw::PatchSlidingWindowMask().run_on_model(m.model));
-    EXPECT_NO_THROW(m.model->validate_nodes_and_infer_types());
-}
-
-TEST(DistanceSlidingMaskTest, GenerateStepUsesTemporalPositionsForHistory) {
-    auto m = build_distance_mask_model();
-    ASSERT_TRUE(ov::npuw::PatchSlidingWindowMask().run_on_model(m.model));
+TEST(DistanceSlidingMaskTest, GenerateStepKeepsHistoryWithinWindow) {
     const auto in = generate_step();
-    expect_rows_eq(evaluate(m, in)[0], reference_sliding_mask(in), in, /*only_valid_rows=*/false);
+    expect_rows_eq(evaluate(patched(getModel()), in)[0], reference_sliding_mask(in), in, /*only_valid_rows=*/false);
 }
 
-TEST(DistanceSlidingMaskTest, PrefillChunkUsesTemporalPositionsForHistory) {
-    auto m = build_distance_mask_model();
-    ASSERT_TRUE(ov::npuw::PatchSlidingWindowMask().run_on_model(m.model));
+TEST(DistanceSlidingMaskTest, PrefillChunkKeepsHistoryWithinWindow) {
     const auto in = prefill_chunk();
-    expect_rows_eq(evaluate(m, in)[0], reference_sliding_mask(in), in, /*only_valid_rows=*/false);
+    expect_rows_eq(evaluate(patched(getModel()), in)[0], reference_sliding_mask(in), in, /*only_valid_rows=*/false);
+}
+
+// The window is measured between cache slots, so a nonzero baseline of the positions changes nothing.
+TEST(DistanceSlidingMaskTest, IndependentOfPositionBaseline) {
+    for (const auto& in : {generate_step_with_position_baseline(), prefill_chunk_with_position_baseline()}) {
+        expect_rows_eq(evaluate(patched(getModel()), in)[0],
+                       reference_sliding_mask(in),
+                       in,
+                       /*only_valid_rows=*/false);
+    }
 }
 
 // The full attention mask shares the causal/padding Select with the sliding one and must stay as it is.
 TEST(DistanceSlidingMaskTest, FullAttentionMaskIsUnchanged) {
-    auto original = build_distance_mask_model();
-    auto patched = build_distance_mask_model();
-    ASSERT_TRUE(ov::npuw::PatchSlidingWindowMask().run_on_model(patched.model));
     for (const auto& in : {generate_step(), prefill_chunk()}) {
-        expect_rows_eq(evaluate(patched, in)[1], evaluate(original, in)[1], in, /*only_valid_rows=*/false);
+        expect_rows_eq(evaluate(patched(getModel()), in)[1],
+                       evaluate(getModel(), in)[1],
+                       in,
+                       /*only_valid_rows=*/false);
     }
-}
-
-TEST(DistanceSlidingMaskTest, ReapplyIsNoOp) {
-    auto m = build_distance_mask_model();
-    ASSERT_TRUE(ov::npuw::PatchSlidingWindowMask().run_on_model(m.model));
-    const auto ops_after_first = m.model->get_ops().size();
-    EXPECT_FALSE(ov::npuw::PatchSlidingWindowMask().run_on_model(m.model));
-    EXPECT_EQ(m.model->get_ops().size(), ops_after_first);
-}
-
-// A non-positive window is not a sliding window: leave the mask alone.
-TEST(DistanceSlidingMaskTest, IgnoresNonPositiveWindow) {
-    auto m = build_distance_mask_model(/*window=*/0);
-    EXPECT_FALSE(ov::npuw::PatchSlidingWindowMask().run_on_model(m.model));
 }
