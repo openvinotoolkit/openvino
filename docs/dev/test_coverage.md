@@ -113,6 +113,9 @@ Outputs are `build-windows-npu-coverage/package` and
 `build-windows-npu-coverage/openvino-npu-coverage.zip` (runtime, tests and PDBs
 together). The script refuses to reuse an existing package to avoid stale files;
 move it aside before rebuilding, or choose another `-WorkDir`.
+The script checks that coverage remains enabled after CMake configuration.
+`ENABLE_COVERAGE:INTERNAL=ON` in the cache is not sufficient: it can mean that
+CMake saved the requested value while disabling the option in the active scope.
 You can unpack the ZIP elsewhere and pass that directory as `-PackageDir`.
 Keep the matching source checkout available at its original path for symbol/source
 resolution during the first experiment.

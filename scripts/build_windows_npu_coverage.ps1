@@ -44,6 +44,9 @@ foreach ($frontend in @('ONNX', 'PADDLE', 'PYTORCH', 'JAX', 'TF', 'TF_LITE', 'GG
     $options += "-DENABLE_OV_${frontend}_FRONTEND=OFF"
 }
 Invoke-Checked cmake $options
+if (!(Select-String -LiteralPath "$build/CMakeCache.txt" -Pattern '^ENABLE_COVERAGE:BOOL=ON$' -Quiet)) {
+    throw 'CMake disabled coverage despite ENABLE_COVERAGE=ON. Check compiler support before building.'
+}
 $env:CMAKE_BUILD_PARALLEL_LEVEL = "$Jobs"
 Invoke-Checked cmake @('--build', $build, '--config', 'Release', '--parallel', "$Jobs")
 Invoke-Checked cmake @('--install', $build, '--config', 'Release', '--prefix', $package)
@@ -53,10 +56,9 @@ foreach ($component in @('tests', 'pdb')) {
 }
 foreach ($name in @('ov_npu_unit_tests.exe', 'openvino_intel_npu_plugin.dll')) {
     $modules = @(Get-ChildItem $package -Recurse -File -Filter $name)
-    if ($modules.Count -ne 1 -or
-        !(Test-Path ([IO.Path]::ChangeExtension($modules[0].FullName, '.pdb')))) {
-        throw "Expected one $name with an adjacent PDB in $package"
-    }
+    if ($modules.Count -ne 1) { throw "Expected one $name in $package; found $($modules.Count)" }
+    $pdb = [IO.Path]::ChangeExtension($modules[0].FullName, '.pdb')
+    if (!(Test-Path -LiteralPath $pdb -PathType Leaf)) { throw "Missing installed linker PDB: $pdb" }
 }
 Push-Location $package
 try {
