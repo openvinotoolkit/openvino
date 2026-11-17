@@ -502,9 +502,12 @@ ov::CompatibilityCheck CRE::evaluate(
     std::function<ov::CompatibilityCheck(ov::CompatibilityCheck, ov::CompatibilityCheck)> logical_function =
         first_operand_function;
     ov::CompatibilityCheck result(ov::CompatibilityCheck::SUPPORTED);
+    // Indicates the current operand was preceded by a NOT, so negation should be applied on the result
     bool negate = false;
+    // Indicates an operand has been processed, so another operator should follow before another operand
     bool expect_binary_operator = false;
     bool at_least_one_iteration = false;
+    // E.g. TRUE OR ? always evaluates to TRUE, so "?" should be skipped. This flag is used to remember that
     bool skip_next_evaluation = false;
     ov::CompatibilityCheck subexpression_result;
 
@@ -582,7 +585,7 @@ ov::CompatibilityCheck CRE::evaluate(
             break;
         case CRESpecialTokenCode::OPEN:
             CRE_ASSERT(!expect_binary_operator, "An open parrenthesis was found when a binary operator was expected");
-            // A subexpression is also an operand, and it should be followed by an operator
+            // A subexpression is also an operand, and it should be followed by an operator before another operand
             expect_binary_operator = true;
 
             advance_iterator(expression_iterator, expression_end);
