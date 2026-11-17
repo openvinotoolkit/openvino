@@ -151,6 +151,12 @@ replacement projector declaring neither gets `Unsupported`; it does not inherit 
 its projector name. Only legacy models without `vision.genai_layout` use a built-in recipe
 selected by `vision.projector`.
 
+Audio builders declare `audio_layout` separately. The Gemma 4 audio layouts select the matching
+GenAI input preprocessing and are serialized as `audio.genai_layout`; custom aliases can return
+the layout from `build_builtin_projector()`. A replacement that declares no audio layout remains
+unchanged, even if it reuses a built-in projector id. Only legacy models without
+`audio.genai_layout` use the built-in audio projector name.
+
 A projector may declare its components with `configure_model_contract()`. For `lfm3vl`, `lfm3a`
 and `lfm3a_gen` models the coordinator reads that declaration through `model_contract()` and
 adds built-in component groups only where the projector declared none; declared recurrent

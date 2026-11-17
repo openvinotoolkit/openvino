@@ -515,6 +515,31 @@ constexpr std::pair<ProjectorLayout, const char*> layout_names[] = {
     {ProjectorLayout::TemporalPackedPatches, "temporal_packed_patches"},
     {ProjectorLayout::BatchedImage, "batched_image"},
 };
+
+constexpr std::pair<AudioLayout, const char*> audio_layout_names[] = {
+    {AudioLayout::Unsupported, "unsupported"},
+    {AudioLayout::Gemma4, "gemma4"},
+    {AudioLayout::UnifiedGemma4, "unified_gemma4"},
+};
+
+AudioLayout read_audio_layout(const std::shared_ptr<ov::Model>& model) {
+    if (!model->has_rt_info({"gguf_mmproj", "audio.genai_layout"})) {
+        if (!model->has_rt_info({"gguf_mmproj", "audio.projector"}))
+            return AudioLayout::Unsupported;
+        const auto projector = model->get_rt_info<std::string>({"gguf_mmproj", "audio.projector"});
+        if (projector == "gemma4a")
+            return AudioLayout::Gemma4;
+        if (projector == "gemma4ua")
+            return AudioLayout::UnifiedGemma4;
+        return AudioLayout::Unsupported;
+    }
+    const auto name = model->get_rt_info<std::string>({"gguf_mmproj", "audio.genai_layout"});
+    for (const auto& [layout, layout_name] : audio_layout_names) {
+        if (name == layout_name)
+            return layout;
+    }
+    OPENVINO_THROW("[GGUF] no GenAI audio layout for mmproj contract '", name, "'");
+}
 }  // namespace
 
 ProjectorLayout read_projector_layout(const std::shared_ptr<ov::Model>& model) {
@@ -543,6 +568,14 @@ std::string projector_layout_name(ProjectorLayout layout) {
             return name;
     }
     OPENVINO_THROW("[GGUF] invalid GenAI projector layout contract");
+}
+
+std::string audio_layout_name(AudioLayout layout) {
+    for (const auto& [candidate, name] : audio_layout_names) {
+        if (candidate == layout)
+            return name;
+    }
+    OPENVINO_THROW("[GGUF] invalid GenAI audio layout contract");
 }
 
 ProjectorModels adapt_projector_layout(const std::shared_ptr<ov::Model>& model) {
@@ -580,10 +613,10 @@ ProjectorModels adapt_projector_layout(const std::shared_ptr<ov::Model>& model) 
 }
 
 void adapt_audio_layout(const std::shared_ptr<ov::Model>& model) {
-    const auto projector = model->get_rt_info<std::string>({"gguf_mmproj", "audio.projector"});
-    const bool unified = projector == "gemma4ua";
-    if (!unified && projector != "gemma4a")
+    const auto layout = read_audio_layout(model);
+    if (layout == AudioLayout::Unsupported)
         return;
+    const bool unified = layout == AudioLayout::UnifiedGemma4;
     OPENVINO_ASSERT(model->get_parameters().size() == 1 && model->get_results().size() == 1,
                     "[GGUF] Gemma4 audio requires one feature input and one output");
     const auto original = model->get_parameters().front();
@@ -615,14 +648,20 @@ void adapt_audio_layout(const std::shared_ptr<ov::Model>& model) {
     ov::replace_node(original, expanded);
     model->remove_parameter(original);
     model->add_parameters({features});
-    auto output = model->get_results().front()->input_value(0);
+    const auto result = model->get_results().front();
+    auto output = result->input_value(0);
     output.set_names({"last_hidden_state"});
     if (!unified) {
-        const auto dimensions =
-            std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(output), ints({0, 1}), ints({0}));
-        auto mask = std::make_shared<v3::Broadcast>(v0::Constant::create(ov::element::boolean, {}, {true}), dimensions);
+        auto axes = ints({0, 1});
+        auto batch_axis = ints({0});
+        auto shape = std::make_shared<v3::ShapeOf>(output);
+        auto dimensions = std::make_shared<v8::Gather>(shape, axes, batch_axis);
+        auto ones = v0::Constant::create(ov::element::boolean, {}, {true});
+        auto mask = std::make_shared<v3::Broadcast>(ones, dimensions);
         mask->output(0).set_names({"attention_mask"});
-        model->add_results({std::make_shared<v0::Result>(mask)});
+        auto attention_mask = std::make_shared<v0::Result>(mask);
+        ov::copy_runtime_info(result, ov::NodeVector{axes, batch_axis, shape, dimensions, ones, mask, attention_mask});
+        model->add_results({attention_mask});
     }
     model->validate_nodes_and_infer_types();
 }

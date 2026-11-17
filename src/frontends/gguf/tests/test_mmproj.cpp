@@ -25,6 +25,7 @@
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gelu.hpp"
@@ -34,6 +35,7 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/transpose.hpp"
@@ -497,7 +499,9 @@ TEST_F(GGUFMMProj, GenAILayoutsPreserveRuntimeInfo) {
     audio_result->output(0).set_names({"audio.embeddings"});
     auto audio = std::make_shared<ov::Model>(ov::ResultVector{audio_result}, ov::ParameterVector{features});
     audio->set_rt_info(std::string("gemma4a"), {"gguf_mmproj", "audio.projector"});
+    audio->set_rt_info(std::string("gemma4"), {"gguf_mmproj", "audio.genai_layout"});
     features->get_rt_info()[ov::FusedNames::get_type_info_static()] = ov::FusedNames("audio_input");
+    audio_result->get_rt_info()[ov::FusedNames::get_type_info_static()] = ov::FusedNames("audio_result");
 
     auto adapted_audio = ov::frontend::gguf::adapt_to_genai(audio).at("audio_embeddings");
     const auto adapted_features = std::find_if(adapted_audio->get_parameters().begin(),
@@ -535,6 +539,85 @@ TEST_F(GGUFMMProj, GenAILayoutsPreserveRuntimeInfo) {
     EXPECT_EQ(slices, 1);
     EXPECT_EQ(transposes, 1);
     EXPECT_EQ(unsqueezes, 1);
+
+    size_t shape_ofs = 0;
+    size_t gathers = 0;
+    size_t broadcasts = 0;
+    for (const auto& node : adapted_audio->get_ops()) {
+        if (ov::is_type<ov::op::v3::ShapeOf>(node)) {
+            ++shape_ofs;
+            EXPECT_TRUE(has_fused_name(node, "audio_result"));
+        } else if (ov::is_type<ov::op::v8::Gather>(node)) {
+            ++gathers;
+            EXPECT_TRUE(has_fused_name(node, "audio_result"));
+        } else if (ov::is_type<ov::op::v3::Broadcast>(node)) {
+            ++broadcasts;
+            EXPECT_TRUE(has_fused_name(node, "audio_result"));
+        }
+    }
+    EXPECT_EQ(shape_ofs, 1);
+    EXPECT_EQ(gathers, 1);
+    EXPECT_EQ(broadcasts, 1);
+    ASSERT_EQ(adapted_audio->get_results().size(), 2u);
+    EXPECT_TRUE(has_fused_name(adapted_audio->get_results().back(), "audio_result"));
+}
+
+TEST_F(GGUFMMProj, AudioLayoutUsesExplicitBuilderContractForAliases) {
+    using namespace ov::frontend::gguf;
+    writer.kv_bool("clip.has_audio_encoder", true);
+    writer.kv_str("clip.audio.projector_type", "gemma4a-alias");
+    ASSERT_TRUE(writer.write(path));
+
+    FrontEnd frontend;
+    auto extension = std::make_shared<ProjectorExtension>(
+        ProjectorDefinition{"clip.audio.gemma4a-alias",
+                            "clip",
+                            "audio",
+                            "gemma4a-alias",
+                            [](GgufGraphContext& graph) {
+                                ProjectorResult result;
+                                result.output = graph.add_input("audio.features", ov::element::f32, {1, 1, 4, 8});
+                                result.audio_layout = AudioLayout::Gemma4;
+                                return result;
+                            },
+                            {}});
+    frontend.add_extension(extension);
+    auto converted = frontend.convert(frontend.load(path));
+    EXPECT_EQ(converted->get_rt_info<std::string>({"gguf_mmproj", "audio.genai_layout"}), "gemma4");
+
+    auto adapted = adapt_to_genai(converted).at("audio_embeddings");
+    EXPECT_NO_THROW(adapted->input("input_features"));
+    EXPECT_NO_THROW(adapted->input("input_features_mask"));
+    ASSERT_EQ(adapted->get_results().size(), 2u);
+    EXPECT_EQ(adapted->output(1).get_any_name(), "attention_mask");
+}
+
+TEST_F(GGUFMMProj, AudioReplacementDoesNotInheritGemmaLayoutFromProjectorName) {
+    using namespace ov::frontend::gguf;
+    writer.kv_bool("clip.has_audio_encoder", true);
+    writer.kv_str("clip.audio.projector_type", "gemma4a");
+    ASSERT_TRUE(writer.write(path));
+
+    FrontEnd frontend;
+    auto extension = std::make_shared<ProjectorExtension>(
+        ProjectorDefinition{
+            "clip.audio.gemma4a",
+            "clip",
+            "audio",
+            "gemma4a",
+            [](GgufGraphContext& graph) {
+                return ProjectorResult{graph.add_input("replacement_features", ov::element::f32, {1, 1, 4, 8}), {}};
+            },
+            {}},
+        RegistrationMode::Replace);
+    frontend.add_extension(extension);
+    auto converted = frontend.convert(frontend.load(path));
+    EXPECT_EQ(converted->get_rt_info<std::string>({"gguf_mmproj", "audio.genai_layout"}), "unsupported");
+
+    auto adapted = adapt_to_genai(converted).at("audio_embeddings");
+    EXPECT_NO_THROW(adapted->input("replacement_features"));
+    EXPECT_THROW(adapted->input("input_features"), ov::Exception);
+    ASSERT_EQ(adapted->get_results().size(), 1u);
 }
 
 TEST_F(GGUFMMProj, AdaptToGenAIRespectsAudioAdapterModels) {
