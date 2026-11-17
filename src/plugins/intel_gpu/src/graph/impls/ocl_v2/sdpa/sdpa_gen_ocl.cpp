@@ -997,8 +997,9 @@ bool hpg_pa_prefill_ok(const kernel_impl_params& params, bool is_prefill, size_t
 const layout* runtime_scale_layout(const kernel_impl_params& params);  // with the scale jit below
 
 // The same kernel serves plain SDPA (the PREFILL stage, q > 1) without causality, a runtime scalar mask, a runtime scale, a
-// sink or a compressed KV cache (flux, vision encoders, the stateful LLMs of ATTENTION_BACKEND=SDPA), at the same heads and
-// head 72 (phi-4-multimodal's vision encoder; half a depth tile and half a value block past 64, plain SDPA only), when Q, K,
+// sink or a compressed KV cache (flux, vision encoders, the stateful LLMs of ATTENTION_BACKEND=SDPA), at the same heads,
+// head 72 (phi-4-multimodal's vision encoder; half a depth tile and half a value block past 64, plain SDPA only) and heads
+// 40 / 80 / 160 (stable-diffusion-v1-5's UNet; 40 has head 72's tail, 80 and 160 are whole depth tiles), when Q, K,
 // V and the output are rank-4 f16 tensors whose head dimension is innermost and unpadded: every row then starts at a
 // multiple of the head size (a crop view of a fused QKV tensor pads another axis). A tensor mask must be f16, bfyx and
 // unpadded (the kernel reads 8 keys of a row with one load and adds no padding offset, as sdpa_ocl.cl). A static scalar mask
@@ -1007,8 +1008,8 @@ const layout* runtime_scale_layout(const kernel_impl_params& params);  // with t
 // SDPAOptImpl::execute() dispatches the sdpa_ocl PREFILL only when no beam reorder is needed (need_indirect_load()), so no
 // sdpa_ocl kernel reads the beam table, as on Xe2. SDPA_OCL_HPG_PLAIN_PREFILL=0 turns it off for A/B.
 bool hpg_plain_prefill_ok(const kernel_impl_params& params, size_t k_head_size, size_t v_head_size) {
-    const bool head_ok = k_head_size == v_head_size &&
-                         (k_head_size == 64 || k_head_size == 72 || k_head_size == 96 || k_head_size == 128 || k_head_size == 256 || k_head_size == 512);
+    const bool head_ok = k_head_size == v_head_size && (k_head_size == 40 || k_head_size == 64 || k_head_size == 72 || k_head_size == 80 || k_head_size == 96 ||
+                                                        k_head_size == 128 || k_head_size == 160 || k_head_size == 256 || k_head_size == 512);
     if (params.get_device_info().arch != gpu_arch::xe_hpg || !params.is_type<scaled_dot_product_attention>() || !head_ok) {
         return false;
     }
@@ -1050,6 +1051,13 @@ bool hpg_plain_prefill_ok(const kernel_impl_params& params, size_t k_head_size, 
 // head 256 (256 x 32, sdpa_micro's: 1.13x at 1K tokens), where 32 value columns per S*V subgroup spilled 4.7-9.4 KB, and
 // 32 x 1 at head 512 (512 x 16: 0.90-0.91x sdpa_micro at 1K tokens in gemma-4-e2b, 0.94-0.96x in flux.1-schnell's VAE),
 // where 32 x 16 subgroup tiles of 16 x 1 with 32 value columns spilled 6 KB and were 2.2x.
+// Plain SDPA at heads 40 / 80 / 160 (stable-diffusion-v1-5's UNet, 8 heads, batch 2) takes 32 x 16 subgroup tiles, 3 x 2 at
+// head 40 (96 x 32, 48 value columns, the last 8 past the head) and 5 x 2 at head 80 (160 x 32), and 16 x 16 ones, 10 x 2 at
+// head 160 (160 x 32): 0.64-0.88x sdpa_micro per call (the generic kernel was 2.4-5.4x). Against those, the 4096-token
+// self-attention at head 40 took 1.39x with 6 x 2 (8 value columns per S*V subgroup), 1.24x with 3 x 4 and 1.08x with
+// 16 x 16 tiles, the 1024-token one at head 80 1.44x with 5 x 4, 1.89x with 10 x 2 and 1.08x with 16 x 16 tiles (0.76x on
+// its 77-key cross-attention, 1.02x the pair). At head 160, 10 x 4 (40 subgroups) hung the A770 (driver 32.0.101.9175) and
+// the machine with it: the overrides below are not checked against such shapes.
 // A MIXED on a compressed cache (comp_mixed) takes 16 x 32 subgroup tiles, kq_sg_per_wg_keys x 1, at heads 64, 96, 128 and
 // 256 (128 x 32 with 8 x 1 at head 64, 8 value columns per S*V subgroup; 96 x 32, 128 x 32, 256 x 32): with two query
 // subgroups each K / V element of the tile was dequantized twice, and once took 0.68-0.71x the device time per call at
@@ -1066,7 +1074,15 @@ sdpa_ocl_config_t hpg_pa_prefill_tiling(size_t head_size, bool comp_mixed) {
                      env_int("SDPA_OCL_HPG_PA_COMP_Q32", 1) != 0;
     t.kq_sg_tile_keys = (head_size <= 128 && !q32) ? 32 : 16;
     t.kq_sg_tile_queries = q32 ? 32 : 16;
-    t.kq_sg_per_wg_keys = head_size == 64 ? (q32 ? 8 : 4) : head_size == 72 ? 5 : head_size == 96 ? 6 : head_size == 128 ? 8 : head_size == 512 ? 32 : 16;
+    t.kq_sg_per_wg_keys = head_size == 40    ? 3
+                          : head_size == 64  ? (q32 ? 8 : 4)
+                          : head_size == 72  ? 5
+                          : head_size == 80  ? 5
+                          : head_size == 96  ? 6
+                          : head_size == 128 ? 8
+                          : head_size == 160 ? 10
+                          : head_size == 512 ? 32
+                                             : 16;
     t.kq_sg_per_wg_queries = (head_size == 512 || q32) ? 1 : 2;
     t.kq_sg_tile_keys = env_int("SDPA_OCL_HPG_PA_TILE_KEYS", t.kq_sg_tile_keys);
     t.kq_sg_tile_queries = env_int("SDPA_OCL_HPG_PA_TILE_QUERIES", t.kq_sg_tile_queries);
