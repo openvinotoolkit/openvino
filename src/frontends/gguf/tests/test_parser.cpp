@@ -728,8 +728,8 @@ TEST_F(GGUFShards, FrontendConvertsTheSameConstantsFromSingleFileAndShardInputs)
         const auto comparison = comparator.compare(model, reference);
         EXPECT_TRUE(comparison.valid) << comparison.message;
     }
-    // u8 literals are char8_t in C++20; keep a UTF-8 std::string for both standards
-    const auto unicode_prefix = ov::util::make_path(m_base + reinterpret_cast<const char*>(u8"_模型_żółć"));
+    auto unicode_prefix = ov::util::make_path(m_base);
+    unicode_prefix += ov::util::make_path(m_base + reinterpret_cast<const char*>(u8"_模型_żółć"));
     const auto unicode_first =
         std::filesystem::path(unicode_prefix.native() + std::filesystem::path("-00001-of-00002.gguf").native());
     const auto unicode_second =

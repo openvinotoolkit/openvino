@@ -384,3 +384,32 @@ ov::pass::PositionIDsReplacerGranite::PositionIDsReplacerGranite(const Output<No
     auto m = std::make_shared<Matcher>(p_sin_cos, matcher_name);
     register_matcher(m, callback);
 }
+
+ov::pass::PositionIDsReplacerQwen3_5::PositionIDsReplacerQwen3_5(const Output<Node>& unsq_position_ids) {
+    MATCHER_SCOPE(PositionIDsReplacerQwen3_5);
+
+    auto p_start = any_input();
+    auto p_stop = any_input();
+    auto p_step = any_input();
+    auto p_range = wrap_type<v0::Range, ov::op::v4::Range>({p_start, p_stop, p_step});
+    auto p_reshape = wrap_type<v1::Reshape>({p_range, wrap_type<v0::Constant>(value_matches("1, 1, -1"))});
+    auto p_broadcast = wrap_type<v3::Broadcast>({p_reshape, any_input()});
+    auto p_unsqueeze = wrap_type<v0::Unsqueeze>({p_broadcast, wrap_type<v0::Constant>(value_matches("2"))});
+    auto p_convert = wrap_type<v0::Convert>({p_unsqueeze});
+    auto p_inv_freq = any_input();
+    auto p_matmul = wrap_type<v0::MatMul>({p_inv_freq, p_convert});
+    auto p_transpose = wrap_type<v1::Transpose>({p_matmul, any_input()});
+
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        const auto broadcast = pattern_map.at(p_broadcast).get_node_shared_ptr();
+
+        auto axis = v0::Constant::create(element::i32, Shape{}, {0});
+        auto unsq = std::make_shared<v0::Unsqueeze>(unsq_position_ids, axis);
+        broadcast->input(0).replace_source_output(unsq);
+        return true;
+    };
+
+    auto m = std::make_shared<Matcher>(p_transpose, matcher_name);
+    register_matcher(m, callback);
+}

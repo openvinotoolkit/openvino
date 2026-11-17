@@ -249,6 +249,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Interaction", Type::Interaction},
         {"Unique", Type::Unique},
         {"Ngram", Type::Ngram},
+        {"NGramHashFunction", Type::NgramHash},
         {"ScaledDotProductAttention", Type::ScaledDotProductAttention},
         {"ScaledDotProductAttentionWithKVCache", Type::ScaledDotProductAttention},
         {"SDPAWithTransposeReshape", Type::ScaledDotProductAttention},
@@ -270,7 +271,12 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"PagedGatedDeltaNet", Type::PagedGatedDeltaNet},
         {"SelectiveSSM", Type::SelectiveSSM},
         {"PagedSelectiveSSM", Type::PagedSelectiveSSM},
-        {"PagedCausalConv1D", Type::PagedCausalConv1D}};
+        {"PagedCausalConv1D", Type::PagedCausalConv1D},
+        {"QSAIndexer", Type::QSAIndexer},
+        {"SparseAttention", Type::SparseSDPA},
+        {"SparseAttentionWithKVCache", Type::SparseSDPA},
+        {"PagedQSAIndexer", Type::PagedQSAIndexer},
+        {"PagedSparseAttention", Type::SparsePA}};
     return type_to_name_tbl;
 }
 
@@ -395,6 +401,7 @@ std::string NameFromType(const Type type) {
         CASE(RandomUniform);
         CASE(Unique);
         CASE(Ngram);
+        CASE(NgramHash);
         CASE(ScaledDotProductAttention);
         CASE(PagedAttention);
         CASE(PaKVReorder);
@@ -413,6 +420,10 @@ std::string NameFromType(const Type type) {
         CASE(SelectiveSSM);
         CASE(PagedSelectiveSSM);
         CASE(PagedCausalConv1D);
+        CASE(QSAIndexer);
+        CASE(SparseSDPA);
+        CASE(PagedQSAIndexer);
+        CASE(SparsePA);
         CASE(Unknown);
     }
 #undef CASE
