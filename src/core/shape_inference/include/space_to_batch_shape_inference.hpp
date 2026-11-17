@@ -52,6 +52,15 @@ std::vector<TRShape> shape_infer(const SpaceToBatch* op,
                               "The data tensor with rank lower than 2 is not supported (data rank: ",
                               data_rank_size,
                               ")");
+        if (inputs_same_ps.is_static()) {
+            NODE_VALIDATION_CHECK(op,
+                                  static_cast<int64_t>(data_rank_size) == inputs_same_ps[0].get_length(),
+                                  "block_shape and pads inputs must have the same number of elements as data input "
+                                  "rank. Got: ",
+                                  inputs_same_ps[0],
+                                  " and ",
+                                  data_rank_size);
+        }
 
         auto& out_shape = output_shapes[0];
         out_shape.resize(0);
