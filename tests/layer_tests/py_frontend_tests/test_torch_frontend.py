@@ -839,6 +839,80 @@ def test_module_extension_dynamo_custom_callbacks():
         PartialShape([100])
 
 
+@pytest.mark.precommit
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float16])
+@pytest.mark.parametrize("kind", ["linear", "conv1d"])
+def test_patched_projection_output_view_mutation(dtype, kind):
+    from openvino import convert_model, compile_model
+    from openvino.frontend.pytorch import patch_model
+
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            if kind == "linear":
+                self.proj = torch.nn.Linear(8, 8, dtype=dtype)
+            else:
+                conv1d = pytest.importorskip("transformers.pytorch_utils").Conv1D
+                self.proj = conv1d(8, 8).to(dtype=dtype)
+
+        def forward(self, x):
+            query = self.proj(x)
+            sibling = self.proj(x)
+            query = query.view(1, 4, 2, 4).transpose(1, 2)
+            query[:, :1] = -query[:, :1]
+            return query, sibling, x
+
+    torch.manual_seed(0)
+    model = Model().eval()
+    example = torch.randn(1, 4, 8, dtype=dtype)
+    with torch.no_grad():
+        expected = tuple(value.numpy() for value in model(example))
+        try:
+            patch_model.__make_16bit_traceable(model)
+            converted = convert_model(model, example_input=example)
+            actual = compile_model(converted, "CPU", default_cfg)(example.numpy())
+            for index, value in enumerate(expected):
+                np.testing.assert_allclose(actual[index], value, atol=2e-3, rtol=2e-3)
+        finally:
+            patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
+
+
+@pytest.mark.precommit
+def test_custom_module_extension_linear_name_preserves_alias():
+    from unittest.mock import Mock
+    from openvino.frontend.pytorch import ModuleExtension, patch_model
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    class Identity(torch.nn.Module):
+        def forward(self, x):
+            return x
+
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.identity = Identity()
+
+        def forward(self, x):
+            return self.identity(x)
+
+    model = Model().eval()
+    example = torch.arange(24, dtype=torch.float32).reshape(1, 3, 8)
+    try:
+        decoder = TorchScriptPythonDecoder(
+            model,
+            example_input=example,
+            module_extensions={Identity: ModuleExtension(Identity, "ov_ext::linear")},
+        )
+        nodes = []
+        decoder.visit_subgraph(nodes.append)
+        extension = next(node for node in nodes if node.get_op_type() == "ov_ext::linear")
+        extension.alias_db = Mock()
+        extension.alias_db.may_contain_alias.return_value = True
+        assert extension.may_produce_alias(0, 0)
+    finally:
+        patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
+
+
 @pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
 def test_make_16bit_traceable_preserves_extension_dtypes(dtype):
     """__make_16bit_traceable exposes FP32 placeholders for ModuleExtension
