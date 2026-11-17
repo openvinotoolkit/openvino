@@ -6,54 +6,43 @@
 
 #include <memory>
 
-#include "openvino/core/model.hpp"
+#include "../partitioning/patterns/opt.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
-namespace {
+namespace opp = ov::pass::pattern;
 
-// Matches the threshold of the host gather: smaller embeddings are not worth moving to the host.
-constexpr size_t MIN_HIDDEN_SIZE = 2048;
+class StripNoopGatherIdsReshapeMatcher final : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::StripNoopGatherIdsReshapeMatcher");
 
-ov::Output<ov::Node> strip_noop_reshape_squeeze(const ov::Output<ov::Node>& ids) {
-    const auto squeeze = ov::as_type_ptr<ov::op::v0::Squeeze>(ids.get_node_shared_ptr());
-    if (!squeeze) {
-        return ids;
+    StripNoopGatherIdsReshapeMatcher() {
+        auto vocab = opp::any_input([](const ov::Output<ov::Node>& output) {
+            return output.get_partial_shape().is_static() && output.get_shape().size() == 2 &&
+                   output.get_shape()[1] >= ov::npuw::patterns::opt::MIN_HOST_GATHER_HIDDEN_SIZE;
+        });
+        auto source = opp::any_input(opp::has_static_shape());
+        auto reshape = opp::wrap_type<ov::op::v1::Reshape>({source, opp::any_input()});
+        auto ids = opp::wrap_type<ov::op::v0::Squeeze>({reshape, opp::any_input()}, opp::has_static_shape());
+        auto gather = opp::wrap_type<ov::op::v8::Gather>({vocab, ids, opp::any_input()});
+
+        ov::matcher_pass_callback callback = [=](opp::Matcher& matcher) {
+            const auto& pattern_map = matcher.get_pattern_value_map();
+            const auto& source_output = pattern_map.at(source);
+            if (source_output.get_shape() != pattern_map.at(ids).get_shape()) {
+                return false;
+            }
+            pattern_map.at(gather).get_node()->input(1).replace_source_output(source_output);
+            return true;
+        };
+
+        register_matcher(std::make_shared<opp::Matcher>(gather, "StripNoopGatherIdsReshapeMatcher"), callback);
     }
-    const auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(squeeze->input_value(0).get_node_shared_ptr());
-    if (!reshape) {
-        return ids;
-    }
-    const auto source = reshape->input_value(0);
-    const bool same_shape = source.get_partial_shape().is_static() && ids.get_partial_shape().is_static() &&
-                            source.get_shape() == ids.get_shape();
-    return same_shape ? source : ids;
-}
+};
 
-bool is_vocab_gather(const std::shared_ptr<ov::op::v8::Gather>& gather) {
-    if (!gather || gather->get_input_partial_shape(0).is_dynamic()) {
-        return false;
-    }
-    const auto& vocab_shape = gather->get_input_shape(0);
-    return vocab_shape.size() == 2 && vocab_shape[1] >= MIN_HIDDEN_SIZE;
-}
-
-}  // namespace
-
-bool ov::npuw::StripNoopGatherIdsReshape::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    bool changed = false;
-    for (const auto& node : model->get_ordered_ops()) {
-        const auto gather = ov::as_type_ptr<ov::op::v8::Gather>(node);
-        if (!is_vocab_gather(gather)) {
-            continue;
-        }
-        const auto ids = gather->input_value(1);
-        const auto stripped = strip_noop_reshape_squeeze(ids);
-        if (stripped != ids) {
-            gather->input(1).replace_source_output(stripped);
-            changed = true;
-        }
-    }
-    return changed;
+ov::npuw::StripNoopGatherIdsReshape::StripNoopGatherIdsReshape() {
+    add_matcher<StripNoopGatherIdsReshapeMatcher>();
 }

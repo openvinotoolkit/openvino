@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -38,7 +39,8 @@ size_t count_ops(const std::shared_ptr<ov::Model>& model, const std::string& typ
 // Const(W u2)[V,G,GS] -> Convert(f16) -> [Subtract(Convert(f16)(Const(Z u2)[V,G,1]))] -> Multiply(Const(S f16)[V,G,1])
 //   -> Reshape[V,H] -> Convert(f32) -> Gather(Param(ids)[1,N], axis 0)
 std::shared_ptr<ov::Model> make_group_quantized_vocab_model(const bool with_zero_point,
-                                                            const Shape& zero_point_shape = Shape{kVocab, kGroups, 1}) {
+                                                            const Shape& zero_point_shape = Shape{kVocab, kGroups, 1},
+                                                            const element::Type zero_point_type = element::u2) {
     auto weight = op::v0::Constant::create(element::u2,
                                            Shape{kVocab, kGroups, kGroupSize},
                                            std::vector<uint8_t>(kVocab * kGroups * kGroupSize, 1));
@@ -47,7 +49,7 @@ std::shared_ptr<ov::Model> make_group_quantized_vocab_model(const bool with_zero
                                           std::vector<ov::float16>(kVocab * kGroups, ov::float16(0.5f)));
     std::shared_ptr<Node> dq = std::make_shared<op::v0::Convert>(weight, element::f16);
     if (with_zero_point) {
-        auto zerop = op::v0::Constant::create(element::u2,
+        auto zerop = op::v0::Constant::create(zero_point_type,
                                               zero_point_shape,
                                               std::vector<uint8_t>(shape_size(zero_point_shape), 2));
         dq = std::make_shared<op::v1::Subtract>(dq, std::make_shared<op::v0::Convert>(zerop, element::f16));
@@ -60,7 +62,43 @@ std::shared_ptr<ov::Model> make_group_quantized_vocab_model(const bool with_zero
     auto cvt = std::make_shared<op::v0::Convert>(reshape, element::f32);
     auto ids = std::make_shared<op::v0::Parameter>(element::i64, Shape{1, kTokens});
     auto gather = std::make_shared<op::v8::Gather>(cvt, ids, axis0());
-    return std::make_shared<ov::Model>(OutputVector{gather}, ParameterVector{ids});
+    auto out = std::make_shared<op::v0::Relu>(gather);
+    return std::make_shared<ov::Model>(OutputVector{out}, ParameterVector{ids});
+}
+
+// The same vocab with the Gather lifted above the dequantization: the weights, the zero point (unless it is
+// broadcast over the vocab rows) and the scales are gathered by the ids, then dequantized.
+std::shared_ptr<ov::Model> make_lifted_vocab_model(const bool with_zero_point,
+                                                   const Shape& zero_point_shape = Shape{kVocab, kGroups, 1}) {
+    auto weight = op::v0::Constant::create(element::u2,
+                                           Shape{kVocab, kGroups, kGroupSize},
+                                           std::vector<uint8_t>(kVocab * kGroups * kGroupSize, 1));
+    auto scale = op::v0::Constant::create(element::f16,
+                                          Shape{kVocab, kGroups, 1},
+                                          std::vector<ov::float16>(kVocab * kGroups, ov::float16(0.5f)));
+    auto ids = std::make_shared<op::v0::Parameter>(element::i64, Shape{1, kTokens});
+    auto gather_w =
+        std::make_shared<op::v8::Gather>(std::make_shared<op::v0::Convert>(weight, element::f16), ids, axis0());
+    auto gather_s = std::make_shared<op::v8::Gather>(scale, ids, axis0());
+    std::shared_ptr<Node> dq = gather_w;
+    if (with_zero_point) {
+        auto zerop = op::v0::Constant::create(element::u2,
+                                              zero_point_shape,
+                                              std::vector<uint8_t>(shape_size(zero_point_shape), 2));
+        std::shared_ptr<Node> zero_point = std::make_shared<op::v0::Convert>(zerop, element::f16);
+        if (zero_point_shape.size() == 3 && zero_point_shape[0] == kVocab) {
+            zero_point = std::make_shared<op::v8::Gather>(zero_point, ids, axis0());
+        }
+        dq = std::make_shared<op::v1::Subtract>(gather_w, zero_point);
+    }
+    auto mul = std::make_shared<op::v1::Multiply>(dq, gather_s);
+    auto reshape = std::make_shared<op::v1::Reshape>(
+        mul,
+        op::v0::Constant::create(element::i32, Shape{3}, std::vector<size_t>{1, kTokens, kGroups * kGroupSize}),
+        false);
+    auto cvt = std::make_shared<op::v0::Convert>(reshape, element::f32);
+    auto out = std::make_shared<op::v0::Relu>(cvt);
+    return std::make_shared<ov::Model>(OutputVector{out}, ParameterVector{ids});
 }
 
 // Param(W u2)[V,G,GS] -> Convert(f16) -> Gather -.
@@ -99,38 +137,43 @@ void run_pass(const std::shared_ptr<ov::Model>& model, Args&&... args) {
 
 }  // namespace
 
-TEST(DQLiftGatherZeroPointTest, LiftsGathersAboveZeroPointDequantization) {
-    auto model = make_group_quantized_vocab_model(true);
-
-    run_pass<DQLiftGatherSymGQ>(model);
-    model->validate_nodes_and_infer_types();
-
-    EXPECT_EQ(count_ops(model, "Gather"), 3u);
-    EXPECT_EQ(count_ops(model, "Subtract"), 1u);
-    EXPECT_EQ(model->get_results().front()->get_input_shape(0), (Shape{1, kTokens, kGroups * kGroupSize}));
-}
-
-TEST(DQLiftGatherZeroPointTest, LiftsGathersAboveSymmetricDequantization) {
-    auto model = make_group_quantized_vocab_model(false);
-
-    run_pass<DQLiftGatherSymGQ>(model);
-    model->validate_nodes_and_infer_types();
-
-    EXPECT_EQ(count_ops(model, "Gather"), 2u);
-    EXPECT_EQ(count_ops(model, "Subtract"), 0u);
-}
-
-TEST(DQLiftGatherZeroPointTest, DoesNotGatherZeroPointBroadcastOverVocabRows) {
-    for (const auto& zero_point_shape : {Shape{}, Shape{1, kGroups, 1}}) {
-        auto model = make_group_quantized_vocab_model(true, zero_point_shape);
-
-        run_pass<DQLiftGatherSymGQ>(model);
-        model->validate_nodes_and_infer_types();
-
-        EXPECT_EQ(count_ops(model, "Gather"), 2u);
-        EXPECT_EQ(count_ops(model, "Subtract"), 1u);
-        EXPECT_EQ(model->get_results().front()->get_input_shape(0), (Shape{1, kTokens, kGroups * kGroupSize}));
+// DQLiftGatherSymGQ creates the lifted nodes without runtime info
+class DQLiftGatherZeroPointTest : public TransformationTestsF {
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        disable_rt_info_check();
     }
+};
+
+TEST_F(DQLiftGatherZeroPointTest, LiftsGathersAboveZeroPointDequantization) {
+    model = make_group_quantized_vocab_model(true);
+    manager.register_pass<DQLiftGatherSymGQ>();
+    model_ref = make_lifted_vocab_model(true);
+}
+
+TEST_F(DQLiftGatherZeroPointTest, LiftsGathersAboveSymmetricDequantization) {
+    model = make_group_quantized_vocab_model(false);
+    manager.register_pass<DQLiftGatherSymGQ>();
+    model_ref = make_lifted_vocab_model(false);
+}
+
+TEST_F(DQLiftGatherZeroPointTest, DoesNotGatherScalarZeroPoint) {
+    model = make_group_quantized_vocab_model(true, Shape{});
+    manager.register_pass<DQLiftGatherSymGQ>();
+    model_ref = make_lifted_vocab_model(true, Shape{});
+}
+
+TEST_F(DQLiftGatherZeroPointTest, DoesNotGatherZeroPointOfSingleRow) {
+    const Shape zero_point_shape{1, kGroups, 1};
+    model = make_group_quantized_vocab_model(true, zero_point_shape);
+    manager.register_pass<DQLiftGatherSymGQ>();
+    model_ref = make_lifted_vocab_model(true, zero_point_shape);
+}
+
+TEST_F(DQLiftGatherZeroPointTest, KeepsGatherAboveNonU2ZeroPoint) {
+    model = make_group_quantized_vocab_model(true, Shape{kVocab, kGroups, 1}, element::u4);
+    manager.register_pass<DQLiftGatherSymGQ>();
 }
 
 TEST(HostGatherDQZeroPointTest, UnpacksU2VocabWithZeroPointOnHost) {

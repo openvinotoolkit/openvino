@@ -9,6 +9,7 @@
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "accuracy/comparator.hpp"
 #include "attn/attn_subgraph.hpp"
@@ -2035,7 +2036,7 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
 }
 
 void ov::npuw::CompiledModel::store_const_offsets(const std::shared_ptr<ov::Model>& model) {
-    bool ambiguous_offsets = false;
+    std::unordered_set<const void*> ambiguous_ptrs;
     for (auto&& node_ptr : model->get_ordered_ops()) {
         if (ov::op::util::is_constant(node_ptr)) {
             const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node_ptr);
@@ -2045,14 +2046,20 @@ void ov::npuw::CompiledModel::store_const_offsets(const std::shared_ptr<ov::Mode
                 continue;
             }
             std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
-            const auto inserted = m_const_to_offset.try_emplace(c->get_data_ptr(), offset);
-            ambiguous_offsets |= !inserted.second && inserted.first->second != offset;
+            const auto data_ptr = c->get_data_ptr();
+            const auto inserted = m_const_to_offset.try_emplace(data_ptr, offset);
+            if (!inserted.second && inserted.first->second != offset) {
+                ambiguous_ptrs.insert(data_ptr);
+            }
         }
     }
-    if (ambiguous_offsets) {
-        // A data pointer maps to several offsets (e.g. per-node offsets assigned by a frontend), so weightless
-        // serialization is not possible; an empty map disables it.
-        m_const_to_offset.clear();
+    // A data pointer that maps to several offsets (e.g. per-node offsets assigned by a frontend) cannot be
+    // exported weightless; serialize_weightless writes such a tensor in full.
+    for (const auto* data_ptr : ambiguous_ptrs) {
+        m_const_to_offset.erase(data_ptr);
+    }
+    if (!ambiguous_ptrs.empty()) {
+        LOG_WARN(ambiguous_ptrs.size() << " constants have ambiguous weightless offsets and are exported in full.");
     }
 }
 

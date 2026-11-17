@@ -1311,12 +1311,12 @@ DQLiftGatherCW::DQLiftGatherCW() {
     register_matcher(std::make_shared<opp::Matcher>(gather, "DQGatherCW"), std::move(callback));
 }
 
-// Identify a Gather+DQ GQ MatMul pattern (zero point is optional), lift Gather up
+// Identify a Gather+DQ GQ MatMul pattern (only a u2 zero point is optional), lift Gather up
 // Note(1): this pattern is applied on the full model before any partitioning
 // Note(2): here's a difference, the new lifted Gathers stay behind Convert(W) & Convert(Z)
 DQLiftGatherSymGQ::DQLiftGatherSymGQ() {
     auto qweight = opp::wrap_type<ov::op::v0::Constant>();
-    auto qzerop = opp::wrap_type<ov::op::v0::Constant>();
+    auto qzerop = opp::wrap_type<ov::op::v0::Constant>(opp::type_matches(ov::element::u2));
     auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
     auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qzerop});
@@ -1604,8 +1604,9 @@ HostGatherQuantAsymm<WType>::HostGatherQuantAsymm(Context::Ref ctx, bool verify_
             return readers.begin()->get_node();
         };
 
-        if (out_len >= 2048 && (matched_out_mul.get_target_inputs().size() > 1 ||
-                                ov::is_type<ov::op::v0::Convert>(sole_reader(matched_out_mul)))) {
+        if (out_len >= MIN_HOST_GATHER_HIDDEN_SIZE &&
+            (matched_out_mul.get_target_inputs().size() > 1 ||
+             ov::is_type<ov::op::v0::Convert>(sole_reader(matched_out_mul)))) {
             if (verify_only) {
                 // No transformations needed, just set dummy QuantizedGather
                 ctx.get().params_to_quant_gather_unpack = Context::QuantizedGather{};
@@ -1705,7 +1706,7 @@ HostGatherQuantSymm<WType>::HostGatherQuantSymm(Context::Ref ctx, bool verify_on
             return readers.begin()->get_node();
         };
 
-        if (out_len >= 2048 &&
+        if (out_len >= MIN_HOST_GATHER_HIDDEN_SIZE &&
             (qweight_type == ov::element::i4 || qweight_type == ov::element::i8 ||
              qweight_type == ov::element::f8e4m3 || qweight_type == ov::element::f8e5m2 ||
              qweight_type == ov::element::f8e8m0) &&
@@ -1781,7 +1782,8 @@ HostGather::HostGather(Context::Ref ctx) {
 
         // NB: Only a closure can be the vocab. A function input (an output of
         // another subgraph) is not a weight and stays unchanged.
-        if (out_shape.back() >= 2048 && (qweight_type == ov::element::f16 || qweight_type == ov::element::f32) &&
+        if (out_shape.back() >= MIN_HOST_GATHER_HIDDEN_SIZE &&
+            (qweight_type == ov::element::f16 || qweight_type == ov::element::f32) &&
             ctx.get().is_closure(matched_qweight) &&
             (matched_out_gather.get_target_inputs().size() > 1 ||
              ov::is_type<ov::op::v0::Convert>(sole_reader(matched_out_gather)))) {
@@ -1872,7 +1874,7 @@ HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
                    qweight_type == ov::element::nf4 || qweight_type == ov::element::f8e4m3 ||
                    qweight_type == ov::element::f8e5m2 || qweight_type == ov::element::f8e8m0);
 
-        if (out_len >= 2048 && is_supported_weight) {
+        if (out_len >= MIN_HOST_GATHER_HIDDEN_SIZE && is_supported_weight) {
             auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
             auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
             auto matched_node_ids = node_to_output.at(pids).get_node_shared_ptr();
