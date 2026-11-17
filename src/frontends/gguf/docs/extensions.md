@@ -16,12 +16,13 @@ guarantee across releases: build against the release that will load the extensio
 | Add or override an operation converter | `ov::frontend::ConversionExtension` | `convert()` |
 | Prepare a stateful decoder with GenAI IO | `ov::frontend::gguf::GenAIExtension` | `convert()` |
 | Change state handling or the model interface | `ov::frontend::DecoderTransformationExtension` | `convert()` |
+| Share weights between models converted from one `GgufDecoder` | `ov::frontend::gguf::WeightSharingExtension` | `convert()` |
 
-Architecture and projector extensions apply only to native `.gguf` files; converters and passes
-apply to both input paths. None of them add quantization formats, tokenization, preprocessing or a
-device backend. Extensions attached to an `ov::BaseOpExtension` and shared-library wrappers are
-unwrapped; a bare custom operation supplies no GGML converter. `TelemetryExtension` is stored but
-never invoked; other types are ignored.
+Architecture and projector extensions apply only to native `.gguf` files, weight sharing only to a
+supplied `GgufDecoder`; converters and passes apply to both input paths. None of them add
+quantization formats, tokenization, preprocessing or a device backend. Extensions attached to an
+`ov::BaseOpExtension` and shared-library wrappers are unwrapped; a bare custom operation supplies no
+GGML converter. `TelemetryExtension` is stored but never invoked; other types are ignored.
 
 GenAI integration in [PR #4683](https://github.com/openvinotoolkit/openvino.genai/pull/4683)
 accepts extension objects or library paths through `ov::genai::extensions(...)` in C++, or
@@ -205,6 +206,27 @@ Do not also register `GGUFMakeStateful` or `AdaptToGenAI` on that frontend. Regi
 `GenAIExtension` per frontend instance; it applies to every conversion on that instance.
 Its embedding lookup getters describe the latest successful conversion.
 See [runtime.md](runtime.md#stateful-and-genai-conversion).
+
+## Share weights between conversions
+
+A caller that converts the same `GgufDecoder` weights several times, such as llama.cpp compiling
+one model per graph topology, registers one `WeightSharingExtension` on every frontend it converts
+with. The first conversion of a weight keeps it in page-aligned host buffers; later conversions
+reuse them instead of extracting again, and produce the same model. Pass
+`get_compile_properties()` to `compile_model()` so a plugin imports those buffers instead of
+copying them. The properties cover the weights converted so far, so take them after `convert()`:
+
+```cpp
+auto sharing = std::make_shared<ov::frontend::gguf::WeightSharingExtension>();
+ov::frontend::gguf::FrontEnd frontend;
+frontend.add_extension(sharing);
+auto model = frontend.convert(frontend.load(decoder));
+auto compiled = core.compile_model(model, "GPU", sharing->get_compile_properties());
+```
+
+Weights are identified by their decoder data pointer, so the extension must not outlive them.
+The GPU plugin imports the buffers on any GPU; register it only where the device reads host
+memory directly (integrated GPUs).
 
 ## Build and load a shared library
 

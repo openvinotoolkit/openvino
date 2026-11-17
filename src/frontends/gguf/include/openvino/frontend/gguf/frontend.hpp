@@ -43,6 +43,8 @@ public:
     /// - `ov::frontend::gguf::ProjectorExtension` — registers one mmproj branch before load().
     /// - `ov::frontend::gguf::GenAIExtension` — creates stateful decoder caches during normalization
     ///   and adapts the normalized model to GenAI IO before convert() returns.
+    /// - `ov::frontend::gguf::WeightSharingExtension` — keeps the weights of a GgufDecoder in
+    ///   shared host buffers that later conversions reuse and plugins can import.
     /// - `ov::frontend::TelemetryExtension` — stored; callbacks are not currently invoked.
     /// - `ov::detail::SOExtension` — shared-library extension; its inner extension is recursively registered.
     /// - `ov::BaseOpExtension` — recursively registers attached op-level extensions.

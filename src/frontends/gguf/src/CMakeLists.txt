@@ -10,7 +10,7 @@ set(GGUF_FRONTEND_DEV_API "${CMAKE_CURRENT_SOURCE_DIR}/../dev_api")
 ov_add_frontend(NAME gguf
                 LINKABLE_FRONTEND
                 FILEDESCRIPTION "FrontEnd to convert GGUF models"
-                LINK_LIBRARIES openvino::util openvino::core::dev)
+                LINK_LIBRARIES openvino::util openvino::core::dev openvino::runtime::dev)
 
 ov_build_target_faster(openvino_gguf_frontend PCH)
 
