@@ -540,6 +540,14 @@ if(ENABLE_ONEDNN_FOR_GPU)
     list(APPEND GPU_UNIT_TESTS_SRCS ${GPU_UNIT_TESTS_ONEDNN_SRCS})
 endif()
 
+# MLIR (Graph Compiler) tests - only compiled when ENABLE_MLIR_FOR_GPU is ON.
+set(GPU_UNIT_TESTS_MLIR_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/mlir/mlir_primitive_layouts_test.cpp
+)
+if(ENABLE_MLIR_FOR_GPU)
+    list(APPEND GPU_UNIT_TESTS_SRCS ${GPU_UNIT_TESTS_MLIR_SRCS})
+endif()
+
 # Tests with a dependency on the OpenCL runtime - excluded from the build with a different runtime.
 set(GPU_UNIT_TESTS_OCL_RT_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/device_test.cpp

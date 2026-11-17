@@ -98,7 +98,7 @@ struct ternocl_int2_weights_reorder : public typed_primitive_impl<reorder> {
                         instance.id(),
                         " has a weight code outside the ternary range {-1, 0, +1}");
 
-        return cpu::make_output_event(stream, instance.is_output());
+        return cpu::make_output_event(stream, instance.needs_completion_event());
     }
 };
 

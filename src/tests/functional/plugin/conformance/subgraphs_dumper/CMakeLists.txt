@@ -3,6 +3,7 @@
 #
 
 set(TARGET_NAME ov_subgraphs_dumper)
+include(sources.cmake)
 
 list(APPEND LIBRARIES
         gflags
@@ -38,7 +39,9 @@ endif()
 ov_add_test_target(
         NAME ${TARGET_NAME}
         TYPE EXECUTABLE
-        ROOT ${CMAKE_CURRENT_SOURCE_DIR}/src
+        SOURCES
+            ${OV_SUBGRAPHS_DUMPER_COMMON_SOURCES}
+            ${OV_SUBGRAPHS_DUMPER_CLI_SOURCES}
         INCLUDES
             PRIVATE
                 "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
@@ -56,16 +59,13 @@ ov_add_test_target(
 ov_add_target(
         NAME "${TARGET_NAME}_util"
         TYPE STATIC
-        ROOT "${CMAKE_CURRENT_SOURCE_DIR}/src"
+        SOURCES ${OV_SUBGRAPHS_DUMPER_COMMON_SOURCES}
         INCLUDES
             PUBLIC
                 "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
         LINK_LIBRARIES
             PUBLIC
                 ${LIBRARIES}
-        EXCLUDED_SOURCE_PATHS
-            ${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper/src/main.cpp
-            ${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper/include/gflag_config.hpp
         DEPENDENCIES
             ov_frontends
             ${LIBRARIES}
