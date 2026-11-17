@@ -489,7 +489,8 @@ private:
                     // q[token, h, :]  [D], as f32
                     const float* const q_row = source.query_row(b, v, h, thread.q_row);
                     // step 1 (RMSNorm of the [D] row: x / sqrt(mean(x^2) + eps) * q_norm_weight) and step 2 (RoPE of
-                    // its first Dr channels with cos / sin of the token, [Dr] each) -> q_rot[h]  [D]
+                    // its first Dr channels with cos / sin of the token, [Dr] each), each only if the op does it
+                    // -> q_rot[h]  [D]
                     qsa_kernel::rms_rope(q_row,
                                          thread.normed,
                                          source.q_norm_weight(),
@@ -497,7 +498,9 @@ private:
                                          m_config.rotary_dim,
                                          m_config.eps,
                                          cos_row,
-                                         sin_row);
+                                         sin_row,
+                                         m_config.query_norm,
+                                         m_config.query_rope);
                     // q_rot[h] is the row (h % G) * tokens + token of the tile of the K head h / G, rounded to T
                     const size_t row = (h % heads_per_key) * q_slice.token_slots + token;
                     qsa_kernel::store_row(thread.normed,

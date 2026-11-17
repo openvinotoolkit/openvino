@@ -41,6 +41,8 @@ struct Config {
     float eps = 0.0F;                ///< RMSNorm epsilon
     float scale = 0.0F;              ///< multiplier of the scores
     ov::element::Type precision;     ///< of the floating-point ports (f32, f16 or bf16)
+    bool query_norm = true;          ///< the op applies the RMSNorm to the query (else it is done in front of the op)
+    bool query_rope = true;          ///< the op applies the RoPE to the query (else it is done in front of the op)
     /// The chosen blocks by descending score instead of ascending block id (dense op only).
     bool order_by_score = false;
 };

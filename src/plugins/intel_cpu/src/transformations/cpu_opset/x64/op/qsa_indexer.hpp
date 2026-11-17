@@ -83,6 +83,8 @@ public:
         /// SparseAttentionIndexer-17, by descending score and, for equal scores, by ascending block id. It needs the
         /// scores of every token, also of those that take all their blocks.
         bool order_by_score = false;
+        bool query_norm = true;  ///< the op applies the RMSNorm to q_idx; false: it is already done in front of the op
+        bool query_rope = true;  ///< the op applies the RoPE to q_idx; false: it is already done in front of the op
     };
 
     QSAIndexerNode() = default;

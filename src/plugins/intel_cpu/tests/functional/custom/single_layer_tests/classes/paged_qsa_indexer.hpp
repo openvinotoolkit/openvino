@@ -11,6 +11,7 @@
 #include <tuple>
 #include <vector>
 
+#include "custom/single_layer_tests/classes/qsa_indexer.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -26,9 +27,17 @@ namespace test {
 // (n == 1) or chunks, and the calls continue the same sequences and caches, so the number of calls is the number of
 // target shapes),
 // page_size (tokens of a cache page: a multiple of the compress ratio; 32 blocks of the scoring can lie in one page or
-// run over several)
-using PagedQSAIndexerLayerTestParams =
-    std::tuple<std::string, ov::element::Type, size_t, size_t, size_t, size_t, InputShape, size_t>;
+// run over several),
+// the steps of the query that the op applies (QSAIndexerQueryFusionType of the dense op)
+using PagedQSAIndexerLayerTestParams = std::tuple<std::string,
+                                                  ov::element::Type,
+                                                  size_t,
+                                                  size_t,
+                                                  size_t,
+                                                  size_t,
+                                                  InputShape,
+                                                  size_t,
+                                                  QSAIndexerQueryFusionType>;
 
 class PagedQSAIndexerLayerCPUTest : public testing::WithParamInterface<PagedQSAIndexerLayerTestParams>,
                                     virtual public SubgraphBaseTest {
@@ -65,6 +74,8 @@ private:
     size_t m_h_iq = 2;
     size_t m_h_ik = 2;
     size_t m_h_sel = 1;
+    bool m_query_norm = true;
+    bool m_query_rope = true;
     size_t m_num_sequences = 1;
     // Share of the elements of an output that may differ: selections of (almost) tied blocks flip with the rounding of
     // a 16-bit cache, which the f32 oracle does not do. 0 for f32; for the small tests of the 16-bit types the share

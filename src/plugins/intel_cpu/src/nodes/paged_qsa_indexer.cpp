@@ -98,6 +98,8 @@ void PagedQSAIndexer::createPrimitive() {
     config.eps = c.epsilon;
     config.scale = ov::op::internal::PagedQSAIndexer::effective_scale(c);
     config.precision = summary_precision;
+    config.query_norm = c.query_norm;
+    config.query_rope = c.query_rope;
     m_executor = ov::Extensions::Cpu::XARCH::make_paged_qsa_executor(config);
     m_impl = qsa_kernel_impl_type();
     // Scoring on brgemm where the CPU, the precisions and the head counts allow it. The brgemm products need the query

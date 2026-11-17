@@ -62,6 +62,8 @@ public:
             seed = dnnl::impl::hash_combine(seed, config.eps);
             seed = dnnl::impl::hash_combine(seed, config.scale);
             seed = dnnl::impl::hash_combine(seed, config.order_by_score);
+            seed = dnnl::impl::hash_combine(seed, config.query_norm);
+            seed = dnnl::impl::hash_combine(seed, config.query_rope);
             return dnnl::impl::hash_combine(seed, config.precision.hash());
         }
         bool operator==(const Key& rhs) const {
@@ -71,7 +73,7 @@ public:
                    l.num_selection_heads == r.num_selection_heads && l.head_dim == r.head_dim &&
                    l.rotary_dim == r.rotary_dim && l.block_topk == r.block_topk && l.num_threads == r.num_threads &&
                    l.eps == r.eps && l.scale == r.scale && l.precision == r.precision &&
-                   l.order_by_score == r.order_by_score;
+                   l.order_by_score == r.order_by_score && l.query_norm == r.query_norm && l.query_rope == r.query_rope;
         }
     };
 

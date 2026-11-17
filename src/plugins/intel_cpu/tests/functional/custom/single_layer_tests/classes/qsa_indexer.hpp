@@ -37,6 +37,9 @@ struct QSAIndexerOracle {
     size_t summary_cap = 0;
     // chosen blocks by descending score (ties: lower id first), not by ascending id
     bool order_by_score = false;
+    // the steps of the query that the op applies (the op leaves the others to the graph in front of it)
+    bool query_norm = true;
+    bool query_rope = true;
 
     std::vector<float> summary_cache;  // [B, h_ik, summary_cap, d_idx]
     std::vector<float> past_raw_k;     // [B, h_ik, r - 1, d_idx]
@@ -78,10 +81,20 @@ enum class QSAIndexerScenario {
     kTinyScores
 };
 
+// The steps of the query that the op applies: the query_norm / query_rope attributes.
+enum class QSAIndexerQueryFusionType { kNormAndRope, kNormOnly, kRopeOnly, kNone };
+
 // target device, data precision, H_iq, H_ik, h_sel, batch (only kDensePrefill uses it; the other scenarios force
-// 2), scenario, order_by_score
-using QSAIndexerLayerTestParams =
-    std::tuple<std::string, ov::element::Type, size_t, size_t, size_t, size_t, QSAIndexerScenario, bool>;
+// 2), scenario, order_by_score, query steps
+using QSAIndexerLayerTestParams = std::tuple<std::string,
+                                             ov::element::Type,
+                                             size_t,
+                                             size_t,
+                                             size_t,
+                                             size_t,
+                                             QSAIndexerScenario,
+                                             bool,
+                                             QSAIndexerQueryFusionType>;
 
 class QSAIndexerLayerCPUTest : public testing::WithParamInterface<QSAIndexerLayerTestParams>,
                                virtual public SubgraphBaseTest {
@@ -109,6 +122,8 @@ private:
     size_t m_h_sel = 1;
     size_t m_batch = 1;
     bool m_order_by_score = false;
+    bool m_query_norm = true;
+    bool m_query_rope = true;
     // Share of output elements that may differ: 16-bit types can flip the score order of near-equal blocks.
     double m_mismatch_share = 0.0;
     QSAIndexerScenario m_scenario = QSAIndexerScenario::kDensePrefill;

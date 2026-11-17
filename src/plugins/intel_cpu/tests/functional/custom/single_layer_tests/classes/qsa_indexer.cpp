@@ -95,6 +95,40 @@ void rmsnorm_partial_rope(const float* src,
     }
 }
 
+// The row of a query head: the steps of rmsnorm_partial_rope that the op applies, the others leave `src` as it is.
+void query_row_ref(const float* src,
+                   float* dst,
+                   const float* weight,
+                   size_t dim,
+                   size_t rotary_dim,
+                   float eps,
+                   const float* cos_row,
+                   const float* sin_row,
+                   bool norm,
+                   bool rope) {
+    if (norm && rope) {
+        rmsnorm_partial_rope(src, dst, weight, dim, rotary_dim, eps, cos_row, sin_row);
+        return;
+    }
+    if (norm) {
+        const float inv_rms = rms_inv_scale(src, dim, eps);
+        for (size_t d = 0; d < dim; d++) {
+            dst[d] = src[d] * inv_rms * weight[d];
+        }
+        return;
+    }
+    std::copy_n(src, dim, dst);
+    if (rope) {
+        const size_t half = rotary_dim / 2;
+        for (size_t j = 0; j < half; j++) {
+            const float x0 = dst[j];
+            const float x1 = dst[j + half];
+            dst[j] = x0 * cos_row[j] - x1 * sin_row[j];
+            dst[j + half] = x1 * cos_row[j + half] + x0 * sin_row[j + half];
+        }
+    }
+}
+
 // Independent (host-vector based) oracle for one QSAIndexer call, re-implementing
 // new_spec/qsa-prepare-17.rst's padding-aware prepare+selection pseudocode directly -- NOT a copy
 // of the CPU node's PlainTensor-based indexing/control flow. `summary_cache`/`past_raw_k`/
@@ -171,14 +205,16 @@ QSAIndexerOracle::Output QSAIndexerOracle::run_call(size_t batch,
             std::copy_n(&rope_sin[(b * L + lu) * rotary_dim], rotary_dim, rope_sin_buf.data());
             for (size_t h = 0; h < h_iq; h++) {
                 const float* src = &q_idx[((b * L + lu) * h_iq + h) * d_idx];
-                rmsnorm_partial_rope(src,
-                                     &q_normed[h * d_idx],
-                                     q_norm_weight.data(),
-                                     d_idx,
-                                     rotary_dim,
-                                     eps,
-                                     rope_cos_buf.data(),
-                                     rope_sin_buf.data());
+                query_row_ref(src,
+                              &q_normed[h * d_idx],
+                              q_norm_weight.data(),
+                              d_idx,
+                              rotary_dim,
+                              eps,
+                              rope_cos_buf.data(),
+                              rope_sin_buf.data(),
+                              query_norm,
+                              query_rope);
             }
 
             if (pos_in_block == 0) {
@@ -284,7 +320,8 @@ QSAIndexerOracle::Output QSAIndexerOracle::run_call(size_t batch,
 }
 
 std::string QSAIndexerLayerCPUTest::getTestCaseName(const testing::TestParamInfo<QSAIndexerLayerTestParams>& obj) {
-    const auto& [device, data_precision, h_iq, h_ik, h_sel, batch, scenario, order_by_score] = obj.param;
+    const auto& [device, data_precision, h_iq, h_ik, h_sel, batch, scenario, order_by_score, query_fusion_type] =
+        obj.param;
     std::string scenario_name;
     switch (scenario) {
     case QSAIndexerScenario::kDensePrefill:
@@ -311,11 +348,13 @@ std::string QSAIndexerLayerCPUTest::getTestCaseName(const testing::TestParamInfo
     }
     return "Target=" + device + "_DataPrecision=" + data_precision.get_type_name() + "_Hiq=" + std::to_string(h_iq) +
            "_Hik=" + std::to_string(h_ik) + "_Hsel=" + std::to_string(h_sel) + "_Batch=" + std::to_string(batch) +
-           "_Scenario=" + scenario_name + "_OrderByScore=" + std::to_string(order_by_score);
+           "_Scenario=" + scenario_name + "_OrderByScore=" + std::to_string(order_by_score) +
+           "_QueryFusionType=" + std::to_string(static_cast<int>(query_fusion_type));
 }
 
 void QSAIndexerLayerCPUTest::SetUp() {
-    const auto& [device, data_precision, h_iq, h_ik, h_sel, batch, scenario, order_by_score] = GetParam();
+    const auto& [device, data_precision, h_iq, h_ik, h_sel, batch, scenario, order_by_score, query_fusion_type] =
+        GetParam();
     targetDevice = device;
     m_data_precision = data_precision;
     m_h_iq = h_iq;
@@ -324,7 +363,14 @@ void QSAIndexerLayerCPUTest::SetUp() {
     m_batch = batch;
     m_scenario = scenario;
     m_order_by_score = order_by_score;
-    m_mismatch_share = order_by_score && data_precision != ov::element::f32 ? 0.1 : 0.0;
+    m_query_norm = query_fusion_type == QSAIndexerQueryFusionType::kNormAndRope ||
+                   query_fusion_type == QSAIndexerQueryFusionType::kNormOnly;
+    m_query_rope = query_fusion_type == QSAIndexerQueryFusionType::kNormAndRope ||
+                   query_fusion_type == QSAIndexerQueryFusionType::kRopeOnly;
+    m_mismatch_share = (order_by_score || query_fusion_type != QSAIndexerQueryFusionType::kNormAndRope) &&
+                               data_precision != ov::element::f32
+                           ? 0.1
+                           : 0.0;
     rel_threshold = 1e-3F;
     abs_threshold = 1e-4F;
     if (data_precision == ov::element::bf16) {
@@ -420,6 +466,8 @@ void QSAIndexerLayerCPUTest::SetUp() {
     config.eps = 1e-6F;
     config.scale = 0.25F;
     config.order_by_score = m_order_by_score;
+    config.query_norm = m_query_norm;
+    config.query_rope = m_query_rope;
 
     ov::OutputVector args = {p_q_idx,
                              p_k_idx,
@@ -600,6 +648,8 @@ std::vector<ov::Tensor> QSAIndexerLayerCPUTest::run_call(const CallSpec& call, s
     oracle.eps = 1e-6F;
     oracle.scale = 0.25F;
     oracle.order_by_score = m_order_by_score;
+    oracle.query_norm = m_query_norm;
+    oracle.query_rope = m_query_rope;
     oracle.summary_cap = m_summary_cap;
     oracle.summary_cache = std::move(m_oracle_summary_cache);
     oracle.past_raw_k = std::move(m_oracle_past_raw_k);

@@ -324,7 +324,9 @@ void run_token_scorer(const DenseCall& call, const Config& c, const Scratch<T>& 
                                  rotary_dim,
                                  c.eps,
                                  cos_row,
-                                 sin_row);
+                                 sin_row,
+                                 c.query_norm,
+                                 c.query_rope);
         }
 
         // ---- Phase 2b: per selection head sh and complete block blk visible to the token:

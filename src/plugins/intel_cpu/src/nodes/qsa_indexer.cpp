@@ -154,6 +154,8 @@ void QSAIndexer::createPrimitive() {
     config.scale = QSAIndexerNode::effective_scale(c);
     config.precision = precision;
     config.order_by_score = c.order_by_score;
+    config.query_norm = c.query_norm;
+    config.query_rope = c.query_rope;
     m_executor = ov::Extensions::Cpu::XARCH::make_dense_qsa_executor(config);
     m_impl = qsa_kernel_impl_type();
     // The scoring on brgemm where the CPU, the precision and the head counts allow it. The scorer is shared by the

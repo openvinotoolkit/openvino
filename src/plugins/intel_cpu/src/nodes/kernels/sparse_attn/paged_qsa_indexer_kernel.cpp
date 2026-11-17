@@ -250,7 +250,9 @@ void select_blocks(const PagedCall& call, const Config& c, const Scratch<T>& scr
                              rotary_dim,
                              c.eps,
                              cos_row,
-                             sin_row);
+                             sin_row,
+                             c.query_norm,
+                             c.query_rope);
     }
 
     // The complete blocks visible to this token, including the one this token completes.

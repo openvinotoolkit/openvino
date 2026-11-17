@@ -173,6 +173,8 @@ bool QSAIndexerNode::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("eps", m_config.eps);
     visitor.on_attribute("scale", m_config.scale);
     visitor.on_attribute("order_by_score", m_config.order_by_score);
+    visitor.on_attribute("query_norm", m_config.query_norm);
+    visitor.on_attribute("query_rope", m_config.query_rope);
     return true;
 }
 

@@ -74,6 +74,39 @@ void rmsnorm_partial_rope(const float* src,
     }
 }
 
+// The row of a query head: the steps of rmsnorm_partial_rope that the op applies, the others leave `src` as it is.
+void query_row_ref(const float* src,
+                   float* dst,
+                   const float* weight,
+                   size_t dim,
+                   size_t rotary_dim,
+                   float eps,
+                   const float* cos_sin_row,
+                   bool norm,
+                   bool rope) {
+    if (norm && rope) {
+        rmsnorm_partial_rope(src, dst, weight, dim, rotary_dim, eps, cos_sin_row);
+        return;
+    }
+    if (norm) {
+        const float inv_rms = rms_inv_scale(src, dim, eps);
+        for (size_t d = 0; d < dim; d++) {
+            dst[d] = src[d] * inv_rms * weight[d];
+        }
+        return;
+    }
+    std::copy_n(src, dim, dst);
+    if (rope) {
+        const size_t half = rotary_dim / 2;
+        for (size_t j = 0; j < half; j++) {
+            const float x0 = dst[j];
+            const float x1 = dst[j + half];
+            dst[j] = x0 * cos_sin_row[2 * j] - x1 * cos_sin_row[2 * j + 1];
+            dst[j + half] = x1 * cos_sin_row[2 * (j + half)] + x0 * cos_sin_row[2 * (j + half) + 1];
+        }
+    }
+}
+
 // Independent (host-vector based) re-implementation of the paged-qsa-indexer.rst per-sequence
 // spec, used purely as a test oracle -- NOT a copy of the CPU node's PlainTensor-based paged
 // addressing. Per-sequence math is bit-for-bit identical to the dense QSAIndexer oracle
@@ -94,7 +127,9 @@ PagedQSAIndexerOracleOutput run_paged_qsa_indexer_reference(size_t new_tokens,
                                                             const std::vector<float>& rope_sin,
                                                             const std::vector<float>& q_norm_weight,
                                                             const std::vector<float>& k_norm_weight,
-                                                            int64_t past_len) {
+                                                            int64_t past_len,
+                                                            bool query_norm,
+                                                            bool query_rope) {
     const size_t group = h_iq / h_ik;
     std::vector<size_t> kv_of_head(h_iq), sel_of_head(h_iq);
     for (size_t h = 0; h < h_iq; h++) {
@@ -127,7 +162,15 @@ PagedQSAIndexerOracleOutput run_paged_qsa_indexer_reference(size_t new_tokens,
         const float* cos_sin_row = cos_sin_buf.data();
         for (size_t h = 0; h < h_iq; h++) {
             const float* src = &q_idx[(l * h_iq + h) * kDidx];
-            rmsnorm_partial_rope(src, &q_normed[h * kDidx], q_norm_weight.data(), kDidx, kRotaryDim, kEps, cos_sin_row);
+            query_row_ref(src,
+                          &q_normed[h * kDidx],
+                          q_norm_weight.data(),
+                          kDidx,
+                          kRotaryDim,
+                          kEps,
+                          cos_sin_row,
+                          query_norm,
+                          query_rope);
         }
 
         for (size_t h = 0; h < h_ik; h++) {
@@ -232,15 +275,22 @@ static std::string calls_to_string(const ov::test::InputShape& calls) {
 
 std::string PagedQSAIndexerLayerCPUTest::getTestCaseName(
     const testing::TestParamInfo<PagedQSAIndexerLayerTestParams>& obj) {
-    const auto& [device, data_precision, h_iq, h_ik, h_sel, num_sequences, new_tokens, page_size] = obj.param;
+    const auto& [device, data_precision, h_iq, h_ik, h_sel, num_sequences, new_tokens, page_size, query_fusion_type] =
+        obj.param;
     return "Target=" + device + "_DataPrecision=" + data_precision.get_type_name() + "_Hiq=" + std::to_string(h_iq) +
            "_Hik=" + std::to_string(h_ik) + "_Hsel=" + std::to_string(h_sel) +
            "_NumSeq=" + std::to_string(num_sequences) + "_NewTokens=" + calls_to_string(new_tokens) +
-           "_PageSize=" + std::to_string(page_size);
+           "_PageSize=" + std::to_string(page_size) +
+           "_QueryFusionType=" + std::to_string(static_cast<int>(query_fusion_type));
 }
 
 void PagedQSAIndexerLayerCPUTest::SetUp() {
-    const auto& [device, data_precision, h_iq, h_ik, h_sel, num_sequences, new_tokens, page_size] = GetParam();
+    const auto& [device, data_precision, h_iq, h_ik, h_sel, num_sequences, new_tokens, page_size, query_fusion_type] =
+        GetParam();
+    m_query_norm = query_fusion_type == QSAIndexerQueryFusionType::kNormAndRope ||
+                   query_fusion_type == QSAIndexerQueryFusionType::kNormOnly;
+    m_query_rope = query_fusion_type == QSAIndexerQueryFusionType::kNormAndRope ||
+                   query_fusion_type == QSAIndexerQueryFusionType::kRopeOnly;
     targetDevice = device;
     m_data_precision = data_precision;
     m_h_iq = h_iq;
@@ -336,6 +386,8 @@ void PagedQSAIndexerLayerCPUTest::SetUp() {
     config.indexer_head_dim = kDidx;
     config.epsilon = kEps;
     config.scale = kScale;
+    config.query_norm = m_query_norm;
+    config.query_rope = m_query_rope;
 
     ov::OutputVector args(params_in.begin(), params_in.end());
     auto paged_qsa_indexer = std::make_shared<ov::op::internal::PagedQSAIndexer>(args, config);
@@ -548,7 +600,9 @@ std::vector<ov::Tensor> PagedQSAIndexerLayerCPUTest::calculate_refs() {
                                                       history.rope_sin,
                                                       q_norm_weight,
                                                       k_norm_weight,
-                                                      kPastLens[s]);
+                                                      kPastLens[s],
+                                                      m_query_norm,
+                                                      m_query_rope);
 
         // Oracle output is [h_sel, replayed_tokens, kBlockTopk]/[h_sel, replayed_tokens] (per-sequence, sh-major); the
         // op's real outputs are token-major ([tokens_total, h_sel, kBlockTopk]/[tokens_total, h_sel]), so transpose

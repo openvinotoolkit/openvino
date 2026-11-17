@@ -79,6 +79,10 @@ inline void scale_inplace(float* x, float factor, size_t n) {
 //                y_rot = y * cos + rotate_half(y) * sin, with rotate_half(y) = concat(-y[half:], y[:half]);
 //                the remaining dim - rotary_dim channels are kept as they are.
 // cos / sin are already duplicated across the two halves (new_spec/qsa-prepare-17.rst). `dst` may be `src`.
+// The steps of a query head are optional: `do_norm` / `do_rope` are false while the RMSNorm / RoPE of the query are
+// still done by the graph in front of the op, and the row then only passes through that step. The flags are fixed per
+// node, so the branches are loop-invariant and well predicted (a template argument per flag measured about 1 ns per
+// row faster but made the kernel objects 2-3.5x larger). The rows of the keys always take both steps.
 inline void rms_rope(const float* src,
                      float* dst,
                      const float* weight,
@@ -86,21 +90,29 @@ inline void rms_rope(const float* src,
                      size_t rotary_dim,
                      float eps,
                      const float* cos,
-                     const float* sin) {
-    const float inv_rms = 1.0F / std::sqrt(sum_squares(src, dim) / static_cast<float>(dim) + eps);
-    simd::simd_loop(static_cast<int>(dim), [&](int j, auto lanes) {
-        using V = vec_of<decltype(lanes)>;
-        store(simd::load<V>(src + j) * V(inv_rms) * simd::load<V>(weight + j), dst + j);
-    });
-    // the pair of channels (j, j + half) is rotated by the angle of the channel j
-    const auto half = static_cast<int>(rotary_dim / 2);
-    simd::simd_loop(half, [&](int j, auto lanes) {
-        using V = vec_of<decltype(lanes)>;
-        const V x0 = simd::load<V>(dst + j);
-        const V x1 = simd::load<V>(dst + j + half);
-        store(x0 * simd::load<V>(cos + j) - x1 * simd::load<V>(sin + j), dst + j);
-        store(x1 * simd::load<V>(cos + j + half) + x0 * simd::load<V>(sin + j + half), dst + j + half);
-    });
+                     const float* sin,
+                     bool do_norm = true,
+                     bool do_rope = true) {
+    if (do_norm) {
+        const float inv_rms = 1.0F / std::sqrt(sum_squares(src, dim) / static_cast<float>(dim) + eps);
+        simd::simd_loop(static_cast<int>(dim), [&](int j, auto lanes) {
+            using V = vec_of<decltype(lanes)>;
+            store(simd::load<V>(src + j) * V(inv_rms) * simd::load<V>(weight + j), dst + j);
+        });
+    } else if (dst != src) {
+        std::copy(src, src + dim, dst);
+    }
+    if (do_rope) {
+        // the pair of channels (j, j + half) is rotated by the angle of the channel j
+        const auto half = static_cast<int>(rotary_dim / 2);
+        simd::simd_loop(half, [&](int j, auto lanes) {
+            using V = vec_of<decltype(lanes)>;
+            const V x0 = simd::load<V>(dst + j);
+            const V x1 = simd::load<V>(dst + j + half);
+            store(x0 * simd::load<V>(cos + j) - x1 * simd::load<V>(sin + j), dst + j);
+            store(x1 * simd::load<V>(cos + j + half) + x0 * simd::load<V>(sin + j + half), dst + j + half);
+        });
+    }
 }
 
 // ---- block scores ----
