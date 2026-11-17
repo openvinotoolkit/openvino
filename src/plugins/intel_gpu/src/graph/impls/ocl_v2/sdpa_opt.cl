@@ -586,17 +586,17 @@ KERNEL(sdpa_opt)(
                         #else
                             if (start_partition_idx + seq_len > abs_q_pos)
                         #endif
-                            qk_val[seq_idx] += INPUT0_VAL_MIN;
+                            qk_val[seq_idx] = SOFTMAX_ACCUMULATOR_VAL_MIN;
 #elif !IS_CAUSAL && HAS_ATTN_MASK_INPUT
                         // _SAFE index macro doesn't parenthesize its arguments, so the modulo for a broadcast mask needs the whole sum
                         const uint attn_mask_offset = INPUT3_GET_INDEX_SAFE(b0_idx, b1_idx, (target_seq_idx + seq_idx), (start_partition_idx + seq_len));
-                        INPUT3_COMPUTE_TYPE mask_val = DECODE_INPUT3_COMPUTE_TYPE(attn_mask[attn_mask_offset]);
-                        // A key partition masked only with -Inf would have an infinite maximum and turn its softmax into NaN
-                        mask_val = INPUT3_MAX_FUNC(mask_val, INPUT3_VAL_MIN);
-                        qk_val[seq_idx] += mask_val;
+                        qk_val[seq_idx] += TO_SOFTMAX_ACCUMULATOR_TYPE(DECODE_INPUT3_COMPUTE_TYPE(attn_mask[attn_mask_offset]));
 #elif defined(STATIC_SCALAR_ATTN_MASK_VALUE)
                         qk_val[seq_idx] += STATIC_SCALAR_ATTN_MASK_VALUE;
 #endif
+                        // Exclude masked keys in the f32 score range (an f16 -65504 can stay above unmasked scores); a partition
+                        // of masked keys keeps a finite maximum, so its softmax has no NaN and finalization gives it zero weight
+                        qk_val[seq_idx] = SOFTMAX_ACCUMULATOR_MAX_FUNC(qk_val[seq_idx], SOFTMAX_ACCUMULATOR_VAL_MIN);
 
                         // Update qk_max value
                         qk_max[seq_idx] = SOFTMAX_ACCUMULATOR_MAX_FUNC(qk_max[seq_idx], TO_SOFTMAX_ACCUMULATOR_TYPE(qk_val[seq_idx]));
