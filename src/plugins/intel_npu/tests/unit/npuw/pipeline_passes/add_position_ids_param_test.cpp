@@ -362,6 +362,8 @@ TEST_P(AddPositionIdsParamIndependentRopeTest, SharesPositionIdsAcrossBothBranch
         ASSERT_TRUE(ov::is_type<ov::op::v0::Unsqueeze>(parent));
         EXPECT_EQ(parent->input_value(0), position_ids->output(0));
     }
+    // Both branches unsqueeze the positions with the same axes, so they share one Unsqueeze.
+    EXPECT_EQ(converts[0]->get_input_node_ptr(0), converts[1]->get_input_node_ptr(0));
     for (const auto& edge : mask_inputs) {
         SCOPED_TRACE(edge.first.get_node()->get_friendly_name());
         EXPECT_EQ(edge.first.get_source_output(), edge.second);
