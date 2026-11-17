@@ -127,6 +127,8 @@ class OperatorSupport(OpSupport):
             "torch.ops.aten.floor.default": None,
             "torch.ops.aten.fmod.Scalar": None,
             "torch.ops.aten.fmod.Tensor": None,
+            "torch.ops.aten.fractional_max_pool2d.default": None,
+            "torch.ops.aten.fractional_max_pool3d.default": None,
             "torch.ops.aten.full.default": None,
             "torch.ops.aten.full.names": None,
             "torch.ops.aten.full_like.default": None,

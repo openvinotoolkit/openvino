@@ -39,6 +39,7 @@
 #include "openvino/op/tanh.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/tensor.hpp"
 #include "ov_ops/rms.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
 
@@ -47,7 +48,7 @@ using ov::op::internal::GroupQueryAttention;
 
 // Graph-level tests for GroupQueryAttentionDecomposition: the internal op is replaced by a
 // ScaledDotProductAttention-based decomposition, and each feature emits its expected structure
-// (sliding-window cache -> ScatterUpdate; smooth_softmax / head_sink -> SDPA sink input). Numerical
+// (non-empty sliding-window cache -> ScatterUpdate; smooth_softmax / head_sink -> SDPA sink input). Numerical
 // parity against ONNX Runtime is covered by the end-to-end tests in onnx_import_com_microsoft.
 namespace {
 
@@ -103,7 +104,7 @@ struct GqaParams {
         local_window_size = w;
         sliding_window_cache = true;
         past_len = capacity;
-        expects_scatter_update = true;
+        expects_scatter_update = !capacity.is_static() || capacity.get_length() > 0;
         return *this;
     }
     GqaParams& sink_smooth() {
@@ -138,7 +139,7 @@ struct GqaParams {
     GqaParams& shape(const Dimension& seq, const Dimension& past) {
         seq_len = seq;
         past_len = past;
-        expects_scatter_update = past.is_static();
+        expects_scatter_update = past.is_static() && past.get_length() > 0;
         return *this;
     }
 };
@@ -248,9 +249,19 @@ class GroupQueryAttentionDecompositionTest : public testing::TestWithParam<GqaPa
 TEST_P(GroupQueryAttentionDecompositionTest, decomposes_to_sdpa) {
     const auto& p = GetParam();
     auto model = make_gqa_model(p);
+    const auto present_key_shape_before = model->get_output_partial_shape(1);
+    const auto present_value_shape_before = model->get_output_partial_shape(2);
     pass::Manager manager;
     manager.register_pass<pass::GroupQueryAttentionDecomposition>();
     manager.run_passes(model);
+
+    if (p.name == "empty_past_windowed_cache") {
+        const auto expected_shape = PartialShape{1, KV_NUM_HEADS, 1, HEAD_SIZE};
+        EXPECT_EQ(present_key_shape_before, expected_shape);
+        EXPECT_EQ(present_value_shape_before, expected_shape);
+        EXPECT_EQ(model->get_output_partial_shape(1), present_key_shape_before);
+        EXPECT_EQ(model->get_output_partial_shape(2), present_value_shape_before);
+    }
 
     // The internal op is always replaced by exactly one ScaledDotProductAttention.
     EXPECT_EQ(count_ops_of_type<GroupQueryAttention>(model), 0u);
@@ -263,8 +274,8 @@ TEST_P(GroupQueryAttentionDecompositionTest, decomposes_to_sdpa) {
         }
     }
 
-    // The windowed rolling / static-cache paths assemble the present buffer with a ScatterUpdate along the
-    // sequence axis (2); other cache paths do not. (Partial rotary also emits an unrelated ScatterUpdate to
+    // The non-empty windowed rolling / static-cache paths assemble the present buffer with a ScatterUpdate
+    // along the sequence axis (2); other cache paths do not. (Partial rotary also emits an unrelated ScatterUpdate to
     // re-attach pass-through channels along the last (channel) axis - filter cache writes by scatter axis.)
     bool has_cache_scatter_update = false;
     for (const auto& op : model->get_ordered_ops()) {
@@ -288,6 +299,7 @@ INSTANTIATE_TEST_SUITE_P(GroupQueryAttentionDecomposition,
                                          GqaParams{"partial_rotary"}.rotary(/*interleaved*/ false, HEAD_SIZE / 2),
                                          GqaParams{"partial_rotary_interleaved"}.rotary(/*interleaved*/ true,
                                                                                         HEAD_SIZE / 2),
+                                         GqaParams{"empty_past"}.shape(1, 0),
                                          GqaParams{"static_past_scatter"}.shape(1, 8),
                                          GqaParams{"static_past_scatter_bias"}.shape(1, 8).bias(5),
                                          GqaParams{"sliding_window"}.window(2),
@@ -299,6 +311,7 @@ INSTANTIATE_TEST_SUITE_P(GroupQueryAttentionDecomposition,
                                          GqaParams{"i4_per_tensor"}.quant(4, element::u8),
                                          GqaParams{"f8e4m3_per_tensor"}.quant(8, element::f8e4m3),
                                          GqaParams{"windowed_cache"}.windowed_roll(3, 4),
+                                         GqaParams{"empty_past_windowed_cache"}.windowed_roll(3, 0),
                                          GqaParams{"bidirectional"}.bidirectional()),
                          [](const testing::TestParamInfo<GqaParams>& i) {
                              return i.param.name;
@@ -535,6 +548,100 @@ TEST(GroupQueryAttentionValues, shared_kv_attends_to_past_and_returns_it_as_pres
     }
     // RoPE is applied to Q only: the (empty) key parameter has no consumers.
     EXPECT_TRUE(params[1]->output(0).get_target_inputs().empty());
+}
+
+// An empty (0-row) past still has ORT's max(past_rows, total_sequence_length) capacity contract: total_sequence_length
+// can pre-allocate present-cache headroom beyond the first chunk, so present must not stay sized to just the
+// current chunk's S rows. A windowed cache is excluded (it keeps its own past_rows-only capacity rule).
+TEST(GroupQueryAttentionValues, padded_query_empty_past_keeps_total_sequence_length_capacity) {
+    const auto query = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4, 2, 8});
+    const auto key = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2, 8});
+    const auto value = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2, 8});
+    const auto empty_past = op::v0::Constant::create(element::f32, Shape{1, 2, 0, 8}, {});
+    const auto seqlens_k = std::make_shared<op::v0::Parameter>(element::i32, Shape{1});
+    const auto total_length = op::v0::Constant::create(element::i32, Shape{}, {10});
+    const auto empty = op::v0::Constant::create(element::dynamic, Shape{0}, {});
+    OutputVector args{query, key, value, empty_past, empty_past, seqlens_k, total_length};
+    args.resize(16, empty);
+    const auto query_seqlens = std::make_shared<op::v0::Parameter>(element::i32, Shape{1});
+    args.push_back(query_seqlens);
+    const auto gqa = std::make_shared<GroupQueryAttention>(args, 4, 2, 0.0f, false, false);
+    ASSERT_TRUE(gqa->has_query_seqlens());
+    const auto expected_shape = PartialShape{1, 2, 10, 8};
+    EXPECT_EQ(gqa->get_output_partial_shape(1), expected_shape);
+    EXPECT_EQ(gqa->get_output_partial_shape(2), expected_shape);
+
+    auto model = std::make_shared<Model>(gqa->outputs(), ParameterVector{query, key, value, seqlens_k, query_seqlens});
+    decompose(model);
+    EXPECT_EQ(model->get_results()[1]->get_output_partial_shape(0), expected_shape);
+    EXPECT_EQ(model->get_results()[2]->get_output_partial_shape(0), expected_shape);
+}
+
+TEST(GroupQueryAttentionValues, absent_past_returns_current_kv_as_present) {
+    const auto query = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4, 3, 8});
+    const auto key = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3, 8});
+    const auto value = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3, 8});
+    const auto empty_past = op::v0::Constant::create(element::f32, Shape{1, 2, 0, 8}, {});
+    const auto seqlens_k = std::make_shared<op::v0::Parameter>(element::i32, Shape{1});
+    const auto total_length = std::make_shared<op::v0::Parameter>(element::i32, Shape{1});
+    const auto gqa = std::make_shared<GroupQueryAttention>(
+        OutputVector{query, key, value, empty_past, empty_past, seqlens_k, total_length},
+        4,
+        2,
+        0.0f,
+        false,
+        false);
+    auto model = std::make_shared<Model>(gqa->outputs(), ParameterVector{query, key, value, seqlens_k, total_length});
+    decompose(model);
+
+    ASSERT_NE(find_sdpa(model), nullptr);
+    EXPECT_EQ(model->get_results()[1]->get_input_node_shared_ptr(0), key);
+    EXPECT_EQ(model->get_results()[2]->get_input_node_shared_ptr(0), value);
+}
+
+TEST(GroupQueryAttentionValues, absent_quantized_past_returns_quantized_current_kv) {
+    const auto query = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4, 3, 8});
+    const auto key = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3, 8});
+    const auto value = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3, 8});
+    const auto empty_past = op::v0::Constant::create(element::i8, Shape{1, 2, 0, 8}, {});
+    const auto seqlens_k = std::make_shared<op::v0::Parameter>(element::i32, Shape{1});
+    const auto total_length = std::make_shared<op::v0::Parameter>(element::i32, Shape{1});
+    const auto absent = op::v0::Constant::create(element::dynamic, Shape{0}, {});
+    const auto k_scale = std::make_shared<op::v0::Parameter>(element::f32, Shape{});
+    const auto v_scale = std::make_shared<op::v0::Parameter>(element::f32, Shape{});
+    const auto per_tensor = op::internal::GroupQueryAttentionQuantType::PER_TENSOR;
+    const auto gqa = std::make_shared<GroupQueryAttention>(OutputVector{query,
+                                                                        key,
+                                                                        value,
+                                                                        empty_past,
+                                                                        empty_past,
+                                                                        seqlens_k,
+                                                                        total_length,
+                                                                        absent,
+                                                                        absent,
+                                                                        absent,
+                                                                        absent,
+                                                                        absent,
+                                                                        k_scale,
+                                                                        v_scale},
+                                                           4,
+                                                           2,
+                                                           0.0f,
+                                                           false,
+                                                           false,
+                                                           8,
+                                                           per_tensor,
+                                                           per_tensor);
+    auto model = std::make_shared<Model>(gqa->outputs(),
+                                         ParameterVector{query, key, value, seqlens_k, total_length, k_scale, v_scale});
+    decompose(model);
+
+    for (size_t port : {1, 2}) {
+        const auto present = model->get_results()[port]->get_input_node_shared_ptr(0);
+        EXPECT_TRUE(is_type<op::v0::Convert>(present)) << "present must be the quantized current K/V";
+        EXPECT_EQ(present->get_output_element_type(0), element::i8);
+        EXPECT_EQ(present->get_output_partial_shape(0), (PartialShape{1, 2, 3, 8}));
+    }
 }
 
 TEST(GroupQueryAttentionValues, softcap_grouped_query_does_not_replicate_kv) {
@@ -824,6 +931,306 @@ TEST(GroupQueryAttentionValues, batched_cache_update_is_per_batch) {
     }
 }
 
+// ORT sizes a growing cache's public present to max(past_rows, total_sequence_length) (CheckInputs in
+// onnxruntime/contrib_ops/cpu/bert/group_query_attention_helper.h), not to the write window a padded chunk
+// actually touches. A sliced present output would hide an undersized buffer, so this evaluates the raw
+// (unsliced) decomposed graph with the exact P=3/S=4/Q=2/past_rows=5/total_sequence_length=10 scenario where the
+// two differ (write end = 3 + 4 = 7, but ORT's declared capacity is max(5, 10) = 10), and checks both the
+// resulting shape and that the unwritten past prefix survives untouched.
+TEST(GroupQueryAttentionValues, padded_query_growing_cache_present_keeps_total_sequence_length_capacity) {
+    const auto f32 = element::f32;
+    constexpr int64_t S = 4;
+    constexpr int64_t past_rows = 5;
+    constexpr int64_t total_sequence_length = 10;
+    constexpr int64_t kept_past = 3;  // P = max(total - Q, 0) = max((seqlens_k + 1) - query_seqlens, 0) = max(5-2,0)
+
+    auto q = std::make_shared<op::v0::Parameter>(f32, PartialShape{Dimension::dynamic(), NUM_HEADS, S, HEAD_SIZE});
+    auto k = std::make_shared<op::v0::Parameter>(f32, PartialShape{Dimension::dynamic(), KV_NUM_HEADS, S, HEAD_SIZE});
+    auto v = std::make_shared<op::v0::Parameter>(f32, PartialShape{Dimension::dynamic(), KV_NUM_HEADS, S, HEAD_SIZE});
+    auto past_key = std::make_shared<op::v0::Parameter>(
+        f32,
+        PartialShape{Dimension::dynamic(), KV_NUM_HEADS, Dimension::dynamic(), HEAD_SIZE});
+    auto past_value = std::make_shared<op::v0::Parameter>(
+        f32,
+        PartialShape{Dimension::dynamic(), KV_NUM_HEADS, Dimension::dynamic(), HEAD_SIZE});
+    auto seqlens_k = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
+    auto total_seq = op::v0::Constant::create(element::i32, Shape{}, {total_sequence_length});
+    const auto empty = op::v0::Constant::create(element::dynamic, Shape{0}, {});
+    OutputVector args{q, k, v, past_key, past_value, seqlens_k, total_seq};
+    args.resize(16, empty);
+    auto query_seqlens = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
+    args.push_back(query_seqlens);
+
+    auto gqa = std::make_shared<GroupQueryAttention>(args,
+                                                     NUM_HEADS,
+                                                     KV_NUM_HEADS,
+                                                     /*scale*/ 0.0f,
+                                                     /*do_rotary*/ false,
+                                                     /*rotary_interleaved*/ false);
+    ASSERT_TRUE(gqa->has_query_seqlens());
+    ASSERT_FALSE(gqa->has_fixed_kv_capacity());
+
+    // Only present_key/present_value are checked, so only they are declared as Results: they don't depend on the
+    // attention output, and Model::evaluate only evaluates a Result's ancestors.
+    ResultVector results{std::make_shared<op::v0::Result>(gqa->output(1)),
+                         std::make_shared<op::v0::Result>(gqa->output(2))};
+    ParameterVector params{q, k, v, past_key, past_value, seqlens_k, query_seqlens};
+    auto model = std::make_shared<Model>(results, params);
+    decompose(model);
+
+    const auto batch = Shape{1};
+    const auto q_shape = Shape{1, static_cast<size_t>(NUM_HEADS), S, HEAD_SIZE};
+    const auto kv_shape = Shape{1, static_cast<size_t>(KV_NUM_HEADS), S, HEAD_SIZE};
+    const auto past_shape = Shape{1, static_cast<size_t>(KV_NUM_HEADS), past_rows, HEAD_SIZE};
+
+    std::vector<float> q_data(shape_size(q_shape), 0.5f);
+    std::vector<float> new_k_data(shape_size(kv_shape));
+    std::vector<float> new_v_data(shape_size(kv_shape));
+    for (int64_t row = 0; row < S; ++row)
+        for (int64_t col = 0; col < HEAD_SIZE; ++col) {
+            new_k_data[row * HEAD_SIZE + col] = 100.0f + static_cast<float>(row);
+            new_v_data[row * HEAD_SIZE + col] = 200.0f + static_cast<float>(row);
+        }
+    std::vector<float> past_k_data(shape_size(past_shape));
+    std::vector<float> past_v_data(shape_size(past_shape));
+    for (int64_t row = 0; row < past_rows; ++row)
+        for (int64_t col = 0; col < HEAD_SIZE; ++col) {
+            past_k_data[row * HEAD_SIZE + col] = static_cast<float>(row);
+            past_v_data[row * HEAD_SIZE + col] = static_cast<float>(row);
+        }
+    std::vector<int32_t> seqlens_k_data{4};
+    std::vector<int32_t> query_seqlens_data{2};
+
+    ov::TensorVector inputs{ov::Tensor(f32, q_shape, q_data.data()),
+                            ov::Tensor(f32, kv_shape, new_k_data.data()),
+                            ov::Tensor(f32, kv_shape, new_v_data.data()),
+                            ov::Tensor(f32, past_shape, past_k_data.data()),
+                            ov::Tensor(f32, past_shape, past_v_data.data()),
+                            ov::Tensor(element::i32, batch, seqlens_k_data.data()),
+                            ov::Tensor(element::i32, batch, query_seqlens_data.data())};
+    ov::TensorVector outputs(model->get_output_size());
+    ASSERT_TRUE(model->evaluate(outputs, inputs));
+
+    const auto expected_present_shape = Shape{1, static_cast<size_t>(KV_NUM_HEADS), total_sequence_length, HEAD_SIZE};
+    EXPECT_EQ(outputs[0].get_shape(), expected_present_shape)
+        << "unsliced present_key must follow total_sequence_length";
+    EXPECT_EQ(outputs[1].get_shape(), expected_present_shape)
+        << "unsliced present_value must follow total_sequence_length";
+
+    const auto* present_key = outputs[0].data<float>();
+    const auto* present_value = outputs[1].data<float>();
+    // Rows before the write window (the unwritten past prefix) must survive untouched.
+    for (int64_t row = 0; row < kept_past; ++row) {
+        EXPECT_FLOAT_EQ(present_key[row * HEAD_SIZE], static_cast<float>(row))
+            << "past prefix row " << row << " clobbered";
+        EXPECT_FLOAT_EQ(present_value[row * HEAD_SIZE], static_cast<float>(row))
+            << "past prefix row " << row << " clobbered";
+    }
+    // [kept_past, total) must hold the valid rows of the new chunk, overwriting any stale past rows in the overlap
+    // (the padded rows beyond total are unspecified).
+    for (int64_t row = 0; row < query_seqlens_data[0]; ++row) {
+        EXPECT_FLOAT_EQ(present_key[(kept_past + row) * HEAD_SIZE], 100.0f + static_cast<float>(row))
+            << "new chunk row " << row << " not written at kept_past + row";
+        EXPECT_FLOAT_EQ(present_value[(kept_past + row) * HEAD_SIZE], 200.0f + static_cast<float>(row))
+            << "new chunk row " << row << " not written at kept_past + row";
+    }
+}
+
+// Same scenario as above but with a statically-known batch of 1 for Q/K/V/past, which routes through the scalar
+// construct_kvcache (ScatterUpdate/Slice+Concat) path instead of construct_batched_kvcache's flat per-batch
+// ScatterUpdate -- a separate resize_kv_to_capacity call site the dynamic-batch test above never exercises.
+TEST(GroupQueryAttentionValues, padded_query_growing_cache_present_keeps_total_sequence_length_capacity_static_batch) {
+    const auto f32 = element::f32;
+    constexpr int64_t S = 4;
+    constexpr int64_t past_rows = 5;
+    constexpr int64_t total_sequence_length = 10;
+    constexpr int64_t kept_past = 3;  // P = max(total - Q, 0) = max((seqlens_k + 1) - query_seqlens, 0) = max(5-2,0)
+
+    auto q = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, NUM_HEADS, S, HEAD_SIZE});
+    auto k = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, KV_NUM_HEADS, S, HEAD_SIZE});
+    auto v = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, KV_NUM_HEADS, S, HEAD_SIZE});
+    auto past_key =
+        std::make_shared<op::v0::Parameter>(f32, PartialShape{1, KV_NUM_HEADS, Dimension::dynamic(), HEAD_SIZE});
+    auto past_value =
+        std::make_shared<op::v0::Parameter>(f32, PartialShape{1, KV_NUM_HEADS, Dimension::dynamic(), HEAD_SIZE});
+    auto seqlens_k = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1});
+    auto total_seq = op::v0::Constant::create(element::i32, Shape{}, {total_sequence_length});
+    const auto empty = op::v0::Constant::create(element::dynamic, Shape{0}, {});
+    OutputVector args{q, k, v, past_key, past_value, seqlens_k, total_seq};
+    args.resize(16, empty);
+    auto query_seqlens = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1});
+    args.push_back(query_seqlens);
+
+    auto gqa = std::make_shared<GroupQueryAttention>(args,
+                                                     NUM_HEADS,
+                                                     KV_NUM_HEADS,
+                                                     /*scale*/ 0.0f,
+                                                     /*do_rotary*/ false,
+                                                     /*rotary_interleaved*/ false);
+    ASSERT_TRUE(gqa->has_query_seqlens());
+    ASSERT_FALSE(gqa->has_fixed_kv_capacity());
+
+    ResultVector results{std::make_shared<op::v0::Result>(gqa->output(1)),
+                         std::make_shared<op::v0::Result>(gqa->output(2))};
+    ParameterVector params{q, k, v, past_key, past_value, seqlens_k, query_seqlens};
+    auto model = std::make_shared<Model>(results, params);
+    decompose(model);
+
+    // A static batch of 1 must take the scalar cache-update path (no per-batch flat ScatterUpdate).
+    size_t flat_scatter_count = 0;
+    for (const auto& op : model->get_ordered_ops())
+        flat_scatter_count += is_flat_scatter_update(op) ? 1 : 0;
+    EXPECT_EQ(flat_scatter_count, 0u);
+
+    const auto batch = Shape{1};
+    const auto q_shape = Shape{1, static_cast<size_t>(NUM_HEADS), S, HEAD_SIZE};
+    const auto kv_shape = Shape{1, static_cast<size_t>(KV_NUM_HEADS), S, HEAD_SIZE};
+    const auto past_shape = Shape{1, static_cast<size_t>(KV_NUM_HEADS), past_rows, HEAD_SIZE};
+
+    std::vector<float> q_data(shape_size(q_shape), 0.5f);
+    std::vector<float> new_k_data(shape_size(kv_shape));
+    std::vector<float> new_v_data(shape_size(kv_shape));
+    for (int64_t row = 0; row < S; ++row)
+        for (int64_t col = 0; col < HEAD_SIZE; ++col) {
+            new_k_data[row * HEAD_SIZE + col] = 100.0f + static_cast<float>(row);
+            new_v_data[row * HEAD_SIZE + col] = 200.0f + static_cast<float>(row);
+        }
+    std::vector<float> past_k_data(shape_size(past_shape));
+    std::vector<float> past_v_data(shape_size(past_shape));
+    for (int64_t row = 0; row < past_rows; ++row)
+        for (int64_t col = 0; col < HEAD_SIZE; ++col) {
+            past_k_data[row * HEAD_SIZE + col] = static_cast<float>(row);
+            past_v_data[row * HEAD_SIZE + col] = static_cast<float>(row);
+        }
+    std::vector<int32_t> seqlens_k_data{4};
+    std::vector<int32_t> query_seqlens_data{2};
+
+    ov::TensorVector inputs{ov::Tensor(f32, q_shape, q_data.data()),
+                            ov::Tensor(f32, kv_shape, new_k_data.data()),
+                            ov::Tensor(f32, kv_shape, new_v_data.data()),
+                            ov::Tensor(f32, past_shape, past_k_data.data()),
+                            ov::Tensor(f32, past_shape, past_v_data.data()),
+                            ov::Tensor(element::i32, batch, seqlens_k_data.data()),
+                            ov::Tensor(element::i32, batch, query_seqlens_data.data())};
+    ov::TensorVector outputs(model->get_output_size());
+    ASSERT_TRUE(model->evaluate(outputs, inputs));
+
+    const auto expected_present_shape = Shape{1, static_cast<size_t>(KV_NUM_HEADS), total_sequence_length, HEAD_SIZE};
+    EXPECT_EQ(outputs[0].get_shape(), expected_present_shape)
+        << "unsliced present_key must follow total_sequence_length";
+    EXPECT_EQ(outputs[1].get_shape(), expected_present_shape)
+        << "unsliced present_value must follow total_sequence_length";
+
+    const auto* present_key = outputs[0].data<float>();
+    const auto* present_value = outputs[1].data<float>();
+    for (int64_t row = 0; row < kept_past; ++row) {
+        EXPECT_FLOAT_EQ(present_key[row * HEAD_SIZE], static_cast<float>(row))
+            << "past prefix row " << row << " clobbered";
+        EXPECT_FLOAT_EQ(present_value[row * HEAD_SIZE], static_cast<float>(row))
+            << "past prefix row " << row << " clobbered";
+    }
+    for (int64_t row = 0; row < query_seqlens_data[0]; ++row) {
+        EXPECT_FLOAT_EQ(present_key[(kept_past + row) * HEAD_SIZE], 100.0f + static_cast<float>(row))
+            << "new chunk row " << row << " not written at kept_past + row";
+        EXPECT_FLOAT_EQ(present_value[(kept_past + row) * HEAD_SIZE], 200.0f + static_cast<float>(row))
+            << "new chunk row " << row << " not written at kept_past + row";
+    }
+}
+
+// qk_output is laid out over total_sequence_length too: a padded chunk's total_sequence_length can exceed the
+// tight attention buffer the same way it can exceed the present cache, so the shared QK scores need the same
+// zero-padded tail instead of Slice silently returning fewer columns than declared.
+TEST(GroupQueryAttentionValues, padded_query_qk_output_keeps_total_sequence_length_capacity) {
+    for (const auto mode : {op::internal::GroupQueryAttentionQKOutput::BEFORE_SOFTMAX,
+                            op::internal::GroupQueryAttentionQKOutput::AFTER_SOFTMAX}) {
+        const auto f32 = element::f32;
+        constexpr int64_t S = 4;
+        constexpr int64_t past_rows = 5;
+        constexpr int64_t total_sequence_length = 10;
+        constexpr int64_t attention_cols = 7;  // kept_past(3) + S(4): the tight attention buffer this step writes
+
+        auto q = std::make_shared<op::v0::Parameter>(f32, PartialShape{Dimension::dynamic(), NUM_HEADS, S, HEAD_SIZE});
+        auto k =
+            std::make_shared<op::v0::Parameter>(f32, PartialShape{Dimension::dynamic(), KV_NUM_HEADS, S, HEAD_SIZE});
+        auto v =
+            std::make_shared<op::v0::Parameter>(f32, PartialShape{Dimension::dynamic(), KV_NUM_HEADS, S, HEAD_SIZE});
+        auto past_key = std::make_shared<op::v0::Parameter>(
+            f32,
+            PartialShape{Dimension::dynamic(), KV_NUM_HEADS, Dimension::dynamic(), HEAD_SIZE});
+        auto past_value = std::make_shared<op::v0::Parameter>(
+            f32,
+            PartialShape{Dimension::dynamic(), KV_NUM_HEADS, Dimension::dynamic(), HEAD_SIZE});
+        auto seqlens_k = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
+        auto total_seq = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
+        const auto empty = op::v0::Constant::create(element::dynamic, Shape{0}, {});
+        OutputVector args{q, k, v, past_key, past_value, seqlens_k, total_seq};
+        args.resize(16, empty);
+        auto query_seqlens = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1});
+        args.push_back(query_seqlens);
+
+        auto gqa = std::make_shared<GroupQueryAttention>(args,
+                                                         NUM_HEADS,
+                                                         KV_NUM_HEADS,
+                                                         /*scale*/ 0.0f,
+                                                         /*do_rotary*/ false,
+                                                         /*rotary_interleaved*/ false,
+                                                         /*kv_cache_bit_width*/ 0,
+                                                         op::internal::GroupQueryAttentionQuantType::NONE,
+                                                         op::internal::GroupQueryAttentionQuantType::NONE,
+                                                         /*local_window_size*/ -1,
+                                                         /*sliding_window_cache*/ false,
+                                                         /*smooth_softmax*/ false,
+                                                         /*causal*/ true,
+                                                         /*softcap*/ 0.0f,
+                                                         /*qk_norm_epsilon*/ 1e-6f,
+                                                         mode);
+        ASSERT_TRUE(gqa->has_query_seqlens());
+
+        // Only the QK scores output is checked, so only it is declared as a Result.
+        ResultVector results{std::make_shared<op::v0::Result>(gqa->output(3))};
+        ParameterVector params{q, k, v, past_key, past_value, seqlens_k, total_seq, query_seqlens};
+        auto model = std::make_shared<Model>(results, params);
+        decompose(model);
+
+        const auto q_shape = Shape{1, static_cast<size_t>(NUM_HEADS), S, HEAD_SIZE};
+        const auto kv_shape = Shape{1, static_cast<size_t>(KV_NUM_HEADS), S, HEAD_SIZE};
+        const auto past_shape = Shape{1, static_cast<size_t>(KV_NUM_HEADS), past_rows, HEAD_SIZE};
+        std::vector<float> q_data(shape_size(q_shape), 0.1f);
+        std::vector<float> k_data(shape_size(kv_shape), 0.1f);
+        std::vector<float> v_data(shape_size(kv_shape), 0.1f);
+        std::vector<float> past_k_data(shape_size(past_shape), 0.1f);
+        std::vector<float> past_v_data(shape_size(past_shape), 0.1f);
+        std::vector<int32_t> seqlens_k_data{4};
+        std::vector<int32_t> total_seq_data{total_sequence_length};
+        std::vector<int32_t> query_seqlens_data{2};
+
+        ov::TensorVector inputs{ov::Tensor(f32, q_shape, q_data.data()),
+                                ov::Tensor(f32, kv_shape, k_data.data()),
+                                ov::Tensor(f32, kv_shape, v_data.data()),
+                                ov::Tensor(f32, past_shape, past_k_data.data()),
+                                ov::Tensor(f32, past_shape, past_v_data.data()),
+                                ov::Tensor(element::i32, Shape{1}, seqlens_k_data.data()),
+                                ov::Tensor(element::i32, Shape{}, total_seq_data.data()),
+                                ov::Tensor(element::i32, Shape{1}, query_seqlens_data.data())};
+        ov::TensorVector outputs(1);
+        ASSERT_TRUE(model->evaluate(outputs, inputs));
+
+        const auto expected_shape = Shape{1, static_cast<size_t>(NUM_HEADS), S, total_sequence_length};
+        EXPECT_EQ(outputs[0].get_shape(), expected_shape) << "qk_output must follow total_sequence_length";
+
+        const auto* scores = outputs[0].data<float>();
+        for (int64_t head = 0; head < NUM_HEADS; ++head) {
+            for (int64_t row = 0; row < S; ++row) {
+                for (int64_t col = attention_cols; col < total_sequence_length; ++col) {
+                    const auto idx = ((head * S + row) * total_sequence_length) + col;
+                    EXPECT_FLOAT_EQ(scores[idx], 0.0f)
+                        << "qk_output column " << col << " beyond the attention buffer must be zero-padded";
+                }
+            }
+        }
+    }
+}
+
 // A preallocated cache with a dynamic batch is written in place: the decomposed present keeps the op's inferred
 // capacity (no Concat growth).
 TEST(GroupQueryAttentionValues, batched_fixed_capacity_cache_keeps_capacity) {
@@ -848,4 +1255,236 @@ TEST(GroupQueryAttentionValues, batched_fixed_capacity_cache_keeps_capacity) {
                 << "fixed-capacity cache must not grow by Concat: " << concat;
         }
     }
+}
+
+// A fully static padded chunk (query_seqlens) whose total_sequence_length exceeds the declared fixed
+// capacity must still grow to max(past_rows, total_sequence_length), with the scatter writing into the
+// grown buffer (not past_key directly, which would run out of bounds) and the unwritten tail zeroed.
+TEST(GroupQueryAttentionValues, padded_query_static_capacity_grows_and_sanitizes_unwritten_tail) {
+    const auto f32 = element::f32;
+    constexpr int64_t S = 4;
+    constexpr int64_t past_rows = 8;
+    constexpr int64_t total_sequence_length = 12;
+
+    auto q = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, NUM_HEADS, S, HEAD_SIZE});
+    auto k = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, KV_NUM_HEADS, S, HEAD_SIZE});
+    auto v = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, KV_NUM_HEADS, S, HEAD_SIZE});
+    auto past_key = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, KV_NUM_HEADS, past_rows, HEAD_SIZE});
+    auto past_value = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, KV_NUM_HEADS, past_rows, HEAD_SIZE});
+    auto seqlens_k = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1});
+    auto total_seq = op::v0::Constant::create(element::i32, Shape{}, {total_sequence_length});
+    const auto empty = op::v0::Constant::create(element::dynamic, Shape{0}, {});
+    OutputVector args{q, k, v, past_key, past_value, seqlens_k, total_seq};
+    args.resize(16, empty);
+    auto query_seqlens = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1});
+    args.push_back(query_seqlens);
+
+    auto gqa = std::make_shared<GroupQueryAttention>(args, NUM_HEADS, KV_NUM_HEADS, 0.0f, false, false);
+    ASSERT_TRUE(gqa->has_query_seqlens());
+    ASSERT_TRUE(gqa->has_fixed_kv_capacity());
+    ASSERT_EQ(gqa->get_output_partial_shape(1), (PartialShape{1, KV_NUM_HEADS, total_sequence_length, HEAD_SIZE}));
+
+    ResultVector results{std::make_shared<op::v0::Result>(gqa->output(1)),
+                         std::make_shared<op::v0::Result>(gqa->output(2))};
+    ParameterVector params{q, k, v, past_key, past_value, seqlens_k, query_seqlens};
+    auto model = std::make_shared<Model>(results, params);
+    decompose(model);
+    EXPECT_EQ(model->get_results()[0]->get_input_partial_shape(0),
+              (PartialShape{1, KV_NUM_HEADS, total_sequence_length, HEAD_SIZE}));
+
+    bool scatter_into_past_key_directly = false;
+    bool found_capacity_concat = false;
+    bool found_sanitize_select = false;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (const auto su = as_type_ptr<op::v3::ScatterUpdate>(op)) {
+            scatter_into_past_key_directly |= su->get_input_node_shared_ptr(0) == past_key;
+        }
+        if (const auto concat = as_type_ptr<op::v0::Concat>(op)) {
+            found_capacity_concat |= concat->get_output_partial_shape(0).rank() == 4 && concat->get_axis() == 2;
+        }
+        if (const auto select = as_type_ptr<op::v1::Select>(op)) {
+            const auto zero_const = as_type_ptr<op::v0::Constant>(select->get_input_node_shared_ptr(2));
+            found_sanitize_select |= zero_const && zero_const->get_shape().empty();
+        }
+    }
+    EXPECT_FALSE(scatter_into_past_key_directly)
+        << "scatter must target the capacity-grown buffer, not past_key directly (out-of-bounds indices)";
+    EXPECT_TRUE(found_capacity_concat) << "present must grow via Concat to reach total_sequence_length";
+    EXPECT_TRUE(found_sanitize_select)
+        << "unwritten capacity tail must be zeroed so NaN filler can't leak through softmax";
+}
+
+// When the declared capacity already covers a constant total_sequence_length, resize_kv_to_capacity must
+// fold away instead of building a Slice/Broadcast/Concat that would just reproduce its input: the scatter
+// writes directly into past_key/past_value, same as the no-total_sequence_length fast path.
+TEST(GroupQueryAttentionValues, padded_query_static_capacity_already_sufficient_skips_resize) {
+    const auto f32 = element::f32;
+    constexpr int64_t S = 4;
+    constexpr int64_t past_rows = 8;
+    constexpr int64_t total_sequence_length = 8;
+
+    auto q = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, NUM_HEADS, S, HEAD_SIZE});
+    auto k = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, KV_NUM_HEADS, S, HEAD_SIZE});
+    auto v = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, KV_NUM_HEADS, S, HEAD_SIZE});
+    auto past_key = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, KV_NUM_HEADS, past_rows, HEAD_SIZE});
+    auto past_value = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, KV_NUM_HEADS, past_rows, HEAD_SIZE});
+    auto seqlens_k = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1});
+    auto total_seq = op::v0::Constant::create(element::i32, Shape{}, {total_sequence_length});
+    const auto empty = op::v0::Constant::create(element::dynamic, Shape{0}, {});
+    OutputVector args{q, k, v, past_key, past_value, seqlens_k, total_seq};
+    args.resize(16, empty);
+    auto query_seqlens = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1});
+    args.push_back(query_seqlens);
+
+    auto gqa = std::make_shared<GroupQueryAttention>(args, NUM_HEADS, KV_NUM_HEADS, 0.0f, false, false);
+    ASSERT_TRUE(gqa->has_query_seqlens());
+    ASSERT_TRUE(gqa->has_fixed_kv_capacity());
+    ASSERT_EQ(gqa->get_output_partial_shape(1), (PartialShape{1, KV_NUM_HEADS, past_rows, HEAD_SIZE}));
+
+    ResultVector results{std::make_shared<op::v0::Result>(gqa->output(1)),
+                         std::make_shared<op::v0::Result>(gqa->output(2))};
+    ParameterVector params{q, k, v, past_key, past_value, seqlens_k, query_seqlens};
+    auto model = std::make_shared<Model>(results, params);
+    decompose(model);
+
+    bool scatter_into_past_key_directly = false;
+    bool found_capacity_concat = false;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (const auto su = as_type_ptr<op::v3::ScatterUpdate>(op)) {
+            scatter_into_past_key_directly |= su->get_input_node_shared_ptr(0) == past_key;
+        }
+        if (const auto concat = as_type_ptr<op::v0::Concat>(op)) {
+            found_capacity_concat |= concat->get_output_partial_shape(0).rank() == 4 && concat->get_axis() == 2;
+        }
+    }
+    EXPECT_TRUE(scatter_into_past_key_directly)
+        << "an already-sufficient static capacity should scatter straight into past_key, no resize needed";
+    EXPECT_FALSE(found_capacity_concat) << "resize_kv_to_capacity must fold away as a no-op, not build a Concat";
+}
+
+// Same hazard as padded_query_static_capacity_grows_and_sanitizes_unwritten_tail, through the batched writer
+// (dynamic batch) instead of the scalar one.
+TEST(GroupQueryAttentionValues, padded_query_batched_static_capacity_sanitizes_unwritten_tail) {
+    const auto f32 = element::f32;
+    constexpr int64_t S = 4;
+    constexpr int64_t past_rows = 8;
+
+    auto q = std::make_shared<op::v0::Parameter>(f32, PartialShape{Dimension::dynamic(), NUM_HEADS, S, HEAD_SIZE});
+    auto k = std::make_shared<op::v0::Parameter>(f32, PartialShape{Dimension::dynamic(), KV_NUM_HEADS, S, HEAD_SIZE});
+    auto v = std::make_shared<op::v0::Parameter>(f32, PartialShape{Dimension::dynamic(), KV_NUM_HEADS, S, HEAD_SIZE});
+    auto past_key =
+        std::make_shared<op::v0::Parameter>(f32,
+                                            PartialShape{Dimension::dynamic(), KV_NUM_HEADS, past_rows, HEAD_SIZE});
+    auto past_value =
+        std::make_shared<op::v0::Parameter>(f32,
+                                            PartialShape{Dimension::dynamic(), KV_NUM_HEADS, past_rows, HEAD_SIZE});
+    auto seqlens_k = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
+    auto total_seq = op::v0::Constant::create(element::i32, Shape{}, {past_rows});
+    const auto empty = op::v0::Constant::create(element::dynamic, Shape{0}, {});
+    OutputVector args{q, k, v, past_key, past_value, seqlens_k, total_seq};
+    args.resize(16, empty);
+    auto query_seqlens = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
+    args.push_back(query_seqlens);
+
+    auto gqa = std::make_shared<GroupQueryAttention>(args, NUM_HEADS, KV_NUM_HEADS, 0.0f, false, false);
+    ASSERT_TRUE(gqa->has_query_seqlens());
+    ASSERT_TRUE(gqa->has_fixed_kv_capacity());
+
+    ResultVector results{std::make_shared<op::v0::Result>(gqa->output(1)),
+                         std::make_shared<op::v0::Result>(gqa->output(2))};
+    ParameterVector params{q, k, v, past_key, past_value, seqlens_k, query_seqlens};
+    auto model = std::make_shared<Model>(results, params);
+    decompose(model);
+
+    bool found_sanitize_select = false;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (const auto select = as_type_ptr<op::v1::Select>(op)) {
+            const auto zero_const = as_type_ptr<op::v0::Constant>(select->get_input_node_shared_ptr(2));
+            found_sanitize_select |= zero_const && zero_const->get_shape().empty();
+        }
+    }
+    EXPECT_TRUE(found_sanitize_select)
+        << "batched writer must also zero the unwritten capacity tail so NaN filler can't leak through softmax";
+}
+
+TEST(GroupQueryAttentionValues, padded_query_batched_dynamic_capacity_sanitizes_unwritten_tail) {
+    const auto f32 = element::f32;
+    constexpr int64_t S = 4;
+
+    auto q = std::make_shared<op::v0::Parameter>(f32, PartialShape{Dimension::dynamic(), NUM_HEADS, S, HEAD_SIZE});
+    auto k = std::make_shared<op::v0::Parameter>(f32, PartialShape{Dimension::dynamic(), KV_NUM_HEADS, S, HEAD_SIZE});
+    auto v = std::make_shared<op::v0::Parameter>(f32, PartialShape{Dimension::dynamic(), KV_NUM_HEADS, S, HEAD_SIZE});
+    auto past_key = std::make_shared<op::v0::Parameter>(
+        f32,
+        PartialShape{Dimension::dynamic(), KV_NUM_HEADS, Dimension::dynamic(), HEAD_SIZE});
+    auto past_value = std::make_shared<op::v0::Parameter>(
+        f32,
+        PartialShape{Dimension::dynamic(), KV_NUM_HEADS, Dimension::dynamic(), HEAD_SIZE});
+    auto seqlens_k = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
+    auto total_seq = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
+    const auto empty = op::v0::Constant::create(element::dynamic, Shape{0}, {});
+    OutputVector args{q, k, v, past_key, past_value, seqlens_k, total_seq};
+    args.resize(16, empty);
+    auto query_seqlens = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
+    args.push_back(query_seqlens);
+
+    auto gqa = std::make_shared<GroupQueryAttention>(args, NUM_HEADS, KV_NUM_HEADS, 0.0f, false, false);
+    ASSERT_TRUE(gqa->has_query_seqlens());
+    ASSERT_FALSE(gqa->has_fixed_kv_capacity());
+
+    ResultVector results{std::make_shared<op::v0::Result>(gqa->output(1)),
+                         std::make_shared<op::v0::Result>(gqa->output(2))};
+    ParameterVector params{q, k, v, past_key, past_value, seqlens_k, total_seq, query_seqlens};
+    auto model = std::make_shared<Model>(results, params);
+    decompose(model);
+
+    bool found_sanitize_select = false;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (const auto select = as_type_ptr<op::v1::Select>(op)) {
+            const auto zero_const = as_type_ptr<op::v0::Constant>(select->get_input_node_shared_ptr(2));
+            found_sanitize_select |= zero_const && zero_const->get_shape().empty();
+        }
+    }
+    EXPECT_TRUE(found_sanitize_select) << "batched writer's dynamic-capacity (Concat-grown) buffer must also zero "
+                                          "the unwritten tail so a garbage past Parameter can't leak NaN through "
+                                          "softmax";
+}
+
+// resize_kv_to_capacity's no-op fold must trim an OVERSIZED buffer down to capacity, not just skip when the
+// buffer already covers it: batch 2 (triggers the batched writer) with a dynamic query sequence_length
+// (has_fixed_kv_capacity() is false even though K/V/past rows are all static) builds a 12-row Concat-grown
+// buffer (8 past + 4 current) against a constant total_sequence_length=8, so present must still come out at
+// exactly 8 rows, not the unsliced 12.
+TEST(GroupQueryAttentionValues, padded_query_batched_oversized_buffer_still_trims_to_capacity) {
+    const auto f32 = element::f32;
+    constexpr int64_t S = 4;
+    constexpr int64_t past_rows = 8;
+    constexpr int64_t total_sequence_length = 8;
+
+    auto q = std::make_shared<op::v0::Parameter>(f32, PartialShape{2, NUM_HEADS, Dimension::dynamic(), HEAD_SIZE});
+    auto k = std::make_shared<op::v0::Parameter>(f32, PartialShape{2, KV_NUM_HEADS, S, HEAD_SIZE});
+    auto v = std::make_shared<op::v0::Parameter>(f32, PartialShape{2, KV_NUM_HEADS, S, HEAD_SIZE});
+    auto past_key = std::make_shared<op::v0::Parameter>(f32, PartialShape{2, KV_NUM_HEADS, past_rows, HEAD_SIZE});
+    auto past_value = std::make_shared<op::v0::Parameter>(f32, PartialShape{2, KV_NUM_HEADS, past_rows, HEAD_SIZE});
+    auto seqlens_k = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{2});
+    auto total_seq = op::v0::Constant::create(element::i32, Shape{}, {total_sequence_length});
+    const auto empty = op::v0::Constant::create(element::dynamic, Shape{0}, {});
+    OutputVector args{q, k, v, past_key, past_value, seqlens_k, total_seq};
+    args.resize(16, empty);
+    auto query_seqlens = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{2});
+    args.push_back(query_seqlens);
+
+    auto gqa = std::make_shared<GroupQueryAttention>(args, NUM_HEADS, KV_NUM_HEADS, 0.0f, false, false);
+    ASSERT_TRUE(gqa->has_query_seqlens());
+    ASSERT_FALSE(gqa->has_fixed_kv_capacity());
+
+    ResultVector results{std::make_shared<op::v0::Result>(gqa->output(1)),
+                         std::make_shared<op::v0::Result>(gqa->output(2))};
+    ParameterVector params{q, k, v, past_key, past_value, seqlens_k, query_seqlens};
+    auto model = std::make_shared<Model>(results, params);
+    decompose(model);
+
+    EXPECT_EQ(model->get_results()[0]->get_input_partial_shape(0),
+              (PartialShape{2, KV_NUM_HEADS, total_sequence_length, HEAD_SIZE}))
+        << "an oversized Concat-grown buffer (12 rows) must still be trimmed to capacity (8), not returned as-is";
 }

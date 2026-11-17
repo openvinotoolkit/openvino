@@ -8,13 +8,18 @@
 
 #include <openvino/core/model.hpp>
 #include <openvino/pass/manager.hpp>
+#include <optional>
+#include <string>
+#include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
@@ -22,6 +27,7 @@
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/strided_slice.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "ov_ops/type_relaxed.hpp"
@@ -817,4 +823,182 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, PerChannelSqueezePDPDAxisOneReject) {
     manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+// ---- Fusable-producer tests (non-constant second input) ----
+
+namespace {
+
+enum class Producer { MatMul, MatMulBias, Transpose };
+enum class DataMov { Reshape, Unsqueeze };
+enum class Eltwise { Add, Multiply, Subtract, Maximum };
+
+std::shared_ptr<v0::Constant> axis_const(int64_t axis) {
+    return v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
+}
+
+std::shared_ptr<ov::Node> make_producer(Producer type, const ov::Output<ov::Node>& input) {
+    const auto make_matmul = [&]() {
+        return std::make_shared<v0::MatMul>(input, v0::Constant::create(ov::element::f16, ov::Shape{8, 16}, {0.1f}));
+    };
+    switch (type) {
+    case Producer::MatMul:
+        return make_matmul();
+    case Producer::MatMulBias:
+        return std::make_shared<v1::Add>(make_matmul(),
+                                         v0::Constant::create(ov::element::f16, ov::Shape{1, 1, 16}, {0.5f}));
+    case Producer::Transpose:
+        return std::make_shared<v1::Transpose>(input, v0::Constant::create(ov::element::i32, ov::Shape{3}, {0, 2, 1}));
+    }
+    OPENVINO_THROW("Unexpected producer type");
+}
+
+// `target` is the Reshape target shape (special_zero = true) or the Unsqueeze axes
+std::shared_ptr<ov::Node> make_data_mov(DataMov type,
+                                        const ov::Output<ov::Node>& input,
+                                        const std::vector<int64_t>& target) {
+    const auto target_const = v0::Constant::create(ov::element::i64, ov::Shape{target.size()}, target);
+    switch (type) {
+    case DataMov::Reshape:
+        return std::make_shared<v1::Reshape>(input, target_const, true);
+    case DataMov::Unsqueeze:
+        return std::make_shared<v0::Unsqueeze>(input, target_const);
+    }
+    OPENVINO_THROW("Unexpected data movement type");
+}
+
+std::shared_ptr<ov::Node> make_eltwise(Eltwise type, const ov::Output<ov::Node>& in0, const ov::Output<ov::Node>& in1) {
+    switch (type) {
+    case Eltwise::Add:
+        return std::make_shared<v1::Add>(in0, in1);
+    case Eltwise::Multiply:
+        return std::make_shared<v1::Multiply>(in0, in1);
+    case Eltwise::Subtract:
+        return std::make_shared<v1::Subtract>(in0, in1);
+    case Eltwise::Maximum:
+        return std::make_shared<v1::Maximum>(in0, in1);
+    }
+    OPENVINO_THROW("Unexpected eltwise type");
+}
+
+// Helper to register only the fusable-producer matcher. The matcher synthesizes the Squeeze and
+// Unsqueeze axis constants, so enable comparison of constant payloads as well.
+void register_fusable_pass(TransformationTestsF& test) {
+    test.manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMovFusableProducer>(std::vector<ov::DiscreteTypeInfo>{
+        ov::op::v0::MatMul::get_type_info_static(),
+        ov::op::v1::Transpose::get_type_info_static(),
+    });
+    test.comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+struct FusableProducerParams {
+    std::string name;
+    Producer producer;
+    ov::PartialShape input_shape;
+    DataMov data_mov;
+    std::vector<int64_t> data_mov_target;
+    Eltwise eltwise;
+    size_t data_mov_idx;
+    ov::PartialShape other_shape;
+    std::optional<int64_t> expected_axis;
+};
+
+class MoveEltwiseUpThroughDataMovFusableTest : public testing::WithParamInterface<FusableProducerParams>,
+                                               public TransformationTestsF {
+public:
+    static std::string get_test_name(const testing::TestParamInfo<FusableProducerParams>& obj) {
+        return obj.param.name;
+    }
+};
+
+TEST_P(MoveEltwiseUpThroughDataMovFusableTest, CompareFunctions) {
+    const auto& p = GetParam();
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, p.input_shape);
+        auto other = std::make_shared<v0::Parameter>(ov::element::f16, p.other_shape);
+        auto data_mov = make_data_mov(p.data_mov, make_producer(p.producer, input), p.data_mov_target);
+        auto eltwise =
+            p.data_mov_idx == 0 ? make_eltwise(p.eltwise, data_mov, other) : make_eltwise(p.eltwise, other, data_mov);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{eltwise}, ov::ParameterVector{input, other});
+        register_fusable_pass(*this);
+    }
+    if (p.expected_axis) {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, p.input_shape);
+        auto other = std::make_shared<v0::Parameter>(ov::element::f16, p.other_shape);
+        auto squeezed = std::make_shared<v0::Squeeze>(other, axis_const(*p.expected_axis));
+        auto eltwise = make_eltwise(p.eltwise, make_producer(p.producer, input), squeezed);
+        auto unsqueezed = std::make_shared<v0::Unsqueeze>(eltwise, axis_const(*p.expected_axis));
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{unsqueezed}, ov::ParameterVector{input, other});
+    }
+}
+
+// clang-format off
+const std::vector<FusableProducerParams> fusable_producer_params = {
+    // name                                      producer              input_shape   data_mov            data_mov_target eltwise            idx other_shape      expected_axis
+    {"MatMulReshapeAdd",                         Producer::MatMul,     {2, 4, 8},    DataMov::Reshape,   {2, 1, 4, 16},  Eltwise::Add,      0, {2, 1, 4, 16},   1},
+    {"TransposeReshapeAdd",                      Producer::Transpose,  {2, 4, 16},   DataMov::Reshape,   {2, 1, 16, 4},  Eltwise::Add,      0, {2, 1, 16, 4},   1},
+    {"BiasAddReshapeAdd",                        Producer::MatMulBias, {2, 4, 8},    DataMov::Reshape,   {2, 1, 4, 16},  Eltwise::Add,      0, {2, 1, 4, 16},   1},
+    {"BiasAddReshapeAddDynamicBatch",            Producer::MatMulBias, {-1, 4, 8},   DataMov::Reshape,   {-1, 1, 4, 16}, Eltwise::Add,      0, {-1, 1, 4, 16},  1},
+    {"MatMulUnsqueezeAdd",                       Producer::MatMul,     {2, 4, 8},    DataMov::Unsqueeze, {1},            Eltwise::Add,      0, {2, 1, 4, 16},   1},
+    {"MatMulUnsqueezeAxisZero",                  Producer::MatMul,     {2, 4, 8},    DataMov::Unsqueeze, {0},            Eltwise::Add,      0, {1, 2, 4, 16},   0},
+    {"MatMulUnsqueezeNegativeAxis",              Producer::MatMul,     {2, 4, 8},    DataMov::Unsqueeze, {-1},           Eltwise::Add,      0, {2, 4, 16, 1},   3},
+    {"MatMulUnsqueezeTwoDynamicDims",            Producer::MatMul,     {-1, -1, 8},  DataMov::Unsqueeze, {1},            Eltwise::Add,      0, {-1, 1, -1, 16}, 1},
+    {"MatMulReshapeMultiply",                    Producer::MatMul,     {2, 4, 8},    DataMov::Reshape,   {2, 1, 4, 16},  Eltwise::Multiply, 0, {2, 1, 4, 16},   1},
+    {"MatMulReshapeSubtract",                    Producer::MatMul,     {2, 4, 8},    DataMov::Reshape,   {2, 1, 4, 16},  Eltwise::Subtract, 0, {2, 1, 4, 16},   1},
+    {"MatMulReshapeMaximumDataMovOnInput1",      Producer::MatMul,     {2, 4, 8},    DataMov::Reshape,   {2, 1, 4, 16},  Eltwise::Maximum,  1, {2, 1, 4, 16},   1},
+    {"MatMulReshapeSubtractDataMovOnInput1NoOp", Producer::MatMul,     {2, 4, 8},    DataMov::Reshape,   {2, 1, 4, 16},  Eltwise::Subtract, 1, {2, 1, 4, 16},   std::nullopt},
+    {"ReshapeSameRankNoOp",                      Producer::MatMul,     {2, 4, 8},    DataMov::Reshape,   {2, 2, 32},     Eltwise::Add,      0, {2, 2, 32},      std::nullopt},
+    {"ReshapeRankIncreaseWithSplitNoOp",         Producer::MatMul,     {2, 4, 8},    DataMov::Reshape,   {2, 1, 2, 32},  Eltwise::Add,      0, {2, 1, 2, 32},   std::nullopt},
+    {"ReshapeRankIncreaseWithoutUnitDimNoOp",    Producer::MatMul,     {2, 4, 8},    DataMov::Reshape,   {2, 2, 2, 16},  Eltwise::Add,      0, {2, 2, 2, 16},   std::nullopt},
+    // The Reshape inserts a unit dim but also reinterprets the dynamic dims: not an Unsqueeze-like change
+    {"ReshapeReorderedDynamicDimsNoOp",          Producer::Transpose,  {-1, -1, -1}, DataMov::Reshape,   {0, 1, 0, -1},  Eltwise::Add,      0, {-1, 1, -1, -1}, std::nullopt},
+    // A Reshape that only appends a unit dim is rejected with >1 dynamic dim: the shapes can't prove the data is not reinterpreted
+    {"ReshapeTwoDynamicDimsNoOp",                Producer::Transpose,  {-1, -1, -1}, DataMov::Reshape,   {0, 0, 0, 1},   Eltwise::Add,      0, {-1, -1, -1, 1}, std::nullopt},
+};
+// clang-format on
+
+INSTANTIATE_TEST_SUITE_P(MoveEltwiseUpThroughDataMovFusable,
+                         MoveEltwiseUpThroughDataMovFusableTest,
+                         testing::ValuesIn(fusable_producer_params),
+                         MoveEltwiseUpThroughDataMovFusableTest::get_test_name);
+}  // namespace
+
+// The eltwise feeds more than one op, which is the usual shape of a residual add, so it is still fused
+TEST_F(MoveEltwiseUpThroughDataMovTest, FusableEltwiseMultiConsumer) {
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{2, 4, 8});
+        auto other = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{2, 1, 4, 16});
+        auto reshape = make_data_mov(DataMov::Reshape, make_producer(Producer::MatMul, input), {2, 1, 4, 16});
+        auto add = std::make_shared<v1::Add>(reshape, other);
+        auto relu = std::make_shared<v0::Relu>(add);
+        auto sigmoid = std::make_shared<v0::Sigmoid>(add);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{relu, sigmoid}, ov::ParameterVector{input, other});
+        register_fusable_pass(*this);
+    }
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{2, 4, 8});
+        auto other = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{2, 1, 4, 16});
+        auto squeezed = std::make_shared<v0::Squeeze>(other, axis_const(1));
+        auto add = std::make_shared<v1::Add>(make_producer(Producer::MatMul, input), squeezed);
+        auto unsqueezed = std::make_shared<v0::Unsqueeze>(add, axis_const(1));
+        auto relu = std::make_shared<v0::Relu>(unsqueezed);
+        auto sigmoid = std::make_shared<v0::Sigmoid>(unsqueezed);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{relu, sigmoid}, ov::ParameterVector{input, other});
+    }
+}
+
+// The data movement op feeds more than one op, so the producer cannot fuse the eltwise as a post-op
+TEST_F(MoveEltwiseUpThroughDataMovTest, FusableReshapeMultiConsumerNoOp) {
+    auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{2, 4, 8});
+    auto other = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{2, 1, 4, 16});
+    auto reshape = make_data_mov(DataMov::Reshape, make_producer(Producer::MatMul, input), {2, 1, 4, 16});
+    auto add = std::make_shared<v1::Add>(reshape, other);
+    auto relu = std::make_shared<v0::Relu>(reshape);
+
+    model = std::make_shared<ov::Model>(ov::OutputVector{add, relu}, ov::ParameterVector{input, other});
+    register_fusable_pass(*this);
 }

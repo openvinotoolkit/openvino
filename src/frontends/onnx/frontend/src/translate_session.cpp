@@ -139,11 +139,13 @@ std::shared_ptr<ov::Node> TranslateSession::create_const_or_param(
     const std::shared_ptr<ov::frontend::onnx::TensorONNXPlace>& input_tensor,
     bool is_model_input) {
     std::shared_ptr<ov::Node> node;
+    const auto& shape = input_tensor->get_partial_shape();
+    const bool is_empty_shape = shape.is_static() && ov::shape_size(shape.to_shape()) == 0;
     // STRING initializers carry data in get_data_any() with get_data()==nullptr; treat as Constants.
     if (input_tensor->get_data_location() != nullptr || input_tensor->get_data() != nullptr ||
         !input_tensor->get_data_any().empty()) {
         node = Tensor(input_tensor).get_ov_constant();
-    } else if (!is_model_input && input_tensor->get_partial_shape() == PartialShape{0}) {  // empty constant
+    } else if (!is_model_input && is_empty_shape) {  // empty constant
         node = ov::op::v0::Constant::create(input_tensor->get_element_type(),
                                             input_tensor->get_partial_shape().to_shape(),
                                             {});

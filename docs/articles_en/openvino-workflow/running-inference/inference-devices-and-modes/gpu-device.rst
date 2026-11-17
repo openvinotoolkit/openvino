@@ -19,6 +19,7 @@ For an in-depth description of the GPU plugin, see:
 
 - `GPU plugin developer documentation <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/README.md>`__
 - `OpenVINO Runtime GPU plugin source files <https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_gpu/>`__
+- `GPU plugin Level Zero support (experimental) <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/docs/gpu_plugin_with_level_zero.md>`__
 - `Start AI Development with Intel <https://www.intel.com/content/www/us/en/developer/topic-technology/artificial-intelligence/overview.html>`__
 
 The GPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit. For more information on how to configure a system to use it, see the :doc:`GPU configuration <../../../get-started/install-openvino/configurations/configurations-intel-gpu>`.
@@ -428,10 +429,17 @@ All parameters must be set before calling ``ov::Core::compile_model()`` in order
 - ``ov::hint::performance_mode``
 - ``ov::intel_gpu::disable_winograd_convolution``
 - ``ov::intel_gpu::enable_loop_unrolling``
+- ``ov::intel_gpu::offload_ratio``
 - ``ov::intel_gpu::hint::enable_sdpa_optimization``
 - ``ov::intel_gpu::hint::host_task_priority``
 - ``ov::intel_gpu::hint::queue_priority``
 - ``ov::intel_gpu::hint::queue_throttle``
+
+Setting ``ov::intel_gpu::offload_ratio`` above zero automatically enables weightless
+caching and selects ``ov::CacheMode::OPTIMIZE_SIZE``. Explicitly disabling weightless
+caching or selecting ``ov::CacheMode::OPTIMIZE_SPEED`` is not supported with offloading,
+including when importing a compiled model or loading it from cache.
+MoE offloading requires a valid weights file and the corresponding constant offsets.
 
 
 Read-only Properties

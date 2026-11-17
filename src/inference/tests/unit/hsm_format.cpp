@@ -354,6 +354,7 @@ TEST(HsmContainerViewTest, reads_pointer_section) {
     const hsm::ContainerView view(blob.data(), blob.size());
     const auto& model_entry = (&view.manifest())[1];
     const auto section = view.section(model_entry);
+    ASSERT_FALSE(section.empty());
     ASSERT_EQ(section.size(), 2u);
     EXPECT_EQ(std::string(reinterpret_cast<const char*>(section.data()), section.size()), "OV");
 }
@@ -367,7 +368,7 @@ TEST(HsmContainerViewTest, section_rejects_inline_mode_entry) {
     entry.offset = sizeof(hsm::Header);
     entry.size = 2;
 
-    EXPECT_EQ(view.section(entry).size(), 0u);
+    EXPECT_TRUE(view.section(entry).empty());
 }
 
 TEST(HsmContainerViewTest, section_rejects_out_of_bounds_offset) {
@@ -379,7 +380,7 @@ TEST(HsmContainerViewTest, section_rejects_out_of_bounds_offset) {
     entry.offset = view.size() + 1;
     entry.size = 1;
 
-    EXPECT_EQ(view.section(entry).size(), 0u);
+    EXPECT_TRUE(view.section(entry).empty());
 }
 
 TEST(HsmContainerViewTest, section_rejects_out_of_bounds_size) {
@@ -391,7 +392,7 @@ TEST(HsmContainerViewTest, section_rejects_out_of_bounds_size) {
     entry.offset = 0;
     entry.size = view.size() + 1;  // fits at offset 0 alone, but overruns the buffer
 
-    EXPECT_EQ(view.section(entry).size(), 0u);
+    EXPECT_TRUE(view.section(entry).empty());
 }
 
 TEST(HsmContainerViewValidateTest, accepts_well_formed_container) {
@@ -501,6 +502,7 @@ TEST(HsmContainerViewValidateTest, rejects_section_overlapping_header) {
 TEST(HsmMultiBlobViewTest, empty_buffer_has_no_blobs) {
     const hsm::MultiBlobView view(static_cast<const uint8_t*>(nullptr), 0);
     EXPECT_EQ(view.blob_count(), 0u);
+    EXPECT_FALSE(view.blob_at(0).validate());
 }
 
 TEST(HsmMultiBlobViewTest, reads_single_blob) {
@@ -589,7 +591,7 @@ TEST(IHsmSectionExtensionTest, recognizes_own_device_and_tag) {
 
     const std::byte payload[4] = {};
     RecordingExtension extension;
-    EXPECT_TRUE(extension.read_section(entry, ov::util::MemoryView{payload, 4}));
+    EXPECT_TRUE(extension.read_section(entry, ov::util::as_memory_view(payload)));
     EXPECT_EQ(extension.last_section_size, 4u);
 }
 
