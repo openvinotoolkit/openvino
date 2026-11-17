@@ -200,6 +200,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/extract_image_patches_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/eye.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/fully_connected_gpu_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/test_cases/fully_connected_weights_layout_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/gated_delta_net.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/gather_elements_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/gather_gpu_test.cpp
@@ -249,6 +250,8 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/propagate_constants_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/proposal_cpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/proposal_test_data.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/test_cases/qsa_ops_gpu_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/test_cases/sparse_pa_kvq_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/quantize_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/random_uniform_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/range_gpu_test.cpp
@@ -506,9 +509,13 @@ set(GPU_UNIT_TESTS_TRANSFORMATIONS_SRCS
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/kv_cache.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/lora_subgraph_fused.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/moe_router_fused.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/paged_qsa_indexer.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/placeholder.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/qsa_indexer.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/read_value.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/sdpa.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/sparse_pa.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/sparse_sdpa.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/stateless_kv.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/swoosh.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/swiglu_with_clamp.cpp

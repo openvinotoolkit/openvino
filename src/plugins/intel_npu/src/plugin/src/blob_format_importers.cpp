@@ -434,6 +434,8 @@ std::shared_ptr<IGraph> IBlobFormatImporter::create_graph(const ov::SoPtr<IEngin
                             extract_blob_type());
 
     m_graph->update_network_name(network_name);
+
+    blob_format_importer_utils::validate_main_schedule_descriptors(m_graph->get_metadata());
     if (m_batch_size.has_value()) {
         // The batch size is used for sizing the buffers and for slicing them, thus it must match the compiled schedule
         blob_format_importer_utils::validate_batch_size(m_batch_size.value(), m_graph->get_metadata());
@@ -500,10 +502,23 @@ std::unique_ptr<IBlobFormatImporter> create(BlobSource& npu_formatted_blob,
 }
 
 }  // namespace blob_format_importer_factory
-
 namespace blob_format_importer_utils {
 
-void validate_batch_size(const int64_t batch_size, const NetworkMetadata& metadata) {
+void validate_main_schedule_descriptors(const NetworkMetadata& metadata) {
+    auto check_descriptors = [](const std::vector<IODescriptor>& descriptors) {
+        for (const IODescriptor& descriptor : descriptors) {
+            OPENVINO_ASSERT(!descriptor.isInitInputWeights && !descriptor.isInitOutputWeights,
+                            "The I/O descriptor \"",
+                            descriptor.nameFromCompiler,
+                            "\" of the main schedule is marked as an init schedule weights descriptor");
+        }
+    };
+
+    check_descriptors(metadata.inputs);
+    check_descriptors(metadata.outputs);
+}
+
+void validate_batch_size(int64_t batch_size, const NetworkMetadata& metadata) {
     OPENVINO_ASSERT(batch_size == DYNAMIC_BATCH_SIZE || batch_size > 0,
                     "The batch size stored in the blob metadata is invalid: ",
                     batch_size);

@@ -180,6 +180,7 @@ NetworkMetadata create_plugin_batched_metadata() {
 
 using blob_format_importer_utils::DYNAMIC_BATCH_SIZE;
 using blob_format_importer_utils::validate_batch_size;
+using blob_format_importer_utils::validate_main_schedule_descriptors;
 
 /**
  * @brief Static and dynamic batch sizes are accepted if the schedule was compiled with a batch of 1
@@ -287,4 +288,29 @@ TEST_F(BlobFormatImportersTest, BatchSizeAcceptsNonBatchedMainWeightsOnly) {
         metadata.inputs.back().isMainInputWeights = false;
         OV_EXPECT_THROW(validate_batch_size(batch_size, metadata), ov::Exception, _);
     }
+}
+
+/**
+ * @brief The init weights descriptors belong to the init schedules only, the main schedule must not contain any of
+ * these regardless of their shapes or of the batch size
+ */
+TEST_F(BlobFormatImportersTest, MainScheduleRejectsInitWeightsDescriptors) {
+    NetworkMetadata metadata;
+    metadata.inputs.push_back(create_descriptor("input", ov::Shape{1, 3}));
+    metadata.outputs.push_back(create_descriptor("output", ov::Shape{1, 3}));
+    IODescriptor main_weights = create_descriptor("main_weights", ov::Shape{});
+    main_weights.isMainInputWeights = true;
+    metadata.inputs.push_back(std::move(main_weights));
+    OV_ASSERT_NO_THROW(validate_main_schedule_descriptors(metadata));
+
+    IODescriptor init_input = create_descriptor("init_input", ov::Shape{1, 3});
+    init_input.isInitInputWeights = true;
+    metadata.inputs.push_back(std::move(init_input));
+    OV_EXPECT_THROW_HAS_SUBSTRING(validate_main_schedule_descriptors(metadata), ov::Exception, "init_input");
+
+    metadata.inputs.pop_back();
+    IODescriptor init_output = create_descriptor("init_output", ov::Shape{1, 3});
+    init_output.isInitOutputWeights = true;
+    metadata.outputs.push_back(std::move(init_output));
+    OV_EXPECT_THROW_HAS_SUBSTRING(validate_main_schedule_descriptors(metadata), ov::Exception, "init_output");
 }

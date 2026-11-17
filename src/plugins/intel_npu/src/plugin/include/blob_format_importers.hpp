@@ -153,7 +153,18 @@ constexpr int64_t DYNAMIC_BATCH_SIZE = -1;
  * @param metadata The I/O descriptors of the main schedule.
  * @throws ov::AssertFailure if the batch size is invalid or cannot be applied on the given schedule.
  */
-void validate_batch_size(const int64_t batch_size, const NetworkMetadata& metadata);
+void validate_batch_size(int64_t batch_size, const NetworkMetadata& metadata);
+
+/**
+ * @brief Checks that the I/O descriptors of the main schedule don't describe init schedule weights.
+ * @details The init schedule weights descriptors belong to the init schedules only. Their flags are derived from the
+ * argument names found in the blob, so an argument of the main schedule using such a name must be rejected. Otherwise,
+ * it would be dropped from the imported model and treated as an init schedule buffer by the inference request.
+ *
+ * @param metadata The I/O descriptors of the main schedule.
+ * @throws ov::Exception if at least one descriptor is marked as an init schedule weights descriptor.
+ */
+void validate_main_schedule_descriptors(const NetworkMetadata& metadata);
 
 }  // namespace blob_format_importer_utils
 
