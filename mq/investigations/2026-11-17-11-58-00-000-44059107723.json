@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-17-11-58-00-000-44059107723",
+  "timestamp": "2026-11-17T11:58:00Z",
+  "run_id": "44059107723",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44059107723",
+  "workflow_name": "GPU unit tests",
+  "pr_number": "39899",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39899",
+  "author": "sungeunk",
+  "category": "Infrastructure",
+  "title": "GPU unit tests fail to extract OpenVINO package - PowerShell execution policy disabled scripts on Windows runner",
+  "signature": "cannot be loaded because running scripts is disabled on this system|Infrastructure",
+  "signature_hash": "c351b86e95419730",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "Extract OpenVINO packages step failed while running an auto-generated Expand-Archive PowerShell script"
+    }
+  ],
+  "key_errors": [
+    "2026-11-17T11:08:18.7629993Z . : File C:\\actions-runner\\_work\\_temp\\ac31b411-9bc3-4cf7-8d57-6dbfd26d24bc.ps1 cannot be loaded because running",
+    "2026-11-17T11:08:18.7631034Z scripts is disabled on this system. For more information, see about_Execution_Policies at",
+    "2026-11-17T11:08:18.7634335Z     + CategoryInfo          : SecurityError: (:) [], PSSecurityException",
+    "2026-11-17T11:08:18.7634875Z     + FullyQualifiedErrorId : UnauthorizedAccess",
+    "2026-11-17T11:08:18.7788428Z ##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The 'Extract OpenVINO packages' step runs Expand-Archive PowerShell commands via GitHub Actions' auto-generated temp .ps1 wrapper script on a Windows runner. The runner's PowerShell execution policy blocks loading any .ps1 file (PSSecurityException / UnauthorizedAccess), unrelated to the benign Expand-Archive content. PR #39899 only updates the oneDNN GPU thirdparty submodule pointer (src/plugins/intel_gpu/thirdparty/onednn_gpu), which cannot affect the Windows runner's PowerShell execution policy. This is the 4th occurrence of the identical signature within ~18.5 hours, confirming a recurring runner-pool provisioning defect rather than an isolated incident.",
+  "reproduction_steps": "N/A - this is a Windows-runner image/environment issue (PowerShell execution policy) triggered non-deterministically depending on the specific runner instance assigned to the job; it does not reproduce locally or depend on the PR diff.",
+  "recommended_actions": [
+    "Ensure the Windows runner image / bootstrap sets PowerShell execution policy to RemoteSigned or Bypass for the actions-runner service account so GitHub Actions' auto-generated .ps1 wrapper scripts can be loaded.",
+    "Alternatively, have the 'Extract OpenVINO packages' step invoke PowerShell explicitly with `-ExecutionPolicy Bypass` instead of relying on the default shell wrapper.",
+    "Escalate urgently to the Windows GPU runner pool/image owners: this is now the 4th occurrence in under 19 hours, indicating a bad image rollout or a subset of misconfigured runner instances still in rotation that needs to be drained."
+  ],
+  "prevention_strategies": "Bake execution-policy configuration into the Windows runner image provisioning (Packer/Ansible/etc.) and add a post-provisioning smoke test that runs a trivial Expand-Archive PowerShell step to catch regressions before the image is promoted to production use. Consider quarantining/draining runner instances that fail this check.",
+  "historical_context": "Identical signature previously observed on 2026-11-16 (run 43897852421, PR #39833) and twice on 2026-11-17 (run 44051380184, PR #39423; run 44054389090, PR #39839), all on the 'GPU unit tests' job's 'Extract OpenVINO packages' step. This is the 4th occurrence recorded in pattern c351b86e95419730, and the 3 most recent occurrences (10:32, 10:59, and this run at 11:58 UTC on 2026-11-17) all fall within the last 12 hours, crossing the recurring-escalation threshold again."
+}
