@@ -13,7 +13,6 @@
 #    include <cstring>
 #    include <functional>
 #    include <memory>
-#    include <oneapi/dnnl/dnnl_common.hpp>
 #    include <utility>
 #    include <vector>
 
@@ -21,7 +20,6 @@
 #    include "cpu_memory.h"
 #    include "cpu_shape.h"
 #    include "dnnl_scratch_pad.h"
-#    include "memory_desc/cpu_blocked_memory_desc.h"
 #    include "memory_desc/cpu_memory_desc.h"
 #    include "memory_desc/cpu_memory_desc_utils.h"
 #    include "nodes/common/blocked_desc_creator.h"
@@ -265,11 +263,9 @@ void GatedResidualDnnlExecutor::createProjections(const GatedResidualAttrs& attr
         p.args[ARG_WEI] = memory.at(gatedResidualSrcArg(spec.weights));
         p.args[ARG_BIAS] = std::make_shared<StaticMemory>(engine, MemoryDescUtils::makeEmptyDesc(), nullptr);
         if (m_weights_compressed) {
-            p.args[ARG_WEI | ARG_ATTR_SCALES] =
-                memory.at(gatedResidualSrcArg(spec.scales));
+            p.args[ARG_WEI | ARG_ATTR_SCALES] = memory.at(gatedResidualSrcArg(spec.scales));
             if (m_weights_have_zero_points) {
-                p.args[ARG_WEI | ARG_ATTR_ZERO_POINTS] =
-                    memory.at(gatedResidualSrcArg(spec.zero_points));
+                p.args[ARG_WEI | ARG_ATTR_ZERO_POINTS] = memory.at(gatedResidualSrcArg(spec.zero_points));
             }
         }
         // Both executors are built for a full tile; the second finds the packed weights in the private cache. update()
