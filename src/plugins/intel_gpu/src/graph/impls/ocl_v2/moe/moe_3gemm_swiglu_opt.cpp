@@ -85,7 +85,7 @@ enum class MoeGemmImpl : uint8_t {
     grouped_gemm,       // one OneDNN grouped matmul per GEMM layer, on f16 activations or, above
                         // dyn_quan_threshold tokens where onednn_dyn_quan allows it, on those of MoE3GemmDynQuan
     int3_grouped_gemm,  // the grouped GEMM path for u3 weights on dynamically quantized activations (MoE3GemmDynQuan) and
-                        // the moe_3gemm_int3_gemm.cl GEMMs instead of OneDNN
+                        // the moe_3gemm_int3_gemm.cl GEMMs instead of OneDNN; grouped_gemm at most dyn_quan_threshold tokens
     per_expert_onednn,  // OneDNN matmul per activated expert, prefill only
 };
 
@@ -1121,6 +1121,8 @@ public:
     // Whether the OneDNN grouped matmuls may run on dynamically quantized activations (is_onednn_dyn_quan_supported()),
     // which they do above dyn_quan_threshold tokens
     bool onednn_dyn_quan = false;
+    // Token count (<=) up to which the grouped GEMM path stays on f16 activations: int3_grouped_gemm falls back to the
+    // OneDNN grouped_gemm there, and the OneDNN grouped matmuls don't quantize
     size_t dyn_quan_threshold = 0;
     // Output columns per subgroup of the u3 batched GEMV, per MoE3GemmInt3Gemv::Projection
     std::array<size_t, 2> int3_gemv_nbs{};
@@ -1150,7 +1152,11 @@ public:
     }
 
     MoeGemmImpl select_impl(size_t token_num) const {
-        return token_num <= batched_gemv_threshold ? decode_impl : prefill_impl;
+        const auto impl = token_num <= batched_gemv_threshold ? decode_impl : prefill_impl;
+        if (impl == MoeGemmImpl::int3_grouped_gemm && token_num <= dyn_quan_threshold) {
+            return MoeGemmImpl::grouped_gemm;
+        }
+        return impl;
     }
 
     // Whether the routing masks are built on the GPU (no host wait on topk) or on the host.
@@ -1176,7 +1182,7 @@ public:
 
     // Whether the grouped GEMM GPU mask gen stage and its per-expert buffers are needed
     bool needs_grouped_gpu_mask_gen() const {
-        return decode_impl == MoeGemmImpl::grouped_gemm || (prefill_impl == MoeGemmImpl::grouped_gemm && force_gpu_mask_gen_prefill);
+        return is_grouped_gemm(decode_impl) || (is_grouped_gemm(prefill_impl) && force_gpu_mask_gen_prefill);
     }
 
     // Resident single-token decode on the batched GEMV path uses none of the gather/scatter scratch buffers
@@ -1191,6 +1197,10 @@ public:
     // OneDNN grouped matmul on s8 activations with grouped src scales, for int8 x int4 / int8 DPAS. 4-bit weights may
     // have a zero point, which OneDNN subtracts while converting them to s8; 8-bit ones with a zero point would need the
     // group sums of the activations, which the grouped matmul can't take, so OneDNN would convert the weights to f16.
+    // Below this token count, s8 activations lose to f16 ones in the OneDNN grouped matmuls: the tokens are spread over
+    // the experts, so there are only a few rows per expert (Qwen3.6-35B-A3B int4 on LNL)
+    static constexpr size_t onednn_dyn_quan_default_threshold = 256;
+
     static bool is_onednn_dyn_quan_supported(const RuntimeParams& params) {
         const auto& config = params.typed_desc<moe_3gemm_fused_compressed>()->_config;
         const auto& info = params.get_device_info();
@@ -1252,6 +1262,10 @@ public:
         prefill_impl = select_prefill_impl(params, weight_dt);
         onednn_dyn_quan = (prefill_impl == MoeGemmImpl::grouped_gemm || decode_impl == MoeGemmImpl::grouped_gemm) && is_onednn_dyn_quan_supported(params);
         dyn_quan_threshold = config.get_moe_dynamic_quantization_threshold();
+        if (dyn_quan_threshold == 0) {
+            // The u3 int8 GEMMs beat OneDNN u3 on f16 activations at every token count
+            dyn_quan_threshold = uses_int3_gemm() ? 0 : onednn_dyn_quan_default_threshold;
+        }
         if (uses_dyn_quan()) {
             for (auto proj : {MoE3GemmDynQuan::Projection::GATE_UP, MoE3GemmDynQuan::Projection::DOWN}) {
                 dyn_quan_group_sizes[static_cast<size_t>(proj)] = MoE3GemmDynQuan::get_activation_group_size(params, proj);
@@ -1702,6 +1716,9 @@ public:
                 internal_buffers.emplace_back(layout(ov::Shape{rows, row_groups}, ov::element::f16, cldnn::format::bfyx), false);  // 14
                 // The scales of the hidden states quantized once per token, gathered into 14
                 internal_buffers.emplace_back(layout(ov::Shape{token_num, gate_up_groups}, ov::element::f16, cldnn::format::bfyx), false);  // 15
+            } else {
+                internal_buffers.emplace_back(layout_unused, false);  // 14: no quantized GEMM input in this call
+                internal_buffers.emplace_back(layout_unused, false);  // 15: no quantized hidden states in this call
             }
             if (uses_int3_gemm()) {
                 const size_t rows = token_num * max_topk;

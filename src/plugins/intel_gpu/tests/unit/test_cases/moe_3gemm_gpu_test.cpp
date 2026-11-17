@@ -2176,6 +2176,7 @@ struct Moe3GemmU3TestParams {
     bool has_shared_expert = false;
     uint64_t dq_group_size = UINT64_MAX;
     uint64_t dq_group_size_max = UINT64_MAX;
+    size_t dq_threshold = 0;  // GPU_MOE_DYNAMIC_QUANTIZATION_THRESHOLD, 0: quantize at every token count
 };
 
 class moe_3gemm_compressed_gpu_u3 : public ::testing::TestWithParam<Moe3GemmU3TestParams> {};
@@ -2313,6 +2314,7 @@ TEST_P(moe_3gemm_compressed_gpu_u3, moe_accuracy_test_u3) {
     net_config.set_property(ov::intel_gpu::moe_batched_gemv_threshold(param.batched_gemv_threshold));
     net_config.set_user_property(ov::hint::dynamic_quantization_group_size(param.dq_group_size));
     net_config.set_user_property(ov::intel_gpu::hint::dynamic_quantization_group_size_max(param.dq_group_size_max));
+    net_config.set_property(ov::intel_gpu::moe_dynamic_quantization_threshold(param.dq_threshold));
     auto network = get_network(engine, topology, net_config, get_test_stream_ptr(), param.is_caching_test);
     network->set_input_data("hidden_states", hidden_states_mem);
     network->set_input_data("routing_weights", routing_weights_mem);
@@ -2328,8 +2330,8 @@ TEST_P(moe_3gemm_compressed_gpu_u3, moe_accuracy_test_u3) {
     for (const char* kernel_name : {"moe_3gemm_int3_gemv_gate_up", "moe_3gemm_int3_gemv_down"}) {
         ASSERT_EQ(executed_kernels.find(kernel_name) != std::string::npos, expect_gemv) << kernel_name << ", executed kernels: " << executed_kernels;
     }
-    // The int8 GEMMs need Xe2+, a zero point and dynamic quantization
-    const bool int8_gemm = !expect_gemv && engine.get_device_info().arch >= gpu_arch::xe2 && param.has_zp &&
+    // The int8 GEMMs need Xe2+, a zero point and dynamic quantization, and more than dq_threshold tokens
+    const bool int8_gemm = !expect_gemv && engine.get_device_info().arch >= gpu_arch::xe2 && param.has_zp && param.seq_len > param.dq_threshold &&
                            expects_moe_dyn_quan(param.dq_group_size, param.dq_group_size_max, param.group_size);
     for (const char* kernel_name : {"moe_3gemm_dyn_quan_quantize_gate_up", "moe_3gemm_dyn_quan_quantize_down", "moe_gather_ref_prefill_gather_i8", "moe_3gemm_int3_gemm_gate"}) {
         ASSERT_EQ(executed_kernels.find(kernel_name) != std::string::npos, int8_gemm) << kernel_name << ", executed kernels: " << executed_kernels;
@@ -2379,6 +2381,11 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                              Moe3GemmU3TestParams{1, 512, 512, 8, 2, 128, 32, true, false, false, 0},
                              Moe3GemmU3TestParams{40, 512, 512, 4, 2, 128, 32, true, false, false, 128, 64},
                              Moe3GemmU3TestParams{40, 512, 512, 4, 2, 128, 32, true, true, false, 0},
+                             // at most dq_threshold tokens: OneDNN on f16 activations, for prefill and single-token decode
+                             // (K = 576), and just above it
+                             Moe3GemmU3TestParams{40, 512, 512, 4, 2, 128, 32, true, false, false, UINT64_MAX, UINT64_MAX, 40},
+                             Moe3GemmU3TestParams{1, 576, 512, 8, 2, 64, 32, true, false, false, UINT64_MAX, UINT64_MAX, 1},
+                             Moe3GemmU3TestParams{40, 512, 512, 4, 2, 128, 32, true, false, false, UINT64_MAX, UINT64_MAX, 39},
                              // no zero point (OneDNN prefill)
                              Moe3GemmU3TestParams{1, 512, 512, 8, 2, 128, 32, false},
                              Moe3GemmU3TestParams{8, 512, 512, 8, 2, 64, 32, false},
