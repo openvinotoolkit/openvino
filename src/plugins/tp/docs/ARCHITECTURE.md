@@ -720,17 +720,27 @@ process (`usm_device` + `cl_mem`, plus `usm_host` on an integrated GPU) and
 `max_alloc_mem_size`. The TP plugin sizes the paged-attention cache from it
 without reading GPU properties.
 
+### Cache groups
+
+`TP_CACHE_GROUPS` (RO, on a compiled model) answers the paged-attention cache
+of the rank model as the GPU lays it out: the inputs its `paged_attention`
+primitives read as key and value cache, in port order, with their names,
+layers, precisions and shapes, the tokens per block its kernels use (16, or 256
+with XAttention) and the bytes of one block. A model without paged attention
+answers an empty list. The TP plugin builds the model-level cache from it
+without knowing the GPU's layout.
+
 ## Plugin-managed Cache
 
 The paged-attention cache of a TP model is split by KV head across the rank
 devices, so the application cannot allocate it through one remote context.
-The compiled model offers `ov::plugin_managed_cache` instead (absent on a
-model without `key_cache.N` / `value_cache.N` inputs), an
+The compiled model offers `ov::plugin_managed_cache` instead (absent when the
+rank models report no cache groups), an
 `ov::PluginManagedCache` facade over the `CacheController`:
 
-- **One KEY_VALUE group, model-level.** Tensors `key_cache.N` /
-  `value_cache.N` with the shapes a single GPU reports (block dimension
-  dynamic): the head dimension is the sum over the ranks with a KV head kept by
+- **One KEY_VALUE group, model-level.** The tensors, layers, precisions and
+  tokens per block the rank devices report through `TP_CACHE_GROUPS`, with the
+  KV heads (dimension 1, by the contract) summed over the ranks, a KV head kept by
   several ranks (fewer KV heads than ranks) counted once, and `block_size_in_bytes` is the block
   of the whole model. A block index means the same tokens on every rank; every
   operation is the same request repeated per rank and layer. A shared KV head needs no

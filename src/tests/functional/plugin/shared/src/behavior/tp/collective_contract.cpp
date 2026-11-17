@@ -678,6 +678,16 @@ TEST_P(TPCollectiveContractTest, AMessageLargerThanTheStagingIsReducedExactly) {
     expect_exact_sum(requests);
 }
 
+// ---- Caches the orchestrator allocates ----
+
+TEST_P(TPCollectiveContractTest, ReportsNoCacheGroupsForAModelWithoutCaches) {
+    auto contexts = create_contexts();
+    const auto compiled = m_core.compile_model(make_allreduce_model(0, ranks()), contexts[0]);
+    const auto groups =
+        compiled.get_property(ov::tp::internal::cache_groups.name()).as<std::vector<ov::CacheGroupInfo>>();
+    EXPECT_TRUE(groups.empty()) << groups.size() << " cache groups";
+}
+
 }  // namespace
 
 }  // namespace behavior

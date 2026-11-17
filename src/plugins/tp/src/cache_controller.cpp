@@ -18,33 +18,24 @@ namespace tp {
 
 namespace {
 
-/// Cache ports are named "key_cache.<layer>" / "value_cache.<layer>"; returns that name, or empty.
-std::string cache_name(const ov::Output<const ov::Node>& port) {
-    for (const auto& name : port.get_names()) {
-        if (name.rfind("key_cache.", 0) == 0 || name.rfind("value_cache.", 0) == 0)
-            return name;
-    }
-    return {};
-}
-
-size_t layer_of(const std::string& name) {
-    return static_cast<size_t>(std::stoul(name.substr(name.find('.') + 1)));
-}
-
-/// Tokens per block, as the GPU plugin lays the cache out. It is not written anywhere in the model; the
-/// sparse-attention layout is the one that can be told apart, by the block dimension of the value cache.
-size_t block_size_of(const ov::Shape& value_cache_shape) {
-    constexpr size_t kSparseAttentionBlockSize = 256;
-    constexpr size_t kBlockSize = 16;
-    return value_cache_shape[2] == kSparseAttentionBlockSize ? kSparseAttentionBlockSize : kBlockSize;
-}
+/// Dimension of a KEY_VALUE cache tensor that counts the KV heads, by the collective contract.
+constexpr size_t kHeadsAxis = 1;
 
 size_t bytes_of(const ov::element::Type& type, size_t elements) {
     return (elements * type.bitwidth() + 7) / 8;
 }
 
+/// Elements of one block: every dimension but the block count.
 size_t block_elements(const ov::Shape& shape) {
-    return shape[1] * shape[2] * shape[3];
+    return ov::shape_size(shape.begin() + 1, shape.end());
+}
+
+ov::Output<const ov::Node> input_named(const ov::ICompiledModel& compiled, const std::string& name) {
+    for (const auto& port : compiled.inputs()) {
+        if (port.get_names().count(name) != 0)
+            return port;
+    }
+    OPENVINO_THROW("[TP] The rank model reports the cache tensor '", name, "', which is none of its inputs");
 }
 
 /// Cache tensors live in device memory, and a device-to-device copy only works through the owning plugin's own
@@ -69,35 +60,53 @@ std::shared_ptr<CacheController> CacheController::create(const std::vector<ov::S
     auto controller = std::shared_ptr<CacheController>(new CacheController());
     controller->m_core = std::move(core);
 
+    // What every rank's device reports about the caches it reads; the layout is its business.
+    std::vector<ov::CacheGroupInfo> rank_groups;
     for (size_t r = 0; r < rank_compiled.size(); ++r) {
+        const auto groups =
+            rank_compiled[r]->get_property(ov::tp::internal::cache_groups.name()).as<std::vector<ov::CacheGroupInfo>>();
+        OPENVINO_ASSERT(groups.size() <= 1 && (groups.empty() || groups.front().kind == ov::CacheKind::KEY_VALUE),
+                        "[TP] Only a paged-attention KV cache can be split across the ranks; ",
+                        device_names.at(r), " reports ", groups.size(), " cache groups");
+        OPENVINO_ASSERT(r == 0 || groups.empty() == rank_groups.empty(),
+                        "[TP] Rank models disagree on whether they use a paged-attention cache");
+        if (!groups.empty()) {
+            rank_groups.push_back(groups.front());
+        }
+    }
+    if (rank_groups.empty()) {
+        return nullptr;
+    }
+
+    for (size_t r = 0; r < rank_compiled.size(); ++r) {
+        const auto& rank_group = rank_groups[r];
+        OPENVINO_ASSERT(rank_group.block_size > 0 &&
+                        rank_group.block_size == rank_groups.front().block_size &&
+                        rank_group.tensors.size() == rank_groups.front().tensors.size(),
+                        "[TP] Ranks disagree on the cache layout");
         Rank rank;
         rank.device = device_names.at(r);
-        for (const auto& port : rank_compiled[r]->inputs()) {
-            if (cache_name(port).empty())
-                continue;
-            const auto& pshape = port.get_partial_shape();
-            OPENVINO_ASSERT(pshape.rank().is_static() && pshape.rank().get_length() == 4,
-                            "[TP] Cache port '", port.get_any_name(), "' has shape ", pshape,
-                            "; a paged-attention cache is [blocks, kv_heads, ..., ...]");
-            OPENVINO_ASSERT(port.get_element_type().is_static(),
-                            "[TP] Cache port '", port.get_any_name(),
-                            "' left its precision open; the compiled rank model is expected to have settled it");
-            ov::Shape shape{0, 0, 0, 0};
-            for (size_t d = 1; d < 4; ++d) {
-                OPENVINO_ASSERT(pshape[d].is_static(), "[TP] Cache port '", port.get_any_name(), "' has shape ", pshape,
+        for (size_t i = 0; i < rank_group.tensors.size(); ++i) {
+            const auto& tensor = rank_group.tensors[i];
+            const auto& first = rank_groups.front().tensors[i];
+            OPENVINO_ASSERT(tensor.name == first.name && tensor.element_type == first.element_type,
+                            "[TP] Ranks disagree on the cache tensors");
+            const auto& pshape = tensor.shape;
+            OPENVINO_ASSERT(tensor.element_type.is_static() && pshape.rank().is_static() && pshape.size() > kHeadsAxis,
+                            "[TP] Cache tensor '", tensor.name, "' is reported as ", tensor.element_type,
+                            " ", pshape, "; a KV cache is [blocks, kv_heads, ...] of a settled precision");
+            ov::Shape shape(pshape.size(), 0);
+            for (size_t d = 1; d < shape.size(); ++d) {
+                OPENVINO_ASSERT(pshape[d].is_static(), "[TP] Cache tensor '", tensor.name, "' has shape ", pshape,
                                 "; everything but the block count has to be known to size a block");
                 shape[d] = static_cast<size_t>(pshape[d].get_length());
             }
-            const auto bytes = bytes_of(port.get_element_type(), block_elements(shape));
-            rank.ports.push_back(port);
-            rank.precisions.push_back(port.get_element_type());
+            const auto bytes = bytes_of(tensor.element_type, block_elements(shape));
+            rank.ports.push_back(input_named(*rank_compiled[r], tensor.name));
+            rank.precisions.push_back(tensor.element_type);
             rank.shapes.push_back(shape);
             rank.block_bytes += bytes;
             rank.max_tensor_block_bytes = std::max(rank.max_tensor_block_bytes, bytes);
-        }
-        if (rank.ports.empty()) {
-            OPENVINO_ASSERT(controller->m_ranks.empty(), "[TP] Rank models disagree on whether they use a paged-attention cache");
-            return nullptr;
         }
         rank.context = rank_compiled[r]->get_context();
         controller->m_ranks.push_back(std::move(rank));
@@ -107,30 +116,21 @@ std::shared_ptr<CacheController> CacheController::create(const std::vector<ov::S
     const auto& first = controller->m_ranks.front();
     auto& group = controller->m_group;
     group.kind = ov::CacheKind::KEY_VALUE;
+    group.block_size = rank_groups.front().block_size;
     for (size_t i = 0; i < first.ports.size(); ++i) {
         size_t heads = 0;
         for (const auto& rank : controller->m_ranks) {
-            OPENVINO_ASSERT(rank.ports.size() == first.ports.size() && cache_name(rank.ports[i]) == cache_name(first.ports[i]) &&
-                                rank.precisions[i] == first.precisions[i],
-                            "[TP] Ranks disagree on the cache ports");
-            heads += rank.shapes[i][1];
+            heads += rank.shapes[i][kHeadsAxis];
         }
-        const auto name = cache_name(first.ports[i]);
         const auto& shape = first.shapes[i];
-        ov::CacheTensorInfo tensor;
-        tensor.name = name;
-        tensor.layer = layer_of(name);
-        tensor.element_type = first.precisions[i];
-        tensor.shape = ov::PartialShape{ov::Dimension::dynamic(),
-                                        static_cast<int64_t>(heads / kv_replicas),
-                                        static_cast<int64_t>(shape[2]),
-                                        static_cast<int64_t>(shape[3])};
-        group.block_size_in_bytes += bytes_of(tensor.element_type, heads / kv_replicas * shape[2] * shape[3]);
-        if (name.rfind("value_cache.", 0) == 0 && group.block_size == 0)
-            group.block_size = block_size_of(shape);
+        const size_t model_heads = heads / kv_replicas;
+        ov::CacheTensorInfo tensor = rank_groups.front().tensors[i];
+        tensor.shape[0] = ov::Dimension::dynamic();
+        tensor.shape[kHeadsAxis] = static_cast<int64_t>(model_heads);
+        group.block_size_in_bytes +=
+            bytes_of(tensor.element_type, model_heads * block_elements(shape) / shape[kHeadsAxis]);
         group.tensors.push_back(std::move(tensor));
     }
-    OPENVINO_ASSERT(group.block_size > 0, "[TP] Paged-attention model without a value cache port");
     return controller;
 }
 
@@ -278,11 +278,11 @@ void CacheController::copy_blocks(size_t group, const std::map<size_t, std::list
         return;
     OPENVINO_ASSERT(m_num_blocks > 0, "[TP] copy_blocks before the cache was allocated");
     for (const auto& [source, destinations] : block_copy_map) {
-        OPENVINO_ASSERT(source < m_num_blocks, "[TP] copy_blocks source block ", source, " is outside the ", m_num_blocks,
-                        " allocated blocks");
+        OPENVINO_ASSERT(source < m_num_blocks,
+                        "[TP] copy_blocks source block ", source, " is outside the ", m_num_blocks, " allocated blocks");
         for (const auto destination : destinations)
-            OPENVINO_ASSERT(destination < m_num_blocks, "[TP] copy_blocks destination block ", destination,
-                            " is outside the ", m_num_blocks, " allocated blocks");
+            OPENVINO_ASSERT(destination < m_num_blocks,
+                            "[TP] copy_blocks destination block ", destination, " is outside the ", m_num_blocks, " allocated blocks");
     }
     for (const auto& rank_tensors : m_tensors) {
         for (const auto& tensor : rank_tensors) {
@@ -303,8 +303,8 @@ void CacheController::zero_blocks(size_t group, const std::set<size_t>& block_in
     if (block_indices.empty())
         return;
     OPENVINO_ASSERT(m_num_blocks > 0, "[TP] zero_blocks before the cache was allocated");
-    OPENVINO_ASSERT(*block_indices.rbegin() < m_num_blocks, "[TP] zero_blocks block ", *block_indices.rbegin(),
-                    " is outside the ", m_num_blocks, " allocated blocks");
+    OPENVINO_ASSERT(*block_indices.rbegin() < m_num_blocks,
+                    "[TP] zero_blocks block ", *block_indices.rbegin(), " is outside the ", m_num_blocks, " allocated blocks");
     for (const auto& rank_tensors : m_tensors) {
         for (const auto& tensor : rank_tensors) {
             // Runs of consecutive blocks in one copy each.

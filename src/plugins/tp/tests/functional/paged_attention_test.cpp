@@ -29,6 +29,7 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/plugin_managed_cache.hpp"
+#include "openvino/runtime/tp/collective_contract.hpp"
 #include "rank_devices.hpp"
 #include "tp_test_models.hpp"
 
@@ -87,27 +88,12 @@ protected:
         return cache.get_groups().at(kv_group).block_size;
     }
 
-    static bool is_cache_port(const ov::Output<const ov::Node>& port) {
-        for (const auto& name : port.get_names()) {
-            if (name.rfind("key_cache.", 0) == 0 || name.rfind("value_cache.", 0) == 0)
-                return true;
-        }
-        return false;
-    }
-
-    /// Bytes one block takes across every cache port of a compiled model --
-    /// the same sum a paged-attention scheduler budgets against.
-    static size_t block_bytes_of(const ov::CompiledModel& compiled) {
-        size_t bytes = 0;
-        for (const auto& port : compiled.inputs()) {
-            if (!is_cache_port(port))
-                continue;
-
-            const auto& shape = port.get_partial_shape();
-            bytes += static_cast<size_t>(shape[1].get_length() * shape[2].get_length() * shape[3].get_length()) *
-                     port.get_element_type().size();
-        }
-        return bytes;
+    /// The KV cache a single device reports for its compiled model: what the TP model has to look like too.
+    static ov::CacheGroupInfo device_cache(const ov::CompiledModel& compiled) {
+        const auto groups =
+            compiled.get_property(ov::tp::internal::cache_groups.name()).as<std::vector<ov::CacheGroupInfo>>();
+        OPENVINO_ASSERT(groups.size() == 1, "expected one KV cache group, got ", groups.size());
+        return groups.front();
     }
 
     /// Fills the scheduler metadata of a single sequence with `past` tokens
@@ -146,19 +132,11 @@ protected:
                                                             size_t blocks) {
         auto context = compiled.get_context();
         std::vector<ov::Tensor> cache;
-        for (const auto& port : compiled.inputs()) {
-            std::string cache_name;
-            for (const auto& name : port.get_names()) {
-                if (name.rfind("key_cache.", 0) == 0 || name.rfind("value_cache.", 0) == 0)
-                    cache_name = name;
-            }
-            if (cache_name.empty())
-                continue;
-
-            auto shape = port.get_partial_shape().get_max_shape();
+        for (const auto& tensor : device_cache(compiled).tensors) {
+            auto shape = tensor.shape.get_max_shape();
             shape[0] = blocks;
-            cache.push_back(context.create_tensor(port.get_element_type(), shape));
-            request.set_tensor(cache_name, cache.back());
+            cache.push_back(context.create_tensor(tensor.element_type, shape));
+            request.set_tensor(tensor.name, cache.back());
         }
         return cache;
     }
@@ -230,24 +208,19 @@ TEST_F(TPPagedAttentionTest, ReportsTheModelLevelGroup) {
         const auto groups = cache_of(parallel).get_groups();
         ASSERT_EQ(groups.size(), 1u);
         const auto& group = groups[kv_group];
+        const auto expected = device_cache(reference);
         EXPECT_EQ(group.kind, ov::CacheKind::KEY_VALUE);
-        EXPECT_EQ(group.block_size, 16u);
-        EXPECT_EQ(group.block_size_in_bytes, block_bytes_of(reference));
+        EXPECT_EQ(group.block_size, expected.block_size);
+        EXPECT_EQ(group.block_size_in_bytes, expected.block_size_in_bytes);
 
-        std::vector<std::string> names;
-        for (const auto& port : reference.inputs()) {
-            if (!is_cache_port(port))
-                continue;
-            const auto it = std::find_if(group.tensors.begin(), group.tensors.end(), [&](const ov::CacheTensorInfo& t) {
-                return port.get_names().count(t.name) != 0;
-            });
-            ASSERT_NE(it, group.tensors.end()) << port;
-            EXPECT_EQ(it->layer, 0u);
-            EXPECT_EQ(it->element_type, port.get_element_type());
-            EXPECT_EQ(it->shape, port.get_partial_shape());
-            names.push_back(it->name);
+        ASSERT_EQ(group.tensors.size(), expected.tensors.size());
+        for (size_t i = 0; i < expected.tensors.size(); ++i) {
+            SCOPED_TRACE(expected.tensors[i].name);
+            EXPECT_EQ(group.tensors[i].name, expected.tensors[i].name);
+            EXPECT_EQ(group.tensors[i].layer, expected.tensors[i].layer);
+            EXPECT_EQ(group.tensors[i].element_type, expected.tensors[i].element_type);
+            EXPECT_EQ(group.tensors[i].shape, expected.tensors[i].shape);
         }
-        EXPECT_EQ(names.size(), group.tensors.size());
         EXPECT_EQ(cache_of(parallel).get_num_allocated_blocks(kv_group), 0u);
     }
 }

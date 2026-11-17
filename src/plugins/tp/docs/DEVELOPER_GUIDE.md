@@ -314,6 +314,7 @@ What a device plugin taking TP ranks guarantees, in the order of the test file:
 | Constants            | takes constants that are views of a host buffer as copies, never reading the buffer in place after compilation         |
 | Device tensors       | reads and writes the rank's own device tensors in place                                                                |
 | Memory accounting    | counts the collectives' memory in `TP_DEVICE_MEMORY` before the first inference, and bounds it: a message larger than a fixed staging is still reduced exactly |
+| Caches               | reports through `TP_CACHE_GROUPS` of a compiled rank model the cache inputs it reads, the tokens per block and the bytes of a block; nothing for a model without caches |
 
 ### intel_gpu (built with `ENABLE_TP`)
 

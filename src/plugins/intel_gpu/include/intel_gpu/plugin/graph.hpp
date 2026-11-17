@@ -18,6 +18,7 @@
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
+#include "openvino/runtime/plugin_managed_cache.hpp"
 
 namespace ov::intel_gpu {
 struct HostTimeProfilingEntry {
@@ -85,6 +86,10 @@ public:
     /// Throws if the model's collective group has failed during or before this
     /// inference: the released device waits leave its outputs undefined.
     void throw_if_collectives_failed() const;
+
+    /// The model's paged-attention caches as one KEY_VALUE group (empty without paged attention);
+    /// `inputs` are the compiled model's inputs, by port index.
+    std::vector<ov::CacheGroupInfo> get_cache_groups(const std::vector<ov::Output<const ov::Node>>& inputs) const;
 #endif
 
     std::vector<HostTimeProfilingEntry> host_exec_times;

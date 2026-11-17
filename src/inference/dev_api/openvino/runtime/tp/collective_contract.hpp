@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "openvino/core/except.hpp"
+#include "openvino/runtime/plugin_managed_cache.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace ov {
@@ -209,8 +210,7 @@ static constexpr ov::Property<uint32_t> channel_base{"TP_CHANNEL_BASE"};
 // ---- Queries, arguments: device_group[, collective_backend] ----
 
 /// Backend names the device plugin supports for the device group, in the order "AUTO" prefers them.
-static constexpr ov::Property<std::vector<std::string>, ov::PropertyMutability::RO> collective_backends{
-    "TP_COLLECTIVE_BACKENDS"};
+static constexpr ov::Property<std::vector<std::string>, ov::PropertyMutability::RO> collective_backends{"TP_COLLECTIVE_BACKENDS"};
 
 /// Empty if the device group is supported with the backend, otherwise the reason. Does not throw for an
 /// unsupported group.
@@ -229,6 +229,14 @@ struct DeviceMemory {
 /// Memory of the device named by the argument ov::device::id: what the TP plugin sizes the caches it
 /// manages against.
 static constexpr ov::Property<DeviceMemory, ov::PropertyMutability::RO> device_memory{"TP_DEVICE_MEMORY"};
+
+// ---- Compiled-model queries ----
+
+/// The caches of a compiled rank model that the orchestrator allocates, empty if there are none. Every tensor is
+/// an input of the model, named, typed and shaped as that input reports; dimension 0 counts blocks and, in a
+/// KEY_VALUE group, dimension 1 the KV heads. block_size is the tokens per block the device uses,
+/// block_size_in_bytes one block of all tensors of the group on this rank.
+static constexpr ov::Property<std::vector<ov::CacheGroupInfo>, ov::PropertyMutability::RO> cache_groups{"TP_CACHE_GROUPS"};
 
 }  // namespace internal
 }  // namespace tp
