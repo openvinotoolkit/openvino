@@ -175,9 +175,12 @@ bool validateModelBatch(const std::shared_ptr<const ov::Model>& model, Logger lo
     }
 
     auto node_info_printer = [&logger](const auto& ov_node, std::string nodeType) {
+        // The tensors are not required to have names, "get_any_name" throws in such a case
+        const std::string name =
+            ov_node.get_names().empty() ? ov_node.get_node()->get_friendly_name() : ov_node.get_any_name();
         logger.info("%s: %s has shape value: %s",
                     nodeType.c_str(),
-                    ov_node.get_any_name().c_str(),
+                    name.c_str(),
                     ov_node.get_partial_shape().to_string().c_str());
     };
 
