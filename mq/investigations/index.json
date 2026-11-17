@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 464,
+  "total": 465,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -5067,6 +5067,15 @@
       "category": "Infrastructure",
       "signature_hash": "c351b86e95419730",
       "pr_number": "39899"
+    },
+    {
+      "investigation_id": "2026-11-17-12-17-30-000-44062987534",
+      "run_id": "44062987534",
+      "timestamp": "2026-11-17T12:17:30Z",
+      "title": "GPU unit tests fail to extract OpenVINO package - PowerShell execution policy disabled scripts on Windows runner",
+      "category": "Infrastructure",
+      "signature_hash": "c351b86e95419730",
+      "pr_number": "39262"
     }
   ]
 }
