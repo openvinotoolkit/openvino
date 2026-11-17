@@ -379,6 +379,34 @@ TEST(cache_serialization, load_weights_rejects_data_size_exceeding_layout) {
     ASSERT_THROW(data_prim.load_weights(ib, /*weights_memory=*/nullptr, /*model_tensor_base=*/nullptr), ov::AssertFailure);
 }
 
+// The post-ops of a dynamic node are built again after import, so a constant shared between programs must stay marked
+TEST(cache_serialization, data_shared_between_programs_round_trip) {
+    auto& engine = get_test_engine();
+    const layout data_layout({1, 1, 1, 4}, data_types::f32, format::bfyx);
+
+    for (const bool shared : {false, true}) {
+        data original("constant", engine.allocate_memory(data_layout));
+        if (shared)
+            original.mark_shared_between_programs();
+
+        membuf mem_buf;
+        {
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob(out_mem);
+            ob.set_stream(get_test_stream_ptr().get());
+            original.save(ob);
+        }
+
+        data loaded;
+        std::istream in_mem(&mem_buf);
+        BinaryInputBuffer ib(in_mem, engine);
+        loaded.load(ib);
+        loaded.load_weights(ib, /*weights_memory=*/nullptr, /*model_tensor_base=*/nullptr);
+        ASSERT_EQ(loaded.is_shared_between_programs(), shared);
+        ASSERT_EQ(loaded.mem->get_layout(), data_layout);
+    }
+}
+
 TEST(cache_serialization, otd_partial_allocation_uses_weightless_metadata) {
     auto& engine = get_test_engine();
     const layout full_layout({1, 1, 1, 64}, data_types::u8, format::bfyx);

@@ -369,8 +369,14 @@ struct data : public primitive_base<data> {
     /// @brief Whether transfer_memory_to_device skips this node (e.g. OTD partial upload).
     bool skip_device_transfer() const { return _skip_device_transfer; }
 
+    /// @brief Whether the memory is shared with other compiled models (weight-sharing context), so the program must not
+    /// write it.
+    bool is_shared_between_programs() const { return _shared_between_programs; }
+    void mark_shared_between_programs() { _shared_between_programs = true; }
+
 private:
     bool _skip_device_transfer = false;
+    bool _shared_between_programs = false;
 
 public:
 
@@ -384,6 +390,7 @@ public:
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<data>::save(ob);
+        ob << _shared_between_programs;
 
         ob << mem->get_layout();
 
@@ -417,6 +424,7 @@ public:
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<data>::load(ib);
+        ib >> _shared_between_programs;
     }
 
     void load_weights(BinaryInputBuffer& ib, std::shared_ptr<WeightsMemory> weights_memory, memory_ptr host_buffer_base_ptr) {

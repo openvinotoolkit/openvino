@@ -155,7 +155,9 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
                 ov::util::align_size_up(weight_sharing_constant_buffer_view->size(), ov::util::get_system_page_size()),
                 cldnn::allocation_type::cl_mem,
                 constLayout);
-            p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
+            auto data_prim = cldnn::data(initialconstPrimID, mem);
+            data_prim.mark_shared_between_programs();
+            p.add_primitive(*op, data_prim);
             p.blobMemCache[cache_key] = initialconstPrimID;
             constPrimID = initialconstPrimID;
             GPU_DEBUG_LOG << "[" << initialconstPrimID << ": import shared constant] imported shared constant: source ID: "
