@@ -51,10 +51,15 @@ struct ReduceImplementationManager : public ImplementationManager {
     bool validate_impl(const program_node& node) const override {
         assert(node.is_type<reduce>());
         const auto& config = node.get_program().get_config();
-        const auto& info = node.get_program().get_engine().get_device_info();
-        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn()) {
+        if (!config.get_use_onednn()) {
             return false;
         }
+#ifdef OV_GPU_VENDOR_INTEL
+        const auto& info = node.get_program().get_engine().get_device_info();
+        if (!info.supports_immad || info.arch == gpu_arch::unknown) {
+            return false;
+        }
+#endif
 
         const auto& reduce_node = node.as<reduce>();
 
@@ -62,11 +67,13 @@ struct ReduceImplementationManager : public ImplementationManager {
         const auto& in_layout = reduce_node.get_input_layout(0);
         const auto& out_layout = reduce_node.get_output_layout(0);
         auto in_dt = in_layout.data_type;
+#ifdef OV_GPU_VENDOR_INTEL
         auto out_dt = out_layout.data_type;
 
         if (in_dt == data_types::f32 && out_dt == data_types::f32) {
             return false;
         }
+#endif
 
         static const std::vector<format::type> supported_formats = {
             format::any,
