@@ -18,6 +18,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/logical_or.hpp"
 #include "openvino/op/mod.hpp"
 #include "openvino/op/non_zero.hpp"
 #include "openvino/op/reshape.hpp"
@@ -270,9 +271,15 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
                             rg.make<v0::Unsqueeze>(mask, v0::Constant::create(element::i64, Shape{axes.size()}, axes));
                     }
                     // A mask selects each element at most once, so accumulation is a plain add.
+                    // For booleans, add means logical or, as in aten::add.
                     Output<Node> fill = values;
                     if (accumulate) {
-                        fill = rg.make<v1::Add>(input, rg.make<v1::ConvertLike>(values, input));
+                        auto converted = rg.make<v1::ConvertLike>(values, input);
+                        if (input.get_element_type() == element::boolean) {
+                            fill = rg.make<v1::LogicalOr>(input, converted);
+                        } else {
+                            fill = rg.make<v1::Add>(input, converted);
+                        }
                     }
                     return finish(masked_fill(rg, input, mask, fill));
                 }
