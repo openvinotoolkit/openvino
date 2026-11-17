@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-17-11-42-49-794-44054226105",
+  "timestamp": "2026-11-17T11:42:49Z",
+  "run_id": "44054226105",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44054226105",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "39571",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39571",
+  "author": "alvoron",
+  "category": "Flaky Test",
+  "title": "fusings_gpu pooling_f32_scale fp16_scale_out fails GPU unit test tolerance check",
+  "signature": "gpu unit tests fusion pooling scale fp16 difference between val ref and val opt exceeds tolerance|Flaky Test",
+  "signature_hash": "7b64fedfacbfda60",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "fusings_gpu/pooling_f32_scale.fp16_scale_out/1 fails a numeric tolerance comparison"
+    }
+  ],
+  "key_errors": [
+    "fusion_test_common.hpp(90): error: The difference between val_ref[i] and val_opt[i] is 3.0517578125e-05, which exceeds tolerance, where val_ref[i] evaluates to -0.04473876953125, val_opt[i] evaluates to -0.044769287109375, and tolerance evaluates to 9.9999997473787516e-06.",
+    "[  FAILED  ] fusings_gpu/pooling_f32_scale.fp16_scale_out/1 (1291 ms)"
+  ],
+  "root_cause": "This is a recurring flaky GPU unit test (fusings_gpu/pooling_f32_scale.fp16_scale_out/1) comparing fp16 pooling+scale fusion output against an unfused reference. The two code paths accumulate in different order/precision on this runner's GPU, producing a tiny numerical drift (3.05e-05) just above the test's very tight fp16 tolerance (1e-05). The same signature has recurred 6 times (now 7) since 2026-11-13 across unrelated PRs, confirming it is a pre-existing test-tolerance flakiness unrelated to this PR's changes (which only touch protobuf visibility flags and a TensorFlow layer-tests workflow file).",
+  "reproduction_steps": "Run `ov_gpu_unit_tests.exe --gtest_filter=fusings_gpu/pooling_f32_scale.fp16_scale_out/1` repeatedly on the same Windows GPU runner type; the failure is intermittent and tolerance-margin dependent, so local x86/other GPUs may not reproduce it.",
+  "recommended_actions": [
+    "Widen the fp16 comparison tolerance (or use a relative-error tolerance) for fusings_gpu/pooling_f32_scale.fp16_scale_out in src/plugins/intel_gpu/tests/unit/fusions/fusion_test_common.hpp around line 90",
+    "Consider marking this specific parameterized case as fp16-tolerant or skip-on-known-flaky until the tolerance is adjusted",
+    "Re-run the failed job; a plain rerun is expected to pass given the margin is only 2e-05 above tolerance"
+  ],
+  "prevention_strategies": "Track fp16 GPU fusion tests with historically tight tolerance margins and proactively loosen tolerances, or add a dedicated retry/quarantine mechanism for known-flaky GPU unit tests so merge-queue runs aren't blocked by sub-threshold numeric drift.",
+  "historical_context": "Same signature (hash 7b64fedfacbfda60) recorded 6 prior times between 2026-11-13 and 2026-11-16 across PRs #39556, #38762, #39011, #39548, #39826, #38855 — all unrelated to GPU fusion code, confirming pre-existing flakiness rather than a regression introduced by any specific PR."
+}

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 462,
+  "total": 463,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -5049,6 +5049,15 @@
       "category": "Infrastructure",
       "signature_hash": "c351b86e95419730",
       "pr_number": "39839"
+    },
+    {
+      "investigation_id": "2026-11-17-11-42-49-794-44054226105",
+      "run_id": "44054226105",
+      "timestamp": "2026-11-17T11:42:49Z",
+      "title": "fusings_gpu pooling_f32_scale fp16_scale_out fails GPU unit test tolerance check",
+      "category": "Flaky Test",
+      "signature_hash": "7b64fedfacbfda60",
+      "pr_number": "39571"
     }
   ]
 }
