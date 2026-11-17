@@ -29,8 +29,9 @@ static std::shared_ptr<dnnl::deconvolution_forward::primitive_desc> get_deconvol
     auto dilations_ov = prim->dilations;
     dilations_ov.resize(stride.size(), 1);
     dnnl::memory::dims dilation(dilations_ov.begin(), dilations_ov.end());
-    dnnl::memory::dims pad_l(prim->pad.begin(), prim->pad.end());
-    dnnl::memory::dims pad_r(prim->pad.begin(), prim->pad.end());
+    const auto pads_begin = deconvolution_inst::get_pads_begin(impl_params);
+    dnnl::memory::dims pad_l(pads_begin.begin(), pads_begin.end());
+    dnnl::memory::dims pad_r(pads_begin.begin(), pads_begin.end());
 
     auto [input_md, weights_md, output_md] = onednn::get_conv_memory_descs(input_layout, weights_layout, output_layout, tag_in_out);
     auto grouped_weights = format::is_grouped(weights_layout.format) || prim->grouped_weights_shape;
