@@ -442,4 +442,17 @@ Example:
         </filters>
     </skip_config>
 
+    <!-- E243525 -->
+    <skip_config>
+        <message>Drv.15048 update, tests crash with driver lost</message>
+        <filters>
+            <filter>.*CrossCompilationNPU.OnlineCompilationTest.*</filter>
+            <filter>.*OVCompiledGraphImportExportTestNPU.ImportingEncryptedBlobThrows.*</filter>
+            <filter>.*OVCompiledGraphImportExportTestNPU.DifferentSizesOfEncryptedVsDecryptedBlobWorks.*</filter>
+            <filter>.*DisableIdleMemoryPruningNPU.SupportMatchesContextExtensionAvailability.*</filter>
+            <filter>.*ClassCompatibilityStringTestSuite.CompatibilityCheckInvalidArgument.*</filter>
+            <filter>.*CompatibilityCheckFallbackTestSuite.CompatibilityCheckUsesPluginCompilerFallbackForOlderDriver.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>
