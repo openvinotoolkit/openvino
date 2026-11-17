@@ -2118,10 +2118,10 @@ INSTANTIATE_TEST_SUITE_P(smoke,
 // The batched GEMV kernels walk K in chunks of min(group sizes, 128) and run N in blocks of N_BLOCK * SUBGROUP_NUM (32).
 // Per-channel quantization makes the group size equal to K, so an unaligned hidden_size or inter_size has no correct
 // kernel path and would also enqueue a non-uniform mlp_gate_up / mlp_down work-group. Such shapes must fail to compile.
-class moe_3gemm_unsupported_gemv_shape : public ::testing::TestWithParam<std::tuple<size_t, size_t>> {};
+class moe_3gemm_unsupported_gemv_shape : public ::testing::TestWithParam<std::tuple<size_t, size_t, bool>> {};
 
 TEST_P(moe_3gemm_unsupported_gemv_shape, per_channel_throws) {
-    const auto [hidden_size, inter_size] = GetParam();
+    const auto [hidden_size, inter_size, is_dynamic] = GetParam();
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad) {
         GTEST_SKIP() << "No immad support";
@@ -2132,8 +2132,9 @@ TEST_P(moe_3gemm_unsupported_gemv_shape, per_channel_throws) {
     };
 
     topology topology;
-    topology.add(input_layout("hidden_states", layout{ov::PartialShape{1, tokens, h}, data_types::f16, format::bfyx}));
-    topology.add(input_layout("routing_weights", layout{ov::PartialShape{1, tokens, e}, data_types::f16, format::bfyx}));
+    const auto token_dim = is_dynamic ? ov::Dimension::dynamic() : ov::Dimension(tokens);
+    topology.add(input_layout("hidden_states", layout{ov::PartialShape{1, token_dim, h}, data_types::f16, format::bfyx}));
+    topology.add(input_layout("routing_weights", layout{ov::PartialShape{1, token_dim, e}, data_types::f16, format::bfyx}));
     topology.add(data("w0_weight", make_data(data_types::u8, {e, in, h, 1})));
     topology.add(data("w0_scale", make_data(data_types::f16, {e, in, 1})));
     topology.add(data("w0_zp", make_data(data_types::u8, {e, in, 1})));
@@ -2174,10 +2175,29 @@ TEST_P(moe_3gemm_unsupported_gemv_shape, per_channel_throws) {
 
     auto net_config = get_test_default_config(engine);
     net_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    OV_EXPECT_THROW(network net(engine, topology, net_config), ov::Exception, ::testing::HasSubstr("MoE GEMV kernel"));
+    if (is_dynamic) {
+        // The model build succeeds for the dynamic shape case, even though there is no corresponding impl.
+        network net(engine, topology, net_config);
+        auto hidden_states_mem = make_data(data_types::f16, {1, tokens, h});
+        auto routing_weights_mem = make_data(data_types::f16, {1, tokens, e});
+        set_values(hidden_states_mem, std::vector<ov::float16>(tokens * h, ov::float16(0.1f)));
+        std::vector<ov::float16> routing_weights(tokens * e);
+        for (size_t i = 0; i < routing_weights.size(); ++i) {
+            routing_weights[i] = ov::float16(static_cast<float>(i % e));
+        }
+        set_values(routing_weights_mem, routing_weights);
+        net.set_input_data("hidden_states", hidden_states_mem);
+        net.set_input_data("routing_weights", routing_weights_mem);
+        // Must throw an explicit compile failure instead of a silent segfault for unsupported shapes.
+        OV_EXPECT_THROW(net.execute(), ov::Exception, ::testing::HasSubstr("MoE GEMV kernel"));
+    } else {
+        OV_EXPECT_THROW(network net(engine, topology, net_config), ov::Exception, ::testing::HasSubstr("MoE GEMV kernel"));
+    }
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke,
                          moe_3gemm_unsupported_gemv_shape,
-                         ::testing::Values(std::make_tuple(size_t{128}, size_t{1000}),    // mlp_gate_up N = inter_size
-                                           std::make_tuple(size_t{1000}, size_t{128})));  // mlp_down N = hidden_size
+                         ::testing::Values(std::make_tuple(size_t{128}, size_t{1000}, false),   // mlp_gate_up N = inter_size
+                                           std::make_tuple(size_t{128}, size_t{1000}, true),    // dynamic tokens
+                                           std::make_tuple(size_t{1000}, size_t{128}, false),   // mlp_down N = hidden_size
+                                           std::make_tuple(size_t{1000}, size_t{128}, true)));  // dynamic tokens
