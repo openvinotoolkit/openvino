@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 119,
+  "total": 120,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -1216,6 +1216,15 @@
       "category": "Infrastructure",
       "signature_hash": "3be0e72d6ae29098",
       "commit_sha": "739714d6de9660afe2be5670313cf8a55434da78"
+    },
+    {
+      "investigation_id": "2026-11-17-11-23-57-000-44059103925",
+      "run_id": "44059103925",
+      "timestamp": "2026-11-17T11:23:57Z",
+      "title": "Windows GPU unit tests job fails with PowerShell execution policy error before running tests",
+      "category": "Infrastructure",
+      "signature_hash": "3be0e72d6ae29098",
+      "commit_sha": "dace268bdd3690110ce4a86663f39a7a23d3c1ec"
     }
   ]
 }
