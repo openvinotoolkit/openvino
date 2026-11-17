@@ -11,19 +11,9 @@
 
 namespace ov::intel_gpu {
 
-/// @brief Scheduler slot shared between the fusion pass and its matcher.
-struct WeightsPrefetchSlot {
-    std::unique_ptr<ov::util::OrderedPrefetchScheduler> scheduler;
-};
-
-class FullyConnectedHorizontalFusionMatcher : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("FullyConnectedHorizontalFusionMatcher");
-    explicit FullyConnectedHorizontalFusionMatcher(bool fuse_mlp_swiglu = false,
-                                                   std::shared_ptr<WeightsPrefetchSlot> prefetch = nullptr);
-};
-
 /// @brief Fuses the FullyConnectedCompressed ops sharing one input.
+/// Register it with pass::Manager::register_pass only. Do not nest it via GraphRewrite::add_matcher<T>():
+/// that copies the matchers and destroys this pass, while the matcher callback still points to its m_scheduler.
 class FullyConnectedHorizontalFusion : public ov::pass::GraphRewrite {
 public:
     OPENVINO_GRAPH_REWRITE_RTTI("FullyConnectedHorizontalFusion");
@@ -32,7 +22,7 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 private:
-    std::shared_ptr<WeightsPrefetchSlot> m_prefetch;
+    std::unique_ptr<ov::util::OrderedPrefetchScheduler> m_scheduler;  // Set only while run_on_model() runs.
     bool m_prefetch_weights = false;
     size_t m_min_num_fcs_to_fuse = 3;
 };

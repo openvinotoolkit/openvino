@@ -132,11 +132,33 @@ std::vector<std::shared_ptr<ov::Node>> collect_prefetch_candidates(const ov::Mod
     return candidates;
 }
 
+/// @brief Releases the given nodes from the scheduler when going out of scope.
+struct ScopedRelease {
+    ov::util::IPrefetchScheduler* scheduler;
+    const std::vector<std::shared_ptr<ov::Node>>& nodes;
+
+    ~ScopedRelease() {
+        if (scheduler) {
+            for (const auto& node : nodes) {
+                scheduler->release(*node);
+            }
+        }
+    }
+};
+
+/// @brief Restores the enclosing model's scheduler on scope exit: GraphRewrite runs run_on_model() recursively for subgraphs.
+struct ScopedSchedulerRestore {
+    std::unique_ptr<ov::util::OrderedPrefetchScheduler>& slot;
+    std::unique_ptr<ov::util::OrderedPrefetchScheduler> saved = std::move(slot);
+
+    ~ScopedSchedulerRestore() {
+        slot = std::move(saved);
+    }
+};
+
 }  // namespace
 
-FullyConnectedHorizontalFusionMatcher::FullyConnectedHorizontalFusionMatcher(
-    bool fuse_mlp_swiglu,
-    std::shared_ptr<WeightsPrefetchSlot> prefetch) {
+FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swiglu, bool prefetch_weights) : m_prefetch_weights(prefetch_weights) {
     using namespace ov::pass::pattern;
 
     // Three FCs connected to the same input
@@ -149,6 +171,7 @@ FullyConnectedHorizontalFusionMatcher::FullyConnectedHorizontalFusionMatcher(
     if (fuse_mlp_swiglu) {
         min_num_fcs_to_fuse = 2;
     }
+    m_min_num_fcs_to_fuse = min_num_fcs_to_fuse;
     auto is_target_pattern = [min_num_fcs_to_fuse](const Output<Node>& output) {
         return is_fusion_candidate(ov::as_type_ptr<op::FullyConnectedCompressed>(output.get_node_shared_ptr()),
                                    min_num_fcs_to_fuse);
@@ -156,10 +179,23 @@ FullyConnectedHorizontalFusionMatcher::FullyConnectedHorizontalFusionMatcher(
 
     auto target_fc = wrap_type<op::FullyConnectedCompressed>(is_target_pattern);
 
+    auto* const current_scheduler = &m_scheduler;
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto m_fc = pattern_map.at(target_fc).get_node_shared_ptr();
         auto input_node = m_fc->get_input_node_shared_ptr(0);
+        auto* const scheduler = current_scheduler->get();
+        // Release the group's weights on every exit, including when the fusion is declined before reading them:
+        // otherwise they would occupy the prefetch window for the rest of the pass.
+        std::vector<std::shared_ptr<ov::Node>> group_sources;
+        if (scheduler) {
+            for (const auto& user : input_node->get_users()) {
+                if (const auto fc = ov::as_type_ptr<op::FullyConnectedCompressed>(user)) {
+                    collect_fc_sources(*fc, group_sources);
+                }
+            }
+        }
+        const ScopedRelease release_group_sources{scheduler, group_sources};
         std::vector<std::shared_ptr<op::FullyConnectedCompressed>> fc_nodes;
         ov::NodeVector fc_nodes_vec;
         ov::OutputVector weight_nodes;
@@ -226,7 +262,7 @@ FullyConnectedHorizontalFusionMatcher::FullyConnectedHorizontalFusionMatcher(
         // Concatenates and folds the given constant-like nodes into a Constant right away, instead of relying on ConstantFolding pass:
         // unfolded Concat on weights (e.g. in case of unsupported precision) may then fail the pipeline if the GPU also doesn't support this.
         // So if the concatenation at ov::Model is not possible, the transformation just returns false
-        auto concat_and_fold = [&prefetch](const ov::OutputVector& outputs, int64_t axis, std::string_view name_suffix) -> std::shared_ptr<ov::Node> {
+        auto concat_and_fold = [scheduler](const ov::OutputVector& outputs, int64_t axis, std::string_view name_suffix) -> std::shared_ptr<ov::Node> {
             const auto& reference_shape = outputs.front().get_partial_shape();
             if (!reference_shape.is_static() || axis < 0 || axis >= reference_shape.rank().get_length()) {
                 return nullptr;
@@ -243,26 +279,16 @@ FullyConnectedHorizontalFusionMatcher::FullyConnectedHorizontalFusionMatcher(
                 }
             }
             // Folding the concat below is what actually reads the weights from the mapped file.
-            auto* const scheduler = prefetch ? prefetch->scheduler.get() : nullptr;
-            const auto for_each_source = [&outputs](const auto& action) {
+            // They are released when the callback exits.
+            if (scheduler) {
                 for (const auto& output : outputs) {
                     if (const auto source = data_source_of(output)) {
-                        action(*source);
+                        scheduler->acquire(*source);
                     }
                 }
-            };
-            if (scheduler) {
-                for_each_source([scheduler](const ov::Node& source) {
-                    scheduler->acquire(source);
-                });
             }
             auto concat = std::make_shared<ov::op::v0::Concat>(outputs, axis);
             auto folded = ov::util::get_constant_from_source(concat);
-            if (scheduler) {
-                for_each_source([scheduler](const ov::Node& source) {
-                    scheduler->release(source);
-                });
-            }
             if (!folded) {
                 GPU_DEBUG_TRACE_DETAIL << "FullyConnectedHorizontalFusion: failed to constant-fold the concat of " << name_suffix << std::endl;
                 return nullptr;
@@ -515,25 +541,15 @@ FullyConnectedHorizontalFusionMatcher::FullyConnectedHorizontalFusionMatcher(
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(target_fc, "FullyConnectedHorizontalFusion");
-    this->register_matcher(m, callback);
-}
-
-FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swiglu, bool prefetch_weights)
-    : m_prefetch(std::make_shared<WeightsPrefetchSlot>()),
-      m_prefetch_weights(prefetch_weights) {
-    add_matcher<FullyConnectedHorizontalFusionMatcher>(fuse_mlp_swiglu, m_prefetch);
-    // Mirrors the matcher's own threshold: with MLP fusion a pair of FCs is already a candidate.
-    m_min_num_fcs_to_fuse = fuse_mlp_swiglu ? 2 : 3;
+    add_matcher(std::make_shared<ov::pass::MatcherPass>(m, callback));
 }
 
 bool FullyConnectedHorizontalFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    ScopedSchedulerRestore restore_enclosing{m_scheduler};
     if (m_prefetch_weights) {
-        m_prefetch->scheduler = std::make_unique<ov::util::OrderedPrefetchScheduler>(
-            collect_prefetch_candidates(*model, m_min_num_fcs_to_fuse));
+        m_scheduler = std::make_unique<ov::util::OrderedPrefetchScheduler>(collect_prefetch_candidates(*model, m_min_num_fcs_to_fuse));
     }
-    const bool model_changed = ov::pass::GraphRewrite::run_on_model(model);
-    m_prefetch->scheduler.reset();
-    return model_changed;
+    return ov::pass::GraphRewrite::run_on_model(model);
 }
 
 }  // namespace ov::intel_gpu
