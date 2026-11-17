@@ -1495,6 +1495,87 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_fuse_bias_and_find_eltwise_4d, ::t
     fully_connected_test_params{ DYN_CASE_FC_FP16_4D_1, 2, 4 },
 }));
 
+// The OCL FC impl runs an input_size == 4 FC as 2D [B*T, N] while a fused peer keeps its [B, 1, T, N] layout,
+// which gives wrong results through the plugin from the second inference on. A non-constant peer must therefore
+// stay unfused; a constant per-channel peer still fuses.
+class fc_ocl_input_size_4_eltwise_peer : public FullyConnectedFusingTest {
+public:
+    void run_test(bool constant_peer) {
+        // XMX devices pick the oneDNN FC impl, which is not affected.
+        if (engine.get_device_info().supports_immad)
+            GTEST_SKIP();
+
+        auto p = GetParam();
+        const auto K = p.in_shape[3];
+        const auto N = p.out_shape[3];
+        create_topologies(
+            input_layout("input", layout{ ov::PartialShape{ -1, 1, -1, K }, p.data_type, p.input_format }),
+            data("weights", get_mem(get_weights_layout(p))),
+            fully_connected("fc_prim", input_info("input"), "weights", "", 4, 2));
+        if (constant_peer) {
+            create_topologies(
+                data("bias", get_mem(layout{ ov::PartialShape{ 1, 1, 1, N }, p.default_type, p.default_format })),
+                eltwise("add", { input_info("fc_prim"), input_info("bias") }, eltwise_mode::sum),
+                reorder("reorder_bfyx", input_info("add"), p.default_format, data_types::f32));
+        } else {
+            // Two residual blocks, as in a decoder layer: the second Add's peer is the first Add's output.
+            create_topologies(
+                input_layout("residual", layout{ ov::PartialShape{ -1, 1, -1, N }, p.default_type, p.default_format }),
+                eltwise("add", { input_info("fc_prim"), input_info("residual") }, eltwise_mode::sum),
+                data("weights_mid", get_mem(layout{ ov::PartialShape{ K, N }, p.weights_type, p.weights_format })),
+                fully_connected("fc_mid", input_info("add"), "weights_mid", "", 4, 2),
+                data("weights2", get_mem(get_weights_layout(p))),
+                fully_connected("fc_prim2", input_info("fc_mid"), "weights2", "", 4, 2),
+                eltwise("add2", { input_info("fc_prim2"), input_info("add") }, eltwise_mode::sum),
+                reorder("reorder_bfyx", input_info("add2"), p.default_format, data_types::f32));
+        }
+        cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+        network network_not_fused(engine, topology_non_fused, cfg_not_fused);
+        network network_fused(engine, topology_fused, cfg_fused);
+
+        // Prefill followed by decode steps, as in an LLM: the network is re-executed with changing token counts.
+        tolerance = 1e-4f;
+        const auto batch = p.in_shape[0].get_length();
+        const auto prefill = p.in_shape[2].get_length();
+        for (const int64_t tokens : { prefill, prefill, int64_t{1}, int64_t{1}, prefill }) {
+            auto input_mem = get_mem(layout{ ov::PartialShape{ batch, 1, tokens, K }, p.data_type, p.input_format });
+            network_fused.set_input_data("input", input_mem);
+            network_not_fused.set_input_data("input", input_mem);
+            if (!constant_peer) {
+                auto residual_mem = get_mem(layout{ ov::PartialShape{ batch, 1, tokens, N }, p.default_type, p.default_format });
+                network_fused.set_input_data("residual", residual_mem);
+                network_not_fused.set_input_data("residual", residual_mem);
+            }
+            compare(network_not_fused, network_fused, p);
+        }
+    }
+};
+
+#define CASE_FC_FP32_4D_PEER_1 { 1, 1, 8, 64 }, { 1, 1, 8, 32 }, { 32, 64 }, data_types::f32, format::bfyx, data_types::f32, format::oiyx, data_types::f32, format::bfyx
+#define CASE_FC_FP32_4D_PEER_2 { 2, 1, 5, 32 }, { 2, 1, 5, 48 }, { 48, 32 }, data_types::f32, format::bfyx, data_types::f32, format::oiyx, data_types::f32, format::bfyx
+
+class fc_ocl_input_size_4_eltwise_non_constant_peer : public fc_ocl_input_size_4_eltwise_peer {};
+TEST_P(fc_ocl_input_size_4_eltwise_non_constant_peer, not_fused) {
+    run_test(false);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_ocl_input_size_4_eltwise_non_constant_peer, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP32_4D_PEER_1, 7, 7 },
+    fully_connected_test_params{ CASE_FC_FP32_4D_PEER_2, 7, 7 },
+}));
+
+class fc_ocl_input_size_4_eltwise_constant_peer : public fc_ocl_input_size_4_eltwise_peer {};
+TEST_P(fc_ocl_input_size_4_eltwise_constant_peer, fused) {
+    run_test(true);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_ocl_input_size_4_eltwise_constant_peer, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP32_4D_PEER_1, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP32_4D_PEER_2, 2, 3 },
+}));
+
 // Verify that a chain exceeding the oneDNN post-op cap still produces numerically
 // identical output. With the check moved to validate_impl, ALL post-ops fuse into
 // the node, but validate_impl rejects the oneDNN impl when > 32 post-ops are present,
