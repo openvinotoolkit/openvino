@@ -786,6 +786,7 @@
     },
     {
       "id": "llama-embed--llama-nemotron-embed-1b-v2.q4_k_m--10bb9b61",
+      "native_only": "Embedding-only output is not supported by adapt_to_genai.",
       "architecture": "llama-embed",
       "models": [
         "llama-nemotron-embed-1b-v2.Q4_K_M.gguf",
@@ -1350,6 +1351,7 @@
     },
     {
       "id": "dspark--bonsai-27b-dspark-q4_1--e3416c2d",
+      "native_only": "DFlash draft contract explicitly disables GenAI adaptation.",
       "architecture": "dspark",
       "models": [
         "Bonsai-27B-dspark-Q4_1.gguf",
@@ -2003,6 +2005,7 @@
     },
     {
       "id": "lfm2.audio_vocoder--lfm2.5-audio-1.5b-q4_0",
+      "native_only": "Standalone depthformer/vocoder has no GenAI decoder or mmproj adaptation.",
       "architecture": "lfm2.audio_vocoder",
       "models": [
         "LiquidAI/LFM2.5-Audio-1.5B-GGUF/vocoder-LFM2.5-Audio-1.5B-Q4_0.gguf"
@@ -3731,6 +3734,7 @@
     },
     {
       "id": "llama-embed--llama-nemotron-embed-1b-v2-q4_k_m--696c5040",
+      "native_only": "Embedding-only output is not supported by adapt_to_genai.",
       "architecture": "llama-embed",
       "models": [
         "sabafallah/llama-nemotron-embed-1b-v2-GGUF/llama-nemotron-embed-1b-v2-Q4_K_M.gguf"
@@ -4052,6 +4056,7 @@
     },
     {
       "id": "dspark--bonsai-27b-dspark-bf16--7b6762b5",
+      "native_only": "DFlash draft contract explicitly disables GenAI adaptation.",
       "architecture": "dspark",
       "models": [
         "prism-ml/Bonsai-27B-gguf/Bonsai-27B-dspark-bf16.gguf",
@@ -4083,6 +4088,7 @@
     },
     {
       "id": "dspark--ternary-bonsai-27b-dspark-q4_1--09f06a2d",
+      "native_only": "DFlash draft contract explicitly disables GenAI adaptation.",
       "architecture": "dspark",
       "models": [
         "prism-ml/Ternary-Bonsai-27B-gguf/Ternary-Bonsai-27B-dspark-Q4_1.gguf"

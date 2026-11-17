@@ -1,44 +1,53 @@
 {
-  "graph_sha256": "198890d7a8b9e120b4d4e9a5ff4739d402c4b56686425ab9ca096fa8b529a03c",
-  "ops": [
-    ["Add","opset1",463],
-    ["AvgPool","opset1",1],
-    ["Concat","opset1",163],
-    ["Constant","opset1",2241],
-    ["Convert","opset1",108],
-    ["Convolution","opset1",1],
-    ["Cos","opset1",108],
-    ["GGUFPlannedWeight","gguf",356],
-    ["Gather","opset8",3],
-    ["MatMul","opset1",190],
-    ["Multiply","opset1",1435],
-    ["Parameter","opset1",3],
-    ["Power","opset1",380],
-    ["ReduceMean","opset1",190],
-    ["Reshape","opset1",220],
-    ["Result","opset1",1],
-    ["ScaledDotProductAttention","opset13",27],
-    ["ShapeOf","opset3",1],
-    ["Sigmoid","opset1",27],
-    ["Sin","opset1",108],
-    ["Sqrt","opset1",190],
-    ["Squeeze","opset1",4],
-    ["Subtract","opset1",1],
-    ["Transpose","opset1",651],
-    ["Unsqueeze","opset1",2],
-    ["VariadicSplit","opset1",163]
-  ],
-  "projections": [
-    ["MatMul","4","f32","ggml:1/group:1/weight:f16",190]
-  ],
-  "projectors": ["vision.gemma4v"],
-  "totals": {
-    "edges": 8524,
-    "inputs": 3,
-    "nodes": 7037,
-    "outputs": 1,
-    "states": 0,
-    "top_level_nodes": 7037
+  "models": {
+    "vision_embeddings": {
+      "graph_sha256": "3998732059eb9b747e211db49e072edbbeb678239e9abdd06063bf7e4e4a17e1",
+      "ops": [
+        ["Add","opset1",464],
+        ["AvgPool","opset1",1],
+        ["Concat","opset1",165],
+        ["Constant","opset1",2255],
+        ["Convert","opset1",111],
+        ["Convolution","opset1",1],
+        ["Cos","opset1",108],
+        ["Divide","opset1",1],
+        ["GGUFPlannedWeight","gguf",356],
+        ["Gather","opset8",5],
+        ["GreaterEqual","opset1",1],
+        ["MatMul","opset1",190],
+        ["Multiply","opset1",1437],
+        ["Parameter","opset1",2],
+        ["Power","opset1",380],
+        ["ReduceMax","opset1",1],
+        ["ReduceMean","opset1",190],
+        ["ReduceSum","opset1",1],
+        ["Reshape","opset1",224],
+        ["Result","opset1",1],
+        ["ScaledDotProductAttention","opset13",27],
+        ["ShapeOf","opset3",1],
+        ["Sigmoid","opset1",27],
+        ["Sin","opset1",108],
+        ["Slice","opset8",3],
+        ["Sqrt","opset1",190],
+        ["Squeeze","opset1",7],
+        ["Subtract","opset1",1],
+        ["Transpose","opset1",652],
+        ["Unsqueeze","opset1",2],
+        ["VariadicSplit","opset1",163]
+      ],
+      "projections": [
+        ["MatMul","4","f32","ggml:1/group:1/weight:f16",190]
+      ],
+      "totals": {
+        "edges": 8586,
+        "inputs": 2,
+        "nodes": 7075,
+        "outputs": 1,
+        "states": 0,
+        "top_level_nodes": 7075
+      }
+    }
   },
-  "version": 2
+  "projectors": ["vision.gemma4v"],
+  "version": 3
 }

@@ -1,7 +1,8 @@
 # GGUF structural regression references
 
 These are structural alarms, not runtime benchmarks or numerical equivalence tests.
-Each case has exactly one reference: the stateful frontend graph before GenAI adaptation.
+Each case has exactly one reference file containing every named graph returned by
+`adapt_to_genai`. Decoder cases cover both token-ID and embedding input modes.
 Everything runs offline and no checkpoint weights are allocated.
 
 ## Coverage status
@@ -26,6 +27,10 @@ All paths below are under `tests/test_data/graph_regressions`, in ordinary Git t
 not LFS:
 
 - `catalog.json`: case/checkpoint identities, provenance and projector contracts.
+  `native_only` records the reason when a case has no GenAI adaptation: embedding-only
+  encoders, DFlash drafts and the standalone LFM2.5 vocoder. These cases keep a native
+  stateful snapshot; adaptation errors in all other cases fail, never silently fall back.
+  Remove the exemption when `adapt_to_genai` gains support for that contract.
 - `schema.json`: shared versioned catalog, recipe and reference definitions.
 - `recipes/<case>.json`: compact recipe version 2, one metadata entry or tensor group per
   line. Metadata maps each key to `[type, value]` (`"u32"`, `"f32[]"`, ...); arrays of at
@@ -35,22 +40,29 @@ not LFS:
   ascending, disjoint layer ranges such as `"0-2,4-63"`. Shapes use OpenVINO order,
   reversing GGUF's `ne[]`; source storage is derived from the GGML type. The runner
   expands this to a per-tensor descriptor before conversion.
-- `references/<case>.json` (reference version 2): complete operation type/version counts,
-  projection summaries, totals and one `graph_sha256`. Histogram rows are kept one per line
+- `references/<case>.json` (reference version 3): a `models` map with complete operation
+  type/version counts, projection summaries, totals and one `graph_sha256` per named graph,
+  plus the source projector identities. Histogram rows are kept one per line
   for readable diffs; other value arrays are inline. Each reference is limited to **32 KiB**.
 
 ## What is captured
 
 The runner converts the recipe with the production frontend and builders. Weights are
 descriptors that throw on payload access, so builder selection and weight layout planning
-run without allocating checkpoint-sized weights. `GGUFMakeStateful` is registered as a
-`DecoderTransformationExtension`, as GenAI does, so decoders are captured with their
-ReadValue/Assign KV-cache and recurrent states. Graphs without caches (projectors,
-vocoders, embedding-only models) are captured unchanged.
+run without allocating checkpoint-sized weights. After conversion, the runner calls the
+production `adapt_to_genai` entry point, which makes decoders stateful and adapts their IO.
+Every returned model is checked, not just the language model:
 
-GenAI adaptation (`AdaptToGenAI`) is not captured: it is still changing, and one
-reference per model keeps the gate small. Adaptation can move into this reference once it
-stabilizes. Weight loading and numerical behavior (repacking, Hadamard, ternary formats,
+- Decoders: `ids/language` for `IDS_TO_LOGITS`; `embeds/language`,
+  `embeds/text_embeddings` and any `embeds/text_embeddings_per_layer` for
+  `EMBEDS_TO_LOGITS`. Each mode consumes an independent converted graph.
+- Projectors: every returned key, including split vision encoders, position/merger
+  graphs, audio encoders and all `audio_generation_*` components.
+- Explicit `native_only` cases: `native`, after `GGUFMakeStateful`.
+
+The model-map keys are part of comparison: adding, removing or renaming any component
+fails the gate, as does a change confined to an auxiliary graph. There is no separate
+raw or materialized stage. Weight loading and numerical behavior (repacking, Hadamard, ternary formats,
 quantization arithmetic) are not covered here; the existing C++ conversion and accuracy
 tests own them.
 
@@ -132,7 +144,8 @@ carry no recipe digest: a recipe edit that changes conversion changes `graph_sha
 No checkpoint downloads occur in routine tests.
 
 Comparison is exact: no tolerance, automatic refresh or acceptance of fewer operations.
-Deltas are net counts by operation type/version and projection signature, not aligned
+Deltas identify each changed model-map key, including added and removed models, with
+net counts by operation type/version and projection signature, not aligned
 individual nodes. A changed hash with equal counts reports a structure/attribute change.
 Inspect a full actual graph using the runner's `--gguf-snapshot ... --output ...` diagnostic.
 
@@ -151,11 +164,12 @@ not evidence of a speedup.
 
 ### 1. Group affected cases by change signature
 
-Group the changed cases by their net operation/projection deltas from `changed_cases.json`
+Group the changed cases by their per-model net operation/projection deltas from `changed_cases.json`
 (for example "+1 Convert before MatMul" or "Q6_K projection rank 4 -> 3"). Cases whose
 hash changed with equal counts form groups by the operation types whose structure or
 attributes changed; inspect them with the runner's `--gguf-snapshot` diagnostic. Describe
-every group in the PR.
+every group in the PR, identifying the affected named graphs. Changes to component-map
+membership must also be explained; auxiliary encoders and embedding graphs are not exempt.
 
 ### 2. Select representatives
 

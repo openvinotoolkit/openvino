@@ -1,47 +1,52 @@
 {
-  "graph_sha256": "e482b722c3b2316274c395210c8956c38894ceb49d6eb7f8582e679b71e974d7",
-  "ops": [
-    ["Add","opset1",195],
-    ["AvgPool","opset1",1],
-    ["Broadcast","opset3",192],
-    ["Concat","opset1",148],
-    ["Constant","opset1",1896],
-    ["Convert","opset1",96],
-    ["Convolution","opset1",1],
-    ["Cos","opset1",96],
-    ["Divide","opset1",1],
-    ["GGUFPlannedWeight","gguf",223],
-    ["Gather","opset8",6],
-    ["Gelu","opset7",1],
-    ["MatMul","opset1",171],
-    ["Multiply","opset1",822],
-    ["Parameter","opset1",3],
-    ["Power","opset1",100],
-    ["ReduceMean","opset1",50],
-    ["Reshape","opset1",487],
-    ["Result","opset1",1],
-    ["ScaledDotProductAttention","opset13",24],
-    ["ShapeOf","opset3",3],
-    ["Sin","opset1",96],
-    ["Slice","opset8",3],
-    ["Split","opset1",96],
-    ["Sqrt","opset1",50],
-    ["Swish","opset4",24],
-    ["Transpose","opset1",197],
-    ["Unsqueeze","opset1",192],
-    ["VariadicSplit","opset1",48]
-  ],
-  "projections": [
-    ["MatMul","4","f32","ggml:0/group:1/weight:f32",171]
-  ],
-  "projectors": ["vision.pixtral"],
-  "totals": {
-    "edges": 5926,
-    "inputs": 3,
-    "nodes": 5223,
-    "outputs": 1,
-    "states": 0,
-    "top_level_nodes": 5223
+  "models": {
+    "vision_embeddings": {
+      "graph_sha256": "87192033e77b234b7060b5bda2afbd89fd6a76e858965f07f274ee13efb9844d",
+      "ops": [
+        ["Add","opset1",195],
+        ["AvgPool","opset1",1],
+        ["Broadcast","opset3",192],
+        ["Concat","opset1",148],
+        ["Constant","opset1",1897],
+        ["Convert","opset1",96],
+        ["Convolution","opset1",1],
+        ["Cos","opset1",96],
+        ["Divide","opset1",1],
+        ["GGUFPlannedWeight","gguf",223],
+        ["Gather","opset8",6],
+        ["Gelu","opset7",1],
+        ["MatMul","opset1",171],
+        ["Multiply","opset1",822],
+        ["Parameter","opset1",3],
+        ["Power","opset1",100],
+        ["ReduceMean","opset1",50],
+        ["Reshape","opset1",487],
+        ["Result","opset1",1],
+        ["ScaledDotProductAttention","opset13",24],
+        ["ShapeOf","opset3",3],
+        ["Sin","opset1",96],
+        ["Slice","opset8",3],
+        ["Split","opset1",96],
+        ["Sqrt","opset1",50],
+        ["Squeeze","opset1",1],
+        ["Swish","opset4",24],
+        ["Transpose","opset1",197],
+        ["Unsqueeze","opset1",192],
+        ["VariadicSplit","opset1",48]
+      ],
+      "projections": [
+        ["MatMul","4","f32","ggml:0/group:1/weight:f32",171]
+      ],
+      "totals": {
+        "edges": 5928,
+        "inputs": 3,
+        "nodes": 5225,
+        "outputs": 1,
+        "states": 0,
+        "top_level_nodes": 5225
+      }
+    }
   },
-  "version": 2
+  "projectors": ["vision.pixtral"],
+  "version": 3
 }

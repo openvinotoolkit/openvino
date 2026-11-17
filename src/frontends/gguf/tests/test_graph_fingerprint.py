@@ -8,6 +8,7 @@ import copy
 import json
 from pathlib import Path
 import struct
+from subprocess import CompletedProcess
 
 import pytest
 
@@ -27,6 +28,14 @@ def snapshot():
     return {"canonical": {"nodes": [{"type": "MatMul", "inputs": [0, 1]}]},
             "ops": [["MatMul", "opset1", 1]], "projections": [],
             "totals": {"nodes": 1, "top_level_nodes": 1, "edges": 2, "states": 0}}
+
+
+def captured_models():
+    return {"models": {"ids/language": graph.compact_snapshot(snapshot())}, "projectors": []}
+
+
+def reference():
+    return {"version": graph.REFERENCE_VERSION, **captured_models()}
 
 
 def test_required_catalog_snapshots(tmp_path):
@@ -53,9 +62,12 @@ def test_detects_rewiring_with_unchanged_operation_counts(capsys):
     modified = snapshot()
     modified["canonical"]["nodes"][0]["inputs"].reverse()
     second = graph.compact_snapshot(modified)
-    change = graph.reference_delta({"version": 2, **first}, {"version": 2, **second})
-    assert change["graph_changed"] and change["ops"] == []
-    assert graph.reference_delta({"version": 2, **first}, {"version": 2, **first}) is None
+    expected, actual = reference(), reference()
+    expected["models"]["ids/language"] = first
+    actual["models"]["ids/language"] = second
+    change = graph.reference_delta(expected, actual)
+    assert change["models"]["ids/language"]["graph_changed"] and change["models"]["ids/language"]["ops"] == []
+    assert graph.reference_delta(expected, expected) is None
     graph.print_changes("llama", change)
     assert "structure/attributes changed; operation counts unchanged" in capsys.readouterr().out
     assert "canonical" not in first
@@ -167,7 +179,7 @@ def test_reference_size_ceiling_is_bytes_not_node_count():
 
 
 def test_reference_format_keeps_histogram_rows_diffable():
-    value = {"version": 2, **graph.compact_snapshot(snapshot())}
+    value = reference()
     data = graph.reference_bytes(value).decode()
     assert '["MatMul","opset1",1]' in data
     assert json.loads(data) == value
@@ -175,7 +187,7 @@ def test_reference_format_keeps_histogram_rows_diffable():
 
 def test_update_requires_selection_and_finishes_capture_before_writing(tmp_path, monkeypatch):
     value = recipe()
-    original = json.dumps({"version": 2, **graph.compact_snapshot(snapshot())})
+    original = json.dumps(reference())
     cases = []
     for name in ("one", "two"):
         value["tensors"][0]["name"] = name
@@ -194,7 +206,7 @@ def test_update_requires_selection_and_finishes_capture_before_writing(tmp_path,
     def capture(value, runner):
         if value["tensors"][0]["name"] == "two":
             raise ValueError("intentional second-case failure")
-        return graph.compact_snapshot(snapshot())
+        return captured_models()
     monkeypatch.setattr(graph, "capture", capture)
     args.cases = "one,two"
     with pytest.raises(ValueError, match="second-case failure"):
@@ -203,7 +215,7 @@ def test_update_requires_selection_and_finishes_capture_before_writing(tmp_path,
     report = json.loads(args.report.read_text())
     assert report["selected"] == 2 and report["completed"] == 1
     assert "second-case failure" in report["errors"][0]
-    monkeypatch.setattr(graph, "capture", lambda value, runner: graph.compact_snapshot(snapshot()))
+    monkeypatch.setattr(graph, "capture", lambda value, runner: captured_models())
     replace = graph.os.replace
 
     def fail_second_publish(source, target):
@@ -240,12 +252,14 @@ def test_update_requires_selection_and_finishes_capture_before_writing(tmp_path,
 @pytest.mark.parametrize("mutate", [
     lambda value: value.update(version=1),
     lambda value: value.update(recipe_sha256="0" * 64),
-    lambda value: value.update(graph_sha256="short"),
+    lambda value: value["models"]["ids/language"].update(graph_sha256="short"),
     lambda value: value.update(stages={}),
-    lambda value: value.pop("ops"),
+    lambda value: value["models"]["ids/language"].pop("ops"),
+    lambda value: value.update(models={}),
+    lambda value: value["models"].update({"": graph.compact_snapshot(snapshot())}),
 ])
 def test_reference_schema_rejects_malformed_snapshots(mutate):
-    value = {"version": 2, **graph.compact_snapshot(snapshot())}
+    value = reference()
     graph.validate_document(value, "reference")
     mutate(value)
     with pytest.raises(ValueError):
@@ -271,22 +285,22 @@ def test_import_accepts_packed_header_prefix_with_source_size(tmp_path):
 
 
 def test_check_failure_explains_update_and_evidence_in_ci(tmp_path, monkeypatch, capsys):
-    reference = json.dumps({"version": 2, **graph.compact_snapshot(snapshot())})
+    reference_text = json.dumps(reference())
     cases = []
     for name in ("same", "changed"):
         value = recipe()
         value["tensors"][0]["name"] = name
         (tmp_path / f"{name}.recipe.json").write_text(graph.recipe_text(value))
-        (tmp_path / f"{name}.reference.json").write_text(reference)
+        (tmp_path / f"{name}.reference.json").write_text(reference_text)
         cases.append({"id": name, "recipe": f"{name}.recipe.json", "reference": f"{name}.reference.json",
                       "models": [name], "architecture": "llama",
                       "source": {"filename": "test.gguf", "header_sha256": "0" * 64}})
     (tmp_path / "catalog.json").write_text(json.dumps({"version": 1, "cases": cases}))
 
     def capture(value, runner):
-        result = graph.compact_snapshot(snapshot())
+        result = captured_models()
         if value["tensors"][0]["name"] == "changed":
-            result["graph_sha256"] = "f" * 64
+            result["models"]["ids/language"]["graph_sha256"] = "f" * 64
         return result
     monkeypatch.setattr(graph, "capture", capture)
     summary = tmp_path / "summary.md"
@@ -303,3 +317,50 @@ def test_check_failure_explains_update_and_evidence_in_ci(tmp_path, monkeypatch,
     text = summary.read_text()
     assert command in text and policy in text and graph.RUNNER_EXPORT in text
     assert "| `changed` |" in text and "structure/attributes only" in text and "`same`" not in text
+    assert "`ids/language`" in text
+
+
+def test_compares_every_named_model_and_detects_added_removed_and_renamed_components(capsys):
+    expected = reference()
+    expected["models"].update({name: graph.compact_snapshot(snapshot()) for name in
+                              ("embeds/language", "embeds/text_embeddings", "embeds/text_embeddings_per_layer")})
+    actual = copy.deepcopy(expected)
+    actual["models"]["embeds/text_embeddings_per_layer"]["graph_sha256"] = "a" * 64
+    actual["models"]["embeds/renamed"] = actual["models"].pop("embeds/text_embeddings")
+    delta = graph.reference_delta(expected, actual)
+    assert set(delta["models"]) == {"embeds/text_embeddings_per_layer", "embeds/text_embeddings", "embeds/renamed"}
+    assert delta["models"]["embeds/text_embeddings"]["status"] == "removed"
+    assert delta["models"]["embeds/renamed"]["status"] == "added"
+    graph.print_changes("gemma4", delta)
+    output = capsys.readouterr().out
+    assert "[embeds/text_embeddings_per_layer]: changed" in output
+    assert "[embeds/text_embeddings]: removed" in output
+    assert "[embeds/renamed]: added" in output
+
+
+def test_capture_compacts_all_returned_models_and_preserves_projector_identity(monkeypatch):
+    models = {"vision_embeddings": snapshot(), "vision_embeddings_pos": snapshot(),
+              "vision_embeddings_merger": snapshot(), "audio_generation_codec": snapshot()}
+    models["vision_embeddings_merger"]["canonical"]["nodes"][0]["inputs"].reverse()
+
+    def run(command, **kwargs):
+        Path(command[4]).write_text(json.dumps({"models": models, "projectors": ["vision.qwen3vl_merger"]}))
+        return CompletedProcess(command, 0)
+
+    monkeypatch.setattr(graph.subprocess, "run", run)
+    actual = graph.capture(recipe(), "runner")
+    assert set(actual["models"]) == set(models)
+    assert actual["projectors"] == ["vision.qwen3vl_merger"]
+    assert actual["models"]["vision_embeddings"]["graph_sha256"] != \
+        actual["models"]["vision_embeddings_merger"]["graph_sha256"]
+    assert all("canonical" not in model for model in actual["models"].values())
+
+
+def test_capture_rejects_empty_model_map(monkeypatch):
+    def run(command, **kwargs):
+        Path(command[4]).write_text('{"models":{},"projectors":[]}')
+        return CompletedProcess(command, 0)
+
+    monkeypatch.setattr(graph.subprocess, "run", run)
+    with pytest.raises(ValueError, match="nonempty named model map"):
+        graph.capture(recipe(), "runner")

@@ -23,7 +23,7 @@
 #include "op_table.hpp"
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/attribute_visitor.hpp"
-#include "openvino/frontend/extension/decoder_transformation.hpp"
+#include "openvino/frontend/gguf/adapt_to_genai.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/op/constant.hpp"
@@ -220,7 +220,6 @@ std::shared_ptr<ov::Model> convert_recipe(const Json& recipe) {
     auto graph = builder(translators);
     FrontEnd frontend;
     frontend.add_extension(structural_weight_extension());
-    frontend.add_extension(std::make_shared<ov::frontend::DecoderTransformationExtension>(pass::GGUFMakeStateful()));
     std::shared_ptr<GgufDecoder> decoder = std::make_shared<GgufBuilderDecoder>(graph);
     return frontend.convert(frontend.load(decoder));
 }
@@ -764,7 +763,36 @@ int graph_snapshot_main(int argc, char** argv) {
     OPENVINO_ASSERT(input, "Cannot read recipe: ", argv[2]);
     Json recipe;
     input >> recipe;
-    const auto snapshot = graph_snapshot(convert_recipe(recipe));
+    auto model = convert_recipe(recipe);
+    Json snapshot = {{"models", Json::object()}, {"projectors", Json::array()}};
+    const bool mmproj = model->has_rt_info("gguf_mmproj");
+    if (mmproj) {
+        const auto config = model->get_rt_info<ov::AnyMap>("gguf_mmproj");
+        std::set<std::string> projectors;
+        const std::string suffix = ".projector";
+        for (const auto& [key, value] : config) {
+            if (key.size() > suffix.size() && key.compare(key.size() - suffix.size(), suffix.size(), suffix) == 0)
+                projectors.insert(key.substr(0, key.size() - suffix.size()) + "." + value.as<std::string>());
+        }
+        snapshot["projectors"] = projectors;
+    }
+    const auto capture = [&](const std::string& prefix, const ov::frontend::gguf::ModelMap& models) {
+        OPENVINO_ASSERT(!models.empty(), "GenAI adaptation returned no models");
+        for (const auto& [name, component] : models) {
+            OPENVINO_ASSERT(!name.empty() && component, "GenAI adaptation returned an invalid named model");
+            snapshot["models"][prefix + name] = graph_snapshot(component);
+        }
+    };
+    using namespace ov::frontend::gguf;
+    if (mmproj) {
+        capture("", adapt_to_genai(model));
+    } else if (!recipe.value("native_only", false)) {
+        capture("ids/", adapt_to_genai(model->clone()));
+        capture("embeds/", adapt_to_genai(model, {pass::AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS}));
+    } else {
+        pass::GGUFMakeStateful().run_on_model(model);
+        snapshot["models"]["native"] = graph_snapshot(model);
+    }
     std::ofstream output(argv[4]);
     OPENVINO_ASSERT(output, "Cannot create snapshot: ", argv[4]);
     output << snapshot.dump() << '\n';

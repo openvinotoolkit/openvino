@@ -1,47 +1,51 @@
 {
-  "graph_sha256": "343c3525f2038c0529c21425dc2c4abe22093b1d698dbc62299d68eecb57c762",
-  "ops": [
-    ["Add","opset1",67],
-    ["Assign","opset6",12],
-    ["Broadcast","opset3",24],
-    ["Concat","opset1",49],
-    ["Constant","opset1",368],
-    ["Convert","opset1",26],
-    ["Cos","opset1",1],
-    ["GGUFPlannedWeight","gguf",80],
-    ["Gather","opset8",20],
-    ["MatMul","opset1",48],
-    ["Multiply","opset1",122],
-    ["Parameter","opset1",7],
-    ["Power","opset1",52],
-    ["ReadValue","opset6",12],
-    ["ReduceMean","opset1",26],
-    ["Reshape","opset1",84],
-    ["Result","opset1",4],
-    ["ScaledDotProductAttention","opset13",6],
-    ["ShapeOf","opset3",7],
-    ["Sin","opset1",1],
-    ["Slice","opset8",6],
-    ["Sqrt","opset1",26],
-    ["Squeeze","opset1",2],
-    ["Swish","opset4",7],
-    ["Transpose","opset1",73],
-    ["Unsqueeze","opset1",14],
-    ["VariadicSplit","opset1",12]
-  ],
-  "projections": [
-    ["MatMul","3","f32","ggml:3/group:32/weight:u32",12],
-    ["MatMul","4","f32","ggml:3/group:32/weight:u32",34],
-    ["MatMul","4","f32","ggml:30/group:1/weight:bf16",2]
-  ],
-  "projectors": [],
-  "totals": {
-    "edges": 1374,
-    "inputs": 7,
-    "nodes": 1156,
-    "outputs": 4,
-    "states": 12,
-    "top_level_nodes": 1156
+  "models": {
+    "native": {
+      "graph_sha256": "6b410e9d82d8a213243d870455087f3a1a2ff4ead0cdbb5c6af3c07818e23db9",
+      "ops": [
+        ["Add","opset1",67],
+        ["Assign","opset6",12],
+        ["Broadcast","opset3",24],
+        ["Concat","opset1",49],
+        ["Constant","opset1",368],
+        ["Convert","opset1",26],
+        ["Cos","opset1",1],
+        ["GGUFPlannedWeight","gguf",80],
+        ["Gather","opset8",20],
+        ["MatMul","opset1",48],
+        ["Multiply","opset1",122],
+        ["Parameter","opset1",7],
+        ["Power","opset1",52],
+        ["ReadValue","opset6",12],
+        ["ReduceMean","opset1",26],
+        ["Reshape","opset1",84],
+        ["Result","opset1",4],
+        ["ScaledDotProductAttention","opset13",6],
+        ["ShapeOf","opset3",7],
+        ["Sin","opset1",1],
+        ["Slice","opset8",6],
+        ["Sqrt","opset1",26],
+        ["Squeeze","opset1",2],
+        ["Swish","opset4",7],
+        ["Transpose","opset1",73],
+        ["Unsqueeze","opset1",14],
+        ["VariadicSplit","opset1",12]
+      ],
+      "projections": [
+        ["MatMul","3","f32","ggml:3/group:32/weight:u32",12],
+        ["MatMul","4","f32","ggml:3/group:32/weight:u32",34],
+        ["MatMul","4","f32","ggml:30/group:1/weight:bf16",2]
+      ],
+      "totals": {
+        "edges": 1374,
+        "inputs": 7,
+        "nodes": 1156,
+        "outputs": 4,
+        "states": 12,
+        "top_level_nodes": 1156
+      }
+    }
   },
-  "version": 2
+  "projectors": [],
+  "version": 3
 }

@@ -23,7 +23,7 @@ HERE = Path(__file__).resolve().parent
 DATA = HERE / "test_data" / "graph_regressions"
 MAX_REFERENCE_BYTES = 32 * 1024
 VERSION = 1
-REFERENCE_VERSION = 2
+REFERENCE_VERSION = 3
 RECIPE_VERSION = 2
 SCRIPT_PATH = "src/frontends/gguf/tests/graph_fingerprint.py"
 REFERENCES_PATH = "src/frontends/gguf/tests/test_data/graph_regressions/references"
@@ -76,9 +76,6 @@ def compact_snapshot(snapshot):
     if sum(row[-1] for row in result["ops"]) != result["totals"]["nodes"]:
         raise ValueError("Operation histogram does not match captured node count")
     result["graph_sha256"] = digest(snapshot["canonical"])
-    config = snapshot["canonical"].get("runtime", {}).get("gguf_mmproj", {})
-    result["projectors"] = sorted(f"{key.removesuffix('.projector')}.{value}"
-                                  for key, value in config.items() if key.endswith(".projector"))
     return result
 
 
@@ -90,29 +87,39 @@ def histogram_delta(expected, actual):
             if before.get(key, 0) != after.get(key, 0)]
 
 
-def reference_delta(expected, actual):
-    old = {key: value for key, value in expected.items() if key != "version"} if expected else None
-    new = {key: value for key, value in actual.items() if key != "version"}
+def model_delta(old, new):
     if old == new:
         return None
     return {
-        "status": "added" if old is None else "changed",
-        "ops": histogram_delta(old["ops"] if old else [], new["ops"]),
-        "projections": histogram_delta(old["projections"] if old else [], new["projections"]),
+        "status": "added" if old is None else "removed" if new is None else "changed",
+        "ops": histogram_delta(old["ops"] if old else [], new["ops"] if new else []),
+        "projections": histogram_delta(old["projections"] if old else [], new["projections"] if new else []),
         "before_nodes": old["totals"]["nodes"] if old else 0,
-        "after_nodes": new["totals"]["nodes"],
-        "graph_changed": old is None or old["graph_sha256"] != new["graph_sha256"],
+        "after_nodes": new["totals"]["nodes"] if new else 0,
+        "graph_changed": old is None or new is None or old["graph_sha256"] != new["graph_sha256"],
     }
 
 
+def reference_delta(expected, actual):
+    old = expected["models"] if expected else {}
+    new = actual["models"]
+    changes = {name: delta for name in sorted(old.keys() | new.keys())
+               if (delta := model_delta(old.get(name), new.get(name)))}
+    projectors_changed = expected is None or expected["projectors"] != actual["projectors"]
+    return {"models": changes, "projectors_changed": projectors_changed} if changes or projectors_changed else None
+
+
 def print_changes(case, change):
-    print(f"{case}: {change['status']}; operations {change['before_nodes']} -> {change['after_nodes']}")
-    for field in ("ops", "projections"):
-        for row in change[field]:
-            kind = "added" if row["delta"] > 0 else "removed"
-            print(f"  {kind} {field}: {'/'.join(map(str, row['signature']))} {row['delta']:+d}")
-    if change["graph_changed"] and not change["ops"]:
-        print("  structure/attributes changed; operation counts unchanged")
+    for name, delta in change["models"].items():
+        print(f"{case} [{name}]: {delta['status']}; operations {delta['before_nodes']} -> {delta['after_nodes']}")
+        for field in ("ops", "projections"):
+            for row in delta[field]:
+                kind = "added" if row["delta"] > 0 else "removed"
+                print(f"  {kind} {field}: {'/'.join(map(str, row['signature']))} {row['delta']:+d}")
+        if delta["graph_changed"] and not delta["ops"]:
+            print("  structure/attributes changed; operation counts unchanged")
+    if change["projectors_changed"]:
+        print(f"{case}: projector identities changed")
 
 
 def source_link(path, anchor=""):
@@ -163,15 +170,18 @@ def publish_failure(changes, report_path):
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if not summary:
         return
-    rows = ["| Case | Operations | Changed operation types | Changed projections |", "|---|---|---|---|"]
+    rows = ["| Case | Model | Status | Operations | Changed operation types | Changed projections |",
+            "|---|---|---|---|---|---|"]
     for change in changes:
-        delta = change["change"]
-        ops, projections = (", ".join(f"{'/'.join(map(str, row['signature']))} {row['delta']:+d}"
-                                      for row in delta[field]) or "-" for field in ("ops", "projections"))
-        if ops == "-" and projections == "-":
-            ops = "structure/attributes only"
-        rows.append(f"| `{change['case']}` | {delta['before_nodes']} → {delta['after_nodes']} | {ops} | "
-                    f"{projections} |")
+        for name, delta in change["change"]["models"].items():
+            ops, projections = (", ".join(f"{'/'.join(map(str, row['signature']))} {row['delta']:+d}"
+                                          for row in delta[field]) or "-" for field in ("ops", "projections"))
+            if ops == "-" and projections == "-":
+                ops = "structure/attributes only"
+            rows.append(f"| `{change['case']}` | `{name}` | {delta['status']} | "
+                        f"{delta['before_nodes']} → {delta['after_nodes']} | {ops} | {projections} |")
+        if change["change"]["projectors_changed"]:
+            rows.append(f"| `{change['case']}` | - | projector identities changed | - | - | - |")
     text = "\n".join([
         "## GGUF structural regression check failed", "",
         f"{len(changes)} case(s) differ from the committed references.", "", *rows, "",
@@ -648,7 +658,11 @@ def capture(recipe, runner):
             raise ValueError("Snapshot runner timed out after 120 seconds") from error
         if result.returncode:
             raise ValueError(f"Snapshot runner failed ({result.returncode}): {result.stderr[-4000:]}")
-        return compact_snapshot(load_json(output))
+        snapshot = load_json(output)
+        if not isinstance(snapshot.get("models"), dict) or not snapshot["models"]:
+            raise ValueError("Snapshot runner must return a nonempty named model map")
+        return {"models": {name: compact_snapshot(model) for name, model in snapshot["models"].items()},
+                "projectors": snapshot["projectors"]}
 
 
 def reference_bytes(reference):
@@ -777,6 +791,8 @@ def _run_cases(args, report):
             raise ValueError(f"Invalid case ID: {case['id']}")
         recipe_path = contained_path(root, case["recipe"])
         recipe = load_recipe(recipe_path)
+        if "native_only" in case:
+            recipe["native_only"] = True
         model = capture(recipe, runner)
         if "projectors" in case and model["projectors"] != case["projectors"]:
             raise ValueError(f"Projector identity mismatch for {case['id']}: {model['projectors']}")
@@ -790,8 +806,9 @@ def _run_cases(args, report):
             expected = None
         if expected is not None:
             validate_document(expected, "reference")
-            if sum(row[-1] for row in expected["ops"]) != expected["totals"]["nodes"]:
-                raise ValueError(f"Reference histogram is inconsistent for {case['id']}")
+            for name, component in expected["models"].items():
+                if sum(row[-1] for row in component["ops"]) != component["totals"]["nodes"]:
+                    raise ValueError(f"Reference histogram is inconsistent for {case['id']} [{name}]")
             reference_bytes(expected)
         delta = reference_delta(expected, actual)
         if delta:

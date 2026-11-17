@@ -87,6 +87,7 @@
         "id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+$"},
         "architecture": {"type": "string", "minLength": 1},
         "kind": {"enum": ["model", "representative"]},
+        "native_only": {"type": "string", "minLength": 1},
         "fixture": {"type": "string", "minLength": 1},
         "projectors": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
         "models": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
@@ -133,15 +134,13 @@
         "maxItems": 5
       }
     },
-    "reference": {
+    "model": {
       "type": "object",
-      "required": ["version", "graph_sha256", "totals", "ops", "projections"],
+      "required": ["graph_sha256", "totals", "ops", "projections"],
       "properties": {
-        "version": {"const": 2},
         "graph_sha256": {"$ref": "#/$defs/hash"},
         "ops": {"$ref": "#/$defs/histogram"},
         "projections": {"$ref": "#/$defs/projections"},
-        "projectors": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
         "totals": {
           "type": "object",
           "required": ["nodes", "top_level_nodes", "edges", "states"],
@@ -154,6 +153,21 @@
             "states": {"type": "integer", "minimum": 0}
           }
         }
+      },
+      "additionalProperties": false
+    },
+    "reference": {
+      "type": "object",
+      "required": ["version", "models", "projectors"],
+      "properties": {
+        "version": {"const": 3},
+        "models": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {"type": "string", "minLength": 1},
+          "additionalProperties": {"$ref": "#/$defs/model"}
+        },
+        "projectors": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
       },
       "additionalProperties": false
     }
