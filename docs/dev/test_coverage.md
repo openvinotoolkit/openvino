@@ -102,7 +102,9 @@ pwsh -File scripts/run_windows_npu_coverage.ps1 -Mode Plain
 The build uses Ninja Multi-Config, Release, `ENABLE_COVERAGE=ON` and
 `ENABLE_PDB_IN_RELEASE=ON`, as in the Windows workflow. It keeps CPU (needed by
 NPUW), NPU and IR support, but omits Python/JS bindings, wheels, samples and other
-frontends to reduce dependencies. Other C++ tests may be built/installed, but only
+frontends to reduce dependencies. `ENABLE_FUNCTIONAL_TESTS=ON` is required because
+NPU and HETERO also configure functional test targets that need the shared test
+utilities. This does not select them for execution. Other C++ tests may be built/installed, but only
 `ov_npu_unit_tests.exe` is run. There is no shared compiler cache or CI packaging
 metadata. Submodules and CMake dependencies require network access; configure
 your machine's proxy/CA trust if needed.
