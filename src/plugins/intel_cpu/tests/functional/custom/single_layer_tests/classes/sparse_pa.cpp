@@ -219,6 +219,23 @@ std::vector<float> run_sparse_pa_reference(const ReferenceDims& d,
     return output;
 }
 
+const char* invalid_name(ov::test::SparsePAInvalid invalid) {
+    switch (invalid) {
+    case ov::test::SparsePAInvalid::kValueCachePageSize:
+        return "ValueCachePageSize";
+    case ov::test::SparsePAInvalid::kValueCacheHeadSize:
+        return "ValueCacheHeadSize";
+    case ov::test::SparsePAInvalid::kKvHeadCount:
+        return "KvHeadCount";
+    case ov::test::SparsePAInvalid::kBlockIdOutOfRange:
+        return "BlockIdOutOfRange";
+    case ov::test::SparsePAInvalid::kNegativeBlockId:
+        return "NegativeBlockId";
+    default:
+        return "None";
+    }
+}
+
 const char* selection_name(ov::test::SparsePASelection selection) {
     switch (selection) {
     case ov::test::SparsePASelection::kRecent:
@@ -249,6 +266,9 @@ std::string SparsePALayerCPUTest::getTestCaseName(const testing::TestParamInfo<S
            << "_Sel=" << selection_name(cfg.selection) << (cfg.shuffle_blocks ? "_Shuffled" : "")
            << "_Cache=" << (cfg.cache_precision == ov::element::dynamic ? "plain" : cfg.cache_precision.get_type_name())
            << "_KeyByChannel=" << cfg.key_bychannel << "_Group=" << cfg.group_size << "_Mixed=" << cfg.mixed_lengths;
+    if (cfg.invalid != SparsePAInvalid::kNone) {
+        result << "_Invalid=" << invalid_name(cfg.invalid);
+    }
     return result.str();
 }
 
@@ -323,7 +343,9 @@ void SparsePALayerCPUTest::SetUp() {
     // thread packs it (the SIMD pack paths), two threads give a decode of one sequence fewer items than that, so it
     // runs one head per item next to the prefill items of a mixed call (the layout on many cores). Single-sequence
     // cases take the first, mixed batches the second.
-    configuration[ov::inference_num_threads.name()] = m_cfg.mixed_lengths ? 2 : 1;
+    // An invalid case needs two threads: the single-thread infer path returns without the node's exception.
+    configuration[ov::inference_num_threads.name()] =
+        (m_cfg.mixed_lengths || m_cfg.invalid != SparsePAInvalid::kNone) ? 2 : 1;
     if (data_precision == ov::element::bf16) {
         rel_threshold = 5e-2F;
         abs_threshold = 5e-2F;
@@ -356,6 +378,16 @@ void SparsePALayerCPUTest::SetUp() {
         return static_cast<int64_t>(value);
     };
 
+    // The cache shape the model declares: the final one, or for an invalid case the dynamic page / head dims of a real
+    // model (the invalid tensors differ in them).
+    const auto declared_cache_shape = [&](bool is_key) {
+        const auto shape = cache_shape(is_key);
+        if (m_cfg.invalid == SparsePAInvalid::kNone || m_cfg.invalid == SparsePAInvalid::kBlockIdOutOfRange ||
+            m_cfg.invalid == SparsePAInvalid::kNegativeBlockId) {
+            return ov::PartialShape(shape);
+        }
+        return ov::PartialShape{dim(shape[0]), dyn, dyn, dyn};
+    };
     auto p_query = std::make_shared<ov::op::v0::Parameter>(data_precision,
                                                            ov::PartialShape{dyn, dim(m_num_heads * m_k_head_size)});
     auto p_key =
@@ -365,10 +397,10 @@ void SparsePALayerCPUTest::SetUp() {
     // runtime info set on the op below), so they start out unspecified.
     auto p_key_cache = quantized()
                            ? std::make_shared<ov::op::v0::Parameter>(ov::element::dynamic, ov::PartialShape::dynamic(4))
-                           : std::make_shared<ov::op::v0::Parameter>(data_precision, cache_shape(true));
+                           : std::make_shared<ov::op::v0::Parameter>(data_precision, declared_cache_shape(true));
     auto p_value_cache =
         quantized() ? std::make_shared<ov::op::v0::Parameter>(ov::element::dynamic, ov::PartialShape::dynamic(4))
-                    : std::make_shared<ov::op::v0::Parameter>(data_precision, cache_shape(false));
+                    : std::make_shared<ov::op::v0::Parameter>(data_precision, declared_cache_shape(false));
     auto p_past_lens = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{m_num_sequences});
     auto p_subsequence_begins =
         std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{m_num_sequences + 1});
@@ -533,6 +565,42 @@ void SparsePALayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetI
     tensors[2] = value;
     tensors[3] = m_key_cache;
     tensors[4] = m_value_cache;
+    auto cache_with_shape = [this](ov::Shape shape) {
+        ov::Tensor t(cache_type(), shape);
+        std::memset(t.data(), 0, t.get_byte_size());
+        return t;
+    };
+    switch (m_cfg.invalid) {
+    case SparsePAInvalid::kValueCachePageSize: {
+        auto shape = cache_shape(false);
+        shape[2] /= 2;
+        tensors[4] = cache_with_shape(shape);
+        break;
+    }
+    case SparsePAInvalid::kValueCacheHeadSize: {
+        auto shape = cache_shape(false);
+        shape[3] /= 2;
+        tensors[4] = cache_with_shape(shape);
+        break;
+    }
+    case SparsePAInvalid::kKvHeadCount: {
+        auto key_shape = cache_shape(true);
+        auto value_shape = cache_shape(false);
+        key_shape[1]--;
+        value_shape[1]--;
+        tensors[3] = cache_with_shape(key_shape);
+        tensors[4] = cache_with_shape(value_shape);
+        break;
+    }
+    case SparsePAInvalid::kBlockIdOutOfRange:
+        block_indices[0] = static_cast<int32_t>(n_phys);
+        break;
+    case SparsePAInvalid::kNegativeBlockId:
+        block_indices[0] = -1;
+        break;
+    default:
+        break;
+    }
     tensors[5] = make_i32(std::vector<int32_t>(m_cur_past.begin(), m_cur_past.end()));
     std::vector<int32_t> subsequence_begins(B + 1);
     std::vector<int32_t> block_indices_begins(B + 1);
@@ -703,6 +771,24 @@ TEST_P(SparsePALayerCPUTest, CompareWithRefs) {
     if (std::get<0>(GetParam()) == ov::element::f16 &&
         !(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx2_vnni_2())) {
         GTEST_SKIP() << "f16 is not supported on this CPU";
+    }
+    const auto invalid = std::get<2>(GetParam()).invalid;
+    if (invalid != SparsePAInvalid::kNone) {
+        // Inference must reject the input with an exception, before anything is written or read out of bounds.
+        compile_model();
+        generate_inputs(targetStaticShapes.at(0));
+        try {
+            infer();
+            ADD_FAILURE() << "the invalid input was accepted";
+        } catch (const std::exception& ex) {
+            // A tensor of a wrong cache shape is already refused when it is set (the plugin pins the cache shapes of
+            // the model), the page table by the node.
+            const std::string what = ex.what();
+            const bool is_page_table =
+                invalid == SparsePAInvalid::kBlockIdOutOfRange || invalid == SparsePAInvalid::kNegativeBlockId;
+            EXPECT_NE(what.find(is_page_table ? "block id" : "incompatible"), std::string::npos) << what;
+        }
+        return;
     }
     run();
 }

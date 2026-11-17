@@ -101,11 +101,9 @@ private:
     }
 
     Config m_config{};
-#ifdef OPENVINO_ARCH_X86_64
     // AMX matrix products of the prefill path (empty when the node is not eligible), see TileBrgemm. Declared before
     // the executor, which uses them.
     ov::Extensions::Cpu::TileBrgemmKernels m_brgemm;
-#endif
     std::shared_ptr<ov::Extensions::Cpu::SparsePAExecutor> m_executor;
 };
 

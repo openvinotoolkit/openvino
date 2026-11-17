@@ -95,5 +95,32 @@ INSTANTIATE_TEST_SUITE_P(smoke_QSAIndexer_CPU_OrderByScore,
                                           testing::Values(true)),
                          QSAIndexerLayerCPUTest::getTestCaseName);
 
+// Degenerate scores: NaN in the keys, scores overflowing to +-Inf / NaN, and scores that differ by less than
+// 256 / FLT_MAX. The gains of the last two are out of the f16 range. Only the selection invariants are checked.
+INSTANTIATE_TEST_SUITE_P(smoke_QSAIndexer_CPU_DegenerateScores_NaN,
+                         QSAIndexerLayerCPUTest,
+                         testing::Combine(testing::Values(ov::test::utils::DEVICE_CPU),
+                                          testing::Values(ov::element::f32, ov::element::f16, ov::element::bf16),
+                                          testing::Values(static_cast<size_t>(2), static_cast<size_t>(4)),
+                                          testing::Values(static_cast<size_t>(2)),
+                                          testing::Values(static_cast<size_t>(1), static_cast<size_t>(2)),
+                                          testing::Values(static_cast<size_t>(2)),
+                                          testing::Values(QSAIndexerScenario::kNaNScores),
+                                          testing::Values(false, true)),
+                         QSAIndexerLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_QSAIndexer_CPU_DegenerateScores_OverflowAndTiny,
+                         QSAIndexerLayerCPUTest,
+                         testing::Combine(testing::Values(ov::test::utils::DEVICE_CPU),
+                                          testing::Values(ov::element::f32, ov::element::bf16),
+                                          testing::Values(static_cast<size_t>(2), static_cast<size_t>(4)),
+                                          testing::Values(static_cast<size_t>(2)),
+                                          testing::Values(static_cast<size_t>(1), static_cast<size_t>(2)),
+                                          testing::Values(static_cast<size_t>(2)),
+                                          testing::Values(QSAIndexerScenario::kOverflowScores,
+                                                          QSAIndexerScenario::kTinyScores),
+                                          testing::Values(false, true)),
+                         QSAIndexerLayerCPUTest::getTestCaseName);
+
 }  // namespace test
 }  // namespace ov

@@ -107,12 +107,10 @@ private:
     // later createScratchPadMem() that grows it frees the memory of an earlier one. execute() makes exactly one
     // combined request and never holds a pointer across it.
 
-#ifdef OPENVINO_ARCH_X86_64
     // AMX matrix products of the prefill over a pack of query heads (empty when the node is not eligible: no AMX, a non
     // bf16/f16 cache, a non-causal op, dynamic head counts or a pack of one head), see TileBrgemm. Declared before the
     // executor, which uses them.
     ov::Extensions::Cpu::TileBrgemmKernels m_brgemm;
-#endif
     std::shared_ptr<ov::Extensions::Cpu::SparseSdpaExecutor> m_executor;
 };
 

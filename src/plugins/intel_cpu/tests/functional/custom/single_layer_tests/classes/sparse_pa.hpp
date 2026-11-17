@@ -24,6 +24,18 @@ enum class SparsePASelection {
     kEmpty,   // none: only the causal tail is attended
 };
 
+// An invalid input the op must reject (the compilation and every earlier call are valid): the caches of such a case are
+// declared with dynamic page / head dims, like the ones of a real model, as the shape inference leaves the cache layout
+// to the backend.
+enum class SparsePAInvalid {
+    kNone,
+    kValueCachePageSize,  // the value cache has fewer rows per page than the key cache
+    kValueCacheHeadSize,  // the value cache rows are narrower than v_head_size
+    kKvHeadCount,         // both caches have one KV head too few
+    kBlockIdOutOfRange,   // a block id equal to the number of cache pages
+    kNegativeBlockId,     // a block id of -1
+};
+
 // Everything about the op that is not carried by the step shapes.
 struct SparsePAConfig {
     size_t num_kv_heads = 2;
@@ -44,6 +56,7 @@ struct SparsePAConfig {
     // sequences in one call -- sequence s gets L tokens if s % 3 == 0, a single decode token if s % 3 == 1 and
     // (L + 1) / 2 tokens if s % 3 == 2, so the sequences also have different past lengths.
     bool mixed_lengths = false;
+    SparsePAInvalid invalid = SparsePAInvalid::kNone;  // plain caches only
 };
 
 // Data precision (query, key, value, scale, sinks, plain caches and the inference precision), the steps and the config.

@@ -51,6 +51,7 @@ struct KVCachePattern {
 
 KVCachePattern make_pattern() {
     using namespace ov::pass::pattern;
+    using ov::pass::operator|;  // not found through the pattern namespace: it lives in ov::pass
     KVCachePattern p;
     p.beam_idx = any_input(type_matches(element::i32) && shape_matches("[?]"));
     p.cur_q = any_input();
@@ -81,8 +82,9 @@ KVCachePattern make_pattern() {
     p.gather_k = wrap_type<ov::op::v7::Gather, ov::op::v8::Gather>({convert_past_k, p.beam_idx, axis_k}, beam_gather);
     p.gather_v = wrap_type<ov::op::v7::Gather, ov::op::v8::Gather>({convert_past_v, p.beam_idx, axis_v}, beam_gather);
 
-    // key/value are [N, Hkv, S, E] and are concatenated along S. The Concat feeds the SparseAttention, the Assign
-    // (maybe through a Convert) and optionally a ShapeOf.
+    // key/value are [N, Hkv, S, E] and are concatenated along S (axis 2, or -2 as PyTorch exports write it: the
+    // Concat attribute is not normalized). The Concat feeds the SparseAttention, the Assign (maybe through a Convert)
+    // and optionally a ShapeOf.
     auto assign_and_optional_shape_of = [](const ov::Output<ov::Node>& out) {
         const auto children = out.get_target_inputs();
         return children.size() == 2 ||
@@ -90,7 +92,8 @@ KVCachePattern make_pattern() {
                     return ov::is_type<ov::op::util::ShapeOfBase>(c.get_node());
                 }));
     };
-    const auto concat_s = rank_equals(4) && attrs_match({{"axis", 2}}) && assign_and_optional_shape_of;
+    const auto concat_s =
+        rank_equals(4) && (attrs_match({{"axis", 2}}) || attrs_match({{"axis", -2}})) && assign_and_optional_shape_of;
     p.concat_k = wrap_type<ov::op::v0::Concat>({p.gather_k, p.cur_k}, concat_s);
     p.concat_v = wrap_type<ov::op::v0::Concat>({p.gather_v, p.cur_v}, concat_s);
 
@@ -102,7 +105,7 @@ KVCachePattern make_pattern() {
     auto sparse1 = wrap_type<ov::op::v17::SparseAttention>(
         {p.cur_q, p.concat_k, p.concat_v, p.block_indices, p.block_count, p.key_length},
         single_query_block);
-    p.sparse = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{sparse0, sparse1});
+    p.sparse = sparse0 | sparse1;
     return p;
 }
 

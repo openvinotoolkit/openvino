@@ -22,7 +22,6 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sparse_attention.hpp"
 #include "openvino/op/util/variable.hpp"
-#include "openvino/pass/manager.hpp"
 #include "transformations/cpu_opset/x64/op/sparse_attention_with_kv_cache.hpp"
 
 using namespace ov;
@@ -59,6 +58,11 @@ std::shared_ptr<ov::Model> make_model(const Options& opt) {
     auto var_v = std::make_shared<op::util::Variable>(op::util::VariableInfo{PartialShape{-1, 2, -1, 16}, et, "pastv"});
     std::shared_ptr<Node> past_k = std::make_shared<op::v6::ReadValue>(init, var_k);
     std::shared_ptr<Node> past_v = std::make_shared<op::v6::ReadValue>(init, var_v);
+    if (opt.fused) {
+        // the fusion keeps the init subgraphs out of the fused states (MoveReadValueInputsToSubgraph honours the mark)
+        past_k->get_rt_info()["DisableInitSubgraphFusing"] = true;
+        past_v->get_rt_info()["DisableInitSubgraphFusing"] = true;
+    }
     const auto read_k = past_k;
 
     ResultVector results;
@@ -135,17 +139,6 @@ std::shared_ptr<ov::Model> make_model(const Options& opt) {
     return std::make_shared<ov::Model>(results, SinkVector{assign_k, assign_v}, params, "SparseKV");
 }
 
-void expect_fused(const std::shared_ptr<ov::Model>& model, bool fused) {
-    size_t fused_count = 0;
-    size_t sparse_count = 0;
-    for (const auto& op : model->get_ops()) {
-        fused_count += ov::is_type<SparseAttentionWithKVCache>(op) ? 1 : 0;
-        sparse_count += ov::is_type<op::v17::SparseAttention>(op) ? 1 : 0;
-    }
-    EXPECT_EQ(fused_count, fused ? 1U : 0U);
-    EXPECT_EQ(sparse_count, fused ? 0U : 1U);
-}
-
 }  // namespace
 
 class SparseAttentionKVCacheFusionTest : public TransformationTestsF {
@@ -157,7 +150,6 @@ protected:
         test_skipped = true;
         GTEST_SKIP() << "Skipping SparseAttentionKVCacheFusion tests on Android X64";
 #endif
-        disable_rt_info_check();
         manager.register_pass<SparseAttentionKVCacheFusion>();
     }
 };
@@ -178,6 +170,15 @@ TEST_F(SparseAttentionKVCacheFusionTest, FusesWithKeyLengthAndConverts) {
     model_ref = make_model(opt);
 }
 
+// PyTorch exports write the sequence axis as -2; the Concat attribute is not normalized.
+TEST_F(SparseAttentionKVCacheFusionTest, FusesWithNegativeConcatAxis) {
+    Options opt;
+    opt.concat_axis = -2;
+    model = make_model(opt);
+    opt.fused = true;
+    model_ref = make_model(opt);
+}
+
 TEST_F(SparseAttentionKVCacheFusionTest, FusesAndReroutesShapeOfOfConcat) {
     Options opt;
     opt.shape_of_on_concat = true;
@@ -190,23 +191,10 @@ TEST_F(SparseAttentionKVCacheFusionTest, NoFusionWhenCacheHasOtherReader) {
     Options opt;
     opt.extra_cache_reader = true;
     model = make_model(opt);
-    model_ref = model->clone();
 }
 
 TEST_F(SparseAttentionKVCacheFusionTest, NoFusionForQueryBlockSizeAboveOne) {
     Options opt;
     opt.query_block_size = 2;
     model = make_model(opt);
-    model_ref = model->clone();
-}
-
-TEST(SparseAttentionKVCacheFusionStructure, SinksAreFedByTheFusedOp) {
-    auto model = make_model({});
-    ov::pass::Manager manager;
-    manager.register_pass<SparseAttentionKVCacheFusion>();
-    manager.run_passes(model);
-    expect_fused(model, true);
-    for (const auto& sink : model->get_sinks()) {
-        EXPECT_TRUE(ov::is_type<SparseAttentionWithKVCache>(sink->get_input_node_shared_ptr(0)));
-    }
 }

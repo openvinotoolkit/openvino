@@ -8,6 +8,8 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <limits>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -297,6 +299,15 @@ std::string QSAIndexerLayerCPUTest::getTestCaseName(const testing::TestParamInfo
     case QSAIndexerScenario::kRaggedCalls:
         scenario_name = "RaggedCalls";
         break;
+    case QSAIndexerScenario::kNaNScores:
+        scenario_name = "NaNScores";
+        break;
+    case QSAIndexerScenario::kOverflowScores:
+        scenario_name = "OverflowScores";
+        break;
+    case QSAIndexerScenario::kTinyScores:
+        scenario_name = "TinyScores";
+        break;
     }
     return "Target=" + device + "_DataPrecision=" + data_precision.get_type_name() + "_Hiq=" + std::to_string(h_iq) +
            "_Hik=" + std::to_string(h_ik) + "_Hsel=" + std::to_string(h_sel) + "_Batch=" + std::to_string(batch) +
@@ -348,6 +359,10 @@ void QSAIndexerLayerCPUTest::SetUp() {
         m_calls.push_back(CallSpec{7, {7, 5}});
         m_calls.push_back(CallSpec{3, {10, 8}});
         m_calls.push_back(CallSpec{5, {15, 13}});
+    } else if (is_degenerate_scores_scenario()) {
+        m_compress_ratio = 2;
+        m_summary_cap = 40;
+        m_calls.push_back(CallSpec{80, std::vector<int32_t>(m_batch, 80)});
     } else {
         m_compress_ratio = 2;
         m_summary_cap = 4;
@@ -444,6 +459,44 @@ void QSAIndexerLayerCPUTest::compare(const std::vector<ov::Tensor>& expected, co
     }
 }
 
+bool QSAIndexerLayerCPUTest::is_degenerate_scores_scenario() const {
+    return m_scenario == QSAIndexerScenario::kNaNScores || m_scenario == QSAIndexerScenario::kOverflowScores ||
+           m_scenario == QSAIndexerScenario::kTinyScores;
+}
+
+void QSAIndexerLayerCPUTest::check_selection_invariants(const CallSpec& call,
+                                                        const std::vector<ov::Tensor>& outs) const {
+    using OutputIdx = ov::intel_cpu::QSAIndexerNode::OutputIdx;
+    const auto L = static_cast<size_t>(call.length);
+    const auto r = static_cast<int64_t>(m_compress_ratio);
+    const auto* indices = outs[OutputIdx::SEL_INDICES].data<int32_t>();
+    const auto* counts = outs[OutputIdx::SEL_COUNT].data<int32_t>();
+    for (size_t b = 0; b < m_batch; b++) {
+        for (size_t sh = 0; sh < m_h_sel; sh++) {
+            for (size_t l = 0; l < L; l++) {
+                const int64_t abs_pos = call.key_length[b] - call.length + static_cast<int64_t>(l);
+                const int64_t visible = (abs_pos + 1) / r;  // the complete blocks up to the token
+                const size_t row = (b * m_h_sel + sh) * L + l;
+                const auto count = static_cast<size_t>(counts[row]);
+                const std::string where =
+                    "row " + std::to_string(b) + ", sel head " + std::to_string(sh) + ", token " + std::to_string(l);
+                ASSERT_EQ(count, std::min(m_block_topk, static_cast<size_t>(visible))) << where;
+                const int32_t* chosen = indices + row * m_block_topk;
+                for (size_t i = 0; i < count; i++) {
+                    ASSERT_GE(chosen[i], 0) << where;
+                    ASSERT_LT(chosen[i], visible) << where;
+                    for (size_t j = 0; j < i; j++) {
+                        ASSERT_NE(chosen[i], chosen[j]) << "duplicate block, " << where;
+                    }
+                    if (!m_order_by_score && i > 0) {
+                        ASSERT_LT(chosen[i - 1], chosen[i]) << "blocks not ascending, " << where;
+                    }
+                }
+            }
+        }
+    }
+}
+
 std::vector<ov::Tensor> QSAIndexerLayerCPUTest::run_call(const CallSpec& call, size_t call_idx) {
     const size_t L = static_cast<size_t>(call.length);
 
@@ -455,6 +508,18 @@ std::vector<ov::Tensor> QSAIndexerLayerCPUTest::run_call(const CallSpec& call, s
         m_data_precision,
         ov::Shape{m_batch, L, m_h_ik, m_didx},
         ov::test::utils::InputGenerateData(-1, 2, 1000, static_cast<int32_t>(10 + call_idx * 4 + 2)));
+
+    if (m_scenario == QSAIndexerScenario::kNaNScores) {
+        // one NaN in the keys of the tokens of blocks 3, 4 and 17 (tokens 2b, 2b + 1 of the block b)
+        auto k_values = read_tensor_to_f32(t_k_idx);
+        for (size_t b = 0; b < m_batch; b++) {
+            for (const size_t token : {6UL, 9UL, 34UL}) {
+                k_values[((b * L + token) * m_h_ik + (token % m_h_ik)) * m_didx + 1] =
+                    std::numeric_limits<float>::quiet_NaN();
+            }
+        }
+        write_f32_to_tensor(t_k_idx, k_values);
+    }
 
     // rope_cos/rope_sin can't be arbitrary random data: they must be genuine (cos, sin) pairs,
     // pre-duplicated across both halves of rotary_dim (per new_spec's rotate-half convention), so
@@ -516,6 +581,12 @@ std::vector<ov::Tensor> QSAIndexerLayerCPUTest::run_call(const CallSpec& call, s
         ov::Tensor c{src.get_element_type(), src.get_shape()};
         src.copy_to(c);
         outs.push_back(std::move(c));
+    }
+
+    if (is_degenerate_scores_scenario()) {
+        // no reference: the selection invariants only
+        check_selection_invariants(call, outs);
+        return outs;
     }
 
     QSAIndexerOracle oracle;
@@ -607,6 +678,12 @@ void QSAIndexerLayerCPUTest::run() {
         ov::test::utils::create_and_fill_tensor(m_data_precision,
                                                 ov::Shape{m_didx},
                                                 ov::test::utils::InputGenerateData(0.5, 1, 1000, 7));
+
+    // Degenerate scores through the gain of the query RMSNorm: it scales the query, so the scores.
+    if (m_scenario == QSAIndexerScenario::kOverflowScores || m_scenario == QSAIndexerScenario::kTinyScores) {
+        const float gain = m_scenario == QSAIndexerScenario::kOverflowScores ? 3e38F : 1e-37F;
+        write_f32_to_tensor(m_q_norm_weight_tensor, std::vector<float>(m_didx, gain));
+    }
 
     m_oracle_summary_cache.assign(m_batch * m_h_ik * m_summary_cap * m_didx, 0.0F);
     m_oracle_past_raw_k.assign(m_batch * m_h_ik * (m_compress_ratio - 1) * m_didx, 0.0F);

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 
@@ -60,13 +61,23 @@ inline void check_paged_page_table(const PlainTensor& past_lens,
                     "[CPU] paged attention: subsequence_begins exceeds the number of tokens");
     OPENVINO_ASSERT(static_cast<size_t>(page_begins[num_seq]) <= block_indices.size(0),
                     "[CPU] paged attention: block_indices_begins exceeds the size of block_indices");
-    for (int32_t i = page_begins[0]; i < page_begins[num_seq]; i++) {
-        OPENVINO_ASSERT(pages[i] >= 0 && static_cast<size_t>(pages[i]) < num_pages,
-                        "[CPU] paged attention: block id ",
-                        pages[i],
-                        " is out of the cache's ",
-                        num_pages,
-                        " pages");
+    constexpr uint64_t kMaxPages = uint64_t{1} << 31;
+    const auto page_limit = static_cast<uint32_t>(std::min<uint64_t>(num_pages, kMaxPages));
+    const int32_t first_page = page_begins[0];
+    const int32_t last_page = page_begins[num_seq];
+    uint32_t out_of_range = 0;
+    for (int32_t i = first_page; i < last_page; i++) {
+        out_of_range |= static_cast<uint32_t>(static_cast<uint32_t>(pages[i]) >= page_limit);
+    }
+    if (out_of_range != 0) {
+        for (int32_t i = first_page; i < last_page; i++) {
+            OPENVINO_ASSERT(static_cast<uint32_t>(pages[i]) < page_limit,
+                            "[CPU] paged attention: block id ",
+                            pages[i],
+                            " is out of the cache's ",
+                            num_pages,
+                            " pages");
+        }
     }
 }
 

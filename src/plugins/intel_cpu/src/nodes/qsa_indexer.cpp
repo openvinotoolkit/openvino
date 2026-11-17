@@ -20,6 +20,8 @@
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
+#include "nodes/kernels/sparse_attn/qsa_brgemm.hpp"
+#include "nodes/kernels/sparse_attn/qsa_brgemm_kernel.hpp"
 #include "nodes/kernels/sparse_attn/qsa_executor.hpp"
 #include "nodes/kernels/sparse_attn/qsa_indexer_common.hpp"
 #include "nodes/kernels/sparse_attn/qsa_indexer_kernel.hpp"
@@ -32,11 +34,6 @@
 #include "shape_inference/shape_inference_status.hpp"
 #include "transformations/cpu_opset/x64/op/qsa_indexer.hpp"
 #include "utils/plain_tensor.hpp"
-
-#ifdef OPENVINO_ARCH_X86_64
-#    include "nodes/kernels/sparse_attn/qsa_brgemm.hpp"
-#    include "nodes/kernels/sparse_attn/qsa_brgemm_kernel.hpp"
-#endif
 
 namespace ov::intel_cpu::node {
 
@@ -159,14 +156,14 @@ void QSAIndexer::createPrimitive() {
     config.order_by_score = c.order_by_score;
     m_executor = ov::Extensions::Cpu::XARCH::make_dense_qsa_executor(config);
     m_impl = qsa_kernel_impl_type();
-#ifdef OPENVINO_ARCH_X86_64
     // The scoring on brgemm where the CPU, the precision and the head counts allow it. The scorer is shared by the
     // layers of the same configuration.
     if (const auto brgemm = ov::Extensions::Cpu::qsa::QsaBrgemm::get(context->getParamsCache(), config)) {
         m_scorer = ov::Extensions::Cpu::XARCH::make_dense_qsa_scorer(brgemm);
-        m_impl = ov::Extensions::Cpu::qsa::QsaBrgemm::impl_type(precision);
+        if (m_scorer) {  // none in a build without AVX-512: the executor scores the blocks
+            m_impl = ov::Extensions::Cpu::qsa::QsaBrgemm::impl_type(precision);
+        }
     }
-#endif
     Node::createPrimitive();
     getSelectedPrimitiveDescriptor()->setImplementationType(m_impl);
 }

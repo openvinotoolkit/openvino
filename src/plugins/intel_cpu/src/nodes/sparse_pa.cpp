@@ -5,6 +5,7 @@
 #include "sparse_pa.h"
 
 #include <algorithm>
+#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -38,10 +39,6 @@
 #include "openvino/op/paged_sparse_attention.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/plain_tensor.hpp"
-
-#ifdef OPENVINO_ARCH_X86_64
-#    include <cpu/x64/cpu_isa_traits.hpp>
-#endif
 
 namespace ov::intel_cpu::node {
 
@@ -278,7 +275,6 @@ void SparsePA::createPrimitive() {
     m_config.brgemm = {};
     const auto query_prec = getOriginalInputPrecisionAtPort(InputIdx::QUERY);
     m_config.data_precision = query_prec;
-#ifdef OPENVINO_ARCH_X86_64
     // AMX matrix products over the selected rows of a work item (see attn_brgemm_tiles.hpp), for the prefill and the
     // decode of a large selection: bf16 / f16 data on hardware with the matching AMX, a pack of several query heads
     // (the M of the products), and the causal selection.
@@ -297,7 +293,6 @@ void SparsePA::createPrimitive() {
                                                                query_prec);
         m_config.brgemm = m_brgemm.handle();
     }
-#endif
     m_executor = ov::Extensions::Cpu::XARCH::make_sparse_pa_executor(m_config);
 }
 
@@ -369,6 +364,15 @@ void SparsePA::execute([[maybe_unused]] const dnnl::stream& strm) {
                     block_size,
                     " must be divisible by key_block_size ",
                     c.key_block_size);
+    // Core shape inference leaves the cache layout to the backend: the caches must match the config, or writeKV and the
+    // kernel would write / read out of bounds. A quantized cache layout (dims 2 and 3) is checked in deriveQuant.
+    if (isQuantized()) {
+        key_cache.assert_dims({0, c.num_kv_heads, 0, 0}, true);
+        value_cache.assert_dims({key_cache.size(0), c.num_kv_heads, 0, 0}, true);
+    } else {
+        key_cache.assert_dims({0, c.num_kv_heads, block_size, c.k_head_size}, true);
+        value_cache.assert_dims({key_cache.size(0), c.num_kv_heads, block_size, c.v_head_size}, true);
+    }
     check_paged_page_table(past_lens,
                            subsequence_begins,
                            block_indices,

@@ -18,6 +18,8 @@
 #include "node.h"
 #include "nodes/kernels/sparse_attn/paged_page_table_check.hpp"
 #include "nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.hpp"
+#include "nodes/kernels/sparse_attn/qsa_brgemm.hpp"
+#include "nodes/kernels/sparse_attn/qsa_brgemm_kernel.hpp"
 #include "nodes/kernels/sparse_attn/qsa_executor.hpp"
 #include "nodes/kernels/sparse_attn/qsa_indexer_common.hpp"
 #include "onednn/iml_type_mapper.h"
@@ -27,11 +29,6 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/paged_qsa_indexer.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
-
-#ifdef OPENVINO_ARCH_X86_64
-#    include "nodes/kernels/sparse_attn/qsa_brgemm.hpp"
-#    include "nodes/kernels/sparse_attn/qsa_brgemm_kernel.hpp"
-#endif
 
 namespace ov::intel_cpu::node {
 
@@ -103,16 +100,16 @@ void PagedQSAIndexer::createPrimitive() {
     config.precision = summary_precision;
     m_executor = ov::Extensions::Cpu::XARCH::make_paged_qsa_executor(config);
     m_impl = qsa_kernel_impl_type();
-#ifdef OPENVINO_ARCH_X86_64
     // Scoring on brgemm where the CPU, the precisions and the head counts allow it. The brgemm products need the query
     // in the summary precision, so it is used only when it already has it.
     if (getSrcMemoryAtPort(InputIdx::INDEX_QUERY)->getDesc().getPrecision() == summary_precision) {
         if (const auto brgemm = ov::Extensions::Cpu::qsa::QsaBrgemm::get(context->getParamsCache(), config)) {
             m_scorer = ov::Extensions::Cpu::XARCH::make_paged_qsa_scorer(brgemm);
-            m_impl = ov::Extensions::Cpu::qsa::QsaBrgemm::impl_type(summary_precision);
+            if (m_scorer) {  // none in a build without AVX-512: the executor scores the blocks
+                m_impl = ov::Extensions::Cpu::qsa::QsaBrgemm::impl_type(summary_precision);
+            }
         }
     }
-#endif
     Node::createPrimitive();
     getSelectedPrimitiveDescriptor()->setImplementationType(m_impl);
 }

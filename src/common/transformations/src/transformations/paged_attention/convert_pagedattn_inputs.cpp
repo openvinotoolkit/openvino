@@ -199,12 +199,13 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
         }
 
         if (const auto paged_qsa = ov::as_type_ptr<ov::op::internal::PagedQSAIndexer>(root)) {
-            // The indexer appends to its caches in place and requires all its floating-point inputs to share one
-            // type, so the caches get the inference precision and keep it, like the state tables below.
             using InputIdx = ov::op::internal::PagedQSAIndexer::InputIdx;
-            auto cache_precision = m_config.inferencePrecision;
-            if (m_update_precision_func) {
-                m_update_precision_func(cache_precision);
+            auto cache_precision = paged_qsa->get_input_element_type(InputIdx::INDEX_QUERY);
+            if (!cache_precision.is_static()) {
+                cache_precision = m_config.inferencePrecision;
+                if (m_update_precision_func) {
+                    m_update_precision_func(cache_precision);
+                }
             }
             bool changed = false;
             for (const auto idx :

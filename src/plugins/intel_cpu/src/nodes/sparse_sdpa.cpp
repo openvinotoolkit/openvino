@@ -5,6 +5,7 @@
 #include "sparse_sdpa.h"
 
 #include <cmath>
+#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -47,10 +48,6 @@
 #include "transformations/cpu_opset/x64/op/sparse_attention_with_kv_cache.hpp"
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
-
-#ifdef OPENVINO_ARCH_X86_64
-#    include <cpu/x64/cpu_isa_traits.hpp>
-#endif
 
 namespace ov::intel_cpu::node {
 
@@ -146,41 +143,45 @@ SparseSDPA::SparseSDPA(const std::shared_ptr<ov::Node>& op, const GraphContext::
         m_fuse_concat = true;
         m_base_inputs = op->get_input_size() - 3;
         // A side is compressed when the hint asks for u8 / u4 and the head size is static; the keys are quantized by
-        // channel when that mode is requested (u8 only). Everything else (by-channel u4, f16 / i8 hints) leaves the
-        // side a plain cache; TURBO is rejected. The group size follows ScaledDotProductAttention.
+        // channel when that mode is requested (u8 only). Everything else (by-channel u4, TurboQuant, f16 / i8 hints)
+        // leaves the side a plain cache: the fusion is unconditional, so a TURBO setting must not make the model fail.
+        // The group size follows ScaledDotProductAttention.
         const auto& cpu_config = context->getConfig();
-        CPU_NODE_ASSERT(cpu_config.keyCacheQuantAlg != ov::internal::CacheQuantAlgorithm::TURBO &&
-                            cpu_config.valueCacheQuantAlg != ov::internal::CacheQuantAlgorithm::TURBO,
-                        "does not support the TURBO cache quantization algorithm");
-        auto make_spec =
-            [&](ov::element::Type hint, size_t group_size, const ov::Dimension& head_dim, bool by_channel) {
-                ov::Extensions::Cpu::CacheSpec spec;
-                spec.precision = ov::element::dynamic;  // plain cache: set in initSupportedPrimitiveDescriptors
-                spec.group_size = head_dim.is_static() ? static_cast<size_t>(head_dim.get_length()) : 0;
-                if (none_of(hint, ov::element::u8, ov::element::u4) || spec.group_size == 0) {
-                    return spec;
-                }
-                const size_t group = ov::Extensions::Cpu::resolve_group_size(group_size, spec.group_size);
-                if (by_channel) {
-                    if (hint != ov::element::u8) {
-                        return spec;
-                    }
-                    spec.by_channel = true;
-                } else if (hint == ov::element::u4 && group % 2 != 0) {
-                    return spec;
-                }
-                spec.precision = hint;
-                spec.group_size = group;
+        auto make_spec = [&](ov::element::Type hint,
+                             size_t group_size,
+                             const ov::Dimension& head_dim,
+                             bool by_channel,
+                             ov::internal::CacheQuantAlgorithm alg) {
+            ov::Extensions::Cpu::CacheSpec spec;
+            spec.precision = ov::element::dynamic;  // plain cache: set in initSupportedPrimitiveDescriptors
+            spec.group_size = head_dim.is_static() ? static_cast<size_t>(head_dim.get_length()) : 0;
+            if (none_of(hint, ov::element::u8, ov::element::u4) || spec.group_size == 0 ||
+                alg == ov::internal::CacheQuantAlgorithm::TURBO) {
                 return spec;
-            };
+            }
+            const size_t group = ov::Extensions::Cpu::resolve_group_size(group_size, spec.group_size);
+            if (by_channel) {
+                if (hint != ov::element::u8) {
+                    return spec;
+                }
+                spec.by_channel = true;
+            } else if (hint == ov::element::u4 && group % 2 != 0) {
+                return spec;
+            }
+            spec.precision = hint;
+            spec.group_size = group;
+            return spec;
+        };
         m_key_spec = make_spec(cpu_config.keyCachePrecision,
                                cpu_config.keyCacheGroupSize,
                                op->get_input_partial_shape(InputIdx::KEY)[3],
-                               cpu_config.keyCacheQuantMode == ov::intel_cpu::Config::CacheQuantMode::BY_CHANNEL);
+                               cpu_config.keyCacheQuantMode == ov::intel_cpu::Config::CacheQuantMode::BY_CHANNEL,
+                               cpu_config.keyCacheQuantAlg);
         m_value_spec = make_spec(cpu_config.valueCachePrecision,
                                  cpu_config.valueCacheGroupSize,
                                  op->get_input_partial_shape(InputIdx::VALUE)[3],
-                                 false);
+                                 false,
+                                 cpu_config.valueCacheQuantAlg);
         m_key_block_size = static_cast<size_t>(kv_op->get_config().key_block_size);
         m_causal = kv_op->get_config().causal;
     } else {
@@ -221,7 +222,6 @@ void SparseSDPA::createPrimitive() {
     config.scale = m_scale;
     config.key_spec = m_key_spec;
     config.value_spec = m_value_spec;
-#ifdef OPENVINO_ARCH_X86_64
     // The matrix type of the AMX prefill: bf16 / f16 when the data is natively that type and the CPU has the matching
     // AMX.
     ov::element::Type amx_type = ov::element::dynamic;
@@ -245,7 +245,6 @@ void SparseSDPA::createPrimitive() {
             config.brgemm = m_brgemm.handle();
         }
     }
-#endif
     m_executor = ov::Extensions::Cpu::XARCH::make_sparse_sdpa_executor(config);
 }
 
