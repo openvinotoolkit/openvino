@@ -6,6 +6,8 @@
 #include "primitive_type_base.h"
 #include "json_object.h"
 
+#include <random>
+
 #include "random_uniform_shape_inference.hpp"
 
 namespace cldnn {
@@ -13,6 +15,26 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(random_uniform)
 
 random_uniform_inst::typed_primitive_inst(network& network, random_uniform_node const &node)
 : parent(network, node) {
+    const auto& desc = node.get_primitive();
+    _global_seed = desc->global_seed;
+    _op_seed = desc->op_seed;
+    // When both seed values are equal to zero RandomUniform should generate non-deterministic sequence.
+    if (_global_seed == 0 && _op_seed == 0) {
+        _global_seed = std::random_device{}();
+    }
+}
+
+uint64_t random_uniform_inst::get_counter_state() const {
+    return _counter_state > 0 ? _counter_state : _op_seed;
+}
+
+void random_uniform_inst::advance_state(size_t generated_elements) {
+    // Same as the CPU plugin: skip 256 * <number of output elements> values of n, carry the overflow into the counter.
+    const uint64_t skip_count = static_cast<uint64_t>(generated_elements) * 256;
+    _n_state += skip_count;
+    if (_n_state < skip_count) {
+        _counter_state++;
+    }
 }
 
 layout random_uniform_inst::calc_output_layout(random_uniform_node const &node, kernel_impl_params const& impl_param) {

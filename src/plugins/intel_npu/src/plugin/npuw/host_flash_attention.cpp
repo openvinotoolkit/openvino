@@ -18,6 +18,7 @@
 #include "openvino/openvino.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "util.hpp"
+#include "variable_state.hpp"
 
 namespace ov {
 namespace npuw {
@@ -1484,6 +1485,39 @@ void PositionIDs::prepare(int64_t past_len) {
 int64_t PositionIDs::context_length() const {
     // Use original_query_length for context calculation (not query_size which may be sliced to 1)
     return _original_query_length + _past_length;
+}
+
+// HistorySize constructor
+HistorySize::HistorySize(std::size_t original_query_length) : _original_query_length(original_query_length) {
+    _case = _original_query_length == 1 ? Case::GENERATE : Case::PREFILL;
+}
+
+void HistorySize::prepare(int64_t past_len) {
+    // past_len is the request's history_size(): what the host last set through npuw_history_size,
+    // or 0 if it is unset. Same chunk rounding as PositionIDs, which takes its prefill past from
+    // past_len too. HFA is prefill-only; for a query length of 1 (GENERATE, rejected by the HFA
+    // runtime) the rounding is the identity.
+    _past_length = ((past_len + _original_query_length - 1) / _original_query_length) * _original_query_length;
+}
+
+int64_t HistorySize::context_length() const {
+    return _original_query_length + _past_length;
+}
+
+Selector::Ptr HistorySize::find(std::size_t original_query_length, const ov::ISyncInferRequest& rq) {
+    for (const auto& state : rq.query_state()) {
+        if (state->get_name() != ov::npuw::HistorySizeState::name) {
+            continue;
+        }
+        // Still unset at the first infer(): the host never reports the history, and every chunk
+        // would silently run without its past. A later reset() (a new conversation) is fine and
+        // reads as an empty history.
+        if (state->get_state()->data<int64_t>()[0] == ov::npuw::HistorySizeState::kUnset) {
+            return Selector::Ptr{};
+        }
+        return std::make_shared<HistorySize>(original_query_length);
+    }
+    return Selector::Ptr{};
 }
 
 // ============================================================================
