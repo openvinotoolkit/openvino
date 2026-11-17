@@ -35,7 +35,12 @@ inline uint FUNC(group_element_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f_beg
     return INPUT_INDEX(b, f, w, z, y, x);
 }
 
-// GWS = {LWS * NUM_GROUPS, B, 1}, LWS = {LWS, 1, 1}. One work-group computes the statistics of one (b, group).
+// Computes the statistics of each (b, group) for the normalize stage:
+//   mean_buf[b * NUM_GROUPS + g]    = mean of the group
+//   inv_std_buf[b * NUM_GROUPS + g] = 1 / sqrt(variance + EPSILON)
+// A group is CHANNELS_PER_GROUP channels x all spatial elements of batch b.
+// Accumulates in f32 with a corrected two-pass algorithm (see below).
+// GWS = {LWS * NUM_GROUPS, B, 1}, LWS = {LWS, 1, 1}. One work-group handles one (b, group).
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
 KERNEL(calc_stats)(
     OPTIONAL_SHAPE_INFO_ARG
@@ -53,26 +58,37 @@ KERNEL(calc_stats)(
     if (n == 0 || b >= INPUT0_BATCH_NUM)
         return;
 
+    // Pass 1: approx_mean = sum(x) / n
     float sum = 0.0f;
     for (uint i = lid; i < n; i += LWS) {
         sum += convert_float(input[FUNC_CALL(group_element_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f_begin, i)]);
     }
     const float approx_mean = work_group_reduce_add(sum) / n;
 
+    // Pass 2: d = x - approx_mean, mean = approx_mean + sum(d) / n, variance = (sum(d^2) - sum(d)^2 / n) / n
     // Corrected two-pass: the second pass also sums the deviations. That sum is zero in exact arithmetic,
     // so it measures the rounding error of approx_mean. It fixes the mean and removes the error from the variance.
+    // The deviations of a large group share the sign and size of that error, so their plain f32 sum loses it.
+    // Kahan summation keeps it.
     float d_sum = 0.0f;
+    float d_comp = 0.0f;
     float sq_sum = 0.0f;
     for (uint i = lid; i < n; i += LWS) {
         const float d = convert_float(input[FUNC_CALL(group_element_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f_begin, i)]) - approx_mean;
-        d_sum += d;
+        // Kahan summation of d_sum += d. d_comp keeps the low-order bits lost by each addition.
+        const float y = d - d_comp;
+        const float t = d_sum + y;
+        d_comp = (t - d_sum) - y;
+        d_sum = t;
         sq_sum = fma(d, d, sq_sum);
     }
     d_sum = work_group_reduce_add(d_sum);
     sq_sum = work_group_reduce_add(sq_sum);
     const float mean = approx_mean + d_sum / n;
-    const float variance = fmax((sq_sum - d_sum * d_sum / n) / n, 0.0f);
+    // d_sum * d_sum can overflow while sq_sum is finite, so divide by n first.
+    const float variance = fmax((sq_sum - d_sum * (d_sum / n)) / n, 0.0f);
 
+    // Output: mean, inv_std = rsqrt(variance + EPSILON)
     if (lid == 0) {
         mean_buf[b * NUM_GROUPS + g] = mean;
         inv_std_buf[b * NUM_GROUPS + g] = rsqrt(variance + EPSILON);
