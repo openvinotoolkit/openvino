@@ -3465,8 +3465,10 @@ INSTANTIATE_TEST_SUITE_P(
         sdpa_hpg_sharp_params{40, 16},  sdpa_hpg_sharp_params{40, 64},  sdpa_hpg_sharp_params{40, 100},  sdpa_hpg_sharp_params{40, 1024},
         sdpa_hpg_sharp_params{64, 16},  sdpa_hpg_sharp_params{64, 64},  sdpa_hpg_sharp_params{64, 100},  sdpa_hpg_sharp_params{64, 1024},
         sdpa_hpg_sharp_params{72, 16},  sdpa_hpg_sharp_params{72, 64},  sdpa_hpg_sharp_params{72, 100},  sdpa_hpg_sharp_params{72, 1024},
+        sdpa_hpg_sharp_params{80, 16},  sdpa_hpg_sharp_params{80, 64},  sdpa_hpg_sharp_params{80, 100},  sdpa_hpg_sharp_params{80, 1024},
         sdpa_hpg_sharp_params{96, 16},  sdpa_hpg_sharp_params{96, 64},  sdpa_hpg_sharp_params{96, 100},  sdpa_hpg_sharp_params{96, 1024},
         sdpa_hpg_sharp_params{128, 16}, sdpa_hpg_sharp_params{128, 64}, sdpa_hpg_sharp_params{128, 100}, sdpa_hpg_sharp_params{128, 1024},
+        sdpa_hpg_sharp_params{160, 16}, sdpa_hpg_sharp_params{160, 64}, sdpa_hpg_sharp_params{160, 100}, sdpa_hpg_sharp_params{160, 1024},
         sdpa_hpg_sharp_params{256, 16}, sdpa_hpg_sharp_params{256, 64}, sdpa_hpg_sharp_params{256, 100}, sdpa_hpg_sharp_params{256, 1024}
     ),
     sdpa_hpg_sharp_test::PrintToStringParamName
@@ -4068,6 +4070,27 @@ INSTANTIATE_TEST_SUITE_P(
         sdpa_hpg_rows_params{72, 64, 100, 2, 1, 2, false, false, false, true}, sdpa_hpg_rows_params{72, 100, 100, 8, 2, 2, false, false, false, false, 1},
         sdpa_hpg_rows_params{72, 1025, 1025, 4, 4, 1, false, false, false, false, 2}, sdpa_hpg_rows_params{72, 128, 128, 4, 2, 2, false, false, true, false, 3},
         sdpa_hpg_rows_params{72, 77, 77, 4, 4, 1, false, false, true, false, 0, 1},
+        // heads 40 (head 72's tail, 96-key tiles), 80 (160-key tiles) and 160 (160-key x 32-query tiles of 16 x 16): the set of
+        // head 72, plus stable-diffusion-v1-5's UNet ops ([b, s, h, d] in and out, dynamic, 8 heads, batch 2: self-attention
+        // over many key tiles, cross-attention over the 77 tokens of the text encoder)
+        sdpa_hpg_rows_params{40, 100, 100, 8, 2, 1, false, false, false, false}, sdpa_hpg_rows_params{40, 33, 193, 2, 2, 2, false, false, false, false},
+        sdpa_hpg_rows_params{40, 100, 200, 4, 4, 1, true, true, false, false}, sdpa_hpg_rows_params{40, 77, 77, 4, 1, 2, false, true, true, false},
+        sdpa_hpg_rows_params{40, 64, 100, 2, 1, 2, false, false, false, true}, sdpa_hpg_rows_params{40, 100, 100, 8, 2, 2, false, false, false, false, 1},
+        sdpa_hpg_rows_params{40, 1025, 1025, 4, 4, 1, false, false, false, false, 2}, sdpa_hpg_rows_params{40, 128, 128, 4, 2, 2, false, false, true, false, 3},
+        sdpa_hpg_rows_params{40, 77, 77, 4, 4, 1, false, false, true, false, 0, 1},
+        sdpa_hpg_rows_params{40, 1024, 1024, 8, 8, 2, true, true, true, false}, sdpa_hpg_rows_params{40, 300, 77, 8, 8, 2, true, true, true, false},
+        sdpa_hpg_rows_params{80, 100, 100, 8, 2, 1, false, false, false, false}, sdpa_hpg_rows_params{80, 33, 193, 2, 2, 2, false, false, false, false},
+        sdpa_hpg_rows_params{80, 100, 200, 4, 4, 1, true, true, false, false}, sdpa_hpg_rows_params{80, 77, 77, 4, 1, 2, false, true, true, false},
+        sdpa_hpg_rows_params{80, 64, 100, 2, 1, 2, false, false, false, true}, sdpa_hpg_rows_params{80, 100, 100, 8, 2, 2, false, false, false, false, 1},
+        sdpa_hpg_rows_params{80, 1025, 1025, 4, 4, 1, false, false, false, false, 2}, sdpa_hpg_rows_params{80, 128, 128, 4, 2, 2, false, false, true, false, 3},
+        sdpa_hpg_rows_params{80, 77, 77, 4, 4, 1, false, false, true, false, 0, 1},
+        sdpa_hpg_rows_params{80, 1024, 1024, 8, 8, 2, true, true, true, false}, sdpa_hpg_rows_params{80, 300, 77, 8, 8, 2, true, true, true, false},
+        sdpa_hpg_rows_params{160, 100, 100, 8, 2, 1, false, false, false, false}, sdpa_hpg_rows_params{160, 33, 193, 2, 2, 2, false, false, false, false},
+        sdpa_hpg_rows_params{160, 100, 200, 4, 4, 1, true, true, false, false}, sdpa_hpg_rows_params{160, 77, 77, 4, 1, 2, false, true, true, false},
+        sdpa_hpg_rows_params{160, 64, 100, 2, 1, 2, false, false, false, true}, sdpa_hpg_rows_params{160, 100, 100, 8, 2, 2, false, false, false, false, 1},
+        sdpa_hpg_rows_params{160, 1025, 1025, 4, 4, 1, false, false, false, false, 2},
+        sdpa_hpg_rows_params{160, 128, 128, 4, 2, 2, false, false, true, false, 3}, sdpa_hpg_rows_params{160, 77, 77, 4, 4, 1, false, false, true, false, 0, 1},
+        sdpa_hpg_rows_params{160, 256, 256, 8, 8, 2, true, true, true, false}, sdpa_hpg_rows_params{160, 256, 77, 8, 8, 2, true, true, true, false},
         // head 512 (512-key x 16-query tiles; flux.1-schnell's VAE: one head, no mask): GQA, batches with q != kv past a tile,
         // [b, s, h, d], dynamic, padded K / V, masks, a static scalar mask, three key tiles
         sdpa_hpg_rows_params{512, 100, 100, 8, 2, 1, false, false, false, false}, sdpa_hpg_rows_params{512, 33, 529, 2, 2, 2, false, false, false, false},
