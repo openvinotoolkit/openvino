@@ -284,10 +284,10 @@ TEST_F(TPSerializationTest, CacheKeyCoversRankDeviceProperties) {
     auto model = make_transformer_block(BlockConfig{});
     core.set_property(ov::cache_dir(cache_dir()));
     for (const auto precision : {ov::element::f32, ov::element::f16}) {
-        auto compiled = core.compile_model(model,
-                                           tp_device(world_size),
-                                           ov::device::properties(rank_device_type(),
-                                                                  ov::hint::inference_precision(precision)));
+        auto compiled =
+            core.compile_model(model,
+                               tp_device(world_size),
+                               ov::device::properties(rank_device_type(), ov::hint::inference_precision(precision)));
         EXPECT_FALSE(compiled.get_property(ov::loaded_from_cache)) << precision;
         EXPECT_EQ(compiled.get_property(ov::hint::inference_precision), precision);
     }

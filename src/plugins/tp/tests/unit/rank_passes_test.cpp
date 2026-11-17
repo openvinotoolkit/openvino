@@ -10,11 +10,11 @@
 #include <utility>
 #include <vector>
 
-#include "l1_test_utils.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "ov_ops/tp_collective.hpp"
 #include "tp_test_models.hpp"
+#include "transformation_test_utils.hpp"
 
 namespace ov::tp::tests {
 namespace {
@@ -264,7 +264,8 @@ TEST(TPRankPassesNibbleTest, CutsPacked4BitElementsInsideAByte) {
         for (uint32_t rank = 0; rank < 2; ++rank) {
             const auto rank_model = model->clone();
             TPWeightShardingPass(rank, 2).run_on_model(rank_model);
-            const auto sliced = ov::as_type_ptr<ov::op::v0::Constant>(rank_model->get_results()[0]->get_input_node_shared_ptr(0));
+            const auto sliced =
+                ov::as_type_ptr<ov::op::v0::Constant>(rank_model->get_results()[0]->get_input_node_shared_ptr(0));
             ASSERT_NE(sliced, nullptr);
             const auto range = rank_ranges(segments, rank, 2).front();
             std::vector<int> expected;
@@ -342,7 +343,8 @@ INSTANTIATE_TEST_SUITE_P(TPRankPasses,
                          TPRankPassesFewKvHeadsTest,
                          ::testing::Values(FewKvHeads{1, 2}, FewKvHeads{1, 3}, FewKvHeads{1, 4}, FewKvHeads{2, 4}),
                          [](const ::testing::TestParamInfo<FewKvHeads>& info) {
-                             return "kv" + std::to_string(info.param.kv_heads) + "_world" + std::to_string(info.param.world_size);
+                             return "kv" + std::to_string(info.param.kv_heads) + "_world" +
+                                    std::to_string(info.param.world_size);
                          });
 
 // Fused qkv_proj / gate_up_proj: one MatMul whose output is split; every rank's weight holds its
@@ -396,7 +398,8 @@ TEST_P(TPRankPassesFusedTest, GivesEveryRankItsShareOfEveryPart) {
         SCOPED_TRACE("rank " + std::to_string(rank));
         const auto model = rank_model(analyzed, rank, world_size);
         const auto q_heads = static_cast<int64_t>(rank_length({{c.num_heads, group / replicas}}, rank, world_size));
-        const auto kv_heads = replicas > 1 ? 1 : static_cast<int64_t>(rank_length({{c.num_kv_heads, 1}}, rank, world_size));
+        const auto kv_heads =
+            replicas > 1 ? 1 : static_cast<int64_t>(rank_length({{c.num_kv_heads, 1}}, rank, world_size));
         int64_t fused_qkv = -1, fused_gate_up = -1, down_in = -1;
         for (const auto& op : model->get_ordered_ops()) {
             const auto out = op->get_output_partial_shape(0);

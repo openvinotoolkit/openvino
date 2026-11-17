@@ -12,10 +12,10 @@
 
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_assertions.hpp"
-#include "l1_test_utils.hpp"
 #include "openvino/runtime/core.hpp"
 #include "ov_ops/tp_collective.hpp"
 #include "tp_test_models.hpp"
+#include "transformation_test_utils.hpp"
 
 namespace ov::tp::tests {
 namespace {
@@ -131,7 +131,8 @@ TEST(TPAnalyzerTest, RejectsAProjectionWithRuntimeWeights) {
     BlockConfig config;
     auto model = make_transformer_block(config);
     auto weights =
-        std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{config.num_heads * config.head_dim, config.hidden});
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f32,
+                                                ov::Shape{config.num_heads * config.head_dim, config.hidden});
     for (const auto& op : model->get_ordered_ops()) {
         auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(op);
         if (matmul && matmul->get_output_partial_shape(0)[2].get_length() ==
@@ -300,8 +301,9 @@ TEST(TPAnalyzerModels, BuildEveryRankModel) {
 TEST(TPAnalyzerTest, GivesTheRanksDifferentSlices) {
     auto analyzed = make_transformer_block(BlockConfig{});
     analyze(analyzed, 2);
-    const auto comparator =
-        FunctionsComparator::with_default().enable(FunctionsComparator::CONST_VALUES).enable(FunctionsComparator::ATTRIBUTES);
+    const auto comparator = FunctionsComparator::with_default()
+                                .enable(FunctionsComparator::CONST_VALUES)
+                                .enable(FunctionsComparator::ATTRIBUTES);
     EXPECT_FALSE(comparator.compare(rank_model(analyzed, 0, 2), rank_model(analyzed, 1, 2)).valid);
 }
 

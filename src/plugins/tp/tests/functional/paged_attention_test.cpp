@@ -403,7 +403,8 @@ TEST_F(TPPagedAttentionTest, MatchesSingleDeviceAcrossTwoSteps) {
     fused.qkv = Fused::VARIADIC_SPLIT;
     fused.gate_up = Fused::SPLIT;
     for (const auto& config : {BlockConfig{}, one_kv_head, fused}) {
-        SCOPED_TRACE(std::to_string(config.num_kv_heads) + " KV heads, fused " + std::to_string(config.qkv != Fused::NONE));
+        SCOPED_TRACE(std::to_string(config.num_kv_heads) + " KV heads, fused " +
+                     std::to_string(config.qkv != Fused::NONE));
         auto model = make_paged_attention_block(config);
 
         auto reference_model = compile_reference(model);

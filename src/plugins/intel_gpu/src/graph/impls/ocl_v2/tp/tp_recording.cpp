@@ -35,7 +35,7 @@ TPRecording::~TPRecording() {
 void TPRecording::bind(const cldnn::ze::tp::Channel& channel, bool allreduce) {
     if (m_group) {
         OPENVINO_ASSERT(m_group == channel.group() && m_rank == channel.rank(),
-                        "[TP][L0] a collective recording cannot move to another channel");
+                        "[GPU][TP][L0] a collective recording cannot move to another channel");
         return;
     }
     m_res = channel.group()->take_recording_resources(channel.rank());

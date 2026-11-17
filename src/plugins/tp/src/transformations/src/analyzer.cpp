@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "tp_transformations/analyzer.hpp"
+
 #include <fstream>
 #include <unordered_set>
 
@@ -10,7 +12,6 @@
 #include "openvino/core/except.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/pass/manager.hpp"
-#include "tp_transformations/analyzer.hpp"
 #include "tp_transformations/verifier.hpp"
 #include "transformations/utils/utils.hpp"
 

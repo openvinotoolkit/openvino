@@ -54,8 +54,8 @@ for the current file layout. Key entry points:
 
 | File                            | Role                                                                                                                                                                             |
 |---------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `src/plugin.cpp`                | `Plugin::compile_model` — config parse, rank context creation, the analysis once and the rank passes per rank (L1), per-rank intel_gpu compilation; `import_blob` for the cached path. |
-| `src/transformations/`          | L1, the static library `openvino_tp_transformations`: `annotations.*` (`tp_shard` / `tp_role`, rank ranges), `attention_blocks.cpp` / `mlp_blocks.cpp` (block passes), `block_utils.*` (projection, weight-chain and shape-constant helpers), `analyzer.cpp` (`TPLayerAnalyzer`), `verifier.cpp` (`TPShardingVerifier`), `rank_passes.cpp` (`TPWeightShardingPass`, `TPInsertCollectives`). |
+| `src/plugin.cpp`                | `Plugin::compile_model` — config parse, rank context creation, the analysis once and the rank passes per rank, per-rank intel_gpu compilation; `import_blob` for the cached path. |
+| `src/transformations/`          | The static library `openvino_tp_transformations`: `annotations.*` (`tp_shard` / `tp_role`, rank ranges), `attention_blocks.cpp` / `mlp_blocks.cpp` (block passes), `block_utils.*` (projection, weight-chain and shape-constant helpers), `analyzer.cpp` (`TPLayerAnalyzer`), `verifier.cpp` (`TPShardingVerifier`), `rank_passes.cpp` (`TPWeightShardingPass`, `TPInsertCollectives`). |
 | `src/infer_request.cpp`         | Rank fan-out, input replication, output collection from rank 0.                                                                                                                  |
 | `src/rank_workers.hpp`          | The persistent worker thread per rank.                                                                                                                                      |
 | `src/cache_controller.cpp`      | `ov::plugin_managed_cache`: the paged-attention cache on every rank, request registry, available memory.                                                                         |
@@ -164,23 +164,23 @@ Profile output anatomy (one block per `GPU_TP_DUMP_PERIOD` inferences, covering 
 per-call figures are divided by the window's AllReduce calls):
 
 ```
-[TP][REPORT] inferences A..B: N AllReduce calls on rank 0, payload mean …KiB
-[TP][RANK|host] calls=…  arrival spread=…us/call
-[TP][RANK|host]   rank N: late=…us arrived_last=…%  ph1=…us ph2=…us  segment mean=…us min=…us max=…us
-[TP][RANK|host]     ph1 staging check=…us  ph2 split: record=…us(Nx) evt_wait=…us evt_reset=…us(Nx, blocked Nx) append=…us rest=…us
-[TP][RANK|host]     run-ahead: mean=… splices max=…
-[TP][TOTAL|host] r0 calls=…  rebuilds=… records=…  totals: … per-call: …
-[TP][TOTAL|host]   schedule of N recordings: pair=… ring=… halving=…
-[TP][TOTAL|host]   chunked: calls=… chunks/call=… max=…
-[TP][TOTAL|host]   record breakdown: records=… per-record=…ms (drain=… reset=… append=… close=…)
-[TP][TOTAL|host]   scratch: payload_capacity=…MB total=…MB grows=… allocations=… stall=…ms fixed=…MB
-[TP][TOTAL|host]   gather rank N: calls=… spliced=… records=… barrier=…us append=…us close=…ms total
-[TP][RANK|dev] of the calls handed over in inferences A..B schedule=… world=…
-[TP][RANK|dev]   rank N: queue busy mean=…us max=…us(cid N)  sent=…MB/call effective=… GB/s (N samples)
-[TP][RANK|dev]     queue busy under: p50=…us p90=…us p99=…us
-[TP][RANK|dev]     between collectives: model=…us -> collectives own …% of device time (N gaps)
-[TP][TOTAL|dev] across N ranks: sent=…MB/call aggregate=… GB/s
-[TP][RANK|dev]   gather rank N: queue busy mean=…us max=…us  sent=…MB/call (N samples)
+[GPU][TP][REPORT] inferences A..B: N AllReduce calls on rank 0, payload mean …KiB
+[GPU][TP][RANK|host] calls=…  arrival spread=…us/call
+[GPU][TP][RANK|host]   rank N: late=…us arrived_last=…%  ph1=…us ph2=…us  segment mean=…us min=…us max=…us
+[GPU][TP][RANK|host]     ph1 staging check=…us  ph2 split: record=…us(Nx) evt_wait=…us evt_reset=…us(Nx, blocked Nx) append=…us rest=…us
+[GPU][TP][RANK|host]     run-ahead: mean=… splices max=…
+[GPU][TP][TOTAL|host] r0 calls=…  rebuilds=… records=…  totals: … per-call: …
+[GPU][TP][TOTAL|host]   schedule of N recordings: pair=… ring=… halving=…
+[GPU][TP][TOTAL|host]   chunked: calls=… chunks/call=… max=…
+[GPU][TP][TOTAL|host]   record breakdown: records=… per-record=…ms (drain=… reset=… append=… close=…)
+[GPU][TP][TOTAL|host]   scratch: payload_capacity=…MB total=…MB grows=… allocations=… stall=…ms fixed=…MB
+[GPU][TP][TOTAL|host]   gather rank N: calls=… spliced=… records=… barrier=…us append=…us close=…ms total
+[GPU][TP][RANK|dev] of the calls handed over in inferences A..B schedule=… world=…
+[GPU][TP][RANK|dev]   rank N: queue busy mean=…us max=…us(cid N)  sent=…MB/call effective=… GB/s (N samples)
+[GPU][TP][RANK|dev]     queue busy under: p50=…us p90=…us p99=…us
+[GPU][TP][RANK|dev]     between collectives: model=…us -> collectives own …% of device time (N gaps)
+[GPU][TP][TOTAL|dev] across N ranks: sent=…MB/call aggregate=… GB/s
+[GPU][TP][RANK|dev]   gather rank N: queue busy mean=…us max=…us  sent=…MB/call (N samples)
 ```
 
 The tags say what the numbers are about and where they came from.
@@ -250,8 +250,8 @@ Field semantics:
 ## Tests
 
 Each layer ([ARCHITECTURE.md § Layers](ARCHITECTURE.md#layers)) is tested where it lives: the TP plugin's two binaries under `tests/`
-test L1 and L5 and name no device; the collective contract (L3) is a shared
-suite every device plugin runs for itself; the GPU's collectives (L4) have their
+test the transformations and the plugin and name no device; the collective contract is a shared
+suite every device plugin runs for itself; the GPU's collectives have their
 own suites in intel_gpu.
 
 ### `ov_tp_unit_tests`
@@ -289,7 +289,7 @@ support reasons come from the device plugin's own queries
 ### The collective contract: `TPCollectiveContractTest` (shared)
 
 `src/tests/functional/plugin/shared/{include,src}/behavior/tp/collective_contract.*`:
-the device-plugin obligations D1-D11 and the op contract, driven through the
+what a device plugin taking TP ranks guarantees and the op contract, driven through the
 `ov::tp::internal` properties only -- TP contexts from `create_context()`,
 hand-sharded rank models with `TPAllReduce` / `TPGather`, no TP plugin. A
 device plugin that wants to take TP ranks instantiates it with its device type
@@ -299,21 +299,21 @@ and world sizes; intel_gpu does in
 a device may or may not support (MAX / MIN, other groups, the gather, several
 ranks on one device) is checked as "computed exactly or refused".
 
-The obligations, as the tests are named:
+What a device plugin taking TP ranks guarantees, in the order of the test file:
 
-| Id      | A device plugin taking TP ranks                                                                                         |
-|---------|-------------------------------------------------------------------------------------------------------------------------|
-| D1      | creates a TP context from the contract parameters without waiting for the other ranks, and rejects a wrong device, an unknown backend (listing the valid ones), an unknown parameter or a missing group |
-| D2      | compiles and imports rank models with the context; a collective needs a TP context and the context's rank and world size |
-| D3      | binds collectives only through the context: the TP parameters are not a compile config                                 |
-| D4      | runs the ops as their contract says: AllReduce within tolerance and bitwise equal on all ranks, other reduce ops and groups exact or refused, ids unique, ranks at different collectives fail the call, the gather on the root or refused, graph order over many inferences |
-| D5      | answers `TP_COLLECTIVE_BACKENDS` / `TP_COLLECTIVE_SUPPORT` without throwing, consistently with what the contexts accept |
-| D6      | refuses a model whose streams do not fit the context's channels                                                        |
-| D7      | times out the setup and a call the peers never join, and keeps the group failed afterwards                             |
-| D8      | reads host tensors of any rank's context on every rank                                                                 |
-| D9      | takes constants that are views of a host buffer as copies, never reading the buffer in place after compilation         |
-| D10     | reads and writes the rank's own device tensors in place                                                                |
-| D11     | counts the collectives' memory in `TP_DEVICE_MEMORY` before the first inference, and bounds it: a message larger than a fixed staging is still reduced exactly |
+| Area                 | The device plugin                                                                                                       |
+|----------------------|-------------------------------------------------------------------------------------------------------------------------|
+| TP context creation  | creates a TP context from the contract parameters without waiting for the other ranks, and rejects a wrong device, an unknown backend (listing the valid ones), an unknown parameter or a missing group |
+| Compile and import   | compiles and imports rank models with the context; a collective needs a TP context and the context's rank and world size |
+| Binding              | binds collectives only through the context: the TP parameters are not a compile config                                 |
+| Collective ops       | runs the ops as their contract says: AllReduce within tolerance and bitwise equal on all ranks, other reduce ops and groups exact or refused, ids unique, ranks at different collectives fail the call, the gather on the root or refused, graph order over many inferences |
+| Queries              | answers `TP_COLLECTIVE_BACKENDS` / `TP_COLLECTIVE_SUPPORT` without throwing, consistently with what the contexts accept |
+| Channels             | refuses a model whose streams do not fit the context's channels                                                        |
+| Timeout              | times out the setup and a call the peers never join, and keeps the group failed afterwards                             |
+| Host tensors         | reads host tensors of any rank's context on every rank                                                                 |
+| Constants            | takes constants that are views of a host buffer as copies, never reading the buffer in place after compilation         |
+| Device tensors       | reads and writes the rank's own device tensors in place                                                                |
+| Memory accounting    | counts the collectives' memory in `TP_DEVICE_MEMORY` before the first inference, and bounds it: a message larger than a fixed staging is still reduced exactly |
 
 ### intel_gpu (built with `ENABLE_TP`)
 
@@ -365,7 +365,7 @@ collective may leave the devices in a state the next binary inherits.
 The binaries are set up differently, which matters when a run fails to
 start at all:
 
-- `ov_tp_unit_tests` links the L1 library `openvino_tp_transformations` --
+- `ov_tp_unit_tests` links the transformations library `openvino_tp_transformations` --
   the plugin is a MODULE and exports nothing -- so it never loads
   `libopenvino_tp_plugin.so` and does not care about `plugins.xml`.
 - `ov_gpu_unit_tests` links the intel_gpu runtime statically and talks to
@@ -450,13 +450,14 @@ Find it first. `OV_GPU_VALIDATE_OUTPUT_BUFFER=1` (the GPU plugin's own option) c
 every primitive of every rank, the `tp_allreduce` ones included, for inf / NaN and names the first
 one; `OV_GPU_TP_VALIDATE_ALLREDUCE_OUTPUT=1` compares a checksum of every AllReduce output across the
 ranks -- they must be bit-identical -- and names the collective and the call where they differ
-(`[TP][CHECK] AllReduce output differs across ranks: <name> (collective 24, call 0): r0=0x.. r1=0x..`,
-the first 20, then a count at the end: `[TP][CHECK] AllReduce outputs compared across 4 ranks: 98304
+(`[GPU][TP][CHECK] AllReduce output differs across ranks: <name> (collective 24, call 0): r0=0x.. r1=0x..`,
+the first 20, then a count at the end: `[GPU][TP][CHECK] AllReduce outputs compared across 4 ranks: 98304
 calls, 0 differ`). Both drain the queue at every check, so the run is many times slower: use them
 to find the collective, not to time anything.
 
 The tensors themselves come from the GPU plugin's dump, which works on every rank: with
 `OV_GPU_DUMP_TENSORS_PATH=<dir>/`, `OV_GPU_DUMP_LAYER_NAMES="tpallreduce:tp_allreduce/<projection name>"`
+(`tpgather:tp_gather/<projection name>` for a gather)
 and `OV_GPU_DUMP_ITERATIONS=<n>` every rank writes the collective's input (`src0`, its partial sum) and
 output (`dst0`, the sum). The ranks' files differ by their network id, in rank order
 (`program1_network1_*` is rank 0, `program3_network2_*` rank 1 on two ranks).
@@ -558,7 +559,7 @@ both are inserted by `TPInsertCollectives`. To add a third:
 
 - Headers under `include/tp/` belong to this plugin alone; nothing in
   intel_gpu includes them, and this plugin includes nothing of intel_gpu.
-- Internal headers (e.g. `compiled_model.hpp`, `plugin.hpp`) stay in `src/`; the L1 library
+- Internal headers (e.g. `compiled_model.hpp`, `plugin.hpp`) stay in `src/`; the transformations library
   exports its own under `src/transformations/include/tp_transformations/`.
 - What the two plugins share is the private collective contract in
   `src/inference/dev_api/openvino/runtime/tp/collective_contract.hpp` and the
@@ -580,7 +581,7 @@ remaining headroom:
    the lever is there rather than in the collective.
 2. **Sequence Parallel.** Replace AllReduce with ReduceScatter+AllGather around
    the layer norms, which parallelizes the replicated norms as well.
-   A new block pass in L1 and verifier rules for the scatter and gather.
+   A new block pass in the transformations and verifier rules for the scatter and gather.
 3. **Recording ahead of time.** Recordings are currently laid down on the
    calling thread when the signature moves, which lands in time to first token.
    `record breakdown` prices it.

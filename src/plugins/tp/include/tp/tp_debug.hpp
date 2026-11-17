@@ -86,17 +86,19 @@ private:
 /// config object.
 #    define TP_DEBUG_GLOBAL_OPT(option, release_value) (ov::tp::TPConfig::get_##option())
 
-#    define TP_LOG_RAW(level) \
-        if (ov::tp::TPConfig::verbosity() >= (level)) ov::tp::LogLine{}.stream()
+#    define TP_LOG_RAW(level)                         \
+        if (ov::tp::TPConfig::verbosity() >= (level)) \
+        ov::tp::LogLine{}.stream()
 
 #else
 
-#    define TP_DEBUG_IF(cond)  if (false)
+#    define TP_DEBUG_IF(cond) if (false)
 #    define TP_DEBUG_CODE(...)
-#    define TP_DEBUG_OPT(config, option, release_value)  (release_value)
-#    define TP_DEBUG_GLOBAL_OPT(option, release_value)   (release_value)
+#    define TP_DEBUG_OPT(config, option, release_value) (release_value)
+#    define TP_DEBUG_GLOBAL_OPT(option, release_value)  (release_value)
 #    define TP_LOG_RAW(level) \
-        if (false) ov::tp::log_stream()
+        if (false)            \
+        ov::tp::log_stream()
 
 #endif
 

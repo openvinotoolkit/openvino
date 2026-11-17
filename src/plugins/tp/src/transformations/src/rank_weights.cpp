@@ -46,12 +46,14 @@ RankWeights rank_weights(const ov::Model& analyzed, uint32_t world_size) {
         }
         weights.split += bytes;
         const auto& segments = it->second->segments;
-        const size_t total = std::accumulate(segments.begin(), segments.end(), size_t{0}, [](size_t sum, const Segment& s) {
-            return sum + s.length;
-        });
+        const size_t total =
+            std::accumulate(segments.begin(), segments.end(), size_t{0}, [](size_t sum, const Segment& s) {
+                return sum + s.length;
+            });
         for (uint32_t rank = 0; rank < world_size; ++rank)
-            weights.per_rank[rank] += total == 0 ? bytes : bytes / total * rank_length(segments, rank, world_size) +
-                                                               bytes % total * rank_length(segments, rank, world_size) / total;
+            weights.per_rank[rank] += total == 0 ? bytes
+                                                 : bytes / total * rank_length(segments, rank, world_size) +
+                                                   bytes % total * rank_length(segments, rank, world_size) / total;
     }
     for (auto& bytes : weights.per_rank)
         bytes += weights.replicated;

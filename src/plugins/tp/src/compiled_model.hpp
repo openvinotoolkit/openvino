@@ -9,9 +9,9 @@
 #include <string>
 #include <vector>
 
-#include "openvino/runtime/icompiled_model.hpp"
 #include "cache_controller.hpp"
 #include "device_locks.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
 #include "rank_workers.hpp"
 #include "tp/tp_config.hpp"
 #include "tp_blob.hpp"
@@ -62,22 +62,32 @@ public:
 
     void release_memory() override;
 
-    const std::vector<ov::SoPtr<ov::ICompiledModel>>& get_rank_compiled() const { return m_rank_compiled; }
-    const std::vector<std::string>& get_device_names() const { return m_device_names; }
+    const std::vector<ov::SoPtr<ov::ICompiledModel>>& get_rank_compiled() const {
+        return m_rank_compiled;
+    }
+    const std::vector<std::string>& get_device_names() const {
+        return m_device_names;
+    }
 
     /// Ids of the variables whose per-rank states each hold a slice of the KV
     /// cache along the kv-head axis. A caller reading or writing whole state
     /// tensors has to see them gathered and scattered; every other variable is
     /// replicated and can be fanned out as is.
-    const std::vector<std::string>& get_sharded_state_ids() const { return m_sharded_state_ids; }
+    const std::vector<std::string>& get_sharded_state_ids() const {
+        return m_sharded_state_ids;
+    }
 
     /// Consecutive ranks holding the same slice of those states (fewer KV heads than ranks).
-    uint32_t get_state_replicas() const { return m_state_replicas; }
+    uint32_t get_state_replicas() const {
+        return m_state_replicas;
+    }
 
     /// The paged-attention cache this model owns, or null when the model does
     /// not use one. Shared by every infer request of this model: one cache,
     /// one scheduler driving it.
-    const CacheControllerPtr& get_cache_controller() const { return m_cache_controller; }
+    const CacheControllerPtr& get_cache_controller() const {
+        return m_cache_controller;
+    }
 
     /// One TP request at a time on the devices of this model, across every
     /// TP compiled model of the process whose devices overlap: the rank

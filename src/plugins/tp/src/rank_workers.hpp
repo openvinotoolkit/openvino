@@ -28,7 +28,9 @@ public:
             m_workers.push_back(std::make_unique<Worker>());
         }
         for (std::size_t i = 0; i < num_ranks; ++i) {
-            m_workers[i]->thread = std::thread([this, i] { worker_loop(i); });
+            m_workers[i]->thread = std::thread([this, i] {
+                worker_loop(i);
+            });
         }
     }
 
@@ -68,7 +70,9 @@ public:
         std::exception_ptr first_error;
         for (auto& w : m_workers) {
             std::unique_lock<std::mutex> lock(w->mtx);
-            w->cv.wait(lock, [&] { return !w->busy; });
+            w->cv.wait(lock, [&] {
+                return !w->busy;
+            });
             if (w->error && !first_error) {
                 first_error = w->error;
             }
@@ -94,7 +98,9 @@ private:
         Worker& w = *m_workers[index];
         while (true) {
             std::unique_lock<std::mutex> lock(w.mtx);
-            w.cv.wait(lock, [&] { return w.busy || w.stop; });
+            w.cv.wait(lock, [&] {
+                return w.busy || w.stop;
+            });
             if (w.stop) {
                 return;
             }

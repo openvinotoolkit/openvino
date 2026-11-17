@@ -18,7 +18,9 @@
 namespace ov::tp::tests {
 
 /// Annotates `model` in place.
-inline TPAnalysisReportPtr analyze(const std::shared_ptr<ov::Model>& model, uint32_t world_size, bool shard_lm_head = true) {
+inline TPAnalysisReportPtr analyze(const std::shared_ptr<ov::Model>& model,
+                                   uint32_t world_size,
+                                   bool shard_lm_head = true) {
     auto report = std::make_shared<TPAnalysisReport>();
     TPLayerAnalyzer(TPAnalyzerConfig{world_size, shard_lm_head}, report).run_on_model(model);
     return report;

@@ -33,7 +33,7 @@ namespace tp {
 /// Opaque, implementation-defined payload.
 using Blob = std::vector<uint8_t>;
 
-/// The only backend name L3 defines; the device plugin resolves it to one of its own names.
+/// The only backend name the contract defines; the device plugin resolves it to one of its own names.
 inline constexpr const char* auto_backend = "AUTO";
 
 /**
@@ -82,7 +82,7 @@ public:
     }
 
     void publish(const Blob& local) override {
-        OPENVINO_ASSERT(!m_published, "TP exchange: rank ", m_rank, " published twice without collecting");
+        OPENVINO_ASSERT(!m_published, "[TP] exchange: rank ", m_rank, " published twice without collecting");
         auto& s = *m_state;
         std::lock_guard<std::mutex> lock(s.mutex);
         auto& round = s.rounds[m_round];
@@ -97,7 +97,7 @@ public:
     }
 
     std::vector<Blob> collect() override {
-        OPENVINO_ASSERT(m_published, "TP exchange: rank ", m_rank, " collects without having published");
+        OPENVINO_ASSERT(m_published, "[TP] exchange: rank ", m_rank, " collects without having published");
         auto& s = *m_state;
         std::unique_lock<std::mutex> lock(s.mutex);
         // std::map references stay valid while other ranks add later rounds.
@@ -109,7 +109,7 @@ public:
             s.cv.wait(lock, all_published);
         } else {
             OPENVINO_ASSERT(s.cv.wait_for(lock, s.timeout, all_published),
-                            "TP exchange timed out after ",
+                            "[TP] exchange timed out after ",
                             s.timeout.count(),
                             " ms: ",
                             round.published,
@@ -141,8 +141,8 @@ public:
     /// One shared group state and one endpoint per rank. A zero timeout waits indefinitely.
     static std::vector<std::shared_ptr<IExchange>> create_group(uint32_t world_size,
                                                                 std::chrono::milliseconds timeout) {
-        OPENVINO_ASSERT(world_size >= 1, "TP exchange: world size must be positive, got ", world_size);
-        OPENVINO_ASSERT(timeout.count() >= 0, "TP exchange: timeout must not be negative");
+        OPENVINO_ASSERT(world_size >= 1, "[TP] exchange: world size must be positive, got ", world_size);
+        OPENVINO_ASSERT(timeout.count() >= 0, "[TP] exchange: timeout must not be negative");
         auto state = std::make_shared<detail::InProcessGroupState>();
         state->world_size = world_size;
         state->timeout = timeout;
@@ -214,8 +214,7 @@ static constexpr ov::Property<std::vector<std::string>, ov::PropertyMutability::
 
 /// Empty if the device group is supported with the backend, otherwise the reason. Does not throw for an
 /// unsupported group.
-static constexpr ov::Property<std::string, ov::PropertyMutability::RO> collective_support{
-    "TP_COLLECTIVE_SUPPORT"};
+static constexpr ov::Property<std::string, ov::PropertyMutability::RO> collective_support{"TP_COLLECTIVE_SUPPORT"};
 
 /// Argument of the support query (default "AUTO").
 static constexpr ov::Property<std::string> collective_backend{"TP_COLLECTIVE_BACKEND"};
@@ -227,7 +226,7 @@ struct DeviceMemory {
     uint64_t max_allocation = 0;  ///< largest single allocation
 };
 
-/// Memory of the device named by the argument ov::device::id (D11): what the TP plugin sizes the caches it
+/// Memory of the device named by the argument ov::device::id: what the TP plugin sizes the caches it
 /// manages against.
 static constexpr ov::Property<DeviceMemory, ov::PropertyMutability::RO> device_memory{"TP_DEVICE_MEMORY"};
 

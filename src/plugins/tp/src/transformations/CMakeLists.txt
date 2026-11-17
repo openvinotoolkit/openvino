@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# L1: the TP transformations. Depends on OpenVINO core and the L2 collective ops only.
+# The TP transformations. Depends on OpenVINO core and the collective ops (ov_ops/tp_collective.hpp) only.
 set(TARGET_NAME openvino_tp_transformations)
 
 file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)

@@ -62,6 +62,9 @@ TEST(TPCollectiveTest, GatherWidensAxisOnRootOnly) {
 
     const auto dynamic = std::make_shared<TPGather>(make_input({1, 1, -1}), 0, 4, 0, 0);
     EXPECT_EQ(dynamic->get_output_partial_shape(0), (ov::PartialShape{1, 1, -1}));
+
+    const auto bounded = std::make_shared<TPGather>(make_input({1, 1, {2, 8}}), 0, 4, 0, 0);
+    EXPECT_EQ(bounded->get_output_partial_shape(0), (ov::PartialShape{1, 1, {8, 32}}));
 }
 
 TEST(TPCollectiveTest, CloneKeepsAttributes) {

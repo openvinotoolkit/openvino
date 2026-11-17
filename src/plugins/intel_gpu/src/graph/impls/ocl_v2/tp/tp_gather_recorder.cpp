@@ -89,10 +89,10 @@ void TPGatherRecorder::run(const cldnn::ze::tp::Channel& channel,
                            ze_command_list_handle_t model_queue) {
     auto& group = *channel.group();
     const uint32_t rank = channel.rank();
-    OPENVINO_ASSERT(in != nullptr, "[TP][L0] gather called with a null source on rank ", rank);
-    OPENVINO_ASSERT(rank != 0 || out != nullptr, "[TP][L0] gather called with a null destination on the root rank");
+    OPENVINO_ASSERT(in != nullptr, "[GPU][TP][L0] gather called with a null source on rank ", rank);
+    OPENVINO_ASSERT(rank != 0 || out != nullptr, "[GPU][TP][L0] gather called with a null destination on the root rank");
     OPENVINO_ASSERT(rows > 0 && slice_elems > 0,
-                    "[TP][L0] gather of an empty slice (rows=",
+                    "[GPU][TP][L0] gather of an empty slice (rows=",
                     rows,
                     ", slice=",
                     slice_elems,

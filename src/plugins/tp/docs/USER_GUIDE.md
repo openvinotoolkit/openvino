@@ -108,7 +108,7 @@ What the list is checked for, before anything is compiled:
 
 | Input | Result |
 |---|---|
-| fewer than two entries (`TP`, `TP:`, `TP:GPU.0`, `TP.0`) | `TP requires at least 2 devices, got N ("<list>")` |
+| fewer than two entries (`TP`, `TP:`, `TP:GPU.0`, `TP.0`) | `[TP] requires at least 2 devices, got N ("<list>")` |
 | an empty entry (`TP:GPU.0,,GPU.1`) | refused, naming the list |
 | two device types (`TP:GPU.0,CPU`), another virtual device (`TP:HETERO:GPU.0,GPU.1`) | `all rank devices must have one device type` |
 | a device type without collectives (`TP:CPU,CPU`, `TP:AUTO,AUTO`) | `the CPU plugin does not support tensor-parallel collectives` |
@@ -121,12 +121,12 @@ Entries are trimmed of spaces; names are case-sensitive, like every OpenVINO
 device name. `TP_COMM_BUFFER_SIZE` larger than a device allocates
 at once is refused by name; below 512 bytes the GPU refuses it as too small.
 
-| Property                   | Type       | Default | Description                                                                              |
-|----------------------------|------------|---------|------------------------------------------------------------------------------------------|
-| `TP_STRATEGY`              | string     | `COLUMN_ROW` | Partitioning strategy (Megatron-style column/row parallelism; the only value). |
-| `COLLECTIVE_BACKEND`       | string     | `AUTO`  | Collective implementation of the rank devices' plugin, passed to it unchanged. GPU: `L0_P2P`; an unknown name is rejected with the valid ones. |
-| `COMMUNICATION_TIMEOUT_MS` | `int64_t`  | `5000`  | Longest a rank waits inside a collective before the group is aborted. `0` waits forever; a negative value is rejected at `compile_model`. |
-| `TP_COMM_BUFFER_SIZE`      | `size_t`   | `0`     | Bytes of collective staging per rank, allocated once when the model is compiled. Larger messages are split into chunks. `0` lets the staging grow with the largest message. |
+| Property                   | Type      | Default      | Description |
+|----------------------------|-----------|--------------|-------------|
+| `TP_STRATEGY`              | `string`  | `COLUMN_ROW` | Partitioning strategy (Megatron-style column/row parallelism; the only value). |
+| `COLLECTIVE_BACKEND`       | `string`  | `AUTO`       | Collective implementation of the rank devices' plugin, passed to it unchanged. GPU: `L0_P2P`; an unknown name is rejected with the valid ones. |
+| `COMMUNICATION_TIMEOUT_MS` | `int64_t` | `5000`       | Longest a rank waits inside a collective before the group is aborted. `0` waits forever; a negative value is rejected at `compile_model`. |
+| `TP_COMM_BUFFER_SIZE`      | `size_t`  | `0`          | Bytes of collective staging per rank, allocated once when the model is compiled. Larger messages are split into chunks. `0` lets the staging grow with the largest message. |
 
 A collective needs all ranks to participate. If one rank never arrives or its
 device work never completes, `COMMUNICATION_TIMEOUT_MS` is what turns that into
@@ -281,7 +281,7 @@ The plugin failed to load, or was never built. Check:
 - `LD_LIBRARY_PATH` includes the runtime libs and the L0 loader is
   reachable.
 
-### `TP requires at least 2 devices, got 1`
+### `[TP] requires at least 2 devices, got 1`
 
 The device name lists fewer than two rank devices (`"TP"` alone lists none). Name
 them: `"TP:GPU.0,GPU.1"`; `core.get_available_devices()` shows which exist.

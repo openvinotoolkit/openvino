@@ -27,14 +27,9 @@ layout gathered_layout(const layout& input_layout, const tp_gather& desc) {
         return input_layout;
     }
     const auto rank_len = pshape.rank().get_length();
-    const auto axis = desc.axis >= 0 ? desc.axis : desc.axis + rank_len;
-    OPENVINO_ASSERT(axis >= 0 && axis < rank_len,
-                    "[GPU] tp_gather axis ", desc.axis, " is out of range for a rank-", rank_len, " input");
-    if (pshape[axis].is_static()) {
-        pshape[axis] = pshape[axis].get_length() * static_cast<int64_t>(desc.world_size);
-    } else {
-        pshape[axis] = ov::Dimension::dynamic();
-    }
+    OPENVINO_ASSERT(desc.axis >= 0 && desc.axis < rank_len,
+                    "[GPU][TP] tp_gather axis ", desc.axis, " is out of range for a rank-", rank_len, " input");
+    pshape[desc.axis] *= static_cast<int64_t>(desc.world_size);
     return layout(pshape, input_layout.data_type, input_layout.format);
 }
 

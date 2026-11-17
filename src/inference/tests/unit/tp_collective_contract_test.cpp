@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/runtime/tp/collective_contract.hpp"
-
 #include <gtest/gtest.h>
 
 #include <thread>
 
 #include "openvino/core/any.hpp"
+#include "openvino/runtime/tp/collective_contract.hpp"
 
 using ov::tp::Blob;
 using ov::tp::InProcessExchange;
@@ -112,8 +111,7 @@ TEST(TPCollectiveContractTest, GroupsSurviveAnAnyMap) {
     const std::map<uint32_t, ov::tp::CollectiveGroup> groups{{0, {endpoints[1], "L0_P2P"}}};
     const ov::AnyMap params{ov::tp::internal::groups(groups), ov::tp::internal::channels(1u)};
 
-    const auto restored =
-        params.at(ov::tp::internal::groups.name()).as<std::map<uint32_t, ov::tp::CollectiveGroup>>();
+    const auto restored = params.at(ov::tp::internal::groups.name()).as<std::map<uint32_t, ov::tp::CollectiveGroup>>();
     ASSERT_EQ(restored.count(0), 1u);
     EXPECT_EQ(restored.at(0).exchange, endpoints[1]);
     EXPECT_EQ(restored.at(0).backend, "L0_P2P");

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# Unit tests: the L1 transformations (no device).
+# Unit tests: the TP transformations (no device).
 add_subdirectory(unit)
 
 # The TP plugin end to end, its ranks on 2-4 devices of type OV_TP_TEST_DEVICE (GPU by default).

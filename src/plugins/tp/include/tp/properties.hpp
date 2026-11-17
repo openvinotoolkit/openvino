@@ -24,7 +24,7 @@ inline std::ostream& operator<<(std::ostream& os, const TPStrategy& strategy) {
     case TPStrategy::COLUMN_ROW:
         return os << "COLUMN_ROW";
     default:
-        OPENVINO_THROW("TP: unsupported partitioning strategy");
+        OPENVINO_THROW("[TP] Unsupported partitioning strategy");
     }
 }
 
@@ -34,7 +34,7 @@ inline std::istream& operator>>(std::istream& is, TPStrategy& strategy) {
     if (str == "COLUMN_ROW") {
         strategy = TPStrategy::COLUMN_ROW;
     } else {
-        OPENVINO_THROW("TP: unsupported partitioning strategy \"", str, "\"; supported: COLUMN_ROW");
+        OPENVINO_THROW("[TP] Unsupported partitioning strategy \"", str, "\"; supported: COLUMN_ROW");
     }
     return is;
 }

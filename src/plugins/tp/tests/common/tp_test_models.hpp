@@ -145,10 +145,10 @@ inline std::array<ov::Output<ov::Node>, 3> make_qkv(const ov::Output<ov::Node>& 
     }
     auto qkv = make_projection(data, config.hidden, q_features + 2 * kv_features, config, config.with_bias, 1);
     qkv->set_friendly_name("qkv_proj");
-    const auto parts = split_features(qkv,
-                                      {static_cast<int64_t>(q_features), static_cast<int64_t>(kv_features),
-                                       static_cast<int64_t>(kv_features)},
-                                      config.qkv);
+    const auto parts = split_features(
+        qkv,
+        {static_cast<int64_t>(q_features), static_cast<int64_t>(kv_features), static_cast<int64_t>(kv_features)},
+        config.qkv);
     return {parts[0], parts[1], parts[2]};
 }
 
@@ -178,9 +178,8 @@ inline std::shared_ptr<ov::Node> expand_kv_heads(const ov::Output<ov::Node>& kv,
     auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2});
     auto unsqueezed = std::make_shared<ov::op::v0::Unsqueeze>(kv, axis);
 
-    auto ones = ov::op::v0::Constant::create(ov::element::f32,
-                                             ov::Shape{1, 1, group, 1, 1},
-                                             std::vector<float>(group, 1.0f));
+    auto ones =
+        ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, group, 1, 1}, std::vector<float>(group, 1.0f));
     auto expanded = std::make_shared<ov::op::v1::Multiply>(unsqueezed, ones);
 
     auto merged = ov::op::v0::Constant::create(
@@ -246,9 +245,9 @@ inline std::shared_ptr<ov::Model> make_transformer_block(const BlockConfig& conf
     }
 
     auto attention = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_heads,
-                                                                             expand_kv_heads(k_heads, config),
-                                                                             expand_kv_heads(v_heads, config),
-                                                                             /*causal=*/true);
+                                                                              expand_kv_heads(k_heads, config),
+                                                                              expand_kv_heads(v_heads, config),
+                                                                              /*causal=*/true);
 
     auto merged = ov::op::v0::Constant::create(ov::element::i64,
                                                ov::Shape{3},
@@ -340,8 +339,7 @@ inline std::shared_ptr<ov::Model> make_paged_attention_block(const BlockConfig& 
     auto past_lens = metadata_parameter("past_lens", ov::PartialShape{ov::Dimension::dynamic()});
     auto subsequence_begins = metadata_parameter("subsequence_begins", ov::PartialShape{ov::Dimension::dynamic()});
     auto block_indices = metadata_parameter("block_indices", ov::PartialShape{ov::Dimension::dynamic()});
-    auto block_indices_begins =
-        metadata_parameter("block_indices_begins", ov::PartialShape{ov::Dimension::dynamic()});
+    auto block_indices_begins = metadata_parameter("block_indices_begins", ov::PartialShape{ov::Dimension::dynamic()});
     auto max_context_len = metadata_parameter("max_context_len", ov::PartialShape{});
 
     auto scalar_i32 = [](int32_t value) {
@@ -355,35 +353,36 @@ inline std::shared_ptr<ov::Model> make_paged_attention_block(const BlockConfig& 
     };
 
     ov::OutputVector arguments{
-        flatten(q_heads),                                                  // 0  query
-        flatten(k_heads),                                                  // 1  key
-        flatten(v_heads),                                                  // 2  value
-        key_cache,                                                         // 3
-        value_cache,                                                       // 4
-        past_lens,                                                         // 5
-        subsequence_begins,                                                // 6
-        block_indices,                                                     // 7
-        block_indices_begins,                                              // 8
-        ov::op::v0::Constant::create(ov::element::f32, ov::Shape{},
+        flatten(q_heads),      // 0  query
+        flatten(k_heads),      // 1  key
+        flatten(v_heads),      // 2  value
+        key_cache,             // 3
+        value_cache,           // 4
+        past_lens,             // 5
+        subsequence_begins,    // 6
+        block_indices,         // 7
+        block_indices_begins,  // 8
+        ov::op::v0::Constant::create(ov::element::f32,
+                                     ov::Shape{},
                                      std::vector<float>{1.0f / std::sqrt(static_cast<float>(config.head_dim))}),
-        scalar_i32(0),                                                     // 10 sliding_window
-        empty_f32(),                                                       // 11 alibi_slopes
-        max_context_len,                                                   // 12
-        empty_i32(),                                                       // 13 score_aggregation_window
-        empty_i32(),                                                       // 14 rotated_block_indices
-        empty_i32(),                                                       // 15 rotation_deltas
-        empty_f32(),                                                       // 16 rotation_trig_lut
-        empty_f32(),                                                       // 17 xattention_threshold
-        scalar_i32(0),                                                     // 18 xattention_block_size
-        scalar_i32(0),                                                     // 19 xattention_stride
-        empty_f32(),                                                       // 20 sinks
-        scalar_i32(0),                                                     // 21 adaptive_rkv_start_size
-        empty_i32(),                                                       // 22 adaptive_rkv_evictable_sizes
-        empty_i32(),                                                       // 23 diversity_block_set_indices
-        empty_i32(),                                                       // 24 diversity_block_set_indices_begins
-        empty_i32(),                                                       // 25 token_type_ids
+        scalar_i32(0),    // 10 sliding_window
+        empty_f32(),      // 11 alibi_slopes
+        max_context_len,  // 12
+        empty_i32(),      // 13 score_aggregation_window
+        empty_i32(),      // 14 rotated_block_indices
+        empty_i32(),      // 15 rotation_deltas
+        empty_f32(),      // 16 rotation_trig_lut
+        empty_f32(),      // 17 xattention_threshold
+        scalar_i32(0),    // 18 xattention_block_size
+        scalar_i32(0),    // 19 xattention_stride
+        empty_f32(),      // 20 sinks
+        scalar_i32(0),    // 21 adaptive_rkv_start_size
+        empty_i32(),      // 22 adaptive_rkv_evictable_sizes
+        empty_i32(),      // 23 diversity_block_set_indices
+        empty_i32(),      // 24 diversity_block_set_indices_begins
+        empty_i32(),      // 25 token_type_ids
         ov::op::v0::Constant::create(ov::element::u8, ov::Shape{0}, std::vector<uint8_t>{}),  // 26 qq_bias
-        empty_i32(),                                                       // 27 qq_bias_begins
+        empty_i32(),                                                                          // 27 qq_bias_begins
     };
 
     auto attention = std::make_shared<ov::op::PagedAttentionExtension>(arguments);
@@ -429,9 +428,14 @@ inline std::shared_ptr<ov::Model> make_paged_attention_block(const BlockConfig& 
 
     auto result = std::make_shared<ov::op::v1::Add>(residual, down);
     return std::make_shared<ov::Model>(ov::OutputVector{result},
-                                       ov::ParameterVector{data, key_cache, value_cache, past_lens,
-                                                           subsequence_begins, block_indices,
-                                                           block_indices_begins, max_context_len},
+                                       ov::ParameterVector{data,
+                                                           key_cache,
+                                                           value_cache,
+                                                           past_lens,
+                                                           subsequence_begins,
+                                                           block_indices,
+                                                           block_indices_begins,
+                                                           max_context_len},
                                        "TPTestPagedAttentionBlock");
 }
 

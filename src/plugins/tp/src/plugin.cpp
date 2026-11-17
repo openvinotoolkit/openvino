@@ -17,28 +17,28 @@
 #include <vector>
 
 #include "compiled_model.hpp"
-#include "tp_blob.hpp"
-#include "tp_transformations/analyzer.hpp"
-#include "tp_transformations/annotations.hpp"
-#include "tp_transformations/rank_passes.hpp"
-#include "tp_transformations/rank_weights.hpp"
-#include "openvino/pass/manager.hpp"
-#include "ov_ops/tp_collective.hpp"
-#include "tp/itt.hpp"
-#include "tp/tp_config.hpp"
-#include "tp/tp_debug.hpp"
-#include "openvino/runtime/icore.hpp"
-#include "openvino/runtime/internal_properties.hpp"
-#include "openvino/runtime/properties.hpp"
-#include "openvino/runtime/shared_buffer.hpp"
-#include "openvino/runtime/tp/collective_contract.hpp"
-#include "openvino/util/container_util.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/paged_causal_conv1d.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/op/paged_selective_ssm.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/runtime/icore.hpp"
+#include "openvino/runtime/internal_properties.hpp"
+#include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/runtime/tp/collective_contract.hpp"
+#include "openvino/util/container_util.hpp"
+#include "ov_ops/tp_collective.hpp"
+#include "tp/itt.hpp"
+#include "tp/tp_config.hpp"
+#include "tp/tp_debug.hpp"
+#include "tp_blob.hpp"
+#include "tp_transformations/analyzer.hpp"
+#include "tp_transformations/annotations.hpp"
+#include "tp_transformations/rank_passes.hpp"
+#include "tp_transformations/rank_weights.hpp"
 
 namespace ov {
 namespace tp {
@@ -51,7 +51,7 @@ void expect_one_stream(const ov::AnyMap& config) {
     }
     const auto value = it->second.as<std::string>();
     OPENVINO_ASSERT(ov::Any(value).as<ov::streams::Num>() == 1,
-                    "TP supports one stream per device (ov::num_streams = 1), got ",
+                    "[TP] supports one stream per device (ov::num_streams = 1), got ",
                     value,
                     ".");
 }
@@ -71,7 +71,7 @@ void force_one_stream(ov::AnyMap& forwarded) {
 }
 
 void reject_linear_attention(const ov::Model& model) {
-    constexpr const char* unsupported = "TP does not support models with linear-attention state yet.";
+    constexpr const char* unsupported = "[TP] does not support models with linear-attention state yet.";
     for (const auto& op : model.get_ops()) {
         const bool linear_attention = ov::is_type_any_of<ov::op::internal::PagedGatedDeltaNet,
                                                          ov::op::internal::PagedCausalConv1D,
@@ -114,7 +114,8 @@ void strip_collectives(const std::shared_ptr<ov::Model>& shard) {
             continue;
         }
         OPENVINO_ASSERT(node->get_input_size() == 1 && node->get_output_size() == 1,
-                        "[TP] TP_SHARD_ONLY cannot handle ", node->get_type_info().name,
+                        "[TP] TP_SHARD_ONLY cannot handle ",
+                        node->get_type_info().name,
                         ": it does not have exactly one input and one output.");
 
         const auto& in_shape = node->get_input_partial_shape(0);
@@ -127,7 +128,8 @@ void strip_collectives(const std::shared_ptr<ov::Model>& shard) {
 
         // Find the one axis that grew and repeat the input along it.
         OPENVINO_ASSERT(in_shape.rank().is_static() && out_shape.rank() == in_shape.rank(),
-                        "[TP] TP_SHARD_ONLY cannot widen ", node->get_type_info().name,
+                        "[TP] TP_SHARD_ONLY cannot widen ",
+                        node->get_type_info().name,
                         ": ranks differ or are dynamic.");
         int64_t axis = -1;
         int64_t factor = 0;
@@ -170,8 +172,8 @@ void log_analysis(const TPAnalysisReport& report, size_t num_collectives) {
                 << " intermediate=" << report.intermediate_size
                 << " sharded variables=" << report.sharded_variables.size() << std::endl;
     if (report.kv_replicas > 1) {
-        TP_LOG_INFO << "[TP] " << report.num_kv_heads << " KV heads on "
-                    << report.num_kv_heads * report.kv_replicas << " ranks: " << report.kv_replicas
+        TP_LOG_INFO << "[TP] " << report.num_kv_heads << " KV heads on " << report.num_kv_heads * report.kv_replicas
+                    << " ranks: " << report.kv_replicas
                     << " ranks share each KV head and compute its K/V projections alike" << std::endl;
     }
     if (report.lm_head_copy_bytes != 0) {
@@ -374,19 +376,17 @@ void Plugin::check_collective_support(const std::vector<std::string>& device_nam
     const auto type = TPConfig::device_type(device_names);
     const auto internal = get_core()->get_property(type, ov::internal::supported_properties);
     OPENVINO_ASSERT(ov::util::contains(internal, ov::tp::internal::collective_support.name()),
-                    get_device_name(),
-                    ": the ",
-                    type,
-                    " plugin does not support tensor-parallel collectives");
+                    "[TP] the ", type, " plugin does not support tensor-parallel collectives");
 
     // The device plugin decides what it can serve, distinct devices included.
-    const auto reason = get_core()
-                            ->get_property(type,
-                                           ov::tp::internal::collective_support.name(),
-                                           {{ov::tp::internal::device_group.name(), device_names},
-                                            {ov::tp::internal::collective_backend.name(), config.get_collective_backend()}})
-                            .as<std::string>();
-    OPENVINO_ASSERT(reason.empty(), get_device_name(), ": ", reason);
+    const auto reason =
+        get_core()
+            ->get_property(type,
+                           ov::tp::internal::collective_support.name(),
+                           {{ov::tp::internal::device_group.name(), device_names},
+                            {ov::tp::internal::collective_backend.name(), config.get_collective_backend()}})
+            .as<std::string>();
+    OPENVINO_ASSERT(reason.empty(), "[TP] ", reason);
 }
 
 void Plugin::check_rank_memory(const ov::Model& analyzed,
@@ -519,8 +519,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
         TP_LOG_INFO << "[TP] Rank " << rank << ": " << rank_model->get_ordered_ops().size() << " ops, "
                     << num_collectives << " collectives, " << mib(constant_bytes(*rank_model))
-                    << " MiB of constants; weights cut: " << stats->views << " views, " << stats->copies
-                    << " copies (" << mib(stats->copied_bytes) << " MiB copied)" << std::endl;
+                    << " MiB of constants; weights cut: " << stats->views << " views, " << stats->copies << " copies ("
+                    << mib(stats->copied_bytes) << " MiB copied)" << std::endl;
 
         if (shard_only) {
             strip_collectives(rank_model);
@@ -531,7 +531,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
-    return std::make_shared<CompiledModel>(model, shared_from_this(),
+    return std::make_shared<CompiledModel>(model,
+                                           shared_from_this(),
                                            std::move(rank_compiled),
                                            std::move(device_names),
                                            std::move(device_keys),
@@ -733,7 +734,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_blob(std::istream& blob, cons
 
     // No IR here: the user model was consumed at compile time and is not part
     // of the blob, only its ports are.
-    return std::make_shared<CompiledModel>(nullptr, shared_from_this(),
+    return std::make_shared<CompiledModel>(nullptr,
+                                           shared_from_this(),
                                            std::move(rank_compiled),
                                            std::move(header.device_names),
                                            std::move(device_keys),

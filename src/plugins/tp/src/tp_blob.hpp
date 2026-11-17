@@ -71,19 +71,16 @@ inline constexpr uint32_t max_port_names = 1u << 10;
 
 template <class T>
 void write_trivial(std::ostream& s, const T& v) {
-    static_assert(std::is_trivially_copyable<T>::value,
-                  "only trivially copyable types can be written byte-for-byte");
+    static_assert(std::is_trivially_copyable<T>::value, "only trivially copyable types can be written byte-for-byte");
     s.write(reinterpret_cast<const char*>(&v), sizeof(T));
 }
 
 template <class T>
 T read_trivial(std::istream& s) {
-    static_assert(std::is_trivially_copyable<T>::value,
-                  "only trivially copyable types can be read byte-for-byte");
+    static_assert(std::is_trivially_copyable<T>::value, "only trivially copyable types can be read byte-for-byte");
     T v{};
     s.read(reinterpret_cast<char*>(&v), sizeof(T));
-    OPENVINO_ASSERT(s.gcount() == static_cast<std::streamsize>(sizeof(T)),
-                    "[TP] truncated compiled blob");
+    OPENVINO_ASSERT(s.gcount() == static_cast<std::streamsize>(sizeof(T)), "[TP] truncated compiled blob");
     return v;
 }
 
@@ -99,8 +96,7 @@ inline std::string read_string(std::istream& s, uint32_t max_length = max_device
                     " bytes, which is not plausible; the cache entry is corrupted");
     std::string v(length, '\0');
     s.read(v.data(), static_cast<std::streamsize>(length));
-    OPENVINO_ASSERT(s.gcount() == static_cast<std::streamsize>(length),
-                    "[TP] truncated compiled blob");
+    OPENVINO_ASSERT(s.gcount() == static_cast<std::streamsize>(length), "[TP] truncated compiled blob");
     return v;
 }
 

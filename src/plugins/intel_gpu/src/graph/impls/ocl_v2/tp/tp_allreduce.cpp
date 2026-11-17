@@ -66,7 +66,7 @@ public:
         if (channel.options().verbosity >= ov::log::Level::INFO) {
             static std::once_flag reported;
             std::call_once(reported, [&] {
-                cldnn::ze::tp::LogLine{}.stream() << "[TP] collective rides "
+                cldnn::ze::tp::LogLine{}.stream() << "[GPU][TP] collective rides "
                                             << (async ? "in the model queue" : "on its own queue (synchronous)")
                                             << ", in-order=" << (stream.get_queue_type() == QueueTypes::in_order) << std::endl;
             });
@@ -103,7 +103,7 @@ public:
 private:
     ze_kernel_handle_t reduce_kernel() const {
         const auto* kernel = dynamic_cast<const cldnn::ze::ze_kernel*>(reduce->kernel.get());
-        OPENVINO_ASSERT(kernel != nullptr, "[GPU] tp_allreduce has no Level Zero reduction kernel");
+        OPENVINO_ASSERT(kernel != nullptr, "[GPU][TP] tp_allreduce has no Level Zero reduction kernel");
         return kernel->get_kernel_handle();
     }
 

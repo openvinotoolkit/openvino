@@ -17,13 +17,13 @@ static void CreateTPGatherOp(ProgramBuilder& p,
                              const std::shared_ptr<ov::op::internal::TPGather>& op) {
     validate_inputs_count(op, {1});
     OPENVINO_ASSERT(op->get_group_id() == 0,
-                    "TPGather ", op->get_friendly_name(), ": only collective group 0 is supported, got ", op->get_group_id());
+                    "[GPU][TP] TPGather ", op->get_friendly_name(), ": only collective group 0 is supported, got ", op->get_group_id());
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     // Counted from the front: static layouts are padded to 4D at the back, where -1 would land on a padding axis.
     const auto input_rank = op->get_input_partial_shape(0).rank();
-    OPENVINO_ASSERT(input_rank.is_static(), "TPGather ", op->get_friendly_name(), ": the input rank must be static");
+    OPENVINO_ASSERT(input_rank.is_static(), "[GPU][TP] TPGather ", op->get_friendly_name(), ": the input rank must be static");
     const auto axis = static_cast<int64_t>(ov::util::try_normalize_axis(op->get_axis(), input_rank, *op));
 
     auto prim = cldnn::tp_gather(layerName,

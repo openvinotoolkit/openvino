@@ -95,7 +95,9 @@ bool annotate_shape_input(const std::shared_ptr<ov::Node>& node,
 std::vector<ov::Output<ov::Node>> feature_parts(const ov::Output<ov::Node>& output);
 
 /// Gives the split of `output` (see feature_parts) the rank's lengths or bounds of `segments`, one per part.
-void annotate_feature_parts(const ov::Output<ov::Node>& output, const std::vector<Segment>& segments, const std::string& block);
+void annotate_feature_parts(const ov::Output<ov::Node>& output,
+                            const std::vector<Segment>& segments,
+                            const std::string& block);
 
 }  // namespace blocks
 }  // namespace tp

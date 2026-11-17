@@ -47,12 +47,7 @@ bool TPAllReduce::visit_attributes(ov::AttributeVisitor& visitor) {
 }
 
 void TPAllReduce::validate_and_infer_types() {
-    NODE_VALIDATION_CHECK(this,
-                          m_rank < m_world_size,
-                          "rank ",
-                          m_rank,
-                          " is outside of a group of ",
-                          m_world_size);
+    NODE_VALIDATION_CHECK(this, m_rank < m_world_size, "rank ", m_rank, " is outside of a group of ", m_world_size);
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
@@ -84,23 +79,14 @@ bool TPGather::visit_attributes(ov::AttributeVisitor& visitor) {
 }
 
 void TPGather::validate_and_infer_types() {
-    NODE_VALIDATION_CHECK(this,
-                          m_rank < m_world_size,
-                          "rank ",
-                          m_rank,
-                          " is outside of a group of ",
-                          m_world_size);
+    NODE_VALIDATION_CHECK(this, m_rank < m_world_size, "rank ", m_rank, " is outside of a group of ", m_world_size);
 
     auto pshape = get_input_partial_shape(0);
     // Only the root holds every slice; the others would otherwise each allocate the full tensor.
     if (m_rank == 0 && pshape.rank().is_static()) {
         NODE_VALIDATION_CHECK(this, pshape.rank().get_length() > 0, "a scalar has no axis to gather along");
         const auto axis = ov::util::try_normalize_axis(m_axis, pshape.rank(), *this);
-        if (pshape[axis].is_static()) {
-            pshape[axis] = pshape[axis].get_length() * m_world_size;
-        } else {
-            pshape[axis] = ov::Dimension::dynamic();
-        }
+        pshape[axis] *= static_cast<int64_t>(m_world_size);
     }
     set_output_type(0, get_input_element_type(0), pshape);
 }

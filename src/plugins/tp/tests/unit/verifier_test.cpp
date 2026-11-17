@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "tp_transformations/verifier.hpp"
+
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "l1_test_utils.hpp"
 #include "openvino/op/ops.hpp"
 #include "tp_test_models.hpp"
-#include "tp_transformations/verifier.hpp"
+#include "transformation_test_utils.hpp"
 
 namespace ov::tp::tests {
 namespace {
@@ -53,10 +54,11 @@ std::shared_ptr<ov::Node> row(const ov::Output<ov::Node>& x, bool role = true) {
 std::shared_ptr<ov::op::v0::Constant> shape(std::vector<int64_t> values, std::vector<size_t> annotated = {}) {
     auto c = ov::op::v0::Constant::create(ov::element::i64, {values.size()}, values);
     if (!annotated.empty()) {
-        ShardAnnotation a(ShardStrategy::COLUMN_PARALLEL, -1, annotated.size() && values[annotated[0]] == heads
-                                                                  ? std::vector<Segment>{{heads, 1}}
-                                                                  : by_head,
-                          "test");
+        ShardAnnotation a(
+            ShardStrategy::COLUMN_PARALLEL,
+            -1,
+            annotated.size() && values[annotated[0]] == heads ? std::vector<Segment>{{heads, 1}} : by_head,
+            "test");
         a.elements = annotated;
         set_shard(c, a);
     }
@@ -121,9 +123,10 @@ TEST(TPShardingVerifierTest, DumpsTheStatesUpToAFailure) {
 
 TEST(TPShardingVerifierTest, RejectsASplitModelOutput) {
     auto x = input();
-    OV_EXPECT_THROW(verify({column(x)}, {x}),
-                    ov::Exception,
-                    AllOf(HasSubstr("a model output must be Replicated"), HasSubstr("Split(axis 2 r0:[0,16) r1:[16,32))")));
+    OV_EXPECT_THROW(
+        verify({column(x)}, {x}),
+        ov::Exception,
+        AllOf(HasSubstr("a model output must be Replicated"), HasSubstr("Split(axis 2 r0:[0,16) r1:[16,32))")));
 }
 
 TEST(TPShardingVerifierTest, RejectsARowParallelRoleWithoutAPartialSum) {
@@ -243,8 +246,11 @@ TEST(TPShardingVerifierTest, FailsTheAnalysisOfAnUnadjustedComputedShape) {
             continue;
         auto reshape = node->get_input_node_shared_ptr(0);
         auto copied = ov::op::v0::Constant::create(ov::element::i64, {2}, {0, 0});
-        auto features = ov::op::v0::Constant::create(ov::element::i64, {1}, {static_cast<int64_t>(config.num_heads * config.head_dim)});
-        reshape->input(1).replace_source_output(std::make_shared<ov::op::v0::Concat>(ov::OutputVector{copied, features}, 0));
+        auto features = ov::op::v0::Constant::create(ov::element::i64,
+                                                     {1},
+                                                     {static_cast<int64_t>(config.num_heads * config.head_dim)});
+        reshape->input(1).replace_source_output(
+            std::make_shared<ov::op::v0::Concat>(ov::OutputVector{copied, features}, 0));
         replaced = true;
         break;
     }
@@ -253,7 +259,8 @@ TEST(TPShardingVerifierTest, FailsTheAnalysisOfAnUnadjustedComputedShape) {
     const auto q_features = std::to_string(config.num_heads * config.head_dim);
     OV_EXPECT_THROW(analyze(model, 2),
                     ov::Exception,
-                    AllOf(HasSubstr("Sharding verification failed"), HasSubstr("holds " + q_features + " for the split output axis 2")));
+                    AllOf(HasSubstr("Sharding verification failed"),
+                          HasSubstr("holds " + q_features + " for the split output axis 2")));
 }
 
 // A fused gate_up_proj split with the global lengths would hand rank 0 only gate features and

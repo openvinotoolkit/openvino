@@ -44,7 +44,7 @@ std::vector<std::string> TPConfig::requested_device_names() const {
     std::string entry;
     while (std::getline(entries, entry, ',')) {
         const auto name = ov::util::trim(entry);
-        OPENVINO_ASSERT(!name.empty(), "TP: the device list \"", list, "\" has an empty entry");
+        OPENVINO_ASSERT(!name.empty(), "[TP] the device list \"", list, "\" has an empty entry");
         names.emplace_back(name);
     }
     return names;
@@ -53,7 +53,7 @@ std::vector<std::string> TPConfig::requested_device_names() const {
 std::vector<std::string> TPConfig::resolve_device_names() const {
     auto names = requested_device_names();
     OPENVINO_ASSERT(names.size() >= 2,
-                    "TP requires at least 2 devices, got ",
+                    "[TP] requires at least 2 devices, got ",
                     names.size(),
                     names.empty() ? std::string{} : " (\"" + get_priorities() + "\")",
                     ". List them in the device name, e.g. \"TP:GPU.0,GPU.1\".");
@@ -62,11 +62,11 @@ std::vector<std::string> TPConfig::resolve_device_names() const {
 }
 
 std::string TPConfig::device_type(const std::vector<std::string>& names) {
-    OPENVINO_ASSERT(!names.empty(), "TP: no rank devices");
+    OPENVINO_ASSERT(!names.empty(), "[TP] no rank devices");
     const auto type = ov::DeviceIDParser(names.front()).get_device_name();
     for (const auto& name : names) {
         OPENVINO_ASSERT(ov::DeviceIDParser(name).get_device_name() == type,
-                        "TP: all rank devices must have one device type, got ",
+                        "[TP] all rank devices must have one device type, got ",
                         ov::util::join(names, ","));
     }
     return type;

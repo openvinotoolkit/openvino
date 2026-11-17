@@ -110,10 +110,6 @@ std::string describe(const State& s) {
     return out.str();
 }
 
-int64_t normalize(int64_t axis, int64_t rank) {
-    return axis < 0 ? axis + rank : axis;
-}
-
 int64_t rank_of(const ov::PartialShape& shape) {
     return shape.rank().is_static() ? shape.rank().get_length() : -1;
 }
@@ -692,7 +688,7 @@ private:
     State concat(const ov::Node& node, const std::vector<State>& in) {
         const auto& c = static_cast<const ov::op::v0::Concat&>(node);
         const int64_t rank = rank_of(node.get_output_partial_shape(0));
-        const int64_t axis = normalize(c.get_axis(), rank);
+        const int64_t axis = ov::util::normalize(c.get_axis(), rank);
         bool sizes_in = false;
         for (const auto& s : in)
             sizes_in = sizes_in || s.kind == State::SIZES;
@@ -736,7 +732,7 @@ private:
                 axes.push_back(a);
         }
         for (auto& a : axes)
-            a = normalize(a, rank);
+            a = ov::util::normalize(a, rank);
 
         if (in[0].kind == State::SIZES) {
             const auto start = constant_values(node.input_value(1));
@@ -814,7 +810,7 @@ private:
         const auto axis_value = constant_values(node.input_value(1));
         if (!axis_value)
             fail(node, "the split axis is not constant");
-        const auto axis = normalize((*axis_value)[0], rank_of(node.get_input_partial_shape(0)));
+        const auto axis = ov::util::normalize((*axis_value)[0], rank_of(node.get_input_partial_shape(0)));
         if (!in[0].axes.count(axis)) {
             if (in.size() > 2 && in[2].kind != State::REPLICATED)
                 fail(node, "the split lengths are rank-dependent but the split does not cut a split axis");
@@ -913,7 +909,7 @@ private:
         if (in[1].kind != State::REPLICATED || in[2].kind != State::REPLICATED)
             fail(node, "the Gather indices or axis are not Replicated");
         const auto data_rank = rank_of(node.get_input_partial_shape(0));
-        const auto axis = normalize(g.get_axis(), data_rank);
+        const auto axis = ov::util::normalize(g.get_axis(), data_rank);
 
         if (in[0].kind == State::SIZES) {
             const auto indices = constant_values(node.input_value(1));
@@ -1002,7 +998,7 @@ private:
         if (!reduced)
             fail(node, "the reduction axes are not constant");
         for (auto& a : *reduced)
-            a = normalize(a, rank);
+            a = ov::util::normalize(a, rank);
         bool keep_dims = false;
         if (const auto* r = ov::as_type<const ov::op::util::ArithmeticReductionKeepDims>(&node))
             keep_dims = r->get_keep_dims();
@@ -1026,7 +1022,7 @@ private:
         const auto rank = rank_of(node.get_input_partial_shape(0));
         int64_t axis = 0;
         if (const auto* v8 = ov::as_type<const ov::op::v8::Softmax>(&node))
-            axis = normalize(v8->get_axis(), rank);
+            axis = ov::util::normalize(v8->get_axis(), rank);
         else
             axis = static_cast<int64_t>(static_cast<const ov::op::v1::Softmax&>(node).get_axis());
         if (in[0].axes.count(axis))

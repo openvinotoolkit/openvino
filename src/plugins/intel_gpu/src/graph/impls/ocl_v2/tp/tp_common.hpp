@@ -23,7 +23,7 @@ namespace ov::intel_gpu::ocl {
 /// `lhs * rhs` bytes; throws naming `what` when the product overflows.
 inline std::size_t checked_multiply(std::size_t lhs, std::size_t rhs, const char* what) {
     OPENVINO_ASSERT(rhs == 0 || lhs <= std::numeric_limits<std::size_t>::max() / rhs,
-                    "[TP][L0] ",
+                    "[GPU][TP][L0] ",
                     what,
                     " byte count overflow: ",
                     lhs,
@@ -52,7 +52,7 @@ struct AbortOnFailure {
 
     ~AbortOnFailure() {
         if (armed) {
-            group.abort_all("[TP][L0] rank " + std::to_string(rank) + " failed while " + action + " collective " +
+            group.abort_all("[GPU][TP][L0] rank " + std::to_string(rank) + " failed while " + action + " collective " +
                             std::to_string(collective_id) + " (" + name + ")");
         }
     }
@@ -62,7 +62,7 @@ struct AbortOnFailure {
 inline const cldnn::ze::tp::Channel& require_channel(const std::shared_ptr<cldnn::ze::tp::Channel>& channel,
                                                      const char* primitive) {
     OPENVINO_ASSERT(channel != nullptr,
-                    "[GPU] ",
+                    "[GPU][TP] ",
                     primitive,
                     " has no TP channel; the model must be compiled or imported with a TP context");
     return *channel;
@@ -71,7 +71,7 @@ inline const cldnn::ze::tp::Channel& require_channel(const std::shared_ptr<cldnn
 /// The in-order immediate list the model runs on, which a spliced collective is appended to.
 inline ze_command_list_handle_t model_queue_of(cldnn::stream& stream, const char* primitive) {
     auto* ze = dynamic_cast<cldnn::ze::ze_stream*>(&stream);
-    OPENVINO_ASSERT(ze != nullptr, "[GPU] ", primitive, " expects the Level Zero stream");
+    OPENVINO_ASSERT(ze != nullptr, "[GPU][TP] ", primitive, " expects the Level Zero stream");
     return ze->get_command_list().handle();
 }
 

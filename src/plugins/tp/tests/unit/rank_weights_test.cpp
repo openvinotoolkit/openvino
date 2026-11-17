@@ -6,8 +6,8 @@
 
 #include <gtest/gtest.h>
 
-#include "l1_test_utils.hpp"
 #include "tp_test_models.hpp"
+#include "transformation_test_utils.hpp"
 
 namespace ov::tp::tests {
 namespace {
@@ -17,7 +17,8 @@ size_t device_bytes(const ov::Model& model) {
     size_t bytes = 0;
     for (const auto& node : model.get_ops()) {
         if (const auto c = ov::as_type_ptr<ov::op::v0::Constant>(node))
-            bytes += c->get_element_type() == ov::element::f32 ? ov::shape_size(c->get_shape()) * 2 : c->get_byte_size();
+            bytes += c->get_element_type() == ov::element::f32 ? ov::shape_size(c->get_shape()) * 2
+                                                               : c->get_byte_size();
     }
     return bytes;
 }

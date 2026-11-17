@@ -31,7 +31,7 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContext::create_tensor(const ov::element::Typ
                                                           const ov::AnyMap&) {
     // A device tensor would be one model-level tensor on one rank, while every
     // rank expects its own sharded one.
-    OPENVINO_THROW("TP: a TP model has no single device; create_tensor() is not supported (use create_host_tensor()).");
+    OPENVINO_THROW("[TP] a TP model has no single device; create_tensor() is not supported (use create_host_tensor()).");
 }
 
 ov::SoPtr<ov::ITensor> RemoteContext::create_host_tensor(const ov::element::Type type, const ov::Shape& shape) {

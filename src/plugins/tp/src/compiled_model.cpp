@@ -8,10 +8,10 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/internal_properties.hpp"
-#include "openvino/runtime/properties.hpp"
-#include "tp/itt.hpp"
 #include "openvino/runtime/plugin_managed_cache.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "remote_context.hpp"
+#include "tp/itt.hpp"
 #include "tp_blob.hpp"
 
 namespace ov {
@@ -93,8 +93,7 @@ const std::vector<ov::Output<const ov::Node>>& CompiledModel::outputs() const {
 }
 
 std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request() const {
-    return std::make_shared<InferRequest>(
-        std::static_pointer_cast<const CompiledModel>(shared_from_this()));
+    return std::make_shared<InferRequest>(std::static_pointer_cast<const CompiledModel>(shared_from_this()));
 }
 
 void CompiledModel::export_model(std::ostream& stream) const {
@@ -143,8 +142,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
-    OPENVINO_ASSERT(!m_rank_compiled.empty(),
-                    "[TP] No compiled models");
+    OPENVINO_ASSERT(!m_rank_compiled.empty(), "[TP] No compiled models");
     return m_rank_compiled[0]->get_runtime_model();
 }
 
@@ -162,7 +160,7 @@ void CompiledModel::release_memory() {
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
     if (name == ov::supported_properties.name()) {
-        std::vector<ov::PropertyName> properties {
+        std::vector<ov::PropertyName> properties{
             ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::loaded_from_cache.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::execution_devices.name(), ov::PropertyMutability::RO},

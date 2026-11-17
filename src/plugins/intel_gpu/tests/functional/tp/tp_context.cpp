@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// What the GPU plugin adds to the collective contract (the shared L3 conformance tests,
+// What the GPU plugin adds to the collective contract (the shared conformance tests,
 // behavior/tp/collective_contract.hpp): its backend, its options, its limits and its messages.
 
 #include <gtest/gtest.h>

@@ -62,9 +62,7 @@ private:
 
     /// Returns the tensor to hand rank `rank` for user input `input_idx`, or a
     /// null pointer to hand the caller's tensor unchanged.
-    ov::SoPtr<ov::ITensor> stage_input(size_t rank,
-                                       size_t input_idx,
-                                       const ov::SoPtr<ov::ITensor>& user_tensor);
+    ov::SoPtr<ov::ITensor> stage_input(size_t rank, size_t input_idx, const ov::SoPtr<ov::ITensor>& user_tensor);
 
     std::shared_ptr<const CompiledModel> m_compiled_model;
 

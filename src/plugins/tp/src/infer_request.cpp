@@ -468,9 +468,10 @@ std::vector<ov::SoPtr<ov::IVariableState>> InferRequest::query_state() const {
                         "[TP] variable '", kv.first,
                         "' present on only ", kv.second.size(),
                         " of ", m_rank_requests.size(), " ranks");
-        m_fanout_states.emplace_back(std::make_shared<FanOutVariableState>(
-            kv.first, std::move(kv.second), sharded.count(kv.first) != 0,
-            m_compiled_model->get_state_replicas()));
+        m_fanout_states.emplace_back(std::make_shared<FanOutVariableState>(kv.first,
+                                                                           std::move(kv.second),
+                                                                           sharded.count(kv.first) != 0,
+                                                                           m_compiled_model->get_state_replicas()));
     }
     return m_fanout_states;
 }

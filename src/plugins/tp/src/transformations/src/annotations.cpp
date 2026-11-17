@@ -114,7 +114,10 @@ bool ShardAnnotation::visit_attributes(ov::AttributeVisitor& visitor) {
 
     strategy = from_string(strategy_name);
     OPENVINO_ASSERT(lengths.size() == units.size() && lengths.size() == steps.size() && lengths.size() == counts.size(),
-                    "[TP] tp_shard: ", lengths.size(), " lengths, ", units.size(), " units, ", steps.size(), " steps, ",
+                    "[TP] tp_shard: ",
+                    lengths.size(), " lengths, ",
+                    units.size(), " units, ",
+                    steps.size(), " steps, ",
                     counts.size(), " counts");
     segments.clear();
     for (size_t i = 0; i < lengths.size(); ++i) {
@@ -250,11 +253,7 @@ size_t rank_length(const std::vector<Segment>& segments, uint32_t rank, uint32_t
     return total;
 }
 
-int64_t localize(const ShardAnnotation& annotation,
-                 size_t listed,
-                 int64_t global,
-                 uint32_t rank,
-                 uint32_t world_size) {
+int64_t localize(const ShardAnnotation& annotation, size_t listed, int64_t global, uint32_t rank, uint32_t world_size) {
     const auto& segments = annotation.segments;
     switch (annotation.element_mode) {
     case ShardAnnotation::Elements::SIZE:

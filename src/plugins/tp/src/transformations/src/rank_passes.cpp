@@ -204,7 +204,7 @@ bool TPInsertCollectives::run_on_model(const std::shared_ptr<ov::Model>& model) 
                                                                       role->group_id,
                                                                       role->collective_id,
                                                                       /*axis=*/-1);
-            collective->set_friendly_name(node->get_friendly_name() + "/tp_gather");
+            collective->set_friendly_name("tp_gather/" + node->get_friendly_name());
         }
         for (const auto& target : node->output(0).get_target_inputs()) {
             if (target.get_node() != collective.get())

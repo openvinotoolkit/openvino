@@ -91,7 +91,7 @@ TEST(TPDeviceNameTest, RejectsLinearAttentionState) {
     const auto model = std::make_shared<ov::Model>(ov::OutputVector{sum}, ov::ParameterVector{x, state});
     OV_EXPECT_THROW(core.compile_model(model, "TP:" + named(0) + "," + named(1)),
                     ov::Exception,
-                    HasSubstr("TP does not support models with linear-attention state yet."));
+                    HasSubstr("[TP] does not support models with linear-attention state yet."));
 }
 
 TEST(TPDeviceNameTest, RejectsAnUnknownStrategy) {
@@ -127,10 +127,10 @@ TEST_F(TPDevicePropertiesTest, DeviceTypePropertiesReachRanks) {
     ov::Core core;
     const auto model = make_transformer_block(BlockConfig{});
     for (const auto precision : {ov::element::f32, ov::element::f16}) {
-        auto compiled = core.compile_model(model,
-                                           tp_device(2),
-                                           ov::device::properties(rank_device_type(),
-                                                                  ov::hint::inference_precision(precision)));
+        auto compiled =
+            core.compile_model(model,
+                               tp_device(2),
+                               ov::device::properties(rank_device_type(), ov::hint::inference_precision(precision)));
         EXPECT_EQ(compiled.get_property(ov::hint::inference_precision), precision);
     }
 }
@@ -228,11 +228,12 @@ TEST_F(TPDevicePropertiesTest, RejectsADevicePluginWithoutCollectives) {
 TEST_F(TPDevicePropertiesTest, NamedBackendAndWorldSize) {
     ov::Core core;
     const auto model = make_transformer_block(BlockConfig{});
-    const auto backends = core.get_property(rank_device_type(),
-                                            ov::tp::internal::collective_backends.name(),
-                                            {{ov::tp::internal::device_group.name(),
-                                              std::vector<std::string>{rank_device(0), rank_device(1)}}})
-                              .as<std::vector<std::string>>();
+    const auto backends =
+        core.get_property(
+                rank_device_type(),
+                ov::tp::internal::collective_backends.name(),
+                {{ov::tp::internal::device_group.name(), std::vector<std::string>{rank_device(0), rank_device(1)}}})
+            .as<std::vector<std::string>>();
     ASSERT_FALSE(backends.empty());
     auto compiled = core.compile_model(model,
                                        tp_device(2),

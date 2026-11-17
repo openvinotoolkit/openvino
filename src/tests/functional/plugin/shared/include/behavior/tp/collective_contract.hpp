@@ -25,8 +25,8 @@ namespace behavior {
 /// Device type (e.g. "GPU") and number of ranks.
 using TPCollectiveContractParams = std::tuple<std::string, uint32_t>;
 
-/// L3 conformance tests: what a device plugin taking part in tensor parallelism guarantees (the device-plugin
-/// obligations D1-D11 and the op contract), checked through the contract only -- TP contexts from the internal
+/// Conformance tests of the collective contract: what a device plugin taking part in tensor parallelism
+/// guarantees, the op contract included, checked through the contract only -- TP contexts from the internal
 /// TP properties, hand-sharded rank models, no TP plugin. A device plugin instantiates them with its device type.
 class TPCollectiveContractTest : public ::testing::TestWithParam<TPCollectiveContractParams> {
 public:

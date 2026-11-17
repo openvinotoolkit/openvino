@@ -143,11 +143,7 @@ std::vector<Range> rank_ranges(const std::vector<Segment>& segments, uint32_t ra
 size_t rank_length(const std::vector<Segment>& segments, uint32_t rank, uint32_t world_size);
 
 /// The rank's value of the `listed`-th element of an annotated shape constant whose global value is `global`.
-int64_t localize(const ShardAnnotation& annotation,
-                 size_t listed,
-                 int64_t global,
-                 uint32_t rank,
-                 uint32_t world_size);
+int64_t localize(const ShardAnnotation& annotation, size_t listed, int64_t global, uint32_t rank, uint32_t world_size);
 
 }  // namespace tp
 }  // namespace ov

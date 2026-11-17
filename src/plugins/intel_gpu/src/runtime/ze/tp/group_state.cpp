@@ -20,7 +20,7 @@
 #include "tp_l0_shared_context.hpp"
 
 // Verbosity travels with the options, so the collectives log the same way whoever created the context.
-#define TP_GROUP_LOG(level)                \
+#define GPU_TP_GROUP_LOG(level)          \
     if (m_options.verbosity >= (level)) \
     ::cldnn::ze::tp::LogLine{}.stream()
 
@@ -50,7 +50,7 @@ namespace {
 
 std::size_t checked_multiply(std::size_t lhs, std::size_t rhs, const char* what) {
     OPENVINO_ASSERT(rhs == 0 || lhs <= std::numeric_limits<std::size_t>::max() / rhs,
-                    "[TP][L0] ", what, " byte count overflow: ", lhs, " * ", rhs);
+                    "[GPU][TP][L0] ", what, " byte count overflow: ", lhs, " * ", rhs);
     return lhs * rhs;
 }
 
@@ -67,7 +67,7 @@ void select_compute_ordinal(ze_device_handle_t dev, uint32_t& ordinal) {
             return;
         }
     }
-    OPENVINO_THROW("[TP][L0] no compute-capable queue group found");
+    OPENVINO_THROW("[GPU][TP][L0] no compute-capable queue group found");
 }
 
 enum class WaitOutcome { ready, timed_out, aborted };
@@ -157,13 +157,13 @@ GroupState::GroupState(TPL0SharedContextPtr shared,
       m_stats(world_size),
       m_dump_period(options.dump_period) {
     OPENVINO_ASSERT(m_shared && m_shared->context && m_shared->devices.size() == world_size,
-                    "[TP][L0] the group requires a valid shared L0 context with ",
+                    "[GPU][TP][L0] the group requires a valid shared L0 context with ",
                     world_size,
                     " devices");
-    OPENVINO_ASSERT(world_size >= 2, "[TP][L0] the group requires at least 2 ranks");
-    OPENVINO_ASSERT(m_collective_timeout.count() >= 0, "[TP][L0] collective timeout must not be negative");
+    OPENVINO_ASSERT(world_size >= 2, "[GPU][TP][L0] the group requires at least 2 ranks");
+    OPENVINO_ASSERT(m_collective_timeout.count() >= 0, "[GPU][TP][L0] collective timeout must not be negative");
     OPENVINO_ASSERT(fixed_staging_bytes % 512 == 0,
-                    "[TP][L0] the fixed staging size must be a multiple of 512, got ",
+                    "[GPU][TP][L0] the fixed staging size must be a multiple of 512, got ",
                     fixed_staging_bytes);
 
     m_ranks.resize(world_size);
@@ -183,11 +183,11 @@ GroupState::GroupState(TPL0SharedContextPtr shared,
         const auto file = std::filesystem::path(m_options.profiling_csv_dir) /
                           ("tp_collectives_" + std::to_string(world_size) + "ranks_" + std::to_string(groups++) + ".csv");
         m_csv.open(file);
-        OPENVINO_ASSERT(m_csv, "[TP][L0] Cannot write the profiling CSV to ", file.string());
+        OPENVINO_ASSERT(m_csv, "[GPU][TP][L0] Cannot write the profiling CSV to ", file.string());
         // host: the call's host phases; device: the queue time of a splice, read when its recording is reused.
         m_csv << "kind,rank,collective,name,call,schedule,bytes,"
                  "late_us,rendezvous_us,handover_us,device_us,model_gap_us\n";
-        TP_REPORT << "[TP] Writing the collectives' profiling data to " << file.string() << std::endl;
+        GPU_TP_REPORT << "[GPU][TP] Writing the collectives' profiling data to " << file.string() << std::endl;
     }
     m_mailbox.slots[0].assign(world_size, MailboxSlot{});
     m_mailbox.slots[1].assign(world_size, MailboxSlot{});
@@ -221,13 +221,13 @@ GroupState::GroupState(TPL0SharedContextPtr shared,
     }
 
     m_ready = true;
-    TP_GROUP_LOG(ov::log::Level::INFO) << "[TP][L0] group ready: " << world_size << " ranks, " << num_collectives
+    GPU_TP_GROUP_LOG(ov::log::Level::INFO) << "[GPU][TP][L0] group ready: " << world_size << " ranks, " << num_collectives
                                        << " collectives" << std::endl;
 }
 
 GroupState::~GroupState() {
     if (m_options.validate_allreduce_output) {
-        TP_REPORT << "[TP][CHECK] AllReduce outputs compared across " << m_world_size << " ranks: " << m_checked
+        GPU_TP_REPORT << "[GPU][TP][CHECK] AllReduce outputs compared across " << m_world_size << " ranks: " << m_checked
                   << " calls, " << m_mismatches << " differ" << std::endl;
     }
     // Before anything it watches goes away. Every recording holds the group,
@@ -269,13 +269,13 @@ void GroupState::check_output(uint32_t rank, uint64_t collective_id, uint64_t ch
     if (std::adjacent_find(sums.begin(), sums.end(), std::not_equal_to<>()) != sums.end()) {
         if (++m_mismatches <= kMaxReports) {
             std::ostringstream message;
-            message << "[TP][CHECK] AllReduce output differs across ranks: " << name << " (collective "
+            message << "[GPU][TP][CHECK] AllReduce output differs across ranks: " << name << " (collective "
                     << collective_id << ", call " << call << "):";
             for (uint32_t r = 0; r < m_world_size; ++r)
                 message << " r" << r << "=0x" << std::hex << sums[r] << std::dec;
             if (m_mismatches == kMaxReports)
                 message << "; further differences are only counted";
-            TP_WARN_ALWAYS << message.str();
+            GPU_TP_WARN_ALWAYS << message.str();
         }
     }
     m_checks.erase({collective_id, call});
@@ -359,7 +359,7 @@ GroupState::RecordingResources GroupState::create_recording_resources(uint32_t r
 }
 
 GroupState::RecordingResources GroupState::take_recording_resources(uint32_t rank) {
-    OPENVINO_ASSERT(rank < m_world_size, "[TP][L0] no recording resources for rank ", rank);
+    OPENVINO_ASSERT(rank < m_world_size, "[GPU][TP][L0] no recording resources for rank ", rank);
     {
         std::lock_guard<std::mutex> lock(m_made_ahead_mutex);
         auto& made = m_made_ahead[rank];
@@ -461,9 +461,9 @@ void GroupState::ensure_staging(Staging& s,
                                 uint64_t collective_id) {
     const std::size_t need = checked_multiply(half_bytes, 2, "staging");
     if (m_fixed_staging_bytes != 0) {
-        OPENVINO_ASSERT(s.fixed != nullptr, "[TP][L0] rank ", rank, " has not been given its fixed staging");
+        OPENVINO_ASSERT(s.fixed != nullptr, "[GPU][TP][L0] rank ", rank, " has not been given its fixed staging");
         OPENVINO_ASSERT(need <= s.bytes,
-                        "[TP][L0] collective ",
+                        "[GPU][TP][L0] collective ",
                         collective_id,
                         " needs ",
                         need,
@@ -510,7 +510,7 @@ void GroupState::ensure_staging(Staging& s,
         if (rank == 0 && m_options.profiling_host) {
             m_stats.rebuilds.bump();
         }
-        TP_GROUP_LOG(ov::log::Level::INFO) << "[TP][MEM] staging grow rank=" << rank << " payload=" << payload_bytes
+        GPU_TP_GROUP_LOG(ov::log::Level::INFO) << "[GPU][TP][MEM] staging grow rank=" << rank << " payload=" << payload_bytes
                                            << " bytes=" << need << " growths=" << s.growth_count << std::endl;
     }
     if (payload_bytes > s.payload_capacity) {
@@ -523,7 +523,7 @@ std::shared_ptr<void> GroupState::allocate_staging(const TPL0SharedContextPtr& s
                                                    uint32_t rank,
                                                    std::size_t bytes) {
     OPENVINO_ASSERT(shared && rank < shared->devices.size() && bytes > 0,
-                    "[TP][L0] invalid fixed staging request: rank ",
+                    "[GPU][TP][L0] invalid fixed staging request: rank ",
                     rank,
                     ", ",
                     bytes,
@@ -548,22 +548,22 @@ std::shared_ptr<void> GroupState::allocate_staging(const TPL0SharedContextPtr& s
 }
 
 void GroupState::adopt_staging(uint32_t rank, std::shared_ptr<void> buffer) {
-    OPENVINO_ASSERT(m_fixed_staging_bytes != 0, "[TP][L0] the group has no fixed staging");
+    OPENVINO_ASSERT(m_fixed_staging_bytes != 0, "[GPU][TP][L0] the group has no fixed staging");
     OPENVINO_ASSERT(rank < m_world_size && buffer != nullptr,
-                    "[TP][L0] invalid fixed staging for rank ",
+                    "[GPU][TP][L0] invalid fixed staging for rank ",
                     rank);
     std::lock_guard<std::mutex> lock(m_staging_mutex);
     auto& s = m_staging[rank];
     if (s.fixed == buffer) {
         return;
     }
-    OPENVINO_ASSERT(s.fixed == nullptr && s.base == nullptr, "[TP][L0] rank ", rank, " already has its staging");
+    OPENVINO_ASSERT(s.fixed == nullptr && s.base == nullptr, "[GPU][TP][L0] rank ", rank, " already has its staging");
     s.base = buffer.get();
     s.bytes = m_fixed_staging_bytes;
     s.id = alloc_id_of(m_shared->context, s.base);
     s.fixed = std::move(buffer);
     account_staging(rank, s.bytes, true);
-    TP_GROUP_LOG(ov::log::Level::INFO) << "[TP][MEM] fixed staging rank=" << rank << " bytes=" << s.bytes
+    GPU_TP_GROUP_LOG(ov::log::Level::INFO) << "[GPU][TP][MEM] fixed staging rank=" << rank << " bytes=" << s.bytes
                                        << std::endl;
 }
 
@@ -582,7 +582,7 @@ void GroupState::destroy_staging() {
 }
 
 void GroupState::set_memory_account(uint32_t rank, std::weak_ptr<cldnn::engine> engine) {
-    OPENVINO_ASSERT(rank < m_world_size, "[TP][L0] invalid rank ", rank);
+    OPENVINO_ASSERT(rank < m_world_size, "[GPU][TP][L0] invalid rank ", rank);
     std::lock_guard<std::mutex> lock(m_staging_mutex);
     m_memory_accounts[rank] = std::move(engine);
 }
@@ -650,7 +650,7 @@ void GroupState::call_rendezvous(uint32_t rank, const MailboxSlot& mine, std::ve
         if (s.seq != mine.seq || s.allreduce != mine.allreduce || s.collective_id != mine.collective_id ||
             s.n != mine.n || s.rows != mine.rows || s.dtype != mine.dtype) {
             std::ostringstream oss;
-            oss << "[TP][L0] ranks disagree on call " << mine.seq << ": rank " << rank << " is at collective "
+            oss << "[GPU][TP][L0] ranks disagree on call " << mine.seq << ": rank " << rank << " is at collective "
                 << mine.collective_id << " (n=" << mine.n << ", rows=" << mine.rows << ", " << mine.dtype
                 << "), rank " << q << " at collective " << s.collective_id << " (call " << s.seq << ", n=" << s.n
                 << ", rows=" << s.rows << ", " << s.dtype << ")";
@@ -667,7 +667,7 @@ void GroupState::begin_allreduce(uint32_t rank,
                                  std::size_t half_bytes,
                                  std::size_t chunks,
                                  AllreduceCall& call) {
-    OPENVINO_ASSERT(chunks > 0, "[TP][L0] an allreduce call has at least one chunk");
+    OPENVINO_ASSERT(chunks > 0, "[GPU][TP][L0] an allreduce call has at least one chunk");
     const Stopwatch staging_time(m_options.profiling_host);
     auto& seq = m_allreduce_seq[rank];
     call.parity = static_cast<uint32_t>(seq & 1u);
@@ -731,7 +731,7 @@ void GroupState::begin_gather(uint32_t rank,
     std::vector<MailboxSlot> all;
     call_rendezvous(rank, mine, all);
 
-    OPENVINO_ASSERT(all[0].staging != nullptr, "[TP][L0] gather ", collective_id, " has no destination on the root");
+    OPENVINO_ASSERT(all[0].staging != nullptr, "[GPU][TP][L0] gather ", collective_id, " has no destination on the root");
     call.root_out = all[0].staging;
     call.root_out_id = all[0].staging_id;
     call.events = &m_gather_events[call.parity].ev;
@@ -810,7 +810,7 @@ uint64_t GroupState::timeout_ns() const {
 void GroupState::sync_queue(ze_command_queue_handle_t queue, const char* what) const {
     const ze_result_t r = ze_api()->zeCommandQueueSynchronize(queue, timeout_ns());
     if (r == ZE_RESULT_NOT_READY) {
-        OPENVINO_THROW("[TP][L0] ", what, " did not complete within ", m_collective_timeout.count(), " ms");
+        OPENVINO_THROW("[GPU][TP][L0] ", what, " did not complete within ", m_collective_timeout.count(), " ms");
     }
     OV_ZE_EXPECT(r);
 }
@@ -835,13 +835,13 @@ void GroupState::throw_if_aborted() const {
         return;
     }
     std::lock_guard<std::mutex> lock(m_abort_mutex);
-    OPENVINO_THROW("[TP][L0] collective group is no longer usable: ", m_abort_reason);
+    OPENVINO_THROW("[GPU][TP][L0] collective group is no longer usable: ", m_abort_reason);
 }
 
 void GroupState::fail_collective(bool timed_out, uint64_t collective_id, uint32_t rank, const char* stage) {
     if (timed_out) {
         std::ostringstream oss;
-        oss << "[TP][L0] rank " << rank << " timed out after " << m_collective_timeout.count() << " ms at the "
+        oss << "[GPU][TP][L0] rank " << rank << " timed out after " << m_collective_timeout.count() << " ms at the "
             << stage << " of collective " << collective_id
             << "; the group is aborted. Either another rank never reached this collective or its "
                "device work never completed.";
@@ -849,7 +849,7 @@ void GroupState::fail_collective(bool timed_out, uint64_t collective_id, uint32_
     }
     throw_if_aborted();
 
-    OPENVINO_THROW("[TP][L0] collective ", collective_id, " failed on rank ", rank, " at the ", stage);
+    OPENVINO_THROW("[GPU][TP][L0] collective ", collective_id, " failed on rank ", rank, " at the ", stage);
 }
 
 void GroupState::note_collective_started(uint32_t rank) {
@@ -937,7 +937,7 @@ void GroupState::watchdog_loop() {
         }
 
         std::ostringstream oss;
-        oss << "[TP][L0] no collective has completed on any device for " << m_collective_timeout.count()
+        oss << "[GPU][TP][L0] no collective has completed on any device for " << m_collective_timeout.count()
             << " ms while " << outstanding
             << " are outstanding. A rank's queue is waiting on a peer that never signalled.";
         abort_all(oss.str());
@@ -994,7 +994,7 @@ void GroupState::emit_report() {
     m_reported_inferences = m_dump_period.calls();
     const auto& st = m_stats;
     const uint64_t calls = st.ar_calls[0].get();
-    TP_REPORT << "[TP][REPORT] inferences " << first << ".." << m_reported_inferences << ": " << calls
+    GPU_TP_REPORT << "[GPU][TP][REPORT] inferences " << first << ".." << m_reported_inferences << ": " << calls
               << " AllReduce calls on rank 0, payload mean "
               << (calls ? static_cast<double>(st.ar_bytes.get()) / 1024.0 / static_cast<double>(calls) : 0.0)
               << " KiB" << std::endl;
@@ -1019,7 +1019,7 @@ void GroupState::report_host_ranks() {
         return static_cast<double>(v) / 1.0e3 / c;
     };
 
-    TP_REPORT << "[TP][RANK|host] calls=" << calls << " arrival spread=" << us(st.spread_ns) << "us/call"
+    GPU_TP_REPORT << "[GPU][TP][RANK|host] calls=" << calls << " arrival spread=" << us(st.spread_ns) << "us/call"
               << std::endl;
     for (uint32_t r = 0; r < m_world_size; ++r) {
         const double last_share = 100.0 * static_cast<double>(st.last_count[r].get()) / c;
@@ -1032,13 +1032,13 @@ void GroupState::report_host_ranks() {
                     << "us min=" << (static_cast<double>(st.seg_min_ns[r].get()) / 1.0e3)
                     << "us max=" << (static_cast<double>(st.seg_max_ns[r].get()) / 1.0e3) << "us";
         }
-        TP_REPORT << "[TP][RANK|host]   rank " << r << ": late=" << us(st.late_ns[r].get()) << "us"
+        GPU_TP_REPORT << "[GPU][TP][RANK|host]   rank " << r << ": late=" << us(st.late_ns[r].get()) << "us"
                   << " arrived_last=" << last_share << "%"
                   << "  ph1=" << us(st.ph1_ns[r].get()) << "us"
                   << " ph2=" << us(st.ph2_ns[r].get()) << "us  " << segment.str() << std::endl;
         const uint64_t p2_known =
             st.p2_rec_ns[r].get() + st.p2_wait_ns[r].get() + st.p2_reset_ns[r].get() + st.p2_append_ns[r].get();
-        TP_REPORT << "[TP][RANK|host]     ph1 staging check=" << us(st.p2_gate_ns[r].get()) << "us"
+        GPU_TP_REPORT << "[GPU][TP][RANK|host]     ph1 staging check=" << us(st.p2_gate_ns[r].get()) << "us"
                   << "  ph2 split: record=" << us(st.p2_rec_ns[r].get()) << "us"
                   << "(" << st.p2_rec_count[r].get() << "x)"
                   << " evt_wait=" << us(st.p2_wait_ns[r].get()) << "us"
@@ -1049,7 +1049,7 @@ void GroupState::report_host_ranks() {
                   << std::endl;
         const uint64_t ahead_n = st.ahead_count[r].get();
         if (ahead_n > 0) {
-            TP_REPORT << "[TP][RANK|host]     run-ahead: mean="
+            GPU_TP_REPORT << "[GPU][TP][RANK|host]     run-ahead: mean="
                       << static_cast<double>(st.ahead_sum[r].get()) / static_cast<double>(ahead_n)
                       << " splices max=" << st.ahead_max[r].get() << std::endl;
         }
@@ -1063,7 +1063,7 @@ void GroupState::report_host_totals() {
     auto tms = [](uint64_t ns) {
         return static_cast<double>(ns) / 1.0e6;
     };
-    TP_REPORT << "[TP][TOTAL|host] r0 calls=" << calls << " rebuilds=" << st.rebuilds.get()
+    GPU_TP_REPORT << "[GPU][TP][TOTAL|host] r0 calls=" << calls << " rebuilds=" << st.rebuilds.get()
               << " records=" << st.records.get() << "  totals: ph1=" << tms(st.ph1_ns[0].get()) << "ms"
               << " ph2=" << tms(st.ph2_ns[0].get()) << "ms"
               << " (record=" << tms(st.record_ns.get()) << "ms"
@@ -1077,10 +1077,10 @@ void GroupState::report_host_totals() {
         ring += st.n_ring[r].get();
         halving += st.n_halving[r].get();
     }
-    TP_REPORT << "[TP][TOTAL|host]   schedule of " << (pair + ring + halving) << " recordings: pair=" << pair
+    GPU_TP_REPORT << "[GPU][TP][TOTAL|host]   schedule of " << (pair + ring + halving) << " recordings: pair=" << pair
               << " ring=" << ring << " halving=" << halving << std::endl;
     if (st.chunked_calls.get() != 0) {
-        TP_REPORT << "[TP][TOTAL|host]   chunked: calls=" << st.chunked_calls.get()
+        GPU_TP_REPORT << "[GPU][TP][TOTAL|host]   chunked: calls=" << st.chunked_calls.get()
                   << " chunks/call=" << static_cast<double>(st.chunks.get()) / static_cast<double>(st.chunked_calls.get())
                   << " max=" << st.max_chunks.get() << std::endl;
     }
@@ -1089,14 +1089,14 @@ void GroupState::report_host_totals() {
     auto rec_ms = [](const Counter& v) {
         return static_cast<double>(v.get()) / 1.0e6;
     };
-    TP_REPORT << "[TP][TOTAL|host]   record breakdown: records=" << st.records.get()
+    GPU_TP_REPORT << "[GPU][TP][TOTAL|host]   record breakdown: records=" << st.records.get()
               << " per-record=" << tms(st.record_ns.get()) / rc << "ms"
               << " (drain=" << rec_ms(st.rec_drain_ns) / rc << "ms"
               << " reset=" << rec_ms(st.rec_reset_ns) / rc << "ms"
               << " append=" << (rec_ms(st.rec_build_ns) - rec_ms(st.rec_close_ns)) / rc << "ms"
               << " close=" << rec_ms(st.rec_close_ns) / rc << "ms)" << std::endl;
     const auto scratch = get_scratch_stats();
-    TP_REPORT << "[TP][TOTAL|host]   scratch: payload_capacity=" << (scratch.payload_capacity_bytes / (1024.0 * 1024.0))
+    GPU_TP_REPORT << "[GPU][TP][TOTAL|host]   scratch: payload_capacity=" << (scratch.payload_capacity_bytes / (1024.0 * 1024.0))
               << "MB"
               << " total=" << (scratch.total_allocated_bytes / (1024.0 * 1024.0)) << "MB"
               << " grows=" << scratch.growth_count
@@ -1111,7 +1111,7 @@ void GroupState::report_host_totals() {
         const auto gus = [gc_calls](uint64_t v) {
             return static_cast<double>(v) / 1.0e3 / static_cast<double>(gc_calls);
         };
-        TP_REPORT << "[TP][TOTAL|host]   gather rank " << r << ": calls=" << gc_calls
+        GPU_TP_REPORT << "[GPU][TP][TOTAL|host]   gather rank " << r << ": calls=" << gc_calls
                   << " spliced=" << st.gather_spliced[r].get() << " records=" << st.gather_records[r].get()
                   << " barrier=" << gus(st.gather_barrier_ns[r].get()) << "us"
                   << " append=" << gus(st.gather_append_ns[r].get()) << "us"
@@ -1129,13 +1129,13 @@ void GroupState::report_device() {
     if (total_samples == 0) {
         // A completion event is read when the same list is spliced again: the first numbers appear one or two
         // inferences later.
-        TP_REPORT << "[TP][RANK|dev] no samples yet -- a collective's device time is read when it runs again"
+        GPU_TP_REPORT << "[GPU][TP][RANK|dev] no samples yet -- a collective's device time is read when it runs again"
                   << std::endl;
         return;
     }
     const double c = static_cast<double>(total_samples) / static_cast<double>(m_world_size);
 
-    TP_REPORT << "[TP][RANK|dev] of the calls handed over in inferences " << st.dev_call_min.get() + 1 << ".."
+    GPU_TP_REPORT << "[GPU][TP][RANK|dev] of the calls handed over in inferences " << st.dev_call_min.get() + 1 << ".."
               << st.dev_call_max.get() + 1 << " schedule=" << (m_world_size > 2 ? "ring/halving" : "pair")
               << " world=" << m_world_size << std::endl;
     uint64_t all_bytes = 0;
@@ -1154,7 +1154,7 @@ void GroupState::report_device() {
         // Bytes over queue occupancy: the rate the model sees, kernel and peer waits included.
         const double gbs =
             ns > 0 ? (static_cast<double>(bytes) / 1.0e9) / (static_cast<double>(ns) / 1.0e9) : 0.0;
-        TP_REPORT << "[TP][RANK|dev]   rank " << r << ": queue busy mean=" << busy_us << "us"
+        GPU_TP_REPORT << "[GPU][TP][RANK|dev]   rank " << r << ": queue busy mean=" << busy_us << "us"
                   << " max=" << (static_cast<double>(st.p2_dev_max_ns[r].get()) / 1.0e3) << "us(cid "
                   << st.p2_dev_max_cid[r].get() << ")"
                   << "  sent=" << mb << "MB/call"
@@ -1173,7 +1173,7 @@ void GroupState::report_device() {
             }
             return uint64_t{1} << CollectiveStats::kDevBuckets;
         };
-        TP_REPORT << "[TP][RANK|dev]     queue busy under: p50=" << pct_us(0.50) << "us"
+        GPU_TP_REPORT << "[GPU][TP][RANK|dev]     queue busy under: p50=" << pct_us(0.50) << "us"
                   << " p90=" << pct_us(0.90) << "us"
                   << " p99=" << pct_us(0.99) << "us" << std::endl;
 
@@ -1181,13 +1181,13 @@ void GroupState::report_device() {
         if (gaps > 0) {
             const double gap_us = static_cast<double>(st.dev_gap_ns[r].get()) / 1.0e3 / static_cast<double>(gaps);
             const double duty = 100.0 * busy_us / (busy_us + gap_us);
-            TP_REPORT << "[TP][RANK|dev]     between collectives: model=" << gap_us << "us"
+            GPU_TP_REPORT << "[GPU][TP][RANK|dev]     between collectives: model=" << gap_us << "us"
                       << " -> collectives own " << duty << "% of device time"
                       << " (" << gaps << " gaps)" << std::endl;
         }
     }
     if (all_ns > 0) {
-        TP_REPORT << "[TP][TOTAL|dev] across " << m_world_size
+        GPU_TP_REPORT << "[GPU][TP][TOTAL|dev] across " << m_world_size
                   << " ranks: sent=" << (static_cast<double>(all_bytes) / (1024.0 * 1024.0) / c) << "MB/call"
                   << " aggregate="
                   << ((static_cast<double>(all_bytes) / 1.0e9) / (static_cast<double>(all_ns) / 1.0e9 / m_world_size))
@@ -1201,7 +1201,7 @@ void GroupState::report_device() {
         }
         const double busy_us = static_cast<double>(st.gather_dev_ns[r].get()) / 1.0e3 / static_cast<double>(gd);
         const double mb = static_cast<double>(st.gather_bytes[r].get()) / (1024.0 * 1024.0) / static_cast<double>(gd);
-        TP_REPORT << "[TP][RANK|dev]   gather rank " << r << ": queue busy mean=" << busy_us << "us"
+        GPU_TP_REPORT << "[GPU][TP][RANK|dev]   gather rank " << r << ": queue busy mean=" << busy_us << "us"
                   << " max=" << (static_cast<double>(st.gather_dev_max_ns[r].get()) / 1.0e3)
                   << "us  sent=" << mb << "MB/call"
                   << " (" << gd << " samples)" << std::endl;

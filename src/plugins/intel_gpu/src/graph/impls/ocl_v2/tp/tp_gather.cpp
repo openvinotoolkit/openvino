@@ -50,9 +50,9 @@ public:
         // for the 4D layouts static shapes are padded to.
         const auto shape = input_layout.get_shape();
         const auto rank_len = static_cast<int64_t>(shape.size());
-        const int64_t axis = desc->axis >= 0 ? desc->axis : desc->axis + rank_len;
+        const int64_t axis = desc->axis;
         OPENVINO_ASSERT(axis >= 0 && axis < rank_len,
-                        "[GPU] tp_gather axis ",
+                        "[GPU][TP] tp_gather axis ",
                         desc->axis,
                         " is out of range for ",
                         input_layout.to_short_string());

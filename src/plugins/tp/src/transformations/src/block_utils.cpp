@@ -11,6 +11,7 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_iterator.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/op/util/broadcast_base.hpp"
@@ -162,7 +163,9 @@ struct ReshapeAxisSpan {
     int64_t trailing = 1;
 };
 
-ReshapeAxisSpan map_reshape_axis_span(const std::shared_ptr<ov::Node>& reshape, int64_t output_axis, int64_t full_size) {
+ReshapeAxisSpan map_reshape_axis_span(const std::shared_ptr<ov::Node>& reshape,
+                                      int64_t output_axis,
+                                      int64_t full_size) {
     const auto out_ps = reshape->get_output_partial_shape(0);
     const auto in_ps = reshape->get_input_partial_shape(0);
     if (!in_ps.rank().is_static() || !out_ps.rank().is_static())
@@ -462,7 +465,7 @@ std::optional<int64_t> scalar_axis(const ov::Output<ov::Node>& axis, int64_t ran
     if (!c || ov::shape_size(c->get_shape()) != 1)
         return std::nullopt;
     const auto value = c->cast_vector<int64_t>()[0];
-    return value < 0 ? value + rank : value;
+    return ov::util::normalize(value, rank);
 }
 
 /// A Slice of `output`'s last axis with constant bounds and step 1: its start, else nullopt.
@@ -476,7 +479,7 @@ std::optional<int64_t> feature_slice_start(const ov::Node* node, int64_t last) {
     if (!axes || !start || !stop || !step || ov::shape_size(axes->get_shape()) != 1)
         return std::nullopt;
     const auto axis = axes->cast_vector<int64_t>()[0];
-    if ((axis < 0 ? axis + last + 1 : axis) != last || step->cast_vector<int64_t>()[0] != 1)
+    if (ov::util::normalize(axis, last + 1) != last || step->cast_vector<int64_t>()[0] != 1)
         return std::nullopt;
     return start->cast_vector<int64_t>()[0];
 }
@@ -512,11 +515,13 @@ std::vector<ov::Output<ov::Node>> feature_parts(const ov::Output<ov::Node>& outp
     return parts.size() > 1 ? parts : std::vector<ov::Output<ov::Node>>{};
 }
 
-void annotate_feature_parts(const ov::Output<ov::Node>& output, const std::vector<Segment>& segments, const std::string& block) {
+void annotate_feature_parts(const ov::Output<ov::Node>& output,
+                            const std::vector<Segment>& segments,
+                            const std::string& block) {
     const auto parts = feature_parts(output);
     OPENVINO_ASSERT(parts.size() == segments.size(),
-                    "[TP] The fused projection output '", output.get_node()->get_friendly_name(), "' is split into ",
-                    parts.size(), " parts where ", segments.size(), " are expected");
+                    "[TP] The fused projection output '", output.get_node()->get_friendly_name(),
+                    "' is split into ", parts.size()," parts where ", segments.size(), " are expected");
     const auto node = parts.front().get_node_shared_ptr();
     if (ov::is_type<ov::op::v1::Split>(node)) {
         // Equal chunks stay equal on every rank only if the segments split alike.
@@ -528,8 +533,9 @@ void annotate_feature_parts(const ov::Output<ov::Node>& output, const std::vecto
     if (ov::is_type<ov::op::v1::VariadicSplit>(node)) {
         std::vector<size_t> elements(segments.size());
         std::iota(elements.begin(), elements.end(), size_t{0});
-        OPENVINO_ASSERT(annotate_shape_input(node, 2, elements, segments, block, ShardAnnotation::Elements::SEGMENT_SIZES),
-                        "[TP] The split lengths of '", node->get_friendly_name(), "' are not constant");
+        OPENVINO_ASSERT(
+            annotate_shape_input(node, 2, elements, segments, block, ShardAnnotation::Elements::SEGMENT_SIZES),
+            "[TP] The split lengths of '", node->get_friendly_name(), "' are not constant");
         return;
     }
     for (const auto& part : parts) {

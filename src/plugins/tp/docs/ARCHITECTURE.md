@@ -94,15 +94,15 @@ collective contract (`openvino/runtime/tp/collective_contract.hpp`).
 
 ## Layers
 
-The code is split in five layers; the documents and the tests refer to them by these labels.
+The code is split in five layers, each tested where it lives.
 
-| Label | What                                                                                              | Where                                                                  | Tested by                                                    |
-|-------|---------------------------------------------------------------------------------------------------|------------------------------------------------------------------------|--------------------------------------------------------------|
-| L1    | The TP transformations: block passes, verifier, rank passes                                       | `src/plugins/tp/src/transformations/` (`openvino_tp_transformations`)  | `ov_tp_unit_tests`                                           |
-| L2    | The collective ops `TPAllReduce`, `TPGather`                                                      | `src/common/transformations/.../ov_ops/tp_collective.*`                | `ov_transformations_tests` (`TPCollectiveTest`)              |
-| L3    | The collective contract between an orchestrator and a device plugin                               | `src/inference/dev_api/openvino/runtime/tp/collective_contract.hpp`    | `ov_inference_unit_tests`, the shared `TPCollectiveContractTest` |
-| L4    | A device plugin's collectives: communicator, group state, primitives, impls                       | intel_gpu, `src/runtime/ze/tp/`, `src/graph/impls/ocl_v2/tp/`          | `ov_gpu_unit_tests`, `ov_gpu_func_tests`                     |
-| L5    | The TP plugin: compile and import, rank contexts, compiled model, infer request, cache            | `src/plugins/tp/src/`                                                  | `ov_tp_func_tests`                                           |
+| Layer                  | What                                                                                   | Where                                                                  | Tested by                                                        |
+|------------------------|----------------------------------------------------------------------------------------|------------------------------------------------------------------------|------------------------------------------------------------------|
+| TP transformations     | Block passes, verifier, rank passes                                                    | `src/plugins/tp/src/transformations/` (`openvino_tp_transformations`)  | `ov_tp_unit_tests`                                               |
+| Collective ops         | `TPAllReduce`, `TPGather`                                                              | `src/common/transformations/.../ov_ops/tp_collective.*`                | `ov_transformations_tests` (`TPCollectiveTest`)                  |
+| Collective contract    | What an orchestrator and a device plugin agree on                                      | `src/inference/dev_api/openvino/runtime/tp/collective_contract.hpp`    | `ov_inference_unit_tests`, the shared `TPCollectiveContractTest` |
+| Device collectives     | A device plugin's communicator, group state, primitives, impls                         | intel_gpu, `src/runtime/ze/tp/`, `src/graph/impls/ocl_v2/tp/`          | `ov_gpu_unit_tests`, `ov_gpu_func_tests`                         |
+| TP plugin              | Compile and import, rank contexts, compiled model, infer request, cache                | `src/plugins/tp/src/`                                                  | `ov_tp_func_tests`                                               |
 
 ## Sharding Strategy (Megatron-style)
 
@@ -197,7 +197,7 @@ The AllReduce count is the lower bound for Megatron-style TP and cannot be reduc
  (next layer)                   (next layer)
 ```
 
-## Transformations (L1)
+## Transformations
 
 The graph work is a static library, `src/transformations/` (`openvino_tp_transformations`),
 that depends on OpenVINO core and the collective ops only. It runs in three stages:
@@ -336,7 +336,7 @@ src/plugins/tp/
 │   ├── device_locks.hpp                    ← process-wide per-device locks
 │   ├── remote_context.{hpp,cpp}            ← the TP context: host tensors only
 │   ├── cache_controller.{hpp,cpp}          ← IPluginManagedCache: the PA cache on every rank
-│   ├── transformations/                    ← L1, static library openvino_tp_transformations
+│   ├── transformations/                    ← static library openvino_tp_transformations
 │   │   ├── include/tp_transformations/     ← annotations, analyzer, verifier, rank passes
 │   │   └── src/                            ← block passes (attention, MLP, vocabulary),
 │   │                                         block utilities, verifier, rank passes
@@ -352,7 +352,7 @@ src/plugins/tp/
                                               rank device type from OV_TP_TEST_DEVICE
 
 src/tests/functional/plugin/shared/{include,src}/behavior/tp/
-└── collective_contract.*                   ← L3 conformance tests, instantiated by a device plugin
+└── collective_contract.*                   ← conformance tests of the contract, instantiated by a device plugin
 
 src/plugins/intel_gpu/   (compiled only with ENABLE_TP)
 ├── src/runtime/ze/tp/
@@ -375,7 +375,7 @@ src/plugins/intel_gpu/   (compiled only with ENABLE_TP)
 │                                          reads .cl from the ocl_v2 root only)
 ├── src/plugin/ops/tp_{allreduce,gather}.cpp       ← op → primitive
 ├── tests/unit/module_tests/ze/tp_collectives_test.cpp
-└── tests/functional/tp/, shared_tests_instances/behavior/tp/  ← GPU TP tests, the L3 suite for GPU
+└── tests/functional/tp/, shared_tests_instances/behavior/tp/  ← GPU TP tests, the contract suite for GPU
 ```
 
 The collective ops themselves (`TPAllReduce`, `TPGather`) live in
@@ -596,7 +596,7 @@ The gather collects every rank's `rows x slice` matrix as a column band of
 rank 0's output. The root publishes the output's address and allocation id in
 the rendezvous, and every rank copies its band straight there: one plain copy
 per row. A region copy did the same in one command, but left the first bytes
-of a band row stale on the root about once in 500 calls (L3 conformance stress,
+of a band row stale on the root about once in 500 calls (contract conformance stress,
 0 in 9000 with a copy per row). There is no gather staging.
 
 A peer may write the root's output only once the root's queue has reached the
@@ -754,23 +754,12 @@ inputs and takes its memory budget from `get_available_memory()`.
 ## Compiled Blob
 
 `CompiledModel::export_model` writes a container around one device-plugin
-blob per rank (version 3):
+blob per rank: a header (magic, version, world size, strategy, the sharded
+state ids and their replica count), the device of every rank, the model-level
+input and output ports, then the rank blobs. The exact layout and its version
+are kept in one place, [`tp_blob.hpp`](../src/tp_blob.hpp).
 
-```
-char[8]              "OVTPBLOB"
-uint32               version
-uint32               world_size
-uint32               strategy         (TP_STRATEGY)
-uint32               num_sharded_states
-uint32               state_replicas   (consecutive ranks holding the same slice of those states)
-[world_size]         device name      : string
-[num_sharded_states] variable id      : string
-uint32 + [..]        input ports      : node name, element type, partial shape, tensor names
-uint32 + [..]        output ports     : same
-[world_size]         rank blob        : uint64 length + bytes
-```
-
-A string is a uint32 length + bytes. The weight shards are already baked
+The weight shards are already baked
 into each rank's blob, so no shard metadata is stored, and the device plugin
 counts the collectives of each imported rank model when it binds it. The
 sharded state ids and the replica count are there because the infer request has to know which

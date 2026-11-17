@@ -532,6 +532,65 @@ size_t count_mismatches(const std::vector<T>& values, float expected, float tole
     }));
 }
 
+/// Device buffers for one collective, kept alive for as long as the caller
+/// needs them.
+///
+/// Holding them matters: a plan is identified by the addresses it was recorded
+/// from, so freeing a buffer and allocating another that lands on the same
+/// address makes the recording look current while its residency list points at
+/// an allocation the driver has destroyed.  Anything reusing one collective
+/// across calls has to keep its buffers, which is also what the GPU plugin's
+/// memory pool does in a real model.
+struct CollectiveBuffers {
+    std::vector<RankScratch> rs;
+    std::vector<void*> ins, outs;
+
+    CollectiveBuffers(const TPL0SharedContextPtr& shared, uint32_t ranks, size_t bytes)
+        : CollectiveBuffers(shared, ranks, bytes, bytes) {}
+
+    /// A gather's output holds every rank's slice, so it is sized apart.
+    CollectiveBuffers(const TPL0SharedContextPtr& shared, uint32_t ranks, size_t in_bytes, size_t out_bytes)
+        : rs(ranks),
+          ins(ranks),
+          outs(ranks) {
+        for (uint32_t r = 0; r < ranks; ++r) {
+            rs[r].init(shared->context, shared->devices[r]);
+            ins[r] = rs[r].alloc(in_bytes);
+            outs[r] = rs[r].alloc(out_bytes);
+        }
+    }
+};
+
+/// One all-reduce of `n` elements with rank r contributing (r + 1), checked on
+/// every rank against the expected sum.  Values stay small so f16 counts them
+/// exactly and a mismatch means misplacement, not rounding.
+template <typename T>
+void expect_allreduce_sum(Collectives& coord,
+                          CollectiveBuffers& buffers,
+                          size_t collective,
+                          size_t n,
+                          ov::element::Type dtype,
+                          float tolerance) {
+    const auto ranks = static_cast<uint32_t>(buffers.rs.size());
+    const size_t bytes = n * sizeof(T);
+    float expected = 0.0f;
+    for (uint32_t r = 0; r < ranks; ++r) {
+        const float value = static_cast<float>(r + 1);
+        expected += value;
+        std::vector<T> host(n, static_cast<T>(value));
+        buffers.rs[r].copy_from_host(buffers.ins[r], host.data(), bytes);
+    }
+
+    run_collective(coord, collective, buffers.ins, buffers.outs, n, dtype);
+
+    for (uint32_t r = 0; r < ranks; ++r) {
+        std::vector<T> host(n);
+        buffers.rs[r].copy_to_host(host.data(), buffers.outs[r], bytes);
+        EXPECT_EQ(count_mismatches(host, expected, tolerance), 0u)
+            << "n=" << n << " ranks=" << ranks << " rank " << r;
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Fixture: probe the hardware once and skip the suite when it is not there.
 // ---------------------------------------------------------------------------
@@ -542,6 +601,9 @@ protected:
     static constexpr float f16_tolerance = 1e-3f;
     static constexpr float f32_tolerance = 1e-5f;
 
+    static constexpr const char* no_splicing = "driver has no immediate-append extension";
+    static constexpr const char* no_halving = "halving needs a power-of-two world larger than a pair";
+
     static void SetUpTestSuite() {
         // Hold the ZeroApi singleton alive for the whole run, otherwise the
         // weak_ptr gets dropped and ze_loader is reloaded between every call,
@@ -550,7 +612,7 @@ protected:
         if (ov::zeInit(0) != ZE_RESULT_SUCCESS)
             return;
         // Probe upwards so the wider cases know whether they can run.
-        for (int n = 2; n <= 8; ++n) {
+        for (uint32_t n = 2; n <= 8; ++n) {
             if (make_shared_ctx(n) == nullptr)
                 break;
             available_gpus = n;
@@ -571,11 +633,11 @@ protected:
     }
 
     static std::shared_ptr<ov::ZeroApi> zero_api;
-    static int available_gpus;
+    static uint32_t available_gpus;
 };
 
 std::shared_ptr<ov::ZeroApi> TPCollectivesTest::zero_api;
-int TPCollectivesTest::available_gpus = 0;
+uint32_t TPCollectivesTest::available_gpus = 0;
 
 TEST_F(TPCollectivesTest, InitTeardownIsStable) {
     Watchdog watchdog(30);
@@ -595,7 +657,7 @@ TEST_F(TPCollectivesTest, InitTeardownIsStable) {
 // is per element against the exact value that column should hold.
 TEST_F(TPCollectivesTest, GatherToRootPlacesEveryRankSlice) {
     Watchdog watchdog(30);
-    const int ranks = std::min(available_gpus, 4);
+    const uint32_t ranks = std::min(available_gpus, 4u);
     if (ranks < 2) {
         GTEST_SKIP() << "needs at least 2 GPUs";
     }
@@ -610,43 +672,36 @@ TEST_F(TPCollectivesTest, GatherToRootPlacesEveryRankSlice) {
     // misplacement.
     constexpr size_t rows = 5;
     constexpr size_t slice = 48;
-    const size_t full = slice * static_cast<size_t>(ranks);
+    const size_t full = slice * ranks;
 
-    std::vector<RankScratch> rs(ranks);
-    for (int r = 0; r < ranks; ++r)
-        rs[r].init(shared->context, shared->devices[r]);
-
-    std::vector<void*> ins(ranks), outs(ranks);
-    for (int r = 0; r < ranks; ++r) {
-        ins[r] = rs[r].alloc(rows * slice * sizeof(ov::float16));
-        outs[r] = rs[r].alloc(rows * full * sizeof(ov::float16));
-    }
+    CollectiveBuffers buffers(shared, ranks, rows * slice * sizeof(ov::float16), rows * full * sizeof(ov::float16));
+    auto& rs = buffers.rs;
 
     // Rank r, row y, column x carries a value unique to that position, so a
     // band landing at the wrong column or row is visible as such.
-    auto expected_at = [&](int r, size_t y, size_t x) {
-        return static_cast<float>(r * 256 + static_cast<int>(y) * 48 + static_cast<int>(x));
+    auto expected_at = [](uint32_t r, size_t y, size_t x) {
+        return static_cast<float>(r * 256 + y * 48 + x);
     };
-    for (int r = 0; r < ranks; ++r) {
+    for (uint32_t r = 0; r < ranks; ++r) {
         std::vector<ov::float16> host(rows * slice);
         for (size_t y = 0; y < rows; ++y) {
             for (size_t x = 0; x < slice; ++x) {
                 host[y * slice + x] = ov::float16(expected_at(r, y, x));
             }
         }
-        rs[r].copy_from_host(ins[r], host.data(), host.size() * sizeof(ov::float16));
+        rs[r].copy_from_host(buffers.ins[r], host.data(), host.size() * sizeof(ov::float16));
     }
 
     std::vector<ov::float16> poison(rows * full, ov::float16(-1.0f));
-    rs[0].copy_from_host(outs[0], poison.data(), poison.size() * sizeof(ov::float16));
+    rs[0].copy_from_host(buffers.outs[0], poison.data(), poison.size() * sizeof(ov::float16));
 
-    run_gather(*coord, 0, ins, outs, rows, slice, ov::element::f16);
+    run_gather(*coord, 0, buffers.ins, buffers.outs, rows, slice, ov::element::f16);
 
     std::vector<ov::float16> got(rows * full);
-    rs[0].copy_to_host(got.data(), outs[0], got.size() * sizeof(ov::float16));
+    rs[0].copy_to_host(got.data(), buffers.outs[0], got.size() * sizeof(ov::float16));
 
     size_t wrong = 0;
-    for (int r = 0; r < ranks; ++r) {
+    for (uint32_t r = 0; r < ranks; ++r) {
         for (size_t y = 0; y < rows; ++y) {
             for (size_t x = 0; x < slice; ++x) {
                 const float want = expected_at(r, y, x);
@@ -659,50 +714,14 @@ TEST_F(TPCollectivesTest, GatherToRootPlacesEveryRankSlice) {
     }
     EXPECT_EQ(wrong, 0u) << "gathered matrix differs in " << wrong << " of " << (rows * full)
                          << " elements";
-
-    for (int r = 0; r < ranks; ++r) {
-        rs[r].release(ins[r]);
-        rs[r].release(outs[r]);
-        rs[r].destroy();
-    }
 }
 
 TEST_F(TPCollectivesTest, AllReduceF16) {
     Watchdog watchdog(30);
     auto shared = make_shared_ctx(2);
     auto coord = std::make_shared<Collectives>(shared, 2, 1);
-
-    std::vector<RankScratch> rs(2);
-    for (int r = 0; r < 2; ++r)
-        rs[r].init(shared->context, shared->devices[r]);
-
-    const size_t bytes = elements * sizeof(ov::float16);
-    std::vector<void*> ins(2), outs(2);
-    for (int r = 0; r < 2; ++r) {
-        ins[r] = rs[r].alloc(bytes);
-        outs[r] = rs[r].alloc(bytes);
-    }
-
-    // rank 0 -> 1.0, rank 1 -> 2.0; expected sum 3.0
-    std::vector<ov::float16> h0(elements, ov::float16(1.0f));
-    std::vector<ov::float16> h1(elements, ov::float16(2.0f));
-    rs[0].copy_from_host(ins[0], h0.data(), bytes);
-    rs[1].copy_from_host(ins[1], h1.data(), bytes);
-
-    run_collective(*coord, 0, ins, outs, elements, ov::element::f16);
-
-    std::vector<ov::float16> r0(elements), r1(elements);
-    rs[0].copy_to_host(r0.data(), outs[0], bytes);
-    rs[1].copy_to_host(r1.data(), outs[1], bytes);
-
-    EXPECT_EQ(count_mismatches(r0, 3.0f, f16_tolerance), 0u) << "rank 0";
-    EXPECT_EQ(count_mismatches(r1, 3.0f, f16_tolerance), 0u) << "rank 1";
-
-    for (int r = 0; r < 2; ++r) {
-        rs[r].release(ins[r]);
-        rs[r].release(outs[r]);
-        rs[r].destroy();
-    }
+    CollectiveBuffers buffers(shared, 2, elements * sizeof(ov::float16));
+    expect_allreduce_sum<ov::float16>(*coord, buffers, 0, elements, ov::element::f16, f16_tolerance);
 }
 
 TEST_F(TPCollectivesTest, AllReduceF32) {
@@ -710,35 +729,22 @@ TEST_F(TPCollectivesTest, AllReduceF32) {
     auto shared = make_shared_ctx(2);
     auto coord = std::make_shared<Collectives>(shared, 2, 1);
 
-    std::vector<RankScratch> rs(2);
-    for (int r = 0; r < 2; ++r)
-        rs[r].init(shared->context, shared->devices[r]);
-
     const size_t bytes = elements * sizeof(float);
-    std::vector<void*> ins(2), outs(2);
-    for (int r = 0; r < 2; ++r) {
-        ins[r] = rs[r].alloc(bytes);
-        outs[r] = rs[r].alloc(bytes);
-    }
+    CollectiveBuffers buffers(shared, 2, bytes);
+    auto& rs = buffers.rs;
 
     std::vector<float> h0(elements, 1.5f), h1(elements, 2.25f);
-    rs[0].copy_from_host(ins[0], h0.data(), bytes);
-    rs[1].copy_from_host(ins[1], h1.data(), bytes);
+    rs[0].copy_from_host(buffers.ins[0], h0.data(), bytes);
+    rs[1].copy_from_host(buffers.ins[1], h1.data(), bytes);
 
-    run_collective(*coord, 0, ins, outs, elements, ov::element::f32);
+    run_collective(*coord, 0, buffers.ins, buffers.outs, elements, ov::element::f32);
 
     std::vector<float> r0(elements), r1(elements);
-    rs[0].copy_to_host(r0.data(), outs[0], bytes);
-    rs[1].copy_to_host(r1.data(), outs[1], bytes);
+    rs[0].copy_to_host(r0.data(), buffers.outs[0], bytes);
+    rs[1].copy_to_host(r1.data(), buffers.outs[1], bytes);
 
     EXPECT_EQ(count_mismatches(r0, 3.75f, f32_tolerance), 0u) << "rank 0";
     EXPECT_EQ(count_mismatches(r1, 3.75f, f32_tolerance), 0u) << "rank 1";
-
-    for (int r = 0; r < 2; ++r) {
-        rs[r].release(ins[r]);
-        rs[r].release(outs[r]);
-        rs[r].destroy();
-    }
 }
 
 // Pointers stay stable across iterations, so the plan is built once and reused.
@@ -750,38 +756,25 @@ TEST_F(TPCollectivesTest, ReusesPlanAcrossIterations) {
     auto shared = make_shared_ctx(2);
     auto coord = std::make_shared<Collectives>(shared, 2, 1);
 
-    std::vector<RankScratch> rs(2);
-    for (int r = 0; r < 2; ++r)
-        rs[r].init(shared->context, shared->devices[r]);
-
     const size_t bytes = elements * sizeof(ov::float16);
-    std::vector<void*> ins(2), outs(2);
-    for (int r = 0; r < 2; ++r) {
-        ins[r] = rs[r].alloc(bytes);
-        outs[r] = rs[r].alloc(bytes);
-    }
+    CollectiveBuffers buffers(shared, 2, bytes);
+    auto& rs = buffers.rs;
 
     std::vector<ov::float16> h0(elements), h1(elements), r0(elements), r1(elements);
     for (int k = 0; k < 5; ++k) {
         std::fill(h0.begin(), h0.end(), ov::float16(static_cast<float>(k + 1)));
         std::fill(h1.begin(), h1.end(), ov::float16(static_cast<float>(k + 2)));
-        rs[0].copy_from_host(ins[0], h0.data(), bytes);
-        rs[1].copy_from_host(ins[1], h1.data(), bytes);
+        rs[0].copy_from_host(buffers.ins[0], h0.data(), bytes);
+        rs[1].copy_from_host(buffers.ins[1], h1.data(), bytes);
 
-        run_collective(*coord, 0, ins, outs, elements, ov::element::f16);
+        run_collective(*coord, 0, buffers.ins, buffers.outs, elements, ov::element::f16);
 
-        rs[0].copy_to_host(r0.data(), outs[0], bytes);
-        rs[1].copy_to_host(r1.data(), outs[1], bytes);
+        rs[0].copy_to_host(r0.data(), buffers.outs[0], bytes);
+        rs[1].copy_to_host(r1.data(), buffers.outs[1], bytes);
 
         const float expected = static_cast<float>(2 * k + 3);
         EXPECT_EQ(count_mismatches(r0, expected, f16_tolerance), 0u) << "iteration " << k << " rank 0";
         EXPECT_EQ(count_mismatches(r1, expected, f16_tolerance), 0u) << "iteration " << k << " rank 1";
-    }
-
-    for (int r = 0; r < 2; ++r) {
-        rs[r].release(ins[r]);
-        rs[r].release(outs[r]);
-        rs[r].destroy();
     }
 }
 
@@ -792,34 +785,22 @@ TEST_F(TPCollectivesTest, GrowsScratchOnSizeChange) {
     auto shared = make_shared_ctx(2);
     auto coord = std::make_shared<Collectives>(shared, 2, 1);
 
-    std::vector<RankScratch> rs(2);
-    for (int r = 0; r < 2; ++r)
-        rs[r].init(shared->context, shared->devices[r]);
-
     for (size_t n : {size_t{1024}, size_t{2048}, size_t{4096}, size_t{1024}}) {
         const size_t bytes = n * sizeof(ov::float16);
-        std::vector<void*> ins(2), outs(2);
-        for (int r = 0; r < 2; ++r) {
-            ins[r] = rs[r].alloc(bytes);
-            outs[r] = rs[r].alloc(bytes);
-        }
+        CollectiveBuffers buffers(shared, 2, bytes);
+        auto& rs = buffers.rs;
         std::vector<ov::float16> h0(n, ov::float16(5.0f));
         std::vector<ov::float16> h1(n, ov::float16(7.0f));
-        rs[0].copy_from_host(ins[0], h0.data(), bytes);
-        rs[1].copy_from_host(ins[1], h1.data(), bytes);
+        rs[0].copy_from_host(buffers.ins[0], h0.data(), bytes);
+        rs[1].copy_from_host(buffers.ins[1], h1.data(), bytes);
 
-        run_collective(*coord, 0, ins, outs, n, ov::element::f16);
+        run_collective(*coord, 0, buffers.ins, buffers.outs, n, ov::element::f16);
 
         std::vector<ov::float16> r0(n), r1(n);
-        rs[0].copy_to_host(r0.data(), outs[0], bytes);
-        rs[1].copy_to_host(r1.data(), outs[1], bytes);
+        rs[0].copy_to_host(r0.data(), buffers.outs[0], bytes);
+        rs[1].copy_to_host(r1.data(), buffers.outs[1], bytes);
         EXPECT_EQ(count_mismatches(r0, 12.0f, f16_tolerance), 0u) << "n=" << n << " rank 0";
         EXPECT_EQ(count_mismatches(r1, 12.0f, f16_tolerance), 0u) << "n=" << n << " rank 1";
-
-        for (int r = 0; r < 2; ++r) {
-            rs[r].release(ins[r]);
-            rs[r].release(outs[r]);
-        }
     }
 
     const auto stats = coord->get_scratch_stats();
@@ -830,9 +811,6 @@ TEST_F(TPCollectivesTest, GrowsScratchOnSizeChange) {
         << "scratch should hold one max-sized allocation per rank and buffer";
     EXPECT_EQ(stats.growth_count, 3u) << "scratch must grow only for 1024, 2048 and 4096";
     EXPECT_EQ(stats.allocation_count, 6u) << "TP=2 must allocate two buffers per growth";
-
-    for (int r = 0; r < 2; ++r)
-        rs[r].destroy();
 }
 
 // Collective slots are used one after another -- the way per-layer AllReduce
@@ -843,18 +821,8 @@ TEST_F(TPCollectivesTest, ReusesCollectiveSlotsSequentially) {
     auto shared = make_shared_ctx(2);
     auto coord = std::make_shared<Collectives>(shared, 2, 2);
 
-    std::vector<RankScratch> rs(2);
-    for (int r = 0; r < 2; ++r)
-        rs[r].init(shared->context, shared->devices[r]);
-
     const size_t bytes = elements * sizeof(ov::float16);
-    std::vector<std::vector<void*>> ins(2, std::vector<void*>(2)), outs(2, std::vector<void*>(2));
-    for (int s = 0; s < 2; ++s) {
-        for (int r = 0; r < 2; ++r) {
-            ins[s][r] = rs[r].alloc(bytes);
-            outs[s][r] = rs[r].alloc(bytes);
-        }
-    }
+    CollectiveBuffers slots[2] = {{shared, 2, bytes}, {shared, 2, bytes}};
 
     // Change the values every repetition and check immediately.  This catches
     // executing a stale command list left behind by the other slot.
@@ -862,19 +830,19 @@ TEST_F(TPCollectivesTest, ReusesCollectiveSlotsSequentially) {
         const float operands[2][2] = {{static_cast<float>(rep + 1), static_cast<float>(rep + 2)},
                                       {static_cast<float>(rep + 4), static_cast<float>(rep + 5)}};
         for (int s = 0; s < 2; ++s) {
-            for (int r = 0; r < 2; ++r) {
+            for (uint32_t r = 0; r < 2; ++r) {
                 std::vector<ov::float16> host(elements, ov::float16(operands[s][r]));
-                rs[r].copy_from_host(ins[s][r], host.data(), bytes);
+                slots[s].rs[r].copy_from_host(slots[s].ins[r], host.data(), bytes);
             }
         }
 
         for (int s = 0; s < 2; ++s) {
-            run_collective(*coord, s, ins[s], outs[s], elements, ov::element::f16);
+            run_collective(*coord, s, slots[s].ins, slots[s].outs, elements, ov::element::f16);
 
             const float expected = operands[s][0] + operands[s][1];
-            for (int r = 0; r < 2; ++r) {
+            for (uint32_t r = 0; r < 2; ++r) {
                 std::vector<ov::float16> host(elements);
-                rs[r].copy_to_host(host.data(), outs[s][r], bytes);
+                slots[s].rs[r].copy_to_host(host.data(), slots[s].outs[r], bytes);
                 EXPECT_EQ(count_mismatches(host, expected, f16_tolerance), 0u)
                     << "repetition " << rep << " slot " << s << " rank " << r;
             }
@@ -889,15 +857,6 @@ TEST_F(TPCollectivesTest, ReusesCollectiveSlotsSequentially) {
     EXPECT_EQ(stats.total_allocated_bytes, 2 * 2 * bytes) << "scratch size must not depend on the slot count";
     EXPECT_EQ(stats.growth_count, 1u) << "equal-size slots must share the first allocation";
     EXPECT_EQ(stats.allocation_count, 2u) << "TP=2 must own one allocation per rank";
-
-    for (int s = 0; s < 2; ++s) {
-        for (int r = 0; r < 2; ++r) {
-            rs[r].release(ins[s][r]);
-            rs[r].release(outs[s][r]);
-        }
-    }
-    for (int r = 0; r < 2; ++r)
-        rs[r].destroy();
 }
 
 // Input and output may alias: a row-parallel MatMul output is reduced in place
@@ -907,32 +866,22 @@ TEST_F(TPCollectivesTest, SupportsInPlaceAllReduce) {
     auto shared = make_shared_ctx(2);
     auto coord = std::make_shared<Collectives>(shared, 2, 1);
 
-    std::vector<RankScratch> rs(2);
-    for (int r = 0; r < 2; ++r)
-        rs[r].init(shared->context, shared->devices[r]);
-
     const size_t bytes = elements * sizeof(ov::float16);
-    std::vector<void*> buffers(2);
-    for (int r = 0; r < 2; ++r)
-        buffers[r] = rs[r].alloc(bytes);
+    CollectiveBuffers buffers(shared, 2, bytes);
+    auto& rs = buffers.rs;
 
     std::vector<ov::float16> h0(elements, ov::float16(1.0f));
     std::vector<ov::float16> h1(elements, ov::float16(2.0f));
-    rs[0].copy_from_host(buffers[0], h0.data(), bytes);
-    rs[1].copy_from_host(buffers[1], h1.data(), bytes);
+    rs[0].copy_from_host(buffers.ins[0], h0.data(), bytes);
+    rs[1].copy_from_host(buffers.ins[1], h1.data(), bytes);
 
-    run_collective(*coord, 0, buffers, buffers, elements, ov::element::f16);
+    run_collective(*coord, 0, buffers.ins, buffers.ins, elements, ov::element::f16);
 
     std::vector<ov::float16> r0(elements), r1(elements);
-    rs[0].copy_to_host(r0.data(), buffers[0], bytes);
-    rs[1].copy_to_host(r1.data(), buffers[1], bytes);
+    rs[0].copy_to_host(r0.data(), buffers.ins[0], bytes);
+    rs[1].copy_to_host(r1.data(), buffers.ins[1], bytes);
     EXPECT_EQ(count_mismatches(r0, 3.0f, f16_tolerance), 0u) << "rank 0";
     EXPECT_EQ(count_mismatches(r1, 3.0f, f16_tolerance), 0u) << "rank 1";
-
-    for (int r = 0; r < 2; ++r) {
-        rs[r].release(buffers[r]);
-        rs[r].destroy();
-    }
 }
 
 // Every other case runs two ranks.  The reduction tree and the rendezvous both
@@ -940,7 +889,7 @@ TEST_F(TPCollectivesTest, SupportsInPlaceAllReduce) {
 TEST_F(TPCollectivesTest, AllReduceAcrossWiderWorlds) {
     Watchdog watchdog(120);
 
-    for (int ranks : {3, 4}) {
+    for (uint32_t ranks : {3u, 4u}) {
         SCOPED_TRACE("ranks " + std::to_string(ranks));
         if (available_gpus < ranks)
             continue;
@@ -948,46 +897,33 @@ TEST_F(TPCollectivesTest, AllReduceAcrossWiderWorlds) {
         auto shared = make_shared_ctx(ranks);
         auto coord = std::make_shared<Collectives>(shared, ranks, 1);
 
-        std::vector<RankScratch> rs(ranks);
-        for (int r = 0; r < ranks; ++r)
-            rs[r].init(shared->context, shared->devices[r]);
-
         const size_t bytes = elements * sizeof(ov::float16);
-        std::vector<void*> ins(ranks), outs(ranks);
-        for (int r = 0; r < ranks; ++r) {
-            ins[r] = rs[r].alloc(bytes);
-            outs[r] = rs[r].alloc(bytes);
-        }
+        CollectiveBuffers buffers(shared, ranks, bytes);
+        auto& rs = buffers.rs;
 
         // Several iterations on the same collective slot: the recordings clear
         // their own events from the recorded command lists, and a reset that
         // lands in the wrong list only shows up from the second call on, when
         // a stale signal lets a wait through early.
-        for (int k = 0; k < 5; ++k) {
+        for (uint32_t k = 0; k < 5; ++k) {
             SCOPED_TRACE("iteration " + std::to_string(k));
             float expected = 0.0f;
-            for (int r = 0; r < ranks; ++r) {
+            for (uint32_t r = 0; r < ranks; ++r) {
                 // A distinct value per rank, so a rank missing from the sum is
                 // visible in the total rather than hidden by equal operands.
                 const float value = static_cast<float>(r + 1 + k);
                 expected += value;
                 std::vector<ov::float16> host(elements, ov::float16(value));
-                rs[r].copy_from_host(ins[r], host.data(), bytes);
+                rs[r].copy_from_host(buffers.ins[r], host.data(), bytes);
             }
 
-            run_collective(*coord, 0, ins, outs, elements, ov::element::f16);
+            run_collective(*coord, 0, buffers.ins, buffers.outs, elements, ov::element::f16);
 
-            for (int r = 0; r < ranks; ++r) {
+            for (uint32_t r = 0; r < ranks; ++r) {
                 std::vector<ov::float16> host(elements);
-                rs[r].copy_to_host(host.data(), outs[r], bytes);
+                rs[r].copy_to_host(host.data(), buffers.outs[r], bytes);
                 EXPECT_EQ(count_mismatches(host, expected, f16_tolerance), 0u) << "rank " << r;
             }
-        }
-
-        for (int r = 0; r < ranks; ++r) {
-            rs[r].release(ins[r]);
-            rs[r].release(outs[r]);
-            rs[r].destroy();
         }
     }
 }
@@ -1003,11 +939,9 @@ TEST_F(TPCollectivesTest, MissingRankTimesOut) {
 
     // Only rank 0 calls, so the enter barrier can never be satisfied.  The
     // buffers are real but never read: execution is not reached.
-    RankScratch rank0;
-    rank0.init(shared->context, shared->devices[0]);
-    const size_t bytes = elements * sizeof(float);
-    void* in = rank0.alloc(bytes);
-    void* out = rank0.alloc(bytes);
+    CollectiveBuffers rank0(shared, 1, elements * sizeof(float));
+    void* in = rank0.ins[0];
+    void* out = rank0.outs[0];
     auto kernel = reduce_kernel(*coord, 0, ov::element::f32);
 
     EXPECT_THROW(coord->allreduce(0, 0, in, out, elements, ov::element::f32, kernel), ov::Exception);
@@ -1018,10 +952,6 @@ TEST_F(TPCollectivesTest, MissingRankTimesOut) {
     const auto before = std::chrono::steady_clock::now();
     EXPECT_THROW(coord->allreduce(0, 0, in, out, elements, ov::element::f32, kernel), ov::Exception);
     EXPECT_LT(std::chrono::steady_clock::now() - before, std::chrono::milliseconds{300});
-
-    rank0.release(in);
-    rank0.release(out);
-    rank0.destroy();
 }
 
 TEST_F(TPCollectivesTest, AbortReleasesWaitingRank) {
@@ -1049,23 +979,15 @@ TEST_F(TPCollectivesTest, RanksAtDifferentCollectivesFailTheCall) {
     auto shared = make_shared_ctx(2);
     auto coord = std::make_shared<Collectives>(shared, 2, 2);
 
-    RankScratch rs[2];
-    std::vector<void*> ins(2);
-    std::vector<void*> outs(2);
-    const size_t bytes = elements * sizeof(ov::float16);
-    for (int r = 0; r < 2; ++r) {
-        rs[r].init(shared->context, shared->devices[r]);
-        ins[r] = rs[r].alloc(bytes);
-        outs[r] = rs[r].alloc(bytes);
-    }
+    CollectiveBuffers buffers(shared, 2, elements * sizeof(ov::float16));
 
     // Same size and type, so only the collective's id tells the calls apart.
     std::vector<std::string> errors(2);
     std::vector<std::thread> threads;
-    for (int r = 0; r < 2; ++r) {
+    for (uint32_t r = 0; r < 2; ++r) {
         threads.emplace_back([&, r] {
             try {
-                coord->allreduce(/*collective=*/r, r, ins[r], outs[r], elements, ov::element::f16,
+                coord->allreduce(/*collective=*/r, r, buffers.ins[r], buffers.outs[r], elements, ov::element::f16,
                                  reduce_kernel(*coord, r, ov::element::f16));
             } catch (const ov::Exception& e) {
                 errors[r] = e.what();
@@ -1076,14 +998,8 @@ TEST_F(TPCollectivesTest, RanksAtDifferentCollectivesFailTheCall) {
         t.join();
 
     EXPECT_TRUE(coord->is_aborted());
-    for (int r = 0; r < 2; ++r)
+    for (uint32_t r = 0; r < 2; ++r)
         EXPECT_NE(errors[r].find("ranks disagree on call"), std::string::npos) << "rank " << r << ": " << errors[r];
-
-    for (int r = 0; r < 2; ++r) {
-        rs[r].release(ins[r]);
-        rs[r].release(outs[r]);
-        rs[r].destroy();
-    }
 }
 
 // Once a collective rides in the model's queue there is no host-side wait left
@@ -1115,29 +1031,15 @@ TEST_F(TPCollectivesTest, WatchdogLeavesARunningGroupAlone) {
     auto shared = make_shared_ctx(2);
     auto coord = std::make_shared<Collectives>(shared, 2, 1, std::chrono::milliseconds{200});
 
-    RankScratch rs[2];
-    std::vector<void*> ins(2);
-    std::vector<void*> outs(2);
-    const size_t bytes = elements * sizeof(ov::float16);
-    for (int r = 0; r < 2; ++r) {
-        rs[r].init(shared->context, shared->devices[r]);
-        ins[r] = rs[r].alloc(bytes);
-        outs[r] = rs[r].alloc(bytes);
-    }
+    CollectiveBuffers buffers(shared, 2, elements * sizeof(ov::float16));
 
     // Real collectives, run for several times the deadline.  The watchdog
     // polls the devices while this happens and must find them progressing.
     const auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds{800};
     while (std::chrono::steady_clock::now() < until) {
-        run_collective(*coord, 0, ins, outs, elements, ov::element::f16);
+        run_collective(*coord, 0, buffers.ins, buffers.outs, elements, ov::element::f16);
     }
     EXPECT_FALSE(coord->is_aborted());
-
-    for (int r = 0; r < 2; ++r) {
-        rs[r].release(ins[r]);
-        rs[r].release(outs[r]);
-        rs[r].destroy();
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1150,75 +1052,12 @@ TEST_F(TPCollectivesTest, WatchdogLeavesARunningGroupAlone) {
 // misplaced offset hides in.
 // ---------------------------------------------------------------------------
 
-/// Device buffers for one collective, kept alive for as long as the caller
-/// needs them.
-///
-/// Holding them matters: a plan is identified by the addresses it was recorded
-/// from, so freeing a buffer and allocating another that lands on the same
-/// address makes the recording look current while its residency list points at
-/// an allocation the driver has destroyed.  Anything reusing one collective
-/// across calls has to keep its buffers, which is also what the GPU plugin's
-/// memory pool does in a real model.
-struct CollectiveBuffers {
-    std::vector<RankScratch> rs;
-    std::vector<void*> ins, outs;
-
-    CollectiveBuffers(const TPL0SharedContextPtr& shared, int ranks, size_t bytes)
-        : rs(ranks),
-          ins(ranks),
-          outs(ranks) {
-        for (int r = 0; r < ranks; ++r) {
-            rs[r].init(shared->context, shared->devices[r]);
-            ins[r] = rs[r].alloc(bytes);
-            outs[r] = rs[r].alloc(bytes);
-        }
-    }
-
-    ~CollectiveBuffers() {
-        for (size_t r = 0; r < rs.size(); ++r) {
-            rs[r].release(ins[r]);
-            rs[r].release(outs[r]);
-            rs[r].destroy();
-        }
-    }
-};
-
-/// One all-reduce of `n` elements with rank r contributing (r + 1), checked on
-/// every rank against the expected sum.  Values stay small so f16 counts them
-/// exactly and a mismatch means misplacement, not rounding.
-template <typename T>
-void expect_allreduce_sum(Collectives& coord,
-                          CollectiveBuffers& buffers,
-                          int collective_id,
-                          size_t n,
-                          ov::element::Type dtype,
-                          float tolerance) {
-    const int ranks = static_cast<int>(buffers.rs.size());
-    const size_t bytes = n * sizeof(T);
-    float expected = 0.0f;
-    for (int r = 0; r < ranks; ++r) {
-        const float value = static_cast<float>(r + 1);
-        expected += value;
-        std::vector<T> host(n, static_cast<T>(value));
-        buffers.rs[r].copy_from_host(buffers.ins[r], host.data(), bytes);
-    }
-
-    run_collective(coord, collective_id, buffers.ins, buffers.outs, n, dtype);
-
-    for (int r = 0; r < ranks; ++r) {
-        std::vector<T> host(n);
-        buffers.rs[r].copy_to_host(host.data(), buffers.outs[r], bytes);
-        EXPECT_EQ(count_mismatches(host, expected, tolerance), 0u)
-            << "n=" << n << " ranks=" << ranks << " rank " << r;
-    }
-}
-
 // A payload shorter than the alignment unit leaves every chunk but the first
 // empty, and one shorter than the world size leaves whole ranks with nothing to
 // send.  Both have to signal their step anyway or a peer waits forever.
 TEST_F(TPCollectivesTest, AllReduceHandlesPayloadsBelowTheAlignmentUnit) {
     Watchdog watchdog(120);
-    const int ranks = std::min(available_gpus, 4);
+    const uint32_t ranks = std::min(available_gpus, 4u);
     auto shared = make_shared_ctx(ranks);
 
     for (size_t n : {size_t{1}, size_t{2}, size_t{63}, size_t{127}, size_t{128}, size_t{129}}) {
@@ -1236,7 +1075,7 @@ TEST_F(TPCollectivesTest, AllReduceHandlesPayloadsBelowTheAlignmentUnit) {
 TEST_F(TPCollectivesTest, AllReduceHandlesPayloadsThatDoNotDivide) {
     Watchdog watchdog(120);
 
-    for (int ranks : {2, 3, 4}) {
+    for (uint32_t ranks : {2u, 3u, 4u}) {
         if (available_gpus < ranks)
             continue;
         SCOPED_TRACE("ranks " + std::to_string(ranks));
@@ -1272,7 +1111,7 @@ TEST_F(TPCollectivesTest, AllReduceHandlesPayloadsThatDoNotDivide) {
 TEST_F(TPCollectivesTest, RingAndHalvingAgree) {
     Watchdog watchdog(120);
     if (available_gpus < 4)
-        GTEST_SKIP() << "halving needs a power-of-two world larger than a pair";
+        GTEST_SKIP() << no_halving;
 
     auto shared = make_shared_ctx(4);
     constexpr size_t n = 8 * 1024;
@@ -1298,7 +1137,7 @@ TEST_F(TPCollectivesTest, RingAndHalvingAgree) {
 TEST_F(TPCollectivesTest, ScheduleFlipsAtTheHalvingCeiling) {
     Watchdog watchdog(120);
     if (available_gpus < 4)
-        GTEST_SKIP() << "halving needs a power-of-two world larger than a pair";
+        GTEST_SKIP() << no_halving;
 
     auto shared = make_shared_ctx(4);
     constexpr size_t ceiling_elems = 2048;  // f32 -> 8 KB
@@ -1327,7 +1166,7 @@ TEST_F(TPCollectivesTest, ScheduleFlipsAtTheHalvingCeiling) {
 // arena on the first large one only.
 TEST_F(TPCollectivesTest, AlternatesPayloadSizesInOneSlot) {
     Watchdog watchdog(120);
-    const int ranks = std::min(available_gpus, 4);
+    const uint32_t ranks = std::min(available_gpus, 4u);
     auto shared = make_shared_ctx(ranks);
     auto coord = std::make_shared<Collectives>(shared, ranks, 1);
 
@@ -1353,7 +1192,7 @@ TEST_F(TPCollectivesTest, AlternatesPayloadSizesInOneSlot) {
 // the buffer.
 TEST_F(TPCollectivesTest, SwitchesDtypeInOneSlot) {
     Watchdog watchdog(120);
-    const int ranks = std::min(available_gpus, 4);
+    const uint32_t ranks = std::min(available_gpus, 4u);
     auto shared = make_shared_ctx(ranks);
     auto coord = std::make_shared<Collectives>(shared, ranks, 1);
 
@@ -1415,7 +1254,7 @@ void expect_single_rounding(Collectives& coord, CollectiveBuffers& buffers, ov::
 
     run_collective(coord, 0, buffers.ins, buffers.outs, n, dtype);
 
-    for (int r = 0; r < 2; ++r) {
+    for (uint32_t r = 0; r < 2; ++r) {
         std::vector<T> got(n);
         buffers.rs[r].copy_to_host(got.data(), buffers.outs[r], bytes);
         size_t wrong = 0;
@@ -1448,10 +1287,10 @@ TEST_F(TPCollectivesTest, ReductionRoundsOnceToNearestEven) {
 /// Every rank's output carries exactly the same bits, whatever the schedule.
 template <typename T>
 void expect_ranks_agree(Collectives& coord, CollectiveBuffers& buffers, size_t n, ov::element::Type dtype) {
-    const int ranks = static_cast<int>(buffers.rs.size());
+    const auto ranks = static_cast<uint32_t>(buffers.rs.size());
     const size_t bytes = n * sizeof(T);
-    for (int r = 0; r < ranks; ++r) {
-        const auto host = random_operands<T>(n, static_cast<uint32_t>(10 + r));
+    for (uint32_t r = 0; r < ranks; ++r) {
+        const auto host = random_operands<T>(n, 10 + r);
         buffers.rs[r].copy_from_host(buffers.ins[r], host.data(), bytes);
     }
 
@@ -1459,7 +1298,7 @@ void expect_ranks_agree(Collectives& coord, CollectiveBuffers& buffers, size_t n
 
     std::vector<T> reference(n);
     buffers.rs[0].copy_to_host(reference.data(), buffers.outs[0], bytes);
-    for (int r = 1; r < ranks; ++r) {
+    for (uint32_t r = 1; r < ranks; ++r) {
         std::vector<T> got(n);
         buffers.rs[r].copy_to_host(got.data(), buffers.outs[r], bytes);
         EXPECT_EQ(std::memcmp(got.data(), reference.data(), bytes), 0)
@@ -1470,7 +1309,7 @@ void expect_ranks_agree(Collectives& coord, CollectiveBuffers& buffers, size_t n
 TEST_F(TPCollectivesTest, RanksAgreeBitwise) {
     Watchdog watchdog(180);
 
-    for (int ranks : {2, 3, 4}) {
+    for (uint32_t ranks : {2u, 3u, 4u}) {
         if (available_gpus < ranks)
             continue;
         SCOPED_TRACE("ranks " + std::to_string(ranks));
@@ -1508,7 +1347,7 @@ TEST_F(TPCollectivesTest, RanksAgreeBitwise) {
 
 TEST_F(TPCollectivesTest, SurvivesABufferAddressBeingReused) {
     Watchdog watchdog(120);
-    const int ranks = std::min(available_gpus, 4);
+    const uint32_t ranks = std::min(available_gpus, 4u);
     auto shared = make_shared_ctx(ranks);
     auto coord = std::make_shared<Collectives>(shared, ranks, 1);
 
@@ -1550,7 +1389,7 @@ TEST_F(TPCollectivesTest, SurvivesAModelShapedAllocationChurn) {
         return env ? std::max(1, std::atoi(env)) : 40;
     }();
     Watchdog watchdog(60 + rounds * 8);
-    const int ranks = std::min(available_gpus, 4);
+    const uint32_t ranks = std::min(available_gpus, 4u);
     auto shared = make_shared_ctx(ranks);
 
     // More than one collective, because a plan holds its own command lists
@@ -1600,46 +1439,35 @@ TEST_F(TPCollectivesTest, SurvivesAModelShapedAllocationChurn) {
 // accidentally lining up.
 TEST_F(TPCollectivesTest, GatherHandlesASingleRow) {
     Watchdog watchdog(60);
-    const int ranks = std::min(available_gpus, 4);
+    const uint32_t ranks = std::min(available_gpus, 4u);
     auto shared = make_shared_ctx(ranks);
     auto coord = std::make_shared<Collectives>(shared, ranks, 1);
 
     constexpr size_t rows = 1;
     constexpr size_t slice = 7;
-    const size_t full = slice * static_cast<size_t>(ranks);
+    const size_t full = slice * ranks;
 
-    std::vector<RankScratch> rs(ranks);
-    std::vector<void*> ins(ranks), outs(ranks);
-    for (int r = 0; r < ranks; ++r) {
-        rs[r].init(shared->context, shared->devices[r]);
-        ins[r] = rs[r].alloc(rows * slice * sizeof(ov::float16));
-        outs[r] = rs[r].alloc(rows * full * sizeof(ov::float16));
+    CollectiveBuffers buffers(shared, ranks, rows * slice * sizeof(ov::float16), rows * full * sizeof(ov::float16));
+    auto& rs = buffers.rs;
+    for (uint32_t r = 0; r < ranks; ++r) {
         std::vector<ov::float16> host(rows * slice);
         for (size_t x = 0; x < slice; ++x)
-            host[x] = ov::float16(static_cast<float>(r * 16 + static_cast<int>(x)));
-        rs[r].copy_from_host(ins[r], host.data(), host.size() * sizeof(ov::float16));
+            host[x] = ov::float16(static_cast<float>(r * 16 + x));
+        rs[r].copy_from_host(buffers.ins[r], host.data(), host.size() * sizeof(ov::float16));
     }
 
     std::vector<ov::float16> poison(rows * full, ov::float16(-1.0f));
-    rs[0].copy_from_host(outs[0], poison.data(), poison.size() * sizeof(ov::float16));
+    rs[0].copy_from_host(buffers.outs[0], poison.data(), poison.size() * sizeof(ov::float16));
 
-    run_gather(*coord, 0, ins, outs, rows, slice, ov::element::f16);
+    run_gather(*coord, 0, buffers.ins, buffers.outs, rows, slice, ov::element::f16);
 
     std::vector<ov::float16> got(rows * full);
-    rs[0].copy_to_host(got.data(), outs[0], got.size() * sizeof(ov::float16));
-    for (int r = 0; r < ranks; ++r) {
+    rs[0].copy_to_host(got.data(), buffers.outs[0], got.size() * sizeof(ov::float16));
+    for (uint32_t r = 0; r < ranks; ++r) {
         for (size_t x = 0; x < slice; ++x) {
-            EXPECT_NEAR(static_cast<float>(got[r * slice + x]),
-                        static_cast<float>(r * 16 + static_cast<int>(x)),
-                        0.5f)
+            EXPECT_NEAR(static_cast<float>(got[r * slice + x]), static_cast<float>(r * 16 + x), 0.5f)
                 << "rank " << r << " column " << x;
         }
-    }
-
-    for (int r = 0; r < ranks; ++r) {
-        rs[r].release(ins[r]);
-        rs[r].release(outs[r]);
-        rs[r].destroy();
     }
 }
 
@@ -1651,39 +1479,39 @@ TEST_F(TPCollectivesTest, GatherHandlesASingleRow) {
 // the queues drain.
 TEST_F(TPCollectivesTest, SplicedGathersInARowKeepEveryBand) {
     Watchdog watchdog(120);
-    const int ranks = std::min(available_gpus, 4);
+    const uint32_t ranks = std::min(available_gpus, 4u);
     auto shared = make_shared_ctx(ranks);
     auto coord = std::make_shared<Collectives>(shared, ranks, 1);
     if (!coord->run_spliced())
-        GTEST_SKIP() << "driver has no immediate-append extension";
+        GTEST_SKIP() << no_splicing;
 
-    constexpr int instances = 8;
+    constexpr size_t instances = 8;
     constexpr size_t rows = 3;
     constexpr size_t slice = 1000;
-    const size_t full = slice * static_cast<size_t>(ranks);
+    const size_t full = slice * ranks;
     // Unique per instance, rank and position, and exact in f32.
-    auto value_at = [](int k, int r, size_t i) {
-        return static_cast<float>(k * 100000 + r * 10000 + static_cast<int>(i));
+    auto value_at = [](size_t k, uint32_t r, size_t i) {
+        return static_cast<float>(k * 100000 + r * 10000 + i);
     };
 
-    std::vector<RankScratch> rs(ranks);
-    std::vector<ze_command_list_handle_t> queues(ranks);
-    for (int r = 0; r < ranks; ++r) {
-        rs[r].init(shared->context, shared->devices[r]);
-        queues[r] = rs[r].model_queue();
-    }
-    std::vector<std::vector<void*>> ins(instances, std::vector<void*>(ranks));
-    std::vector<std::vector<void*>> outs(instances, std::vector<void*>(ranks));
-    for (int k = 0; k < instances; ++k) {
-        for (int r = 0; r < ranks; ++r) {
-            ins[k][r] = rs[r].alloc(rows * slice * sizeof(float));
-            outs[k][r] = rs[r].alloc(rows * full * sizeof(float));
+    std::vector<std::unique_ptr<CollectiveBuffers>> buffers;
+    for (size_t k = 0; k < instances; ++k) {
+        buffers.push_back(std::make_unique<CollectiveBuffers>(shared,
+                                                              ranks,
+                                                              rows * slice * sizeof(float),
+                                                              rows * full * sizeof(float)));
+        for (uint32_t r = 0; r < ranks; ++r) {
             std::vector<float> host(rows * slice);
             for (size_t i = 0; i < host.size(); ++i)
                 host[i] = value_at(k, r, i);
-            rs[r].copy_from_host(ins[k][r], host.data(), host.size() * sizeof(float));
+            buffers[k]->rs[r].copy_from_host(buffers[k]->ins[r], host.data(), host.size() * sizeof(float));
         }
     }
+    // One queue per rank for every instance, as a model has.
+    auto& rs = buffers[0]->rs;
+    std::vector<ze_command_list_handle_t> queues(ranks);
+    for (uint32_t r = 0; r < ranks; ++r)
+        queues[r] = rs[r].model_queue();
 
     // Busy work in front of every gather on the root only, so its device
     // falls behind while the peers' devices run ahead into the next instances.
@@ -1694,23 +1522,23 @@ TEST_F(TPCollectivesTest, SplicedGathersInARowKeepEveryBand) {
     std::vector<float> poison_host(rows * full, -1.0f);
     void* poison = rs[0].alloc(poison_host.size() * sizeof(float));
     rs[0].copy_from_host(poison, poison_host.data(), poison_host.size() * sizeof(float));
-    for (int k = 0; k < instances; ++k) {
+    for (size_t k = 0; k < instances; ++k) {
         EXPECT_ZE(ov::zeCommandListAppendMemoryCopy(queues[0], busy_dst, busy_src, busy_bytes, nullptr, 0, nullptr));
-        EXPECT_ZE(ov::zeCommandListAppendMemoryCopy(queues[0], outs[k][0], poison, poison_host.size() * sizeof(float),
-                                                    nullptr, 0, nullptr));
-        run_gather(*coord, 0, ins[k], outs[k], rows, slice, ov::element::f32, queues);
+        EXPECT_ZE(ov::zeCommandListAppendMemoryCopy(queues[0], buffers[k]->outs[0], poison,
+                                                    poison_host.size() * sizeof(float), nullptr, 0, nullptr));
+        run_gather(*coord, 0, buffers[k]->ins, buffers[k]->outs, rows, slice, ov::element::f32, queues);
     }
-    for (int r = 0; r < ranks; ++r)
+    for (uint32_t r = 0; r < ranks; ++r)
         rs[r].wait_for_model_queue();
     rs[0].release(busy_src);
     rs[0].release(busy_dst);
     rs[0].release(poison);
-    for (int k = 0; k < instances; ++k) {
+    for (size_t k = 0; k < instances; ++k) {
         std::vector<float> got(rows * full);
-        rs[0].copy_to_host(got.data(), outs[k][0], got.size() * sizeof(float));
+        rs[0].copy_to_host(got.data(), buffers[k]->outs[0], got.size() * sizeof(float));
         size_t wrong = 0;
         for (size_t y = 0; y < rows; ++y)
-            for (int r = 0; r < ranks; ++r)
+            for (uint32_t r = 0; r < ranks; ++r)
                 for (size_t x = 0; x < slice; ++x)
                     wrong += got[y * full + r * slice + x] != value_at(k, r, y * slice + x);
         EXPECT_EQ(wrong, 0u) << "instance " << k;
@@ -1718,14 +1546,6 @@ TEST_F(TPCollectivesTest, SplicedGathersInARowKeepEveryBand) {
     EXPECT_FALSE(coord->is_aborted());
 
     coord.reset();
-    for (int k = 0; k < instances; ++k) {
-        for (int r = 0; r < ranks; ++r) {
-            rs[r].release(ins[k][r]);
-            rs[r].release(outs[k][r]);
-        }
-    }
-    for (int r = 0; r < ranks; ++r)
-        rs[r].destroy();
 }
 
 // ---------------------------------------------------------------------------
@@ -1743,15 +1563,15 @@ TEST_F(TPCollectivesTest, SplicedGathersInARowKeepEveryBand) {
 template <typename T>
 void expect_spliced_allreduce_sum(Collectives& coord,
                                   CollectiveBuffers& buffers,
-                                  int collective_id,
+                                  size_t collective,
                                   size_t n,
                                   ov::element::Type dtype,
                                   float tolerance) {
-    const int ranks = static_cast<int>(buffers.rs.size());
+    const auto ranks = static_cast<uint32_t>(buffers.rs.size());
     const size_t bytes = n * sizeof(T);
     std::vector<ze_command_list_handle_t> queues(ranks);
     float expected = 0.0f;
-    for (int r = 0; r < ranks; ++r) {
+    for (uint32_t r = 0; r < ranks; ++r) {
         const float value = static_cast<float>(r + 1);
         expected += value;
         std::vector<T> host(n, static_cast<T>(value));
@@ -1759,14 +1579,14 @@ void expect_spliced_allreduce_sum(Collectives& coord,
         queues[r] = buffers.rs[r].model_queue();
     }
 
-    run_collective(coord, collective_id, buffers.ins, buffers.outs, n, dtype, queues);
+    run_collective(coord, collective, buffers.ins, buffers.outs, n, dtype, queues);
 
     // The call returned before the devices were done, which is the point of
     // splicing; the results are only there once the model queues drain.
-    for (int r = 0; r < ranks; ++r)
+    for (uint32_t r = 0; r < ranks; ++r)
         buffers.rs[r].wait_for_model_queue();
 
-    for (int r = 0; r < ranks; ++r) {
+    for (uint32_t r = 0; r < ranks; ++r) {
         std::vector<T> host(n);
         buffers.rs[r].copy_to_host(host.data(), buffers.outs[r], bytes);
         EXPECT_EQ(count_mismatches(host, expected, tolerance), 0u)
@@ -1776,11 +1596,11 @@ void expect_spliced_allreduce_sum(Collectives& coord,
 
 TEST_F(TPCollectivesTest, SplicedAllReduceMatchesTheBlockingPath) {
     Watchdog watchdog(120);
-    const int ranks = std::min(available_gpus, 4);
+    const uint32_t ranks = std::min(available_gpus, 4u);
     auto shared = make_shared_ctx(ranks);
     auto coord = std::make_shared<Collectives>(shared, ranks, 1);
     if (!coord->run_spliced())
-        GTEST_SKIP() << "driver has no immediate-append extension";
+        GTEST_SKIP() << no_splicing;
 
     constexpr size_t n = 8 * 1024;
     CollectiveBuffers buffers(shared, ranks, n * sizeof(ov::float16));
@@ -1800,7 +1620,7 @@ TEST_F(TPCollectivesTest, SplicedAllReduceMatchesTheBlockingPath) {
 // without rebuilding.  It has to be an equivalence, not merely a slower path.
 TEST_F(TPCollectivesTest, ForcingTheSyncPathKeepsTheSameResult) {
     Watchdog watchdog(120);
-    const int ranks = std::min(available_gpus, 4);
+    const uint32_t ranks = std::min(available_gpus, 4u);
     auto shared = make_shared_ctx(ranks);
 
     CollectiveOptions config;
@@ -1816,11 +1636,11 @@ TEST_F(TPCollectivesTest, ForcingTheSyncPathKeepsTheSameResult) {
     // to use it, and with the option set it must not -- otherwise a caller
     // that ignored run_spliced() would silently keep splicing.
     std::vector<ze_command_list_handle_t> queues(ranks);
-    for (int r = 0; r < ranks; ++r)
+    for (uint32_t r = 0; r < ranks; ++r)
         queues[r] = buffers.rs[r].model_queue();
 
     float expected = 0.0f;
-    for (int r = 0; r < ranks; ++r) {
+    for (uint32_t r = 0; r < ranks; ++r) {
         const float value = static_cast<float>(r + 1);
         expected += value;
         std::vector<ov::float16> host(n, ov::float16(value));
@@ -1831,7 +1651,7 @@ TEST_F(TPCollectivesTest, ForcingTheSyncPathKeepsTheSameResult) {
 
     // No wait on the model queues: the blocking path must have finished the
     // work before it returned.
-    for (int r = 0; r < ranks; ++r) {
+    for (uint32_t r = 0; r < ranks; ++r) {
         std::vector<ov::float16> host(n);
         buffers.rs[r].copy_to_host(host.data(), buffers.outs[r], n * sizeof(ov::float16));
         EXPECT_EQ(count_mismatches(host, expected, f16_tolerance), 0u) << "rank " << r;
@@ -1853,7 +1673,7 @@ constexpr size_t fixed_staging = 64 * 1024;
 TEST_F(TPCollectivesTest, ChunksMessagesLargerThanTheFixedStaging) {
     Watchdog watchdog(180);
 
-    for (int ranks : {2, 3, 4}) {
+    for (uint32_t ranks : {2u, 3u, 4u}) {
         if (available_gpus < ranks)
             continue;
         SCOPED_TRACE("ranks " + std::to_string(ranks));
@@ -1862,7 +1682,7 @@ TEST_F(TPCollectivesTest, ChunksMessagesLargerThanTheFixedStaging) {
             std::make_shared<Collectives>(shared, ranks, 1, std::chrono::milliseconds{5000}, CollectiveOptions{},
                                           fixed_staging);
         if (!coord->run_spliced())
-            GTEST_SKIP() << "driver has no immediate-append extension";
+            GTEST_SKIP() << no_splicing;
 
         // One chunk, two, three (an odd count shifts the next call's parity) and seven.
         constexpr size_t largest = 100003;
@@ -1885,12 +1705,12 @@ TEST_F(TPCollectivesTest, ChunksMessagesLargerThanTheFixedStaging) {
 // has its own buffers and values, and all are checked once the queues drain.
 TEST_F(TPCollectivesTest, SplicedChunkedAllReducesInARowStayCorrect) {
     Watchdog watchdog(120);
-    const int ranks = std::min(available_gpus, 4);
+    const uint32_t ranks = std::min(available_gpus, 4u);
     auto shared = make_shared_ctx(ranks);
     auto coord = std::make_shared<Collectives>(shared, ranks, 1, std::chrono::milliseconds{5000},
                                                CollectiveOptions{}, fixed_staging);
     if (!coord->run_spliced())
-        GTEST_SKIP() << "driver has no immediate-append extension";
+        GTEST_SKIP() << no_splicing;
 
     constexpr int instances = 6;
     constexpr size_t n = 33000;  // three chunks
@@ -1899,23 +1719,23 @@ TEST_F(TPCollectivesTest, SplicedChunkedAllReducesInARowStayCorrect) {
     std::vector<ze_command_list_handle_t> queues(ranks);
     for (int k = 0; k < instances; ++k) {
         buffers.push_back(std::make_unique<CollectiveBuffers>(shared, ranks, bytes));
-        for (int r = 0; r < ranks; ++r) {
+        for (uint32_t r = 0; r < ranks; ++r) {
             std::vector<ov::float16> host(n, ov::float16(static_cast<float>((r + 1) * (k + 1))));
             buffers[k]->rs[r].copy_from_host(buffers[k]->ins[r], host.data(), bytes);
         }
     }
     // One queue per rank for every instance, as a model has.
-    for (int r = 0; r < ranks; ++r)
+    for (uint32_t r = 0; r < ranks; ++r)
         queues[r] = buffers[0]->rs[r].model_queue();
 
     for (int k = 0; k < instances; ++k)
         run_collective(*coord, 0, buffers[k]->ins, buffers[k]->outs, n, ov::element::f16, queues);
-    for (int r = 0; r < ranks; ++r)
+    for (uint32_t r = 0; r < ranks; ++r)
         buffers[0]->rs[r].wait_for_model_queue();
 
     const float rank_sum = static_cast<float>(ranks * (ranks + 1) / 2);
     for (int k = 0; k < instances; ++k) {
-        for (int r = 0; r < ranks; ++r) {
+        for (uint32_t r = 0; r < ranks; ++r) {
             std::vector<ov::float16> host(n);
             buffers[k]->rs[r].copy_to_host(host.data(), buffers[k]->outs[r], bytes);
             EXPECT_EQ(count_mismatches(host, rank_sum * static_cast<float>(k + 1), f16_tolerance), 0u)
@@ -1944,7 +1764,7 @@ TEST_F(TPCollectivesTest, ChunkingKeepsTheSingleRounding) {
 // waits for another.
 TEST_F(TPCollectivesTest, RejectsAFixedStagingTooSmallForAChunk) {
     Watchdog watchdog(60);
-    const int ranks = std::min(available_gpus, 4);
+    const uint32_t ranks = std::min(available_gpus, 4u);
     auto shared = make_shared_ctx(ranks);
     auto coord = std::make_shared<Collectives>(shared, ranks, 1, std::chrono::milliseconds{5000},
                                                CollectiveOptions{}, size_t{512});
@@ -1964,11 +1784,11 @@ TEST_F(TPCollectivesTest, RejectsAFixedStagingTooSmallForAChunk) {
 // surface as an exception on every later call rather than as a hang.
 TEST_F(TPCollectivesTest, AbortAfterSplicingFailsSubsequentCalls) {
     Watchdog watchdog(60);
-    const int ranks = 2;
+    const uint32_t ranks = 2;
     auto shared = make_shared_ctx(ranks);
     auto coord = std::make_shared<Collectives>(shared, ranks, 1);
     if (!coord->run_spliced())
-        GTEST_SKIP() << "driver has no immediate-append extension";
+        GTEST_SKIP() << no_splicing;
 
     constexpr size_t n = 4096;
     CollectiveBuffers buffers(shared, ranks, n * sizeof(ov::float16));
@@ -1996,7 +1816,7 @@ TEST_F(TPCollectivesTest, WatchdogReleasesAPeerThatNeverSignals) {
     constexpr auto timeout = std::chrono::milliseconds{300};
     auto coord = std::make_shared<Collectives>(shared, 2, 1, timeout);
     if (!coord->run_spliced())
-        GTEST_SKIP() << "driver has no immediate-append extension";
+        GTEST_SKIP() << no_splicing;
 
     constexpr size_t n = 4096;
     CollectiveBuffers buffers(shared, 2, n * sizeof(ov::float16));

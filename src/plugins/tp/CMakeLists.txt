@@ -11,7 +11,7 @@ set(TARGET_NAME openvino_tp_plugin)
 file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp
                           ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
-# L1 is a library of its own.
+# The transformations are a library of their own.
 list(FILTER SOURCES EXCLUDE REGEX "/src/transformations/")
 list(FILTER HEADERS EXCLUDE REGEX "/src/transformations/")
 

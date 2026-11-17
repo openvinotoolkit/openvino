@@ -152,7 +152,7 @@ private:
 }  // namespace cldnn
 
 /// A warning the user sees whatever the verbosity: a real configuration problem, not a diagnostic.
-#define TP_WARN_ALWAYS ::cldnn::ze::tp::AlwaysWarn{}.stream()
+#define GPU_TP_WARN_ALWAYS ::cldnn::ze::tp::AlwaysWarn{}.stream()
 
 /// Measurement output. Printed whenever profiling is on, whatever the verbosity.
-#define TP_REPORT ::cldnn::ze::tp::LogLine{}.stream()
+#define GPU_TP_REPORT ::cldnn::ze::tp::LogLine{}.stream()

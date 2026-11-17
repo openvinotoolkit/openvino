@@ -48,11 +48,11 @@ constexpr std::size_t kHalvingSlackBytes = kRingAlignElems * 4;
 
 std::size_t collective_payload_bytes(std::size_t n, ov::element::Type dtype) {
     OPENVINO_ASSERT(dtype == ov::element::f16 || dtype == ov::element::bf16 || dtype == ov::element::f32,
-                    "[TP][L0] AllReduce supports f16/bf16/f32 only, got ",
+                    "[GPU][TP][L0] AllReduce supports f16/bf16/f32 only, got ",
                     dtype);
-    OPENVINO_ASSERT(n > 0, "[TP][L0] zero-sized AllReduce is not supported");
+    OPENVINO_ASSERT(n > 0, "[GPU][TP][L0] zero-sized AllReduce is not supported");
     OPENVINO_ASSERT(n <= std::numeric_limits<uint32_t>::max(),
-                    "[TP][L0] AllReduce element count exceeds Level Zero launch range: ",
+                    "[GPU][TP][L0] AllReduce element count exceeds Level Zero launch range: ",
                     n);
     return checked_multiply(n, dtype.size(), "collective payload");
 }
@@ -229,7 +229,7 @@ void TPAllReduceRecorder::ring_chunk(std::size_t n, uint32_t chunk, std::size_t&
 }
 
 void* TPAllReduceRecorder::ring_slot(const Signature& sig, const Piece& piece, uint32_t rank, uint32_t chunk) const {
-    OPENVINO_ASSERT(chunk < m_world_size, "[TP][L0] ring slot chunk out of range: ", chunk);
+    OPENVINO_ASSERT(chunk < m_world_size, "[GPU][TP][L0] ring slot chunk out of range: ", chunk);
     return byte_offset(sig.staging[piece.parity][rank], chunk * chunk_stride(piece.n * sig.dtype.size(), false));
 }
 
@@ -258,14 +258,14 @@ void* TPAllReduceRecorder::halving_stage(const Signature& sig,
     // gather steps: a partner may deliver the next step while this rank still
     // reads the last.
     const uint32_t levels = halving_levels(m_world_size);
-    OPENVINO_ASSERT(region < 2 * levels, "[TP][L0] halving staging region out of range: ", region);
+    OPENVINO_ASSERT(region < 2 * levels, "[GPU][TP][L0] halving staging region out of range: ", region);
     const std::size_t payload_bytes = piece.n * sig.dtype.size();
     std::size_t offset = 0;
     for (uint32_t k = 0; k < region; ++k) {
         offset += halving_region_bytes(payload_bytes, k % levels);
     }
     OPENVINO_ASSERT(offset + halving_region_bytes(payload_bytes, region % levels) <= half_bytes(payload_bytes, true),
-                    "[TP][L0] halving staging does not fit the staging half");
+                    "[GPU][TP][L0] halving staging does not fit the staging half");
     return byte_offset(sig.staging[piece.parity][rank], offset);
 }
 
@@ -298,7 +298,7 @@ TPAllReduceRecorder::ChunkPlan TPAllReduceRecorder::plan_chunks(std::size_t n, o
             c -= std::min(c, align_up((need - limit + elem - 1) / elem, kRingAlignElems));
         }
         OPENVINO_ASSERT(c > 0,
-                        "[TP][L0] the fixed staging of ",
+                        "[GPU][TP][L0] the fixed staging of ",
                         m_rec.group().fixed_staging_bytes(),
                         " bytes cannot hold a chunk of ",
                         kRingAlignElems,
@@ -499,7 +499,7 @@ void TPAllReduceRecorder::record_halving(ze_command_list_handle_t list, const Si
     const std::size_t n = piece.n;
     const std::size_t elem = sig.dtype.size();
     const uint32_t levels = halving_levels(N);
-    OPENVINO_ASSERT((1u << levels) == N, "[TP][L0] halving requires a power-of-two world size");
+    OPENVINO_ASSERT((1u << levels) == N, "[GPU][TP][L0] halving requires a power-of-two world size");
 
     // Steps 0..2*levels-1: the first half scatters, the second gathers.
     // ev(step, who) is signalled by `who` and waited on by its partner.
@@ -605,7 +605,7 @@ void TPAllReduceRecorder::run(const cldnn::ze::tp::Channel& channel,
     // A null device pointer reaches the driver as a request to wrap a host
     // allocation at address 0 and aborts the process.
     OPENVINO_ASSERT(in != nullptr && out != nullptr,
-                    "[TP][L0] null device buffer passed to allreduce ",
+                    "[GPU][TP][L0] null device buffer passed to allreduce ",
                     name,
                     " (collective ",
                     collective_id,
@@ -613,7 +613,7 @@ void TPAllReduceRecorder::run(const cldnn::ze::tp::Channel& channel,
                     rank,
                     ")");
     OPENVINO_ASSERT(kernel != nullptr,
-                    "[TP][L0] allreduce ",
+                    "[GPU][TP][L0] allreduce ",
                     name,
                     " called without a reduction kernel (collective ",
                     collective_id,
@@ -627,7 +627,7 @@ void TPAllReduceRecorder::run(const cldnn::ze::tp::Channel& channel,
     if (group.options().skip_collective) {
         static std::once_flag warned;
         std::call_once(warned, [] {
-            TP_WARN_ALWAYS << "[TP] skip_collective is set: AllReduce is a no-op, outputs are invalid. "
+            GPU_TP_WARN_ALWAYS << "[GPU][TP] skip_collective is set: AllReduce is a no-op, outputs are invalid. "
                               "Timing-only mode.";
         });
         return;

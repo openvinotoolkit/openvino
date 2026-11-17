@@ -210,10 +210,10 @@ std::vector<std::string> TPCollectiveContractTest::backends(const std::vector<st
 
 std::string TPCollectiveContractTest::support(const std::vector<std::string>& devices, const std::string& backend) {
     return m_core
-        .get_property(m_device_type,
-                      ov::tp::internal::collective_support.name(),
-                      {{ov::tp::internal::device_group.name(), devices},
-                       {ov::tp::internal::collective_backend.name(), backend}})
+        .get_property(
+            m_device_type,
+            ov::tp::internal::collective_support.name(),
+            {{ov::tp::internal::device_group.name(), devices}, {ov::tp::internal::collective_backend.name(), backend}})
         .as<std::string>();
 }
 
@@ -223,9 +223,9 @@ ov::tp::internal::DeviceMemory device_memory(ov::Core& core, const std::string& 
     return core.get_property(device, ov::tp::internal::device_memory.name(), {}).as<ov::tp::internal::DeviceMemory>();
 }
 
-// ---- D1: TP context creation ----
+// ---- TP context creation ----
 
-TEST_P(TPCollectiveContractTest, D1_ContextsAreCreatedOneAfterAnotherWithoutWaiting) {
+TEST_P(TPCollectiveContractTest, ContextsAreCreatedOneAfterAnotherWithoutWaiting) {
     const auto started = std::chrono::steady_clock::now();
     {
         auto contexts = create_contexts();
@@ -235,12 +235,12 @@ TEST_P(TPCollectiveContractTest, D1_ContextsAreCreatedOneAfterAnotherWithoutWait
     EXPECT_LT(std::chrono::steady_clock::now() - started, std::chrono::milliseconds{default_timeout_ms});
 }
 
-TEST_P(TPCollectiveContractTest, D1_RejectsAContextOnAnotherDeviceThanItsRank) {
+TEST_P(TPCollectiveContractTest, RejectsAContextOnAnotherDeviceThanItsRank) {
     const auto group = make_group();
     OV_EXPECT_THROW_HAS_SUBSTRING(m_core.create_context(m_devices[1], rank_params(group, 0)), ov::Exception, "");
 }
 
-TEST_P(TPCollectiveContractTest, D1_RejectsAnUnknownBackendListingTheValidOnes) {
+TEST_P(TPCollectiveContractTest, RejectsAnUnknownBackendListingTheValidOnes) {
     const auto valid = backends(m_devices);
     ASSERT_FALSE(valid.empty());
     const auto group = make_group();
@@ -255,35 +255,35 @@ TEST_P(TPCollectiveContractTest, D1_RejectsAnUnknownBackendListingTheValidOnes) 
     }
 }
 
-TEST_P(TPCollectiveContractTest, D1_RejectsAnUnknownParameter) {
+TEST_P(TPCollectiveContractTest, RejectsAnUnknownParameter) {
     const auto group = make_group();
     auto params = rank_params(group, 0);
     params["NO_SUCH_TP_PARAMETER"] = 1;
     OV_EXPECT_THROW_HAS_SUBSTRING(m_core.create_context(m_devices[0], params), ov::Exception, "NO_SUCH_TP_PARAMETER");
 }
 
-TEST_P(TPCollectiveContractTest, D1_RejectsAContextWithoutItsGroup) {
+TEST_P(TPCollectiveContractTest, RejectsAContextWithoutItsGroup) {
     const auto group = make_group();
     auto params = rank_params(group, 0);
     params.erase(ov::tp::internal::groups.name());
     OV_EXPECT_THROW_HAS_SUBSTRING(m_core.create_context(m_devices[0], params), ov::Exception, "");
 }
 
-// ---- D2: compile and import with the context ----
+// ---- Compile and import with the context ----
 
-TEST_P(TPCollectiveContractTest, D2_ACollectiveNeedsATPContext) {
+TEST_P(TPCollectiveContractTest, ACollectiveNeedsATPContext) {
     OV_EXPECT_THROW_HAS_SUBSTRING(m_core.compile_model(make_allreduce_model(0, ranks()), m_devices[0]),
                                   ov::Exception,
                                   "");
 }
 
-TEST_P(TPCollectiveContractTest, D2_RanksReduceThroughTheirContexts) {
+TEST_P(TPCollectiveContractTest, RanksReduceThroughTheirContexts) {
     auto contexts = create_contexts();
     auto requests = compile_allreduce(contexts);
     expect_exact_sum(requests);
 }
 
-TEST_P(TPCollectiveContractTest, D2_ImportedRanksReduceThroughFreshContexts) {
+TEST_P(TPCollectiveContractTest, ImportedRanksReduceThroughFreshContexts) {
     std::vector<std::string> blobs;
     {
         auto contexts = create_contexts();
@@ -303,23 +303,23 @@ TEST_P(TPCollectiveContractTest, D2_ImportedRanksReduceThroughFreshContexts) {
     expect_exact_sum(requests);
 }
 
-TEST_P(TPCollectiveContractTest, D2_RejectsACollectiveOfAnotherRank) {
+TEST_P(TPCollectiveContractTest, RejectsACollectiveOfAnotherRank) {
     auto contexts = create_contexts();
     OV_EXPECT_THROW_HAS_SUBSTRING(m_core.compile_model(make_allreduce_model(1, ranks()), contexts[0]),
                                   ov::Exception,
                                   "");
 }
 
-TEST_P(TPCollectiveContractTest, D2_RejectsACollectiveOfAnotherWorldSize) {
+TEST_P(TPCollectiveContractTest, RejectsACollectiveOfAnotherWorldSize) {
     auto contexts = create_contexts();
     OV_EXPECT_THROW_HAS_SUBSTRING(m_core.compile_model(make_allreduce_model(0, ranks() + 1), contexts[0]),
                                   ov::Exception,
                                   "");
 }
 
-// ---- D3: the only binding route ----
+// ---- The only binding route ----
 
-TEST_P(TPCollectiveContractTest, D3_TheContextParametersAreNotACompileConfig) {
+TEST_P(TPCollectiveContractTest, TheContextParametersAreNotACompileConfig) {
     const auto group = make_group();
     OV_EXPECT_THROW_HAS_SUBSTRING(
         m_core.compile_model(make_allreduce_model(0, ranks()), m_devices[0], rank_params(group, 0)),
@@ -327,9 +327,9 @@ TEST_P(TPCollectiveContractTest, D3_TheContextParametersAreNotACompileConfig) {
         "");
 }
 
-// ---- D4: collective ops and the op contract ----
+// ---- Collective ops and the op contract ----
 
-TEST_P(TPCollectiveContractTest, D4_AllReduceIsWithinTheToleranceAndBitwiseEqualOnAllRanks) {
+TEST_P(TPCollectiveContractTest, AllReduceIsWithinTheToleranceAndBitwiseEqualOnAllRanks) {
     for (const auto precision : supported_precisions()) {
         SCOPED_TRACE(precision.get_type_name());
         auto contexts = create_contexts();
@@ -344,9 +344,9 @@ TEST_P(TPCollectiveContractTest, D4_AllReduceIsWithinTheToleranceAndBitwiseEqual
         }
         run_ranks(requests);
         // Each input is rounded once to the precision and the sum about once per rank.
-        const float epsilon = precision == ov::element::f32    ? std::numeric_limits<float>::epsilon()
-                              : precision == ov::element::f16  ? 9.77e-4f
-                                                               : 7.82e-3f;
+        const float epsilon = precision == ov::element::f32   ? std::numeric_limits<float>::epsilon()
+                              : precision == ov::element::f16 ? 9.77e-4f
+                                                              : 7.82e-3f;
         const float tolerance = epsilon * static_cast<float>(m_world_size * (m_world_size + 1));
         for (size_t rank = 0; rank < m_world_size; ++rank)
             expect_values(requests[rank].get_output_tensor(), expected, tolerance, rank);
@@ -355,7 +355,7 @@ TEST_P(TPCollectiveContractTest, D4_AllReduceIsWithinTheToleranceAndBitwiseEqual
 }
 
 // MAX and MIN may be unsupported; then compilation fails instead of computing something else.
-TEST_P(TPCollectiveContractTest, D4_ReduceOpsAreExactOrRejected) {
+TEST_P(TPCollectiveContractTest, ReduceOpsAreExactOrRejected) {
     for (const auto reduce_op : {ReduceOp::MAX, ReduceOp::MIN}) {
         SCOPED_TRACE(reduce_op == ReduceOp::MAX ? "MAX" : "MIN");
         auto contexts = create_contexts();
@@ -372,21 +372,20 @@ TEST_P(TPCollectiveContractTest, D4_ReduceOpsAreExactOrRejected) {
         run_ranks(requests);
         std::vector<float> expected(elements);
         for (size_t i = 0; i < elements; ++i)
-            expected[i] =
-                static_cast<float>(reduce_op == ReduceOp::MAX ? m_world_size : 1) * static_cast<float>(i % 7);
+            expected[i] = static_cast<float>(reduce_op == ReduceOp::MAX ? m_world_size : 1) * static_cast<float>(i % 7);
         for (size_t rank = 0; rank < m_world_size; ++rank)
             expect_values(requests[rank].get_output_tensor(), expected, 0.0f, rank);
     }
 }
 
-TEST_P(TPCollectiveContractTest, D4_RejectsACollectiveOfAGroupTheContextDoesNotHave) {
+TEST_P(TPCollectiveContractTest, RejectsACollectiveOfAGroupTheContextDoesNotHave) {
     auto contexts = create_contexts();
     OV_EXPECT_THROW_HAS_SUBSTRING(m_core.compile_model(make_allreduce_model(0, ranks(), 1), contexts[0]),
                                   ov::Exception,
                                   "");
 }
 
-TEST_P(TPCollectiveContractTest, D4_RejectsTwoCollectivesWithOneId) {
+TEST_P(TPCollectiveContractTest, RejectsTwoCollectivesWithOneId) {
     auto contexts = create_contexts();
     auto x = make_input();
     auto first = std::make_shared<TPAllReduce>(x, 0, ranks(), 0, 5, ReduceOp::SUM);
@@ -397,7 +396,7 @@ TEST_P(TPCollectiveContractTest, D4_RejectsTwoCollectivesWithOneId) {
 
 // One graph, but rank 0 numbers its two collectives the other way round: the ranks reach different
 // collectives at the first call, which fails instead of reducing one with the other.
-TEST_P(TPCollectiveContractTest, D4_RanksAtDifferentCollectivesFailTheCall) {
+TEST_P(TPCollectiveContractTest, RanksAtDifferentCollectivesFailTheCall) {
     auto contexts = create_contexts();
     auto requests = compile(contexts, [&](uint32_t rank) {
         const uint64_t first_id = rank == 0 ? 2 : 1;
@@ -413,7 +412,7 @@ TEST_P(TPCollectiveContractTest, D4_RanksAtDifferentCollectivesFailTheCall) {
 
 // The root gets the slices of all ranks in rank order, row by row; the others' outputs have the shape of
 // their slice and unspecified contents. A device that does not implement the gather rejects it.
-TEST_P(TPCollectiveContractTest, D4_GatherConcatenatesOnTheRootOrIsRejected) {
+TEST_P(TPCollectiveContractTest, GatherConcatenatesOnTheRootOrIsRejected) {
     for (const ov::Shape& shape : {ov::Shape{2, 3, 128}, ov::Shape{4, 128}, ov::Shape{1, 512}}) {
         SCOPED_TRACE(shape.to_string());
         const size_t slice = shape.back();
@@ -452,7 +451,7 @@ TEST_P(TPCollectiveContractTest, D4_GatherConcatenatesOnTheRootOrIsRejected) {
 // Two chained collectives with rank-local work between them and a third on a parallel branch, over many
 // inferences: every call pairs with the same call on the other ranks. The ids are sparse and against the
 // graph order: they only identify a collective.
-TEST_P(TPCollectiveContractTest, D4_CollectivesRunInGraphOrderAcrossManyInferences) {
+TEST_P(TPCollectiveContractTest, CollectivesRunInGraphOrderAcrossManyInferences) {
     // Rank r scales by r + 2: the rank models differ in constants only, never by a multiplication by one.
     auto scale_of = [](size_t rank) {
         return static_cast<float>(rank + 2);
@@ -498,9 +497,9 @@ TEST_P(TPCollectiveContractTest, D4_CollectivesRunInGraphOrderAcrossManyInferenc
     }
 }
 
-// ---- D5: queries and backend names ----
+// ---- Queries and backend names ----
 
-TEST_P(TPCollectiveContractTest, D5_AnswersTheQueriesWithoutThrowing) {
+TEST_P(TPCollectiveContractTest, AnswersTheQueriesWithoutThrowing) {
     const auto valid = backends(m_devices);
     ASSERT_FALSE(valid.empty());
     EXPECT_EQ(support(m_devices, ov::tp::auto_backend), "");
@@ -519,7 +518,7 @@ TEST_P(TPCollectiveContractTest, D5_AnswersTheQueriesWithoutThrowing) {
 }
 
 // Several ranks on one device are the plugin's decision; the queries and the contexts agree on it.
-TEST_P(TPCollectiveContractTest, D5_TheQueriesAndTheContextsAgreeOnARepeatedDevice) {
+TEST_P(TPCollectiveContractTest, TheQueriesAndTheContextsAgreeOnARepeatedDevice) {
     std::vector<std::string> repeated(m_world_size, m_devices[0]);
     const bool supported = !backends(repeated).empty();
     EXPECT_EQ(support(repeated, ov::tp::auto_backend).empty(), supported);
@@ -531,9 +530,9 @@ TEST_P(TPCollectiveContractTest, D5_TheQueriesAndTheContextsAgreeOnARepeatedDevi
     OV_EXPECT_THROW_HAS_SUBSTRING(m_core.create_context(m_devices[0], params), ov::Exception, "");
 }
 
-// ---- D6: channels ----
+// ---- Channels ----
 
-TEST_P(TPCollectiveContractTest, D6_RejectsAModelWhoseStreamsDoNotFitTheChannels) {
+TEST_P(TPCollectiveContractTest, RejectsAModelWhoseStreamsDoNotFitTheChannels) {
     auto contexts = create_contexts();
     OV_EXPECT_THROW_HAS_SUBSTRING(
         m_core.compile_model(make_allreduce_model(0, ranks()), contexts[0], {ov::num_streams(2)}),
@@ -546,9 +545,9 @@ TEST_P(TPCollectiveContractTest, D6_RejectsAModelWhoseStreamsDoNotFitTheChannels
                                   "");
 }
 
-// ---- D7: timeout ----
+// ---- Timeout ----
 
-TEST_P(TPCollectiveContractTest, D7_TheSetupTimesOutWithoutThePeers) {
+TEST_P(TPCollectiveContractTest, TheSetupTimesOutWithoutThePeers) {
     constexpr int64_t short_timeout = 500;
     const auto group = make_group(short_timeout);
     auto context = m_core.create_context(m_devices[0], rank_params(group, 0, ov::tp::auto_backend, short_timeout));
@@ -558,7 +557,7 @@ TEST_P(TPCollectiveContractTest, D7_TheSetupTimesOutWithoutThePeers) {
 }
 
 // A call that the peers never join fails after the timeout, and the communicator stays failed.
-TEST_P(TPCollectiveContractTest, D7_ACallTimesOutWithoutThePeersAndTheGroupStaysFailed) {
+TEST_P(TPCollectiveContractTest, ACallTimesOutWithoutThePeersAndTheGroupStaysFailed) {
     constexpr int64_t short_timeout = 500;
     auto contexts = create_contexts({}, short_timeout);
     auto requests = compile_allreduce(contexts);
@@ -572,9 +571,9 @@ TEST_P(TPCollectiveContractTest, D7_ACallTimesOutWithoutThePeersAndTheGroupStays
     OV_EXPECT_THROW_HAS_SUBSTRING(run_ranks(requests), ov::Exception, "");
 }
 
-// ---- D8-D10: memory ----
+// ---- Memory ----
 
-TEST_P(TPCollectiveContractTest, D8_HostTensorsOfAnyRankAreReadByEveryRank) {
+TEST_P(TPCollectiveContractTest, HostTensorsOfAnyRankAreReadByEveryRank) {
     auto contexts = create_contexts();
     auto requests = compile_allreduce(contexts);
     for (size_t rank = 0; rank < m_world_size; ++rank) {
@@ -593,7 +592,7 @@ TEST_P(TPCollectiveContractTest, D8_HostTensorsOfAnyRankAreReadByEveryRank) {
 
 // The rank models' constants are views into one host buffer; what the plugin reads after compilation is
 // its own copy, never the buffer in place.
-TEST_P(TPCollectiveContractTest, D9_ConstantsAreViewsAndAreNotReadInPlace) {
+TEST_P(TPCollectiveContractTest, ConstantsAreViewsAndAreNotReadInPlace) {
     ov::Tensor weights(ov::element::f32, {m_world_size, elements});
     for (size_t rank = 0; rank < m_world_size; ++rank) {
         auto* row = weights.data<float>() + rank * elements;
@@ -622,7 +621,7 @@ TEST_P(TPCollectiveContractTest, D9_ConstantsAreViewsAndAreNotReadInPlace) {
         expect_values(requests[rank].get_output_tensor(), expected, 0.0f, rank);
 }
 
-TEST_P(TPCollectiveContractTest, D10_RankLocalTensorsAreReadAndWrittenInPlace) {
+TEST_P(TPCollectiveContractTest, RankLocalTensorsAreReadAndWrittenInPlace) {
     auto contexts = create_contexts();
     auto requests = compile_allreduce(contexts);
     std::vector<ov::RemoteTensor> outputs;
@@ -647,11 +646,11 @@ TEST_P(TPCollectiveContractTest, D10_RankLocalTensorsAreReadAndWrittenInPlace) {
     }
 }
 
-// ---- D11: memory accounting, bounded collective memory ----
+// ---- Memory accounting, bounded collective memory ----
 
 // A fixed staging is allocated before the first inference and counted as used device memory while the
 // contexts live.
-TEST_P(TPCollectiveContractTest, D11_DeviceMemoryCountsTheCollectiveMemoryBeforeTheFirstInference) {
+TEST_P(TPCollectiveContractTest, DeviceMemoryCountsTheCollectiveMemoryBeforeTheFirstInference) {
     constexpr size_t staging = size_t{8} << 20;
     for (const auto& device : m_devices)
         m_core.get_default_context(device);
@@ -671,7 +670,7 @@ TEST_P(TPCollectiveContractTest, D11_DeviceMemoryCountsTheCollectiveMemoryBefore
 }
 
 // 8 KiB of staging is smaller than the 16 KiB message, which therefore goes in chunks.
-TEST_P(TPCollectiveContractTest, D11_AMessageLargerThanTheStagingIsReducedExactly) {
+TEST_P(TPCollectiveContractTest, AMessageLargerThanTheStagingIsReducedExactly) {
     auto contexts = create_contexts([](ov::AnyMap& params) {
         params[ov::tp::internal::comm_buffer_size.name()] = size_t{8192};
     });
