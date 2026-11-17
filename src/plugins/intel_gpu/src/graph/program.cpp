@@ -41,6 +41,7 @@
 #include "reorg_yolo_inst.h"
 #include "eltwise_inst.h"
 #include "non_zero_inst.h"
+#include "random_uniform_inst.h"
 #include "softmax_inst.h"
 #include "permute_inst.h"
 #include "custom_gpu_primitive_inst.h"
@@ -651,7 +652,9 @@ void program::post_optimize_graph(bool is_internal) {
 
 // mark if the node is constant assuming that all dependencies are marked properly
 void program::mark_if_constant(program_node& node) {
-    if (node.get_dependencies().empty() || node.is_type<assign>() || node.is_type<read_value>() || node.is_type<gather_nonzero>()) {
+    // RandomUniform must produce a new sequence on every inference, so it must never be folded into a constant
+    if (node.get_dependencies().empty() || node.is_type<assign>() || node.is_type<read_value>() || node.is_type<gather_nonzero>() ||
+        node.is_type<random_uniform>()) {
         return;
     }
     node.constant = true;
@@ -1756,6 +1759,12 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::bs_fs_yx_bsv16_fsv16_network, 1);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+#if defined(OV_GPU_VENDOR_NVIDIA)
+    // oneDNN is the main backend on NVIDIA GPUs, so don't check enable_onednn_for_tests
+    if (get_config().get_queue_type() == QueueTypes::in_order) {
+        lo.add_all_onednn_impls_optimization_attribute();
+    }
+#else
     bool enable_onednn_for_tests = get_config().get_optimize_data() || is_internal_program();
     auto& engine = get_engine();
     if (engine.get_device_info().vendor_id == INTEL_VENDOR_ID &&
@@ -1770,6 +1779,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             }
         }
     }
+#endif  // OV_GPU_VENDOR_NVIDIA
 
     if (_onednn_impls.has_value()) {
         lo.clear_onednn_impls_optimization_attribute();
