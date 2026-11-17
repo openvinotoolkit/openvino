@@ -91,7 +91,7 @@ jobs:
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
             -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config"
 
-  # Non-blocking C++20 compile check (CVS-189849): daily, dispatched, or re-run workflows.
+  # Non-blocking C++20 compile check (CVS-189849): daily or dispatched workflows.
   # Promote to a required pre-commit check once stable.
   Build_CPP20:
     name: Build (C++20, non-blocking)
@@ -99,7 +99,7 @@ jobs:
     if: >-
       ${{
         !needs.smart_ci.outputs.skip_workflow &&
-        (github.event.schedule == '0 2 * * *' || github.event_name == 'workflow_dispatch' || github.run_attempt > 1)
+        (github.event.schedule == '0 2 * * *' || github.event_name == 'workflow_dispatch')
       }}
     uses: ./.github/workflows/job_build_windows_cpp20.yml
     with:
