@@ -99,20 +99,24 @@ Never infer formats from filenames or replace a mixed-format primary profile wit
 ## Check and update
 
 Build `ov_gguf_frontend_tests` and `openvino_gguf_frontend` in a shared-library test
-build. The CLI needs Python 3.9+ and the standard library only:
+build (`-DENABLE_TESTS=ON`). The CLI needs Python 3.9+ and the standard library only.
+Point `OV_GGUF_GRAPH_RUNNER` (or `--runner`) at the test binary; from the repository root,
+the default Linux x86_64 Release output is below (with the
+[testing.md](../../docs/testing.md) build, use `build-gguf/bin`):
 
 ```sh
-python3 src/frontends/gguf/tests/graph_fingerprint.py \
-  --runner build-gguf/bin/ov_gguf_frontend_tests --report /tmp/changed_cases.json
+export OV_GGUF_GRAPH_RUNNER="$PWD/bin/intel64/Release/ov_gguf_frontend_tests"
 
+python3 src/frontends/gguf/tests/graph_fingerprint.py --report /tmp/changed_cases.json
+
+# Replace CASE_A,CASE_B with the changed case IDs printed by the check.
 python3 src/frontends/gguf/tests/graph_fingerprint.py \
-  --runner build-gguf/bin/ov_gguf_frontend_tests \
-  --cases <case-id>,<case-id> --update --report /tmp/changed_cases.json
+  --cases CASE_A,CASE_B --update --report /tmp/changed_cases.json
 ```
 
 Default mode checks references; CI never updates. On a mismatch, the check prints the
-per-case deltas and the exact `--update` command for the changed cases, and links to the
-review policy below. In GitHub Actions it also adds an error annotation and a job summary table. Updates require explicit IDs, capture
+per-case deltas, how to set the runner, the exact `--update` command for the changed cases,
+and a link to the review policy below. In GitHub Actions it also adds an error annotation and a job summary table. Updates require explicit IDs, capture
 all selected cases before writing, stage replacements, and roll back a publication failure.
 If rollback fails, the error lists retained recovery backups. Existing malformed,
 inconsistent or oversized references of the current version must be repaired/reverted

@@ -296,10 +296,10 @@ def test_check_failure_explains_update_and_evidence_in_ci(tmp_path, monkeypatch,
 
     assert graph.run_cases(args) == 1
     out = capsys.readouterr().out
-    command = f"python3 {graph.SCRIPT_PATH} --runner <build>/bin/ov_gguf_frontend_tests --cases changed --update"
+    command = f"python3 {graph.SCRIPT_PATH} --cases changed --update"
     policy = graph.README_PATH + graph.POLICY_ANCHOR
-    assert command in out and policy in out
+    assert command in out and policy in out and graph.RUNNER_EXPORT in out
     assert "::error title=GGUF structural references changed::" in out
     text = summary.read_text()
-    assert command in text and policy in text
+    assert command in text and policy in text and graph.RUNNER_EXPORT in text
     assert "| `changed` |" in text and "structure/attributes only" in text and "`same`" not in text

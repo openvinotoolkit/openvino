@@ -123,9 +123,16 @@ def source_link(path, anchor=""):
     return f"{path}{anchor}"
 
 
+RUNNER_HINT = ("Build the ov_gguf_frontend_tests target (-DENABLE_TESTS=ON) and point "
+               "OV_GGUF_GRAPH_RUNNER at it. From the repository root, for the default "
+               "Linux x86_64 Release output (with the src/frontends/gguf/docs/testing.md "
+               "build use build-gguf/bin; adjust the path for other builds):")
+RUNNER_EXPORT = 'export OV_GGUF_GRAPH_RUNNER="$PWD/bin/intel64/Release/ov_gguf_frontend_tests"'
+
+
 def update_command(changes):
     ids = ",".join(change["case"] for change in changes)
-    return f"python3 {SCRIPT_PATH} --runner <build>/bin/ov_gguf_frontend_tests --cases {ids} --update"
+    return f"python3 {SCRIPT_PATH} --cases {ids} --update"
 
 
 def failure_guidance(changes, report_path):
@@ -134,10 +141,12 @@ def failure_guidance(changes, report_path):
         "committed references.",
         "If the change is unintended, fix the frontend change instead of the references.",
         "If the change is intended:",
-        f"  1. Regenerate only these references with {SCRIPT_PATH}:",
+        f"  1. {RUNNER_HINT}",
+        f"     {RUNNER_EXPORT}",
+        f"  2. Regenerate only these references with {SCRIPT_PATH}:",
         f"     {update_command(changes)}",
-        f"  2. Commit the updated files in {REFERENCES_PATH}/.",
-        "  3. Add real-model performance evidence for the affected models to the PR "
+        f"  3. Commit the updated files in {REFERENCES_PATH}/.",
+        "  4. Add real-model performance evidence for the affected models to the PR "
         "description, as required by the review policy:",
         f"     {source_link(README_PATH, POLICY_ANCHOR)}",
         f"Changed-case report (input for selecting representatives): {report_path}",
@@ -168,10 +177,12 @@ def publish_failure(changes, report_path):
         f"{len(changes)} case(s) differ from the committed references.", "", *rows, "",
         "If the change is unintended, fix the frontend change instead of the references. "
         "If it is intended:", "",
-        f"1. Regenerate only these references with `{SCRIPT_PATH}`:", "",
+        f"1. {RUNNER_HINT}", "",
+        "   ```sh", "   " + RUNNER_EXPORT, "   ```", "",
+        f"2. Regenerate only these references with `{SCRIPT_PATH}`:", "",
         "   ```sh", "   " + update_command(changes), "   ```", "",
-        f"2. Commit the updated files in `{REFERENCES_PATH}/`.",
-        "3. Add real-model performance evidence for the affected models to the PR description "
+        f"3. Commit the updated files in `{REFERENCES_PATH}/`.",
+        "4. Add real-model performance evidence for the affected models to the PR description "
         f"as required by the [review policy]({source_link(README_PATH, POLICY_ANCHOR)}).", "",
         "The changed-case report is uploaded in the `test-results-cpp` artifact as "
         "`changed_cases.json`.", ""])
