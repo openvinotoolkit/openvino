@@ -25,8 +25,9 @@ namespace auto_plugin {
  *   Unloaded/Released/Faulted --make_ready()--> Ready --try_release()--> Released
  *   Unloaded/Released/Faulted --mark_faulted()--> Faulted
  *
- * Thread safety: the object takes no lock. The queues are thread safe; make_ready(), try_release() and mark_faulted()
- * must be serialized by the caller and never overlap with the completion callback of a worker that is still busy.
+ * Thread safety: the queues, the model handle (m_model_mutex) and the state are safe to read from any
+ * thread. make_ready(), try_release() and mark_faulted() must be serialized by the caller and never overlap with the
+ * completion callback of a worker that is still busy; the other members belong to that serialized caller.
  */
 class DeviceExecutionContext {
 public:
@@ -40,7 +41,8 @@ public:
 
     // Unloaded/Released/Faulted -> Ready, clears the last error; asserts if the context is already Ready
     void make_ready(const SoCompiledModel& model, size_t num_requests, const WorkerSetup& setup_worker);
-    // Ready -> Released; returns false without any side effect if kept alive or any worker is busy
+    // Ready -> Released; returns false without any side effect if kept alive, any worker is busy or a task is queued.
+    // The workers and the model are destroyed here, so do not call it while holding a lock the model queries need.
     bool try_release();
     // Unloaded/Released/Faulted -> Faulted, records why the model failed to compile; no-op when Ready
     void mark_faulted(const std::string& reason);
@@ -52,8 +54,6 @@ public:
     State state() const;
     bool is_ready() const;
     bool is_kept_alive() const;
-    // whether the latest compilation on the device imported the model from the cache, kept after a release
-    bool loaded_from_cache() const;
     const DeviceName& name() const;
     // reason of the latest compile failure, empty unless Faulted
     const std::string& last_error() const;
@@ -78,9 +78,8 @@ private:
 
     const DeviceName m_name;
     bool m_keep_alive = false;
-    State m_state = State::Unloaded;
+    std::atomic<State> m_state{State::Unloaded};
     std::string m_last_error;
-    std::atomic<bool> m_loaded_from_cache{false};
     std::list<Time> m_released_start_times;
     std::list<Time> m_released_end_times;
     // the declaration order is the reverse of the destruction order: requests first, the model last

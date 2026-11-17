@@ -842,6 +842,36 @@ TEST_F(AutoCachePrecompileTest, disableCachingKeepsOnlyAnEmptyCacheDir) {
     EXPECT_FALSE(ov::auto_plugin::CacheManager::disable_caching(*core, "CPU", config));
 }
 
+TEST_F(AutoCachePrecompileTest, skipsDeviceWhoseModelIsAlreadyCompiledByTheOwner) {
+    set_global_cache("test_cache_dir");
+    std::atomic<int> loaded_count{0};
+    std::atomic<int> other_count{0};
+    auto precompile_compiled_model = make_compiled_model();
+    on_compile("GPU.0", [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        loaded_count++;
+        return {precompile_compiled_model, {}};
+    });
+    on_compile("NPU", [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        other_count++;
+        return {precompile_compiled_model, {}};
+    });
+    ov::auto_plugin::CacheManager manager;
+    auto precompiler = std::make_shared<ov::auto_plugin::CachePrecompiler>(manager,
+                                                                           core,
+                                                                           model,
+                                                                           std::filesystem::path{},
+                                                                           "test");
+    precompiler->start(actual_device, {{"GPU.0", {}, -1}, {"NPU", {}, -1}}, [](const std::string& device) {
+        return device == "GPU.0";
+    });
+    // the devices are handled in order, so NPU being compiled means GPU.0 was already decided
+    EXPECT_TRUE(wait_until([&] {
+        return other_count.load() == 1;
+    }));
+    EXPECT_EQ(loaded_count.load(), 0);
+    precompiler->stop();
+}
+
 TEST_F(AutoCachePrecompileTest, skipsDeviceWithCachingDisabled) {
     set_global_cache("test_cache_dir");
     set_devices({cpu_device, "GPU.0", "NPU", actual_device});

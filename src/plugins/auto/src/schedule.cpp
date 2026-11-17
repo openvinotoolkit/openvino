@@ -164,6 +164,7 @@ void Schedule::generate_workers(const std::string& device_name, const SoCompiled
     auto setup_worker = [this](DeviceExecutionContext& context, WorkerInferRequest& worker_request) {
         auto* worker_request_ptr = &worker_request;
         auto* device_context = &context;
+        worker_request.m_is_cpu_helper = context.name() == "CPU_HELP";
         worker_request.m_inferrequest->set_callback(
             [worker_request_ptr, this, device_context](std::exception_ptr exception_ptr) mutable {
                 IdleGuard<NotBusyPriorityWorkerRequests> idleGuard{worker_request_ptr, device_context->idle_workers()};
@@ -369,11 +370,12 @@ Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, Worker
                     if (m_context->m_need_perf_counters) {
                         auto auto_request = std::dynamic_pointer_cast<InferRequest>
                             (infer_request);
-                        if (!m_context->m_dynamic_device_selection) {
+                        // the CPU helper is released once the actual device is ready, so its request is not pinned
+                        if (!m_context->m_dynamic_device_selection && !(*worker_infer_request)->m_is_cpu_helper) {
                             auto_request->set_scheduled_request((*worker_infer_request)->m_inferrequest);
                             return;
                         }
-                        // dynamic selection may release the device, so snapshot instead of pinning it
+                        // the device may be released, so snapshot instead of pinning it
                         try {
                             auto_request->set_scheduled_profiling_info(
                                 (*worker_infer_request)->m_inferrequest->get_profiling_info());

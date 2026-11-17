@@ -211,15 +211,17 @@ SoCompiledModel CumuSchedule::try_to_compile_model(AutoCompileContext& context,
     return compiled_model;
 }
 
-DeviceExecutionContext* CumuSchedule::get_active_context() {
+ActiveDevice CumuSchedule::get_active_device() {
     for (size_t i = 0; i < m_n_ctput_devicenums; i++) {
         auto* context = m_p_ctput_loadcontext[i].m_is_already ? m_p_ctput_loadcontext[i].m_device_context.load()
                                                                : nullptr;
-        if (context && context->compiled_model()) {
-            return context;
+        if (context) {
+            if (auto model = context->compiled_model()) {
+                return {context->name(), std::move(model)};
+            }
         }
     }
-    return nullptr;
+    return {};
 }
 
 SoCompiledModel CumuSchedule::wait_first_compiled_model_ready() {

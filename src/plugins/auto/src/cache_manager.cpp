@@ -93,7 +93,9 @@ const std::string& CachePrecompiler::get_log_tag() const noexcept {
     return m_log_tag;
 }
 
-void CachePrecompiler::start(const std::string& actual_device, const std::vector<DeviceInformation>& candidates) {
+void CachePrecompiler::start(const std::string& actual_device,
+                             const std::vector<DeviceInformation>& candidates,
+                             DeviceLoadedCheck is_device_loaded) {
     std::vector<DeviceInformation> devices;
     for (const auto& device : candidates) {
         if (device.device_name != actual_device && ov::DeviceIDParser(device.device_name).get_device_name() != "CPU") {
@@ -112,6 +114,7 @@ void CachePrecompiler::start(const std::string& actual_device, const std::vector
         }
         m_state = State::Idle;
         m_devices = std::move(devices);
+        m_is_device_loaded = std::move(is_device_loaded);
         LOG_INFO_TAG("start cache pre-compilation for %lu device(s)", static_cast<unsigned long>(m_devices.size()));
     }
     m_manager.enqueue(shared_from_this());
@@ -132,6 +135,8 @@ void CachePrecompiler::stop() {
     m_cv.wait(lock, [this] {
         return m_state != State::Stopping;
     });
+    // the check belongs to a schedule that is gone once this returns
+    m_is_device_loaded = nullptr;
 }
 
 void CachePrecompiler::run() {
@@ -156,7 +161,10 @@ void CachePrecompiler::run() {
                 const auto config = make_precompile_config(*core, device);
                 const auto cache_location =
                     CacheManager::get_cache_location(*core, config, device.device_name);
-                if (cache_location.empty()) {
+                if (m_is_device_loaded && m_is_device_loaded(device.device_name)) {
+                    LOG_INFO_TAG("cache pre-compilation skipped for device: %s, its model is already compiled",
+                                 device.device_name.c_str());
+                } else if (cache_location.empty()) {
                     LOG_INFO_TAG("cache pre-compilation skipped for device: %s, caching is disabled for it",
                                  device.device_name.c_str());
                 } else if (!CacheManager::device_supports_caching(*core, device.device_name)) {

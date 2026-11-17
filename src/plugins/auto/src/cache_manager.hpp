@@ -7,6 +7,7 @@
 #include <condition_variable>
 #include <deque>
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -60,8 +61,12 @@ public:
                      std::filesystem::path model_path,
                      std::string log_tag);
 
+    // Returns true for a device whose model is already compiled by the owner, so there is nothing left to warm up.
+    using DeviceLoadedCheck = std::function<bool(const std::string&)>;
     // Queues the pre-compilation of the candidates other than the actual device; only the first call counts.
-    void start(const std::string& actual_device, const std::vector<DeviceInformation>& candidates);
+    void start(const std::string& actual_device,
+               const std::vector<DeviceInformation>& candidates,
+               DeviceLoadedCheck is_device_loaded = {});
     // Skips the remaining devices and waits for the in-flight compilation; idempotent.
     void stop();
     // Compiles the queued devices one by one; called by the CacheManager worker thread only.
@@ -78,6 +83,7 @@ private:
     std::filesystem::path m_model_path;
     std::string m_log_tag;
     std::vector<DeviceInformation> m_devices;
+    DeviceLoadedCheck m_is_device_loaded;
     std::mutex m_mutex;
     std::condition_variable m_cv;
     enum class State {

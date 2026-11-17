@@ -104,37 +104,25 @@ bool AutoSchedule::check_and_disable_if_low_power_device_failed(const std::strin
     return false;
 }
 
-DeviceExecutionContext* AutoSchedule::get_active_context() {
+ActiveDevice AutoSchedule::get_active_device() {
     if (m_context->m_dynamic_device_selection) {
-        // every device can be released, so the context that answers is the one of the device in use
-        auto* active = find_device_context(get_dynamic_active_device());
-        if (active && active->compiled_model()) {
-            return active;
-        }
-        // the device in use was switched meanwhile, take the first loaded one by name to stay deterministic
-        DeviceExecutionContext* loaded = nullptr;
-        for (const auto& device : m_device_contexts) {
-            if (device.second->compiled_model() && (!loaded || device.first < loaded->name())) {
-                loaded = device.second.get();
-            }
-        }
-        return loaded;
+        // the device in use is released only after the gate switched away from it, which takes this mutex
+        std::lock_guard<std::mutex> lock(m_gate_mutex);
+        const auto* context = find_device_context(m_gate_current_device);
+        return context ? ActiveDevice{context->name(), context->compiled_model()} : ActiveDevice{};
     }
-    // the precedence of the request routing: a fallback device replaces the actual device it was selected for
     std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
+    // the precedence of the request routing: a fallback device replaces the actual device it was selected for
     for (const auto role : {FALLBACKDEVICE, ACTUALDEVICE, CPU}) {
         auto& compile_context = m_compile_context[role];
         auto* context = compile_context.m_is_already ? compile_context.m_device_context.load() : nullptr;
-        if (context && context->compiled_model()) {
-            return context;
+        if (context) {
+            if (auto model = context->compiled_model()) {
+                return {context->name(), std::move(model)};
+            }
         }
     }
-    return nullptr;
-}
-
-DeviceName AutoSchedule::get_dynamic_active_device() const {
-    std::lock_guard<std::mutex> lock(m_gate_mutex);
-    return m_gate_current_device;
+    return {};
 }
 
 void AutoSchedule::init() {
@@ -309,8 +297,7 @@ void AutoSchedule::init() {
                 // late enough to check the idle queue now
                 // second, release the helper once all its requests are in place, nothing to wait for if it never loaded
                 const auto destroynum = cpu_help.workers().size();
-                // AutoCompiledModel reads the helper's compiled model under this lock
-                std::lock_guard<std::mutex> lock(m_context->m_mutex);
+                // no lock is held, the model queries cope with a helper that is released under them
                 if (!cpu_help.is_ready() || cpu_help.try_release()) {
                     auto released_stats = cpu_help.take_released_stats();
                     auto& cpuhelp_all_start_times = released_stats.first;
@@ -381,7 +368,11 @@ void AutoSchedule::init() {
     if (m_cache_precompiler && m_compile_context[ACTUALDEVICE].m_is_already) {
         // Failed startup devices were already removed from the actual context's candidates.
         m_cache_precompiler->start(m_compile_context[ACTUALDEVICE].m_device_info.device_name,
-                              m_compile_context[ACTUALDEVICE].m_meta_devices);
+                                   m_compile_context[ACTUALDEVICE].m_meta_devices,
+                                   [this](const std::string& device_name) {
+                                       const auto* context = find_device_context(device_name);
+                                       return context && context->is_ready();
+                                   });
     }
 }
 
@@ -745,15 +736,11 @@ void AutoSchedule::dispatch_dynamic_task(ov::threading::Task& pipeline_task, con
             release_execution_slot();
         }
         // off the critical path: the next dispatch runs on this single stream executor, so it waits for the release
-        if (previous_device != device_name) {
-            try {
-                release_inactive_device(previous_device, device_name);
-            } catch (const std::exception& ex) {
-                // releasing is only a memory optimization and must not fail a dispatched inference
-                LOG_WARNING_TAG("[dynamic] failed to release inactive device:%s: %s",
-                                previous_device.c_str(),
-                                ex.what());
-            }
+        try {
+            release_inactive_devices(device_name);
+        } catch (const std::exception& ex) {
+            // releasing is only a memory optimization and must not fail a dispatched inference
+            LOG_WARNING_TAG("[dynamic] failed to release inactive devices: %s", ex.what());
         }
     } catch (const std::exception&) {
         m_this_worker_infer_request = nullptr;
@@ -879,18 +866,23 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
     return true;
 }
 
-void AutoSchedule::release_inactive_device(const DeviceName& device_name, const DeviceName& active_device) {
-    if (!m_context->m_compile_for_all || device_name.empty() || device_name == active_device) {
+void AutoSchedule::release_inactive_devices(const DeviceName& active_device) {
+    if (!m_context->m_compile_for_all || active_device.empty()) {
         return;
     }
-    auto* context = find_device_context(device_name);
     const auto* active = find_device_context(active_device);
-    // the model level queries fall back on the active device, so it has to be loaded
-    if (!context || !context->is_ready() || !active || !active->is_ready()) {
+    // get_active_device() relies on this: the active device is published before the previous one is released
+    if (!active || !active->is_ready()) {
         return;
     }
-    if (context->try_release()) {
-        LOG_INFO_TAG("[dynamic] device:%s is inactive, its compiled model is released", device_name.c_str());
+    for (auto& device : m_device_contexts) {
+        auto& context = *device.second;
+        if (device.first == active_device || !context.is_ready()) {
+            continue;
+        }
+        if (context.try_release()) {
+            LOG_INFO_TAG("[dynamic] device:%s is inactive, its compiled model is released", device.first.c_str());
+        }
     }
 }
 

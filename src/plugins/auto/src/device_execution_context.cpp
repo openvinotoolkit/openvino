@@ -20,11 +20,6 @@ void DeviceExecutionContext::make_ready(const SoCompiledModel& model,
     OPENVINO_ASSERT(m_state != State::Ready, "Device ", m_name, " already has workers");
     exchange_model(model);
     try {
-        m_loaded_from_cache = model->get_property(ov::loaded_from_cache.name()).as<bool>();
-    } catch (const ov::Exception&) {
-        m_loaded_from_cache = false;
-    }
-    try {
         m_workers.resize(num_requests);
         m_idle_workers.set_capacity(num_requests);
         int index = 0;
@@ -49,7 +44,7 @@ void DeviceExecutionContext::make_ready(const SoCompiledModel& model,
 }
 
 bool DeviceExecutionContext::try_release() {
-    if (m_keep_alive || m_state != State::Ready) {
+    if (m_keep_alive || m_state != State::Ready || !m_pending_tasks.empty()) {
         return false;
     }
     // an empty idle queue means a worker is still running
@@ -98,10 +93,6 @@ bool DeviceExecutionContext::is_ready() const {
 
 bool DeviceExecutionContext::is_kept_alive() const {
     return m_keep_alive;
-}
-
-bool DeviceExecutionContext::loaded_from_cache() const {
-    return m_loaded_from_cache;
 }
 
 const std::string& DeviceExecutionContext::last_error() const {

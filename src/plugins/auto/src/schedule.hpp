@@ -22,9 +22,9 @@ public:
     void run(ov::threading::Task infer_task) override;
     virtual ~Schedule();
     virtual ISyncInferPtr create_sync_infer_request();
-    // the context whose compiled model answers the model queries right now, null if none holds one;
-    // the model may be released at any time, so the caller takes a copy through compiled_model()
-    virtual DeviceExecutionContext* get_active_context() = 0;
+    // the device that answers the model queries right now with a copy of its compiled model, which stays valid
+    // after a release
+    virtual ActiveDevice get_active_device() = 0;
     static thread_local WorkerInferRequest* m_this_worker_infer_request;
     // have to use the const char* ptr rather than std::string due to a bug in old gcc versions,
     // the bug is e.g. manifesting on the old CentOS (and it's 4.8.x gcc) used in our testing

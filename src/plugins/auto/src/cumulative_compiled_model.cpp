@@ -29,10 +29,9 @@ void AutoCumuCompiledModel::set_property(const ov::AnyMap& properties) {
 }
 
 std::shared_ptr<const ov::Model> AutoCumuCompiledModel::get_runtime_model() const {
-    const auto* active = m_scheduler->get_active_context();
-    if (const auto compiled_model = active ? active->compiled_model() : SoCompiledModel{}) {
-        auto model = compiled_model->get_runtime_model();
-        set_model_shared_object(const_cast<ov::Model&>(*model), compiled_model._so);
+    if (const auto active = m_scheduler->get_active_device(); active.compiled_model) {
+        auto model = active.compiled_model->get_runtime_model();
+        set_model_shared_object(const_cast<ov::Model&>(*model), active.compiled_model._so);
         return model;
     }
     OPENVINO_NOT_IMPLEMENTED;

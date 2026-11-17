@@ -96,34 +96,39 @@ TEST_F(DeviceExecutionContextTest, releaseDropsWorkersAndModel) {
     EXPECT_FALSE(context.try_release());
 }
 
-TEST_F(DeviceExecutionContextTest, loadedFromCacheIsRecordedWhenReadyAndKeptAfterRelease) {
+TEST_F(DeviceExecutionContextTest, releaseIsRefusedWhileATaskIsQueued) {
     DeviceExecutionContext context("GPU.0");
-    EXPECT_FALSE(context.loaded_from_cache());
-    ON_CALL(*mockIExeNetActual.get(), get_property(StrEq(ov::loaded_from_cache.name())))
-        .WillByDefault(Return(ov::Any(true)));
     make_ready(context);
-    EXPECT_TRUE(context.loaded_from_cache());
+    context.pending_tasks().push([] {});
+    EXPECT_FALSE(context.try_release());
+    EXPECT_EQ(context.state(), State::Ready);
+    EXPECT_EQ(count_idle(context), 2u);
+    ov::threading::Task task;
+    ASSERT_TRUE(context.pending_tasks().try_pop(task));
     EXPECT_TRUE(context.try_release());
-    EXPECT_TRUE(context.loaded_from_cache());
-}
-
-TEST_F(DeviceExecutionContextTest, loadedFromCacheIsFalseWhenTheDeviceCannotReportIt) {
-    DeviceExecutionContext context("GPU.0");
-    ON_CALL(*mockIExeNetActual.get(), get_property(StrEq(ov::loaded_from_cache.name())))
-        .WillByDefault([](const std::string&) -> ov::Any {
-            OPENVINO_THROW("not supported");
-        });
-    make_ready(context);
-    EXPECT_FALSE(context.loaded_from_cache());
 }
 
 TEST_F(DeviceExecutionContextTest, modelCopyTakenBeforeReleaseStaysValid) {
+    auto tracked = std::make_shared<NiceMock<ov::MockICompiledModel>>(model, mock_plugin_gpu);
+    const std::weak_ptr<ov::MockICompiledModel> weak_model = tracked;
+    ON_CALL(*tracked, inputs()).WillByDefault(ReturnRefOfCopy(model->inputs()));
+    ON_CALL(*tracked, outputs()).WillByDefault(ReturnRefOfCopy(model->outputs()));
+    ON_CALL(*tracked, create_sync_infer_request()).WillByDefault([weak_model]() {
+        return std::make_shared<MockISyncInferRequest>(weak_model.lock());
+    });
+    ON_CALL(*tracked, create_infer_request()).WillByDefault([weak_model]() {
+        return weak_model.lock()->ICompiledModel::create_infer_request();
+    });
     DeviceExecutionContext context("GPU.0");
-    make_ready(context);
-    const auto model_copy = context.compiled_model();
+    context.make_ready(ov::auto_plugin::SoCompiledModel{tracked, {}}, 2, [](DeviceExecutionContext&, WorkerInferRequest&) {});
+    tracked.reset();
+    // the copy outlives the release, so the model must not be destroyed by it
+    auto query_copy = context.compiled_model();
     EXPECT_TRUE(context.try_release());
     EXPECT_FALSE(context.compiled_model());
-    EXPECT_TRUE(model_copy);
+    EXPECT_FALSE(weak_model.expired());
+    query_copy = ov::auto_plugin::SoCompiledModel{};
+    EXPECT_TRUE(weak_model.expired());
 }
 
 TEST_F(DeviceExecutionContextTest, releasedContextRejectsLateIdleWorkers) {

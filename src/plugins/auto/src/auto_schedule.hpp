@@ -20,10 +20,8 @@ public:
     using Ptr = std::shared_ptr<AutoSchedule>;
     virtual ~AutoSchedule();
     AutoCompileContext                                                     m_compile_context[CONTEXTNUM];
-    // device the latest dynamic inference was dispatched to, empty until one has been dispatched
-    DeviceName get_dynamic_active_device() const;
     // the dynamic selection follows the device in use, the static modes the one that serves the requests
-    DeviceExecutionContext* get_active_context() override;
+    ActiveDevice get_active_device() override;
 
 private:
     void init() override;
@@ -62,11 +60,11 @@ private:
      */
     bool ensure_device_ready(DeviceInformation& device);
     /**
-     * @brief Drop the compiled model and workers of a device that is no longer the active one.
-     * @note Only done with compile_for_all. The next device is already dispatched when this runs, so a device is only
-     * released while the active one is loaded.
+     * @brief Drop the compiled model and workers of every device that is no longer the active one.
+     * @note Only done with compile_for_all. The active device is already dispatched when this runs, so devices are only
+     * released while the active one is loaded. A device that could not be released is tried again at the next dispatch.
      */
-    void release_inactive_device(const DeviceName& device_name, const DeviceName& active_device);
+    void release_inactive_devices(const DeviceName& active_device);
     // disables the configured low_power_device override if it matches the failed device
     // @return true only for the call that disabled it, i.e. the first failure of that device
     bool check_and_disable_if_low_power_device_failed(const std::string& failed_device_name) const;

@@ -1252,23 +1252,42 @@ public:
                     EXPECT_TRUE(m_gpu0_model.expired());
                 }
                 write_cache_blob("GPU.0", compiled_model, compile_config);
-                auto gpu_model = std::make_shared<NiceMock<ov::MockICompiledModel>>(model, mock_plugin_gpu);
-                const std::weak_ptr<ov::MockICompiledModel> weak_model = gpu_model;
-                ON_CALL(*gpu_model, inputs()).WillByDefault(ReturnRefOfCopy(model->inputs()));
-                ON_CALL(*gpu_model, outputs()).WillByDefault(ReturnRefOfCopy(model->outputs()));
-                ON_CALL(*gpu_model, get_property(StrEq(ov::optimal_number_of_infer_requests.name())))
-                    .WillByDefault(Return(optimalNum));
-                ON_CALL(*gpu_model, get_property(StrEq(ov::supported_properties.name())))
-                    .WillByDefault(Return(ov::Any(std::vector<ov::PropertyName>{})));
-                ON_CALL(*gpu_model, create_sync_infer_request()).WillByDefault([weak_model]() {
-                    return std::make_shared<ov::mock_auto_plugin::MockISyncInferRequest>(weak_model.lock());
-                });
-                ON_CALL(*gpu_model, create_infer_request()).WillByDefault([weak_model]() {
-                    return weak_model.lock()->ICompiledModel::create_infer_request();
-                });
+                auto gpu_model = make_tracked_gpu_model();
                 m_gpu0_model = gpu_model;
                 return ov::SoPtr<ov::ICompiledModel>{gpu_model, {}};
             });
+    }
+
+    // GPU.1 returns a fresh model on every compilation as well
+    void track_gpu1() {
+        ON_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
+                              _))
+            .WillByDefault([this](const std::shared_ptr<const ov::Model>&, const std::string&, const ov::AnyMap&) {
+                auto gpu_model = make_tracked_gpu_model();
+                m_gpu1_model = gpu_model;
+                return ov::SoPtr<ov::ICompiledModel>{gpu_model, {}};
+            });
+    }
+
+    std::shared_ptr<NiceMock<ov::MockICompiledModel>> make_tracked_gpu_model() {
+        auto gpu_model = std::make_shared<NiceMock<ov::MockICompiledModel>>(model, mock_plugin_gpu);
+        const std::weak_ptr<ov::MockICompiledModel> weak_model = gpu_model;
+        ON_CALL(*gpu_model, inputs()).WillByDefault(ReturnRefOfCopy(model->inputs()));
+        ON_CALL(*gpu_model, outputs()).WillByDefault(ReturnRefOfCopy(model->outputs()));
+        ON_CALL(*gpu_model, get_runtime_model()).WillByDefault(Return(model));
+        ON_CALL(*gpu_model, get_property(StrEq(ov::optimal_number_of_infer_requests.name())))
+            .WillByDefault(Return(optimalNum));
+        ON_CALL(*gpu_model, get_property(StrEq(ov::supported_properties.name())))
+            .WillByDefault(Return(ov::Any(std::vector<ov::PropertyName>{})));
+        ON_CALL(*gpu_model, create_sync_infer_request()).WillByDefault([weak_model]() {
+            return std::make_shared<ov::mock_auto_plugin::MockISyncInferRequest>(weak_model.lock());
+        });
+        ON_CALL(*gpu_model, create_infer_request()).WillByDefault([weak_model]() {
+            return weak_model.lock()->ICompiledModel::create_infer_request();
+        });
+        return gpu_model;
     }
 
     void TearDown() override {
@@ -1282,6 +1301,7 @@ public:
         const std::weak_ptr<ov::MockICompiledModel> weak_model = cpu_model;
         ON_CALL(*cpu_model, inputs()).WillByDefault(ReturnRefOfCopy(model->inputs()));
         ON_CALL(*cpu_model, outputs()).WillByDefault(ReturnRefOfCopy(model->outputs()));
+        ON_CALL(*cpu_model, get_runtime_model()).WillByDefault(Return(model));
         ON_CALL(*cpu_model, get_property(StrEq(ov::optimal_number_of_infer_requests.name())))
             .WillByDefault(Return(optimalNum));
         ON_CALL(*cpu_model, get_property(StrEq(ov::supported_properties.name())))
@@ -1325,6 +1345,7 @@ public:
     bool m_expect_released_before_recompile = true;
     std::weak_ptr<ov::MockICompiledModel> m_cpu_model;
     std::weak_ptr<ov::MockICompiledModel> m_gpu0_model;
+    std::weak_ptr<ov::MockICompiledModel> m_gpu1_model;
     std::weak_ptr<ov::mock_auto_plugin::MockISyncInferRequest> m_cpu_worker_request;
     std::function<std::vector<ov::ProfilingInfo>()> m_cpu_profiling_info;
 
@@ -1520,6 +1541,7 @@ TEST_F(AutoDynamicInactiveDeviceReleaseTest, model_level_queries_run_concurrentl
             EXPECT_NO_THROW(compiled_model->get_property(ov::model_name.name()));
             EXPECT_NO_THROW(compiled_model->get_property(ov::loaded_from_cache.name()));
             EXPECT_NO_THROW(compiled_model->get_property(ov::device::properties.name()));
+            EXPECT_NO_THROW(compiled_model->get_runtime_model());
             EXPECT_EQ(compiled_model->inputs().size(), model->inputs().size());
         }
     });
@@ -1527,6 +1549,24 @@ TEST_F(AutoDynamicInactiveDeviceReleaseTest, model_level_queries_run_concurrentl
     done = true;
     querier.join();
     EXPECT_GE(m_gpu0_compile_count.load(), 2);
+}
+
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, only_the_active_device_stays_loaded_across_three_devices) {
+    track_gpu0_with_cache_blob();
+    track_gpu1();
+    // a background pre-compilation of GPU.1 would replace the tracked model of the on-demand compilation
+    ON_CALL(*core, device_supports_model_caching(StrEq("GPU.1"))).WillByDefault(Return(false));
+    config.insert(ov::intel_auto::compile_for_all(true));
+    expect_selected_devices({"GPU.0", "GPU.1", "CPU", "GPU.0", "GPU.1", "CPU"});
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    for (int i = 0; i < 5; ++i) {
+        run_inferences(compiled_model, 1);
+        // the background pre-compilation of GPU.1 may hold its model for a moment
+        EXPECT_TRUE(wait_until([this] {
+            return !m_gpu0_model.expired() + !m_gpu1_model.expired() + !m_cpu_model.expired() == 1;
+        }));
+    }
 }
 
 TEST_F(AutoDynamicInactiveDeviceReleaseTest, inactive_device_is_released_after_the_inference_is_started) {

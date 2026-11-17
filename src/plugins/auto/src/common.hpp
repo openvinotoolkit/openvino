@@ -72,6 +72,8 @@ struct WorkerInferRequest {
     AutoImmediateExecutor::Ptr    m_fallback_exec;
     // the request could not be started, so its completion callback will never hand this worker back
     bool                          m_dispatch_failed = false;
+    // served by the CPU helper, which is released while its requests are still alive
+    bool                          m_is_cpu_helper = false;
 };
 
 // flags the worker as not dispatched unless dismissed, i.e. when its scope is left by an exception
@@ -235,6 +237,13 @@ struct CompiledModelMetadata {
     // keeps the device plugin library loaded for the ports
     std::shared_ptr<void> so;
     std::string model_name;
+};
+
+// The device in use and its compiled model, taken as a pair so they never disagree.
+// The compiled model is empty if no device holds one.
+struct ActiveDevice {
+    DeviceName name;
+    SoCompiledModel compiled_model;
 };
 
 class ScheduleContext : public std::enable_shared_from_this<ScheduleContext>  {
