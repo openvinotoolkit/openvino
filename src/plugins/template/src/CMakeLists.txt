@@ -9,6 +9,8 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/async_infer_request.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/compiled_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/config.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/hsm_reader_handler.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/hsm_writer_handler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/remote_context.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/sync_infer_request.cpp
@@ -18,6 +20,9 @@ set(HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/attach_cache_manager_to_paged_attention.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/compiled_model.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/config.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/hsm_common.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/hsm_reader_handler.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/hsm_writer_handler.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/itt.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/remote_context.hpp

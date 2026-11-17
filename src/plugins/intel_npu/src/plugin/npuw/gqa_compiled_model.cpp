@@ -98,12 +98,29 @@ std::optional<size_t> gqa_default_sliding_window_len_env_override() {
 
 // Resolves the sliding-window fallback capacity: NPUW_LLM_SWA_LEN property (if set), else
 // the env override, else nullopt. Never overrides rt_info or the op's own attribute.
-std::optional<size_t> resolve_default_sliding_window_capacity(const ov::AnyMap& properties) {
+std::optional<size_t> resolve_default_sliding_window_size(const ov::AnyMap& properties) {
     const uint32_t configured = cfg_get<::intel_npu::NPUW_LLM_SWA_LEN>(properties);
     if (configured != 0) {
         return static_cast<size_t>(configured);
     }
     return gqa_default_sliding_window_len_env_override();
+}
+
+// OPENVINO_NPUW_GQA_SLIDING_HEADROOM env override: extra sliding-window capacity in tokens.
+// Lower priority than NPUW_LLM_SWA_HEADROOM.
+std::optional<size_t> gqa_sliding_window_headroom_env_override() {
+    static const std::optional<size_t> value = parse_positive_size_env_var("OPENVINO_NPUW_GQA_SLIDING_HEADROOM");
+    return value;
+}
+
+// Resolves the sliding-window headroom: NPUW_LLM_SWA_HEADROOM property (if set), else
+// the env override, else nullopt.
+std::optional<size_t> resolve_sliding_window_headroom(const ov::AnyMap& properties) {
+    const auto key = std::string(::intel_npu::NPUW_LLM_SWA_HEADROOM::key());
+    if (properties.count(key)) {
+        return properties.at(key).as<uint32_t>();
+    }
+    return gqa_sliding_window_headroom_env_override();
 }
 
 void merge_config_with(ov::AnyMap& lhs, const ov::AnyMap& rhs) {
@@ -133,7 +150,8 @@ bool has_2bit_group_quantized_weights(const std::shared_ptr<const ov::Model>& mo
 }
 
 std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov::Model>& model,
-                                                       const ov::AnyMap& properties) {
+                                                       const ov::AnyMap& properties,
+                                                       ov::npuw::GQACompiledModel::Case gqa_case) {
     const auto detect_gqa_model_stage = [&]() {
         // The activation tensor ("input_hidden_states") is what the embedding
         // model stage feeds into the transformer.  For the generate (iter) model
@@ -219,29 +237,38 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
     };
 
     // V0/V1 are pre-assembled GQA graphs that online partitioning would only get in the way
-    // of. V2 (2-bit group-quantized weights) still benefits from online partitioning, so it
-    // keeps the default pipeline (REG) instead of being forced to NONE.
-    ov::AnyMap config = {{"NPU_COMPILER_DYNAMIC_QUANTIZATION", "YES"},
+    // of. V2 (2-bit group-quantized weights) still benefits from online partitioning: its
+    // prefill stage switches to the REP (repeated-block) pipeline below, and both stages
+    // compile their partitioned blocks in parallel via NPUW_PARALLEL_COMPILE; V0/V1 don't
+    // use online partitioning at all, so that option would have no effect for them.
+    const bool is_v2 = gqa_case == ov::npuw::GQACompiledModel::Case::V2;
+    ov::AnyMap config = {{std::string(::intel_npu::COMPILER_DYNAMIC_QUANTIZATION::key()), "YES"},
                          {std::string(::intel_npu::NPUW_DEVICES::key()), "NPU"},
                          {ov::cache_mode.name(), ov::CacheMode::OPTIMIZE_SPEED},
-                         {std::string(::intel_npu::NPUW_UNQDQ::key()), "YES"}};
-    if (!has_2bit_group_quantized_weights(model)) {
-        config.emplace("NPUW_ONLINE_PIPELINE", "NONE");
+                         {std::string(::intel_npu::NPUW_UNQDQ::key()), "YES"},
+                         {std::string(::intel_npu::COMPILATION_MODE_PARAMS::key()), "optimization-level=3"}};
+    if (!is_v2) {
+        config.emplace(std::string(::intel_npu::NPUW_ONLINE_PIPELINE::key()), "NONE");
+    } else {
+        config.emplace(std::string(::intel_npu::NPUW_PARALLEL_COMPILE::key()), "YES");
     }
 
     const auto stage = detect_gqa_model_stage();
     if (stage == GQAModelStage::PREFILL) {
         merge_config_with(config,
                           {{std::string(::intel_npu::NPUW_FOLD::key()), "YES"},
-                           {"NPUW_FOLD_ONLY", "attn"},
-                           {"NPUW_ONLINE_ISOLATE", "ATTN"},
-                           {"NPUW_ONLINE_KEEP_BLOCKS_TAGGED", "attn"},
-                           {"NPUW_ATTN", "STATIC"}});
+                           {std::string(::intel_npu::NPUW_FOLD_ONLY::key()), "attn"},
+                           {std::string(::intel_npu::NPUW_ONLINE_ISOLATE::key()), "ATTN"},
+                           {std::string(::intel_npu::NPUW_ONLINE_KEEP_BLOCKS_TAGGED::key()), "attn"},
+                           {std::string(::intel_npu::NPUW_ATTN::key()), "STATIC"}});
+        if (is_v2) {
+            merge_config_with(config, {{std::string(::intel_npu::NPUW_ONLINE_PIPELINE::key()), "REP"}});
+        }
         LOG_INFO("Detected prefill-style GQA model; applying FOLD with ATTN isolation");
     } else if (stage == GQAModelStage::GENERATE) {
         merge_config_with(config,
                           {{std::string(::intel_npu::NPUW_FOLD::key()), "YES"},
-                           {"NPUW_FOLD_ONLY", "attn"},
+                           {std::string(::intel_npu::NPUW_FOLD_ONLY::key()), "attn"},
                            {std::string(::intel_npu::NPUW_FUNCALL_ASYNC::key()), "YES"},
                            {std::string(::intel_npu::NPUW_UNFOLD_IREQS::key()), "YES"}});
 
@@ -262,6 +289,7 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
     // LLM-only option; the inner CompiledModel only registers ROOT options.
     config.erase(std::string(::intel_npu::NPUW_LLM_MAX_CONTEXT_LEN::key()));
     config.erase(std::string(::intel_npu::NPUW_LLM_SWA_LEN::key()));
+    config.erase(std::string(::intel_npu::NPUW_LLM_SWA_HEADROOM::key()));
     return {config, stage};
 }
 
@@ -282,7 +310,7 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
 
 ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(const std::shared_ptr<ov::Model>& model,
                                                                               const ov::AnyMap& properties) {
-    auto [prepared_properties, stage] = with_gqa_defaults(model, properties);
+    auto [prepared_properties, stage] = with_gqa_defaults(model, properties, identify_case(model));
 
     static std::atomic<std::size_t> mcount{0u};
 
@@ -315,14 +343,19 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
     std::shared_ptr<ov::Model> compiled_model = model;
     std::unordered_map<std::string, size_t> dynamic_kv_cache_axes;
     uint32_t effective_max_context_len = cfg_get<::intel_npu::NPUW_LLM_MAX_CONTEXT_LEN>(properties);
-    uint32_t effective_sliding_window_capacity = 0;
+    uint32_t effective_sliding_window_size = 0;
+    uint32_t effective_sliding_window_headroom = 0;
     if (has_dynamic_max_seq_len(model)) {
         const size_t max_seq_len = gqa_ctx_len_env_override().value_or(effective_max_context_len);
         effective_max_context_len = static_cast<uint32_t>(max_seq_len);
         compiled_model = model->clone();
-        const auto default_sliding_window_capacity = resolve_default_sliding_window_capacity(properties);
-        effective_sliding_window_capacity = static_cast<uint32_t>(default_sliding_window_capacity.value_or(0));
-        ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(max_seq_len, default_sliding_window_capacity);
+        const auto sliding_window_size = resolve_default_sliding_window_size(properties);
+        effective_sliding_window_size = static_cast<uint32_t>(sliding_window_size.value_or(0));
+        const auto sliding_window_headroom = resolve_sliding_window_headroom(properties);
+        effective_sliding_window_headroom =
+            static_cast<uint32_t>(sliding_window_headroom.value_or(::intel_npu::NPUW_LLM_SWA_HEADROOM::defaultValue()));
+        // Prefill and generate may share sliding KV buffers, so generate must also fit a prefill chunk.
+        ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(max_seq_len, sliding_window_size, sliding_window_headroom);
         reshape_to_static_gqa.run_on_model(compiled_model);
         dynamic_kv_cache_axes = reshape_to_static_gqa.dynamic_kv_cache_axes();
     }
@@ -332,7 +365,8 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
             std::move(prepared_properties),
             std::move(dynamic_kv_cache_axes),
             effective_max_context_len,
-            effective_sliding_window_capacity};
+            effective_sliding_window_size,
+            effective_sliding_window_headroom};
 }
 
 std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::make_compiled_model(
@@ -561,7 +595,8 @@ ov::npuw::GQACompiledModel::GQACompiledModel(PreparedState prepared,
       m_outer_model(prepared.model),
       m_dynamic_kv_cache_axes(std::move(prepared.dynamic_kv_cache_axes)),
       m_effective_max_context_len(prepared.effective_max_context_len),
-      m_effective_sliding_window_capacity(prepared.effective_sliding_window_capacity) {
+      m_effective_sliding_window_length(prepared.effective_sliding_window_length),
+      m_effective_sliding_window_headroom(prepared.effective_sliding_window_headroom) {
     OPENVINO_ASSERT(m_inner_compiled_model != nullptr, "GQACompiledModel requires a valid inner compiled model");
     m_dynamic_kv_cache_output_axes = find_dynamic_kv_cache_output_axes(outputs());
     m_total_seq_len_param_name = find_total_sequence_length_param_name(m_outer_model);
@@ -575,7 +610,8 @@ ov::npuw::GQACompiledModel::GQACompiledModel(const std::shared_ptr<ov::Model>& o
                                              std::shared_ptr<ov::npuw::ICompiledModel> inner_compiled_model,
                                              std::unordered_map<std::string, size_t> dynamic_kv_cache_axes,
                                              uint32_t effective_max_context_len,
-                                             uint32_t effective_sliding_window_capacity,
+                                             uint32_t effective_sliding_window_length,
+                                             uint32_t effective_sliding_window_headroom,
                                              std::optional<std::string> total_seq_len_param_name,
                                              std::unordered_map<std::string, std::string> present_to_past_param_names)
     : ov::npuw::ICompiledModel(outer_model, plugin),
@@ -583,7 +619,8 @@ ov::npuw::GQACompiledModel::GQACompiledModel(const std::shared_ptr<ov::Model>& o
       m_outer_model(outer_model),
       m_dynamic_kv_cache_axes(std::move(dynamic_kv_cache_axes)),
       m_effective_max_context_len(effective_max_context_len),
-      m_effective_sliding_window_capacity(effective_sliding_window_capacity) {
+      m_effective_sliding_window_length(effective_sliding_window_length),
+      m_effective_sliding_window_headroom(effective_sliding_window_headroom) {
     OPENVINO_ASSERT(m_inner_compiled_model != nullptr, "GQACompiledModel requires a valid inner compiled model");
     m_dynamic_kv_cache_output_axes = find_dynamic_kv_cache_output_axes(outputs());
     // NOT re-derived via find_total_sequence_length_param_name()/find_present_to_past_param_names()
@@ -683,7 +720,8 @@ void ov::npuw::GQACompiledModel::export_model(std::ostream& stream) const {
     GQACompiledModel::write_port_list(stream, outer_outputs);
     write(stream, m_dynamic_kv_cache_axes);
     write(stream, m_effective_max_context_len);
-    write(stream, m_effective_sliding_window_capacity);
+    write(stream, m_effective_sliding_window_length);
+    write(stream, m_effective_sliding_window_headroom);
     // Written here (from the real model, available at this point) rather than
     // re-derived by import_model() from its dummy carcass outer_model, which has no
     // actual GroupQueryAttention ops for the graph-walking find_*() helpers to find.
@@ -693,7 +731,8 @@ void ov::npuw::GQACompiledModel::export_model(std::ostream& stream) const {
               << outer_inputs.size() << " outer inputs, " << outer_outputs.size() << " outer outputs, "
               << m_dynamic_kv_cache_axes.size()
               << " dynamic-axis entries, effective_max_context_len=" << m_effective_max_context_len
-              << ", effective_sliding_window_capacity=" << m_effective_sliding_window_capacity
+              << ", effective_sliding_window_length=" << m_effective_sliding_window_length
+              << ", effective_sliding_window_headroom=" << m_effective_sliding_window_headroom
               << ", total_seq_len_param_name=" << m_total_seq_len_param_name.value_or("<none>")
               << ", present_to_past_param_names has " << m_present_to_past_param_names.size() << " entries"
               << "; delegating to inner m_inner_compiled_model->export_model()");
@@ -719,14 +758,16 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
     ov::NodeVector outer_results;
     std::unordered_map<std::string, size_t> dynamic_kv_cache_axes;
     uint32_t effective_max_context_len = 0;
-    uint32_t effective_sliding_window_capacity = 0;
+    uint32_t effective_sliding_window_length = 0;
+    uint32_t effective_sliding_window_headroom = 0;
     std::optional<std::string> total_seq_len_param_name;
     std::unordered_map<std::string, std::string> present_to_past_param_names;
     outer_parameters = GQACompiledModel::read_input_port_list(stream);
     outer_results = GQACompiledModel::read_output_port_list(stream);
     read(stream, dynamic_kv_cache_axes);
     read(stream, effective_max_context_len);
-    read(stream, effective_sliding_window_capacity);
+    read(stream, effective_sliding_window_length);
+    read(stream, effective_sliding_window_headroom);
     read(stream, total_seq_len_param_name);
     read(stream, present_to_past_param_names);
 
@@ -754,7 +795,8 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
                                                                   std::move(inner_compiled_model),
                                                                   std::move(dynamic_kv_cache_axes),
                                                                   effective_max_context_len,
-                                                                  effective_sliding_window_capacity,
+                                                                  effective_sliding_window_length,
+                                                                  effective_sliding_window_headroom,
                                                                   std::move(total_seq_len_param_name),
                                                                   std::move(present_to_past_param_names)));
 }
@@ -768,14 +810,17 @@ void ov::npuw::GQACompiledModel::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any ov::npuw::GQACompiledModel::get_property(const std::string& name) const {
-    // NPUW_LLM_MAX_CONTEXT_LEN/NPUW_LLM_SWA_LEN are stripped from the inner model's
+    // NPUW_LLM_MAX_CONTEXT_LEN/NPUW_LLM_SWA_LEN/NPUW_LLM_SWA_HEADROOM are stripped from the inner model's
     // properties (ROOT-only options); answer them directly from the effective values
     // actually used.
     if (name == std::string(::intel_npu::NPUW_LLM_MAX_CONTEXT_LEN::key())) {
         return m_effective_max_context_len;
     }
     if (name == std::string(::intel_npu::NPUW_LLM_SWA_LEN::key())) {
-        return m_effective_sliding_window_capacity;
+        return m_effective_sliding_window_length;
+    }
+    if (name == std::string(::intel_npu::NPUW_LLM_SWA_HEADROOM::key())) {
+        return m_effective_sliding_window_headroom;
     }
     return m_inner_compiled_model->get_property(name);
 }
@@ -799,32 +844,10 @@ void ov::npuw::GQAInferRequest::ensure_inner_request_locked() const {
     if (m_inner_request == nullptr) {
         m_inner_request = m_compiled_model->m_inner_compiled_model->create_infer_request();
         OPENVINO_ASSERT(m_inner_request != nullptr, "GQA infer request requires a valid inner request");
-        const auto& inner_model = m_compiled_model->m_inner_compiled_model;
+        [[maybe_unused]] const auto& inner_model = m_compiled_model->m_inner_compiled_model;
         GQA_TRACE("ensure_inner_request_locked(): created inner infer request @ "
                   << m_inner_request.get() << ", inner model has " << inner_model->inputs().size() << " inputs, "
                   << inner_model->outputs().size() << " outputs");
-
-        // Zero-initialize every dynamic-axis KV-cache/bias input's full capacity, once.
-        [[maybe_unused]] size_t zeroed_count = 0;  // only read by the developer-build GQA_TRACE below
-        for (const auto& kv : m_compiled_model->m_dynamic_kv_cache_axes) {
-            // Pre-C++20: structured bindings can't be captured by lambdas, so use a named local.
-            const auto& name = kv.first;
-            auto input_it = std::find_if(inner_model->inputs().begin(),
-                                         inner_model->inputs().end(),
-                                         [&name](const ov::Output<const ov::Node>& input) {
-                                             return input.get_node()->get_friendly_name() == name;
-                                         });
-            if (input_it == inner_model->inputs().end()) {
-                continue;
-            }
-            auto tensor = m_inner_request->get_tensor(*input_it);
-            if (!tensor || tensor->get_byte_size() == 0) {
-                continue;
-            }
-            std::memset(tensor->data(), 0, tensor->get_byte_size());
-            ++zeroed_count;
-        }
-        GQA_TRACE("ensure_inner_request_locked(): zero-initialized " << zeroed_count << " dynamic-axis input(s)");
     }
 }
 
@@ -1119,7 +1142,6 @@ ov::SoPtr<ov::ITensor> ov::npuw::GQAInferRequest::get_tensor(const ov::Output<co
             // intel_cpu's convention for a never-set dynamic tensor -- a full-capacity
             // shape would wrongly look "already populated". Caller must set_shape()
             // before writing.
-            const auto& inner_tensor = m_inner_request->get_tensor(map_port_locked(port));
             const auto& port_shape = port.get_partial_shape();
             ov::Shape private_shape;
             private_shape.reserve(port_shape.size());
@@ -1130,8 +1152,7 @@ ov::SoPtr<ov::ITensor> ov::npuw::GQAInferRequest::get_tensor(const ov::Output<co
             // investigated device-context allocation here too, but kept as a plain CPU
             // allocation since the host-write path is what matters, not device-read
             // locality (see that function's comment for the measured regression).
-            auto private_tensor =
-                ov::SoPtr<ov::ITensor>(ov::make_tensor(inner_tensor->get_element_type(), private_shape));
+            auto private_tensor = ov::SoPtr<ov::ITensor>(ov::make_tensor(port.get_element_type(), private_shape));
             it = m_dynamic_kv_cache_tensors.emplace(name, private_tensor).first;
             GQA_TRACE(
                 "    -> no set_tensor() yet, allocated private fallback tensor, shape=" << private_tensor->get_shape());
@@ -1171,14 +1192,14 @@ void ov::npuw::GQAInferRequest::set_tensor(const ov::Output<const ov::Node>& por
         // letting a wrong-sized buffer reach the inner request unchecked. (Caller-driven
         // dynamic present-output sizing below the compiled capacity is a separate,
         // more involved problem -- tracked separately, not handled here.)
-        const auto& inner_tensor = m_inner_request->get_tensor(map_port_locked(port));
-        OPENVINO_ASSERT(tensor->get_shape() == inner_tensor->get_shape(),
+        const auto inner_shape = map_port_locked(port).get_shape();
+        OPENVINO_ASSERT(tensor->get_shape() == inner_shape,
                         "GQA present output '",
                         name,
                         "' shape ",
                         tensor->get_shape(),
                         " does not match the compiled static shape ",
-                        inner_tensor->get_shape());
+                        inner_shape);
         m_inner_request->set_tensor(map_port_locked(port), tensor);
         m_dynamic_kv_cache_output_tensors[name] = tensor;
         m_dynamic_kv_cache_output_externally_set.insert(name);
@@ -1195,13 +1216,21 @@ void ov::npuw::GQAInferRequest::set_tensor(const ov::Output<const ov::Node>& por
 
     // If the caller's tensor is EXACTLY the compiled static capacity, there's no prefix
     // to carve out: alias the inner request directly onto it and skip the copy.
-    // Otherwise keep the inner tensor and defer the prefix copy to infer() time.
+    // Otherwise defer padding allocation and the prefix copy to infer() time.
     const auto axis = it->second;
-    const auto& inner_tensor = m_inner_request->get_tensor(map_port_locked(port));
+    const auto& inner_port = map_port_locked(port);
+    const auto inner_shape = inner_port.get_shape();
     const auto requested_len = tensor->get_shape().at(axis);
-    const auto capacity = inner_tensor->get_shape().at(axis);
-    GQA_TRACE("    -> dynamic-axis input, axis=" << axis << " requested_len=" << requested_len << " capacity="
-                                                 << capacity << " inner_tensor_shape=" << inner_tensor->get_shape());
+    const auto capacity = inner_shape.at(axis);
+    GQA_TRACE("    -> dynamic-axis input, axis=" << axis << " requested_len=" << requested_len
+                                                 << " capacity=" << capacity << " inner_tensor_shape=" << inner_shape);
+    auto expected_shape = inner_shape;
+    expected_shape.at(axis) = requested_len;
+    OPENVINO_ASSERT(
+        tensor->get_element_type() == inner_port.get_element_type() && tensor->get_shape() == expected_shape,
+        "GQA input '",
+        name,
+        "' must match the compiled element type and non-capacity dimensions");
     OPENVINO_ASSERT(requested_len <= capacity,
                     "GQA KV-cache '",
                     name,
@@ -1211,28 +1240,11 @@ void ov::npuw::GQAInferRequest::set_tensor(const ov::Output<const ov::Node>& por
                     capacity,
                     ") it was compiled with");
     if (requested_len == capacity) {
-        // Exact match: alias instead of copying, nothing to carve out.
-        if (m_dynamic_kv_cache_input_aliased.count(name) == 0) {
-            // First alias of this port: stash the inner request's own buffer so a later,
-            // shorter set_tensor() can restore it.
-            m_dynamic_kv_cache_private_buffers[name] = inner_tensor;
-        }
         m_inner_request->set_tensor(map_port_locked(port), tensor);
+        m_dynamic_kv_cache_private_buffers.erase(name);
         m_dynamic_kv_cache_tensors[name] = tensor;
-        m_dynamic_kv_cache_input_aliased.insert(name);
         GQA_TRACE("    -> requested_len == capacity, aliased inner request tensor directly (no copy)");
         return;
-    }
-    if (m_dynamic_kv_cache_input_aliased.erase(name) != 0) {
-        // Previously aliased onto a now-stale caller tensor; restore the inner request's
-        // own private buffer before this shorter tensor is used.
-        auto priv_it = m_dynamic_kv_cache_private_buffers.find(name);
-        OPENVINO_ASSERT(priv_it != m_dynamic_kv_cache_private_buffers.end(),
-                        "GQA KV-cache '",
-                        name,
-                        "' was aliased but has no stashed private buffer to restore");
-        m_inner_request->set_tensor(map_port_locked(port), priv_it->second);
-        GQA_TRACE("    -> requested_len < capacity, restored inner request's own private buffer");
     }
     // Not copied here: the caller may keep writing into `tensor` until infer(); only
     // sync_dynamic_kv_cache_tensors_locked() is guaranteed to see live content.
@@ -1247,30 +1259,22 @@ void ov::npuw::GQAInferRequest::sync_dynamic_kv_cache_tensors_locked() const {
         const auto& name = kv.first;
         const auto axis = kv.second;
         auto tensor_it = m_dynamic_kv_cache_tensors.find(name);
-        if (tensor_it == m_dynamic_kv_cache_tensors.end()) {
-            continue;  // set_tensor() not called yet for this port
-        }
         auto port_it = std::find_if(outer_inputs.begin(), outer_inputs.end(), [&](const auto& input) {
             return input.get_node()->get_friendly_name() == name;
         });
         if (port_it == outer_inputs.end()) {
             continue;
         }
-        const auto& inner_tensor = m_inner_request->get_tensor(map_port_locked(*port_it));
-        if (&*tensor_it->second == &*inner_tensor) {
-            // Already aliased by set_tensor(); same object, nothing to copy.
-            GQA_TRACE("sync_dynamic_kv_cache_tensors_locked(): '" << name << "' already aliased, skipping copy");
-            continue;
-        }
-        GQA_TRACE("sync_dynamic_kv_cache_tensors_locked(): '"
-                  << name << "' axis=" << axis << " copying live prefix, shape=" << tensor_it->second->get_shape());
+        const auto& inner_port = map_port_locked(*port_it);
+        const auto inner_shape = inner_port.get_shape();
         // Re-check here: the tensor can still grow between set_tensor() (which checked
         // <= capacity at the time) and infer() -- e.g. a private fallback from
         // get_tensor() followed by set_shape(), or a caller tensor reshaped afterwards.
         // copy_by_planes() (axis 2) sizes each plane from the source, so an unchecked
         // over-capacity tensor here would write past the end of the static buffer.
-        const auto src_len = tensor_it->second->get_shape().at(axis);
-        const auto capacity = inner_tensor->get_shape().at(axis);
+        const auto src_len =
+            tensor_it == m_dynamic_kv_cache_tensors.end() ? 0u : tensor_it->second->get_shape().at(axis);
+        const auto capacity = inner_shape.at(axis);
         OPENVINO_ASSERT(src_len <= capacity,
                         "GQA KV-cache '",
                         name,
@@ -1279,14 +1283,37 @@ void ov::npuw::GQAInferRequest::sync_dynamic_kv_cache_tensors_locked() const {
                         " exceeds the static capacity (",
                         capacity,
                         ") it was compiled with");
-        ov::npuw::GQAInferRequest::copy_kv_cache_prefix(tensor_it->second, inner_tensor, axis);
+        if (tensor_it != m_dynamic_kv_cache_tensors.end()) {
+            auto expected_shape = inner_shape;
+            expected_shape.at(axis) = src_len;
+            OPENVINO_ASSERT(tensor_it->second->get_element_type() == inner_port.get_element_type() &&
+                                tensor_it->second->get_shape() == expected_shape,
+                            "GQA input '",
+                            name,
+                            "' must match the compiled element type and non-capacity dimensions");
+            if (src_len == capacity) {
+                m_inner_request->set_tensor(inner_port, tensor_it->second);
+                m_dynamic_kv_cache_private_buffers.erase(name);
+                continue;
+            }
+        }
+        auto& private_buffer = m_dynamic_kv_cache_private_buffers[name];
+        if (!private_buffer) {
+            private_buffer = ov::SoPtr<ov::ITensor>(ov::make_tensor(inner_port.get_element_type(), inner_shape));
+            if (private_buffer->get_byte_size() != 0) {
+                std::memset(private_buffer->data(), 0, private_buffer->get_byte_size());
+            }
+        }
+        m_inner_request->set_tensor(inner_port, private_buffer);
+        if (tensor_it != m_dynamic_kv_cache_tensors.end()) {
+            ov::npuw::GQAInferRequest::copy_kv_cache_prefix(tensor_it->second, private_buffer, axis);
+        }
     }
 }
 
 void ov::npuw::GQAInferRequest::check_tensors() const {
     std::lock_guard<std::mutex> lock(m_mutex);
-    // Trigger lazy inner request initialization; the JustInferRequest constructor
-    // allocates all sub-tensors during construction, so nothing more is needed here.
+    // Keep top-level I/O lazy until the caller binds tensors or inference needs them.
     ensure_inner_request_locked();
 }
 

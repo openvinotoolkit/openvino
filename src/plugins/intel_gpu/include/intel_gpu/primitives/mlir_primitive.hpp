@@ -11,14 +11,14 @@
 #include "openvino/core/partial_shape.hpp"
 #include "primitive.hpp"
 
-namespace ov {
-class Node;  // forward-decl — the underlying op is ov::intel_gpu::op::MLIROp
-}
+namespace ov::intel_gpu::op {
+class MLIROp;
+}  // namespace ov::intel_gpu::op
 
 namespace cldnn {
 
 /// @brief Primitive that wraps an ov::intel_gpu::op::MLIROp node. Its execute_impl
-/// (see impls/common/mlir_primitive.cpp) forwards to MLIROp::evaluate().
+/// (see impls/common/mlir_primitive.cpp) calls MLIRGpuProgram::execute().
 struct mlir_primitive : public primitive_base<mlir_primitive> {
     CLDNN_DECLARE_PRIMITIVE(mlir_primitive)
 
@@ -28,7 +28,7 @@ struct mlir_primitive : public primitive_base<mlir_primitive> {
 
     mlir_primitive(const primitive_id& id,
                    const std::vector<input_info>& inputs,
-                   std::shared_ptr<ov::Node> op,
+                   std::shared_ptr<ov::intel_gpu::op::MLIROp> op,
                    shape_infer_function shape_infer_f,
                    size_t num_outputs,
                    const std::vector<optional_data_type>& out_types)
@@ -36,7 +36,7 @@ struct mlir_primitive : public primitive_base<mlir_primitive> {
           op(std::move(op)),
           shape_infer_f(std::move(shape_infer_f)) {}
 
-    std::shared_ptr<ov::Node> op;
+    std::shared_ptr<ov::intel_gpu::op::MLIROp> op;
     shape_infer_function shape_infer_f;
 
     void save(BinaryOutputBuffer& /*ob*/) const override {

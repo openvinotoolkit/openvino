@@ -109,6 +109,27 @@ class TestPad(PytorchLayerTest):
                    kwargs_to_prepare_input={"ndim": 2, "dtype": dtype}, trace_model=True)
 
 
+class TestPadDynamicWindow(PytorchLayerTest):
+    def _prepare_input(self):
+        return (self.random.randn(1, 3, 7, 7),)
+
+    def create_model(self):
+        import torch
+
+        class PadDynamicWindow(torch.nn.Module):
+            def forward(self, x):
+                window = x.shape[-1]
+                pad = (window - x.shape[-1] % window) % window
+                return torch.nn.functional.pad(x, (0, pad))
+
+        return PadDynamicWindow(), "aten::pad"
+
+    @pytest.mark.precommit
+    @pytest.mark.nightly
+    def test_pad_dynamic_window(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=True)
+
+
 class TestPadListPaddingings(PytorchLayerTest):
     def _prepare_input(self, ndim=4, pad_w=0, pad_h=0, dtype="float32"):
         import numpy as np

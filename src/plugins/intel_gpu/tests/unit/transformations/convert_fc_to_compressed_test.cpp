@@ -22,6 +22,8 @@
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
 
 #include <memory>
+#include <sstream>
+#include <vector>
 
 using namespace testing;
 using namespace ov::intel_gpu;
@@ -78,6 +80,337 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed2) {
         auto fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input1, weights_const, no_bias, scale_const, zp_const);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input1});
+    }
+}
+
+enum class ScaleZpTopology { ReshapeOfConvert, ConvertOfReshape, ConvertOnly };
+
+struct ParameterScaleZpParams {
+    ScaleZpTopology topology;
+    bool with_zp;
+};
+
+class ConvertFCToCompressedParameterScaleZpTest : public testing::WithParamInterface<ParameterScaleZpParams>,
+                                                  public TransformationTestsF {
+public:
+    ConvertFCToCompressedParameterScaleZpTest() : TransformationTestsF() {
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+    }
+
+    static std::string getTestCaseName(const testing::TestParamInfo<ParameterScaleZpParams>& info) {
+        const auto& [topology, with_zp] = info.param;
+        std::string name;
+        switch (topology) {
+        case ScaleZpTopology::ReshapeOfConvert:
+            name = "ReshapeOfConvert";
+            break;
+        case ScaleZpTopology::ConvertOfReshape:
+            name = "ConvertOfReshape";
+            break;
+        default:
+            name = "ConvertOnly";
+            break;
+        }
+        return name + (with_zp ? "_WithZp" : "_NoZp");
+    }
+};
+
+// Scale and zero point are model Parameters [32, 1, 1] with a Convert to f16, optionally reshaped to [32, 1].
+// The pass must create FullyConnectedCompressed whose scale keeps the Convert(f32 -> f16), so the FC input
+// precision matches the graph, and whose zero point keeps the integer value (Convert dropped, Reshape kept).
+TEST_P(ConvertFCToCompressedParameterScaleZpTest, ConvertsParameterScaleAndZeroPoint) {
+    const auto topology = GetParam().topology;
+    const auto with_zp = GetParam().with_zp;
+
+    auto to_f16 = [](const ov::Output<ov::Node>& node) -> std::shared_ptr<ov::Node> {
+        return std::make_shared<ov::op::v0::Convert>(node, ov::element::f16);
+    };
+    auto reshape_to_2d = [](const ov::Output<ov::Node>& node) -> std::shared_ptr<ov::Node> {
+        auto shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {32, 1});
+        return std::make_shared<ov::op::v1::Reshape>(node, shape, false);
+    };
+    auto build = [&](const ov::Output<ov::Node>& param) -> std::shared_ptr<ov::Node> {
+        switch (topology) {
+        case ScaleZpTopology::ReshapeOfConvert:
+            return reshape_to_2d(to_f16(param));
+        case ScaleZpTopology::ConvertOfReshape:
+            return to_f16(reshape_to_2d(param));
+        default:
+            return to_f16(param);
+        }
+    };
+    // ConvertOnly supplies 2D parameters directly (no Reshape anywhere in the graph).
+    const ov::Shape param_shape = topology == ScaleZpTopology::ConvertOnly ? ov::Shape{32, 1} : ov::Shape{32, 1, 1};
+
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 16});
+        auto weights = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{32, 16}, {1});
+        auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, param_shape);
+        ov::ParameterVector params{input, scale};
+        std::shared_ptr<ov::Node> dequantized = to_f16(weights);
+        if (with_zp) {
+            auto zp = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, param_shape);
+            params.push_back(zp);
+            dequantized = std::make_shared<ov::op::v1::Subtract>(dequantized, build(zp));
+        }
+        dequantized = std::make_shared<ov::op::v1::Multiply>(dequantized, build(scale));
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input, dequantized, no_bias, ov::element::f16, true);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{fc}, params);
+        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
+    }
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 16});
+        auto weights = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{32, 16}, {1});
+        auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, param_shape);
+        ov::ParameterVector params{input, scale};
+        // The Convert(f32 -> f16) of a runtime scale must survive the rewrite in all topologies: either it is
+        // part of the matched mul_const_m node, or the Convert absorbed by mul_const_convert_m is re-used as is.
+        auto expected_scale = build(scale);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        std::shared_ptr<ov::Node> fc_compressed;
+        if (with_zp) {
+            auto zp = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, param_shape);
+            params.push_back(zp);
+            // The zero point reaches the FC as an integer value: its Convert is dropped and any Reshape over it
+            // is rebuilt over the Parameter, since FullyConnectedCompressed requires an integer zero point.
+            const auto expected_zp = topology == ScaleZpTopology::ConvertOnly ? std::static_pointer_cast<ov::Node>(zp) : reshape_to_2d(zp);
+            fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input,
+                                                                                          weights,
+                                                                                          no_bias,
+                                                                                          expected_scale,
+                                                                                          expected_zp,
+                                                                                          ov::element::f16,
+                                                                                          true,
+                                                                                          true,
+                                                                                          true);
+        } else {
+            fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input,
+                                                                                          weights,
+                                                                                          no_bias,
+                                                                                          expected_scale,
+                                                                                          ov::element::f16,
+                                                                                          true,
+                                                                                          true,
+                                                                                          true);
+        }
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, params);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         ConvertFCToCompressedParameterScaleZpTest,
+                         testing::Values(ParameterScaleZpParams{ScaleZpTopology::ReshapeOfConvert, true},
+                                         ParameterScaleZpParams{ScaleZpTopology::ReshapeOfConvert, false},
+                                         ParameterScaleZpParams{ScaleZpTopology::ConvertOfReshape, true},
+                                         ParameterScaleZpParams{ScaleZpTopology::ConvertOfReshape, false},
+                                         ParameterScaleZpParams{ScaleZpTopology::ConvertOnly, true},
+                                         ParameterScaleZpParams{ScaleZpTopology::ConvertOnly, false}),
+                         ConvertFCToCompressedParameterScaleZpTest::getTestCaseName);
+
+// f32 Parameter scale with a Convert, no zero point, followed by the post-reshape Multiply (mul2_m tail) whose
+// Constant is f16 after ConvertPrecision. The folded scale must keep the f16 precision of the graph: stripping
+// the Convert here used to throw NodeValidationFailure on the f32 x f16 Multiply.
+TEST_F(TransformationTestsF, ConvertFCToCompressedParameterScaleF32WithExtraMultiply) {
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 64});
+        auto weights = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{8, 4, 16}, {1});
+        auto convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f16);
+        auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{8, 4, 1});
+        auto scale_16 = std::make_shared<ov::op::v0::Convert>(scale, ov::element::f16);
+        auto mul = std::make_shared<ov::op::v1::Multiply>(convert, scale_16);
+        auto reshape_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {8, 64});
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(mul, reshape_const, false);
+        auto mul2_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{8, 1}, {2});
+        auto extra_mul = std::make_shared<ov::op::v1::Multiply>(reshape, mul2_const);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input, extra_mul, no_bias, ov::element::f16, true);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input, scale});
+        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
+    }
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 64});
+        // The rank-3 Constant weights are folded to the FC weights shape by the pass.
+        auto weights = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{8, 64}, {1});
+        auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{8, 4, 1});
+        auto scale_16 = std::make_shared<ov::op::v0::Convert>(scale, ov::element::f16);
+        auto scale_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {8, 4});
+        auto scale_reshaped = std::make_shared<ov::op::v1::Reshape>(scale_16, scale_shape, false);
+        auto mul2_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{8, 1}, {2});
+        auto scaled = std::make_shared<ov::op::v1::Multiply>(scale_reshaped, mul2_const);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weights, no_bias, scaled, ov::element::f16, true, true, true);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input, scale});
+    }
+}
+
+// Per-tensor (1-element) runtime scale/zp Parameters are not supported, so the pass must not fire.
+TEST_P(ConvertFCToCompressedParameterScaleZpTest, SkipsPerTensorParameterScaleAndZeroPoint) {
+    const auto& [topology, with_zp] = GetParam();
+    const bool reshape_of_convert = topology == ScaleZpTopology::ReshapeOfConvert;
+
+    auto to_f16 = [](const ov::Output<ov::Node>& node) -> std::shared_ptr<ov::Node> {
+        return std::make_shared<ov::op::v0::Convert>(node, ov::element::f16);
+    };
+    auto reshape_to_2d = [](const ov::Output<ov::Node>& node) -> std::shared_ptr<ov::Node> {
+        auto shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {1, 1});
+        return std::make_shared<ov::op::v1::Reshape>(node, shape, false);
+    };
+    auto build = [&](const ov::Output<ov::Node>& param) {
+        return reshape_of_convert ? reshape_to_2d(to_f16(param)) : to_f16(reshape_to_2d(param));
+    };
+
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 16});
+    auto weights = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{32, 16}, {1});
+    auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1});
+    ov::ParameterVector params{input, scale};
+    std::shared_ptr<ov::Node> dequantized = to_f16(weights);
+    if (with_zp) {
+        auto zp = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{1, 1});
+        params.push_back(zp);
+        dequantized = std::make_shared<ov::op::v1::Subtract>(dequantized, build(zp));
+    }
+    dequantized = std::make_shared<ov::op::v1::Multiply>(dequantized, build(scale));
+    auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+    auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input, dequantized, no_bias, ov::element::f16, true);
+
+    model = std::make_shared<ov::Model>(ov::OutputVector{fc}, params);
+    model_ref = model->clone();
+    manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
+}
+
+// Batch-1 weights [1, 32, 16] squeezed to [32, 16] by a Reshape, with ungrouped Parameter scale/zp [1, 32, 1].
+// MoveFCReshapeToWeights normalizes Constant forms only, so the pass must not read the leading unit batch
+// dimension of the runtime parameters as a group axis: scale/zp are flattened to [32, 1], weights to [32, 16].
+TEST_F(TransformationTestsF, ConvertFCToCompressedParameterScaleZpWithLeadingBatchDim) {
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 16});
+        auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{1, 32, 16});
+        auto convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f16);
+        auto zp = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{1, 32, 1});
+        auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp, ov::element::f16);
+        auto sub = std::make_shared<ov::op::v1::Subtract>(convert, zp_convert);
+        auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 32, 1});
+        auto mul = std::make_shared<ov::op::v1::Multiply>(sub, scale);
+        auto reshape_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {32, 16});
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(mul, reshape_const, false);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input, reshape, no_bias, ov::element::f16, true);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input, weights, zp, scale});
+        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
+    }
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 16});
+        auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{1, 32, 16});
+        auto zp = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{1, 32, 1});
+        auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 32, 1});
+        auto squeeze = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {32, 1});
+        auto zp_reshaped = std::make_shared<ov::op::v1::Reshape>(zp, squeeze, false);
+        auto scale_reshaped = std::make_shared<ov::op::v1::Reshape>(scale, squeeze, false);
+        auto weights_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {32, 16});
+        auto weights_reshaped = std::make_shared<ov::op::v1::Reshape>(weights, weights_shape, false);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input,
+                                                                                           weights_reshaped,
+                                                                                           no_bias,
+                                                                                           scale_reshaped,
+                                                                                           zp_reshaped,
+                                                                                           ov::element::f16,
+                                                                                           true,
+                                                                                           true,
+                                                                                           true);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input, weights, zp, scale});
+    }
+}
+
+// ONNX-style Reshape(Convert(zp), [0, 1], special_zero = true): rebuilding the Reshape over the integer ZP
+// must preserve the special_zero flag, otherwise the rebuilt op interprets 0 as a literal zero dimension
+// and validation throws.
+TEST_F(TransformationTestsF, ConvertFCToCompressedParameterZpSpecialZeroReshape) {
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 16});
+        auto weights = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{32, 16}, {1});
+        auto zp = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{32, 1, 1});
+        auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp, ov::element::f16);
+        auto zp_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {0, 1});
+        auto zp_reshape = std::make_shared<ov::op::v1::Reshape>(zp_convert, zp_shape, true);
+        auto sub = std::make_shared<ov::op::v1::Subtract>(std::make_shared<ov::op::v0::Convert>(weights, ov::element::f16), zp_reshape);
+        auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{32, 1});
+        auto mul = std::make_shared<ov::op::v1::Multiply>(sub, scale);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input, mul, no_bias, ov::element::f16, true);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input, zp, scale});
+        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
+    }
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 16});
+        auto weights = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{32, 16}, {1});
+        auto zp = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{32, 1, 1});
+        auto zp_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {0, 1});
+        // The integer-source Reshape keeps the original special_zero = true.
+        auto zp_reshaped = std::make_shared<ov::op::v1::Reshape>(zp, zp_shape, true);
+        auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{32, 1});
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc_compressed =
+            std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weights, no_bias, scale, zp_reshaped, ov::element::f16, true, true, true);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input, zp, scale});
+    }
+}
+
+// Grouped weights with a Parameter scale followed by the extra post-reshape Multiply (mul2_m tail).
+// w: Parameter u8 [8,4,16] → Convert f16 ─┐
+// scale: Parameter f16 [8,4,1] ──────────┴→ Multiply → Reshape [8,64] → Multiply(·, Constant [8,1]) → FullyConnected
+TEST_F(TransformationTestsF, ConvertFCToCompressedParameterWeightsAndScaleWithExtraMultiply) {
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 64});
+        auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{8, 4, 16});
+        auto convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f16);
+        auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{8, 4, 1});
+        auto mul = std::make_shared<ov::op::v1::Multiply>(convert, scale);
+        auto reshape_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {8, 64});
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(mul, reshape_const, false);
+        auto extra_mul_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{8, 1}, {2});
+        auto extra_mul = std::make_shared<ov::op::v1::Multiply>(reshape, extra_mul_const);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input, extra_mul, no_bias, ov::element::f16, true);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input, weights, scale});
+        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
+    }
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 64});
+        auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{8, 4, 16});
+        // Non-constant weights can't be folded; the [8,4,16] Parameter is reshaped to the FC weights shape [8,64].
+        auto weights_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {8, 64});
+        auto weights_reshape = std::make_shared<ov::op::v1::Reshape>(weights, weights_shape, false);
+        auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{8, 4, 1});
+        auto scale_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {8, 4});
+        auto scale_reshape = std::make_shared<ov::op::v1::Reshape>(scale, scale_shape, false);
+        auto extra_mul_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{8, 1}, {2});
+        auto scaled = std::make_shared<ov::op::v1::Multiply>(scale_reshape, extra_mul_const);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input,
+                                                                                           weights_reshape,
+                                                                                           no_bias,
+                                                                                           scaled,
+                                                                                           ov::element::f16,
+                                                                                           true,
+                                                                                           true,
+                                                                                           true);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input, weights, scale});
     }
 }
 
@@ -891,6 +1224,233 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed24_mxfp4e2m1) {
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input1});
     }
 }
+
+enum class TransposeBeforeReshapePattern {
+    ScaleOnly,
+    ScaleAndZeroPoint,
+    Rank4ScaleAndZeroPoint,
+};
+
+struct TransposeBeforeReshapeParams {
+    ov::element::Type weights_type;
+    bool parameter_weights;
+    size_t group_size;
+    TransposeBeforeReshapePattern pattern;
+};
+
+class ConvertFCToCompressedTransposeBeforeReshapeTest
+    : public TransformationTestsF,
+      public testing::WithParamInterface<TransposeBeforeReshapeParams> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<TransposeBeforeReshapeParams>& info) {
+        const auto& [weights_type, parameter_weights, group_size, pattern] = info.param;
+        std::ostringstream name;
+        name << weights_type << (parameter_weights ? "_Parameter" : "_Constant") << "_GroupSize" << group_size;
+        switch (pattern) {
+        case TransposeBeforeReshapePattern::ScaleOnly:
+            name << "_ScaleOnly";
+            break;
+        case TransposeBeforeReshapePattern::ScaleAndZeroPoint:
+            name << "_ScaleAndZeroPoint";
+            break;
+        case TransposeBeforeReshapePattern::Rank4ScaleAndZeroPoint:
+            name << "_Rank4ScaleAndZeroPoint";
+            break;
+        }
+        return name.str();
+    }
+
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        const auto& params = GetParam();
+        model = getModel(params);
+        if (isConverted(params)) {
+            model_ref = getCompressedModel(params);
+        }
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
+    }
+
+    static bool isRank4(const TransposeBeforeReshapeParams& params) {
+        return params.pattern == TransposeBeforeReshapePattern::Rank4ScaleAndZeroPoint;
+    }
+
+    static bool hasZeroPoint(const TransposeBeforeReshapeParams& params) {
+        return params.pattern != TransposeBeforeReshapePattern::ScaleOnly;
+    }
+
+    static bool isConverted(const TransposeBeforeReshapeParams& params) {
+        return params.weights_type == ov::element::u2 &&
+               (!params.parameter_weights || params.group_size % 64 == 0);
+    }
+
+    static ov::Shape getWeightsShape(const TransposeBeforeReshapeParams& params) {
+        if (isRank4(params)) {
+            return {2, 3, 2, params.group_size};
+        }
+        return {2, 3, params.group_size};
+    }
+
+    static ov::Shape getScaleShape(const TransposeBeforeReshapeParams& params) {
+        if (isRank4(params)) {
+            return {2, 3, 1, 1};
+        }
+        return {2, 3, 1};
+    }
+
+    static ov::Shape getCompressedWeightShape(const TransposeBeforeReshapeParams& params) {
+        if (isRank4(params)) {
+            return {3, 2, 2 * params.group_size};
+        }
+        return {3, 2 * params.group_size};
+    }
+
+    static ov::Shape getCompressedMetadataShape(const TransposeBeforeReshapeParams& params) {
+        if (isRank4(params)) {
+            return {2, 3, 1};
+        }
+        return {2, 3};
+    }
+
+    static std::shared_ptr<ov::op::v0::Parameter> makeInput(const TransposeBeforeReshapeParams& params) {
+        return std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
+                                                       ov::PartialShape{-1,
+                                                                        2 * static_cast<ov::Dimension::value_type>(
+                                                                                params.group_size)});
+    }
+
+    static std::shared_ptr<ov::Node> makeWeights(const TransposeBeforeReshapeParams& params,
+                                                 ov::ParameterVector& parameters) {
+        const auto shape = getWeightsShape(params);
+        if (params.parameter_weights) {
+            auto weights = std::make_shared<ov::op::v0::Parameter>(params.weights_type, shape);
+            parameters.push_back(weights);
+            return weights;
+        }
+        return ov::op::v0::Constant::create(params.weights_type, shape, {1});
+    }
+
+    static std::shared_ptr<ov::Model> getModel(const TransposeBeforeReshapeParams& params) {
+        auto input = makeInput(params);
+        ov::ParameterVector parameters{input};
+        auto weights = makeWeights(params, parameters);
+        auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f16);
+        ov::Output<ov::Node> dequantized_weights = weights_convert;
+        const auto scale_shape = getScaleShape(params);
+        if (hasZeroPoint(params)) {
+            auto zero_point = ov::op::v0::Constant::create(ov::element::u2, scale_shape, {1});
+            auto zero_point_convert = std::make_shared<ov::op::v0::Convert>(zero_point, ov::element::f16);
+            dequantized_weights = std::make_shared<ov::op::v1::Subtract>(weights_convert, zero_point_convert);
+        }
+        auto scale = ov::op::v0::Constant::create(ov::element::f16, scale_shape, {1});
+        auto multiply = std::make_shared<ov::op::v1::Multiply>(dequantized_weights, scale);
+        const auto transpose_order = isRank4(params) ? ov::Shape{1, 0, 2, 3} : ov::Shape{1, 0, 2};
+        auto transpose_order_const = ov::op::v0::Constant::create(ov::element::i32,
+                                                                  ov::Shape{transpose_order.size()},
+                                                                  transpose_order);
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(multiply, transpose_order_const);
+        const auto compressed_weight_shape = getCompressedWeightShape(params);
+        auto reshape_shape = ov::op::v0::Constant::create(ov::element::i32,
+                                                          ov::Shape{compressed_weight_shape.size()},
+                                                          compressed_weight_shape);
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(transpose, reshape_shape, false);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input, reshape, no_bias);
+        return std::make_shared<ov::Model>(ov::OutputVector{fc}, parameters);
+    }
+
+    static std::shared_ptr<ov::Model> getCompressedModel(const TransposeBeforeReshapeParams& params) {
+        auto input = makeInput(params);
+        ov::ParameterVector parameters{input};
+        auto weights = makeWeights(params, parameters);
+        const auto transpose_order = isRank4(params) ? ov::Shape{1, 0, 2, 3} : ov::Shape{1, 0, 2};
+        auto transpose_order_const = ov::op::v0::Constant::create(ov::element::i32,
+                                                                  ov::Shape{transpose_order.size()},
+                                                                  transpose_order);
+        auto transpose_weights = std::make_shared<ov::op::v1::Transpose>(weights, transpose_order_const);
+        const auto compressed_weight_shape = getCompressedWeightShape(params);
+        auto reshape_shape = ov::op::v0::Constant::create(ov::element::i32,
+                                                          ov::Shape{compressed_weight_shape.size()},
+                                                          compressed_weight_shape);
+        auto reshape_weights = std::make_shared<ov::op::v1::Reshape>(transpose_weights, reshape_shape, false);
+
+        const auto scale_shape = getScaleShape(params);
+        auto scale = ov::op::v0::Constant::create(ov::element::f16, scale_shape, {1});
+        const auto compressed_metadata_shape = getCompressedMetadataShape(params);
+        auto scale_shape_const = ov::op::v0::Constant::create(ov::element::i32,
+                                                              ov::Shape{compressed_metadata_shape.size()},
+                                                              compressed_metadata_shape);
+        auto reshape_scale = std::make_shared<ov::op::v1::Reshape>(scale, scale_shape_const, false);
+
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        std::shared_ptr<ov::intel_gpu::op::FullyConnectedCompressed> fc_compressed;
+        if (hasZeroPoint(params)) {
+            auto zero_point = ov::op::v0::Constant::create(ov::element::u2, scale_shape, {1});
+            auto zero_point_convert = std::make_shared<ov::op::v0::Convert>(zero_point, ov::element::u8);
+            auto zero_point_shape_const = ov::op::v0::Constant::create(ov::element::i32,
+                                                                       ov::Shape{compressed_metadata_shape.size()},
+                                                                       compressed_metadata_shape);
+            auto reshape_zero_point = std::make_shared<ov::op::v1::Reshape>(zero_point_convert,
+                                                                             zero_point_shape_const,
+                                                                             false);
+            fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input,
+                                                                                          reshape_weights,
+                                                                                          no_bias,
+                                                                                          reshape_scale,
+                                                                                          reshape_zero_point,
+                                                                                          ov::element::dynamic,
+                                                                                          true,
+                                                                                          false,
+                                                                                          false);
+        } else {
+            fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input,
+                                                                                          reshape_weights,
+                                                                                          no_bias,
+                                                                                          reshape_scale,
+                                                                                          ov::element::dynamic,
+                                                                                          true,
+                                                                                          false,
+                                                                                          false);
+        }
+        return std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, parameters);
+    }
+};
+
+TEST_P(ConvertFCToCompressedTransposeBeforeReshapeTest, ConvertsOnlySupportedWeightPatterns) {}
+
+static std::vector<TransposeBeforeReshapeParams> getTransposeBeforeReshapeTestParams() {
+    const std::vector<ov::element::Type> weights_types{ov::element::u2,
+                                                       ov::element::u4,
+                                                       ov::element::i4,
+                                                       ov::element::u8,
+                                                       ov::element::i8,
+                                                       ov::element::f8e4m3,
+                                                       ov::element::f8e5m2,
+                                                       ov::element::f4e2m1};
+    const std::vector<size_t> group_sizes{4, 63, 64, 128};
+    std::vector<TransposeBeforeReshapeParams> params;
+    for (const auto& weights_type : weights_types) {
+        for (const auto parameter_weights : {false, true}) {
+            for (const auto group_size : group_sizes) {
+                params.push_back({weights_type,
+                                  parameter_weights,
+                                  group_size,
+                                  TransposeBeforeReshapePattern::ScaleOnly});
+            }
+        }
+    }
+    params.push_back({ov::element::u2, false, 4, TransposeBeforeReshapePattern::ScaleAndZeroPoint});
+    params.push_back({ov::element::u2, false, 2, TransposeBeforeReshapePattern::Rank4ScaleAndZeroPoint});
+    return params;
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    WeightsTypeAndGroupAlignment,
+    ConvertFCToCompressedTransposeBeforeReshapeTest,
+    testing::ValuesIn(getTransposeBeforeReshapeTestParams()),
+    ConvertFCToCompressedTransposeBeforeReshapeTest::getTestCaseName);
 
 }  // namespace intel_gpu
 }  // namespace test
