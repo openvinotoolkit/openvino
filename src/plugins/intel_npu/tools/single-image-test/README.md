@@ -126,18 +126,6 @@ This example's HWC input is PSO0-specific; the output heads must be NCHW.
 - Decoded mAP does not replace raw-tensor NRMSE or change existing validation
   configurations. Run each metric separately when both are needed.
 
-### CPU regression tests
-
-The synthetic tests need a built SIT plus the OpenVINO Python package, NumPy,
-and a CPU plugin. No private model or NPU is required:
-
-```sh
-SIT_BINARY=/path/to/single-image-test python3 test_pixellink.py -v
-```
-
-Set `SIT_TEST_OUTPUT_DIR` to a new directory to retain models, references,
-commands, and logs; otherwise temporary test artifacts are cleaned up.
-
 ## How to run
 
 Running the application with the `-help` option yields the following usage message:
