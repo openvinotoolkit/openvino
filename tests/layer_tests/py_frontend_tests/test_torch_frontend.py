@@ -2581,17 +2581,60 @@ class TestConvertModelDynamo:
         result = compile_model(traced, "CPU", default_cfg)([np.ones((3, 4), dtype=np.float32)])
         np.testing.assert_array_equal(result[0], np.full((3, 4), 2, dtype=np.float32))
 
-    def test_no_example_input_uses_scripting(self):
+    @pytest.mark.parametrize("dynamo_kwargs", [{}, {"dynamo": True}])
+    def test_no_example_input_is_an_error(self, dynamo_kwargs):
+        from openvino import convert_model
+        from openvino.tools.ovc.error import Error
+
+        class Dummy(torch.nn.Module):
+            def forward(self, x):
+                return x * 2
+
+        with pytest.raises(Error, match="example_input is required when dynamo=True"):
+            convert_model(Dummy(), input=(PartialShape([-1, -1]), Type.f32), **dynamo_kwargs)
+
+    def test_no_example_input_uses_scripting_when_selected(self):
         from openvino import convert_model, compile_model
 
         class Dummy(torch.nn.Module):
             def forward(self, x):
                 return x * 2
 
-        with pytest.warns(UserWarning, match="example_input is required for torch.export"):
-            converted = convert_model(Dummy(), input=(PartialShape([-1, -1]), Type.f32))
+        converted = convert_model(Dummy(), input=(PartialShape([-1, -1]), Type.f32), dynamo=False)
         result = compile_model(converted, "CPU", default_cfg)([np.ones((3, 4), dtype=np.float32)])
         np.testing.assert_array_equal(result[0], np.full((3, 4), 2, dtype=np.float32))
+
+    @pytest.mark.parametrize("capture", ["script", "trace"])
+    @pytest.mark.parametrize("dynamo_kwargs", [{}, {"dynamo": True}])
+    def test_scriptmodule_does_not_fall_back_to_torchscript(self, capture, dynamo_kwargs):
+        from openvino import convert_model, compile_model
+
+        example = torch.ones(2, 4)
+        model = torch.nn.ReLU().eval()
+        scripted = torch.jit.script(model) if capture == "script" else torch.jit.trace(model, example)
+        with pytest.raises(ValueError, match="Exporting a ScriptModule is not supported"):
+            convert_model(scripted, example_input=example, **dynamo_kwargs)
+
+        converted = convert_model(scripted, example_input=example, dynamo=False)
+        result = compile_model(converted, "CPU", default_cfg)([example.numpy()])
+        np.testing.assert_array_equal(result[0], example.numpy())
+
+    @pytest.mark.parametrize("dynamo_kwargs", [{}, {"dynamo": True}])
+    def test_scriptfunction_requires_explicit_torchscript(self, dynamo_kwargs):
+        from openvino import convert_model, compile_model
+        from openvino.tools.ovc.error import Error
+
+        def relu(x: torch.Tensor):
+            return torch.relu(x)
+
+        example = torch.ones(2, 4)
+        scripted = torch.jit.script(relu)
+        with pytest.raises(Error, match="torch.export does not support torch.jit.ScriptFunction"):
+            convert_model(scripted, example_input=example, **dynamo_kwargs)
+
+        converted = convert_model(scripted, example_input=example, dynamo=False)
+        result = compile_model(converted, "CPU", default_cfg)([example.numpy()])
+        np.testing.assert_array_equal(result[0], example.numpy())
 
     def test_export_failure_is_not_retried_with_torchscript(self, monkeypatch):
         from openvino import convert_model
@@ -2656,12 +2699,15 @@ class TestConvertModelDynamo:
         assert len(converted.inputs) == 0
         np.testing.assert_array_equal(compile_model(converted, "CPU", default_cfg)()[0], [3.0])
 
-    def test_old_torch_uses_tracing(self, monkeypatch):
+    @pytest.mark.parametrize("dynamo_kwargs", [{}, {"dynamo": True}])
+    def test_old_torch_requires_export_support(self, monkeypatch, dynamo_kwargs):
         from openvino import convert_model
+        from openvino.tools.ovc.error import Error
 
         monkeypatch.setattr(torch.export, "Dim", object())
-        with pytest.warns(UserWarning, match="requires PyTorch >= 2.6"):
-            converted = convert_model(torch.nn.ReLU(), example_input=torch.ones(2, 4))
+        with pytest.raises(Error, match="requires PyTorch >= 2.6"):
+            convert_model(torch.nn.ReLU(), example_input=torch.ones(2, 4), **dynamo_kwargs)
+        converted = convert_model(torch.nn.ReLU(), example_input=torch.ones(2, 4), dynamo=False)
         assert converted.input(0).get_partial_shape() == PartialShape([-1, -1])
 
     @pytest.mark.parametrize("exported_program", [False, True])

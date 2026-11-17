@@ -99,9 +99,10 @@ def convert_model(
         :param dynamo:
             Export a PyTorch torch.nn.Module using torch.export instead of
             torch.jit.trace. Default is True. Export requires example_input and
-            PyTorch >= 2.6; otherwise TorchScript is used with a warning.
-            Set to False to use TorchScript explicitly. Already scripted models
-            and non-PyTorch models are not exported with torch.export.
+            PyTorch >= 2.6. Set to False to use TorchScript explicitly, including
+            for scripted modules and functions, which torch.export does not
+            support. Supplied TorchScript model files and decoders are used directly.
+            Non-PyTorch models are not exported with torch.export.
             The exported model uses static shapes from example_input by default.
             To enable dynamic dimensions, combine with the input parameter:
             dynamic and bounded dimensions use torch.export.Dim constraints.

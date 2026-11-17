@@ -201,15 +201,15 @@ def get_pytorch_decoder(model, example_inputs, args):
                                "supported directly. Please upgrade nncf or "
                                "export to ONNX first.")
     inputs = prepare_torch_inputs(example_inputs)
-    use_dynamo = (args.get("dynamo", False) and isinstance(model, torch.nn.Module)
-                  and not isinstance(model, torch.jit.ScriptModule))
+    dynamo = args.get("dynamo", False)
+    if dynamo and isinstance(model, torch.jit.ScriptFunction):
+        raise Error("torch.export does not support torch.jit.ScriptFunction; pass dynamo=False to use TorchScript.")
+    use_dynamo = dynamo and isinstance(model, torch.nn.Module)
     if use_dynamo and inputs is None:
-        warnings.warn("example_input is required for torch.export; using TorchScript instead.", stacklevel=2)
-        use_dynamo = False
+        raise Error("example_input is required when dynamo=True; pass dynamo=False to use TorchScript.")
     elif use_dynamo and (TorchFXPythonDecoder is None or not hasattr(torch.export, "Dim")
                          or not hasattr(torch.export.Dim, "AUTO")):
-        warnings.warn("torch.export conversion requires PyTorch >= 2.6; using TorchScript instead.", stacklevel=2)
-        use_dynamo = False
+        raise Error("torch.export conversion requires PyTorch >= 2.6; pass dynamo=False to use TorchScript.")
 
     if use_dynamo:
         import inspect
@@ -604,6 +604,5 @@ def prepare_torch_inputs(example_inputs):
         else:
             inputs = to_torch_tensor(inputs)
     else:
-        # No example_input were provided, decoder will use scripting
         return None
     return inputs

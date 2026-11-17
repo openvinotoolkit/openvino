@@ -21,7 +21,7 @@ Here is the simplest example of PyTorch model conversion using a model from ``to
    import openvino as ov
 
    model = torchvision.models.resnet50(weights='DEFAULT')
-   ov_model = ov.convert_model(model)
+   ov_model = ov.convert_model(model, example_input=torch.rand(1, 3, 224, 224))
 
 ``openvino.convert_model`` function supports the following PyTorch model object types:
 
@@ -31,16 +31,15 @@ Here is the simplest example of PyTorch model conversion using a model from ``to
 * ``torch.export.ExportedProgram``
 
 When using ``torch.nn.Module`` as an input model, provide ``example_input`` to export the model
-with ``torch.export`` by default. This requires PyTorch 2.6 or newer. Without an example input,
-or with an older PyTorch version, conversion warns and uses ``torch.jit.script`` or
-``torch.jit.trace`` instead. Already scripted models continue to use TorchScript.
-Set ``dynamo=False`` to explicitly use TorchScript.
+with ``torch.export`` by default. This requires PyTorch 2.6 or newer. Conversion fails rather
+than falling back to TorchScript if these requirements are not met or export fails. Set
+``dynamo=False`` to explicitly use TorchScript, including for scripted modules and functions,
+which ``torch.export`` does not support. Supplied TorchScript model files are converted from
+their existing TorchScript graphs.
 
-The use of ``example_input`` can lead to a better quality OpenVINO model in terms of correctness
-and performance compared to converting the same original model without specifying
-``example_input``. While the necessity of ``example_input`` depends on the implementation
-details of a specific PyTorch model, it is recommended to always set the ``example_input``
-parameter when it is available.
+With ``dynamo=False``, the use of ``example_input`` can lead to a better quality OpenVINO model
+in terms of correctness and performance compared to converting the same original model without
+it. It is recommended to provide ``example_input`` when it is available.
 
 The value for the ``example_input`` parameter can be easily derived from knowing the input
 tensor's element type and shape. While it may not be suitable for all cases, random numbers can
@@ -206,9 +205,9 @@ Using the ``dynamo`` parameter
 ++++++++++++++++++++++++++++++
 
 ``openvino.convert_model`` uses ``torch.export.export`` internally by default when converting
-a ``torch.nn.Module`` with ``example_input`` and PyTorch >= 2.6. Pass ``dynamo=False`` to use
-TorchScript instead. If export fails, conversion reports the error and does not retry with
-TorchScript. Module conversion with ``torch.export`` emits a ``DeprecationWarning`` about
+a ``torch.nn.Module``. It requires ``example_input`` and PyTorch >= 2.6. Pass ``dynamo=False``
+to use TorchScript instead. If export fails, conversion reports the error and does not retry
+with TorchScript. Module conversion with ``torch.export`` emits a ``DeprecationWarning`` about
 the change to the default:
 
 .. code-block:: py
