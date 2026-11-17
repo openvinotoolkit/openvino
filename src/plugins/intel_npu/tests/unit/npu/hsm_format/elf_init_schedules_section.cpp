@@ -49,6 +49,9 @@ TEST_F(ELFInitSchedulesSectionTest, NullSetGraph) {
     OV_EXPECT_THROW(section->set_graph(nullptr), ov::Exception, _);
 }
 
+/**
+ * @brief The starting position should be aligned to 4096.
+ */
 TEST_F(ELFInitSchedulesSectionTest, Alignment) {
     std::shared_ptr<ELFInitSchedulesSection> section = create_section_using_dummy_content();
     const ov::runtime::hsm::SectionAlignment reference({utils::STANDARD_PAGE_SIZE, 1});
@@ -93,29 +96,17 @@ TEST_F(ELFInitSchedulesSectionTest, CtorSetsTheRightValue) {
     ASSERT_EQ(section->get_schedules().at(0).get_byte_size(), 0);
 }
 
+/**
+ * @brief The init schedule section doesn't have individual requirements. I.e. it doesn't have its own compatibility
+ * substring. Therefore, only a section type should be returned as CRE token.
+ */
 TEST_F(ELFInitSchedulesSectionTest, CompatibilityReqsSubexpression) {
-    std::shared_ptr<ELFInitSchedulesSection> section1 = create_section_using_dummy_content();
-    OV_EXPECT_THROW(section1->get_cre_tokens({}), ov::Exception, _);
-
-    BlobSectionsRegistry registry;
-    registry.register_section(section1);
-    std::vector<std::shared_ptr<CREToken>> requirements = section1->get_cre_tokens({});
-    ASSERT_EQ(requirements.size(), 2);
+    const std::vector<std::shared_ptr<CREToken>> requirements =
+        create_section_using_dummy_content()->get_cre_tokens({});
+    ASSERT_EQ(requirements.size(), 1);
     ASSERT_TRUE(is_section_type(requirements.at(0)));
-    ASSERT_TRUE(is_section_id(requirements.at(1)));
     ASSERT_EQ(*std::dynamic_pointer_cast<SectionType>(requirements.at(0)).get(),
               SectionType(SectionTypeCode::ELF_INIT_SCHEDULES));
-    ASSERT_EQ(*std::dynamic_pointer_cast<SectionID>(requirements.at(1)).get(), FIRST_REGISTERED_SECTION_ID);
-
-    std::shared_ptr<ELFInitSchedulesSection> section2 = create_section_using_dummy_content();
-    registry.register_section(section2);
-    requirements = section2->get_cre_tokens({});
-    ASSERT_EQ(requirements.size(), 2);
-    ASSERT_TRUE(is_section_type(requirements.at(0)));
-    ASSERT_TRUE(is_section_id(requirements.at(1)));
-    ASSERT_EQ(*std::dynamic_pointer_cast<SectionType>(requirements.at(0)).get(),
-              SectionType(SectionTypeCode::ELF_INIT_SCHEDULES));
-    ASSERT_EQ(*std::dynamic_pointer_cast<SectionID>(requirements.at(1)).get(), SECOND_REGISTERED_SECTION_ID);
 }
 
 TEST_F(ELFInitSchedulesSectionTest, InvalidStateWrite) {
@@ -260,6 +251,9 @@ TEST_F(ELFInitSchedulesSectionTest, ReadIntegerOverflow) {
     ASSERT_FALSE(read_section);
 }
 
+/**
+ * @brief Empty schedules should be supported by design.
+ */
 TEST_F(ELFInitSchedulesSectionTest, ReadEmptySchedule) {
     std::shared_ptr<ELFInitSchedulesSection> casted_section;
 

@@ -61,6 +61,9 @@ TEST_F(DynamicScheduleSectionTest, CtorSetsTheRightValue) {
     ASSERT_EQ(section->get_schedule().get_byte_size(), 0);
 }
 
+/**
+ * @brief The starting position should be aligned to 4096.
+ */
 TEST_F(DynamicScheduleSectionTest, Alignment) {
     std::shared_ptr<DynamicScheduleSection> section = create_section_using_dummy_content();
     const ov::runtime::hsm::SectionAlignment reference({utils::STANDARD_PAGE_SIZE, 1});
@@ -73,6 +76,10 @@ TEST_F(DynamicScheduleSectionTest, IsInline) {
     ASSERT_FALSE(section->is_inline());
 }
 
+/**
+ * @brief As CRE tokens, the section should return its own type and ID. There's no ID before the sections is added to
+ * the registry, so, in that case, the program should halt.
+ */
 TEST_F(DynamicScheduleSectionTest, CompatibilityReqsSubexpression) {
     std::shared_ptr<DynamicScheduleSection> section1 = create_section_using_dummy_content();
     OV_EXPECT_THROW(section1->get_cre_tokens({}), ov::Exception, _);
@@ -98,10 +105,14 @@ TEST_F(DynamicScheduleSectionTest, CompatibilityReqsSubexpression) {
     ASSERT_EQ(*std::dynamic_pointer_cast<SectionID>(requirements.at(1)).get(), SECOND_REGISTERED_SECTION_ID);
 }
 
+/**
+ * @brief The "encode" function should throw if it holds a tensor. This is an invalid state. "encode" can only be called
+ * when the object holds a "graph".
+ */
 TEST_F(DynamicScheduleSectionTest, InvalidStateWrite) {
     const std::shared_ptr<DynamicScheduleSection> section = create_section_using_dummy_content();
     std::ostringstream stream;
-    // Invalid state. The attribute should have been a graph
+
     OV_EXPECT_THROW(section->encode(create_generic_section_sink(stream)), ov::Exception, _);
 }
 

@@ -71,7 +71,7 @@ TEST_F(SectionsStringConversionsTest, ValidTypeAndNoIDFromString) {
     ASSERT_EQ(section_type_and_id_from_string("BATCH_SIZE"), result);
 }
 
-TEST_F(SectionsStringConversionsTest, EmptryArgument) {
+TEST_F(SectionsStringConversionsTest, EmptyArgument) {
     OV_EXPECT_THROW(section_type_and_id_from_string(""), ov::Exception, _);
 }
 

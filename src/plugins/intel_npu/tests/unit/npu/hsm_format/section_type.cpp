@@ -41,6 +41,10 @@ using namespace intel_npu;
 using testing::_;
 using SectionTypeTest = ::testing::Test;
 
+/**
+ * @brief Changing the type codes will likely lead to compatibility issues. Therefore, this test checks that the values
+ * remain unchanged.
+ */
 TEST_F(SectionTypeTest, SectionTypeCodesRemainedUnchanged) {
     ASSERT_EQ(static_cast<uint32_t>(SectionTypeCode::UNKNOWN), CORE_TAG_ID_RANGE_END);
     ASSERT_EQ(static_cast<uint32_t>(SectionTypeCode::RUNTIME_REQUIREMENTS), CORE_TAG_ID_RANGE_END + 1);
@@ -132,6 +136,10 @@ TEST_F(SectionTypeTest, ValidFromStringLowerCased) {
               SectionType(SectionTypeCode::COMPILER_VERSION));
 }
 
+/**
+ * @brief All types that are not recognized by the current plugin version should map internally to the "unknown" section
+ * type.
+ */
 TEST_F(SectionTypeTest, FromStringOnUnknownTypes) {
     ASSERT_EQ(SectionType::from_string("UNKNOWN"), SectionType(SectionTypeCode::UNKNOWN));
     ASSERT_EQ(SectionType::from_string("random_name"), SectionType(SectionTypeCode::UNKNOWN));

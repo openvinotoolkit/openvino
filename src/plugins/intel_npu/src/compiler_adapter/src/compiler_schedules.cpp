@@ -53,7 +53,7 @@ std::vector<std::shared_ptr<CREToken>> ELFMainScheduleSection::get_cre_tokens(
     const std::unordered_map<SectionID, std::shared_ptr<ISection>>&
     /*all_registered_sections*/) const {
     OPENVINO_ASSERT(get_id().has_value());
-    m_logger.debug("Added the ELF_MAIN_SCHEDULE_<ID> to the CRE");
+    m_logger.debug("Added ELF_MAIN_SCHEDULE_%u to the CRE", get_id().value().get_value());
     return {std::make_shared<SectionType>(get_type()), std::make_shared<SectionID>(get_id().value())};
 }
 
@@ -173,9 +173,8 @@ ELFInitSchedulesSection::ELFInitSchedulesSection(
 std::vector<std::shared_ptr<CREToken>> ELFInitSchedulesSection::get_cre_tokens(
     const std::unordered_map<SectionID, std::shared_ptr<ISection>>&
     /*all_registered_sections*/) const {
-    OPENVINO_ASSERT(get_id().has_value());
     m_logger.debug("Added the ELF_INIT_SCHEDULES section type to the CRE");
-    return {std::make_shared<SectionType>(get_type()), std::make_shared<SectionID>(get_id().value())};
+    return {std::make_shared<SectionType>(get_type())};
 }
 
 void ELFInitSchedulesSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
@@ -343,7 +342,7 @@ std::vector<std::shared_ptr<CREToken>> DynamicScheduleSection::get_cre_tokens(
     const std::unordered_map<SectionID, std::shared_ptr<ISection>>&
     /*all_registered_sections*/) const {
     OPENVINO_ASSERT(get_id().has_value());
-    m_logger.debug("Added the DYNAMIC_SCHEDULE_<ID> to the CRE");
+    m_logger.debug("Added DYNAMIC_SCHEDULE_%u to the CRE", get_id().value().get_value());
     return {std::make_shared<SectionType>(get_type()), std::make_shared<SectionID>(get_id().value())};
 }
 

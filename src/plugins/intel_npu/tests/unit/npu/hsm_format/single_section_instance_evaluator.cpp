@@ -69,6 +69,10 @@ TEST(SingleSectionInstanceEvaluatorTest, Evaluated) {
     ASSERT_TRUE(evaluator.evaluated());
 }
 
+/**
+ * @brief The result of the evaluation should be cached. Therefore, the expectation is that "evaluate" is never called
+ * more than once.
+ */
 TEST(SingleSectionInstanceEvaluatorTest, EvaluatesOnlyOnceWhenRequested) {
     const auto mock = std::make_shared<MockSectionInstanceEvaluator>();
     const auto evaluator = SingleSectionInstanceEvaluator(mock, STRING_THAT_EVALUATES_TO_SUPPORTED);

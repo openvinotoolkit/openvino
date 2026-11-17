@@ -223,6 +223,9 @@ TEST_F(CRETests, AppendInvalidExpression) {
                     _);
 }
 
+/**
+ * @brief The CRE should be able to detect or not the given subexpression already exists within it, to avoid redundancy.
+ */
 TEST_F(CRETests, AppendingAvoidsRedundancy) {
     const std::vector<std::shared_ptr<CREToken>> expression{ELF_MAIN_SCHEDULE_TOKEN,
                                                             ID_1_TOKEN,
@@ -259,6 +262,10 @@ TEST_F(CRETests, AppendingAvoidsRedundancy) {
     ASSERT_EQ(cre.get_expression(), std::vector<std::shared_ptr<CREToken>>{BATCH_SIZE_TOKEN});
 }
 
+/**
+ * @brief Brackets should be added when subexpressions are appended, to ensure the tokens are evaluated in the right
+ * order.
+ */
 TEST_F(CRETests, AppendAndBrackets) {
     CRE cre;
     cre.append_to_expression(std::vector<std::shared_ptr<CREToken>>{BATCH_SIZE_TOKEN});
@@ -624,6 +631,9 @@ TEST_F(CRETests, SectionIdEvaluation) {
     ASSERT_EQ(section_instance_evaluators.at(SectionID(0)).get_result(), ov::CompatibilityCheck::UNSUPPORTED);
 }
 
+/**
+ * @brief Tests the type and instance evaluation results in a fairly complex scenario.
+ */
 TEST_F(CRETests, TypeAndInstanceEvaluationResults) {
     CRE cre({BATCH_SIZE_TOKEN,
              ID_0_TOKEN,
@@ -680,6 +690,10 @@ TEST_F(CRETests, TypeAndInstanceEvaluationResults) {
     ASSERT_FALSE(result.instance_evaluations.count(3));
 }
 
+/**
+ * @brief Whether or not the second operand of the "AND" operator evaluates depends on the first operand. Test this in a
+ * shallow scenario.
+ */
 TEST_F(CRETests, AndShallowEvaluation) {
     CRE cre({RUNTIME_REQUIREMENTS_TOKEN, ID_1_TOKEN, CRE::AND_PTR, BATCH_SIZE_TOKEN, ID_0_TOKEN});
     std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> section_type_evaluators;
@@ -718,6 +732,10 @@ TEST_F(CRETests, AndShallowEvaluation) {
     ASSERT_TRUE(section_instance_evaluators.at(SectionID(1)).evaluated());
 }
 
+/**
+ * @brief Whether or not the second operand of the "OR" operator evaluates depends on the first operand. Test this in a
+ * shallow scenario.
+ */
 TEST_F(CRETests, OrShallowEvaluation) {
     CRE cre({RUNTIME_REQUIREMENTS_TOKEN, ID_1_TOKEN, CRE::OR_PTR, BATCH_SIZE_TOKEN, ID_0_TOKEN});
     std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> section_type_evaluators;
@@ -756,6 +774,10 @@ TEST_F(CRETests, OrShallowEvaluation) {
     ASSERT_TRUE(section_instance_evaluators.at(SectionID(1)).evaluated());
 }
 
+/**
+ * @brief Whether or not the second operand of the "AND" operator evaluates depends on the first operand. Test this in a
+ * scenario that uses brackets for depth.
+ */
 TEST_F(CRETests, AndDeepEvaluation) {
     // RR AND NOT (BS0 AND (EMS1)) AND EIS
     // Only EMS1 should not evaluate
@@ -809,6 +831,10 @@ TEST_F(CRETests, AndDeepEvaluation) {
     ASSERT_FALSE(evaluation_result.instance_evaluations.count(1));
 }
 
+/**
+ * @brief Whether or not the second operand of the "OR" operator evaluates depends on the first operand. Test this in a
+ * scenario that uses brackets for depth.
+ */
 TEST_F(CRETests, OrDeepEvaluation) {
     // RR AND (BS0 OR (EMS1)) AND EIS
     // Only EMS1 should not evaluate
@@ -1002,6 +1028,8 @@ const std::vector<std::shared_ptr<CREToken>> expression_5{ELF_MAIN_SCHEDULE_TOKE
         *ELF*  OR
               /  \
            *BT*  *WS*
+
+    EMS AND (BS OR EIS)
 */
 const std::vector<std::shared_ptr<CREToken>> expression_6{ELF_MAIN_SCHEDULE_TOKEN,
                                                           CRE::AND_PTR,
@@ -1017,6 +1045,8 @@ const std::vector<std::shared_ptr<CREToken>> expression_6{ELF_MAIN_SCHEDULE_TOKE
         *ELF*  AND
               /   \
            *BT*   *WS*
+
+    EMS OR (BS AND EIS)
 */
 const std::vector<std::shared_ptr<CREToken>> expression_7{ELF_MAIN_SCHEDULE_TOKEN,
                                                           CRE::OR_PTR,
@@ -1032,6 +1062,8 @@ const std::vector<std::shared_ptr<CREToken>> expression_7{ELF_MAIN_SCHEDULE_TOKE
            *ELF*     OR      OR
                     /  \    /  \
                  *BT* *WS* *WS* *BT*
+
+    EMS AND (BS OR EIS) AND (EIS OR BS)
 */
 const std::vector<std::shared_ptr<CREToken>> expression_8{ELF_MAIN_SCHEDULE_TOKEN,
                                                           CRE::AND_PTR,
@@ -1057,6 +1089,8 @@ const std::vector<std::shared_ptr<CREToken>> expression_8{ELF_MAIN_SCHEDULE_TOKE
       *ELF* *WS* *BT*     *ELF* *WS*  AND
                                      /   \
                                    *ELF* *BT*
+
+    (EMS AND EIS AND BS) OR (EMS OR EIS OR (EMS AND BS))
 */
 const std::vector<std::shared_ptr<CREToken>> expression_9{CRE::OPEN_PTR,
                                                           ELF_MAIN_SCHEDULE_TOKEN,
@@ -1088,8 +1122,9 @@ const std::vector<std::shared_ptr<CREToken>> expression_9{CRE::OPEN_PTR,
       AND  *WS* *ELF*     *ELF* *WS* *BT*
      /   \
    *BT* *ELF*
+
+   ((BS AND EMS) OR EIS OR EMS) OR (EMS AND EIS AND BS)
 */
-// expression_9 but with reversed leaves
 const std::vector<std::shared_ptr<CREToken>> expression_10{CRE::OPEN_PTR,
                                                            CRE::OPEN_PTR,
                                                            BATCH_SIZE_TOKEN,
@@ -1120,6 +1155,8 @@ const std::vector<std::shared_ptr<CREToken>> expression_10{CRE::OPEN_PTR,
                   AND   *BT*
                  /  \
              *ELF* *WS*
+
+    EMS AND (EIS OR ((EMS AND EIS) OR BS))
 */
 const std::vector<std::shared_ptr<CREToken>> expression_12{ELF_MAIN_SCHEDULE_TOKEN,
                                                            CRE::AND_PTR,
@@ -1174,6 +1211,8 @@ const std::vector<std::shared_ptr<CREToken>> expression_16{CRE::NOT_PTR,
         ~ELF  ~OR
               /  \
            *BT*  ~WS
+
+    NOT EMS AND NOT (BS OR NOT EIS)
 */
 const std::vector<std::shared_ptr<CREToken>> expression_17{CRE::NOT_PTR,
                                                            ELF_MAIN_SCHEDULE_TOKEN,
@@ -1214,6 +1253,8 @@ const std::vector<std::shared_ptr<CREToken>> expression_15{CRE::NOT_PTR,
            *ELF*     OR      OR
                     /  \    /  \
                  ~BT  *WS* *WS* ~BT
+
+    NOT (EMS AND (NOT BS OR EIS) AND (EIS OR NOT BS))
 */
 const std::vector<std::shared_ptr<CREToken>> expression_19{CRE::NOT_PTR,
                                                            CRE::OPEN_PTR,
@@ -1243,6 +1284,8 @@ const std::vector<std::shared_ptr<CREToken>> expression_19{CRE::NOT_PTR,
               OR             OR
             /    \         /    \
          *ELF*  *BT*    *ELF*   *WS*
+
+    NOT (EMS OR BS) OR (EMS OR EIS)
 */
 const std::vector<std::shared_ptr<CREToken>> expression_20{CRE::NOT_PTR,
                                                            CRE::OPEN_PTR,
@@ -1270,6 +1313,8 @@ const std::vector<std::shared_ptr<CREToken>> expression_20{CRE::NOT_PTR,
           ~ELF        OR
                     /    \
                   ~BT    ~WS
+
+    NOT NOT NOT (NOT EMS AND (NOT BS OR NOT EIS))
 */
 const std::vector<std::shared_ptr<CREToken>> expression_21{CRE::NOT_PTR,
                                                            CRE::NOT_PTR,
@@ -1362,10 +1407,10 @@ std::vector<std::vector<std::shared_ptr<CREToken>>> invalid_expressions{
     // Missing only the second operand for the OR operator
     {ELF_MAIN_SCHEDULE_TOKEN, CRE::AND_PTR, CRE::OPEN_PTR, CRE::OR_PTR, ELF_MAIN_SCHEDULE_TOKEN, CRE::CLOSE_PTR},
 
-    // missing closed parenthesis
+    // missing closed bracket
     {ELF_MAIN_SCHEDULE_TOKEN, CRE::AND_PTR, CRE::OPEN_PTR, BATCH_SIZE_TOKEN, CRE::OR_PTR, ELF_INIT_SCHEDULES_TOKEN},
 
-    // missing open parenthesis
+    // missing open bracket
     {ELF_MAIN_SCHEDULE_TOKEN, CRE::AND_PTR, BATCH_SIZE_TOKEN, CRE::OR_PTR, ELF_INIT_SCHEDULES_TOKEN, CRE::CLOSE_PTR},
 
     /*
@@ -1374,8 +1419,8 @@ std::vector<std::vector<std::shared_ptr<CREToken>>> invalid_expressions{
                *ELF*     OR      OR
                          |      /  \
                               *WS* *BT*
+       missing operands for the first OR operator
     */
-    // missing operands for the first OR operator
     {ELF_MAIN_SCHEDULE_TOKEN,
      CRE::AND_PTR,
      CRE::OPEN_PTR,

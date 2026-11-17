@@ -81,6 +81,9 @@ TEST_F(RuntimeRequirementsTest, CtorAndBasicGetters) {
     ASSERT_EQ(runtime_requirements.get_section_id_to_type_mapping(), section_id_to_type);
 }
 
+/**
+ * @brief No evaluators should be accepted for the "unknown" type. This type always evaluates to "unsupported".
+ */
 TEST_F(RuntimeRequirementsTest, UnknownTypeInEvaluators) {
     RuntimeRequirements runtime_requirements({}, CRE(), {});
     const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> type_evaluators{
@@ -92,6 +95,10 @@ TEST_F(RuntimeRequirementsTest, UnknownTypeInEvaluators) {
     OV_EXPECT_THROW(runtime_requirements.check_compatibility({}, instance_evaluators), ov::Exception, _);
 }
 
+/**
+ * @brief The runtime requirements object requires a section type to be provided for all sections that have individual
+ * requirements.
+ */
 TEST_F(RuntimeRequirementsTest, MissingSectionID) {
     RuntimeRequirements runtime_requirements({{SectionID(0), "reqs"}},
                                              CRE(),
@@ -99,6 +106,9 @@ TEST_F(RuntimeRequirementsTest, MissingSectionID) {
     OV_EXPECT_THROW(runtime_requirements.check_compatibility({}, {}), ov::Exception, _);
 }
 
+/**
+ * @brief Checks the evaluation results in multiple scenarios. Evaluators for all types are provided.
+ */
 TEST_F(RuntimeRequirementsTest, EvaluationResultWithEvaluators) {
     const std::unordered_map<SectionID, SectionType> section_id_to_type{
         {SectionID(0), SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE)}};
@@ -145,6 +155,9 @@ TEST_F(RuntimeRequirementsTest, EvaluationResultWithEvaluators) {
     ASSERT_EQ(evaluation_result.instance_evaluations.at(0), ov::CompatibilityCheck::NOT_APPLICABLE);
 }
 
+/**
+ * @brief Checks that missing evalutors leads to "supported" evaluation results.
+ */
 TEST_F(RuntimeRequirementsTest, EvaluationResultWithMissingEvaluators) {
     const std::unordered_map<SectionID, SectionType> section_id_to_type{
         {SectionID(0), SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE)}};
@@ -217,6 +230,9 @@ TEST_F(RuntimeRequirementsTest, MoreComplexEvaluation) {
 
 using RuntimeRequirementsSectionTest = testing::Test;
 
+/**
+ * @brief Tests @ref is_runtime_requirements_format_v2 using valid strings.
+ */
 TEST_F(RuntimeRequirementsSectionTest, IsFormatV2ValidStrings) {
     const auto max_value_string = std::to_string(std::numeric_limits<uint16_t>::max());
     const auto over_max_value_string = std::to_string(std::numeric_limits<uint16_t>::max() + 1);
@@ -243,6 +259,9 @@ TEST_F(RuntimeRequirementsSectionTest, IsFormatV2ValidStrings) {
     ASSERT_FALSE(is_runtime_requirements_format_v2("version=0." + over_max_value_string));
 }
 
+/**
+ * @brief Tests @ref is_runtime_requirements_format_v2 using invalid strings.
+ */
 TEST_F(RuntimeRequirementsSectionTest, IsFormatV2InvalidStrings) {
     // We do not need to enumerate all invalid cases. These generic errors should be caught by parser's unit tests
     OV_EXPECT_THROW(is_runtime_requirements_format_v2("VERSION=2.0"), ov::Exception, _);
@@ -331,6 +350,10 @@ TEST_F(RuntimeRequirementsSectionTest, NormalWrite) {
     ASSERT_EQ(stream.str(), "version=3.0;cre=BATCH_SIZE_0;batch_size_0=CONTENT");
 }
 
+/**
+ * @brief The runtime requirements object requires a section type to be provided for all sections that have individual
+ * requirements.
+ */
 TEST_F(RuntimeRequirementsSectionTest, MissingSectionIdMappingWhileWriting) {
     const std::map<SectionID, std::string> sections_requirements{{SectionID(0), "CONTENT"}};
     RuntimeRequirementsSection section(RuntimeRequirements(sections_requirements, CRE({BATCH_SIZE_PTR, ID_0_PTR}), {}));
@@ -339,6 +362,10 @@ TEST_F(RuntimeRequirementsSectionTest, MissingSectionIdMappingWhileWriting) {
     OV_EXPECT_THROW(section.encode(create_generic_section_sink(stream)), ov::Exception, _);
 }
 
+/**
+ * @brief The "unknown" section type is meant to be used only internally. Attempting to write it into the blob should
+ * lead to failure.
+ */
 TEST_F(RuntimeRequirementsSectionTest, WriteUnknownSectionType) {
     RuntimeRequirementsSection section(
         RuntimeRequirements({}, CRE({std::make_shared<SectionType>(SectionTypeCode::UNKNOWN)}), {}));

@@ -1,6 +1,6 @@
-// // Copyright (C) 2018-2026 Intel Corporation
-// // SPDX-License-Identifier: Apache-2.0
-// //
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
 
 // #include "common_test_utils/test_constants.hpp"
 // #include "elf_schedules.hpp"

@@ -310,6 +310,9 @@ TEST_P(HSMReadWriteTest, RuntimeRequirementsNotPartOfRegistry) {
     ASSERT_TRUE(runtime_requirements->get_section_id_to_type_mapping().empty());
 }
 
+/**
+ * @brief Section instances that evaluate to "unsupported" during CRE evaluation should be skipped during parsing.
+ */
 TEST_P(HSMReadWriteTest, UnsupportedSectionInstanceSkipped) {
     section_readers[SectionTypeCode::IO_LAYOUTS] =
         [](const ov::runtime::hsm::Section&) -> std::optional<std::shared_ptr<ISection>> {
@@ -330,6 +333,10 @@ TEST_P(HSMReadWriteTest, UnsupportedSectionInstanceSkipped) {
     ASSERT_TRUE(runtime_requirements.has_value());
 }
 
+/**
+ * @brief All section instances of a type that evaluate to "unsupported" during CRE evaluation should be skipped during
+ * parsing.
+ */
 TEST_P(HSMReadWriteTest, UnsupportedSectionTypeSkipped) {
     type_evaluators[SectionTypeCode::IO_LAYOUTS] = MOCK_TYPE_EVALUATOR_FALSE;
     section_readers[SectionTypeCode::IO_LAYOUTS] =
@@ -351,6 +358,9 @@ TEST_P(HSMReadWriteTest, UnsupportedSectionTypeSkipped) {
     ASSERT_TRUE(runtime_requirements.has_value());
 }
 
+/**
+ * @brief Can write and read a section that is not inline.
+ */
 TEST_P(HSMReadWriteTest, NonInlineSection) {
     const std::vector<ov::Layout> input_layouts{ov::Layout("NC")};
     const std::vector<ov::Layout> output_layouts{ov::Layout("NCHW")};
@@ -370,6 +380,9 @@ TEST_P(HSMReadWriteTest, NonInlineSection) {
     ASSERT_EQ(casted_section->get_output_layouts(), output_layouts);
 }
 
+/**
+ * @brief If an optional section fail while decoding, then the execution should not be halted.
+ */
 TEST_P(HSMReadWriteTest, OptionalSectionParsingFailure) {
     hsm::write_to(stream, sections_registry);
 

@@ -123,10 +123,6 @@ TEST_P(EncryptedSchedulesFlagSectionTest, WrongTagToDecoder) {
                     testing::_);
 }
 
-/**/**
- * @brief 
- * 
- */
 TEST_P(EncryptedSchedulesFlagSectionTest, NotInline) {
     ov::runtime::hsm::ManifestEntry manifest_entry =
         create_manifest_entry_of_type(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG, false);

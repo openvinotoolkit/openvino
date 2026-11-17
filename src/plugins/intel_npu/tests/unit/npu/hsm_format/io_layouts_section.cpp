@@ -206,6 +206,9 @@ TEST_F(IOLayoutsSectionRead, DidNotReadWholeSection) {
     ASSERT_FALSE(decode_result);
 }
 
+/**
+ * @brief Invalid layout values should not halt the execution of the program.
+ */
 TEST_F(IOLayoutsSectionRead, InvalidLayoutNoThrow) {
     IOLayoutsSection valid_section({ov::Layout("N")}, {});
     std::stringstream stream;
@@ -234,6 +237,9 @@ TEST_F(IOLayoutsSectionRead, InvalidLayoutNoThrow) {
     EXPECT_TRUE(layouts_result->get_output_layouts().empty());
 }
 
+/**
+ * @brief The layout sizes should be bound checked
+ */
 TEST_F(IOLayoutsSectionRead, AlteredLayoutSizeTooBig) {
     IOLayoutsSection real_section({ov::Layout("NCHW")}, {});
     std::stringstream stream;
