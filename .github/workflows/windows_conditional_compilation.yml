@@ -167,8 +167,6 @@ jobs:
             -DSELECTIVE_BUILD=COLLECT `
             -DENABLE_UNITY_BUILD=ON `
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
-            -DCMAKE_JOB_POOLS:STRING=link_jobs=7 `
-            -DCMAKE_JOB_POOL_LINK:STRING=link_jobs `
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
             -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config" `
             -S ${{ env.OPENVINO_REPO }} `
