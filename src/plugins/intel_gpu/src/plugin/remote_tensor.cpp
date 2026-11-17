@@ -366,18 +366,6 @@ void RemoteTensorImpl::allocate() {
     }
 
     auto& engine = context->get_engine();
-
-    // Currently, clDeviceMemAllocINTEL returns memory address allocated to other input blob if the current blob is empty
-    // W/A for this issue:
-    // Allocate with non-empty shape and then reinterprete with original shape
-    auto shape_copy = m_shape;
-    for (auto &i : shape_copy) {
-        if (i == 0)
-            i = 1;
-    }
-
-    m_layout.set_partial_shape(shape_copy);
-
     const bool reset = false;
 
     switch (m_mem_type) {
