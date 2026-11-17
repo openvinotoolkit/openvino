@@ -79,6 +79,41 @@ TEST_F(CompatibilityStringGPU, GenerateAndCheckSupported) {
     ASSERT_EQ(result, ov::CompatibilityCheck::SUPPORTED);
 }
 
+TEST_F(CompatibilityStringGPU, PreviousBlobLayoutRequirementsAreUnsupported) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ov::Core core;
+    ov::CompiledModel compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU));
+
+    auto requirements = compiled_model.get_property(ov::runtime_requirements);
+    const auto schema_version = requirements.find("meta=1.1");
+    ASSERT_NE(schema_version, std::string::npos);
+    const auto blob_version = requirements.find("blob=3");
+    ASSERT_NE(blob_version, std::string::npos);
+    requirements.replace(schema_version, std::string("meta=1.1").size(), "meta=1.0");
+    // Remove the whole "blob=3" token together with a single adjacent delimiter to keep the
+    // descriptor well-formed (avoid ";;" or leading ';' like "desc=[;rt=...]").
+    constexpr const char* blob_token = "blob=3";
+    const auto blob_len = std::strlen(blob_token);
+    auto erase_pos = blob_version;
+    auto erase_len = blob_len;
+    if (erase_pos + erase_len < requirements.size() && requirements[erase_pos + erase_len] == ';') {
+        // Prefer erasing the trailing delimiter: "blob=3;"
+        ++erase_len;
+    } else if (erase_pos > 0 && requirements[erase_pos - 1] == ';') {
+        // Otherwise erase the leading delimiter: ";blob=3"
+        --erase_pos;
+        ++erase_len;
+    }
+    requirements.erase(erase_pos, erase_len);
+
+    ov::CompatibilityCheck result = ov::CompatibilityCheck::NOT_APPLICABLE;
+    OV_ASSERT_NO_THROW(result = core.get_property(ov::test::utils::DEVICE_GPU,
+                                                  ov::compatibility_check,
+                                                  {{ov::runtime_requirements.name(), requirements}}));
+    ASSERT_EQ(result, ov::CompatibilityCheck::UNSUPPORTED);
+}
+
 // A tampered descriptor is reported as UNSUPPORTED.
 TEST_F(CompatibilityStringGPU, TamperedRequirementsUnsupported) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
@@ -185,6 +220,16 @@ TEST_F(CompatibilityStringGPU, ImportRejectsCorruptedDescriptorHeader) {
     {
         std::string corrupted = original;
         corrupted[magic_offset] ^= 0xFF;
+        std::stringstream blob(corrupted);
+        EXPECT_THROW((void)core.import_model(blob, ov::test::utils::DEVICE_GPU), ov::Exception);
+    }
+
+    // A blob using the previous compiled-model layout must be rejected before its graph payload
+    // is parsed. This protects serialized condition primitives after their payload layout changes.
+    {
+        std::string corrupted = original;
+        const uint32_t previous_version = 2;
+        std::memcpy(&corrupted[version_offset], &previous_version, sizeof(previous_version));
         std::stringstream blob(corrupted);
         EXPECT_THROW((void)core.import_model(blob, ov::test::utils::DEVICE_GPU), ov::Exception);
     }
