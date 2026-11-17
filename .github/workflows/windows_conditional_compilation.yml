@@ -369,7 +369,6 @@ jobs:
             -DCMAKE_CXX_FLAGS="/cgthreads${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} /MP${{ env.CMAKE_BUILD_PARALLEL_LEVEL }}" `
             -DCMAKE_C_FLAGS="/cgthreads${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} /MP${{ env.CMAKE_BUILD_PARALLEL_LEVEL }}" `
             -DCMAKE_EXE_LINKER_FLAGS="/CGTHREADS:${{ env.CMAKE_BUILD_PARALLEL_LEVEL }}" `
-            -DCMAKE_SHARED_LINKER_FLAGS="/CGTHREADS:${{ env.CMAKE_BUILD_PARALLEL_LEVEL }}" `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
