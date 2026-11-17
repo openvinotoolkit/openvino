@@ -41,6 +41,7 @@
 #include "primitive_inst_test_helper.h"
 
 #include <memory>
+#include <tuple>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -710,6 +711,145 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic__static_dim_dyn_pad) {
         ASSERT_EQ(ref_output[x], output_ptr[x]);
     }
 }
+
+TEST(prepare_buffer_fusing, rank4_crop_before_ocl_fc_is_materialized) {
+    auto& engine = get_test_engine();
+    const layout input_layout_value{ov::PartialShape{1, 2, 3, 5}, data_types::f32, format::bfyx};
+    auto input = engine.allocate_memory(input_layout_value);
+    std::vector<float> values(30);
+    for (size_t i = 0; i < values.size(); ++i)
+        values[i] = static_cast<float>(i + 1);
+    set_values<float>(input, values);
+    auto weights = engine.allocate_memory({ov::PartialShape{2, 4}, data_types::f32, format::bfyx});
+    const std::vector<float> weight_values{1, 2, 3, 4, -1, 0, 1, 2};
+    set_values<float>(weights, weight_values);
+
+    topology topo;
+    topo.add(input_layout("input", input_layout_value));
+    topo.add(data("weights", weights));
+    // Removing the first x element in each row creates a strided sub-view
+    // if crop is optimized out. FC then flattens the rank-4 input to 2D.
+    topo.add(crop("crop", input_info("input"), tensor{1, 2, 4, 3}, tensor{0, 0, 1, 0}));
+    topo.add(fully_connected("fc", input_info("crop"), "weights", "", 4));
+    topo.add(reorder("output", input_info("fc"), format::bfyx, data_types::f32));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    const ov::intel_gpu::ImplementationDesc ocl_fc{format::bfyx, "", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", ocl_fc}}));
+    network net(engine, topo, config);
+    net.set_input_data("input", input);
+    auto outputs = net.execute();
+    ASSERT_FALSE(net.get_primitive("crop")->can_be_optimized());
+    auto output = outputs.at("output").get_memory();
+    ASSERT_EQ(output->count(), 12);
+    mem_lock<float> actual(output, get_test_stream());
+    for (size_t row = 0; row < 6; ++row) {
+        for (size_t channel = 0; channel < 2; ++channel) {
+            float expected = 0;
+            for (size_t x = 0; x < 4; ++x)
+                expected += values[row * 5 + x + 1] * weight_values[channel * 4 + x];
+            ASSERT_FLOAT_EQ(actual[row * 2 + channel], expected);
+        }
+    }
+}
+
+namespace {
+struct CropFCLayoutCase {
+    const char* name;
+    ov::Shape input;
+    ov::Shape output;
+    ov::Shape offsets;
+    bool optimized;
+};
+class CropFCLayoutGuard : public testing::TestWithParam<std::tuple<CropFCLayoutCase, data_types>> {};
+
+TEST_P(CropFCLayoutGuard, PreservesValuesAndOptimization) {
+    const auto& test = std::get<0>(GetParam());
+    const auto dtype = std::get<1>(GetParam());
+    SCOPED_TRACE(test.name);
+    auto& engine = get_test_engine();
+    const layout input_desc{ov::PartialShape(test.input), dtype, format::bfyx};
+    auto input = engine.allocate_memory(input_desc);
+    std::vector<float> values(ov::shape_size(test.input));
+    for (size_t i = 0; i < values.size(); ++i)
+        values[i] = static_cast<float>(static_cast<int>(i % 17) - 8);
+    auto write_values = [dtype](const memory::ptr& memory, const std::vector<float>& data) {
+        if (dtype == data_types::f32)
+            set_values<float>(memory, data);
+        else
+            set_values<ov::float16>(memory, std::vector<ov::float16>(data.begin(), data.end()));
+    };
+    write_values(input, values);
+    const auto features = test.output.back();
+    auto weights = engine.allocate_memory({ov::PartialShape{2, static_cast<int64_t>(features)}, dtype, format::bfyx});
+    std::vector<float> weight_values(2 * features);
+    for (size_t channel = 0; channel < 2; ++channel)
+        for (size_t x = 0; x < features; ++x)
+            weight_values[channel * features + x] = channel == 0 ? static_cast<float>(x + 1) : static_cast<float>(static_cast<int>(x) - 1);
+    write_values(weights, weight_values);
+    topology topo;
+    topo.add(input_layout("input", input_desc));
+    topo.add(data("weights", weights));
+    topo.add(crop("crop",
+                  input_info("input"),
+                  tensor(format::bfyx, std::vector<tensor::value_type>(test.output.begin(), test.output.end())),
+                  tensor(format::bfyx, std::vector<tensor::value_type>(test.offsets.begin(), test.offsets.end()))));
+    topo.add(fully_connected("fc", input_info("crop"), "weights", "", 4));
+    topo.add(reorder("output", input_info("fc"), format::bfyx, data_types::f32));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    const ov::intel_gpu::ImplementationDesc ocl_fc{format::bfyx, "", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", ocl_fc}}));
+    network net(engine, topo, config);
+    net.set_input_data("input", input);
+    const auto rows = ov::shape_size(test.output) / features;
+    for (size_t repeat = 0; repeat < 2; ++repeat) {
+        auto outputs = net.execute();
+        auto output = outputs.at("output").get_memory();
+        ASSERT_EQ(output->count(), rows * 2);
+        mem_lock<float> actual(output, get_test_stream());
+        for (size_t row = 0; row < rows; ++row) {
+            const auto y = row % test.output[2];
+            const auto f = row / test.output[2] % test.output[1];
+            const auto b = row / (test.output[2] * test.output[1]);
+            const auto start =
+                (((b + test.offsets[0]) * test.input[1] + f + test.offsets[1]) * test.input[2] + y + test.offsets[2]) * test.input[3] + test.offsets[3];
+            for (size_t channel = 0; channel < 2; ++channel) {
+                float expected = 0;
+                for (size_t x = 0; x < features; ++x)
+                    expected += values[start + x] * weight_values[channel * features + x];
+                ASSERT_FLOAT_EQ(actual[row * 2 + channel], expected) << "row=" << row << " repeat=" << repeat;
+            }
+        }
+        ASSERT_EQ(net.get_primitive("crop")->can_be_optimized(), test.optimized && dtype == data_types::f32);
+        for (auto& value : values)
+            value = -value;
+        write_values(input, values);
+    }
+}
+
+const std::vector<CropFCLayoutCase> crop_fc_layout_cases{
+    {"batch_prefix", {3, 2, 3, 5}, {2, 2, 3, 5}, {0, 0, 0, 0}, true},
+    {"batch_prefix_one", {3, 2, 3, 5}, {1, 2, 3, 5}, {0, 0, 0, 0}, true},
+    {"batch_suffix", {3, 2, 3, 5}, {2, 2, 3, 5}, {1, 0, 0, 0}, false},
+    {"feature_prefix", {1, 3, 2, 5}, {1, 2, 2, 5}, {0, 0, 0, 0}, false},
+    {"feature_suffix", {1, 3, 2, 5}, {1, 2, 2, 5}, {0, 1, 0, 0}, false},
+    {"height_prefix", {1, 1, 4, 5}, {1, 1, 3, 5}, {0, 0, 0, 0}, false},
+    {"height_suffix", {1, 1, 4, 5}, {1, 1, 3, 5}, {0, 0, 1, 0}, false},
+    {"width_prefix", {1, 2, 3, 5}, {1, 2, 3, 4}, {0, 0, 0, 0}, false},
+    {"width_suffix", {1, 2, 3, 5}, {1, 2, 3, 4}, {0, 0, 0, 1}, false},
+    {"batch_suffix_unit_inner", {3, 1, 1, 5}, {2, 1, 1, 5}, {1, 0, 0, 0}, true},
+    {"identity", {1, 2, 3, 5}, {1, 2, 3, 5}, {0, 0, 0, 0}, true},
+    {"one_element", {1, 1, 1, 5}, {1, 1, 1, 1}, {0, 0, 0, 3}, true},
+    {"one_feature_prefix", {1, 3, 1, 5}, {1, 1, 1, 5}, {0, 0, 0, 0}, true},
+    {"one_feature_suffix", {1, 3, 1, 5}, {1, 1, 1, 5}, {0, 1, 0, 0}, false},
+};
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         CropFCLayoutGuard,
+                         testing::Combine(testing::ValuesIn(crop_fc_layout_cases), testing::Values(data_types::f32, data_types::f16)));
+}  // namespace
 
 TEST(prepare_buffer_fusing, crop_b_axis) {
     auto& engine = get_test_engine();
