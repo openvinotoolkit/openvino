@@ -589,7 +589,6 @@ def _get_16bit_extensions(patch_condition=None):
                 *args[1].shape, module.embedding_dim, device=args[1].device),
             condition=patch_condition),
     }
-    extensions[torch.nn.Linear]._output_is_fresh = True
     try:
         from transformers.pytorch_utils import Conv1D
         extensions[Conv1D] = ModuleExtension(
@@ -600,7 +599,6 @@ def _get_16bit_extensions(patch_condition=None):
             evaluate=lambda module, *args, **kwargs: _fp32_tensor(
                 *args[0].shape[:-1], module.nf, device=args[0].device),
             condition=patch_condition)
-        extensions[Conv1D]._output_is_fresh = True
     except ImportError:
         pass
     return extensions, supported

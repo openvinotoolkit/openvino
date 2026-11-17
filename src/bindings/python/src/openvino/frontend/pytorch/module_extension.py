@@ -12,6 +12,10 @@ class ModuleExtension:
 
     A module can be identified by its type (e.g., `torch.nn.Linear`), module
     instance in the model, or module name.
+
+    In TorchScript conversion, the replacement operation's outputs are assumed
+    not to alias its inputs. In-place mutations involving aliased outputs may
+    produce incorrect results.
     """
 
     def __init__(self,

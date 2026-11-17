@@ -58,6 +58,12 @@ The following extension types are supported:
 * `ov::BaseOpExtension` - enable support for a custom operation.
 * `ov::detail::SOExtension` - allow support for `ov::BaseOpExtension` extensions loaded from an external library.
 
+### Python module extensions
+
+For TorchScript conversion, `ModuleExtension` replacement operations are assumed
+to return tensors that do not alias their inputs. In-place mutations involving
+aliased outputs may produce incorrect results.
+
 ### Context-manager scopes in exported models
 
 OpenVINO performs inference only. `torch.export` represents `torch.no_grad()`,
