@@ -675,6 +675,75 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_add, ::testing::ValuesIn(s
     fully_connected_test_params{ CASE_FC_FP16_3D_2, 2, 3 },
 }));
 
+// binary_mul + eltwise_linear (negative) can fold -1 into the binary coefficients. A constant shared with other compiled
+// models (weight-sharing context) must not be written, so the post-ops stay as they are and its memory is unchanged.
+// usm_device memory stays attached as is, so a fold would write the memory of the test.
+class fc_fp16_eltwise_prod_negative_shared_constant : public FullyConnectedFusingTestOneDNN {
+public:
+    void run_test(bool is_caching_test, bool is_dynamic) {
+        auto p = GetParam();
+        if (!engine.supports_allocation(allocation_type::usm_device))
+            GTEST_SKIP() << "usm_device is not supported";
+        auto values_mem = get_mem(get_per_channel_layout(p), 1, 9);
+        std::vector<float> eltwise_values;
+        {
+            mem_lock<float, mem_lock_type::read> lock(values_mem, get_test_stream());
+            eltwise_values.assign(lock.begin(), lock.end());
+        }
+        auto eltwise_mem = engine.allocate_memory(get_per_channel_layout(p), allocation_type::usm_device, false);
+        eltwise_mem->copy_from(get_test_stream(), *values_mem);
+        auto eltwise_data = data("eltwise_data", eltwise_mem);
+        eltwise_data.mark_shared_between_programs();
+
+        auto in_layout = get_input_layout(p);
+        if (is_dynamic)
+            in_layout = layout{ov::PartialShape::dynamic(in_layout.get_partial_shape().size()), in_layout.data_type, in_layout.format};
+        create_topologies(
+            input_layout("input", in_layout),
+            data("weights", get_mem(get_weights_layout(p), -1, 1)),
+            data("bias", get_mem(get_bias_layout(p), -2, 2)),
+            eltwise_data,
+            fully_connected("fc_prim", input_info("input"), "weights", "bias", get_output_dim_size(p)),
+            eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::prod),
+            activation("negative", input_info("eltwise"), activation_func::negative),
+            reorder("reorder_bfyx", input_info("negative"), p.default_format, data_types::f32)
+        );
+
+        cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
+        tolerance = 1e-1f;
+        execute(p, is_caching_test, is_dynamic);
+
+        std::vector<float> after(eltwise_values.size());
+        eltwise_mem->copy_to(get_test_stream(), after.data(), 0, 0, after.size() * sizeof(float), true);
+        ASSERT_EQ(after, eltwise_values);
+    }
+};
+
+TEST_P(fc_fp16_eltwise_prod_negative_shared_constant, basic) {
+    run_test(false, false);
+}
+
+TEST_P(fc_fp16_eltwise_prod_negative_shared_constant, basic_cached) {
+    run_test(true, false);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_prod_negative_shared_constant, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP16_1, 2, 4 },
+    fully_connected_test_params{ CASE_FC_FP16_3D_1, 2, 4 },
+}));
+
+// The post-ops of a dynamic node are built at runtime, after the network has attached the constant memory
+class fc_fp16_eltwise_prod_negative_shared_constant_dynamic : public fc_fp16_eltwise_prod_negative_shared_constant {};
+
+TEST_P(fc_fp16_eltwise_prod_negative_shared_constant_dynamic, basic) {
+    run_test(false, true);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_prod_negative_shared_constant_dynamic, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP16_1, 2, 4 },
+    fully_connected_test_params{ CASE_FC_FP16_3, 2, 4 },
+}));
+
 class fc_fp16_eltwise_add_full_tensor : public FullyConnectedFusingTestOneDNN {
 public:
     void run_test(bool is_caching_test = false) {

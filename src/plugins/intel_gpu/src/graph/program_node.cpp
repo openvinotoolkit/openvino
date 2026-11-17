@@ -1325,6 +1325,11 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
         return type == onednn_post_op_type::scale;
     };
 
+    // Folding coefficients writes the constant memory, so it is skipped for memory that other compiled models use
+    auto is_shared_between_programs = [](const program_node& node) -> bool {
+        return node.is_type<data>() && node.as<data>().get_primitive()->is_shared_between_programs();
+    };
+
     auto get_eltwise_type = [](onednn_post_op_type type) {
         switch (type) {
         case onednn_post_op_type::optimized_eltwise_act:
@@ -1520,7 +1525,8 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
 
                 // Eltwise operations can use runtime non-constant data buffers, so check that memory buffers consist of constant data only
                 auto bin_ops_can_be_optimized =
-                    cur_node.is_type<data>() && cur_node.is_constant() && cur_node.get_users().size() == 1 && desc.get_data_type() == dnnl_f32;
+                    cur_node.is_type<data>() && cur_node.is_constant() && cur_node.get_users().size() == 1 && desc.get_data_type() == dnnl_f32 &&
+                    !is_shared_between_programs(cur_node);
 
                 auto bin_add_and_eltw = alpha == 1.0F && type_is_binary_add(cur_type) && bin_ops_can_be_optimized;
                 auto bin_mul_and_eltw = beta == 0.F && type_is_binary_mul(cur_type) && bin_ops_can_be_optimized;
@@ -1565,7 +1571,8 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
 
                 // Eltwise operations can use runtime non-constant data buffers, so check that memory buffers consist of constant data only
                 auto bin_ops_can_be_optimized =
-                    prev_node.is_type<data>() && prev_node.is_constant() && prev_node.get_users().size() == 1 && desc.get_data_type() == dnnl_f32;
+                    prev_node.is_type<data>() && prev_node.is_constant() && prev_node.get_users().size() == 1 && desc.get_data_type() == dnnl_f32 &&
+                    !is_shared_between_programs(prev_node);
 
                 auto eltw_and_bin_add = alpha == 1.0F && type_is_binary_add(prev_type) && bin_ops_can_be_optimized;
                 auto eltw_and_bin_mul = beta == 0.F && type_is_binary_mul(prev_type) && bin_ops_can_be_optimized;
@@ -1607,7 +1614,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
                 p_ops.get_params_eltwise(cur_post_op_idx, alg, alpha, beta);
 
                 // Eltwise can be inserted into the output_scale if cur_beta is equal to 0.f
-                if (beta == 0.F && prev_node.get_output_layout().data_type == data_types::f32) {
+                if (beta == 0.F && prev_node.get_output_layout().data_type == data_types::f32 && !is_shared_between_programs(prev_node)) {
                     memory::ptr prev_scale_mem_ptr = prev_node.as<data>().get_attached_memory_ptr();
                     if (prev_scale_mem_ptr == nullptr) {
                         throw std::runtime_error("OneDNN post-ops optimization error: nonexistent "
