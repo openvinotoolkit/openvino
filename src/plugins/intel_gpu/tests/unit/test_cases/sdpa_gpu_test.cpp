@@ -1923,7 +1923,8 @@ template <typename T>
 static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
                                         kv_quant_granularity granularity,
                                         bool gqa_decomp = false,
-                                        const ov::element::Type& zp_et_in = ov::element::dynamic) {
+                                        const ov::element::Type& zp_et_in = ov::element::dynamic,
+                                        bool use_micro = true) {
     // The compressed KV path has to work for f16 and bf16 Q/K/V as well. bf16 scales/zero-points are
     // stored as raw ushorts, so the SDPA kernels have to decode them instead of using the storage type.
     constexpr bool is_bf16 = std::is_same_v<T, ov::bfloat16>;
@@ -1937,7 +1938,8 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
     rg.set_seed(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
-    if (granularity == kv_quant_granularity::per_channel) {
+    // Without the micro kernel, sdpa_opt applies symmetric per-channel scales in its single-token stage.
+    if (granularity == kv_quant_granularity::per_channel && use_micro) {
         const auto& device_info = engine.get_device_info();
         if (!device_info.supports_immad || device_info.arch < gpu_arch::xe_hpg) {
             GTEST_SKIP() << "Per-channel compressed KV is supported by micro SDPA only";
@@ -2115,6 +2117,7 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
         cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         cfg.set_property(ov::hint::kv_cache_precision(bit_width == 4 ? ov::element::i4 : ov::element::i8));
         cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_opt"}}}));
+        cfg.set_property(ov::intel_gpu::enable_sdpa_micro(use_micro));
 
         auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
         net->set_input_data("q", q_mem);
@@ -2159,6 +2162,14 @@ struct sdpa_gpu_compressed_kv_per_channel_test : public sdpa_gpu_compressed_kv_t
 
 TEST_P(sdpa_gpu_compressed_kv_per_channel_test, compare_with_gpu_dequantized_reference) {
     run_compressed_kv_sdpa_test<ov::float16>(GetParam(), kv_quant_granularity::per_channel);
+}
+
+// Decode with symmetric per-channel KV on the sdpa_opt single-token stage: the key scales are folded into Q, the value
+// scales into the output, and GQA query heads share each K/V load. Multi-partition lengths cover the finalization.
+struct sdpa_gpu_compressed_kv_per_channel_opt_test : public sdpa_gpu_compressed_kv_test_base {};
+
+TEST_P(sdpa_gpu_compressed_kv_per_channel_opt_test, compare_with_gpu_dequantized_reference) {
+    run_compressed_kv_sdpa_test<ov::float16>(GetParam(), kv_quant_granularity::per_channel, false, ov::element::dynamic, /*use_micro=*/false);
 }
 
 struct sdpa_gpu_compressed_kv_per_token_test : public sdpa_gpu_compressed_kv_test_base {};
@@ -2211,6 +2222,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_per_channel,
                                            sdpa_test_params{128, 40, 40, 512, 512, 1, 8, true},
                                            sdpa_test_params{128, 40, 40, 1, 512, 1, 8, true}),
                          sdpa_gpu_compressed_kv_per_channel_test::PrintToStringParamName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_per_channel_opt,
+                         sdpa_gpu_compressed_kv_per_channel_opt_test,
+                         ::testing::Values(sdpa_test_params{128, 40, 10, 1, 512, 1, 8, false},
+                                           sdpa_test_params{128, 40, 10, 1, 4100, 1, 8, false},
+                                           sdpa_test_params{128, 32, 4, 1, 1000, 1, 8, false},
+                                           sdpa_test_params{128, 40, 40, 1, 700, 1, 8, false}),
+                         sdpa_gpu_compressed_kv_per_channel_opt_test::PrintToStringParamName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_per_token,
                          sdpa_gpu_compressed_kv_per_token_test,

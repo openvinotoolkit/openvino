@@ -160,7 +160,12 @@ public:
             return execute_stage(events, instance, is_indirect ? indirect_multi_tokens : regular_multi_tokens);
         }
 #ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
-        if (has_stage(regular_micro_single_token) && !is_indirect) {
+        // The micro single-token kernel runs one work-group per query head and re-reads K/V for every head of a GQA group;
+        // the GQA single-token sdpa_opt kernel reads them once per group. It applies per-channel KV scales only when symmetric.
+        const auto [key_per_channel, value_per_channel] = get_single_token_per_channel_kv_scales(new_params);
+        const bool opt_supports_kv = !is_per_channel_kv || key_per_channel || value_per_channel;
+        const bool use_gqa_single_token = get_gqa_single_token_rows(new_params, is_indirect) > 1 && opt_supports_kv;
+        if (has_stage(regular_micro_single_token) && !is_indirect && !use_gqa_single_token) {
             return execute_stage(events, instance, regular_micro_single_token);
         }
 #endif
@@ -307,6 +312,14 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
 #else
     return false;
 #endif
+}
+
+bool SDPAOpt::supports_single_token_per_channel_kv(const kernel_impl_params& params) {
+    if (params.is_dynamic() || is_prefill_stage(params)) {
+        return false;
+    }
+    const auto [key_per_channel, value_per_channel] = get_single_token_per_channel_kv_scales(params);
+    return key_per_channel || value_per_channel;
 }
 
 std::unique_ptr<primitive_impl> SDPAOpt::create_impl(const program_node& node, const RuntimeParams& params) const {
