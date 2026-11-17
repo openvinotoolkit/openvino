@@ -2032,13 +2032,18 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const bool asymmetric_dyn_quant = config.get_asym_dynamic_quantization();
             auto dynamic_quantization_group_size = config.get_dynamic_quantization_group_size();
             auto dynamic_quantization_group_size_max = config.get_dynamic_quantization_group_size_max();
-            const bool precomputed_reduction = config.get_dynamic_quantization_precomputed_reduction() != 0u;
+            const bool precomputed_reduction = config.get_dynamic_quantization_precomputed_reduction();
+            const auto execution_mode = config.get_execution_mode();
 
             // WA: hybrid linear-attention (Mamba2 / Gated DeltaNet) models are unstable
             // under per-token INT8 dyn-quant on `linear_attn.out_proj`. Force gs=128 for
             // the whole model if a linear-attention block is detected.
             const bool use_gs128_for_linear_attention = is_hybrid_linear_attention_model(*func);
-            const bool use_gs128_for_int8_per_token = m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe2;
+            const bool group_dyn_quan_allowed = m_context->get_engine().get_device_info().supports_non_uniform_work_group;
+            // WA: when platform does not support non-uniform-work-group, it may fail to run dynamic quantization for gs128.
+            // This is unlikely to happen. But this WA is added just in case.
+            const bool use_gs128_for_int8_per_token = m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe2
+                                                    && group_dyn_quan_allowed;
 
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
                 const int64_t dyn_quan_bisect = GPU_DEBUG_VALUE_OR(config.get_dynamic_quantization_bisect(), 0);    // 0 will be ignored from GPU_DEBUG_IF
@@ -2135,7 +2140,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                                                     asymmetric_dyn_quant,
                                                                                     precomputed_reduction,
                                                                                     use_gs128_for_int8_per_token,
-                                                                                    use_gs128_for_linear_attention);
+                                                                                    use_gs128_for_linear_attention,
+                                                                                    execution_mode);
                 // Deduplicate identical DynamicQuantize nodes sharing same input
                 manager.register_pass<ov::pass::SharedOpOptimization>();
             }
