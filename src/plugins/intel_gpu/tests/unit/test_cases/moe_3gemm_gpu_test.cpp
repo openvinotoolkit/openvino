@@ -2177,6 +2177,7 @@ struct Moe3GemmU3TestParams {
     uint64_t dq_group_size = UINT64_MAX;
     uint64_t dq_group_size_max = UINT64_MAX;
     size_t dq_threshold = 0;  // GPU_MOE_DYNAMIC_QUANTIZATION_THRESHOLD, 0: quantize at every token count
+    bool gpu_mask_gen_prefill = false;
 };
 
 class moe_3gemm_compressed_gpu_u3 : public ::testing::TestWithParam<Moe3GemmU3TestParams> {};
@@ -2315,6 +2316,7 @@ TEST_P(moe_3gemm_compressed_gpu_u3, moe_accuracy_test_u3) {
     net_config.set_user_property(ov::hint::dynamic_quantization_group_size(param.dq_group_size));
     net_config.set_user_property(ov::intel_gpu::hint::dynamic_quantization_group_size_max(param.dq_group_size_max));
     net_config.set_property(ov::intel_gpu::moe_dynamic_quantization_threshold(param.dq_threshold));
+    net_config.set_property(ov::intel_gpu::moe_use_gpu_mask_gen_prefill(param.gpu_mask_gen_prefill));
     auto network = get_network(engine, topology, net_config, get_test_stream_ptr(), param.is_caching_test);
     network->set_input_data("hidden_states", hidden_states_mem);
     network->set_input_data("routing_weights", routing_weights_mem);
@@ -2336,6 +2338,9 @@ TEST_P(moe_3gemm_compressed_gpu_u3, moe_accuracy_test_u3) {
     for (const char* kernel_name : {"moe_3gemm_dyn_quan_quantize_gate_up", "moe_3gemm_dyn_quan_quantize_down", "moe_gather_ref_prefill_gather_i8", "moe_3gemm_int3_gemm_gate"}) {
         ASSERT_EQ(executed_kernels.find(kernel_name) != std::string::npos, int8_gemm) << kernel_name << ", executed kernels: " << executed_kernels;
     }
+    // Single-token decode on the grouped GEMM path builds the routing masks, and the row tiles of the int8 GEMMs, on the GPU
+    const bool gpu_mask_gen = !expect_gemv && (param.seq_len == 1 || param.gpu_mask_gen_prefill);
+    ASSERT_EQ(executed_kernels.find("moe_mask_gen_grouped_mask_gen") != std::string::npos, gpu_mask_gen) << "executed kernels: " << executed_kernels;
 
     auto ref_output = ref.run_reference_softmax(hidden_states, routing_weights, w_qdq[0], w_qdq[1], w_qdq[2], s_qdq[0], s_qdq[1], s_qdq[2], s_gate_scalar);
     cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
@@ -2386,6 +2391,9 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                              Moe3GemmU3TestParams{40, 512, 512, 4, 2, 128, 32, true, false, false, UINT64_MAX, UINT64_MAX, 40},
                              Moe3GemmU3TestParams{1, 576, 512, 8, 2, 64, 32, true, false, false, UINT64_MAX, UINT64_MAX, 1},
                              Moe3GemmU3TestParams{40, 512, 512, 4, 2, 128, 32, true, false, false, UINT64_MAX, UINT64_MAX, 39},
+                             // prefill with the routing masks and the row tiles built on the GPU: several tiles per expert
+                             // and a padded tile list
+                             Moe3GemmU3TestParams{200, 512, 1024, 4, 2, 128, 32, true, false, false, UINT64_MAX, UINT64_MAX, 0, true},
                              // no zero point (OneDNN prefill)
                              Moe3GemmU3TestParams{1, 512, 512, 8, 2, 128, 32, false},
                              Moe3GemmU3TestParams{8, 512, 512, 8, 2, 64, 32, false},

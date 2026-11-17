@@ -24,10 +24,10 @@
 // LSB-first bit stream of K values, so a run of 32 values (a granule) is exactly
 // 3 uints and is the DPAS b operand of one K step once unpacked.
 //
-// The second grid dimension walks a host-built list of {expert, first row}
-// tiles of SG_M * TILE_M rows. The SG_M subgroups of a work-group share one
-// decoded weight tile through SLM and each multiply it with TILE_M rows through
-// DPAS.
+// The second grid dimension walks a list of {expert, first row} tiles of
+// SG_M * TILE_M rows, built by the host or the GPU mask gen. The SG_M subgroups
+// of a work-group share one decoded weight tile through SLM and each multiply it
+// with TILE_M rows through DPAS.
 
 #pragma OPENCL EXTENSION cl_intel_subgroups : enable
 #pragma OPENCL EXTENSION cl_intel_subgroups_short : enable
@@ -84,8 +84,9 @@ KERNEL(moe_int3_gemm)(
     const uint lane = get_sub_group_local_id();
     const uint sg   = (uint)get_local_id(1);
 
-    // A work-group takes one {expert, first row} entry of the host's tile list, so
-    // only row tiles that hold rows are launched. A subgroup computes TILE_M (16) rows x
+    // A work-group takes one {expert, first row} entry of the tile list, so only
+    // row tiles that hold rows are launched, apart from the padding of the GPU
+    // mask gen's list, which exits at once. A subgroup computes TILE_M (16) rows x
     // NB 16-column blocks, so each activation load feeds NB DPAS. The activations
     // of a quantization group arrive through 2D block reads anchored at the
     // expert's first row: their layout is exactly the DPAS a operand, and rows past
@@ -107,6 +108,9 @@ KERNEL(moe_int3_gemm)(
     const uint expert = (uint)tile.x;
     const int row_begin = expert == 0 ? 0 : offsets[expert - 1];
     const int rows = offsets[expert] - row_begin;
+    if (tile.y >= rows) {
+        return;
+    }
     const uint m0 = (uint)tile.y + sg * TILE_M;
     const uint n0 = (uint)get_group_id(0) * NB * SIMD;
     const bool has_rows = (int)m0 < rows;

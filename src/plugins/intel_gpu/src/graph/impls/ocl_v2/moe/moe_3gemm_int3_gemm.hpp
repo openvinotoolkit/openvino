@@ -19,7 +19,7 @@ public:
     using Projection = MoE3GemmDynQuan::Projection;
 
     static constexpr size_t SIMD = 16;
-    // Rows per entry of the host-built tile list
+    // Rows per entry of the tile list, built by the host or the GPU mask gen
     static constexpr size_t TILE_ROWS = 64;
     // Work-groups: TILE_SG_M subgroups of TILE_ROWS / TILE_SG_M rows x TILE_NB 16-column blocks. N is a
     // multiple of 64 and a quantization group of 64 or more values, so they fit every supported shape.

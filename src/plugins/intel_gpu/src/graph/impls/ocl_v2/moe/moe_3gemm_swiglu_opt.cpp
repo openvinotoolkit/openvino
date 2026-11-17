@@ -127,12 +127,15 @@ class MoE3GemmSwigluPrefillMaskGen : public KernelGenerator {
 public:
     // use_grouped_gemm: experts_info_start_idx holds cumulative end-offsets for all experts (OneDNN grouped
     // memory descriptor), and an extra row_lut output (inverse of tokens_per_expert) is written.
-    explicit MoE3GemmSwigluPrefillMaskGen(bool use_grouped_gemm = false)
-        : KernelGenerator("moe_mask_gen", use_grouped_gemm ? "grouped_mask_gen" : "prefill_mask_gen"),
-          m_use_grouped_gemm(use_grouped_gemm) {}
+    // int3_tiles (with use_grouped_gemm): also writes the row tiles of the u3 expert GEMMs (MoE3GemmInt3Gemm).
+    explicit MoE3GemmSwigluPrefillMaskGen(bool use_grouped_gemm = false, bool int3_tiles = false)
+        : KernelGenerator("moe_mask_gen", int3_tiles ? "grouped_mask_gen_int3" : (use_grouped_gemm ? "grouped_mask_gen" : "prefill_mask_gen")),
+          m_use_grouped_gemm(use_grouped_gemm),
+          m_int3_tiles(int3_tiles) {}
 
 protected:
     bool m_use_grouped_gemm;
+    bool m_int3_tiles;
 
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
@@ -150,6 +153,10 @@ protected:
             jit.make("ONEDNN_GROUPED_GEMM_USED", 1);
             jit.make("ROW_LUT_ENABLE", 1);
             jit.make("OUTPUT5_TYPE", "int");  // row_lut
+        }
+        if (m_int3_tiles) {
+            jit.make("INT3_TILES_ENABLE", 1);
+            jit.make("TILE_ROWS", MoE3GemmInt3Gemm::TILE_ROWS);
         }
 
         const auto& config = desc->_config;
@@ -730,6 +737,8 @@ public:
     // The CPU mask gen would cost a host sync on topk in every MoE layer (~1 ms/token on Qwen3.6-35B-A3B int3). For one token
     // the max rows per expert (the grouped GEMM dispatch hint) is known to be 1, so the masks can be built on the GPU instead.
     Stage::Ptr grouped_gemm_mask_gen = make_stage<MoE3GemmSwigluPrefillMaskGen>(/*use_grouped_gemm=*/true);
+    // The same with the row tiles of the u3 expert GEMMs
+    Stage::Ptr int3_grouped_gemm_mask_gen = make_stage<MoE3GemmSwigluPrefillMaskGen>(/*use_grouped_gemm=*/true, /*int3_tiles=*/true);
     // u3 decode on the moe_3gemm_int3 batched GEMV
     Stage::Ptr int3_gemv_gate_up = make_stage<MoE3GemmInt3Gemv>(MoE3GemmInt3Gemv::Projection::GATE_UP);
     Stage::Ptr int3_gemv_down = make_stage<MoE3GemmInt3Gemv>(MoE3GemmInt3Gemv::Projection::DOWN);
@@ -1173,8 +1182,7 @@ public:
             // GPU mask gen avoids the host sync on topk, but the host never sees the real max rows per expert, which the
             // grouped GEMM needs as a dispatch hint, so token_num is used instead. That is exact for one token
             // but oversizes the dispatch for more (25-token prefill: 452 vs 290 ms on Qwen3.6-35B-A3B int3).
-            // The row tiles of the u3 GEMMs are built by the host mask gen.
-            return impl != MoeGemmImpl::int3_grouped_gemm && (force_gpu_mask_gen_prefill || token_num == 1);
+            return force_gpu_mask_gen_prefill || token_num == 1;
         default:
             return false;
         }
@@ -1340,7 +1348,7 @@ public:
             }
         }
         if (needs_grouped_gpu_mask_gen()) {
-            add_stage(grouped_gemm_mask_gen, params);
+            add_stage(uses_int3_gemm() ? int3_grouped_gemm_mask_gen : grouped_gemm_mask_gen, params);
         }
     }
 
@@ -3096,13 +3104,13 @@ public:
         auto gemm_input = intermediates_memories[MOE_INTERNAL_BUFFER_GATE_UP_INPUT];
         auto gemm_input_scales = intermediates_memories[MOE_INTERNAL_BUFFER_DQ_GEMM_INPUT_SCALES];
         auto offsets = intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS];
+        auto tiles = intermediates_memories[MOE_INTERNAL_BUFFER_INT3_TILES];
         const auto& wei = scratch.moe_fusion_wei_addr;
 
         // w: weight index (gate, up, down). The gate GEMM reads the up output for its act(gate) * up epilogue.
         const auto gemm = [&](int w, memory::ptr output) {
             const auto n = static_cast<size_t>(w == 2 ? _hidden_size : _intermediate_size);
-            std::vector<memory::ptr>
-                inputs{gemm_input, gemm_input_scales, wei.weight[w], wei.scale[w], wei.zp[w], offsets, intermediates_memories[MOE_INTERNAL_BUFFER_INT3_TILES]};
+            std::vector<memory::ptr> inputs{gemm_input, gemm_input_scales, wei.weight[w], wei.scale[w], wei.zp[w], offsets, tiles};
             if (w == 0) {
                 inputs.push_back(scratch.up);
             }
@@ -3132,7 +3140,7 @@ public:
 
     // Steps 2-6 of the grouped GEMM path. Expects the gather token list, the grouped end-offsets and row_lut
     // in the internal buffers, written by the CPU (exec_grouped_gemm_cpu_mask_gen) or GPU (exec_grouped_gemm_gpu_mask_gen) mask gen.
-    // The tiles of the u3 GEMMs come from the CPU mask gen only (int3_tile_count of them).
+    // The int3_tile_count tiles of the u3 GEMMs are in MOE_INTERNAL_BUFFER_INT3_TILES too.
     cldnn::event::ptr exec_grouped_gemm_core(cldnn::event::ptr ret_event,
                                              cldnn::stream& stream,
                                              typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
@@ -3306,8 +3314,8 @@ public:
     }
 
     // Grouped GEMM with GPU mask gen, used for single-token decode. The GPU mask gen writes the gather token list,
-    // the grouped end-offsets and row_lut straight into the internal buffers, so unlike the host mask gen of
-    // exec_grouped_gemm_cpu_mask_gen there is no host round-trip.
+    // the grouped end-offsets, row_lut and, for the u3 GEMMs, the row tiles straight into the internal buffers, so
+    // unlike the host mask gen of exec_grouped_gemm_cpu_mask_gen there is no host round-trip.
     cldnn::event::ptr exec_grouped_gemm_gpu_mask_gen(const std::vector<cldnn::event::ptr>& events,
                                                      cldnn::stream& stream,
                                                      typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
@@ -3327,22 +3335,28 @@ public:
                         num_total_experts,
                         " exceeds max work-group size ",
                         max_wgs);
+        std::vector<memory::ptr> outputs{intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT],
+                                         intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS],
+                                         intermediates_memories[MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS],
+                                         intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT],
+                                         intermediates_memories[MOE_INTERNAL_BUFFER_ACTUAL_USED_EXPERT_NUM],
+                                         intermediates_memories[MOE_INTERNAL_BUFFER_ROW_LUT]};
+        if (uses_int3_gemm()) {
+            outputs.push_back(intermediates_memories[MOE_INTERNAL_BUFFER_INT3_TILES]);
+        }
         auto ret_event = execute_stage(events,
                                        instance,
-                                       *grouped_gemm_mask_gen,
+                                       uses_int3_gemm() ? *int3_grouped_gemm_mask_gen : *grouped_gemm_mask_gen,
                                        {scratch.topk_id},
-                                       {intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT],
-                                        intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS],
-                                        intermediates_memories[MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS],
-                                        intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT],
-                                        intermediates_memories[MOE_INTERNAL_BUFFER_ACTUAL_USED_EXPERT_NUM],
-                                        intermediates_memories[MOE_INTERNAL_BUFFER_ROW_LUT]},
+                                       outputs,
                                        {num_total_experts, 1, 1},
                                        {num_total_experts, 1, 1},
                                        false,
                                        {static_cast<int>(token_num)});
-        OPENVINO_ASSERT(impl != MoeGemmImpl::int3_grouped_gemm, "The u3 expert GEMMs need the row tiles of the host mask gen");
-        return exec_grouped_gemm_core(ret_event, stream, instance, scratch, impl, static_cast<int>(token_num));
+        // The tile list is padded to its upper bound, which is exact for one token: one tile per selected expert
+        const size_t int3_tile_count =
+            impl == MoeGemmImpl::int3_grouped_gemm ? MoE3GemmInt3Gemm::get_max_tiles(num_total_experts, token_num * static_cast<size_t>(config.top_k)) : 0;
+        return exec_grouped_gemm_core(ret_event, stream, instance, scratch, impl, static_cast<int>(token_num), int3_tile_count);
     }
 
     cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& ins) override {
