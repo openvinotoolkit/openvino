@@ -328,8 +328,19 @@ gpu_usm::gpu_usm(ze_engine* engine, const layout& new_layout, ze_usm_resource bu
                     "[GPU] Allocation is smaller than the size required by the layout");
 }
 
+// Same as the constructor above, with the allocation type detected from the buffer.
+// Intentionally not delegating to it: in gpu_usm(..., std::move(buffer), detect_allocation_type(engine, buffer), ...)
+// the order of parameter initialization is unspecified, so buffer may be moved from before it is inspected.
+// Bases are always initialized before members, so here detection is guaranteed to happen before the move.
 gpu_usm::gpu_usm(ze_engine* engine, const layout& new_layout, ze_usm_resource buffer, std::shared_ptr<MemoryTracker> mem_tracker)
-    : gpu_usm(engine, new_layout, std::move(buffer), detect_allocation_type(engine, buffer), mem_tracker) {}
+    : lockable_gpu_mem(engine, new_layout, detect_allocation_type(engine, buffer), mem_tracker)
+    , _buffer(std::move(buffer)) {
+    auto ctx_handle = engine->get_context().handle();
+    auto ptr = _buffer.handle().ptr;
+    auto expected_size = new_layout.bytes_count();
+    OPENVINO_ASSERT(check_allocation_range(ctx_handle, ptr, expected_size),
+                    "[GPU] Allocation is smaller than the size required by the layout");
+}
 
 gpu_usm::gpu_usm(ze_engine* engine, const layout& layout, allocation_type type)
     : lockable_gpu_mem(engine, layout, type, nullptr) {
@@ -361,7 +372,10 @@ void* gpu_usm::lock_impl(const stream& stream, mem_lock_type type) {
     if (0 == _lock_count) {
         auto& _ze_stream = downcast<const ze_stream>(stream);
         auto alloc_type = get_allocation_type();
-        if (alloc_type == allocation_type::usm_device || alloc_type == allocation_type::cl_mem) {
+        const bool is_device_mem = alloc_type == allocation_type::usm_device || alloc_type == allocation_type::cl_mem;
+        if (is_device_mem && _bytes_count == 0) {
+            _mapped_ptr = nullptr;
+        } else if (is_device_mem) {
             GPU_DEBUG_LOG << "Copy usm_device buffer to host buffer." << std::endl;
             auto *zero_engine = downcast<ze_engine>(_engine);
             _host_buffer = allocate_usm_host(zero_engine->get_context(), _bytes_count);
@@ -418,6 +432,18 @@ void* gpu_usm::buffer_ptr() const {
 }
 
 event::ptr gpu_usm::fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events, bool blocking) {
+    if (_bytes_count == 0) {
+        if (dep_events.empty()) {
+            return create_event(stream, _bytes_count);
+        }
+        // Nothing to fill, but the returned event must still complete after dep_events like a real fill
+        auto ev = stream.enqueue_marker(dep_events);
+        if (blocking) {
+            ev->wait();
+        }
+        return ev;
+    }
+
     auto& _ze_stream = downcast<ze_stream>(stream);
     auto ev = _ze_stream.create_base_event();
     auto ev_ze = downcast<ze::ze_base_event>(ev.get())->get_handle();

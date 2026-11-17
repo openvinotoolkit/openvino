@@ -41,6 +41,7 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/permute_slice_n_interpolation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/readvalue_subgraph.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/state_concat_sdpa.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/state_concat_sdpa_gqa.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/swap_convert_transpose.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/adaptive_avg_pool_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/adaptive_max_pool_shape_inference_test.cpp
@@ -188,6 +189,7 @@ set(CPU_UNIT_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/softmax_kernel_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/xattention_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/nodes/eltwise_node_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/graph/x64/enforce_inference_precision_sparse_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/nodes/kernels/x64/selective_ssm_jit_kernel_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/x64/brgemm_supported_precisions.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/x64/fake_quantize_tokenization_test.cpp
@@ -214,9 +216,11 @@ set(CPU_UNIT_TESTS_ARM_SRCS
 )
 
 set(CPU_UNIT_TESTS_AARCH64_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/softmax_kernel_fp16_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/aarch64/snipptes_mark_skipped.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/aarch64/lowered/adjust_gemm_copy_b_loop_ports.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/aarch64/lowered/gemm_blocking.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/scaled_attn_mha_single_token_gqa_test.cpp
 )
 
 set(CPU_UNIT_TESTS_MLAS_SRCS
@@ -279,6 +283,7 @@ if(ENABLE_UNITY_BUILD)
         ${CMAKE_CURRENT_LIST_DIR}/transformations/permute_slice_n_interpolation.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/readvalue_subgraph.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/state_concat_sdpa.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/transformations/state_concat_sdpa_gqa.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/swap_convert_transpose.cpp)
     group_source_files(unit_src_custom_shape_infer
         ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/custom_shape_infer/adaptive_avg_pool.cpp

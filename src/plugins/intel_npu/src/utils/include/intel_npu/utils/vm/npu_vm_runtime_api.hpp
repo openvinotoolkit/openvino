@@ -16,28 +16,23 @@
 namespace intel_npu {
 
 // clang-format off
-#define nvm_symbols_list()                                          \
-    nvm_symbol_statement(npuVMRuntimeGetAPIVersion)                 \
-    nvm_symbol_statement(npuVMRuntimeCreate)                        \
-    nvm_symbol_statement(npuVMRuntimeDestroy)                       \
-    nvm_symbol_statement(npuVMRuntimeGetMetadata)                   \
-    nvm_symbol_statement(npuVMRuntimeExecute)                       \
-    nvm_symbol_statement(npuVMRuntimePredictOutputShape)            \
-    nvm_symbol_statement(npuVMRuntimeCreateMemRef)                  \
-    nvm_symbol_statement(npuVMRuntimeDestroyMemRef)                 \
-    nvm_symbol_statement(npuVMRuntimeSetMemRef)                     \
-    nvm_symbol_statement(npuVMRuntimeParseMemRef)                   \
-    nvm_symbol_statement(npuVMRuntimeCreateExecutionContext)        \
-    nvm_symbol_statement(npuVMRuntimeDestroyExecutionContext)       \
-    nvm_symbol_statement(npuVMRuntimeUpdateMutableCommandList)
-
-// symbols that may not be supported in older versions
-#define nvm_weak_symbols_list()                               \
+#define nvm_symbols_list()                                     \
+    nvm_symbol_statement(npuVMRuntimeGetAPIVersion)            \
+    nvm_symbol_statement(npuVMRuntimeDestroy)                  \
+    nvm_symbol_statement(npuVMRuntimeGetMetadata)              \
+    nvm_symbol_statement(npuVMRuntimeCreateMemRef)             \
+    nvm_symbol_statement(npuVMRuntimeDestroyMemRef)            \
+    nvm_symbol_statement(npuVMRuntimeSetMemRef)                \
+    nvm_symbol_statement(npuVMRuntimeParseMemRef)              \
+    nvm_symbol_statement(npuVMRuntimeDestroyExecutionContext)  \
+    nvm_symbol_statement(npuVMRuntimeCreate2)                  \
+    nvm_symbol_statement(npuVMRuntimeCreateExecutionContext2)  \
     nvm_symbol_statement(npuVMRuntimePredictOutputShape2)     \
-    nvm_symbol_statement(npuVMRuntimeCreate2)                 \
-    nvm_symbol_statement(npuVMRuntimeCreateExecutionContext2) \
-    nvm_symbol_statement(npuVMRuntimeExecute2)                \
+    nvm_symbol_statement(npuVMRuntimeExecute2)                 \
     nvm_symbol_statement(npuVMRuntimeHostSync)
+
+#define nvm_weak_symbols_list() \
+    /* 2.0 API is required; no legacy weak fallback is kept */
 
 // clang-format on
 
