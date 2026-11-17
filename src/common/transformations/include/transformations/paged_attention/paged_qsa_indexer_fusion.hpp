@@ -37,7 +37,11 @@ namespace ov::pass {
  *
  * Query normalization/rotation flags are preserved. FuseQSAIndexerQuery must absorb any remaining query
  * preprocessing and enable both flags before the paged indexer is executed.
- * The query and raw keys must have static head counts and f32, f16 or bf16 data.
+ * The query and raw keys must have static head counts to construct the flattened inputs and cache shapes.
+ * The pattern requires nonzero flattened widths that fit in int64_t and a nonzero rotary dimension.
+ * The conversion relies on the QSAIndexer input [B, L] contract; after flattening, PagedQSAIndexer can validate only
+ * the token count.
+ * Supported data types are checked by the target plugin.
  */
 class TRANSFORMATIONS_API PagedQSAIndexerFusion : public MatcherPass {
 public:

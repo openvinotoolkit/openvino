@@ -81,8 +81,8 @@ public:
  * The PagedQSAIndexer specialization requires the layout adapters produced by PagedQSAIndexerFusion:
  * query [B, L, H, D] -> [B * L, H * D] and cos/sin [B, L, rotary_dim] -> [B * L, rotary_dim].
  * It relies on that contract rather than revalidating the layouts. The patterns use optional rank-2
- * Reshape adapters, which the dense path bypasses. The query Reshape must feed only the indexer; it is rewired
- * to the unprocessed query.
+ * Reshape adapters, which the dense path bypasses. A new query Reshape preserves the layout target and attributes
+ * while consuming the unprocessed query; other consumers of the original Reshape remain unchanged.
  * The paged single-token form may use a Reshape instead of the input Transpose, with no output Transpose before
  * the flattening Reshape. The input Reshape is not checked and must preserve the corresponding query layout:
  *
@@ -115,8 +115,8 @@ public:
  * The PagedQSAIndexer specialization requires the layout adapters produced by PagedQSAIndexerFusion.
  * It matches RMS before the query's [B, L, H, D] -> [B * L, H * D] Reshape. The RMS axis
  * must be static and equal to indexer_head_dim, so a norm across flattened heads remains outside the indexer.
- * An optional rank-2 Reshape matches the paged layout adapter, which the dense path bypasses. It must feed only
- * the indexer and is rewired to the unprocessed query.
+ * An optional rank-2 Reshape matches the paged layout adapter, which the dense path bypasses. A new Reshape
+ * consumes the unprocessed query without modifying the original Reshape or its other consumers.
  * Both specializations share PassConfig disable settings and callbacks, which receive the concrete indexer node.
  */
 template <class Indexer>

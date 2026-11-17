@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -99,16 +100,16 @@ GraphOptions unpadded() {
 }
 
 // The dense QSAIndexer as created by FuseQSAIndexer, with its states kept in variables.
-std::shared_ptr<Model> make_model(const GraphOptions& o, bool paged) {
+std::shared_ptr<Model> make_model(const GraphOptions& o, bool paged, element::Type data_type = element::f32) {
     ParameterVector params;
     const auto param = [&params](element::Type type, const PartialShape& shape) {
         params.push_back(std::make_shared<v0::Parameter>(type, shape));
         return params.back();
     };
-    const auto query = param(element::f32, PartialShape{-1, -1, query_heads, head_size});
-    const auto raw_keys = param(element::f32, PartialShape{-1, -1, key_heads, head_size});
-    const auto rope_cos = param(element::f32, PartialShape{-1, o.rope_length, rotary_dim});
-    const auto rope_sin = param(element::f32, PartialShape{-1, o.rope_length, rotary_dim});
+    const auto query = param(data_type, PartialShape{-1, -1, query_heads, head_size});
+    const auto raw_keys = param(data_type, PartialShape{-1, -1, key_heads, head_size});
+    const auto rope_cos = param(data_type, PartialShape{-1, o.rope_length, rotary_dim});
+    const auto rope_sin = param(data_type, PartialShape{-1, o.rope_length, rotary_dim});
     const auto key_length = param(element::i32, PartialShape{-1});
     const auto beam_idx = o.gathered_states ? param(element::i32, PartialShape{-1}) : nullptr;
 
@@ -116,9 +117,9 @@ std::shared_ptr<Model> make_model(const GraphOptions& o, bool paged) {
     std::vector<std::shared_ptr<op::util::Variable>> variables;
     const auto read_state = [&](const std::string& id, const PartialShape& shape) -> Output<Node> {
         if (!o.variable_states) {
-            return param(element::f32, shape);
+            return param(data_type, shape);
         }
-        variables.push_back(std::make_shared<op::util::Variable>(op::util::VariableInfo{shape, element::f32, id}));
+        variables.push_back(std::make_shared<op::util::Variable>(op::util::VariableInfo{shape, data_type, id}));
         Output<Node> state = std::make_shared<v6::ReadValue>(variables.back());
         if (o.gathered_states) {
             state = std::make_shared<v8::Gather>(state, beam_idx, v0::Constant::create(element::i64, Shape{}, {0}));
@@ -130,12 +131,12 @@ std::shared_ptr<Model> make_model(const GraphOptions& o, bool paged) {
     const auto incomplete_rope = read_state("incomplete_rope", PartialShape{-1, 2 * rotary_dim});
     Output<Node> block_keys_cache = std::make_shared<v0::Unsqueeze>(past_block_keys, i64({1}));
     if (o.padding) {
-        const auto cache_padding = param(element::f32, PartialShape{-1, key_heads, -1, head_size});
+        const auto cache_padding = param(data_type, PartialShape{-1, key_heads, -1, head_size});
         block_keys_cache = std::make_shared<v0::Concat>(OutputVector{block_keys_cache, cache_padding}, 2);
     }
     const auto incomplete_raw_keys_with_head = std::make_shared<v0::Unsqueeze>(incomplete_raw_keys, i64({1}));
-    const auto q_norm_weight = v0::Constant::create(element::f32, Shape{head_size}, {1.0f});
-    const auto k_norm_weight = v0::Constant::create(element::f32, Shape{head_size}, {0.5f});
+    const auto q_norm_weight = v0::Constant::create(data_type, Shape{head_size}, {1.0f});
+    const auto k_norm_weight = v0::Constant::create(data_type, Shape{head_size}, {0.5f});
 
     op_internal::QSAIndexer::Config config;
     config.key_block_size = key_block_size;
@@ -155,11 +156,11 @@ std::shared_ptr<Model> make_model(const GraphOptions& o, bool paged) {
         const auto block_indices = make_named_param("block_indices", element::i32, PartialShape{-1});
         const auto block_indices_begins = make_named_param("block_indices_begins", element::i32, PartialShape{-1});
         const auto index_key_cache =
-            make_named_param("index_key_cache.0", element::f32, PartialShape{-1, key_heads, -1, head_size});
+            make_named_param("index_key_cache.0", data_type, PartialShape{-1, key_heads, -1, head_size});
         const auto index_block_rope_cache =
-            make_named_param("index_block_rope_cache.0", element::f32, PartialShape{-1, -1, 2 * rotary_dim});
+            make_named_param("index_block_rope_cache.0", data_type, PartialShape{-1, -1, 2 * rotary_dim});
         const auto block_index_keys_cache =
-            make_named_param("block_index_keys_cache.0", element::f32, PartialShape{-1, key_heads, -1, head_size});
+            make_named_param("block_index_keys_cache.0", data_type, PartialShape{-1, key_heads, -1, head_size});
         params.insert(params.end(),
                       {past_lens,
                        subsequence_begins,
@@ -351,6 +352,34 @@ INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
                              return name;
                          });
 
+TEST_F(TransformationTestsF, PagedQSAIndexerFusionAcceptsDynamicFeatureDimensions) {
+    model = make_model(GraphOptions{}, false);
+    model_ref = make_model(GraphOptions{}, true);
+    const auto make_feature_dims_dynamic = [](const std::shared_ptr<Model>& m) {
+        const auto params = m->get_parameters();
+        params[0]->set_partial_shape({-1, -1, query_heads, -1});
+        params[1]->set_partial_shape({-1, -1, key_heads, -1});
+        params[2]->set_partial_shape({-1, -1, -1});
+        params[3]->set_partial_shape({-1, -1, -1});
+        m->validate_nodes_and_infer_types();
+    };
+    make_feature_dims_dynamic(model);
+    make_feature_dims_dynamic(model_ref);
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    disable_rt_info_check();
+    EXPECT_EQ(run_paged_qsa_indexer_fusion(model),
+              (std::unordered_set<std::string>{"block_keys", "incomplete_raw_keys", "incomplete_rope"}));
+}
+
+TEST_F(TransformationTestsF, PagedQSAIndexerFusionDefersPrecisionSupportToPlugin) {
+    model = make_model(GraphOptions{}, false, element::f64);
+    model_ref = make_model(GraphOptions{}, true, element::f64);
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    disable_rt_info_check();
+    EXPECT_EQ(run_paged_qsa_indexer_fusion(model),
+              (std::unordered_set<std::string>{"block_keys", "incomplete_raw_keys", "incomplete_rope"}));
+}
+
 class PagedQSAIndexerFusionNotConvertedTest : public PagedQSAIndexerFusionTest {};
 
 TEST_P(PagedQSAIndexerFusionNotConvertedTest, KeepsQSAIndexer) {
@@ -464,6 +493,14 @@ std::shared_ptr<Model> make_model_with_modified_indexer(const std::string& name)
     } else if (name == "head_count") {
         inputs[QSAIndexerInputIdx::RAW_INDEX_KEYS] =
             v0::Constant::create(element::f32, Shape{1, 1, 3, head_size}, {0.0f});
+    } else if (name == "dynamic_head_count") {
+        model->get_parameters()[0]->set_partial_shape({-1, -1, -1, head_size});
+        model->get_parameters()[1]->set_partial_shape({-1, -1, -1, head_size});
+    } else if (name == "zero_query_heads") {
+        model->get_parameters()[0]->set_partial_shape({-1, -1, 0, head_size});
+    } else if (name == "overflowing_query_width") {
+        const auto overflow_heads = std::numeric_limits<int64_t>::max() / head_size + 1;
+        model->get_parameters()[0]->set_partial_shape({-1, -1, overflow_heads, head_size});
     } else if (name == "weight_shape") {
         inputs[QSAIndexerInputIdx::K_NORM_WEIGHT] = v0::Constant::create(element::f32, Shape{head_size - 1}, {1.0f});
     } else if (name == "weight_type") {
@@ -472,8 +509,11 @@ std::shared_ptr<Model> make_model_with_modified_indexer(const std::string& name)
         config.indexer_rotary_dim = rotary_dim - 1;
     } else if (name == "zero_rotary_dimension") {
         config.indexer_rotary_dim = 0;
-        inputs[QSAIndexerInputIdx::ROPE_COS] = v0::Constant::create(element::f32, Shape{1, 1, 0}, std::vector<float>{});
-        inputs[QSAIndexerInputIdx::ROPE_SIN] = v0::Constant::create(element::f32, Shape{1, 1, 0}, std::vector<float>{});
+        for (const auto i : {2, 3}) {
+            const auto param = model->get_parameters()[i];
+            param->set_partial_shape({-1, -1, 0});
+            param->validate_and_infer_types();
+        }
         const auto rope_state =
             ov::as_type_ptr<v6::ReadValue>(inputs[QSAIndexerInputIdx::PAST_INCOMPLETE_ROPE].get_node_shared_ptr());
         OPENVINO_ASSERT(rope_state);
@@ -495,6 +535,26 @@ std::shared_ptr<Model> make_model_with_modified_indexer(const std::string& name)
     model->validate_nodes_and_infer_types();
     return model;
 }
+
+class PagedQSAIndexerDeferredShapeValidationTest : public testing::TestWithParam<std::string> {};
+
+TEST_P(PagedQSAIndexerDeferredShapeValidationTest, RejectsIncompatibleConcreteInputShapes) {
+    const auto model = make_model_with_modified_indexer(GetParam());
+    EXPECT_EQ(run_paged_qsa_indexer_fusion(model),
+              (std::unordered_set<std::string>{"block_keys", "incomplete_raw_keys", "incomplete_rope"}));
+    model->get_parameters()[0]->set_partial_shape({1, 1, query_heads, head_size});
+    const auto name = GetParam() == "incompatible_key_rope_cos" ? "rope_cos" : "rope_sin";
+    OV_EXPECT_THROW_HAS_SUBSTRING(model->validate_nodes_and_infer_types(),
+                                  ov::NodeValidationFailure,
+                                  std::string("PagedQSAIndexer expects ") + name);
+}
+
+INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
+                         PagedQSAIndexerDeferredShapeValidationTest,
+                         testing::Values("incompatible_key_rope_cos", "incompatible_key_rope_sin"),
+                         [](const testing::TestParamInfo<std::string>& info) {
+                             return info.param;
+                         });
 
 class QSAIndexerInvalidInputsTest : public testing::TestWithParam<std::string> {};
 
@@ -541,14 +601,13 @@ private:
 
 TEST_P(PagedQSAIndexerInvalidProductionInputsTest, DoesNotFuseOrAddCaches) {}
 
-INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
-                         PagedQSAIndexerInvalidProductionInputsTest,
-                         testing::Values("zero_rotary_dimension",
-                                         "incompatible_key_rope_cos",
-                                         "incompatible_key_rope_sin"),
-                         [](const testing::TestParamInfo<std::string>& info) {
-                             return info.param;
-                         });
+INSTANTIATE_TEST_SUITE_P(
+    PagedQSAIndexerFusion,
+    PagedQSAIndexerInvalidProductionInputsTest,
+    testing::Values("zero_rotary_dimension", "zero_query_heads", "dynamic_head_count", "overflowing_query_width"),
+    [](const testing::TestParamInfo<std::string>& info) {
+        return info.param;
+    });
 
 struct QueryOptions {
     std::string name;
@@ -560,6 +619,7 @@ struct QueryOptions {
     bool distinct_sin = false;
     bool interleaved = false;
     bool extra_consumers = false;
+    bool shared_query_reshape = false;
     bool with_rope = true;
     bool with_norm = true;
     bool flat_norm = false;
@@ -698,6 +758,13 @@ void replace_query_indexer(QueryGraph<Indexer>& graph,
         const auto flatten = graph.inputs[In::INDEX_QUERY].get_node_shared_ptr();
         graph.inputs[In::INDEX_QUERY] =
             o.flat_norm ? query : Output<Node>(std::make_shared<v1::Reshape>(query, flatten->input_value(1), false));
+        if (o.shared_query_reshape) {
+            const auto shared_query =
+                query == graph.query
+                    ? graph.inputs[In::INDEX_QUERY]
+                    : Output<Node>(std::make_shared<v1::Reshape>(graph.query, flatten->input_value(1), false));
+            graph.model->add_results({std::make_shared<v0::Result>(shared_query)});
+        }
     } else {
         graph.inputs[In::INDEX_QUERY] = query;
     }
@@ -761,6 +828,18 @@ TEST_P(FusePagedQSAIndexerQueryTest, AbsorbsOnlyCompatibleQuerySteps) {
 
 const std::vector<QueryOptions> query_cases = [] {
     std::vector<QueryOptions> cases{QueryOptions{"partial_rotary"}};
+    auto shared = QueryOptions{"shared_query_reshape"};
+    shared.shared_query_reshape = true;
+    cases.push_back(shared);
+    shared.name = "shared_query_reshape_norm_only";
+    shared.with_rope = false;
+    shared.absorb_rope = false;
+    cases.push_back(shared);
+    shared = QueryOptions{"shared_query_reshape_rope_only"};
+    shared.shared_query_reshape = true;
+    shared.with_norm = false;
+    shared.absorb_norm = false;
+    cases.push_back(shared);
     auto o = QueryOptions{"extra_consumers"};
     o.extra_consumers = true;
     cases.push_back(o);
@@ -1144,22 +1223,6 @@ TEST_F(TransformationTestsF, FuseQSAIndexerQueryRoPEIgnoresEnabledQueryNorm) {
     model_ref = combine_query_models(getQueryModelRef(options), getQueryModelRef<op_internal::QSAIndexer>(options));
     comparator.enable(FunctionsComparator::ATTRIBUTES);
     comparator.enable(FunctionsComparator::CONST_VALUES);
-    manager.register_pass<pass::FuseQSAIndexerQuery>();
-}
-
-TEST_F(TransformationTestsF, FuseQSAIndexerQueryKeepsSharedQueryReshape) {
-    const auto share_query_reshape = [](const std::shared_ptr<Model>& m) {
-        for (const auto& node : m->get_ops()) {
-            if (const auto indexer = ov::as_type_ptr<op_internal::PagedQSAIndexer>(node)) {
-                m->add_results({std::make_shared<v0::Result>(
-                    indexer->input_value(op_internal::PagedQSAIndexer::InputIdx::INDEX_QUERY))});
-            }
-        }
-        return m;
-    };
-    model = share_query_reshape(getQueryModel(QueryOptions{}));
-    model_ref = share_query_reshape(getQueryModel(QueryOptions{}));
-    comparator.enable(FunctionsComparator::ATTRIBUTES);
     manager.register_pass<pass::FuseQSAIndexerQuery>();
 }
 

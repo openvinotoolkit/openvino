@@ -37,8 +37,6 @@ using PagedQSAIndexerInputIdx = op_internal::PagedQSAIndexer::InputIdx;
 namespace {
 
 constexpr size_t heads_axis = 2;
-constexpr size_t head_dim_axis = 3;
-constexpr size_t rotary_dim_axis = 2;
 
 op_internal::PagedQSAIndexer::Config paged_config_from(const op_internal::QSAIndexer::Config& config) {
     op_internal::PagedQSAIndexer::Config result;
@@ -54,68 +52,6 @@ op_internal::PagedQSAIndexer::Config paged_config_from(const op_internal::QSAInd
     return result;
 }
 
-bool supports_paged_indexer(const ov::Output<ov::Node>& output) {
-    const auto indexer = ov::as_type_ptr<op_internal::QSAIndexer>(output.get_node_shared_ptr());
-    OPENVINO_ASSERT(indexer, "PagedQSAIndexerFusion: matched node is expected to be QSAIndexer");
-    const auto& query_shape = indexer->get_input_partial_shape(QSAIndexerInputIdx::INDEX_QUERY);
-    const auto& keys_shape = indexer->get_input_partial_shape(QSAIndexerInputIdx::RAW_INDEX_KEYS);
-    const auto& cos_shape = indexer->get_input_partial_shape(QSAIndexerInputIdx::ROPE_COS);
-    const auto& sin_shape = indexer->get_input_partial_shape(QSAIndexerInputIdx::ROPE_SIN);
-    if (query_shape.rank().is_dynamic() || query_shape.rank().get_length() != 4 || keys_shape.rank().is_dynamic() ||
-        keys_shape.rank().get_length() != 4 || cos_shape.rank().is_dynamic() || cos_shape.rank().get_length() != 3 ||
-        sin_shape.rank().is_dynamic() || sin_shape.rank().get_length() != 3 || query_shape[heads_axis].is_dynamic() ||
-        query_shape[head_dim_axis].is_dynamic() || keys_shape[heads_axis].is_dynamic() ||
-        keys_shape[head_dim_axis].is_dynamic() || cos_shape[rotary_dim_axis].is_dynamic()) {
-        return false;
-    }
-
-    const auto data_type = indexer->get_input_element_type(QSAIndexerInputIdx::INDEX_QUERY);
-    const auto& config = indexer->get_config();
-    const auto query_heads = query_shape[heads_axis].get_length();
-    const auto key_heads = keys_shape[heads_axis].get_length();
-    const auto max_dimension = static_cast<size_t>(std::numeric_limits<int64_t>::max());
-    std::string reason;
-    if (!op_internal::PagedQSAIndexer::validate_config(paged_config_from(config), reason) ||
-        config.indexer_head_dim > max_dimension || config.indexer_rotary_dim == 0 ||
-        config.indexer_rotary_dim > max_dimension / 2 || config.block_topk > max_dimension ||
-        config.num_selection_heads > max_dimension || query_heads <= 0 || key_heads <= 0 ||
-        query_heads % key_heads != 0 ||
-        (config.num_selection_heads != 1 && config.num_selection_heads != static_cast<size_t>(key_heads)) ||
-        static_cast<size_t>(query_heads) > max_dimension / config.indexer_head_dim ||
-        static_cast<size_t>(key_heads) > max_dimension / config.indexer_head_dim) {
-        return false;
-    }
-    const auto head_dim = static_cast<int64_t>(config.indexer_head_dim);
-    const auto rotary_dim = static_cast<int64_t>(config.indexer_rotary_dim);
-    if (query_shape[head_dim_axis] != head_dim || keys_shape[head_dim_axis] != head_dim ||
-        !query_shape[0].compatible(keys_shape[0]) || !query_shape[1].compatible(keys_shape[1]) ||
-        cos_shape[rotary_dim_axis] != rotary_dim || !sin_shape[rotary_dim_axis].compatible(rotary_dim)) {
-        return false;
-    }
-    for (size_t axis : {0, 1}) {
-        if (!query_shape[axis].compatible(cos_shape[axis]) || !query_shape[axis].compatible(sin_shape[axis]) ||
-            !keys_shape[axis].compatible(cos_shape[axis]) || !keys_shape[axis].compatible(sin_shape[axis]) ||
-            !cos_shape[axis].compatible(sin_shape[axis])) {
-            return false;
-        }
-    }
-    for (const auto input : {QSAIndexerInputIdx::RAW_INDEX_KEYS,
-                             QSAIndexerInputIdx::ROPE_COS,
-                             QSAIndexerInputIdx::ROPE_SIN,
-                             QSAIndexerInputIdx::Q_NORM_WEIGHT,
-                             QSAIndexerInputIdx::K_NORM_WEIGHT}) {
-        if (indexer->get_input_element_type(input) != data_type) {
-            return false;
-        }
-    }
-    for (const auto input : {QSAIndexerInputIdx::Q_NORM_WEIGHT, QSAIndexerInputIdx::K_NORM_WEIGHT}) {
-        if (!indexer->get_input_partial_shape(input).compatible(ov::PartialShape{head_dim})) {
-            return false;
-        }
-    }
-    return true;
-}
-
 }  // namespace
 
 PagedQSAIndexerFusion::PagedQSAIndexerFusion(paged_attention::PaParams& pa_params,
@@ -124,7 +60,7 @@ PagedQSAIndexerFusion::PagedQSAIndexerFusion(paged_attention::PaParams& pa_param
     using namespace ov::pass::pattern;
 
     // QSAIndexer activations are [B, L, H, D], cos / sin are [B, L, rotary_dim].
-    const auto p_query = any_input(type_matches_any({ov::element::f32, ov::element::f16, ov::element::bf16}));
+    const auto p_query = any_input();
     const auto p_raw_keys = any_input();
     const auto p_rope_cos = any_input();
     const auto p_rope_sin = any_input();
@@ -141,6 +77,27 @@ PagedQSAIndexerFusion::PagedQSAIndexerFusion(paged_attention::PaParams& pa_param
         optional<v0::Concat>({wrap_type<v0::Unsqueeze>({read_state(p_block_keys_read), any_input()}), any_input()});
     const auto p_incomplete_raw_keys = wrap_type<v0::Unsqueeze>({read_state(p_raw_keys_read), any_input()});
 
+    const auto flattenable_inputs = [](const ov::Output<ov::Node>& output) {
+        const auto indexer = ov::as_type_ptr<op_internal::QSAIndexer>(output.get_node_shared_ptr());
+        OPENVINO_ASSERT(indexer, "PagedQSAIndexerFusion: matched node is expected to be QSAIndexer");
+        const auto& config = indexer->get_config();
+        // The [-1, width] adapters require nonzero widths that fit in int64_t.
+        if (config.indexer_rotary_dim == 0) {
+            return false;
+        }
+        const auto max_heads = static_cast<size_t>(std::numeric_limits<int64_t>::max()) / config.indexer_head_dim;
+        for (const auto input : {QSAIndexerInputIdx::INDEX_QUERY, QSAIndexerInputIdx::RAW_INDEX_KEYS}) {
+            const auto& shape = indexer->get_input_partial_shape(input);
+            if (shape.rank().is_dynamic() || shape[heads_axis].is_dynamic()) {
+                return false;
+            }
+            const auto heads = shape[heads_axis].get_length();
+            if (heads == 0 || static_cast<size_t>(heads) > max_heads) {
+                return false;
+            }
+        }
+        return true;
+    };
     const auto p_indexer = wrap_type<op_internal::QSAIndexer>({p_query,
                                                                p_raw_keys,
                                                                p_rope_cos,
@@ -151,7 +108,7 @@ PagedQSAIndexerFusion::PagedQSAIndexerFusion(paged_attention::PaParams& pa_param
                                                                p_block_keys_cache,
                                                                p_incomplete_raw_keys,
                                                                read_state(p_rope_read)},
-                                                              supports_paged_indexer);
+                                                              flattenable_inputs);
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS, &pa_params, &var_ids_to_remove](Matcher& m) {
         const auto indexer = ov::as_type_ptr<op_internal::QSAIndexer>(m.get_match_root());
@@ -166,10 +123,13 @@ PagedQSAIndexerFusion::PagedQSAIndexerFusion(paged_attention::PaParams& pa_param
         const auto data_type = query.get_element_type();
         const auto& query_shape = query.get_partial_shape();
         const auto& keys_shape = raw_keys.get_partial_shape();
+        const auto query_heads = query_shape[heads_axis].get_length();
         const auto key_heads = keys_shape[heads_axis].get_length();
         const auto paged_config = paged_config_from(config);
         const auto head_dim = static_cast<int64_t>(config.indexer_head_dim);
         const auto rotary_dim = static_cast<int64_t>(config.indexer_rotary_dim);
+        const auto query_width = query_heads * head_dim;
+        const auto key_width = key_heads * head_dim;
 
         pa_params.add("past_lens", ov::element::i32, ov::PartialShape{-1});
         pa_params.add("subsequence_begins", ov::element::i32, ov::PartialShape{-1});
@@ -199,8 +159,8 @@ PagedQSAIndexerFusion::PagedQSAIndexerFusion(paged_attention::PaParams& pa_param
                                         false);
         };
         ov::OutputVector inputs(PagedQSAIndexerInputIdx::COUNT);
-        inputs[PagedQSAIndexerInputIdx::INDEX_QUERY] = flatten(query, query_shape[heads_axis].get_length() * head_dim);
-        inputs[PagedQSAIndexerInputIdx::RAW_INDEX_KEYS] = flatten(raw_keys, key_heads * head_dim);
+        inputs[PagedQSAIndexerInputIdx::INDEX_QUERY] = flatten(query, query_width);
+        inputs[PagedQSAIndexerInputIdx::RAW_INDEX_KEYS] = flatten(raw_keys, key_width);
         inputs[PagedQSAIndexerInputIdx::ROPE_COS] = flatten(pattern_map.at(p_rope_cos), rotary_dim);
         inputs[PagedQSAIndexerInputIdx::ROPE_SIN] = flatten(pattern_map.at(p_rope_sin), rotary_dim);
         inputs[PagedQSAIndexerInputIdx::Q_NORM_WEIGHT] = indexer->input_value(QSAIndexerInputIdx::Q_NORM_WEIGHT);

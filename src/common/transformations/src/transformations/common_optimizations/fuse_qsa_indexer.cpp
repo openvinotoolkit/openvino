@@ -285,8 +285,7 @@ FuseQSAIndexerQueryRoPE<Indexer>::FuseQSAIndexerQueryRoPE() {
         },
         {{"config.input_interleaved", false}, {"config.use_rope_cache", false}});
     const auto p_token_major = optional<v1::Transpose>({p_rope, wrap_type<v0::Constant>(value_matches("0, 2, 1, 3"))});
-    const auto p_query_reshape =
-        optional<v1::Reshape>({p_token_major, any_input()}, rank_equals(2) && consumers_count(1));
+    const auto p_query_reshape = optional<v1::Reshape>({p_token_major, any_input()}, rank_equals(2));
     // FuseQSAIndexer broadcasts the cos / sin rows with a v3 Broadcast, which ConvertBroadcast3 may turn into a
     // numpy v1 Broadcast before this pass.
     const auto rope_rows = [](const ov::Output<ov::Node>& rows) {
@@ -333,10 +332,10 @@ FuseQSAIndexerQueryRoPE<Indexer>::FuseQSAIndexerQueryRoPE() {
             sources.push_back(pattern_map.at(p_token_major).get_node_shared_ptr());
         }
         if (pattern_map.count(p_query_reshape)) {
-            // The layout Reshape feeds only this indexer, so it is rewired to the unprocessed query.
             const auto query_reshape = pattern_map.at(p_query_reshape).get_node_shared_ptr();
-            query_reshape->input(0).replace_source_output(query);
-            query_reshape->validate_and_infer_types();
+            inputs[In::INDEX_QUERY] =
+                rg.add(query_reshape->clone_with_new_inputs({query, query_reshape->input_value(1)}));
+            sources.push_back(query_reshape);
         } else {
             inputs[In::INDEX_QUERY] = query;
         }
@@ -381,7 +380,7 @@ FuseQSAIndexerQueryNorm<Indexer>::FuseQSAIndexerQueryNorm() {
     const auto p_rms_non_affine =
         wrap_type<op_internal::RMS>({any_input()}, keeps_precision, {{"axis", -1}, {"elementwise_affine", false}});
     const auto p_rms = p_rms_affine | p_rms_non_affine;
-    const auto p_query_reshape = optional<v1::Reshape>({p_rms, any_input()}, rank_equals(2) && consumers_count(1));
+    const auto p_query_reshape = optional<v1::Reshape>({p_rms, any_input()}, rank_equals(2));
     OutputVector pattern_inputs(In::COUNT);
     for (auto& input : pattern_inputs) {
         input = any_input();
@@ -405,11 +404,12 @@ FuseQSAIndexerQueryNorm<Indexer>::FuseQSAIndexerQueryNorm() {
         config.query_norm = true;
         auto inputs = indexer->input_values();
         NodeRegistry rg;
+        NodeVector sources{rms, indexer};
         if (pattern_map.count(p_query_reshape)) {
-            // The layout Reshape feeds only this indexer, so it is rewired to the unprocessed query.
             const auto query_reshape = pattern_map.at(p_query_reshape).get_node_shared_ptr();
-            query_reshape->input(0).replace_source_output(rms->input_value(0));
-            query_reshape->validate_and_infer_types();
+            inputs[In::INDEX_QUERY] =
+                rg.add(query_reshape->clone_with_new_inputs({rms->input_value(0), query_reshape->input_value(1)}));
+            sources.push_back(query_reshape);
         } else {
             inputs[In::INDEX_QUERY] = rms->input_value(0);
         }
@@ -431,7 +431,7 @@ FuseQSAIndexerQueryNorm<Indexer>::FuseQSAIndexerQueryNorm() {
         }
         const auto fused = rg.make<Indexer>(inputs, config);
         fused->set_friendly_name(indexer->get_friendly_name());
-        ov::copy_runtime_info(NodeVector{rms, indexer}, rg.get());
+        ov::copy_runtime_info(sources, rg.get());
         ov::replace_node(indexer, fused);
         register_new_node(fused);
         return true;
