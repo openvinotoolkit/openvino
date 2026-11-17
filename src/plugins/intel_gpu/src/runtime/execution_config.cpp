@@ -171,6 +171,9 @@ ExecutionConfig ExecutionConfig::clone() const {
 }
 
 void ExecutionConfig::finalize(cldnn::engine& engine) {
+    // The offline stub engine can't create a context; finalize() would return early anyway.
+    if (m_is_finalized)
+        return;
     auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
     PluginConfig::finalize(ctx.get(), nullptr);
 }

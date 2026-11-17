@@ -13,6 +13,7 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/device_query.hpp"
 #include "intel_gpu/runtime/utils.hpp"
+#include "runtime/ocl/offline_engine.hpp"
 #include <memory>
 
 namespace ov::intel_gpu {
@@ -367,9 +368,13 @@ void RemoteContextImpl::initialize() {
     std::call_once(m_initialize_flag, [this]() {
         GPU_DEBUG_INFO << "Initialize RemoteContext for " << m_device_name << " (" << m_device->get_info().dev_name << ")" << std::endl;
 
-        m_device->initialize();  // Initialize associated device before use
-        m_engine = cldnn::engine::create(
-            cldnn::get_default_engine_type(), cldnn::get_default_runtime_type(), m_device);
+        if (dynamic_cast<cldnn::ocl::offline_device*>(m_device.get())) {
+            m_engine = std::make_shared<cldnn::ocl::offline_engine>(m_device);
+        } else {
+            m_device->initialize();  // Initialize associated device before use
+            m_engine = cldnn::engine::create(
+                cldnn::get_default_engine_type(), cldnn::get_default_runtime_type(), m_device);
+        }
 
         init_properties();
 

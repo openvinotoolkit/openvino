@@ -116,6 +116,8 @@ private:
     bool is_cache_enabled() const;
 
     bool _reuse_kernels = false;
+    // Set only for the offline program; the env also sets the config flag on import.
+    bool _offline_export = false;
 
 public:
     explicit kernels_cache(engine& engine,
@@ -127,6 +129,7 @@ public:
     std::vector<kernel::ptr> get_kernels(const kernel_impl_params& params) const;
 
     void set_kernels_reuse(bool reuse_kernels) { _reuse_kernels = reuse_kernels; }
+    void set_offline_export(bool offline_export) { _offline_export = offline_export; }
     bool get_kernels_reuse() const { return _reuse_kernels; }
 
     // forces compilation of all pending kernels/programs

@@ -47,6 +47,9 @@ public:
 
     bool is_loaded() const;
 
+    // Set only by the offline compile ctor, not by the import ctor.
+    bool is_compile_only() const { return m_compile_only; }
+
     std::vector<ov::ProfilingInfo> get_profiling_info() const;
     void update_profiling_info();
 
@@ -93,6 +96,8 @@ private:
     std::mutex m_infer_mutex;
 
     std::shared_ptr<cldnn::network> m_network;
+    std::shared_ptr<cldnn::program> m_program;
+    bool m_compile_only = false;
     std::map<std::string, cldnn::primitive_id> primitiveIDs;
     std::map<size_t, std::vector<cldnn::primitive_id>> inputPrimitiveIDs;
     std::map<size_t, cldnn::primitive_id> prevPrimitiveIDs;

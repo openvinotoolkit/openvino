@@ -38,6 +38,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     std::unordered_map<uint32_t, std::unordered_map<int, dnnl::memory>> _args;
     dnnl::memory::desc _scratchpad_md;
     bool _enable_profiling = false;
+    bool _disallow_runtime_compilation = false;
 
     typed_primitive_onednn_impl(const engine& engine,
             const ExecutionConfig& config,
@@ -62,7 +63,13 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                 }
             }
 
-            build_primitive(config);
+            try {
+                build_primitive(config);
+            } catch (const dnnl::error& e) {
+                if (engine.is_hw_free())
+                    OPENVINO_THROW("[GPU offline] oneDNN primitive ", _pd.impl_info_str(), " could not be built: ", e.what());
+                throw;
+            }
         }
 
     typed_primitive_onednn_impl(const engine& engine, const ExecutionConfig& config = {})
@@ -204,6 +211,8 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     void load(BinaryInputBuffer& ib) override {
         primitive_impl::load(ib);
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
+        const auto& load_config = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams())->get_program().get_config();
+        _disallow_runtime_compilation = load_config.get_disallow_runtime_compilation();
         bool has_attrs;
         ib >> has_attrs;
 
@@ -355,7 +364,7 @@ private:
     void build_primitive(const ExecutionConfig& config) {
         auto cache_outpath = get_cache_directory(config);
 
-        if (!config.get_allow_new_shape_infer()) {
+        if (!config.get_allow_new_shape_infer() || _engine->is_hw_free()) {
             cache_outpath = "";
         }
 
@@ -400,12 +409,16 @@ protected:
                 throw;
             }
         }
+        OPENVINO_ASSERT(!cache.empty() || !_engine->is_hw_free(),
+                        "[GPU offline] oneDNN primitive ", _pd.impl_info_str(), " has no cache blob; import would need runtime compilation");
         return cache;
     }
 
     // Falls back to constructing the primitive from _pd alone when the blob is empty.
     PrimType make_primitive_from_blob(const std::vector<uint8_t>& cache_blob) const {
         if (cache_blob.empty()) {
+            OPENVINO_ASSERT(!_disallow_runtime_compilation,
+                            "[GPU] Runtime compilation is disallowed: oneDNN primitive ", _pd.impl_info_str(), " has no cache blob");
             return PrimType(_pd);
         }
         return PrimType(_pd, cache_blob);

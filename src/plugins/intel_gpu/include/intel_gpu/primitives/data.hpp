@@ -142,13 +142,18 @@ struct weightless_cache_manager {
         reorder_rep = {input_layout, reorder};
     }
 
+    void set_const_program() { from_const_program = true; }
+
     bool save(BinaryOutputBuffer& ob, size_t data_size) const {
-        if (!do_weightless_caching) {
+        if (!do_weightless_caching && !from_const_program) {
             ob << false;
             return false;
         }
 
         ob << true;
+        ob << from_const_program;
+        if (from_const_program)
+            return true;
         ob << bin_offset;
         ob << do_precision_conversion;
         if (do_precision_conversion) {
@@ -178,6 +183,11 @@ struct weightless_cache_manager {
             return false;
         }
 
+        ib >> from_const_program;
+        if (from_const_program) {
+            do_weightless_caching = false;
+            return true;
+        }
         ib >> bin_offset;
         ib >> do_precision_conversion;
         if (do_precision_conversion) {
@@ -223,6 +233,8 @@ private:
     bool do_weightless_caching = false;
     bool do_precision_conversion = false;
     reorder_replication reorder_rep{};
+
+    bool from_const_program = false;
 
     size_t bin_offset = SIZE_MAX;
     size_t original_size = SIZE_MAX;
