@@ -11,11 +11,13 @@
 #include <optional>
 #include <utility>
 
-#include "common_utils/parallel_mem_streambuf.hpp"
+#include "common_utils/prefetch_streambuf.hpp"
+#include "common_utils/read_hooks.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "openvino/runtime/hsm_reader.hpp"
+#include "openvino/util/parallel_read_streambuf.hpp"
 
 namespace ov::intel_gpu::hsm {
 namespace {
@@ -44,8 +46,31 @@ private:
     std::streambuf* m_source;
 };
 
-// The delegated mmap file reader can see the rest of the file: bound reads and prefetch alike.
-class BoundedInputStreamBuf final : public ParallelMemStreamBuf {
+// Reads a decrypted payload held in memory.
+class MemoryInputStreamBuf final : public std::streambuf {
+public:
+    MemoryInputStreamBuf(char* data, size_t size) {
+        setg(data, data, data + size);
+    }
+
+protected:
+    pos_type seekoff(off_type offset, std::ios_base::seekdir direction, std::ios_base::openmode mode) override {
+        if (!(mode & std::ios_base::in))
+            return pos_type(off_type(-1));
+        const off_type size = egptr() - eback();
+        const off_type base = direction == std::ios_base::beg ? 0 : direction == std::ios_base::cur ? gptr() - eback() : size;
+        if (offset < -base || offset > size - base)
+            return pos_type(off_type(-1));
+        setg(eback(), eback() + base + offset, egptr());
+        return pos_type(base + offset);
+    }
+    pos_type seekpos(pos_type position, std::ios_base::openmode mode) override {
+        return seekoff(static_cast<off_type>(position), std::ios_base::beg, mode);
+    }
+};
+
+// The delegated source can see the rest of the file or tensor: bound reads, and forward prefetch hooks.
+class BoundedInputStreamBuf final : public std::streambuf, public ov::intel_gpu::ReadHooks {
 public:
     BoundedInputStreamBuf(std::istream& source, pos_type start, size_t size) : m_source(source.rdbuf()), m_start(start) {
         OPENVINO_ASSERT(m_source && start >= pos_type(0) && size <= static_cast<size_t>(std::numeric_limits<off_type>::max()) &&
@@ -62,9 +87,11 @@ public:
         size = std::min(size, remaining());
         if (auto* file = dynamic_cast<ov::util::ParallelReadStreamBuf*>(m_source))
             return file->prefetch(size);
-        if (auto* memory = dynamic_cast<ParallelMemStreamBuf*>(m_source))
-            return memory->prefetch(size);
         return false;
+    }
+    void keep_read_data() noexcept override {
+        if (auto* prefetch_buf = dynamic_cast<ov::intel_gpu::PrefetchStreamBuf*>(m_source))
+            prefetch_buf->keep_read_data();
     }
 
 protected:
@@ -251,7 +278,7 @@ struct ReaderHandler::Impl {
                         "\n  current: ",
                         CompiledModel::build_runtime_requirements(device_info));
         cache_mode = sections.info.cache_mode == 0 ? ov::CacheMode::OPTIMIZE_SPEED : ov::CacheMode::OPTIMIZE_SIZE;
-        const bool is_encrypted = sections.info.flags & encrypted;
+        const bool is_encrypted = (sections.info.flags & encrypted) != 0U;
         size_t payload_size = sections.model().size();
         const size_t* tensor_base = nullptr;
         if (is_encrypted) {
@@ -259,16 +286,14 @@ struct ReaderHandler::Impl {
             const wire::Section ciphertext(sections.model_entry, model, start + static_cast<std::streamoff>(sections.model_entry.offset));
             plaintext = decrypt_payload(ciphertext, decrypt);
             payload_size = plaintext.size();
-            memory_buffer = std::make_unique<ParallelMemStreamBuf>(plaintext.data(), payload_size);
-        } else if (const auto view = sections.model().view(); !view.empty()) {
-            tensor_base = reinterpret_cast<const size_t*>(view.data());
-            memory_buffer = std::make_unique<ParallelMemStreamBuf>(view.data(), view.size());
-        } else {
-            section_buffer = std::make_unique<BoundedInputStreamBuf>(model, start + static_cast<std::streamoff>(sections.model_entry.offset), payload_size);
-        }
-        if (memory_buffer) {
+            memory_buffer = std::make_unique<MemoryInputStreamBuf>(plaintext.data(), payload_size);
             memory_stream = std::make_unique<std::istream>(memory_buffer.get());
             section_buffer = std::make_unique<BoundedInputStreamBuf>(*memory_stream, 0, payload_size);
+        } else {
+            // Tensor imports read through the source so its prefetch scheduler is driven.
+            if (const auto view = sections.model().view(); !view.empty())
+                tensor_base = reinterpret_cast<const size_t*>(view.data());
+            section_buffer = std::make_unique<BoundedInputStreamBuf>(model, start + static_cast<std::streamoff>(sections.model_entry.offset), payload_size);
         }
         payload_stream = std::make_unique<std::istream>(section_buffer.get());
         input = std::make_unique<ModelInputBuffer>(*payload_stream, engine, tensor_base, is_encrypted, requirements);
@@ -279,10 +304,10 @@ struct ReaderHandler::Impl {
     std::array<char, 5> magic{};
     bool is_hsm = false;
     ov::CacheMode cache_mode = ov::CacheMode::OPTIMIZE_SPEED;
-    std::streampos container_end{};
+    std::streampos container_end;
     std::string plaintext;
     std::unique_ptr<PrefixInputStreamBuf> prefix_buffer;
-    std::unique_ptr<ParallelMemStreamBuf> memory_buffer;
+    std::unique_ptr<MemoryInputStreamBuf> memory_buffer;
     std::unique_ptr<std::istream> memory_stream;
     std::unique_ptr<BoundedInputStreamBuf> section_buffer;
     std::unique_ptr<std::istream> payload_stream;
