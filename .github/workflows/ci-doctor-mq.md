@@ -11,6 +11,7 @@ description: |
   the body of this file only holds the merge-queue-specific additions.
 
 on:
+  needs: [check_overall_status]
   workflow_dispatch:
     inputs:
       run_id:
@@ -43,17 +44,25 @@ on:
 concurrency:
   group: gh-aw-${{ github.workflow }}
 
-# Only trigger for merge-queue failures, or manual workflow_dispatch for testing
-if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.event == 'merge_group') }}
+# Only investigate a failed Overall_Status job, preserving the event guard and manual testing.
+if: ${{ github.event_name == 'workflow_dispatch' || (needs.check_overall_status.outputs.should_investigate == 'true' && github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.event == 'merge_group') }}
 
 permissions: read-all
 
-model: claude-sonnet-5
 engine:
   id: copilot
+  model-routing:
+    goal: cost
+    mode: auto
+    allowed-models:
+      - claude-sonnet-5.5
+      - gpt-6.1-sol
+      - gpt-6.1-terra
+      - gemini-3.8-flash
 network: defaults
 
 imports:
+  - shared/agentic-workflows/check-overall-status.md
   # Pre-agent steps (log pre-download, PR resolution)
   - shared/agentic-workflows/download-failure-logs.md
   - shared/agentic-workflows/collect-pr-info.md

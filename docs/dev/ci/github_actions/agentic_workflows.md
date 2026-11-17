@@ -59,7 +59,8 @@ A `gh-aw` workflow is a Markdown file with a YAML frontmatter block and a natura
 
 * **Frontmatter** configures the workflow the same way a normal GitHub Actions workflow is configured —
   `on:` triggers, `permissions:`, `concurrency:`, plus `gh-aw`-specific keys:
-  * `engine:` — the agent runtime (`copilot`) and `model:` (`claude-sonnet-5`).
+  * `engine:` — the agent runtime (`copilot`) and model selection: a fixed `model:` or
+    `engine.model-routing` for per-run selection.
   * `network:` — the network policy enforced by a firewall proxy around the agent.
   * `tools:` — which tool servers the agent may use (for example the GitHub MCP server toolsets, and
     the `repo-memory` store).
@@ -100,12 +101,34 @@ See [Maintaining the workflows](#maintaining-the-workflows) for details.
 | | **CI Doctor** | **CI Doctor — Merge Queue** | **CI Doctor — Post-Commit** |
 | --- | --- | --- | --- |
 | Source | [`ci-doctor.md`](../../../../.github/workflows/ci-doctor.md) | [`ci-doctor-mq.md`](../../../../.github/workflows/ci-doctor-mq.md) | [`ci-doctor-post-commit.md`](../../../../.github/workflows/ci-doctor-post-commit.md) |
-| Trigger | On demand: `/ci-doctor` comment on a PR | Automatic: a monitored workflow finishes a `merge_group` run with `failure` | Automatic: a monitored workflow finishes a `push` run with `failure` |
+| Trigger | On demand: `/ci-doctor` comment on a PR | Automatic: a monitored workflow finishes a `merge_group` run with `failure` and its `Overall_Status` job failed | Automatic: a monitored workflow finishes a `push` run with `failure` and its `Overall_Status` job failed |
 | Scope | **Every** failed pipeline on the PR head commit | A **single** failed merge-queue run | A **single** failed post-commit run |
 | Knowledge base | Reads the MQ pattern database (read-only) | **Writes** the MQ pattern database (investigations + patterns) | **Writes** its own post-commit pattern database (investigations + patterns) |
 | Output | One consolidated PR comment | Microsoft Teams notification (+ optional PR comment, re-run, re-queue) | Microsoft Teams notification only |
 | Remediation | Report only | Can re-run failed jobs, re-add the PR to the merge queue, escalate recurring failures | Report only (never re-runs or re-queues) |
-| Engine / model | `copilot` / `claude-sonnet-5` | `copilot` / `claude-sonnet-5` | `copilot` / `claude-sonnet-5` |
+| Engine / model | `copilot` / automatic cost routing | `copilot` / automatic cost routing | `copilot` / automatic cost routing |
+
+The three investigators use experimental
+[model routing](https://github.github.com/gh-aw/reference/model-routing/) to select the main agent's
+model and reasoning effort for each run:
+
+```yaml
+engine:
+  id: copilot
+  model-routing:
+    goal: cost
+    mode: auto
+    allowed-models:
+      - claude-sonnet-5.5
+      - gpt-6.1-sol
+      - gpt-6.1-terra
+      - gemini-3.8-flash
+```
+
+The shortlist limits the main agent to Claude Sonnet 5.5, GPT-6.1 Sol, GPT-6.1 Terra and
+Gemini 3.8 Flash; it is not a global `models.allowed` policy for sub-agents or built-in agents. The
+router only considers shortlisted models that have benchmark data in the pinned AWF release, and
+routing fails if none of the candidates is available. The Weekly Remediation workflow retains its fixed model.
 
 ## CI Doctor (pull request, on-demand)
 
@@ -162,12 +185,13 @@ was a **merge-queue** run that **failed**:
 
 ```yaml
 on:
+  needs: [check_overall_status]
   workflow_run:
     workflows: ["Linux (Ubuntu 22.04, Python 3.11)", "Windows (VS 2022, Python 3.11, Release)", ...]
     types: [completed]
     branches: ["gh-readonly-queue/**"]
 
-if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.event == 'merge_group') }}
+if: ${{ needs.check_overall_status.outputs.should_investigate == 'true' && (github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.event == 'merge_group')) }}
 ```
 
 `gh aw compile` requires a positive `workflow_run.branches` scope (check `CTR-021`). Merge-queue runs
@@ -175,6 +199,15 @@ always execute on GitHub-created `gh-readonly-queue/<base>/pr-<N>-<sha>` branche
 including for PRs from forks, so `gh-readonly-queue/**` still covers every merge-queue failure.
 
 A `workflow_dispatch` entry (with `run_id` or `link` inputs) is also provided for manual testing.
+Both automatic and manual runs must pass the shared
+[`check-overall-status.md`](../../../../.github/workflows/shared/agentic-workflows/check-overall-status.md)
+gate before activation, log download, or agent execution. It paginates the target run's jobs and
+requires `Overall_Status` to have conclusion **`failure`**. The Actions API exposes the job's display
+name, `ci/gha_overall_status` or a platform-suffixed variant, rather than the YAML job ID.
+Failures in optional jobs alone do not start an investigation. A missing, successful, skipped,
+cancelled, or timed-out overall-status job also skips investigation; API errors fail the gate
+instead of allowing investigation. Automatic runs inspect the triggering `run_attempt`; manual
+links may select `/attempts/<N>`, otherwise the latest jobs are checked.
 
 **What it does / benefits**
 
@@ -195,7 +228,8 @@ A `workflow_dispatch` entry (with `run_id` or `link` inputs) is also provided fo
 
 **Algorithm** The body defines a seven-phase protocol:
 
-1. **Trigger detection & triage** — verify the run is a failed `merge_group` run; otherwise exit.
+1. **Trigger detection & triage** — the deterministic gate first requires a failed `Overall_Status`
+   job, then the agent verifies the run is a failed `merge_group` run; otherwise exit.
 2. **Deep log analysis** — hint-first log reading, same as CI Doctor.
 3. **Historical context** — search prior investigations for similar signatures.
 4. **Root-cause investigation** — classify into one of the seven categories, within the source-inspection
@@ -225,14 +259,17 @@ monitored workflows as the Merge Queue doctor, and only proceeds when the run wa
 
 ```yaml
 on:
+  needs: [check_overall_status]
   workflow_run:
     workflows: ["Linux (Ubuntu 22.04, Python 3.11)", "Windows (VS 2022, Python 3.11, Release)", ...]
     types: [completed]
 
-if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.event == 'push') }}
+if: ${{ needs.check_overall_status.outputs.should_investigate == 'true' && (github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.event == 'push')) }}
 ```
 
 A `workflow_dispatch` entry (with `run_id` or `link` inputs) is also provided for manual testing.
+The same shared `Overall_Status` gate described for the Merge Queue doctor applies, including
+manual dispatches. Optional-job failures alone never activate the investigator.
 
 **What it does / benefits**
 
@@ -334,6 +371,7 @@ inputs, permissions, or step wiring, edit the shared `.md` and recompile.
 
 | Shared file | Kind | Used by | Purpose |
 | --- | --- | --- | --- |
+| [`check-overall-status.md`](../../../../.github/workflows/shared/agentic-workflows/check-overall-status.md) | Pre-activation prerequisite job | MQ, Post-Commit | Require a failed `Overall_Status` job before activating either investigator. Importers declare `on.needs: [check_overall_status]` and gate their `if:` on its `should_investigate` output. |
 | [`download-failure-logs.md`](../../../../.github/workflows/shared/agentic-workflows/download-failure-logs.md) | Pre-agent step | all | Pre-download failed logs and pre-locate error hints before the agent starts. |
 | [`collect-pr-info.md`](../../../../.github/workflows/shared/agentic-workflows/collect-pr-info.md) | Pre-agent step | CI Doctor, MQ | Resolve the pull request under investigation and pre-collect its metadata (`pr-info.json` / `pr-info.txt`). |
 | [`collect-ci-doctor-history.md`](../../../../.github/workflows/shared/agentic-workflows/collect-ci-doctor-history.md) | Pre-agent step | Weekly Remediation | Pre-download the recent CI Doctor investigations and patterns from both memory branches (read-only) into `/tmp/gh-aw/agent/ci-doctor-remediation/` with a ranked `summary.txt`. |
