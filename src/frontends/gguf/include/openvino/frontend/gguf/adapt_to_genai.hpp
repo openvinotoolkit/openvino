@@ -55,7 +55,8 @@ public:
     /// token_type_ids [B,T] for bidirectional attention within each image. M-RoPE models
     /// receive position_ids [4,B,T], containing GenAI's sequence/time/height/width sections;
     /// callers supply all sections.
-    enum class InputMode { IDS_TO_LOGITS, EMBEDS_TO_LOGITS };
+    /// EMBEDS_TO_LOGITS_TEXT uses scalar text position_ids [B,T], including for M-RoPE models.
+    enum class InputMode { IDS_TO_LOGITS, EMBEDS_TO_LOGITS, EMBEDS_TO_LOGITS_TEXT };
 
     explicit AdaptToGenAI(InputMode mode = InputMode::IDS_TO_LOGITS) : m_mode(mode) {}
 
@@ -73,10 +74,18 @@ public:
         return m_per_layer_embedding_model;
     }
 
+    /// Hashed n-gram lookup extracted by EMBEDS_TO_LOGITS (Qwen3.8-Flash-Next), or null.
+    /// Inputs input_ids [B,T] and ngram_history [B,n-1] (absolute token ids, EOS for a new
+    /// sequence); outputs ngram_embeddings [B,T,1,width] and new_ngram_history [B,n-1].
+    const std::shared_ptr<ov::Model>& get_ngram_embedding_model() const {
+        return m_ngram_embedding_model;
+    }
+
 private:
     InputMode m_mode;
     std::shared_ptr<ov::Model> m_embedding_model;
     std::shared_ptr<ov::Model> m_per_layer_embedding_model;
+    std::shared_ptr<ov::Model> m_ngram_embedding_model;
 };
 
 }  // namespace ov::frontend::gguf::pass

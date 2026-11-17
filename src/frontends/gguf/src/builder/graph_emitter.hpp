@@ -88,7 +88,7 @@ public:
         return m_emitted_weights.count(name) > 0;
     }
 
-    void configure_hadamard(const std::map<std::string, GGUFMetaData>& config);
+    void configure_hadamard(const std::map<std::string, GGUFMetaData>& config, bool allow_inverse_only = false);
     void validate_hadamard() const;
     bool has_hadamard() const {
         return m_hadamard_block != 0;

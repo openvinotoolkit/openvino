@@ -70,11 +70,12 @@ DecoderParameters decoder_family_defaults(const std::string& arch, int layers, i
         arch == "muse-glimmer" || arch == "exaone-moe" || (arch == "exaone4" && layers == 64);
     if (is_one_of(arch, {"afmoe", "smollm3"}))
         p.attention.rope_skip_period = 4;
-    p.experts.normalize_weights =
-        is_one_of(arch, {"hunyuan-moe", "minimax-m2", "qwen3moe", "qwen35moe", "ernie4_5-moe", "mellum", "gemma4"});
+    p.experts.normalize_weights = is_one_of(
+        arch,
+        {"hunyuan-moe", "minimax-m2", "qwen3moe", "qwen35moe", "qwen4exp", "ernie4_5-moe", "mellum", "gemma4"});
     if (is_one_of(arch, {"afmoe", "glm4moe"}))
         p.experts.routing = ExpertRouting::Sigmoid;
-    if (is_one_of(arch, {"qwen35", "qwen35moe"})) {
+    if (is_one_of(arch, {"qwen35", "qwen35moe", "qwen4exp"})) {
         p.hybrid.kind = RecurrentKind::GatedDeltaNet;
         p.attention.rope_mode = RopeMode::Interleaved;
         p.attention.interleaved_q_gate = true;
@@ -83,6 +84,8 @@ DecoderParameters decoder_family_defaults(const std::string& arch, int layers, i
         p.normalization.qk_norm = true;
         p.normalization.qk_full_width = false;
         p.model_contract.batchable_recurrent = true;
+        p.hybrid.sigmoid_output_gate = arch == "qwen4exp";
+        p.hybrid.l2_norm_eps_under_sqrt = arch == "qwen4exp";
     }
     if (is_one_of(arch, {"lfm2", "lfm2moe"})) {
         p.attention.sliding_on_attention_layers = true;

@@ -177,6 +177,31 @@ GgufValue GgufGraphContext::node(const std::string& op_type,
     return GgufValue(name, m_impl->emitter.value(name));
 }
 
+std::vector<GgufValue> GgufGraphContext::node_outputs(const std::string& op_type,
+                                                      const std::vector<GgufValue>& inputs,
+                                                      size_t outputs,
+                                                      int op_case,
+                                                      const std::map<std::string, ov::Any>& attrs) {
+    m_impl->check_open();
+    OPENVINO_ASSERT(outputs > 0, "[GGUF] node_outputs requires at least one output");
+    std::vector<std::string> names;
+    names.reserve(inputs.size());
+    for (const auto& input : inputs) {
+        names.push_back(m_impl->value_name(input));
+    }
+    const auto name = m_impl->fresh(op_type);
+    std::vector<std::string> extra;
+    for (size_t i = 1; i < outputs; ++i) {
+        extra.push_back(name + "." + std::to_string(i));
+    }
+    m_impl->emitter.add_op(op_type, name, names, op_case, attrs, extra);
+    std::vector<GgufValue> result{GgufValue(name, m_impl->emitter.value(name))};
+    for (const auto& output : extra) {
+        result.emplace_back(output, m_impl->emitter.value(output));
+    }
+    return result;
+}
+
 void GgufGraphContext::configure_rope(const RopeConfig& config) {
     m_impl->check_open();
     auto& graph = *m_impl->emitter.graph();
@@ -224,6 +249,11 @@ void GgufGraphContext::set_output(const GgufValue& value, const std::string& nam
     // The copy may be the source tensor itself; keep the names it already exposes.
     emitter.value(name).get_tensor().add_names({name});
     emitter.graph()->model_output_names.push_back(name);
+}
+
+void GgufGraphContext::acknowledge_component() {
+    m_impl->check_open();
+    m_impl->emitter.graph()->component = m_impl->build_ctx.component;
 }
 
 void GgufGraphContext::set_sliding_window(int64_t tokens) {

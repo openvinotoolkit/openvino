@@ -269,8 +269,8 @@ const std::string& gguf_swa_window_key() {
 // gguf_recurrent_states_key). The rewrite is correspondingly simpler -- ReadValue -> ... -> Assign
 // with no Concat, and no beam Gather, since there is no past to reorder.
 //
-// Their shapes are fully static, so the init is a real zeros Constant. Zero is also the correct
-// initial value: ggml starts a sequence with a zeroed conv window and delta matrix.
+// The init is a zeros Constant, empty along a dynamic axis. Zero is also the correct initial
+// value: ggml starts a sequence with a zeroed conv window and delta matrix.
 static bool make_recurrent_states_stateful(const std::shared_ptr<ov::Model>& model) {
     using namespace ov::op;
     auto it = model->get_rt_info().find(gguf_recurrent_states_key());
@@ -294,10 +294,10 @@ static bool make_recurrent_states_stateful(const std::shared_ptr<ov::Model>& mod
         if (!param) {
             continue;  // already rewritten (a second run of this pass)
         }
-        OPENVINO_ASSERT(param->get_partial_shape().is_static(),
+        OPENVINO_ASSERT(param->get_partial_shape().rank().is_static(),
                         "[GGUF] GGUFMakeStateful: recurrent state '",
                         in_name,
-                        "' must have a fully static shape, got ",
+                        "' must have a static rank, got ",
                         param->get_partial_shape());
 
         // Translation names each Result after the output it holds.
@@ -314,7 +314,11 @@ static bool make_recurrent_states_stateful(const std::shared_ptr<ov::Model>& mod
         const auto& ps = param->get_partial_shape();
         const auto et = param->get_element_type();
         auto var = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{ps, et, in_name});
-        auto init = v0::Constant::create(et, ps.to_shape(), std::vector<float>(1, 0.0f));
+        // A dynamic axis (a state that grows, such as an append-only cache) starts empty.
+        ov::Shape init_shape;
+        for (const auto& dim : ps)
+            init_shape.push_back(dim.is_static() ? static_cast<size_t>(dim.get_length()) : 0);
+        auto init = v0::Constant::create(et, init_shape, std::vector<float>(ov::shape_size(init_shape) ? 1 : 0, 0.0f));
         auto read_value = std::make_shared<v6::ReadValue>(init, var);
         read_value->set_friendly_name(in_name);
         ov::replace_node(param, read_value);

@@ -11,6 +11,7 @@
 #include "builder/arch/lfm_builder.hpp"
 #include "builder/arch/mamba_builder.hpp"
 #include "builder/arch/mmproj_builder.hpp"
+#include "builder/arch/qwen4exp_builder.hpp"
 #include "openvino/core/except.hpp"
 
 namespace ov::frontend::gguf {
@@ -85,6 +86,7 @@ const ArchitectureEntry architectures[] = {
     {"qwen35", RopeMode::Interleaved},
     {"qwen35moe", RopeMode::Interleaved},
     {"qwen3moe", RopeMode::Neox},
+    {"qwen4exp", make_qwen4exp_builder},
     {"smollm3", RopeMode::Normal},
 };
 }  // namespace
