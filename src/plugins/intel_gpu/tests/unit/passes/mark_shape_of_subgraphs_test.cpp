@@ -21,6 +21,7 @@
 #include "paged_attention_inst.h"
 #include "fully_connected_inst.h"
 #include "gemm_inst.h"
+#include "random_uniform_inst.h"
 #include "pass_manager.h"
 #include "to_string_utils.h"
 
@@ -658,3 +659,47 @@ TEST(mark_shape_of_subgraphs, gemm_not_marked) {
     ASSERT_FALSE(prog->get_node("relu").is_in_shape_of_subgraph());
 }
 
+
+// RandomUniform produces a new sequence on every inference, so it must not be a part of a shape_of subgraph:
+// such subgraphs are skipped when the input shapes do not change, which would freeze the random values.
+TEST(mark_shape_of_subgraphs, random_uniform_no_mark) {
+    auto& engine = get_test_engine();
+    auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+                                       data_types::f32, format::bfyx};
+    auto min_val = engine.allocate_memory({ ov::PartialShape{1}, data_types::f32, format::bfyx });
+    auto max_val = engine.allocate_memory({ ov::PartialShape{1}, data_types::f32, format::bfyx });
+    set_values(min_val, {0.f});
+    set_values(max_val, {1.f});
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(data("min_val", min_val));
+    topology.add(data("max_val", max_val));
+    topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
+    topology.add(random_uniform("random_uniform", {input_info("shape_of"), input_info("min_val"), input_info("max_val")},
+                                data_types::f32, 0, 0));
+    topology.add(eltwise("eltwise", input_info("input"), input_info("random_uniform"), eltwise_mode::sum));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    auto prog = network.get_program();
+    ASSERT_NE(prog, nullptr);
+    ASSERT_TRUE(prog->get_node("shape_of").is_in_shape_of_subgraph());
+    ASSERT_FALSE(prog->get_node("random_uniform").is_in_shape_of_subgraph());
+
+    auto input_mem = engine.allocate_memory({ov::PartialShape{4, 8}, data_types::f32, format::bfyx});
+    set_values(input_mem, std::vector<float>(32, 0.f));
+    std::vector<std::vector<float>> results;
+    for (size_t i = 0; i < 3; ++i) {
+        network.set_input_data("input", input_mem);
+        auto outputs = network.execute();
+        auto output_mem = outputs.at("eltwise").get_memory();
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
+        results.emplace_back(output_ptr.begin(), output_ptr.end());
+    }
+    ASSERT_NE(results[0], results[1]);
+    ASSERT_NE(results[1], results[2]);
+}
