@@ -7845,3 +7845,73 @@ TEST_F(fully_connected_gpu_tests, gemv_rejects_unaligned_ofm_with_dynamic_batch)
         compare_outputs<ov::float16>(out_mem, ref_mem);
     }
 }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+// A residual add fused into an f32 oneDNN fully_connected must reach oneDNN as a binary post-op. As a sum post-op it
+// becomes GEMM beta = 1, and oneDNN may then split K between work-groups that add their partial sums to dst with
+// float atomics, which makes the f32 result change from run to run.
+TEST(fully_connected_onednn_gpu, f32_residual_add_fused_as_binary_post_op) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "oneDNN fully_connected requires a device with immad";
+
+    const int64_t m = 32, k = 64, n = 16;
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto x = rg.generate_random_1d<float>(m * k, -1.0f, 1.0f);
+    auto w = rg.generate_random_1d<float>(n * k, -1.0f, 1.0f);
+    auto h = rg.generate_random_1d<float>(m * n, -1.0f, 1.0f);
+
+    auto input_mem = engine.allocate_memory({{m, k}, data_types::f32, format::bfyx});
+    auto hidden_mem = engine.allocate_memory({{m, n}, data_types::f32, format::bfyx});
+    auto weights_mem = engine.allocate_memory({{n, k}, data_types::f32, format::bfyx});
+    set_values(input_mem, x);
+    set_values(hidden_mem, h);
+    set_values(weights_mem, w);
+
+    topology topology(input_layout("input", input_mem->get_layout()),
+                      input_layout("hidden", hidden_mem->get_layout()),
+                      data("weights", weights_mem),
+                      // The addend is computed by the network: a network input never becomes a sum post-op.
+                      activation("residual", input_info("hidden"), activation_func::abs),
+                      fully_connected("fc", input_info("input"), "weights"),
+                      eltwise("sum", {input_info("fc"), input_info("residual")}, eltwise_mode::sum),
+                      reorder("out", input_info("sum"), format::bfyx, data_types::f32));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", {format::bfyx, "", impl_types::onednn}}}));
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+    network.set_input_data("hidden", hidden_mem);
+    auto outputs = network.execute();
+
+    // Look up by type, not id: the node is renamed to "out" when the redundant reorder is dropped.
+    const auto& infos = network.get_primitives_info();
+    auto fc_info = std::find_if(infos.begin(), infos.end(), [](const primitive_info& info) {
+        return info.type_id == "fully_connected";
+    });
+    ASSERT_NE(fc_info, infos.end());
+    ASSERT_NE(std::find(fc_info->c_fused_ids.begin(), fc_info->c_fused_ids.end(), "sum"), fc_info->c_fused_ids.end())
+        << "the residual add did not fuse into the fully_connected";
+    auto fc_inst = network.get_primitive(fc_info->original_id);
+    ASSERT_TRUE(fc_inst->get_impl()->is_onednn());
+    const auto& post_ops = fc_inst->get_fused_primitives_onednn();
+    auto has_post_op = [&](onednn_post_op_type type) {
+        return std::any_of(post_ops.begin(), post_ops.end(), [&](const fused_primitive_desc_onednn& p) {
+            return p.op_type == type;
+        });
+    };
+    ASSERT_TRUE(has_post_op(onednn_post_op_type::binary_add));
+    ASSERT_FALSE(has_post_op(onednn_post_op_type::sum));
+
+    cldnn::mem_lock<float> out(outputs.at("out").get_memory(), get_test_stream());
+    for (int64_t i = 0; i < m; ++i) {
+        for (int64_t j = 0; j < n; ++j) {
+            float ref = std::abs(h[i * n + j]);
+            for (int64_t kk = 0; kk < k; ++kk)
+                ref += x[i * k + kk] * w[j * k + kk];
+            ASSERT_NEAR(out[i * n + j], ref, 1e-4f) << "at (" << i << ", " << j << ")";
+        }
+    }
+}
+#endif  // ENABLE_ONEDNN_FOR_GPU
