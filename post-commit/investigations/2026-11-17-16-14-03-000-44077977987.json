@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-17-16-14-03-000-44077977987",
+  "timestamp": "2026-11-17T16:14:03Z",
+  "run_id": "44077977987",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44077977987",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "599946f676aacb6f0b3ef2d1ba078f34d0f88185",
+  "pr_number": "39899",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39899",
+  "author": "sungeunk",
+  "category": "Flaky Test",
+  "title": "GPU unit tests fail with a burst of 37 gtest-parallel worker crashes right after fp16_scale_out accuracy mismatch",
+  "signature": "GPU unit tests accuracy tolerance mismatch in fusion test (val_ref vs val_opt difference exceeds tolerance in fusion_test_common.hpp) followed by burst of concurrent gtest-parallel worker processes exiting with code 3|Flaky Test",
+  "signature_hash": "502c01bffd8f35db",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "fusings_gpu/pooling_f32_scale.fp16_scale_out/1 fails accuracy check by 3.05e-05 past tolerance, then 37 later tests crash with exit code 3"
+    }
+  ],
+  "key_errors": [
+    "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\plugins\\intel_gpu\\tests\\unit\\fusions\\fusion_test_common.hpp(90): error: The difference between val_ref[i] and val_opt[i] is 3.0517578125e-05, which exceeds tolerance",
+    "[  FAILED  ] fusings_gpu/pooling_f32_scale.fp16_scale_out/1 ... (1148 ms)",
+    "FAILED TESTS (37/29306): ... convolution_grouped_gpu.base/... returned with exit code 3, basic/convolution_random_smoke_test.* returned with exit code 3 (x36), fusings_gpu/pooling_f32_scale.fp16_scale_out/1 returned with exit code 1"
+  ],
+  "root_cause": "This is the same recurring GPU unit test flake tracked under pattern 502c01bffd8f35db (7 prior occurrences between 2026-11-13 and 2026-11-14, now recurring again). fusings_gpu/pooling_f32_scale.fp16_scale_out/1 fails an fp16 accuracy comparison in fusion_test_common.hpp by a tiny margin (3.05e-05), consistent with borderline floating-point tolerance sensitivity in fp16 pooling+scale fusion rather than a correctness regression. A burst of 36 additional tests (mostly basic/convolution_random_smoke_test.* and a grouped convolution case) then exit with code 3 instead of completing normally, which is the gtest-parallel worker-crash signature seen in prior occurrences of this same pattern - these are concurrent worker processes that die early in the run (around test indices 1-36) rather than genuine per-test assertion failures. The merge in this run integrates an oneDNN submodule bump (PR #39899, 'onednn rls-v3.15-pc integration'), a 1-line submodule pointer change with no GPU-plugin source changes, so it is very unlikely to be the root cause of this specific flake; it most likely bisects a lucky/unlucky scheduling window on the Windows GPU runner.",
+  "reproduction_steps": "On a Windows GPU runner: build ov_gpu_unit_tests, then run via gtest-parallel: python gtest_parallel.py --gtest_filter=fusings_gpu/pooling_f32_scale.fp16_scale_out/1 ov_gpu_unit_tests.exe. The failure is intermittent (accuracy margin is borderline), so multiple repeated runs may be needed to reproduce; the worker crashes among the first ~36 scheduled tests are similarly non-deterministic and tied to parallel worker startup/resource contention rather than a specific input.",
+  "recommended_actions": [
+    "Review the pass/fail tolerance used in fusion_test_common.hpp for fp16 pooling+scale fusion tests (currently failing by 3.05e-05); consider loosening fp16 comparison tolerance slightly if this is a known borderline case.",
+    "Investigate why exactly the first ~36 scheduled gtest-parallel worker tests (convolution_grouped_gpu, convolution_random_smoke_test variants) intermittently exit with code 3 early in the run on Windows GPU runners - check for GPU driver/resource contention during gtest-parallel worker startup.",
+    "If this pattern keeps recurring (now 8 total observations), consider marking fusings_gpu/pooling_f32_scale.fp16_scale_out/1 as a known-flaky test or quarantining it pending a tolerance fix, to stop blocking merge-queue/post-commit CI."
+  ],
+  "prevention_strategies": "Add tolerance-margin logging/telemetry to fusion_test_common.hpp so near-miss accuracy failures (within 2x tolerance) are flagged distinctly from genuine regressions. Track gtest-parallel worker exit code 3 occurrences separately from assertion failures in CI reporting so bursts like this are auto-classified as infra flakiness rather than requiring manual investigation each time.",
+  "historical_context": "Identical signature (502c01bffd8f35db) recorded 7 times between 2026-11-13T17:54:36Z and 2026-11-14T07:30:39Z across unrelated commits, confirming this is a long-standing intermittent GPU unit test issue on Windows runners, not something introduced by the current commit."
+}
