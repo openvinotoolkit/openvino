@@ -335,3 +335,66 @@ TEST(nvidia_replace_reqd_sub_group_size, default_is_restored_between_entries) {
     EXPECT_EQ(nv_sub_group_size_at(batch, "kernel_a"), "(16)");
     EXPECT_EQ(nv_sub_group_size_at(batch, "kernel_b"), "(OV_NV_DEFAULT_SUB_GROUP_SIZE)");
 }
+
+TEST(nvidia_replace_reqd_sub_group_size, parenthesized_arguments) {
+    // A request's argument can be any expression: it runs to the matching ')', not the first one, and a comma inside
+    // nested parentheses does not split it.
+    const std::string src = R"__krnl(
+REQD_SUB_GROUP_SIZE((16))
+__kernel void macro_kernel(__global int* out) {}
+__attribute__((intel_reqd_sub_group_size((8))))
+__kernel void attribute_kernel(__global int* out) {}
+REQD_SUB_GROUP_SIZE(MIN((16),(32)))
+__kernel void nested_kernel(__global int* out) {}
+)__krnl";
+    const std::string out = nvidia_replace_reqd_sub_group_size(src);
+
+    EXPECT_EQ(nv_sub_group_size_at(out, "macro_kernel"), "((16))");
+    EXPECT_EQ(nv_sub_group_size_at(out, "attribute_kernel"), "((8))");
+    EXPECT_EQ(nv_sub_group_size_at(out, "nested_kernel"), "(MIN((16),(32)))");
+    EXPECT_NE(out.find("REQD_SUB_GROUP_SIZE((16))"), std::string::npos);
+    EXPECT_EQ(out.find("intel_reqd_sub_group_size"), std::string::npos);
+}
+
+TEST(nvidia_replace_reqd_sub_group_size, attribute_lists_in_either_order) {
+    // The raw attribute is found wherever it sits in an attribute list. Only it is taken out; the other attributes of
+    // the list stay, and a list left with a stray comma is still valid.
+    const std::string src = R"__krnl(
+__attribute__((intel_reqd_sub_group_size(16), reqd_work_group_size(64,1,1)))
+__kernel void request_first(__global int* out) {}
+__attribute__((reqd_work_group_size(64,1,1), intel_reqd_sub_group_size(8)))
+__kernel void request_last(__global int* out) {}
+)__krnl";
+    const std::string out = nvidia_replace_reqd_sub_group_size(src);
+
+    EXPECT_EQ(nv_sub_group_size_at(out, "request_first"), "(16)");
+    EXPECT_EQ(nv_sub_group_size_at(out, "request_last"), "(8)");
+    EXPECT_EQ(out.find("intel_reqd_sub_group_size"), std::string::npos);
+    const std::string wg = "reqd_work_group_size(64,1,1)";
+    const size_t first_wg = out.find(wg);
+    ASSERT_NE(first_wg, std::string::npos);
+    EXPECT_NE(out.find(wg, first_wg + wg.size()), std::string::npos);
+}
+
+TEST(nvidia_replace_reqd_sub_group_size, work_group_size_from_attribute_lists) {
+    // The work-group fallback finds reqd_work_group_size anywhere in an attribute list too, and splits its dimensions
+    // at the commas outside parentheses only, so each can be an expression.
+    const std::string wg_last =
+        "__attribute__((vec_type_hint(float4), reqd_work_group_size((2*4),1,1)))\n"
+        "__kernel void wg_last_kernel(__global int* out) {}\n";
+    const std::string wg_first =
+        "__attribute__((reqd_work_group_size(MAX(8,16),1,1), vec_type_hint(float4)))\n"
+        "__kernel void wg_first_kernel(__global int* out) {}\n";
+    const std::string out_last = nvidia_replace_reqd_sub_group_size(wg_last);
+    const std::string out_first = nvidia_replace_reqd_sub_group_size(wg_first);
+
+    EXPECT_EQ(nv_sub_group_size_at(out_last, "wg_last_kernel"),
+              "((((2*4))*(1)*(1)) == 8u ? 8u : ((((2*4))*(1)*(1)) == 16u ? 16u : OV_NV_DEFAULT_SUB_GROUP_SIZE))");
+    EXPECT_EQ(nv_sub_group_size_at(out_first, "wg_first_kernel"),
+              "(((MAX(8,16))*(1)*(1)) == 8u ? 8u : (((MAX(8,16))*(1)*(1)) == 16u ? 16u : OV_NV_DEFAULT_SUB_GROUP_SIZE))");
+    // The attribute lists stay whole.
+    EXPECT_NE(out_last.find("vec_type_hint(float4)"), std::string::npos);
+    EXPECT_NE(out_last.find("reqd_work_group_size((2*4),1,1)"), std::string::npos);
+    EXPECT_NE(out_first.find("reqd_work_group_size(MAX(8,16),1,1)"), std::string::npos);
+    EXPECT_NE(out_first.find("vec_type_hint(float4)"), std::string::npos);
+}

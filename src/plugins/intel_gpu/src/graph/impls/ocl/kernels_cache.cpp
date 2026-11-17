@@ -42,6 +42,7 @@
 #include <string_view>
 #include <tuple>
 #include <memory>
+#include <optional>
 #include <utility>
 
 #if defined(__unix__) && !defined(__ANDROID__)
@@ -130,17 +131,40 @@ std::string redefine_directive(const std::string& arg) {
     return "\n#undef OV_NV_SUB_GROUP_SIZE\n#define OV_NV_SUB_GROUP_SIZE (" + arg + ")\n";
 }
 
+// The parenthesised list opening at src[open]: its arguments, split at the commas outside nested parentheses, and the
+// position of the ')' that closes it; nullopt if it is never closed. The arguments of a sub-group or work-group size
+// request can be any expressions, so they end where the parentheses balance, not at the first ')', and an expression
+// such as MAX(a, b) stays one argument.
+struct paren_args {
+    std::vector<std::string> args;
+    size_t close;
+};
+
+std::optional<paren_args> parse_paren_args(const std::string& src, size_t open) {
+    paren_args result{{std::string()}, std::string::npos};
+    size_t depth = 1;
+    for (size_t i = open + 1; i < src.size(); ++i) {
+        const char c = src[i];
+        if (c == '(') {
+            ++depth;
+        } else if (c == ')' && --depth == 0) {
+            result.close = i;
+            return result;
+        } else if (c == ',' && depth == 1) {
+            result.args.emplace_back();
+            continue;
+        }
+        result.args.back() += c;
+    }
+    return std::nullopt;
+}
+
 // Sub-group size for a kernel that states none, from the (x, y, z) arguments of its reqd_work_group_size: a work-group
 // of exactly 8 or 16 work-items runs as one sub-group of that width, as the kernels written for it expect; anything
 // else keeps the default. Without this, block reads/writes would stride by the 32-lane default.
 // The arguments are usually jit constants, so the choice is left to the preprocessor as a constant expression. An
 // empty result means the arguments were not recognised.
-std::string sub_group_size_from_work_group_size(const std::string& args) {
-    std::vector<std::string> dims;
-    std::stringstream ss(args);
-    for (std::string dim; std::getline(ss, dim, ',');) {
-        dims.push_back(dim);
-    }
+std::string sub_group_size_from_work_group_size(const std::vector<std::string>& dims) {
     if (dims.size() != 3) {
         return {};
     }
@@ -156,29 +180,37 @@ std::string nvidia_replace_reqd_sub_group_size(const std::string& src) {
     // OV_NV_SUB_GROUP_SIZE, which the sub-group helpers in nvidia/compat_sg.cl read.
     // Comments are not looked into: codegen strips them from the built-in kernels, and a custom kernel that names a
     // request in a comment is not supported.
-    // One pattern for both spellings, so the occurrences are visited in source order and the first request - the one
-    // repeated at the top of the entry - is the first in the source whichever spelling states it. Group 1 is the raw
-    // attribute's argument, group 2 the macro's.
-    static const std::regex request_re(
-        R"(__attribute__\s*\(\s*\(\s*intel_reqd_sub_group_size\s*\(([^()]*)\)\s*\)\s*\))"
-        R"(|REQD_SUB_GROUP_SIZE\s*\(([^()]*)\))");
+    // The patterns find a request by its name and opening parenthesis only; its arguments run to the matching ')'
+    // (parse_paren_args), so they can be any expressions. A raw attribute is found wherever it sits in an attribute list,
+    // whatever else the list holds. One pattern for both spellings, so the occurrences are visited in source order and
+    // the first request - the one repeated at the top of the entry - is the first in the source whichever spelling
+    // states it. Group 1 is the name.
+    static const std::regex request_re(R"(\b(intel_reqd_sub_group_size|REQD_SUB_GROUP_SIZE)\s*\()");
 
     std::string first_arg;
 
     // Rewrite each occurrence into a redefinition at the point it appears, so a batch entry holding several kernels
-    // with different sub-group sizes still gets the right value for each of them. to_size gives the size an
-    // occurrence asks for and whether the occurrence itself stays in the source.
+    // with different sub-group sizes still gets the right value for each of them. An occurrence spans from its name to
+    // the ')' closing its arguments; to_size gives the size it asks for, from the match and the arguments, and whether
+    // the occurrence itself stays in the source. A preprocessing directive may sit anywhere outside a macro's
+    // arguments, the middle of an attribute list included, so the redefinition goes right where the occurrence was.
     auto rewrite = [&](const std::string& text,
                        const std::regex& re,
-                       const std::function<std::pair<std::string, bool>(const std::smatch&)>& to_size) {
+                       const std::function<std::pair<std::string, bool>(const std::smatch&,
+                                                                        const std::vector<std::string>&)>& to_size) {
         std::string out;
         size_t last = 0;
         for (std::sregex_iterator it(text.begin(), text.end(), re), end; it != end; ++it) {
             const size_t pos = static_cast<size_t>(it->position());
-            if (on_define_line(text, pos)) {
+            // A name inside the arguments of an occurrence already rewritten is part of that occurrence.
+            if (pos < last || on_define_line(text, pos)) {
                 continue;
             }
-            const auto [arg, keep_match] = to_size(*it);
+            const auto list = parse_paren_args(text, pos + static_cast<size_t>(it->length()) - 1);
+            if (!list) {
+                continue;
+            }
+            const auto [arg, keep_occurrence] = to_size(*it, list->args);
             if (arg.empty()) {
                 continue;
             }
@@ -187,19 +219,21 @@ std::string nvidia_replace_reqd_sub_group_size(const std::string& src) {
             }
             out.append(text, last, pos - last);
             out += redefine_directive(arg);
-            if (keep_match) {
-                out += it->str();
+            if (keep_occurrence) {
+                out.append(text, pos, list->close + 1 - pos);
             }
-            last = pos + static_cast<size_t>(it->length());
+            last = list->close + 1;
         }
         out.append(text, last, std::string::npos);
         return out;
     };
 
-    const auto stated_size = [](const std::smatch& m) {
+    const auto stated_size = [](const std::smatch& m, const std::vector<std::string>& args) {
         // The macro form expands to nothing on this target, so leaving it in place keeps the source closer to the
-        // original. The raw attribute has to go - the NVIDIA compiler does not know it.
-        return m[1].matched ? std::make_pair(m[1].str(), false) : std::make_pair(m[2].str(), true);
+        // original. The raw attribute has to go - the NVIDIA compiler does not know it. Only the attribute itself goes:
+        // the others of its list stay, and a list left empty or with a stray comma is still a valid one.
+        // A request takes exactly one argument; anything else is not one and is left alone.
+        return std::make_pair(args.size() == 1 ? args[0] : std::string(), m[1].str() == "REQD_SUB_GROUP_SIZE");
     };
     // A regex search costs a pass over the source, and most kernels ask for no particular sub-group size: look for the
     // keywords the patterns need before running them.
@@ -211,12 +245,11 @@ std::string nvidia_replace_reqd_sub_group_size(const std::string& src) {
     }
 
     // No stated sub-group size: fall back to the one the work-group size implies, if any; an explicit declaration always
-    // wins. The whole attribute is matched so the redefinition lands ahead of it, and the attribute itself stays.
+    // wins. The attribute is found wherever it sits in its list, and stays.
     if (first_arg.empty() && contains("reqd_work_group_size")) {
-        static const std::regex wg_re(
-            R"(__attribute__\s*\(\s*\(\s*reqd_work_group_size\s*\(([^()]*)\)\s*\)\s*\))");
-        modified = rewrite(src, wg_re, [](const std::smatch& m) {
-            return std::make_pair(sub_group_size_from_work_group_size(m[1].str()), true);
+        static const std::regex wg_re(R"(\breqd_work_group_size\s*\()");
+        modified = rewrite(src, wg_re, [](const std::smatch&, const std::vector<std::string>& args) {
+            return std::make_pair(sub_group_size_from_work_group_size(args), true);
         });
     }
 
