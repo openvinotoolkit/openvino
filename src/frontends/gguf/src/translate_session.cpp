@@ -165,15 +165,17 @@ void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
     };
     // Operations that return their whole destination with a region rewritten update that storage in
     // place: every later read of the storage, and the model output written back to it, must see the
-    // new value. SET_ROWS writes rows of input 2, a CPY update ("axis") writes a range of input 1, and a
-    // ranged SCALE (start/length inputs) rescales a range of input 0.
+    // new value. SET_ROWS writes rows of input 2, a CPY update ("axis") writes input 1, and SCALE writes input 0.
     int updated_input = -1;
     if (operation_type == "GGML_OP_SET_ROWS") {
         updated_input = 2;
     } else if (operation_type == "GGML_OP_CPY" && !decoder->get_attribute("axis").empty()) {
         updated_input = 1;
-    } else if (operation_type == "GGML_OP_SCALE" && decoder->get_input_size() == 3) {
-        updated_input = 0;
+    } else if (operation_type == "GGML_OP_SCALE") {
+        const auto inplace = decoder->get_attribute("inplace");
+        if (decoder->get_input_size() == 3 || (!inplace.empty() && inplace.as<bool>())) {
+            updated_input = 0;
+        }
     }
     std::string output_storage;
     ov::Output<Node> updated_root;
