@@ -132,6 +132,10 @@ bool ConvolutionKernel_yxfb_yxio_b16::Validate(const Params& p) const {
         if ((filter_ofm_num * batch_size) % min_lws != 0 || batch_size < 32) {  // TODO: check why it's not supported
             DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
+        // The kernel always processes OFM_PER_WORK_ITEM output features per work item.
+        if (filter_ofm_num % GetOfmPerWorkitem(Datatype::F32) != 0) {
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
     }
 
     return true;
