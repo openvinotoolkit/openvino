@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-17-10-59-00-316-44054389090",
+  "timestamp": "2026-11-17T10:59:00Z",
+  "run_id": "44054389090",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44054389090",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "39839",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39839",
+  "author": "ZackyLake",
+  "category": "Infrastructure",
+  "title": "GPU unit tests fail to extract OpenVINO package - PowerShell execution policy disabled scripts on Windows runner",
+  "signature": "cannot be loaded because running scripts is disabled on this system|Infrastructure",
+  "signature_hash": "c351b86e95419730",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "Extract OpenVINO packages step failed while running an auto-generated Expand-Archive PowerShell script"
+    }
+  ],
+  "key_errors": [
+    "2026-11-17T10:04:39.2615055Z . : File C:\\actions-runner\\_work\\_temp\\8003f44b-ed99-4440-993d-b5e8b94371e8.ps1 cannot be loaded because running",
+    "2026-11-17T10:04:39.2617078Z scripts is disabled on this system. For more information, see about_Execution_Policies at",
+    "2026-11-17T10:04:39.2621271Z     + CategoryInfo          : SecurityError: (:) [], PSSecurityException",
+    "2026-11-17T10:04:39.2621824Z     + FullyQualifiedErrorId : UnauthorizedAccess",
+    "2026-11-17T10:04:39.2775650Z ##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The 'Extract OpenVINO packages' step runs two Expand-Archive PowerShell commands on a Windows runner via GitHub Actions' auto-generated temp .ps1 wrapper script. The runner's PowerShell execution policy (Restricted) blocks loading any .ps1 file (PSSecurityException / UnauthorizedAccess), even though the commands themselves are benign Expand-Archive calls. This is a Windows-runner image/environment misconfiguration unrelated to the PR's code changes (PR #39839 only touches GPU plugin CPU-impl event-generation logic and a unit test, neither of which affects the Windows VS2022 job's execution policy). This is the 3rd occurrence of the identical signature within ~17 hours, confirming a recurring runner-pool provisioning defect rather than an isolated incident.",
+  "reproduction_steps": "N/A - this is a Windows-runner image/environment issue (PowerShell execution policy) triggered non-deterministically depending on the specific self-hosted/ephemeral runner instance assigned to the job; it does not reproduce locally or depend on the PR diff.",
+  "recommended_actions": [
+    "Ensure the Windows runner image / bootstrap sets PowerShell execution policy to RemoteSigned or Bypass for the actions-runner service account (e.g., via `Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process` in the runner setup, or a machine/user GPO) so GitHub Actions' auto-generated .ps1 wrapper scripts can be loaded.",
+    "Alternatively, have the 'Extract OpenVINO packages' step invoke PowerShell explicitly with `-ExecutionPolicy Bypass` (e.g. `shell: pwsh -ExecutionPolicy Bypass -Command \"...\"`) instead of relying on the default shell wrapper.",
+    "Audit the Windows GPU runner pool/image provisioning scripts urgently: this is now the 3rd occurrence in 17 hours, indicating either a bad image rollout or a subset of misconfigured runner instances still in rotation."
+  ],
+  "prevention_strategies": "Bake execution-policy configuration into the Windows runner image provisioning (Packer/Ansible/etc.) and add a post-provisioning smoke test that runs a trivial Expand-Archive PowerShell step to catch regressions before the image is promoted to production use. Consider quarantining/draining runner instances that fail this check.",
+  "historical_context": "Identical signature previously observed on 2026-11-16 (run 43897852421, PR #39833) and 2026-11-17 (run 44051380184, PR #39423), both on the 'GPU unit tests' job's 'Extract OpenVINO packages' step. This is the 3rd occurrence recorded in the CI Doctor MQ pattern database (pattern c351b86e95419730), crossing the 3-occurrences/12-hour recurring-escalation threshold (all three occurred between 2026-11-16T17:32:33Z and 2026-11-17T10:59:00Z, well within a 17.5-hour span, with 2 of the 3 within the last 12 hours — not quite 3-within-12h, see Phase 5.5 calculation). A human-review PR (#39951) proposing the rerun search string 'scripts is disabled on this system' for this exact signature was already opened and remains open/unmerged as of this run."
+}
