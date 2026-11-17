@@ -110,7 +110,9 @@ python3 src/frontends/gguf/tests/graph_fingerprint.py \
   --cases <case-id>,<case-id> --update --report /tmp/changed_cases.json
 ```
 
-Default mode checks references; CI never updates. Updates require explicit IDs, capture
+Default mode checks references; CI never updates. On a mismatch, the check prints the
+per-case deltas and the exact `--update` command for the changed cases, and links to the
+review policy below. In GitHub Actions it also adds an error annotation and a job summary table. Updates require explicit IDs, capture
 all selected cases before writing, stage replacements, and roll back a publication failure.
 If rollback fails, the error lists retained recovery backups. Existing malformed,
 inconsistent or oversized references of the current version must be repaired/reverted

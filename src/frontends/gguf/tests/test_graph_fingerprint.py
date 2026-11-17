@@ -268,3 +268,38 @@ def test_import_accepts_packed_header_prefix_with_source_size(tmp_path):
     tensors = graph.import_header(prefix, len(header) + payload)["tensors"]
     assert tensors == [{"name": "weight", "shape": [2, 256], "ggml_type": 42,
                         "storage_type": "u8", "storage_shape": [payload]}]
+
+
+def test_check_failure_explains_update_and_evidence_in_ci(tmp_path, monkeypatch, capsys):
+    reference = json.dumps({"version": 2, **graph.compact_snapshot(snapshot())})
+    cases = []
+    for name in ("same", "changed"):
+        value = recipe()
+        value["tensors"][0]["name"] = name
+        (tmp_path / f"{name}.recipe.json").write_text(graph.recipe_text(value))
+        (tmp_path / f"{name}.reference.json").write_text(reference)
+        cases.append({"id": name, "recipe": f"{name}.recipe.json", "reference": f"{name}.reference.json",
+                      "models": [name], "architecture": "llama",
+                      "source": {"filename": "test.gguf", "header_sha256": "0" * 64}})
+    (tmp_path / "catalog.json").write_text(json.dumps({"version": 1, "cases": cases}))
+
+    def capture(value, runner):
+        result = graph.compact_snapshot(snapshot())
+        if value["tensors"][0]["name"] == "changed":
+            result["graph_sha256"] = "f" * 64
+        return result
+    monkeypatch.setattr(graph, "capture", capture)
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+    args = Namespace(data=tmp_path, cases=None, runner="runner", report=tmp_path / "changed_cases.json", update=False)
+
+    assert graph.run_cases(args) == 1
+    out = capsys.readouterr().out
+    command = f"python3 {graph.SCRIPT_PATH} --runner <build>/bin/ov_gguf_frontend_tests --cases changed --update"
+    policy = graph.README_PATH + graph.POLICY_ANCHOR
+    assert command in out and policy in out
+    assert "::error title=GGUF structural references changed::" in out
+    text = summary.read_text()
+    assert command in text and policy in text
+    assert "| `changed` |" in text and "structure/attributes only" in text and "`same`" not in text

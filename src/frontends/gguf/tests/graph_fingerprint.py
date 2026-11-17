@@ -25,6 +25,10 @@ MAX_REFERENCE_BYTES = 32 * 1024
 VERSION = 1
 REFERENCE_VERSION = 2
 RECIPE_VERSION = 2
+SCRIPT_PATH = "src/frontends/gguf/tests/graph_fingerprint.py"
+REFERENCES_PATH = "src/frontends/gguf/tests/test_data/graph_regressions/references"
+README_PATH = "src/frontends/gguf/tests/graph_regressions/README.md"
+POLICY_ANCHOR = "#review-policy-for-reference-changes"
 
 # GGML block storage, not the frontend's unpacked representation.
 BLOCKS = {
@@ -109,6 +113,70 @@ def print_changes(case, change):
             print(f"  {kind} {field}: {'/'.join(map(str, row['signature']))} {row['delta']:+d}")
     if change["graph_changed"] and not change["ops"]:
         print("  structure/attributes changed; operation counts unchanged")
+
+
+def source_link(path, anchor=""):
+    server, repository, sha = (os.environ.get(name) for name in
+                               ("GITHUB_SERVER_URL", "GITHUB_REPOSITORY", "GITHUB_SHA"))
+    if server and repository and sha:
+        return f"{server}/{repository}/blob/{sha}/{path}{anchor}"
+    return f"{path}{anchor}"
+
+
+def update_command(changes):
+    ids = ",".join(change["case"] for change in changes)
+    return f"python3 {SCRIPT_PATH} --runner <build>/bin/ov_gguf_frontend_tests --cases {ids} --update"
+
+
+def failure_guidance(changes, report_path):
+    return [
+        f"GGUF structural regression check FAILED: {len(changes)} case(s) differ from the "
+        "committed references.",
+        "If the change is unintended, fix the frontend change instead of the references.",
+        "If the change is intended:",
+        f"  1. Regenerate only these references with {SCRIPT_PATH}:",
+        f"     {update_command(changes)}",
+        f"  2. Commit the updated files in {REFERENCES_PATH}/.",
+        "  3. Add real-model performance evidence for the affected models to the PR "
+        "description, as required by the review policy:",
+        f"     {source_link(README_PATH, POLICY_ANCHOR)}",
+        f"Changed-case report (input for selecting representatives): {report_path}",
+    ]
+
+
+def publish_failure(changes, report_path):
+    lines = failure_guidance(changes, report_path)
+    print("\n" + "\n".join(lines), flush=True)
+    if os.environ.get("GITHUB_ACTIONS") != "true":
+        return
+    escaped = "%0A".join(line.replace("%", "%25").replace("\r", "%0D") for line in lines)
+    print(f"::error title=GGUF structural references changed::{escaped}", flush=True)
+    summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not summary:
+        return
+    rows = ["| Case | Operations | Changed operation types | Changed projections |", "|---|---|---|---|"]
+    for change in changes:
+        delta = change["change"]
+        ops, projections = (", ".join(f"{'/'.join(map(str, row['signature']))} {row['delta']:+d}"
+                                      for row in delta[field]) or "-" for field in ("ops", "projections"))
+        if ops == "-" and projections == "-":
+            ops = "structure/attributes only"
+        rows.append(f"| `{change['case']}` | {delta['before_nodes']} → {delta['after_nodes']} | {ops} | "
+                    f"{projections} |")
+    text = "\n".join([
+        "## GGUF structural regression check failed", "",
+        f"{len(changes)} case(s) differ from the committed references.", "", *rows, "",
+        "If the change is unintended, fix the frontend change instead of the references. "
+        "If it is intended:", "",
+        f"1. Regenerate only these references with `{SCRIPT_PATH}`:", "",
+        "   ```sh", "   " + update_command(changes), "   ```", "",
+        f"2. Commit the updated files in `{REFERENCES_PATH}/`.",
+        "3. Add real-model performance evidence for the affected models to the PR description "
+        f"as required by the [review policy]({source_link(README_PATH, POLICY_ANCHOR)}).", "",
+        "The changed-case report is uploaded in the `test-results-cpp` artifact as "
+        "`changed_cases.json`.", ""])
+    with open(summary, "a", encoding="utf-8") as stream:
+        stream.write(text)
 
 
 class HeaderReader:
@@ -652,7 +720,10 @@ def run_cases(args):
     report = {"selected": 0, "completed": 0, "changed_cases": [], "errors": []}
     report_path = args.report or Path.cwd() / "changed_cases.json"
     try:
-        return _run_cases(args, report)
+        status = _run_cases(args, report)
+        if status:
+            publish_failure(report["changed_cases"], report_path)
+        return status
     except (OSError, ValueError, KeyError, TypeError) as error:
         report["errors"].append(str(error))
         raise
@@ -749,6 +820,9 @@ def main(argv=None):
         return run_cases(args)
     except (OSError, ValueError, KeyError, TypeError) as error:
         print(f"GGUF graph reference error: {error}", file=sys.stderr)
+        if os.environ.get("GITHUB_ACTIONS") == "true":
+            message = str(error).replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+            print(f"::error title=GGUF graph reference error::{message}", flush=True)
         return 1
 
 
