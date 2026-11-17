@@ -14,23 +14,20 @@ using namespace cldnn;  // TODO: Remove once namespaces are aligned
 
 namespace ov::intel_gpu::ocl {
 
-MoE3GemmDynQuan::Shape MoE3GemmDynQuan::get_shape(const RuntimeParams& params, Projection proj) {
+size_t MoE3GemmDynQuan::get_activation_group_size(const RuntimeParams& params, Projection proj) {
     const auto& config = params.typed_desc<moe_3gemm_fused_compressed>()->_config;
-    Shape shape;
-    shape.k = proj == Projection::DOWN ? config.inter_size : config.hidden_size;
     const auto& exec_config = params.get_program().get_config();
     const uint64_t dyn_quan_group_size = exec_config.get_dynamic_quantization_group_size();
-    const size_t weight_group_size = get_group_size(config, shape.k);
+    const size_t weight_group_size = get_group_size(config, get_k(config, proj));
     if (dyn_quan_group_size == 0 || exec_config.get_dynamic_quantization_group_size_max() < dyn_quan_group_size) {
-        return shape;
+        return 0;
     }
     for (size_t candidate : {size_t{128}, size_t{64}}) {
         if (candidate <= dyn_quan_group_size && weight_group_size % candidate == 0) {
-            shape.group_size = candidate;
-            break;
+            return candidate;
         }
     }
-    return shape;
+    return 0;
 }
 
 bool MoE3GemmDynQuan::is_supported(const RuntimeParams& params) {
@@ -51,12 +48,11 @@ bool MoE3GemmDynQuan::is_supported(const RuntimeParams& params) {
         return false;
     }
     for (auto proj : {Projection::GATE_UP, Projection::DOWN}) {
-        const auto shape = get_shape(params, proj);
-        if (shape.group_size == 0) {
+        if (get_activation_group_size(params, proj) == 0) {
             const auto& config = params.typed_desc<moe_3gemm_fused_compressed>()->_config;
             GPU_DEBUG_TAGGED(TRACE, "dynquan") << id << " turned off: no activation group of 128 or 64 values that is at most group_size "
                                                << dyn_quan_group_size << " divides the " << (proj == Projection::DOWN ? "down" : "gate/up")
-                                               << " weight group of " << get_group_size(config, shape.k) << std::endl;
+                                               << " weight group of " << get_group_size(config, get_k(config, proj)) << std::endl;
             return false;
         }
     }
@@ -65,9 +61,9 @@ bool MoE3GemmDynQuan::is_supported(const RuntimeParams& params) {
 
 JitConstants MoE3GemmDynQuanQuantize::get_jit_constants(const RuntimeParams& params) const {
     auto jit = KernelGenerator::get_jit_constants(params);
-    const auto shape = MoE3GemmDynQuan::get_shape(params, m_proj);
-    jit.make("GROUP_SIZE", shape.group_size);
-    jit.make("VEC_SIZE", shape.group_size / MoE3GemmDynQuan::SIMD);
+    const size_t group_size = MoE3GemmDynQuan::get_activation_group_size(params, m_proj);
+    jit.make("GROUP_SIZE", group_size);
+    jit.make("VEC_SIZE", group_size / MoE3GemmDynQuan::SIMD);
     return jit;
 }
 

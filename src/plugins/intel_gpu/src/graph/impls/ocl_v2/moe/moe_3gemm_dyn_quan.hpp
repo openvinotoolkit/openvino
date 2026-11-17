@@ -8,6 +8,7 @@
 
 #include "../utils/kernel_generator.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 
 namespace ov::intel_gpu::ocl {
 
@@ -20,24 +21,21 @@ class MoE3GemmDynQuan {
 public:
     enum class Projection { GATE_UP, DOWN };
 
-    struct Shape {
-        size_t k = 0;           // input length of the projection
-        size_t group_size = 0;  // values per quantization group, 0 when the input is not quantized
-        size_t groups() const {
-            return k / group_size;
-        }
-    };
-
     static constexpr size_t SIMD = 16;
 
     // Whether dynamic quantization is enabled for this MoE and the kernels support it: f16 hidden states and an
-    // activation group (see get_shape()) for both projections.
+    // activation group (see get_activation_group_size()) for both projections.
     static bool is_supported(const RuntimeParams& params);
 
-    // The activation group is the largest of 128 and 64 values that is no larger than the configured dynamic
-    // quantization group and divides the weight group of the projection: 128 for the per-token default of Xe2+, as
-    // for the u8/i8 FullyConnected layers.
-    static Shape get_shape(const RuntimeParams& params, Projection proj);
+    // Input length of the projection: hidden_size for gate/up, inter_size for down
+    static size_t get_k(const cldnn::MOECompressed::Config& config, Projection proj) {
+        return proj == Projection::DOWN ? config.inter_size : config.hidden_size;
+    }
+
+    // Values per quantization group of the projection's input, 0 when it is not quantized. The activation group is
+    // the largest of 128 and 64 values that is no larger than the configured dynamic quantization group and divides the
+    // weight group of the projection: 128 for the per-token default of Xe2+, as for the u8/i8 FullyConnected layers.
+    static size_t get_activation_group_size(const RuntimeParams& params, Projection proj);
 };
 
 // int8 quantization of the input of a projection: the hidden states for gate/up, act(gate) * up for down

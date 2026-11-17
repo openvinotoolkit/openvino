@@ -18,11 +18,6 @@ class MoE3GemmInt3Gemm : public KernelGenerator {
 public:
     using Projection = MoE3GemmDynQuan::Projection;
 
-    struct Shape : MoE3GemmDynQuan::Shape {
-        size_t n = 0;
-        size_t weight_group_size = 0;  // a multiple of the activation group
-    };
-
     static constexpr size_t SIMD = 16;
     // Rows per entry of the host-built tile list
     static constexpr size_t TILE_ROWS = 64;
@@ -40,8 +35,6 @@ public:
     // Whether the kernels support this MoE: activations quantized by MoE3GemmDynQuan, u3 weights with a u8/i8 zero
     // point (scalar or shaped like the scales), f16 scales and weight groups a multiple of 64 values, on Xe2+ with DPAS.
     static bool is_supported(const RuntimeParams& params);
-
-    static Shape get_shape(const RuntimeParams& params, Projection proj);
 
     // Upper bound of the tile list length: every expert with rows has at most one partial tile
     static size_t get_max_tiles(size_t num_experts, size_t rows);
