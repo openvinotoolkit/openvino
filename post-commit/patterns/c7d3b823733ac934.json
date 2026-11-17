@@ -4,18 +4,21 @@
   "signature_hash": "c7d3b823733ac934",
   "title": "smoke_ScatterUpdateGeneralPathOutOfRangeIndices tests fail - expected ov::Exception not thrown",
   "category": "Code Issue",
-  "count": 2,
+  "count": 3,
   "first_seen": "2026-11-13T17:29:48Z",
-  "last_seen": "2026-11-16T15:26:52Z",
+  "last_seen": "2026-11-17T11:40:01Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/44059821325",
     "https://github.com/openvinotoolkit/openvino/actions/runs/43882340553",
     "https://github.com/openvinotoolkit/openvino/actions/runs/43358522038"
   ],
   "affected_commits": [
+    "0414f7e6883b6c94d2afa2161a89b6c95b941cd5",
     "ddfd1dd9e7317cf2416239815de6f235d34042bc",
     "4ad119b2f9614a198fbd612676f4a1f3cbbcbe62"
   ],
   "recent_timestamps": [
+    "2026-11-17T11:40:01Z",
     "2026-11-16T15:26:52Z"
   ]
 }
