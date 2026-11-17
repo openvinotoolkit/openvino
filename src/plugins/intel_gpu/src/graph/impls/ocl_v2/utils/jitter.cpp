@@ -361,7 +361,7 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         val_one = "_intel_convert_hf8_to_f16((uchar)0x38)";
         val_zero = "_intel_convert_hf8_to_f16((uchar)0x0)";
         to_type = "_intel_convert_f16_to_hf8(convert_half(v))";
-        to_type_sat = "_intel_convert_f16_to_hf8_sat(convert_half_sat(v))";
+        to_type_sat = "_intel_convert_f16_to_hf8_sat(clamp(convert_double(v), -65504.0, 65504.0))";
         compute_type = "half";
         to_compute_type = "convert_half(v)";
         decode_compute_type = "_intel_convert_hf8_to_f16(v)";
@@ -377,7 +377,7 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         val_one = "_intel_convert_bf8_to_f16((uchar)0x3C)";
         val_zero = "_intel_convert_bf8_to_f16((uchar)0x0)";
         to_type = "_intel_convert_f16_to_bf8(convert_half(v))";
-        to_type_sat = "_intel_convert_f16_to_bf8_sat(convert_half_sat(v))";
+        to_type_sat = "_intel_convert_f16_to_bf8_sat(clamp(convert_double(v), -65504.0, 65504.0))";
         compute_type = "half";
         to_compute_type = "convert_half(v)";
         decode_compute_type = "_intel_convert_bf8_to_f16(v)";

@@ -2507,15 +2507,15 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
             std::string vs = vec_size > 1 ? toCodeString(vec_size)  : "";
             std::string block_read;
 
-            if (input_dt == Datatype::F32 || input_dt == Datatype::INT32 || input_dt == Datatype::UINT32) {
+            if (cldnn::one_of(input_dt, {Datatype::F32, Datatype::INT32, Datatype::UINT32})) {
                 block_read = CastToType(" _sub_group_block_read" + vs + "("
                                         + "(const __global uint*)(" + GetInputPtrName(input_id) + " + " + index_func_call_vec + "))",
                                         input_dt, vec_size);
-            } else if (input_dt == Datatype::F16 || input_dt == Datatype::BF16) {
+            } else if (cldnn::one_of(input_dt, {Datatype::F16, Datatype::BF16})) {
                 block_read = CastToType(" _sub_group_block_read_us" + vs + "("
                                         + "(const __global ushort*)(" + GetInputPtrName(input_id) + " + " + index_func_call_vec + "))",
                                         input_dt, vec_size);
-            } else if (input_dt == Datatype::UINT8 || input_dt == Datatype::INT8 || input_dt == Datatype::F8E4M3 || input_dt == Datatype::F8E5M2 || input_dt == Datatype::F8E8M0) {
+            } else if (cldnn::one_of(input_dt, {Datatype::UINT8, Datatype::INT8, Datatype::F8E4M3, Datatype::F8E5M2, Datatype::F8E8M0})) {
                 block_read = CastToType(" _sub_group_block_read_uc" + vs + "("
                                         + "(const __global uchar*)(" + GetInputPtrName(input_id) + " + " + index_func_call_vec + "))",
                                         input_dt, vec_size);
@@ -2587,11 +2587,11 @@ std::string FusedOpsCodeGenerator::ConvertToType(std::string var, Datatype dt, s
     if (dt == Datatype::BF16) {
         ret = "CONVERT_BFLOAT16_AS_USHORT(" + var + ", " + toCodeString(vec_size) + ")";
     } else if (dt == Datatype::F8E4M3) {
-        ret = "CONVERT_F8E4M3_AS_UCHAR(convert_half" + toCodeString(vec_size) + "(" + var + "), " + toCodeString(vec_size) + ")";
+        ret = "CONVERT_F8E4M3_AS_UCHAR(convert_" + GetType(Datatype::F16, vec_size) + "(" + var + "), " + toCodeString(vec_size) + ")";
     } else if (dt == Datatype::F8E5M2) {
-        ret = "CONVERT_F8E5M2_AS_UCHAR(convert_half" + toCodeString(vec_size) + "(" + var + "), " + toCodeString(vec_size) + ")";
+        ret = "CONVERT_F8E5M2_AS_UCHAR(convert_" + GetType(Datatype::F16, vec_size) + "(" + var + "), " + toCodeString(vec_size) + ")";
     } else if (dt == Datatype::F8E8M0) {
-        ret = "CONVERT_F8E8M0_AS_UCHAR(convert_float" + toCodeString(vec_size) + "(" + var + "), " + toCodeString(vec_size) + ")";
+        ret = "CONVERT_F8E8M0_AS_UCHAR(convert_" + GetType(Datatype::F16, vec_size) + "(" + var + "), " + toCodeString(vec_size) + ")";
     }
     return ret;
 }
