@@ -150,7 +150,6 @@ GatedResidualDnnlExecutor::GatedResidualDnnlExecutor(const GatedResidualAttrs& a
     m_precision = memory.at(gatedResidualSrcArg(ReadInputIdx::RESIDUAL))->getPrecision();
     m_gemm_precision = gemmPrecision(m_precision, m_weights_compressed);
 
-    m_tile_rows = maxTileRows();
     // Built at compile time: packs the constant weights.
     createProjections(attrs, memory);
 }
@@ -185,6 +184,7 @@ void GatedResidualDnnlExecutor::createProjections(const GatedResidualAttrs& attr
 
     // Shared scratchpad layout: the tile buffers, sized once for a full tile, then the FC executors' scratchpad. The
     // offsets never change, so the executors keep their scratchpad memory across updates.
+    m_tile_rows = maxTileRows();
     const size_t tile = m_tile_rows;
     const bool gemm_lowp = m_gemm_precision != ov::element::f32;
     size_t scratch_size = 0;

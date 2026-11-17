@@ -50,10 +50,10 @@ using ov::pass::paged_attention::PaParams;
 
 namespace {
 
-constexpr const char* NUM_K_HEADS = "num_k_heads";
-constexpr const char* K_HEAD_SIZE = "k_head_size";
-constexpr const char* NUM_V_HEADS = "num_v_heads";
-constexpr const char* V_HEAD_SIZE = "v_head_size";
+constexpr const char* GEMMA4_MTP_NUM_K_HEADS = "num_k_heads";
+constexpr const char* GEMMA4_MTP_K_HEAD_SIZE = "k_head_size";
+constexpr const char* GEMMA4_MTP_NUM_V_HEADS = "num_v_heads";
+constexpr const char* GEMMA4_MTP_V_HEAD_SIZE = "v_head_size";
 
 std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> sliding_window_pattern() {
     auto offset = wrap_type<v0::Constant>();
@@ -223,10 +223,10 @@ ov::pass::Gemma4MTPStateManagementPattern::Gemma4MTPStateManagementPattern(
 
         auto paged_attention =
             std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments, /*write_kv_cache=*/false);
-        paged_attention->get_rt_info()[NUM_K_HEADS] = num_k_heads;
-        paged_attention->get_rt_info()[K_HEAD_SIZE] = k_head_size;
-        paged_attention->get_rt_info()[NUM_V_HEADS] = num_v_heads;
-        paged_attention->get_rt_info()[V_HEAD_SIZE] = v_head_size;
+        paged_attention->get_rt_info()[GEMMA4_MTP_NUM_K_HEADS] = num_k_heads;
+        paged_attention->get_rt_info()[GEMMA4_MTP_K_HEAD_SIZE] = k_head_size;
+        paged_attention->get_rt_info()[GEMMA4_MTP_NUM_V_HEADS] = num_v_heads;
+        paged_attention->get_rt_info()[GEMMA4_MTP_V_HEAD_SIZE] = v_head_size;
 
         // [B_token, H * Sv] back to the SDPA layout [B_token, H, 1, Sv].
         auto pa_reshape = std::make_shared<v1::Reshape>(
