@@ -4,6 +4,7 @@
 
 #include "behavior/compiled_model/import_export.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "internal_properties.hpp"
 #include "openvino/core/model_util.hpp"
 #include "openvino/op/interpolate.hpp"
 #include "openvino/op/is_inf.hpp"
@@ -88,12 +89,22 @@ TEST_P(OVClassCompiledModelImportExportTestP, importExportModelWithTypeRelaxedEx
     EXPECT_EQ(elementType, importedCompiledModel.output("result").get_element_type());
 }
 
+// TODO: when HSM becomes the default and the legacy format and export_hsm_format are dropped, remove the second config -
+// the default one then covers HSM.
 INSTANTIATE_TEST_SUITE_P(smoke_serialization,
                          OVCompiledGraphImportExportTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                            ::testing::Values(empty_property)),
+                                            ::testing::Values(empty_property,
+                                                              ov::AnyMap{ov::intel_cpu::export_hsm_format(true)})),
                          OVCompiledGraphImportExportTest::getTestCaseName);
+
+// TODO: when HSM becomes the default and export_hsm_format is dropped, use an empty config here.
+INSTANTIATE_TEST_SUITE_P(smoke_serialization,
+                         OVCompiledModelHsmBlobTest,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values(ov::AnyMap{ov::intel_cpu::export_hsm_format(true)})),
+                         OVCompiledModelHsmBlobTest::getTestCaseName);
 
 TEST_P(OVCompiledModelGraphUniqueNodeNamesTest, CheckUniqueNodeNames) {
     std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();

@@ -6,6 +6,8 @@
 #include "random_generator.hpp"
 
 #include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/primitives/fully_connected.hpp"
+#include "openvino/core/symbol.hpp"
 
 #include "intel_gpu/graph/network.hpp"
 #include "data_inst.h"
@@ -233,6 +235,483 @@ TEST(basic_memory_dependencies, optimized_resample_to_onednn_sum_reuse_correctne
             << ": ref=" << ref_ptr[i] << " opt=" << opt_ptr[i]
             << " rel_tolerance=" << rel_tolerance
             << " abs_tolerance=" << abs_tolerance;
+    }
+}
+
+// oneDNN FC with a fused eltwise prod uses binary_mul_inplace: the FC dst aliases the buffer of the
+// prod input ("mul_data"). "x" runs between the FC and its last user ("sum"), so unless "x" is restricted
+// against "mul_data" as well as the FC, the pool may give it that buffer and overwrite the FC result before "sum" reads it.
+class basic_memory_dependencies_mul_inplace : public ::testing::TestWithParam<bool> {};
+TEST_P(basic_memory_dependencies_mul_inplace, fc_output_is_not_reused) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP();
+
+    const bool is_dynamic = GetParam();
+    const int64_t ifm = 64, ofm = 32;
+    const std::vector<int64_t> batches = is_dynamic ? std::vector<int64_t>{16, 32, 8} : std::vector<int64_t>{16};
+
+    // can_use_mul_inplace() matches dynamic dims by symbol, as SymbolicPropagation sets them in the plugin.
+    auto batch_dim = is_dynamic ? ov::Dimension::dynamic() : ov::Dimension(batches[0]);
+    if (is_dynamic)
+        batch_dim.set_symbol(std::make_shared<ov::Symbol>());
+
+    tests::random_generator rg;
+    rg.set_seed("basic_memory_dependencies_mul_inplace");
+    auto weights_layout = layout{ov::PartialShape{ofm, ifm}, data_types::f16, format::bfyx};
+    auto weights_mem = engine.allocate_memory(weights_layout);
+    set_values(weights_mem, rg.generate_random_1d<ov::float16>(weights_layout.count(), -1, 1));
+
+    // Each network needs its own topology: on dGPU, transfer_memory_to_device() resets the mem of the "weights" data primitive.
+    auto make_topology = [&]() {
+        return topology(input_layout("input", layout{ov::PartialShape{batch_dim, ifm}, data_types::f16, format::bfyx}),
+                        input_layout("mul_in", layout{ov::PartialShape{batch_dim, ofm}, data_types::f16, format::bfyx}),
+                        data("weights", weights_mem),
+                        activation("mul_data", input_info("mul_in"), activation_func::abs),
+                        fully_connected("fc", input_info("input"), "weights", "", 2),
+                        eltwise("mul", input_info("fc"), input_info("mul_data"), eltwise_mode::prod),
+                        softmax("softmax", input_info("mul"), 1),
+                        softmax("x", input_info("softmax"), 1),
+                        eltwise("sum", input_info("mul"), input_info("x"), eltwise_mode::sum),
+                        reorder("out", input_info("sum"), format::bfyx, data_types::f32));
+    };
+
+    auto make_config = [&](bool enable_memory_pool) {
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::enable_memory_pool(enable_memory_pool));
+        config.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{{"fc", ov::intel_gpu::ImplementationDesc{format::bfyx, "", impl_types::onednn}}}));
+        return config;
+    };
+
+    network net_ref(engine, make_topology(), make_config(false));
+    network net(program::build_program(engine, make_topology(), make_config(true)), 0);
+
+    auto& fc_node = net.get_program()->get_node("fc");
+    const auto reused_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(fc_node);
+    ASSERT_NE(reused_idx, -1) << "eltwise prod is expected to be fused into the oneDNN FC as binary_mul_inplace";
+    ASSERT_EQ(fc_node.get_dependency(reused_idx).id(), "mul_data");
+    ASSERT_TRUE(fc_node.get_dependency(reused_idx).can_share_buffer()) << "the aliased buffer is expected to stay in the memory pool";
+    const auto mul_data_id = static_cast<uint32_t>(fc_node.get_dependency(reused_idx).get_unique_id());
+    ASSERT_TRUE(net.get_program()->get_node("x").has_memory_dependency(mul_data_id));
+
+    for (const auto batch : batches) {
+        auto input_mem = engine.allocate_memory(layout{ov::PartialShape{batch, ifm}, data_types::f16, format::bfyx});
+        auto mul_mem = engine.allocate_memory(layout{ov::PartialShape{batch, ofm}, data_types::f16, format::bfyx});
+        set_values(input_mem, rg.generate_random_1d<ov::float16>(input_mem->count(), -1, 1));
+        set_values(mul_mem, rg.generate_random_1d<ov::float16>(mul_mem->count(), -1, 1));
+
+        net_ref.set_input_data("input", input_mem);
+        net_ref.set_input_data("mul_in", mul_mem);
+        auto out_ref = net_ref.execute().at("out").get_memory();
+
+        net.set_input_data("input", input_mem);
+        net.set_input_data("mul_in", mul_mem);
+        auto out = net.execute().at("out").get_memory();
+
+        ASSERT_EQ(out_ref->count(), out->count());
+        {
+            cldnn::mem_lock<float> ref_ptr(out_ref, get_test_stream());
+            cldnn::mem_lock<float> out_ptr(out, get_test_stream());
+            for (size_t i = 0; i < out_ref->count(); i++) {
+                ASSERT_NEAR(ref_ptr[i], out_ptr[i], 1e-2f) << "batch=" << batch << ", index " << i;
+            }
+        }
+
+        auto fc_mem = net.get_primitive("fc")->output_memory_ptr();
+        ASSERT_TRUE(engine.is_the_same_buffer(*fc_mem, *net.get_primitive("mul_data")->output_memory_ptr()))
+            << "batch=" << batch << ": FC dst is expected to alias the binary_mul_inplace input";
+        ASSERT_FALSE(engine.is_the_same_buffer(*fc_mem, *net.get_primitive("x")->output_memory_ptr()))
+            << "batch=" << batch << ": 'x' reuses the FC dst buffer while the FC result is still needed";
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke, basic_memory_dependencies_mul_inplace, ::testing::Bool(), [](const ::testing::TestParamInfo<bool>& info) {
+    return info.param ? "dynamic" : "static";
+});
+
+// Residual blocks with in-place oneDNN sum post-ops: "blk" adds "root" into root's buffer and "tail" adds "blk" into
+// it again, so that buffer is read up to the next block's "root", while "p2" runs in between without reading it.
+TEST(basic_memory_dependencies, onednn_sum_root_stays_in_pool) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP();
+
+    constexpr size_t blocks = 4;
+    auto in_layout = layout{ov::PartialShape({1, 16, 32, 32}), data_types::f16, format::bfyx};
+    auto weight_layout = layout{ov::PartialShape({16, 16, 1, 1}), data_types::f16, format::bfyx};
+    auto weight_mem = engine.allocate_memory(weight_layout);
+    auto input_mem = engine.allocate_memory(in_layout);
+    tests::random_generator rg;
+    rg.set_seed("onednn_sum_root_stays_in_pool");
+    set_values(weight_mem, rg.generate_random_1d<ov::float16>(weight_layout.count(), -0.25f, 0.25f));
+    set_values(input_mem, rg.generate_random_1d<ov::float16>(in_layout.count(), -0.25f, 0.25f));
+
+    ov::intel_gpu::ImplForcingMap impls;
+    auto make_topology = [&]() {
+        topology topology(input_layout("input", in_layout), data("weight", weight_mem));
+        auto conv = [&](const std::string& id, const std::string& in) {
+            topology.add(convolution(id, input_info(in), "weight", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+            impls[id] = {format::b_fs_yx_fsv16, "", impl_types::onednn};
+        };
+        std::string x = "input";
+        for (size_t i = 0; i < blocks; i++) {
+            const auto n = std::to_string(i);
+            conv("root" + n, x);
+            conv("mid" + n, "root" + n);
+            conv("blk" + n, "mid" + n);
+            topology.add(eltwise("sum_blk" + n, input_info("blk" + n), input_info("root" + n), eltwise_mode::sum));
+            conv("p" + n, "sum_blk" + n);
+            conv("p2" + n, "p" + n);
+            conv("tail" + n, "p2" + n);
+            topology.add(eltwise("sum_tail" + n, input_info("tail" + n), input_info("sum_blk" + n), eltwise_mode::sum));
+            x = "sum_tail" + n;
+        }
+        topology.add(reorder("out", input_info(x), format::bfyx, data_types::f32));
+        return topology;
+    };
+    auto make_config = [&](bool enable_memory_pool) {
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::enable_memory_pool(enable_memory_pool));
+        config.set_property(ov::intel_gpu::force_implementations(impls));
+        return config;
+    };
+
+    auto ref_topology = make_topology();
+    network net_ref(engine, ref_topology, make_config(false));
+    network net(program::build_program(engine, make_topology(), make_config(true)), 0);
+
+    for (size_t i = 0; i < blocks; i++) {
+        const auto n = std::to_string(i);
+        for (const auto& [node_id, dep_id] : {std::pair{"blk" + n, "root" + n}, std::pair{"tail" + n, "blk" + n}}) {
+            auto& node = net.get_program()->get_node(node_id);
+            const auto idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(node);
+            ASSERT_NE(idx, -1) << node_id << " is expected to carry an in-place sum post-op";
+            ASSERT_EQ(node.get_dependency(idx).id(), dep_id);
+        }
+    }
+    auto mem = [&](const std::string& id) {
+        return net.get_primitive(id)->output_memory_ptr();
+    };
+    for (size_t i = 0; i < blocks; i++) {
+        const auto n = std::to_string(i);
+        ASSERT_TRUE(net.get_program()->get_node("root" + n).can_share_buffer()) << "root" << n << " is kept out of the pool";
+        ASSERT_FALSE(engine.is_the_same_buffer(*mem("root" + n), *mem("p2" + n))) << "p2" << n << " overwrites root" << n;
+        if (i > 0) {
+            const auto prev = std::to_string(i - 1);
+            ASSERT_FALSE(engine.is_the_same_buffer(*mem("root" + n), *mem("root" + prev))) << "root" << n << " overwrites its input";
+        }
+        // "blk" and "tail" write into root's buffer, so only other primitives show that the pool reused it.
+        bool pooled = false;
+        for (size_t j = 0; j < blocks; j++) {
+            for (const auto* id : {"root", "mid", "blk", "p", "p2", "tail"}) {
+                const auto other = id + std::to_string(j);
+                if (other != "root" + n && other != "blk" + n && other != "tail" + n)
+                    pooled = pooled || engine.is_the_same_buffer(*mem("root" + n), *mem(other));
+            }
+        }
+        ASSERT_TRUE(pooled) << "root" << n << " shares no buffer with another primitive";
+    }
+
+    net_ref.set_input_data("input", input_mem);
+    net.set_input_data("input", input_mem);
+    auto out_ref = net_ref.execute().at("out").get_memory();
+    auto out = net.execute().at("out").get_memory();
+    ASSERT_EQ(out_ref->count(), out->count());
+    cldnn::mem_lock<float> ref_ptr(out_ref, get_test_stream());
+    cldnn::mem_lock<float> out_ptr(out, get_test_stream());
+    for (size_t i = 0; i < out_ref->count(); i++) {
+        ASSERT_EQ(ref_ptr[i], out_ptr[i]) << "index " << i << ": a pooled residual buffer was overwritten while still read";
+    }
+}
+
+// A decoder's first residual after MoveEltwiseUpThroughDataMovFusableProducer: the addend of the
+// fused sum is a network input reached through an in-place reshape. Building the network used to
+// bind the FC output to that input's buffer, which has no memory at build time, and crash.
+TEST(basic_memory_dependencies, onednn_fc_sum_with_reshaped_network_input) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP();
+
+    auto in_layout = layout{ov::PartialShape({32, 16}), data_types::f16, format::bfyx};
+    auto residual_layout = layout{ov::PartialShape({1, 32, 16}), data_types::f16, format::bfyx};
+    auto weights_layout = layout{ov::PartialShape({16, 16}), data_types::f16, format::bfyx};
+    auto weights_mem = engine.allocate_memory(weights_layout);
+    auto input_mem = engine.allocate_memory(in_layout);
+    auto residual_mem = engine.allocate_memory(residual_layout);
+    tests::random_generator rg;
+    rg.set_seed("onednn_fc_sum_with_reshaped_network_input");
+    set_values(weights_mem, rg.generate_random_1d<ov::float16>(weights_layout.count(), -0.25f, 0.25f));
+    set_values(input_mem, rg.generate_random_1d<ov::float16>(in_layout.count(), -0.25f, 0.25f));
+    const auto residual_values = rg.generate_random_1d<ov::float16>(residual_layout.count(), -0.25f, 0.25f);
+    set_values(residual_mem, residual_values);
+
+    auto make_topology = [&]() {
+        topology topology;
+        topology.add(input_layout("input", in_layout));
+        topology.add(input_layout("residual", residual_layout));
+        topology.add(data("weights", weights_mem));
+        topology.add(fully_connected("fc", input_info("input"), "weights"));
+        topology.add(reshape("residual_view", input_info("residual"), false, {32, 16}, ov::PartialShape{32, 16}));
+        topology.add(eltwise("sum", {input_info("fc"), input_info("residual_view")}, eltwise_mode::sum));
+        // Not a reorder: that would fold into the FC, turn its output into f32 and rule out the sum by size alone.
+        topology.add(softmax("out", input_info("sum"), 1));
+        return topology;
+    };
+
+    auto config_ref = get_test_default_config(engine);
+    config_ref.set_property(ov::intel_gpu::optimize_data(false));
+    config_ref.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network net_ref(engine, make_topology(), config_ref);
+
+    ov::intel_gpu::ImplementationDesc fc_impl = {format::bfyx, "", impl_types::onednn};
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", fc_impl}}));
+    network net(program::build_program(engine, make_topology(), config), 0);
+
+    ASSERT_TRUE(net.get_primitive("residual_view")->can_be_optimized());
+    auto& fc_node = net.get_program()->get_node("fc");
+    ASSERT_EQ(fc_node.get_preferred_impl_type(), impl_types::onednn);
+    ASSERT_EQ(fc_node.get_fused_primitives().size(), 1u);
+    ASSERT_EQ(onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(fc_node), -1);
+
+    for (auto* n : {&net_ref, &net}) {
+        n->set_input_data("input", input_mem);
+        n->set_input_data("residual", residual_mem);
+    }
+    auto out_ref = net_ref.execute().at("out").get_memory();
+    auto out = net.execute().at("out").get_memory();
+    ASSERT_EQ(out_ref->count(), out->count());
+    {
+        cldnn::mem_lock<ov::float16> ref_ptr(out_ref, get_test_stream());
+        cldnn::mem_lock<ov::float16> out_ptr(out, get_test_stream());
+        for (size_t i = 0; i < out_ref->count(); i++) {
+            ASSERT_NEAR(static_cast<float>(ref_ptr[i]), static_cast<float>(out_ptr[i]), 1e-2f) << "index " << i;
+        }
+    }
+    cldnn::mem_lock<ov::float16> residual_ptr(residual_mem, get_test_stream());
+    for (size_t i = 0; i < residual_values.size(); i++) {
+        ASSERT_EQ(static_cast<float>(residual_ptr[i]), static_cast<float>(residual_values[i]))
+            << "index " << i << ": the caller's residual input was overwritten";
+    }
+}
+
+// A direct single-user network input feeding a fused sum must also use binary_add rather than
+// in-place sum: input_layout::set_data replaces the input's memory at runtime without rebinding
+// static users, which would leave the FC accumulating into an orphaned build-time placeholder.
+TEST(basic_memory_dependencies, onednn_fc_sum_with_direct_network_input) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP();
+
+    auto in_layout = layout{ov::PartialShape({32, 16}), data_types::f16, format::bfyx};
+    auto residual_layout = layout{ov::PartialShape({32, 16}), data_types::f16, format::bfyx};
+    auto weights_layout = layout{ov::PartialShape({16, 16}), data_types::f16, format::bfyx};
+    auto weights_mem = engine.allocate_memory(weights_layout);
+    auto input_mem = engine.allocate_memory(in_layout);
+    auto residual_mem = engine.allocate_memory(residual_layout);
+    tests::random_generator rg;
+    rg.set_seed("onednn_fc_sum_with_direct_network_input");
+    set_values(weights_mem, rg.generate_random_1d<ov::float16>(weights_layout.count(), -0.25f, 0.25f));
+    set_values(input_mem, rg.generate_random_1d<ov::float16>(in_layout.count(), -0.25f, 0.25f));
+    const auto residual_values = rg.generate_random_1d<ov::float16>(residual_layout.count(), 1.0f, 2.0f);
+    set_values(residual_mem, residual_values);
+
+    auto make_topology = [&]() {
+        topology topology;
+        topology.add(input_layout("input", in_layout));
+        topology.add(input_layout("residual", residual_layout));
+        topology.add(data("weights", weights_mem));
+        topology.add(fully_connected("fc", input_info("input"), "weights"));
+        topology.add(eltwise("sum", {input_info("fc"), input_info("residual")}, eltwise_mode::sum));
+        topology.add(softmax("out", input_info("sum"), 1));
+        return topology;
+    };
+
+    auto config_ref = get_test_default_config(engine);
+    config_ref.set_property(ov::intel_gpu::optimize_data(false));
+    config_ref.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network net_ref(engine, make_topology(), config_ref);
+
+    ov::intel_gpu::ImplementationDesc fc_impl = {format::bfyx, "", impl_types::onednn};
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", fc_impl}}));
+    network net(program::build_program(engine, make_topology(), config), 0);
+
+    auto& fc_node = net.get_program()->get_node("fc");
+    ASSERT_EQ(fc_node.get_preferred_impl_type(), impl_types::onednn);
+    ASSERT_EQ(fc_node.get_fused_primitives().size(), 1u);
+    ASSERT_EQ(onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(fc_node), -1);
+
+    for (auto* n : {&net_ref, &net}) {
+        n->set_input_data("input", input_mem);
+        n->set_input_data("residual", residual_mem);
+    }
+    auto out_ref = net_ref.execute().at("out").get_memory();
+    auto out = net.execute().at("out").get_memory();
+    ASSERT_EQ(out_ref->count(), out->count());
+    {
+        cldnn::mem_lock<ov::float16> ref_ptr(out_ref, get_test_stream());
+        cldnn::mem_lock<ov::float16> out_ptr(out, get_test_stream());
+        for (size_t i = 0; i < out_ref->count(); i++) {
+            ASSERT_NEAR(static_cast<float>(ref_ptr[i]), static_cast<float>(out_ptr[i]), 1e-2f) << "index " << i;
+        }
+    }
+    cldnn::mem_lock<ov::float16> residual_ptr(residual_mem, get_test_stream());
+    for (size_t i = 0; i < residual_values.size(); i++) {
+        ASSERT_EQ(static_cast<float>(residual_ptr[i]), static_cast<float>(residual_values[i]))
+            << "index " << i << ": the caller's residual input was overwritten";
+    }
+}
+
+// A network input reached through an optimized-out layout-compatible reorder has no memory at
+// build time either, and must also use a binary post-op instead of in-place sum.
+TEST(basic_memory_dependencies, onednn_fc_sum_with_reordered_network_input) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP();
+
+    auto in_layout = layout{ov::PartialShape({32, 16}), data_types::f16, format::bfyx};
+    // For a 2D shape {32, 16} (y=1, x=1), byxf and bfyx have identical memory layout (compatible, not
+    // identical), so remove_redundant_reorders marks the reorder can_be_optimized(true) and keeps it.
+    auto residual_layout = layout{ov::PartialShape({32, 16}), data_types::f16, format::byxf};
+    auto weights_layout = layout{ov::PartialShape({16, 16}), data_types::f16, format::bfyx};
+    auto weights_mem = engine.allocate_memory(weights_layout);
+    auto input_mem = engine.allocate_memory(in_layout);
+    auto residual_mem = engine.allocate_memory(residual_layout);
+    tests::random_generator rg;
+    rg.set_seed("onednn_fc_sum_with_reordered_network_input");
+    set_values(weights_mem, rg.generate_random_1d<ov::float16>(weights_layout.count(), -0.25f, 0.25f));
+    set_values(input_mem, rg.generate_random_1d<ov::float16>(in_layout.count(), -0.25f, 0.25f));
+    const auto residual_values = rg.generate_random_1d<ov::float16>(residual_layout.count(), -0.25f, 0.25f);
+    set_values(residual_mem, residual_values);
+
+    auto make_topology = [&]() {
+        topology topology;
+        topology.add(input_layout("input", in_layout));
+        topology.add(input_layout("residual", residual_layout));
+        topology.add(data("weights", weights_mem));
+        topology.add(fully_connected("fc", input_info("input"), "weights"));
+        topology.add(reorder("residual_view", input_info("residual"), format::bfyx, data_types::f16));
+        topology.add(eltwise("sum", {input_info("fc"), input_info("residual_view")}, eltwise_mode::sum));
+        topology.add(softmax("out", input_info("sum"), 1));
+        return topology;
+    };
+
+    auto config_ref = get_test_default_config(engine);
+    config_ref.set_property(ov::intel_gpu::optimize_data(false));
+    config_ref.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network net_ref(engine, make_topology(), config_ref);
+
+    ov::intel_gpu::ImplementationDesc fc_impl = {format::bfyx, "", impl_types::onednn};
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", fc_impl}}));
+    network net(program::build_program(engine, make_topology(), config), 0);
+
+    ASSERT_TRUE(net.get_primitive("residual_view")->can_be_optimized());
+    auto& fc_node = net.get_program()->get_node("fc");
+    ASSERT_EQ(fc_node.get_preferred_impl_type(), impl_types::onednn);
+    ASSERT_EQ(fc_node.get_fused_primitives().size(), 1u);
+    ASSERT_EQ(onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(fc_node), -1);
+
+    for (auto* n : {&net_ref, &net}) {
+        n->set_input_data("input", input_mem);
+        n->set_input_data("residual", residual_mem);
+    }
+    auto out_ref = net_ref.execute().at("out").get_memory();
+    auto out = net.execute().at("out").get_memory();
+    ASSERT_EQ(out_ref->count(), out->count());
+    {
+        cldnn::mem_lock<ov::float16> ref_ptr(out_ref, get_test_stream());
+        cldnn::mem_lock<ov::float16> out_ptr(out, get_test_stream());
+        for (size_t i = 0; i < out_ref->count(); i++) {
+            ASSERT_NEAR(static_cast<float>(ref_ptr[i]), static_cast<float>(out_ptr[i]), 1e-2f) << "index " << i;
+        }
+    }
+    cldnn::mem_lock<ov::float16> residual_ptr(residual_mem, get_test_stream());
+    for (size_t i = 0; i < residual_values.size(); i++) {
+        ASSERT_EQ(static_cast<float>(residual_ptr[i]), static_cast<float>(residual_values[i]))
+            << "index " << i << ": the caller's residual input was overwritten";
+    }
+}
+
+// Same reshaped-network-input pattern with eltwise_mode::prod (can_use_mul_inplace): must fuse as
+// binary_mul rather than binary_mul_inplace so the FC does not bind its output to a null view or
+// overwrite the caller's input buffer.
+TEST(basic_memory_dependencies, onednn_fc_mul_with_reshaped_network_input) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP();
+
+    auto in_layout = layout{ov::PartialShape({32, 16}), data_types::f16, format::bfyx};
+    auto mul_layout = layout{ov::PartialShape({1, 32, 16}), data_types::f16, format::bfyx};
+    auto weights_layout = layout{ov::PartialShape({16, 16}), data_types::f16, format::bfyx};
+    auto weights_mem = engine.allocate_memory(weights_layout);
+    auto input_mem = engine.allocate_memory(in_layout);
+    auto mul_mem = engine.allocate_memory(mul_layout);
+    tests::random_generator rg;
+    rg.set_seed("onednn_fc_mul_with_reshaped_network_input");
+    set_values(weights_mem, rg.generate_random_1d<ov::float16>(weights_layout.count(), -0.25f, 0.25f));
+    set_values(input_mem, rg.generate_random_1d<ov::float16>(in_layout.count(), -0.25f, 0.25f));
+    const auto mul_values = rg.generate_random_1d<ov::float16>(mul_layout.count(), -0.25f, 0.25f);
+    set_values(mul_mem, mul_values);
+
+    auto make_topology = [&]() {
+        topology topology;
+        topology.add(input_layout("input", in_layout));
+        topology.add(input_layout("mul_in", mul_layout));
+        topology.add(data("weights", weights_mem));
+        topology.add(fully_connected("fc", input_info("input"), "weights"));
+        topology.add(reshape("mul_view", input_info("mul_in"), false, {32, 16}, ov::PartialShape{32, 16}));
+        topology.add(eltwise("mul", {input_info("fc"), input_info("mul_view")}, eltwise_mode::prod));
+        topology.add(softmax("out", input_info("mul"), 1));
+        return topology;
+    };
+
+    auto config_ref = get_test_default_config(engine);
+    config_ref.set_property(ov::intel_gpu::optimize_data(false));
+    config_ref.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network net_ref(engine, make_topology(), config_ref);
+
+    ov::intel_gpu::ImplementationDesc fc_impl = {format::bfyx, "", impl_types::onednn};
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", fc_impl}}));
+    network net(program::build_program(engine, make_topology(), config), 0);
+
+    ASSERT_TRUE(net.get_primitive("mul_view")->can_be_optimized());
+    auto& fc_node = net.get_program()->get_node("fc");
+    ASSERT_EQ(fc_node.get_preferred_impl_type(), impl_types::onednn);
+    ASSERT_EQ(fc_node.get_fused_primitives().size(), 1u);
+    ASSERT_EQ(onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(fc_node), -1);
+
+    for (auto* n : {&net_ref, &net}) {
+        n->set_input_data("input", input_mem);
+        n->set_input_data("mul_in", mul_mem);
+    }
+    auto out_ref = net_ref.execute().at("out").get_memory();
+    auto out = net.execute().at("out").get_memory();
+    ASSERT_EQ(out_ref->count(), out->count());
+    {
+        cldnn::mem_lock<ov::float16> ref_ptr(out_ref, get_test_stream());
+        cldnn::mem_lock<ov::float16> out_ptr(out, get_test_stream());
+        for (size_t i = 0; i < out_ref->count(); i++) {
+            ASSERT_NEAR(static_cast<float>(ref_ptr[i]), static_cast<float>(out_ptr[i]), 1e-2f) << "index " << i;
+        }
+    }
+    cldnn::mem_lock<ov::float16> mul_ptr(mul_mem, get_test_stream());
+    for (size_t i = 0; i < mul_values.size(); i++) {
+        ASSERT_EQ(static_cast<float>(mul_ptr[i]), static_cast<float>(mul_values[i])) << "index " << i << ": the caller's multiplier input was overwritten";
     }
 }
 #endif  // ENABLE_ONEDNN_FOR_GPU

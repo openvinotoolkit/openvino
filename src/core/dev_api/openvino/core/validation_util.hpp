@@ -249,14 +249,14 @@ To narrow_cast(From value) {
 
     if constexpr (std::is_signed_v<From> && std::is_unsigned_v<To>) {
         OPENVINO_ASSERT(value >= 0, "Value is negative and cannot be narrowed to an unsigned type");
-        OPENVINO_ASSERT(static_cast<std::make_unsigned_t<From>>(value) <= std::numeric_limits<To>::max(),
+        OPENVINO_ASSERT(static_cast<std::make_unsigned_t<From>>(value) <= (std::numeric_limits<To>::max)(),
                         "Value exceeds the maximum representable value of the target type");
     } else if constexpr (std::is_unsigned_v<From> && std::is_signed_v<To>) {
-        OPENVINO_ASSERT(value <= static_cast<From>(std::numeric_limits<To>::max()),
+        OPENVINO_ASSERT(value <= static_cast<From>((std::numeric_limits<To>::max)()),
                         "Value exceeds the maximum representable value of the target type");
     } else {
-        OPENVINO_ASSERT(value >= static_cast<From>(std::numeric_limits<To>::min()) &&
-                            value <= static_cast<From>(std::numeric_limits<To>::max()),
+        OPENVINO_ASSERT(value >= static_cast<From>((std::numeric_limits<To>::min)()) &&
+                            value <= static_cast<From>((std::numeric_limits<To>::max)()),
                         "Value is out of the representable range of the target type");
     }
     return static_cast<To>(value);

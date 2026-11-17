@@ -49,8 +49,9 @@ DEFINE_string(shape, "",
         " For dynamic dimensions use symbol `?` or '-1'. Ex. [?,3,?,?]."
         " For bounded dimensions specify range 'min..max'. Ex. [1..10,3,?,?].");
 DEFINE_string(data_shape, "",
-        "Required for models with dynamic shapes. Set shape for input blobs. Only one shape can be set."
-        "In case of one input size: \"[1,3,224,224]\"");
+        "Required for models with dynamic shapes. Set shape for input blobs. Only one shape can be set per input."
+        " In case of one input size: \"[1,3,224,224]\", applied to every dynamic input."
+        " For several inputs: \"input1[1,3,224,224],input2[1,4]\".");
 DEFINE_string(skip_output_layers, "", "Skip output layers from the network."
         " Accept ';' separated list of output layers");
 DEFINE_bool(clamp_u8_outputs, false, "Apply clamping when converting FP to U8");

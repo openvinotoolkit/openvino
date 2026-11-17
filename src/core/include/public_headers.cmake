@@ -145,6 +145,7 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/gru_cell.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/gru_sequence.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/hard_sigmoid.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/op/histc.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/hsigmoid.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/hswish.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/i420_to_bgr.hpp

@@ -28,7 +28,7 @@ env:
   # ggml-openvino decoder/backend fixes this frontend snapshot requires. Bump alongside any
   # GGUF-frontend change that needs a matching llama.cpp-side update.
   LLAMA_CPP_REPO: mvafin/llama.cpp
-  LLAMA_CPP_REF: 3d677aadec0487430ad59bd3d4a9fc7211721f0f
+  LLAMA_CPP_REF: 9631fc03fbd5f7c6490b9552e622a213411e1459
   INSTALL_DIR: ${{ github.workspace }}/install
   SCCACHE_DIR: ${{ github.workspace }}/.sccache
 
@@ -100,13 +100,24 @@ jobs:
           OV_GGUF_Q4_K_ZP_F16: "1"
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
-          # Keep the operator suite enabled. The pinned llama.cpp revision also labels its
-          # all-architecture state suite and multi-sequence recurrent rollback tests as main.
-          # Those exercise unsupported backend layouts (Qwen3.5 multi-sequence replay,
-          # Nemotron-H packed SSM state, and DeepSeek V4); validate supported state paths below.
+          # Keep operators enabled; run supported model/state fixtures below instead of
+          # sweeping recurrent layouts this backend cannot execute.
           ctest --test-dir llama.cpp/build -L main \
-            -E '^test-(opt|llama-archs|recurrent-state-rollback(-nemotron-h|-dsv4)?|save-load-state)$' \
+            -E '^test-(opt|llama-archs|recurrent-state-rollback(-nemotron-h|-dsv4)?|save-load-state|llama-context)$' \
             --output-on-failure --timeout 2000
+
+      - name: Validate context state on supported llama.cpp models
+        env:
+          OV_GGUF_Q4_K_ZP_F16: "1"
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          # Failed-restore isolation (rf) already fails for these two models before this PR.
+          for model in llama-dense qwen2-dense; do
+            timeout 2000 llama.cpp/build/bin/test-llama-context \
+              -m "llama.cpp/build/tests/test-models/${model}.gguf" --test '^(?!rf$).*'
+          done
+          timeout 2000 llama.cpp/build/bin/test-llama-context \
+            -m llama.cpp/build/tests/test-models/qwen3-dense.gguf
 
       - name: Validate state save/load on supported llama.cpp models
         env:
