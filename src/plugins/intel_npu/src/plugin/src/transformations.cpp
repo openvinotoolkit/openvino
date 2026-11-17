@@ -269,6 +269,26 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
             logger.info("The model has been debatched successfully");
             successfullyDebatched = true;
         }
+
+        // validateModelBatch is heuristic (0th dim != 1), so an output that does not depend on the batch (e.g. a
+        // ShapeOf result of shape [2] while the batch is 2) is wrongly considered batched. Make sure every output
+        // actually ended up with batch 1 after reshaping, otherwise the compiled schedule would not match the batch
+        // size expected by the plugin.
+        const auto& results = resultModel->get_results();
+        const auto notDebatchedOutput = std::find_if(results.begin(), results.end(), [](const auto& result) {
+            const auto& shape = result->get_output_partial_shape(0);
+            return shape.rank().is_static() && shape.size() > 0 && shape[intel_npu::utils::BATCH_AXIS].is_static() &&
+                   static_cast<size_t>(shape[intel_npu::utils::BATCH_AXIS].get_length()) !=
+                       intel_npu::utils::DEFAULT_BATCH_SIZE;
+        });
+        if (notDebatchedOutput != results.end()) {
+            OPENVINO_THROW("The output \"",
+                           (*notDebatchedOutput)->get_friendly_name(),
+                           "\" has the shape ",
+                           (*notDebatchedOutput)->get_output_partial_shape(0).to_string(),
+                           " after the model was reshaped to batch size 1, thus it is not batched.");
+        }
+
         if (batchModeIsAvailable) {
             // If we have successfully debatched the model on the PLUGIN side, we should
             // avoid repeating the same in the compiler by resetting the batch mode
@@ -278,6 +298,9 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
     } catch (const std::exception& ex) {
         // If plugin-side transformation failed, keep the original model and drop the clone
         resultModel = std::const_pointer_cast<ov::Model>(model);
+        // The model is left untouched, so the caller must not consider it debatched
+        successfullyDebatched = false;
+        originalBatch = std::nullopt;
         if (effectiveBatchMode == ov::intel_npu::BatchMode::AUTO) {
             logger.info("Couldn't validate and reshape the model. Batching will be handled by compiler. Error: %s",
                         ex.what());
