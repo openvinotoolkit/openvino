@@ -288,6 +288,9 @@ void ParamsKey::EnableNormalizeMode(NormalizeMode m) {
         case NormalizeMode::WITHIN_SPATIAL:
             key.restrict.val.dedicated.norm.within = 1;
             break;
+        case NormalizeMode::ACROSS_X:
+            key.restrict.val.dedicated.norm.across_x = 1;
+            break;
         default:
             break;
     }

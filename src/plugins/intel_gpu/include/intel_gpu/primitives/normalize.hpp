@@ -41,11 +41,13 @@ struct normalize : public primitive_base<normalize> {
               const input_info& input,
               const primitive_id& scale_input,
               const bool across_spatial = true,
-              const float epsilon = 1e-10f)
+                            const float epsilon = 1e-10f,
+                            const bool across_x = false)
         : primitive_base(id, {input}),
           scale_input(scale_input),
           across_spatial(across_spatial),
-          epsilon(epsilon) {}
+                    epsilon(epsilon),
+                    across_x(across_x) {}
 
     /// @brief Scale input primitive id with values needed for scaling after the normalization.
     /// Scale x dimension should be 1 (if all channels have the same scale) or equal to input feature size (one scale per channel).
@@ -55,11 +57,13 @@ struct normalize : public primitive_base<normalize> {
     bool across_spatial = true;
     /// @brief Epsilon for not dividing by zero while normalizing.
     float epsilon = 1e-10f;
+    bool across_x = false;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, across_spatial);
         seed = hash_combine(seed, epsilon);
+        seed = hash_combine(seed, across_x);
         return seed;
     }
 
@@ -71,7 +75,8 @@ struct normalize : public primitive_base<normalize> {
         auto rhs_casted = downcast<const normalize>(rhs);
 
         return across_spatial == rhs_casted.across_spatial &&
-               epsilon == rhs_casted.epsilon;
+             epsilon == rhs_casted.epsilon &&
+             across_x == rhs_casted.across_x;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -79,6 +84,7 @@ struct normalize : public primitive_base<normalize> {
         ob << scale_input;
         ob << across_spatial;
         ob << epsilon;
+        ob << across_x;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -86,6 +92,7 @@ struct normalize : public primitive_base<normalize> {
         ib >> scale_input;
         ib >> across_spatial;
         ib >> epsilon;
+        ib >> across_x;
     }
 
 protected:
