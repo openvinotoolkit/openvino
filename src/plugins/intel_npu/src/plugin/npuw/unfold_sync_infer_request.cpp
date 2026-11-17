@@ -119,7 +119,7 @@ ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw:
 }
 
 void ov::npuw::UnfoldInferRequest::create_execution_lists() {
-    const auto max_executes = ov::npuw::util::exec_list_max();
+    const auto max_executes = ov::npuw::util::exec_list_max(m_npuw_model->m_name);
 
     // Check every subgraph first: falling back is only possible before the first append(), since an
     // appended request is owned by its list and can't run on its own anymore.
@@ -135,7 +135,7 @@ void ov::npuw::UnfoldInferRequest::create_execution_lists() {
             members.emplace_back(idx, std::move(factory));
         }
     } catch (const std::exception& ex) {
-        LOG_EXEC(m_npuw_model->m_name << ": OPENVINO_NPUW_EXEC_LIST not used: " << ex.what());
+        LOG_EXEC(m_npuw_model->m_name << ": execution lists not used: " << ex.what());
         return;
     }
 
@@ -155,7 +155,7 @@ void ov::npuw::UnfoldInferRequest::create_execution_lists() {
         LOG_EXEC(m_npuw_model->m_name << ": execution list Subgraph[" << el.first << ".." << el.last << "], "
                                       << el.executes << " graph executes (recorded on first infer)");
     }
-    LOG_EXEC(m_npuw_model->m_name << ": OPENVINO_NPUW_EXEC_LIST active, " << m_exec_lists.size()
+    LOG_EXEC(m_npuw_model->m_name << ": execution lists active, " << m_exec_lists.size()
                                   << " execution list(s), max graph executes per list=" << max_executes
                                   << " (0 = unlimited)");
 }

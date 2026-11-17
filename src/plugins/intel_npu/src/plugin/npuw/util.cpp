@@ -237,24 +237,40 @@ bool ov::npuw::util::in_order_enabled() {
     return enabled || submit_all_enabled();
 }
 
-bool ov::npuw::util::exec_list_enabled_for(const std::string& model_name) {
-    static const bool enabled = [] {
-        const char* opt = std::getenv("OPENVINO_NPUW_EXEC_LIST");
-        if (!opt) {
-            return false;
-        }
-        const std::string str(opt);
-        return str == "YES" || str == "ON" || str == "1";
-    }();
-    return enabled && model_name.find("_gqa_prefill") != std::string::npos;
+namespace {
+bool env_flag(const char* name) {
+    const char* opt = std::getenv(name);
+    if (!opt) {
+        return false;
+    }
+    const std::string str(opt);
+    return str == "YES" || str == "ON" || str == "1";
 }
 
-std::size_t ov::npuw::util::exec_list_max() {
-    static const std::size_t max = [] {
-        const char* opt = std::getenv("OPENVINO_NPUW_EXEC_LIST_MAX");
-        return opt ? static_cast<std::size_t>(std::strtoull(opt, nullptr, 10)) : std::size_t{0};
-    }();
-    return max;
+std::size_t env_size(const char* name) {
+    const char* opt = std::getenv(name);
+    return opt ? static_cast<std::size_t>(std::strtoull(opt, nullptr, 10)) : std::size_t{0};
+}
+
+bool is_gqa_prefill(const std::string& model_name) {
+    return model_name.find("_gqa_prefill") != std::string::npos;
+}
+
+bool is_gqa_generate(const std::string& model_name) {
+    return model_name.find("_gqa_generate") != std::string::npos;
+}
+}  // namespace
+
+bool ov::npuw::util::exec_list_enabled_for(const std::string& model_name) {
+    static const bool prefill = env_flag("OPENVINO_NPUW_EXEC_LIST");
+    static const bool generate = env_flag("OPENVINO_NPUW_EXEC_LIST_GENERATE");
+    return (prefill && is_gqa_prefill(model_name)) || (generate && is_gqa_generate(model_name));
+}
+
+std::size_t ov::npuw::util::exec_list_max(const std::string& model_name) {
+    static const std::size_t prefill = env_size("OPENVINO_NPUW_EXEC_LIST_MAX");
+    static const std::size_t generate = env_size("OPENVINO_NPUW_EXEC_LIST_GENERATE_MAX");
+    return is_gqa_generate(model_name) ? generate : prefill;
 }
 
 std::size_t ov::npuw::util::submit_all_depth() {

@@ -57,13 +57,15 @@ bool shared_queue_enabled();
 // on NPU submodels, keeping NPUW's submission pattern. Sync infer() calls become start_async()+wait(),
 // as the NPU plugin only accepts start_async() in that mode. Implied by submit-all.
 bool in_order_enabled();
-// PROTOTYPE (OPENVINO_NPUW_EXEC_LIST=YES): for GQA prefill models only (by model name), run all
-// subgraphs of an infer() as NPU execution lists: one command list on a queue owned by the list,
-// one submission and one wait. Other models are not affected.
+// PROTOTYPE: run all subgraphs of an infer() as NPU execution lists (one command list per list, on a
+// queue owned by the infer request), selected per GQA stage by model name:
+// OPENVINO_NPUW_EXEC_LIST=YES for "_gqa_prefill", OPENVINO_NPUW_EXEC_LIST_GENERATE=YES for
+// "_gqa_generate". Other models are not affected.
 bool exec_list_enabled_for(const std::string& model_name);
-// PROTOTYPE (OPENVINO_NPUW_EXEC_LIST_MAX=N): at most N graph executes per execution list, the rest
-// go to further lists submitted one after another. 0 / unset = one list for the whole infer().
-std::size_t exec_list_max();
+// PROTOTYPE: at most N graph executes per execution list, the rest go to further lists submitted one
+// after another. 0 / unset = one list for the whole infer(). Per stage, as for exec_list_enabled_for():
+// OPENVINO_NPUW_EXEC_LIST_MAX for prefill, OPENVINO_NPUW_EXEC_LIST_GENERATE_MAX for generate.
+std::size_t exec_list_max(const std::string& model_name);
 
 // Strictly parses `str` as a positive base-10 integer (std::from_chars; whole string
 // consumed, no sign accepted, unlike std::stoull). Returns nullopt for anything else,
