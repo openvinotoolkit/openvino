@@ -23,6 +23,13 @@ InputShape calls(const std::vector<size_t>& new_tokens_per_call) {
 
 }  // namespace
 
+// The steps of the query that the op applies (query_norm / query_rope): both, one of them, or none of them (the graph
+// in front of the op does the rest). The host reference applies the same steps.
+static const auto all_query_fusion_types = testing::Values(QSAIndexerQueryFusionType::kNormAndRope,
+                                                           QSAIndexerQueryFusionType::kNormOnly,
+                                                           QSAIndexerQueryFusionType::kRopeOnly,
+                                                           QSAIndexerQueryFusionType::kNone);
+
 // H_iq == H_ik, h_sel == 1: every index-query head contributes to the single selection head.
 INSTANTIATE_TEST_SUITE_P(smoke_PagedQSAIndexer_CPU_Hsel1,
                          PagedQSAIndexerLayerCPUTest,
@@ -34,7 +41,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedQSAIndexer_CPU_Hsel1,
                                           testing::Values(static_cast<size_t>(1), static_cast<size_t>(2)),
                                           testing::Values(calls({7})),
                                           testing::Values(static_cast<size_t>(4)),
-                                          testing::Values(QSAIndexerQueryFusionType::kNormAndRope)),
+                                          all_query_fusion_types),
                          PagedQSAIndexerLayerCPUTest::getTestCaseName);
 
 // H_iq = 2 * H_ik, h_sel == H_ik: exercises the grouped per-selection-head scoring path.
@@ -48,7 +55,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedQSAIndexer_CPU_HselEqualsHik,
                                           testing::Values(static_cast<size_t>(1), static_cast<size_t>(2)),
                                           testing::Values(calls({7})),
                                           testing::Values(static_cast<size_t>(4)),
-                                          testing::Values(QSAIndexerQueryFusionType::kNormAndRope)),
+                                          all_query_fusion_types),
                          PagedQSAIndexerLayerCPUTest::getTestCaseName);
 
 // Other query lengths: a decode step (1 token: a block completes or not, nothing or the past blocks to score) and a
@@ -64,7 +71,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedQSAIndexer_CPU_Lengths,
                                           testing::Values(static_cast<size_t>(1), static_cast<size_t>(2)),
                                           testing::Values(calls({1}), calls({20})),
                                           testing::Values(static_cast<size_t>(4)),
-                                          testing::Values(QSAIndexerQueryFusionType::kNormAndRope)),
+                                          all_query_fusion_types),
                          PagedQSAIndexerLayerCPUTest::getTestCaseName);
 
 // Pages of the size of a real cache, long sequences: the scoring takes 32 blocks at a time, which lie in one page
@@ -84,7 +91,7 @@ INSTANTIATE_TEST_SUITE_P(
                      testing::Values(static_cast<size_t>(1), static_cast<size_t>(2)),
                      testing::Values(calls({1}), calls({300})),
                      testing::Values(static_cast<size_t>(8), static_cast<size_t>(96), static_cast<size_t>(128)),
-                     testing::Values(QSAIndexerQueryFusionType::kNormAndRope)),
+                     all_query_fusion_types),
     PagedQSAIndexerLayerCPUTest::getTestCaseName);
 
 // Several calls over the same sequences and caches, the way a model runs: a prefill, then decode steps (a block
@@ -100,7 +107,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedQSAIndexer_CPU_MultiCall,
                                           testing::Values(static_cast<size_t>(1), static_cast<size_t>(2)),
                                           testing::Values(calls({7, 1, 1, 1, 5, 1})),
                                           testing::Values(static_cast<size_t>(4)),
-                                          testing::Values(QSAIndexerQueryFusionType::kNormAndRope)),
+                                          all_query_fusion_types),
                          PagedQSAIndexerLayerCPUTest::getTestCaseName);
 
 }  // namespace test
