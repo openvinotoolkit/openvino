@@ -18,15 +18,26 @@ class EncryptedSchedulesFlagSection final : public ISection {
 public:
     EncryptedSchedulesFlagSection(const bool applied_encryption);
 
+    /**
+     * @brief Returns its own section type as CRE token only when the value of the flag is "true".
+     * @details A flag value of "true" means the schedules have been encrypted. Therefore, only in this case the section
+     * type is returned, to add as requirement the need to support decryption.
+     */
     std::vector<std::shared_ptr<CREToken>> get_cre_tokens(
         const std::unordered_map<SectionID, std::shared_ptr<ISection>>& all_registered_sections) const override;
 
+    /**
+     * @return The raw value of the flag
+     */
     ov::util::MemoryView encode() const override;
 
     bool get_flag() const;
 
     void set_flag(const bool new_value);
 
+    /**
+     * @brief Reads the raw value of the flag to create a new section instance
+     */
     static ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> decode;
 
 private:

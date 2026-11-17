@@ -42,7 +42,7 @@ public:
      * treated as "supported".
      * @return The final result of the evaluation, along with all types and instances that needed to be evaluated and
      * their evaluation results. The final result can be "supported", "unsupported" or "not applicable". The latter can
-     * be returned if the final result if uncertain. This happens through the influence of section instances that
+     * be returned if the final result is uncertain. This happens through the influence of section instances that
      * evaluate to "not applicable".
      *
      * Only the section types and instances that were required to be evaluated are returned within the remaining
@@ -55,7 +55,10 @@ public:
 
 private:
     /**
-     * @brief Consucts the per-instance section evaluators using the all-instances evalutors.
+     * @brief Consucts the per-instance section evaluators using the all-instances evaluators.
+     * @details The all-instance evaluators are the ones received as arguments to the constructor. These instruct how to
+     * evaluate the section instances of a given type. The per-instance evaluators leverage the all-instances
+     * evaluators, but they also cache the result on top of that.
      */
     std::unordered_map<SectionID, SingleSectionInstanceEvaluator> build_single_section_instance_evaluators(
         const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>>& instance_evaluators);
@@ -85,10 +88,28 @@ class RuntimeRequirementsSection final : public ISection {
 public:
     RuntimeRequirementsSection(const RuntimeRequirements& runtime_requirements);
 
-    void encode(const ov::runtime::hsm::SectionSink& sink) const override;
-
     RuntimeRequirements get_runtime_requirements() const;
 
+    /**
+     * @brief Writes the formatted compatibility string into the sink.
+     * @details The format:
+     * version=<value>;cre=<cre to string>;<section type name>_<id>=<value>;<section type name>_<id>=<value>;...
+     *
+     * The "version" entry is mandatory. The "cre" one appears only if the CRE is not empty. The remaining entries are
+     * optional, and they correspond to the individual requirements of sections. The order of the entries doesn't
+     * matter.
+     */
+    void encode(const ov::runtime::hsm::SectionSink& sink) const override;
+
+    /**
+     * @brief Reconstructs a section instance from a formatted compatibility string.
+     * @details The format:
+     * version=<value>;cre=<cre to string>;<section type name>_<id>=<value>;<section type name>_<id>=<value>;...
+     *
+     * The "version" entry is mandatory. Only the same major version as the currently used one is supported. All
+     * previous minor versions should be supported. The CRE is empty if the "cre" entry is missing. The remaining
+     * entries correspond to individual requirements of sections. The order of the entries doesn't matter.
+     */
     static ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> decode;
 
 private:

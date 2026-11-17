@@ -16,6 +16,17 @@
 
 namespace intel_npu {
 
+/**
+ * @brief Class tasked with registering blob sections into a writing queue, and offering an API for retrieving sections
+ * and building their runtime requirements.
+ * @details This class is meant to be used to gather all blob sections that are intended to be written into the blob
+ * once @ref CompiledModel::export_model is called. The registered sections can also be retrieved on demand, a feature
+ * valuable during the "import_model" flow.
+ *
+ * The runtime requirements reflect the requirements of all sections registered so far in the current object. Due to its
+ * volatiliy, a runtime requirements section is never registered in any registry instance. Instead, the requirements can
+ * be generated prior to blob writing by using the corresponding method provided in this class.
+ */
 class BlobSectionsRegistry final {
 public:
     BlobSectionsRegistry();
@@ -36,47 +47,47 @@ public:
      * type.
      */
     SectionID register_section(const std::shared_ptr<ISection>& section,
-                               const std::optional<SectionID>& parsed_id = std::nullopt);
+                               const std::optional<SectionID>& registered_id = std::nullopt);
 
     /**
-     * @brief Retrieve a parsed section.
-     * @note This should be called only after "read" was invoked.
+     * @brief Retrieve a registered section by ID.
      * @return The requested section if found, else "nullptr"
      */
     std::shared_ptr<ISection> retrieve_section(const SectionID& id) const;
 
     /**
-     * @brief Retrieve the first parsed section of the given type.
-     * @note This should be called only after "read" was invoked.
-     * @note This function exists only for convenience. Most section types will typically have a single instance inside
-     * a compiled model.
-     * @return The first parsed section of the given type if any, else "nullptr"
+     * @brief Retrieve the unique registered section of the given type.
+     * @details Most section types will typically have a single instance inside a compiled model. This method should
+     * prove convenient in such cases. The behavior depends on the number of sections of the given type that are found.
+     * If none, then "nullptr" is returned. If one, then the section is returned. If multiple, then an exception is
+     * thrown.
+     * @return The unique section of that type if any, else "nullptr"
      */
     std::shared_ptr<ISection> retrieve_unique_section_of_type(const SectionType section_type) const;
 
     /**
-     * @brief Retrieves all parsed sections of the given type.
-     * @note This should be called only after "read" was invoked.
-     * @return All parsed sections of the given type if any, else "std::nullopt"
+     * @return All registered sections of the given type
      */
     std::vector<std::shared_ptr<ISection>> retrieve_sections(const SectionType type) const;
 
+    /**
+     * @return The writing queue where all registered sections reside
+     */
     std::queue<std::shared_ptr<ISection>> get_write_queue() const;
 
     /**
-     * @return true if at least one section of the given type has been parsed
+     * @return true if at least one section of the given type has been registered
      * @return false otherwise
      */
     bool has_section_of_type(const SectionType section_type) const;
 
     /**
-     * @return The number of parsed sections of the given type
+     * @return The number of registered sections of the given type
      */
     size_t count_sections_of_type(const SectionType section_type) const;
 
     /**
      * @return A summary of the blob content, represented as a map between section types and their number of occurrences
-     * in the blob
      */
     std::unordered_map<SectionType, size_t> get_content_summary() const;
 
@@ -95,8 +106,8 @@ public:
 
 private:
     /**
-     * @brief Tracks the next available instance ID for each section type. This should assure that the generated section
-     * IDs (type + instance) are unique per compiled model.
+     * @brief Tracks the next available instance ID. This should assure that the generated section IDs are unique per
+     * compiled model.
      */
     uint16_t m_next_section_id;
     /**
