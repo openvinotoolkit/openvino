@@ -106,6 +106,8 @@ const std::vector<std::vector<int64_t>> signal_sizes_zero_padded_input_2d = {
     {4},
     {5},
     {6},
+    {17},
+    {18},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_IRDFT_zero_padded_input_2d, RDFTLayerTest,
