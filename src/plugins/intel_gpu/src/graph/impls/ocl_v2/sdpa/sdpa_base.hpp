@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include "../primitive_ocl_base.hpp"
 #include "../utils/kernel_generator.hpp"
 #include "common_utils/jitter.hpp"
@@ -70,8 +72,12 @@ struct SDPABase : public KernelGenerator {
                                                      const std::vector<int64_t>& input_v_transpose_order);
 
     static bool is_int4_kv_cache(const kernel_impl_params& params);
+    // Plain SDPA whose compressed K/V carry one scale (and zero point) per head-dim channel of a KV head, shared by every
+    // token: the GPU GroupQueryAttentionDecomposition's quantized cache, scale tensors [B or 1, KV heads or 1, 1, head
+    // size]. Per-token compression (kv_cache_compression.cpp) groups the head dim instead and has [B, KV heads, tokens, 1].
+    static bool has_per_channel_compressed_kv(const kernel_impl_params& params);
 
-    // Returns the effective K head size as actually used by SDPA-family OCL kernels (SDPAOpt/SDPAMicro
+    // Returns the effective K head size as actually used by SDPA-family OCL kernels (SDPAOpt/SDPAOcl
     // and PagedAttentionOpt share this via SDPABase). For PagedAttention this is simply the descriptor
     // field; for SDPA it is derived from the K input layout (honoring the transpose order), with the
     // int4 KV-cache override (physical K layout is packed to half size; use the logical, un-halved
@@ -123,6 +129,29 @@ public:
         bool is_prefill = state_layout.count() == 0;
         return !is_prefill;
     }
+};
+
+// The params of a rank-3 SDPA seen as the canonical 4D problem (SDPABase::static_canonicalize_shapes), which is what the
+// sdpa_ocl kernels' orders and layouts are written against. Any other op, the 4D hot path included, is referenced as it
+// is: no copy of the params.
+class SDPACanonicalParams {
+public:
+    explicit SDPACanonicalParams(const kernel_impl_params& params) : m_params(&params) {
+        if (params.is_type<scaled_dot_product_attention>() && SDPABase::requires_shape_canonicalization(params)) {
+            m_canonical.emplace(SDPABase::static_canonicalize_shapes(params));
+            m_params = &*m_canonical;
+        }
+    }
+    SDPACanonicalParams(const SDPACanonicalParams&) = delete;
+    SDPACanonicalParams& operator=(const SDPACanonicalParams&) = delete;
+
+    [[nodiscard]] const kernel_impl_params& get() const {
+        return *m_params;
+    }
+
+private:
+    std::optional<kernel_impl_params> m_canonical;
+    const kernel_impl_params* m_params;
 };
 
 }  // namespace ov::intel_gpu::ocl

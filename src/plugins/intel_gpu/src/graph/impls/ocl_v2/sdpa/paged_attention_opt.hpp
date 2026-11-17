@@ -17,17 +17,17 @@ using namespace cldnn;  // TODO: Remove once namespaces are aligned
 
 namespace ov::intel_gpu::ocl {
 
-// sdpa_micro reads the per-token token_type_ids group bounds precomputed by the pa_tt_bounds stage
-// (internal buffer 4, right after the micro-kernel buffer 3). Not used with scores output or adaptive RKV,
-// which add internal buffers before that index.
-inline bool pa_micro_uses_tt_bounds(const paged_attention& desc) {
-    return desc.has_token_type_ids && !desc.has_scores_output() && !desc.has_adaptive_rkv;
-}
-
 enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
 
 // Kernel used for MIXED stage with few query tokens per subsequence (speculative decoding)
 enum class GQAMultiTokensKernel : uint8_t { NONE = 0, SMALL_Q = 1, FALLBACK = 2 };
+
+// Split-K partition size of the 2nd+ token path, and the type its softmax intermediates
+// (exp_sums / max_logits / tmp_out) are stored in. Every stage-0 kernel that feeds
+// paged_attention_opt.cl's SDPA_STAGE_1 finalization must agree with it on both, and the internal
+// buffers are sized from them -- hence one definition here rather than one per implementation file.
+inline constexpr size_t pa_seq_len_partition_size = 256;
+inline constexpr ov::element::Type pa_softmax_accumulator_type = ov::element::f32;
 
 struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     PagedAttentionStage stage;
@@ -38,10 +38,17 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     size_t sdpa_opt_seq_len_partition_size;
 
     size_t paged_attention_snap_kv_tokens;
-    bool use_micro_sdpa = false;
+    // PREFILL / MIXED run sdpa_ocl (pa_sdpa_ocl / pa_sdpa_ocl_mixed).
+    bool use_sdpa_ocl = false;
     bool use_gqa_kernel = false;
     GQAMultiTokensKernel gqa_multi_tokens_kernel = GQAMultiTokensKernel::NONE;
+    // GENERATE stage runs sdpa_ocl_decode instead of pa_single_token / pa_gqa_single_token. Kept
+    // separate from use_sdpa_ocl on purpose: that flag also suppresses the exp_sums / max_logits /
+    // tmp_out internal buffers (get_internal_buffer_descs), which sdpa_ocl_decode needs.
+    bool use_ocl_decode = false;
     size_t query_block_size = 16;
+    // PREFILL runs the xe_hpg PA PREFILL kernel, whose query blocks are dispatched heaviest / lightest alternately.
+    bool pair_query_blocks = false;
 };
 
 struct PagedAttentionOpt : public ImplementationManager {
@@ -82,6 +89,14 @@ struct PagedAttentionOpt : public ImplementationManager {
         }
 
         if (!one_of(k_layout.data_type, supported_kv_types) || !one_of(v_layout.data_type, supported_kv_types)) {
+            return false;
+        }
+
+        // A 4-bit K cache is BY_CHANNEL only: the token-major page has no 4-bit BY_TOKEN K kind (paged_attention.hpp; the
+        // execution config rejects it for PA models too). Refused here, not in the generators: an exception there is
+        // swallowed by add_stage and leaves a stage without a kernel.
+        if (data_type_traits::is_i4_u4(node.get_program().get_config().get_kv_cache_precision()) && !desc->is_key_by_channel) {
+            GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false because a 4-bit K cache is BY_CHANNEL only." << std::endl;
             return false;
         }
 

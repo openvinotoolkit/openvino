@@ -40,7 +40,8 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     if (value_cache_ps[2].get_length() == cldnn::paged_attention::block_size_xattn) {
         prim.has_xattention = true;
     }
-    const auto k_head_size_idx = prim.has_xattention ? 3 : 2;
+    // The K page is token-major (paged_attention.hpp), head_size innermost like the XAttention and value-cache layouts.
+    const size_t k_head_size_idx = 3;
 
     auto k_head_size = has_rt_params ? rt_info.at(k_head_size_id).as<int64_t>() : key_cache_ps[k_head_size_idx].get_length();
     auto v_head_size = has_rt_params ? rt_info.at(v_head_size_id).as<int64_t>() : value_cache_ps[3].get_length();

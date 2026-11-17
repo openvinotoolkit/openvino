@@ -125,6 +125,91 @@ std::shared_ptr<ov::Model> create_xattention_paged_attention_model() {
     return model;
 }
 
+// A plain (non-XAttention) PagedAttention model: 2 query heads over 2 KV heads, head size 64.
+// with_alibi / with_qq_bias add the inputs (the K cache layout no longer depends on them).
+std::shared_ptr<ov::Model> create_paged_attention_model(bool with_alibi, bool with_qq_bias) {
+    constexpr int64_t num_heads = 2;
+    constexpr int64_t head_size = 64;
+
+    auto query = std::make_shared<v0::Parameter>(element::f16, PartialShape{-1, num_heads * head_size});
+    auto key = std::make_shared<v0::Parameter>(element::f16, PartialShape{-1, num_heads * head_size});
+    auto value = std::make_shared<v0::Parameter>(element::f16, PartialShape{-1, num_heads * head_size});
+    auto key_cache = std::make_shared<v0::Parameter>(element::dynamic, PartialShape::dynamic(4));
+    auto value_cache = std::make_shared<v0::Parameter>(element::dynamic, PartialShape::dynamic(4));
+    auto past_lens = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto subsequence_begins = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto block_indices = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto block_indices_begins = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto scale = v0::Constant::create(element::f32, Shape{}, {0.125f});
+    auto sliding_window = v0::Constant::create(element::i32, Shape{}, {0});
+    auto alibi_slopes = with_alibi ? v0::Constant::create(element::f32, Shape{num_heads}, {-0.5f, -0.25f})
+                                   : v0::Constant::create(element::f32, Shape{0}, {});
+    auto max_context_len = std::make_shared<v0::Parameter>(element::i32, PartialShape{});
+    auto score_aggregation_window = v0::Constant::create(element::i32, Shape{}, {0});
+    auto rotated_block_indices = v0::Constant::create(element::i32, Shape{0}, {});
+    auto rotation_deltas = v0::Constant::create(element::i32, Shape{0}, {});
+    auto rotation_trig_lut = v0::Constant::create(element::f32, Shape{0}, {});
+    auto xattention_threshold = v0::Constant::create(element::f32, Shape{0}, {});
+    auto xattention_block_size = v0::Constant::create(element::i32, Shape{}, {64});
+    auto xattention_stride = v0::Constant::create(element::i32, Shape{}, {8});
+    auto sinks = v0::Constant::create(element::f16, Shape{0}, {});
+    auto adaptive_rkv_start_size = v0::Constant::create(element::i32, Shape{}, {0});
+    auto adaptive_rkv_evictable_sizes = v0::Constant::create(element::i32, Shape{0}, {});
+    auto adaptive_rkv_diversity_block_set_indices = v0::Constant::create(element::i32, Shape{0}, {});
+    auto adaptive_rkv_diversity_block_set_indices_begins = v0::Constant::create(element::i32, Shape{0}, {});
+    auto token_type_ids = v0::Constant::create(element::i32, Shape{0}, {});
+    ParameterVector parameters{query, key, value, key_cache, value_cache, past_lens, subsequence_begins, block_indices, block_indices_begins, max_context_len};
+    // qq_bias is recognised the way ops/paged_attention.cpp does: a dynamically shaped Parameter.
+    Output<Node> qq_bias = v0::Constant::create(element::u8, Shape{0}, {});
+    Output<Node> qq_bias_begins = v0::Constant::create(element::i32, Shape{0}, {});
+    if (with_qq_bias) {
+        auto qq_bias_param = std::make_shared<v0::Parameter>(element::u8, PartialShape{-1});
+        auto qq_bias_begins_param = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+        parameters.push_back(qq_bias_param);
+        parameters.push_back(qq_bias_begins_param);
+        qq_bias = qq_bias_param;
+        qq_bias_begins = qq_bias_begins_param;
+    }
+
+    key_cache->set_friendly_name("key_cache");
+    value_cache->set_friendly_name("value_cache");
+
+    auto pa = std::make_shared<op::PagedAttentionExtension>(OutputVector{query,
+                                                                         key,
+                                                                         value,
+                                                                         key_cache,
+                                                                         value_cache,
+                                                                         past_lens,
+                                                                         subsequence_begins,
+                                                                         block_indices,
+                                                                         block_indices_begins,
+                                                                         scale,
+                                                                         sliding_window,
+                                                                         alibi_slopes,
+                                                                         max_context_len,
+                                                                         score_aggregation_window,
+                                                                         rotated_block_indices,
+                                                                         rotation_deltas,
+                                                                         rotation_trig_lut,
+                                                                         xattention_threshold,
+                                                                         xattention_block_size,
+                                                                         xattention_stride,
+                                                                         sinks,
+                                                                         adaptive_rkv_start_size,
+                                                                         adaptive_rkv_evictable_sizes,
+                                                                         adaptive_rkv_diversity_block_set_indices,
+                                                                         adaptive_rkv_diversity_block_set_indices_begins,
+                                                                         token_type_ids,
+                                                                         qq_bias,
+                                                                         qq_bias_begins});
+    pa->get_rt_info()["num_k_heads"] = num_heads;
+    pa->get_rt_info()["k_head_size"] = head_size;
+    pa->get_rt_info()["num_v_heads"] = num_heads;
+    pa->get_rt_info()["v_head_size"] = head_size;
+
+    return std::make_shared<Model>(OutputVector{pa->output(0)}, parameters);
+}
+
 std::shared_ptr<v0::Parameter> find_parameter_by_name(const std::shared_ptr<const ov::Model>& model,
                                                       const std::string& friendly_name) {
     for (const auto& parameter : model->get_parameters()) {
@@ -434,5 +519,73 @@ TEST_P(NormalizeMoEOutputReshapeTargetTypeTest, SupportsIntegralTargetTypes) {
 INSTANTIATE_TEST_SUITE_P(smoke,
                          NormalizeMoEOutputReshapeTargetTypeTest,
                          testing::Values(ov::element::i8, ov::element::i16, ov::element::i32, ov::element::i64, ov::element::u8, ov::element::u32));
+
+// The K page is token-major on every device, for every kind of page and inference precision (paged_attention.hpp):
+// the key_cache shape ConvertPagedAttnInputs gives a synthetic PA model through the real pipeline on the test device.
+// Run with --device_suffix for each GPU.
+struct KCacheLayoutParams {
+    ov::element::Type kv_cache_precision;
+    ov::internal::CacheQuantMode key_cache_quant_mode;
+    bool with_alibi;
+    bool with_qq_bias;
+    ov::element::Type inference_precision = ov::element::f16;
+};
+
+class PagedAttentionKCacheLayoutPipelineTest : public testing::TestWithParam<KCacheLayoutParams> {};
+
+TEST_P(PagedAttentionKCacheLayoutPipelineTest, PageIsTokenMajor) {
+    const auto& p = GetParam();
+    auto& engine = get_test_engine();
+    auto context = std::make_shared<ov::intel_gpu::RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto model = create_paged_attention_model(p.with_alibi, p.with_qq_bias);
+
+    auto config = get_test_default_config(engine);
+    config.set_user_property(ov::hint::kv_cache_precision(p.kv_cache_precision));
+    config.set_user_property(ov::hint::inference_precision(p.inference_precision));
+    config.set_user_property(ov::internal::key_cache_quant_mode(p.key_cache_quant_mode));
+    config.finalize(context.get(), model.get());
+    ASSERT_EQ(config.get_key_cache_quant_mode(), p.key_cache_quant_mode);
+
+    ov::intel_gpu::TransformationsPipeline pipeline(config, context);
+    pipeline.apply(model);
+
+    auto key_cache = find_parameter_by_name(model, "key_cache");
+    ASSERT_NE(key_cache, nullptr);
+    const auto key_shape = key_cache->get_partial_shape();
+    ASSERT_TRUE(key_shape.rank().is_static());
+    ASSERT_EQ(key_shape.rank().get_length(), 4);
+
+    const bool by_channel = p.kv_cache_precision.is_integral() && p.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL;
+
+    // The comp is in the inference precision: i8 BY_CHANNEL keeps a (scale, zp) pair per channel after 16 tokens, u4
+    // packs a channel's 16 tokens into 8 bytes, i8 BY_TOKEN appends per-token pairs along the head dim.
+    const int64_t comp = 2 * static_cast<int64_t>(p.inference_precision.size());
+    int64_t block = 16;
+    int64_t head = 64;
+    if (by_channel) {
+        block = (p.kv_cache_precision == ov::element::u4 ? 8 : 16) + comp;
+    } else if (p.kv_cache_precision == ov::element::i8) {
+        head = 64 + comp;
+    }
+    EXPECT_TRUE(key_shape[0].is_dynamic());
+    EXPECT_EQ(key_shape[1].get_length(), 2);
+    EXPECT_EQ(key_shape[2].get_length(), block) << "key_cache " << key_shape;
+    EXPECT_EQ(key_shape[3].get_length(), head) << "key_cache " << key_shape;
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_PagedAttentionKCacheLayout,
+                         PagedAttentionKCacheLayoutPipelineTest,
+                         testing::Values(KCacheLayoutParams{ov::element::i8, ov::internal::CacheQuantMode::BY_CHANNEL, false, false},
+                                         KCacheLayoutParams{ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL, false, false},
+                                         KCacheLayoutParams{ov::element::i8, ov::internal::CacheQuantMode::BY_CHANNEL, true, false},
+                                         KCacheLayoutParams{ov::element::i8, ov::internal::CacheQuantMode::BY_CHANNEL, false, true},
+                                         KCacheLayoutParams{ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL, true, false},
+                                         KCacheLayoutParams{ov::element::f16, ov::internal::CacheQuantMode::BY_CHANNEL, false, false},
+                                         KCacheLayoutParams{ov::element::f16, ov::internal::CacheQuantMode::BY_CHANNEL, true, true},
+                                         KCacheLayoutParams{ov::element::i8, ov::internal::CacheQuantMode::BY_TOKEN, false, false},
+                                         KCacheLayoutParams{ov::element::i8, ov::internal::CacheQuantMode::BY_TOKEN, true, true},
+                                         KCacheLayoutParams{ov::element::f32, ov::internal::CacheQuantMode::BY_TOKEN, false, false, ov::element::f32},
+                                         KCacheLayoutParams{ov::element::i8, ov::internal::CacheQuantMode::BY_TOKEN, false, false, ov::element::f32},
+                                         KCacheLayoutParams{ov::element::i8, ov::internal::CacheQuantMode::BY_CHANNEL, false, false, ov::element::f32}));
 
 }  // namespace ov::test::intel_gpu

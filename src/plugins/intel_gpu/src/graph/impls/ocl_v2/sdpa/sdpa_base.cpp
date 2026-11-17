@@ -87,7 +87,30 @@ bool SDPABase::is_int4_kv_cache(const kernel_impl_params& params) {
     return data_type_traits::is_i4_u4(kv_cache_dt);
 }
 
-// Returns the effective K head size as actually used by SDPA-family OCL kernels (SDPAOpt/SDPAMicro
+bool SDPABase::has_per_channel_compressed_kv(const kernel_impl_params& params) {
+    if (!params.is_type<scaled_dot_product_attention>()) {
+        return false;
+    }
+    const auto desc = params.typed_desc<scaled_dot_product_attention>();
+    if (!desc->is_kv_compressed) {
+        return false;
+    }
+    // The attribute decides when it says so (the scale shapes may be dynamic at build time): a head dim that is not
+    // grouped means a scale per channel. Per-token compression always groups it.
+    const auto& group_sizes = desc->quantization_attributes.group_sizes;
+    if (!group_sizes.empty() && group_sizes.back() == 1) {
+        return true;
+    }
+    const auto data_inputs_num = get_data_inputs_num(*desc);
+    const auto is_per_channel_scale = [&params](size_t scale_idx) {
+        const auto& shape = params.input_layouts[scale_idx].get_partial_shape();
+        return shape.rank().is_static() && shape.rank().get_length() == 4 && shape[2].is_static() && shape[2].get_length() == 1 && shape[3].is_static() &&
+               shape[3].get_length() > 1;
+    };
+    return is_per_channel_scale(data_inputs_num) || is_per_channel_scale(data_inputs_num + 1);
+}
+
+// Returns the effective K head size as actually used by SDPA-family OCL kernels (SDPAOpt/SDPAOcl
 // and PagedAttentionOpt share this via SDPABase). For PagedAttention this is simply the descriptor
 // field; for SDPA it is derived from the K input layout (honoring the transpose order), with the
 // int4 KV-cache override (physical K layout is packed to half size; use the logical, un-halved
@@ -474,7 +497,12 @@ kernel_impl_params SDPABase::static_canonicalize_shapes(const kernel_impl_params
     // it to a false higher-rank shape, otherwise it becomes indistinguishable from a real static mask.
     if (updated_impl_params.input_layouts.size() > attn_mask_idx) {
         const auto attn_mask_shape = updated_impl_params.input_layouts[attn_mask_idx].get_partial_shape();
-        if (attn_mask_shape.size() != 0) {
+        // A rank-3 mask [B, Lq, Lk] of a rank-3 SDPA (Q/K/V [B, L, E]) is aligned with Q/K/V, which get the num_heads
+        // dim (1) inserted below ([B, 1, L, E]). Prepending a 1 instead ([1, B, Lq, Lk]) would make the kernel read B
+        // as num_heads and broadcast the batch, i.e. every batch would use mask[0]. The generic loop below inserts
+        // the num_heads dim for this case (shape and padding), so skip the prepend here.
+        const bool mask_aligned_with_3d_qkv = attn_mask_shape.size() == 3 && updated_impl_params.input_layouts[0].get_partial_shape().size() == 3;
+        if (attn_mask_shape.size() != 0 && !mask_aligned_with_3d_qkv) {
             updated_impl_params.input_layouts[attn_mask_idx].set_partial_shape(extend_shape_to_rank_from_begin(attn_mask_shape));
         }
     }

@@ -16,6 +16,7 @@ namespace ov::intel_gpu::ocl {
 namespace {
 constexpr size_t subgroup_size = 16;
 constexpr size_t u4_elems_per_byte = 2;
+
 class PaKVReorderGenerator : public KernelGenerator {
 public:
     PaKVReorderGenerator() : KernelGenerator("pa_kv_cache_reorder_ref") {}
@@ -88,21 +89,10 @@ protected:
             jit.make("ADJUSTED_V_HEAD_SIZE", adjusted_v_head_size);
 
             if (is_int4_compressed) {
-                size_t packed_k_head_size;
-                size_t packed_adjusted_k_head_size;
-                size_t packed_paged_attention_block_size;
-                size_t packed_adjusted_paged_attention_block_size;
-                if (is_key_by_channel) {
-                    packed_k_head_size = k_head_size;
-                    packed_adjusted_k_head_size = k_head_size;
-                    packed_paged_attention_block_size = cldnn::paged_attention::block_size / u4_elems_per_byte;
-                    packed_adjusted_paged_attention_block_size = packed_paged_attention_block_size + scales_zp_size;
-                } else {
-                    packed_k_head_size = align_to(k_head_size / u4_elems_per_byte, subgroup_size);
-                    packed_adjusted_k_head_size = packed_k_head_size + scales_zp_size;
-                    packed_paged_attention_block_size = cldnn::paged_attention::block_size;
-                    packed_adjusted_paged_attention_block_size = cldnn::paged_attention::block_size;
-                }
+                const size_t packed_k_head_size = k_head_size;
+                const size_t packed_adjusted_k_head_size = k_head_size;
+                const size_t packed_paged_attention_block_size = cldnn::paged_attention::block_size / u4_elems_per_byte;
+                const size_t packed_adjusted_paged_attention_block_size = packed_paged_attention_block_size + scales_zp_size;
                 const size_t packed_v_head_size = align_to(v_head_size / u4_elems_per_byte, subgroup_size);
                 const size_t packed_adjusted_v_head_size = packed_v_head_size + scales_zp_size;
                 jit.make("PACKED_K_HEAD_SIZE", packed_k_head_size);
