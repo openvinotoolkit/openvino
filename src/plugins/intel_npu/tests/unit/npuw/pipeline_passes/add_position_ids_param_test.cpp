@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "npuw_transformations/add_position_ids_param.hpp"
+
 #include <gtest/gtest.h>
 
 #include <cmath>
@@ -13,7 +15,7 @@
 #include <utility>
 #include <vector>
 
-#include "npuw_transformations/add_position_ids_param.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/concat.hpp"
@@ -309,6 +311,58 @@ std::shared_ptr<ov::Model> build_model_with_independent_rope_patterns(bool offse
     return std::make_shared<ov::Model>(results, params, "independent_rope_patterns");
 }
 
+// What AddPositionIdsParam is expected to produce: the Convert of every RoPE branch reads one shared
+// Unsqueeze(position_ids), legacy Clamp consumers read Squeeze(position_ids), and the Range-based causal masks
+// are left as they are. position_ids is appended to the parameters.
+std::shared_ptr<ov::Model> build_reference_with_independent_rope_patterns(bool offset_positions,
+                                                                          bool with_range_clamp_consumer) {
+    auto model = build_model_with_independent_rope_patterns(offset_positions, with_range_clamp_consumer);
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
+    position_ids->set_friendly_name("position_ids");
+    position_ids->output(0).set_names({"position_ids"});
+    auto unsqueezed =
+        std::make_shared<ov::op::v0::Unsqueeze>(position_ids,
+                                                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
+    auto squeezed =
+        std::make_shared<ov::op::v0::Squeeze>(position_ids,
+                                              ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
+    for (const auto& op : model->get_ops()) {
+        if (ov::is_type<ov::op::v0::Convert>(op)) {
+            op->input(0).replace_source_output(unsqueezed);
+        } else if (ov::is_type<ov::op::v0::Clamp>(op)) {
+            op->input(0).replace_source_output(squeezed);
+        }
+    }
+    auto params = model->get_parameters();
+    params.push_back(position_ids);
+    auto reference = std::make_shared<ov::Model>(model->get_results(), params, "independent_rope_patterns");
+    reference->validate_nodes_and_infer_types();
+    return reference;
+}
+
+class AddPositionIdsParamIndependentRopeTransformationTest
+    : public TransformationTestsF,
+      public testing::WithParamInterface<std::tuple<bool, bool>> {
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        const auto& [offset_positions, with_range_clamp_consumer] = GetParam();
+        model = build_model_with_independent_rope_patterns(offset_positions, with_range_clamp_consumer);
+        model_ref = build_reference_with_independent_rope_patterns(offset_positions, with_range_clamp_consumer);
+        manager.register_pass<ov::npuw::AddPositionIdsParam>();
+    }
+};
+
+TEST_P(AddPositionIdsParamIndependentRopeTransformationTest, RewiresEveryBranchToSharedPositionIds) {}
+
+TEST_P(AddPositionIdsParamIndependentRopeTransformationTest, SecondRunLeavesTheGraphUnchanged) {
+    manager.register_pass<ov::npuw::AddPositionIdsParam>();
+}
+
+INSTANTIATE_TEST_SUITE_P(OffsetAndLegacyClamp,
+                         AddPositionIdsParamIndependentRopeTransformationTest,
+                         testing::Combine(testing::Bool(), testing::Bool()));
+
 class AddPositionIdsParamIndependentRopeTest : public testing::TestWithParam<std::tuple<bool, bool>> {
 protected:
     void SetUp() override {
@@ -318,69 +372,16 @@ protected:
     std::shared_ptr<ov::Model> model;
 };
 
-TEST_P(AddPositionIdsParamIndependentRopeTest, SharesPositionIdsAcrossBothBranchesAndPreservesMasks) {
+TEST_P(AddPositionIdsParamIndependentRopeTest, BranchesShareOneUnsqueezeOfPositionIds) {
+    ASSERT_NO_THROW(ov::npuw::AddPositionIdsParam().run_on_model(model));
     ov::NodeVector converts;
-    ov::NodeVector clamps;
-    std::set<ov::Node*> mask_ranges;
-    std::vector<std::pair<ov::Input<ov::Node>, ov::Output<ov::Node>>> mask_inputs;
     for (const auto& op : model->get_ops()) {
         if (ov::is_type<ov::op::v0::Convert>(op)) {
             converts.push_back(op);
-        } else if (ov::is_type<ov::op::v0::Clamp>(op)) {
-            clamps.push_back(op);
-        } else if (ov::is_type<ov::op::v1::LessEqual>(op)) {
-            // Snapshot every data edge from this mask to its original Range, including Add.
-            mask_inputs.emplace_back(op->input(1), op->input_value(1));
-            auto node = op->input_value(1).get_node_shared_ptr();
-            while (!ov::is_type<ov::op::v4::Range>(node)) {
-                ASSERT_GT(node->get_input_size(), 0u);
-                mask_inputs.emplace_back(node->input(0), node->input_value(0));
-                node = node->input_value(0).get_node_shared_ptr();
-            }
-            mask_ranges.insert(node.get());
         }
     }
     ASSERT_EQ(converts.size(), 2u);
-    ASSERT_EQ(mask_ranges.size(), 2u);
-    ASSERT_EQ(clamps.size(), std::get<1>(GetParam()) ? 2u : 0u);
-
-    ASSERT_NO_THROW(ov::npuw::AddPositionIdsParam().run_on_model(model));
-    ASSERT_EQ(count_parameters_named(model, "position_ids"), 1u);
-    ASSERT_EQ(model->get_parameters().size(), 3u);  // Two frequency tables, one position_ids.
-    std::shared_ptr<ov::op::v0::Parameter> position_ids;
-    for (const auto& param : model->get_parameters()) {
-        if (param->output(0).get_names().count("position_ids")) {
-            position_ids = param;
-        }
-    }
-    ASSERT_NE(position_ids, nullptr);
-    EXPECT_EQ(position_ids->get_element_type(), ov::element::i64);
-    EXPECT_EQ(position_ids->get_partial_shape(), (ov::PartialShape{-1, -1}));
-    for (const auto& convert : converts) {
-        SCOPED_TRACE(convert->get_friendly_name());
-        auto parent = convert->input_value(0).get_node_shared_ptr();
-        ASSERT_TRUE(ov::is_type<ov::op::v0::Unsqueeze>(parent));
-        EXPECT_EQ(parent->input_value(0), position_ids->output(0));
-    }
-    // Both branches unsqueeze the positions with the same axes, so they share one Unsqueeze.
     EXPECT_EQ(converts[0]->get_input_node_ptr(0), converts[1]->get_input_node_ptr(0));
-    for (const auto& edge : mask_inputs) {
-        SCOPED_TRACE(edge.first.get_node()->get_friendly_name());
-        EXPECT_EQ(edge.first.get_source_output(), edge.second);
-    }
-    EXPECT_EQ(count_ops_of_type(model, "Range"), 2u);
-    for (const auto& clamp : clamps) {
-        SCOPED_TRACE(clamp->get_friendly_name());
-        auto parent = clamp->input_value(0).get_node_shared_ptr();
-        ASSERT_TRUE(ov::is_type<ov::op::v0::Squeeze>(parent));
-        EXPECT_EQ(parent->input_value(0), position_ids->output(0));
-    }
-
-    const auto ops_after_first = model->get_ops().size();
-    ASSERT_NO_THROW(ov::npuw::AddPositionIdsParam().run_on_model(model));
-    EXPECT_EQ(model->get_parameters().size(), 3u);
-    EXPECT_EQ(count_parameters_named(model, "position_ids"), 1u);
-    EXPECT_EQ(model->get_ops().size(), ops_after_first);
 }
 
 TEST_P(AddPositionIdsParamIndependentRopeTest, EvaluatesBothFrequencyTablesUsingExternalPositions) {
