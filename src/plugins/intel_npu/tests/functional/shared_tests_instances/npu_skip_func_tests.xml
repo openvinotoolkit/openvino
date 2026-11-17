@@ -427,4 +427,16 @@ Example:
         </filters>
     </skip_config>
 
+    <!-- E243525 -->
+    <skip_config>
+        <message>Skipping tests which force error states in driver</message>
+        <filters>
+            <filter>.*OVCompiledGraphImportExportTestNPU.ImportingEncryptedBlobThrows.*</filter>
+            <filter>.*ZeroDeviceTest.ValidateRejectsInvalidString.*</filter>
+            <filter>.*ZeroGraphTest.SetGraphArgOnNullBuffer.*</filter>
+            <filter>.*EncryptionCallbacks.EncryptionCallbacksSetSecureCompileFlag.*</filter>
+            <filter>.*CheckSecureCompilationFlag.EncryptionCallbacksForOlderDriverThrows.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>
