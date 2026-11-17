@@ -389,6 +389,11 @@ This will ensure that the workflow won't be executed automatically for PRs in dr
 From the main page of the draft PR, go to the "Checks" tab -> in the left menu choose the workflow that you'd like to execute -> press the "Re-run all jobs" button.
 Detailed instruction: [Re-running all the jobs in a workflow](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/re-run-workflows-and-jobs#re-running-all-the-jobs-in-a-workflow)
 
+The non-blocking C++20 builds in the Ubuntu 22.04, Ubuntu 24.04 and Windows VS 2022 Release
+workflows also run when you re-run all jobs for a PR, including a non-draft PR. This re-runs the
+entire workflow, not just the C++20 build. The condition also matches automated re-runs, and
+Smart CI's usual skip rules still apply.
+
 >**NOTE**: If you add the condition above, make sure to update the triggers section of the workflow as follows, to ensure that all checks will be re-executed once the PR is converted from draft to "ready for review":
 
 ```yaml
