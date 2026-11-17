@@ -33,10 +33,12 @@ inline const bool FUNC(is_between)(int val, int min, int max) {
 #define PRE_CALC_VALID_OFFSETS_FOR_INPUT_LOAD(x_n, y_n)                \
     const grid_et y_d = denormalize(y_n, INPUT0_SIZE_Y);               \
     const grid_et x_d = denormalize(x_n, INPUT0_SIZE_X);               \
-    const int y_topleft = (int)floor(y_d);                             \
-    const int x_topleft = (int)floor(x_d);                             \
-    const grid_et dy = y_d - y_topleft;                                \
-    const grid_et dx = x_d - x_topleft;                                \
+    const grid_et y_floor = floor(y_d);                                \
+    const grid_et x_floor = floor(x_d);                                \
+    const int y_topleft = (int)y_floor;                                \
+    const int x_topleft = (int)x_floor;                                \
+    const grid_et dy = y_d - y_floor;                                  \
+    const grid_et dx = x_d - x_floor;                                  \
     CALC_VALID_OFFSETS_FOR_INPUT_LOAD
 
 #if defined(PADDING_MODE_ZEROS)
