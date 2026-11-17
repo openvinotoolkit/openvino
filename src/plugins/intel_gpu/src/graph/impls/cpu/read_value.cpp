@@ -91,7 +91,7 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
             return stream.aggregate_events(res_events, res_events.size() > 1);
         }
 
-        return make_output_event(stream, instance.is_output());
+        return make_output_event(stream, instance.needs_completion_event());
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}

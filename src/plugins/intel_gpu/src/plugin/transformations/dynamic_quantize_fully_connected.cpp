@@ -51,8 +51,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         };
 
         auto weight_shape = m_fc->get_input_partial_shape(1);
-        const size_t k_axis = weight_shape.size() - (m_fc->get_transpose_b() ? 1 : 2);
-        const size_t innermost_size = weight_shape[k_axis].get_length();
+        const size_t innermost_size = op::fc_weight_dims(weight_shape, m_fc->get_weights_layout()).K.get_length();
 
         const bool has_wzp = m_fc->get_input_size() > 4;
         auto optional_w_zp = has_wzp ? m_fc->get_input_node_shared_ptr(4) : make_placeholder();
@@ -154,7 +153,8 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
                                                                      output_type,
                                                                      m_fc->get_transpose_b(),
                                                                      m_fc->get_transpose_b_scale(),
-                                                                     m_fc->get_transpose_b_zp());
+                                                                     m_fc->get_transpose_b_zp(),
+                                                                     m_fc->get_weights_layout());
 
         GPU_DEBUG_TAGGED(TRACE, "dynquan") << m_fc->get_friendly_name() << " applied: group_size "
                                            << (adj_group_size == UINT64_MAX ? std::string("per-token") : std::to_string(adj_group_size)) << ", dt "
