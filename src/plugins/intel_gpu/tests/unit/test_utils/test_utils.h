@@ -673,4 +673,9 @@ void print_profiling_all_exectimes(const std::map<cldnn::primitive_id, cldnn::ne
 /// activated stage got the kernel built from its own source, and installs the new impl in the network.
 void rebind_impl_through_set_kernels(cldnn::network& net, const cldnn::primitive_id& id);
 
+/// Returns the ov::Core device string ("GPU", "GPU.1", ...) of the device behind `get_test_engine()`, i.e. the one
+/// selected by `--device_suffix`. ov::Core resolves the plain "GPU" to the first enumerated device and ignores the
+/// flag, so full-pipeline tests that gate on `get_test_engine()` capabilities must compile against this name instead.
+std::string get_engine_gpu_device_name();
+
 } // namespace tests

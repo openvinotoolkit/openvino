@@ -237,4 +237,45 @@ TEST_P(AlignTest, align_padding_size) {
 
     EXPECT_EQ(pad, expected);
 }
+
+TEST(memory_util, can_compute_byte_strides) {
+    EXPECT_TRUE(ov::util::can_compute_byte_strides(element::f32, Shape{}));
+    EXPECT_TRUE(ov::util::can_compute_byte_strides(element::f32, Shape{2, 3, 5}));
+    // sub-byte types require the last dimension's packed row to end on a byte boundary
+    EXPECT_TRUE(ov::util::can_compute_byte_strides(element::u4, Shape{2, 3, 8}));
+    EXPECT_FALSE(ov::util::can_compute_byte_strides(element::u4, Shape{2, 3, 3}));
+    EXPECT_TRUE(ov::util::can_compute_byte_strides(element::u1, Shape{8}));
+    EXPECT_FALSE(ov::util::can_compute_byte_strides(element::u1, Shape{10}));
+
+    // a bitwidth that does not evenly divide a byte can never be byte-aligned
+    EXPECT_FALSE(ov::util::can_compute_byte_strides(element::u3, Shape{8}));
+
+    // sub-byte scalar (rank 0) has no last dimension to align
+    EXPECT_FALSE(ov::util::can_compute_byte_strides(element::u4, Shape{}));
+}
+
+TEST(memory_util, get_dense_byte_strides) {
+    EXPECT_EQ(ov::util::get_dense_byte_strides(element::f32, Shape{2, 3, 5}), Strides({60, 20, 4}));
+
+    // last dimension is one packed row (3 bytes); outer strides count whole rows
+    EXPECT_EQ(ov::util::get_dense_byte_strides(element::u4, Shape{2, 3, 8}), Strides({12, 4, 1}));
+
+    // zero-sized last dimension collapses all strides to 0
+    EXPECT_EQ(ov::util::get_dense_byte_strides(element::u4, Shape{2, 3, 0}), Strides({0, 0, 0}));
+}
+
+TEST(memory_util, get_byte_memory_shape) {
+    // byte-granular types are returned unchanged
+    EXPECT_EQ(ov::util::get_byte_memory_shape(element::f32, Shape{2, 3, 5}), Shape({2, 3, 5}));
+
+    // sub-byte types: last dimension becomes its packed byte count
+    EXPECT_EQ(ov::util::get_byte_memory_shape(element::u4, Shape{2, 3, 8}), Shape({2, 3, 4}));
+    EXPECT_EQ(ov::util::get_byte_memory_shape(element::u1, Shape{2, 16}), Shape({2, 2}));
+
+    // higher rank: only the last dimension changes, every outer dimension is copied unchanged
+    EXPECT_EQ(ov::util::get_byte_memory_shape(element::u4, Shape{1, 2, 4095, 1, 512}), Shape({1, 2, 4095, 1, 256}));
+
+    // sub-byte scalar (rank 0) has no last dimension to convert
+    EXPECT_EQ(ov::util::get_byte_memory_shape(element::u4, Shape{}), Shape{});
+}
 }  // namespace ov::test
