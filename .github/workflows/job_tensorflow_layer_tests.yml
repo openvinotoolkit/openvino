@@ -127,6 +127,23 @@ jobs:
           find "$tf_dir" -maxdepth 3 \( -name '_pywrap_cpu_feature_guard*.so' -o -name 'libtensorflow_framework*' \) -exec ls -l {} +
           python3 -c "import tensorflow as tf; print(tf.__version__)"
 
+      # Diagnostics for "Fatal Python error: Bus error" (CVS-192737)
+      # dyld coalesces exported weak symbols across all loaded images, so Protobuf symbols
+      # exported by OpenVINO can be bound to by TensorFlow's own (different version) Protobuf.
+      - name: Check exported Protobuf symbols of OpenVINO libraries (macOS)
+        if: ${{ runner.os == 'macOS' && fromJSON(inputs.affected-components).TF_FE.test }}
+        continue-on-error: true
+        run: |
+          libs_dir=$(python3 -c "import openvino, os; print(os.path.join(os.path.dirname(openvino.__file__), 'libs'))")
+          for lib in "$libs_dir"/*.dylib; do
+            count=$(nm -gUj "$lib" | grep -c -E '^__ZN(6google8protobuf|4absl)' || true)
+            echo "$count exported google::protobuf/absl symbols: $(basename "$lib")"
+            if [ "$count" -gt 0 ]; then
+              echo "::warning::$(basename "$lib") exports $count google::protobuf/absl symbols"
+              nm -gUj "$lib" | grep -E '^__ZN(6google8protobuf|4absl)' | head -n 20
+            fi
+          done
+
       - name: Check TensorFlow import order (macOS)
         id: tensorflow_import_order
         if: ${{ runner.os == 'macOS' && fromJSON(inputs.affected-components).TF_FE.test }}
@@ -146,16 +163,6 @@ jobs:
               status=$?
               failed=1
               echo "::warning::Import probe failed with exit code $status: $probe"
-              if command -v lldb >/dev/null 2>&1; then
-                if lldb --batch -o run -k "thread backtrace all" -- "$python_executable" -X faulthandler -u -c "$probe"; then
-                  echo "LLDB retry completed; inspect its output to see whether the crash reproduced."
-                else
-                  status=$?
-                  echo "::warning::LLDB retry exited with code $status."
-                fi
-              else
-                echo "::warning::LLDB is unavailable; native backtrace could not be collected."
-              fi
             fi
             echo "::endgroup::"
           done

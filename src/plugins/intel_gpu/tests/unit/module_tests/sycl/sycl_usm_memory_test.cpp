@@ -369,4 +369,106 @@ TEST(sycl_usm_memory, subbuffer_keeps_allocation_alive_after_parent_release) {
     }
 }
 
+TEST(sycl_usm_memory, reinterpret_can_expand_shrunk_memory_to_original_size) {
+    auto ctx = create_sycl_test_context();
+    auto alloc_types = get_supported_sycl_alloc_types(ctx.sycl_test_engine);
+    if (alloc_types.empty()) {
+        GTEST_SKIP() << "No supported SYCL USM allocation types";
+    }
+
+    constexpr size_t full_size = 1024;
+    constexpr size_t small_size = 256;
+
+    const layout full_layout = {{static_cast<int64_t>(full_size)}, data_types::u8, format::bfyx};
+    const layout small_layout = {{static_cast<int64_t>(small_size)}, data_types::u8, format::bfyx};
+
+    std::vector<uint8_t> src(full_size);
+    for (size_t i = 0; i < full_size; i++) {
+        src[i] = static_cast<uint8_t>((i * 13 + 7) % 251);
+    }
+
+    for (auto alloc_type : alloc_types) {
+        SCOPED_TRACE(static_cast<int>(alloc_type));
+
+        auto mem = ctx.sycl_test_engine->allocate_memory(full_layout, alloc_type);
+        ASSERT_NE(mem, nullptr);
+        OV_ASSERT_NO_THROW(mem->copy_from(*ctx.sycl_test_stream, src.data(), true));
+
+        memory::ptr small_mem = nullptr;
+        OV_ASSERT_NO_THROW(small_mem = ctx.sycl_test_engine->reinterpret_buffer(*mem, small_layout));
+        ASSERT_NE(small_mem, nullptr);
+        ASSERT_EQ(small_mem->size(), small_size);
+
+        // Expanding back must be checked against the underlying allocation, not the shrunk memory size.
+        memory::ptr expanded_mem = nullptr;
+        OV_ASSERT_NO_THROW(expanded_mem = ctx.sycl_test_engine->reinterpret_buffer(*small_mem, full_layout));
+        ASSERT_NE(expanded_mem, nullptr);
+        ASSERT_EQ(expanded_mem->get_layout(), full_layout);
+        ASSERT_EQ(expanded_mem->buffer_ptr(), mem->buffer_ptr());
+
+        std::vector<uint8_t> actual(full_size, 0);
+        OV_ASSERT_NO_THROW(expanded_mem->copy_to(*ctx.sycl_test_stream, actual.data(), true));
+        for (size_t i = 0; i < full_size; i++) {
+            ASSERT_EQ(src[i], actual[i]) << "at index " << i;
+        }
+    }
+}
+
+TEST(sycl_usm_memory, reinterpret_cannot_expand_subbuffer_beyond_its_size) {
+    auto ctx = create_sycl_test_context();
+    auto alloc_types = get_supported_sycl_alloc_types(ctx.sycl_test_engine);
+    if (alloc_types.empty()) {
+        GTEST_SKIP() << "No supported SYCL USM allocation types";
+    }
+
+    constexpr size_t parent_size = 512;
+    constexpr size_t sub_offset = 96;
+    constexpr size_t sub_size = 256;
+    constexpr size_t small_size = 64;
+
+    const layout parent_layout = {{static_cast<int64_t>(parent_size)}, data_types::u8, format::bfyx};
+    const layout sub_layout = {{static_cast<int64_t>(sub_size)}, data_types::u8, format::bfyx};
+    const layout small_layout = {{static_cast<int64_t>(small_size)}, data_types::u8, format::bfyx};
+    const layout exceeding_layout = {{static_cast<int64_t>(sub_size + 1)}, data_types::u8, format::bfyx};
+
+    std::vector<uint8_t> src(parent_size);
+    for (size_t i = 0; i < parent_size; i++) {
+        src[i] = static_cast<uint8_t>((i * 13 + 7) % 251);
+    }
+
+    for (auto alloc_type : alloc_types) {
+        SCOPED_TRACE(static_cast<int>(alloc_type));
+
+        auto parent_mem = ctx.sycl_test_engine->allocate_memory(parent_layout, alloc_type);
+        ASSERT_NE(parent_mem, nullptr);
+        OV_ASSERT_NO_THROW(parent_mem->copy_from(*ctx.sycl_test_stream, src.data(), true));
+
+        auto sub_mem = ctx.sycl_test_engine->create_subbuffer(*parent_mem, sub_layout, sub_offset);
+        ASSERT_NE(sub_mem, nullptr);
+
+        // Shrink the sub-buffer, then expand it back up to the sub-buffer size.
+        memory::ptr small_sub_mem = nullptr;
+        OV_ASSERT_NO_THROW(small_sub_mem = ctx.sycl_test_engine->reinterpret_buffer(*sub_mem, small_layout));
+        ASSERT_NE(small_sub_mem, nullptr);
+        ASSERT_EQ(small_sub_mem->size(), small_size);
+
+        memory::ptr expanded_mem = nullptr;
+        OV_ASSERT_NO_THROW(expanded_mem = ctx.sycl_test_engine->reinterpret_buffer(*small_sub_mem, sub_layout));
+        ASSERT_NE(expanded_mem, nullptr);
+        ASSERT_EQ(expanded_mem->get_layout(), sub_layout);
+        ASSERT_EQ(expanded_mem->buffer_ptr(), sub_mem->buffer_ptr());
+
+        std::vector<uint8_t> actual(sub_size, 0);
+        OV_ASSERT_NO_THROW(expanded_mem->copy_to(*ctx.sycl_test_stream, actual.data(), true));
+        for (size_t i = 0; i < sub_size; i++) {
+            ASSERT_EQ(src[sub_offset + i], actual[i]) << "at index " << i;
+        }
+
+        // Expanding beyond the sub-buffer size must be rejected even though the parent allocation
+        // has room after it: that region may belong to sibling sub-buffers.
+        ASSERT_THROW(ctx.sycl_test_engine->reinterpret_buffer(*sub_mem, exceeding_layout), ov::Exception);
+        ASSERT_THROW(ctx.sycl_test_engine->reinterpret_buffer(*small_sub_mem, exceeding_layout), ov::Exception);
+    }
+}
+
 #endif  // OV_GPU_WITH_SYCL_RT
