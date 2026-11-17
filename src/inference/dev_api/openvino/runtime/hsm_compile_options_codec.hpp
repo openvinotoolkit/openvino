@@ -21,9 +21,10 @@
  * - An entry with an empty key is skipped by the decoder. A `GS` with no key bytes before it closes the current
  *   map instead.
  * - Reserved is for future extensions: the decoder skips it entirely, its key included; the encoder never writes it.
- * - `digest` is 8 bytes in native byte order: `h = 0`, then `h = ov::util::u64_hash_combine(h, byte)` for every
- *   payload byte before it, `FS` included. It detects accidental corruption only. The section size must be exactly
- *   the position of `FS` + 1 + 8.
+ * - `digest` is 8 bytes in native byte order. Every payload byte before it, `FS` included, is packed into 64-bit
+ *   words (the first byte is the lowest; a trailing partial word is zero-padded); `h = 0`, then
+ *   `h = ov::util::u64_hash_combine(h, word)` for every word. It detects accidental corruption only. The section
+ *   size must be exactly the position of `FS` + 1 + 8.
  */
 
 #pragma once

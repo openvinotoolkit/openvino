@@ -68,9 +68,14 @@ const std::string FS{"\x1c"};
 
 // The digest rule from the format description, applied to everything up to and including FS.
 std::string digest_of(std::string_view bytes) {
+    constexpr size_t word_size = sizeof(uint64_t);
     uint64_t hash = 0;
-    for (const auto byte : bytes) {
-        hash = ov::util::u64_hash_combine(hash, static_cast<uint8_t>(byte));
+    for (size_t pos = 0; pos < bytes.size(); pos += word_size) {
+        uint64_t word = 0;
+        for (size_t i = 0; i < word_size && pos + i < bytes.size(); ++i) {
+            word |= static_cast<uint64_t>(static_cast<uint8_t>(bytes[pos + i])) << (8 * i);
+        }
+        hash = ov::util::u64_hash_combine(hash, word);
     }
     return std::string{reinterpret_cast<const char*>(&hash), sizeof(hash)};
 }
@@ -108,13 +113,13 @@ const ReferenceCase single_string_case{"single_string",
                                        {{"k", "v"}},
                                        std::nullopt,
                                        "k" + US + "v" + US + FS,
-                                       "\x53\x96\x43\xf8\x6b\x0d\x60\xde"s};
+                                       "\xb9\xd1\xe8\xfc\x6a\x40\xd3\xf8"s};
 
 const ReferenceCase empty_string_value_case{"empty_string_value",
                                             {{"E", ""}},
                                             std::nullopt,
                                             "E" + US + US + FS,
-                                            "\xdb\x32\x5b\x70\xaa\x94\xdf\x52"s};
+                                            "\x23\x52\x1a\x2b\x1c\xd9\x50\xbc"s};
 
 const ReferenceCase typed_case{"typed",
                                {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
@@ -128,32 +133,32 @@ const ReferenceCase typed_case{"typed",
                                "INFERENCE_PRECISION_HINT" + US + "f16" + US + "PERFORMANCE_HINT" + US + "THROUGHPUT" +
                                    US + "PERFORMANCE_HINT_NUM_REQUESTS" + US + "4" + US + "PERF_COUNT" + US + "YES" +
                                    US + FS,
-                               "\xf9\xf3\xe9\xc6\x9a\x73\x37\x68"s};
+                               "\x0e\x23\x50\x0c\xa8\x63\xb1\x62"s};
 
 const ReferenceCase special_chars_case{"special_chars",
                                        {{"a\nb=c", "{x:y,z}"}, {"\xC5\xBC", "\xE2\x9C\x93"}},
                                        std::nullopt,
                                        "a\nb=c" + US + "{x:y,z}" + US + "\xC5\xBC" + US + "\xE2\x9C\x93" + US + FS,
-                                       "\x89\xf1\x68\xef\xf4\x04\x2e\xc0"s};
+                                       "\x88\x26\x75\x45\x43\x34\x35\x4d"s};
 
 const ReferenceCase nested_empty_map_case{"nested_empty_map",
                                           {{"M", ov::AnyMap{}}},
                                           std::nullopt,
                                           "M" + GS + GS + FS,
-                                          "\xd9\x26\x16\x10\x09\xa9\xe8\xec"s};
+                                          "\x69\xca\x73\x15\x28\xa4\x34\xb2"s};
 
 const ReferenceCase nested_three_levels_case{
     "nested_three_levels",
     {{"A", ov::AnyMap{{"B", ov::AnyMap{{"C", ov::AnyMap{{"k", "v"}}}}}}}, {"T", "1"}},
     std::nullopt,
     "A" + GS + "B" + GS + "C" + GS + "k" + US + "v" + US + GS + GS + GS + "T" + US + "1" + US + FS,
-    "\xbb\xe9\xb1\x26\x54\x81\xb6\xe1"s};
+    "\x20\xc5\xcd\xc7\x1f\xce\x6f\x4b"s};
 
 const ReferenceCase sorted_keys_case{"sorted_keys",
                                      {{"b", "2"}, {"a", "1"}},
                                      std::nullopt,
                                      "a" + US + "1" + US + "b" + US + "2" + US + FS,
-                                     "\x8b\x6b\x4e\x58\xa3\xd9\x55\xc9"s};
+                                     "\x12\x82\x94\xf7\xb3\x00\x17\x04"s};
 
 const ReferenceCase numeric_case{
     "numeric",
@@ -161,7 +166,7 @@ const ReferenceCase numeric_case{
     ov::AnyMap{{"D", "0.10000000000000001"}, {"F", "0.100000001"}, {"I", "-9000000000"}, {"N", "1234"}},
     "D" + US + "0.10000000000000001" + US + "F" + US + "0.100000001" + US + "I" + US + "-9000000000" + US + "N" + US +
         "1234" + US + FS,
-    "\xf3\xf7\x10\xcb\x1e\xed\x4a\x85"s};
+    "\x80\x2d\x92\xab\x8e\x3f\x6c\x83"s};
 
 // ov::device::properties holds exactly this type; it must come out as two nested levels.
 const ReferenceCase device_properties_case{
@@ -173,7 +178,7 @@ const ReferenceCase device_properties_case{
          ov::AnyMap{{"CPU", ov::AnyMap{{"CACHE_DIR", "/tmp/c d"}}}, {"GPU", ov::AnyMap{{"PERF_COUNT", "YES"}}}}}},
     "DEVICE_PROPERTIES" + GS + "CPU" + GS + "CACHE_DIR" + US + "/tmp/c d" + US + GS + "GPU" + GS + "PERF_COUNT" + US +
         "YES" + US + GS + GS + FS,
-    "\xf8\x1b\x09\x8b\x67\xf8\xaf\x0c"s};
+    "\xe5\x68\x31\x1e\xe7\x4c\xef\x54"s};
 
 std::vector<ReferenceCase> reference_cases() {
     return {empty_map_case,
@@ -334,6 +339,14 @@ INSTANTIATE_TEST_SUITE_P(HsmCompileOptions,
                          HsmCompileOptionsEncodeReferenceTest,
                          ::testing::ValuesIn(reference_cases()),
                          case_name<ReferenceCase>);
+
+TEST(HsmCompileOptionsEncodeTest, digest_covers_every_payload_length_modulo_word_size) {
+    for (size_t length = 0; length <= 2 * sizeof(uint64_t); ++length) {
+        SCOPED_TRACE(length);
+        const std::string value(length, 'x');
+        EXPECT_EQ(encode(ov::AnyMap{{"k", value}}), with_digest("k" + US + value + US + FS));
+    }
+}
 
 namespace {
 struct NoStringForm {};

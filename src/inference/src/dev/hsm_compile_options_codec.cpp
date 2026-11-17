@@ -32,20 +32,45 @@ constexpr char rs = '\x1e';  // opens and closes a reserved block
 constexpr char fs = '\x1c';  // ends the entries
 constexpr std::string_view reserved_bytes{"\0\x1f\x1d\x1e\x1c", 5};
 
-constexpr uint64_t hash_step(uint64_t hash, char byte) noexcept {
-    return ov::util::u64_hash_combine(hash, static_cast<uint8_t>(byte));
-}
+// Packs bytes into little-endian 64-bit words and folds every complete word into the hash.
+class HashAccumulator {
+public:
+    HashAccumulator() noexcept : m_hash{0}, m_word{0}, m_count{0} {}
+
+    void add(char byte) noexcept {
+        m_word |= static_cast<uint64_t>(static_cast<uint8_t>(byte)) << (8 * m_count);
+        if (++m_count == sizeof(m_word)) {
+            m_hash = ov::util::u64_hash_combine(m_hash, m_word);
+            m_word = 0;
+            m_count = 0;
+        }
+    }
+
+    void add(std::string_view bytes) noexcept {
+        for (const auto byte : bytes) {
+            add(byte);
+        }
+    }
+
+    // A trailing partial word is zero-padded; the accumulator itself is not changed.
+    uint64_t digest() const noexcept {
+        return m_count == 0 ? m_hash : ov::util::u64_hash_combine(m_hash, m_word);
+    }
+
+private:
+    uint64_t m_hash;
+    uint64_t m_word;
+    size_t m_count;
+};
 
 // Sends every piece to the sink and folds it into the digest that closes the payload.
-class Emitter {
+class HashingWriter {
 public:
-    explicit Emitter(const SectionSink& sink) noexcept : m_sink{sink}, m_hash{0} {}
+    explicit HashingWriter(const SectionSink& sink) noexcept : m_sink{sink} {}
 
     void put(std::string_view bytes) {
         if (!bytes.empty()) {
-            for (const auto byte : bytes) {
-                m_hash = hash_step(m_hash, byte);
-            }
+            m_hash.add(bytes);
             m_sink(ov::util::as_memory_view(bytes));
         }
     }
@@ -56,12 +81,13 @@ public:
 
     void finish() {
         put(fs);
-        m_sink(ov::util::as_memory_view(m_hash));
+        const auto digest = m_hash.digest();
+        m_sink(ov::util::as_memory_view(digest));
     }
 
 private:
     const SectionSink& m_sink;
-    uint64_t m_hash;
+    HashAccumulator m_hash;
 };
 
 void check_text(std::string_view what, std::string_view text, std::string_view key) {
@@ -90,13 +116,13 @@ std::string to_option_string(const ov::Any& value) {
     return os.str();
 }
 
-void write_key(Emitter& out, const std::string& key) {
+void write_key(HashingWriter& out, const std::string& key) {
     OPENVINO_ASSERT(!key.empty(), "Compile option key must not be empty");
     check_text("key", key, key);
     out.put(key);
 }
 
-void write_leaf(Emitter& out, const std::string& key, const std::string& text) {
+void write_leaf(HashingWriter& out, const std::string& key, const std::string& text) {
     write_key(out, key);
     out.put(us);
     check_text("value", text, key);
@@ -104,16 +130,16 @@ void write_leaf(Emitter& out, const std::string& key, const std::string& text) {
     out.put(us);
 }
 
-void write_entries(Emitter& out, const ov::AnyMap& options);
+void write_entries(HashingWriter& out, const ov::AnyMap& options);
 
-void write_nested(Emitter& out, const std::string& key, const ov::AnyMap& options) {
+void write_nested(HashingWriter& out, const std::string& key, const ov::AnyMap& options) {
     write_key(out, key);
     out.put(gs);
     write_entries(out, options);
     out.put(gs);
 }
 
-void write_nested(Emitter& out, const std::string& key, const std::map<std::string, ov::AnyMap>& options) {
+void write_nested(HashingWriter& out, const std::string& key, const std::map<std::string, ov::AnyMap>& options) {
     write_key(out, key);
     out.put(gs);
     for (const auto& [name, nested] : options) {
@@ -122,7 +148,7 @@ void write_nested(Emitter& out, const std::string& key, const std::map<std::stri
     out.put(gs);
 }
 
-void write_entries(Emitter& out, const ov::AnyMap& options) {
+void write_entries(HashingWriter& out, const ov::AnyMap& options) {
     for (const auto& [key, value] : options) {
         OPENVINO_ASSERT(!value.empty(), "Compile option value must not be empty, key: ", key);
 
@@ -152,7 +178,23 @@ void write_entries(Emitter& out, const ov::AnyMap& options) {
 
 enum class Status { more, done, malformed };
 
-// Byte-at-a-time parser; open nested maps live on a heap stack so depth is bounded by memory, not the call stack.
+/*
+ * Byte-at-a-time parser; open nested maps live on a heap stack so depth is bounded by memory, not the call stack.
+ *
+ *  state     byte          action                                          next
+ *  key       other         append to key                                   key
+ *            US            -                                               value
+ *            GS            key set: open nested map; key empty: close map  key
+ *            RS            drop key                                        reserved
+ *            FS            key empty at root: done; otherwise malformed    -
+ *            NUL           malformed                                       -
+ *  value     other         append to value                                 value
+ *            US            store leaf (duplicate key: malformed)           key
+ *            GS RS FS NUL  malformed                                       -
+ *  reserved  other         skip                                            reserved
+ *            RS            -                                               key
+ *            FS            malformed                                       -
+ */
 class Parser {
 public:
     Parser() {
@@ -261,7 +303,15 @@ private:
 
 constexpr size_t chunk_size = ov::util::min_page_alignment;
 
-std::optional<ov::AnyMap> decode(const Section& section) {
+}  // namespace
+
+void CompileOptionsEncoder::encode(const SectionSink& sink) const {
+    HashingWriter out{sink};
+    write_entries(out, m_options.get());
+    out.finish();
+}
+
+std::optional<ov::AnyMap> decode_compile_options(const Section& section) noexcept {
     const auto size = section.size();
     if (size == 0) {
         return std::nullopt;
@@ -269,7 +319,7 @@ std::optional<ov::AnyMap> decode(const Section& section) {
 
     std::array<std::byte, chunk_size> chunk;
     Parser parser;
-    uint64_t hash = 0;
+    HashAccumulator hash;
 
     const auto view = section.view();
     ov::util::MemoryView block = view;
@@ -284,7 +334,7 @@ std::optional<ov::AnyMap> decode(const Section& section) {
 
         for (size_t i = 0; i < block.size(); ++i) {
             const auto byte = static_cast<char>(block.data()[i]);
-            hash = hash_step(hash, byte);
+            hash.add(byte);
             switch (parser.consume(byte)) {
             case Status::more:
                 break;
@@ -294,7 +344,7 @@ std::optional<ov::AnyMap> decode(const Section& section) {
                 const auto digest_offset = offset + i + 1;
                 uint64_t digest = 0;
                 const auto is_valid = size - digest_offset == sizeof(digest) &&
-                                      section.read(digest_offset, sizeof(digest), &digest) && digest == hash;
+                                      section.read(digest_offset, sizeof(digest), &digest) && digest == hash.digest();
                 return is_valid ? std::optional{parser.take()} : std::nullopt;
             }
             }
@@ -302,22 +352,6 @@ std::optional<ov::AnyMap> decode(const Section& section) {
         offset += block.size();
     }
     return std::nullopt;
-}
-
-}  // namespace
-
-void CompileOptionsEncoder::encode(const SectionSink& sink) const {
-    Emitter out{sink};
-    write_entries(out, m_options.get());
-    out.finish();
-}
-
-std::optional<ov::AnyMap> decode_compile_options(const Section& section) noexcept {
-    try {
-        return decode(section);
-    } catch (...) {  // CVS-198883 will address error handling
-        return std::nullopt;
-    }
 }
 
 }  // namespace v1
