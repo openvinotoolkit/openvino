@@ -4,10 +4,11 @@
   "signature_hash": "c351b86e95419730",
   "title": "GPU unit tests fail to extract OpenVINO package - PowerShell execution policy disabled scripts on Windows runner",
   "category": "Infrastructure",
-  "count": 5,
+  "count": 6,
   "first_seen": "2026-11-16T17:32:33Z",
-  "last_seen": "2026-11-17T12:17:00Z",
+  "last_seen": "2026-11-17T12:32:53Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/44064722560",
     "https://github.com/openvinotoolkit/openvino/actions/runs/44062987534",
     "https://github.com/openvinotoolkit/openvino/actions/runs/44059107723",
     "https://github.com/openvinotoolkit/openvino/actions/runs/44054389090",
@@ -15,6 +16,7 @@
     "https://github.com/openvinotoolkit/openvino/actions/runs/43897852421"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39424",
     "https://github.com/openvinotoolkit/openvino/pull/39262",
     "https://github.com/openvinotoolkit/openvino/pull/39899",
     "https://github.com/openvinotoolkit/openvino/pull/39839",
@@ -22,6 +24,7 @@
     "https://github.com/openvinotoolkit/openvino/pull/39833"
   ],
   "recent_timestamps": [
+    "2026-11-17T12:32:53Z",
     "2026-11-17T12:17:00Z",
     "2026-11-17T11:58:00Z",
     "2026-11-17T10:59:00Z",

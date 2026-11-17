@@ -1,0 +1,38 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-11-17-12-32-53-000-44064722560",
+    "timestamp": "2026-11-17T12:32:53Z",
+    "run_id": "44064722560",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44064722560",
+    "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+    "pr_number": "39424",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39424",
+    "author": "clemlesne",
+    "category": "Infrastructure",
+    "title": "GPU unit tests fail to extract OpenVINO package - PowerShell execution policy disabled scripts on Windows runner",
+    "signature": "cannot be loaded because running scripts is disabled on this system|Infrastructure",
+    "signature_hash": "c351b86e95419730",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "GPU unit tests",
+            "conclusion": "failure",
+            "symptom": "Extract OpenVINO packages step fails: PowerShell .ps1 script blocked by Windows execution policy"
+        }
+    ],
+    "key_errors": [
+        ". : File C:\\actions-runner\\_work\\_temp\\3d5c5568-c30e-4cc1-9560-0a817782e156.ps1 cannot be loaded because running scripts is disabled on this system. For more information, see about_Execution_Policies at https:/go.microsoft.com/fwlink/?LinkID=135170.",
+        "+ CategoryInfo          : SecurityError: (:) [], PSSecurityException",
+        "+ FullyQualifiedErrorId : UnauthorizedAccess",
+        "##[error]Process completed with exit code 1."
+    ],
+    "root_cause": "The 'Extract OpenVINO packages' step dot-sources a generated temporary PowerShell script (Expand-Archive invocation) via `. '<temp>.ps1'`. The GPU unit tests Windows self-hosted runner has its PowerShell execution policy set to Restricted (or similarly locked down), which blocks loading/dot-sourcing any .ps1 file regardless of its content, independent of the PR's actual changes. This is now the 6th occurrence of the exact same signature on different runners/PRs within the last ~24 hours, confirming it is a runner/environment configuration issue rather than anything introduced by PR #39424 (an unrelated ARM/CPU SDPA GQA performance optimization with no Windows/PowerShell/CI changes).",
+    "reproduction_steps": "N/A - requires access to the specific Windows self-hosted GPU unit tests runner. Locally: run `Get-ExecutionPolicy -List` on the affected runner image; if `LocalMachine`/`Process` scope resolves to Restricted, any `powershell -command \". '<script>.ps1'\"` invocation (as used by actions/download-artifact's Expand-Archive wrapper) will fail identically.",
+    "recommended_actions": [
+        "Set the PowerShell execution policy to RemoteSigned (or Bypass for CI-only images) on the GPU unit tests Windows runner image/pool, e.g. `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine -Force`, and bake it into the runner provisioning script/image so it survives re-imaging",
+        "Audit other Windows self-hosted runner pools for the same misconfiguration since this signature has now recurred 6 times across different workflows/PRs",
+        "As a workaround, have the workflow step invoke PowerShell with an explicit `-ExecutionPolicy Bypass` flag instead of relying on dot-sourcing the default profile/policy"
+    ],
+    "prevention_strategies": "Add execution-policy verification to the Windows GPU runner image build/validation pipeline (fail image publishing if `Get-ExecutionPolicy` resolves to Restricted), and add a lightweight smoke-test workflow step that dot-sources a trivial .ps1 to catch this class of runner misconfiguration before it blocks merge-queue runs.",
+    "historical_context": "Identical signature (PSSecurityException / 'scripts is disabled on this system') previously recorded 5 times within the prior ~20 hours across runs 44062987534, 44059107723, 44054389090, 44051380184 and 43897852421, affecting PRs #39262, #39899, #39839, #39423 and #39833 - none related to this PR's changes, confirming a persistent runner-level misconfiguration rather than a code regression."
+}
