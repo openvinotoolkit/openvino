@@ -91,15 +91,17 @@ static_assert(block_layout_count * grid_layout_count == ptx_program::layout_coun
 
 // The %envreg placeholders the NVIDIA compatibility prelude reads instead of the special registers that depend on the
 // block layout, and the register each block layout replaces them with. Keep them in sync with "Work-group layout on
-// CUDA" in compat_common.cl.
-constexpr size_t layout_placeholder_count = 5;
+// CUDA" in compat_common.cl. %envreg9, which NVVM reads for get_work_dim() and patch_ptx_envreg leaves in place, rides
+// along as the last one: it does not depend on the layout and becomes 3 in every row, the rank kernel_selector
+// dispatches with (sycl_ptx_kernel::launch refuses the kernels that read it with any other rank).
+constexpr size_t layout_placeholder_count = 6;
 constexpr const char* layout_placeholders[layout_placeholder_count] = {
-    "%envreg27", "%envreg28", "%envreg29", "%envreg30", "%envreg31"};
+    "%envreg27", "%envreg28", "%envreg29", "%envreg30", "%envreg31", "%envreg9"};
 constexpr const char* layout_placeholder_targets[block_layout_count][layout_placeholder_count] = {
-    // local id 1, local id 2, local size 1, local size 2 | fold divisor
-    {"%tid.y", "%tid.z", "%ntid.y", "%ntid.z", "%ntid.y"},  // plain
-    {"%tid.z", "%tid.y", "%ntid.z", "%ntid.y", "%ntid.y"},  // exchanged
-    {"%tid.y", "%tid.z", "%ntid.z", "%ntid.y", "%ntid.z"},  // folded
+    // local id 1, local id 2, local size 1, local size 2 | fold divisor | work dim
+    {"%tid.y", "%tid.z", "%ntid.y", "%ntid.z", "%ntid.y", "3"},  // plain
+    {"%tid.z", "%tid.y", "%ntid.z", "%ntid.y", "%ntid.y", "3"},  // exchanged
+    {"%tid.y", "%tid.z", "%ntid.z", "%ntid.y", "%ntid.z", "3"},  // folded
 };
 
 // The PTX to load for a launch layout: the placeholders replaced with the registers of its block layout, the y and z
@@ -309,6 +311,17 @@ std::shared_ptr<cuda_function> get_cuda_function(const std::shared_ptr<cuda_modu
     return function;
 }
 
+// Whether ptx[first, last) reads %envreg9, the register NVVM reads for get_work_dim(), as a whole register name.
+bool ptx_reads_work_dim(const std::string& ptx, size_t first, size_t last) {
+    static constexpr char reg[] = "%envreg9";
+    static constexpr size_t len = sizeof(reg) - 1;
+    for (size_t pos = ptx.find(reg, first); pos != std::string::npos && pos + len <= last; pos = ptx.find(reg, pos + len)) {
+        if (pos + len == ptx.size() || !std::isdigit(static_cast<unsigned char>(ptx[pos + len])))
+            return true;
+    }
+    return false;
+}
+
 }  // anonymous namespace
 
 ptx_program::ptx_program(std::string ptx) : _ptx(std::move(ptx)) {
@@ -333,12 +346,40 @@ ptx_program::ptx_program(std::string ptx) : _ptx(std::move(ptx)) {
             start = comma + 1;
         }
     }
+
+    // The entry points that read %envreg9 (get_work_dim(), see layout_placeholders), which sycl_ptx_kernel::launch
+    // runs with three-dimensional NDRanges only. The text from one .entry or .func to the next is one definition; a
+    // .func that reads the register may be called from any entry point, so it counts against all of them.
+    static const std::regex function_re(R"(\.(entry|func)\b)");
+    static const std::regex entry_name_re(R"(\.entry\s+([\w.$]+))");
+    std::vector<size_t> starts;
+    for (std::sregex_iterator it(_ptx.begin(), _ptx.end(), function_re), end; it != end; ++it)
+        starts.push_back(static_cast<size_t>(it->position()));
+    bool func_reads_work_dim = false;
+    for (size_t i = 0; i < starts.size(); ++i) {
+        const size_t last = i + 1 < starts.size() ? starts[i + 1] : _ptx.size();
+        if (!ptx_reads_work_dim(_ptx, starts[i], last))
+            continue;
+        std::smatch m;
+        if (std::regex_search(_ptx.cbegin() + starts[i], _ptx.cbegin() + last, m, entry_name_re,
+                              std::regex_constants::match_continuous)) {
+            _work_dim_entry_points.insert(m[1].str());
+        } else {
+            func_reads_work_dim = true;
+        }
+    }
+    if (func_reads_work_dim)
+        _work_dim_entry_points.insert(_entry_points.begin(), _entry_points.end());
 }
 
 const std::vector<uint32_t>& ptx_program::local_param_alignments(const std::string& kernel_name) const {
     static const std::vector<uint32_t> none;
     const auto it = _local_alignments.find(kernel_name);
     return it != _local_alignments.end() ? it->second : none;
+}
+
+bool ptx_program::reads_work_dim(const std::string& kernel_name) const {
+    return _work_dim_entry_points.count(kernel_name) != 0;
 }
 
 std::shared_ptr<cuda_module> ptx_program::module(size_t layout_idx, const std::string& requested_by) {
@@ -367,7 +408,8 @@ std::shared_ptr<cuda_module> ptx_program::capped_module(size_t layout_idx,
 ptx_kernel_state::ptx_kernel_state(std::shared_ptr<ptx_program> program, std::string kernel_name)
     : program(std::move(program))
     , kernel_name(std::move(kernel_name))
-    , local_alignments(this->program->local_param_alignments(this->kernel_name)) {}
+    , local_alignments(this->program->local_param_alignments(this->kernel_name))
+    , reads_work_dim(this->program->reads_work_dim(this->kernel_name)) {}
 
 std::shared_ptr<cuda_function> ptx_kernel_state::function_for_launch(size_t layout_idx, unsigned int block_threads) {
     OPENVINO_ASSERT(layout_idx < ptx_program::layout_count,
@@ -625,6 +667,13 @@ kernel_params build_kernel_params(const std::vector<sycl_base_kernel::arg_t>& ar
 }  // anonymous namespace
 
 void sycl_ptx_kernel::launch(::sycl::handler& cgh, const kernel_arguments_desc& args_desc) {
+    // get_work_dim() reports 3 (see layout_placeholders), so a kernel that calls it runs with three-dimensional NDRanges
+    // only, rather than see a rank that is not its own.
+    const size_t work_dim = args_desc.workGroups.global.size();
+    if (_state->reads_work_dim && work_dim != 3) {
+        OPENVINO_THROW("[GPU] Kernel '", _state->kernel_name, "' cannot be launched with a ", work_dim,
+                       "-dimensional NDRange: it calls get_work_dim(), which reports 3 on NVIDIA");
+    }
     auto args = stored_args();
     const cuda_dispatch dispatch =
         choose_cuda_dispatch(args_desc.workGroups.global, args_desc.workGroups.local, _state->kernel_name);

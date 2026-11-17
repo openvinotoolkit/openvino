@@ -28,11 +28,13 @@
 #endif
 
 // Work-item ids.
-// The PTX is launched with cuLaunchKernel, which never sets the %envreg registers the NVIDIA OpenCL runtime fills in.
-// sycl_kernel_builder.cpp patches %envreg0-8, but not %envreg9 (the work dimension) on which the built-in
-// get_global_linear_id() / get_local_linear_id() branch, so the helpers below replace the work-item built-ins and read
-// the special registers instead, directly or through the layout placeholders below. OpenVINO always launches with a
-// zero global offset.
+// The PTX is launched with cuLaunchKernel, which never sets the %envreg registers the NVIDIA OpenCL runtime fills in;
+// the ones the built-ins read are replaced before the PTX runs (%envreg0-8 by sycl_kernel_builder.cpp, %envreg9, the
+// work dimension, by 3 in sycl_ptx_kernel.cpp, which runs a kernel calling get_work_dim() with three-dimensional
+// NDRanges only). The built-ins still read the local ids and sizes from %tid / %ntid, which hold the OpenCL values only
+// in the plain block layout (see below), so the helpers below replace the work-item built-ins and read the special
+// registers instead, directly or through the layout placeholders below. OpenVINO always launches with a zero global
+// offset.
 // The asm is not volatile, here and for ov_nv_laneid in compat_sg.cl: these registers do not change while a work-item
 // runs, so repeated reads may be folded. Kernels whose SLM accesses are not synchronised can change behaviour with it.
 

@@ -15,6 +15,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -75,6 +76,9 @@ public:
     // 0, and the vector is empty for an entry point the PTX does not have.
     const std::vector<uint32_t>& local_param_alignments(const std::string& kernel_name) const;
 
+    // Whether entry point `kernel_name` calls get_work_dim(), which reports 3 (see sycl_ptx_kernel.cpp).
+    bool reads_work_dim(const std::string& kernel_name) const;
+
     // Module for the given launch layout, loaded on first use (inside host_task). requested_by names the kernel that
     // asked for it in error messages.
     std::shared_ptr<cuda_module> module(size_t layout_idx, const std::string& requested_by);
@@ -86,9 +90,11 @@ public:
 
 private:
     const std::string _ptx;
-    // The entry points and the local_param_alignments of each, read from the PTX once.
+    // The entry points, the local_param_alignments of each and those that call get_work_dim(), read from the PTX
+    // once.
     std::vector<std::string> _entry_points;
     std::map<std::string, std::vector<uint32_t>> _local_alignments;
+    std::set<std::string> _work_dim_entry_points;
 
     std::array<std::once_flag, layout_count> _module_once;
     std::array<std::shared_ptr<cuda_module>, layout_count> _modules;
@@ -110,8 +116,10 @@ struct ptx_kernel_state {
 
     const std::shared_ptr<ptx_program> program;
     const std::string kernel_name;
-    // ptx_program::local_param_alignments for this entry point, looked up once rather than at every launch.
+    // ptx_program::local_param_alignments and ptx_program::reads_work_dim for this entry point, looked up once rather
+    // than at every launch.
     const std::vector<uint32_t> local_alignments;
+    const bool reads_work_dim;
 
 private:
     std::array<std::once_flag, ptx_program::layout_count> _function_once;

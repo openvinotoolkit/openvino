@@ -42,10 +42,12 @@ void patch_ptx_local(std::string& ptx) {
 //     %envreg0-2  global_work_offset[0-2]  (the get_global_id offset addend)
 //     %envreg3-5  global_work_offset[0-2]  (the get_group_id offset addend)
 //     %envreg6-8  num_groups[0-2]          (get_global_size / get_num_groups)
+//     %envreg9    work_dim                 (get_work_dim)
 // The offsets are always 0 in OpenVINO and the group counts are what cuLaunchKernel puts in %nctaid.x/y/z, so
-// %envreg0-5 become 0 and %envreg6-8 become %nctaid.x/y/z.
+// %envreg0-5 become 0 and %envreg6-8 become %nctaid.x/y/z. %envreg9 is left in place: sycl_ptx_kernel.cpp replaces it
+// with 3 when it loads the PTX and refuses to launch a kernel that reads it with an NDRange of another rank.
 void patch_ptx_envreg(std::string& ptx) {
-    // One pass for all nine registers. (?!\d) keeps them whole: the prelude's %envreg27-31 are not touched.
+    // One pass for all nine registers. (?!\d) keeps them whole: %envreg9 and the prelude's %envreg27-31 are not touched.
     static const std::regex envreg_re(R"(%envreg([0-8])(?!\d))");
     static const char* const replacements[] = {"0", "0", "0", "0", "0", "0", "%nctaid.x", "%nctaid.y", "%nctaid.z"};
     std::string out;
