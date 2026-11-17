@@ -435,6 +435,7 @@ std::shared_ptr<IGraph> IBlobFormatImporter::create_graph(const ov::SoPtr<IEngin
 
     m_graph->update_network_name(network_name);
     blob_format_importer_utils::validate_main_schedule_descriptors(m_graph->get_metadata());
+    blob_format_importer_utils::validate_batch_size(m_graph->get_metadata(), m_batch_size);
     if (m_batch_size.has_value() && m_batch_size.value() > 0) {
         // Initial batch setup for static cases
         m_graph->set_batch_size(m_batch_size.value());
@@ -510,6 +511,63 @@ void validate_main_schedule_descriptors(const NetworkMetadata& metadata) {
 
     check_descriptors(metadata.inputs);
     check_descriptors(metadata.outputs);
+}
+
+void validate_batch_size(const NetworkMetadata& metadata, const std::optional<int64_t>& batch_size) {
+    if (!batch_size.has_value()) {
+        return;
+    }
+
+    // A dynamic batch is known only at inference time, so there is no batch size to compare the schedule with. Any
+    // other non-positive value cannot be produced by a valid export.
+    OPENVINO_ASSERT(batch_size.value() > 0 || batch_size.value() == utils::DYNAMIC_BATCH_SIZE,
+                    "The blob metadata declares an invalid batch size: ",
+                    batch_size.value());
+    if (batch_size.value() == utils::DYNAMIC_BATCH_SIZE) {
+        return;
+    }
+
+    auto check_descriptors = [&batch_size](const std::vector<IODescriptor>& descriptors, const char* kind) {
+        for (const IODescriptor& descriptor : descriptors) {
+            // States and shape tensors cannot be combined with the plugin batching: models with variables or with
+            // dynamic dimensions other than the batch are compiled by the compiler as a whole
+            OPENVINO_ASSERT(!descriptor.isStateInput && !descriptor.isStateOutput && !descriptor.isShapeTensor,
+                            "The blob metadata declares a batch size of ",
+                            batch_size.value(),
+                            ", but the ",
+                            kind,
+                            " \"",
+                            descriptor.nameFromCompiler,
+                            "\" is a ",
+                            descriptor.isShapeTensor ? "shape tensor" : "state",
+                            ", which is not supported when batching is handled by the plugin");
+
+            // The weights of the main schedule have nothing to do with the batch. The init schedule weights are
+            // rejected by "validate_main_schedule_descriptors".
+            if (descriptor.isMainInputWeights) {
+                continue;
+            }
+
+            const ov::PartialShape& shape = descriptor.shapeFromCompiler;
+            if (shape.rank().is_dynamic() || shape.size() == 0 || shape[utils::BATCH_AXIS].is_dynamic()) {
+                continue;
+            }
+
+            OPENVINO_ASSERT(static_cast<size_t>(shape[utils::BATCH_AXIS].get_length()) == utils::DEFAULT_BATCH_SIZE,
+                            "The blob metadata declares a batch size of ",
+                            batch_size.value(),
+                            ", but the ",
+                            kind,
+                            " \"",
+                            descriptor.nameFromCompiler,
+                            "\" was compiled with the shape ",
+                            shape.to_string(),
+                            ". Batching on the plugin requires a batch of 1 in the compiled schedule");
+        }
+    };
+
+    check_descriptors(metadata.inputs, "input");
+    check_descriptors(metadata.outputs, "output");
 }
 
 }  // namespace blob_format_importer_utils

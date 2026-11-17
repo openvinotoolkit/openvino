@@ -11,6 +11,7 @@
 #include <string_view>
 
 #include "common_test_utils/test_assertions.hpp"
+#include "intel_npu/utils/utils.hpp"
 #include "metadata.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -156,6 +157,7 @@ TEST_F(BlobFormatImportersTest, CannotCreateModelBeforeGraph) {
 }
 
 using blob_format_importer_utils::validate_main_schedule_descriptors;
+using intel_npu::utils::DYNAMIC_BATCH_SIZE;
 
 namespace {
 
@@ -191,4 +193,93 @@ TEST_F(BlobFormatImportersTest, MainScheduleRejectsInitWeightsDescriptors) {
     init_output.isInitOutputWeights = true;
     metadata.outputs.push_back(std::move(init_output));
     OV_EXPECT_THROW_HAS_SUBSTRING(validate_main_schedule_descriptors(metadata), ov::Exception, "init_output");
+}
+
+/**
+ * @brief A static batch size declared by the metadata means that the schedule was compiled with a batch of 1
+ */
+TEST_F(BlobFormatImportersTest, BatchSizeRequiresBatchOfOneInCompiledSchedule) {
+    NetworkMetadata metadata;
+    metadata.inputs.push_back(create_descriptor("input", ov::Shape{1, 3}));
+    metadata.outputs.push_back(create_descriptor("output", ov::Shape{1, 3}));
+
+    OV_ASSERT_NO_THROW(blob_format_importer_utils::validate_batch_size(metadata, 2));
+    OV_ASSERT_NO_THROW(blob_format_importer_utils::validate_batch_size(metadata, DYNAMIC_BATCH_SIZE));
+    // no batch size declared by the metadata means that the batching is not handled by the plugin
+    OV_ASSERT_NO_THROW(blob_format_importer_utils::validate_batch_size(metadata, std::nullopt));
+    OV_EXPECT_THROW_HAS_SUBSTRING(blob_format_importer_utils::validate_batch_size(metadata, 0),
+                                  ov::Exception,
+                                  "invalid batch size");
+    OV_EXPECT_THROW_HAS_SUBSTRING(blob_format_importer_utils::validate_batch_size(metadata, DYNAMIC_BATCH_SIZE - 1),
+                                  ov::Exception,
+                                  "invalid batch size");
+
+    // e.g. an output that does not depend on the batch, like the ShapeOf of a NonZero result
+    metadata.outputs.push_back(create_descriptor("not_batched_output", ov::Shape{2}));
+    OV_ASSERT_NO_THROW(blob_format_importer_utils::validate_batch_size(metadata, DYNAMIC_BATCH_SIZE));
+    OV_EXPECT_THROW_HAS_SUBSTRING(blob_format_importer_utils::validate_batch_size(metadata, 2),
+                                  ov::Exception,
+                                  "not_batched_output");
+
+    metadata.outputs.pop_back();
+    metadata.inputs.push_back(create_descriptor("not_batched_input", ov::Shape{4, 3}));
+    OV_EXPECT_THROW_HAS_SUBSTRING(blob_format_importer_utils::validate_batch_size(metadata, 4),
+                                  ov::Exception,
+                                  "not_batched_input");
+
+    // the weights of the main schedule are not batched, thus they are skipped
+    metadata.inputs.pop_back();
+    IODescriptor main_weights = create_descriptor("main_weights", ov::Shape{5});
+    main_weights.isMainInputWeights = true;
+    metadata.inputs.push_back(std::move(main_weights));
+    OV_ASSERT_NO_THROW(blob_format_importer_utils::validate_batch_size(metadata, 2));
+    metadata.inputs.pop_back();
+
+    // states and shape tensors cannot be combined with the plugin batching
+    IODescriptor shape_tensor = create_descriptor("shape_tensor", ov::Shape{1});
+    shape_tensor.isShapeTensor = true;
+    metadata.inputs.push_back(std::move(shape_tensor));
+    OV_ASSERT_NO_THROW(blob_format_importer_utils::validate_batch_size(metadata, DYNAMIC_BATCH_SIZE));
+    OV_EXPECT_THROW_HAS_SUBSTRING(blob_format_importer_utils::validate_batch_size(metadata, 2),
+                                  ov::Exception,
+                                  "shape_tensor");
+    metadata.inputs.pop_back();
+
+    IODescriptor state_input = create_descriptor("state_input", ov::Shape{1, 3});
+    state_input.isStateInput = true;
+    metadata.inputs.push_back(std::move(state_input));
+    OV_EXPECT_THROW_HAS_SUBSTRING(blob_format_importer_utils::validate_batch_size(metadata, 2),
+                                  ov::Exception,
+                                  "state_input");
+    metadata.inputs.pop_back();
+
+    IODescriptor state_output = create_descriptor("state_output", ov::Shape{1, 3});
+    state_output.isStateOutput = true;
+    metadata.outputs.push_back(std::move(state_output));
+    OV_EXPECT_THROW_HAS_SUBSTRING(blob_format_importer_utils::validate_batch_size(metadata, 2),
+                                  ov::Exception,
+                                  "state_output");
+}
+
+/**
+ * @brief There is no batch to compare with when the compiled shape has no static batch dimension
+ */
+TEST_F(BlobFormatImportersTest, BatchSizeIgnoresDescriptorsWithoutStaticBatchDimension) {
+    NetworkMetadata metadata;
+    metadata.inputs.push_back(create_descriptor("input", ov::Shape{1, 3}));
+    metadata.outputs.push_back(create_descriptor("output", ov::Shape{1, 3}));
+
+    metadata.inputs.push_back(create_descriptor("dynamic_batch", ov::PartialShape{ov::Dimension(1, 10), 3}));
+    metadata.inputs.push_back(create_descriptor("dynamic_rank", ov::PartialShape::dynamic()));
+    metadata.outputs.push_back(create_descriptor("scalar", ov::Shape{}));
+    OV_ASSERT_NO_THROW(blob_format_importer_utils::validate_batch_size(metadata, 2));
+
+    // a descriptor with a static batch different than 1 is still rejected, no matter the other descriptors
+    metadata.outputs.push_back(create_descriptor("not_batched_output", ov::Shape{2, 3}));
+    OV_EXPECT_THROW_HAS_SUBSTRING(blob_format_importer_utils::validate_batch_size(metadata, 2),
+                                  ov::Exception,
+                                  "not_batched_output");
+
+    // the same descriptors are accepted if no batch size is declared
+    OV_ASSERT_NO_THROW(blob_format_importer_utils::validate_batch_size(metadata, std::nullopt));
 }
