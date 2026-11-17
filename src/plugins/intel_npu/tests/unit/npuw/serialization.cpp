@@ -175,6 +175,13 @@ constexpr char kExpectedLazyClosureSizeMessage[] = "lazy_closure size does not m
 constexpr char kExpectedCpuCountMismatchMessage[] = "CPU closure ids count does not match CPU closure tensor count";
 constexpr char kExpectedNonCpuCountMismatchMessage[] = "non-CPU closure ids count does not match non-CPU tensor count";
 constexpr char kExpectedNonCpuOobIndexMessage[] = "non-CPU closure index is out of range";
+constexpr char kExpectedCpuClassificationMismatchMessage[] = "CPU closure id does not match closure_uid classification";
+constexpr char kExpectedNonCpuClassificationMismatchMessage[] =
+    "non-CPU closure id does not match closure_uid classification";
+constexpr char kExpectedDuplicateClosureIndexMessage[] = "duplicate closure index";
+constexpr char kExpectedIncompleteClosurePartitionMessage[] = "closure ids do not cover the closure";
+constexpr char kExpectedUninitializedCpuTensorMessage[] = "CPU closure tensor is uninitialized";
+constexpr char kExpectedUninitializedNonCpuTensorMessage[] = "non-CPU closure tensor is uninitialized";
 
 // Writes the fixed CompiledModelDesc::serialize() prefix (funcall/spatial metadata) that
 // precedes is_remote/closure_uid in every ORC blob, regardless of weightless mode.
@@ -321,6 +328,52 @@ std::string make_weightless_blob_with_cpu_or_non_cpu_mismatch(std::size_t cpu_id
 
     std::vector<std::size_t> non_cpu_tensors_ids(non_cpu_ids_count, non_cpu_index);
     std::vector<ov::npuw::weights::LazyTensor> non_cpu_tensors(non_cpu_tensors_count);
+    writer & non_cpu_tensors_ids & non_cpu_tensors;
+
+    return serialized.str();
+}
+
+std::string make_weightless_blob_with_closure_classification(const std::vector<std::size_t>& cpu_closure_ids,
+                                                             const std::vector<std::size_t>& non_cpu_tensors_ids,
+                                                             bool initialize_cpu = true,
+                                                             bool initialize_non_cpu = true) {
+    using namespace ov::npuw::s11n;
+
+    WeightsContext ctx(true, {});
+
+    std::stringstream serialized(std::ios::in | std::ios::out | std::ios::binary);
+    auto writer = Stream::writer(serialized);
+
+    write_compiled_model_desc_prefix(writer);
+
+    std::vector<bool> is_remote{false, false};
+    std::vector<int64_t> closure_uid{-1, 1};
+    writer & is_remote & closure_uid;
+
+    std::vector<ov::Tensor> scales;
+    std::vector<ov::Tensor> zerops;
+    serialize_weightless(writer, scales, ctx);
+    serialize_weightless(writer, zerops, ctx);
+
+    std::size_t closure_size = 2u;
+    writer & closure_size;
+
+    writer & cpu_closure_ids;
+    std::vector<ov::Tensor> cpu_closures(cpu_closure_ids.size());
+    if (initialize_cpu) {
+        for (auto& cpu_tensor : cpu_closures) {
+            cpu_tensor = ov::Tensor(ov::element::u8, ov::Shape{1u});
+            cpu_tensor.data<uint8_t>()[0] = 0x41;
+        }
+    }
+    serialize_weightless(writer, cpu_closures, ctx);
+
+    std::vector<ov::npuw::weights::LazyTensor> non_cpu_tensors(non_cpu_tensors_ids.size());
+    if (initialize_non_cpu) {
+        auto constant =
+            std::make_shared<ov::op::v0::Constant>(ov::element::u8, ov::Shape{1u}, std::vector<uint8_t>{0x42});
+        std::fill(non_cpu_tensors.begin(), non_cpu_tensors.end(), ov::npuw::weights::LazyTensor(constant));
+    }
     writer & non_cpu_tensors_ids & non_cpu_tensors;
 
     return serialized.str();
@@ -2340,6 +2393,9 @@ TEST(SerializationTest, FuncallSubmodelRoundTripThroughReadPath) {
     closure1.get().closure.resize(4);
     closure1.get().closure_uid.resize(4, -1);
     closure1.get().is_remote.resize(4, false);
+    for (auto& tensor : closure1.get().closure) {
+        tensor = ov::Tensor(ov::element::u8, ov::Shape{1u});
+    }
 
     std::stringstream ss;
     auto writer = Stream::writer(ss);
@@ -2660,6 +2716,87 @@ TEST(SerializationTest, CompiledModelDesc_rejects_weightless_non_cpu_closure_ind
         ov::npuw::CompiledModelDescSerializationAccess::deserialize_compiled_model_desc(input, ctx),
         ov::Exception,
         kExpectedNonCpuOobIndexMessage);
+}
+
+TEST(SerializationTest, CompiledModelDesc_rejects_swapped_weightless_closure_classification) {
+    using namespace ov::npuw::s11n;
+
+    WeightsContext ctx(true, {});
+    const auto malformed_blob = make_weightless_blob_with_closure_classification({1u}, {0u});
+
+    std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        ov::npuw::CompiledModelDescSerializationAccess::deserialize_compiled_model_desc(input, ctx),
+        ov::Exception,
+        kExpectedCpuClassificationMismatchMessage);
+}
+
+TEST(SerializationTest, CompiledModelDesc_rejects_non_cpu_closure_with_cpu_uid) {
+    using namespace ov::npuw::s11n;
+
+    WeightsContext ctx(true, {});
+    const auto malformed_blob = make_weightless_blob_with_closure_classification({}, {0u});
+
+    std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        ov::npuw::CompiledModelDescSerializationAccess::deserialize_compiled_model_desc(input, ctx),
+        ov::Exception,
+        kExpectedNonCpuClassificationMismatchMessage);
+}
+
+TEST(SerializationTest, CompiledModelDesc_rejects_duplicate_weightless_closure_id) {
+    using namespace ov::npuw::s11n;
+
+    WeightsContext ctx(true, {});
+    const auto malformed_blob = make_weightless_blob_with_closure_classification({0u, 0u}, {1u});
+
+    std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        ov::npuw::CompiledModelDescSerializationAccess::deserialize_compiled_model_desc(input, ctx),
+        ov::Exception,
+        kExpectedDuplicateClosureIndexMessage);
+}
+
+TEST(SerializationTest, CompiledModelDesc_rejects_incomplete_weightless_closure_partition) {
+    using namespace ov::npuw::s11n;
+
+    WeightsContext ctx(true, {});
+    const auto malformed_blob = make_weightless_blob_with_closure_classification({0u}, {});
+
+    std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        ov::npuw::CompiledModelDescSerializationAccess::deserialize_compiled_model_desc(input, ctx),
+        ov::Exception,
+        kExpectedIncompleteClosurePartitionMessage);
+}
+
+TEST(SerializationTest, CompiledModelDesc_rejects_uninitialized_weightless_closure_payloads) {
+    using namespace ov::npuw::s11n;
+
+    WeightsContext ctx(true, {});
+    const auto uninitialized_cpu_blob = make_weightless_blob_with_closure_classification({0u}, {1u}, false);
+    std::stringstream cpu_input(uninitialized_cpu_blob, std::ios::in | std::ios::out | std::ios::binary);
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        ov::npuw::CompiledModelDescSerializationAccess::deserialize_compiled_model_desc(cpu_input, ctx),
+        ov::Exception,
+        kExpectedUninitializedCpuTensorMessage);
+
+    const auto uninitialized_non_cpu_blob = make_weightless_blob_with_closure_classification({0u}, {1u}, true, false);
+    std::stringstream non_cpu_input(uninitialized_non_cpu_blob, std::ios::in | std::ios::out | std::ios::binary);
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        ov::npuw::CompiledModelDescSerializationAccess::deserialize_compiled_model_desc(non_cpu_input, ctx),
+        ov::Exception,
+        kExpectedUninitializedNonCpuTensorMessage);
+}
+
+TEST(SerializationTest, CompiledModelDesc_accepts_weightless_closure_classification) {
+    using namespace ov::npuw::s11n;
+
+    WeightsContext ctx(true, {});
+    const auto valid_blob = make_weightless_blob_with_closure_classification({0u}, {1u});
+
+    std::stringstream input(valid_blob, std::ios::in | std::ios::out | std::ios::binary);
+    EXPECT_NO_THROW(ov::npuw::CompiledModelDescSerializationAccess::deserialize_compiled_model_desc(input, ctx));
 }
 
 // Sub-byte coverage: the byte size is the *packed* size (ov::util::get_memory_size), which is what
