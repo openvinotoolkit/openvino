@@ -11,6 +11,7 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -64,7 +65,11 @@ ov::OutputVector causal_conv_with_state(const ov::frontend::onnx::Node& node) {
         node,
         weight_shape.rank().is_static() && weight_shape.rank().get_length() == 3 && weight_shape[2].is_static(),
         "CausalConvWithState: weight must be [channels, 1, kernel_size] with a static kernel_size");
-    const int64_t state_len = (weight_shape[2].get_length() - 1) * dilation;
+    const auto kernel_size = weight_shape[2].get_length();
+    CHECK_VALID_NODE(node,
+                     kernel_size >= 1 && kernel_size - 1 <= std::numeric_limits<int64_t>::max() / dilation,
+                     "CausalConvWithState: kernel_size must be positive and state length must fit in int64_t");
+    const int64_t state_len = (kernel_size - 1) * dilation;
     const auto state_length_attr = node.get_attribute_value<int64_t>("state_length", 0);
     CHECK_VALID_NODE(node,
                      state_length_attr == 0 || state_length_attr == state_len,
@@ -81,7 +86,8 @@ ov::OutputVector causal_conv_with_state(const ov::frontend::onnx::Node& node) {
         const auto zeros_shape = std::make_shared<v0::Concat>(
             ov::OutputVector{batch_channels, v0::Constant::create(element::i64, Shape{1}, {state_len})},
             0);
-        past = std::make_shared<v3::Broadcast>(v0::Constant::create(x.get_element_type(), Shape{}, {0}), zeros_shape);
+        const auto zero = std::make_shared<v1::ConvertLike>(v0::Constant::create(element::f32, Shape{}, {0}), x);
+        past = std::make_shared<v3::Broadcast>(zero, zeros_shape);
     }
 
     const auto full = std::make_shared<v0::Concat>(ov::OutputVector{past, x}, 2);
