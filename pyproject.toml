@@ -19,6 +19,9 @@ requires-python = ">=3.11"
 dependencies = [
     "numpy>=1.16.6,<2.6.0",
 ]
+default-optional-dependencies = [
+    "telemetry",
+]
 
 [project.optional-dependencies]
 telemetry = [
