@@ -4,10 +4,9 @@
 
 #pragma once
 
-#include <openvino/op/reshape.hpp>
-
 #include "../convert_common.hpp"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
+#include "openvino/op/reshape.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov::intel_gpu::mlir {
@@ -54,8 +53,9 @@ struct ConvertReshape {
         auto loc = createLocation(context.context, node);
         auto& builder = context.builder();
         const auto input = context.getInputs(node)[0];
-        return expand ? tensor::ExpandShapeOp::create(builder, loc, dst_type, input, reassociation)
-                      : tensor::CollapseShapeOp::create(builder, loc, dst_type, input, reassociation);
+        if (expand)
+            return tensor::ExpandShapeOp::create(builder, loc, dst_type, input, reassociation);
+        return tensor::CollapseShapeOp::create(builder, loc, dst_type, input, reassociation);
     }
 };
 
