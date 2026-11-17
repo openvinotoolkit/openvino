@@ -24,6 +24,7 @@
 #include "openvino/pass/pattern/op/block.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
+#include "transformations/utils.hpp"
 
 /*
  * Description:
@@ -62,7 +63,7 @@ inline ov::matcher_pass_callback make_int8_bias_reorder_callback(
             return false;
         }
         // ACL int8 requantization requires the activation and FakeQuantize output types to match.
-        if (fakeQuantize->get_output_element_type(0) != gemm->get_input_element_type(0)) {
+        if (fakeQuantize->get_output_element_type(0) != get_int8_activation_type(gemm)) {
             return false;
         }
         auto new_mul = ov::as_type_ptr<ov::opset1::Multiply>(

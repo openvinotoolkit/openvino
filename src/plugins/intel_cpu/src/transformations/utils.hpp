@@ -13,6 +13,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/strides.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/fake_quantize.hpp"
@@ -28,6 +29,14 @@
 
 namespace ov::intel_cpu {
 
+// Returns true for a Subtract that is a per-tensor zero point on i8 activations, which the int8 ACL
+// convolution executor supports: i8 data and an i8 constant with equal values.
+bool is_supported_activation_zero_point(const std::shared_ptr<const ov::Node>& subtract);
+
+// Returns the precision of the activations of an int8 Convolution or MatMul. For a Convolution, a
+// supported activation zero point Subtract is skipped, since it is fused into the Convolution.
+ov::element::Type get_int8_activation_type(const std::shared_ptr<const ov::Node>& gemm);
+
 template <class T>
 bool match_conv_mul_add_fq(const std::shared_ptr<const ov::Node>& node) {
     static_assert(std::is_same_v<T, ov::op::v1::Subtract> || std::is_same_v<T, ov::op::v1::Multiply>,
@@ -35,8 +44,7 @@ bool match_conv_mul_add_fq(const std::shared_ptr<const ov::Node>& node) {
 
     using namespace ov::pass::pattern;
 
-    auto conv_m = wrap_type<ov::op::v1::Convolution>(
-        {any_input(type_matches_any({ov::element::i8, ov::element::u8})), any_input()});
+    auto conv_m = wrap_type<ov::op::v1::Convolution>({any_input(), any_input()});
     auto mul0_m = wrap_type<ov::op::v1::Multiply>({conv_m, any_input()});
     auto add_m = wrap_type<ov::op::v1::Add>({mul0_m, any_input()});
     auto fq_m = wrap_type<ov::op::v0::FakeQuantize>({add_m, any_input(), any_input(), any_input(), any_input()},
@@ -52,7 +60,7 @@ bool match_conv_mul_add_fq(const std::shared_ptr<const ov::Node>& node) {
     const auto fq = pattern_map.at(fq_m).get_node_shared_ptr();
     const auto conv = pattern_map.at(conv_m).get_node_shared_ptr();
 
-    return conv->get_input_element_type(0) == fq->get_output_element_type(0);
+    return get_int8_activation_type(conv) == fq->get_output_element_type(0);
 }
 
 enum class FQMulAddPattern : std::uint8_t { ConvMulAdd, ConvAddMul };
@@ -72,7 +80,7 @@ bool match_gemm_fq_same_types(const std::shared_ptr<const ov::Node>& node) {
     const auto& pattern_map = matcher.get_pattern_value_map();
     const auto gemm_node = pattern_map.at(gemm_m).get_node_shared_ptr();
 
-    return gemm_node->get_input_element_type(0) == node->get_output_element_type(0);
+    return get_int8_activation_type(gemm_node) == node->get_output_element_type(0);
 }
 
 // Shared skeleton for the ACL int8 dequantization tail feeding a FakeQuantize:
@@ -111,7 +119,7 @@ bool match_gemm_bias_fq_same_types(const std::shared_ptr<const ov::Node>& node,
 
     const auto& pattern_map = matcher.get_pattern_value_map();
     const auto gemm_node = pattern_map.at(gemm_m).get_node_shared_ptr();
-    if (gemm_node->get_input_element_type(0) != node->get_output_element_type(0)) {
+    if (get_int8_activation_type(gemm_node) != node->get_output_element_type(0)) {
         return false;
     }
 
@@ -132,6 +140,11 @@ bool is_acl_int8_avg_pool_lpt_skipped(const std::shared_ptr<const ov::Node>& nod
                                       const std::vector<ov::element::Type>& defaultPrecisions);
 
 bool match_acl_int8_conv_add_multiply_chain(const std::shared_ptr<const ov::Node>& node);
+
+// Returns true for a Convolution with a supported activation zero point that is requantized by a FakeQuantize
+// with the same precision as its activations: Convolution -> Multiply/Add -> Swish (optional) -> FakeQuantize.
+// The zero point of such a Convolution is fused into the int8 ACL convolution.
+bool match_acl_int8_conv_with_zero_point(const std::shared_ptr<const ov::Node>& node);
 
 bool match_conv_stride_oc_ic_limit(const std::shared_ptr<const ov::Node>& node,
                                    const std::vector<int64_t>& strides,

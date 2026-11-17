@@ -4,6 +4,7 @@
 
 #include "common_test_utils/node_builders/activation.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
+#include "internal_properties.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
@@ -184,6 +185,25 @@ TEST_P(ConvAndFQ, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, "Convolution");
 }
 
+// Snippets are disabled (for example, Android builds disable them), so the operations after the convolution
+// are not tokenized and the dequantization scales are fused into the convolution
+class ConvAndFQWithoutSnippets : public ConvAndFQ {
+protected:
+    void SetUp() override {
+        ConvAndFQ::SetUp();
+        configuration.insert(ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::DISABLE));
+    }
+};
+
+TEST_P(ConvAndFQWithoutSnippets, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
+
+    const auto& [inputShape, inputPrecision, quantizationParams, withBias, withSwish, targetName] = this->GetParam();
+    checkConvolutionPrecision(quantizationParams.expectedPrecision);
+    CheckPluginRelatedResults(compiledModel, "Convolution");
+}
+
 namespace {
 
 std::vector<InputShape> inputShapes{{{}, {{4, 3, 2, 2}}}, {{-1, 3, -1, 2}, {{1, 3, 4, 2}}}};
@@ -252,7 +272,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_withSwish_CPU,
 std::vector<QuantizationParams> withSwishDynamicQuantizationParams{
     {signedIntervals, signedIntervals, {}, expectedConvPrecBySignedFQRange, false},  // i8 -> i8, per-tensor
     {unsignedIntervals, unsignedIntervals, {}, element::f32, false},  // u8 -> u8, per-tensor (fallbacks to f32)
-    {signedIntervals, signedIntervals, {}, element::f32, true},       // i8 -> f32, per-channel (fallbacks to f32)
+    {signedIntervals, signedIntervals, {}, expectedConvPrecBySignedFQRange, true},  // i8 -> i8, per-channel
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_withSwish_CPU_Dynamic,
@@ -260,6 +280,51 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_withSwish_CPU_Dynamic,
                          ::testing::Combine(::testing::Values(inputShapes.back()),
                                             ::testing::Values(element::f32),
                                             ::testing::ValuesIn(withSwishDynamicQuantizationParams),
+                                            ::testing::Values(true),  // withBias
+                                            ::testing::Values(true),  // withSwish
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         ConvAndFQ::getTestCaseName);
+// The activations have a zero point (asymmetric interval) which is applied by the int8 ACL convolution.
+// The interval step is 0.01, so the zero point is an integer.
+const std::vector<std::vector<float>> asymmetricIntervals{{-0.5f}, {2.05f}, {-0.5f}, {2.05f}};
+
+std::vector<QuantizationParams> zeroPointQuantizationParams{
+    {asymmetricIntervals, signedIntervals, {}, expectedConvPrecBySignedFQRange, false},  // i8 with zero point, per-tensor
+    {asymmetricIntervals, signedIntervals, {}, expectedConvPrecBySignedFQRange, true},  // i8 with zero point, per-channel
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_ZeroPoint_CPU,
+                         ConvAndFQ,
+                         ::testing::Combine(::testing::ValuesIn(inputShapes),
+                                            ::testing::Values(element::f32),
+                                            ::testing::ValuesIn(zeroPointQuantizationParams),
+                                            ::testing::Values(false, true),  // withBias
+                                            ::testing::Values(false),        // withSwish
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         ConvAndFQ::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_ZeroPoint_withSwish_CPU,
+                         ConvAndFQ,
+                         ::testing::Combine(::testing::ValuesIn(inputShapes),
+                                            ::testing::Values(element::f32),
+                                            ::testing::ValuesIn(zeroPointQuantizationParams),
+                                            ::testing::Values(true),  // withBias
+                                            ::testing::Values(true),  // withSwish
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         ConvAndFQ::getTestCaseName);
+
+std::vector<QuantizationParams> withoutSnippetsQuantizationParams{
+    {signedIntervals, signedIntervals, {}, expectedConvPrecBySignedFQRange, false},      // i8 -> i8, per-tensor
+    {signedIntervals, signedIntervals, {}, expectedConvPrecBySignedFQRange, true},       // i8 -> i8, per-channel
+    {asymmetricIntervals, signedIntervals, {}, expectedConvPrecBySignedFQRange, false},  // i8 with zero point, per-tensor
+    {asymmetricIntervals, signedIntervals, {}, expectedConvPrecBySignedFQRange, true},  // i8 with zero point, per-channel
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_withSwish_WithoutSnippets_CPU,
+                         ConvAndFQWithoutSnippets,
+                         ::testing::Combine(::testing::Values(inputShapes.front()),
+                                            ::testing::Values(element::f32),
+                                            ::testing::ValuesIn(withoutSnippetsQuantizationParams),
                                             ::testing::Values(true),  // withBias
                                             ::testing::Values(true),  // withSwish
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),

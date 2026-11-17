@@ -8,12 +8,14 @@
 #include <arm_compute/core/Error.h>
 #include <arm_compute/core/QuantizationInfo.h>
 #include <arm_compute/core/Types.h>
+#include <arm_compute/runtime/NEON/functions/NEActivationLayer.h>
 #include <arm_compute/runtime/NEON/functions/NEConvolutionLayer.h>
 
 #include <algorithm>
 #include <any>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <memory>
 #include <vector>
@@ -28,6 +30,7 @@
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "post_ops.hpp"
 #include "utils/general_utils.h"
@@ -66,6 +69,9 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
                                                paddingBottom,
                                                arm_compute::DimensionRoundingType::FLOOR);
     dilation = arm_compute::Size2D(attrs.dilation[1] + 1, attrs.dilation[0] + 1);
+    if (const auto zeroPoint = memory.find(ARG_ATTR_ZERO_POINTS | ARG_SRC_3); zeroPoint != memory.end()) {
+        srcZeroPoint = zeroPoint->second->getDataAs<const int32_t>()[0];
+    }
     // Instead of checking ==1 ==2 branch, iterate throught the vector
     for (const auto& postOp : attrs.postOps) {
         if (const auto* const activation = std::any_cast<ActivationPostOp>(&postOp)) {
@@ -106,10 +112,22 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
             OPENVINO_THROW("ACLConvolutionExecutor: the executor supports FakeQuantize and Activation post ops only");
         }
     }
+
+    applyScalesAfterAcl = srcMemPtr->getPrecision() == ov::element::i8 &&
+                          dstMemPtr->getPrecision() == ov::element::f32 && weightScale.size() > 1;
+    if (applyScalesAfterAcl) {
+        OPENVINO_ASSERT(weightScale.size() == static_cast<size_t>(oc),
+                        "ACLConvolutionExecutor: unexpected number of weights scales: ",
+                        weightScale.size());
+        postActivationInfo = activationLayerInfo;
+        activationLayerInfo = arm_compute::ActivationLayerInfo();
+    }
 }
 
 bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
     VERIFY(config.attrs.postOps.size() <= 2U, UNSUPPORTED_BY_EXECUTOR);
+    // ACL supports only a per-tensor zero point of the activations, passed as the source quantization offset
+    VERIFY(config.attrs.inputZeroPointsType != ZeroPointsType::PerChannel, UNSUPPORTED_BY_EXECUTOR);
 
     const auto& srcDesc = config.descs.at(ARG_SRC);
     const auto& weiDesc = config.descs.at(ARG_WEI);
@@ -136,7 +154,6 @@ bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
                                      dstDesc->getPrecision() == ov::element::f32;
 
     VERIFY(isQuantizedU8 || isQuantizedI8 || isQuantizedI8DstF32, UNSUPPORTED_BY_EXECUTOR);
-    VERIFY(!isQuantizedI8DstF32 || config.attrs.dqScales.size() <= 1, UNSUPPORTED_PER_CHANNEL_QUANTIZATION);
     if (config.attrs.withBias) {
         const auto biasPrecision = config.descs.at(ARG_BIAS)->getPrecision();
         if (isQuantizedI8DstF32) {
@@ -152,14 +169,15 @@ bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
 arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& aclMemoryInfos) {
     // Note: LPT propagate dequantization scales from src and weights on conv output, and the result scale
     // is applied as weight scale. So quantization configuration forms in the following way:
-    // - src quantization info is always trivial
+    // - src quantization info is trivial, except for the offset which is the per-tensor zero point
     // - weights: scale is equal to result dequantization scale after Convolution propagated by LPT
     //            shift is not supported
     // - destination: scale is formed based on requantization FakeQuantize parameters: scale = 1.0 / input scale
     //                shift = input shift. Skipped for f32 dst (dequantize-to-float path).
-    aclMemoryInfos[ACLArgs::ACL_SRC_0]->set_quantization_info(arm_compute::QuantizationInfo(1.0));
-    aclMemoryInfos[ACLArgs::ACL_WEI]->set_quantization_info(
-        weightScale.empty() ? arm_compute::QuantizationInfo(1.0F) : arm_compute::QuantizationInfo(weightScale));
+    aclMemoryInfos[ACLArgs::ACL_SRC_0]->set_quantization_info(arm_compute::QuantizationInfo(1.0F, srcZeroPoint));
+    aclMemoryInfos[ACLArgs::ACL_WEI]->set_quantization_info(weightScale.empty() || applyScalesAfterAcl
+                                                                ? arm_compute::QuantizationInfo(1.0F)
+                                                                : arm_compute::QuantizationInfo(weightScale));
     if (aclMemoryInfos[ACLArgs::ACL_DST]->data_type() != arm_compute::DataType::F32) {
         const auto dstPrecision = aclMemoryInfos[ACLArgs::ACL_DST]->data_type() == arm_compute::DataType::QASYMM8_SIGNED
                                       ? ov::element::i8
@@ -168,16 +186,17 @@ arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& 
             getDstQuantizationInfo(fqInputScale, fqInputShift, dstPrecision));
     }
 
-    return arm_compute::NEConvolutionLayer::validate(aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
-                                                     aclMemoryInfos[ACLArgs::ACL_WEI].get(),
-                                                     aclMemoryInfos[ACLArgs::ACL_BIAS].get(),
-                                                     aclMemoryInfos[ACLArgs::ACL_DST].get(),
-                                                     padStrideInfo,
-                                                     weightsInfo,
-                                                     dilation,
-                                                     activationLayerInfo,
-                                                     false,  // enable fast math
-                                                     1);     // num_groups
+    return arm_compute::NEConvolutionLayer::validate(
+        aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
+        aclMemoryInfos[ACLArgs::ACL_WEI].get(),
+        applyScalesAfterAcl ? nullptr : aclMemoryInfos[ACLArgs::ACL_BIAS].get(),
+        aclMemoryInfos[ACLArgs::ACL_DST].get(),
+        padStrideInfo,
+        weightsInfo,
+        dilation,
+        activationLayerInfo,
+        false,  // enable fast math
+        1);     // num_groups
 }
 
 ACLFunction ACLConvolutionExecutor::configureFunction(const ACLTensors& aclMemoryTensors) {
@@ -185,7 +204,7 @@ ACLFunction ACLConvolutionExecutor::configureFunction(const ACLTensors& aclMemor
 
     neConv->configure(aclMemoryTensors[ACLArgs::ACL_SRC_0].get(),
                       aclMemoryTensors[ACLArgs::ACL_WEI].get(),
-                      aclMemoryTensors[ACLArgs::ACL_BIAS].get(),
+                      applyScalesAfterAcl ? nullptr : aclMemoryTensors[ACLArgs::ACL_BIAS].get(),
                       aclMemoryTensors[ACLArgs::ACL_DST].get(),
                       padStrideInfo,
                       weightsInfo,
@@ -194,6 +213,48 @@ ACLFunction ACLConvolutionExecutor::configureFunction(const ACLTensors& aclMemor
                       false,  // enable fast math
                       1);     // num_groups
     return neConv;
+}
+
+bool ACLConvolutionExecutor::update(const MemoryArgs& memory) {
+    if (!ACLCommonExecutor::update(memory)) {
+        return false;
+    }
+    postActivation.reset();
+    if (applyScalesAfterAcl && postActivationInfo.enabled()) {
+        dstTensor.allocator()->init(getTensorInfo(ACLArgs::ACL_DST));
+        postActivation = std::make_unique<arm_compute::NEActivationLayer>();
+        configureThreadSafe([&] {
+            // nullptr output means that the activation is computed in place
+            postActivation->configure(&dstTensor, nullptr, postActivationInfo);
+        });
+    }
+    return true;
+}
+
+void ACLConvolutionExecutor::execute(const MemoryArgs& memory) {
+    ACLCommonExecutor::execute(memory);
+    if (!applyScalesAfterAcl) {
+        return;
+    }
+
+    const auto& dst = memory.at(ARG_DST);
+    auto* dstData = dst->getDataAs<float>();
+    const auto& bias = memory.at(ARG_BIAS);
+    const auto* biasData = bias->getDesc().empty() ? nullptr : bias->getDataAs<const float>();
+    const size_t channels = weightScale.size();
+    // The output layout is nspc, so the channels are the innermost dimension
+    ov::parallel_for(dst->getShape().getElementsCount() / channels, [&](size_t row) {
+        float* out = dstData + row * channels;
+        for (size_t c = 0; c < channels; c++) {
+            out[c] = out[c] * weightScale[c] + (biasData ? biasData[c] : 0.0F);
+        }
+    });
+
+    if (postActivation) {
+        dstTensor.allocator()->import_memory(dstData);
+        postActivation->run();
+        dstTensor.allocator()->free();
+    }
 }
 
 }  // namespace ov::intel_cpu
