@@ -1009,6 +1009,55 @@ TEST_F(TransformationTestsF, FuseQSAIndexerQueryIgnoresInactiveNormWeights) {
     manager.register_pass<pass::FuseQSAIndexerQuery>();
 }
 
+class FuseQSAIndexerBroadcastGammaTest : public TransformationTestsF, public testing::WithParamInterface<bool> {};
+
+TEST_P(FuseQSAIndexerBroadcastGammaTest, FlattensDenseAndPagedNormWeights) {
+    QueryOptions options;
+    options.affine = true;
+    const auto prepare = [&](const std::shared_ptr<Model>& source, const std::shared_ptr<Model>& reference) {
+        Output<Node> gamma = v0::Constant::create(element::f32, Shape{1, 1, 1, head_size}, {0.5f});
+        if (GetParam()) {
+            const auto param = std::make_shared<v0::Parameter>(element::f32, Shape{1, 1, 1, head_size});
+            source->add_parameters({param});
+            gamma = param;
+            const auto ref_param = std::make_shared<v0::Parameter>(element::f32, Shape{1, 1, 1, head_size});
+            reference->add_parameters({ref_param});
+            const auto flat_gamma = std::make_shared<v1::Reshape>(ref_param, i64({head_size}), false);
+            for (const auto& node : reference->get_ops()) {
+                if (ov::is_type<op_internal::QSAIndexer>(node)) {
+                    node->input(op_internal::QSAIndexer::InputIdx::Q_NORM_WEIGHT).replace_source_output(flat_gamma);
+                } else if (ov::is_type<op_internal::PagedQSAIndexer>(node)) {
+                    node->input(op_internal::PagedQSAIndexer::InputIdx::Q_NORM_WEIGHT)
+                        .replace_source_output(flat_gamma);
+                }
+            }
+        }
+        for (const auto& node : source->get_ops()) {
+            if (const auto rms = ov::as_type_ptr<op_internal::RMS>(node)) {
+                rms->input(1).replace_source_output(gamma);
+            }
+        }
+    };
+    model = getQueryModel(options);
+    model_ref = getQueryModelRef(options);
+    prepare(model, model_ref);
+    const auto dense = getQueryModel<op_internal::QSAIndexer>(options);
+    const auto dense_ref = getQueryModelRef<op_internal::QSAIndexer>(options);
+    prepare(dense, dense_ref);
+    model = combine_query_models(model, dense);
+    model_ref = combine_query_models(model_ref, dense_ref);
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    manager.register_pass<pass::FuseQSAIndexerQuery>();
+}
+
+INSTANTIATE_TEST_SUITE_P(FuseQSAIndexerQuery,
+                         FuseQSAIndexerBroadcastGammaTest,
+                         testing::Bool(),
+                         [](const testing::TestParamInfo<bool>& info) {
+                             return info.param ? "parameter" : "constant";
+                         });
+
 class FuseQSAIndexerQueryGammaTest : public TransformationTestsF, public testing::WithParamInterface<std::string> {};
 
 TEST_P(FuseQSAIndexerQueryGammaTest, KeepsRMSWithUnsupportedGamma) {
@@ -1042,9 +1091,12 @@ TEST_P(FuseQSAIndexerQueryGammaTest, KeepsRMSWithUnsupportedGamma) {
                 rms->set_elementwise_affine(param == "missing");
             } else {
                 const auto type = param == "mixed_precision" ? element::f16 : element::f32;
-                const auto shape = param == "dynamic"  ? PartialShape{-1}
-                                   : param == "scalar" ? PartialShape{1}
-                                                       : PartialShape{head_size};
+                const auto shape = param == "dynamic_rank"      ? PartialShape::dynamic()
+                                   : param == "scalar"          ? PartialShape{}
+                                   : param == "wrong_last_dim"  ? PartialShape{1, 1, 1, head_size + 1}
+                                   : param == "non_singleton"   ? PartialShape{1, 1, query_heads, head_size}
+                                   : param == "dynamic_leading" ? PartialShape{1, 1, -1, head_size}
+                                                                : PartialShape{head_size};
                 const auto gamma = std::make_shared<v0::Parameter>(type, shape);
                 model->add_parameters({gamma});
                 rms->input(1).replace_source_output(gamma);
@@ -1059,7 +1111,14 @@ TEST_P(FuseQSAIndexerQueryGammaTest, KeepsRMSWithUnsupportedGamma) {
 
 INSTANTIATE_TEST_SUITE_P(FuseQSAIndexerQuery,
                          FuseQSAIndexerQueryGammaTest,
-                         testing::Values("dynamic", "scalar", "mixed_precision", "missing", "inactive"),
+                         testing::Values("mixed_precision",
+                                         "missing",
+                                         "inactive",
+                                         "dynamic_rank",
+                                         "scalar",
+                                         "wrong_last_dim",
+                                         "non_singleton",
+                                         "dynamic_leading"),
                          [](const testing::TestParamInfo<std::string>& info) {
                              return info.param;
                          });

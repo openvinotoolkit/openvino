@@ -313,6 +313,7 @@ FuseQSAIndexerQueryRoPE<Indexer>::FuseQSAIndexerQueryRoPE() {
             return false;
         }
         const auto rope = ov::as_type_ptr<op_internal::RoPE>(pattern_map.at(p_rope).get_node_shared_ptr());
+        OPENVINO_ASSERT(rope, "FuseQSAIndexerQueryRoPE: expected RoPE");
         const bool head_first = pattern_map.count(p_head_first) != 0;
         const bool transposed = pattern_map.count(p_token_major) != 0;
         if (rope->get_config().input_trans0213 != transposed ||
@@ -362,8 +363,16 @@ FuseQSAIndexerQueryNorm<Indexer>::FuseQSAIndexerQueryNorm() {
     const auto gamma_matches = [](const ov::Output<ov::Node>& output) {
         // Predicates run before inputs are matched, so guard the gamma access.
         const auto rms = output.get_node();
-        return rms->get_input_size() == 2 && rms->get_input_element_type(1) == output.get_element_type() &&
-               rms->get_input_partial_shape(1) == PartialShape{output.get_partial_shape()[-1]};
+        if (rms->get_input_size() != 2 || rms->get_input_element_type(1) != output.get_element_type()) {
+            return false;
+        }
+        const auto& gamma_shape = rms->get_input_partial_shape(1);
+        // Gamma can be flattened to [D] only when its leading dimensions are singleton.
+        return gamma_shape.rank().is_static() && gamma_shape.size() > 0 &&
+               gamma_shape[-1] == output.get_partial_shape()[-1] &&
+               std::all_of(gamma_shape.begin(), gamma_shape.end() - 1, [](const Dimension& dim) {
+                   return dim == 1;
+               });
     };
     const auto p_gamma = any_input();
     const auto p_rms_affine = wrap_type<op_internal::RMS>({any_input(), p_gamma},
@@ -405,7 +414,15 @@ FuseQSAIndexerQueryNorm<Indexer>::FuseQSAIndexerQueryNorm() {
             inputs[In::INDEX_QUERY] = rms->input_value(0);
         }
         if (pattern_map.count(p_gamma)) {
-            inputs[In::Q_NORM_WEIGHT] = pattern_map.at(p_gamma);
+            auto gamma = pattern_map.at(p_gamma);
+            if (gamma.get_partial_shape().size() > 1) {
+                const auto shape =
+                    rg.make<v0::Constant>(element::i64,
+                                          Shape{1},
+                                          std::vector<int64_t>{static_cast<int64_t>(config.indexer_head_dim)});
+                gamma = rg.add(ov::op::util::make_try_fold<v1::Reshape>(gamma, shape, false));
+            }
+            inputs[In::Q_NORM_WEIGHT] = gamma;
         } else {
             // The non-affine RMS has no learned scaling, so use unit weights.
             inputs[In::Q_NORM_WEIGHT] = rg.make<v0::Constant>(inputs[In::Q_NORM_WEIGHT].get_element_type(),
