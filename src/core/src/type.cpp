@@ -14,19 +14,25 @@ size_t std::hash<ov::DiscreteTypeInfo>::operator()(const ov::DiscreteTypeInfo& k
 
 namespace ov {
 
-size_t DiscreteTypeInfo::hash() const {
-    if (hash_value != 0)
-        return hash_value;
-    size_t name_hash = name ? std::hash<std::string>()(std::string(name)) : 0;
-    size_t version_id_hash = version_id ? std::hash<std::string>()(std::string(version_id)) : 0;
+size_t DiscreteTypeInfo::compute_hash() const {
+    const size_t name_hash = name ? std::hash<std::string>()(std::string(name)) : 0;
+    const size_t version_id_hash = version_id ? std::hash<std::string>()(std::string(version_id)) : 0;
 
     return ov::util::hash_combine(std::vector<size_t>{name_hash, version_id_hash});
 }
 
+size_t DiscreteTypeInfo::hash() const {
+    const size_t cached = hash_value.load(std::memory_order_relaxed);
+    return cached != 0 ? cached : compute_hash();
+}
+
 size_t DiscreteTypeInfo::hash() {
-    if (hash_value == 0)
-        hash_value = static_cast<const DiscreteTypeInfo*>(this)->hash();
-    return hash_value;
+    size_t cached = hash_value.load(std::memory_order_relaxed);
+    if (cached == 0) {
+        cached = compute_hash();
+        hash_value.store(cached, std::memory_order_relaxed);
+    }
+    return cached;
 }
 
 bool DiscreteTypeInfo::is_castable(const DiscreteTypeInfo& target_type) const {
@@ -73,8 +79,10 @@ bool DiscreteTypeInfo::operator<(const DiscreteTypeInfo& b) const {
     return false;
 }
 bool DiscreteTypeInfo::operator==(const DiscreteTypeInfo& b) const {
-    if (hash_value != 0 && b.hash_value != 0)
-        return hash() == b.hash();
+    const size_t lhs_hash = hash_value.load(std::memory_order_relaxed);
+    const size_t rhs_hash = b.hash_value.load(std::memory_order_relaxed);
+    if (lhs_hash != 0 && rhs_hash != 0)
+        return lhs_hash == rhs_hash;
     if (name != nullptr && b.name != nullptr) {
         if (strcmp(name, b.name) == 0) {
             std::string v_id(version_id == nullptr ? "" : version_id);

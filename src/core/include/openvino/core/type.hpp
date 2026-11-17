@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <cstdint>
 #include <cstring>
 #include <functional>
@@ -35,9 +36,28 @@ struct OPENVINO_API DiscreteTypeInfo {
     const DiscreteTypeInfo* parent;
 
     DiscreteTypeInfo() = default;
-    DiscreteTypeInfo(const DiscreteTypeInfo&) = default;
-    DiscreteTypeInfo(DiscreteTypeInfo&&) = default;
-    DiscreteTypeInfo& operator=(const DiscreteTypeInfo&) = default;
+
+    DiscreteTypeInfo(const DiscreteTypeInfo& other)
+        : name(other.name),
+          version_id(other.version_id),
+          parent(other.parent),
+          hash_value(other.hash_value.load(std::memory_order_relaxed)) {}
+
+    DiscreteTypeInfo(DiscreteTypeInfo&& other) noexcept
+        : name(other.name),
+          version_id(other.version_id),
+          parent(other.parent),
+          hash_value(other.hash_value.load(std::memory_order_relaxed)) {}
+
+    DiscreteTypeInfo& operator=(const DiscreteTypeInfo& other) {
+        if (this != &other) {
+            name = other.name;
+            version_id = other.version_id;
+            parent = other.parent;
+            hash_value.store(other.hash_value.load(std::memory_order_relaxed), std::memory_order_relaxed);
+        }
+        return *this;
+    }
 
     explicit constexpr DiscreteTypeInfo(const char* _name,
                                         const char* _version_id,
@@ -71,7 +91,12 @@ struct OPENVINO_API DiscreteTypeInfo {
     size_t hash();
 
 private:
-    size_t hash_value;
+    size_t compute_hash() const;
+
+    // Lazily cached hash. Type infos are typically shared function-local statics accessed from many
+    // threads concurrently, so the cache must be atomic. The value is a pure function of the immutable
+    // name/version_id, so every racing writer stores the same result and relaxed ordering is sufficient.
+    std::atomic<size_t> hash_value{0};
 };
 
 OPENVINO_API
