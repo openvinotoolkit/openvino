@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-17-20-50-03-000-44101832672",
+  "timestamp": "2026-11-17T20:50:03Z",
+  "run_id": "44101832672",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44101832672",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "36ba7864363eb93309d976b99a71c689fc6d7e7a",
+  "pr_number": "39097",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39097",
+  "author": "zamog",
+  "category": "Flaky Test",
+  "title": "GPU unit tests fail with a burst of 36 gtest-parallel worker crashes among the first ~37 scheduled tests",
+  "signature": "GPU unit tests accuracy tolerance mismatch in fusion test (val_ref vs val_opt difference exceeds tolerance in fusion_test_common.hpp) followed by burst of concurrent gtest-parallel worker processes exiting with code 3|Flaky Test",
+  "signature_hash": "502c01bffd8f35db",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "36 of the first ~37 scheduled gtest-parallel tests (mostly basic/convolution_random_smoke_test.* and int8 conv fusion variants) exit with code 3 instead of completing normally"
+    }
+  ],
+  "key_errors": [
+    "FAILED TESTS (36/29321):",
+    "4856 ms: ...ov_gpu_unit_tests.exe fusings_gpu/conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec.vector_ops/1",
+    "[17/29321] fusings_gpu/conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec.vector_ops/1 returned with exit code 3 (4856 ms)",
+    "4778 ms: ...ov_gpu_unit_tests.exe convolution_grouped_fsv4_fsv16/convolution_grouped_gpu.base/in3x3y1z48f_output96f_filter2x2y1z_groups2_stride8_batch1_data_zp1_weights_zp1_comp1_format22"
+  ],
+  "root_cause": "This is a recurrence of the long-standing pattern 502c01bffd8f35db (previously observed 9 times between 2026-11-13 and 2026-11-17), where a cluster of gtest-parallel worker processes crash with exit code 3 within the first ~37 scheduled tests of the Windows GPU unit test suite (ov_gpu_unit_tests.exe), almost entirely basic/convolution_random_smoke_test.* variants and int8 conv/fusion cases. Exit code 3 is the signature of a gtest-parallel worker dying early (resource/GPU-device contention during initial parallel worker startup on the Windows GPU runner) rather than a genuine per-test assertion failure - no [ FAILED ] assertion output or accuracy-tolerance diffs appear for any of the 36 failing tests in this run's log. The triggering merge-queue commit (#39097, 'Support bf16 constants stored in half_val') only touches the TensorFlow frontend's compressed tensor-proto decoding (src/frontends/tensorflow/src/utils.cpp and a new unit test), which is unrelated to the GPU plugin's OpenCL/oneDNN kernel execution exercised by these unit tests, so this is not a regression introduced by the merged commit.",
+  "reproduction_steps": "On a Windows GPU runner: build ov_gpu_unit_tests, then run via gtest-parallel: python gtest_parallel.py ov_gpu_unit_tests.exe --gtest_filter=basic/convolution_random_smoke_test.*:fusings_gpu/conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec.*:convolution_grouped_fsv4_fsv16/*. The failure is intermittent and tied to worker startup/resource contention in the first few dozen scheduled tests, so multiple repeated runs may be needed to reproduce; it is not deterministic per-input.",
+  "recommended_actions": [
+    "Investigate why a cluster of gtest-parallel worker processes repeatedly exit with code 3 within the first ~37 scheduled tests on Windows GPU runners - check for GPU driver/OpenCL context contention during the initial burst of parallel worker startup.",
+    "Confirm this is unrelated to PR #39097 (TF frontend bf16 half_val decoding) - the changed files are confined to the TensorFlow frontend and do not touch the GPU plugin or its tests.",
+    "Given this pattern has now recurred 10 times since 2026-11-13, consider adding retry/quarantine logic for gtest-parallel worker exit-code-3 failures in the Windows GPU unit test job, or reduce initial worker parallelism to avoid the early-startup contention window.",
+    "Re-run the Windows GPU unit tests job for this commit to confirm the failure does not reproduce deterministically, which would further support the flaky-infrastructure classification over a code regression."
+  ],
+  "prevention_strategies": "Track gtest-parallel worker exit code 3 occurrences separately from assertion failures in CI reporting so bursts like this are auto-classified as infra flakiness rather than requiring manual investigation each time. Consider adding a startup stagger or reduced initial concurrency for the first N gtest-parallel workers on GPU runners to avoid device/driver contention during process launch.",
+  "historical_context": "Identical signature (502c01bffd8f35db) recorded 9 times between 2026-11-13T17:54:36Z and 2026-11-17T19:14:36Z across unrelated commits, confirming this is a long-standing intermittent GPU unit test issue on Windows runners tied to gtest-parallel worker startup contention, not something introduced by individual commits including the current one (#39097)."
+}
