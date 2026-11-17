@@ -4,10 +4,11 @@
   "signature_hash": "502c01bffd8f35db",
   "title": "GPU unit tests fail with a burst of 36 gtest-parallel worker crashes among the first ~37 scheduled tests",
   "category": "Flaky Test",
-  "count": 10,
+  "count": 11,
   "first_seen": "2026-11-13T17:54:36Z",
-  "last_seen": "2026-11-17T20:50:03Z",
+  "last_seen": "2026-11-17T22:11:09Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/44068555035",
     "https://github.com/openvinotoolkit/openvino/actions/runs/44101832672",
     "https://github.com/openvinotoolkit/openvino/actions/runs/44093808870",
     "https://github.com/openvinotoolkit/openvino/actions/runs/44077977987",
@@ -16,10 +17,10 @@
     "https://github.com/openvinotoolkit/openvino/actions/runs/43461440649",
     "https://github.com/openvinotoolkit/openvino/actions/runs/43440149471",
     "https://github.com/openvinotoolkit/openvino/actions/runs/43430895182",
-    "https://github.com/openvinotoolkit/openvino/actions/runs/43398624960",
-    "https://github.com/openvinotoolkit/openvino/actions/runs/43369335165"
+    "https://github.com/openvinotoolkit/openvino/actions/runs/43398624960"
   ],
   "affected_commits": [
+    "d07632e9530196158b0714c659f1e97aff5490ea",
     "36ba7864363eb93309d976b99a71c689fc6d7e7a",
     "5fb0379715ca9f5f2e24e7b6f65fce7563f7dfba",
     "599946f676aacb6f0b3ef2d1ba078f34d0f88185",
@@ -28,10 +29,10 @@
     "9041181274a6fa43661525a07fb3fafb3303ab4c",
     "d6bbd412444c8409cd7a264e87d03c3d427957dc",
     "7a48d2a0866400d89ae6067c0beee023dbafb64d",
-    "daad70df37bb008e7d4a0690e78d84989225f2d3",
-    "2ad63894cb2d0ee4df89cf8df03e2079810f7ece"
+    "daad70df37bb008e7d4a0690e78d84989225f2d3"
   ],
   "recent_timestamps": [
+    "2026-11-17T22:11:09Z",
     "2026-11-17T20:50:03Z",
     "2026-11-17T19:14:36Z",
     "2026-11-17T16:14:03Z"

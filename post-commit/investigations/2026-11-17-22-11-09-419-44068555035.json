@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-17-22-11-09-419-44068555035",
+  "timestamp": "2026-11-17T22:11:09Z",
+  "run_id": "44068555035",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44068555035",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "d07632e9530196158b0714c659f1e97aff5490ea",
+  "pr_number": "39839",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39839",
+  "author": "ZackyLake",
+  "category": "Flaky Test",
+  "title": "GPU unit tests fail with a burst of 36 gtest-parallel worker crashes among the first ~37 scheduled tests",
+  "signature": "GPU unit tests accuracy tolerance mismatch in fusion test (val_ref vs val_opt difference exceeds tolerance in fusion_test_common.hpp) followed by burst of concurrent gtest-parallel worker processes exiting with code 3|Flaky Test",
+  "signature_hash": "502c01bffd8f35db",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "ov_gpu_unit_tests.exe run via gtest_parallel.py reported 37/29306 failures: 36 of these are scattered gtest-parallel worker processes that exited with code 3 (process crash, no gtest output captured) within the first ~37 scheduled tests, plus one genuine accuracy-tolerance assertion failure in fusings_gpu/pooling_f32_scale.fp16_scale_out/1."
+    }
+  ],
+  "key_errors": [
+    "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\plugins\\intel_gpu\\tests\\unit\\fusions\\fusion_test_common.hpp(90): error: The difference between val_ref[i] and val_opt[i] is 3.0517578125e-05, which exceeds tolerance, where",
+    "val_ref[i] evaluates to -0.04473876953125, val_opt[i] evaluates to -0.044769287109375, tolerance evaluates to 9.9999997473787516e-06, i = 14",
+    "[  FAILED  ] fusings_gpu/pooling_f32_scale.fp16_scale_out/1 (1442 ms)",
+    "[1/29306] basic/convolution_random_smoke_test.u8s8f32/b_fs_yx_fsv32_i1x64x19x19_w64x64x3x3_s1x1_ofs1x1_d2x2_g64_bias_in_pad returned with exit code 3 (3401 ms)",
+    "FAILED TESTS (37/29306): ... (36 additional entries, each a distinct early-scheduled test case that 'returned with exit code 3' with no captured gtest output)",
+    "##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "This matches the previously-tracked recurring pattern (signature_hash 502c01bffd8f35db, now its 11th occurrence). The GPU unit test binary is launched under gtest_parallel.py, which fans the ~29306 test cases out across many concurrent worker processes at job start. In this run, 36 of the first 37 scheduled worker processes terminated with raw exit code 3 (no gtest PASSED/FAILED banner, no assertion message) rather than completing normally - the classic signature of workers being killed or crashing due to resource contention (GPU device/driver contention, OpenCL context exhaustion, or memory pressure) when gtest-parallel spins up too many concurrent ov_gpu_unit_tests.exe instances immediately at start-up on this runner. Only one test (fusings_gpu/pooling_f32_scale.fp16_scale_out/1) produced an actual accuracy assertion (a 3.05e-05 tolerance overrun, well above the 1e-05 threshold, in a float16-scaled pooling fusion case), which is itself a known-flaky floating point precision boundary unrelated to the PR's content. This failure is not attributable to PR #39839 ([GPU] Make cpu impl to properly generate event), which only changes CPU-impl event generation in the shape-infer dependency chain and does not touch pooling/fusion kernels or test tolerances; the recurring crash burst has been observed across 10 prior, unrelated commits.",
+  "reproduction_steps": "N/A - intermittent, environment/concurrency dependent. Best-effort local repro: on a Windows GPU runner, build the gpu-unit-tests target and run `python gtest_parallel.py --dump_json_test_results=TEST-gpu-unit.json ov_gpu_unit_tests.exe` with the same high worker concurrency as CI while the GPU is also under load from another process, to try to trigger early worker crashes. For the isolated fusion tolerance failure: run `ov_gpu_unit_tests.exe --gtest_filter=fusings_gpu/pooling_f32_scale.fp16_scale_out/1` repeatedly; it fails only sometimes due to floating point rounding at the fp16 scale boundary.",
+  "recommended_actions": [
+    "Investigate whether gtest-parallel's initial worker fan-out count exceeds the GPU runner's safe concurrent-OpenCL-context limit; consider throttling --workers or adding a ramp-up delay for the GPU unit test job specifically.",
+    "Capture and review Windows Event Viewer / driver logs for the affected runner around the failure window (20:37:21-20:37:35Z) to confirm whether exit code 3 corresponds to a GPU driver TDR (timeout detection and recovery) or OOM kill rather than a test assertion.",
+    "Loosen or re-derive the tolerance in fusion_test_common.hpp for fp16-scaled pooling fusion cases (fusings_gpu/pooling_f32_scale.fp16_scale_out), since a ~3e-05 absolute difference at fp16 precision is plausible rounding noise rather than a real regression; alternatively use a relative tolerance for fp16 outputs.",
+    "Given this is the 11th occurrence of signature 502c01bffd8f35db with no fix landed in over a week, escalate to the GPU plugin CI/infra owners to triage the worker-crash root cause directly on the runner rather than continuing to treat each occurrence as a one-off flaky rerun."
+  ],
+  "prevention_strategies": "Add retry-with-backoff or automatic re-run of only the tests that returned exit code 3 (as opposed to tests with real gtest FAILED assertions) in the gtest-parallel GPU unit test invocation, since exit-code-3 crashes without gtest output are a distinct, likely-infrastructure failure mode from genuine assertion failures and should be isolated/retried separately in reporting. Track recurring 'Flaky Test' signatures like this one with an escalation threshold (e.g., auto-file or bump priority on a tracking issue once count crosses 5) so transient-looking patterns that are in fact a persistent environment issue get prioritized fixes instead of indefinite accumulation in this database.",
+  "historical_context": "This is the 11th recorded occurrence of signature 502c01bffd8f35db ('GPU unit tests fail with a burst of ~36 gtest-parallel worker crashes among the first ~37 scheduled tests'), first seen 2026-11-13T17:54:36Z and recurring across 10 prior unrelated commits/PRs with no fix yet landed. The commit for this run (d07632e9530196158b0714c659f1e97aff5490ea, PR #39839) only touches GPU CPU-impl shape-infer event generation and is unrelated to the failure. Separate Infrastructure signatures for the same job (3be0e72d6ae29098 PowerShell execution-policy error, 514ffa2ab52ad344 locked tbb12.dll, a9c74b1ea2c2e7f5 80-minute timeout) have also recurred on this same Windows GPU unit tests job in the past, indicating this specific CI lane is a recurring source of flaky/infra noise independent of code changes."
+}
