@@ -195,9 +195,6 @@ inline bool supports_gqa_multi_tokens_dpas_kernel(const kernel_impl_params& para
     }
 
     const auto desc = params.typed_desc<paged_attention>();
-    if (desc->has_token_type_ids) {
-        return false;
-    }
     const size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
     if (gqa_multi_tokens_rows_per_sg % kv_group_size != 0) {
         return false;
