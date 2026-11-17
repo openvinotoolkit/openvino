@@ -193,7 +193,46 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
         results.insert(results.end(), draft_results.begin(), draft_results.end());
         params.insert(params.end(), draft_params.begin(), draft_params.end());
         pass::MaterializeGGUFWeights().run_on_model(std::make_shared<Model>(results, params));
-        m_mtp_draft = finalize_model(draft->clone(), *draft_decoder);
+        model = finalize_model(model->clone(), *decoder);
+        draft = finalize_model(draft->clone(), *draft_decoder);
+        OPENVINO_ASSERT(model->get_sinks().empty() && draft->get_sinks().empty(),
+                        "[GGUF] MTP conversion requires stateless decoder transformations");
+        const auto prefix_names = [](const ov::Output<ov::Node>& output) {
+            std::unordered_set<std::string> names;
+            for (const auto& name : output.get_names())
+                names.insert("mtp." + name);
+            output.get_tensor().set_names(names);
+        };
+        for (const auto& parameter : draft->get_parameters()) {
+            parameter->set_friendly_name("mtp." + parameter->get_friendly_name());
+            prefix_names(parameter->output(0));
+        }
+        for (const auto& result : draft->get_results()) {
+            result->set_friendly_name("mtp." + result->get_friendly_name());
+            prefix_names(result->input_value(0));
+        }
+        results = model->get_results();
+        params = model->get_parameters();
+        const auto target_results = results.size();
+        const auto target_params = params.size();
+        results.insert(results.end(), draft->get_results().begin(), draft->get_results().end());
+        params.insert(params.end(), draft->get_parameters().begin(), draft->get_parameters().end());
+        auto combined = std::make_shared<Model>(results, params);
+        combined->get_rt_info() = model->get_rt_info();
+        combined->get_rt_info()["gguf_mtp_components"] =
+            ov::AnyMap{{"target_results", static_cast<int64_t>(target_results)},
+                       {"target_parameters", static_cast<int64_t>(target_params)},
+                       {"draft_rt_info", draft->get_rt_info()}};
+        size_t offset = 0;
+        for (const auto& node : combined->get_ordered_ops()) {
+            if (const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
+                constant && constant->get_element_type().size() > 0 &&
+                constant->get_byte_size() / constant->get_element_type().size() >= 16) {
+                constant->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
+                    ov::WeightlessCacheAttribute(constant->get_byte_size(), offset++, constant->get_element_type());
+            }
+        }
+        return combined;
     }
     return finalize_model(model->clone(), *decoder);
 }

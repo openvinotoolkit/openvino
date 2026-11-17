@@ -12,6 +12,10 @@
 
 namespace ov::frontend::gguf {
 
+struct LoadOptions {
+    bool include_mtp_draft = false;
+};
+
 class GGUF_FRONTEND_API FrontEnd : public ov::frontend::FrontEnd {
 public:
     using Ptr = std::shared_ptr<FrontEnd>;
@@ -41,8 +45,8 @@ public:
     /// - `ov::frontend::gguf::ArchitectureExtension` — registers decoder or custom-family builders
     ///   before load(), without rebuilding the frontend. See docs/extensions.md.
     /// - `ov::frontend::gguf::ProjectorExtension` — registers one mmproj branch before load().
-    /// - `ov::frontend::gguf::GenAIExtension` — creates stateful decoder caches during normalization
-    ///   and adapts the normalized model to GenAI IO before convert() returns.
+    /// - `ov::frontend::gguf::GenAIExtension` — deprecated; calls ov::frontend::gguf::adapt_to_genai
+    ///   before convert() returns.
     /// - `ov::frontend::TelemetryExtension` — stored; callbacks are not currently invoked.
     /// - `ov::detail::SOExtension` — shared-library extension; its inner extension is recursively registered.
     /// - `ov::BaseOpExtension` — recursively registers attached op-level extensions.

@@ -11,6 +11,7 @@
 #include <memory>
 #include <numeric>
 #include <optional>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -22,6 +23,7 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "gguf_writer.hpp"
 #include "gtest/gtest.h"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
@@ -61,6 +63,7 @@ struct MtpFixture {
     bool explicit_untied_hadamard = false;
     bool inverse_embedding_hadamard = false;
     bool separate_embedding = false;
+    uint32_t nextn_layers = 1;
 };
 
 // Remove the generated files even when a test fails.
@@ -113,7 +116,7 @@ std::string write_decoder_gguf(const std::string& dir,
     writer.kv_f32(arch + (layer_norm ? ".attention.layer_norm_epsilon" : ".attention.layer_norm_rms_epsilon"), 1e-5f);
     writer.kv_f32(arch + ".rope.scaling.factor", 4.f);
     if (mtp) {
-        writer.kv_u32(arch + ".nextn_predict_layers", 1);
+        writer.kv_u32(arch + ".nextn_predict_layers", fixture.nextn_layers);
         writer.kv_u32(arch + ".full_attention_interval", 1);
         writer.kv_u32(arch + ".ssm.conv_kernel", 4);
         writer.kv_u32(arch + ".ssm.state_size", 4);
@@ -291,7 +294,7 @@ TEST(GGUFGenAIExtension, RegistrationIsLocalAndConversionCanBeRepeated) {
 }
 
 TEST(GGUFGenAIExtension, MtpDraftAcceptsTargetOnlyLayerMetadata) {
-    using Extension = ov::frontend::gguf::GenAIExtension;
+    using namespace ov::frontend::gguf;
     // Target-only arrays must match the explicit full-layer reference; the second case infers
     // two NextN KV heads from a projection using the smaller sliding-window head size.
     const std::vector<std::pair<MtpFixture, MtpFixture>> cases{
@@ -304,9 +307,9 @@ TEST(GGUFGenAIExtension, MtpDraftAcceptsTargetOnlyLayerMetadata) {
         ScratchDir all_layers_dir;
         const auto load = [&](const std::string& dir, const MtpFixture& fixture) {
             const auto path = write_decoder_gguf(dir, "qwen35", 2, false, fixture);
-            auto extension = std::make_shared<Extension>(Extension::InputMode::IDS_TO_LOGITS, "mtp");
-            convert_with(path, {extension});
-            return extension->get_mtp_draft_model();
+            FrontEnd frontend;
+            auto models = adapt_to_genai(frontend.convert(frontend.load(path, LoadOptions{true})));
+            return models.at("mtp_draft");
         };
         const auto target_only_model = load(target_only_dir.path(), target_only);
         const auto all_layers_model = load(all_layers_dir.path(), all_layers);
@@ -355,8 +358,8 @@ TEST(GGUFGenAIExtension, MtpDraftAcceptsTargetOnlyLayerMetadata) {
     }
 }
 
-TEST(GGUFGenAIExtension, MtpComponentIsResolvedAtConvertAndFiltersUnusedHadamardWeights) {
-    using Extension = ov::frontend::gguf::GenAIExtension;
+TEST(GGUFGenAIExtension, MtpLoadOptionFiltersUnusedHadamardWeights) {
+    using namespace ov::frontend::gguf;
     // The draft uses its NextN head, so output.weight (or the tied token_embd head) is unused;
     // target-only names leave nothing rotated.
     struct HadamardCase {
@@ -383,20 +386,92 @@ TEST(GGUFGenAIExtension, MtpComponentIsResolvedAtConvertAndFiltersUnusedHadamard
         fixture.inverse_embedding_hadamard = test_case.inverse_embedding;
         const auto path = write_decoder_gguf(scratch.path(), "qwen35", 2, false, fixture);
         ov::frontend::gguf::FrontEnd frontend;
-        const auto input = frontend.load(path);
-        const auto extension = std::make_shared<Extension>(Extension::InputMode::EMBEDS_TO_LOGITS_TEXT, "mtp");
-        frontend.add_extension(extension);
-        const auto model = frontend.convert(input);
+        const auto input = frontend.load(path, LoadOptions{true});
+        auto models = adapt_to_genai(frontend.convert(input), {pass::AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS_TEXT});
+        const auto model = models.at("language");
         EXPECT_NO_THROW(model->output("last_hidden_state"));
-        const auto draft = extension->get_mtp_draft_model();
+        const auto draft = models.at("mtp_draft");
         ASSERT_TRUE(draft);
         EXPECT_EQ(draft->input("hidden_states").get_partial_shape(), (ov::PartialShape{-1, -1, 8}));
         EXPECT_EQ(draft->output("logits").get_partial_shape(), (ov::PartialShape{-1, -1, 16}));
     }
 }
 
+TEST(GGUFGenAIExtension, MtpIsOptionalAndSurvivesModelClone) {
+    using namespace ov::frontend::gguf;
+    ScratchDir scratch;
+    const auto path = write_decoder_gguf(scratch.path(), "qwen35", 2, false, MtpFixture{});
+    FrontEnd frontend;
+    ASSERT_TRUE(frontend.supported(path, LoadOptions{true}));
+    auto ordinary = adapt_to_genai(frontend.convert(frontend.load(path)));
+    EXPECT_EQ(ordinary.count("mtp_draft"), 0);
+    EXPECT_THROW(ordinary.at("language")->output("last_hidden_state"), ov::Exception);
+
+    auto combined = frontend.convert(frontend.load(path, LoadOptions{true}));
+    EXPECT_TRUE(combined->has_rt_info("gguf_mtp_components"));
+    EXPECT_NO_THROW(combined->input("mtp.inp_tokens"));
+    std::set<size_t> offsets;
+    for (const auto& operation : combined->get_ops()) {
+        const auto& info = operation->get_rt_info();
+        const auto it = info.find(ov::WeightlessCacheAttribute::get_type_info_static());
+        if (it != info.end())
+            EXPECT_TRUE(offsets.insert(it->second.as<ov::WeightlessCacheAttribute>().bin_offset).second);
+    }
+    EXPECT_GT(offsets.size(), 1);
+    auto models = adapt_to_genai(combined->clone());
+    ASSERT_EQ(models.count("language"), 1);
+    ASSERT_EQ(models.count("mtp_draft"), 1);
+    EXPECT_NO_THROW(models.at("language")->output("last_hidden_state"));
+    EXPECT_NO_THROW(models.at("mtp_draft")->input("hidden_states"));
+}
+
+TEST(GGUFGenAIExtension, MtpWithoutNextNExposesOnlyTarget) {
+    using namespace ov::frontend::gguf;
+    ScratchDir scratch;
+    MtpFixture fixture;
+    fixture.nextn_layers = 0;
+    const auto path = write_decoder_gguf(scratch.path(), "qwen35", 2, false, fixture);
+    FrontEnd frontend;
+    const auto models = adapt_to_genai(frontend.convert(frontend.load(path, LoadOptions{true})));
+    EXPECT_EQ(models.count("mtp_draft"), 0);
+    EXPECT_NO_THROW(models.at("language")->output("last_hidden_state"));
+}
+
+TEST(GGUFGenAIExtension, MtpLoadOptionsSupportPathListsAndTrailingMmap) {
+    using namespace ov::frontend::gguf;
+    ScratchDir scratch;
+    const auto path = write_decoder_gguf(scratch.path(), "qwen35", 2, false, MtpFixture{});
+    FrontEnd frontend;
+    const std::vector<std::string> paths{path};
+    ASSERT_TRUE(frontend.supported(paths, LoadOptions{true}, false));
+    const auto input = frontend.load(paths, LoadOptions{true}, false);
+    for (size_t i = 0; i < 2; ++i) {
+        const auto models = adapt_to_genai(frontend.convert(input));
+        ASSERT_EQ(models.count("language"), 1);
+        ASSERT_EQ(models.count("mtp_draft"), 1);
+    }
+    EXPECT_FALSE(frontend.supported(path, LoadOptions{true}, LoadOptions{true}));
+}
+
+TEST(GGUFGenAIExtension, MtpLoadOptionsRejectLegacyTransformationExtensions) {
+    using namespace ov::frontend::gguf;
+    ScratchDir scratch;
+    const auto path = write_decoder_gguf(scratch.path(), "qwen35", 2, false, MtpFixture{});
+    FrontEnd legacy;
+    legacy.add_extension(std::make_shared<GenAIExtension>());
+    OV_EXPECT_THROW(legacy.convert(legacy.load(path, LoadOptions{true})),
+                    ov::Exception,
+                    testing::HasSubstr("MTP conversion requires adapt_to_genai"));
+
+    FrontEnd custom;
+    custom.add_extension(std::make_shared<ov::frontend::DecoderTransformationExtension>(pass::GGUFMakeStateful()));
+    OV_EXPECT_THROW(custom.convert(custom.load(path, LoadOptions{true})),
+                    ov::Exception,
+                    testing::HasSubstr("MTP conversion does not support decoder transformation extensions"));
+}
+
 TEST(GGUFGenAIExtension, MtpComponentsRejectUnsupportedInputs) {
-    using Extension = ov::frontend::gguf::GenAIExtension;
+    using namespace ov::frontend::gguf;
     MtpFixture separate_embedding;
     separate_embedding.separate_embedding = true;
     struct Case {
@@ -409,7 +484,6 @@ TEST(GGUFGenAIExtension, MtpComponentsRejectUnsupportedInputs) {
     const std::string per_layer = "per-layer settings must describe every decoder layer";
     const std::vector<Case> cases{
         {"qwen3", 2, std::nullopt, "mtp", "MTP is not supported for architecture"},
-        {"qwen3", 2, std::nullopt, "mtp_target", "unknown decoder component"},
         {"qwen35", 0, MtpFixture{}, "mtp", "qwen35.block_count"},
         {"qwen35", 1, MtpFixture{}, "mtp", "invalid number of NextN blocks"},
         {"qwen35", 2, separate_embedding, "mtp", "shared token embeddings"},
@@ -421,9 +495,10 @@ TEST(GGUFGenAIExtension, MtpComponentsRejectUnsupportedInputs) {
         SCOPED_TRACE(test_case.error);
         ScratchDir scratch;
         const auto path = write_decoder_gguf(scratch.path(), test_case.arch, test_case.layers, false, test_case.mtp);
-        const auto extension =
-            std::make_shared<Extension>(Extension::InputMode::EMBEDS_TO_LOGITS_TEXT, test_case.component);
-        OV_EXPECT_THROW(convert_with(path, {extension}), ov::Exception, testing::HasSubstr(test_case.error));
+        FrontEnd frontend;
+        OV_EXPECT_THROW(frontend.convert(frontend.load(path, LoadOptions{test_case.component == "mtp"})),
+                        ov::Exception,
+                        testing::HasSubstr(test_case.error));
     }
 }
 
@@ -494,11 +569,9 @@ TEST(GGUFArchitectureExtension, ExternalBuilderCanAcknowledgeSelectedComponent) 
                                    return std::make_shared<Qwen3Builder>(context);
                                }},
         RegistrationMode::Replace));
-    frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>(
-        ov::frontend::gguf::GenAIExtension::InputMode::IDS_TO_LOGITS,
-        "external-component"));
-
-    const auto model = frontend.convert(frontend.load(path));
+    const auto model =
+        ov::frontend::gguf::adapt_to_genai(frontend.convert(frontend.load(path, ov::frontend::gguf::LoadOptions{true})))
+            .at("language");
     ASSERT_TRUE(model);
     EXPECT_EQ(model->output().get_partial_shape(), (ov::PartialShape{-1, -1, 16}));
 }

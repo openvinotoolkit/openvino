@@ -794,6 +794,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     if (infer_precision != ov::element::dynamic && !fp_precision_supported(infer_precision)) {
         infer_precision = fallback_precision;
     }
+    const bool cm_jit_supported = (device_info.arch == cldnn::gpu_arch::xe2 || device_info.arch == cldnn::gpu_arch::xe3) &&
+                                  check_cm_jit_support(m_context->get_engine(), config);
     {
         using namespace ov::pass::low_precision;
         const auto enableQDQStripping = LowPrecision::isFunctionQuantized(func, std::set<levels>{levels::int16});
@@ -1923,7 +1925,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (!device_info.supports_immad) {
             manager.register_pass<ov::intel_gpu::ReduceFCDimensions>();
         }
-        manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
+        manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>(device_info, cm_jit_supported);
         manager.register_pass<ov::intel_gpu::FoldActivationTranspose>();
 
         const bool disable_horizontal_fc_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_horizontal_fc_fusion(), false);
@@ -1978,7 +1980,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::pass::ConstantFolding>();
 
         manager.register_pass<ov::pass::SDPAScaleFusion>();
-        manager.register_pass<ov::pass::ConvertGatherToGatherCompressed>();
+        manager.register_pass<ov::pass::ConvertGatherToGatherCompressed>(
+            std::vector<ov::element::Type>{ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4, ov::element::u2});
         auto pass_config = manager.get_pass_config();
         pass_config->set_callback<ov::intel_gpu::KVCacheFusionMatcher>([](const_node_ptr& node) -> bool {
             const auto& rank = node->input(0).get_partial_shape().rank().get_length();
@@ -2084,10 +2087,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 }
 
                 auto fc = ov::as_type_ptr<const ov::intel_gpu::op::FullyConnectedCompressed>(root);
-                auto weight_shape = fc->get_input_partial_shape(1);
-                const size_t k_axis = weight_shape.size() - (fc->get_transpose_b() ? 1 : 2);
-                const size_t n_axis = weight_shape.size() - (fc->get_transpose_b() ? 2 : 1);
-                const size_t innermost_size = weight_shape[k_axis].get_length();
+                const auto weight_dims = ov::intel_gpu::op::fc_weight_dims(fc->get_input_partial_shape(1), fc->get_weights_layout());
+                const size_t innermost_size = weight_dims.K.get_length();
                 const size_t simd = 16;
                 if (innermost_size < 32 || (innermost_size % (simd * 2) != 0)) {
                     GPU_DEBUG_TAGGED(TRACE, "dynquan") << root->get_friendly_name() << " turned off: K " << innermost_size
@@ -2113,7 +2114,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
                 // A single output feature (N == 1) FC has a matmul too small to amortize
                 // the cost of dynamically quantizing its activation
-                const auto& n_dim = weight_shape[n_axis];
+                const auto& n_dim = weight_dims.N;
                 if (n_dim.is_static() && n_dim.get_length() == 1) {
                     GPU_DEBUG_TAGGED(TRACE, "dynquan") << root->get_friendly_name()
                                                        << " turned off: N == 1 (activation quantization is unprofitable;"

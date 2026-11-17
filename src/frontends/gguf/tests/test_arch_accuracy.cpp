@@ -56,7 +56,8 @@ namespace {
 class GGUFArchitectureAccuracy : public ::testing::TestWithParam<const char*> {};
 
 TEST(GGUFQwenMtpAccuracy, TargetAndDraftPrefillDecodeMatchGgmlCpu) {
-    using Extension = ov::frontend::gguf::GenAIExtension;
+    using namespace ov::frontend::gguf;
+    using InputMode = pass::AdaptToGenAI::InputMode;
     const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen35-mtp.npz");
     const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
     ov::Core core;
@@ -153,19 +154,22 @@ TEST(GGUFQwenMtpAccuracy, TargetAndDraftPrefillDecodeMatchGgmlCpu) {
                 data.insert(constant->get_data_ptr());
         return data;
     };
-    for (const auto& [mode, component] : {std::pair{Extension::InputMode::IDS_TO_LOGITS, std::string{}},
-                                          {Extension::InputMode::EMBEDS_TO_LOGITS_TEXT, std::string{}},
-                                          {Extension::InputMode::IDS_TO_LOGITS, std::string{"mtp"}},
-                                          {Extension::InputMode::EMBEDS_TO_LOGITS_TEXT, std::string{"mtp"}}}) {
+    for (const auto& [mode, component] : {std::pair{InputMode::IDS_TO_LOGITS, std::string{}},
+                                          {InputMode::EMBEDS_TO_LOGITS_TEXT, std::string{}},
+                                          {InputMode::IDS_TO_LOGITS, std::string{"mtp"}},
+                                          {InputMode::EMBEDS_TO_LOGITS_TEXT, std::string{"mtp"}}}) {
         SCOPED_TRACE(static_cast<int>(mode));
         SCOPED_TRACE(component);
-        ov::frontend::gguf::FrontEnd frontend;
-        auto extension = std::make_shared<Extension>(mode, component);
-        frontend.add_extension(extension);
-        const auto model = frontend.convert(frontend.load(temporary.path));
-        const auto draft = extension->get_mtp_draft_model();
+        FrontEnd frontend;
+        auto models =
+            adapt_to_genai(frontend.convert(frontend.load(temporary.path, LoadOptions{!component.empty()})), {mode});
+        const auto model = models.at("language");
+        const auto draft_it = models.find("mtp_draft");
+        const auto draft = draft_it == models.end() ? nullptr : draft_it->second;
+        const auto lookup_it = models.find("text_embeddings");
+        const auto lookup = lookup_it == models.end() ? nullptr : lookup_it->second;
         ASSERT_EQ(draft != nullptr, !component.empty());
-        if (draft && mode == Extension::InputMode::IDS_TO_LOGITS) {
+        if (draft && mode == InputMode::IDS_TO_LOGITS) {
             // Both lookups read one token embedding buffer instead of unpacking it twice.
             const auto target_data = constant_data(model);
             const auto draft_data = constant_data(draft);
@@ -173,10 +177,10 @@ TEST(GGUFQwenMtpAccuracy, TargetAndDraftPrefillDecodeMatchGgmlCpu) {
                 return target_data.count(data) != 0;
             }));
         }
-        check(model, extension->get_embedding_model(), false, draft != nullptr);
+        check(model, lookup, false, draft != nullptr);
         // In embeddings mode the draft consumes the target's lookup model.
         if (draft)
-            check(draft, extension->get_embedding_model(), true, true);
+            check(draft, lookup, true, true);
     }
 }
 
@@ -1100,6 +1104,35 @@ TEST(GGUFMultimodalBackboneAdaptation, QwenAndGemmaSupportBatchesAndPagedAttenti
         EXPECT_EQ(attention, gemma ? (std::string(family) == "gemma4-ple" ? 4 : 2) : 1);
         EXPECT_EQ(recurrent, gemma ? 0 : 3);
         EXPECT_TRUE(model->get_sinks().empty());
+    }
+}
+
+TEST(GGUFMultimodalBackboneAdaptation, AdaptToGenAIReturnsDecoderModels) {
+    auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/gemma4-ple.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    ov::frontend::gguf::FrontEnd frontend;
+    const auto input = frontend.load(temporary.path);
+    using Mode = ov::frontend::gguf::pass::AdaptToGenAI::InputMode;
+    for (const auto mode : {Mode::IDS_TO_LOGITS, Mode::EMBEDS_TO_LOGITS}) {
+        const bool embeds = mode == Mode::EMBEDS_TO_LOGITS;
+        SCOPED_TRACE(embeds);
+        const auto converted = frontend.convert(input);
+        const auto models = ov::frontend::gguf::adapt_to_genai(converted, {mode});
+        std::set<std::string> names;
+        for (const auto& [name, model] : models)
+            names.insert(name);
+        const std::set<std::string> expected =
+            embeds ? std::set<std::string>{"language", "text_embeddings", "text_embeddings_per_layer"}
+                   : std::set<std::string>{"language"};
+        EXPECT_EQ(names, expected);
+        const auto& language = models.at("language");
+        EXPECT_EQ(language, converted);
+        EXPECT_FALSE(language->get_variables().empty());
+        EXPECT_NO_THROW(language->input("beam_idx"));
+        EXPECT_NO_THROW(language->input(embeds ? "inputs_embeds" : "input_ids"));
+        OV_EXPECT_THROW(ov::frontend::gguf::adapt_to_genai(language, {mode}),
+                        ov::Exception,
+                        testing::HasSubstr("already adapted"));
     }
 }
 
