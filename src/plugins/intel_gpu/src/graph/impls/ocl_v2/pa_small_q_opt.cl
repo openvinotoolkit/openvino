@@ -216,7 +216,15 @@ KERNEL(pa_small_q_opt)(
     const uint context_len = past_len + query_count;
     const uint block_table_begin = block_indices_begins[subsequence_idx];
     const uint head_begin = kv_head_idx * KV_HEADS_GROUP_SIZE;
-    const uint partition_start = partition_idx * SEQ_LEN_PARTITION_SIZE;
+#if SWA_BLOCK_SKIP_ENABLED
+    // Partitions start at the first block of the first query token's window, as in paged_attention_opt.cl, whose
+    // finalization stage merges them. Later rows' windows and type-1 runs (at or after past_len) never start earlier.
+    const uint first_query_len = past_len + 1;
+    const uint swa_start_token = first_query_len > SLIDING_WINDOW_SIZE ? (first_query_len - SLIDING_WINDOW_SIZE) / BLOCK * BLOCK : 0;
+#else
+    const uint swa_start_token = 0;
+#endif
+    const uint partition_start = swa_start_token + partition_idx * SEQ_LEN_PARTITION_SIZE;
 
 #ifdef SCALE_VAL
     const float scale_val = SCALE_VAL;
@@ -284,17 +292,7 @@ KERNEL(pa_small_q_opt)(
 #endif
     }
 
-    // The first query row defines the union of keys needed by this subsequence's sliding windows: a later row's window,
-    // or a type-1 token's run start (>= past_len), never starts before it.
-    uint tile_start = partition_start;
-#if SLIDING_WINDOW_SIZE != 0
-    const uint first_query_seq_len = past_len + 1;
-    if (first_query_seq_len > SLIDING_WINDOW_SIZE) {
-        const uint window_start = first_query_seq_len - SLIDING_WINDOW_SIZE;
-        tile_start = max(tile_start, (window_start / BLOCK) * BLOCK);
-    }
-#endif
-
+    const uint tile_start = partition_start;
     uint tile_count = 0;
     const uint partition_end = partition_start + SEQ_LEN_PARTITION_SIZE;
     if (tile_start < context_len && tile_start < partition_end) {
@@ -423,7 +421,7 @@ KERNEL(pa_small_q_opt)(
         const float inv_denom = denom > 0.0f ? 1.0f / denom : 0.0f;
 
         // The finalization stage skips tokens fitting into a single partition, so those are written to output directly
-        if (key_end[m] > SEQ_LEN_PARTITION_SIZE) {
+        if (key_end[m] - swa_start_token > SEQ_LEN_PARTITION_SIZE) {
             if (sglid == 0) {
                 const uint exp_sums_offset = token * HEADS_NUM * total_partitions_num + head * total_partitions_num + partition_idx;
                 exp_sums[exp_sums_offset] = denom;

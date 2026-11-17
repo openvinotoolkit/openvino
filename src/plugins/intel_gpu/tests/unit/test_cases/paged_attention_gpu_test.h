@@ -2210,6 +2210,9 @@ public:
         if (kv_cache_precision != ov::element::dynamic) {
             config.set_property(ov::hint::kv_cache_precision(kv_cache_precision));
         }
+        if (p.disable_sdpa_micro) {
+            config.set_property(ov::intel_gpu::enable_sdpa_micro(false));
+        }
         cldnn::network::ptr network = tests::get_network(tests::get_test_engine(), topology, config, tests::get_test_stream_ptr(), false);
         network->set_input_data("query", query_mem);
         network->set_input_data("key", key_mem);
@@ -3028,6 +3031,8 @@ struct paged_attention_test_params {
     std::optional<std::vector<ov::float16>> sink_values = std::nullopt;
     // When true, forces could_use_flashattn_v2(true) to guarantee the FA_V2 kernel path.
     bool force_flashattn_v2 = false;
+    // When true, disables micro SDPA (GPU_ENABLE_SDPA_MICRO=false) so the OCL kernels run.
+    bool disable_sdpa_micro = false;
 
     // Replaces generated Key inputs with zeros and validates BY_CHANNEL cache scales.
     bool zero_key_data = false;

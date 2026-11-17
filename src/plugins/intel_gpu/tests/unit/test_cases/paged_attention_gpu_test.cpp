@@ -1088,6 +1088,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_gqa_multi_tokens, paged_attention
     with_token_type_ids(make_gqa_multi_tokens_params({{8, 300}}, 8, 2, 64), {1, 1, 1, 1, 1, 1, 1, 1}),
     with_token_type_ids(make_gqa_multi_tokens_params({{9, 20}}, 32, 8, 128), dflash_token_types({{1, 8}})),
 
+    // sliding window over several partitions: blocks before the window are skipped
+    with_sliding_window(make_gqa_multi_tokens_params({{8, 3000}}, 16, 4, 128), 256),
+    with_sliding_window(make_gqa_multi_tokens_params({{3, 2500}}, 16, 4, 128, ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL), 300),
+    with_sliding_window(make_gqa_multi_tokens_params({{4, 2500}}, 32, 2, 128), 512),  // group 16: fallback only
+    with_sliding_window(make_gqa_multi_tokens_params({{6, 1800}}, 28, 4, 128, ov::element::i8, ov::internal::CacheQuantMode::BY_TOKEN), 100),
+    with_sliding_window(make_gqa_multi_tokens_params({{3, 600}, {8, 20}, {5, 2000}}, 16, 4, 128), 256),  // windows start differently
+    with_sliding_window(with_token_type_ids(make_gqa_multi_tokens_params({{16, 5000}}, 32, 8, 128, ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL),
+                                            dflash_token_types({{8, 8}})),
+                        4096),
+    with_sliding_window(with_token_type_ids(make_gqa_multi_tokens_params({{12, 900}, {9, 3000}}, 32, 8, 128), dflash_token_types({{4, 8}, {1, 8}})),
+                        250),
+
     // GQA ratios 2/4/8, single and double-buffered K/V SLM (cut-off at 4 subgroups)
     make_gqa_multi_tokens_params({{4, 32}}, 8, 2, 64),
     make_gqa_multi_tokens_params({{16, 40}}, 4, 2, 64),
@@ -1217,6 +1229,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_gqa_multi_tokens_accuracy, paged_
     with_sliding_window(make_gqa_multi_tokens_params({{8, 300}}, 6, 2, 32), 17),
     with_qq_bias(make_gqa_multi_tokens_params({{8, 300}}, 6, 2, 32), make_tree_qq_bias({8})),
     make_gqa_multi_tokens_params({{2, 700}, {16, 40}, {7, 256}}, 12, 4, 64, ov::element::i8, ov::internal::CacheQuantMode::BY_CHANNEL),
+}));
+
+static paged_attention_test_params without_micro_sdpa(paged_attention_test_params p) {
+    p.disable_sdpa_micro = true;
+    return p;
+}
+
+// Plain multi-token kernel (no GQA, or more than 16 query tokens) with a sliding window over several partitions
+INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_multi_tokens_sliding_window, paged_attention_gqa_multi_tokens_accuracy_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    without_micro_sdpa(with_sliding_window(make_gqa_multi_tokens_params({{6, 1500}}, 8, 8, 64), 200)),
+    without_micro_sdpa(with_sliding_window(make_gqa_multi_tokens_params({{40, 2000}}, 16, 4, 128), 256)),
+    without_micro_sdpa(with_sliding_window(make_gqa_multi_tokens_params({{24, 1000}, {3, 3000}}, 16, 4, 128, ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL), 300)),
+    without_micro_sdpa(with_sliding_window(with_token_type_ids(make_gqa_multi_tokens_params({{24, 3000}}, 32, 8, 128), dflash_token_types({{8, 16}})), 500)),
 }));
 
 INSTANTIATE_TEST_SUITE_P(smoke_cm_small_q, cm_small_q_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
