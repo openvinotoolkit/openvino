@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "assign_inst.h"
+#include "condition_inst.h"
 #include "convert_color_inst.h"
 #include "fully_connected_inst.h"
 #include "mvn_inst.h"
@@ -96,6 +97,32 @@ void eliminate_pad_for_onednn_impl(program& p, program_node& node) {
         }
 
         return;
+    }
+}
+
+// condition passes its input buffers as they are to the parameters of the branch programs. The branch programs are built
+// before the outer program, so their parameters are in the default format without padding. Reorder the inputs which don't
+// match, e.g. outputs in a blocked format or padded views of in-place crop and concat.
+void reorder_condition_inputs(program& p, program_node& node) {
+    for (size_t idx = 0; idx < node.get_dependencies().size(); idx++) {
+        const auto [input, port] = node.get_dependency_with_port(idx);
+        const auto& in_layout = input->get_output_layout(false, port);
+        if (in_layout.is_dynamic()) {
+            continue;
+        }
+
+        auto expected_layout = in_layout;
+        expected_layout.format = format::get_default_format(in_layout.get_partial_shape().size());
+        expected_layout.data_padding = padding();
+        if (in_layout == expected_layout) {
+            continue;
+        }
+
+        auto new_reorder =
+            std::make_shared<reorder>(input->id() + "_reorder_" + node.id() + "_p" + std::to_string(idx), input_info(input->id(), port), expected_layout);
+        auto& new_reorder_node = p.get_or_create(new_reorder);
+        p.add_intermediate(new_reorder_node, node, idx);
+        new_reorder_node.recalc_output_layouts(false);
     }
 }
 }  // namespace
@@ -258,6 +285,10 @@ void add_required_reorders::run(program& p) {
                     new_reorder_node.recalc_output_layout(false);
                 }
             }
+        }
+
+        if (usr->is_type<condition>()) {
+            reorder_condition_inputs(p, *usr);
         }
 
         // Remove padded-inputs in spatial axes not to use ref kernel which causes huge perf drop

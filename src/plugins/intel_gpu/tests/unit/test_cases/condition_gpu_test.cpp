@@ -14,6 +14,8 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/concatenation.hpp>
+#include <intel_gpu/primitives/convolution.hpp>
+#include <intel_gpu/primitives/crop.hpp>
 #include <intel_gpu/primitives/fully_connected.hpp>
 #include <intel_gpu/primitives/pooling.hpp>
 #include <intel_gpu/primitives/condition.hpp>
@@ -1570,3 +1572,161 @@ TEST(condition_gpu, executed_branch_switch_rebinds_static_consumer) {
     }
 }
 
+namespace {
+// The branch programs of condition are built before the outer program, so their parameters are in the default format
+// without padding, and condition passes its input buffers to them as they are. These tests feed condition from producers
+// which select another layout for their output.
+enum class condition_input_producer {
+    reorder,         // reorder to the producer format
+    reorder_shared,  // reorder to the producer format which is also used by another primitive
+    reorder_twice,   // reorder to the producer format which is passed to condition twice
+    convolution,     // convolution with output in the producer format
+    crop,            // crop optimized in place, whose output is a padded view of its input
+};
+
+void test_condition_input_layout(condition_input_producer producer,
+                                 const ov::PartialShape& shape,
+                                 bool is_caching_test,
+                                 format::type producer_format = format::b_fs_yx_fsv16) {
+    auto& engine = get_test_engine();
+    ExecutionConfig branch_config = get_test_default_config(engine);
+    branch_config.set_property(ov::intel_gpu::optimize_data(true));
+    ExecutionConfig config = branch_config;
+
+    const primitive_id producer_id = "producer";
+    if (producer == condition_input_producer::reorder_shared) {
+        config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"condi", "other"}));
+    } else if (producer == condition_input_producer::convolution) {
+        ov::intel_gpu::ImplementationDesc conv_impl = {producer_format, ""};
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{producer_id, conv_impl}}));
+    }
+
+    // crop takes the second half of the features of its input
+    auto input_shape = shape;
+    if (producer == condition_input_producer::crop) {
+        input_shape[1] *= 2;
+    }
+    const layout in_layout{input_shape, data_types::f16, format::bfyx};
+    const layout branch_in_layout{shape, data_types::f16, format::bfyx};
+    auto input_mem = engine.allocate_memory(in_layout);
+    auto predicate_mem = engine.allocate_memory({ov::PartialShape{1}, data_types::u8, format::bfyx});
+
+    std::vector<ov::float16> input_data(in_layout.count());
+    for (size_t i = 0; i < input_data.size(); ++i) {
+        input_data[i] = ov::float16(static_cast<float>(static_cast<int>(i % 9) - 4));
+    }
+    set_values(input_mem, input_data);
+
+    auto create_branch = [&](const primitive_id& output_id, float a, float b) {
+        condition::branch branch;
+        cldnn::topology branch_topology(input_layout("branch_input", branch_in_layout),
+                                        activation(output_id, input_info("branch_input"), activation_func::linear, {a, b}));
+        branch.inner_program = program::build_program(engine, branch_topology, branch_config, false, false, true);
+        branch.input_map.insert({producer_id, "branch_input"});
+        branch.output_map.insert({0, output_id});
+        return branch;
+    };
+    auto branch_true = create_branch("when_true", 2.f, 0.f);    // x * 2
+    auto branch_false = create_branch("when_false", 1.f, 1.f);  // x + 1
+
+    const size_t batch = shape[0].get_length();
+    const size_t features = shape[1].get_length();
+    const size_t spatial = ov::shape_size(shape.get_shape()) / (batch * features);
+    const size_t feature_offset = input_shape[1].get_length() - features;
+
+    cldnn::topology topology(input_layout("input", in_layout), input_layout("predicate", predicate_mem->get_layout()));
+    if (producer == condition_input_producer::crop) {
+        const auto crop_size = branch_in_layout.get_tensor();
+        topology.add(crop(producer_id, input_info("input"), crop_size, tensor(0, crop_size.feature[0], 0, 0)));
+    } else if (producer == condition_input_producer::convolution) {
+        // 1x1 convolution with identity weights
+        const auto weights_dim = static_cast<int64_t>(features);
+        auto weights_mem = engine.allocate_memory({ov::PartialShape{weights_dim, weights_dim, 1, 1}, data_types::f16, format::bfyx});
+        std::vector<ov::float16> weights_data(features * features, ov::float16(0.f));
+        for (size_t f = 0; f < features; ++f) {
+            weights_data[f * features + f] = ov::float16(1.f);
+        }
+        set_values(weights_mem, weights_data);
+        topology.add(data("weights", weights_mem));
+        topology.add(convolution(producer_id, input_info("input"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    } else {
+        topology.add(reorder(producer_id, input_info("input"), producer_format, data_types::f16));
+    }
+    if (producer == condition_input_producer::reorder_shared) {
+        topology.add(activation("other", input_info(producer_id), activation_func::relu));
+    }
+    std::vector<input_info> cond_inputs = {input_info("predicate"), input_info(producer_id)};
+    if (producer == condition_input_producer::reorder_twice) {
+        cond_inputs.push_back(input_info(producer_id));
+    }
+    topology.add(condition("condi", cond_inputs, branch_true, branch_false));
+
+    network::ptr net = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+
+    // condition passes these buffers to the branch parameters as they are, so they must be in their layout
+    const auto& cond_deps = net->get_primitive("condi")->dependencies();
+    ASSERT_EQ(cond_deps.size(), cond_inputs.size());
+    for (size_t i = 1; i < cond_deps.size(); ++i) {
+        EXPECT_EQ(cond_deps[i].first->get_output_layout(cond_deps[i].second).to_short_string(), branch_in_layout.to_short_string());
+    }
+
+    for (const uint8_t pred : {1, 0}) {
+        set_values<uint8_t>(predicate_mem, {pred});
+        net->set_input_data("input", input_mem);
+        net->set_input_data("predicate", predicate_mem);
+        auto outputs = net->execute();
+
+        auto output = outputs.at("condi").get_memory();
+        ASSERT_EQ(output->get_layout().get_partial_shape(), shape);
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
+        for (size_t b = 0; b < batch; ++b) {
+            for (size_t f = 0; f < features; ++f) {
+                for (size_t s = 0; s < spatial; ++s) {
+                    const float x = input_data[((b * input_shape[1].get_length()) + feature_offset + f) * spatial + s];
+                    const float expected = pred ? x * 2.f : x + 1.f;
+                    ASSERT_EQ(static_cast<float>(output_ptr[(b * features + f) * spatial + s]), expected)
+                        << "pred=" << static_cast<int>(pred) << " b=" << b << " f=" << f << " s=" << s;
+                }
+            }
+        }
+    }
+}
+}  // namespace
+
+TEST(condition_gpu, input_in_blocked_format) {
+    test_condition_input_layout(condition_input_producer::reorder, {1, 20, 4, 4}, false);
+}
+
+TEST(condition_gpu, input_in_blocked_format_cached) {
+    test_condition_input_layout(condition_input_producer::reorder, {1, 20, 4, 4}, true);
+}
+
+TEST(condition_gpu, input_in_blocked_format_fsv32) {
+    test_condition_input_layout(condition_input_producer::reorder, {1, 24, 4, 4}, false, format::b_fs_yx_fsv32);
+}
+
+TEST(condition_gpu, input_in_byxf_format) {
+    test_condition_input_layout(condition_input_producer::reorder, {1, 20, 4, 4}, false, format::byxf);
+}
+
+TEST(condition_gpu, input_in_blocked_format_shared_with_other_user) {
+    test_condition_input_layout(condition_input_producer::reorder_shared, {2, 20, 4, 4}, false);
+}
+
+TEST(condition_gpu, input_in_blocked_format_passed_twice) {
+    test_condition_input_layout(condition_input_producer::reorder_twice, {1, 20, 4, 4}, false);
+}
+
+TEST(condition_gpu, input_from_convolution_in_blocked_format) {
+    test_condition_input_layout(condition_input_producer::convolution, {1, 20, 4, 4}, false);
+}
+
+// The reorder from b_fs_yx_fsv16 to bfyx can be replaced by a reinterpretation of the buffer when the spatial size is 1x1,
+// which adds feature padding when the feature size is not a multiple of 16.
+TEST(condition_gpu, input_from_convolution_in_blocked_format_spatial_1x1) {
+    test_condition_input_layout(condition_input_producer::convolution, {1, 20, 1, 1}, false);
+}
+
+TEST(condition_gpu, input_from_in_place_crop) {
+    test_condition_input_layout(condition_input_producer::crop, {1, 16, 4, 4}, false);
+}
