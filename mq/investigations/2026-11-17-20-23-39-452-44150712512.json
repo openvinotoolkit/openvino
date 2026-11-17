@@ -1,0 +1,37 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-11-17-20-23-39-452-44150712512",
+    "timestamp": "2026-11-17T20:23:39Z",
+    "run_id": "44150712512",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44150712512",
+    "workflow_name": "CPU functional tests",
+    "pr_number": "39956",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39956",
+    "author": "asukhobo",
+    "category": "Code Issue",
+    "title": "smoke_ScatterUpdateGeneralPathOutOfRangeIndices tests fail - reference plugin doesn't throw on out-of-range indices",
+    "signature": "scatterupdatelayercpuerrorconditiontest throwsonoutofrangeindices expected exception ov exception not thrown generalpathoutofrangeindices|Code Issue",
+    "signature_hash": "e746e8e11c0fe156",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "CPU functional tests / CPU functional tests",
+            "conclusion": "failure",
+            "symptom": "4 ScatterUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices parametrized cases fail at scatter_update.cpp:145: calculate_refs() (TEMPLATE/interpreter reference) does not throw ov::Exception for out-of-range scatter indices, although the CPU plugin does."
+        }
+    ],
+    "key_errors": [
+        "src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/scatter_update.cpp:145: Failure\nFailed\nExpected exception ov::Exception\n\n[  FAILED  ] smoke_ScatterUpdateGeneralPathOutOfRangeIndices/ScatterUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices/f32_IS=[8.4]_[2.4]_TS=((8.4)_)_((2.4)_)_indices_shape=[2]_indices_values=(0.100000)axis=0_idx_precision=i64",
+        "INFO:test_parallel_runner:failed test counter is: 4\nERROR:test_parallel_runner:Printing [4/4] failed tests\nERROR:test_parallel_runner:Run is not successful\n##[error]Process completed with exit code 255."
+    ],
+    "root_cause": "This is a recurrence (3rd occurrence) of a pre-existing, known bug (signature e746e8e11c0fe156) first identified on 2026-10-23 (run 40003582793, PR #38825), recurring again on 2026-11-16 (run 43897852365, PR #39833), and now recurring here on 2026-11-17. PR #38297 added ScatterUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices, which asserts via OV_EXPECT_THROW that BOTH get_plugin_outputs() (CPU) and calculate_refs() (TEMPLATE/interpreter reference) throw ov::Exception for out-of-range scatter indices (scatter_update.cpp:145-146). The CPU plugin correctly throws via its CPU_NODE_ASSERT bounds check, but calculate_refs() does not raise - the reference/interpreter evaluation path used for calculate_refs() apparently does not propagate the bounds-check exception from the shared reference implementation the same way the CPU plugin does. PR #39956 under investigation here only touches an NPU-plugin cmake file (src/plugins/intel_npu/cmake/download_compiler_libs.cmake) and has no relation to ScatterUpdate/CPU reference code; the failure surfaced purely because this merge-queue run rebases the PR onto the latest master, which still carries the unresolved reference-path gap from #38297.",
+    "reproduction_steps": "1. Checkout openvinotoolkit/openvino at or after the commit that merged PR #38297 (introducing ScatterUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices).\n2. Build the ov_cpu_func_tests target.\n3. Run: ov_cpu_func_tests --gtest_filter=*smoke_ScatterUpdateGeneralPathOutOfRangeIndices*ThrowsOnOutOfRangeIndices*\n4. Observe calculate_refs() does not raise ov::Exception while get_plugin_outputs() (CPU) does, failing the second OV_EXPECT_THROW at scatter_update.cpp:145.",
+    "recommended_actions": [
+        "This is unrelated to PR #39956 (NPU cmake-only change); the PR can be safely rebased/re-merged once the pre-existing reference-path bug is fixed or the test is temporarily adjusted.",
+        "Fix the reference-path gap: confirm the bounds check in src/core/reference/include/openvino/reference/scatter_update.hpp actually fires for the smoke_ScatterUpdateGeneralPathOutOfRangeIndices params (indices {0, 100000} on an {8,4} tensor, axis 0), and that SubgraphBaseTest::calculate_refs() does not swallow or convert the thrown exception before it reaches OV_EXPECT_THROW.",
+        "As a stop-gap to unblock the merge queue, consider temporarily skipping the 4 failing ThrowsOnOutOfRangeIndices/GeneralPathOutOfRangeIndices parametrized cases via skip_tests_config until the reference-path fix lands.",
+        "Escalate urgently to the CPU plugin / test-infra owners of PR #38297 since this is now its 3rd recorded recurrence in the merge queue with no fix yet landed, and each recurrence blocks an unrelated PR."
+    ],
+    "prevention_strategies": "When a new error-condition test asserts both plugin and reference-computation throw (OV_EXPECT_THROW on both get_plugin_outputs() and calculate_refs()), CI should fail fast and be triaged immediately rather than allowed to recur across multiple unrelated PRs' merge-queue runs; add a dedicated, isolated CI check for new error-condition test additions that runs calculate_refs() independently to catch this class of gap before merge. Given this is now a 3rd recurrence, consider disabling the 4 known-bad parametrized cases immediately to stop blocking the merge queue.",
+    "historical_context": "Recorded under pattern e746e8e11c0fe156 (now 3rd occurrence): first seen 2026-10-23 (run 40003582793, PR #38825), 2nd occurrence 2026-11-16 (run 43897852365, PR #39833, 'reference plugin doesn't throw on out-of-range indices'), now recurring again here (run 44150712512, PR #39956). The underlying introducing PR (#38297, merged 2026-10-13) has still not fixed the reference-path gap after multiple reports."
+}
