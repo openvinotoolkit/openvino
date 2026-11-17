@@ -109,6 +109,17 @@ void check_names(const std::shared_ptr<ov::Node>& node,
 
 }  // namespace
 
+TEST(constant_folding, topk_k_greater_than_dimension_is_not_folded) {
+    const auto data = op::v0::Constant::create(element::f32, Shape{2, 3}, {1, 2, 3, 4, 5, 6});
+    const auto k = op::v0::Constant::create(element::i64, Shape{}, {5});
+    const auto topk = make_shared<op::v11::TopK>(data, k, 1, "max", "value", element::i32);
+    auto m = make_shared<Model>(topk->outputs(), ParameterVector{});
+
+    run_constant_folding(m);
+
+    EXPECT_EQ(count_ops_of_type<op::v11::TopK>(m), 1);
+}
+
 TEST(constant_folding, acosh) {
     Shape shape_in{2, 4, 1};
 

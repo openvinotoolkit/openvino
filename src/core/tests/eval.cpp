@@ -2191,6 +2191,21 @@ TEST(eval, topk_v1) {
     ASSERT_EQ(result1_val, expec1);
 }
 
+TEST(eval, topk_k_greater_than_dimension_is_not_evaluated) {
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3});
+    const auto k = ov::op::v0::Constant::create(element::i64, Shape{}, {5});
+    const auto v1 = make_shared<op::v1::TopK>(data, k, 1, "max", "value", element::i32);
+    const auto v3 = make_shared<op::v3::TopK>(data, k, 1, "max", "value", element::i32);
+    const auto v11 = make_shared<op::v11::TopK>(data, k, 1, "max", "value", element::i32);
+
+    for (const auto& topk : std::vector<std::shared_ptr<Node>>{v1, v3, v11}) {
+        auto outputs = ov::TensorVector{ov::Tensor(), ov::Tensor()};
+        const auto inputs = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{2, 3}, {1, 2, 3, 4, 5, 6}),
+                                             make_tensor<element::Type_t::i64>(Shape{}, {5})};
+        EXPECT_FALSE(topk->evaluate(outputs, inputs)) << topk->get_type_info();
+    }
+}
+
 TEST(eval, topk_v1_dyn) {
     Shape shape{2, 3, 2};
 
