@@ -45,25 +45,25 @@ inline const bool FUNC(is_between)(int val, int min, int max) {
     const bool y1_valid = is_between(y_topleft + 1, 0, INPUT0_SIZE_Y); \
     const bool x0_valid = is_between(x_topleft, 0, INPUT0_SIZE_X);     \
     const bool x1_valid = is_between(x_topleft + 1, 0, INPUT0_SIZE_X); \
-                                                                        \
+                                                                       \
     const bool v00_valid = y0_valid && x0_valid;                       \
     const bool v01_valid = y0_valid && x1_valid;                       \
     const bool v10_valid = y1_valid && x0_valid;                       \
     const bool v11_valid = y1_valid && x1_valid;                       \
-                                                                        \
+                                                                       \
     const int y0c = y0_valid ? y_topleft : 0;                          \
     const int y1c = y1_valid ? (y_topleft + 1) : 0;                    \
     const int x0c = x0_valid ? x_topleft : 0;                          \
     const int x1c = x1_valid ? (x_topleft + 1) : 0;
 #elif defined(PADDING_MODE_BORDER)
 #define CALC_VALID_OFFSETS_FOR_INPUT_LOAD                              \
-    const bool v00_valid = true;                                      \
-    const bool v01_valid = true;                                      \
-    const bool v10_valid = true;                                      \
-    const bool v11_valid = true;                                      \
-    const int y0c = clamp(y_topleft, 0, (int)INPUT0_SIZE_Y - 1);         \
-    const int y1c = clamp(y_topleft + 1, 0, (int)INPUT0_SIZE_Y - 1);     \
-    const int x0c = clamp(x_topleft, 0, (int)INPUT0_SIZE_X - 1);         \
+    const bool v00_valid = true;                                       \
+    const bool v01_valid = true;                                       \
+    const bool v10_valid = true;                                       \
+    const bool v11_valid = true;                                       \
+    const int y0c = clamp(y_topleft, 0, (int)INPUT0_SIZE_Y - 1);       \
+    const int y1c = clamp(y_topleft + 1, 0, (int)INPUT0_SIZE_Y - 1);   \
+    const int x0c = clamp(x_topleft, 0, (int)INPUT0_SIZE_X - 1);       \
     const int x1c = clamp(x_topleft + 1, 0, (int)INPUT0_SIZE_X - 1);
 #endif
 
