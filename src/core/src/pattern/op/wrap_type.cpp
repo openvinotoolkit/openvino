@@ -24,6 +24,13 @@ bool ov::pass::pattern::op::WrapType::match_value(Matcher* matcher,
         return false;
     }
 
+    // Verify the input arity before running the predicate so that structural mismatches are
+    // rejected first and the predicate can safely inspect the expected number of inputs.
+    if (get_input_size() != 0 && get_input_size() != graph_value.get_node()->get_input_size()) {
+        OPENVINO_LOG_WRAPTYPE5(matcher, get_input_size(), graph_value.get_node()->get_input_size());
+        return false;
+    }
+
     if (!m_predicate(matcher, graph_value)) {
         OPENVINO_LOG_WRAPTYPE2(matcher);
         return false;
