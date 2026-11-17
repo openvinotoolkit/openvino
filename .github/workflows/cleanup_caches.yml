@@ -151,7 +151,7 @@ jobs:
     name: Cleanup Windows ccache
     runs-on: 'aks-win-4-cores-8gb-test'
     env:
-      CCACHE_PATH: C:\\mount\\caches\\ccache
+      CCACHE_PATH: 'C:\mount\caches\ccache'
 
     steps:
       - name: Checkout cache action
@@ -165,6 +165,38 @@ jobs:
         with:
           cache-size: 300
           max-cache-size: 750
-          cache-path: C:\\mount\\caches\\ccache
+          cache-path: ${{ env.CCACHE_PATH }}
           recursive: true
           key: '.'
+
+      # ccache 4.9.1 ignores --trim-method mtime.
+      - name: Install ccache for remote trimming
+        shell: pwsh
+        run: |
+          $archivePath = Join-Path $env:RUNNER_TEMP 'ccache-4.14.3-windows-x86_64.zip'
+          Invoke-WebRequest -Uri 'https://github.com/ccache/ccache/releases/download/v4.14.3/ccache-4.14.3-windows-x86_64.zip' -OutFile $archivePath -TimeoutSec 120
+          $expectedSha256 = 'c845c3d65be81954c75659145a522a793a27586bf940c5dcfe18af33fa1a67dd'
+          if ((Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash -ne $expectedSha256) {
+            throw 'ccache archive checksum mismatch'
+          }
+          Expand-Archive -LiteralPath $archivePath -DestinationPath $env:RUNNER_TEMP -Force
+
+      - name: Trim Windows remote ccache
+        shell: pwsh
+        run: |
+          if (-not (Test-Path -LiteralPath $env:CCACHE_PATH -PathType Container)) {
+            throw "Windows ccache root is not accessible: $env:CCACHE_PATH"
+          }
+          $remoteCachePath = Join-Path $env:CCACHE_PATH 'shared/windows'
+          if (Test-Path -LiteralPath $remoteCachePath) {
+            if (-not (Test-Path -LiteralPath $remoteCachePath -PathType Container)) {
+              throw "Windows remote ccache is not a directory: $remoteCachePath"
+            }
+            $ccache = Join-Path $env:RUNNER_TEMP 'ccache-4.14.3-windows-x86_64/ccache.exe'
+            & $ccache --trim-dir "$remoteCachePath" --trim-max-size 300GiB --trim-method mtime
+            if ($LASTEXITCODE -ne 0) {
+              throw "ccache trim failed with exit code $LASTEXITCODE"
+            }
+          } else {
+            Write-Host "Windows remote ccache has not been created: $remoteCachePath"
+          }

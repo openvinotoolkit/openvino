@@ -141,9 +141,13 @@ Users:
   the package size, so they are not cached. Builds with embedded debug information also link without
   `/INCREMENTAL`, which keeps PDB files free of stale incremental-link data.
 
-Old entries are evicted together with the rest of `/mount/caches/ccache` and
-`C:\mount\caches\ccache` by the `Cleanup_ccache_lin` and `Cleanup_ccache_win` jobs in
-[`cleanup_caches.yml`](./../../../../.github/workflows/cleanup_caches.yml).
+The monthly `Cleanup_ccache_win` job in
+[`cleanup_caches.yml`](./../../../../.github/workflows/cleanup_caches.yml) trims the Windows remote
+cache across all variants toward 300 GiB, evicting entries by modification time. Remote cache hits
+update this timestamp. The separate `.cache` archive cleanup has its own size limits; these limits
+do not enforce a combined volume cap, and the remote cache can grow between cleanup runs.
+
+The Linux `Cleanup_ccache_lin` job cleans `.cache` archives but does not trim the RISC-V remote cache.
 
 ## Cloud Storage via Azure Blob Storage
 
