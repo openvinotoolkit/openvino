@@ -2358,8 +2358,8 @@ TEST(SerializationTest, FuncallSubmodelRoundTripThroughReadPath) {
     // Reading a funcall desc must not trip the in-codec index check, which is skipped
     // because the funcall has no compiled model of its own at this point.
     auto reader = Stream::reader(ss);
-    ASSERT_NO_THROW(imported[0].serialize(reader, {}));
-    ASSERT_NO_THROW(imported[1].serialize(reader, {}));
+    ASSERT_NO_THROW(imported[0].deserialize(reader, {}));
+    ASSERT_NO_THROW(imported[1].deserialize(reader, {}));
 
     ASSERT_EQ(ov::npuw::CompiledModelDescTestAccessor::host_gather(imported[1]).dst_idx, 5);
     ASSERT_FALSE(ov::npuw::CompiledModelDescTestAccessor::compiled_model(imported[1]));
