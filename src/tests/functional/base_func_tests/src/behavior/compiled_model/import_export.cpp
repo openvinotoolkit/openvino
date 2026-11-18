@@ -870,13 +870,17 @@ void OVCompiledModelHsmBlobTest::SetUp() {
     core = ov::test::utils::create_core();
     // Plugin-level too: Core picks the cache blob format from the plugin, not from the compile config.
     core.set_property(target_device, configuration);
-    ASSERT_TRUE(core.get_property(target_device, ov::internal::emit_hsm_format));
+    ASSERT_NO_FATAL_FAILURE(check_hsm_format());
 
     model = ov::test::utils::make_conv_pool_relu({1, 3, 16, 16}, ov::element::f32);
     cache_path = "hsm_blob_cache_" + ov::test::utils::generateTestFilePrefix();
     input = ov::test::utils::create_and_fill_tensor(ov::element::f32, model->input().get_shape());
     auto compiled = compile(false);
     reference = hsm_infer(compiled, input);
+}
+
+void OVCompiledModelHsmBlobTest::check_hsm_format() {
+    ASSERT_TRUE(core.get_property(target_device, ov::internal::emit_hsm_format));
 }
 
 void OVCompiledModelHsmBlobTest::TearDown() {

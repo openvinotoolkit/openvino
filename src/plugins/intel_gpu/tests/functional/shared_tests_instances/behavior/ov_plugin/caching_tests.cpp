@@ -30,7 +30,6 @@
 #include "openvino/util/parallel_io.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_plugin_cache.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
@@ -205,26 +204,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU,
 
 class GPUHsmRegressionTest : public OVCompiledModelHsmBlobTest {
 public:
-    void SetUp() override {
-        std::tie(target_device, configuration) = GetParam();
-        SKIP_IF_CURRENT_TEST_IS_DISABLED();
-        APIBaseTest::SetUp();
-
-        core = ov::test::utils::create_core();
-        core.set_property(target_device, configuration);
-        model = ov::test::utils::make_conv_pool_relu({1, 3, 16, 16}, ov::element::f32);
-        cache_path = "hsm_blob_cache_" + ov::test::utils::generateTestFilePrefix();
-        input = ov::test::utils::create_and_fill_tensor(ov::element::f32, model->input().get_shape());
-        auto compiled = compile(false);
-        ASSERT_TRUE(is_hsm(export_blob(compiled)));
-        auto request = compiled.create_infer_request();
-        request.set_input_tensor(input);
-        request.infer();
-        const auto output = request.get_output_tensor();
-        reference = ov::Tensor(output.get_element_type(), output.get_shape());
-        output.copy_to(reference);
-    }
-
     void TearDown() override {
         if (!cache_path.empty()) {
             std::filesystem::remove(cache_path.string() + ".xml");
@@ -232,6 +211,11 @@ public:
             std::filesystem::remove(cache_path.string() + ".mapped");
         }
         OVCompiledModelHsmBlobTest::TearDown();
+    }
+
+protected:
+    void check_hsm_format() override {
+        ASSERT_TRUE(core.get_property(target_device, ov::intel_gpu::export_hsm_format));
     }
 };
 
