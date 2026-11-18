@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-18-20-55-28-000-44386398846",
+  "timestamp": "2026-11-18T20:55:28Z",
+  "run_id": "44386398846",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44386398846",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "39387",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39387",
+  "author": "Somay-kousis",
+  "category": "Flaky Test",
+  "title": "smoke_ConvertCPULayerTest_from_u2 - primType is unexpected : unknown_u2 Expected : ref_u2",
+  "signature": "primType is unexpected unknown Expected ref|Flaky Test",
+  "signature_hash": "76751669c7a78fcd",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "smoke_ConvertCPULayerTest_from_u2 CompareWithRefs assertion: primType is unexpected unknown_u2, Expected ref_u2 at cpu_test_utils.cpp:248"
+    },
+    {
+      "name": "ci/gha_overall_status_linux_arm64",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check failed because the CPU functional tests job above failed."
+    }
+  ],
+  "key_errors": [
+    "[ RUN      ] smoke_ConvertCPULayerTest_from_u2/ConvertCPULayerTest.CompareWithRefs/IS=[1..5.2..22.2..9.1..4]_TS=(2.17.5.4)_(5.2.3.2)_(1.10.4.1)_inputPRC=u2_specialValue=none_targetPRC=i32__primitive=ref",
+    "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp:248: Failure\nValue of: primTypeCheck(primType)\n  Actual: false\nExpected: true\nprimType is unexpected : unknown_u2 Expected : ref_u2",
+    "[  FAILED  ] smoke_ConvertCPULayerTest_from_u2/ConvertCPULayerTest.CompareWithRefs/IS=[1..5.2..22.2..9.1..4]_TS=(2.17.5.4)_(5.2.3.2)_(1.10.4.1)_inputPRC=u2_specialValue=none_targetPRC=i32__primitive=ref, where GetParam() = (({ 1..5, 2..22, 2..9, 1..4 }, { { 2, 17, 5, 4 }, { 5, 2, 3, 2 }, { 1, 10, 4, 1 } }), u2, i32,  (59 ms)"
+  ],
+  "root_cause": "This is a recurrence of the long-standing intermittent primType-reporting flake in the CPU functional test suite (signature 76751669c7a78fcd, previously seen with i8/u8 ARM64 ACL conversions). The assertion in cpu_test_utils.cpp:248 compares the runtime-reported IMPL_TYPE exec-graph attribute (primType) against the statically expected selectedType ('ref_u2' here); occasionally the executor graph reports 'unknown_<type>' instead of the real implementation tag, independent of which Convert precision pair is under test. PR #39387 only touches the PyTorch FX decoder input-naming logic (fx_decoder.py, input_model.cpp) and its own Python frontend test file; it has no relation to the CPU plugin's Convert executor or exec-graph metadata reporting, confirming the failure is unrelated to this PR's changes.",
+  "reproduction_steps": "Run: ov_cpu_func_tests --gtest_filter=*smoke_ConvertCPULayerTest_from_u2*CompareWithRefs*inputPRC=u2*targetPRC=i32*primitive=ref* on ARM64; failure is intermittent under the 16-worker parallel test runner and may not reproduce on every attempt.",
+  "recommended_actions": [
+    "Re-run the failed CPU functional tests job; this is an unrelated, previously documented intermittent primType-reporting flake",
+    "Investigate why the exec-graph IMPL_TYPE attribute can report 'unknown_<prc>' instead of the real implementation name for low-bit Convert kernels (u2/i8/u8) in src/plugins/intel_cpu",
+    "Consider quarantining or relaxing the primTypeCheck assertion for low-bit (sub-byte) Convert precisions until the exec-graph metadata population race is fixed"
+  ],
+  "prevention_strategies": "Track recurrence of signature 76751669c7a78fcd across precisions (now observed for i8/u8 and u2 Convert variants); prioritize root-causing the exec-graph IMPL_TYPE population race in the CPU plugin so 'unknown' is never reported for a successfully dispatched primitive.",
+  "historical_context": "Same normalized signature (primType is unexpected unknown Expected ref, category Flaky Test) previously recorded on 2026-07-17 (run 29552704755, PR #36890) for an i8->u8 ACL Convert variant, and a near-identical ACL-prefixed pattern (primtype is unexpected unknown expected acl) recurred 9 times between 2026-09-11 and 2026-11-13 across MaxPool/AvgPool/FC/Convert smoke tests on ARM64. This confirms a broader, still-unresolved ARM64 exec-graph primitive-reporting flake affecting multiple unrelated PRs over several months."
+}

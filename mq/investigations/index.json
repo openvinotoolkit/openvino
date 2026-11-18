@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 481,
+  "total": 482,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -5242,6 +5242,15 @@
       "category": "Code Issue",
       "signature_hash": "a4282c65071120e2",
       "pr_number": "39796"
+    },
+    {
+      "investigation_id": "2026-11-18-20-55-28-000-44386398846",
+      "run_id": "44386398846",
+      "timestamp": "2026-11-18T20:55:28Z",
+      "title": "smoke_ConvertCPULayerTest_from_u2 - primType is unexpected : unknown_u2 Expected : ref_u2",
+      "category": "Flaky Test",
+      "signature_hash": "76751669c7a78fcd",
+      "pr_number": "39387"
     }
   ]
 }

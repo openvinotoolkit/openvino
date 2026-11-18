@@ -2,19 +2,21 @@
   "schema_version": "1.0",
   "signature": "primType is unexpected unknown Expected ref|Flaky Test",
   "signature_hash": "76751669c7a78fcd",
-  "title": "smoke_ConvertCPULayerTest - Value of: primTypeCheck(primType) is unexpected",
+  "title": "smoke_ConvertCPULayerTest_from_u2 - primType is unexpected : unknown_u2 Expected : ref_u2",
   "category": "Flaky Test",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-07-17T04:10:31Z",
-  "last_seen": "2026-07-17T04:10:31Z",
+  "last_seen": "2026-11-18T20:55:28Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/44386398846",
     "https://github.com/openvinotoolkit/openvino/actions/runs/29552704755"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39387",
     "https://github.com/openvinotoolkit/openvino/pull/36890"
   ],
   "recent_timestamps": [
-    "2026-07-17T04:10:31Z"
+    "2026-11-18T20:55:28Z"
   ],
   "rerun_search_string": "primType is unexpected"
 }
