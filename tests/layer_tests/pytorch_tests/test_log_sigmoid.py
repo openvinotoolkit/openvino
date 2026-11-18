@@ -21,12 +21,8 @@ class TestLogSigmoidAccuracy(PytorchLayerTest):
                 self.dtype = dtype
 
             def forward(self, x):
-                x = x.to(self.dtype)
-                result = F.logsigmoid(x)
-                # The positive tail approaches -exp(-x). Normalize it so the
-                # absolute tolerance cannot hide a result rounded to zero.
-                scale = torch.exp(-torch.clamp_min(x, 0))
-                return result / scale
+                # Large negative logits used to give -inf, because sigmoid(x) rounds to 0 there.
+                return F.logsigmoid(x.to(self.dtype))
 
         return LogSigmoidAccuracy(dtype), "aten::log_sigmoid"
 
@@ -37,13 +33,11 @@ class TestLogSigmoidAccuracy(PytorchLayerTest):
     @pytest.mark.parametrize("dynamic_shapes", [False, True])
     @pytest.mark.parametrize("trace_model", [False, True])
     def test_log_sigmoid_accuracy(self, dtype, dynamic_shapes, trace_model, ie_device, precision, ir_version):
-        if precision == "FP16":
-            pytest.skip("The normalized tail requires the f32 exponent range")
         if self.use_torch_export() and trace_model:
             pytest.skip("trace_model only selects a TorchScript conversion route")
         export_shapes = ({0: torch.export.Dim("length", min=1)},) if dynamic_shapes else {}
         self._test(*self.create_model(dtype), ie_device, precision, ir_version,
-                   dynamic_shapes=dynamic_shapes, trace_model=trace_model, custom_eps=2e-5,
+                   dynamic_shapes=dynamic_shapes, trace_model=trace_model,
                    dynamic_shapes_for_export=export_shapes)
 
 

@@ -684,6 +684,11 @@ Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx
     return x;
 }
 
+Output<Node> scalar_of_same_type(const NodeContext& context, const Output<Node>& like, double value) {
+    auto constant = context.mark_node(v0::Constant::create(element::f64, Shape{}, {value}));
+    return context.mark_node(std::make_shared<v1::ConvertLike>(constant, like));
+}
+
 element::Type get_input_element_type(const NodeContext& context, size_t idx) {
     auto type = context.get_input(static_cast<int>(idx)).get_element_type();
     if (type.is_dynamic()) {
