@@ -102,14 +102,16 @@ std::shared_ptr<ov::Model> make_lifted_vocab_model(const bool with_zero_point,
 }
 
 // Param(W u2)[V,G,GS] -> Convert(f16) -> Gather -.
-// Param(Z)[V,G,1]     -> Convert(f16) -> Gather -> Subtract -.
-// Param(S f16)[V,G,1] -----------------> Gather ------------> Multiply -> Reshape[1,N,H] -> Convert(f32)
+// Param(Z)[V,SG,1]    -> Convert(f16) -> Gather -> Subtract -.
+// Param(S f16)[V,SG,1] ----------------> Gather ------------> Multiply -> Reshape[1,N,H] -> Convert(f32)
+// SG is the group count of the scales and the zero points: G, or 1 for scales shared by all the groups of a row.
 std::shared_ptr<ov::Model> make_host_gather_group_zero_point_model(const element::Type zero_point_type,
-                                                                   const element::Type scale_type = element::f16) {
+                                                                   const element::Type scale_type = element::f16,
+                                                                   const size_t scale_groups = kGroups) {
     auto ids = std::make_shared<op::v0::Parameter>(element::i64, Shape{1, kTokens});
     auto w = std::make_shared<op::v0::Parameter>(element::u2, Shape{kVocab, kGroups, kGroupSize});
-    auto z = std::make_shared<op::v0::Parameter>(zero_point_type, Shape{kVocab, kGroups, 1});
-    auto s = std::make_shared<op::v0::Parameter>(scale_type, Shape{kVocab, kGroups, 1});
+    auto z = std::make_shared<op::v0::Parameter>(zero_point_type, Shape{kVocab, scale_groups, 1});
+    auto s = std::make_shared<op::v0::Parameter>(scale_type, Shape{kVocab, scale_groups, 1});
 
     auto gw = std::make_shared<op::v8::Gather>(std::make_shared<op::v0::Convert>(w, element::f16), ids, axis0());
     auto gz = std::make_shared<op::v8::Gather>(std::make_shared<op::v0::Convert>(z, element::f16), ids, axis0());
@@ -210,6 +212,29 @@ TEST(HostGatherDQZeroPointTest, KeepsGraphWhenScaleIsNotF16) {
 
     EXPECT_FALSE(ctx.params_to_gather.has_value());
     EXPECT_EQ(count_ops(model, "Gather"), 3u);
+}
+
+// util::unpack of u2 weights needs one scale per group, so the matcher must not take scales shared by the groups.
+TEST(HostGatherDQZeroPointTest, KeepsGraphWhenScalesHaveOneGroup) {
+    auto model = make_host_gather_group_zero_point_model(element::u2, element::f16, 1);
+
+    Context ctx(model, 0);
+    run_pass<HostGatherDQ>(model, std::ref(ctx));
+
+    EXPECT_FALSE(ctx.params_to_gather.has_value());
+    EXPECT_EQ(count_ops(model, "Gather"), 3u);
+}
+
+TEST(UnpackU2Test, RejectsScalesWithOneGroup) {
+    ov::Tensor weights(element::u2, Shape{2, 4, 8});
+    ov::Tensor zero_points(element::u2, Shape{2, 1, 1});
+    ov::Tensor scales(element::f16, Shape{2, 1, 1});
+    ov::Tensor result(element::f16, Shape{2, 32});
+
+    EXPECT_ANY_THROW(ov::npuw::util::unpack(ov::get_tensor_impl(weights),
+                                            ov::get_tensor_impl(zero_points),
+                                            ov::get_tensor_impl(scales),
+                                            ov::get_tensor_impl(result)));
 }
 
 TEST(UnpackU2Test, DequantizesGroupsWithZeroPointAndScale) {
