@@ -12,8 +12,7 @@ namespace kernel_selector {
 // gemm_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct gemm_params : public base_params {
-    gemm_params()
-        : base_params(KernelType::GEMM), alpha(1.0f), beta(0.0f), transpose_input0(0u), transpose_input1(0u) {}
+    gemm_params() : base_params(KernelType::GEMM), alpha(1.0F), beta(0.0F), transpose_input0(0U), transpose_input1(0U) {}
 
     float alpha;
     float beta;
@@ -58,10 +57,10 @@ protected:
     virtual DispatchData SetDefault(const gemm_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params) const;
 
-    std::string GetDimsOrder(const std::vector<int64_t>& order_idx) const;
-    size_t GetOuputSize(const std::vector<int64_t>& output_order, const kernel_selector::DataTensor &output, char target_dim) const;
-    std::vector<int64_t> ConvTo8dims(const std::vector<int64_t>& order_idx) const;
-    std::vector<std::string> GetTransposedDims(const std::vector<int64_t>& order_idx, bool is_tiled_opt = false) const;
+    static std::string GetDimsOrder(const std::vector<int64_t>& order_idx);
+    static size_t GetOuputSize(const std::vector<int64_t>& output_order, const kernel_selector::DataTensor& output, char target_dim);
+    static std::vector<int64_t> ConvTo8dims(const std::vector<int64_t>& order_idx);
+    static std::vector<std::string> GetTransposedDims(const std::vector<int64_t>& order_idx, bool is_tiled_opt = false);
 
     // Fused ops
     virtual JitConstants GetFusedPrimitivesJitConstants(const gemm_params& params, const DispatchData& dispatchData) const;
