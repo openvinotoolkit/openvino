@@ -37,7 +37,10 @@ protected:
 TEST_F(ParserFactoryFunctionalTests, GetParserProfilingDisabledDoesNotInvokeProvider) {
     std::size_t calls = 0;
     const auto parser =
-        factory.getParser(initStructs, vcl_provider::counted(calls, vcl_provider::processWide()), false);
+        factory.getParser(initStructs,
+                          vcl_provider::counted(
+                              calls, vcl_provider::forbidden("Profiling is disabled")),
+                          false);
     EXPECT_NE(parser, nullptr);
     EXPECT_EQ(calls, 0u);
 }
@@ -54,15 +57,9 @@ TEST_F(ParserFactoryFunctionalTests, GetParserProfilingEnabledWithoutProviderSti
     EXPECT_NE(parser, nullptr);
 }
 
-TEST_F(ParserFactoryFunctionalTests, GetParserProfilingEnabledWithAvailableProviderInvokesProviderOnce) {
-    try {
-        vcl_provider::processWide()();
-    } catch (const std::exception&) {
-        GTEST_SKIP() << "Couldn't load compiler library";
-    }
-
+TEST_F(ParserFactoryFunctionalTests, GetParserProfilingEnabledWithFakeProviderInvokesProviderOnce) {
     std::size_t calls = 0;
-    const auto parser = factory.getParser(initStructs, vcl_provider::counted(calls, vcl_provider::processWide()), true);
+    const auto parser = factory.getParser(initStructs, vcl_provider::counted(calls, vcl_provider::fake()), true);
     EXPECT_NE(parser, nullptr);
     EXPECT_EQ(calls, 1u);
 }

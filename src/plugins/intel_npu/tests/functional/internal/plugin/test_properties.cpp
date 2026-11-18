@@ -52,6 +52,7 @@ class PropertiesManagerTests : public ov::test::behavior::OVPluginTestBase,
 protected:
     std::shared_ptr<::intel_npu::OptionsDesc> options = std::make_shared<::intel_npu::OptionsDesc>();
     ov::SoPtr<::intel_npu::IEngineBackend> backend;
+    ::intel_npu::VCLFunctionTableProvider vclFunctionsProvider;
     std::unique_ptr<::intel_npu::PluginPropertyManager> propertiesManager;
 
     std::string configuration;
@@ -82,6 +83,7 @@ public:
         OVPluginTestBase::SetUp();
 
         backend = ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>());
+        vclFunctionsProvider = npu::vcl_provider::fake({"DUMMY_PROPERTY", "Dummy_Property"});
         options->reset();
 #define REGISTER_OPTION(OPT_TYPE) \
     do {                          \
@@ -160,9 +162,7 @@ public:
 
         const auto optionSupportCache = std::make_shared<::intel_npu::OptionSupportCache>();
         const auto adapterFactory =
-            std::make_shared<const ::intel_npu::CompilerAdapterFactory>(backend,
-                                                                        npu::vcl_provider::processWide(),
-                                                                        optionSupportCache);
+            std::make_shared<const ::intel_npu::CompilerAdapterFactory>(backend, vclFunctionsProvider, optionSupportCache);
         propertiesManager = std::make_unique<PluginPropertyManager>(
             options,
             backend,
@@ -692,9 +692,7 @@ TEST_P(CompatibilityCheckTests, CheckUnsupportedConfigWithGetMergedConfigAndUnkn
     localOptions->add<::intel_npu::COMPILER_TYPE>();
     const auto optionSupportCache = std::make_shared<::intel_npu::OptionSupportCache>();
     const auto adapterFactory =
-        std::make_shared<const ::intel_npu::CompilerAdapterFactory>(backend,
-                                                                    npu::vcl_provider::processWide(),
-                                                                    optionSupportCache);
+        std::make_shared<const ::intel_npu::CompilerAdapterFactory>(backend, vclFunctionsProvider, optionSupportCache);
     auto localPropertiesManager = std::make_unique<::intel_npu::PluginPropertyManager>(
         localOptions,
         backend,

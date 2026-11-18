@@ -9,6 +9,7 @@
 #include <cstring>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <set>
 #include <string>
@@ -79,6 +80,11 @@ public:
     std::shared_ptr<const intel_npu::VCLFunctionTable> functions() const {
         return _functions;
     }
+
+    std::mutex& mutex() {
+        return _mutex;
+    }
+
     // A provider that always hands out the function table. Shares the table, so it stays valid after the fake.
     intel_npu::VCLFunctionTableProvider provider() const {
         return [functions = _functions] {
@@ -96,9 +102,11 @@ public:
 
     /// Force a specific entry point to fail. Cleared per entry point.
     void failWith(const std::string& fn, vcl_result_t result) {
+        std::lock_guard<std::mutex> lock(_mutex);
         _results[fn] = result;
     }
     void succeed(const std::string& fn) {
+        std::lock_guard<std::mutex> lock(_mutex);
         _results.erase(fn);
     }
 
@@ -171,6 +179,7 @@ public:
     int profilingDestroyCount = 0;
 
     size_t callCount(const std::string& fn) const {
+        std::lock_guard<std::mutex> lock(_mutex);
         size_t n = 0;
         for (const auto& c : calls) {
             if (c == fn) {
@@ -186,6 +195,7 @@ public:
 
     /// Index of the first occurrence of fn in the call log, or npos.
     size_t indexOf(const std::string& fn) const {
+        std::lock_guard<std::mutex> lock(_mutex);
         for (size_t i = 0; i < calls.size(); ++i) {
             if (calls[i] == fn) {
                 return i;
@@ -204,6 +214,7 @@ public:
 private:
     void wire();
 
+    mutable std::mutex _mutex;
     std::shared_ptr<intel_npu::VCLFunctionTable> _functions;
     std::map<std::string, vcl_result_t> _results;
 };
@@ -217,6 +228,7 @@ private:
     if (self == nullptr) {                              \
         return VCL_RESULT_ERROR_UNKNOWN;                \
     }                                                   \
+    std::lock_guard<std::mutex> lock(self->mutex());    \
     const vcl_result_t scripted = self->resultFor(#fn); \
     if (scripted != VCL_RESULT_SUCCESS) {               \
         return scripted;                                \
@@ -242,6 +254,7 @@ inline vcl_result_t VCL_APICALL fake_vclCompilerCreate(vcl_compiler_desc_t* comp
     if (self == nullptr) {
         return VCL_RESULT_ERROR_UNKNOWN;
     }
+    std::lock_guard<std::mutex> lock(self->mutex());
     // Record the descriptors even on the failure path: the test asserts what was forwarded.
     if (compilerDesc != nullptr) {
         self->compilerDescs.push_back(*compilerDesc);
@@ -267,6 +280,7 @@ inline vcl_result_t VCL_APICALL fake_vclCompilerDestroy(vcl_compiler_handle_t) {
     if (self == nullptr) {
         return VCL_RESULT_ERROR_UNKNOWN;
     }
+    std::lock_guard<std::mutex> lock(self->mutex());
     ++self->compilerDestroyCount;
     return self->resultFor("vclCompilerDestroy");
 }
@@ -306,6 +320,7 @@ inline vcl_result_t VCL_APICALL fake_vclAllocatedExecutableCreate4(vcl_compiler_
     if (self == nullptr) {
         return VCL_RESULT_ERROR_UNKNOWN;
     }
+    std::lock_guard<std::mutex> lock(self->mutex());
     if (desc.options != nullptr) {
         self->buildFlags.emplace_back(desc.options, static_cast<size_t>(desc.optionsSize));
     }
@@ -341,6 +356,7 @@ inline vcl_result_t VCL_APICALL fake_vclAllocatedExecutableCreateWSOneShot2(vcl_
     if (self == nullptr) {
         return VCL_RESULT_ERROR_UNKNOWN;
     }
+    std::lock_guard<std::mutex> lock(self->mutex());
     if (desc.options != nullptr) {
         self->buildFlags.emplace_back(desc.options, static_cast<size_t>(desc.optionsSize));
     }
@@ -374,6 +390,7 @@ inline vcl_result_t VCL_APICALL fake_vclExecutableGetCompatibilityString(vcl_exe
     if (self == nullptr) {
         return VCL_RESULT_ERROR_UNKNOWN;
     }
+    std::lock_guard<std::mutex> lock(self->mutex());
     const vcl_result_t scripted = self->resultFor("vclExecutableGetCompatibilityString");
     if (scripted != VCL_RESULT_SUCCESS) {
         return scripted;
@@ -405,6 +422,7 @@ inline vcl_result_t VCL_APICALL fake_vclExecutableDestroy(vcl_executable_handle_
     if (self == nullptr) {
         return VCL_RESULT_ERROR_UNKNOWN;
     }
+    std::lock_guard<std::mutex> lock(self->mutex());
     ++self->executableDestroyCount;
     return self->resultFor("vclExecutableDestroy");
 }
@@ -416,6 +434,7 @@ inline vcl_result_t VCL_APICALL fake_vclQueryNetworkCreate(vcl_compiler_handle_t
     if (self == nullptr) {
         return VCL_RESULT_ERROR_UNKNOWN;
     }
+    std::lock_guard<std::mutex> lock(self->mutex());
     if (desc.options != nullptr) {
         self->queryBuildFlags.emplace_back(desc.options, static_cast<size_t>(desc.optionsSize));
     }
@@ -448,6 +467,7 @@ inline vcl_result_t VCL_APICALL fake_vclQueryNetworkDestroy(vcl_query_handle_t) 
     if (self == nullptr) {
         return VCL_RESULT_ERROR_UNKNOWN;
     }
+    std::lock_guard<std::mutex> lock(self->mutex());
     ++self->queryDestroyCount;
     return self->resultFor("vclQueryNetworkDestroy");
 }
@@ -499,6 +519,7 @@ inline vcl_result_t VCL_APICALL fake_vclProfilingDestroy(vcl_profiling_handle_t)
     if (self == nullptr) {
         return VCL_RESULT_ERROR_UNKNOWN;
     }
+    std::lock_guard<std::mutex> lock(self->mutex());
     ++self->profilingDestroyCount;
     return self->resultFor("vclProfilingDestroy");
 }
@@ -527,6 +548,7 @@ inline vcl_result_t VCL_APICALL fake_vclGetCompilerIsOptionSupported(vcl_compile
     if (self == nullptr) {
         return VCL_RESULT_ERROR_UNKNOWN;
     }
+    std::lock_guard<std::mutex> lock(self->mutex());
     const std::string optionName = option != nullptr ? std::string(option) : std::string();
     self->optionSupportQueries.emplace_back(
         optionName,
@@ -543,7 +565,11 @@ inline vcl_result_t VCL_APICALL fake_vclExecutableCreate(vcl_compiler_handle_t,
                                                          vcl_executable_desc_t,
                                                          vcl_executable_handle_t*) {
     FakeVcl* self = current();
-    return self == nullptr ? VCL_RESULT_ERROR_UNKNOWN : self->resultFor("vclExecutableCreate");
+    if (self == nullptr) {
+        return VCL_RESULT_ERROR_UNKNOWN;
+    }
+    std::lock_guard<std::mutex> lock(self->mutex());
+    return self->resultFor("vclExecutableCreate");
 }
 
 inline vcl_result_t VCL_APICALL fake_vclExecutableGetSerializableBlob(vcl_executable_handle_t,
@@ -553,6 +579,7 @@ inline vcl_result_t VCL_APICALL fake_vclExecutableGetSerializableBlob(vcl_execut
     if (self == nullptr) {
         return VCL_RESULT_ERROR_UNKNOWN;
     }
+    std::lock_guard<std::mutex> lock(self->mutex());
     if (blobSize != nullptr) {
         *blobSize = 0;
     }

@@ -7,35 +7,24 @@
 #include <gtest/gtest.h>
 
 #include <cstddef>
-#include <exception>
+#include <initializer_list>
 #include <memory>
-#include <mutex>
 #include <string>
 #include <utility>
 
+#include "fake_vcl.hpp"
 #include "intel_npu/utils/vcl/vcl_function_table_provider.hpp"
 #include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "openvino/core/except.hpp"
 
 namespace ov::test::npu::vcl_provider {
 
-// A provider over the real VCL library. All callers in the test process share one loader.
-inline ::intel_npu::VCLFunctionTableProvider processWide() {
-    return [] {
-        static std::once_flag loadOnce;
-        static std::shared_ptr<const ::intel_npu::VCLLoader> loader;
-        static std::exception_ptr loadFailure;
-        std::call_once(loadOnce, [] {
-            try {
-                loader = std::make_shared<::intel_npu::VCLLoader>();
-            } catch (...) {
-                loadFailure = std::current_exception();
-            }
-        });
-        if (loadFailure) {
-            std::rethrow_exception(loadFailure);
-        }
-        return loader->sharedFunctions();
+// A provider over a fake VCL table. The closure keeps the fake instance alive.
+inline ::intel_npu::VCLFunctionTableProvider fake(std::initializer_list<std::string> unsupportedOptions = {}) {
+    auto fakeVcl = std::make_shared<::fake_vcl::FakeVcl>();
+    fakeVcl->unsupportedOptions.insert(unsupportedOptions.begin(), unsupportedOptions.end());
+    return [fakeVcl = std::move(fakeVcl)] {
+        return fakeVcl->functions();
     };
 }
 
