@@ -125,6 +125,7 @@ jobs:
         id: build_genai
         run: |
           source "${INSTALL_DIR}/setupvars.sh"
+          # CVS-199298: remove -DCMAKE_CXX_STANDARD=17 once GenAI migrates to C++20.
           cmake -S "${GENAI_DIR}" -B "${BUILD_DIR}" \
             -DOpenVINODeveloperPackage_DIR="${INSTALL_DIR}/developer_package/cmake" \
             -DENABLE_PYTHON=ON -DENABLE_TESTS=OFF -DENABLE_SAMPLES=OFF -DENABLE_TOOLS=OFF \
