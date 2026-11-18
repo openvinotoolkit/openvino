@@ -8,8 +8,9 @@
 
 #include <memory>
 #include <string>
-#include <unordered_map>
+#include <unordered_set>
 
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -19,12 +20,11 @@
 #include "openvino/op/relu.hpp"
 #include "openvino/op/sin.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/pass/manager.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 
-using namespace testing;
 using namespace ov::intel_cpu;
 
+namespace sin_cos_embedding_test {
 namespace {
 
 const std::string name_scale_mul = "scale_mul";
@@ -89,66 +89,57 @@ std::shared_ptr<ov::Model> create_model_sin_after_relu() {
     return std::make_shared<ov::Model>(ov::OutputVector{sin}, ov::ParameterVector{input});
 }
 
-void run_test(const std::shared_ptr<ov::Model>& model,
-              const std::unordered_map<std::string, bool>& expected_bf16_disabled_status) {
-    ov::pass::Manager manager;
-    manager.register_pass<DisableBF16CompSinCosEmbedding>();
-    manager.run_passes(model);
-
-    for (const auto& op : model->get_ops()) {
-        auto it = expected_bf16_disabled_status.find(op->get_friendly_name());
-        if (it == expected_bf16_disabled_status.end()) {
-            continue;
-        }
-        if (it->second) {
-            ASSERT_TRUE(ov::is_conversion_disabled(op, ov::element::f32, ov::element::bf16))
-                << "BF16 conversion is not disabled for node: " << op->get_friendly_name();
-        } else {
-            ASSERT_FALSE(ov::is_conversion_disabled(op, ov::element::f32, ov::element::bf16))
-                << "BF16 conversion is unexpectedly disabled for node: " << op->get_friendly_name();
-        }
-    }
-}
-
 }  // namespace
 
-TEST(TransformationTests, DisableBF16CompSinCosEmbedding_TimestepEmbedding) {
-    auto model = create_timestep_embedding_model(false);
-    std::unordered_map<std::string, bool> expected_status = {
-        {name_scale_mul, false},
-        {name_unsqueeze, false},
-        {name_freq_mul, true},
-        {name_sin, true},
-        {name_cos, true},
-        {name_concat, false},
-    };
-    run_test(model, expected_status);
+class DisableBF16CompSinCosEmbeddingTest : public TransformationTestsF {
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        manager.register_pass<DisableBF16CompSinCosEmbedding>();
+    }
+
+    void TearDown() override {
+        TransformationTestsF::TearDown();
+        if (HasFatalFailure()) {
+            return;
+        }
+        for (const auto& op : model->get_ops()) {
+            EXPECT_EQ(ov::is_conversion_disabled(op, ov::element::f32, ov::element::bf16),
+                      expected_marked.count(op->get_friendly_name()) > 0)
+                << "Unexpected BF16 conversion mark on node: " << op->get_friendly_name();
+        }
+    }
+
+    void expect_marked(const std::unordered_set<std::string>& names) {
+        expected_marked = names;
+        for (const auto& op : model_ref->get_ops()) {
+            if (names.count(op->get_friendly_name())) {
+                ov::disable_conversion(op, ov::element::f32, ov::element::bf16);
+            }
+        }
+    }
+
+    std::unordered_set<std::string> expected_marked;
+};
+
+TEST_F(DisableBF16CompSinCosEmbeddingTest, TimestepEmbedding) {
+    model = create_timestep_embedding_model(false);
+    model_ref = create_timestep_embedding_model(false);
+    expect_marked({name_freq_mul, name_sin, name_cos});
 }
 
-TEST(TransformationTests, DisableBF16CompSinCosEmbedding_ConstantOnFirstInput) {
-    auto model = create_timestep_embedding_model(true);
-    std::unordered_map<std::string, bool> expected_status = {
-        {name_freq_mul, true},
-        {name_sin, true},
-        {name_cos, true},
-    };
-    run_test(model, expected_status);
+TEST_F(DisableBF16CompSinCosEmbeddingTest, ConstantOnFirstInput) {
+    model = create_timestep_embedding_model(true);
+    model_ref = create_timestep_embedding_model(true);
+    expect_marked({name_freq_mul, name_sin, name_cos});
 }
 
-TEST(TransformationTests, DisableBF16CompSinCosEmbedding_MultiplyWithoutConstant_NoOp) {
-    auto model = create_model_mul_without_constant();
-    std::unordered_map<std::string, bool> expected_status = {
-        {name_freq_mul, false},
-        {name_sin, false},
-    };
-    run_test(model, expected_status);
+TEST_F(DisableBF16CompSinCosEmbeddingTest, MultiplyWithoutConstant_NoOp) {
+    model = create_model_mul_without_constant();
 }
 
-TEST(TransformationTests, DisableBF16CompSinCosEmbedding_SinAfterRelu_NoOp) {
-    auto model = create_model_sin_after_relu();
-    std::unordered_map<std::string, bool> expected_status = {
-        {name_relu, false},
-        {name_sin, false},
-    };
-    run_test(model, expected_status);
+TEST_F(DisableBF16CompSinCosEmbeddingTest, SinAfterRelu_NoOp) {
+    model = create_model_sin_after_relu();
 }
+
+}  // namespace sin_cos_embedding_test
