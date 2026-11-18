@@ -9,7 +9,7 @@ and should be loaded when their description matches the task. Component-specific
 documentation and local README files take precedence over general assumptions.
 For code reviews, start with `.agents/skills/code-review/SKILL.md` and then
 load the component references selected by its path-routing table. Always load
-and follow `.agents/skills/code-review/DELIVERY.md` exactly: the review report
+and follow `.agents/skills/code-review/references/delivery.md` exactly: the review report
 must be the final message, must end with the review summary table, and nothing
 may be emitted after it. Ownership and automatic maintainer review requests are
 defined separately in `.github/CODEOWNERS`.

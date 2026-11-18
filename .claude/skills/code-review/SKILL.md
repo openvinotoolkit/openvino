@@ -298,7 +298,7 @@ Apply the same technical evidence threshold regardless of authorship:
 
 ## Review output
 
-Always load and follow [DELIVERY.md](references/DELIVERY.md). It is mandatory and
+Always load and follow [delivery.md](references/delivery.md). It is mandatory and
 defines the report order, the final-message rule, and PR publishing; the
 rules below define the content of each part.
 
