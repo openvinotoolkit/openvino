@@ -161,8 +161,9 @@ public:
         });
 
         const auto optionSupportCache = std::make_shared<::intel_npu::OptionSupportCache>();
-        const auto adapterFactory =
-            std::make_shared<const ::intel_npu::CompilerAdapterFactory>(backend, vclFunctionsProvider, optionSupportCache);
+        const auto adapterFactory = std::make_shared<const ::intel_npu::CompilerAdapterFactory>(backend,
+                                                                                                vclFunctionsProvider,
+                                                                                                optionSupportCache);
         propertiesManager = std::make_unique<PluginPropertyManager>(
             options,
             backend,

@@ -78,9 +78,7 @@ protected:
         optionSupportCache = std::make_shared<OptionSupportCache>();
         vclFunctionsProvider = npu::vcl_provider::fake();
         helper = std::make_unique<CompilerOptionSupportHelper>(
-            std::make_shared<const CompilerAdapterFactory>(backend,
-                                                           vclFunctionsProvider,
-                                                           optionSupportCache));
+            std::make_shared<const CompilerAdapterFactory>(backend, vclFunctionsProvider, optionSupportCache));
     }
 
     void TearDown() override {
@@ -334,8 +332,7 @@ protected:
         backend = ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>());
         optionSupportCache = std::make_shared<OptionSupportCache>();
         helper = std::make_unique<CompilerOptionSupportHelper>(
-            std::make_shared<const CompilerAdapterFactory>(
-                backend, npu::vcl_provider::fake(), optionSupportCache));
+            std::make_shared<const CompilerAdapterFactory>(backend, npu::vcl_provider::fake(), optionSupportCache));
     }
 
     void TearDown() override {

@@ -38,8 +38,7 @@ TEST_F(ParserFactoryFunctionalTests, GetParserProfilingDisabledDoesNotInvokeProv
     std::size_t calls = 0;
     const auto parser =
         factory.getParser(initStructs,
-                          vcl_provider::counted(
-                              calls, vcl_provider::forbidden("Profiling is disabled")),
+                          vcl_provider::counted(calls, vcl_provider::forbidden("Profiling is disabled")),
                           false);
     EXPECT_NE(parser, nullptr);
     EXPECT_EQ(calls, 0u);

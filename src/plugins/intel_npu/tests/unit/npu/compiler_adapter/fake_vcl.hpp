@@ -16,8 +16,8 @@
 #include <utility>
 #include <vector>
 
-#include "intel_npu/utils/vcl/vcl_function_table_provider.hpp"
 #include "intel_npu/utils/vcl/vcl_api.hpp"
+#include "intel_npu/utils/vcl/vcl_function_table_provider.hpp"
 
 namespace fake_vcl {
 

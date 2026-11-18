@@ -13,8 +13,8 @@
 #include <utility>
 
 #include "fake_vcl.hpp"
-#include "intel_npu/utils/vcl/vcl_function_table_provider.hpp"
 #include "intel_npu/utils/vcl/vcl_api.hpp"
+#include "intel_npu/utils/vcl/vcl_function_table_provider.hpp"
 #include "openvino/core/except.hpp"
 
 namespace ov::test::npu::vcl_provider {
