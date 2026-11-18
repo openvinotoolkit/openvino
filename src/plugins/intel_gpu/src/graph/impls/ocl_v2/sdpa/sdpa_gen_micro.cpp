@@ -15,7 +15,6 @@
 #include "ocl_v2/utils/jitter.hpp"
 #include "scaled_dot_product_attention_inst.h"
 #include "paged_attention_inst.h"
-#include "paged_attention_opt.hpp"
 #include "sdpa_base.hpp"
 #include "../utils/kernel_generator.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -275,12 +274,14 @@ inline size_t micro_get_value_cache_id(const kernel_impl_params& params) {
 }
 
 inline bool micro_is_v_transposed(const kernel_impl_params& params) {
-    if (params.is_type<paged_attention>())
+    if (params.is_type<paged_attention>()) {
         return false;
+    }
 
     const auto desc = params.typed_desc<scaled_dot_product_attention>();
-    if (desc->input_v_transpose_order.empty())
+    if (desc->input_v_transpose_order.empty()) {
         return false;
+    }
     const auto order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
     return order[2] == 3 && order[3] == 2;
 }
@@ -678,7 +679,10 @@ sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
     }
     if (head_size <= 64) {
         if (seq <= 0 && is_pa) {
-            return is_prefill ? &xehpc_h64 : (thin_q ? &xehpc_h64_pa_2nd : &xehpc_h64_pa);
+            if (is_prefill) {
+                return &xehpc_h64;
+            }
+            return thin_q ? &xehpc_h64_pa_2nd : &xehpc_h64_pa;
         }
         if (thin_q) {
             if (quantized) {
@@ -1201,10 +1205,12 @@ KernelData SDPAMicroGenerator::get_kernel_data(const kernel_impl_params& params)
 // attention scale and the mask preserve that). A sink logit, however, joins the softmax denominator
 // unshifted, so with sinks the shift would survive - don't fold then.
 inline bool micro_fold_key_scales_into_q(const kernel_impl_params& params, bool is_kv_compressed, bool use_asymmetric_quantization) {
-    if (params.is_type<paged_attention>() || !is_kv_compressed || kq_common_scales)
+    if (params.is_type<paged_attention>() || !is_kv_compressed || kq_common_scales) {
         return false;
-    if (use_asymmetric_quantization && params.typed_desc<scaled_dot_product_attention>()->has_sink_input)
+    }
+    if (use_asymmetric_quantization && params.typed_desc<scaled_dot_product_attention>()->has_sink_input) {
         return false;
+    }
     // Per-channel scales have seq == 1 and one entry per channel; per-token scales have seq > 1.
     const auto desc = params.typed_desc<scaled_dot_product_attention>();
     const auto scale_idx = get_data_inputs_num(*desc);
@@ -1224,8 +1230,9 @@ inline bool micro_fold_key_scales_into_q(const kernel_impl_params& params, bool 
 // slightly more accurate: V enters the GEMM as an exactly representable integer instead of a
 // dequantized value rounded to f16. See FOLD_VAL_SCALES_INTO_OUTPUT in sdpa_micro.cl.
 inline bool micro_fold_value_scales_into_output(const kernel_impl_params& params, bool is_kv_compressed) {
-    if (params.is_type<paged_attention>() || !is_kv_compressed || vs_common_scales || vs_common_zp)
+    if (params.is_type<paged_attention>() || !is_kv_compressed || vs_common_scales || vs_common_zp) {
         return false;
+    }
     const auto desc = params.typed_desc<scaled_dot_product_attention>();
     const auto scale_idx = get_data_inputs_num(*desc) + 1;
     const auto& ps = params.input_layouts[scale_idx].get_partial_shape();
@@ -1354,7 +1361,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
 
     if (config.has_const_scale_val) {
         jit.make("STATIC_SCALE_VALUE", config.scale_val);
-        jit.make("STATIC_SCALE_VALUE_INV", 1.0f / config.scale_val);
+        jit.make("STATIC_SCALE_VALUE_INV", 1.0F / config.scale_val);
     } else {
         jit.make("WITH_SCALE", data_inputs_num > scale_input_idx);
     }
@@ -1412,18 +1419,22 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         jit.make("VAL_GROUP_SIZE", val_group_size);
         const bool is_key_by_channel = (key_scale_seq == 1 && key_scale_groups > 1);
         const bool is_value_by_channel = (val_scale_seq == 1 && val_scale_groups > 1);
-        if (is_key_by_channel)
+        if (is_key_by_channel) {
             jit.make("IS_KEY_BY_CHANNEL", 1);
-        if (is_value_by_channel)
+        }
+        if (is_value_by_channel) {
             jit.make("IS_VALUE_BY_CHANNEL", 1);
+        }
         // Per-channel key scales are folded into Q rather than applied to K in the KQ micro-kernel,
         // and the key zero point is dropped with them; see micro_fold_key_scales_into_q().
-        if (is_key_by_channel && micro_fold_key_scales_into_q(params, config.is_kv_compressed, use_asymmetric_quantization))
+        if (is_key_by_channel && micro_fold_key_scales_into_q(params, config.is_kv_compressed, use_asymmetric_quantization)) {
             jit.make("FOLD_KEY_SCALES_INTO_Q", 1);
+        }
         // Per-channel value scales/zero points are applied once in the epilogue rather than to every
         // V element inside the VS k-loop; see micro_fold_value_scales_into_output().
-        if (is_value_by_channel && micro_fold_value_scales_into_output(params, config.is_kv_compressed))
+        if (is_value_by_channel && micro_fold_value_scales_into_output(params, config.is_kv_compressed)) {
             jit.make("FOLD_VAL_SCALES_INTO_OUTPUT", 1);
+        }
 
         jit.add(make_layout_jit_constants("KEY_SCALE", key_cache_comp_scale, params.in_port_to_shape_info_offset.at(data_inputs_num)));
         jit.add(make_layout_jit_constants("VAL_SCALE", value_cache_comp_scale, params.in_port_to_shape_info_offset.at(data_inputs_num + 1)));
@@ -1490,8 +1501,9 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
                                    ? params.typed_desc<scaled_dot_product_attention>()->quantization_attributes.quantization_dt
                                    : ov::element::dynamic;
     const bool is_byte_packed_int4 = !config.is_paged_attention && data_type_traits::is_i4_u4(compressed_dt);
-    if (is_byte_packed_int4)
+    if (is_byte_packed_int4) {
         jit.make("IS_INT4_KV_CACHE", 1);
+    }
     jit.make("KEY_ELEMENTS_PER_BYTE", elems_per_byte(compressed_dt.is_dynamic() ? ov::element::Type(K.data_type) : ov::element::Type(compressed_dt)));
     jit.make("VAL_ELEMENTS_PER_BYTE", elems_per_byte(compressed_dt.is_dynamic() ? ov::element::Type(V.data_type) : ov::element::Type(compressed_dt)));
 
@@ -1545,8 +1557,9 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
 
     if (device_info.arch >= gpu_arch::xe_hpc) {
         const int disabled_prefetch = GPU_DEBUG_VALUE_OR(params.get_program().get_config().get_micro_sdpa_disable_prefetch(), 0);
-        if (!(disabled_prefetch & 1))
+        if (!(disabled_prefetch & 1)) {
             jit.make("PREFETCH_MASK", 1);
+        }
         const bool enable_kv_prefetch = (!config.is_paged_attention || m_is_prefill) && !is_byte_packed_int4;
         const bool enable_k_prefetch = enable_kv_prefetch && ((disabled_prefetch & 2) == 0);
         jit.make("PREFETCH_K0", enable_k_prefetch);

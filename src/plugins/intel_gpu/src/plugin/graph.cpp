@@ -236,8 +236,9 @@ void Graph::build(std::shared_ptr<cldnn::program> program) {
                 const auto* kv = dynamic_cast<const cldnn::kv_cache*>(primitive);
                 return kv != nullptr && (kv->compressed || kv->indirect);
             });
-        if (special_kv_state)
+        if (special_kv_state) {
             continue;
+        }
 
         const auto source_type = info.m_user_specified_type == ov::element::dynamic
                                      ? info.m_layout.data_type

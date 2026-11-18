@@ -37,8 +37,8 @@ class typed_primitive_inst<sparse_pa> : public typed_primitive_inst_base<sparse_
 
 public:
     template <typename ShapeType>
-    static std::vector<layout> calc_output_layouts(const sparse_pa_node& node, const kernel_impl_params& impl_params);
-    static layout calc_output_layout(const sparse_pa_node& node, const kernel_impl_params& impl_params);
+    static std::vector<layout> calc_output_layouts(const sparse_pa_node& node, const kernel_impl_params& impl_param);
+    static layout calc_output_layout(const sparse_pa_node& node, const kernel_impl_params& impl_param);
 
     static std::string to_string(const sparse_pa_node& node);
     typed_primitive_inst(network& network, const sparse_pa_node& node);
