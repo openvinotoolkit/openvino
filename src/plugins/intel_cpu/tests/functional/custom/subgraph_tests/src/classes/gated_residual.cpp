@@ -42,8 +42,6 @@
 namespace {
 
 using Mode = ov::op::internal::GatedResidual::Mode;
-using ReadInputIdx = ov::op::internal::GatedResidual::ReadInputIdx;
-using WriteInputIdx = ov::op::internal::GatedResidual::WriteInputIdx;
 
 struct QuantRange {
     int32_t qmin;
@@ -380,15 +378,16 @@ void GatedResidualLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& ta
     };
 
     if (m_mode == Mode::WRITE) {
-        fill(params[WriteInputIdx::RESIDUAL], targetInputStaticShapes[WriteInputIdx::RESIDUAL], -1.0F, 1.0F);
-        fill(params[WriteInputIdx::SUBLAYER_Y], targetInputStaticShapes[WriteInputIdx::SUBLAYER_Y], -1.0F, 1.0F);
-        fill(params[WriteInputIdx::WRITE_GATE], targetInputStaticShapes[WriteInputIdx::WRITE_GATE], -1.0F, 1.0F);
+        // residual, sublayer_y, write_gate
+        for (size_t i = 0; i < 3; ++i) {
+            fill(params[i], targetInputStaticShapes[i], -1.0F, 1.0F);
+        }
         return;
     }
 
     // Residual and norm weight are the only model inputs; the projection weights are constants of the graph.
-    fill(params[ReadInputIdx::RESIDUAL], targetInputStaticShapes[ReadInputIdx::RESIDUAL], -1.0F, 1.0F);
-    fill(params[ReadInputIdx::NORM_WEIGHT], targetInputStaticShapes[ReadInputIdx::NORM_WEIGHT], -0.1F, 0.1F);
+    fill(params[0], targetInputStaticShapes[0], -1.0F, 1.0F);  // residual
+    fill(params[1], targetInputStaticShapes[1], -0.1F, 0.1F);  // norm weight
 }
 
 void GatedResidualLayerCPUTest::compare(const std::vector<ov::Tensor>& expected,

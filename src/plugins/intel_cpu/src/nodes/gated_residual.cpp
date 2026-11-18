@@ -42,7 +42,6 @@ namespace ov::intel_cpu::node {
 
 namespace {
 
-using ReadInputIdx = ov::op::internal::GatedResidual::ReadInputIdx;
 using Mode = ov::op::internal::GatedResidual::Mode;
 
 struct GatedResidualShapeConfig {
@@ -59,7 +58,8 @@ public:
 
     Result infer([[maybe_unused]] const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                  [[maybe_unused]] const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        const auto& residual = input_shapes[ReadInputIdx::RESIDUAL].get();
+        // The residual is the first input of every form.
+        const auto& residual = input_shapes[0].get();
         std::vector<VectorDims> out(m_config.produce_write_gate ? 2U : 1U, residual);
         out[0].back() = m_config.hidden_size;
         if (m_config.produce_write_gate) {
@@ -129,13 +129,10 @@ void GatedResidual::initSupportedPrimitiveDescriptors() {
     const auto& layout = m_attrs.read_layout;
     std::set<size_t> native_precision_ports;
     if (layout.compressed) {
-        native_precision_ports = {ReadInputIdx::W_DOWN,
-                                  ReadInputIdx::SCALE_DOWN,
-                                  ReadInputIdx::W_UP,
-                                  ReadInputIdx::SCALE_UP};
+        native_precision_ports = {layout.w_down, layout.scale_down, layout.w_up, layout.scale_up};
         if (layout.has_zp) {
-            native_precision_ports.insert(ReadInputIdx::ZP_DOWN);
-            native_precision_ports.insert(ReadInputIdx::ZP_UP);
+            native_precision_ports.insert(layout.zp_down);
+            native_precision_ports.insert(layout.zp_up);
         }
         if (layout.write_gate) {
             native_precision_ports.insert(layout.w_inject);
@@ -264,10 +261,10 @@ bool GatedResidual::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
             return false;
         }
         if (layout->compressed) {
-            weight_ports = {ReadInputIdx::W_DOWN, ReadInputIdx::W_UP};
-            scale_ports = {ReadInputIdx::SCALE_DOWN, ReadInputIdx::SCALE_UP};
+            weight_ports = {layout->w_down, layout->w_up};
+            scale_ports = {layout->scale_down, layout->scale_up};
             if (layout->has_zp) {
-                zero_point_ports = {ReadInputIdx::ZP_DOWN, ReadInputIdx::ZP_UP};
+                zero_point_ports = {layout->zp_down, layout->zp_up};
             }
             if (layout->write_gate) {
                 weight_ports.insert(layout->w_inject);
@@ -282,7 +279,7 @@ bool GatedResidual::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
                 const auto& ps = op->get_input_partial_shape(scale_port);
                 return ps.rank().is_static() && ps[1].is_static();
             };
-            if (!groups_static(ReadInputIdx::SCALE_DOWN) || !groups_static(ReadInputIdx::SCALE_UP) ||
+            if (!groups_static(layout->scale_down) || !groups_static(layout->scale_up) ||
                 (layout->write_gate && !groups_static(layout->scale_inject))) {
                 errorMessage = "GatedResidual compressed weight scales must have a static group count.";
                 return false;
@@ -302,7 +299,7 @@ bool GatedResidual::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
         constant_ports.insert(scale_ports.begin(), scale_ports.end());
         constant_ports.insert(zero_point_ports.begin(), zero_point_ports.end());
         // Uncompressed weights are not in weight_ports (it only drives the compressed type check).
-        constant_ports.insert({ReadInputIdx::W_DOWN, ReadInputIdx::W_UP});
+        constant_ports.insert({layout->w_down, layout->w_up});
         if (layout->write_gate) {
             constant_ports.insert(layout->w_inject);
         }

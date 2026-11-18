@@ -46,7 +46,6 @@ namespace ov::intel_cpu {
 
 namespace {
 
-using ReadInputIdx = ov::op::internal::GatedResidual::ReadInputIdx;
 using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
 
 // The ISA the JIT kernels are built for (supports() requires AVX2).
@@ -110,7 +109,7 @@ struct RmsKernelKey {
 }  // namespace
 
 bool GatedResidualDnnlExecutor::supports(const GatedResidualConfig& config) {
-    const auto it = config.descs.find(gatedResidualSrcArg(ReadInputIdx::RESIDUAL));
+    const auto it = config.descs.find(gatedResidualSrcArg(config.attrs.read_layout.residual));
     if (it == config.descs.end()) {
         return false;
     }
@@ -134,7 +133,7 @@ GatedResidualDnnlExecutor::GatedResidualDnnlExecutor(const GatedResidualAttrs& a
       m_weights_compressed(attrs.read_layout.compressed),
       m_weights_have_zero_points(attrs.read_layout.has_zp),
       m_layout(attrs.read_layout) {
-    m_precision = memory.at(gatedResidualSrcArg(ReadInputIdx::RESIDUAL))->getPrecision();
+    m_precision = memory.at(gatedResidualSrcArg(attrs.read_layout.residual))->getPrecision();
     m_gemm_precision = gemmPrecision(m_precision, m_weights_compressed);
 
     // Built at compile time: packs the constant weights.
@@ -214,9 +213,9 @@ void GatedResidualDnnlExecutor::createProjections(const GatedResidualAttrs& attr
     specs.push_back({kDown,
                      CD,
                      L,
-                     ReadInputIdx::W_DOWN,
-                     ReadInputIdx::SCALE_DOWN,
-                     ReadInputIdx::ZP_DOWN,
+                     m_layout.w_down,
+                     m_layout.scale_down,
+                     m_layout.zp_down,
                      off_gemm_src,
                      off_t,
                      m_gemm_precision,
@@ -225,9 +224,9 @@ void GatedResidualDnnlExecutor::createProjections(const GatedResidualAttrs& attr
     specs.push_back({kUp,
                      L,
                      CD,
-                     ReadInputIdx::W_UP,
-                     ReadInputIdx::SCALE_UP,
-                     ReadInputIdx::ZP_UP,
+                     m_layout.w_up,
+                     m_layout.scale_up,
+                     m_layout.zp_up,
                      off_t,
                      off_logit,
                      ov::element::f32,
@@ -312,7 +311,7 @@ bool GatedResidualDnnlExecutor::update(const MemoryArgs& memory) {
     const size_t D = m_hidden_size;
     const size_t CD = C * D;
 
-    const auto& residual_dims = memory.at(gatedResidualSrcArg(ReadInputIdx::RESIDUAL))->getStaticDims();
+    const auto& residual_dims = memory.at(gatedResidualSrcArg(m_layout.residual))->getStaticDims();
     m_rows = shape_size(residual_dims) / CD;
     if (m_rows == 0) {
         return true;
@@ -392,9 +391,9 @@ void GatedResidualDnnlExecutor::execute_read_or_final_mix(const MemoryArgs& memo
     auto* mixed_out = memory.at(gatedResidualDstArg(0))->getDataAs<uint8_t>();  // [rows, D] at the port precision
 
     // The RMS kernel reads the residual and the gain in their port precision.
-    const auto* residual_bytes = memory.at(gatedResidualSrcArg(ReadInputIdx::RESIDUAL))->getDataAs<const uint8_t>();
+    const auto* residual_bytes = memory.at(gatedResidualSrcArg(m_layout.residual))->getDataAs<const uint8_t>();
     const size_t residual_elem_size = m_precision.size();
-    const auto* gain_bytes = memory.at(gatedResidualSrcArg(ReadInputIdx::NORM_WEIGHT))->getDataAs<const uint8_t>();
+    const auto* gain_bytes = memory.at(gatedResidualSrcArg(m_layout.norm_weight))->getDataAs<const uint8_t>();
 
     const bool produce_write_gate = m_produce_write_gate;
     uint8_t* write_gate_out = nullptr;  // [rows, C] output port, contiguous ncsp at the port precision

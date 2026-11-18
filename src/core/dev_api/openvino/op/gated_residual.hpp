@@ -35,30 +35,26 @@ public:
         FINAL_MIX = 2,  ///< model-tail mixer: READ without write-gate generation
     };
 
-    /// @brief Input indices for Mode::READ / Mode::FINAL_MIX that do not depend on the input form
-    struct ReadInputIdx {
-        static constexpr size_t RESIDUAL = 0;     ///< [B,T,C*D]
-        static constexpr size_t NORM_WEIGHT = 1;  ///< [C*D]
-        static constexpr size_t W_DOWN = 2;       ///< [L, C*D]
-        static constexpr size_t W_UP = 3;         ///< [C*D, L]
-
-        // Compressed weights are i4/u4/i8/u8. scale / zp are [N, G]: N output channels, G groups along K.
-        static constexpr size_t SCALE_DOWN = 4;  ///< floating-point (f16 / bf16 / f32) [L, G_d]
-        static constexpr size_t SCALE_UP = 5;    ///< floating-point (f16 / bf16 / f32) [C*D, G_u]
-        static constexpr size_t ZP_DOWN = 6;     ///< weight type [L, G_d], only with zero points
-        static constexpr size_t ZP_UP = 7;       ///< weight type [C*D, G_u], only with zero points
-    };
-
-    /// @brief Input form of a READ / FINAL_MIX node; the write-gate inputs come last, so their indices depend on it:
+    /// @brief Input form of a READ / FINAL_MIX node and the position of each input in it. The write-gate inputs come
+    /// last, so their positions depend on the form:
     ///   floating-point weights:        residual, norm, w_down, w_up [, w_inject]
     ///   compressed, no zero points:    residual, norm, w_down, w_up, scale_down, scale_up [, w_inject, scale_inject]
     ///   compressed with zero points:   ... scale_up, zp_down, zp_up [, w_inject, scale_inject, zp_inject]
-    /// Zero points are all-or-nothing; without them they are 0.
+    /// Zero points are all-or-nothing; without them they are 0. Compressed weights are i4/u4/i8/u8; scale and zero
+    /// point are [N, G]: N output channels, G groups along K.
     struct ReadLayout {
         bool compressed = false;
         bool has_zp = false;
         bool write_gate = false;
         size_t input_count = 4;
+        size_t residual = 0;      ///< [B,T,C*D]
+        size_t norm_weight = 1;   ///< [C*D]
+        size_t w_down = 2;        ///< [L, C*D]
+        size_t w_up = 3;          ///< [C*D, L]
+        size_t scale_down = 4;    ///< valid when compressed: floating-point (f16 / bf16 / f32) [L, G_d]
+        size_t scale_up = 5;      ///< valid when compressed: floating-point [C*D, G_u]
+        size_t zp_down = 6;       ///< valid when has_zp: weight type [L, G_d]
+        size_t zp_up = 7;         ///< valid when has_zp: weight type [C*D, G_u]
         size_t w_inject = 0;      ///< valid when write_gate
         size_t scale_inject = 0;  ///< valid when write_gate and compressed
         size_t zp_inject = 0;     ///< valid when write_gate, compressed and has_zp
@@ -68,13 +64,6 @@ public:
     std::optional<ReadLayout> get_read_layout() const {
         return read_layout(get_input_size(), m_produce_write_gate);
     }
-
-    /// @brief Input indices for Mode::WRITE
-    struct WriteInputIdx {
-        static constexpr size_t RESIDUAL = 0;    ///< [B,T,C*D]
-        static constexpr size_t SUBLAYER_Y = 1;  ///< [B,T,D]
-        static constexpr size_t WRITE_GATE = 2;  ///< [B,T,C]
-    };
 
     GatedResidual() = default;
 

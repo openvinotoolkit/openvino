@@ -6,9 +6,11 @@
 
 #include <cstddef>
 
+#include "nodes/kernels/simd/simd_common.hpp"
 #include "nodes/kernels/simd/simd_loop.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
 
 namespace ov::Extensions::Cpu::XARCH {

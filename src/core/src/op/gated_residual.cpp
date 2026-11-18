@@ -13,6 +13,10 @@ namespace ov::op::internal {
 
 namespace gated_residual_validation {
 
+// Inputs of Mode::WRITE: residual, sublayer_y [B,T,D], write_gate [B,T,C].
+constexpr size_t write_sublayer_y = 1;
+constexpr size_t write_gate = 2;
+
 /// Rank is dynamic, or last dimension is dynamic, or it equals `expected`.
 bool last_dim_matches(const ov::PartialShape& ps, size_t expected) {
     return ps.rank().is_dynamic() ||
@@ -105,15 +109,16 @@ void GatedResidual::validate_and_infer_types() {
 
     if (m_mode == Mode::WRITE) {
         NODE_VALIDATION_CHECK(this, input_size == 3, "GatedResidual (WRITE) expects 3 inputs, got ", input_size);
+        NODE_VALIDATION_CHECK(this,
+                              gated_residual_validation::last_dim_matches(
+                                  get_input_partial_shape(gated_residual_validation::write_sublayer_y),
+                                  m_hidden_size),
+                              "GatedResidual (WRITE) sub-layer output last dimension must be D = ",
+                              m_hidden_size);
         NODE_VALIDATION_CHECK(
             this,
-            gated_residual_validation::last_dim_matches(get_input_partial_shape(WriteInputIdx::SUBLAYER_Y),
-                                                        m_hidden_size),
-            "GatedResidual (WRITE) sub-layer output last dimension must be D = ",
-            m_hidden_size);
-        NODE_VALIDATION_CHECK(
-            this,
-            gated_residual_validation::last_dim_matches(get_input_partial_shape(WriteInputIdx::WRITE_GATE), m_hc_count),
+            gated_residual_validation::last_dim_matches(get_input_partial_shape(gated_residual_validation::write_gate),
+                                                        m_hc_count),
             "GatedResidual (WRITE) write gate last dimension must be C = ",
             m_hc_count);
         auto merged_et = out_et;
@@ -123,8 +128,8 @@ void GatedResidual::validate_and_infer_types() {
                                   "GatedResidual (WRITE) inputs must share the residual element type.");
         }
         // Y [.., D] and the gate [.., C] carry one row per residual row: same rank and compatible leading dimensions.
-        const auto& y_ps = get_input_partial_shape(WriteInputIdx::SUBLAYER_Y);
-        const auto& gate_ps = get_input_partial_shape(WriteInputIdx::WRITE_GATE);
+        const auto& y_ps = get_input_partial_shape(gated_residual_validation::write_sublayer_y);
+        const auto& gate_ps = get_input_partial_shape(gated_residual_validation::write_gate);
         auto rank = residual_ps.rank();
         NODE_VALIDATION_CHECK(
             this,
@@ -177,7 +182,7 @@ void GatedResidual::validate_and_infer_types() {
                           "GatedResidual (FINAL_MIX) must not produce a write gate.");
     NODE_VALIDATION_CHECK(this, m_lowrank > 0, "GatedResidual (READ/FINAL_MIX) requires a positive low rank L.");
 
-    const auto& gain_ps = get_input_partial_shape(ReadInputIdx::NORM_WEIGHT);
+    const auto& gain_ps = get_input_partial_shape(layout->norm_weight);
     NODE_VALIDATION_CHECK(this,
                           gain_ps.rank().is_dynamic() ||
                               (gain_ps.rank().get_length() == 1 && gain_ps[0].compatible(static_cast<int64_t>(cd))),
@@ -187,25 +192,25 @@ void GatedResidual::validate_and_infer_types() {
                           gain_ps);
     NODE_VALIDATION_CHECK(
         this,
-        gated_residual_validation::matrix_matches(get_input_partial_shape(ReadInputIdx::W_DOWN), m_lowrank, cd),
+        gated_residual_validation::matrix_matches(get_input_partial_shape(layout->w_down), m_lowrank, cd),
         "GatedResidual W_down must have shape [L, C*D] = [",
         m_lowrank,
         ", ",
         cd,
         "], got ",
-        get_input_partial_shape(ReadInputIdx::W_DOWN));
+        get_input_partial_shape(layout->w_down));
     NODE_VALIDATION_CHECK(
         this,
-        gated_residual_validation::matrix_matches(get_input_partial_shape(ReadInputIdx::W_UP), cd, m_lowrank),
+        gated_residual_validation::matrix_matches(get_input_partial_shape(layout->w_up), cd, m_lowrank),
         "GatedResidual W_up must have shape [C*D, L] = [",
         cd,
         ", ",
         m_lowrank,
         "], got ",
-        get_input_partial_shape(ReadInputIdx::W_UP));
+        get_input_partial_shape(layout->w_up));
 
-    const auto wd_et = get_input_element_type(ReadInputIdx::W_DOWN);
-    const auto wu_et = get_input_element_type(ReadInputIdx::W_UP);
+    const auto wd_et = get_input_element_type(layout->w_down);
+    const auto wu_et = get_input_element_type(layout->w_up);
     NODE_VALIDATION_CHECK(this,
                           wd_et.is_dynamic() || wu_et.is_dynamic() || wd_et == wu_et,
                           "GatedResidual W_down and W_up must share one element type, got ",
@@ -264,8 +269,8 @@ void GatedResidual::validate_and_infer_types() {
                                       g);
             }
         };
-        check_group(ReadInputIdx::SCALE_DOWN, ReadInputIdx::ZP_DOWN, m_lowrank, cd, "W_down");
-        check_group(ReadInputIdx::SCALE_UP, ReadInputIdx::ZP_UP, cd, m_lowrank, "W_up");
+        check_group(layout->scale_down, layout->zp_down, m_lowrank, cd, "W_down");
+        check_group(layout->scale_up, layout->zp_up, cd, m_lowrank, "W_up");
         if (m_produce_write_gate) {
             NODE_VALIDATION_CHECK(this,
                                   get_input_element_type(layout->w_inject).is_dynamic() ||

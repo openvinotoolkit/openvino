@@ -524,7 +524,7 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
         if (compressed_down) {
             // The repacked constants may carry a weightless-cache attribute, so copy_runtime_info would miss them as
             // inputs.
-            for (size_t i = ov::op::internal::GatedResidual::ReadInputIdx::W_DOWN; i < gr->get_input_size(); ++i) {
+            for (size_t i = gr->get_read_layout()->w_down; i < gr->get_input_size(); ++i) {
                 new_ops.push_back(gr->get_input_node_shared_ptr(i));
             }
         }

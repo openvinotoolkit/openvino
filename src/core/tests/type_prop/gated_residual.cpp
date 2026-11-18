@@ -320,6 +320,12 @@ TEST_F(TypePropGatedResidualTest, read_layout_follows_the_input_form) {
         EXPECT_FALSE(plain_layout->compressed);
         EXPECT_EQ(plain_layout->write_gate, write_gate);
         EXPECT_EQ(plain_layout->input_count, plain->get_input_size());
+        // The positions the plugins read: every form starts with residual, norm, w_down, w_up.
+        EXPECT_EQ(plain_layout->residual, 0U);
+        EXPECT_EQ(plain_layout->norm_weight, 1U);
+        EXPECT_EQ(plain_layout->w_down, 2U);
+        EXPECT_EQ(plain_layout->w_up, 3U);
+        EXPECT_EQ(plain_layout->w_inject, 4U);
 
         for (const bool has_zp : {false, true}) {
             CompressedCfg cfg;
@@ -332,6 +338,13 @@ TEST_F(TypePropGatedResidualTest, read_layout_follows_the_input_form) {
             EXPECT_EQ(layout->has_zp, has_zp);
             EXPECT_EQ(layout->write_gate, write_gate);
             EXPECT_EQ(layout->input_count, compressed->get_input_size());
+            EXPECT_EQ(layout->scale_down, 4U);
+            EXPECT_EQ(layout->scale_up, 5U);
+            if (has_zp) {
+                EXPECT_EQ(layout->zp_down, 6U);
+                EXPECT_EQ(layout->zp_up, 7U);
+            }
+            EXPECT_EQ(layout->w_inject, has_zp ? 8U : 6U);
         }
     }
 }
