@@ -20,6 +20,7 @@
 #include "host_flash_attention.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
+#include "just_sync_infer_request.hpp"
 #include "lazy_tensor.hpp"
 #include "llm_test_helpers.hpp"
 #include "model_builder.hpp"
@@ -2452,6 +2453,24 @@ TEST(SerializationTest, ImportRejectsReplacementTargetWithoutCompiledModel) {
     OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::CompiledModel::import_model(input, plugin, {}),
                                   ov::Exception,
                                   "has no compiled model");
+}
+
+TEST(SerializationTest, FuncMemMgrRejectsOutOfRangeReplacedByBeforeRequestCreation) {
+    auto compiled = ov::npuw::CompiledModelDescSerializationAccess::make_serialized_compiled_model();
+    auto& submodel = ov::npuw::CompiledModelDescSerializationAccess::append_submodel(*compiled);
+    submodel.replaced_by = std::numeric_limits<std::size_t>::max();
+
+    ov::npuw::FuncMemMgr func_mem_mgr(compiled);
+    OV_EXPECT_THROW_HAS_SUBSTRING(func_mem_mgr.assign_memory(), ov::Exception, "out of range");
+}
+
+TEST(SerializationTest, FuncMemMgrRejectsReplacementTargetWithoutCompiledModel) {
+    auto compiled = ov::npuw::CompiledModelDescSerializationAccess::make_serialized_compiled_model();
+    auto& submodel = ov::npuw::CompiledModelDescSerializationAccess::append_submodel(*compiled);
+    submodel.replaced_by = 0u;
+
+    ov::npuw::FuncMemMgr func_mem_mgr(compiled);
+    OV_EXPECT_THROW_HAS_SUBSTRING(func_mem_mgr.assign_memory(), ov::Exception, "without a compiled model");
 }
 
 // The checks below need no compiled model, so a funcall desc must be rejected by the codec itself.

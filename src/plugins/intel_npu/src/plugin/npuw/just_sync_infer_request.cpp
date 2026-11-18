@@ -200,7 +200,21 @@ void ov::npuw::FuncMemMgr::assign_memory() {
         // If it is a function, though - look up in the function's memory storage.
         if (comp_model_desc.replaced_by) {
             const auto real_idx = comp_model_desc.replaced_by.value();
-            const auto& proto_comp_model_desc = m_model->m_compiled_submodels[real_idx];
+            OPENVINO_ASSERT(real_idx < num_submodels,
+                            "Function-call submodel ",
+                            idx,
+                            " refers to replacement submodel ",
+                            real_idx,
+                            " out of range [0, ",
+                            num_submodels,
+                            ")");
+            const auto& proto_comp_model_desc = m_model->m_compiled_submodels.at(real_idx);
+            OPENVINO_ASSERT(proto_comp_model_desc.compiled_model,
+                            "Function-call submodel ",
+                            idx,
+                            " refers to replacement submodel ",
+                            real_idx,
+                            " without a compiled model");
 
             const auto num_outs = proto_comp_model_desc.compiled_model->outputs().size();
             for (std::size_t out_idx = 0u; out_idx < num_outs; out_idx++) {
@@ -266,8 +280,14 @@ void ov::npuw::FuncMemMgr::assign(const LinkFrom& from) {
         m_table[from] = asgn_iter->ptr;
     } else {
         // No free space at this point - allocate a new tensor
-        const auto& proto_comp_model_desc = m_model->m_compiled_submodels[real_idx];
+        const auto& proto_comp_model_desc = m_model->m_compiled_submodels.at(real_idx);
         const auto& proto_comp_model = proto_comp_model_desc.compiled_model;
+        OPENVINO_ASSERT(proto_comp_model,
+                        "Function-call submodel ",
+                        from.first,
+                        " refers to replacement submodel ",
+                        real_idx,
+                        " without a compiled model");
 
         const auto& oport = proto_comp_model->outputs()[from.second];
         ov::Shape oshape = oport.get_shape();
