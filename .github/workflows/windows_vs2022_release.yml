@@ -678,7 +678,7 @@ jobs:
   GPU_Unit_Tests:
     name: GPU unit tests
     needs: [ Build, Smart_CI ]
-    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
+    if: ${{ github.event_name != 'merge_group' && fromJSON(needs.smart_ci.outputs.affected_components).GPU }}
     timeout-minutes: 120 # to be adjusted when the stage is marked as required for merge
     defaults:
       run:

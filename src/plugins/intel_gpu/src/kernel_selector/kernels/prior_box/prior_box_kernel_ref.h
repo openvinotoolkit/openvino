@@ -24,15 +24,15 @@ struct prior_box_params : public base_params {
     std::vector<float> fixed_size;
     bool clip = false;
     bool flip = false;
-    float step = 0.0f;
-    float offset = 0.0f;
+    float step = 0.0F;
+    float offset = 0.0F;
     bool scale_all_sizes = false;
     bool min_max_aspect_ratios_order = false;
     std::vector<float> widths;
     std::vector<float> heights;
     std::vector<float> aspect_ratio;
     std::vector<float> variance;
-    float reverse_image_width = 0.0f, reverse_image_height = 0.0f;
+    float reverse_image_width = 0.0F, reverse_image_height = 0.0F;
     float step_x = 0, step_y = 0;
     uint32_t width = 0, height = 0;
     uint32_t num_priors_4 = 0;
