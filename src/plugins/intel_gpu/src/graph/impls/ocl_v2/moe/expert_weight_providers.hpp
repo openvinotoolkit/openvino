@@ -73,7 +73,7 @@ public:
     }
     std::optional<ExpertSlotLease> try_acquire_simultaneous(const std::vector<uint32_t>& experts,
                                                             const RoutedWeightViews& inputs,
-                                                            const RoutedWeightViews& slots,
+                                                            const RoutedWeightViews& slot_buffers,
                                                             cldnn::stream& stream) override;
     size_t acquire_one(uint32_t expert, const RoutedWeightViews& inputs, const RoutedWeightViews& slots, cldnn::stream& stream) override;
 

@@ -81,7 +81,7 @@ void OffloadExpertWeightProvider::reset_cache_if_slots_changed(const RoutedWeigh
 
 void OffloadExpertWeightProvider::load(uint32_t expert, size_t slot, const RoutedWeightViews& inputs, const RoutedWeightViews& slots, cldnn::stream& stream) {
     OPENVINO_ASSERT(_weight_bin_offsets.size() == cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count, "Unexpected number of MOE weight offsets");
-    const auto num_expert = static_cast<size_t>(_config.num_expert);
+    const size_t num_expert = _config.num_expert;
     // The weights are streamed as stored in the weights file, the scales and zero points are copied as converted by the pipeline
     std::vector<moe_otd::SlicedTensor> tensors;
     for (size_t i = 0; i < 3; i++) {

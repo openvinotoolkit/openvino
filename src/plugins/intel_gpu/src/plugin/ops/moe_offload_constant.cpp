@@ -160,8 +160,9 @@ bool is_moe_otd_eligible(const ov::Node* node, std::string* reason) {
     while (!pending.empty()) {
         const auto* current = pending.back();
         pending.pop_back();
-        if (!visited.insert(current).second)
+        if (!visited.insert(current).second) {
             continue;
+        }
         if (const auto* why = get_resident_reason(current, pending)) {
             if (reason) {
                 *reason = why;
@@ -173,8 +174,9 @@ bool is_moe_otd_eligible(const ov::Node* node, std::string* reason) {
 }
 
 bool is_moe_constant_offloadable(const std::shared_ptr<ov::op::v0::Constant>& op) {
-    if (get_moe_constant_role(op) != MoEConstantRole::OffloadableRoutedExpert)
+    if (get_moe_constant_role(op) != MoEConstantRole::OffloadableRoutedExpert) {
         return false;
+    }
     const auto consumers = op->get_output_target_inputs(0);
     return std::all_of(consumers.begin(), consumers.end(), [](const ov::Input<ov::Node>& consumer) {
         return is_routed_weight_input(consumer.get_index()) && is_moe_otd_eligible(consumer.get_node());
@@ -292,27 +294,31 @@ uint64_t get_model_resident_constant_bytes(const ov::Model& model, size_t offloa
         for (const auto& node : current_model.get_ops()) {
             has_moe = has_moe || is_otd_capable_moe(node.get());
             if (auto subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
-                for (const auto& subgraph : subgraph_op->get_functions())
+                for (const auto& subgraph : subgraph_op->get_functions()) {
                     collect_resident_bytes(*subgraph);
+                }
             }
 
             auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
-            if (!constant || !visited.insert(constant.get()).second)
+            if (!constant || !visited.insert(constant.get()).second) {
                 continue;
+            }
 
             const auto role = get_moe_constant_role(constant);
-            if (role == MoEConstantRole::NotMoE)
+            if (role == MoEConstantRole::NotMoE) {
                 continue;
+            }
 
             uint64_t constant_resident_bytes = constant->get_byte_size();
             if (const size_t slot_count = get_routed_weight_slot_count(constant, offload_ratio)) {
                 const auto& shape = constant->get_shape();
-                if (shape.empty() || shape[0] == 0)
+                if (shape.empty() || shape[0] == 0) {
                     continue;
+                }
 
                 const size_t resident_experts = std::min<size_t>(shape[0], slot_count);
                 const uint64_t bytes_per_expert =
-                    constant_resident_bytes / shape[0] + (constant_resident_bytes % shape[0] != 0 ? 1 : 0);
+                    (constant_resident_bytes / shape[0]) + (constant_resident_bytes % shape[0] != 0 ? 1 : 0);
                 constant_resident_bytes = bytes_per_expert * resident_experts;
             }
             // Per-expert scales and zero points stay resident and also have slot copies
@@ -328,8 +334,9 @@ uint64_t get_model_resident_constant_bytes(const ov::Model& model, size_t offloa
 }
 
 void validate_model_resident_constant_memory(const ov::Model& model, size_t offload_ratio, uint64_t device_memory_bytes) {
-    if (offload_ratio == 0)
+    if (offload_ratio == 0) {
         return;
+    }
 
     // A model without MoE layers is not affected (OFFLOAD_RATIO may be set for every model of a pipeline), but a MoE model
     // where no layer can be offloaded would silently keep every expert resident
@@ -350,8 +357,9 @@ void validate_model_resident_constant_memory(const ov::Model& model, size_t offl
     }
     OPENVINO_ASSERT(resident_layer.empty(), "[GPU] OFFLOAD_RATIO=", offload_ratio, " has no effect: no MoE layer can be offloaded (", resident_layer, ")");
 
-    if (device_memory_bytes == 0)
+    if (device_memory_bytes == 0) {
         return;
+    }
 
     const uint64_t resident_bytes = get_model_resident_constant_bytes(model, offload_ratio);
     OPENVINO_ASSERT(resident_bytes <= device_memory_bytes,

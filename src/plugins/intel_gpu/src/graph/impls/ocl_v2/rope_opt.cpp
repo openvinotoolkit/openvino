@@ -41,7 +41,7 @@ size_t get_vec_size(const RuntimeParams& params) {
     }
 
     if (desc->config.is_qwen) {
-        auto count = desc->config.head_cnt * std::max(desc->config.rotary_ndims / 2ul, desc->config.head_size - desc->config.rotary_ndims);
+        auto count = desc->config.head_cnt * std::max(desc->config.rotary_ndims / 2UL, desc->config.head_size - desc->config.rotary_ndims);
         if (count % vec_size != 0) {
             vec_size = 1;
         }
@@ -52,8 +52,9 @@ size_t get_vec_size(const RuntimeParams& params) {
 
 // The fused RMSNorm reduction relies on the non-reversed GWS layout, which is only used when VEC_SIZE > 1.
 bool fused_rms_enabled(const RuntimeParams& params) {
-    if (!params.typed_desc<rope>()->fuse_rms_norm)
+    if (!params.typed_desc<rope>()->fuse_rms_norm) {
         return false;
+    }
     OPENVINO_ASSERT(get_vec_size(params) > 1, "[GPU] rope: a fused RMSNorm needs the vectorized RoPE kernel");
     return true;
 }
@@ -179,7 +180,7 @@ protected:
                 if (cfg.is_qwen) {
                     auto b = extract_channel(ChannelName::BATCH, in_l);
                     auto f = extract_channel(ChannelName::FEATURE, in_l);
-                    wgs.global = {b, f, cfg.head_cnt * std::max(cfg.rotary_ndims / 2ul, cfg.head_size - cfg.rotary_ndims) / vec_size};
+                    wgs.global = {b, f, cfg.head_cnt * std::max(cfg.rotary_ndims / 2UL, cfg.head_size - cfg.rotary_ndims) / vec_size};
                 } else if (cfg.is_chatglm) {
                     auto b = extract_channel(ChannelName::BATCH, in_l);
                     auto f = extract_channel(ChannelName::FEATURE, in_l);
@@ -187,21 +188,21 @@ protected:
                     if (cfg.support_2d_rope) {
                         // input  [batch_size, seq_length]
                         // output [batch_size, head_count, seq_length, half_rotary_ndims]
-                        wgs.global = {b * cfg.head_cnt, f, cfg.rotary_ndims / 2ul / vec_size};
+                        wgs.global = {b * cfg.head_cnt, f, cfg.rotary_ndims / 2UL / vec_size};
                     } else {
-                        wgs.global = {b, f, cfg.head_cnt * (cfg.rotary_ndims / 2ul) / vec_size};
+                        wgs.global = {b, f, cfg.head_cnt * (cfg.rotary_ndims / 2UL) / vec_size};
                     }
                 } else if (cfg.is_ltx_video) {
                     auto b = extract_channel(ChannelName::BATCH, in_l);
                     auto f = extract_channel(ChannelName::FEATURE, in_l);
-                    wgs.global = {b, f, cfg.rotary_ndims / 2ul / vec_size};
+                    wgs.global = {b, f, cfg.rotary_ndims / 2UL / vec_size};
                 } else {
                     auto b = extract_channel(ChannelName::BATCH, out_l);
                     auto f = extract_channel(ChannelName::FEATURE, out_l);
                     auto y = extract_channel(ChannelName::Y, out_l);
-                    wgs.global = {b, f, y * cfg.rotary_ndims / 2ul / vec_size};
+                    wgs.global = {b, f, y * cfg.rotary_ndims / 2UL / vec_size};
                     if (cfg.support_3d_rope) {
-                        wgs.global = {b, f, cfg.rotary_ndims / 2ul / vec_size};
+                        wgs.global = {b, f, cfg.rotary_ndims / 2UL / vec_size};
                     }
                     // reverse gws when RotateHalf and vec_size is one
                     if (!desc->config.is_interleaved && vec_size == 1) {

@@ -1,0 +1,22 @@
+name: 'Install Python Packages with Local Wheels and Extras'
+description:
+  'Installs specified Python packages with support for local wheels and optional
+  extras.'
+author: 'OpenVINO Developers'
+inputs:
+  packages:
+    description:
+      "Semicolon-separated list of packages to install, e.g.,
+      'openvino;openvino_tokenizers[extra1,extra2]'"
+    required: true
+  requirements_files:
+    description:
+      "Semicolon-separated list of requirements.txt to install, e.g.,
+      'requirements.txt;requirements-dev.txt'"
+    required: false
+  local_wheel_dir:
+    description: 'Path to the directory containing local wheel files'
+    required: true
+runs:
+  using: 'node20'
+  main: 'dist/index.js'

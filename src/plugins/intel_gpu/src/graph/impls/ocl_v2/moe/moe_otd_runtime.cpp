@@ -56,7 +56,7 @@ void fill_weights_memory(cldnn::stream& exec_stream, ParallelWeightReader& weigh
             continue;
         }
         const size_t weight_file_size = weight_reader.file_size();
-        const size_t src_offset = tensor.file_offset + index * tensor.slice_size;
+        const size_t src_offset = tensor.file_offset + (index * tensor.slice_size);
         OPENVINO_ASSERT(src_offset <= weight_file_size && tensor.slice_size <= weight_file_size - src_offset,
                         "Read range out of file: src_offset=",
                         src_offset,

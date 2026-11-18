@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace kernel_selector {
 
 static const size_t sub_group_size = 16;
 static const size_t feature_block_size = 16;
-static const float max_reg_pressure = 3.f / 4.f;
+static const float max_reg_pressure = 3.F / 4.F;
 
 float DeconvolutionKernel_b_fs_zyx_fsv16_dw::EstimateRegPressure(const deconvolution_params& params,
                                                                  const dispatch_params& d_params) const {
