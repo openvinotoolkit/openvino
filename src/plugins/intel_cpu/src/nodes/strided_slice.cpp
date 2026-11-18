@@ -98,13 +98,19 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
         isConstantInput[i] = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
         if (!isConstantInput[i]) {
             if (any_of(i, attrs.BEGIN_ID, attrs.END_ID, attrs.STRIDE_ID)) {
-                if (!attrs.isSliceScatterOp) {
-                    shapeHasDataDependency = true;
-                }
+                shapeHasDataDependency = true;
                 hasConstAttrInputs = false;
             } else if (isAxesSpecified && i == attrs.AXES_ID) {
+                shapeHasDataDependency = true;
                 hasConstAttrInputs = false;
             }
+        }
+    }
+
+    if (shapeHasDataDependency) {
+        isDynamic = true;
+        if (!shapeInference) {
+            shapeInference = StridedSliceShapeInferFactory(op).makeShapeInfer();
         }
     }
 
@@ -369,7 +375,7 @@ void StridedSlice::createPrimitive() {
             dstMemory.push_back(getDstMemoryAtPort(i));
         }
     }
-    if (inputShapesDefined() && isExecutable() && hasConstAttrInputs) {
+    if (inputShapesDefined() && isExecutable() && !shapeHasDataDependency) {
         if (needPrepareParams()) {
             prepareParams();
         }
@@ -378,7 +384,7 @@ void StridedSlice::createPrimitive() {
 }
 
 bool StridedSlice::needPrepareParams() const {
-    return Node::inputShapesModified() || !hasConstAttrInputs;
+    return Node::inputShapesModified() || shapeHasDataDependency;
 }
 
 void StridedSlice::prepareParams() {
@@ -402,11 +408,6 @@ bool StridedSlice::needShapeInfer() const {
 }
 
 void StridedSlice::execute([[maybe_unused]] const dnnl::stream& strm) {
-    if (!isDynamicNode()) {
-        if (needPrepareParams()) {
-            prepareParams();
-        }
-    }
     CPU_NODE_ASSERT(execPtr, "doesn't have compiled executor!");
 
     execPtr->exec(srcMemory, dstMemory);
