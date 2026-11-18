@@ -32,6 +32,8 @@ permissions: read-all
 
 env:
   PYTHON_VERSION: '3.11'
+  HF_HUB_CACHE_WIN: "C:\\mount\\caches\\huggingface"
+  HF_TOKEN_PATH_WIN: "C:\\mount\\secrets\\huggingface\\token-secondary"
   # To debug NPU compiler, set OV_NPU_LOG_LEVEL=LOG_INFO or higher
   # OV_NPU_LOG_LEVEL: 'LOG_INFO'
 
@@ -72,6 +74,12 @@ jobs:
           name: openvino_wheels
           path: ${{ env.INSTALL_WHEELS_DIR }}
           merge-multiple: true
+
+      - name: Setup Variables
+        run: |
+          Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=${{ env.HF_HUB_CACHE_WIN }}"
+          Add-Content -Path $env:GITHUB_ENV -Value "HUGGINGFACE_HUB_CACHE=${{ env.HF_HUB_CACHE_WIN }}"
+          Add-Content -Path $env:GITHUB_ENV -Value "HF_TOKEN_PATH=${{ env.HF_TOKEN_PATH_WIN }}"
 
       - name: Extract OpenVINO tests package
         run: Expand-Archive openvino_tests.zip -DestinationPath . -Verbose

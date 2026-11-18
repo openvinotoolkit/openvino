@@ -38,7 +38,7 @@ public:
 
     static std::string to_string(const assign_node& node);
 
-    typed_primitive_inst(network& network, const assign_node& desc);
+    typed_primitive_inst(network& network, const assign_node& node);
     typed_primitive_inst(network& network) : parent(network), memory_state::variable("") {}
 
     void on_execute() override;

@@ -174,13 +174,13 @@ struct padded_pool_comparer {
 
 class memory_pool {
     memory_ptr alloc_memory(const layout& layout, allocation_type type, bool reset = true);
-    static bool has_conflict(const memory_set&, const memory_restricter<uint32_t>&);
+    static bool has_conflict(const memory_set& /*mem_cand*/, const memory_restricter<uint32_t>& /*restrictions*/);
 
     std::multimap<uint64_t, memory_record> _non_padded_pool;
     std::map<layout, std::list<memory_record>, padded_pool_comparer> _padded_pool;
     engine* _engine;
     const ExecutionConfig& _config;
-    float _mem_pool_util_threshold = 0.5f;
+    float _mem_pool_util_threshold = 0.5F;
 
 public:
     explicit memory_pool(engine& engine, const ExecutionConfig& config);
@@ -199,7 +199,7 @@ public:
                                         const primitive_id& prim_id,
                                         size_t unique_id,
                                         uint32_t network_id,
-                                        const memory_restricter<uint32_t>&,
+                                        const memory_restricter<uint32_t>& /*restrictions*/,
                                         allocation_type type,
                                         bool reset = true,
                                         bool is_dynamic = false);
@@ -217,7 +217,7 @@ public:
     }
 
     void dump(uint32_t id, int64_t iter, std::string dump_dir_path = "");
-    size_t get_total_mem_pool_size(allocation_type type);
+    size_t get_total_mem_pool_size(allocation_type type) const;
 
 private:
     void dump_to_screen(uint32_t id, int64_t iter);

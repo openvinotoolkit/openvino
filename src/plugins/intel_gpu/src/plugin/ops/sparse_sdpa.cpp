@@ -46,7 +46,7 @@ static void CreateSparseSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::inte
                         op->get_input_element_type(idx));
     }
 
-    float resolved_scale = 1.0f / std::sqrt(static_cast<float>(op->get_config().k_head_size));
+    float resolved_scale = 1.0F / std::sqrt(static_cast<float>(op->get_config().k_head_size));
     if (op->has_scale_input()) {
         auto scale_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(op->get_config().scale_input_idx()));
         OPENVINO_ASSERT(scale_const != nullptr, "[GPU] SparseSDPA '", layer_name, "': scale input must be a Constant in this lowering pass");
