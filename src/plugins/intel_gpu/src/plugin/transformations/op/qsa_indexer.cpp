@@ -39,14 +39,14 @@ bool QSAIndexer::validate_config(const Config& c, std::string& reason) {
     if (c.indexer_rotary_dim % 2 != 0 || c.indexer_rotary_dim > c.indexer_head_dim) {
         return fail("indexer_rotary_dim must be even and not exceed indexer_head_dim");
     }
-    if (!std::isfinite(c.scale) || c.scale < 0.0f) {
+    if (!std::isfinite(c.scale) || c.scale < 0.0F) {
         return fail("scale must be positive (0 selects the default 1 / sqrt(indexer_head_dim))");
     }
     return true;
 }
 
 float QSAIndexer::effective_scale(const Config& c) {
-    return c.scale > 0.0f ? c.scale : 1.0f / std::sqrt(static_cast<float>(c.indexer_head_dim));
+    return c.scale > 0.0F ? c.scale : 1.0F / std::sqrt(static_cast<float>(c.indexer_head_dim));
 }
 
 size_t QSAIndexer::get_index_query_heads() const {

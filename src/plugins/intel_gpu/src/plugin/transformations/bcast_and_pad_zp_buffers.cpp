@@ -111,7 +111,7 @@ std::shared_ptr<ov::Node> scalar_parameter(std::shared_ptr<ov::op::v0::Constant>
 
 }  // namespace
 
-BroadcastAndPadZeroPointBuffers::BroadcastAndPadZeroPointBuffers(size_t pad_size, bool supports_immad) {
+BroadcastAndPadZeroPointBuffers::BroadcastAndPadZeroPointBuffers(size_t alignment, bool supports_immad) {
     auto input_m = any_input(type_matches_any({ov::element::u8, ov::element::i8}));
     auto weights_m = any_input(type_matches_any({ov::element::u8, ov::element::i8}));
     auto bias_m = any_input();
@@ -139,7 +139,7 @@ BroadcastAndPadZeroPointBuffers::BroadcastAndPadZeroPointBuffers(size_t pad_size
         if (auto azp = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(azp_m).get_node_shared_ptr())) {
             auto target_shape = azp->get_shape();
             const size_t azp_c_idx = target_shape.size() == in_shape.size() ? 1 : 0;
-            auto aligned_azp = pad_quantization_parameter(azp, in_shape[channel_idx].get_length(), azp_c_idx, pad_size);
+            auto aligned_azp = pad_quantization_parameter(azp, in_shape[channel_idx].get_length(), azp_c_idx, alignment);
             aligned_azp->set_friendly_name(conv->get_friendly_name() + "_azp");
             ov::copy_runtime_info(azp, aligned_azp);
             conv->input(op::Convolution::Args::AZP).replace_source_output(aligned_azp);
@@ -156,7 +156,7 @@ BroadcastAndPadZeroPointBuffers::BroadcastAndPadZeroPointBuffers(size_t pad_size
 
             if (aligned_wzp == nullptr) {
                 const size_t wzp_c_idx = 0;
-                aligned_wzp = pad_quantization_parameter(wzp, out_shape[channel_idx].get_length(), wzp_c_idx, pad_size);
+                aligned_wzp = pad_quantization_parameter(wzp, out_shape[channel_idx].get_length(), wzp_c_idx, alignment);
             }
 
             aligned_wzp->set_friendly_name(conv->get_friendly_name() + "_wzp");
@@ -167,7 +167,7 @@ BroadcastAndPadZeroPointBuffers::BroadcastAndPadZeroPointBuffers(size_t pad_size
         if (auto cmp = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(cmp_m).get_node_shared_ptr())) {
             auto target_shape = cmp->get_shape();
             const size_t cmp_c_idx = target_shape.size() == out_shape.size() ? 1 : 0;
-            auto aligned_cmp = pad_quantization_parameter(cmp, out_shape[channel_idx].get_length(), cmp_c_idx, pad_size);
+            auto aligned_cmp = pad_quantization_parameter(cmp, out_shape[channel_idx].get_length(), cmp_c_idx, alignment);
             aligned_cmp->set_friendly_name(conv->get_friendly_name() + "_compensation");
             ov::copy_runtime_info(cmp, aligned_cmp);
             conv->input(op::Convolution::Args::COMPENSATION).replace_source_output(aligned_cmp);
