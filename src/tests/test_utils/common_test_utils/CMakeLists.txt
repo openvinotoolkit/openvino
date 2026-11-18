@@ -2,29 +2,20 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+include(sources.cmake)
+
 function(add_common_utils ADD_TARGET_NAME)
-    list(APPEND TARGET_EXCLUDED_SOURCE_PATHS
-        ${CMAKE_CURRENT_SOURCE_DIR}/tests
-    )
-    if(NOT ENABLE_CONFORMANCE_PGQL)
-        list(APPEND TARGET_EXCLUDED_SOURCE_PATHS
-            ${CMAKE_CURRENT_SOURCE_DIR}/include/common_test_utils/postgres_link.hpp
-            ${CMAKE_CURRENT_SOURCE_DIR}/include/common_test_utils/postgres_helpers.hpp
-            ${CMAKE_CURRENT_SOURCE_DIR}/src/postgres_link.cpp
-            ${CMAKE_CURRENT_SOURCE_DIR}/src/postgres_helpers.cpp
-        )
+    set(TARGET_SOURCES ${COMMON_TEST_UTILS_SOURCES})
+    if(ENABLE_CONFORMANCE_PGQL)
+        list(APPEND TARGET_SOURCES ${COMMON_TEST_UTILS_PGQL_SOURCES})
     endif()
 
     # create target
     ov_add_target(
             NAME ${ADD_TARGET_NAME}
             TYPE STATIC
-            ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-            EXCLUDED_SOURCE_PATHS
-                ${TARGET_EXCLUDED_SOURCE_PATHS}
+            SOURCES ${TARGET_SOURCES}
             ADD_CLANG_FORMAT
-            DEPENDENCIES
-                openvino_template_plugin
             LINK_LIBRARIES
                 PUBLIC
                     gtest
@@ -42,6 +33,10 @@ function(add_common_utils ADD_TARGET_NAME)
                         "${CMAKE_CURRENT_SOURCE_DIR}/src"
                         "${OpenVINO_SOURCE_DIR}/src/plugins/template/include"
     )
+
+    if(ENABLE_TEMPLATE)
+        add_dependencies(${ADD_TARGET_NAME} openvino_template_plugin)
+    endif()
 
     ov_developer_package_export_targets(TARGET ${ADD_TARGET_NAME}
                                         INSTALL_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include/")

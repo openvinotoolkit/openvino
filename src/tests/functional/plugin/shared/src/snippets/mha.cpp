@@ -247,6 +247,10 @@ void MHA::init_thresholds() {
         rel_threshold = 0.01f;
         abs_threshold = 0.0078125f;
     }
+    // Bf16 rounding requires looser threshold
+    if (m_input_types.size() > 1 && m_input_types[0] == ov::element::bf16 && precision_hint == ov::element::bf16) {
+        abs_threshold = 0.05f;
+    }
 }
 
 void MHAConstB::init_thresholds() {

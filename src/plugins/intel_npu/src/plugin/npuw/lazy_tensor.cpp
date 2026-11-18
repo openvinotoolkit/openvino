@@ -4,6 +4,7 @@
 
 #include "lazy_tensor.hpp"
 
+#include <cstdint>
 #include <limits>
 #include <tuple>
 #include <type_traits>
@@ -97,8 +98,7 @@ ov::Tensor Const::eval() const {
         std::shared_ptr<ov::MappedMemory> mapped_memory;
         // Use handle_provider if available, otherwise use default mmap
         if (m_handle_provider) {
-            ov::FileHandle handle = m_handle_provider();
-            mapped_memory = ov::load_mmap_object(handle);
+            mapped_memory = ov::npuw::s11n::mmap_weights(m_handle_provider);
         } else {
             mapped_memory = ov::load_mmap_object(ov::util::make_path(m_weights_path));
         }
@@ -191,7 +191,14 @@ static void drop_file_range(const std::string& path,
     if (fd < 0) {
         return;
     }
-    ::posix_fadvise(fd, static_cast<off_t>(offset), static_cast<off_t>(size), POSIX_FADV_DONTNEED);
+    // A provider may position the handle at the start of a weights region embedded in a larger
+    // file (see ov::FileHandleProvider); `offset` is relative to that position, posix_fadvise is
+    // not. Re-base it, and skip the hint rather than dropping the wrong range on overflow.
+    const auto base = provider ? ov::util::get_file_position(fd).value_or(0u) : 0u;
+    const auto max_off = static_cast<std::uint64_t>(std::numeric_limits<off_t>::max());
+    if (base <= max_off - offset - size) {
+        ::posix_fadvise(fd, static_cast<off_t>(base + offset), static_cast<off_t>(size), POSIX_FADV_DONTNEED);
+    }
     ::close(fd);
 #else
     static_cast<void>(path);

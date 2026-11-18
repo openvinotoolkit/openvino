@@ -86,13 +86,13 @@ struct experimental_detectron_detection_output : public primitive_base<experimen
 
     input_info output_classes;
     input_info output_scores;
-    float score_threshold = 0.0f;
-    float nms_threshold = 0.0f;
+    float score_threshold = 0.0F;
+    float nms_threshold = 0.0F;
     int num_classes = 0;
     int post_nms_count = 0;
     int max_detections_per_image = 0;
     bool class_agnostic_box_regression = false;
-    float max_delta_log_wh  = 0.0f;
+    float max_delta_log_wh = 0.0F;
     std::vector<float> deltas_weights;
 
     size_t hash() const override {

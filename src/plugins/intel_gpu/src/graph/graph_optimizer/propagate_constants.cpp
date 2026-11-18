@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+
 #include "data_inst.h"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/program.hpp"
@@ -99,8 +101,9 @@ void propagate_constants::run(program& p) {
             handle_constant(p, *node);
         }
     }
-
-    auto&& to_replace = calculate(p.get_engine(), p.get_config(), p.get_task_executor());
+    // Get OneDNN impls from the main program and propagate them to the internal program
+    auto onednn_impls = p.get_layout_optimizer().get_all_onednn_impls_optimization_attribute();
+    auto&& to_replace = calculate(p.get_engine(), p.get_config(), p.get_task_executor(), onednn_impls);
 
     // remove all nodes which are no longer relevant, i.e. nodes which:
     // 1. are constants, and
@@ -168,7 +171,7 @@ void propagate_constants::run(program& p) {
             auto dep_users = dep.first->get_users();
             for (auto& dep_user : dep_users) {
                 if (dep_user == &curr_node) {
-                    p.remove_connection(*dep.first, curr_node);
+                    program::remove_connection(*dep.first, curr_node);
                 }
             }
         }
@@ -221,23 +224,22 @@ void propagate_constants::run(program& p) {
     }
 }
 
-bool propagate_constants::has_non_const_user(program_node& node) const {
+bool propagate_constants::has_non_const_user(program_node& node) {
     if (!node.is_constant()) {
         return true;
     }
-    for (const auto& user : node.get_users()) {
-        if (!user->is_constant()) {
-            return true;
-        }
-    }
-    return false;
+    const auto& users = node.get_users();
+    return std::any_of(users.begin(), users.end(), [](const auto& user) {
+        return !user->is_constant();
+    });
 }
 
 using cache_tuple = std::tuple<std::shared_ptr<weightless_cache_manager>, std::shared_ptr<layout>, std::shared_ptr<reorder>>;
 
 std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>> propagate_constants::calculate(engine& engine,
                                                                                              const ExecutionConfig& config,
-                                                                                             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor) {
+                                                                                             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
+                                                                                             const std::map<primitive_type_id, bool>& onednn_impls) {
     if (!has_non_trivial_constants) {
         return {};
     }
@@ -246,7 +248,8 @@ std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>> propagate_constant
     cf_config.set_property(ov::intel_gpu::optimize_data(false));
     cf_config.set_property(ov::intel_gpu::custom_outputs(const_outputs));
     cf_config.finalize(engine);
-    network::ptr net = network::build_network(engine, nodes, cf_config, task_executor, true);
+    auto prog = program::build_program(engine, nodes, cf_config, task_executor, true, onednn_impls);
+    network::ptr net = network::allocate_network(engine, prog, true, true);
     std::map<primitive_id, cache_tuple> weightless_cache_map;
     for (auto& cin : const_inputs) {
         net->set_input_data(cin->id(), cin->get_attached_memory_ptr());

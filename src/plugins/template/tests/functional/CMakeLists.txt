@@ -11,6 +11,7 @@ endif()
 
 set(OV_TEMPLATE_TESTS_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/core_config.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/hsm_blob_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/set_device_name.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/skip_tests_config.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/specific_properties_test.cpp

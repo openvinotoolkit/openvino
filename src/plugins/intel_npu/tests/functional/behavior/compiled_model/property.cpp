@@ -981,6 +981,39 @@ TEST_P(CheckSecureCompilationFlag, EncryptionCallbacksForOlderDriverThrows) {
     }
 }
 
+using CheckWriteOnlyPropertiesAreEmpty = ClassExecutableNetworkGetPropertiesTestNPU;
+
+// Write-only properties cannot be handed back to the user (e.g. the Python bindings have no Any -> object conversion
+// for ov::EncryptionCallbacks), so reading them must succeed and return an empty ov::Any.
+TEST_P(CheckWriteOnlyPropertiesAreEmpty, AllSupportedWriteOnlyPropertiesReturnEmptyAny) {
+    // Encryption callbacks require L0 graph ext version >= 1.17
+    NPU_SKIP_IF_GRAPH_EXT_LOWER_THAN(1, 17);
+
+    // Write-only properties are only reported by the compiled model if they were provided through the configuration
+    ov::CompiledModel compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = ie.compile_model(model, deviceName, {{configKey, configValue}}));
+
+    std::vector<ov::PropertyName> supported_properties;
+    OV_ASSERT_NO_THROW(supported_properties = compiled_model.get_property(ov::supported_properties));
+
+    size_t write_only_count = 0;
+    for (const auto& property : supported_properties) {
+        if (property.get_mutability() != ov::PropertyMutability::WO) {
+            continue;
+        }
+        ++write_only_count;
+
+        ov::Any value;
+        OV_ASSERT_NO_THROW(value = compiled_model.get_property(property));
+        EXPECT_TRUE(value.empty()) << "Write-only property " << property << " must return an empty ov::Any";
+    }
+
+    // The property provided through the configuration must have been reported as write-only
+    ASSERT_GT(write_only_count, 0u);
+    ASSERT_NE(std::find(supported_properties.cbegin(), supported_properties.cend(), configKey),
+              supported_properties.cend());
+}
+
 }  // namespace
 
 namespace {
@@ -1151,5 +1184,11 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_CheckSecureCompilatio
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(exe_network_public_mutable_properties)),
                          CheckSecureCompilationFlag::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CheckWriteOnlyPropertiesAreEmpty,
+                         CheckWriteOnlyPropertiesAreEmpty,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(exe_network_public_mutable_properties)),
+                         CheckWriteOnlyPropertiesAreEmpty::getTestCaseName);
 
 }  // namespace
