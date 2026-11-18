@@ -111,6 +111,9 @@ ov::pass::PagedSparseAttentionFusion::PagedSparseAttentionFusion(ov::pass::paged
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS, &pa_params, &var_ids_to_remove](
                                              pattern::Matcher& m) {
+        if (transformation_callback(m.get_match_root())) {
+            return false;
+        }
         const auto& pm = m.get_pattern_value_map();
 
         const auto current_key = pm.at(p_key.current);

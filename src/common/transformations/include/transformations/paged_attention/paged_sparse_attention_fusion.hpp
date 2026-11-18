@@ -28,8 +28,8 @@ namespace pass {
  * SDPAToPagedAttention must prepare all token inputs before this matcher runs.
  * They use B_token as the leading dimension and a singleton sequence axis
  * inside the graph, as in StateManagementPattern. In particular, the external
- * ngram_embeddings input is [B_token, num_ngrams, embedding_size], restored to
- * [B_token, 1, num_ngrams, embedding_size] for its existing consumers.
+ * ngram_embeddings input keeps its rank-4 layout [B_token, 1, num_ngrams, embedding_size],
+ * so its existing consumers are unchanged.
  * Bs is distinct from the sparse attention attribute key_block_size;
  * KB counts selected sparse blocks, each containing key_block_size tokens.
  *
