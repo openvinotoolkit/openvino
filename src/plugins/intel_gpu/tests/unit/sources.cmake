@@ -199,6 +199,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/experimental_detectron_topk_rois_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/extract_image_patches_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/eye.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/test_cases/fully_connected_cm_woq_u2_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/fully_connected_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/fully_connected_weights_layout_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/gated_delta_net.cpp
@@ -544,6 +545,14 @@ set(GPU_UNIT_TESTS_ONEDNN_SRCS
 )
 if(ENABLE_ONEDNN_FOR_GPU)
     list(APPEND GPU_UNIT_TESTS_SRCS ${GPU_UNIT_TESTS_ONEDNN_SRCS})
+endif()
+
+# MLIR (Graph Compiler) tests - only compiled when ENABLE_MLIR_FOR_GPU is ON.
+set(GPU_UNIT_TESTS_MLIR_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/mlir/mlir_primitive_layouts_test.cpp
+)
+if(ENABLE_MLIR_FOR_GPU)
+    list(APPEND GPU_UNIT_TESTS_SRCS ${GPU_UNIT_TESTS_MLIR_SRCS})
 endif()
 
 # Tests with a dependency on the OpenCL runtime - excluded from the build with a different runtime.

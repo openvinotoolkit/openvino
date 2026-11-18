@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -408,14 +408,18 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         OPENVINO_THROW("[GPU] Jitter: unsupported data type: ", value);
     }
 
-    if (compute_type.empty())
+    if (compute_type.empty()) {
         compute_type = type;
-    if (to_compute_type.empty())
+    }
+    if (to_compute_type.empty()) {
         to_compute_type = to_type;
-    if (decode_compute_type.empty())
+    }
+    if (decode_compute_type.empty()) {
         decode_compute_type = "(v)";
-    if (decode_compute_vector_type.empty())
+    }
+    if (decode_compute_vector_type.empty()) {
         decode_compute_vector_type = "(v)";
+    }
 
     return {
         make_jit_constant(name + "_TYPE", type),
