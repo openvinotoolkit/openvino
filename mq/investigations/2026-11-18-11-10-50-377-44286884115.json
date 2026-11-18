@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-18-11-10-50-377-44286884115",
+  "timestamp": "2026-11-18T11:10:50Z",
+  "run_id": "44286884115",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44286884115",
+  "workflow_name": "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)",
+  "pr_number": "39853",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39853",
+  "author": "abhinavtop1G",
+  "category": "Code Issue",
+  "title": "GPU BatchReplicatedBranches clang-tidy braces-around-statements errors",
+  "signature": "clang-tidy readability-braces-around-statements error if statement missing braces treated as warning as error|Code Issue",
+  "signature_hash": "a4282c65071120e2",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build-gpu / Build",
+      "conclusion": "failure",
+      "symptom": "Cmake build with clang-tidy enabled fails: readability-braces-around-statements errors treated as warnings-as-errors in batch_replicated_branches.cpp"
+    },
+    {
+      "name": "ci/gha_overall_status_clang_tidy",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails because Build-gpu / Build failed"
+    }
+  ],
+  "key_errors": [
+    "/__w/openvino/openvino/openvino/src/plugins/intel_gpu/src/plugin/transformations/batch_replicated_branches.cpp:123:138: error: statement should be inside braces [readability-braces-around-statements,-warnings-as-errors]",
+    "/__w/openvino/openvino/openvino/src/plugins/intel_gpu/src/plugin/transformations/batch_replicated_branches.cpp:148:111: error: statement should be inside braces [readability-braces-around-statements,-warnings-as-errors]",
+    "10 warnings treated as errors",
+    "ninja: build stopped: cannot make progress due to previous errors."
+  ],
+  "root_cause": "src/plugins/intel_gpu/src/plugin/transformations/batch_replicated_branches.cpp uses single-statement if/for bodies without braces (lines 123, 148, 156, 162, 176, 189, 206, 227, 245, 284). The clang-tidy 18 job runs with -Werror and the readability-braces-around-statements check enabled, so these 10 brace-less statements are reported as errors and abort the ninja build. This file is pre-existing in the GPU plugin and is entirely unrelated to the files changed by PR #39853 (ONNX frontend BitShift translator); the merge-queue run simply surfaces this latent, already-recurring clang-tidy violation whenever the GPU clang-tidy job runs against current master content.",
+  "reproduction_steps": "Build the intel_gpu plugin with clang-tidy enabled: `cmake -DENABLE_CLANG_TIDY=ON ... && ninja openvino_intel_gpu_plugin`, or directly run `clang-tidy-18 --extra-arg-before=--driver-mode=g++ src/plugins/intel_gpu/src/plugin/transformations/batch_replicated_branches.cpp -- <same compile flags as in the failed job log>` and observe the readability-braces-around-statements errors at the listed line numbers.",
+  "recommended_actions": [
+    "Add braces around the single-statement bodies at the flagged lines (123, 148, 156, 162, 176, 189, 206, 227, 245, 284) in src/plugins/intel_gpu/src/plugin/transformations/batch_replicated_branches.cpp",
+    "Run clang-tidy locally with the readability-braces-around-statements check before merging GPU plugin changes that touch this file",
+    "Consider a repo-wide clang-format/clang-tidy auto-fix pass for this pre-existing violation so it stops recurring on every unrelated merge-queue run"
+  ],
+  "prevention_strategies": "Enable clang-tidy as a pre-commit or local CI gate for intel_gpu plugin changes so brace-around-statements violations are caught before merge; alternatively run `clang-tidy --fix` on this file once to close out the backlog so it stops failing merge-queue runs for unrelated PRs.",
+  "historical_context": "This exact signature (a4282c65071120e2) has now recurred 4 times within ~5 hours (06:08, 08:31, 10:56, and this run), affecting unrelated PRs #38575, #38641, and now #39853 — confirming it is a long-standing, unfixed code-quality issue in batch_replicated_branches.cpp rather than something introduced by any of the affected PRs."
+}
