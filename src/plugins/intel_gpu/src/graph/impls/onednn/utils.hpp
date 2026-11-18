@@ -65,11 +65,6 @@ dnnl::memory::desc layout_to_memory_desc_blocked(
     const cldnn::layout& l,
     dnnl::memory::format_tag target_fmt);
 
-/// Creates a memory descriptor supporting both static and dynamic shapes.
-/// For dynamic layouts, uses DNNL_RUNTIME_DIM_VAL for unknown dimensions.
-/// Supports 2D through 6D layouts.
-dnnl::memory::desc layout_to_memory_desc_dynamic(const cldnn::layout& l, dnnl::memory::format_tag target_fmt);
-
 /// This function is specifically designed for quantize post-op inputs where:
 ///  - For gemm/fully_connected: always use default format
 ///  - For other primitives: use blocked format if output is blocked, otherwise use undef

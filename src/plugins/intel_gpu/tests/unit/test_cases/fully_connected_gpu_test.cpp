@@ -6,6 +6,7 @@
 #include "intel_gpu/primitives/crop.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
+#include "intel_gpu/primitives/softmax.hpp"
 #include "intel_gpu/primitives/tile.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/layout.hpp"
@@ -5344,7 +5345,68 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                           testing::Bool(),
                                           testing::Values(int64_t{1}, int64_t{2})));
 
-static void test_dynamic_shape_agnostic_onednn_fc(size_t input_rank, bool is_caching_test, bool is_dynamic_ifm = false) {
+// Rounds the values to what the given data type can hold, so that the reference uses the same inputs as the GPU.
+static std::vector<float> round_to_data_type(std::vector<float> values, data_types dt) {
+    for (auto& v : values) {
+        if (dt == data_types::f16) {
+            v = static_cast<float>(ov::float16(v));
+        } else if (dt == data_types::bf16) {
+            v = static_cast<float>(ov::bfloat16(v));
+        } else if (dt == data_types::i8 || dt == data_types::u8) {
+            v = std::round(v);
+        }
+    }
+    return values;
+}
+
+static void set_values_as(memory::ptr mem, const std::vector<float>& values) {
+    switch (mem->get_layout().data_type) {
+    case data_types::f16:
+        set_values(mem, std::vector<ov::float16>(values.begin(), values.end()));
+        break;
+    case data_types::bf16:
+        set_values(mem, std::vector<ov::bfloat16>(values.begin(), values.end()));
+        break;
+    case data_types::f32:
+        set_values(mem, values);
+        break;
+    case data_types::i8:
+        set_values(mem, std::vector<int8_t>(values.begin(), values.end()));
+        break;
+    case data_types::u8:
+        set_values(mem, std::vector<uint8_t>(values.begin(), values.end()));
+        break;
+    default:
+        OPENVINO_THROW("Unexpected data type");
+    }
+}
+
+template <typename T>
+static std::vector<float> read_values_as_float(memory::ptr mem) {
+    cldnn::mem_lock<T, mem_lock_type::read> ptr(mem, get_test_stream());
+    return std::vector<float>(ptr.begin(), ptr.end());
+}
+
+static std::vector<float> read_values_as_float(memory::ptr mem) {
+    switch (mem->get_layout().data_type) {
+    case data_types::f16:
+        return read_values_as_float<ov::float16>(mem);
+    case data_types::bf16:
+        return read_values_as_float<ov::bfloat16>(mem);
+    case data_types::f32:
+        return read_values_as_float<float>(mem);
+    default:
+        OPENVINO_THROW("Unexpected data type");
+    }
+}
+
+static void test_dynamic_shape_agnostic_onednn_fc(size_t input_rank,
+                                                  bool is_caching_test,
+                                                  bool is_dynamic_ifm = false,
+                                                  data_types in_dt = data_types::f16,
+                                                  data_types wei_dt = data_types::f16,
+                                                  data_types out_dt = data_types::f16,
+                                                  bool weights_transposed = true) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         GTEST_SKIP();
@@ -5354,23 +5416,33 @@ static void test_dynamic_shape_agnostic_onednn_fc(size_t input_rank, bool is_cac
     const std::vector<std::vector<int64_t>> shapes = input_rank == 2 ? std::vector<std::vector<int64_t>>{{1}, {7}, {16}, {3}, {7}}
                                                                      : std::vector<std::vector<int64_t>>{{1, 1}, {2, 5}, {1, 16}, {3, 4}, {2, 5}};
 
-    tests::random_generator rg(GET_SUITE_NAME);
-    auto weights_data = rg.generate_random_1d<ov::float16>(ofm * ifm, -1, 1);
-    auto bias_data = rg.generate_random_1d<ov::float16>(ofm, -1, 1);
+    const bool is_int8 = in_dt == data_types::i8 || in_dt == data_types::u8;
+    const auto bias_dt = is_int8 ? data_types::f32 : in_dt;
+    auto gen = [](tests::random_generator& rg, size_t count, data_types dt) {
+        const float min = dt == data_types::u8 ? 0.f : (dt == data_types::i8 ? -4.f : -1.f);
+        const float max = (dt == data_types::u8 || dt == data_types::i8) ? 4.f : 1.f;
+        return round_to_data_type(rg.generate_random_1d<float>(count, min, max), dt);
+    };
 
-    auto weights_mem = engine.allocate_memory({ov::PartialShape{ofm, ifm}, data_types::f16, format::bfyx});
+    tests::random_generator rg(GET_SUITE_NAME);
+    // Weights are [ofm, ifm] when transposed and [ifm, ofm] otherwise
+    auto weights_data = gen(rg, ofm * ifm, wei_dt);
+    auto bias_data = gen(rg, ofm, bias_dt);
+
+    const auto weights_shape = weights_transposed ? ov::PartialShape{ofm, ifm} : ov::PartialShape{ifm, ofm};
+    auto weights_mem = engine.allocate_memory({weights_shape, wei_dt, format::bfyx});
     auto bias_shape = input_rank == 2 ? ov::PartialShape{1, ofm} : ov::PartialShape{1, 1, ofm};
-    auto bias_mem = engine.allocate_memory({bias_shape, data_types::f16, format::bfyx});
-    set_values(weights_mem, weights_data);
-    set_values(bias_mem, bias_data);
+    auto bias_mem = engine.allocate_memory({bias_shape, bias_dt, format::bfyx});
+    set_values_as(weights_mem, weights_data);
+    set_values_as(bias_mem, bias_data);
 
     const auto in_dyn_ifm = is_dynamic_ifm ? ov::Dimension::dynamic() : ov::Dimension(ifm);
     auto in_dyn_shape = input_rank == 2 ? ov::PartialShape{ov::Dimension::dynamic(), in_dyn_ifm}
                                         : ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), in_dyn_ifm};
-    topology topology(input_layout("input", layout{in_dyn_shape, data_types::f16, format::bfyx}),
+    topology topology(input_layout("input", layout{in_dyn_shape, in_dt, format::bfyx}),
                       data("weights", weights_mem),
                       data("bias", bias_mem),
-                      fully_connected("fc", input_info("input"), "weights", "bias", input_rank, 2));
+                      fully_connected("fc", input_info("input"), "weights", "bias", out_dt, input_rank, 2, weights_transposed));
 
     ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "", impl_types::onednn};
     ExecutionConfig config = get_test_default_config(engine);
@@ -5380,6 +5452,7 @@ static void test_dynamic_shape_agnostic_onednn_fc(size_t input_rank, bool is_cac
     // Stop asynchronous compilation of shape-specific impls so that every execution goes through the dynamic impl
     network->get_program()->get_compilation_context().cancel();
 
+    const float tolerance = out_dt == data_types::bf16 ? 1e-1f : (out_dt == data_types::f16 ? 2e-2f : 1e-3f);
     for (const auto& outer_dims : shapes) {
         ov::PartialShape in_shape;
         for (auto d : outer_dims)
@@ -5387,14 +5460,14 @@ static void test_dynamic_shape_agnostic_onednn_fc(size_t input_rank, bool is_cac
         in_shape.push_back(ifm);
         const int64_t rows = std::accumulate(outer_dims.begin(), outer_dims.end(), int64_t{1}, std::multiplies<int64_t>());
 
-        auto input_data = rg.generate_random_1d<ov::float16>(rows * ifm, -1, 1);
-        auto input_mem = engine.allocate_memory({in_shape, data_types::f16, format::bfyx});
-        set_values(input_mem, input_data);
+        auto input_data = gen(rg, rows * ifm, in_dt);
+        auto input_mem = engine.allocate_memory({in_shape, in_dt, format::bfyx});
+        set_values_as(input_mem, input_data);
 
         network->set_input_data("input", input_mem);
         auto outputs = network->execute();
 
-        auto impl = network->get_primitive("fc")->get_impl();
+        auto* impl = network->get_primitive("fc")->get_impl();
         ASSERT_NE(impl, nullptr);
         ASSERT_TRUE(impl->is_onednn()) << in_shape;
         ASSERT_TRUE(impl->is_dynamic()) << in_shape;
@@ -5403,14 +5476,15 @@ static void test_dynamic_shape_agnostic_onednn_fc(size_t input_rank, bool is_cac
         ov::PartialShape expected_out_shape = in_shape;
         expected_out_shape[expected_out_shape.size() - 1] = ofm;
         ASSERT_EQ(network->get_output_layout("fc").get_partial_shape(), expected_out_shape);
+        ASSERT_EQ(output_mem->get_layout().data_type, out_dt);
 
-        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
+        const auto output = read_values_as_float(output_mem);
         for (int64_t r = 0; r < rows; ++r) {
             for (int64_t o = 0; o < ofm; ++o) {
-                float ref = static_cast<float>(bias_data[o]);
+                float ref = bias_data[o];
                 for (int64_t i = 0; i < ifm; ++i)
-                    ref += static_cast<float>(input_data[r * ifm + i]) * static_cast<float>(weights_data[o * ifm + i]);
-                ASSERT_NEAR(ref, static_cast<float>(output_ptr[r * ofm + o]), 2e-2f) << "shape " << in_shape << " row " << r << " ofm " << o;
+                    ref += input_data[r * ifm + i] * weights_data[weights_transposed ? o * ifm + i : i * ofm + o];
+                ASSERT_NEAR(ref, output[r * ofm + o], tolerance) << "shape " << in_shape << " row " << r << " ofm " << o;
             }
         }
     }
@@ -5489,7 +5563,86 @@ TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_3d_dynamic_ifm) {
     test_dynamic_shape_agnostic_onednn_fc(3, false, true);
 }
 
-// Without forcing, the shape-agnostic oneDNN impl must not be selected on Intel GPUs.
+TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_2d_not_transposed_weights) {
+    test_dynamic_shape_agnostic_onednn_fc(2, false, false, data_types::f16, data_types::f16, data_types::f16, false);
+}
+
+TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_3d_not_transposed_weights_dynamic_ifm) {
+    test_dynamic_shape_agnostic_onednn_fc(3, false, true, data_types::f16, data_types::f16, data_types::f16, false);
+}
+
+TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_2d_f32) {
+    test_dynamic_shape_agnostic_onednn_fc(2, false, false, data_types::f32, data_types::f32, data_types::f32);
+}
+
+TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_3d_bf16) {
+    test_dynamic_shape_agnostic_onednn_fc(3, false, false, data_types::bf16, data_types::bf16, data_types::bf16);
+}
+
+TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_2d_u8s8) {
+    test_dynamic_shape_agnostic_onednn_fc(2, false, false, data_types::u8, data_types::i8, data_types::f32);
+}
+
+TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_3d_u8s8_dynamic_ifm) {
+    test_dynamic_shape_agnostic_onednn_fc(3, false, true, data_types::u8, data_types::i8, data_types::f32);
+}
+
+// Fused ops are not supported by the shape-agnostic impl. With forcing, validate_impl() is skipped and create_impl()
+// returns nullptr for the dynamic impl, so a static oneDNN impl with the fused op must be used instead.
+TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_fused_op_rejected) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP();
+
+    const int64_t ifm = 32, ofm = 16;
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto weights_data = round_to_data_type(rg.generate_random_1d<float>(ofm * ifm, -1, 1), data_types::f16);
+    auto weights_mem = engine.allocate_memory({ov::PartialShape{ofm, ifm}, data_types::f16, format::bfyx});
+    set_values_as(weights_mem, weights_data);
+
+    // The output node is not fused, so softmax consumes the activation to let it be fused into the FC
+    topology topology(input_layout("input", layout{ov::PartialShape{ov::Dimension::dynamic(), ifm}, data_types::f16, format::bfyx}),
+                      data("weights", weights_mem),
+                      fully_connected("fc", input_info("input"), "weights", "", 2, 2),
+                      activation("act", input_info("fc"), activation_func::relu),
+                      softmax("softmax", input_info("act"), 1));
+
+    ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "", impl_types::onednn};
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", fc_impl_desc}}));
+    network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+    network->get_program()->get_compilation_context().cancel();
+
+    for (int64_t rows : {1, 7}) {
+        auto input_data = round_to_data_type(rg.generate_random_1d<float>(rows * ifm, -1, 1), data_types::f16);
+        auto input_mem = engine.allocate_memory({ov::PartialShape{rows, ifm}, data_types::f16, format::bfyx});
+        set_values_as(input_mem, input_data);
+        network->set_input_data("input", input_mem);
+        auto outputs = network->execute();
+
+        auto fc_inst = network->get_primitive("fc");
+        ASSERT_FALSE(fc_inst->get_node().get_fused_primitives().empty()) << "rows " << rows;
+        ASSERT_TRUE(fc_inst->get_impl()->is_onednn()) << "rows " << rows;
+        ASSERT_FALSE(fc_inst->get_impl()->is_dynamic()) << "rows " << rows;
+
+        const auto output = read_values_as_float(outputs.at("softmax").get_memory());
+        for (int64_t r = 0; r < rows; ++r) {
+            std::vector<float> ref(ofm);
+            for (int64_t o = 0; o < ofm; ++o) {
+                float acc = 0.f;
+                for (int64_t i = 0; i < ifm; ++i)
+                    acc += input_data[r * ifm + i] * weights_data[o * ifm + i];
+                ref[o] = std::exp(std::max(acc, 0.f));
+            }
+            const float sum = std::accumulate(ref.begin(), ref.end(), 0.f);
+            for (int64_t o = 0; o < ofm; ++o)
+                ASSERT_NEAR(ref[o] / sum, output[r * ofm + o], 1e-2f) << "rows " << rows << " row " << r << " ofm " << o;
+        }
+    }
+}
+
 TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_not_selected_on_intel) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad || engine.get_device_info().vendor_id != INTEL_VENDOR_ID)
@@ -5515,7 +5668,7 @@ TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_not_selected_on_intel) {
     network->set_input_data("input", input_mem);
     network->execute();
 
-    auto impl = network->get_primitive("fc")->get_impl();
+    auto* impl = network->get_primitive("fc")->get_impl();
     ASSERT_NE(impl, nullptr);
     ASSERT_FALSE(impl->is_onednn() && impl->is_dynamic());
 }

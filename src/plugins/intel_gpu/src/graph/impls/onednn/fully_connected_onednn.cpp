@@ -60,13 +60,6 @@ static layout flatten_layout_to_2d(const layout& l, size_t logical_rank) {
     return layout(ov::PartialShape{m, pshape[pshape.size() - 1]}, l.data_type, format::bfyx);
 }
 
-static bool has_runtime_dims(const dnnl::memory::desc& md) {
-    const auto dims = md.get_dims();
-    return std::any_of(dims.begin(), dims.end(), [](dnnl::memory::dim d) {
-        return d == DNNL_RUNTIME_DIM_VAL;
-    });
-}
-
 static layout trim_matmul_output_layout(layout output_layout, size_t prim_input_size) {
     if (prim_input_size < 4) {
         auto output_pshape = output_layout.get_partial_shape();
@@ -123,17 +116,14 @@ protected:
     std::unordered_map<int, dnnl::memory> get_arguments(fully_connected_inst& instance) const override {
         std::unordered_map<int, dnnl::memory> args;
 
-        // Only a primitive created with runtime dims needs memory descriptors built from the actual shapes.
-        // Static impls (also used for dynamic nodes) keep the descriptors of _pd.
-        const bool is_runtime_dims_impl =
-            has_runtime_dims(_pd.dnnl::primitive_desc_base::src_desc(0)) || has_runtime_dims(_pd.dnnl::primitive_desc_base::dst_desc(0));
-
         auto input_layout = instance.get_input_layout(0);
         auto output_layout = instance.get_output_layout();
 
         dnnl::memory::desc in0_md, out_md;
 
-        if (is_runtime_dims_impl) {
+        // Only the shape-agnostic impl (built with runtime dims) needs memory descriptors built from the actual shapes.
+        // Static impls (also used for dynamic nodes) keep the descriptors of _pd.
+        if (is_dynamic()) {
             const auto input_size = instance.get_impl_params()->typed_desc<fully_connected>()->input_size;
             input_layout = flatten_layout_to_2d(input_layout, input_size);
             output_layout = flatten_layout_to_2d(output_layout, input_size);
@@ -264,24 +254,23 @@ protected:
         auto [target_fmt, weights_fmt] = get_matmul_formats(prim_input_size, weights_transposed);
 
         dnnl::memory::desc weights_md = make_weights_md(weights_layout, weights_fmt);
-        if (is_dynamic_shape) {
-            // oneDNN requires the src reduction dim to match the weights, so resolve an unknown K from the static weights ([K, N]).
-            auto input_pshape = input_layout.get_partial_shape();
-            const auto weights_dims = weights_md.get_dims();
-            const auto k = weights_dims[weights_dims.size() - 2];
-            const size_t k_idx = prim_input_size - 1;
-            if (input_pshape.rank().is_static() && input_pshape.size() > k_idx && input_pshape[k_idx].is_dynamic() && k != DNNL_RUNTIME_DIM_VAL) {
-                input_pshape[k_idx] = k;
-                input_layout.set_partial_shape(input_pshape);
-            }
-        }
         dnnl::memory::desc input_md;
-        if (input_layout.data_padding && format::is_default_format(input_layout.format) && !input_layout.is_dynamic()) {
-            input_md = onednn::layout_to_memory_desc_strides(input_layout, target_fmt);
+        dnnl::memory::desc output_md;
+        if (is_dynamic_shape) {
+            // [M, K] x [K, N]: K and N are taken from the static weights, so only M can be a runtime dim.
+            const auto w = weights_md.get_dims();
+            const auto& m = input_layout.get_partial_shape()[0];
+            const dnnl::memory::dim M = m.is_static() ? m.get_length() : DNNL_RUNTIME_DIM_VAL;
+            input_md = {{M, w[0]}, convert_data_type(input_layout.data_type), dnnl::memory::format_tag::ab};
+            output_md = {{M, w[1]}, convert_data_type(output_layout.data_type), dnnl::memory::format_tag::ab};
         } else {
-            input_md = onednn::layout_to_memory_desc_dynamic(input_layout, target_fmt);
+            if (input_layout.data_padding && format::is_default_format(input_layout.format)) {
+                input_md = onednn::layout_to_memory_desc_strides(input_layout, target_fmt);
+            } else {
+                input_md = onednn::layout_to_memory_desc(input_layout, target_fmt);
+            }
+            output_md = onednn::layout_to_memory_desc(output_layout, target_fmt);
         }
-        dnnl::memory::desc output_md = onednn::layout_to_memory_desc_dynamic(output_layout, target_fmt);
 
         if (has_bias) {
             auto bias_l = impl_params.get_input_layout(2);
@@ -465,8 +454,10 @@ public:
         const auto& config = impl_params.prog->get_config();
         auto attr = impl_params.attrs_onednn;
         // Attributes of dynamic nodes are not initialized with the user scratchpad mode, so set it here
-        // to allocate the scratchpad from the plugin's memory pool.
-        attr->set_scratchpad_mode(dnnl::scratchpad_mode::user);
+        // to allocate the scratchpad from the plugin's memory pool. The attributes may be shared by concurrent
+        // create() calls (async compilation and the synchronous fallback), so write only when needed.
+        if (attr->get_scratchpad_mode() != dnnl::scratchpad_mode::user)
+            attr->set_scratchpad_mode(dnnl::scratchpad_mode::user);
         auto prim = impl_params.typed_desc<fully_connected>();
         int group_size = 0;
         dnnl::memory::data_type ds_data_type = dnnl::memory::data_type::undef;
