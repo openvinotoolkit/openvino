@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-18-13-47-29-000-44302160322",
+  "timestamp": "2026-11-18T13:47:29Z",
+  "run_id": "44302160322",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44302160322",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "39978",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39978",
+  "author": "kkoryun",
+  "category": "Code Issue",
+  "title": "PyTorch Layer Tests test_tile fails - builtin cannot be used as a value in TorchScript scripting",
+  "signature": "builtin cannot be used as a value|Code Issue",
+  "signature_hash": "98cbf832e7e217cf",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Pytorch Layer Tests / PyTorch Layer Tests",
+      "conclusion": "failure",
+      "symptom": "test_tile.py::TestTile::test_tile[dims:(1, 2, 3, 4)] fails: TorchScript scripting raises RuntimeError 'builtin cannot be used as a value' for torch.tile(x, self.dims)"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_24",
+      "conclusion": "failure",
+      "symptom": "Overall status check fails because the PyTorch Layer Tests job failed"
+    }
+  ],
+  "key_errors": [
+    "RuntimeError: builtin cannot be used as a value:\n  File \".../pytorch_tests/test_tile.py\", line 22\n          def forward(self, x):\n              return torch.tile(x, self.dims)\n                                   ~~~~~~~~~ <--- HERE",
+    "RuntimeError: Couldn't get TorchScript module by scripting.\nException:\nbuiltin cannot be used as a value ...\nTracing sometimes provide better results, please provide valid 'example_input' argument.",
+    "RuntimeError: Retrying hit TorchScript method redefinition and can mask the original failure. First error: Couldn't get TorchScript module by scripting.",
+    "FAILED .../pytorch_tests/test_tile.py::TestTile::test_tile[ ie_device:CPU - precision:FP32 - dims:(1, 2, 3, 4) ] - RuntimeError: Retrying hit TorchScript method redefinition ...",
+    "1 failed, 17051 passed, 961 skipped, 37 xfailed, 4 xpassed, 36047 warnings in 335.80s"
+  ],
+  "root_cause": "torch.jit.script() fails to compile test_tile's forward() because `self.dims` is passed as the second positional argument to torch.tile, and the installed PyTorch version's TorchScript compiler treats `torch.tile` as a builtin that cannot be referenced/resolved this way when scripting (rather than tracing) the aten_tile test module. This is the same 'builtin cannot be used as a value' TorchScript scripting incompatibility previously seen for reflection_pad-style tests (pattern 98cbf832e7e217cf, 2 prior occurrences), now reproduced for torch.tile; it is unrelated to the PR under test (an NPUW GQA weight-detection change) and is a pre-existing layer-test/TorchScript-version incompatibility in src/bindings or install/tests/layer_tests/pytorch_tests that a merge-queue rerun cannot fix.",
+  "reproduction_steps": "cd install/tests/layer_tests && python -m pytest pytorch_tests/test_tile.py::TestTile::test_tile -k 'dims3' -v  (reproduce locally with the same PyTorch/torch.jit version installed in CI; failure occurs during torch.jit.script(), not during OpenVINO conversion itself)",
+  "recommended_actions": [
+    "Mark test_tile's dims=(1,2,3,4) scripting-mode parametrization as xfail/skip for the installed PyTorch version until the TorchScript scripting incompatibility with torch.tile is resolved, mirroring the existing xfail markers already used for other scripting-incompatible ops in this suite",
+    "Update test_tile.py to force trace_model=True (or pass example_input) for this parametrization so TorchScriptPythonDecoder uses tracing instead of scripting, avoiding the builtin-resolution issue",
+    "File/track a PyTorch-version-tracking issue to re-enable scripting coverage for torch.tile once the upstream TorchScript compiler issue is fixed or the project pins a different torch version"
+  ],
+  "prevention_strategies": "Layer tests that rely on torch.jit.script() for specific aten ops should carry an explicit compatibility check or regression test against new PyTorch versions before upgrades land, and new/changed test parametrizations for ops with known scripting limitations (e.g. torch.tile) should default to trace_model=True unless scripting coverage is specifically required.",
+  "historical_context": "This is the 3rd recorded occurrence of pattern 98cbf832e7e217cf ('builtin cannot be used as a value', Code Issue). Prior occurrences: 2026-09-01 (PR #37790) and 2026-11-10 (PR #39577), both on different ops (reflection_pad-style). All three are deterministic TorchScript-scripting incompatibilities with specific aten ops under the installed PyTorch version, not retry-fixable, and unrelated to the PRs that happened to be in the merge queue at the time."
+}

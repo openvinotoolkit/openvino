@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 477,
+  "total": 478,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -5198,6 +5198,17 @@
       "category": "Code Issue",
       "signature_hash": "a4282c65071120e2",
       "pr_number": "39853"
+    },
+    {
+      "investigation_id": "2026-11-18-13-47-29-000-44302160322",
+      "run_id": "44302160322",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44302160322",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+      "timestamp": "2026-11-18T13:47:29Z",
+      "title": "PyTorch Layer Tests test_tile fails - builtin cannot be used as a value in TorchScript scripting",
+      "category": "Code Issue",
+      "signature_hash": "98cbf832e7e217cf",
+      "pr_number": "39978"
     }
   ]
 }
