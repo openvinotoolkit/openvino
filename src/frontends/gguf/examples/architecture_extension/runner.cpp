@@ -7,7 +7,7 @@
 #include <iostream>
 #include <stdexcept>
 
-#include "openvino/frontend/gguf/extension/genai.hpp"
+#include "openvino/frontend/gguf/adapt_to_genai.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/openvino.hpp"
 
@@ -26,10 +26,9 @@ int main(int argc, char** argv) {
             throw std::invalid_argument("TOKENS must be positive");
         std::shared_ptr<ov::frontend::FrontEnd> frontend = std::make_shared<ov::frontend::gguf::FrontEnd>();
         frontend->add_extension(std::string(argv[1]));
-        if (stateful) {
-            frontend->add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
-        }
         auto model = frontend->convert(frontend->load(std::string(argv[2])));
+        if (stateful)
+            model = ov::frontend::gguf::adapt_to_genai(model).at("language");
         auto compiled = ov::Core{}.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
         auto request = compiled.create_infer_request();
         for (const auto& input : compiled.inputs()) {
