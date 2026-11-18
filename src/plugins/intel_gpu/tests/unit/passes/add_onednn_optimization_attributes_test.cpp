@@ -64,7 +64,7 @@ TEST(add_onednn_optimization_attributes, sum_post_op_for_residual_connection) {
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_immad)
-        return;
+        GTEST_SKIP() << "oneDNN post-ops need supports_immad";
 
     auto in_layout = layout{ov::PartialShape({1, 16, 32, 32}), data_types::f16, format::bfyx};
     auto input = engine.allocate_memory(layout{ov::PartialShape({1, 16, 32, 32}), data_types::f16, format::bfyx});
@@ -101,11 +101,13 @@ TEST(add_onednn_optimization_attributes, sum_post_op_for_residual_connection) {
 }
 
 
-TEST(add_onednn_optimization_attributes, fc_sum_u8_single_user_input_uses_sum) {
+// F13: a single-user input_layout used to be accepted as a sum destination. The input buffer is replaced by set_data
+// without notifying the writer, so the exact predicate now rejects any input_layout owner (binary add instead).
+TEST(add_onednn_optimization_attributes, fc_sum_u8_single_user_input_uses_binary) {
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_immad)
-        return;
+        GTEST_SKIP() << "oneDNN sum/binary post-op needs supports_immad";
 
     auto in_layout = layout{ ov::PartialShape({32, 16}), data_types::u8, format::bfyx };
     auto weights_mem = engine.allocate_memory({ ov::PartialShape({8, 16}), data_types::u8, format::bfyx });
@@ -137,15 +139,20 @@ TEST(add_onednn_optimization_attributes, fc_sum_u8_single_user_input_uses_sum) {
     auto& fused = fc_node.get_fused_primitives();
     ASSERT_EQ(fused.size(), 1);
 
+    // vacuity guard: the pre-F13 predicate (guard_superset) still says sum for a single-user input_layout
+    ASSERT_EQ(onednn_eltwise_fusing_helpers::get_add_fusing_type(fc_node, fused[0],
+                                                                          onednn_eltwise_fusing_helpers::add_fusing_query::guard_superset),
+              add_fusing_type::sum);
+
     auto fusing_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(fc_node, fused[0]);
-    ASSERT_EQ(fusing_type, add_fusing_type::sum);
+    ASSERT_EQ(fusing_type, add_fusing_type::binary_per_tensor);
 }
 
 TEST(add_onednn_optimization_attributes, fc_sum_u8_residual_input_uses_binary) {
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_immad)
-        return;
+        GTEST_SKIP() << "oneDNN post-ops need supports_immad";
 
     auto in_layout = layout{ ov::PartialShape({32, 16}), data_types::u8, format::bfyx };
     auto weights1_mem = engine.allocate_memory({ ov::PartialShape({16, 16}), data_types::u8, format::bfyx });
@@ -238,7 +245,7 @@ TEST(add_onednn_optimization_attributes, sum_post_op_for_six_hop_residual) {
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_immad)
-        return;
+        GTEST_SKIP() << "oneDNN post-ops need supports_immad";
 
     ASSERT_EQ(residual_chain_fusing_type(engine, 7), add_fusing_type::sum);
 }
@@ -251,7 +258,7 @@ TEST(add_onednn_optimization_attributes, ancestor_walk_depth_boundary) {
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_immad)
-        return;
+        GTEST_SKIP() << "oneDNN post-ops need supports_immad";
 
     ASSERT_EQ(residual_chain_fusing_type(engine, 7), add_fusing_type::sum);
     ASSERT_EQ(residual_chain_fusing_type(engine, 8), add_fusing_type::binary_per_tensor);

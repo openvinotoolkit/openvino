@@ -88,6 +88,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/passes/handle_reshape.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/inplace_alias_conflict_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/inplace_alias_conflict_f12_f14_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/passes/inplace_alias_conflict_f6_f13_predicate_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/inplace_alias_conflict_f8_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/kernels_cache_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/mark_shape_of_subgraphs_test.cpp
@@ -532,6 +533,7 @@ set(GPU_UNIT_TESTS_ONEDNN_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/onednn/profiling_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/inplace_alias_conflict_f10_f11_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/inplace_alias_conflict_f7_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/passes/inplace_alias_conflict_f6_f13_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/residual_sum_chain_dit_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/onednn/utils_test.cpp
 )

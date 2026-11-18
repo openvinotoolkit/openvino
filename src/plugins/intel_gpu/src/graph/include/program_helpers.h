@@ -129,12 +129,20 @@ struct program_helpers {
     struct buffer_owner {
         const program_node* owner = nullptr;          // node whose own allocation backs the queried node's output
         std::vector<const program_node*> path;        // queried node .. owner, in walk order (only if collect_path)
-        bool through_may_view = false;                // some step used a post-freeze candidate, not a settled flag
+        bool path_has_output = false;                 // some node on the walk (start and owner included) is_or_becomes_output
     };
     static bool is_buffer_view_of_input0(const program_node& n, view_resolution mode);
     // the optimized concat user of n (n is one of its slots) or nullptr
     static const program_node* in_place_concat_holder_of(const program_node& n);
-    // collect_path == false performs no heap allocation (used on the per-inference get_reused_eltwmem_idx path)
+    // n's buffer is user-visible, or becomes so before prepare_memory_dependencies: n is an output, or (recursively) a
+    // mutable_data user of n is. A superset of the one-level propagation in basic_memory_dependencies.
+    static bool is_or_becomes_output(const program_node& n);
+    // n's buffer is held outside the network (input_layout replaced by set_data, data, mutable_data, variable buffers,
+    // condition and loop whose outputs are re-pointed on every execution) or is constant.
+    static bool is_external_buffer_root(const program_node& n);
+    // Exact add-fusing queries can run per inference (static can_be_optimized resample users re-bind their sum dst via
+    // rebind_onednn_reuse_optimized_dst_if_needed -> get_reused_eltwmem_idx), so the walk is allocation-free unless
+    // collect_path == true. path_has_output is always computed. collect_path is kept for F4/F17 diagnostics.
     static buffer_owner resolve_buffer_owner(const program_node& n, view_resolution mode, bool collect_path = false);
 };
 

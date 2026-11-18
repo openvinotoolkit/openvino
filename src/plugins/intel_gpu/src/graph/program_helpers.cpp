@@ -12,6 +12,11 @@
 #include "reorder_inst.h"
 #include "concatenation_inst.h"
 #include "read_value_inst.h"
+#include "assign_inst.h"
+#include "kv_cache_inst.h"
+#include "stateless_kv_inst.h"
+#include "condition_inst.h"
+#include "loop_inst.h"
 #include "input_layout_inst.h"
 #include "mutable_data_inst.h"
 #include "transformations/symbolic_transformations/utils.hpp"
@@ -202,6 +207,26 @@ const program_node* program_helpers::in_place_concat_holder_of(const program_nod
     return nullptr;
 }
 
+bool program_helpers::is_or_becomes_output(const program_node& n) {
+    if (n.is_output()) {
+        return true;
+    }
+    for (const auto* u : n.get_users()) {
+        if (u->is_type<mutable_data>() && is_or_becomes_output(*u)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool program_helpers::is_external_buffer_root(const program_node& n) {
+    // The list also covers condition and loop: they re-point their output buffers on every execution (condition
+    // postprocess_output_memory, loop back-edge rebinding), so a writer dst bound at construction time goes stale.
+    return n.is_type<condition>() || n.is_type<loop>() || n.is_type<input_layout>() || n.is_type<data>() ||
+           n.is_type<mutable_data>() || n.is_type<read_value>() || n.is_type<assign>() || n.is_type<kv_cache>() ||
+           n.is_type<stateless_kv>() || n.is_constant();
+}
+
 program_helpers::buffer_owner program_helpers::resolve_buffer_owner(const program_node& n, view_resolution mode, bool collect_path) {
     buffer_owner res;
     // Backward view steps followed by forward slot steps; concat is never a view and settled views cannot be concat
@@ -212,13 +237,11 @@ program_helpers::buffer_owner program_helpers::resolve_buffer_owner(const progra
     if (collect_path) {
         res.path.push_back(cur);
     }
+    res.path_has_output = is_or_becomes_output(*cur);
     while (true) {
         if (const auto* holder = in_place_concat_holder_of(*cur)) {
             cur = holder;  // slot step takes precedence
         } else if (is_buffer_view_of_input0(*cur, mode)) {
-            if (!is_buffer_view_of_input0(*cur, view_resolution::settled_only)) {
-                res.through_may_view = true;
-            }
             cur = &cur->get_dependency(0);
         } else {
             break;
@@ -227,6 +250,7 @@ program_helpers::buffer_owner program_helpers::resolve_buffer_owner(const progra
         if (collect_path) {
             res.path.push_back(cur);
         }
+        res.path_has_output = res.path_has_output || is_or_becomes_output(*cur);
     }
     res.owner = cur;
     return res;
@@ -280,8 +304,10 @@ add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
         return add_fusing_type::not_supported;
     }
 
-    // dep_node's buffer owner, resolved at most once and only when a clause needs it (no path vector, no allocation);
-    // the F11 and F10 clauses below share it.
+    // dep_node's buffer owner, resolved at most once and only when a clause needs it; the F11, F10 and F6 clauses below
+    // share it. Exact queries can run per inference (static can_be_optimized resample users re-bind their sum dst via
+    // rebind_onednn_reuse_optimized_dst_if_needed -> get_reused_eltwmem_idx), so the walk is allocation-free:
+    // collect_path stays false and F6 reads the path_has_output summary instead of the path itself.
     std::optional<program_helpers::buffer_owner> dep_owner_cache;
     auto dep_owner = [&]() -> const program_helpers::buffer_owner& {
         if (!dep_owner_cache) {
@@ -325,6 +351,24 @@ add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
         return owner->is_type<concatenation>() && owner->can_be_optimized() && concat_slots_have_other_readers(*owner);
     };
 
+    // F6/F13: the dst of the sum is dep_node's buffer, so it must be neither an externally owned buffer (input_layout is
+    // replaced by set_data without notifying the writer; data, mutable_data and variable buffers are not ours to
+    // overwrite) nor a buffer that is or becomes user-visible. Exact only: guard_superset stays a superset of exact.
+    auto writes_external_or_visible_buffer = [&]() {
+        if (q != add_fusing_query::exact) {
+            return false;
+        }
+        if (program_helpers::is_or_becomes_output(p_node)) {
+            return true;
+        }
+        const auto& bo = dep_owner();
+        if (program_helpers::is_external_buffer_root(*bo.owner)) {
+            return true;
+        }
+        // any node from dep to owner (concat holders and view steps included) is or becomes a network output
+        return bo.path_has_output;
+    };
+
     if (is_full_tensor(p_layout) && is_full_tensor(d_layout)) {
         if (data_type_traits::size_of(p_layout.data_type) == data_type_traits::size_of(d_layout.data_type)
             && p_layout.format == d_layout.format && p_layout.get_tensor() == d_layout.get_tensor()
@@ -333,9 +377,11 @@ add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
             && !dep_node.is_constant()
             && !p_node.is_type<pooling>()
             && !p_node.is_output()
+            // Only matters for guard_superset: in exact mode any input_layout owner is rejected by F6 below.
             && (!dep_node.is_type<input_layout>() || dep_node.get_users().size() <= 1)
             && !p_node_consumes_dep_node()
-            && !overwrites_shared_concat_slot()) {
+            && !overwrites_shared_concat_slot()
+            && !writes_external_or_visible_buffer()) {
             return add_fusing_type::sum;
         }
         if (p_layout.get_tensor() == d_layout.get_tensor()) {
