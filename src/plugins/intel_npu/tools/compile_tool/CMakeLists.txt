@@ -19,11 +19,10 @@ endif()
 #
 # Define the target
 #
-include(sources.cmake)
 
 ov_add_target(TYPE EXECUTABLE
               NAME ${TARGET_NAME}
-              SOURCES ${OV_NPU_COMPILE_TOOL_SOURCES}
+              SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
               LINK_LIBRARIES
                   PRIVATE
                       openvino::runtime::dev

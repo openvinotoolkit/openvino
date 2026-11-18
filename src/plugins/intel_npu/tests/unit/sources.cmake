@@ -10,107 +10,55 @@ set(OV_NPU_UNIT_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/npu/compiler_adapter/fake_vcl.hpp
     ${CMAKE_CURRENT_LIST_DIR}/npu/compiler_adapter/fake_vcl_compiler.hpp
     ${CMAKE_CURRENT_LIST_DIR}/npu/compiler_adapter/plugin_compiler_adapter_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/npu/compiler_adapter/vcl_profiling_decoder_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npu/compiler_adapter/vcl_version_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npu/compiler_option_support_helper_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npu/config.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npu/device_helpers_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npu/executor_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npu/flash_attention_tile_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npu/metadata/metadata_text.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npu/metadata/metadata_text.hpp
     ${CMAKE_CURRENT_LIST_DIR}/npu/metadata/metadata_version.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npu/metadata/metadata_wrappers.hpp
     ${CMAKE_CURRENT_LIST_DIR}/npu/offline_compilation.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npu/option_support_cache_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npu/should_use_host_compile_interpreter_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npu/state_tensor_binding_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npu/ze_graph_ext_wrappers_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npu/zero_extension_query_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/npu/zero_profiling_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/accuracy_checked.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/batched_element_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/compiled_model_orc_import_validation_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/compress_dict_matmul_f32_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/device_routed_moe_transform_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/dq_matmul_cwi_shared_weight_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/npuw/dq_matmul_gq2i_zero_point_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/duplicate_shared_kv_concat_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/dynamic_quantize_accuracy_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/failsafe.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/flux2_compiled_model_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/fold_const_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/gather_sub128_matcher_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/gather_to_2d_gather_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/gqa_compiled_model_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/host_flash_attention_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/host_gather_id_clamp_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/import_non_llm_blob.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/kokoro_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/kv_cache_block_manager_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/lincache_utils_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/llm_compiled_model_factory_options_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/llm_compiled_model_graph_options_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/llm_compiled_model_set_property_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/llm_continuation_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/llm_continued_prefill_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/llm_infer_request_port_names_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/llm_infer_request_variant_switch_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/llm_longrope_kv_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/llm_longrope_mode_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/llm_swa_cache_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/llm_test_helpers.hpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/llm_trim_kvcache_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/make_tensor_slice_bounds_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/model_builder_lora_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/moe_executor_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/moe_infer_utils_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/moe_k_tag_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/moe_topology_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/moe_transformation_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/moe_transformation_utils_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/npuw_options_smoke_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/online_partitioning.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/orc.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/pa_dispatch_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/partitioning_options_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/per_layer_inputs_copy_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/permute.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/permute.hpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/pipeline_passes/add_position_ids_param_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/pipeline_passes/collapse_unqdq_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/pipeline_passes/conv_to_matmul_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/pipeline_passes/convert_kvcache_to_precision_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/pipeline_passes/cut_lm_head_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/pipeline_passes/detect_causal_mask_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/pipeline_passes/kv_cache_compression_pass_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/pipeline_passes/llm_pass_test_fixture.hpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/pipeline_passes/optimize_lincache_layout_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/pipeline_passes/optimize_value_tensors_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/pipeline_passes/patch_sliding_mask_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/pipeline_passes/propagate_slice_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/pipeline_passes/regularize_sdpa_passes_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/pipeline_passes/remove_empty_kv_inputs_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/pipeline_passes/remove_token_type_ids_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/pipeline_passes/replace_deepstack_scatter_with_add_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/pipeline_passes/reshape_sliced_head_to_static_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/pipeline_passes/reshape_to_static_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/pipeline_passes/right_align_mask_slice_for_conv_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/pipeline_passes/shrink_sliding_window_kv_cache_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/npuw/pipeline_passes/rewrite_gqa_attention_mask_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/pipeline_passes/slice_out_embeds_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/pipeline_passes/stateful_to_stateless_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/pre_compute_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/prefix_caching.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/prepare_whisper_model_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/preserve_const_matmul_pattern_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/pyramid_attention_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/resolve_dynamic_quant_storage_types_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/sdpa_pattern_matcher_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/sdpa_pattern_nodes_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/serialization.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/sliding_window_manager_generate_mask_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/sliding_window_manager_update_kv_cache_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/split_kvcache_into_blocks_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/stored_tokens_state_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/subgraph_behavior_infer_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/npuw/subgraph_pipeline.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/test_utils.cpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/test_utils.hpp
     ${CMAKE_CURRENT_LIST_DIR}/npuw/transpose.cpp

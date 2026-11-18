@@ -9,6 +9,7 @@ set(OV_NPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/behavior/compiled_model/import_export.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/compiled_model/model_cache.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/compiled_model/property.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/behavior/dynamic_host_pipeline/espcn_x2_model.hpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/dynamic_host_pipeline/infer_with_host_compile.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/dynamic_host_pipeline/infer_with_host_compile_multithread.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/fail_gracefully_forward_compatibility.cpp
