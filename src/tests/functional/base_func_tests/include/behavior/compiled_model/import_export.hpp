@@ -119,8 +119,6 @@ public:
     void TearDown() override;
 
 protected:
-    /// Fails unless the configured device emits HSM blobs without Core's cache header.
-    virtual void check_hsm_format();
     ov::CompiledModel compile(bool with_cache);
     std::string export_blob(ov::CompiledModel compiled) const;
     std::string read_cache_blob() const;

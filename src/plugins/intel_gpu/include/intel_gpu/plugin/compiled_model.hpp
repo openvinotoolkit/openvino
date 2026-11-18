@@ -71,6 +71,9 @@ public:
     // [DO NOT CHANGE THIS CONSTANT] changing it breaks import of every previously exported blob.
     static constexpr uint64_t runtime_requirements_magic = 0x4F5645505F525251ULL;
 
+    // Upper bound on the persisted descriptor size, rejects corrupted size fields before allocating.
+    static constexpr size_t runtime_requirements_max_size = 4096;
+
     void set_property(const ov::AnyMap& properties) override {
         OPENVINO_THROW_NOT_IMPLEMENTED("It's not possible to set property of an already compiled model. Set property "
                                        "to Core::compile_model during compilation");

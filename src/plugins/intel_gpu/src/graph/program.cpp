@@ -17,7 +17,6 @@
 #include "openvino/util/parallel_read_streambuf.hpp"
 #include "common_utils/parallel_mem_streambuf.hpp"
 #include "common_utils/prefetch_streambuf.hpp"
-#include "common_utils/read_hooks.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -2050,8 +2049,6 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         // Weights become sub-buffers of the blob, so its pages must stay resident.
         if (auto* prefetch_buf = dynamic_cast<ov::intel_gpu::PrefetchStreamBuf*>(ib.get_streambuf())) {
             prefetch_buf->keep_read_data();
-        } else if (auto* hooks = dynamic_cast<ov::intel_gpu::ReadHooks*>(ib.get_streambuf())) {
-            hooks->keep_read_data();
         }
     }
 
@@ -2071,8 +2068,6 @@ void program::load(cldnn::BinaryInputBuffer& ib,
             prs->prefetch(ov::util::default_parallel_io_prefetch_cap);
         } else if (auto* pms = dynamic_cast<ov::intel_gpu::ParallelMemStreamBuf*>(rdbuf)) {
             pms->prefetch(ov::util::default_parallel_io_prefetch_cap);
-        } else if (auto* hooks = dynamic_cast<ov::intel_gpu::ReadHooks*>(rdbuf)) {
-            hooks->prefetch(ov::util::default_parallel_io_prefetch_cap);
         }
     }
 
@@ -2111,8 +2106,6 @@ void program::load(cldnn::BinaryInputBuffer& ib,
             prs->prefetch(ov::util::default_parallel_io_prefetch_cap);
         } else if (auto* pms = dynamic_cast<ov::intel_gpu::ParallelMemStreamBuf*>(rdbuf)) {
             pms->prefetch(ov::util::default_parallel_io_prefetch_cap);
-        } else if (auto* hooks = dynamic_cast<ov::intel_gpu::ReadHooks*>(rdbuf)) {
-            hooks->prefetch(ov::util::default_parallel_io_prefetch_cap);
         }
     }
 

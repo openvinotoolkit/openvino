@@ -6,9 +6,14 @@
 
 #include <istream>
 #include <memory>
+#include <optional>
+#include <streambuf>
+#include <string>
 
 #include "intel_gpu/plugin/hsm_common.hpp"
+#include "openvino/runtime/hsm_reader.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace cldnn {
 class BinaryInputBuffer;
@@ -17,21 +22,40 @@ class engine;
 
 namespace ov::intel_gpu::hsm {
 
-// Owns HSM section streams through graph reconstruction; leaves legacy decoding to the plugin.
-class ReaderHandler {
+/// Reads the GPU sections of an HSM container and opens its model section for graph reconstruction.
+class ReaderHandler final : public runtime::hsm::ISectionReaderHandler {
 public:
-    ReaderHandler(std::istream& source, cldnn::engine& engine, const size_t* tensor_base, size_t tensor_size, Crypt decrypt);
-    ~ReaderHandler();
+    /// Collects and validates the sections, and rejects incompatible runtime requirements before the payload is read.
+    ReaderHandler(const runtime::hsm::Reader& reader, cldnn::engine& engine);
+    ~ReaderHandler() override;
 
-    bool is_hsm() const;
-    std::istream& legacy_stream();
-    cldnn::BinaryInputBuffer& buffer();
+    bool handle_section(const runtime::hsm::ManifestEntry& entry, const runtime::hsm::Section& section) override;
+
     ov::CacheMode cache_mode() const;
-    void finish();
+
+    /// Model payload read from @p source, in which the container starts at @p container_start.
+    cldnn::BinaryInputBuffer& open_model(std::istream& source,
+                                         std::streampos container_start,
+                                         const ov::EncryptionCallbacks& callbacks);
+
+    /// Model payload read in place from @p blob, the memory the reader was opened over.
+    cldnn::BinaryInputBuffer& open_model(const ov::Tensor& blob, const ov::EncryptionCallbacks& callbacks);
 
 private:
-    struct Impl;
-    std::unique_ptr<Impl> m_impl;
+    bool open_encrypted_model(const ov::EncryptionCallbacks& callbacks);
+
+    cldnn::engine& m_engine;
+    PayloadInfo m_info;
+    std::string m_requirements;
+    std::optional<runtime::hsm::Section> m_info_section;
+    std::optional<runtime::hsm::Section> m_requirements_section;
+    std::optional<runtime::hsm::Section> m_model;
+    runtime::hsm::ManifestEntry m_model_entry{};
+    std::string m_plaintext;
+    ov::Tensor m_model_tensor;
+    std::unique_ptr<std::streambuf> m_buffer;
+    std::unique_ptr<std::istream> m_stream;
+    std::unique_ptr<cldnn::BinaryInputBuffer> m_input;
 };
 
 }  // namespace ov::intel_gpu::hsm

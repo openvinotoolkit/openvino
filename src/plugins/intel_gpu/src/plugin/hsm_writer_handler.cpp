@@ -10,16 +10,17 @@
 #include <utility>
 
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
+#include "intel_gpu/plugin/compiled_model.hpp"
 #include "openvino/runtime/hsm_deferred_writer.hpp"
-#include "openvino/util/file_util.hpp"
+#include "openvino/util/memory.hpp"
 
 namespace ov::intel_gpu::hsm {
 namespace {
 
-// Amortize small graph records without bypassing the destination ostream in SectionSink.
+// The graph is written as ~10^5 small records; one sink call per record measurably slowed down weightless export.
 class SectionOutputStreamBuf final : public std::streambuf {
 public:
-    explicit SectionOutputStreamBuf(const wire::SectionSink& sink) : m_sink(sink) {}
+    explicit SectionOutputStreamBuf(const runtime::hsm::SectionSink& sink) : m_sink(sink) {}
 
 protected:
     std::streamsize xsputn(const char* data, std::streamsize size) override {
@@ -71,21 +72,24 @@ private:
         m_emitted += size;
     }
 
-    const wire::SectionSink& m_sink;
+    const runtime::hsm::SectionSink& m_sink;
     std::array<char, 64 * 1024> m_buffer;
     size_t m_used = 0;
     size_t m_emitted = 0;
 };
 
-class ModelEncoder final : public wire::ISectionEncoder {
+class ModelEncoder final : public runtime::hsm::ISectionEncoder {
 public:
-    ModelEncoder(std::function<void(cldnn::BinaryOutputBuffer&)> serialize, Crypt encrypt) : m_serialize(std::move(serialize)), m_encrypt(std::move(encrypt)) {}
+    ModelEncoder(std::function<void(cldnn::BinaryOutputBuffer&)> serialize, decltype(ov::EncryptionCallbacks::encrypt) encrypt)
+        : m_serialize(std::move(serialize)),
+          m_encrypt(std::move(encrypt)) {}
 
-    void encode(const wire::SectionSink& sink) const override {
+    void encode(const runtime::hsm::SectionSink& sink) const override {
         SectionOutputStreamBuf buffer(sink);
         std::ostream stream(&buffer);
         stream.exceptions(std::ios::badbit | std::ios::failbit);
         if (m_encrypt) {
+            // Collects the whole plaintext; flush() writes [size][ciphertext].
             cldnn::EncryptedBinaryOutputBuffer output(stream, m_encrypt);
             m_serialize(output);
             output.flush();
@@ -99,35 +103,40 @@ public:
 
 private:
     std::function<void(cldnn::BinaryOutputBuffer&)> m_serialize;
-    Crypt m_encrypt;
+    decltype(ov::EncryptionCallbacks::encrypt) m_encrypt;
 };
 
-class WriterHandler final : public wire::ISectionWriterHandler {
+class WriterHandler final : public runtime::hsm::ISectionWriterHandler {
 public:
-    WriterHandler(ov::CacheMode cache_mode, const std::string& requirements, std::function<void(cldnn::BinaryOutputBuffer&)> serialize, Crypt encrypt)
-        : m_requirements(requirements),
+    WriterHandler(ov::CacheMode cache_mode,
+                  std::string requirements,
+                  std::function<void(cldnn::BinaryOutputBuffer&)> serialize,
+                  const decltype(ov::EncryptionCallbacks::encrypt)& encrypt)
+        : m_requirements(std::move(requirements)),
           m_encoder(std::make_shared<ModelEncoder>(std::move(serialize), encrypt)) {
         OPENVINO_ASSERT(cache_mode == ov::CacheMode::OPTIMIZE_SPEED || cache_mode == ov::CacheMode::OPTIMIZE_SIZE, "[GPU] Invalid stored HSM cache mode");
-        OPENVINO_ASSERT(!requirements.empty() && requirements.size() <= max_requirements_size, "[GPU] Invalid HSM runtime requirements size");
+        OPENVINO_ASSERT(!m_requirements.empty() && m_requirements.size() <= CompiledModel::runtime_requirements_max_size,
+                        "[GPU] Invalid HSM runtime requirements size");
         m_info.cache_mode = cache_mode == ov::CacheMode::OPTIMIZE_SPEED ? 0 : 1;
-        m_info.flags = encrypt ? encrypted : 0;
+        m_info.flags = encrypt ? encrypted_flag : 0;
+        m_info.requirements_version = CompiledModel::runtime_requirements_version;
     }
 
-    void handle_section(wire::IWriter& writer) const override {
-        const auto view = [](const void* data, size_t size) {
-            return ov::util::MemoryView{static_cast<const std::byte*>(data), size};
+    void handle_section(runtime::hsm::IWriter& writer) const override {
+        const auto add = [&writer](const SectionId& id, auto&&... args) {
+            OPENVINO_ASSERT(writer.add_section(id.device, id.tag, std::forward<decltype(args)>(args)...),
+                            "[GPU] Cannot add HSM section ",
+                            id.tag.id());
         };
-        OPENVINO_ASSERT(writer.add_section(wire::gpu_device_id, payload_info_tag, view(&m_info, sizeof(m_info))), "[GPU] Cannot register HSM payload metadata");
-        OPENVINO_ASSERT(writer.add_section(wire::gpu_device_id, wire::runtime_requirements_tag, view(m_requirements.data(), m_requirements.size())),
-                        "[GPU] Cannot register HSM runtime requirements");
-        OPENVINO_ASSERT(writer.add_section(wire::gpu_device_id, wire::model_tag, m_encoder, wire::SectionAlignment{ov::util::min_page_alignment, 0}),
-                        "[GPU] Cannot register HSM model payload");
+        add(payload_info, ov::util::as_memory_view(m_info));
+        add(runtime_requirements, ov::util::as_memory_view(m_requirements));
+        add(model, m_encoder, runtime::hsm::SectionAlignment{ov::util::min_page_alignment, 0});
     }
 
 private:
     PayloadInfo m_info;
-    const std::string& m_requirements;
-    wire::SectionEncoderPtr m_encoder;
+    std::string m_requirements;
+    runtime::hsm::SectionEncoderPtr m_encoder;
 };
 
 }  // namespace
@@ -136,9 +145,9 @@ void write_model(std::ostream& destination,
                  ov::CacheMode cache_mode,
                  const std::string& requirements,
                  std::function<void(cldnn::BinaryOutputBuffer&)> serialize,
-                 Crypt encrypt) {
-    WriterHandler handler(cache_mode, requirements, std::move(serialize), std::move(encrypt));
-    auto writer = wire::DeferredWriter::open(destination);
+                 const decltype(ov::EncryptionCallbacks::encrypt)& encrypt) {
+    WriterHandler handler(cache_mode, requirements, std::move(serialize), encrypt);
+    auto writer = runtime::hsm::DeferredWriter::open(destination);
     OPENVINO_ASSERT(writer, "[GPU] HSM export requires a seekable output stream");
     writer->add_sections({&handler});
     const auto error = writer->finalize();

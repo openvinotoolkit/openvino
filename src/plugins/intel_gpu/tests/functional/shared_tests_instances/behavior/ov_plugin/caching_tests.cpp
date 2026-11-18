@@ -19,9 +19,6 @@
 
 #include "intel_gpu/plugin/hsm_common.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/parameter.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/util/codec_xor.hpp"
@@ -206,85 +203,11 @@ class GPUHsmRegressionTest : public OVCompiledModelHsmBlobTest {
 public:
     void TearDown() override {
         if (!cache_path.empty()) {
-            std::filesystem::remove(cache_path.string() + ".xml");
-            std::filesystem::remove(cache_path.string() + ".bin");
             std::filesystem::remove(cache_path.string() + ".mapped");
         }
         OVCompiledModelHsmBlobTest::TearDown();
     }
-
-protected:
-    void check_hsm_format() override {
-        ASSERT_TRUE(core.get_property(target_device, ov::intel_gpu::export_hsm_format));
-    }
 };
-
-TEST_P(GPUHsmRegressionTest, CacheMissHitAndPlainImports) {
-    auto compiled = compile(true);
-    EXPECT_FALSE(compiled.get_property(ov::loaded_from_cache));
-    const auto blob = export_blob(compiled);
-    ASSERT_TRUE(is_hsm(blob));
-
-    std::stringstream stream(blob);
-    auto from_stream = core.import_model(stream, target_device, configuration);
-    expect_same_inference(from_stream);
-
-    ov::CompiledModel from_tensor;
-    {
-        ov::Tensor tensor(ov::element::u8, ov::Shape{blob.size()});
-        std::memcpy(tensor.data(), blob.data(), blob.size());
-        from_tensor = core.import_model(tensor, target_device, configuration);
-    }
-    expect_same_inference(from_tensor);
-
-    auto cached = compile(true);
-    EXPECT_TRUE(cached.get_property(ov::loaded_from_cache));
-    expect_same_inference(cached);
-}
-
-TEST_P(GPUHsmRegressionTest, ReplacingSourceAtSamePathInvalidatesCache) {
-    const auto xml = cache_path.string() + ".xml";
-    const auto weights = cache_path.string() + ".bin";
-    const auto make_model = [&](float value, const std::string& name) {
-        auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input.get_shape());
-        auto constant = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {value});
-        auto add = std::make_shared<ov::op::v1::Add>(parameter, constant);
-        return std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{parameter}, name);
-    };
-    auto config = configuration;
-    config.emplace(ov::cache_dir(ov::util::path_to_string(cache_path)));
-    std::fill_n(input.data<float>(), input.get_size(), 1.f);
-    const auto expect_output = [&](ov::CompiledModel& compiled, float expected) {
-        auto request = compiled.create_infer_request();
-        request.set_input_tensor(input);
-        request.infer();
-        const auto output = request.get_output_tensor();
-        ASSERT_EQ(output.get_size(), input.get_size());
-        for (size_t i = 0; i < output.get_size(); ++i)
-            EXPECT_FLOAT_EQ(output.data<const float>()[i], expected);
-    };
-    ov::serialize(make_model(1.f, "before"), xml, weights);
-    {
-        auto first = core.compile_model(xml, target_device, config);
-        EXPECT_FALSE(first.get_property(ov::loaded_from_cache));
-        expect_output(first, 2.f);
-    }
-    {
-        auto cached = core.compile_model(xml, target_device, config);
-        EXPECT_TRUE(cached.get_property(ov::loaded_from_cache));
-        expect_output(cached, 2.f);
-    }
-    // A different XML size makes the freshness change independent of timestamp granularity.
-    ov::serialize(make_model(2.f, "after_source_replacement"), xml, weights);
-    {
-        auto replaced = core.compile_model(xml, target_device, config);
-        EXPECT_FALSE(replaced.get_property(ov::loaded_from_cache));
-        expect_output(replaced, 3.f);
-    }
-    auto cached = core.compile_model(xml, target_device, config);
-    EXPECT_TRUE(cached.get_property(ov::loaded_from_cache));
-    expect_output(cached, 3.f);
-}
 
 TEST_P(GPUHsmRegressionTest, RejectsTensorPrefixOfLargerMappedFile) {
     namespace wire = ov::runtime::hsm;
@@ -367,13 +290,14 @@ TEST_P(GPUHsmRegressionTest, AlignedTensorImportRetainsStorageWithZeroCopyReques
 
 TEST_P(GPUHsmRegressionTest, RejectsMissingMalformedAndTruncatedSections) {
     namespace wire = ov::runtime::hsm;
+    namespace gpu_hsm = ov::intel_gpu::hsm;
     const auto original = export_blob(compile(false));
     std::vector<std::pair<std::string, std::string>> invalid;
-    for (const auto tag : {ov::intel_gpu::hsm::payload_info_tag, wire::runtime_requirements_tag, wire::model_tag}) {
-        invalid.emplace_back("missing tag " + std::to_string(tag.id()),
+    for (const auto& id : {gpu_hsm::payload_info, gpu_hsm::runtime_requirements, gpu_hsm::model}) {
+        invalid.emplace_back("missing tag " + std::to_string(id.tag.id()),
                              hsm_repack(original, [&](std::vector<HsmEntry>& entries) {
                                  entries.erase(std::remove_if(entries.begin(), entries.end(), [&](const HsmEntry& entry) {
-                                                   return entry.device == wire::gpu_device_id && entry.tag.tag.id() == tag.id();
+                                                   return entry.device == id.device && entry.tag.tag.id() == id.tag.id();
                                                }),
                                                entries.end());
                              }));
@@ -396,6 +320,12 @@ TEST_P(GPUHsmRegressionTest, RejectsMissingMalformedAndTruncatedSections) {
     auto imported = core.import_model(stream, target_device, configuration);
     expect_same_inference(imported);
 }
+
+INSTANTIATE_TEST_SUITE_P(smoke_Hsm_GPU,
+                        OVCompiledModelHsmBlobTest,
+                        ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
+                                           ::testing::Values(ov::AnyMap{ov::intel_gpu::export_hsm_format(true)})),
+                        OVCompiledModelHsmBlobTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hsm_GPU,
                         GPUHsmRegressionTest,

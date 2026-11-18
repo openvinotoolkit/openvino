@@ -50,6 +50,12 @@ private:
     bool is_metric(const std::string& name) const;
     ov::Any get_metric(const std::string& name, const ov::AnyMap& arguments) const;
 
+    // Reads an HSM blob in place from @p blob when @p model is null; otherwise reads @p model, backed by @p blob if set.
+    std::shared_ptr<ov::ICompiledModel> import_blob(std::istream* model,
+                                                    const ov::Tensor* blob,
+                                                    const ov::SoPtr<ov::IRemoteContext>& context,
+                                                    const ov::AnyMap& config) const;
+
 public:
     Plugin();
 
