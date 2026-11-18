@@ -31,10 +31,10 @@ public:
           const std::shared_ptr<IProfilingDecoder>& profilingDecoder = nullptr);
 
     /**
-     * @brief Writes the compiler main schedule to the provided stream, along with some padding for page alignment. The
+     * @brief Writes the compiler main schedule to the provided sink, along with some padding for page alignment. The
      * format is "raw": no additional metadata are written.
      *
-     * @param stream Where the content is placed
+     * @param sink Where the content is placed
      * @return The total size written into the stream
      */
     uint64_t export_main_blob(const ov::runtime::hsm::SectionSink& sink) const override;
@@ -85,9 +85,10 @@ protected:
     /**
      * @brief Writes a blob into a stream, where the "blob" contains only a single compiler schedule.
      *
-     * @param graphDescriptorOrTensor Where the blob will be taken from
-     * @param stream Where the blob will be written
-     * @param computeHash The has will be computed and returned if set to `true`
+     * @param graphDescriptorOrTensor The source of the blob. The "graph" either owns the blob (the tensor scenario) or
+     * it has to request it from the driver (the descriptor scenario).
+     * @param sink Where the blob will be written
+     * @param computeHash The hash will be computed and returned if this flag is set to `true`
      * @return The size of the written blob without padding, the size with padding and the hash of the blob if
      * requested.
      */

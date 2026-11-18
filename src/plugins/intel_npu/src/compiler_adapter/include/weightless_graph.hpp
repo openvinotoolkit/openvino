@@ -46,7 +46,7 @@ public:
                     const std::shared_ptr<IProfilingDecoder>& profilingDecoder = nullptr);
 
     /**
-     * @brief The weights initialization schedules are exported.
+     * @brief The weights initialization schedules are exported into the given sink.
      */
     std::vector<uint64_t> export_init_blobs(const ov::runtime::hsm::SectionSink& sink) const;
 
