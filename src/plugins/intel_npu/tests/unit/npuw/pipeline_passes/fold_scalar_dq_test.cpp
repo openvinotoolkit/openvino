@@ -29,6 +29,7 @@ constexpr float kScale = 0.25f;
 struct DQParams {
     bool with_subtract = true;
     bool swap_subtract = false;
+    bool zp_convert = true;
     bool swap_multiply = false;
     bool scale_convert = false;
     bool weight_parameter = false;
@@ -42,130 +43,153 @@ float expected_value(const DQParams& p) {
     return shifted * kScale;
 }
 
-// x * DQ(weight), where DQ = Convert(weight) -> [Subtract(Convert(zp))] -> Multiply(scale)
-std::shared_ptr<Model> build_model(const DQParams& p, bool folded) {
+// x * DQ(weight), where DQ = Convert(weight) -> [Subtract([Convert](zp))] -> Multiply(scale)
+std::shared_ptr<Model> getModel(const DQParams& p) {
     auto x = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4});
     ParameterVector params{x};
 
-    std::shared_ptr<Node> dq;
-    if (folded) {
-        dq = op::v0::Constant::create(element::f32, p.weight_shape, {expected_value(p)});
+    std::shared_ptr<Node> weight;
+    if (p.weight_parameter) {
+        auto weight_param = std::make_shared<op::v0::Parameter>(element::u16, p.weight_shape);
+        params.push_back(weight_param);
+        weight = weight_param;
     } else {
-        std::shared_ptr<Node> weight;
-        if (p.weight_parameter) {
-            auto weight_param = std::make_shared<op::v0::Parameter>(element::u16, p.weight_shape);
-            params.push_back(weight_param);
-            weight = weight_param;
-        } else {
-            weight =
-                op::v0::Constant::create(p.weight_convert ? element::u16 : element::f32, p.weight_shape, {kWeight});
-        }
-        std::shared_ptr<Node> value =
-            p.weight_convert ? std::make_shared<op::v0::Convert>(weight, element::f32) : weight;
-        if (p.with_subtract) {
-            auto zp = std::make_shared<op::v0::Convert>(op::v0::Constant::create(element::u16, Shape{}, {kZeroPoint}),
-                                                        element::f32);
-            value = p.swap_subtract ? std::make_shared<op::v1::Subtract>(zp, value)
-                                    : std::make_shared<op::v1::Subtract>(value, zp);
-        }
-        std::shared_ptr<Node> scale =
-            op::v0::Constant::create(p.scale_convert ? element::f16 : element::f32, Shape{}, {kScale});
-        if (p.scale_convert) {
-            scale = std::make_shared<op::v0::Convert>(scale, element::f32);
-        }
-        dq = p.swap_multiply ? std::make_shared<op::v1::Multiply>(scale, value)
-                             : std::make_shared<op::v1::Multiply>(value, scale);
+        weight = op::v0::Constant::create(p.weight_convert ? element::u16 : element::f32, p.weight_shape, {kWeight});
     }
+    std::shared_ptr<Node> value = p.weight_convert ? std::make_shared<op::v0::Convert>(weight, element::f32) : weight;
+    if (p.with_subtract) {
+        std::shared_ptr<Node> zp =
+            op::v0::Constant::create(p.zp_convert ? element::u16 : element::f32, Shape{}, {kZeroPoint});
+        if (p.zp_convert) {
+            zp = std::make_shared<op::v0::Convert>(zp, element::f32);
+        }
+        value = p.swap_subtract ? std::make_shared<op::v1::Subtract>(zp, value)
+                                : std::make_shared<op::v1::Subtract>(value, zp);
+    }
+    std::shared_ptr<Node> scale =
+        op::v0::Constant::create(p.scale_convert ? element::f16 : element::f32, Shape{}, {kScale});
+    if (p.scale_convert) {
+        scale = std::make_shared<op::v0::Convert>(scale, element::f32);
+    }
+    auto dq = p.swap_multiply ? std::make_shared<op::v1::Multiply>(scale, value)
+                              : std::make_shared<op::v1::Multiply>(value, scale);
 
     auto out = std::make_shared<op::v1::Multiply>(x, dq);
     return std::make_shared<Model>(OutputVector{out}, params);
 }
 
-class FoldScalarDQTest : public TransformationTestsF,
-                         public ::testing::WithParamInterface<std::tuple<bool, bool, bool, bool>> {
-public:
-    FoldScalarDQTest() {
-        comparator.enable(FunctionsComparator::CONST_VALUES);
-    }
-};
-
-TEST_P(FoldScalarDQTest, FoldsChain) {
-    DQParams p;
-    std::tie(p.with_subtract, p.swap_subtract, p.swap_multiply, p.scale_convert) = GetParam();
-    model = build_model(p, false);
-    manager.register_pass<npuw::FoldScalarDQ>();
-    model_ref = build_model(p, true);
-}
-
-INSTANTIATE_TEST_SUITE_P(NPUW,
-                         FoldScalarDQTest,
-                         ::testing::Combine(::testing::Bool(), ::testing::Bool(), ::testing::Bool(), ::testing::Bool()),
-                         [](const ::testing::TestParamInfo<std::tuple<bool, bool, bool, bool>>& info) {
-                             return std::string(std::get<0>(info.param) ? "WithZP" : "NoZP") +
-                                    (std::get<1>(info.param) ? "_SwappedSub" : "") +
-                                    (std::get<2>(info.param) ? "_SwappedMul" : "") +
-                                    (std::get<3>(info.param) ? "_ScaleConvert" : "");
-                         });
-
-TEST_F(TransformationTestsF, FoldScalarDQ_NotAppliedForParameterWeight) {
-    DQParams p;
-    p.weight_parameter = true;
-    model = build_model(p, false);
-    manager.register_pass<npuw::FoldScalarDQ>();
-}
-
-TEST_F(TransformationTestsF, FoldScalarDQ_NotAppliedForMultiElementWeight) {
-    DQParams p;
-    p.weight_shape = Shape{4};
-    model = build_model(p, false);
-    manager.register_pass<npuw::FoldScalarDQ>();
-}
-
-TEST_F(TransformationTestsF, FoldScalarDQ_NotAppliedWithoutWeightConvert) {
-    DQParams p;
-    p.weight_convert = false;
-    model = build_model(p, false);
-    manager.register_pass<npuw::FoldScalarDQ>();
-}
-
-// x * (Convert(weight) * Convert(scale)), or x * Const(expected) when folded
-std::shared_ptr<Model> build_convert_scale_model(element::Type weight_type,
-                                                 double weight_value,
-                                                 element::Type scale_type,
-                                                 double scale_value,
-                                                 bool folded,
-                                                 float expected = 0.0f) {
+// x * (Convert(weight) * Convert(scale))
+std::shared_ptr<Model> getConvertScaleModel(element::Type weight_type,
+                                            double weight_value,
+                                            element::Type scale_type,
+                                            double scale_value) {
     auto x = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4});
-    std::shared_ptr<Node> dq;
-    if (folded) {
-        dq = op::v0::Constant::create(element::f32, Shape{1}, {expected});
-    } else {
-        auto weight = std::make_shared<op::v0::Convert>(
-            op::v0::Constant::create(weight_type, Shape{1}, std::vector<double>{weight_value}),
-            element::f32);
-        auto scale = std::make_shared<op::v0::Convert>(
-            op::v0::Constant::create(scale_type, Shape{}, std::vector<double>{scale_value}),
-            element::f32);
-        dq = std::make_shared<op::v1::Multiply>(weight, scale);
-    }
+    auto weight = std::make_shared<op::v0::Convert>(
+        op::v0::Constant::create(weight_type, Shape{1}, std::vector<double>{weight_value}),
+        element::f32);
+    auto scale = std::make_shared<op::v0::Convert>(
+        op::v0::Constant::create(scale_type, Shape{}, std::vector<double>{scale_value}),
+        element::f32);
+    auto dq = std::make_shared<op::v1::Multiply>(weight, scale);
     auto out = std::make_shared<op::v1::Multiply>(x, dq);
     return std::make_shared<Model>(OutputVector{out}, ParameterVector{x});
 }
 
-// Bound evaluation maps a source type's max to the destination type's max; folding must use real values.
-TEST_F(TransformationTestsF, FoldScalarDQ_KeepsF16MaxScale) {
-    model = build_convert_scale_model(element::u16, 1.0, element::f16, 65504.0, false);
-    manager.register_pass<npuw::FoldScalarDQ>();
-    model_ref = build_convert_scale_model(element::u16, 1.0, element::f16, 65504.0, true, 65504.0f);
-    comparator.enable(FunctionsComparator::CONST_VALUES);
+// x * Const(value)
+std::shared_ptr<Model> getModelRef(const Shape& dq_shape, float value) {
+    auto x = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4});
+    auto dq = op::v0::Constant::create(element::f32, dq_shape, {value});
+    auto out = std::make_shared<op::v1::Multiply>(x, dq);
+    return std::make_shared<Model>(OutputVector{out}, ParameterVector{x});
 }
 
-TEST_F(TransformationTestsF, FoldScalarDQ_KeepsI32MaxWeight) {
+class FoldScalarDQTests : public TransformationTestsF {
+public:
+    FoldScalarDQTests() {
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+    }
+
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        manager.register_pass<npuw::FoldScalarDQ>();
+    }
+};
+
+using FoldScalarDQParams = std::tuple<bool, bool, bool, bool, bool, Shape>;
+
+class FoldScalarDQParamTests : public FoldScalarDQTests, public ::testing::WithParamInterface<FoldScalarDQParams> {
+public:
+    static std::string getTestCaseName(const ::testing::TestParamInfo<FoldScalarDQParams>& info) {
+        const auto& [with_subtract, swap_subtract, zp_convert, swap_multiply, scale_convert, weight_shape] = info.param;
+        std::string name = with_subtract ? "WithZP" : "NoZP";
+        name += swap_subtract ? "_SwappedSub" : "";
+        name += zp_convert ? "" : "_ZPNoConvert";
+        name += swap_multiply ? "_SwappedMul" : "";
+        name += scale_convert ? "_ScaleConvert" : "";
+        name += "_rank" + std::to_string(weight_shape.size());
+        return name;
+    }
+
+protected:
+    void SetUp() override {
+        FoldScalarDQTests::SetUp();
+        DQParams p;
+        std::tie(p.with_subtract, p.swap_subtract, p.zp_convert, p.swap_multiply, p.scale_convert, p.weight_shape) =
+            GetParam();
+        model = getModel(p);
+        model_ref = getModelRef(p.weight_shape, expected_value(p));
+    }
+};
+
+TEST_P(FoldScalarDQParamTests, FoldsChain) {}
+
+INSTANTIATE_TEST_SUITE_P(NPUW,
+                         FoldScalarDQParamTests,
+                         ::testing::Combine(::testing::Bool(),
+                                            ::testing::Bool(),
+                                            ::testing::Bool(),
+                                            ::testing::Bool(),
+                                            ::testing::Bool(),
+                                            ::testing::Values(Shape{}, Shape{1}, Shape{1, 1})),
+                         FoldScalarDQParamTests::getTestCaseName);
+
+TEST_F(FoldScalarDQTests, NotAppliedForParameterWeight) {
+    DQParams p;
+    p.weight_parameter = true;
+    model = getModel(p);
+}
+
+TEST_F(FoldScalarDQTests, NotAppliedForMultiElementWeight) {
+    DQParams p;
+    p.weight_shape = Shape{4};
+    model = getModel(p);
+}
+
+TEST_F(FoldScalarDQTests, NotAppliedWithoutSubtractConvert) {
+    DQParams p;
+    p.weight_convert = false;
+    p.zp_convert = false;
+    model = getModel(p);
+}
+
+TEST_F(FoldScalarDQTests, NotAppliedWithoutWeightConvertAndSubtract) {
+    DQParams p;
+    p.weight_convert = false;
+    p.with_subtract = false;
+    model = getModel(p);
+}
+
+// Bound evaluation maps a source type's max to the destination type's max; folding must use real values.
+TEST_F(FoldScalarDQTests, KeepsF16MaxScale) {
+    model = getConvertScaleModel(element::u16, 1.0, element::f16, 65504.0);
+    model_ref = getModelRef(Shape{1}, 65504.0f);
+}
+
+TEST_F(FoldScalarDQTests, KeepsI32MaxWeight) {
     constexpr double i32_max = std::numeric_limits<int32_t>::max();
-    model = build_convert_scale_model(element::i32, i32_max, element::f32, 1.0, false);
-    manager.register_pass<npuw::FoldScalarDQ>();
-    model_ref = build_convert_scale_model(element::i32, i32_max, element::f32, 1.0, true, static_cast<float>(i32_max));
-    comparator.enable(FunctionsComparator::CONST_VALUES);
+    model = getConvertScaleModel(element::i32, i32_max, element::f32, 1.0);
+    model_ref = getModelRef(Shape{1}, static_cast<float>(i32_max));
 }
 
 }  // namespace
