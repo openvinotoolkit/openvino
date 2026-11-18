@@ -125,6 +125,7 @@ struct gguf_fc_mode {
     gguf_bias_mode bias_mode = gguf_bias_mode::none;
     size_t rank4_batch = 0;
     bool low_bit_prefill = false;
+    bool small_m_tile = false;
 };
 
 class gguf_fc_dynamic_reference : public ::testing::TestWithParam<gguf_fc_mode> {};
@@ -869,6 +870,13 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
     ov::Core core;
     auto compiled = core.compile_model(public_graph, "GPU", ov::hint::inference_precision(precision),
                                        ov::enable_profiling(true), ov::num_streams(1));
+    if (GetParam().small_m_tile) {
+        std::stringstream binary;
+        compiled.export_model(binary);
+        compiled = core.import_model(binary, "GPU", ov::hint::inference_precision(precision),
+                                     ov::enable_profiling(true), ov::num_streams(1));
+        RecordProperty("small_m_imported", "1");
+    }
     auto request = compiled.create_infer_request();
     for (const auto& operation : compiled.get_runtime_model()->get_ordered_ops())
         EXPECT_EQ(operation->get_rt_info().count("gguf_last_executed_kernels"), 0u);
@@ -904,6 +912,8 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
         config.set_property(ov::intel_gpu::use_cm(false));
     network network(engine, topology, config);
     std::vector<size_t> row_counts = {1, 2, 31, 32, 33, 1, 1, 33, 2};
+    if (GetParam().small_m_tile)
+        row_counts = {1, 3, 4, 8, 17, 31, 32, 33, 1, 17, 1};
     if (GetParam().cm) {
         row_counts.push_back(128);
         row_counts.push_back(1);
@@ -1043,7 +1053,8 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
             EXPECT_TRUE(found_binary);
         }
         RecordProperty("stage_iteration_" + std::to_string(iteration), entries);
-        const bool prefill = !GetParam().threshold && rows > 32;
+        const size_t prefill_threshold = GetParam().threshold ? static_cast<size_t>(std::atol(GetParam().threshold)) : 32;
+        const bool prefill = rows > prefill_threshold;
         const std::string sg_stage = weight_type == ov::element::gguf_q4_k ? "fc_gguf_q4k_sg"
                          : weight_type == ov::element::gguf_q5_k ? "fc_gguf_q5k_sg"
                          : weight_type == ov::element::gguf_q6_k ? "fc_gguf_q6k_sg"
@@ -1058,12 +1069,14 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
                                            : "gemm_q80_full";
         const bool cm_for_iteration = cm_selected && !broadcast_peer;
         const bool ocl_for_iteration = ocl_selected && !broadcast_peer;
+        const bool small_m = prefill && ocl_for_iteration && rows <= 32 && engine.get_device_info().arch >= gpu_arch::xe3;
         const std::string expected_stage = broadcast_peer ? sg_stage
                   : prefill && cm_for_iteration ? cm_stage
-                          : prefill && ocl_for_iteration ? gguf_ocl_gemm_stage(weight_type)
+                  : prefill && ocl_for_iteration ? gguf_ocl_gemm_stage(weight_type) + (small_m ? "_small_m" : "")
                           : prefill ? "fc_gguf_transcode_" + weight_type.to_string()
                           : shuffled ? sg_stage : "fc_gguf_opt_" + weight_type.to_string();
         EXPECT_NE(entries.find(expected_stage), std::string::npos) << "iteration=" << iteration << " entries=" << entries;
+        EXPECT_EQ(entries.find("_small_m") != std::string::npos, small_m) << entries;
         if (!has_bias && GetParam().post_activation != activation_func::negative && GetParam().use_cm)
             EXPECT_NE(public_entries.find(expected_stage), std::string::npos) << public_entries;
         if (has_bias) {
@@ -1390,6 +1403,30 @@ INSTANTIATE_TEST_SUITE_P(gguf,
                                           gguf_qkv_mode{"cm_bias_f32_rank3", true, true, ov::element::f32, true, true},
                                           gguf_qkv_mode{"cm_bias_f16_rank2", true, true, ov::element::f16, false, true}),
                         [](const ::testing::TestParamInfo<gguf_qkv_mode>& info) { return info.param.name; });
+
+INSTANTIATE_TEST_SUITE_P(gguf_small_m,
+                        gguf_fc_dynamic_reference,
+                        ::testing::ValuesIn([] {
+                            std::vector<gguf_fc_mode> modes;
+                            for (const auto& type : {ov::element::gguf_q4_k, ov::element::gguf_q5_k, ov::element::gguf_q6_k,
+                                                     ov::element::gguf_q4_0, ov::element::gguf_q4_1, ov::element::gguf_q8_0}) {
+                                for (const auto& precision : {ov::element::f16, ov::element::f32}) {
+                                    gguf_fc_mode mode{type.to_string() + "_" + precision.to_string(), true, "3"};
+                                    mode.channels = 128;
+                                    mode.columns = 512;
+                                    mode.precision = precision;
+                                    mode.small_m_tile = true;
+                                    modes.push_back(mode);
+                                    if (type == ov::element::gguf_q4_k || type == ov::element::gguf_q6_k) {
+                                        mode.name += "_swish";
+                                        mode.post_activation = activation_func::swish;
+                                        modes.push_back(mode);
+                                    }
+                                }
+                            }
+                            return modes;
+                        }()),
+                        [](const ::testing::TestParamInfo<gguf_fc_mode>& info) { return info.param.name; });
 
 INSTANTIATE_TEST_SUITE_P(gguf_nondefault_prefill,
                         gguf_fc_dynamic_reference,

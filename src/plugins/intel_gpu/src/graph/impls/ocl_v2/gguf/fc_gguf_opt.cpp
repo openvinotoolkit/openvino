@@ -826,7 +826,10 @@ struct OclGemmConfig {
     int n_band;        // GG_N_BAND: work-group band swizzle (0 = plain dispatch order)
 };
 
-OclGemmConfig pick_ocl_gemm_config(const RuntimeParams& params) {
+OclGemmConfig pick_ocl_gemm_config(const RuntimeParams& params, bool small_m = false) {
+    if (small_m) {
+        return OclGemmConfig{2, 1, 4, 1, 4, false, 0};
+    }
     if (params.get_device_info().arch >= gpu_arch::xe3) {
         // PTL (Arc B390), 256 GRF: every sub-group owns 32 tokens x 64 outputs. The 4-bit formats decode cheaply
         // enough to share each activation tile between two row blocks (256 tokens x 128 outputs per work-group);
@@ -865,9 +868,10 @@ size_t gguf_ocl_gemm_align(const RuntimeParams& params) {
 // =================================================================================================
 class FCGGUFGemmGenerator : public KernelGenerator {
 public:
-    FCGGUFGemmGenerator(const char* kernel_name, const char* format_define)
-        : KernelGenerator(kernel_name, "", "fc_gguf_gemm_opt"),
-          m_format_define(format_define) {}
+    FCGGUFGemmGenerator(const char* kernel_name, const char* format_define, bool small_m = false)
+        : KernelGenerator(std::string(kernel_name) + (small_m ? "_small_m" : ""), "", "fc_gguf_gemm_opt"),
+          m_format_define(format_define),
+          m_small_m(small_m) {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -878,7 +882,7 @@ protected:
         jit.add(make_type_jit_constants("INPUT0", in0.data_type));
         jit.add(make_type_jit_constants("OUTPUT", out0.data_type));
 
-        const OclGemmConfig cfg = pick_ocl_gemm_config(params);
+        const OclGemmConfig cfg = pick_ocl_gemm_config(params, m_small_m);
         jit.add({
             make_jit_constant("ROW_GROUPS", cfg.row_groups),
             make_jit_constant("TOKEN_GROUPS", cfg.token_groups),
@@ -917,19 +921,19 @@ protected:
 
     [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
         auto options = KernelGenerator::get_build_options(params);
-        if (pick_ocl_gemm_config(params).large_grf) {
+        if (pick_ocl_gemm_config(params, m_small_m).large_grf) {
             options += " -cl-intel-256-GRF-per-thread";
         }
         return options;
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
+        return DispatchDataFunc{[small_m = m_small_m](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
             const auto& in1 = params.get_input_layout(1);
             const size_t N = in1.get_shape()[0];
             const size_t K = in1.get_shape()[1];
             const size_t M = derive_bm(params.get_input_layout(0).get_shape());
-            const OclGemmConfig cfg = pick_ocl_gemm_config(params);
+            const OclGemmConfig cfg = pick_ocl_gemm_config(params, small_m);
 
             const size_t tokens_per_thread = GGUF_CM_TOKENS_PER_TILE * static_cast<size_t>(cfg.token_groups);
             const size_t token_slots = static_cast<size_t>(cfg.token_local) / static_cast<size_t>(cfg.row_blocks);
@@ -957,6 +961,7 @@ protected:
 
 private:
     std::string m_format_define;  // GG_FMT_* macro selecting the format section of fc_gguf_gemm_opt.cl
+    bool m_small_m;
 };
 
 // -------------------------------------------------------------------------------------------------
@@ -1535,6 +1540,16 @@ public:
     std::shared_ptr<TranscodeArena> m_transcode_arena;
 #endif
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    std::array<Stage::Ptr, GGUF_GEMM_FORMATS> small_m_gemm_stages = {
+        make_stage<FCGGUFGemmGenerator>(kOclGemmKernels[0], kOclGemmFormatDefines[0], true),
+        make_stage<FCGGUFGemmGenerator>(kOclGemmKernels[1], kOclGemmFormatDefines[1], true),
+        make_stage<FCGGUFGemmGenerator>(kOclGemmKernels[2], kOclGemmFormatDefines[2], true),
+        make_stage<FCGGUFGemmGenerator>(kOclGemmKernels[3], kOclGemmFormatDefines[3], true),
+        make_stage<FCGGUFGemmGenerator>(kOclGemmKernels[4], kOclGemmFormatDefines[4], true),
+        make_stage<FCGGUFGemmGenerator>(kOclGemmKernels[5], kOclGemmFormatDefines[5], true)};
+#endif
+
     FCGGUFOptImpl() : PrimitiveImplOCL(FCGGUFOpt::get_type_info_static()) {
         if (const char* env = std::getenv("OV_GPU_GGUF_PREFILL_THRESHOLD")) {
             const long v = std::atol(env);
@@ -1602,6 +1617,9 @@ public:
         switch (m_prefill_kernel) {
         case PrefillKernel::ocl:
             add_stage(gemm_stages[static_cast<size_t>(fmt_idx)], params);
+            if (m_prefill_threshold < 32 && params.get_device_info().arch >= gpu_arch::xe3) {
+                add_stage(small_m_gemm_stages[static_cast<size_t>(fmt_idx)], params);
+            }
             break;
         case PrefillKernel::cm:
 #    ifdef ENABLE_CM_FOR_GPU
@@ -1846,7 +1864,9 @@ private:
 
     // ---- Prefill GEMM (OCL): fc_gguf_gemm_opt.cl. Args come from get_arguments() + the stage descriptor. ----
     cldnn::event::ptr execute_ocl_gemm(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance, size_t fmt) {
-        Stage& gemm = *gemm_stages[fmt];
+        const auto& params = *instance.get_impl_params();
+        const size_t rows = derive_bm(params.get_input_layout(0).get_shape());
+        Stage& gemm = rows <= 32 && has_stage(small_m_gemm_stages[fmt]) ? *small_m_gemm_stages[fmt] : *gemm_stages[fmt];
         // Dispatch (M tiles) and the activation / output buffers change from call to call.
         gemm.kd.need_dispatch_data_update = true;
         gemm.kd.need_args_update = true;
