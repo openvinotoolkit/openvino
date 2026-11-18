@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 471,
+  "total": 472,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -5136,6 +5136,17 @@
       "category": "Infrastructure",
       "signature_hash": "95bb23aa2ed8a84d",
       "pr_number": "39956"
+    },
+    {
+      "investigation_id": "2026-11-18-06-46-30-000-44229399112",
+      "run_id": "44229399112",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44229399112",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-11-18T06:46:30Z",
+      "title": "GPU unit tests fail to extract OpenVINO package - tbb12.dll locked (Access denied) on Windows self-hosted runner",
+      "category": "Infrastructure",
+      "signature_hash": "95bb23aa2ed8a84d",
+      "pr_number": "39984"
     }
   ]
 }

@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-18-06-46-30-000-44229399112",
+  "timestamp": "2026-11-18T06:46:30Z",
+  "run_id": "44229399112",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44229399112",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "39984",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39984",
+  "author": "vmadananth",
+  "category": "Infrastructure",
+  "title": "GPU unit tests fail to extract OpenVINO package - tbb12.dll locked (Access denied) on Windows self-hosted runner",
+  "signature": "remove item cannot remove item access to the path is denied unauthorizedaccessexception|Infrastructure",
+  "signature_hash": "95bb23aa2ed8a84d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "Extract OpenVINO packages step fails: Remove-Item cannot delete tbb12.dll, Access denied"
+    }
+  ],
+  "key_errors": [
+    "Remove-Item : Cannot remove item C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll: Access to the path '...tbb12.dll' is denied.",
+    "+ FullyQualifiedErrorId : RemoveFileSystemItemUnAuthorizedAccess,Microsoft.PowerShell.Commands.RemoveItemCommand",
+    "##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The 'Extract OpenVINO packages' step runs Expand-Archive -Force, which first tries to delete pre-existing files in the install directory (including tbb12.dll) before re-extracting. On this Windows self-hosted runner, tbb12.dll is still held open by a lingering process (e.g. a previous test run, antivirus scan, or OS handle not yet released), so PowerShell's Remove-Item raises UnauthorizedAccessException and the step exits non-zero. This is a known recurring transient Windows file-lock issue on self-hosted GPU runners, unrelated to the PR's code changes.",
+  "reproduction_steps": "N/A - requires reproducing a file lock race condition on a specific Windows self-hosted runner; not reproducible deterministically locally.",
+  "recommended_actions": [
+    "Re-run the failed 'GPU unit tests' job; the lock typically clears once the holding process exits.",
+    "Consider adding a retry-with-delay wrapper around Expand-Archive -Force in the workflow step to tolerate transient file locks.",
+    "Investigate what process holds tbb12.dll open after the previous job run completes on this runner image (e.g. leftover test process, antivirus) and ensure it releases handles before the next job starts.",
+    "Consider using Robocopy /MIR or 7zip overwrite instead of Expand-Archive -Force, which may handle locked files more gracefully."
+  ],
+  "prevention_strategies": "Add cleanup/handle-release verification at the end of each GPU test job (e.g. explicit process teardown) and/or wrap the extraction step with a retry loop that waits and retries Remove-Item/Expand-Archive on UnauthorizedAccessException before failing.",
+  "historical_context": "This exact signature (95bb23aa2ed8a84d) has now recurred 14 times since 2026-11-09, most recently at run 44205432885 just minutes before this one. A rerun_search_string candidate for this signature was already proposed in PR #39664 but was closed/rejected by a maintainer on 2026-11-10, so it is not re-proposed here."
+}
