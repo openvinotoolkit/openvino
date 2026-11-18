@@ -478,7 +478,7 @@ std::pair<std::vector<std::string>, std::string> kernels_cache::get_nvidia_compa
     return {std::move(prelude), get_header("nvidia/compat_sg_overrides")};
 }
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
 // GRF size in bytes of the device. It is needed to locate the end of the host kernel thread payload when checking that
 // the microkernel registers do not overlap it. Listed explicitly (no default) so that a new architecture is flagged by -Wswitch.
 static int get_grf_bytes(gpu_arch arch) {
@@ -499,7 +499,7 @@ static int get_grf_bytes(gpu_arch arch) {
     }
     OPENVINO_THROW("[GPU] Unknown GRF size for GPU architecture ", static_cast<int>(arch));
 }
-#endif  // ENABLE_ONEDNN_FOR_GPU
+#endif  // OV_GPU_WITH_ONEDNN_MICROKERNELS
 
 std::string kernels_cache::get_combined_source(const batch_program& batch) const {
     if (!_targets_nvidia) {
