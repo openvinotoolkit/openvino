@@ -26,7 +26,7 @@ public:
     virtual void initialize() = 0;
     virtual bool is_initialized() const = 0;
 
-    virtual bool is_same(const device::ptr other) = 0;
+    virtual bool is_same(device::ptr other) = 0;
 
     float get_gops(cldnn::data_types dt) const;
     bool use_unified_shared_memory() const;

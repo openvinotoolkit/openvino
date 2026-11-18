@@ -3,15 +3,19 @@
 //
 
 #include "program_helpers.h"
-#include "intel_gpu/graph/program.hpp"
-#include "data_inst.h"
-#include "pooling_inst.h"
-#include "fully_connected_inst.h"
-#include "transformations/symbolic_transformations/utils.hpp"
+
 #include <algorithm>
+#include <sstream>
 #include <utility>
 #include <vector>
-#include <sstream>
+
+#include "data_inst.h"
+#include "fully_connected_inst.h"
+#include "intel_gpu/graph/program.hpp"
+#include "pooling_inst.h"
+#include "read_value_inst.h"
+#include "reshape_inst.h"
+#include "transformations/symbolic_transformations/utils.hpp"
 
 namespace cldnn {
 void program_helpers::reshape_deconvolution_weights(const std::vector<float> &deconv_weights,
@@ -34,12 +38,12 @@ void program_helpers::reshape_deconvolution_weights(const std::vector<float> &de
                 weights[f].push_back(deconv_weights[index]);
             }
             if (pad_zero_x == 1) {    // pad with zero on x axis
-                weights[f].push_back(0.f);
+                weights[f].push_back(0.F);
             }
         }
         if (pad_zero_y == 1) {    // pad a line on y axis with zero
             for (int kernel_x = 0; kernel_x < kernel_width + pad_zero_x; ++kernel_x) {
-                weights[f].push_back(0.f);
+                weights[f].push_back(0.F);
             }
         }
     }
@@ -54,8 +58,7 @@ void program_helpers::reshape_deconvolution_weights(const std::vector<float> &de
     auto get_row_index = [](int index, const int kernel_sz)->int {
         bool isRowEven = (index / (kernel_sz)) % 2 == 0;
         bool isColEven = (index % 2) == 0;
-        int kernel_num = isRowEven ? (isColEven ? 0 : 1) : isColEven ? 2 : 3;
-        return kernel_num;
+        return (isRowEven ? 0 : 2) + (isColEven ? 0 : 1);
     };
 
     int feature_num = static_cast<int>(weights.size());
@@ -106,8 +109,9 @@ static bool is_direct_ancestor(const program_node& child, const program_node& ta
     //   ┌──┴──┴─┐
     //   │   C   │
     //   └───────┘
-    if (target.get_users().size() != 2)
+    if (target.get_users().size() != 2) {
         return false;
+    }
 
     // The walk follows dependency(0) only, so this bounds the length of the single-input chain
     // between the two nodes; the equality test precedes the hop, so a bound of N reaches a target
@@ -140,13 +144,29 @@ static bool is_direct_ancestor(const program_node& child, const program_node& ta
 
     const auto* iter = &child;
     for (int i = 0; i < max_ancestor_walk_depth; i++) {
-        if (iter == &target)
+        if (iter == &target) {
             return true;
-        if (iter->get_dependencies().empty())
+        }
+        if (iter->get_dependencies().empty()) {
             break;
+        }
         iter = &iter->get_dependency(0);
     }
     return false;
+}
+
+// An in-place post-op (sum or binary_mul_inplace) writes into dep_node's buffer, or into the
+// buffer of the first node above it that is not an in-place view. A network input (input_layout)
+// or variable state (read_value) has no material buffer at build time, and at runtime
+// input_layout::set_data replaces its buffer without rebinding static users (while dynamic
+// in-place binding would overwrite caller or state memory). Include is_type<reshape>() alongside
+// can_be_optimized() so calls before handle_reshape or prepare_buffer_fusing still walk reshapes.
+static bool dep_is_network_input_or_state(const program_node& dep_node) {
+    const program_node* owner = &dep_node;
+    while ((owner->can_be_optimized() || owner->is_type<reshape>()) && !owner->is_type<read_value>() && !owner->get_dependencies().empty()) {
+        owner = &owner->get_dependency(0);
+    }
+    return owner->is_type<input_layout>() || owner->is_type<read_value>();
 }
 
 add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
@@ -181,22 +201,18 @@ add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
         // has_outer_dep() above rejects a negative index.
         const auto outer_dep_start_idx = static_cast<size_t>(desc.outer_dep_start_idx);
         for (size_t i = 0; i < outer_dep_start_idx; i++) {
-            if (&p_node.get_dependency(i) == &dep_node)
+            if (&p_node.get_dependency(i) == &dep_node) {
                 return true;
+            }
         }
         return false;
     };
 
     if (is_full_tensor(p_layout) && is_full_tensor(d_layout)) {
-        if (data_type_traits::size_of(p_layout.data_type) == data_type_traits::size_of(d_layout.data_type)
-            && p_layout.format == d_layout.format && p_layout.get_tensor() == d_layout.get_tensor()
-            && p_layout.data_padding == d_layout.data_padding
-            && (dep_node.get_users().size() == 1 || is_direct_ancestor(p_node, dep_node))
-            && !dep_node.is_constant()
-            && !p_node.is_type<pooling>()
-            && !p_node.is_output()
-            && (!dep_node.is_type<input_layout>() || dep_node.get_users().size() <= 1)
-            && !p_node_consumes_dep_node()) {
+        if (data_type_traits::size_of(p_layout.data_type) == data_type_traits::size_of(d_layout.data_type) && p_layout.format == d_layout.format &&
+            p_layout.get_tensor() == d_layout.get_tensor() && p_layout.data_padding == d_layout.data_padding &&
+            (dep_node.get_users().size() == 1 || is_direct_ancestor(p_node, dep_node)) && !dep_node.is_constant() && !p_node.is_type<pooling>() &&
+            !p_node.is_output() && !p_node_consumes_dep_node() && !dep_is_network_input_or_state(dep_node)) {
             return add_fusing_type::sum;
         }
         if (p_layout.get_tensor() == d_layout.get_tensor()) {
@@ -239,7 +255,7 @@ bool onednn_eltwise_fusing_helpers::can_use_mul_inplace(const program_node& p_no
         return false;
     }
 
-    return dep_node.get_users().size() == 1 && !dep_node.is_constant() && !p_node.is_output();
+    return dep_node.get_users().size() == 1 && !dep_node.is_constant() && !p_node.is_output() && !dep_is_network_input_or_state(dep_node);
 }
 
 int32_t onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(const program_node& node) {
@@ -249,10 +265,12 @@ int32_t onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(const program_node
                 auto mode = fused_op.typed_desc<eltwise>()->mode;
                 bool reuse_eligible = (mode == eltwise_mode::sum && get_add_fusing_type(node, fused_op) == add_fusing_type::sum) ||
                                       (mode == eltwise_mode::prod && can_use_mul_inplace(node, fused_op));
-                if (!reuse_eligible)
+                if (!reuse_eligible) {
                     continue;
-                if (!fused_op.has_outer_dep())
+                }
+                if (!fused_op.has_outer_dep()) {
                     continue;
+                }
                 return fused_op.outer_dep_start_idx;
             }
         }

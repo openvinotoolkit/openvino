@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,10 +63,7 @@ public:
 };
 }  // namespace
 
-std::string KernelBaseOpenCL::GetEntryPoint(const std::string& templateName,
-                                            const std::string& layerID,
-                                            const Params& params,
-                                            const size_t partID) const {
+std::string KernelBaseOpenCL::GetEntryPoint(const std::string& templateName, const std::string& layerID, const Params& params, const size_t partID) {
     std::string kernelID = templateName;
 
     std::replace(kernelID.begin(), kernelID.end(), '.', '_');
@@ -83,9 +80,7 @@ std::string KernelBaseOpenCL::GetEntryPoint(const std::string& templateName,
     return kernelID;
 }
 
-std::pair<std::string, std::string> KernelBaseOpenCL::CreateJit(const std::string& template_name,
-                                          const JitConstants& constants,
-                                          const std::string& kernel_id) const {
+std::pair<std::string, std::string> KernelBaseOpenCL::CreateJit(const std::string& template_name, const JitConstants& constants, const std::string& kernel_id) {
     class CodeBuilder code;
     std::string undefs;
     code.add_line("\n//====================================================")
@@ -126,11 +121,11 @@ std::pair<std::string, std::string> KernelBaseOpenCL::CreateJit(const std::strin
 }
 
 Arguments KernelBaseOpenCL::GetArgsDesc(uint32_t num_of_input,
-                                          bool use_weights,
-                                          bool use_bias,
-                                          uint32_t number_of_inputs_for_fused_prim,
-                                          uint32_t num_of_output,
-                                          bool is_dynamic) const {
+                                        bool use_weights,
+                                        bool use_bias,
+                                        uint32_t number_of_inputs_for_fused_prim,
+                                        uint32_t num_of_output,
+                                        bool is_dynamic) {
     Arguments args;
 
     if (is_dynamic) {
@@ -161,10 +156,10 @@ Arguments KernelBaseOpenCL::GetArgsDesc(uint32_t num_of_input,
 }
 
 std::shared_ptr<KernelString> KernelBaseOpenCL::GetKernelString(const std::string& name,
-                                                                  const std::pair<std::string, std::string>& jit,
-                                                                  const std::string& entry_point,
-                                                                  const EngineInfo& engine_info,
-                                                                  const std::string& exe_mode) const {
+                                                                const std::pair<std::string, std::string>& jit,
+                                                                const std::string& entry_point,
+                                                                const EngineInfo& engine_info,
+                                                                const std::string& exe_mode) {
     std::shared_ptr<KernelString> kernel_string = std::make_shared<KernelString>();
 
     auto codes = db.get(name);
@@ -199,7 +194,7 @@ std::shared_ptr<KernelString> KernelBaseOpenCL::GetKernelString(const std::strin
     return kernel_string;
 }
 
-uint32_t KernelBaseOpenCL::GetFusedPrimitiveInputsCount(const Params &params) const {
+uint32_t KernelBaseOpenCL::GetFusedPrimitiveInputsCount(const Params& params) {
     auto p = dynamic_cast<const base_params&>(params);
     uint32_t fused_deps_total = 0;
     for (auto fused_op : p.fused_ops) {
@@ -221,7 +216,7 @@ void KernelBaseOpenCL::FillCLKernelData(clKernelData& kernel,
                                         int number_of_inputs,
                                         uint32_t number_of_inputs_for_fused_prims,
                                         int number_of_outputs,
-                                        bool is_dynamic) const {
+                                        bool is_dynamic) {
     if (!is_dynamic && !kernel.skip_execution) {
         KernelBase::CheckDispatchData(kernelMapName, dispatchData, engine_info);
     }
@@ -236,7 +231,7 @@ void KernelBaseOpenCL::FillCLKernelData(clKernelData& kernel,
                                           is_dynamic);
 }
 
-bool KernelBaseOpenCL::layout_is_one_of(const MultiDataTensor& tensors, const std::vector<DataLayout>& allowed_layouts) const {
+bool KernelBaseOpenCL::layout_is_one_of(const MultiDataTensor& tensors, const std::vector<DataLayout>& allowed_layouts) {
     return std::all_of(tensors.begin(), tensors.end(), [&](const DataTensor& t) {
         return std::any_of(allowed_layouts.begin(), allowed_layouts.end(), [&](const DataLayout& l) {
             return t.GetLayout() == l;
