@@ -4,6 +4,8 @@
 #include "llm_compiled_model.hpp"
 
 #include <algorithm>
+#include <limits>
+#include <regex>
 
 #include "embedding/embedding_infer_request.hpp"
 #include "embedding/encoder_embedding_infer_request.hpp"
@@ -725,6 +727,27 @@ std::unordered_map<std::string, std::size_t> collect_past_kv_bytes(
                         input_port.get_shape(),
                         " whose size in bytes overflows.");
         sizes[name] = *bytes;
+    }
+    return sizes;
+}
+
+// The block layout splits every past KV tensor into numbered blocks plus a tail, e.g.
+// past_key_values.0.key_block_0 ... past_key_values.0.key_block_tail. A larger variant adds blocks
+// and its tail may shrink at the same time: with 2048-token blocks, 1087 past tokens form a single
+// tail, while 2111 form one full block and a 63-token tail. What such a tensor holds is therefore
+// the sum of its blocks, which is returned here keyed by the name of the tensor they were split
+// from. Inputs that are not blocks keep their own name.
+std::unordered_map<std::string, std::size_t> sum_blocks_per_kv_tensor(
+    const std::unordered_map<std::string, std::size_t>& past_kv_bytes) {
+    static const std::regex block_suffix(R"(_block_(\d+|tail)$)");
+    std::unordered_map<std::string, std::size_t> sizes;
+    for (const auto& [name, bytes] : past_kv_bytes) {
+        auto& total = sizes[std::regex_replace(name, block_suffix, "")];
+        OPENVINO_ASSERT(bytes <= std::numeric_limits<std::size_t>::max() - total,
+                        "NPUW: the blocks of past KV input '",
+                        name,
+                        "' add up to a size in bytes that overflows.");
+        total += bytes;
     }
     return sizes;
 }
@@ -2047,18 +2070,25 @@ void ov::npuw::LLMCompiledModel::validate_imported_kv_variants() const {
     // get_current_variant_capacity() index m_kvcache_sizes by variant position, so either case
     // lets a variant be used with a capacity larger than the model it actually holds.
     //
-    // Each variant must therefore be a strict superset of its predecessor: no past KV input may
-    // shrink or disappear, and at least one must grow (either a larger tensor, as in the
-    // continuous layout, or an extra one, as in the block layout where variants differ by the
-    // number of KV blocks rather than by tensor size).
+    // Each variant must therefore be a strict superset of its predecessor: no past KV tensor may
+    // shrink or disappear, and at least one must grow.
+    //
+    // What a tensor is depends on the layout. The continuous KV strategy shares back()'s
+    // allocation input by input, so there every input is compared on its own. The block layout
+    // splits each tensor into blocks whose tail may shrink while blocks are added, so there the
+    // blocks of a tensor are summed first, see sum_blocks_per_kv_tensor().
     //
     // SWA-managed inputs are the exception to the growth rule: ShrinkSlidingWindowKVCache sizes
     // them by the window, so they are identical in every variant, and in a model whose layers are
     // all sliding no input grows at all. Their capacity is taken from the tensor shape rather than
     // from m_kvcache_sizes, so they still must not shrink but need not grow.
-    auto prev_bytes = collect_past_kv_bytes(m_generate_compiled_variants.front());
+    const auto past_kv_footprints = [this](const std::shared_ptr<ov::npuw::ICompiledModel_v0>& compiled) {
+        auto bytes = collect_past_kv_bytes(compiled);
+        return m_is_block_kv_cache ? sum_blocks_per_kv_tensor(bytes) : bytes;
+    };
+    auto prev_bytes = past_kv_footprints(m_generate_compiled_variants.front());
     for (std::size_t i = 1; i < num_variants; ++i) {
-        auto curr_bytes = collect_past_kv_bytes(m_generate_compiled_variants[i]);
+        auto curr_bytes = past_kv_footprints(m_generate_compiled_variants[i]);
         bool strictly_larger = curr_bytes.size() > prev_bytes.size();
         bool has_full_attention_kv = false;
         for (const auto& [name, bytes] : prev_bytes) {
@@ -2101,12 +2131,14 @@ void ov::npuw::LLMCompiledModel::validate_imported_kv_variants() const {
         prev_bytes = std::move(curr_bytes);
     }
     // The chain above leaves prev_bytes holding the last variant's footprints, which is the
-    // allocation everything else is shared into.
+    // allocation the continuous KV strategy shares with everything else.
     const auto& largest_bytes = prev_bytes;
 
-    // Under chunk prefill the prefill model's past KV inputs are rebound onto that same allocation
-    // by bind_past_kv(), using the prefill port shapes. Transposed-mismatch disables the binding.
-    if (m_use_chunk_prefill && m_kvcache_desc.v_tensors_transposed_pre == m_kvcache_desc.v_tensors_transposed_gen) {
+    // Under chunk prefill the continuous KV strategy rebinds the prefill model's past KV inputs onto
+    // that same allocation through bind_past_kv(), using the prefill port shapes. The block strategy
+    // never does, and transposed-mismatch disables the binding.
+    if (!m_is_block_kv_cache && m_use_chunk_prefill &&
+        m_kvcache_desc.v_tensors_transposed_pre == m_kvcache_desc.v_tensors_transposed_gen) {
         for (const auto& [name, bytes] : collect_past_kv_bytes(m_prefill_compiled)) {
             const auto it = largest_bytes.find(name);
             if (it == largest_bytes.end()) {
