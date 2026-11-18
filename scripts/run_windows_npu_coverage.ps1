@@ -12,6 +12,19 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+function Invoke-TestTool {
+    param([string]$FilePath, [string[]]$Arguments, [string]$LogPath)
+    Get-Command $FilePath -ErrorAction Stop | Out-Null
+    # Windows PowerShell 5.1 turns native stderr into ErrorRecords. Log them and
+    # check the exit code/results afterwards instead of aborting the child early.
+    $ErrorActionPreference = 'Continue'
+    $PSNativeCommandUseErrorActionPreference = $false
+    & $FilePath @Arguments 2>&1 |
+        ForEach-Object { $_.ToString() } -ErrorAction Stop |
+        Tee-Object -FilePath $LogPath -ErrorAction Stop | Out-Host
+    return $LASTEXITCODE
+}
+
 $PackageDir = (Resolve-Path $PackageDir).Path
 $modules = foreach ($name in @('ov_npu_unit_tests.exe', 'openvino_intel_npu_plugin.dll')) {
     $found = @(Get-ChildItem $PackageDir -Recurse -File -Filter $name)
@@ -76,16 +89,16 @@ try {
 "@
     switch ($Mode) {
         'Plain' {
-            & $exe '--gtest_filter=*' "--gtest_output=xml:$testXml" 2>&1 |
-                Tee-Object "$ResultsDir/run.log"
+            $result = Invoke-TestTool $exe @('--gtest_filter=*', "--gtest_output=xml:$testXml") "$ResultsDir/run.log"
         }
         'Console' {
             $settings = Join-Path $ResultsDir 'coverage.config'
             $configuration | Set-Content $settings
-            & $ToolPath collect --settings $settings --output "$ResultsDir/coverage.cobertura.xml" `
-                --output-format cobertura --log-file "$ResultsDir/collector.log" --log-level Verbose `
-                $exe '--gtest_filter=*' "--gtest_output=xml:$testXml" 2>&1 |
-                Tee-Object "$ResultsDir/run.log"
+            $result = Invoke-TestTool $ToolPath @(
+                'collect', '--settings', $settings, '--output', "$ResultsDir/coverage.cobertura.xml",
+                '--output-format', 'cobertura', '--log-file', "$ResultsDir/collector.log", '--log-level', 'Verbose',
+                $exe, '--gtest_filter=*', "--gtest_output=xml:$testXml"
+            ) "$ResultsDir/run.log"
         }
         'VSTest' {
             $settings = Join-Path $ResultsDir 'coverage.runsettings'
@@ -97,12 +110,13 @@ try {
   </DataCollectors></DataCollectionRunSettings>
 </RunSettings>
 "@ | Set-Content $settings
-            & $ToolPath $exe "/TestAdapterPath:$AdapterPath" "/Settings:$settings" `
-                '/EnableCodeCoverage' "/ResultsDirectory:$ResultsDir" '/Logger:trx;LogFileName=tests.trx' `
-                "/Diag:$ResultsDir/vstest.log" 2>&1 | Tee-Object "$ResultsDir/run.log"
+            $result = Invoke-TestTool $ToolPath @(
+                $exe, "/TestAdapterPath:$AdapterPath", "/Settings:$settings",
+                '/EnableCodeCoverage', "/ResultsDirectory:$ResultsDir", '/Logger:trx;LogFileName=tests.trx',
+                "/Diag:$ResultsDir/vstest.log"
+            ) "$ResultsDir/run.log"
         }
     }
-    $result = $LASTEXITCODE
     "Exit code: $result" | Tee-Object "$ResultsDir/exit-code.txt"
     Write-Host "Results and diagnostics: $ResultsDir"
     if ($Mode -eq 'VSTest') {

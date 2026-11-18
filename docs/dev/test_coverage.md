@@ -123,23 +123,35 @@ resolution during the first experiment.
 ### Try standalone VSTest first
 
 With [NuGet CLI](https://learn.microsoft.com/nuget/install-nuget-client-tools)
-available, download the complete tool packages into an ignored local directory:
+available, download the complete runner package into an ignored local directory.
+Use Microsoft's **Test Adapter for Google Test** component from the VS2022
+Installer (Individual components); it is available with Professional:
 
 ```powershell
 nuget install Microsoft.TestPlatform -Version 18.0.0 -OutputDirectory build-windows-npu-coverage/tools -Source https://api.nuget.org/v3/index.json -NonInteractive
-nuget install GoogleTestAdapter -Version 0.18.0 -OutputDirectory build-windows-npu-coverage/tools -Source https://api.nuget.org/v3/index.json -NonInteractive
 
 $vstest = "$PWD/build-windows-npu-coverage/tools/Microsoft.TestPlatform.18.0.0/tools/net462/Common7/IDE/Extensions/TestPlatform/vstest.console.exe"
-$adapter = "$PWD/build-windows-npu-coverage/tools/GoogleTestAdapter.0.18.0/build/_common"
+$vs = 'C:\Program Files\Microsoft Visual Studio\2022\Professional'
+$adapterDlls = @(Get-ChildItem "$vs\Common7\IDE" -Recurse -File -Filter '*TestAdapter*.dll' |
+    Where-Object { $_.Name -match 'Google' })
+$adapterDlls | Select-Object FullName
+if ($adapterDlls.Count -ne 1) { throw 'Locate the installed Microsoft Google Test adapter DLL and set $adapter to its directory.' }
+$adapter = $adapterDlls[0].DirectoryName
 pwsh -File scripts/run_windows_npu_coverage.ps1 -Mode VSTest -ToolPath $vstest -AdapterPath $adapter
 ```
 
 This uses native **dynamic** instrumentation by default. Repeat with
 `-Instrumentation Static` to compare, if supported by the installed collector.
 The standalone runner requires the .NET Framework runtime appropriate to that
-package. Keep the entire packages, not just their EXEs. The old standalone Google
-Test adapter is an experimental compatibility dependency, not a validated CI choice.
-Alternatively, pass the DLL directory of the Google Test adapter installed with VS.
+package. Keep the entire package, not just its EXE, and use the installed adapter
+directory without copying individual DLLs. Do not mix multiple adapter versions.
+The standalone NuGet `GoogleTestAdapter 0.18.0` is unsuitable for these tests:
+its name parser truncates parameter names containing punctuation such as `[`.
+Distinct tests then collide and execution can fail in
+`CommandLineGenerator.GetFinalCommandLines` with
+`Sequence contains more than one matching element`. Microsoft's adapter uses a
+different parser that preserves these characters; end-to-end coverage still needs
+validation on the Windows machine.
 
 ### Try Microsoft.CodeCoverage.Console if available
 
@@ -154,7 +166,9 @@ from the NuGet packages is **not** compatible with this command line.
 Every invocation writes to a new directory under `build-windows-npu-coverage/results`
 (override with `-ResultsDir`). It retains console logs, generated settings, test
 results and coverage diagnostics even when tests fail. Coverage modes request
-Cobertura and reject missing/zero-hit reports. Reports include production NPU
+Cobertura and reject missing/zero-hit reports. Native stderr is logged as text so
+Windows PowerShell 5.1 does not stop the child at its first error message; exit
+codes and XML results are still checked. Reports include production NPU
 sources from both the test EXE and plugin DLL, exclude test/third-party sources,
 and are not normalized/deduplicated for Codecov.
 

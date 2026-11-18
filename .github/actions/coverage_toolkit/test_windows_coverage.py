@@ -414,6 +414,44 @@ file(WRITE "${{CMAKE_BINARY_DIR}}/flags.txt"
                         self.assertIn("/Zi", flags)
                         self.assertIn("/DEBUG", flags)
 
+    @unittest.skipUnless(shutil.which("pwsh"), "PowerShell is required to validate native logging")
+    def test_local_runner_preserves_stderr_and_exit_code(self):
+        command = r"""
+$ErrorActionPreference = 'Stop'
+$tokens = $null; $errors = $null
+$ast = [System.Management.Automation.Language.Parser]::ParseFile(
+    $env:RUNNER_SCRIPT, [ref]$tokens, [ref]$errors)
+if ($errors.Count) { throw ($errors | Out-String) }
+$helper = $ast.Find({
+    param($node)
+    $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+        $node.Name -eq 'Invoke-TestTool'
+}, $true)
+. ([scriptblock]::Create($helper.Extent.Text))
+$child = '[Console]::Error.WriteLine("diagnostic line 1"); [Console]::Error.WriteLine("diagnostic line 2"); Write-Output "completed"; exit 7'
+$result = Invoke-TestTool (Get-Command pwsh).Source @('-NoProfile', '-Command', $child) $env:TEST_LOG
+if ($result -ne 7) { throw "Wrong exit code: $result" }
+if ($ErrorActionPreference -ne 'Stop') { throw 'Caller error handling changed' }
+$log = Get-Content $env:TEST_LOG -Raw
+foreach ($line in @('diagnostic line 1', 'diagnostic line 2', 'completed')) {
+    if (!$log.Contains($line)) { throw "Missing output: $line" }
+}
+$missingRejected = $false
+try {
+    Invoke-TestTool "$env:TEST_LOG.missing-executable" @() $env:TEST_LOG
+} catch [System.Management.Automation.CommandNotFoundException] {
+    $missingRejected = $true
+}
+if (!$missingRejected) { throw 'Missing executable was not rejected' }
+"""
+        result = subprocess.run(
+            ["pwsh", "-NoProfile", "-NonInteractive", "-Command", command],
+            env={**os.environ, "RUNNER_SCRIPT": str(REPO / "scripts/run_windows_npu_coverage.ps1"),
+                 "TEST_LOG": str(self.workspace / "native output.log")},
+            capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_powershell_syntax(self):
         if shutil.which("pwsh") is None:
             self.skipTest("PowerShell is not installed")
@@ -421,6 +459,8 @@ file(WRITE "${{CMAKE_BINARY_DIR}}/flags.txt"
         import yaml
 
         scripts = []
+        for filename in ("build_windows_npu_coverage.ps1", "run_windows_npu_coverage.ps1"):
+            scripts.append({"name": filename, "text": (REPO / "scripts" / filename).read_text()})
         for filename in ("coverage.yml", "job_build_windows.yml"):
             workflow = yaml.safe_load((REPO / ".github/workflows" / filename).read_text())
             for job in workflow["jobs"].values():
