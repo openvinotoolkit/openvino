@@ -47,7 +47,7 @@ dimensions stored in `order`, e.g. `{0, 2, 1}` for a logical `[E, N, G]` tensor 
 
 - It is an optional **hint**: calling it is never required, and the IR built by the converter must stay on logical
   tensors and be valid for any physical order.
-- The driver decides whether to honour it (e.g. it may only support some orders or only inputs coming from
+- The graph-converter decides whether to honour it (e.g. it may only support some orders or only inputs coming from
   outside of the subgraph), and is responsible for providing the buffer in the chosen layout.
 - For the GPU plugin the conditions are described at `GraphConverter::request_input_order` in
   [`graph_converter.hpp`](../graph_converter.hpp).
