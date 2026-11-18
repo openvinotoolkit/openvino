@@ -175,9 +175,12 @@ bool validateModelBatch(const std::shared_ptr<const ov::Model>& model, Logger lo
     }
 
     auto node_info_printer = [&logger](const auto& ov_node, std::string nodeType) {
+        // The tensors are not required to have names, "get_any_name" throws in such a case
+        const std::string name =
+            ov_node.get_names().empty() ? ov_node.get_node()->get_friendly_name() : ov_node.get_any_name();
         logger.info("%s: %s has shape value: %s",
                     nodeType.c_str(),
-                    ov_node.get_any_name().c_str(),
+                    name.c_str(),
                     ov_node.get_partial_shape().to_string().c_str());
     };
 
@@ -269,6 +272,87 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
             logger.info("The model has been debatched successfully");
             successfullyDebatched = true;
         }
+
+        // Only the ports of the model are validated below, not the operations between them: the plugin assumes that
+        // the graph treats the batch slices independently, as it runs the schedule once per slice. An operation acting
+        // along the batch axis which keeps the shapes of the ports (e.g. a Softmax on the axis 0) is not detected.
+        //
+        // validateModelBatch is heuristic (0th dim != 1), so a port which does not depend on the batch is wrongly
+        // considered batched, e.g.:
+        // - a ShapeOf result of shape [2] while the batch is 2;
+        // - an input without the batch layout, as "ov::set_batch" reshapes only the inputs which have one.
+        // Make sure every input and output actually ended up with batch 1 after reshaping, otherwise the compiled
+        // schedule would not match the batch size expected by the plugin. A port which became a scalar (e.g. a Squeeze
+        // removing the batch dimension of an input reshaped to batch 1) has no batch dimension at all, thus it is not
+        // batched either. A batch dimension which is still dynamic was not set to 1 either (e.g. an input without the
+        // batch layout, which keeps its bounds), so the schedule would not be compiled with a batch of 1.
+        const auto isNotDebatched = [](const ov::PartialShape& shape) {
+            if (shape.rank().is_dynamic()) {
+                return false;
+            }
+            if (shape.size() == 0) {
+                return true;
+            }
+            const auto& batchDimension = shape[intel_npu::utils::BATCH_AXIS];
+            return batchDimension.is_dynamic() ||
+                   static_cast<size_t>(batchDimension.get_length()) != intel_npu::utils::DEFAULT_BATCH_SIZE;
+        };
+
+        const auto& parameters = resultModel->get_parameters();
+        const auto notDebatchedInput =
+            std::find_if(parameters.begin(), parameters.end(), [&isNotDebatched](const auto& parameter) {
+                return isNotDebatched(parameter->get_partial_shape());
+            });
+        if (notDebatchedInput != parameters.end()) {
+            OPENVINO_THROW("The input \"",
+                           (*notDebatchedInput)->get_friendly_name(),
+                           "\" has the shape ",
+                           (*notDebatchedInput)->get_partial_shape().to_string(),
+                           " after the model was reshaped to batch size 1, thus its batch was not changed.");
+        }
+
+        const auto& results = resultModel->get_results();
+        const auto notDebatchedOutput =
+            std::find_if(results.begin(), results.end(), [&isNotDebatched](const auto& result) {
+                return isNotDebatched(result->get_output_partial_shape(0));
+            });
+        if (notDebatchedOutput != results.end()) {
+            OPENVINO_THROW("The output \"",
+                           (*notDebatchedOutput)->get_friendly_name(),
+                           "\" has the shape ",
+                           (*notDebatchedOutput)->get_output_partial_shape(0).to_string(),
+                           " after the model was reshaped to batch size 1, thus it is not batched.");
+        }
+
+        // Only the batch dimension of an output is expected to change when the inputs are reshaped. If anything else
+        // changed, the output does not have the batch as an independent leading dimension (e.g. MatMul(A, B^T) of two
+        // batched inputs, where [4, 4] becomes [1, 1]), so running the schedule once per batch slice and stacking the
+        // results does not give the output of the original model.
+        const auto& originalResults = model->get_results();
+        OPENVINO_ASSERT(originalResults.size() == results.size(),
+                        "The debatched model has a different number of outputs than the original one");
+        for (size_t i = 0; i < results.size(); ++i) {
+            const auto& originalShape = originalResults[i]->get_output_partial_shape(0);
+            const auto& debatchedShape = results[i]->get_output_partial_shape(0);
+            if (originalShape.rank().is_dynamic() || debatchedShape.rank().is_dynamic()) {
+                continue;
+            }
+
+            bool onlyBatchChanged = originalShape.size() == debatchedShape.size();
+            for (size_t dim = 1; onlyBatchChanged && dim < originalShape.size(); ++dim) {
+                onlyBatchChanged = originalShape[dim] == debatchedShape[dim];
+            }
+            if (!onlyBatchChanged) {
+                OPENVINO_THROW("The output \"",
+                               results[i]->get_friendly_name(),
+                               "\" has the shape ",
+                               debatchedShape.to_string(),
+                               " after the model was reshaped to batch size 1, while it was ",
+                               originalShape.to_string(),
+                               ", thus it is not batched independently.");
+            }
+        }
+
         if (batchModeIsAvailable) {
             // If we have successfully debatched the model on the PLUGIN side, we should
             // avoid repeating the same in the compiler by resetting the batch mode
@@ -278,6 +362,9 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
     } catch (const std::exception& ex) {
         // If plugin-side transformation failed, keep the original model and drop the clone
         resultModel = std::const_pointer_cast<ov::Model>(model);
+        // The model is left untouched, so the caller must not consider it debatched
+        successfullyDebatched = false;
+        originalBatch = std::nullopt;
         if (effectiveBatchMode == ov::intel_npu::BatchMode::AUTO) {
             logger.info("Couldn't validate and reshape the model. Batching will be handled by compiler. Error: %s",
                         ex.what());
