@@ -55,6 +55,32 @@ int geometry(const std::filesystem::path& directory) {
     return 0;
 }
 
+int quantized_view(const std::filesystem::path& directory) {
+    auto* ctx = ggml_init({64 * 1024 * 1024, nullptr, false});
+    auto* input = ggml_new_tensor_2d(ctx, GGML_TYPE_Q8_0, 64, 4);
+    std::vector<float> values(256);
+    for (size_t i = 0; i < values.size(); ++i)
+        values[i] = 127.f * float(1 + i / 32);
+    ggml_quantize_chunk(GGML_TYPE_Q8_0, values.data(), input->data, 0, 4, 64, nullptr);
+    std::ofstream source(directory / "view_q8_input.bin", std::ios::binary);
+    source.write(reinterpret_cast<const char*>(values.data()), values.size() * sizeof(float));
+    int status = 0;
+    for (const size_t offset : {34u, 102u}) {
+        auto* view = ggml_view_2d(ctx, input, 32, 2, input->nb[1] * 2, offset);
+        auto* output = ggml_cast(ctx, view, GGML_TYPE_F32);
+        auto* graph = ggml_new_graph(ctx);
+        ggml_build_forward_expand(graph, output);
+        if (ggml_graph_compute_with_ctx(ctx, graph, 2) != GGML_STATUS_SUCCESS) {
+            status = 3;
+            break;
+        }
+        std::ofstream file(directory / ("view_q8_" + std::to_string(offset) + ".bin"), std::ios::binary);
+        file.write(static_cast<char*>(output->data), ggml_nbytes(output));
+    }
+    ggml_free(ctx);
+    return status;
+}
+
 // One op per mode: vision/imrope RoPE, antialiased bilinear resize variants, or 2D im2col.
 int single_op(const std::string& mode, const std::filesystem::path& output) {
     const bool vision = mode == "vision";
@@ -133,6 +159,7 @@ int main(int argc, char** argv) {
     const std::filesystem::path directory(argv[1]);
     std::filesystem::create_directories(directory);
     int status = geometry(directory);
+    status = status ? status : quantized_view(directory);
     for (const char* mode :
          {"vision", "imrope", "resize", "resize_corners", "resize_down", "resize_down_corners", "im2col7", "im2col9"})
         status = status ? status : single_op(mode, directory / (std::string(mode) + ".bin"));

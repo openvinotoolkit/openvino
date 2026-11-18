@@ -191,7 +191,6 @@ private:
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
     void register_table_entries() override;
 
-    bool m_pythondiv = true;
     size_t aux_vecs_count() const override;
     size_t aux_gprs_count() const override;
 };
@@ -217,7 +216,6 @@ private:
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
     void register_table_entries() override;
 
-    bool m_pythondiv = true;
     size_t aux_vecs_count() const override;
     size_t aux_gprs_count() const override;
 };
