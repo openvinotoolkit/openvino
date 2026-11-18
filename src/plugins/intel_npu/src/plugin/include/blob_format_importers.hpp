@@ -48,8 +48,7 @@ public:
      * @param network_name The resulted graph object will use this network name.
      * @param core The OV core. The weights separation feature may depend on this object to extract the original
      * weights.
-     * @param vclFunctionsProvider Supplies the VCL entry points. Called only to create the profiling decoder, and only
-     * when profiling is enabled.
+     * @param vclFunctionsProvider Supplies the VCL entry points provider, forwarded to the parser factory.
      * @return A graph object. The type of graph depends on the content of the blob. E.g. a "weightless" graph will be
      * returned if the weights separation feature was detected.
      */
