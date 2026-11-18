@@ -164,7 +164,10 @@ def partition_graph(gm: GraphModule, use_python_fusion_cache: bool, model_hash_s
         # TODO: use a better way to identify fused submodule
         if node.op == "call_module" and "fused_" in node.name:
             openvino_submodule = getattr(gm, node.name)
-            logger.debug("OpenVINO partition %s (%s) FX graph:\n%s", partition_id, node.target, openvino_submodule.graph)
+            logged_submodule = openvino_submodule
+            while isinstance(logged_submodule, OpenVINOGraphModule):
+                logged_submodule = logged_submodule.gm
+            logger.debug("OpenVINO partition %s (%s) FX graph:\n%s", partition_id, node.target, logged_submodule.graph)
             gm.delete_submodule(node.target)
             gm.add_submodule(
                 node.target,
