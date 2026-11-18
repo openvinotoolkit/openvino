@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-18-12-35-16-000-44287009194",
+  "timestamp": "2026-11-18T12:35:16Z",
+  "run_id": "44287009194",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44287009194",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "4e9742d72bf5b50eee404b0cdd1723c199d2f6c8",
+  "pr_number": "38795",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38795",
+  "author": null,
+  "category": "Infrastructure",
+  "title": "GPU unit tests job on self-hosted Windows runner fails downloading openvino_package with 'Missing file at path: set_output' runner command error",
+  "signature": "download-artifact action fails with Action failed with error: Missing file at path: set_output runner file command, causing self-hosted Windows runner job to abort|Infrastructure",
+  "signature_hash": "49c8462b43da01ff",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "Download OpenVINO package step succeeds in extracting/verifying the artifact but then fails with 'Action failed with error: Missing file at path: ...set_output_<guid>'; the subsequent Upload GPU unit test results step then fails because the local upload-artifact action checkout is missing."
+    }
+  ],
+  "key_errors": [
+    "2026-11-18T11:48:45.1374312Z [VERBOSE] Digest validation passed for artifact 'openvino_package'\n2026-11-18T11:48:45.1377497Z [VERBOSE] Progress: 1/1 artifacts downloaded\n2026-11-18T11:48:45.1377941Z [VERBOSE] All downloads completed successfully\n2026-11-18T11:48:45.1378000Z Total of 1 artifact(s) downloaded\n2026-11-18T11:48:45.1429750Z ##[error]Action failed with error: Missing file at path: C:\\actions-runner\\_work\\_temp\\_runner_file_commands\\set_output_2ba1e329-408f-4cb9-ac2d-a4d4ae7242b8\n2026-11-18T11:48:45.1491724Z ##[error]Unable to download artifact(s): Missing file at path: C:\\actions-runner\\_work\\_temp\\_runner_file_commands\\set_output_2ba1e329-408f-4cb9-ac2d-a4d4ae7242b8",
+    "2026-11-18T11:48:45.2064897Z ##[error]Can't find 'action.yml', 'action.yaml' or 'Dockerfile' under 'C:\\actions-runner\\_work\\_actions\\ababushk\\upload-artifact\\ebc7d74ace101c08868aed05dba2aaf274b9a2c7'. Did you forget to run actions/checkout before running your local action?"
+  ],
+  "root_cause": "The custom 'akashchi/download-artifact' action successfully downloaded and extracted the openvino_package artifact (SHA256 verified) but then failed with 'Action failed with error: Missing file at path: ...set_output_<guid>' when it tried to write its outputs via the GitHub Actions runner file command mechanism. This is a self-hosted Windows runner infrastructure issue: the runner's per-step temp file used for GITHUB_OUTPUT/set_output communication was missing on disk at the moment the action tried to write to it, most likely because the runner's _work/_temp/_runner_file_commands directory was cleaned/rotated concurrently, or a prior cleanup/orphan-process-kill step on this runner (ov-dmz-56, intel-gpu group) removed the temp directory mid-job. Because this step failed, the job never checked out the local 'upload-artifact' action repository, so the later Upload GPU unit test results step failed for the unrelated secondary reason of a missing action.yml.",
+  "reproduction_steps": "N/A - this is a transient self-hosted Windows runner infrastructure failure (missing _runner_file_commands temp file) and is not reproducible by rerunning user code locally. Rerunning the workflow on a healthy runner instance would be the way to confirm transience, but this doctor does not re-run pipelines.",
+  "recommended_actions": [
+    "Re-run the failed 'GPU unit tests' job on a different self-hosted Windows runner instance (or retry after runner ov-dmz-56 is confirmed stable) since this looks like a transient runner-side missing temp-file issue, not a code issue introduced by PR #38795.",
+    "Check whether any step earlier in this job (or a concurrent job on the same runner) deletes or rotates C:\\actions-runner\\_work\\_temp\\_runner_file_commands\\ mid-run, which would explain the missing set_output file.",
+    "Inspect runner ov-dmz-56 (intel-gpu group) health/disk space and GitHub Actions Runner version/logs for known issues with file-command temp files on Windows runners.",
+    "Consider adding a retry/continue-on-error wrapper around the download-artifact step for known-flaky self-hosted Windows runners, or add a runner health check before the Windows GPU test jobs start."
+  ],
+  "prevention_strategies": "Monitor self-hosted Windows GPU runners for premature cleanup of _work/_temp directories during active jobs; ensure no scheduled cleanup/orphan-process scripts run against a runner's _temp directory while a job step is still writing to its runner-file-commands output file. Add alerting on repeated 'Missing file at path: ...set_output_*' errors on the intel-gpu Windows runner group to detect systemic runner instability early.",
+  "historical_context": "No prior post-commit investigation in this knowledge base matches this exact signature (download-artifact action failing on the runner's set_output file command). Related but distinct Windows GPU/runner infrastructure issues previously recorded include: locked tbb12.dll during package extraction (pattern 514ffa2ab52ad344, 14 occurrences), PowerShell execution policy errors (pattern 3be0e72d6ae29098, 5 occurrences), and missing onednn license file during extraction (pattern 33e8544b41961fd6, 1 occurrence) - all on the same 'Windows GPU unit tests' job family, suggesting this job/runner pool has had recurring infra flakiness of different root causes."
+}

@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "download-artifact action fails with Action failed with error: Missing file at path: set_output runner file command, causing self-hosted Windows runner job to abort|Infrastructure",
+  "signature_hash": "49c8462b43da01ff",
+  "title": "GPU unit tests job on self-hosted Windows runner fails downloading openvino_package with 'Missing file at path: set_output' runner command error",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-11-18T12:35:16Z",
+  "last_seen": "2026-11-18T12:35:16Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/44287009194"
+  ],
+  "affected_commits": [
+    "4e9742d72bf5b50eee404b0cdd1723c199d2f6c8"
+  ],
+  "recent_timestamps": [
+    "2026-11-18T12:35:16Z"
+  ]
+}
