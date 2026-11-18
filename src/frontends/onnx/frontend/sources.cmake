@@ -64,6 +64,7 @@ set(op_list
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/simplified_layer_normalization.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/skip_layer_normalization.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/skip_simplified_layer_normalization.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/unique.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/compress.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/concat.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/concat_from_sequence.cpp
