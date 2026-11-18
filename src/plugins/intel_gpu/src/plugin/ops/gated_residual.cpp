@@ -9,7 +9,7 @@
 #include "intel_gpu/primitives/gated_residual.hpp"
 
 namespace ov::op::internal {
-using GatedResidual = ov::intel_gpu::op::GatedResidual;
+using ov::intel_gpu::op::GatedResidual;
 }  // namespace ov::op::internal
 
 namespace ov::intel_gpu {

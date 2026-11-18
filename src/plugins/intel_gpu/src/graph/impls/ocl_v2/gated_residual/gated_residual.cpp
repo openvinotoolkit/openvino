@@ -66,7 +66,10 @@ size_t gr_best_tile(size_t width) {
 
 /// Chunk (halves) of a K loop over `width` elements, at most 64 (one 128 B block message per lane group).
 size_t gr_k_chunk(size_t width) {
-    return (width % 64 == 0) ? 64 : ((width % 32 == 0) ? 32 : 16);
+    if (width % 64 == 0) {
+        return 64;
+    }
+    return (width % 32 == 0) ? 32 : 16;
 }
 
 /// gr_read work-group size in subgroups: Xe2+ runs 32 in 256-GRF mode, which halves the per-row latency of the two GEMVs.
@@ -80,7 +83,7 @@ size_t gr_read_rows(const gated_residual& desc, const cldnn::device_info& info, 
     if (decode) {
         return 1;
     }
-    const size_t per_row = desc.hc_count * desc.hidden_size * 2 + (desc.lowrank + desc.hc_count + 3) / 4 * 4 * 4;
+    const size_t per_row = (desc.hc_count * desc.hidden_size * 2) + ((desc.lowrank + desc.hc_count + 3) / 4 * 4 * 4);
     const size_t budget = std::min<size_t>(info.max_local_mem_size, 96 * 1024);
     for (size_t rb : {size_t{8}, size_t{4}, size_t{2}}) {
         if (rb * per_row <= budget) {
@@ -158,7 +161,7 @@ GrGemmTiling gr_down_tiling(const gated_residual& desc, const cldnn::device_info
         if (tier == GrTier::gemv && wtype == GrWType::u4) {
             // Wide 4-bit DOWN_PROJs whose split fills more than 3/4 of the resident subgroups (4 per EU with 256 GRF) stream
             // faster as fewer, longer K segments read 64 B per lane, filling at most 2/3 of them in one wave.
-            const size_t wgs = desc.lowrank / gr_dpas_n + (desc.produce_write_gate ? 1 : 0);
+            const size_t wgs = (desc.lowrank / gr_dpas_n) + (desc.produce_write_gate ? 1 : 0);
             const size_t resident = 4 * static_cast<size_t>(info.execution_units_count);
             if (4 * wgs * ksplit > 3 * resident) {
                 return {tm, largest_divisor_up_to(cd_steps, std::max<size_t>(1, 2 * resident / (3 * wgs))), 1, 64};
@@ -183,7 +186,12 @@ GrGemmTiling gr_up_tiling(const gated_residual& desc, const cldnn::device_info& 
     const size_t col_tiles = desc.hidden_size / gr_dpas_n;
     const size_t eu = info.execution_units_count;
     const size_t steps = desc.lowrank / gr_dpas_k_step;
-    const size_t cap = wtype == GrWType::u8 ? steps : compressed ? std::min(gr_div_up(8 * eu, col_tiles), steps / 2) : 2 * eu / col_tiles;
+    size_t cap = 2 * eu / col_tiles;
+    if (wtype == GrWType::u8) {
+        cap = steps;
+    } else if (compressed) {
+        cap = std::min(gr_div_up(8 * eu, col_tiles), steps / 2);
+    }
     // f16 reads every W_up byte once per token tile, so a 16-token tile halves that traffic; the compressed kernels unpack the
     // weights again per tile and keep 8.
     return {compressed ? size_t{8} : size_t{16}, largest_divisor_up_to(steps, std::max<size_t>(1, cap)), 1};
@@ -192,7 +200,13 @@ GrGemmTiling gr_up_tiling(const gated_residual& desc, const cldnn::device_info& 
 /// Kernel name suffix of a pipeline GEMM stage, e.g. "down_q_mid" or "up_pd_decode".
 std::string gr_tier_suffix(GrTier tier, bool down, bool q, bool pd) {
     static constexpr const char* tiers[] = {"_gemv", "_decode", "_mid", ""};
-    return std::string(down ? "down" : "up") + (pd ? "_pd" : q ? "_q" : "") + tiers[static_cast<size_t>(tier)];
+    std::string variant;
+    if (pd) {
+        variant = "_pd";
+    } else if (q) {
+        variant = "_q";
+    }
+    return std::string(down ? "down" : "up") + variant + tiers[static_cast<size_t>(tier)];
 }
 
 /// Whether the READ runs on the systolic kernels instead of the fused scalar gr_read kernel.
@@ -329,10 +343,12 @@ size_t rows_of(const RuntimeParams& params, const gated_residual& desc) {
 enum class GrPath { automatic, ocl3, single, scalar };
 
 GrPath gr_kernel_selection(const RuntimeParams& params) {
-    static constexpr std::pair<std::string_view, GrPath> paths[] = {{"auto", GrPath::automatic},
-                                                                    {"ocl3", GrPath::ocl3},
-                                                                    {"single", GrPath::single},
-                                                                    {"scalar", GrPath::scalar}};
+    static constexpr std::pair<std::string_view, GrPath> paths[] = {
+        {"auto", GrPath::automatic},
+        {"ocl3", GrPath::ocl3},
+        {"single", GrPath::single},
+        {"scalar", GrPath::scalar},
+    };
     const auto name = GPU_DEBUG_VALUE_OR(params.get_program().get_config().get_gr_kernel_selection(), std::string("auto"));
     for (const auto& [key, path] : paths) {
         if (name == key) {
@@ -412,11 +428,13 @@ bool gr_decode_kperm(const RuntimeParams& params) {
 /// Row counts on both sides of every threshold of read_plan() and of the stage variants. The stages are a step function of the
 /// row count, so these yield every stage some row count runs (what a dynamic shape has to build).
 std::vector<size_t> gr_routing_rows(const RuntimeParams& params) {
-    const size_t thresholds[] = {gr_gemv_rows,
-                                 gr_decode_rows,
-                                 gr_mid_max_rows(params.get_device_info()),
-                                 gr_pd_min_rows(params),
-                                 gr_q_scratch_max_rows(params)};
+    const size_t thresholds[] = {
+        gr_gemv_rows,
+        gr_decode_rows,
+        gr_mid_max_rows(params.get_device_info()),
+        gr_pd_min_rows(params),
+        gr_q_scratch_max_rows(params),
+    };
     std::vector<size_t> rows = {1};
     for (const size_t t : thresholds) {
         rows.push_back(std::max<size_t>(1, t));
@@ -560,7 +578,14 @@ private:
 // ---------------------------------------------------------------------------
 class GrReadDpasGenerator : public GrGenerator {
 public:
-    explicit GrReadDpasGenerator(bool q = false, bool pd = false) : GrGenerator("gr_read_dpas", q ? "q" : (pd ? "pd" : "")), m_q(q), m_pd(pd) {}
+    static const char* variant_name(bool q, bool pd) {
+        if (q) {
+            return "q";
+        }
+        return pd ? "pd" : "";
+    }
+
+    explicit GrReadDpasGenerator(bool q = false, bool pd = false) : GrGenerator("gr_read_dpas", variant_name(q, pd)), m_q(q), m_pd(pd) {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -574,10 +599,15 @@ protected:
         jit.make("GR_RD_NT", gr_read_dpas_nt);
         jit.make("GR_NV_KD", (desc->hidden_size % 128 == 0 ? 128 : 32) / 16);
         const size_t cd = desc->hc_count * desc->hidden_size;
-        const size_t slm_bytes = desc->hc_count * gr_read_dpas_tm * 4 + gr_read_dpas_tm * desc->lowrank * 2;
+        const size_t slm_bytes = (desc->hc_count * gr_read_dpas_tm * 4) + (gr_read_dpas_tm * desc->lowrank * 2);
         // Larger SLM footprints shrink L1, which phase 2 relies on to share the residual tile between subgroups.
         const size_t slm_limit = std::min<size_t>(params.get_device_info().max_local_mem_size, 64 * 1024);
-        const int slm_gain = slm_bytes + cd * 4 <= slm_limit ? 2 : (slm_bytes + (cd + 48) * 2 <= slm_limit ? 1 : 0);
+        int slm_gain = 0;
+        if (slm_bytes + (cd * 4) <= slm_limit) {
+            slm_gain = 2;
+        } else if (slm_bytes + ((cd + 48) * 2) <= slm_limit) {
+            slm_gain = 1;
+        }
         jit.make("GR_RD_SLM_GAIN", slm_gain);
         if (m_q) {
             const auto wtype = gr_weight_type(params);
@@ -824,7 +854,7 @@ protected:
             const auto desc = params.typed_desc<gated_residual>();
             const size_t num_rows = rows_of(params, *desc);
             const auto g = geometry(params, tier, q);
-            const size_t col_tiles = desc->lowrank / g.tn + (g.gate ? 1 : 0);
+            const size_t col_tiles = (desc->lowrank / g.tn) + (g.gate ? 1 : 0);
             const size_t row_tiles = std::max<size_t>(1, gr_div_up(num_rows, g.tiling.tm));
 
             auto& wgs = kd.params.workGroups;
@@ -916,9 +946,10 @@ protected:
         const auto desc = params.typed_desc<gated_residual>();
         const bool share = q && !gr_decode_like(tier);
         const bool bsplit = q && gr_decode_like(tier) && gr_decode_kperm(params);
-        const auto tiling = share    ? GrGemmTiling{16, 1, 1}
-                            : bsplit ? GrGemmTiling{8, 1, 1}
-                                     : gr_up_tiling(*desc, params.get_device_info(), tier, q ? gr_weight_type(params) : GrWType::f16);
+        GrGemmTiling tiling{16, 1, 1};
+        if (!share) {
+            tiling = bsplit ? GrGemmTiling{8, 1, 1} : gr_up_tiling(*desc, params.get_device_info(), tier, q ? gr_weight_type(params) : GrWType::f16);
+        }
         return {share, bsplit, tiling};
     }
 
@@ -1035,10 +1066,12 @@ protected:
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         using Idx = GrOp::ReadInputIdx;
         const size_t scale_idx = m_down ? Idx::SCALE_DOWN : Idx::SCALE_UP;
-        return {gr_input(m_down ? Idx::W_DOWN : Idx::W_UP),
-                gr_input(scale_idx),
-                gr_zp_arg(gr_read_layout(params), m_down ? Idx::ZP_DOWN : Idx::ZP_UP, scale_idx),
-                gr_scratch(m_down ? GatedResidualInternalBufIdx::WD_F16 : GatedResidualInternalBufIdx::WU_F16)};
+        return {
+            gr_input(m_down ? Idx::W_DOWN : Idx::W_UP),
+            gr_input(scale_idx),
+            gr_zp_arg(gr_read_layout(params), m_down ? Idx::ZP_DOWN : Idx::ZP_UP, scale_idx),
+            gr_scratch(m_down ? GatedResidualInternalBufIdx::WD_F16 : GatedResidualInternalBufIdx::WU_F16),
+        };
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
@@ -1075,10 +1108,12 @@ protected:
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         const auto layout = gr_read_layout(params);
-        return {gr_input(layout.w_inject),
-                gr_input(layout.scale_inject),
-                gr_zp_arg(layout, layout.zp_inject, layout.scale_inject),
-                gr_scratch(GatedResidualInternalBufIdx::WI_F16)};
+        return {
+            gr_input(layout.w_inject),
+            gr_input(layout.scale_inject),
+            gr_zp_arg(layout, layout.zp_inject, layout.scale_inject),
+            gr_scratch(GatedResidualInternalBufIdx::WI_F16),
+        };
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
@@ -1163,7 +1198,7 @@ public:
             stages.push_back(&gr_dq_inject);
         }
         if (p.single) {
-            stages.push_back(p.pd ? &gr_read_dpas_pd : (p.q ? &gr_read_dpas_q : &gr_read_dpas));
+            stages.push_back(read_dpas_stage(p.q, p.pd));
             return stages;
         }
         stages.push_back(&rbar_stage(rows));
@@ -1175,21 +1210,37 @@ public:
         return stages;
     }
 
+    Stage::Ptr* read_dpas_stage(bool q, bool pd) {
+        if (pd) {
+            return &gr_read_dpas_pd;
+        }
+        return q ? &gr_read_dpas_q : &gr_read_dpas;
+    }
+
     Stage::Ptr& rbar_stage(size_t rows) {
         return rows <= gr_decode_rows ? gr_rbar_decode : gr_rbar;
     }
 
     Stage::Ptr& down_stage(GrTier tier, bool q, bool pd) {
         if (pd) {
-            return gr_decode_like(tier) ? gr_down_proj_pd_decode : tier == GrTier::mid ? gr_down_proj_pd_mid : gr_down_proj_pd;
+            if (gr_decode_like(tier)) {
+                return gr_down_proj_pd_decode;
+            }
+            return tier == GrTier::mid ? gr_down_proj_pd_mid : gr_down_proj_pd;
         }
         if (q) {
             if (tier == GrTier::gemv) {
                 return gr_down_proj_q_gemv;
             }
-            return tier == GrTier::decode ? gr_down_proj_q_decode : tier == GrTier::mid ? gr_down_proj_q_mid : gr_down_proj_q;
+            if (tier == GrTier::decode) {
+                return gr_down_proj_q_decode;
+            }
+            return tier == GrTier::mid ? gr_down_proj_q_mid : gr_down_proj_q;
         }
-        return gr_decode_like(tier) ? gr_down_proj_decode : tier == GrTier::mid ? gr_down_proj_mid : gr_down_proj;
+        if (gr_decode_like(tier)) {
+            return gr_down_proj_decode;
+        }
+        return tier == GrTier::mid ? gr_down_proj_mid : gr_down_proj;
     }
 
     Stage::Ptr& up_stage(GrTier tier, bool q, bool pd) {
@@ -1237,11 +1288,13 @@ public:
         const auto f16_buffer = [](bool used, size_t count) {
             return BufferDescriptor{used ? std::max<size_t>(1, count) : 1, ov::element::f16};
         };
-        return {f16_buffer(!p.single, rows * cd),               // RBAR
-                f16_buffer(!p.single, rows * desc->lowrank),    // T_SCRATCH
-                f16_buffer(p.pd, desc->lowrank * cd),           // WD_F16
-                f16_buffer(p.pd, cd * desc->lowrank),           // WU_F16
-                f16_buffer(p.dq_inject, desc->hc_count * cd)};  // WI_F16
+        return {
+            f16_buffer(!p.single, rows * cd),             // RBAR
+            f16_buffer(!p.single, rows * desc->lowrank),  // T_SCRATCH
+            f16_buffer(p.pd, desc->lowrank * cd),         // WD_F16
+            f16_buffer(p.pd, cd * desc->lowrank),         // WU_F16
+            f16_buffer(p.dq_inject, desc->hc_count * cd),
+        };  // WI_F16
     }
 };
 

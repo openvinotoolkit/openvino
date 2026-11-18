@@ -928,6 +928,16 @@ void TransformationsPipeline::apply_activation_scaling_transformations(const std
     manager.register_pass<ov::intel_gpu::FuseAtan2Decomposed>();
     manager.register_pass<ov::intel_gpu::SwooshFusion>();
     manager.register_pass<ov::intel_gpu::SwiGluFusionWithClamp>();
+
+    // GatedResidual kernel (scalar included) needs the OpenCL subgroup extensions, else a fused node has no implementation.
+    // The fusion also hides the Add / MatMul ops that the activation scaling has to rescale, so it is skipped then.
+    const bool fp16_activation_scaling = config.get_activations_scale_factor() > 0.F && infer_precision == ov::element::f16;
+    if (cldnn::gated_residual_caps::is_device_supported(device_info) && !fp16_activation_scaling) {
+        manager.register_pass<ov::intel_gpu::GatedResidualFusion>(cldnn::gated_residual_caps::uses_dpas_kernels(device_info, config));
+        // The fusion keeps the scales / zero points in the operation layout [N, G]; the kernels read [G, N].
+        manager.register_pass<ov::intel_gpu::ConvertGatedResidualScaleLayout>();
+    }
+
     // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
     manager.register_pass<ov::pass::Validate>();
 

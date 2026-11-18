@@ -67,7 +67,7 @@ bool get_scalar_f32(const ov::Output<ov::Node>& out, float& value) {
 }
 
 bool close(float a, float b) {
-    return std::fabs(a - b) <= 1e-5f * std::max(1.0f, std::fabs(b));
+    return std::fabs(a - b) <= 1e-5F * std::max(1.0F, std::fabs(b));
 }
 
 bool get_i64_vector(const ov::Output<ov::Node>& out, std::vector<int64_t>& value) {
@@ -94,7 +94,7 @@ ov::Output<ov::Node> flatten_to(const ov::Output<ov::Node>& src, size_t count, o
 
 /// The kernels always read a gain; a normalization whose gain of ones was folded away gets an explicit one.
 ov::Output<ov::Node> make_unit_gain(size_t count, ov::NodeVector& new_ops) {
-    auto gain = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{count}, std::vector<ov::float16>(count, ov::float16(1.0f)));
+    auto gain = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{count}, std::vector<ov::float16>(count, ov::float16(1.0F)));
     new_ops.push_back(gain);
     return gain->output(0);
 }
@@ -295,7 +295,7 @@ struct WriteGateBranch {
 /// consumer, otherwise removing the chain would change what other nodes see. The 1/C scale is either an explicit
 /// Multiply(1/C) / Divide(C) after the MatMul or folded into W_inject.
 std::optional<WriteGateBranch> match_write_gate_branch(const ov::Output<ov::Node>& rbar, const std::shared_ptr<ov::Node>& read_matmul, size_t C, size_t D) {
-    const float inv_c = 1.0f / static_cast<float>(C);
+    const float inv_c = 1.0F / static_cast<float>(C);
     auto single_consumer = [](const ov::Output<ov::Node>& out) -> std::shared_ptr<ov::Node> {
         const auto targets = out.get_target_inputs();
         return targets.size() == 1 ? targets.begin()->get_node()->shared_from_this() : nullptr;
@@ -320,7 +320,7 @@ std::optional<WriteGateBranch> match_write_gate_branch(const ov::Output<ov::Node
             continue;
         }
 
-        float scale = 0.0f;
+        float scale = 0.0F;
         bool scaled = false;
         if (auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(next)) {
             const auto other = other_operand(mul, x);
@@ -351,9 +351,9 @@ std::optional<WriteGateBranch> match_write_gate_branch(const ov::Output<ov::Node
         branch.nodes.push_back(sigmoid);
         x = sigmoid->output(0);
         auto times_two = ov::as_type_ptr<ov::op::v1::Multiply>(single_consumer(x));
-        float two = 0.0f;
+        float two = 0.0F;
         const auto other = times_two ? other_operand(times_two, x) : std::nullopt;
-        if (!other || !get_scalar_f32(*other, two) || !close(two, 2.0f)) {
+        if (!other || !get_scalar_f32(*other, two) || !close(two, 2.0F)) {
             continue;
         }
         branch.nodes.push_back(times_two);
@@ -499,11 +499,11 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
 
         // both 1/C scalings are model semantics; the branch-mix one is either an
         // explicit Multiply (ReduceSum form) or implicit in a ReduceMean (root).
-        const float inv_c = 1.0f / static_cast<float>(C);
+        const float inv_c = 1.0F / static_cast<float>(C);
         // The kernel applies 1/C itself, so it needs the unscaled W_down.
         auto w_down = low_mm->input_value(1);
         if (pm.count(low_scaled) != 0) {
-            float low_scale = 0.0f;
+            float low_scale = 0.0F;
             const auto scale = other_operand(pm.at(low_scaled).get_node_shared_ptr(), pm.at(low));
             if (!scale || !get_scalar_f32(*scale, low_scale) || !close(low_scale, inv_c)) {
                 return false;
@@ -512,7 +512,7 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
             auto scaled_weight = ov::as_type_ptr<ov::op::v1::Multiply>(w_down.get_node_shared_ptr());
             bool unscaled = false;
             for (size_t i = 0; scaled_weight && i < 2 && !unscaled; ++i) {
-                float weight_scale = 0.0f;
+                float weight_scale = 0.0F;
                 if (get_scalar_f32(scaled_weight->input_value(1 - i), weight_scale) && close(weight_scale, inv_c)) {
                     w_down = scaled_weight->input_value(i);
                     unscaled = true;
@@ -523,7 +523,7 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
             }
         }
         if (root_is_mixed) {
-            float mix_scale = 0.0f;
+            float mix_scale = 0.0F;
             const auto scale = other_operand(root, pm.at(reduced_sum));
             if (!scale || !get_scalar_f32(*scale, mix_scale) || !close(mix_scale, inv_c)) {
                 return false;
@@ -563,7 +563,7 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
 
         ov::NodeVector new_ops;
         ov::Output<ov::Node> gain_flat;
-        float epsilon = 0.0f;
+        float epsilon = 0.0F;
 
         if (is_fused_norm) {
             auto rms_node = ov::as_type_ptr<ov::op::internal::RMS>(pm.at(norm_fused).get_node_shared_ptr());
@@ -609,16 +609,16 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
                 (mean_axes[0] != -1 && mean_axes[0] != sq_rank - 1)) {
                 return false;
             }
-            float exponent = 0.0f;
-            if (!get_scalar_f32(pm.at(sq).get_node_shared_ptr()->input_value(1), exponent) || !close(exponent, 2.0f)) {
+            float exponent = 0.0F;
+            if (!get_scalar_f32(pm.at(sq).get_node_shared_ptr()->input_value(1), exponent) || !close(exponent, 2.0F)) {
                 return false;
             }
-            float numerator = 0.0f;
+            float numerator = 0.0F;
             if (pm.count(inv_rms_div) != 0) {
-                if (!get_scalar_f32(pm.at(inv_rms_div).get_node_shared_ptr()->input_value(0), numerator) || !close(numerator, 1.0f)) {
+                if (!get_scalar_f32(pm.at(inv_rms_div).get_node_shared_ptr()->input_value(0), numerator) || !close(numerator, 1.0F)) {
                     return false;
                 }
-            } else if (!get_scalar_f32(pm.at(inv_rms_pow).get_node_shared_ptr()->input_value(1), numerator) || !close(numerator, -1.0f)) {
+            } else if (!get_scalar_f32(pm.at(inv_rms_pow).get_node_shared_ptr()->input_value(1), numerator) || !close(numerator, -1.0F)) {
                 return false;
             }
             const auto eps_input = other_operand(pm.at(biased).get_node_shared_ptr(), pm.at(mean));
@@ -807,7 +807,7 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
                                                       C,
                                                       D,
                                                       /*lowrank=*/0,
-                                                      /*epsilon=*/0.0f,
+                                                      /*epsilon=*/0.0F,
                                                       /*produce_write_gate=*/false);
         if (!gr->get_output_partial_shape(0).compatible(root->get_output_partial_shape(0))) {
             return false;

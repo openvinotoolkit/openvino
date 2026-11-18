@@ -48,7 +48,7 @@ struct gated_residual : public primitive_base<gated_residual> {
     size_t hc_count = 4;
     size_t hidden_size = 0;
     size_t lowrank = 0;
-    float epsilon = 1e-6f;
+    float epsilon = 1e-6F;
     bool produce_write_gate = false;
 
     size_t hash() const override {
@@ -63,8 +63,9 @@ struct gated_residual : public primitive_base<gated_residual> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const gated_residual>(rhs);
         return mode == rhs_casted.mode && hc_count == rhs_casted.hc_count && hidden_size == rhs_casted.hidden_size && lowrank == rhs_casted.lowrank &&

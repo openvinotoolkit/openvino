@@ -33,7 +33,7 @@ std::shared_ptr<ov::op::v0::Constant> transpose_to_gn(const ov::Output<ov::Node>
         std::vector<ov::float16> gn(ng.size());
         for (size_t n = 0; n < N; ++n) {
             for (size_t g = 0; g < G; ++g) {
-                gn[g * N + n] = ng[n * G + g];
+                gn[(g * N) + n] = ng[(n * G) + g];
             }
         }
         return ov::op::v0::Constant::create(et, ov::Shape{G, N}, gn);
@@ -43,7 +43,7 @@ std::shared_ptr<ov::op::v0::Constant> transpose_to_gn(const ov::Output<ov::Node>
     std::vector<int32_t> gn(ng.size());
     for (size_t n = 0; n < N; ++n) {
         for (size_t g = 0; g < G; ++g) {
-            gn[g * N + n] = ng[n * G + g];
+            gn[(g * N) + n] = ng[(n * G) + g];
         }
     }
     return ov::op::v0::Constant::create(et, ov::Shape{G, N}, gn);

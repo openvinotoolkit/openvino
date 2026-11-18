@@ -81,11 +81,21 @@ public:
         l.compressed = compressed;
         l.has_zp = compressed && has_zp;
         l.write_gate = write_gate;
-        const size_t base = compressed ? (l.has_zp ? 8 : 6) : 4;
+        size_t base = 4;
+        if (compressed) {
+            base = l.has_zp ? 8 : 6;
+        }
         l.w_inject = base;
         l.scale_inject = base + 1;
         l.zp_inject = base + 2;
-        l.input_count = base + (write_gate ? (compressed ? (l.has_zp ? 3 : 2) : 1) : 0);
+        size_t gate_inputs = 0;
+        if (write_gate) {
+            gate_inputs = 1;
+            if (compressed) {
+                gate_inputs = l.has_zp ? 3 : 2;
+            }
+        }
+        l.input_count = base + gate_inputs;
         return l;
     }
 
@@ -167,7 +177,7 @@ private:
     size_t m_hc_count = 4;
     size_t m_hidden_size = 0;
     size_t m_lowrank = 0;
-    float m_epsilon = 1e-6f;
+    float m_epsilon = 1e-6F;
     bool m_produce_write_gate = false;
     bool m_scale_gn = false;
 };
