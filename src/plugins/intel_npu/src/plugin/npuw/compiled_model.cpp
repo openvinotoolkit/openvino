@@ -375,8 +375,12 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
 namespace {
 bool is_partitioned_orc(std::istream& stream) {
     const auto header = ov::npuw::orc::is_orc(stream);
-    return header.has_value() && (header->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA ||
-                                  header->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_GQA_SCHEMA);
+    return header.has_value() && header->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA;
+}
+
+bool is_gqa_orc(std::istream& stream) {
+    const auto header = ov::npuw::orc::is_orc(stream);
+    return header.has_value() && header->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_GQA_SCHEMA;
 }
 
 bool has_npuw_indicator(std::istream& stream) {
@@ -391,7 +395,7 @@ bool has_npuw_indicator(std::istream& stream) {
 }  // anonymous namespace
 
 bool ov::npuw::ICompiledModel::is_npuw_blob(std::istream& stream) {
-    return is_partitioned_orc(stream) || has_npuw_indicator(stream);
+    return is_partitioned_orc(stream) || is_gqa_orc(stream) || has_npuw_indicator(stream);
 }
 
 std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::import_model(
@@ -403,14 +407,13 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::import_model
 
     // The partitioned CompiledModel is a plain ORC container with no indicator
     // header of its own.
-    if (is_partitioned_orc(stream)) {
-        auto typeID = ov::npuw::orc::peek_blob_id(stream);
-        switch (typeID) {
-        case ov::npuw::GQACompiledModel::kOrcType:
+    auto orcHeader = orc::is_orc(stream);
+    if (is_npuw_blob(stream) && orcHeader.has_value()) {
+        if (orcHeader->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_GQA_SCHEMA) {
             return ov::npuw::GQACompiledModel::import_model(stream, plugin, properties);
-        case ov::npuw::CompiledModel::kOrcType:
+        } else if (orcHeader->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA) {
             return ov::npuw::CompiledModel::import_model(stream, plugin, properties);
-        default:
+        } else {
             NPUW_ASSERT(false && "Couldn't determine blob type from ORC root section");
         }
     }

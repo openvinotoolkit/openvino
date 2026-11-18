@@ -647,7 +647,9 @@ ov::npuw::GQACompiledModel::GQACompiledModel(const std::shared_ptr<ov::Model>& o
 // carcass Results down to the placeholder's shape.
 void ov::npuw::GQACompiledModel::write_port_list(ov::npuw::orc::Stream& stream,
                                                  const std::vector<ov::Output<const ov::Node>>& ports) {
-    stream & ports.size();
+    NPUW_ASSERT(stream.output());
+    uint64_t ports_size = static_cast<uint64_t>(ports.size());
+    stream & ports_size;
     for (const auto& port : ports) {
         stream & port.get_node()->get_friendly_name();
         stream & port.get_element_type().to_string();
@@ -658,7 +660,8 @@ void ov::npuw::GQACompiledModel::write_port_list(ov::npuw::orc::Stream& stream,
 }
 
 ov::ParameterVector ov::npuw::GQACompiledModel::read_input_port_list(ov::npuw::orc::Stream& stream) {
-    size_t count = 0;
+    NPUW_ASSERT(stream.input());
+    uint64_t count = 0;
     stream & count;
     // Guard against a corrupted blob surfacing as an opaque bad_alloc instead of a clear error.
     OPENVINO_ASSERT(count <= 1024, "GQACompiledModel: implausible outer input port count (", count, ") on import");
@@ -681,7 +684,6 @@ ov::ParameterVector ov::npuw::GQACompiledModel::read_input_port_list(ov::npuw::o
 }
 
 ov::NodeVector ov::npuw::GQACompiledModel::read_output_port_list(ov::npuw::orc::Stream& stream) {
-    using namespace ov::npuw::s11n;
     size_t count = 0;
     stream & count;
     OPENVINO_ASSERT(count <= 1024, "GQACompiledModel: implausible outer output port count (", count, ") on import");
@@ -746,7 +748,7 @@ void ov::npuw::GQACompiledModel::export_model(std::ostream& stream) const {
                       << ", effective_sliding_window_headroom=" << m_effective_sliding_window_headroom
                       << ", total_seq_len_param_name=" << m_total_seq_len_param_name.value_or("<none>")
                       << ", present_to_past_param_names has " << m_present_to_past_param_names.size() << " entries"
-                      << "; delegating to inner m_inner_compiled_model->export_model()");
+                      << "; delegating to inner m_inner_compiled_model->serialize_orc_container()");
         });
         auto npu_compiled_model = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(m_inner_compiled_model);
         NPUW_ASSERT(
@@ -754,7 +756,7 @@ void ov::npuw::GQACompiledModel::export_model(std::ostream& stream) const {
             "GQACompiledModel: Currently, ov::npuw::CompiledModel is the only allowed inner compiled model type");
         npu_compiled_model->serialize_orc_container(stream,
                                                     /* include_weights_bank = */ true,
-                                                    get_encrypt_callback(npu_compiled_model->m_non_npuw_props));
+                                                    get_encrypt_callback(npu_compiled_model->non_npuw_props()));
     });
     LOG_INFO("Done");
     GQA_TRACE("GQACompiledModel::export_model() done");
@@ -782,6 +784,7 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
                     ")");
     OPENVINO_ASSERT(!orc::has_flag(root.header().flags, orc::SectionFlag::LEAF),
                     "Unsupported ORC NPUW GQA root section");
+    OPENVINO_ASSERT(!root.done(), "Unexpected end of GQA section");
 
     // Rebuild the outer-facing model (dynamic axes restored) exactly as before export.
     ov::ParameterVector outer_parameters;
