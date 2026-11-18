@@ -1764,6 +1764,19 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_max_18) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_max_empty_dimension) {
+    auto model = convert_model("reduce_max_empty_dimension.onnx");
+    const auto neg_inf = -std::numeric_limits<float>::infinity();
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{2, 0}, {});
+    test_case.add_expected_output<float>(Shape{2, 1}, {neg_inf, neg_inf});
+    test_case.run();
+
+    test_case.add_input<float>(Shape{2, 2}, {-4.f, -2.f, 1.f, 3.f});
+    test_case.add_expected_output<float>(Shape{2, 1}, {-2.f, 3.f});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_max_invalid_axes) {
     EXPECT_THROW(convert_model("reduce_max_invalid_axes.onnx"), ov::Exception);
 }
