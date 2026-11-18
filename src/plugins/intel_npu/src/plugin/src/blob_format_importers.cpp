@@ -552,11 +552,10 @@ void validate_batch_size(const NetworkMetadata& metadata, const std::optional<in
             }
 
             const ov::PartialShape& shape = descriptor.shapeFromCompiler;
-            if (shape.rank().is_dynamic() || shape.size() == 0 || shape[utils::BATCH_AXIS].is_dynamic()) {
-                continue;
-            }
-
-            OPENVINO_ASSERT(static_cast<size_t>(shape[utils::BATCH_AXIS].get_length()) == utils::DEFAULT_BATCH_SIZE,
+            // Every descriptor must have a static batch of 1: a dynamic rank, a scalar or a dynamic batch dimension
+            // means there is no batch slice to advance over. Dynamic dimensions other than the batch are accepted.
+            OPENVINO_ASSERT(shape.rank().is_static() && shape.size() > 0 && shape[utils::BATCH_AXIS].is_static() &&
+                                static_cast<size_t>(shape[utils::BATCH_AXIS].get_length()) == utils::DEFAULT_BATCH_SIZE,
                             "The blob metadata declares ",
                             declared_batch_size,
                             ", but the ",

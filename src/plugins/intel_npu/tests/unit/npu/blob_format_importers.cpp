@@ -278,28 +278,43 @@ TEST_F(BlobFormatImportersTest, BatchSizeRequiresBatchOfOneInCompiledSchedule) {
 }
 
 /**
- * @brief There is no batch to compare with when the compiled shape has no static batch dimension
+ * @brief Dynamic dimensions other than the batch are accepted, as the batch is still 1 in the compiled schedule
  */
-TEST_F(BlobFormatImportersTest, BatchSizeIgnoresDescriptorsWithoutStaticBatchDimension) {
+TEST_F(BlobFormatImportersTest, BatchSizeAcceptsDynamicDimensionsOtherThanBatch) {
     NetworkMetadata metadata;
-    metadata.inputs.push_back(create_descriptor("input", ov::Shape{1, 3}));
-    metadata.outputs.push_back(create_descriptor("output", ov::Shape{1, 3}));
-
-    metadata.inputs.push_back(create_descriptor("dynamic_batch", ov::PartialShape{ov::Dimension(1, 10), 3}));
-    metadata.inputs.push_back(create_descriptor("dynamic_rank", ov::PartialShape::dynamic()));
-    metadata.outputs.push_back(create_descriptor("scalar", ov::Shape{}));
+    metadata.inputs.push_back(create_descriptor("input", ov::PartialShape{1, ov::Dimension(1, 10), -1}));
+    metadata.outputs.push_back(create_descriptor("output", ov::PartialShape{1, ov::Dimension(1, 10)}));
     OV_ASSERT_NO_THROW(blob_format_importer_utils::validate_batch_size(metadata, 2));
     OV_ASSERT_NO_THROW(blob_format_importer_utils::validate_batch_size(metadata, DYNAMIC_BATCH_SIZE));
+}
 
-    // a descriptor with a static batch different than 1 is still rejected, no matter the other descriptors
-    metadata.outputs.push_back(create_descriptor("not_batched_output", ov::Shape{2, 3}));
-    OV_EXPECT_THROW_HAS_SUBSTRING(blob_format_importer_utils::validate_batch_size(metadata, 2),
-                                  ov::Exception,
-                                  "not_batched_output");
-    OV_EXPECT_THROW_HAS_SUBSTRING(blob_format_importer_utils::validate_batch_size(metadata, DYNAMIC_BATCH_SIZE),
-                                  ov::Exception,
-                                  "not_batched_output");
+/**
+ * @brief A declared batch requires every descriptor to have a static batch dimension of 1
+ */
+TEST_F(BlobFormatImportersTest, BatchSizeRejectsDescriptorsWithoutStaticBatchDimension) {
+    const std::vector<std::pair<std::string, ov::PartialShape>> invalid_shapes = {
+        {"dynamic_batch", ov::PartialShape{ov::Dimension(1, 10), 3}},
+        {"unbounded_batch", ov::PartialShape{-1, 3}},
+        {"dynamic_rank", ov::PartialShape::dynamic()},
+        {"scalar", ov::PartialShape{}}};
 
-    // the same descriptors are accepted if no batch size is declared
-    OV_ASSERT_NO_THROW(blob_format_importer_utils::validate_batch_size(metadata, std::nullopt));
+    for (const auto& [name, shape] : invalid_shapes) {
+        for (const int64_t batch_size : {int64_t{2}, DYNAMIC_BATCH_SIZE}) {
+            NetworkMetadata input_metadata;
+            input_metadata.inputs.push_back(create_descriptor(name, shape));
+            OV_EXPECT_THROW_HAS_SUBSTRING(blob_format_importer_utils::validate_batch_size(input_metadata, batch_size),
+                                          ov::Exception,
+                                          name);
+
+            NetworkMetadata output_metadata;
+            output_metadata.outputs.push_back(create_descriptor(name, shape));
+            OV_EXPECT_THROW_HAS_SUBSTRING(blob_format_importer_utils::validate_batch_size(output_metadata, batch_size),
+                                          ov::Exception,
+                                          name);
+
+            // nothing is checked if no batch size is declared
+            OV_ASSERT_NO_THROW(blob_format_importer_utils::validate_batch_size(input_metadata, std::nullopt));
+            OV_ASSERT_NO_THROW(blob_format_importer_utils::validate_batch_size(output_metadata, std::nullopt));
+        }
+    }
 }
