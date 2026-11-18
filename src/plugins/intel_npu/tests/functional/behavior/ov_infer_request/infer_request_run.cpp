@@ -2109,18 +2109,19 @@ TEST_P(DynamicBatchingTests, DynamicBatchReshapeSameTensorWithoutSetTensor) {
 
     ov::Tensor inputTensor(ov::element::f32, Shape{2, 2, 64, 64});
     inferenceRequest.set_input_tensor(inputTensor);
-    fillInferAndCheckAddOne(inferenceRequest, inputTensor, 1.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(inferenceRequest, inputTensor, 1.f));
 
     // Inflation: reallocates the underlying memory of the tensor
     for (size_t batch = 3; batch <= 10; ++batch) {
         inputTensor.set_shape(Shape{batch, 2, 64, 64});
-        fillInferAndCheckAddOne(inferenceRequest, inputTensor, static_cast<float>(batch));
+        ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(inferenceRequest, inputTensor, static_cast<float>(batch)));
     }
 
     // Deflation: the memory is kept, only the shape changes
     for (size_t batch = 9; batch >= 1; --batch) {
         inputTensor.set_shape(Shape{batch, 2, 64, 64});
-        fillInferAndCheckAddOne(inferenceRequest, inputTensor, static_cast<float>(batch) + 100.f);
+        ASSERT_NO_FATAL_FAILURE(
+            fillInferAndCheckAddOne(inferenceRequest, inputTensor, static_cast<float>(batch) + 100.f));
     }
 }
 
@@ -2135,18 +2136,19 @@ TEST_P(DynamicBatchingTests, DynamicBatchReshapeSameTensorThenSetTensor) {
 
     ov::Tensor inputTensor(ov::element::f32, Shape{2, 2, 64, 64});
     inferenceRequest.set_input_tensor(inputTensor);
-    fillInferAndCheckAddOne(inferenceRequest, inputTensor, 1.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(inferenceRequest, inputTensor, 1.f));
 
     for (size_t batch = 3; batch <= 10; ++batch) {
         inputTensor.set_shape(Shape{batch, 2, 64, 64});
         inferenceRequest.set_input_tensor(inputTensor);
-        fillInferAndCheckAddOne(inferenceRequest, inputTensor, static_cast<float>(batch));
+        ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(inferenceRequest, inputTensor, static_cast<float>(batch)));
     }
 
     for (size_t batch = 9; batch >= 1; --batch) {
         inputTensor.set_shape(Shape{batch, 2, 64, 64});
         inferenceRequest.set_input_tensor(inputTensor);
-        fillInferAndCheckAddOne(inferenceRequest, inputTensor, static_cast<float>(batch) + 100.f);
+        ASSERT_NO_FATAL_FAILURE(
+            fillInferAndCheckAddOne(inferenceRequest, inputTensor, static_cast<float>(batch) + 100.f));
     }
 }
 
@@ -2161,7 +2163,7 @@ TEST_P(DynamicBatchingTests, DynamicBatchSetSameTensorMultipleTimes) {
     ov::Tensor inputTensor(ov::element::f32, Shape{4, 2, 64, 64});
     for (size_t run = 0; run < 3; ++run) {
         inferenceRequest.set_input_tensor(inputTensor);
-        fillInferAndCheckAddOne(inferenceRequest, inputTensor, static_cast<float>(run));
+        ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(inferenceRequest, inputTensor, static_cast<float>(run)));
     }
 }
 
@@ -2177,7 +2179,7 @@ TEST_P(DynamicBatchingTests, DynamicBatchSetTensorBiggerThanModelUpperBound) {
 
     ov::Tensor inputTensor(ov::element::f32, Shape{4, 2, 64, 64});
     inferenceRequest.set_input_tensor(inputTensor);
-    fillInferAndCheckAddOne(inferenceRequest, inputTensor, 1.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(inferenceRequest, inputTensor, 1.f));
 
     const auto errorMessage = HasSubstr("The tensor shape is not compatible with the model input/output max shape");
 
@@ -2188,7 +2190,7 @@ TEST_P(DynamicBatchingTests, DynamicBatchSetTensorBiggerThanModelUpperBound) {
     OV_EXPECT_THROW(inferenceRequest.set_output_tensor(tooBigOutput), ov::Exception, errorMessage);
 
     // The failed calls must not have changed the state of the request
-    fillInferAndCheckAddOne(inferenceRequest, inputTensor, 2.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(inferenceRequest, inputTensor, 2.f));
 }
 
 // Same check on a fresh request (no tensor set yet): the failure must not leave the request in a bad state
@@ -2208,7 +2210,7 @@ TEST_P(DynamicBatchingTests, DynamicBatchSetTensorBiggerThanModelUpperBoundBefor
     // A valid tensor can still be set and used afterwards
     ov::Tensor inputTensor(ov::element::f32, Shape{3, 2, 64, 64});
     inferenceRequest.set_input_tensor(inputTensor);
-    fillInferAndCheckAddOne(inferenceRequest, inputTensor, 1.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(inferenceRequest, inputTensor, 1.f));
 }
 
 // ResNet-like input ([1..16, 3, 224, 224]): take the input tensor from the request before any set_tensor call, change
@@ -2226,7 +2228,7 @@ TEST_P(DynamicBatchingTests, DynamicBatchReshapeInputTensorReturnedByGetTensor) 
     auto inputTensor = inferenceRequest.get_input_tensor();
     OV_ASSERT_NO_THROW(inputTensor.set_shape(Shape{8, 3, 224, 224}));
 
-    fillInferAndCheckAddOne(inferenceRequest, inputTensor, 3.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(inferenceRequest, inputTensor, 3.f));
 
     for (size_t i = 0; i < compiledModel.outputs().size(); ++i) {
         const auto outputShape = inferenceRequest.get_output_tensor(i).get_shape();
@@ -2236,7 +2238,7 @@ TEST_P(DynamicBatchingTests, DynamicBatchReshapeInputTensorReturnedByGetTensor) 
     // Change the batch again with the same tensor, both bigger and smaller
     for (size_t batch : {16u, 1u, 5u, 12u}) {
         OV_ASSERT_NO_THROW(inputTensor.set_shape(Shape{batch, 3, 224, 224}));
-        fillInferAndCheckAddOne(inferenceRequest, inputTensor, static_cast<float>(batch));
+        ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(inferenceRequest, inputTensor, static_cast<float>(batch)));
     }
 }
 
@@ -2256,7 +2258,7 @@ TEST_P(DynamicBatchingTests, DynamicBatchUseInputTensorReturnedByGetTensorWithou
 
     // Several runs with the default batch
     for (size_t run = 0; run < 3; ++run) {
-        fillInferAndCheckAddOne(inferenceRequest, inputTensor, static_cast<float>(run));
+        ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(inferenceRequest, inputTensor, static_cast<float>(run)));
         ASSERT_EQ(inputTensor.get_shape()[0], 1u);
         for (size_t i = 0; i < compiledModel.outputs().size(); ++i) {
             ASSERT_EQ(inferenceRequest.get_output_tensor(i).get_shape(), (Shape{1, 3, 224, 224}));
@@ -2265,7 +2267,7 @@ TEST_P(DynamicBatchingTests, DynamicBatchUseInputTensorReturnedByGetTensorWithou
 
     // Setting the same shape explicitly is a no-op for the batch
     OV_ASSERT_NO_THROW(inputTensor.set_shape(Shape{1, 3, 224, 224}));
-    fillInferAndCheckAddOne(inferenceRequest, inputTensor, 10.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(inferenceRequest, inputTensor, 10.f));
 }
 
 // The default-batch tensor is used first, then the batch is changed on the same tensor: a pipeline that already exists
@@ -2280,13 +2282,13 @@ TEST_P(DynamicBatchingTests, DynamicBatchReshapeInputTensorReturnedByGetTensorAf
     auto inferenceRequest = compiledModel.create_infer_request();
 
     auto inputTensor = inferenceRequest.get_input_tensor();
-    fillInferAndCheckAddOne(inferenceRequest, inputTensor, 1.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(inferenceRequest, inputTensor, 1.f));
 
     OV_ASSERT_NO_THROW(inputTensor.set_shape(Shape{8, 3, 224, 224}));
-    fillInferAndCheckAddOne(inferenceRequest, inputTensor, 2.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(inferenceRequest, inputTensor, 2.f));
 
     OV_ASSERT_NO_THROW(inputTensor.set_shape(Shape{1, 3, 224, 224}));
-    fillInferAndCheckAddOne(inferenceRequest, inputTensor, 3.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(inferenceRequest, inputTensor, 3.f));
 }
 
 // The output tensor is requested before the first inference (so it is allocated with the default batch), then the
@@ -2307,7 +2309,7 @@ TEST_P(DynamicBatchingTests, DynamicBatchGetOutputTensorBeforeReshapeInputTensor
     OV_ASSERT_NO_THROW(inputTensor.set_shape(Shape{8, 3, 224, 224}));
 
     // The output is queried again after the inference by the helper, as it may have been reallocated
-    fillInferAndCheckAddOne(inferenceRequest, inputTensor, 4.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(inferenceRequest, inputTensor, 4.f));
 }
 
 // The output is requested first, then the input is replaced twice with different batch sizes before the first
@@ -2328,14 +2330,14 @@ TEST_P(DynamicBatchingTests, DynamicBatchGetOutputTensorThenReplaceInputTensorTw
     OV_ASSERT_NO_THROW(inferenceRequest.set_input_tensor(inputTensor2));
     OV_ASSERT_NO_THROW(inferenceRequest.set_input_tensor(inputTensor3));
 
-    fillInferAndCheckAddOne(inferenceRequest, inputTensor3, 1.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(inferenceRequest, inputTensor3, 1.f));
     ASSERT_EQ(inferenceRequest.get_output_tensor().get_shape()[0], 3u);
 
     // Going back to the first size, and to the same size twice, keeps working
     OV_ASSERT_NO_THROW(inferenceRequest.set_input_tensor(inputTensor2));
     OV_ASSERT_NO_THROW(inferenceRequest.set_input_tensor(inputTensor3));
     OV_ASSERT_NO_THROW(inferenceRequest.set_input_tensor(inputTensor2));
-    fillInferAndCheckAddOne(inferenceRequest, inputTensor2, 2.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(inferenceRequest, inputTensor2, 2.f));
 }
 
 // Like DynamicBatchGetOutputTensorBeforeReshapeInputTensor, but the batch is changed by setting a new input tensor
@@ -2356,13 +2358,13 @@ TEST_P(DynamicBatchingTests, DynamicBatchGetOutputTensorBeforeSetInputTensor) {
     inferenceRequest.set_input_tensor(inputTensor);
 
     // The output must have the new batch after the inference (fetched again by the helper)
-    fillInferAndCheckAddOne(inferenceRequest, inputTensor, 5.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(inferenceRequest, inputTensor, 5.f));
     ASSERT_EQ(inferenceRequest.get_output_tensor().get_shape()[0], 8u);
 
     // And it keeps following the batch afterwards
     ov::Tensor biggerInputTensor(ov::element::f32, Shape{12, 3, 224, 224});
     inferenceRequest.set_input_tensor(biggerInputTensor);
-    fillInferAndCheckAddOne(inferenceRequest, biggerInputTensor, 6.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(inferenceRequest, biggerInputTensor, 6.f));
 }
 
 // Two requests of the same compiled model work with different batch sizes and their inferences are interleaved. The
@@ -2378,22 +2380,22 @@ TEST_P(DynamicBatchingTests, DynamicBatchTwoRequestsInterleavedInferences) {
 
     ov::Tensor inputA(ov::element::f32, Shape{2, 2, 64, 64});
     requestA.set_input_tensor(inputA);
-    fillInferAndCheckAddOne(requestA, inputA, 1.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(requestA, inputA, 1.f));
 
     // B gets a batch-5 input, but it does not run yet
     ov::Tensor inputB(ov::element::f32, Shape{5, 2, 64, 64});
     requestB.set_input_tensor(inputB);
 
     // A runs again with its unchanged tensor, between B's set_tensor and B's first inference
-    fillInferAndCheckAddOne(requestA, inputA, 2.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(requestA, inputA, 2.f));
 
     // B must still run with its own batch size
-    fillInferAndCheckAddOne(requestB, inputB, 3.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(requestB, inputB, 3.f));
 
     // Keep alternating
     for (size_t run = 0; run < 3; ++run) {
-        fillInferAndCheckAddOne(requestA, inputA, 10.f + static_cast<float>(run));
-        fillInferAndCheckAddOne(requestB, inputB, 20.f + static_cast<float>(run));
+        ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(requestA, inputA, 10.f + static_cast<float>(run)));
+        ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(requestB, inputB, 20.f + static_cast<float>(run)));
     }
 }
 
@@ -2411,8 +2413,8 @@ TEST_P(DynamicBatchingTests, DynamicBatchTwoRequestsInterleavedBatchChanges) {
     ov::Tensor inputB(ov::element::f32, Shape{5, 2, 64, 64});
     requestA.set_input_tensor(inputA);
     requestB.set_input_tensor(inputB);
-    fillInferAndCheckAddOne(requestA, inputA, 1.f);
-    fillInferAndCheckAddOne(requestB, inputB, 2.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(requestA, inputA, 1.f));
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(requestB, inputB, 2.f));
 
     for (size_t batch = 3; batch <= 9; ++batch) {
         // A grows with set_shape, B follows with a new tensor of a different size
@@ -2420,9 +2422,9 @@ TEST_P(DynamicBatchingTests, DynamicBatchTwoRequestsInterleavedBatchChanges) {
         ov::Tensor newInputB(ov::element::f32, Shape{10 - batch + 1, 2, 64, 64});
         requestB.set_input_tensor(newInputB);
 
-        fillInferAndCheckAddOne(requestB, newInputB, static_cast<float>(batch));
-        fillInferAndCheckAddOne(requestA, inputA, static_cast<float>(batch) + 100.f);
-        fillInferAndCheckAddOne(requestB, newInputB, static_cast<float>(batch) + 200.f);
+        ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(requestB, newInputB, static_cast<float>(batch)));
+        ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(requestA, inputA, static_cast<float>(batch) + 100.f));
+        ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(requestB, newInputB, static_cast<float>(batch) + 200.f));
     }
 }
 
@@ -2439,7 +2441,7 @@ TEST_P(DynamicBatchingTests, DynamicBatchGetOutputTensorAfterBatchChangeBeforeIn
 
     ov::Tensor inputTensor2(ov::element::f32, Shape{2, 2, 64, 64});
     inferenceRequest.set_input_tensor(inputTensor2);
-    fillInferAndCheckAddOne(inferenceRequest, inputTensor2, 1.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(inferenceRequest, inputTensor2, 1.f));
 
     ov::Tensor inputTensor3(ov::element::f32, Shape{3, 2, 64, 64});
     inferenceRequest.set_input_tensor(inputTensor3);
@@ -2459,7 +2461,7 @@ TEST_P(DynamicBatchingTests, DynamicBatchGetOutputTensorAfterBatchChangeBeforeIn
     }
 
     // And it is still the output of the request afterwards
-    fillInferAndCheckAddOne(inferenceRequest, inputTensor3, 9.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckAddOne(inferenceRequest, inputTensor3, 9.f));
     ASSERT_EQ(inferenceRequest.get_output_tensor().data(), outputTensor.data());
 }
 
@@ -2496,7 +2498,7 @@ TEST_P(DynamicBatchingTests, DynamicBatchSetSameOutputTensorAfterShrinkingIt) {
     inferenceRequest.set_input_tensor(inputTensor);
     fillSamples(inputTensor, 3);
     inferenceRequest.infer();
-    checkSamples(inferenceRequest.get_output_tensor(), 3);
+    ASSERT_NO_FATAL_FAILURE(checkSamples(inferenceRequest.get_output_tensor(), 3));
 
     auto outputTensor = context.create_host_tensor(ov::element::f32, Shape{6, 2, 64, 64});
     OV_ASSERT_NO_THROW(inferenceRequest.set_output_tensor(outputTensor));
@@ -2506,7 +2508,7 @@ TEST_P(DynamicBatchingTests, DynamicBatchSetSameOutputTensorAfterShrinkingIt) {
     fillSamples(inputTensor, 3);
     inferenceRequest.infer();
     // The results must be in the tensor set by the user, sample by sample
-    checkSamples(outputTensor, 3);
+    ASSERT_NO_FATAL_FAILURE(checkSamples(outputTensor, 3));
 }
 
 using ROITensorInference = OVInferRequestInferenceTests;

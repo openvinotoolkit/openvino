@@ -1373,7 +1373,7 @@ void fillInferAndCheckTwoInputs(ov::InferRequest& req, ov::Tensor& input0, ov::T
 void setInputsAndInferOnce(ov::InferRequest& req, ov::Tensor& input0, ov::Tensor& input1) {
     req.set_tensor("tensor_input0", input0);
     req.set_tensor("tensor_input1", input1);
-    fillInferAndCheckTwoInputs(req, input0, input1, 1.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckTwoInputs(req, input0, input1, 1.f));
 }
 
 }  // namespace
@@ -1387,12 +1387,12 @@ TEST_P(DynamicBatchedTensorsRunTests, ReshapeAllInputTensorsWithoutSetTensorInfl
 
     ov::Tensor input0(ov::element::f32, Shape{2, 2, 2, 2});
     ov::Tensor input1(ov::element::f32, Shape{2, 2, 2, 2});
-    setInputsAndInferOnce(req, input0, input1);
+    ASSERT_NO_FATAL_FAILURE(setInputsAndInferOnce(req, input0, input1));
 
     for (size_t batch = 3; batch <= DYNAMIC_BATCH_UPPER_BOUND; ++batch) {
         input0.set_shape(Shape{batch, 2, 2, 2});
         input1.set_shape(Shape{batch, 2, 2, 2});
-        fillInferAndCheckTwoInputs(req, input0, input1, static_cast<float>(batch));
+        ASSERT_NO_FATAL_FAILURE(fillInferAndCheckTwoInputs(req, input0, input1, static_cast<float>(batch)));
     }
 }
 
@@ -1403,12 +1403,12 @@ TEST_P(DynamicBatchedTensorsRunTests, ReshapeAllInputTensorsWithoutSetTensorDefl
 
     ov::Tensor input0(ov::element::f32, Shape{DYNAMIC_BATCH_UPPER_BOUND, 2, 2, 2});
     ov::Tensor input1(ov::element::f32, Shape{DYNAMIC_BATCH_UPPER_BOUND, 2, 2, 2});
-    setInputsAndInferOnce(req, input0, input1);
+    ASSERT_NO_FATAL_FAILURE(setInputsAndInferOnce(req, input0, input1));
 
     for (size_t batch = DYNAMIC_BATCH_UPPER_BOUND - 1; batch >= DYNAMIC_BATCH_LOWER_BOUND && batch > 0; --batch) {
         input0.set_shape(Shape{batch, 2, 2, 2});
         input1.set_shape(Shape{batch, 2, 2, 2});
-        fillInferAndCheckTwoInputs(req, input0, input1, static_cast<float>(batch));
+        ASSERT_NO_FATAL_FAILURE(fillInferAndCheckTwoInputs(req, input0, input1, static_cast<float>(batch)));
     }
 }
 
@@ -1420,14 +1420,14 @@ TEST_P(DynamicBatchedTensorsRunTests, ReshapeAllInputTensorsThenSetTensor) {
 
     ov::Tensor input0(ov::element::f32, Shape{2, 2, 2, 2});
     ov::Tensor input1(ov::element::f32, Shape{2, 2, 2, 2});
-    setInputsAndInferOnce(req, input0, input1);
+    ASSERT_NO_FATAL_FAILURE(setInputsAndInferOnce(req, input0, input1));
 
     for (size_t batch = 3; batch <= DYNAMIC_BATCH_UPPER_BOUND; ++batch) {
         input0.set_shape(Shape{batch, 2, 2, 2});
         input1.set_shape(Shape{batch, 2, 2, 2});
         req.set_tensor("tensor_input0", input0);
         req.set_tensor("tensor_input1", input1);
-        fillInferAndCheckTwoInputs(req, input0, input1, static_cast<float>(batch));
+        ASSERT_NO_FATAL_FAILURE(fillInferAndCheckTwoInputs(req, input0, input1, static_cast<float>(batch)));
     }
 }
 
@@ -1439,13 +1439,13 @@ TEST_P(DynamicBatchedTensorsRunTests, ReshapeAllInputTensorsAndInferTwice) {
 
     ov::Tensor input0(ov::element::f32, Shape{2, 2, 2, 2});
     ov::Tensor input1(ov::element::f32, Shape{2, 2, 2, 2});
-    setInputsAndInferOnce(req, input0, input1);
+    ASSERT_NO_FATAL_FAILURE(setInputsAndInferOnce(req, input0, input1));
 
     input0.set_shape(Shape{6, 2, 2, 2});
     input1.set_shape(Shape{6, 2, 2, 2});
-    fillInferAndCheckTwoInputs(req, input0, input1, 10.f);
-    fillInferAndCheckTwoInputs(req, input0, input1, 20.f);
-    fillInferAndCheckTwoInputs(req, input0, input1, 30.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckTwoInputs(req, input0, input1, 10.f));
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckTwoInputs(req, input0, input1, 20.f));
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckTwoInputs(req, input0, input1, 30.f));
 }
 
 // After a batch-2 inference, one input is replaced with a batch-5 tensor (set_tensor) and the other one is reshaped to
@@ -1458,23 +1458,23 @@ TEST_P(DynamicBatchedTensorsRunTests, SetTensorOnFirstInputAndReshapeSecondInput
 
     ov::Tensor input0(ov::element::f32, Shape{2, 2, 2, 2});
     ov::Tensor input1(ov::element::f32, Shape{2, 2, 2, 2});
-    setInputsAndInferOnce(req, input0, input1);
+    ASSERT_NO_FATAL_FAILURE(setInputsAndInferOnce(req, input0, input1));
 
     ov::Tensor newInput0(ov::element::f32, Shape{5, 2, 2, 2});
     req.set_tensor("tensor_input0", newInput0);
     input1.set_shape(Shape{5, 2, 2, 2});
-    fillInferAndCheckTwoInputs(req, newInput0, input1, 2.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckTwoInputs(req, newInput0, input1, 2.f));
 
     // Same thing again with bigger and smaller batches, alternating which input is replaced
     ov::Tensor newInput1(ov::element::f32, Shape{8, 2, 2, 2});
     req.set_tensor("tensor_input1", newInput1);
     newInput0.set_shape(Shape{8, 2, 2, 2});
-    fillInferAndCheckTwoInputs(req, newInput0, newInput1, 3.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckTwoInputs(req, newInput0, newInput1, 3.f));
 
     ov::Tensor smallerInput0(ov::element::f32, Shape{3, 2, 2, 2});
     req.set_tensor("tensor_input0", smallerInput0);
     newInput1.set_shape(Shape{3, 2, 2, 2});
-    fillInferAndCheckTwoInputs(req, smallerInput0, newInput1, 4.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckTwoInputs(req, smallerInput0, newInput1, 4.f));
 }
 
 // The reverse order: the first input is reshaped, the second one is replaced with set_tensor
@@ -1485,12 +1485,12 @@ TEST_P(DynamicBatchedTensorsRunTests, ReshapeFirstInputAndSetTensorOnSecondInput
 
     ov::Tensor input0(ov::element::f32, Shape{2, 2, 2, 2});
     ov::Tensor input1(ov::element::f32, Shape{2, 2, 2, 2});
-    setInputsAndInferOnce(req, input0, input1);
+    ASSERT_NO_FATAL_FAILURE(setInputsAndInferOnce(req, input0, input1));
 
     input0.set_shape(Shape{5, 2, 2, 2});
     ov::Tensor newInput1(ov::element::f32, Shape{5, 2, 2, 2});
     req.set_tensor("tensor_input1", newInput1);
-    fillInferAndCheckTwoInputs(req, input0, newInput1, 2.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckTwoInputs(req, input0, newInput1, 2.f));
 }
 
 // Only one of the two inputs is reshaped, so the batch sizes of the inputs no longer match: an error is expected
@@ -1501,7 +1501,7 @@ TEST_P(DynamicBatchedTensorsRunTests, ReshapeOnlyOneInputTensorFails) {
 
     ov::Tensor input0(ov::element::f32, Shape{2, 2, 2, 2});
     ov::Tensor input1(ov::element::f32, Shape{2, 2, 2, 2});
-    setInputsAndInferOnce(req, input0, input1);
+    ASSERT_NO_FATAL_FAILURE(setInputsAndInferOnce(req, input0, input1));
 
     input0.set_shape(Shape{5, 2, 2, 2});
     OV_EXPECT_THROW(req.infer(), ov::Exception, HasSubstr("Input tensors have different batch sizes"));
@@ -1511,7 +1511,7 @@ TEST_P(DynamicBatchedTensorsRunTests, ReshapeOnlyOneInputTensorFails) {
 
     // Updating the remaining input fixes the request
     input1.set_shape(Shape{5, 2, 2, 2});
-    fillInferAndCheckTwoInputs(req, input0, input1, 2.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckTwoInputs(req, input0, input1, 2.f));
 }
 
 // Only one of the two inputs gets a new tensor (set_tensor) with another batch size: same error as for set_shape
@@ -1522,7 +1522,7 @@ TEST_P(DynamicBatchedTensorsRunTests, SetTensorOnlyOneInputTensorFails) {
 
     ov::Tensor input0(ov::element::f32, Shape{2, 2, 2, 2});
     ov::Tensor input1(ov::element::f32, Shape{2, 2, 2, 2});
-    setInputsAndInferOnce(req, input0, input1);
+    ASSERT_NO_FATAL_FAILURE(setInputsAndInferOnce(req, input0, input1));
 
     ov::Tensor newInput0(ov::element::f32, Shape{5, 2, 2, 2});
     req.set_tensor("tensor_input0", newInput0);
@@ -1532,7 +1532,7 @@ TEST_P(DynamicBatchedTensorsRunTests, SetTensorOnlyOneInputTensorFails) {
     // Setting the other input with the same batch size fixes the request
     ov::Tensor newInput1(ov::element::f32, Shape{5, 2, 2, 2});
     req.set_tensor("tensor_input1", newInput1);
-    fillInferAndCheckTwoInputs(req, newInput0, newInput1, 3.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckTwoInputs(req, newInput0, newInput1, 3.f));
 }
 
 namespace {
@@ -1587,7 +1587,7 @@ struct SetterOrderInputs {
     }
 };
 
-const std::string OUTPUT_BATCH_MISMATCH = "Output tensor";
+const std::string OUTPUT_BATCH_MISMATCH = "while the batch size of the inputs is";
 
 // Sets 5 samples as inputs and an output tensor with another batch size, in the given setter order. Outputs never
 // decide the batch size, the inputs do: the inference must be rejected with a clear error (not run with fewer command
@@ -1615,7 +1615,7 @@ void checkMismatchedOutputIsRejectedThenFixed(ov::InferRequest& req, const bool 
     req.set_tensor("tensor_output0", matchingOutput);
     inputs.fill();
     req.infer();
-    checkAllSamplesWereComputed(req, 5, oneSampleShape);
+    ASSERT_NO_FATAL_FAILURE(checkAllSamplesWereComputed(req, 5, oneSampleShape));
     // The result is written in the tensor set by the user
     ASSERT_EQ(req.get_tensor("tensor_output0").data(), matchingOutput.data());
 }
@@ -1627,7 +1627,7 @@ TEST_P(DynamicBatchedTensorsRunTests, SetterOrderInputsThenMismatchedOutputTenso
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     auto req = createTwoInputsDynamicBatchRequest();
-    checkMismatchedOutputIsRejectedThenFixed(req, false);
+    ASSERT_NO_FATAL_FAILURE(checkMismatchedOutputIsRejectedThenFixed(req, false));
 }
 
 // Setter order: the output tensor is set before the inputs
@@ -1635,7 +1635,7 @@ TEST_P(DynamicBatchedTensorsRunTests, SetterOrderOutputTensorThenInputsMismatchI
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     auto req = createTwoInputsDynamicBatchRequest();
-    checkMismatchedOutputIsRejectedThenFixed(req, true);
+    ASSERT_NO_FATAL_FAILURE(checkMismatchedOutputIsRejectedThenFixed(req, true));
 }
 
 // The batch of the inputs grows after an inference, while the output set for the previous batch is kept
@@ -1651,7 +1651,7 @@ TEST_P(DynamicBatchedTensorsRunTests, SetterOrderBiggerInputsAfterInferenceKeepi
     req.set_tensor("tensor_output0", smallOutput);
     smallInputs.fill();
     req.infer();
-    checkAllSamplesWereComputed(req, 2, oneSampleShape);
+    ASSERT_NO_FATAL_FAILURE(checkAllSamplesWereComputed(req, 2, oneSampleShape));
 
     SetterOrderInputs bigInputs(6, oneSampleShape);
     bigInputs.set(req);
@@ -1662,7 +1662,7 @@ TEST_P(DynamicBatchedTensorsRunTests, SetterOrderBiggerInputsAfterInferenceKeepi
     req.set_tensor("tensor_output0", bigOutput);
     bigInputs.fill();
     req.infer();
-    checkAllSamplesWereComputed(req, 6, oneSampleShape);
+    ASSERT_NO_FATAL_FAILURE(checkAllSamplesWereComputed(req, 6, oneSampleShape));
 }
 
 // After a rejected inference (inputs with different batch sizes), the input that caused it is set back to the batch
@@ -1674,7 +1674,7 @@ TEST_P(DynamicBatchedTensorsRunTests, RecoverAfterRejectedInferenceBySettingTens
 
     ov::Tensor input0(ov::element::f32, Shape{2, 2, 2, 2});
     ov::Tensor input1(ov::element::f32, Shape{2, 2, 2, 2});
-    setInputsAndInferOnce(req, input0, input1);
+    ASSERT_NO_FATAL_FAILURE(setInputsAndInferOnce(req, input0, input1));
 
     ov::Tensor changedInput0(ov::element::f32, Shape{5, 2, 2, 2});
     req.set_tensor("tensor_input0", changedInput0);
@@ -1683,14 +1683,14 @@ TEST_P(DynamicBatchedTensorsRunTests, RecoverAfterRejectedInferenceBySettingTens
     // Back to the batch size of the other input, with a different tensor...
     ov::Tensor revertedInput0(ov::element::f32, Shape{2, 2, 2, 2});
     OV_ASSERT_NO_THROW(req.set_tensor("tensor_input0", revertedInput0));
-    fillInferAndCheckTwoInputs(req, revertedInput0, input1, 2.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckTwoInputs(req, revertedInput0, input1, 2.f));
 
     // ... and the request keeps accepting batch changes afterwards
     ov::Tensor newInput0(ov::element::f32, Shape{4, 2, 2, 2});
     ov::Tensor newInput1(ov::element::f32, Shape{4, 2, 2, 2});
     req.set_tensor("tensor_input0", newInput0);
     req.set_tensor("tensor_input1", newInput1);
-    fillInferAndCheckTwoInputs(req, newInput0, newInput1, 3.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckTwoInputs(req, newInput0, newInput1, 3.f));
 }
 
 // Same, but the changed input is reshaped back (set_shape, without calling its setter) to the original batch size
@@ -1701,14 +1701,14 @@ TEST_P(DynamicBatchedTensorsRunTests, RecoverAfterRejectedInferenceByReshapingIn
 
     ov::Tensor input0(ov::element::f32, Shape{2, 2, 2, 2});
     ov::Tensor input1(ov::element::f32, Shape{2, 2, 2, 2});
-    setInputsAndInferOnce(req, input0, input1);
+    ASSERT_NO_FATAL_FAILURE(setInputsAndInferOnce(req, input0, input1));
 
     ov::Tensor changedInput0(ov::element::f32, Shape{5, 2, 2, 2});
     req.set_tensor("tensor_input0", changedInput0);
     OV_EXPECT_THROW(req.infer(), ov::Exception, HasSubstr("Input tensors have different batch sizes"));
 
     changedInput0.set_shape(Shape{2, 2, 2, 2});
-    fillInferAndCheckTwoInputs(req, changedInput0, input1, 2.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckTwoInputs(req, changedInput0, input1, 2.f));
 }
 
 // The rejection can also come from a reshape: after reshaping only one input, reshaping it back recovers the request
@@ -1719,18 +1719,18 @@ TEST_P(DynamicBatchedTensorsRunTests, RecoverAfterRejectedReshapeByReshapingInpu
 
     ov::Tensor input0(ov::element::f32, Shape{2, 2, 2, 2});
     ov::Tensor input1(ov::element::f32, Shape{2, 2, 2, 2});
-    setInputsAndInferOnce(req, input0, input1);
+    ASSERT_NO_FATAL_FAILURE(setInputsAndInferOnce(req, input0, input1));
 
     input0.set_shape(Shape{5, 2, 2, 2});
     OV_EXPECT_THROW(req.infer(), ov::Exception, HasSubstr("Input tensors have different batch sizes"));
 
     input0.set_shape(Shape{2, 2, 2, 2});
-    fillInferAndCheckTwoInputs(req, input0, input1, 2.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckTwoInputs(req, input0, input1, 2.f));
 
     // Both inputs can still be moved to a new batch afterwards
     input0.set_shape(Shape{6, 2, 2, 2});
     input1.set_shape(Shape{6, 2, 2, 2});
-    fillInferAndCheckTwoInputs(req, input0, input1, 3.f);
+    ASSERT_NO_FATAL_FAILURE(fillInferAndCheckTwoInputs(req, input0, input1, 3.f));
 }
 
 // Both inputs get a tensor with a different batch size on a fresh request: reported when inferring

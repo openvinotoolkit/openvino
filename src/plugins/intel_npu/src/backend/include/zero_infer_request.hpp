@@ -112,7 +112,11 @@ protected:
     void update_dynamic_batch_size(const size_t batchSizeCandidate, const bool tensorSizeChanged);
 
     /**
-     * @brief Checks if any user input with a dynamic batch size was reshaped since the last set_tensor call.
+     * @brief Called before running. The inputs decide the batch size of the request, so this:
+     * 1. Throws if the inputs with a dynamic batch do not have the same batch size.
+     * 2. Reconciles the batch size of the request with the one of the inputs.
+     * 3. Syncs (through set_tensor) the inputs that were reshaped, or whose Level Zero tensor has another batch size,
+     *    since the last set_tensor call.
      */
     void update_batch_size_from_user_inputs();
 
