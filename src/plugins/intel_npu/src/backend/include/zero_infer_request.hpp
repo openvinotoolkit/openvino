@@ -135,6 +135,14 @@ protected:
      */
     void validate_output_batch_sizes() const;
 
+    /**
+     * @brief Synchronizes the output tensors set by the user that were reshaped (e.g. shrunk to the batch size of the
+     * inputs after being rejected by validate_output_batch_sizes) without being set again. Their Level Zero tensor and
+     * the arguments of the pipeline would otherwise keep using the previous shape. Must be called after
+     * validate_output_batch_sizes.
+     */
+    void sync_reshaped_user_outputs();
+
     virtual void prepare_inputs();
     virtual void prepare_outputs();
 

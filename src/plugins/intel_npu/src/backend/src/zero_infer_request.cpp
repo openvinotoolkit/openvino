@@ -722,6 +722,36 @@ void ZeroInferRequest::validate_output_batch_sizes() const {
     }
 }
 
+void ZeroInferRequest::sync_reshaped_user_outputs() {
+    for (const size_t outputIndex : _dynamicBatchOutputs) {
+        const auto& userOutput = _userOutputTensors.at(outputIndex);
+        if (userOutput._ptr == nullptr || userOutput->get_shape().empty()) {
+            continue;
+        }
+
+        // Outputs allocated by the plugin follow the batch size in setup_pipeline, only the tensors set by the user
+        // can be reshaped without the plugin noticing
+        if (userOutput._ptr.get() == static_cast<const ov::ITensor*>(_levelZeroOutputTensors.at(outputIndex).get())) {
+            continue;
+        }
+
+        if (is_level_zero_batch_matching(_levelZeroOutputTensors.at(outputIndex),
+                                         _metadata.outputs,
+                                         outputIndex,
+                                         userOutput->get_shape()[utils::BATCH_AXIS])) {
+            continue;
+        }
+
+        // The tensor was reshaped after it was set (e.g. back to the batch size of the inputs after being rejected
+        // by validate_output_batch_sizes), so the Level Zero tensor and the pipeline arguments are stale. Go through
+        // set_tensor to synchronize them. Copy: set_tensor modifies the stored user tensor, which the reference
+        // points to.
+        _logger.debug("sync_reshaped_user_outputs - output %zu was reshaped, synchronize it", outputIndex);
+        const ov::SoPtr<ov::ITensor> userOutputCopy = userOutput;
+        set_tensor(_compiledModel->outputs()[outputIndex], userOutputCopy);
+    }
+}
+
 bool ZeroInferRequest::is_level_zero_input_batch_matching(const size_t inputIndex, const size_t batchSize) const {
     return is_level_zero_batch_matching(get_level_zero_input(inputIndex), _metadata.inputs, inputIndex, batchSize);
 }
@@ -1245,6 +1275,7 @@ void ZeroInferRequest::prepare_inputs() {
     // batch size is per request state, so the graph mutex (shared with the other requests) is not needed here
     update_batch_size_from_user_inputs();
     validate_output_batch_sizes();
+    sync_reshaped_user_outputs();
 
     {
         std::lock_guard<std::mutex> lock(_graph->get_mutex());
