@@ -619,6 +619,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_sink,
 
 // Inputs the few-row route opens up, against a host reference: masks, partition edges, widths, batches, output layouts.
 enum class few_rows_mask { none, causal, causal_lower_right, causal_sliding, masked_tail, per_row_partition, whole_row, static_inf };
+// Random inputs, or inputs whose scores leave the f16 range: masked keys far above the unmasked ones, or a large scale
+enum class few_rows_values { random, large_masked_keys, large_scale };
 
 struct sdpa_few_rows_grid_params {
     data_types dt;
@@ -634,7 +636,8 @@ struct sdpa_few_rows_grid_params {
     bool padded_output;
     bool dynamic;
     const char* expected_kernel;
-    bool large_masked_keys;
+    few_rows_values values;
+    bool scale_input;
 };
 
 class sdpa_few_rows_grid_runner {
@@ -644,7 +647,7 @@ public:
     static constexpr const char* not_single_token = "not_single_token";
 
     explicit sdpa_few_rows_grid_runner(const sdpa_few_rows_grid_params& p) : p(p), engine(get_test_engine()), rg("sdpa_few_rows_grid") {
-        const bool has_mask_input = p.mask == few_rows_mask::masked_tail || p.mask == few_rows_mask::per_row_partition || p.mask == few_rows_mask::whole_row;
+        const bool has_mask_input = uses_mask_input();
         const auto input = [&](int batch, int rows, int head) {
             return layout({batch, num_heads, p.dynamic ? -1 : rows, head}, p.dt, format::bfyx);
         };
@@ -656,6 +659,10 @@ public:
         if (has_mask_input) {
             topo.add(input_layout("mask", p.dynamic ? layout({1, 1, -1, -1}, p.mask_dt, format::bfyx) : layout({1, 1, p.seq_q, p.seq_kv}, p.mask_dt, format::bfyx)));
             inputs.push_back(input_info("mask"));
+        }
+        if (p.scale_input) {
+            topo.add(input_layout("scale", layout({1}, p.dt, format::bfyx)));
+            inputs.push_back(input_info("scale"));
         }
         const bool is_causal = p.mask == few_rows_mask::causal || p.mask == few_rows_mask::causal_lower_right || p.mask == few_rows_mask::causal_sliding;
         const std::vector<int64_t> output_order = p.transposed_output ? std::vector<int64_t>{0, 2, 1, 3} : std::vector<int64_t>{0, 1, 2, 3};
@@ -670,7 +677,9 @@ public:
                                                  {},
                                                  false,
                                                  p.mask == few_rows_mask::causal_lower_right || p.mask == few_rows_mask::causal_sliding);
-        prim.scale_val = 1.0f;
+        if (!p.scale_input) {
+            prim.scale_val = score_scale();
+        }
         if (p.mask == few_rows_mask::causal_sliding) {
             prim.sliding_window = sliding_window;
         }
@@ -687,7 +696,7 @@ public:
         cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_opt"}}}));
         // Large scores check the sdpa_opt single-token kernel; one query row would otherwise take the micro kernel
-        if (p.large_masked_keys) {
+        if (p.values != few_rows_values::random) {
             cfg.set_property(ov::intel_gpu::enable_sdpa_micro(false));
         }
         net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
@@ -724,7 +733,7 @@ public:
                 return false;
             }
         };
-        if (p.large_masked_keys) {
+        if (p.values == few_rows_values::large_masked_keys) {
             // Q * K of a masked key (100 * 128 * head size) is far beyond the f16 range, so a mask that only lowers it by the
             // f16 minimum leaves it above the unmasked keys (Q * K = 0); their V values tell the two apart
             const auto masked_for_a_row = [&](int key) {
@@ -742,11 +751,22 @@ public:
             for (size_t i = 0; i < v_data.size(); ++i) {
                 v_data[i] = masked_for_a_row(static_cast<int>(i / p.v_head_size % seq_kv)) ? 3.0f : 1.0f;
             }
+        } else if (p.values == few_rows_values::large_scale) {
+            // Q * scale (100 * 1000) is beyond the f16 range; the scores are equal, so attention is uniform and V alternating
+            // between 1 and 3 averages to 2
+            std::fill(q_data.begin(), q_data.end(), 100.0f);
+            std::fill(k_data.begin(), k_data.end(), 1.0f);
+            for (size_t i = 0; i < v_data.size(); ++i) {
+                v_data[i] = (i / p.v_head_size % seq_kv) % 2 == 0 ? 1.0f : 3.0f;
+            }
         }
         q_data = upload("q", q_shape, q_data);
         k_data = upload("k", k_shape, k_data);
         v_data = upload("v", v_shape, v_data);
-        if (p.mask == few_rows_mask::masked_tail || p.mask == few_rows_mask::per_row_partition || p.mask == few_rows_mask::whole_row) {
+        if (p.scale_input) {
+            upload("scale", ov::PartialShape{1}, {score_scale()});
+        }
+        if (uses_mask_input()) {
             auto mask_mem = engine.allocate_memory(layout({1, 1, seq_q, seq_kv}, p.mask_dt, format::bfyx));
             std::vector<float> mask_data(static_cast<size_t>(seq_q) * seq_kv, 0.0f);
             for (int r = 0; r < seq_q; ++r) {
@@ -793,7 +813,7 @@ public:
                     }
                     for (int j = 0; j < seq_kv; ++j) {
                         const auto* k = &k_data[((static_cast<size_t>(kv_b) * num_heads + h) * seq_kv + j) * p.k_head_size];
-                        logits[j] = is_masked(r, j) ? std::numeric_limits<float>::lowest() : std::inner_product(q, q + p.k_head_size, k, 0.0f);
+                        logits[j] = is_masked(r, j) ? std::numeric_limits<float>::lowest() : score_scale() * std::inner_product(q, q + p.k_head_size, k, 0.0f);
                         max_logit = std::max(max_logit, logits[j]);
                     }
                     float denom = 0.0f;
@@ -837,6 +857,15 @@ public:
     cldnn::network::ptr net;
 
 private:
+    float score_scale() const {
+        return p.values == few_rows_values::large_scale ? 1000.0f : 1.0f;
+    }
+
+    // A scale input follows the mask input, so it comes with an all-zero mask when the case has none
+    bool uses_mask_input() const {
+        return p.mask == few_rows_mask::masked_tail || p.mask == few_rows_mask::per_row_partition || p.mask == few_rows_mask::whole_row || p.scale_input;
+    }
+
     // Sets the input in the test's data type and returns the values as stored, for the reference
     std::vector<float> upload(const primitive_id& id, const ov::PartialShape& shape, std::vector<float> data) {
         const auto dt = p.dt;
@@ -862,7 +891,9 @@ struct sdpa_few_rows_grid_test : public ::testing::TestWithParam<sdpa_few_rows_g
         const auto& p = info.param;
         return ov::element::Type(p.dt).get_type_name() + "_" + ov::element::Type(p.mask_dt).get_type_name() + "_k" + std::to_string(p.k_head_size) + "_v" + std::to_string(p.v_head_size) + "_q" +
                std::to_string(p.seq_q) + "_kv" + std::to_string(p.seq_kv) + "_mask" + std::to_string(static_cast<int>(p.mask)) + "_b" + std::to_string(p.batch) +
-               "x" + std::to_string(p.kv_batch) + (p.transposed_output ? "_outT" : "") + (p.padded_output ? "_pad" : "") + (p.dynamic ? "_dyn" : "_static") + (p.large_masked_keys ? "_large" : "");
+               "x" + std::to_string(p.kv_batch) + (p.transposed_output ? "_outT" : "") + (p.padded_output ? "_pad" : "") + (p.dynamic ? "_dyn" : "_static") +
+               (p.values == few_rows_values::large_masked_keys ? "_large" : p.values == few_rows_values::large_scale ? "_large_scale" : "") +
+               (p.scale_input ? "_scale_input" : "");
     }
 };
 
@@ -877,9 +908,10 @@ static std::vector<sdpa_few_rows_grid_params> few_rows_grid() {
     const auto f32 = data_types::f32;
     const auto multi = sdpa_few_rows_grid_runner::not_single_token;
     std::vector<sdpa_few_rows_grid_params> cases;
-    const auto add = [&](data_types dt, data_types mask_dt, int k, int v, int q, int kv, few_rows_mask mask, int b = 1, int kv_b = 1, bool t = false, bool pad = false, const char* kernel = "_single_", bool large = false) {
-        cases.push_back({dt, mask_dt, k, v, q, kv, mask, b, kv_b, t, pad, false, kernel, large});
-        cases.push_back({dt, mask_dt, k, v, q, kv, mask, b, kv_b, t, pad, true, kernel, large});
+    const auto add = [&](data_types dt, data_types mask_dt, int k, int v, int q, int kv, few_rows_mask mask, int b = 1, int kv_b = 1, bool t = false, bool pad = false, const char* kernel = "_single_",
+                         few_rows_values values = few_rows_values::random, bool scale_input = false) {
+        cases.push_back({dt, mask_dt, k, v, q, kv, mask, b, kv_b, t, pad, false, kernel, values, scale_input});
+        cases.push_back({dt, mask_dt, k, v, q, kv, mask, b, kv_b, t, pad, true, kernel, values, scale_input});
     };
     // Partition edges and head sizes
     for (int kv : {17, 256, 257, 513}) {
@@ -896,11 +928,17 @@ static std::vector<sdpa_few_rows_grid_params> few_rows_grid() {
     add(f32, f32, 64, 64, 1, 512, few_rows_mask::masked_tail, 1, 1, false, false, "");
     // Scores beyond the f16 range: masked keys stay out with an f16 or f32 mask and with causal masking, for one and several rows
     for (const auto mask_dt : {f16, f32}) {
-        add(f16, mask_dt, 64, 64, 3, 512, few_rows_mask::masked_tail, 1, 1, false, false, "_single_", true);
-        add(f16, mask_dt, 64, 64, 1, 512, few_rows_mask::masked_tail, 1, 1, false, false, "", true);
+        add(f16, mask_dt, 64, 64, 3, 512, few_rows_mask::masked_tail, 1, 1, false, false, "_single_", few_rows_values::large_masked_keys);
+        add(f16, mask_dt, 64, 64, 1, 512, few_rows_mask::masked_tail, 1, 1, false, false, "", few_rows_values::large_masked_keys);
     }
-    add(f16, f16, 64, 64, 3, 512, few_rows_mask::causal_lower_right, 1, 1, false, false, "_single_", true);
-    add(f16, f16, 64, 64, 1, 512, few_rows_mask::causal, 1, 1, false, false, "", true);
+    add(f16, f16, 64, 64, 3, 512, few_rows_mask::causal_lower_right, 1, 1, false, false, "_single_", few_rows_values::large_masked_keys);
+    add(f16, f16, 64, 64, 1, 512, few_rows_mask::causal, 1, 1, false, false, "", few_rows_values::large_masked_keys);
+    // Q * scale beyond the f16 range, with a constant scale and a scale input
+    for (const bool scale_input : {false, true}) {
+        for (int q : {1, 2, 3, 4}) {
+            add(f16, f16, 64, 64, q, 512, few_rows_mask::none, 1, 1, false, false, q == 1 ? "" : "_single_", few_rows_values::large_scale, scale_input);
+        }
+    }
     add(f16, f16, 64, 64, 3, 600, few_rows_mask::causal);
     add(f16, f16, 64, 64, 3, 600, few_rows_mask::causal_lower_right);
     add(f16, f16, 64, 64, 3, 600, few_rows_mask::causal_sliding);
@@ -925,7 +963,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_few_rows_grid,
 
 // One dynamic network: internal buffers and stages must follow the rows and keys of each call.
 TEST(sdpa_few_rows_grid_shapes, rows_and_keys_change_between_calls) {
-    sdpa_few_rows_grid_params p{data_types::f16, data_types::f16, 64, 64, 1, 512, few_rows_mask::none, 1, 1, false, false, true, "_single_", false};
+    sdpa_few_rows_grid_params p{data_types::f16, data_types::f16, 64, 64, 1, 512, few_rows_mask::none, 1, 1, false, false, true, "_single_", few_rows_values::random, false};
     sdpa_few_rows_grid_runner runner(p);
     const std::vector<std::tuple<int, int, const char*>> calls = {{1, 512, ""},
                                                                   {3, 512, "_single_"},

@@ -283,12 +283,13 @@ KERNEL(sdpa_opt)(
 
         {
             // Gemm1 calculation
+            // The scale applies to the f32 score: Q * scale stored as half overflows for large valid scales
 #if HAS_SCALE_INPUT
-            const OUTPUT_COMPUTE_TYPE scale_val = TO_OUTPUT_COMPUTE_TYPE(*scale);
+            const SOFTMAX_ACCUMULATOR_TYPE scale_val = TO_SOFTMAX_ACCUMULATOR_TYPE(*scale);
 #elif defined(STATIC_SCALE_VALUE)
-            const OUTPUT_COMPUTE_TYPE scale_val = TO_OUTPUT_COMPUTE_TYPE(STATIC_SCALE_VALUE);
+            const SOFTMAX_ACCUMULATOR_TYPE scale_val = TO_SOFTMAX_ACCUMULATOR_TYPE(STATIC_SCALE_VALUE);
 #else
-            const OUTPUT_COMPUTE_TYPE scale_val = OUTPUT_VAL_ONE / sqrt(TO_OUTPUT_COMPUTE_TYPE(V_HEAD_SIZE));
+            const SOFTMAX_ACCUMULATOR_TYPE scale_val = SOFTMAX_ACCUMULATOR_VAL_ONE / sqrt(TO_SOFTMAX_ACCUMULATOR_TYPE(V_HEAD_SIZE));
 #endif
             #if K_HEAD_SIZE > V_HEAD_SIZE
             for (uint block_idx = sgid; block_idx < K_HEAD_SIZE / SUBGROUP_SIZE; block_idx++)
@@ -317,7 +318,7 @@ KERNEL(sdpa_opt)(
                         #define QUERY_BLOCK_SIZE 1
 
                         INPUT0_TYPE val = BLOCK_READN(INPUT0_TYPE, QUERY_BLOCK_SIZE, query_input, query_offset);
-                        query_local[query_local_offset] = DECODE_INPUT0_COMPUTE_TYPE(val) * scale_val;
+                        query_local[query_local_offset] = DECODE_INPUT0_COMPUTE_TYPE(val);
                         query_local_offset += QUERY_STEP_LOCAL;
                         query_offset += query_pitch;
                     }
@@ -570,7 +571,7 @@ KERNEL(sdpa_opt)(
                     // Iterate over all values QK values in SLM and apply scale and attention mask
                     for (uint seq_len = sgid * SUBGROUP_SIZE + sglid; seq_len < partition_seq_len; seq_len += (SUBGROUPS_PER_WG * SUBGROUP_SIZE)) {
                         // Read value from SLM and apply scale
-                        qk_val[seq_idx] = qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + seq_len];
+                        qk_val[seq_idx] = qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + seq_len] * scale_val;
 
                         // Apply attention mask
 #if IS_CAUSAL
