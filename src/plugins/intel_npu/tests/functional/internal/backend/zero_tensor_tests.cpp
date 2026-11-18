@@ -19,12 +19,17 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
+#include "intel_npu/utils/stable_tensor_view.hpp"
 #include "intel_npu/utils/zero/zero_host_tensor.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_tensor.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "remote_context.hpp"
@@ -333,6 +338,73 @@ TEST_P(ZeroTensorTests, CopyHostTensorAndKeepAlive) {
     ASSERT_TRUE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(),
                                                                             copy_zero_tensor->data()));
     ASSERT_THROW(copy_zero_tensor->set_shape({1, 20, 20, 20}), ov::Exception);
+}
+
+TEST_P(ZeroTensorTests, ReshapedHostViewRetainsItsBindingAcrossDetachCalls) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    std::shared_ptr<::intel_npu::IEngineBackend> engine_backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
+    auto zero_context = std::make_shared<::intel_npu::RemoteContextImpl>(engine_backend);
+    auto host = std::make_shared<::intel_npu::ZeroHostTensor>(zero_context, init_struct, element_type, Shape{4, 8});
+    auto view = std::make_shared<::intel_npu::StableTensorView>(ov::SoPtr<ov::ITensor>(host), Shape{2, 16});
+    auto bound = std::make_shared<::intel_npu::ZeroTensor>(init_struct, view);
+    auto nested = std::make_shared<::intel_npu::StableTensorView>(ov::SoPtr<ov::ITensor>(view), Shape{8, 4});
+    auto nested_bound = std::make_shared<::intel_npu::ZeroTensor>(init_struct, nested);
+    void* address = host->data();
+    host.reset();
+    view.reset();
+
+    for (int i = 0; i < 3; ++i) {
+        bound->detach_imported_allocation_for_custom_tensor();
+        EXPECT_EQ(bound->data(), address);
+        nested_bound->detach_imported_allocation_for_custom_tensor();
+        EXPECT_EQ(nested_bound->data(), address);
+    }
+
+    auto generic_view = ov::make_tensor(element_type, Shape{2, 16}, address);
+    auto generic_bound = std::make_shared<::intel_npu::ZeroTensor>(init_struct, generic_view);
+    generic_bound->detach_imported_allocation_for_custom_tensor();
+    EXPECT_EQ(generic_bound->data(), nullptr);
+    generic_bound->allocate_data();
+    EXPECT_EQ(generic_bound->data(), address);
+
+    auto custom_view =
+        std::make_shared<::intel_npu::StableTensorView>(ov::SoPtr<ov::ITensor>(generic_view), Shape{4, 8});
+    auto custom_bound = std::make_shared<::intel_npu::ZeroTensor>(init_struct, custom_view);
+    custom_bound->detach_imported_allocation_for_custom_tensor();
+    EXPECT_EQ(custom_bound->data(), nullptr);
+}
+
+TEST_P(ZeroTensorTests, ReshapedHostViewWorksAcrossRepeatedInference) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, Shape{2, 16});
+    auto one = ov::op::v0::Constant::create(ov::element::f32, Shape{}, {1.0f});
+    auto add = std::make_shared<ov::op::v1::Add>(parameter, one);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(add)},
+                                             ov::ParameterVector{parameter});
+    auto compiled = core->compile_model(model, target_device, configuration);
+    auto request = compiled.create_infer_request();
+
+    std::shared_ptr<::intel_npu::IEngineBackend> engine_backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
+    auto zero_context = std::make_shared<::intel_npu::RemoteContextImpl>(engine_backend);
+    auto host = std::make_shared<::intel_npu::ZeroHostTensor>(zero_context, init_struct, ov::element::f32, Shape{4, 8});
+    auto* data = static_cast<float*>(host->data());
+    std::fill_n(data, 32, 2.0f);
+    auto view = std::make_shared<::intel_npu::StableTensorView>(ov::SoPtr<ov::ITensor>(host), Shape{2, 16});
+    auto input = ov::make_tensor(ov::SoPtr<ov::ITensor>(view));
+    request.set_input_tensor(input);
+    host.reset();
+    view.reset();
+
+    for (int i = 0; i < 3; ++i) {
+        request.infer();
+        const auto output = request.get_output_tensor();
+        ASSERT_EQ(output.get_shape(), (Shape{2, 16}));
+        for (std::size_t j = 0; j < 32; ++j) {
+            EXPECT_FLOAT_EQ(output.data<const float>()[j], 3.0f);
+        }
+    }
 }
 
 TEST_P(ZeroTensorTests, CopyRemoteTensorAndKeepAlive) {

@@ -57,6 +57,8 @@ const constexpr ov::npuw::s11n::IndicatorType NPUW_BATCHED_COMPILED_MODEL_INDICA
     {char{0x42}, char{0x41}, char{0x54}, char{0x43}, char{0x4d}, char{0x4f}};
 
 const constexpr char* NPUW_SERIALIZATION_VERSION = "0.36";
+// LLM 0.37 adds view references to the bank payload; the reader also accepts 0.36.
+const constexpr char* NPUW_LLM_SERIALIZATION_VERSION = "0.37";
 
 // Forward declaration
 namespace intel_npu {
