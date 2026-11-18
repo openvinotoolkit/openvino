@@ -17,9 +17,6 @@ bool ov::pass::pattern::op::WrapType::match_value(Matcher* matcher,
         return false;
     }
 
-    // Checks are ordered from cheapest to most expensive: input arity (integer compare),
-    // wrapped type (type-hierarchy walk), predicate (user code), then recursive argument
-    // matching. This also guarantees the predicate can safely inspect the expected inputs.
     if (get_input_size() != 0 && get_input_size() != graph_value.get_node()->get_input_size()) {
         OPENVINO_LOG_WRAPTYPE5(matcher, get_input_size(), graph_value.get_node()->get_input_size());
         return false;
