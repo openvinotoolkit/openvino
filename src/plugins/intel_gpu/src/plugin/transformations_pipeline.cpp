@@ -1963,7 +1963,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
         // After the horizontal fusion, so that the scales of a merged gate/up FC are the ones scaled.
         // ActivationsScaling, when enabled, already scales every MatMul.
-        if (infer_precision == ov::element::f16 && !(config.get_activations_scale_factor() > 0.f)) {
+        if (infer_precision == ov::element::f16 && !(config.get_activations_scale_factor() > 0.F)) {
             manager.register_pass<ov::intel_gpu::ScaleDownGatedMLPInput>();
         }
 
