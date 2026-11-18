@@ -28,10 +28,9 @@ namespace ov::npuw {
  *             Multiply                                           │
  *                 │                                              │
  *
- * [ ] marks optional nodes; Multiply inputs may be in either order. Applied only when the
+ * [ ] marks optional nodes; Subtract and Multiply inputs may be in either order. Applied only when the
  * Multiply output has a static shape with exactly one element, so compressed weights stay
- * untouched. The value is computed by evaluating the matched ops (constantfold_subgraph),
- * not by bound estimation, so no type-range clamping is introduced.
+ * untouched.
  */
 class FoldScalarDQ : public ov::pass::GraphRewrite {
 public:

@@ -15,6 +15,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace opp = ov::pass::pattern;
@@ -28,10 +29,13 @@ public:
         auto weight_convert = opp::wrap_type<ov::op::v0::Convert>({weight});
         auto zero_point = opp::wrap_type<ov::op::v0::Constant>();
         auto zero_point_convert = opp::optional<ov::op::v0::Convert>({zero_point});
-        auto subtract = opp::optional<ov::op::v1::Subtract>({weight_convert, zero_point_convert});
+        auto weight_minus_zp = opp::wrap_type<ov::op::v1::Subtract>({weight_convert, zero_point_convert});
+        auto zp_minus_weight = opp::wrap_type<ov::op::v1::Subtract>({zero_point_convert, weight_convert});
+        auto multiply_input_or =
+            std::make_shared<opp::op::Or>(ov::OutputVector{weight_convert, weight_minus_zp, zp_minus_weight});
         auto scale = opp::wrap_type<ov::op::v0::Constant>();
         auto scale_convert = opp::optional<ov::op::v0::Convert>({scale});
-        auto multiply = opp::wrap_type<ov::op::v1::Multiply>({subtract, scale_convert});
+        auto multiply = opp::wrap_type<ov::op::v1::Multiply>({multiply_input_or, scale_convert});
 
         ov::matcher_pass_callback callback = [=](opp::Matcher& matcher) {
             const auto multiply_node = matcher.get_pattern_value_map().at(multiply).get_node_shared_ptr();
