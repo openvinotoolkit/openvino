@@ -304,6 +304,8 @@ void ov::npuw::pa::relayout_token_major(const std::shared_ptr<ov::Model>& model,
         if (token_inputs.empty()) {
             return false;
         }
+        // The dropped dimension must be 1 in the output too, not one an operand broadcasts into.
+        token_shapes.push_back(op->get_output_shape(0));
         const auto drop = shared_singleton(token_shapes);
         if (!drop) {
             return false;
@@ -321,8 +323,9 @@ void ov::npuw::pa::relayout_token_major(const std::shared_ptr<ov::Model>& model,
             const auto& act = matmul->get_input_partial_shape(0);
             const auto& rhs = matmul->get_input_partial_shape(1);
             if (!matmul->get_transpose_a() && is_token_major(act) && rhs.rank().get_length() == 2) {
-                // A batch of single-row GEMVs against one weight matrix.
-                if (const auto drop = shared_singleton({matmul->get_input_shape(0)})) {
+                // A batch of single-row GEMVs against one weight matrix. The output keeps
+                // the contraction dimension out of the choice.
+                if (const auto drop = shared_singleton({matmul->get_input_shape(0), matmul->get_output_shape(0)})) {
                     rebatch(matmul, {0}, *drop);
                     changed = true;
                 }
