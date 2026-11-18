@@ -447,6 +447,28 @@ void disable_ws_for_int8_whisper(ov::AnyMap& config) {
     config.erase("NPUW_CWAI");
 }
 
+template <typename Option>
+bool get_bool_option(const ov::AnyMap& config) {
+    const auto it = config.find(std::string(Option::key()));
+    if (it == config.end()) {
+        return Option::defaultValue();
+    }
+    if (it->second.template is<bool>()) {
+        return it->second.template as<bool>();
+    }
+    return ::intel_npu::OptionParser<bool>::parse(it->second.template as<std::string>());
+}
+
+// The shared vocabulary saves memory only when partitioning turns it into one i8 closure for the
+// embedding and the LM head. That happens only if the subgraphs with the vocabulary become functions
+// (NPUW_FOLD and NPUW_FUNCALL_FOR_ALL) and NPUW_HOST_GATHER is on. Otherwise the Sub128 shifts reach
+// the compiler as they are: no memory is saved, and the LM head becomes several times slower.
+bool vocab_is_closure(const ov::AnyMap& config) {
+    return get_bool_option<::intel_npu::NPUW_FOLD>(config) &&
+           get_bool_option<::intel_npu::NPUW_FUNCALL_FOR_ALL>(config) &&
+           get_bool_option<::intel_npu::NPUW_HOST_GATHER>(config);
+}
+
 void update_config_for_text_embed(ov::AnyMap& config) {
     config.erase("NPUW_SLICE_OUT");
 }
@@ -884,12 +906,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         m_cfg.update({{"NPUW_LLM_SHARED_HEAD", "NO"}});
         m_cfg.update({{"NPUW_LLM_PREFILL_CHUNK_SIZE", "0"}});
         m_cfg.update({{"NPUW_LLM_CACHE_ROPE", "NO"}});
-        // Shared vocabulary handling makes the decoding of INT4 Whisper models several times slower
-        // in the default (not folded) configuration, so it is not used for Whisper.
-        if (m_cfg.get<::intel_npu::NPUW_LLM_VOCAB_ASYM_SHARED>()) {
-            LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is not used for Whisper and is turned off.");
-            m_cfg.update({{"NPUW_LLM_VOCAB_ASYM_SHARED", "NO"}});
-        }
 
         m_eos_token_id = m_cfg.get<::intel_npu::NPUW_WHISPER_EOS_TOKEN>();
     }
@@ -980,6 +996,42 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("Creating kvcache model as clone of passed one.");
     auto kvcache_model = model->clone();
 
+    // The stage configs are assembled later in this constructor. NPUW_FOLD, NPUW_FUNCALL_FOR_ALL and
+    // NPUW_HOST_GATHER come only from these parts of them, so their values are computed here.
+    const auto vocab_is_closure_in_all_stages = [&]() {
+        const bool int8_whisper = m_is_whisper && is_int8_compressed(model);
+        const auto stage_config = [&](ov::AnyMap config, const std::optional<ov::Any>& addition, bool whisper_stage) {
+            merge_config_with(config, other_props);
+            if (addition.has_value()) {
+                merge_config_with(config, addition.value().as<ov::AnyMap>());
+            }
+            if (whisper_stage && int8_whisper) {
+                disable_ws_for_int8_whisper(config);
+            }
+            return config;
+        };
+        const auto generate_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_HINT>();
+        const auto prefill_config =
+            stage_config(prefill_config_opt.value_or(get_default_prefill_config(model, npudesc)).as<ov::AnyMap>(),
+                         prefill_config_addition,
+                         true);
+        const auto generate_config = stage_config(
+            generate_config_opt.value_or(get_default_generate_config(npudesc, generate_hint)).as<ov::AnyMap>(),
+            generate_config_addition,
+            true);
+        bool result = vocab_is_closure(prefill_config) && vocab_is_closure(generate_config);
+        if (m_cfg.get<::intel_npu::NPUW_LLM_SHARED_HEAD>()) {
+            result = result && vocab_is_closure(
+                                   stage_config(get_default_lm_head_config(npudesc), lm_head_config_addition, false));
+        }
+        return result;
+    };
+
+    if (m_cfg.get<::intel_npu::NPUW_LLM_VOCAB_ASYM_SHARED>() && !vocab_is_closure_in_all_stages()) {
+        LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is turned off: it needs NPUW_FOLD, NPUW_FUNCALL_FOR_ALL and "
+                 "NPUW_HOST_GATHER in every stage.");
+        m_cfg.update({{"NPUW_LLM_VOCAB_ASYM_SHARED", "NO"}});
+    }
     if (m_cfg.get<::intel_npu::NPUW_LLM_VOCAB_ASYM_SHARED>()) {
         bool shared_vocab = false;
         ov::npuw::DetectVocabSharing detect_vocab_sharing(shared_vocab);

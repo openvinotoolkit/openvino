@@ -895,10 +895,9 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, ArchAutoDetectSkipsNpuTilesInDefaultS
 
     for (const auto* call : {&prefill, &generate, &head}) {
         expect_missing_prop(call->props, "NPU_TILES");
-        expect_prop(
-            call->props,
-            "NPU_COMPILATION_MODE_PARAMS",
-            "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm");
+        expect_prop(call->props,
+                    "NPU_COMPILATION_MODE_PARAMS",
+                    "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm");
     }
 }
 
@@ -1275,9 +1274,8 @@ void share_u8_asym_vocabulary(const std::shared_ptr<ov::Model>& model) {
     auto weight = ov::op::v0::Constant::create(ov::element::u8,
                                                vocab_shape,
                                                std::vector<uint8_t>(ov::shape_size(vocab_shape), 200));
-    auto zero_point = ov::op::v0::Constant::create(ov::element::u8,
-                                                   channel_shape,
-                                                   std::vector<uint8_t>(vocab_shape[0], 128));
+    auto zero_point =
+        ov::op::v0::Constant::create(ov::element::u8, channel_shape, std::vector<uint8_t>(vocab_shape[0], 128));
     auto scale =
         ov::op::v0::Constant::create(ov::element::f32, channel_shape, std::vector<float>(vocab_shape[0], 0.01f));
     auto dequantize = [&]() -> ov::Output<ov::Node> {
@@ -1301,26 +1299,65 @@ std::size_t count_sub128_shifts(const std::shared_ptr<ov::Model>& model) {
     });
 }
 
-TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperDoesNotUseSharedVocabulary) {
-    auto model = build_whisper_decoder_model();
-    share_u8_asym_vocabulary(model);
-    bool shared = false;
-    ov::npuw::DetectVocabSharing(shared).run_on_model(model->clone());
-    ASSERT_TRUE(shared) << "The test model must have a shared u8 asymmetric vocabulary";
+class LLMCompiledModelSharedVocabularyTest : public LLMCompiledModelFactoryOptionsTest {
+protected:
+    // Compiles the synthetic Whisper decoder with a shared u8 asymmetric vocabulary and returns the number
+    // of Sub128 shifts in the prefill and in the generate model.
+    std::pair<std::size_t, std::size_t> compile_with_shared_vocabulary(const ov::AnyMap& extra_props) {
+        auto model = build_whisper_decoder_model();
+        share_u8_asym_vocabulary(model);
+        bool shared = false;
+        ov::npuw::DetectVocabSharing(shared).run_on_model(model->clone());
+        EXPECT_TRUE(shared) << "The test model must have a shared u8 asymmetric vocabulary";
 
-    RecordingFactory recorder;
-    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
-    ASSERT_NO_THROW(compiled = create_compiled_model(model,
-                                                     {{"NPUW_WHISPER", "YES"},
-                                                      {"NPUW_WHISPER_EOS_TOKEN", "42"},
-                                                      {"NPUW_LLM_VOCAB_ASYM_SHARED", "YES"}},
-                                                     recorder));
-    ASSERT_NE(compiled, nullptr);
+        ov::AnyMap props = {{"NPUW_WHISPER", "YES"},
+                            {"NPUW_WHISPER_EOS_TOKEN", "42"},
+                            {"NPUW_LLM_VOCAB_ASYM_SHARED", "YES"}};
+        props.insert(extra_props.begin(), extra_props.end());
 
-    const auto& prefill = require_call(recorder, "_prefill");
-    const auto& generate = require_call_containing(recorder, "_kv");
-    EXPECT_EQ(count_sub128_shifts(prefill.model), 0u);
-    EXPECT_EQ(count_sub128_shifts(generate.model), 0u);
+        RecordingFactory recorder;
+        std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+        EXPECT_NO_THROW(compiled = create_compiled_model(model, props, recorder));
+        EXPECT_NE(compiled, nullptr);
+        const auto* prefill = recorder.find_suffix("_prefill");
+        EXPECT_NE(prefill, nullptr);
+        EXPECT_EQ(recorder.count_contains("_kv"), 1u);
+        if (prefill == nullptr || recorder.count_contains("_kv") != 1u) {
+            return {std::size_t{0}, std::size_t{0}};
+        }
+        const auto& generate = require_call_containing(recorder, "_kv");
+        return std::make_pair(count_sub128_shifts(prefill->model), count_sub128_shifts(generate.model));
+    }
+};
+
+// GenAI compiles Whisper on NPU this way by default: the vocabulary is not a closure.
+TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsNotUsedWithoutFunctions) {
+    const auto shifts = compile_with_shared_vocabulary({{"NPUW_FOLD", "NO"}, {"NPUW_FUNCALL_FOR_ALL", "NO"}});
+    EXPECT_EQ(shifts.first, 0u);
+    EXPECT_EQ(shifts.second, 0u);
+}
+
+TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsUsedWhenVocabularyIsClosure) {
+    const auto shifts = compile_with_shared_vocabulary({{"NPUW_FOLD", "YES"}, {"NPUW_FUNCALL_FOR_ALL", "YES"}});
+    // The weight and the zero point of the LM head are shifted.
+    EXPECT_EQ(shifts.first, 2u);
+    EXPECT_EQ(shifts.second, 2u);
+}
+
+TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsNotUsedIfOneStageHasNoFunctions) {
+    const auto shifts =
+        compile_with_shared_vocabulary({{"NPUW_FOLD", "YES"},
+                                        {"NPUW_FUNCALL_FOR_ALL", "YES"},
+                                        {"++NPUW_LLM_GENERATE_CONFIG", ov::AnyMap{{"NPUW_FUNCALL_FOR_ALL", "NO"}}}});
+    EXPECT_EQ(shifts.first, 0u);
+    EXPECT_EQ(shifts.second, 0u);
+}
+
+TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsNotUsedWithoutHostGather) {
+    const auto shifts = compile_with_shared_vocabulary(
+        {{"NPUW_FOLD", "YES"}, {"NPUW_FUNCALL_FOR_ALL", "YES"}, {"NPUW_HOST_GATHER", "NO"}});
+    EXPECT_EQ(shifts.first, 0u);
+    EXPECT_EQ(shifts.second, 0u);
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperPreparationAddsKvCacheInputsAndPresentOutputs) {
