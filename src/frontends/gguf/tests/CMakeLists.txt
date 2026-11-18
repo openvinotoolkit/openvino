@@ -27,6 +27,7 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/helper_ops/gguf_constant.cpp"
     "${FE_SRC_DIR}/pass/adapt_to_genai.cpp"
     "${FE_SRC_DIR}/pass/adapt_mmproj_to_genai.cpp"
+    "${FE_SRC_DIR}/genai_adaptation.cpp"
     "${FE_SRC_DIR}/pass/lower_set_rows_stateless.cpp"
     "${FE_SRC_DIR}/pass/isolate_precision_sensitive_outputs.cpp"
     "${FE_SRC_DIR}/pass/make_stateful.cpp"

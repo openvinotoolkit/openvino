@@ -45,7 +45,7 @@ private:
 
     JitConstants GetJitConstants(const random_uniform_params &params) const;
 
-    CommonDispatchData SetDefault(const random_uniform_params &params) const;
+    static CommonDispatchData SetDefault(const random_uniform_params& params);
 };
 
 } /* namespace kernel_selector */

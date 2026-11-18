@@ -44,7 +44,7 @@ namespace ov::intel_gpu {
 
 namespace {
 
-constexpr float optimum_intel_default_asf = 8.0f;
+constexpr float optimum_intel_default_asf = 8.0F;
 
 ov::RTMap get_rt_info(const ov::Model& model) {
     ov::RTMap rt_info;
