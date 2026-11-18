@@ -169,7 +169,8 @@ class ConvertGroupedMatMulToMatMulCompressed
       public testing::WithParamInterface<std::tuple<ov::element::Type, std::vector<int32_t>>> {};
 
 TEST_P(ConvertGroupedMatMulToMatMulCompressed, PreservesExpertQuantization) {
-    const auto& [weight_type, ends] = GetParam();
+    const auto weight_type = std::get<0>(GetParam());
+    const auto& ends = std::get<1>(GetParam());
     const size_t groups = ends.size();
     constexpr size_t width = 8, channels = 256;
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
