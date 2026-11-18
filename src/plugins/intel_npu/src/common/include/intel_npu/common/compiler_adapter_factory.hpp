@@ -19,8 +19,7 @@ namespace intel_npu {
 /**
  * @brief Creates an adapter for the selected NPU compiler.
  *
- * A factory is bound to one backend and one VCL provider. A plugin has one VCL loader holder, which loads the library
- * at most once and holds one set of entry points, and one factory for its backend and provider.
+ * A factory is bound to one backend and one VCL provider.
  *
  * Share one instance, for example through a `std::shared_ptr<const CompilerAdapterFactory>`, among requests that use
  * the same backend and provider.
