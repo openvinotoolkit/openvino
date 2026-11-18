@@ -60,6 +60,7 @@ set(op_list
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/qlinear_where.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/quick_gelu.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/range.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/rfft.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/rotary_embedding.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/simplified_layer_normalization.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/skip_layer_normalization.cpp
