@@ -41,7 +41,7 @@ JitConstants ExtractImagePatchesKernelBase::GetJitConstants(const extract_image_
     return jit;
 }
 
-ExtractImagePatchesKernelBase::DispatchData ExtractImagePatchesKernelBase::SetDefault(const extract_image_patches_params& params) const {
+ExtractImagePatchesKernelBase::DispatchData ExtractImagePatchesKernelBase::SetDefault(const extract_image_patches_params& params) {
     DispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();

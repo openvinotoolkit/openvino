@@ -2,10 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "openvino_intel_gpu_ocl_obj${OV_GPU_SUFFIX}")
+set(TARGET_NAME "openvino_intel_gpu_ocl_backend${OV_GPU_SUFFIX}")
+
+include(${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
 
 ov_gpu_add_backend_target(
     NAME ${TARGET_NAME}
+    SOURCES ${GPU_OCL_IMPL_SOURCES}
 )
 
 ov_build_target_faster(${TARGET_NAME} PCH)

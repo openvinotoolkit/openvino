@@ -22,13 +22,8 @@ KERNEL(softmax_topk)(
     __local MOE_DTYPE local_output[TOP_K];
     __local uint local_index[TOP_K];
 
-#if MOE_DTYPE_SIZE == 2
-    MOE_DTYPE in_value = as_half(intel_sub_group_block_read_us((const __global ushort*)(input)));
-#elif MOE_DTYPE_SIZE == 4
-    MOE_DTYPE in_value = as_float(intel_sub_group_block_read((const __global uint*)(input)));
-#else
-#    error "softmax_topk: unsupported MOE_DTYPE_SIZE"
-#endif
+    // A sub-group block read would read SIMD-width elements and overrun the buffer when sort_cnt < SIMD.
+    MOE_DTYPE in_value = input[0];
     local_input[sort_index] = in_value;
     barrier(CLK_LOCAL_MEM_FENCE);
 
@@ -93,13 +88,7 @@ KERNEL(sigmoid_bias_topk)(
     __local uint local_index[TOP_K];
 
     // Compute sigmoid
-#if MOE_DTYPE_SIZE == 2
-    MOE_DTYPE in_value = as_half(intel_sub_group_block_read_us((const __global ushort*)(input)));
-#elif MOE_DTYPE_SIZE == 4
-    MOE_DTYPE in_value = as_float(intel_sub_group_block_read((const __global uint*)(input)));
-#else
-#    error "sigmoid_bias_topk: unsupported MOE_DTYPE_SIZE"
-#endif
+    MOE_DTYPE in_value = input[0];
     MOE_DTYPE sigmoid_val = (MOE_DTYPE)(1.0f / (1.0f + native_exp(-(float)in_value)));
 
     // Add bias for selection (determines which experts are chosen)

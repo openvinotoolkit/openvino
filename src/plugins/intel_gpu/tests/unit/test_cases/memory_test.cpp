@@ -2,22 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-#include "random_generator.hpp"
+#include <fully_connected_inst.h>
+#include <primitive_inst.h>
 
-#include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/activation.hpp>
-#include <intel_gpu/primitives/pooling.hpp>
 #include <intel_gpu/primitives/concatenation.hpp>
-#include <intel_gpu/primitives/data.hpp>
-#include "intel_gpu/primitives/fully_connected.hpp"
-#include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/crop.hpp>
+#include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/grid_sample.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/pooling.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
-#include <primitive_inst.h>
-#include <fully_connected_inst.h>
+#include <intel_gpu/primitives/reshape.hpp>
+#include <intel_gpu/runtime/memory_pool.hpp>
+#include <limits>
+
+#include "intel_gpu/primitives/fully_connected.hpp"
+#include "random_generator.hpp"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -425,8 +428,10 @@ public:
 
         ExecutionConfig config = get_test_default_config(*engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
+        // Must share the engine's OpenCL context with the device memory.
+        auto engine_stream = engine->create_stream(config);
 
-        network::ptr network_first = get_network(*engine, topo, config, get_test_stream_ptr(), is_caching_test);
+        network::ptr network_first = get_network(*engine, topo, config, engine_stream, is_caching_test);
         network_first->set_input_data("input", input_8);
         auto outputs = network_first->execute();
 
@@ -438,6 +443,10 @@ public:
         auto sum_internal_alloc = [](const network::ptr& net) -> uint64_t {
             uint64_t total = 0;
             for (auto& pi : net->get_primitives_info()) {
+                // Take into account primitive's intermediate buffers
+                auto inst = net->get_primitive(pi.original_id);
+                for (auto &m_ptr : inst->get_intermediates_memories())
+                    total += m_ptr->get_layout().bytes_count();
                 if (pi.original_id != "input")
                     total += pi.output_layout.bytes_count();
             }
@@ -452,7 +461,7 @@ public:
 
         topo.change_input_layout("input", input_1->get_layout());//change input layout to batch=1
 
-        network::ptr network_second = get_network(*engine, topo, config, get_test_stream_ptr(), is_caching_test);
+        network::ptr network_second = get_network(*engine, topo, config, engine_stream, is_caching_test);
         network_second->set_input_data("input", input_1);
         auto outputs_second = network_second->execute();
 
@@ -935,6 +944,90 @@ TEST_F(memory_pool, dynamic_mem_reuse) {
 
 TEST_F(memory_pool, dynamic_mem_reuse_for_null_sel_impl) {
     this->test_dynamic_mem_reuse_for_null_sel_impl();
+}
+
+TEST_F(memory_pool, dynamic_reuse_respects_utilization_boundary_and_restrictions) {
+    auto& engine = get_test_engine();
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::mem_pool_util_threshold(0.5f));
+    cldnn::memory_pool pool(engine, config);
+    const auto alloc_type = engine.get_preferred_memory_allocation_type();
+    const layout large_layout({1, 1, 1, 256}, data_types::i32, format::bfyx);
+    const layout eligible({1, 1, 1, 192}, data_types::i32, format::bfyx);
+    const layout boundary({1, 1, 1, 128}, data_types::i32, format::bfyx);
+
+    memory_restricter<uint32_t> none;
+    auto a = pool.get_memory(large_layout, "a", 11, 0, none, alloc_type);
+    memory_restricter<uint32_t> restricted;
+    restricted.insert(11);
+    auto b = pool.get_memory(large_layout, "b", 12, 0, restricted, alloc_type);
+    ASSERT_FALSE(engine.is_the_same_buffer(*a, *b));
+
+    auto reused = pool.get_memory(eligible, "reused", 13, 0, restricted, alloc_type, true, false, true);
+    EXPECT_TRUE(engine.is_the_same_buffer(*b, *reused));
+    auto too_small = pool.get_memory(boundary, "boundary", 14, 0, none, alloc_type, true, false, true);
+    EXPECT_FALSE(engine.is_the_same_buffer(*a, *too_small));
+    EXPECT_FALSE(engine.is_the_same_buffer(*b, *too_small));
+}
+
+TEST_F(memory_pool, dynamic_reuse_edge_thresholds_and_static_reuse) {
+    auto& engine = get_test_engine();
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::mem_pool_util_threshold(0.0f));
+    cldnn::memory_pool pool(engine, config);
+    const auto alloc_type = engine.get_preferred_memory_allocation_type();
+    const layout large_layout({1, 1, 1, 256}, data_types::i32, format::bfyx);
+    const layout small_layout({1, 1, 1, 16}, data_types::i32, format::bfyx);
+    memory_restricter<uint32_t> none;
+    auto a = pool.get_memory(large_layout, "a", 11, 0, none, alloc_type);
+    auto dynamic = pool.get_memory(small_layout, "dynamic", 12, 0, none, alloc_type, true, false, true);
+    EXPECT_TRUE(engine.is_the_same_buffer(*a, *dynamic));
+
+    auto static_config = get_test_default_config(engine);
+    static_config.set_property(ov::intel_gpu::mem_pool_util_threshold(1.0f));
+    cldnn::memory_pool static_pool(engine, static_config);
+    auto b = static_pool.get_memory(large_layout, "b", 21, 0, none, alloc_type);
+    auto reused = static_pool.get_memory(small_layout, "static", 22, 0, none, alloc_type, true, false, false);
+    EXPECT_TRUE(engine.is_the_same_buffer(*b, *reused));
+
+    auto unordered_config = get_test_default_config(engine);
+    unordered_config.set_property(ov::intel_gpu::mem_pool_util_threshold(std::numeric_limits<float>::quiet_NaN()));
+    cldnn::memory_pool unordered_pool(engine, unordered_config);
+    auto c = unordered_pool.get_memory(large_layout, "c", 31, 0, none, alloc_type);
+    auto not_reused = unordered_pool.get_memory(small_layout, "unordered", 32, 0, none, alloc_type, true, false, true);
+    EXPECT_FALSE(engine.is_the_same_buffer(*c, *not_reused));
+}
+
+TEST_F(memory_pool, release_reinterpreted_buffers_preserves_other_users) {
+    auto& engine = get_test_engine();
+    for (auto type : {allocation_type::cl_mem, allocation_type::usm_host, allocation_type::usm_device, allocation_type::usm_shared}) {
+        if (!engine.supports_allocation(type))
+            continue;
+        SCOPED_TRACE(::testing::Message() << type);
+        auto config = get_test_default_config(engine);
+        cldnn::memory_pool pool(engine, config);
+        const layout large_layout({1, 1, 1, 64}, data_types::i32, format::bfyx);
+        const layout small_layout({1, 1, 1, 16}, data_types::i32, format::bfyx);
+        memory_restricter<uint32_t> none;
+        auto a = pool.get_memory(large_layout, "a", 11, 0, none, type);
+        auto view = pool.get_memory(small_layout, "view", 12, 0, none, type);
+        ASSERT_TRUE(engine.is_the_same_buffer(*a, *view));
+        pool.release_memory(view.get(), 12, "view", 0);
+        EXPECT_EQ(pool.get_non_padded_pool_size(), 1);
+
+        memory_restricter<uint32_t> restricted;
+        restricted.insert(11);
+        auto b = pool.get_memory(large_layout, "b", 13, 0, restricted, type);
+        ASSERT_FALSE(engine.is_the_same_buffer(*a, *b));
+        pool.release_memory(a.get(), 11, "a", 0);
+        EXPECT_EQ(pool.get_non_padded_pool_size(), 1);
+        auto reused = pool.get_memory(large_layout, "reused", 14, 0, none, type);
+        EXPECT_TRUE(engine.is_the_same_buffer(*b, *reused));
+        pool.release_memory(b.get(), 13, "b", 0);
+        EXPECT_EQ(pool.get_non_padded_pool_size(), 1);
+        pool.release_memory(reused.get(), 14, "reused", 0);
+        EXPECT_EQ(pool.get_non_padded_pool_size(), 0);
+    }
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU

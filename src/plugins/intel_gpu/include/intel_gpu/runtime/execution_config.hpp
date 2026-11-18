@@ -34,6 +34,7 @@ struct ExecutionConfig : public ov::PluginConfig {
     using ov::PluginConfig::finalize;
 
     const ov::AnyMap& get_user_properties() const { return m_user_properties; }
+    void apply_weightless_options();
 
 protected:
     void finalize_impl(const IRemoteContext* context) override;

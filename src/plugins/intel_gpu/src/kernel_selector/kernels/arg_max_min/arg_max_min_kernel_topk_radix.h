@@ -20,7 +20,7 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 private:
-    bool Validate(const Params&) const override;
+    bool Validate(const Params& /*unused*/) const override;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 

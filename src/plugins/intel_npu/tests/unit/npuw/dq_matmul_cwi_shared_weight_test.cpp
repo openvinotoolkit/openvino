@@ -105,7 +105,7 @@ void run_dqmatmulcwi(const std::shared_ptr<ov::Model>& model, ov::npuw::patterns
 TEST(DQMatMulCWiSharedWeightTest, SharedWeightChainIsNotRewritten) {
     auto model = make_shared_weight_model(/*num_matmuls=*/2);
 
-    ov::npuw::patterns::opt::Context ctx;
+    ov::npuw::patterns::opt::Context ctx(model, 0);
     ctx.mm_dq_full = true;
     run_dqmatmulcwi(model, ctx);
 
@@ -133,7 +133,7 @@ TEST(DQMatMulCWiSharedWeightTest, SharedWeightChainIsNotRewritten) {
 TEST(DQMatMulCWiSharedWeightTest, MultiplyBranchBeforeOptionalConvertIsNotRewritten) {
     auto graph = make_branched_weight_model();
 
-    ov::npuw::patterns::opt::Context ctx;
+    ov::npuw::patterns::opt::Context ctx(graph.model, 0);
     ctx.mm_dq_full = true;
     run_dqmatmulcwi(graph.model, ctx);
 
@@ -151,7 +151,7 @@ TEST(DQMatMulCWiSharedWeightTest, MultiplyBranchBeforeOptionalConvertIsNotRewrit
 TEST(DQMatMulCWiSharedWeightTest, SingleConsumerChainIsStillOptimized) {
     auto model = make_shared_weight_model(/*num_matmuls=*/1);
 
-    ov::npuw::patterns::opt::Context ctx;
+    ov::npuw::patterns::opt::Context ctx(model, 0);
     ctx.mm_dq_full = true;
     run_dqmatmulcwi(model, ctx);
 
