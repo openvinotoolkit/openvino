@@ -21,7 +21,7 @@ class DynamicGraph final : public IGraph {
 public:
     DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                  ov::Tensor blob,
-                 BlobType blobType = BlobType::LLVM);
+                 BlobType blobType = BlobType::BYTECODE);
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
@@ -76,20 +76,19 @@ private:
     CommandQueueDesc _commandQueueDesc;
 
     std::optional<ov::Tensor> _blob;
-    BlobType _blobType = BlobType::LLVM;
+    BlobType _blobType = BlobType::BYTECODE;
 
     // In the case of the import path, the blob is released after graph initialization so it can not be any longer
     // exported
     bool _blobIsReleased = false;
 
     uint32_t _uniqueId = 0;
-    uint32_t _lastSubmittedId = 0;
 
     Logger _logger;
 
     npu_vm_runtime_handle_t _engine = nullptr;
     npu_vm_runtime_properties_t _engineProperties{};
-    npu_vm_runtime_version_t _apiVersion = NPU_VM_RUNTIME_VERSION_1_0;
+    npu_vm_runtime_version_t _apiVersion = NPU_VM_RUNTIME_VERSION_2_0;
     // Set once the VM engine is created and _metadata is populated from it; get_metadata() throws before that
     std::atomic<bool> _metadataInitialized{false};
 };

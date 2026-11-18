@@ -504,6 +504,26 @@ pointers or the ``VASurfaceID`` handle, as shown in the examples below:
          infer_request.start_async();
          infer_request.wait();
 
+.. important::
+
+   The application is responsible for the lifetime of the ``VADisplay`` and every ``VASurfaceID`` passed to the
+   plugin. Keep the exact VA surface allocation valid until both of the following conditions are met:
+
+   * All remote tensors created from the surface, including their copies, are destroyed.
+   * Every ``ov::InferRequest`` to which such a tensor was passed is destroyed, or has completed an inference after
+      a replacement tensor was assigned to the same input.
+
+   If a remote tensor is passed to the ``AUTO`` or ``MULTI`` plugin, keep the VA surface valid until the compiled
+   model is destroyed. These virtual-device plugins use internal infer requests whose tensor references
+   are not exposed to the application.
+
+   Do not destroy a VA surface or allow its numeric ID to be recycled before these observable conditions are met.
+   Deleting a shared VA surface earlier makes subsequent use of its OpenCL memory object undefined, as specified
+   by the ``cl_intel_va_api_media_sharing`` extension.
+
+   Pixel contents may change between inference calls while the same surface allocation remains alive. Synchronize VA
+   writes before inference; the plugin acquires and releases the shared surface through the OpenCL
+   interoperability API for every execution.
 
 .. important::
 

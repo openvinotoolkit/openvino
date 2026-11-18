@@ -116,6 +116,7 @@ struct device_info {
 
     bool supports_imad;                         ///< Does engine support int8 mad.
     bool supports_immad;                        ///< Does engine support int8 multi mad.
+    bool supports_bf16;                         ///< Does engine support bf16 inference
 
     bool supports_mutable_command_list;         ///< [ZE] Does the target runtime/device support mutable command list feature
 
@@ -125,6 +126,7 @@ struct device_info {
     bool supports_cp_offload;                   ///< [L0] Does the command queue support copy offload
     bool supports_counter_based_events;         ///< [L0] Does the target runtime support counter based events
     bool supports_leo;                          ///< [L0] Does the device support Level Zero - OpenCL interoperability (LEO)
+    bool supports_external_memmap_sysmem;       ///< [L0] Does the driver support mapping an existing host pointer directly via zeMemAllocHost
 
     std::vector<size_t> supported_simd_sizes;   ///< List of SIMD sizes supported by current device and compiler
 
@@ -156,7 +158,7 @@ struct device_info {
     ov::device::UUID uuid;                      ///< UUID of the gpu device
     ov::device::LUID luid;                      ///< LUID of the gpu device
 
-    inline bool is_same_device(const device_info &other) const {
+    bool is_same_device(const device_info& other) const {
         // Relying solely on the UUID is not reliable in all the cases (particularly on legacy platforms),
         // where the UUID may be missing or incorrectly generated
         // Therefore, we also validate other attributes

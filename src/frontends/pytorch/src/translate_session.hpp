@@ -54,6 +54,7 @@ public:
         Output<Node> base_value;
         // Constructed containers hold references to distinct tensors, not views of input 0.
         std::vector<size_t> element_ids;
+        bool same_tensor = false;
     };
     std::map<size_t, AliasInfo> m_may_be_alias;
     // Aliases of tuple elements returned by inlined subgraphs, keyed by tuple tensor id and element index and

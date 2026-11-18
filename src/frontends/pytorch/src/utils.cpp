@@ -12,12 +12,15 @@
 #include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/ceiling.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert_promote_types.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/floor.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_nd.hpp"
+#include "openvino/op/less.hpp"
 #include "openvino/op/logical_not.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/matmul.hpp"
@@ -681,6 +684,32 @@ Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx
     return x;
 }
 
+element::Type get_input_element_type(const NodeContext& context, size_t idx) {
+    auto type = context.get_input(static_cast<int>(idx)).get_element_type();
+    if (type.is_dynamic()) {
+        type = context.get_input_from_visible_context(idx).get_element_type();
+    }
+    if (type.is_dynamic()) {
+        const auto decoded = simplified_type_interpret(context.get_input_type(idx));
+        if (decoded.is<element::Type>()) {
+            type = decoded.as<element::Type>();
+        }
+    }
+    return type;
+}
+
+Output<Node> trunc_toward_zero(const NodeContext& context, const Output<Node>& x) {
+    if (x.get_element_type().is_static() && x.get_element_type().is_integral_number()) {
+        return x;
+    }
+    auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    zero = context.mark_node(std::make_shared<v1::ConvertLike>(zero, x));
+    auto is_negative = context.mark_node(std::make_shared<v1::Less>(x, zero));
+    auto ceil = context.mark_node(std::make_shared<v0::Ceiling>(x));
+    auto floor = context.mark_node(std::make_shared<v0::Floor>(x));
+    return context.mark_node(std::make_shared<v1::Select>(is_negative, ceil, floor));
+}
+
 Output<Node> get_input_as_i32(const NodeContext& context, size_t idx) {
     auto x = context.get_input(static_cast<int>(idx));
     // Handle SequenceMark (list construct) - concatenate elements
@@ -1204,6 +1233,11 @@ bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
         auto adv_index = rg.make<v1::Multiply>(m_idx, multiplier);
         cum_adv_index = rg.make<v1::Add>(cum_adv_index, adv_index);
         multiplier = rg.make<v1::Multiply>(multiplier, input_dims->output(input_id));
+    }
+    if (adv_idx_count > 1 && std::all_of(advanced_ids.begin(), advanced_ids.end(), [&](size_t id) {
+            return masked_indices[id].get_partial_shape().rank() == 0;
+        })) {
+        cum_adv_index = rg.make<v0::Squeeze>(cum_adv_index, zero);
     }
     std::shared_ptr<Node> gather = rg.make<v8::Gather>(flatten_input, cum_adv_index, zero);
     OutputVector concat_dims;

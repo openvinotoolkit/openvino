@@ -6,8 +6,11 @@
 
 #include <gtest/gtest.h>
 
+#include <string>
+#include <tuple>
 #include <vector>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 
 using namespace ov;
@@ -140,6 +143,45 @@ TEST(type_prop, generate_proposals) {
     ASSERT_THROW(proposals = std::make_shared<GenerateProposals>(im_info, anchors, deltas, scores, attrs, element::i32),
                  ov::AssertFailure)
         << "GenerateProposals node was created with invalid data.";
+}
+
+struct BatchMismatchParams {
+    Dimension im_info_batch;
+    Dimension deltas_batch;
+    Dimension scores_batch;
+    std::string expected_msg;
+};
+
+class GenerateProposalsBatchMismatchTest : public TestWithParam<BatchMismatchParams> {};
+
+// The 'input_im_info' merge runs first against a dynamic batch, so it cannot fail and is not covered here.
+INSTANTIATE_TEST_SUITE_P(
+    type_prop,
+    GenerateProposalsBatchMismatchTest,
+    Values(
+        BatchMismatchParams{2, 3, Dimension::dynamic(), "Batch size of 'input_deltas' is not compatible"},
+        BatchMismatchParams{{1, 2}, {3, 4}, Dimension::dynamic(), "Batch size of 'input_deltas' is not compatible"},
+        BatchMismatchParams{2, Dimension::dynamic(), 3, "Batch size of 'input_scores' is not compatible"},
+        BatchMismatchParams{Dimension::dynamic(), 2, 3, "Batch size of 'input_scores' is not compatible"},
+        BatchMismatchParams{{1, 2}, Dimension::dynamic(), {3, 4}, "Batch size of 'input_scores' is not compatible"}));
+
+TEST_P(GenerateProposalsBatchMismatchTest, batch_mismatch_throws) {
+    const auto& [im_info_batch, deltas_batch, scores_batch, expected_msg] = GetParam();
+
+    Attrs attrs;
+    attrs.min_size = 0.0f;
+    attrs.nms_threshold = 0.699999988079071f;
+    attrs.post_nms_count = 1000;
+    attrs.pre_nms_count = 1000;
+
+    const auto im_info = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{im_info_batch, 4});
+    const auto anchors = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{200, 336, 3, 4});
+    const auto deltas = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{deltas_batch, 12, 200, 336});
+    const auto scores = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{scores_batch, 3, 200, 336});
+
+    OV_EXPECT_THROW(std::ignore = std::make_shared<GenerateProposals>(im_info, anchors, deltas, scores, attrs),
+                    NodeValidationFailure,
+                    HasSubstr(expected_msg));
 }
 
 TEST(type_prop, generate_proposals_dynamic) {

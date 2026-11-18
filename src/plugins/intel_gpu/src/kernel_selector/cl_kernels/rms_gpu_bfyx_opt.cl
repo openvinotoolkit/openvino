@@ -247,7 +247,7 @@ KERNEL(rms_gpu_bfyx_opt)(
                 NORMALIZED_TYPE normalized = TO_NORMALIZED_TYPE(rms * data[i + j]);
 #endif
                 #if HAS_FUSED_OPS
-                    LAST_DIM += j * get_sub_group_size();
+                    LAST_DIM = subgroup_offset + get_sub_group_local_id() + (i + j) * get_sub_group_size();
                     FUSED_OPS;
                     normalized = FUSED_OPS_RESULT;
                 #endif

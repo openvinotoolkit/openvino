@@ -321,6 +321,34 @@ def test_infer_mixed_values(device, ov_type, numpy_dtype, share_inputs):
     assert np.array_equal(request.output_tensors[0].data, np.concatenate((tensor1.data, array1)))
 
 
+@pytest.mark.parametrize("numpy_dtype", [np.float32, np.float64])
+@pytest.mark.parametrize("share_inputs", [True, False])
+@pytest.mark.parametrize("as_dict", [True, False])
+def test_infer_bf16_input_from_float_array(device, numpy_dtype, share_inputs, as_dict):
+    param = ops.parameter([4], Type.bf16)
+    model = Model([ops.convert(param, Type.f32)], [param])
+    request = Core().compile_model(model, device).create_infer_request()
+    # The values are exact in bf16, so the model must return them unchanged
+    data = np.array([1.5, 3.0, -2.0, 0.15625], dtype=numpy_dtype)
+
+    result = request.infer({0: data} if as_dict else [data], share_inputs=share_inputs)
+
+    assert np.array_equal(result[0], data.astype(np.float32))
+
+
+@pytest.mark.parametrize("share_inputs", [True, False])
+def test_infer_bf16_input_rounds_like_constant(device, share_inputs):
+    # Values that need rounding must get the same bf16 bits as OpenVINO's own f32 -> bf16 conversion
+    data = np.array([0x3F818000, 0x3F80C000, 0x3F808000, 0x3F80FFFF], dtype=np.uint32).view(np.float32)
+    param = ops.parameter(list(data.shape), Type.bf16)
+    request = Core().compile_model(Model([param], [param]), device).create_infer_request()
+
+    request.infer([data], share_inputs=share_inputs)
+
+    expected = ops.constant(data, dtype=Type.bf16).data.view(np.uint16)
+    assert np.array_equal(request.get_input_tensor(0).data.view(np.uint16), expected)
+
+
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
     (Type.f32, np.float32),
     (Type.f64, np.float64),

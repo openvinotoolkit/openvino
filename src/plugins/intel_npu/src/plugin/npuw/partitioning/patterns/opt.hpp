@@ -7,6 +7,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 
 #include "openvino/openvino.hpp"
@@ -28,6 +29,13 @@ struct Context {
     using PPtr = std::shared_ptr<ov::op::v0::Parameter>;
     using NPtr = std::shared_ptr<ov::Node>;
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
+
+    // Parameters [0, param_base_idx) of model are function inputs, not closures.
+    // Passes must not change them.
+    const std::shared_ptr<const ov::Model> model;
+    const std::size_t param_base_idx;
+    Context(std::shared_ptr<const ov::Model> model, std::size_t param_base_idx);
+    bool is_closure(const PPtr& param) const;
 
     using Axes = std::vector<std::size_t>;
     std::map<PPtr, Axes> closures_to_permute;
@@ -285,6 +293,7 @@ public:
 
 // UntangleConst
 void untangleConst(std::shared_ptr<ov::Model> model);
+void untangleWeightConverts(const std::shared_ptr<ov::Model>& model);
 
 }  // namespace opt
 }  // namespace patterns

@@ -5,7 +5,9 @@
 #pragma once
 
 #include "openvino/frontend/gguf/extension/architecture.hpp"
+#include "openvino/frontend/gguf/extension/projector.hpp"
 
 namespace example {
 ov::frontend::gguf::ArchitectureDefinition projector_architecture();
-}
+ov::frontend::gguf::ProjectorDefinition vision_projector_component();
+}  // namespace example
