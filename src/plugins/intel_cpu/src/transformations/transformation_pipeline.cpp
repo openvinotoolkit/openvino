@@ -1209,6 +1209,7 @@ void Transformations::PostLpt() {
                           ov::pass::RMSFusion,
                           false /* force_tail_convert */,
                           enable_without_gamma);
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::FuseQSAIndexerQuery);
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::DecomposeRMSNorm);
     CPU_SET_CALLBACK_X64(
         postLPTPassManager,
