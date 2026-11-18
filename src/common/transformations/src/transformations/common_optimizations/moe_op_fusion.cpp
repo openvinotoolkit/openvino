@@ -58,7 +58,8 @@ static size_t weight_logical_K(const ov::Shape& shape) {
 
 // A single-element zp is a per-tensor zero point shared by all experts (MOE validation exempts it). All-zero is
 // symmetric and becomes the absent-zp constant. A non-zero one is kept only if allow_nonzero (only the u2 kernels
-// broadcast it) and only as rank-0, the layout those kernels read. u3 does not go through here: its scalar zp is kept.
+// broadcast it) and only as rank-0, the layout those kernels read; a sub-byte one is widened to u8 for the backend.
+// u3 does not go through here: its scalar zp is kept.
 static bool normalize_scalar_zp(ov::Output<ov::Node>& zp, bool allow_nonzero) {
     const auto ps = zp.get_partial_shape();
     if (ps.is_static() && ov::shape_size(ps.to_shape()) != 1) {
@@ -68,15 +69,21 @@ static bool normalize_scalar_zp(ov::Output<ov::Node>& zp, bool allow_nonzero) {
     if (!zp_const) {
         return !ps.is_static();
     }
-    // cast_vector is not meaningful on packed (u2/u4/i4) constants.
     const auto zp_et = zp_const->get_element_type();
-    if (zp_et != ov::element::i8 && zp_et != ov::element::u8 && zp_et != ov::element::i32 &&
-        zp_et != ov::element::u32 && zp_et != ov::element::i64) {
+    if (!zp_et.is_integral_number()) {
         return false;
     }
     for (const auto v : zp_const->cast_vector<int64_t>()) {
         if (v != 0) {
-            return allow_nonzero && zp_const->get_shape().empty();
+            if (!allow_nonzero || !zp_const->get_shape().empty()) {
+                return false;
+            }
+            if (zp_et.bitwidth() < 8) {
+                auto converted = ov::op::util::make_try_fold<v0::Convert>(zp, ov::element::u8);
+                ov::copy_runtime_info(zp.get_node_shared_ptr(), converted);
+                zp = converted->output(0);
+            }
+            return true;
         }
     }
     zp = std::make_shared<v0::Constant>(ov::element::dynamic, ov::Shape{0});
@@ -113,7 +120,7 @@ static bool broadcast_per_channel(ov::Output<ov::Node>& scale, size_t K, size_t 
 static const std::vector<ov::element::Type> moe_3gemm_weight_types =
     {ov::element::u2, ov::element::u3, ov::element::u4, ov::element::i4, ov::element::u8, ov::element::i8};
 
-Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
+Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool allow_scale_expansion) {
     MATCHER_SCOPE(Convert3GatherMatmulMoeBlockToMoeOp);
 
     auto hidden_states_m = pattern::any_input(pattern::rank_equals(2) || pattern::rank_equals(3));
@@ -319,6 +326,14 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
             }
 
             if (group_size != std::numeric_limits<size_t>::max()) {
+                // Expanded constants have no .bin offset, so partially offloaded experts cannot stream them.
+                const auto needs_expansion = [&](size_t G, size_t K) {
+                    return G == 1 && K / group_size > 1;
+                };
+                if (!allow_scale_expansion && (needs_expansion(gate_G, gate_K) || needs_expansion(up_G, up_K) ||
+                                               needs_expansion(down_G, down_K))) {
+                    return false;
+                }
                 if ((gate_G == 1 && !broadcast_per_channel(gate_scale, gate_K, group_size)) ||
                     (up_G == 1 && !broadcast_per_channel(up_scale, up_K, group_size)) ||
                     (down_G == 1 && !broadcast_per_channel(down_scale, down_K, group_size))) {
