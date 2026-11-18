@@ -9,7 +9,6 @@
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
@@ -18,6 +17,8 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/utils/utils.hpp"
@@ -46,15 +47,20 @@ using ov::test::InputShape;
 
 struct ShapeParams {
     ShapeParams() = default;
-    ShapeParams(InputShape data_shape, ov::Shape weights_shape, int weights_group_size = -1)
+    ShapeParams(InputShape data_shape,
+                ov::Shape weights_shape,
+                int weights_group_size = -1,
+                ov::test::utils::DecompressionType decompression_multiply_type = ov::test::utils::DecompressionType::full)
         : data_shape(std::move(data_shape)),
           weights_shape(std::move(weights_shape)),
-          weights_group_size(weights_group_size) {}
+          weights_group_size(weights_group_size),
+          decompression_multiply_type(decompression_multiply_type) {}
 
     InputShape data_shape;
     ov::Shape weights_shape;
     // Decompression group size. If the value is equal to -1, ordinary decompression is used
     int weights_group_size;
+    ov::test::utils::DecompressionType decompression_multiply_type = ov::test::utils::DecompressionType::full;
 };
 
 using MatmulWeightsDecompressionParams = std::tuple<ShapeParams,                         // input shapes
@@ -94,6 +100,9 @@ public:
         }
         result << "_" << "weights_shape=" << shape_params.weights_shape << "_";
         result << "group_size=" << (shape_params.weights_group_size == -1 ? 1111 : shape_params.weights_group_size) << "_";
+        if (shape_params.decompression_multiply_type != ov::test::utils::DecompressionType::full) {
+            result << "decompression_multiply=" << shape_params.decompression_multiply_type << "_";
+        }
         result << "weights_precision=" << weights_precision << "_";
         result << "activations_precision=" << activations_precision << "_";
         result << "scale_precision=" << scale_precision << "_";
@@ -128,18 +137,18 @@ public:
 
 protected:
     std::shared_ptr<ov::Model> init_subgraph(const ov::PartialShape& data_shape,
-                                              const ov::Shape& weights_shape,
-                                              const int group_size,
-                                              const ov::element::Type data_precision,
-                                              const ov::element::Type weights_precision,
-                                              const ov::element::Type scale_precision,
-                                              const bool transpose_weights,
-                                              const ov::test::utils::DecompressionType decompression_subtract_type,
-                                              const bool reshape_on_decompression,
-                                              const bool extra_multiply,
-                                              const bool param_weight) {
+                                             const ov::Shape& weights_shape,
+                                             const int group_size,
+                                             const ov::element::Type data_precision,
+                                             const ov::element::Type weights_precision,
+                                             const ov::element::Type scale_precision,
+                                             const bool transpose_weights,
+                                             const ov::test::utils::DecompressionType decompression_multiply_type,
+                                             const ov::test::utils::DecompressionType decompression_subtract_type,
+                                             const bool reshape_on_decompression,
+                                             const bool extra_multiply,
+                                             const bool param_weight) {
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(data_precision, data_shape)};
-        const auto decompression_multiply_type = ov::test::utils::DecompressionType::full;
         const std::optional<bool> insert_transpose_node = std::nullopt;
         const int seed = 1;
         const auto weights_subgraph = ov::test::utils::initMatMulDecompressionSubgraph(weights_shape,
@@ -197,6 +206,7 @@ protected:
                                  weights_precision,
                                  scale_precision_to_use,
                                  transpose_weights,
+                                 shape_params.decompression_multiply_type,
                                  decompression_sub,
                                  reshape_on_decompression,
                                  extra_multiply,
@@ -235,6 +245,14 @@ protected:
                 ASSERT_EQ(n->get_output_element_type(0), weights_precision);
             }
         }
+        const auto& shape_params = std::get<0>(test_param);
+        const bool param_weights = std::get<8>(test_param);
+        if (!param_weights && shape_params.weights_group_size == 3 && (weights_precision == ov::element::i4 || weights_precision == ov::element::u4)) {
+            const auto nodes = ov::test::GetNodesWithTypes(compiledModel.get_runtime_model(), {"FullyConnected"});
+            ASSERT_EQ(nodes.size(), 1u);
+            const auto implementation = nodes.front()->get_rt_info().at(ov::exec_model_info::IMPL_TYPE).as<std::string>();
+            EXPECT_NE(implementation.find("fully_connected_gpu_bfyx_ref"), std::string::npos) << implementation;
+        }
     }
 };
 
@@ -264,7 +282,7 @@ TEST_P(MatmulWeightsDecompression, Inference) {
         }
     }
     SKIP_IF_CURRENT_TEST_IS_DISABLED(); // This is necessary because of check_results
-    run();
+    ASSERT_NO_FATAL_FAILURE(run());
     check_results();
 }
 
@@ -355,6 +373,65 @@ const std::vector<ov::test::utils::DecompressionType> decompression_sub_no_full 
 const std::vector<ov::test::utils::DecompressionType> decompression_sub_no_scalar = {ov::test::utils::DecompressionType::full,
                                                                                      ov::test::utils::DecompressionType::empty};
 const std::vector<bool> reshape_on_decompression = {true, false};
+
+const std::vector<ShapeParams> input_shapes_grouped_scales = {
+    {{{-1, 6}, {{1, 6}, {16, 6}, {2, 6}}}, {6, 8}, 3},
+    {{{-1, 32}, {{1, 32}, {16, 32}, {2, 32}}}, {32, 8}, 16},
+};
+const std::vector<ShapeParams> input_shapes_grouped_zero_points = {
+    {{{-1, 6}, {{1, 6}, {16, 6}, {2, 6}}}, {6, 8}, 3, ov::test::utils::DecompressionType::scalar},
+    {{{-1, -1, 6}, {{1, 1, 6}, {1, 16, 6}, {2, 2, 6}}}, {6, 8}, 3, ov::test::utils::DecompressionType::scalar},
+    {{{-1, 32}, {{1, 32}, {16, 32}, {2, 32}}}, {32, 8}, 16, ov::test::utils::DecompressionType::scalar},
+};
+const std::vector<ov::element::Type> grouped_weights_precisions =
+    {ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4, ov::element::u2, ov::element::u3};
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_grouped_scales,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_grouped_scales),
+                                            ::testing::ValuesIn(grouped_weights_precisions),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(true),
+                                            ::testing::Values(ov::test::utils::DecompressionType::empty),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(0),
+                                            ::testing::Values(0.001f)),
+                         MatmulWeightsDecompression::get_test_case_name);
+
+// Scalar scales isolate the grouped zero-point boundary from the grouped scale boundary.
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_grouped_zero_points,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_grouped_zero_points),
+                                            ::testing::ValuesIn(grouped_weights_precisions),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(true),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(0),
+                                            ::testing::Values(0.001f)),
+                         MatmulWeightsDecompression::get_test_case_name);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_MatMulCompressedWeights_per_weight_zero_points,
+    MatmulWeightsDecompression,
+    ::testing::Combine(::testing::Values(ShapeParams{{{-1, 32}, {{1, 32}, {16, 32}, {2, 32}}}, {32, 8}, 1, ov::test::utils::DecompressionType::scalar}),
+                       ::testing::Values(ov::element::i4, ov::element::u4),
+                       ::testing::Values(ov::element::f16),
+                       ::testing::Values(ov::element::f16),
+                       ::testing::Values(true),
+                       ::testing::Values(ov::test::utils::DecompressionType::full),
+                       ::testing::Values(false),
+                       ::testing::Values(false),
+                       ::testing::Values(false),
+                       ::testing::Values(0),
+                       ::testing::Values(0.001f)),
+    MatmulWeightsDecompression::get_test_case_name);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_basic,
                          MatmulWeightsDecompression,

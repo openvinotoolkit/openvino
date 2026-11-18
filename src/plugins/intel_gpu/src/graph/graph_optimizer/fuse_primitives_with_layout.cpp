@@ -41,6 +41,11 @@ void fuse_primitives_with_layout::run(program& p) {
                 return;
             }
 
+            // Fused quantize kernels require precomputed scale and shift parameters.
+            if (!node.get_scale_shift_opt()) {
+                return;
+            }
+
             auto& input_node = node.get_dependency(0);
             auto in_layout = input_node.get_output_layout();
             if (input_node.get_users().size() != 1 || input_node.get_dependencies().empty() ||

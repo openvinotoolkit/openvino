@@ -5252,28 +5252,26 @@ TEST(fully_connected_3d_onednn_gpu, no_biases_int8) {
     }
 }
 
-class fully_connected_onednn_expert_zero_points_test
-    : public testing::TestWithParam<std::tuple<int64_t, bool, bool, int64_t>> {};
+class fully_connected_onednn_expert_zero_points_test : public testing::TestWithParam<std::tuple<int64_t, bool, bool, std::pair<int64_t, int64_t>>> {};
 
 TEST_P(fully_connected_onednn_expert_zero_points_test, per_expert_per_channel) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         GTEST_SKIP() << "oneDNN compressed FC requires IMMAD support.";
 
-    const auto [experts, transpose_b_param, is_caching_test, group_per_channel] = GetParam();
+    const auto [experts, transpose_b_param, is_caching_test, decompression_groups] = GetParam();
+    const auto scale_groups = decompression_groups.first;
+    const auto zero_point_groups = decompression_groups.second;
     constexpr int64_t tokens = 2;
     constexpr int64_t ofm = 16;
     constexpr int64_t ifm = 64;
-    const auto scale_groups = group_per_channel;
-    const auto scale_group_size = ifm / scale_groups;
+    const auto zero_point_group_size = ifm / zero_point_groups;
     const size_t weights_rank = experts == 1 ? 2 : 3;
     const auto weights_shape = experts == 1 ? ov::PartialShape{ofm, ifm}
                                            : ov::PartialShape{experts, ofm, ifm};
     const auto zp_shape = experts == 1
-                                  ? (transpose_b_param ? ov::PartialShape{ofm, scale_groups}
-                                                      : ov::PartialShape{scale_groups, ofm})
-                                  : (transpose_b_param ? ov::PartialShape{experts, ofm, scale_groups}
-                                                       : ov::PartialShape{experts, scale_groups, ofm});
+                              ? (transpose_b_param ? ov::PartialShape{ofm, zero_point_groups} : ov::PartialShape{zero_point_groups, ofm})
+                              : (transpose_b_param ? ov::PartialShape{experts, ofm, zero_point_groups} : ov::PartialShape{experts, zero_point_groups, ofm});
     const auto scale_shape = experts == 1
                                  ? (transpose_b_param ? ov::PartialShape{ofm, scale_groups}
                                                       : ov::PartialShape{scale_groups, ofm})
@@ -5287,14 +5285,14 @@ TEST_P(fully_connected_onednn_expert_zero_points_test, per_expert_per_channel) {
     set_values<ov::float16>(input, std::vector<ov::float16>(experts * tokens * ifm, ov::float16(1.0f)));
     set_values<uint8_t>(weights, std::vector<uint8_t>(experts * ofm * ifm, 9));
     set_values<ov::float16>(scale, std::vector<ov::float16>(experts * ofm * scale_groups, ov::float16(1.0f)));
-    std::vector<uint8_t> zp_values(experts * ofm * scale_groups);
+    std::vector<uint8_t> zp_values(experts * ofm * zero_point_groups);
     const bool transpose_zp_layout = transpose_b_param;
     const auto zp_idx = [=](int64_t expert, int64_t group, int64_t oc) {
-        return transpose_zp_layout ? static_cast<size_t>(expert * ofm * scale_groups + oc * scale_groups + group)
-                                   : static_cast<size_t>(expert * scale_groups * ofm + group * ofm + oc);
+        return transpose_zp_layout ? static_cast<size_t>(expert * ofm * zero_point_groups + oc * zero_point_groups + group)
+                                   : static_cast<size_t>(expert * zero_point_groups * ofm + group * ofm + oc);
     };
     for (int64_t expert = 0; expert < experts; ++expert) {
-        for (int64_t group = 0; group < scale_groups; ++group) {
+        for (int64_t group = 0; group < zero_point_groups; ++group) {
             for (int64_t oc = 0; oc < ofm; ++oc) {
                 zp_values[zp_idx(expert, group, oc)] = static_cast<uint8_t>((expert + group + oc) % 8);
             }
@@ -5326,8 +5324,8 @@ TEST_P(fully_connected_onednn_expert_zero_points_test, per_expert_per_channel) {
             for (int64_t oc = 0; oc < ofm; ++oc) {
                 const auto idx = (expert * tokens + token) * ofm + oc;
                 float expected = 0.0f;
-                for (int64_t group = 0; group < scale_groups; ++group) {
-                    expected += static_cast<float>(scale_group_size * (9 - zp_values[zp_idx(expert, group, oc)]));
+                for (int64_t group = 0; group < zero_point_groups; ++group) {
+                    expected += static_cast<float>(zero_point_group_size * (9 - zp_values[zp_idx(expert, group, oc)]));
                 }
                 EXPECT_FLOAT_EQ(static_cast<float>(result[idx]), expected)
                     << "expert=" << expert << ", token=" << token << ", oc=" << oc;
@@ -5341,7 +5339,7 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                          testing::Combine(testing::Values(int64_t{1}, int64_t{64}),
                                           testing::Bool(),
                                           testing::Bool(),
-                                          testing::Values(int64_t{1}, int64_t{2})));
+                                          testing::ValuesIn(std::vector<std::pair<int64_t, int64_t>>{{1, 1}, {2, 2}, {1, 4}, {4, 1}})));
 
 TEST(fully_connected_3d_onednn_gpu, compressed_int4_scale_static) {
     tests::random_generator rg(GET_SUITE_NAME);
