@@ -11,6 +11,7 @@
 #include "vm_runtime/virtual_machine.h"
 
 #include <ze_command_queue_npu_ext.h>
+#include <openvino/core/layout.hpp>
 #include <openvino/core/type/element_type.hpp>
 
 #include <ze_graph_ext.h>
@@ -208,34 +209,35 @@ std::pair<npu_vm_batch_mode, uint64_t> getBatchMode(const npu_vm_runtime_handle_
 
     uint64_t batchSize = 1;
     npu_vm_batch_mode batchMode = npu_vm_batch_mode_none;
-    for (auto& input : hRuntime->metadata.inputs) {
-        if (input.shapeFromIRModel.has_value()) {
-            auto& shapeFromIRModel = input.shapeFromIRModel.value();
-            if (shapeFromIRModel.rank() == 4) {
-                auto& batchDim = shapeFromIRModel[0];
-                if (batchDim.is_dynamic()) {
-                    return {npu_vm_batch_mode_dynamic, std::numeric_limits<uint64_t>::max()};
-                } else if (batchDim.get_length() > 1) {
-                    batchMode = npu_vm_batch_mode_static;
-                    batchSize = std::max(batchSize, static_cast<uint64_t>(batchDim.get_length()));
-                }
+    auto updateBatchMode = [&](const auto& descriptors) {
+        for (const auto& descriptor : descriptors) {
+            if (!descriptor.shapeFromIRModel.has_value()) {
+                continue;
             }
-        }
-    }
 
-    for (auto& output : hRuntime->metadata.outputs) {
-        if (output.shapeFromIRModel.has_value()) {
-            auto& shapeFromIRModel = output.shapeFromIRModel.value();
-            if (shapeFromIRModel.rank() == 4) {
-                auto& batchDim = shapeFromIRModel[0];
+            const auto& shape = descriptor.shapeFromIRModel.value();
+            if (!descriptor.layout.empty()) {
+                const ov::Layout layout(descriptor.layout);
+                if (!ov::layout::has_batch(layout)) {
+                    continue;
+                }
+                auto batchIndex = ov::layout::batch_idx(layout);
+
+                const auto& batchDim = shape[batchIndex];
                 if (batchDim.is_dynamic()) {
-                    return {npu_vm_batch_mode_dynamic, std::numeric_limits<uint64_t>::max()};
-                } else if (batchDim.get_length() > 1) {
+                    return true;
+                }
+                if (batchDim.get_length() > 1) {
                     batchMode = npu_vm_batch_mode_static;
                     batchSize = std::max(batchSize, static_cast<uint64_t>(batchDim.get_length()));
                 }
             }
         }
+        return false;
+    };
+
+    if (updateBatchMode(hRuntime->metadata.inputs) || updateBatchMode(hRuntime->metadata.outputs)) {
+        return {npu_vm_batch_mode_dynamic, std::numeric_limits<uint64_t>::max()};
     }
 
     return {batchMode, batchSize};

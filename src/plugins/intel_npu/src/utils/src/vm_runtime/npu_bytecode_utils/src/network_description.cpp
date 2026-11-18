@@ -266,6 +266,15 @@ IODescriptor parseDescriptor(const BytecodeReader& reader, Span<uint8_t>& entry)
         descriptor.nodeFriendlyName = nodeFriendlyName.value();
     }
 
+    if (!entry.empty()) {
+        uint64_t layoutIndex = 0;
+        NPU_VM_THROW_UNLESS(parseValueFrom(entry, layoutIndex), "Failed to parse descriptor layout index");
+        auto layout = reader.getString(layoutIndex);
+        NPU_VM_THROW_UNLESS(layout.has_value(), "String entry for descriptor layout at index {} is not found",
+                            layoutIndex);
+        descriptor.layout = layout.value();
+    }
+
     return descriptor;
 }
 
@@ -283,10 +292,10 @@ void dumpDescriptors([[maybe_unused]] const char* kind, const std::vector<IODesc
     NPU_VM_LOG_TRACE("{} count: {}", kind, descriptors.size());
     [[maybe_unused]] size_t index = 0;
     for ([[maybe_unused]] const auto& descriptor : descriptors) {
-        NPU_VM_LOG_TRACE("{}[{}] name='{}', precision={}, shape={}, driver_index={}, "
+        NPU_VM_LOG_TRACE("{}[{}] name='{}', precision={}, shape={}, layout='{}', driver_index={}, "
                          "dynamic_strides={}, state_in={}, state_out={}, shape_tensor={}",
                          kind, index, descriptor.nameFromCompiler, descriptor.precision.get_type_name(),
-                         descriptor.shapeFromCompiler.to_string(), descriptor.indexUsedByDriver,
+                         descriptor.shapeFromCompiler.to_string(), descriptor.layout, descriptor.indexUsedByDriver,
                          descriptor.supportsStridedLayout ? "true" : "false",
                          descriptor.isStateInput ? "true" : "false", descriptor.isStateOutput ? "true" : "false",
                          descriptor.isShapeTensor ? "true" : "false");

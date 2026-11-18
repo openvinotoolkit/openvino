@@ -35,6 +35,8 @@ struct IODescriptor {
 
     ov::element::Type precision;
 
+    std::string layout;
+
     ov::PartialShape shapeFromCompiler;
 
     /**
