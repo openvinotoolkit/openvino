@@ -813,8 +813,8 @@ const std::vector<MapProcKindsTestCase> map_proc_kinds_cases = {
      {{0, 4000000}, {1, 5000000}, {3, 2000000}},
      {0, 1, 2, 3},  // LPE, E, P (4 GHz), P (5 GHz)
      {{EFFICIENT_CORE_PROC}},
-     {{1}},
-     {{1}}},
+     {{2}},
+     {{2}}},
 };
 
 INSTANTIATE_TEST_SUITE_P(CpuTopologies,
