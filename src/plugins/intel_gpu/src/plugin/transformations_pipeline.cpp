@@ -680,6 +680,36 @@ bool has_dequantization_absorbing_consumer(const std::shared_ptr<const ov::Node>
     }
     return false;
 }
+
+// 2Dx3D GroupedMatMul runs on oneDNN grouped_gemm, which supports only f16 activations, so it is decomposed into MatMuls for
+// other activation types. With dynamic inference precision the activation type is kept as is, so it is checked per node.
+// 3Dx3D GroupedMatMul is lowered to a batched FullyConnected and stays as is. Without immad or oneDNN, every GroupedMatMul
+// is decomposed.
+void register_grouped_matmul_decomposition(ov::pass::Manager& manager,
+                                           const cldnn::device_info& device_info,
+                                           const ExecutionConfig& config,
+                                           ov::element::Type infer_precision) {
+    if (GPU_DEBUG_VALUE_OR(ExecutionConfig::get_enable_mlir(), false)) {
+        return;
+    }
+    if (!device_info.supports_immad || !config.get_use_onednn()) {
+        manager.register_pass<ov::pass::ConvertGroupedMatMulToMatMul>();
+        return;
+    }
+    if (infer_precision == ov::element::f16) {
+        return;
+    }
+    auto needs_decomposition = [infer_precision](const std::shared_ptr<const ov::Node>& node) {
+        return node->get_input_partial_shape(0).rank() == 2 && (infer_precision != ov::element::dynamic || node->get_input_element_type(0) != ov::element::f16);
+    };
+    auto pass_config = manager.get_pass_config();
+    // ConvertGroupedMatMulToGroupedMatMulCompressed is registered before: keep the GroupedMatMul to be decomposed uncompressed.
+    pass_config->set_callback<ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed>(needs_decomposition);
+    pass_config->set_callback<ov::pass::ConvertGroupedMatMul2Dx3DToMatMul>([needs_decomposition](const std::shared_ptr<const ov::Node>& node) {
+        return !needs_decomposition(node);
+    });
+    manager.register_pass<ov::pass::ConvertGroupedMatMul2Dx3DToMatMul>();
+}
 }  // namespace
 
 bool TransformationsPipeline::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
@@ -1142,23 +1172,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Note: even though we are already inside `if (supports_immad)`, oneDNN can still be explicitly disabled by the user.
         // Also gated on inference precision: GatherMatmul and fused MoE kernels support only f16 activations.
         const bool f16_activations_possible = infer_precision == ov::element::f16 || infer_precision == ov::element::dynamic;
-        // 2Dx3D GroupedMatMul runs on oneDNN grouped_gemm, which supports only f16 activations, so it is decomposed for other
-        // activation types. With dynamic inference precision the activation type is kept as is, so it is checked per node.
-        // 3Dx3D GroupedMatMul is lowered to a batched FullyConnected and stays as is.
-        auto needs_grouped_matmul_decomposition = [infer_precision](const_node_ptr& node) {
-            if (infer_precision == ov::element::f16 || node->get_input_partial_shape(0).rank() != 2) {
-                return false;
-            }
-            return infer_precision != ov::element::dynamic || node->get_input_element_type(0) != ov::element::f16;
-        };
         if (device_info.supports_immad && config.get_use_onednn() && f16_activations_possible) {
             const std::vector<ov::element::Type> supported_compressed_weights_types{ov::element::u4,
                                                                                     ov::element::i4,
                                                                                     ov::element::i8,
                                                                                     ov::element::u8,
                                                                                     ov::element::u3};
-            // Keep the GroupedMatMul to be decomposed below uncompressed.
-            pass_config->set_callback<ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed>(needs_grouped_matmul_decomposition);
             manager.register_pass<ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed>(
                 supported_compressed_weights_types);
 
@@ -1186,16 +1205,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
         }
 
-        if (!GPU_DEBUG_VALUE_OR(ExecutionConfig::get_enable_mlir(), false)) {
-            if (!device_info.supports_immad || !config.get_use_onednn()) {
-                manager.register_pass<ov::pass::ConvertGroupedMatMulToMatMul>();
-            } else if (infer_precision != ov::element::f16) {
-                pass_config->set_callback<ov::pass::ConvertGroupedMatMul2Dx3DToMatMul>([=](const_node_ptr& node) {
-                    return !needs_grouped_matmul_decomposition(node);
-                });
-                manager.register_pass<ov::pass::ConvertGroupedMatMul2Dx3DToMatMul>();
-            }
-        }
+        register_grouped_matmul_decomposition(manager, device_info, config, infer_precision);
 
         manager.register_pass<ov::pass::GatedDeltaNetFusion>();
         manager.register_pass<ov::pass::InitNodeInfo>();
