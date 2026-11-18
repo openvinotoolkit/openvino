@@ -78,7 +78,7 @@ struct VCLFunctionTable {
  */
 class VCLLoader final : public std::enable_shared_from_this<VCLLoader> {
 public:
-     VCLLoader();
+    VCLLoader();
 
     VCLLoader(const VCLLoader& other) = delete;
     VCLLoader(VCLLoader&& other) = delete;
