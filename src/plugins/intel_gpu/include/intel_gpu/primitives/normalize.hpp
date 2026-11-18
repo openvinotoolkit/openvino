@@ -37,11 +37,7 @@ struct normalize : public primitive_base<normalize> {
     /// All other dimensions should be 1.
     /// @param across_spatial Determines if the normalization is done across or within spatial (see documentation above).
     /// @param epsilon Epsilon for not dividing by zero while normalizing.
-    normalize(const primitive_id& id,
-              const input_info& input,
-              const primitive_id& scale_input,
-              const bool across_spatial = true,
-              const float epsilon = 1e-10f)
+    normalize(const primitive_id& id, const input_info& input, const primitive_id& scale_input, const bool across_spatial = true, const float epsilon = 1e-10F)
         : primitive_base(id, {input}),
           scale_input(scale_input),
           across_spatial(across_spatial),
@@ -54,7 +50,7 @@ struct normalize : public primitive_base<normalize> {
     /// @brief Determines if the normalization is done across or within spatial (see documentation above).
     bool across_spatial = true;
     /// @brief Epsilon for not dividing by zero while normalizing.
-    float epsilon = 1e-10f;
+    float epsilon = 1e-10F;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
