@@ -3514,6 +3514,13 @@ bool primitive_inst::is_valid_fusion() const {
         return true;
     }
 
+    // GNK FCs have no other implementation to fall back to: if the impl rejects these runtime shapes (e.g. an epilogue
+    // operand that needs broadcasting), run the fused chain as separate primitives.
+    if (get_node().is_type<fully_connected>() && get_node().as<fully_connected>().get_primitive()->weights_layout == ov::intel_gpu::op::FcWeightsLayout::GNK &&
+        (_impl == nullptr || _impl->m_manager == nullptr || !_impl->m_manager->support_shapes(*_impl_params))) {
+        LOG_AND_RETURN_FALSE(_node);
+    }
+
     if (get_node().is_type<fully_connected>() || get_node().is_type<gemm>() || get_node().is_type<convolution>()) {
         if (_impl_params->input_layouts[0].count() == 0 || _impl_params->input_layouts[1].count() == 0) {
             LOG_AND_RETURN_FALSE(_node);
@@ -3630,7 +3637,9 @@ ImplementationsFactory::ImplementationsFactory(const program_node* node)
 std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_params(primitive_inst& inst,
                                                                                       const kernel_impl_params& params,
                                                                                       bool use_async_compilation) {
-    auto find_impl = [this](const program_node* node, const kernel_impl_params& params, shape_types shape_type) -> std::unique_ptr<primitive_impl> {
+    // Managers are selected (shape type, support_shapes) with `params`; the impl is created from `create_params` if given.
+    auto find_impl = [this](const program_node* node, const kernel_impl_params& params, shape_types shape_type,
+                            const kernel_impl_params* create_params = nullptr) -> std::unique_ptr<primitive_impl> {
         OPENVINO_ASSERT(node != nullptr);
         for (auto& impl_manager : m_available_impls) {
             if ((impl_manager->get_shape_type() & shape_type) != shape_type) {
@@ -3641,7 +3650,7 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
                 continue;
             }
 
-            auto impl = impl_manager->create(*node, params);
+            auto impl = impl_manager->create(*node, create_params ? *create_params : params);
             if (impl) {
                 return impl;
             }
@@ -3731,13 +3740,20 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
     }
 
     // 4. Try to create new shape agnostic impl & cache it
+    // If cached dynamic impls all reject these shapes (e.g. CM for a fused epilogue needing broadcast), the fallback is selected
+    // with the runtime params but created from the node's own params, so it stays shape agnostic for other shapes.
+    // Without any cached dynamic impl, the node may not support dynamic params at all (e.g. a forced conv kernel): keep using the runtime params.
     if (!dynamic_impl) {
-        dynamic_impl = find_impl(node, params, shape_types::dynamic_shape);
+        const auto node_params = m_dynamic_impls_cache.empty() ? nullptr : node->get_kernel_impl_params();
+        const kernel_impl_params& create_params = node_params ? *node_params : params;
+        dynamic_impl = find_impl(node, params, shape_types::dynamic_shape, node_params.get());
         if (dynamic_impl && !inst.can_be_optimized()) {
             dynamic_impl->set_node_params(*node);
-            auto kernels = kernels_cache.compile(params, dynamic_impl->get_kernels_source());
+            auto kernels = kernels_cache.compile(create_params, dynamic_impl->get_kernels_source());
             dynamic_impl->set_kernels(std::move(kernels));
-            m_dynamic_impls_cache.push_back(dynamic_impl);
+            if (!node_params || dynamic_impl->is_dynamic()) {
+                m_dynamic_impls_cache.push_back(dynamic_impl);
+            }
         }
     }
 
