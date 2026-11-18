@@ -43,6 +43,7 @@ set(op_list
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/dynamic_quantize_lstm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/dynamic_quantize_matmul.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/embed_layer_normalization.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/expand_dims.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/fast_gelu.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/fused_conv.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/fusedgemm.cpp
