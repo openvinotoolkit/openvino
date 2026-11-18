@@ -1961,7 +1961,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 manager.register_pass<ov::intel_gpu::LoRAHorizontalFusion>();
             }
         }
-        // After the horizontal fusion: a gate/up pair merged into SwiGLU no longer matches.
+        // After the horizontal fusion, so that the scales of a merged gate/up FC are the ones scaled.
         // ActivationsScaling, when enabled, already scales every MatMul.
         if (infer_precision == ov::element::f16 && !(config.get_activations_scale_factor() > 0.f)) {
             manager.register_pass<ov::intel_gpu::ScaleDownGatedMLPInput>();
