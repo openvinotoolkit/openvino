@@ -4451,7 +4451,8 @@ TEST_P(sdpa_opt_large_scores_test, matches_reference) {
     size_t max_diff_idx = 0;
     for (size_t i = 0; i < expected.size(); ++i) {
         const double diff = std::abs(static_cast<double>(output_data[i]) - expected[i]);
-        if (!(diff <= max_diff)) {  // also records NaN
+        ASSERT_TRUE(std::isfinite(diff)) << "Non-finite difference at index " << i;
+        if (diff > max_diff) {
             max_diff = diff;
             max_diff_idx = i;
         }
