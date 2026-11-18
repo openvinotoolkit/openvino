@@ -477,7 +477,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::optional<int64_t> batch = std::nullopt;
     if (originalBatch.has_value() && successfullyDebatched) {
-        batch = originalBatch.value().is_static() ? originalBatch.value().get_length() : -1;
+        batch = originalBatch.value().is_static() ? originalBatch.value().get_length() : utils::DYNAMIC_BATCH_SIZE;
         if (batch > 0 && graph->get_kind() != GraphKind::Dynamic) {
             // Initial batch setup for static cases
             graph->set_batch_size(batch.value());
