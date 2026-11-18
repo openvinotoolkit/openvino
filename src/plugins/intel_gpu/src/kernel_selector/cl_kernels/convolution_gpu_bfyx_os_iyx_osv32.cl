@@ -44,7 +44,7 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv32)(
     const uint batch_idx = (fm / SUB_GROUP_SIZE) % OUTPUT_BATCH_NUM;
     const uint fmg = (fm / SUB_GROUP_SIZE) / OUTPUT_BATCH_NUM;
     const uint feature_idx = fmg * OSV_SIZE + lid;
-    const uint input0_physical_len = INPUT0_OFFSET_WITH_PADDING + INPUT0_BATCH_PITCH * INPUT0_BATCH_NUM;
+    const uint input0_physical_len = INPUT0_BATCH_PITCH * (INPUT0_PAD_BEFORE_BATCH_NUM + INPUT0_BATCH_NUM + INPUT0_PAD_AFTER_BATCH_NUM);
 
     UNIT_TYPE in[IN_BLOCK_ARRAY_SIZE];
     CALC_UNIT_TYPE out[OUTPUT_BLOCK_WIDTH * OUTPUT_BLOCK_HEIGHT];

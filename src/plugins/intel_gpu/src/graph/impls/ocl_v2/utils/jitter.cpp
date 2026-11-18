@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -301,6 +301,12 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         type_size = "0.5f";
         is_fp = false;
         break;
+    case ov::element::u3:
+        // tightly packed, 3 bits per element
+        type = "uchar";
+        type_size = "0.375f";
+        is_fp = false;
+        break;
     case ov::element::bf16:
         type = "ushort";
         max_val = "FLT_MAX";
@@ -402,14 +408,18 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         OPENVINO_THROW("[GPU] Jitter: unsupported data type: ", value);
     }
 
-    if (compute_type.empty())
+    if (compute_type.empty()) {
         compute_type = type;
-    if (to_compute_type.empty())
+    }
+    if (to_compute_type.empty()) {
         to_compute_type = to_type;
-    if (decode_compute_type.empty())
+    }
+    if (decode_compute_type.empty()) {
         decode_compute_type = "(v)";
-    if (decode_compute_vector_type.empty())
+    }
+    if (decode_compute_vector_type.empty()) {
         decode_compute_vector_type = "(v)";
+    }
 
     return {
         make_jit_constant(name + "_TYPE", type),
@@ -494,7 +504,7 @@ JitConstants make_indexing_jit_functions(const std::string& name, const layout& 
             const JitTerm f_size{to_code_string(l.feature())};
             const JitTerm f{"(f)"};
             if (l.data_padding && simple_format) {
-                const JitTerm f_pitch{to_code_string(0 /* _tensor.Feature().pitch */)};
+                const JitTerm f_pitch{name + "_FEATURE_PITCH"};
                 safe_index_func_val = offset + (f % f_size) * f_pitch;
                 index_func_val = offset + (f * f_pitch);
             } else if (!l.data_padding && !format::is_multi_blocked(fmt)) {

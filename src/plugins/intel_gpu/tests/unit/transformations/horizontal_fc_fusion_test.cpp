@@ -5,6 +5,8 @@
 #include <gtest/gtest.h>
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
+#include "intel_gpu/op/fully_connected_compressed.hpp"
+#include "intel_gpu/op/placeholder.hpp"
 
 #include <string>
 #include <memory>
@@ -642,3 +644,57 @@ TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_mixed_scale_orientat
 }  // namespace intel_gpu
 }  // namespace test
 }  // namespace ov
+namespace {
+
+std::shared_ptr<ov::Model> make_i8_fc_model(const std::vector<ov::Shape>& scale_shapes, bool transpose_b = true) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 7, 256});
+    ov::ResultVector results;
+    const std::vector<size_t> rows{4, 2, 2};
+    for (size_t i = 0; i < rows.size(); ++i) {
+        const ov::Shape weight_shape = transpose_b ? ov::Shape{rows[i], 256} : ov::Shape{256, rows[i]};
+        auto weight = ov::op::v0::Constant::create(ov::element::i8, weight_shape, {static_cast<int8_t>(i + 1)});
+        auto bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto scale = ov::op::v0::Constant::create(ov::element::f16, scale_shapes[i], {0.25f * (i + 1)});
+        auto fc = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weight, bias, scale, ov::element::dynamic, transpose_b);
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(
+            fc, ov::op::v0::Constant::create(ov::element::i64, {3}, {0, 0, -1}), true);
+        results.push_back(std::make_shared<ov::op::v0::Result>(reshape));
+    }
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{input});
+}
+
+}  // namespace
+
+TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_mixed_q5_q6_groups) {
+    model = make_i8_fc_model({{4, 8}, {2, 8}, {2, 16}});
+    manager.register_pass<FullyConnectedHorizontalFusion>();
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_matching_i8_group32) {
+    model = make_i8_fc_model({{4, 8}, {2, 8}, {2, 8}});
+    manager.register_pass<FullyConnectedHorizontalFusion>();
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 7, 256});
+    std::vector<int8_t> codes(8 * 256, 1);
+    std::fill(codes.begin() + 4 * 256, codes.begin() + 6 * 256, 2);
+    std::fill(codes.begin() + 6 * 256, codes.end(), 3);
+    auto weight = ov::op::v0::Constant::create(ov::element::i8, {8, 256}, codes);
+    std::vector<float> scales(8 * 8, 0.25f);
+    std::fill(scales.begin() + 4 * 8, scales.begin() + 6 * 8, 0.5f);
+    std::fill(scales.begin() + 6 * 8, scales.end(), 0.75f);
+    auto scale = ov::op::v0::Constant::create(ov::element::f16, {8, 8}, scales);
+    auto fc = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weight, std::make_shared<ov::intel_gpu::op::Placeholder>(), scale);
+    auto split = std::make_shared<ov::op::v1::VariadicSplit>(fc,
+                                                             ov::op::v0::Constant::create(ov::element::i64, {1}, {2}),
+                                                             ov::op::v0::Constant::create(ov::element::i64, {3}, {4, 2, 2}));
+    ov::ResultVector results;
+    for (size_t i = 0; i < 3; ++i) {
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(
+            split->output(i), ov::op::v0::Constant::create(ov::element::i64, {3}, {0, 0, -1}), true);
+        results.push_back(std::make_shared<ov::op::v0::Result>(reshape));
+    }
+    model_ref = std::make_shared<ov::Model>(results, ov::ParameterVector{input});
+}

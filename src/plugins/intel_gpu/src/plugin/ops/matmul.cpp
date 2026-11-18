@@ -41,8 +41,8 @@ static void CreateMatMulOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::
     auto rank_a = shape_a.rank().get_length();
     auto rank_b = shape_b.rank().get_length();
 
-    auto alpha = 1.0f;
-    auto beta = 0.0f;
+    auto alpha = 1.0F;
+    auto beta = 0.0F;
     auto transA = op->get_transpose_a();
     auto transB = op->get_transpose_b();
 
@@ -73,8 +73,9 @@ static void CreateMatMulOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::
         // (see get_gemm_primitive_descriptor in impls/onednn/gemm_onednn.cpp), so a materialized
         // permute is pure data movement. The heuristics below target the OCL gemm_tiled_opt
         // kernel, which is not selected when oneDNN is available.
-        if (p.get_engine().get_device_info().supports_immad && type != ov::element::f32)
+        if (p.get_engine().get_device_info().supports_immad && type != ov::element::f32) {
             return false;
+        }
 
         // don't transpose inputs if they're aligned to 16
         bool inputsAligned = std::all_of(shapes[0].rbegin(), shapes[0].rbegin() + 2,
@@ -152,8 +153,8 @@ static void CreateGemmOp(ProgramBuilder& p, const std::shared_ptr<ov::op::intern
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
-    auto alpha = 1.0f;
-    auto beta = 0.0f;
+    auto alpha = 1.0F;
+    auto beta = 0.0F;
 
     auto shape_a = op->get_input_partial_shape(0);
     auto shape_b = op->get_input_partial_shape(1);
@@ -196,8 +197,8 @@ static void CreateIndirectGemmOp(ProgramBuilder& p, const std::shared_ptr<ov::in
     auto inputs = p.GetInputInfo(op);
     std::string layer_name = layer_type_name_ID(op);
 
-    auto alpha = 1.0f;
-    auto beta = 0.0f;
+    auto alpha = 1.0F;
+    auto beta = 0.0F;
 
     auto gemmPrim = cldnn::gemm(layer_name,
                                 std::vector<cldnn::input_info>{ inputs[0], inputs[1] },

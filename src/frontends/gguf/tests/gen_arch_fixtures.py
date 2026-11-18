@@ -190,6 +190,13 @@ def main():
         models = os.path.join(work, "models")
         os.makedirs(models, exist_ok=True)
         files = run_generator(exe, models)
+        import numpy as np
+
+        lfm3_fixture = os.path.join(os.path.dirname(__file__), "test_data", "arch_accuracy", "lfm3.npz")
+        with np.load(lfm3_fixture) as fixture:
+            lfm3_model = os.path.join(models, "lfm3.gguf")
+            fixture["model"].tofile(lfm3_model)
+        files.append(lfm3_model)
         print(f"generated {len(files)} models in {models}")
 
         out_dir = os.path.abspath(args.out_dir)

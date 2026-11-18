@@ -7,7 +7,7 @@
 #include <sstream>
 #include <string>
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
 #include "micro_utils.hpp"
 #endif
 
@@ -148,6 +148,7 @@ std::string toString(DataLayout l) {
 std::string toString(Datatype dType) {
     switch (dType) {
         case Datatype::UINT2:  return "UINT2";
+        case Datatype::UINT3:  return "UINT3";
         case Datatype::UINT4:  return "UINT4";
         case Datatype::INT4:   return "INT4";
         case Datatype::INT8:   return "INT8";
@@ -172,6 +173,7 @@ std::string toString(WeightsType wType) {
         case WeightsType::F16:    return "F16";
         case WeightsType::F32:    return "F32";
         case WeightsType::UINT2:  return "UINT2";
+        case WeightsType::UINT3:  return "UINT3";
         case WeightsType::UINT4:  return "UINT4";
         case WeightsType::INT4:   return "INT4";
         case WeightsType::INT8:   return "INT8";
@@ -615,7 +617,7 @@ void clKernelData::save(cldnn::BinaryOutputBuffer& ob) const {
     }
 
     ob << params.layerID;
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
     ob << micro_kernels.size();
     for (const auto& microkernel : micro_kernels) {
         microkernel->save(ob);
@@ -649,7 +651,7 @@ void clKernelData::load(cldnn::BinaryInputBuffer& ib) {
 
     ib >> params.layerID;
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
     size_t n_microkernels;
     ib >> n_microkernels;
     micro_kernels.clear();

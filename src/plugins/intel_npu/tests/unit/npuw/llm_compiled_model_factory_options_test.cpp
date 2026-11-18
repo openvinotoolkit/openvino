@@ -6,16 +6,21 @@
 
 #include <algorithm>
 #include <array>
+#include <limits>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "llm_compiled_model_utils.hpp"
 #include "llm_test_helpers.hpp"
 #include "moe_transformations/moe_topology.hpp"
+#include "npuw_transformations/insert_vocab_sub128.hpp"
+#include "openvino/core/version.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
@@ -27,6 +32,8 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
+#include "serialization.hpp"
+#include "transformations/rt_info/decompression.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 #include "whisper/prepare_whisper_model.hpp"
 
@@ -35,6 +42,18 @@ using MoEHint = intel_npu::npuw::llm::MoEHint;
 using ov::test::npuw::CompileCall;
 using ov::test::npuw::NullPlugin;
 using ov::test::npuw::RecordingFactory;
+
+std::string make_llm_header(const std::size_t claimed_version_size, const std::string& version) {
+    std::ostringstream stream;
+    ov::npuw::s11n::write(stream, NPUW_SERIALIZATION_INDICATOR);
+    ov::npuw::s11n::write(stream, NPUW_LLM_COMPILED_MODEL_INDICATOR);
+    ov::npuw::s11n::write(stream, OPENVINO_VERSION_MAJOR);
+    ov::npuw::s11n::write(stream, OPENVINO_VERSION_MINOR);
+    ov::npuw::s11n::write(stream, OPENVINO_VERSION_PATCH);
+    ov::npuw::s11n::write(stream, claimed_version_size);
+    stream.write(version.data(), static_cast<std::streamsize>(version.size()));
+    return stream.str();
+}
 
 bool has_transposed_value_matmul(const std::shared_ptr<ov::Model>& model, std::string_view attention_kind) {
     for (const auto& op : model->get_ops()) {
@@ -1181,11 +1200,13 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperOptionOptimizesSelfAndCrossAtt
     EXPECT_EQ(encoder_value_shape[3], whisper_config.get_encoder_seq_len());
 }
 
-TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperDisablesFoldAndFuncallStageOptions) {
+TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperNonInt8PreservesFoldAndFuncallStageOptions) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+    auto model = build_whisper_decoder_model();
+    model->set_rt_info("int4", "nncf", "weight_compression", "mode");
 
-    ASSERT_NO_THROW(compiled = create_compiled_model(build_whisper_decoder_model(),
+    ASSERT_NO_THROW(compiled = create_compiled_model(model,
                                                      {{"NPUW_WHISPER", "YES"},
                                                       {"NPUW_WHISPER_EOS_TOKEN", "42"},
                                                       {"NPUW_FOLD", "YES"},
@@ -1196,12 +1217,110 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperDisablesFoldAndFuncallStageOpt
 
     const auto& prefill = require_call(recorder, "_prefill");
     const auto& generate = require_call_containing(recorder, "_kv");
-    expect_missing_prop(prefill.props, "NPUW_FOLD");
-    expect_missing_prop(prefill.props, "NPUW_FUNCALL_FOR_ALL");
+    expect_prop(prefill.props, "NPUW_FOLD", "YES");
+    expect_prop(prefill.props, "NPUW_FUNCALL_FOR_ALL", "YES");
     expect_prop(prefill.props, "NPUW_WEIGHTS_BANK", "whisper-shared");
-    expect_missing_prop(generate.props, "NPUW_FOLD");
-    expect_missing_prop(generate.props, "NPUW_FUNCALL_FOR_ALL");
+    expect_prop(generate.props, "NPUW_FOLD", "YES");
+    expect_prop(generate.props, "NPUW_FUNCALL_FOR_ALL", "YES");
     expect_prop(generate.props, "NPUW_WEIGHTS_BANK", "whisper-shared");
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperInt8DisablesWsStageOptions) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+    auto model = build_whisper_decoder_model();
+    model->set_rt_info("int8", "nncf", "weight_compression", "mode");
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(model,
+                                                     {{"NPUW_WHISPER", "YES"},
+                                                      {"NPUW_WHISPER_EOS_TOKEN", "42"},
+                                                      {"NPUW_FOLD", "YES"},
+                                                      {"NPUW_FOLD_ONLY", "YES"},
+                                                      {"NPUW_FUNCALL_FOR_ALL", "YES"},
+                                                      {"NPUW_CWAI", "YES"},
+                                                      {"NPUW_WEIGHTS_BANK", "whisper-shared"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& prefill = require_call(recorder, "_prefill");
+    const auto& generate = require_call_containing(recorder, "_kv");
+    for (const auto* call : {&prefill, &generate}) {
+        expect_missing_prop(call->props, "NPUW_FOLD");
+        expect_missing_prop(call->props, "NPUW_FOLD_ONLY");
+        expect_missing_prop(call->props, "NPUW_FUNCALL_FOR_ALL");
+        expect_missing_prop(call->props, "NPUW_CWAI");
+        expect_prop(call->props, "NPUW_WEIGHTS_BANK", "whisper-shared");
+    }
+}
+
+// Makes the embedding and the LM head (proj_out) of the synthetic Whisper decoder read one u8
+// asymmetric vocabulary, as in an INT4 Whisper model with tied weights. As in a real IR, each reader
+// has its own dequantization over the same constants.
+void share_u8_asym_vocabulary(const std::shared_ptr<ov::Model>& model) {
+    std::shared_ptr<ov::Node> embedding_weight;
+    std::shared_ptr<ov::Node> head;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (node->get_friendly_name() == "model.decoder.embed_tokens.weight") {
+            embedding_weight = node;
+        } else if (ov::is_type<ov::op::v0::MatMul>(node) && node->get_friendly_name() == "proj_out/MatMul") {
+            head = node;
+        }
+    }
+    ASSERT_NE(embedding_weight, nullptr);
+    ASSERT_NE(head, nullptr);
+    const auto vocab_shape = embedding_weight->get_output_shape(0);
+    ASSERT_EQ(head->get_input_shape(1), vocab_shape);
+
+    const ov::Shape channel_shape{vocab_shape[0], 1};
+    auto weight = ov::op::v0::Constant::create(ov::element::u8,
+                                               vocab_shape,
+                                               std::vector<uint8_t>(ov::shape_size(vocab_shape), 200));
+    auto zero_point = ov::op::v0::Constant::create(ov::element::u8,
+                                                   channel_shape,
+                                                   std::vector<uint8_t>(vocab_shape[0], 128));
+    auto scale =
+        ov::op::v0::Constant::create(ov::element::f32, channel_shape, std::vector<float>(vocab_shape[0], 0.01f));
+    auto dequantize = [&]() -> ov::Output<ov::Node> {
+        auto weight_f32 = std::make_shared<ov::op::v0::Convert>(weight, ov::element::f32);
+        auto zero_point_f32 = std::make_shared<ov::op::v0::Convert>(zero_point, ov::element::f32);
+        ov::mark_as_decompression(weight_f32);
+        ov::mark_as_decompression(zero_point_f32);
+        auto shifted = std::make_shared<ov::op::v1::Subtract>(weight_f32, zero_point_f32);
+        return std::make_shared<ov::op::v1::Multiply>(shifted, scale);
+    };
+    for (const auto& reader : embedding_weight->output(0).get_target_inputs()) {
+        reader.replace_source_output(dequantize());
+    }
+    head->input(1).replace_source_output(dequantize());
+}
+
+std::size_t count_sub128_shifts(const std::shared_ptr<ov::Model>& model) {
+    const auto ops = model->get_ordered_ops();
+    return std::count_if(ops.begin(), ops.end(), [](const auto& op) {
+        return op->get_rt_info().count(ov::npuw::NPUW_SUB128_SHIFT_RT_INFO) > 0;
+    });
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperDoesNotUseSharedVocabulary) {
+    auto model = build_whisper_decoder_model();
+    share_u8_asym_vocabulary(model);
+    bool shared = false;
+    ov::npuw::DetectVocabSharing(shared).run_on_model(model->clone());
+    ASSERT_TRUE(shared) << "The test model must have a shared u8 asymmetric vocabulary";
+
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+    ASSERT_NO_THROW(compiled = create_compiled_model(model,
+                                                     {{"NPUW_WHISPER", "YES"},
+                                                      {"NPUW_WHISPER_EOS_TOKEN", "42"},
+                                                      {"NPUW_LLM_VOCAB_ASYM_SHARED", "YES"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& prefill = require_call(recorder, "_prefill");
+    const auto& generate = require_call_containing(recorder, "_kv");
+    EXPECT_EQ(count_sub128_shifts(prefill.model), 0u);
+    EXPECT_EQ(count_sub128_shifts(generate.model), 0u);
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperPreparationAddsKvCacheInputsAndPresentOutputs) {
@@ -1390,6 +1509,24 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, TextEmbedEncoderClampsPromptLenToMaxP
     // The clamped length is what got compiled, so it has to be what the property reports. GenAI
     // reads this back to decide how long a prompt it may submit.
     EXPECT_EQ(compiled->get_property("NPUW_LLM_MAX_PROMPT_LEN").as<uint32_t>(), 512u);
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, ImportRejectsExcessiveSerializationVersionLengthBeforeAllocation) {
+    const auto header = make_llm_header(std::numeric_limits<std::size_t>::max(), NPUW_SERIALIZATION_VERSION);
+    std::istringstream stream(header);
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::LLMCompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "the maximum is 64");
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, ImportReportsVersionMismatchForDifferentVersionLength) {
+    const auto header = make_llm_header(3u, "0.3");
+    std::istringstream stream(header);
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::LLMCompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "NPUW serialized by version 0.3");
 }
 
 }  // namespace
