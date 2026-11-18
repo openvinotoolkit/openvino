@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 468,
+  "total": 469,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -5104,6 +5104,15 @@
       "title": "smoke_ScatterUpdateGeneralPathOutOfRangeIndices tests fail - reference plugin doesn't throw on out-of-range indices",
       "category": "Code Issue",
       "signature_hash": "e746e8e11c0fe156",
+      "pr_number": "39956"
+    },
+    {
+      "investigation_id": "2026-11-17-23-57-23-505-44184088514",
+      "run_id": "44184088514",
+      "timestamp": "2026-11-17T23:57:23Z",
+      "title": "iGPU unit tests job cancelled after hitting the 80-minute job timeout near the end of the gtest suite",
+      "category": "Infrastructure",
+      "signature_hash": "75fb142987956bb4",
       "pr_number": "39956"
     }
   ]

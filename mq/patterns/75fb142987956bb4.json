@@ -4,17 +4,19 @@
     "signature_hash": "75fb142987956bb4",
     "title": "iGPU unit tests job cancelled after hitting the 80-minute job timeout near the end of the gtest suite",
     "category": "Infrastructure",
-    "count": 1,
+    "count": 2,
     "first_seen": "2026-11-16T14:42:26Z",
-    "last_seen": "2026-11-16T14:42:26Z",
+    "last_seen": "2026-11-17T23:57:23Z",
     "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/44184088514",
         "https://github.com/openvinotoolkit/openvino/actions/runs/43866326044"
     ],
     "affected_prs": [
+        "https://github.com/openvinotoolkit/openvino/pull/39956",
         "https://github.com/openvinotoolkit/openvino/pull/39742"
     ],
     "recent_timestamps": [
-        "2026-11-16T14:42:26Z"
+        "2026-11-17T23:57:23Z"
     ],
     "rerun_search_string": null
 }

@@ -1,0 +1,48 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-11-17-23-57-23-505-44184088514",
+    "timestamp": "2026-11-17T23:57:23Z",
+    "run_id": "44184088514",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44184088514",
+    "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+    "pr_number": "39956",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39956",
+    "author": "asukhobo",
+    "category": "Infrastructure",
+    "title": "iGPU unit tests job cancelled after hitting the 80-minute job timeout near the end of the gtest suite",
+    "signature": "igpu unit tests job cancelled by concurrency cancel after 80 minute job timeout exceeded running unit test suite|Infrastructure",
+    "signature_hash": "75fb142987956bb4",
+    "confidence": "Medium",
+    "failed_jobs": [
+        {
+            "name": "iGPU Tests (unit) / GPU",
+            "conclusion": "cancelled",
+            "symptom": "Job ran from 22:29:44Z to 23:49:43Z (~80 minutes, the job's timeout-minutes limit in job_gpu_tests.yml line 42) and was aborted mid-test (case 24843/29286) with 'context canceled' / '##[error]The operation was canceled.' - no assertion failure or crash, just an external timeout cancellation."
+        },
+        {
+            "name": "CPU functional tests / CPU functional tests",
+            "conclusion": "failure",
+            "symptom": "4 pre-existing ScatterUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices cases fail with 'Expected exception ov::Exception' not thrown - a known, already-tracked Code Issue (pattern e746e8e11c0fe156) unrelated to this PR's NPU-only change."
+        },
+        {
+            "name": "ci/gha_overall_status",
+            "conclusion": "failure",
+            "symptom": "Downstream aggregate status check fails (exit code 1) because iGPU and CPU functional tests jobs did not both succeed."
+        }
+    ],
+    "key_errors": [
+        "2026-11-17T23:49:42.2624932Z [24843/29286] reduce_gpu_b_fs_yx_fsv16_f32_f32/general_reduce_gpu_f32_f32.base_cached/... (2008 ms)\n2026-11-17T23:49:43.1956758Z context canceled\n2026-11-17T23:49:43.2026940Z ##[error]The operation was canceled.",
+        "2026-11-17T22:54:41.7543043Z src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/scatter_update.cpp:145: Failure\nExpected exception ov::Exception\n[  FAILED  ] smoke_ScatterUpdateGeneralPathOutOfRangeIndices/ScatterUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices/f32_IS=[8.4]_[2.4]_..._idx_precision=i64",
+        "2026-11-17T23:50:02.7234001Z ##[error]Process completed with exit code 1."
+    ],
+    "root_cause": "The iGPU unit tests job (job_gpu_tests.yml, device=igpu, TEST_TYPE=unit) ran the ov_gpu_unit_tests binary (29286 parametrized gtest cases) and was still executing case 24843/29286 (~85% through) at 23:49:43Z, 80 minutes after the job started at 22:29:44Z - exactly the job's configured timeout-minutes: 80 cap. GitHub Actions reported 'context canceled' / 'The operation was canceled.', the classic signature of an enclosing timeout killing the step mid-suite rather than any application error (no gtest FAILED line, no crash). This PR only touches src/plugins/intel_npu/cmake/download_compiler_libs.cmake (an NPU compiler-libs download cmake script), which the GPU unit test binary does not exercise, so this is not a PR-introduced regression. Separately, the CPU functional tests job failed 4 cases of ScatterUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices expecting an ov::Exception that the reference implementation no longer throws for out-of-range scatter indices - this is a pre-existing, already-tracked Code Issue (pattern e746e8e11c0fe156, a recurring pre-existing failure (3 prior occurrences) now also observed in this run), also unrelated to the NPU-only PR diff.",
+    "reproduction_steps": "N/A for the iGPU timeout - requires running the full 29286-case ov_gpu_unit_tests binary on the same igpu self-hosted runner class and observing whether it approaches/exceeds 80 minutes. For the CPU scatter_update failures: build and run `ov_cpu_func_tests --gtest_filter=*ScatterUpdateGeneralPathOutOfRangeIndices*ThrowsOnOutOfRangeIndices*` locally against src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/scatter_update.cpp:145.",
+    "recommended_actions": [
+        "Re-run the iGPU unit tests job; a plain rerun is expected to pass since this was a timeout/cancellation, not a code defect, and the PR's NPU-only change does not touch the GPU plugin.",
+        "If GPU unit test runs are regularly approaching the 80-minute timeout-minutes limit in .github/workflows/job_gpu_tests.yml (line 42), raise the timeout or shard the ov_gpu_unit_tests binary (e.g., via --gtest_filter shards) to leave headroom.",
+        "Separately track and fix the pre-existing ScatterUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices regression (pattern e746e8e11c0fe156, now observed again, 3 prior occurrences tracked): either the reference/CPU plugin needs to throw ov::Exception again for out-of-range scatter indices, or the test's expectation at scatter_update.cpp:145 needs updating to match current intended behavior.",
+        "Do not block this PR's merge on these two failures: neither is caused by the NPU cmake change being merged."
+    ],
+    "prevention_strategies": "Monitor GPU unit test suite wall-clock duration over time and add slack or early sharding before the suite creeps past the configured timeout-minutes; a suite finishing near 85%+ of its time budget is an early warning sign before it starts intermittently timing out. For the ScatterUpdate Code Issue, prioritize a fix given it has recurred at least 3 times across unrelated PRs (#39833, #38825, plus the original) and resurfaced again on #39956, spanning nearly a month.",
+    "historical_context": "The iGPU-job-timeout-near-the-80-minute-cap signature (75fb142987956bb4) was first recorded 2026-11-16 on PR #39742 (run 43866326044), where the same job was killed mid-suite at case 26049/29291 after ~77 minutes; this is now its 2nd occurrence. The ScatterUpdateLayerCPUErrorConditionTest.ThrowsOnOutOfRangeIndices failure (pattern e746e8e11c0fe156) has recurred 3 prior times (2026-10-23 run 40003582793, PR #38825; 2026-11-16 run 43897852365, PR #39833; 2026-11-17 run 44150712512, same PR #39956 earlier today) and reappeared again in this run, all on different PRs unrelated to the scatter_update code path, confirming it is a stable pre-existing defect rather than something newly introduced."
+}
