@@ -727,7 +727,13 @@ bool Eltwise::canFuse(const NodePtr& node) const {
                     Algorithm::EltwiseDivide,
                     Algorithm::EltwiseSquaredDifference,
                     Algorithm::EltwiseClamp,
-                    Algorithm::EltwiseAbs)) {
+                    Algorithm::EltwiseAbs,
+                    Algorithm::EltwiseEqual,
+                    Algorithm::EltwiseNotEqual,
+                    Algorithm::EltwiseGreater,
+                    Algorithm::EltwiseGreaterEqual,
+                    Algorithm::EltwiseLess,
+                    Algorithm::EltwiseLessEqual)) {
             return false;
         }
 

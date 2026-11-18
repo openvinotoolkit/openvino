@@ -11,6 +11,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/random_uniform.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/reference/random_uniform.hpp"
 
 namespace {
 using ov::test::InputShape;
@@ -21,13 +22,13 @@ typedef std::tuple<
         std::pair<uint64_t, uint64_t>,      // Global seed, operation seed
         ov::element::Type,                  // Network precision
         std::string                        // Device name
-> RandomUnifromDynamicGPUTestParamsSet;
+> RandomUniformDynamicGPUTestParamsSet;
 
-class RandomUnifromDynamicGPUTest : public testing::WithParamInterface<RandomUnifromDynamicGPUTestParamsSet>,
+class RandomUniformDynamicGPUTest : public testing::WithParamInterface<RandomUniformDynamicGPUTestParamsSet>,
                             virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<RandomUnifromDynamicGPUTestParamsSet>& obj) {
-        RandomUnifromDynamicGPUTestParamsSet basicParamsSet = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<RandomUniformDynamicGPUTestParamsSet>& obj) {
+        RandomUniformDynamicGPUTestParamsSet basicParamsSet = obj.param;
         std::ostringstream result;
 
         const auto& [input_shapes, min_max_values, seeds, precision, target_device] = basicParamsSet;
@@ -117,11 +118,15 @@ protected:
     }
 
     void SetUp() override {
-        RandomUnifromDynamicGPUTestParamsSet basicParamsSet = this->GetParam();
+        RandomUniformDynamicGPUTestParamsSet basicParamsSet = this->GetParam();
 
         const auto& [shapes, _min_max_values, seeds, netType, _targetDevice] = basicParamsSet;
         min_max_values = _min_max_values;
         targetDevice = _targetDevice;
+        global_seed = seeds.first;
+        op_seed = seeds.second;
+        out_type = netType;
+        philox_state = {0, 0};
 
         init_input_shapes(shapes);
 
@@ -136,11 +141,40 @@ protected:
         function = std::make_shared<ov::Model>(results, params, "random_uniform_test");
     }
 
+    // All target shapes run on one compiled model, and RandomUniform advances its Philox state after every
+    // inference (n += 256 * <output elements>, same as the CPU plugin). The template plugin reference starts from
+    // the initial state on every call, so compute the reference here with the same state progression.
+    std::vector<ov::Tensor> calculate_refs() override {
+        const auto& params = function->get_parameters();
+        const auto out_shape = inputs.at(params[0]).get_shape();
+        std::vector<uint64_t> out_shape_u64(out_shape.begin(), out_shape.end());
+        ov::Tensor expected(out_type, out_shape);
+        ov::reference::random_uniform(out_shape_u64.data(),
+                                      static_cast<const char*>(inputs.at(params[1]).data()),
+                                      static_cast<const char*>(inputs.at(params[2]).data()),
+                                      static_cast<char*>(expected.data()),
+                                      ov::Shape{out_shape.size()},
+                                      out_type,
+                                      global_seed,
+                                      op_seed,
+                                      philox_state);
+        const uint64_t skip_count = ov::shape_size(out_shape) * 256;
+        philox_state.first += skip_count;
+        if (philox_state.first < skip_count) {
+            philox_state.second++;
+        }
+        return {expected};
+    }
+
 private:
     std::pair<double, double> min_max_values;
+    uint64_t global_seed = 0;
+    uint64_t op_seed = 0;
+    ov::element::Type out_type;
+    std::pair<uint64_t, uint64_t> philox_state{0, 0};
 };
 
-TEST_P(RandomUnifromDynamicGPUTest, Inference) {
+TEST_P(RandomUniformDynamicGPUTest, Inference) {
     run();
 }
 
@@ -187,6 +221,6 @@ const auto testParams_smoke = ::testing::Combine(::testing::ValuesIn(dynInputSha
                                                  ::testing::ValuesIn(netPrecisions),
                                                  ::testing::Values(ov::test::utils::DEVICE_GPU));
 
-INSTANTIATE_TEST_SUITE_P(smoke_dynamic_random_uniform, RandomUnifromDynamicGPUTest,
-                         testParams_smoke, RandomUnifromDynamicGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_dynamic_random_uniform, RandomUniformDynamicGPUTest,
+                         testParams_smoke, RandomUniformDynamicGPUTest::getTestCaseName);
 } // namespace

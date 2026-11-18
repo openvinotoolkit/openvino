@@ -128,6 +128,7 @@ enum class Type : uint8_t {
     RandomUniform,
     Unique,
     Ngram,
+    NgramHash,
     ScaledDotProductAttention,
     PagedAttention,
     PaKVReorder,
@@ -138,13 +139,18 @@ enum class Type : uint8_t {
     RMS,
     SearchSorted,
     SegmentMax,
+    Histc,
     LoRA,
     GatherMatmul,
     GatedDeltaNet,
     PagedGatedDeltaNet,
     SelectiveSSM,
     PagedSelectiveSSM,
-    PagedCausalConv1D
+    PagedCausalConv1D,
+    QSAIndexer,
+    SparseSDPA,
+    PagedQSAIndexer,
+    SparsePA,
 };
 
 enum class Algorithm : uint8_t {

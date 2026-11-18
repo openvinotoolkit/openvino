@@ -7,6 +7,11 @@
 #include "openvino/core/except.hpp"
 #include "ocl/ocl_wrapper.hpp"
 
+#ifndef CL_VERSION_3_0
+#error "Level Zero - OpenCL interoperability requires OpenCL 3.0 or newer.\
+ Update OpenCL or set ENABLE_SYSTEM_OPENCL=OFF to use bundled OpenCL headers"
+#endif
+
 #include <string>
 #include <exception>
 

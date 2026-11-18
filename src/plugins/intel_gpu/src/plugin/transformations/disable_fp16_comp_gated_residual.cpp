@@ -37,13 +37,15 @@ DisableFP16CompForQwenImageGatedResidualPattern::DisableFP16CompForQwenImageGate
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto mvn_node = pattern_map.at(mvn).get_node_shared_ptr();
-        if (transformation_callback(mvn_node))
+        if (transformation_callback(mvn_node)) {
             return false;
+        }
 
         const std::vector<std::shared_ptr<ov::Node>> pattern_nodes = {
             linear_add, gate, gated_branch, residual_add, mvn};
-        for (const auto& pattern_node : pattern_nodes)
+        for (const auto& pattern_node : pattern_nodes) {
             ov::disable_conversion(pattern_map.at(pattern_node).get_node_shared_ptr(), element::f16);
+        }
         return false;
     };
 
