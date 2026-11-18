@@ -17,8 +17,9 @@ FullyConnectedCompressed::FullyConnectedCompressed(const ov::Output<Node>& A,
                                                    const ov::element::Type output_type,
                                                    const bool transpose_b,
                                                    const bool transpose_b_scale,
-                                                   const bool transpose_b_zp)
-    : FullyConnected(A, B, bias, output_type, transpose_b),
+                                                   const bool transpose_b_zp,
+                                                   const std::optional<FcWeightsLayout>& weights_layout)
+    : FullyConnected(A, B, bias, output_type, transpose_b, weights_layout),
       m_transpose_b_scale(transpose_b_scale),
       m_transpose_b_zp(transpose_b_zp) {
     set_argument(3, w_decompression_scale);
@@ -37,8 +38,9 @@ FullyConnectedCompressed::FullyConnectedCompressed(const ov::Output<Node>& A,
                                                    const ov::element::Type output_type,
                                                    const bool transpose_b,
                                                    const bool transpose_b_scale,
-                                                   const bool transpose_b_zp)
-    : FullyConnected(A, B, bias, output_type, transpose_b),
+                                                   const bool transpose_b_zp,
+                                                   const std::optional<FcWeightsLayout>& weights_layout)
+    : FullyConnected(A, B, bias, output_type, transpose_b, weights_layout),
       m_transpose_b_scale(transpose_b_scale),
       m_transpose_b_zp(transpose_b_zp) {
     set_argument(3, w_decompression_scale);
@@ -53,8 +55,9 @@ FullyConnectedCompressed::FullyConnectedCompressed(const ov::Output<Node>& A,
                                                    const ov::element::Type output_type,
                                                    const bool transpose_b,
                                                    const bool transpose_b_scale,
-                                                   const bool transpose_b_zp)
-    : FullyConnected(A, B, bias, output_type, transpose_b),
+                                                   const bool transpose_b_zp,
+                                                   const std::optional<FcWeightsLayout>& weights_layout)
+    : FullyConnected(A, B, bias, output_type, transpose_b, weights_layout),
       m_transpose_b_scale(transpose_b_scale),
       m_transpose_b_zp(transpose_b_zp) {
     set_argument(3, w_decompression_scale);
@@ -67,7 +70,8 @@ std::shared_ptr<ov::Node> FullyConnectedCompressed::clone_with_new_inputs(const 
     if (new_args.size() == 4) {
         return std::make_shared<FullyConnectedCompressed>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_output_type, m_transpose_b,
                                                           m_transpose_b_scale,
-                                                          m_transpose_b_zp);
+                                                          m_transpose_b_zp,
+                                                          m_weights_layout);
     }
     if (new_args.size() == 5) {
         return std::make_shared<FullyConnectedCompressed>(new_args.at(0),
@@ -78,7 +82,8 @@ std::shared_ptr<ov::Node> FullyConnectedCompressed::clone_with_new_inputs(const 
                                                           m_output_type,
                                                           m_transpose_b,
                                                           m_transpose_b_scale,
-                                                          m_transpose_b_zp);
+                                                          m_transpose_b_zp,
+                                                          m_weights_layout);
     }
     if (new_args.size() == 8) {
         return std::make_shared<FullyConnectedCompressed>(new_args.at(0),
@@ -92,7 +97,8 @@ std::shared_ptr<ov::Node> FullyConnectedCompressed::clone_with_new_inputs(const 
                                                           m_output_type,
                                                           m_transpose_b,
                                                           m_transpose_b_scale,
-                                                          m_transpose_b_zp);
+                                                          m_transpose_b_zp,
+                                                          m_weights_layout);
     }
     OPENVINO_THROW("Unexpected inputs count for FullyConnectedCompressed op: ", new_args.size());
 }
