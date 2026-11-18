@@ -291,3 +291,89 @@ TEST(post_optimize_weights, onednn_group_conv_weights_reorder_test) {
     ASSERT_TRUE(onednn_weights_params->_out_desc->get_size() == prog->get_node("weights_weights_reorder_0").get_output_layout().bytes_count());
 #endif
 }
+
+TEST(post_optimize_weights, fc_5d_weights_reorder_constant_folding_test) {
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout{ov::PartialShape{1, 2, 2, 4, 16}, data_types::f16, format::bfyx};
+    ov::Shape weight_shape = {1, 1, 1, 32, 16};
+    auto weights = engine.allocate_memory({ov::PartialShape(weight_shape), data_types::f16, format::bfzyx});
+
+    std::vector<ov::float16> weights_data(ov::shape_size(weight_shape));
+    std::iota(weights_data.begin(), weights_data.end(), 0.f);
+    set_values(weights, weights_data);
+
+    topology topology(
+        input_layout("input", in_layout),
+        data("weights", weights),
+        fully_connected("fc", input_info("input"), {"weights"}, "", data_types::f16, 5, 5)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplementationDesc fc_impl = {format::bfyx, "", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", fc_impl}}));
+
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    reorder_factory rf;
+    program_wrapper::apply_opt_pass<compile_graph>(*prog);
+    program_wrapper::apply_opt_pass<post_optimize_weights>(*prog, rf);
+    ASSERT_NO_THROW(program_wrapper::apply_opt_pass<propagate_constants>(*prog));
+
+    ASSERT_TRUE(has_node(*prog, "weights_weights_reorder_0"));
+    auto& weights_node = prog->get_node("weights_weights_reorder_0");
+    ASSERT_TRUE(weights_node.is_type<data>());
+    EXPECT_TRUE(format::is_weights_format(weights_node.get_output_layout().format));
+    EXPECT_EQ(weights_node.get_output_layout().get_partial_shape(), ov::PartialShape({32, 16}));
+    EXPECT_GT(weights_node.get_output_layout().bytes_count(), 0u);
+}
+
+TEST(post_optimize_weights, fc_5d_fuse_reorder_to_weights_reorder_test) {
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout{ov::PartialShape{1, 2, 2, 4, 16}, data_types::f16, format::bfyx};
+    ov::Shape weight_shape = {1, 1, 1, 32, 16};
+    auto weights = engine.allocate_memory({ov::PartialShape(weight_shape), data_types::f32, format::bfzyx});
+
+    std::vector<float> weights_data(ov::shape_size(weight_shape));
+    std::iota(weights_data.begin(), weights_data.end(), 0.f);
+    set_values(weights, weights_data);
+
+    topology topology(
+        input_layout("input", in_layout),
+        data("weights", weights),
+        reorder("reorder_dt", input_info("weights"), format::any, data_types::f16),
+        fully_connected("fc", input_info("input"), {"reorder_dt"}, "", data_types::f16, 5, 5)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplementationDesc fc_impl = {format::bfyx, "", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", fc_impl}}));
+
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    reorder_factory rf;
+    program_wrapper::apply_opt_pass<compile_graph>(*prog);
+    program_wrapper::apply_opt_pass<post_optimize_weights>(*prog, rf);
+
+    ASSERT_TRUE(has_node(*prog, "reorder_dt"));
+    auto& reorder_before_prop = prog->get_node("reorder_dt");
+    ASSERT_TRUE(reorder_before_prop.is_type<reorder>());
+    auto weights_reorder_params = reorder_before_prop.as<reorder>().get_primitive()->weights_reorder_params;
+    ASSERT_NE(weights_reorder_params, nullptr);
+    EXPECT_EQ(weights_reorder_params->get_input_layout().format, format::oiyx);
+    EXPECT_EQ(weights_reorder_params->get_output_layout().get_partial_shape(), ov::PartialShape({32, 16}));
+
+    ASSERT_NO_THROW(program_wrapper::apply_opt_pass<propagate_constants>(*prog));
+
+    ASSERT_TRUE(has_node(*prog, "reorder_dt"));
+    auto& folded_node = prog->get_node("reorder_dt");
+    ASSERT_TRUE(folded_node.is_type<data>());
+    EXPECT_TRUE(format::is_weights_format(folded_node.get_output_layout().format));
+    EXPECT_EQ(folded_node.get_output_layout().get_partial_shape(), ov::PartialShape({32, 16}));
+    EXPECT_GT(folded_node.get_output_layout().bytes_count(), 0u);
+}
