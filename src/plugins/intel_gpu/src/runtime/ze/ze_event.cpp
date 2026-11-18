@@ -4,6 +4,7 @@
 
 #include "ze_event.hpp"
 #include "ze/ze_common.hpp"
+#include "ze_base_event_factory.hpp"
 
 #include <cassert>
 #include <chrono>
@@ -17,7 +18,7 @@ void ze_event::reset() {
     OV_ZE_EXPECT(ze::zeEventHostReset(m_event.handle()));
 }
 
-void ze_event::wait_impl() {
+void ze_event::ze_wait_impl() {
     OV_ZE_EXPECT(ze::zeEventHostSynchronize(m_event.handle(), endless_wait));
 }
 
@@ -59,7 +60,7 @@ bool ze_event::get_profiling_info_impl(std::list<instrumentation::profiling_inte
         return true;
     }
     ze_kernel_timestamp_result_t timestamp = opt_timestamp.value();
-    auto &dev_info = m_factory.get_engine().get_device_info();
+    const auto& dev_info = m_factory.get_engine().get_device_info();
     auto wallclock_time = timestamp_to_duration(dev_info, timestamp.global);
     auto exec_time = timestamp_to_duration(dev_info, timestamp.context);
     auto submit_time = wallclock_time - exec_time;

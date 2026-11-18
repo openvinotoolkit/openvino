@@ -329,6 +329,41 @@ TEST_F(ZeroCopyOptimizedOutputTest, optimized_out_output_node) {
     net->clear_output_memory_blocks();
 }
 
+// -------------------------------------------------------------------
+// Alternating between a caller binding and the pool-backed copy path
+// (as two requests sharing the network do) must return the compute
+// node's pool memory each time instead of pinning a new record.
+// -------------------------------------------------------------------
+TEST_F(ZeroCopyOptimizedOutputTest, alternating_caller_binding_does_not_grow_pool) {
+    constexpr size_t M = 6;
+    auto caller_mem = engine.allocate_memory(
+        layout{ov::PartialShape{static_cast<int64_t>(M), static_cast<int64_t>(N)}, data_types::f16, format::bfyx},
+        allocation_type::usm_host);
+    const auto input_data = make_input(M);
+
+    auto run_copy_path = [&]() {
+        net->release_user_output_memory("output");
+        run_gemm(M, input_data);
+    };
+    auto run_caller_binding = [&]() {
+        net->set_output_memory("output", caller_mem, true);
+        run_gemm(M, input_data);
+    };
+
+    run_copy_path();
+    run_caller_binding();
+    run_copy_path();
+    const auto pool_size = net->get_memory_pool().get_non_padded_pool_size();
+    ASSERT_GT(pool_size, 0u) << "Precondition: the copy path allocates gemm output from the pool";
+
+    for (int round = 0; round < 3; ++round) {
+        SCOPED_TRACE("round = " + std::to_string(round));
+        run_caller_binding();
+        run_copy_path();
+        ASSERT_EQ(net->get_memory_pool().get_non_padded_pool_size(), pool_size);
+    }
+}
+
 // ===================================================================
 // Multi-user output fixture: gemm feeds TWO consumers — a redundant
 // reorder (optimized out, network output) and a type-converting

@@ -515,7 +515,7 @@ class PytorchLayerTest:
         return om
 
     def torch_compile_backend_test(self, model, inputs, **kwargs):
-        torch._dynamo.config.suppress_errors = True
+        torch._dynamo.config.suppress_errors = False
 
         torch._dynamo.reset()
         model.eval()

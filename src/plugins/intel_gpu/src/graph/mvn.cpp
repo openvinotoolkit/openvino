@@ -10,18 +10,28 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(mvn)
 
-layout mvn_inst::calc_output_layout(mvn_node const& node, kernel_impl_params const& impl_param) {
-    auto input_node_layout = impl_param.get_non_padded_input_layout();
-    auto output_type = impl_param.desc->output_data_types[0].value_or(input_node_layout.data_type);
+layout mvn_inst::calc_output_layout(const mvn_node& node, const kernel_impl_params& impl_param) {
+    auto output_layouts = calc_output_layouts<ov::PartialShape>(node, impl_param);
+    return output_layouts[0];
+}
 
+template <typename ShapeType>
+std::vector<layout> mvn_inst::calc_output_layouts(const mvn_node& /*node*/, const kernel_impl_params& impl_param) {
+    auto in_layout = impl_param.get_input_layout(0);
+    auto output_type = impl_param.desc->output_data_types[0].value_or(in_layout.data_type);
+
+    // Normalized output is fractional: an i8/u8 output type is only valid via a fused quantize.
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_output_element_type();
-    } else if (input_node_layout.data_type == data_types::u8 || input_node_layout.data_type == data_types::i8) {
+    } else if (data_type_traits::is_i8_u8(in_layout.data_type)) {
         output_type = data_types::f32;
     }
 
-    return layout(output_type, input_node_layout.format, input_node_layout.get_tensor());
+    return {layout(in_layout.get<ShapeType>(), output_type, in_layout.format)};
 }
+
+template std::vector<layout> mvn_inst::calc_output_layouts<ov::PartialShape>(mvn_node const& node,
+                                                                             const kernel_impl_params& impl_param);
 
 std::string mvn_inst::to_string(mvn_node const& node) {
     auto node_info = node.desc_to_json();

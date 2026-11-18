@@ -73,7 +73,7 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
     const uint fm  = get_global_id(2);                             // fm = Feature Map = od = Output Depth
     const uint lid = get_sub_group_local_id();
     const uint filter_physical_len = FILTER_GROUPS_NUM * FILTER_SIZE_X * FILTER_SIZE_Y * FILTER_SIZE_Z * FILTER_IFM_NUM * ALIGN(FILTER_OFM_NUM, OSV_SIZE);
-    const uint input0_physical_len = INPUT0_OFFSET_WITH_PADDING + INPUT0_BATCH_PITCH * INPUT0_BATCH_NUM; // bfyx format
+    const uint input0_physical_len = INPUT0_BATCH_PITCH * (INPUT0_PAD_BEFORE_BATCH_NUM + INPUT0_BATCH_NUM + INPUT0_PAD_AFTER_BATCH_NUM); // bfyx format
 
 #if GROUPED
     uint batch_idx = fm / (FEATURES_THREADS_PER_BATCH * FILTER_GROUPS_NUM);

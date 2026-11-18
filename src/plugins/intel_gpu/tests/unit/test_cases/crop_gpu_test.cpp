@@ -1679,25 +1679,36 @@ TEST(crop_gpu, basic_in1x176x52x52_crop_bf16_b_fs_yx_fsv16) {
     }
 }
 
-TEST(crop_gpu, dynamic_in1x4x1x1_split) {
+struct crop_dynamic_split_params {
+    format::type input_format;
+    int32_t y_size;
+    std::vector<float> input;
+    std::vector<float> out1;
+    std::vector<float> out2;
+};
+
+class crop_gpu_dynamic_split : public ::testing::TestWithParam<crop_dynamic_split_params> {};
+
+TEST_P(crop_gpu_dynamic_split, in1x4xYx1_split) {
+    const auto& p = GetParam();
     auto& engine = get_test_engine();
 
     auto batch_num = 1;
     auto feature_num = 4;
     auto x_size = 1;
-    auto y_size = 1;
+    auto y_size = p.y_size;
 
     auto crop_batch_num = 1;
     auto crop_feature_num_1 = 2;
     auto crop_feature_num_2 = 2;
     auto crop_x_size = 1;
-    auto crop_y_size = 1;
+    auto crop_y_size = y_size;
     auto feature_offset_1 = 0;
     auto feature_offset_2 = 2;
     auto axis = 1;
 
-    auto input_dyn_layout    = layout{ ov::PartialShape{ov::Dimension(1, 10), feature_num, y_size, x_size}, data_types::f32, format::bfyx };
-    auto input_actual_layout = layout{ ov::PartialShape{batch_num, feature_num, y_size, x_size}, data_types::f32, format::bfyx };
+    auto input_dyn_layout    = layout{ ov::PartialShape{ov::Dimension(1, 10), feature_num, y_size, x_size}, data_types::f32, p.input_format };
+    auto input_actual_layout = layout{ ov::PartialShape{batch_num, feature_num, y_size, x_size}, data_types::f32, p.input_format };
 
     auto input_mem = engine.allocate_memory(input_actual_layout);
     auto data_mem = engine.allocate_memory({ {}, data_types::i64, format::bfyx });
@@ -1711,10 +1722,9 @@ TEST(crop_gpu, dynamic_in1x4x1x1_split) {
     topology.add(crop("crop1", { input_info("input"), input_info("data") }, tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_1)), { tensor(feature(feature_offset_1), spatial(0,0),batch(0)) }, op_mode, 0, axis, num_splits));
     topology.add(crop("crop2", { input_info("input"), input_info("data") }, tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_2)), { tensor(feature(feature_offset_2), spatial(0,0),batch(0)) }, op_mode, 1, axis, num_splits));
 
-    std::vector<float> input_vec = { -1.0f, 2.0f, -3.0f, 4.0f };
-    std::vector<float> out1 = { -1.0f, 2.0f };
-    std::vector<float> out2 = { -3.0f, 4.0f };
-    set_values(input_mem, input_vec);
+    const auto& out1 = p.out1;
+    const auto& out2 = p.out2;
+    set_values(input_mem, p.input);
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
@@ -1732,17 +1742,39 @@ TEST(crop_gpu, dynamic_in1x4x1x1_split) {
     ASSERT_TRUE(impl2->is_dynamic());
 
     auto output1 = outputs.at("crop1").get_memory();
+    ASSERT_EQ(output1->get_layout().format, p.input_format);
     cldnn::mem_lock<float, mem_lock_type::read> output_ptr_1(output1, get_test_stream());
 
+    ASSERT_EQ(output_ptr_1.size(), out1.size());
     for (size_t i = 0; i < out1.size(); i++)
         ASSERT_EQ(output_ptr_1[i], out1[i]);
 
     auto output_2 = outputs.at("crop2").get_memory();
+    ASSERT_EQ(output_2->get_layout().format, p.input_format);
     cldnn::mem_lock<float, mem_lock_type::read> output_ptr_2(output_2, get_test_stream());
 
+    ASSERT_EQ(output_ptr_2.size(), out2.size());
     for (size_t i = 0; i < out2.size(); i++)
         ASSERT_EQ(output_ptr_2[i], out2[i]);
 }
+
+INSTANTIATE_TEST_SUITE_P(crop_gpu,
+                         crop_gpu_dynamic_split,
+                         ::testing::Values(crop_dynamic_split_params{format::bfyx,
+                                                                     1,
+                                                                     {-1.0f, 2.0f, -3.0f, 4.0f},
+                                                                     {-1.0f, 2.0f},
+                                                                     {-3.0f, 4.0f}},
+                                           // byxf buffer order: y0: f0..f3, y1: f0..f3
+                                           crop_dynamic_split_params{format::byxf,
+                                                                     2,
+                                                                     {-1.0f, 2.0f, -3.0f, 4.0f, 5.0f, -6.0f, 7.0f, -8.0f},
+                                                                     {-1.0f, 2.0f, 5.0f, -6.0f},
+                                                                     {-3.0f, 4.0f, 7.0f, -8.0f}}),
+                         [](const ::testing::TestParamInfo<crop_dynamic_split_params>& info) {
+                             return format(info.param.input_format).to_string();
+                         });
+
 
 TEST(crop_gpu, dynamic_in1x4x1x1_varaidic_split) {
     auto& engine = get_test_engine();

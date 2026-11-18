@@ -78,10 +78,11 @@ void jit_loop_begin_emitter::validate_arguments(const std::vector<size_t>& in, c
 void jit_loop_begin_emitter::emit_code_impl(const std::vector<size_t>& in,
                                             const std::vector<size_t>& out,
                                             const std::vector<size_t>& pool_vec_idxs,
-                                            const std::vector<size_t>& pool_gpr_idxs) const {
+                                            const std::vector<size_t>& pool_gpr_idxs,
+                                            const std::vector<size_t>& pool_fp_gpr_idxs) const {
     validate_arguments(in, out);
     // Use base preamble/postamble to manage aux regs consistently
-    ov::intel_cpu::riscv64::jit_emitter::emit_code_impl(in, out, pool_vec_idxs, pool_gpr_idxs, {});
+    ov::intel_cpu::riscv64::jit_emitter::emit_code_impl(in, out, pool_vec_idxs, pool_gpr_idxs, pool_fp_gpr_idxs);
 }
 
 void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t>& in,
@@ -176,9 +177,10 @@ void jit_loop_end_emitter::validate_arguments(const std::vector<size_t>& in, con
 void jit_loop_end_emitter::emit_code_impl(const std::vector<size_t>& in,
                                           const std::vector<size_t>& out,
                                           const std::vector<size_t>& pool_vec_idxs,
-                                          const std::vector<size_t>& pool_gpr_idxs) const {
+                                          const std::vector<size_t>& pool_gpr_idxs,
+                                          const std::vector<size_t>& pool_fp_gpr_idxs) const {
     validate_arguments(in, out);
-    ov::intel_cpu::riscv64::jit_emitter::emit_code_impl(in, out, pool_vec_idxs, pool_gpr_idxs, {});
+    ov::intel_cpu::riscv64::jit_emitter::emit_code_impl(in, out, pool_vec_idxs, pool_gpr_idxs, pool_fp_gpr_idxs);
 }
 
 void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
