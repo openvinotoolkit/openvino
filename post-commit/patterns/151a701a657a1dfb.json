@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "self-hosted Windows runner work directory cleanup fails: cleanup_work_dir.ps1 could not remove work dir (in use by another process), local actions not checked out, action.yml/Dockerfile not found for local action|Infrastructure",
+  "signature_hash": "151a701a657a1dfb",
+  "title": "GPU unit tests job on self-hosted Windows runner fails after work directory cleanup leaves local actions missing",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-11-18T14:03:52Z",
+  "last_seen": "2026-11-18T14:03:52Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/44299820862"
+  ],
+  "affected_commits": [
+    "d7fe851a6798c99de2bbb3cd85561dad6f6f0e23"
+  ],
+  "recent_timestamps": [
+    "2026-11-18T14:03:52Z"
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-18-14-03-52-302-44299820862",
+  "timestamp": "2026-11-18T14:03:52Z",
+  "run_id": "44299820862",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44299820862",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "d7fe851a6798c99de2bbb3cd85561dad6f6f0e23",
+  "pr_number": "39675",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39675",
+  "author": null,
+  "category": "Infrastructure",
+  "title": "GPU unit tests job on self-hosted Windows runner fails after work directory cleanup leaves local actions missing",
+  "signature": "self-hosted Windows runner work directory cleanup fails: cleanup_work_dir.ps1 could not remove work dir (in use by another process), local actions not checked out, action.yml/Dockerfile not found for local action|Infrastructure",
+  "signature_hash": "151a701a657a1dfb",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "Job-started hook's cleanup_work_dir.ps1 fails twice to remove 'C:\\actions-runner\\_work\\openvino' (in use by another process) and finishes with exit code 1; the local download-artifact and upload-artifact actions were never checked out into _work/_actions, so the subsequent 'Download OpenVINO package' and 'Upload GPU unit test results' steps both fail with 'Can't find action.yml, action.yaml or Dockerfile'."
+    }
+  ],
+  "key_errors": [
+    "2026-11-18T13:16:30.8635483Z Attempt 1 failed for: C:\\actions-runner\\_work\\openvino. Retrying in 5 s...\n2026-11-18T13:16:35.8883488Z Attempt 2 failed for: C:\\actions-runner\\_work\\openvino. Retrying in 5 s...\n2026-11-18T13:16:40.9307820Z Could not remove (in use by another process?): C:\\actions-runner\\_work\\openvino\n2026-11-18T13:16:40.9358411Z WARNING: cleanup_work_dir.ps1 finished with exit code 1",
+    "2026-11-18T13:16:40.9974879Z ##[error]Can't find 'action.yml', 'action.yaml' or 'Dockerfile' under 'C:\\actions-runner\\_work\\_actions\\akashchi\\download-artifact\\d59a9c15fec3fdb7c9adf09464124d00f9c11415'. Did you forget to run actions/checkout before running your local action?\n2026-11-18T13:16:41.0112736Z ##[error]Can't find 'action.yml', 'action.yaml' or 'Dockerfile' under 'C:\\actions-runner\\_work\\_actions\\ababushk\\upload-artifact\\ebc7d74ace101c08868aed05dba2aaf274b9a2c7'. Did you forget to run actions/checkout before running your local action?"
+  ],
+  "root_cause": "The self-hosted Windows runner 'ov-dmz-56' (intel-gpu group) ran a job-started hook (job_started_hook.ps1 -> cleanup_work_dir.ps1) that attempts to delete the prior job's work directory 'C:\\actions-runner\\_work\\openvino' before starting the new job. This delete failed twice ('in use by another process') and the hook finished with exit code 1 (a warning, not a hard failure), so the runner proceeded anyway. Because the stale work directory (and its _actions cache) was not fully cleaned/rebuilt, the runner's subsequent 'Prepare all required actions' step downloaded the referenced local actions' repository metadata but the actual action.yml checkouts under _work/_actions/<owner>/<repo>/<sha> were not materialized (likely still locked/partially present from the previous job holding a file handle open, e.g. an antivirus scan or an orphaned runner/test process). The job then failed as soon as it tried to execute the 'akashchi/download-artifact' and 'ababushk/upload-artifact' local actions, since their action.yml files were missing on disk.",
+  "reproduction_steps": "N/A - this is a transient self-hosted Windows runner (ov-dmz-56) filesystem/process-lock infrastructure issue tied to the job_started_hook's work-directory cleanup step, not reproducible by rerunning user code locally. Rerunning the workflow on a runner with a clean/unlocked work directory would be the way to confirm transience, but this doctor does not re-run pipelines.",
+  "recommended_actions": [
+    "Re-run the 'GPU unit tests' job, ideally routed to a different self-hosted Windows runner instance than ov-dmz-56, or after confirming ov-dmz-56's work directory is unlocked.",
+    "Investigate what process is holding a lock on C:\\actions-runner\\_work\\openvino on runner ov-dmz-56 at job start (e.g., lingering antivirus scan, orphaned test executable, or a previous job's runner process not fully torn down) and ensure 'Cleaning up orphan processes' runs before, not just after, the next job starts.",
+    "Make cleanup_work_dir.ps1's failure fatal (or add a retry-with-longer-backoff / forced-handle-release step) instead of only warning and continuing, so a corrupted _work/_actions cache cannot silently cause 'action.yml not found' errors downstream.",
+    "Add a runner health/pre-flight check that verifies all referenced local actions under _work/_actions were actually checked out (action.yml present) before running job steps that depend on them."
+  ],
+  "prevention_strategies": "Monitor the intel-gpu self-hosted Windows runner pool for repeated 'Could not remove (in use by another process?)' warnings from cleanup_work_dir.ps1 and alert when exit code 1 is reported, since it indicates a stale lock that risks corrupting the next job's actions cache. Consider isolating or recycling a runner automatically after a failed work-directory cleanup rather than letting the next job proceed on a partially-cleaned directory.",
+  "historical_context": "A related but distinct GPU-unit-tests Windows runner infrastructure failure was recorded on 2026-11-18 (pattern 49c8462b43da01ff, investigation 2026-11-18-12-35-16-000-44287009194): there, the download-artifact action itself failed with a missing 'set_output' runner file-command temp file, which also cascaded into the same 'Can't find action.yml ... local action' error for the subsequent upload-artifact step. This run's failure is earlier in the job lifecycle (job-started hook work-directory cleanup) but produces the same characteristic downstream symptom (missing local action.yml), suggesting the ov-dmz-56 / intel-gpu Windows GPU runner pool has recurring but mechanistically different work-directory/temp-file instability issues across runs. No prior investigation matches this exact cleanup_work_dir.ps1 signature, so this is recorded as a new pattern."
+}
