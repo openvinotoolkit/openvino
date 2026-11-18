@@ -95,8 +95,9 @@ public:
                     // Skip the NVIDIA compatibility headers: get_program_source() adds all of them to every batch of the
                     // NVIDIA SYCL backend itself, laid out as prelude | batch headers | sg overrides | kernels, which the
                     // alphabetical order of batch_headers would not give.
-                    if (kv.first.rfind("nvidia/", 0) == 0)
+                    if (kv.first.rfind("nvidia/", 0) == 0) {
                         continue;
+                    }
                     if (std::find(micro_kernel_include_names.begin(), micro_kernel_include_names.end(), kv.first) == micro_kernel_include_names.end()) {
                         source.push_back(kv.second);
                     } else {
