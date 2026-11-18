@@ -701,7 +701,7 @@ void register_grouped_matmul_decomposition(ov::pass::Manager& manager,
         return node->get_input_partial_shape(0).rank() == 2 && (infer_precision != ov::element::dynamic || node->get_input_element_type(0) != ov::element::f16);
     };
     auto pass_config = manager.get_pass_config();
-    // ConvertGroupedMatMulToGroupedMatMulCompressed is registered before: keep the GroupedMatMul to be decomposed uncompressed.
+    // Keep any GroupedMatMul that still needs decomposition out of ConvertGroupedMatMulToGroupedMatMulCompressed.
     pass_config->set_callback<ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed>(needs_decomposition);
     pass_config->set_callback<ov::pass::ConvertGroupedMatMul2Dx3DToMatMul>([needs_decomposition](const std::shared_ptr<const ov::Node>& node) {
         return !needs_decomposition(node);
@@ -1075,6 +1075,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::TransposeMatMul>();
 
+        register_grouped_matmul_decomposition(manager, device_info, config, infer_precision);
+
         manager.register_pass<ov::pass::MarkDequantization>(
             std::vector<ov::element::Type>{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4, ov::element::u3, ov::element::u2},
             !device_info.supports_immad);
@@ -1122,8 +1124,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
             }
         }
-
-        register_grouped_matmul_decomposition(manager, device_info, config, infer_precision);
 
         manager.register_pass<ov::pass::GatedDeltaNetFusion>();
         manager.register_pass<ov::pass::InitNodeInfo>();
