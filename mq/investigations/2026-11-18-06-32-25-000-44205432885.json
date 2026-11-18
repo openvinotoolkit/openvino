@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-18-06-32-25-000-44205432885",
+  "timestamp": "2026-11-18T06:32:25Z",
+  "run_id": "44205432885",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44205432885",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "39956",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39956",
+  "author": "asukhobo",
+  "category": "Infrastructure",
+  "title": "GPU unit tests fail to extract OpenVINO package - tbb12.dll locked (Access denied) on Windows self-hosted runner",
+  "signature": "remove item cannot remove item access to the path is denied unauthorizedaccessexception|Infrastructure",
+  "signature_hash": "95bb23aa2ed8a84d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "Extract OpenVINO packages step fails: Expand-Archive -Force cannot overwrite tbb12.dll because it is locked, PowerShell throws UnauthorizedAccessException."
+    }
+  ],
+  "key_errors": [
+    "2026-11-18T06:26:59.6041174Z Remove-Item : Cannot remove item C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll:",
+    "2026-11-18T06:26:59.6042390Z Access to the path 'C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll' is denied.",
+    "2026-11-18T06:26:59.6048129Z    edAccessException",
+    "2026-11-18T06:26:59.6048909Z     + FullyQualifiedErrorId : RemoveFileSystemItemUnAuthorizedAccess,Microsoft.PowerShell.Commands.RemoveItemCommand",
+    "2026-11-18T06:26:59.6527434Z ##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The 'Extract OpenVINO packages' step runs Expand-Archive -Force against a pre-existing C:\\actions-runner\\_work\\openvino\\openvino\\install directory left over from a prior job/run on the same self-hosted GPU runner (ov-dmz-58, intel-gpu group). Expand-Archive's -Force cleanup tries to delete the existing tbb12.dll before re-extracting it, but the DLL is still memory-mapped/locked by a lingering process (e.g. an orphaned test or driver process) from a previous job on the same persistent Windows runner, so Remove-Item fails with UnauthorizedAccessException and the step exits with code 1. This is a known, recurring self-hosted-runner hygiene issue (stale workspace + file lock), not a code defect introduced by this PR; the PR's only change (NPU compiler-libs cmake download URL) is unrelated to the GPU extraction step.",
+  "reproduction_steps": "N/A (requires the specific self-hosted Windows GPU runner state: a stale install/ directory with tbb12.dll locked by a leftover process from a prior job). Not reproducible via a clean local checkout.",
+  "recommended_actions": [
+    "Have the runner/infra team investigate why tbb12.dll remains locked on ov-dmz-58 after prior jobs finish (look for orphaned OpenVINO/test processes or antivirus scanning the install dir).",
+    "Add a pre-step to forcibly terminate lingering processes and/or wipe the install/ directory before Expand-Archive runs, instead of relying on -Force to overwrite in place.",
+    "Consider extracting to a fresh per-run temp directory rather than reusing a persistent install/ path across runs on the same self-hosted runner.",
+    "Re-run the failed GPU unit tests job; this is transient and does not require a code change on PR #39956."
+  ],
+  "prevention_strategies": "Ensure self-hosted Windows GPU runners clean their workspace (kill orphaned processes, remove stale install/test directories) at the start or end of each job rather than depending on Expand-Archive -Force to clobber locked files. Consider running GPU unit test extraction against an isolated/clean directory per run.",
+  "historical_context": "This exact signature has recurred 12 times (now 13 with this run) since 2026-11-09 across many unrelated PRs (#39900, #39781, #39568, #39653, #39617, #37406, #39577, #39668, #39034, #39444), all on the same class of Windows self-hosted GPU runners during the 'Extract OpenVINO packages' step. A related but distinct signature (stale onednn_third-party-programs.txt blocking Expand-Archive cleanup, pattern e71a74b26eea9146) was seen once on 2026-11-11. Both point to the same underlying self-hosted-runner workspace hygiene problem that has not yet been fixed at the infrastructure level."
+}

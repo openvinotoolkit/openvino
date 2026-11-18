@@ -4,10 +4,11 @@
   "signature_hash": "95bb23aa2ed8a84d",
   "title": "GPU unit tests fail to extract OpenVINO package - tbb12.dll locked (Access denied) on Windows self-hosted runner",
   "category": "Infrastructure",
-  "count": 12,
+  "count": 13,
   "first_seen": "2026-11-09T19:06:46Z",
-  "last_seen": "2026-11-16T11:44:24Z",
+  "last_seen": "2026-11-18T06:32:25Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/44205432885",
     "https://github.com/openvinotoolkit/openvino/actions/runs/43843827684",
     "https://github.com/openvinotoolkit/openvino/actions/runs/43830136261",
     "https://github.com/openvinotoolkit/openvino/actions/runs/42983827471",
@@ -16,10 +17,10 @@
     "https://github.com/openvinotoolkit/openvino/actions/runs/42798063954",
     "https://github.com/openvinotoolkit/openvino/actions/runs/42789868134",
     "https://github.com/openvinotoolkit/openvino/actions/runs/42770964527",
-    "https://github.com/openvinotoolkit/openvino/actions/runs/42681233404",
-    "https://github.com/openvinotoolkit/openvino/actions/runs/42680170472"
+    "https://github.com/openvinotoolkit/openvino/actions/runs/42681233404"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39956",
     "https://github.com/openvinotoolkit/openvino/pull/39900",
     "https://github.com/openvinotoolkit/openvino/pull/39781",
     "https://github.com/openvinotoolkit/openvino/pull/39568",
@@ -28,12 +29,10 @@
     "https://github.com/openvinotoolkit/openvino/pull/37406",
     "https://github.com/openvinotoolkit/openvino/pull/39577",
     "https://github.com/openvinotoolkit/openvino/pull/39668",
-    "https://github.com/openvinotoolkit/openvino/pull/39034",
-    "https://github.com/openvinotoolkit/openvino/pull/39444"
+    "https://github.com/openvinotoolkit/openvino/pull/39034"
   ],
   "recent_timestamps": [
-    "2026-11-16T11:44:24Z",
-    "2026-11-16T10:00:00Z"
+    "2026-11-18T06:32:25Z"
   ],
   "rerun_search_string": "RemoveFileSystemItemUnAuthorizedAccess,Microsoft.PowerShell.Commands.RemoveItemCommand"
 }
