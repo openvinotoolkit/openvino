@@ -44,7 +44,7 @@ SparseFillEmptyRowsKernelRef::DispatchData SetDefault(const sparse_fill_empty_ro
 } // anonymous namespace
 
 void SparseFillEmptyRowsKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
-    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+    kd.update_dispatch_data_func = [](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const sparse_fill_empty_rows_params&>(params);
         auto dispatchData = SetDefault(prim_params);
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
@@ -60,7 +60,7 @@ KernelsData SparseFillEmptyRowsKernelRef::GetKernelsData(const Params &params) c
     }
     KernelData kernel_data = KernelData::Default<sparse_fill_empty_rows_params>(params);
     kernel_data.kernels[0].skip_execution = SkipKernelExecution(static_cast<const sparse_fill_empty_rows_params&>(params));
-    sparse_fill_empty_rows_params &new_params = dynamic_cast<sparse_fill_empty_rows_params&>(*kernel_data.params.get());
+    sparse_fill_empty_rows_params& new_params = dynamic_cast<sparse_fill_empty_rows_params&>(*kernel_data.params);
 
     auto sparse_fill_empty_rows_specific_jit = GetJitConstants(new_params);
     auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params);
@@ -99,7 +99,7 @@ JitConstants SparseFillEmptyRowsKernelRef::GetJitConstants(const sparse_fill_emp
     return jit;
 }
 
-bool SparseFillEmptyRowsKernelRef::SkipKernelExecution(const sparse_fill_empty_rows_params& params, size_t kernel_id) const {
+bool SparseFillEmptyRowsKernelRef::SkipKernelExecution(const sparse_fill_empty_rows_params& params, size_t kernel_id) {
     // If indices tensor size has changed the kernel has to be executed
     if (params.inputs[2].LogicalSize() != params.outputs[0].LogicalSize()) {
         return false;

@@ -107,12 +107,10 @@ kernel_selector::data_layout to_data_layout(format f);
 cldnn::format from_data_layout(kernel_selector::data_layout l);
 kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped);
 cldnn::format::type from_weights_layout(kernel_selector::weights_layout l);
-kernel_selector::n_dims compute_tensor_dimensions(const layout& l,
-                                                    const size_t num_channels,
-                                                    const tensor view_offset = tensor {});
-kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor view_offset = tensor {});
+kernel_selector::n_dims compute_tensor_dimensions(const layout& l, size_t num_channels, tensor view_offset = tensor{});
+kernel_selector::data_tensor convert_data_tensor(const layout& l, tensor view_offset = tensor{});
 kernel_selector::weights_tensor convert_weights_tensor(const layout& l, bool is_grouped = false);
-layout from_weights_tensor(const kernel_selector::weights_tensor& t);
+layout from_weights_tensor(const kernel_selector::weights_tensor& l);
 kernel_selector::activation_function get_kernel_selector_activation_param(activation_func activation_func);
 
 template <typename T = std::uint32_t>
@@ -278,17 +276,21 @@ inline std::optional<ov::PartialShape> fold_higher_rank_fused_peer(const layout&
 
     const size_t peer_rank = peer_shape.size();
     const size_t host_rank = host_shape.size();
-    if (peer_rank <= host_rank || host_rank < 3)
+    if (peer_rank <= host_rank || host_rank < 3) {
         return std::nullopt;
-    if (peer_shape.is_dynamic() || host_shape.is_dynamic())
+    }
+    if (peer_shape.is_dynamic() || host_shape.is_dynamic()) {
         return std::nullopt;
-    if (peer_layout.data_padding || host_layout.data_padding)
+    }
+    if (peer_layout.data_padding || host_layout.data_padding) {
         return std::nullopt;
+    }
 
     const auto& peer_format = peer_layout.format;
     const auto& host_format = host_layout.format;
-    if (!format::is_default_format(peer_format) || !format::is_default_format(host_format))
+    if (!format::is_default_format(peer_format) || !format::is_default_format(host_format)) {
         return std::nullopt;
+    }
     // A default format adjusted to another rank is always that rank's default format.
     OPENVINO_ASSERT(format::adjust_to_rank(peer_format, host_rank) == host_format,
                     "Default format rank adjustment must match the host's default format");
@@ -304,8 +306,9 @@ inline std::optional<ov::PartialShape> fold_higher_rank_fused_peer(const layout&
     size_t grouped = 1;
     for (size_t i = 2; i < 2 + fold_count; ++i) {
         const auto grouped_size = ov::util::shape_size_safe({grouped, peer_dims[i]});
-        if (!grouped_size.has_value())
+        if (!grouped_size.has_value()) {
             return std::nullopt;
+        }
         grouped = grouped_size.value();
     }
     folded_dims.push_back(grouped);
@@ -313,16 +316,19 @@ inline std::optional<ov::PartialShape> fold_higher_rank_fused_peer(const layout&
 
     const auto peer_total = ov::util::shape_size_safe(peer_dims);
     const auto folded_total = ov::util::shape_size_safe(folded_dims);
-    if (!peer_total.has_value() || !folded_total.has_value())
+    if (!peer_total.has_value() || !folded_total.has_value()) {
         return std::nullopt;
+    }
     // Folding only regroups existing dims, so the element count is preserved whenever both totals fit.
     OPENVINO_ASSERT(peer_total.value() == folded_total.value(), "Peer folding must preserve the total element count");
-    if (folded_dims.size() != host_dims.size())
+    if (folded_dims.size() != host_dims.size()) {
         return std::nullopt;
+    }
 
     for (size_t i = 0; i < folded_dims.size(); ++i) {
-        if (folded_dims[i] != 1 && folded_dims[i] != host_dims[i])
+        if (folded_dims[i] != 1 && folded_dims[i] != host_dims[i]) {
             return std::nullopt;
+        }
     }
 
     return ov::PartialShape(folded_dims);
