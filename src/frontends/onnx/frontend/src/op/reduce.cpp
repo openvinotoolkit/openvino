@@ -170,9 +170,9 @@ std::shared_ptr<ov::Node> make_onnx_reduce_max(const Node& node,
     const auto reduced_dims = std::make_shared<v8::Gather>(data_shape, reduced->input_value(1), zero);
     const auto empty_dims = std::make_shared<v1::Equal>(reduced_dims, zero);
     const auto is_empty = std::make_shared<v1::ReduceLogicalOr>(empty_dims, axis_zero);
-    const auto neg_inf =
-        v0::Constant::create(data.get_element_type(), Shape{}, {-std::numeric_limits<double>::infinity()});
-    return std::make_shared<v1::Select>(is_empty, neg_inf, reduced);
+    const auto neg_inf = v0::Constant::create(element::f32, Shape{}, {-std::numeric_limits<float>::infinity()});
+    const auto typed_neg_inf = std::make_shared<v0::Convert>(neg_inf, data.get_element_type());
+    return std::make_shared<v1::Select>(is_empty, typed_neg_inf, reduced);
 }
 
 std::shared_ptr<ov::Node> onnx_reduce_sum_square(const ov::frontend::onnx::Node& node,
