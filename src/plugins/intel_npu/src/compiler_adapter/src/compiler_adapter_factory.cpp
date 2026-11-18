@@ -131,11 +131,4 @@ ov::intel_npu::CompilerType CompilerAdapterFactory::resolvePreferPluginCompiler(
     return ov::intel_npu::CompilerType::PLUGIN;
 }
 
-const std::vector<ov::intel_npu::CompilerType>& CompilerAdapterFactory::getKnownCompilerTypes() {
-    static const std::vector<ov::intel_npu::CompilerType> knownCompiler = {ov::intel_npu::CompilerType::DRIVER,
-                                                                           ov::intel_npu::CompilerType::PLUGIN};
-
-    return knownCompiler;
-}
-
 }  // namespace intel_npu

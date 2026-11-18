@@ -86,7 +86,9 @@ public:
                             const std::shared_ptr<intel_npu::IDevice>& device,
                             std::string_view platform) const;
 
-    static const std::vector<ov::intel_npu::CompilerType>& getKnownCompilerTypes();
+    const std::vector<ov::intel_npu::CompilerType>& getKnownCompilerTypes() const {
+        return _knownCompilerTypes;
+    }
 
 private:
     ov::intel_npu::CompilerType determineAppropriateCompilerTypeBasedOnPlatform(std::string_view platform) const;
@@ -97,6 +99,8 @@ private:
     ov::SoPtr<IEngineBackend> _engineBackend;
     VCLFunctionTableProvider _vclFunctionsProvider;
     std::shared_ptr<OptionSupportCache> _optionSupportCache;
+    const std::vector<ov::intel_npu::CompilerType> _knownCompilerTypes = {ov::intel_npu::CompilerType::DRIVER,
+                                                                          ov::intel_npu::CompilerType::PLUGIN};
 };
 
 }  // namespace intel_npu
