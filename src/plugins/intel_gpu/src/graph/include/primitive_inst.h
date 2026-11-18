@@ -255,6 +255,10 @@ public:
     const ExecutionConfig& get_config() const { return get_network().get_config(); }
 
     virtual event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0);
+    // F19: static oneDNN sum writer only. Index of the reused (outer) dependency recorded by the constructor, or -1.
+    int32_t get_reused_eltw_dep_idx() const { return _reused_eltw_dep_idx; }
+    // Re-points dst to the (possibly re-bound) output of the reused dependency. No-op unless dst is still the ctor-bound buffer.
+    void rebind_reused_eltw_output();
     /**
     * Validates whether the provided memory object can be set for a primitive.
     * This function checks that:
@@ -457,6 +461,9 @@ protected:
     bool _has_valid_input = true;  // by default all primitives has valid inputs, exception is input_layout (see input_layout_inst)
     bool _has_mutable_input = false;
     bool _mem_allocated = false;
+    int32_t _reused_eltw_dep_idx = -1;
+    bool _reused_eltw_rebind_pending = false;   // one-shot: consumed by rebind_reused_eltw_output()
+    void* _reused_eltw_ctor_dst_ptr = nullptr;  // raw pointer on purpose: must not keep the ctor-bound buffer alive
     bool _is_dynamic = false;
     primitive_type_id _type;
     primitive_id _id;

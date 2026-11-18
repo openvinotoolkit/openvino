@@ -749,7 +749,7 @@ void run_view_owner(view_owner_variant v, bool expect_sum, bool check_runtime = 
     ASSERT_TRUE(fusing::get_add_fusing_type(W, *desc, fusing::add_fusing_query::guard_superset) == add_fusing_type::sum)
         << "pre-fix predicate (guard_superset) does not say sum: the test would pass vacuously\n" << flags;
     if (!check_runtime) {
-        // predicate level only: frozen, live and reuse index agree (see the DISABLED_F6h test for the runtime side)
+        // predicate level only: frozen, live and reuse index agree (see the F6h test for the runtime side)
         EXPECT_EQ(frozen_sum(W), expect_sum);
         EXPECT_EQ(fusing::get_add_fusing_type(W, *desc) == add_fusing_type::sum, expect_sum);
         EXPECT_EQ(fusing::get_reused_eltwmem_idx(W) != -1, expect_sum);
@@ -778,12 +778,10 @@ TEST(inplace_alias_conflict_f6_f13, F6_control_internal_view_keeps_sum) {
     run_view_owner(view_owner_variant::control_internal, /*expect_sum=*/true, /*check_runtime=*/false);
 }
 
-// F19 (test name keeps the historical F6h): DISABLED, pre-existing defect, not caused by F6/F13. When the sum dependency is
-// a view (no-op strided_slice) of an internal producer, the sum is fused and the reuse index is set, but W's dst is not
-// re-pointed when the view dep is re-aliased (network.cpp update_output_memory); resample has
-// rebind_onednn_reuse_optimized_dst_if_needed, strided_slice does not. Observed: same_buffer=0 and 512/512 output
-// mismatches. See design doc section 11.2.
-TEST(inplace_alias_conflict_f6_f13, DISABLED_F6h_sum_into_view_of_internal_producer_runtime) {
+// F19 (test name keeps the historical F6h): when the sum dependency is a view (no-op strided_slice) of an internal producer,
+// W's dst was bound at construction to the view's private buffer and never re-pointed. Fixed by
+// primitive_inst::rebind_reused_eltw_output() (called from network::allocate_primitives). See the F19 design doc.
+TEST(inplace_alias_conflict_f6_f13, F6h_sum_into_view_of_internal_producer_runtime) {
     run_view_owner(view_owner_variant::control_internal, /*expect_sum=*/true, /*check_runtime=*/true);
 }
 

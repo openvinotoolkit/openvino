@@ -30,7 +30,7 @@ TEST(basic_memory_dependencies, inplace_chain_eltwise_sum_correctness) {
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_immad)
-        return;
+        GTEST_SKIP() << "oneDNN sum needs supports_immad";
 
     auto in_layout = layout{ov::PartialShape({1, 16, 32, 32}), data_types::f16, format::bfyx};
     auto weight_layout = layout{ov::PartialShape({16, 16, 1, 1}), data_types::f16, format::bfyx};
@@ -101,7 +101,7 @@ TEST(basic_memory_dependencies, optimized_resample_to_onednn_sum_reuse_correctne
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_immad)
-        return;
+        GTEST_SKIP() << "oneDNN sum needs supports_immad";
 
     auto in_layout = layout{ov::PartialShape({1, 16, 32, 32}), data_types::f16, format::bfyx};
     auto weight_layout = layout{ov::PartialShape({16, 16, 1, 1}), data_types::f16, format::bfyx};
@@ -205,6 +205,11 @@ TEST(basic_memory_dependencies, optimized_resample_to_onednn_sum_reuse_correctne
     auto conv3_inst = net.get_primitive("conv3");
     ASSERT_LT(static_cast<size_t>(conv3_reused_idx), conv3_inst->dependencies().size());
     ASSERT_EQ(conv3_inst->dependencies()[conv3_reused_idx].first->id(), std::string("resample"));
+
+    // F19: the sum dst must already be bound to the (optimized-out) resample's final buffer at construction time,
+    // not only after the first execute().
+    ASSERT_TRUE(engine.is_the_same_buffer(*resample_inst->output_memory_ptr(), *conv3_inst->output_memory_ptr()))
+        << "F19: conv3 sum dst is not bound to the resample output buffer right after network construction";
 
     net.set_input_data("input", input_mem);
     auto outputs = net.execute();

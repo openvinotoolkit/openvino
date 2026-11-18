@@ -318,6 +318,44 @@ event::ptr primitive_inst::set_output_memory(memory::ptr mem_new, bool check, si
     return ev;
 }
 
+void primitive_inst::rebind_reused_eltw_output() {
+    // Called once from network::allocate_primitives(); later calls are no-ops.
+    if (!_reused_eltw_rebind_pending)
+        return;
+    _reused_eltw_rebind_pending = false;
+    const void* ctor_ptr = _reused_eltw_ctor_dst_ptr;
+    _reused_eltw_ctor_dst_ptr = nullptr;
+    if (_reused_eltw_dep_idx < 0 || is_dynamic() || is_constant() || _outputs.empty() || !_outputs[0])
+        return;
+    // _deps may not be built yet at this point (build_insts_deps() runs after allocate_primitives()); use the node graph.
+    if (!_node || static_cast<size_t>(_reused_eltw_dep_idx) >= _node->get_dependencies().size())
+        return;
+    const auto dep_port = _node->get_dependency_with_port(_reused_eltw_dep_idx);
+    const auto dep_inst = _network.get_primitive(dep_port.first->id());
+    if (dep_port.second != 0) {
+        GPU_DEBUG_TRACE_DETAIL << id() << ": F19 reused eltw dep " << dep_port.first->id() << " has output port " << dep_port.second
+                               << "; keep the constructor binding (F18/P1-M)" << std::endl;
+        return;
+    }
+    if (!dep_inst || !dep_inst->outputs_allocated() || dep_inst->_outputs.empty() || !dep_inst->_outputs[0])
+        return;
+    // Rebind only while dst is still the buffer bound at construction time (compared by raw pointer, no memory::ptr is held).
+    if (_outputs[0]->buffer_ptr() != ctor_ptr)
+        return;
+    auto& eng = get_network().get_engine();
+    auto dep_mem = dep_inst->_outputs[0];
+    if (eng.is_the_same_buffer(*dep_mem, *_outputs[0]))
+        return;
+    const auto& out_layout = _impl_params->get_output_layout(0);
+#ifndef NDEBUG
+    OPENVINO_ASSERT(dep_mem->size() >= out_layout.bytes_count(),
+                    "F19: dependency buffer of ", dep_inst->id(), " is smaller than the output of ", id());
+#endif
+    auto new_mem = eng.reinterpret_buffer(*dep_mem, out_layout);
+    GPU_DEBUG_TRACE_DETAIL << id() << ": F19 rebind sum dst to output of " << dep_inst->id() << std::endl;
+    set_output_memory(new_mem, false, 0);
+}
+
 void primitive_inst::update_shape() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("update_shape: " + id()));
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::shape_inference);
@@ -2895,6 +2933,19 @@ primitive_inst::primitive_inst(network& network, const program_node& node, bool 
             }
             auto& eltw_mem = eltw_inst->output_memory();
             auto new_mem = eltw_mem.get_engine()->reinterpret_buffer(eltw_mem, node.get_output_layout());
+            // F19: only a oneDNN sum writes into the dep buffer; remember it so allocate_primitives() can rebind dst once the
+            // dep (possibly an optimized view) has been re-pointed to its final owner. The mul case keeps its private dst.
+            if (!node.is_dynamic()) {
+                for (const auto& fused_op : node.get_fused_primitives()) {
+                    if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1 && fused_op.has_outer_dep() &&
+                        fused_op.typed_desc<eltwise>()->mode == eltwise_mode::sum && fused_op.outer_dep_start_idx == reused_eltwmem_idx) {
+                        _reused_eltw_dep_idx = reused_eltwmem_idx;
+                        _reused_eltw_ctor_dst_ptr = new_mem->buffer_ptr();
+                        _reused_eltw_rebind_pending = true;
+                        break;
+                    }
+                }
+            }
             _outputs.push_back(new_mem);
         } else {
             // TODO: Remove WA for arg_max_min node.

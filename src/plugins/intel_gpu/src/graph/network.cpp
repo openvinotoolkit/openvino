@@ -837,6 +837,11 @@ void network::allocate_primitives() {
             }
             opt_inst->update_output_memory();
         }
+        // F19: a oneDNN sum writer whose reused dep was an optimized view bound its dst at construction time to the view's
+        // private buffer; re-point it now (PO is topological, so writer chains converge in one pass).
+        if (!node->is_dynamic()) {
+            _primitives.at(node->id())->rebind_reused_eltw_output();
+        }
     }
 
     // allocate intermediate buffers
