@@ -62,6 +62,7 @@ public:
         auto test = OptimizeVTTestParams{GetParam()};
 
         auto isValidSubgraph = test.withTranspose;
+        ov::npuw::util::DecomposeSDPA(test.withHpAttenMask).run_on_model(model);
         ASSERT_EQ(isValidSubgraph, ov::npuw::util::OptimizeValueTensors(test.withHpAttenMask).run_on_model(model));
 
         // std::shared_ptr<ov::Model> model = ...;  // your model
@@ -1067,7 +1068,7 @@ public:
 protected:
     void SetUp() override {
         TransformationTestsF::SetUp();
-        manager.register_pass<ov::npuw::util::OptimizeValueTensors>(true, false, false);
+        manager.register_pass<ov::npuw::util::OptimizeValueTensors>(true);
     }
 };
 
@@ -1095,20 +1096,27 @@ TEST_F(TransposeVTKeepSDPATest, MQA_SharedSDPA_TransposeBeforeSDPA) {
     model_ref = build_mqa_shared_sdpa_model_ref();
 }
 
-// SDPA with sink isn't supported in the keep-SDPA mode: the result is the same as with NPUW_LLM_DECOMPOSE_SDPA=YES
-TEST_F(TransposeVTKeepSDPATest, SDPAWithSink_FallsBackToDecomposition) {
+// SDPA with sink isn't a V consumer: the model is left as is (LLMCompiledModel decomposes it beforehand)
+TEST_F(TransposeVTKeepSDPATest, SDPAWithSink_NotTransposed) {
     model = build_mha_sdpa_model(true);
     model_ref = build_mha_sdpa_model(true);
-    ASSERT_TRUE(ov::npuw::util::OptimizeValueTensors(true, false, true).run_on_model(model_ref));
-    EXPECT_EQ(model_ref->get_parameters()[0]->get_partial_shape(), ov::PartialShape({B, H, D, S}));
 }
 
-// is_whisper alone doesn't force the SDPA decomposition: LLMCompiledModel does it for Whisper
+// DecomposeSDPA uses the core decomposition for SDPA with sink, then the V-cache gets transposed as usual
+TEST(TransposeVTKeepSDPA, SDPAWithSink_DecomposedAndTransposed) {
+    auto model = build_mha_sdpa_model(true);
+    ASSERT_TRUE(ov::npuw::util::has_sdpa_with_sink(model));
+    ASSERT_TRUE(ov::npuw::util::DecomposeSDPA(true).run_on_model(model));
+    ASSERT_TRUE(ov::npuw::util::OptimizeValueTensors(true).run_on_model(model));
+    EXPECT_EQ(model->get_parameters()[0]->get_partial_shape(), ov::PartialShape({B, H, D, S}));
+}
+
+// is_whisper doesn't decompose SDPA: LLMCompiledModel runs DecomposeSDPA for Whisper
 TEST_F(TransformationTestsF, TransposeVTKeepSDPA_Whisper_KeepsSDPA) {
     comparator.enable(FunctionsComparator::CONST_VALUES);
     comparator.enable(FunctionsComparator::ATTRIBUTES);
     disable_rt_info_check();
     model = build_mha_sdpa_model();
     model_ref = build_mha_sdpa_model_ref();
-    manager.register_pass<ov::npuw::util::OptimizeValueTensors>(false, true, false);
+    manager.register_pass<ov::npuw::util::OptimizeValueTensors>(false, true);
 }

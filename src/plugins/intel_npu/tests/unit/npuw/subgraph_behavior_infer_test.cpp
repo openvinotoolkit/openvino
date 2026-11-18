@@ -965,6 +965,7 @@ TEST_F(SubgraphBehaviorInferTest, PyramidBehaviorBindsOnlyActiveVariantPorts) {
     auto model = ov::test::npuw::build_dynamic_attention_llm_model();
     // Same transformations as the chunked LLM prefill pipeline: decompose SDPA so the PYRAMID
     // pattern can match, and output the new chunk KV only.
+    ov::npuw::util::DecomposeSDPA(true).run_on_model(model);
     ov::npuw::util::OptimizeValueTensors(true).run_on_model(model);
     ov::npuw::RedirectNewKvToOutput().run_on_model(model);
 
@@ -1006,6 +1007,7 @@ TEST_F(SubgraphBehaviorInferTest, PyramidBehaviorBindsOnlyActiveVariantPorts) {
 // state from the outside must change which variant executes.
 TEST_F(SubgraphBehaviorInferTest, PyramidSelectionFollowsHistorySizeStateSetThroughRequest) {
     auto model = ov::test::npuw::build_dynamic_attention_llm_model();
+    ov::npuw::util::DecomposeSDPA(true).run_on_model(model);
     ov::npuw::util::OptimizeValueTensors(true).run_on_model(model);
     ov::npuw::RedirectNewKvToOutput().run_on_model(model);
 

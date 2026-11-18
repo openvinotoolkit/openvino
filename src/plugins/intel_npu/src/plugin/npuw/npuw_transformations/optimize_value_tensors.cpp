@@ -498,26 +498,27 @@ public:
 
 }  // namespace
 
-bool ov::npuw::util::OptimizeValueTensors::run_on_model(const std::shared_ptr<ov::Model>& model) {
+bool ov::npuw::util::has_sdpa_with_sink(const std::shared_ptr<ov::Model>& model) {
+    const auto ops = model->get_ops();
+    return std::any_of(ops.begin(), ops.end(), [](const auto& op) {
+        auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(op);
+        return sdpa && sdpa->get_input_size() == 6;
+    });
+}
+
+bool ov::npuw::util::DecomposeSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     ov::pass::GraphRewrite rewr;
-
-    // Check if any SDPA has sink input
-    bool has_sdpa_with_sink = false;
-    for (const auto& op : model->get_ops()) {
-        if (auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(op)) {
-            if (sdpa->get_input_size() == 6) {
-                has_sdpa_with_sink = true;
-                break;
-            }
-        }
-    }
-
-    if (has_sdpa_with_sink) {
+    if (has_sdpa_with_sink(model)) {
         // TODO:  evaluate performance by older npu-drivers
         rewr.add_matcher<ov::pass::ScaledDotProductAttentionDecomposition>();
-    } else if (m_decompose_sdpa) {
-        rewr.add_matcher<ScaledDotProductAttentionDecomposition>(m_is_prefill);
+    } else {
+        rewr.add_matcher<ScaledDotProductAttentionDecomposition>(m_use_high_precision_on_add);
     }
+    return rewr.run_on_model(model);
+}
+
+bool ov::npuw::util::OptimizeValueTensors::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    ov::pass::GraphRewrite rewr;
 
     TransposeValueTensors::Context ctx;
     rewr.add_matcher<TransposeValueTensors_MHA>(std::ref(ctx));

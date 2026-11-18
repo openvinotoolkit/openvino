@@ -1146,29 +1146,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const bool generate_attn_hfa = generate_attn_hint == ::intel_npu::npuw::llm::AttentionHint::HFA;
 
     const bool optimize_v_tensors = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>();
-    // Whisper, PYRAMID/HFA attention and the integer KV-cache dequantization support only the decomposed SDPA
+    // NPUW_LLM_DECOMPOSE_SDPA=NO keeps SDPA, except where something supports only the decomposed SDPA: Whisper
+    // cross-attention, SDPA with sink, the integer KV-cache dequantization and PYRAMID/HFA attention
     const bool integer_kv_cache = kv_kache_storage_type == ov::element::i8 || kv_kache_storage_type == ov::element::u8;
-    const bool decompose_sdpa = m_cfg.get<::intel_npu::NPUW_LLM_DECOMPOSE_SDPA>() || integer_kv_cache || m_is_whisper;
+    const bool decompose_sdpa = m_cfg.get<::intel_npu::NPUW_LLM_DECOMPOSE_SDPA>() || m_is_whisper || integer_kv_cache ||
+                                ov::npuw::util::has_sdpa_with_sink(prefill_model);
     const bool decompose_sdpa_pre =
         decompose_sdpa || (m_use_chunk_prefill && (prefill_attn_pyramid || prefill_attn_hfa));
     const bool decompose_sdpa_gen = decompose_sdpa || generate_attn_pyramid || generate_attn_hfa;
-    if (!m_cfg.get<::intel_npu::NPUW_LLM_DECOMPOSE_SDPA>()) {
-        if (!optimize_v_tensors) {
-            LOG_INFO("NPUW_LLM_DECOMPOSE_SDPA=NO has no effect with NPUW_LLM_OPTIMIZE_V_TENSORS=NO");
-        } else if (decompose_sdpa) {
-            LOG_INFO("NPUW_LLM_DECOMPOSE_SDPA=NO is ignored: " << (m_is_whisper ? "Whisper" : "integer KV-cache")
-                                                               << " supports only the decomposed SDPA");
-        } else {
-            if (decompose_sdpa_pre) {
-                LOG_INFO("NPUW_LLM_DECOMPOSE_SDPA=NO is ignored for prefill: chunked PYRAMID/HFA attention supports "
-                         "only the decomposed SDPA");
-            }
-            if (decompose_sdpa_gen) {
-                LOG_INFO("NPUW_LLM_DECOMPOSE_SDPA=NO is ignored for generate: PYRAMID/HFA attention supports only "
-                         "the decomposed SDPA");
-            }
-        }
-    }
     if (optimize_v_tensors) {
         LOG_DEBUG("Check and apply opt layout");
         LOG_BLOCK();
@@ -1177,8 +1162,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             // Apply optimization to all variants and track results
             size_t optimized_count = 0;
             for (auto& model_variant : generate_model_variants) {
-                if (ov::npuw::util::OptimizeValueTensors(false, m_is_whisper, decompose_sdpa_gen)
-                        .run_on_model(model_variant)) {
+                if (decompose_sdpa_gen) {
+                    ov::npuw::util::DecomposeSDPA(false).run_on_model(model_variant);
+                }
+                if (ov::npuw::util::OptimizeValueTensors(false, m_is_whisper).run_on_model(model_variant)) {
                     ++optimized_count;
                 }
             }
@@ -1200,10 +1187,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                 " variants were optimized, which is not allowed.");
             }
         }
-        if (!prefill_attn_dyn &&
-            ov::npuw::util::OptimizeValueTensors(true, m_is_whisper, decompose_sdpa_pre).run_on_model(prefill_model)) {
-            LOG_DEBUG("V-tensors tranposed in prefill model");
-            m_kvcache_desc.v_tensors_transposed_pre = true;
+        if (!prefill_attn_dyn) {
+            if (decompose_sdpa_pre) {
+                ov::npuw::util::DecomposeSDPA(true).run_on_model(prefill_model);
+            }
+            if (ov::npuw::util::OptimizeValueTensors(true, m_is_whisper).run_on_model(prefill_model)) {
+                LOG_DEBUG("V-tensors tranposed in prefill model");
+                m_kvcache_desc.v_tensors_transposed_pre = true;
+            }
         }
     } else {
         LOG_DEBUG("Check and apply opt layout --- SKIPPED");

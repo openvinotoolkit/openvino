@@ -20,7 +20,7 @@ namespace ov::npuw {
 // evidence (e.g. an is_causal=true SDPA fed an explicit sliding-window mask), not
 // just two matchers agreeing.
 //
-// Must run before SDPA decomposition (OptimizeValueTensors) so the SDPA nodes it
+// Must run before SDPA decomposition (DecomposeSDPA) so the SDPA nodes it
 // annotates still exist.
 class DetectAttentionMask : public ov::pass::ModelPass {
 public:
