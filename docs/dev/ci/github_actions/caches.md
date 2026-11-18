@@ -132,6 +132,9 @@ to `file:///mount/caches/ccache/shared` (`file:///C:/mount/caches/ccache/shared`
 Users:
 * The RISC-V GNU build in [`linux_riscv.yml`](./../../../../.github/workflows/linux_riscv.yml)
   (`/mount/caches/ccache/shared/ubuntu22/riscv64/gnu`).
+* The RISC-V Conan build in
+  [`linux_riscv_conan.yml`](./../../../../.github/workflows/linux_riscv_conan.yml)
+  (`/mount/caches/ccache/shared/ubuntu22/riscv64/conan`).
 * The Windows builds in
   [`job_build_windows.yml`](./../../../../.github/workflows/job_build_windows.yml)
   (`C:\mount\caches\ccache\shared\windows\<build-variant>\x86_64\<build-type>`).
@@ -140,14 +143,14 @@ Users:
   to the developer package stay on `/Zi` through `ov_keep_debug_info_in_pdb()` to keep
   the package size, so they are not cached. Builds with embedded debug information also link without
   `/INCREMENTAL`, which keeps PDB files free of stale incremental-link data.
+* The Windows C++20 and conditional-compilation builds in
+  [`job_build_windows_cpp20.yml`](./../../../../.github/workflows/job_build_windows_cpp20.yml) and
+  [`windows_conditional_compilation.yml`](./../../../../.github/workflows/windows_conditional_compilation.yml)
+  use separate `_cpp20` and `_collect` remote cache directories.
 
-The monthly `Cleanup_ccache_win` job in
-[`cleanup_caches.yml`](./../../../../.github/workflows/cleanup_caches.yml) trims the Windows remote
-cache across all variants toward 300 GiB, evicting entries by modification time. Remote cache hits
-update this timestamp. The separate `.cache` archive cleanup has its own size limits; these limits
-do not enforce a combined volume cap, and the remote cache can grow between cleanup runs.
-
-The Linux `Cleanup_ccache_lin` job cleans `.cache` archives but does not trim the RISC-V remote cache.
+The cleanup jobs in [`cleanup_caches.yml`](./../../../../.github/workflows/cleanup_caches.yml)
+remove `.cache` archives but do not trim remote ccache entries. `CCACHE_MAXSIZE` limits only
+the local cache, so remote storage requires separate maintenance.
 
 ## Cloud Storage via Azure Blob Storage
 
