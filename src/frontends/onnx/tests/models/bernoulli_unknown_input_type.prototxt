@@ -5,6 +5,11 @@ graph {
     input: "x"
     output: "y"
     op_type: "Bernoulli"
+    attribute {
+      name: "seed"
+      f: 1.5
+      type: FLOAT
+    }
   }
   name: "test_bernoulli_unknown_input_type"
   input {
