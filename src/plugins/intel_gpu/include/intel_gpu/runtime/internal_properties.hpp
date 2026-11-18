@@ -208,7 +208,6 @@ static constexpr Property<bool, ov::PropertyMutability::RW> disable_memory_reuse
 static constexpr Property<size_t, ov::PropertyMutability::RW> disable_post_ops_fusions{"GPU_DISABLE_POST_OPS_FUSIONS"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_horizontal_fc_fusion{"GPU_DISABLE_HORIZONTAL_FC_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_fc_swiglu_fusion{"GPU_DISABLE_FC_SWIGLU_FUSION"};
-static constexpr Property<bool, ov::PropertyMutability::RW> disable_gated_mlp_fusion{"GPU_DISABLE_GATED_MLP_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_fake_alignment{"GPU_DISABLE_FAKE_ALIGNMENT"};
 static constexpr Property<bool, ov::PropertyMutability::RW> moe_disable_fusion{"GPU_MOE_DISABLE_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> enable_ternocl_int2{"GPU_ENABLE_TERNOCL_INT2"};
@@ -242,6 +241,8 @@ static constexpr Property<std::vector<int>, ov::PropertyMutability::RW> micro_sd
 static constexpr Property<int, ov::PropertyMutability::RW> micro_sdpa_disable_prefetch{"GPU_MICRO_SDPA_DISABLE_PREFETCH"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> pa_mixed_route_mode{"GPU_PA_MIXED_ROUTE_MODE"};
 static constexpr Property<bool, PropertyMutability::RW> record_replay_dynamic{"GPU_RECORD_REPLAY_DYNAMIC"};
+static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> force_fp32_layer_types{"GPU_FORCE_FP32_LAYER_TYPES"};
+static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> force_fp32_layer_names{"GPU_FORCE_FP32_LAYER_NAMES"};
 }  // namespace ov::intel_gpu
 
 namespace cldnn {
