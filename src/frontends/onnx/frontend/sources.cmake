@@ -47,6 +47,7 @@ set(op_list
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/fused_conv.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/fusedgemm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/fusedmatmul.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/gated_add.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/gather_block_quantized.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/group_norm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/group_query_attention.cpp
