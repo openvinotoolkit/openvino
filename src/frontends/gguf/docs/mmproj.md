@@ -80,7 +80,8 @@ both. Conversion builds the file's supported encoders into one model:
    inputs and produces `audio.embeddings`.
 4. `gguf_mmproj` rt_info records each encoder's `<modality>.projector` and `<modality>.merge`.
    The omitted Gemma3n audio branch retains `audio.projector=gemma3na` and
-   `audio.supported=false`; both fields survive serialization.
+   `audio.supported=false`; both fields survive serialization, and GenAI adaptation skips the
+   unsupported audio branch while returning the vision encoder.
 
 Running the combined model requires the inputs of both branches. `AdaptMmprojToGenAI` (below)
 turns it into one encoder; apply it to a clone per modality to obtain both.

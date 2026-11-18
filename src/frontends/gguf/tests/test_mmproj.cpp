@@ -1577,6 +1577,12 @@ TEST_F(GGUFMMProj, Gemma3nCombinedFileBuildsVisionAndRecordsUnsupportedAudio) {
     auto restored = ov::Core{}.read_model(path + ".xml");
     EXPECT_EQ(restored->get_rt_info<std::string>({"gguf_mmproj", "audio.projector"}), "gemma3na");
     EXPECT_EQ(restored->get_rt_info<std::string>({"gguf_mmproj", "audio.supported"}), "false");
+    for (const auto& source : {model, restored}) {
+        const auto components = ov::frontend::gguf::adapt_to_genai(source->clone());
+        ASSERT_EQ(components.size(), 1);
+        EXPECT_EQ(components.count("vision_embeddings"), 1);
+        EXPECT_EQ(components.count("audio_embeddings"), 0);
+    }
 }
 
 TEST_F(GGUFMMProj, Gemma3nAudioExtensionTakesPrecedenceOverVisionFallback) {
