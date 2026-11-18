@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import ctypes
+import math
 import mmap
 import os
 import pytest
@@ -146,7 +147,8 @@ def test_cpu_va_tensor_params_round_trip_gpu(device):
     core = ov.Core()
     context = core.get_default_context(device)
     cacheline_size = core.get_property(device, "GPU_CACHELINE_SIZE")
-    expected = np.arange(cacheline_size // 4, dtype=np.float32)
+    # Imported host memory has to be a multiple of the cacheline (OpenCL) and of the page size (Level Zero)
+    expected = np.arange(math.lcm(cacheline_size, mmap.PAGESIZE) // 4, dtype=np.float32)
     buffer = page_aligned_array(expected.shape, np.float32)
     buffer[:] = expected
 
