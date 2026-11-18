@@ -19,10 +19,10 @@ OptionSupportCache::CacheKey toCacheKey(const ov::intel_npu::CompilerType compil
 
 CompilerOptionSupportHelper::CompilerOptionSupportHelper(
     const std::shared_ptr<const CompilerAdapterFactory>& adapterFactory)
-    : _adapterFactory(adapterFactory),
-      _optionSupportCache(adapterFactory ? adapterFactory->getOptionSupportCache() : nullptr) {
+    : _adapterFactory(adapterFactory) {
     OPENVINO_ASSERT(_adapterFactory != nullptr,
                     "CompilerOptionSupportHelper requires a non-null CompilerAdapterFactory");
+    _optionSupportCache = _adapterFactory->getOptionSupportCache();
 }
 
 bool CompilerOptionSupportHelper::isOptionSupported(ov::intel_npu::CompilerType compilerType,

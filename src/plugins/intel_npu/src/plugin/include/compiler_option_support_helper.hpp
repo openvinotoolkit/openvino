@@ -28,7 +28,7 @@ public:
 
 private:
     const std::shared_ptr<const CompilerAdapterFactory> _adapterFactory;
-    const std::shared_ptr<OptionSupportCache> _optionSupportCache;
+    std::shared_ptr<OptionSupportCache> _optionSupportCache;
 
     std::mutex _supportedOptionsLoadedMutex;
     std::unordered_map<OptionSupportCache::CacheKey, std::once_flag> _supportedOptionsLoaded;
