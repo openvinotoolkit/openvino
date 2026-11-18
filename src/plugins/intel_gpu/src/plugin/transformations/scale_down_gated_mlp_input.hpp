@@ -24,7 +24,7 @@ namespace ov::intel_gpu {
 class ScaleDownGatedMLPInput : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ScaleDownGatedMLPInput");
-    explicit ScaleDownGatedMLPInput(float scale_factor = 8.f);
+    explicit ScaleDownGatedMLPInput(float scale_factor = 8.F);
 };
 
 }  // namespace ov::intel_gpu
