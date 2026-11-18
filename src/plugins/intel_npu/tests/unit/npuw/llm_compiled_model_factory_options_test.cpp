@@ -1252,16 +1252,18 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperInt8DisablesWsStageOptions) {
     }
 }
 
-// Makes the embedding and the LM head (proj_out) of the synthetic Whisper decoder read one u8
-// asymmetric vocabulary, as in an INT4 Whisper model with tied weights. As in a real IR, each reader
+// Makes the embedding and the LM head of a synthetic model read one u8 asymmetric vocabulary, as in
+// an INT4 model with tied weights. As in a real IR, each reader
 // has its own dequantization over the same constants.
-void share_u8_asym_vocabulary(const std::shared_ptr<ov::Model>& model) {
+void share_u8_asym_vocabulary(const std::shared_ptr<ov::Model>& model,
+                              const std::string& embedding_weight_name,
+                              const std::string& head_name) {
     std::shared_ptr<ov::Node> embedding_weight;
     std::shared_ptr<ov::Node> head;
     for (const auto& node : model->get_ordered_ops()) {
-        if (node->get_friendly_name() == "model.decoder.embed_tokens.weight") {
+        if (node->get_friendly_name() == embedding_weight_name) {
             embedding_weight = node;
-        } else if (ov::is_type<ov::op::v0::MatMul>(node) && node->get_friendly_name() == "proj_out/MatMul") {
+        } else if (ov::is_type<ov::op::v0::MatMul>(node) && node->get_friendly_name() == head_name + "/MatMul") {
             head = node;
         }
     }
@@ -1299,65 +1301,102 @@ std::size_t count_sub128_shifts(const std::shared_ptr<ov::Model>& model) {
     });
 }
 
+struct Sub128Shifts {
+    std::size_t prefill = 0;
+    std::size_t generate = 0;
+    std::size_t lm_head = 0;
+};
+
 class LLMCompiledModelSharedVocabularyTest : public LLMCompiledModelFactoryOptionsTest {
 protected:
-    // Compiles the synthetic Whisper decoder with a shared u8 asymmetric vocabulary and returns the number
-    // of Sub128 shifts in the prefill and in the generate model.
-    std::pair<std::size_t, std::size_t> compile_with_shared_vocabulary(const ov::AnyMap& extra_props) {
-        auto model = build_whisper_decoder_model();
-        share_u8_asym_vocabulary(model);
+    // Compiles the model with a shared u8 asymmetric vocabulary and counts the Sub128 shifts in each stage.
+    Sub128Shifts compile_with_shared_vocabulary(const std::shared_ptr<ov::Model>& model,
+                                                const std::string& embedding_weight_name,
+                                                const std::string& head_name,
+                                                ov::AnyMap props) {
+        share_u8_asym_vocabulary(model, embedding_weight_name, head_name);
         bool shared = false;
         ov::npuw::DetectVocabSharing(shared).run_on_model(model->clone());
         EXPECT_TRUE(shared) << "The test model must have a shared u8 asymmetric vocabulary";
-
-        ov::AnyMap props = {{"NPUW_WHISPER", "YES"},
-                            {"NPUW_WHISPER_EOS_TOKEN", "42"},
-                            {"NPUW_LLM_VOCAB_ASYM_SHARED", "YES"}};
-        props.insert(extra_props.begin(), extra_props.end());
+        props.emplace("NPUW_LLM_VOCAB_ASYM_SHARED", "YES");
 
         RecordingFactory recorder;
         std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
         EXPECT_NO_THROW(compiled = create_compiled_model(model, props, recorder));
         EXPECT_NE(compiled, nullptr);
-        const auto* prefill = recorder.find_suffix("_prefill");
-        EXPECT_NE(prefill, nullptr);
-        EXPECT_EQ(recorder.count_contains("_kv"), 1u);
-        if (prefill == nullptr || recorder.count_contains("_kv") != 1u) {
-            return {std::size_t{0}, std::size_t{0}};
+        Sub128Shifts shifts;
+        for (const auto& call : recorder.calls()) {
+            const auto count = count_sub128_shifts(call.model);
+            const auto& name = call.model->get_friendly_name();
+            if (name.find("_prefill") != std::string::npos) {
+                shifts.prefill += count;
+            } else if (name.find("_kv") != std::string::npos) {
+                shifts.generate += count;
+            } else if (name.find("_lm_head") != std::string::npos) {
+                shifts.lm_head += count;
+            }
         }
-        const auto& generate = require_call_containing(recorder, "_kv");
-        return std::make_pair(count_sub128_shifts(prefill->model), count_sub128_shifts(generate.model));
+        return shifts;
+    }
+
+    Sub128Shifts compile_whisper(const ov::AnyMap& extra_props) {
+        ov::AnyMap props = {{"NPUW_WHISPER", "YES"}, {"NPUW_WHISPER_EOS_TOKEN", "42"}};
+        props.insert(extra_props.begin(), extra_props.end());
+        return compile_with_shared_vocabulary(build_whisper_decoder_model(),
+                                              "model.decoder.embed_tokens.weight",
+                                              "proj_out",
+                                              props);
+    }
+
+    Sub128Shifts compile_llm(const ov::AnyMap& extra_props) {
+        ov::AnyMap props = {{"NPUW_LLM_SHARED_HEAD", "YES"}};
+        props.insert(extra_props.begin(), extra_props.end());
+        return compile_with_shared_vocabulary(build_llm_model(), "model.embed_tokens.weight", "lm_head", props);
     }
 };
 
 // GenAI compiles Whisper on NPU this way by default: the vocabulary is not a closure.
 TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsNotUsedWithoutFunctions) {
-    const auto shifts = compile_with_shared_vocabulary({{"NPUW_FOLD", "NO"}, {"NPUW_FUNCALL_FOR_ALL", "NO"}});
-    EXPECT_EQ(shifts.first, 0u);
-    EXPECT_EQ(shifts.second, 0u);
+    const auto shifts = compile_whisper({{"NPUW_FOLD", "NO"}, {"NPUW_FUNCALL_FOR_ALL", "NO"}});
+    EXPECT_EQ(shifts.prefill, 0u);
+    EXPECT_EQ(shifts.generate, 0u);
 }
 
 TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsUsedWhenVocabularyIsClosure) {
-    const auto shifts = compile_with_shared_vocabulary({{"NPUW_FOLD", "YES"}, {"NPUW_FUNCALL_FOR_ALL", "YES"}});
+    const auto shifts = compile_whisper({{"NPUW_FOLD", "YES"}, {"NPUW_FUNCALL_FOR_ALL", "YES"}});
     // The weight and the zero point of the LM head are shifted.
-    EXPECT_EQ(shifts.first, 2u);
-    EXPECT_EQ(shifts.second, 2u);
+    EXPECT_EQ(shifts.prefill, 2u);
+    EXPECT_EQ(shifts.generate, 2u);
 }
 
 TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsNotUsedIfOneStageHasNoFunctions) {
-    const auto shifts =
-        compile_with_shared_vocabulary({{"NPUW_FOLD", "YES"},
-                                        {"NPUW_FUNCALL_FOR_ALL", "YES"},
-                                        {"++NPUW_LLM_GENERATE_CONFIG", ov::AnyMap{{"NPUW_FUNCALL_FOR_ALL", "NO"}}}});
-    EXPECT_EQ(shifts.first, 0u);
-    EXPECT_EQ(shifts.second, 0u);
+    const auto shifts = compile_whisper({{"NPUW_FOLD", "YES"},
+                                         {"NPUW_FUNCALL_FOR_ALL", "YES"},
+                                         {"++NPUW_LLM_GENERATE_CONFIG", ov::AnyMap{{"NPUW_FUNCALL_FOR_ALL", "NO"}}}});
+    EXPECT_EQ(shifts.prefill, 0u);
+    EXPECT_EQ(shifts.generate, 0u);
 }
 
 TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsNotUsedWithoutHostGather) {
-    const auto shifts = compile_with_shared_vocabulary(
-        {{"NPUW_FOLD", "YES"}, {"NPUW_FUNCALL_FOR_ALL", "YES"}, {"NPUW_HOST_GATHER", "NO"}});
-    EXPECT_EQ(shifts.first, 0u);
-    EXPECT_EQ(shifts.second, 0u);
+    const auto shifts =
+        compile_whisper({{"NPUW_FOLD", "YES"}, {"NPUW_FUNCALL_FOR_ALL", "YES"}, {"NPUW_HOST_GATHER", "NO"}});
+    EXPECT_EQ(shifts.prefill, 0u);
+    EXPECT_EQ(shifts.generate, 0u);
+}
+
+// With the default stage configs the vocabulary is a closure; only the separate LM head model is shifted.
+TEST_F(LLMCompiledModelSharedVocabularyTest, SharedHeadModelIsShiftedWithDefaultConfigs) {
+    const auto shifts = compile_llm({});
+    EXPECT_EQ(shifts.lm_head, 2u);
+    EXPECT_EQ(shifts.prefill, 0u);
+    EXPECT_EQ(shifts.generate, 0u);
+}
+
+TEST_F(LLMCompiledModelSharedVocabularyTest, SharedHeadModelIsNotShiftedIfHeadHasNoFunctions) {
+    const auto shifts = compile_llm({{"++NPUW_LLM_SHARED_HEAD_CONFIG", ov::AnyMap{{"NPUW_FUNCALL_FOR_ALL", "NO"}}}});
+    EXPECT_EQ(shifts.lm_head, 0u);
+    EXPECT_EQ(shifts.prefill, 0u);
+    EXPECT_EQ(shifts.generate, 0u);
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperPreparationAddsKvCacheInputsAndPresentOutputs) {

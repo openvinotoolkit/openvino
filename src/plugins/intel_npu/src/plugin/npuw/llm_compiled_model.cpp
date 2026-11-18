@@ -459,10 +459,9 @@ bool get_bool_option(const ov::AnyMap& config) {
     return ::intel_npu::OptionParser<bool>::parse(it->second.template as<std::string>());
 }
 
-// The shared vocabulary saves memory only when partitioning turns it into one i8 closure for the
-// embedding and the LM head. That happens only if the subgraphs with the vocabulary become functions
-// (NPUW_FOLD and NPUW_FUNCALL_FOR_ALL) and NPUW_HOST_GATHER is on. Otherwise the Sub128 shifts reach
-// the compiler as they are: no memory is saved, and the LM head becomes several times slower.
+// Partitioning turns the Sub128 shifts of a shared vocabulary into one i8 closure only in function
+// subgraphs (NPUW_FOLD and NPUW_FUNCALL_FOR_ALL) with NPUW_HOST_GATHER on. Otherwise the shifts reach the
+// compiler as they are: no memory is saved, and the LM head becomes several times slower.
 bool vocab_is_closure(const ov::AnyMap& config) {
     return get_bool_option<::intel_npu::NPUW_FOLD>(config) &&
            get_bool_option<::intel_npu::NPUW_FUNCALL_FOR_ALL>(config) &&
@@ -996,53 +995,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("Creating kvcache model as clone of passed one.");
     auto kvcache_model = model->clone();
 
-    // The stage configs are assembled later in this constructor. NPUW_FOLD, NPUW_FUNCALL_FOR_ALL and
-    // NPUW_HOST_GATHER come only from these parts of them, so their values are computed here.
-    const auto vocab_is_closure_in_all_stages = [&]() {
-        const bool int8_whisper = m_is_whisper && is_int8_compressed(model);
-        const auto stage_config = [&](ov::AnyMap config, const std::optional<ov::Any>& addition, bool whisper_stage) {
-            merge_config_with(config, other_props);
-            if (addition.has_value()) {
-                merge_config_with(config, addition.value().as<ov::AnyMap>());
-            }
-            if (whisper_stage && int8_whisper) {
-                disable_ws_for_int8_whisper(config);
-            }
-            return config;
-        };
-        const auto generate_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_HINT>();
-        const auto prefill_config =
-            stage_config(prefill_config_opt.value_or(get_default_prefill_config(model, npudesc)).as<ov::AnyMap>(),
-                         prefill_config_addition,
-                         true);
-        const auto generate_config = stage_config(
-            generate_config_opt.value_or(get_default_generate_config(npudesc, generate_hint)).as<ov::AnyMap>(),
-            generate_config_addition,
-            true);
-        bool result = vocab_is_closure(prefill_config) && vocab_is_closure(generate_config);
-        if (m_cfg.get<::intel_npu::NPUW_LLM_SHARED_HEAD>()) {
-            result = result && vocab_is_closure(
-                                   stage_config(get_default_lm_head_config(npudesc), lm_head_config_addition, false));
-        }
-        return result;
-    };
-
-    if (m_cfg.get<::intel_npu::NPUW_LLM_VOCAB_ASYM_SHARED>() && !vocab_is_closure_in_all_stages()) {
-        LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is turned off: it needs NPUW_FOLD, NPUW_FUNCALL_FOR_ALL and "
-                 "NPUW_HOST_GATHER in every stage.");
-        m_cfg.update({{"NPUW_LLM_VOCAB_ASYM_SHARED", "NO"}});
-    }
+    // Sharing is detected on the whole model, before the LM head is cut off. The Sub128 shifts are
+    // inserted later, when the stage configs are known.
+    bool shared_vocab = false;
     if (m_cfg.get<::intel_npu::NPUW_LLM_VOCAB_ASYM_SHARED>()) {
-        bool shared_vocab = false;
-        ov::npuw::DetectVocabSharing detect_vocab_sharing(shared_vocab);
-        detect_vocab_sharing.run_on_model(kvcache_model);
-        if (shared_vocab) {
-            ov::npuw::InsertVocabSub128 pass;
-            if (!pass.run_on_model(kvcache_model)) {
-                // Sharing was detected, but the shared vocabulary is not u8 asymmetric (e.g. f16 or i4).
-                LOG_INFO("Shared vocabulary is not asymmetric u8 - graph Sub128 insertion is skipped.");
-            }
-        }
+        ov::npuw::DetectVocabSharing(shared_vocab).run_on_model(kvcache_model);
     }
 
     auto use_text_embed_key = pop_option(other_props, std::string("NPUW_TEXT_EMBED"));
@@ -1696,6 +1653,43 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
     }
 
+    ov::AnyMap lm_head_config;
+    if (lm_head_model) {
+        lm_head_config = get_default_lm_head_config(npudesc);
+        merge_config_with(lm_head_config, other_props);
+        auto lm_head_config_addition_value = lm_head_config_addition.value_or(ov::AnyMap{}).as<ov::AnyMap>();
+        merge_config_with(lm_head_config, lm_head_config_addition_value);
+        apply_weights_bank_name(lm_head_config, weights_bank_name);
+    }
+
+    if (shared_vocab) {
+        const bool vocab_is_closure_in_all_stages = vocab_is_closure(prefill_config) &&
+                                                    vocab_is_closure(generate_config) &&
+                                                    (!lm_head_model || vocab_is_closure(lm_head_config));
+        if (!vocab_is_closure_in_all_stages) {
+            LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is turned off: it needs NPUW_FOLD, NPUW_FUNCALL_FOR_ALL and "
+                     "NPUW_HOST_GATHER in every stage.");
+            m_cfg.update({{"NPUW_LLM_VOCAB_ASYM_SHARED", "NO"}});
+        } else {
+            // The LM head is in its own model when it is cut off, otherwise in the prefill and generate models.
+            std::vector<std::shared_ptr<ov::Model>> lm_head_models;
+            if (lm_head_model) {
+                lm_head_models.push_back(lm_head_model);
+            } else {
+                lm_head_models = generate_model_variants;
+                lm_head_models.push_back(prefill_model);
+            }
+            bool inserted = false;
+            for (const auto& lm_head_owner : lm_head_models) {
+                inserted = ov::npuw::InsertVocabSub128().run_on_model(lm_head_owner) || inserted;
+            }
+            if (!inserted) {
+                // Sharing was detected, but the shared vocabulary is not u8 asymmetric (e.g. f16 or i4).
+                LOG_INFO("Shared vocabulary is not asymmetric u8 - graph Sub128 insertion is skipped.");
+            }
+        }
+    }
+
     // Compile multiple generate model variants with different sizes
     compile_generate_model_variants(generate_model_variants, plugin, generate_config);
 
@@ -1708,13 +1702,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             find_other_outputs_with_seqdim(m_prefill_compiled, other_dynamic_outputs, m_prefill_chunk_size);
     }
     if (lm_head_model) {
-        auto lm_head_config = get_default_lm_head_config(npudesc);
-        merge_config_with(lm_head_config, other_props);
-        auto lm_head_config_addition_value = lm_head_config_addition.value_or(ov::AnyMap{}).as<ov::AnyMap>();
-        merge_config_with(lm_head_config, lm_head_config_addition_value);
-
-        apply_weights_bank_name(lm_head_config, weights_bank_name);
-
         m_lm_head_compiled = m_compiled_model_factory(lm_head_model, plugin, lm_head_config);
         NPUW_ASSERT(m_lm_head_compiled);
     }
