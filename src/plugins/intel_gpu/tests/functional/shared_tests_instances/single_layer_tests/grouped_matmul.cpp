@@ -65,6 +65,9 @@ protected:
                 ASSERT_TRUE(zp_it != rt.end())
                     << "Node '" << n->get_friendly_name()
                     << "' is missing 'wzp_precision' rt_info";
+                // Decomposed compressed FCs may keep the zero point in the decompression precision, like a plain MatMul.
+                if (rt.at("layerType").as<std::string>() != "grouped_matmul")
+                    continue;
                 ov::element::Type actual_zp_prec(zp_it->second.as<std::string>());
                 ASSERT_EQ(actual_zp_prec, expected_weights_prec)
                     << "Node '" << n->get_friendly_name()
@@ -138,7 +141,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_2d3d,
                          GroupedMatMulCompressedLayerTest_GPU,
                          ::testing::Combine(::testing::ValuesIn(shapes_2d_3d),
                                             ::testing::Values(ov::element::f16),
-                                            ::testing::ValuesIn(weights_precisions),
+                                            ::testing::Values(ov::element::u8),
                                             ::testing::ValuesIn(decompression_precisions),
                                             ::testing::Values(ov::element::f16),
                                             ::testing::Values(DecompressionType::full),
@@ -147,6 +150,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_2d3d,
                                             ::testing::Values(-1, 128),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU),
                                             ::testing::Values(expected_primitive("GroupedMatMulCompressed", "FullyConnected")),
+                                            ::testing::Values(ov::AnyMap{})),
+                         GroupedMatMulCompressedLayerTest_GPU::getTestCaseName);
+
+// 4-bit expert weights are split before dequantization, so each expert runs as a compressed FC.
+INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_2d3d_4bit,
+                         GroupedMatMulCompressedLayerTest_GPU,
+                         ::testing::Combine(::testing::ValuesIn(shapes_2d_3d),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::element::u4),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::ValuesIn(subtract_types),
+                                            ::testing::Values(true),
+                                            ::testing::Values(-1, 128),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::Values(expected_primitive("GroupedMatMulCompressed", "FullyConnectedCompressed")),
                                             ::testing::Values(ov::AnyMap{})),
                          GroupedMatMulCompressedLayerTest_GPU::getTestCaseName);
 
