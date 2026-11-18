@@ -27,6 +27,10 @@ CASES = {
     "lfm2-attention-first": {"architecture": "lfm2", "attention_first": True, "fused": True},
     "lfm2moe": {"moe": True, "lead": 1},
     "lfm2moe-all-experts": {"architecture": "lfm2moe", "moe": True, "sigmoid": True, "expert_scale": 2.5},
+    "lfm3": {"tied": True, "post": True},
+    "lfm3-plain": {"architecture": "lfm3"},
+    "lfm3-attention-first": {"architecture": "lfm3", "attention_first": True, "fused": True, "post": True},
+    "lfm3-wide-query": {"architecture": "lfm3", "heads": 6, "post": True},
     "qwen35": {}, "qwen35moe": {},
     "qwen35-zero-scales": {"architecture": "qwen35", "zero_scales": True},
     "qwen35moe-fused": {"architecture": "qwen35moe", "fused_experts": True},
@@ -303,9 +307,11 @@ def write_gemma4_model(path, opts):
     finish(w)
 
 
-def write_lfm2_model(path, arch, opts):
+def write_lfm_model(path, arch, opts):
     w = gguf.GGUFWriter(path, arch)
     d, heads, kv, head, ff, vocab = 32, 4, 2, 8, 48, 32
+    heads = opts.get("heads", heads)
+    q_width = heads * head
     kernel = opts.get("kernel", 3)
     kv_layers = [kv, 0, kv, 0] if opts.get("attention_first") else [0, kv, 0, kv]
     w.add_context_length(128)
@@ -322,6 +328,10 @@ def write_lfm2_model(path, arch, opts):
     w.add_uint32(arch + ".shortconv.l_cache", kernel)
     w.add_vocab_size(vocab)
     w.add_tokenizer_model("none")
+    if arch == "lfm3":
+        w.add_sliding_window(2)
+        w.add_sliding_window_pattern([i == kv_layers.index(kv) for i in range(len(kv_layers))])
+        w.add_float32(arch + ".rope.freq_base_swa", 10000.)
     if opts.get("swa"):
         w.add_sliding_window(2)
     if opts.get("moe"):
@@ -334,22 +344,29 @@ def write_lfm2_model(path, arch, opts):
             w.add_expert_weights_scale(opts["expert_scale"])
     tensor = tensor_writer(w, np.random.default_rng(20261014))
     tensor("token_embd.weight", (vocab, d))
-    tensor("token_embd_norm.weight", (d,), True)
+    tensor("output_norm.weight" if arch == "lfm3" else "token_embd_norm.weight", (d,), True)
+    if arch == "lfm3":
+        w.add_tensor("rope_freqs.weight", np.array([1.] * (head // 4) + [1e30] * (head // 4), dtype=np.float32))
     if not opts.get("tied"):
         tensor("output.weight", (vocab, d))
     for layer, layer_kv in enumerate(kv_layers):
         p = f"blk.{layer}."
         tensor(p + "attn_norm.weight", (d,), True)
         tensor(p + "ffn_norm.weight", (d,), True)
+        if arch == "lfm3" and opts.get("post"):
+            tensor(p + "post_attention_norm.weight", (d,), True)
+            tensor(p + "post_ffw_norm.weight", (d,), True)
         if layer_kv:
             if opts.get("fused"):
                 tensor(p + "attn_qkv.weight", ((heads + 2 * kv) * head, d))
             else:
-                for name, width in (("q", d), ("k", kv * head), ("v", kv * head)):
+                for name, width in (("q", q_width), ("k", kv * head), ("v", kv * head)):
                     tensor(p + f"attn_{name}.weight", (width, d))
             for name in ("q", "k"):
                 tensor(p + f"attn_{name}_norm.weight", (head,), True)
-            tensor(p + "attn_output.weight", (d, d))
+            tensor(p + "attn_output.weight", (d, q_width))
+            if arch == "lfm3":
+                tensor(p + "attn_gate.weight", (heads, d))
         else:
             tensor(p + "shortconv.in_proj.weight", (3 * d, d))
             tensor(p + "shortconv.conv.weight", (d, kernel))
@@ -367,8 +384,8 @@ def write_lfm2_model(path, arch, opts):
 
 def write_model(path, arch, opts):
     arch = opts.get("architecture", arch)
-    if arch in ("lfm2", "lfm2moe"):
-        return write_lfm2_model(path, arch, opts)
+    if arch in ("lfm2", "lfm2moe", "lfm3"):
+        return write_lfm_model(path, arch, opts)
     if arch == "gemma4":
         return write_gemma4_model(path, opts)
     if arch in ("qwen35", "qwen35moe"):
@@ -516,6 +533,7 @@ def main():
     parser.add_argument("--embedding-oracle")
     parser.add_argument("--out-dir", type=Path, default=Path(__file__).parent / "test_data/arch_accuracy")
     parser.add_argument("--architectures", nargs="+", default=list(CASES))
+    parser.add_argument("--header-dir", type=Path, help="also write header-only conversion fixtures")
     args = parser.parse_args()
     if not args.embedding_oracle and any(CASES[arch].get("embedding_output") for arch in args.architectures):
         parser.error("--embedding-oracle is required to generate embedding fixtures")
@@ -541,6 +559,16 @@ def main():
             logits = np.fromfile(reference, dtype="<f4", offset=4).reshape(3, vocab)
             assert np.isfinite(logits).all() and np.linalg.norm(logits) > 0
             save_npz(args.out_dir / f"{arch}.npz", {"model": np.fromfile(model, dtype=np.uint8), "logits": logits})
+            if args.header_dir:
+                from gen_arch_fixtures import strip_to_header
+                args.header_dir.mkdir(parents=True, exist_ok=True)
+                filename = f"{arch}.gguf.hdr"
+                _, data_bytes, _ = strip_to_header(model, args.header_dir / filename)
+                manifest = args.header_dir / "manifest.txt"
+                lines = manifest.read_text().splitlines() if manifest.exists() else []
+                lines = [line for line in lines if not line.startswith(filename + " ")]
+                lines.append(f"{filename} {data_bytes} convert")
+                manifest.write_text("\n".join(lines) + "\n")
             print(f"{arch}: {model.stat().st_size} bytes, reference logits {logits.shape}", flush=True)
 
 

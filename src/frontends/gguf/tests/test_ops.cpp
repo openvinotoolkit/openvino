@@ -12,6 +12,7 @@
 #include <cmath>
 #include <functional>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "op_table.hpp"
 #include "op_test_utils.hpp"
 #include "openvino/core/type/bfloat16.hpp"
@@ -425,6 +426,57 @@ TEST(GGUFOps, SoftMax) {
     expect_near(out, expected, 1e-5f);
 }
 
+// The native builder can select the softmax axis. gpt-oss normalizes its top-k gating weights
+// [1,T,K,1] over K; the default last axis has size 1 and would turn every weight into 1.
+TEST(GGUFOps, SoftMaxHonorsExplicitAxis) {
+    const size_t T = 2, K = 3;
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_SOFT_MAX")
+                     .input("x", ov::element::f32, {1, T, K, 1})
+                     .output("out", ov::element::f32, {1, T, K, 1})
+                     .attr<int64_t>("softmax_axis", 2)
+                     .build();
+
+    std::vector<float> x{0.5f, -1.f, 2.f, 3.f, 0.f, 1.f};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, T, K, 1}, x)}});
+
+    std::vector<float> expected(x.size());
+    for (size_t t = 0; t < T; ++t) {
+        float sum = 0.f;
+        for (size_t k = 0; k < K; ++k)
+            sum += std::exp(x[t * K + k]);
+        for (size_t k = 0; k < K; ++k)
+            expected[t * K + k] = std::exp(x[t * K + k]) / sum;
+    }
+    expect_near(out, expected, 1e-5f);
+}
+
+TEST(GGUFOps, SoftMaxRejectsOutOfRangeAxis) {
+    for (int64_t axis : {int64_t{4}, int64_t{-5}}) {
+        SCOPED_TRACE(axis);
+        OV_EXPECT_THROW(SingleOpBuilder()
+                            .op("GGML_OP_SOFT_MAX")
+                            .input("x", ov::element::f32, {1, 2, 3, 1})
+                            .output("out", ov::element::f32, {1, 2, 3, 1})
+                            .attr<int64_t>("softmax_axis", axis)
+                            .build(),
+                        ov::Exception,
+                        testing::HasSubstr("is out of range for input rank"));
+    }
+}
+
+TEST(GGUFOps, SoftMaxSinksRejectNonLastAxis) {
+    OV_EXPECT_THROW(SingleOpBuilder()
+                        .op("GGML_OP_SOFT_MAX")
+                        .input("x", ov::element::f32, {1, 2, 1, 3})
+                        .input("sinks", ov::element::f32, {1, 1, 1, 2})
+                        .output("out", ov::element::f32, {1, 2, 1, 3})
+                        .attr<int64_t>("softmax_axis", 2)
+                        .build(),
+                    ov::Exception,
+                    testing::HasSubstr("attention sinks supports only the last softmax_axis"));
+}
+
 // Softmax with ALiBi (max_bias > 0): per-head slope applied to the mask.
 TEST(GGUFOps, SoftMaxAlibi) {
     const uint32_t n_head = 6;
@@ -634,6 +686,26 @@ TEST(GGUFOps, L2Norm) {
             expected[r * cols + c] = x[r * cols + c] / denom;
     }
     expect_near(out, expected, 1e-4f);
+}
+
+TEST(GGUFOps, L2NormExtremeEpsilon) {
+    for (const auto& parameters : std::vector<std::pair<float, float>>{{2e19f, 1e19f},
+                                                                       {1e-30f, 1e-30f},
+                                                                       {3e-23f, 1e-23f},
+                                                                       {0.f, 1e-4f},
+                                                                       {-1.f, 1e-4f}}) {
+        const auto eps = parameters.first;
+        const auto amplitude = parameters.second;
+        SCOPED_TRACE(eps);
+        const auto model = SingleOpBuilder()
+                               .op("GGML_OP_L2_NORM")
+                               .input("x", ov::element::f32, {1, 2})
+                               .output("out", ov::element::f32, {1, 2})
+                               .attr("eps", eps)
+                               .build();
+        const auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 2}, {amplitude, 0.f})}});
+        expect_near(out, {amplitude / std::max(amplitude, eps), 0.f}, 1e-6f);
+    }
 }
 
 // SumRows: reduce-sum over the last axis, keeping rank.

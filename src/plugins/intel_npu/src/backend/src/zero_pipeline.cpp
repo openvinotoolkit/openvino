@@ -26,11 +26,25 @@ uint32_t get_graph_unique_id_or_throw(const std::shared_ptr<intel_npu::IGraph>& 
 
 namespace intel_npu {
 
-std::vector<size_t> IPipeline::get_strides(const std::vector<size_t>& strides_in_bytes,
-                                           size_t element_size,
-                                           bool reverse_order) {
-    OPENVINO_ASSERT(element_size != 0, "Element size must be greater than 0");
+std::vector<size_t> IPipeline::get_strides(const ov::ITensor& tensor, bool reverse_order) {
+    const auto& element_type = tensor.get_element_type();
+    if (element_type.bitwidth() < 8) {
+        // Packed sub-byte tensors have no byte strides, so contiguous element strides are derived from the shape
+        const auto& shape = tensor.get_shape();
+        std::vector<size_t> element_strides(shape.size());
+        size_t stride = 1;
+        for (size_t dim = shape.size(); dim > 0; --dim) {
+            element_strides[dim - 1] = stride;
+            stride *= shape[dim - 1];
+        }
+        if (reverse_order) {
+            std::reverse(element_strides.begin(), element_strides.end());
+        }
+        return element_strides;
+    }
 
+    const auto element_size = element_type.size();
+    const auto& strides_in_bytes = tensor.get_strides();
     std::vector<size_t> element_strides(strides_in_bytes.size());
     const auto convert_to_element_stride = [element_size](size_t byte_stride) {
         OPENVINO_ASSERT(byte_stride % element_size == 0,
@@ -206,10 +220,9 @@ Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                     tensor->get_strides().empty()) {
                     _graph->set_argument_value(desc.indexUsedByDriver, tensor->data());
                 } else {
-                    _graph->set_argument_value_with_strides(
-                        desc.indexUsedByDriver,
-                        tensor->data(),
-                        get_strides(tensor->get_strides(), tensor->get_element_type().size(), true));
+                    _graph->set_argument_value_with_strides(desc.indexUsedByDriver,
+                                                            tensor->data(),
+                                                            get_strides(*tensor, true));
                 }
                 ++io_index;
                 continue;
@@ -224,7 +237,7 @@ Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                 _graph->set_argument_value_with_strides(
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
-                    get_strides(tensor->get_strides(), tensor->get_element_type().size(), true));
+                    get_strides(*tensor, true));
             }
 
             ++io_index;
@@ -241,7 +254,7 @@ Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                 _graph->set_argument_value_with_strides(
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
-                    get_strides(tensor->get_strides(), tensor->get_element_type().size(), true));
+                    get_strides(*tensor, true));
             }
             ++io_index;
         }
@@ -387,7 +400,7 @@ void Pipeline::update_graph_arguments(uint32_t index,
             _command_lists.at(i)->updateMutableCommandListWithStrides(
                 index,
                 static_cast<const unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
-                get_strides(tensor->get_strides(), tensor->get_element_type().size(), true));
+                get_strides(*tensor, true));
         }
     }
 };
@@ -409,10 +422,7 @@ void Pipeline::update_graph_arguments(uint32_t index,
         _command_lists.at(batch_index)->updateMutableCommandList(index, tensor->data());
     } else {
         _command_lists.at(batch_index)
-            ->updateMutableCommandListWithStrides(
-                index,
-                tensor->data(),
-                get_strides(tensor->get_strides(), tensor->get_element_type().size(), true));
+            ->updateMutableCommandListWithStrides(index, tensor->data(), get_strides(*tensor, true));
     }
 };
 

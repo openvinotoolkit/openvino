@@ -58,6 +58,10 @@ void GgufGraphContext::configure_model_contract(const ModelContract& contract) {
     m_impl->emitter.graph()->model_contract = contract;
 }
 
+ModelContract GgufGraphContext::model_contract() const {
+    return m_impl->emitter.graph()->model_contract;
+}
+
 DecoderLayerParameters GgufGraphContext::decoder_layer_parameters(int layer) const {
     m_impl->check_layer(layer);
     const auto& cfg = *m_impl->decoder;
