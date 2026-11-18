@@ -67,14 +67,15 @@ public:
      * ever makes. Always works, regardless of source; prefer #view() first to avoid the copy when possible.
      * @param destination Must point to at least @p length writable bytes, kept alive by the caller - `void*`
      * so any buffer type (`ov::Tensor::data()`, `vector<uint8_t>::data()`, ...) can be passed without a cast.
-     * @return false if `[offset, offset + length)` exceeds this section's size, or the underlying read failed.
+     * @return false if `[offset, offset + length)` exceeds this section's size, or the underlying read failed,
+     * including a stream that reports failure by throwing.
      */
-    bool read(size_t offset, size_t length, void* destination) const;
+    bool read(size_t offset, size_t length, void* destination) const noexcept;
 
     /**
      * @overload Reads the whole section; @p destination must point to at least #size() writable bytes.
      */
-    bool read(void* destination) const {
+    bool read(void* destination) const noexcept {
         return read(0, size(), destination);
     }
 
@@ -188,7 +189,7 @@ public:
     /**
      * @brief Returns a reference to the vector of all manifest entries in the container.
      * @return A reference to the vector of all manifest entries in the container.
-    */
+     */
     const std::vector<ManifestEntry>& entries() const noexcept {
         return m_manifest;
     }
@@ -234,7 +235,8 @@ public:
     }
 
     /**
-     * @brief Finds all manifest entries matching (@p device, @p tag) and returns a #Section handle for each, in manifest order.
+     * @brief Finds all manifest entries matching (@p device, @p tag) and returns a #Section handle for each, in
+     * manifest order.
      *
      * @tparam Tag The type of the tag, typically an enum or `uint32_t`.
      * @param device The device ID to match.

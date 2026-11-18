@@ -4,6 +4,7 @@
 import pytest
 import torch
 import numpy as np
+import openvino as ov
 
 from pytorch_layer_test_class import PytorchLayerTest
 
@@ -151,6 +152,87 @@ class TestCat(PytorchLayerTest):
         model = aten_cat_single_complex()
         self._test(model, ["aten::cat", "prim::ListConstruct"],
                    ie_device, precision, ir_version, freeze_model=False)
+
+
+class TestCatEmpty(PytorchLayerTest):
+    def _prepare_input(self, shape, dtype):
+        return (self.random.randn(*shape).astype(dtype),)
+
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.nightly
+    @pytest.mark.parametrize("dynamo", [False, True])
+    @pytest.mark.parametrize("empty_dtype", [torch.float32, torch.float64])
+    def test_empty_cache_conversion(self, dynamo, empty_dtype, ie_device, precision, ir_version):
+        class EmptyCache(torch.nn.Module):
+            def forward(self, keys):
+                empty = torch.tensor([], dtype=empty_dtype, device=keys.device)
+                return torch.cat([empty, keys], dim=-2)
+
+        model = EmptyCache().eval()
+        keys = self.random.torch_randn(1, 1, 4, 8)
+        converted = ov.convert_model(model, example_input=(keys,), dynamo=dynamo)
+        compiled = ov.Core().compile_model(converted, ie_device, {"INFERENCE_PRECISION_HINT": "f32"})
+        for _ in range(3):
+            keys = self.random.torch_randn(1, 1, 4, 8)
+            expected = model(keys).numpy()
+            actual = compiled((keys.numpy(),))[compiled.output(0)]
+            assert actual.shape == expected.shape
+            assert actual.dtype == expected.dtype
+            np.testing.assert_array_equal(actual, expected)
+
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.nightly
+    @pytest.mark.parametrize("axis", [0, 1, -2])
+    @pytest.mark.parametrize("position", ["first", "middle", "last", "multiple", "all"])
+    @pytest.mark.parametrize("empty_dtype", [torch.float32, torch.float64, torch.int32])
+    def test_cat_empty(self, axis, position, empty_dtype, ie_device, precision, ir_version):
+        class CatEmpty(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.empty = torch.empty(0, dtype=empty_dtype)
+
+            def forward(self, x):
+                if position == "first":
+                    return torch.cat([self.empty, x], axis)
+                if position == "middle":
+                    return torch.cat([x, self.empty, x], axis)
+                if position == "last":
+                    return torch.cat([x, self.empty], axis)
+                if position == "multiple":
+                    return torch.cat([self.empty, x, self.empty], axis)
+                return torch.cat([self.empty, torch.empty(0, dtype=x.dtype)], axis), x
+
+        self._test(CatEmpty(), "aten::cat", ie_device, precision, ir_version,
+                   trace_model=True, dynamic_shapes=False,
+                   kwargs_to_prepare_input={"shape": (1, 1, 4, 8), "dtype": np.float32})
+
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.nightly
+    @pytest.mark.parametrize("axis", [1, -2])
+    def test_cat_empty_complex(self, axis, ie_device, precision, ir_version):
+        class CatEmptyComplex(torch.nn.Module):
+            def forward(self, x):
+                empty = torch.view_as_complex(torch.empty(0, 2))
+                return torch.view_as_real(torch.cat([empty, torch.view_as_complex(x), empty], axis))
+
+        self._test(CatEmptyComplex(), "aten::cat", ie_device, precision, ir_version,
+                   trace_model=True,
+                   kwargs_to_prepare_input={"shape": (1, 1, 4, 8, 2), "dtype": np.float32})
+
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.nightly
+    def test_cat_higher_rank_empty(self, ie_device, precision, ir_version):
+        class CatHigherRankEmpty(torch.nn.Module):
+            def forward(self, x):
+                empty = x[:, :0]
+                return torch.cat([empty, x, empty], 1)
+
+        self._test(CatHigherRankEmpty(), "aten::cat", ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"shape": (2, 3, 4), "dtype": np.float32})
 
 
 class TestCatAlignTypes(PytorchLayerTest):

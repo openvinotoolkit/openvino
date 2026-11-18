@@ -4,20 +4,27 @@
 
 #pragma once
 
+#include <cstdint>
 #include <iostream>
+#include <memory>
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/BuiltinAttributes.h"
+#include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Location.h"
 #include "mlir/IR/MLIRContext.h"
+#include "mlir/IR/OwningOpRef.h"
 #include "openvino/op/constant.hpp"
 #include "typedefs.hpp"
 
 namespace ov::intel_gpu::mlir {
 
 using namespace ::mlir;
+
+class MLIRGpuProgram;
+std::shared_ptr<MLIRGpuProgram> create_gpu_program(::mlir::OwningOpRef<::mlir::ModuleOp> module, uint32_t device_id);
 
 // Verbose logging of the MLIR pipeline, controlled by the global ov::intel_gpu::mlir_debug option
 bool is_debug();

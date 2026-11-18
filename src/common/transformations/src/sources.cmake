@@ -79,6 +79,7 @@ set(COMMON_OPTIMIZATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/multi_scale_deformable_attn_grid_sample_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/mvn_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/nearest_neighbor_upsampling_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/ngram_hash_function_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/nonzero_horizontal_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/nop_elimination.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/normalize_l2_fusion.cpp
@@ -171,6 +172,7 @@ set(OP_CONVERSIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_gp9_to_gp_ie_internal.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_grouped_matmul_to_compressed.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_grouped_matmul_to_gather_matmul.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_grouped_matmul_to_matmul.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_interpolate11_downgrade.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_interpolate1_to_interpolate4.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.cpp
@@ -249,6 +251,7 @@ set(OPSET_CONVERSIONS_SOURCES
 set(PAGED_ATTENTION_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/convert_pagedattn_inputs.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/eliminate_conv_padding_mask_gating.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/gemma4_mtp_state_management_pattern.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_causal_conv1d_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_gated_delta_net_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_selective_ssm_fusion.cpp

@@ -20,12 +20,12 @@ RUN apt update && \
     add-apt-repository --yes --no-update ppa:git-core/ppa && \
     apt update && \
     apt install \
-        pigz \
-        scons \
-        wget \
-        ninja-build \
-        build-essential \
-        python3-pip && \
+    pigz \
+    scons \
+    wget \
+    ninja-build \
+    build-essential \
+    python3-pip && \
     # OpenVINO build requires cmake 3.26 or later
     # ninja>=1.11 needed for --quiet support (apt ships 1.10.1 on 22.04)
     python3 -m pip install -U pip cmake==3.26.4 ninja==1.13.0 && \
@@ -39,7 +39,7 @@ RUN apt update && \
     rm -rf /var/lib/apt/lists/*
 
 # Install sscache
-ARG SCCACHE_VERSION="v0.7.5"
+ARG SCCACHE_VERSION="v0.18.0"
 ENV SCCACHE_HOME="/opt/sccache" \
     SCCACHE_PATH="/opt/sccache/sccache"
 

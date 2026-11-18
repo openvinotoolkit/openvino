@@ -319,7 +319,7 @@ Supported values:
 
 ### ov::intel_npu::max_tiles and ov::intel_npu::tiles
 
-For on-device compilation, the plugin queries the driver for the available number of tiles and sets `ov::intel_npu::max_tiles`.  
+For on-device compilation, the plugin queries the driver for the available number of tiles and reports it through `ov::intel_npu::max_tiles`.  
 `ov::intel_npu::max_tiles` is a read-only property, and it will not be listed as supported in cases where no device is present.
 Note that `ov::intel_npu::max_tiles` represents the maximum number of tiles available, but the compiler may target a lower number of tiles depending on other properties. Users can set ``ov::intel_npu::tiles`` to override the number of tiles selected by the compiler based on other properties.  
 
@@ -345,7 +345,7 @@ Users can set ``ov::intel_npu::compiler_type`` to ``PLUGIN`` to force ``Compiler
 If any condition is not met, the plugin automatically falls back to using ``Compiler-In-Driver``.  
 The compiler type used to compile a model can be queried from the resulting ``CompiledModel`` by reading the ``ov::intel_npu::compiler_type`` property.  
 Notes regarding on-device vs offline compilation:
-- For on-device compilation with ``Compiler-In-Plugin``, the plugin is responsible for querying the platform information from the driver and for passing the mandatory configs to the compiler (platform ID, available number of tiles, stepping information). Such compiled models are compatible with all the drivers released for that platform.
+- For on-device compilation with ``Compiler-In-Plugin``, the plugin queries the platform information from the driver and passes it to the compiler via the device descriptor supplied at compiler creation. With ``Compiler-In-Driver``, the driver provides the same device descriptor to the compiler on the plugin's behalf. Such compiled models are compatible with all the drivers released for that platform.
 - For offline compilation, users must explicitly set the ``ov::intel_npu::platform`` property to one of the supported values (see table above).  
 Setting extra properties during offline compilation may result in compiled models that cannot be executed on SKUs with fewer resources or on drivers that do not support those features.  
 Example: Setting ``performance-hint-override=latency`` through ``ov::intel_npu::compilation_mode_params`` instructs the compiler to use all available resources for the given platform. If ``ov::intel_npu::max_tiles`` is not provided, the compiler falls back to a fixed lookup table embedded in the library to determine available resources, which might not be representative of all SKUs.
