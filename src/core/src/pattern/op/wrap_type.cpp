@@ -17,17 +17,18 @@ bool ov::pass::pattern::op::WrapType::match_value(Matcher* matcher,
         return false;
     }
 
+    // Checks are ordered from cheapest to most expensive: input arity (integer compare),
+    // wrapped type (type-hierarchy walk), predicate (user code), then recursive argument
+    // matching. This also guarantees the predicate can safely inspect the expected inputs.
+    if (get_input_size() != 0 && get_input_size() != graph_value.get_node()->get_input_size()) {
+        OPENVINO_LOG_WRAPTYPE5(matcher, get_input_size(), graph_value.get_node()->get_input_size());
+        return false;
+    }
+
     if (std::none_of(m_wrapped_types.begin(), m_wrapped_types.end(), [&](const NodeTypeInfo& type_info) {
             return graph_value.get_node_shared_ptr()->get_type_info().is_castable(type_info);
         })) {
         OPENVINO_LOG_WRAPTYPE1(matcher, pattern_value, graph_value);
-        return false;
-    }
-
-    // Verify the input arity before running the predicate so that structural mismatches are
-    // rejected first and the predicate can safely inspect the expected number of inputs.
-    if (get_input_size() != 0 && get_input_size() != graph_value.get_node()->get_input_size()) {
-        OPENVINO_LOG_WRAPTYPE5(matcher, get_input_size(), graph_value.get_node()->get_input_size());
         return false;
     }
 

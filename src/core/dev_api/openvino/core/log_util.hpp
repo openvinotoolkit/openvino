@@ -577,16 +577,16 @@ bool is_verbose_logging();
                                   "  NODES' TYPE MATCHED, but PREDICATE FAILED"); \
         } while (0);
 
-#    define OPENVINO_LOG_WRAPTYPE5(matcher, pattern_arg_size, graph_arg_size)                                 \
-        do {                                                                                                  \
-            OPENVINO_LOG_MATCHING(matcher,                                                                    \
-                                  ov::util::LevelString::get(),                                               \
-                                  OPENVINO_BLOCK_END,                                                         \
-                                  OPENVINO_RED,                                                               \
-                                  "  NODES' TYPE MATCHED, but NUMBER OF ARGUMENTS DOESN'T MATCH. EXPECTED: ", \
-                                  pattern_arg_size,                                                           \
-                                  ". OBSERVED: ",                                                             \
-                                  graph_arg_size);                                                            \
+#    define OPENVINO_LOG_WRAPTYPE5(matcher, pattern_arg_size, graph_arg_size)        \
+        do {                                                                         \
+            OPENVINO_LOG_MATCHING(matcher,                                           \
+                                  ov::util::LevelString::get(),                      \
+                                  OPENVINO_BLOCK_END,                                \
+                                  OPENVINO_RED,                                      \
+                                  "  NUMBER OF ARGUMENTS DOESN'T MATCH. EXPECTED: ", \
+                                  pattern_arg_size,                                  \
+                                  ". OBSERVED: ",                                    \
+                                  graph_arg_size);                                   \
         } while (0);
 
 #    define OPENVINO_LOG_WRAPTYPE3(matcher, num_arguments)                                                       \
