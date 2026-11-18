@@ -450,6 +450,14 @@ private:
             auto dst = instance.output_memory_ptr(out);
             const auto& in_layout = params.get_input_layout(in);
             const auto& out_layout = params.get_output_layout(out);
+            // An uninitialized ReadValue (first call, 0-row cache) has no buffer: nothing to copy, but the output rows are
+            // still zeroed (prepare writes the completed blocks).
+            if (in_layout.bytes_count() == 0 || src == nullptr) {
+                if (out_layout.bytes_count() != 0) {
+                    deps.push_back(dst->fill(stream, static_cast<unsigned char>(0), {}, out_of_order));
+                }
+                continue;
+            }
             OPENVINO_ASSERT(!in_layout.data_padding && !out_layout.data_padding, "[GPU][OCL] qsa_indexer: padded state buffers are not supported");
             const bool same_shape = in_layout.get_shape() == out_layout.get_shape();
             OPENVINO_ASSERT(same_shape || in == QSAIn::BLOCK_INDEX_KEYS_CACHE, "[GPU][OCL] qsa_indexer: only the block-key cache may change shape");
