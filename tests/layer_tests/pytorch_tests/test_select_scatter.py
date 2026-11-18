@@ -29,7 +29,9 @@ class TestSelectScatter(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize(("src", "dim", "index"),
-                             [(torch.ones(2), 0, 0),])
-    def aten_select_scatter(self, src, dim, index, ie_device, precision, ir_version):
+                             [(torch.ones(5, 3, 4), 0, 0),
+                              (torch.ones(2, 3, 4), 1, 2),
+                              (torch.ones(2, 5, 4), 2, 1),])
+    def test_select_scatter(self, src, dim, index, ie_device, precision, ir_version):
         self._test(*self.create_model(src, dim, index),
                    ie_device, precision, ir_version)

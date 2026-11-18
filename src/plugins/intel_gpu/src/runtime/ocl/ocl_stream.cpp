@@ -203,8 +203,9 @@ void set_arguments_impl(ocl_kernel_type& kernel, const arguments_desc& args, con
 }
 
 std::shared_ptr<device_clock_sync> make_device_clock(const ocl_engine& engine, const ExecutionConfig& config) {
-    if (!config.get_enable_profiling())
+    if (!config.get_enable_profiling()) {
         return nullptr;
+    }
 
     auto clock = std::make_shared<device_clock_sync>(engine.get_cl_device());
     return clock->is_valid() ? clock : nullptr;
@@ -403,14 +404,6 @@ event::ptr ocl_stream::create_base_event() {
     return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);
 }
 
-#ifdef ENABLE_MLIR_FOR_GPU
-event::ptr ocl_stream::create_base_event(void* handle) {
-    cl::Event ret_ev;
-    ret_ev = reinterpret_cast<cl_event>(handle);
-    return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);
-}
-#endif
-
 std::unique_ptr<surfaces_lock> ocl_stream::create_surfaces_lock(const std::vector<memory::ptr>& mem) const {
     return std::unique_ptr<ocl::ocl_surfaces_lock>(new ocl::ocl_surfaces_lock(mem, *this));
 }
@@ -474,7 +467,7 @@ void ocl_stream::wait_for_events(const std::vector<event::ptr>& events) {
     }
 
     if (!clevents.empty()) {
-        auto err = clWaitForEvents(static_cast<cl_uint>(clevents.size()), &clevents[0]);
+        auto err = clWaitForEvents(static_cast<cl_uint>(clevents.size()), clevents.data());
         if (err != CL_SUCCESS) {
             OPENVINO_THROW("[GPU] clWaitForEvents failed with ", err, " code");
         }

@@ -12,8 +12,11 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/greater_eq.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::op {
@@ -32,7 +35,9 @@ ov::Output<ov::Node> reshape_add_id_input_to_2d(const ov::Output<ov::Node>& inpu
         return input;
     }
     auto shape = std::make_shared<ov::op::v3::ShapeOf>(input, ov::element::i64);
-    return std::make_shared<ov::op::v1::Reshape>(input, gather_dims(shape, dims), false);
+    auto target_shape = gather_dims(shape, dims);
+    auto reshaped_input = std::make_shared<ov::op::v1::Reshape>(input, target_shape, false);
+    return reshaped_input;
 }
 }  // namespace
 
@@ -55,18 +60,29 @@ OutputVector translate_add_id(const NodeContext& context) {
         ids = std::make_shared<ov::op::v0::Convert>(ids, ov::element::i32);
     }
 
+    ov::Output<ov::Node> safe_ids = ids;
+    std::shared_ptr<ov::op::v1::GreaterEqual> valid_ids;
+    if (!has_nonnegative_indices(ids)) {
+        auto zero_id = ov::op::v0::Constant::create(ids.get_element_type(), ov::Shape{}, {0});
+        valid_ids = std::make_shared<ov::op::v1::GreaterEqual>(ids, zero_id);
+        safe_ids = std::make_shared<ov::op::v1::Select>(valid_ids, ids, zero_id);
+    }
     auto gather_axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
-    ov::Output<ov::Node> selected_bias = std::make_shared<ov::op::v8::Gather>(bias, ids, gather_axis);
-    selected_bias =
-        std::make_shared<ov::op::v1::Reshape>(selected_bias,
-                                              std::make_shared<ov::op::v3::ShapeOf>(input, ov::element::i64),
-                                              false);
+    auto gathered_bias = std::make_shared<ov::op::v8::Gather>(bias, safe_ids, gather_axis);
+    auto input_shape = std::make_shared<ov::op::v3::ShapeOf>(input, ov::element::i64);
+    ov::Output<ov::Node> selected_bias = std::make_shared<ov::op::v1::Reshape>(gathered_bias, input_shape, false);
 
     if (selected_bias.get_element_type() != input.get_element_type()) {
         selected_bias = std::make_shared<ov::op::v0::Convert>(selected_bias, input.get_element_type());
     }
 
-    ov::Output<ov::Node> res = std::make_shared<ov::op::v1::Add>(input, selected_bias);
+    auto added = std::make_shared<ov::op::v1::Add>(input, selected_bias);
+    ov::Output<ov::Node> res = added;
+    if (valid_ids) {
+        auto embedding_axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {-1});
+        auto valid_rows = std::make_shared<ov::op::v0::Unsqueeze>(valid_ids, embedding_axis);
+        res = std::make_shared<ov::op::v1::Select>(valid_rows, added, input);
+    }
 
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }

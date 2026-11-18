@@ -5,20 +5,21 @@
 #pragma once
 
 #include <functional>
+#include <map>
 #include <memory>
 #include <vector>
 
 #include "openvino/core/partial_shape.hpp"
 #include "primitive.hpp"
 
-namespace ov {
-class Node;  // forward-decl — the underlying op is ov::intel_gpu::op::MLIROp
-}
+namespace ov::intel_gpu::op {
+class MLIROp;
+}  // namespace ov::intel_gpu::op
 
 namespace cldnn {
 
 /// @brief Primitive that wraps an ov::intel_gpu::op::MLIROp node. Its execute_impl
-/// (see impls/common/mlir_primitive.cpp) forwards to MLIROp::evaluate().
+/// (see impls/common/mlir_primitive.cpp) calls MLIRGpuProgram::execute().
 struct mlir_primitive : public primitive_base<mlir_primitive> {
     CLDNN_DECLARE_PRIMITIVE(mlir_primitive)
 
@@ -28,7 +29,7 @@ struct mlir_primitive : public primitive_base<mlir_primitive> {
 
     mlir_primitive(const primitive_id& id,
                    const std::vector<input_info>& inputs,
-                   std::shared_ptr<ov::Node> op,
+                   std::shared_ptr<ov::intel_gpu::op::MLIROp> op,
                    shape_infer_function shape_infer_f,
                    size_t num_outputs,
                    const std::vector<optional_data_type>& out_types)
@@ -36,8 +37,37 @@ struct mlir_primitive : public primitive_base<mlir_primitive> {
           op(std::move(op)),
           shape_infer_f(std::move(shape_infer_f)) {}
 
-    std::shared_ptr<ov::Node> op;
+    std::shared_ptr<ov::intel_gpu::op::MLIROp> op;
     shape_infer_function shape_infer_f;
+
+    // Physical format required for some inputs (key == dependency index == MLIR function argument index).
+    // The compiled MLIR program bakes the input memref layouts in, so cldnn must deliver exactly these
+    // formats. Inputs without an entry must be in the default (plain) format for their rank.
+    std::map<size_t, format::type> required_input_fmts;
+
+    // Whether a buffer in `fmt` is a plain (unblocked) strided one, i.e. is expressible as memref strides.
+    static bool is_strided_format(const format& fmt) {
+        // TODO: bzyxf is a "simple" format too, move it into format::is_simple_data_format.
+        return format::is_simple_data_format(fmt) || fmt == format::bzyxf;
+    }
+
+    [[nodiscard]] format::type get_required_input_format(size_t idx, size_t rank) const {
+        const auto it = required_input_fmts.find(idx);
+        if (it == required_input_fmts.end()) {
+            return format::get_default_format(rank).value;
+        }
+        const format fmt = it->second;
+        OPENVINO_ASSERT(fmt.dimension() >= rank && is_strided_format(fmt),
+                        "[GPU] mlir_primitive '",
+                        id,
+                        "': unsupported required format ",
+                        fmt.to_string(),
+                        " for the rank-",
+                        rank,
+                        " input ",
+                        idx);
+        return it->second;
+    }
 
     void save(BinaryOutputBuffer& /*ob*/) const override {
         OPENVINO_THROW("[GPU] Compiled model export / model caching is not supported for models with MLIR "

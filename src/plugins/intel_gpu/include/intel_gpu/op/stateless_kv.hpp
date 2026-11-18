@@ -17,13 +17,25 @@ public:
     OPENVINO_OP("StatelessKV", "gpu_opset");
 
     StatelessKV() = default;
-    StatelessKV(const Output<Node>& past, const Output<Node>& new_token_data, const Output<Node>& seq_len, int64_t concat_axis, bool is_seq_len_present_len);
+    StatelessKV(const Output<Node>& past,
+                const Output<Node>& new_token_data,
+                const Output<Node>& seq_len,
+                int64_t concat_axis,
+                bool is_seq_len_present_len,
+                int64_t window_size = 0);
     StatelessKV(const Output<Node>& past,
                 const Output<Node>& new_token_data,
                 const Output<Node>& seq_len,
                 const Output<Node>& pos_idx,
                 int64_t concat_axis,
                 bool is_seq_len_present_len);
+    StatelessKV(const Output<Node>& past,
+                const Output<Node>& new_token_data,
+                const Output<Node>& seq_len,
+                const Output<Node>& cur_len,
+                int64_t concat_axis,
+                bool is_seq_len_present_len,
+                int64_t window_size);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
@@ -45,6 +57,20 @@ public:
         m_is_seq_len_present_len = is_seq_len_present_len;
     }
 
+    int64_t get_window_size() const {
+        return m_window_size;
+    }
+    void set_window_size(int64_t window_size) {
+        m_window_size = window_size;
+    }
+
+    bool get_is_capacity_overflow() const {
+        return m_is_capacity_overflow;
+    }
+    void set_is_capacity_overflow(bool is_capacity_overflow) {
+        m_is_capacity_overflow = is_capacity_overflow;
+    }
+
     std::optional<int64_t> get_update_offset() const {
         return m_update_offset;
     }
@@ -52,12 +78,27 @@ public:
         m_update_offset = update_offset;
     }
 
+    std::optional<int64_t> get_past_seq_len() const {
+        return m_past_seq_len;
+    }
+    void set_past_seq_len(std::optional<int64_t> past_seq_len) {
+        m_past_seq_len = past_seq_len;
+    }
+
+    bool get_has_pos_idx() const {
+        return m_has_pos_idx;
+    }
+
 protected:
-    StatelessKV(const OutputVector& inputs, int64_t concat_axis, bool is_seq_len_present_len);
+    StatelessKV(const OutputVector& inputs, int64_t concat_axis, bool is_seq_len_present_len, int64_t window_size, bool has_pos_idx);
 
     int64_t m_concat_axis = 0;
     std::optional<int64_t> m_update_offset;
+    std::optional<int64_t> m_past_seq_len;
     bool m_is_seq_len_present_len = true;
+    int64_t m_window_size = 0;
+    bool m_is_capacity_overflow = false;
+    bool m_has_pos_idx = false;
 };
 
 std::vector<ov::PartialShape> shape_infer(const StatelessKV* op, const std::vector<ov::PartialShape>& input_shapes);

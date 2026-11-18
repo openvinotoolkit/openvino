@@ -101,3 +101,17 @@ Use `OV_GGUF_Q4_K_ZP_F16=1` for Q4_K accuracy comparisons.
 For the embedding checkpoint, put `llama-embed.gguf` and the output of
 `embedding_oracle llama-embed.gguf llama-embed.bin "<prompt>"` in a directory and set
 `OV_GGUF_EMBEDDING_DATA` to it; `GGUFEmbeddingAccuracy` then compares per-token embeddings.
+
+LFM2 fixtures (`lfm2`, `lfm2-tied`, `lfm2-swa`, `lfm2-attention-first`, `lfm2moe`,
+`lfm2moe-all-experts`) use the decoder oracle revision `03fa73cb27f5c251b9528489b18d303b1366aca4`
+and random seed 20261014. They cover four hybrid layers, four query/two KV heads,
+three/four-tap convolution caches, a two-token attention window, dense leading layers,
+selection bias and normalized softmax/sigmoid expert weights. The sigmoid case includes
+expert-scale metadata that llama.cpp's LFM2 MoE loader ignores.
+
+`afmoe.npz` was extracted from OpenVINO donor `c4a023aeac0302c283295ba241ddee5af5ca4a0b`.
+It covers four layers (one dense, three routed/shared MoE), four query/two KV heads,
+pre/post RMS norms, QK norm, sigmoid attention gating and biased normalized sigmoid
+expert selection. The three cached batches cross a two-token sliding window; every
+fourth layer uses global attention without RoPE. The generator uses seed 20260907. Regeneration against the local CPU oracle built
+from llama.cpp `4b3951de9c87f66768e0fce4043756cc49efc20b` reproduced the NPZ byte for byte.

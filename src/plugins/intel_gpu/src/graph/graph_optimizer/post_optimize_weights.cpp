@@ -191,10 +191,10 @@ void post_optimize_weights::add_gru_weights_reorder(primitive_id input_id,
     auto permute = std::make_shared<cldnn::permute>(permute_id, input_info{input_id}, ord);
     auto& permute_node = p.get_or_create(permute);
     p.add_intermediate(permute_node, node, prev, true);
-    auto set_implementation_and_output = [this, &p](program_node& node) {
+    auto set_implementation_and_output = [&p](program_node& node) {
         node.get_output_layout(false);
         select_implementation(p, node);
-        p.mark_if_constant(node);
+        program::mark_if_constant(node);
         node.recalc_output_layout(false);
     };
     set_implementation_and_output(permute_node);
@@ -245,19 +245,19 @@ void post_optimize_weights::add_lstm_weights_reorder(primitive_id input_id, std:
     auto& con_node = p.get_or_create(con);
     p.add_intermediate(con_node, node, prev, true);
     p.add_intermediate(crop1_node, con_node, prev, true);
-    p.add_connection(prev, crop0_node, 0);
-    p.add_connection(prev, crop2_node, 0);
-    p.add_connection(crop0_node, con_node, 0);
-    p.add_connection(crop2_node, con_node, 0);
+    program::add_connection(prev, crop0_node, 0);
+    program::add_connection(prev, crop2_node, 0);
+    program::add_connection(crop0_node, con_node, 0);
+    program::add_connection(crop2_node, con_node, 0);
     std::string permute_id = input_id + "_perx";
     std::vector<uint16_t> ord{0, 2, 1};
     auto permute = std::make_shared<cldnn::permute>(permute_id, input_info{concat_id}, ord);
     auto& permute_node = p.get_or_create(permute);
     p.add_intermediate(permute_node, node, con_node,  true);
-    auto set_implementation_and_output = [this, &p](program_node& node) {
+    auto set_implementation_and_output = [&p](program_node& node) {
         node.get_output_layout(false);
         select_implementation(p, node);
-        p.mark_if_constant(node);
+        program::mark_if_constant(node);
         node.recalc_output_layout(false);
     };
     set_implementation_and_output(crop1_node);
@@ -304,14 +304,14 @@ void post_optimize_weights::add_lstm_bias_reorder(primitive_id input_id, std::sh
     auto& con_node = p.get_or_create(con);
     p.add_intermediate(con_node, node, prev, true);
     p.add_intermediate(crop1_node, con_node, prev, true);
-    p.add_connection(prev, crop0_node, 0);
-    p.add_connection(prev, crop2_node, 0);
-    p.add_connection(crop0_node, con_node, 0);
-    p.add_connection(crop2_node, con_node, 0);
-    auto set_implementation_and_output = [this, &p](program_node& node) {
+    program::add_connection(prev, crop0_node, 0);
+    program::add_connection(prev, crop2_node, 0);
+    program::add_connection(crop0_node, con_node, 0);
+    program::add_connection(crop2_node, con_node, 0);
+    auto set_implementation_and_output = [&p](program_node& node) {
         node.get_output_layout(false);
         select_implementation(p, node);
-        p.mark_if_constant(node);
+        program::mark_if_constant(node);
         node.recalc_output_layout(false);
     };
     set_implementation_and_output(crop0_node);

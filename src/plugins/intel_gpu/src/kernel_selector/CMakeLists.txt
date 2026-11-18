@@ -57,6 +57,20 @@ add_custom_command(OUTPUT "${CODEGEN_INCDIR}/${PRIM_DB}"
 
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${CODEGEN_CACHE_SOURCES})
 
+# .cl files aren't compiled, so a missing list entry won't fail the build - only silently skip
+# incremental regeneration of the primitive DB.
+file(GLOB_RECURSE _ov_gpu_cl_kernels_on_disk CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/cl_kernels/*.cl")
+
+foreach(_ov_gpu_cl_kernel IN LISTS _ov_gpu_cl_kernels_on_disk)
+  if(NOT _ov_gpu_cl_kernel IN_LIST KERNELS)
+    message(SEND_ERROR "[${TARGET_NAME}] '${_ov_gpu_cl_kernel}' is missing from GPU_KERNEL_SELECTOR_CL_KERNELS "
+      "(kernel_selector/sources.cmake).")
+  endif()
+endforeach()
+
+unset(_ov_gpu_cl_kernel)
+unset(_ov_gpu_cl_kernels_on_disk)
+
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
