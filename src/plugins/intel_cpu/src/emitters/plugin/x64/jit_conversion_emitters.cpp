@@ -413,11 +413,10 @@ void jit_convert_saturation_emitter::dword2int8(const std::vector<size_t>& in_ve
             h->vpmovusdb(xmm_dst, vmm_dst);
         }
     } else {
-        if (is_signed) {
-            h->uni_vpackssdw(vmm_dst, vmm_src, vmm_src);
-        } else {
-            h->uni_vpackusdw(vmm_dst, vmm_src, vmm_src);
-        }
+        // Always pack dword->word with signed saturation. For the unsigned case the following
+        // uni_vpackuswb clamps to [0, 255]; packusdw would produce words >= 0x8000 that
+        // packuswb reads as negative and clamps to 0 (e.g. 255 * 255 -> 0 on AVX2).
+        h->uni_vpackssdw(vmm_dst, vmm_src, vmm_src);
 
         if (isa != dnnl::impl::cpu::x64::sse41) {
             h->vpermq(ymm_dst, ymm_dst, 0x08);
