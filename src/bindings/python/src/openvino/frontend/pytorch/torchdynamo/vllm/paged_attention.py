@@ -9,18 +9,21 @@ and `kv_sharing_target` (vLLM hands KV-sharing layers raw k/v and skips their ca
 translator reuses the target's k/v instead; "" means not shared).
 """
 
-# mypy: ignore-errors
 
 import logging
+from typing import TYPE_CHECKING
 
 from .fx_utils import is_auto_functionalized, replace_mutated_output
+
+if TYPE_CHECKING:
+    import torch
 
 logger = logging.getLogger(__name__)
 
 _REGISTERED = False
 
 
-def _register_custom_op():
+def _register_custom_op() -> None:
     """Register torch.ops.ov_ext.paged_attention once per process."""
     global _REGISTERED
     if _REGISTERED:
@@ -61,7 +64,7 @@ def _register_custom_op():
     logger.debug("Registered torch.ops.ov_ext.paged_attention")
 
 
-def _attention_layer_meta(layer_name):
+def _attention_layer_meta(layer_name: str) -> tuple[float, str]:
     """Return a layer's (scale, kv_sharing_target); (0.0, "") lets the translator derive them."""
     try:
         from vllm.forward_context import get_forward_context
@@ -83,18 +86,18 @@ def _attention_layer_meta(layer_name):
     return (float(scale) if scale is not None else 0.0), str(target or "")
 
 
-def _is_unified_attention_with_output(node) -> bool:
+def _is_unified_attention_with_output(node: "torch.fx.Node") -> bool:
     """Match auto_functionalized_v2(unified_attention_with_output, ...)."""
     import torch
     return is_auto_functionalized(node, lambda: torch.ops.vllm.unified_attention_with_output.default)
 
 
-def count_unified_attention(gm) -> int:
+def count_unified_attention(gm: "torch.fx.GraphModule") -> int:
     """Count the vLLM attention call sites in gm."""
     return sum(1 for n in gm.graph.nodes if _is_unified_attention_with_output(n))
 
 
-def rewrite_unified_attention_to_paged_attention(gm) -> int:
+def rewrite_unified_attention_to_paged_attention(gm: "torch.fx.GraphModule") -> int:
     """Rewrite every attention HOP node to ov_ext.paged_attention; returns the number of rewrites."""
     import torch
 

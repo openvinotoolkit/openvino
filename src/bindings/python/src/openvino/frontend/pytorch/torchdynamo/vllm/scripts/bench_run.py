@@ -2,10 +2,6 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# mypy: ignore-errors
-
-# flake8: noqa
-
 """Benchmark vLLM's OpenVINO backend against eager: greedy text (must match) and steady-state decode tok/s.
 
 Usage:
@@ -19,12 +15,13 @@ import argparse
 import os
 import sys
 import time
+from typing import Any
 
 
 os.environ.setdefault("VLLM_LOGGING_LEVEL", "WARNING")
 
 # Must precede the first vLLM import, which reads these settings.
-from openvino.frontend.pytorch.torchdynamo.vllm.preset import (  # noqa: E402
+from openvino.frontend.pytorch.torchdynamo.vllm.preset import (
     set_pre_import_env,
 )
 
@@ -32,13 +29,13 @@ set_pre_import_env()
 
 
 # This env may have both vllm and vllm-cpu installed, and auto-detection can pick the wrong one.
-def _select_cpu_platform():
+def _select_cpu_platform() -> None:
     import vllm.platforms as _vp
     from vllm.platforms.cpu import CpuPlatform as _CpuPlatform
     _vp._current_platform = _CpuPlatform()
 
 
-def _generate(llm, prompt, params):
+def _generate(llm: Any, prompt: str, params: Any) -> Any:
     out = llm.generate([{"prompt": prompt}], params)
     return out[0].outputs[0]
 
@@ -47,7 +44,7 @@ def _generate(llm, prompt, params):
 _MEASURE_ATTEMPTS = 3
 
 
-def _run(label, llm, prompt, max_new_tokens, skip_warmup_tokens):
+def _run(label: str, llm: Any, prompt: str, max_new_tokens: int, skip_warmup_tokens: int) -> tuple[str, float]:
     from vllm import SamplingParams
 
     # Greedy (temperature=0) throughout; the untimed warmup compiles the model.
@@ -95,7 +92,7 @@ def _run(label, llm, prompt, max_new_tokens, skip_warmup_tokens):
     return out.text, steady_tps
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--model",
@@ -210,6 +207,8 @@ def main():
             print("FAIL: outputs differ")
             print(f"  eager:    {eager_text!r}")
             print(f"  openvino: {ov_text!r}")
+        assert eager_tps is not None
+        assert ov_tps is not None
         speedup = ov_tps / eager_tps if eager_tps else float("inf")
         print(f"steady tok/s   eager={eager_tps:.2f}   openvino={ov_tps:.2f}   speedup={speedup:.2f}x")
         if eager_text != ov_text:

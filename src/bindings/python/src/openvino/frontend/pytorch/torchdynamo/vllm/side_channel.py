@@ -2,26 +2,31 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# mypy: ignore-errors
 
 """Bind the translator's "__pa__<layer>__<field>" Parameters from vllm.forward_context at infer time."""
 
 import logging
 import os
 import re
+from collections.abc import Callable
+from types import ModuleType
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
 
 from openvino.frontend.pytorch.utils import pt_to_ov_type_map
 
+if TYPE_CHECKING:
+    from openvino import CompiledModel, Tensor, Type
+
 logger = logging.getLogger(__name__)
 
 # Per-layer KV-cache ov.Tensor wrappers, persisted across torch.compile invocations.
-_pa_kv_ovt_cache = {}
+_pa_kv_ovt_cache: "dict[tuple[int, str | None], tuple[Tensor, Tensor, np.ndarray, np.ndarray]]" = {}
 
 
-def _ov_tensor_over_torch(tensor, param_dt, _ov):
+def _ov_tensor_over_torch(tensor: torch.Tensor, param_dt: "Type", _ov: ModuleType) -> "Tensor | None":
     """Zero-copy ov.Tensor over a contiguous, type-matching torch tensor, else None.
 
     numpy has no bfloat16, so bf16 goes through a same-width float16 view.
@@ -36,33 +41,33 @@ def _ov_tensor_over_torch(tensor, param_dt, _ov):
 # OV CPU PagedAttention requires block_size 32; larger multiples are re-blocked to it.
 _PA_BLOCK_SIZE = 32
 
-_pa_sliding_window_cache = {}  # (id(compiled), layer_name) -> np.int32 array
+_pa_sliding_window_cache: dict[tuple[int, str], np.ndarray] = {}  # (id(compiled), layer_name) -> np.int32 array
 # (id(compiled), layer_name) -> {meta_layer_name, layer_obj, kv_cache_id}; kv_cache_id invalidates on realloc.
-_pa_layer_static_cache = {}
+_pa_layer_static_cache: dict[tuple[int, str], dict[str, Any]] = {}
 
 
 # Zero placeholders for steps without attn_meta (warmup dummy_run).
-def _zeros_1_i32():
+def _zeros_1_i32() -> np.ndarray:
     return np.zeros(1, dtype=np.int32)
 
 
-def _zeros_2_i32():
+def _zeros_2_i32() -> np.ndarray:
     return np.zeros(2, dtype=np.int32)
 
 
-def _zero_scalar_i32():
+def _zero_scalar_i32() -> np.ndarray:
     return np.array(0, dtype=np.int32)
 
 
 # id(compiled) -> {layer_name: {field: parameter_name}}, built on first bind.
-_pa_layout_cache = {}
+_pa_layout_cache: dict[int, dict[str, dict[str, str]]] = {}
 
 _UNKNOWN_LAYER_RE = re.compile(r"unknown_layer(?:_(\d+))?$")
 _LAYER_INDEX_RE = re.compile(r"layers\.(\d+)")
 _PA_SUFFIX_RE = re.compile(r"_(\d+)$")
 
 
-def _unknown_layer_index(placeholder):
+def _unknown_layer_index(placeholder: str) -> int | None:
     """'unknown_layer' -> 0, 'unknown_layer_3' -> 3; None for any other name."""
     match = _UNKNOWN_LAYER_RE.match(placeholder)
     if match is None:
@@ -70,7 +75,7 @@ def _unknown_layer_index(placeholder):
     return int(match.group(1)) if match.group(1) else 0
 
 
-def _sorted_layer_names(ctx):
+def _sorted_layer_names(ctx: Any) -> list[str]:
     """Real vLLM layer names in model layer order, the order the translator emitted its placeholders."""
     try:
         names = list(ctx.attn_metadata.keys()) if isinstance(ctx.attn_metadata, dict) else []
@@ -78,7 +83,7 @@ def _sorted_layer_names(ctx):
         return []
 
     # attn_metadata groups by KV-cache spec, not layer index.
-    def _layer_idx(name):
+    def _layer_idx(name: str) -> int:
         match = _LAYER_INDEX_RE.search(name)
         return int(match.group(1)) if match else -1
     if all(_layer_idx(n) >= 0 for n in names):
@@ -86,7 +91,7 @@ def _sorted_layer_names(ctx):
     return names
 
 
-def _key_cache_type(compiled, fields, layer_name, default):
+def _key_cache_type(compiled: "CompiledModel", fields: dict[str, str], layer_name: str, default: "Type") -> "Type":
     """Element type of the layer's key_cache Parameter, which KV_CACHE_PRECISION may have retyped."""
     target = fields.get("key_cache", f"__pa__{layer_name}__key_cache")
     for port in compiled.inputs:
@@ -95,12 +100,14 @@ def _key_cache_type(compiled, fields, layer_name, default):
     return default
 
 
-def _pa_auto_detect_kv_geom(ctx, meta_layer_name, placeholder_layer_name=None):
+def _pa_auto_detect_kv_geom(
+    ctx: Any, meta_layer_name: str | None, placeholder_layer_name: str | None = None,
+) -> tuple[int, int]:
     """Return (num_kv_heads, head_size) for one layer; head size can vary per layer (Gemma 4).
 
     Lookup order: real layer name, placeholder index (during warmup), model config, then (1, 1).
     """
-    def _extract(layer_obj):
+    def _extract(layer_obj: Any) -> tuple[int, int] | None:
         try:
             hk = int(getattr(layer_obj, "num_kv_heads", 0)) or 0
             hs = int(getattr(layer_obj, "head_size", 0)) or 0
@@ -153,7 +160,7 @@ _PA_FIELDS = (
 )
 
 
-def _bind_paged_attention_side_channel(compiled):
+def _bind_paged_attention_side_channel(compiled: "CompiledModel") -> dict[str, Any]:
     """Return {parameter_name: array or ov.Tensor} for every "__pa__" input, from vLLM's CPUAttentionMetadata."""
     try:
         from vllm.forward_context import get_forward_context
@@ -166,7 +173,7 @@ def _bind_paged_attention_side_channel(compiled):
         # No ForwardContext on CPU warmup paths: bind dummies so PA doesn't segfault.
         ctx = None
 
-    result = {}
+    result: dict[str, Any] = {}
     layer_to_fields = _pa_layout_cache.get(id(compiled))
     if layer_to_fields is None:
         layer_to_fields = {}
@@ -175,9 +182,9 @@ def _bind_paged_attention_side_channel(compiled):
                 if not nm.startswith("__pa__"):
                     continue
                 rest = nm[len("__pa__"):]
-                _sm = _PA_SUFFIX_RE.search(rest)
-                rest_stripped = rest[:_sm.start()] if _sm else rest
-                layer_suffix = _sm.group(0) if _sm else ""
+                _suffix_match = _PA_SUFFIX_RE.search(rest)
+                rest_stripped = rest[:_suffix_match.start()] if _suffix_match else rest
+                layer_suffix = _suffix_match.group(0) if _suffix_match else ""
                 for field in _PA_FIELDS:
                     suffix = "__" + field
                     if rest_stripped.endswith(suffix):
@@ -191,21 +198,21 @@ def _bind_paged_attention_side_channel(compiled):
     _first_real_layer = next(
         (ln for ln in layer_to_fields if ln != "shared"), None)
 
-    _real_names = None
+    _real_names: list[str] | None = None
 
-    def _real_layer_names():
+    def _real_layer_names() -> list[str]:
         nonlocal _real_names
         if _real_names is None:
             _real_names = _sorted_layer_names(ctx) if ctx is not None else []
         return _real_names
 
-    def _placeholder_to_real(placeholder):
+    def _placeholder_to_real(placeholder: str) -> str | None:
         """Map 'unknown_layer_<i>' to real[i], modulo the layer count: the translator's counter spans compiles."""
         real = _real_layer_names()
         idx = _unknown_layer_index(placeholder) if real else None
         if idx is None:
             return None
-        return real[idx % len(real)]  # noqa: S001
+        return real[idx % len(real)]  # noqa: S001 (int modulo, not %-formatting)
 
     _shared_meta = {
         "past_lens_np": _zeros_1_i32(),
@@ -215,7 +222,7 @@ def _bind_paged_attention_side_channel(compiled):
         "qsl_np": _zeros_2_i32(),
     }
     _shared_built = False
-    _bi_cache = {}  # per-call block_indices dedup
+    _bi_cache: dict[tuple[int, int], tuple[np.ndarray, np.ndarray]] = {}  # per-call block_indices dedup
     for layer_name, fields in layer_to_fields.items():
         attn_meta = None
         kv_cache = None
@@ -333,6 +340,7 @@ def _bind_paged_attention_side_channel(compiled):
                         key_cache_ovt.data.fill(0)
                         value_cache_ovt.data.fill(0)
                     else:
+                        assert value_cache_ovt is not None
                         # vLLM zeroed the pool and PA writes each block before reading it.
                         logger.debug("[OV plugin] KV cache aliased for %s (%s)",
                                      cache_key, _param_dt)
@@ -399,7 +407,7 @@ def _bind_paged_attention_side_channel(compiled):
                         rows = bt.shape[0] if bt.ndim > 0 else 1
                         bps_np = blocks_per_seq.numpy()
                         bt_np = bt.numpy()
-                        _exact = block_size % _PA_BLOCK_SIZE == 0  # noqa: S001
+                        _exact = block_size % _PA_BLOCK_SIZE == 0  # noqa: S001 (int modulo, not %-formatting)
                         _ov_ratio = (block_size // _PA_BLOCK_SIZE
                                      if block_size > _PA_BLOCK_SIZE and _exact
                                      else 1)
@@ -470,13 +478,15 @@ def _bind_paged_attention_side_channel(compiled):
 # vLLM's state pages aren't dense OV tables: gather active slots before infer, scatter back after.
 
 # id(compiled) -> {"layers": {layer: {field: param}}, "shared": {field: param}, "types": {param: type}}
-_gdn_layout_cache = {}
+_gdn_layout_cache: dict[int, dict[str, dict[str, Any]]] = {}
 
 
-def _gdn_layout(compiled):
+def _gdn_layout(compiled: "CompiledModel") -> dict[str, dict[str, Any]]:
     layout = _gdn_layout_cache.get(id(compiled))
     if layout is None:
-        layers, shared, types = {}, {}, {}
+        layers: dict[str, dict[str, str]] = {}
+        shared: dict[str, str] = {}
+        types: dict[str, Type] = {}
         for inp in compiled.inputs:
             for name in inp.get_names():
                 if not name.startswith("__pa__gdn__"):
@@ -493,7 +503,7 @@ def _gdn_layout(compiled):
     return layout
 
 
-def _bind_gdn_side_channel(compiled):
+def _bind_gdn_side_channel(compiled: "CompiledModel") -> tuple[dict[str, Any], Callable[[], None] | None]:
     """Bind GDN state tables and metadata; returns (inputs, scatter_back or None)."""
     layout = _gdn_layout(compiled)
     if not layout["layers"]:
@@ -506,9 +516,11 @@ def _bind_gdn_side_channel(compiled):
     ctx = get_forward_context()
     types = layout["types"]
     dim_first = is_conv_state_dim_first()
-    result = {}
+    result: dict[str, Any] = {}
     writebacks = []
-    step_meta = num_seqs = qsl = idx = fresh = None
+    num_seqs: int
+    qsl: torch.Tensor
+    step_meta = idx = fresh = None
     for layer_name, fields in layout["layers"].items():
         layer = ctx.no_compile_layers[layer_name]
         meta = ctx.attn_metadata[layer_name]
@@ -564,7 +576,7 @@ def _bind_gdn_side_channel(compiled):
     for field, name in layout["shared"].items():
         result[name] = shared_vals[field]
 
-    def scatter_back():
+    def scatter_back() -> None:
         for conv_dst, rec_dst, idx, conv, rec in writebacks:
             new_conv = conv[:, :, 1:]
             if not dim_first:
@@ -575,7 +587,7 @@ def _bind_gdn_side_channel(compiled):
     return result, scatter_back
 
 
-def clear_caches():
+def clear_caches() -> None:
     """Drop every per-model binding cache: their id() keys are reused once the models are freed."""
     for cache in (_pa_kv_ovt_cache, _pa_sliding_window_cache, _pa_layer_static_cache, _pa_layout_cache,
                   _gdn_layout_cache):

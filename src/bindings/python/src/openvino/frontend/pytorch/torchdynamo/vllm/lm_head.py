@@ -2,7 +2,6 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# mypy: ignore-errors
 
 """Run lm_head through OV instead of oneDNN (OV_LM_HEAD=1).
 
@@ -11,6 +10,12 @@ Off by default: a second live InferRequest slows the main graph more than the OM
 
 import logging
 import os
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import torch
+    from openvino import Tensor, Type
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +23,7 @@ logger = logging.getLogger(__name__)
 _MAX_CACHED_SHAPES = 32
 
 
-def _ov_type_for(torch_dtype):
+def _ov_type_for(torch_dtype: "torch.dtype") -> "Type | None":
     """Map a torch float dtype to the OV type, or None if unsupported."""
     import openvino as ov
     import torch
@@ -30,7 +35,7 @@ def _ov_type_for(torch_dtype):
     }.get(torch_dtype)
 
 
-def _copy_into(ov_tensor, tensor):
+def _copy_into(ov_tensor: "Tensor", tensor: "torch.Tensor") -> None:
     """Fill an OV tensor from a torch tensor; bf16 goes through uint16 bits, since numpy has no bfloat16."""
     import numpy as np
     import torch
@@ -43,7 +48,9 @@ def _copy_into(ov_tensor, tensor):
         dst[:] = src.numpy()
 
 
-def build_ov_lm_head(weight, nthreads=None):
+def build_ov_lm_head(
+    weight: "torch.Tensor", nthreads: int | None = None,
+) -> "Callable[[torch.Tensor, torch.Tensor, torch.Tensor | None], torch.Tensor] | None":
     """Compile ``[M, H] x [H, V]`` on OV as a cpu_linear-shaped callable; None makes the caller use oneDNN."""
     import numpy as np
     import openvino as ov
@@ -69,16 +76,16 @@ def build_ov_lm_head(weight, nthreads=None):
                      [param], "ov_lm_head")
 
     # The model's own dtype, not the preset's bf16 substitute, which would flip greedy argmax on near-ties.
-    cfg = {"INFERENCE_PRECISION_HINT": et.get_type_name()}
+    cfg: dict[str, Any] = {"INFERENCE_PRECISION_HINT": et.get_type_name()}
     if nthreads:
         cfg["INFERENCE_NUM_THREADS"] = nthreads
     compiled = ov.Core().compile_model(model, "CPU", cfg)
 
     req = compiled.create_infer_request()
     iport, oport = compiled.inputs[0], compiled.outputs[0]
-    staging = {}
+    staging: dict[int, Tensor] = {}
 
-    def cpu_linear(inp, weight, bias):
+    def cpu_linear(inp: "torch.Tensor", weight: "torch.Tensor", bias: "torch.Tensor | None") -> "torch.Tensor":
         rows = inp.shape[0]
         buf = staging.get(rows)
         if buf is None:

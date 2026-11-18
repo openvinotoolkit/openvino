@@ -2,7 +2,6 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# mypy: ignore-errors
 
 """vLLM model loader for NNCF hook-storage checkpoints (`load_format="nncf_hooks"`), safetensors or `.pt2`.
 
@@ -11,22 +10,29 @@ Translates NNCF's layout to quantization.py's "nncf" parameters at load time; co
 """
 
 import logging
+from collections.abc import Callable, Iterator
+from typing import TYPE_CHECKING, Any
 
 from .quantization import _unpack_uint4
+
+if TYPE_CHECKING:
+    import torch
+    from vllm.config import ModelConfig
 
 logger = logging.getLogger(__name__)
 
 LOAD_FORMAT = "nncf_hooks"
 _HOOK = "__nncf_hooks.post_hooks.{0}__0.0.{1}"
-_registered = None
+_registered: type[Any] | None = None
 
 
-def _hook_key(weight_name, field):
+def _hook_key(weight_name: str, field: str) -> str:
     """`model.layers.0.mlp.up_proj.weight` -> its hook-storage key."""
     return _HOOK.format(weight_name.replace(".", ":"), field)
 
 
-def _dequantize(stored, scale, zero_point, out_dtype):
+def _dequantize(stored: "torch.Tensor", scale: "torch.Tensor", zero_point: "torch.Tensor | None",
+                out_dtype: "torch.dtype") -> "torch.Tensor":
     """Dense [out, in] weight from any NNCF mode, computed in the scale's dtype as NNCF's decompressors do."""
     out_features = scale.shape[0]
     if scale.dim() == 3:
@@ -47,7 +53,7 @@ def _dequantize(stored, scale, zero_point, out_dtype):
     return weight.reshape(out_features, -1).type(out_dtype)
 
 
-def _pt2_state_dict(path):
+def _pt2_state_dict(path: str) -> "dict[str, torch.Tensor]":
     """Persistent parameters and buffers of a `torch.export.save` archive (exported with return_dict=False)."""
     import torch
 
@@ -60,7 +66,7 @@ def _pt2_state_dict(path):
     return exported.state_dict
 
 
-def _define_loader():
+def _define_loader() -> type[Any]:
     import contextlib
     import glob
     import os
@@ -74,7 +80,7 @@ def _define_loader():
         """DefaultModelLoader with NNCF's hook layout translated in transit."""
 
         @staticmethod
-        def _to_vllm(model, module):
+        def _to_vllm(model: "torch.nn.Module", module: str) -> str | None:
             """HF module name -> vLLM's unstacked one (q_proj stays q_proj), or None if the model drops it."""
             mapper = getattr(model, "hf_to_vllm_mapper", None)
             if mapper is None:
@@ -82,12 +88,13 @@ def _define_loader():
             mapped = mapper.get_unstacked_mapper().apply_list([module])
             return mapped[0] if mapped else None
 
-        def _target_is_quantized(self, model, params, module):
+        def _target_is_quantized(self, model: "torch.nn.Module", params: "dict[str, torch.nn.Parameter]",
+                                 module: str) -> bool:
             """Does the vLLM layer this HF module loads into hold a qweight?"""
-            module = self._to_vllm(model, module)
-            if module is None:
+            vllm_module = self._to_vllm(model, module)
+            if vllm_module is None:
                 return False
-            parent, _, leaf = module.rpartition(".")
+            parent, _, leaf = vllm_module.rpartition(".")
             mapping = getattr(model, "packed_modules_mapping", {})
             for fused, sources in mapping.items():
                 if leaf in sources:
@@ -95,7 +102,8 @@ def _define_loader():
                     break
             return f"{parent}.{leaf}.qweight" in params
 
-        def _kv_shared_zeros(self, model, params, seen, out_dtype):
+        def _kv_shared_zeros(self, model: "torch.nn.Module", params: "dict[str, torch.nn.Parameter]",
+                             seen: set[str], out_dtype: "torch.dtype") -> "Iterator[tuple[str, torch.Tensor]]":
             """Zeros for the k/v/k_norm vLLM builds on a KV-shared layer (HF has none); computed, then discarded.
 
             Zeros rather than empty memory, so a missed KV-sharing substitution writes zeros, not NaN, to the cache.
@@ -116,6 +124,7 @@ def _define_loader():
                 if not getattr(attn, "is_kv_shared_layer", False):
                     # Not ours to fill (e.g. MLA); a real gap still fails the missing-weights check.
                     continue
+                assert attn is not None
                 qkv = attn.qkv_proj
                 if self._target_is_quantized(model, params, f"{base}.k_proj"):
                     raise ValueError(
@@ -132,23 +141,24 @@ def _define_loader():
 
         @staticmethod
         @contextlib.contextmanager
-        def _checkpoint(model_dir):
+        def _checkpoint(model_dir: str) -> "Iterator[tuple[set[str], Callable[[str], torch.Tensor]]]":
             """`(keys, get_tensor)` over all safetensors (else pt2) files; a scale may sit in another shard."""
             paths = sorted(glob.glob(os.path.join(model_dir, "*.safetensors")))
             if paths:
                 with contextlib.ExitStack() as stack:
-                    owner = {}
+                    owner: dict[str, Any] = {}
                     for path in paths:
                         shard = stack.enter_context(safe_open(path, framework="pt"))
                         owner.update(dict.fromkeys(shard.keys(), shard))
                     yield set(owner), lambda key: owner[key].get_tensor(key)
                 return
-            state = {}
+            state: "dict[str, torch.Tensor]" = {}
             for path in sorted(glob.glob(os.path.join(model_dir, "*.pt2"))):
                 state.update(_pt2_state_dict(path))
             yield set(state), state.__getitem__
 
-        def _weights(self, model, model_config):
+        def _weights(self, model: "torch.nn.Module",
+                     model_config: "ModelConfig") -> "Iterator[tuple[str, torch.Tensor]]":
             params = dict(model.named_parameters())
             out_dtype = model_config.dtype
             quant_config = getattr(model_config.hf_config, "quantization_config", None) or {}
@@ -183,7 +193,7 @@ def _define_loader():
                         yield name, _dequantize(stored, scale, zp, out_dtype)
                 yield from self._kv_shared_zeros(model, params, keys, out_dtype)
 
-        def load_weights(self, model, model_config):
+        def load_weights(self, model: "torch.nn.Module", model_config: "ModelConfig") -> None:
             loaded = model.load_weights(self._weights(model, model_config))
             # DefaultModelLoader skips this check for quantized models; here it catches unknown layouts.
             missing = {n for n, _ in model.named_parameters()} - set(loaded or ())
@@ -195,7 +205,7 @@ def _define_loader():
     return NNCFHooksModelLoader
 
 
-def register():
+def register() -> type[Any] | None:
     """Add `load_format="nncf_hooks"` to vLLM, once (vLLM warns on a second registration)."""
     global _registered
     if _registered is None:
