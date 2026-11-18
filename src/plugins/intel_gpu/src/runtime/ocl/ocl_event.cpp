@@ -48,7 +48,7 @@ std::vector<cl::Event> get_cl_events(const std::vector<event::ptr>& events) {
 }
 }  // namespace cldnn::ocl::utils
 
-void CL_CALLBACK ocl_event::ocl_event_completion_callback(cl_event, cl_int, void* me) {
+void CL_CALLBACK ocl_event::ocl_event_completion_callback(cl_event /*unused*/, cl_int /*unused*/, void* me) {
     reinterpret_cast<ocl_event*>(me)->_set = true;
     reinterpret_cast<ocl_event*>(me)->call_handlers();
 }
@@ -89,7 +89,7 @@ bool ocl_event::is_set_impl() {
     return true;
 }
 
-bool ocl_event::add_event_handler_impl(event_handler, void*) {
+bool ocl_event::add_event_handler_impl(event_handler /*unused*/, void* /*unused*/) {
     set_ocl_callback();
     return true;
 }
