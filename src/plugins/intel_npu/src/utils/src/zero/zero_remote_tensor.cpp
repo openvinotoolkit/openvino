@@ -213,7 +213,7 @@ ZeroRemoteTensor::ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& co
                                    MemType memory_type,
                                    const void* memory,
                                    const std::optional<FileDescriptor>& file_desc,
-                                   const std::optional<std::size_t>& import_size)
+                                   std::optional<size_t> import_size)
     : _context(context),
       _init_structs(init_structs),
       _element_type(element_type),

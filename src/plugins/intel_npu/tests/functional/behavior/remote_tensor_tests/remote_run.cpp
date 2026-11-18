@@ -769,6 +769,31 @@ TEST_P(RemoteRunTests, ImportSizeWithoutMemTypeExpectedError) {
     ASSERT_THROW(auto remote_tensor = context.create_tensor(ov::element::f32, shape, params), std::exception);
 }
 
+TEST_P(RemoteRunTests, ImportCpuVAWithUnalignedImportSizeExpectedError) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto shape = Shape{1, 64};
+    auto data = ::operator new(8192, std::align_val_t(4096));
+
+    auto context = core->get_default_context(target_device);
+
+    // bigger than the tensor size, but not a multiple of the page size
+    ov::AnyMap params = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::CPU_VA},
+                         {ov::intel_npu::mem_handle.name(), data},
+                         {ov::intel_npu::import_size.name(), size_t{4096 + 64}}};
+    ASSERT_THROW(auto remote_tensor = context.create_tensor(ov::element::f32, shape, params), std::exception);
+
+    ::operator delete(data, std::align_val_t(4096));
+}
+
+TEST_P(RemoteRunTests, ImportSizeSetInContextExpectedError) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    ov::AnyMap params = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::CPU_VA},
+                         {ov::intel_npu::import_size.name(), size_t{4096}}};
+    ASSERT_THROW(auto context = core->create_context(target_device, params), std::exception);
+}
+
 TEST_P(RemoteRunTests, ImportSizeWithNonImportMemTypeExpectedError) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
@@ -781,14 +806,14 @@ TEST_P(RemoteRunTests, ImportSizeWithNonImportMemTypeExpectedError) {
                          {ov::intel_npu::import_size.name(), tensor_size}};
     OV_EXPECT_THROW_HAS_SUBSTRING(context.create_tensor(ov::element::f32, shape, params),
                                   ov::Exception,
-                                  "can be set only when importing memory");
+                                  "is SHARED_BUF or CPU_VA");
 
     ov::AnyMap file_params = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::MMAPED_FILE},
                               {ov::intel_npu::file_descriptor.name(), ov::intel_npu::FileDescriptor("dummy_file.bin")},
                               {ov::intel_npu::import_size.name(), tensor_size}};
     OV_EXPECT_THROW_HAS_SUBSTRING(context.create_tensor(ov::element::f32, shape, file_params),
                                   ov::Exception,
-                                  "can be set only when importing memory");
+                                  "is SHARED_BUF or CPU_VA");
 }
 
 TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContext) {

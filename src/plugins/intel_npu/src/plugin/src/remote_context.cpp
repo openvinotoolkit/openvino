@@ -26,7 +26,13 @@ RemoteContextImpl::RemoteContextImpl(const ov::SoPtr<IEngineBackend>& engineBack
         _tensor_type_object = zeroUtils::extract_object(remote_properties, tensor_type);
         _mem_handle_object = zeroUtils::extract_object(remote_properties, mem_handle);
         _file_descriptor_object = zeroUtils::extract_object(remote_properties, file_descriptor);
-        _import_size_object = zeroUtils::extract_object(remote_properties, import_size);
+
+        // Import_size depends on the memory being imported, so it makes sense only for a specific tensor.
+        if (remote_properties.find(import_size.name()) != remote_properties.end()) {
+            OPENVINO_THROW("Parameter ",
+                           import_size.name(),
+                           " cannot be set at context level, it can be set only when creating a tensor");
+        }
     }
 }
 
@@ -66,9 +72,6 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
     if (!file_descriptor_object.has_value() && _file_descriptor_object.has_value()) {
         file_descriptor_object = _file_descriptor_object;
     }
-    if (!import_size_object.has_value() && _import_size_object.has_value()) {
-        import_size_object = _import_size_object;
-    }
 
     // Mem_type shall be set if any other property is set.
     if (!mem_type_object.has_value() && (mem_handle_object.has_value() || tensor_type_object.has_value() ||
@@ -91,9 +94,10 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
         mem_type_object.value() != MemType::CPU_VA) {
         OPENVINO_THROW("Parameter ",
                        import_size.name(),
-                       " can be set only when importing memory (",
+                       " can be set only if ",
                        mem_type.name(),
-                       " SHARED_BUF or CPU_VA)");
+                       " is SHARED_BUF or CPU_VA. It is not supported for other memory types, including "
+                       "MMAPED_FILE");
     }
 
     return {std::make_shared<ZeroRemoteTensor>(get_this_shared_ptr(),

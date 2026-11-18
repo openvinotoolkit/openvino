@@ -167,8 +167,14 @@ static constexpr Property<TensorType> tensor_type{"TENSOR_TYPE"};
  *
  * - If not set, the size is computed from the tensor element type and shape.
  * - If set, it must not be smaller than the size computed from the tensor element type and shape.
- * - It can be set only when importing memory, i.e. when @ref mem_type is MemType::SHARED_BUF or MemType::CPU_VA.
- *   Setting it for any other memory type, or without @ref mem_type, results in an error.
+ * - For MemType::CPU_VA the imported size must be a multiple of the standard page size (4096 bytes). If the tensor
+ *   size computed from the shape is not, set this property to that size rounded up to the next multiple of the
+ *   page size (or to a bigger multiple, to import more memory). The imported allocation must be at least that big.
+ * - It can be set only when @ref mem_type is MemType::SHARED_BUF or MemType::CPU_VA.
+ *   Setting it for any other memory type, including MemType::MMAPED_FILE, or without @ref mem_type,
+ *   results in an error.
+ * - It can be set only per tensor, when creating a remote tensor. Setting it when creating the context
+ *   results in an error.
  *
  * The tensor shape and strides are not affected: only the size of the imported memory changes.
  * @ingroup ov_runtime_level_zero_npu_cpp_api
