@@ -70,8 +70,6 @@ void GraphConverter::set_convertor(const NodePtr& node, const Convertor& convert
 
 Value GraphConverter::get_dimension_value(const Dimension& d) {
     auto symbol = d.get_symbol();
-    // Use OPENVINO_ASSERT instead of assert(): the latter is compiled out in Release builds, so a dimension
-    // without a symbol would reach ancestor_of() with a null pointer and crash instead of reporting an error.
     OPENVINO_ASSERT(symbol, "Dimension ", d, " has no symbol and cannot be converted to an MLIR value");
     symbol = ov::symbol::ancestor_of(symbol);
     // Suppose all dimensions are known and the map is populated
