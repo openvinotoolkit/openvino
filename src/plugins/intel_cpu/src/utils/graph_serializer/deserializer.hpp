@@ -87,7 +87,31 @@ private:
     std::shared_ptr<ov::AlignedBuffer> m_origin_weights;
 };
 
-class ModelDeserializer {
+/// @brief Common base class for model deserializers, handling weightless-cache support and cache decryption setup.
+class ModelDeserializerBase {
+public:
+    virtual ~ModelDeserializerBase() = default;
+
+    virtual void operator>>(std::shared_ptr<ov::Model>& model) = 0;
+
+protected:
+    ModelDeserializerBase(const std::shared_ptr<ov::ICore>& core,
+                          const CacheDecrypt& decrypt_fn,
+                          bool decript_from_string,
+                          const std::string& origin_weights_path);
+
+    std::shared_ptr<ov::Model> create_ov_model(const std::shared_ptr<ov::AlignedBuffer>& model,
+                                               const std::shared_ptr<ov::AlignedBuffer>& weights,
+                                               const std::shared_ptr<ov::AlignedBuffer>& origin_weights);
+
+    std::shared_ptr<ov::ICore> m_core;
+    CacheDecrypt m_cache_decrypt;
+    bool m_decript_from_string;
+    std::shared_ptr<ov::AlignedBuffer> m_origin_weights_buf;
+};
+
+/// Legacy blob: one stream with DataHeader, custom data, constants and the IR XML.
+class ModelDeserializer : public ModelDeserializerBase {
 public:
     ModelDeserializer(std::shared_ptr<ov::AlignedBuffer>& model_buffer,
                       const std::shared_ptr<ov::ICore>& core,
@@ -101,9 +125,7 @@ public:
                       bool decript_from_string,
                       const std::string& origin_weights_path = "");
 
-    virtual ~ModelDeserializer() = default;
-
-    void operator>>(std::shared_ptr<ov::Model>& model);
+    void operator>>(std::shared_ptr<ov::Model>& model) override;
 
 protected:
     static void set_info(pugi::xml_node& root, std::shared_ptr<ov::Model>& model);
@@ -112,15 +134,27 @@ protected:
 
     void process_model(std::shared_ptr<ov::Model>& model, std::reference_wrapper<std::istream> model_stream);
 
-    std::shared_ptr<ov::Model> create_ov_model(const std::shared_ptr<ov::AlignedBuffer>& model,
-                                               const std::shared_ptr<ov::AlignedBuffer>& weights,
-                                               const std::shared_ptr<ov::AlignedBuffer>& origin_weights);
-
     std::variant<std::shared_ptr<ov::AlignedBuffer>, std::reference_wrapper<std::istream>> m_model;
-    std::shared_ptr<ov::ICore> m_core;
-    CacheDecrypt m_cache_decrypt;
-    bool m_decript_from_string;
-    std::shared_ptr<ov::AlignedBuffer> m_origin_weights_buf;
+};
+
+/// HSM blob: Deserializer sections into xml and weights.
+class HsmModelDeserializer final : public ModelDeserializerBase {
+public:
+    struct Sections {
+        std::shared_ptr<ov::AlignedBuffer> xml;      //!< Encrypted when cache encryption is on.
+        std::shared_ptr<ov::AlignedBuffer> weights;  //!< Null when the blob stores no constants.
+    };
+
+    HsmModelDeserializer(Sections sections,
+                         const std::shared_ptr<ov::ICore>& core,
+                         const CacheDecrypt& decrypt_fn,
+                         bool decript_from_string,
+                         const std::string& origin_weights_path = "");
+
+    void operator>>(std::shared_ptr<ov::Model>& model) override;
+
+private:
+    Sections m_sections;
 };
 
 }  //  namespace ov::intel_cpu
