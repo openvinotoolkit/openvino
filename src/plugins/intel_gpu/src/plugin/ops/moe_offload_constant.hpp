@@ -61,6 +61,9 @@ bool is_moe_related_constant(const std::shared_ptr<ov::op::v0::Constant>& op);
 uint64_t get_model_resident_constant_bytes(const ov::Model& model, size_t offload_ratio);
 /// Throws if OFFLOAD_RATIO cannot apply to any MoE layer of the model or the resident constants exceed the device memory
 void validate_model_resident_constant_memory(const ov::Model& model, size_t offload_ratio, uint64_t device_memory_bytes);
+/// An offloaded MoE layer supports a single stream. Throws on an explicit NUM_STREAMS > 1, sets NUM_STREAMS to 1 when it would be derived
+/// (AUTO, THROUGHPUT hint). Must be called before the config is finalized.
+void limit_streams_for_moe_offload(ExecutionConfig& config, const ov::Model& model);
 
 class PartialUploadLogState {
 public:

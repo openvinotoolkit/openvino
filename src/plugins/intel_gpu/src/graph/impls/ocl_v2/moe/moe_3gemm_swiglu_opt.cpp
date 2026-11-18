@@ -1601,6 +1601,7 @@ public:
         if (_weight_provider->is_offloaded()) {
             // The slots keep the loaded experts between the executions, so they have fixed indices whatever the other buffers are
             const layout layout_unused(ov::Shape{1}, ov::element::i32, cldnn::format::bfyx);
+            OPENVINO_ASSERT(internal_buffers.size() <= MOE_INTERNAL_BUFFER_OTD_SCALE_SLOTS, "MoE buffers overflow into the reserved OTD slot indices");
             while (internal_buffers.size() < MOE_INTERNAL_BUFFER_OTD_SCALE_SLOTS) {
                 internal_buffers.emplace_back(layout_unused, false);
             }

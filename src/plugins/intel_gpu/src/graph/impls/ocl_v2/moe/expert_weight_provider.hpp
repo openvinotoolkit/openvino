@@ -62,9 +62,6 @@ public:
     // True when expert weights are streamed on demand rather than fully resident.
     virtual bool is_offloaded() const = 0;
 
-    // Fills the RoutedWeightViews with the correct memory pointers for the 3 GEMMs.
-    virtual void fill_routed_weight_views(cldnn::moe_weights& weights, RoutedWeightViews& views) = 0;
-
     // Attempts to simultaneously acquire slots for all requested experts.
     // Returns nullopt if the number of unique experts exceeds resident_capacity()
     // (the caller should fall back to per-expert streaming).

@@ -56,26 +56,11 @@ OffloadExpertWeightProvider::OffloadExpertWeightProvider(size_t capacity,
       _cache(std::make_shared<LRUCache>(capacity)),
       _weight_reader(_weights_path) {}
 
-void OffloadExpertWeightProvider::bind(cldnn::moe_weights& resident) {
-    _resident = &resident;
+void OffloadExpertWeightProvider::bind(cldnn::moe_weights& /*resident*/) {
     _cache->set_initialized();
     _bound = true;
     GPU_DEBUG_TRACE << "MOE OTD bind: resident_slots=" << _capacity << " total_experts=" << _config.num_expert
                     << " shared_expert=" << (_config.num_shared_expert > 0 ? 1 : 0) << std::endl;
-}
-
-void OffloadExpertWeightProvider::fill_routed_weight_views(cldnn::moe_weights& /*weights*/, RoutedWeightViews& views) {
-    // Offloaded: point at the LRU resident buffers (not the original weight inputs).
-    OPENVINO_ASSERT(_resident != nullptr, "OffloadExpertWeightProvider: resident buffers not bound");
-    views.weight[0] = _resident->gate_w;
-    views.scale[0] = _resident->gate_s;
-    views.zp[0] = _resident->gate_z;
-    views.weight[1] = _resident->up_w;
-    views.scale[1] = _resident->up_s;
-    views.zp[1] = _resident->up_z;
-    views.weight[2] = _resident->down_w;
-    views.scale[2] = _resident->down_s;
-    views.zp[2] = _resident->down_z;
 }
 
 void OffloadExpertWeightProvider::reset_cache_if_slots_changed(const RoutedWeightViews& slots) {

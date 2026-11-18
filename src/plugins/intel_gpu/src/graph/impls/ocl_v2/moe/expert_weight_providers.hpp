@@ -33,17 +33,6 @@ public:
     bool is_bound() const override {
         return true;
     }
-    void fill_routed_weight_views(cldnn::moe_weights& weights, RoutedWeightViews& views) override {
-        views.weight[0] = weights.gate_w;
-        views.scale[0] = weights.gate_s;
-        views.zp[0] = weights.gate_z;
-        views.weight[1] = weights.up_w;
-        views.scale[1] = weights.up_s;
-        views.zp[1] = weights.up_z;
-        views.weight[2] = weights.down_w;
-        views.scale[2] = weights.down_s;
-        views.zp[2] = weights.down_z;
-    }
 
     std::optional<ExpertSlotLease> try_acquire_simultaneous(const std::vector<uint32_t>& experts,
                                                             const RoutedWeightViews& inputs,
@@ -82,7 +71,6 @@ public:
     bool is_bound() const override {
         return _bound;
     }
-    void fill_routed_weight_views(cldnn::moe_weights& weights, RoutedWeightViews& views) override;
     std::optional<ExpertSlotLease> try_acquire_simultaneous(const std::vector<uint32_t>& experts,
                                                             const RoutedWeightViews& inputs,
                                                             const RoutedWeightViews& slots,
@@ -108,7 +96,6 @@ private:
     std::filesystem::path _weights_path;
     std::shared_ptr<LRUCache> _cache;
     moe_otd::ParallelWeightReader _weight_reader;
-    cldnn::moe_weights* _resident = nullptr;
     bool _bound = false;
     // Handles of the slot buffers the LRU describes, compared only to detect a re-allocation
     std::vector<const void*> _slot_handles;

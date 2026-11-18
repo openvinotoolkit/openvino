@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 #include <numeric>
+#include <optional>
 
 #include "test_utils.h"
 #include "common_test_utils/test_assertions.hpp"
@@ -531,4 +532,43 @@ TEST(moe_offload_constant, layer_sharing_weights_with_a_resident_layer_stays_res
         EXPECT_FALSE(is_moe_constant_offloadable(constant));
         EXPECT_FALSE(prepare_partial_upload(constant, 50).enabled);
     }
+}
+
+// A second stream of an offloaded MoE layer cannot work: it is rejected (or avoided) at compilation, not at the first inference
+TEST(moe_offload_constant, streams_of_offloaded_moe_are_limited_at_compilation) {
+    auto graph = MoETestGraph::build();
+    ov::Model model(ov::ResultVector{std::make_shared<ov::op::v0::Result>(graph.moe_node)}, graph.parameters);
+    const auto streams_of = [](const ExecutionConfig& config) {
+        const auto it = config.get_user_properties().find(ov::num_streams.name());
+        return it == config.get_user_properties().end() ? std::optional<int32_t>{} : std::optional<int32_t>{it->second.as<ov::streams::Num>()};
+    };
+    const auto config_with = [](size_t offload_ratio, const ov::AnyMap& properties) {
+        ExecutionConfig config;
+        config.set_user_property(ov::intel_gpu::offload_ratio(offload_ratio));
+        config.set_user_property(properties);
+        return config;
+    };
+
+    auto explicit_streams = config_with(50, {ov::num_streams(2)});
+    OV_EXPECT_THROW(limit_streams_for_moe_offload(explicit_streams, model), ov::Exception, testing::HasSubstr("supports a single stream only"));
+
+    for (const auto& derived : {ov::AnyMap{ov::num_streams(ov::streams::AUTO)}, ov::AnyMap{ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}}) {
+        auto config = config_with(50, derived);
+        limit_streams_for_moe_offload(config, model);
+        EXPECT_EQ(streams_of(config), 1);
+    }
+
+    auto latency = config_with(50, {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)});
+    limit_streams_for_moe_offload(latency, model);
+    EXPECT_EQ(streams_of(latency), std::nullopt);
+
+    // Nothing is offloaded: the streams are not restricted
+    auto resident = config_with(0, {ov::num_streams(2)});
+    EXPECT_NO_THROW(limit_streams_for_moe_offload(resident, model));
+    EXPECT_EQ(streams_of(resident), 2);
+    auto in_memory = MoETestGraph::build(4, 128, 256, 128, ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU, /*file_backed_weights=*/false);
+    ov::Model in_memory_model(ov::ResultVector{std::make_shared<ov::op::v0::Result>(in_memory.moe_node)}, in_memory.parameters);
+    auto not_offloadable = config_with(50, {ov::num_streams(2)});
+    EXPECT_NO_THROW(limit_streams_for_moe_offload(not_offloadable, in_memory_model));
+    EXPECT_EQ(streams_of(not_offloadable), 2);
 }
