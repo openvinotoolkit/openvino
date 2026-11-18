@@ -87,6 +87,60 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     bool is_cpu() const override { return false; }
     bool is_onednn() const override { return true; }
 
+    bool is_binary_mul_inplace_post_op(const std::vector<post_op_kind>& expected, size_t onednn_idx) const override {
+        if (!_attrs) {
+            return false;
+        }
+        try {
+            return check_binary_mul_inplace_post_op(expected, onednn_idx);
+        } catch (...) {
+            return false;  // fail-safe: never claim in-place on an oneDNN error
+        }
+    }
+
+private:
+    bool check_binary_mul_inplace_post_op(const std::vector<post_op_kind>& expected, size_t onednn_idx) const {
+        const dnnl::post_ops post_ops = _attrs->get_post_ops();
+        const auto len = static_cast<size_t>(post_ops.len());
+        // The compiled chain must have exactly the structure the node-side list describes; otherwise an index into that list
+        // would address a different compiled slot (F17 C1).
+        if (expected.size() != len || onednn_idx >= len) {
+            return false;
+        }
+        for (size_t i = 0; i < len; i++) {
+            const auto kind = post_ops.kind(static_cast<int>(i));
+            switch (expected[i]) {
+            case post_op_kind::eltwise:
+                if (kind != dnnl::primitive::kind::eltwise)
+                    return false;
+                break;
+            case post_op_kind::binary:
+                if (kind != dnnl::primitive::kind::binary)
+                    return false;
+                break;
+            case post_op_kind::prelu:
+                if (kind != dnnl::primitive::kind::prelu)
+                    return false;
+                break;
+            case post_op_kind::sum:
+                if (kind != dnnl::primitive::kind::sum)
+                    return false;
+                break;
+            default:
+                return false;
+            }
+        }
+        if (post_ops.kind(static_cast<int>(onednn_idx)) != dnnl::primitive::kind::binary) {
+            return false;
+        }
+        dnnl::algorithm alg = dnnl::algorithm::undef;
+        dnnl::memory::desc desc;
+        post_ops.get_params_binary(static_cast<int>(onednn_idx), alg, desc);
+        return alg == dnnl::algorithm::binary_mul_inplace;
+    }
+
+public:
+
     // Cache blob format:
     //     [ dnnl::primitive_attr ]
     //     [ dnnl::primitive_desc ]

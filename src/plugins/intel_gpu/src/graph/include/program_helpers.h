@@ -163,7 +163,11 @@ struct onednn_eltwise_fusing_helpers {
     enum class add_fusing_query { exact, guard_superset };
     static add_fusing_type get_add_fusing_type(const program_node& node, const fused_primitive_desc& desc,
                                                add_fusing_query q = add_fusing_query::exact);
+    // Index of the dependency whose buffer dst may alias, or -1. For a static node the fused op's frozen oneDNN post-op type must agree
+    // (M8), so the result is "frozen AND live". Binding points must additionally ask primitive_inst::reused_eltw_alias_allowed().
     static int32_t get_reused_eltwmem_idx(const program_node& node);
+    // F17: the alias eligibility of binary_mul_inplace (dst bound to the post-op src1). Rules M0-M7 are structural queries on the graph;
+    // the frozen/impl side (M8 in get_reused_eltwmem_idx, primitive_inst::reused_eltw_alias_allowed) only ever downgrades.
     static bool can_use_mul_inplace(const program_node& node, const fused_primitive_desc& desc);
 };
 

@@ -58,6 +58,10 @@ struct BufferDescriptor {
     layout m_layout;
 };
 
+// F17: structural kind of one compiled oneDNN post-op slot, derived from the node-side fused_desc_onednn list so that an impl
+// can verify its compiled attrs really correspond to that list before trusting an index into it.
+enum class post_op_kind : uint8_t { eltwise, binary, prelu, sum, unsupported };
+
 /*
     Base class for all implementations.
 */
@@ -81,6 +85,14 @@ struct primitive_impl {
     // class typed_primitive_gpu_impl override this with return false;
     virtual bool is_cpu() const { return true; }
     virtual bool is_onednn() const { return false; }
+    // F17: true only if this impl was compiled with a binary_mul_inplace post-op at oneDNN post-op slot `onednn_idx`, and the compiled
+    // post-op chain has exactly the structure `expected` (one entry per compiled slot). Fail-safe: any mismatch or out-of-range index
+    // answers false. Non-oneDNN impls never alias dst onto a post-op source.
+    virtual bool is_binary_mul_inplace_post_op(const std::vector<post_op_kind>& expected, size_t onednn_idx) const {
+        (void)expected;
+        (void)onednn_idx;
+        return false;
+    }
 
     // Recording captures GPU API calls made during execute()
     // Implementation supports replay only when captured calls remain valid and host side logic can be skipped.
@@ -259,6 +271,12 @@ public:
     int32_t get_reused_eltw_dep_idx() const { return _reused_eltw_dep_idx; }
     // Re-points dst to the (possibly re-bound) output of the reused dependency. No-op unless dst is still the ctor-bound buffer.
     void rebind_reused_eltw_output();
+    // F17: may dst alias the reused (outer) dependency `idx` of the fused eltwise sum/prod? A sum is always allowed (its legality is the
+    // F5 predicate); a prod needs the CURRENT impl to be a oneDNN impl whose compiled post-op at that slot is binary_mul_inplace.
+    bool reused_eltw_alias_allowed(int32_t idx) const;
+    // Binds dst to `mem` (a view of the reused dependency's buffer) and records that dst now aliases it.
+    void bind_output_as_reused_eltw_alias(memory::ptr mem);
+    bool output_aliases_reused_eltw() const { return _output_aliases_reused_eltw; }
     /**
     * Validates whether the provided memory object can be set for a primitive.
     * This function checks that:
@@ -462,6 +480,7 @@ protected:
     bool _has_mutable_input = false;
     bool _mem_allocated = false;
     int32_t _reused_eltw_dep_idx = -1;
+    bool _output_aliases_reused_eltw = false;   // F17: _outputs[0] was bound as a view of the reused eltwise dependency (not owned)
     bool _reused_eltw_rebind_pending = false;   // one-shot: consumed by rebind_reused_eltw_output()
     void* _reused_eltw_ctor_dst_ptr = nullptr;  // raw pointer on purpose: must not keep the ctor-bound buffer alive
     bool _is_dynamic = false;

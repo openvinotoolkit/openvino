@@ -1289,6 +1289,29 @@ TEST_P(fc_fp16_eltwise_prod_mul_mul_inplace, matches_unfused_reference) {
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_prod_mul_mul_inplace, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
     fully_connected_test_params{ CASE_FC_FP16_3, 4, 6 },
 }));
+
+// F17: the dependency of the prod is a private, single-reader activation, so the binary_mul_inplace alias stays legal here (the tests
+// above feed the prod with an input_layout directly, which F17 turns into a plain binary_mul).
+class fc_fp16_eltwise_prod_mul_inplace_private_dep : public FullyConnectedFusingTestOneDNN {};
+TEST_P(fc_fp16_eltwise_prod_mul_inplace_private_dep, matches_unfused_reference) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        input_layout("extra_mul_in", get_output_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        activation("extra_mul", input_info("extra_mul_in"), activation_func::abs),
+        fully_connected("fc_prim", input_info("input"), "weights", "", get_output_dim_size(p)),
+        eltwise("mul", {input_info("fc_prim"), input_info("extra_mul")}, eltwise_mode::prod),
+        reorder("reorder_bfyx", input_info("mul"), p.default_format, data_types::f16));
+
+    extra_inputs["extra_mul_in"] = get_output_layout(p);
+    tolerance = 1e-2f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_prod_mul_inplace_private_dep, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP16_3, 4, 5 },
+}));
 #endif
 
 class fc_fp16_eltwise_add_ocl_dynamic : public FullyConnectedFusingTest {

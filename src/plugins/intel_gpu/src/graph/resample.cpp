@@ -31,11 +31,16 @@ void rebind_onednn_reuse_optimized_dst_if_needed(primitive_inst& inst) {
         if (user_inst->dependencies().at(reused_eltwmem_idx).first != &inst) {
             continue;
         }
-        if (engine.is_the_same_buffer(*user_inst->output_memory_ptr(), *output)) {
+        auto user_output = user_inst->output_memory_ptr();
+        if (!user_output || engine.is_the_same_buffer(*user_output, *output)) {
+            continue;
+        }
+        // F17: a mul user may only alias dst onto this buffer while its actual impl is compiled with binary_mul_inplace
+        if (!user_inst->reused_eltw_alias_allowed(reused_eltwmem_idx)) {
             continue;
         }
         auto new_mem = engine.reinterpret_buffer(*output, user_inst->get_output_layout());
-        user_inst->set_output_memory(new_mem, false);
+        user_inst->bind_output_as_reused_eltw_alias(new_mem);
     }
 }
 

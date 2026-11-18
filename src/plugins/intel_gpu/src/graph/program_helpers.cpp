@@ -18,6 +18,7 @@
 #include "condition_inst.h"
 #include "loop_inst.h"
 #include "input_layout_inst.h"
+#include "lora_inst.h"
 #include "mutable_data_inst.h"
 #include "transformations/symbolic_transformations/utils.hpp"
 #include <algorithm>
@@ -392,6 +393,49 @@ add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
     return add_fusing_type::binary_per_oc;
 }
 
+namespace {
+// F17 M3b/M3c helper (allocation-free, recursion only over the forward view chain of `cur`): true if the buffer of `cur` is, or is
+// viewed by, a network output (M3b), or is a slot of a concat that is or may become in-place (M3c). The walk advances ONLY to users
+// that are settled views of input 0 of exactly `cur` (C3): other users own their buffers and do not share dst.
+bool forward_view_chain_is_visible_or_concat_slot(const program_node& cur) {
+    if (program_helpers::is_or_becomes_output(cur)) {
+        return true;
+    }
+    for (const auto* u : cur.get_users()) {
+        if (u->is_type<concatenation>() && (u->can_be_optimized() || u->is_runtime_skippable())) {
+            return true;
+        }
+    }
+    for (const auto* u : cur.get_users()) {
+        if (!u->get_dependencies().empty() && &u->get_dependency(0) == &cur &&
+            program_helpers::is_buffer_view_of_input0(*u, program_helpers::view_resolution::settled_only) &&
+            forward_view_chain_is_visible_or_concat_slot(*u)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+// F17 M8: the type recorded at the oneDNN attribute freeze for the fused op whose outer dependency is `outer_dep_idx`.
+// Keyed by mem_dep, not by position (the list is reordered/pruned by post-op optimization).
+bool frozen_post_op_matches(const program_node& node, int32_t outer_dep_idx, eltwise_mode mode) {
+    for (const auto& e : node.get_fused_primitives_onednn()) {
+        if (e.mem_dep != static_cast<size_t>(outer_dep_idx)) {
+            continue;
+        }
+        if (mode == eltwise_mode::sum) {
+            if (e.op_type == onednn_post_op_type::sum || e.op_type == onednn_post_op_type::optimized_sum)
+                return true;
+        } else if (e.op_type == onednn_post_op_type::binary_mul_inplace) {
+            return true;
+        }
+    }
+    return false;
+}
+#endif
+}  // namespace
+
 // binary_mul_inplace: oneDNN matmul post-op whose src1 may alias dst. Unlike sum the alias is
 // optional (plain binary_mul otherwise), so this only checks the buffers are interchangeable:
 // FC only, dynamic via ov::Symbol, exact layout match, single user.
@@ -424,7 +468,56 @@ bool onednn_eltwise_fusing_helpers::can_use_mul_inplace(const program_node& p_no
         return false;
     }
 
-    return dep_node.get_users().size() == 1 && !dep_node.is_constant() && !p_node.is_output();
+    // M0 (pre-F17 conditions)
+    if (dep_node.get_users().size() != 1 || dep_node.is_constant() || p_node.is_output()) {
+        return false;
+    }
+
+    // F17. The alias is only safe if dep's buffer is exclusively dep's own, read by p_node alone through this one input, and
+    // invisible outside the network. Every rule below is a pure structural query: it runs at the freeze, at get_reused_eltwmem_idx
+    // callers (also per inference) and must give the same answer to all of them.
+    // M6: dst is bound to output port 0 of the dependency
+    if (p_node.get_dependency_with_port(desc.outer_dep_start_idx).second != 0) {
+        return false;
+    }
+    // M5: p_node reads dep through another input as well (users == 1 means that is the only way it can read it twice)
+    size_t reads_of_dep = 0;
+    for (const auto& d : p_node.get_dependencies()) {
+        if (d.first == &dep_node) {
+            reads_of_dep++;
+        }
+    }
+    if (reads_of_dep != 1) {
+        return false;
+    }
+    // M1: dep must own its buffer. settled_only on purpose: for a mul, "accepted at the freeze, rejected live" is a harmless
+    // downgrade and the reverse is stopped by M8; callers all run after the graph passes, when the flags are stable.
+    if (program_helpers::is_buffer_view_of_input0(dep_node, program_helpers::view_resolution::settled_only) ||
+        program_helpers::in_place_concat_holder_of(dep_node) != nullptr || dep_node.is_type<lora>()) {
+        return false;
+    }
+    // M2: input_layout (replaced by set_data), data, mutable_data, variables, condition, loop
+    if (program_helpers::is_external_buffer_root(dep_node)) {
+        return false;
+    }
+    // M3: neither dep nor p_node may be or become user-visible (past_outputs bypasses the restriction carry-over for the latter)
+    if (program_helpers::is_or_becomes_output(dep_node) || program_helpers::is_or_becomes_output(p_node)) {
+        return false;
+    }
+    // M3b/M3c: p_node itself, or a view chain starting at it, is visible or a concat slot (dst would write the concat's buffer)
+    if (forward_view_chain_is_visible_or_concat_slot(p_node)) {
+        return false;
+    }
+    // M4: dep is a concat that is or may become in-place
+    if (dep_node.is_type<concatenation>() && (dep_node.can_be_optimized() || dep_node.is_runtime_skippable())) {
+        return false;
+    }
+    // M7: shape_of subgraphs and CPU impls (dynamic nodes that may land on CPU are a Phase 0.5 gap)
+    if (dep_node.is_in_shape_of_subgraph() ||
+        (dep_node.get_selected_impl() ? dep_node.get_selected_impl()->is_cpu() : dep_node.get_preferred_impl_type() == impl_types::cpu)) {
+        return false;
+    }
+    return true;
 }
 
 int32_t onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(const program_node& node) {
@@ -438,6 +531,14 @@ int32_t onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(const program_node
                     continue;
                 if (!fused_op.has_outer_dep())
                     continue;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+                // F17 M8: only ever downgrade. A static node's attrs were frozen once; a live "eligible" answer that disagrees with the
+                // frozen post-op type of THIS fused op (e.g. frozen binary_mul / binary_add) must not alias dst, because oneDNN was not
+                // told that src1 and dst coincide. Dynamic nodes rebuild their attrs from the same live predicate in update_impl; the
+                // impl actually used is checked at the binding points (primitive_inst::reused_eltw_alias_allowed).
+                if (!node.is_dynamic() && !frozen_post_op_matches(node, fused_op.outer_dep_start_idx, mode))
+                    continue;
+#endif
                 return fused_op.outer_dep_start_idx;
             }
         }

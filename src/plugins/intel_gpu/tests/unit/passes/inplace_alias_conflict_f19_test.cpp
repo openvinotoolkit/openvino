@@ -375,8 +375,8 @@ TEST(inplace_alias_conflict_f19, F19_two_writers_through_views_po_order) {
     expect_match(res, run_net(net_ref, engine, g), "F19_two_writers");
 }
 
-// 5. Guard: binary_mul_inplace through a view of O, O has another reader after W. F19 must NOT bind W's dst to O (mul
-// keeps its private dst; correctness holds).
+// 5. Guard: binary_mul_inplace through a view of O, O has another reader after W. F19 must NOT bind W's dst to O. After F17 the
+// in-place mul is rejected altogether (dep V is a view, M1): the mul must be fused and get_reused_eltwmem_idx must be -1. This test never skips on "mul did not fuse": that is a failure of the topology.
 TEST(inplace_alias_conflict_f19, F19_mul_inplace_into_view_guard) {
     SKIP_IF_NO_IMMAD();
     auto& eng = get_test_engine();
@@ -411,14 +411,22 @@ TEST(inplace_alias_conflict_f19, F19_mul_inplace_into_view_guard) {
     std::cout << flags;
     auto& W = prog->get_node("W");
     ASSERT_EQ(W.get_preferred_impl_type(), impl_types::onednn) << flags;
-    if (fused_eltw(W, eltwise_mode::prod) == nullptr || fusing::get_reused_eltwmem_idx(W) == -1) {
-        GTEST_SKIP() << "binary_mul_inplace did not fuse on this device/topology; nothing to guard\n" << flags;
-    }
+    ASSERT_NE(fused_eltw(W, eltwise_mode::prod), nullptr) << "the prod is expected to be fused into W\n" << flags;
+    EXPECT_EQ(fusing::get_reused_eltwmem_idx(W), -1) << "F17: a view dependency must not be aliased by binary_mul_inplace\n" << flags;
+    // Not asserted: the frozen attrs. A no-op strided_slice becomes a view only AFTER the attribute freeze, so the freeze may still carry
+    // binary_mul_inplace (the harmless direction: dst stays private). The binding points reject it, which is what is checked below.
     auto w = net.get_primitive("W");
     auto o = net.get_primitive("O");
     EXPECT_EQ(w->get_reused_eltw_dep_idx(), -1) << "F19 must only record sum writers";
     EXPECT_FALSE(engine.is_the_same_buffer(*w->output_memory_ptr(), *o->output_memory_ptr()))
         << "mul writer dst must not be bound to O (O has another reader after W)";
+    // C4: no node of this graph other than a sum writer may carry a recorded reused dependency
+    for (auto* n : prog->get_processing_order()) {
+        if (n->is_type<data>() || n->is_type<input_layout>()) {
+            continue;
+        }
+        EXPECT_EQ(net.get_primitive(n->id())->get_reused_eltw_dep_idx(), -1) << n->id();
+    }
     auto res = run_net(net, engine, g);
     network net_ref(engine, g.t, ref_config(engine, g.custom_outputs));
     expect_match(res, run_net(net_ref, engine, g), "F19_mul_guard");

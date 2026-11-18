@@ -312,8 +312,11 @@ event::ptr primitive_inst::set_output_memory(memory::ptr mem_new, bool check, si
         _outputs[idx] = mem_new;
         _max_output_layout_count[idx] = mem_new->get_layout().get_linear_size();
         // Replacing the primary output means any borrowed remote permute view is no longer active.
-        if (idx == 0)
+        if (idx == 0) {
             _remote_permute_output_alias.reset();
+            // F17: an externally bound output is not the reused-dependency alias unless the caller says so afterwards
+            _output_aliases_reused_eltw = false;
+        }
     }
     return ev;
 }
@@ -354,6 +357,85 @@ void primitive_inst::rebind_reused_eltw_output() {
     auto new_mem = eng.reinterpret_buffer(*dep_mem, out_layout);
     GPU_DEBUG_TRACE_DETAIL << id() << ": F19 rebind sum dst to output of " << dep_inst->id() << std::endl;
     set_output_memory(new_mem, false, 0);
+    _output_aliases_reused_eltw = true;
+}
+
+bool primitive_inst::reused_eltw_alias_allowed(int32_t idx) const {
+    if (idx < 0 || !_node)
+        return false;
+    const fused_primitive_desc* fused_op_desc = nullptr;
+    for (const auto& fused_op : _node->get_fused_primitives()) {
+        if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1 && fused_op.has_outer_dep() && fused_op.outer_dep_start_idx == idx) {
+            fused_op_desc = &fused_op;
+            break;
+        }
+    }
+    if (!fused_op_desc)
+        return false;
+    const auto mode = fused_op_desc->typed_desc<eltwise>()->mode;
+    if (mode == eltwise_mode::sum)
+        return true;
+    if (mode != eltwise_mode::prod)
+        return false;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    // The impl may be a clone from a cache whose key does not cover the oneDNN post-op structure (F17 C1), so the answer is taken from
+    // the compiled attrs of the actual impl and verified against this node's own post-op list.
+    if (!_impl || !_impl->is_onednn())
+        return false;
+    const auto& list = _impl_params->fused_desc_onednn;
+    std::vector<post_op_kind> expected;
+    expected.reserve(list.size());
+    std::optional<size_t> inplace_slot;
+    for (const auto& e : list) {
+        post_op_kind kind = post_op_kind::unsupported;
+        switch (e.op_type) {
+        case onednn_post_op_type::optimized:
+            continue;  // occupies no compiled slot
+        case onednn_post_op_type::eltwise_act:
+        case onednn_post_op_type::eltwise_clip:
+        case onednn_post_op_type::eltwise_linear:
+        case onednn_post_op_type::eltwise_round:
+        case onednn_post_op_type::eltwise_hardsigmoid:
+        case onednn_post_op_type::optimized_eltwise_act:
+        case onednn_post_op_type::optimized_eltwise_clip:
+        case onednn_post_op_type::optimized_eltwise_linear:
+        case onednn_post_op_type::optimized_eltwise_round:
+            kind = post_op_kind::eltwise;
+            break;
+        case onednn_post_op_type::binary_mul:
+        case onednn_post_op_type::binary_mul_inplace:
+        case onednn_post_op_type::binary_add:
+        case onednn_post_op_type::binary_sub:
+        case onednn_post_op_type::binary_max:
+        case onednn_post_op_type::binary_min:
+        case onednn_post_op_type::binary_div:
+            kind = post_op_kind::binary;
+            break;
+        case onednn_post_op_type::binary_relu:
+            kind = post_op_kind::prelu;
+            break;
+        case onednn_post_op_type::sum:
+        case onednn_post_op_type::optimized_sum:
+            kind = post_op_kind::sum;
+            break;
+        default:
+            break;
+        }
+        if (e.op_type == onednn_post_op_type::binary_mul_inplace && e.mem_dep == static_cast<size_t>(idx))
+            inplace_slot = expected.size();
+        expected.push_back(kind);
+    }
+    if (!inplace_slot)
+        return false;
+    return _impl->is_binary_mul_inplace_post_op(expected, *inplace_slot);
+#else
+    return false;
+#endif
+}
+
+void primitive_inst::bind_output_as_reused_eltw_alias(memory::ptr mem) {
+    set_output_memory(std::move(mem), false, 0);
+    _output_aliases_reused_eltw = true;
 }
 
 void primitive_inst::update_shape() {
@@ -751,12 +833,14 @@ bool primitive_inst::need_reset_output_memory() const {
 
 void primitive_inst::clear_output_memory() {
     _outputs[0] = nullptr;
+    _output_aliases_reused_eltw = false;
     _max_output_layout_count[0] = 0;
     _remote_permute_output_alias.reset();
 }
 
 void primitive_inst::release_and_clear_output_memory() {
-    if (_mem_allocated && _outputs[0])
+    // an alias of the reused dependency is not pool memory of this node
+    if (_mem_allocated && _outputs[0] && !_output_aliases_reused_eltw)
         get_network().get_memory_pool().release_memory(_outputs[0].get(), get_node().get_unique_id(), id(), get_network_id());
     _mem_allocated = false;
     clear_output_memory();
@@ -1420,21 +1504,43 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
 
     // binary_mul_inplace lets this FC's dst share the fused eltwise dep buffer (the post-op src1).
     // A static node binds that alias when its output is allocated; a dynamic node has to bind it here.
-    if (actual_layouts.size() == 1 && get_node().get_preferred_impl_type() == impl_types::onednn) {
-        auto reused_eltwmem_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(get_node());
-        if (reused_eltwmem_idx != -1) {
-            const auto& eltw_inst = get_network().get_primitive(get_node().get_dependency(reused_eltwmem_idx).id());
-            auto eltw_mem = eltw_inst->output_memory_ptr();
-            if (eltw_mem && eltw_mem->get_mem_tracker() &&
-                eltw_mem->get_mem_tracker()->size() >= updated_layouts[0].get_linear_size() * dt_sizes_in_B[0]) {
-                if (_outputs[0]) {
-                    get_network().get_memory_pool().release_memory(_outputs[0].get(), get_node().get_unique_id(), id(), get_network_id());
-                }
-                _outputs[0] = eltw_mem->get_engine()->reinterpret_buffer(*eltw_mem, updated_layouts[0]);
-                _max_output_layout_count[0] = eltw_mem->get_mem_tracker()->size() / dt_sizes_in_B[0];
-                return;
-            }
+    // F17: the alias is only legal while the ACTUAL impl is a oneDNN impl compiled with binary_mul_inplace for that post-op (an impl
+    // cloned from the static impls cache may have been compiled for a node that rejected the in-place mul).
+    int32_t reused_eltwmem_idx = -1;
+    if (actual_layouts.size() == 1 && _impl && _impl->is_onednn()) {
+        reused_eltwmem_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(get_node());
+        if (reused_eltwmem_idx != -1 && !reused_eltw_alias_allowed(reused_eltwmem_idx)) {
+            reused_eltwmem_idx = -1;
         }
+    }
+    bool bound_to_reused_eltw = false;
+    if (reused_eltwmem_idx != -1) {
+        const auto& eltw_inst = get_network().get_primitive(get_node().get_dependency(reused_eltwmem_idx).id());
+        auto eltw_mem = eltw_inst->output_memory_ptr();
+        if (eltw_mem && eltw_mem->get_mem_tracker() &&
+            eltw_mem->get_mem_tracker()->size() >= updated_layouts[0].get_linear_size() * dt_sizes_in_B[0]) {
+            // An earlier alias is not pool memory: nothing to release for it.
+            if (_outputs[0] && !_output_aliases_reused_eltw) {
+                get_network().get_memory_pool().release_memory(_outputs[0].get(), get_node().get_unique_id(), id(), get_network_id());
+            }
+            auto alias_mem = eltw_mem->get_engine()->reinterpret_buffer(*eltw_mem, updated_layouts[0]);
+            // pool block -> alias (or a re-pointed alias) is a buffer change the executor must see (args update)
+            if (!_outputs[0] || !get_network().get_engine().is_the_same_buffer(*alias_mem, *_outputs[0])) {
+                set_flag(ExecutionFlags::MEMORY_CHANGED);
+            }
+            _outputs[0] = std::move(alias_mem);
+            _max_output_layout_count[0] = eltw_mem->get_mem_tracker()->size() / dt_sizes_in_B[0];
+            _output_aliases_reused_eltw = true;
+            bound_to_reused_eltw = true;
+            return;
+        }
+    }
+    if (!bound_to_reused_eltw && _output_aliases_reused_eltw) {
+        // dst aliased the dependency buffer in an earlier round but must not now (impl changed, alias rejected, dependency too small):
+        // drop the stale alias so the allocation below hands out a private buffer. Tracked by an explicit flag because the dependency
+        // may have been re-allocated, which makes a buffer comparison unreliable.
+        GPU_DEBUG_TRACE_DETAIL << id() << ": F17 drop stale alias of the reused eltwise dependency" << std::endl;
+        clear_output_memory();
     }
 
     // allocate_output() params of the nodes that don't use fake_aligned_params, built on the first allocation
@@ -2921,7 +3027,10 @@ primitive_inst::primitive_inst(network& network, const program_node& node, bool 
             }
         }
 
-        if (auto reused_eltwmem_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(node); reused_eltwmem_idx != -1) {
+        // F17: a prod needs the actual impl to be compiled with binary_mul_inplace (no impl yet means not allowed). Checked before the
+        // input_layout pre-allocation below, which must not happen for a rejected alias.
+        if (auto reused_eltwmem_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(node);
+            reused_eltwmem_idx != -1 && reused_eltw_alias_allowed(reused_eltwmem_idx)) {
             // sum post-op can use the input buffer as the output buffer
             auto& eltw_node = node.get_dependency(reused_eltwmem_idx);
             const auto& eltw_inst = _network.get_primitive(eltw_node.id());
@@ -2947,6 +3056,7 @@ primitive_inst::primitive_inst(network& network, const program_node& node, bool 
                 }
             }
             _outputs.push_back(new_mem);
+            _output_aliases_reused_eltw = true;
         } else {
             // TODO: Remove WA for arg_max_min node.
             // For now it's required to handle the case when only second output of TopK primitive is used in plugin,
