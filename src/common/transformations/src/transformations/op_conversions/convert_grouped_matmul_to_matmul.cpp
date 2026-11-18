@@ -43,8 +43,8 @@ namespace v17 = ov::op::v17;
 ov::OutputVector split_compressed_weights(const ov::Output<ov::Node>& weights, int64_t num_groups) {
     auto source = weights.get_node_shared_ptr();
     bool has_decompression = false;
-    while (ov::is_type<v0::Convert>(source) || ov::is_type<v1::Reshape>(source) ||
-           ov::is_type<v1::Multiply>(source) || ov::is_type<v1::Subtract>(source)) {
+    while (ov::is_type<v0::Convert>(source) || ov::is_type<v1::Reshape>(source) || ov::is_type<v1::Multiply>(source) ||
+           ov::is_type<v1::Subtract>(source)) {
         has_decompression |= ov::is_type<v1::Multiply>(source);
         source = source->input_value(0).get_node_shared_ptr();
     }
@@ -75,8 +75,7 @@ ov::OutputVector split_compressed_weights(const ov::Output<ov::Node>& weights, i
         if (ov::is_type<v0::Convert>(node)) {
             return can_split(node->input_value(0), rank);
         }
-        if (ov::is_type<v1::Reshape>(node) && shape.size() == rank &&
-            node->get_input_partial_shape(0).is_static()) {
+        if (ov::is_type<v1::Reshape>(node) && shape.size() == rank && node->get_input_partial_shape(0).is_static()) {
             const auto input_shape = node->get_input_shape(0);
             return !input_shape.empty() && input_shape[0] == shape[0] &&
                    can_split(node->input_value(0), input_shape.size());
@@ -86,8 +85,7 @@ ov::OutputVector split_compressed_weights(const ov::Output<ov::Node>& weights, i
         }
         return false;
     };
-    if (!weights.get_partial_shape().is_static() ||
-        !can_split(weights, weights.get_shape().size())) {
+    if (!weights.get_partial_shape().is_static() || !can_split(weights, weights.get_shape().size())) {
         return {};
     }
 
@@ -110,8 +108,9 @@ ov::OutputVector split_compressed_weights(const ov::Output<ov::Node>& weights, i
             } else if (ov::is_type<v1::Reshape>(node)) {
                 const std::vector<int64_t> expert_shape(shape.begin() + 1, shape.end());
                 auto pattern = v0::Constant::create(ov::element::i64, ov::Shape{expert_shape.size()}, expert_shape);
-                result = std::make_shared<v1::Reshape>(
-                    clone(node->input_value(0), node->get_input_shape(0).size()), pattern, false);
+                result = std::make_shared<v1::Reshape>(clone(node->input_value(0), node->get_input_shape(0).size()),
+                                                       pattern,
+                                                       false);
             } else {
                 ov::OutputVector inputs;
                 for (const auto& input : node->input_values()) {
@@ -213,8 +212,8 @@ ConvertGroupedMatMul2Dx3DToMatMul::ConvertGroupedMatMul2Dx3DToMatMul() {
 
         for (int64_t g = 0; g < num_groups; ++g) {
             ov::Output<ov::Node> b_g = compressed_weights.empty()
-                ? rg.make<v0::Squeeze>(b_split->output(g), axis_1d)->output(0)
-                : compressed_weights[g];
+                                           ? rg.make<v0::Squeeze>(b_split->output(g), axis_1d)->output(0)
+                                           : compressed_weights[g];
             auto mm = rg.make<v0::MatMul>(a_split->output(g), b_g, false, true);  // [Mg, N]
             group_outputs.push_back(std::move(mm));
         }
