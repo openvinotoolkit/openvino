@@ -52,7 +52,7 @@ StatelessKV::StatelessKV(const Output<Node>& past,
                          const Output<Node>& pos_idx,
                          int64_t concat_axis,
                          bool is_seq_len_present_len)
-    : StatelessKV({past, new_token_data, seq_len, pos_idx}, concat_axis, is_seq_len_present_len, 0, true) {
+    : StatelessKV({past, new_token_data, seq_len, pos_idx}, concat_axis, is_seq_len_present_len, -1, true) {
     validate_and_infer_types();
 }
 
