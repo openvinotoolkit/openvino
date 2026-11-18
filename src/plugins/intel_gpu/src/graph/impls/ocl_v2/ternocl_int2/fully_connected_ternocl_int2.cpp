@@ -118,13 +118,15 @@ GemvTile gemv_tile(size_t K, size_t N, bool integrated) {
     };
     if (integrated) {
         for (const auto& e : igpu) {
-            if (e.k == K && e.n == N)
+            if (e.k == K && e.n == N) {
                 return e.t;
+            }
         }
     }
     for (const auto& e : discrete) {
-        if (e.k == K && e.n == N)
+        if (e.k == K && e.n == N) {
             return e.t;
+        }
     }
     return N <= 8192 ? GemvTile{32, 4, 1} : GemvTile{32, 2, 1};
 }
@@ -140,9 +142,22 @@ MtTile mt_tile(size_t K, size_t N, size_t cls, bool integrated) {
         static const MtTile i_narrow[3] = {{16, 32, 1, 4}, {32, 32, 1, 8}, {64, 32, 1, 8}};  // Arc 140V
         static const MtTile i_wide[3] = {{16, 16, 1, 8}, {64, 32, 1, 4}, {64, 32, 1, 4}};
         static const MtTile i_head[3] = {{16, 16, 1, 4}, {32, 16, 1, 8}, {64, 32, 1, 4}};
-        if (integrated)
-            return N <= 8192 ? i_narrow[band] : (N >= 65536 ? i_head[band] : i_wide[band]);
-        return N <= 8192 ? narrow[band] : (N >= 65536 ? head[band] : wide[band]);
+        if (integrated) {
+            if (N <= 8192) {
+                return i_narrow[band];
+            }
+            if (N >= 65536) {
+                return i_head[band];
+            }
+            return i_wide[band];
+        }
+        if (N <= 8192) {
+            return narrow[band];
+        }
+        if (N >= 65536) {
+            return head[band];
+        }
+        return wide[band];
     }
     struct Entry {
         size_t k, n;
@@ -173,14 +188,16 @@ MtTile mt_tile(size_t K, size_t N, size_t cls, bool integrated) {
     };
     if (integrated) {
         for (const auto& e : igpu) {
-            if (e.k == K && e.n == N)
+            if (e.k == K && e.n == N) {
                 return e.t;
+            }
         }
         return MtTile{128, 16, 2, 4};
     }
     for (const auto& e : table) {
-        if (e.k == K && e.n == N)
+        if (e.k == K && e.n == N) {
             return e.t;
+        }
     }
     return MtTile{64, 32, 4, 4};
 }
@@ -201,8 +218,9 @@ MtTile int8_tile(size_t K, size_t N, size_t cls) {
         {5120, 248320, {{8, 128, 2, 4}, {8, 128, 4, 4}, {8, 128, 8, 2}, {8, 128, 16, 1}}},  // lm_head
     };
     for (const auto& e : table) {
-        if (e.k == K && e.n == N)
+        if (e.k == K && e.n == N) {
             return e.t[band];
+        }
     }
     static const MtTile fallback[4] = {{8, 32, 2, 4}, {8, 64, 2, 2}, {8, 128, 8, 2}, {8, 128, 8, 2}};
     return fallback[band];
@@ -218,9 +236,22 @@ constexpr size_t kLaunchClasses = 8;
 constexpr size_t kFirstTiledClass = 4;
 
 size_t launch_class(size_t M) {
-    if (M <= 8)
-        return M <= 1 ? 0 : (M == 2 ? 1 : (M <= 4 ? 2 : 3));
-    return M <= 16 ? 4 : (M <= 32 ? 5 : (M < 64 ? 6 : 7));
+    if (M <= 8) {
+        if (M <= 1) {
+            return 0;
+        }
+        if (M == 2) {
+            return 1;
+        }
+        return M <= 4 ? 2 : 3;
+    }
+    if (M <= 16) {
+        return 4;
+    }
+    if (M <= 32) {
+        return 5;
+    }
+    return M < 64 ? 6 : 7;
 }
 
 struct FcShape {
@@ -458,15 +489,18 @@ public:
             add_stage(stage, params);
             OPENVINO_ASSERT(has_stage(stage), "[GPU] ternocl int2: failed to generate a kernel for ", node.id());
         };
-        if (desc->hadamard_block != 0)
+        if (desc->hadamard_block != 0) {
             add(fwht);
+        }
         if (params.is_dynamic()) {
-            for (size_t cls = 0; cls < (int8 ? kFirstTiledClass : kLaunchClasses); ++cls)
+            for (size_t cls = 0; cls < (int8 ? kFirstTiledClass : kLaunchClasses); ++cls) {
                 add(upcvt[cls]);
+            }
             if (int8) {
                 add(quant);
-                for (auto& stage : int8_gemm)
+                for (auto& stage : int8_gemm) {
                     add(stage);
+                }
             }
         } else {
             const size_t cls = launch_class(fc_shape(params).M);
@@ -488,25 +522,30 @@ public:
     // Scratch comes from the network memory pool, so it is shared across primitives
     // and resized with M: [had] f16 [M, K] rotated activation, [int8] f16 [K/128, LDSA(M)] scales.
     std::vector<BufferDescriptor> get_internal_buffer_descs(const RuntimeParams& params) const override {
-        if (params.output_layouts[0].is_dynamic())
+        if (params.output_layouts[0].is_dynamic()) {
             return {};
+        }
         const auto s = fc_shape(params);
         std::vector<BufferDescriptor> descs;
-        if (has_stage(fwht))
+        if (has_stage(fwht)) {
             descs.emplace_back(s.M * s.K, ov::element::f16);
-        if (runs_int8(s.M))
+        }
+        if (runs_int8(s.M)) {
             descs.emplace_back((s.K / kTernoclGroupSize) * ((s.M + 31) & ~size_t{31}), ov::element::f16);
+        }
         return descs;
     }
 
     [[nodiscard]] std::vector<size_t> get_stages_execution_order(const kernel_impl_params& params) const override {
-        if (!is_dynamic())
+        if (!is_dynamic()) {
             return _order;
+        }
         const size_t M = fc_shape(params).M;
         const size_t cls = launch_class(M);
         std::vector<size_t> order;
-        if (has_stage(fwht))
+        if (has_stage(fwht)) {
             order.push_back(stage_index(fwht));
+        }
         if (runs_int8(M)) {
             order.push_back(stage_index(quant));
             order.push_back(stage_index(int8_gemm[cls - kFirstTiledClass]));
@@ -519,8 +558,9 @@ public:
     // Runs the stages back to back and returns the last stage's event.
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         kernel_dump_info.clear_entries();
-        if (instance.can_be_optimized())
+        if (instance.can_be_optimized()) {
             return instance.get_network().get_stream().aggregate_events(events, events.size() > 1, instance.is_output());
+        }
         update_rt_params(instance);
         std::vector<event::ptr> deps = events;
         if (has_stage(fwht) && !_had_signs) {
@@ -534,8 +574,9 @@ public:
                     allocation_type::usm_device,
                     false);
                 deps.push_back(_had_signs->copy_from(instance.get_network().get_stream(), signs.data(), false));
-                for (auto& stage : _stages)
+                for (auto& stage : _stages) {
                     stage->kd.need_args_update = true;
+                }
             }
         }
         event::ptr ev;
@@ -575,8 +616,9 @@ private:
     template <size_t Count>
     std::array<Stage::Ptr, Count> make_stages(TernoclKernel kind, size_t first_class) {
         std::array<Stage::Ptr, Count> stages;
-        for (size_t i = 0; i < Count; ++i)
+        for (size_t i = 0; i < Count; ++i) {
             stages[i] = make_stage<TernoclStageGenerator>(kind, first_class + i);
+        }
         return stages;
     }
 
@@ -594,16 +636,18 @@ private:
 // so FCs this impl rejects are handed to the next OCL FC manager.
 static const ImplementationManager& stock_ocl_manager(const ImplementationManager& self, shape_types shape_type) {
     for (const auto& m : ov::intel_gpu::Registry<fully_connected>::get_implementations()) {
-        if (m->get_impl_type() == impl_types::ocl && m->get_type_info() != self.get_type_info() && (m->get_shape_type() & shape_type) == shape_type)
+        if (m->get_impl_type() == impl_types::ocl && m->get_type_info() != self.get_type_info() && (m->get_shape_type() & shape_type) == shape_type) {
             return *m;
+        }
     }
     OPENVINO_THROW("[GPU] ternocl int2: no OCL FullyConnected implementation to fall back to");
 }
 
 std::unique_ptr<primitive_impl> TernoclInt2FCImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
     assert(node.is_type<fully_connected>());
-    if (!validate_impl(node))
+    if (!validate_impl(node)) {
         return stock_ocl_manager(*this, get_shape_type(node)).create_impl(node, params);
+    }
 
     const auto& desc = params.typed_desc<fully_connected>();
     GPU_DEBUG_TRACE << "[ternocl-int2] create " << node.id() << " N=" << fc_shape(params).N << " K=" << fc_shape(params).K
@@ -615,14 +659,16 @@ std::unique_ptr<primitive_impl> TernoclInt2FCImplementationManager::create_impl(
 }
 
 std::unique_ptr<primitive_impl> TernoclInt2FCImplementationManager::create_impl(const kernel_impl_params& params) const {
-    if (params.input_layouts.size() < 2 || params.input_layouts[1].data_type != data_types::u2)
+    if (params.input_layouts.size() < 2 || params.input_layouts[1].data_type != data_types::u2) {
         return stock_ocl_manager(*this, get_shape_type(params)).create_impl(params);
+    }
     OPENVINO_NOT_IMPLEMENTED;
 }
 
 in_out_fmts_t TernoclInt2FCImplementationManager::query_formats(const program_node& node) const {
-    if (!validate_impl(node))
+    if (!validate_impl(node)) {
         return stock_ocl_manager(*this, get_shape_type(node)).query_formats(node);
+    }
     return ImplementationManager::query_formats(node);
 }
 

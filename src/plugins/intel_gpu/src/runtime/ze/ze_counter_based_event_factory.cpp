@@ -25,7 +25,7 @@ namespace {
 
 ze_counter_based_event_factory::ze_counter_based_event_factory(const ze_engine &ze_engine, bool enable_profiling)
     : ze_base_event_factory(ze_engine, enable_profiling) {
-    auto driver_handle = ze_engine.get_driver().handle();
+    auto* driver_handle = ze_engine.get_driver().handle();
     std::call_once(counter_based_ev_init_flag, find_function_address, driver_handle);
 }
 
