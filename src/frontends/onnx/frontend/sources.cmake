@@ -50,8 +50,10 @@ set(op_list
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/gather_block_quantized.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/group_norm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/group_query_attention.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/matmul_integer16.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/matmul_integer_to_float.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/matmulnbits.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/mul_integer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/multi_head_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/pad.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/qlinear_activation.cpp
@@ -60,6 +62,7 @@ set(op_list
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/qlinear_where.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/quick_gelu.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/range.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/reduce_sum_integer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/rotary_embedding.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/simplified_layer_normalization.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/skip_layer_normalization.cpp
