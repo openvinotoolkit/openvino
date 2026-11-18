@@ -34,12 +34,12 @@ public:
     static constexpr size_t min_filter_len = 256;
 
 protected:
-    WeightsLayout GetPreferredWeightsLayout(const convolution_params&) const override;
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params& /*unused*/) const override;
     // The tile loads handle boundaries, so the input needs no pre-padded buffer.
     bool NeedPaddedInput() const override { return false; }
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
     bool Validate(const Params& p) const override;
-    DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
+    DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const override;
 
     // The plugin may swap X and Y (see convolution_impl::get_kernel_params), so pick
     // the axis by filter extent rather than assuming one.

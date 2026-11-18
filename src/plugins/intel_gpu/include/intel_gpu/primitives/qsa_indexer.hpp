@@ -41,8 +41,8 @@ struct qsa_indexer : public primitive_base<qsa_indexer> {
     size_t num_selection_heads = 1;
     size_t indexer_rotary_dim = 0;
     size_t indexer_head_dim = 0;
-    float epsilon = 1e-6f;
-    float scale = 0.0f;
+    float epsilon = 1e-6F;
+    float scale = 0.0F;
 
     ov::intel_gpu::op::QSAIndexer::Config get_config() const {
         ov::intel_gpu::op::QSAIndexer::Config config;
@@ -69,8 +69,9 @@ struct qsa_indexer : public primitive_base<qsa_indexer> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
         auto r = downcast<const qsa_indexer>(rhs);
         return key_block_size == r.key_block_size && block_topk == r.block_topk && num_selection_heads == r.num_selection_heads &&
                indexer_rotary_dim == r.indexer_rotary_dim && indexer_head_dim == r.indexer_head_dim && epsilon == r.epsilon && scale == r.scale;
