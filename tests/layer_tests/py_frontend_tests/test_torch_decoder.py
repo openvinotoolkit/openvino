@@ -21,6 +21,43 @@ def test_pytorch_fx_decoder_without_sym_min(monkeypatch):
     assert decoder.get_op_type() == "aten.relu.default"
 
 
+@pytest.mark.parametrize("name", ["sym_min", "sym_max"])
+@pytest.mark.precommit
+def test_pytorch_fx_decoder_symbolic_functions(name):
+    from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+    target = getattr(torch, name, None)
+    if target is None:
+        pytest.skip(f"torch.{name} is unavailable")
+
+    from openvino import Core, convert_model
+
+    class Model(torch.nn.Module):
+        def forward(self, x):
+            if name == "sym_min":
+                end = torch.sym_min(2, x.shape[0])
+            else:
+                end = torch.sym_max(2, x.shape[0])
+            return x[:end]
+
+    model = Model().eval()
+    example = torch.arange(4, dtype=torch.float32)
+    exported = torch.export.export(
+        model,
+        (example,),
+        dynamic_shapes={"x": {0: torch.export.Dim("n", min=1, max=8)}},
+    )
+    symbolic_node = next(node for node in exported.graph.nodes if node.target is target)
+    decoder = TorchFXPythonDecoder(symbolic_node, nodes=list(exported.graph.nodes))
+    assert decoder.get_op_type() == f"torch.{name}"
+
+    compiled = Core().compile_model(convert_model(exported), "CPU")
+    for size in (1, 4, 7):
+        data = torch.arange(size, dtype=torch.float32)
+        actual = compiled([data.numpy()])[0]
+        assert actual.tolist() == model(data).tolist()
+
+
 class AtenDiv(torch.nn.Module):
     # aten::div can have str or NoneType constant
     def __init__(self, rounding_mode):
