@@ -77,12 +77,12 @@ endmacro()
 #
 # ov_keep_debug_info_in_pdb(<target>...)
 #
-# When embedded debug information (/Z7) is requested via CMAKE_MSVC_DEBUG_INFORMATION_FORMAT,
-# keeps the given targets and the object libraries archived into them on a separate PDB (/Zi).
-# Use it for static libraries which are installed or too large to embed debug information.
+# When ENABLE_STATIC_LIBS_PDB is ON and embedded debug information (/Z7) is requested via
+# CMAKE_MSVC_DEBUG_INFORMATION_FORMAT, keeps the given targets and the object libraries archived
+# into them on a separate PDB (/Zi). Otherwise, the debug information format is left unchanged.
 #
 function(ov_keep_debug_info_in_pdb)
-    if(NOT MSVC OR NOT CMAKE_MSVC_DEBUG_INFORMATION_FORMAT MATCHES "Embedded")
+    if(NOT ENABLE_STATIC_LIBS_PDB OR NOT MSVC OR NOT CMAKE_MSVC_DEBUG_INFORMATION_FORMAT MATCHES "Embedded")
         return()
     endif()
 
