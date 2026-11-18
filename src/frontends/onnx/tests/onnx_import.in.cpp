@@ -6297,6 +6297,28 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bernoulli_seed_dynamic_shape) {
     EXPECT_NEAR(high_p_mean, 0.75f, 0.03f);
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bernoulli_explicit_zero_seed) {
+    const std::vector<float> probabilities(1000, 0.5f);
+    ov::Core core;
+    const auto convert_and_infer = [&]() {
+        const auto model = convert_model("bernoulli_seed_zero.onnx");
+        EXPECT_EQ(count_ops_of_type<op::v8::RandomUniform>(model), 1);
+        for (const auto& op : model->get_ordered_ops()) {
+            if (const auto random_uniform = ov::as_type_ptr<op::v8::RandomUniform>(op)) {
+                EXPECT_NE(random_uniform->get_global_seed(), 0u);
+                EXPECT_EQ(random_uniform->get_op_seed(), 0u);
+            }
+        }
+        auto request = core.compile_model(model, s_device).create_infer_request();
+        request.set_input_tensor(Tensor(element::f32, Shape{probabilities.size()}, probabilities.data()));
+        request.infer();
+        const auto& output = request.get_output_tensor();
+        return std::vector<float>(output.data<float>(), output.data<float>() + output.get_size());
+    };
+
+    EXPECT_EQ(convert_and_infer(), convert_and_infer()) << "An explicit zero seed must be deterministic";
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_packed_sum_2fin) {
     const auto model = convert_model("aten_embedding_sum_packed_2in.onnx");
 

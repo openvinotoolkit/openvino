@@ -49,7 +49,8 @@ ov::OutputVector bernoulli(const ov::frontend::onnx::Node& node) {
     const auto low = v0::Constant::create(sample_type, Shape{}, {0});
     const auto high = v0::Constant::create(sample_type, Shape{}, {1});
     const auto seed = common::convert_float_seed(node.get_attribute_value<float>("seed", 0.0f));
-    const uint64_t global_seed = 0;
+    // Both seeds equal to 0 mean a random seed, which ONNX allows only when the seed attribute is omitted.
+    const uint64_t global_seed = node.has_attribute("seed") && seed == 0 ? 1 : 0;
     const auto samples = std::make_shared<v8::RandomUniform>(shape, low, high, sample_type, global_seed, seed);
     ov::Output<ov::Node> probabilities = input;
     if (input_type != sample_type) {
