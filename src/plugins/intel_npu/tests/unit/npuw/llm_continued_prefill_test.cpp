@@ -875,7 +875,10 @@ void HashingSubInferRequest::infer_layers(const ov::SoPtr<ov::ITensor>& input_id
     const bool v_transposed = is_prefill ? m_layout->v_transposed_pre : m_layout->v_transposed_gen;
     const uint32_t key_axis = m_layout->dim;
     const uint32_t value_axis = v_transposed ? 3u : m_layout->dim;
-    for (const auto& [index, layer] : layers) {
+    for (const auto& entry : layers) {
+        // Named references, not a structured binding: the lambdas below capture layer.
+        const size_t index = entry.first;
+        const Layer& layer = entry.second;
         const int64_t window = m_windows.at(index);
         OPENVINO_ASSERT(!layer.shrunk || window > 0, "Only sliding layers are shrunk.");
         std::vector<uint64_t> key(n), value(n), row_kv(n), next(n);
