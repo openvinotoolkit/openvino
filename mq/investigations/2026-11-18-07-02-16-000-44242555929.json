@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-18-07-02-16-000-44242555929",
+  "timestamp": "2026-11-18T07:02:16Z",
+  "run_id": "44242555929",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44242555929",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "39991",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39991",
+  "author": "ZackyLake",
+  "category": "Infrastructure",
+  "title": "GPU unit tests fail to extract OpenVINO package - tbb12.dll locked (Access denied) on Windows self-hosted runner",
+  "signature": "remove item cannot remove item access to the path is denied unauthorizedaccessexception|Infrastructure",
+  "signature_hash": "95bb23aa2ed8a84d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "Extract OpenVINO packages step fails: Expand-Archive -Force cannot overwrite tbb12.dll because it is locked, PowerShell throws UnauthorizedAccessException."
+    }
+  ],
+  "key_errors": [
+    "2026-11-18T06:56:13.7884970Z Remove-Item : Cannot remove item C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll:",
+    "2026-11-18T06:56:13.7886247Z Access to the path 'C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll' is denied.",
+    "2026-11-18T06:56:13.7891302Z    edAccessException",
+    "2026-11-18T06:56:13.7892102Z     + FullyQualifiedErrorId : RemoveFileSystemItemUnAuthorizedAccess,Microsoft.PowerShell.Commands.RemoveItemCommand",
+    "2026-11-18T06:56:13.8313267Z ##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The 'Extract OpenVINO packages' step runs Expand-Archive -Force against the persistent C:\\actions-runner\\_work\\openvino\\openvino\\install directory on a self-hosted Windows GPU runner. Expand-Archive's -Force cleanup attempts to delete the pre-existing tbb12.dll before re-extracting it from the new openvino_package.zip, but the DLL is still memory-mapped/held open by a lingering process (likely an orphaned test or driver process from a previous job on the same persistent runner), so Remove-Item throws UnauthorizedAccessException and the step exits with code 1. PR #39991 only touches CPU-impl event-generation code under src/plugins/intel_gpu/src/graph/impls/cpu/ and a unit test file; none of these changes affect artifact extraction or the runner's workspace, so this is unrelated to the PR's content.",
+  "reproduction_steps": "N/A - requires reproducing a stale file lock on a specific Windows self-hosted GPU runner across consecutive job runs; not reproducible deterministically via a clean local checkout.",
+  "recommended_actions": [
+    "Re-run the failed 'GPU unit tests' job; the lock typically clears once the holding process exits.",
+    "Have runner/infra investigate what process keeps tbb12.dll open between consecutive jobs on this Windows self-hosted GPU runner pool (e.g. orphaned test process, antivirus scan).",
+    "Wrap Expand-Archive -Force (or the preceding cleanup) with a retry-with-delay loop so a transient lock does not immediately fail the step.",
+    "Consider extracting into a fresh per-run directory instead of overwriting a persistent install/ path shared across runs on the same self-hosted runner."
+  ],
+  "prevention_strategies": "Add workspace hygiene steps (kill orphaned OpenVINO/test processes, clear the install/ directory) at the start or end of each GPU-runner job rather than relying on Expand-Archive -Force to clobber locked files in place.",
+  "historical_context": "This exact signature (95bb23aa2ed8a84d) has now recurred 15 times since 2026-11-09, including twice in the last 12 hours (runs 44205432885 at 06:32 and 44229399112 at 06:46 UTC on 2026-11-18), making this the 3rd occurrence within the 12-hour window - triggering the recurring escalation. A rerun_search_string candidate for this signature was previously proposed in PR #39664 but was closed/rejected by a maintainer on 2026-11-10, so no new proposal is made here."
+}
