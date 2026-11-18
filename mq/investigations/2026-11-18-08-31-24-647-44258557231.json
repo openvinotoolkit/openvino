@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-18-08-31-24-647-44258557231",
+  "timestamp": "2026-11-18T08:31:24Z",
+  "run_id": "44258557231",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44258557231",
+  "workflow_name": "Linux (Ubuntu 24.04, Clang, ITT, faster build, clang-tidy, GPU)",
+  "pr_number": "38641",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38641",
+  "author": "pj3iL",
+  "category": "Code Issue",
+  "title": "GPU remove_redundant_reorders clang-tidy braces-around-statements errors",
+  "signature": "clang-tidy readability-braces-around-statements error if statement missing braces treated as warning as error|Code Issue",
+  "signature_hash": "a4282c65071120e2",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build-gpu / Build",
+      "conclusion": "failure",
+      "symptom": "Cmake build with clang-tidy enabled failed: 2 clang-tidy readability-braces-around-statements errors treated as warnings-as-errors in remove_redundant_reorders.cpp"
+    },
+    {
+      "name": "ci/gha_overall_status_clang_tidy",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed because the Build-gpu clang-tidy job failed"
+    }
+  ],
+  "key_errors": [
+    "remove_redundant_reorders.cpp:156:86: error: statement should be inside braces [readability-braces-around-statements,-warnings-as-errors]\n  156 |                     if (!usr->is_type<reorder>() || &usr->get_dependency(0) != &node)\n      |                                                                                      ^\n  157 |                         continue;",
+    "remove_redundant_reorders.cpp:159:64: error: statement should be inside braces [readability-braces-around-statements,-warnings-as-errors]\n  159 |                     if (usr_prim->output_format == format::any)\n  160 |                         usr_prim->output_format = output_layout.format;",
+    "7190 warnings generated. 2 warnings treated as errors; ninja: build stopped: cannot make progress due to previous errors."
+  ],
+  "root_cause": "PR #38641 adds new code to remove_redundant_reorders.cpp (pinning the output_format of a reorder's downstream user before the reorder node is removed) using single-statement if bodies without braces: `if (!usr->is_type<reorder>() || &usr->get_dependency(0) != &node) continue;` and `if (usr_prim->output_format == format::any) usr_prim->output_format = output_layout.format;`. The repository's clang-tidy configuration enables readability-braces-around-statements and treats clang-tidy warnings as errors on the dedicated clang-tidy build variant, so these unbraced single-line if bodies fail the 'Cmake build with clang-tidy enabled' step, which fails the aggregate ci/gha_overall_status_clang_tidy check. This is the second merge-queue run to hit the exact same two unfixed lines in the PR; the braces have not yet been added since the prior investigation (run 44245354283, ~2h20m earlier).",
+  "reproduction_steps": "Build locally with -DENABLE_CLANG_TIDY=ON (same compile flags as the Build-gpu/clang-tidy job) or run `clang-tidy-18 --config-file=.clang-tidy src/plugins/intel_gpu/src/graph/graph_optimizer/remove_redundant_reorders.cpp -- <same compile flags as in CI>` to reproduce the two readability-braces-around-statements errors at lines 156 and 159 of the PR's version of the file.",
+  "recommended_actions": [
+    "Add braces around both single-statement if bodies in src/plugins/intel_gpu/src/graph/graph_optimizer/remove_redundant_reorders.cpp: `if (!usr->is_type<reorder>() || &usr->get_dependency(0) != &node) { continue; }` and `if (usr_prim->output_format == format::any) { usr_prim->output_format = output_layout.format; }`",
+    "Re-run clang-tidy locally (or push and watch the clang-tidy CI job) before re-adding the PR to the merge queue",
+    "This is a recurring (2nd) failure of the same unfixed code; the PR author should push the fix before the next merge-queue attempt rather than relying on re-runs"
+  ],
+  "prevention_strategies": "Always brace single-statement if/for/while bodies in new code touching src/plugins/intel_gpu (and any other component built with -DENABLE_CLANG_TIDY=ON), matching the project's clang-tidy readability-braces-around-statements rule. Run the project's .clang-format/clang-tidy checks locally before pushing, especially for files under directories covered by the clang-tidy CI build variant.",
+  "historical_context": "Exact repeat of pattern a4282c65071120e2, first recorded in run 44245354283 (investigation 2026-11-18-06-08-56-174-44245354283) on the same PR #38641, same two unbraced if statements, same clang-tidy errors. The underlying code issue was never fixed between the two merge-queue attempts."
+}

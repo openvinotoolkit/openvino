@@ -4,16 +4,18 @@
   "signature_hash": "a4282c65071120e2",
   "title": "GPU remove_redundant_reorders clang-tidy braces-around-statements errors",
   "category": "Code Issue",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-11-18T06:08:56Z",
-  "last_seen": "2026-11-18T06:08:56Z",
+  "last_seen": "2026-11-18T08:31:24Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/44258557231",
     "https://github.com/openvinotoolkit/openvino/actions/runs/44245354283"
   ],
   "affected_prs": [
     "https://github.com/openvinotoolkit/openvino/pull/38641"
   ],
   "recent_timestamps": [
+    "2026-11-18T08:31:24Z",
     "2026-11-18T06:08:56Z"
   ],
   "rerun_search_string": null
