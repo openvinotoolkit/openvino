@@ -86,6 +86,7 @@ private:
 
     void serialize(ov::npuw::orc::Stream& stream);
     void deserialize(ov::npuw::orc::Stream& stream);
+    void deserialize_without_weight_context_impl(ov::npuw::orc::Stream& stream);
     void read_and_add_tensor(ov::npuw::orc::Stream& stream, int64_t uid, const std::string& device);
 
     mutable std::mutex m_mutex;

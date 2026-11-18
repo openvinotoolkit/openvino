@@ -106,17 +106,16 @@ public:
 
 }  // namespace
 
-ov::Tensor ov::npuw::weights::tensor_factory(const ov::ICore& core,
-                                             const std::string& device,
+ov::Tensor ov::npuw::weights::tensor_factory(std::shared_ptr<ov::IRemoteContext> remote_ctx,
                                              const ov::element::Type& type,
                                              const ov::Shape& shape,
                                              std::shared_ptr<ov::AlignedBuffer> staging_buffer_ptr) {
-    if (device == "CPU") {
+    if (!remote_ctx) {
         return staging_buffer_ptr ? ov::Tensor(type, shape, staging_buffer_ptr->get_ptr<char>())
                                   : ov::Tensor(type, shape);
     }
 
-    auto remote_ctx = core.get_default_context(device)._ptr;
+    const auto& device = remote_ctx->get_device_name();
     if (ov::npuw::util::starts_with(device, "NPU")) {
         // TODO CVS-199039, CVS-199076
         // Cannot create neither a host tensor from preexisting staging buffer nor a remote tensor for NPU remote
@@ -497,31 +496,39 @@ std::set<WeightSharingContextAccessor::UID_Type> ov::npuw::weights::WeightSharin
         stream & storage_size;
         LOG_DEBUG("WeightSharingContextAccessor::consume_from_impl - total weights for device " << device << ": "
                                                                                                 << storage_size);
+        auto remote_ctx = device == "CPU" ? nullptr : core.get_default_context(device)._ptr;
         for (std::size_t j = 0; j < storage_size; ++j) {
             UID_Type uid = -1;
             stream & uid;
+            NPUW_ASSERT(!this->has_transformation_buffer(uid, handle) &&
+                        "WeightSharingContextAccessor::consume_from_impl: Shared weight source must not already exist");
 
-            auto common_allocator = [this, &core, &device, uid, &handle](const ov::element::Type& type,
-                                                                         const ov::Shape& shape) {
-                NPUW_ASSERT(
-                    !this->has_transformation_buffer(uid, handle) &&
-                    "WeightSharingContextAccessor::consume_from_impl: Shared weight source must not already exist");
+            bool is_initialized = false;
+            stream & is_initialized;
+            if (is_initialized) {
+                std::string type_str;
+                ov::Shape shape;
+                std::size_t byte_size = 0;
+                stream & type_str & shape & byte_size;
+                const ov::element::Type type(type_str);
+                const auto expected_size = ov::util::get_memory_size_safe(type, shape);
+                NPUW_ASSERT(expected_size.has_value() && *expected_size == byte_size &&
+                            "Buffer byte size does not match element type and shape");
+                std::shared_ptr<ov::AlignedBuffer> buffer;
                 if (device == "CPU") {
-                    auto shared_source = this->request_shared_weight_source_buffer(uid, type, shape, device, handle);
-                    return tensor_factory(core, device, type, shape, shared_source);
+                    buffer = this->request_shared_weight_source_buffer(uid, type, shape, device, handle);
+                } else {
+                    ov::Tensor tensor = tensor_factory(remote_ctx, type, shape, nullptr);
+                    buffer = this->register_tensor_as_shared_weight_source(uid, device, tensor, handle);
                 }
-
-                ov::Tensor tensor = tensor_factory(core, device, type, shape, nullptr);
-                this->register_tensor_as_shared_weight_source(uid, device, tensor, handle);
-                return tensor;
-            };
-
-            ov::Tensor regained_tensor;
-            transfer_tensor(stream, regained_tensor, common_allocator);
-            (void)
-                regained_tensor;  // can be dropped, not needed. It can be restored from source_descriptor if necessary.
+                NPUW_ASSERT(buffer && "Buffer allocator returned an empty buffer");
+                NPUW_ASSERT(buffer->size() == byte_size &&
+                            "Buffer allocator returned buffer with unexpected byte size");
+                stream.bytes(buffer->get_ptr<char>(), byte_size);
+            }
             deserialized_uids.insert(uid);
-            LOG_DEBUG("WeightSharingContextAccessor::consume_from_impl - weight data restored, uid: " << uid);
+            LOG_DEBUG("WeightSharingContextAccessor::consume_from_impl - weight data restored, uid: "
+                      << uid << ", initialized: " << is_initialized);
         }
     }
     return deserialized_uids;

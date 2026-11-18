@@ -30,8 +30,7 @@ class Stream;
 }
 namespace weights {
 
-ov::Tensor tensor_factory(const ov::ICore& core,
-                          const std::string& device,
+ov::Tensor tensor_factory(std::shared_ptr<ov::IRemoteContext> remote_ctx,
                           const ov::element::Type& type,
                           const ov::Shape& shape,
                           std::shared_ptr<ov::AlignedBuffer> staging_buffer_ptr = {});

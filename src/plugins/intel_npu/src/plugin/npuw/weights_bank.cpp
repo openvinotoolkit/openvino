@@ -171,7 +171,7 @@ void Bank::evaluate_cpu(Bank::DeviceBank& device_bank, const std::vector<LazyTen
             auto handle = this->get_handle();
             auto shared_source =
                 this->request_shared_weight_source_buffer(uid, t.get_element_type(), t.get_shape(), "CPU", handle);
-            stored_tensor.tensor = tensor_factory(*m_core, "CPU", t.get_element_type(), t.get_shape(), shared_source);
+            stored_tensor.tensor = tensor_factory(nullptr, t.get_element_type(), t.get_shape(), shared_source);
         }
         // Get ownership of the weights, might be a mmaped object during import
         t.copy_to(stored_tensor.tensor);
@@ -223,7 +223,7 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
         // To solve that problem we first acquire a handle and check if the shared weight source buffer is already
         // available. Given the current Bank implementation, once we started iterating over uids_to_allocated, the
         // source buffer must be absent as we haven't registered it yet for this UID.
-        ov::Tensor tensor = tensor_factory(*m_core, device, allocated.meta.type, allocated.meta.shape, nullptr);
+        ov::Tensor tensor = tensor_factory(remote_ctx, allocated.meta.type, allocated.meta.shape, nullptr);
         auto handle = this->get_handle();
         this->register_tensor_as_shared_weight_source(allocated.uid, device, tensor, handle);
         allocated = {allocated.meta, std::move(tensor), allocated.uid};
@@ -343,8 +343,7 @@ void Bank::deserialize(ov::npuw::orc::Stream& stream) {
                     NPUW_ASSERT(iter_device == device_bank.storage.end() &&
                                 "Bank::deserialize: Tensor with this UID already exists in the device bank");
                     if (device == "CPU") {
-                        device_bank.storage[uid].tensor = tensor_factory(*m_core,
-                                                                         device,
+                        device_bank.storage[uid].tensor = tensor_factory(nullptr,
                                                                          weight_meta.m_type,
                                                                          ov_transformed_constant.get_shape(),
                                                                          constant_buffer);
@@ -361,6 +360,11 @@ void Bank::deserialize(ov::npuw::orc::Stream& stream) {
         }
     }
 
+    // use legacy deserialization if no weight sharing context is available or applicable
+    deserialize_without_weight_context_impl(stream);
+}
+
+void Bank::deserialize_without_weight_context_impl(ov::npuw::orc::Stream& stream) {
     std::size_t bank_size;
     stream & bank_size;
 

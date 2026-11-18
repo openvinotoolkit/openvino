@@ -1400,39 +1400,22 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto weights_bank_name = ov::npuw::util::generate_random_string();
     LOG_VERB("Generated a unique weights bank name: " << weights_bank_name);
 
-    // The context will be passed to each model through its config.
-    // Each model will retain a shared reference to this context during construction of its Bank.
-    // Because all models share the same Bank, they also share the same context.
-    // The context will intercept each LazyTensor evaluation during Bank finalization.
-    // At that point, it will manage the allocation of physical memory for the weights bank
-    // or retrieve a previously allocated memory block for reuse.
-    // Reuse occurs when the same "source_id" is encountered again, which should happen only
-    // when a duplicate LazyTensor is encountered.
-    // The context records each physical memory allocation for the weights bank under a "source_id".
-    // That allocation will serve as the staging buffer for the corresponding ov::Tensor.
-    // By the end of finalization, the context will be set up to manage the physical memory
-    // for the weights bank and provide the "source_id" of each allocation it owns.
-    // In the current implementation, "constant_id" will always be "0" because each
-    // "source_id" effectively identifies a single constant.
-    // If we can estimate the memory requirements for a closure in advance, the context
-    // can preallocate all the physical memory it needs. The allocation would have a
-    // "source_id", while the offset at which a particular LazyTensor is evaluated
-    // would serve as its "constant_id".
-    //
-    // What should be done with the context later, how it is supposed to be serialized/deserialized
-    // or shared between the plugins - it is currently unclear and may require further design decisions.
+    // Associate each weights bank name with an ov::weight_sharing::Context and pass it
+    // to the corresponding submodels through their configs. Submodels using the same
+    // bank name receive the same context, while different bank names get separate contexts.
+    // Use the generated bank name by default and preserve explicitly configured bank names.
     std::unordered_map<std::string, std::shared_ptr<ov::weight_sharing::Context>> shared_weight_ctx_per_bank;
     LOG_VERB("Create an OV Weight Sharing Context for weights bank: " << weights_bank_name);
     shared_weight_ctx_per_bank[weights_bank_name] = std::make_shared<ov::weight_sharing::Context>();
-    // Although it should not be considered as the usecase, when multiple models, which are extracted from the initial
-    // LLM model, share different weights banks, the implementation should ensure that each model gets the correct
-    // weight sharing context. The implementation assings the same context to all models that share the same weights
-    // bank.
+    // Each submodel config may have a bank name preconfigured by the user. To preserve
+    // the association above, assign contexts by the resolved bank name, sharing a context
+    // only between submodels with matching bank names, whether generated or user-provided.
     auto [prefill_applied, prefill_bank_name] = apply_weights_bank_name_if_not_exist(prefill_config, weights_bank_name);
     LOG_INFO("Prefill config accepts the unique weights bank: " << (prefill_applied ? "yes" : "no")
                                                                 << ", bank name: " << prefill_bank_name);
     assign_model_sharing_context_for_bank(prefill_config, prefill_bank_name, shared_weight_ctx_per_bank);
 
+    // Do the same for the generate config to ensure consistent context assignment across submodels.
     auto [generate_applied, generate_bank_name] =
         apply_weights_bank_name_if_not_exist(generate_config, weights_bank_name);
     LOG_INFO("Generate config accepts the unique weights bank: " << (generate_applied ? "yes" : "no")
@@ -1942,7 +1925,10 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
 
         shared_weight_ctx_per_bank[bank_name] = std::make_shared<ov::weight_sharing::Context>();
         if (is_weightless) {
-            auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "", shared_weight_ctx_per_bank[bank_name]);
+            auto bank = ov::npuw::weights::bank(bank_name,
+                                                compiled->get_plugin()->get_core(),
+                                                "",
+                                                shared_weight_ctx_per_bank[bank_name]);
 
             for (const auto& compiled_variant : compiled->m_generate_compiled_variants) {
                 compiled_variant->set_weights_bank(bank);
@@ -1957,7 +1943,10 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
                 compiled->m_lm_head_compiled->finalize_weights_bank();
             }
         } else {
-            auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "", shared_weight_ctx_per_bank[bank_name]);
+            auto bank = ov::npuw::weights::bank(bank_name,
+                                                compiled->get_plugin()->get_core(),
+                                                "",
+                                                shared_weight_ctx_per_bank[bank_name]);
             stream&* bank;
 
             // Encoder embedding models are prefill-only: no kvcache/generate compiled models.

@@ -163,12 +163,7 @@ std::string ov::npuw::s11n::anyMapToString(const ov::AnyMap& var) {
         stream.write(&str[0], str.size());
         // value
         auto any = el.second;
-        std::string strv;
-        try {
-            strv = ov::npuw::s11n::anyToString(any);
-        } catch (const std::exception& ex) {
-            OPENVINO_THROW("Failed to serialize property '", el.first, "': ", ex.what());
-        }
+        auto strv = ov::npuw::s11n::anyToString(any);
         auto varv_size = strv.size();
         stream.write(reinterpret_cast<const char*>(&varv_size), sizeof varv_size);
         stream.write(&strv[0], strv.size());
