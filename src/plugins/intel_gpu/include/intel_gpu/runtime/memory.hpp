@@ -154,8 +154,12 @@ struct simple_attached_memory : memory {
 
     void* lock(const stream& /* stream */, mem_lock_type /* type */) override { return _pointer; }
     void unlock(const stream& /* stream */) override {}
-    event::ptr fill(stream& /* stream */, unsigned char, const std::vector<event::ptr>&, bool) override { return nullptr; }
-    event::ptr fill(stream& /* stream */, const std::vector<event::ptr>&, bool) override { return nullptr; }
+    event::ptr fill(stream& /* stream */, unsigned char /*pattern*/, const std::vector<event::ptr>& /*dep_events*/, bool /*blocking*/) override {
+        return nullptr;
+    }
+    event::ptr fill(stream& /* stream */, const std::vector<event::ptr>& /*dep_events*/, bool /*blocking*/) override {
+        return nullptr;
+    }
     shared_mem_params get_internal_params(runtime_types rt_type) const override { return { shared_mem_type::shared_mem_empty, nullptr, nullptr, nullptr,
 #ifdef _WIN32
         nullptr,
