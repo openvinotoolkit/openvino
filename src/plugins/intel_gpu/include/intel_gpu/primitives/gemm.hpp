@@ -46,11 +46,11 @@ struct gemm : public primitive_base<gemm> {
          const data_types data_type,
          const bool transpose_input0,
          const bool transpose_input1,
-         const float alpha = 1.0f,
-         const float beta = 0.0f,
+         const float alpha = 1.0F,
+         const float beta = 0.0F,
          const size_t input_rank = 4,
          const size_t weight_rank = 4)
-        : primitive_base(id, inputs, 1, {optional_data_type{ data_type }}),
+        : primitive_base(id, inputs, 1, {optional_data_type{data_type}}),
           transpose_input0(transpose_input0 ? 1 : 0),
           transpose_input1(transpose_input1 ? 1 : 0),
           alpha(alpha),
@@ -89,9 +89,9 @@ struct gemm : public primitive_base<gemm> {
          const std::vector<int64_t>& input0_transpose_order = {0, 1, 2, 3},
          const std::vector<int64_t>& input1_transpose_order = {0, 1, 2, 3},
          const std::vector<int64_t>& output_transpose_order = {},
-         const float alpha = 1.0f,
-         const float beta = 0.0f)
-        : primitive_base(id, inputs, 1, {optional_data_type{ data_type }}),
+         const float alpha = 1.0F,
+         const float beta = 0.0F)
+        : primitive_base(id, inputs, 1, {optional_data_type{data_type}}),
           input0_transpose_order(input0_transpose_order),
           input1_transpose_order(input1_transpose_order),
           output_transpose_order(output_transpose_order),
@@ -117,9 +117,9 @@ struct gemm : public primitive_base<gemm> {
          bool indirect_a,
          bool indirect_b,
          int64_t indirect_axis,
-         const float alpha = 1.0f,
-         const float beta = 0.0f)
-        : primitive_base(id, inputs, 1, {optional_data_type{ data_type }}),
+         const float alpha = 1.0F,
+         const float beta = 0.0F)
+        : primitive_base(id, inputs, 1, {optional_data_type{data_type}}),
           input0_transpose_order(input0_transpose_order),
           input1_transpose_order(input1_transpose_order),
           output_transpose_order(output_transpose_order),
@@ -150,9 +150,9 @@ struct gemm : public primitive_base<gemm> {
     /// @brief order of output
     std::vector<int64_t> output_transpose_order;
     /// @brief Variable containing ALPHA parameter
-    float alpha = 1.0f;
+    float alpha = 1.0F;
     /// @brief Variable containing BETA parameter
-    float beta = 1.0f;
+    float beta = 1.0F;
     /// @brief First matrix rank
     size_t input_rank = 4;
     /// @brief Second matrix rank
@@ -246,7 +246,7 @@ protected:
     }
 
 private:
-    TransposeType get_transpose_mode(const std::vector<int64_t>& order_idx) {
+    static TransposeType get_transpose_mode(const std::vector<int64_t>& order_idx) {
         int64_t rank = order_idx.size() - 1;
 
         if (rank == order_idx[rank]) {

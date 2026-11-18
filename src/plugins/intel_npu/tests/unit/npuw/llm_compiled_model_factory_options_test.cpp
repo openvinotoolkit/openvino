@@ -6,30 +6,54 @@
 
 #include <algorithm>
 #include <array>
+#include <limits>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
+#include "common_test_utils/test_assertions.hpp"
+#include "intel_npu/config/npuw.hpp"
 #include "llm_compiled_model_utils.hpp"
 #include "llm_test_helpers.hpp"
+#include "moe_transformations/moe_topology.hpp"
+#include "npuw_transformations/insert_vocab_sub128.hpp"
+#include "openvino/core/version.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
+#include "serialization.hpp"
+#include "transformations/rt_info/decompression.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 #include "whisper/prepare_whisper_model.hpp"
 
 namespace {
+using MoEHint = intel_npu::npuw::llm::MoEHint;
 using ov::test::npuw::CompileCall;
 using ov::test::npuw::NullPlugin;
 using ov::test::npuw::RecordingFactory;
+
+std::string make_llm_header(const std::size_t claimed_version_size, const std::string& version) {
+    std::ostringstream stream;
+    ov::npuw::s11n::write(stream, NPUW_SERIALIZATION_INDICATOR);
+    ov::npuw::s11n::write(stream, NPUW_LLM_COMPILED_MODEL_INDICATOR);
+    ov::npuw::s11n::write(stream, OPENVINO_VERSION_MAJOR);
+    ov::npuw::s11n::write(stream, OPENVINO_VERSION_MINOR);
+    ov::npuw::s11n::write(stream, OPENVINO_VERSION_PATCH);
+    ov::npuw::s11n::write(stream, claimed_version_size);
+    stream.write(version.data(), static_cast<std::streamsize>(version.size()));
+    return stream.str();
+}
 
 bool has_transposed_value_matmul(const std::shared_ptr<ov::Model>& model, std::string_view attention_kind) {
     for (const auto& op : model->get_ops()) {
@@ -44,7 +68,10 @@ bool has_transposed_value_matmul(const std::shared_ptr<ov::Model>& model, std::s
 
 class ArchAwarePlugin final : public NullPlugin {
 public:
-    ArchAwarePlugin(std::string arch, int64_t max_tiles) : m_arch(std::move(arch)), m_max_tiles(max_tiles) {}
+    ArchAwarePlugin(std::string arch, int64_t max_tiles, int64_t compiler_version = 0)
+        : m_arch(std::move(arch)),
+          m_max_tiles(max_tiles),
+          m_compiler_version(compiler_version) {}
 
     ov::Any get_property(const std::string& name, const ov::AnyMap&) const override {
         if (name == ov::device::architecture.name()) {
@@ -54,7 +81,7 @@ public:
             return m_max_tiles;
         }
         if (name == ov::intel_npu::compiler_version.name()) {
-            return static_cast<int64_t>(0);
+            return m_compiler_version;
         }
         if (name == ov::supported_properties.name()) {
             return std::vector<ov::PropertyName>{};
@@ -65,6 +92,7 @@ public:
 private:
     std::string m_arch;
     int64_t m_max_tiles;
+    int64_t m_compiler_version;
 };
 
 std::shared_ptr<ov::MockICore> attach_mock_core_with_npu_device(
@@ -81,6 +109,247 @@ std::shared_ptr<ov::MockICore> attach_mock_core_with_npu_device(
             return ov::Any(device_list);
         });
     return core;
+}
+
+TEST(LLMMoEAutoRoutingTest, UsesDeviceOnlyForSupportedSingleTokenGraphs) {
+    constexpr int64_t compiler_8_3 = (8 << 16) | 3;
+    auto plugin = std::make_shared<ArchAwarePlugin>("5010", 3, compiler_8_3);
+    auto core = attach_mock_core_with_npu_device(plugin);
+    for (const size_t tokens : {size_t{1}, size_t{8}}) {
+        SCOPED_TRACE(tokens);
+        ov::AnyMap props{{"NPUW_LLM", "YES"},
+                         {"NPUW_LLM_MAX_PROMPT_LEN", "128"},
+                         {"NPUW_LLM_MIN_RESPONSE_LEN", "64"},
+                         {"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", std::to_string(tokens)}};
+        RecordingFactory recorder;
+        ov::npuw::LLMCompiledModel compiled(ov::test::npuw::build_qwen3_moe_llm_test_model(),
+                                            plugin,
+                                            props,
+                                            recorder.make_factory());
+        const auto* generate = recorder.find_contains("_kv");
+        ASSERT_NE(generate, nullptr);
+        EXPECT_EQ(compiled.get_property("NPUW_LLM_GENERATE_MOE_HINT").as<MoEHint>(),
+                  tokens == 1 ? MoEHint::DEVICE_ROUTED : MoEHint::HOST_ROUTED);
+        EXPECT_EQ(generate->props.at("NPUW_UNFOLD_IREQS").as<std::string>(), tokens == 1 ? "YES" : "NO");
+        const ov::npuw::moe::BatchedMoEPattern pattern;
+        const auto generate_ops = generate->model->get_ops();
+        EXPECT_EQ(std::any_of(generate_ops.begin(),
+                              generate_ops.end(),
+                              [&](const auto& op) {
+                                  return pattern.match(op).has_value();
+                              }),
+                  tokens != 1);
+        if (tokens == 8) {
+            props["NPUW_LLM_GENERATE_MOE_HINT"] = "DEVICE_ROUTED";
+            EXPECT_THROW(ov::npuw::LLMCompiledModel(ov::test::npuw::build_qwen3_moe_llm_test_model(),
+                                                    plugin,
+                                                    props,
+                                                    recorder.make_factory()),
+                         ov::Exception);
+        }
+    }
+}
+
+TEST(LLMMoEAutoRoutingTest, NameHintAloneDoesNotSelectDeviceRouting) {
+    constexpr int64_t compiler_8_3 = (8 << 16) | 3;
+    auto plugin = std::make_shared<ArchAwarePlugin>("5010", 3, compiler_8_3);
+    auto core = attach_mock_core_with_npu_device(plugin);
+    auto model = ov::test::npuw::build_llm_test_model();
+    model->get_parameters()[0]->set_friendly_name("legacy.expert_name_without_supported_topology");
+    ov::AnyMap props{{"NPUW_LLM", "YES"}, {"NPUW_LLM_MAX_PROMPT_LEN", "128"}, {"NPUW_LLM_MIN_RESPONSE_LEN", "64"}};
+    RecordingFactory recorder;
+    ov::npuw::LLMCompiledModel compiled(model, plugin, props, recorder.make_factory());
+    const auto* generate = recorder.find_contains("_kv");
+    ASSERT_NE(generate, nullptr);
+    EXPECT_EQ(generate->props.at("NPUW_UNFOLD_IREQS").as<std::string>(), "NO");
+}
+
+TEST(LLMMoEAutoRoutingTest, RetainsArchitectureAndCompilerEligibilityGates) {
+    struct Case {
+        std::string arch;
+        int64_t compiler;
+        bool device_routed;
+    };
+    for (const auto& test : {Case{"5010", (7 << 16) | 28, false},
+                             Case{"5010", (7 << 16) | 29, true},
+                             Case{"4000", (8 << 16) | 3, false}}) {
+        SCOPED_TRACE(test.arch + "/" + std::to_string(test.compiler));
+        auto plugin = std::make_shared<ArchAwarePlugin>(test.arch, 3, test.compiler);
+        auto core = attach_mock_core_with_npu_device(plugin);
+        ov::AnyMap props{{"NPUW_LLM", "YES"}, {"NPUW_LLM_MAX_PROMPT_LEN", "128"}, {"NPUW_LLM_MIN_RESPONSE_LEN", "64"}};
+        RecordingFactory recorder;
+        ov::npuw::LLMCompiledModel compiled(ov::test::npuw::build_qwen3_moe_llm_test_model(),
+                                            plugin,
+                                            props,
+                                            recorder.make_factory());
+        const auto* generate = recorder.find_contains("_kv");
+        ASSERT_NE(generate, nullptr);
+        EXPECT_EQ(generate->props.at("NPUW_UNFOLD_IREQS").as<std::string>(), test.device_routed ? "YES" : "NO");
+        const auto* prefill = recorder.find_suffix("_prefill");
+        ASSERT_NE(prefill, nullptr);
+        EXPECT_EQ(prefill->props.at("NPUW_UNFOLD_IREQS").as<std::string>(), "NO");
+    }
+}
+
+TEST(LLMMoEAutoRoutingTest, ExplicitHostHintPreservesOtherStageProperties) {
+    auto plugin = std::make_shared<ArchAwarePlugin>("5010", 3, (8 << 16) | 3);
+    auto core = attach_mock_core_with_npu_device(plugin);
+    ov::AnyMap props{{"NPUW_LLM", "YES"},
+                     {"NPUW_LLM_MAX_PROMPT_LEN", "128"},
+                     {"NPUW_LLM_MIN_RESPONSE_LEN", "64"},
+                     {"NPUW_LLM_GENERATE_MOE_HINT", "HOST_ROUTED"},
+                     {"NPUW_LLM_PREFILL_MOE_HINT", "HOST_ROUTED"},
+                     {"NPUW_ONLINE_KEEP_BLOCKS_TAGGED", "attn,custom"},
+                     {"NPUW_FALLBACK_EXEC", "NO"},
+                     {"NPUW_FUNCALL_ASYNC", "NO"}};
+    RecordingFactory recorder;
+    ov::npuw::LLMCompiledModel compiled(ov::test::npuw::build_qwen3_moe_llm_test_model(),
+                                        plugin,
+                                        props,
+                                        recorder.make_factory());
+    for (const auto* call : {recorder.find_suffix("_prefill"), recorder.find_contains("_kv")}) {
+        ASSERT_NE(call, nullptr);
+        EXPECT_EQ(call->props.at("NPUW_UNFOLD_IREQS").as<std::string>(), "NO");
+        EXPECT_EQ(call->props.at("NPUW_ONLINE_KEEP_BLOCKS_TAGGED").as<std::string>(), "attn,custom,expert");
+        EXPECT_EQ(call->props.at("NPUW_FALLBACK_EXEC").as<std::string>(), "NO");
+        EXPECT_EQ(call->props.at("NPUW_FUNCALL_ASYNC").as<std::string>(), "NO");
+    }
+}
+
+TEST(LLMMoEAutoRoutingTest, DoesNotDuplicateExistingExpertTag) {
+    auto plugin = std::make_shared<NullPlugin>();
+    for (const std::string tags : {"expert", "attn,expert,custom"}) {
+        SCOPED_TRACE(tags);
+        ov::AnyMap props{{"NPUW_LLM", "YES"},
+                         {"NPUW_LLM_MAX_PROMPT_LEN", "128"},
+                         {"NPUW_LLM_MIN_RESPONSE_LEN", "64"},
+                         {"NPUW_LLM_GENERATE_MOE_HINT", "HOST_ROUTED"},
+                         {"NPUW_ONLINE_KEEP_BLOCKS_TAGGED", tags}};
+        RecordingFactory recorder;
+        ov::npuw::LLMCompiledModel compiled(ov::test::npuw::build_qwen3_moe_llm_test_model(),
+                                            plugin,
+                                            props,
+                                            recorder.make_factory());
+        for (const auto* call : {recorder.find_suffix("_prefill"), recorder.find_contains("_kv")}) {
+            ASSERT_NE(call, nullptr);
+            EXPECT_EQ(call->props.at("NPUW_ONLINE_KEEP_BLOCKS_TAGGED").as<std::string>(), tags);
+        }
+    }
+}
+
+TEST(LLMMoEAutoRoutingTest, MixedSupportedAndUnsupportedBlocksKeepHostRouting) {
+    auto plugin = std::make_shared<ArchAwarePlugin>("5010", 3, (8 << 16) | 3);
+    auto core = attach_mock_core_with_npu_device(plugin);
+    auto model = ov::test::npuw::build_qwen3_moe_llm_test_model();
+    const ov::npuw::moe::BatchedMoEPattern pattern;
+    std::vector<ov::npuw::moe::BatchedMoE> blocks;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (const auto moe = pattern.match(op)) {
+            blocks.push_back(*moe);
+        }
+    }
+    ASSERT_GT(blocks.size(), 1u);
+    const auto& block = blocks.front();
+    bool modified = false;
+    for (const auto& op : block.expert_nodes) {
+        const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(op);
+        if (!matmul) {
+            continue;
+        }
+        const auto prefix = matmul->input_value(0).get_node_shared_ptr();
+        if (prefix == block.tile ||
+            (ov::is_type<ov::op::v1::Reshape>(prefix) && prefix->input_value(0).get_node_shared_ptr() == block.tile)) {
+            auto relu = std::make_shared<ov::op::v0::Relu>(matmul->input_value(0));
+            matmul->input(0).replace_source_output(relu);
+            modified = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(modified);
+    model->validate_nodes_and_infer_types();
+    ASSERT_FALSE(pattern.match(block.reduction));
+    ASSERT_TRUE(pattern.match(blocks.back().reduction));
+    ov::AnyMap props{{"NPUW_LLM", "YES"},
+                     {"NPUW_LLM_MAX_PROMPT_LEN", "2048"},
+                     {"NPUW_LLM_MIN_RESPONSE_LEN", "128"},
+                     {"NPUW_LLM_GENERATE_PYRAMID", "YES"}};
+    RecordingFactory recorder;
+    ov::npuw::LLMCompiledModel compiled(model, plugin, props, recorder.make_factory());
+    EXPECT_EQ(compiled.get_property("NPUW_LLM_GENERATE_MOE_HINT").as<MoEHint>(), MoEHint::HOST_ROUTED);
+    ASSERT_EQ(recorder.count_contains("_kv"), 2u);
+    for (const auto& call : recorder.calls()) {
+        if (call.friendly_name.find("_kv") != std::string::npos) {
+            EXPECT_EQ(call.props.at("NPUW_UNFOLD_IREQS").as<std::string>(), "NO");
+        }
+    }
+}
+
+TEST(LLMMoEAutoRoutingTest, KeepsHostRoutingWithoutAnNpuDescriptor) {
+    auto plugin = std::make_shared<NullPlugin>();
+    ov::AnyMap props{{"NPUW_LLM", "YES"}, {"NPUW_LLM_MAX_PROMPT_LEN", "128"}, {"NPUW_LLM_MIN_RESPONSE_LEN", "64"}};
+    RecordingFactory recorder;
+    ov::npuw::LLMCompiledModel compiled(ov::test::npuw::build_qwen3_moe_llm_test_model(),
+                                        plugin,
+                                        props,
+                                        recorder.make_factory());
+    EXPECT_EQ(compiled.get_property("NPUW_LLM_GENERATE_MOE_HINT").as<MoEHint>(), MoEHint::HOST_ROUTED);
+    const auto* generate = recorder.find_contains("_kv");
+    ASSERT_NE(generate, nullptr);
+    EXPECT_EQ(generate->props.at("NPUW_UNFOLD_IREQS").as<std::string>(), "NO");
+}
+
+TEST(LLMMoEAutoRoutingTest, DetectsUnnamedTopologyAndPreparesEveryGenerateVariant) {
+    auto plugin = std::make_shared<ArchAwarePlugin>("5010", 3, (8 << 16) | 3);
+    auto core = attach_mock_core_with_npu_device(plugin);
+    auto model = ov::test::npuw::build_qwen3_moe_llm_test_model();
+    size_t renamed = 0;
+    for (const auto& op : model->get_ops()) {
+        const auto name = op->get_friendly_name();
+        if (name.find(".expert") != std::string::npos || name.find(".router") != std::string::npos)
+            op->set_friendly_name("unnamed_mlp_" + std::to_string(renamed++));
+    }
+    ASSERT_GT(renamed, 0u);
+    ov::AnyMap props{{"NPUW_LLM", "YES"},
+                     {"NPUW_LLM_SHARED_HEAD", "NO"},
+                     {"NPUW_LLM_MAX_PROMPT_LEN", "2048"},
+                     {"NPUW_LLM_MIN_RESPONSE_LEN", "128"},
+                     {"NPUW_LLM_GENERATE_PYRAMID", "YES"}};
+    RecordingFactory recorder;
+    ov::npuw::LLMCompiledModel compiled(model, plugin, props, recorder.make_factory());
+    ASSERT_EQ(recorder.count_contains("_kv"), 2u);
+    const auto* prefill = recorder.find_suffix("_prefill");
+    ASSERT_NE(prefill, nullptr);
+    EXPECT_EQ(prefill->props.at("NPUW_ONLINE_KEEP_BLOCKS_TAGGED").as<std::string>(), "expert");
+    EXPECT_EQ(compiled.get_property("NPUW_LLM_GENERATE_MOE_HINT").as<MoEHint>(), MoEHint::DEVICE_ROUTED);
+    const ov::npuw::moe::BatchedMoEPattern pattern;
+    for (const auto& call : recorder.calls()) {
+        if (call.model->get_friendly_name().find("_kv") != std::string::npos) {
+            EXPECT_EQ(call.props.at("NPUW_UNFOLD_IREQS").as<std::string>(), "YES");
+            for (const auto& op : call.model->get_ops()) {
+                EXPECT_FALSE(pattern.match(op));
+            }
+        }
+    }
+}
+
+TEST(LLMMoEAutoRoutingTest, RejectsExplicitDevicePrefillAndUnsupportedDecode) {
+    auto plugin = std::make_shared<ArchAwarePlugin>("5010", 3, (8 << 16) | 3);
+    auto core = attach_mock_core_with_npu_device(plugin);
+    ov::AnyMap props{{"NPUW_LLM", "YES"},
+                     {"NPUW_LLM_MAX_PROMPT_LEN", "128"},
+                     {"NPUW_LLM_MIN_RESPONSE_LEN", "64"},
+                     {"NPUW_LLM_PREFILL_MOE_HINT", "DEVICE_ROUTED"}};
+    RecordingFactory recorder;
+    EXPECT_THROW(ov::npuw::LLMCompiledModel(ov::test::npuw::build_qwen3_moe_llm_test_model(),
+                                            plugin,
+                                            props,
+                                            recorder.make_factory()),
+                 ov::Exception);
+    props["NPUW_LLM_PREFILL_MOE_HINT"] = "HOST_ROUTED";
+    props["NPUW_LLM_GENERATE_MOE_HINT"] = "DEVICE_ROUTED";
+    auto model = ov::test::npuw::build_llm_test_model();
+    model->get_parameters()[0]->set_friendly_name("legacy.expert_without_supported_topology");
+    EXPECT_THROW(ov::npuw::LLMCompiledModel(model, plugin, props, recorder.make_factory()), ov::Exception);
 }
 
 class LLMCompiledModelFactoryOptionsTest : public ::testing::Test {
@@ -411,7 +680,8 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, DefaultStageConfigsCarryBaselineNpuwO
         EXPECT_FALSE(prop_string(call->props, "NPUW_WEIGHTS_BANK").empty());
     }
 
-    expect_prop(prefill.props, "NPUW_SLICE_OUT", "YES");
+    // In three-model pipeline, `slice_out_embeds()` handles the slicing for the prefill model.
+    expect_missing_prop(prefill.props, "NPUW_SLICE_OUT");
     expect_prop(prefill.props, "NPUW_FUNCALL_ASYNC", "YES");
     expect_prop(prefill.props, "NPUW_ATTN", "PYRAMID");
     expect_prop(prefill.props, "NPUW_ONLINE_PIPELINE", "REP");
@@ -930,11 +1200,13 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperOptionOptimizesSelfAndCrossAtt
     EXPECT_EQ(encoder_value_shape[3], whisper_config.get_encoder_seq_len());
 }
 
-TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperDisablesFoldAndFuncallStageOptions) {
+TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperNonInt8PreservesFoldAndFuncallStageOptions) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+    auto model = build_whisper_decoder_model();
+    model->set_rt_info("int4", "nncf", "weight_compression", "mode");
 
-    ASSERT_NO_THROW(compiled = create_compiled_model(build_whisper_decoder_model(),
+    ASSERT_NO_THROW(compiled = create_compiled_model(model,
                                                      {{"NPUW_WHISPER", "YES"},
                                                       {"NPUW_WHISPER_EOS_TOKEN", "42"},
                                                       {"NPUW_FOLD", "YES"},
@@ -945,12 +1217,110 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperDisablesFoldAndFuncallStageOpt
 
     const auto& prefill = require_call(recorder, "_prefill");
     const auto& generate = require_call_containing(recorder, "_kv");
-    expect_missing_prop(prefill.props, "NPUW_FOLD");
-    expect_missing_prop(prefill.props, "NPUW_FUNCALL_FOR_ALL");
+    expect_prop(prefill.props, "NPUW_FOLD", "YES");
+    expect_prop(prefill.props, "NPUW_FUNCALL_FOR_ALL", "YES");
     expect_prop(prefill.props, "NPUW_WEIGHTS_BANK", "whisper-shared");
-    expect_missing_prop(generate.props, "NPUW_FOLD");
-    expect_missing_prop(generate.props, "NPUW_FUNCALL_FOR_ALL");
+    expect_prop(generate.props, "NPUW_FOLD", "YES");
+    expect_prop(generate.props, "NPUW_FUNCALL_FOR_ALL", "YES");
     expect_prop(generate.props, "NPUW_WEIGHTS_BANK", "whisper-shared");
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperInt8DisablesWsStageOptions) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+    auto model = build_whisper_decoder_model();
+    model->set_rt_info("int8", "nncf", "weight_compression", "mode");
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(model,
+                                                     {{"NPUW_WHISPER", "YES"},
+                                                      {"NPUW_WHISPER_EOS_TOKEN", "42"},
+                                                      {"NPUW_FOLD", "YES"},
+                                                      {"NPUW_FOLD_ONLY", "YES"},
+                                                      {"NPUW_FUNCALL_FOR_ALL", "YES"},
+                                                      {"NPUW_CWAI", "YES"},
+                                                      {"NPUW_WEIGHTS_BANK", "whisper-shared"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& prefill = require_call(recorder, "_prefill");
+    const auto& generate = require_call_containing(recorder, "_kv");
+    for (const auto* call : {&prefill, &generate}) {
+        expect_missing_prop(call->props, "NPUW_FOLD");
+        expect_missing_prop(call->props, "NPUW_FOLD_ONLY");
+        expect_missing_prop(call->props, "NPUW_FUNCALL_FOR_ALL");
+        expect_missing_prop(call->props, "NPUW_CWAI");
+        expect_prop(call->props, "NPUW_WEIGHTS_BANK", "whisper-shared");
+    }
+}
+
+// Makes the embedding and the LM head (proj_out) of the synthetic Whisper decoder read one u8
+// asymmetric vocabulary, as in an INT4 Whisper model with tied weights. As in a real IR, each reader
+// has its own dequantization over the same constants.
+void share_u8_asym_vocabulary(const std::shared_ptr<ov::Model>& model) {
+    std::shared_ptr<ov::Node> embedding_weight;
+    std::shared_ptr<ov::Node> head;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (node->get_friendly_name() == "model.decoder.embed_tokens.weight") {
+            embedding_weight = node;
+        } else if (ov::is_type<ov::op::v0::MatMul>(node) && node->get_friendly_name() == "proj_out/MatMul") {
+            head = node;
+        }
+    }
+    ASSERT_NE(embedding_weight, nullptr);
+    ASSERT_NE(head, nullptr);
+    const auto vocab_shape = embedding_weight->get_output_shape(0);
+    ASSERT_EQ(head->get_input_shape(1), vocab_shape);
+
+    const ov::Shape channel_shape{vocab_shape[0], 1};
+    auto weight = ov::op::v0::Constant::create(ov::element::u8,
+                                               vocab_shape,
+                                               std::vector<uint8_t>(ov::shape_size(vocab_shape), 200));
+    auto zero_point = ov::op::v0::Constant::create(ov::element::u8,
+                                                   channel_shape,
+                                                   std::vector<uint8_t>(vocab_shape[0], 128));
+    auto scale =
+        ov::op::v0::Constant::create(ov::element::f32, channel_shape, std::vector<float>(vocab_shape[0], 0.01f));
+    auto dequantize = [&]() -> ov::Output<ov::Node> {
+        auto weight_f32 = std::make_shared<ov::op::v0::Convert>(weight, ov::element::f32);
+        auto zero_point_f32 = std::make_shared<ov::op::v0::Convert>(zero_point, ov::element::f32);
+        ov::mark_as_decompression(weight_f32);
+        ov::mark_as_decompression(zero_point_f32);
+        auto shifted = std::make_shared<ov::op::v1::Subtract>(weight_f32, zero_point_f32);
+        return std::make_shared<ov::op::v1::Multiply>(shifted, scale);
+    };
+    for (const auto& reader : embedding_weight->output(0).get_target_inputs()) {
+        reader.replace_source_output(dequantize());
+    }
+    head->input(1).replace_source_output(dequantize());
+}
+
+std::size_t count_sub128_shifts(const std::shared_ptr<ov::Model>& model) {
+    const auto ops = model->get_ordered_ops();
+    return std::count_if(ops.begin(), ops.end(), [](const auto& op) {
+        return op->get_rt_info().count(ov::npuw::NPUW_SUB128_SHIFT_RT_INFO) > 0;
+    });
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperDoesNotUseSharedVocabulary) {
+    auto model = build_whisper_decoder_model();
+    share_u8_asym_vocabulary(model);
+    bool shared = false;
+    ov::npuw::DetectVocabSharing(shared).run_on_model(model->clone());
+    ASSERT_TRUE(shared) << "The test model must have a shared u8 asymmetric vocabulary";
+
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+    ASSERT_NO_THROW(compiled = create_compiled_model(model,
+                                                     {{"NPUW_WHISPER", "YES"},
+                                                      {"NPUW_WHISPER_EOS_TOKEN", "42"},
+                                                      {"NPUW_LLM_VOCAB_ASYM_SHARED", "YES"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& prefill = require_call(recorder, "_prefill");
+    const auto& generate = require_call_containing(recorder, "_kv");
+    EXPECT_EQ(count_sub128_shifts(prefill.model), 0u);
+    EXPECT_EQ(count_sub128_shifts(generate.model), 0u);
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperPreparationAddsKvCacheInputsAndPresentOutputs) {
@@ -1139,6 +1509,24 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, TextEmbedEncoderClampsPromptLenToMaxP
     // The clamped length is what got compiled, so it has to be what the property reports. GenAI
     // reads this back to decide how long a prompt it may submit.
     EXPECT_EQ(compiled->get_property("NPUW_LLM_MAX_PROMPT_LEN").as<uint32_t>(), 512u);
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, ImportRejectsExcessiveSerializationVersionLengthBeforeAllocation) {
+    const auto header = make_llm_header(std::numeric_limits<std::size_t>::max(), NPUW_SERIALIZATION_VERSION);
+    std::istringstream stream(header);
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::LLMCompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "the maximum is 64");
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, ImportReportsVersionMismatchForDifferentVersionLength) {
+    const auto header = make_llm_header(3u, "0.3");
+    std::istringstream stream(header);
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::LLMCompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "NPUW serialized by version 0.3");
 }
 
 }  // namespace

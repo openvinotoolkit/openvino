@@ -6,7 +6,7 @@
 
 #include <unordered_set>
 
-#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/backward_graph_rewrite.hpp"
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
 #include "transformations_visibility.hpp"
 
@@ -16,6 +16,11 @@ namespace pass {
 /**
  * @ingroup ov_transformation_common_api
  * @brief Fuses GroupConvolution-based causal Conv1D state update into internal::PagedCausalConv1D.
+ *
+ * Supports two history layouts for a window of (kernel_size - 1) * dilation + 1:
+ * a full-window history followed by output trimming, and a window-minus-one history
+ * without output trimming. The paged state table always stores the full window.
+ * Traverses backwards to match optional output trimming and bias before the convolution alone.
  *
  * For example, the following graph
  *
@@ -38,7 +43,7 @@ namespace pass {
  *                                                    |
  *                                                    v
  *                                          +------------------+
- *                                          |  Slice (axis=2)  |
+ *                                          | [Slice(axis=2)] |
  *                                          +------------------+
  *                                                    |
  *                                                    v
@@ -74,11 +79,12 @@ namespace pass {
  *                                                         v
  *                                                        ...
  *
- * [optional] legacy present-state Result is rewired to preserve external behavior.
+ * The replaced state's variable ID is recorded so that the enclosing paged-attention
+ * pipeline can remove its Assign. Explicit present-state Results are left intact.
  */
-class TRANSFORMATIONS_API PagedCausalConv1DFusion : public ov::pass::MatcherPass {
+class TRANSFORMATIONS_API PagedCausalConv1DFusion : public ov::pass::BackwardGraphRewrite {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("PagedCausalConv1DFusion");
+    OPENVINO_GRAPH_REWRITE_RTTI("PagedCausalConv1DFusion");
     PagedCausalConv1DFusion(ov::pass::paged_attention::PaParams& pa_params,
                             std::unordered_set<std::string>& var_ids_to_remove);
 

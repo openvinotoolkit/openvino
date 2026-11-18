@@ -15,7 +15,6 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "openvino/op/slice.hpp"
 #include "openvino/op/transpose.hpp"
 #include "utils/attention.hpp"
 #include "utils/common.hpp"
@@ -32,7 +31,8 @@ using ov::frontend::onnx::attention::get_dimensions;
 namespace opset_1 {
 ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     constexpr size_t inputs_count_min = 7;   // Taken from ONNX spec
-    constexpr size_t inputs_count_max = 16;  // Taken from ONNX spec
+    constexpr size_t inputs_count_max = 17;  // 16 from ONNX spec + query_seqlens (ORT contrib-op extension)
+    constexpr size_t query_seqlens_index = 16;
 
     // Minimum required inputs basing on the spec and ONNX Runtime code: 7
     // 0: packed QKV (mandatory)
@@ -254,24 +254,24 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         FRONT_END_OP_CONVERSION_CHECK(kv_cache_bit_width == 0,
                                       "GroupQueryAttention: a quantized KV cache (kv_cache_bit_width != 0) requires "
                                       "past_key and past_value.");
-        // Zero-length [B, kv_num_heads, 0, head_size] past, sliced from the already transposed K so it carries the
-        // batch/head/head_size dims and element type without extra shape arithmetic.
-        const auto zero = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
-        const auto one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
-        const auto seq_axis = v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
-        const auto empty_past = std::make_shared<v8::Slice>(ov_op_inputs[1], zero, zero, one, seq_axis)->output(0);
+        // The empty Constant marks the past as absent; its type matches the current KV tensor.
+        const auto empty_past = v0::Constant::create(ov_op_inputs[1].get_element_type(), ov::Shape{0}, {})->output(0);
         ov_op_inputs.push_back(empty_past);
         ov_op_inputs.push_back(empty_past);
     }
     // Process optional inputs: use a zero-sized Constant placeholder for missing optional ONNX inputs.
     // Note: When the ONNX's input index changed, the corresponding index in the GroupQueryAttentionInputs enum must
     // also be updated and  may need mapping the index manually.
-    for (size_t i = ov_op_inputs.size(); i < inputs_count_max; ++i) {
+    for (size_t i = ov_op_inputs.size(); i < query_seqlens_index; ++i) {
         if (i < onnx_op_inputs.size() && !ov::op::util::is_null(onnx_op_inputs[i])) {
             ov_op_inputs.push_back(onnx_op_inputs[i]);
         } else {
             ov_op_inputs.push_back(make_empty_optional_input());
         }
+    }
+    // query_seqlens (right-padded chunk) is appended only when wired, so models without it keep a 16-input op.
+    if (common::is_input_valid(onnx_op_inputs, query_seqlens_index)) {
+        ov_op_inputs.push_back(onnx_op_inputs[query_seqlens_index]);
     }
 
     // smooth_softmax's ONNX schema default is -1, not 0, yet ORT's own CPU/CUDA kernels enable it only when

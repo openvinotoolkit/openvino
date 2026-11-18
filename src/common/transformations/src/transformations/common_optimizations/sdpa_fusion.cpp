@@ -196,7 +196,7 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
     auto post_sdpa = wrap_type<v1::Reshape, v0::Unsqueeze>({opt_sdpa_reshape, any_input()},
                                                            ov::pass::pattern::shape_matches("Batches..., S_q, D"));
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
 
         const auto& q_node = pm.at(q);

@@ -13,7 +13,7 @@ import gguf
 import numpy as np
 import torch
 from transformers import Lfm2Config, Lfm2Model
-from gen_arch_accuracy import write_lfm2_model
+from gen_arch_accuracy import write_lfm_model
 
 from mmproj_fixtures import finish, save_npz
 
@@ -87,7 +87,7 @@ def main():
         arrays[key] = np.frombuffer(path.read_bytes(), np.uint8)
     save_npz(Path(__file__).parent / "test_data/lfm2_speech.npz", arrays)
     detok_path = Path(temporary.name) / "detokenizer.gguf"
-    write_lfm2_model(detok_path, "lfm2", {"tied": True})
+    write_lfm_model(detok_path, "lfm2", {"tied": True})
     reader = gguf.GGUFReader(detok_path)
     weights = {t.name: torch.from_numpy(t.data.copy().reshape(tuple(reversed(t.shape)))) for t in reader.tensors}
     weights["dense_2.weight"] = torch.randn(1282, 32) * .08
