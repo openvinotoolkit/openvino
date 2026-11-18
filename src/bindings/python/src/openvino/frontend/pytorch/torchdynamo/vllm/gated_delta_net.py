@@ -4,19 +4,22 @@
 
 """Rewrites vLLM's cpu_gdn_attention_core into ov_ext::gdn_attention (lowered to PagedGatedDeltaNet)."""
 
-# mypy: ignore-errors
 
 import logging
+from typing import TYPE_CHECKING, Any
 
 from .fx_utils import is_auto_functionalized, packing_permutation, replace_mutated_output
+
+if TYPE_CHECKING:
+    import torch
 
 logger = logging.getLogger(__name__)
 
 _REGISTERED = False
-_conv_perm_cache = {}
+_conv_perm_cache: "dict[tuple[tuple[int, ...], torch.dtype], torch.Tensor | None]" = {}
 
 
-def _register_custom_op():
+def _register_custom_op() -> None:
     global _REGISTERED
     if _REGISTERED:
         return
@@ -46,14 +49,16 @@ def _register_custom_op():
         return out
 
     @gdn_attention.register_fake
-    def _gdn_attention_fake(mixed_qkv, b_proj, a_proj, conv_weight, conv_bias, A_log, dt_bias,
-                            layer_name, num_k_heads, num_v_heads, head_k_dim, head_v_dim):
+    def _gdn_attention_fake(mixed_qkv: torch.Tensor, b_proj: torch.Tensor, a_proj: torch.Tensor,
+                            conv_weight: torch.Tensor, conv_bias: Optional[torch.Tensor], A_log: torch.Tensor,
+                            dt_bias: torch.Tensor, layer_name: str, num_k_heads: int, num_v_heads: int,
+                            head_k_dim: int, head_v_dim: int) -> torch.Tensor:
         return mixed_qkv.new_empty((mixed_qkv.shape[0], num_v_heads, head_v_dim))
 
     _REGISTERED = True
 
 
-def _plain_conv_weight(layer):
+def _plain_conv_weight(layer: Any) -> "torch.Tensor | None":
     """Conv weight as plain [channels, kernel], undoing vLLM's AMX prepack; None if it can't be undone."""
     import torch
     channels = layer.conv_dim
@@ -72,18 +77,18 @@ def _plain_conv_weight(layer):
     return plain.reshape(weight.shape)
 
 
-def _gdn_core_op():
+def _gdn_core_op() -> "torch._ops.OpOverload":
     import torch
     return torch.ops.vllm.cpu_gdn_attention_core.default
 
 
-def _gdn_layer(layer_name):
+def _gdn_layer(layer_name: str) -> Any:
     from vllm.forward_context import get_forward_context
     layers = get_forward_context().no_compile_layers
     return layers.get(layer_name) if isinstance(layers, dict) else None
 
 
-def rewrite_gdn_to_ov(gm) -> int:
+def rewrite_gdn_to_ov(gm: "torch.fx.GraphModule") -> int:
     """Rewrite vLLM's CPU GDN core calls into ov_ext.gdn_attention; unresolvable sites stay on vLLM's op."""
     import torch
     from torch.utils._python_dispatch import _disable_current_modes
@@ -117,7 +122,7 @@ def rewrite_gdn_to_ov(gm) -> int:
             }
             if layer.conv1d.bias is not None:
                 weights["conv_bias"] = layer.conv1d.bias.detach()
-        attr_nodes = {}
+        attr_nodes: dict[str, torch.fx.Node] = {}
         with gm.graph.inserting_before(node):
             for wname, tensor in weights.items():
                 attr = f"_ov_gdn{i}_{wname}"

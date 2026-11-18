@@ -2,26 +2,31 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# mypy: ignore-errors
 
 """vLLM compile-time hooks called from torchdynamo.compile; each no-ops on graphs without its marker."""
 
 import logging
 import os
+from collections.abc import Iterator, Mapping, Sequence
+from typing import TYPE_CHECKING, Any
 
 from openvino.frontend.pytorch.torchdynamo.vllm import preset as _preset
+
+if TYPE_CHECKING:
+    import torch
+    from openvino import Model, Node, Output, Type
 
 logger = logging.getLogger(__name__)
 
 
-def decoder_default_float_type(options):
+def decoder_default_float_type(options: Mapping[str, Any] | None) -> str | None:
     """The dtype vLLM built the model with (options["default_float_type"]), or None without "canonical_precision"."""
     if not _preset.bool_opt(options, "canonical_precision", False):
         return None
     return options.get("default_float_type") if options else None
 
 
-def apply_post_convert(om, options):
+def apply_post_convert(om: "Model", options: Mapping[str, Any] | None) -> None:
     """Run vLLM hooks on the freshly converted Model, before serialization or input shaping."""
     if _preset.is_vllm_preset(options):
         # Read back in CommonOptimizations to gate NormalizeVLLMRoPE.
@@ -30,7 +35,8 @@ def apply_post_convert(om, options):
     normalize_concat_ranks(om)
 
 
-def apply_input_shapes(om, args, options, gm):
+def apply_input_shapes(om: "Model", args: Sequence[Any], options: Mapping[str, Any] | None,
+                       gm: "torch.fx.GraphModule | None") -> bool:
     """Resolve Python-int FX inputs and shape the tensor Parameters; False leaves that to the caller."""
     if not (_preset.is_vllm_preset(options) or any(isinstance(a, int) for a in args)):
         return False
@@ -39,7 +45,7 @@ def apply_input_shapes(om, args, options, gm):
     return True
 
 
-def _vllm_omp_core_ids():
+def _vllm_omp_core_ids() -> set[int] | None:
     """The cores vLLM's OMPProcessManager assigned this worker (from its OpenMP env vars), or None."""
     gomp = os.environ.get("GOMP_CPU_AFFINITY")
     if gomp:
@@ -54,7 +60,7 @@ def _vllm_omp_core_ids():
     return None
 
 
-def widen_affinity_if_needed():
+def widen_affinity_if_needed() -> None:
     """Widen the worker's affinity (narrowed to one CPU) to vLLM's assigned cores, else all CPUs.
 
     TBB samples the affinity on first use, so a 1-CPU mask before core.compile would pin OV to one thread.
@@ -69,7 +75,7 @@ def widen_affinity_if_needed():
         logger.debug("widen_affinity skipped: %s", _e)
 
 
-def symint_shape_sources(gm, args):
+def symint_shape_sources(gm: "torch.fx.GraphModule | None", args: Sequence[Any]) -> dict[int, tuple[int, int]]:
     """Map int FX inputs to the tensor dimension carrying the same symbol: {int_arg_index: (tensor_arg_index, dim)}.
 
     Read off meta['val'] so two symbols that coincide on this trace aren't conflated.
@@ -82,7 +88,7 @@ def symint_shape_sources(gm, args):
         if len(placeholders) != len(args):
             return {}
         # symbol -> (tensor arg index, dim); the first carrier wins.
-        symbol_src = {}
+        symbol_src: dict[str, tuple[int, int]] = {}
         for idx, node in enumerate(placeholders):
             meta_val = node.meta.get("val", None)
             if not isinstance(meta_val, torch.Tensor):
@@ -106,7 +112,8 @@ def symint_shape_sources(gm, args):
         return {}
 
 
-def bake_symint_constants(om, args, dyn_shapes: bool = True, gm=None):
+def bake_symint_constants(om: "Model", args: Sequence[Any], dyn_shapes: bool = True,
+                          gm: "torch.fx.GraphModule | None" = None) -> None:
     """Replace integer FX input Parameters (their upper bound of 0 collapses shapes) by ShapeOf dims or Constants.
 
     Tensor Parameters go dynamic when dyn_shapes is set or every int came from a ShapeOf, which must not const-fold.
@@ -121,21 +128,22 @@ def bake_symint_constants(om, args, dyn_shapes: bool = True, gm=None):
 
     # Match by name: the frontend can drop a consumer-less placeholder, shifting om.inputs.
     placeholders = [n for n in gm.graph.nodes if n.op == "placeholder"] if gm is not None else None
-    name_to_input = None
+    name_to_input: dict[str, "Output"] | None = None
     if placeholders is not None and len(placeholders) == len(args):
         name_to_input = {}
         for port in om.inputs:
             for port_name in port.get_names():
                 name_to_input.setdefault(port_name, port)
 
-    def _om_input_for(idx):
+    def _om_input_for(idx: int) -> "Output | None":
         if name_to_input is not None:
+            assert placeholders is not None
             return name_to_input.get(placeholders[idx].name)
         return om.inputs[idx] if idx < len(om.inputs) else None
 
     params_to_remove = []
     # Two symints can share a source tensor's ShapeOf.
-    shape_of_cache = {}
+    shape_of_cache: dict[int, "Node"] = {}
     for idx, input_data in enumerate(args):
         if isinstance(input_data, int):
             om_input = _om_input_for(idx)
@@ -188,7 +196,7 @@ def bake_symint_constants(om, args, dyn_shapes: bool = True, gm=None):
     # The caller must re-infer downstream shapes, or a stale ShapeOf const-folds back to the frozen size.
 
 
-def register_pa_parameters(om):
+def register_pa_parameters(om: "Model") -> None:
     """Register the ``__pa__`` side-channel Parameters the paged_attention translator emits as model inputs."""
     try:
         existing_ids = {id(p) for p in om.get_parameters()}
@@ -206,9 +214,9 @@ def register_pa_parameters(om):
         logger.debug("PA parameter registration skipped: %s", e)
 
 
-def normalize_concat_ranks(om):
+def normalize_concat_ranks(om: "Model") -> None:
     """Bypass Unsqueezes of rank>=1 values feeding a Concat whose inputs disagree in static rank."""
-    def _rank_ge_1(output):
+    def _rank_ge_1(output: "Output") -> bool:
         node = output.get_node()
         ps = output.get_partial_shape()
         if ps.rank.is_static and ps.rank.get_length() >= 1:
@@ -217,7 +225,7 @@ def normalize_concat_ranks(om):
             return len(node.get_output_shape(0)) >= 1
         return False
 
-    def _find_targets(concats):
+    def _find_targets(concats: list["Node"]) -> Iterator[tuple["Node", int, "Output"]]:
         for node in concats:
             ranks = set()
             for i in range(node.get_input_size()):
@@ -250,7 +258,7 @@ def normalize_concat_ranks(om):
         logger.debug("concat-rank normalization skipped: %s", e)
 
 
-def model_float_precision(om):
+def model_float_precision(om: "Model | None") -> str | None:
     """The model's float dtype ("bf16"/"f16") or None: from rt_info, else the key_cache port, else any I/O port."""
     if om is None:
         return None
@@ -258,7 +266,7 @@ def model_float_precision(om):
         name = om.get_rt_info("default_float_type").astype(str)
         return name if name in _preset.SUPPORTED_FLOAT_PRECISIONS else None
 
-    def narrow(element_type):
+    def narrow(element_type: "Type") -> str | None:
         name = element_type.get_type_name()
         return name if name in _preset.SUPPORTED_FLOAT_PRECISIONS else None
 
@@ -275,20 +283,20 @@ def model_float_precision(om):
     return None
 
 
-def _port_names(port):
+def _port_names(port: "Output") -> set[str]:
     """Tensor names plus the node's friendly name (the frontend does not always set the former)."""
     names = set(port.get_names())
     names.add(port.get_node().get_friendly_name())
     return names
 
 
-def _is_kv_cache_port(port, field=("key_cache", "value_cache")):
+def _is_kv_cache_port(port: "Output", field: tuple[str, ...] = ("key_cache", "value_cache")) -> bool:
     """True if `port` is a PagedAttention KV-cache Parameter (names carry a layer-index suffix)."""
     return any(n.startswith("__pa__") and any(f in n for f in field)
                for n in _port_names(port))
 
 
-def retype_kv_cache_parameters(om, et_name):
+def retype_kv_cache_parameters(om: "Model | None", et_name: str) -> int:
     """Retype the KV-cache Parameters to `et_name`; return how many changed.
 
     Otherwise the plugin splices a Convert after them and PA's in-place cache writes land in its temporary.
@@ -311,7 +319,7 @@ def retype_kv_cache_parameters(om, et_name):
     return changed
 
 
-def apply_post_config(config, device, options, om):
+def apply_post_config(config: dict[str, Any], device: str, options: Mapping[str, Any] | None, om: "Model") -> None:
     """Fill the vLLM KV-cache and FC-quantization defaults into a CPU compile config; caller entries win."""
     if device != "CPU" or not _preset.is_vllm_preset(options):
         return

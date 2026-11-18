@@ -2,16 +2,22 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# mypy: ignore-errors
 
 """vLLM-specific glue for the OpenVINO torchdynamo backend; the entry point is plugin.register()."""
 
 import logging
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import torch
+    from torch.fx.passes.infra.partitioner import Partition
+    from torch.fx.passes.operator_support import OperatorSupportBase
 
 logger = logging.getLogger(__name__)
 
 
-def maybe_register_pa_op(support_dict, options):
+def maybe_register_pa_op(support_dict: dict[str, Any], options: Mapping[str, Any] | None) -> None:
     """Mark the OV paged_attention and gdn_attention ops supported when "pa_translate" is set."""
     from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt
     if bool_opt(options, "pa_translate", False):
@@ -19,14 +25,15 @@ def maybe_register_pa_op(support_dict, options):
         support_dict["torch.ops.ov_ext.gdn_attention.default"] = None
 
 
-def owns_kv_cache_update(options) -> bool:
+def owns_kv_cache_update(options: Mapping[str, Any] | None) -> bool:
     """True if the KV-cache write belongs to the OV attention op."""
     from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt, is_vllm_preset
     return (is_vllm_preset(options) and bool_opt(options, "paged_attention", True)
             and bool_opt(options, "pa_translate", False))
 
 
-def keep_paged_attention_partitioned(graph_module, partitions, supported_ops, options) -> int:
+def keep_paged_attention_partitioned(graph_module: "torch.fx.GraphModule", partitions: list["Partition"],
+                                     supported_ops: "OperatorSupportBase", options: Mapping[str, Any] | None) -> int:
     """Give each paged_attention call left outside `partitions` its own partition; return how many were added.
 
     Once OV owns the KV-cache write, vLLM's eager attention would read an unwritten cache, so an unsupported call
@@ -68,7 +75,7 @@ def keep_paged_attention_partitioned(graph_module, partitions, supported_ops, op
     return added
 
 
-def maybe_rewrite_paged_attention(graph_module, options):
+def maybe_rewrite_paged_attention(graph_module: "torch.fx.GraphModule", options: Mapping[str, Any] | None) -> int:
     """Rewrite vLLM's attention, Gated DeltaNet and fused-MoE ops into OV-translatable ones; return the count.
 
     When OV owns the KV-cache write, an attention call left on vLLM's op raises: it would read an unwritten cache.

@@ -2,21 +2,24 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# mypy: ignore-errors
 
 """vLLM PagedAttention binding for torchdynamo.execute's infer path."""
 
 import os
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any
+
+from openvino import CompiledModel, ConstOutput, InferRequest
 
 from .side_channel import _bind_gdn_side_channel, _bind_paged_attention_side_channel
 
 
 # Per-InferRequest caches for the OV_FAST_INFER fast path.
-_fastinfer_port_cache = {}
-_fastinfer_bound_ids = {}   # id(req) -> [[val_id, ov_tensor_ref], ...] per port
+_fastinfer_port_cache: dict[int, list[ConstOutput]] = {}
+_fastinfer_bound_ids: dict[int, list[list[Any]]] = {}   # id(req) -> [[val_id, ov_tensor_ref], ...] per port
 
 
-def clear_caches():
+def clear_caches() -> None:
     """Drop the fast-infer caches: their id() keys are reused once the objects are freed."""
     for cache in (_fastinfer_port_cache, _fastinfer_bound_ids):
         cache.clear()
@@ -30,7 +33,9 @@ class _PaSkip:
 PA_SKIP = _PaSkip()
 
 
-def run_pa_infer(compiled, req, ov_inputs):
+def run_pa_infer(
+    compiled: CompiledModel, req: InferRequest, ov_inputs: Sequence[Any],
+) -> Mapping[ConstOutput, Any] | _PaSkip | None:
     """Infer with the PA side channel bound.
 
     Returns PA_SKIP during warmup (run eager), {output port: numpy view}, or None without ``__pa__`` inputs.
@@ -48,7 +53,7 @@ def run_pa_infer(compiled, req, ov_inputs):
     return result
 
 
-def has_pa_inputs(compiled) -> bool:
+def has_pa_inputs(compiled: CompiledModel) -> bool:
     """Return True if any input of `compiled` is a ``__pa__`` Parameter."""
     for inp in compiled.inputs:
         names = inp.get_names()
@@ -85,7 +90,9 @@ def should_skip_pa_infer() -> bool:
     return False
 
 
-def build_call_kwargs(compiled, ov_inputs):
+def build_call_kwargs(
+    compiled: CompiledModel, ov_inputs: Sequence[Any],
+) -> tuple[dict[ConstOutput, Any] | None, Callable[[], None] | None]:
     """Map ``__pa__`` inputs to side-channel tensors and the rest to `ov_inputs` in order.
 
     Returns (call_kwargs, scatter_back): call_kwargs is None without PA inputs; scatter_back must run after infer.
@@ -95,7 +102,7 @@ def build_call_kwargs(compiled, ov_inputs):
     pa_inputs_by_pos.update(gdn_inputs)
     if not pa_inputs_by_pos:
         return None, None
-    call_kwargs = {}
+    call_kwargs: dict[ConstOutput, Any] = {}
     positional = []
     for inp in compiled.inputs:
         pa_tensor = None
@@ -114,7 +121,9 @@ def build_call_kwargs(compiled, ov_inputs):
     return call_kwargs, scatter_back
 
 
-def infer_with_pa(req, compiled, call_kwargs):
+def infer_with_pa(
+    req: InferRequest, compiled: CompiledModel, call_kwargs: dict[ConstOutput, Any],
+) -> Mapping[ConstOutput, Any]:
     """Run req.infer with `call_kwargs`; OV_FAST_INFER=1 skips rebinding unchanged inputs.
 
     Falls back to plain req.infer only if binding fails. Inference errors propagate: inference already advanced the KV

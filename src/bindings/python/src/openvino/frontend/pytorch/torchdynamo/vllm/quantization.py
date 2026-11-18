@@ -2,7 +2,6 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# mypy: ignore-errors
 
 """vLLM `"quant_method": "nncf"`: NNCF weight-only int4/int8 (sym or asym, grouped or per-channel), decoded in torch.
 
@@ -12,12 +11,17 @@ NNCFConfig pickles into a spawned engine process.
 
 import logging
 import threading
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import torch
 
 logger = logging.getLogger(__name__)
 
 # In the order `_define_classes` returns them.
 _LAZY_CLASSES = ("NNCFConfig", "NNCFLinearMethod")
-_classes = None
+_classes: tuple[type[Any], type[Any]] | None = None
 # Not re-entrant: `_define_classes` reaches NNCFLinearMethod through a closure, not this module.
 _classes_lock = threading.Lock()
 
@@ -25,7 +29,7 @@ _classes_lock = threading.Lock()
 _STORAGE = {4: "uint8", 8: "int8"}
 
 
-def _unpack_uint4(packed):
+def _unpack_uint4(packed: "torch.Tensor") -> "torch.Tensor":
     """Asymmetric int4 -> uint8 in [0, 15], low nibble first, gaining a trailing dim of 2."""
     import torch
 
@@ -34,14 +38,15 @@ def _unpack_uint4(packed):
     return torch.stack((low, high), dim=-1)
 
 
-def _unpack_int4(packed):
+def _unpack_int4(packed: "torch.Tensor") -> "torch.Tensor":
     """Symmetric int4 -> int8 in [-8, 7]; the -8 undoes the unsigned bias."""
     import torch
 
     return _unpack_uint4(packed).type(torch.int8) - 8
 
 
-def _dequantize(qweight, scale, bits, out_dtype, zero_point=None):
+def _dequantize(qweight: "torch.Tensor", scale: "torch.Tensor", bits: int, out_dtype: "torch.dtype",
+                zero_point: "torch.Tensor | None" = None) -> "torch.Tensor":
     """Decompress to a dense [out, in] weight in `out_dtype`, in NNCF's order so it matches bit for bit."""
     out_features = qweight.shape[0]
     if bits == 4:
@@ -62,7 +67,7 @@ def _dequantize(qweight, scale, bits, out_dtype, zero_point=None):
     return weight.reshape(out_features, in_features).type(out_dtype)
 
 
-def _define_classes():
+def _define_classes() -> tuple[type[Any], type[Any]]:
     """Define the config/method pair; call `_build_classes` instead, which builds them only once."""
     import torch
     from torch.nn import functional
@@ -84,7 +89,8 @@ def _define_classes():
     class NNCFConfig(QuantizationConfig):
         """Weight-only integer compression, as written by NNCF."""
 
-        def __init__(self, bits, group_size, sym, scale_dtype, quantized_modules):
+        def __init__(self, bits: int, group_size: int, sym: bool, scale_dtype: str,
+                     quantized_modules: Iterable[str] | None) -> None:
             super().__init__()
             if bits not in _STORAGE:
                 raise ValueError(f"bits={bits} is not one of {sorted(_STORAGE)}")
@@ -95,7 +101,7 @@ def _define_classes():
             # Empty means every linear layer.
             self.quantized_modules = set(quantized_modules or ())
 
-        def __repr__(self):
+        def __repr__(self) -> str:
             return (f"NNCFConfig(bits={self.bits}, "
                     f"{'sym' if self.sym else 'asym'}, "
                     f"group_size={self.group_size}, "
@@ -103,23 +109,23 @@ def _define_classes():
                     f"modules={len(self.quantized_modules) or 'all'})")
 
         @classmethod
-        def get_name(cls):
+        def get_name(cls) -> str:
             return "nncf"
 
         @classmethod
-        def get_supported_act_dtypes(cls):
+        def get_supported_act_dtypes(cls) -> list[torch.dtype]:
             return [torch.float32, torch.float16, torch.bfloat16]
 
         @classmethod
-        def get_min_capability(cls):
+        def get_min_capability(cls) -> int:
             return 60
 
         @staticmethod
-        def get_config_filenames():
+        def get_config_filenames() -> list[str]:
             return []
 
         @classmethod
-        def from_config(cls, config):
+        def from_config(cls, config: dict[str, Any]) -> "NNCFConfig":
             return cls(
                 bits=config.get("bits", 4),
                 group_size=config.get("group_size", -1),
@@ -128,12 +134,12 @@ def _define_classes():
                 quantized_modules=config.get("quantized_modules", ()),
             )
 
-        def apply_vllm_mapper(self, hf_to_vllm_mapper):
+        def apply_vllm_mapper(self, hf_to_vllm_mapper: Any) -> None:
             # `_is_quantized` gets vLLM prefixes; unmapped names would leave renamed models silently dense.
             self.quantized_modules = set(
                 hf_to_vllm_mapper.apply_list(sorted(self.quantized_modules)))
 
-        def _is_quantized(self, prefix):
+        def _is_quantized(self, prefix: str) -> bool:
             """Is the vLLM layer at `prefix` compressed? A fused layer only if all of its sources are."""
             if not self.quantized_modules:
                 return True
@@ -142,7 +148,7 @@ def _define_classes():
             names = ([f"{parent}.{s}" for s in sources] if sources else [prefix])
             return all(n in self.quantized_modules for n in names)
 
-        def get_quant_method(self, layer, prefix):
+        def get_quant_method(self, layer: torch.nn.Module, prefix: str) -> "LinearMethodBase | None":
             # vLLM rejects None for a linear layer, so a dense one gets Unquantized.
             if isinstance(layer, LinearBase):
                 if self._is_quantized(prefix):
@@ -153,12 +159,12 @@ def _define_classes():
     class NNCFLinearMethod(LinearMethodBase):
         """Declares the compressed parameters, then decodes them per forward."""
 
-        def __init__(self, quant_config):
+        def __init__(self, quant_config: NNCFConfig) -> None:
             self.quant_config = quant_config
 
-        def create_weights(self, layer, input_size_per_partition,
-                           output_partition_sizes, input_size, output_size,
-                           params_dtype, **extra_weight_attrs):
+        def create_weights(self, layer: torch.nn.Module, input_size_per_partition: int,
+                           output_partition_sizes: list[int], input_size: int, output_size: int,
+                           params_dtype: torch.dtype, **extra_weight_attrs: Any) -> None:
             config = self.quant_config
             weight_loader = extra_weight_attrs.get("weight_loader")
             output_size_per_partition = sum(output_partition_sizes)
@@ -185,7 +191,7 @@ def _define_classes():
                     weight_loader=weight_loader)
 
             # Also used for the zero point, so it shards and concatenates like the scale.
-            def _per_group(dtype):
+            def _per_group(dtype: torch.dtype) -> "GroupQuantScaleParameter | ChannelQuantScaleParameter":
                 if config.group_size > 0:
                     if divmod(input_size_per_partition, config.group_size)[1]:
                         raise ValueError(
@@ -209,11 +215,12 @@ def _define_classes():
                 layer.register_parameter("zero_point", _per_group(torch.uint8))
             layer.nncf_out_dtype = params_dtype
 
-        def process_weights_after_loading(self, layer):
+        def process_weights_after_loading(self, layer: torch.nn.Module) -> None:
             # Deliberately empty: the unquantized CPU path would swap in a oneDNN GEMM over a missing `weight`.
             return
 
-        def apply(self, layer, inputs, bias=None):
+        def apply(self, layer: torch.nn.Module, inputs: torch.Tensor,
+                  bias: torch.Tensor | None = None) -> torch.Tensor:
             config = self.quant_config
             weight = _dequantize(
                 layer.qweight, layer.scale, config.bits,
@@ -229,7 +236,7 @@ def _define_classes():
     return NNCFConfig, NNCFLinearMethod
 
 
-def _build_classes():
+def _build_classes() -> tuple[type[Any], type[Any]]:
     """`_define_classes`, memoized: pickle refuses a class whose reference resolves to another object."""
     global _classes
     if _classes is not None:
@@ -240,7 +247,7 @@ def _build_classes():
     return _classes
 
 
-def __getattr__(name):
+def __getattr__(name: str) -> type[Any]:
     """Resolve the lazily built classes as module attributes (PEP 562), for pickle."""
     if name not in _LAZY_CLASSES:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
@@ -252,7 +259,7 @@ def __getattr__(name):
             f"module {__name__!r} cannot provide {name!r}: {exc}") from exc
 
 
-def register():
+def register() -> type[Any] | None:
     """Add the method to vLLM's registry; safe to call repeatedly and in any process."""
     try:
         config_cls, _method_cls = _build_classes()

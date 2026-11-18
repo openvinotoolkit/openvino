@@ -2,17 +2,22 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# mypy: ignore-errors
 
 """OV-fused sampler fast path for vLLM."""
 
 import logging
 import os
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import torch
+    from openvino import CompiledModel
 
 logger = logging.getLogger(__name__)
 
 
-def _is_fastpath_eligible(sampling_metadata) -> bool:
+def _is_fastpath_eligible(sampling_metadata: Any) -> bool:
     if sampling_metadata is None:
         return False
     if getattr(sampling_metadata, "max_num_logprobs", None):
@@ -22,7 +27,7 @@ def _is_fastpath_eligible(sampling_metadata) -> bool:
     procs = getattr(sampling_metadata, "logitsprocs", None)
     if procs is not None:
         # Allow processors that are no-ops on this batch (e.g. min_p unset everywhere).
-        def _is_noop(proc):
+        def _is_noop(proc: Any) -> bool:
             if hasattr(proc, "min_p_count"):
                 return proc.min_p_count == 0
             if hasattr(proc, "min_toks"):
@@ -43,13 +48,14 @@ def _is_fastpath_eligible(sampling_metadata) -> bool:
     return True
 
 
-_OV_SAMPLE_COMPILED = None
-_OV_NATIVE_COMPILED = {}  # cached per (vocab, top_k, dtype)
+_FusedSampler = Callable[..., tuple["torch.Tensor", "torch.Tensor | None"]]
+_OV_SAMPLE_COMPILED: _FusedSampler | None = None
+_OV_NATIVE_COMPILED: "dict[tuple[int, int], CompiledModel]" = {}  # cached per (vocab, top_k)
 # Extra top-k columns the fused sampler scans for logits tied with the k-th largest.
 _TOPK_TIE_WINDOW = 32
 
 
-def _build_native_sampler(vocab: int, top_k: int):
+def _build_native_sampler(vocab: int, top_k: int) -> "CompiledModel":
     """Build a native opset13 Gumbel-max top-k sampler: logits[B, V], temperature[B] -> token[B]."""
     from openvino import opset13 as op
     from openvino import Type, PartialShape, Model, Core
@@ -84,10 +90,11 @@ def _build_native_sampler(vocab: int, top_k: int):
     return compiled
 
 
-def _build_fused_sampler():
+def _build_fused_sampler() -> _FusedSampler:
     import torch
 
-    def _sample_top_p(topk_vals, topk_idx, k_vals, keep_k, col_idx, top_p, exp_noise):
+    def _sample_top_p(topk_vals: torch.Tensor, topk_idx: torch.Tensor, k_vals: torch.Tensor, keep_k: torch.Tensor,
+                      col_idx: torch.Tensor, top_p: torch.Tensor, exp_noise: torch.Tensor) -> torch.Tensor:
         # Top-p over the top-k survivors `k_vals`, then a Gumbel-max draw among what's kept.
         topk_softmax = torch.softmax(k_vals, dim=-1)
         cumprob = torch.cumsum(topk_softmax, dim=-1)
@@ -102,7 +109,8 @@ def _build_fused_sampler():
         sampled = torch.gather(topk_idx, dim=-1, index=winner).squeeze(-1)
         return sampled.to(torch.int64)
 
-    def _top_p_only(logits, temperature, top_k, top_p, exp_noise):
+    def _top_p_only(logits: torch.Tensor, temperature: torch.Tensor, top_k: torch.Tensor, top_p: torch.Tensor,
+                    exp_noise: torch.Tensor) -> torch.Tensor:
         # top_k covers the vocab here, so there is no k-th boundary to tie at.
         scaled = logits / temperature.unsqueeze(-1)
         max_k = top_k.max()
@@ -113,7 +121,8 @@ def _build_fused_sampler():
         keep_k = col_idx < top_k.unsqueeze(-1)
         return _sample_top_p(topk_vals, topk_idx, topk_vals, keep_k, col_idx, top_p, exp_noise)
 
-    def _with_top_k(logits, temperature, top_k, top_p, exp_noise):
+    def _with_top_k(logits: torch.Tensor, temperature: torch.Tensor, top_k: torch.Tensor, top_p: torch.Tensor,
+                    exp_noise: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         scaled = logits / temperature.unsqueeze(-1)
         vocab_size = logits.shape[-1]
         top_k_c = torch.clamp(top_k, max=vocab_size)
@@ -137,7 +146,8 @@ def _build_fused_sampler():
         for fn in (_top_p_only, _with_top_k)
     )
 
-    def _sample(logits, temperature, top_k, top_p, exp_noise):
+    def _sample(logits: torch.Tensor, temperature: torch.Tensor, top_k: torch.Tensor, top_p: torch.Tensor,
+                exp_noise: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor | None]:
         """Return (sampled, tie_overflow); tie_overflow is None when no row truncates to top-k."""
         # The tie handling costs a few dynamic-shape nodes, so skip it when nothing truncates.
         if int(top_k.min()) >= logits.shape[-1]:
@@ -147,7 +157,7 @@ def _build_fused_sampler():
     return _sample
 
 
-def install():
+def install() -> None:
     if os.environ.get("OV_DISABLE_FUSED_SAMPLER"):
         return
     try:
@@ -160,7 +170,8 @@ def install():
 
     _orig_sample = Sampler.sample
 
-    def _patched_sample(self, logits, sampling_metadata, logprobs_mode_override=None):
+    def _patched_sample(self: Any, logits: "torch.Tensor", sampling_metadata: Any,
+                        logprobs_mode_override: str | None = None) -> tuple["torch.Tensor", "torch.Tensor | None"]:
         global _OV_SAMPLE_COMPILED
         # use_fp64_gumbel asks for float64 noise; both OV paths draw float32.
         if not _is_fastpath_eligible(sampling_metadata) or getattr(self, "use_fp64_gumbel", False):
@@ -204,6 +215,7 @@ def install():
                         _use_native = False
 
             if _use_native:
+                assert compiled is not None
                 logits_f32 = logits.float()
                 temperature = sampling_metadata.temperature
                 if temperature.dim() == 0:
@@ -255,7 +267,7 @@ def install():
             for i, gen in gens.items():
                 exp_noise[i].exponential_(generator=gen)
 
-        def _fallback():
+        def _fallback() -> tuple[torch.Tensor, torch.Tensor | None]:
             for i, state in gen_states.items():
                 gens[i].set_state(state)
             if default_state is not None:

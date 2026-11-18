@@ -477,7 +477,7 @@ def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=Non
     return partitioned_modules[signature](*args)
 
 
-def clear_caches():
+def clear_caches() -> None:
     global partitioned_modules  # noqa: F824
     global compiled_cache  # noqa: F824
 

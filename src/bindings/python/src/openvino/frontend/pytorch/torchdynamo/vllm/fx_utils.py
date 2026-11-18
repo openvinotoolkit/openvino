@@ -4,13 +4,17 @@
 
 """Helpers shared by the vLLM FX rewrites (paged attention, Gated DeltaNet, fused MoE)."""
 
-# mypy: ignore-errors
 
 import math
 import operator
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import torch
 
 
-def is_auto_functionalized(node, get_op) -> bool:
+def is_auto_functionalized(node: "torch.fx.Node", get_op: Callable[[], Any]) -> bool:
     """Match auto_functionalized_v2(op, ...) with op = get_op(); False if op is not registered."""
     import torch
     if node.op != "call_function" or not node.args:
@@ -22,7 +26,8 @@ def is_auto_functionalized(node, get_op) -> bool:
         return False
 
 
-def replace_mutated_output(gm, node, new_node, base_index) -> bool:
+def replace_mutated_output(gm: "torch.fx.GraphModule", node: "torch.fx.Node", new_node: "torch.fx.Node",
+                           base_index: int | None) -> bool:
     """Route users of `node`'s mutated base `base_index` (output 1 + index) to `new_node`.
 
     Erases `node` and its base allocations once nothing else reads them; returns whether `node` was erased.
@@ -44,7 +49,8 @@ def replace_mutated_output(gm, node, new_node, base_index) -> bool:
     return True
 
 
-def packing_permutation(pack, shape, dtype):
+def packing_permutation(pack: Callable[["torch.Tensor"], "torch.Tensor"], shape: "torch.Size",
+                        dtype: "torch.dtype") -> "torch.Tensor | None":
     """Flat source index of each position produced by `pack`, or None if it is not a pure permutation.
 
     Packs the base-16 digits of every flat index (exact in any float dtype) and reads them back.
