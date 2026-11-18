@@ -807,13 +807,18 @@ std::shared_ptr<ov::Model> build_vlm_test_model(VlmInputs kind) {
     return model;
 }
 
-// Copies [begin, end) of one axis into a dense tensor.
-ov::Tensor slice_axis(const ov::Tensor& tensor, size_t axis, size_t begin, size_t end) {
+// A view of [begin, end) of one axis, strided unless the axis is the outermost one.
+ov::Tensor view_axis(const ov::Tensor& tensor, size_t axis, size_t begin, size_t end) {
     ov::Coordinate lo(tensor.get_shape().size(), 0u);
     ov::Coordinate hi(tensor.get_shape());
     lo[axis] = begin;
     hi[axis] = end;
-    const ov::Tensor roi(tensor, lo, hi);
+    return ov::Tensor(tensor, lo, hi);
+}
+
+// Copies [begin, end) of one axis into a dense tensor.
+ov::Tensor slice_axis(const ov::Tensor& tensor, size_t axis, size_t begin, size_t end) {
+    const ov::Tensor roi = view_axis(tensor, axis, begin, end);
     ov::Tensor dense(tensor.get_element_type(), roi.get_shape());
     roi.copy_to(dense);
     return dense;
@@ -887,7 +892,8 @@ struct VlmPrompt {
         p.token_type_ids = slice_axis(token_type_ids, 1, begin, end);
         p.per_layer_inputs = slice_axis(per_layer_inputs, 1, begin, end);
         p.visual_pos_masks = slice_axis(visual_pos_masks, 1, begin, end);
-        p.deepstack = slice_axis(deepstack, 1, vlm_image_tokens_before(begin), vlm_image_tokens_before(end));
+        // A caller holding the rows of all images passes the delta rows as a strided view.
+        p.deepstack = view_axis(deepstack, 1, vlm_image_tokens_before(begin), vlm_image_tokens_before(end));
         return p;
     }
 };

@@ -452,6 +452,11 @@ size_t scatter_deepstack_visual_embeds(const ov::SoPtr<ov::ITensor>& src,
 
     const size_t elem_size = src->get_element_type().size();
     const size_t row_bytes = emb * elem_size;
+    // The source may be a view of a bigger tensor (e.g. the delta rows of a continued
+    // prefill), so its layers and rows are addressed by strides. dst is the request's own
+    // dense tensor.
+    const auto& src_strides = src->get_strides();
+    OPENVINO_ASSERT(src_strides[2] == elem_size, "deepstack_visual_embeds rows must be dense");
     const auto* src_ptr = static_cast<const uint8_t*>(src->data());
     auto* dst_ptr = static_cast<uint8_t*>(dst->data());
 
@@ -465,7 +470,7 @@ size_t scatter_deepstack_visual_embeds(const ov::SoPtr<ov::ITensor>& src,
         OPENVINO_ASSERT(src_row_offset + k < src_seq, "More visual tokens in mask than rows in deepstack source");
         const size_t dst_pos = linear_idx + seq_left_pad;
         for (size_t l = 0; l < num_layers; ++l) {
-            const auto* src_row = src_ptr + (l * src_seq + src_row_offset + k) * row_bytes;
+            const auto* src_row = src_ptr + l * src_strides[0] + (src_row_offset + k) * src_strides[1];
             auto* dst_row = dst_ptr + (l * dst_seq + dst_pos) * row_bytes;
             std::copy_n(src_row, row_bytes, dst_row);
         }
