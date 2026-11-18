@@ -7,8 +7,8 @@
 #include <vector>
 
 namespace {
-static constexpr size_t MAX_SUPPORTED_DIM = 5;
-static constexpr char JIT_AXES_BUFF_SIZE_NAME[] = "AXES_BUFFER_SIZE";
+constexpr size_t MAX_SUPPORTED_DIM = 5;
+constexpr char JIT_AXES_BUFF_SIZE_NAME[] = "AXES_BUFFER_SIZE";
 
 // Generates macros:
 // - name_BUFFER
@@ -58,8 +58,7 @@ KernelsData SliceKernelRef::GetKernelsData(const Params &params) const {
         return {};
     }
     KernelData kernel_data = KernelData::Default<slice_params>(params);
-    slice_params &new_params =
-            dynamic_cast<slice_params&>(*kernel_data.params.get());
+    slice_params& new_params = dynamic_cast<slice_params&>(*kernel_data.params);
     auto dispatch_data = SetDefault(new_params);
     auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params);
     auto slice_specific_jit = GetJitConstants(new_params);
@@ -157,7 +156,7 @@ JitConstants SliceKernelRef::GetJitConstants(const slice_params& params) const {
     return jit;
 }
 
-CommonDispatchData SliceKernelRef::SetDefault(const slice_params &params) const {
+CommonDispatchData SliceKernelRef::SetDefault(const slice_params& params) {
     CommonDispatchData dispatchData;
     dispatchData.gws = { params.outputs[0].Batch().v, params.outputs[0].Feature().v,
             params.outputs[0].Z().v * params.outputs[0].Y().v * params.outputs[0].X().v };
@@ -169,7 +168,7 @@ CommonDispatchData SliceKernelRef::SetDefault(const slice_params &params) const 
 }
 
 void SliceKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
-    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+    kd.update_dispatch_data_func = [](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const slice_params&>(params);
         auto dispatchData = SetDefault(prim_params);
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");

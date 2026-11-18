@@ -48,7 +48,7 @@ static void CreateCommonBroadcastOp(ProgramBuilder& p, const std::shared_ptr<ov:
         // Extend input dimensions with ones
         if (axis_mapping.empty()) {
             // If axis_mapping is not specified, then we prepend shape with neccesary count of 1-s
-            inputShape.insert(inputShape.begin(), output_rank - input_rank, 1ul);
+            inputShape.insert(inputShape.begin(), output_rank - input_rank, 1UL);
         }
 
         auto targetShape = tensor_from_dims(inputShape);

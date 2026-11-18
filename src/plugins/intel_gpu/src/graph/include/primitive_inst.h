@@ -3,28 +3,31 @@
 //
 
 #pragma once
+
+#include <algorithm>
+
+#include "impls/ocl/kernels_cache.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
-#include "intel_gpu/primitives/primitive.hpp"
-#include "intel_gpu/primitives/concatenation.hpp"
-#include "intel_gpu/runtime/event.hpp"
-#include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/lru_cache.hpp"
-#include "intel_gpu/runtime/tensor_accessor.hpp"
 #include "intel_gpu/graph/network.hpp"
-#include "intel_gpu/runtime/utils.hpp"
-#include "openvino/core/partial_shape.hpp"
-#include "program_node.h"
-#include "primitive_type.h"
-#include "kernel_dump_info.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
-#include "intel_gpu/graph/serialization/helpers.hpp"
 #include "intel_gpu/graph/serialization/cl_kernel_data_serializer.hpp"
+#include "intel_gpu/graph/serialization/helpers.hpp"
+#include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/polymorphic_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
-#include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
+#include "intel_gpu/primitives/concatenation.hpp"
+#include "intel_gpu/primitives/primitive.hpp"
+#include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/itt.hpp"
-#include "impls/ocl/kernels_cache.hpp"
+#include "intel_gpu/runtime/lru_cache.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/tensor_accessor.hpp"
+#include "intel_gpu/runtime/utils.hpp"
+#include "kernel_dump_info.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "primitive_type.h"
+#include "program_node.h"
 
 // TODO: add generic interface for weights_reorder_params and get rid of this dependency
 #include "impls/ocl/kernel_selector_helper.h"
@@ -71,7 +74,7 @@ struct primitive_impl {
     virtual ~primitive_impl() = default;
 
     virtual std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& impl_params) const = 0;
-    virtual void set_node_params(const program_node&) {}
+    virtual void set_node_params(const program_node& /*unused*/) {}
     virtual const std::string& get_type_info() const = 0;
     virtual void set_arguments(primitive_inst& instance) = 0;
     virtual void set_arguments(primitive_inst& instance, kernel_arguments_data& args) = 0;
@@ -97,8 +100,10 @@ struct primitive_impl {
     // this to return false so their input producers are not forced to allocate lockable memory.
     virtual bool requires_lockable_input() const { return is_cpu(); }
     virtual void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) = 0;
-    virtual void init_by_cached_kernels(const kernels_cache&, std::vector<std::string>& cached_kernel_ids) {}
-    virtual std::vector<std::string> get_cached_kernel_ids(const kernels_cache&) { return {}; }
+    virtual void init_by_cached_kernels(const kernels_cache& /*unused*/, std::vector<std::string>& cached_kernel_ids) {}
+    virtual std::vector<std::string> get_cached_kernel_ids(const kernels_cache& /*unused*/) {
+        return {};
+    }
     virtual std::unique_ptr<primitive_impl> clone() const = 0;
     virtual std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() { return {}; }
     virtual void reset_kernels_source() {}
@@ -230,11 +235,9 @@ public:
     size_t inputs_memory_count() const { return _inputs_memory_count; }
     size_t outputs_memory_count() const { return _outputs_memory_count; }
     bool outputs_allocated() const {
-        if (_outputs.empty()) return false;
-        for (const auto& output : _outputs) {
-            if (!output) return false;
-        }
-        return true;
+        return !_outputs.empty() && std::all_of(_outputs.begin(), _outputs.end(), [](const auto& output) {
+            return output != nullptr;
+        });
     }
     primitive_type_id type() const { return _type; }
     const primitive_id& id() const { return _id; }
@@ -491,7 +494,7 @@ protected:
     virtual void update_shape();
     virtual void update_weights();
 
-    void fill_shape_info_data(const layout& runtime_layout, const layout& node_layout, int32_t* shape_info_ptr, size_t& offset);
+    static void fill_shape_info_data(const layout& runtime_layout, const layout& node_layout, int32_t* shape_info_ptr, size_t& offset);
     bool use_async_compilation();
     // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
     void update_impl(bool use_async_compilation);
@@ -533,7 +536,7 @@ protected:
         return { layout(in_layout.get<ShapeType>(), output_type, in_layout.format) };
     }
 
-    virtual bool need_reset_input_memory(size_t) const {
+    virtual bool need_reset_input_memory(size_t /*unused*/) const {
         return false;
     }
 
@@ -552,7 +555,7 @@ private:
     void do_runtime_skip_permute();
     void do_runtime_skip_strided_slice();
     void do_runtime_skip_broadcast();
-    void do_runtime_in_place_concat();
+    void do_runtime_in_place_concat() const;
     void do_runtime_in_place_kv_cache();
     void do_runtime_in_place_crop();
     void do_runtime_skip_scatter_update();

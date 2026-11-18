@@ -4,6 +4,7 @@
 
 #include "reduce_kernel_base.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -19,10 +20,10 @@ bool ReduceKernelBase::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    for (const auto& fused_op : params.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op)) {
-            DO_NOT_USE_THIS_KERNEL(p.layerID);
-        }
+    if (std::any_of(params.fused_ops.begin(), params.fused_ops.end(), [this](const auto& fused_op) {
+            return !IsFusedPrimitiveSupported(fused_op);
+        })) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
@@ -212,7 +213,7 @@ JitConstants ReduceKernelBase::GetJitConstants(const reduce_params& params) cons
     return jit;
 }
 
-Datatype ReduceKernelBase::GetAccumulatorType(const reduce_params& params) const {
+Datatype ReduceKernelBase::GetAccumulatorType(const reduce_params& params) {
     const auto& input_dt = params.inputs[0].GetDType();
     const auto& reduce_mode = params.reduceMode;
 
@@ -233,7 +234,7 @@ Datatype ReduceKernelBase::GetAccumulatorType(const reduce_params& params) const
     }
 }
 
-Datatype ReduceKernelBase::GetFinalAccumulatorType(const reduce_params& params) const {
+Datatype ReduceKernelBase::GetFinalAccumulatorType(const reduce_params& params) {
     const auto& reduce_mode = params.reduceMode;
 
     if (reduce_mode == ReduceMode::MEAN || reduce_mode == ReduceMode::LOG_SUM_EXP || reduce_mode == ReduceMode::LOG_SUM || reduce_mode == ReduceMode::L2 ||
@@ -243,7 +244,7 @@ Datatype ReduceKernelBase::GetFinalAccumulatorType(const reduce_params& params) 
     return GetAccumulatorType(params);
 }
 
-Datatype ReduceKernelBase::GetActivationType(const reduce_params& params) const {
+Datatype ReduceKernelBase::GetActivationType(const reduce_params& params) {
     if (params.outputs[0].GetDType() == Datatype::F16) {
         return Datatype::F16;
     }

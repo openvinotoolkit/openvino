@@ -23,7 +23,7 @@ public:
                                            int autoTuneIndex = -1) const override;
 
 protected:
-    WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override {
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params& /*unused*/) const override {
         return WeightsLayout::os_iyx_osv32__ai32;
     }
 
