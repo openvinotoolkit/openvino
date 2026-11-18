@@ -681,13 +681,13 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         if isinstance(self.pt_module, torch.fx.GraphModule):
             return "GraphModule"
         if self.pt_module.op == "call_function":
-            target = self._functional_out_target(self.pt_module.target)
+            target = self.pt_module.target
             if type(target).__name__ == "EdgeOpOverload":
                 name = target.__name__
             elif inspect.isfunction(target):
                 name = f"{target.__module__}.{target.__qualname__}"
             else:
-                name = str(target)
+                name = str(self._functional_out_target(target))
             if self._module_extension_target_ops:
                 if name in self._module_extension_target_ops:
                     return self._module_extension_target_ops[name]
