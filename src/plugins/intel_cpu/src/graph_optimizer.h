@@ -45,8 +45,8 @@ private:
     static void FuseConvolutionAndZeroPoints(Graph& graph);
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     static void FuseConvolutionAndZeroPointsARM(Graph& graph);
-#else
-    static void FuseConvolutionAndZeroPointsNonARM(Graph& graph);
+#elif defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+    static void FuseConvolutionAndZeroPointsX64(Graph& graph);
 #endif
     void FuseBroadcastAndEltwise(Graph& graph);
     static void FuseEltwiseAndSimple(Graph& graph);

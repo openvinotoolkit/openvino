@@ -132,7 +132,7 @@ bool isSuitableSubtractAsZeroPointsParent(const std::shared_ptr<const Node>& nod
         return false;
     }
 
-    if (!any_of(node->get_input_element_type(0), ov::element::u8, ov::element::i8)) {
+    if (node->get_input_element_type(0) != ov::element::u8) {
         return false;
     }
 

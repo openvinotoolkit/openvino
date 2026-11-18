@@ -937,8 +937,8 @@ void GraphOptimizer::FuseFCAndTransposeOnWeights(Graph& graph) {
 void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     FuseConvolutionAndZeroPointsARM(graph);
-#else
-    FuseConvolutionAndZeroPointsNonARM(graph);
+#elif defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+    FuseConvolutionAndZeroPointsX64(graph);
 #endif
 }
 
@@ -946,6 +946,8 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
 void GraphOptimizer::FuseConvolutionAndZeroPointsARM(Graph& graph) {
     const auto& graphNodes = graph.GetNodes();
     // zero point is applied inside ACL via QuantizationInfo so just read per-tensor value and use typed setter
+    // only ACL conv executor applies zero point and it supports only 4D non-grouped conv,
+    // fusing into other convs would silently drop the zero point
     auto isSuitableConvNode = [](const NodePtr& node) {
         const auto conv = std::dynamic_pointer_cast<Convolution>(node);
         return conv && conv->getGroupNum() == 1 && conv->getInputShapeAtPort(0).getRank() == 4;
@@ -1033,8 +1035,8 @@ void GraphOptimizer::FuseConvolutionAndZeroPointsARM(Graph& graph) {
         }
     }
 }
-#else
-void GraphOptimizer::FuseConvolutionAndZeroPointsNonARM(Graph& graph) {
+#elif defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+void GraphOptimizer::FuseConvolutionAndZeroPointsX64(Graph& graph) {
     const auto& graphNodes = graph.GetNodes();
     auto isSuitableConvNode = [](const NodePtr& node) {
         bool retVal = false;

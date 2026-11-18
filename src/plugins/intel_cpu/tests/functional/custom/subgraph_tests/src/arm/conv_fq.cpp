@@ -349,9 +349,14 @@ std::vector<QuantizationParams> asymmetricZeroPointDepthwiseParams{
     {perChannelAsymmetricIntervals, signedIntervals, {1, 3, 1, 1}, element::f32, false},  // per-channel zp
 };
 
-// 3D conv is rejected by ACL (rank 5), so the zero point must not be fused and the conv falls back to fp16
+// 3D conv with bias is rejected by ACL (rank 5), so the zero point must not be fused and the conv falls back to fp16
 std::vector<QuantizationParams> asymmetricZeroPoint3DParams{
     {asymmetricIntervals, signedIntervals, {}, expected3DConvPrecPerTensorZeroPointWithBias, false},  // per-tensor zp
+};
+
+// no bias -> FQ tail stays i8, so the zero point is not fused (same as 4D no-bias) and the Subtract stays
+std::vector<QuantizationParams> asymmetricZeroPoint3DNoBiasParams{
+    {asymmetricIntervals, signedIntervals, {}, expectedConvPrecZeroPointNoBias, false},  // per-tensor zp
 };
 
 std::vector<QuantizationParams> withSwishDynamicQuantizationParams{
@@ -403,6 +408,18 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(element::f32),
                        ::testing::ValuesIn(asymmetricZeroPoint3DParams),
                        ::testing::Values(true),   // withBias adds Add(bias) between the Convolution and the output FQ.
+                       ::testing::Values(false),  // withSwish
+                       ::testing::Values(ConvType::Conv3D),
+                       ::testing::Values(ov::test::utils::DEVICE_CPU)),
+    ConvAndFQ::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_ConvAndFQ_asymmetricZeroPoint3DNoBias_CPU,
+    ConvAndFQ,
+    ::testing::Combine(::testing::ValuesIn(inputShapes3D),
+                       ::testing::Values(element::f32),
+                       ::testing::ValuesIn(asymmetricZeroPoint3DNoBiasParams),
+                       ::testing::Values(false),  // withBias adds Add(bias) between the Convolution and the output FQ.
                        ::testing::Values(false),  // withSwish
                        ::testing::Values(ConvType::Conv3D),
                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
