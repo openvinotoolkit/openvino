@@ -1861,14 +1861,18 @@ HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
         auto out_len = out_shape.size() == 3 ? out_shape[2] : out_shape[2] * out_shape[3];
 
         const auto matched_qzerop = find_matched_param(node_to_output, qzerop);
-        // util::unpack of u2 weights asserts f16 scales
+        const auto& matched_qweight_shape = matched_out_qweight.get_shape();
+        const auto& matched_qcoeff_shape = node_to_output.at(qcoeff).get_shape();
+        // util::unpack of u2 weights asserts f16 scales of the [V, G, 1] layout
         const bool is_supported_weight =
             matched_qzerop
                 ? is_group_quantized_weight(
                       std::static_pointer_cast<ov::op::v0::Parameter>(matched_out_qweight.get_node_shared_ptr()),
                       matched_qzerop,
-                      node_to_output.at(qcoeff).get_shape(),
+                      matched_qcoeff_shape,
                       false) &&
+                      matched_qweight_shape.size() == 3 &&
+                      matched_qcoeff_shape == ov::Shape{matched_qweight_shape[0], matched_qweight_shape[1], 1} &&
                       node_to_output.at(qcoeff).get_element_type() == ov::element::f16
                 : (qweight_type == ov::element::i4 || qweight_type == ov::element::i8 ||
                    qweight_type == ov::element::nf4 || qweight_type == ov::element::f8e4m3 ||
