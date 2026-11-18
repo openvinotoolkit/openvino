@@ -1290,3 +1290,267 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_ReusedTransposeOnWeig
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input, weights});
     }
 }
+
+// Large bf16 matmul K>=8192, M<=512: non-transposed path (transpose_b=false).
+TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_LargeBF16_NonTransposed_M_Thin) {
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::bf16, ov::Shape{512, 8192});
+        auto weights = ov::opset1::Constant::create(ov::element::bf16, ov::Shape{8192, 4096}, {1});
+        auto matmul = std::make_shared<ov::opset1::MatMul>(input, weights, false, false);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input});
+        manager.register_pass<ConvertMatMulToFullyConnected>(true);
+    }
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::bf16, ov::Shape{512, 8192});
+        auto weights = ov::opset1::Constant::create(ov::element::bf16, ov::Shape{8192, 4096}, {1});
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input, weights, no_bias, ov::element::bf16, false);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+    }
+}
+
+// Thin f16 matmul M<=512, K<=4096 on XMX: non-transposed path (transpose_b=false), even when N>4096.
+TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_ThinF16_SmallK_NonTransposed) {
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 128, 4096});
+        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{4096, 10240}, {1});
+        auto matmul = std::make_shared<ov::opset1::MatMul>(input, weights, false, false);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input});
+        manager.register_pass<ConvertMatMulToFullyConnected>(true);
+    }
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 128, 4096});
+        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{4096, 10240}, {1});
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input, weights, no_bias, ov::element::f16, false);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+    }
+}
+
+// Thin bf16 matmul M<=512, K<=4096 on XMX: non-transposed path (transpose_b=false).
+TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_ThinBF16_SmallK_NonTransposed) {
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::bf16, ov::Shape{1, 128, 4096});
+        auto weights = ov::opset1::Constant::create(ov::element::bf16, ov::Shape{4096, 4096}, {1});
+        auto matmul = std::make_shared<ov::opset1::MatMul>(input, weights, false, false);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input});
+        manager.register_pass<ConvertMatMulToFullyConnected>(true);
+    }
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::bf16, ov::Shape{1, 128, 4096});
+        auto weights = ov::opset1::Constant::create(ov::element::bf16, ov::Shape{4096, 4096}, {1});
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input, weights, no_bias, ov::element::bf16, false);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+    }
+}
+
+// Medium K (4096 < K < 8192) f16 matmul on XMX: stays on the transposed path (transpose_b=true).
+TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_MediumK_F16_Transposed) {
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{128, 6144});
+        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{6144, 1024}, {1});
+        auto matmul = std::make_shared<ov::opset1::MatMul>(input, weights, false, false);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input});
+        manager.register_pass<ConvertMatMulToFullyConnected>(true);
+    }
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{128, 6144});
+        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{6144, 1024}, {1});
+        auto transpose_constant = ov::opset1::Constant::create(ov::element::i32, ov::Shape{2}, {1, 0});
+        auto transpose = std::make_shared<ov::opset1::Transpose>(weights, transpose_constant);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input, transpose, no_bias, ov::element::f16, true);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+    }
+}
+
+// Large M (M > 512) with K<=4096 f16 matmul on XMX: stays on the transposed path (transpose_b=true).
+TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_LargeM_SmallK_F16_Transposed) {
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1024, 4096});
+        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{4096, 1024}, {1});
+        auto matmul = std::make_shared<ov::opset1::MatMul>(input, weights, false, false);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input});
+        manager.register_pass<ConvertMatMulToFullyConnected>(true);
+    }
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1024, 4096});
+        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{4096, 1024}, {1});
+        auto transpose_constant = ov::opset1::Constant::create(ov::element::i32, ov::Shape{2}, {1, 0});
+        auto transpose = std::make_shared<ov::opset1::Transpose>(weights, transpose_constant);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input, transpose, no_bias, ov::element::f16, true);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+    }
+}
+
+// Thin f16 matmul with very wide N (N > 16384, e.g. a vocab projection) on XMX: stays on the
+// transposed path (transpose_b=true).
+TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_ThinF16_SmallK_WideN_Transposed) {
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 32, 4096});
+        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{4096, 32768}, {1});
+        auto matmul = std::make_shared<ov::opset1::MatMul>(input, weights, false, false);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input});
+        manager.register_pass<ConvertMatMulToFullyConnected>(true);
+    }
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 32, 4096});
+        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{4096, 32768}, {1});
+        auto transpose_constant = ov::opset1::Constant::create(ov::element::i32, ov::Shape{2}, {1, 0});
+        auto transpose = std::make_shared<ov::opset1::Transpose>(weights, transpose_constant);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input, transpose, no_bias, ov::element::f16, true);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+    }
+}
+
+// Thin f16 matmul with compressed (u8 + scale/zp) weights on XMX: the non-transposed heuristic only
+// applies to uncompressed weights, so it stays on the transposed path (transpose_b=true).
+TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_ThinF16_CompressedWeights_Transposed) {
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    auto make_decompressed_weights = []() {
+        auto weights = ov::opset1::Constant::create(ov::element::u8, ov::Shape{4096, 1024}, {1});
+        auto convert = std::make_shared<ov::opset1::Convert>(weights, ov::element::f16);
+        auto sub_const = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1, 1024}, {1});
+        auto sub = std::make_shared<ov::opset1::Subtract>(convert, sub_const);
+        auto mul_const = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1, 1024}, {1});
+        return std::make_shared<ov::opset1::Multiply>(sub, mul_const);
+    };
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 128, 4096});
+        auto matmul = std::make_shared<ov::opset1::MatMul>(input, make_decompressed_weights(), false, false);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input});
+        manager.register_pass<ConvertMatMulToFullyConnected>(true);
+    }
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 128, 4096});
+        auto transpose_constant = ov::opset1::Constant::create(ov::element::i32, ov::Shape{2}, {1, 0});
+        auto transpose = std::make_shared<ov::opset1::Transpose>(make_decompressed_weights(), transpose_constant);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input, transpose, no_bias, ov::element::f16, true);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+    }
+}
+
+// Rank-3 [1, N, K] constant weights (e.g. after MatMulMultiplyFusion) on the non-transposed FC path
+// with transpose_b=true are squeezed to 2D [N, K] before inserting the reverse Transpose{1, 0}, so that
+// fuse_constant_transposes() can fold it into the weights format instead of creating a transposed copy.
+TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_Rank3ConstantWeights_SqueezedBeforeTranspose) {
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::NAMES);
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 32, 8192});
+        input->set_friendly_name("input");
+        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1, 1024, 8192}, {1});
+        weights->set_friendly_name("folded_weights");
+        auto matmul = std::make_shared<ov::opset1::MatMul>(input, weights, false, true);
+        matmul->set_friendly_name("matmul");
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input});
+        manager.register_pass<ConvertMatMulToFullyConnected>(true);
+    }
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 32, 8192});
+        input->set_friendly_name("input");
+        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1024, 8192}, {1});
+        weights->set_friendly_name("folded_weights");
+        auto transpose_constant = ov::opset1::Constant::create(ov::element::i32, ov::Shape{2}, {1, 0});
+        auto transpose = std::make_shared<ov::opset1::Transpose>(weights, transpose_constant);
+        transpose->set_friendly_name("matmul/transpose_b");
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input, transpose, no_bias, ov::element::f16, false);
+        fc->set_friendly_name("matmul");
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+    }
+}
+
+// Rank-4 [1, 1, N, K] constant weights on the non-transposed FC path with transpose_b=true are squeezed
+// to 2D [N, K] as well.
+TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_Rank4ConstantWeights_SqueezedBeforeTranspose) {
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::NAMES);
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 1, 32, 512});
+        input->set_friendly_name("input");
+        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1, 1, 256, 512}, {1});
+        weights->set_friendly_name("folded_weights");
+        auto matmul = std::make_shared<ov::opset1::MatMul>(input, weights, false, true);
+        matmul->set_friendly_name("matmul");
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input});
+        manager.register_pass<ConvertMatMulToFullyConnected>(true);
+    }
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 1, 32, 512});
+        input->set_friendly_name("input");
+        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{256, 512}, {1});
+        weights->set_friendly_name("folded_weights");
+        auto transpose_constant = ov::opset1::Constant::create(ov::element::i32, ov::Shape{2}, {1, 0});
+        auto transpose = std::make_shared<ov::opset1::Transpose>(weights, transpose_constant);
+        transpose->set_friendly_name("matmul/transpose_b");
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input, transpose, no_bias, ov::element::f16, false);
+        fc->set_friendly_name("matmul");
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+    }
+}
+
+// Rank-3 [1, N, K] constant weights behind a Convert (e.g. f16 weights converted to bf16) on the
+// non-transposed FC path with transpose_b=true are also squeezed to 2D [N, K] before Transpose{1, 0}.
+TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_Rank3ConstantWeightsWithConvert_SqueezedBeforeTranspose) {
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::NAMES);
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::bf16, ov::Shape{1, 32, 512});
+        input->set_friendly_name("input");
+        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1, 256, 512}, {1});
+        weights->set_friendly_name("folded_weights");
+        auto convert = std::make_shared<ov::opset1::Convert>(weights, ov::element::bf16);
+        convert->set_friendly_name("weights_convert");
+        auto matmul = std::make_shared<ov::opset1::MatMul>(input, convert, false, true);
+        matmul->set_friendly_name("matmul");
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input});
+        manager.register_pass<ConvertMatMulToFullyConnected>(true);
+    }
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::bf16, ov::Shape{1, 32, 512});
+        input->set_friendly_name("input");
+        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{256, 512}, {1});
+        weights->set_friendly_name("folded_weights");
+        auto transpose_constant = ov::opset1::Constant::create(ov::element::i32, ov::Shape{2}, {1, 0});
+        auto transpose = std::make_shared<ov::opset1::Transpose>(weights, transpose_constant);
+        transpose->set_friendly_name("matmul/transpose_b");
+        auto convert = std::make_shared<ov::opset1::Convert>(transpose, ov::element::bf16);
+        convert->set_friendly_name("weights_convert");
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input, convert, no_bias, ov::element::bf16, false);
+        fc->set_friendly_name("matmul");
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+    }
+}

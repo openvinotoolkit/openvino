@@ -14,6 +14,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/decompression.hpp"
@@ -222,7 +223,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
         }
 
         // Weights normalization
-        bool is_small_matmul = true;
+        bool use_transposed_weights = true;
 
         // Sub-byte Parameter weights can't be transposed at runtime (permute kernel doesn't support them).
         // Use non-transposed FC layout instead; requires XMX for the oneDNN path.
@@ -236,7 +237,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
             pattern_map.at(weights_key).get_element_type().bitwidth() < 8;
 
         if (is_parameter_compressed_weight) {
-            is_small_matmul = false;
+            use_transposed_weights = false;
         } else if (supports_immad && shape_a.is_static() && shape_b.is_static()) {
              auto output_shape = matmul->get_output_shape(0);
              size_t k = 0;
@@ -248,18 +249,23 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
              // M is the row/token dimension and N the output dimension of the matmul.
              size_t m = output_shape.size() >= 2 ? output_shape[output_shape.size() - 2] : 1;
              size_t n = !output_shape.empty() ? output_shape[output_shape.size() - 1] : 1;
-             // Empirical benchdnn study (f16 GPU matmul, see
-             // temp/gemm_transpose_study): the non-transposed weight layout
-             // (onednn abc) wins for matmuls with a large reduction dimension
-             // that stay memory-bound, i.e. thin in at least one output
-             // dimension. When both M and N are large the GEMM becomes
-             // compute-bound and the transposed layout (acb) is faster (the
-             // non-transposed kernel can regress by up to ~1.3x there). Restrict
-             // the non-transposed path to XMX-capable GPUs (supports_immad) with
-             // K >= 8192 and (M <= 512 or N <= 4096) to keep the wins while avoiding those regressions.
-             if (k >= 8192 && (m <= 512 || n <= 4096) &&
-                 matmul->get_input_element_type(0) == ov::element::f16 && !is_compressed_weight) {
-                 is_small_matmul = false;
+             // Empirical benchdnn study (f16/bf16 oneDNN matmul on XMX GPUs; shape -> delta table in the
+             // commit message): the non-transposed weight layout (onednn abc) wins for matmuls that stay
+             // memory-bound, i.e. thin in at least one output dimension. When both M and N are large the
+             // GEMM becomes compute-bound and the transposed layout (acb) is faster (the non-transposed
+             // kernel can regress by up to ~1.3x there). Two regions use the non-transposed layout:
+             //  - large_k_thin_mn: K >= 8192 and (M <= 512 or N <= 4096);
+             //  - thin_m_small_k:  M <= 512, K <= 4096 and N <= 16384. Wider N (e.g. vocab projections)
+             //    is neutral on B390 but regresses by up to ~1.35x on discrete GPUs at small M.
+             // 4096 < K < 8192 is intentionally kept transposed (see MediumK_F16_Transposed test); do not
+             // merge the two regions into a single K threshold.
+             // MatMul requires equal input element types, so checking input 0 covers the weights as well.
+             const auto in_type = matmul->get_input_element_type(0);
+             const bool is_half = in_type == ov::element::f16 || in_type == ov::element::bf16;
+             const bool large_k_thin_mn = k >= 8192 && (m <= 512 || n <= 4096);
+             const bool thin_m_small_k = m <= 512 && k <= 4096 && n <= 16384;
+             if (is_half && !is_compressed_weight && (large_k_thin_mn || thin_m_small_k)) {
+                 use_transposed_weights = false;
              }
         }
 
@@ -283,18 +289,36 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
         };
 
         auto convert = is_convert ? pattern_map.at(matmul_weights_m).get_node_shared_ptr() : nullptr;
-        const auto cache_key = std::make_pair(convert, is_small_matmul);
+        const auto cache_key = std::make_pair(convert, use_transposed_weights);
         const auto cached = is_convert ? shared_convert_cache->find(cache_key) : shared_convert_cache->end();
         if (is_convert && cached != shared_convert_cache->end()) {
             fc_input_b = cached->second;
         } else {
-            if (is_small_matmul) {
+            if (use_transposed_weights) {
                 // Weights normalization: FullyConnected expects weights in [N, K] layout (transpose_b=true).
                 // A reusable Transpose was skipped above, so its input already has that layout.
                 if (!matmul->get_transpose_b() && !can_reuse_transpose(fc_input_b)) {
                     fc_input_b = create_transpose(fc_input_b, matmul->get_friendly_name() + "/transpose_b");
                 }
             } else {
+                // Squeeze [1, ..., 1, N, K] constant weights (e.g. after MatMulMultiplyFusion) to 2D [N, K] before inserting
+                // the reverse Transpose. fuse_constant_transposes() folds a 2D weights Transpose into the constant's format
+                // (zero-copy reinterpret), while an N-D one is left to constant folding, which creates an extra transposed
+                // copy of the weights. !is_compressed_weight is a guard only: compressed weights currently never reach this
+                // branch (they are excluded from the non-transposed heuristic above).
+                if (matmul->get_transpose_b() && !is_compressed_weight) {
+                    if (auto w_const = ov::as_type_ptr<ov::op::v0::Constant>(fc_input_b.get_node_shared_ptr())) {
+                        const auto& w_shape = w_const->get_shape();
+                        // The copy-reshape Constant ctor requires an equal element count (it shares the data buffer).
+                        if (w_shape.size() > 2 && ov::shape_size(w_shape) == w_shape[w_shape.size() - 2] * w_shape.back()) {
+                            auto w_2d = std::make_shared<ov::op::v0::Constant>(*w_const, ov::Shape{w_shape[w_shape.size() - 2], w_shape.back()});
+                            w_2d->set_friendly_name(w_const->get_friendly_name());
+                            ov::copy_runtime_info(w_const, w_2d);
+                            ov::copy_weightless_cache_attr(w_const, w_2d);
+                            fc_input_b = w_2d;
+                        }
+                    }
+                }
                 if (!matmul->get_transpose_b()) {
                     if (!is_parameter_compressed_weight && can_reuse_transpose(fc_input_b)) {
                         fc_input_b = transpose_node;
@@ -324,7 +348,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
         auto no_bias = std::make_shared<op::Placeholder>();
 
         // Create FullyConnected
-        const bool transpose_b = is_small_matmul;
+        const bool transpose_b = use_transposed_weights;
         auto fc = std::make_shared<op::FullyConnected>(fc_input_a,
                                                        fc_input_b,
                                                        no_bias,
