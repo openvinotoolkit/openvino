@@ -16,9 +16,15 @@ PrefetchStreamBuf::PrefetchStreamBuf(const ov::Tensor& tensor, bool prefetch)
     : m_begin(static_cast<const char*>(tensor.data())),
       m_current(m_begin),
       m_end(m_begin + tensor.get_byte_size()) {
-    if (prefetch && ov::get_memory_hints(tensor)) {
+    if (prefetch && is_supported(tensor)) {
         m_scheduler = std::make_unique<ov::util::SequentialPrefetchScheduler>(tensor);
     }
+}
+
+bool PrefetchStreamBuf::is_supported(const ov::Tensor& tensor) {
+    // The scheduler cuts chunks with a byte ROI, which needs a 1D tensor of 8-bit elements.
+    return tensor.get_shape().size() == 1 && tensor.get_element_type().bitwidth() == 8 &&
+           ov::get_memory_hints(tensor) != nullptr;
 }
 
 PrefetchStreamBuf::int_type PrefetchStreamBuf::underflow() {
