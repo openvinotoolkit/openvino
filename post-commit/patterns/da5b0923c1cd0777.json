@@ -4,16 +4,18 @@
     "signature_hash": "da5b0923c1cd0777",
     "title": "smoke_tf2_keras_lstm test_keras_lstm_flags_float32 fails on small numeric mismatch vs TensorFlow reference",
     "category": "Flaky Test",
-    "count": 1,
+    "count": 2,
     "first_seen": "2026-10-16T19:24:25Z",
-    "last_seen": "2026-10-16T19:24:25Z",
+    "last_seen": "2026-11-18T16:27:11Z",
     "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/44320905952",
         "https://github.com/openvinotoolkit/openvino/actions/runs/38942875639"
     ],
     "affected_commits": [
+        "cec54fea222a04df216ea2877df41792999d6c16",
         "a1cc667e1f27aa82045943e0d0292079c8fc61cd"
     ],
     "recent_timestamps": [
-        "2026-10-16T19:24:25Z"
+        "2026-11-18T16:27:11Z"
     ]
 }

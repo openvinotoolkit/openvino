@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 139,
+  "total": 140,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -1400,6 +1400,17 @@
       "category": "Infrastructure",
       "signature_hash": "151a701a657a1dfb",
       "commit_sha": "d7fe851a6798c99de2bbb3cd85561dad6f6f0e23"
+    },
+    {
+      "investigation_id": "2026-11-18-16-27-11-834-44320905952",
+      "run_id": "44320905952",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44320905952",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+      "timestamp": "2026-11-18T16:27:11Z",
+      "title": "smoke_tf2_keras_lstm test_keras_lstm_flags_float32 fails on small numeric mismatch vs TensorFlow reference",
+      "category": "Flaky Test",
+      "signature_hash": "da5b0923c1cd0777",
+      "commit_sha": "cec54fea222a04df216ea2877df41792999d6c16"
     }
   ]
 }

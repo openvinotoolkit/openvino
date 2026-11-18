@@ -1,0 +1,42 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-11-18-16-27-11-834-44320905952",
+    "timestamp": "2026-11-18T16:27:11Z",
+    "run_id": "44320905952",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44320905952",
+    "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+    "commit_sha": "cec54fea222a04df216ea2877df41792999d6c16",
+    "pr_number": "39978",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39978",
+    "author": "kkoryun",
+    "category": "Flaky Test",
+    "title": "smoke_tf2_keras_lstm test_keras_lstm_flags_float32 fails on small numeric mismatch vs TensorFlow reference",
+    "signature": "AssertionError: Comparing with Framework failed in test_keras_lstm_flags_float32: small numeric mismatch between OpenVINO CPU inference output and TensorFlow Keras LSTM reference output (max diff ~0.07, exceeds FP32 eps 1e-4)|Flaky Test",
+    "signature_hash": "da5b0923c1cd0777",
+    "confidence": "Medium",
+    "failed_jobs": [
+        {
+            "name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+            "conclusion": "failure",
+            "symptom": "TF2 Layer Tests - TF FE pytest step failed one test: test_tf2_keras_lstm.py::TestKerasLSTM::test_keras_lstm_flags_float32 with AssertionError comparing ie_res vs framework result (max diff 0.2137)"
+        },
+        {
+            "name": "ci/gha_overall_status_ubuntu_24",
+            "conclusion": "failure",
+            "symptom": "Aggregate status-check job exits 1 because the TensorFlow Layer Tests job it depends on failed"
+        }
+    ],
+    "key_errors": [
+        "FAILED .../tensorflow2_keras_tests/test_tf2_keras_lstm.py::TestKerasLSTM::test_keras_lstm_flags_float32[ ie_device:CPU - precision: - params:{'input_names': ['x'], 'input_shapes': [[4, 8, 3]], 'input_type': tf.float32, 'dropouts': (0.1, 0.3), 'units': 3, 'activation': 'relu', 'use_bias': False, 'recurrent_activation': 'tanh', 'flags': True} ] - AssertionError: Comparing with Framework failed: ie_res={'output_0': array([[-0., 3.8908906, 0.], [-0., -0.02873968, -3.2857745], [0.30299982, 0.62599784, 22.266584], [2.9586573, -0.40972465, -0.]], dtype=float32)}; framework_res={'output_0': array([[-0., 3.8895626, 0.], [-0., -0.02591275, -3.2843337], [0.2781545, 0.41232368, 22.369627], [2.959338, -0.4103526, -0.]], dtype=float32)>}.",
+        "Max diff is 0.2136741578578949"
+    ],
+    "root_cause": "The single failing test, test_keras_lstm_flags_float32, builds a Keras LSTM with dropout (0.1, 0.3) enabled during the forward pass used to produce the TensorFlow reference output. Because dropout relies on TensorFlow's internal RNG and is re-seeded differently per process/run, the TF reference output and the OpenVINO-converted (dropout-free, since dropout is a no-op at inference) output diverge beyond the fixed FP32 comparison tolerance (max diff 0.2137 vs eps 1e-4/5e-2) whenever the random dropout mask happens to produce a reference activation far from the deterministic inference path. This is the same signature previously recorded on 2026-10-16 (pattern da5b0923c1cd0777, first seen with max diff ~0.07), confirming a recurring, non-deterministic test rather than a regression. The triggering commit (#39978, 'GQA: detect V2 by u2 weights before position_ids') only touches NPUW GQA case-identification logic in the NPU plugin and has no code path connection to the TensorFlow frontend or Keras LSTM translation/inference.",
+    "reproduction_steps": "cd install/tests/layer_tests (or src/frontends/tensorflow/tests layer_tests) and run: `python -m pytest tensorflow2_keras_tests/test_tf2_keras_lstm.py::TestKerasLSTM::test_keras_lstm_flags_float32 -k flags_float32 --ie_device=CPU -v` repeatedly; failure depends on TensorFlow's random dropout mask seeding each run and is not guaranteed to reproduce on the first try.",
+    "recommended_actions": [
+        "Fix or remove the random seed used for Dropout layers in create_keras_lstm_net (tensorflow2_keras_tests/test_tf2_keras_lstm.py) so TF reference generation is deterministic across runs, or disable dropout entirely for inference-equivalence tests.",
+        "Consider widening the comparison tolerance or skipping dropout-enabled test_data_different_flags parametrizations in test_keras_lstm_flags_float32 since dropout has no effect at inference time and should not meaningfully diverge between frameworks.",
+        "Re-run the TensorFlow Layer Tests job for this commit to confirm the failure is transient and unrelated to PR #39978 before treating it as a regression blocking master."
+    ],
+    "prevention_strategies": "Set a fixed random seed (numpy/tensorflow) before generating Keras LSTM test models that use Dropout, or generate the framework reference output using the same forward pass configuration (training=False) that OpenVINO's converted graph uses, so dropout masks never influence the reference comparison. Track recurrence count via pattern da5b0923c1cd0777 and escalate to the TensorFlow Frontend layer-test owners if it keeps recurring.",
+    "historical_context": "This exact signature was first recorded on 2026-10-16 (run 38942875639, pattern da5b0923c1cd0777) with a smaller max diff (~0.07); this occurrence raises max diff to 0.2137, confirming the instability is driven by dropout randomness rather than a fixed numeric offset. No code change has been made to date; categorized consistently as Flaky Test across both occurrences."
+}
