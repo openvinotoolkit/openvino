@@ -405,22 +405,11 @@ public:
         if (gemm_with_bias) {
             dnnl::memory::desc bias_md(bias_dims, bias_dt, bias_fmt);
 
-            auto prim_desc = std::make_shared<dnnl::matmul::primitive_desc>(
-                ib.get_engine().get_onednn_engine(),
-                in0_md,
-                in1_md,
-                bias_md,
-                out_md,
-                *_attrs.get());
+            auto prim_desc = std::make_shared<dnnl::matmul::primitive_desc>(ib.get_engine().get_onednn_engine(), in0_md, in1_md, bias_md, out_md, *_attrs);
 
             _pd = *prim_desc;
         } else {
-            auto prim_desc = std::make_shared<dnnl::matmul::primitive_desc>(
-                ib.get_engine().get_onednn_engine(),
-                in0_md,
-                in1_md,
-                out_md,
-                *_attrs.get());
+            auto prim_desc = std::make_shared<dnnl::matmul::primitive_desc>(ib.get_engine().get_onednn_engine(), in0_md, in1_md, out_md, *_attrs);
 
             _pd = *prim_desc;
         }
