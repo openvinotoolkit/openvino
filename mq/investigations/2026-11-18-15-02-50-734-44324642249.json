@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-18-15-02-50-734-44324642249",
+  "timestamp": "2026-11-18T15:02:50Z",
+  "run_id": "44324642249",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44324642249",
+  "workflow_name": "Build-gpu / Build",
+  "pr_number": "39751",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39751",
+  "author": "yathAg",
+  "category": "Code Issue",
+  "title": "GPU prepare_primitive_fusing clang-tidy braces-around-statements errors",
+  "signature": "clang-tidy readability-braces-around-statements error if statement missing braces treated as warning as error|Code Issue",
+  "signature_hash": "a4282c65071120e2",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build-gpu / Build",
+      "conclusion": "failure",
+      "symptom": "Cmake build with clang-tidy enabled fails: two single-statement if-bodies without braces in prepare_primitive_fusing.cpp trigger readability-braces-around-statements, promoted to error by -Werror"
+    },
+    {
+      "name": "ci/gha_overall_status_clang_tidy",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails because Build-gpu / Build failed"
+    }
+  ],
+  "key_errors": [
+    "src/plugins/intel_gpu/src/graph/graph_optimizer/prepare_primitive_fusing.cpp:1694:47: error: statement should be inside braces [readability-braces-around-statements,-warnings-as-errors]\n 1694 |                 if (const_pshape.is_dynamic())\n      |                                               ^\n      |                                                {\n 1695 |                     continue;",
+    "src/plugins/intel_gpu/src/graph/graph_optimizer/prepare_primitive_fusing.cpp:1703:41: error: statement should be inside braces [readability-braces-around-statements,-warnings-as-errors]\n 1703 |                 if (!data_in_outer_dims)\n      |                                         ^\n      |                                          {\n 1704 |                     continue;",
+    "2 warnings treated as errors\nninja: build stopped: cannot make progress due to previous errors."
+  ],
+  "root_cause": "PR #39751 modifies src/plugins/intel_gpu/src/graph/graph_optimizer/prepare_primitive_fusing.cpp inside the fuse_constant_transposes logic (the fix for rank-3 FC weight transposes) and introduces two single-line 'if (...) continue;' statements without braces around the body. The GPU clang-tidy CI job enables readability-braces-around-statements and treats clang-tidy warnings as errors, so these unbraced single-statement if-bodies fail the build at lines 1694 and 1703. This is the same recurring clang-tidy braces style violation this doctor has already recorded 4 times for other GPU-component PRs in the last ~12 hours (signature a4282c65071120e2), confirming it is a common, easily-avoided style mistake rather than a flaky or infra issue.",
+  "reproduction_steps": "Build with clang-tidy enabled: cmake -DENABLE_CLANG_TIDY=ON ... && ninja openvino_intel_gpu_graph (or run clang-tidy-18 directly on src/plugins/intel_gpu/src/graph/graph_optimizer/prepare_primitive_fusing.cpp with the readability-braces-around-statements check enabled and -Werror on warnings-as-errors) to reproduce the two reported errors at lines 1694 and 1703.",
+  "recommended_actions": [
+    "Add braces around the single-statement bodies of 'if (const_pshape.is_dynamic()) continue;' (line 1694) and 'if (!data_in_outer_dims) continue;' (line 1703) in src/plugins/intel_gpu/src/graph/graph_optimizer/prepare_primitive_fusing.cpp",
+    "Re-run the clang-tidy build locally before pushing to catch this class of style violation earlier",
+    "Run clang-format/clang-tidy auto-fix locally (clang-tidy -fix) on changed files before submitting GPU-plugin PRs"
+  ],
+  "prevention_strategies": "Enable a pre-commit or local clang-tidy check (matching the CI's enabled checks, including readability-braces-around-statements) for src/plugins/intel_gpu changes before pushing. Consider a lightweight CI pre-check or editor lint rule that flags brace-less single-statement if/for/while bodies in new/changed lines, since this specific check has now recurred 5 times across unrelated PRs in the same day.",
+  "historical_context": "This exact failure signature (clang-tidy readability-braces-around-statements / Code Issue) has now been recorded 5 times today (2026-11-18) across PRs #39751 (this run), #39853, #38575, and #38641, all touching GPU-plugin code. This is a recurring, easily fixable style issue rather than an infrastructure problem; escalating via notify_teams_recurring."
+}

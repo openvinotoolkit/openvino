@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 479,
+  "total": 480,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -5220,6 +5220,17 @@
       "category": "Flaky Test",
       "signature_hash": "a284d27dfee44614",
       "pr_number": "39559"
+    },
+    {
+      "investigation_id": "2026-11-18-15-02-50-734-44324642249",
+      "run_id": "44324642249",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44324642249",
+      "workflow_name": "Build-gpu / Build",
+      "timestamp": "2026-11-18T15:02:50Z",
+      "title": "GPU prepare_primitive_fusing clang-tidy braces-around-statements errors",
+      "category": "Code Issue",
+      "signature_hash": "a4282c65071120e2",
+      "pr_number": "39751"
     }
   ]
 }
