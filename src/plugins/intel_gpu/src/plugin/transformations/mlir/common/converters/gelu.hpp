@@ -41,6 +41,7 @@ struct ConvertGelu {
 
         auto gelu_v7 = ov::as_type_ptr<ov::op::v7::Gelu>(node);
         const bool is_tanh = gelu_v7 && (gelu_v7->get_approximation_mode() == ov::op::GeluApproximationMode::TANH);
+        auto one = const_tensor(1.0);
 
         ::mlir::Value activated;
         if (!is_tanh) {
@@ -49,19 +50,18 @@ struct ConvertGelu {
             auto scaled = binary(input, inv_sqrt2, linalg::ElementwiseKind::mul)->getResult(0);
             activated = unary(scaled, linalg::ElementwiseKind::erf)->getResult(0);
         } else {
-            // TANH mode: tanh(sqrt(2 / pi) * (x + 0.044715 * x^3))
+            // TANH mode: tanh(sqrt(2 / pi) * x * (1 + 0.044715 * x^2))
             auto coeff = const_tensor(0.044715);
             auto sqrt_2_over_pi = const_tensor(std::sqrt(M_2_PI));
             auto x2 = binary(input, input, linalg::ElementwiseKind::mul)->getResult(0);
-            auto x3 = binary(x2, input, linalg::ElementwiseKind::mul)->getResult(0);
-            auto c_x3 = binary(x3, coeff, linalg::ElementwiseKind::mul)->getResult(0);
-            auto inner = binary(input, c_x3, linalg::ElementwiseKind::add)->getResult(0);
-            auto arg = binary(inner, sqrt_2_over_pi, linalg::ElementwiseKind::mul)->getResult(0);
+            auto c_x2 = binary(x2, coeff, linalg::ElementwiseKind::mul)->getResult(0);
+            auto inner = binary(one, c_x2, linalg::ElementwiseKind::add)->getResult(0);
+            auto x_inner = binary(input, inner, linalg::ElementwiseKind::mul)->getResult(0);
+            auto arg = binary(x_inner, sqrt_2_over_pi, linalg::ElementwiseKind::mul)->getResult(0);
             activated = unary(arg, linalg::ElementwiseKind::tanh)->getResult(0);
         }
 
         auto half = const_tensor(0.5);
-        auto one = const_tensor(1.0);
         auto half_x = binary(input, half, linalg::ElementwiseKind::mul)->getResult(0);
         auto plus_one = binary(activated, one, linalg::ElementwiseKind::add)->getResult(0);
         return binary(half_x, plus_one, linalg::ElementwiseKind::mul);
