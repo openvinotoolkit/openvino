@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 469,
+  "total": 470,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -5114,6 +5114,17 @@
       "category": "Infrastructure",
       "signature_hash": "75fb142987956bb4",
       "pr_number": "39956"
+    },
+    {
+      "investigation_id": "2026-11-18-06-08-56-174-44245354283",
+      "run_id": "44245354283",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44245354283",
+      "workflow_name": "Linux (Ubuntu 24.04, Clang, ITT, faster build, clang-tidy, GPU)",
+      "timestamp": "2026-11-18T06:08:56Z",
+      "title": "GPU remove_redundant_reorders clang-tidy braces-around-statements errors",
+      "category": "Code Issue",
+      "signature_hash": "a4282c65071120e2",
+      "pr_number": "38641"
     }
   ]
 }
