@@ -20,8 +20,7 @@ namespace intel_npu {
 
 class CompilerOptionSupportHelper final {
 public:
-    explicit CompilerOptionSupportHelper(const std::shared_ptr<const CompilerAdapterFactory>& adapterFactory,
-                                         const std::shared_ptr<OptionSupportCache>& optionSupportCache);
+    explicit CompilerOptionSupportHelper(const std::shared_ptr<const CompilerAdapterFactory>& adapterFactory);
 
     bool isOptionSupported(ov::intel_npu::CompilerType compilerType,
                            const std::string& optionName,
@@ -29,7 +28,7 @@ public:
 
 private:
     const std::shared_ptr<const CompilerAdapterFactory> _adapterFactory;
-    std::shared_ptr<OptionSupportCache> _optionSupportCache;
+    const std::shared_ptr<OptionSupportCache> _optionSupportCache;
 
     std::mutex _supportedOptionsLoadedMutex;
     std::unordered_map<OptionSupportCache::CacheKey, std::once_flag> _supportedOptionsLoaded;

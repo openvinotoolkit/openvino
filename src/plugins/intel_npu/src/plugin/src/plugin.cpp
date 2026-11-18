@@ -169,8 +169,7 @@ void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel
 
 namespace intel_npu {
 
-Plugin::Plugin()
-    : _logger("NPUPlugin", Logger::global().level()) {
+Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
     set_device_name("NPU");
 
@@ -199,8 +198,7 @@ Plugin::Plugin()
 
     /// Init and register properties
     OV_ITT_TASK_NEXT(PLUGIN, "RegisterProperties");
-    _compilerOptionSupportHelper =
-        std::make_shared<CompilerOptionSupportHelper>(_compilerAdapterFactory, optionSupportCache);
+    _compilerOptionSupportHelper = std::make_shared<CompilerOptionSupportHelper>(_compilerAdapterFactory);
     _propertiesManager = std::make_unique<PluginPropertyManager>(options,
                                                                  _backend,
                                                                  _compilerOptionSupportHelper,

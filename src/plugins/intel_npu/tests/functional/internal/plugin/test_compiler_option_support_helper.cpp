@@ -79,8 +79,7 @@ protected:
         helper = std::make_unique<CompilerOptionSupportHelper>(
             std::make_shared<const CompilerAdapterFactory>(backend,
                                                            npu::vcl_provider::processWide(),
-                                                           optionSupportCache),
-            optionSupportCache);
+                                                           optionSupportCache));
     }
 
     void TearDown() override {
@@ -347,8 +346,7 @@ protected:
         helper = std::make_unique<CompilerOptionSupportHelper>(
             std::make_shared<const CompilerAdapterFactory>(backend,
                                                            npu::vcl_provider::processWide(),
-                                                           optionSupportCache),
-            optionSupportCache);
+                                                           optionSupportCache));
     }
 
     void TearDown() override {

@@ -166,7 +166,7 @@ public:
         propertiesManager = std::make_unique<PluginPropertyManager>(
             options,
             backend,
-            std::make_shared<::intel_npu::CompilerOptionSupportHelper>(adapterFactory, optionSupportCache),
+            std::make_shared<::intel_npu::CompilerOptionSupportHelper>(adapterFactory),
             adapterFactory,
             ::intel_npu::Logger::global());
     }
@@ -698,7 +698,7 @@ TEST_P(CompatibilityCheckTests, CheckUnsupportedConfigWithGetMergedConfigAndUnkn
     auto localPropertiesManager = std::make_unique<::intel_npu::PluginPropertyManager>(
         localOptions,
         backend,
-        std::make_shared<::intel_npu::CompilerOptionSupportHelper>(adapterFactory, optionSupportCache),
+        std::make_shared<::intel_npu::CompilerOptionSupportHelper>(adapterFactory),
         adapterFactory,
         ::intel_npu::Logger::global());
 

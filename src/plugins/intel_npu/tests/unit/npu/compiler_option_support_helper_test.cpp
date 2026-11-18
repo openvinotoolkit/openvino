@@ -27,7 +27,7 @@ CompilerOptionSupportTestContext makeContext(
     auto factory = std::make_shared<const ::intel_npu::CompilerAdapterFactory>(backend,
                                                                                ::intel_npu::VCLFunctionTableProvider{},
                                                                                cache);
-    auto helper = std::make_unique<::intel_npu::CompilerOptionSupportHelper>(factory, cache);
+    auto helper = std::make_unique<::intel_npu::CompilerOptionSupportHelper>(factory);
     return {std::move(cache), std::move(factory), std::move(helper)};
 }
 
@@ -97,6 +97,7 @@ TEST(CompilerOptionSupportHelperTests, ContextSharesCacheWithFactoryAndHelper) {
     ASSERT_NE(context.cache, nullptr);
     ASSERT_NE(context.factory, nullptr);
     ASSERT_NE(context.helper, nullptr);
+    EXPECT_EQ(context.factory->getOptionSupportCache(), context.cache);
 }
 
 TEST(CompilerOptionSupportHelperTests, DriverLookupWithoutDeviceThrows) {
@@ -105,6 +106,18 @@ TEST(CompilerOptionSupportHelperTests, DriverLookupWithoutDeviceThrows) {
     auto context = makeContext(backendPtr);
 
     EXPECT_THROW(context.helper->isOptionSupported(CompilerType::DRIVER, "ANY_OPTION"), ov::Exception);
+}
+
+TEST(CompilerOptionSupportHelperTests, DriverLookupWithoutDeviceThrowsWhenFactoryCacheDisabled) {
+    auto backend = std::make_shared<MockEngineBackendNoDevice>();
+    ov::SoPtr<::intel_npu::IEngineBackend> backendPtr(backend);
+    const auto factory =
+        std::make_shared<const ::intel_npu::CompilerAdapterFactory>(backendPtr,
+                                                                    ::intel_npu::VCLFunctionTableProvider{},
+                                                                    nullptr);
+    ::intel_npu::CompilerOptionSupportHelper helper(factory);
+
+    EXPECT_THROW(helper.isOptionSupported(CompilerType::DRIVER, "ANY_OPTION"), ov::Exception);
 }
 
 TEST(CompilerOptionSupportHelperTests, OptionValueBypassesCacheAndReachesCompilerLookup) {

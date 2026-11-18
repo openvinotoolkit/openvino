@@ -62,6 +62,11 @@ public:
     std::unique_ptr<ICompilerAdapter> getCompiler(ov::intel_npu::CompilerType& compilerType,
                                                   std::string_view platform) const;
 
+    /** @brief Returns the shared compiler option cache, or null if caching is disabled. */
+    std::shared_ptr<OptionSupportCache> getOptionSupportCache() const {
+        return _optionSupportCache;
+    }
+
     /**
      * @brief Resolves PREFER_PLUGIN to PLUGIN or DRIVER. Any other `compilerType` is left unchanged.
      *
