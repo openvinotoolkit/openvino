@@ -3,63 +3,64 @@
 //
 
 #include "layout_optimizer.h"
-#include "registry/implementation_manager.hpp"
-#include "intel_gpu/primitives/implementation_desc.hpp"
-#include "primitive_inst.h"
-#include "program_helpers.h"
-#include "intel_gpu/runtime/debug_configuration.hpp"
+
+#include <algorithm>
+#include <memory>
+#include <openvino/op/constant.hpp>
+#include <unordered_set>
+#include <utility>
+#include <vector>
+
 #include "activation_inst.h"
+#include "arg_max_min_inst.h"
+#include "broadcast_inst.h"
+#include "concatenation_inst.h"
+#include "condition_inst.h"
 #include "crop_inst.h"
-#include "input_layout_inst.h"
-#include "range_inst.h"
-#include "softmax_inst.h"
-#include "tile_inst.h"
 #include "data_inst.h"
+#include "deconvolution_inst.h"
+#include "depth_to_space_inst.h"
+#include "dft_inst.h"
+#include "eltwise_inst.h"
+#include "fully_connected_inst.h"
+#include "gather_inst.h"
+#include "gemm_inst.h"
+#include "group_normalization_inst.h"
+#include "grouped_matmul_inst.h"
+#include "gru_seq_inst.h"
+#include "impls/ocl/kernel_selector_helper.h"
+#include "input_layout_inst.h"
+#include "intel_gpu/primitives/implementation_desc.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "loop_inst.h"
+#include "lstm_seq_inst.h"
+#include "moe_gemm_inst.h"
+#include "mvn_inst.h"
+#include "non_max_suppression_inst.h"
+#include "one_hot_inst.h"
+#include "pass_manager.h"
+#include "permute_inst.h"
+#include "pooling_inst.h"
+#include "primitive_inst.h"
+#include "prior_box_inst.h"
+#include "program_helpers.h"
+#include "quantize_inst.h"
+#include "range_inst.h"
+#include "reduce_inst.h"
+#include "region_yolo_inst.h"
+#include "registry/implementation_manager.hpp"
 #include "reorder_inst.h"
 #include "resample_inst.h"
 #include "reshape_inst.h"
 #include "rms_inst.h"
 #include "scaled_dot_product_attention_inst.h"
-#include "arg_max_min_inst.h"
-#include "shape_of_inst.h"
-#include "select_inst.h"
-#include "condition_inst.h"
-#include "strided_slice_inst.h"
-
-#include "gemm_inst.h"
-#include "moe_gemm_inst.h"
-#include "grouped_matmul_inst.h"
-#include "deconvolution_inst.h"
-#include "fully_connected_inst.h"
-#include "gru_seq_inst.h"
-#include "non_max_suppression_inst.h"
-#include "eltwise_inst.h"
-#include "pooling_inst.h"
-#include "reduce_inst.h"
-#include "one_hot_inst.h"
-#include "quantize_inst.h"
-#include "mvn_inst.h"
-#include "depth_to_space_inst.h"
-#include "region_yolo_inst.h"
-#include "prior_box_inst.h"
 #include "scatter_nd_update_inst.h"
-#include "gather_inst.h"
-#include "broadcast_inst.h"
-#include "loop_inst.h"
-#include "concatenation_inst.h"
-#include "permute_inst.h"
-#include "dft_inst.h"
-#include "lstm_seq_inst.h"
-#include "group_normalization_inst.h"
+#include "select_inst.h"
+#include "shape_of_inst.h"
+#include "softmax_inst.h"
+#include "strided_slice_inst.h"
+#include "tile_inst.h"
 #include "to_string_utils.h"
-#include "impls/ocl/kernel_selector_helper.h"
-#include <vector>
-#include <memory>
-#include <unordered_set>
-#include <utility>
-#include <openvino/op/constant.hpp>
-
-#include "pass_manager.h"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <oneapi/dnnl/dnnl.hpp>
@@ -89,16 +90,19 @@ static size_t get_post_ops_count(const program_node& node) {
 // the peer broadcasts over an inner spatial axis, like [1,2,8,1,10]) the reorder fusion is declined here
 // and the Permute keeps its native 5D output instead.
 static bool fused_peers_can_fold_to_layout(const program_node& prev, const layout& reduced_layout) {
-    if (!prev.has_fused_primitives())
+    if (!prev.has_fused_primitives()) {
         return true;
+    }
 
     const size_t reduced_rank = reduced_layout.get_rank();
-    if (prev.get_output_layout().get_rank() <= reduced_rank)
+    if (prev.get_output_layout().get_rank() <= reduced_rank) {
         return true;
+    }
 
     for (const auto& fd : prev.get_fused_primitives()) {
-        if (!fd.is_type<eltwise>() || !fd.has_outer_dep())
+        if (!fd.is_type<eltwise>() || !fd.has_outer_dep()) {
             continue;
+        }
 
         const auto outer_idx = static_cast<size_t>(fd.outer_dep_start_idx);
         const size_t outer_count = fd.deps.size();
@@ -121,13 +125,15 @@ std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive
                                                                        int32_t src_port,
                                                                        const layout& in_layout,
                                                                        const layout& out_layout) {
-    if (in_layout == out_layout)
+    if (in_layout == out_layout) {
         return std::make_pair(nullptr, true);
+    }
 
     reorder_cache_key ckey{ src_id + "." + std::to_string(src_port), out_layout };
     auto itr = _cached_reorders.find(ckey);
-    if (itr != _cached_reorders.end())
+    if (itr != _cached_reorders.end()) {
         return std::make_pair(itr->second, true);
+    }
 
     auto count = _cached_reorders.size();
     std::stringstream ss;
@@ -183,15 +189,17 @@ int64_t cldnn::get_convolution_channel_count(const convolution_node& conv_node, 
 }
 
 bool layout_optimizer::is_format_supported(program_node& node, format::type fmt) {
-    if (node.is_type<fully_connected>() && fmt == format::byxf)
+    if (node.is_type<fully_connected>() && fmt == format::byxf) {
         return false;
+    }
 
-    if (node.is_type<input_layout>())
+    if (node.is_type<input_layout>()) {
         return node.get_output_layout().format == fmt;
+    }
 
-    if (!_forcing_map.empty() && _forcing_map.count(node.id()))
+    if (!_forcing_map.empty() && _forcing_map.count(node.id())) {
         return _forcing_map.at(node.id()).first == fmt;
-
+    }
 
     return test_format<bool>(node, fmt, [](program_node& n) { return n.type()->has_impl_for(n); });
 }
@@ -207,8 +215,9 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 
     // Under dynamic shape, skip reorder fusion except for primitives whose kernels handle
     // cross-layout inputs at runtime: convolution, and MVN (fsv16/fsv32, see rule below).
-    if ((prev.is_dynamic() || next.is_dynamic()) && !next.is_type<convolution>() && !next.is_type<mvn>())
+    if ((prev.is_dynamic() || next.is_dynamic()) && !next.is_type<convolution>() && !next.is_type<mvn>()) {
         return false;
+    }
 
     // Not to fuse reorder if this removal changes input format of its next node which has reuse in fused_op
     if (next.get_preferred_impl_type() == impl_types::onednn) {
@@ -216,8 +225,9 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
             if (fused_op.is_type<eltwise>()) {
                 auto out_layout = next.get_output_layout();
                 auto add_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(next, fused_op);
-                if (add_type == add_fusing_type::sum && prev.get_output_layout().format != out_layout.format)
+                if (add_type == add_fusing_type::sum && prev.get_output_layout().format != out_layout.format) {
                     return false;
+                }
             }
         }
     }
@@ -231,50 +241,51 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     }
 
     // Ref kernels are the main for region_yolo and strided_slice. It can do anything.
-    if (next.is_type<region_yolo>() ||
-        (next.is_type<strided_slice>() && next.get_preferred_impl_type() != cldnn::impl_types::cpu))
+    if (next.is_type<region_yolo>() || (next.is_type<strided_slice>() && next.get_preferred_impl_type() != cldnn::impl_types::cpu)) {
         return true;
+    }
 
-    if (next.is_type<reorder>())
+    if (next.is_type<reorder>()) {
         return true;
+    }
 
     // Do not remove reorder if it is necessary to fulfill required_input
     auto& reorder_node = next.get_dependency(0);
     auto reorder_layout = reorder_node.get_output_layout();
-    if (reorder_layout.format == next.get_preferred_input_fmt(next.get_dependency_index(reorder_node))
-            && !reorder_layout.data_padding)
+    if (reorder_layout.format == next.get_preferred_input_fmt(next.get_dependency_index(reorder_node)) && !reorder_layout.data_padding) {
         return false;
+    }
 
     // resample_opt kernel can work cross-layout between fsv16 and fsv32
     if (next.is_type<resample>() &&
-        (fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_yx_fsv32
-            || fmt_prev == format::bs_fs_yx_bsv16_fsv16 || fmt_prev == format::bs_fs_yx_bsv16_fsv32
-            || fmt_prev == format::bs_fs_yx_bsv32_fsv16 || fmt_prev == format::bs_fs_yx_bsv32_fsv32) &&
-        (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_yx_fsv32
-            || fmt_next == format::bs_fs_yx_bsv16_fsv16 || fmt_next == format::bs_fs_yx_bsv16_fsv32
-            || fmt_next == format::bs_fs_yx_bsv32_fsv16 || fmt_next == format::bs_fs_yx_bsv32_fsv32))
+        (fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_yx_fsv32 || fmt_prev == format::bs_fs_yx_bsv16_fsv16 ||
+         fmt_prev == format::bs_fs_yx_bsv16_fsv32 || fmt_prev == format::bs_fs_yx_bsv32_fsv16 || fmt_prev == format::bs_fs_yx_bsv32_fsv32) &&
+        (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_yx_fsv32 || fmt_next == format::bs_fs_yx_bsv16_fsv16 ||
+         fmt_next == format::bs_fs_yx_bsv16_fsv32 || fmt_next == format::bs_fs_yx_bsv32_fsv16 || fmt_next == format::bs_fs_yx_bsv32_fsv32)) {
         return true;
+    }
 
     // MVN kernel can accept cross-layout input between fsv16 and fsv32.
     // Symmetric to the producer-direction rule in can_fuse_reorder_to_prev.
     if (next.is_type<mvn>() &&
-        (fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_yx_fsv32 ||
-         fmt_prev == format::b_fs_zyx_fsv16 || fmt_prev == format::b_fs_zyx_fsv32) &&
-        (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_yx_fsv32 ||
-         fmt_next == format::b_fs_zyx_fsv16 || fmt_next == format::b_fs_zyx_fsv32))
+        (fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_yx_fsv32 || fmt_prev == format::b_fs_zyx_fsv16 || fmt_prev == format::b_fs_zyx_fsv32) &&
+        (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_yx_fsv32 || fmt_next == format::b_fs_zyx_fsv16 || fmt_next == format::b_fs_zyx_fsv32)) {
         return true;
+    }
 
-    if (next.is_type<pooling>() &&
-        (((prev_simple && next_simple) && (prev_dt == next_dt)) ||
-        ((fmt_prev == format::b_fs_yx_fsv4 && fmt_next == format::bfyx) && (prev_dt == data_types::u8 || prev_dt == data_types::i8))))
+    if (next.is_type<pooling>() && (((prev_simple && next_simple) && (prev_dt == next_dt)) || ((fmt_prev == format::b_fs_yx_fsv4 && fmt_next == format::bfyx) &&
+                                                                                               (prev_dt == data_types::u8 || prev_dt == data_types::i8)))) {
         return true;
+    }
 
     if (next.is_type<eltwise>()) {
-        if (prev_simple && next_simple)
+        if (prev_simple && next_simple) {
             return true;
-        if (use_onednn_impls && (fmt_prev == format::bfyx) && (fmt_next == format::bs_fs_yx_bsv4_fsv2) &&
-            prev.is_input() && (prev_dt == data_types::u8 || prev_dt == data_types::i8))
+        }
+        if (use_onednn_impls && (fmt_prev == format::bfyx) && (fmt_next == format::bs_fs_yx_bsv4_fsv2) && prev.is_input() &&
+            (prev_dt == data_types::u8 || prev_dt == data_types::i8)) {
             return true;
+        }
     }
 
     // Check whether the reorder between prev and next is the first input of next.
@@ -284,14 +295,17 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         });
         // if there is no reorder between prev and next, it returns true.
         // This case is needed for can_fuse_reorder in reorder_inputs pass.
-        if (found_reorder == std::end(next.get_dependencies()) && next.get_dependency_index(prev) == 0)
+        if (found_reorder == std::end(next.get_dependencies()) && next.get_dependency_index(prev) == 0) {
             return true;
+        }
         auto& next_dep = next.get_dependency(0);
-        if (!next_dep.is_type<reorder>())
+        if (!next_dep.is_type<reorder>()) {
             return false;
+        }
         for (const auto& prev_usr : prev.get_users()) {
-            if (!prev_usr->is_type<reorder>())
+            if (!prev_usr->is_type<reorder>()) {
                 continue;
+            }
             if (&next_dep == prev_usr && next.get_dependency_index(next_dep) == 0) {
                 return true;
             }
@@ -300,38 +314,42 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     };
 
     if (next.is_type<fully_connected>() &&
-        (fmt_prev == format::bfyx || fmt_prev == format::yxfb ||
-         fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::fs_b_yx_fsv32 ||
+        (fmt_prev == format::bfyx || fmt_prev == format::yxfb || fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::fs_b_yx_fsv32 ||
          fmt_prev == format::b_fs_yx_fsv32 ||
-         (fmt_prev == format::b_fs_yx_fsv4 &&
-          prev_output_layout.feature() % 32 == 0 &&
-          prev_output_layout.spatial(0) == 1 &&
-          prev_output_layout.spatial(1) == 1)) && is_input_reorder(prev, next))
+         (fmt_prev == format::b_fs_yx_fsv4 && prev_output_layout.feature() % 32 == 0 && prev_output_layout.spatial(0) == 1 &&
+          prev_output_layout.spatial(1) == 1)) &&
+        is_input_reorder(prev, next)) {
         return true;
+    }
 
     if (next.is_type<quantize>()) {
         if ((fmt_prev == format::bfyx || fmt_prev == format::bfzyx)) {
-            if (prev.is_input() && (prev_dt == data_types::u8 || prev_dt == data_types::i8))
+            if (prev.is_input() && (prev_dt == data_types::u8 || prev_dt == data_types::i8)) {
                 return true;
-            if (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_zyx_fsv16 ||
-                fmt_next == format::bs_fs_yx_bsv16_fsv16 || fmt_next == format::b_fs_yx_fsv4)
+            }
+            if (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_zyx_fsv16 || fmt_next == format::bs_fs_yx_bsv16_fsv16 ||
+                fmt_next == format::b_fs_yx_fsv4) {
                 return true;
+            }
         }
-        if (use_onednn_impls && prev.get_users().size() == 1)
+        if (use_onednn_impls && prev.get_users().size() == 1) {
             return true;
+        }
     }
 
     if (use_onednn_impls) {
         const auto& node = prev.get_users().front();
         if (prev.get_output_layout().format == next.get_preferred_input_fmt() &&
-                node->get_output_layout().data_padding == prev.get_output_layout().data_padding)
+            node->get_output_layout().data_padding == prev.get_output_layout().data_padding) {
             return true;
+        }
     }
 
     if (next.is_type<convolution>()) {
         auto is_input_idx = [&](size_t idx) -> bool {
-            if (&next.get_dependency(idx) == &prev)
+            if (&next.get_dependency(idx) == &prev) {
                 return true;
+            }
             return next.get_dependency(idx).is_type<reorder>() && &next.get_dependency(idx).get_dependency(0) == &prev;
         };
 
@@ -339,64 +357,67 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         auto in_channel_count = get_convolution_channel_count(conv_node, prev_output_layout, true);
         auto out_channel_count = get_convolution_channel_count(conv_node, next_output_layout, false);
 
-        if ((prev.is_dynamic() || next.is_dynamic()) && (in_channel_count == -1 || out_channel_count == -1))
+        if ((prev.is_dynamic() || next.is_dynamic()) && (in_channel_count == -1 || out_channel_count == -1)) {
             return false;
+        }
 
         // Errata for onednn layout selection. First conv can receive both bfyx and byxf directly.
         if (next.get_preferred_impl_type() == impl_types::onednn &&
             ((fmt_prev == format::byxf && fmt_next == format::byxf) ||
              (fmt_prev == format::bfyx && fmt_next == format::byxf &&
-                (prev_dt == data_types::f16 && get_convolution_channel_count(conv_node, next.get_input_layout(0), false) <= 8))) &&
-            is_input_reorder(prev, next))
+              (prev_dt == data_types::f16 && get_convolution_channel_count(conv_node, next.get_input_layout(0), false) <= 8))) &&
+            is_input_reorder(prev, next)) {
             return true;
+        }
 
-        if (fmt_prev == format::b_fs_yx_fsv16 && fmt_next == format::b_fs_yx_fsv4 && is_input_idx(0))
+        if (fmt_prev == format::b_fs_yx_fsv16 && fmt_next == format::b_fs_yx_fsv4 && is_input_idx(0)) {
             return true;
+        }
 
         if (!use_onednn_impls || next.get_preferred_impl_type() == impl_types::ocl) {
             if ((fmt_prev == format::bfyx || fmt_prev == format::bs_fs_yx_bsv4_fsv2) &&
                 ((fmt_next == format::fs_b_yx_fsv32 && conv_node.get_primitive()->groups == 1) ||
-                (fmt_next == format::b_fs_yx_fsv32 && (in_channel_count == 3 || in_channel_count == 4)) ||
-                (fmt_next == format::bs_fs_yx_bsv32_fsv32 && (in_channel_count == 3 || in_channel_count == 4)) ||
-                (fmt_next == format::bs_fs_yx_bsv32_fsv16 && (in_channel_count == 3 || in_channel_count == 4)) ||
-                (fmt_next == format::bs_fs_yx_bsv16_fsv16 && out_channel_count % 16 == 0 && in_channel_count == 3) ||
-                (fmt_next == format::bs_fs_yx_bsv16_fsv16 && out_channel_count >= 16 && in_channel_count == 3 &&
-                (next_output_layout.data_type != data_types::i8 && next_output_layout.data_type != data_types::u8))))
+                 (fmt_next == format::b_fs_yx_fsv32 && (in_channel_count == 3 || in_channel_count == 4)) ||
+                 (fmt_next == format::bs_fs_yx_bsv32_fsv32 && (in_channel_count == 3 || in_channel_count == 4)) ||
+                 (fmt_next == format::bs_fs_yx_bsv32_fsv16 && (in_channel_count == 3 || in_channel_count == 4)) ||
+                 (fmt_next == format::bs_fs_yx_bsv16_fsv16 && out_channel_count % 16 == 0 && in_channel_count == 3) ||
+                 (fmt_next == format::bs_fs_yx_bsv16_fsv16 && out_channel_count >= 16 && in_channel_count == 3 &&
+                  (next_output_layout.data_type != data_types::i8 && next_output_layout.data_type != data_types::u8)))) {
                 return true;
+            }
 
-            if (fmt_prev == format::bfyx &&
-                (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::bs_fs_yx_bsv32_fsv16) &&
-                out_channel_count >= 16 && in_channel_count <= 4 &&
-                !conv_node.get_primitive()->activations_zero_points.is_valid() &&
-                !conv_node.get_primitive()->weights_zero_points.is_valid())
+            if (fmt_prev == format::bfyx && (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::bs_fs_yx_bsv32_fsv16) && out_channel_count >= 16 &&
+                in_channel_count <= 4 && !conv_node.get_primitive()->activations_zero_points.is_valid() &&
+                !conv_node.get_primitive()->weights_zero_points.is_valid()) {
                 return true;
+            }
 
             if ((fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::bs_fs_yx_bsv4_fsv4 || fmt_prev == format::bs_fs_yx_bsv8_fsv4) &&
                 ((fmt_next == format::b_fs_yx_fsv32 && (in_channel_count == 3 || in_channel_count == 4)) ||
-                (fmt_next == format::bs_fs_yx_bsv32_fsv32 && (in_channel_count == 3 || in_channel_count == 4)) ||
-                (fmt_next == format::bs_fs_yx_bsv4_fsv4 && (in_channel_count == 3 || in_channel_count == 4)) ||
-                (fmt_next == format::bs_fs_yx_bsv8_fsv4 && (in_channel_count == 3 || in_channel_count == 4)) ||
-                (fmt_next == format::b_fs_yx_fsv16 && out_channel_count >= 16 &&
-                (in_channel_count == 3 || (in_channel_count == 4 &&
-                (prev_dt == data_types::u8 || prev_dt == data_types::i8))))))
+                 (fmt_next == format::bs_fs_yx_bsv32_fsv32 && (in_channel_count == 3 || in_channel_count == 4)) ||
+                 (fmt_next == format::bs_fs_yx_bsv4_fsv4 && (in_channel_count == 3 || in_channel_count == 4)) ||
+                 (fmt_next == format::bs_fs_yx_bsv8_fsv4 && (in_channel_count == 3 || in_channel_count == 4)) ||
+                 (fmt_next == format::b_fs_yx_fsv16 && out_channel_count >= 16 &&
+                  (in_channel_count == 3 || (in_channel_count == 4 && (prev_dt == data_types::u8 || prev_dt == data_types::i8)))))) {
                 return true;
+            }
         }
 
         if ((!prev.is_type<quantize>() || (prev_dt != data_types::i8 && prev_dt != data_types::u8)) &&
-            (fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::bfyx)  && in_channel_count == 3 &&
-            (fmt_next == format::b_fs_yx_fsv4 ||
-            fmt_next == format::bs_fs_yx_bsv16_fsv16))
+            (fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::bfyx) && in_channel_count == 3 &&
+            (fmt_next == format::b_fs_yx_fsv4 || fmt_next == format::bs_fs_yx_bsv16_fsv16)) {
             return true;
+        }
 
         if (fmt_prev == format::bfyx &&
-            ((fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::bs_fs_yx_bsv16_fsv16) &&
-                out_channel_count >= 16 && in_channel_count == 3))
+            ((fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::bs_fs_yx_bsv16_fsv16) && out_channel_count >= 16 && in_channel_count == 3)) {
             return true;
+        }
 
         if (fmt_prev == format::bfzyx &&
-            ((fmt_next == format::b_fs_zyx_fsv16 || fmt_next == format::bs_fs_zyx_bsv16_fsv16) &&
-                out_channel_count >= 16 && in_channel_count == 3))
+            ((fmt_next == format::b_fs_zyx_fsv16 || fmt_next == format::bs_fs_zyx_bsv16_fsv16) && out_channel_count >= 16 && in_channel_count == 3)) {
             return true;
+        }
 
         if (use_onednn_impls) {
             if ((fmt_prev == format::bfyx && fmt_next == format::bs_fs_yx_bsv32_fsv32) &&
@@ -480,63 +501,62 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
     }
 
     // Ref kernels are the main for region_yolo and detection_output. It can do anything. Should not see next.
-    if (prev.is_type<region_yolo>()
-        || (prev.is_type<detection_output>() && prev.get_preferred_impl_type() != cldnn::impl_types::cpu))
+    if (prev.is_type<region_yolo>() || (prev.is_type<detection_output>() && prev.get_preferred_impl_type() != cldnn::impl_types::cpu)) {
         return true;
+    }
 
-    if (node.get_users().empty())
+    if (node.get_users().empty()) {
         return false;
+    }
 
     auto* next = node.get_users().front();
     auto dt_prev = prev.get_output_layout().data_type;
     auto dt_next = next->get_output_layout().data_type;
     auto use_onednn_impls = contains_onednn_impls_optimization_attribute(&node) && contains_onednn_impls_optimization_attribute(&prev);
 
-    if (prev.is_type<reorder>())
+    if (prev.is_type<reorder>()) {
         return true;
+    }
 
-    if (prev.is_type<group_normalization>() && is_dynamic && !prev.has_fused_primitives() &&
-        fmt_prev == format::bfyx && fmt_next == format::b_fs_yx_fsv16 &&
-        !prev.get_output_layout().data_padding && !next->get_output_layout().data_padding)
+    if (prev.is_type<group_normalization>() && is_dynamic && !prev.has_fused_primitives() && fmt_prev == format::bfyx && fmt_next == format::b_fs_yx_fsv16 &&
+        !prev.get_output_layout().data_padding && !next->get_output_layout().data_padding) {
         return true;
+    }
 
     // resample_opt kernel can work cross-layout between fsv16 and fsv32
     if (prev.is_type<resample>() &&
-        (fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_yx_fsv32
-            || fmt_prev == format::bs_fs_yx_bsv16_fsv16 || fmt_prev == format::bs_fs_yx_bsv16_fsv32
-            || fmt_prev == format::bs_fs_yx_bsv32_fsv16 || fmt_prev == format::bs_fs_yx_bsv32_fsv32) &&
-        (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_yx_fsv32
-            || fmt_next == format::bs_fs_yx_bsv16_fsv16 || fmt_next == format::bs_fs_yx_bsv16_fsv32
-            || fmt_next == format::bs_fs_yx_bsv32_fsv16 || fmt_next == format::bs_fs_yx_bsv32_fsv32))
+        (fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_yx_fsv32 || fmt_prev == format::bs_fs_yx_bsv16_fsv16 ||
+         fmt_prev == format::bs_fs_yx_bsv16_fsv32 || fmt_prev == format::bs_fs_yx_bsv32_fsv16 || fmt_prev == format::bs_fs_yx_bsv32_fsv32) &&
+        (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_yx_fsv32 || fmt_next == format::bs_fs_yx_bsv16_fsv16 ||
+         fmt_next == format::bs_fs_yx_bsv16_fsv32 || fmt_next == format::bs_fs_yx_bsv32_fsv16 || fmt_next == format::bs_fs_yx_bsv32_fsv32)) {
         return true;
+    }
 
     // MVN kernel can work cross-layout between fsv16 and fsv32.
     // Actual kernel support is verified by has_impl_for check in remove_redundant_reorders.
     if (prev.is_type<mvn>() &&
-        (fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_yx_fsv32 ||
-         fmt_prev == format::b_fs_zyx_fsv16 || fmt_prev == format::b_fs_zyx_fsv32) &&
-        (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_yx_fsv32 ||
-         fmt_next == format::b_fs_zyx_fsv16 || fmt_next == format::b_fs_zyx_fsv32))
+        (fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_yx_fsv32 || fmt_prev == format::b_fs_zyx_fsv16 || fmt_prev == format::b_fs_zyx_fsv32) &&
+        (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_yx_fsv32 || fmt_next == format::b_fs_zyx_fsv16 || fmt_next == format::b_fs_zyx_fsv32)) {
         return true;
+    }
 
-    if (prev.is_type<one_hot>() &&
-        !data_type_traits::is_floating_point(dt_prev) &&
-        data_type_traits::is_floating_point(dt_next) &&
-        fmt_prev == fmt_next)
+    if (prev.is_type<one_hot>() && !data_type_traits::is_floating_point(dt_prev) && data_type_traits::is_floating_point(dt_next) && fmt_prev == fmt_next) {
         return true;
+    }
 
-    if (prev.is_type<quantize>() &&
-        (fmt_next == format::b_fs_yx_fsv4 || fmt_next == format::b_fs_zyx_fsv32 || fmt_next == format::b_fs_yx_fsv32 ||
-         fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_zyx_fsv16 ||fmt_next == format::bs_fs_yx_bsv16_fsv16))
+    if (prev.is_type<quantize>() && (fmt_next == format::b_fs_yx_fsv4 || fmt_next == format::b_fs_zyx_fsv32 || fmt_next == format::b_fs_yx_fsv32 ||
+                                     fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_zyx_fsv16 || fmt_next == format::bs_fs_yx_bsv16_fsv16)) {
         return true;
+    }
 
     if (prev.is_type<permute>()) {
         if (is_dynamic) {
             return !prev.has_fused_primitives() &&
                 fmt_prev == format::bfyx && fmt_next == format::b_fs_yx_fsv16;
         }
-        if (fmt_prev == format::b_fs_yx_fsv32 && fmt_next == format::byxf)
+        if (fmt_prev == format::b_fs_yx_fsv32 && fmt_next == format::byxf) {
             return true;
+        }
 
         const auto& permute_order = prev.as<permute>().get_primitive()->permute_order;
         if ((fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::b_fs_yx_fsv32 || fmt_prev == format::b_fs_zyx_fsv32 || fmt_prev == format::b_fs_yx_fsv16 ||
@@ -545,8 +565,9 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
             return false;
         }
             // permute kernel doesn't support reorder fusion for ranks > 6
-            if (fmt_prev.dimension() > 6 || fmt_next.dimension() > 6)
-                return false;
+        if (fmt_prev.dimension() > 6 || fmt_next.dimension() > 6) {
+            return false;
+        }
 
             // Skip reorder fusing to permute when allow_new_shape_infer is True and input and output rank is different
             return !allow_new_shape_infer || (fmt_prev.dimension() == fmt_next.dimension());
@@ -556,13 +577,13 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
     // Remove Reorder after convolution if possible.
     if (use_onednn_impls) {
         auto reorder_layout = node.get_output_layout();
-        if (reorder_layout.format == prev.get_preferred_output_fmt() &&
-                reorder_layout.data_padding == prev.get_output_layout().data_padding)
+        if (reorder_layout.format == prev.get_preferred_output_fmt() && reorder_layout.data_padding == prev.get_output_layout().data_padding) {
             return true;
+        }
 
-        if (prev.is_type<eltwise>() &&
-            is_mixed_layout(prev, *next, false, {{ format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv16 }}))
+        if (prev.is_type<eltwise>() && is_mixed_layout(prev, *next, false, {{format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv16}})) {
             return true;
+        }
     }
 
     return false;
@@ -574,13 +595,15 @@ bool should_use_winograd_2x3_s1(const convolution_node& node,
                                 layout const& weights_layout,
                                 bool output_size_handling_enabled) {
     bool disable_winograd_conv = node.get_program().get_config().get_disable_winograd_convolution();
-    if (disable_winograd_conv)
+    if (disable_winograd_conv) {
         return false;
+    }
 
     auto prim = node.get_primitive();
     // count()/spatial() below require a static shape.
-    if (input_layout.is_dynamic())
+    if (input_layout.is_dynamic()) {
         return false;
+    }
     return input_layout.data_type == data_types::f16
         && (!input_layout.is_static() || input_layout.feature() % 64 == 0)  // current algorithm is effective for ifm to be multiply of 64
         && weights_layout.spatial(0) == 3     // weights have to be 3x3 by definiton
@@ -606,19 +629,18 @@ layout_optimizer::layout_optimizer(bool output_size_handling_enabled)
     }
 }
 
-bool layout_optimizer::is_depthwise(const convolution_node& node) const {
-        // feature() requires a static shape.
-        if (node.get_input_layout(0).is_dynamic() || node.get_output_layout(0).is_dynamic())
-            return false;
-        const auto output_channels = node.get_output_layout(0).feature();
-        const auto input_channels = node.get_input_layout(0).feature();
+bool layout_optimizer::is_depthwise(const convolution_node& node) {
+    // feature() requires a static shape.
+    if (node.get_input_layout(0).is_dynamic() || node.get_output_layout(0).is_dynamic()) {
+        return false;
+    }
+    const auto output_channels = node.get_output_layout(0).feature();
+    const auto input_channels = node.get_input_layout(0).feature();
 
-        return node.get_groups() == static_cast<uint32_t>(input_channels) && input_channels == output_channels;
+    return node.get_groups() == static_cast<uint32_t>(input_channels) && input_channels == output_channels;
 }
 
-bool layout_optimizer::convolution_bfyx_opt(layout const& output_layout,
-                                            const layout& weights_layout,
-                                            std::shared_ptr<const convolution> conv) {
+bool layout_optimizer::convolution_bfyx_opt(const layout& output_layout, const layout& weights_layout, std::shared_ptr<const convolution> conv) const {
     // A set of rules that define when bfyx mem format has better performance than yxfb
     return output_layout.batch() == 16 || output_layout.batch() % 16 != 0 ||
         output_layout.data_type != data_types::f16 || weights_layout.batch() % 16 != 0 ||
@@ -645,15 +667,16 @@ bool layout_optimizer::convolution_bfyx_opt(layout const& output_layout,
 }
 
 bool layout_optimizer::convolution_byxf_opt(const layout& input_layout,
-                                            layout const& output_layout,
+                                            const layout& output_layout,
                                             const layout& weights_layout,
-                                            const convolution_node& node) {
+                                            const convolution_node& node) const {
     auto conv = node.get_primitive();
 
     if (node.get_dependency(0).is_type<convolution>()) {
         auto& dep = node.get_dependency(0).as<convolution>();
-        if (is_depthwise(dep))
+        if (is_depthwise(dep)) {
             return false;
+        }
     }
 
     // A set of rules that define when byxf mem format has better performance
@@ -689,16 +712,16 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(const layout& input_layout,
 
         // Check for non-grouped or depthwise convolution
         if (input_layout.format.dimension() == 4 &&
-            ((ks_x == 7 && ks_y == 7) || (ks_x == 3 && ks_y == 3) || (ks_x == 1 && ks_y == 1) || (ks_x == 5 && ks_y == 5)) &&
-            output_layout.feature() >= 16 &&
-            ((conv->groups == 1) ||
-             conv->groups == static_cast<uint32_t>(input_layout.feature())))
+            ((ks_x == 7 && ks_y == 7) || (ks_x == 3 && ks_y == 3) || (ks_x == 1 && ks_y == 1) || (ks_x == 5 && ks_y == 5)) && output_layout.feature() >= 16 &&
+            ((conv->groups == 1) || conv->groups == static_cast<uint32_t>(input_layout.feature()))) {
             return true;
+        }
         // Check for grouped convolution
         if (input_layout.format.dimension() == 4 && input_layout.batch() < 16 && out_features_per_group >= 16 &&
             // Need to extend imad fsv4 kernel to handle e.g. 3 input features per group
-            (in_features_per_group % 4 == 0) && ((conv->dilation[conv->dilation.size() - 1] + 1) * (ks_x - 1)) <= 16)
+            (in_features_per_group % 4 == 0) && ((conv->dilation[conv->dilation.size() - 1] + 1) * (ks_x - 1)) <= 16) {
             return true;
+        }
         // Check for fsv16 imad kernel
         return (input_layout.format.dimension() == 4) &&
                ((in_features_per_group > 8) || (out_features_per_group >= 4));
@@ -725,11 +748,13 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(const layout& input_layout,
         size_t filter_x = weights_layout.spatial(0);
         size_t filter_y = weights_layout.spatial(1);
         size_t input_line_size = stride_x * (default_block_width - 1) + (filter_x - 1) * dilation_x + 1;
-        if (static_cast<size_t>(input_layout.spatial(0)) < input_line_size)
+        if (static_cast<size_t>(input_layout.spatial(0)) < input_line_size) {
             input_line_size = static_cast<size_t>(input_layout.spatial(0));
+        }
         size_t input_block_size = (input_line_size * filter_y + sg_size - 1) / sg_size;
-        if (input_block_size <= 64)
+        if (input_block_size <= 64) {
             correct_in_feature = true;
+        }
     }
 
     bool depthwise = conv->groups == static_cast<uint32_t>(input_layout.feature());  // depthwise conv
@@ -776,7 +801,7 @@ static bool has_reorder_before_mvn(const program_node& node, size_t cur_depth, s
 bool layout_optimizer::should_select_b_fs_yx_fsv16_layout(convolution_node const& node, layout const& weights_layout) {
     auto prim = node.get_primitive();
     auto input_layout = node.get_input_layout(0);
-    auto const cond_denom = _total_conv > 0 ? 1.0f / static_cast<float>(_total_conv) : 1.0f;
+    const auto cond_denom = _total_conv > 0 ? 1.0F / static_cast<float>(_total_conv) : 1.0F;
     auto fully_support_conv_num = _optimized_conv_count.at({format::b_fs_yx_fsv16, false});
     auto partially_support_conv_num = _optimized_conv_count.at({format::b_fs_yx_fsv16, true});
 
@@ -785,7 +810,7 @@ bool layout_optimizer::should_select_b_fs_yx_fsv16_layout(convolution_node const
     auto current_conv_supports_layout = convolution_b_fs_yx_fsv16_opt(input_layout, output_layout, weights_layout,  prim);
     auto is_prev_conv_node_supports_layout = node.get_dependency(0).is_type<convolution>() &&
                                              is_format_optimized(node.get_dependency(0).as<convolution>(), format::b_fs_yx_fsv16);
-    auto weak_restriction_cond = (partially_support_conv_num - fully_support_conv_num) * cond_denom < 0.15f;
+    auto weak_restriction_cond = (partially_support_conv_num - fully_support_conv_num) * cond_denom < 0.15F;
     auto current_conv_partially_supports_layout = convolution_b_fs_yx_fsv16_opt(input_layout, output_layout, weights_layout, prim, true);
     auto may_use_weak_restrictions = is_prev_conv_node_supports_layout || weak_restriction_cond;
 
@@ -806,11 +831,11 @@ bool layout_optimizer::convolution_b_fs_zyx_fsv16_opt(const layout& input_layout
     size_t out_features_per_group = output_layout.feature() / conv->groups;
 
     // Check for fsv16 imad kernel
-    if ((input_layout.format.dimension() == 5) &&
-        (input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8) &&
+    if ((input_layout.format.dimension() == 5) && (input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8) &&
         (weights_layout.data_type == data_types::i8 || weights_layout.data_type == data_types::u8) &&
-        ((in_features_per_group > 8) || (out_features_per_group >= 4)))
+        ((in_features_per_group > 8) || (out_features_per_group >= 4))) {
         return true;
+    }
 
     bool format_ver = (input_layout.format == format::bfzyx || input_layout.format == format::b_fs_zyx_fsv16 ||
                       input_layout.format == format::bs_fs_zyx_bsv16_fsv16);
@@ -834,8 +859,9 @@ bool layout_optimizer::convolution_bs_fs_yx_bsv16_fsv16_opt(const layout& input_
     bool single_group = conv->groups == 1;
 
     bool int8_sup = (input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8);
-    if (int8_sup)
+    if (int8_sup) {
         correct_batch = input_layout.batch() >= 16;
+    }
     int8_sup &= (input_layout.batch() % 16 == 0 && weights_layout.data_type == data_types::i8 &&
                  !conv->activations_zero_points.is_valid() && !conv->weights_zero_points.is_valid());
     auto ks_x = weights_layout.spatial(0);
@@ -873,11 +899,10 @@ bool layout_optimizer::deconvolution_b_fs_zyx_fsv16_opt(layout const &input_layo
                                                         const layout &/*weights_layout*/,
                                                         std::shared_ptr<const deconvolution> deconv) {
     // A set of rules that define when b_fs_zyx_fsv16 mem format can be used
-    if ((input_layout.format == format::bfzyx ||
-         input_layout.format == format::b_fs_zyx_fsv16 ||
-         input_layout.format == format::bs_fs_zyx_bsv16_fsv16) &&
-        (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16))
+    if ((input_layout.format == format::bfzyx || input_layout.format == format::b_fs_zyx_fsv16 || input_layout.format == format::bs_fs_zyx_bsv16_fsv16) &&
+        (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16)) {
         return true;
+    }
 
     return input_layout.format.dimension() == 5 &&
         (input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8);
@@ -889,8 +914,9 @@ bool layout_optimizer::deconvolution_b_fs_yx_fsv16_opt(layout const &input_layou
     // A set of rules that define when b_fs_yx_fsv16 mem format can be used
     if ((input_layout.format == format::bfyx || input_layout.format == format::b_fs_yx_fsv16) &&
         (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16) &&
-        (deconv->groups == 1 || (static_cast<int>(deconv->groups) == weights_layout.group())))
+        (deconv->groups == 1 || (static_cast<int>(deconv->groups) == weights_layout.group()))) {
         return true;
+    }
 
     return input_layout.format.dimension() == 4 &&
         (input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8);
@@ -902,19 +928,23 @@ bool layout_optimizer::deconvolution_b_fs_yx_fsv16_opt(layout const &input_layou
 // So here we check that given eltwise node is replacement of the old scale primitive
 // TODO: Adjust byxf convolution selection logic
 static bool is_scale_shift(const eltwise_node& node) {
-    if (node.get_dependencies().size() != 2)
+    if (node.get_dependencies().size() != 2) {
         return false;
+    }
 
-    if (node.get_primitive()->mode != eltwise_mode::prod)
+    if (node.get_primitive()->mode != eltwise_mode::prod) {
         return false;
+    }
 
-    if (node.get_fused_primitives().empty())
+    if (node.get_fused_primitives().empty()) {
         return false;
+    }
 
     auto fused_op0 = node.get_fused_primitives().front();
 
-    if (!fused_op0.is_type<eltwise>())
+    if (!fused_op0.is_type<eltwise>()) {
         return false;
+    }
 
     return fused_op0.typed_desc<eltwise>()->mode == eltwise_mode::sum;
 }
@@ -922,42 +952,45 @@ static bool is_scale_shift(const eltwise_node& node) {
 bool layout_optimizer::users_for_convolution_byxf_opt(program_node const& node, uint32_t depth) {
     // This function checks if byxf optimization can be applied to the required depth of node's users.
     // Setting depth to 1 will check only node's users, depth = 2 are user's users etc.
-    if (depth == 0)
+    if (depth == 0) {
         return true;
+    }
 
-    for (const auto& user : node.get_users()) {
+    const auto& users = node.get_users();
+    return std::all_of(users.begin(), users.end(), [this, &node, depth](const auto& user) {
         // primitives that support transitions byxf->other format and other format->byxf are valid for byxf opt
-        if ((user->type() == cldnn::eltwise::type_id() && !is_scale_shift(user->as<eltwise>())) || user->type() == cldnn::pooling::type_id()) {
-            if (!users_for_convolution_byxf_opt(*user, depth - 1))
+        if ((user->type() == cldnn::eltwise::type_id() && !is_scale_shift(user->template as<eltwise>())) || user->type() == cldnn::pooling::type_id()) {
+            if (!users_for_convolution_byxf_opt(*user, depth - 1)) {
                 return false;
-        // convolution that is capable to use byxf and is performant is also valid for byxf opt
+            }
+            // convolution that is capable to use byxf and is performant is also valid for byxf opt
         } else if (user->type() == cldnn::convolution::type_id()) {
-            if (convolution_byxf_opt(node.get_output_layout(),
-                                     user->calc_output_layout(),
-                                     user->get_input_layout(1),
-                                     user->as<convolution>())) {
-                if (!users_for_convolution_byxf_opt(*user, depth - 1))
+            if (convolution_byxf_opt(node.get_output_layout(), user->calc_output_layout(), user->get_input_layout(1), user->template as<convolution>())) {
+                if (!users_for_convolution_byxf_opt(*user, depth - 1)) {
                     return false;
+                }
             } else {
                 return false;
             }
         } else {
             return false;
         }
-    }
-    return true;
+        return true;
+    });
 }
 
 bool layout_optimizer::deps_for_convolution_byxf_opt(program_node const& node, uint32_t depth) {
     // This function checks if requested format is the same for node's users in the required depth.
     // Setting depth to 1 will check only node's dependencies, depth = 2 are dep's dependencies etc.
-    if (depth == 0)
+    if (depth == 0) {
         return true;
+    }
 
     for (const auto& dep : node.get_dependencies()) {
         // skip data layers
-        if (dep.first->is_type<data>())
+        if (dep.first->is_type<data>()) {
             continue;
+        }
 
         if (dep.first->is_type<convolution>()) {
             auto& conv_dep = dep.first->as<convolution>();
@@ -972,8 +1005,9 @@ bool layout_optimizer::deps_for_convolution_byxf_opt(program_node const& node, u
             return false;
         }
 
-        if (!deps_for_convolution_byxf_opt(*dep.first, depth - 1))
+        if (!deps_for_convolution_byxf_opt(*dep.first, depth - 1)) {
             return false;
+        }
     }
     return true;
 }
@@ -1007,8 +1041,7 @@ format layout_optimizer::imad_case(convolution_node const& node) const {
     return format::b_fs_yx_fsv4;
 }
 
-bool layout_optimizer::is_mixed_layout(program_node& prev, program_node& next, bool check_data_type,
-                                       std::vector<std::pair<format, format>> custom_list) const {
+bool layout_optimizer::is_mixed_layout(program_node& prev, program_node& next, bool check_data_type, std::vector<std::pair<format, format>> custom_list) {
     auto prev_layout = prev.get_output_layout();
     auto prev_fmt = prev_layout.format;
     auto prev_dt = prev_layout.data_type;
@@ -1094,8 +1127,9 @@ bool is_dynamic_batch_byxf_shape_whitelisted(const convolution_node& node) {
     const auto& weights_shape = node.weights().get_output_layout().get_partial_shape();
     const auto ic = get_convolution_channel_count(node, node.get_input_layout(0), true);
     const auto oc = get_convolution_channel_count(node, node.get_output_layout(), false);
-    if (ic < 0 || oc < 0 || weights_shape.is_dynamic() || in_shape[2].is_dynamic() || in_shape[3].is_dynamic())
+    if (ic < 0 || oc < 0 || weights_shape.is_dynamic() || in_shape[2].is_dynamic() || in_shape[3].is_dynamic()) {
         return false;
+    }
 
     const auto kernel_y = weights_shape[weights_shape.size() - 2].get_length();
     const auto kernel_x = weights_shape[weights_shape.size() - 1].get_length();
@@ -1148,7 +1182,7 @@ bool is_dynamic_batch_byxf_shape_whitelisted(const convolution_node& node) {
 // Static batch:
 // - A convolution with a static batch and dynamic height or width keeps the default layout.
 //   node.is_dynamic() is true, but the batch is fixed.
-void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& node) {
+void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& node) const {
     OPENVINO_ASSERT(node.is_dynamic());
 
     auto input_layout = node.get_input_layout(0);
@@ -1159,15 +1193,16 @@ void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& no
     OPENVINO_ASSERT(rank <= 5, "Not supported rank");
 
     auto byxf_compatible_neighbors = [&node]() {
-        for (const auto& dep : node.get_dependencies()) {
-            if (!dep.first->is_constant() && !is_byxf_onednn_conv_compatible(dep.first->type()))
-                return false;
+        const auto& dependencies = node.get_dependencies();
+        if (!std::all_of(dependencies.begin(), dependencies.end(), [](const auto& dep) {
+                return dep.first->is_constant() || is_byxf_onednn_conv_compatible(dep.first->type());
+            })) {
+            return false;
         }
-        for (const auto* user : node.get_users()) {
-            if (!is_byxf_onednn_conv_compatible(user->type()))
-                return false;
-        }
-        return true;
+        const auto& users = node.get_users();
+        return std::all_of(users.begin(), users.end(), [](const auto* user) {
+            return is_byxf_onednn_conv_compatible(user->type());
+        });
     };
     const bool dynamic_batch_byxf = rank == 4 && input_layout.data_type == data_types::f16 && output_layout.get_partial_shape()[0].is_dynamic() &&
                                     byxf_compatible_neighbors() && is_dynamic_batch_byxf_shape_whitelisted(node);
@@ -1299,7 +1334,7 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
         return expected_format;
     }
 
-    const float cond_denom = _total_conv > 0 ? 1.0f / static_cast<float>(_total_conv) : 1.0f;
+    const float cond_denom = _total_conv > 0 ? 1.0F / static_cast<float>(_total_conv) : 1.0F;
 
     if (use_onednn_impls && onednn_valid_post_ops && node.get_preferred_output_fmt() != format::any) {
         expected_format = node.get_preferred_output_fmt();
@@ -1343,16 +1378,13 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
                 convolution_bs_fs_yx_bsv16_fsv16_opt(node.get_input_layout(), output_layout, weights_layout, prim)) {
             expected_format = cldnn::format::bs_fs_yx_bsv16_fsv16;
         } else if ((_optimization_attributes.fs_b_yx_fsv32_network != 0) && !node.get_transposed() &&
-                ((convolution_fs_b_yx_fsv32_opt(input_layout,
-                                                output_layout,
-                                                weights_layout, prim) ||
-                (((node.get_dependency(0).is_type<convolution>() && is_format_optimized(node.get_dependency(0).as<convolution>(), format::fs_b_yx_fsv32))
-                  || (_optimized_conv_count.at({format::fs_b_yx_fsv32, false}) * cond_denom > 0.8f)) &&
-                  convolution_fs_b_yx_fsv32_opt(input_layout,
-                                                output_layout,
-                                                weights_layout, prim, true)))) &&
-                 (!has_reorder_before_mvn(reinterpret_cast<program_node const&>(*node.get_users().front()), 0, 3, 1000000) ||
-                     static_cast<bool>(prepare_padding::get_needed_padding_for_convolution(const_cast<convolution_node&>(node))))) {
+                   ((convolution_fs_b_yx_fsv32_opt(input_layout, output_layout, weights_layout, prim) ||
+                     (((node.get_dependency(0).is_type<convolution>() &&
+                        is_format_optimized(node.get_dependency(0).as<convolution>(), format::fs_b_yx_fsv32)) ||
+                       (_optimized_conv_count.at({format::fs_b_yx_fsv32, false}) * cond_denom > 0.8F)) &&
+                      convolution_fs_b_yx_fsv32_opt(input_layout, output_layout, weights_layout, prim, true)))) &&
+                   (!has_reorder_before_mvn(reinterpret_cast<const program_node&>(*node.get_users().front()), 0, 3, 1000000) ||
+                    static_cast<bool>(prepare_padding::get_needed_padding_for_convolution(const_cast<convolution_node&>(node))))) {
             // Chose fs_b_yx_fsv32 layout in two cases: 1-st: the current conv primitive totally supports fs_b_yx_fsv32 layout
             //                                          2-nd: the previous conv primitive supports fs_b_yx_fsv32 layout and
             //                                                current conv primitives supports this one with weak restrictions -
@@ -1360,18 +1392,16 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
             expected_format = format::fs_b_yx_fsv32;
         } else if (should_select_b_fs_yx_fsv16_layout(node, weights_layout)) {
             expected_format = cldnn::format::b_fs_yx_fsv16;
-        } else if (output_layout.data_type == data_types::f16 &&
-                    layout_optimizer::convolution_byxf_opt(input_layout, output_layout, weights_layout, node) &&
-                    (users_for_convolution_byxf_opt(node, 2) || deps_for_convolution_byxf_opt(node, 2)) &&
-                    // todo: remove this condition when yxfb optimizations will be disabled
-                    output_layout.format != cldnn::format::yxfb && output_layout.batch() == 1) {
+        } else if (output_layout.data_type == data_types::f16 && layout_optimizer::convolution_byxf_opt(input_layout, output_layout, weights_layout, node) &&
+                   (users_for_convolution_byxf_opt(node, 2) || deps_for_convolution_byxf_opt(node, 2)) &&
+                   // todo: remove this condition when yxfb optimizations will be disabled
+                   output_layout.format != cldnn::format::yxfb && output_layout.batch() == 1) {
             expected_format = cldnn::format::byxf;
-        } else if (output_layout.format == format::b_fs_yx_fsv4 ||
-                    output_layout.format == format::os_is_yx_osv16_isv4) {
+        } else if (output_layout.format == format::b_fs_yx_fsv4 || output_layout.format == format::os_is_yx_osv16_isv4) {
             // imad case
             // nothing to do, just go out from here.
-        } else if (output_layout.batch() % 32 == 0 && output_layout.data_type == data_types::f32 &&
-                   input_layout.spatial(0) == 1 && input_layout.spatial(1) > 1 && input_layout.get_rank() <= 4) {
+        } else if (output_layout.batch() % 32 == 0 && output_layout.data_type == data_types::f32 && input_layout.spatial(0) == 1 &&
+                   input_layout.spatial(1) > 1 && input_layout.get_rank() <= 4) {
             expected_format = cldnn::format::bs_fs_yx_bsv16_fsv16;
         } else if (layout_optimizer::convolution_bfyx_opt(output_layout, weights_layout, prim) || _output_size_handling_enabled || node.get_transposed()) {
             {
@@ -1428,7 +1458,7 @@ format layout_optimizer::get_expected_format(deconvolution_node const& node) {
         auto output_features = expected_shape[1];
         float f_cost = static_cast<float>(input_features * output_features) / (align_to(input_features, 16) * align_to(output_features, 16));
         float stride_cost = 1 / static_cast<float>(prim->stride[prim->stride.size() - 1]);
-        if (f_cost * stride_cost > 0.1f) {
+        if (f_cost * stride_cost > 0.1F) {
             expected_format = cldnn::format::b_fs_yx_fsv16;
         } else {
             expected_format = cldnn::format::bfyx;
@@ -1503,8 +1533,9 @@ bool layout_optimizer::is_primitive_implemented_for_onednn(program_node& node) {
 impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format preferred_format) {
     if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
         auto forced_impl = _forcing_map.at(node.id()).second;
-        if (forced_impl != impl_types::any)
+        if (forced_impl != impl_types::any) {
             return forced_impl;
+        }
     }
 
     auto shape_type = shape_types::any;
@@ -1516,8 +1547,9 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         });
     });
 
-    if (impl)
+    if (impl) {
         return impl->get_impl_type();
+    }
     return impl_types::any;
 }
 
@@ -1532,8 +1564,9 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         // Let reorder_input pass to check input format instead of output_format in forward investigation, vice versa
         auto out_lay_rank = node.get_output_layout(false).get_rank();
 
-        if (node.is_type<shape_of>())
+        if (node.is_type<shape_of>()) {
             return format::get_default_format(node.get_input_layout(0).get_rank());
+        }
 
         auto dep_size = node.get_dependencies().size();
         for (size_t i = 0; i < dep_size; i++) {
@@ -1574,8 +1607,9 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         expected = get_expected_format(node.as<convolution>());
         // Set expected input and output preferred format for onednn convolution in dynamic.
         // This is a temporal implementation because we are guessing required format for OneDNN conv. In the end, we should use byxf format.
-        if (node.is_dynamic() && use_onednn_impls)
+        if (node.is_dynamic() && use_onednn_impls) {
             set_onednn_dyn_conv_preferred_format(node.as<convolution>());
+        }
     } else if (node.is_type<quantize>()) {
         expected = get_expected_format(node.as<quantize>());
     } else if (node.is_type<reorder>() || node.is_type<input_layout>()) {
@@ -1684,8 +1718,9 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     }
 
     if (allow_new_shape_infer && node.get_preferred_input_fmt() != format::any) {
-        if (node.get_preferred_output_fmt() != format::any)
+        if (node.get_preferred_output_fmt() != format::any) {
             expected = node.get_preferred_output_fmt();
+        }
         node.set_preferred_output_fmt(0, expected);
     }
     return expected;
@@ -1696,8 +1731,9 @@ bool layout_optimizer::all_users_simple_format_until_output(program_node& origin
     if (cur_depth > max_depth) return false;
 
     if (cur_node.is_type<permute>()) {
-        if (!cur_node.as<permute>().is_rotating_except_batch())
+        if (!cur_node.as<permute>().is_rotating_except_batch()) {
             return false;
+        }
     }
 
     if (cur_node.is_in_data_flow() && (cur_node.type() != origin_node.type())) {
@@ -1782,7 +1818,7 @@ bool layout_optimizer::contains_onednn_impls_optimization_attribute(const progra
     return it->second;
 }
 
-bool layout_optimizer::is_empty_onednn_impls_optimization_attribute() {
+bool layout_optimizer::is_empty_onednn_impls_optimization_attribute() const {
     return _optimization_attributes.onednn_impls.empty();
 }
 
@@ -1790,18 +1826,19 @@ void layout_optimizer::clear_onednn_impls_optimization_attribute() {
     _optimization_attributes.onednn_impls.clear();
 }
 
-std::map<primitive_type_id, bool> layout_optimizer::get_all_onednn_impls_optimization_attribute() {
+std::map<primitive_type_id, bool> layout_optimizer::get_all_onednn_impls_optimization_attribute() const {
     return _optimization_attributes.onednn_impls;
 }
 
-bool layout_optimizer::is_format_optimized(const convolution_node& node, const format& format, bool use_weak_restrictions) {
+bool layout_optimizer::is_format_optimized(const convolution_node& node, const format& format, bool use_weak_restrictions) const {
     auto input_layout = node.get_input_layout();
     auto weights_layout = node.weights().get_output_layout();
     auto output_layout = node.calc_output_layout();
     auto prim = node.get_primitive();
 
-    if (input_layout.is_dynamic() || output_layout.is_dynamic())
+    if (input_layout.is_dynamic() || output_layout.is_dynamic()) {
         return true;
+    }
     switch (format) {
         case format::b_fs_yx_fsv16:
             return convolution_b_fs_yx_fsv16_opt(input_layout, output_layout, weights_layout, prim, use_weak_restrictions) &&
@@ -1832,7 +1869,7 @@ void layout_optimizer::update_formats_map(const convolution_node &node) {
     _total_conv++;
 }
 
-size_t layout_optimizer::get_total_conv_count() {
+size_t layout_optimizer::get_total_conv_count() const {
     return _total_conv;
 }
 

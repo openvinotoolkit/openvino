@@ -429,7 +429,7 @@ public:
 private:
     /// Functional state: every state output starts as a copy of its input, then prepare overwrites the entries this call
     /// produces. Inputs and outputs are distinct buffers, so prepare reads the old incomplete block without a hazard.
-    std::vector<event::ptr> copy_state(const std::vector<event::ptr>& events, primitive_inst& instance) {
+    static std::vector<event::ptr> copy_state(const std::vector<event::ptr>& events, primitive_inst& instance) {
         auto& stream = instance.get_network().get_stream();
         if (stream.get_queue_type() == QueueTypes::out_of_order) {
             stream.wait_for_events(events);
