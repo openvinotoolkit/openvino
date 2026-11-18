@@ -266,9 +266,9 @@ void CommandList::updateMutableCommandListWithStrides(uint32_t index,
         }
 
         if (strides.size() > ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE) {
-            OPENVINO_THROW("The driver does not support strides with more than",
+            OPENVINO_THROW("The driver does not support strides with more than ",
                            ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE,
-                           "dimensions.");
+                           " dimensions.");
         }
 
         strides_value.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_STRIDES;
