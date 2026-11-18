@@ -352,6 +352,36 @@ PadType convert_pad(const std::string& pt_pad) {
     return TORCH_AUTO_PAD_TO_OV.at(pt_pad);
 };
 
+std::tuple<PadType, CoordinateDiff, CoordinateDiff> convert_conv_pad(const std::string& pt_pad,
+                                                                     const Output<Node>& weight,
+                                                                     const Strides& strides,
+                                                                     const Strides& dilations) {
+    const auto pad_type = convert_pad(pt_pad);
+    const auto num_spatial = strides.size();
+    CoordinateDiff pads_begin(num_spatial, 0), pads_end(num_spatial, 0);
+    if (pad_type != PadType::SAME_UPPER) {
+        return {pad_type, pads_begin, pads_end};
+    }
+    const auto& kernel = weight.get_partial_shape();
+    if (kernel.rank().is_dynamic() || kernel.size() != num_spatial + 2 || dilations.size() != num_spatial ||
+        std::any_of(strides.begin(), strides.end(), [](size_t s) {
+            return s != 1;
+        })) {
+        return {pad_type, pads_begin, pads_end};
+    }
+    for (size_t i = 0; i < num_spatial; ++i) {
+        const auto& dim = kernel[i + 2];
+        if (dim.is_dynamic()) {
+            return {pad_type, CoordinateDiff(num_spatial, 0), CoordinateDiff(num_spatial, 0)};
+        }
+        // Torch places the extra padding at the end, same as SAME_UPPER.
+        const auto total = static_cast<std::ptrdiff_t>(dilations[i] * (dim.get_length() - 1));
+        pads_begin[i] = total / 2;
+        pads_end[i] = total - pads_begin[i];
+    }
+    return {PadType::EXPLICIT, pads_begin, pads_end};
+}
+
 Output<Node> concat_list_construct(const Output<Node>& input) {
     if (auto seq_mark = ov::as_type_ptr<SequenceMark>(input.get_node_shared_ptr())) {
         auto list_inputs = seq_mark->input_values();

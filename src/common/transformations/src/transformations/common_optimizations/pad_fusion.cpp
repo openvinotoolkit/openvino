@@ -36,10 +36,6 @@ bool can_be_fused(const std::shared_ptr<op_util::PadBase>& pad,
         return false;
     if (!node)
         return false;
-    // Auto padding is computed from the input shape and cannot be combined with explicit Pad values.
-    const auto auto_pad = node->get_auto_pad();
-    if (auto_pad == ov::op::PadType::SAME_UPPER || auto_pad == ov::op::PadType::SAME_LOWER)
-        return false;
 
     auto pad_value_const = ov::util::get_constant_from_source(pad_value_node);
     if (!pad_value_const)

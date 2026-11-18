@@ -20,17 +20,16 @@ OutputVector translate_convolution_mode(const NodeContext& context) {
     auto pad_mode = context.const_input<std::string>(4);
     auto dilations = context.const_input<Strides>(5);
     auto groups = context.const_input<int64_t>(6);
-    auto pad_const = CoordinateDiff(strides.size(), 0);
-
-    auto auto_pad_mode = convert_pad(pad_mode);
+    const auto [auto_pad_mode, pads_begin, pads_end] =
+        convert_conv_pad(pad_mode, context.get_input(1), strides, dilations);
 
     std::shared_ptr<ov::Node> conv;
     if (groups == 1) {
         conv = context.mark_node(std::make_shared<v1::Convolution>(context.get_input(0),
                                                                    context.get_input(1),
                                                                    strides,
-                                                                   pad_const,
-                                                                   pad_const,
+                                                                   pads_begin,
+                                                                   pads_end,
                                                                    dilations,
                                                                    auto_pad_mode));
     } else {
@@ -38,8 +37,8 @@ OutputVector translate_convolution_mode(const NodeContext& context) {
             std::make_shared<v1::GroupConvolution>(context.get_input(0),
                                                    reshape_kernel_for_group(context, context.get_input(1), groups),
                                                    strides,
-                                                   pad_const,
-                                                   pad_const,
+                                                   pads_begin,
+                                                   pads_end,
                                                    dilations,
                                                    auto_pad_mode));
     }
