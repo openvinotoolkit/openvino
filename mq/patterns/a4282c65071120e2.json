@@ -4,10 +4,11 @@
   "signature_hash": "a4282c65071120e2",
   "title": "GPU prepare_primitive_fusing clang-tidy braces-around-statements errors",
   "category": "Code Issue",
-  "count": 5,
+  "count": 6,
   "first_seen": "2026-11-18T06:08:56Z",
-  "last_seen": "2026-11-18T15:02:50Z",
+  "last_seen": "2026-11-18T16:28:32Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/44341098091",
     "https://github.com/openvinotoolkit/openvino/actions/runs/44324642249",
     "https://github.com/openvinotoolkit/openvino/actions/runs/44286884115",
     "https://github.com/openvinotoolkit/openvino/actions/runs/44285082517",
@@ -15,12 +16,14 @@
     "https://github.com/openvinotoolkit/openvino/actions/runs/44245354283"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39796",
     "https://github.com/openvinotoolkit/openvino/pull/39751",
     "https://github.com/openvinotoolkit/openvino/pull/39853",
     "https://github.com/openvinotoolkit/openvino/pull/38575",
     "https://github.com/openvinotoolkit/openvino/pull/38641"
   ],
   "recent_timestamps": [
+    "2026-11-18T16:28:32Z",
     "2026-11-18T15:02:50Z",
     "2026-11-18T11:10:50Z",
     "2026-11-18T10:56:42Z",

@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-18-16-28-32-000-44341098091",
+  "timestamp": "2026-11-18T16:28:32Z",
+  "run_id": "44341098091",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44341098091",
+  "workflow_name": "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)",
+  "pr_number": "39796",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39796",
+  "author": "davidsnam-intel",
+  "category": "Code Issue",
+  "title": "GPU prepare_primitive_fusing clang-tidy braces-around-statements errors",
+  "signature": "clang-tidy readability-braces-around-statements error if statement missing braces treated as warning as error|Code Issue",
+  "signature_hash": "a4282c65071120e2",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build-gpu / Build",
+      "conclusion": "failure",
+      "symptom": "Cmake build with clang-tidy enabled fails: two single-statement if-bodies without braces in prepare_primitive_fusing.cpp trigger readability-braces-around-statements, promoted to error by -Werror"
+    },
+    {
+      "name": "ci/gha_overall_status_clang_tidy",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails because Build-gpu / Build failed"
+    }
+  ],
+  "key_errors": [
+    "src/plugins/intel_gpu/src/graph/graph_optimizer/prepare_primitive_fusing.cpp:1694:47: error: statement should be inside braces [readability-braces-around-statements,-warnings-as-errors]\n 1694 |                 if (const_pshape.is_dynamic())\n      |                                               ^\n      |                                                {\n 1695 |                     continue;",
+    "src/plugins/intel_gpu/src/graph/graph_optimizer/prepare_primitive_fusing.cpp:1703:41: error: statement should be inside braces [readability-braces-around-statements,-warnings-as-errors]\n 1703 |                 if (!data_in_outer_dims)\n      |                                         ^\n      |                                          {\n 1704 |                     continue;",
+    "7407 warnings generated.\nSuppressed 7405 warnings (7405 in non-user code).\n2 warnings treated as errors\nninja: build stopped: cannot make progress due to previous errors."
+  ],
+  "root_cause": "PR #39796 modifies src/plugins/intel_gpu/src/graph/graph_optimizer/prepare_primitive_fusing.cpp as part of restricting the quantize-into-eltwise fusion to the scale/shift form (fuse_primitives_with_layout fix), adding new guard clauses `if (const_pshape.is_dynamic()) continue;` (line 1694) and `if (!data_in_outer_dims) continue;` (line 1703) without braces around the single-statement bodies. The GPU clang-tidy CI job enables the readability-braces-around-statements check and treats clang-tidy warnings as errors (-Werror / CMAKE_COMPILE_WARNING_AS_ERROR=ON), so the build fails at these two lines. This is the exact same recurring clang-tidy braces style violation this doctor has already recorded 5 times for other GPU-component PRs in prepare_primitive_fusing.cpp and related files over the past day (signature a4282c65071120e2), confirming it is a common, easily-avoided style mistake in that file rather than a flaky or infrastructure issue.",
+  "reproduction_steps": "Build with clang-tidy enabled: cmake -DENABLE_CLANG_TIDY=ON ... && ninja openvino_intel_gpu_graph (or run clang-tidy-18 directly on src/plugins/intel_gpu/src/graph/graph_optimizer/prepare_primitive_fusing.cpp with the readability-braces-around-statements check enabled and warnings-as-errors) to reproduce the two reported errors at lines 1694 and 1703.",
+  "recommended_actions": [
+    "Add braces around the single-statement bodies of 'if (const_pshape.is_dynamic()) continue;' (line 1694) and 'if (!data_in_outer_dims) continue;' (line 1703) in src/plugins/intel_gpu/src/graph/graph_optimizer/prepare_primitive_fusing.cpp",
+    "Run clang-tidy -fix locally on changed files in src/plugins/intel_gpu before pushing to catch this class of style violation earlier",
+    "Consider enabling the equivalent clang-format/clang-tidy braces check in local pre-commit hooks for GPU-plugin contributors"
+  ],
+  "prevention_strategies": "Enable a pre-commit or local clang-tidy check (matching the CI's enabled checks, including readability-braces-around-statements) for src/plugins/intel_gpu changes before pushing. This specific check and even this specific file (prepare_primitive_fusing.cpp) has now recurred 6 times across unrelated PRs; a lightweight CI pre-check, editor lint rule, or targeted reminder in the PR template for GPU-plugin changes would catch brace-less single-statement if/for/while bodies before CI.",
+  "historical_context": "This exact failure signature (clang-tidy readability-braces-around-statements / Code Issue) has now been recorded 6 times, most recently today (2026-11-18) across PRs #39751, #39853, #38575, #38641, and now #39796, all touching GPU-plugin code and several in this exact file (prepare_primitive_fusing.cpp). This is a recurring, easily fixable style issue rather than an infrastructure problem."
+}
