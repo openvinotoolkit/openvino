@@ -54,6 +54,7 @@ ov::OutputVector split_compressed_weights(const ov::Output<ov::Node>& weights, i
         return {};
     }
 
+    const auto group_count = static_cast<size_t>(num_groups);
     std::function<bool(const ov::Output<ov::Node>&, size_t)> can_split;
     can_split = [&](const ov::Output<ov::Node>& value, size_t rank) {
         if (!value.get_partial_shape().is_static()) {
@@ -61,7 +62,7 @@ ov::OutputVector split_compressed_weights(const ov::Output<ov::Node>& weights, i
         }
         const auto shape = value.get_shape();
         if (shape.size() > rank ||
-            (shape.size() == rank && (shape.empty() || (shape[0] != 1 && shape[0] != num_groups)))) {
+            (shape.size() == rank && (shape.empty() || (shape[0] != 1 && shape[0] != group_count)))) {
             return false;
         }
         const auto node = value.get_node_shared_ptr();
