@@ -695,7 +695,7 @@ int get_org_numa_id(int numa_node_id) {
 std::vector<int> get_core_type_count() {
     CPU& cpu = cpu_info();
     std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
-    if (cpu._proc_type_table.empty() || cpu._cpu_freq_table.empty()) {
+    if (cpu._cpu_mapping_table.empty() || cpu._cpu_freq_table.empty()) {
         return {};
     }
 
@@ -709,14 +709,15 @@ std::vector<int> get_core_type_count() {
     std::vector<std::set<int>> frequencies(HYPER_THREADING_PROC + 1);
     for (const auto& row : cpu._cpu_mapping_table) {
         const int core_type = row[CPU_MAP_CORE_TYPE];
-        if (core_type < MAIN_CORE_PROC || core_type > HYPER_THREADING_PROC || cpu._proc_type_table[0][core_type] == 0) {
+        if (core_type < MAIN_CORE_PROC || core_type > HYPER_THREADING_PROC) {
             continue;
         }
         const auto freq = cpu_frequencies.find(row[CPU_MAP_PROCESSOR_ID]);
-        if (freq != cpu_frequencies.end()) {
-            frequencies[core_type].insert(freq->second);
-            frequencies[ALL_PROC].insert(freq->second);
+        if (freq == cpu_frequencies.end()) {
+            return {};
         }
+        frequencies[core_type].insert(freq->second);
+        frequencies[ALL_PROC].insert(freq->second);
     }
 
     std::vector<int> counts;

@@ -793,6 +793,28 @@ const std::vector<MapProcKindsTestCase> map_proc_kinds_cases = {
       {}},
      {{2, 3}, {2, 3}, {1}, {0}, {2, 3, 1}, {1, 0}, {2, 3, 1, 0}, {2, 3, 0}, {}},
      {{3}, {3}, {2}, {0}, {3, 2}, {2, 0}, {3, 2, 0}, {3, 0}, {}}},
+    {"SplitPELPEcorePcoreReserved",
+     {{2, 0, 1, 1, 0, 0, 0}},
+     {{0, 0, 0, 0, MAIN_CORE_PROC, 0, CPU_USED},
+      {1, 0, 0, 1, MAIN_CORE_PROC, 1, CPU_USED},
+      {2, 0, 0, 2, EFFICIENT_CORE_PROC, 2, NOT_USED},
+      {3, 0, 0, 3, LP_EFFICIENT_CORE_PROC, 3, NOT_USED}},
+     {{0, 4000000}, {1, 5000000}, {2, 3000000}, {3, 2000000}},
+     {0, 1, 2, 3},  // LPE, E, P (4 GHz), P (5 GHz)
+     {{EFFICIENT_CORE_PROC}},
+     {{1}},
+     {{2}}},
+    {"PartialFrequencyTableMissingEcore",
+     {{4, 2, 1, 1, 0, 0, 0}},
+     {{0, 0, 0, 0, MAIN_CORE_PROC, 0, NOT_USED},
+      {1, 0, 0, 1, MAIN_CORE_PROC, 1, NOT_USED},
+      {2, 0, 0, 2, EFFICIENT_CORE_PROC, 2, NOT_USED},
+      {3, 0, 0, 3, LP_EFFICIENT_CORE_PROC, 3, NOT_USED}},
+     {{0, 4000000}, {1, 5000000}, {3, 2000000}},
+     {0, 1, 2, 3},  // LPE, E, P (4 GHz), P (5 GHz)
+     {{EFFICIENT_CORE_PROC}},
+     {{1}},
+     {{1}}},
 };
 
 INSTANTIATE_TEST_SUITE_P(CpuTopologies,

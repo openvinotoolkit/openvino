@@ -111,12 +111,16 @@ struct CPUStreamsExecutor::Impl {
             _numaNodeId = numa_node_id;
             _socketId = socket_id;
             auto _stream_type = stream_type;
+            std::vector<int> mapped_core_types;
 #    if (TBB_INTERFACE_VERSION < 12000)
             const auto tbb_version = tbb::TBB_runtime_interface_version();
 #    else
             const auto tbb_version = TBB_runtime_interface_version();
 #    endif
             if (_stream_type == STREAM_WITH_CORE_TYPE) {
+                const auto sys_core_types = custom::info::core_types();
+                mapped_core_types = map_proc_kinds_to_tbb_core_types(sys_core_types, core_types);
+
                 int version_major = tbb_version / 10;
                 int version_patch = tbb_version % 10;
                 bool support_core_types = false;
@@ -126,7 +130,7 @@ struct CPUStreamsExecutor::Impl {
                      version_patch >= TBB_VERSION_PATCH_CORE_TYPES_LINUX)) {
                     support_core_types = true;
                 }
-                if (core_types.size() == 1 || (core_types.size() > 1 && support_core_types)) {
+                if (mapped_core_types.size() <= 1 || support_core_types) {
                     _stream_type = STREAM_WITH_CORE_TYPE;
                 } else {
                     _stream_type = STREAM_WITHOUT_PARAM;
@@ -169,8 +173,6 @@ struct CPUStreamsExecutor::Impl {
                 }
             } else if (_stream_type == STREAM_WITH_CORE_TYPE) {
                 // sys_core_types = [LPECore, Ecore, Pcore] or [LPECore, Ecore, Pcore1, Pcore2]
-                const auto sys_core_types = custom::info::core_types();
-                const auto mapped_core_types = map_proc_kinds_to_tbb_core_types(sys_core_types, core_types);
                 auto constraints = custom::task_arena::constraints{}
                                        .set_max_concurrency(concurrency)
                                        .set_max_threads_per_core(max_threads_per_core);
