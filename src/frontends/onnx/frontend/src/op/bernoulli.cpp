@@ -70,5 +70,10 @@ ov::OutputVector bernoulli(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::ConvertLike>(mask, input)};
 }
 
-ONNX_OP("Bernoulli", OPSET_SINCE(1), ai_onnx::opset_15::bernoulli);
+ONNX_OP("Bernoulli", OPSET_RANGE(1, 21), ai_onnx::opset_15::bernoulli);
 }  // namespace ov::frontend::onnx::ai_onnx::opset_15
+
+namespace ov::frontend::onnx::ai_onnx::opset_22 {
+// Opset 22 only adds bfloat16 to T1/T2, which the opset 15 translator already handles.
+ONNX_OP("Bernoulli", OPSET_SINCE(22), ai_onnx::opset_15::bernoulli);
+}  // namespace ov::frontend::onnx::ai_onnx::opset_22
