@@ -8,9 +8,31 @@
 
 namespace ov::npuw {
 
-// Folds single-element all-Constant dequantization chains
-//   Const -> Convert -> [Subtract([Convert](Const zp))] -> Multiply([Convert](Const scale))
-// into one Constant
+/**
+ * @brief Folds a single-element, all-Constant dequantization chain into one Constant.
+ *
+ * Per-tensor quantized scalars (e.g. ONNX DequantizeLinear of a norm scale) keep several tiny
+ * Constants and Convert/Subtract/Multiply nodes for a value known at compile time. Folding them
+ * leaves only real compressed weights as DQ chains for the following NPUW weight passes.
+ *
+ * Before:                                              After:
+ *
+ *   Const(w)   Const(zp)                                Const((w - zp) * scale)
+ *      │           │                                             │
+ *   Convert   [Convert]                                          │
+ *      └─────┬─────┘                                             │
+ *       [Subtract]   Const(scale)                                │
+ *            │          │                                        │
+ *            │      [Convert]                                    │
+ *            └────┬─────┘                                        │
+ *             Multiply                                           │
+ *                 │                                              │
+ *
+ * [ ] marks optional nodes; Multiply inputs may be in either order. Applied only when the
+ * Multiply output has a static shape with exactly one element, so compressed weights stay
+ * untouched. The value is computed by evaluating the matched ops (constantfold_subgraph),
+ * not by bound estimation, so no type-range clamping is introduced.
+ */
 class FoldScalarDQ : public ov::pass::GraphRewrite {
 public:
     OPENVINO_GRAPH_REWRITE_RTTI("ov::npuw::FoldScalarDQ");

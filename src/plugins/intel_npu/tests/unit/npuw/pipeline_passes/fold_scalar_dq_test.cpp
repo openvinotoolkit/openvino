@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <limits>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -125,6 +126,46 @@ TEST_F(TransformationTestsF, FoldScalarDQ_NotAppliedWithoutWeightConvert) {
     p.weight_convert = false;
     model = build_model(p, false);
     manager.register_pass<npuw::FoldScalarDQ>();
+}
+
+// x * (Convert(weight) * Convert(scale)), or x * Const(expected) when folded
+std::shared_ptr<Model> build_convert_scale_model(element::Type weight_type,
+                                                 double weight_value,
+                                                 element::Type scale_type,
+                                                 double scale_value,
+                                                 bool folded,
+                                                 float expected = 0.0f) {
+    auto x = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4});
+    std::shared_ptr<Node> dq;
+    if (folded) {
+        dq = op::v0::Constant::create(element::f32, Shape{1}, {expected});
+    } else {
+        auto weight = std::make_shared<op::v0::Convert>(
+            op::v0::Constant::create(weight_type, Shape{1}, std::vector<double>{weight_value}),
+            element::f32);
+        auto scale = std::make_shared<op::v0::Convert>(
+            op::v0::Constant::create(scale_type, Shape{}, std::vector<double>{scale_value}),
+            element::f32);
+        dq = std::make_shared<op::v1::Multiply>(weight, scale);
+    }
+    auto out = std::make_shared<op::v1::Multiply>(x, dq);
+    return std::make_shared<Model>(OutputVector{out}, ParameterVector{x});
+}
+
+// Bound evaluation maps a source type's max to the destination type's max; folding must use real values.
+TEST_F(TransformationTestsF, FoldScalarDQ_KeepsF16MaxScale) {
+    model = build_convert_scale_model(element::u16, 1.0, element::f16, 65504.0, false);
+    manager.register_pass<npuw::FoldScalarDQ>();
+    model_ref = build_convert_scale_model(element::u16, 1.0, element::f16, 65504.0, true, 65504.0f);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, FoldScalarDQ_KeepsI32MaxWeight) {
+    constexpr double i32_max = std::numeric_limits<int32_t>::max();
+    model = build_convert_scale_model(element::i32, i32_max, element::f32, 1.0, false);
+    manager.register_pass<npuw::FoldScalarDQ>();
+    model_ref = build_convert_scale_model(element::i32, i32_max, element::f32, 1.0, true, static_cast<float>(i32_max));
+    comparator.enable(FunctionsComparator::CONST_VALUES);
 }
 
 }  // namespace

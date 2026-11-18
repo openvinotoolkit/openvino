@@ -41,7 +41,7 @@ public:
                 return false;
             }
 
-            const auto folded = ov::util::get_constant_from_source(multiply_node->output(0));
+            const auto folded = ov::util::constantfold_subgraph(multiply_node->output(0));
             if (folded == nullptr) {
                 return false;
             }
