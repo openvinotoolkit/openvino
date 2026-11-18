@@ -53,6 +53,7 @@ set(op_list
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/matmul_integer_to_float.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/matmulnbits.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/multi_head_attention.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/nhwc_conv.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/pad.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/qlinear_activation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/qlinear_concat.cpp
