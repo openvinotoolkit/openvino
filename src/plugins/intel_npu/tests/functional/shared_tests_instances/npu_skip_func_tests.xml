@@ -444,14 +444,13 @@ Example:
 
     <!-- E243525 -->
     <skip_config>
-        <message>Drv.15048 update, tests crash with driver lost</message>
+        <message>Skipping tests which force error states in driver</message>
         <filters>
-            <filter>.*CrossCompilationNPU.OnlineCompilationTest.*</filter>
             <filter>.*OVCompiledGraphImportExportTestNPU.ImportingEncryptedBlobThrows.*</filter>
-            <filter>.*OVCompiledGraphImportExportTestNPU.DifferentSizesOfEncryptedVsDecryptedBlobWorks.*</filter>
-            <filter>.*DisableIdleMemoryPruningNPU.SupportMatchesContextExtensionAvailability.*</filter>
-            <filter>.*ClassCompatibilityStringTestSuite.CompatibilityCheckInvalidArgument.*</filter>
-            <filter>.*CompatibilityCheckFallbackTestSuite.CompatibilityCheckUsesPluginCompilerFallbackForOlderDriver.*</filter>
+            <filter>.*ZeroDeviceTest.ValidateRejectsInvalidString.*</filter>
+            <filter>.*ZeroGraphTest.SetGraphArgOnNullBuffer.*</filter>
+            <filter>.*EncryptionCallbacks.EncryptionCallbacksSetSecureCompileFlag.*</filter>
+            <filter>.*CheckSecureCompilationFlag.EncryptionCallbacksForOlderDriverThrows.*</filter>
         </filters>
     </skip_config>
 
