@@ -13,7 +13,7 @@ graph {
       tensor_type {
         shape {
           dim {
-            dim_value: 6
+            dim_param: "N"
           }
         }
       }
@@ -25,7 +25,7 @@ graph {
       tensor_type {
         shape {
           dim {
-            dim_value: 6
+            dim_param: "N"
           }
         }
       }

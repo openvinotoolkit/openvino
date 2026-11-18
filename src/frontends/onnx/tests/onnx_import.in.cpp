@@ -6193,6 +6193,44 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bernoulli_bf16_opset22) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bernoulli_bf16_precision) {
+    constexpr size_t half = 20000;
+    std::vector<ov::bfloat16> probabilities(half, ov::bfloat16(1.0f / 256.0f));
+    probabilities.resize(2 * half, ov::bfloat16(1.0f));
+
+    ov::Core core;
+    const auto infer = [&](const Model::Ptr& model) {
+        auto request = core.compile_model(model, s_device).create_infer_request();
+        request.set_input_tensor(Tensor(element::bf16, Shape{probabilities.size()}, probabilities.data()));
+        request.infer();
+        const auto& output = request.get_output_tensor();
+        return std::vector<ov::bfloat16>(output.data<ov::bfloat16>(),
+                                         output.data<ov::bfloat16>() + output.get_size());
+    };
+    const auto check_result = [&](const std::vector<ov::bfloat16>& result) {
+        ASSERT_EQ(result.size(), probabilities.size());
+        EXPECT_TRUE(std::all_of(result.begin() + half, result.end(), [](ov::bfloat16 value) {
+            return value == ov::bfloat16(1.0f);
+        }));
+        const auto low_probability_mean =
+            std::accumulate(result.begin(), result.begin() + half, 0.0f, [](float sum, ov::bfloat16 value) {
+                return sum + static_cast<float>(value);
+            }) /
+            half;
+        EXPECT_NEAR(low_probability_mean, 1.0f / 256.0f, 0.001f);
+    };
+
+    ov::frontend::FrontEnd::Ptr front_end;
+    auto input_model = load_model("bernoulli_seed_dynamic.onnx", &front_end);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("x"), element::bf16);
+    check_result(infer(front_end->convert(input_model)));
+
+    const auto dynamic_model = convert_model("bernoulli_unknown_input_type.onnx");
+    dynamic_model->get_parameters().at(0)->set_element_type(element::bf16);
+    dynamic_model->validate_nodes_and_infer_types();
+    check_result(infer(dynamic_model));
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bernoulli_dtype_int32) {
     const auto model = convert_model("bernoulli_dtype_int32.onnx");
     EXPECT_EQ(model->get_output_element_type(0), element::i32);

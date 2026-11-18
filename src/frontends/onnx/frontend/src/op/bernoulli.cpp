@@ -43,21 +43,21 @@ ov::OutputVector bernoulli(const ov::frontend::onnx::Node& node) {
                      "Unsupported input type ",
                      input_type.get_type_name());
 
-    // RandomUniform needs a static type, so f32 samples are used when the input type is unknown.
-    const auto sample_type = input_type.is_dynamic() ? element::f32 : input_type;
+    // Keep sampling and comparison in at least f32 to avoid low-precision probability bias.
+    const auto sample_type = input_type == element::f64 ? element::f64 : element::f32;
     const auto shape = std::make_shared<v3::ShapeOf>(input);
     const auto low = v0::Constant::create(sample_type, Shape{}, {0});
     const auto high = v0::Constant::create(sample_type, Shape{}, {1});
     const auto seed = common::convert_float_seed(node.get_attribute_value<float>("seed", 0.0f));
     const uint64_t global_seed = 0;
-    ov::Output<ov::Node> samples =
-        std::make_shared<v8::RandomUniform>(shape, low, high, sample_type, global_seed, seed);
-    if (input_type.is_dynamic()) {
-        samples = std::make_shared<v1::ConvertLike>(samples, input);
+    const auto samples = std::make_shared<v8::RandomUniform>(shape, low, high, sample_type, global_seed, seed);
+    ov::Output<ov::Node> probabilities = input;
+    if (input_type != sample_type) {
+        probabilities = std::make_shared<v0::Convert>(input, sample_type);
     }
 
     // P(U < p) == p for U ~ Uniform[0, 1).
-    const auto mask = std::make_shared<v1::Less>(samples, input);
+    const auto mask = std::make_shared<v1::Less>(samples, probabilities);
 
     if (node.has_attribute("dtype")) {
         const auto& output_type = common::get_ov_element_type(node.get_attribute_value<int64_t>("dtype"));
