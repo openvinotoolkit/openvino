@@ -836,6 +836,60 @@ TEST_F(LLMInferRequestVariantSwitchTest, ImportedNonLastVariantsOutOfOrderAreRej
     EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_kv_variants(compiled), ov::Exception);
 }
 
+// With 2048-token blocks and the pyramid sizes 1088, 2112 and 4160, the generate variants hold 1087,
+// 2111 and 4159 past tokens: a single 1087-token tail, then one or two full blocks and a 63-token tail.
+ov::AnyMap block_kv_props_with_shrinking_tail() {
+    return {{"NPUW_LLM_MAX_PROMPT_LEN", "4096"},
+            {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+            {"NPUW_LLM_PREFILL_CHUNK_SIZE", "2048"},
+            {"NPUW_LLM_PREFILL_ATTENTION_HINT", "PYRAMID"},
+            {"NPUW_LLM_GENERATE_ATTENTION_HINT", "PYRAMID"},
+            {"NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE", "YES"}};
+}
+
+// A block-based variant may add a full block while its tail shrinks. Such a blob is valid and must
+// not be rejected as one whose past KV gets smaller from one variant to the next.
+TEST_F(LLMInferRequestVariantSwitchTest, BlockKvImportedVariantsWithShrinkingTailPassValidation) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model(block_kv_props_with_shrinking_tail(), factory);
+    ASSERT_NE(compiled, nullptr);
+    ASSERT_TRUE(LLMVariantSwitchTestAccess::is_block_kv_cache(compiled));
+    ASSERT_EQ(LLMVariantSwitchTestAccess::generate_variant_count(compiled), 3u);
+
+    // Pin the scenario: the second variant has tails smaller than the first one's.
+    std::unordered_map<std::string, ov::Shape> first_variant_shapes;
+    for (const auto& port : LLMVariantSwitchTestAccess::generate_variant(compiled, 0)->inputs()) {
+        first_variant_shapes[port.get_any_name()] = port.get_shape();
+    }
+    std::size_t num_shrinking_tails = 0;
+    for (const auto& port : LLMVariantSwitchTestAccess::generate_variant(compiled, 1)->inputs()) {
+        const auto& name = port.get_any_name();
+        if (name.find("_block_tail") == std::string::npos) {
+            continue;
+        }
+        ASSERT_EQ(first_variant_shapes.count(name), 1u) << name;
+        if (ov::shape_size(port.get_shape()) < ov::shape_size(first_variant_shapes.at(name))) {
+            ++num_shrinking_tails;
+        }
+    }
+    ASSERT_GT(num_shrinking_tails, 0u);
+
+    EXPECT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_kv_variants(compiled));
+}
+
+// Summing the blocks of a tensor must not turn the ordering check off for the block layout.
+TEST_F(LLMInferRequestVariantSwitchTest, BlockKvImportedVariantsOutOfOrderAreRejected) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model(block_kv_props_with_shrinking_tail(), factory);
+    ASSERT_NE(compiled, nullptr);
+    ASSERT_TRUE(LLMVariantSwitchTestAccess::is_block_kv_cache(compiled));
+    ASSERT_EQ(LLMVariantSwitchTestAccess::generate_variant_count(compiled), 3u);
+
+    LLMVariantSwitchTestAccess::swap_generate_variants(compiled, 0u, 1u);
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_kv_variants(compiled), ov::Exception);
+}
+
 // Defense in depth: even with the import check bypassed, sharing must not hand a variant a view
 // that is larger than the backing allocation.
 TEST_F(LLMInferRequestVariantSwitchTest, ContinuousKvSharingRejectsUndersizedAllocation) {
