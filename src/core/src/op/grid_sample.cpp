@@ -84,6 +84,16 @@ void GridSample::validate_and_infer_types() {
     }
 
     const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
+
+    // Bicubic interpolation is only defined for 4D (2D-spatial) input - both PyTorch and ONNX restrict
+    // `bicubic`/`cubic` to images. Reject it for volumetric (5D) input.
+    const auto& data_rank = input_shapes[0].rank();
+    if (data_rank.is_static() && data_rank.get_length() == 5) {
+        NODE_VALIDATION_CHECK(this,
+                              m_attributes.mode != InterpolationMode::BICUBIC,
+                              "GridSample does not support bicubic interpolation for 5D (volumetric) input.");
+    }
+
     const auto out_shapes = shape_infer(this, input_shapes);
     set_output_type(0, get_input_element_type(0), out_shapes[0]);
 }

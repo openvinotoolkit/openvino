@@ -93,7 +93,7 @@ void GridSampleLayerTestCPU::SetUp() {
 
 TEST_P(GridSampleLayerTestCPU, CompareWithRefs) {
     run();
-    CheckPluginRelatedResults(compiledModel, "GridSample");
+    CheckPluginRelatedResults(compiledModel, std::set<std::string>{"GridSample", "Reference"});
 }
 
 namespace GridSample {
