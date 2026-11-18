@@ -434,7 +434,7 @@ private:
     /// The block-key cache output has max(key_length) / r rows per (batch, head) and the input Bp, either may be larger:
     /// each (batch, head) keeps its first min(Bp, out) rows, and when the output has more rows it is zeroed first, so the
     /// rows past the last block of a shorter row are zero (as the CPU plugin); prepare writes the completed blocks.
-    std::vector<event::ptr> copy_state(const std::vector<event::ptr>& events, primitive_inst& instance) {
+    static std::vector<event::ptr> copy_state(const std::vector<event::ptr>& events, primitive_inst& instance) {
         auto& stream = instance.get_network().get_stream();
         const bool out_of_order = stream.get_queue_type() == QueueTypes::out_of_order;
         if (out_of_order) {

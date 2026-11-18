@@ -56,8 +56,8 @@ public:
         size_t num_selection_heads = 1;  ///< 1 or H_ik
         size_t indexer_rotary_dim = 0;   ///< <= indexer_head_dim, even
         size_t indexer_head_dim = 0;     ///< D_idx
-        float epsilon = 1e-6f;           ///< RMSNorm epsilon
-        float scale = 0.0f;              ///< positive score multiplier; 0 selects the default 1 / sqrt(indexer_head_dim)
+        float epsilon = 1e-6F;           ///< RMSNorm epsilon
+        float scale = 0.0F;              ///< positive score multiplier; 0 selects the default 1 / sqrt(indexer_head_dim)
     };
 
     QSAIndexer() = default;
@@ -71,10 +71,10 @@ public:
         return m_config;
     }
 
-    static bool validate_config(const Config& config, std::string& reason);
+    static bool validate_config(const Config& c, std::string& reason);
 
     /// `scale`, or its 1 / sqrt(indexer_head_dim) default when unset (0).
-    static float effective_scale(const Config& config);
+    static float effective_scale(const Config& c);
 
     /// Rows of the block_index_keys_cache output when the key_length values are known: the complete blocks of the
     /// longest row, max(key_length) / r, as QSAPrepare defines. Shared by the op and the cldnn primitive.
