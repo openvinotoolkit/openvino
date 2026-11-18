@@ -10,8 +10,10 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <string>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace ov::test {
 
@@ -252,6 +254,25 @@ TEST_F(MemoryViewTest, as_memory_view_of_array_covers_all_elements) {
     const auto view = util::as_memory_view(arr);
     EXPECT_EQ(sizeof(arr), view.size());
     EXPECT_EQ(reinterpret_cast<const std::byte*>(arr.data()), view.data());
+}
+
+TEST_F(MemoryViewTest, as_memory_view_of_string_spans_characters) {
+    const std::string text = "hetero";
+    const auto view = util::as_memory_view(text);
+    EXPECT_EQ(reinterpret_cast<const std::byte*>(text.data()), view.data());
+    EXPECT_EQ(text.size(), view.size());
+}
+
+TEST_F(MemoryViewTest, as_memory_view_of_vector_covers_all_elements) {
+    const std::vector<uint32_t> vec{1, 2, 3};
+    const auto view = util::as_memory_view(vec);
+    EXPECT_EQ(reinterpret_cast<const std::byte*>(vec.data()), view.data());
+    EXPECT_EQ(vec.size() * sizeof(uint32_t), view.size());
+}
+
+TEST_F(MemoryViewTest, as_memory_view_of_empty_container_is_empty) {
+    const std::string empty_text;
+    EXPECT_TRUE(util::as_memory_view(empty_text).empty());
 }
 
 template <typename T, typename = void>

@@ -110,21 +110,29 @@ std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
         auto conversion_input = gguf_model;
         if (gguf_model->m_builder) {
             auto graph = gguf_model->m_builder(ops);
+            for (const auto& [output, adapter] : graph->model_adapters) {
+                if (adapter)
+                    adapter->lifetime.insert(adapter->lifetime.end(),
+                                             gguf_model->m_extensions.begin(),
+                                             gguf_model->m_extensions.end());
+            }
             conversion_input = std::make_shared<gguf::InputModel>(std::make_shared<GgufBuilderDecoder>(graph));
         }
-        auto transformations = m_impl->transformation_extensions;
-        if (m_impl->genai_extension) {
-            transformations.push_back(std::make_shared<DecoderTransformationExtension>(pass::GGUFMakeStateful()));
-        }
-        TranslateSession translate_session(conversion_input, ops, transformations);
+        TranslateSession translate_session(conversion_input, ops, m_impl->transformation_extensions);
         converted_model = translate_session.get_converted_model();
     }
-    if (m_impl->genai_extension) {
-        pass::AdaptToGenAI adapter(m_impl->genai_extension->m_mode);
-        FRONT_END_GENERAL_CHECK(adapter.run_on_model(converted_model),
+    // TODO: Remove this compatibility path once GenAI no longer uses GenAIExtension.
+    if (const auto& genai = m_impl->genai_extension) {
+        FRONT_END_GENERAL_CHECK(!converted_model->has_rt_info("gguf_mmproj"),
                                 "GenAIExtension requires a GGUF decoder with adaptable inputs");
-        m_impl->genai_extension->m_embedding_model = adapter.get_embedding_model();
-        m_impl->genai_extension->m_per_layer_embedding_model = adapter.get_per_layer_embedding_model();
+        auto models = adapt_to_genai(converted_model, {genai->m_mode});
+        const auto model = [&](const std::string& name) {
+            const auto found = models.find(name);
+            return found == models.end() ? nullptr : found->second;
+        };
+        converted_model = model("language");
+        genai->m_embedding_model = model("text_embeddings");
+        genai->m_per_layer_embedding_model = model("text_embeddings_per_layer");
     }
     return converted_model;
 }

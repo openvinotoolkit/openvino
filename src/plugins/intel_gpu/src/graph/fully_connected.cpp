@@ -106,6 +106,15 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
     auto input_pshape = input_layout.get_partial_shape();
     auto weights_layout = *impl_param.weights_layout;
     auto weights_pshape = weights_layout.get_partial_shape();
+    if (desc->weights_layout == ov::intel_gpu::op::FcWeightsLayout::GNK) {
+        // Legacy shape inference pads [G, N, gs] to bfyx [G, N, gs, 1].
+        if (desc->weights_rank == 3 && weights_pshape.size() == 4 && weights_pshape[3] == 1) {
+            weights_pshape = ov::PartialShape{weights_pshape[0], weights_pshape[1], weights_pshape[2]};
+        }
+        const auto dims = ov::intel_gpu::op::fc_weight_dims(weights_pshape, desc->weights_layout);
+        weights_pshape = ov::PartialShape{dims.N, dims.K};
+        weights_layout.set_partial_shape(weights_pshape);
+    }
     auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
     if (data_type_traits::is_i8_u8(input_layout.data_type) && desc->output_data_types[0]) {
         output_type = *desc->output_data_types[0];
@@ -209,9 +218,14 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
 
     ov::op::v0::MatMul matmul_op;
     matmul_op.set_transpose_b(desc->weights_transposed);
+    auto weights_shape = weights_layout.get<ShapeType>();
+    if (desc->weights_layout == ov::intel_gpu::op::FcWeightsLayout::GNK) {
+        const auto dims = ov::intel_gpu::op::fc_weight_dims(weights_layout.get_partial_shape(), desc->weights_layout);
+        weights_shape = ShapeType{dims.N, dims.K};
+    }
     std::vector<ShapeType> input_shapes = {
         input_layout.get<ShapeType>(),
-        weights_layout.get<ShapeType>()
+        weights_shape
     };
 
     std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&matmul_op, input_shapes);
@@ -331,6 +345,17 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
             return std::move(orig_impl_param);
         }
 
+        // A 4-bit FC with 2..4 rows has a 128-register gemm kernel (4 columns); padding the rows to 16 sends it
+        // to the 256-register systolic kernel, which runs half the hardware threads per EU. Both are oneDNN
+        // kernels, and oneDNN runs the FC only on GPUs with XMX (immad).
+        if (orig_impl_param.dev_type == cldnn::device_type::integrated_gpu && orig_impl_param.get_device_info().supports_immad && batch_size >= 2 &&
+            batch_size <= 4 && orig_impl_param.weights_layout.has_value()) {
+            const auto small_row_wdt = orig_impl_param.weights_layout.value().data_type;
+            if (small_row_wdt == data_types::i4 || small_row_wdt == data_types::u4) {
+                return std::move(orig_impl_param);
+            }
+        }
+
         size_t fake_align_base = 8;
         if (orig_impl_param.dev_type == cldnn::device_type::integrated_gpu) {
             auto weights_layout_dt = orig_impl_param.weights_layout.value().data_type;
@@ -374,6 +399,7 @@ std::string fully_connected_inst::to_string(fully_connected_node const& node) {
 
     json_composite fc_info;
     fc_info.add("weights id", weights_id);
+    fc_info.add("weights layout", ov::intel_gpu::op::to_string(desc->weights_layout));
     fc_info.add("bias id", bias_id);
     fc_info.add("compressed weights", desc->compressed_weights ? "true" : "false");
     if (desc->compressed_weights) {
