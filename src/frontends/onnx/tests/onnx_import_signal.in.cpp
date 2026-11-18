@@ -72,6 +72,16 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_only_real) {
     test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_20_axis_input) {
+    auto model = convert_model("dft_20_axis.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{2, 2, 2, 1}, {1, 2, 3, 4, 5, 6, 7, 8});
+    test_case.add_input<int64_t>(Shape{}, {-2});
+    test_case.add_expected_output<float>(Shape{2, 2, 2, 2},
+                                         {3, 0, -1, 0, 7, 0, -1, 0, 11, 0, -1, 0, 15, 0, -1, 0});
+    test_case.run_with_tolerance_as_fp(1e-4f);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_onesided) {
     auto model = convert_model("dft_onesided.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
