@@ -215,10 +215,10 @@ jobs:
           submodules: 'recursive'
 
       - name: Install Python-based dependencies
-        run: python3 -m pip install -r cmake/developer_package/ncc_naming_style/requirements_dev.txt
+        run: python3.11 -m pip install -r cmake/developer_package/ncc_naming_style/requirements_dev.txt
 
       - name: CMake configure
-        run: cmake -B build
+        run: cmake -DPython3_EXECUTABLE=/usr/bin/python3.11 -B build
 
       - name: Naming convention check
         run: cmake --build build --target ncc_all -j8 -- --quiet

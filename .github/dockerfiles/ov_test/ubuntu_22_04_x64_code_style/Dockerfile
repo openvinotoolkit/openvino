@@ -18,6 +18,7 @@ ENV DEBIAN_FRONTEND="noninteractive" \
 RUN apt-get update && \
     apt-get install software-properties-common && \
     add-apt-repository --yes --no-update ppa:git-core/ppa && \
+    add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
     apt-get update && \
     apt-get install \
         curl \
@@ -28,12 +29,16 @@ RUN apt-get update && \
         shellcheck \
         clang-14 \
         libclang-14-dev \
+        # Python 3.11 for NCC naming style check (Ubuntu 22.04 default python3 is 3.10)
+        python3.11-dev \
+        python3.11-venv \
         && \
     rm -rf /var/lib/apt/lists/*
 
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
 # Install CMake 3.26.4 using the Kitware installer script
