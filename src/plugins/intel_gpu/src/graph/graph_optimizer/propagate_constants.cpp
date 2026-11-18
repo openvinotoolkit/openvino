@@ -259,7 +259,7 @@ std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>> propagate_constant
 
     // union-find over the constant subgraph
     std::unordered_map<program_node*, program_node*> parent;
-    for (auto& n : nodes) {
+    for (const auto& n : nodes) {
         parent[n.get()] = n.get();
     }
     std::function<program_node*(program_node*)> find = [&](program_node* n) {
@@ -269,8 +269,8 @@ std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>> propagate_constant
         }
         return n;
     };
-    for (auto& n : nodes) {
-        for (auto& dep : n->get_dependencies()) {
+    for (const auto& n : nodes) {
+        for (const auto& dep : n->get_dependencies()) {
             if (parent.count(dep.first)) {
                 parent[find(dep.first)] = find(n.get());
             }
@@ -281,11 +281,11 @@ std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>> propagate_constant
     std::vector<size_t> comp_bytes;
     // order components like const_outputs, which follows the processing order
     std::unordered_map<primitive_id, program_node*> by_id;
-    for (auto& n : nodes) {
+    for (const auto& n : nodes) {
         by_id[n->id()] = n.get();
     }
     auto comp_of = [&](program_node* n) {
-        auto root = find(n);
+        auto* root = find(n);
         auto it = comp_index.find(root);
         if (it == comp_index.end()) {
             it = comp_index.emplace(root, comps.size()).first;
@@ -299,7 +299,7 @@ std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>> propagate_constant
             comp_of(by_id[id]);
         }
     }
-    for (auto& n : nodes) {
+    for (const auto& n : nodes) {
         auto c = comp_of(n.get());
         comps[c].insert(n);
         if (n->is_type<data>()) {
@@ -325,7 +325,7 @@ std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>> propagate_constant
             chunk_nodes.insert(comps[c].begin(), comps[c].end());
         }
         std::unordered_set<primitive_id> chunk_ids;
-        for (auto& n : chunk_nodes) {
+        for (const auto& n : chunk_nodes) {
             chunk_ids.insert(n->id());
         }
         std::vector<primitive_id> chunk_outputs;
@@ -367,7 +367,7 @@ std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>> propagate_constant
 
         net->execute({});
         net->reset_execution(true);  // wait for computations to complete
-        for (auto& out : net->get_outputs()) {
+        for (const auto& out : net->get_outputs()) {
             cache_tuple cache_info{};
             auto it = weightless_cache_map.find(out->id());
             if (it != weightless_cache_map.end()) {
