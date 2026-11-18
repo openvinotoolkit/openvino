@@ -1151,8 +1151,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
         }
 
-        if ((!device_info.supports_immad || !config.get_use_onednn()) && !GPU_DEBUG_VALUE_OR(ExecutionConfig::get_enable_mlir(), false)) {
-            manager.register_pass<ov::pass::ConvertGroupedMatMulToMatMul>();
+        if (!GPU_DEBUG_VALUE_OR(ExecutionConfig::get_enable_mlir(), false)) {
+            if (!device_info.supports_immad || !config.get_use_onednn()) {
+                manager.register_pass<ov::pass::ConvertGroupedMatMulToMatMul>();
+            } else if (!f16_activations_possible) {
+                // 2Dx3D GroupedMatMul runs on oneDNN grouped_gemm, which supports only f16 activations, so decompose it for
+                // other inference precisions. 3Dx3D GroupedMatMul is lowered to a batched FullyConnected and stays as is.
+                manager.register_pass<ov::pass::ConvertGroupedMatMul2Dx3DToMatMul>();
+            }
         }
 
         manager.register_pass<ov::pass::GatedDeltaNetFusion>();
