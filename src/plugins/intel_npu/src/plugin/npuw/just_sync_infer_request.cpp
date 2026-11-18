@@ -333,8 +333,14 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         if (comp_model_desc.replaced_by) {
             // Pre-allocate output tensors for this function call
             const auto real_idx = comp_model_desc.replaced_by.value();
-            auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+            auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels.at(real_idx);
             auto& proto_comp_model = proto_comp_model_desc.compiled_model;
+            OPENVINO_ASSERT(proto_comp_model,
+                            "Function-call submodel ",
+                            i,
+                            " refers to replacement submodel ",
+                            real_idx,
+                            " without a compiled model");
             const auto num_outputs = proto_comp_model->outputs().size();
 
             // Initialize the spatial IO placeholders, if required
