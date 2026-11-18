@@ -23,6 +23,8 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/asin.hpp"
 #include "openvino/op/atan.hpp"
+#include "openvino/op/bitwise_left_shift.hpp"
+#include "openvino/op/bitwise_right_shift.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/concat.hpp"
@@ -1249,6 +1251,67 @@ TEST(eval, evaluate_logical_not) {
     auto result_val = read_vector<char>(result);
     vector<char> expec{0, 1, 0, 1};
     ASSERT_EQ(result_val, expec);
+}
+
+TEST(eval, evaluate_bitwise_left_shift_u8_wraps_around) {
+    auto p0 = make_shared<ov::op::v0::Parameter>(element::u8, Shape{4});
+    auto p1 = make_shared<ov::op::v0::Parameter>(element::u8, Shape{4});
+    auto shift = make_shared<ov::op::v15::BitwiseLeftShift>(p0, p1);
+    auto model = make_shared<Model>(OutputVector{shift}, ParameterVector{p0, p1});
+    auto result = ov::Tensor();
+    auto out_vector = ov::TensorVector{result};
+    auto in_vector = ov::TensorVector{make_tensor<element::Type_t::u8>(Shape{4}, {0, 1, 128, 255}),
+                                      make_tensor<element::Type_t::u8>(Shape{4}, {0, 1, 3, 7})};
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
+    EXPECT_EQ(result.get_element_type(), element::u8);
+    EXPECT_EQ(read_vector<uint8_t>(result), (vector<uint8_t>{0, 2, 0, 128}));
+}
+
+TEST(eval, evaluate_bitwise_left_shift_u64) {
+    auto p0 = make_shared<ov::op::v0::Parameter>(element::u64, Shape{3});
+    auto p1 = make_shared<ov::op::v0::Parameter>(element::u64, Shape{3});
+    auto shift = make_shared<ov::op::v15::BitwiseLeftShift>(p0, p1);
+    auto model = make_shared<Model>(OutputVector{shift}, ParameterVector{p0, p1});
+    auto result = ov::Tensor();
+    auto out_vector = ov::TensorVector{result};
+    auto in_vector = ov::TensorVector{make_tensor<element::Type_t::u64>(Shape{3}, {1, 3, 5}),
+                                      make_tensor<element::Type_t::u64>(Shape{3}, {63, 62, 2})};
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
+    EXPECT_EQ(result.get_element_type(), element::u64);
+    EXPECT_EQ(read_vector<uint64_t>(result),
+              (vector<uint64_t>{9223372036854775808ULL, 13835058055282163712ULL, 20ULL}));
+}
+
+TEST(eval, evaluate_bitwise_right_shift_u32) {
+    auto p0 = make_shared<ov::op::v0::Parameter>(element::u32, Shape{4});
+    auto p1 = make_shared<ov::op::v0::Parameter>(element::u32, Shape{4});
+    auto shift = make_shared<ov::op::v15::BitwiseRightShift>(p0, p1);
+    auto model = make_shared<Model>(OutputVector{shift}, ParameterVector{p0, p1});
+    auto result = ov::Tensor();
+    auto out_vector = ov::TensorVector{result};
+    auto in_vector = ov::TensorVector{make_tensor<element::Type_t::u32>(Shape{4}, {2147483648u, 4294967295u, 8u, 1u}),
+                                      make_tensor<element::Type_t::u32>(Shape{4}, {1u, 31u, 3u, 1u})};
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
+    EXPECT_EQ(result.get_element_type(), element::u32);
+    EXPECT_EQ(read_vector<uint32_t>(result), (vector<uint32_t>{1073741824u, 1u, 1u, 0u}));
+}
+
+TEST(eval, evaluate_bitwise_right_shift_u16) {
+    auto p0 = make_shared<ov::op::v0::Parameter>(element::u16, Shape{3});
+    auto p1 = make_shared<ov::op::v0::Parameter>(element::u16, Shape{1});
+    auto shift = make_shared<ov::op::v15::BitwiseRightShift>(p0, p1);
+    auto model = make_shared<Model>(OutputVector{shift}, ParameterVector{p0, p1});
+    auto result = ov::Tensor();
+    auto out_vector = ov::TensorVector{result};
+    auto in_vector = ov::TensorVector{make_tensor<element::Type_t::u16>(Shape{3}, {65535, 256, 7}),
+                                      make_tensor<element::Type_t::u16>(Shape{1}, {4})};
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
+    EXPECT_EQ(result.get_element_type(), element::u16);
+    EXPECT_EQ(read_vector<uint16_t>(result), (vector<uint16_t>{4095, 16, 0}));
 }
 
 TEST(eval, evaluate_dynamic_gather_v1) {

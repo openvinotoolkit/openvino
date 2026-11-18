@@ -1680,6 +1680,46 @@ TEST(constant_folding, const_xor) {
     ASSERT_EQ(values_expected, values_out);
 }
 
+TEST(constant_folding, const_bitwise_left_shift_u8) {
+    auto constant0 = ov::op::v0::Constant::create(element::u8, Shape{4}, vector<uint8_t>{0, 1, 128, 255});
+    constant0->set_friendly_name("constant0");
+    auto constant1 = ov::op::v0::Constant::create(element::u8, Shape{4}, vector<uint8_t>{0, 1, 3, 7});
+    constant1->set_friendly_name("constant1");
+    auto shift = make_shared<op::v15::BitwiseLeftShift>(constant0, constant1);
+    shift->set_friendly_name("test");
+    auto f = make_shared<Model>(shift, ParameterVector{});
+
+    run_constant_folding(f);
+
+    ASSERT_EQ(count_ops_of_type<op::v15::BitwiseLeftShift>(f), 0);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
+
+    auto new_const = get_result_constant(f);
+    ASSERT_TRUE(new_const);
+    check_names(new_const, {"constant0", "constant1", "test"});
+    EXPECT_EQ(new_const->get_vector<uint8_t>(), (vector<uint8_t>{0, 2, 0, 128}));
+}
+
+TEST(constant_folding, const_bitwise_right_shift_u32) {
+    auto constant0 = ov::op::v0::Constant::create(element::u32, Shape{2}, vector<uint32_t>{2147483648u, 4294967295u});
+    constant0->set_friendly_name("constant0");
+    auto constant1 = ov::op::v0::Constant::create(element::u32, Shape{2}, vector<uint32_t>{1u, 31u});
+    constant1->set_friendly_name("constant1");
+    auto shift = make_shared<op::v15::BitwiseRightShift>(constant0, constant1);
+    shift->set_friendly_name("test");
+    auto f = make_shared<Model>(shift, ParameterVector{});
+
+    run_constant_folding(f);
+
+    ASSERT_EQ(count_ops_of_type<op::v15::BitwiseRightShift>(f), 0);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
+
+    auto new_const = get_result_constant(f);
+    ASSERT_TRUE(new_const);
+    check_names(new_const, {"constant0", "constant1", "test"});
+    EXPECT_EQ(new_const->get_vector<uint32_t>(), (vector<uint32_t>{1073741824u, 1u}));
+}
+
 TEST(constant_folding, const_ceiling) {
     auto constant =
         ov::op::v0::Constant::create(element::f32, Shape{2, 3}, vector<float>{0.0f, 0.1f, -0.1f, -2.5f, 2.5f, 3.0f});
