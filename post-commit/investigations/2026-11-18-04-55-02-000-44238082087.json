@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-18-04-55-02-000-44238082087",
+  "timestamp": "2026-11-18T04:55:02Z",
+  "run_id": "44238082087",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44238082087",
+  "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+  "commit_sha": "f6f9b3427c14b217e62ccad578817d4d89e28a0b",
+  "pr_number": "39562",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39562",
+  "author": "jyeom-intel",
+  "category": "Infrastructure",
+  "title": "Windows CC build fails with linker fatal error LNK1102 out of memory under high parallelism",
+  "signature": "Windows Release build runs out of memory - compiler fatal error C1060 (out of heap space) and linker fatal error LNK1102 (out of memory) under high parallelism|Infrastructure",
+  "signature_hash": "80cfa127185fbf3e",
+  "confidence": "High",
+  "failed_jobs": [
+    {"name": "Build_And_Run_Collect_Mode", "conclusion": "failure", "symptom": "ninja build stopped: link.exe failed with LNK1102 fatal error: out of memory while linking pybind_mock_frontend.pyd, _pyopenvino.pyd, and ov_gpu_unit_tests.exe"},
+    {"name": "ci/gha_overall_status_windows_cc", "conclusion": "failure", "symptom": "overall status check failed because Build_And_Run_Collect_Mode failed"}
+  ],
+  "key_errors": [
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/pybind_mock_frontend.cp311-win_amd64.pyd\nLINK : fatal error LNK1102: out of memory",
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/python/openvino/_pyopenvino.cp311-win_amd64.pyd\nLINK : fatal error LNK1102: out of memory",
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/ov_gpu_unit_tests.exe\nLINK : fatal error LNK1102: out of memory\nninja: build stopped: subcommand failed."
+  ],
+  "root_cause": "This is the recurring Windows CC (conditional compilation) build out-of-memory failure (8 prior occurrences in the pattern database since 2026-11-03). The ninja build runs many parallel MSVC link.exe processes on a shared Windows runner with limited physical/virtual memory. When several large link steps (pybind_mock_frontend, _pyopenvino, ov_gpu_unit_tests) are scheduled concurrently, link.exe exhausts available memory and fails with LNK1102. The failure is not caused by the triggering PR's content (a GPU kernel rewrite in group_normalization_ref.cl/.cpp, unrelated to the Windows CC build/link configuration) but by runner resource contention combined with high ninja link parallelism on this job.",
+  "recommended_actions": [
+    "Reduce ninja/link parallelism for the Windows CC job (e.g. set CMAKE_JOB_POOLS or ninja -j with a lower link pool size) specifically for large targets like _pyopenvino and ov_gpu_unit_tests",
+    "Move to larger-memory Windows runners for the Windows Conditional Compilation workflow, or split heavy link targets into separate jobs",
+    "Enable /DEBUG:FASTLINK or reduce PDB/debug info generation for Release CC builds to lower linker memory footprint",
+    "Re-run the failed job (handled externally; this doctor only reports) since this is a known infrastructure-related flake"
+  ],
+  "prevention_strategies": "Introduce a dedicated link job pool (CMake JOB_POOLS / Ninja pool) capping concurrent link.exe invocations to 1-2 for large python-binding and unit-test targets on Windows runners. Track Windows runner memory headroom in CI metrics and alert when usage trends high. Consider CCache + separate build/link machine sizing for python bindings vs the rest of the build.",
+  "reproduction_steps": "N/A - requires a memory-constrained Windows build environment with high ninja parallelism; not reliably reproducible outside the shared CI runner pool.",
+  "historical_context": "This exact signature (LNK1102 out-of-memory on Windows CC build) has recurred 8 times since 2026-11-03 across different commits/PRs, all tracked under pattern 80cfa127185fbf3e, confirming this is a persistent CI infrastructure capacity issue rather than a code regression introduced by any specific PR."
+}

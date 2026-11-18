@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 130,
+  "total": 131,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -1315,6 +1315,15 @@
       "category": "Flaky Test",
       "signature_hash": "502c01bffd8f35db",
       "commit_sha": "bfbb23500507535827fa817e0cd069b0bc7b664d"
+    },
+    {
+      "investigation_id": "2026-11-18-04-55-02-000-44238082087",
+      "run_id": "44238082087",
+      "timestamp": "2026-11-18T04:55:02Z",
+      "title": "Windows CC build fails with linker fatal error LNK1102 out of memory under high parallelism",
+      "category": "Infrastructure",
+      "signature_hash": "80cfa127185fbf3e",
+      "commit_sha": "f6f9b3427c14b217e62ccad578817d4d89e28a0b"
     }
   ]
 }
