@@ -48,6 +48,7 @@ set(op_list
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/fusedgemm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/fusedmatmul.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/gather_block_quantized.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/gemm_fast_gelu.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/group_norm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/group_query_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/matmul_integer_to_float.cpp
