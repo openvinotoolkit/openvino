@@ -6232,26 +6232,6 @@ TEST_F(fully_connected_gpu_tests, compressed_int8_parameter_scale_zp_per_group_t
     this->test_compressed_int8_parameter_scale_zp(true, true);
 }
 
-// ov::Core resolves plain "GPU" to the first enumerated device and ignores --device_suffix, so pin the
-// execution device to the one behind get_test_engine() (the plugin reports the very cldnn device_info uuid).
-static std::string get_engine_gpu_device_name() {
-    auto& engine = get_test_engine();
-    const auto engine_uuid = engine.get_device_info().uuid;
-    ov::Core core;
-    for (const auto& device : core.get_available_devices()) {
-        if (device.rfind("GPU", 0) != 0) {
-            continue;
-        }
-        try {
-            if (core.get_property(device, ov::device::uuid).uuid == engine_uuid.uuid) {
-                return device;
-            }
-        } catch (const ov::Exception&) {
-        }
-    }
-    return "GPU";
-}
-
 // Full-pipeline regression for runtime scale/zp: an f32 scale Parameter and a u8 zp Parameter feeding a
 // compressed MatMul reach GPU:PostLPT through ConvertPrecision, so the scale arrives as a bare
 // Convert(Parameter) and the zp as Convert(Parameter) over the Subtract operand. The pipeline must

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -114,9 +114,7 @@ bool FullyConnected_GEMV::Validate(const Params& params) const {
     return true;
 }
 
-FullyConnected_GEMV::DispatchData FullyConnected_GEMV::SetDefault(const fully_connected_params& params,
-                                                                  int,
-                                                                  int /*kernel_number*/) const {
+FullyConnected_GEMV::DispatchData FullyConnected_GEMV::SetDefault(const fully_connected_params& params, int /*autoTuneIndex*/, int /*kernel_number*/) const {
     auto dispatchData = Parent::SetDefault(params);
 
     std::vector<size_t> global = {params.weights.OFM().v, 1, 16};
