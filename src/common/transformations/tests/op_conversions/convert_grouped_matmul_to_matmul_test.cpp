@@ -65,8 +65,8 @@ ov::Output<ov::Node> ref_2dx3d_decomposition(const ov::Output<ov::Node>& mat_a,
     ov::OutputVector group_outputs;
     for (int64_t g = 0; g < num_groups; ++g) {
         ov::Output<ov::Node> b_g = compressed_weights.empty()
-            ? std::make_shared<v0::Squeeze>(b_split->output(g), axis_1d)->output(0)
-            : compressed_weights[g];
+                                       ? std::make_shared<v0::Squeeze>(b_split->output(g), axis_1d)->output(0)
+                                       : compressed_weights[g];
         auto mm = std::make_shared<v0::MatMul>(a_split->output(g), b_g, /*transpose_a=*/false, /*transpose_b=*/true);
         group_outputs.push_back(mm);
     }
@@ -164,8 +164,9 @@ INSTANTIATE_TEST_SUITE_P(Shapes2Dx3D,
                                                           ShapeParams2Dx3D{16, 8, 8, {0, 8, 8, 16}}),
                                           testing::Values(i32, i64)));
 
-class ConvertGroupedMatMulToMatMulCompressed : public TransformationTestsF,
-    public testing::WithParamInterface<std::tuple<ov::element::Type, std::vector<int32_t>>> {};
+class ConvertGroupedMatMulToMatMulCompressed
+    : public TransformationTestsF,
+      public testing::WithParamInterface<std::tuple<ov::element::Type, std::vector<int32_t>>> {};
 
 TEST_P(ConvertGroupedMatMulToMatMulCompressed, PreservesExpertQuantization) {
     const auto& [weight_type, ends] = GetParam();
@@ -208,9 +209,9 @@ TEST_P(ConvertGroupedMatMulToMatMulCompressed, PreservesExpertQuantization) {
 }
 
 INSTANTIATE_TEST_SUITE_P(QuantizedExperts,
-    ConvertGroupedMatMulToMatMulCompressed,
-    testing::Combine(testing::Values(ov::element::u4, ov::element::i4),
-                     testing::Values(std::vector<int32_t>{3},
-                                     std::vector<int32_t>{1, 3},
-                                     std::vector<int32_t>{1, 3, 6, 10},
-                                     std::vector<int32_t>{0, 2, 2, 10})));
+                         ConvertGroupedMatMulToMatMulCompressed,
+                         testing::Combine(testing::Values(ov::element::u4, ov::element::i4),
+                                          testing::Values(std::vector<int32_t>{3},
+                                                          std::vector<int32_t>{1, 3},
+                                                          std::vector<int32_t>{1, 3, 6, 10},
+                                                          std::vector<int32_t>{0, 2, 2, 10})));
