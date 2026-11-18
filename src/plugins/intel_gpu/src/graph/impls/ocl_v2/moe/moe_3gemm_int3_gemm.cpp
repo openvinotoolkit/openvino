@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "common_utils/jitter.hpp"
+#include "impls/ocl/kernel_selector_helper.h"
 #include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 #include "moe_3gemm_base.hpp"
 #include "moe_3gemm_int3_weights.hpp"
@@ -43,6 +44,12 @@ bool MoE3GemmInt3Gemm::is_supported(const RuntimeParams& params) {
     return true;
 }
 
+// On Xe2, gate and up run faster on one column block in the 128 GRF mode (twice the threads per EU) than on two
+// blocks in 256 GRF; down is faster on two. See get_build_options().
+size_t MoE3GemmInt3Gemm::get_tile_nb(const cldnn::device_info& info, Projection proj) {
+    return info.arch < gpu_arch::xe3 && proj == Projection::GATE_UP ? 1 : 2;
+}
+
 size_t MoE3GemmInt3Gemm::get_max_tiles(size_t num_experts, size_t rows) {
     return std::min(num_experts, rows) + rows / TILE_ROWS;
 }
@@ -61,17 +68,31 @@ JitConstants MoE3GemmInt3Gemm::get_jit_constants(const RuntimeParams& params) co
     jit.make("ZP_TYPE", weights.zp_type == ov::element::i8 ? "char" : "uchar");
     jit.make("SG_M", TILE_SG_M);
     jit.make("TILE_M", TILE_ROWS / TILE_SG_M);
-    jit.make("NB", TILE_NB);
+    jit.make("NB", get_tile_nb(params.get_device_info(), m_proj));
     if (m_gate) {
         jit.make("GATE_ACT_MUL", 1);
+        jit.make("MOE_GATE_ACT_NATIVE", 1);
         add_gate_activation_jit(jit, config.activation_type);
     }
     return jit;
 }
 
-// The tiles of TILE_M rows x NB column blocks need 256 registers per thread
+// GRF size per thread, a trade of registers against threads per EU. On Xe2 the down tiles (two column blocks) need
+// 256 GRFs, the gate and up tiles (one block) fit the default 128. Xe3 selects the size per kernel, which suits gate
+// and up; down runs faster with 192 than with the 128 it picks, and the 4 Xe-core PTL slower with 256.
 std::string MoE3GemmInt3Gemm::get_build_options(const RuntimeParams& params) const {
-    return KernelGenerator::get_build_options(params) + " -cl-intel-256-GRF-per-thread";
+    auto options = KernelGenerator::get_build_options(params);
+    if (m_proj != Projection::DOWN) {
+        return options;
+    }
+    if (params.get_device_info().arch < gpu_arch::xe3) {
+        return options + " -cl-intel-256-GRF-per-thread";
+    }
+    const auto& program = params.get_program();
+    if (query_register_file_size_option_supported(program.get_engine(), program.get_config())) {
+        options += " -ze-exp-register-file-size 192";
+    }
+    return options;
 }
 
 }  // namespace ov::intel_gpu::ocl

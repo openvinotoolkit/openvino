@@ -3106,10 +3106,12 @@ public:
         auto offsets = intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS];
         auto tiles = intermediates_memories[MOE_INTERNAL_BUFFER_INT3_TILES];
         const auto& wei = scratch.moe_fusion_wei_addr;
+        const auto& info = instance.get_impl_params()->get_device_info();
 
         // w: weight index (gate, up, down). The gate GEMM reads the up output for its act(gate) * up epilogue.
         const auto gemm = [&](int w, memory::ptr output) {
             const auto n = static_cast<size_t>(w == 2 ? _hidden_size : _intermediate_size);
+            const auto nb = MoE3GemmInt3Gemm::get_tile_nb(info, w == 2 ? MoE3GemmInt3Gemm::Projection::DOWN : MoE3GemmInt3Gemm::Projection::GATE_UP);
             std::vector<memory::ptr> inputs{gemm_input, gemm_input_scales, wei.weight[w], wei.scale[w], wei.zp[w], offsets, tiles};
             if (w == 0) {
                 inputs.push_back(scratch.up);
@@ -3119,7 +3121,7 @@ public:
                                       w == 0 ? *int3_gate : (w == 1 ? *int3_up : *int3_down),
                                       inputs,
                                       {output},
-                                      {n / MoE3GemmInt3Gemm::TILE_NB, tile_count * sg_m, 1},
+                                      {n / nb, tile_count * sg_m, 1},
                                       {simd, sg_m, 1});
         };
 

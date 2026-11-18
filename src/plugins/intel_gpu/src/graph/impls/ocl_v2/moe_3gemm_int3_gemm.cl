@@ -124,6 +124,20 @@ KERNEL(moe_int3_gemm)(
         unroll_for (uint t = 0; t < TILE_M; ++t)
             acc_f[j][t] = 0.0f;
 
+#if GATE_ACT_MUL
+    // The epilogue reads the up tile of these rows; registers can't hold it during the K loop, the cache can
+    if (has_rows) {
+        __global void* up_rows = (__global void*)(up + (size_t)row_begin * N_SIZE);
+#    if NB == 1
+        intel_sub_group_2d_block_prefetch_16b_16r16x1c(up_rows, N_SIZE * 2, rows, N_SIZE * 2, (int2)(n0, m0));
+#    elif NB == 2
+        intel_sub_group_2d_block_prefetch_16b_16r16x2c(up_rows, N_SIZE * 2, rows, N_SIZE * 2, (int2)(n0, m0));
+#    else
+#        error "moe_3gemm_int3_gemm.cl - no up prefetch for this NB"
+#    endif
+    }
+#endif
+
     __local int4 wshare[3][GRAN_PER_GROUP][SIMD];
     uint3 raw[GRAN_PER_SG];
     uint raw_zp[GRAN_PER_SG];
