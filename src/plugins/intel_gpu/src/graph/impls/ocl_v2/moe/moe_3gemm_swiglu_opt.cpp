@@ -2737,7 +2737,7 @@ public:
         // fallback to exec_per_expert_onednn_linear (when unique_experts > lru slots)
         // also accumulates via index_add.
         if (should_pre_zero_output()) {
-            final_hidden_states_mem_ptr->fill(stream, 0u);
+            final_hidden_states_mem_ptr->fill(stream, 0U);
         }
         const bool use_gpu_mask_gen = should_use_gpu_mask_gen(impl, token_num);
         if (!use_gpu_mask_gen) {
