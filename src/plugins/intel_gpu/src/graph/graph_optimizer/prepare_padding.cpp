@@ -21,6 +21,10 @@ void prepare_padding::run(program& p) {
         if (!node->is_type<fully_connected>()) {
             continue;
         }
+        // The innermost-dim padding below assumes NK / KN weights.
+        if (node->as<fully_connected>().get_primitive()->weights_layout == ov::intel_gpu::op::FcWeightsLayout::GNK) {
+            continue;
+        }
 
         auto& weight_node = node->get_dependency(1);
         if (weight_node.is_constant()) {
@@ -162,8 +166,9 @@ void prepare_padding::run(program& p) {
 
                 auto in_layout = prim_node.get_input_layout();
                 const auto spatial_rank = in_layout.get_spatial_rank();
-                if (spatial_rank > 3 || spatial_rank < 1)
+                if (spatial_rank > 3 || spatial_rank < 1) {
                     continue;  // FIXME: should support spatial_rank > 3?
+                }
 
                 auto padding_begin = prim->padding_begin;
                 auto padding_end = prim->padding_end;
