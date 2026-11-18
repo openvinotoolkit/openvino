@@ -2347,7 +2347,7 @@ void run_sparse_sdpa_kv_cache_model_test(const split_dims& d,
         // The dense caches stay per token even though the key cache mode asks for BY_CHANNEL (the paged caches' default).
         properties.insert(ov::internal::key_cache_quant_mode(ov::internal::CacheQuantMode::BY_CHANNEL));
     }
-    auto compiled = core.compile_model(model, "GPU", properties);
+    auto compiled = core.compile_model(model, get_engine_gpu_device_name(), properties);
     auto request = compiled.create_infer_request();
     if (compressed) {
         // A compressed state cannot be read back as f16, which tells that KVCacheCompression took the K/V caches.
@@ -2861,7 +2861,7 @@ void expect_compile_error(ov::Core& core, const std::shared_ptr<ov::Node>& op, c
     }
     auto model = std::make_shared<ov::Model>(results, params);
     try {
-        core.compile_model(model, "GPU", props);
+        core.compile_model(model, get_engine_gpu_device_name(), props);
         ADD_FAILURE() << "compile_model unexpectedly succeeded; expected an error containing '" << needle << "'";
     } catch (const ov::Exception& e) {
         EXPECT_NE(std::string(e.what()).find(needle), std::string::npos) << e.what();
