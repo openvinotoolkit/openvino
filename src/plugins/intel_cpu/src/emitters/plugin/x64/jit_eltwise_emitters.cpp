@@ -2280,8 +2280,7 @@ void jit_exp_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
     // when one of them is NaN, so x goes second to keep NaN in the result
     h->uni_vmovups(vmm_aux0, table_val("ln_flt_max_f"));
     h->uni_vminps(vmm_aux0, vmm_aux0, vmm_src);
-    h->uni_vmaxps(vmm_aux1, vmm_aux1, vmm_aux0);
-    h->uni_vmovups(vmm_dst, vmm_aux1);
+    h->uni_vmaxps(vmm_dst, vmm_aux1, vmm_aux0);
     h->uni_vmovups(vmm_aux0, vmm_dst);
 
     // calculate exp(x)
