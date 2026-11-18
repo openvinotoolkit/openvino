@@ -13,7 +13,9 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/decompression.hpp"
@@ -255,10 +257,15 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
              // dimension. When both M and N are large the GEMM becomes
              // compute-bound and the transposed layout (acb) is faster (the
              // non-transposed kernel can regress by up to ~1.3x there). Restrict
-             // the non-transposed path to XMX-capable GPUs (supports_immad) with
-             // K >= 8192 and (M <= 512 or N <= 4096) to keep the wins while avoiding those regressions.
-             if (k >= 8192 && (m <= 512 || n <= 4096) &&
-                 matmul->get_input_element_type(0) == ov::element::f16 && !is_compressed_weight) {
+             // the non-transposed path to uncompressed f16/bf16 matmuls on XMX-capable GPUs (supports_immad) with
+             // K >= 8192 and (M <= 512 or N <= 4096), or thin M <= 512 with K <= 4096, to keep the wins while
+             // avoiding those regressions.
+             const auto in_type = matmul->get_input_element_type(0);
+             const bool is_half = in_type == ov::element::f16 || in_type == ov::element::bf16;
+             if (k >= 8192 && (m <= 512 || n <= 4096) && is_half && !is_compressed_weight) {
+                 is_small_matmul = false;
+             }
+             if (is_half && m <= 512 && k <= 4096 && !is_compressed_weight) {
                  is_small_matmul = false;
              }
         }
@@ -295,6 +302,20 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
                     fc_input_b = create_transpose(fc_input_b, matmul->get_friendly_name() + "/transpose_b");
                 }
             } else {
+                // fuse_constant_transposes() assumes 2D FC weights and maps a rank-3/4 last-two-dims Transpose to {1, 0};
+                // for a [1, ..., 1, N, K] constant (e.g. after MatMulMultiplyFusion) that swaps the wrong axes. Squeeze to 2D first.
+                if (matmul->get_transpose_b() && !is_compressed_weight) {
+                    if (auto w_const = ov::as_type_ptr<ov::op::v0::Constant>(fc_input_b.get_node_shared_ptr())) {
+                        const auto& w_shape = w_const->get_shape();
+                        if (w_shape.size() > 2 && ov::shape_size(w_shape) == w_shape[w_shape.size() - 2] * w_shape.back()) {
+                            auto w_2d = std::make_shared<ov::op::v0::Constant>(*w_const, ov::Shape{w_shape[w_shape.size() - 2], w_shape.back()});
+                            w_2d->set_friendly_name(w_const->get_friendly_name());
+                            ov::copy_runtime_info(w_const, w_2d);
+                            ov::copy_weightless_cache_attr(w_const, w_2d);
+                            fc_input_b = w_2d;
+                        }
+                    }
+                }
                 if (!matmul->get_transpose_b()) {
                     if (!is_parameter_compressed_weight && can_reuse_transpose(fc_input_b)) {
                         fc_input_b = transpose_node;
