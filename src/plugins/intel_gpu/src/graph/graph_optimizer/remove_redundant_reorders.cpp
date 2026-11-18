@@ -155,11 +155,13 @@ void remove_redundant_reorders::run(program& p) {
             // reorder produced before removal. Skip users connected through other inputs.
             if (input.get_output_layout().format != output_layout.format) {
                 for (auto* usr : node.get_users()) {
-                    if (!usr->is_type<reorder>() || &usr->get_dependency(0) != &node)
+                    if (!usr->is_type<reorder>() || &usr->get_dependency(0) != &node) {
                         continue;
+                    }
                     auto usr_prim = std::const_pointer_cast<reorder>(usr->as<reorder>().get_primitive());
-                    if (usr_prim->output_format == format::any)
+                    if (usr_prim->output_format == format::any) {
                         usr_prim->output_format = output_layout.format;
+                    }
                 }
             }
 
