@@ -11,6 +11,7 @@
 
 namespace ov::op::internal {
 
+namespace {
 namespace gated_residual_validation {
 
 // Inputs of Mode::WRITE: residual, sublayer_y [B,T,D], write_gate [B,T,C].
@@ -30,6 +31,7 @@ bool matrix_matches(const ov::PartialShape& ps, size_t rows, size_t cols) {
 }
 
 }  // namespace gated_residual_validation
+}  // namespace
 
 GatedResidual::GatedResidual(const ov::OutputVector& args,
                              Mode mode,
