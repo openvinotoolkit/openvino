@@ -38,6 +38,8 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "serialization.hpp"
+#include "unit_test_utils/mocks/openvino/runtime/mock_icompiled_model.hpp"
+#include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 
 namespace {
 
@@ -2413,7 +2415,7 @@ TEST_F(GQACompiledModelTest, ImportRejectsNonORCGQACompiledModelWithPrettyMessag
         "the current ORC serializer.");
 }
 
-TEST_F(GQACompiledModelTest, ImportRejectsNonORCGQASchema) {
+TEST_F(GQACompiledModelTest, ImportRejectsOtherGQASchema) {
     std::stringstream stream;
     ov::npuw::orc::write_file_header(stream, ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA);
     ov::npuw::orc::with_section(stream,
@@ -2440,41 +2442,80 @@ TEST_F(GQACompiledModelTest, ImportRejectsNewerORCGQAVersion) {
 }
 
 TEST_F(GQACompiledModelTest, ImportRejectsORCGQAMetaMissingOrNonLeafSection) {
-    std::stringstream stream;
-    ov::npuw::orc::write_file_header(stream, ov::npuw::orc::schema_npuw::NPUW_ORC_GQA_SCHEMA);
-    ov::npuw::orc::with_section(stream,
-                                ov::npuw::GQACompiledModel::kOrcType,
-                                ov::npuw::GQACompiledModel::kOrcVersion,
-                                0u,
-                                [&] {
-                                    // It is expected for GQACompiledModel to have an inner ov::npuw::CompiledModel
-                                    // section, but not before META section
-                                    ov::npuw::orc::with_section(stream,
-                                                                ov::npuw::CompiledModel::kOrcType,
-                                                                ov::npuw::CompiledModel::kOrcVersion,
-                                                                0u,
-                                                                [&] {});
-                                });
+    {
+        std::stringstream stream;
+        ov::npuw::orc::write_file_header(stream, ov::npuw::orc::schema_npuw::NPUW_ORC_GQA_SCHEMA);
+        ov::npuw::orc::with_section(stream,
+                                    ov::npuw::GQACompiledModel::kOrcType,
+                                    ov::npuw::GQACompiledModel::kOrcVersion,
+                                    0u,
+                                    [&] {
+                                        // It is expected for GQACompiledModel to have an inner ov::npuw::CompiledModel
+                                        // section, but not before META section
+                                        ov::npuw::orc::with_section(stream,
+                                                                    ov::npuw::CompiledModel::kOrcType,
+                                                                    ov::npuw::CompiledModel::kOrcVersion,
+                                                                    0u,
+                                                                    [&] {});
+                                    });
 
-    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
-                                  ov::Exception,
-                                  "Expected ORC NPUW metadata section, got type");
+        OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
+                                      ov::Exception,
+                                      "Expected ORC NPUW metadata section, got type");
+    }
 
-    stream.str(std::string());
-    ov::npuw::orc::write_file_header(stream, ov::npuw::orc::schema_npuw::NPUW_ORC_GQA_SCHEMA);
-    ov::npuw::orc::with_section(
-        stream,
-        ov::npuw::GQACompiledModel::kOrcType,
-        ov::npuw::GQACompiledModel::kOrcVersion,
-        0u,
-        [&] {
-            // Even if it is a nested section of META type, import still rejects it because it is not a LEAF section
-            ov::npuw::orc::with_section(stream, ov::npuw::orc::META_SECTION_TYPE, 0u, 0u, [&] {});
+    {
+        std::stringstream stream;
+        ov::npuw::orc::write_file_header(stream, ov::npuw::orc::schema_npuw::NPUW_ORC_GQA_SCHEMA);
+        ov::npuw::orc::with_section(
+            stream,
+            ov::npuw::GQACompiledModel::kOrcType,
+            ov::npuw::GQACompiledModel::kOrcVersion,
+            0u,
+            [&] {
+                // Even if it is a nested section of META type, import still rejects it because it is not a LEAF section
+                ov::npuw::orc::with_section(stream, ov::npuw::orc::META_SECTION_TYPE, 0u, 0u, [&] {});
+            });
+
+        OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
+                                      ov::Exception,
+                                      "Expected ORC NPUW metadata section, got type");
+    }
+}
+
+TEST_F(GQACompiledModelTest, GQAExportImportRoundTrip) {
+    auto model = build_llm_test_model();
+    const auto& inputs = std::const_pointer_cast<const ov::Model>(model)->inputs();
+    const auto& outputs = std::const_pointer_cast<const ov::Model>(model)->outputs();
+
+    auto mock_core = std::make_shared<testing::NiceMock<ov::MockICore>>();
+    auto mock_compiled_model = std::make_shared<testing::NiceMock<ov::MockICompiledModel>>(model, m_plugin);
+
+    ON_CALL(*mock_core, get_property(testing::_, testing::_)).WillByDefault(testing::Return(ov::Any("")));
+    ON_CALL(*mock_core, get_property(testing::_, testing::_, testing::_)).WillByDefault(testing::Return(ov::Any("")));
+    ON_CALL(*mock_core,
+            compile_model(testing::An<const std::shared_ptr<const ov::Model>&>(),
+                          testing::An<const std::string&>(),
+                          testing::An<const ov::AnyMap&>()))
+        .WillByDefault(testing::Return(mock_compiled_model));
+    m_plugin->set_core(mock_core);
+
+    ON_CALL(*mock_compiled_model, inputs())
+        .WillByDefault([&inputs]() -> const std::vector<ov::Output<const ov::Node>>& {
+            return inputs;
         });
+    ON_CALL(*mock_compiled_model, outputs())
+        .WillByDefault([&outputs]() -> const std::vector<ov::Output<const ov::Node>>& {
+            return outputs;
+        });
+    ON_CALL(*mock_compiled_model, get_property(testing::_)).WillByDefault(testing::Return(ov::Any("")));
+    ON_CALL(*mock_compiled_model, get_property(testing::Matcher<const std::string&>(ov::execution_devices.name())))
+        .WillByDefault(testing::Return(ov::Any("NPU.0")));
 
-    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
-                                  ov::Exception,
-                                  "Expected ORC NPUW metadata section, got type");
+    auto compiled = std::make_unique<ov::npuw::GQACompiledModel>(model, m_plugin, base_props());
+    std::stringstream stream;
+    ASSERT_NO_THROW(compiled->export_model(stream));
+    ASSERT_NO_THROW(ov::npuw::ICompiledModel::import_model(stream, m_plugin, {}));
 }
 
 }  // namespace
