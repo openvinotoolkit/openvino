@@ -140,9 +140,15 @@ class TestKeypointDetectorsConvertModel(TestTorchConvertModel):
             cls.aliked_repo = repo
         return cls.aliked_repo.name
 
-    def load_model(self, model_name, input_shape):
+    def load_model(self, model_name, model_args):
+        aliked_repo_dir = None
         if model_name.startswith("aliked-"):
-            model = load_aliked(self.get_aliked_repo(), model_name)
+            input_shape, aliked_repo_dir = model_args
+        else:
+            input_shape = model_args
+
+        if model_name.startswith("aliked-"):
+            model = load_aliked(aliked_repo_dir, model_name)
         elif model_name == "DaD":
             import dad
 
@@ -202,4 +208,5 @@ class TestKeypointDetectorsConvertModel(TestTorchConvertModel):
     ])
     def test_convert_model(self, name, input_shape, mode, ie_device):
         self.mode = mode
-        self.run(name, input_shape, ie_device)
+        model_args = (input_shape, self.get_aliked_repo()) if name.startswith("aliked-") else input_shape
+        self.run(name, model_args, ie_device)
