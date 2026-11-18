@@ -129,12 +129,10 @@ bool contains_window_check(const std::shared_ptr<ov::Node>& node) {
 }
 
 // True when `node` is (or, through single-input passthrough ops like Unsqueeze/
-// Reshape/Convert/Broadcast, transitively wraps) a Gemma-4-12B-style decomposed
-// sliding-window bound check: GreaterEqual(Subtract(...), window_const). Plays
-// the same role as contains_window_check() above, but for the Select-based
-// mask family matched by TriuCausalMatcher/TriuSlidingMatcher below (Gemma-4-12B's
-// traced torch.triu()/masked_fill() decomposition uses GreaterEqual + Select
-// instead of LessEqual/Greater + BitwiseAnd).
+// Reshape/Convert/Broadcast, transitively wraps) a triu-style sliding-window
+// bound check: GreaterEqual(Subtract(...), window_const), as used in LFM3 and
+// Gemma-4-12B exports. Plays the same role as contains_window_check() above, but
+// for the Select-based mask family matched by TriuCausalMatcher/TriuSlidingMatcher.
 bool contains_triu_window_check(const std::shared_ptr<ov::Node>& node) {
     if (auto ge = ov::as_type_ptr<ov::op::v1::GreaterEqual>(node)) {
         return ov::is_type<ov::op::v1::Subtract>(ge->get_input_node_shared_ptr(0)) ||
@@ -145,6 +143,14 @@ bool contains_triu_window_check(const std::shared_ptr<ov::Node>& node) {
         return contains_triu_window_check(node->get_input_node_shared_ptr(0));
     }
     return false;
+}
+
+// True when `node` is the Select that applies a triu-style sliding-window
+// condition to its data branches. Used to keep a shared causal mask from
+// claiming the SDPA that is already owned by TriuSlidingMatcher.
+bool is_triu_windowed_select(const std::shared_ptr<ov::Node>& node) {
+    auto select = ov::as_type_ptr<ov::op::v1::Select>(node);
+    return select && contains_triu_window_check(select->input_value(0).get_node_shared_ptr());
 }
 
 // True when `node` is (or, transitively through single-input/pass-through ops
@@ -207,13 +213,20 @@ void annotate_causal_mask_impl(
 }
 
 // Forward-propagates a Causal annotation from a matched causal comparison's
-// output (LessEqual/Less family). A boolean-combine op (BitwiseAnd/BitwiseOr/
-// LogicalAnd) is only treated as SWA-owned when its *other* operand
-// (transitively) contains a sliding-window bound check (see contains_window_check
-// above) -- meaning this specific combine node is a genuine SWA anchor.
+// output (LessEqual/Less family). A boolean-combine consumer is SWA-owned when
+// another operand contains a sliding-window bound check. For LFM3's Select-based
+// mask, a Select is SWA-owned when this causal output feeds its condition and a
+// data operand is already a triu-style windowed Select. This leaves sliding SDPA
+// branches to their matcher while preserving causal annotations on full-attention
+// padding Selects.
 void annotate_causal_mask(const ov::Output<ov::Node>& mask_output) {
     annotate_causal_mask_impl(mask_output,
                               [](const std::shared_ptr<ov::Node>& consumer, const ov::Output<ov::Node>& output) {
+                                  auto select = ov::as_type_ptr<ov::op::v1::Select>(consumer);
+                                  if (select && select->input_value(0) == output) {
+                                      return is_triu_windowed_select(select->input_value(1).get_node_shared_ptr()) ||
+                                             is_triu_windowed_select(select->input_value(2).get_node_shared_ptr());
+                                  }
                                   if (!is_boolean_combine_op(consumer))
                                       return false;
                                   for (size_t i = 0; i < consumer->get_input_size(); ++i) {
@@ -288,11 +301,9 @@ public:
 //   - Whisper  : Range -> Unsqueeze x3
 //
 // Uses annotate_causal_mask() rather than a blanket skip when the matched
-// comparison feeds a boolean-combine op: only branches that are genuine SWA
-// anchors (see contains_window_check above) are left for the SWA matchers to
-// own; other combine consumers (e.g. ANDing with a `new_ones` identity or the
-// padding attention_mask, as seen on Gemma's non-sliding layers) still get
-// annotated Causal.
+// comparison feeds boolean-combine or Select consumers: only genuine SWA
+// branches (including LFM3's nested windowed Select) are left to the SWA
+// matchers, while full-attention padding branches still get annotated Causal.
 // ============================================================================
 class StandardCausalMatcher final : public ov::pass::MatcherPass {
 public:

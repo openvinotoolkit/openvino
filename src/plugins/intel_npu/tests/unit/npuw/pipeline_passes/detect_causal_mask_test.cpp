@@ -331,6 +331,55 @@ std::shared_ptr<ov::Model> build_gemma4_12b_triu_shared_causal(int64_t window) {
                                        ov::ParameterVector{seq, amask, q, k, v});
 }
 
+// LFM3's full- and sliding-attention masks share a LessEqual causal/padding
+// predicate. Sliding layers add a GreaterEqual(Subtract(...), window) Select
+// on a data branch of the outer Select that consumes that shared predicate.
+std::shared_ptr<ov::Model> build_lfm3_hybrid_attention(int64_t window) {
+    using namespace ov::op;
+    auto seq = std::make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{1, -1});
+    auto amask = std::make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{1, -1});
+
+    auto zero = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto one = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+    auto ids_shape = std::make_shared<v3::ShapeOf>(seq, ov::element::i64);
+    auto mask_shape = std::make_shared<v3::ShapeOf>(amask, ov::element::i64);
+    auto seq_len = std::make_shared<v8::Gather>(ids_shape, one, zero);
+    auto total = std::make_shared<v8::Gather>(mask_shape, one, zero);
+    auto past = std::make_shared<v1::Subtract>(total, seq_len);
+
+    auto key_range = std::make_shared<v4::Range>(zero, total, one, ov::element::i64);
+    auto key_pos = std::make_shared<v0::Unsqueeze>(key_range, zero);
+    auto query_range = std::make_shared<v4::Range>(past, total, one, ov::element::i64);
+    auto query_pos = std::make_shared<v0::Unsqueeze>(query_range, one);
+
+    auto causal = std::make_shared<v1::LessEqual>(key_pos, query_pos);
+    auto padding = std::make_shared<v0::Convert>(amask, ov::element::boolean);
+    auto causal_and_padding = std::make_shared<v13::BitwiseAnd>(causal, padding);
+    auto masked_causal = std::make_shared<v13::BitwiseNot>(causal_and_padding);
+    auto fill = v0::Constant::create(ov::element::f32, ov::Shape{}, {-1e9f});
+    auto zero_f = v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});
+
+    auto window_const = v0::Constant::create(ov::element::i64, ov::Shape{}, {window});
+    auto diff = std::make_shared<v1::Subtract>(query_pos, key_pos);
+    auto beyond_window = std::make_shared<v1::GreaterEqual>(diff, window_const);
+    auto window_condition_0 = std::make_shared<v0::Unsqueeze>(beyond_window, zero);
+    auto window_condition_1 = std::make_shared<v0::Unsqueeze>(window_condition_0, zero);
+    auto window_mask = std::make_shared<v1::Select>(window_condition_1, fill, zero_f);
+    auto sliding_mask = std::make_shared<v1::Select>(masked_causal, fill, window_mask);
+    auto full_mask = std::make_shared<v1::Select>(masked_causal, fill, zero_f);
+
+    auto q = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, 8});
+    auto k = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, 8});
+    auto v = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, 8});
+    ov::ResultVector results;
+    for (std::size_t layer = 0; layer < 4; ++layer) {
+        const auto& mask = layer % 2 == 0 ? full_mask : sliding_mask;
+        auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(q, k, v, mask, false);
+        results.push_back(std::make_shared<v0::Result>(sdpa->output(0)));
+    }
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{seq, amask, q, k, v});
+}
+
 // ---------------------------------------------------------------------------
 // Faithful reproduction of the MiniCPM causal-mask subgraph (uses aten::lt =>
 // Less instead of aten::le => LessEqual), as seen in real MiniCPM exports:
@@ -455,6 +504,23 @@ TEST(DetectAttentionMaskTest, RealPattern_Gemma4_12B_TriuSharedCausal_BothBranch
     const auto causal_count = std::count(all.begin(), all.end(), DetectedMaskType::Causal);
     EXPECT_EQ(sliding_count, 1);
     EXPECT_EQ(causal_count, 1);
+}
+
+// LFM3 alternates full and sliding attention. Its LessEqual causal/padding
+// predicate is shared, but sliding layers place a GreaterEqual(Subtract(...),
+// window) Select on a data branch of the outer Select.
+TEST(DetectAttentionMaskTest, NPUW_LFM3AlternatingFullAndSlidingMasks) {
+    constexpr int64_t lfm3_window = 256;
+    auto model = build_lfm3_hybrid_attention(lfm3_window);
+    ASSERT_NE(model, nullptr);
+    const auto all = detect_all(model);
+    ASSERT_EQ(all.size(), 4u);
+    const auto sliding_count = std::count_if(all.begin(), all.end(), [](const DetectedMask& mask) {
+        return mask.type == DetectedMaskType::SlidingWindow && mask.window_size == lfm3_window;
+    });
+    const auto causal_count = std::count(all.begin(), all.end(), DetectedMaskType::Causal);
+    EXPECT_EQ(sliding_count, 2);
+    EXPECT_EQ(causal_count, 2);
 }
 
 // Real pattern: MiniCPM uses Less (aten::lt) instead of LessEqual (aten::le).
