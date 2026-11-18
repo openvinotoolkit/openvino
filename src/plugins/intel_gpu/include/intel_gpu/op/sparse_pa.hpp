@@ -72,7 +72,7 @@ public:
     /// True unless the sinks input is a statically empty tensor.
     bool has_sinks() const;
 
-    static bool validate_config(const Config& config, std::string& reason);
+    static bool validate_config(const Config& c, std::string& reason);
 
 private:
     Config m_config{};
