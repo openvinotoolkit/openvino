@@ -34,7 +34,7 @@ public:
      * @param engineBackend The backend that provides the device and Level Zero structures. May be empty for offline
      *        compilation with the compiler-in-plugin.
      * @param vclFunctionsProvider Supplies VCL entry points when a compiler-in-plugin is needed.
-     * @param optionSupportCache Shared compiler option cache. A new cache is created if null.
+     * @param optionSupportCache Shared compiler option cache. Null disables caching.
      */
     CompilerAdapterFactory(const ov::SoPtr<IEngineBackend>& engineBackend,
                            const VCLFunctionTableProvider& vclFunctionsProvider,

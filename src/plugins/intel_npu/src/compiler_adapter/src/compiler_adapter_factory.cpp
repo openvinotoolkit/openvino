@@ -24,7 +24,7 @@ CompilerAdapterFactory::CompilerAdapterFactory(const ov::SoPtr<IEngineBackend>& 
                                                const std::shared_ptr<OptionSupportCache>& optionSupportCache)
     : _engineBackend(engineBackend),
       _vclFunctionsProvider(vclFunctionsProvider),
-      _optionSupportCache(optionSupportCache ? optionSupportCache : std::make_shared<OptionSupportCache>()) {}
+      _optionSupportCache(optionSupportCache) {}
 
 std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(ov::intel_npu::CompilerType& compilerType,
                                                                       std::string_view platform) const {
