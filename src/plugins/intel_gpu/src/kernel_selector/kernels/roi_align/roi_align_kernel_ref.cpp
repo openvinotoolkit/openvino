@@ -46,7 +46,7 @@ KernelsData ROIAlignKernelRef::GetKernelsData(const Params &params) const {
         return {};
     }
     KernelData kernel_data = KernelData::Default<roi_align_params>(params);
-    roi_align_params &new_params = dynamic_cast<roi_align_params&>(*kernel_data.params.get());
+    roi_align_params& new_params = dynamic_cast<roi_align_params&>(*kernel_data.params);
     auto dispatch_data = SetDefault(new_params);
     auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params);
     auto roi_align_specific_jit = GetJitConstants(new_params);
@@ -89,17 +89,17 @@ JitConstants ROIAlignKernelRef::GetJitConstants(const roi_align_params& params) 
     }
 
     if (params.aligned_mode == roi_aligned_mode::ASYMMETRIC) {
-        jit.AddConstant(MakeJitConstant("OFFSET_SRC", 0.f));
-        jit.AddConstant(MakeJitConstant("OFFSET_DST", 0.f));
-        jit.AddConstant(MakeJitConstant("MIN_SIZE", 1.0f));
+        jit.AddConstant(MakeJitConstant("OFFSET_SRC", 0.F));
+        jit.AddConstant(MakeJitConstant("OFFSET_DST", 0.F));
+        jit.AddConstant(MakeJitConstant("MIN_SIZE", 1.0F));
     } else if (params.aligned_mode == roi_aligned_mode::HALF_PIXEL_FOR_NN) {
-        jit.AddConstant(MakeJitConstant("OFFSET_SRC", 0.f));
-        jit.AddConstant(MakeJitConstant("OFFSET_DST", -0.5f));
-        jit.AddConstant(MakeJitConstant("MIN_SIZE", 0.f));
+        jit.AddConstant(MakeJitConstant("OFFSET_SRC", 0.F));
+        jit.AddConstant(MakeJitConstant("OFFSET_DST", -0.5F));
+        jit.AddConstant(MakeJitConstant("MIN_SIZE", 0.F));
     } else if (params.aligned_mode == roi_aligned_mode::HALF_PIXEL) {
-        jit.AddConstant(MakeJitConstant("OFFSET_SRC", 0.5f));
-        jit.AddConstant(MakeJitConstant("OFFSET_DST", -0.5f));
-        jit.AddConstant(MakeJitConstant("MIN_SIZE", 0.f));
+        jit.AddConstant(MakeJitConstant("OFFSET_SRC", 0.5F));
+        jit.AddConstant(MakeJitConstant("OFFSET_DST", -0.5F));
+        jit.AddConstant(MakeJitConstant("MIN_SIZE", 0.F));
     }
 
     jit.AddConstant(MakeJitConstant("X1", "x1"));

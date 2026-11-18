@@ -27,7 +27,7 @@ FullyConnectedPerLayerScaling::FullyConnectedPerLayerScaling(float scale_factor)
     auto fc_compressed_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{fc_compressed_wo_zp_m, fc_compressed_w_zp_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
-        if (scale_factor == 0.f || scale_factor == 1.f) {
+        if (scale_factor == 0.F || scale_factor == 1.F) {
             return false;
         }
         auto fc = ov::as_type_ptr<op::FullyConnectedCompressed>(m.get_match_root());
@@ -40,7 +40,7 @@ FullyConnectedPerLayerScaling::FullyConnectedPerLayerScaling(float scale_factor)
         const auto& bias = pattern_map.at(bias_m).get_node_shared_ptr();
 
         ov::Shape scale_const_shape = {1};
-        std::vector<float> scale_down_value = {(1.f / scale_factor)};
+        std::vector<float> scale_down_value = {(1.F / scale_factor)};
         std::vector<float> scale_up_value = {scale_factor};
         std::shared_ptr<ov::Node> scale_down_const_f16 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, scale_const_shape, scale_down_value);
         std::shared_ptr<ov::Node> scale_down_const_f32 = std::make_shared<ov::op::v0::Constant>(ov::element::f32, scale_const_shape, scale_down_value);
