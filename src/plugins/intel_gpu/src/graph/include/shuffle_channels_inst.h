@@ -26,7 +26,7 @@ public:
     static layout calc_output_layout(shuffle_channels_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(shuffle_channels_node const& node);
 
-    typed_primitive_inst(network& network, shuffle_channels_node const& desc);
+    typed_primitive_inst(network& network, const shuffle_channels_node& node);
 };
 
 using shuffle_channels_inst = typed_primitive_inst<shuffle_channels>;

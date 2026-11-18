@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <numeric>
+#include <optional>
 #include "test_utils.h"
 #include "random_generator.hpp"
 
@@ -34,6 +35,7 @@ struct moe_gemm_test_params {
     bool weight_symmetric_quant;
     bool is_pa;
     bool is_caching_test;
+    std::optional<bool> has_batch_dim_override = std::nullopt;
 };
 
 template <typename T>
@@ -275,7 +277,7 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
         ov::op::internal::MOECompressed::Config moe_config;
         moe_config.top_k = p.num_experts_per_token;
         moe_config.num_expert = p.num_total_experts;
-        moe_config.has_batch_dim = !p.is_pa;
+        moe_config.has_batch_dim = p.has_batch_dim_override.value_or(!p.is_pa);
         moe_config.hidden_size = p.hidden_size;
         moe_config.inter_size = p.out_N;
         auto num_scale_groups = p.hidden_size / p.scale_group_size;
@@ -407,7 +409,7 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
         std::vector<uint8_t> zp_data;
         std::vector<cldnn::data_types> quant_types = {data_types::i4, data_types::u4, data_types::i8, data_types::u8};
         if (!engine.get_device_info().supports_immad)
-            return;
+            GTEST_SKIP() << "MoE GEMM requires a GPU with IMMAD support";
 
         bool is_weight_compressed = std::any_of(quant_types.begin(), quant_types.end(), [=](const cldnn::data_types& t) -> bool {
             return t == p.weight_dt;
@@ -480,6 +482,12 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
         network->set_input_data("input_tokens_lens", input_tokens_lens_mem);
         auto outputs = network->execute();
         auto output = outputs.at("moe_gemm").get_memory();
+        const bool batch_out = (M == 1) ? p.has_batch_dim_override.value_or(!p.is_pa) : !p.is_pa;
+        const size_t out_rows = (M == 1) ? p.num_experts_per_token : M;
+        const auto expected_out_shape = batch_out
+            ? ov::PartialShape{ov::Dimension(1), ov::Dimension(static_cast<int64_t>(out_rows)), ov::Dimension(static_cast<int64_t>(p.out_N))}
+            : ov::PartialShape{ov::Dimension(static_cast<int64_t>(out_rows)), ov::Dimension(1), ov::Dimension(static_cast<int64_t>(p.out_N))};
+        ASSERT_EQ(output->get_layout().get_partial_shape(), expected_out_shape);
         cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         std::vector<ov::float16> output_ref(M * p.out_N, 0.0f);
@@ -532,6 +540,46 @@ TEST_P(moe_gemm_test, basic) {
     auto p = GetParam();
     execute(p);
 }
+
+INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm_token_axis_mismatch,
+                         moe_gemm_test,
+                         ::testing::Values(
+                             moe_gemm_test_params{
+                                 PHASE::PREFILL,
+                                 static_cast<size_t>(30),
+                                 static_cast<size_t>(32),
+                                 static_cast<size_t>(2),
+                                 static_cast<size_t>(3),
+                                 static_cast<size_t>(128),
+                                 static_cast<size_t>(64),
+                                 false,
+                                 cldnn::data_types::f16,
+                                 cldnn::data_types::f16,
+                                 cldnn::data_types::f16,
+                                 -1,
+                                 false,
+                                 true,
+                                 false,
+                                 true
+                             },
+                             moe_gemm_test_params{
+                                 PHASE::PREFILL,
+                                 static_cast<size_t>(30),
+                                 static_cast<size_t>(32),
+                                 static_cast<size_t>(2),
+                                 static_cast<size_t>(3),
+                                 static_cast<size_t>(128),
+                                 static_cast<size_t>(64),
+                                 false,
+                                 cldnn::data_types::f16,
+                                 cldnn::data_types::f16,
+                                 cldnn::data_types::f16,
+                                 -1,
+                                 false,
+                                 false,
+                                 false,
+                                 false
+                             }));
 
 INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
                          moe_gemm_test,
