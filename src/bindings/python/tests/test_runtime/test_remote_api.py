@@ -162,7 +162,8 @@ def test_cpu_va_tensor_params_round_trip_gpu(device):
     # including the buffer size and access mode, not only the address.
     params = tensor.get_params()
     assert params["CPU_VA_SIZE"].value == buffer.nbytes
-    assert "CPU_VA_ACCESS" in params
+    # The tensor was created without CPU_VA_ACCESS, so the default READ_WRITE mode must be reported
+    assert params["CPU_VA_ACCESS"].astype(str) == "READ_WRITE"
 
     alias = context.create_tensor(ov.Type.f32, ov.Shape(expected.shape), params)
     result = ov.Tensor(ov.Type.f32, ov.Shape(expected.shape))

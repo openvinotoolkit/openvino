@@ -198,8 +198,9 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
         // Zero dimensions are counted as 1, in the same way allocate() imports empty tensors.
         auto import_shape = m_shape;
         for (auto& dim : import_shape) {
-            if (dim == 0)
+            if (dim == 0) {
                 dim = 1;
+            }
         }
         const cldnn::layout import_layout{ov::PartialShape{import_shape}, m_element_type, m_layout.format};
         m_va_mem.size = static_cast<int64_t>(import_layout.bytes_count());
