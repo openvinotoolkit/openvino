@@ -10,6 +10,7 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include <vector>
 
+#include "dnnl_scratch_pad.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/gated_residual_config.hpp"
@@ -39,8 +40,11 @@ public:
 private:
     void createProjections(const GatedResidualAttrs& attrs, const MemoryArgs& memory);
     [[nodiscard]] size_t maxTileRows() const;
-    // [rows, cols] tensor at `offset` bytes into the shared scratchpad block.
-    [[nodiscard]] MemoryPtr tileMemory(size_t offset, ov::element::Type prc, size_t rows, size_t cols) const;
+    // [rows, cols] tensor in the block of `pad`.
+    [[nodiscard]] static MemoryPtr tileMemory(const DnnlScratchPadPtr& pad,
+                                              ov::element::Type prc,
+                                              size_t rows,
+                                              size_t cols);
     void execute_read_or_final_mix(const MemoryArgs& memory);
 
     ExecutorContext::CPtr m_context;
@@ -85,23 +89,24 @@ private:
     // One projection. oneDNN picks the packed weights layout; the weights are packed once at construction through the
     // context's private cache.
     struct Projection {
-        ExecutorContext::CPtr context;  // private weight cache, scratchpad behind the tile buffers
+        ExecutorContext::CPtr context;  // private weight cache, scratchpad of the projections
         FCAttrs attrs;
         MemoryArgs args;  // weights, bias and decompression parameters
         size_t k = 0;
         size_t n = 0;
         ov::element::Type src_prc;
         ov::element::Type dst_prc;
-        size_t src_offset = 0;  // tile buffers, in bytes from the start of the scratchpad block
-        size_t dst_offset = 0;
+        DnnlScratchPadPtr src_pad;  // tile buffers
+        DnnlScratchPadPtr dst_pad;
         TileExecutor full;     // full tiles
         TileExecutor partial;  // the last tile, m_part_m rows
     };
     Projection m_proj[3];
-    void bindProjection(Projection& p, TileExecutor& tile, size_t m);
+    static void bindProjection(Projection& p, TileExecutor& tile, size_t m);
 
-    // Per-tile buffers: views of the shared scratchpad block, sized once for a full tile. Other nodes may reallocate
-    // the block and contents do not survive calls, so read data pointers on every execute.
+    // Per-tile buffers: views of scratchpad blocks (Rbar the executor's own, one child each for the others), sized once
+    // for a full tile. Other nodes may reallocate the executor's own block and contents do not survive calls, so read
+    // data pointers on every execute.
     MemoryPtr m_rbar;       // f32 [tile, C*D], read by the mix
     MemoryPtr m_logit;      // f32 [tile, C*D], the up projection output
     MemoryPtr m_wg_gate;    // port precision [tile, C], the inject projection output

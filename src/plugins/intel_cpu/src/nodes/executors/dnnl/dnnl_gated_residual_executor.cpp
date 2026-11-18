@@ -64,8 +64,6 @@ ov::element::Type gemmPrecision(ov::element::Type data, bool compressed) {
 
 constexpr size_t kMaxTileRows = 512;
 
-constexpr size_t kBufferAlignment = 64;
-
 // GEMM row count. Tiny M (decode) uses powers of two from 2, so few real rows do not run the epilogues over 16 rows.
 // M=1 is excluded: oneDNN picks a GEMV-specific packed layout for it, while all M >= 2 share one.
 size_t normalize_rows(size_t m) {
@@ -168,32 +166,25 @@ void GatedResidualDnnlExecutor::createProjections(const GatedResidualAttrs& attr
         return ActivationPostOp(type, alpha, 0.0F, 0.0F);
     };
 
-    // Shared scratchpad layout: the tile buffers, sized once for a full tile, then the FC executors' scratchpad. The
-    // offsets never change, so the executors keep their scratchpad memory across updates.
+    // Scratchpads (see DnnlScratchPad): Rbar uses the executor's own block, the other tile buffers a child each, sized
+    // once for a full tile. The projections' FC executors use the child the node put in their contexts.
     m_tile_rows = maxTileRows();
     const size_t tile = m_tile_rows;
     const bool gemm_lowp = m_gemm_precision != ov::element::f32;
-    size_t scratch_size = 0;
-    const auto reserve = [&scratch_size](size_t bytes) {
-        const size_t offset = scratch_size;
-        scratch_size += rnd_up(bytes, kBufferAlignment);
-        return offset;
-    };
-    const size_t off_rbar = reserve(tile * CD * sizeof(float));
-    const size_t off_logit = reserve(tile * CD * sizeof(float));
-    const size_t off_t = reserve(tile * L * m_gemm_precision.size());
-    const size_t off_wg_gate = m_produce_write_gate ? reserve(tile * C * m_precision.size()) : 0;
-    const size_t off_rbar_gemm = gemm_lowp ? reserve(tile * CD * sizeof(uint16_t)) : 0;
-    const size_t off_gemm_src = gemm_lowp ? off_rbar_gemm : off_rbar;
-    const auto fc_scratch_pad = std::make_shared<DnnlScratchPad>(*m_context->getScratchPad(), scratch_size);
+    const auto pad = m_context->getScratchPad();
+    const auto logit_pad = pad->child(kPadLogit);
+    const auto t_pad = pad->child(kPadT);
+    const auto wg_gate_pad = m_produce_write_gate ? pad->child(kPadWriteGate) : nullptr;
+    const auto rbar_gemm_pad = gemm_lowp ? pad->child(kPadRbarGemm) : nullptr;
+    const auto gemm_src_pad = gemm_lowp ? rbar_gemm_pad : pad;
 
-    m_rbar = tileMemory(off_rbar, ov::element::f32, tile, CD);
-    m_logit = tileMemory(off_logit, ov::element::f32, tile, CD);
+    m_rbar = tileMemory(pad, ov::element::f32, tile, CD);
+    m_logit = tileMemory(logit_pad, ov::element::f32, tile, CD);
     if (m_produce_write_gate) {
-        m_wg_gate = tileMemory(off_wg_gate, m_precision, tile, C);
+        m_wg_gate = tileMemory(wg_gate_pad, m_precision, tile, C);
     }
     if (gemm_lowp) {
-        m_rbar_gemm = tileMemory(off_rbar_gemm, m_gemm_precision, tile, CD);
+        m_rbar_gemm = tileMemory(rbar_gemm_pad, m_gemm_precision, tile, CD);
     }
 
     struct Spec {
@@ -203,8 +194,8 @@ void GatedResidualDnnlExecutor::createProjections(const GatedResidualAttrs& attr
         size_t weights;
         size_t scales;
         size_t zero_points;
-        size_t src_offset;
-        size_t dst_offset;
+        DnnlScratchPadPtr src_pad;
+        DnnlScratchPadPtr dst_pad;
         ov::element::Type dst_prc;
         PostOps post_ops;
     };
@@ -216,8 +207,8 @@ void GatedResidualDnnlExecutor::createProjections(const GatedResidualAttrs& attr
                      m_layout.w_down,
                      m_layout.scale_down,
                      m_layout.zp_down,
-                     off_gemm_src,
-                     off_t,
+                     gemm_src_pad,
+                     t_pad,
                      m_gemm_precision,
                      {act(Type::linear, inv_c), act(Type::swish, 1.0F)}});
     // up: gates = sigmoid(up(T)), in f32.
@@ -227,8 +218,8 @@ void GatedResidualDnnlExecutor::createProjections(const GatedResidualAttrs& attr
                      m_layout.w_up,
                      m_layout.scale_up,
                      m_layout.zp_up,
-                     off_t,
-                     off_logit,
+                     t_pad,
+                     logit_pad,
                      ov::element::f32,
                      {act(Type::logistic)}});
     if (m_produce_write_gate) {
@@ -239,8 +230,8 @@ void GatedResidualDnnlExecutor::createProjections(const GatedResidualAttrs& attr
                          m_layout.w_inject,
                          m_layout.scale_inject,
                          m_layout.zp_inject,
-                         off_gemm_src,
-                         off_wg_gate,
+                         gemm_src_pad,
+                         wg_gate_pad,
                          m_precision,
                          {act(Type::linear, inv_c), act(Type::logistic), act(Type::linear, 2.0F)}});
     }
@@ -248,13 +239,15 @@ void GatedResidualDnnlExecutor::createProjections(const GatedResidualAttrs& attr
     for (const auto& spec : specs) {
         auto& p = m_proj[spec.idx];
         OPENVINO_ASSERT(attrs.projection_contexts[spec.idx], "GatedResidual: missing projection executor context");
-        p.context = attrs.projection_contexts[spec.idx]->withScratchPad(fc_scratch_pad);
+        p.context = attrs.projection_contexts[spec.idx];
+        OPENVINO_ASSERT(p.context->getScratchPad() == pad->child(kPadProjections),
+                        "GatedResidual: the projection executors must use the kPadProjections scratchpad");
         p.k = spec.k;
         p.n = spec.n;
         p.src_prc = m_gemm_precision;
         p.dst_prc = spec.dst_prc;
-        p.src_offset = spec.src_offset;
-        p.dst_offset = spec.dst_offset;
+        p.src_pad = spec.src_pad;
+        p.dst_pad = spec.dst_pad;
         p.attrs.postOps = spec.post_ops;
         p.attrs.dynamicQuantizationGroupSize = attrs.dynamic_quantization_group_size;
         p.attrs.modelType = attrs.model_type;
@@ -271,23 +264,26 @@ void GatedResidualDnnlExecutor::createProjections(const GatedResidualAttrs& attr
         // binds the partial one to its row count.
         for (auto* executor : {&p.full, &p.partial}) {
             executor->args = p.args;
-            executor->args[ARG_SRC] = tileMemory(p.src_offset, p.src_prc, tile, p.k);
-            executor->args[ARG_DST] = tileMemory(p.dst_offset, p.dst_prc, tile, p.n);
+            executor->args[ARG_SRC] = tileMemory(p.src_pad, p.src_prc, tile, p.k);
+            executor->args[ARG_DST] = tileMemory(p.dst_pad, p.dst_prc, tile, p.n);
             executor->executor =
                 CreateDnnlDefault<DnnlFCPrimitive, FCAttrs>{true, false}(p.attrs, executor->args, p.context);
         }
     }
 }
 
-MemoryPtr GatedResidualDnnlExecutor::tileMemory(size_t offset, ov::element::Type prc, size_t rows, size_t cols) const {
+MemoryPtr GatedResidualDnnlExecutor::tileMemory(const DnnlScratchPadPtr& pad,
+                                                ov::element::Type prc,
+                                                size_t rows,
+                                                size_t cols) {
     const auto desc =
         BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp)->createSharedDesc(prc, Shape({rows, cols}));
-    return m_context->getScratchPad()->createScratchPadMem(desc, offset);
+    return pad->createScratchPadMem(desc);
 }
 
 void GatedResidualDnnlExecutor::bindProjection(Projection& p, TileExecutor& tile, size_t m) {
-    tile.args[ARG_SRC] = tileMemory(p.src_offset, p.src_prc, m, p.k);
-    tile.args[ARG_DST] = tileMemory(p.dst_offset, p.dst_prc, m, p.n);
+    tile.args[ARG_SRC] = tileMemory(p.src_pad, p.src_prc, m, p.k);
+    tile.args[ARG_DST] = tileMemory(p.dst_pad, p.dst_prc, m, p.n);
     OPENVINO_ASSERT(tile.executor->update(tile.args), "GatedResidual: projection executor update failed");
     tile.m = m;
 }

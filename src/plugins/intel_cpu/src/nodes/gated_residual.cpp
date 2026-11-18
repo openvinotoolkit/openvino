@@ -154,12 +154,15 @@ void GatedResidual::initSupportedPrimitiveDescriptors() {
             creatorsMap.at(LayoutType::ncsp)->createSharedDesc(precision, getOutputShapeAtPort(i));
     }
 
-    // Each projection gets its own context: the private weight cache is keyed by the packed layout only.
+    // Each projection gets its own context: the private weight cache is keyed by the packed layout only. The
+    // projections run one after another, so they share one scratchpad, which the executor's other buffers do not use.
+    const auto projectionPad = context->getScratchPad()->child(kPadProjections);
     for (auto& projection_context : m_attrs.projection_contexts) {
         projection_context =
             std::make_shared<ExecutorContext>(context,
                                               getImplPriority(),
-                                              std::make_shared<std::unordered_map<std::string, MemoryPtr>>());
+                                              std::make_shared<std::unordered_map<std::string, MemoryPtr>>(),
+                                              projectionPad);
     }
 
     m_attrs.dynamic_quantization_group_size = context->getConfig().fcDynamicQuantizationGroupSize;

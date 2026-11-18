@@ -34,6 +34,10 @@ struct GatedResidualAttrs {
 
 using GatedResidualConfig = executor::Config<GatedResidualAttrs>;
 
+// Children of the GatedResidual executor's scratchpad. Rbar uses the pad's own block. The projections run one after
+// another, so they share one child.
+enum GatedResidualPad : uint8_t { kPadLogit, kPadT, kPadWriteGate, kPadRbarGemm, kPadProjections };
+
 // Node port i maps to ARG_SRC_0 + i (inputs) and ARG_DST_0 + i (outputs).
 constexpr int gatedResidualSrcArg(size_t port) {
     return ARG_SRC_0 + static_cast<int>(port);

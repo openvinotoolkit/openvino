@@ -4,8 +4,10 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <atomic>
 #include <thread>
+#include <vector>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "cpu_memory.h"
@@ -114,66 +116,75 @@ MemoryDescPtr bytesDesc(size_t size) {
 }
 }  // namespace
 
-TEST(ScratchPadTest, MemoryAtOffsetGrowsTheSharedBlock) {
+TEST(ScratchPadTest, ChildMemoryOverlapsNeitherItsParentNorItsSiblings) {
     dnnl::engine eng(dnnl::engine::kind::cpu, 0);
     DnnlScratchPad scratchPad(eng);
 
-    auto mem = scratchPad.createScratchPadMem(bytesDesc(100), 256);
-    ASSERT_GE(scratchPad.size(), 256U + 100U);
+    auto parentMem = scratchPad.createScratchPadMem(bytesDesc(256));
+    auto firstMem = scratchPad.child(0)->createScratchPadMem(bytesDesc(256));
+    auto secondMem = scratchPad.child(1)->createScratchPadMem(bytesDesc(256));
+    auto nestedMem = scratchPad.child(0)->child(0)->createScratchPadMem(bytesDesc(256));
 
-    // The memory starts `offset` bytes after the memory that starts the block.
-    auto first = scratchPad.createScratchPadMem(bytesDesc(64));
-    ASSERT_EQ(static_cast<uint8_t*>(first->getData()) + 256, static_cast<uint8_t*>(mem->getData()));
-}
-
-TEST(ScratchPadTest, OffsetDoesNotDependOnTheMemorySize) {
-    dnnl::engine eng(dnnl::engine::kind::cpu, 0);
-    DnnlScratchPad scratchPad(eng);
-
-    auto first = scratchPad.createScratchPadMem(bytesDesc(8));
-    for (const size_t size : {1U, 7U, 64U, 1000U, 4096U}) {
-        auto mem = scratchPad.createScratchPadMem(bytesDesc(size), 192);
-        ASSERT_EQ(static_cast<uint8_t*>(first->getData()) + 192, static_cast<uint8_t*>(mem->getData())) << size;
+    const std::vector<uint8_t*> starts{static_cast<uint8_t*>(parentMem->getData()),
+                                       static_cast<uint8_t*>(firstMem->getData()),
+                                       static_cast<uint8_t*>(secondMem->getData()),
+                                       static_cast<uint8_t*>(nestedMem->getData())};
+    for (size_t i = 0; i < starts.size(); ++i) {
+        for (size_t j = i + 1; j < starts.size(); ++j) {
+            ASSERT_TRUE(starts[i] + 256 <= starts[j] || starts[j] + 256 <= starts[i]) << i << " and " << j;
+        }
     }
 }
 
-TEST(ScratchPadTest, ViewStartsBehindItsOffsetAndNests) {
+TEST(ScratchPadTest, ChildIndexAlwaysReturnsTheSamePad) {
     dnnl::engine eng(dnnl::engine::kind::cpu, 0);
     DnnlScratchPad scratchPad(eng);
-    auto first = scratchPad.createScratchPadMem(bytesDesc(8));
 
-    DnnlScratchPad view(scratchPad, 128);
-    DnnlScratchPad nested(view, 64);
-    auto viewMem = view.createScratchPadMem(bytesDesc(32));
-    auto nestedMem = nested.createScratchPadMem(bytesDesc(32));
-    auto nestedMemAt = nested.createScratchPadMem(bytesDesc(32), 16);
-
-    const auto* base = static_cast<uint8_t*>(first->getData());
-    ASSERT_EQ(base + 128, static_cast<uint8_t*>(viewMem->getData()));
-    ASSERT_EQ(base + 192, static_cast<uint8_t*>(nestedMem->getData()));
-    ASSERT_EQ(base + 208, static_cast<uint8_t*>(nestedMemAt->getData()));
-    ASSERT_GE(scratchPad.size(), 208U + 32U);
+    // A sparse index first: the gaps stay empty and the later indices are distinct pads.
+    auto far = scratchPad.child(3);
+    auto near = scratchPad.child(0);
+    ASSERT_NE(far, near);
+    ASSERT_EQ(far, scratchPad.child(3));
+    ASSERT_EQ(near, scratchPad.child(0));
+    ASSERT_NE(scratchPad.child(1), near);
+    // Indices are local to the pad: the child of a child is not the child of the parent.
+    ASSERT_NE(near->child(0), near);
+    ASSERT_NE(near->child(0), scratchPad.child(0)->child(1));
 }
 
-TEST(ScratchPadTest, MemoryAtOffsetFollowsReallocation) {
+TEST(ScratchPadTest, ReallocatingOnePadKeepsTheDataOfTheOthers) {
     dnnl::engine eng(dnnl::engine::kind::cpu, 0);
     DnnlScratchPad scratchPad(eng);
 
-    auto first = scratchPad.createScratchPadMem(bytesDesc(16));
-    auto mem = scratchPad.createScratchPadMem(bytesDesc(64), 64);
-    // The primitive is created before the block grows: its data handle must move with the block.
-    auto prim = mem->getPrimitive();
-    ASSERT_EQ(static_cast<uint8_t*>(first->getData()) + 64, prim.get_data_handle());
+    auto parentMem = scratchPad.createScratchPadMem(bytesDesc(64));
+    auto childMem = scratchPad.child(0)->createScratchPadMem(bytesDesc(64));
+    std::fill_n(static_cast<uint8_t*>(childMem->getData()), 64, uint8_t{0xAB});
+    // The primitive is created before the pads grow: its data handle must follow its own block.
+    auto prim = childMem->getPrimitive();
 
-    auto big = scratchPad.createScratchPadMem(bytesDesc(1U << 20));
-    ASSERT_EQ(static_cast<uint8_t*>(first->getData()) + 64, static_cast<uint8_t*>(mem->getData()));
-    ASSERT_EQ(mem->getData(), prim.get_data_handle());
+    // The parent grows: the child is untouched.
+    auto bigParent = scratchPad.createScratchPadMem(bytesDesc(1U << 20));
+    for (size_t i = 0; i < 64; ++i) {
+        ASSERT_EQ(static_cast<uint8_t*>(childMem->getData())[i], 0xAB) << i;
+    }
+
+    // The child grows: the memory and its primitive follow, the parent keeps its block.
+    auto* parentData = parentMem->getData();
+    auto bigChild = scratchPad.child(0)->createScratchPadMem(bytesDesc(1U << 20));
+    ASSERT_EQ(parentMem->getData(), parentData);
+    ASSERT_EQ(childMem->getData(), prim.get_data_handle());
 }
 
-TEST(ScratchPadTest, EmptyMemoryAtOffsetDoesNotGrowTheBlock) {
+TEST(ScratchPadTest, SizeCountsTheChildrenRecursively) {
     dnnl::engine eng(dnnl::engine::kind::cpu, 0);
     DnnlScratchPad scratchPad(eng);
-
-    ASSERT_NO_THROW(scratchPad.createScratchPadMem(bytesDesc(0), 128));
     ASSERT_EQ(scratchPad.size(), 0U);
+
+    auto parentMem = scratchPad.createScratchPadMem(bytesDesc(100));
+    const size_t parentOnly = scratchPad.size();
+    ASSERT_GE(parentOnly, 100U);
+
+    auto childMem = scratchPad.child(2)->createScratchPadMem(bytesDesc(200));
+    auto nestedMem = scratchPad.child(2)->child(1)->createScratchPadMem(bytesDesc(300));
+    ASSERT_GE(scratchPad.size(), parentOnly + 200U + 300U);
 }

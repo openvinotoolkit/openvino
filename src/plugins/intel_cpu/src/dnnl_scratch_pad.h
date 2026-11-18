@@ -4,63 +4,72 @@
 
 #pragma once
 
-#include <algorithm>
 #include <cstddef>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <utility>
+#include <vector>
 
 #include "cpu_memory.h"
 #include "memory_desc/cpu_memory_desc.h"
-#include "partitioned_mem_blk.h"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
+// A scratchpad is one memory block plus child scratchpads, created on first use. The children form a tree; each child
+// is an ordinary DnnlScratchPad. The tree belongs to the graph context (one per stream): the next node reuses the same
+// pads, and each block grows to the largest request.
+//
+// Contract:
+//  1. One buffer per block. A pad's block holds one buffer at a time. Several views of that buffer are fine, e.g. the
+//     full and partial tiles or the src/dst views of a nested executor.
+//  2. Ownership. The pad in an executor's context belongs to that executor, together with all its children, while its
+//     node executes.
+//  3. Composite executors (executors that create nested executors) may use their own block for one buffer and keep
+//     the other buffers in children. They give each nested executor a context whose pad is a child they do not use
+//     themselves, may give one child to several nested executors that run one after another, and assert that each
+//     nested context got the expected pad.
+//  4. Pointers. A later request on a pad may reallocate its block. Memory objects follow it (Memory::update calls
+//     set_data_handle on the shared handle); raw pointers must be read again in execute.
+//  5. Threads. child() is not thread-safe: call it only during node initialization or prepareParams, which run on one
+//     thread per graph.
 class DnnlScratchPad {
     MemoryBlockPtr blockPtr;
     MemoryBlockWithReuse* baseBlockPtr = nullptr;
     dnnl::engine eng;
-    size_t baseOffset = 0;
+    int numaNode;
+    std::vector<std::shared_ptr<DnnlScratchPad>> children;
 
 public:
-    explicit DnnlScratchPad(dnnl::engine eng, int numa_node = -1) : eng(std::move(eng)) {
+    explicit DnnlScratchPad(dnnl::engine eng, int numa_node = -1) : eng(std::move(eng)), numaNode(numa_node) {
         auto baseMemoryBlock = std::make_unique<MemoryBlockWithReuse>(numa_node);
         baseBlockPtr = baseMemoryBlock.get();
         blockPtr = std::make_shared<DnnlMemoryBlock>(std::move(baseMemoryBlock));
     }
 
-    // A scratchpad that shares the block of `parent` and starts `offset` bytes into it.
-    DnnlScratchPad(const DnnlScratchPad& parent, size_t offset)
-        : blockPtr(parent.blockPtr),
-          eng(parent.eng),
-          baseOffset(parent.baseOffset + offset) {}
-
     MemoryPtr createScratchPadMem(const MemoryDescPtr& md) {
-        return createScratchPadMem(md, 0);
+        return std::make_shared<Memory>(eng, md, blockPtr);
     }
 
-    // The memory is placed `offset` bytes after the start of this scratchpad. It grows the shared block to
-    // offset + size and follows its reallocations.
-    MemoryPtr createScratchPadMem(const MemoryDescPtr& md, size_t offset) {
-        const size_t memOffset = baseOffset + offset;
-        if (memOffset == 0) {
-            return std::make_shared<Memory>(eng, md, blockPtr);
+    // A pad whose memory never overlaps this pad's block or its other children. The same index always returns the same
+    // child, so executors created again reuse it.
+    std::shared_ptr<DnnlScratchPad> child(size_t idx) {
+        if (idx >= children.size()) {
+            children.resize(idx + 1);
         }
-        // Partitions are counted in bytes: with the memory's size as the partition size, the offsets do not depend on
-        // it, so each block serves one memory of one size.
-        const size_t size = std::max<size_t>(md->getCurrentMemSize(), 1);
-        return std::make_shared<Memory>(
-            eng,
-            md,
-            std::make_shared<PartitionedMemoryBlock>(blockPtr, memOffset + size, memOffset, size));
+        if (!children[idx]) {
+            children[idx] = std::make_shared<DnnlScratchPad>(eng, numaNode);
+        }
+        return children[idx];
     }
 
+    // Bytes held by this pad and all its children.
     [[nodiscard]] size_t size() const {
-        if (baseBlockPtr) {
-            return baseBlockPtr->size();
+        size_t total = baseBlockPtr ? baseBlockPtr->size() : 0;
+        for (const auto& c : children) {
+            total += c ? c->size() : 0;
         }
-        return 0;
+        return total;
     }
 };
 
