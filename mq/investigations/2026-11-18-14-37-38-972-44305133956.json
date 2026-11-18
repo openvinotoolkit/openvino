@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-18-14-37-38-972-44305133956",
+  "timestamp": "2026-11-18T14:37:38Z",
+  "run_id": "44305133956",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44305133956",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "39559",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39559",
+  "author": "maxim-kurin",
+  "category": "Flaky Test",
+  "title": "TestKerasLSTM test_keras_lstm_flags_float32 numerical accuracy mismatch with dropout",
+  "signature": "test keras lstm flags numerical mismatch with dropout float32|Flaky Test",
+  "signature_hash": "a284d27dfee44614",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+      "conclusion": "failure",
+      "symptom": "test_keras_lstm_flags_float32 fails: OpenVINO CPU inference output diverges from TensorFlow/Keras reference beyond tolerance"
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check failed because the TensorFlow Layer Tests job failed"
+    }
+  ],
+  "key_errors": [
+    "FAILED .../tensorflow2_keras_tests/test_tf2_keras_lstm.py::TestKerasLSTM::test_keras_lstm_flags_float32[... 'dropouts': (0.1, 0.3), 'units': 3, 'activation': 'relu', 'use_bias': False, 'recurrent_activation': 'tanh', 'flags': True ...]",
+    "AssertionError: Comparing with Framework failed: ie_res={'output_0': array([[ 0., -0.59664536, -1.6927313], [-0., 0., 0.], [0., -0.22674441, -7.9872766], [-2.1493425, 0.9961421, -0.]], dtype=float32)}; framework_res={'output_0': ... array([[ 0., -0.60056907, -1.6865712], [-0., 0., 0.], [0., -0.3262612, -8.010712], [-2.1481814, 0.9972247, -0.]], dtype=float32)>}.",
+    "Max diff is 0.09951677918434143"
+  ],
+  "root_cause": "This is a known, recurring flaky test in the TensorFlow Layer Tests suite: test_keras_lstm_flags_float32 compares OpenVINO CPU inference output against a TensorFlow/Keras reference for an LSTM layer configured with dropout (dropouts=(0.1,0.3)) enabled during inference. Keras applies dropout stochastically based on its own RNG seeding even in what is meant to be a deterministic comparison, so the TF reference output varies slightly run-to-run while OpenVINO's LSTM kernel computes a fixed, non-stochastic result; the two diverge by about 0.1 in this run, above the test's 5e-2 epsilon. The merge-queue PR (#39559) only touches the Intel NPU compiler adapter (src/plugins/intel_npu) and is unrelated to the TensorFlow frontend or CPU LSTM kernel, confirming this is not caused by the PR under test. This exact signature has recurred 8 times since 2026-08-27 across unrelated PRs.",
+  "reproduction_steps": "Run locally: `pytest tests/layer_tests/tensorflow2_keras_tests/test_tf2_keras_lstm.py::TestKerasLSTM::test_keras_lstm_flags_float32 -k \"dropouts\" -v` repeatedly; the dropout-enabled parametrization is expected to occasionally diverge from the TF reference by more than the 5e-2 epsilon due to Keras's internal RNG for dropout masks not being pinned.",
+  "recommended_actions": [
+    "Pin/seed TensorFlow's dropout RNG (e.g., tf.random.set_seed plus a fixed dropout seed) in the test fixture so the Keras reference output is reproducible, or disable dropout at inference time (model.predict uses training=False, but the Keras dropout layer call path in this test should be audited to confirm training mode is not leaking into inference).",
+    "Mark the `dropouts` parametrization of test_keras_lstm_flags_float32 as flaky/xfail or increase its epsilon specifically for cases where dropout > 0, pending a proper RNG-seeding fix.",
+    "No action required on PR #39559; it can be safely merged/re-queued once this unrelated CI issue is retried."
+  ],
+  "prevention_strategies": "Add deterministic seeding for any TensorFlow/Keras layer that uses internal randomness (dropout, initializers) in layer_tests comparison fixtures, and track known-flaky layer test parametrizations in a dedicated skip/xfail list with a tracking ticket so merge-queue runs are not blocked by them.",
+  "historical_context": "Recorded 8 times since 2026-08-27 (pattern a284d27dfee44614), most recently 2026-11-16, across PRs #37611, #37654, #38168, #39121, #39286, #39341, #39270, #39742. A related but differently-signatured instance of the same underlying test (pattern 134f01149f41adcc) was also seen 3 times in mid-2026. Always resolved by retry/rerun since the PRs under test were unrelated to the TensorFlow frontend or CPU LSTM kernel."
+}
