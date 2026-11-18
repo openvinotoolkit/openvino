@@ -369,40 +369,6 @@ void validate_model_resident_constant_memory(const ov::Model& model, size_t offl
                     " bytes. Increase OFFLOAD_RATIO or use a GPU with more memory.");
 }
 
-void limit_streams_for_moe_offload(ExecutionConfig& config, const ov::Model& model) {
-    const auto offload_ratio = config.get_property(ov::intel_gpu::offload_ratio.name()).as<size_t>();
-    if (offload_ratio == 0) {
-        return;
-    }
-    bool offloaded = false;
-    for (const auto& node : model.get_ordered_ops()) {
-        const auto moe = ov::as_type_ptr<ov::op::internal::MOECompressed>(node);
-        if (moe && is_otd_capable_moe(moe.get()) && get_moe_offload_slot_count(*moe, offload_ratio) > 0) {
-            offloaded = true;
-            break;
-        }
-    }
-    if (!offloaded) {
-        return;
-    }
-
-    const auto& user_properties = config.get_user_properties();
-    const auto streams_it = user_properties.find(ov::num_streams.name());
-    bool derived_streams = false;
-    if (streams_it != user_properties.end()) {
-        const int32_t streams = streams_it->second.as<ov::streams::Num>();
-        OPENVINO_ASSERT(streams <= 1, "[GPU] OFFLOAD_RATIO=", offload_ratio, " supports a single stream only, but NUM_STREAMS=", streams, " is requested");
-        derived_streams = streams < 0;
-    } else {
-        const auto mode_it = user_properties.find(ov::hint::performance_mode.name());
-        derived_streams = mode_it != user_properties.end() && mode_it->second.as<ov::hint::PerformanceMode>() == ov::hint::PerformanceMode::THROUGHPUT;
-    }
-    if (derived_streams) {
-        GPU_DEBUG_INFO << "MoE offload (OFFLOAD_RATIO=" << offload_ratio << ") supports a single stream only: NUM_STREAMS is set to 1" << std::endl;
-        config.set_user_property(ov::num_streams(1));
-    }
-}
-
 PartialUploadLogState& get_partial_upload_log_state() {
     static PartialUploadLogState state;
     return state;

@@ -48,6 +48,13 @@ static bool prepare_moe_otd_params(ProgramBuilder& p,
         return false;
     }
 
+    OPENVINO_ASSERT(p.get_config().get_num_streams() == 1,
+                    "[GPU] OFFLOAD_RATIO=",
+                    p.get_config().get_offload_ratio(),
+                    " supports a single stream only, but the model is compiled with ",
+                    p.get_config().get_num_streams(),
+                    " streams. Set NUM_STREAMS=1 and do not use the THROUGHPUT performance hint.");
+
     weights_path = std::filesystem::path(p.get_config().get_weights_path());
     OPENVINO_ASSERT(!weights_path.empty(),
                     "ov::weights_path property is not set. OTD requires a valid path to the model .bin file. "

@@ -446,9 +446,8 @@ in GPU memory, and so do the slot copies of the cached experts. This costs about
 expert weights, but the resident weights shrink as the ratio grows: at ``OFFLOAD_RATIO=90`` the same
 amount is roughly 13-16% of the remaining footprint. Take it into account when budgeting GPU memory.
 
-An offloaded MoE layer supports a single stream. Setting ``ov::num_streams`` above 1 together with
-``ov::intel_gpu::offload_ratio`` fails at ``ov::Core::compile_model()``, while a stream count derived
-from ``ov::hint::performance_mode(THROUGHPUT)`` or ``ov::streams::AUTO`` is limited to 1.
+An offloaded MoE layer supports a single stream. Make sure that the number of streams is 1 when using
+``ov::intel_gpu::offload_ratio``.
 
 
 Read-only Properties

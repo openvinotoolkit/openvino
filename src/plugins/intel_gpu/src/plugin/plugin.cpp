@@ -304,7 +304,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     auto transformed_model = clone_and_transform_model(model, config, context);
 
-    limit_streams_for_moe_offload(config, *transformed_model);
     config.finalize(context.get(), transformed_model.get());
 
     if (config.get_offload_ratio() > 0) {
@@ -337,7 +336,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     auto transformed_model = clone_and_transform_model(model, config, context_impl);
 
-    limit_streams_for_moe_offload(config, *transformed_model);
     config.finalize(context_impl.get(), transformed_model.get());
 
     if (config.get_offload_ratio() > 0) {
