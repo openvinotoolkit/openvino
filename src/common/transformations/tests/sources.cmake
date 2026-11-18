@@ -12,7 +12,6 @@ set(TESTS_ROOT_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/resolve_names_collisions.cpp
     ${CMAKE_CURRENT_LIST_DIR}/sdpa_to_paged_attention_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/skip_tests_config.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/tp_collective_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/type_relaxed_tests.cpp
 )
 

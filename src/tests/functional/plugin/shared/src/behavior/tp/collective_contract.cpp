@@ -20,7 +20,8 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tp/collective_contract.hpp"
-#include "ov_ops/tp_collective.hpp"
+#include "ov_ops/tp_all_reduce.hpp"
+#include "ov_ops/tp_gather.hpp"
 
 namespace ov {
 namespace test {

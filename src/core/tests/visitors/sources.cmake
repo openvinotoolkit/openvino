@@ -220,6 +220,8 @@ set(OV_CORE_TESTS_VISITORS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op/tensor_iterator.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/tile.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/topk.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/tp_all_reduce.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/tp_gather.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/transpose.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/unique.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/unsqueeze.cpp

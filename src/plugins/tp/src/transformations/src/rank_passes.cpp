@@ -14,7 +14,8 @@
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/read_value.hpp"
-#include "ov_ops/tp_collective.hpp"
+#include "ov_ops/tp_all_reduce.hpp"
+#include "ov_ops/tp_gather.hpp"
 #include "tp_transformations/annotations.hpp"
 
 namespace ov {

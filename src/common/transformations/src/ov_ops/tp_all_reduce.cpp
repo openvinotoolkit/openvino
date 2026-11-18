@@ -2,32 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ov_ops/tp_collective.hpp"
+#include "ov_ops/tp_all_reduce.hpp"
 
-#include "openvino/core/validation_util.hpp"
+#include "itt.hpp"
 
 namespace ov {
 namespace op {
 namespace internal {
-
-TPCollectiveBase::TPCollectiveBase(const ov::OutputVector& arguments,
-                                   uint32_t rank,
-                                   uint32_t world_size,
-                                   uint32_t group_id,
-                                   uint64_t collective_id)
-    : Op(arguments),
-      m_rank(rank),
-      m_world_size(world_size),
-      m_group_id(group_id),
-      m_collective_id(collective_id) {}
-
-bool TPCollectiveBase::visit_attributes(ov::AttributeVisitor& visitor) {
-    visitor.on_attribute("rank", m_rank);
-    visitor.on_attribute("world_size", m_world_size);
-    visitor.on_attribute("group_id", m_group_id);
-    visitor.on_attribute("collective_id", m_collective_id);
-    return true;
-}
 
 TPAllReduce::TPAllReduce(const ov::Output<ov::Node>& input,
                          uint32_t rank,
@@ -41,17 +22,20 @@ TPAllReduce::TPAllReduce(const ov::Output<ov::Node>& input,
 }
 
 bool TPAllReduce::visit_attributes(ov::AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(internal_TPAllReduce_visit_attributes);
     TPCollectiveBase::visit_attributes(visitor);
     visitor.on_attribute("reduce_op", m_reduce_op);
     return true;
 }
 
 void TPAllReduce::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(internal_TPAllReduce_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this, m_rank < m_world_size, "rank ", m_rank, " is outside of a group of ", m_world_size);
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
 std::shared_ptr<ov::Node> TPAllReduce::clone_with_new_inputs(const ov::OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(internal_TPAllReduce_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<TPAllReduce>(new_args.at(0),
                                          m_rank,
@@ -59,41 +43,6 @@ std::shared_ptr<ov::Node> TPAllReduce::clone_with_new_inputs(const ov::OutputVec
                                          m_group_id,
                                          m_collective_id,
                                          m_reduce_op);
-}
-
-TPGather::TPGather(const ov::Output<ov::Node>& input,
-                   uint32_t rank,
-                   uint32_t world_size,
-                   uint32_t group_id,
-                   uint64_t collective_id,
-                   int64_t axis)
-    : TPCollectiveBase({input}, rank, world_size, group_id, collective_id),
-      m_axis(axis) {
-    constructor_validate_and_infer_types();
-}
-
-bool TPGather::visit_attributes(ov::AttributeVisitor& visitor) {
-    TPCollectiveBase::visit_attributes(visitor);
-    visitor.on_attribute("axis", m_axis);
-    return true;
-}
-
-void TPGather::validate_and_infer_types() {
-    NODE_VALIDATION_CHECK(this, m_rank < m_world_size, "rank ", m_rank, " is outside of a group of ", m_world_size);
-
-    auto pshape = get_input_partial_shape(0);
-    // Only the root holds every slice; the others would otherwise each allocate the full tensor.
-    if (m_rank == 0 && pshape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(this, pshape.rank().get_length() > 0, "a scalar has no axis to gather along");
-        const auto axis = ov::util::try_normalize_axis(m_axis, pshape.rank(), *this);
-        pshape[axis] *= static_cast<int64_t>(m_world_size);
-    }
-    set_output_type(0, get_input_element_type(0), pshape);
-}
-
-std::shared_ptr<ov::Node> TPGather::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    check_new_args_count(this, new_args);
-    return std::make_shared<TPGather>(new_args.at(0), m_rank, m_world_size, m_group_id, m_collective_id, m_axis);
 }
 
 }  // namespace internal

@@ -13,7 +13,8 @@
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/runtime/core.hpp"
-#include "ov_ops/tp_collective.hpp"
+#include "ov_ops/tp_all_reduce.hpp"
+#include "ov_ops/tp_gather.hpp"
 #include "tp_test_models.hpp"
 #include "transformation_test_utils.hpp"
 

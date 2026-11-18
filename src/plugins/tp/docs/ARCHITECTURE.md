@@ -99,7 +99,7 @@ The code is split in five layers, each tested where it lives.
 | Layer                  | What                                                                                   | Where                                                                  | Tested by                                                        |
 |------------------------|----------------------------------------------------------------------------------------|------------------------------------------------------------------------|------------------------------------------------------------------|
 | TP transformations     | Block passes, verifier, rank passes                                                    | `src/plugins/tp/src/transformations/` (`openvino_tp_transformations`)  | `ov_tp_unit_tests`                                               |
-| Collective ops         | `TPAllReduce`, `TPGather`                                                              | `src/common/transformations/.../ov_ops/tp_collective.*`                | `ov_transformations_tests` (`TPCollectiveTest`)                  |
+| Collective ops         | `TPAllReduce`, `TPGather` on the core base `ov::op::util::TPCollectiveBase`            | `src/common/transformations/.../ov_ops/tp_{all_reduce,gather}.*`       | `ov_core_unit_tests` (`type_prop`, `attributes`)                 |
 | Collective contract    | What an orchestrator and a device plugin agree on                                      | `src/inference/dev_api/openvino/runtime/tp/collective_contract.hpp`    | `ov_inference_unit_tests`, the shared `TPCollectiveContractTest` |
 | Device collectives     | A device plugin's communicator, group state, primitives, impls                         | intel_gpu, `src/runtime/ze/tp/`, `src/graph/impls/ocl_v2/tp/`          | `ov_gpu_unit_tests`, `ov_gpu_func_tests`                         |
 | TP plugin              | Compile and import, rank contexts, compiled model, infer request, cache                | `src/plugins/tp/src/`                                                  | `ov_tp_func_tests`                                               |
@@ -379,7 +379,9 @@ src/plugins/intel_gpu/   (compiled only with ENABLE_TP)
 ```
 
 The collective ops themselves (`TPAllReduce`, `TPGather`) live in
-`src/common/transformations/include/ov_ops/tp_collective.hpp`.
+`src/common/transformations/include/ov_ops/tp_all_reduce.hpp` and `tp_gather.hpp`,
+on the base `ov::op::util::TPCollectiveBase`
+(`src/core/dev_api/openvino/op/util/tp_collective_base.hpp`).
 
 ## Device-side Collectives
 

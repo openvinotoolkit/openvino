@@ -45,7 +45,9 @@ cmake --build . --target openvino_tp_plugin openvino_intel_gpu_plugin -j$(nproc)
 
 The plugin links against `openvino::runtime::dev` only. The collective ops
 (`ov::op::internal::TPAllReduce`, `TPGather`) live in
-`src/common/transformations/include/ov_ops/tp_collective.hpp`.
+`src/common/transformations/include/ov_ops/tp_all_reduce.hpp` and `tp_gather.hpp`;
+their base `ov::op::util::TPCollectiveBase` in
+`src/core/dev_api/openvino/op/util/tp_collective_base.hpp`.
 
 ## Source Layout
 
@@ -536,13 +538,15 @@ To support a new pattern:
 The plugin defines exactly two ops, `TPAllReduce` and `TPGather`, and
 both are inserted by `TPInsertCollectives`. To add a third:
 
-1. Declare it in `src/common/transformations/include/ov_ops/tp_collective.hpp`
-   (source in `src/common/transformations/src/ov_ops/tp_collective.cpp`).
-2. Inherit `ov::op::internal::TPCollectiveBase`, declare with
-   `OPENVINO_OP("TPMyOp", "ie_internal_opset", TPCollectiveBase)`.
+1. Declare it in a file of its own, `src/common/transformations/include/ov_ops/tp_my_op.hpp`
+   (source in `src/common/transformations/src/ov_ops/tp_my_op.cpp`), and list
+   both in the `sources.cmake` next to them.
+2. Inherit `ov::op::util::TPCollectiveBase`, declare with
+   `OPENVINO_OP("TPMyOp", "ie_internal_opset", ov::op::util::TPCollectiveBase)`.
 3. Implement constructors, `validate_and_infer_types`,
-   `clone_with_new_inputs`, `visit_attributes`. The two existing ops
-   are good templates.
+   `clone_with_new_inputs`, `visit_attributes`, each method under
+   `INTERNAL_OP_SCOPE`. The two existing ops are good templates. Test it in
+   `src/core/tests/type_prop/` and `src/core/tests/visitors/op/`.
 4. Add a primitive in `src/plugins/intel_gpu/src/graph/` and its impl in
    `src/plugins/intel_gpu/src/graph/impls/ocl_v2/tp/`. Keep the primitive POD:
    carry the op's `collective_id`, `rank` and `world_size` as attributes and
@@ -564,7 +568,7 @@ both are inserted by `TPInsertCollectives`. To add a third:
   exports its own under `src/transformations/include/tp_transformations/`.
 - What the two plugins share is the private collective contract in
   `src/inference/dev_api/openvino/runtime/tp/collective_contract.hpp` and the
-  ops in `ov_ops/tp_collective.hpp`. The communicator, the group state and
+  ops in `ov_ops/tp_all_reduce.hpp` and `ov_ops/tp_gather.hpp`. The communicator, the group state and
   the shared L0 context are internal to intel_gpu; its impls reach them
   through the network's `Channel`.
 

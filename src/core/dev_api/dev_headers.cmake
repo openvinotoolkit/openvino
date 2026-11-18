@@ -38,6 +38,7 @@ set(DEV_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/selective_ssm.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/util/node_util.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/util/slice_plan.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/op/util/tp_collective_base.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/opsets/opset10_decl.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/opsets/opset11_decl.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/opsets/opset12_decl.hpp

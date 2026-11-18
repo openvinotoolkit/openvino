@@ -31,7 +31,8 @@ set(OV_OPS_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/opset_private_tbl.hpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/rms.hpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/rotary_positional_embeddings.hpp
-    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/tp_collective.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/tp_all_reduce.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/tp_gather.hpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/type_relaxed.hpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/vl_sdpa.hpp
 )

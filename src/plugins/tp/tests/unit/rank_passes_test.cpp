@@ -12,7 +12,9 @@
 
 #include "openvino/op/ops.hpp"
 #include "openvino/op/paged_attention.hpp"
-#include "ov_ops/tp_collective.hpp"
+#include "openvino/op/util/tp_collective_base.hpp"
+#include "ov_ops/tp_all_reduce.hpp"
+#include "ov_ops/tp_gather.hpp"
 #include "tp_test_models.hpp"
 #include "transformation_test_utils.hpp"
 
@@ -54,7 +56,7 @@ const auto& gather = ov::op::internal::TPGather::get_type_info_static();
 std::vector<std::pair<std::string, uint64_t>> collective_ids(const std::shared_ptr<ov::Model>& model) {
     std::vector<std::pair<std::string, uint64_t>> ids;
     for (const auto& op : model->get_ordered_ops()) {
-        if (const auto collective = ov::as_type_ptr<ov::op::internal::TPCollectiveBase>(op))
+        if (const auto collective = ov::as_type_ptr<ov::op::util::TPCollectiveBase>(op))
             ids.emplace_back(collective->get_friendly_name(), collective->get_collective_id());
     }
     return ids;

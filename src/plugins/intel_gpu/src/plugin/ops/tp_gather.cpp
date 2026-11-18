@@ -9,7 +9,7 @@
 #include "intel_gpu/primitives/tp_gather.hpp"
 
 #include "openvino/core/validation_util.hpp"
-#include "ov_ops/tp_collective.hpp"
+#include "ov_ops/tp_gather.hpp"
 
 namespace ov::intel_gpu {
 

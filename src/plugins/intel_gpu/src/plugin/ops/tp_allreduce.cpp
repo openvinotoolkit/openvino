@@ -8,7 +8,7 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/primitives/tp_allreduce.hpp"
 
-#include "ov_ops/tp_collective.hpp"
+#include "ov_ops/tp_all_reduce.hpp"
 
 namespace ov::intel_gpu {
 

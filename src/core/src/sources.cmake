@@ -328,6 +328,7 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/op/util/sub_graph_base.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/util/symbolic_info.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/util/topk_base.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/util/tp_collective_base.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/util/unary_elementwise_arithmetic.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/util/variable.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/util/variable_extension.cpp

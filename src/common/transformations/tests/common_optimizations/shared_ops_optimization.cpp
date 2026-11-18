@@ -26,7 +26,8 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "ov_ops/tp_collective.hpp"
+#include "ov_ops/tp_all_reduce.hpp"
+#include "ov_ops/tp_gather.hpp"
 
 using namespace ov;
 

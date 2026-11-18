@@ -12,7 +12,7 @@
 
 #include "gtest/gtest.h"
 #include "openvino/runtime/core.hpp"
-#include "ov_ops/tp_collective.hpp"
+#include "ov_ops/tp_all_reduce.hpp"
 
 namespace ov {
 namespace tp {
