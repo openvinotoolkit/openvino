@@ -43,13 +43,11 @@
 
 namespace ov::intel_cpu {
 
-ModelDeserializer::ModelDeserializer(std::shared_ptr<ov::AlignedBuffer>& model_buffer,
-                                     const std::shared_ptr<ov::ICore>& core,
-                                     const CacheDecrypt& decrypt_fn,
-                                     bool decript_from_string,
-                                     const std::string& origin_weights_path)
-    : m_model(model_buffer),
-      m_core(core),
+ModelDeserializerBase::ModelDeserializerBase(const std::shared_ptr<ov::ICore>& core,
+                                             const CacheDecrypt& decrypt_fn,
+                                             bool decript_from_string,
+                                             const std::string& origin_weights_path)
+    : m_core(core),
       m_decript_from_string(decript_from_string) {
     if (!origin_weights_path.empty() && std::filesystem::exists(origin_weights_path)) {
         auto mmap = ov::load_mmap_object(ov::util::make_path(origin_weights_path));
@@ -63,27 +61,30 @@ ModelDeserializer::ModelDeserializer(std::shared_ptr<ov::AlignedBuffer>& model_b
         m_cache_decrypt.m_decrypt_char = decrypt_fn.m_decrypt_char;
     }
 }
+
+ModelDeserializer::ModelDeserializer(std::shared_ptr<ov::AlignedBuffer>& model_buffer,
+                                     const std::shared_ptr<ov::ICore>& core,
+                                     const CacheDecrypt& decrypt_fn,
+                                     bool decript_from_string,
+                                     const std::string& origin_weights_path)
+    : ModelDeserializerBase(core, decrypt_fn, decript_from_string, origin_weights_path),
+      m_model(model_buffer) {}
 
 ModelDeserializer::ModelDeserializer(std::istream& model_stream,
                                      const std::shared_ptr<ov::ICore>& core,
                                      const CacheDecrypt& decrypt_fn,
                                      bool decript_from_string,
                                      const std::string& origin_weights_path)
-    : m_model(model_stream),
-      m_core(core),
-      m_decript_from_string(decript_from_string) {
-    if (!origin_weights_path.empty() && std::filesystem::exists(origin_weights_path)) {
-        auto mmap = ov::load_mmap_object(ov::util::make_path(origin_weights_path));
-        m_origin_weights_buf =
-            std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mmap->data(), mmap->size(), mmap);
-    }
+    : ModelDeserializerBase(core, decrypt_fn, decript_from_string, origin_weights_path),
+      m_model(model_stream) {}
 
-    if (m_decript_from_string) {
-        m_cache_decrypt.m_decrypt_str = decrypt_fn.m_decrypt_str;
-    } else {
-        m_cache_decrypt.m_decrypt_char = decrypt_fn.m_decrypt_char;
-    }
-}
+HsmModelDeserializer::HsmModelDeserializer(Sections sections,
+                                           const std::shared_ptr<ov::ICore>& core,
+                                           const CacheDecrypt& decrypt_fn,
+                                           bool decript_from_string,
+                                           const std::string& origin_weights_path)
+    : ModelDeserializerBase(core, decrypt_fn, decript_from_string, origin_weights_path),
+      m_sections(std::move(sections)) {}
 
 void ModelDeserializer::set_info(pugi::xml_node& root, std::shared_ptr<ov::Model>& model) {}
 
@@ -95,7 +96,7 @@ void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
         m_model);
 }
 
-std::shared_ptr<ov::Model> ModelDeserializer::create_ov_model(
+std::shared_ptr<ov::Model> ModelDeserializerBase::create_ov_model(
     const std::shared_ptr<ov::AlignedBuffer>& model_buf,
     const std::shared_ptr<ov::AlignedBuffer>& weights,
     const std::shared_ptr<ov::AlignedBuffer>& origin_weights) {
@@ -273,6 +274,23 @@ void ModelDeserializer::process_model(std::shared_ptr<ov::Model>& model,
     pugi::xml_node root = xmlInOutDoc.child("cnndata");
     set_info(root, model);
 };
+
+void HsmModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
+    auto xml = m_sections.xml;
+    if (m_cache_decrypt) {
+        auto xml_string = std::make_shared<std::string>(xml->get_ptr<char>(), xml->size());
+        if (m_decript_from_string) {
+            *xml_string = m_cache_decrypt.m_decrypt_str(*xml_string);
+        } else {
+            m_cache_decrypt.m_decrypt_char(xml_string->data(), xml_string->data(), xml_string->size());
+        }
+        xml = std::make_shared<ov::SharedBuffer<std::shared_ptr<std::string>>>(xml_string->data(),
+                                                                               xml_string->size(),
+                                                                               xml_string);
+    }
+
+    model = create_ov_model(xml, m_sections.weights, m_origin_weights_buf);
+}
 
 ov::Any XmlDeserializer::parse_weightless_cache_attribute(const pugi::xml_node& node) const {
     if (auto rt_info = node.child("rt_info")) {

@@ -74,15 +74,17 @@ bool use_discrete_slm(const RuntimeParams& params) {
 
 size_t get_precomputed_da_head_dim_groups(const RuntimeParams& params) {
     const auto& info = params.get_device_info();
-    if (info.dev_type != cldnn::device_type::discrete_gpu || info.arch < cldnn::gpu_arch::xe2)
+    if (info.dev_type != cldnn::device_type::discrete_gpu || info.arch < cldnn::gpu_arch::xe2) {
         return 0;
+    }
 
     const auto& x_shape = params.get_input_layout(3).get_partial_shape();
     const auto& B_shape = params.get_input_layout(2).get_partial_shape();
     const size_t head_dim = x_shape[2].get_length();
     const size_t state_size = B_shape[2].get_length();
-    if (state_size < precompute_da_min_state_size)
+    if (state_size < precompute_da_min_state_size) {
         return 0;
+    }
 
     const size_t subgroup_size = selective_ssm_jit::get_subgroup_size(info, selective_ssm_jit::device_kind::discrete);
     const size_t head_dim_block = selective_ssm_jit::get_head_dim_block(head_dim,
@@ -100,11 +102,13 @@ bool supports_precomputed_da(const RuntimeParams& params) {
 
 bool use_precomputed_da(const RuntimeParams& params) {
     const size_t head_dim_groups = get_precomputed_da_head_dim_groups(params);
-    if (head_dim_groups < precompute_da_min_head_dim_groups)
+    if (head_dim_groups < precompute_da_min_head_dim_groups) {
         return false;
+    }
 
-    if (params.is_dynamic())
+    if (params.is_dynamic()) {
         return true;
+    }
 
     const size_t min_tokens = std::max(precompute_da_min_tokens, cldnn::ceil_div(precompute_da_min_group_tokens, head_dim_groups));
     return static_cast<size_t>(params.get_input_layout(1).get_partial_shape()[0].get_length()) >= min_tokens;
@@ -118,16 +122,18 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         const auto& x_shape = params.get_input_layout(3).get_partial_shape();
-        if (!params.is_dynamic())
+        if (!params.is_dynamic()) {
             jit.make("SSM_TOKEN_COUNT", x_shape[0].get_length());
+        }
         jit.make("SSM_NUM_HEADS", x_shape[1].get_length());
         return jit;
     }
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
-        if (params.is_dynamic())
+        if (params.is_dynamic()) {
             args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+        }
         args.push_back({ArgumentDescriptor::Types::INPUT, 0});
         args.push_back({ArgumentDescriptor::Types::INPUT, 1});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
@@ -183,8 +189,9 @@ protected:
                                                                             selective_ssm_jit::paged_private_value_budget);
         OPENVINO_ASSERT(subgroup_size != 0, "PagedSelectiveSSM JIT kernel requires a non-zero subgroup size");
 
-        if (!params.is_dynamic())
+        if (!params.is_dynamic()) {
             jit.make("SSM_TOKEN_COUNT", x_shape[0].get_length());
+        }
         jit.make("SSM_NUM_HEADS", x_shape[1].get_length());
         jit.make("SSM_HEAD_DIM", head_dim);
         jit.make("SSM_NUM_GROUPS", B_shape[1].get_length());
@@ -201,16 +208,20 @@ protected:
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
-        if (params.is_dynamic())
+        if (params.is_dynamic()) {
             args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
-        for (uint32_t i = 0; i < params.input_layouts.size(); i++)
+        }
+        for (uint32_t i = 0; i < params.input_layouts.size(); i++) {
             args.push_back({ArgumentDescriptor::Types::INPUT, i});
+        }
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
-        if constexpr (PrecomputeDA)
+        if constexpr (PrecomputeDA) {
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        }
         if constexpr (Kind == selective_ssm_jit::device_kind::discrete) {
-            if (use_discrete_slm(params))
+            if (use_discrete_slm(params)) {
                 args.push_back({ArgumentDescriptor::Types::LOCAL_MEMORY_SIZE, 0});
+            }
         }
         return args;
     }
@@ -234,8 +245,9 @@ protected:
             kd.params.workGroups.local = {subgroup_size, 1, 1};
             kd.params.local_memory_args.clear();
             if constexpr (Kind == selective_ssm_jit::device_kind::discrete) {
-                if (use_discrete_slm(params))
+                if (use_discrete_slm(params)) {
                     kd.params.local_memory_args = {head_dim_block * state_size * sizeof(float)};
+                }
             }
             if (params.is_dynamic()) {
                 kd.params.workGroups.global = {subgroup_size, 1, 1};
@@ -259,8 +271,9 @@ public:
 protected:
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
-        if (params.is_dynamic())
+        if (params.is_dynamic()) {
             args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+        }
         for (uint32_t i = 0; i < params.input_layouts.size(); i++) {
             args.push_back({ArgumentDescriptor::Types::INPUT, i});
         }
@@ -316,8 +329,9 @@ public:
 protected:
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
-        if (params.is_dynamic())
+        if (params.is_dynamic()) {
             args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+        }
         for (uint32_t i = 0; i < params.input_layouts.size(); i++) {
             args.push_back({ArgumentDescriptor::Types::INPUT, i});
         }
@@ -367,7 +381,7 @@ public:
     Stage::Ptr paged_selective_ssm_large_state = make_stage<PagedSelectiveSSMLargeStateGenerator>();
 
     PagedSelectiveSSMOptImpl() : PrimitiveImplOCL(PagedSelectiveSSMOpt::get_type_info_static()) {}
-    PagedSelectiveSSMOptImpl(const program_node&, const RuntimeParams& params) : PagedSelectiveSSMOptImpl() {
+    PagedSelectiveSSMOptImpl(const program_node& /*unused*/, const RuntimeParams& params) : PagedSelectiveSSMOptImpl() {
         add_stage(paged_selective_ssm, params);
         add_stage(paged_selective_ssm_large_state, params);
     }
@@ -396,11 +410,12 @@ public:
 
     [[nodiscard]] std::vector<size_t> get_stages_execution_order(const RuntimeParams& params) const override {
         const auto& B_shape = params.get_input_layout(2).get_partial_shape();
-        if (!B_shape.is_static())
+        if (!B_shape.is_static()) {
             return {0};
+        }
         const size_t state_size = B_shape[2].get_length();
         const size_t lws = selective_ssm_utils::get_lws(state_size, params.get_device_info());
-        return {selective_ssm_utils::requires_global_state(state_size, lws, params.get_device_info()) ? 1ul : 0ul};
+        return {selective_ssm_utils::requires_global_state(state_size, lws, params.get_device_info()) ? 1UL : 0UL};
     }
 };
 
@@ -411,7 +426,7 @@ public:
     Stage::Ptr paged_selective_ssm = make_stage<PagedSelectiveSSMJitGenerator<selective_ssm_jit::device_kind::integrated>>();
 
     PagedSelectiveSSMJitIntegratedImpl() : PrimitiveImplOCL(PagedSelectiveSSMJitIntegrated::get_type_info_static()) {}
-    PagedSelectiveSSMJitIntegratedImpl(const program_node&, const RuntimeParams& params) : PagedSelectiveSSMJitIntegratedImpl() {
+    PagedSelectiveSSMJitIntegratedImpl(const program_node& /*unused*/, const RuntimeParams& params) : PagedSelectiveSSMJitIntegratedImpl() {
         add_stage(paged_selective_ssm, params);
     }
 
@@ -429,14 +444,15 @@ public:
     Stage::Ptr paged_selective_ssm = make_stage<PagedSelectiveSSMJitGenerator<selective_ssm_jit::device_kind::discrete>>();
 
     PagedSelectiveSSMJitDiscreteImpl() : PrimitiveImplOCL(PagedSelectiveSSMJitDiscrete::get_type_info_static()) {}
-    PagedSelectiveSSMJitDiscreteImpl(const program_node&, const RuntimeParams& params) : PagedSelectiveSSMJitDiscreteImpl() {
+    PagedSelectiveSSMJitDiscreteImpl(const program_node& /*unused*/, const RuntimeParams& params) : PagedSelectiveSSMJitDiscreteImpl() {
         const bool precompute = use_precomputed_da(params);
         if (precompute) {
             add_stage(precompute_da, params);
             add_stage(paged_selective_ssm_precomputed, params);
         }
-        if ((params.is_dynamic() && supports_precomputed_da(params)) || !precompute)
+        if ((params.is_dynamic() && supports_precomputed_da(params)) || !precompute) {
             add_stage(paged_selective_ssm, params);
+        }
     }
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
@@ -444,18 +460,22 @@ public:
     }
 
     [[nodiscard]] std::vector<BufferDescriptor> get_internal_buffer_descs(const RuntimeParams& params) const override {
-        if (!has_stage(precompute_da))
+        if (!has_stage(precompute_da)) {
             return {};
+        }
 
         const auto& dt_layout = params.get_input_layout(1);
-        const size_t elements =
-            use_precomputed_da(params) ? (dt_layout.is_dynamic() ? ov::shape_size(dt_layout.get_partial_shape().get_max_shape()) : dt_layout.count()) : 1;
+        size_t elements = 1;
+        if (use_precomputed_da(params)) {
+            elements = dt_layout.is_dynamic() ? ov::shape_size(dt_layout.get_partial_shape().get_max_shape()) : dt_layout.count();
+        }
         return {BufferDescriptor{elements, ov::element::f32}};
     }
 
     [[nodiscard]] std::vector<size_t> get_stages_execution_order(const RuntimeParams& params) const override {
-        if (use_precomputed_da(params))
+        if (use_precomputed_da(params)) {
             return {PRECOMPUTE_DA, PRECOMPUTED_DA_RECURRENCE};
+        }
 
         return {RECURRENCE};
     }
@@ -465,19 +485,23 @@ public:
 
 bool validate_paged_selective_ssm_jit(const program_node& node, const selective_ssm_jit::device_kind kind) {
     const auto& info = node.get_program().get_engine().get_device_info();
-    if (!selective_ssm_jit::matches_device_kind(info, kind))
+    if (!selective_ssm_jit::matches_device_kind(info, kind)) {
         return false;
+    }
 
     const size_t subgroup_size = selective_ssm_jit::get_subgroup_size(info, kind);
-    if (subgroup_size == 0)
+    if (subgroup_size == 0) {
         return false;
+    }
 
     for (size_t i = 0; i < node.get_dependencies().size(); i++) {
-        if (!has_supported_indexing(node.get_input_layout(i)))
+        if (!has_supported_indexing(node.get_input_layout(i))) {
             return false;
+        }
     }
-    if (!has_supported_indexing(node.get_output_layout(0)))
+    if (!has_supported_indexing(node.get_output_layout(0))) {
         return false;
+    }
 
     const auto& A_shape = node.get_input_layout(0).get_partial_shape();
     const auto& dt_shape = node.get_input_layout(1).get_partial_shape();
@@ -498,8 +522,9 @@ bool validate_paged_selective_ssm_jit(const program_node& node, const selective_
         return false;
     }
 
-    if (!x_shape[1].is_static() || !x_shape[2].is_static() || !B_shape[1].is_static() || !B_shape[2].is_static())
+    if (!x_shape[1].is_static() || !x_shape[2].is_static() || !B_shape[1].is_static() || !B_shape[2].is_static()) {
         return false;
+    }
 
     const size_t num_heads = x_shape[1].get_length();
     const size_t head_dim = x_shape[2].get_length();
@@ -515,19 +540,24 @@ bool validate_paged_selective_ssm_jit(const program_node& node, const selective_
         has_static_value(C_shape[2], state_size) && has_static_value(state_shape[1], num_heads) && has_static_value(state_shape[2], head_dim) &&
         has_static_value(state_shape[3], state_size) && has_static_value(output_shape[1], num_heads) && has_static_value(output_shape[2], head_dim) &&
         dt_shape[0].compatible(x_shape[0]) && B_shape[0].compatible(x_shape[0]) && C_shape[0].compatible(x_shape[0]) && output_shape[0].compatible(x_shape[0]);
-    if (!shapes_match)
+    if (!shapes_match) {
         return false;
+    }
 
-    if (x_shape[0].is_static() && x_shape[0].get_length() == 0)
+    if (x_shape[0].is_static() && x_shape[0].get_length() == 0) {
         return false;
-    if (state_shape[0].is_static() && state_shape[0].get_length() == 0)
+    }
+    if (state_shape[0].is_static() && state_shape[0].get_length() == 0) {
         return false;
-    if (block_indices_shape[0].is_static() && block_indices_shape[0].get_length() == 0)
+    }
+    if (block_indices_shape[0].is_static() && block_indices_shape[0].get_length() == 0) {
         return false;
+    }
     if (subsequences_shape[0].is_static()) {
         const size_t subsequences_count = subsequences_shape[0].get_length();
-        if (subsequences_count < 2)
+        if (subsequences_count < 2) {
             return false;
+        }
         const size_t sequences = subsequences_count - 1;
         if ((block_begins_shape[0].is_static() && static_cast<size_t>(block_begins_shape[0].get_length()) < subsequences_count) ||
             (processed_shape[0].is_static() && static_cast<size_t>(processed_shape[0].get_length()) < sequences) ||
