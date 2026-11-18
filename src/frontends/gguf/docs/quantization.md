@@ -204,6 +204,17 @@ F16 transcode plus GEMM rather than native block computation; preserving raw inp
 not mean every inference stage computes directly from GGUF blocks. The default prefill
 threshold is 32 flattened activation rows. Model accuracy requires independent validation.
 
+Raw GGUF block weights and the internal `FullyConnectedCompressed` and
+`GatherCompressed` operations are not a supported standard IR representation.
+Public IR export through `ov::serialize`, `ov::save_model`, or `ov::pass::Serialize`
+rejects graphs containing these types or operations, including control-flow bodies,
+before creating or overwriting XML/BIN files. Export requires decoding the weights
+and converting the graph to versioned public operations; no automatic conversion is
+provided. Removing external-source metadata does not make a raw graph exportable.
+Direct GGUF compilation and inference remain supported. Private compiled-model
+export/import and cache serialization retain their implementation-specific format
+and do not establish a cross-version standard IR compatibility guarantee.
+
 For rank-4 raw FC outputs with singleton leading dimensions, GPU lowering can move a
 same-rank, same-channel NumPy Add/Multiply before the output shape restore, preserving
 row broadcasting. Actual fusion remains subject to implementation and runtime shape

@@ -17,6 +17,7 @@
 #include "openvino/core/model_util.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/compute_hash.hpp"
@@ -25,6 +26,8 @@
 #include "openvino/util/hash_util.hpp"
 #include "openvino/xml_util/constant_writer.hpp"
 #include "openvino/xml_util/xml_serialize_util.hpp"
+#include "ov_ops/fully_connected_compressed.hpp"
+#include "ov_ops/gather_compressed.hpp"
 #include "pugixml.hpp"
 #include "transformations/fp16_compression/convert_legacy_precision_attribute.hpp"
 #include "transformations/hash.hpp"
@@ -32,6 +35,26 @@
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
 namespace {
+void validate_public_ir_export(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& node : model->get_ordered_ops()) {
+        OPENVINO_ASSERT(!ov::is_type<ov::op::internal::FullyConnectedCompressed>(node) &&
+                            !ov::is_type<ov::op::internal::GatherCompressed>(node),
+                        "Cannot serialize internal compressed operation ",
+                        node->get_type_name(),
+                        " to standard OpenVINO IR. Convert the graph to versioned public operations before export.");
+        for (const auto& output : node->outputs()) {
+            OPENVINO_ASSERT(!output.get_element_type().is_gguf_block(),
+                            "Cannot serialize raw GGUF weights to standard OpenVINO IR. "
+                            "Decode the weights and convert the graph to versioned public operations before export.");
+        }
+        if (const auto subgraph = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
+            for (const auto& body : subgraph->get_functions()) {
+                validate_public_ir_export(body);
+            }
+        }
+    }
+}
+
 void validate_xml_path(const std::filesystem::path& path) {
     OPENVINO_ASSERT(path.extension() == ".xml",
                     "Path for xml file doesn't contains file name with 'xml' extension: ",
@@ -113,6 +136,7 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     OPENVINO_ASSERT(model, "ov::Model not provided");
 
     model->validate_nodes_and_infer_types();
+    validate_public_ir_export(model);
     convert_py_rt_info(model);
 
     if (m_xml_file && m_bin_file) {
