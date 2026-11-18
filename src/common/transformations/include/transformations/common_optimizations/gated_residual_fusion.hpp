@@ -7,6 +7,7 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov::pass {
@@ -31,10 +32,15 @@ namespace ov::pass {
  * the op's [N, G] scale layout. The graph stays untouched unless the per-branch norm, the branch-axis reduction and
  * both 1/C scalings are proven.
  */
-class TRANSFORMATIONS_API GatedResidualReadFusion : public ov::pass::MatcherPass {
+class TRANSFORMATIONS_API GatedResidualReadFusion : public ov::pass::ModelPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("GatedResidualReadFusion");
+    OPENVINO_MODEL_PASS_RTTI("GatedResidualReadFusion");
     GatedResidualReadFusion();
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+
+private:
+    std::shared_ptr<ov::pass::pattern::Matcher> m_matcher;
+    ov::matcher_pass_callback m_fuse;
 };
 
 /**
@@ -72,8 +78,7 @@ public:
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief Runs GatedResidualReadFusion, GatedResidualWriteFusion and GatedResidualWriteSinkReshape with symbolic shape
- * propagation.
+ * @brief Runs GatedResidualReadFusion, GatedResidualWriteSinkReshape and GatedResidualWriteFusion.
  */
 class TRANSFORMATIONS_API GatedResidualFusion : public ov::pass::ModelPass {
 public:

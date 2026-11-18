@@ -603,6 +603,18 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
     CPU_REGISTER_PASS_X64(manager, SparseAttentionKVCacheFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::GatedDeltaNetFusion);
+    // Before CommonOptimizations, which folds the 1/C scalings of the READ pattern into the weights. GatedResidual is
+    // the only executor of it on x86-64, and runs WRITE as Eltwise (Multiply + Add) after
+    // GatedResidualWriteSinkReshape.
+    CPU_REGISTER_PASS_X64(manager, ov::pass::GatedResidualFusion);
+    CPU_SET_CALLBACK_X64(
+        manager,
+        [](const_node_ptr& node) -> bool {
+            std::string errorMsg;
+            return !node::GatedResidual::isSupportedOperation(node, errorMsg);
+        },
+        ov::pass::GatedResidualReadFusion);
+    CPU_DISABLE_PASS_X64(manager, ov::pass::GatedResidualWriteFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstPrecision, decompression_precisions, false, true);
     CPU_SET_CALLBACK_COMMON(
@@ -1209,18 +1221,6 @@ void Transformations::PostLpt() {
                           ov::pass::RMSFusion,
                           false /* force_tail_convert */,
                           enable_without_gamma);
-    // Before DecomposeRMSNorm: the READ pattern matches the fused RMS or its decomposed form. GatedResidual is the only
-    // executor of it on x86-64.
-    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::GatedResidualFusion);
-    CPU_SET_CALLBACK_X64(
-        postLPTPassManager,
-        [](const_node_ptr& node) -> bool {
-            std::string errorMsg;
-            return !node::GatedResidual::isSupportedOperation(node, errorMsg);
-        },
-        ov::pass::GatedResidualReadFusion);
-    // WRITE runs as one Eltwise (Multiply + Add) after GatedResidualWriteSinkReshape
-    CPU_DISABLE_PASS_X64(postLPTPassManager, ov::pass::GatedResidualWriteFusion);
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::DecomposeRMSNorm);
     CPU_SET_CALLBACK_X64(
         postLPTPassManager,

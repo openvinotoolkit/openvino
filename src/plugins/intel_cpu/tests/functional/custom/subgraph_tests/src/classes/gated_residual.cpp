@@ -34,14 +34,10 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/pass/constant_folding.hpp"
-#include "openvino/pass/manager.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "transformations/common_optimizations/gated_residual_fusion.hpp"
-#include "transformations/rt_info/keep_const_precision.hpp"
 
 namespace {
 
@@ -337,8 +333,8 @@ void GatedResidualLayerCPUTest::SetUp() {
     OPENVINO_ASSERT(leading_ps.is_dynamic() && !leading_targets.empty(),
                     "GatedResidual tests must use a dynamic input shape with at least one target shape");
 
-    // The reference is the decomposed sub-graph; the device runs it after the common fusion pass, which must produce
-    // one GatedResidual node (except WRITE, which the plugin runs as Eltwise).
+    // The reference is the decomposed sub-graph. The plugin fuses it into one GatedResidual node (WRITE runs as
+    // Eltwise).
     functionRefs = make_reference_model(mode,
                                         leading_ps,
                                         m_hc_count,
@@ -350,29 +346,6 @@ void GatedResidualLayerCPUTest::SetUp() {
                                         m_epsilon,
                                         m_compression);
     function = functionRefs->clone();
-
-    // WRITE is left to the plugin: it must run as one Eltwise, not as a GatedResidual node.
-    if (mode != Mode::WRITE) {
-        ov::pass::Manager manager;
-        manager.register_pass<ov::pass::GatedResidualFusion>();
-        manager.run_passes(function);
-    }
-
-    // Keep the native i4/u4/i8/u8 type of the compressed constants through the plugin's ConvertPrecision (it would
-    // promote them). The fusion re-creates the constants, so the flags are set on the fused node's inputs.
-    for (const auto& node : function->get_ordered_ops()) {
-        if (!ov::is_type<ov::op::internal::GatedResidual>(node)) {
-            continue;
-        }
-        for (size_t i = 0; i < node->get_input_size(); i++) {
-            auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(i));
-            const auto et = constant ? constant->get_element_type() : ov::element::dynamic;
-            if (et == ov::element::u4 || et == ov::element::i4 || et == ov::element::u8 || et == ov::element::i8) {
-                ov::pass::disable_constant_folding(constant);
-                ov::enable_keep_const_precision(constant);
-            }
-        }
-    }
 
     std::vector<InputShape> input_shapes;
     input_shapes.reserve(function->get_parameters().size());
@@ -421,10 +394,14 @@ void GatedResidualLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& ta
 void GatedResidualLayerCPUTest::compare(const std::vector<ov::Tensor>& expected,
                                         const std::vector<ov::Tensor>& actual) {
     ASSERT_EQ(expected.size(), actual.size());
-    if (m_precision == ov::element::bf16) {
+    // The error follows the coarser of the model and the inference precision (the f32 reference runs at the model's).
+    const auto inference = configuration.find(ov::hint::inference_precision.name());
+    const auto inference_precision =
+        inference == configuration.end() ? ov::element::f32 : inference->second.as<ov::element::Type>();
+    if (m_precision == ov::element::bf16 || inference_precision == ov::element::bf16) {
         abs_threshold = 1e-2F;
         rel_threshold = 2e-2F;
-    } else if (m_precision == ov::element::f16) {
+    } else if (m_precision == ov::element::f16 || inference_precision == ov::element::f16) {
         abs_threshold = 2e-3F;
         rel_threshold = 1e-2F;
     } else {
@@ -448,10 +425,6 @@ void GatedResidualLayerCPUTest::compare(const std::vector<ov::Tensor>& expected,
 
 TEST_P(GatedResidualLayerCPUTest, Inference) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    // bf16 cases only run where the hardware supports bf16 natively.
-    if (std::get<1>(GetParam()).precision == ov::element::bf16 && !ov::with_cpu_x86_bfloat16()) {
-        GTEST_SKIP() << "bf16 requires native hardware support";
-    }
     run();
     const auto runtime_model = compiledModel.get_runtime_model();
     if (std::get<0>(GetParam()) == Mode::WRITE) {

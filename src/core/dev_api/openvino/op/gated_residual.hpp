@@ -64,38 +64,9 @@ public:
         size_t zp_inject = 0;     ///< valid when write_gate, compressed and has_zp
     };
 
-    static constexpr ReadLayout make_read_layout(bool compressed, bool has_zp, bool write_gate) {
-        ReadLayout l;
-        l.compressed = compressed;
-        l.has_zp = compressed && has_zp;
-        l.write_gate = write_gate;
-        const size_t base = compressed ? (l.has_zp ? 8 : 6) : 4;
-        l.w_inject = base;
-        l.scale_inject = base + 1;
-        l.zp_inject = base + 2;
-        l.input_count = base + (write_gate ? (compressed ? (l.has_zp ? 3 : 2) : 1) : 0);
-        return l;
-    }
-
-    /// The form selected by the input count; empty when no form has that many inputs.
-    static std::optional<ReadLayout> read_layout(size_t input_count, bool write_gate) {
-        for (const bool compressed : {false, true}) {
-            for (const bool has_zp : {false, true}) {
-                const auto l = make_read_layout(compressed, has_zp, write_gate);
-                if (l.has_zp == has_zp && l.input_count == input_count) {
-                    return l;
-                }
-            }
-        }
-        return std::nullopt;
-    }
-
+    /// The input form selected by the input count; empty when no form has that many inputs.
     std::optional<ReadLayout> get_read_layout() const {
         return read_layout(get_input_size(), m_produce_write_gate);
-    }
-
-    static bool is_compressed_weight_type(const ov::element::Type& t) {
-        return t == ov::element::i4 || t == ov::element::u4 || t == ov::element::i8 || t == ov::element::u8;
     }
 
     /// @brief Input indices for Mode::WRITE
@@ -143,6 +114,36 @@ public:
     }
 
 private:
+    static constexpr ReadLayout make_read_layout(bool compressed, bool has_zp, bool write_gate) {
+        ReadLayout l;
+        l.compressed = compressed;
+        l.has_zp = compressed && has_zp;
+        l.write_gate = write_gate;
+        const size_t base = compressed ? (l.has_zp ? 8 : 6) : 4;
+        l.w_inject = base;
+        l.scale_inject = base + 1;
+        l.zp_inject = base + 2;
+        l.input_count = base + (write_gate ? (compressed ? (l.has_zp ? 3 : 2) : 1) : 0);
+        return l;
+    }
+
+    /// The form selected by the input count; empty when no form has that many inputs.
+    static std::optional<ReadLayout> read_layout(size_t input_count, bool write_gate) {
+        for (const bool compressed : {false, true}) {
+            for (const bool has_zp : {false, true}) {
+                const auto l = make_read_layout(compressed, has_zp, write_gate);
+                if (l.has_zp == has_zp && l.input_count == input_count) {
+                    return l;
+                }
+            }
+        }
+        return std::nullopt;
+    }
+
+    static bool is_compressed_weight_type(const ov::element::Type& t) {
+        return t == ov::element::i4 || t == ov::element::u4 || t == ov::element::i8 || t == ov::element::u8;
+    }
+
     Mode m_mode = Mode::READ;
     size_t m_hc_count = 4;
     size_t m_hidden_size = 0;

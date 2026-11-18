@@ -8,6 +8,7 @@
 #include <cmath>
 #include <memory>
 #include <optional>
+#include <set>
 #include <vector>
 
 #include "itt.hpp"
@@ -29,15 +30,15 @@
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/swish.hpp"
-#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/pp.hpp"
 #include "ov_ops/rms.hpp"
-#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
+#include "transformations/pattern_blocks/compressed_weights_block.hpp"
 
 namespace ov::pass {
 
@@ -66,96 +67,35 @@ struct CompressedWeight {
     }
 };
 
-// Decompression subgraph of a compressed weight (NNCF layouts). Expanded only in match_compressed_weight().
-#define GR_COMPRESSED_WEIGHT_PATTERN                                                                           \
-    auto reshape_squeeze = [](const ov::Output<ov::Node>& output) {                                            \
-        auto in_ps = output.get_node()->get_input_partial_shape(0);                                            \
-        auto out_ps = output.get_node()->get_output_partial_shape(0);                                          \
-        return in_ps.rank().is_static() && out_ps.rank().is_static() &&                                        \
-               ((in_ps.size() == 3 && out_ps.size() == 2) || (in_ps.size() == 4 && out_ps.size() == 3));       \
-    };                                                                                                         \
-                                                                                                               \
-    auto compressed_type = type_matches_any({ov::element::u8,                                                  \
-                                             ov::element::i8,                                                  \
-                                             ov::element::u4,                                                  \
-                                             ov::element::i4,                                                  \
-                                             ov::element::u3,                                                  \
-                                             ov::element::u2,                                                  \
-                                             ov::element::f8e4m3,                                              \
-                                             ov::element::f8e5m2,                                              \
-                                             ov::element::f4e2m1});                                            \
-    auto weights_const_m = wrap_type<ov::op::v0::Constant>(compressed_type);                                   \
-    auto weights_param_m = wrap_type<ov::op::v0::Parameter>(compressed_type);                                  \
-    auto weights_m = weights_const_m | weights_param_m;                                                        \
-    auto weights_reshape_m = ov::pass::pattern::optional<ov::op::v1::Reshape>({weights_m, any_input()});       \
-    auto convert_m = wrap_type<ov::op::v0::Convert>({weights_reshape_m});                                      \
-    auto weights_param_convert_m = wrap_type<ov::op::v0::Convert>({weights_param_m});                          \
-    auto weights_convert_reshape_m = wrap_type<ov::op::v1::Reshape>({weights_param_convert_m, any_input()});   \
-    auto decompressed_weights_m = convert_m | weights_convert_reshape_m;                                       \
-                                                                                                               \
-    auto sub_const_m = wrap_type<ov::op::v0::Constant>();                                                      \
-    auto sub_convert_const_m = wrap_type<ov::op::v0::Convert>({sub_const_m});                                  \
-    auto sub_with_convert_m = wrap_type<ov::op::v1::Subtract>({decompressed_weights_m, sub_convert_const_m});  \
-    auto sub_no_convert_m = wrap_type<ov::op::v1::Subtract>({decompressed_weights_m, sub_const_m});            \
-    auto subtract_m = sub_with_convert_m | sub_no_convert_m;                                                   \
-                                                                                                               \
-    auto mul_const_m = wrap_type<ov::op::v0::Constant>();                                                      \
-    /* The scale is a Constant, possibly converted to the compute type (NNCF stores f16 scales). */            \
-    auto mul_const_convert_m = ov::pass::pattern::optional<ov::op::v0::Convert>(mul_const_m);                  \
-    auto mul_with_sub_m = wrap_type<ov::op::v1::Multiply>({subtract_m, mul_const_convert_m});                  \
-    auto mul_no_sub_m = wrap_type<ov::op::v1::Multiply>({decompressed_weights_m, mul_const_convert_m});        \
-    auto mul_m = mul_with_sub_m | mul_no_sub_m;                                                                \
-                                                                                                               \
-    /* No transpose: Multiply, Reshape, Convert(Reshape), or Multiply(Reshape). */                             \
-    auto reshape_const_m = wrap_type<ov::op::v0::Constant>();                                                  \
-    auto reshape_m = wrap_type<ov::op::v1::Reshape>({mul_m, reshape_const_m}, reshape_squeeze);                \
-    auto convert_reshape_m = ov::pass::pattern::optional<ov::op::v0::Convert>({reshape_m});                    \
-                                                                                                               \
-    auto mul2_const_m = wrap_type<ov::op::v0::Constant>();                                                     \
-    auto mul2_m = ov::pass::pattern::optional<ov::op::v1::Multiply>({reshape_m, mul2_const_m});                \
-                                                                                                               \
-    /* Transpose after decompression, with an optional preceding Reshape. */                                   \
-    auto transpose_const_m = wrap_type<ov::op::v0::Constant>();                                                \
-    auto transpose_input_m = reshape_m | mul_m;                                                                \
-    auto transpose_after_reshape_m = wrap_type<ov::op::v1::Transpose>({transpose_input_m, transpose_const_m}); \
-                                                                                                               \
-    /* Transpose before the final Reshape. */                                                                  \
-    auto transpose_before_reshape_input_m = wrap_type<ov::op::v1::Transpose>({mul_m, transpose_const_m});      \
-    auto transpose_before_reshape_const_m = wrap_type<ov::op::v0::Constant>();                                 \
-    auto transpose_before_reshape_m =                                                                          \
-        wrap_type<ov::op::v1::Reshape>({transpose_before_reshape_input_m, transpose_before_reshape_const_m},   \
-                                       reshape_squeeze);                                                       \
-    auto transpose_m = transpose_after_reshape_m | transpose_before_reshape_m;                                 \
-                                                                                                               \
-    auto compressed_weights_input_m = mul_m | convert_reshape_m | mul2_m | transpose_m;
-
 /// Parses `w` as Constant(i4/u4/i8/u8) -> Convert [-> Subtract(zp)] -> Multiply(scale) [-> Reshape] of an [N, K]
 /// weight, else nullopt. A scalar zero point of 0, or 2^(bits - 1) on unsigned weights, is the symmetric form; the
 /// latter becomes signed weights by flipping the sign bit.
 std::optional<CompressedWeight> match_compressed_weight(const ov::Output<ov::Node>& w, size_t N, size_t K) {
-    using namespace ov::pass::pattern;
-    GR_COMPRESSED_WEIGHT_PATTERN
-    ov::pass::pattern::Matcher matcher(compressed_weights_input_m);
+    // The op takes i4/u4/i8/u8 weights of rank 2 after the decompression Reshape.
+    const auto block = std::make_shared<ov::pass::pattern::op::CompressedWeightsBlock>(
+        std::vector<ov::element::Type>{ov::element::i4, ov::element::u4, ov::element::i8, ov::element::u8},
+        std::set<size_t>{2});
+    ov::pass::pattern::Matcher matcher(block);
     if (!matcher.match(w)) {
         return std::nullopt;
     }
     const auto& pm = matcher.get_pattern_value_map();
-    bool has_zp = pm.count(sub_const_m) != 0;
-    if (pm.count(transpose_m) != 0 || pm.count(mul2_m) != 0 || pm.count(weights_const_m) == 0 ||
-        pm.count(mul_const_m) == 0) {
+    if (block->get_anchor("transpose", pm)) {
         return std::nullopt;
     }
-    auto weights = ov::as_type_ptr<ov::op::v0::Constant>(pm.at(weights_const_m).get_node_shared_ptr());
-    auto zp = has_zp ? ov::as_type_ptr<ov::op::v0::Constant>(pm.at(sub_const_m).get_node_shared_ptr()) : nullptr;
-    auto scale = ov::as_type_ptr<ov::op::v0::Constant>(pm.at(mul_const_m).get_node_shared_ptr());
+    const auto zp_anchor = block->get_anchor("sub_const", pm);
+    bool has_zp = zp_anchor.has_value();
+    auto weights =
+        ov::as_type_ptr<ov::op::v0::Constant>(block->get_anchor("weights", pm).value().get_node_shared_ptr());
+    auto zp = has_zp ? ov::as_type_ptr<ov::op::v0::Constant>(zp_anchor->get_node_shared_ptr()) : nullptr;
+    auto scale =
+        ov::as_type_ptr<ov::op::v0::Constant>(block->get_anchor("mul_const", pm).value().get_node_shared_ptr());
     if (!weights || !scale || (has_zp && !zp)) {
         return std::nullopt;
     }
     auto wt = weights->get_element_type();
-    if (!ov::op::internal::GatedResidual::is_compressed_weight_type(wt)) {
-        return std::nullopt;
-    }
-    if (has_zp && !ov::op::internal::GatedResidual::is_compressed_weight_type(zp->get_element_type())) {
+    // The zero point of the op has the weight type.
+    if (has_zp && zp->get_element_type() != wt) {
         return std::nullopt;
     }
     const size_t bits = wt.bitwidth();
@@ -231,7 +171,6 @@ std::optional<CompressedWeight> match_compressed_weight(const ov::Output<ov::Nod
     result.groups = G;
     return result;
 }
-#undef GR_COMPRESSED_WEIGHT_PATTERN
 
 /// The write-gate branch on the same Rbar: S = 2 * sigmoid(MatMul(Rbar, W_inject, transpose_b) / C).
 struct WriteGateBranch {
@@ -301,6 +240,18 @@ std::optional<WriteGateBranch> match_write_gate_branch(const ov::Output<ov::Node
     return std::nullopt;
 }
 
+/// The last `count` dimensions are static. Named dimensions also bind to symbols of dynamic ones, and the callbacks
+/// read their lengths.
+auto last_dims_static(size_t count) {
+    return [count](const ov::Output<ov::Node>& out) {
+        const auto& ps = out.get_partial_shape();
+        return ps.rank().is_static() && ps.size() >= count &&
+               std::all_of(ps.end() - static_cast<std::ptrdiff_t>(count), ps.end(), [](const ov::Dimension& dim) {
+                   return dim.is_static();
+               });
+    };
+}
+
 /// Rows of the two inputs of a node must match without naming their symbols: equal when static, both dynamic otherwise,
 /// same rank (a static 1 against a dynamic dimension may broadcast, which the row-wise WRITE does not model). The row
 /// symbols of Y and the residual are unrelated when the graph mixes independent inputs (e.g. attention_mask), so only
@@ -345,7 +296,8 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
     // Static dimensions are named: equal names are equal sizes. The residual is [..., CD] and splits into [..., C, D];
     // W_down is [L, CD] and W_up [CD, L].
     auto residual = any_input(shape_matches("[..., CD]"));
-    auto residual_3d = wrap_type<ov::op::v1::Reshape>({residual, any_input()}, shape_matches("[..., C, D]"));
+    auto residual_3d =
+        wrap_type<ov::op::v1::Reshape>({residual, any_input()}, shape_matches("[..., C, D]") && last_dims_static(2));
     auto w_down_inner = any_input(shape_matches("[L, CD]") && has_static_shape());
     // The 1/C scale may be folded into W_down.
     auto w_down_folded = wrap_type<ov::op::v1::Multiply>({w_down_inner, folded_scale});
@@ -384,7 +336,9 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
     auto low = wrap_type<ov::op::v0::MatMul>({rbar, w_down_folded | w_down_inner},
                                              {{"transpose_a", false}, {"transpose_b", true}});
     // The 1/C scale follows the down projection or is folded into W_down.
-    auto low_scaled = optional<ov::op::v1::Multiply>({low, low_scale});
+    auto low_multiplied = wrap_type<ov::op::v1::Multiply>({low, low_scale});
+    auto low_divided = wrap_type<ov::op::v1::Divide>({low, low_scale});
+    auto low_scaled = low | low_multiplied | low_divided;
     auto activation = wrap_type<ov::op::v4::Swish>({low_scaled});
     auto up = wrap_type<ov::op::v0::MatMul>({activation, w_up}, {{"transpose_a", false}, {"transpose_b", true}});
     auto read_gate = wrap_type<ov::op::v0::Sigmoid>({up});
@@ -406,7 +360,8 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
 
     auto root_pattern = mixed | reduced_mean;
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    // The write-gate branch is rewired as well, outside the match, so a ModelPass drives the matcher.
+    m_fuse = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
@@ -431,8 +386,9 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
         // the one of the mix a Multiply (ReduceSum form) or implicit in a ReduceMean. The op applies them itself, so it
         // needs the unscaled W_down.
         const float inv_c = 1.0F / static_cast<float>(C);
-        const bool explicit_low_scale = pm.count(low_scaled) != 0;
-        if (explicit_low_scale ? !holds_value(pm.at(low_scale_const), inv_c)
+        const bool low_is_divided = pm.count(low_divided) != 0;
+        const bool explicit_low_scale = pm.count(low_multiplied) != 0 || low_is_divided;
+        if (explicit_low_scale ? !holds_value(pm.at(low_scale_const), low_is_divided ? static_cast<float>(C) : inv_c)
                                : (pm.count(w_down_folded) == 0 || !holds_value(pm.at(folded_scale_const), inv_c))) {
             return false;
         }
@@ -586,8 +542,22 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
         return true;
     };
 
-    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(root_pattern, "GatedResidualReadFusion");
-    this->register_matcher(matcher, callback);
+    m_matcher = std::make_shared<ov::pass::pattern::Matcher>(root_pattern, "GatedResidualReadFusion");
+}
+
+bool GatedResidualReadFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_MODEL_SCOPE(GatedResidualReadFusion);
+    bool changed = false;
+    for (const auto& node : model->get_ordered_ops()) {
+        // A root whose consumers were all replaced by an earlier match is dead.
+        if (node->output(0).get_target_inputs().empty()) {
+            continue;
+        }
+        if (m_matcher->match(node->output(0)) && m_fuse(*m_matcher)) {
+            changed = true;
+        }
+    }
+    return changed;
 }
 
 // WRITE
@@ -597,11 +567,11 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
 
     // The gate is [..., C] and broadcasts as [..., C, 1], Y is [..., D] and broadcasts as [..., 1, D]; equal names are
     // equal sizes. Both views look alike, so the shapes tell the commutative Multiply which operand is which.
-    auto write_gate = any_input(shape_matches("[..., C]"));
+    auto write_gate = any_input(shape_matches("[..., C]") && last_dims_static(1));
     auto gate_3d =
         wrap_type<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({write_gate, any_input()}, shape_matches("[..., C, 1]"));
 
-    auto y_src = any_input(shape_matches("[..., D]"));
+    auto y_src = any_input(shape_matches("[..., D]") && last_dims_static(1));
     auto y_3d =
         wrap_type<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({y_src, any_input()}, shape_matches("[..., 1, D]"));
 
@@ -665,11 +635,11 @@ GatedResidualWriteSinkReshape::GatedResidualWriteSinkReshape() {
     using namespace ov::pass::pattern;
 
     // Same operand views as GatedResidualWriteFusion; see there.
-    auto write_gate = any_input(shape_matches("[..., C]"));
+    auto write_gate = any_input(shape_matches("[..., C]") && last_dims_static(1));
     auto gate_3d =
         wrap_type<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({write_gate, any_input()}, shape_matches("[..., C, 1]"));
 
-    auto y_src = any_input(shape_matches("[..., D]"));
+    auto y_src = any_input(shape_matches("[..., D]") && last_dims_static(1));
     auto y_3d =
         wrap_type<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({y_src, any_input()}, shape_matches("[..., 1, D]"));
 
@@ -739,12 +709,13 @@ GatedResidualWriteSinkReshape::GatedResidualWriteSinkReshape() {
 
 bool GatedResidualFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(GatedResidualFusion);
-    SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
-    auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
-    symbolic_ctx_manager->register_pass<GatedResidualReadFusion>();
-    symbolic_ctx_manager->register_pass<GatedResidualWriteFusion>();
-    symbolic_ctx_manager->register_pass<GatedResidualWriteSinkReshape>();
-    return symbolic_optimizations.run_on_model(model);
+    // The named dimensions of the patterns are static, so the passes need no symbolic propagation. A backend picks one
+    // of the two WRITE forms by disabling the other; the sink is tried first.
+    ov::pass::Manager manager(get_pass_config(), "GatedResidualFusion");
+    manager.register_pass<GatedResidualReadFusion>();
+    manager.register_pass<GatedResidualWriteSinkReshape>();
+    manager.register_pass<GatedResidualWriteFusion>();
+    return manager.run_passes(model);
 }
 
 }  // namespace ov::pass

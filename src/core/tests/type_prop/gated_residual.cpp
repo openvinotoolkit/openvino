@@ -7,9 +7,13 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "openvino/openvino.hpp"
 
 namespace ov::test {
+
+class TypePropGatedResidualTest : public TypePropOpTest<op::internal::GatedResidual> {};
+
 namespace {
 
 using Mode = op::internal::GatedResidual::Mode;
@@ -65,7 +69,7 @@ std::shared_ptr<op::internal::GatedResidual> make_write(const element::Type& et,
 
 }  // namespace
 
-TEST(type_prop, gated_residual_read_static) {
+TEST_F(TypePropGatedResidualTest, read_static) {
     const auto op = make_read(element::f32,
                               Shape{2, 3, 16},  // residual [B,T,C*D]
                               Shape{16},        // norm_weight
@@ -80,7 +84,7 @@ TEST(type_prop, gated_residual_read_static) {
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape(Shape{2, 3, 4}));
 }
 
-TEST(type_prop, gated_residual_read_with_write_gate) {
+TEST_F(TypePropGatedResidualTest, read_with_write_gate) {
     const auto op = make_read(element::f16,
                               Shape{2, 3, 16},
                               Shape{16},
@@ -100,7 +104,7 @@ TEST(type_prop, gated_residual_read_with_write_gate) {
     EXPECT_EQ(op->get_output_partial_shape(1), PartialShape(Shape{2, 3, 4}));
 }
 
-TEST(type_prop, gated_residual_final_mix_static) {
+TEST_F(TypePropGatedResidualTest, final_mix_static) {
     const auto op = make_read(element::bf16,
                               Shape{2, 3, 16},
                               Shape{16},
@@ -117,14 +121,14 @@ TEST(type_prop, gated_residual_final_mix_static) {
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape(Shape{2, 3, 4}));
 }
 
-TEST(type_prop, gated_residual_read_partial_shape) {
+TEST_F(TypePropGatedResidualTest, read_partial_shape) {
     const auto op =
         make_read(element::f32, PartialShape{{1, 4}, -1, 16}, Shape{16}, Shape{8, 16}, Shape{16, 8}, 4, 4, 8);
 
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{{1, 4}, -1, 4}));
 }
 
-TEST(type_prop, gated_residual_write_static) {
+TEST_F(TypePropGatedResidualTest, write_static) {
     const auto op = make_write(element::f32,
                                Shape{2, 3, 16},  // residual [B,T,C*D]
                                Shape{2, 3, 4},   // sublayer_y [B,T,D]
@@ -137,7 +141,7 @@ TEST(type_prop, gated_residual_write_static) {
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape(Shape{2, 3, 16}));
 }
 
-TEST(type_prop, gated_residual_read_wrong_input_count) {
+TEST_F(TypePropGatedResidualTest, read_wrong_input_count) {
     auto residual = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3, 16});
     auto norm_weight = std::make_shared<op::v0::Parameter>(element::f32, Shape{16});
     auto w_down = std::make_shared<op::v0::Parameter>(element::f32, Shape{8, 16});
@@ -155,7 +159,7 @@ TEST(type_prop, gated_residual_read_wrong_input_count) {
         testing::HasSubstr("expects 4 inputs"));
 }
 
-TEST(type_prop, gated_residual_write_wrong_input_count) {
+TEST_F(TypePropGatedResidualTest, write_wrong_input_count) {
     auto residual = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3, 16});
     auto sublayer_y = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3, 4});
 
@@ -171,7 +175,7 @@ TEST(type_prop, gated_residual_write_wrong_input_count) {
                     testing::HasSubstr("expects 3 inputs"));
 }
 
-TEST(type_prop, gated_residual_final_mix_cannot_produce_write_gate) {
+TEST_F(TypePropGatedResidualTest, final_mix_cannot_produce_write_gate) {
     OV_EXPECT_THROW(std::ignore = make_read(element::f32,
                                             Shape{2, 3, 16},
                                             Shape{16},
@@ -187,28 +191,28 @@ TEST(type_prop, gated_residual_final_mix_cannot_produce_write_gate) {
                     testing::HasSubstr("FINAL_MIX"));
 }
 
-TEST(type_prop, gated_residual_invalid_hc_count) {
+TEST_F(TypePropGatedResidualTest, invalid_hc_count) {
     OV_EXPECT_THROW(
         std::ignore = make_read(element::f32, Shape{2, 3, 16}, Shape{16}, Shape{8, 16}, Shape{16, 8}, 0, 4, 8),
         NodeValidationFailure,
         testing::HasSubstr("positive branch count"));
 }
 
-TEST(type_prop, gated_residual_invalid_hidden_size) {
+TEST_F(TypePropGatedResidualTest, invalid_hidden_size) {
     OV_EXPECT_THROW(
         std::ignore = make_read(element::f32, Shape{2, 3, 16}, Shape{16}, Shape{8, 16}, Shape{16, 8}, 4, 0, 8),
         NodeValidationFailure,
         testing::HasSubstr("positive hidden size"));
 }
 
-TEST(type_prop, gated_residual_invalid_lowrank) {
+TEST_F(TypePropGatedResidualTest, invalid_lowrank) {
     OV_EXPECT_THROW(
         std::ignore = make_read(element::f32, Shape{2, 3, 16}, Shape{16}, Shape{8, 16}, Shape{16, 8}, 4, 4, 0),
         NodeValidationFailure,
         testing::HasSubstr("positive low rank"));
 }
 
-TEST(type_prop, gated_residual_invalid_residual_rank) {
+TEST_F(TypePropGatedResidualTest, invalid_residual_rank) {
     OV_EXPECT_THROW(std::ignore = make_read(element::f32, Shape{16}, Shape{16}, Shape{8, 16}, Shape{16, 8}, 4, 4, 8),
                     NodeValidationFailure,
                     testing::HasSubstr("rank to be at least 2"));
@@ -256,7 +260,7 @@ std::shared_ptr<op::internal::GatedResidual> make_read_compressed(const Compress
 
 }  // namespace
 
-TEST(type_prop, gated_residual_compressed_weight_types) {
+TEST_F(TypePropGatedResidualTest, compressed_weight_types) {
     for (const auto& et : {element::i4, element::u4, element::i8, element::u8}) {
         for (const bool has_zp : {false, true}) {
             CompressedCfg cfg;
@@ -274,7 +278,7 @@ TEST(type_prop, gated_residual_compressed_weight_types) {
     }
 }
 
-TEST(type_prop, gated_residual_compressed_with_write_gate) {
+TEST_F(TypePropGatedResidualTest, compressed_with_write_gate) {
     for (const bool has_zp : {false, true}) {
         CompressedCfg cfg;
         cfg.write_gate = true;
@@ -291,30 +295,48 @@ TEST(type_prop, gated_residual_compressed_with_write_gate) {
     }
 }
 
-TEST(type_prop, gated_residual_compressed_final_mix) {
+TEST_F(TypePropGatedResidualTest, compressed_final_mix) {
     CompressedCfg cfg;
     cfg.mode = Mode::FINAL_MIX;
     const auto op = make_read_compressed(cfg);
     EXPECT_EQ(op->get_output_size(), 1);
 }
 
-TEST(type_prop, gated_residual_read_layout_by_input_count) {
-    using Op = op::internal::GatedResidual;
-    EXPECT_EQ(Op::read_layout(4, false)->input_count, 4U);
-    EXPECT_EQ(Op::read_layout(6, false)->has_zp, false);
-    EXPECT_EQ(Op::read_layout(8, false)->has_zp, true);
-    EXPECT_EQ(Op::read_layout(5, true)->compressed, false);
-    EXPECT_EQ(Op::read_layout(8, true)->has_zp, false);
-    EXPECT_EQ(Op::read_layout(11, true)->has_zp, true);
-    for (const size_t n : {0U, 1U, 3U, 5U, 7U, 9U, 10U, 12U}) {
-        EXPECT_FALSE(Op::read_layout(n, false).has_value()) << n;
-    }
-    for (const size_t n : {4U, 6U, 7U, 9U, 10U, 12U}) {
-        EXPECT_FALSE(Op::read_layout(n, true).has_value()) << n;
+TEST_F(TypePropGatedResidualTest, read_layout_follows_the_input_form) {
+    for (const bool write_gate : {false, true}) {
+        const auto plain = make_read(element::f32,
+                                     Shape{2, 3, 16},
+                                     Shape{16},
+                                     Shape{8, 16},
+                                     Shape{16, 8},
+                                     4,
+                                     4,
+                                     8,
+                                     Mode::READ,
+                                     write_gate,
+                                     Shape{4, 16});
+        const auto plain_layout = plain->get_read_layout();
+        ASSERT_TRUE(plain_layout.has_value());
+        EXPECT_FALSE(plain_layout->compressed);
+        EXPECT_EQ(plain_layout->write_gate, write_gate);
+        EXPECT_EQ(plain_layout->input_count, plain->get_input_size());
+
+        for (const bool has_zp : {false, true}) {
+            CompressedCfg cfg;
+            cfg.write_gate = write_gate;
+            cfg.has_zp = has_zp;
+            const auto compressed = make_read_compressed(cfg);
+            const auto layout = compressed->get_read_layout();
+            ASSERT_TRUE(layout.has_value());
+            EXPECT_TRUE(layout->compressed);
+            EXPECT_EQ(layout->has_zp, has_zp);
+            EXPECT_EQ(layout->write_gate, write_gate);
+            EXPECT_EQ(layout->input_count, compressed->get_input_size());
+        }
     }
 }
 
-TEST(type_prop, gated_residual_compressed_wrong_input_count) {
+TEST_F(TypePropGatedResidualTest, compressed_wrong_input_count) {
     auto residual = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3, 16});
     auto norm_weight = std::make_shared<op::v0::Parameter>(element::f32, Shape{16});
     auto w_down = std::make_shared<op::v0::Parameter>(element::u4, Shape{8, 16});
@@ -334,7 +356,7 @@ TEST(type_prop, gated_residual_compressed_wrong_input_count) {
                     testing::HasSubstr("expects"));
 }
 
-TEST(type_prop, gated_residual_compressed_scale_floating_point_types) {
+TEST_F(TypePropGatedResidualTest, compressed_scale_floating_point_types) {
     for (const auto& et : {element::f16, element::bf16, element::f32}) {
         CompressedCfg cfg;
         cfg.scale_et = et;
@@ -342,7 +364,7 @@ TEST(type_prop, gated_residual_compressed_scale_floating_point_types) {
     }
 }
 
-TEST(type_prop, gated_residual_compressed_scale_must_be_floating_point) {
+TEST_F(TypePropGatedResidualTest, compressed_scale_must_be_floating_point) {
     CompressedCfg cfg;
     cfg.scale_et = element::i32;
     OV_EXPECT_THROW(std::ignore = make_read_compressed(cfg),
@@ -350,7 +372,7 @@ TEST(type_prop, gated_residual_compressed_scale_must_be_floating_point) {
                     testing::HasSubstr("scale must be a floating-point type"));
 }
 
-TEST(type_prop, gated_residual_compressed_zero_point_must_match_weight_type) {
+TEST_F(TypePropGatedResidualTest, compressed_zero_point_must_match_weight_type) {
     CompressedCfg cfg;
     cfg.weight_et = element::u4;
     cfg.zp_et = element::u8;
@@ -359,7 +381,7 @@ TEST(type_prop, gated_residual_compressed_zero_point_must_match_weight_type) {
                     testing::HasSubstr("zero point must have the weight element type"));
 }
 
-TEST(type_prop, gated_residual_compressed_group_count_must_divide_k) {
+TEST_F(TypePropGatedResidualTest, compressed_group_count_must_divide_k) {
     CompressedCfg cfg;
     cfg.g_up = 3;  // K = 8 is not divisible by 3
     OV_EXPECT_THROW(std::ignore = make_read_compressed(cfg),
@@ -367,7 +389,7 @@ TEST(type_prop, gated_residual_compressed_group_count_must_divide_k) {
                     testing::HasSubstr("not divisible by the scale group count"));
 }
 
-TEST(type_prop, gated_residual_compressed_scale_shape_is_n_by_g) {
+TEST_F(TypePropGatedResidualTest, compressed_scale_shape_is_n_by_g) {
     // [G, N] instead of [N, G].
     auto residual = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3, 16});
     auto norm_weight = std::make_shared<op::v0::Parameter>(element::f32, Shape{16});
@@ -388,7 +410,7 @@ TEST(type_prop, gated_residual_compressed_scale_shape_is_n_by_g) {
                     testing::HasSubstr("scale must have shape [8, G]"));
 }
 
-TEST(type_prop, gated_residual_quantized_weights_need_compressed_form) {
+TEST_F(TypePropGatedResidualTest, quantized_weights_need_compressed_form) {
     // i4 weights with only the 4 uncompressed inputs.
     auto residual = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3, 16});
     auto norm_weight = std::make_shared<op::v0::Parameter>(element::f32, Shape{16});
@@ -407,7 +429,7 @@ TEST(type_prop, gated_residual_quantized_weights_need_compressed_form) {
         testing::HasSubstr("exactly with the compressed input forms"));
 }
 
-TEST(type_prop, gated_residual_float_weights_with_compressed_form) {
+TEST_F(TypePropGatedResidualTest, float_weights_with_compressed_form) {
     CompressedCfg cfg;
     cfg.weight_et = element::f32;
     OV_EXPECT_THROW(std::ignore = make_read_compressed(cfg),
@@ -415,7 +437,7 @@ TEST(type_prop, gated_residual_float_weights_with_compressed_form) {
                     testing::HasSubstr("exactly with the compressed input forms"));
 }
 
-TEST(type_prop, gated_residual_weights_must_share_element_type) {
+TEST_F(TypePropGatedResidualTest, weights_must_share_element_type) {
     auto residual = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3, 16});
     auto norm_weight = std::make_shared<op::v0::Parameter>(element::f32, Shape{16});
     auto w_down = std::make_shared<op::v0::Parameter>(element::f32, Shape{8, 16});
@@ -433,7 +455,7 @@ TEST(type_prop, gated_residual_weights_must_share_element_type) {
         testing::HasSubstr("must share one element type"));
 }
 
-TEST(type_prop, gated_residual_wrong_weight_shape) {
+TEST_F(TypePropGatedResidualTest, wrong_weight_shape) {
     OV_EXPECT_THROW(
         std::ignore = make_read(element::f32, Shape{2, 3, 16}, Shape{16}, Shape{16, 8}, Shape{16, 8}, 4, 4, 8),
         NodeValidationFailure,
@@ -448,21 +470,21 @@ TEST(type_prop, gated_residual_wrong_weight_shape) {
         testing::HasSubstr("norm weight must have shape"));
 }
 
-TEST(type_prop, gated_residual_residual_last_dim_must_be_c_times_d) {
+TEST_F(TypePropGatedResidualTest, residual_last_dim_must_be_c_times_d) {
     OV_EXPECT_THROW(
         std::ignore = make_read(element::f32, Shape{2, 3, 12}, Shape{16}, Shape{8, 16}, Shape{16, 8}, 4, 4, 8),
         NodeValidationFailure,
         testing::HasSubstr("last dimension must be C*D"));
 }
 
-TEST(type_prop, gated_residual_residual_must_be_floating_point) {
+TEST_F(TypePropGatedResidualTest, residual_must_be_floating_point) {
     OV_EXPECT_THROW(
         std::ignore = make_read(element::i32, Shape{2, 3, 16}, Shape{16}, Shape{8, 16}, Shape{16, 8}, 4, 4, 8),
         NodeValidationFailure,
         testing::HasSubstr("floating-point"));
 }
 
-TEST(type_prop, gated_residual_write_inputs_must_share_element_type) {
+TEST_F(TypePropGatedResidualTest, write_inputs_must_share_element_type) {
     auto residual = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3, 16});
     auto sublayer_y = std::make_shared<op::v0::Parameter>(element::f16, Shape{2, 3, 4});
     auto write_gate = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3, 4});
@@ -479,19 +501,19 @@ TEST(type_prop, gated_residual_write_inputs_must_share_element_type) {
         testing::HasSubstr("share the residual element type"));
 }
 
-TEST(type_prop, gated_residual_write_dynamic_residual_width_is_inferred) {
+TEST_F(TypePropGatedResidualTest, write_dynamic_residual_width_is_inferred) {
     // The residual's width is C*D, and its dynamic leading dimensions are taken from Y and the gate.
     const auto op = make_write(element::f32, PartialShape{-1, -1, -1}, Shape{2, 3, 4}, Shape{2, 3, 4}, 4, 4);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 16}));
 }
 
-TEST(type_prop, gated_residual_write_leading_dims_are_merged) {
+TEST_F(TypePropGatedResidualTest, write_leading_dims_are_merged) {
     const auto op =
         make_write(element::f32, PartialShape{-1, 3, 16}, PartialShape{2, -1, 4}, PartialShape{-1, -1, 4}, 4, 4);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 16}));
 }
 
-TEST(type_prop, gated_residual_write_dynamic_rank_inputs_are_accepted) {
+TEST_F(TypePropGatedResidualTest, write_dynamic_rank_inputs_are_accepted) {
     EXPECT_NO_THROW(std::ignore =
                         make_write(element::f32, PartialShape::dynamic(), Shape{2, 3, 4}, Shape{2, 3, 4}, 4, 4));
     EXPECT_NO_THROW(
@@ -499,7 +521,7 @@ TEST(type_prop, gated_residual_write_dynamic_rank_inputs_are_accepted) {
             make_write(element::f32, Shape{2, 3, 16}, PartialShape::dynamic(), PartialShape::dynamic(), 4, 4));
 }
 
-TEST(type_prop, gated_residual_write_mismatched_leading_dims) {
+TEST_F(TypePropGatedResidualTest, write_mismatched_leading_dims) {
     // Y and the gate with fewer rows than the residual would be read out of bounds by the kernel.
     OV_EXPECT_THROW(std::ignore = make_write(element::f32, Shape{2, 3, 16}, Shape{1, 1, 4}, Shape{1, 1, 4}, 4, 4),
                     NodeValidationFailure,
@@ -512,7 +534,7 @@ TEST(type_prop, gated_residual_write_mismatched_leading_dims) {
                     testing::HasSubstr("matching leading dimensions"));
 }
 
-TEST(type_prop, gated_residual_write_mismatched_rank) {
+TEST_F(TypePropGatedResidualTest, write_mismatched_rank) {
     OV_EXPECT_THROW(std::ignore = make_write(element::f32, Shape{2, 3, 16}, Shape{6, 4}, Shape{2, 3, 4}, 4, 4),
                     NodeValidationFailure,
                     testing::HasSubstr("must have the same rank"));
@@ -521,7 +543,7 @@ TEST(type_prop, gated_residual_write_mismatched_rank) {
                     testing::HasSubstr("must have the same rank"));
 }
 
-TEST(type_prop, gated_residual_unknown_mode_is_rejected) {
+TEST_F(TypePropGatedResidualTest, unknown_mode_is_rejected) {
     OV_EXPECT_THROW(std::ignore = make_read(element::f32,
                                             Shape{2, 3, 16},
                                             Shape{16},
@@ -536,7 +558,7 @@ TEST(type_prop, gated_residual_unknown_mode_is_rejected) {
                     testing::HasSubstr("unknown mode"));
 }
 
-TEST(type_prop, gated_residual_c_times_d_size_t_overflow_is_rejected) {
+TEST_F(TypePropGatedResidualTest, c_times_d_size_t_overflow_is_rejected) {
     // C * D = 2^64 wraps to 0 in size_t.
     OV_EXPECT_THROW(std::ignore = make_read(element::f32,
                                             PartialShape::dynamic(),
@@ -550,7 +572,7 @@ TEST(type_prop, gated_residual_c_times_d_size_t_overflow_is_rejected) {
                     testing::HasSubstr("overflows"));
 }
 
-TEST(type_prop, gated_residual_c_times_d_int64_overflow_is_rejected) {
+TEST_F(TypePropGatedResidualTest, c_times_d_int64_overflow_is_rejected) {
     // C * D = 2^63 fits in size_t but not in the int64 dimensions of the shape system.
     OV_EXPECT_THROW(std::ignore = make_read(element::f32,
                                             PartialShape::dynamic(),
