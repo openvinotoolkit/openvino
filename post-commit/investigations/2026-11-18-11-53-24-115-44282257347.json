@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-18-11-53-24-115-44282257347",
+  "timestamp": "2026-11-18T11:53:24Z",
+  "run_id": "44282257347",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44282257347",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "41854db669466202bacbe8c9cb8ca612444274e2",
+  "pr_number": "39655",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39655",
+  "author": "byungilm",
+  "category": "Infrastructure",
+  "title": "Windows GPU unit tests job fails with PowerShell execution policy error before running tests",
+  "signature": "windows gpu unit tests extract openvino packages setupvars.ps1 cannot be loaded because running scripts is disabled on this system pssecurityexception unauthorizedaccess|Infrastructure",
+  "signature_hash": "3be0e72d6ae29098",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "'Extract OpenVINO packages' step fails: a dot-sourced generated PowerShell script cannot be loaded because script execution is disabled on the runner."
+    }
+  ],
+  "key_errors": [
+    ". : File C:\\actions-runner\\_work\\_temp\\4dde175a-1009-4181-949f-3f2dcb89207f.ps1 cannot be loaded because running scripts is disabled on this system. For more information, see about_Execution_Policies at https:/go.microsoft.com/fwlink/?LinkID=135170.\nAt line:1 char:3\n+ . 'C:\\actions-runner\\_work\\_temp\\4dde175a-1009-4181-949f-3f2dcb89207f ...\n+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n    + CategoryInfo          : SecurityError: (:) [], PSSecurityException\n    + FullyQualifiedErrorId : UnauthorizedAccess\n##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "Artifact download and Expand-Archive of openvino_package.zip / openvino_tests.zip both succeeded. Immediately after, the workflow dot-sources a generated temp PowerShell script via '. <tempfile>.ps1' (wrapping environment/setupvars configuration). The self-hosted Windows GPU runner (pool 'intel-gpu', e.g. host OV-DMZ-56) currently has its PowerShell execution policy set to Restricted (the Windows default), which blocks execution of any unsigned/local script, so the dot-source throws PSSecurityException/UnauthorizedAccess and the step exits with code 1. This is a runner/host configuration issue, unrelated to the PR's GPU TopK BF16 code change that triggered this push; the identical signature has now recurred multiple times across different commits and runners in this pool, consistent with a persistent or recurring execution-policy misconfiguration (possibly reintroduced by runner re-imaging).",
+  "reproduction_steps": "Not directly reproducible outside the self-hosted Windows GPU runner pool. To confirm on an affected host: open PowerShell and run `Get-ExecutionPolicy -List`; if the effective policy (LocalMachine/Process/CurrentUser scopes) resolves to `Restricted`, any `. <script>.ps1` dot-source will fail identically. Reproduce via `powershell -command \". 'C:\\path\\to\\any.ps1'\"` with ExecutionPolicy Restricted.",
+  "recommended_actions": [
+    "Set PowerShell execution policy to RemoteSigned (or Bypass for CI scope only) on the affected self-hosted Windows GPU runner(s), e.g. `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine -Force`, and verify it survives runner restarts/re-imaging.",
+    "Bake the ExecutionPolicy setting into the Windows GPU runner provisioning/golden-image scripts so it is not reset on each fresh VM or re-image.",
+    "Harden the workflow step itself: invoke the generated script with an explicit bypass, e.g. `powershell -ExecutionPolicy Bypass -File <script>.ps1` or `pwsh -ExecutionPolicy Bypass -Command \". '<script>.ps1'\"`, instead of a bare dot-source, so CI is resilient to host-level policy regressions.",
+    "Audit the 'intel-gpu' runner pool/labels to determine whether this is a single misconfigured host (e.g. OV-DMZ-56) or a fleet-wide image defect, and fix at the fleet level if the latter."
+  ],
+  "prevention_strategies": "Bake ExecutionPolicy configuration into the Windows GPU runner golden image/provisioning automation rather than relying on manual fixes, and add a runner self-check (startup health check) that verifies `Get-ExecutionPolicy` before accepting GPU test jobs. Prefer invoking all generated PowerShell helper scripts with an explicit `-ExecutionPolicy Bypass` flag in the workflow/action itself so CI does not depend on host policy defaults.",
+  "historical_context": "This exact signature (PSSecurityException/UnauthorizedAccess dot-sourcing a temp .ps1 during 'Extract OpenVINO packages' on the GPU unit tests job) has now recurred 5 times total, previously on runs 43883526619, 43906839059, 44059103925, and 44068555035 (2026-11-16 to 2026-11-17), confirming a persistent runner-level misconfiguration in the 'intel-gpu' self-hosted pool rather than a one-off fluke. A related but distinct pattern (locked tbb12.dll during Expand-Archive/Remove-Item, signature_hash 514ffa2ab52ad344) was also seen on this same job on 2026-11-18, indicating the GPU Windows runner pool has more than one recurring infrastructure issue."
+}

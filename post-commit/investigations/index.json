@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 136,
+  "total": 137,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -1371,6 +1371,17 @@
       "category": "Infrastructure",
       "signature_hash": "80cfa127185fbf3e",
       "commit_sha": "212808fd9b1474b06fc5a75c0ede2ea0a84179bf"
+    },
+    {
+      "investigation_id": "2026-11-18-11-53-24-115-44282257347",
+      "run_id": "44282257347",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44282257347",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-11-18T11:53:24Z",
+      "title": "Windows GPU unit tests job fails with PowerShell execution policy error before running tests",
+      "category": "Infrastructure",
+      "signature_hash": "3be0e72d6ae29098",
+      "commit_sha": "41854db669466202bacbe8c9cb8ca612444274e2"
     }
   ]
 }
