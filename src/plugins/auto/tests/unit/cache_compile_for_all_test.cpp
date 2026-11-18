@@ -268,8 +268,7 @@ TEST_F(AutoCacheWarmupTest, warmupLimitsHostThreadsOfOtherCandidates) {
     ASSERT_EQ(gpu_config.count(ov::compilation_num_threads.name()), 1u);
     EXPECT_EQ(gpu_config.at(ov::compilation_num_threads.name()).as<int>(), expected);
     EXPECT_EQ(gpu_config.count(ov::inference_num_threads.name()), 0u);
-    ASSERT_EQ(cpu_config.count(ov::inference_num_threads.name()), 1u);
-    EXPECT_EQ(cpu_config.at(ov::inference_num_threads.name()).as<int>(), expected);
+    EXPECT_EQ(cpu_config.count(ov::inference_num_threads.name()), 0u);
     EXPECT_EQ(cpu_config.count(ov::compilation_num_threads.name()), 0u);
 }
 
