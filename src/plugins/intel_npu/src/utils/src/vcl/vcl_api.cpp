@@ -4,10 +4,9 @@
 
 #include "intel_npu/utils/vcl/vcl_api.hpp"
 
-#include <exception>
-#include <mutex>
 #include <stdexcept>
 
+#include "openvino/core/except.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 
@@ -46,23 +45,6 @@ VCLLoader::VCLLoader() : _logger("VCLLoader", Logger::global().level()) {
     }
     vcl_weak_symbols_list();
 #undef vcl_symbol_statement
-}
-
-std::shared_ptr<const VCLFunctionTable> VCLLoaderHolder::functions() const {
-    std::lock_guard<std::mutex> lock(_mutex);
-    if (_loadFailure) {
-        std::rethrow_exception(_loadFailure);
-    }
-    if (_loader == nullptr) {
-        try {
-            // The constructor is private, so make_shared is not an option here.
-            _loader = std::shared_ptr<const VCLLoader>(new VCLLoader());
-        } catch (...) {
-            _loadFailure = std::current_exception();
-            throw;
-        }
-    }
-    return _loader->sharedFunctions();
 }
 
 }  // namespace intel_npu

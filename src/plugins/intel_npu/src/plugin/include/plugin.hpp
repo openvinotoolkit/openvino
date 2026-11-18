@@ -4,8 +4,10 @@
 
 #pragma once
 
+#include <exception>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <string>
 
 #include "backends_registry.hpp"
@@ -22,7 +24,7 @@
 
 namespace intel_npu {
 
-class VCLLoaderHolder;
+class VCLLoader;
 
 class Plugin : public ov::IPlugin {
 public:
@@ -75,11 +77,9 @@ private:
     /**
      * @brief Returns a provider of the VCL entry points for the components that need them.
      *
-     * The provider captures the loader holder, not `this`, so it stays valid when a longer lived
-     * component keeps it. The library loads on the first call and stays loaded while any provider
-     * or returned table still owns it.
+     * The provider calls back into this plugin. The factory that stores it must not outlive the plugin.
      */
-    VCLFunctionTableProvider vcl_functions() const;
+    VCLFunctionTableProvider vcl_functions_provider() const;
 
     std::unique_ptr<BackendsRegistry> _backendsRegistry;
 
@@ -87,12 +87,12 @@ private:
     //  Appropriate checks are needed in plugin/metrics/properties when actions depend on a backend.
     ov::SoPtr<IEngineBackend> _backend;
 
-    // The plugin loads the VCL library at most once, through this holder, which then owns the only set of entry points
-    // of the plugin. The library loads on first use: when PREFER_PLUGIN is resolved, a compiler-in-plugin is created,
-    // or a profiling decoder is created.
-    std::shared_ptr<const VCLLoaderHolder> _vclLoaderHolder;
+    // Loading is deferred until a provider is invoked. Cache both success and failure for this plugin.
+    mutable std::mutex _vclLoaderMutex;
+    mutable std::shared_ptr<const VCLLoader> _vclLoader;
+    mutable std::exception_ptr _vclLoadFailure;
 
-    // The only factory of the plugin, bound to `_backend` and the entry points of `_vclLoaderHolder`, and shared by
+    // The only factory of the plugin, bound to `_backend` and this plugin's VCL entry points, and shared by
     // compile, query, property and option support requests so that they all see what it learned about the
     // compiler-in-plugin. Another backend or holder needs another factory.
     std::shared_ptr<const CompilerAdapterFactory> _compilerAdapterFactory;

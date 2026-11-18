@@ -7,21 +7,35 @@
 #include <gtest/gtest.h>
 
 #include <cstddef>
+#include <exception>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <utility>
 
+#include "intel_npu/utils/vcl/vcl_function_table_provider.hpp"
 #include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "openvino/core/except.hpp"
 
 namespace ov::test::npu::vcl_provider {
 
-// A provider over the real VCL library. All callers in the test process share one loader, like a plugin that stays
-// loaded.
+// A provider over the real VCL library. All callers in the test process share one loader.
 inline ::intel_npu::VCLFunctionTableProvider processWide() {
-    static const auto holder = std::make_shared<const ::intel_npu::VCLLoaderHolder>();
     return [] {
-        return holder->functions();
+        static std::once_flag loadOnce;
+        static std::shared_ptr<const ::intel_npu::VCLLoader> loader;
+        static std::exception_ptr loadFailure;
+        std::call_once(loadOnce, [] {
+            try {
+                loader = std::make_shared<::intel_npu::VCLLoader>();
+            } catch (...) {
+                loadFailure = std::current_exception();
+            }
+        });
+        if (loadFailure) {
+            std::rethrow_exception(loadFailure);
+        }
+        return loader->sharedFunctions();
     };
 }
 

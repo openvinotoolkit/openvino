@@ -211,7 +211,8 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
         } else {
             compiler = std::make_shared<::intel_npu::PluginCompilerAdapter>(
                 zeroInitStruct,
-                std::make_shared<::intel_npu::VCLCompilerImpl>(::intel_npu::VCLLoaderHolder().functions()));
+                std::make_shared<::intel_npu::VCLCompilerImpl>(
+                    std::make_shared<::intel_npu::VCLLoader>()->sharedFunctions()));
         }
     } catch (...) {
         GTEST_SKIP() << "Couldn't load compiler library";

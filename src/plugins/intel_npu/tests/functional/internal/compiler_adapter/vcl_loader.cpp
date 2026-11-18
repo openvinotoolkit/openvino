@@ -17,9 +17,7 @@ namespace {
 
 using namespace ::intel_npu;
 
-// The holder always loads from the directory of the OpenVINO runtime library, so a failed load cannot be provoked and
-// every test needs the compiler library installed there.
-class VCLLoaderHolderTests : public ::testing::Test {
+class VCLLoaderTests : public ::testing::Test {
 protected:
     void SetUp() override {
         const auto library =
@@ -28,13 +26,14 @@ protected:
             GTEST_SKIP() << "Compiler library not installed: " << library;
         }
     }
+
 };
 
-TEST_F(VCLLoaderHolderTests, FunctionsAfterHolderDestroyedTableStaysCallable) {
+TEST_F(VCLLoaderTests, FunctionTableKeepsLoaderAliveAfterOwnerReleased) {
     std::shared_ptr<const VCLFunctionTable> functions;
     {
-        const VCLLoaderHolder holder;
-        functions = holder.functions();
+        const auto loader = std::make_shared<VCLLoader>();
+        functions = loader->sharedFunctions();
     }
     ASSERT_NE(functions, nullptr);
     ASSERT_NE(functions->vclGetVersion, nullptr);
@@ -43,22 +42,22 @@ TEST_F(VCLLoaderHolderTests, FunctionsAfterHolderDestroyedTableStaysCallable) {
     EXPECT_EQ(functions->vclGetVersion(&compilerVersion, &profilingVersion), VCL_RESULT_SUCCESS);
 }
 
-TEST_F(VCLLoaderHolderTests, FunctionsRepeatedCallsLoadTheLibraryOnce) {
-    const VCLLoaderHolder holder;
+TEST_F(VCLLoaderTests, RepeatedCallsReturnTheSameTable) {
+    const auto loader = std::make_shared<VCLLoader>();
 
-    EXPECT_EQ(holder.functions(), holder.functions());
+    EXPECT_EQ(loader->sharedFunctions(), loader->sharedFunctions());
 }
 
-TEST_F(VCLLoaderHolderTests, FunctionsConcurrentFirstCallsReturnSameTable) {
-    const VCLLoaderHolder holder;
+TEST_F(VCLLoaderTests, ConcurrentCallsReturnTheSameTable) {
+    const auto loader = std::make_shared<VCLLoader>();
     constexpr std::size_t threadCount = 8;
     std::promise<void> startSignal;
     const auto start = startSignal.get_future().share();
     std::array<std::future<std::shared_ptr<const VCLFunctionTable>>, threadCount> calls;
     for (auto& call : calls) {
-        call = std::async(std::launch::async, [&holder, start] {
+        call = std::async(std::launch::async, [&loader, start] {
             start.wait();
-            return holder.functions();
+            return loader->sharedFunctions();
         });
     }
     startSignal.set_value();

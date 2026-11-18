@@ -170,8 +170,7 @@ void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel
 namespace intel_npu {
 
 Plugin::Plugin()
-    : _vclLoaderHolder(std::make_shared<const VCLLoaderHolder>()),
-      _logger("NPUPlugin", Logger::global().level()) {
+    : _logger("NPUPlugin", Logger::global().level()) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
     set_device_name("NPU");
 
@@ -190,7 +189,7 @@ Plugin::Plugin()
     _backend = _backendsRegistry->getEngineBackend();
     const auto optionSupportCache = std::make_shared<OptionSupportCache>();
     _compilerAdapterFactory =
-        std::make_shared<const CompilerAdapterFactory>(_backend, vcl_functions(), optionSupportCache);
+        std::make_shared<const CompilerAdapterFactory>(_backend, vcl_functions_provider(), optionSupportCache);
 
     register_options(_backend, *options);
     if (_backend) {
@@ -209,9 +208,21 @@ Plugin::Plugin()
                                                                  _logger);
 }
 
-VCLFunctionTableProvider Plugin::vcl_functions() const {
-    return [holder = _vclLoaderHolder] {
-        return holder->functions();
+VCLFunctionTableProvider Plugin::vcl_functions_provider() const {
+    return [this] {
+        std::lock_guard<std::mutex> lock(_vclLoaderMutex);
+        if (_vclLoadFailure) {
+            std::rethrow_exception(_vclLoadFailure);
+        }
+        if (!_vclLoader) {
+            try {
+                _vclLoader = std::make_shared<VCLLoader>();
+            } catch (...) {
+                _vclLoadFailure = std::current_exception();
+                throw;
+            }
+        }
+        return _vclLoader->sharedFunctions();
     };
 }
 
@@ -624,7 +635,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
         blobFormatImporter->create_graph(_backend,
                                          "net" + std::to_string(_compiledModelLoadCounter++),
                                          get_core(),
-                                         vcl_functions());
+                                         vcl_functions_provider());
 
     return std::make_shared<CompiledModel>(blobFormatImporter->create_dummy_model(),
                                            shared_from_this(),
