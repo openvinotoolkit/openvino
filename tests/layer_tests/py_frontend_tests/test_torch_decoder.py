@@ -912,6 +912,45 @@ def test_pytorch_dynamo_convert_named_input_reaches_argument_not_container():
     np.testing.assert_allclose(result, expected)
 
 
+class _SelfKeyDictModel(torch.nn.Module):
+    def forward(self, a):
+        return a["self"] * 2 + a["x"] * 3
+
+
+class _SelfAttnMaskModel(torch.nn.Module):
+    def forward(self, self_attn_mask, x):
+        return self_attn_mask * 2 + x * 3
+
+
+@pytest.mark.precommit
+@pytest.mark.parametrize(
+    "model, example, names",
+    [
+        (_SelfKeyDictModel(), ({"self": torch.ones(2) * 5, "x": torch.ones(2) * 7},), ["a_self", "a_x"]),
+        (_SelfAttnMaskModel(), (torch.ones(2) * 5, torch.ones(2) * 7), ["self_attn_mask", "x"]),
+    ],
+)
+def test_pytorch_fx_frontend_keeps_first_input_named_self(model, example, names):
+    # Only a TorchScript graph has a "self" receiver input, so no FX input may be hidden for its name
+    import numpy as np
+    import openvino as ov
+    from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+    decoder = TorchFXPythonDecoder(torch.export.export(model, example).module())
+    frontend = ov.frontend.FrontEndManager().load_by_framework("pytorch")
+    input_model = frontend.load(decoder)
+    inputs = input_model.get_inputs()
+    assert [sorted(place.get_names())[0] for place in inputs] == names
+
+    input_model.override_all_inputs(inputs[::-1])
+    ov_model = frontend.convert(input_model)
+    assert [sorted(port.get_names())[0] for port in ov_model.inputs] == names[::-1]
+    flat = [example[0]["self"], example[0]["x"]] if isinstance(example[0], dict) else list(example)
+    compiled = ov.Core().compile_model(ov_model, "CPU")
+    result = compiled({names[0]: flat[0].numpy(), names[1]: flat[1].numpy()})[0]
+    np.testing.assert_allclose(result, (flat[0] * 2 + flat[1] * 3).numpy())
+
+
 @pytest.mark.precommit
 @pytest.mark.parametrize("return_indices", [False, True])
 def test_pytorch_fx_pool_without_output_metadata(return_indices):
