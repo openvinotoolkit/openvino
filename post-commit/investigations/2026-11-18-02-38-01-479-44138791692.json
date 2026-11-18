@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-18-02-38-01-479-44138791692",
+  "timestamp": "2026-11-18T02:38:01Z",
+  "run_id": "44138791692",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44138791692",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "bfbb23500507535827fa817e0cd069b0bc7b664d",
+  "pr_number": "39057",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39057",
+  "author": "Cyberpunk1210",
+  "category": "Flaky Test",
+  "title": "GPU unit tests fail with a burst of 36 gtest-parallel worker crashes among the first ~37 scheduled tests",
+  "signature": "GPU unit tests accuracy tolerance mismatch in fusion test (val_ref vs val_opt difference exceeds tolerance in fusion_test_common.hpp) followed by burst of concurrent gtest-parallel worker processes exiting with code 3|Flaky Test",
+  "signature_hash": "502c01bffd8f35db",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "ov_gpu_unit_tests.exe run via gtest_parallel.py reported 36/29333 failures: all 36 are scattered gtest-parallel worker processes that exited with raw exit code 3 (process crash, no gtest PASSED/FAILED output captured) among the first ~46 scheduled test slots; no genuine gtest assertion failure was present in this run."
+    }
+  ],
+  "key_errors": [
+    "2026-11-18T01:05:59.8412516Z [7/29333] basic/convolution_random_smoke_test.u8s8f32/b_fs_yx_fsv16_i1x32x28x28_w48x32x1x1_s2x2_ofs0x0_d1x1_g1_bias_wzp_izp returned with exit code 3 (4548 ms)",
+    "2026-11-18T01:06:00.1825677Z [8/29333] basic/convolution_random_smoke_test.u8s8f32/b_fs_yx_fsv32_i1x64x19x19_w64x64x3x3_s1x1_ofs1x1_d1x1_g64_bias_in_pad returned with exit code 3 (4892 ms)",
+    "2026-11-18T01:06:00.3591941Z [10/29333] convolution_grouped_fsv4_fsv16/convolution_grouped_gpu.base/in3x3y1z48f_output96f_filter2x2y1z_groups2_stride8_batch1_data_zp1_weights_zp1_comp1_format22 returned with exit code 3 (5069 ms)",
+    "2026-11-18T02:32:40.8531685Z FAILED TESTS (36/29333):",
+    "2026-11-18T02:32:41.4807709Z ##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "This is the 13th recorded occurrence of the previously-tracked recurring pattern (signature_hash 502c01bffd8f35db). The GPU unit test binary (ov_gpu_unit_tests.exe) is launched under gtest_parallel.py, which fans out ~29333 test cases across many concurrent worker processes immediately at job start. In this run, all 36 failing tests (spread across the first ~46 scheduled test slots, e.g. slots 7-46) terminated with raw exit code 3 (no gtest PASSED/FAILED banner, no assertion message captured) rather than completing normally - the classic signature of workers crashing due to resource contention (GPU device/driver contention, OpenCL context exhaustion, or memory pressure) when gtest-parallel spins up too many concurrent ov_gpu_unit_tests.exe instances at start-up on the Windows GPU runner (ov-dmz-59, runner group 'intel-gpu'). This failure is not attributable to the triggering commit/PR #39057 ('[GPU] Support u2 compressed dictionaries in GatherCompressed'), which only adds a u2 decode branch to GatherCompressed/gather_ref and does not touch convolution, fusion, or the gtest-parallel harness; none of the 36 crashed tests are gather tests. The recurring crash burst has now been observed across 12 prior, unrelated commits spanning more than 5 days with no fix landed.",
+  "reproduction_steps": "N/A - intermittent, environment/concurrency dependent. Best-effort local repro: on a Windows GPU runner, build the gpu-unit-tests target and run `python gtest_parallel.py --dump_json_test_results=TEST-gpu-unit.json ov_gpu_unit_tests.exe` with the same high worker concurrency as CI while the GPU is also under load from another process, to try to trigger early worker crashes.",
+  "recommended_actions": [
+    "Investigate whether gtest-parallel's initial worker fan-out count exceeds the GPU runner's safe concurrent-OpenCL-context limit; consider throttling --workers or adding a ramp-up delay for the GPU unit test job specifically.",
+    "Capture and review Windows Event Viewer / driver logs for the affected runner (ov-dmz-59) around the failure window (01:05:59-01:06:10Z) to confirm whether exit code 3 corresponds to a GPU driver TDR (timeout detection and recovery) or OOM kill rather than a test assertion.",
+    "Given this is the 13th occurrence of signature 502c01bffd8f35db spanning over 5 days with no fix landed, escalate to the GPU plugin CI/infra owners to triage the worker-crash root cause directly on the runner rather than continuing to treat each occurrence as a one-off flaky rerun.",
+    "Add retry-with-backoff or automatic re-run of only the tests that returned exit code 3 (as opposed to tests with real gtest FAILED assertions) in the gtest-parallel GPU unit test invocation to distinguish infra crashes from genuine regressions in reporting."
+  ],
+  "prevention_strategies": "Add retry-with-backoff or automatic re-run of only the tests that returned exit code 3 in the gtest-parallel GPU unit test invocation, since exit-code-3 crashes without gtest output are a distinct, likely-infrastructure failure mode from genuine assertion failures. Track recurring 'Flaky Test' signatures like this one with an escalation threshold (e.g., auto-file or bump priority on a tracking issue once count crosses 5, now at 13) so transient-looking patterns that are in fact a persistent environment issue get prioritized fixes instead of indefinite accumulation in this database.",
+  "historical_context": "This is the 13th recorded occurrence of signature 502c01bffd8f35db ('GPU unit tests fail with a burst of ~36 gtest-parallel worker crashes among the first ~37-46 scheduled tests'), first seen 2026-11-13T17:54:36Z and recurring across 12 prior unrelated commits/PRs with no fix yet landed (most recently PR #39954 by akladiev on 2026-11-18T01:25:58Z). The commit for this run (bfbb23500507535827fa817e0cd069b0bc7b664d, PR #39057 by Cyberpunk1210) only extends GatherCompressed with a u2 decode path on the GPU and is unrelated to the failure. Separate Infrastructure signatures for the same job (3be0e72d6ae29098 PowerShell execution-policy error, 514ffa2ab52ad344 locked tbb12.dll, a9c74b1ea2c2e7f5 80-minute timeout) have also recurred on this same Windows GPU unit tests job in the past, indicating this specific CI lane is a recurring source of flaky/infra noise independent of code changes."
+}
