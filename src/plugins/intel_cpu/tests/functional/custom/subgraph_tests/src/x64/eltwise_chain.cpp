@@ -43,8 +43,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChain_Comparison,
 
 // An 8-bit SquaredDifference is computed in i32 by the snippets kernel.
 // The parameters are in [10, 20), so the result never leaves the 8-bit range.
+// The chain must run as a snippets Subgraph: the Eltwise node would leave the emitter untested.
+class EltwiseChainSnippetsTest : public EltwiseChainTest {};
+
+TEST_P(EltwiseChainSnippetsTest, CompareWithRefs) {
+    run();
+    CheckNumberOfNodesWithType(compiledModel, "Subgraph", 1);
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChain_SquaredDifference_8bit,
-                         EltwiseChainTest,
+                         EltwiseChainSnippetsTest,
                          ::testing::Combine(::testing::ValuesIn(static_shapes_to_test_representation(inputShapes())),
                                             ::testing::Values(InputLayerType::PARAMETER),
                                             ::testing::Values(std::vector<ElementType>(4, ElementType::i8),
