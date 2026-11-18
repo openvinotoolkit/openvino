@@ -151,8 +151,7 @@ PrefetchToken submit_page_toucher_tasks(void* ptr, size_t size, size_t num_threa
 
         auto latch = std::make_shared<CompletionLatch>(chunk_count);
         std::list<std::function<void()>> jobs;
-        for (auto first = static_cast<const std::byte*>(ptr), last = first + size; first < last;
-             first += chunk_size) {
+        for (auto first = static_cast<const std::byte*>(ptr), last = first + size; first < last; first += chunk_size) {
             const auto chunk = MemoryView{first, std::min(chunk_size, static_cast<size_t>(last - first))};
             jobs.emplace_back([latch, toucher = PageToucher{chunk, page_size}]() {
                 toucher();

@@ -765,8 +765,8 @@ TEST_F(SharedBufferTest, sequential_prefetch_scheduler_skips_non_byte_tensor) {
     EXPECT_CALL(*mock, hint_prefetch_async(::testing::_, ::testing::_)).Times(0);
     EXPECT_CALL(*mock, hint_evict_mock(::testing::_, ::testing::_)).Times(0);
 
-    for (const auto& [type, shape] : {std::pair{ov::element::f32, ov::Shape{256}},
-                                      std::pair{ov::element::u8, ov::Shape{2, 512}}}) {
+    for (const auto& [type, shape] :
+         {std::pair{ov::element::f32, ov::Shape{256}}, std::pair{ov::element::u8, ov::Shape{2, 512}}}) {
         const auto mapped = ov::make_tensor(ov::make_tensor(type, shape, mock));
         ov::util::SequentialPrefetchScheduler scheduler(mapped, 200, 100);
         scheduler.advance(0, 1024);
