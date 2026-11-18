@@ -14,7 +14,7 @@ namespace intel_npu {
 /**
  * @brief Evaluator used to "teach" the CRE how to evaluate section instances corresponding to compiler schedules
  * (ELF_MAIN_SCHEDULE_X & DYNAMIC_SCHEDULE_Y).
- * @details The evaluation is performed by sending a compatibility string to the compiler and querying the evaluation
+ * @details Evaluation is performed by sending a compatibility string to the compiler and querying the evaluation
  * result.
  * @note The class follows a singleton pattern since the state of the class and its behavior should not vary at all
  * within the scope of the process.
@@ -34,9 +34,9 @@ public:
     /**
      * @brief Evaluate by sending a compatibility string to the compiler and querying the evaluation
      * result.
-     * @return "NOT_APPLICABLE" if the string is empty (because older software versions do not have this feature
-     * implemented) or the method failed to query the compiler. "SUPPORTED" or "UNSUPPORTED" if the compiler was queried
-     * successfully, according to its reply.
+     * @return "NOT_APPLICABLE" if the string is empty (older software versions do not have this feature implemented, so
+     * they don't attach such string to the blob) or the method failed to query the compiler. "SUPPORTED" or
+     * "UNSUPPORTED" if the compiler was queried successfully, depending on its answer.
      */
     ov::CompatibilityCheck evaluate(std::string_view runtime_requirements) const override;
 

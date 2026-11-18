@@ -28,8 +28,8 @@ public:
      * @param plugin Pointer towards the NPU plugin instance
      * @param device Backend specific object through which inference requests can be created
      * @param graph Object holding the graph handle along with distinct fields for metadata
-     * @param blobSectionsRegistry Contains the information required to export the compiled model and provides an API to
-     * do so
+     * @param blobSectionsRegistry Contains the information required to export the compiled model and provides the API
+     * to do so
      * @param config Custom configuration object
      */
     CompiledModel(const std::shared_ptr<const ov::Model>& model,
@@ -73,13 +73,13 @@ private:
 
     const std::shared_ptr<IDevice> _device;
     std::shared_ptr<IGraph> _graph;
+    /**
+     * @brief Contains the information required to export the compiled model and provides the API to do so
+     */
     mutable BlobSectionsRegistry _blobSectionsRegistry;
 
     std::unique_ptr<CompiledModelPropertyManager> _propertiesManager;
 
-    /**
-     * @brief Contains the information required to export the compiled model and provides an API to do so
-     */
     std::shared_ptr<ov::threading::ITaskExecutor> _resultExecutor = nullptr;
     mutable std::once_flag _streamExecutorsInitFlag;
 };

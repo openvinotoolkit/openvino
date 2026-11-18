@@ -22,7 +22,8 @@ inline void logCpuPinningDeprecationWarning(intel_npu::Logger& logger) {
 }
 
 std::string buildRuntimeRequirements(const BlobSectionsRegistry& blobSectionsRegistry, intel_npu::Logger& logger) {
-    // Build and use a "RuntimeRequirementsSection" to serialize the requirements
+    // All the code needed to serialize the requirements is found inside "RuntimeRequirementsSection::encode".
+    // Therefore, we'll build a RuntimeRequirementsSection and use it for convenience.
     const auto section = std::dynamic_pointer_cast<RuntimeRequirementsSection>(
         blobSectionsRegistry.build_runtime_requirements_section());
 

@@ -299,8 +299,8 @@ public:
     }
 
     /**
-     * @brief Constructs a blob writer that can be used to re-export the blob.
-     * @details The sections are built using the content found within the V1 format.
+     * @brief Constructs a blob sections registry that encapsulates the content to be re-exported if requested.
+     * @details The sections are built using the content found within the V1 (metadata based) format.
      */
     BlobSectionsRegistry get_blob_sections_registry() override {
         OPENVINO_ASSERT(m_graph, "Invalid state");
@@ -464,6 +464,12 @@ private:
  */
 class HSMFormatImporter : public IBlobFormatImporter {
 public:
+    /**
+     * @param base_reader The HSM reader provided by OV, used to extract all sections as binary buffers before parsing
+     * them.
+     * @param blob_so If @ref import_model(ov::Tensor) was called, then this object is a reference towards the tensor
+     * that we want to keep alive. Otherwise, it's just a nullptr.
+     */
     explicit HSMFormatImporter(ov::runtime::hsm::Reader& base_reader,
                                const std::shared_ptr<void> blob_so,
                                const std::shared_ptr<const ov::Model>& original_model,
@@ -486,6 +492,9 @@ public:
         verify_valid_sections();
     }
 
+    /**
+     * @brief Updates the state of the compiler schedules sections, and then returns the registry.
+     */
     BlobSectionsRegistry get_blob_sections_registry() override {
         OPENVINO_ASSERT(m_graph, "Invalid state");
 
@@ -511,13 +520,9 @@ public:
     }
 
 private:
-    // /**
-    //  * @brief Registers all blob sections readers known to the plugin.
-    //  * @note The runtime requirements & manifest sections should have been already registered (e.g. in the
-    //  BlobReader
-    //  * ctor) since these sections are a core part of the format.
-    //  */
-
+    /**
+     * @returns All blob section readers known to the plugin.
+     */
     std::unordered_map<SectionType, ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>>> get_readers() const {
         return {
             {SectionTypeCode::RUNTIME_REQUIREMENTS, RuntimeRequirementsSection::decode},
@@ -531,6 +536,9 @@ private:
         };
     }
 
+    /**
+     * @brief Creates instance evaluators for all sections that require them.
+     */
     std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>> create_instance_evaluators(
         const std::shared_ptr<CompilerOptionSupportHelper>& option_helper) const {
         const auto compiler_schedules_instance_evaluator =
@@ -542,11 +550,11 @@ private:
     }
 
     /**
-     * @brief Checks if the type and count of sections are valid.
+     * @brief Checks if the type and count of sections are aligned with the expectations of the format.
      * @details Expectations:
      *   * The compiled model doesn't contain more than one section of any type
-     *   * Either an "ELF main schedule" (with or without init schedules) or a "Dynamic schedule" (without init
-     * schedule) exists
+     *   * Either an @ref ELFMainScheduleSection (with or without init schedules) or a @ref DynamicScheduleSection
+     * (without any init schedule) exists
      */
     void verify_valid_sections() {
         const bool has_elf_main_schedule =
@@ -569,9 +577,11 @@ private:
     }
 
     /**
-     * @brief Decrypts all compiler payloads (main schedule + init schedules if applicable) if:
+     * @brief Decrypts all compiler payloads (either a dynamic schedule or main schedule + init schedules if applicable)
+     * if:
      *   1. A decryption callback was provided and
-     *   2. There is a section indicating the compiler schedules have been encrypted.
+     *   2. There is a section ( @ref EncryptedSchedulesFlagSection ) indicating the compiler schedules have been
+     * encrypted.
      * @throws ov::AssertFailure if the schedules were encrypted, but no decryption callback was provided.
      */
     void decrypt_schedules() override {
@@ -618,6 +628,8 @@ private:
         const auto main_schedule_section = std::dynamic_pointer_cast<ELFMainScheduleSection>(
             m_blob_sections_registry.retrieve_unique_section_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE));
         if (main_schedule_section) {
+            // If `import_model(ov::Tensor)` was called, then the shared object corresponds to the tensor that we want
+            // to keep alive. Otherwise, it's just a nullptr.
             return ov::Tensor(main_schedule_section->get_schedule(), m_blob_so);
         }
 

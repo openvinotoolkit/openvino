@@ -7,7 +7,6 @@
 #include <map>
 #include <memory>
 #include <string>
-#include <variant>
 
 #include "backends_registry.hpp"
 #include "compiler_option_support_helper.hpp"
@@ -15,7 +14,6 @@
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "openvino/runtime/hsm_reader.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "plugin_property_manager.hpp"

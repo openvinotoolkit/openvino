@@ -9,11 +9,8 @@
 
 #include "blob_format_importers.hpp"
 #include "compiled_model.hpp"
-#include "driver_compiler_adapter.hpp"
 #include "hsm_sections/batch_size.hpp"
-#include "hsm_sections/compiler_schedules.hpp"
 #include "hsm_sections/compiler_version.hpp"
-#include "hsm_sections/io_layouts.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
@@ -559,8 +556,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         return compiledModel;
     }
 
+    BlobSource blobSource(stream, _logger.level());
     try {
-        BlobSource blobSource(stream, _logger.level());
         return import_model(blobSource, localProperties);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(FAILED_IMPORT_MODEL_PREFACE, ex.what());
@@ -587,8 +584,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
         return compiledModel;
     }
 
+    BlobSource blobSource(compiledBlob, _logger.level());
     try {
-        BlobSource blobSource(compiledBlob, _logger.level());
         return import_model(blobSource, localProperties);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(FAILED_IMPORT_MODEL_PREFACE, ex.what());

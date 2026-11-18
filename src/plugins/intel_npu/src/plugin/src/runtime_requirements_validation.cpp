@@ -14,14 +14,17 @@ namespace {
 using namespace intel_npu;
 
 /**
- * @brief Evaluates the second version of the runtime requirements format, corresponding to the blob format v2
- * (header-sections-manifest)
+ * @brief Evaluates the second version of the runtime requirements format, corresponding to the HSM blob format
+ * @details @ref RuntimeRequirementsSection::decode contains the code needed to parse the this version of runtime
+ * requirements. A few dummy objects need to be created to connect to its API. After parsing, we're using @ref
+ * RuntimeRequirements::check_compatibility to evaluate the requirements against the capabilities of the current version
+ * of plugin.
  */
 ov::CompatibilityCheck validateCompatibilityDescriptorFormatV2(
     std::string_view runtimeRequirements,
     const ov::SoPtr<intel_npu::IEngineBackend>& backend,
     const std::shared_ptr<CompilerOptionSupportHelper>& optionSupportHelper) {
-    // Need to create a few object to connect to the API used within the import path
+    // Create a few object to connect to the API used within the import path
     ov::runtime::hsm::ManifestEntry manifest_entry;
     manifest_entry.tag =
         ov::runtime::hsm::SectionTag::make(static_cast<uint32_t>(SectionTypeCode::RUNTIME_REQUIREMENTS), false);

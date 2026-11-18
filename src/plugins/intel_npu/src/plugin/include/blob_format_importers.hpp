@@ -33,6 +33,7 @@ public:
      * @param original_model The model used for compiling the target blob. This parameter may be used as a source of
      * weights only if the blob was compiled using the weights separation feature. Can be "nullptr", in which case the
      * "weights path" from the configuration object may be used as the source of weights instead.
+     * @param backend The current backend in use, required for creating and using a parser.
      * @param config Used for multiple purposes such as: extracting the log level, weights path, decryption callbacks.
      * @param logger A logger that should already use the name of the subclass.
      */
@@ -46,7 +47,6 @@ public:
      * @details This function calls multiple virtual methods in order to extract from the current format all information
      * it needs (e.g. the compiler main schedule) to build the graph object.
      *
-     * @param backend The current backend in use, required for creating and using a parser.
      * @param network_name The resulted graph object will use this network name.
      * @param core The OV core. The weights separation feature may depend on this object to extract the original
      * weights.

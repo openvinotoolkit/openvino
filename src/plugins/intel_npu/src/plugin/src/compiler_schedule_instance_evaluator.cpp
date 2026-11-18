@@ -11,7 +11,7 @@ constexpr char LIST_START_DELIMITER = '[';
 constexpr char LIST_END_DELIMITER = ']';
 
 /**
- * @brief Allows "std::make_shared" to called the protected constructor
+ * @brief Allows "std::make_shared" to call the protected constructor
  */
 struct MakeSharedEnabler : intel_npu::CompilerScheduleInstanceEvaluator {
     MakeSharedEnabler(const ov::SoPtr<intel_npu::IEngineBackend>& backend,
