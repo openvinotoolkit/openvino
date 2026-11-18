@@ -31,13 +31,13 @@ You can change your data collection decision with the following command lines:
 Running without Telemetry
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-``openvino-telemetry`` is configured as a default optional dependency (PEP 771). By default, running ``pip install openvino`` installs telemetry. To install OpenVINO without telemetry, run:
+``openvino-telemetry`` is an optional dependency available under the ``telemetry`` extra:
 
 .. code-block:: sh
 
-   pip install openvino[]
+   pip install openvino[telemetry]
 
-In environments where sending outbound telemetry is prohibited, network access is restricted, or the filesystem is read-only (such as air-gapped containers), OpenVINO runs safely without the ``openvino-telemetry`` package. When ``openvino-telemetry`` is absent, OpenVINO automatically uses an internal silent stub that performs no network requests and generates no local telemetry files.
+In environments where sending outbound telemetry is prohibited, network access is restricted, or the filesystem is read-only (such as air-gapped containers), OpenVINO runs safely without the ``openvino-telemetry`` package installed. When ``openvino-telemetry`` is absent, OpenVINO automatically uses an internal silent stub that performs no network requests and generates no local telemetry files.
 
 
 Telemetry Data Collection Details
