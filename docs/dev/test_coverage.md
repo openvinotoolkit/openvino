@@ -132,8 +132,8 @@ nuget install Microsoft.TestPlatform -Version 18.0.0 -OutputDirectory build-wind
 
 $vstest = "$PWD/build-windows-npu-coverage/tools/Microsoft.TestPlatform.18.0.0/tools/net462/Common7/IDE/Extensions/TestPlatform/vstest.console.exe"
 $vs = 'C:\Program Files\Microsoft Visual Studio\2022\Professional'
-$adapterDlls = @(Get-ChildItem "$vs\Common7\IDE" -Recurse -File -Filter '*TestAdapter*.dll' |
-    Where-Object { $_.Name -match 'Google' })
+$adapterDlls = @(Get-ChildItem "$vs\Common7\IDE" -Recurse -File -Filter 'GoogleTestAdapter.TestAdapter.dll' |
+    Where-Object { $_.Name -eq 'GoogleTestAdapter.TestAdapter.dll' })
 $adapterDlls | Select-Object FullName
 if ($adapterDlls.Count -ne 1) { throw 'Locate the installed Microsoft Google Test adapter DLL and set $adapter to its directory.' }
 $adapter = $adapterDlls[0].DirectoryName
@@ -152,6 +152,16 @@ Distinct tests then collide and execution can fail in
 `Sequence contains more than one matching element`. Microsoft's adapter uses a
 different parser that preserves these characters; end-to-end coverage still needs
 validation on the Windows machine.
+
+The local VSTest settings select the Microsoft adapter's legacy discovery/execution
+path (`UseNewTestExecutionFramework=false`) and disable test source-location lookup
+(`ParseSymbolInformation=false`, `ShowFixtureMethodNode=false`). This is a
+compatibility experiment for the observed `NewCreateTestcases` /
+`Path.GetFullPath` discovery exception, not a confirmed end-to-end fix.
+These settings affect the test adapter only: the coverage collector still uses
+PDBs to map native code to source lines. No tests are intentionally filtered out.
+A Cobertura attachment from a failed discovery run alone is not evidence that
+the tests ran or that their coverage was collected.
 
 ### Try Microsoft.CodeCoverage.Console if available
 

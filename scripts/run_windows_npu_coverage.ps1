@@ -105,6 +105,13 @@ try {
             @"
 <RunSettings>
   <RunConfiguration><TargetPlatform>x64</TargetPlatform><TreatNoTestsAsError>true</TreatNoTestsAsError></RunConfiguration>
+  <GoogleTestAdapterSettings>
+    <SolutionSettings><Settings>
+      <UseNewTestExecutionFramework>false</UseNewTestExecutionFramework>
+      <ParseSymbolInformation>false</ParseSymbolInformation>
+      <ShowFixtureMethodNode>false</ShowFixtureMethodNode>
+    </Settings></SolutionSettings>
+  </GoogleTestAdapterSettings>
   <DataCollectionRunSettings><DataCollectors>
     <DataCollector friendlyName="Code Coverage">$configuration</DataCollector>
   </DataCollectors></DataCollectionRunSettings>
