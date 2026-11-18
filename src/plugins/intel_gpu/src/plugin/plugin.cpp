@@ -21,7 +21,7 @@
 #include "intel_gpu/graph/serialization/utils.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
-#include "intel_gpu/plugin/detail/batch_size_estimation.hpp"
+#include "tools/batch_size_estimation.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "plugin/ops/moe_offload_constant.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"

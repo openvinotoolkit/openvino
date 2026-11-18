@@ -6,7 +6,7 @@
 #include <algorithm>
 
 #include "test_utils.h"
-#include "intel_gpu/plugin/detail/batch_size_estimation.hpp"
+#include "tools/batch_size_estimation.hpp"
 #include <intel_gpu/primitives/permute.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <openvino/runtime/core.hpp>
