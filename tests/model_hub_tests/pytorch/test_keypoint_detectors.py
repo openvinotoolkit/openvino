@@ -10,7 +10,6 @@ from types import MethodType
 import pytest
 import torch
 import torch.nn.functional as F
-from openvino import convert_model
 
 from torch_utils import TestTorchConvertModel
 
@@ -190,13 +189,6 @@ class TestKeypointDetectorsConvertModel(TestTorchConvertModel):
         self.example = (torch.rand(input_shape, generator=generator),)
         self.inputs = (torch.rand(input_shape, generator=generator),)
         return KeypointDetector(model, model_name).cpu().eval()
-
-    def convert_model_impl(self, model_obj):
-        if getattr(self, "mode", None) == "export" and model_obj.model_name in ("DaD", "DeDoDe", "DISK"):
-            exported = torch.export.export(model_obj, self.example)
-            # Decompose autocast regions and preserve DISK's padding through functionalization.
-            return convert_model(exported.run_decompositions())
-        return super().convert_model_impl(model_obj)
 
     @pytest.mark.nightly
     @pytest.mark.parametrize("name,input_shape,mode", [

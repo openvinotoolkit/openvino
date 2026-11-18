@@ -321,6 +321,23 @@ TEST_BODY(NegativePadFusionConvolution) {
     // Reference function is equal to function
 }
 
+TEST_BODY(NegativePadFusionConvolutionSameAutoPad) {
+    auto data = std::make_shared<Parameter>(element::f32, PartialShape{1, 3, -1, -1});
+    auto pads_begin = Constant::create(element::i32, Shape{4}, {0, 0, 0, 0});
+    auto pads_end = Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
+    auto pad = pad_factory->create(data, pads_begin, pads_end, op::PadMode::CONSTANT);
+    auto filters = std::make_shared<Parameter>(element::f32, Shape{1, 3, 4, 4});
+    auto conv = std::make_shared<Convolution>(pad,
+                                              filters,
+                                              Strides{1, 1},
+                                              CoordinateDiff{0, 0},
+                                              CoordinateDiff{0, 0},
+                                              Shape{1, 1},
+                                              op::PadType::SAME_UPPER);
+    model = std::make_shared<Model>(OutputVector{conv}, ParameterVector{data, filters});
+    manager.register_pass<ov::pass::PadFusion>();
+}
+
 TEST_BODY(PadFusionConvolutionBackpropData) {
     Shape data_shape{1, 3, 14, 14};
     {
@@ -827,6 +844,7 @@ std::vector<TestModelFactoryPtr> model_factories = {
     CREATE_MODEL_FACTORY(NegativePadFusionAvgPoolExcludePad),
     CREATE_MODEL_FACTORY(NegativePadFusionAvgPoolDontExcludePad),
     CREATE_MODEL_FACTORY(NegativePadFusionConvolution),
+    CREATE_MODEL_FACTORY(NegativePadFusionConvolutionSameAutoPad),
     CREATE_MODEL_FACTORY(NegativePadFusionGroupConvolution)};
 
 #undef CREATE_PAD_FACTORY
