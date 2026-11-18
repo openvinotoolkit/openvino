@@ -90,14 +90,14 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
     auto mem_output_scale = p.get_engine().allocate_memory(scales_layout, false);
     auto mem_output_shift = p.get_engine().allocate_memory(scales_layout, false);
 
-    auto get_offset_safe = [](const layout& l, const tensor& idx) -> tensor::value_type {
-        auto sizes = l.get_tensor();
-        auto pitches = l.get_pitches();
-
-        return (idx.batch[0] % sizes.batch[0])*pitches[0]
-                    + (idx.feature[0] % sizes.feature[0])*pitches[1]
-                    + (idx.spatial[1] % sizes.spatial[1])*pitches[2 + 0]   // y
-                    + (idx.spatial[0] % sizes.spatial[0])*pitches[2 + 1];  // x
+    // Returns the linear offset of idx in layout l, broadcasting dimensions of size 1.
+    auto get_offset_safe = [](const layout& l, const tensor& idx) -> size_t {
+        const auto sizes = l.get_tensor();
+        tensor safe_idx(0);
+        for (size_t i = 0; i < safe_idx.raw.size(); i++) {
+            safe_idx.raw[i] = sizes.raw[i] > 0 ? idx.raw[i] % sizes.raw[i] : 0;
+        }
+        return l.get_linear_offset(safe_idx);
     };
 
     auto lock_memory = [&stream] (memory::ptr memory, std::function<void(std::size_t, float)>& set_data,
@@ -185,34 +185,42 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
     auto primitive = quantize_node.get_primitive();
     int levels = primitive->levels;
 
-    for (int b = 0; b < scales_layout.batch(); b++) {
-        for (int f = 0; f < scales_layout.feature(); f++) {
-            for (int y = 0; y < scales_layout.spatial(1); y++) {
-                for (int x = 0; x < scales_layout.spatial(0); x++) {
-                    auto idx = cldnn::tensor(format::bfyx, {b, f, y, x}, 0);
-                    auto s_offset = scales_layout.get_linear_offset(idx);
-                    float in_lo = get_data_input_low(get_offset_safe(mem_input_low->get_layout(), idx));
-                    float in_hi = get_data_input_high(get_offset_safe(mem_input_high->get_layout(), idx));
+    // Visit every element of the scales tensor regardless of its rank (b, f and all spatial dimensions).
+    const auto scales_size = scales_layout.get_tensor();
+    const auto in_lo_layout = mem_input_low->get_layout();
+    const auto in_hi_layout = mem_input_high->get_layout();
+    const auto out_lo_layout = mem_output_low->get_layout();
+    const auto out_hi_layout = mem_output_high->get_layout();
+    const size_t scales_count = scales_size.count();
+    for (size_t i = 0; i < scales_count; i++) {
+        tensor idx(0);
+        size_t rem = i;
+        for (size_t d = idx.raw.size(); d-- > 0;) {
+            const auto dim = static_cast<size_t>(std::max<tensor::value_type>(scales_size.raw[d], 1));
+            idx.raw[d] = static_cast<tensor::value_type>(rem % dim);
+            rem /= dim;
+        }
 
-                    float out_lo = get_data_output_low(get_offset_safe(mem_output_low->get_layout(), idx));
-                    float out_hi = get_data_output_high(get_offset_safe(mem_output_high->get_layout(), idx));
-                    float in_shift_basic = (static_cast<float>(levels) - 1.f) / (in_hi - in_lo);
-                    set_data_input_scale(s_offset, in_shift_basic);
-                    set_data_input_shift(s_offset, -in_lo * in_shift_basic);
-                    set_data_output_scale(s_offset, (out_hi - out_lo) / (static_cast<float>(levels) - 1.f));
-                    set_data_output_shift(s_offset, out_lo);
+        auto s_offset = scales_layout.get_linear_offset(idx);
+        float in_lo = get_data_input_low(get_offset_safe(in_lo_layout, idx));
+        float in_hi = get_data_input_high(get_offset_safe(in_hi_layout, idx));
 
-                    if (get_data_output_scale(s_offset) != 1.0f) {
-                        need_post_scale = true;
-                    }
-                    if (get_data_output_shift(s_offset) != 0.0f) {
-                        need_post_shift = true;
-                    }
-                    if (get_data_input_scale(s_offset) < 0.0f) {
-                        has_negative_scales = true;
-                    }
-                }
-            }
+        float out_lo = get_data_output_low(get_offset_safe(out_lo_layout, idx));
+        float out_hi = get_data_output_high(get_offset_safe(out_hi_layout, idx));
+        float in_shift_basic = (static_cast<float>(levels) - 1.f) / (in_hi - in_lo);
+        set_data_input_scale(s_offset, in_shift_basic);
+        set_data_input_shift(s_offset, -in_lo * in_shift_basic);
+        set_data_output_scale(s_offset, (out_hi - out_lo) / (static_cast<float>(levels) - 1.f));
+        set_data_output_shift(s_offset, out_lo);
+
+        if (get_data_output_scale(s_offset) != 1.0f) {
+            need_post_scale = true;
+        }
+        if (get_data_output_shift(s_offset) != 0.0f) {
+            need_post_shift = true;
+        }
+        if (get_data_input_scale(s_offset) < 0.0f) {
+            has_negative_scales = true;
         }
     }
 
@@ -545,11 +553,15 @@ bool prepare_quantization::optimize_quantize(program &p, quantize_node& quantize
     return true;
 }
 
-static void optimize_weights_decompression_parameters(fully_connected_node& fc_node, program& p) {
+std::vector<program_node*> cldnn::reorder_fc_decompression_params_if_needed(fully_connected_node& fc_node, program& p) {
     auto fc_prim = fc_node.get_primitive();
+    std::vector<program_node*> new_reorders;
     // Grouped scale/zp of non-transposed weights [K, N] are [K / G, N], so they already have the [groups, N] physical layout.
     if (!fc_prim->compressed_weights || !fc_prim->weights_transposed)
-        return;
+        return new_reorders;
+    // The reorder below assumes NK / KN weight ranks.
+    if (fc_prim->weights_layout == ov::intel_gpu::op::FcWeightsLayout::GNK)
+        return new_reorders;
 
     auto reorder_bfyx = [&](size_t dep_id, cldnn::format format) {
         auto& dep = fc_node.get_dependency(dep_id);
@@ -558,6 +570,7 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
         auto reorder_prim = std::make_shared<reorder>(dep.id() + "_reorder_" + fc_node.id(), dep.id(), target_layout);
         p.add_intermediate(reorder_prim, fc_node, dep_id, true);
         fc_node.get_dependency(dep_id).recalc_output_layout(false);
+        new_reorders.push_back(&fc_node.get_dependency(dep_id));
     };
 
     auto need_reorder = [&](size_t dep_id, size_t weight_rank, bool transpose_b_param) {
@@ -593,18 +606,32 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
     if (weight_rank == 3)
       format = format::byfx;
 
+    // Already in the target layout (e.g. reordered earlier): a second reorder would be a no-op.
+    auto reorder_needed = [&](size_t dep_id, bool transpose_b_param) {
+        return need_reorder(dep_id, weight_rank, transpose_b_param) && fc_node.get_input_layout(dep_id).format != format;
+    };
+
     auto decompression_scale_idx = !fc_node.bias_term() ? 2 : 3;
     // OCL/oneDNN kernel requires decompression scale/zp in layout where scale_ofm dimension is innermost
-    if (need_reorder(decompression_scale_idx, weight_rank, fc_prim->transpose_b_scale)) {
+    if (reorder_needed(decompression_scale_idx, fc_prim->transpose_b_scale)) {
         reorder_bfyx(decompression_scale_idx, format);
     }
 
     if (fc_prim->decompression_zero_point.is_valid()) {
         auto decompression_zp_idx = decompression_scale_idx + 1;
-        if (need_reorder(decompression_zp_idx, weight_rank, fc_prim->transpose_b_zp)) {
+        if (reorder_needed(decompression_zp_idx, fc_prim->transpose_b_zp)) {
             reorder_bfyx(decompression_zp_idx, format);
         }
     }
+    return new_reorders;
+}
+
+static void optimize_weights_decompression_parameters(fully_connected_node& fc_node, program& p) {
+    // u2: whether scale/zp need a reorder depends on the selected impl (CM takes them as they are); decided in select_preferred_formats.
+    if (defer_u2_decompression_reorder(fc_node))
+        return;
+
+    reorder_fc_decompression_params_if_needed(fc_node, p);
 }
 
 // Reorder per-group scales/zp to byfx so physical layout is [E, G, N, 1] (N innermost for SIMD reads).

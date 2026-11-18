@@ -161,6 +161,8 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
     // if loadSuccess will get the optimalNum requset of per device, in this test is 2;
     EXPECT_CALL(*mockIExeNet.get(), get_property(StrEq(ov::optimal_number_of_infer_requests.name())))
         .Times(loadSuccessCount);
+    // only logged by AUTO after a compile
+    EXPECT_CALL(*mockIExeNet.get(), get_property(StrEq(ov::loaded_from_cache.name()))).Times(AnyNumber());
     EXPECT_CALL(*mockIExeNet.get(), create_infer_request()).Times(loadSuccessCount * 2);
     if (continueRun) {
         OV_ASSERT_NO_THROW(plugin->compile_model(model, config));
