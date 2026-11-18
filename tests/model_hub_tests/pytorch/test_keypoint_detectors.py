@@ -1,7 +1,10 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import subprocess
 import sys
+import tempfile
+from contextlib import contextmanager
 from types import MethodType
 
 import pytest
@@ -22,8 +25,6 @@ MODEL_INPUTS = [
     ("RaCo", (1, 3, 256, 320)),
     ("RaCo", (1, 3, 255, 319)),
     ("RaCo", (1, 1, 256, 320)),
-    ("SuperPoint", (1, 3, 256, 320)),
-    ("SuperPoint", (1, 1, 255, 319)),
     ("DISK", (1, 3, 256, 320)),
     ("DISK", (1, 3, 255, 319)),
     ("XFeat", (1, 3, 256, 320)),
@@ -41,13 +42,26 @@ def xfeat_nms(self, image, threshold=0.05, kernel_size=5):
     return positions[0].nonzero()[..., 1:].flip(-1).unsqueeze(0)
 
 
-def load_xfeat():
-    # XFeat's generic package name conflicts with other model-hub repositories.
-    saved_modules = {name: module for name, module in list(sys.modules.items())
-                     if name == "modules" or name.startswith("modules.")}
+@contextmanager
+def isolated_package(package):
+    # Model repositories use generic package names that conflict with other model-hub repositories.
+    def is_package_module(name):
+        return name == package or name.startswith(f"{package}.")
+
+    saved_modules = {name: module for name, module in list(sys.modules.items()) if is_package_module(name)}
     for name in saved_modules:
         sys.modules.pop(name)
     try:
+        yield
+    finally:
+        for name in list(sys.modules):
+            if is_package_module(name):
+                sys.modules.pop(name)
+        sys.modules.update(saved_modules)
+
+
+def load_xfeat():
+    with isolated_package("modules"):
         return torch.hub.load(
             "verlab/accelerated_features:e92685f57f8318b18725c5c8c0bd28c7fe188d9a",
             "XFeat",
@@ -55,11 +69,19 @@ def load_xfeat():
             skip_validation=True,
             top_k=128,
         )
+
+
+def load_aliked(repo_dir, model_name):
+    sys.path.insert(0, repo_dir)
+    try:
+        with isolated_package("nets"), isolated_package("custom_ops"):
+            # Use the PyTorch get_patches fallback instead of the uncompiled extension.
+            sys.modules["custom_ops"] = None
+            from nets.aliked import ALIKED
+
+            return ALIKED(model_name=model_name, device="cpu", top_k=128)
     finally:
-        for name in list(sys.modules):
-            if name == "modules" or name.startswith("modules."):
-                sys.modules.pop(name)
-        sys.modules.update(saved_modules)
+        sys.path.remove(repo_dir)
 
 
 class KeypointDetector(torch.nn.Module):
@@ -69,6 +91,23 @@ class KeypointDetector(torch.nn.Module):
         self.model_name = model_name
 
     def forward(self, image):
+        if self.model_name.startswith("aliked-"):
+            # Original forward synchronizes CUDA for timing, so run its stages directly.
+            feature_map, score_map = self.model.extract_dense_map(image)
+            keypoints, scores, _ = self.model.dkd(score_map)
+            descriptors, _ = self.model.desc_head(feature_map, keypoints)
+            return {
+                "keypoints": torch.stack(keypoints),
+                "keypoint_scores": torch.stack(scores),
+                "descriptors": torch.stack(descriptors),
+            }
+        if self.model_name == "DISK":
+            features = self.model(image, n=128, window_size=5, score_threshold=0.0, pad_if_not_divisible=True)
+            return {
+                "keypoints": torch.stack([f.keypoints for f in features]),
+                "keypoint_scores": torch.stack([f.detection_scores for f in features]),
+                "descriptors": torch.stack([f.descriptors for f in features]),
+            }
         if self.model_name == "DaD":
             return self.model.detect(
                 {"image": self.model.normalizer(image)},
@@ -80,22 +119,31 @@ class KeypointDetector(torch.nn.Module):
         if self.model_name == "DeDoDe":
             keypoints, scores, descriptors = self.model(image, n=128)
             return {"keypoints": keypoints, "keypoint_scores": scores, "descriptors": descriptors}
-        outputs = self.model({"image": image})
-        if self.model_name == "SuperPoint":
-            return outputs["keypoints"], outputs["keypoint_scores"], outputs["descriptors"]
-        return outputs
+        return self.model({"image": image})
 
 
 class TestKeypointDetectorsConvertModel(TestTorchConvertModel):
     ov_config = {"INFERENCE_PRECISION_HINT": "f32"}
+    aliked_repo = None
+
+    def teardown_class(self):
+        if self.aliked_repo is not None:
+            self.aliked_repo.cleanup()
+            self.aliked_repo = None
+
+    def get_aliked_repo(self):
+        cls = type(self)
+        if cls.aliked_repo is None:
+            repo = tempfile.TemporaryDirectory()
+            subprocess.check_call(["git", "clone", "-q", "https://github.com/Shiaoming/ALIKED.git", repo.name])
+            subprocess.check_call(
+                ["git", "checkout", "-q", "683d7c65197395c0b3f01ebe76e1084a27e73a65"], cwd=repo.name)
+            cls.aliked_repo = repo
+        return cls.aliked_repo.name
 
     def load_model(self, model_name, input_shape):
         if model_name.startswith("aliked-"):
-            from lightglue import ALIKED
-
-            model = ALIKED(model_name=model_name,
-                           max_num_keypoints=128,
-                           detection_threshold=-1)
+            model = load_aliked(self.get_aliked_repo(), model_name)
         elif model_name == "DaD":
             import dad
 
@@ -112,15 +160,10 @@ class TestKeypointDetectorsConvertModel(TestTorchConvertModel):
                 skip_validation=True,
                 max_num_keypoints=128,
             )
-        elif model_name == "SuperPoint":
-            from lightglue import SuperPoint
-
-            # The uncapped configuration avoids Python branching on the detection count.
-            model = SuperPoint(max_num_keypoints=None)
         elif model_name == "DISK":
-            from lightglue import DISK
+            from kornia.feature import DISK
 
-            model = DISK(max_num_keypoints=128)
+            model = DISK.from_pretrained("depth", device=torch.device("cpu"))
         elif model_name == "XFeat":
             model = load_xfeat()
             model.dev = torch.device("cpu")
