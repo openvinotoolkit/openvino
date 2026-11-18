@@ -19,14 +19,17 @@ class Qwen3TTSProjector {
 public:
     explicit Qwen3TTSProjector(GgufGraphContext& graph) : g(graph) {}
 
-    void build() {
+    ModelComponentGroup build() {
         code_predictor();
         waveform();
+        return {"predictor", {{"predictor", {predictor_outputs, ""}}, {"codec", {codec_outputs, ""}}}};
     }
 
 private:
     GgufGraphContext& g;
     size_t constant_id = 0;
+    std::vector<std::string> predictor_outputs;
+    std::vector<std::string> codec_outputs;
 
     GgufValue constant(const std::vector<float>& values, const ov::Shape& shape) {
         ov::Tensor tensor(ov::element::f32, shape);
@@ -182,7 +185,9 @@ private:
             }
             if (pos) {
                 auto logits = g.node("GGML_OP_MUL_MAT", {table(head, pos - 1), norm(x, root + "output_norm", eps)});
-                g.set_output(logits, "gen_audio.logits." + std::to_string(pos - 1));
+                const auto name = "gen_audio.logits." + std::to_string(pos - 1);
+                g.set_output(logits, name);
+                predictor_outputs.push_back(name);
                 auto random =
                     g.add_input("gen_audio.random." + std::to_string(pos - 1), ov::element::f32, {1, 1, 1, 1});
                 previous = sample(logits, random);
@@ -192,13 +197,16 @@ private:
         }
         g.set_output(current_codes, "gen_audio.codes");
         g.set_output(feedback, "gen_audio.embeddings");
+        predictor_outputs.insert(predictor_outputs.end(), {"gen_audio.codes", "gen_audio.embeddings"});
     }
 
     GgufValue state(const std::string& name, int64_t channels, int64_t length) {
         return g.add_input("gen_audio.state_in." + name, ov::element::f32, {1, channels, 1, length});
     }
     void update(const std::string& name, const GgufValue& value) {
-        g.set_output(value, "gen_audio.state_out." + name);
+        const auto output = "gen_audio.state_out." + name;
+        g.set_output(value, output);
+        codec_outputs.push_back(output);
     }
     GgufValue causal_conv(GgufValue x,
                           const std::string& base,
@@ -353,6 +361,7 @@ private:
         x = causal_conv(snake(x, root + "dac.post_snake"), root + "dac.post_conv", 1, "dac_post_conv");
         x = g.node("GGML_OP_CLAMP", {x}, 0, {{"clamp_min", -1.f}, {"clamp_max", 1.f}});
         g.set_output(reshape(x, {-1}), "gen_audio.waveform");
+        codec_outputs.push_back("gen_audio.waveform");
     }
 };
 

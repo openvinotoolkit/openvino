@@ -12,6 +12,7 @@
 #include "builder/arch/projector_adapter.hpp"
 #include "model_adapter_attribute.hpp"
 #include "model_contract.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/constant.hpp"
@@ -185,17 +186,23 @@ ModelAdapterResult adapt_mmproj(const std::shared_ptr<ov::Model>& model,
         model->remove_result(result);
     auto embeddings = std::make_shared<ov::op::v0::Squeeze>(selected->input_value(0),
                                                             ov::op::v0::Constant::create(ov::element::i64, {1}, {0}));
+    ov::copy_runtime_info({selected, selected->input_value(0).get_node_shared_ptr()}, embeddings);
     if (output_names.size() > 1) {
         auto split = std::make_shared<ov::op::v1::Split>(embeddings,
                                                          ov::op::v0::Constant::create(ov::element::i64, {}, {2}),
                                                          output_names.size());
+        ov::copy_runtime_info(embeddings, split);
         for (size_t i = 0; i < output_names.size(); ++i) {
             split->output(i).set_names({output_names[i]});
-            model->add_results({std::make_shared<ov::op::v0::Result>(split->output(i))});
+            auto result = std::make_shared<ov::op::v0::Result>(split->output(i));
+            ov::copy_runtime_info(selected, result);
+            model->add_results({result});
         }
     } else {
         embeddings->output(0).set_names({output_names.front()});
-        model->add_results({std::make_shared<ov::op::v0::Result>(embeddings)});
+        auto result = std::make_shared<ov::op::v0::Result>(embeddings);
+        ov::copy_runtime_info(selected, result);
+        model->add_results({result});
     }
     model->add_results(retained_results);
     PruneParametersOrphanedSince(live_before).run_on_model(model);
