@@ -155,7 +155,11 @@ validation on the Windows machine.
 
 The local VSTest settings select the Microsoft adapter's legacy discovery/execution
 path (`UseNewTestExecutionFramework=false`) and disable test source-location lookup
-(`ParseSymbolInformation=false`, `ShowFixtureMethodNode=false`). This is a
+(`ParseSymbolInformation=false`). Do not add `ShowFixtureMethodNode`: the schema
+embedded in adapter 1.17.0.38 does not support it, and an unsupported setting can
+cause the entire adapter settings section to be discarded in favor of defaults.
+Validate settings against the installed adapter's embedded
+`GoogleTestAdapterSettings.xsd`, not just the current upstream schema. This is a
 compatibility experiment for the observed `NewCreateTestcases` /
 `Path.GetFullPath` discovery exception, not a confirmed end-to-end fix.
 These settings affect the test adapter only: the coverage collector still uses

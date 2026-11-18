@@ -109,7 +109,6 @@ try {
     <SolutionSettings><Settings>
       <UseNewTestExecutionFramework>false</UseNewTestExecutionFramework>
       <ParseSymbolInformation>false</ParseSymbolInformation>
-      <ShowFixtureMethodNode>false</ShowFixtureMethodNode>
     </Settings></SolutionSettings>
   </GoogleTestAdapterSettings>
   <DataCollectionRunSettings><DataCollectors>
