@@ -1,0 +1,46 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-11-18-11-07-10-000-44286469583",
+    "timestamp": "2026-11-18T11:07:10Z",
+    "run_id": "44286469583",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44286469583",
+    "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+    "commit_sha": "123ac8411a97b0841e9847990ed6bf20cb71e4f4",
+    "pr_number": "39944",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39944",
+    "author": "dependabot[bot]",
+    "category": "Infrastructure",
+    "title": "Windows CC build job step is cancelled mid-compilation with no compiler/linker error",
+    "signature": "Windows CC build job step is cancelled mid-compilation with no compiler/linker error, logged only as the operation was canceled, causing downstream artifact upload steps to fail with no files found|Infrastructure",
+    "signature_hash": "73496f939a352d74",
+    "confidence": "Medium",
+    "failed_jobs": [
+        {
+            "name": "Build_And_Run_Collect_Mode",
+            "conclusion": "failure",
+            "symptom": "Step 'Cmake build - CC COLLECT' (step #12) ran from 10:39:57Z and was abruptly cancelled at 10:43:52Z (~4 minutes in) with only '##[error]The operation was canceled.' - no compiler error, no linker error, no OOM/C1060/LNK1102 message. The log simply stops mid-line while compiling src/plugins/template/test... and the step conclusion is 'cancelled', distinct from a normal build failure."
+        },
+        {
+            "name": "Upload OpenVINO package / Upload OpenVINO PDB package / Upload selective build statistics package",
+            "conclusion": "failure",
+            "symptom": "Three subsequent upload-artifact steps fail with 'No files were found with the provided path' for openvino_package.zip, openvino_pdb.zip, and openvino_selective_build_stat.zip - a direct downstream consequence of the build step being cancelled before Pack Artifacts ran (that step shows conclusion 'skipped')."
+        }
+    ],
+    "key_errors": [
+        "2026-11-18T10:43:52.4311187Z C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\plugins\\template\\test",
+        "2026-11-18T10:43:52.4591593Z ##[error]The operation was canceled.",
+        "2026-11-18T10:43:53.3487847Z ##[error]No files were found with the provided path: C:\\actions-runner\\_work\\openvino\\openvino\\openvino_build/openvino_package.zip. No artifacts will be uploaded.",
+        "2026-11-18T10:43:53.6329155Z ##[error]No files were found with the provided path: C:\\actions-runner\\_work\\openvino\\openvino\\openvino_build/openvino_pdb.zip. No artifacts will be uploaded.",
+        "2026-11-18T10:43:53.9079856Z ##[error]No files were found with the provided path: C:\\actions-runner\\_work\\openvino\\openvino\\openvino_build/openvino_selective_build_stat.zip. No artifacts will be uploaded."
+    ],
+    "root_cause": "The job's own 'Cmake build - CC COLLECT' step was cancelled by GitHub Actions roughly 4 minutes into the ninja/MSVC build, with no compiler or linker diagnostic preceding the cancellation - this is not the previously recorded linker-OOM pattern (signature 80cfa127185fbf3e, LNK1102), since there is no out-of-memory message at all, nor a stalled-job timeout (job ran only ~18 minutes total against a 300-minute job timeout and ~4 minutes into this specific step, so step/job timeouts are not the cause). A step-level 'operation was canceled' with no underlying tool error most often indicates either (a) an external cancellation signal reaching the job (the workflow's own concurrency group is scoped to github.run_id for push events specifically to avoid self-cancellation, so an in-workflow cancel is unlikely) or (b) the self-hosted AKS Windows runner pod itself being interrupted/evicted or losing its connection to the Actions service mid-step, which the runner surfaces to the step as a cancellation rather than a tool failure. The three Upload-artifact failures are a pure downstream consequence: Pack Artifacts never ran, so openvino_package.zip/openvino_pdb.zip/openvino_selective_build_stat.zip never existed, matching the if-no-files-found: error configuration in windows_conditional_compilation.yml. The triggering commit is a dependabot npm dependency bump in samples/js and src/bindings/js, with no C++/CMake/build-system changes, so the PR content is not implicated.",
+    "reproduction_steps": "N/A - not reproducible locally; this is a CI runner/infrastructure-level cancellation on the aks-win-32-cores-128gb-build self-hosted runner pool (runner aks-win-32-cores-128gb-build-nfzzl-runner-7hb6s) with no compiler/linker diagnostic captured before the cancellation.",
+    "recommended_actions": [
+        "Check AKS/self-hosted runner pool health and infrastructure events for the aks-win-32-cores-128gb-build pool around 2026-11-18T10:39:57Z-10:43:52Z (pod eviction, node drain, network blip to the Actions service).",
+        "Confirm no external actor (e.g. a superseding merge-queue run, concurrency-group cancellation, or manual cancel) issued a cancel_workflow_run/cancel_job call against run 44286469583 around 10:43:52Z.",
+        "If this recurs without an external cancellation cause, treat it as further evidence of instability in the aks-win-32-cores-128gb-build runner pool (related but distinct from the already-tracked LNK1102 and 'terminated mid-build' signatures) and escalate to CI infrastructure maintainers.",
+        "No fix is needed on the triggering PR (#39944, a dependabot npm bump) - it does not touch the Windows CC build/link configuration."
+    ],
+    "prevention_strategies": "Add a lightweight heartbeat/diagnostic step (disk space, memory, runner-agent connectivity) that logs just before and periodically during the long Windows CC build step, so a future bare 'operation was canceled' with no tool-level error can be correlated with concrete resource/connectivity evidence rather than requiring runner-platform log access. Continue tracking this as its own signature separate from the LNK1102 out-of-memory pattern so job-cancellation incidents are not conflated with genuine build out-of-memory failures.",
+    "historical_context": "This is the first recorded occurrence of this specific 'operation was canceled with no compiler/linker error' signature for the Windows Conditional Compilation workflow. It is related to, but distinct from, two existing patterns in the knowledge base: signature 80cfa127185fbf3e (9 occurrences, Windows CC build fails with LNK1102/C1060 out-of-memory errors under high parallelism - always preceded by an explicit OOM diagnostic) and signature afb479532c52bf68 (3 occurrences, 'Windows build job terminated mid-build with unavailable job logs' - that signature additionally lost all job logs via a 404, whereas this run's logs were fully retrievable up to the cancellation point)."
+}

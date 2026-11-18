@@ -1,0 +1,19 @@
+{
+    "schema_version": "1.0",
+    "signature": "Windows CC build job step is cancelled mid-compilation with no compiler/linker error, logged only as the operation was canceled, causing downstream artifact upload steps to fail with no files found|Infrastructure",
+    "signature_hash": "73496f939a352d74",
+    "title": "Windows CC build job step is cancelled mid-compilation with no compiler/linker error",
+    "category": "Infrastructure",
+    "count": 1,
+    "first_seen": "2026-11-18T11:07:10Z",
+    "last_seen": "2026-11-18T11:07:10Z",
+    "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/44286469583"
+    ],
+    "affected_commits": [
+        "123ac8411a97b0841e9847990ed6bf20cb71e4f4"
+    ],
+    "recent_timestamps": [
+        "2026-11-18T11:07:10Z"
+    ]
+}
