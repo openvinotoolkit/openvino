@@ -459,6 +459,24 @@ TEST(PARelayoutTokenMajor, MovesTheTokenCountOutOfTheBatchPosition) {
     }
 }
 
+// A dimension that is 1 in the token-major input but not in the output stays:
+// an operand broadcasts into it, or a MatMul contracts over it.
+TEST(PARelayoutTokenMajor, KeepsADimensionThatIsNotOneInTheOutput) {
+    constexpr std::size_t tokens = 8;
+    auto x =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{static_cast<int64_t>(tokens), 4, 1});
+    auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4}, std::vector<float>{1.f, 2.f, 3.f, 4.f});
+    auto broadcast = std::make_shared<ov::op::v1::Multiply>(x, scale);
+    auto row = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 8}, std::vector<float>(8, 0.5f));
+    auto outer = std::make_shared<ov::op::v0::MatMul>(x, row);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{broadcast, outer}, ov::ParameterVector{x});
+    const auto ops = model->get_ops().size();
+    ov::npuw::pa::relayout_token_major(model, tokens);
+    EXPECT_EQ(model->get_ops().size(), ops);
+    EXPECT_EQ(broadcast->get_input_shape(0), (ov::Shape{tokens, 4, 1}));
+    EXPECT_EQ(outer->get_input_shape(0), (ov::Shape{tokens, 4, 1}));
+}
+
 TEST(PARelayoutTokenMajor, LeavesTheOneTokenVariantAlone) {
     auto model = make_token_major_model(1);
     const auto ops = model->get_ops().size();
