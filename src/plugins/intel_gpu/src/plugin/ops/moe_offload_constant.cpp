@@ -317,8 +317,7 @@ uint64_t get_model_resident_constant_bytes(const ov::Model& model, size_t offloa
                 }
 
                 const size_t resident_experts = std::min<size_t>(shape[0], slot_count);
-                const uint64_t bytes_per_expert =
-                    (constant_resident_bytes / shape[0]) + (constant_resident_bytes % shape[0] != 0 ? 1 : 0);
+                const uint64_t bytes_per_expert = (constant_resident_bytes / shape[0]) + (constant_resident_bytes % shape[0] != 0 ? 1 : 0);
                 constant_resident_bytes = bytes_per_expert * resident_experts;
             }
             // Per-expert scales and zero points stay resident and also have slot copies
@@ -392,12 +391,7 @@ void limit_streams_for_moe_offload(ExecutionConfig& config, const ov::Model& mod
     bool derived_streams = false;
     if (streams_it != user_properties.end()) {
         const int32_t streams = streams_it->second.as<ov::streams::Num>();
-        OPENVINO_ASSERT(streams <= 1,
-                        "[GPU] OFFLOAD_RATIO=",
-                        offload_ratio,
-                        " supports a single stream only, but NUM_STREAMS=",
-                        streams,
-                        " is requested");
+        OPENVINO_ASSERT(streams <= 1, "[GPU] OFFLOAD_RATIO=", offload_ratio, " supports a single stream only, but NUM_STREAMS=", streams, " is requested");
         derived_streams = streams < 0;
     } else {
         const auto mode_it = user_properties.find(ov::hint::performance_mode.name());

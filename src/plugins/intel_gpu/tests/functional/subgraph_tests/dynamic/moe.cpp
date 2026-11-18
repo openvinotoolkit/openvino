@@ -7,6 +7,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/node_builders/moe_builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -344,6 +345,21 @@ private:
 
 TEST_P(MoECompressedOffloadTest, Inference) {
     run();
+}
+
+// An offloaded layer supports a single stream: it is rejected or avoided at compilation, not at the first inference
+TEST_P(MoECompressedOffloadTest, SingleStream) {
+    auto explicit_streams = configuration;
+    explicit_streams[ov::num_streams.name()] = ov::streams::Num(2);
+    OV_EXPECT_THROW(core->compile_model(function, targetDevice, explicit_streams), ov::Exception, testing::HasSubstr("supports a single stream only"));
+
+    auto throughput = configuration;
+    throughput[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::THROUGHPUT;
+    auto model = core->compile_model(function, targetDevice, throughput);
+    EXPECT_EQ(model.get_property(ov::num_streams), ov::streams::Num(1));
+    auto request = model.create_infer_request();
+    request.set_input_tensor(ov::test::utils::create_and_fill_tensor_normal_distribution(ov::element::f16, ov::Shape{1, 4, 256}, 0.0f, 0.05f, 1234));
+    OV_ASSERT_NO_THROW(request.infer());
 }
 
 // OFFLOAD_RATIO 50 keeps 4 of the 8 experts resident (= top_k), 75 keeps 2, so every step falls back.

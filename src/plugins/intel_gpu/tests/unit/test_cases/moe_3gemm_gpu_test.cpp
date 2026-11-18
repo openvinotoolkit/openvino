@@ -830,9 +830,9 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
                                        input_info("w2_scale"),
                                        input_info("w2_zp")};
 
-    // Offload: resident slots are refilled from a weights file holding the same tensors in plugin order
-    // (weights, scales, zero points for gate/up/down). One quantization group per row keeps the file
-    // layout identical to the device layout.
+    // Offload: resident slots are refilled from a weights file holding the routed weights (gate/up/down) in plugin order.
+    // Scales and zero points are not streamed: they stay resident and the slot copies are made from them.
+    // One quantization group per row keeps the file layout identical to the device layout.
     std::vector<size_t> weight_bin_offsets;
     // One file per test process: parallel test runners execute these cases at the same time.
     auto weights_path = std::filesystem::temp_directory_path() / (ov::test::utils::generateTestFilePrefix() + "_moe_3gemm_otd_weights.bin");
@@ -855,12 +855,6 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
         append(w0_q_packed.data(), w0_q_packed.size());
         append(w1_q_packed.data(), w1_q_packed.size());
         append(w2_q_packed.data(), w2_q_packed.size());
-        append(w0_scale.data(), w0_scale.size() * sizeof(ov::float16));
-        append(w1_scale.data(), w1_scale.size() * sizeof(ov::float16));
-        append(w2_scale.data(), w2_scale.size() * sizeof(ov::float16));
-        append(w0_zp_packed.data(), w0_zp_packed.size());
-        append(w1_zp_packed.data(), w1_zp_packed.size());
-        append(w2_zp_packed.data(), w2_zp_packed.size());
     }
 
     topology.add(moe_3gemm_fused_compressed("moe_3gemm_fused_compressed",
@@ -886,7 +880,9 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
     const size_t slot_id_bytes = config.seq_len * config.top_k * sizeof(uint32_t);
     const bool fits_resident_slots =
         config.seq_len * config.top_k <= param.lru_expert_num || (param.routed_experts > 0 && param.routed_experts <= param.lru_expert_num);
-    const bool reads_slot_ids = config.seq_len <= 32 || param.micro_gemm_prefill;
+    // An offloaded layer never runs the micro-GEMM prefill (it reads the scales / zero points of every expert, not of the
+    // slots): with it requested, the per-expert oneDNN prefill runs and reads no slot ids.
+    const bool reads_slot_ids = config.seq_len <= 32;
     const bool checks_slot_ids = param.lru_expert_num > 0 && fits_resident_slots && reads_slot_ids;
     // SigmoidBias routing performs all routing math (sigmoid, bias, normalization) in f16 on the kernel side,
     // while the reference uses f32, leading to slightly larger numerical divergence than Softmax.

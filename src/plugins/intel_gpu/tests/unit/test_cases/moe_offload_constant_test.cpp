@@ -552,7 +552,8 @@ TEST(moe_offload_constant, streams_of_offloaded_moe_are_limited_at_compilation) 
     auto explicit_streams = config_with(50, {ov::num_streams(2)});
     OV_EXPECT_THROW(limit_streams_for_moe_offload(explicit_streams, model), ov::Exception, testing::HasSubstr("supports a single stream only"));
 
-    for (const auto& derived : {ov::AnyMap{ov::num_streams(ov::streams::AUTO)}, ov::AnyMap{ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}}) {
+    for (const auto& derived :
+         {ov::AnyMap{ov::num_streams(ov::streams::AUTO)}, ov::AnyMap{ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}}) {
         auto config = config_with(50, derived);
         limit_streams_for_moe_offload(config, model);
         EXPECT_EQ(streams_of(config), 1);
