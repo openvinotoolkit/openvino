@@ -121,15 +121,15 @@ Entries are trimmed of spaces; names are case-sensitive, like every OpenVINO
 device name. `TP_COMM_BUFFER_SIZE` larger than a device allocates
 at once is refused by name; below 512 bytes the GPU refuses it as too small.
 
-| Property                   | Type      | Default      | Description |
-|----------------------------|-----------|--------------|-------------|
-| `TP_STRATEGY`              | `string`  | `COLUMN_ROW` | Partitioning strategy (Megatron-style column/row parallelism; the only value). |
-| `COLLECTIVE_BACKEND`       | `string`  | `AUTO`       | Collective implementation of the rank devices' plugin, passed to it unchanged. GPU: `L0_P2P`; an unknown name is rejected with the valid ones. |
-| `COMMUNICATION_TIMEOUT_MS` | `int64_t` | `5000`       | Longest a rank waits inside a collective before the group is aborted. `0` waits forever; a negative value is rejected at `compile_model`. |
-| `TP_COMM_BUFFER_SIZE`      | `size_t`  | `0`          | Bytes of collective staging per rank, allocated once when the model is compiled. Larger messages are split into chunks. `0` lets the staging grow with the largest message. |
+| Property                      | Type      | Default      | Description |
+|-------------------------------|-----------|--------------|-------------|
+| `TP_STRATEGY`                 | `string`  | `COLUMN_ROW` | Partitioning strategy (Megatron-style column/row parallelism; the only value). |
+| `TP_COLLECTIVE_BACKEND`       | `string`  | `AUTO`       | Collective implementation of the rank devices' plugin, passed to it unchanged. GPU: `L0_P2P`; an unknown name is rejected with the valid ones. |
+| `TP_COMMUNICATION_TIMEOUT_MS` | `int64_t` | `5000`       | Longest a rank waits inside a collective before the group is aborted. `0` waits forever; a negative value is rejected at `compile_model`. |
+| `TP_COMM_BUFFER_SIZE`         | `size_t`  | `0`          | Bytes of collective staging per rank, allocated once when the model is compiled. Larger messages are split into chunks. `0` lets the staging grow with the largest message. |
 
 A collective needs all ranks to participate. If one rank never arrives or its
-device work never completes, `COMMUNICATION_TIMEOUT_MS` is what turns that into
+device work never completes, `TP_COMMUNICATION_TIMEOUT_MS` is what turns that into
 a thrown error instead of a frozen process: the group is marked failed, all
 waiting ranks are released and each of them throws. The compiled model is not
 reusable afterwards — the device queues may still hold unfinished work — so
@@ -360,7 +360,7 @@ as it is; please report it with the message.
 The error names the rank and the stage it gave up at. A rank that never
 arrives usually means the surrounding application is doing something
 uneven across ranks; device work that never completes usually means a
-driver-level problem. Raise `COMMUNICATION_TIMEOUT_MS` for very large
+driver-level problem. Raise `TP_COMMUNICATION_TIMEOUT_MS` for very large
 payloads on slow interconnects. The compiled model is not reusable after an
 abort.
 

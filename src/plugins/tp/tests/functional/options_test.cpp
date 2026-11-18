@@ -75,8 +75,8 @@ TEST(TPOptionsTest, ListsItsReleaseOptions) {
     for (const auto* name : {ov::device::priorities.name(),
                              ov::tp::tp_strategy.name(),
                              ov::tp::collective_backend.name(),
-                             ov::tp::internal::communication_timeout_ms.name(),
-                             ov::tp::internal::comm_buffer_size.name()}) {
+                             ov::tp::communication_timeout_ms.name(),
+                             ov::tp::comm_buffer_size.name()}) {
         EXPECT_TRUE(ov::util::contains(supported, name)) << name;
     }
     for (const auto* name : {ov::tp::input_stage_max_bytes.name(),
@@ -91,9 +91,9 @@ TEST(TPOptionsTest, RejectsANegativeTimeout) {
     ov::Core core;
     OV_EXPECT_THROW(core.compile_model(make_transformer_block(BlockConfig{}),
                                        "TP:" + rank_device_type() + ".0," + rank_device_type() + ".1",
-                                       {{ov::tp::internal::communication_timeout_ms.name(), int64_t{-1}}}),
+                                       {{ov::tp::communication_timeout_ms.name(), int64_t{-1}}}),
                     ov::Exception,
-                    HasSubstr("COMMUNICATION_TIMEOUT_MS"));
+                    HasSubstr("TP_COMMUNICATION_TIMEOUT_MS"));
 }
 
 class TPOptionsOnDevicesTest : public ::testing::Test {
@@ -118,7 +118,7 @@ TEST_F(TPOptionsOnDevicesTest, ACommBufferSizeReachesTheRankContexts) {
     const auto model = make_transformer_block(config);
     const auto input = make_block_input(config, 16);
     const auto whole = run(model, input);
-    const auto chunked = run(model, input, {{ov::tp::internal::comm_buffer_size.name(), size_t{4096}}});
+    const auto chunked = run(model, input, {{ov::tp::comm_buffer_size.name(), size_t{4096}}});
     expect_same_bits(whole, chunked);
 }
 
@@ -126,7 +126,7 @@ TEST_F(TPOptionsOnDevicesTest, ACommBufferSizeReachesTheRankContexts) {
 TEST_F(TPOptionsOnDevicesTest, RejectsAStagingLargerThanADeviceAllocates) {
     OV_EXPECT_THROW(core.compile_model(make_transformer_block(BlockConfig{}),
                                        tp_device(world_size),
-                                       {{ov::tp::internal::comm_buffer_size.name(), size_t{1} << 60}}),
+                                       {{ov::tp::comm_buffer_size.name(), size_t{1} << 60}}),
                     ov::Exception,
                     HasSubstr("TP_COMM_BUFFER_SIZE of 1152921504606846976 bytes is more than"));
 }

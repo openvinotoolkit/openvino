@@ -322,7 +322,7 @@ src/plugins/tp/
 ├── docs/                                   ← this directory
 ├── include/tp/
 │   ├── options.inl                         ← the option table (X-macro)
-│   ├── properties.hpp                      ← public-facing keys: TP_STRATEGY, COLLECTIVE_BACKEND
+│   ├── properties.hpp                      ← public-facing keys: TP_STRATEGY, TP_COLLECTIVE_BACKEND, TP_COMMUNICATION_TIMEOUT_MS, TP_COMM_BUFFER_SIZE
 │   ├── internal_properties.hpp             ← keys of the internal, tuning and debug options
 │   ├── tp_config.hpp                       ← TPConfig: typed getters, validation
 │   ├── tp_debug.hpp                        ← logging macros (TP_LOG_*, TP_WARN_ALWAYS, TP_REPORT)
@@ -564,7 +564,7 @@ Because nothing on the host waits for the device any more, a rank that dies
 would hang the group with no deadline to catch it. A watchdog thread, started
 on the first spliced collective, polls the completion events the recordings
 registered and aborts the group if nothing advances within
-`COMMUNICATION_TIMEOUT_MS`. It then signals every event of the group from the
+`TP_COMMUNICATION_TIMEOUT_MS`. It then signals every event of the group from the
 host -- peer events, gather ready events and completion events -- so the waiting queues
 drain. What they produced is garbage, so the inference that ran into it throws
 once its stream has drained (`Graph::throw_if_collectives_failed()` in
@@ -646,7 +646,7 @@ the context of one rank:
   and returns without waiting.
 
 Other accepted parameters: `TP_COMM_BUFFER_SIZE`,
-`COMMUNICATION_TIMEOUT_MS`, `DEVICE_ID` and the `GPU_TP_*` options.
+`TP_COMMUNICATION_TIMEOUT_MS`, `DEVICE_ID` and the `GPU_TP_*` options.
 `TP_CHANNELS` other than 1 is refused until it is implemented;
 any other parameter is an error.
 

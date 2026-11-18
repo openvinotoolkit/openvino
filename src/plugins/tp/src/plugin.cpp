@@ -412,7 +412,7 @@ void Plugin::check_rank_memory(const ov::Model& analyzed,
                                 .as<ov::tp::internal::DeviceMemory>();
         OPENVINO_ASSERT(staging <= memory.max_allocation,
                         "[TP] ",
-                        ov::tp::internal::comm_buffer_size.name(),
+                        ov::tp::comm_buffer_size.name(),
                         " of ",
                         staging,
                         " bytes is more than ",

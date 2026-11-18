@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <istream>
 #include <ostream>
 #include <string>
@@ -44,7 +46,14 @@ static constexpr Property<TPStrategy> tp_strategy{"TP_STRATEGY"};
 
 /// Collective implementation of the ranks' device plugin, passed to it unchanged. The device plugin
 /// defines the names, resolves "AUTO", and rejects names it does not know.
-static constexpr Property<std::string> collective_backend{"COLLECTIVE_BACKEND"};
+static constexpr Property<std::string> collective_backend{"TP_COLLECTIVE_BACKEND"};
+
+/// Milliseconds a rank waits inside a collective before the whole group is aborted; 0 waits indefinitely.
+static constexpr Property<int64_t> communication_timeout_ms{"TP_COMMUNICATION_TIMEOUT_MS"};
+
+/// Bytes of collective staging per rank, allocated once at compile_model; larger messages are split
+/// into chunks. 0 lets the staging grow with the largest message.
+static constexpr Property<size_t> comm_buffer_size{"TP_COMM_BUFFER_SIZE"};
 
 }  // namespace tp
 }  // namespace ov

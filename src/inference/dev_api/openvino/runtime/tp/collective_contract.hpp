@@ -200,7 +200,7 @@ static constexpr ov::Property<uint32_t> channels{"TP_CHANNELS"};
 static constexpr ov::Property<size_t> comm_buffer_size{"TP_COMM_BUFFER_SIZE"};
 
 /// Timeout of the setup rendezvous, the per-call rendezvous, and of collectives that do not complete.
-static constexpr ov::Property<int64_t> communication_timeout_ms{"COMMUNICATION_TIMEOUT_MS"};
+static constexpr ov::Property<int64_t> communication_timeout_ms{"TP_COMMUNICATION_TIMEOUT_MS"};
 
 // ---- compile_model() / import_model() config ----
 

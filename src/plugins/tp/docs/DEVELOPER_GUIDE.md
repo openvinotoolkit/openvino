@@ -75,7 +75,7 @@ They are plugin options, not bare environment reads: the table lives in
 getter, a default, validation, and environment support. An
 option's environment variable is `OV_` plus its property key.
 
-The device list (`"TP:GPU.0,GPU.1"`), `COMMUNICATION_TIMEOUT_MS` and
+The device list (`"TP:GPU.0,GPU.1"`), `TP_COMMUNICATION_TIMEOUT_MS` and
 `TP_COMM_BUFFER_SIZE` are
 documented in [USER_GUIDE.md § Configuration Properties](USER_GUIDE.md#configuration-properties).
 Everything below is reachable through the environment only.
@@ -443,7 +443,7 @@ put the same guard at the top of it:
   frees the old staging.
 
 If the hang is on the device rather than the host, the watchdog turns it into
-an abort after `COMMUNICATION_TIMEOUT_MS` and names the rank and the stage.
+an abort after `TP_COMMUNICATION_TIMEOUT_MS` and names the rank and the stage.
 
 ### "A collective produces zeros or NaNs"
 
