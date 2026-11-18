@@ -26,8 +26,8 @@
 #include "serialization.hpp"
 #include "spatial.hpp"
 #include "v1/subgraph_pipeline.hpp"
-#include "weights_context.hpp"
 #include "weights_bank.hpp"
+#include "weights_context.hpp"
 
 namespace intel_npu {
 class Plugin;
