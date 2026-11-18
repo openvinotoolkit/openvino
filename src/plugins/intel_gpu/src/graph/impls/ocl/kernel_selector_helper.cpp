@@ -972,6 +972,8 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
         return cldnn::format::giy_xs_os_xsv2_osv16__ao32;
     case kernel_selector::weights_layout::ioyx:
         return cldnn::format::ioyx;
+    case kernel_selector::weights_layout::gioyx:
+        return cldnn::format::gioyx;
     case kernel_selector::weights_layout::giozyx:
         return cldnn::format::giozyx;
     default:

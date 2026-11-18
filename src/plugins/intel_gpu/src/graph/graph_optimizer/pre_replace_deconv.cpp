@@ -44,6 +44,12 @@ void pre_replace_deconv::run(program& p) {
             const primitive_id deconv_node_id = deconv_node.id();
             const primitive_id& input_node_id = input_node.id();
 
+            // Grouped weights of a 1D deconvolution are 4D ([g, o, i, x], see get_deconvolution_weights_layout()). The replacements
+            // below read the filter size from the 2D view of the weights, so such a deconvolution is kept.
+            if (deconv_prim->grouped_weights_shape && filter_layout.get_rank() == 4) {
+                continue;
+            }
+
             // limit optimization to stride = 1
             // iterators shouldn't be used here because of incorrect iterator functionality in mutable_array_ref<>
             bool unit_stride = all_ones(deconv_prim->stride);
