@@ -25,6 +25,49 @@ function Invoke-TestTool {
     return $LASTEXITCODE
 }
 
+function Get-NpuCoverageSummary {
+    param([IO.FileInfo[]]$Reports, [string]$SourceRoot)
+    $hashes = @{}
+    $lines = @{}
+    $files = @{}
+    $modulesWithHits = @{}
+    $expectedModules = @('ov_npu_unit_tests', 'openvino_intel_npu_plugin')
+    foreach ($report in $Reports) {
+        $hash = (Get-FileHash $report.FullName -Algorithm SHA256).Hash
+        if ($hashes.ContainsKey($hash)) { continue }
+        $hashes[$hash] = $true
+        [xml]$coverage = Get-Content $report.FullName -Raw
+        foreach ($module in $coverage.coverage.packages.package) {
+            $name = [IO.Path]::GetFileNameWithoutExtension($module.name)
+            if ($name -notin $expectedModules) { continue }
+            foreach ($class in $module.classes.class) {
+                $path = $class.filename.Replace('\', '/')
+                if ($path -notmatch '^(?:.*?/)?(src/plugins/intel_npu/.*)$') { continue }
+                $source = $Matches[1]
+                if ($source -match '/(tests|thirdparty|\.\.)/' -or
+                    !(Test-Path -LiteralPath (Join-Path $SourceRoot $source) -PathType Leaf)) { continue }
+                foreach ($line in $class.lines.line) {
+                    $key = "${source}:$($line.number)"
+                    $hit = [long]$line.hits -gt 0
+                    $lines[$key] = $lines[$key] -or $hit
+                    $files[$source] = $true
+                    if ($hit) { $modulesWithHits[$name] = $true }
+                }
+            }
+        }
+    }
+    foreach ($name in $expectedModules) {
+        if (!$modulesWithHits.ContainsKey($name)) {
+            throw "No covered production NPU lines from $name; inspect source filters, PDBs and collector logs."
+        }
+    }
+    [pscustomobject]@{
+        Covered = @($lines.Values | Where-Object { $_ }).Count
+        Total = $lines.Count
+        Files = $files.Count
+    }
+}
+
 $PackageDir = (Resolve-Path $PackageDir).Path
 $modules = foreach ($name in @('ov_npu_unit_tests.exe', 'openvino_intel_npu_plugin.dll')) {
     $found = @(Get-ChildItem $PackageDir -Recurse -File -Filter $name)
@@ -81,7 +124,7 @@ try {
       <IncludeDirectories>$directories</IncludeDirectories>
     </ModulePaths>
     <Sources>
-      <Include><Source>.*[\\/]src[\\/]plugins[\\/]intel_npu[\\/].*</Source></Include>
+      <Include><Source>(^|.*[\\/])src[\\/]plugins[\\/]intel_npu[\\/].*</Source></Include>
       <Exclude><Source>.*[\\/]tests[\\/].*</Source><Source>.*[\\/]thirdparty[\\/].*</Source></Exclude>
     </Sources>
   </CodeCoverage>
@@ -138,13 +181,9 @@ try {
     }
     if ($Mode -ne 'Plain') {
         $reports = @(Get-ChildItem $ResultsDir -Recurse -File -Filter '*cobertura.xml')
-        $covered = 0
-        foreach ($report in $reports) {
-            [xml]$coverage = Get-Content $report.FullName -Raw
-            $covered += @($coverage.SelectNodes('/coverage/packages/package/classes/class/lines/line[@hits > 0]')).Count
-        }
-        if ($covered -eq 0) { throw 'No covered NPU source lines in Cobertura output; inspect collector logs.' }
-        Write-Host "Covered line entries (not deduplicated across modules): $covered"
+        $summary = Get-NpuCoverageSummary $reports (Resolve-Path "$PSScriptRoot/..").Path
+        Write-Host ("Unique production NPU lines covered: {0}/{1} in {2} files (EXE + DLL)" -f
+            $summary.Covered, $summary.Total, $summary.Files)
     }
     if ($result -ne 0) { throw "Test/collector exit code: $result. Reports have been preserved." }
     if ($failedTests -gt 0) { throw "$failedTests failed tests in XML results. Reports have been preserved." }

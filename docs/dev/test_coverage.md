@@ -150,8 +150,7 @@ its name parser truncates parameter names containing punctuation such as `[`.
 Distinct tests then collide and execution can fail in
 `CommandLineGenerator.GetFinalCommandLines` with
 `Sequence contains more than one matching element`. Microsoft's adapter uses a
-different parser that preserves these characters; end-to-end coverage still needs
-validation on the Windows machine.
+different parser that preserves these characters.
 
 The local VSTest settings select the Microsoft adapter's legacy discovery/execution
 path (`UseNewTestExecutionFramework=false`) and disable test source-location lookup
@@ -160,8 +159,8 @@ embedded in adapter 1.17.0.38 does not support it, and an unsupported setting ca
 cause the entire adapter settings section to be discarded in favor of defaults.
 Validate settings against the installed adapter's embedded
 `GoogleTestAdapterSettings.xsd`, not just the current upstream schema. This is a
-compatibility experiment for the observed `NewCreateTestcases` /
-`Path.GetFullPath` discovery exception, not a confirmed end-to-end fix.
+workaround for the observed `NewCreateTestcases` /
+`Path.GetFullPath` discovery exception, verified with adapter 1.17.0.38.
 These settings affect the test adapter only: the coverage collector still uses
 PDBs to map native code to source lines. No tests are intentionally filtered out.
 A Cobertura attachment from a failed discovery run alone is not evidence that
@@ -180,11 +179,20 @@ from the NuGet packages is **not** compatible with this command line.
 Every invocation writes to a new directory under `build-windows-npu-coverage/results`
 (override with `-ResultsDir`). It retains console logs, generated settings, test
 results and coverage diagnostics even when tests fail. Coverage modes request
-Cobertura and reject missing/zero-hit reports. Native stderr is logged as text so
+Cobertura and require covered production NPU lines from both modules. Native stderr is logged as text so
 Windows PowerShell 5.1 does not stop the child at its first error message; exit
-codes and XML results are still checked. Reports include production NPU
-sources from both the test EXE and plugin DLL, exclude test/third-party sources,
-and are not normalized/deduplicated for Codecov.
+codes and XML results are still checked. Source inclusion accepts both absolute
+paths and root-relative `src/plugins/intel_npu/...` paths: local MSVC builds use
+`/d1trimfile`, unlike GitHub Actions builds. Requiring a slash before `src`
+silently drops most production code, potentially leaving only generated sources.
+
+The summary merges lines by source path and line number across modules and report
+copies, retaining a hit if any copy has one. It counts only NPU production files
+present in the checkout containing the script, excluding tests, third-party and
+build-generated files. Raw Cobertura remains unchanged and is not ready for Codecov:
+the collector can retain inline STL/header entries despite its source filters,
+and VSTest can save the same report twice. The summary denominator is the source
+lines represented in the report, not all lines in the NPU source tree.
 
 All enabled NPU unit tests are selected, without the workflow's hardware/offline
 lane split or device checks. Inherited `GTEST_*` and `OV_DQ_TEST_DEVICE` variables
@@ -192,9 +200,12 @@ are cleared for the run; hardware roundtrip is not opted into. An NPU/driver is 
 a prerequisite, although individual tests may fail. Failures remain visible and
 produce a nonzero script exit after retaining available reports.
 
-These are local investigation helpers, not evidence that native coverage works
-with VS2022 Professional or the standalone packages. Start with `Plain` to
-separate runtime/test failures from adapter/collector failures.
+Native dynamic coverage has been verified with VS2022 Professional (MSVC 14.42),
+Microsoft.TestPlatform 18.0.0, Microsoft Google Test adapter 1.17.0.38 and Windows
+PowerShell 5.1: all 3090 enabled tests passed and both the test EXE and plugin DLL
+contributed coverage. This does not validate the static/Console alternatives or
+other tool versions. These remain local investigation helpers; start with `Plain`
+to separate runtime/test failures from adapter/collector failures.
 
 ## See also
  * [OpenVINO™ README](../../README.md)

@@ -452,6 +452,93 @@ if (!$missingRejected) { throw 'Missing executable was not rejected' }
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    @unittest.skipUnless(shutil.which("pwsh"), "PowerShell is required to validate local coverage summaries")
+    def test_local_runner_source_filters_and_summary(self):
+        raw = self.report()
+        tree = ET.parse(raw)
+        modules = tree.findall(".//package")
+        modules[0].find(".//class").set("filename", r"src\plugins\intel_npu\src\example.cpp")
+        modules[1].find(".//line[@number='1']").set("hits", "0")
+        modules[1].find(".//line[@number='2']").set("hits", "1")
+        for module in modules:
+            lines = module.find(".//class/lines")
+            ET.SubElement(lines, "line", {"number": "3", "hits": "0"})
+            classes = module.find("classes")
+            classes.append(ET.fromstring(ET.tostring(classes[0])))
+            for filename in ("src/plugins/intel_npu/tests/test.cpp",
+                             "build/src/plugins/intel_npu/src/generated.cpp",
+                             "src/plugins/intel_npu/thirdparty/vendor.cpp",
+                             "C:/MSVC/include/vector"):
+                cls = ET.SubElement(classes, "class", {"filename": filename})
+                ET.SubElement(ET.SubElement(cls, "lines"), "line", {"number": "1", "hits": "1"})
+        for filename in ("tests/test.cpp", "thirdparty/vendor.cpp"):
+            path = self.workspace / "src/plugins/intel_npu" / filename
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("excluded\n", encoding="utf-8")
+        tree.write(raw)
+        command = r"""
+$ErrorActionPreference = 'Stop'
+$tokens = $null; $errors = $null
+$ast = [System.Management.Automation.Language.Parser]::ParseFile(
+    $env:RUNNER_SCRIPT, [ref]$tokens, [ref]$errors)
+if ($errors.Count) { throw ($errors | Out-String) }
+$helper = $ast.Find({
+    param($node)
+    $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+        $node.Name -eq 'Get-NpuCoverageSummary'
+}, $true)
+. ([scriptblock]::Create($helper.Extent.Text))
+$config = $ast.Find({
+    param($node)
+    $node -is [System.Management.Automation.Language.AssignmentStatementAst] -and
+        $node.Left.Extent.Text -eq '$configuration'
+}, $true)
+$static = 'False'; $dynamic = 'True'; $directories = ''
+[xml]$settings = & ([scriptblock]::Create($config.Right.Extent.Text))
+$include = $settings.Configuration.CodeCoverage.Sources.Include.Source
+foreach ($source in @('src\plugins\intel_npu\src\example.cpp',
+                      'src/plugins/intel_npu/src/example.cpp',
+                      'C:\build\src\plugins\intel_npu\src\example.cpp')) {
+    if ($source -notmatch $include) { throw "Production source excluded: $source" }
+}
+$raw = Join-Path $env:SOURCE_ROOT 'raw.xml'
+$copy = Join-Path $env:SOURCE_ROOT 'copy.xml'
+Copy-Item $raw $copy
+$summary = Get-NpuCoverageSummary @(Get-Item $raw, $copy) $env:SOURCE_ROOT
+if ($summary.Covered -ne 2 -or $summary.Total -ne 3 -or $summary.Files -ne 1) {
+    throw "Incorrect summary: $summary"
+}
+foreach ($failure in @('missing-module', 'zero-hits', 'generated-only')) {
+    [xml]$coverage = Get-Content $raw -Raw
+    switch ($failure) {
+        'missing-module' {
+            $packages = $coverage.coverage.packages
+            $packages.RemoveChild($packages.package[0]) | Out-Null
+        }
+        'zero-hits' { $coverage.SelectNodes('//line') | ForEach-Object { $_.hits = '0' } }
+        'generated-only' {
+            $coverage.SelectNodes('//class') | ForEach-Object {
+                $_.filename = 'build/src/plugins/intel_npu/src/generated.cpp'
+            }
+        }
+    }
+    $coverage.Save($copy)
+    $rejected = $false
+    try { Get-NpuCoverageSummary @(Get-Item $copy) $env:SOURCE_ROOT } catch {
+        if ($_.Exception.Message -notlike 'No covered production NPU lines from *') { throw }
+        $rejected = $true
+    }
+    if (!$rejected) { throw "Incomplete coverage accepted: $failure" }
+}
+"""
+        result = subprocess.run(
+            ["pwsh", "-NoProfile", "-NonInteractive", "-Command", command],
+            env={**os.environ, "RUNNER_SCRIPT": str(REPO / "scripts/run_windows_npu_coverage.ps1"),
+                 "SOURCE_ROOT": str(self.workspace)},
+            capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_powershell_syntax(self):
         if shutil.which("pwsh") is None:
             self.skipTest("PowerShell is not installed")
