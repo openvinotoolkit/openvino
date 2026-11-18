@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-18-06-39-47-462-44218718166",
+  "timestamp": "2026-11-18T06:39:47Z",
+  "run_id": "44218718166",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44218718166",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "c1c0492da641b1eda9c320b69a484f983eeaafb7",
+  "pr_number": "39509",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39509",
+  "author": null,
+  "category": "Infrastructure",
+  "title": "Windows GPU unit tests job fails extracting OpenVINO packages due to locked tbb12.dll",
+  "signature": "windows runner extract openvino packages expand-archive remove-item access to the path denied unauthorizedaccessexception locked dll file|Infrastructure",
+  "signature_hash": "514ffa2ab52ad344",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "Extract OpenVINO packages step fails: Remove-Item cannot overwrite tbb12.dll, Access to the path is denied (UnauthorizedAccessException)."
+    }
+  ],
+  "key_errors": [
+    "Remove-Item : Cannot remove item C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll:\nAccess to the path 'C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll' is denied.\nAt C:\\Windows\\system32\\WindowsPowerShell\\v1.0\\Modules\\Microsoft.PowerShell.Archive\\Microsoft.PowerShell.Archive.psm1:1029\n+ CategoryInfo          : PermissionDenied: (C:\\actions-runn...b\\bin\\tbb12.dll:FileInfo) [Remove-Item], UnauthorizedAccessException\n+ FullyQualifiedErrorId : RemoveFileSystemItemUnAuthorizedAccess,Microsoft.PowerShell.Commands.RemoveItemCommand",
+    "##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The 'Extract OpenVINO packages' step runs Expand-Archive -Force against a pre-existing install directory on the self-hosted Windows runner. Expand-Archive with -Force tries to delete existing files before overwriting them, but tbb12.dll from a prior job/process on the same stateful runner is still locked (likely held open by an antivirus scanner, a lingering OpenVINO process, or a DLL still mapped by a previous test run that was not fully terminated/cleaned up). This is a recurring Windows self-hosted runner workspace-cleanliness/stale-handle issue, not a code defect; it has recurred 10+ times historically under the same pattern signature and is unrelated to the PR's GPU clang-tidy changes.",
+  "reproduction_steps": "N/A - requires a Windows self-hosted runner workspace where a previous job left tbb12.dll locked. Can be approximated locally on Windows by holding tbb12.dll open (e.g., loading it into a running process) and then re-running Expand-Archive -Force over the same install directory.",
+  "recommended_actions": [
+    "Add a workspace-cleanup/reset step before 'Extract OpenVINO packages' that forcibly closes lingering OpenVINO-related processes (e.g., taskkill on test binaries) prior to archive extraction.",
+    "Replace blanket Expand-Archive -Force with a pre-clean step that removes the previous install/runtime directory with retry/backoff logic (e.g., loop with Start-Sleep and repeated Remove-Item attempts) before extracting.",
+    "Investigate whether an antivirus/indexing service on the runner is holding a handle on tbb12.dll immediately after artifact download, and exclude the workspace path from real-time AV scanning.",
+    "Consider using ephemeral/clean Windows runners for this job to avoid stale file locks carried over between jobs."
+  ],
+  "prevention_strategies": "Ensure Windows self-hosted runners fully terminate all spawned processes and release file handles at the end of each job (job cleanup hook). Add a pre-step that waits/retries on Remove-Item failures with exponential backoff instead of failing immediately. Track this known-flaky infrastructure pattern and consider runner pool health alerts if occurrence count grows further.",
+  "historical_context": "This exact signature (514ffa2ab52ad344) has now recurred 12 times since 2026-11-09, making it the most frequent known pattern in the post-commit database. Related but distinct patterns include a missing onednn license file variant (33e8544b41961fd6, 1 occurrence) and a PowerShell execution-policy variant (3be0e72d6ae29098, 4 occurrences) in the same 'Extract OpenVINO packages' / GPU unit tests job."
+}
