@@ -380,6 +380,14 @@ std::optional<ov::intel_npu::CompilerType> PluginPropertyManager::getCompilerTyp
     return compilerTypeIt->second.as<ov::intel_npu::CompilerType>();
 }
 
+const std::vector<std::string>& PluginPropertyManager::getCachedBackendDeviceNames() const {
+    if (!_backendDeviceNamesCached) {
+        _cachedBackendDeviceNames = _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames();
+        _backendDeviceNamesCached = true;
+    }
+    return _cachedBackendDeviceNames;
+}
+
 std::optional<ov::intel_npu::CompilerType> PluginPropertyManager::resolveCompilerType(
     const ov::AnyMap& arguments) const {
     auto compilerType = getCompilerTypeOrDefault(arguments);
@@ -390,9 +398,9 @@ std::optional<ov::intel_npu::CompilerType> PluginPropertyManager::resolveCompile
     try {
         const auto deviceId = getDeviceIdOrDefault(arguments);
         auto device = utils::getDeviceById(_backend, deviceId);
-        auto compilationPlatform = utils::getCompilationPlatform(_backend,
-                                                                 getPlatformOrDefault(arguments),
-                                                                 device == nullptr ? deviceId : device->getName());
+        auto compilationPlatform = utils::getCompilationPlatform(getPlatformOrDefault(arguments),
+                                                                 device == nullptr ? deviceId : device->getName(),
+                                                                 getCachedBackendDeviceNames());
 
         CompilerAdapterFactory factory;
         factory.decideCompilerType(compilerType.value(), device, compilationPlatform);
@@ -804,7 +812,7 @@ void PluginPropertyManager::registerProperties() {
         return std::tuple<uint32_t, uint32_t>{0u, 8u};
     }, readOnlySetter);
     register_property(ov::available_devices.name(), true, ov::PropertyMutability::RO, alwaysSupported, [this](const ov::AnyMap&) {
-        return _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames();
+        return getCachedBackendDeviceNames();
     }, readOnlySetter);
     register_property(ov::hint::model.name(), true, ov::PropertyMutability::WO,
         [this](const ov::AnyMap&) {
@@ -939,9 +947,9 @@ void PluginPropertyManager::registerProperties() {
                 auto deviceId = getDeviceIdOrDefault(arguments);
                 auto device = utils::getDeviceById(_backend, deviceId);
                 compilationPlatform = utils::getCompilationPlatform(
-                    _backend,
                     getPlatformOrDefault(arguments),
-                    device == nullptr ? deviceId : device->getName()
+                    device == nullptr ? deviceId : device->getName(),
+                    getCachedBackendDeviceNames()
                     );
             }
 
@@ -960,9 +968,9 @@ void PluginPropertyManager::registerProperties() {
                 auto deviceId = getDeviceIdOrDefault(arguments);
                 auto device = utils::getDeviceById(_backend, deviceId);
                 compilationPlatform = utils::getCompilationPlatform(
-                    _backend,
                     getPlatformOrDefault(arguments),
-                    device == nullptr ? deviceId : device->getName());
+                    device == nullptr ? deviceId : device->getName(),
+                    getCachedBackendDeviceNames());
             }
 
             CompilerAdapterFactory factory;

@@ -56,6 +56,12 @@ private:
 
     void warnCompilerOnlyOptionSkipped(const std::string& key) const;
 
+    // _backend->getDeviceNames() only reflects devices enumerated once at backend construction time; it never
+    // changes for the lifetime of _backend. The property predicates/getters below call it purely to resolve the
+    // compilation platform, so without this cache a pipeline with many modules/property accesses re-queries (and
+    // re-logs) it thousands of times for an answer that never changes.
+    const std::vector<std::string>& getCachedBackendDeviceNames() const;
+
     Config _config;
 
     ov::SoPtr<IEngineBackend> _backend;
@@ -63,6 +69,9 @@ private:
     Logger& _logger;
 
     mutable std::mutex _mutex;
+
+    mutable std::vector<std::string> _cachedBackendDeviceNames;
+    mutable bool _backendDeviceNamesCached = false;
 
     const std::vector<ov::PropertyName> _cachingProperties = [] {
         std::vector<ov::PropertyName> properties = {
