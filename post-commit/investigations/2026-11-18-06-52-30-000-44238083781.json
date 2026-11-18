@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-18-06-52-30-000-44238083781",
+  "timestamp": "2026-11-18T06:52:30Z",
+  "run_id": "44238083781",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44238083781",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "f6f9b3427c14b217e62ccad578817d4d89e28a0b",
+  "pr_number": "39562",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39562",
+  "author": "jyeom-intel",
+  "category": "Infrastructure",
+  "title": "Windows GPU unit tests job fails extracting OpenVINO packages due to locked tbb12.dll",
+  "signature": "windows runner extract openvino packages expand-archive remove-item access to the path denied unauthorizedaccessexception locked dll file|Infrastructure",
+  "signature_hash": "514ffa2ab52ad344",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "Extract OpenVINO packages step fails: Expand-Archive cannot overwrite tbb12.dll (Access to the path is denied)"
+    }
+  ],
+  "key_errors": [
+    "Remove-Item : Cannot remove item C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll:\nAccess to the path 'C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll' is denied.\nAt C:\\Windows\\system32\\WindowsPowerShell\\v1.0\\Modules\\Microsoft.PowerShell.Archive\\Microsoft.PowerShell.Archive.psm1:1029\n+ FullyQualifiedErrorId : RemoveFileSystemItemUnAuthorizedAccess,Microsoft.PowerShell.Commands.RemoveItemCommand\n##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The 'Extract OpenVINO packages' step runs Expand-Archive -Force on a pre-existing install directory from a prior job on the same self-hosted Windows runner. tbb12.dll under install/runtime/3rdparty/tbb/bin is still memory-mapped/locked by a lingering process (e.g. an orphaned test executable or antivirus scan) from the previous job, so PowerShell's archive module cannot delete it before re-extracting, causing a hard failure instead of a retry. This is the same recurring runner-state issue seen in prior post-commit runs (pattern 514ffa2ab52ad344, now at 13 occurrences since 2026-11-09), unrelated to the PR's content (GPU group_normalization_ref kernel rewrite, PR #39562).",
+  "reproduction_steps": "N/A - requires the specific Windows self-hosted runner state (locked DLL handle from a previous job) to reproduce; not reproducible via a clean local Windows PowerShell run of Expand-Archive alone.",
+  "recommended_actions": [
+    "Add a pre-extraction cleanup/retry step that terminates lingering processes (e.g. taskkill on known test binaries) holding handles on install/ before Expand-Archive runs.",
+    "Replace 'Expand-Archive -Force' with a script that retries removal of locked files a few times with backoff, or deletes the install directory recursively before extracting instead of relying on -Force overwrite semantics.",
+    "Investigate why tbb12.dll remains locked after the previous job on this runner completes - check for runner reuse/cleanup gaps, e.g. a GPU unit test process or antivirus holding the handle open.",
+    "Consider using a fresh/ephemeral runner workspace per job, or an explicit workspace-clean step, for the Windows GPU unit tests job."
+  ],
+  "prevention_strategies": "Make the Windows package-extraction step resilient to locked files left over from previous jobs on reused self-hosted runners: clean the install directory with a retry/backoff wrapper (or process-kill of any orphaned executables under install/) before Expand-Archive -Force, and ensure test processes fully exit before the job completes.",
+  "historical_context": "Pattern 514ffa2ab52ad344 'Windows GPU unit tests job fails extracting OpenVINO packages due to locked tbb12.dll' has recurred 13 times since first observed 2026-11-09T16:30:00Z, most recently just before this run (2026-11-18T06:39:47Z, run 44218718166) and now again in this run. It is consistently an Infrastructure/runner-state issue, never traced to a specific PR's code changes."
+}
