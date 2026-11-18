@@ -49,8 +49,9 @@ TEST_F(ParserFactoryFunctionalTests, GetParserProfilingEnabledWithUnavailablePro
     EXPECT_EQ(calls, 1u);
 }
 
-TEST_F(ParserFactoryFunctionalTests, GetParserProfilingEnabledWithoutProviderThrows) {
-    EXPECT_THROW(factory.getParser(initStructs, VCLFunctionTableProvider{}, true), ov::Exception);
+TEST_F(ParserFactoryFunctionalTests, GetParserProfilingEnabledWithoutProviderStillReturnsParser) {
+    const auto parser = factory.getParser(initStructs, VCLFunctionTableProvider{}, true);
+    EXPECT_NE(parser, nullptr);
 }
 
 TEST_F(ParserFactoryFunctionalTests, GetParserProfilingEnabledWithAvailableProviderInvokesProviderOnce) {
