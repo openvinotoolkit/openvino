@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ JitConstants SoftmaxKernelBase::GetJitConstants(const softmax_params& params,
     return jit;
 }
 
-SoftmaxKernelBase::DispatchData SoftmaxKernelBase::SetDefault(const softmax_params&) const {
+SoftmaxKernelBase::DispatchData SoftmaxKernelBase::SetDefault(const softmax_params& /*unused*/) const {
     DispatchData dispatchData;
 
     dispatchData.gws[0] = 1;
