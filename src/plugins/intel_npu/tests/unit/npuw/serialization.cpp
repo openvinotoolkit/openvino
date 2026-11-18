@@ -2522,7 +2522,6 @@ TEST(SerializationTest, FinalizeWeightsBankRejectsMismatchedClosureAndLazyClosur
 TEST(SerializationTest, CompiledModelDesc_rejects_oob_cpu_closure_index_weightful) {
     using namespace ov::npuw::s11n;
 
-    std::unordered_map<const void*, std::size_t> const_to_offset;
     ImportWeightsContext ctx{false};
     const auto malformed_blob = make_blob_with_oob_cpu_closure_id(false);
 
@@ -2536,7 +2535,6 @@ TEST(SerializationTest, CompiledModelDesc_rejects_oob_cpu_closure_index_weightfu
 TEST(SerializationTest, CompiledModelDesc_rejects_oob_cpu_closure_index_weightless) {
     using namespace ov::npuw::s11n;
 
-    std::unordered_map<const void*, std::size_t> const_to_offset;
     ImportWeightsContext ctx{true};
     const auto malformed_blob = make_blob_with_oob_cpu_closure_id(true);
 

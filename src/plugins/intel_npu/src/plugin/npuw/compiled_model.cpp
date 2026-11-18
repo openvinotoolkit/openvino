@@ -157,7 +157,12 @@ ov::npuw::s11n::ImportWeightsContext make_weightless_import_weights_ctx(const ov
             if (!origin_metadata) {
                 continue;
             }
-            consts_cache[{origin_metadata->m_offset, origin_metadata->m_size}] = node;
+            // Here `c->get_byte_size()` and `origin_metadata->m_size` are not always equal.
+            // Example: the ONNX frontend marks constants of a model without external data with original_size = 0
+            // (src/frontends/onnx/frontend/src/frontend.cpp:117-123).
+            // The constant is then cached as {idx, 0}, but serialization.cpp:407 and lazy_tensor.cpp:169 look up
+            //{idx, <byte size>}. A weightless import with MODEL_PTR fails with "Couldn't find Constant in cache!".
+            consts_cache[{origin_metadata->m_offset, c->get_byte_size()}] = node;
         }
     } else if (!handle_provider) {
         NPUW_ASSERT(false && "Blob is weightless but no WEIGHTS_PATH nor MODEL_PTR property is provided!");
