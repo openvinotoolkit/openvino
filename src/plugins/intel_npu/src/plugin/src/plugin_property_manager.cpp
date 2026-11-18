@@ -658,8 +658,8 @@ void PluginPropertyManager::registerProperties() {
         [this](const ov::AnyMap&) {
             return _config.hasOpt(ov::cache_encryption_callbacks.name());
         },
-        [](const ov::AnyMap&) {
-            return ov::EncryptionCallbacks{nullptr, nullptr};
+        [](const ov::AnyMap&) -> ov::Any {
+            return ov::Any{};
         },
         [this](const ov::Any& value) {
             _config.update(ov::cache_encryption_callbacks.name(), value);
@@ -811,7 +811,7 @@ void PluginPropertyManager::registerProperties() {
             return _config.hasOpt(ov::hint::model.name());
         },
         [this](const ov::AnyMap&) -> ov::Any {
-            return std::shared_ptr<const ov::Model>{};
+            return ov::Any{};
         },
         [](const ov::Any&) {
             OPENVINO_THROW("Property '", ov::hint::model.name(),"' can only be provided when importing a compiled model, it cannot be set otherwise");
@@ -837,7 +837,7 @@ void PluginPropertyManager::registerProperties() {
             return _config.hasOpt(ov::loaded_from_cache.name());
         },
         [](const ov::AnyMap&) -> ov::Any {
-            return false;
+            return ov::Any{};
         },
         [](const ov::Any&) {
             OPENVINO_THROW("Property '", ov::loaded_from_cache.name(),"' can only be provided when importing a compiled model from OpenVINO Cache, it cannot be set otherwise");

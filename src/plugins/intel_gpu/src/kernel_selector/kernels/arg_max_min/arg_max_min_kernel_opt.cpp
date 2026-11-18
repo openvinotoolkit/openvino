@@ -36,10 +36,10 @@ KernelsData ArgMaxMinKernelOpt::GetKernelsData(const Params& params) const {
     const arg_max_min_params& orgParams = static_cast<const arg_max_min_params&>(params);
 
     size_t topK = orgParams.topK;
-    size_t size = (size_t)(orgParams.inputs[0].X().v * orgParams.inputs[0].Y().v * orgParams.inputs[0].Feature().v) / 8;
+    size_t size = (orgParams.inputs[0].X().v * orgParams.inputs[0].Y().v * orgParams.inputs[0].Feature().v) / 8;
     size_t outSize = size / 16 * topK;
     int kernelAmount = 1;
-    for (; outSize > 128; outSize = (size_t)((outSize / 128 + 1) * topK)) {
+    for (; outSize > 128; outSize = ((outSize / 128 + 1) * topK)) {
         kernelAmount++;
     }
     KernelData kd = KernelData::Default<arg_max_min_params>(params, kernelAmount);

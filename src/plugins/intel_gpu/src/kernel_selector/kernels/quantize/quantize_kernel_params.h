@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,29 +12,29 @@ namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct quantize_params : public base_params {
     quantize_params()
-    : base_params(KernelType::QUANTIZE)
-    , levels(0)
-    , scale_shift_opt(false)
-    , has_post_scale(true)
-    , has_post_shift(true)
-    , has_pre_shift(true)
-    , has_clamp(true)
-    , has_min_clamp(true)
-    , has_max_clamp(true)
-    , per_tensor_input_range(false)
-    , per_tensor_input_scale(false)
-    , per_tensor_input_shift(false)
-    , per_tensor_output_range(false)
-    , per_tensor_output_scale(false)
-    , per_tensor_output_shift(false)
-    , in_lo(0.0f)
-    , in_hi(0.0f)
-    , in_scale(0.0f)
-    , in_shift(0.0f)
-    , out_lo(0.0f)
-    , out_hi(0.0f)
-    , out_scale(0.0f)
-    , out_shift(0.0f) { }
+        : base_params(KernelType::QUANTIZE),
+          levels(0),
+          scale_shift_opt(false),
+          has_post_scale(true),
+          has_post_shift(true),
+          has_pre_shift(true),
+          has_clamp(true),
+          has_min_clamp(true),
+          has_max_clamp(true),
+          per_tensor_input_range(false),
+          per_tensor_input_scale(false),
+          per_tensor_input_shift(false),
+          per_tensor_output_range(false),
+          per_tensor_output_scale(false),
+          per_tensor_output_shift(false),
+          in_lo(0.0F),
+          in_hi(0.0F),
+          in_scale(0.0F),
+          in_shift(0.0F),
+          out_lo(0.0F),
+          out_hi(0.0F),
+          out_scale(0.0F),
+          out_shift(0.0F) {}
 
     int levels;
     bool scale_shift_opt;
