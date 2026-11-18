@@ -82,4 +82,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_CornerCases,
                                             ::testing::Values(ov::AnyMap{})),
                          GroupedMatMulCompressedLayerTest::getTestCaseName);
 
+// MXFP4 (OCP MX): f4e2m1 weights with one f8e8m0 scale per 32 weights, no zero point.
+INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_mxfp4,
+                         GroupedMatMulCompressedLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(shapes),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::element::f4e2m1),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::element::f8e8m0),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::Values(DecompressionType::empty),
+                                            ::testing::Values(false),
+                                            ::testing::Values(32),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values("GatherMatmulCompressed"),
+                                            ::testing::Values(ov::AnyMap{})),
+                         GroupedMatMulCompressedLayerTest::getTestCaseName);
+
 }  // namespace
