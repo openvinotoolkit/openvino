@@ -50,6 +50,7 @@ set(op_list
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/gather_block_quantized.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/group_norm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/group_query_attention.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/inverse.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/matmul_integer_to_float.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/matmulnbits.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/multi_head_attention.cpp
