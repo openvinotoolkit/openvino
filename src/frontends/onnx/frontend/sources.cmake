@@ -39,6 +39,7 @@ set(op_list
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/bias_add.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/bias_gelu.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/bias_softmax.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/bifurcation_detector.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/dynamic_quantize_lstm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/com.microsoft/dynamic_quantize_matmul.cpp
