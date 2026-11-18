@@ -155,10 +155,13 @@ net counts by operation type/version and projection signature, not aligned
 individual nodes. A changed hash with equal counts reports a structure/attribute change.
 Inspect a full actual graph using the runner's `--gguf-snapshot ... --output ...` diagnostic.
 
-The tools and JSON data are installed beside the C++ test executable, so the existing
-GGUF-gated C++ CI job can check them without a source checkout, Python OpenVINO bindings,
-network access or model files. The same references are intended for x86 and ARM;
-ARM determinism has not yet been validated.
+The tools and JSON data are installed beside the C++ test executable. The GGUF Models
+precommit CI job checks them for pull requests that directly change the GGUF frontend
+component, using Python and the same-run OpenVINO package and test artifacts. It uploads
+`changed_cases.json` alongside the model test reports, including on failure. The catalog
+check itself needs no source checkout, Python OpenVINO bindings, network access or model
+files. It does not run in nightly or per-OS C++ unit-test jobs. The same references are
+intended for x86 and ARM; ARM determinism has not yet been validated.
 
 ## Review policy for reference changes
 
