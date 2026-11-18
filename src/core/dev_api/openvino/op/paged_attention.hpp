@@ -25,7 +25,7 @@ public:
     ///
     /// \param args 28 inputs (see spec for layout):
     ///   (B_token = total tokens in the call, B_seq = number of sequences,
-    ///    H = query heads, Hk = key/value heads, S = head size)
+    ///    H = query heads, Hk = key/value heads, S = head size, Bs = block size)
     ///
     ///  0  query                                            [B_token, H * S]          required
     ///  1  key                                              [B_token, Hk * S]         required

@@ -4,44 +4,12 @@
 
 #pragma once
 
-#include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <tuple>
 
+#include "openvino/reference/utils/convert_color_util.hpp"
+
 namespace ov::reference {
-
-namespace func {
-
-template <typename T>
-T clip(double a) {
-    if constexpr (std::is_integral_v<T>) {
-        return static_cast<T>(std::min(std::max(std::round(a), 0.0), 255.0));
-    } else {
-        return static_cast<T>(std::min(std::max(a, 0.0), 255.0));
-    }
-}
-
-template <typename T>
-T round_cast(double a) {
-    if constexpr (std::is_integral_v<T>) {
-        return static_cast<T>(std::round(a));
-    } else {
-        return static_cast<T>(a);
-    }
-}
-
-template <typename T>
-std::tuple<T, T, T> rgb_pixel_to_yuv(T r_val, T g_val, T b_val) {
-    const double r = static_cast<double>(r_val);
-    const double g = static_cast<double>(g_val);
-    const double b = static_cast<double>(b_val);
-    return {clip<T>(0.257 * r + 0.504 * g + 0.098 * b + 16.0),
-            clip<T>(-0.148 * r - 0.291 * g + 0.439 * b + 128.0),
-            clip<T>(0.439 * r - 0.368 * g - 0.071 * b + 128.0)};
-}
-
-}  // namespace func
 
 template <typename T, bool IsRGB>
 void color_convert_to_nv12(const T* rgb_ptr,
@@ -71,17 +39,16 @@ void color_convert_to_nv12(const T* rgb_ptr,
                         size_t pixel_idx = (h + dh) * image_w + (w + dw);
                         size_t rgb_idx = pixel_idx * 3;
                         T y, u, v;
-                        std::tie(y, u, v) = func::rgb_pixel_to_yuv<T>(rgb[rgb_idx + r_offset],
-                                                                      rgb[rgb_idx + 1],
-                                                                      rgb[rgb_idx + b_offset]);
+                        std::tie(y, u, v) =
+                            rgb_pixel_to_yuv<T>(rgb[rgb_idx + r_offset], rgb[rgb_idx + 1], rgb[rgb_idx + b_offset]);
                         y_ptr[pixel_idx] = y;
                         u_sum += static_cast<double>(u);
                         v_sum += static_cast<double>(v);
                     }
                 }
                 size_t uv_index = (h / 2) * image_w + w;
-                uv_ptr[uv_index] = func::round_cast<T>(u_sum / 4.0);
-                uv_ptr[uv_index + 1] = func::round_cast<T>(v_sum / 4.0);
+                uv_ptr[uv_index] = round_cast<T>(u_sum / 4.0);
+                uv_ptr[uv_index + 1] = round_cast<T>(v_sum / 4.0);
             }
         }
     }

@@ -16,6 +16,7 @@ from openvino.utils.data_helpers.wrappers import OVDict
 from openvino.utils.data_helpers.wrappers import _InferRequestWrapper
 from openvino.utils.data_helpers.wrappers import tensor_from_file
 from pathlib import Path
+from typing import Any
 import collections.abc
 import io as io
 import openvino._pyopenvino
@@ -25,7 +26,7 @@ import openvino.utils.data_helpers.wrappers
 import pathlib
 import traceback as traceback
 import typing
-__all__: list[str] = ['AsyncInferQueue', 'AsyncInferQueueBase', 'CompiledModel', 'CompiledModelBase', 'Core', 'CoreBase', 'InferRequest', 'Iterator', 'Model', 'ModelBase', 'ModelMeta', 'Node', 'OVDict', 'Path', 'RTMap', 'Tensor', 'TensorVector', 'TracebackType', 'Type', 'compile_model', 'io', 'tensor_from_file', 'traceback']
+__all__: list[str] = ['Any', 'AsyncInferQueue', 'AsyncInferQueueBase', 'CompiledModel', 'CompiledModelBase', 'Core', 'CoreBase', 'InferRequest', 'Iterator', 'Model', 'ModelBase', 'ModelMeta', 'Node', 'OVDict', 'Path', 'RTMap', 'Tensor', 'TensorVector', 'TracebackType', 'Type', 'compile_model', 'io', 'tensor_from_file', 'traceback']
 class AsyncInferQueue(openvino._pyopenvino.AsyncInferQueue):
     """
     AsyncInferQueue with a pool of asynchronous requests.
@@ -49,7 +50,7 @@ class AsyncInferQueue(openvino._pyopenvino.AsyncInferQueue):
                 :rtype: openvino.InferRequest
                 
         """
-    def __iter__(self) -> collections.abc.Iterator[InferRequest]:
+    def __iter__(self) -> collections.abc.Iterator[openvino._ov_api.InferRequest]:
         """
         Allows to iterate over AsyncInferQueue.
         

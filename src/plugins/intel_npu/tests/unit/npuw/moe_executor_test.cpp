@@ -147,10 +147,16 @@ class ExecutorHarness final : public ov::npuw::ISubrequestAccessor {
 public:
     static constexpr size_t experts = 4, selected = 2, hidden = 4, chunk = 3;
 
-    ExecutorHarness(size_t tokens, const ov::element::Type& score_type, size_t pool)
+    ExecutorHarness(size_t tokens,
+                    const ov::element::Type& score_type,
+                    size_t pool,
+                    bool with_shared_scale = false,
+                    size_t active_experts = selected)
         : token_count(tokens),
+          active_expert_count(active_experts),
           scores(score_type, ov::Shape{experts, tokens, 1}),
           weights(ov::element::f32, ov::Shape{experts, 1, hidden}),
+          shared_scale(ov::element::f32, ov::Shape{hidden}),
           log(std::make_shared<ExecutionLog>()) {
         const bool decode = tokens == 1;
         auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{decode ? 1 : chunk, hidden});
@@ -158,25 +164,33 @@ public:
         ov::OutputVector contributions;
         auto state = std::make_shared<ov::npuw::compiled::MoEExperts>();
         state->num_experts = experts;
-        state->num_active_experts = selected;
+        state->num_active_experts = active_experts;
         state->expert_hidden_dim = hidden;
         state->input_token_count = tokens;
         state->_expert_input = {0, 0};
         state->_router_scores = {1, 1};
-        for (size_t slot = 0; slot < (decode ? selected : 1); ++slot) {
+        for (size_t slot = 0; slot < (decode ? active_experts : 1); ++slot) {
             auto score = std::make_shared<ov::op::v0::Parameter>(score_type, ov::Shape{1, decode ? 1 : chunk, 1});
             auto weight = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, hidden});
             state->_param_mapping[1].push_back(params.size());
             params.push_back(score);
             state->_param_mapping[2].push_back(params.size());
             params.push_back(weight);
-            contributions.push_back(
+            ov::Output<ov::Node> contribution =
                 std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v1::Multiply>(x, weight),
-                                                       std::make_shared<ov::op::v0::Convert>(score, ov::element::f32)));
+                                                       std::make_shared<ov::op::v0::Convert>(score, ov::element::f32));
+            if (with_shared_scale) {
+                auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{hidden});
+                state->_param_mapping[3].push_back(params.size());
+                params.push_back(scale);
+                contribution = std::make_shared<ov::op::v1::Multiply>(contribution, scale);
+            }
+            contributions.push_back(contribution);
         }
         ov::Output<ov::Node> output = contributions[0];
         if (decode) {
-            output = std::make_shared<ov::op::v1::Add>(output, contributions[1]);
+            for (size_t slot = 1; slot < contributions.size(); ++slot)
+                output = std::make_shared<ov::op::v1::Add>(output, contributions[slot]);
             output = std::make_shared<ov::op::v0::Squeeze>(
                 output,
                 ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
@@ -188,6 +202,10 @@ public:
         desc.replaced_by = 0;
         desc.param_base = 2;
         desc.closure.get().closure = {weights};
+        for (size_t feature = 0; feature < hidden; ++feature)
+            shared_scale.data<float>()[feature] = with_shared_scale ? static_cast<float>(feature + 1) : 1.0f;
+        if (with_shared_scale)
+            desc.closure.get().closure.push_back(shared_scale);
         for (size_t expert = 0; expert < experts; ++expert)
             std::fill_n(weights.data<float>() + expert * hidden, hidden, 1024.0f * static_cast<float>(expert + 1));
         request = {desc.compiled_model->create_infer_request(), {}};
@@ -232,11 +250,11 @@ public:
                 float expected = 0;
                 for (size_t expert = 0; expert < experts; ++expert)
                     expected += input.data<float>()[token * hidden + h] * weights.data<float>()[expert * hidden + h] *
-                                score(expert, token);
+                                score(expert, token) * shared_scale.data<float>()[h];
                 float actual = output.data<float>()[h];
                 if (token_count != 1) {
                     actual = 0;
-                    for (size_t slot = 0; slot < selected; ++slot)
+                    for (size_t slot = 0; slot < active_expert_count; ++slot)
                         actual += accumulator.data<float>()[(slot * token_count + token) * hidden + h];
                 }
                 EXPECT_NEAR(actual, expected, 1e-5f);
@@ -269,7 +287,8 @@ public:
     }
 
     size_t token_count;
-    ov::Tensor scores, weights, input, output, accumulator;
+    size_t active_expert_count;
+    ov::Tensor scores, weights, shared_scale, input, output, accumulator;
     std::shared_ptr<ExecutionLog> log;
     std::unique_ptr<ov::npuw::moe::MoEExecutor> executor;
 
@@ -435,6 +454,25 @@ TEST_P(MoEExecutorRuntimeTest, RejectsExcessExpertsPerTokenAndRemainsReusable) {
     }
 }
 
+TEST_P(MoEExecutorRuntimeTest, SharedFeatureWidthEqualToExpertCountIsNotSliced) {
+    const auto [half_scores, tokens, pool] = GetParam();
+    for (const size_t active_experts : {size_t{1}, size_t{2}}) {
+        SCOPED_TRACE(active_experts);
+        ExecutorHarness harness(tokens, half_scores ? ov::element::f16 : ov::element::f32, pool, true, active_experts);
+        for (const size_t offset : {size_t{0}, size_t{2}, size_t{0}}) {
+            SCOPED_TRACE(offset);
+            std::memset(harness.scores.data(), 0, harness.scores.get_byte_size());
+            for (size_t token = 0; token < tokens; ++token) {
+                harness.set_score((token + offset) % ExecutorHarness::experts, token, 0.5f);
+                if (active_experts > 1)
+                    harness.set_score((token + offset + 1) % ExecutorHarness::experts, token, -0.25f);
+            }
+            harness.bind(0.25f);
+            harness.check();
+        }
+    }
+}
+
 INSTANTIATE_TEST_SUITE_P(ScoreTypesAndModes,
                          MoEExecutorRuntimeTest,
                          ::testing::Combine(::testing::Bool(),
@@ -482,6 +520,15 @@ TEST(MoEExecutorUtilitiesTest, ValidatesExpertSlicesAndPackedBoundaries) {
     EXPECT_THROW(ov::npuw::moe::slice_expert_weight(aligned, 0, 0), ov::Exception);
     ov::Tensor unaligned(ov::element::i4, ov::Shape{4, 3, 1});
     EXPECT_THROW(ov::npuw::moe::slice_expert_weight(unaligned, 1, 4), ov::Exception);
+}
+
+TEST(MoEExecutorUtilitiesTest, UsesTransformedShapeForClosureSlicing) {
+    ov::Tensor shared(ov::element::f32, ov::Shape{4});
+    EXPECT_FALSE(ov::npuw::moe::requires_expert_slice(shared, ov::Shape{4}, 4));
+    ov::Tensor experts(ov::element::f32, ov::Shape{4, 2, 4});
+    EXPECT_TRUE(ov::npuw::moe::requires_expert_slice(experts, ov::Shape{1, 2, 4}, 4));
+    EXPECT_THROW(ov::npuw::moe::requires_expert_slice(experts, ov::Shape{1, 4, 2}, 4), ov::Exception);
+    EXPECT_THROW(ov::npuw::moe::requires_expert_slice(shared, ov::Shape{1, 4}, 4), ov::Exception);
 }
 
 }  // namespace

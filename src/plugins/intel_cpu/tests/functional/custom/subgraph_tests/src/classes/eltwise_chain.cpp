@@ -78,12 +78,28 @@ void EltwiseChainTest::generate_inputs(const std::vector<ov::Shape>& targetInput
     }
 }
 
+namespace {
+std::shared_ptr<ov::Node> make_chain_op(const ov::Output<ov::Node>& lhs,
+                                        const ov::Output<ov::Node>& rhs,
+                                        const EltwiseChainOp& op) {
+    if (const auto* comparison = std::get_if<ComparisonTypes>(&op)) {
+        return make_comparison(lhs, rhs, *comparison);
+    }
+    return make_eltwise(lhs, rhs, std::get<EltwiseTypes>(op));
+}
+}  // namespace
+
 void EltwiseChainTest::SetUp() {
     abs_threshold = 0.1f;
     const auto& [inputShapes, secondaryInputType, inputPrecisions, eltwiseOpTypes, postNode, conversion,
                  _targetDevice] = this->GetParam();
     targetDevice = _targetDevice;
     init_input_shapes(inputShapes);
+    for (size_t i = 0; i < eltwiseOpTypes.size(); i++) {
+        const bool lastOp = i == eltwiseOpTypes.size() - 1 && postNode != PostNode::SOFTSIGN;
+        OPENVINO_ASSERT(lastOp || std::holds_alternative<EltwiseTypes>(eltwiseOpTypes[i]),
+                        "A comparison can only be the last operation of the chain");
+    }
 
     ov::ParameterVector paramVec;
     std::vector<std::shared_ptr<ov::Node>> inputNodes1;
@@ -118,11 +134,11 @@ void EltwiseChainTest::SetUp() {
     }
 
     std::vector<std::shared_ptr<ov::Node>> eltwiseOps;
-    eltwiseOps.push_back(make_eltwise(inputNodes1[0], inputNodes2[0], eltwiseOpTypes[0]));
+    eltwiseOps.push_back(make_chain_op(inputNodes1[0], inputNodes2[0], eltwiseOpTypes[0]));
 
     if (postNode == PostNode::QUANTIZE) {
         for (size_t i = 1; i < eltwiseOpTypes.size() - 1; i++) {
-            eltwiseOps.push_back(make_eltwise(eltwiseOps[eltwiseOps.size() - 1], inputNodes2[i], eltwiseOpTypes[i]));
+            eltwiseOps.push_back(make_chain_op(eltwiseOps[eltwiseOps.size() - 1], inputNodes2[i], eltwiseOpTypes[i]));
         }
 
         std::vector<size_t> constShape(targetStaticShapes[0][0].size(), 1);
@@ -132,13 +148,13 @@ void EltwiseChainTest::SetUp() {
                                                     256,
                                                     constShape);
 
-        eltwiseOps.push_back(make_eltwise(fq, inputNodes2[eltwiseOpTypes.size() - 1], eltwiseOpTypes[eltwiseOpTypes.size() - 1]));
+        eltwiseOps.push_back(make_chain_op(fq, inputNodes2[eltwiseOpTypes.size() - 1], eltwiseOpTypes[eltwiseOpTypes.size() - 1]));
 
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(eltwiseOps[eltwiseOps.size() - 1])};
         function = std::make_shared<ov::Model>(results, paramVec, "eltwise_chain_fq");
     } else if (postNode == PostNode::SOFTSIGN) {
         for (size_t i = 1; i < eltwiseOpTypes.size(); i++) {
-            eltwiseOps.push_back(make_eltwise(eltwiseOps[eltwiseOps.size() - 1], inputNodes2[i], eltwiseOpTypes[i]));
+            eltwiseOps.push_back(make_chain_op(eltwiseOps[eltwiseOps.size() - 1], inputNodes2[i], eltwiseOpTypes[i]));
         }
 
         auto softsign = ov::test::utils::make_activation(eltwiseOps[eltwiseOps.size() - 1], ElementType::i32, ActivationTypes::SoftSign);
@@ -149,7 +165,7 @@ void EltwiseChainTest::SetUp() {
         function = std::make_shared<ov::Model>(results, paramVec, "eltwise_chain_softsign");
     } else if (postNode == PostNode::EMPTY) {
         for (size_t i = 1; i < eltwiseOpTypes.size(); i++) {
-            eltwiseOps.push_back(make_eltwise(eltwiseOps[eltwiseOps.size() - 1], inputNodes2[i], eltwiseOpTypes[i]));
+            eltwiseOps.push_back(make_chain_op(eltwiseOps[eltwiseOps.size() - 1], inputNodes2[i], eltwiseOpTypes[i]));
         }
 
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(eltwiseOps[eltwiseOps.size() - 1])};
@@ -185,7 +201,7 @@ std::vector<std::vector<ElementType>> inputPrecisions() {
     };
 }
 
-std::vector<std::vector<EltwiseTypes>> eltwiseOps() {
+std::vector<std::vector<EltwiseChainOp>> eltwiseOps() {
     return {
             {EltwiseTypes::ADD,    EltwiseTypes::MULTIPLY,     EltwiseTypes::SUBTRACT},
             {EltwiseTypes::DIVIDE, EltwiseTypes::SQUARED_DIFF, EltwiseTypes::ADD}
@@ -198,7 +214,7 @@ std::vector<std::vector<ov::Shape>> inputShapesConvert() {
     };
 }
 
-std::vector<std::vector<EltwiseTypes>> eltwiseOpsConvert() {
+std::vector<std::vector<EltwiseChainOp>> eltwiseOpsConvert() {
     return {
             {EltwiseTypes::MULTIPLY},
             {EltwiseTypes::ADD},

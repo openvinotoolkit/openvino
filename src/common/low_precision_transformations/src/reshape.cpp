@@ -80,19 +80,34 @@ void reshapeDequantizationConstant(const std::shared_ptr<ov::opset1::Reshape>& r
 
         auto const reshapeInputRank = reshape->get_input_partial_shape(0).rank();
         assert(reshapeInputRank.is_static());
-        if (constantShape.size() > 1ul) {
-            while (constantShape.size() < static_cast<size_t>(reshapeInputRank.get_length())) {
-                constantShape.insert(constantShape.begin(), 1ul);
-            }
+        // Left-pad up to the Reshape input rank: rank-1 per-channel constants must be padded too,
+        // otherwise the channel indexing below goes out of bounds.
+        while (constantShape.size() < static_cast<size_t>(reshapeInputRank.get_length())) {
+            constantShape.insert(constantShape.begin(), 1ul);
+        }
+
+        // Materialize the padded shape on the constant itself, so the broadcast helper below
+        // sees a consistent rank instead of the original (possibly rank-1) shape.
+        std::shared_ptr<ov::opset1::Constant> paddedConstant = originalConstant;
+        if (originalConstant->get_shape().size() != constantShape.size()) {
+            paddedConstant = ov::as_type_ptr<ov::opset1::Constant>(fold<ov::opset1::Reshape>(
+                originalConstant,
+                ov::opset1::Constant::create(element::i32, Shape{ constantShape.size() }, constantShape),
+                false));
         }
 
         const auto reshapeOutputPShape = reshape->get_output_partial_shape(0);
         const auto reshapeOutputRank = reshapeOutputPShape.rank();
         assert(reshapeOutputRank.is_static());
-        assert(reshapeOutputRank.get_length() >= 2);
-        assert(reshapeOutputPShape[1].is_static());
-        assert(static_cast<size_t>(reshapeOutputPShape[1].get_length()) >= constantShape[1]);
-        assert(reshapeOutputPShape[1].get_length() % constantShape[1] == 0);
+        // Explicit guard: the equivalent asserts are compiled out under NDEBUG.
+        if (reshapeOutputRank.is_dynamic() || reshapeOutputRank.get_length() < 2 ||
+            reshapeOutputPShape[1].is_dynamic() || constantShape.size() < 2ul) {
+            return;
+        }
+        if ((static_cast<size_t>(reshapeOutputPShape[1].get_length()) < constantShape[1]) ||
+            (reshapeOutputPShape[1].get_length() % constantShape[1] != 0)) {
+            return;
+        }
         const size_t dimensionsToBroadcast = reshapeOutputPShape[1].get_length() / constantShape[1];
         if (dimensionsToBroadcast == 0ul) {
             return;
@@ -119,7 +134,7 @@ void reshapeDequantizationConstant(const std::shared_ptr<ov::opset1::Reshape>& r
             return fold<ov::opset1::Broadcast>(constant, targetShapeConstant);
         };
 
-        const std::shared_ptr<Node> broadcastedConstant = getBCastedConst(originalConstant, dimensionsToBroadcast);
+        const std::shared_ptr<Node> broadcastedConstant = getBCastedConst(paddedConstant, dimensionsToBroadcast);
 
         std::vector<int> newReshapeConstValues(reshapeOutputRank.get_length(), 1ul);
         newReshapeConstValues[1] = static_cast<int>(reshapeOutputPShape[1].get_length());
