@@ -24,8 +24,7 @@ struct ImplementationManager;
 struct primitive_type {
     virtual ~primitive_type() = default;
 
-    virtual std::shared_ptr<program_node> create_node(program& program,
-                                                      const std::shared_ptr<primitive> prim) const = 0;
+    virtual std::shared_ptr<program_node> create_node(program& program, std::shared_ptr<primitive> prim) const = 0;
     virtual std::shared_ptr<primitive_inst> create_instance(network& network,
                                                             const program_node& node) const = 0;
 

@@ -197,15 +197,16 @@ struct padding {
 
     friend bool operator<(const padding& lhs, const padding& rhs) {
         // Compare only actual padding size not _dynamic_dims_mask
-        if (lhs._lower_size < rhs._lower_size)
+        if (lhs._lower_size < rhs._lower_size) {
             return true;
+        }
         if (lhs._lower_size > rhs._lower_size) {
             return false;
         }
         return lhs._upper_size < rhs._upper_size;
     }
 
-    static padding max(const padding& lhs, const padding& rhs, float filling_value = 0.0f) {
+    static padding max(const padding& lhs, const padding& rhs, float filling_value = 0.0F) {
         auto ret = lhs;
         for (size_t i = 0; i < SHAPE_RANK_MAX; ++i) {
             ret._lower_size[i] = std::max(ret._lower_size[i], rhs._lower_size[i]);
@@ -389,12 +390,9 @@ struct layout {
     bool is_dynamic() const;
 
     bool has_upper_bound() const {
-        for (const auto& dim : size) {
-            if (dim.get_max_length() == -1) {
-                return false;
-            }
-        }
-        return true;
+        return std::all_of(size.begin(), size.end(), [](const auto& dim) {
+            return dim.get_max_length() != -1;
+        });
     }
 
     bool is_static() const;
@@ -453,9 +451,7 @@ struct layout {
     /// @param _sizes an array that supports operator[] and stores data in the same order as shape.
     /// e.g. it could be std::vector, std::array, or std::bitset, etc.
     template <class TArray>
-    inline static std::vector<ov::Dimension::value_type> format_sizes(const TArray _sizes,
-                                                                      const cldnn::format& fmt,
-                                                                      const ov::Dimension::value_type default_val = 1) {
+    static std::vector<ov::Dimension::value_type> format_sizes(const TArray _sizes, const cldnn::format& fmt, const ov::Dimension::value_type default_val = 1) {
         const auto& output_order = fmt.order();
         std::vector<ov::Dimension::value_type> sizes(output_order.size(), default_val);
 
