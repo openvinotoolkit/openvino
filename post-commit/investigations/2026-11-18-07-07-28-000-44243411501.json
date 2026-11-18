@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-18-07-07-28-000-44243411501",
+  "timestamp": "2026-11-18T07:07:28Z",
+  "run_id": "44243411501",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44243411501",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "6043682ab0e7112601f13854d37b16fe7718d60d",
+  "pr_number": null,
+  "pr_url": null,
+  "author": null,
+  "category": "Infrastructure",
+  "title": "Windows GPU unit tests job fails extracting OpenVINO packages due to locked tbb12.dll",
+  "signature": "windows runner extract openvino packages expand-archive remove-item access to the path denied unauthorizedaccessexception locked dll file|Infrastructure",
+  "signature_hash": "514ffa2ab52ad344",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "Extract OpenVINO packages step fails: Remove-Item cannot delete tbb12.dll, Access to the path is denied (UnauthorizedAccessException)."
+    }
+  ],
+  "key_errors": [
+    "Remove-Item : Cannot remove item C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll:\nAccess to the path 'C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll' is denied.\n+ CategoryInfo          : PermissionDenied: (C:\\actions-runn...b\\bin\\tbb12.dll:FileInfo) [Remove-Item], UnauthorizedAccessException\n+ FullyQualifiedErrorId : RemoveFileSystemItemUnAuthorizedAccess,Microsoft.PowerShell.Commands.RemoveItemCommand\n##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "During the 'Extract OpenVINO packages' step, Expand-Archive (-Force) tries to overwrite install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll from the downloaded openvino_package.zip. On this Windows self-hosted runner the existing tbb12.dll is still locked by another process (most likely a lingering process from a prior job/step on the same reused runner, or a leftover antivirus/indexing handle), so the PowerShell Archive module's internal Remove-Item call fails with UnauthorizedAccessException before the DLL can be overwritten, aborting the whole extraction step with exit code 1. This is the same recurring Windows-runner file-locking issue already tracked in the pattern database (13 prior occurrences across unrelated commits and PRs), confirming it is an environment/runner-state problem rather than a code regression introduced by this commit.",
+  "reproduction_steps": "N/A - Not reproducible outside the affected Windows self-hosted runner's exact state. Locally: run `Expand-Archive <openvino_package.zip> -DestinationPath install -Force` while another process (or an AV scanner) holds an open handle on install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll to simulate the lock.",
+  "recommended_actions": [
+    "Ensure the workflow fully stops/cleans up any process (e.g. previous test binaries, background scanners) that could hold a handle on files under install\\ before the extract step runs.",
+    "Replace the blind Expand-Archive -Force with a step that first removes the stale install directory (or uses a fresh directory per run) so Expand-Archive does not need to overwrite locked files in place.",
+    "Add a retry-with-backoff wrapper around the extraction step specifically for UnauthorizedAccessException, since this is a transient runner-state issue, not a deterministic code bug.",
+    "Investigate the Windows self-hosted runner fleet for a recurring handle leak (e.g., antivirus real-time scan, a lingering ov_gpu_unit_tests.exe, or Windows Search indexer) that locks files in the install directory between jobs."
+  ],
+  "prevention_strategies": "Make the Windows job's artifact-extraction step idempotent and resilient to locked files: clean/recreate the install directory before extraction instead of relying on -Force overwrite, and add a short retry loop (with a brief delay) around Expand-Archive/Remove-Item operations on Windows runners to absorb transient AV/indexer file locks. When editing or reviewing Windows CI job YAML that extracts/overwrites previously-installed binaries (tbb12.dll, openvino.dll, etc.), always wrap Expand-Archive/Remove-Item calls in a retry loop or pre-clean the target directory, since Windows self-hosted runners intermittently lock files via AV/indexer handles, causing UnauthorizedAccessException failures unrelated to the code change under test.",
+  "historical_context": "This exact signature (514ffa2ab52ad344) has now been observed 13 times since 2026-11-09, across many unrelated commits/PRs, always on the Windows GPU unit tests job's 'Extract OpenVINO packages' step with the same tbb12.dll UnauthorizedAccessException. It is a well-established recurring Infrastructure issue, not tied to any specific code change."
+}
