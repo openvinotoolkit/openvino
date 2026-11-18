@@ -7,7 +7,6 @@
 #include <optional>
 #include <string_view>
 
-#include "intel_npu/common/isection.hpp"
 #include "intel_npu/common/isection_instance_evaluator.hpp"
 
 namespace intel_npu {

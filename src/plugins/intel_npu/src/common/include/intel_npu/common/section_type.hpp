@@ -18,8 +18,8 @@ namespace intel_npu {
 /**
  * @brief Identifiers used to distinguish between different section types at runtime and inside the manifest.
  * @note These values need to be unique across plugin versions as well. That is because this code is written inside the
- * manifest, and blob compatibility is involved. There, this list can be expanded, but the current entries can never be
- * modified.
+ * manifest, and blob compatibility is involved. This list can be expanded freely, but the entries that are already
+ * written should never be modified.
  * @note The size needs to be fixed (4 bytes) since this value is written inside the blob manifest
  * @note Device specific sections should use a type ID `>= ov::runtime::hsm::core_tag_id_range_end`. The rest of the IDs
  * are reserved for OV common sections. The common sections can be interpreted by the OV common code (and all other
@@ -38,7 +38,7 @@ enum class SectionTypeCode : uint32_t {
 };
 
 /**
- * @brief Identifies the type of the section, along with its corresponding read & write handlers.
+ * @brief Identifies the type of section, along with its corresponding read & write handlers.
  */
 class SectionType final : public CREToken {
 public:

@@ -93,7 +93,7 @@ public:
     /**
      * @brief Writes the formatted compatibility string into the sink.
      * @details The format:
-     * version=<value>;cre=<cre to string>;<section type name>_<id>=<value>;<section type name>_<id>=<value>;...
+     * version=<major>.<minor>;cre=<cre to string>;<section type name>_<id>=<value>;<section type name>_<id>=<value>;...
      *
      * The "version" entry is mandatory. The "cre" one appears only if the CRE is not empty. The remaining entries are
      * optional, and they correspond to the individual requirements of sections. The order of the entries doesn't
@@ -104,7 +104,7 @@ public:
     /**
      * @brief Reconstructs a section instance from a formatted compatibility string.
      * @details The format:
-     * version=<value>;cre=<cre to string>;<section type name>_<id>=<value>;<section type name>_<id>=<value>;...
+     * version=<major>.<minor>;cre=<cre to string>;<section type name>_<id>=<value>;<section type name>_<id>=<value>;...
      *
      * The "version" entry is mandatory. Only the same major version as the currently used one is supported. All
      * previous minor versions should be supported. The CRE is empty if the "cre" entry is missing. The remaining

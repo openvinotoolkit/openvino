@@ -10,6 +10,9 @@
 
 namespace intel_npu {
 
+/**
+ * @brief Contains a major and a minor version; provides a set of operators for handling them.
+ */
 class MajorMinorVersion {
 public:
     MajorMinorVersion(const uint16_t major, const uint16_t minor);
@@ -46,6 +49,16 @@ std::ostream& operator<<(std::ostream& out, const MajorMinorVersion& version);
 
 std::istream& operator>>(std::istream& is, MajorMinorVersion& version);
 
+/**
+ * @brief Parses a string of the form <uint>.<uint>.[...]. The number of parsed integers have to be equal to the
+ * expected number given as argument.
+ *
+ * @throws ov::Exception if the format is invalid
+ *
+ * @param version_string The string to be parsed
+ * @param number_of_parts The expected number of integers contained in the string
+ * @return All integers found in the string
+ */
 std::vector<uint16_t> parse_dotted_version(std::string_view version_string, const size_t number_of_parts);
 
 }  // namespace intel_npu
