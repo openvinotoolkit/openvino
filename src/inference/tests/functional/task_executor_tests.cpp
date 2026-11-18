@@ -264,10 +264,7 @@ static auto AsyncExecutors = ::testing::Values(
 
 INSTANTIATE_TEST_SUITE_P(ASyncTaskExecutorTests, ASyncTaskExecutorTests, AsyncExecutors);
 
-// Regression test for a heap use-after-free: destroying the executor could race a transient
-// thread's post-execute() ThreadCleaner teardown, making ~Stream() run against a freed Impl.
-// Looping create/execute-on-thread/destroy races the two teardown paths; under ASan/TSan this
-// reliably caught the bug prior to the fix.
+// Not guaranteed to repro — only catch it if timing lines up and ASan/TSan is enabled.
 TEST(CPUStreamsExecutorTests, destroyingExecutorDoesNotRaceTransientThreadTeardown) {
     for (int i = 0; i < 200; i++) {
         auto executor = std::make_shared<CPUStreamsExecutor>(IStreamsExecutor::Config{"StreamsExecutorUAFTest", 2});
