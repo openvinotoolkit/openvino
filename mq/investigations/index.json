@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 475,
+  "total": 476,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -5180,6 +5180,15 @@
       "category": "Infrastructure",
       "signature_hash": "95bb23aa2ed8a84d",
       "pr_number": "39991"
+    },
+    {
+      "investigation_id": "2026-11-18-10-56-42-000-44285082517",
+      "run_id": "44285082517",
+      "timestamp": "2026-11-18T10:56:42Z",
+      "title": "GPU BatchReplicatedBranches clang-tidy braces-around-statements errors",
+      "category": "Code Issue",
+      "signature_hash": "a4282c65071120e2",
+      "pr_number": "38575"
     }
   ]
 }

@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-18-10-56-42-000-44285082517",
+  "timestamp": "2026-11-18T10:56:42Z",
+  "run_id": "44285082517",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44285082517",
+  "workflow_name": "Build-gpu / Build",
+  "pr_number": "38575",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38575",
+  "author": "deepaks2",
+  "category": "Code Issue",
+  "title": "GPU BatchReplicatedBranches clang-tidy braces-around-statements errors",
+  "signature": "clang-tidy readability-braces-around-statements error if statement missing braces treated as warning as error|Code Issue",
+  "signature_hash": "a4282c65071120e2",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build-gpu / Build",
+      "conclusion": "failure",
+      "symptom": "Cmake build with clang-tidy enabled fails compiling batch_replicated_branches.cpp with 10 readability-braces-around-statements errors"
+    },
+    {
+      "name": "ci/gha_overall_status_clang_tidy",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails because Build-gpu / Build failed"
+    }
+  ],
+  "key_errors": [
+    "src/plugins/intel_gpu/src/plugin/transformations/batch_replicated_branches.cpp:123:138: error: statement should be inside braces [readability-braces-around-statements,-warnings-as-errors]\n  123 |         if (lhs[i].has_value() != rhs[i].has_value() || (lhs[i] && !equal(lhs[i]->get_node_shared_ptr(), rhs[i]->get_node_shared_ptr())))\n  124 |             return false;",
+    "src/plugins/intel_gpu/src/plugin/transformations/batch_replicated_branches.cpp:148:111: error: statement should be inside braces [readability-braces-around-statements,-warnings-as-errors]\n  148 |     if (replica_count < 2 || ov::util::normalize(concat->get_axis(), concat->get_output_shape(0).size()) <= 0)\n  149 |         return std::nullopt;",
+    "10 warnings treated as errors (lines 123, 148, 156, 162, 176, 189, 206, 227, 245, 284 of batch_replicated_branches.cpp)"
+  ],
+  "root_cause": "The new PR file src/plugins/intel_gpu/src/plugin/transformations/batch_replicated_branches.cpp uses single-statement if/for bodies without curly braces at 10 locations (lines 123, 148, 156, 162, 176, 189, 206, 227, 245, 284). The GPU build job compiles with clang-tidy enabled and CMAKE_COMPILE_WARNING_AS_ERROR=ON, so the readability-braces-around-statements clang-tidy check is promoted to a hard build error, failing the Cmake build step and cascading to the aggregate clang-tidy status job.",
+  "reproduction_steps": "Build the GPU plugin locally with clang-tidy enabled and warnings-as-errors: cmake -DENABLE_CLANG_TIDY=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ... && cmake --build . --target openvino_intel_gpu_plugin ; clang-tidy-18 will flag every brace-less if/for statement in batch_replicated_branches.cpp as an error.",
+  "recommended_actions": [
+    "Add curly braces around the single-statement bodies of all 10 flagged if/for statements in src/plugins/intel_gpu/src/plugin/transformations/batch_replicated_branches.cpp (lines 123, 148, 156, 162, 176, 189, 206, 227, 245, 284).",
+    "Run clang-tidy-18 locally (or `clang-format`/`.clang-tidy` checks) on the changed file before pushing to catch readability-braces-around-statements violations early.",
+    "Re-push once fixed; no other code changes are implicated by this failure."
+  ],
+  "prevention_strategies": "Run the repository's clang-tidy pre-commit/lint target locally on new/changed files before opening a PR, especially for new GPU plugin transformation files. Consider enabling a local pre-commit hook that runs clang-tidy with the same flags as CI (--extra-arg, -Werror) to surface these as early as possible.",
+  "historical_context": "Matches a recurring signature (a4282c65071120e2) previously seen twice for PR #38641 (GPU remove_redundant_reorders) with the same readability-braces-around-statements clang-tidy violation pattern, now recorded a 3rd time for a different file/PR. This confirms brace-less single-statement bodies are a common oversight in new GPU plugin transformation code under the clang-tidy-enabled build."
+}
