@@ -5,8 +5,6 @@
 #include <atomic>
 #include <chrono>
 #include <cstdio>
-#include <cstdlib>
-#include <cstring>
 #include <exception>
 #include <mutex>
 #include <sstream>
@@ -22,25 +20,15 @@ namespace ov::test::behavior::host_compile_profile {
 class Stage {
 public:
     Stage(const char* name, const void* object) : name(name), object(object) {
-        static const bool enabled = [] {
-            const auto* value = std::getenv("OV_NPU_HOST_COMPILE_PROFILE");
-            return value != nullptr && std::strcmp(value, "1") == 0;
-        }();
-        active = enabled;
-        if (active) {
-            static std::atomic<size_t> nextId{0};
-            id = nextId.fetch_add(1, std::memory_order_relaxed);
-            peakBefore = ::intel_npu::get_peak_memory_usage();
-            exceptionsBefore = std::uncaught_exceptions();
-            write("begin", 0.0, peakBefore);
-            started = std::chrono::steady_clock::now();
-        }
+        static std::atomic<size_t> nextId{0};
+        id = nextId.fetch_add(1, std::memory_order_relaxed);
+        peakBefore = ::intel_npu::get_peak_memory_usage();
+        exceptionsBefore = std::uncaught_exceptions();
+        write("begin", 0.0, peakBefore);
+        started = std::chrono::steady_clock::now();
     }
 
     ~Stage() noexcept {
-        if (!active) {
-            return;
-        }
         const auto finished = std::chrono::steady_clock::now();
         try {
             write(std::uncaught_exceptions() > exceptionsBefore ? "exception" : "end",
@@ -76,7 +64,6 @@ private:
 
     const char* name;
     const void* object;
-    bool active = false;
     size_t id = 0;
     int64_t peakBefore = 0;
     int exceptionsBefore = 0;
