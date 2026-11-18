@@ -71,8 +71,9 @@ struct mlir_primitive : public primitive_base<mlir_primitive> {
     }
 
     // Returns the cldnn format with the given physical dimension order (e.g. {0, 2, 1} -> byfx),
-    // or nullopt if there is no such format.
+    // or nullopt if there is no such format. The order must not be empty (the rank comes from it).
     static std::optional<format::type> format_from_dim_order(std::vector<size_t> order) {
+        OPENVINO_ASSERT(!order.empty(), "[GPU] mlir_primitive: empty physical dimension order");
         // Ranks below 4 are represented as 4D by cldnn: the missing trailing dimensions keep their place.
         for (size_t i = order.size(); i < 4; ++i) {
             order.push_back(i);
