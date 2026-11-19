@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-19-19-57-18-738-44588231549",
+  "timestamp": "2026-11-19T19:57:18Z",
+  "run_id": "44588231549",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44588231549",
+  "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+  "commit_sha": "661a9785f74c01a87e1ed367d7d93fecbd160362",
+  "pr_number": "40023",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/40023",
+  "author": "kkoryun",
+  "category": "Infrastructure",
+  "title": "Windows CC build fails with compiler/linker out-of-memory errors under high parallelism",
+  "signature": "Windows Release build runs out of memory - compiler fatal error C1060 (out of heap space) and linker fatal error LNK1102 (out of memory) under high parallelism|Infrastructure",
+  "signature_hash": "80cfa127185fbf3e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build_And_Run_Collect_Mode",
+      "conclusion": "failure",
+      "symptom": "MSVC cl.exe hit fatal error C1060 (out of heap space) compiling op_reference/convert.cpp, then link.exe hit LNK1102 (out of memory) linking hello_query_device.exe"
+    },
+    {
+      "name": "ci/gha_overall_status_windows_cc",
+      "conclusion": "failure",
+      "symptom": "Aggregated status check failed because Build_And_Run_Collect_Mode failed"
+    }
+  ],
+  "key_errors": [
+    "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\thirdparty\\gtest\\gtest\\googletest\\include\\gtest/internal/gtest-internal.h(1173): fatal error C1060: compiler is out of heap space",
+    "FAILED: build-modules/template/tests/functional/CMakeFiles/ov_template_func_tests.dir/Release/op_reference/convert.cpp.obj",
+    "LINK : fatal error LNK1102: out of memory",
+    "ninja: build stopped: subcommand failed."
+  ],
+  "root_cause": "The Windows Conditional Compilation build runs with CMAKE_BUILD_PARALLEL_LEVEL: 31 on a shared runner. Heavy template-instantiation-based test translation units (e.g. op_reference/convert.cpp, col2im.cpp) combined with this high parallelism exhaust available compiler/linker heap and physical memory, causing cl.exe to abort with C1060 and link.exe to abort with LNK1102. This is the same recurring infrastructure-level resource-exhaustion pattern recorded 11 times previously in this knowledge base; it is not caused by the merging PR #40023 (an NPUW dequantization-folding transformation change unrelated to the template test build), but by the ambient memory pressure of the parallel Windows Release build.",
+  "reproduction_steps": "Not reliably reproducible locally without matching runner memory/CPU constraints. To approximate: build the `template` plugin functional tests in Release config on Windows with CMAKE_BUILD_PARALLEL_LEVEL set equal to the full logical core count (e.g. 31) on a machine with limited RAM, and observe cl.exe/link.exe failing with C1060/LNK1102 while compiling heavy template-instantiation test files under src/plugins/template/tests/functional/op_reference/.",
+  "recommended_actions": [
+    "Lower CMAKE_BUILD_PARALLEL_LEVEL for the Windows CC Release build (or switch to a job-count heuristic based on available RAM per core, e.g. 1 job per 2GB) to reduce peak memory usage.",
+    "Split heavy template-instantiation test translation units (e.g. op_reference/convert.cpp, col2im.cpp) into smaller compilation units to reduce per-TU memory footprint.",
+    "Consider increasing the Windows CC runner's memory/swap allocation given this is the 11th recorded occurrence of the same OOM signature.",
+    "Investigate whether /d2:FH4 or precompiled headers could reduce memory per compilation for the template functional test target."
+  ],
+  "prevention_strategies": "Track peak memory usage during Windows CC builds and alert before OOM thresholds are reached; cap parallelism explicitly per job rather than using cores-count-derived defaults; periodically audit template-heavy test files for compile-time/memory cost and refactor the worst offenders.",
+  "historical_context": "This exact signature has recurred 11 times (first seen 2026-11-03, most recently 2026-11-18/19) always on the Windows CC / Windows Release build job, always C1060 out-of-heap-space and/or LNK1102 out-of-memory under CMAKE_BUILD_PARALLEL_LEVEL=31. No fix has been applied yet; this remains an open, unresolved infrastructure issue."
+}
