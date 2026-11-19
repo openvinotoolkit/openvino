@@ -110,7 +110,7 @@ private:
     void load_vector_native_xf16(Vmm* vmm_array, const Xbyak::Reg64& reg_src, int num_regs);
     void store_vector_native_xf16(const Xbyak::Reg64& reg_dst, Vmm* vmm_array, int num_regs);
     void dot_product_native_xf16(const Xbyak::Xmm& xmm_dst, Vmm* vmm_a, Vmm* vmm_b, int num_regs);
-    void scale_vector_native_xf16(Vmm* vmm_array, const Xbyak::Xmm& xmm_scalar, int num_regs);
+    void scale_vector_native_xf16(Vmm* vmm_array, const Xbyak::Xmm& xmm_scalar, int num_regs, bool f32_scale = false);
     void fmadd_vector_native_xf16(Vmm* vmm_dst, Vmm* vmm_src, const Xbyak::Xmm& xmm_scalar, int num_regs);
     void l2norm_inplace_native_xf16(Vmm* vmm_array, const Xbyak::Xmm& xmm_eps, int num_regs);
 
@@ -124,7 +124,8 @@ private:
                                   const Xbyak::Xmm& xmm_scale,
                                   Vmm* vmm_temp,
                                   int num_regs,
-                                  int num_chunks);
+                                  int num_chunks,
+                                  bool f32_scale = false);
     void load_qk(bool is_f32, bool use_registers, int num_regs, int num_chunks);
 
     void reduce_zmm_f32_to_xmm_scalar(const Xbyak::Zmm& zmm_src,

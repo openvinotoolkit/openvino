@@ -146,8 +146,9 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     // back to the explicit form when eps^2 is not a normal float.
     const bool qk_l2norm = context.get_attribute<bool>("fuse_qk_l2norm", false);
     const float eps = context.get_attribute<float>("qk_l2_norm_eps", 1e-6f);
-    const float op_l2_norm_eps = eps * eps;
-    const bool fuse_qk_l2norm = qk_l2norm && std::isnormal(op_l2_norm_eps);
+    const bool fuse_qk_l2norm = qk_l2norm && std::isnormal(eps * eps);
+    // Paged conversion requires positive eps attributes even when the op does not normalize.
+    const float op_l2_norm_eps = fuse_qk_l2norm ? eps * eps : 1e-6f;
     if (qk_l2norm && !fuse_qk_l2norm) {
         if (const auto joined = join_adjacent_qk(q, k); joined.get_node()) {
             const auto axis = ov::op::v0::Constant::create(ov::element::i64, {}, {2});
