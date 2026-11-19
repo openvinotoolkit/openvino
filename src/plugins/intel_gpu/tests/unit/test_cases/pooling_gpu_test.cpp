@@ -7,6 +7,11 @@
 #include "test_utils.h"
 #include "random_generator.hpp"
 
+#if defined(ENABLE_ONEDNN_FOR_GPU) && defined(OV_GPU_VENDOR_NVIDIA)
+#include "primitive_inst.h"
+#include "registry/implementation_manager.hpp"
+#endif
+
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/pooling.hpp>
 #include <intel_gpu/primitives/mutable_data.hpp>
@@ -3299,6 +3304,35 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_POOLING,
 
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+#if defined(OV_GPU_VENDOR_NVIDIA)
+TEST(pooling_gpu_nvidia, onednn_fp32_max_pooling_cache_restore) {
+    auto& engine = get_test_engine();
+    const layout input_layout_desc{data_types::f32, format::bfyx, {1, 1, 2, 2}};
+    auto input_mem = engine.allocate_memory(input_layout_desc);
+    set_values(input_mem, std::vector<float>{-4.0F, -2.0F, -3.0F, -1.0F});
+
+    topology topology(input_layout("input", input_layout_desc),
+                      pooling("pool", input_info("input"), pooling_mode::max, {2, 2}, {1, 1}));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::use_onednn(true));
+    config.set_property(ov::intel_gpu::optimize_data(false));
+    config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+
+    auto network = get_network(engine, topology, config, get_test_stream_ptr(), true);
+    const auto* impl = network->get_primitive("pool")->get_impl();
+    ASSERT_NE(impl, nullptr);
+    ASSERT_NE(impl->m_manager, nullptr);
+    ASSERT_EQ(impl->m_manager->get_impl_type(), impl_types::onednn);
+
+    network->set_input_data("input", input_mem);
+    auto outputs = network->execute();
+    auto output_mem = outputs.at("pool").get_memory();
+    ASSERT_EQ(output_mem->get_layout().get_partial_shape(), (ov::PartialShape{1, 1, 1, 1}));
+    cldnn::mem_lock<float, mem_lock_type::read> output(output_mem, get_test_stream());
+    EXPECT_FLOAT_EQ(output[0], -1.0F);
+}
+#endif  // OV_GPU_VENDOR_NVIDIA
+
 TEST(pooling_forward_gpu_onednn, basic_max_pooling_int8) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
