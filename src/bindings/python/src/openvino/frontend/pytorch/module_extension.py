@@ -14,8 +14,9 @@ class ModuleExtension:
     instance in the model, or module name.
 
     In TorchScript conversion, the replacement operation's outputs are assumed
-    not to alias its inputs. In-place mutations involving aliased outputs may
-    produce incorrect results.
+    not to alias its inputs. Returning an input or a view of one is unsupported:
+    aliasing is not preserved, and in-place mutations involving aliased outputs
+    may silently produce incorrect results.
     """
 
     def __init__(self,

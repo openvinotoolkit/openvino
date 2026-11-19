@@ -61,8 +61,9 @@ The following extension types are supported:
 ### Python module extensions
 
 For TorchScript conversion, `ModuleExtension` replacement operations are assumed
-to return tensors that do not alias their inputs. In-place mutations involving
-aliased outputs may produce incorrect results.
+to return tensors that do not alias their inputs. Returning an input or a view
+of one is unsupported: aliasing is not preserved, and in-place mutations
+involving aliased outputs may silently produce incorrect results.
 
 ### Context-manager scopes in exported models
 
