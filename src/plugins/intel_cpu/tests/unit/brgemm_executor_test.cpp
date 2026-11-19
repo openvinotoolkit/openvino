@@ -17,6 +17,7 @@
 #include "common_test_utils/test_common.hpp"
 #include "nodes/kernels/x64/brgemm_kernel.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/runtime/system_conf.hpp"
 
 using BrgemmKernelParams = std::tuple<ov::element::Type,
@@ -241,6 +242,121 @@ TEST_P(BrgemmKernelTest, simpleGemmTest) {
         }
     }
 }
+
+using BrgemmFP16Params = std::tuple<size_t, size_t, size_t, bool, bool, bool, bool>;
+
+class BrgemmFP16Test : public testing::TestWithParam<BrgemmFP16Params> {};
+
+TEST_P(BrgemmFP16Test, PaddedStridesAndTails) {
+    if (!ov::with_cpu_x86_avx512_core_fp16()) {
+        GTEST_SKIP() << "FP16 BRGEMM requires AVX512-FP16.";
+    }
+    const auto [M, N, K, transposed, accumulate, float_b, float_a] = GetParam();
+    if ((float_b || float_a) && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16)) {
+        GTEST_SKIP() << "Mixed FP16/FP32 operands use the non-AMX path.";
+    }
+    const size_t lda = K + 5;
+    const size_t ldb = transposed ? K + 7 : N + 7;
+    const size_t ldc = N + 3;
+    const size_t guard = 64;
+    std::vector<ov::float16> a(M * lda, ov::float16(13.f));
+    std::vector<float> a_float(a.size(), 13.f);
+    std::vector<ov::float16> b((transposed ? N : K) * ldb, ov::float16(-17.f));
+    std::vector<float> b_float(b.size(), -17.f);
+    std::vector<float> c(guard + M * ldc + guard, 19.f);
+    for (size_t m = 0; m < M; ++m) {
+        for (size_t k = 0; k < K; ++k) {
+            a[m * lda + k] = ov::float16((static_cast<int>((m * 17 + k * 13) % 29) - 14) * 0.125f);
+            a_float[m * lda + k] = static_cast<float>(a[m * lda + k]) + (k % 5) * 0.001f;
+        }
+    }
+    for (size_t k = 0; k < K; ++k) {
+        for (size_t n = 0; n < N; ++n) {
+            b[transposed ? n * ldb + k : k * ldb + n] =
+                ov::float16((static_cast<int>((k * 7 + n * 11) % 31) - 15) * 0.0625f);
+            b_float[transposed ? n * ldb + k : k * ldb + n] =
+                static_cast<float>(b[transposed ? n * ldb + k : k * ldb + n]) + (k % 3) * 0.001f;
+        }
+    }
+    ov::intel_cpu::BrgemmKernel gemm(M,
+                                     N,
+                                     K,
+                                     lda,
+                                     ldb,
+                                     ldc,
+                                     transposed,
+                                     ov::element::f16,
+                                     accumulate,
+                                     float_b ? ov::element::f32 : ov::element::f16,
+                                     float_a ? ov::element::f32 : ov::element::f16);
+    std::vector<uint8_t> packed_b(guard + gemm.get_scratch_b_size() + guard, 0xA5);
+    std::vector<uint8_t> scratch_a(guard + gemm.get_scratch_a_size() + guard, 0xA5);
+    std::vector<size_t> workspace(4 * 1024);
+    gemm.copy_buffer_b(float_b ? static_cast<void*>(b_float.data()) : static_cast<void*>(b.data()),
+                       packed_b.data() + guard);
+    for (size_t step = 0; step < 2; ++step) {
+        for (size_t m = 0; m < M; m += gemm.get_mblk_size()) {
+            const auto count = std::min(gemm.get_mblk_size(), M - m);
+            if (step == 1 && !float_a && !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16)) {
+                gemm.copy_buffer_a(count < gemm.get_mblk_size(), a.data() + m * lda, scratch_a.data() + guard);
+                for (size_t repeat = 0; repeat < 2; ++repeat) {
+                    gemm.execute_with_packed_a(count < gemm.get_mblk_size(),
+                                               scratch_a.data() + guard,
+                                               packed_b.data() + guard,
+                                               c.data() + guard + m * ldc,
+                                               workspace.data());
+                }
+            } else {
+                gemm.executeGemm(
+                    count < gemm.get_mblk_size(),
+                    float_a ? static_cast<void*>(a_float.data() + m * lda) : static_cast<void*>(a.data() + m * lda),
+                    packed_b.data() + guard,
+                    c.data() + guard + m * ldc,
+                    nullptr,
+                    nullptr,
+                    workspace.data(),
+                    scratch_a.data() + guard);
+            }
+        }
+        for (size_t m = 0; m < M; ++m) {
+            for (size_t n = 0; n < N; ++n) {
+                float dot = 0;
+                for (size_t k = 0; k < K; ++k) {
+                    const auto offset = transposed ? n * ldb + k : k * ldb + n;
+                    dot += (float_a ? a_float[m * lda + k] : static_cast<float>(a[m * lda + k])) *
+                           (float_b ? b_float[offset] : static_cast<float>(b[offset]));
+                }
+                const size_t executions =
+                    step == 1 && !float_a && !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16)
+                        ? 3
+                        : step + 1;
+                const float expected = accumulate ? 19.f + executions * dot : dot;
+                ASSERT_NEAR(c[guard + m * ldc + n], expected, 1e-4f) << "step=" << step << " m=" << m << " n=" << n;
+            }
+            for (size_t n = N; n < ldc; ++n) {
+                ASSERT_EQ(c[guard + m * ldc + n], 19.f);
+            }
+        }
+    }
+    for (size_t i = 0; i < guard; ++i) {
+        ASSERT_EQ(c[i], 19.f);
+        ASSERT_EQ(c[guard + M * ldc + i], 19.f);
+        ASSERT_EQ(packed_b[i], 0xA5);
+        ASSERT_EQ(packed_b[guard + gemm.get_scratch_b_size() + i], 0xA5);
+        ASSERT_EQ(scratch_a[i], 0xA5);
+        ASSERT_EQ(scratch_a[guard + gemm.get_scratch_a_size() + i], 0xA5);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_BrgemmFP16,
+                         BrgemmFP16Test,
+                         ::testing::Combine(::testing::Values(1, 33),
+                                            ::testing::Values(17, 37),
+                                            ::testing::Values(3, 16, 17, 35, 127, 129),
+                                            ::testing::Bool(),
+                                            ::testing::Bool(),
+                                            ::testing::Bool(),
+                                            ::testing::Bool()));
 
 const std::vector<BrgemmKernelParams> params = {{ov::element::f32, 33, 32, 33, false},
                                                 {ov::element::bf16, 33, 32, 33, false},

@@ -309,6 +309,39 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(false)),
     PagedAttnTestBase::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(
+    smoke_PagedAttnFP16ChunkedPrefill,
+    PagedAttnFP16UnequalHeadTest,
+    ::testing::Combine(
+        ::testing::Values(ElementType::f16),
+        ::testing::Values(
+            InputShapes{
+                {{-1, 1, 1, 128}, {{32, 1, 1, 128}, {32, 1, 1, 128}, {33, 1, 1, 128}, {2, 1, 1, 128}, {29, 1, 1, 128}}},
+                {{-1, 1, 1, 128},
+                 {{0, 1, 1, 128}, {32, 1, 1, 128}, {64, 1, 1, 128}, {97, 1, 1, 128}, {99, 1, 1, 128}}}},
+            InputShapes{
+                {{-1, 1, 4, 128}, {{32, 1, 4, 128}, {32, 1, 4, 128}, {33, 1, 4, 128}, {2, 1, 4, 128}, {29, 1, 4, 128}}},
+                {{-1, 1, 4, 128},
+                 {{0, 1, 4, 128}, {32, 1, 4, 128}, {64, 1, 4, 128}, {97, 1, 4, 128}, {99, 1, 4, 128}}}}),
+        ::testing::Values(false),
+        ::testing::Values(false),
+        ::testing::Values(false),
+        ::testing::Values(0),
+        ::testing::Values(ov::AnyMap{{ov::intel_cpu::enable_sage_attn.name(), false},
+                                     {ov::hint::inference_precision.name(), ov::element::f16},
+                                     {ov::hint::kv_cache_precision.name(), ov::element::f16},
+                                     {ov::inference_num_threads.name(), 8}},
+                          ov::AnyMap{{ov::intel_cpu::enable_sage_attn.name(), false},
+                                     {ov::hint::inference_precision.name(), ov::element::f16},
+                                     {ov::hint::kv_cache_precision.name(), ov::element::u8},
+                                     {ov::inference_num_threads.name(), 8}},
+                          ov::AnyMap{{ov::intel_cpu::enable_sage_attn.name(), false},
+                                     {ov::hint::inference_precision.name(), ov::element::f16},
+                                     {ov::hint::kv_cache_precision.name(), ov::element::u4},
+                                     {ov::inference_num_threads.name(), 8}}),
+        ::testing::Values(false)),
+    PagedAttnTestBase::getTestCaseName);
+
 TEST_P(PagedAttnCacheCollisionTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     if (!ov::with_cpu_x86_avx2()) {
