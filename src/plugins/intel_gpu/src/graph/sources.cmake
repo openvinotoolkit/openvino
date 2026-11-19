@@ -77,6 +77,7 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/graph_optimizer/mark_shape_of_subgraphs.cpp
     ${CMAKE_CURRENT_LIST_DIR}/graph_optimizer/mark_state_init_subgraphs.cpp
     ${CMAKE_CURRENT_LIST_DIR}/graph_optimizer/oooq_memory_dependencies.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/graph_optimizer/order_runtime_concat_predecessors.cpp
     ${CMAKE_CURRENT_LIST_DIR}/graph_optimizer/post_input_reorder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/graph_optimizer/post_optimize_weights.cpp
     ${CMAKE_CURRENT_LIST_DIR}/graph_optimizer/pre_replace_deconv.cpp

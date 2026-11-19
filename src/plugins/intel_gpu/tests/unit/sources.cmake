@@ -97,6 +97,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/passes/oooq_memory_dependencies_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/post_optimize_weights.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/prepare_buffer_fusing_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/passes/runtime_concat_exec_order_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/prepare_padding_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/prepare_primitive_fusing_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/prepare_primitive_fusing_through_test.cpp

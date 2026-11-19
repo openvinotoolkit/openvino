@@ -646,10 +646,13 @@ void program::post_optimize_graph(bool is_internal) {
     if (_config.get_queue_type() == QueueTypes::out_of_order)
         get_processing_order().calculate_BFS_processing_order();
 
+    // F9: after the last PO rewrite, before mark_state_init_subgraphs and the F5 re-freeze below.
+    apply_opt_pass<order_runtime_concat_predecessors>();
+
     apply_opt_pass<mark_state_init_subgraphs>();
 
     // F5: the single point where the oneDNN in-place post-ops become final. Last statement of the phase and outside the dry_run gate of
-    // build_program(); F9 (when it lands) rewrites the processing order before this line, and war_safe (Phase 1a) extends this pass.
+    // build_program(); F9 (order_runtime_concat_predecessors) rewrites the processing order before this line, and war_safe (Phase 1a) extends this pass.
     apply_opt_pass<refreeze_onednn_inplace_post_ops>();
 }
 

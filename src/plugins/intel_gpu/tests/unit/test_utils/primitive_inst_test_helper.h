@@ -17,6 +17,12 @@ public:
     static void set_update_shape_done_by_other(const std::shared_ptr<primitive_inst>& inst, bool val) {
         inst->_update_shape_done_by_other = val;
     }
+    static bool get_update_shape_done_by_other(const std::shared_ptr<primitive_inst>& inst) {
+        return inst->_update_shape_done_by_other;
+    }
+    static bool get_allocation_done_by_other(const std::shared_ptr<primitive_inst>& inst) {
+        return inst->_allocation_done_by_other;
+    }
     static void do_runtime_in_place_crop(const std::shared_ptr<primitive_inst>& inst) {
         inst->do_runtime_in_place_crop();
     }

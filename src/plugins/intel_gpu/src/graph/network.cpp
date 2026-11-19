@@ -22,6 +22,7 @@
 #include "deconvolution_inst.h"
 #include "fully_connected_inst.h"
 #include "input_layout_inst.h"
+#include "runtime_concat_order.h"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/serialization/map_serializer.hpp"
@@ -921,16 +922,11 @@ void network::build_exec_order() {
             }
         }
     } else {
-        auto is_runtime_optimized_concat = [&](const program_node* node) {
-            return (node->is_dynamic() && node->is_type<concatenation>() && node->can_be_optimized());
-        };
-        auto is_allowed_pred_for_runtime_optimized_concat = [&](const program_node* node) {
-            return (!node->is_type<data>() && (!node->is_type<mutable_data>() || !node->get_dependencies().empty()) && node->get_users().size() == 1 &&
-                    is_runtime_optimized_concat(node->get_users().front()));
-        };
+        using runtime_concat_order::is_allowed_pred;
+        using runtime_concat_order::is_runtime_optimized_concat;
         for (const auto& node : _program->get_processing_order()) {
             if (!node->is_type<data>() && (!node->is_type<mutable_data>() || !node->get_dependencies().empty())) {
-                if (is_allowed_pred_for_runtime_optimized_concat(node)) {
+                if (is_allowed_pred(node)) {
                     continue;
                 }
                 if (is_runtime_optimized_concat(node)) {
@@ -946,6 +942,16 @@ void network::build_exec_order() {
             }
         }
     }
+#ifndef NDEBUG
+    // F9 Debug assertions A1 (no duplicates) and A2 (_exec_order == filter(PO) when the PO is normalized). The check itself is
+    // runtime_concat_order::check_exec_order() so that tests can also call it in Release builds.
+    {
+        OPENVINO_ASSERT(_exec_positions.size() == _exec_order.size(), "[GPU] F9: a primitive is present twice in the exec order");
+        const auto exec_ids = get_executed_primitive_ids();
+        const auto res = runtime_concat_order::check_exec_order(_program->get_processing_order(), exec_ids);
+        OPENVINO_ASSERT(res.ok(), "[GPU] F9: ", res.message);
+    }
+#endif
 }
 
 bool network::contains_state(const std::string& variable_id) {

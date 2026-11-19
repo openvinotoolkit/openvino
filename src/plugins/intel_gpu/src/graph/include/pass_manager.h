@@ -105,6 +105,16 @@ private:
     void mark_init_subgraph(program& p, read_value_node& node);
 };
 
+// F9: in_order only, moves the predecessors of every runtime-optimizable concat right before it (the same move network::build_exec_order
+// performs), so that processing order == exec order. In all queue types, cancels concats whose predecessors cannot be re-issued safely.
+class order_runtime_concat_predecessors : public base_pass {
+public:
+    order_runtime_concat_predecessors() : base_pass("order_runtime_concat_predecessors") {}
+
+private:
+    void run(program& p) override;
+};
+
 class mark_shape_of_subgraphs : public base_pass {
     // This optimization pass aggregates nodes into shape_of subgraphs for further optimizations.
     // There are few key requirements to decide if node belongs to shape_of subgraph or not:
