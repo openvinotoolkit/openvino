@@ -123,6 +123,28 @@ KERNEL(quantize_input)(
 #define TO_FILTER_VEC_TYPE(x)      CAT(convert_, FILTER_VEC_TYPE)(x)
 #define TO_ACCUMULATOR_VEC_TYPE(x) CAT(convert_, ACCUMULATOR_VEC_TYPE)(x)
 
+#if ACCUMULATOR_IS_FP
+#define FC_ACC_TYPE                float
+#define FC_ACC_VEC_TYPE            MAKE_VECTOR_TYPE(float, TILE_OFM)
+#define FC_ACC_VAL_ONE             1.0f
+#define TO_FC_ACC_TYPE(x)          convert_float(x)
+#define TO_FC_ACC_VEC_TYPE(x)      CAT(convert_, FC_ACC_VEC_TYPE)(x)
+#else
+#define FC_ACC_TYPE                ACCUMULATOR_TYPE
+#define FC_ACC_VEC_TYPE            ACCUMULATOR_VEC_TYPE
+#define FC_ACC_VAL_ONE             ACCUMULATOR_VAL_ONE
+#define TO_FC_ACC_TYPE(x)          TO_ACCUMULATOR_TYPE(x)
+#define TO_FC_ACC_VEC_TYPE(x)      TO_ACCUMULATOR_VEC_TYPE(x)
+#endif
+
+#if OUTPUT_3D
+#define GET_INPUT0_BF_OFFSET(b_idx) (((b_idx) / OUTPUT_FEATURE_NUM) * INPUT0_BATCH_PITCH + ((b_idx) % OUTPUT_FEATURE_NUM) * INPUT0_FEATURE_PITCH + INPUT0_OFFSET)
+#define GET_OUTPUT_BF_OFFSET(b_idx) (((b_idx) / OUTPUT_FEATURE_NUM) * OUTPUT_BATCH_PITCH + ((b_idx) % OUTPUT_FEATURE_NUM) * OUTPUT_FEATURE_PITCH + OUTPUT_OFFSET)
+#else
+#define GET_INPUT0_BF_OFFSET(b_idx) ((b_idx) * TILE_IN_B_PITCH + INPUT0_OFFSET)
+#define GET_OUTPUT_BF_OFFSET(b_idx) ((b_idx) * TILE_OUT_B_PITCH + OUTPUT_OFFSET)
+#endif
+
 #define INPUT_BLOCK_READ(ptr, offset)        BLOCK_READN(INPUT0_TYPE, TILE_IFM, ptr, offset)
 #define FILTER_BLOCK_READ(ptr, offset)       BLOCK_READN(FILTER_TYPE, TILE_K_OFM_PACKED, ptr, offset)
 #define BIAS_BLOCK_READ(ptr, offset)         BLOCK_READN(BIAS_TYPE, TILE_OFM, ptr, offset)
@@ -134,7 +156,11 @@ KERNEL(quantize_input)(
 
 
 // Check alignment restrictions for using block writes on output.
+#if OUTPUT_3D
+#define USE_BLOCK_WRITE ((OUTPUT_TYPE_SIZE * TILE_OUT_B_PITCH) % 16 == 0 && (OUTPUT_TYPE_SIZE * OUTPUT_BATCH_PITCH) % 16 == 0 && (OUTPUT_TYPE_SIZE * OUTPUT_OFFSET) % 16 == 0)
+#else
 #define USE_BLOCK_WRITE ((OUTPUT_TYPE_SIZE * TILE_OUT_B_PITCH) % 16 == 0 && (OUTPUT_TYPE_SIZE * OUTPUT_OFFSET) % 16 == 0)
+#endif
 
 
 #if !REALIGN_FP16_OFFSET
@@ -239,20 +265,18 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     uint out_b = ((batch_mega_block * DISPATCH_BSV + batch_mini_block) * TILE_B);
 #endif
 
-    ACCUMULATOR_VEC_TYPE acc[TILE_B] = { };
-    INPUT_VEC_TYPE       in_0[TILE_B] = { };
+    FC_ACC_VEC_TYPE acc[TILE_B] = { };
+    INPUT_VEC_TYPE  in_0[TILE_B] = { };
 
     #if !USE_SLM || !COMPRESSED_WEIGHTS_INT4
         FILTER_VEC_TYPE wei = 0;
     #endif
 
-#if OUTPUT_3D
-    uint out_b0 = out_b / OUTPUT_FEATURE_NUM;
-    uint out_b1 = out_b % OUTPUT_FEATURE_NUM;
-    uint input_offset = out_b0 * INPUT0_BATCH_PITCH + out_b1 * INPUT0_FEATURE_PITCH + INPUT0_OFFSET;
-#else
-    uint input_offset = out_b * TILE_IN_B_PITCH + INPUT0_OFFSET;
-#endif
+    uint input_base_offset[TILE_B];
+    unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
+        input_base_offset[bi] = GET_INPUT0_BF_OFFSET(out_b + bi);
+    }
+    uint input_k_offset = 0;
 
 #if COMPRESSED_WEIGHTS_INT4
     #if TILE_OFM == 1 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
@@ -319,12 +343,11 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 
     ACTIVATION_VEC_TYPE activated[TILE_B] = { };
 #if OUTER_OFM > 1
-    uint input_offset_init = input_offset;
     uint weights_offset_init = weights_offset;
     uint out_f_init = out_f;
     __attribute__((opencl_unroll_hint(1)))
     for (uint oi = 0; oi < OUTER_OFM; ++oi) {
-        input_offset = input_offset_init;
+        input_k_offset = 0;
         #ifdef SWIGLU_LENGTH
         weights_offset = weights_offset_init + oi * (FILTER_IFM_NUM / (TILE_K_OFM / TILE_K_OFM_PACKED) ) * SWIGLU_LENGTH;
         out_f += SWIGLU_LENGTH * oi;
@@ -340,17 +363,17 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         // Guard OOB batch reads on Xe2+ where OOB access crashes (CL_OUT_OF_RESOURCES).
         uint sglid_b = get_sub_group_local_id() % TILE_B;
         INPUT0_TYPE tmp_input = (out_b + sglid_b < BATCH_SIZE)
-            ? input[input_offset + sglid_b * TILE_IN_B_PITCH]
+            ? input[GET_INPUT0_BF_OFFSET(out_b + sglid_b) + input_k_offset]
             : INPUT0_VAL_ZERO;
         ACCUMULATOR_VEC_TYPE tmp_wei = TO_ACCUMULATOR_VEC_TYPE(BLOCK_READN(FILTER_TYPE, TILE_OFM, weights, weights_offset));
         #if COMPRESSED_WEIGHTS
             tmp_wei = (tmp_wei - d_zp) * d_scale;
         #endif
         unroll_for(uint bi = 0; bi < TILE_B; ++bi) {
-            acc[bi] = _sub_group_shuffle(tmp_input, bi) * tmp_wei;
+            acc[bi] = TO_FC_ACC_TYPE(_sub_group_shuffle(tmp_input, bi)) * TO_FC_ACC_VEC_TYPE(tmp_wei);
         }
         weights_offset += TILE_OFM * SIMD;
-        input_offset += 1;
+        input_k_offset += 1;
     }
 #endif
     // =====================================================================================================================================
@@ -361,28 +384,28 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         // Load input.
         // Guard OOB batch reads on Xe2+ where OOB access crashes (CL_OUT_OF_RESOURCES).
         #if IS_DYNAMIC || BATCH_LEFTOVER
-        #define LOAD_IN_0(bi) do {                                   \
-                if (bi + out_b < BATCH_SIZE) {                       \
-                    in_0[bi] = INPUT_BLOCK_READ(input, input_offset);\
-                } else {                                             \
-                    in_0[bi] = 0;                                    \
-                }                                                    \
-                input_offset += TILE_IN_B_PITCH;                     \
+        #define LOAD_IN_0(bi) do {                                                          \
+                if (bi + out_b < BATCH_SIZE) {                                              \
+                    in_0[bi] = INPUT_BLOCK_READ(input, input_base_offset[bi] + input_k_offset); \
+                } else {                                                                    \
+                    in_0[bi] = 0;                                                           \
+                }                                                                           \
             } while (false)
         #else
-        #define LOAD_IN_0(bi) do {                                   \
-                in_0[bi] = INPUT_BLOCK_READ(input, input_offset);    \
-                input_offset += TILE_IN_B_PITCH;                     \
+        #define LOAD_IN_0(bi) do {                                                          \
+                in_0[bi] = INPUT_BLOCK_READ(input, input_base_offset[bi] + input_k_offset); \
             } while (false)
         #endif
 
         CONST_LOOP(TILE_B, LOAD_IN_0);
         #undef LOAD_IN_0
-        input_offset += TILE_IFM * SIMD - TILE_IN_B_PITCH * TILE_B;
+        input_k_offset += TILE_IFM * SIMD;
         // NOTE: Manually unrolling multiplication loop leads to lower register pressure and allows for bigger block sizes,
         //       but significantly degrades readability and generality of code.
         //       It doesn't also show noticable performance improvement on tested configurations.
-        ACCUMULATOR_VEC_TYPE acc_tmp[TILE_B] = { };
+        #if DECOMPRESSION_SCALE_POST_OP
+        FC_ACC_VEC_TYPE acc_tmp[TILE_B] = { };
+        #endif
 
         #if USE_SLM && COMPRESSED_WEIGHTS_INT4
             #if TILE_OFM != 2
@@ -579,15 +602,15 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 #if DECOMPRESSION_SCALE_POST_OP
                     half weight = ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
                     #if TILE_OFM > 1
-                        ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] += in_val * weight;
+                        ((FC_ACC_TYPE*)(&acc_tmp[bi]))[fi] += TO_FC_ACC_TYPE(in_val) * TO_FC_ACC_TYPE(weight);
                     #else
-                        acc_tmp[bi] += in_val * weight;
+                        acc_tmp[bi] += TO_FC_ACC_TYPE(in_val) * TO_FC_ACC_TYPE(weight);
                     #endif
 #else
                     #if TILE_OFM > 1
-                        ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
+                        ((FC_ACC_TYPE*)(&acc[bi]))[fi] += TO_FC_ACC_TYPE(in_val) * TO_FC_ACC_TYPE(((ACCUMULATOR_TYPE*)(&wei))[W_IDX]);
                     #else
-                        acc_tmp[bi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
+                        acc[bi] += TO_FC_ACC_TYPE(in_val) * TO_FC_ACC_TYPE(((ACCUMULATOR_TYPE*)(&wei))[W_IDX]);
                     #endif
 #endif
                     }
@@ -612,10 +635,10 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                     #endif
                     #endif
                     #if TILE_OFM > 1
-                    ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] * ds;
+                    ((FC_ACC_TYPE*)(&acc[bi]))[fi] += ((FC_ACC_TYPE*)(&acc_tmp[bi]))[fi] * TO_FC_ACC_TYPE(ds);
                     acc_tmp[bi][fi] = 0;
                     #else
-                    acc[bi] += acc_tmp[bi] * ds;
+                    acc[bi] += acc_tmp[bi] * TO_FC_ACC_TYPE(ds);
                     acc_tmp[bi] = 0;
                     #endif
                 }
@@ -639,23 +662,11 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 #endif
                 #endif
                 #if TILE_OFM > 1
-                ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] * ds;
+                ((FC_ACC_TYPE*)(&acc[bi]))[fi] += ((FC_ACC_TYPE*)(&acc_tmp[bi]))[fi] * TO_FC_ACC_TYPE(ds);
                 acc_tmp[bi][fi] = 0;
                 #else
-                acc[bi] += acc_tmp[bi] * ds;
+                acc[bi] += acc_tmp[bi] * TO_FC_ACC_TYPE(ds);
                 acc_tmp[bi] = 0;
-                #endif
-            }
-        }
-#endif
-
-#if !DECOMPRESSION_SCALE_POST_OP
-        unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
-            unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
-                #if TILE_OFM > 1
-                ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi];
-                #else
-                acc[bi] += acc_tmp[bi];
                 #endif
             }
         }
@@ -669,24 +680,22 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     {
         // Guard OOB batch reads on Xe2+ where OOB access crashes (CL_OUT_OF_RESOURCES).
         #if IS_DYNAMIC || BATCH_LEFTOVER
-        #define LOAD_IN_0(bi) do {                                  \
-                if (bi + out_b < BATCH_SIZE) {                      \
-                    in_0[bi] = INPUT_BLOCK_READ(input, input_offset);\
-                } else {                                            \
-                    in_0[bi] = 0;                      \
-                }                                                   \
-                input_offset += TILE_IN_B_PITCH;                    \
+        #define LOAD_IN_0(bi) do {                                                          \
+                if (bi + out_b < BATCH_SIZE) {                                              \
+                    in_0[bi] = INPUT_BLOCK_READ(input, input_base_offset[bi] + input_k_offset); \
+                } else {                                                                    \
+                    in_0[bi] = 0;                                                           \
+                }                                                                           \
             } while (false)
         #else
-        #define LOAD_IN_0(bi) do {                                  \
-                in_0[bi] = INPUT_BLOCK_READ(input, input_offset);   \
-                input_offset += TILE_IN_B_PITCH;                    \
+        #define LOAD_IN_0(bi) do {                                                          \
+                in_0[bi] = INPUT_BLOCK_READ(input, input_base_offset[bi] + input_k_offset); \
             } while (false)
         #endif
 
         CONST_LOOP(TILE_B, LOAD_IN_0);
         #undef LOAD_IN_0
-        input_offset += TILE_IFM * SIMD - TILE_IN_B_PITCH * TILE_B;
+        input_k_offset += TILE_IFM * SIMD;
         unroll_for(uint ki = 0; ki < CEIL_DIV(LEFTOVER_IFM, TILE_K); ++ki) {
             #if USE_SLM
                 FILTER_VEC_TYPE wei = 0;
@@ -746,9 +755,9 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                         if (total_k < LEFTOVER_IFM) {
                             INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
                             #if TILE_OFM > 1
-                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
+                            ((FC_ACC_TYPE*)(&acc[bi]))[fi] += TO_FC_ACC_TYPE(in_val) * TO_FC_ACC_TYPE(((ACCUMULATOR_TYPE*)(&wei))[W_IDX]);
                             #else
-                            acc[bi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
+                            acc[bi] += TO_FC_ACC_TYPE(in_val) * TO_FC_ACC_TYPE(((ACCUMULATOR_TYPE*)(&wei))[W_IDX]);
                             #endif
                         }
                     }
@@ -765,8 +774,8 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         #if SWIGLU_SPLIT_TO_GLU_IDX == 0
         if (oi == 0) {
             // swish
+            acc[bi] /= (FC_ACC_VAL_ONE + native_exp(-(FC_ACC_VAL_ONE * acc[bi])));
             activated[bi] = TO_ACTIVATION_VEC_TYPE(acc[bi]);
-            activated[bi] /= (ACCUMULATOR_VAL_ONE + native_exp(-(ACCUMULATOR_VAL_ONE * activated[bi])));
         } else {
             activated[bi] *= TO_ACTIVATION_VEC_TYPE(acc[bi]);
         }
@@ -775,7 +784,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
             // swish
             activated[bi] = TO_ACTIVATION_VEC_TYPE(acc[bi]);
         } else {
-            acc[bi] /= (ACCUMULATOR_VAL_ONE + native_exp(-(ACCUMULATOR_VAL_ONE * acc[bi])));
+            acc[bi] /= (FC_ACC_VAL_ONE + native_exp(-(FC_ACC_VAL_ONE * acc[bi])));
             activated[bi] *= TO_ACTIVATION_VEC_TYPE(acc[bi]);
         }
         #endif
@@ -826,26 +835,24 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 #endif
     // =====================================================================================================================================
     // Write results
-    uint output_offset = out_f * TILE_OUT_F_PITCH + out_b * TILE_OUT_B_PITCH + OUTPUT_OFFSET;
+    uint output_f_offset = out_f * TILE_OUT_F_PITCH;
 
     if (USE_BLOCK_WRITE && (TILE_OUT_F_NUM % (OUTER_OFM * TILE_OFM * SIMD) == 0 || out_f + (OUTER_OFM * TILE_OFM * SIMD) <= TILE_OUT_F_NUM)) {
 #if IS_DYNAMIC || BATCH_LEFTOVER
-        #define WRITE_OUTPUT(bi) do {                                       \
-                if (bi + out_b < BATCH_SIZE)                                \
-                    OUTPUT_BLOCK_WRITE(output, output_offset, result[bi]);  \
-                output_offset += TILE_OUT_B_PITCH;                          \
+        #define WRITE_OUTPUT(bi) do {                                                                           \
+                if (bi + out_b < BATCH_SIZE)                                                                    \
+                    OUTPUT_BLOCK_WRITE(output, output_f_offset + GET_OUTPUT_BF_OFFSET(out_b + bi), result[bi]); \
             } while (false)
 #else
-        #define WRITE_OUTPUT(bi) do {                                       \
-                OUTPUT_BLOCK_WRITE(output, output_offset, result[bi]);      \
-                output_offset += TILE_OUT_B_PITCH;                          \
+        #define WRITE_OUTPUT(bi) do {                                                                           \
+                OUTPUT_BLOCK_WRITE(output, output_f_offset + GET_OUTPUT_BF_OFFSET(out_b + bi), result[bi]);     \
             } while (false)
 #endif
         CONST_LOOP(TILE_B, WRITE_OUTPUT);
         #undef WRITE_OUTPUT
     } else {
-        output_offset += sglid;
         for (uint bi = 0; bi < TILE_B; ++bi) {
+            uint output_offset = output_f_offset + GET_OUTPUT_BF_OFFSET(out_b + bi) + sglid;
             for (uint fi = 0; fi < TILE_OFM; ++fi) {
                 const bool should_write =
 #if IS_DYNAMIC || BATCH_LEFTOVER
@@ -858,7 +865,6 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 }
                 output_offset += SIMD;
             }
-            output_offset += TILE_OUT_B_PITCH - TILE_OFM * SIMD;
         }
     }
 #if OUTER_OFM > 1 && !defined(SWIGLU_LENGTH)
@@ -1731,6 +1737,13 @@ KERNEL(fc)(
 #undef ACTIVATION_VEC_TYPE
 #undef TO_OUTPUT_VEC_TYPE
 #undef TO_ACTIVATION_VEC_TYPE
+#undef FC_ACC_TYPE
+#undef FC_ACC_VEC_TYPE
+#undef FC_ACC_VAL_ONE
+#undef TO_FC_ACC_TYPE
+#undef TO_FC_ACC_VEC_TYPE
+#undef GET_INPUT0_BF_OFFSET
+#undef GET_OUTPUT_BF_OFFSET
 
 #undef INPUT_BLOCK_READ
 #undef FILTER_BLOCK_READ
