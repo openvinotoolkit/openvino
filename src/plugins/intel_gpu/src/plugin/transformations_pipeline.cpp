@@ -1160,6 +1160,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         type_to_fuse_map empty_fuse_map = {};
 
+        // Normalize Power(x, 0.5) to Sqrt(x) so MVNFusion and RMSFusion match decomposed norms exported with Power(0.5).
+        manager.register_pass<ov::intel_gpu::ConvertPowerHalfToSqrt>();
+
         // fuse softmax, MVN patterns, so that they will not be marked as precision sensitive in ConvertPrecision
         manager.register_pass<ov::pass::SoftmaxFusion>();
         manager.register_pass<ov::pass::MVNFusion>();
