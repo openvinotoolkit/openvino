@@ -101,7 +101,7 @@ struct condition_impl : typed_primitive_impl<condition> {
                 }
                 GPU_DEBUG_LOG << "    set output layout : " << output_layout.to_short_string() << std::endl;
                 instance.set_output_layout(output_layout, out_idx);
-                instance.set_output_memory(output_mem_ptr, out_idx != 0u);
+                instance.set_output_memory(output_mem_ptr, out_idx != 0U);
                 instance.set_flag(ExecutionFlags::MEMORY_CHANGED);
             }
             return stream.group_events(output_events);
@@ -150,11 +150,11 @@ struct condition_impl : typed_primitive_impl<condition> {
         return stream.group_events(output_events);
     }
 
-    static std::unique_ptr<primitive_impl> create(const condition_node& arg, const kernel_impl_params&) {
+    static std::unique_ptr<primitive_impl> create(const condition_node& arg, const kernel_impl_params& /*unused*/) {
         return std::make_unique<condition_impl>(arg);
     }
 
-    void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
+    void init_kernels(const kernels_cache& /*kernels_cache*/, const kernel_impl_params& /*params*/) override {}
 
     void save(BinaryOutputBuffer& ob) const override {
         parent::save(ob);
