@@ -69,10 +69,10 @@ ov::CompatibilityCheck validateCompatibilityDescriptor(const ov::SoPtr<intel_npu
         return ov::CompatibilityCheck::UNSUPPORTED;
     }
 
-    const auto descriptorView = metadata->get_compatibility_descriptor();
-    std::string compatibilityDescriptor = descriptorView.has_value() ? std::string(descriptorView.value()) : "";
+    // One descriptor per blob: several for a compiled model holding a blob for each device variant of its target
+    const std::vector<std::string> compatibilityDescriptors = metadata->get_compatibility_descriptors();
 
-    if (compatibilityDescriptor.empty()) {
+    if (compatibilityDescriptors.empty()) {
         return ov::CompatibilityCheck::NOT_APPLICABLE;
     }
 
@@ -81,19 +81,46 @@ ov::CompatibilityCheck validateCompatibilityDescriptor(const ov::SoPtr<intel_npu
     const auto device = backend->getDevice();
     const auto initStructs = backend->getInitStructs();
 
+    // The model is supported if any of its blobs is, as import picks one the device accepts
     if (device != nullptr && initStructs != nullptr && initStructs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 16)) {
-        auto result = device->validateCompatibilityDescriptor(compatibilityDescriptor);
-        return result ? ov::CompatibilityCheck::SUPPORTED : ov::CompatibilityCheck::UNSUPPORTED;
+        const bool supported = std::any_of(compatibilityDescriptors.begin(),
+                                           compatibilityDescriptors.end(),
+                                           [&device](const std::string& compatibilityDescriptor) {
+                                               return device->validateCompatibilityDescriptor(compatibilityDescriptor);
+                                           });
+        return supported ? ov::CompatibilityCheck::SUPPORTED : ov::CompatibilityCheck::UNSUPPORTED;
     }
 
-    // Fallback routed through the option support helper.
+    // Fallback routed through the option support helper. A descriptor it cannot validate leaves the answer open,
+    // unless another one is supported.
+    bool undetermined = false;
+    for (const auto& compatibilityDescriptor : compatibilityDescriptors) {
+        try {
+            if (optionSupportHelper.isOptionSupported(ov::intel_npu::CompilerType::PLUGIN,
+                                                      ov::compatibility_check.name(),
+                                                      std::make_optional(compatibilityDescriptor))) {
+                return ov::CompatibilityCheck::SUPPORTED;
+            }
+        } catch (...) {
+            undetermined = true;
+        }
+    }
+    return undetermined ? ov::CompatibilityCheck::NOT_APPLICABLE : ov::CompatibilityCheck::UNSUPPORTED;
+}
+
+// The compiler answers, and no backend is handed over so that the answer cannot depend on the local hardware.
+// An absent or older compiler library yields an empty list rather than a failing property.
+std::vector<std::string> getOfflineCompilationTargets(
+    const std::shared_ptr<intel_npu::OptionSupportCache>& optionSupportCache,
+    intel_npu::Logger& logger) {
     try {
-        const bool supported = optionSupportHelper.isOptionSupported(ov::intel_npu::CompilerType::PLUGIN,
-                                                                     ov::compatibility_check.name(),
-                                                                     std::make_optional(compatibilityDescriptor));
-        return supported ? ov::CompatibilityCheck::SUPPORTED : ov::CompatibilityCheck::UNSUPPORTED;
-    } catch (...) {
-        return ov::CompatibilityCheck::NOT_APPLICABLE;
+        auto compilerType = ov::intel_npu::CompilerType::PLUGIN;
+        return intel_npu::CompilerAdapterFactory()
+            .getCompiler({}, compilerType, "", optionSupportCache, true)
+            ->get_offline_compilation_targets();
+    } catch (const std::exception& ex) {
+        logger.warning("Could not enumerate the offline compilation targets: %s", ex.what());
+        return {};
     }
 }
 
@@ -343,6 +370,18 @@ std::string PluginPropertyManager::determineDeviceId(const ov::AnyMap& propertie
     return getDeviceIdOrDefault(properties);
 }
 
+std::optional<std::string> PluginPropertyManager::determineCompilationTarget(const ov::AnyMap& properties) const {
+    const auto it = properties.find(ov::compilation_target.name());
+    if (it != properties.end()) {
+        return it->second.as<std::string>();
+    }
+    std::lock_guard<std::mutex> lock(_mutex);
+    if (_config.has<COMPILATION_TARGET>()) {
+        return _config.get<COMPILATION_TARGET>();
+    }
+    return std::nullopt;
+}
+
 ov::intel_npu::CompilerType PluginPropertyManager::determineCompilerType(const ov::AnyMap& properties) const {
     auto it = properties.find(ov::intel_npu::compiler_type.name());
     if (it != properties.end()) {
@@ -479,6 +518,7 @@ void PluginPropertyManager::registerProperties() {
 
     registerConfigProperty(BYPASS_UMD_CACHING{}, true);
     registerConfigProperty(CACHE_DIR{}, true);
+    registerConfigProperty(COMPILATION_TARGET{}, true);
     registerConfigProperty(DEFER_WEIGHTS_LOAD{}, true);
     registerConfigProperty(MODEL_PRIORITY{}, true);
     registerConfigProperty(NUM_STREAMS{}, true);
@@ -805,6 +845,18 @@ void PluginPropertyManager::registerProperties() {
     }, readOnlySetter);
     register_property(ov::available_devices.name(), true, ov::PropertyMutability::RO, alwaysSupported, [this](const ov::AnyMap&) {
         return _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames();
+    }, readOnlySetter);
+    register_property(ov::offline_compilation_targets.name(), true, ov::PropertyMutability::RO, alwaysSupported, [this](const ov::AnyMap& arguments) {
+        // Takes no arguments: the list depends on the compiler alone. ov::device::id is tolerated (and ignored) since
+        // ov::Core adds it for a device name such as "NPU.0".
+        for (const auto& [argumentName, argumentValue] : arguments) {
+            OPENVINO_ASSERT(argumentName == ov::device::id.name(),
+                            ov::offline_compilation_targets.name(),
+                            " takes no arguments, got '",
+                            argumentName,
+                            "'. Filter the returned list instead.");
+        }
+        return getOfflineCompilationTargets(_compilerOptionSupportHelper->getOptionSupportCache(), _logger);
     }, readOnlySetter);
     register_property(ov::hint::model.name(), true, ov::PropertyMutability::WO,
         [this](const ov::AnyMap&) {

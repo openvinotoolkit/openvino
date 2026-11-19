@@ -26,6 +26,7 @@ public:
                                  const ov::AnyMap& properties,
                                  const std::shared_ptr<IDevice>& device,
                                  const std::shared_ptr<IGraph>& graph,
+                                 const std::vector<std::shared_ptr<IGraph>>& additionalGraphs,
                                  const std::optional<int64_t>& batchSize,
                                  Logger& logger);
 
@@ -41,6 +42,8 @@ private:
 
     const std::shared_ptr<IDevice> _device;
     std::shared_ptr<IGraph> _graph;
+    // Graphs compiled for other device variants, exported along with _graph. Only part of RUNTIME_REQUIREMENTS.
+    std::vector<std::shared_ptr<IGraph>> _additionalGraphs;
     std::optional<int64_t> _batchSize;
     Logger& _logger;
 

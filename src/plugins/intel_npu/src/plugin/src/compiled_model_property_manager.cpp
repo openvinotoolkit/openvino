@@ -18,7 +18,10 @@ inline void logCpuPinningDeprecationWarning(intel_npu::Logger& logger) {
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
+// The requirements of the whole compiled model: with additional graphs (one blob each, exported in a container), they
+// list the descriptor of every blob, as the model can run wherever any of its blobs can.
 std::string buildRuntimeRequirements(const std::shared_ptr<intel_npu::IGraph>& graph,
+                                     const std::vector<std::shared_ptr<intel_npu::IGraph>>& additionalGraphs,
                                      const std::optional<int64_t>& batchSize,
                                      intel_npu::Logger& logger) {
     OPENVINO_ASSERT(graph != nullptr, "Missing graph");
@@ -32,17 +35,34 @@ std::string buildRuntimeRequirements(const std::shared_ptr<intel_npu::IGraph>& g
                  descriptorView.data(),
                  descriptorView.size());
 
+    std::vector<std::string> descriptors{std::string(descriptorView)};
+    for (const auto& additionalGraph : additionalGraphs) {
+        const auto additionalDescriptor = additionalGraph->get_compatibility_descriptor();
+        if (!additionalDescriptor.has_value() || additionalDescriptor->empty()) {
+            // Such a blob can still be imported, but only as a fallback, so the requirements do not promise it
+            logger.warning("A blob of this compiled model has no compatibility descriptor; RUNTIME_REQUIREMENTS "
+                           "leave it out");
+            continue;
+        }
+        descriptors.emplace_back(additionalDescriptor.value());
+    }
+
+    intel_npu::Metadata<intel_npu::CURRENT_METADATA_VERSION> requirements(
+        0,
+        intel_npu::CURRENT_OPENVINO_VERSION,
+        std::nullopt,
+        batchSize,
+        std::nullopt,
+        std::nullopt,
+        std::nullopt,
+        std::nullopt,
+        descriptors.size() == 1 ? compatibilityDescriptor : std::nullopt);
+    if (descriptors.size() > 1) {
+        requirements.set_compatibility_descriptors(std::move(descriptors));
+    }
+
     std::ostringstream requirementsString;
-    intel_npu::Metadata<intel_npu::CURRENT_METADATA_VERSION>(0,
-                                                             intel_npu::CURRENT_OPENVINO_VERSION,
-                                                             std::nullopt,
-                                                             batchSize,
-                                                             std::nullopt,
-                                                             std::nullopt,
-                                                             std::nullopt,
-                                                             std::nullopt,
-                                                             compatibilityDescriptor)
-        .write_as_text(requirementsString);
+    requirements.write_as_text(requirementsString);
 
     logger.debug("Runtime requirements string: %s length: %zu",
                  requirementsString.str().c_str(),
@@ -59,11 +79,13 @@ CompiledModelPropertyManager::CompiledModelPropertyManager(const Config& config,
                                                            const ov::AnyMap& properties,
                                                            const std::shared_ptr<IDevice>& device,
                                                            const std::shared_ptr<IGraph>& graph,
+                                                           const std::vector<std::shared_ptr<IGraph>>& additionalGraphs,
                                                            const std::optional<int64_t>& batchSize,
                                                            Logger& logger)
     : _config(config),
       _device(device),
       _graph(graph),
+      _additionalGraphs(additionalGraphs),
       _batchSize(batchSize),
       _logger(logger) {
     registerProperties();
@@ -324,12 +346,14 @@ void CompiledModelPropertyManager::registerProperties() {
         },
         readOnlySetter
     );
+    // For a model compiled for an ov::compilation_target that exports several blobs, this lists the descriptor of each
+    // of them, so ov::compatibility_check reports the model as supported wherever import can pick one of its blobs.
     register_property(ov::runtime_requirements.name(), true, ov::PropertyMutability::RO,
         [this](const ov::AnyMap&) {
             return  _graph != nullptr && _graph->get_compatibility_descriptor().has_value();
         },
         [this](const ov::AnyMap&) {
-            return ov::Any(buildRuntimeRequirements(_graph, _batchSize, _logger));
+            return ov::Any(buildRuntimeRequirements(_graph, _additionalGraphs, _batchSize, _logger));
         },
         readOnlySetter
     );

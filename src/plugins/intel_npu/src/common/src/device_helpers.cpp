@@ -4,6 +4,7 @@
 
 #include "intel_npu/common/device_helpers.hpp"
 
+#include "intel_npu/config/options.hpp"
 #include "openvino/core/except.hpp"
 
 namespace intel_npu {
@@ -33,6 +34,35 @@ std::string utils::getPlatformByDeviceName(const std::string_view deviceName) {
         (platformPos == std::string::npos) ? deviceName : deviceName.substr(0, platformPos);
 
     return std::string(platformName);
+}
+
+void utils::resolveCompilationTarget(ov::AnyMap& properties) {
+    auto compilationTargetIt = properties.find(ov::compilation_target.name());
+    if (compilationTargetIt == properties.end()) {
+        return;
+    }
+
+    const auto compilationTarget = compilationTargetIt->second.as<std::string>();
+    COMPILATION_TARGET::validateValue(compilationTarget);
+    // "" means no target. It stays in properties so it overrides a target set on the plugin.
+    if (compilationTarget.empty()) {
+        return;
+    }
+    auto explicitPlatformIt = properties.find(ov::intel_npu::platform.name());
+    if (explicitPlatformIt != properties.end()) {
+        // Compared standardized, so different spellings of one platform (e.g. "6010" and "NPU6010") match
+        const auto explicitPlatform = explicitPlatformIt->second.as<std::string>();
+        OPENVINO_ASSERT(ov::intel_npu::Platform::standardize(explicitPlatform) ==
+                            ov::intel_npu::Platform::standardize(compilationTarget),
+                        "ov::compilation_target ('",
+                        compilationTarget,
+                        "') conflicts with the explicit ov::intel_npu::platform ('",
+                        explicitPlatform,
+                        "')");
+        return;
+    }
+
+    properties[ov::intel_npu::platform.name()] = compilationTarget;
 }
 
 std::string utils::getCompilationPlatform(const ov::SoPtr<IEngineBackend>& engineBackend,

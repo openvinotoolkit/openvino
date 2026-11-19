@@ -37,8 +37,15 @@ namespace intel_npu {
 
 
 // symbols that may not be supported in older versions of vcl
-#define vcl_weak_symbols_list()                             \
-    vcl_symbol_statement(vclAllocatedExecutableCreate2)  // clang-format on
+#define vcl_weak_symbols_list()                                    \
+    vcl_symbol_statement(vclAllocatedExecutableCreate2)            \
+    vcl_symbol_statement(vclCompilationTargetsCreate)              \
+    vcl_symbol_statement(vclCompilationTargetsGetCount)            \
+    vcl_symbol_statement(vclCompilationTargetsGetTarget)           \
+    vcl_symbol_statement(vclCompilationTargetGetPlatform)          \
+    vcl_symbol_statement(vclCompilationTargetGetConfigBundleCount) \
+    vcl_symbol_statement(vclCompilationTargetGetConfigBundle)      \
+    vcl_symbol_statement(vclCompilationTargetsDestroy)  // clang-format on
 
 /**
  * @brief The VCL entry points, as a plain aggregate.
