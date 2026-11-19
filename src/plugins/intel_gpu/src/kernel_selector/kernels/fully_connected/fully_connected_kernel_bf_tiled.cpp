@@ -153,8 +153,8 @@ size_t get_dynamic_quantize_group_size(const fully_connected_params& params) {
 bool should_dynamic_quantize(const fully_connected_params& params) {
     size_t dynamic_quantization_group_size = get_dynamic_quantize_group_size(params);
 
-    if (params.inputs[0].GetFirstElementOffset() != 0) {
-        GPU_DEBUG_TAGGED(TRACE, "dynquan") << params.layerID << " turned off: input has non-zero offset (padding)" << std::endl;
+    if (params.inputs[0].GetFirstElementOffset() != 0 || params.inputs[0].PitchesDifferFromLogicalDims()) {
+        GPU_DEBUG_TAGGED(TRACE, "dynquan") << params.layerID << " turned off: input has non-zero offset or padding" << std::endl;
         return false;
     }
 
