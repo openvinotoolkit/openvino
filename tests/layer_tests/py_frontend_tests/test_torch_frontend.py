@@ -2504,6 +2504,82 @@ class TestBuildDynamicShapes:
 class TestConvertModelDynamo:
     """Tests for convert_model with dynamo=True (torch.export path)."""
 
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("model_format", ["dynamo", "exported_program", "decomposed"])
+    def test_module_friendly_names(self, model_format, tmp_path):
+        from openvino import Core, convert_model, serialize
+        from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+        class Block(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.activation = torch.nn.ReLU()
+
+            def forward(self, x):
+                x = self.activation(x)
+                return torch.sigmoid(x) + torch.sigmoid(x + 0.5)
+
+        class Model(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.encoder = torch.nn.Sequential(Block(), Block())
+
+            def forward(self, x):
+                return {"prediction": self.encoder(x)}
+
+        model = Model().eval()
+        example = (torch.linspace(-2, 2, 8).reshape(2, 4),)
+        exported = torch.export.export(model, example)
+        if model_format == "decomposed":
+            exported = exported.run_decompositions()
+        if model_format == "dynamo":
+            converted = convert_model(model, example_input=example, dynamo=True)
+        else:
+            converted = convert_model(exported)
+
+        expected_names = {
+            "encoder.0.activation/relu/aten.relu.default/Relu",
+            "encoder.1.activation/relu_1/aten.relu.default/Relu",
+            "encoder.0/sigmoid/aten.sigmoid.default/Sigmoid",
+            "encoder.0/sigmoid_1/aten.sigmoid.default/Sigmoid",
+            "encoder.1/sigmoid_2/aten.sigmoid.default/Sigmoid",
+            "encoder.1/sigmoid_3/aten.sigmoid.default/Sigmoid",
+        }
+        names = [node.get_friendly_name() for node in converted.get_ordered_ops()
+                 if node.get_type_name() in ("Relu", "Sigmoid")]
+        assert set(names) == expected_names
+        assert len(names) == len(expected_names)
+
+        graph_module = exported.module()
+        for node in graph_module.graph.nodes:
+            node.meta.pop("nn_module_stack", None)
+        unscoped = convert_model(TorchFXPythonDecoder(
+            graph_module, output_names=["prediction"]))
+        assert [port.get_names() for port in converted.inputs] == [
+            port.get_names() for port in unscoped.inputs]
+        assert [port.get_names() for port in converted.outputs] == [
+            port.get_names() for port in unscoped.outputs]
+
+        core = Core()
+        compiled = core.compile_model(converted, "CPU", default_cfg)
+        np.testing.assert_allclose(
+            compiled([example[0].numpy()])[0],
+            model(*example)["prediction"].numpy(), atol=1e-6, rtol=1e-6)
+
+        path = tmp_path / "scoped.xml"
+        serialize(converted, path)
+        reloaded = core.read_model(path)
+        assert [node.get_friendly_name() for node in reloaded.get_ordered_ops()
+                if node.get_type_name() in ("Relu", "Sigmoid")] == names
+
+        if model_format == "dynamo":
+            traced = convert_model(model, example_input=example)
+            assert {node.get_friendly_name() for node in traced.get_ordered_ops()
+                    if node.get_type_name() == "Relu"} == {
+                "__module.encoder.0.activation/aten::relu/Relu",
+                "__module.encoder.1.activation/aten::relu/Relu",
+            }
+
     def test_basic(self):
         from openvino import convert_model, compile_model
 
