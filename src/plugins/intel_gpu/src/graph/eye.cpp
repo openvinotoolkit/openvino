@@ -43,7 +43,7 @@ std::vector<layout> eye_inst::calc_output_layouts(eye_node const& /*node*/, cons
 
 template std::vector<layout> eye_inst::calc_output_layouts<ov::PartialShape>(eye_node const& node, const kernel_impl_params& impl_param);
 
-layout eye_inst::calc_output_layout(eye_node const& node, const kernel_impl_params&) {
+layout eye_inst::calc_output_layout(const eye_node& node, const kernel_impl_params& /*unused*/) {
     auto primitive = node.get_primitive();
     return {*(primitive->output_data_types[0]), node.get_input_layout().format, primitive->output_shape};
 }

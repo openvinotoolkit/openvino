@@ -191,7 +191,7 @@ bool FullyConnected_bf_tiled_dyn_b::Validate(const Params& params) const {
     return true;
 }
 
-FullyConnected_bf_tiled_dyn_b::tune_params FullyConnected_bf_tiled_dyn_b::GetTuneParams(const fully_connected_params& params) const {
+FullyConnected_bf_tiled_dyn_b::tune_params FullyConnected_bf_tiled_dyn_b::GetTuneParams(const fully_connected_params& params) {
     // Same base config as static_b16 (optimized for INT4 on iGPU)
     if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
         return tune_params(1, 1, 4, 1, 1, EXE_MODE_DEFAULT);
@@ -285,7 +285,7 @@ JitConstants FullyConnected_bf_tiled_dyn_b::GetJitConstants(const fully_connecte
     }
 
     if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16 && dispatchData.tile_n == 2) {
-        jit.AddConstant(MakeJitConstant("TILE_OFM_PER_OSV_SIZE", 0.5f));
+        jit.AddConstant(MakeJitConstant("TILE_OFM_PER_OSV_SIZE", 0.5F));
     } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2 && dispatchData.tile_n == 1) {
         jit.AddConstant(MakeJitConstant("TILE_OFM_PER_OSV_SIZE", 2));
     } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2 && dispatchData.tile_n == 2) {

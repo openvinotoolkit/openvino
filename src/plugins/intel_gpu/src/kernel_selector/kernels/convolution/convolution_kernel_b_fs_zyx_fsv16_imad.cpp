@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,7 +57,7 @@ static size_t getOutBlock_X(const size_t output_size_x, const size_t stride_x, c
 
 namespace kernel_selector {
 
-Convolution_kernel_b_fs_zyx_fsv16_imad::BlockParams Convolution_kernel_b_fs_zyx_fsv16_imad::GetBlockParams(const convolution_params& params) const {
+Convolution_kernel_b_fs_zyx_fsv16_imad::BlockParams Convolution_kernel_b_fs_zyx_fsv16_imad::GetBlockParams(const convolution_params& params) {
     size_t max_block_width = 1;
     if (!params.outputs[0].X().is_dynamic) {
         max_block_width = getOutBlock_X(params.outputs[0].X().v, params.stride.x, params.filterSize.x, params.dilation.x);
@@ -133,11 +133,11 @@ Convolution_kernel_b_fs_zyx_fsv16_imad::BlockParams Convolution_kernel_b_fs_zyx_
         for (size_t split = 1; split <= max_slm_split; split *= 2) {
             for (size_t temp_block_features = simd; temp_block_features <= simd * 2; temp_block_features += simd) {
                 for (size_t d = 1; d < max_d; ++d) {
-                    if (d != 1 && ((params.outputs[0].Z().v % d) != 0u)) {
+                    if (d != 1 && ((params.outputs[0].Z().v % d) != 0U)) {
                         continue;
                     }
                     for (size_t h = 1; h < max_h; ++h) {
-                        if (h != 1 && ((params.outputs[0].Y().v % h) != 0u)) {
+                        if (h != 1 && ((params.outputs[0].Y().v % h) != 0U)) {
                             continue;
                         }
 
@@ -194,18 +194,23 @@ Convolution_kernel_b_fs_zyx_fsv16_imad::BlockParams Convolution_kernel_b_fs_zyx_
     return BlockParams{block_width, block_height, block_depth, block_features, in_block_width, in_block_height, in_block_depth, feature_slm_split};
 }
 
-float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateBlockParamsRatio(const convolution_params& params, const BlockParams& block) const {
+float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateBlockParamsRatio(const convolution_params& params, const BlockParams& block) {
     if (params.has_dynamic_outputs()) {
-        return -10.f;
+        return -10.F;
     }
 
     float occupancy_by_logic_size = static_cast<float>(params.outputs[0].LogicalSize()) / static_cast<float>(params.engineInfo.maxThreadsPerDevice);
-    bool increase_max_reg_pressure = occupancy_by_logic_size >= 595.f;
-    bool twice_increase_max_reg_pressure = occupancy_by_logic_size >= 595.f * 2.f;
-    float max_reg_pressure = twice_increase_max_reg_pressure ? 0.785f : increase_max_reg_pressure ? 0.75f : 0.7f;
+    bool increase_max_reg_pressure = occupancy_by_logic_size >= 595.F;
+    bool twice_increase_max_reg_pressure = occupancy_by_logic_size >= 595.F * 2.F;
+    float max_reg_pressure = 0.7F;
+    if (twice_increase_max_reg_pressure) {
+        max_reg_pressure = 0.785F;
+    } else if (increase_max_reg_pressure) {
+        max_reg_pressure = 0.75F;
+    }
 
-    constexpr float max_occupancy = 2.f;
-    constexpr float max_slm_usage = 1.f;
+    constexpr float max_occupancy = 2.F;
+    constexpr float max_slm_usage = 1.F;
 
     // Estimate occupancy, slm usage and register pressure
     float occupancy = EstimateOccupancy(params, block);
@@ -215,7 +220,7 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateBlockParamsRatio(const con
     // Estimate fb32 usage factor
     const auto& output = params.outputs[0];
     float feature_block_32 = static_cast<float>(block.output_block_features == 32);
-    float fb32_factor = -5.f;
+    float fb32_factor = -5.F;
     if (params.engineInfo.deviceType == dev_type::discrete_gpu && params.engineInfo.supports_imad) {
         // Known cases where fb32 for discrete GPU works better
         bool fb32_exception_1 = output.X().v % 13 == 0 && output.X().v * output.Feature().v == 13312;
@@ -232,10 +237,10 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateBlockParamsRatio(const con
         bool fb32_exception_z = output.X().v == output.Y().v && output.X().v % 28 == 0 && output.Z().v == 40 && output.Feature().v % 32 == 0;
 
         if ((output.X().v == output.Y().v && output.Z().v == 1 && fb32_exceptions) || fb32_exception_z) {
-            fb32_factor = 1.f;
+            fb32_factor = 1.F;
         }
-    } else if (occupancy_by_logic_size >= 2500.f) {
-        fb32_factor = 0.5f;
+    } else if (occupancy_by_logic_size >= 2500.F) {
+        fb32_factor = 0.5F;
     }
 
     // We use arctangens function below for estimation of reg_pressure_factor and slm_usage_factor because arctangens
@@ -244,8 +249,8 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateBlockParamsRatio(const con
     // reg_pressure_factor and slm_usage_factor because target №1 in these cases is the occupancy increase. So for occupancy < 1
     // reg_pressure factor and slm_usage_factor are enough low and they grow with growth of occupancy. Pi number (3.14159f)
     // is a scaling coefficient for setting function values in range [0; 0.5f].
-    float reg_pressure_factor = atanf(occupancy) / 3.14159f;
-    float slm_usage_factor = atanf(occupancy) / 3.14159f;
+    float reg_pressure_factor = atanf(occupancy) / 3.14159F;
+    float slm_usage_factor = atanf(occupancy) / 3.14159F;
 
     size_t cur_increase_occupancy_coeff = (block.output_block_features == fsv ? 2 : 1) * block.feature_slm_split;
     size_t max_increase_occupancy_coeff = 2 * params.engineInfo.maxWorkGroupSize / simd;
@@ -253,9 +258,9 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateBlockParamsRatio(const con
 
     // We should check if there is a possibility for increase of occupancy if occupancy is less than 1.0
     auto c_ifm_mul = CeilDiv(params.weights.IFM().v, fsv) % (params.engineInfo.maxWorkGroupSize / simd) == 0;
-    auto can_increase_occupancy = (occupancy * can_increase_occupancy_coeff >= 1.0f) && c_ifm_mul;
+    auto can_increase_occupancy = (occupancy * can_increase_occupancy_coeff >= 1.0F) && c_ifm_mul;
 
-    float reduce_occupancy = 0.0f;
+    float reduce_occupancy = 0.0F;
     if (occupancy > max_occupancy) {
         reduce_occupancy = log10f(occupancy - max_occupancy);
         occupancy = max_occupancy;
@@ -266,12 +271,12 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateBlockParamsRatio(const con
         occupancy + feature_block_32 * fb32_factor + slm_usage * slm_usage_factor + reg_pressure * reg_pressure_factor - reduce_occupancy;
 
     // Check all restrictions
-    bool bad_block_params = reg_pressure > max_reg_pressure || slm_usage > max_slm_usage || (occupancy < 1.0f && can_increase_occupancy);
+    bool bad_block_params = reg_pressure > max_reg_pressure || slm_usage > max_slm_usage || (occupancy < 1.0F && can_increase_occupancy);
 
-    return bad_block_params ? -10.f : block_params_ratio;
+    return bad_block_params ? -10.F : block_params_ratio;
 }
 
-float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateRegPressure(const convolution_params& params, const BlockParams& block) const {
+float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateRegPressure(const convolution_params& params, const BlockParams& block) {
     size_t bytes_used = 0;
 
     // Accumulator
@@ -303,7 +308,7 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateRegPressure(const convolut
     return static_cast<float>(bytes_used) / static_cast<float>(max_reg_bytes);
 }
 
-float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateOccupancy(const convolution_params& params, const BlockParams& block) const {
+float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateOccupancy(const convolution_params& params, const BlockParams& block) {
     size_t blocks_w = CeilDiv(params.outputs[0].X().v, block.output_block_width);
     size_t blocks_h = CeilDiv(params.outputs[0].Y().v, block.output_block_height);
     size_t blocks_d = CeilDiv(params.outputs[0].Z().v, block.output_block_depth);
@@ -315,9 +320,9 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateOccupancy(const convolutio
     return static_cast<float>(threads) / static_cast<float>(params.engineInfo.maxThreadsPerDevice);
 }
 
-float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateSLMUsage(const convolution_params& params, const BlockParams& block) const {
+float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateSLMUsage(const convolution_params& params, const BlockParams& block) {
     if (block.feature_slm_split == 1) {
-        return 0.f;
+        return 0.F;
     }
 
     size_t slm_elements_per_work_group =
@@ -327,7 +332,7 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateSLMUsage(const convolution
     // Check maxLocalMemSize limitations
     size_t max_slm_bytes_per_sub_slice = params.engineInfo.maxLocalMemSize;
     if (slm_bytes_per_work_group > max_slm_bytes_per_sub_slice) {
-        return 0.f;
+        return 0.F;
     }
 
     // Estimate work groups number
@@ -343,7 +348,7 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateSLMUsage(const convolution
     size_t max_sub_slices_per_device = params.engineInfo.computeUnitsCount / max_compute_units_per_sub_slice;
     size_t max_work_groups_per_device = max_sub_slices_per_device * max_work_groups_per_sub_slice;
     if (work_groups_number > max_work_groups_per_device * 100) {
-        return 0.f;
+        return 0.F;
     }
 
     // Estimate work groups number in sub slice
@@ -367,7 +372,7 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateSLMUsage(const convolution
         max_slm_bytes_per_work_group -= 1024.0;
     }
 
-    return static_cast<float>(slm_bytes_per_work_group) / static_cast<float>(max_slm_bytes_per_work_group);
+    return static_cast<float>(slm_bytes_per_work_group) / max_slm_bytes_per_work_group;
 }
 
 ParamsKey Convolution_kernel_b_fs_zyx_fsv16_imad::GetSupportedKey() const {
@@ -468,13 +473,13 @@ JitConstants Convolution_kernel_b_fs_zyx_fsv16_imad::GetJitConstants(const convo
     return mem_consts;
 }  // GetJitConstants
 
-ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_zyx_fsv16_imad::SetDefault(const convolution_params& params, int) const {
+ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_zyx_fsv16_imad::SetDefault(const convolution_params& params, int /*autoTuneIndex*/) const {
     const BlockParams& block_params = GetBlockParams(params);
     return CalcDispatchDataWithBlockParams(params, block_params);
 }  // SetDefault
 
 ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_zyx_fsv16_imad::CalcDispatchDataWithBlockParams(const convolution_params& params,
-                                                                                                            const BlockParams& block_params) const {
+                                                                                                            const BlockParams& block_params) {
     DispatchData dispatchData;
     const auto& output = params.outputs[0];
     const auto& weights = params.weights;
@@ -505,7 +510,7 @@ KernelsPriority Convolution_kernel_b_fs_zyx_fsv16_imad::GetKernelsPriority(const
     const auto& p = static_cast<const convolution_params&>(params);
 
     if (!p.is_shape_agnostic) {
-        if (static_cast<float>(p.weights.IFM().v) / static_cast<float>(Align(p.weights.IFM().v, fsv)) < 0.5f) {
+        if (static_cast<float>(p.weights.IFM().v) / static_cast<float>(Align(p.weights.IFM().v, fsv)) < 0.5F) {
             return FORCE_PRIORITY_4;
         }
         return FORCE_PRIORITY_2;
@@ -546,7 +551,7 @@ void Convolution_kernel_b_fs_zyx_fsv16_imad::GetUpdateDispatchDataFunc(KernelDat
     const auto& prim_params = static_cast<const convolution_params&>(*kd.params);
     const auto& dynamicDispatchData = SetDefault(prim_params);
 
-    kd.update_dispatch_data_func = [this, dynamicDispatchData](const Params& params, KernelData& kd) {
+    kd.update_dispatch_data_func = [dynamicDispatchData](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const convolution_params&>(params);
         const auto& dispatchData = CalcDispatchDataWithBlockParams(prim_params, dynamicDispatchData.blockParams);
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
