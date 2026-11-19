@@ -27,7 +27,7 @@ jobs:
       MODEL_ID: ${{ matrix.model_id }}
       EXPORT_ARGS: ${{ matrix.export_args }}
       # Exported IRs persist across runs.
-      MODELS_HOST_DIR: /opt/home/sys_ovwindev/megakernel_models
+      MODELS_HOST_DIR: /opt/home/sys_ovwindev/CI_pkowalc1/persistent/megakernel_models_ir
       MODELS_DIR: /models
     steps:
       - name: Cleanup workspace
@@ -81,6 +81,10 @@ jobs:
             bash -lc '
               set -Eeuo pipefail
               git config --global --add safe.directory /workspace/repo
+              if [[ "${MODEL_ID}" == "google/gemma-4-26B-A4B-it" ]]; then
+                unset OV_MEGAKERNEL_PF_MIN OV_MEGAKERNEL_PF_ATTN_SIMPLE
+                export OV_MEGAKERNEL_PASSES=123
+              fi
               echo "running megakernel tests:"
               bash MEGAKERNEL_POC/ci_scripts/run_megakernel_tests.sh
               echo "DONE! This job'\''s status is ${{ job.status }}."
