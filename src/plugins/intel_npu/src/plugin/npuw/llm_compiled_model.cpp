@@ -158,6 +158,7 @@ struct NPUDesc {
     bool compiler_matmul_gate = false;
     int64_t compiler_ver = 0;
     bool support_flash_attention_tile = false;
+    bool compiler_shared_vocab = false;
 };
 
 std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -214,6 +215,11 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
     } else {
         LOG_WARN(compiler_gate_support_msg << "unsupported");
     }
+
+    // The shared vocabulary compiles the LM head with the weights, the zero point and the scale as inputs.
+    // The compiler decomposes this zero point efficiently starting from 8.5 (vpux-plugin PR 29013, EISW-229457);
+    // with an older compiler the LM head becomes several times slower.
+    desc.compiler_shared_vocab = desc.compiler_ver >= ONEAPI_MAKE_VERSION(8, 5);
 
     static const std::unordered_set<std::string_view> flash_attention_tile_supported_platforms = {
         ov::intel_npu::Platform::NPU5010,
@@ -1663,10 +1669,18 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
 
     if (shared_vocab) {
+        // An explicit NPUW_LLM_VOCAB_ASYM_SHARED=YES is kept with any compiler version.
+        const bool set_by_user = npuw_llm_props.count(std::string(::intel_npu::NPUW_LLM_VOCAB_ASYM_SHARED::key())) > 0;
+        const bool compiler_supports = !npudesc.has_value() || npudesc->compiler_shared_vocab || set_by_user;
         const bool vocab_is_closure_in_all_stages = vocab_is_closure(prefill_config) &&
                                                     vocab_is_closure(generate_config) &&
                                                     (!lm_head_model || vocab_is_closure(lm_head_config));
-        if (!vocab_is_closure_in_all_stages) {
+        if (!compiler_supports) {
+            LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is turned off: it needs NPU compiler 8.5 or newer, the compiler is "
+                     << ONEAPI_VERSION_MAJOR(npudesc->compiler_ver) << "."
+                     << ONEAPI_VERSION_MINOR(npudesc->compiler_ver) << ".");
+            m_cfg.update({{"NPUW_LLM_VOCAB_ASYM_SHARED", "NO"}});
+        } else if (!vocab_is_closure_in_all_stages) {
             LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is turned off: it needs NPUW_FOLD, NPUW_FUNCALL_FOR_ALL and "
                      "NPUW_HOST_GATHER in every stage.");
             m_cfg.update({{"NPUW_LLM_VOCAB_ASYM_SHARED", "NO"}});

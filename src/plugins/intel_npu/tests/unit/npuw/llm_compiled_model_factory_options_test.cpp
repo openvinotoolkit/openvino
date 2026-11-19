@@ -1318,7 +1318,6 @@ protected:
         bool shared = false;
         ov::npuw::DetectVocabSharing(shared).run_on_model(model->clone());
         EXPECT_TRUE(shared) << "The test model must have a shared u8 asymmetric vocabulary";
-        props.emplace("NPUW_LLM_VOCAB_ASYM_SHARED", "YES");
 
         RecordingFactory recorder;
         std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
@@ -1390,6 +1389,29 @@ TEST_F(LLMCompiledModelSharedVocabularyTest, SharedHeadModelIsShiftedWithDefault
     EXPECT_EQ(shifts.lm_head, 2u);
     EXPECT_EQ(shifts.prefill, 0u);
     EXPECT_EQ(shifts.generate, 0u);
+}
+
+TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsNotUsedWithOldCompiler) {
+    m_plugin = std::make_shared<ArchAwarePlugin>("5020", 1, ONEAPI_MAKE_VERSION(8, 2));
+    const auto core = attach_mock_core_with_npu_device(m_plugin);
+    const auto shifts = compile_llm({});
+    EXPECT_EQ(shifts.lm_head, 0u);
+    EXPECT_EQ(shifts.prefill, 0u);
+    EXPECT_EQ(shifts.generate, 0u);
+}
+
+TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsUsedWithCompilerWithWaiZeroPointDecomposition) {
+    m_plugin = std::make_shared<ArchAwarePlugin>("5020", 1, ONEAPI_MAKE_VERSION(8, 5));
+    const auto core = attach_mock_core_with_npu_device(m_plugin);
+    const auto shifts = compile_llm({});
+    EXPECT_EQ(shifts.lm_head, 2u);
+}
+
+TEST_F(LLMCompiledModelSharedVocabularyTest, ExplicitSharedVocabularyIsUsedWithOldCompiler) {
+    m_plugin = std::make_shared<ArchAwarePlugin>("5020", 1, ONEAPI_MAKE_VERSION(8, 2));
+    const auto core = attach_mock_core_with_npu_device(m_plugin);
+    const auto shifts = compile_llm({{"NPUW_LLM_VOCAB_ASYM_SHARED", "YES"}});
+    EXPECT_EQ(shifts.lm_head, 2u);
 }
 
 TEST_F(LLMCompiledModelSharedVocabularyTest, SharedHeadModelIsNotShiftedIfHeadHasNoFunctions) {
