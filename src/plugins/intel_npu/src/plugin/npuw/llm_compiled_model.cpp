@@ -20,6 +20,7 @@
 #include "npuw_transformations/add_position_ids_param.hpp"
 #include "npuw_transformations/broadcast_u2_zero_point.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
+#include "npuw_transformations/convert_sparse_attention_to_dense.hpp"
 #include "npuw_transformations/cut_lm_head.hpp"
 #include "npuw_transformations/detect_causal_mask.hpp"
 #include "npuw_transformations/duplicate_shared_kv_concat.hpp"
@@ -1090,6 +1091,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_VERB("Maximum prompt length: " << max_prompt_len);
 
     ov::npuw::LoraStatefulToStatelessPass().run_on_model(kvcache_model);
+
+    // QSA layers become dense SDPAs with an exact sparse mask; their states are handled as lincache.
+    ov::npuw::ConvertSparseAttentionToDense(max_prompt_len + min_response_len).run_on_model(kvcache_model);
 
     LOG_DEBUG("   ...also convert BF16 to FP16");
     // Note: we need to identify original bf16 constants for potential weightless deserialization later
