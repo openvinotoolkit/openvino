@@ -102,15 +102,6 @@ void GroupedMatMulLayerCPUTest::SetUp() {
     }
 }
 
-std::shared_ptr<ov::Node> GroupedMatMulLayerCPUTest::build_weights() {
-    ov::test::utils::InputGenerateData b_data;
-    b_data.range = 2;
-    b_data.resolution = 128;
-    b_data.start_from = -1;
-    auto b_tensor = ov::test::utils::create_and_fill_tensor(act_type_, shape_params_.b_shape, b_data);
-    return std::make_shared<ov::op::v0::Constant>(b_tensor);
-}
-
 void GroupedMatMulLayerCPUTest::check_results() {
     // CheckPluginRelatedResults only validates the nodes it finds, so assert presence separately
     CheckNumberOfNodesWithType(compiledModel, groupedMatMulLayerType, 1);
@@ -194,14 +185,7 @@ void GroupedMatMulCompressedLayerCPUTest::SetUp() {
 
     GroupedMatMulTestBase::SetUp();
 
-    // Dequantization adds rounding error on top of the uncompressed path
-    if (m_weights_prec == ov::element::u3) {
-        abs_threshold = 0.4F;
-    } else if (m_weights_prec == ov::element::u4 || m_weights_prec == ov::element::i4) {
-        abs_threshold = 0.2F;
-    } else if (m_weights_prec == ov::element::u8 || m_weights_prec == ov::element::i8) {
-        abs_threshold = 0.1F;
-    }
+    set_compressed_thresholds();
     // Dynamic quantization of activations (s8) adds extra error
     if (configuration.count(ov::hint::dynamic_quantization_group_size.name()) != 0U) {
         abs_threshold = std::max(abs_threshold, 0.6);
@@ -211,27 +195,6 @@ void GroupedMatMulCompressedLayerCPUTest::SetUp() {
         abs_threshold = 0.5F;
         rel_threshold = 0.1F;
     }
-}
-
-std::shared_ptr<ov::Node> GroupedMatMulCompressedLayerCPUTest::build_weights() {
-    // b_shape is already pre-transposed [G, N, K]. Pass the planar [G, K, N] with
-    // transpose_weights=true so the constant lands as [G, N, K] (per-N scales == per-OC), and
-    // insert_transpose_node=false to drop the trailing Transpose GroupedMatMul does not want.
-    ov::Shape b_planar = shape_params_.b_shape;
-    std::swap(b_planar[b_planar.size() - 2], b_planar[b_planar.size() - 1]);
-
-    return ov::test::utils::initMatMulDecompressionSubgraphQuantization(b_planar,
-                                                                        m_group_size,
-                                                                        act_type_,
-                                                                        m_weights_prec,
-                                                                        m_decomp_prec,
-                                                                        m_scale_prec,
-                                                                        true,
-                                                                        m_multiply_type,
-                                                                        m_subtract_type,
-                                                                        m_reshape_on_decomp,
-                                                                        false,
-                                                                        1);
 }
 
 void GroupedMatMulCompressedLayerCPUTest::check_results() {
