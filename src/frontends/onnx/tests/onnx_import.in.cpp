@@ -8315,6 +8315,32 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_bitshift_uint32_y) {
     test_case.run();
 }
 
+/// @brief Testing ONNX BitShift with direction="LEFT" on uint8 inputs
+/// Verifies that overflowed values wrap around (modulo 2^8) as required by the ONNX
+/// specification instead of being saturated to the maximum value of the type.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_bitshift_left_uint8) {
+    const auto model = convert_model("bitshift_left_uint8.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_input<uint8_t>(Shape{5}, {0, 1, 16, 128, 255});
+    test_case.add_input<uint8_t>(Shape{5}, {0, 1, 2, 3, 7});
+    test_case.add_expected_output<uint8_t>(Shape{5}, {0, 2, 64, 0, 128});
+
+    test_case.run();
+}
+
+/// @brief Testing ONNX BitShift with direction="RIGHT" on uint8 inputs
+OPENVINO_TEST(${BACKEND_NAME}, onnx_bitshift_right_uint8) {
+    const auto model = convert_model("bitshift_right_uint8.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_input<uint8_t>(Shape{5}, {0, 2, 64, 128, 255});
+    test_case.add_input<uint8_t>(Shape{5}, {0, 1, 2, 7, 4});
+    test_case.add_expected_output<uint8_t>(Shape{5}, {0, 1, 16, 1, 15});
+
+    test_case.run();
+}
+
 /// @brief Testing ONNX LayerNormalization with 2 inputs (no "bias" input provided)
 /// Verifies a fix for the "bias" input not treated as fully optional.
 OPENVINO_TEST(${BACKEND_NAME}, onnx_layer_normalization_unbiased) {

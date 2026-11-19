@@ -124,8 +124,7 @@ FuseMOESharedExpert::FuseMOESharedExpert() {
         } else {
             // No gate_gate: dummy keeps input count consistent.
             size_t hidden_size = moe->get_output_partial_shape(0).rbegin()->get_length();
-            new_inputs.push_back(
-                ov::op::v0::Constant::create(ov::element::f16, ov::Shape{hidden_size, 1}, std::vector<float>(hidden_size, 0.0f)));
+            new_inputs.push_back(ov::op::v0::Constant::create(ov::element::f16, ov::Shape{hidden_size, 1}, std::vector<float>(hidden_size, 0.0F)));
         }
 
         std::shared_ptr<ov::Node> new_moe;

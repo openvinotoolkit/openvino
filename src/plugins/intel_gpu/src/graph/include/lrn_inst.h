@@ -25,7 +25,7 @@ public:
     static layout calc_output_layout(lrn_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(lrn_node const& node);
 
-    typed_primitive_inst(network& network, lrn_node const& node);
+    typed_primitive_inst(network& network, const lrn_node& desc);
 };
 
 using lrn_inst = typed_primitive_inst<lrn>;
