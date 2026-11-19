@@ -124,8 +124,8 @@ allocation_type engine::get_lockable_preferred_memory_allocation_type(bool is_im
     /*
         We do not check device allocation here.
         Device allocation is reserved for buffers of hidden layers.
-        Const buffers are allocated in device memory directly when keeps_constants_in_device_memory() is true,
-        otherwise they are propagated to device if possible.
+        Const buffers are allocated in device memory directly on discrete GPUs, otherwise they are propagated to
+        device if keeps_constants_in_device_memory() is true.
     */
 
     bool support_usm_host = supports_allocation(allocation_type::usm_host);

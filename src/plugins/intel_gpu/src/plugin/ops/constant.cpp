@@ -172,10 +172,12 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
             mem = partial_upload.memory;
         } else if (constLayout.bytes_count() > 0) {
             // Allocating in usm_device right away avoids holding a host copy of every constant until
-            // program::transfer_memory_to_device() runs at the end of the build.
+            // program::transfer_memory_to_device() runs at the end of the build. Integrated GPUs keep the host
+            // allocation: there the per-constant uploads and the host reads cost more compile time than they save.
             auto& engine = p.get_engine();
             const bool is_image = constLayout.format.is_image_2d();
-            const auto alloc_type = engine.keeps_constants_in_device_memory() && !is_image
+            const bool is_dgpu = engine.get_device_info().dev_type == cldnn::device_type::discrete_gpu;
+            const auto alloc_type = engine.keeps_constants_in_device_memory() && is_dgpu && !is_image
                                         ? cldnn::allocation_type::usm_device
                                         : engine.get_lockable_preferred_memory_allocation_type(is_image);
             mem = engine.allocate_memory(constLayout, alloc_type, false);
