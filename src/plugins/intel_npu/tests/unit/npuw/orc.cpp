@@ -282,16 +282,15 @@ TEST(OrcTest, ScopedSectionsRoundTripMetadataBeforeChildren) {
     root.expect_end();
 }
 
-TEST(OrcTest, RejectsScopedSectionSizeExceedingAvailableDataBeforeAllocation) {
-    SectionHeader header{TYPE_TEST,
-                         1u,
-                         static_cast<SectionFlags>(SectionFlag::LEAF),
-                         1u};
+TEST(OrcTest, RejectsScopedSectionSizeExceedingAvailableDataDuringConstruction) {
+    SectionHeader header{TYPE_TEST, 1u, static_cast<SectionFlags>(SectionFlag::LEAF), 1u};
     std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
     auto writer = Stream::writer(buffer);
     writer & header;
 
-    EXPECT_THROW(ScopedReadSection section(buffer), ov::Exception);
+    OV_EXPECT_THROW_HAS_SUBSTRING(ScopedReadSection section(buffer),
+                                  ov::Exception,
+                                  "ORC section size exceeds available stream data");
 }
 
 TEST(OrcTest, IsOrcReturnsTrueForValidBlob) {
