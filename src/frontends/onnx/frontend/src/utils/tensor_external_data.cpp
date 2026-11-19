@@ -14,6 +14,21 @@
 #include "openvino/util/native_stream.hpp"
 
 namespace ov::frontend::onnx::detail {
+MappedMemoryHandles make_external_data_cache(bool enable_mmap) {
+    return enable_mmap ? std::make_shared<ExternalDataCache>() : nullptr;
+}
+
+void set_external_data_reader(MappedMemoryHandles& cache, ExternalDataReader reader) {
+    if (!reader) {
+        return;
+    }
+    if (!cache) {
+        cache = std::make_shared<ExternalDataCache>();
+        cache->enable_mmap = false;
+    }
+    cache->reader = std::move(reader);
+}
+
 TensorExternalData::TensorExternalData(const TensorProto& tensor) {
     for (const auto& entry : tensor.external_data()) {
         if (entry.key() == "location") {
@@ -99,6 +114,45 @@ Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::file
     return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(read_data->get_ptr<char>(),
                                                                                   read_data->size(),
                                                                                   read_data);
+}
+
+std::shared_ptr<ov::AlignedBuffer> TensorExternalData::load_supplied_data(const std::filesystem::path& model_dir,
+                                                                          const MappedMemoryHandles& cache) const {
+    if (!cache || !cache->reader) {
+        return nullptr;
+    }
+    std::filesystem::path full_path;
+    try {
+        full_path = ov::util::sanitize_path(model_dir, ov::util::make_path(m_data_location));
+    } catch (const std::runtime_error& e) {
+        throw error::invalid_external_data{e.what()};
+    }
+
+    auto supplied = cache->supplied.find(full_path);
+    if (supplied == cache->supplied.end()) {
+        // The reader gets the location relative to the model directory, as declared in the model.
+        const auto base_dir = model_dir.empty() ? std::filesystem::current_path() : model_dir;
+        const auto location =
+            full_path.lexically_relative(std::filesystem::weakly_canonical(base_dir)).generic_string();
+        ExternalDataBuffer buffer;
+        try {
+            buffer = cache->reader(location);
+        } catch (const std::exception& e) {
+            throw error::invalid_external_data{"The external data reader failed for '" + location + "': " + e.what()};
+        }
+        supplied = cache->supplied.emplace(full_path, std::move(buffer)).first;
+    }
+
+    const auto& buffer = supplied->second;
+    if (buffer.data == nullptr) {
+        return nullptr;  // Not supplied: read the file
+    }
+    if (m_offset > buffer.size || m_data_length > buffer.size - m_offset) {
+        throw error::invalid_external_data{*this};
+    }
+    const auto length = m_data_length > 0 ? m_data_length : buffer.size - m_offset;
+    auto* data = const_cast<char*>(static_cast<const char*>(buffer.data)) + m_offset;
+    return std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(data, static_cast<size_t>(length), buffer.owner);
 }
 
 Buffer<ov::AlignedBuffer> TensorExternalData::load_external_mem_data() const {

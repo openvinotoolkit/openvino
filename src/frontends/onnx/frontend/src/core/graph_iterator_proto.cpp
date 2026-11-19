@@ -349,6 +349,15 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
         return true;
     }
     const auto full_path = ov::util::sanitize_path(graph_iterator->get_model_dir(), ov::util::make_path(ext_location));
+    auto memory_mode = graph_iterator->get_memory_management_mode();
+    if ((memory_mode == Internal_MMAP || memory_mode == Internal_Stream) &&
+        graph_iterator->has_external_data_reader()) {
+        // The file may be supplied by the reader instead of the file system; the data is validated when it is loaded
+        tensor_meta_info.m_external_location = std::make_shared<std::string>(ov::util::path_to_string(full_path));
+        tensor_meta_info.m_tensor_data = reinterpret_cast<uint8_t*>(ext_data_offset);
+        tensor_meta_info.m_tensor_data_size = ext_data_length;
+        return true;
+    }
     const int64_t file_size = ov::util::file_size(full_path);
     if ((file_size <= 0 && ext_data_length > 0) || ext_data_length > static_cast<uint64_t>(file_size) ||
         ext_data_offset > static_cast<uint64_t>(file_size) - ext_data_length) {
@@ -361,7 +370,6 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
     const size_t resolved_data_length = ext_data_length > 0
                                             ? static_cast<size_t>(ext_data_length)
                                             : static_cast<size_t>(file_size) - static_cast<size_t>(ext_data_offset);
-    auto memory_mode = graph_iterator->get_memory_management_mode();
     if (memory_mode == External_MMAP) {
         auto cache = graph_iterator->get_mmap_cache();
         auto cached_mapped_memory = cache->find(full_path);
@@ -532,9 +540,7 @@ GraphIteratorProto::GraphIteratorProto(const GraphIteratorProtoMemoryManagementM
     : m_graph(nullptr),
       m_parent(nullptr),
       m_mode(mode),
-      m_mmap_cache{mode == External_MMAP
-                       ? std::make_shared<std::map<std::filesystem::path, std::shared_ptr<ov::MappedMemory>>>()
-                       : nullptr},
+      m_mmap_cache{detail::make_external_data_cache(mode == External_MMAP)},
       m_stream_cache{mode == External_Stream
                          ? std::make_shared<std::map<std::filesystem::path, std::shared_ptr<std::ifstream>>>()
                          : nullptr},
@@ -546,6 +552,7 @@ GraphIteratorProto::GraphIteratorProto(GraphIteratorProto* parent, const GraphPr
     m_model_dir = parent->m_model_dir;
     m_mode = parent->m_mode;
     m_mmap_cache = parent->m_mmap_cache;
+    m_external_data_reader = parent->m_external_data_reader;
     m_stream_cache = parent->m_stream_cache;
     m_data_holder = parent->m_data_holder;
     m_model = parent->m_model;

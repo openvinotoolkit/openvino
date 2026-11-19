@@ -72,6 +72,9 @@ public:
         return m_weightless_constants;
     }
 
+    /// rief Sets the reader that supplies external data files (external_data_reader load option).
+    void set_external_data_reader(ExternalDataReader reader);
+
     void cut_and_add_new_input(const ov::frontend::Place::Ptr& place,
                                const std::string& new_name_optional = "") override;
 
@@ -138,6 +141,10 @@ public:
 
     /// rief The GraphIterator's TensorOriginProvider interface, or nullptr if it doesn't implement it.
     const ov::frontend::onnx::TensorOriginProvider* get_tensor_origin_provider() const;
+
+    /// rief Sets the reader that supplies external data files (external_data_reader load option). The
+    /// GraphIterator must have been told before it was initialized (GraphIteratorProto::set_external_data_reader).
+    void set_external_data_reader(ExternalDataReader reader);
 
     /// rief Which constants get weightless identifiers (ov::weightless_constants load option).
     void set_weightless_constants(ov::WeightlessConstants value) {

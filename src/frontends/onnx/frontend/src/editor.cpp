@@ -323,8 +323,7 @@ ONNXModelEditor::ONNXModelEditor(const std::filesystem::path& model_path,
                                  const bool enable_mmap,
                                  frontend::ExtensionHolder extensions)
     : m_model_path{model_path},
-      m_mmap_cache{enable_mmap ? std::make_shared<std::map<std::filesystem::path, std::shared_ptr<ov::MappedMemory>>>()
-                               : nullptr},
+      m_mmap_cache{detail::make_external_data_cache(enable_mmap)},
       m_extensions{std::move(extensions)},
       m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) {
                   delete impl;
@@ -335,8 +334,7 @@ ONNXModelEditor::ONNXModelEditor(std::istream& model_stream,
                                  const bool enable_mmap,
                                  frontend::ExtensionHolder extensions)
     : m_model_path{model_path},
-      m_mmap_cache{enable_mmap ? std::make_shared<std::map<std::filesystem::path, std::shared_ptr<ov::MappedMemory>>>()
-                               : nullptr},
+      m_mmap_cache{detail::make_external_data_cache(enable_mmap)},
       m_extensions{std::move(extensions)},
       m_pimpl{new ONNXModelEditor::Impl{model_stream}, [](Impl* impl) {
                   delete impl;

@@ -36,6 +36,7 @@
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/frontend/onnx/extension/conversion.hpp"
+#include "openvino/frontend/onnx/external_data.hpp"
 #include "openvino/frontend/onnx/frontend.hpp"
 #include "openvino/frontend/onnx/visibility.hpp"
 #include "openvino/op/parameter.hpp"
@@ -187,17 +188,34 @@ ONNX_FRONTEND_C_API void* get_front_end_data() {
 namespace ov::frontend::onnx {
 namespace {
 // Named load options are passed as one ov::AnyMap in any position after the model itself.
-ov::WeightlessConstants get_weightless_constants_option(const std::vector<ov::Any>& variants) {
+const ov::Any* find_load_option(const std::vector<ov::Any>& variants, const std::string& name) {
     for (size_t i = 1; i < variants.size(); ++i) {
         if (!variants[i].is<ov::AnyMap>()) {
             continue;
         }
         const auto& options = variants[i].as<ov::AnyMap>();
-        if (const auto it = options.find(ov::weightless_constants.name()); it != options.end()) {
-            return it->second.as<ov::WeightlessConstants>();
+        if (const auto it = options.find(name); it != options.end()) {
+            return &it->second;
         }
     }
-    return ov::WeightlessConstants::EXTERNAL;
+    return nullptr;
+}
+
+ov::WeightlessConstants get_weightless_constants_option(const std::vector<ov::Any>& variants) {
+    const auto* option = find_load_option(variants, ov::weightless_constants.name());
+    return option ? option->as<ov::WeightlessConstants>() : ov::WeightlessConstants::EXTERNAL;
+}
+
+ExternalDataReader get_external_data_reader_option(const std::vector<ov::Any>& variants) {
+    const auto* option = find_load_option(variants, external_data_reader);
+    if (!option) {
+        return {};
+    }
+    FRONT_END_GENERAL_CHECK(option->is<ExternalDataReader>(),
+                            "The ",
+                            external_data_reader,
+                            " load option must be an ov::frontend::onnx::ExternalDataReader");
+    return option->as<ExternalDataReader>();
 }
 
 void stamp_weightless_constants_unify(const ov::frontend::InputModel::Ptr& input_model,
@@ -211,7 +229,8 @@ void stamp_weightless_constants_unify(const ov::frontend::InputModel::Ptr& input
 
 // The model loading of FrontEnd::load_impl(), without the named load options.
 ov::frontend::InputModel::Ptr load_input_model(const std::vector<ov::Any>& variants,
-                                               const ov::frontend::ExtensionHolder& extensions) {
+                                               const ov::frontend::ExtensionHolder& extensions,
+                                               const ExternalDataReader& reader) {
     const bool gi_enabled = is_graph_iterator_enabled();
     if (variants.empty()) {
         return nullptr;
@@ -226,6 +245,7 @@ ov::frontend::InputModel::Ptr load_input_model(const std::vector<ov::Any>& varia
     const auto create_iterator_model = [&](const std::filesystem::path& model_path) {
         GraphIteratorProto::Ptr graph_iterator =
             std::make_shared<GraphIteratorProto>(enable_mmap ? Internal_MMAP : Internal_Stream);
+        graph_iterator->set_external_data_reader(reader);
         graph_iterator->initialize(model_path);
         graph_iterator->reset();
         return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap, extensions.telemetry);
@@ -252,6 +272,7 @@ ov::frontend::InputModel::Ptr load_input_model(const std::vector<ov::Any>& varia
             return std::make_shared<InputModel>(*stream, model_path, enable_mmap, extensions);
         }
         auto graph_iterator = std::make_shared<GraphIteratorProto>(enable_mmap ? Internal_MMAP : Internal_Stream);
+        graph_iterator->set_external_data_reader(reader);
         graph_iterator->initialize(*stream, model_path);
         graph_iterator->reset();
         return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap, extensions.telemetry);
@@ -269,6 +290,7 @@ ov::frontend::InputModel::Ptr load_input_model(const std::vector<ov::Any>& varia
             return std::make_shared<InputModel>(std::move(model_proto), extensions);
         }
         auto graph_iterator = std::make_shared<GraphIteratorProto>(enable_mmap ? Internal_MMAP : Internal_Stream);
+        graph_iterator->set_external_data_reader(reader);
         graph_iterator->initialize(std::move(model_proto));
         graph_iterator->reset();
         return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap, extensions.telemetry);
@@ -294,12 +316,15 @@ ov::frontend::InputModel::Ptr load_input_model(const std::vector<ov::Any>& varia
 }  // namespace ov::frontend::onnx
 
 ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
-    auto input_model = load_input_model(variants, m_extensions);
+    const auto reader = get_external_data_reader_option(variants);
+    auto input_model = load_input_model(variants, m_extensions, reader);
     const auto weightless_constants = get_weightless_constants_option(variants);
     if (const auto unify_model = std::dynamic_pointer_cast<unify::InputModel>(input_model)) {
         unify_model->set_weightless_constants(weightless_constants);
+        unify_model->set_external_data_reader(reader);
     } else if (const auto onnx_model = std::dynamic_pointer_cast<InputModel>(input_model)) {
         onnx_model->set_weightless_constants(weightless_constants);
+        onnx_model->set_external_data_reader(reader);
     }
     return input_model;
 }

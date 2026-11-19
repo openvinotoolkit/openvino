@@ -18,9 +18,9 @@
 
 namespace ov::frontend::onnx::weightless {
 
-/// \brief Version of the synthetic ID scheme (design: name-based ID, FNV-1a 64 + fmix64, 60-bit hash).
-/// Stored in bits 62-60 of every synthetic ID and in the model rt_info. Any change to the ID definition needs a new
-/// scheme number.
+/// \brief Version of the synthetic ID scheme. Scheme 1 hashes the initializer name, byte size and element type with
+/// FNV-1a 64 and the MurmurHash3 fmix64 finalizer, and keeps the low 60 bits. Stored in bits 62-60 of every synthetic
+/// ID and in the model rt_info. Any change to the ID definition needs a new scheme number.
 constexpr uint64_t kIdScheme = 1;
 
 /// \brief Model rt_info key holding the ov::WeightlessConstants value the frontend applied.

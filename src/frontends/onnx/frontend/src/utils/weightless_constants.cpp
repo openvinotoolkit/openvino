@@ -14,7 +14,7 @@
 namespace ov::frontend::onnx::weightless {
 namespace {
 
-// FNV-1a 64-bit (design section 6.3).
+// FNV-1a 64-bit, part of the scheme 1 ID definition. Changing it requires a new kIdScheme.
 constexpr uint64_t kFnvOffsetBasis = 0xcbf29ce484222325ull;
 constexpr uint64_t kFnvPrime = 0x100000001b3ull;
 

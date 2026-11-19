@@ -27,6 +27,11 @@ namespace ov::frontend::onnx {
 ///       model's input types and shapes, extract a subgraph and more.
 class ONNXModelEditor final {
 public:
+    /// rief Sets the reader that supplies external data files instead of the file system.
+    void set_external_data_reader(ExternalDataReader reader) {
+        detail::set_external_data_reader(m_mmap_cache, std::move(reader));
+    }
+
     /// \brief Creates an editor from a model file located on a storage device. The file
     ///        is parsed and loaded into the m_model_proto member variable.
     ///

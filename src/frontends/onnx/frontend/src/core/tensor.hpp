@@ -73,7 +73,7 @@ inline std::vector<T> __get_raw_data(const std::string& raw_data, int onnx_data_
 }  // namespace
 }  // namespace detail
 
-using MappedMemoryHandles = std::shared_ptr<std::map<std::filesystem::path, std::shared_ptr<ov::MappedMemory>>>;
+using MappedMemoryHandles = detail::MappedMemoryHandles;
 using LocalStreamHandles = std::shared_ptr<std::map<std::filesystem::path, std::shared_ptr<std::ifstream>>>;
 
 class TensorONNXPlace : public ov::frontend::onnx::TensorPlace {
@@ -339,7 +339,9 @@ private:
         std::shared_ptr<ov::AlignedBuffer> buffer = nullptr;
         if (ext_data.data_location() == detail::ORT_MEM_ADDR) {
             buffer = ext_data.load_external_mem_data();
-        } else if (m_mmap_cache) {
+        } else if (auto supplied = ext_data.load_supplied_data(m_model_dir, m_mmap_cache)) {
+            buffer = std::move(supplied);
+        } else if (m_mmap_cache && m_mmap_cache->enable_mmap) {
             buffer = ext_data.load_external_mmap_data(m_model_dir, m_mmap_cache);
         } else {
             buffer = ext_data.load_external_data(m_model_dir);

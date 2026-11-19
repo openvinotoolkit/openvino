@@ -490,7 +490,12 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
 
         if (ext_data.data_location() == detail::ORT_MEM_ADDR) {
             constant_buffer = ext_data.load_external_mem_data();
-        } else if (m_mmap_cache) {
+        } else if (auto supplied = ext_data.load_supplied_data(m_model_dir, m_mmap_cache)) {
+            // Supplied by the application's reader, at the offset the model declares
+            constant_buffer = std::move(supplied);
+            has_weightless_offset = true;
+            weightless_offset = ext_data.offset();
+        } else if (m_mmap_cache && m_mmap_cache->enable_mmap) {
             constant_buffer = ext_data.load_external_mmap_data(m_model_dir, m_mmap_cache);
             has_weightless_offset = true;
             weightless_offset = ext_data.offset();

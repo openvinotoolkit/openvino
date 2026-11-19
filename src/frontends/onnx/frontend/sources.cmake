@@ -321,6 +321,7 @@ set(ONNX_FRONTEND_PUBLIC_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/frontend/onnx/decoder.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/frontend/onnx/extension/conversion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/frontend/onnx/extension/op.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/frontend/onnx/external_data.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/frontend/onnx/frontend.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/frontend/onnx/graph_iterator.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/frontend/onnx/node_context.hpp

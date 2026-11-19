@@ -31,6 +31,10 @@ InputModel::InputModel(std::istream& model_stream,
 InputModel::InputModel(std::shared_ptr<ModelProto> model_proto, frontend::ExtensionHolder extensions)
     : m_editor{std::make_shared<ONNXModelEditor>(model_proto, std::move(extensions))} {}
 
+void InputModel::set_external_data_reader(ExternalDataReader reader) {
+    m_editor->set_external_data_reader(std::move(reader));
+}
+
 std::vector<ov::frontend::Place::Ptr> InputModel::get_inputs() const {
     const auto& inputs = m_editor->model_inputs();
     std::vector<ov::frontend::Place::Ptr> in_places;
@@ -587,6 +591,10 @@ public:
         return dynamic_cast<const TensorOriginProvider*>(m_graph_iterator.get());
     }
 
+    void set_external_data_reader(ExternalDataReader reader) {
+        detail::set_external_data_reader(m_mmap_cache, std::move(reader));
+    }
+
     std::vector<ov::frontend::Place::Ptr> get_inputs() const;
     std::vector<ov::frontend::Place::Ptr> get_outputs() const;
     ov::frontend::Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const;
@@ -904,7 +912,7 @@ InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& gra
         m_model_dir = graph_iterator->get_model_dir();
     }
     if (m_enable_mmap) {
-        m_mmap_cache = std::make_shared<std::map<std::filesystem::path, std::shared_ptr<ov::MappedMemory>>>();
+        m_mmap_cache = detail::make_external_data_cache(true);
         m_stream_cache = nullptr;
     } else {
         m_mmap_cache = nullptr;
@@ -1073,6 +1081,10 @@ bool InputModel::is_const_data_reusable() const {
 
 const ov::frontend::onnx::TensorOriginProvider* InputModel::get_tensor_origin_provider() const {
     return _impl->get_tensor_origin_provider();
+}
+
+void InputModel::set_external_data_reader(ExternalDataReader reader) {
+    _impl->set_external_data_reader(std::move(reader));
 }
 
 InputModel::InputModel(const GraphIterator::Ptr& graph_iterator,

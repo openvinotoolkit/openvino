@@ -85,6 +85,7 @@ set(SRC
     lib_close.cpp
     model_support_tests.cpp
     onnx_ops_registration.cpp
+    onnx_external_data_reader.cpp
     onnx_reader_external_data.cpp
     onnx_weightless_constants.cpp
     skip_tests_config.cpp
