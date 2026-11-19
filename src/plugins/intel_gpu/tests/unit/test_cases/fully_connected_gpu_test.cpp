@@ -7451,6 +7451,13 @@ TEST(fully_connected_gpu_ternocl_int2_cached, static_int8_prefill_bias) {
     fully_connected_gpu_ternocl_int2::run(ternary_fc_params{20, 256, 1024, ternary_epilogue::bias, false, true, false}, false, {20}, true);
 }
 
+// fwht, quant and int8_gemm: the active stages are not in declaration order.
+TEST(fully_connected_gpu_ternocl_int2_cached, static_hadamard_int8_prefill) {
+    if (!ternocl_int2_supported(get_test_engine()))
+        GTEST_SKIP();
+    fully_connected_gpu_ternocl_int2::run(ternary_fc_params{40, 256, 1024, ternary_epilogue::none, false, true, true}, false, {40}, true);
+}
+
 // Two FCs on one weight constant: both run the TernOCL impl on the same packed weights.
 TEST(fully_connected_gpu_ternocl_int2_dynamic, shared_weights) {
     auto& engine = get_test_engine();

@@ -40,6 +40,69 @@ using ov::intel_gpu::ocl::PrimitiveImplOCL;
 using ov::intel_gpu::ocl::Stage;
 
 // ---------------------------------------------------------------------------
+// Launch classes by M. The GEMV classes run SGM = 1, 2, 4 or 8 rows per sub-group.
+// The M-tiled GEMM classes pick their tiles per band of M.
+enum class LaunchClass : uint8_t {
+    gemv_m1,      // M = 1
+    gemv_m2,      // M = 2
+    gemv_m4,      // M <= 4
+    gemv_m8,      // M <= 8
+    tiled_m16,    // M <= 16
+    tiled_m32,    // M <= 32
+    tiled_m63,    // M < 64
+    tiled_large,  // M >= 64
+};
+constexpr size_t kLaunchClasses = static_cast<size_t>(LaunchClass::tiled_large) + 1;
+constexpr size_t kGemvClasses = static_cast<size_t>(LaunchClass::tiled_m16);
+constexpr size_t kTiledClasses = kLaunchClasses - kGemvClasses;
+
+constexpr size_t class_index(LaunchClass cls) {
+    return static_cast<size_t>(cls);
+}
+
+constexpr LaunchClass class_at(size_t index) {
+    return static_cast<LaunchClass>(index);
+}
+
+constexpr bool is_gemv(LaunchClass cls) {
+    return class_index(cls) < kGemvClasses;
+}
+
+// Sub-group rows (SGM) of a GEMV class.
+size_t gemv_rows(LaunchClass cls) {
+    OPENVINO_ASSERT(is_gemv(cls), "[GPU] ternocl int2: launch class ", class_index(cls), " is not a GEMV class");
+    return size_t{1} << class_index(cls);
+}
+
+// Index of an M-tiled class in the per-band tile tables: 0 for M <= 16 up to kTiledClasses - 1 for M >= 64.
+size_t tiled_band(LaunchClass cls) {
+    OPENVINO_ASSERT(!is_gemv(cls) && class_index(cls) < kLaunchClasses, "[GPU] ternocl int2: launch class ", class_index(cls), " is not an M-tiled class");
+    return class_index(cls) - kGemvClasses;
+}
+
+LaunchClass launch_class(size_t M) {
+    if (M <= 1) {
+        return LaunchClass::gemv_m1;
+    }
+    if (M == 2) {
+        return LaunchClass::gemv_m2;
+    }
+    if (M <= 4) {
+        return LaunchClass::gemv_m4;
+    }
+    if (M <= 8) {
+        return LaunchClass::gemv_m8;
+    }
+    if (M <= 16) {
+        return LaunchClass::tiled_m16;
+    }
+    if (M <= 32) {
+        return LaunchClass::tiled_m32;
+    }
+    return M < 64 ? LaunchClass::tiled_m63 : LaunchClass::tiled_large;
+}
+
+// ---------------------------------------------------------------------------
 // Tile selection. GEMV (M <= 8): sub-group rows SGM, work-group width WGN
 // (16 per sub-group), local k-slicing LS, loads issued ahead U. M-tiled GEMM
 // (M > 8): sub-group tile MT_M x MT_N, work-group WG_M x WG_N sub-groups.
@@ -131,33 +194,34 @@ GemvTile gemv_tile(size_t K, size_t N, bool integrated) {
     return N <= 8192 ? GemvTile{32, 4, 1} : GemvTile{32, 2, 1};
 }
 
-MtTile mt_tile(size_t K, size_t N, size_t cls, bool integrated) {
-    if (cls < 7) {
+MtTile mt_tile(size_t K, size_t N, LaunchClass cls, bool integrated) {
+    if (cls != LaunchClass::tiled_large) {
         // Sweep at M = 12 / 20 / 32 / 48 over the 27B shapes; the winners group
         // by output width (narrow N <= 8192, head N >= 65536).
-        const size_t band = cls - 4;
-        static const MtTile narrow[3] = {{16, 16, 2, 2}, {32, 16, 2, 4}, {32, 16, 1, 4}};  // Arc Pro B70
-        static const MtTile wide[3] = {{16, 16, 1, 8}, {32, 16, 1, 4}, {64, 16, 1, 8}};
-        static const MtTile head[3] = {{16, 16, 1, 4}, {64, 32, 1, 8}, {64, 32, 1, 8}};
-        static const MtTile i_narrow[3] = {{16, 32, 1, 4}, {32, 32, 1, 8}, {64, 32, 1, 8}};  // Arc 140V
-        static const MtTile i_wide[3] = {{16, 16, 1, 8}, {64, 32, 1, 4}, {64, 32, 1, 4}};
-        static const MtTile i_head[3] = {{16, 16, 1, 4}, {32, 16, 1, 8}, {64, 32, 1, 4}};
+        using Bands = std::array<MtTile, kTiledClasses - 1>;
+        const size_t band = tiled_band(cls);
+        static const Bands narrow = {{{16, 16, 2, 2}, {32, 16, 2, 4}, {32, 16, 1, 4}}};  // Arc Pro B70
+        static const Bands wide = {{{16, 16, 1, 8}, {32, 16, 1, 4}, {64, 16, 1, 8}}};
+        static const Bands head = {{{16, 16, 1, 4}, {64, 32, 1, 8}, {64, 32, 1, 8}}};
+        static const Bands i_narrow = {{{16, 32, 1, 4}, {32, 32, 1, 8}, {64, 32, 1, 8}}};  // Arc 140V
+        static const Bands i_wide = {{{16, 16, 1, 8}, {64, 32, 1, 4}, {64, 32, 1, 4}}};
+        static const Bands i_head = {{{16, 16, 1, 4}, {32, 16, 1, 8}, {64, 32, 1, 4}}};
         if (integrated) {
             if (N <= 8192) {
-                return i_narrow[band];
+                return i_narrow.at(band);
             }
             if (N >= 65536) {
-                return i_head[band];
+                return i_head.at(band);
             }
-            return i_wide[band];
+            return i_wide.at(band);
         }
         if (N <= 8192) {
-            return narrow[band];
+            return narrow.at(band);
         }
         if (N >= 65536) {
-            return head[band];
+            return head.at(band);
         }
-        return wide[band];
+        return wide.at(band);
     }
     struct Entry {
         size_t k, n;
@@ -203,55 +267,32 @@ MtTile mt_tile(size_t K, size_t N, size_t cls, bool integrated) {
 }
 
 // Arc Pro B70 sweep of the 27B shapes, per M-tiled launch class (M <= 16, <= 32, < 64, >= 64).
-MtTile int8_tile(size_t K, size_t N, size_t cls) {
-    const size_t band = cls - 4;
+MtTile int8_tile(size_t K, size_t N, LaunchClass cls) {
+    using Bands = std::array<MtTile, kTiledClasses>;
+    const size_t band = tiled_band(cls);
     struct Entry {
         size_t k, n;
-        MtTile t[4];
+        Bands t;
     };
     static const Entry table[] = {
-        {5120, 34816, {{8, 128, 1, 4}, {8, 64, 4, 1}, {8, 128, 8, 2}, {8, 128, 8, 2}}},     // gate_up (merged)
-        {17408, 5120, {{8, 32, 2, 4}, {8, 32, 2, 4}, {8, 64, 8, 2}, {8, 128, 8, 2}}},       // down
-        {5120, 16384, {{8, 32, 2, 4}, {8, 64, 2, 2}, {8, 128, 2, 4}, {8, 128, 16, 1}}},     // in_proj_qkvz
-        {6144, 5120, {{8, 32, 2, 4}, {8, 32, 2, 4}, {8, 64, 8, 2}, {8, 128, 8, 2}}},        // out_proj / o_proj
-        {5120, 14336, {{8, 32, 2, 4}, {8, 64, 2, 2}, {8, 128, 8, 2}, {8, 128, 4, 2}}},      // qkv
-        {5120, 248320, {{8, 128, 2, 4}, {8, 128, 4, 4}, {8, 128, 8, 2}, {8, 128, 16, 1}}},  // lm_head
+        {5120, 34816, {{{8, 128, 1, 4}, {8, 64, 4, 1}, {8, 128, 8, 2}, {8, 128, 8, 2}}}},     // gate_up (merged)
+        {17408, 5120, {{{8, 32, 2, 4}, {8, 32, 2, 4}, {8, 64, 8, 2}, {8, 128, 8, 2}}}},       // down
+        {5120, 16384, {{{8, 32, 2, 4}, {8, 64, 2, 2}, {8, 128, 2, 4}, {8, 128, 16, 1}}}},     // in_proj_qkvz
+        {6144, 5120, {{{8, 32, 2, 4}, {8, 32, 2, 4}, {8, 64, 8, 2}, {8, 128, 8, 2}}}},        // out_proj / o_proj
+        {5120, 14336, {{{8, 32, 2, 4}, {8, 64, 2, 2}, {8, 128, 8, 2}, {8, 128, 4, 2}}}},      // qkv
+        {5120, 248320, {{{8, 128, 2, 4}, {8, 128, 4, 4}, {8, 128, 8, 2}, {8, 128, 16, 1}}}},  // lm_head
     };
     for (const auto& e : table) {
         if (e.k == K && e.n == N) {
-            return e.t[band];
+            return e.t.at(band);
         }
     }
-    static const MtTile fallback[4] = {{8, 32, 2, 4}, {8, 64, 2, 2}, {8, 128, 8, 2}, {8, 128, 8, 2}};
-    return fallback[band];
+    static const Bands fallback = {{{8, 32, 2, 4}, {8, 64, 2, 2}, {8, 128, 8, 2}, {8, 128, 8, 2}}};
+    return fallback.at(band);
 }
 
 size_t ceil_div(size_t a, size_t b) {
     return (a + b - 1) / b;
-}
-
-// Classes 0-3: GEMV for M = 1, 2, <= 4, <= 8 (SGM = 1, 2, 4, 8).
-// Classes 4-7: M-tiled GEMM for M <= 16, <= 32, < 64, >= 64.
-constexpr size_t kLaunchClasses = 8;
-constexpr size_t kFirstTiledClass = 4;
-
-size_t launch_class(size_t M) {
-    if (M <= 8) {
-        if (M <= 1) {
-            return 0;
-        }
-        if (M == 2) {
-            return 1;
-        }
-        return M <= 4 ? 2 : 3;
-    }
-    if (M <= 16) {
-        return 4;
-    }
-    if (M <= 32) {
-        return 5;
-    }
-    return M < 64 ? 6 : 7;
 }
 
 struct FcShape {
@@ -302,7 +343,7 @@ enum class TernoclKernel { upcvt, quant, int8_gemm, fwht };
 // The tile depends only on (K, N, launch class, device), so a stage serves every M of its class.
 class TernoclStageGenerator : public KernelGenerator {
 public:
-    TernoclStageGenerator(TernoclKernel kind, size_t cls) : KernelGenerator("ternocl_int2", suffix(kind, cls)), m_kind(kind), m_cls(cls) {}
+    TernoclStageGenerator(TernoclKernel kind, LaunchClass cls) : KernelGenerator("ternocl_int2", suffix(kind, cls)), m_kind(kind), m_cls(cls) {}
 
     [[nodiscard]] KernelData get_kernel_data(const RuntimeParams& params) const override {
         const std::string name = kernel_name();
@@ -334,11 +375,11 @@ public:
             std::vector<int32_t> scalars;
             switch (kind) {
             case TernoclKernel::upcvt:
-                if (cls < kFirstTiledClass) {
+                if (is_gemv(cls)) {
                     const auto g = gemv_tile(s.K, s.N, is_integrated(params));
                     const size_t wgn = static_cast<size_t>(g.wgn);
                     wgs.local = {wgn * static_cast<size_t>(g.ls), 1, 1};
-                    wgs.global = {ceil_div(s.N, wgn) * wgs.local[0], ceil_div(s.M, size_t{1} << cls), 1};
+                    wgs.global = {ceil_div(s.N, wgn) * wgs.local[0], ceil_div(s.M, gemv_rows(cls)), 1};
                 } else {
                     set_tiled_dispatch(wgs, mt_tile(s.K, s.N, cls, is_integrated(params)), s);
                 }
@@ -376,7 +417,7 @@ protected:
         using T = ArgumentDescriptor::Types;
         const bool rotated = params.typed_desc<fully_connected>()->hadamard_block != 0;
         const ArgumentDescriptor a = rotated ? ArgumentDescriptor{T::INTERNAL_BUFFER, 0} : ArgumentDescriptor{T::INPUT, 0};
-        const ArgumentDescriptor sa{T::INTERNAL_BUFFER, rotated ? 1u : 0u};
+        const ArgumentDescriptor sa{T::INTERNAL_BUFFER, rotated ? 1U : 0U};
         switch (m_kind) {
         case TernoclKernel::upcvt:  // A, B, S, C, Other, Bias, M, N, K
             return {a, {T::INPUT, 1}, {T::INPUT, 2}, {T::OUTPUT, 0}, {T::INPUT, 3}, {T::INPUT, 4}, {T::SCALAR, 0}, {T::SCALAR, 1}, {T::SCALAR, 2}};
@@ -390,16 +431,17 @@ protected:
         OPENVINO_THROW("[GPU] ternocl int2: unknown kernel");
     }
 
+    // The base options (OpenCL C version, large allocations) plus the kernel's tile and epilogue.
     [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
         const auto s = fc_shape(params);
         const auto ep = epilogue(params);
         const std::string epi = " -DPOSTOP=" + std::to_string(static_cast<int>(ep.postop)) + (ep.out_f32 ? " -DOUT_F32" : "");
-        std::string opts = "-cl-std=CL3.0";
+        std::string opts = KernelGenerator::get_build_options(params);
         switch (m_kind) {
         case TernoclKernel::upcvt:
-            if (m_cls < kFirstTiledClass) {
+            if (is_gemv(m_cls)) {
                 const auto g = gemv_tile(s.K, s.N, is_integrated(params));
-                opts += " -DSGM=" + std::to_string(size_t{1} << m_cls) + " -DNSG_N=" + std::to_string(g.wgn / 16) + " -DLS=" + std::to_string(g.ls) +
+                opts += " -DSGM=" + std::to_string(gemv_rows(m_cls)) + " -DNSG_N=" + std::to_string(g.wgn / 16) + " -DLS=" + std::to_string(g.ls) +
                         " -DU=" + std::to_string(g.u) + " -DPF=0";
             } else {
                 opts += tile_options(mt_tile(s.K, s.N, m_cls, is_integrated(params)));
@@ -416,14 +458,14 @@ protected:
     }
 
 private:
-    static std::string suffix(TernoclKernel kind, size_t cls) {
+    static std::string suffix(TernoclKernel kind, LaunchClass cls) {
         switch (kind) {
         case TernoclKernel::upcvt:
-            return "upcvt" + std::to_string(cls);
+            return "upcvt" + std::to_string(class_index(cls));
         case TernoclKernel::quant:
             return "quant";
         case TernoclKernel::int8_gemm:
-            return "int8_" + std::to_string(cls);
+            return "int8_" + std::to_string(class_index(cls));
         case TernoclKernel::fwht:
             return "fwht";
         }
@@ -433,7 +475,7 @@ private:
     [[nodiscard]] std::string kernel_name() const {
         switch (m_kind) {
         case TernoclKernel::upcvt:
-            return m_cls < kFirstTiledClass ? "int2_fp16_upcvt_gemm" : "int2_fp16_upcvt_gemm_mt";
+            return is_gemv(m_cls) ? "int2_fp16_upcvt_gemm" : "int2_fp16_upcvt_gemm_mt";
         case TernoclKernel::quant:
             return "quant_a";
         case TernoclKernel::int8_gemm:
@@ -458,7 +500,7 @@ private:
     }
 
     TernoclKernel m_kind;
-    size_t m_cls;
+    LaunchClass m_cls;
 };
 
 }  // namespace
@@ -470,11 +512,11 @@ class fully_connected_ternocl_int2 : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::fully_connected_ternocl_int2)
 
+    // upcvt per launch class, int8_gemm per M-tiled class; quant and fwht do not depend on the class.
     std::array<Stage::Ptr, kLaunchClasses> upcvt = make_stages<kLaunchClasses>(TernoclKernel::upcvt, 0);
-    Stage::Ptr quant = make_stage<TernoclStageGenerator>(TernoclKernel::quant, 0);
-    std::array<Stage::Ptr, kLaunchClasses - kFirstTiledClass> int8_gemm =
-        make_stages<kLaunchClasses - kFirstTiledClass>(TernoclKernel::int8_gemm, kFirstTiledClass);
-    Stage::Ptr fwht = make_stage<TernoclStageGenerator>(TernoclKernel::fwht, 0);
+    Stage::Ptr quant = make_stage<TernoclStageGenerator>(TernoclKernel::quant, LaunchClass::gemv_m1);
+    std::array<Stage::Ptr, kTiledClasses> int8_gemm = make_stages<kTiledClasses>(TernoclKernel::int8_gemm, kGemvClasses);
+    Stage::Ptr fwht = make_stage<TernoclStageGenerator>(TernoclKernel::fwht, LaunchClass::gemv_m1);
 
     fully_connected_ternocl_int2() : PrimitiveImplOCL("ternocl_int2") {}
     fully_connected_ternocl_int2(const program_node& node, const RuntimeParams& params) : fully_connected_ternocl_int2() {
@@ -493,8 +535,8 @@ public:
             add(fwht);
         }
         if (params.is_dynamic()) {
-            for (size_t cls = 0; cls < (int8 ? kFirstTiledClass : kLaunchClasses); ++cls) {
-                add(upcvt[cls]);
+            for (size_t i = 0; i < (int8 ? kGemvClasses : kLaunchClasses); ++i) {
+                add(upcvt[i]);
             }
             if (int8) {
                 add(quant);
@@ -503,12 +545,12 @@ public:
                 }
             }
         } else {
-            const size_t cls = launch_class(fc_shape(params).M);
-            if (int8 && cls >= kFirstTiledClass) {
+            const auto cls = launch_class(fc_shape(params).M);
+            if (int8 && !is_gemv(cls)) {
                 add(quant);
-                add(int8_gemm[cls - kFirstTiledClass]);
+                add(int8_gemm[tiled_band(cls)]);
             } else {
-                add(upcvt[cls]);
+                add(upcvt[class_index(cls)]);
             }
         }
     }
@@ -541,16 +583,16 @@ public:
             return _order;
         }
         const size_t M = fc_shape(params).M;
-        const size_t cls = launch_class(M);
+        const auto cls = launch_class(M);
         std::vector<size_t> order;
         if (has_stage(fwht)) {
             order.push_back(stage_index(fwht));
         }
         if (runs_int8(M)) {
             order.push_back(stage_index(quant));
-            order.push_back(stage_index(int8_gemm[cls - kFirstTiledClass]));
+            order.push_back(stage_index(int8_gemm[tiled_band(cls)]));
         } else {
-            order.push_back(stage_index(upcvt[cls]));
+            order.push_back(stage_index(upcvt[class_index(cls)]));
         }
         return order;
     }
@@ -617,7 +659,7 @@ private:
     std::array<Stage::Ptr, Count> make_stages(TernoclKernel kind, size_t first_class) {
         std::array<Stage::Ptr, Count> stages;
         for (size_t i = 0; i < Count; ++i) {
-            stages[i] = make_stage<TernoclStageGenerator>(kind, first_class + i);
+            stages[i] = make_stage<TernoclStageGenerator>(kind, class_at(first_class + i));
         }
         return stages;
     }
@@ -626,9 +668,9 @@ private:
         return static_cast<size_t>(std::find(_stages.begin(), _stages.end(), stage.get()) - _stages.begin());
     }
 
-    // The int8 prefill runs when its stages are built and M > 8.
+    // The int8 prefill runs when its stages are built and M is in an M-tiled class.
     [[nodiscard]] bool runs_int8(size_t M) const {
-        return has_stage(quant) && (!is_dynamic() || M > 8);
+        return has_stage(quant) && (!is_dynamic() || !is_gemv(launch_class(M)));
     }
 };
 
