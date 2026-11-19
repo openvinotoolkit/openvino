@@ -406,7 +406,8 @@ class TestParallelRunner:
 
     @staticmethod
     def __get_suite_filter(test_filter: str, suite_filter: str):
-        filters = test_filter.split(":")
+        # empty patterns (e.g. from a trailing ':') would widen the batch to the whole suite
+        filters = [f for f in test_filter.split(":") if f.strip('"')] or [""]
         suite_filter_mixed = ""
         for filter in filters:
             patterns = filter.strip('"').split("*")
