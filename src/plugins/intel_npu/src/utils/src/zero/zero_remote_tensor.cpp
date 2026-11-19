@@ -33,7 +33,7 @@ void validate_src_roi_bounds(const ov::Shape& owner_shape,
     OPENVINO_ASSERT(owner_shape.size() == roi_shape.size(), "ROI rank must match parent tensor rank");
 
     size_t total_bytes = ov::util::get_memory_size(type, ov::shape_size(owner_shape));
-    size_t roi_bytes = intel_npu::zeroUtils::get_capacity_size(roi_shape, owner_strides);
+    size_t roi_bytes = intel_npu::zeroUtils::get_capacity_size(type, roi_shape, owner_strides);
 
     OPENVINO_ASSERT(offset + roi_bytes <= total_bytes,
                     "ROI with offset ",
@@ -264,19 +264,9 @@ void ZeroRemoteTensor::set_shape(ov::Shape new_shape) {
 }
 
 void ZeroRemoteTensor::update_strides() {
-    if (_element_type.bitwidth() < 8) {
-        return;
-    }
-
     auto& shape = get_shape();
-    if (_strides.empty() && !shape.empty()) {
-        _strides.resize(shape.size());
-        _strides.back() = shape.back() == 0 ? 0 : _element_type.size();
-        std::transform(shape.crbegin(),
-                       shape.crend() - 1,
-                       _strides.rbegin(),
-                       _strides.rbegin() + 1,
-                       std::multiplies<size_t>());
+    if (_strides.empty() && ov::util::can_compute_byte_strides(_element_type, shape)) {
+        _strides = ov::util::get_dense_byte_strides(_element_type, shape);
     }
 }
 
