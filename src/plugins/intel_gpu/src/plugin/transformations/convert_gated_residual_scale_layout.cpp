@@ -53,17 +53,20 @@ std::shared_ptr<ov::op::v0::Constant> transpose_to_gn(const ov::Output<ov::Node>
 
 ConvertGatedResidualScaleLayout::ConvertGatedResidualScaleLayout() {
     using namespace ov::pass::pattern;
-    auto gr_m = wrap_type<ov::intel_gpu::op::GatedResidual>();
-
-    ov::matcher_pass_callback callback = [](Matcher& m) {
-        const auto gr = ov::as_type_ptr<ov::intel_gpu::op::GatedResidual>(m.get_match_root());
+    // Only compressed READ ops that still carry the [N, G] scale / zero point layout.
+    auto is_nong_compressed_read = [](const ov::Output<ov::Node>& output) {
+        const auto gr = ov::as_type_ptr<ov::intel_gpu::op::GatedResidual>(output.get_node_shared_ptr());
         if (!gr || gr->get_scale_gn() || gr->get_mode() != ov::intel_gpu::op::GatedResidual::Mode::READ) {
             return false;
         }
         const auto layout = gr->get_read_layout();
-        if (!layout || !layout->compressed) {
-            return false;
-        }
+        return layout && layout->compressed;
+    };
+    auto gr_m = wrap_type<ov::intel_gpu::op::GatedResidual>(is_nong_compressed_read);
+
+    ov::matcher_pass_callback callback = [](Matcher& m) {
+        const auto gr = ov::as_type_ptr<ov::intel_gpu::op::GatedResidual>(m.get_match_root());
+        const auto layout = gr->get_read_layout();
 
         using Idx = ov::intel_gpu::op::GatedResidual::ReadInputIdx;
         std::vector<size_t> indices{Idx::SCALE_DOWN, Idx::SCALE_UP};
