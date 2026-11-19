@@ -184,6 +184,7 @@ inline uint FUNC(get_bt_index_value)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uin
 // Scale always occupies the fixed SCALE input slot (index 4) of the SDPA primitive,
 // regardless of whether the attention-mask input is actually used at runtime
 // (a placeholder attn_mask input is still present whenever scale is provided).
+// SCALE_TYPE is the storage type (ushort bits for bf16): read the scale with DECODE_INPUT4_COMPUTE_TYPE.
 #define SCALE_TYPE INPUT4_TYPE
 #endif
 
@@ -285,7 +286,7 @@ KERNEL(sdpa_opt)(
             // Gemm1 calculation
             // The scale applies to the f32 score: Q * scale stored as half overflows for large valid scales
 #if HAS_SCALE_INPUT
-            const SOFTMAX_ACCUMULATOR_TYPE scale_val = TO_SOFTMAX_ACCUMULATOR_TYPE(*scale);
+            const SOFTMAX_ACCUMULATOR_TYPE scale_val = TO_SOFTMAX_ACCUMULATOR_TYPE(DECODE_INPUT4_COMPUTE_TYPE(*scale));
 #elif defined(STATIC_SCALE_VALUE)
             const SOFTMAX_ACCUMULATOR_TYPE scale_val = TO_SOFTMAX_ACCUMULATOR_TYPE(STATIC_SCALE_VALUE);
 #else
@@ -1053,7 +1054,7 @@ KERNEL(sdpa_opt)(
 
 // Type of the Q*K^T scores. The regular path keeps them in SOFTMAX_ACCUMULATOR_TYPE until SoftMax, as the single-token
 // kernel does (bf16 inputs already compute in f32): SoftMax depends on the absolute difference between scores, which
-// f16 cannot hold once the scores grow (its ulp is 8 for |score| >= 8192).
+// f16 cannot hold once the scores grow (its ulp is 8 for |score| >= 8192), and the scores can leave the f16 range.
 // The FlashAttention-2 path rounds the scores to OUTPUT_COMPUTE_TYPE when it stores them to SLM, so f32 accumulation
 // cannot make it exact, and it keeps the INPUT0_COMPUTE_TYPE accumulation. FlashAttention-2 is the default for LLMs,
 // whose prefill runs this kernel on GPUs without systolic arrays.
@@ -1063,6 +1064,8 @@ KERNEL(sdpa_opt)(
 #define TO_QK_ACC_TYPE(val) TO_INPUT0_COMPUTE_TYPE(val)
 #define QK_ACC_VAL_ZERO INPUT0_VAL_ZERO
 #define QK_ACC_VAL_ONE INPUT0_VAL_ONE
+#define QK_ACC_VAL_MIN INPUT0_VAL_MIN
+#define QK_ACC_VAL_MAX INPUT0_VAL_MAX
 #define QK_ACC_MIN_FUNC INPUT0_MIN_FUNC
 #define QK_ACC_MAX_FUNC INPUT0_MAX_FUNC
 #define QK_ACC_MAD(key, lane, query, acc) mad(TO_INPUT0_COMPUTE_TYPE(sub_group_broadcast(key, lane)), query, acc)
@@ -1071,6 +1074,8 @@ KERNEL(sdpa_opt)(
 #define TO_QK_ACC_TYPE(val) TO_SOFTMAX_ACCUMULATOR_TYPE(val)
 #define QK_ACC_VAL_ZERO SOFTMAX_ACCUMULATOR_VAL_ZERO
 #define QK_ACC_VAL_ONE SOFTMAX_ACCUMULATOR_VAL_ONE
+#define QK_ACC_VAL_MIN SOFTMAX_ACCUMULATOR_VAL_MIN
+#define QK_ACC_VAL_MAX SOFTMAX_ACCUMULATOR_VAL_MAX
 #define QK_ACC_MIN_FUNC SOFTMAX_ACCUMULATOR_MIN_FUNC
 #define QK_ACC_MAX_FUNC SOFTMAX_ACCUMULATOR_MAX_FUNC
 // Convert the key before the broadcast: one conversion per key row instead of one per multiply-add.
@@ -1163,7 +1168,7 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
 #if HAS_SCALE_INPUT
-    const QK_ACC_TYPE scale_val = QK_ACC_VAL_ONE / TO_QK_ACC_TYPE(*scale);
+    const QK_ACC_TYPE scale_val = QK_ACC_VAL_ONE / TO_QK_ACC_TYPE(DECODE_INPUT4_COMPUTE_TYPE(*scale));
 #else
     const QK_ACC_TYPE scale_val = TO_QK_ACC_TYPE(STATIC_SCALE_VALUE_INV);
 #endif
@@ -1554,7 +1559,7 @@ KERNEL(sdpa_opt)(
 
 #if APPLY_SCALES_TO_QUERY
 #if HAS_SCALE_INPUT
-        const INPUT0_COMPUTE_TYPE scale_val = TO_INPUT0_COMPUTE_TYPE(*scale);
+        const INPUT0_COMPUTE_TYPE scale_val = TO_INPUT0_COMPUTE_TYPE(DECODE_INPUT4_COMPUTE_TYPE(*scale));
 #else
         const INPUT0_COMPUTE_TYPE scale_val = TO_INPUT0_COMPUTE_TYPE(STATIC_SCALE_VALUE);
 #endif
@@ -2072,7 +2077,7 @@ KERNEL(sdpa_opt)(
 
 #if !APPLY_SCALES_TO_QUERY
 #if HAS_SCALE_INPUT
-                        const QK_ACC_TYPE scale_val = TO_QK_ACC_TYPE(*scale);
+                        const QK_ACC_TYPE scale_val = TO_QK_ACC_TYPE(DECODE_INPUT4_COMPUTE_TYPE(*scale));
 #else
                         const QK_ACC_TYPE scale_val = TO_QK_ACC_TYPE(STATIC_SCALE_VALUE);
 #endif
@@ -2084,11 +2089,13 @@ KERNEL(sdpa_opt)(
                         qk_acc[i] += alibi_slopes[num_heads_dim] * alibi_val;
 #endif
 
-                        // Clamp to the input range as before; this also turns the NaN mask of out-of-range keys into the minimum.
-                        qk_acc[i] = QK_ACC_MIN_FUNC(QK_ACC_MAX_FUNC(qk_acc[i], TO_QK_ACC_TYPE(INPUT0_VAL_MIN)), TO_QK_ACC_TYPE(INPUT0_VAL_MAX));
+                        // Clamp to the QK_ACC_TYPE range, which also turns the NaN mask of keys past the sequence end into
+                        // the minimum. f32 scores must not be clamped to the f16 range: scores beyond it would tie, and
+                        // scores below -65504 would tie with those masked keys.
+                        qk_acc[i] = QK_ACC_MIN_FUNC(QK_ACC_MAX_FUNC(qk_acc[i], QK_ACC_VAL_MIN), QK_ACC_VAL_MAX);
 #if IS_CAUSAL
                     } else {
-                        qk_acc[i] = TO_QK_ACC_TYPE(INPUT0_VAL_MIN);
+                        qk_acc[i] = QK_ACC_VAL_MIN;
                     }
 #endif  // IS_CAUSAL
                     qk_max = SOFTMAX_ACCUMULATOR_MAX_FUNC(qk_max, TO_SOFTMAX_ACCUMULATOR_TYPE(qk_acc[i]));
@@ -2851,6 +2858,8 @@ KERNEL(sdpa_opt)(
 #undef QK_ACC_VEC_TYPE
 #undef QK_ACC_MAX_FUNC
 #undef QK_ACC_MIN_FUNC
+#undef QK_ACC_VAL_MAX
+#undef QK_ACC_VAL_MIN
 #undef QK_ACC_VAL_ONE
 #undef QK_ACC_VAL_ZERO
 #undef TO_QK_ACC_TYPE
