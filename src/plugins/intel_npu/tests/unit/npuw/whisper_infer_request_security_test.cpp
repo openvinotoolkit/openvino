@@ -194,6 +194,25 @@ TEST_F(WhisperInferRequestSecurityTest, PromptWithinCapacitySucceeds) {
     EXPECT_NO_THROW(m_request->infer());
 }
 
+TEST_F(WhisperInferRequestSecurityTest, GenerateWithinCapacitySucceeds) {
+    const auto encoder_hidden_states = make_encoder_hidden_states(WhisperConfig{}.max_source_positions, kHiddenSize);
+    set_inputs(make_input_ids(2), encoder_hidden_states);
+    ASSERT_NO_THROW(m_request->infer());
+
+    set_inputs(make_input_ids(1), encoder_hidden_states);
+    EXPECT_NO_THROW(m_request->infer());
+}
+
+TEST_F(WhisperInferRequestSecurityTest, BatchedGenerateIsRejectedNotOverflowed) {
+    const auto encoder_hidden_states = make_encoder_hidden_states(WhisperConfig{}.max_source_positions, kHiddenSize);
+    set_inputs(make_input_ids(2), encoder_hidden_states);
+    ASSERT_NO_THROW(m_request->infer());
+
+    // [2, 1]: seq len 1 selects generate, but 2 elements overflow its 1-element buffer.
+    set_inputs(make_batched_input_ids(2, 1), encoder_hidden_states);
+    OV_EXPECT_THROW_HAS_SUBSTRING(m_request->infer(), ov::Exception, "exceeds the compiled kv-cache input");
+}
+
 TEST_F(WhisperInferRequestSecurityTest, MismatchedEncoderHiddenStatesIsRejected) {
     set_inputs(make_input_ids(ov::npuw::LLMCompiledModel::whisper_max_prompt_size),
                make_encoder_hidden_states(WhisperConfig{}.max_source_positions + 1, kHiddenSize));
