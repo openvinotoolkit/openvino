@@ -436,6 +436,7 @@ Example:
         <filters>
             <filter>.*InferWithHostCompileMultithreadTests.*</filter>
             <filter>.*InferWithHostCompileTests.*</filter>
+            <filter>.*InferWithHostCompileInitTimingTests.*</filter>
         </filters>
     </skip_config>
 

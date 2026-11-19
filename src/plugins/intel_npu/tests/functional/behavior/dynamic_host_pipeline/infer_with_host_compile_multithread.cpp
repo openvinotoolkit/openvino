@@ -263,6 +263,11 @@ protected:
         return cfg;
     }
 
+    bool isDeferredGraphInit() const {
+        const auto it = configuration.find(ov::intel_npu::create_executor.name());
+        return it != configuration.end() && it->second.as<std::string>() == "0";
+    }
+
     ov::Core core;
     ov::AnyMap configuration;
     std::string selectedModelName;
@@ -319,6 +324,9 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CrossRequestOutputMismatchIsReje
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
+    }
+    if (isDeferredGraphInit()) {
+        GTEST_SKIP() << "Validates test input seeds only; independent of graph init timing";
     }
 
     auto referenceModel = createModelByName(selectedModelName);
@@ -420,6 +428,9 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAn
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
+    }
+    if (isDeferredGraphInit()) {
+        GTEST_SKIP() << "Requests are created sequentially before any concurrency; graph init timing is irrelevant";
     }
 
     constexpr size_t kThreadCount = 8;
