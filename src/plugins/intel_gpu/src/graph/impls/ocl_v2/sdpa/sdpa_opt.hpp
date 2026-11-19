@@ -29,6 +29,7 @@ struct SDPAOpt : public ImplementationManager {
     explicit SDPAOpt(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, std::move(vf)) {}
     [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
     [[nodiscard]] static bool supports_micro_sdpa(const kernel_impl_params& params);
+    [[nodiscard]] static bool supports_micro_gqa_single_token(const kernel_impl_params& params);
     [[nodiscard]] static bool has_per_channel_compressed_kv(const kernel_impl_params& params);
     // Asymmetric planar compressed KV whose zero-point buffer is bf16: the layout the oneDNN micro SDPA
     // stage cannot handle, so it has to run on the regular sdpa_opt stages instead.

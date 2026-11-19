@@ -1923,7 +1923,8 @@ template <typename T>
 static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
                                         kv_quant_granularity granularity,
                                         bool gqa_decomp = false,
-                                        const ov::element::Type& zp_et_in = ov::element::dynamic) {
+                                        const ov::element::Type& zp_et_in = ov::element::dynamic,
+                                        bool causal_lower_right = false) {
     // The compressed KV path has to work for f16 and bf16 Q/K/V as well. bf16 scales/zero-points are
     // stored as raw ushorts, so the SDPA kernels have to decode them instead of using the storage type.
     constexpr bool is_bf16 = std::is_same_v<T, ov::bfloat16>;
@@ -2037,13 +2038,18 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
                                                  {0, 1, 2, 3},
                                                  {0, 1, 2, 3},
                                                  {},
-                                                 false);
+                                                 false,
+                                                 causal_lower_right);
         topo.add(prim);
         topo.add(reorder("result", input_info("sdpa"), format::bfyx, dt));
 
         ExecutionConfig cfg = get_test_default_config(engine);
         cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
+        if (causal_lower_right) {
+            // The optimized kernels would also take the dequantized GQA decode, so compare with the reference one.
+            cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_ref"}}}));
+        }
         auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
         net->set_input_data("q", q_mem);
         net->set_input_data("k", k_mem);
@@ -2107,7 +2113,8 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
             inputs.emplace_back("v_zp");
         }
 
-        auto prim = scaled_dot_product_attention("sdpa", inputs, true, -1, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, qa, true);
+        auto prim =
+            scaled_dot_product_attention("sdpa", inputs, true, -1, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, qa, true, causal_lower_right);
         topo.add(prim);
         topo.add(reorder("result", input_info("sdpa"), format::bfyx, dt));
 
@@ -2183,6 +2190,15 @@ struct sdpa_gpu_compressed_kv_bf16_int8_zp_test : public sdpa_gpu_compressed_kv_
 
 TEST_P(sdpa_gpu_compressed_kv_bf16_int8_zp_test, compare_with_gpu_dequantized_reference) {
     run_compressed_kv_sdpa_test<ov::bfloat16>(GetParam(), kv_quant_granularity::per_token, /*gqa_decomp=*/false, ov::element::i8);
+}
+
+// GQA decode with a lower-right causal mask, as in LLM decode: runs the single-token stage that reads K/V once per KV head,
+// with key partitions (a partial last one, a batch of two).
+struct sdpa_gpu_compressed_kv_gqa_decode_test : public sdpa_gpu_compressed_kv_test_base {};
+
+TEST_P(sdpa_gpu_compressed_kv_gqa_decode_test, compare_with_reference) {
+    run_compressed_kv_sdpa_test<ov::float16>(GetParam(), kv_quant_granularity::per_channel, false, ov::element::dynamic, true);
+    run_compressed_kv_sdpa_test<ov::float16>(GetParam(), kv_quant_granularity::per_token, false, ov::element::dynamic, true);
 }
 
 // Verify the INT4 and INT8 cache encodings produced by the GQA decomposition.
@@ -2261,6 +2277,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_bf16_int8_zp,
                                            sdpa_test_params{128, 40, 40, 128, 128, 1, 8, true},
                                            sdpa_test_params{128, 40, 40, 1, 512, 1, 8, true}),
                          sdpa_gpu_compressed_kv_bf16_int8_zp_test::PrintToStringParamName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_gqa_decode,
+                         sdpa_gpu_compressed_kv_gqa_decode_test,
+                         ::testing::Values(sdpa_test_params{128, 40, 10, 1, 512, 1, 8, false},
+                                           sdpa_test_params{128, 40, 10, 1, 3000, 1, 8, true},
+                                           sdpa_test_params{64, 32, 8, 1, 2000, 1, 8, false},
+                                           sdpa_test_params{128, 40, 10, 1, 1024, 2, 8, false},
+                                           sdpa_test_params{128, 40, 10, 1, 256, 2, 8, false},
+                                           // One KV head: key partitions on every GPU.
+                                           sdpa_test_params{128, 8, 1, 1, 2048, 1, 8, false}),
+                         sdpa_gpu_compressed_kv_gqa_decode_test::PrintToStringParamName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_gqa_decomp,
                          sdpa_gpu_gqa_decomp_test,
@@ -3002,6 +3029,7 @@ struct sdpa_sliding_window_test_params {
     int batch;
     int sliding_window;
     bool causal_lower_right = true;
+    int kv_heads = 0;  // 0: num_heads
 };
 
 struct sdpa_sliding_window_test : public ::testing::TestWithParam<sdpa_sliding_window_test_params> {
@@ -3023,11 +3051,12 @@ struct sdpa_sliding_window_test : public ::testing::TestWithParam<sdpa_sliding_w
         const auto seq_kv = p.seq_kv;
         const auto batch = p.batch;
         const auto window = p.sliding_window;
+        const auto kv_heads = p.kv_heads != 0 ? p.kv_heads : num_heads;
 
         // Q: [batch, seq_q, num_heads, head_size]
         auto q_layout = cldnn::layout({batch, seq_q, num_heads, head_size}, data_types::f16, format::bfyx);
-        auto k_layout = cldnn::layout({batch, seq_kv, num_heads, head_size}, data_types::f16, format::bfyx);
-        auto v_layout = cldnn::layout({batch, seq_kv, num_heads, head_size}, data_types::f16, format::bfyx);
+        auto k_layout = cldnn::layout({batch, seq_kv, kv_heads, head_size}, data_types::f16, format::bfyx);
+        auto v_layout = cldnn::layout({batch, seq_kv, kv_heads, head_size}, data_types::f16, format::bfyx);
         auto mask_layout = cldnn::layout({batch, num_heads, seq_q, seq_kv}, data_types::f16, format::bfyx);
 
         auto q_mem = engine.allocate_memory(q_layout);
@@ -3140,7 +3169,8 @@ struct sdpa_sliding_window_test : public ::testing::TestWithParam<sdpa_sliding_w
         ASSERT_TRUE(has_nonzero_opt) << "Optimized output is all zeros";
 
         auto similarity = cosineSimilarity(ref_data, opt_data);
-        ASSERT_GE(similarity, 0.95f) << "Cosine similarity too low: " << similarity;
+        // GQA decode: a few keys leaked past the window edge must fail the check.
+        ASSERT_GE(similarity, p.kv_heads != 0 ? 0.999f : 0.95f) << "Cosine similarity too low: " << similarity;
     }
 };
 
@@ -3166,7 +3196,10 @@ INSTANTIATE_TEST_SUITE_P(smoke, sdpa_sliding_window_test,
         // UPPER_LEFT chunked-prefill case, large enough that SLIDING_WINDOW_SIZE is compiled in
         // but the window is still "dormant" (every valid key is within window of every query) --
         // the historical regression shape for the LOWER_RIGHT col_offset/window interaction.
-        sdpa_sliding_window_test_params{128, 1, 512, 4096, 1, 4095, /*causal_lower_right=*/false}
+        sdpa_sliding_window_test_params{128, 1, 512, 4096, 1, 4095, /*causal_lower_right=*/false},
+        // GQA decode: the micro GQA single-token stage, with key partitions and with the fold only.
+        sdpa_sliding_window_test_params{128, 40, 1, 6000, 1, 4095, true, 10},
+        sdpa_sliding_window_test_params{64, 32, 1, 700, 1, 300, true, 8}
     ),
     [](const testing::TestParamInfo<sdpa_sliding_window_test_params>& info) {
         return "h" + std::to_string(info.param.head_size)
@@ -3175,7 +3208,8 @@ INSTANTIATE_TEST_SUITE_P(smoke, sdpa_sliding_window_test,
              + "_sk" + std::to_string(info.param.seq_kv)
              + "_b" + std::to_string(info.param.batch)
              + "_w" + std::to_string(info.param.sliding_window)
-             + (info.param.causal_lower_right ? "_lr" : "_ul");
+             + (info.param.causal_lower_right ? "_lr" : "_ul")
+             + (info.param.kv_heads != 0 ? "_kv" + std::to_string(info.param.kv_heads) : "");
     });
 
 // is_causal=true together with an explicit attention_mask input, for a SWA-style (causal +

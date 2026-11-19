@@ -66,6 +66,36 @@ inline size_t get_partitions_num(const kernel_impl_params& params, size_t kernel
     return ceil_div(source_seq_len, get_seq_len_partition_size(params.get_device_info(), head_size, kernel_type));
 }
 
+// Keys the single query sees, counted from the 256-aligned start of the sliding window.
+inline size_t get_micro_kv_len(const kernel_impl_params& params) {
+    auto desc = params.typed_desc<scaled_dot_product_attention>();
+    const auto k = static_cast<size_t>(get_seq_length(params.get_input_layout(1), extend_order_in_num_heads_dim(desc->input_k_transpose_order)));
+    const auto window = static_cast<size_t>(desc->sliding_window);
+    return (window != 0 && k > window) ? k - (k - window) / 256 * 256 : k;
+}
+
+// Keys per partition of the micro GQA single-token stage: the keys are split until there is a work-group (one per KV head
+// and partition) for every sub-slice, with at most one partition per 256 keys, so the partition count never exceeds what
+// the internal buffers are sized for. Below 1024 keys the finalization kernel costs more than the split saves.
+inline size_t get_micro_kv_partition_size(const kernel_impl_params& params) {
+    auto desc = params.typed_desc<scaled_dot_product_attention>();
+    const auto& info = params.get_device_info();
+    const auto source_seq_len = get_micro_kv_len(params);
+    const auto kv_heads = static_cast<size_t>(get_num_heads(params.get_input_layout(1), extend_order_in_num_heads_dim(desc->input_k_transpose_order)));
+    const auto batch = static_cast<size_t>(get_batch_size(params.get_output_layout(0), extend_order_in_num_heads_dim(desc->output_transpose_order)));
+    const size_t sub_slices = static_cast<size_t>(info.num_slices) * info.num_sub_slices_per_slice;
+    const size_t blocks = ceil_div(source_seq_len, 256);
+    const size_t parts = blocks < 4 ? 1 : std::min(blocks, std::max<size_t>(1, ceil_div(sub_slices, batch * kv_heads)));
+    return align_to(ceil_div(source_seq_len, parts), 256);
+}
+
+inline size_t get_micro_kv_partitions_num(const kernel_impl_params& params) {
+    if (params.is_dynamic()) {
+        return 1;
+    }
+    return ceil_div(get_micro_kv_len(params), get_micro_kv_partition_size(params));
+}
+
 class SDPAOptGeneratorBase : public SDPABase {
 public:
     SDPAOptGeneratorBase(std::string_view name, std::string_view stage, bool indirect) : SDPABase(name, stage, indirect) {}
@@ -95,10 +125,15 @@ public:
 
 class SDPAOptGeneratorFinalization : public SDPAOptGeneratorBase {
 public:
-    explicit SDPAOptGeneratorFinalization(bool indirect) : SDPAOptGeneratorBase("sdpa_opt", "_finalization", false) {}
+    explicit SDPAOptGeneratorFinalization(bool indirect, bool micro_kv_split = false)
+        : SDPAOptGeneratorBase("sdpa_opt", micro_kv_split ? "_finalization_micro" : "_finalization", false),
+          m_micro_kv_split(micro_kv_split) {}
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
+
+private:
+    bool m_micro_kv_split;  // combines the key partitions of the micro GQA single-token stage
 };
 
 }  // namespace ov::intel_gpu::ocl

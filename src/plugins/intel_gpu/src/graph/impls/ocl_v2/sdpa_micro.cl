@@ -239,6 +239,13 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         , const global VAL_ATTR_ZP_DATA_T *V_zp
 #endif
 #endif
+#if MICRO_KV_SPLIT
+        , int kv_part_size
+        , int kv_parts
+        , global float *part_exp_sums
+        , global float *part_max_logits
+        , global half *part_out
+#endif
         ) {
 #if IS_PAGED_ATTENTION
     const uint query_block_idx = get_group_id(0) << 1;
@@ -263,10 +270,20 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #if IS_GQA_SINGLE_TOKEN
     q *= KV_GROUP_SIZE;
 #endif
+#elif IS_GQA_SINGLE_TOKEN
+    /* One work-group per KV head: the KV_GROUP_SIZE query heads of the group are the q rows, so K and V are read once per group. */
+    q *= KV_GROUP_SIZE;
 #endif
     uint sg_ij = sub_group_broadcast(get_local_id(1), 0);
     uint b0 = get_group_id(1);
+#if MICRO_KV_SPLIT
+    /* Key partitions of one KV head are spread over dim 2 next to the batch; the sdpa_opt finalization stage
+       combines them. */
+    const int kv_part = get_group_id(2) % kv_parts;
+    uint b1 = get_group_id(2) / kv_parts;
+#else
     uint b1 = get_group_id(2);
+#endif
 #if IS_GQA_SINGLE_TOKEN
     uint b0_kv = b0;
 #else
@@ -397,6 +414,14 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #endif
     window_k0_begin = (window_k_begin / ugemm_kq_wg_tile_m) * ugemm_kq_wg_tile_m;
 #endif
+#if MICRO_KV_SPLIT
+    /* Partitions split the visible keys from a 256-aligned start. Each starts at the KQ tile of its first visible key;
+       keys before the sliding window and past the partition are masked (REMAINDER_K). */
+    const int part_begin = (window_k_begin / 256) * 256 + kv_part * kv_part_size;
+    window_k_begin = max(window_k_begin, part_begin);
+    window_k0_begin = part_begin + (window_k_begin - part_begin) / ugemm_kq_wg_tile_m * ugemm_kq_wg_tile_m;
+    causal_k = min(causal_k, part_begin + kv_part_size);
+#endif
 
     /* Leading dimension for matrices */
 #if IS_PAGED_ATTENTION
@@ -445,9 +470,15 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     /* Layout pitches are physical KEY/VAL elements (bytes for packed INT4), while the
        micro-kernel leading dimensions use logical elements (nibbles for i4/u4). */
     uint ldk = (TRANSPOSE_K ? KEY_S3 : KEY_S2) * KEY_ELEMENTS_PER_BYTE;
-    uint ldq = QRY_S2;
     uint ldv = TRANSPOSE_V ? VAL_S3 * VAL_ELEMENTS_PER_BYTE : VAL_S2 * VAL_ELEMENTS_PER_BYTE;
+    #if IS_GQA_SINGLE_TOKEN
+    /* Rows are query heads of the single token: step by the heads pitch. */
+    uint ldq = QRY_S1;
+    uint lda = DST_S1;
+    #else
+    uint ldq = QRY_S2;
     uint lda = DST_S2;
+    #endif
 #endif
 
 #if KEY_SCALES || KEY_ZERO_POINTS
@@ -533,11 +564,17 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #else
     /* KEY_OFF/VAL_OFF and offsets address the physical byte-backed layouts. */
     K += KEY_OFF(b1_k, b0_kv, 0, 0) + INPUT1_OFFSET;
+    #if IS_GQA_SINGLE_TOKEN
+    Q += (QRY_OFF(b1_q, b0 * KV_GROUP_SIZE, 0, 0) + INPUT0_OFFSET);
+    A += DST_OFF(b1, b0 * KV_GROUP_SIZE, 0, 0, 0);
+    #else
     Q += (QRY_OFF(b1_q, b0, 0, 0) + INPUT0_OFFSET);
-    V += VAL_OFF(b1_v, b0_kv, 0, 0) + INPUT2_OFFSET;
     A += DST_OFF(b1, b0, 0, 0, 0);
+    #endif
+    V += VAL_OFF(b1_v, b0_kv, 0, 0) + INPUT2_OFFSET;
 #if WITH_ATTN_MASK
     uint ldmsk = MSK_S2;
+    /* GQA single token: the host admits only masks with one head, so b0 % MSK_D1 == 0. */
     msk += MSK_OFF(b1 % MSK_D0, b0 % MSK_D1, 0, 0);
 #endif
 #endif
@@ -566,7 +603,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     __builtin_assume_aligned(V, V_ALIGN);
     __builtin_assume_aligned(A, A_ALIGN);
 
-#if SLIDING_WINDOW_SIZE && !(IS_PAGED_ATTENTION && !IS_PREFILL)
+#if (SLIDING_WINDOW_SIZE || MICRO_KV_SPLIT) && !(IS_PAGED_ATTENTION && !IS_PREFILL)
     if (window_k0_begin > 0) {
         V += (size_t)(TRANSPOSE_V ? window_k0_begin : ldv * window_k0_begin) / VAL_ELEMENTS_PER_BYTE;
     #if VAL_SCALES == QUANTIZE_2D && !IS_VALUE_BY_CHANNEL
@@ -816,7 +853,11 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #pragma unroll
         for (int ii = 0; ii < ugemm_kq_sg_tile_m / SUBGROUP_SIZE; ii++) {
             const int key_idx = k0 + sg_i0_kq + ii * SUBGROUP_SIZE + get_sub_group_local_id();
+#if MICRO_KV_SPLIT
+            k_mask.x[0][ii] = key_idx >= window_k_begin && key_idx < k0 + k_chunk ? nan(0u) : -INFINITY;
+#else
             k_mask.x[0][ii] = key_idx < k0 + k_chunk ? nan(0u) : -INFINITY;
+#endif
         }
 #endif
 
@@ -1176,7 +1217,8 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         tile_hbroadcast_min(&S_tile, k_mask);
 #endif
 
-#if IS_CAUSAL
+/* Non-paged GQA single token: every row is the last query, so a lower-right causal mask hides no key below k. */
+#if IS_CAUSAL && !(IS_GQA_SINGLE_TOKEN && !IS_PAGED_ATTENTION)
     #if SLIDING_WINDOW_SIZE
         #define greater_than(offset_k, offset_q) (offset_k > offset_q || offset_k <= (offset_q - SLIDING_WINDOW_SIZE))
     #else
@@ -1841,6 +1883,30 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
     uint sg_i0_vs = sg_i_vs * ugemm_vs_sg_tile_m;
     uint sg_j0_vs = sg_j_vs * ugemm_vs_sg_tile_n + wg_j0;
+
+#if MICRO_KV_SPLIT
+    if (kv_parts > 1) {
+        /* Partition results in the layout of the sdpa_opt finalization stage: the output normalized within the
+           partition [B, H, 1, P, D], and its softmax sum and maximum [B, H, 1, P]. The maximum is kept on the
+           unscaled scores here, the finalization stage expects it in natural-log units. */
+        const uint head0 = (b1 * get_num_groups(1) + b0) * KV_GROUP_SIZE; /* dim 1 runs over the KV heads */
+        const uint lid = get_local_id(0) + get_local_id(1) * get_local_size(0);
+        if (lid < (uint)q) {
+            float part_sum = 0.0f;
+            for (uint sg1 = 0; sg1 < ugemm_kq_sg_per_wg_m; sg1++)
+                part_sum += S_sum_slm[sg1 * ugemm_kq_wg_tile_n + lid];
+            float part_max = S_max_slm[lid];
+#ifdef LOG_2_E_MUL_SCALE
+            part_max *= scale * M_LN2_F;
+#endif
+            const uint off = (head0 + lid) * kv_parts + kv_part;
+            part_exp_sums[off] = part_sum;
+            part_max_logits[off] = part_max;
+        }
+        tile_store(A_tile_half, part_out + ((size_t)head0 * kv_parts + kv_part) * d, d, q, kv_parts * d, sg_i0_vs, sg_j0_vs);
+        return;
+    }
+#endif
 
 #ifdef BLOCK_2D_A
     tile_store_block2d(A_tile_half, A, d, q, lda, sg_i0_vs, sg_j0_vs);

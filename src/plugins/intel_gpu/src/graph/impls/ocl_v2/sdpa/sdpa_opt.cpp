@@ -65,6 +65,8 @@ public:
 #ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
     Stage::Ptr regular_micro_single_token = make_stage<SDPAMicroGenerator>(!prefill);
     Stage::Ptr regular_micro_multi_tokens = make_stage<SDPAMicroGenerator>(prefill);
+    Stage::Ptr regular_micro_gqa_single_token = make_stage<SDPAMicroGenerator>(!prefill, true);
+    Stage::Ptr regular_micro_finalization = make_stage<SDPAOptGeneratorFinalization>(!indirect, true);
 #endif
 
     SDPAOptImpl() : SDPAImplBase(SDPAOpt::get_type_info_static()) {}
@@ -84,6 +86,10 @@ public:
                 GPU_DEBUG_TRACE_DETAIL << "add stage for micro_sdpa  dynamic ...\n";
                 add_stage(regular_micro_multi_tokens, params);
                 add_stage(regular_micro_single_token, params);
+                if (SDPAOpt::supports_micro_gqa_single_token(params)) {
+                    add_stage(regular_micro_gqa_single_token, params);
+                    add_stage(regular_micro_finalization, params);
+                }
             }
 #endif
             GPU_DEBUG_TRACE_DETAIL << "add stage for dynamic done \n";
@@ -118,6 +124,12 @@ public:
                 bool can_use_micro_sdpa = SDPAOpt::supports_micro_sdpa(params) && !is_ARL_H && !is_indirect;
                 if (can_use_micro_sdpa) {
                     add_stage(regular_micro_single_token, params);
+                    if (SDPAOpt::supports_micro_gqa_single_token(params)) {
+                        add_stage(regular_micro_gqa_single_token, params);
+                        if (get_micro_kv_partitions_num(params) > 1) {
+                            add_stage(regular_micro_finalization, params);
+                        }
+                    }
                 }
 #endif
                 add_stage(is_indirect ? indirect_single_token : regular_single_token, params);
@@ -160,6 +172,13 @@ public:
             return execute_stage(events, instance, is_indirect ? indirect_multi_tokens : regular_multi_tokens);
         }
 #ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
+        if (has_stage(regular_micro_gqa_single_token) && !is_indirect) {
+            auto ev = execute_stage(events, instance, regular_micro_gqa_single_token);
+            if (get_micro_kv_partitions_num(new_params) > 1) {
+                ev = execute_stage({ev}, instance, regular_micro_finalization);
+            }
+            return ev;
+        }
         if (has_stage(regular_micro_single_token) && !is_indirect) {
             return execute_stage(events, instance, regular_micro_single_token);
         }
@@ -307,6 +326,29 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
 #else
     return false;
 #endif
+}
+
+// Single-token micro stage that runs one work-group per KV head and key partition, with the query heads of the group as
+// GEMM rows, so K and V are read once per group instead of once per query head. Callers check supports_micro_sdpa first.
+bool SDPAOpt::supports_micro_gqa_single_token(const RuntimeParams& params) {
+    auto desc = params.typed_desc<scaled_dot_product_attention>();
+    // All rows are the last query: a lower-right causal mask hides no key and a sliding window the same keys in every row.
+    if ((desc->is_causal && !desc->causal_lower_right) || (desc->sliding_window != 0 && !desc->is_causal) || desc->has_sink_input) {
+        return false;
+    }
+    const auto q_heads = get_num_heads(params.get_input_layout(0), extend_order_in_num_heads_dim(desc->input_q_transpose_order));
+    const auto k_heads = get_num_heads(params.get_input_layout(1), extend_order_in_num_heads_dim(desc->input_k_transpose_order));
+    if (q_heads <= 0 || k_heads <= 0 || q_heads <= k_heads) {
+        return false;
+    }
+    // The rows of one work-group are different heads, so the mask must be the same for all heads.
+    if (sdpa_has_runtime_attn_mask_input(params)) {
+        const auto& mask_shape = params.get_input_layout(ScaledDotProductAttentionInputIdx::ATTN_MASK).get_partial_shape();
+        if (mask_shape.size() == 4 && (mask_shape[1].is_dynamic() || mask_shape[1].get_length() != 1)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 std::unique_ptr<primitive_impl> SDPAOpt::create_impl(const program_node& node, const RuntimeParams& params) const {

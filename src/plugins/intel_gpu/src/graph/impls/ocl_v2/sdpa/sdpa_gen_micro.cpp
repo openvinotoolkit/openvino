@@ -7,6 +7,7 @@
 // Put this file at first to avoid incorrect header files includes order.
 // For example, intel_gpu/runtime/utils.hpp will causes compiling error in hash<dnnl::impl::primitive_hashing::key_t>
 #include "sdpa_gen_micro.hpp"
+#include "sdpa_gen_opt.hpp"
 #include "paged_attention_opt.hpp"
 
 #include "intel_gpu/graph/kernel_impl_params.hpp"
@@ -1122,6 +1123,12 @@ KernelData SDPAMicroGenerator::get_kernel_data(const kernel_impl_params& params)
     sdpa_configuration sdpa_config;
     init_sdpa_configuration(params, sdpa_config);
     init_microkernels(params, sdpa_config, gemms[kq_id], gemms[vs_id], gemms[kcq_id], gemms[vcs_id], m_is_prefill, m_is_gqa_single_token);
+    if (m_is_gqa_single_token && !sdpa_config.is_paged_attention) {
+        // All query heads of a KV head must fit in one query tile.
+        const auto kv_group_size = micro_get_num_heads(params, 0) / micro_get_num_heads(params, 1);
+        OPENVINO_ASSERT(kv_group_size <= static_cast<size_t>(gemms[kq_id].getSetting("wg_tile_n")),
+                        "[GPU] SDPA micro GQA single token: KV group does not fit in the query tile");
+    }
 
     const auto& device_info = params.get_device_info();
     auto jit = get_jit_constants(params, gemms[kq_id], gemms[vs_id]);
@@ -1373,6 +1380,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
 
     jit.make("IS_PREFILL", m_is_prefill);
     jit.make("IS_GQA_SINGLE_TOKEN", m_is_gqa_single_token);
+    jit.make("MICRO_KV_SPLIT", m_is_gqa_single_token && !config.is_paged_attention);
     jit.make("TRANSPOSE_K", false);
     jit.make("TRANSPOSE_V", micro_is_v_transposed(params));
     jit.make("IS_PAGED_ATTENTION", config.is_paged_attention ? 1 : 0);
@@ -1524,7 +1532,8 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     auto K_num_heads_dim = micro_get_num_heads(params, 1);
 
     const bool may_have_mixed_k_boundary = config.is_paged_attention && !m_is_prefill && !m_is_gqa_single_token;
-    jit.make("REMAINDER_K", !k_full || may_have_mixed_k_boundary);
+    // Key partitions of the GQA single-token stage may end inside a KQ tile.
+    jit.make("REMAINDER_K", !k_full || may_have_mixed_k_boundary || (m_is_gqa_single_token && !config.is_paged_attention));
     jit.make("KV_GROUP_SIZE", Q_num_heads_dim / K_num_heads_dim);
 
     if (d_full) {
@@ -1750,15 +1759,23 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
         }
     }
 
+    if (m_is_gqa_single_token && !config.is_paged_attention) {
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 3});           // kv_part_size
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 4});           // kv_parts
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});  // exp_sums of the sdpa_opt finalization stage
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});  // max_logits
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});  // tmp_out
+    }
+
     return args;
 }
 
 DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
-    return DispatchDataFunc{[](const RuntimeParams& impl_param, KernelData& kd, ImplRuntimeParams* rt_params) {
+    return DispatchDataFunc{[gqa_single_token = m_is_gqa_single_token](const RuntimeParams& impl_param, KernelData& kd, ImplRuntimeParams* rt_params) {
         auto& wgs = kd.params.workGroups;
         auto& scalars = kd.params.scalars;
         scalars.clear();
-        scalars.reserve(3);
+        scalars.reserve(5);
 
         auto params = impl_param;
         if (!params.is_dynamic()) {
@@ -1777,6 +1794,8 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
                 if (pa_rt_params->stage == PagedAttentionStage::GENERATE) {
                     head_num = micro_get_num_heads(params, 1);
                 }
+            } else if (gqa_single_token) {
+                head_num = micro_get_num_heads(params, 1);
             }
 
             auto wg_tile_q = gemm_kq.getSetting("wg_tile_n");
@@ -1796,7 +1815,6 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
                 wgs.global[1] *= head_num;
                 wgs.global[2] *= out_ps[0].get_length();
             }
-
             auto to_int32 = [](size_t value) {
                 OPENVINO_ASSERT(value <= static_cast<size_t>(std::numeric_limits<int32_t>::max()), "[GPU] SDPA micro scalar value exceeds int32 range");
                 return static_cast<int32_t>(value);
@@ -1813,6 +1831,18 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
             ScalarDescriptor s_q{ScalarDescriptor::Types::INT32};
             s_q.v.s32 = to_int32(n_queries.get_length());
             scalars.push_back(s_q);
+
+            if (gqa_single_token && !params.is_type<paged_attention>()) {
+                const auto canonical = SDPABase::requires_shape_canonicalization(params) ? SDPABase::static_canonicalize_shapes(params) : params;
+                const size_t kv_parts = get_micro_kv_partitions_num(canonical);
+                wgs.global[2] *= kv_parts;
+                ScalarDescriptor s_part{ScalarDescriptor::Types::INT32};
+                s_part.v.s32 = to_int32(get_micro_kv_partition_size(canonical));
+                scalars.push_back(s_part);
+                ScalarDescriptor s_parts{ScalarDescriptor::Types::INT32};
+                s_parts.v.s32 = to_int32(kv_parts);
+                scalars.push_back(s_parts);
+            }
         }
     }};
 }

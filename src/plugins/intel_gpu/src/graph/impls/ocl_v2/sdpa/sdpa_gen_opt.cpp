@@ -304,7 +304,7 @@ JitConstants SDPAOptGeneratorFinalization::get_jit_constants(const kernel_impl_p
 }
 
 DispatchDataFunc SDPAOptGeneratorFinalization::get_dispatch_data_func() const {
-    return DispatchDataFunc{[](const RuntimeParams& impl_param, KernelData& kd, ImplRuntimeParams* rt_params) {
+    return DispatchDataFunc{[micro_kv_split = m_micro_kv_split](const RuntimeParams& impl_param, KernelData& kd, ImplRuntimeParams* rt_params) {
         auto& wgs = kd.params.workGroups;
         auto& scalars = kd.params.scalars;
         scalars.clear();
@@ -326,7 +326,7 @@ DispatchDataFunc SDPAOptGeneratorFinalization::get_dispatch_data_func() const {
                                                          "heads_num",
                                                          "SDPA: invalid non-positive ",
                                                          " in static dispatch");
-            const size_t num_of_partitions = get_partitions_num(params, SDPAStage::FINALIZATION);
+            const size_t num_of_partitions = micro_kv_split ? get_micro_kv_partitions_num(params) : get_partitions_num(params, SDPAStage::FINALIZATION);
             const size_t head_size_u =
                 ensure_positive_dim(SDPABase::get_effective_v_head_size(params), "head_size", "SDPA: invalid non-positive ", " in static dispatch");
 
