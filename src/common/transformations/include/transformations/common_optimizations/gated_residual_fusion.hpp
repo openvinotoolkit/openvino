@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "openvino/core/type/element_type.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pass.hpp"
@@ -28,22 +27,26 @@ namespace ov::pass {
  *   wm    = Sigmoid(up) * rbar
  *   mixed = ReduceSum(Reshape(wm, [T, C, D]), axis=1) * 1/C
  *
+ * Replaced by (the write gate S = 2 * Sigmoid(MatMul(rbar, W_inject, transpose_b) / C) found on the same rbar is
+ * fused as the second output):
+ *   mixed [, S] = GatedResidual(R, gain, W_down, W_up [, W_inject])   // 1/C of both scalings applied by the op
+ *
  * The callback is asked about the fused op; returning true keeps the matched sub-graph (a READ with a rejected write
- * gate is retried without it). Compressed weights (Constant -> Convert -> Subtract(zp) -> Multiply(scale)) are fed in
- * the op's [N, G] scale layout. The graph stays untouched unless the per-branch norm, the branch-axis reduction and
- * both 1/C scalings are proven.
+ * gate is retried without it). The weights are fed to the op as they are, a decompression subgraph of compressed ones
+ * included; a backend that runs them compressed converts the op afterwards (ConvertGatedResidualToCompressed). The
+ * graph stays untouched unless the per-branch norm, the branch-axis reduction and both 1/C scalings are proven.
  */
 class TRANSFORMATIONS_API GatedResidualReadFusion : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("GatedResidualReadFusion");
-    /// @param supported_weights_types Types of the compressed weights (and their zero points) the backend accepts;
-    ///        a compressed weight of another type keeps its decompression subgraph out of the fusion.
-    explicit GatedResidualReadFusion(ov::element::TypeVector supported_weights_types);
+    GatedResidualReadFusion();
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 private:
-    ov::element::TypeVector m_supported_weights_types;
+    struct WriteGateBranches;  // the write-gate branches of the model, found by their own pattern (see the .cpp)
+
     std::shared_ptr<ov::pass::pattern::Matcher> m_matcher;
+    std::shared_ptr<WriteGateBranches> m_gates;
     ov::matcher_pass_callback m_fuse;
 };
 
@@ -87,12 +90,7 @@ public:
 class TRANSFORMATIONS_API GatedResidualFusion : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("GatedResidualFusion");
-    /// @param supported_weights_types See GatedResidualReadFusion.
-    explicit GatedResidualFusion(ov::element::TypeVector supported_weights_types);
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
-
-private:
-    ov::element::TypeVector m_supported_weights_types;
 };
 
 }  // namespace ov::pass

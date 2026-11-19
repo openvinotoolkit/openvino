@@ -42,13 +42,11 @@ public:
     void execute(const dnnl::stream& strm) override;
     const std::vector<impl_desc_type>& getDefaultImplPriority() override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
-    // A subset of the FC types: the projections run as FC, and the op and its fusion handle 4/8-bit integer weights
-    // only.
+    // Whether the op in its compressed form is worth running: isSupportedOperation plus the limits of the oneDNN
+    // weights decompression the projections run through, for each of its weights.
+    static bool isSupportedCompressedOperation(const std::shared_ptr<const ov::Node>& op) noexcept;
+    // A subset of the FC types: the projections run as FC, and the op handles 4/8-bit integer weights only.
     static ov::element::TypeVector getSupportedCompressedWeightsTypes();
-    // Marks the constants of the compressed weights and zero points of a fused op, so ConvertPrecision does not turn
-    // u4/i4 into u8/i8. GatedResidualFusion runs before KeepConstPrecision, which can no longer match once the
-    // decompression Multiply is gone, and the mark is not copyable, so it is set on the constants of the op that stays.
-    static void keepCompressedConstantsPrecision(const std::shared_ptr<const ov::Node>& op);
 
 private:
     void bindMemoryArgs();

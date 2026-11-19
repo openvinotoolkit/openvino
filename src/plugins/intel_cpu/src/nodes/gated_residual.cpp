@@ -31,13 +31,12 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/op/convert.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/gated_residual.hpp"
-#include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "shape_inference/shape_inference_status.hpp"
-#include "transformations/rt_info/keep_const_precision.hpp"
+#include "transformations/utils/utils.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
@@ -218,27 +217,6 @@ ov::element::TypeVector GatedResidual::getSupportedCompressedWeightsTypes() {
     return {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4};
 }
 
-void GatedResidual::keepCompressedConstantsPrecision(const std::shared_ptr<const ov::Node>& op) {
-    const auto gr = ov::as_type_ptr<const ov::op::internal::GatedResidual>(op);
-    const auto layout = gr ? gr->get_read_layout() : std::nullopt;
-    if (!layout || !layout->compressed) {
-        return;
-    }
-    std::vector<size_t> ports{layout->w_down, layout->w_up};
-    if (layout->has_zp) {
-        ports.insert(ports.end(), {layout->zp_down, layout->zp_up});
-    }
-    if (layout->write_gate) {
-        ports.push_back(layout->w_inject);
-        if (layout->has_zp) {
-            ports.push_back(layout->zp_inject);
-        }
-    }
-    for (const auto port : ports) {
-        ov::enable_keep_const_precision(op->get_input_node_shared_ptr(port));
-    }
-}
-
 bool GatedResidual::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                          std::string& errorMessage) noexcept {
     try {
@@ -293,13 +271,10 @@ bool GatedResidual::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
             }
         }
 
-        // Weights, scales and zero-points are prepared once by the executor, so they must be constants.
+        // Weights, scales and zero-points are prepared once by the executor, so they must be constants, or a subgraph
+        // of constants (the decompression of weights before ConvertGatedResidualToCompressed, folded afterwards).
         const auto is_constant_input = [&](size_t i) {
-            auto node = op->get_input_node_shared_ptr(i);
-            if (ov::is_type<ov::op::v0::Convert>(node)) {
-                node = node->get_input_node_shared_ptr(0);
-            }
-            return ov::op::util::is_constant(node);
+            return ov::op::util::is_on_path<ov::op::v0::Constant>(op->input_value(i));
         };
         std::set<size_t> constant_ports;
         constant_ports.insert(weight_ports.begin(), weight_ports.end());
@@ -351,6 +326,33 @@ bool GatedResidual::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
         return false;
     }
     return true;
+}
+
+bool GatedResidual::isSupportedCompressedOperation(const std::shared_ptr<const ov::Node>& op) noexcept {
+    try {
+        std::string errorMessage;
+        if (!isSupportedOperation(op, errorMessage)) {
+            return false;
+        }
+        const auto gr = ov::as_type_ptr<const ov::op::internal::GatedResidual>(op);
+        const auto layout = gr ? gr->get_read_layout() : std::nullopt;
+        if (!layout || !layout->compressed) {
+            return false;
+        }
+        // The limits of FC weights decompression, which the projections run through: groups of at least 4 elements
+        // along K, and more than one output channel.
+        const auto supported = [&](size_t weights_port, size_t scale_port) {
+            const auto& weights_shape = op->get_input_shape(weights_port);
+            const size_t N = weights_shape[0];
+            const size_t K = weights_shape[1];
+            const size_t G = op->get_input_shape(scale_port)[1];
+            return G != 0 && K % G == 0 && K / G >= 4 && N != 1;
+        };
+        return supported(layout->w_down, layout->scale_down) && supported(layout->w_up, layout->scale_up) &&
+               (!layout->write_gate || supported(layout->w_inject, layout->scale_inject));
+    } catch (...) {
+        return false;
+    }
 }
 
 }  // namespace ov::intel_cpu::node

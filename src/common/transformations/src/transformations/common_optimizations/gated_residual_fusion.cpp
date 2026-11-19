@@ -6,8 +6,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <map>
 #include <memory>
-#include <optional>
 #include <set>
 #include <utility>
 #include <vector>
@@ -15,7 +15,6 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -27,9 +26,9 @@
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/sqrt.hpp"
-#include "openvino/op/subtract.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
@@ -39,201 +38,20 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/pp.hpp"
 #include "ov_ops/rms.hpp"
-#include "transformations/pattern_blocks/compressed_weights_block.hpp"
 
 namespace ov::pass {
 
 namespace {
 
 /// True when the single-element `constant` holds `expected` rounded to its own element type (1/3 stored as bf16 is not
-/// 1/3). This one value cannot be a pattern predicate: it depends on C, which the pattern only learns from shapes.
+/// 1/3): |value - rounded| <= 1e-5 * max(1, |rounded|), rounded = Convert(expected, type of `constant`). This one value
+/// cannot be a pattern predicate: it depends on C, which the pattern only learns from shapes.
 bool holds_value(const ov::Output<ov::Node>& constant, float expected) {
     const auto c = ov::as_type_ptr<ov::op::v0::Constant>(constant.get_node_shared_ptr());
+    OPENVINO_ASSERT(c, "GatedResidualFusion: a scale matched as a Constant is expected to be a Constant");
     const auto rounded = ov::op::v0::Constant::create(c->get_element_type(), ov::Shape{1}, std::vector<float>{expected})
                              ->cast_vector<float>()[0];
     return std::fabs(c->cast_vector<float>()[0] - rounded) <= 1e-5F * std::max(1.0F, std::fabs(rounded));
-}
-
-/// A W_down / W_up decompression subgraph (NNCF int4 / int8) split into its parts, laid out as the op takes them.
-struct CompressedWeight {
-    ov::Output<ov::Node> weights;  // Constant i4/u4/i8/u8 [N, K]
-    ov::Output<ov::Node> scale;    // Constant, floating point [N, G]
-    ov::Output<ov::Node> zp;       // Constant of the weight type [N, G]; empty without zero points
-    ov::element::Type type;
-    size_t bits = 0;    // 4 or 8
-    size_t groups = 0;  // scale columns G; the group size is K / G
-
-    bool has_zp() const {
-        return zp.get_node() != nullptr;
-    }
-};
-
-/// Parses `w` as Constant(one of `supported_weights_types`) -> Convert [-> Subtract(zp)] -> Multiply(scale) [->
-/// Reshape] of an [N, K] weight, else nullopt. A scalar zero point of 0, or 2^(bits - 1) on unsigned weights, is the
-/// symmetric form; the latter becomes signed weights by flipping the sign bit.
-std::optional<CompressedWeight> match_compressed_weight(const ov::Output<ov::Node>& w,
-                                                        size_t N,
-                                                        size_t K,
-                                                        const ov::element::TypeVector& supported_weights_types) {
-    const auto block =
-        std::make_shared<ov::pass::pattern::op::CompressedWeightsBlock>(supported_weights_types, std::set<size_t>{2});
-    ov::pass::pattern::Matcher matcher(block);
-    if (!matcher.match(w)) {
-        return std::nullopt;
-    }
-    const auto& pm = matcher.get_pattern_value_map();
-    if (block->get_anchor("transpose", pm)) {
-        return std::nullopt;
-    }
-    const auto zp_anchor = block->get_anchor("sub_const", pm);
-    bool has_zp = zp_anchor.has_value();
-    auto weights =
-        ov::as_type_ptr<ov::op::v0::Constant>(block->get_anchor("weights", pm).value().get_node_shared_ptr());
-    auto zp = has_zp ? ov::as_type_ptr<ov::op::v0::Constant>(zp_anchor->get_node_shared_ptr()) : nullptr;
-    auto scale =
-        ov::as_type_ptr<ov::op::v0::Constant>(block->get_anchor("mul_const", pm).value().get_node_shared_ptr());
-    if (!weights || !scale || (has_zp && !zp)) {
-        return std::nullopt;
-    }
-    auto wt = weights->get_element_type();
-    // The zero point of the op has the weight type.
-    if (has_zp && zp->get_element_type() != wt) {
-        return std::nullopt;
-    }
-    const size_t bits = wt.bitwidth();
-    bool flip_to_signed = false;
-    if (has_zp && ov::shape_size(zp->get_shape()) == 1) {
-        const int32_t v = zp->cast_vector<int32_t>()[0];
-        flip_to_signed = !wt.is_signed() && v == (1 << (bits - 1));
-        if (v == 0 || flip_to_signed) {
-            has_zp = false;
-        }
-    }
-    const auto& ws = weights->get_shape();
-    const auto& ss = scale->get_shape();
-    size_t G = 0;
-    if (ws.size() == 3) {
-        G = ws[1];
-        if (ws[0] != N || G == 0 || ws[2] * G != K || ss != ov::Shape{N, G, 1}) {
-            return std::nullopt;
-        }
-    } else if (ws.size() == 2) {
-        G = 1;
-        if (ws[0] != N || ws[1] != K || ss != ov::Shape{N, 1}) {
-            return std::nullopt;
-        }
-    } else {
-        return std::nullopt;
-    }
-    if (has_zp && zp->get_shape() != ss) {
-        return std::nullopt;
-    }
-
-    // scale / zp are [N, G, 1] (or [N, 1]) in the checkpoint and [N, G] in the op: the same data, no transpose.
-    ov::Output<ov::Node> zp_ng_const;
-    if (has_zp) {
-        zp_ng_const = std::make_shared<ov::op::v0::Constant>(*zp, ov::Shape{N, G})->output(0);
-        ov::copy_runtime_info(zp, zp_ng_const.get_node_shared_ptr());
-    }
-
-    std::shared_ptr<ov::op::v0::Constant> weights_2d;
-    if (flip_to_signed) {
-        // Flipping the sign bit of every element equals q - 2^(bits - 1).
-        const auto* src = static_cast<const uint8_t*>(weights->get_data_ptr());
-        std::vector<uint8_t> flipped(weights->get_byte_size());
-        const uint8_t mask = bits == 4 ? 0x88 : 0x80;
-        for (size_t i = 0; i < flipped.size(); ++i) {
-            flipped[i] = src[i] ^ mask;
-        }
-        wt = bits == 4 ? ov::element::i4 : ov::element::i8;
-        if (std::find(supported_weights_types.begin(), supported_weights_types.end(), wt) ==
-            supported_weights_types.end()) {
-            return std::nullopt;
-        }
-        // No weightless cache attribute: the flipped bytes differ from the weights file.
-        weights_2d = std::make_shared<ov::op::v0::Constant>(wt, ov::Shape{N, K}, flipped.data());
-    } else {
-        weights_2d = std::make_shared<ov::op::v0::Constant>(*weights, ov::Shape{N, K});
-        ov::copy_weightless_cache_attr(weights, weights_2d);
-    }
-    CompressedWeight result;
-    ov::copy_runtime_info(weights, weights_2d);
-    result.weights = weights_2d->output(0);
-    result.scale = std::make_shared<ov::op::v0::Constant>(*scale, ov::Shape{N, G})->output(0);
-    ov::copy_runtime_info(scale, result.scale.get_node_shared_ptr());
-    result.zp = zp_ng_const;
-    result.type = wt;
-    result.bits = bits;
-    result.groups = G;
-    return result;
-}
-
-/// The write-gate branch on the same Rbar: S = 2 * sigmoid(MatMul(Rbar, W_inject, transpose_b) / C).
-struct WriteGateBranch {
-    ov::Output<ov::Node> w_inject;  // [C, C*D], 1/C taken out of the weights
-    ov::Output<ov::Node> gate;      // S, [.., C]
-    ov::NodeVector nodes;           // the matched chain
-};
-
-/// Finds the write-gate branch among the consumers of `rbar`. The 1/C scale is a Multiply(1/C) or Divide(C) after the
-/// MatMul, or folded into W_inject.
-std::optional<WriteGateBranch> match_write_gate_branch(const ov::Output<ov::Node>& rbar,
-                                                       const std::shared_ptr<ov::Node>& read_matmul,
-                                                       size_t C,
-                                                       size_t D) {
-    using namespace ov::pass::pattern;
-    // Scalar Constants, possibly converted to the compute type. The scales are read in the callback.
-    auto scale_const = wrap_type<ov::op::v0::Constant>(value_matches("[?]"));
-    auto scale = optional<ov::op::v0::Convert>(scale_const);
-    auto folded_scale_const = wrap_type<ov::op::v0::Constant>(value_matches("[?]"));
-    auto folded_scale = optional<ov::op::v0::Convert>(folded_scale_const);
-    auto two = optional<ov::op::v0::Convert>(wrap_type<ov::op::v0::Constant>(value_matches("2")));
-
-    auto w_inner = any_input(shape_matches("[" + std::to_string(C) + ", " + std::to_string(C * D) + "]"));
-    auto w_folded = wrap_type<ov::op::v1::Multiply>({w_inner, folded_scale});
-    auto data = any_input();
-    auto inject = wrap_type<ov::op::v0::MatMul>(
-        {data, w_folded | w_inner},
-        attrs_match({{"transpose_a", false}, {"transpose_b", true}}) && consumers_count(1));
-    auto scaled = wrap_type<ov::op::v1::Multiply>({inject, scale}, consumers_count(1));
-    auto divided = wrap_type<ov::op::v1::Divide>({inject, scale}, consumers_count(1));
-    auto sigmoid = wrap_type<ov::op::v0::Sigmoid>({inject | scaled | divided}, consumers_count(1));
-    auto gate = wrap_type<ov::op::v1::Multiply>({sigmoid, two});
-    Matcher matcher(gate);
-
-    const auto single_consumer = [](const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<ov::Node> {
-        const auto targets = node->output(0).get_target_inputs();
-        return targets.size() == 1 ? targets.begin()->get_node()->shared_from_this() : nullptr;
-    };
-    for (const auto& target : rbar.get_target_inputs()) {
-        const auto mm = target.get_node()->shared_from_this();
-        if (mm == read_matmul || target.get_index() != 0) {
-            continue;
-        }
-        // The gate is the last of at most MatMul -> scale -> Sigmoid -> Multiply(2).
-        auto node = mm;
-        for (int hop = 0; hop < 3 && (node = single_consumer(node)); ++hop) {
-            if (!matcher.match(node->output(0))) {
-                continue;
-            }
-            const auto& pm = matcher.get_pattern_value_map();
-            if (pm.at(inject).get_node_shared_ptr() != mm || pm.at(data) != rbar) {
-                continue;
-            }
-            const bool explicit_scale = pm.count(scaled) != 0 || pm.count(divided) != 0;
-            const bool folded = pm.count(w_folded) != 0;
-            const auto& used_scale = folded ? folded_scale_const : scale_const;
-            const bool scale_ok =
-                explicit_scale != folded &&
-                holds_value(pm.at(used_scale),
-                            pm.count(divided) != 0 ? static_cast<float>(C) : 1.0F / static_cast<float>(C));
-            if (!scale_ok) {
-                continue;
-            }
-            return WriteGateBranch{pm.at(w_inner), pm.at(gate), matcher.get_matched_nodes()};
-        }
-    }
-    return std::nullopt;
 }
 
 /// The last `count` dimensions are static. Named dimensions also bind to symbols of dynamic ones, and the callbacks
@@ -248,6 +66,11 @@ auto last_dims_static(size_t count) {
     };
 }
 
+/// Both dimensions are static and equal, or both are dynamic.
+bool same_dimension(const ov::Dimension& lhs, const ov::Dimension& rhs) {
+    return lhs.is_static() == rhs.is_static() && (lhs.is_dynamic() || lhs == rhs);
+}
+
 /// Rows of the two inputs of a node must match without naming their symbols: equal when static, both dynamic otherwise,
 /// same rank (a static 1 against a dynamic dimension may broadcast, which the row-wise WRITE does not model). The row
 /// symbols of Y and the residual are unrelated when the graph mixes independent inputs (e.g. attention_mask), so only
@@ -260,8 +83,7 @@ auto same_rows(size_t tail) {
             return false;
         }
         for (size_t i = 0; i + tail < lhs.size(); ++i) {
-            const bool both_static = lhs[i].is_static() && rhs[i].is_static();
-            if (both_static ? lhs[i] != rhs[i] : (lhs[i].is_static() || rhs[i].is_static())) {
+            if (!same_dimension(lhs[i], rhs[i])) {
                 return false;
             }
         }
@@ -269,13 +91,127 @@ auto same_rows(size_t tail) {
     };
 }
 
+/// The output of a Reshape / Unsqueeze is its input with the last dimension split or extended: one more dimension, the
+/// leading ones (rows) untouched. The op takes one rank for all its row-wise inputs, so a Reshape that regroups rows
+/// must not be looked through.
+const auto adds_dimension = [](const ov::Output<ov::Node>& out) {
+    const auto& in = out.get_node()->get_input_partial_shape(0);
+    const auto& split = out.get_partial_shape();
+    if (in.rank().is_dynamic() || split.rank().is_dynamic() || in.size() + 1 != split.size()) {
+        return false;
+    }
+    for (size_t i = 0; i + 1 < in.size(); ++i) {
+        if (!same_dimension(in[i], split[i])) {
+            return false;
+        }
+    }
+    return true;
+};
+
+/// The output of a Reshape is its input with the last two dimensions merged: one dimension less, the rows untouched.
+const auto merges_last_two = [](const ov::Output<ov::Node>& out) {
+    const auto& in = out.get_node()->get_input_partial_shape(0);
+    const auto& flat = out.get_partial_shape();
+    if (in.rank().is_dynamic() || flat.rank().is_dynamic() || in.size() != flat.size() + 1) {
+        return false;
+    }
+    for (size_t i = 0; i + 1 < flat.size(); ++i) {
+        if (!same_dimension(in[i], flat[i])) {
+            return false;
+        }
+    }
+    return true;
+};
+
 }  // namespace
 
+/// The write-gate branches of a model, S = 2 * Sigmoid(MatMul(Rbar, W_inject, transpose_b) / C), by the Rbar they read.
+/// The branch is matched as a pattern of its own, rooted at S, so the READ fusion looks it up instead of searching the
+/// consumers of its Rbar. The 1/C scale is a Multiply(1/C) or Divide(C) after the MatMul, or folded into W_inject.
+struct GatedResidualReadFusion::WriteGateBranches {
+    struct Branch {
+        ov::Output<ov::Node> w_inject;  // [C, C*D], 1/C taken out of the weights
+        ov::Output<ov::Node> gate;      // S, [.., C]
+        ov::NodeVector nodes;           // the matched chain
+        ov::Output<ov::Node> scale;     // the scalar Constant of the 1/C scaling
+        bool divided;                   // the scale divides: Divide(C) rather than Multiply(1/C)
+    };
+
+    WriteGateBranches() {
+        using namespace ov::pass::pattern;
+        // Scalar Constants, possibly converted to the compute type. The scales are checked against C in `find`.
+        scale_const = wrap_type<ov::op::v0::Constant>(value_matches("[?]"));
+        auto scale = optional<ov::op::v0::Convert>(scale_const);
+        folded_scale_const = wrap_type<ov::op::v0::Constant>(value_matches("[?]"));
+        auto folded_scale = optional<ov::op::v0::Convert>(folded_scale_const);
+        auto two = optional<ov::op::v0::Convert>(wrap_type<ov::op::v0::Constant>(value_matches("2")));
+
+        // [C, C*D]: the sizes are checked against the READ in `find`.
+        w_inner = any_input(rank_equals(2) && has_static_shape());
+        w_folded = wrap_type<ov::op::v1::Multiply>({w_inner, folded_scale});
+        data = any_input();
+        auto inject = wrap_type<ov::op::v0::MatMul>(
+            {data, w_folded | w_inner},
+            attrs_match({{"transpose_a", false}, {"transpose_b", true}}) && consumers_count(1));
+        multiplied = wrap_type<ov::op::v1::Multiply>({inject, scale}, consumers_count(1));
+        divide = wrap_type<ov::op::v1::Divide>({inject, scale}, consumers_count(1));
+        auto sigmoid = wrap_type<ov::op::v0::Sigmoid>({inject | multiplied | divide}, consumers_count(1));
+        gate = wrap_type<ov::op::v1::Multiply>({sigmoid, two});
+        matcher = std::make_shared<Matcher>(gate, "GatedResidualReadFusion/WriteGate");
+    }
+
+    void clear() {
+        by_rbar.clear();
+    }
+
+    /// Records the branch whose gate is `node`, if it is one. The first branch on an Rbar wins.
+    void collect(const std::shared_ptr<ov::Node>& node) {
+        if (!matcher->match(node->output(0))) {
+            return;
+        }
+        const auto& pm = matcher->get_pattern_value_map();
+        const bool is_divided = pm.count(divide) != 0;
+        const bool folded = pm.count(w_folded) != 0;
+        // Exactly one of the two forms of the scale.
+        if ((pm.count(multiplied) != 0 || is_divided) == folded) {
+            return;
+        }
+        by_rbar.emplace(pm.at(data),
+                        Branch{pm.at(w_inner),
+                               pm.at(gate),
+                               matcher->get_matched_nodes(),
+                               pm.at(folded ? folded_scale_const : scale_const),
+                               is_divided});
+    }
+
+    /// The branch reading `rbar` whose W_inject is [C, C*D] and whose scaling is 1/C, else null.
+    const Branch* find(const ov::Output<ov::Node>& rbar, size_t C, size_t D) const {
+        const auto it = by_rbar.find(rbar);
+        if (it == by_rbar.end()) {
+            return nullptr;
+        }
+        const auto& branch = it->second;
+        if (branch.w_inject.get_partial_shape() !=
+            ov::PartialShape{static_cast<int64_t>(C), static_cast<int64_t>(C * D)}) {
+            return nullptr;
+        }
+        const float expected = branch.divided ? static_cast<float>(C) : 1.0F / static_cast<float>(C);
+        return holds_value(branch.scale, expected) ? &branch : nullptr;
+    }
+
+private:
+    std::shared_ptr<ov::Node> scale_const, folded_scale_const, w_inner, w_folded, data, multiplied, divide, gate;
+    std::shared_ptr<ov::pass::pattern::Matcher> matcher;
+    std::map<ov::Output<ov::Node>, Branch> by_rbar;
+};
+
 // READ / FINAL_MIX
-GatedResidualReadFusion::GatedResidualReadFusion(ov::element::TypeVector supported_weights_types)
-    : m_supported_weights_types(std::move(supported_weights_types)) {
+GatedResidualReadFusion::GatedResidualReadFusion() {
+    MATCHER_SCOPE(GatedResidualReadFusion);
     using namespace ov::pass;
     using namespace ov::pass::pattern;
+
+    m_gates = std::make_shared<WriteGateBranches>();
 
     // Scalar Constants, possibly converted to the compute type. The scales and epsilon are read in the callback.
     auto two = optional<ov::op::v0::Convert>(wrap_type<ov::op::v0::Constant>(value_matches("2")));
@@ -292,9 +228,10 @@ GatedResidualReadFusion::GatedResidualReadFusion(ov::element::TypeVector support
 
     // Static dimensions are named: equal names are equal sizes. The residual is [..., CD] and splits into [..., C, D];
     // W_down is [L, CD] and W_up [CD, L].
-    auto residual = any_input(shape_matches("[..., CD]"));
+    auto residual = any_input(shape_matches("[..., CD]") && rank_more_than(1));
     auto residual_3d =
-        wrap_type<ov::op::v1::Reshape>({residual, any_input()}, shape_matches("[..., C, D]") && last_dims_static(2));
+        wrap_type<ov::op::v1::Reshape>({residual, any_input()},
+                                       shape_matches("[..., C, D]") && last_dims_static(2) && adds_dimension);
     auto w_down_inner = any_input(shape_matches("[L, CD]") && has_static_shape());
     // The 1/C scale may be folded into W_down.
     auto w_down_folded = wrap_type<ov::op::v1::Multiply>({w_down_inner, folded_scale});
@@ -395,20 +332,9 @@ GatedResidualReadFusion::GatedResidualReadFusion(ov::element::TypeVector support
         const auto w_down = explicit_low_scale ? low_mm->input_value(1) : pm.at(w_down_inner);
         const auto w_up_out = pm.at(w_up);
 
-        // Compressed W_down and W_up (i4/u4/i8/u8, with or without zero points) are fed as stored if both are
-        // compressed the same way; otherwise the decompressed tensors are used.
-        ov::OutputVector weight_inputs = {w_down, w_up_out};
-        std::optional<CompressedWeight> compressed_down;
-        const auto cd = match_compressed_weight(w_down, L, C * D, m_supported_weights_types);
-        const auto cu = match_compressed_weight(w_up_out, C * D, L, m_supported_weights_types);
-        if (cd && cu && cd->type == cu->type && cd->has_zp() == cu->has_zp()) {
-            weight_inputs = {cd->weights, cu->weights, cd->scale, cu->scale};
-            if (cd->has_zp()) {
-                weight_inputs.push_back(cd->zp);
-                weight_inputs.push_back(cu->zp);
-            }
-            compressed_down = cd;
-        }
+        // The weights are fed as they are, a decompression subgraph included: a backend that runs compressed weights
+        // converts the op afterwards (see ConvertGatedResidualToCompressed).
+        const ov::OutputVector weight_inputs = {w_down, w_up_out};
 
         // The gain is the RMS input or the operand of the Multiply after the flattened normalization; it is absent when
         // the exporter folded a gain of ones away.
@@ -456,30 +382,26 @@ GatedResidualReadFusion::GatedResidualReadFusion(ov::element::TypeVector support
             }
         }
         if (!data_type.is_real() || gain_flat.get_element_type() != data_type ||
-            (!compressed_down &&
-             (w_down.get_element_type() != data_type || w_up_out.get_element_type() != data_type))) {
+            w_down.get_element_type() != data_type || w_up_out.get_element_type() != data_type) {
             return false;
         }
 
         ov::OutputVector gr_inputs{residual_out, gain_flat};
         gr_inputs.insert(gr_inputs.end(), weight_inputs.begin(), weight_inputs.end());
 
-        // The write gate shares Rbar. It is fused only when its weights have the same form as W_down / W_up; otherwise
-        // only the READ is fused.
-        auto gate_branch = match_write_gate_branch(low_mm->input_value(0), low_mm, C, D);
+        // The write gate shares Rbar. It is fused only when its weights have the type of the others, and when it does
+        // not feed a Result: the op has one friendly name, which the mix output keeps.
+        const auto* gate_branch = m_gates->find(low_mm->input_value(0), C, D);
+        const auto feeds_result = [](const ov::Output<ov::Node>& output) {
+            const auto targets = output.get_target_inputs();
+            return std::any_of(targets.begin(), targets.end(), [](const ov::Input<ov::Node>& target) {
+                return ov::is_type<ov::op::v0::Result>(target.get_node());
+            });
+        };
         ov::OutputVector gate_inputs;
-        if (gate_branch && gate_branch->gate.get_element_type() == data_type) {
-            if (compressed_down) {
-                const auto ci = match_compressed_weight(gate_branch->w_inject, C, C * D, m_supported_weights_types);
-                if (ci && ci->type == compressed_down->type && ci->has_zp() == compressed_down->has_zp()) {
-                    gate_inputs = {ci->weights, ci->scale};
-                    if (ci->has_zp()) {
-                        gate_inputs.push_back(ci->zp);
-                    }
-                }
-            } else if (gate_branch->w_inject.get_element_type() == data_type) {
-                gate_inputs = {gate_branch->w_inject};
-            }
+        if (gate_branch && gate_branch->gate.get_element_type() == data_type &&
+            gate_branch->w_inject.get_element_type() == data_type && !feeds_result(gate_branch->gate)) {
+            gate_inputs = {gate_branch->w_inject};
         }
 
         auto make_gr = [&](bool with_gate) {
@@ -505,11 +427,13 @@ GatedResidualReadFusion::GatedResidualReadFusion(ov::element::TypeVector support
         }
         // Ask the plugin whether it can run the fused op (e.g. weights must be constants); retry without the write gate
         // if only the gate is rejected.
-        if (with_gate && transformation_callback(gr)) {
+        bool rejected = transformation_callback(gr);
+        if (rejected && with_gate) {
             with_gate = false;
             gr = make_gr(false);
+            rejected = transformation_callback(gr);
         }
-        if (transformation_callback(gr)) {
+        if (rejected) {
             return false;
         }
         // A split that also flattens leading axes would change the output rank.
@@ -518,14 +442,6 @@ GatedResidualReadFusion::GatedResidualReadFusion(ov::element::TypeVector support
         }
         gr->set_friendly_name(root->get_friendly_name());
         new_ops.push_back(gr);
-        if (compressed_down) {
-            // The repacked constants may carry a weightless-cache attribute, so copy_runtime_info would miss them as
-            // inputs.
-            for (size_t i = gr->get_read_layout()->w_down; i < gr->get_input_size(); ++i) {
-                new_ops.push_back(gr->get_input_node_shared_ptr(i));
-            }
-        }
-
         // One call: a second would overwrite the fused names merged by the first.
         auto fused_nodes = m.get_matched_nodes();
         if (with_gate) {
@@ -533,56 +449,75 @@ GatedResidualReadFusion::GatedResidualReadFusion(ov::element::TypeVector support
         }
         ov::copy_runtime_info(fused_nodes, new_ops);
         if (with_gate) {
-            gate_branch->gate.replace(gr->output(1));
+            auto gate = gate_branch->gate;
+            gate.replace(gr->output(1));
         }
         ov::replace_node(root, ov::OutputVector{gr->output(0)});
         return true;
     };
 
-    m_matcher = std::make_shared<ov::pass::pattern::Matcher>(root_pattern, "GatedResidualReadFusion");
+    m_matcher = std::make_shared<ov::pass::pattern::Matcher>(root_pattern, matcher_name);
 }
 
 bool GatedResidualReadFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(GatedResidualReadFusion);
+    // The matcher is not built when its scope is compiled out (selective build).
+    if (!m_matcher) {
+        return false;
+    }
+    // The write-gate branches are found before the first rewrite, which would detach them.
+    const auto ops = model->get_ordered_ops();
+    for (const auto& node : ops) {
+        m_gates->collect(node);
+    }
     bool changed = false;
-    for (const auto& node : model->get_ordered_ops()) {
+    for (const auto& node : ops) {
         // A root whose consumers were all replaced by an earlier match is dead.
         if (node->output(0).get_target_inputs().empty()) {
             continue;
         }
-        if (m_matcher->match(node->output(0)) && m_fuse(*m_matcher)) {
-            changed = true;
+        if (m_matcher->match(node->output(0))) {
+            // The matcher is not run by a GraphRewrite, which would record its scope for selective build.
+            OV_PASS_CALLBACK(m_matcher);
+            changed |= m_fuse(*m_matcher);
         }
     }
+    m_gates->clear();
     return changed;
 }
 
 // WRITE
 GatedResidualWriteFusion::GatedResidualWriteFusion() {
+    MATCHER_SCOPE(GatedResidualWriteFusion);
     using namespace ov::pass;
     using namespace ov::pass::pattern;
 
     // The gate is [..., C] and broadcasts as [..., C, 1], Y is [..., D] and broadcasts as [..., 1, D]; equal names are
     // equal sizes. Both views look alike, so the shapes tell the commutative Multiply which operand is which.
+    // The op takes one rank for the residual, Y and the gate: every view keeps the rows of its source.
     auto write_gate = any_input(shape_matches("[..., C]") && last_dims_static(1));
     auto gate_3d =
-        wrap_type<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({write_gate, any_input()}, shape_matches("[..., C, 1]"));
+        wrap_type<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({write_gate, any_input()},
+                                                              shape_matches("[..., C, 1]") && adds_dimension);
 
     auto y_src = any_input(shape_matches("[..., D]") && last_dims_static(1));
-    auto y_3d =
-        wrap_type<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({y_src, any_input()}, shape_matches("[..., 1, D]"));
+    auto y_3d = wrap_type<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({y_src, any_input()},
+                                                                      shape_matches("[..., 1, D]") && adds_dimension);
 
     auto scaled = wrap_type<ov::op::v1::Multiply>({gate_3d, y_3d}, same_rows(2));
 
     // Case A: Add in the split [*, C, D] domain, one trailing Reshape back to [*, C*D] (the root).
     auto residual_a = any_input(shape_matches("[..., CD]"));
-    auto residual_3d = wrap_type<ov::op::v1::Reshape>({residual_a, any_input()}, shape_matches("[..., C, D]"));
+    auto residual_3d =
+        wrap_type<ov::op::v1::Reshape>({residual_a, any_input()}, shape_matches("[..., C, D]") && adds_dimension);
     auto updated_a = wrap_type<ov::op::v1::Add>({residual_3d, scaled}, same_rows(2));
-    auto result_a = wrap_type<ov::op::v1::Reshape>({updated_a, any_input()}, shape_matches("[..., CD]"));
+    auto result_a =
+        wrap_type<ov::op::v1::Reshape>({updated_a, any_input()}, shape_matches("[..., CD]") && merges_last_two);
 
     // Case B: the scaled value is flattened first and added to a flat residual; any later reshape back to split form is
     // left alone.
-    auto scaled_flat = wrap_type<ov::op::v1::Reshape>({scaled, any_input()}, shape_matches("[..., CD]"));
+    auto scaled_flat =
+        wrap_type<ov::op::v1::Reshape>({scaled, any_input()}, shape_matches("[..., CD]") && merges_last_two);
     auto residual_flat = any_input(shape_matches("[..., CD]"));
     auto updated_b = wrap_type<ov::op::v1::Add>({residual_flat, scaled_flat}, same_rows(1));
 
@@ -622,12 +557,13 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
         return true;
     };
 
-    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(root_pattern, "GatedResidualWriteFusion");
+    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(root_pattern, matcher_name);
     this->register_matcher(matcher, callback);
 }
 
 // WRITE, moving the Add instead of fusing it
 GatedResidualWriteSinkReshape::GatedResidualWriteSinkReshape() {
+    MATCHER_SCOPE(GatedResidualWriteSinkReshape);
     using namespace ov::pass;
     using namespace ov::pass::pattern;
 
@@ -646,19 +582,6 @@ GatedResidualWriteSinkReshape::GatedResidualWriteSinkReshape() {
     // The scaled value is flattened first and added to a flat residual; the Reshape between the Multiply and the Add
     // keeps the CPU Eltwise fusion from absorbing the Multiply. It must only merge the last two dimensions, so the
     // rows keep their rank and order.
-    const auto merges_last_two = [](const Output<Node>& out) {
-        const auto& in = out.get_node()->get_input_partial_shape(0);
-        const auto& flat = out.get_partial_shape();
-        if (in.rank().is_dynamic() || flat.rank().is_dynamic() || in.size() != flat.size() + 1) {
-            return false;
-        }
-        for (size_t i = 0; i + 1 < flat.size(); ++i) {
-            if (in[i].is_static() != flat[i].is_static() || (in[i].is_static() && in[i] != flat[i])) {
-                return false;
-            }
-        }
-        return true;
-    };
     auto scaled_flat =
         wrap_type<ov::op::v1::Reshape>({scaled, any_input()},
                                        shape_matches("[..., CD]") && merges_last_two && consumers_count(1));
@@ -700,19 +623,16 @@ GatedResidualWriteSinkReshape::GatedResidualWriteSinkReshape() {
         return ov::replace_output_update_name(add->output(0), flat->output(0));
     };
 
-    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(updated, "GatedResidualWriteSinkReshape");
+    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(updated, matcher_name);
     this->register_matcher(matcher, callback);
 }
-
-GatedResidualFusion::GatedResidualFusion(ov::element::TypeVector supported_weights_types)
-    : m_supported_weights_types(std::move(supported_weights_types)) {}
 
 bool GatedResidualFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(GatedResidualFusion);
     // The named dimensions of the patterns are static, so the passes need no symbolic propagation. A backend picks one
     // of the two WRITE forms by disabling the other; the sink is tried first.
     ov::pass::Manager manager(get_pass_config(), "GatedResidualFusion");
-    manager.register_pass<GatedResidualReadFusion>(m_supported_weights_types);
+    manager.register_pass<GatedResidualReadFusion>();
     manager.register_pass<GatedResidualWriteSinkReshape>();
     manager.register_pass<GatedResidualWriteFusion>();
     return manager.run_passes(model);

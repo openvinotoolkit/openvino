@@ -33,15 +33,26 @@ const ov::test::InputShape kDynCompressedRows{{-1}, {{1}, {17}, {513}, {1}}};
 const ov::test::InputShape kDynBatchSeq{{-1, -1}, {{2, 3}, {4, 1}, {3, 7}, {2, 100}, {1, 1}}};
 
 // Large-model shape (C=4, D=2560, L=320), rank-2 dynamic rows, kept short because the reference GEMMs are scalar. A
-// prefill-sized chunk first, then decode. With the default threading its tile is 1152 rows on a machine with 45 to 49
-// threads, where 1029 rows leave a partial tile that buckets to 1280 rows, which the tile buffers must not be asked to
-// hold; 1153 is a full tile plus one row.
-const ov::test::InputShape kDynLargeRows{{-1}, {{33}, {1}, {1029}, {1}, {1153}, {1}}};
+// prefill-sized chunk first, then decode.
+const ov::test::InputShape kDynLargeRows{{-1}, {{33}, {1}, {1}}};
+
+// The tile of rows follows the thread count: with one channel chunk in the down projection (L <= 64) and 9 threads it
+// is 1152 rows. A remainder of 1029 rows buckets to 1280, past the tile, and 1153 is a full tile and one row, the
+// switch between the two GEMM sizes.
+const ov::test::InputShape kDynTileRows{{-1}, {{1029}, {1}, {1153}, {1}}};
 
 std::vector<ov::AnyMap> inference_precision_configs() {
     std::vector<ov::AnyMap> configs{{{ov::hint::inference_precision.name(), ov::element::f32}}};
     if (ov::with_cpu_x86_bfloat16()) {
         configs.push_back({{ov::hint::inference_precision.name(), ov::element::bf16}});
+    }
+    return configs;
+}
+
+std::vector<ov::AnyMap> tile_configs() {
+    auto configs = inference_precision_configs();
+    for (auto& config : configs) {
+        config[ov::inference_num_threads.name()] = 9;
     }
     return configs;
 }
@@ -67,6 +78,8 @@ const std::vector<GatedResidualShapeParams> uncompressed_shapes{
 const std::vector<GatedResidualShapeParams> batch_seq_shapes{{4, 8, 16, ov::element::f32, kNoCompression}};
 
 const std::vector<GatedResidualShapeParams> large_shapes{{4, 2560, 320, ov::element::f32, kNoCompression}};
+
+const std::vector<GatedResidualShapeParams> tile_shapes{{4, 8, 16, ov::element::f32, kNoCompression}};
 
 // Compressed shapes: u8/i8/u4/i4, per-channel and grouped, with and without zero points; scales are f16/bf16/f32 [N,
 // G], zero points have the weight type. G must be static and divide K; CD/L are sized so the group size K / G is
@@ -177,6 +190,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualLargeRead,
                                             ::testing::Values(true),  // norm_gain_plus_one
                                             ::testing::Values(kDynLargeRows),
                                             ::testing::ValuesIn(inference_precision_configs()),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         GatedResidualLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualTileRows,
+                         GatedResidualLayerCPUTest,
+                         ::testing::Combine(::testing::Values(Mode::READ),
+                                            ::testing::ValuesIn(tile_shapes),
+                                            ::testing::Values(true),  // produce_write_gate
+                                            ::testing::Values(true),  // norm_gain_plus_one
+                                            ::testing::Values(kDynTileRows),
+                                            ::testing::ValuesIn(tile_configs()),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          GatedResidualLayerCPUTest::getTestCaseName);
 

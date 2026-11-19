@@ -49,11 +49,11 @@ set(COMMON_OPTIMIZATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fq_reshape_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_clamp_and_fake_quantize.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_gated_delta_net.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/gated_residual_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_moe_experts.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_rotary_positional_embeddings.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_ssm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fused_names_cleanup.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/gated_residual_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/gelu_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/glu_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/group_normalization_fusion.cpp
@@ -164,6 +164,7 @@ set(OP_CONVERSIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_embedding_bag_packed15_downgrade.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_fc_to_compressed.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_fc_to_quantized_legacy.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_gated_residual_to_compressed.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_gather_0d.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_gather_downgrade.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_gather_matmul_to_compressed.cpp

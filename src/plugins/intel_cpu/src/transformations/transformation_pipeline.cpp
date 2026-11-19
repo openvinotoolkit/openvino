@@ -44,6 +44,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/gated_residual.hpp"
 #include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
@@ -322,7 +323,8 @@ bool Transformations::is_decompression_multiply(const_node_ptr& node) {
         return all_has_type(consumers, ov::op::v0::MatMul::get_type_info_static()) ||
                all_has_type(consumers, ov::op::v1::Convolution::get_type_info_static()) ||
                all_has_type(consumers, ov::op::v17::GroupedMatMul::get_type_info_static()) ||
-               all_has_type(consumers, ov::op::internal::GatherMatmul::get_type_info_static());
+               all_has_type(consumers, ov::op::internal::GatherMatmul::get_type_info_static()) ||
+               all_has_type(consumers, ov::op::internal::GatedResidual::get_type_info_static());
     };
 
     const auto consumers = node->get_output_target_inputs(0);
@@ -604,18 +606,12 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_X64(manager, SparseAttentionKVCacheFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::GatedDeltaNetFusion);
     // Before CommonOptimizations, which folds the 1/C scalings of the READ pattern into the weights.
-    CPU_REGISTER_PASS_X64(manager,
-                          ov::pass::GatedResidualFusion,
-                          node::GatedResidual::getSupportedCompressedWeightsTypes());
+    CPU_REGISTER_PASS_X64(manager, ov::pass::GatedResidualFusion);
     CPU_SET_CALLBACK_X64(
         manager,
         [](const_node_ptr& node) -> bool {
             std::string errorMsg;
-            if (!node::GatedResidual::isSupportedOperation(node, errorMsg)) {
-                return true;
-            }
-            node::GatedResidual::keepCompressedConstantsPrecision(node);
-            return false;
+            return !node::GatedResidual::isSupportedOperation(node, errorMsg);
         },
         ov::pass::GatedResidualReadFusion);
     CPU_DISABLE_PASS_X64(manager, ov::pass::GatedResidualWriteFusion);
