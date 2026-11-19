@@ -25,9 +25,6 @@
     #define AXIS 4
 #endif
 
-#define GET_INPUT_VALUE() DECODE_INPUT0_COMPUTE_TYPE( \
-    input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])])
-
 // Value order shared with arg_max_min_topk_radix: NaN ranks above +inf as in PyTorch, and -0.0
 // equals +0.0. Plain float comparisons are false for NaN, so with them a NaN ranks first and races
 // with the true maximum for the same output position.
@@ -184,7 +181,7 @@ KERNEL(arg_max_min_modified)(
     indices[AXIS] = sort_idx;
 
     iav_type result;
-    result.value = GET_INPUT_VALUE();
+    result.value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
     result.index = sort_idx;
 
     // Values before sort_idx rank ahead when they rank at or above this one, later values when
@@ -199,13 +196,13 @@ KERNEL(arg_max_min_modified)(
 #ifdef MAX_OUT
         for (uint i = 0; i < sort_idx && sort_position < TOP_K; i++) {
             indices[AXIS] = i;
-            sort_position += isnan(GET_INPUT_VALUE()) ? 1 : 0;
+            sort_position += isnan(input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])]) ? 1 : 0;
         }
 #else
         sort_position = sort_idx;
         for (uint i = sort_idx + 1; i < VALUES_NUM && sort_position < TOP_K; i++) {
             indices[AXIS] = i;
-            sort_position += isnan(GET_INPUT_VALUE()) ? 0 : 1;
+            sort_position += isnan(input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])]) ? 0 : 1;
         }
 #endif
         head_end = 0;
@@ -216,35 +213,35 @@ KERNEL(arg_max_min_modified)(
     for (uint i = 0; i < head_end / 8; i++) {
         uint index_offset = i * 8;
         indices[AXIS] = index_offset;
-        INPUT0_COMPUTE_TYPE test_value = GET_INPUT_VALUE();
+        INPUT0_TYPE test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (COMPARE_PARALLEL_SIGN_1(result.value, test_value))
             counted++;
         indices[AXIS] = index_offset + 1;
-        test_value = GET_INPUT_VALUE();
+        test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (COMPARE_PARALLEL_SIGN_1(result.value, test_value))
             counted++;
         indices[AXIS] = index_offset + 2;
-        test_value = GET_INPUT_VALUE();
+        test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (COMPARE_PARALLEL_SIGN_1(result.value, test_value))
             counted++;
         indices[AXIS] = index_offset + 3;
-        test_value = GET_INPUT_VALUE();
+        test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (COMPARE_PARALLEL_SIGN_1(result.value, test_value))
             counted++;
         indices[AXIS] = index_offset + 4;
-        test_value = GET_INPUT_VALUE();
+        test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (COMPARE_PARALLEL_SIGN_1(result.value, test_value))
             counted++;
         indices[AXIS] = index_offset + 5;
-        test_value = GET_INPUT_VALUE();
+        test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (COMPARE_PARALLEL_SIGN_1(result.value, test_value))
             counted++;
         indices[AXIS] = index_offset + 6;
-        test_value = GET_INPUT_VALUE();
+        test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (COMPARE_PARALLEL_SIGN_1(result.value, test_value))
             counted++;
         indices[AXIS] = index_offset + 7;
-        test_value = GET_INPUT_VALUE();
+        test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (COMPARE_PARALLEL_SIGN_1(result.value, test_value))
             counted++;
         if (sort_position + PARALLEL_RANK(counted, index_offset + 8) >= TOP_K)
@@ -253,7 +250,7 @@ KERNEL(arg_max_min_modified)(
 
     for (uint i = (head_end / 8) * 8; i < head_end; i++) {
         indices[AXIS] = i;
-        INPUT0_COMPUTE_TYPE test_value = GET_INPUT_VALUE();
+        INPUT0_TYPE test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (COMPARE_PARALLEL_SIGN_1(result.value, test_value))
             counted++;
     }
@@ -268,42 +265,42 @@ KERNEL(arg_max_min_modified)(
     const uint tail_aligned = min((tail_begin + 7) / 8 * 8, (uint)VALUES_NUM);
     for (uint i = tail_begin; i < tail_aligned; i++) {
         indices[AXIS] = i;
-        INPUT0_COMPUTE_TYPE test_value = GET_INPUT_VALUE();
+        INPUT0_TYPE test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (COMPARE_PARALLEL_SIGN_2(result.value, test_value))
             counted++;
     }
     for (uint i = tail_aligned / 8; i < VALUES_NUM / 8; i++) {
         uint index_offset = i * 8;
         indices[AXIS] = index_offset;
-        INPUT0_COMPUTE_TYPE test_value = GET_INPUT_VALUE();
+        INPUT0_TYPE test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (COMPARE_PARALLEL_SIGN_2(result.value, test_value))
             counted++;
         indices[AXIS] = index_offset + 1;
-        test_value = GET_INPUT_VALUE();
+        test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (COMPARE_PARALLEL_SIGN_2(result.value, test_value))
             counted++;
         indices[AXIS] = index_offset + 2;
-        test_value = GET_INPUT_VALUE();
+        test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (COMPARE_PARALLEL_SIGN_2(result.value, test_value))
             counted++;
         indices[AXIS] = index_offset + 3;
-        test_value = GET_INPUT_VALUE();
+        test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (COMPARE_PARALLEL_SIGN_2(result.value, test_value))
             counted++;
         indices[AXIS] = index_offset + 4;
-        test_value = GET_INPUT_VALUE();
+        test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (COMPARE_PARALLEL_SIGN_2(result.value, test_value))
             counted++;
         indices[AXIS] = index_offset + 5;
-        test_value = GET_INPUT_VALUE();
+        test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (COMPARE_PARALLEL_SIGN_2(result.value, test_value))
             counted++;
         indices[AXIS] = index_offset + 6;
-        test_value = GET_INPUT_VALUE();
+        test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (COMPARE_PARALLEL_SIGN_2(result.value, test_value))
             counted++;
         indices[AXIS] = index_offset + 7;
-        test_value = GET_INPUT_VALUE();
+        test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (COMPARE_PARALLEL_SIGN_2(result.value, test_value))
             counted++;
         if (sort_position + PARALLEL_RANK(counted, index_offset + 8 - tail_begin) >= TOP_K)
@@ -312,7 +309,7 @@ KERNEL(arg_max_min_modified)(
 
     for (uint i = max(tail_aligned, (uint)(VALUES_NUM / 8) * 8); i < VALUES_NUM; i++) {
         indices[AXIS] = i;
-        INPUT0_COMPUTE_TYPE test_value = GET_INPUT_VALUE();
+        INPUT0_TYPE test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (COMPARE_PARALLEL_SIGN_2(result.value, test_value))
             counted++;
     }
@@ -323,7 +320,7 @@ KERNEL(arg_max_min_modified)(
 
 // Using simple sorting for sorting by indices and when TOP_K == 1
 #elif TOP_K == 1
-    INPUT0_COMPUTE_TYPE val = GET_INPUT_VALUE();
+    INPUT0_TYPE val = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
     result[0].index = 0;
     result[0].value = val;
     bool already_exist = false;
@@ -342,7 +339,7 @@ KERNEL(arg_max_min_modified)(
             }
 
             indices[AXIS] = i;
-            INPUT0_COMPUTE_TYPE in_data = GET_INPUT_VALUE();
+            INPUT0_TYPE in_data = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
             if (COMPARE_SIGN(val, in_data)) {
                 result[top_k].index = i;
                 result[top_k].value = in_data;
@@ -358,26 +355,26 @@ KERNEL(arg_max_min_modified)(
         for (uint i = 0; i < VALUES_NUM / 8; i++) {
             uint index_offset = i * 8;
             indices[AXIS] = result[index_offset].index = index_offset;
-            result[index_offset].value = GET_INPUT_VALUE();
+            result[index_offset].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
             indices[AXIS] = result[index_offset + 1].index = index_offset + 1;
-            result[index_offset + 1].value = GET_INPUT_VALUE();
+            result[index_offset + 1].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
             indices[AXIS] = result[index_offset + 2].index = index_offset + 2;
-            result[index_offset + 2].value = GET_INPUT_VALUE();
+            result[index_offset + 2].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
             indices[AXIS] = result[index_offset + 3].index = index_offset + 3;
-            result[index_offset + 3].value = GET_INPUT_VALUE();
+            result[index_offset + 3].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
             indices[AXIS] = result[index_offset + 4].index = index_offset  + 4;
-            result[index_offset + 4].value = GET_INPUT_VALUE();
+            result[index_offset + 4].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
             indices[AXIS] = result[index_offset + 5].index = index_offset + 5;
-            result[index_offset + 5].value = GET_INPUT_VALUE();
+            result[index_offset + 5].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
             indices[AXIS] = result[index_offset + 6].index = index_offset + 6;
-            result[index_offset + 6].value = GET_INPUT_VALUE();
+            result[index_offset + 6].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
             indices[AXIS] = result[index_offset + 7].index = index_offset + 7;
-            result[index_offset + 7].value = GET_INPUT_VALUE();
+            result[index_offset + 7].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         }
 
         for (uint i = (VALUES_NUM / 8) * 8; i < VALUES_NUM; i++) {
             indices[AXIS] = result[i].index = i;
-            result[i].value = GET_INPUT_VALUE();
+            result[i].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         }
 
         for (uint k = 1; k < VALUES_NUM; k *= 2) {
@@ -407,26 +404,26 @@ KERNEL(arg_max_min_modified)(
         for (uint i = 0; i < VALUES_NUM / 8; i++) {
             uint index_offset = i * 8;
             indices[AXIS] = temp_buf[index_offset].index = index_offset;
-            temp_buf[index_offset].value = GET_INPUT_VALUE();
+            temp_buf[index_offset].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
             indices[AXIS] = temp_buf[index_offset + 1].index = index_offset + 1;
-            temp_buf[index_offset + 1].value = GET_INPUT_VALUE();
+            temp_buf[index_offset + 1].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
             indices[AXIS] = temp_buf[index_offset + 2].index = index_offset + 2;
-            temp_buf[index_offset + 2].value = GET_INPUT_VALUE();
+            temp_buf[index_offset + 2].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
             indices[AXIS] = temp_buf[index_offset + 3].index = index_offset + 3;
-            temp_buf[index_offset + 3].value = GET_INPUT_VALUE();
+            temp_buf[index_offset + 3].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
             indices[AXIS] = temp_buf[index_offset + 4].index = index_offset  + 4;
-            temp_buf[index_offset + 4].value = GET_INPUT_VALUE();
+            temp_buf[index_offset + 4].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
             indices[AXIS] = temp_buf[index_offset + 5].index = index_offset + 5;
-            temp_buf[index_offset + 5].value = GET_INPUT_VALUE();
+            temp_buf[index_offset + 5].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
             indices[AXIS] = temp_buf[index_offset + 6].index = index_offset + 6;
-            temp_buf[index_offset + 6].value = GET_INPUT_VALUE();
+            temp_buf[index_offset + 6].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
             indices[AXIS] = temp_buf[index_offset + 7].index = index_offset + 7;
-            temp_buf[index_offset + 7].value = GET_INPUT_VALUE();
+            temp_buf[index_offset + 7].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         }
 
         for (uint i = (VALUES_NUM / 8) * 8; i < VALUES_NUM; i++) {
             indices[AXIS] = temp_buf[i].index = i;
-            temp_buf[i].value = GET_INPUT_VALUE();
+            temp_buf[i].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         }
 
         for (uint group = 0; group < group_num - 1; group++) {
@@ -586,7 +583,6 @@ KERNEL(arg_max_min_modified)(
 #undef ORDER_GT
 #undef ORDER_GE
 #undef INPUT0_FILL_VAL
-#undef GET_INPUT_VALUE
 #undef AXIS
 #undef VALUES_NUM
 #undef MINIMUM_NUMBER_FOR_PARTIAL_SORTING
