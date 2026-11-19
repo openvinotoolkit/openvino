@@ -61,7 +61,7 @@ async function checkIfPathExists(path) {
  * @param {string} filename - The filename of result file.
  * @param {string} destination - The destination path of result file.
  * @param {string} [proxy=null] - (Optional) The proxy URL.
- * @param {number} [retries=2] - (Optional) Number of retries on timeout/transient errors.
+ * @param {number} [retries=2] - (Optional) Number of retries on any errors.
  * @returns {Promise<string>} - Path to downloaded file.
  */
 async function downloadFile(url, destination, filename, proxy = null, retries = 2) {
