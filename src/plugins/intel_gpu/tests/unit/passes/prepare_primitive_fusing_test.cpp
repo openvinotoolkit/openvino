@@ -16,6 +16,11 @@
 #include "intel_gpu/primitives/permute.hpp"
 #include "intel_gpu/primitives/scatter_update.hpp"
 #include "intel_gpu/runtime/engine.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/runtime/core.hpp"
 #include "pass_manager.h"
 #include "program_wrapper.h"
 #include "random_generator.hpp"
@@ -729,6 +734,57 @@ TEST(prepare_primitive_fusing, fuse_constant_transposes_multiple_users_accuracy_
         for (size_t i = 0; i < results_ref[fc].size(); ++i) {
             ASSERT_NEAR(results[fc][i], results_ref[fc][i], 1e-2f) << "fc" << fc << " index " << i;
         }
+    }
+}
+
+TEST(prepare_primitive_fusing, fuse_constant_transposes_matmul_multiply_fusion_rank3_weights_accuracy) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad) {
+        GTEST_SKIP() << "Non-transposed FC weight path requires XMX (supports_immad)";
+    }
+
+    constexpr size_t B = 1, M = 32, K = 512, N = 256;
+    std::vector<float> x_data(B * M * K);
+    std::vector<float> w_data(N * K);
+    std::vector<float> s_data(N);
+    for (size_t i = 0; i < x_data.size(); ++i) {
+        x_data[i] = static_cast<float>(static_cast<int>(i % 17) - 8) * 0.125f;
+    }
+    for (size_t n = 0; n < N; ++n) {
+        s_data[n] = 0.25f + 0.5f * static_cast<float>(n % 7) / 6.0f;
+        for (size_t k = 0; k < K; ++k) {
+            w_data[n * K + k] = static_cast<float>(static_cast<int>((n * 13 + k * 7) % 19) - 9) * 0.0625f;
+        }
+    }
+
+    std::vector<float> expected(B * M * N, 0.0f);
+    for (size_t m = 0; m < M; ++m) {
+        for (size_t n = 0; n < N; ++n) {
+            float acc = 0.0f;
+            for (size_t k = 0; k < K; ++k) {
+                acc += x_data[m * K + k] * w_data[n * K + k];
+            }
+            expected[m * N + n] = acc * s_data[n];
+        }
+    }
+
+    auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{B, M, K});
+    auto w = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{N, K}, w_data);
+    auto mm = std::make_shared<ov::op::v0::MatMul>(x, w, false, true);
+    auto s = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 1, N}, s_data);
+    auto mul = std::make_shared<ov::op::v1::Multiply>(mm, s);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{x});
+
+    ov::Core core;
+    const auto device_name = get_engine_gpu_device_name();
+    auto compiled = core.compile_model(model, device_name, ov::hint::inference_precision(ov::element::f16));
+    auto req = compiled.create_infer_request();
+    std::vector<ov::float16> x_f16(x_data.begin(), x_data.end());
+    req.set_input_tensor(0, ov::Tensor(ov::element::f16, {B, M, K}, x_f16.data()));
+    req.infer();
+    const auto* actual = req.get_output_tensor().data<const ov::float16>();
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_NEAR(expected[i], static_cast<float>(actual[i]), 0.25f) << "Mismatch at index " << i;
     }
 }
 
