@@ -226,7 +226,12 @@ q_tiling q_tiling_with(const RuntimeParams& params, const decode_config& c, size
     const size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
     // K_LANE_TILES stays out of the count on purpose, so M comes out as without it ("Compressed pages
     // block2d does not take (2026-11-06)" in the docs). V_PAGE_1D's accumulators live only after the KQ loop.
-    const size_t k_tiles_per_read = (c.kv_u4 && c.k_2d) ? 4 : ((c.compressed && c.k_2d) ? 2 : 1);
+    size_t k_tiles_per_read = 1;
+    if (c.kv_u4 && c.k_2d) {
+        k_tiles_per_read = 4;
+    } else if (c.compressed && c.k_2d) {
+        k_tiles_per_read = 2;
+    }
     const bool twin = v_twin_pair_legal(params, c, sg_per_wg);
 
     // M is the DPAS repeat count, which the ISA encodes only as 1/2/4/8. The kv group is rounded UP, so a

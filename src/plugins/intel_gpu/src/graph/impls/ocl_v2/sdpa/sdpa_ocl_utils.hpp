@@ -86,8 +86,9 @@ inline bool block2d_page_ok(size_t row_bytes) {
 inline bool axis_unpadded(const cldnn::layout& l, ChannelName ch) {
     const auto rank = l.get_partial_shape().size();
     const int idx = get_channel_index(ch, rank, cldnn::format::is_weights_format(l.format), cldnn::format::is_grouped(l.format));
-    if (idx < 0 || idx >= static_cast<int>(rank))
+    if (idx < 0 || idx >= static_cast<int>(rank)) {
         return true;
+    }
     const auto& pad = l.data_padding;
     return pad._lower_size.at(idx) == 0 && pad._upper_size.at(idx) == 0 && !pad._dynamic_dims_mask[idx];
 }
@@ -109,11 +110,13 @@ inline bool layout_unpadded(const cldnn::layout& l) {
 // dimension that is not static.
 inline bool token_matrix_bytes(const cldnn::layout& l, int64_t& first_head, int64_t& token_stride) {
     const auto& pshape = l.get_partial_shape();
-    if (!is_token_matrix(l) || l.data_padding.is_dynamic() || pshape[1].is_dynamic())
+    if (!is_token_matrix(l) || l.data_padding.is_dynamic() || pshape[1].is_dynamic()) {
         return false;
+    }
     const int idx = get_channel_index(ChannelName::FEATURE, 2, cldnn::format::is_weights_format(l.format), cldnn::format::is_grouped(l.format));
-    if (idx != 1)
+    if (idx != 1) {
         return false;
+    }
     const int64_t elt = static_cast<int64_t>(ov::element::Type(l.data_type).size());
     const auto& pad = l.data_padding;
     first_head = pad._lower_size.at(idx) * elt;
@@ -127,10 +130,12 @@ inline bool token_matrix_bytes(const cldnn::layout& l, int64_t& first_head, int6
 // unpadded (every offset is then a whole number of rows). A padded token matrix must prove it from static padding,
 // and a dynamic padding cannot be proven, so it never takes this tier.
 inline bool block2d_layout_ok(const cldnn::layout& l, size_t row_bytes) {
-    if (!block2d_surface_ok(row_bytes))
+    if (!block2d_surface_ok(row_bytes)) {
         return false;
-    if (layout_unpadded(l))
+    }
+    if (layout_unpadded(l)) {
         return true;
+    }
     if (is_token_matrix(l)) {
         int64_t first_head = 0;
         int64_t token_stride = 0;
@@ -149,13 +154,16 @@ inline bool block2d_layout_ok(const cldnn::layout& l, size_t row_bytes) {
 // of 4 B, as a crop view of a fused QKV tensor at head-size offsets has. A dynamic padding that breaks it reads
 // wrong values ("Block2d rules" in the docs).
 inline bool block2d_layout_fixup_ok(const cldnn::layout& l, size_t row_bytes) {
-    if (!block2d_width_pitch_ok(row_bytes))
+    if (!block2d_width_pitch_ok(row_bytes)) {
         return false;
-    if (layout_unpadded(l))
+    }
+    if (layout_unpadded(l)) {
         return true;
+    }
     if (is_token_matrix(l)) {
-        if (l.data_padding.is_dynamic())
+        if (l.data_padding.is_dynamic()) {
             return true;
+        }
         int64_t first_head = 0;
         int64_t token_stride = 0;
         return token_matrix_bytes(l, first_head, token_stride) && first_head % 16 == 0 && token_stride % 16 == 0;

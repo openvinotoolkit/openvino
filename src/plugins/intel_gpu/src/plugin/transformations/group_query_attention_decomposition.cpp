@@ -93,8 +93,9 @@ bool GroupQueryAttentionDecomposition::prepare_compressed_kv(const std::shared_p
     // there ("Per-channel compressed KV (2026-11-02)" in the docs).
     const auto& head_dim = key_partial_shape.rank().is_static() ? key_partial_shape[key_partial_shape.rank().get_length() - 1] : ov::Dimension::dynamic();
     const int64_t head_size = head_dim.is_static() ? head_dim.get_length() * (kv_cache_bit_width == 4 ? 2 : 1) : -1;
-    if (head_size <= 0 || head_size > 256 || (kv_cache_bit_width == 8 && key_type != ov::element::i8))
+    if (head_size <= 0 || head_size > 256 || (kv_cache_bit_width == 8 && key_type != ov::element::i8)) {
         return false;
+    }
 
     auto& compressed_kv = metadata.compressed_kv.emplace();
 
