@@ -6,6 +6,7 @@
 
 #include <limits>
 
+#include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/paged_causal_conv1d.hpp"
 #include "primitive_ocl_base.hpp"
 #include "utils/kernel_generator.hpp"
@@ -63,6 +64,20 @@ protected:
         jit.make("NUM_TAPS", static_cast<int>(weight_shape[2].get_length()));
         jit.make("DILATION", static_cast<int>(desc->dilation));
         jit.make("HAS_BIAS", has_bias ? 1 : 0);
+
+        // A SWISH activation fused by prepare_primitive_fusing (Qwen3.5 / Gated-DeltaNet
+        // applies SiLU to the conv output). Applying it in the conv epilogue removes a
+        // full read+write pass over the [tokens, hidden] output. Only the single-SWISH
+        // case is accepted here, matching the guard in prepare_primitive_fusing; anything
+        // else leaves the activation as its own node, so an unhandled fusion can never be
+        // silently dropped.
+        if (params.has_fused_primitives() && params.fused_desc.size() == 1 && params.fused_desc[0].is_type<cldnn::activation>()) {
+            const auto act = params.fused_desc[0].typed_desc<cldnn::activation>();
+            if (act->activation_function == cldnn::activation_func::swish) {
+                jit.make("FUSE_SWISH", 1);
+                jit.make("FUSE_SWISH_BETA", act->additional_params.a);
+            }
+        }
 
         return jit;
     }

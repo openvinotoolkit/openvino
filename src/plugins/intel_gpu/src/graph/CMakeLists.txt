@@ -39,6 +39,7 @@ set(COMMON_LINK_LIBRARIES openvino::shape_inference # for tensor accessor
                           openvino_intel_gpu_kernels${OV_GPU_SUFFIX} # for cl_kernel_data_serializer
                           openvino_intel_gpu_runtime${OV_GPU_SUFFIX}
                           openvino::itt
+                          openvino::conditional_compilation # for MATCHER_SCOPE in plugin transformations
                           openvino::runtime::dev
                           openvino::runtime
                           OpenCL::OpenCL # Onednn needs OCL headers even when running Level Zero
