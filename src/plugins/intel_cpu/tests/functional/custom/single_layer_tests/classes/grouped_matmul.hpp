@@ -19,14 +19,13 @@ using GroupedMatMulCPUTestParams = std::tuple<GroupedMatMulShapeParams,         
                                               CPUTestUtils::CPUSpecificParams>;  // expected impl type / layouts
 
 class GroupedMatMulLayerCPUTest : public testing::WithParamInterface<GroupedMatMulCPUTestParams>,
-                                  virtual public GroupedMatMulTestBase,
+                                  virtual public GroupedMatMulPlainBase,
                                   public CPUTestUtils::CPUTestsBase {
 public:
     static std::string get_test_case_name(const testing::TestParamInfo<GroupedMatMulCPUTestParams>& obj);
 
 protected:
     void SetUp() override;
-    std::shared_ptr<ov::Node> build_weights() override;
     void check_results();
 };
 
@@ -44,24 +43,16 @@ using GroupedMatMulCompressedCPUTestParams = std::tuple<GroupedMatMulShapeParams
                                                         CPUTestUtils::CPUSpecificParams>;            // expected impl type / layouts
 
 class GroupedMatMulCompressedLayerCPUTest : public testing::WithParamInterface<GroupedMatMulCompressedCPUTestParams>,
-                                            virtual public GroupedMatMulTestBase,
+                                            virtual public GroupedMatMulCompressedBase,
                                             public CPUTestUtils::CPUTestsBase {
 public:
     static std::string get_test_case_name(const testing::TestParamInfo<GroupedMatMulCompressedCPUTestParams>& obj);
 
 protected:
     void SetUp() override;
-    std::shared_ptr<ov::Node> build_weights() override;
     void check_results();
 
 private:
-    ov::element::Type m_weights_prec;
-    ov::element::Type m_decomp_prec;
-    ov::element::Type m_scale_prec;
-    ov::test::utils::DecompressionType m_multiply_type;
-    ov::test::utils::DecompressionType m_subtract_type;
-    bool m_reshape_on_decomp = false;
-    int m_group_size = -1;
     bool m_expect_compressed = true;
 };
 

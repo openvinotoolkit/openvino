@@ -170,7 +170,7 @@ void GroupedMatMulLayerTest::SetUp() {
     GroupedMatMulTestBase::SetUp();
 }
 
-std::shared_ptr<ov::Node> GroupedMatMulLayerTest::build_weights() {
+std::shared_ptr<ov::Node> GroupedMatMulPlainBase::build_weights() {
     ov::test::utils::InputGenerateData b_data;
     b_data.range = 2;
     b_data.resolution = 128;
@@ -215,27 +215,31 @@ void GroupedMatMulCompressedLayerTest::SetUp() {
     act_type_ = act_type;
     model_name_ = "GroupedMatMulCompressed";
     expected_primitive_ = expected_primitive;
-    weights_prec_ = weights_prec;
-    decomp_prec_ = decomp_prec;
-    scale_prec_ = scale_prec;
-    multiply_type_ = multiply_type;
-    subtract_type_ = subtract_type;
-    reshape_on_decomp_ = reshape_on_decomp;
-    group_size_ = group_size;
+    m_weights_prec = weights_prec;
+    m_decomp_prec = decomp_prec;
+    m_scale_prec = scale_prec;
+    m_multiply_type = multiply_type;
+    m_subtract_type = subtract_type;
+    m_reshape_on_decomp = reshape_on_decomp;
+    m_group_size = group_size;
     targetDevice = _targetDevice;
     configuration.insert(additional_config.begin(), additional_config.end());
     GroupedMatMulTestBase::SetUp();
 
-    // Loosen tolerance for low-bit weight-compressed variants; dequantization
-    // introduces additional rounding error compared to the uncompressed path.
-    if (weights_prec_ == ov::element::u4 || weights_prec_ == ov::element::i4) {
+    set_compressed_thresholds();
+}
+
+void GroupedMatMulCompressedBase::set_compressed_thresholds() {
+    if (m_weights_prec == ov::element::u3) {
+        abs_threshold = 0.4f;
+    } else if (m_weights_prec == ov::element::u4 || m_weights_prec == ov::element::i4) {
         abs_threshold = 0.2f;
-    } else if (weights_prec_ == ov::element::u8 || weights_prec_ == ov::element::i8) {
+    } else if (m_weights_prec == ov::element::u8 || m_weights_prec == ov::element::i8) {
         abs_threshold = 0.1f;
     }
 }
 
-std::shared_ptr<ov::Node> GroupedMatMulCompressedLayerTest::build_weights() {
+std::shared_ptr<ov::Node> GroupedMatMulCompressedBase::build_weights() {
     // b_shape is the pre-transposed weight shape [G, N, K].
     // We pass the PLANAR shape [G, K, N] to initMatMulDecompressionSubgraphQuantization
     // with transpose_weights=true so the internal constant is laid out as [G, N, K]
@@ -247,15 +251,15 @@ std::shared_ptr<ov::Node> GroupedMatMulCompressedLayerTest::build_weights() {
 
     return ov::test::utils::initMatMulDecompressionSubgraphQuantization(
         b_planar,
-        group_size_,
+        m_group_size,
         act_type_,
-        weights_prec_,
-        decomp_prec_,
-        scale_prec_,
+        m_weights_prec,
+        m_decomp_prec,
+        m_scale_prec,
         true,              // transpose_weights: constant stored as [G, N, K]
-        multiply_type_,
-        subtract_type_,
-        reshape_on_decomp_,
+        m_multiply_type,
+        m_subtract_type,
+        m_reshape_on_decomp,
         false,             // insert_transpose_node: omit trailing Transpose → output [G, N, K]
         1);                // seed
 }
