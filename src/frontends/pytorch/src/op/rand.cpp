@@ -57,8 +57,8 @@ OutputVector translate_random_fx(const NodeContext& context, bool like, bool nor
         sizes = context.mark_node(std::make_shared<v0::Convert>(sizes, element::i32));
     }
     const auto sizes_shape = sizes.get_partial_shape();
-    const bool may_be_scalar = sizes_shape.rank().is_dynamic() || sizes_shape.rank().get_length() != 1 ||
-                               sizes_shape[0].get_min_length() == 0;
+    const bool may_be_scalar =
+        sizes_shape.rank().is_dynamic() || sizes_shape.rank().get_length() != 1 || sizes_shape[0].get_min_length() == 0;
     auto generation_sizes = sizes;
     if (may_be_scalar) {
         // Generate scalar samples as one-element tensors, then restore the requested shape.
