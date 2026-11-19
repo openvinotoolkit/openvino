@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-19-02-53-34-000-44443009675",
+  "timestamp": "2026-11-19T02:53:34Z",
+  "run_id": "44443009675",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44443009675",
+  "workflow_name": "Build-gpu / Build",
+  "pr_number": "39291",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39291",
+  "author": "Roszczyk",
+  "category": "Code Issue",
+  "title": "GPU grid_sample_kernel_opt_bilinear.cpp fails clang-tidy braces/uppercase-literal checks",
+  "signature": "clang-tidy readability-braces-around-statements statement should be inside braces and readability-uppercase-literal-suffix floating point literal suffix not uppercase in new GPU kernel code|Code Issue",
+  "signature_hash": "e50ba4ab716e2289",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build-gpu / Build",
+      "conclusion": "failure",
+      "symptom": "Cmake build with clang-tidy enabled step fails compiling grid_sample_kernel_opt_bilinear.cpp due to 2 clang-tidy errors treated as -Werror"
+    },
+    {
+      "name": "ci/gha_overall_status_clang_tidy",
+      "conclusion": "failure",
+      "symptom": "Overall status check fails because the Build-gpu / Build job it depends on failed"
+    }
+  ],
+  "key_errors": [
+    "/__w/openvino/openvino/openvino/src/plugins/intel_gpu/src/kernel_selector/kernels/grid_sample/grid_sample_kernel_opt_bilinear.cpp:29:46: error: statement should be inside braces [readability-braces-around-statements,-warnings-as-errors]",
+    "   29 |     if (input.X().v == 1 && input.Y().v == 1)",
+    "   30 |         return DONT_USE_IF_HAVE_SOMETHING_ELSE + 1.f;",
+    "/__w/openvino/openvino/openvino/src/plugins/intel_gpu/src/kernel_selector/kernels/grid_sample/grid_sample_kernel_opt_bilinear.cpp:30:50: error: floating point literal has suffix 'f', which is not uppercase [readability-uppercase-literal-suffix,-warnings-as-errors]",
+    "   30 |         return DONT_USE_IF_HAVE_SOMETHING_ELSE + 1.f;",
+    "2 warnings treated as errors"
+  ],
+  "root_cause": "PR #39291 adds new code in grid_sample_kernel_opt_bilinear.cpp (src/plugins/intel_gpu/src/kernel_selector/kernels/grid_sample/grid_sample_kernel_opt_bilinear.cpp, line 29-30) that violates two clang-tidy checks enforced as errors on this CI configuration: (1) readability-braces-around-statements - the body of an `if` without braces, and (2) readability-uppercase-literal-suffix - a lowercase `f` suffix on a floating point literal (`1.f` instead of `1.F`). Since CMAKE_COMPILE_WARNING_AS_ERROR is ON for this job, these clang-tidy diagnostics abort the build.",
+  "reproduction_steps": "Build the GPU plugin locally with clang-tidy enabled (CMAKE_CXX_CLANG_TIDY=clang-tidy-18 or similar) and compile src/plugins/intel_gpu/src/kernel_selector/kernels/grid_sample/grid_sample_kernel_opt_bilinear.cpp; clang-tidy will report readability-braces-around-statements at line 29 and readability-uppercase-literal-suffix at line 30.",
+  "recommended_actions": [
+    "Wrap the body of the `if (input.X().v == 1 && input.Y().v == 1)` statement at line 29 in braces.",
+    "Change the floating point literal suffix from `1.f` to `1.F` at line 30 to satisfy readability-uppercase-literal-suffix.",
+    "Re-run the GPU clang-tidy build locally before pushing to catch similar lint issues earlier."
+  ],
+  "prevention_strategies": "Run clang-tidy locally (or via pre-commit/clang-tidy diff tooling) on newly added GPU kernel_selector files before pushing, since this CI job treats clang-tidy diagnostics as errors. Prefer always-braced single-statement bodies and uppercase numeric literal suffixes (F, L, U) in new OpenVINO GPU kernel_selector code to avoid recurring the braces-around-statements and uppercase-literal-suffix clang-tidy violations seen repeatedly in this component.",
+  "historical_context": "A closely related recurring pattern (signature_hash a4282c65071120e2, 'GPU prepare_primitive_fusing clang-tidy braces-around-statements errors') has occurred 6 times in the last day across other GPU PRs, all Code Issue / clang-tidy braces-around-statements violations in newly added GPU plugin code. This is a new, distinct signature (different file and an added uppercase-literal-suffix violation) but the same systemic pattern of new GPU code not being pre-validated against the clang-tidy warnings-as-errors build before submission."
+}

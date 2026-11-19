@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 482,
+  "total": 483,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -5251,6 +5251,15 @@
       "category": "Flaky Test",
       "signature_hash": "76751669c7a78fcd",
       "pr_number": "39387"
+    },
+    {
+      "investigation_id": "2026-11-19-02-53-34-000-44443009675",
+      "run_id": "44443009675",
+      "timestamp": "2026-11-19T02:53:34Z",
+      "title": "GPU grid_sample_kernel_opt_bilinear.cpp fails clang-tidy braces/uppercase-literal checks",
+      "category": "Code Issue",
+      "signature_hash": "e50ba4ab716e2289",
+      "pr_number": "39291"
     }
   ]
 }

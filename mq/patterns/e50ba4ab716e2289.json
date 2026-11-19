@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "clang-tidy readability-braces-around-statements statement should be inside braces and readability-uppercase-literal-suffix floating point literal suffix not uppercase in new GPU kernel code|Code Issue",
+  "signature_hash": "e50ba4ab716e2289",
+  "title": "GPU grid_sample_kernel_opt_bilinear.cpp fails clang-tidy braces/uppercase-literal checks",
+  "category": "Code Issue",
+  "count": 1,
+  "first_seen": "2026-11-19T02:53:34Z",
+  "last_seen": "2026-11-19T02:53:34Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/44443009675"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39291"
+  ],
+  "recent_timestamps": [
+    "2026-11-19T02:53:34Z"
+  ],
+  "rerun_search_string": null
+}
