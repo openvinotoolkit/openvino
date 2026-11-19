@@ -152,13 +152,10 @@ void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel
         }
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    REGISTER_OPTION(ENABLE_CPU_PINNING);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
-    // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still
-    // need to enable those for OV Core to query. Note: do this last to not filter them out. register npuw caching
-    // properties
+    // NPUW properties are requested by OV Core during caching and
+    // have no effect on the NPU plugin. But we still need to enable
+    // those for OV Core to query. Note: do this last to not filter
+    // them out. register npuw caching properties
     for_each_exposed_npuw_option([&](auto tag) {
         using Opt = typename decltype(tag)::type;
         REGISTER_OPTION(Opt);

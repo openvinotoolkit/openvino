@@ -15,12 +15,6 @@ namespace {
 
 using namespace intel_npu;
 
-inline void logCpuPinningDeprecationWarning(intel_npu::Logger& logger) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    logger.warning(intel_npu::ENABLE_CPU_PINNING::deprecationMessage());
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
-
 std::string buildRuntimeRequirements(const BlobSectionsRegistry& blobSectionsRegistry, intel_npu::Logger& logger) {
     // All the code needed to serialize the requirements is found inside "RuntimeRequirementsSection::encode".
     // Therefore, we'll build a RuntimeRequirementsSection and use it for convenience.
@@ -89,10 +83,6 @@ void CompiledModelPropertyManager::setProperty(const ov::AnyMap& properties) {
 
 ov::Any CompiledModelPropertyManager::getProperty(const std::string& name) const {
     std::lock_guard<std::mutex> lock(_mutex);
-
-    if (name == ov::hint::enable_cpu_pinning.name()) {
-        logCpuPinningDeprecationWarning(_logger);
-    }
 
     const auto propertyIt = _properties.find(name);
     if (propertyIt != _properties.end()) {
@@ -185,10 +175,6 @@ void CompiledModelPropertyManager::registerProperties() {
     registerConfigProperty(WEIGHTS_PATH{}, true, true);
 
     registerConfigProperty(BATCH_MODE{}, false, false);
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    registerConfigProperty(ENABLE_CPU_PINNING{}, false, false);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     // clang-format off
     // INFERENCE_PRECISION_HINT and EXECUTION_MODE_HINT are used by the compiler, but their values aren't guaranteed to
