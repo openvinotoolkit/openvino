@@ -19,7 +19,7 @@ void* USMHostTensor::data() {
     return m_impl->get_original_memory_buf_ptr();
 }
 
-void* USMHostTensor::data(const element::Type&) {
+void* USMHostTensor::data(const element::Type& /*type*/) {
     return m_impl->get_original_memory_buf_ptr();
 }
 
@@ -27,7 +27,7 @@ void* USMHostTensor::data_rw() {
     return m_impl->get_original_memory_buf_ptr();
 }
 
-void* USMHostTensor::data_rw(const element::Type&) {
+void* USMHostTensor::data_rw(const element::Type& /*type*/) {
     return m_impl->get_original_memory_buf_ptr();
 }
 
@@ -35,7 +35,7 @@ const void* USMHostTensor::data() const {
     return m_impl->get_original_memory_buf_ptr();
 }
 
-const void* USMHostTensor::data(const element::Type&) const {
+const void* USMHostTensor::data(const element::Type& /*type*/) const {
     return m_impl->get_original_memory_buf_ptr();
 }
 
