@@ -67,8 +67,8 @@ private:
     ov::op::internal::GatedResidual::ReadLayout m_layout{};
 
     size_t m_rows = 0;
-    // Rows per full tile. The last tile runs a GEMM padded to a bucketed row count (m_part_m); padding rows are zeroed
-    // and never stored.
+    // Rows per full tile. The last tile runs a GEMM padded to a bucketed row count (m_part_m, at most a tile); padding
+    // rows are zeroed and never stored.
     size_t m_tile_rows = 0;
     size_t m_part_m = 0;
 
@@ -78,13 +78,6 @@ private:
     std::shared_ptr<kernel::JitKernelBase> m_rms_kernel_gemm;
 
     enum ProjectionIdx : uint8_t { kDown = 0, kUp = 1, kInject = 2 };
-
-    // FC executor of one projection for one row count, bound to the tile buffers in update().
-    struct TileExecutor {
-        ExecutorPtr executor;
-        MemoryArgs args;
-        size_t m = 0;  // rows it is bound to, 0 until then
-    };
 
     // One projection. oneDNN picks the packed weights layout; the weights are packed once at construction through the
     // context's private cache.
@@ -98,11 +91,12 @@ private:
         ov::element::Type dst_prc;
         DnnlScratchPadPtr src_pad;  // tile buffers
         DnnlScratchPadPtr dst_pad;
-        TileExecutor full;     // full tiles
-        TileExecutor partial;  // the last tile, m_part_m rows
+        ExecutorPtr executor;
+        size_t m = 0;  // rows the executor is bound to, 0 until the first bind
     };
     Projection m_proj[3];
-    static void bindProjection(Projection& p, TileExecutor& tile, size_t m);
+    // Binds the projection's executor to `m` rows of the tile buffers; a no-op when it already is.
+    static void bindProjection(Projection& p, size_t m);
 
     // Per-tile buffers: views of scratchpad blocks (Rbar the executor's own, one child each for the others), sized once
     // for a full tile. Other nodes may reallocate the executor's own block and contents do not survive calls, so read

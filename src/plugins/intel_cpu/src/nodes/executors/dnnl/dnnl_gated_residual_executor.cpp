@@ -265,15 +265,10 @@ void GatedResidualDnnlExecutor::createProjections(const GatedResidualAttrs& attr
                 p.args[ARG_WEI | ARG_ATTR_ZERO_POINTS] = memory.at(gatedResidualSrcArg(spec.zero_points));
             }
         }
-        // Both executors are built for a full tile; the second finds the packed weights in the private cache. update()
-        // binds the partial one to its row count.
-        for (auto* executor : {&p.full, &p.partial}) {
-            executor->args = p.args;
-            executor->args[ARG_SRC] = tileMemory(p.src_pad, p.src_prc, tile, p.k);
-            executor->args[ARG_DST] = tileMemory(p.dst_pad, p.dst_prc, tile, p.n);
-            executor->executor =
-                CreateDnnlDefault<DnnlFCPrimitive, FCAttrs>{true, false}(p.attrs, executor->args, p.context);
-        }
+        // Built for a full tile, which packs the weights; bindProjection() binds it to the rows it runs.
+        p.args[ARG_SRC] = tileMemory(p.src_pad, p.src_prc, tile, p.k);
+        p.args[ARG_DST] = tileMemory(p.dst_pad, p.dst_prc, tile, p.n);
+        p.executor = CreateDnnlDefault<DnnlFCPrimitive, FCAttrs>{true, false}(p.attrs, p.args, p.context);
     }
 }
 
@@ -286,17 +281,20 @@ MemoryPtr GatedResidualDnnlExecutor::tileMemory(const DnnlScratchPadPtr& pad,
     return pad->createScratchPadMem(desc);
 }
 
-void GatedResidualDnnlExecutor::bindProjection(Projection& p, TileExecutor& tile, size_t m) {
-    tile.args[ARG_SRC] = tileMemory(p.src_pad, p.src_prc, m, p.k);
-    tile.args[ARG_DST] = tileMemory(p.dst_pad, p.dst_prc, m, p.n);
-    OPENVINO_ASSERT(tile.executor->update(tile.args), "GatedResidual: projection executor update failed");
-    tile.m = m;
+void GatedResidualDnnlExecutor::bindProjection(Projection& p, size_t m) {
+    if (p.m == m) {
+        return;
+    }
+    p.args[ARG_SRC] = tileMemory(p.src_pad, p.src_prc, m, p.k);
+    p.args[ARG_DST] = tileMemory(p.dst_pad, p.dst_prc, m, p.n);
+    OPENVINO_ASSERT(p.executor->update(p.args), "GatedResidual: projection executor update failed");
+    p.m = m;
 }
 
 impl_desc_type GatedResidualDnnlExecutor::implType() const {
     // The projections dominate: report the implementation chosen for the down GEMM.
-    if (m_proj[kDown].full.executor) {
-        return m_proj[kDown].full.executor->implType();
+    if (m_proj[kDown].executor) {
+        return m_proj[kDown].executor->implType();
     }
     return targetIsa() == dnnl::impl::cpu::x64::avx512_core ? impl_desc_type::jit_avx512 : impl_desc_type::jit_avx2;
 }
@@ -354,22 +352,8 @@ bool GatedResidualDnnlExecutor::update(const MemoryArgs& memory) {
         }
     }
 
-    // Full tiles use the full executors, the last tile the partial ones with a bucketed row count (100 and 110 rows
-    // both bucket to 112). Bound here, so execute() only runs them.
     const size_t part_rows = m_rows % m_tile_rows;
-    m_part_m = part_rows != 0 ? normalize_rows(part_rows) : 0;
-    for (auto& p : m_proj) {
-        if (!p.full.executor) {
-            continue;
-        }
-        if (m_rows >= m_tile_rows && p.full.m == 0) {
-            bindProjection(p, p.full, m_tile_rows);
-        }
-        if (m_part_m != 0 && p.partial.m != m_part_m) {
-            bindProjection(p, p.partial, m_part_m);
-        }
-    }
-
+    m_part_m = part_rows != 0 ? std::min(normalize_rows(part_rows), m_tile_rows) : 0;
     return true;
 }
 
@@ -411,8 +395,8 @@ void GatedResidualDnnlExecutor::execute_read_or_final_mix(const MemoryArgs& memo
         const bool full_tile = cur_rows == tile_rows;
         const size_t gemm_rows = full_tile ? tile_rows : m_part_m;
         const auto run = [&](Projection& p) {
-            auto& tile = full_tile ? p.full : p.partial;
-            tile.executor->execute(tile.args);
+            bindProjection(p, gemm_rows);
+            p.executor->execute(p.args);
         };
 
         // Step 1: per-row RMSNorm per branch: the f32 Rbar for the mix and a GEMM-precision copy for the GEMMs.

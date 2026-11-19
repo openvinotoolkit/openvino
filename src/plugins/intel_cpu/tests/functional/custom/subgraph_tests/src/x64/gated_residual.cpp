@@ -19,9 +19,10 @@ using Mode = ov::op::internal::GatedResidual::Mode;
 
 const GatedResidualWeightCompression kNoCompression{};
 
-// Dynamic rows [rows, C*D]; `second` lists the row counts of successive inferences through one compiled model. Every
-// case here runs a 512-row tile, so the partial tile only hits the <= 16 and round-up-to-16 buckets: 1 and 17 cover
-// them, 100 a plain bucket, 513 and 1100 the tile cap with a remainder, and the repeated 1 a prefill -> decode flip.
+// Dynamic rows [rows, C*D], successive inferences through one compiled model. The tile size follows the thread count,
+// so these rows cover the partial-tile buckets (<= 16 and round-up-to-16: 1 and 17, a plain bucket: 100) and, when the
+// tile is smaller, several tiles with a remainder (513, 1100); the repeated 1 is a prefill -> decode flip. The cases
+// that need one particular tile fix the thread count.
 const ov::test::InputShape kDynRows{{-1}, {{1}, {17}, {100}, {513}, {1100}, {1}}};
 
 // The compressed cases need fewer row counts: the same buckets, without the plain one.
@@ -32,12 +33,11 @@ const ov::test::InputShape kDynCompressedRows{{-1}, {{1}, {17}, {513}, {1}}};
 const ov::test::InputShape kDynBatchSeq{{-1, -1}, {{2, 3}, {4, 1}, {3, 7}, {2, 100}, {1, 1}}};
 
 // Large-model shape (C=4, D=2560, L=320), rank-2 dynamic rows, kept short because the reference GEMMs are scalar. A
-// prefill-sized chunk first, then decode.
-const ov::test::InputShape kDynQwenRows{{-1}, {{33}, {1}, {1}}};
+// prefill-sized chunk first, then decode. With the default threading its tile is 1152 rows on a machine with 45 to 49
+// threads, where 1029 rows leave a partial tile that buckets to 1280 rows, which the tile buffers must not be asked to
+// hold; 1153 is a full tile plus one row.
+const ov::test::InputShape kDynLargeRows{{-1}, {{33}, {1}, {1029}, {1}, {1153}, {1}}};
 
-// The model is an f32 or f16 IR; bf16 is an inference precision (hint) that exists only on supporting hardware. f16
-// inference is not covered: ConvertPrecision keeps the precision-sensitive norm in f32 there, which the pattern does
-// not match, so the layer stays decomposed.
 std::vector<ov::AnyMap> inference_precision_configs() {
     std::vector<ov::AnyMap> configs{{{ov::hint::inference_precision.name(), ov::element::f32}}};
     if (ov::with_cpu_x86_bfloat16()) {
@@ -66,7 +66,7 @@ const std::vector<GatedResidualShapeParams> uncompressed_shapes{
 
 const std::vector<GatedResidualShapeParams> batch_seq_shapes{{4, 8, 16, ov::element::f32, kNoCompression}};
 
-const std::vector<GatedResidualShapeParams> qwen_shapes{{4, 2560, 320, ov::element::f32, kNoCompression}};
+const std::vector<GatedResidualShapeParams> large_shapes{{4, 2560, 320, ov::element::f32, kNoCompression}};
 
 // Compressed shapes: u8/i8/u4/i4, per-channel and grouped, with and without zero points; scales are f16/bf16/f32 [N,
 // G], zero points have the weight type. G must be static and divide K; CD/L are sized so the group size K / G is
@@ -169,13 +169,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualBatchSeqWrite,
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          GatedResidualLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualQwenRead,
+INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualLargeRead,
                          GatedResidualLayerCPUTest,
                          ::testing::Combine(::testing::Values(Mode::READ),
-                                            ::testing::ValuesIn(qwen_shapes),
+                                            ::testing::ValuesIn(large_shapes),
                                             ::testing::Values(true),  // produce_write_gate
                                             ::testing::Values(true),  // norm_gain_plus_one
-                                            ::testing::Values(kDynQwenRows),
+                                            ::testing::Values(kDynLargeRows),
                                             ::testing::ValuesIn(inference_precision_configs()),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          GatedResidualLayerCPUTest::getTestCaseName);
