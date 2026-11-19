@@ -305,33 +305,7 @@ void jit_gdn_kernel<isa>::dot_product_native_xf16(const Xbyak::Xmm& xmm_dst, Vmm
 }
 
 template <cpu_isa_t isa>
-void jit_gdn_kernel<isa>::scale_vector_native_xf16(Vmm* vmm_array,
-                                                   const Xbyak::Xmm& xmm_scalar,
-                                                   int num_regs,
-                                                   bool f32_scale) {
-    if (m_jcp.data_prc == ov::element::f16 && f32_scale) {
-        // The scalar may exceed the f16 range (e.g. an L2-norm reciprocal of a zero row), so
-        // multiply in f32 and narrow only the result.
-        vbroadcastss(v_aux2, xmm_scalar);
-
-        for (int i = 0; i < num_regs; i++) {
-            vcvtph2ps(v_aux0, Xbyak::Ymm(vmm_array[i].getIdx()));
-            vmulps(v_aux0, v_aux0, v_aux2);
-            vcvtps2ph(Xbyak::Ymm(x_tmp0.getIdx()), v_aux0, 0);
-
-            vextractf32x8(Xbyak::Ymm(v_aux1.getIdx()), Xbyak::Zmm(vmm_array[i].getIdx()), 1);
-            vcvtph2ps(v_aux1, Xbyak::Ymm(v_aux1.getIdx()));
-            vmulps(v_aux1, v_aux1, v_aux2);
-            vcvtps2ph(Xbyak::Ymm(x_tmp1.getIdx()), v_aux1, 0);
-
-            vinsertf32x8(Xbyak::Zmm(vmm_array[i].getIdx()),
-                         Xbyak::Zmm(x_tmp0.getIdx()),
-                         Xbyak::Ymm(x_tmp1.getIdx()),
-                         1);
-        }
-        return;
-    }
-
+void jit_gdn_kernel<isa>::scale_vector_native_xf16(Vmm* vmm_array, const Xbyak::Xmm& xmm_scalar, int num_regs) {
     if (m_jcp.data_prc == ov::element::bf16) {
         // bf16 path: unpack->fp32 mul->pack bf16 per half
         vbroadcastss(v_aux2, xmm_scalar);
@@ -441,7 +415,7 @@ void jit_gdn_kernel<isa>::l2norm_inplace_native_xf16(Vmm* vmm_array, const Xbyak
     vdivss(x_tmp1, x_tmp1, x_hk);  // reciprocal
 
     // Scale vector by reciprocal
-    scale_vector_native_xf16(vmm_array, x_tmp1, num_regs, true);
+    scale_vector_native_xf16(vmm_array, x_tmp1, num_regs);
 }
 
 // ============================================
@@ -505,8 +479,7 @@ void jit_gdn_kernel<isa>::scale_buffer_native_xf16(const Xbyak::Reg64& reg_buffe
                                                    const Xbyak::Xmm& xmm_scale,
                                                    Vmm* vmm_temp,
                                                    int num_regs,
-                                                   int num_chunks,
-                                                   bool f32_scale) {
+                                                   int num_chunks) {
     // Scale all chunks of a buffer by a scalar
     for (int chunk = 0; chunk < num_chunks; chunk++) {
         const int chunk_start = chunk * MAX_REGS_PER_VEC;
@@ -516,7 +489,7 @@ void jit_gdn_kernel<isa>::scale_buffer_native_xf16(const Xbyak::Reg64& reg_buffe
         mov(reg_aux2, reg_buffer);
         add(reg_aux2, chunk_offset);
         load_vector_native_xf16(vmm_temp, reg_aux2, chunk_regs);
-        scale_vector_native_xf16(vmm_temp, xmm_scale, chunk_regs, f32_scale);
+        scale_vector_native_xf16(vmm_temp, xmm_scale, chunk_regs);
         store_vector_native_xf16(reg_aux2, vmm_temp, chunk_regs);
     }
 }
@@ -577,12 +550,12 @@ void jit_gdn_kernel<isa>::load_qk(bool is_f32, bool use_registers, int num_regs,
             if (m_jcp.fuse_qk_l2norm) {
                 // Normalize K
                 l2norm_buffer_compute_scale_native_xf16(reg_key_tmp, x_eps_k, x_beta, num_regs, num_chunks);
-                scale_buffer_native_xf16(reg_key_tmp, x_beta, const_cast<Vmm*>(v_k), num_regs, num_chunks, true);
+                scale_buffer_native_xf16(reg_key_tmp, x_beta, const_cast<Vmm*>(v_k), num_regs, num_chunks);
 
                 // Normalize Q and combine with q_scale
                 l2norm_buffer_compute_scale_native_xf16(reg_query_tmp, x_eps_q, x_beta, num_regs, num_chunks);
                 vmulss(x_beta, x_beta, x_qscale);  // Combine: l2norm_scale * q_scale
-                scale_buffer_native_xf16(reg_query_tmp, x_beta, const_cast<Vmm*>(v_q), num_regs, num_chunks, true);
+                scale_buffer_native_xf16(reg_query_tmp, x_beta, const_cast<Vmm*>(v_q), num_regs, num_chunks);
             } else {
                 // No L2 norm, just scale Q by q_scale
                 scale_buffer_native_xf16(reg_query_tmp, x_qscale, const_cast<Vmm*>(v_q), num_regs, num_chunks);
