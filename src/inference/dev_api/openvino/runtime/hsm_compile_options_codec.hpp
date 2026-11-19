@@ -76,7 +76,7 @@ private:
  * @return Decoded options; `std::nullopt` if the section is malformed, the hash does not match, or a key appears
  * more than once within the same map level (as a leaf, a nested map, or both).
  */
-OPENVINO_RUNTIME_API std::optional<ov::AnyMap> decode_compile_options(const Section& section) noexcept;
+OPENVINO_RUNTIME_API std::optional<ov::AnyMap> decode_compile_options(const Section& section);
 
 }  // namespace v1
 }  // namespace ov::runtime::hsm

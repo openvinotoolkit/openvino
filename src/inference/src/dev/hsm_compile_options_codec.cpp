@@ -311,7 +311,7 @@ void CompileOptionsEncoder::encode(const SectionSink& sink) const {
     out.finish();
 }
 
-std::optional<ov::AnyMap> decode_compile_options(const Section& section) noexcept {
+std::optional<ov::AnyMap> decode_compile_options(const Section& section) {
     const auto size = section.size();
     if (size == 0) {
         return std::nullopt;
