@@ -21,9 +21,9 @@ public:
     explicit L2NormToRMS(size_t max_work_group_size);
 };
 
-// Rewrites elementwise v1::Power(x, 0.5) (with an optional Convert on the constant) to v0::Sqrt(x)
-// when output shape and element type are preserved, enabling downstream RMSFusion / MVNFusion /
-// NormalizeL2Fusion / L2NormToRMS patterns that match v0::Sqrt.
+// Rewrites elementwise v1::Power(x, 0.5) (with an optional real-typed Convert on the constant) to v0::Sqrt(x)
+// when output shape and element type are preserved, enabling downstream RMSFusion, L2NormToRMS, and
+// Convert-wrapped MVNFusion patterns that match v0::Sqrt.
 class ConvertPowerHalfToSqrt : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ConvertPowerHalfToSqrt");
