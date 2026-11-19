@@ -153,7 +153,7 @@ struct ocl_surfaces_lock : public surfaces_lock {
 
     ~ocl_surfaces_lock() override = default;
 private:
-    std::vector<cl_mem> get_handles(std::vector<memory::ptr> mem) const;
+    static std::vector<cl_mem> get_handles(std::vector<memory::ptr> mem);
     std::vector<cl_mem> _handles;
     std::unique_ptr<cl::SharedSurfLock> _lock;
 };

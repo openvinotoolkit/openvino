@@ -98,9 +98,9 @@ public:
             auto input0_pshape = input0_layout.get_partial_shape();
             auto input1_pshape = input1_layout.get_partial_shape();
 
-            ov::Dimension feature = input0_pshape[std::min(primitive->input_size, static_cast<size_t>(4)) - 1ul];
+            ov::Dimension feature = input0_pshape[std::min(primitive->input_size, static_cast<size_t>(4)) - 1UL];
             if (allow_new_shape_infer) {
-                feature = input0_pshape[primitive->input_size - 1ul];
+                feature = input0_pshape[primitive->input_size - 1UL];
             }
 
             // TO DO, to remove WA
