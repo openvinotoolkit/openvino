@@ -168,3 +168,120 @@ jobs:
           cache-path: C:\\mount\\caches\\ccache
           recursive: true
           key: '.'
+
+  Docker:
+    name: Docker
+    runs-on: aks-linux-4-cores-16gb-docker-build
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    container:
+      image: openvinogithubactions.azurecr.io/docker_build:0.2
+      volumes:
+        - /mount:/mount
+    outputs:
+      images: "${{ steps.handle_docker.outputs.images }}"
+    steps:
+      - name: Checkout
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+
+      - uses: ./.github/actions/handle_docker
+        id: handle_docker
+        with:
+          images: |
+            ov_build/ubuntu_24_04_x64
+          registry: 'openvinogithubactions.azurecr.io'
+          dockerfiles_root_dir: '.github/dockerfiles'
+          changed_components: '{"docker_env": false, "dockerfiles": false}'
+
+  # Remote ccache entries are hash-named files without the ".cache" suffix used by the cache
+  # action, so they are trimmed by ccache itself. The two-tier limit mirrors the cache action:
+  # least recently used entries are evicted down to CACHE_SIZE_GB, while entries used within
+  # MIN_UNUSED_DAYS are kept unless the storage exceeds MAX_CACHE_SIZE_GB.
+  Cleanup_remote_ccache_lin:
+    name: Cleanup Linux remote ccache
+    needs: Docker
+    runs-on: aks-linux-medium
+    timeout-minutes: 540
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
+      volumes:
+        - /mount:/mount
+    defaults:
+      run:
+        shell: bash
+    env:
+      CCACHE_REMOTE_PATH: /mount/caches/ccache/shared
+      CACHE_SIZE_GB: 500
+      MAX_CACHE_SIZE_GB: 750
+      MIN_UNUSED_DAYS: 7
+
+    steps:
+      - name: Cleanup remote ccache
+        run: |
+          set -euo pipefail
+          ccache --version | head -n 1
+          if [ ! -d "${CCACHE_REMOTE_PATH}" ]; then
+            echo "::warning::${CCACHE_REMOTE_PATH} doesn't exist"
+            exit 0
+          fi
+
+          cutoff=$(date -d "-${MIN_UNUSED_DAYS} days" +%s)
+          read -r total recent < <(find "${CCACHE_REMOTE_PATH}" -type f -printf '%T@ %s\n' |
+            awk -v cutoff="${cutoff}" '{ total += $2; if ($1 >= cutoff) recent += $2 } END { printf "%.0f %.0f\n", total, recent }')
+
+          gib=$((1024 * 1024 * 1024))
+          min_size=$((CACHE_SIZE_GB * gib))
+          max_size=$((MAX_CACHE_SIZE_GB * gib))
+          echo "Remote ccache size: $((total / gib)) GiB, used within ${MIN_UNUSED_DAYS} days: $((recent / gib)) GiB"
+          if (( total <= min_size )); then
+            echo "The remote ccache size is within the allowed ${CACHE_SIZE_GB} GiB"
+            exit 0
+          fi
+
+          target=$(( recent < min_size ? min_size : (recent > max_size ? max_size : recent) ))
+          ccache --trim-dir "${CCACHE_REMOTE_PATH}" --trim-max-size "$((target / 1024))Ki" --trim-method mtime
+
+  Cleanup_remote_ccache_win:
+    name: Cleanup Windows remote ccache
+    runs-on: 'aks-win-4-cores-8gb-build'
+    timeout-minutes: 540
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      CCACHE_REMOTE_PATH: "C:\\mount\\caches\\ccache\\shared"
+      CACHE_SIZE_GB: 500
+      MAX_CACHE_SIZE_GB: 750
+      MIN_UNUSED_DAYS: 7
+
+    steps:
+      - name: Cleanup remote ccache
+        run: |
+          ccache --version | Select-Object -First 1
+          if (-not (Test-Path -LiteralPath $env:CCACHE_REMOTE_PATH)) {
+            Write-Warning "$env:CCACHE_REMOTE_PATH doesn't exist"
+            exit 0
+          }
+
+          $cutoff = (Get-Date).AddDays(-[int]$env:MIN_UNUSED_DAYS)
+          $total = [long]0
+          $recent = [long]0
+          $root = [System.IO.DirectoryInfo]::new($env:CCACHE_REMOTE_PATH)
+          foreach ($file in $root.EnumerateFiles('*', [System.IO.SearchOption]::AllDirectories)) {
+            $total += $file.Length
+            if ($file.LastWriteTime -ge $cutoff) { $recent += $file.Length }
+          }
+
+          $minSize = [long]$env:CACHE_SIZE_GB * 1GB
+          $maxSize = [long]$env:MAX_CACHE_SIZE_GB * 1GB
+          Write-Host ("Remote ccache size: {0:N2} GiB, used within {1} days: {2:N2} GiB" -f ($total / 1GB), $env:MIN_UNUSED_DAYS, ($recent / 1GB))
+          if ($total -le $minSize) {
+            Write-Host "The remote ccache size is within the allowed $env:CACHE_SIZE_GB GiB"
+            exit 0
+          }
+
+          $target = [Math]::Min([Math]::Max($recent, $minSize), $maxSize)
+          & ccache --trim-dir $env:CCACHE_REMOTE_PATH --trim-max-size "$([long][Math]::Floor($target / 1KB))Ki" --trim-method mtime
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

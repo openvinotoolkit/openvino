@@ -140,7 +140,7 @@ Users:
   (`C:\mount\caches\ccache\shared\windows\<build-variant>\x86_64\<build-type>`).
   ccache cannot cache MSVC `/Zi` compilations, so the Debug build sets
   `-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded` (`/Z7`). Static libraries installed
-  to the developer package stay on `/Zi` through `ov_keep_debug_info_in_pdb()` to keep
+  to the developer package stay on `/Zi` through `-DENABLE_STATIC_LIBS_PDB=ON` to keep
   the package size, so they are not cached. Builds with embedded debug information also link without
   `/INCREMENTAL`, which keeps PDB files free of stale incremental-link data.
 * The Windows C++20 and conditional-compilation builds in
@@ -148,9 +148,14 @@ Users:
   [`windows_conditional_compilation.yml`](./../../../../.github/workflows/windows_conditional_compilation.yml)
   use separate `_cpp20` and `_collect` remote cache directories.
 
-The cleanup jobs in [`cleanup_caches.yml`](./../../../../.github/workflows/cleanup_caches.yml)
-remove `.cache` archives but do not trim remote ccache entries. `CCACHE_MAXSIZE` limits only
-the local cache, so remote storage requires separate maintenance.
+`CCACHE_MAXSIZE` limits only the local cache. The remote storage on Linux and Windows is trimmed
+monthly by the `Cleanup_remote_ccache_*` jobs in
+[`cleanup_caches.yml`](./../../../../.github/workflows/cleanup_caches.yml) with
+`ccache --trim-dir --trim-method mtime` (ccache 4.8 or newer, preinstalled in the
+`ov_build/ubuntu_24_04_x64` image and on the Windows build runners). Least recently used entries
+are evicted down to 500 GiB, while entries used within the last 7 days are kept unless the storage
+exceeds 750 GiB. Builds must keep `update-mtime=true` in the remote storage URL so that cache hits
+refresh the modification time used for eviction.
 
 ## Cloud Storage via Azure Blob Storage
 
