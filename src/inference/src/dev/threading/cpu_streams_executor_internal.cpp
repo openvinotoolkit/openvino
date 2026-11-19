@@ -64,7 +64,17 @@ std::vector<int> map_proc_kinds_to_tbb_core_types(const std::vector<int>& sys_co
     std::vector<int> mapped_core_types;
     mapped_core_types.reserve(proc_kinds.size());
 
-    const auto core_type_counts = get_core_type_count();
+    auto core_type_counts = get_core_type_count();
+    if (!core_type_counts.empty()) {
+        std::size_t kind_count = 0;
+        for (const auto core_type : {MAIN_CORE_PROC, EFFICIENT_CORE_PROC, LP_EFFICIENT_CORE_PROC}) {
+            kind_count += static_cast<std::size_t>(core_type_counts[core_type]);
+        }
+        // hwloc may merge small maximum-frequency differences into a single TBB core kind.
+        if (kind_count != sys_core_types.size()) {
+            core_type_counts.clear();
+        }
+    }
 
     for (const auto proc_kind : proc_kinds) {
         for (const auto core_type : map_proc_kind_to_tbb_core_types(sys_core_types, core_type_counts, proc_kind)) {
