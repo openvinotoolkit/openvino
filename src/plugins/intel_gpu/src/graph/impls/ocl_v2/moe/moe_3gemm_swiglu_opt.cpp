@@ -806,7 +806,7 @@ public:
         return slots;
     }
 
-    void set_otd_weight_pointers(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, scratch_buffers& scratch) {
+    static void set_otd_weight_pointers(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, scratch_buffers& scratch) {
         OPENVINO_ASSERT(instance._weights.gate_w,
                         "MoE offload (OFFLOAD_RATIO) supports a single stream only: the expert slots of ",
                         instance.id(),
