@@ -179,5 +179,43 @@ INSTANTIATE_TEST_SUITE_P(smoke_IRDFT_4d_axes_2d, RDFTLayerTest,
                             ::testing::Values(ov::test::utils::DFTOpType::INVERSE),
                             ::testing::Values(ov::test::utils::DEVICE_CPU)), RDFTLayerTest::getTestCaseName);
 
+const std::vector<std::vector<size_t>> shapes_inverse_multi_axis_short_spectrum = {
+    {2, 2, 2},
+};
+
+const std::vector<std::vector<int64_t>> axes_inverse_multi_axis_short_spectrum = {
+    {0, 1},
+    {1, 0},
+};
+
+const std::vector<std::vector<int64_t>> signal_sizes_inverse_multi_axis_short_spectrum = {
+    {2, 6},
+    {4, 4},
+    {3, 5},
+    {17, 5},
+    {129, 5},
+    {1, 4},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_IRDFT_multi_axis_short_spectrum, RDFTLayerTest,
+                         ::testing::Combine(
+                            ::testing::ValuesIn(shapes_inverse_multi_axis_short_spectrum),
+                            ::testing::ValuesIn(model_types),
+                            ::testing::ValuesIn(axes_inverse_multi_axis_short_spectrum),
+                            ::testing::ValuesIn(signal_sizes_inverse_multi_axis_short_spectrum),
+                            ::testing::Values(ov::test::utils::DFTOpType::INVERSE),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)), RDFTLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_IRDFT_three_axes_padding, RDFTLayerTest,
+                                 ::testing::Combine(
+                                     ::testing::Values(std::vector<size_t>{2, 3, 2, 2}),
+                                     ::testing::ValuesIn(model_types),
+                                     ::testing::Values(std::vector<int64_t>{0, 1, 2}, std::vector<int64_t>{2, 0, 1}),
+                                     ::testing::Values(std::vector<int64_t>{3, 5, 6},
+                                                             std::vector<int64_t>{4, 2, 5},
+                                                             std::vector<int64_t>{2, 3, 4}),
+                                     ::testing::Values(ov::test::utils::DFTOpType::INVERSE),
+                                     ::testing::Values(ov::test::utils::DEVICE_CPU)), RDFTLayerTest::getTestCaseName);
+
 
 
