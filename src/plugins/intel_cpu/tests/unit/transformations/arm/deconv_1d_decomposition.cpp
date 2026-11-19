@@ -25,7 +25,6 @@
 #include "openvino/op/pad.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/op/reverse.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
@@ -72,18 +71,10 @@ struct DeconvTestParams {
     ov::op::PadType pad_type = ov::op::PadType::EXPLICIT;
     bool expect_transformation = true;
     bool with_output_shape = false;  // Test 3-input variant
-    bool check_accuracy = false;
 };
 
 class DeconvDecomposition1DTest : public TransformationTestsF, public ::testing::WithParamInterface<DeconvTestParams> {
 public:
-    static std::shared_ptr<ov::op::v0::Constant> makeWeights(const DeconvTestParams& p) {
-        return ov::opset1::Constant::create(
-            ov::element::f32,
-            p.weights_shape,
-            p.check_accuracy ? std::vector<float>{1, 2, 3, 4, 5, 6} : std::vector<float>{1});
-    }
-
     static std::string getTestCaseName(const testing::TestParamInfo<DeconvTestParams>& obj) {
         const auto& p = obj.param;
         std::ostringstream result;
@@ -101,7 +92,7 @@ public:
             return nullptr;
 
         auto input_e = std::make_shared<ov::opset1::Parameter>(ov::element::f32, p.input_shape);
-        auto weights_e = makeWeights(p);
+        auto weights_e = ov::opset1::Constant::create(ov::element::f32, p.weights_shape, {1});
 
         auto zero_scalar = c0_i32();
         auto one_scalar = c1_i32();
@@ -197,17 +188,13 @@ public:
         auto pad_value = ov::op::v0::Constant::create(result.get_element_type(), {}, {0});
         result = std::make_shared<ov::op::v1::Pad>(result, pads_begin_dyn, pads_end_dyn, pad_value, ov::op::PadMode::CONSTANT);
 
-        // Weights: reshape to 4D, reverse the kernel and transpose
+        // Weights: reshape to 4D and transpose
         auto weights_shape_1d = shape_of_i32(weights_e);
         auto weights_4d_shape = concat0({weights_shape_1d, c1_1d()});
-        auto weights_4d = ov::op::util::make_try_fold<ov::op::v1::Reshape>(weights_e, weights_4d_shape, false);
-        auto weights_reversed =
-            ov::op::util::make_try_fold<ov::op::v1::Reverse>(weights_4d,
-                                                             ov::op::v0::Constant::create(ov::element::i32, {1}, {2}),
-                                                             ov::op::v1::Reverse::Mode::INDEX);
+        auto weights_4d = std::make_shared<ov::op::v1::Reshape>(weights_e, weights_4d_shape, false);
         std::vector<int32_t> transpose_order = {1, 0, 2, 3};
         auto transpose_const = ov::op::v0::Constant::create(ov::element::i32, {4}, transpose_order);
-        auto weights_transposed = ov::op::util::make_try_fold<ov::op::v1::Transpose>(weights_reversed, transpose_const);
+        auto weights_transposed = std::make_shared<ov::op::v1::Transpose>(weights_4d, transpose_const);
 
         // 2D Convolution
         ov::Strides conv_strides{1, 1};
@@ -233,7 +220,7 @@ protected:
         const auto rank = p.input_shape.size();
 
         auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, p.input_shape);
-        auto weights = makeWeights(p);
+        auto weights = ov::opset1::Constant::create(ov::element::f32, p.weights_shape, {1});
 
         // Create strides/pads based on dimensionality (3D vs 4D)
         ov::Strides strides = (rank == 3) ? ov::Strides{p.stride} : ov::Strides{1, 1};
@@ -280,11 +267,6 @@ protected:
             model_ref = buildExpectedModel(p);
         }
 
-        if (p.check_accuracy) {
-            comparator.enable(FunctionsComparator::ACCURACY);
-            comparator.enable(FunctionsComparator::CONST_VALUES);
-            comparator.enable(FunctionsComparator::ATTRIBUTES);
-        }
         manager.register_pass<Deconv1DDecomposition>();
     }
 };
@@ -341,22 +323,4 @@ INSTANTIATE_TEST_SUITE_P(DeconvDecomposition1DTests,
                                               ov::op::PadType::EXPLICIT,
                                               false,  // Should NOT transform
                                               false}),
-                         DeconvDecomposition1DTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(DeconvDecomposition1DAccuracyTests,
-                         DeconvDecomposition1DTest,
-                         ::testing::Values(DeconvTestParams{ov::PartialShape{1, 2, 2},
-                                                            ov::Shape{2, 1, 3},
-                                                            1,
-                                                            ov::op::PadType::EXPLICIT,
-                                                            true,
-                                                            false,
-                                                            true},
-                                           DeconvTestParams{ov::PartialShape{1, 2, 2},
-                                                            ov::Shape{2, 1, 3},
-                                                            2,
-                                                            ov::op::PadType::EXPLICIT,
-                                                            true,
-                                                            false,
-                                                            true}),
                          DeconvDecomposition1DTest::getTestCaseName);

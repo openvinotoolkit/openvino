@@ -39,6 +39,9 @@ audio branch. Built-in entries come from `projector_catalog` in
 
 The built-in `qwen3vl_merger` projector supports BF16 and Q8_0 weights.
 
+On ARM CPU, the `qwen3tts_gen` codec can produce incorrect output because the 1D transposed
+convolution decomposition does not reverse the kernel.
+
 InternViT-6B (width 3200, 45 layers) uses RMS norms like the reference, but has no fixture.
 The LFM2.5 vocoder is a separate `lfm2.audio_vocoder` architecture.
 
