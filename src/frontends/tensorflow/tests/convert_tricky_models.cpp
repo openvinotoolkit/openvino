@@ -335,6 +335,22 @@ TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithConstResultSubgraphs) {
     }
 }
 
+TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithBF16ConstantsInHalfVal) {
+    // bfloat16 Const values stored in half_val as raw 16-bit patterns: a scalar (0x4000 = 2.0)
+    // and a splat with a single value for a [2, 3] shape (0x3FC0 = 1.5)
+    { model = convert_model("model_bf16_const_half_val/model_bf16_const_half_val.pbtxt"); }
+    {
+        // create a reference graph
+        auto x = make_shared<v0::Parameter>(element::bf16, Shape{2, 3});
+        auto scalar_const = make_shared<v0::Constant>(element::bf16, Shape{}, vector<bfloat16>{bfloat16(2.0f)});
+        auto mul = make_shared<v1::Multiply>(x, scalar_const);
+        auto splat_const = make_shared<v0::Constant>(element::bf16, Shape{2, 3}, vector<bfloat16>(6, bfloat16(1.5f)));
+        auto add = make_shared<v1::Add>(mul, splat_const);
+
+        model_ref = make_shared<Model>(OutputVector{add}, ParameterVector{x});
+    }
+}
+
 TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithIteratorGetNext) {
     { model = convert_model("model_with_iterator_get_next/model_with_iterator_get_next.pbtxt"); }
     {

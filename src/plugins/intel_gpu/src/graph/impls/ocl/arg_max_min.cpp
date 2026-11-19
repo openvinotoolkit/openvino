@@ -85,7 +85,7 @@ public:
         argm_params.argMaxMinAxis = GetArgMaxMinAxis(axis, impl_param.get_output_layout().get_rank());
 
         const auto& constant_mem = impl_param.memory_deps;
-        if ((constant_mem.count(1) != 0u) && !argm_params.has_dynamic_outputs()) {
+        if ((constant_mem.count(1) != 0U) && !argm_params.has_dynamic_outputs()) {
             // The topK could be got by reading impl_param.memory_deps.at(1).
             // However, here we utilize output_layout and axis information to minimize mem_lock.
             auto output_layout = impl_param.get_output_layout(0);
@@ -135,7 +135,7 @@ public:
 
 namespace detail {
 attach_arg_max_min_impl::attach_arg_max_min_impl() {
-    auto types = {data_types::f16, data_types::f32, data_types::i8, data_types::i32, data_types::u8};
+    auto types = {data_types::f16, data_types::bf16, data_types::f32, data_types::i8, data_types::i32, data_types::u8};
 
     auto formats = {
         format::bfyx,
