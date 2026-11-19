@@ -3,6 +3,7 @@
 //
 
 #include "hsm_sections/io_layouts.hpp"
+
 #include "intel_npu/common/itt.hpp"
 
 namespace {
@@ -23,8 +24,6 @@ IOLayoutsSection::IOLayoutsSection(const std::vector<ov::Layout>& input_layouts,
       m_logger("IOLayoutsSection", Logger::global().level()) {}
 
 void IOLayoutsSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "IOLayoutsSection::write");
-
     const uint32_t number_of_input_layouts = m_input_layouts.size();
     const uint32_t number_of_output_layouts = m_output_layouts.size();
     sink({reinterpret_cast<const std::byte*>(&number_of_input_layouts), sizeof(number_of_input_layouts)});
@@ -59,7 +58,6 @@ std::vector<ov::Layout> IOLayoutsSection::get_output_layouts() const {
 
 ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> IOLayoutsSection::decode =
     [](const ov::runtime::hsm::Section& section) -> std::optional<std::shared_ptr<ISection>> {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "IOLayoutsSection::decode");
     const Logger logger("IOLayoutsSection", Logger::global().level());
     OPENVINO_ASSERT(section.tag().id() == static_cast<uint32_t>(SectionTypeCode::IO_LAYOUTS),
                     "Logic error: the decoder received a section of the wrong type");

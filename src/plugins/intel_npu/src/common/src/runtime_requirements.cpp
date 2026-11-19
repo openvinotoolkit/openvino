@@ -122,8 +122,6 @@ RuntimeRequirementsSection::RuntimeRequirementsSection(const RuntimeRequirements
 }
 
 void RuntimeRequirementsSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "RuntimeRequirementsSection::write");
-
     const CRE cre = m_runtime_requirements.get_cre();
     OPENVINO_ASSERT(!unknown_token_in_cre(cre), "Unknown CRE tokens should not be serialized inside the blob");
 
@@ -161,7 +159,6 @@ RuntimeRequirements RuntimeRequirementsSection::get_runtime_requirements() const
 
 ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> RuntimeRequirementsSection::decode =
     [](const ov::runtime::hsm::Section& section) -> std::optional<std::shared_ptr<ISection>> {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "RuntimeRequirementsSection::read");
     Logger logger("RuntimeRequirementsSection", Logger::global().level());
     OPENVINO_ASSERT(section.tag().id() == static_cast<uint32_t>(SectionTypeCode::RUNTIME_REQUIREMENTS),
                     "Logic error: the decoder received a section of the wrong type");

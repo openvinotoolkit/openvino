@@ -3,6 +3,7 @@
 //
 
 #include "hsm_sections/compiler_version.hpp"
+
 #include "intel_npu/common/itt.hpp"
 
 namespace intel_npu {
@@ -15,7 +16,6 @@ CompilerVersionSection::CompilerVersionSection(const int32_t version)
 }
 
 ov::util::MemoryView CompilerVersionSection::encode() const {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompilerVersionSection::encode");
     m_logger.debug("Encoding compiler version %lu", m_compiler_version);
 
     return ov::util::MemoryView(reinterpret_cast<const std::byte*>(&m_compiler_version), sizeof(m_compiler_version));
@@ -27,7 +27,6 @@ int32_t CompilerVersionSection::get_compiler_version() const {
 
 ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> CompilerVersionSection::decode =
     [](const ov::runtime::hsm::Section& section) -> std::optional<std::shared_ptr<ISection>> {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompilerVersionSection::decode");
     const Logger logger("CompilerVersionSection", Logger::global().level());
     OPENVINO_ASSERT(section.tag().id() == static_cast<uint32_t>(SectionTypeCode::COMPILER_VERSION),
                     "Logic error: the decoder received a section of the wrong type");

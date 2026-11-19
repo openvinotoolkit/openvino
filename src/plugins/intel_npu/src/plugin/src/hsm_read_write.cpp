@@ -130,6 +130,7 @@ std::pair<BlobSectionsRegistry, std::optional<RuntimeRequirements>> read_from(
     const std::unordered_map<SectionType, ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>>>& section_readers,
     const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& type_evaluators,
     const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>>& instance_evaluators) {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "hsm::read");
     const Logger logger("HSMReader", Logger::global().level());
     logger.debug("Parsing the HSM container");
 
@@ -273,6 +274,7 @@ std::pair<BlobSectionsRegistry, std::optional<RuntimeRequirements>> read_from(
 }
 
 void write_to(std::ostream& stream, const BlobSectionsRegistry& blob_sections_registry) {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "hsm::write");
     const Logger logger("HSMWriter", Logger::global().level());
     logger.debug("Writing into stream using the HSM format");
 

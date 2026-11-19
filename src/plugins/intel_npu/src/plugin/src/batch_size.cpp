@@ -27,7 +27,6 @@ int64_t BatchSizeSection::get_batch_size() const {
 }
 
 ov::util::MemoryView BatchSizeSection::encode() const {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "BatchSizeSection::encode");
     m_logger.debug("Encoding batch size %ld", m_batch_size);
 
     return ov::util::MemoryView(reinterpret_cast<const std::byte*>(&m_batch_size), sizeof(m_batch_size));
@@ -35,7 +34,6 @@ ov::util::MemoryView BatchSizeSection::encode() const {
 
 ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> BatchSizeSection::decode =
     [](const ov::runtime::hsm::Section& section) -> std::optional<std::shared_ptr<ISection>> {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "BatchSizeSection::decode");
     const Logger logger("BatchSizeSection", Logger::global().level());
     OPENVINO_ASSERT(section.tag().id() == static_cast<uint32_t>(SectionTypeCode::BATCH_SIZE),
                     "Logic error: the decoder received a section of the wrong type");

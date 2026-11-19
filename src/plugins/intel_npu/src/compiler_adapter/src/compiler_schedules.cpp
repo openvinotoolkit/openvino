@@ -58,7 +58,7 @@ std::vector<std::shared_ptr<CREToken>> ELFMainScheduleSection::get_cre_tokens(
 }
 
 void ELFMainScheduleSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFMainScheduleSection::write");
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFMainScheduleSection::encode");
     const auto* graph = std::get_if<std::shared_ptr<IGraph>>(&m_graph_or_schedule);
     OPENVINO_ASSERT(graph, INVALID_STATE_MESSAGE);
 
@@ -178,7 +178,7 @@ std::vector<std::shared_ptr<CREToken>> ELFInitSchedulesSection::get_cre_tokens(
 }
 
 void ELFInitSchedulesSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFInitSchedulesSection::write");
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFInitSchedulesSection::encode");
     const auto* weightless_graph = std::get_if<std::shared_ptr<WeightlessGraph>>(&m_graph_or_schedules);
     OPENVINO_ASSERT(weightless_graph, INVALID_STATE_MESSAGE);
 
@@ -347,7 +347,7 @@ std::vector<std::shared_ptr<CREToken>> DynamicScheduleSection::get_cre_tokens(
 }
 
 void DynamicScheduleSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "DynamicScheduleSection::write");
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "DynamicScheduleSection::encode");
     m_logger.debug("Reusing the main schedule section encoder");
     m_impl.encode(sink);
 }

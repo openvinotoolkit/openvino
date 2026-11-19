@@ -3,6 +3,7 @@
 //
 
 #include "intel_npu/common/hsm_sections/encrypted_schedules_flag.hpp"
+
 #include "intel_npu/common/itt.hpp"
 
 namespace intel_npu {
@@ -24,9 +25,7 @@ std::vector<std::shared_ptr<CREToken>> EncryptedSchedulesFlagSection::get_cre_to
 }
 
 ov::util::MemoryView EncryptedSchedulesFlagSection::encode() const {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "EncryptedSchedulesFlagSection::encode");
     m_logger.debug("Encoding the encryption flag %d", m_flag);
-
     return ov::util::MemoryView(reinterpret_cast<const std::byte*>(&m_flag), sizeof(m_flag));
 }
 
@@ -40,7 +39,6 @@ void EncryptedSchedulesFlagSection::set_flag(const bool new_value) {
 
 ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> EncryptedSchedulesFlagSection::decode =
     [](const ov::runtime::hsm::Section& section) -> std::optional<std::shared_ptr<ISection>> {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "EncryptedSchedulesFlagSection::decode");
     const Logger logger("EncryptedSchedulesFlagSection", Logger::global().level());
     OPENVINO_ASSERT(section.tag().id() == static_cast<uint32_t>(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG),
                     "Logic error: the decoder received a section of the wrong type");
