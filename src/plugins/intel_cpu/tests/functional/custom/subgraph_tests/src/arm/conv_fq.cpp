@@ -2,12 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+
 #include "common_test_utils/node_builders/activation.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/swish.hpp"
+#include "openvino/runtime/core.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/util/common_util.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
@@ -183,6 +192,64 @@ TEST_P(ConvAndFQ, CompareWithRefs) {
     checkConvolutionPrecision(quantizationParams.expectedPrecision);
     CheckPluginRelatedResults(compiledModel, "Convolution");
 }
+
+#if defined(OPENVINO_ARCH_ARM64)
+TEST(smoke_ConvAndFQ_CPU, RoundsACLRequantizationZeroPoint) {
+    const Shape shape{1, 4, 4, 4};
+    const auto input = std::make_shared<op::v0::Parameter>(element::f32, shape);
+    const auto quantize = [](const Output<Node>& data, float low, float high) {
+        const auto lower = op::v0::Constant::create(element::f32, {}, {low});
+        const auto upper = op::v0::Constant::create(element::f32, {}, {high});
+        return std::make_shared<op::v0::FakeQuantize>(data, lower, upper, lower, upper, 256);
+    };
+    const auto activation = quantize(input->output(0), 0.0F, 0.64194745F);
+    const auto weights =
+        op::v0::Constant::create(element::i8, {4, 4, 1, 1}, {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1});
+    const auto weight_scales = op::v0::Constant::create(element::f32, {4, 1, 1, 1}, {0.012F, 0.011F, 0.014F, 0.017F});
+    const auto scaled_weights =
+        std::make_shared<op::v1::Multiply>(std::make_shared<op::v0::Convert>(weights, element::f32), weight_scales);
+    const auto convolution = std::make_shared<op::v1::Convolution>(activation,
+                                                                   scaled_weights,
+                                                                   Strides{1, 1},
+                                                                   CoordinateDiff{0, 0},
+                                                                   CoordinateDiff{0, 0},
+                                                                   Strides{1, 1});
+    const auto bias = op::v0::Constant::create(element::f32, {1, 4, 1, 1}, {0.012F, -0.018F, 0.032F, -0.041F});
+    const auto sum = std::make_shared<op::v1::Add>(convolution, bias);
+    constexpr float output_low = -0.78389084F;
+    constexpr float output_high = 0.77776670F;
+    const auto output = quantize(sum->output(0), output_low, output_high);
+
+    Core core;
+    auto compiled = core.compile_model(std::make_shared<Model>(OutputVector{output}, ParameterVector{input}),
+                                       ov::test::utils::DEVICE_CPU);
+    bool found_convolution = false;
+    for (const auto& node : compiled.get_runtime_model()->get_ordered_ops()) {
+        const auto& info = node->get_rt_info();
+        if (info.at(ov::exec_model_info::LAYER_TYPE).as<std::string>() == "Convolution") {
+            EXPECT_EQ(info.at(ov::exec_model_info::RUNTIME_PRECISION).as<element::Type>(), element::u8);
+            found_convolution = true;
+        }
+    }
+    ASSERT_TRUE(found_convolution);
+
+    auto request = compiled.create_infer_request();
+    auto tensor = request.get_input_tensor();
+    std::fill_n(tensor.data<float>(), tensor.get_size(), 0.0F);
+    request.infer();
+    const auto result = request.get_output_tensor();
+    ASSERT_EQ(result.get_shape(), shape);
+    constexpr float step = (output_high - output_low) / 255.0F;
+    const std::vector<int> quantized_bias{130, 125, 133, 121};
+    const auto* values = result.data<const float>();
+    const size_t spatial_size = shape[2] * shape[3];
+    for (size_t channel = 0; channel < quantized_bias.size(); ++channel) {
+        for (size_t index = 0; index < spatial_size; ++index) {
+            EXPECT_NEAR(values[channel * spatial_size + index], output_low + quantized_bias[channel] * step, 0.001F);
+        }
+    }
+}
+#endif
 
 namespace {
 
