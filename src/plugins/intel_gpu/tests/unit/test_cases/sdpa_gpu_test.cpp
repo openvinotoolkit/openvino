@@ -2993,6 +2993,145 @@ TEST(sdpa_gpu_custom, scalar_placeholder_mask_matches_scale_only) {
     }
 }
 
+TEST(sdpa_gpu_custom, opt_multi_token_fp16_accumulation_accuracy) {
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_fp16) {
+        GTEST_SKIP() << "cl_khr_fp16 is not supported.";
+    }
+
+    const size_t batch = 2;
+    const size_t seq_len = 64;
+    const size_t num_heads = 16;
+    const size_t head_size = 80;
+    const ov::Shape blhe_shape{batch, seq_len, num_heads, head_size};
+    const ov::Shape bhle_shape{batch, num_heads, seq_len, head_size};
+
+    const layout qkv_layout(blhe_shape, data_types::f16, format::bfyx);
+    auto q_mem = engine.allocate_memory(qkv_layout);
+    auto k_mem = engine.allocate_memory(qkv_layout);
+    auto v_mem = engine.allocate_memory(qkv_layout);
+
+    auto q_data = rg.generate_random_1d<ov::float16>(ov::shape_size(blhe_shape), -2.0f, 2.0f);
+    auto k_data = rg.generate_random_1d<ov::float16>(ov::shape_size(blhe_shape), -2.0f, 2.0f);
+    auto v_data = rg.generate_random_1d<ov::float16>(ov::shape_size(blhe_shape), -2.0f, 2.0f);
+
+    auto blhe_idx = [&](size_t b, size_t s, size_t h, size_t d) {
+        return ((b * seq_len + s) * num_heads + h) * head_size + d;
+    };
+
+    // Batch 0 uses structured FP16 values that expose half accumulation stagnation in Gemm1 (D=80) and Gemm2 (S=64):
+    // First 16 head dims sum to 64.0 (1 ULP = 0.0625 in FP16) and remaining 64 dims add +/-0.025 (< 0.5 ULP in FP16).
+    for (size_t s = 0; s < seq_len; ++s) {
+        for (size_t h = 0; h < num_heads; ++h) {
+            for (size_t d = 0; d < head_size; ++d) {
+                q_data[blhe_idx(0, s, h, d)] = (d < 16) ? ov::float16(4.0f) : ov::float16(0.25f);
+                const float k_tail = (s == 0) ? 0.1f : -0.1f;
+                k_data[blhe_idx(0, s, h, d)] = (d < 16) ? ov::float16(1.0f) : ov::float16(k_tail);
+                const float v_sign = (d % 2 == 0) ? 1.0f : -1.0f;
+                v_data[blhe_idx(0, s, h, d)] = ov::float16(v_sign * ((s == 0) ? 8.0f : 0.25f));
+            }
+        }
+    }
+
+    set_values(q_mem, q_data);
+    set_values(k_mem, k_data);
+    set_values(v_mem, v_data);
+
+    topology topo;
+    topo.add(input_layout("q", qkv_layout));
+    topo.add(input_layout("k", qkv_layout));
+    topo.add(input_layout("v", qkv_layout));
+    topo.add(scaled_dot_product_attention("sdpa",
+                                          {input_info("q"), input_info("k"), input_info("v")},
+                                          false,
+                                          -1,
+                                          {0, 2, 1, 3},
+                                          {0, 2, 1, 3},
+                                          {0, 2, 1, 3},
+                                          {0, 1, 2, 3},
+                                          {},
+                                          false));
+    topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+
+    ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    cfg.set_property(ov::intel_gpu::enable_sdpa_micro(false));
+    cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"sdpa", {format::type::bfyx, "sdpa_opt"}}
+    }));
+
+    auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
+    net->set_input_data("q", q_mem);
+    net->set_input_data("k", k_mem);
+    net->set_input_data("v", v_mem);
+    auto out_mem = net->execute().at("result").get_memory();
+
+    std::string sdpa_id;
+    for (const auto& info : net->get_primitives_info()) {
+        if (info.type_id == "scaled_dot_product_attention") {
+            sdpa_id = info.original_id;
+        }
+    }
+    ASSERT_FALSE(sdpa_id.empty()) << "Expected an SDPA primitive";
+    const auto sdpa_inst = net->get_primitive(sdpa_id);
+    ASSERT_NE(sdpa_inst, nullptr);
+    const auto kernels = sdpa_inst->get_impl()->get_kernels_dump_info(*sdpa_inst->get_impl_params()).get_entries();
+    ASSERT_NE(kernels.find("sdpa_opt__multi_reg"), std::string::npos) << "Executed kernels: " << kernels;
+
+    ASSERT_EQ(out_mem->get_layout().get_shape(), bhle_shape);
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
+
+    const float scale = 1.0f / std::sqrt(static_cast<float>(head_size));
+    float max_abs_diff = 0.0f;
+    double sq_err_sum = 0.0;
+    const size_t total_elems = ov::shape_size(bhle_shape);
+
+    std::vector<float> probs(seq_len);
+    for (size_t b = 0; b < batch; ++b) {
+        for (size_t h = 0; h < num_heads; ++h) {
+            for (size_t qi = 0; qi < seq_len; ++qi) {
+                float max_logit = -std::numeric_limits<float>::infinity();
+                for (size_t ki = 0; ki < seq_len; ++ki) {
+                    float dot = 0.0f;
+                    for (size_t d = 0; d < head_size; ++d) {
+                        dot += static_cast<float>(q_data[blhe_idx(b, qi, h, d)]) *
+                               static_cast<float>(k_data[blhe_idx(b, ki, h, d)]);
+                    }
+                    probs[ki] = dot * scale;
+                    max_logit = std::max(max_logit, probs[ki]);
+                }
+                float sum_exp = 0.0f;
+                for (size_t ki = 0; ki < seq_len; ++ki) {
+                    probs[ki] = std::exp(probs[ki] - max_logit);
+                    sum_exp += probs[ki];
+                }
+                for (size_t ki = 0; ki < seq_len; ++ki) {
+                    probs[ki] /= sum_exp;
+                }
+                for (size_t d = 0; d < head_size; ++d) {
+                    float acc = 0.0f;
+                    for (size_t ki = 0; ki < seq_len; ++ki) {
+                        acc += probs[ki] * static_cast<float>(v_data[blhe_idx(b, ki, h, d)]);
+                    }
+                    const float ref_f16 = static_cast<float>(ov::float16(acc));
+                    const size_t out_idx = ((b * num_heads + h) * seq_len + qi) * head_size + d;
+                    const float got = static_cast<float>(out_ptr[out_idx]);
+                    ASSERT_TRUE(std::isfinite(got)) << "Non-finite output at index " << out_idx;
+                    const float diff = std::abs(got - ref_f16);
+                    max_abs_diff = std::max(max_abs_diff, diff);
+                    sq_err_sum += static_cast<double>(diff) * static_cast<double>(diff);
+                }
+            }
+        }
+    }
+
+    const double mse = sq_err_sum / static_cast<double>(total_elems);
+    EXPECT_LE(max_abs_diff, 4e-3f);
+    EXPECT_LT(mse, 1e-6);
+}
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
 struct sdpa_sliding_window_test_params {
     int head_size;
