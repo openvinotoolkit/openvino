@@ -72,7 +72,7 @@ void StatelessKV::validate_and_infer_types() {
     const auto& seq_len_shape = get_input_partial_shape(2);
     const auto& seq_len_dtype = get_input_element_type(2);
 
-    OPENVINO_ASSERT(m_window_size > 0 || m_window_size == -1, "[GPU] stateless_kv window_size must be non-negative");
+    OPENVINO_ASSERT(m_window_size > 0 || m_window_size == -1, "[GPU] stateless_kv window_size is invaliad:", m_window_size);
     OPENVINO_ASSERT(m_window_size == -1 || !m_has_pos_idx,
                     "[GPU] stateless_kv doesn't support window_size together with pos_idx");
     OPENVINO_ASSERT(!m_sliding_window_cache || m_window_size > 0, "[GPU] stateless_kv sliding_window_cache requires window_size > 0");
