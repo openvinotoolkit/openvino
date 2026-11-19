@@ -52,10 +52,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_Blocked, ConvertCPULayerTest,
 
 class ConvertToFP8RoundingCPULayerTest : public ConvertCPULayerTest {
 protected:
-    void SetUp() override {
-        ConvertCPULayerTest::SetUp();
-        abs_threshold = 0.f;
-        rel_threshold = 0.f;
+    // Bit-exact check: the default comparator skips NaN, inf and max values, and ignores the sign of zero
+    void validate() override {
+        const auto actual = get_plugin_outputs();
+        const auto expected = calculate_refs();
+        ASSERT_EQ(expected.size(), 1);
+        ASSERT_EQ(actual.size(), 1);
+        ASSERT_EQ(expected[0].get_element_type(), actual[0].get_element_type());
+        ASSERT_EQ(expected[0].get_byte_size(), actual[0].get_byte_size());
+        const auto* expected_data = static_cast<const uint8_t*>(expected[0].data());
+        const auto* actual_data = static_cast<const uint8_t*>(actual[0].data());
+        for (size_t i = 0; i < expected[0].get_byte_size(); ++i) {
+            EXPECT_EQ(static_cast<int>(expected_data[i]), static_cast<int>(actual_data[i])) << "element " << i;
+        }
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
