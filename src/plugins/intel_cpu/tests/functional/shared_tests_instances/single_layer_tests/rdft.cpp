@@ -55,6 +55,20 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_IRDFT_1d, RDFTLayerTest,
                             ::testing::Values(ov::test::utils::DFTOpType::INVERSE),
                             ::testing::Values(ov::test::utils::DEVICE_CPU)), RDFTLayerTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_IRDFT_1d_short_spectrum, RDFTLayerTest,
+                                 ::testing::Combine(
+                                     ::testing::Values(std::vector<size_t>{1, 2}, std::vector<size_t>{2, 2}),
+                                     ::testing::ValuesIn(model_types),
+                                     ::testing::Values(std::vector<int64_t>{0}),
+                                     ::testing::Values(std::vector<int64_t>{4},
+                                                             std::vector<int64_t>{5},
+                                                             std::vector<int64_t>{6},
+                                                             std::vector<int64_t>{8},
+                                                             std::vector<int64_t>{17},
+                                                             std::vector<int64_t>{18}),
+                                     ::testing::Values(ov::test::utils::DFTOpType::INVERSE),
+                                     ::testing::Values(ov::test::utils::DEVICE_CPU)), RDFTLayerTest::getTestCaseName);
+
 const std::vector<std::vector<size_t>> shapes_forward_2d = {
     {10, 15},
     {64, 32},
