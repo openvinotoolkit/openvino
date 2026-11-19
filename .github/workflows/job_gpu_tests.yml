@@ -60,6 +60,8 @@ jobs:
       BUILD_DIR: ${{ github.workspace }}/build
       MODELS_PATH: ${{ github.workspace }}/testdata
       GTEST_PARALLEL_SCRIPT: /usr/local/bin/gtest_parallel.py
+      PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py
+      PARALLEL_TEST_CACHE: ${{ github.workspace }}/install/tests/test_cache.lst
       NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
       NEO_CACHE_DIR: /root/.cache/neo_compiler_cache 
       NEO_CACHE_MAX_SIZE: 10737418240 # 10GB
@@ -92,11 +94,10 @@ jobs:
       #
 
       # Samples are built in the Build job and reused from openvino_package
-      # git uses the system CA bundle, so add the proxy root CA (mounted at
-      # /usr/local/share/ca-certificates) to it before cloning over HTTPS,
-      # otherwise git fails with "server certificate verification failed".
+      # git and pip use the system CA bundle, so add the proxy root CA (mounted at
+      # /usr/local/share/ca-certificates) to it before accessing HTTPS endpoints,
+      # otherwise they fail with certificate verification errors.
       - name: Add proxy CA certificate to system trust store
-        if: ${{ inputs.test_type == 'unit' }}
         run: update-ca-certificates
 
       - name: Clone test models
@@ -125,33 +126,81 @@ jobs:
       # Tests
       #
 
-      - name: OpenVINO GPU ${{ inputs.test_type }} Tests
-        id: run_tests
+      - name: Install python dependencies for run_parallel.py
+        if: ${{ inputs.test_type == 'func' }}
         env:
-          TEST_TYPE: ${{ inputs.test_type }}
+          PIP_CERT: /etc/ssl/certs/ca-certificates.crt
+        run: python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/layer_tests_summary/requirements.txt
+
+      - name: Restore tests execution time
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: ${{ inputs.test_type == 'func' }}
+        with:
+          path: ${{ env.PARALLEL_TEST_CACHE }}
+          key: ${{ runner.os }}-${{ runner.arch }}-tests-functional-gpu-${{ inputs.device }}-stamp-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-tests-functional-gpu-${{ inputs.device }}-stamp
+
+      - name: OpenVINO GPU unit Tests
+        id: run_unit_tests
+        if: ${{ inputs.test_type == 'unit' }}
+        env:
           DEVICE: ${{ inputs.device }}
           CUSTOM_TEST_FILTER: ${{ inputs.test_filter }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          TEST_RESULTS_DIR="${DEVICE}"_"${TEST_TYPE}"_tests
+          TEST_RESULTS_DIR="${DEVICE}"_unit_tests
           echo "test_results_dir=$TEST_RESULTS_DIR" >> $GITHUB_OUTPUT
 
           rm -rf ${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR} && mkdir -p ${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR}
 
-          test_filter=''
           if [[ -n "${CUSTOM_TEST_FILTER}" ]]; then
             test_filter="${CUSTOM_TEST_FILTER}"
-          elif [[ "${TEST_TYPE}" == 'unit' ]]; then
-            test_filter='-*scatter_nd_update_gpu.dynamic_padded_output*:*border_gpu.basic_zero_input*:*bicubic_zeros_no_align_data1x1*:*bicubic_border_align_batches*:*bilinear_zeros_no_align_data1x1*:*non_zero_gpu.empty_input*:*mark_shape_of_subgraphs.concat_with_empty_tensor_inputs*:*concat_cpu_impl.dynamic_4d_f*:*border_gpu.basic_zero_input_dynamic*:*network_test.model_with_empty_input_is_not_dynamic*:*bicubic_zeros_align_data1x1*'
           else
-            test_filter='*smoke*'
+            test_filter='-*scatter_nd_update_gpu.dynamic_padded_output*:*border_gpu.basic_zero_input*:*bicubic_zeros_no_align_data1x1*:*bicubic_border_align_batches*:*bilinear_zeros_no_align_data1x1*:*non_zero_gpu.empty_input*:*mark_shape_of_subgraphs.concat_with_empty_tensor_inputs*:*concat_cpu_impl.dynamic_4d_f*:*border_gpu.basic_zero_input_dynamic*:*network_test.model_with_empty_input_is_not_dynamic*:*bicubic_zeros_align_data1x1*'
           fi
-          python3 ${GTEST_PARALLEL_SCRIPT} ${INSTALL_TEST_DIR}/ov_gpu_"${TEST_TYPE}"_tests --dump_json_test_results=${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR}/ov_gpu_"${TEST_TYPE}"_tests.json -- --report_unique_name --gtest_filter=$test_filter 
+          python3 ${GTEST_PARALLEL_SCRIPT} ${INSTALL_TEST_DIR}/ov_gpu_unit_tests --dump_json_test_results=${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR}/ov_gpu_unit_tests.json -- --report_unique_name --gtest_filter=$test_filter
+
+      - name: OpenVINO GPU func Tests (parallel)
+        if: ${{ inputs.test_type == 'func' }}
+        env:
+          CUSTOM_TEST_FILTER: ${{ inputs.test_filter }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+
+          test_filter='*smoke*'
+          if [[ -n "${CUSTOM_TEST_FILTER}" ]]; then
+            test_filter="${CUSTOM_TEST_FILTER}"
+          fi
+          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_gpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=$test_filter
+
+      - name: Save tests execution time
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: ${{ inputs.test_type == 'func' && github.ref_name == 'master' }}
+        with:
+          path: ${{ env.PARALLEL_TEST_CACHE }}
+          key: ${{ runner.os }}-${{ runner.arch }}-tests-functional-gpu-${{ inputs.device }}-stamp-${{ github.sha }}
 
       - name: Upload Test Results
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
-        if: always()
+        if: ${{ always() && inputs.test_type == 'unit' }}
         with:
           name: test-results-${{ inputs.test_type }}-${{ inputs.device }}
-          path: ${{ env.INSTALL_TEST_DIR }}/${{ steps.run_tests.outputs.test_results_dir }}
+          path: ${{ env.INSTALL_TEST_DIR }}/${{ steps.run_unit_tests.outputs.test_results_dir }}
+          if-no-files-found: 'error'
+
+      - name: Upload Test Results
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        if: ${{ always() && inputs.test_type == 'func' }}
+        with:
+          name: test-results-${{ inputs.test_type }}-${{ inputs.device }}
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/temp/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/crashed/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/hash_table.csv
+            ${{ env.PARALLEL_TEST_CACHE }}
           if-no-files-found: 'error'
