@@ -198,7 +198,7 @@ RMSFusionMatcher::RMSFusionMatcher(bool force_tail_convert,
             const auto& gamma_shape = pattern_map.at(gamma).get_shape();
             if ((input_rank.is_static() && gamma_shape.size() > static_cast<size_t>(input_rank.get_length())) ||
                 (!gamma_shape.empty() && std::any_of(gamma_shape.begin(), gamma_shape.end() - 1, [](size_t dim) {
-                     return dim != 1;
+                    return dim != 1;
                 }))) {
                 // Leave the broadcast Multiply intact; the backward rewrite can still fuse its RMS input.
                 return false;
