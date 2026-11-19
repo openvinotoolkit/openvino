@@ -23,6 +23,7 @@
 #include "openvino/op/extractimagepatches.hpp"
 #include "openvino/op/eye.hpp"
 #include "openvino/op/greater_eq.hpp"
+#include "openvino/op/group_conv.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
@@ -3341,6 +3342,24 @@ TEST(GGUFOps, MultimodalPoolingAndConvolution) {
                     .attr<std::vector<int64_t>>("conv_params", {2, 2, 0, 0, 1, 1})
                     .build();
     expect_near(run_on_cpu(conv, {{"x", x}, {"w", make_f32_tensor({1, 1, 2, 2}, {1, 2, 3, 4})}}), {44, 64}, 1e-6f);
+}
+
+TEST(GGUFOps, DepthwiseConv2DAllowsPartiallyDynamicWeights) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_CONV_2D")
+                     .input("w", ov::element::f32, ov::PartialShape{2, 1, -1, -1})
+                     .input("x", ov::element::f32, {1, 2, 3, 3})
+                     .output("out", ov::element::f32, ov::PartialShape{1, 2, -1, -1})
+                     .attr<std::vector<int64_t>>("conv_params", {1, 1, 0, 0, 1, 1})
+                     .attr<bool>("depthwise", true)
+                     .build();
+
+    const auto ordered_ops = model->get_ordered_ops();
+    const auto group_conv = std::find_if(ordered_ops.begin(), ordered_ops.end(), [](const auto& node) {
+        return ov::is_type<ov::op::v1::GroupConvolution>(node);
+    });
+    ASSERT_NE(group_conv, ordered_ops.end());
+    EXPECT_EQ((*group_conv)->get_input_partial_shape(1), (ov::PartialShape{2, 1, 1, -1, -1}));
 }
 
 TEST(GGUFOps, Conv2DF16Im2colRoundingSurvivesSerialization) {

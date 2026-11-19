@@ -174,12 +174,9 @@ OutputVector translate_conv_2d(const NodeContext& context) {
         context.get_attribute<bool>("same_padding", false) ? ov::op::PadType::SAME_UPPER : ov::op::PadType::EXPLICIT;
     if (context.get_attribute<bool>("depthwise", false)) {
         const auto shape = w.get_partial_shape();
-        FRONT_END_OP_CONVERSION_CHECK(shape.is_static() && shape.rank() == 4 && shape[1] == 1,
+        FRONT_END_OP_CONVERSION_CHECK(shape.rank() == 4 && shape[1] == 1,
                                       "Depthwise CONV_2D expects [channels, 1, height, width] weights");
-        w = std::make_shared<ov::op::v1::Reshape>(
-            w,
-            i64_const({shape[0].get_length(), 1, 1, shape[2].get_length(), shape[3].get_length()}),
-            false);
+        w = std::make_shared<ov::op::v0::Unsqueeze>(w, i64_const({2}));
         return rename_outputs_with_suffix(
             {std::make_shared<ov::op::v1::GroupConvolution>(x, w, strides, pads, pads, dilation, auto_pad)},
             context.get_name());
