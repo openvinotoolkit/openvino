@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-19-21-18-51-000-44603426744",
+  "timestamp": "2026-11-19T21:18:51Z",
+  "run_id": "44603426744",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44603426744",
+  "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+  "commit_sha": "419b3b2c281b37308145afbed6cc0a349d17bbc2",
+  "pr_number": "39412",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39412",
+  "author": "CuriousPanCake",
+  "category": "Infrastructure",
+  "title": "Windows CC build fails with compiler/linker out-of-memory errors under high parallelism",
+  "signature": "Windows Release build runs out of memory - compiler fatal error C1060 (out of heap space) and linker fatal error LNK1102 (out of memory) under high parallelism|Infrastructure",
+  "signature_hash": "80cfa127185fbf3e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build_And_Run_Collect_Mode",
+      "conclusion": "failure",
+      "symptom": "ninja build fails: c1xx fatal error C1356 (unable to find mspdbcore.dll) on cosh.cpp.obj, then link of hello_classification.exe fails with LNK1102 out of memory"
+    },
+    {
+      "name": "ci/gha_overall_status_windows_cc",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails (exit 1) because Build_And_Run_Collect_Mode failed"
+    }
+  ],
+  "key_errors": [
+    "c1xx: fatal error C1356: unable to find mspdbcore.dll",
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/hello_classification.exe",
+    "LINK : fatal error LNK1102: out of memory",
+    "ninja: build stopped: subcommand failed."
+  ],
+  "root_cause": "The Windows Conditional Compilation (CC) build runs with CMAKE_BUILD_PARALLEL_LEVEL=31 on a shared runner. Under this high parallelism, the MSVC toolchain's shared PDB/debug-info server (mspdb*.dll) and linker run out of memory/resources mid-build: the compiler fails to load mspdbcore.dll (C1356) and shortly after the linker fails with LNK1102 (out of memory) while linking hello_classification.exe. This is the same recurring Windows CC resource-exhaustion pattern recorded 13 times previously (pattern 80cfa127185fbf3e), not caused by the PagedSparseAttentionFusion change in PR #39412.",
+  "reproduction_steps": "Not reliably reproducible outside CI; requires a Windows runner with similarly constrained memory and CMAKE_BUILD_PARALLEL_LEVEL=31 building the full OpenVINO Release CC configuration with ninja + MSVC 14.42 + ccache. Locally, building with a high -j parallelism on a memory-constrained Windows machine can trigger the same C1356/LNK1102 errors.",
+  "recommended_actions": [
+    "Reduce CMAKE_BUILD_PARALLEL_LEVEL for the Windows CC job or switch to a runner with more memory/cores ratio",
+    "Consider disabling /MP or ccache's parallel PDB writing conflicts (CMAKE_CXX_COMPILER_LAUNCHER=ccache + /Z7 vs /Zi) to reduce concurrent mspdbsrv.exe contention",
+    "Add retry-on-link-failure logic or increase linker/debug server timeout for transient PDB-server contention",
+    "Track recurrence of pattern 80cfa127185fbf3e (13+ occurrences) and escalate to infra team for runner sizing review"
+  ],
+  "prevention_strategies": "Right-size CMAKE_BUILD_PARALLEL_LEVEL to the runner's actual memory budget; monitor runner memory pressure during Windows Release builds; consider /Zi vs /Z7 to avoid mspdbsrv serialization bottlenecks under high parallelism.",
+  "historical_context": "This exact signature (compiler C1060/C1356 PDB-server issues plus linker LNK1102 out-of-memory under high parallelism on the Windows CC build) has recurred 13 times since 2026-11-03, most recently on 2026-11-19 (runs 44599895950, 44588231549, 44581373590, and others). It is a known, unresolved Windows CC infrastructure resource-exhaustion issue unrelated to specific code changes."
+}
