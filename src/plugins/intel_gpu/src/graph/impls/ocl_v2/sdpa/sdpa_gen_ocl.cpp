@@ -74,15 +74,18 @@ bool solve_sv_split(sdpa_ocl_config_t& config, size_t vd_max) {
     }
 
     for (int per_wg_values = sg_per_wg; per_wg_values >= 1; per_wg_values--) {
-        if (sg_per_wg % per_wg_values != 0)
+        if (sg_per_wg % per_wg_values != 0) {
             continue;
+        }
         const int per_wg_scores = sg_per_wg / per_wg_values;
-        if (static_cast<int>(vd_max) % per_wg_values != 0 || wg_queries % per_wg_scores != 0)
+        if (static_cast<int>(vd_max) % per_wg_values != 0 || wg_queries % per_wg_scores != 0) {
             continue;
+        }
         const int tile_values = static_cast<int>(vd_max) / per_wg_values;
         const int tile_scores = wg_queries / per_wg_scores;
-        if (tile_values % sg_size != 0 || tile_scores % dpas_rows != 0)
+        if (tile_values % sg_size != 0 || tile_scores % dpas_rows != 0) {
             continue;
+        }
         // alpha[] nesting: check it for every subgroup rather than just the tile sizes, since the two
         // stages map sg_ij to (key, query) and (score, value) differently.
         bool alpha_ok = true;
@@ -93,8 +96,9 @@ bool solve_sv_split(sdpa_ocl_config_t& config, size_t vd_max) {
             const int rel_last = rel_first + tile_scores - 1;
             alpha_ok = rel_first >= 0 && rel_last < config.kq_sg_tile_queries;
         }
-        if (!alpha_ok)
+        if (!alpha_ok) {
             continue;
+        }
         config.sv_sg_tile_values = tile_values;
         config.sv_sg_tile_scores = tile_scores;
         config.sv_sg_per_wg_values = per_wg_values;
@@ -187,7 +191,7 @@ size_t slm_bytes(const sdpa_ocl_config_t& t, size_t d_max) {
 size_t max_slm_bytes_for(gpu_arch arch) {
     return arch >= gpu_arch::xe_hpc ? 128 * 1024 : 64 * 1024;
 }
-size_t max_wg_size_for(gpu_arch) {
+size_t max_wg_size_for(gpu_arch /*arch*/) {
     return 1024;
 }
 
@@ -218,7 +222,13 @@ sdpa_ocl_config_t choose_config_kq_only(gpu_arch arch, size_t d_max) {
         // and stays zero when none exists, which solve_tiling() rejects ("xe_hpg bring-up (DG2, SG8)" in the docs).
         config.kq_sg_tile_keys = 16;
         config.kq_sg_tile_queries = 16;
-        config.kq_sg_per_wg_keys = d_max <= 128 ? 4 : (d_max <= 256 ? 8 : 16);
+        if (d_max <= 128) {
+            config.kq_sg_per_wg_keys = 4;
+        } else if (d_max <= 256) {
+            config.kq_sg_per_wg_keys = 8;
+        } else {
+            config.kq_sg_per_wg_keys = 16;
+        }
         config.kq_sg_per_wg_queries = 2;
         config.micro_math = false;
         solve_sv_split(config, d_max);
@@ -313,7 +323,13 @@ bool solve_pa_prefill_tiling(gpu_arch arch, size_t d_max, size_t vd_max, sdpa_oc
     wide.micro_math = d_max != 512;
     // WIDE_READS mask; the result is unchanged (same data, same DPAS order). A sliding window turns d_max 64 off
     // (add_tensor_block_io_jit(); "Paged-attention PREFILL: wide reads (IGC 2.41)" in the docs).
-    wide.wide_reads = d_max == 512 ? 7 : d_max == 64 ? 5 : 1;
+    if (d_max == 512) {
+        wide.wide_reads = 7;
+    } else if (d_max == 64) {
+        wide.wide_reads = 5;
+    } else {
+        wide.wide_reads = 1;
+    }
     if (!solve_sv_split(wide, vd_max) || !tiling_fits_device(arch, d_max, wide)) {
         return false;
     }
@@ -699,8 +715,9 @@ JitConstants convert_strides(std::string target_prefix, std::string source_prefi
 
     for (size_t i = 0; i < target_stride_definitions.size(); i++) {
         definitions.make(target_stride_definitions[i], source_stride_definitions[order[i]]);
-        if (with_sizes)
+        if (with_sizes) {
             definitions.make(target_size_definitions[i], source_size_definitions[order[i]]);
+        }
     }
 
     return definitions;
@@ -838,8 +855,9 @@ sdpa_configuration make_sdpa_configuration(const kernel_impl_params& params) {
     config.paged_attention_block_size = static_cast<int64_t>(paged_attention::block_size);
     config.paged_attention_sliding_window = desc->sliding_window;
     config.has_const_scale_val = desc->scale_val.has_value();
-    if (config.has_const_scale_val)
+    if (config.has_const_scale_val) {
         config.scale_val = desc->scale_val.value();
+    }
     config.is_kv_compressed = false;
     config.use_asymmetric_quantization = false;
 
@@ -882,8 +900,9 @@ pa_cache_desc classify_pa_cache(const kernel_impl_params& params,
 // 4 B. A static padding is checked, a dynamic one taken on trust as in block2d_layout_fixup_ok(). The kernel rechecks Q
 // at runtime (q_dword_ok), but a dynamic K / V / Kc / Vc padding 2 B off reads wrong values (feature_pad_residual).
 bool dword_token_matrix_ok(const layout& l) {
-    if (layout_unpadded(l) || (is_token_matrix(l) && l.data_padding.is_dynamic()))
+    if (layout_unpadded(l) || (is_token_matrix(l) && l.data_padding.is_dynamic())) {
         return true;
+    }
     int64_t first_head = 0;
     int64_t token_stride = 0;
     return token_matrix_bytes(l, first_head, token_stride) && first_head % 4 == 0 && token_stride % 4 == 0;
@@ -1169,15 +1188,17 @@ void add_sink_qq_bias_jit(JitConstants& jit, const jit_inputs& in) {
             const auto& sink = params.input_layouts[ScaledDotProductAttentionInputIdx::SINK];
             add_sink_jit(jit, sink);
             // SINK_DATA_T of a bf16 sink is ushort (its bits); the kernel must widen it, not convert the integer.
-            if (sink.data_type == ov::element::bf16)
+            if (sink.data_type == ov::element::bf16) {
                 jit.make("SINK_IS_BF16", 1);
+            }
         }
         jit.make("HAS_QQ_BIAS", 0);
         return;
     }
     const auto desc = params.typed_desc<paged_attention>();
-    if (desc->has_sink_input)
+    if (desc->has_sink_input) {
         add_sink_jit(jit, params.input_layouts[PagedAttentionInputIdx::SINKS]);
+    }
     if (desc->has_qq_bias && !in.is_prefill) {
         jit.make("HAS_QQ_BIAS", 1);
         jit.make("QQ_BIAS_DATA_T", to_ocl_type(params.input_layouts[PagedAttentionInputIdx::QQ_BIAS].data_type));
@@ -1261,15 +1282,18 @@ void add_tiling_jit(JitConstants& jit, const sdpa_ocl_problem& p) {
     // purpose and must fail the tests listed with it in "Debug and bisection switches" in the docs (4, the unaligned-K
     // fallback, must pass). Absent unless asked for, so the default jit (and every SG16 jit) is unchanged.
     if (t.subgroup_size == 8) {
-        if (const int neg = env_int("SDPA_OCL_NEG_SG8", 0); neg != 0)
+        if (const int neg = env_int("SDPA_OCL_NEG_SG8", 0); neg != 0) {
             jit.make("NEG_SG8", neg);
+        }
         // Unroll of the generic kernel's KQ depth loop and S*V key loop (1 = not unrolled, 0 = whole): unrolled whole, IGC
         // loads K / V of every depth tile / key block ahead and spills ("xe_hpg bring-up (DG2, SG8)" in the docs).
         if (!t.hpg_pa_prefill) {
-            if (const int kq = env_int("SDPA_OCL_SG8_KQ_UNROLL", 1); kq > 0)
+            if (const int kq = env_int("SDPA_OCL_SG8_KQ_UNROLL", 1); kq > 0) {
                 jit.make("SG8_KQ_UNROLL", kq);
-            if (const int sv = env_int("SDPA_OCL_SG8_SV_UNROLL", 1); sv > 0)
+            }
+            if (const int sv = env_int("SDPA_OCL_SG8_SV_UNROLL", 1); sv > 0) {
                 jit.make("SG8_SV_UNROLL", sv);
+            }
         }
     }
     // sdpa_ocl.cl includes sdpa_ocl_hpg_pa_prefill.cl in place of its kernel. Absent otherwise, so no other jit changes.
@@ -1281,8 +1305,9 @@ void add_tiling_jit(JitConstants& jit, const sdpa_ocl_problem& p) {
         jit.make("HPG_PA_PREFILL", 1);
         const int v_lead = p.k_head_size == 512 ? 1 : std::min(t.sv_sg_tile_values <= 16 ? 6 : 3, t.kq_wg_tile_keys() / 16);
         jit.make("HPG_PA_V_LEAD", env_int("SDPA_OCL_HPG_PA_V_LEAD", v_lead));
-        if (const int kq = env_int("SDPA_OCL_HPG_PA_KQ_UNROLL", p.d_max > 128 ? 2 : 0); kq > 0)
+        if (const int kq = env_int("SDPA_OCL_HPG_PA_KQ_UNROLL", p.d_max > 128 ? 2 : 0); kq > 0) {
             jit.make("HPG_PA_KQ_UNROLL", kq);
+        }
     }
 }
 
@@ -1353,10 +1378,12 @@ void add_pa_cache_jit(JitConstants& jit, const jit_inputs& in) {
 // Whole-page 1D read ("u4 1D page read" in the docs): a 16-byte column group per read component, a
 // power-of-two column count up to 16 so no read straddles a token, and one page token per subgroup lane.
 bool pa_1d_page_ok(size_t row_elems, size_t sg, size_t block_size) {
-    if (row_elems == 0 || sg == 0 || row_elems % sg != 0)
+    if (row_elems == 0 || sg == 0 || row_elems % sg != 0) {
         return false;
-    if (block_size != sg)
+    }
+    if (block_size != sg) {
         return false;
+    }
     const size_t cols = row_elems / sg;
     return cols <= 16 && (cols & (cols - 1)) == 0;
 }
@@ -1379,7 +1406,7 @@ void add_pa_page_read_jit(JitConstants& jit, const jit_inputs& in) {
 
     int v_pa_2d_i8 = 0;
     if (c.dequant_ok && !in.is_prefill) {
-        v_pa_2d_i8 = c.u4_by_channel_tm ? (block2d_surface_ok(c.v_row_elems) ? 1 : 0) : (block2d_page_ok(c.v_row_elems) ? 1 : 0);
+        v_pa_2d_i8 = static_cast<int>(c.u4_by_channel_tm ? block2d_surface_ok(c.v_row_elems) : block2d_page_ok(c.v_row_elems));
     }
     v_pa_2d_i8 = block2d_env_int("SDPA_OCL_V_PA_I8_2D", v_pa_2d_i8, allowed);
     jit.make("USE_2D_BLOCK_IO_V_PA_I8", v_pa_2d_i8);
@@ -1401,7 +1428,7 @@ void add_pa_page_read_jit(JitConstants& jit, const jit_inputs& in) {
 
     int k_pa_2d_i8 = 0;
     if (c.dequant_ok && !in.is_prefill) {
-        k_pa_2d_i8 = c.u4_by_channel_tm ? (block2d_surface_ok(c.k_row_elems) ? 1 : 0) : (block2d_page_ok(c.k_row_elems) ? 1 : 0);
+        k_pa_2d_i8 = static_cast<int>(c.u4_by_channel_tm ? block2d_surface_ok(c.k_row_elems) : block2d_page_ok(c.k_row_elems));
     }
     k_pa_2d_i8 = block2d_env_int("SDPA_OCL_K_PA_I8_2D", k_pa_2d_i8, allowed);
     jit.make("USE_2D_BLOCK_IO_K_PA_I8", k_pa_2d_i8);
@@ -1418,7 +1445,7 @@ void add_pa_page_read_jit(JitConstants& jit, const jit_inputs& in) {
     // off / on. u4: where the MIXED tiling sets them; i8: V on every tiling, K off.
     const bool page_mixed = in.is_pa && !in.is_prefill && c.dequant_ok;
     const bool u4 = c.u4_by_channel_tm;
-    const int prefetch_v = u4 ? (p.tiling.mixed_prefetch_v ? 1 : 0) : 1;
+    const int prefetch_v = (!u4 || p.tiling.mixed_prefetch_v) ? 1 : 0;
     const int prefetch_k = (u4 && p.tiling.mixed_prefetch_k) ? 1 : 0;
     jit.make("PA_MIXED_PREFETCH_V", (page_mixed && v_pa_2d_i8) ? env_int("SDPA_OCL_MIXED_PREFETCH_V", prefetch_v) : 0);
     jit.make("PA_MIXED_PREFETCH_K", (page_mixed && k_pa_2d_i8) ? env_int("SDPA_OCL_MIXED_PREFETCH_K", prefetch_k) : 0);
@@ -1473,8 +1500,9 @@ void add_plain_compressed_jit(JitConstants& jit, const jit_inputs& in) {
     if (kv_u4) {
         const auto qdt = in.params.typed_desc<scaled_dot_product_attention>()->quantization_attributes.quantization_dt;
         jit.make("PLAIN_KV_U4", 1);
-        if (qdt == ov::element::i4)
+        if (qdt == ov::element::i4) {
             jit.make("PLAIN_KV_U4_SIGNED", 1);
+        }
         jit.make("USE_2D_BLOCK_IO_K_U4", (allowed && block2d_layout_ok(in.k, in.ldk)) ? 1 : 0);
         // The u4 V block read hands a subgroup a 32-column window and keeps no lane shuffle, so its value blocks must pair
         // into windows (sdpa_ocl_config.cl PLAIN_V_U4_PERMUTED); every tiling in choose_config() does.
@@ -1484,16 +1512,20 @@ void add_plain_compressed_jit(JitConstants& jit, const jit_inputs& in) {
         jit.make("USE_2D_BLOCK_IO_V_U4", (allowed && block2d_layout_ok(in.v, in.ldv) && v_u4_window_split_ok) ? 1 : 0);
     }
     int v_i8_2d = (config.is_kv_compressed && !kv_u4 && block2d_layout_ok(in.v, in.ldv)) ? 1 : 0;
-    if (config.is_kv_compressed)
+    if (config.is_kv_compressed) {
         v_i8_2d = block2d_env_int("SDPA_OCL_V_I8_2D", v_i8_2d, allowed);
-    if (!allowed || kv_u4)
+    }
+    if (!allowed || kv_u4) {
         v_i8_2d = 0;
+    }
     jit.make("USE_2D_BLOCK_IO_V_I8", v_i8_2d);
     int k_i8_2d = (config.is_kv_compressed && !kv_u4 && block2d_layout_ok(in.k, in.ldk)) ? 1 : 0;
-    if (config.is_kv_compressed)
+    if (config.is_kv_compressed) {
         k_i8_2d = block2d_env_int("SDPA_OCL_K_I8_2D", k_i8_2d, allowed);
-    if (!allowed || kv_u4)
+    }
+    if (!allowed || kv_u4) {
         k_i8_2d = 0;
+    }
     jit.make("USE_2D_BLOCK_IO_K_I8", k_i8_2d);
     if (in.is_pa || !config.is_kv_compressed) {
         return;
@@ -1507,10 +1539,12 @@ void add_plain_compressed_jit(JitConstants& jit, const jit_inputs& in) {
     jit.make("KEY_ATTR_SCALES_DATA_T", to_ocl_type(key_cache_comp_scale.data_type));
     jit.make("VAL_ATTR_SCALES_DATA_T", to_ocl_type(value_cache_comp_scale.data_type));
     // A bf16 scale (a bf16 query's) is ushort, its bits; the kernel must widen it, not convert the integer.
-    if (key_cache_comp_scale.data_type == ov::element::bf16)
+    if (key_cache_comp_scale.data_type == ov::element::bf16) {
         jit.make("KEY_SCALES_IS_BF16", 1);
-    if (value_cache_comp_scale.data_type == ov::element::bf16)
+    }
+    if (value_cache_comp_scale.data_type == ov::element::bf16) {
         jit.make("VAL_SCALES_IS_BF16", 1);
+    }
     jit.add(make_layout_jit_constants("KEY_SCALE", key_cache_comp_scale, params.in_port_to_shape_info_offset.at(n)));
     jit.add(make_layout_jit_constants("VAL_SCALE", value_cache_comp_scale, params.in_port_to_shape_info_offset.at(n + 1)));
 
@@ -1524,8 +1558,9 @@ void add_plain_compressed_jit(JitConstants& jit, const jit_inputs& in) {
         // Negative controls of the per-channel reads, each must fail the per-channel tests: 1 = K scale/zp of the
         // neighbouring channel, 2 = V scale/zp of the neighbouring column, 3 = K nibbles swapped, 4 = V nibbles swapped
         // (3, 4: 4-bit only). Absent unless asked for, so the default jit is unchanged.
-        if (const int neg = env_int("SDPA_OCL_NEG_X5", 0); neg != 0)
+        if (const int neg = env_int("SDPA_OCL_NEG_X5", 0); neg != 0) {
             jit.make("NEG_X5", neg);
+        }
     }
 
     if (config.use_asymmetric_quantization) {
@@ -1568,7 +1603,10 @@ int plain_mask_kind(const kernel_impl_params& params, const sdpa_configuration& 
     if (dq.is_static() && dk.is_static()) {
         const bool q_gt1 = dq.get_length() > 1;
         const bool k_gt1 = dk.get_length() > 1;
-        return (q_gt1 && k_gt1) ? 2 : (!q_gt1 && k_gt1) ? 1 : 0;
+        if (q_gt1 && k_gt1) {
+            return 2;
+        }
+        return (!q_gt1 && k_gt1) ? 1 : 0;
     }
     if (dq.is_static()) {
         return dq.get_length() > 1 ? 2 : 1;
@@ -1646,7 +1684,7 @@ void add_scale_jit(JitConstants& jit, const jit_inputs& in) {
     }
     if (in.config.has_const_scale_val) {
         jit.make("STATIC_SCALE_VALUE", in.config.scale_val);
-        jit.make("STATIC_SCALE_VALUE_INV", 1.0f / in.config.scale_val);
+        jit.make("STATIC_SCALE_VALUE_INV", 1.0F / in.config.scale_val);
     } else {
         jit.make("WITH_SCALE", with_scale);
     }
@@ -1701,8 +1739,9 @@ std::string SDPAOclGenerator::get_build_options(const kernel_impl_params& params
     // 256 GRF halves the threads per EU, so only the tilings that ask for it take it ("Tiling" in the docs);
     // SDPA_OCL_256GRF=0/1 overrides that. xe_hpg always takes it: its tiles spill at 128 GRF.
     const bool large_grf = make_problem(params, m_is_prefill, params.is_dynamic()).tiling.large_grf;
-    if (env_int("SDPA_OCL_256GRF", large_grf ? 1 : 0) != 0 || params.get_device_info().arch == gpu_arch::xe_hpg)
+    if (env_int("SDPA_OCL_256GRF", large_grf ? 1 : 0) != 0 || params.get_device_info().arch == gpu_arch::xe_hpg) {
         extra_options += " -cl-intel-256-GRF-per-thread";
+    }
 
     return base_options + extra_options;
 }
@@ -1798,7 +1837,7 @@ bool per_channel_kv_supported(const kernel_impl_params& params) {
     const bool asymmetric = qa.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
     const size_t n = get_data_inputs_num(*desc);
     // K scale, V scale, then (asymmetric) K zp, V zp.
-    for (size_t i = 0; i < (asymmetric ? 4u : 2u); ++i) {
+    for (size_t i = 0; i < (asymmetric ? 4U : 2U); ++i) {
         const auto& l = params.input_layouts[n + i];
         const auto& ps = l.get_partial_shape();
         const int64_t channels = ((i % 2) == 0 ? k : v) * packing;
@@ -1938,8 +1977,9 @@ Arguments SDPAOclGenerator::get_arguments_desc(const kernel_impl_params& params_
     const auto& params = canonical.get();
     Arguments args;
     const auto config = make_sdpa_configuration(params);
-    if (params.is_dynamic())
+    if (params.is_dynamic()) {
         args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+    }
 
     auto data_inputs_num = config.input_num;
 
@@ -1965,11 +2005,13 @@ Arguments SDPAOclGenerator::get_arguments_desc(const kernel_impl_params& params_
             args.push_back({ArgumentDescriptor::Types::INPUT, 7});  // block_indices
             args.push_back({ArgumentDescriptor::Types::INPUT, 8});  // block_indices_begins
         }
-        if (!config.has_const_scale_val)
+        if (!config.has_const_scale_val) {
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SCALE});  // scale
+        }
 
-        if (desc->has_sink_input)
+        if (desc->has_sink_input) {
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SINKS});  // sink
+        }
 
         if (has_qq_bias && !m_is_prefill) {
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});         // qq_bias
@@ -1990,14 +2032,17 @@ Arguments SDPAOclGenerator::get_arguments_desc(const kernel_impl_params& params_
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});                                        // A
 
         const uint32_t attn_mask_idx = ScaledDotProductAttentionInputIdx::ATTN_MASK;
-        if (sdpa_has_runtime_attn_mask_input(params) || has_scalar_runtime_attn_mask_input(params))
+        if (sdpa_has_runtime_attn_mask_input(params) || has_scalar_runtime_attn_mask_input(params)) {
             args.push_back({ArgumentDescriptor::Types::INPUT, attn_mask_idx});  // mask
+        }
         const uint32_t scale_idx = ScaledDotProductAttentionInputIdx::SCALE;
-        if (config.input_num > scale_idx && !config.has_const_scale_val)
+        if (config.input_num > scale_idx && !config.has_const_scale_val) {
             args.push_back({ArgumentDescriptor::Types::INPUT, scale_idx});  // Scale
+        }
         const uint32_t sink_idx = ScaledDotProductAttentionInputIdx::SINK;
-        if (config.input_num > sink_idx)
+        if (config.input_num > sink_idx) {
             args.push_back({ArgumentDescriptor::Types::INPUT, sink_idx});  // Sink
+        }
 
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // D
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // K
@@ -2008,12 +2053,14 @@ Arguments SDPAOclGenerator::get_arguments_desc(const kernel_impl_params& params_
         const bool is_asym_quantization = config.use_asymmetric_quantization;
         uint32_t input_idx = static_cast<uint32_t>(data_inputs_num);
         args.push_back({ArgumentDescriptor::Types::INPUT, input_idx + 0});  // K scales
-        if (is_asym_quantization)
+        if (is_asym_quantization) {
             args.push_back({ArgumentDescriptor::Types::INPUT, input_idx + 2});  // K zp
+        }
 
         args.push_back({ArgumentDescriptor::Types::INPUT, input_idx + 1});  // V scales
-        if (is_asym_quantization)
+        if (is_asym_quantization) {
             args.push_back({ArgumentDescriptor::Types::INPUT, input_idx + 3});  // V zp
+        }
     }
 
     return args;

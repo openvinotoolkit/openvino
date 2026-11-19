@@ -78,8 +78,9 @@ inline bool get_kv_compressed(const RuntimeParams& params) {
 // lane). The K row is the surface width and pitch; the page base is a whole number of pages, which the pitch rule keeps
 // 64 B aligned.
 inline bool use_2d_block_io_k_token_major(const RuntimeParams& params) {
-    if (get_kv_compressed(params) || params.get_device_info().arch < gpu_arch::xe2)
+    if (get_kv_compressed(params) || params.get_device_info().arch < gpu_arch::xe2) {
         return false;
+    }
     const size_t elem_size = ov::element::Type(params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].data_type).size();
     return elem_size == 2 && sdpa_ocl_utils::block2d_page_ok(params.typed_desc<paged_attention>()->k_head_size * elem_size);
 }
@@ -289,22 +290,26 @@ inline GQAMultiTokensKernel select_gqa_multi_tokens_kernel(const kernel_impl_par
     if (forced == GQAMultiTokensKernel::NONE) {
         return GQAMultiTokensKernel::NONE;
     }
-    if (forced == GQAMultiTokensKernel::FALLBACK)
+    if (forced == GQAMultiTokensKernel::FALLBACK) {
         return GQAMultiTokensKernel::FALLBACK;
+    }
 
     // Where sdpa_ocl serves MIXED it is a third candidate beside pa_small_q_opt.cl and paged_attention_opt.cl
     // (token_major_gqa_kernel_without_small_q() and the helpers above it).
     const auto without_small_q = sdpa_ocl_mixed ? token_major_gqa_kernel_without_small_q(params, max_subsequence_len) : GQAMultiTokensKernel::FALLBACK;
-    if (!supports_gqa_multi_tokens_dpas_kernel(params))
+    if (!supports_gqa_multi_tokens_dpas_kernel(params)) {
         return without_small_q;
+    }
 
     if (forced != GQAMultiTokensKernel::SMALL_Q) {
         const size_t max_context_len = get_max_context_len(params);
         if (sdpa_ocl_mixed) {
-            if (token_major_gqa_prefers_fallback(params, max_subsequence_len, max_context_len))
+            if (token_major_gqa_prefers_fallback(params, max_subsequence_len, max_context_len)) {
                 return GQAMultiTokensKernel::FALLBACK;
-            if (!token_major_gqa_small_q_context(params, max_context_len))
+            }
+            if (!token_major_gqa_small_q_context(params, max_context_len)) {
                 return without_small_q;
+            }
         } else if (prefer_gqa_multi_tokens_fallback_kernel(max_subsequence_len, max_context_len)) {
             return GQAMultiTokensKernel::FALLBACK;
         }
@@ -1702,10 +1707,12 @@ public:
     // Whether sdpa_ocl is staged for a PA stage (PREFILL / MIXED; GENERATE never). has_stage() rather than the gate, so a
     // loaded or cloned impl (and one whose add_stage() swallowed a codegen failure) dispatches only what was actually built.
     bool sdpa_ocl_staged(const PagedAttentionStage& stage) const {
-        if (stage == PagedAttentionStage::PREFILL)
+        if (stage == PagedAttentionStage::PREFILL) {
             return has_stage(pa_sdpa_ocl);
-        if (stage == PagedAttentionStage::MIXED)
+        }
+        if (stage == PagedAttentionStage::MIXED) {
             return has_stage(pa_sdpa_ocl_mixed);
+        }
         return false;
     }
 
@@ -1776,8 +1783,9 @@ public:
 
     size_t get_query_block_size(const kernel_impl_params& params, const PagedAttentionStage& stage, const bool use_sdpa_ocl) const {
         const auto default_block_size = 16;
-        if (use_sdpa_ocl && sdpa_ocl_staged(stage))
+        if (use_sdpa_ocl && sdpa_ocl_staged(stage)) {
             return SDPAOclGenerator::get_query_block_size(params, stage == PagedAttentionStage::PREFILL);
+        }
         return default_block_size;
     }
 #else

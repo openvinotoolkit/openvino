@@ -22,8 +22,9 @@ namespace cldnn {
 inline gpu_arch debug_arch_override(gpu_arch detected) {
 #ifdef ENABLE_DEBUG_CAPS
     const char* env = std::getenv("OV_GPU_ARCH_OVERRIDE");
-    if (env == nullptr || env[0] == '\0')
+    if (env == nullptr || env[0] == '\0') {
         return detected;
+    }
     static const struct {
         const char* name;
         gpu_arch arch;
