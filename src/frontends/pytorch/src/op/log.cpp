@@ -11,9 +11,10 @@
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
+#include "openvino/op/negative.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_sum.hpp"
-#include "openvino/op/sigmoid.hpp"
+#include "openvino/op/softplus.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils.hpp"
@@ -24,13 +25,11 @@ using namespace ov::op;
 
 std::shared_ptr<ov::Node> translate_log_sigmoid_common(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
-    auto op_vector = op::translate_1to1_match_1_inputs_with_fp32_type_alignment<v0::Sigmoid>(context);
-    PYTORCH_OP_CONVERSION_CHECK(op_vector.size() == 1,
-                                "Expected exactly one element in the vector. Got: ",
-                                op_vector.size());
-    auto sigmoid = op_vector[0];
-    auto log = context.mark_node(std::make_shared<v0::Log>(sigmoid));
-    return log;
+    auto x = get_input_with_floating_type(context, 0);
+    // log(sigmoid(x)) = -softplus(-x). Computing sigmoid first rounds it to 0 for large negative x, which gives -inf.
+    auto neg_x = context.mark_node(std::make_shared<v0::Negative>(x));
+    auto softplus = context.mark_node(std::make_shared<v4::SoftPlus>(neg_x));
+    return context.mark_node(std::make_shared<v0::Negative>(softplus));
 };
 
 OutputVector translate_log_sigmoid(const NodeContext& context) {

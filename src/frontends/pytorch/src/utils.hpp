@@ -154,6 +154,9 @@ Output<Node> try_constfold(const Output<Node>& x);
 
 Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx);
 
+/// \brief Creates a scalar constant with the given value and the element type of `like`.
+Output<Node> scalar_of_same_type(const NodeContext& context, const Output<Node>& like, double value);
+
 /// \brief Returns the input element type, falling back to the visible context and the decoder type when it is dynamic.
 element::Type get_input_element_type(const NodeContext& context, size_t idx);
 
