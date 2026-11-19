@@ -380,12 +380,19 @@ std::optional<ov::intel_npu::CompilerType> PluginPropertyManager::getCompilerTyp
     return compilerTypeIt->second.as<ov::intel_npu::CompilerType>();
 }
 
-const std::vector<std::string>& PluginPropertyManager::getCachedBackendDeviceNames() const {
-    if (!_backendDeviceNamesCached) {
-        _cachedBackendDeviceNames = _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames();
-        _backendDeviceNamesCached = true;
+std::string PluginPropertyManager::resolveCompilationPlatform(const ov::AnyMap& arguments) const {
+    const auto deviceId = getDeviceIdOrDefault(arguments);
+    const auto platformArg = getPlatformOrDefault(arguments);
+
+    if (_platformCache && std::get<0>(*_platformCache) == deviceId && std::get<1>(*_platformCache) == platformArg) {
+        return std::get<2>(*_platformCache);
     }
-    return _cachedBackendDeviceNames;
+
+    auto device = utils::getDeviceById(_backend, deviceId);
+    auto result =
+        utils::getCompilationPlatform(_backend, platformArg, device == nullptr ? deviceId : device->getName());
+    _platformCache.emplace(deviceId, platformArg, result);
+    return result;
 }
 
 std::optional<ov::intel_npu::CompilerType> PluginPropertyManager::resolveCompilerType(
@@ -396,11 +403,8 @@ std::optional<ov::intel_npu::CompilerType> PluginPropertyManager::resolveCompile
     }
 
     try {
-        const auto deviceId = getDeviceIdOrDefault(arguments);
-        auto device = utils::getDeviceById(_backend, deviceId);
-        auto compilationPlatform = utils::getCompilationPlatform(getPlatformOrDefault(arguments),
-                                                                 device == nullptr ? deviceId : device->getName(),
-                                                                 getCachedBackendDeviceNames());
+        auto device = utils::getDeviceById(_backend, getDeviceIdOrDefault(arguments));
+        auto compilationPlatform = resolveCompilationPlatform(arguments);
 
         CompilerAdapterFactory factory;
         factory.decideCompilerType(compilerType.value(), device, compilationPlatform);
@@ -812,7 +816,7 @@ void PluginPropertyManager::registerProperties() {
         return std::tuple<uint32_t, uint32_t>{0u, 8u};
     }, readOnlySetter);
     register_property(ov::available_devices.name(), true, ov::PropertyMutability::RO, alwaysSupported, [this](const ov::AnyMap&) {
-        return getCachedBackendDeviceNames();
+        return _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames();
     }, readOnlySetter);
     register_property(ov::hint::model.name(), true, ov::PropertyMutability::WO,
         [this](const ov::AnyMap&) {
@@ -944,13 +948,7 @@ void PluginPropertyManager::registerProperties() {
             }
             std::string compilationPlatform;
             if (compilerType.value() == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
-                auto deviceId = getDeviceIdOrDefault(arguments);
-                auto device = utils::getDeviceById(_backend, deviceId);
-                compilationPlatform = utils::getCompilationPlatform(
-                    getPlatformOrDefault(arguments),
-                    device == nullptr ? deviceId : device->getName(),
-                    getCachedBackendDeviceNames()
-                    );
+                compilationPlatform = resolveCompilationPlatform(arguments);
             }
 
             try {
@@ -965,12 +963,7 @@ void PluginPropertyManager::registerProperties() {
             OPENVINO_ASSERT(compilerType.has_value(), "Compiler type is not specified in properties.");
             std::string compilationPlatform;
             if (compilerType.value() == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
-                auto deviceId = getDeviceIdOrDefault(arguments);
-                auto device = utils::getDeviceById(_backend, deviceId);
-                compilationPlatform = utils::getCompilationPlatform(
-                    getPlatformOrDefault(arguments),
-                    device == nullptr ? deviceId : device->getName(),
-                    getCachedBackendDeviceNames());
+                compilationPlatform = resolveCompilationPlatform(arguments);
             }
 
             CompilerAdapterFactory factory;

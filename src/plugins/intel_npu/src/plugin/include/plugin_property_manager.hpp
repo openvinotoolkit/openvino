@@ -54,13 +54,11 @@ private:
     std::optional<ov::intel_npu::CompilerType> getCompilerTypeOrDefault(const ov::AnyMap& arguments) const;
     std::optional<ov::intel_npu::CompilerType> resolveCompilerType(const ov::AnyMap& arguments) const;
 
-    void warnCompilerOnlyOptionSkipped(const std::string& key) const;
+    // getDeviceById() plus getCompilationPlatform() can be costly, and the same (deviceId, platform) pair is
+    // frequently re-resolved by multiple property predicates/getters for a single call; cache the last result.
+    std::string resolveCompilationPlatform(const ov::AnyMap& arguments) const;
 
-    // _backend->getDeviceNames() only reflects devices enumerated once at backend construction time; it never
-    // changes for the lifetime of _backend. The property predicates/getters below call it purely to resolve the
-    // compilation platform, so without this cache a pipeline with many modules/property accesses re-queries (and
-    // re-logs) it thousands of times for an answer that never changes.
-    const std::vector<std::string>& getCachedBackendDeviceNames() const;
+    void warnCompilerOnlyOptionSkipped(const std::string& key) const;
 
     Config _config;
 
@@ -70,8 +68,8 @@ private:
 
     mutable std::mutex _mutex;
 
-    mutable std::vector<std::string> _cachedBackendDeviceNames;
-    mutable bool _backendDeviceNamesCached = false;
+    // {deviceIdArg, platformArg, result}
+    mutable std::optional<std::tuple<std::string, std::string, std::string>> _platformCache;
 
     const std::vector<ov::PropertyName> _cachingProperties = [] {
         std::vector<ov::PropertyName> properties = {
