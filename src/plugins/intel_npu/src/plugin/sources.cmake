@@ -6,6 +6,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/async_infer_request.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/backends_registry.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/hsm_sections/batch_size.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/hsm_sections/compiler_schedules.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/blob_format_importers.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/compiler_option_support_helper.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/compiler_schedule_instance_evaluator.hpp
@@ -27,6 +28,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/batch_size.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/blob_format_importers.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiler_option_support_helper.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/compiler_schedules.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model_property_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiler_schedule_instance_evaluator.cpp

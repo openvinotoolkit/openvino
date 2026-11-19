@@ -6,7 +6,6 @@ set(TARGET_NAME "openvino_npu_compiler_adapter")
 
 set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/compiler_impl.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/hsm_sections/compiler_schedules.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/custom_stream_buffer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/driver_compiler_adapter.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/dynamic_graph.hpp
@@ -24,7 +23,6 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/xml_serializer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/ze_graph_ext_wrappers.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiler_adapter_factory.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/compiler_schedules.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/option_support_cache.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiler_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/driver_compiler_adapter.cpp
