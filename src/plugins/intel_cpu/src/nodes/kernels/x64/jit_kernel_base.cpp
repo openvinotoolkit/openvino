@@ -231,7 +231,7 @@ void JitKernelBase::uni_vpbroadcastd(const Xbyak::Ymm& x, const Xbyak::Operand& 
 }
 
 void JitKernelBase::uni_vroundpd(const Xbyak::Xmm& v_dst, const Xbyak::Operand& op, const uint8_t imm) {
-    if (m_cpu.has(Xbyak::util::Cpu::tAVX512F) && m_cpu.has(Xbyak::util::Cpu::tAVX512VL)) {
+    if (isValidIsa(x64::avx512_core)) {
         vrndscalepd(v_dst, op, imm & 0x3);
     } else if (m_cpu.has(Xbyak::util::Cpu::tAVX2)) {
         vroundpd(v_dst, op, imm);
