@@ -18,8 +18,12 @@
 #include "intel_npu/config/npuw.hpp"
 #include "llm_compiled_model_utils.hpp"
 #include "llm_test_helpers.hpp"
+#include "model_builder_moe.hpp"
+#include "model_builder_weights.hpp"
+#include "moe_transformations/llm_moe.hpp"
 #include "moe_transformations/moe_topology.hpp"
 #include "npuw_transformations/insert_vocab_sub128.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -34,6 +38,7 @@
 #include "openvino/op/tile.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
+#include "ov_ops/gather_matmul_compressed.hpp"
 #include "ov_ops/moe_compressed.hpp"
 #include "serialization.hpp"
 #include "transformations/rt_info/decompression.hpp"
@@ -392,6 +397,48 @@ protected:
 
     std::shared_ptr<ov::Model> build_qwen3_moe_llm_model() const {
         return ov::test::npuw::build_qwen3_moe_llm_test_model();
+    }
+
+    std::shared_ptr<ov::Model> build_qwen3_moe_llm_model_with_scalar_i4_zero_point() const {
+        using namespace ov::test::npuw;
+
+        auto cfg = make_test_model_config();
+        cfg.num_experts = 8;
+        cfg.num_experts_per_tok = 2;
+
+        const CompressedWeight symmetric_i4{ov::element::i4, 0, DCOffPattern::SYMM_NO_ZP};
+        const WeightFn mixed_weights = [symmetric_i4](const std::string& name,
+                                                      const ov::Shape& shape,
+                                                      ov::element::Type precision) {
+            auto output = symmetric_i4(name, shape, precision);
+            if (name.find("model.layers.1.") == std::string::npos) {
+                return output;
+            }
+
+            std::shared_ptr<ov::op::v1::Multiply> decompress;
+            ov::traverse_nodes(ov::NodeVector{output.get_node_shared_ptr()}, [&decompress, &name](const auto& node) {
+                if (node->get_friendly_name() == name + "_decompress") {
+                    decompress = ov::as_type_ptr<ov::op::v1::Multiply>(node);
+                }
+            });
+            OPENVINO_ASSERT(decompress != nullptr, "Missing decompression node for ", name);
+
+            auto zero_point = ov::op::v0::Constant::create(ov::element::i4, ov::Shape{}, {0});
+            auto zero_point_convert = std::make_shared<ov::op::v0::Convert>(zero_point, ov::element::f16);
+            auto subtract = std::make_shared<ov::op::v1::Subtract>(decompress->input_value(0), zero_point_convert);
+            decompress->input(0).replace_source_output(subtract->output(0));
+            return output;
+        };
+        cfg.moe_factory = [mixed_weights](size_t hidden_size,
+                                          size_t intermediate_size,
+                                          size_t num_experts,
+                                          size_t top_k,
+                                          ov::element::Type precision) {
+            return Qwen3MoEFFN(hidden_size, intermediate_size, num_experts, top_k, precision, mixed_weights);
+        };
+
+        ModelBuilder builder;
+        return builder.build_llm(cfg);
     }
 
     std::shared_ptr<ov::Model> build_whisper_decoder_model() const {
@@ -1172,15 +1219,34 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, MoeFusedHintFusesGptOssExpertsWithInt
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, MoeFusedHintRejectsAccuracyCheck) {
-    for (const char* stage_hint : {"NPUW_LLM_PREFILL_MOE_HINT", "NPUW_LLM_GENERATE_MOE_HINT"}) {
-        RecordingFactory recorder;
-        EXPECT_THROW(
-            create_compiled_model(build_qwen3_moe_llm_model(),
-                                  {{"NPUW_LLM_SHARED_HEAD", "NO"}, {"NPUW_ACC_CHECK", "YES"}, {stage_hint, "FUSED"}},
-                                  recorder),
-            ov::Exception)
-            << stage_hint;
+    for (const char* acc_check : {"YES", "ON", "TRUE", "yes", "1"}) {
+        for (const char* stage_hint : {"NPUW_LLM_PREFILL_MOE_HINT", "NPUW_LLM_GENERATE_MOE_HINT"}) {
+            RecordingFactory recorder;
+            EXPECT_THROW(create_compiled_model(
+                             build_qwen3_moe_llm_model(),
+                             {{"NPUW_LLM_SHARED_HEAD", "NO"}, {"NPUW_ACC_CHECK", acc_check}, {stage_hint, "FUSED"}},
+                             recorder),
+                         ov::Exception)
+                << stage_hint << "=" << acc_check;
+            EXPECT_EQ(recorder.count_suffix("_prefill"), 0u);
+            EXPECT_EQ(recorder.count_contains("_kv"), 0u);
+        }
     }
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, MoeFusedHintRejectsPartiallyLoweredBlocks) {
+    auto model = build_qwen3_moe_llm_model_with_scalar_i4_zero_point();
+    std::string error;
+    try {
+        ov::npuw::moe::apply_moe_fusion(model);
+        FAIL() << "Expected FUSED MoE lowering to reject the residual compressed GatherMatmul.";
+    } catch (const ov::Exception& ex) {
+        error = ex.what();
+    }
+
+    EXPECT_NE(error.find("residual GatherMatmulCompressed"), std::string::npos) << error;
+    EXPECT_GE(count_nodes<ov::op::internal::MOECompressed>(model), 1u);
+    EXPECT_GT(count_nodes<ov::op::internal::GatherMatmulCompressed>(model), 0u);
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, CacheRopeEnabledRoundsTripThroughCompiledModel) {

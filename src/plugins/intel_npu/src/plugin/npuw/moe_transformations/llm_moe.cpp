@@ -19,6 +19,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/moe.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/pass/manager.hpp"
@@ -27,6 +28,8 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/validate.hpp"
 #include "openvino/util/common_util.hpp"
+#include "ov_ops/gather_matmul.hpp"
+#include "ov_ops/gather_matmul_compressed.hpp"
 #include "ov_ops/moe_compressed.hpp"
 #include "transformations/common_optimizations/convert_tiled_moe_block_to_gather_matmuls.hpp"
 #include "transformations/common_optimizations/moe_op_fusion.hpp"
@@ -115,12 +118,24 @@ void restore_weightless_attrs(const std::shared_ptr<ov::Model>& model,
     }
 }
 
-// MoeOpFusion only builds MOECompressed, so its absence means the fusion did not happen.
 void validate_moe_fused(const std::shared_ptr<ov::Model>& model) {
     const auto ops = model->get_ops();
-    if (std::none_of(ops.begin(), ops.end(), [](const auto& op) {
-            return ov::is_type<ov::op::internal::MOECompressed>(op);
-        })) {
+    bool has_fused_moe = false;
+    for (const auto& op : ops) {
+        if (ov::is_type<ov::op::internal::MOECompressed>(op)) {
+            has_fused_moe = true;
+            continue;
+        }
+        if (ov::is_type<ov::op::internal::GatherMatmul>(op) ||
+            ov::is_type<ov::op::internal::GatherMatmulCompressed>(op) || ov::is_type<ov::op::internal::MOE>(op)) {
+            OPENVINO_THROW("MoE hint FUSED: residual ",
+                           op->get_type_name(),
+                           " node '",
+                           op->get_friendly_name(),
+                           "' remains after fusion; every expert block must lower to MOECompressed.");
+        }
+    }
+    if (!has_fused_moe) {
         OPENVINO_THROW("MoE hint FUSED: no expert block was fused into a MOECompressed op.");
     }
 }
@@ -217,16 +232,6 @@ void config_fused(ov::AnyMap& stage_config, Stage stage) {
     // (see apply_moe_fusion), so no per-expert partitioning hints are needed here.
     LOG_INFO("MoE config for " << stage_name(stage)
                                << " stage: FUSED (single MOECompressed op, device dynamic-sparse kernel)");
-    // The accuracy reference device cannot run the fused MOECompressed op (no CPU implementation).
-    if (auto it = stage_config.find("NPUW_ACC_CHECK"); it != stage_config.end()) {
-        const auto value = it->second.as<std::string>();
-        if (value == "YES" || value == "true" || value == "1") {
-            OPENVINO_THROW("NPUW_ACC_CHECK is not supported with MoE hint FUSED (",
-                           stage_name(stage),
-                           " stage): the reference device cannot run the fused MOECompressed op. "
-                           "Disable NPUW_ACC_CHECK or use HOST_ROUTED or DEVICE_ROUTED.");
-        }
-    }
     if (stage == Stage::GENERATE) {
         stage_config["NPUW_UNFOLD_IREQS"] = "YES";
     }
@@ -300,11 +305,18 @@ bool can_device_route_model(const std::shared_ptr<ov::Model>& model) {
 void fuse_requested_stages(const ::intel_npu::Config& cfg,
                            const std::shared_ptr<ov::Model>& prefill_model,
                            const std::shared_ptr<ov::Model>& generate_model) {
+    const auto prefill_hint = cfg.get<::intel_npu::NPUW_LLM_PREFILL_MOE_HINT>();
+    const auto generate_hint = cfg.get<::intel_npu::NPUW_LLM_GENERATE_MOE_HINT>();
+    if ((prefill_hint == MoEHint::FUSED || generate_hint == MoEHint::FUSED) && cfg.get<::intel_npu::NPUW_ACC_CHECK>()) {
+        OPENVINO_THROW("NPUW_ACC_CHECK is not supported with MoE hint FUSED: the reference device cannot run the "
+                       "fused MOECompressed op. Disable NPUW_ACC_CHECK or use HOST_ROUTED or DEVICE_ROUTED.");
+    }
+
     // PREFILL and GENERATE hints are independent, so each stage is fused (or not) on its own.
-    if (cfg.get<::intel_npu::NPUW_LLM_PREFILL_MOE_HINT>() == MoEHint::FUSED) {
+    if (prefill_hint == MoEHint::FUSED) {
         apply_moe_fusion(prefill_model);
     }
-    if (cfg.get<::intel_npu::NPUW_LLM_GENERATE_MOE_HINT>() == MoEHint::FUSED) {
+    if (generate_hint == MoEHint::FUSED) {
         apply_moe_fusion(generate_model);
     }
 }

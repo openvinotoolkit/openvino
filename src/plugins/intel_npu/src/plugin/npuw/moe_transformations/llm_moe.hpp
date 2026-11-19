@@ -24,7 +24,7 @@ enum class Stage { PREFILL, GENERATE };
 void apply_moe_config(ov::AnyMap& stage_config, ::intel_npu::npuw::llm::MoEHint moe_hint, Stage stage);
 
 // Collapse the tiled-MoE expert subgraph into MOECompressed ops (MoEHint::FUSED).
-// Must run on a still-dynamic model, before ReshapeToStatic. Throws if nothing was fused.
+// Must run on a still-dynamic model, before ReshapeToStatic. Throws if any expert block remains unfused.
 void apply_moe_fusion(const std::shared_ptr<ov::Model>& model);
 
 // True if every batched-MoE block in the model can be lowered to DEVICE_ROUTED, and there is at least one.
