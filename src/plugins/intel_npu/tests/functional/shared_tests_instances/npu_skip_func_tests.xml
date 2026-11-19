@@ -422,6 +422,14 @@ Example:
         </filters>
     </skip_config>
 
+    <!-- E#243678 -->
+    <skip_config>
+        <message>The prebuilt NPU compiler cannot compile an attention model with unbounded dimensions in HostCompile_Interpreter mode. Remove once the compiler pinned in download_compiler_libs.cmake supports it.</message>
+        <filters>
+            <filter>.*InferWithHostCompileUnboundedTests.*</filter>
+        </filters>
+    </skip_config>
+
     <!-- C#199570  -->
     <skip_config>
         <message>Tests with abnomally large durations</message>
