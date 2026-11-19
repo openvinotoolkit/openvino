@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,7 +66,7 @@ JitConstants ConvolutionKernel_Winograd_2x3_s1::GetJitConstants(const convolutio
 }
 
 ConvolutionKernel_Winograd_2x3_s1::Parent::DispatchData ConvolutionKernel_Winograd_2x3_s1::SetDefault(const convolution_params& arg,
-                                                                                                      int) const {
+                                                                                                      int /*autoTuneIndex*/) const {
     Parent::DispatchData dispatchData = Parent::SetDefault(arg);
 
     const size_t tile_n = winograd_tile_n;  // goes in-depth
