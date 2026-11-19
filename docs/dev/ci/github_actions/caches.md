@@ -90,12 +90,12 @@ add the mounting point under the `container`'s `volumes` key in a job configurat
 Build:
   ...
   needs: Docker
-  runs-on: aks-linux-16-cores-32gb
+  runs-on: <self-hosted runner>
   container:
-    image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
+    image: ${{ fromJSON(needs.docker.outputs.images).ov_build.<image> }}
     volumes:
-      - /mount:/mount
-      - /home/runner/secrets/:/secrets:ro
+      - <shared drive path>:<shared drive path>
+      - <secrets path on runner>:/secrets:ro
     options: -e SCCACHE_AZURE_BLOB_CONTAINER
   steps:
     - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
@@ -108,16 +108,17 @@ Build:
   ...
 ```
 
-In `- /mount:/mount`, the first `/mount` is the path on the runner, the second `/mount` is the
-path in the Docker container where the resources will be available.
+In `- <shared drive path>:<shared drive path>`, the first path is the location of the shared drive
+on the runner, the second one is the path in the Docker container where the resources will be
+available. Use the same mount point as the existing workflows for the target runner.
 
 ### Available Resources
 
 * `pip` cache
-  * Accessible via the environment variable `PIP_CACHE_PATH: /mount/caches/pip/linux`, defined at the workflow level
+  * Accessible via the `PIP_CACHE_PATH` environment variable, defined at the workflow level
   * Used in jobs that involve Python usage
 * onnx models for tests
-  * Accessible at the path: `/mount/onnxtestdata`
+  * Stored in a dedicated folder on the shared drive
   * Used in the `ONNX Models tests` job in the [`ubuntu_22.yml`](./../../../../.github/workflows/ubuntu_22.yml) workflow
 * Linux RISC-V with Conan build artifacts
   * Used in the [`linux_riscv.yml`](./../../../../.github/workflows/linux_riscv.yml) workflow
@@ -193,12 +194,12 @@ key under the `container` key to make them accessible for `sccache` inside the c
 Build:
   ...
   needs: Docker
-  runs-on: aks-linux-16-cores-32gb
+  runs-on: <self-hosted runner>
   container:
-    image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
+    image: ${{ fromJSON(needs.docker.outputs.images).ov_build.<image> }}
     volumes:
-      - /mount:/mount
-      - /home/runner/secrets/:/secrets:ro
+      - <shared drive path>:<shared drive path>
+      - <secrets path on runner>:/secrets:ro
     options: -e SCCACHE_AZURE_BLOB_CONTAINER
   steps:
     - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
