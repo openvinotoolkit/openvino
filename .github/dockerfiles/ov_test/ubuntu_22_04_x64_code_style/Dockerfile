@@ -29,7 +29,6 @@ RUN apt-get update && \
         shellcheck \
         clang-14 \
         libclang-14-dev \
-        # Python 3.11 for NCC naming style check (Ubuntu 22.04 default python3 is 3.10)
         python3.11-dev \
         python3.11-venv \
         && \
@@ -40,6 +39,11 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
+
+# Use Python 3.11 as default instead of Python 3.10
+# Using venv here 'cause other methods to switch the default Python on Ubuntu break both system and wheels build
+RUN python3.11 -m venv venv
+ENV PATH="/venv/bin:$PATH"
 
 # Install CMake 3.26.4 using the Kitware installer script
 RUN wget https://github.com/Kitware/CMake/releases/download/v3.26.4/cmake-3.26.4-linux-x86_64.sh && \
