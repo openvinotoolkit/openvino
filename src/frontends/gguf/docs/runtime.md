@@ -108,6 +108,7 @@ per-layer token embeddings, `text_embeddings_per_layer`.
 - The LM head is connected directly to the logits Result with a rank-3 input, so GenAI's
   slice-before-matmul optimization projects only the sampled rows during prefill.
 - Sliding-window masks use the `gguf_swa_window_size` rt_info value when the file records a window length.
+  Noncausal sliding-window attention is not supported by GenAI adaptation.
 - Gated-DeltaNet states (`qwen35`, `qwen35moe`) and LFM2 short-convolution states
   (`lfm2`, `lfm2moe`) get a dynamic batch, follow `beam_idx` and mask
   left padding. Mamba 2 and `nemotron_h` states stay at one sequence: greedy, batch-1 decoding only.

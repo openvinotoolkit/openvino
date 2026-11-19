@@ -263,6 +263,10 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         return false;
     }
 
+    OPENVINO_ASSERT(genai.causal_attention || !find_parameter(model, "self_kq_mask_swa") ||
+                        !model->get_rt_info().count(gguf_swa_window_key()),
+                    "[GGUF] noncausal sliding-window attention is not supported by GenAI adaptation");
+
     std::vector<std::pair<std::shared_ptr<v0::Result>, ModelContract::GenAIContract::AuxiliaryOutput>>
         auxiliary_outputs;
     for (const auto& output : genai.auxiliary_outputs) {
@@ -587,7 +591,9 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     } else if (model->get_rt_info().count(gguf_imrope_key())) {
         auto zeros = make_shared<v3::Broadcast>(v0::Constant::create(ov::element::i32, {}, {0}),
                                                 make_shared<v3::ShapeOf>(pos_i32));
-        pos_i32 = make_shared<v0::Concat>(ov::OutputVector{pos_i32, pos_i32, pos_i32, zeros}, 1);
+        pos_i32 = make_shared<v0::Concat>(
+            ov::OutputVector{pos_i32, pos_i32, pos_i32, three_section_positions ? zeros->output(0) : pos_i32},
+            1);
     }
     auto pos_4d = make_shared<v1::Reshape>(pos_i32, shape_keep0_1_1_rest, true);
     if (inp_pos)

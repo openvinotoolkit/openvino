@@ -571,6 +571,51 @@ static void image_attention_contract(const std::shared_ptr<ov::Model>& model, Im
 
 using GenAIContract = ov::frontend::gguf::ModelContract::GenAIContract;
 
+TEST(GGUFAdaptToGenAI, TextPositionsRespectExplicitMultimodalLayout) {
+    for (const auto layout :
+         {GenAIContract::PositionLayout::THREE_AXIS, GenAIContract::PositionLayout::SEQUENCE_THREE_AXIS}) {
+        auto m = build_minimal_gguf_model();
+        m.model->get_rt_info()[ov::frontend::gguf::pass::gguf_imrope_key()] = true;
+        add_probe_result(m.model, find_parameter(m.model, "inp_pos"), "test_probe_positions");
+        ov::frontend::gguf::ModelContract contract;
+        contract.genai.emplace();
+        contract.genai->position_layout = layout;
+        ov::frontend::gguf::write_model_contract(m.model, contract);
+        ASSERT_TRUE(AdaptToGenAI().run_on_model(m.model));
+        name_probe_outputs(m.model);
+        auto inputs = make_genai_inputs(3);
+        const std::vector<int64_t> positions{3, 7, 11};
+        std::copy(positions.begin(), positions.end(), inputs.at("position_ids").data<int64_t>());
+        auto request = ov::Core{}.compile_model(m.model, "CPU").create_infer_request();
+        for (const auto& [name, value] : inputs)
+            request.set_tensor(name, value);
+        request.infer();
+        const auto actual = request.get_tensor("test_probe_positions");
+        ASSERT_EQ(actual.get_shape(), (ov::Shape{1, 1, 1, 12}));
+        const std::vector<int32_t> expected = layout == GenAIContract::PositionLayout::THREE_AXIS
+                                                  ? std::vector<int32_t>{3, 7, 11, 3, 7, 11, 3, 7, 11, 0, 0, 0}
+                                                  : std::vector<int32_t>{3, 7, 11, 3, 7, 11, 3, 7, 11, 3, 7, 11};
+        EXPECT_EQ(std::vector<int32_t>(actual.data<int32_t>(), actual.data<int32_t>() + actual.get_size()), expected);
+    }
+}
+
+TEST(GGUFAdaptToGenAI, RejectsNoncausalSlidingWindowBeforeRewriting) {
+    auto m = build_minimal_gguf_model();
+    auto swa = ov::test::utils::make_param(ov::element::f32, ov::PartialShape{1, 1, -1, -1}, "self_kq_mask_swa");
+    m.model->add_parameters({swa});
+    m.model->get_rt_info()[ov::frontend::gguf::pass::gguf_swa_window_key()] = int64_t{2};
+    ov::frontend::gguf::ModelContract contract;
+    contract.genai.emplace();
+    contract.genai->causal_attention = false;
+    ov::frontend::gguf::write_model_contract(m.model, contract);
+
+    EXPECT_THROW(AdaptToGenAI().run_on_model(m.model), ov::Exception);
+    EXPECT_NE(find_parameter(m.model, "inp_tokens"), nullptr);
+    EXPECT_NE(find_parameter(m.model, "self_kq_mask_swa"), nullptr);
+    EXPECT_EQ(find_parameter(m.model, "input_ids"), nullptr);
+    EXPECT_NO_THROW(m.model->validate_nodes_and_infer_types());
+}
+
 TEST(GGUFAdaptToGenAI, ExplicitPositionLayoutSurvivesIRReloadAndArchitectureRename) {
     for (const auto layout :
          {GenAIContract::PositionLayout::THREE_AXIS, GenAIContract::PositionLayout::SEQUENCE_THREE_AXIS}) {

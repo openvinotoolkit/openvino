@@ -27,6 +27,7 @@
 #include "openvino/op/pad.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/reverse.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
@@ -307,12 +308,17 @@ Deconv1DDecomposition::Deconv1DDecomposition() {
         }
         auto weights_4d_shape = create_shape_pattern({shape_of_weights, one_const});
         decomp_nodes.push_back(weights_4d_shape.get_node_shared_ptr());
-        ov::Output<ov::Node> weights_4d = std::make_shared<ov::op::v1::Reshape>(weights, weights_4d_shape, false);
+        auto weights_4d = ov::op::util::make_try_fold<ov::op::v1::Reshape>(weights, weights_4d_shape, false);
+        auto weights_reversed =
+            ov::op::util::make_try_fold<ov::op::v1::Reverse>(weights_4d,
+                                                             ov::op::v0::Constant::create(ov::element::i32, {1}, {2}),
+                                                             ov::op::v1::Reverse::Mode::INDEX);
 
         std::vector<int32_t> transpose_order = {1, 0, 2, 3};
         auto transpose_const = ov::op::v0::Constant::create(ov::element::i32, {4}, transpose_order);
-        auto weights_transposed = std::make_shared<ov::op::v1::Transpose>(weights_4d, transpose_const);
-        decomp_nodes.push_back(weights_4d.get_node_shared_ptr());
+        auto weights_transposed = ov::op::util::make_try_fold<ov::op::v1::Transpose>(weights_reversed, transpose_const);
+        decomp_nodes.push_back(weights_4d);
+        decomp_nodes.push_back(weights_reversed);
         decomp_nodes.push_back(weights_transposed);
 
         ov::Strides conv_strides = {1, 1};
