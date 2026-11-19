@@ -58,6 +58,18 @@ The following extension types are supported:
 * `ov::BaseOpExtension` - enable support for a custom operation.
 * `ov::detail::SOExtension` - allow support for `ov::BaseOpExtension` extensions loaded from an external library.
 
+### Exported-model inputs
+
+Conversion of a `torch.export.ExportedProgram` retains its static dimensions and
+per-dimension bounds. An explicitly requested input shape must not widen them;
+export again with the desired dynamic dimensions instead. OpenVINO does not
+enforce all export guards, including cross-input equality and divisibility
+constraints, so inference inputs must also satisfy the original program's guards.
+
+For `dynamo=True`, pass a single list argument as `(list_of_tensors,)` and use
+distinct tensor objects for separate example inputs. Repeated tensor objects
+are rejected because `torch.export` can specialize their aliasing.
+
 ### Context-manager scopes in exported models
 
 OpenVINO performs inference only. `torch.export` represents `torch.no_grad()`,

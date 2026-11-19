@@ -6,6 +6,7 @@
 
 import logging
 import inspect
+import math
 import operator
 from functools import lru_cache
 import torch
@@ -21,7 +22,7 @@ except ImportError:
 
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 from openvino.frontend.pytorch.decoder_base import TorchDecoderBase
-from openvino import PartialShape, Type as OVType, OVAny, Shape
+from openvino import Dimension, PartialShape, Type as OVType, OVAny, Shape
 from openvino.frontend.pytorch.utils import (
     make_constant, fetch_attr, pt_to_ov_type_map, pt_to_scalar_type_map,
     torch_tensor_to_ov_const)
@@ -222,7 +223,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
     def __init__(self, pt_module, fx_gm=None, nodes=None,
                  mark_node_callback=None, input_shapes=None,
                  input_types=None, dynamic_shapes=False,
-                 op_type_mapping=None, output_names=None):
+                 op_type_mapping=None, output_names=None, shared_memory=True,
+                 constant_inputs=None):
         super().__init__(mark_node_callback)
         if isinstance(pt_module, torch.fx.GraphModule):
             lowered = lower_vmap_regions(pt_module)
@@ -231,6 +233,10 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         self.pt_module = pt_module
         self.fx_gm = fx_gm if fx_gm is not None else pt_module
         self._module_extension_target_ops = op_type_mapping or {}
+        self._shared_memory = shared_memory
+        self._use_exported_example_shape = False
+        self._is_exported_program = constant_inputs is not None
+        self._flat_input_is_constant = []
         self.input_types = input_types or []
         self.input_types = [OVAny(pt_to_ov_type_map[str(t)])
                             for t in self.input_types]
@@ -243,12 +249,22 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         if isinstance(pt_module, torch.fx.graph_module.GraphModule):
             self._input_is_list = None
             self._nodes = IndexedNodes(pt_module.graph.nodes)
+            if constant_inputs is not None and len(constant_inputs) != sum(
+                    node.op == "placeholder" for node in self._nodes):
+                raise RuntimeError("Exported program input metadata does not match the FX graph placeholders")
             found_types = []
             found_shapes = []
             for i, value in enumerate(self._nodes):
                 if value.op == "placeholder":
-                    self._inputs.append(i)
                     self._input_signature.append(value.name)
+                    is_constant = (constant_inputs[len(self._flat_input_is_constant)]
+                                   if constant_inputs is not None else False)
+                    self._flat_input_is_constant.append(is_constant)
+                    if is_constant:
+                        if any(not self._is_export_guard(user) for user in value.users):
+                            raise RuntimeError(f"Exported constant input '{value.name}' is used by the graph")
+                        continue
+                    self._inputs.append(i)
 
                     found_shapes.append(self.get_found_shape(value))
                     found_types.append(self.get_found_dtype(value))
@@ -278,7 +294,12 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             if hasattr(self.pt_module, "forward"):
                 input_params = inspect.signature(self.pt_module.forward).parameters
                 self._input_signature = list(input_params)
-                self._input_names = self._get_input_names_from_spec(placeholder_names)
+                input_names = self._get_input_names_from_spec(placeholder_names)
+                if input_names is None and any(self._flat_input_is_constant):
+                    input_names = placeholder_names
+                if input_names is not None:
+                    self._input_names = [name for name, is_constant in zip(input_names, self._flat_input_is_constant)
+                                         if not is_constant]
 
         elif isinstance(pt_module, torch.fx.Node):
             self._nodes = nodes  # passed from outer context
@@ -333,8 +354,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
 
     @classmethod
     def from_exported_program(
-        cls, exported_program: torch.export.ExportedProgram, dynamic_shapes=True,
-        op_type_mapping=None,
+        cls, exported_program: torch.export.ExportedProgram, dynamic_shapes=False,
+        op_type_mapping=None, shared_memory=True,
     ) -> "TorchFXPythonDecoder":
         """Create a TorchFXPythonDecoder instance from an exported PyTorch program.
 
@@ -346,11 +367,40 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             to the ``target_op`` that the C++ frontend expects for
             ``ConversionExtension`` lookup.
         """
+        from torch.export.graph_signature import ConstantArgument, InputKind
+
         gm = exported_program.module()
         logger.debug(gm.code)
-        return cls(gm, dynamic_shapes=dynamic_shapes,
-                   op_type_mapping=op_type_mapping,
-                   output_names=cls._output_names_from_spec(exported_program.call_spec.out_spec))
+        constant_inputs = [isinstance(spec.arg, ConstantArgument)
+                           for spec in exported_program.graph_signature.input_specs
+                           if spec.kind == InputKind.USER_INPUT]
+        decoder = cls(gm, dynamic_shapes=dynamic_shapes,
+                      op_type_mapping=op_type_mapping,
+                      output_names=cls._output_names_from_spec(exported_program.call_spec.out_spec),
+                      shared_memory=shared_memory, constant_inputs=constant_inputs)
+        if not dynamic_shapes:
+            placeholders = [node for node in gm.graph.nodes if node.op == "placeholder"]
+            input_index = 0
+            for node, is_constant in zip(placeholders, constant_inputs):
+                if is_constant:
+                    continue
+                shape = cls.get_found_shape(node)
+                if shape is not None:
+                    dimensions = []
+                    for dim in shape:
+                        if not isinstance(dim, torch.SymInt):
+                            dimensions.append(int(dim))
+                            continue
+                        bounds = exported_program.range_constraints.get(dim.node.expr)
+                        if bounds is None:
+                            dimensions.append(-1)
+                            continue
+                        lower = int(bounds.lower) if bounds.lower > 2 else 0
+                        upper = int(bounds.upper) if math.isfinite(bounds.upper) else -1
+                        dimensions.append(Dimension(lower, upper))
+                    decoder.input_shapes[input_index] = PartialShape(dimensions)
+                input_index += 1
+        return decoder
 
     @staticmethod
     def _output_names_from_spec(out_spec):
@@ -386,6 +436,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         cls, model: torch.nn.Module, example_inputs,
         dynamic_shapes=None,
         module_extensions=None,
+        shared_memory=True,
     ) -> "TorchFXPythonDecoder":
         """Export a model and create a decoder, applying module extensions and auto-patching.
 
@@ -406,7 +457,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         """
         from openvino.frontend.pytorch import quantized
         from openvino.frontend.pytorch.patch_model import (
-            patch_model_for_export, unpatch_model, patched_dataclass_outputs, _clear_export_cache)
+            patch_model_for_export, unpatch_model, wrap_dataclass_outputs, _clear_export_cache)
 
         orig_forward_name = "_openvino_module_extension_patch_orig_forward"
 
@@ -442,8 +493,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                 quant_patched = False
 
         try:
-            with patched_dataclass_outputs(model):
-                exported_program = cls._export(model, example_inputs, dynamic_shapes)
+            exported_program = cls._export(wrap_dataclass_outputs(model), example_inputs, dynamic_shapes)
         finally:
             if quant_patched:
                 quantized.unpatch_quantized_for_export(model)
@@ -451,11 +501,31 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                 unpatch_model(model, orig_forward_name)
 
         try:
-            return cls.from_exported_program(
-                exported_program, dynamic_shapes=dynamic_shapes is not None,
-                op_type_mapping=op_type_mapping)
+            decoder = cls.from_exported_program(
+                exported_program, dynamic_shapes=False,
+                op_type_mapping=op_type_mapping, shared_memory=shared_memory)
+            cls._restore_wrapped_attr_names(decoder.pt_module)
+            decoder._use_exported_example_shape = True
+            return decoder
         finally:
             _clear_export_cache()
+
+    @staticmethod
+    def _restore_wrapped_attr_names(graph_module):
+        nodes = list(graph_module.graph.nodes)
+        wrapped = [node for node in nodes
+                   if node.op == "get_attr" and str(node.target).startswith("wrapped_model.")]
+        wrapped_nodes = set(wrapped)
+        namespace = type(graph_module.graph._graph_namespace)()
+        for node in nodes:
+            if node not in wrapped_nodes:
+                namespace.create_name(node.name, node)
+        for node in wrapped:
+            base = node.name.removeprefix("wrapped_model_")
+            if base[0].isdigit():
+                base = "_" + base
+            node.name = namespace.create_name(base, node)
+        graph_module.graph._graph_namespace = namespace
 
     @staticmethod
     def _export(model, inputs, dynamic_shapes=None):
@@ -506,6 +576,10 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             start = len(names)
             names += [name] if spec.is_leaf() else placeholder_names[start:start + spec.num_leaves]
         return names if len(names) == len(placeholder_names) else None
+
+    @staticmethod
+    def _is_export_guard(node):
+        return node.op == "call_module" and node.target == "_guards_fn" and not node.users
 
     def get_input_signature_name(self, index: int) -> str:
         if self._input_names is not None and index < len(self._input_names):
@@ -627,6 +701,11 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return PartialShape.dynamic()
 
     def get_attribute(self, name):
+        if name == "__openvino_fx_output_dtype" and isinstance(self.pt_module, torch.fx.Node):
+            value = self.pt_module.meta.get("val")
+            if isinstance(value, torch.Tensor) and not value.is_complex() and str(value.dtype) in pt_to_ov_type_map:
+                return OVAny(pt_to_ov_type_map[str(value.dtype)])
+            return OVAny(None)
         if name in self.pt_module.kwargs:
             attr = self.pt_module.kwargs[name]
             if isinstance(attr, torch.dtype):
@@ -662,6 +741,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         for node in self._nodes:
             if node.op in {"placeholder", "output"}:
                 continue  # skipping non-operational nodes
+            if self._is_exported_program and self._is_export_guard(node):
+                continue
             if node.op == "call_function" and str(node.target) in ["aten._assert_async.msg"]:
                 continue
             # Skip get_attr nodes that reference subgraph GraphModules
@@ -673,7 +754,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             decoder = TorchFXPythonDecoder(
                 node, self.fx_gm, self._nodes,
                 mark_node_callback=self.mark_node_callback,
-                op_type_mapping=self._module_extension_target_ops)
+                op_type_mapping=self._module_extension_target_ops,
+                shared_memory=self._shared_memory)
             node_idx = decoder._outputs[0][1]
             if node_idx in output_names:
                 # model output tensor gets its name, e.g. key of the returned dict
@@ -703,7 +785,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             subgraph,
             subgraph,  # Use subgraph as fx_gm for proper constant resolution
             mark_node_callback=self.mark_node_callback,
-            op_type_mapping=self._module_extension_target_ops
+            op_type_mapping=self._module_extension_target_ops,
+            shared_memory=self._shared_memory
         )
         self.m_decoders.append(decoder)
         return decoder
@@ -792,7 +875,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         assert self.pt_module.op == "get_attr", "Only get_attr is supported"
         # Extract Constant from FX module field
         ret = fetch_attr(self.fx_gm, self.pt_module.target)
-        ov_const = torch_tensor_to_ov_const(ret, shared_memory=True)
+        ov_const = torch_tensor_to_ov_const(ret, shared_memory=self._shared_memory)
         return ov_const.outputs()
 
     def input_is_none(self, index):
