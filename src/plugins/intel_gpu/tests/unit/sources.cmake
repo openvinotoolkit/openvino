@@ -199,7 +199,9 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/experimental_detectron_topk_rois_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/extract_image_patches_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/eye.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/test_cases/fully_connected_cm_woq_u2_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/fully_connected_gpu_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/test_cases/fully_connected_weights_layout_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/gated_delta_net.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/gather_elements_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/gather_gpu_test.cpp
@@ -249,6 +251,8 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/propagate_constants_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/proposal_cpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/proposal_test_data.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/test_cases/qsa_ops_gpu_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/test_cases/sparse_pa_kvq_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/quantize_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/random_uniform_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/range_gpu_test.cpp
@@ -310,6 +314,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/test_utils/test_utils.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_utils/test_utils.h
     ${CMAKE_CURRENT_LIST_DIR}/test_utils/uniform_quantized_real_distribution.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/batch_replicated_branches_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/bcast_and_pad_zp_buffers_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/clamp_fp16_output_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_binary_conv_to_conv_test.cpp
@@ -356,6 +361,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/preserve_single_selective_ssm_output_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/reduce_fc_dimensions_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/remove_fq_before_dw_conv_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/scale_down_gated_mlp_input_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/sdpa_opt_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/sdpa_transpose_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/sink_reshape_test.cpp
@@ -371,6 +377,8 @@ set(GPU_UNIT_TESTS_SRCS
 )
 
 set(GPU_UNIT_TESTS_TRANSFORMATIONS_SRCS
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/batch_replicated_branches.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/batch_replicated_branches.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/bcast_and_pad_zp_buffers.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/bcast_and_pad_zp_buffers.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/binary_conv_to_conv.cpp
@@ -480,6 +488,7 @@ set(GPU_UNIT_TESTS_TRANSFORMATIONS_SRCS
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/reduce_fc_dimensions.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/remove_fq_before_dw_conv.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/remove_fq_before_dw_conv.hpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/scale_down_gated_mlp_input.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/sdpa_transpose_fusion.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/sdpa_transpose_fusion.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/sink_reshape.cpp
@@ -509,6 +518,8 @@ set(GPU_UNIT_TESTS_TRANSFORMATIONS_SRCS
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/placeholder.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/read_value.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/sdpa.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/sparse_pa.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/sparse_sdpa.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/stateless_kv.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/swoosh.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/swiglu_with_clamp.cpp
@@ -531,6 +542,14 @@ set(GPU_UNIT_TESTS_ONEDNN_SRCS
 )
 if(ENABLE_ONEDNN_FOR_GPU)
     list(APPEND GPU_UNIT_TESTS_SRCS ${GPU_UNIT_TESTS_ONEDNN_SRCS})
+endif()
+
+# MLIR (Graph Compiler) tests - only compiled when ENABLE_MLIR_FOR_GPU is ON.
+set(GPU_UNIT_TESTS_MLIR_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/mlir/mlir_primitive_layouts_test.cpp
+)
+if(ENABLE_MLIR_FOR_GPU)
+    list(APPEND GPU_UNIT_TESTS_SRCS ${GPU_UNIT_TESTS_MLIR_SRCS})
 endif()
 
 # Tests with a dependency on the OpenCL runtime - excluded from the build with a different runtime.

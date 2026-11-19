@@ -304,8 +304,9 @@ StatelessKVFusionMatcher::StatelessKVFusionMatcher() {
         auto get_trimmed_mask = [&](const ov::Output<ov::Node>& full_mask, const ov::Dimension& cur_seqlen) -> std::shared_ptr<ov::Node> {
             if (cache->present_kv_len.get_node() && cur_seqlen.is_static()) {
                 for (const auto& [len, old_mask, new_mask] : cache->trimmed_masks) {
-                    if (len != cur_seqlen.get_length())
+                    if (len != cur_seqlen.get_length()) {
                         continue;
+                    }
                     if (old_mask == full_mask) {
                         return new_mask;
                     }
@@ -362,7 +363,13 @@ StatelessKVFusionMatcher::StatelessKVFusionMatcher() {
         if (pos_idx_output.get_node()) {
             posidname = pos_idx_output.get_node()->get_friendly_name();
         }
-        GPU_DEBUG_TRACE_DETAIL << "statelesskv " << (is_slice_concat ? "SC" : (is_update_split ? "US" : "U")) << ": [" << past_output.get_any_name() << "]["
+        const char* pattern = "U";
+        if (is_slice_concat) {
+            pattern = "SC";
+        } else if (is_update_split) {
+            pattern = "US";
+        }
+        GPU_DEBUG_TRACE_DETAIL << "statelesskv " << pattern << ": [" << past_output.get_any_name() << "]["
                                << result_node->get_friendly_name() << "] " << (sdpa_node ? "sdpa" : "next") << ":" << kv_sdpa_node->get_friendly_name()
                                << " len:" << seqlen_output.get_node()->get_friendly_name() << "(" << (is_seq_len_present_len ? "present" : "past")
                                << ") pos:" << posidname

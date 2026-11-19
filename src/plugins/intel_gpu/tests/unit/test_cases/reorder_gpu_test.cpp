@@ -25,6 +25,69 @@ using namespace cldnn;
 using namespace ::tests;
 using namespace testing;
 
+template <typename InputT, typename OutputT>
+static void check_fast_dtype_only_batch_offset(data_types input_type, data_types output_type) {
+    auto& engine = get_test_engine();
+    const tensor logical_size{1, 3, 5, 2};
+    const size_t count = logical_size.count();
+
+    for (int32_t batch_offset : {0, 1}) {
+        SCOPED_TRACE(batch_offset);
+        // Batch-only padding preserves contiguous logical pitches, so the
+        // dtype-only branch must still account for the first element's offset.
+        const layout in_layout(input_type,
+                               format::bfyx,
+                               logical_size,
+                               padding({batch_offset, 0, 0, 0}, {0, 0, 0, 0}));
+        const layout out_layout(output_type, format::bfyx, logical_size);
+        auto input = engine.allocate_memory(in_layout);
+        const size_t offset = in_layout.get_linear_offset(tensor{0});
+        ASSERT_EQ(offset, static_cast<size_t>(batch_offset) * count);
+        {
+            mem_lock<InputT> input_ptr(input, get_test_stream());
+            std::fill(input_ptr.begin(), input_ptr.end(), InputT(-123.0f));
+            for (size_t idx = 0; idx < count; ++idx) {
+                input_ptr[offset + idx] = InputT((static_cast<int>(idx) - 13) * 0.25f);
+            }
+        }
+
+        topology topology(cldnn::input_layout("input", in_layout),
+                          reorder("reorder", input_info("input"), out_layout));
+        auto reference_config = get_test_default_config(engine);
+        reference_config.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{{"reorder", {format::bfyx, "reorder_data", impl_types::ocl}}}));
+        auto fast_config = get_test_default_config(engine);
+        fast_config.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{{"reorder", {format::bfyx, "reorder_data_fast_b1", impl_types::ocl}}}));
+
+        network reference(engine, topology, reference_config);
+        network fast(engine, topology, fast_config);
+        reference.set_input_data("input", input);
+        fast.set_input_data("input", input);
+        auto reference_output = reference.execute().at("reorder").get_memory();
+        auto fast_output = fast.execute().at("reorder").get_memory();
+        ASSERT_NE(fast.get_primitive("reorder")->get_impl()->get_kernel_name().find("reorder_data_fast_b1"),
+                  std::string::npos);
+
+        mem_lock<OutputT> reference_ptr(reference_output, get_test_stream());
+        mem_lock<OutputT> fast_ptr(fast_output, get_test_stream());
+        ASSERT_EQ(fast_output->get_layout(), out_layout);
+        for (size_t idx = 0; idx < count; ++idx) {
+            const auto expected = OutputT((static_cast<int>(idx) - 13) * 0.25f);
+            ASSERT_EQ(reference_ptr[idx], expected) << "index " << idx;
+            ASSERT_EQ(fast_ptr[idx], reference_ptr[idx]) << "index " << idx;
+        }
+    }
+}
+
+TEST(reorder_gpu, fast_dtype_only_f32_to_f16_batch_offset) {
+    check_fast_dtype_only_batch_offset<float, ov::float16>(data_types::f32, data_types::f16);
+}
+
+TEST(reorder_gpu, fast_dtype_only_f16_to_f32_batch_offset) {
+    check_fast_dtype_only_batch_offset<ov::float16, float>(data_types::f16, data_types::f32);
+}
+
 template <typename T>
 static void compare_result(std::map<cldnn::primitive_id, cldnn::network_output> ref_result,
                            std::map<cldnn::primitive_id, cldnn::network_output> opt_result) {

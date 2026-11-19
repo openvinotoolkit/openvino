@@ -18,6 +18,7 @@
 #include "moe_transformations/apply_moe_device_routed_transforms.hpp"
 #include "moe_transformations/moe_topology.hpp"
 #include "npuw_transformations/add_position_ids_param.hpp"
+#include "npuw_transformations/broadcast_u2_zero_point.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
 #include "npuw_transformations/cut_lm_head.hpp"
 #include "npuw_transformations/detect_causal_mask.hpp"
@@ -883,6 +884,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         m_cfg.update({{"NPUW_LLM_SHARED_HEAD", "NO"}});
         m_cfg.update({{"NPUW_LLM_PREFILL_CHUNK_SIZE", "0"}});
         m_cfg.update({{"NPUW_LLM_CACHE_ROPE", "NO"}});
+        // Shared vocabulary handling makes the decoding of INT4 Whisper models several times slower
+        // in the default (not folded) configuration, so it is not used for Whisper.
+        if (m_cfg.get<::intel_npu::NPUW_LLM_VOCAB_ASYM_SHARED>()) {
+            LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is not used for Whisper and is turned off.");
+            m_cfg.update({{"NPUW_LLM_VOCAB_ASYM_SHARED", "NO"}});
+        }
 
         m_eos_token_id = m_cfg.get<::intel_npu::NPUW_WHISPER_EOS_TOKEN>();
     }
@@ -974,9 +981,15 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto kvcache_model = model->clone();
 
     if (m_cfg.get<::intel_npu::NPUW_LLM_VOCAB_ASYM_SHARED>()) {
-        ov::npuw::InsertVocabSub128 pass;
-        if (!pass.run_on_model(kvcache_model)) {
-            LOG_INFO("No asymmetric u8 vocab found - graph Sub128 insertion is skipped.");
+        bool shared_vocab = false;
+        ov::npuw::DetectVocabSharing detect_vocab_sharing(shared_vocab);
+        detect_vocab_sharing.run_on_model(kvcache_model);
+        if (shared_vocab) {
+            ov::npuw::InsertVocabSub128 pass;
+            if (!pass.run_on_model(kvcache_model)) {
+                // Sharing was detected, but the shared vocabulary is not u8 asymmetric (e.g. f16 or i4).
+                LOG_INFO("Shared vocabulary is not asymmetric u8 - graph Sub128 insertion is skipped.");
+            }
         }
     }
 
@@ -1108,6 +1121,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         if (ov::npuw::util::OptimizeLinCacheLayout().run_on_model(kvcache_model)) {
             LOG_DEBUG("Conv state tensors re-laid out as [batch, kernel, channels]");
         }
+    }
+
+    ov::npuw::BroadcastU2ZeroPoint().run_on_model(kvcache_model);
+    if (lm_head_model) {
+        ov::npuw::BroadcastU2ZeroPoint().run_on_model(lm_head_model);
     }
 
     LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");

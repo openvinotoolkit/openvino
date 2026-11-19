@@ -11,8 +11,8 @@ struct experimental_detectron_generate_proposals_single_image_params : public ba
     experimental_detectron_generate_proposals_single_image_params()
     : base_params(KernelType::EXPERIMENTAL_DETECTRON_GENERATE_PROPOSALS_SINGLE_IMAGE) {}
 
-    float min_size{0.0f};
-    float nms_threshold{0.0f};
+    float min_size{0.0F};
+    float nms_threshold{0.0F};
     size_t pre_nms_count{0};
     size_t post_nms_count{0};
 };
@@ -31,7 +31,6 @@ public:
     ParamsKey GetSupportedKey() const override;
 protected:
     bool Validate(const Params& p) const override;
-    void SetKernelArguments(const experimental_detectron_generate_proposals_single_image_params& params,
-                            size_t idx, cldnn::arguments_desc& kernel) const;
+    static void SetKernelArguments(const experimental_detectron_generate_proposals_single_image_params& params, size_t idx, cldnn::arguments_desc& arguments);
 };
 }  // namespace kernel_selector
