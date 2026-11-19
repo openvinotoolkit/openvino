@@ -609,9 +609,6 @@ def wrap_dataclass_outputs(model: torch.nn.Module):
     if isinstance(model, torch.jit.ScriptModule):
         return model
     signature = inspect.signature(model.forward)
-    self_name = "_openvino_wrapper_self"
-    while self_name in signature.parameters:
-        self_name += "_"
 
     class OutputWrapper(torch.nn.Module):
         def __init__(self):
@@ -621,8 +618,8 @@ def wrap_dataclass_outputs(model: torch.nn.Module):
         def forward(self, *args, **kwargs):
             return _dataclasses_to_dicts(self.wrapped_model(*args, **kwargs))
 
-    OutputWrapper.forward.__signature__ = signature.replace(
-        parameters=[inspect.Parameter(self_name, inspect.Parameter.POSITIONAL_ONLY), *signature.parameters.values()])
+    self_parameter = inspect.Parameter("_openvino_wrapper_self", inspect.Parameter.POSITIONAL_ONLY)
+    OutputWrapper.forward.__signature__ = signature.replace(parameters=[self_parameter, *signature.parameters.values()])
     return OutputWrapper()
 
 

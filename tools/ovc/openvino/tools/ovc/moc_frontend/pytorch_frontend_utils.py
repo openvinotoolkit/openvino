@@ -96,6 +96,11 @@ def _build_dynamic_shapes(inputs, input_specs=None, input_names=None):
         return shapes
 
     spec_shapes = _get_spec_shapes()
+
+    # Flatten the (possibly nested) inputs to get leaf tensors and the
+    # tree structure.  Build a flat list of per-leaf dim specs, then
+    # unflatten back so that dynamic_shapes mirrors the input structure
+    # exactly as torch.export.export requires.
     if isinstance(inputs, torch.Tensor):
         inputs = (inputs,)
 
@@ -206,17 +211,8 @@ def get_pytorch_decoder(model, example_inputs, args):
     inputs = prepare_torch_inputs(example_inputs, preserve_lists=use_dynamo)
     if use_dynamo and inputs is None:
         raise Error("example_input is required when dynamo=True; pass dynamo=False to use TorchScript.")
-    elif use_dynamo and (TorchFXPythonDecoder is None or not hasattr(torch.export, "Dim")
-                         or not hasattr(torch.export.Dim, "AUTO")):
+    elif use_dynamo and (TorchFXPythonDecoder is None or not hasattr(getattr(torch.export, "Dim", None), "AUTO")):
         raise Error("torch.export conversion requires PyTorch >= 2.6; pass dynamo=False to use TorchScript.")
-
-    if use_dynamo:
-        import inspect
-        if isinstance(inputs, dict):
-            parameters = inspect.signature(model.forward).parameters
-            ordered_inputs = {name: inputs[name] for name in parameters if name in inputs}
-            ordered_inputs.update({name: value for name, value in inputs.items() if name not in ordered_inputs})
-            inputs = ordered_inputs
 
     decoder_types = (TorchScriptPythonDecoder,)
     if TorchFXPythonDecoder is not None:
@@ -227,7 +223,13 @@ def get_pytorch_decoder(model, example_inputs, args):
             if args.get("input") is not None:
                 _validate_exported_input_shapes(decoder, input_to_input_cut_info(args["input"]))
         elif use_dynamo:
+            import inspect
             from torch.utils._pytree import tree_flatten
+            if isinstance(inputs, dict):
+                ordered_inputs = {name: inputs[name] for name in inspect.signature(model.forward).parameters
+                                  if name in inputs}
+                ordered_inputs.update({name: value for name, value in inputs.items() if name not in ordered_inputs})
+                inputs = ordered_inputs
             leaves, _ = tree_flatten(inputs)
             tensor_ids = [id(leaf) for leaf in leaves if isinstance(leaf, torch.Tensor)]
             if len(tensor_ids) != len(set(tensor_ids)):
@@ -240,12 +242,12 @@ def get_pytorch_decoder(model, example_inputs, args):
             input_specs = input_to_input_cut_info(raw_input) if raw_input is not None else None
             input_names = None
             shape_inputs = inputs
+            signature = inspect.signature(model.forward) if input_specs else None
             if input_specs and any(spec.name for spec in input_specs):
-                input_names = [param.name for param in inspect.signature(model.forward).parameters.values()
+                input_names = [param.name for param in signature.parameters.values()
                                if param.kind in (inspect.Parameter.POSITIONAL_ONLY,
                                                  inspect.Parameter.POSITIONAL_OR_KEYWORD)]
             if input_specs and not isinstance(inputs, dict):
-                signature = inspect.signature(model.forward)
                 if any(param.kind == inspect.Parameter.VAR_POSITIONAL for param in signature.parameters.values()):
                     positional_inputs = inputs if isinstance(inputs, (list, tuple)) else (inputs,)
                     bound = signature.bind(*positional_inputs)
@@ -507,22 +509,19 @@ def extract_input_info_from_example(args, inputs):
         if isinstance(example, tuple) and len(example) == 2:
             name = example[0]
             example = example[1]
+        shape = PartialShape([-1] * example.ndim) if hasattr(example, "ndim") else PartialShape.dynamic()
+        if getattr(args, 'dynamo', False):
+            # For dynamo mode, use concrete shapes from example; dynamic dims
+            # are only introduced when the user explicitly provides 'input'.
+            shape = PartialShape(list(example.shape)) if hasattr(example, "shape") else shape
         if is_exported:
             if args.input_model._flat_input_is_constant[i]:
                 continue
             exported_name = args.input_model.get_input_signature_name(len(input_arg))
             if name is not None:
-                if name in example_aliases:
-                    example_aliases[name] = None
-                else:
-                    example_aliases[name] = exported_name
+                example_aliases[name] = None if name in example_aliases else exported_name
             name = exported_name
-        if is_exported:
             shape = args.input_model.get_input_shape(len(input_arg))
-        elif getattr(args.input_model, '_use_exported_example_shape', False):
-            shape = PartialShape(list(example.shape)) if hasattr(example, "shape") else PartialShape.dynamic()
-        else:
-            shape = PartialShape([-1] * example.ndim) if hasattr(example, "ndim") else PartialShape.dynamic()
         dtype = getattr(example, "dtype", type(example))
         dtype = pt_to_ov_type_map.get(str(dtype))
         if name:
@@ -608,5 +607,6 @@ def prepare_torch_inputs(example_inputs, preserve_lists=False):
         else:
             inputs = to_torch_tensor(inputs, preserve_lists=preserve_lists)
     else:
+        # No example_input were provided, decoder will use scripting
         return None
     return inputs

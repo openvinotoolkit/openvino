@@ -234,7 +234,6 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         self.fx_gm = fx_gm if fx_gm is not None else pt_module
         self._module_extension_target_ops = op_type_mapping or {}
         self._shared_memory = shared_memory
-        self._use_exported_example_shape = False
         self._is_exported_program = constant_inputs is not None
         self._flat_input_is_constant = []
         self.input_types = input_types or []
@@ -379,28 +378,24 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                       output_names=cls._output_names_from_spec(exported_program.call_spec.out_spec),
                       shared_memory=shared_memory, constant_inputs=constant_inputs)
         if not dynamic_shapes:
-            placeholders = [node for node in gm.graph.nodes if node.op == "placeholder"]
-            input_index = 0
-            for node, is_constant in zip(placeholders, constant_inputs):
-                if is_constant:
-                    continue
-                shape = cls.get_found_shape(node)
+            constraints = exported_program.range_constraints
+            for input_index, node_index in enumerate(decoder._inputs):
+                shape = cls.get_found_shape(decoder._nodes[node_index])
                 if shape is not None:
-                    dimensions = []
-                    for dim in shape:
-                        if not isinstance(dim, torch.SymInt):
-                            dimensions.append(int(dim))
-                            continue
-                        bounds = exported_program.range_constraints.get(dim.node.expr)
-                        if bounds is None:
-                            dimensions.append(-1)
-                            continue
-                        lower = int(bounds.lower) if bounds.lower > 2 else 0
-                        upper = int(bounds.upper) if math.isfinite(bounds.upper) else -1
-                        dimensions.append(Dimension(lower, upper))
-                    decoder.input_shapes[input_index] = PartialShape(dimensions)
-                input_index += 1
+                    decoder.input_shapes[input_index] = PartialShape(
+                        [cls._exported_dim(dim, constraints) for dim in shape])
         return decoder
+
+    @staticmethod
+    def _exported_dim(dim, range_constraints):
+        if not isinstance(dim, torch.SymInt):
+            return int(dim)
+        bounds = range_constraints.get(dim.node.expr)
+        if bounds is None:
+            return -1
+        lower = int(bounds.lower) if bounds.lower > 2 else 0
+        upper = int(bounds.upper) if math.isfinite(bounds.upper) else -1
+        return Dimension(lower, upper)
 
     @staticmethod
     def _output_names_from_spec(out_spec):
@@ -502,10 +497,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
 
         try:
             decoder = cls.from_exported_program(
-                exported_program, dynamic_shapes=False,
-                op_type_mapping=op_type_mapping, shared_memory=shared_memory)
+                exported_program, op_type_mapping=op_type_mapping, shared_memory=shared_memory)
             cls._restore_wrapped_attr_names(decoder.pt_module)
-            decoder._use_exported_example_shape = True
             return decoder
         finally:
             _clear_export_cache()

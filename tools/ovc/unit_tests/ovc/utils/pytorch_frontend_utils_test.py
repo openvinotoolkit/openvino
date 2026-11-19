@@ -22,7 +22,6 @@ class FakeInputModel:
     def __init__(self, example_input):
         self._example_input = example_input
         self._input_signature = None
-        self._use_exported_example_shape = True
 
 
 class TestExtractInputInfoFromExample(UnitTestWithMockedTelemetry):

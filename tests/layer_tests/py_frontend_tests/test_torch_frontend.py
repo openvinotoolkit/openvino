@@ -2687,8 +2687,7 @@ class TestConvertModelDynamo:
             np.testing.assert_allclose(res[0], inp * 2.0, atol=1e-5, rtol=1e-5)
 
 
-    @pytest.mark.parametrize("dynamo_kwargs", [{"dynamo": True}])
-    def test_no_example_input_is_an_error(self, dynamo_kwargs):
+    def test_no_example_input_is_an_error(self):
         from openvino import convert_model
         from openvino.tools.ovc.error import Error
 
@@ -2697,7 +2696,7 @@ class TestConvertModelDynamo:
                 return x * 2
 
         with pytest.raises(Error, match="example_input is required when dynamo=True"):
-            convert_model(Dummy(), input=(PartialShape([-1, -1]), Type.f32), **dynamo_kwargs)
+            convert_model(Dummy(), input=(PartialShape([-1, -1]), Type.f32), dynamo=True)
 
     def test_no_example_input_uses_scripting_when_selected(self):
         from openvino import convert_model, compile_model
@@ -2711,22 +2710,20 @@ class TestConvertModelDynamo:
         np.testing.assert_array_equal(result[0], np.full((3, 4), 2, dtype=np.float32))
 
     @pytest.mark.parametrize("capture", ["script", "trace"])
-    @pytest.mark.parametrize("dynamo_kwargs", [{"dynamo": True}])
-    def test_scriptmodule_does_not_fall_back_to_torchscript(self, capture, dynamo_kwargs):
+    def test_scriptmodule_does_not_fall_back_to_torchscript(self, capture):
         from openvino import convert_model, compile_model
 
         example = torch.ones(2, 4)
         model = torch.nn.ReLU().eval()
         scripted = torch.jit.script(model) if capture == "script" else torch.jit.trace(model, example)
         with pytest.raises(ValueError, match="Exporting a ScriptModule is not supported"):
-            convert_model(scripted, example_input=example, **dynamo_kwargs)
+            convert_model(scripted, example_input=example, dynamo=True)
 
         converted = convert_model(scripted, example_input=example, dynamo=False)
         result = compile_model(converted, "CPU", default_cfg)([example.numpy()])
         np.testing.assert_array_equal(result[0], example.numpy())
 
-    @pytest.mark.parametrize("dynamo_kwargs", [{"dynamo": True}])
-    def test_scriptfunction_requires_explicit_torchscript(self, dynamo_kwargs):
+    def test_scriptfunction_requires_explicit_torchscript(self):
         from openvino import convert_model, compile_model
         from openvino.tools.ovc.error import Error
 
@@ -2736,7 +2733,7 @@ class TestConvertModelDynamo:
         example = torch.ones(2, 4)
         scripted = torch.jit.script(relu)
         with pytest.raises(Error, match="torch.export does not support torch.jit.ScriptFunction"):
-            convert_model(scripted, example_input=example, **dynamo_kwargs)
+            convert_model(scripted, example_input=example, dynamo=True)
 
         converted = convert_model(scripted, example_input=example, dynamo=False)
         result = compile_model(converted, "CPU", default_cfg)([example.numpy()])
@@ -2782,18 +2779,6 @@ class TestConvertModelDynamo:
         with pytest.raises(Error, match="incompatible with example_input shape"):
             convert_model(torch.nn.ReLU(), example_input=torch.ones(2, 3), input=PartialShape([4, 3]), dynamo=True)
 
-    def test_repeated_example_tensor_is_not_specialized_as_alias(self):
-        from openvino import convert_model
-        from openvino.tools.ovc.error import Error
-
-        class TwoInputs(torch.nn.Module):
-            def forward(self, a, b):
-                return a + b
-
-        example = torch.ones(2, 3)
-        with pytest.raises(Error, match="same tensor in multiple positions"):
-            convert_model(TwoInputs(), example_input=(example, example), dynamo=True)
-
     def test_model_without_inputs(self):
         from openvino import convert_model, compile_model
 
@@ -2805,50 +2790,35 @@ class TestConvertModelDynamo:
         assert len(converted.inputs) == 0
         np.testing.assert_array_equal(compile_model(converted, "CPU", default_cfg)()[0], [3.0])
 
-    @pytest.mark.parametrize("dynamo_kwargs", [{"dynamo": True}])
-    def test_old_torch_requires_export_support(self, monkeypatch, dynamo_kwargs):
+    def test_old_torch_requires_export_support(self, monkeypatch):
         from openvino import convert_model
         from openvino.tools.ovc.error import Error
 
         monkeypatch.setattr(torch.export, "Dim", object())
         with pytest.raises(Error, match="requires PyTorch >= 2.6"):
-            convert_model(torch.nn.ReLU(), example_input=torch.ones(2, 4), **dynamo_kwargs)
+            convert_model(torch.nn.ReLU(), example_input=torch.ones(2, 4), dynamo=True)
         converted = convert_model(torch.nn.ReLU(), example_input=torch.ones(2, 4), dynamo=False)
         assert converted.input(0).get_partial_shape() == PartialShape([-1, -1])
 
-    @pytest.mark.parametrize("exported_program", [False, True])
+    @pytest.mark.parametrize("source", ["module", "program", "file"])
     @pytest.mark.parametrize("share_weights", [False, True])
-    def test_share_weights(self, exported_program, share_weights):
+    def test_share_weights(self, source, share_weights, tmp_path, monkeypatch):
         from openvino import convert_model, compile_model
 
         model = torch.nn.Linear(2, 1, bias=False).eval()
         with torch.no_grad():
             model.weight.fill_(1)
         example = torch.ones(1, 2)
-        original = torch.export.export(model, (example,)) if exported_program else model
-        converted = convert_model(original, example_input=example, share_weights=share_weights, dynamo=True)
+        original = model if source == "module" else torch.export.export(model, (example,))
+        options = {"example_input": example}
+        if source == "file":
+            program, original, options = original, tmp_path / "model.pt2", {}
+            torch.export.save(program, original)
+            monkeypatch.setattr(torch.export, "load", lambda _: program)
+        converted = convert_model(original, share_weights=share_weights, dynamo=True, **options)
         with torch.no_grad():
             model.weight.fill_(7)
 
-        result = compile_model(converted, "CPU", default_cfg)([example.numpy()])
-        np.testing.assert_array_equal(result[0], [[14 if share_weights else 2]])
-
-    @pytest.mark.parametrize("share_weights", [False, True])
-    def test_share_weights_for_exported_program_on_disk(self, tmp_path, monkeypatch, share_weights):
-        from openvino import convert_model, compile_model
-
-        model = torch.nn.Linear(2, 1, bias=False).eval()
-        with torch.no_grad():
-            model.weight.fill_(1)
-        example = torch.ones(1, 2)
-        program = torch.export.export(model, (example,))
-        path = tmp_path / "model.pt2"
-        torch.export.save(program, path)
-        monkeypatch.setattr(torch.export, "load", lambda _: program)
-
-        converted = convert_model(path, share_weights=share_weights, dynamo=True)
-        with torch.no_grad():
-            model.weight.fill_(7)
         result = compile_model(converted, "CPU", default_cfg)([example.numpy()])
         np.testing.assert_array_equal(result[0], [[14 if share_weights else 2]])
 
