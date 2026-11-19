@@ -596,3 +596,71 @@ TEST(remove_redundant_reorders, reorder_of_non_default_port) {
         ASSERT_EQ(out_buffer[i], ref_result[i]);
     }
 }
+
+TEST(remove_redundant_reorders, removed_mean_reorder_keeps_consumer_format) {
+    // data(bfyx) ------------------------> consumer(format::any, mean = mean_reorder)
+    // mean_src(bfyx) -> mean_reorder(byxf) --^
+    // consumer's format::any follows its data input, so it must stay bfyx after mean_reorder is removed.
+    auto& engine = get_test_engine();
+    layout in_layout{ov::PartialShape{1, 3, 2, 2}, data_types::f32, format::bfyx};
+
+    topology topology;
+    topology.add(input_layout("data", in_layout));
+    topology.add(input_layout("mean_src", in_layout));
+    topology.add(reorder("mean_reorder", input_info("mean_src"), format::byxf, data_types::f32));
+    topology.add(reorder("consumer", input_info("data"), format::any, data_types::f32, "mean_reorder"));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+    ASSERT_EQ(prog->get_node("consumer").get_output_layout().format, format::bfyx);
+
+    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, true);
+
+    ASSERT_FALSE(has_node(*prog, "mean_reorder"));
+    auto& consumer = prog->get_node("consumer");
+    consumer.recalc_output_layout(false);
+    ASSERT_EQ(consumer.get_output_layout().format, format::bfyx);
+}
+
+TEST(remove_redundant_reorders, removed_mean_reorder_keeps_consumer_format_accuracy) {
+    // Same graph as above, but the mean is a constant, so reorder_inputs adds no adapter reorders around it.
+    auto& engine = get_test_engine();
+    layout in_layout{ov::PartialShape{1, 3, 2, 2}, data_types::f32, format::bfyx};
+    auto data_mem = engine.allocate_memory(in_layout);
+    auto mean_mem = engine.allocate_memory(in_layout);
+
+    std::vector<float> data_vals(12), mean_vals(12), ref(12);
+    for (size_t i = 0; i < 12; ++i) {
+        data_vals[i] = static_cast<float>(i * 10);
+        mean_vals[i] = static_cast<float>(i);
+        ref[i] = data_vals[i] - mean_vals[i];
+    }
+    set_values(data_mem, data_vals);
+    set_values(mean_mem, mean_vals);
+
+    topology topology;
+    topology.add(input_layout("data", in_layout));
+    topology.add(cldnn::data("mean_src", mean_mem));
+    topology.add(reorder("mean_reorder", input_info("mean_src"), format::byxf, data_types::f32));
+    topology.add(reorder("consumer", input_info("data"), format::any, data_types::f32, "mean_reorder"));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("data", data_mem);
+    auto outputs = network.execute();
+
+    auto out_mem = outputs.at("consumer").get_memory();
+    ASSERT_EQ(out_mem->get_layout().format, format::bfyx);
+    cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+    for (size_t i = 0; i < ref.size(); ++i) {
+        ASSERT_FLOAT_EQ(out_ptr[i], ref[i]) << "i=" << i;
+    }
+
+    ASSERT_FALSE(network.get_program()->has_node("mean_reorder"));
+    // The compiled consumer must still describe a bfyx output, and the caller's topology must stay unchanged.
+    auto& consumer = network.get_program()->get_node("consumer");
+    ASSERT_EQ(consumer.type()->calc_output_layouts(consumer, *consumer.get_kernel_impl_params())[0].format, format::bfyx);
+    ASSERT_EQ(std::static_pointer_cast<const reorder>(topology.at("consumer"))->output_format, format::any);
+}
