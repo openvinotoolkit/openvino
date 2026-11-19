@@ -34,6 +34,10 @@ struct Histc : public ImplementationManager {
             return false;
         }
 
+        if (!ov::element::Type(in_layout.data_type).is_real() && !node.get_program().get_engine().get_device_info().supports_fp64) {
+            return false;
+        }
+
         // Elements are read linearly, so the layout must not contain padding or blocked dimensions.
         return format::is_simple_data_format(in_layout.format) && !in_layout.data_padding && format::is_simple_data_format(out_layout.format) &&
                !out_layout.data_padding;

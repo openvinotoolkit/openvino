@@ -5,6 +5,9 @@
 #include "histc.hpp"
 
 #include <algorithm>
+#include <cmath>
+#include <locale>
+#include <sstream>
 
 #include "common_utils/jitter.hpp"
 #include "histc_inst.h"
@@ -34,8 +37,19 @@ size_t get_bins(const RuntimeParams& params) {
     return static_cast<size_t>(params.typed_desc<histc>()->bins);
 }
 
+bool is_fp_input(const RuntimeParams& params) {
+    return ov::element::Type(params.get_input_layout(0).data_type).is_real();
+}
+
 size_t get_lws(const RuntimeParams& params) {
     return std::min<size_t>(histc_lws, params.get_device_info().max_work_group_size);
+}
+
+std::string to_double_literal(double val) {
+    std::ostringstream ss;
+    ss.imbue(std::locale::classic());
+    ss << "(" << std::hexfloat << val << ")";
+    return ss.str();
 }
 
 // Every work-group builds its own partial histogram, which are then summed by the merge stage.
@@ -66,14 +80,21 @@ protected:
         // Leave half of SLM free so that several work-groups can share a sub-slice.
         const bool hist_in_slm = bins * sizeof(uint32_t) <= params.get_device_info().max_local_mem_size / 2;
         size_t copies = 1;
-        while (hist_in_slm && copies < max_hist_copies && bins * copies * 2 * sizeof(uint32_t) <= hist_copies_slm_budget) {
-            copies *= 2;
+        if (hist_in_slm) {
+            while (copies < max_hist_copies && bins * copies * 2 * sizeof(uint32_t) <= hist_copies_slm_budget) {
+                copies *= 2;
+            }
         }
         jit.make("HIST_IN_SLM", hist_in_slm);
         jit.make("HIST_COPIES", copies);
         if (!range_from_data(params)) {
-            jit.make("RANGE_MIN", static_cast<float>(desc->min));
-            jit.make("RANGE_MAX", static_cast<float>(desc->max));
+            if (is_fp_input(params)) {
+                jit.make("RANGE_MIN", static_cast<float>(desc->min));
+                jit.make("RANGE_MAX", static_cast<float>(desc->max));
+            } else {
+                jit.make("RANGE_MIN", to_double_literal(desc->min));
+                jit.make("RANGE_MAX", to_double_literal(desc->max));
+            }
         }
         return jit;
     }
@@ -135,6 +156,7 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         if (range_from_data(params)) {
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
         }
         return args;
     }
@@ -194,11 +216,38 @@ public:
         return make_deep_copy<HistcImpl>(this);
     }
 
+    // Histc-17 requires an error for an empty or non-finite range.
+    event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
+        const auto& params = *instance.get_impl_params();
+        const auto desc = params.typed_desc<histc>();
+        if (!range_from_data(params) && is_fp_input(params)) {
+            const auto lo = static_cast<float>(desc->min);
+            const auto hi = static_cast<float>(desc->max);
+            OPENVINO_ASSERT(std::isfinite(lo) && std::isfinite(hi) && lo < hi,
+                            "[GPU] Histc ",
+                            instance.id(),
+                            ": range [",
+                            desc->min,
+                            ", ",
+                            desc->max,
+                            "] is empty or not finite in f32.");
+        }
+        auto ev = PrimitiveImplOCL::execute(events, instance);
+        if (range_from_data(params)) {
+            auto& stream = instance.get_network().get_stream();
+            stream.finish();
+            mem_lock<uint32_t, mem_lock_type::read> invalid_range(instance.get_intermediates_memories()[2], stream);
+            OPENVINO_ASSERT(!invalid_range[0], "[GPU] Histc ", instance.id(), ": range taken from data is not finite.");
+        }
+        return ev;
+    }
+
     [[nodiscard]] std::vector<BufferDescriptor> get_internal_buffer_descs(const RuntimeParams& params) const override {
         const auto groups = get_num_groups(params);
         std::vector<BufferDescriptor> buffers = {BufferDescriptor{groups * get_bins(params), ov::element::u32}};
         if (range_from_data(params)) {
-            buffers.emplace_back(groups * 2, ov::element::f32);
+            buffers.emplace_back(groups * 2, is_fp_input(params) ? ov::element::f32 : ov::element::f64);
+            buffers.emplace_back(1, ov::element::u32);
         }
         return buffers;
     }

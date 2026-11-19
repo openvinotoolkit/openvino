@@ -13,6 +13,7 @@ set(GPU_CPU_IMPL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/eltwise.cpp
     ${CMAKE_CURRENT_LIST_DIR}/fake_convert.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gather.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/histc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/moe_mask_gen.cpp
     ${CMAKE_CURRENT_LIST_DIR}/non_max_suppression.cpp
     ${CMAKE_CURRENT_LIST_DIR}/proposal.cpp

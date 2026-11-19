@@ -15,7 +15,11 @@ namespace ov::intel_gpu {
 using namespace cldnn;
 
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<histc>::get_implementations() {
-    static const std::vector<std::shared_ptr<ImplementationManager>> impls = {OV_GPU_CREATE_INSTANCE_OCL(ocl::Histc, shape_types::any)};
+    static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
+        OV_GPU_CREATE_INSTANCE_OCL(ocl::Histc, shape_types::any)
+        OV_GPU_GET_INSTANCE_CPU(histc, shape_types::static_shape)
+        OV_GPU_GET_INSTANCE_CPU(histc, shape_types::dynamic_shape)
+    };
 
     return impls;
 }

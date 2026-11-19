@@ -5,6 +5,15 @@
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/sub_group_block_read.cl"
 
+// Integers are binned in double to keep large values and fractional range ends exact
+#if INPUT0_IS_FP
+#    define RANGE_TYPE float
+#else
+#    pragma OPENCL EXTENSION cl_khr_fp64 : enable
+#    define RANGE_TYPE double
+#endif
+#define TO_RANGE_TYPE(x) CAT(convert_, RANGE_TYPE)(x)
+
 #define DATA_COUNT ((uint)(INPUT0_BATCH_NUM * INPUT0_FEATURE_NUM * INPUT0_SIZE_V * INPUT0_SIZE_U * INPUT0_SIZE_W * INPUT0_SIZE_Z * INPUT0_SIZE_Y * INPUT0_SIZE_X))
 #define SG_CHUNK (SIMD * VEC_SIZE)
 
@@ -15,13 +24,13 @@
         for (uint c = sg_id; c < DATA_COUNT / SG_CHUNK; c += sg_num) {                                             \
             const MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE) vals = BLOCK_READN(INPUT0_TYPE, VEC_SIZE, data, c * SG_CHUNK); \
             unroll_for(uint k = 0; k < VEC_SIZE; ++k) {                                                            \
-                const float x = convert_float(vals[k]);                                                            \
+                const RANGE_TYPE x = TO_RANGE_TYPE(vals[k]);                                                       \
                 BODY(x);                                                                                           \
             }                                                                                                      \
         }                                                                                                          \
     }                                                                                                              \
     for (uint i = DATA_COUNT / SG_CHUNK * SG_CHUNK + get_global_id(0); i < DATA_COUNT; i += get_global_size(0)) { \
-        const float x = convert_float(data[i]);                                                                    \
+        const RANGE_TYPE x = TO_RANGE_TYPE(data[i]);                                                               \
         BODY(x);                                                                                                   \
     }
 
@@ -29,9 +38,9 @@
 REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(histc_minmax)(OPTIONAL_SHAPE_INFO_ARG
                      const __global INPUT0_TYPE* restrict data,
-                     __global float* restrict ranges) {
-    float lo = INFINITY;
-    float hi = -INFINITY;
+                     __global RANGE_TYPE* restrict ranges) {
+    RANGE_TYPE lo = INFINITY;
+    RANGE_TYPE hi = -INFINITY;
 #define UPDATE_RANGE(x) lo = isnan(x) ? -INFINITY : fmin(lo, x); hi = isnan(x) ? INFINITY : fmax(hi, x)
     FOR_EACH_INPUT(UPDATE_RANGE)
 #undef UPDATE_RANGE
@@ -50,15 +59,16 @@ KERNEL(histc_count)(OPTIONAL_SHAPE_INFO_ARG
                     const __global INPUT0_TYPE* restrict data,
                     __global uint* restrict partial_hist
 #if RANGE_FROM_DATA
-                    , const __global float* restrict ranges
+                    , const __global RANGE_TYPE* restrict ranges
+                    , __global uint* restrict invalid_range
 #endif
 ) {
     const uint lid = get_local_id(0);
     const uint lws = get_local_size(0);
 
 #if RANGE_FROM_DATA
-    float lo = INFINITY;
-    float hi = -INFINITY;
+    RANGE_TYPE lo = INFINITY;
+    RANGE_TYPE hi = -INFINITY;
     for (uint g = lid; g < get_num_groups(0); g += lws) {
         lo = fmin(lo, ranges[2 * g]);
         hi = fmax(hi, ranges[2 * g + 1]);
@@ -75,8 +85,15 @@ KERNEL(histc_count)(OPTIONAL_SHAPE_INFO_ARG
 #endif
     }
 #else
-    const float lo = RANGE_MIN;
-    const float hi = RANGE_MAX;
+    const RANGE_TYPE lo = RANGE_MIN;
+    const RANGE_TYPE hi = RANGE_MAX;
+#endif
+    const bool valid_range = isfinite(lo) && isfinite(hi) && lo < hi;
+#if RANGE_FROM_DATA
+    // The host turns this into an inference error; an empty input has no range to check.
+    if (get_global_id(0) == 0) {
+        invalid_range[0] = DATA_COUNT != 0 && !valid_range;
+    }
 #endif
 
 #if HIST_IN_SLM
@@ -95,12 +112,12 @@ KERNEL(histc_count)(OPTIONAL_SHAPE_INFO_ARG
     }
     barrier(HIST_MEM_FENCE);
 
-    if (isfinite(lo) && isfinite(hi) && lo < hi) {
-        const float range = hi - lo;
-#define COUNT_ELEMENT(x)                                                                          \
-        if (x >= lo && x <= hi) {                                                                 \
-            const uint bin = min(convert_uint((x - lo) * (float)BINS / range), (uint)(BINS - 1)); \
-            atomic_inc(&hist[bin * HIST_COPIES + copy]);                                          \
+    if (valid_range) {
+        const RANGE_TYPE range = hi - lo;
+#define COUNT_ELEMENT(x)                                                                               \
+        if (x >= lo && x <= hi) {                                                                      \
+            const uint bin = min(convert_uint((x - lo) * (RANGE_TYPE)BINS / range), (uint)(BINS - 1)); \
+            atomic_inc(&hist[bin * HIST_COPIES + copy]);                                               \
         }
         FOR_EACH_INPUT(COUNT_ELEMENT)
 #undef COUNT_ELEMENT
@@ -140,3 +157,5 @@ KERNEL(histc_merge)(const __global uint* restrict partial_hist,
 #undef SG_CHUNK
 #undef FOR_EACH_INPUT
 #undef DATA_COUNT
+#undef TO_RANGE_TYPE
+#undef RANGE_TYPE

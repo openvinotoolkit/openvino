@@ -4,6 +4,7 @@
 
 #include "openvino/op/histc.hpp"
 
+#include <cstdint>
 #include <limits>
 
 #include "common_test_utils/ov_plugin_cache.hpp"
@@ -135,6 +136,25 @@ TEST(smoke_HistcGPU, f16_inference_precision) {
     request.infer();
     const auto out = request.get_output_tensor();
     EXPECT_EQ(std::vector<float>(out.data<float>(), out.data<float>() + out.get_size()), (std::vector<float>{70000.f, 4097.f}));
+}
+
+// 2049 is not representable in f16, so an f16 input would put both values into bin 0.
+TEST(smoke_HistcGPU, f16_inference_precision_keeps_f32_input) {
+    const auto data = std::make_shared<ov::op::v0::Parameter>(ElementType::f32, ov::Shape{2});
+    const auto histc = std::make_shared<ov::op::v17::Histc>(data, 2, 2048.0, 2050.0);
+    auto compiled = ov::test::utils::PluginCache::get().core()->compile_model(std::make_shared<ov::Model>(histc->outputs(), ov::ParameterVector{data}),
+                                                                              ov::test::utils::DEVICE_GPU,
+                                                                              ov::hint::inference_precision(ElementType::f16));
+    const auto nodes = GetNodesWithTypes(compiled.get_runtime_model(), {"histc"});
+    ASSERT_EQ(nodes.size(), 1);
+    EXPECT_EQ(nodes[0]->get_input_element_type(0), ElementType::f32);
+
+    auto request = compiled.create_infer_request();
+    std::vector<float> values{2048.f, 2049.f};
+    request.set_input_tensor(ov::Tensor(ElementType::f32, ov::Shape{values.size()}, values.data()));
+    request.infer();
+    const auto out = request.get_output_tensor();
+    EXPECT_EQ(std::vector<float>(out.data<float>(), out.data<float>() + out.get_size()), (std::vector<float>{1.f, 1.f}));
 }
 }  // namespace
 }  // namespace ov::test
