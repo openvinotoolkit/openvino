@@ -256,7 +256,7 @@ class TaskManager:
             for pid in range(len(self._process_list)):
                 try:
                     p_time = float((datetime.datetime.now() - self._timers[pid]).total_seconds())
-                    if p_time > self.process_timeout:
+                    if self._process_list[pid].poll() is None and p_time > self.process_timeout:
                         logger.warning(
                             f"Process {pid} exceed time limitation per process"
                         )
@@ -309,7 +309,7 @@ class TaskManager:
             for pid in range(len(self._process_list)):
                 try:
                     p_time = float((datetime.datetime.now() - self._timers[pid]).total_seconds())
-                    if p_time > self.process_timeout:
+                    if self._process_list[pid].poll() is None and p_time > self.process_timeout:
                         logger.warning(
                             f"Process {pid} exceed time limetation per process. The process will be killed"
                         )
@@ -320,6 +320,7 @@ class TaskManager:
                     TaskManager.exit_codes[self._process_list[pid].log_name] = returncode
                     # logger.info(f"Process {pid} takes {float((datetime.datetime.now() - self._timers[pid]).total_seconds())}")
                     self._process_list.pop(pid)
+                    self._timers.pop(pid)
                     logger.info(
                         f"Completing processes: Active process counter: {len(self._process_list)}..."
                     )
@@ -408,28 +409,6 @@ class TestParallelRunner:
         return command
 
     @staticmethod
-    def __get_suite_filter(test_filter: str, suite_filter: str):
-        # empty patterns (e.g. from a trailing ':') would widen the batch to the whole suite
-        filters = [f for f in test_filter.split(":") if f.strip('"')] or [""]
-        # '.' keeps 'Suite' from also selecting 'Suite_other' scheduled in another batch
-        suite_prefix = f"{suite_filter}.*"
-        suite_filter_mixed = ""
-        for filter in filters:
-            patterns = filter.strip('"').split("*")
-            suite_filter_part = suite_prefix
-            for pattern in patterns:
-                if pattern and suite_filter.find(pattern) == -1:
-                    suite_filter_part += f"{pattern}*"
-            if suite_filter_part == suite_prefix:
-                suite_filter_mixed = f'"{suite_filter_part}"'
-                break
-            if not suite_filter_mixed:
-                suite_filter_mixed = f'"{suite_filter_part}"'
-            else:
-                suite_filter_mixed += f':"{suite_filter_part}"'
-        return suite_filter_mixed
-
-    @staticmethod
     def __replace_restricted_symbols(input_string: str):
         restricted_symbols = '!@$%^&-+`~:;",<>?'
         for symbol in restricted_symbols:
@@ -463,7 +442,7 @@ class TestParallelRunner:
             test_suite = ""
             for line in test_list_file.read().split("\n"):
                 # suites: 'Suite.  # TypeParam = ...' at column 0, tests: '  name  # GetParam() = ...'
-                name = line.split("#", 1)[0].strip()
+                name = line.split("  # ", 1)[0].strip()
                 if not name:
                     continue
                 if not line.startswith(" "):
@@ -549,7 +528,7 @@ class TestParallelRunner:
     def __get_negative_filter_suffix(self):
         return f"-{self._gtest_negative_filter}" if self._gtest_negative_filter else ""
 
-    def __prepare_smart_filters(self, proved_test_dict: dict):
+    def __prepare_smart_filters(self, proved_test_dict: dict, selected_by_suite: dict):
         def_length = len(self._command) + len(" --gtest_filter=") + len(self.__get_negative_filter_suffix())
 
         longest_device = ""
@@ -562,20 +541,31 @@ class TestParallelRunner:
         tasks_crashed = []
         tasks_full = []
         tasks_not_full = []
-        tests_sorted = sorted(
-            proved_test_dict.items(), key=lambda i: i[1], reverse=True
-        )
-        for test_pattern, test_time in tests_sorted:
-            test_pattern = f"{self.__replace_restricted_symbols(test_pattern)}"
-
-            if self._split_unit == constants.SUITE_UNIT_NAME:
-                # fix the suite filters to execute the right amount of the tests
-                test_pattern = (
-                    f"{self.__get_suite_filter(self._gtest_filter, test_pattern)}:"
-                )
+        tasks = []
+        for name, duration in proved_test_dict.items():
+            if selected_by_suite:
+                names = selected_by_suite[name]
+            elif self._split_unit == constants.SUITE_UNIT_NAME:
+                names = [f"{name}.*"]
             else:
-                # add quotes and pattern splitter
-                test_pattern = f'"{test_pattern}":'
+                names = [name]
+
+            patterns = []
+            length = def_length
+            for test_name in names:
+                pattern = f'"{self.__replace_restricted_symbols(test_name)}":'
+                pattern_length = len(pattern.replace(self._device, longest_device))
+                if patterns and length + pattern_length >= MAX_LENGHT:
+                    weight = -1 if duration == -1 else duration * len(patterns) / len(names)
+                    tasks.append((weight, "".join(patterns)))
+                    patterns = []
+                    length = def_length
+                patterns.append(pattern)
+                length += pattern_length
+            weight = -1 if duration == -1 else duration * len(patterns) / len(names)
+            tasks.append((weight, "".join(patterns)))
+
+        for test_time, test_pattern in sorted(tasks, reverse=True):
 
             if test_time == -1:
                 tasks_crashed.append((test_time, test_pattern))
@@ -590,7 +580,7 @@ class TestParallelRunner:
                     if length < MAX_LENGHT:
                         break
                     else:
-                        tasks_full.append(tasks_not_full.pop())
+                        tasks_full.append(heapq.heappop(tasks_not_full))
 
                 if len(tasks_not_full) < real_worker_num:
                     heapq.heappush(tasks_not_full, (test_time, test_pattern))
@@ -610,7 +600,16 @@ class TestParallelRunner:
             logger.error(f"Test executable file {self._exec_file_path} is not exist!")
             sys.exit(-1)
 
-        test_dict_runtime = self.__get_test_list_by_runtime(self._split_unit)
+        selected_by_suite = {}
+        has_positive_patterns = any(pattern.strip("*") for pattern in self._gtest_filter.split(":") if pattern)
+        if self._split_unit == constants.SUITE_UNIT_NAME and (has_positive_patterns or self._excluded_tests):
+            for test_name in self.__get_test_list_by_runtime():
+                suite, _, _ = test_name.partition(".")
+                if test_name not in self._excluded_tests:
+                    selected_by_suite.setdefault(suite, []).append(test_name)
+            test_dict_runtime = {suite: len(tests) for suite, tests in selected_by_suite.items()}
+        else:
+            test_dict_runtime = self.__get_test_list_by_runtime(self._split_unit)
         test_dict_cache = self.__get_test_list_by_cache()
 
         cached_test_dict, runtime_test_dist = self.__generate_test_lists(
@@ -620,11 +619,11 @@ class TestParallelRunner:
         cached_test_list = []
         if len(cached_test_dict) > 0:
             self._is_save_cache = False
-            cached_test_list = self.__prepare_smart_filters(cached_test_dict)
+            cached_test_list = self.__prepare_smart_filters(cached_test_dict, selected_by_suite)
         runtime_test_list = []
         if len(runtime_test_dist) > 0:
             self._is_save_cache = True
-            runtime_test_list = self.__prepare_smart_filters(runtime_test_dist)
+            runtime_test_list = self.__prepare_smart_filters(runtime_test_dist, selected_by_suite)
         logger.info(f"Total test counter is {self._total_test_cnt}")
         return cached_test_list, runtime_test_list
 
@@ -689,6 +688,7 @@ class TestParallelRunner:
         return list(not_runned_tests), list(interapted_tests)
 
     def run(self):
+        TaskManager.exit_codes.clear()
         # 15m for one test in one process
         if TaskManager.process_timeout in (-1, DEFAULT_PROCESS_TIMEOUT):
             TaskManager.process_timeout = self._timeout
@@ -794,9 +794,9 @@ class TestParallelRunner:
             with open(log_filename, "r", encoding=constants.ENCODING) as log_file:
                 test_name = None
                 test_log = []
-                test_suites = set()
                 dir = None
-                test_cnt_expected = test_cnt_real_saved_now = 0
+                test_cnt_expected = test_cnt_started = 0
+                has_failed_test = False
                 ref_k = None
                 try:
                     lines = log_file.readlines()
@@ -804,12 +804,10 @@ class TestParallelRunner:
                     lines = log.read_text(encoding="ascii", errors="ignore").split("\n")
 
                 for line in lines:
-                    if constants.GTEST_FILTER in line:
-                        line = line[line.find(constants.GTEST_FILTER) :]
-                        if self._gtest_negative_filter:
-                            line = line.split("-", 1)[0]
-                        test_cnt_expected = line.count(":")
+                    if line.startswith("[==========] Running "):
+                        test_cnt_expected = int(line.split()[2])
                     if constants.RUN in line:
+                        test_cnt_started += 1
                         test_name = line[
                             line.find(constants.RUN) + len(constants.RUN) + 1 : -1 :
                         ]
@@ -835,10 +833,9 @@ class TestParallelRunner:
                     if (constants.PG_ERR in line) or (constants.PG_WARN in line):
                         test_log.append(line)
                     if test_name is not None:
-                        test_suite = test_name[: test_name.find(".")]
-                        test_suites.add(test_suite)
                         test_log.append(line)
                         if dir:
+                            has_failed_test |= dir == "failed"
                             if __save_log(logs_dir, dir, test_name):
                                 # update test_cache with tests. If tests is crashed use -1 as unknown time
                                 time = -1
@@ -854,31 +851,26 @@ class TestParallelRunner:
                                 if dir != "passed" and dir != "skipped":
                                     fix_priority.append((ref_k or 0, test_name))
                                 ref_k = None
-                                test_cnt_real_saved_now += 1
                                 test_name = None
                                 test_log = []
                 log_file.close()
+                unexpected_exit = False
                 if test_name is not None:
                     dir = INTERAPTED_DIR
                     if __save_log(logs_dir, dir, test_name):
                         interapted_tests.add(test_name)
                         fix_priority.append((ref_k or 0, test_name))
                 else:
-                    # gtest exits with 1 on test failures; anything else outside a test is a crash no retry can fix
                     returncode = TaskManager.exit_codes.get(log.name)
-                    if returncode not in (None, 0, 1):
+                    unexpected_exit = returncode not in (None, 0) and not (returncode == 1 and has_failed_test)
+                    if unexpected_exit:
                         unresolved_crashes.append((log.name, returncode))
 
-                if self._split_unit == constants.SUITE_UNIT_NAME:
-                    test_cnt_real = len(test_suites)
-                else:
-                    test_cnt_real = test_cnt_real_saved_now
-
-                if test_cnt_real < test_cnt_expected:
+                if test_cnt_started < test_cnt_expected:
                     logger.error(
-                        f"Number of {self._split_unit}s in {log}: {test_cnt_real}. Expected is {test_cnt_expected} {self._split_unit}"
+                        f"Number of tests started in {log}: {test_cnt_started}. Expected: {test_cnt_expected}"
                     )
-                else:
+                elif not unexpected_exit:
                     os.remove(log_filename)
 
         if not list(Path(os.path.join(self._working_dir, "temp")).rglob("log_*.log")):
@@ -892,12 +884,6 @@ class TestParallelRunner:
                 test_results[INTERAPTED_DIR] += 1
             else:
                 test_results[INTERAPTED_DIR] = 1
-            hash_str = str(sha256(test_name.encode(constants.ENCODING)).hexdigest())
-            interapted_log_path = os.path.join(
-                logs_dir, INTERAPTED_DIR, f"{hash_str}.log"
-            )
-            if os.path.isfile(interapted_log_path):
-                test_cnt_real_saved_now += 1
         if self._is_save_cache:
             test_times.sort(reverse=True)
             with open(self._cache_path, "w", encoding=constants.ENCODING) as cache_file:
