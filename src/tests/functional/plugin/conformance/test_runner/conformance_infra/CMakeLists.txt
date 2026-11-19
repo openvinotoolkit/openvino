@@ -4,13 +4,12 @@
 
 set(TARGET_NAME conformance_shared)
 
+include(sources.cmake)
+
 ov_add_target(
         NAME ${TARGET_NAME}
         TYPE STATIC
-        ROOT "${CMAKE_CURRENT_SOURCE_DIR}/include"
-        ADDITIONAL_SOURCE_DIRS
-                ${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/conformance/subgraphs_dumper_new/include/cache/meta/
-                ${CMAKE_CURRENT_SOURCE_DIR}/src
+        SOURCES ${CONFORMANCE_SHARED_SOURCES}
         INCLUDES
             PUBLIC
                 "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
