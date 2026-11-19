@@ -414,8 +414,9 @@ TEST(GGUFGenAIExtension, MtpIsOptionalAndSurvivesModelClone) {
     for (const auto& operation : combined->get_ops()) {
         const auto& info = operation->get_rt_info();
         const auto it = info.find(ov::WeightlessCacheAttribute::get_type_info_static());
-        if (it != info.end())
+        if (it != info.end()) {
             EXPECT_TRUE(offsets.insert(it->second.as<ov::WeightlessCacheAttribute>().bin_offset).second);
+        }
     }
     EXPECT_GT(offsets.size(), 1);
     auto models = adapt_to_genai(combined->clone());

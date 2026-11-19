@@ -26,6 +26,7 @@ public:
     const std::shared_ptr<ov::Model>& get_per_layer_embedding_model() const {
         return m_per_layer_embedding_model;
     }
+
 private:
     friend class FrontEnd;
     InputMode m_mode;
