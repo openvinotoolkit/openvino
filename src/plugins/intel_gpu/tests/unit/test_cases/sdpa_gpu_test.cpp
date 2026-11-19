@@ -3456,23 +3456,23 @@ TEST_P(sdpa_hpg_sharp_test, f16_static_prefill) {
     EXPECT_LE(max_abs_err, 1e-2) << "head " << d << " seq " << n << " max_abs_err " << max_abs_err;
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_sdpa_hpg_sharp,
-    sdpa_hpg_sharp_test,
-    ::testing::Values(
-        // seq 100 is not a multiple of any query / key tile; head 40 and 72 are not a multiple of the 16-deep DPAS step
-        sdpa_hpg_sharp_params{32, 16},  sdpa_hpg_sharp_params{32, 64},  sdpa_hpg_sharp_params{32, 100},  sdpa_hpg_sharp_params{32, 1024},
-        sdpa_hpg_sharp_params{40, 16},  sdpa_hpg_sharp_params{40, 64},  sdpa_hpg_sharp_params{40, 100},  sdpa_hpg_sharp_params{40, 1024},
-        sdpa_hpg_sharp_params{64, 16},  sdpa_hpg_sharp_params{64, 64},  sdpa_hpg_sharp_params{64, 100},  sdpa_hpg_sharp_params{64, 1024},
-        sdpa_hpg_sharp_params{72, 16},  sdpa_hpg_sharp_params{72, 64},  sdpa_hpg_sharp_params{72, 100},  sdpa_hpg_sharp_params{72, 1024},
-        sdpa_hpg_sharp_params{80, 16},  sdpa_hpg_sharp_params{80, 64},  sdpa_hpg_sharp_params{80, 100},  sdpa_hpg_sharp_params{80, 1024},
-        sdpa_hpg_sharp_params{96, 16},  sdpa_hpg_sharp_params{96, 64},  sdpa_hpg_sharp_params{96, 100},  sdpa_hpg_sharp_params{96, 1024},
-        sdpa_hpg_sharp_params{128, 16}, sdpa_hpg_sharp_params{128, 64}, sdpa_hpg_sharp_params{128, 100}, sdpa_hpg_sharp_params{128, 1024},
-        sdpa_hpg_sharp_params{160, 16}, sdpa_hpg_sharp_params{160, 64}, sdpa_hpg_sharp_params{160, 100}, sdpa_hpg_sharp_params{160, 1024},
-        sdpa_hpg_sharp_params{256, 16}, sdpa_hpg_sharp_params{256, 64}, sdpa_hpg_sharp_params{256, 100}, sdpa_hpg_sharp_params{256, 1024}
-    ),
-    sdpa_hpg_sharp_test::PrintToStringParamName
-);
+namespace {
+// Every head the xe_hpg PREFILL kernel takes up to 256 (hpg_plain_head_ok(): 32-256 in steps of 8). seq 100 is not a
+// multiple of any query / key tile; a head that is not a multiple of 16 (40, 56, ..., 248) ends in half a DPAS depth step.
+// Built in loops, here and in hpg_rows_cases(): with these cases written out as ::testing::Values() lists the test binary
+// overflowed its 1 MB main-thread stack at static initialization (MSVC, one frame of over 1 MB).
+std::vector<sdpa_hpg_sharp_params> hpg_sharp_cases() {
+    std::vector<sdpa_hpg_sharp_params> cases;
+    for (int head = 32; head <= 256; head += 8) {
+        for (const int seq : {16, 64, 100, 1024}) {
+            cases.push_back({head, seq});
+        }
+    }
+    return cases;
+}
+}  // namespace
+
+INSTANTIATE_TEST_SUITE_P(smoke_sdpa_hpg_sharp, sdpa_hpg_sharp_test, ::testing::ValuesIn(hpg_sharp_cases()), sdpa_hpg_sharp_test::PrintToStringParamName);
 
 // The rest of plain SDPA on xe_hpg: bf16, attn_mask (per key / full 2D / const scalar), causal, sink, dynamic
 // shape, a single query, and a K view whose row pitch or base breaks the 4 B alignment of the dword K read. Same idea as the sharp
@@ -4022,10 +4022,9 @@ TEST_P(sdpa_hpg_rows_test, plain_sdpa) {
 
 // {head, q, kv, heads, kv_heads, batch, bshd, out_bshd, dynamic, pad_kv, mask}; 100 / 300 / 77 / 33 / 129 are not multiples of a tile
 // (an odd kv also makes the mask rows take two-byte loads).
-INSTANTIATE_TEST_SUITE_P(
-    smoke_sdpa_hpg_rows,
-    sdpa_hpg_rows_test,
-    ::testing::Values(
+namespace {
+std::vector<sdpa_hpg_rows_params> hpg_rows_cases() {
+    std::vector<sdpa_hpg_rows_params> cases = {
         // GQA / MQA
         sdpa_hpg_rows_params{64, 100, 100, 8, 2, 1, false, false, false, false}, sdpa_hpg_rows_params{128, 300, 300, 8, 1, 1, false, false, false, false},
         sdpa_hpg_rows_params{256, 100, 100, 4, 2, 1, false, false, false, false},
@@ -4098,9 +4097,29 @@ INSTANTIATE_TEST_SUITE_P(
         sdpa_hpg_rows_params{512, 64, 100, 2, 1, 2, false, false, false, true}, sdpa_hpg_rows_params{512, 100, 100, 8, 2, 2, false, false, false, false, 1},
         sdpa_hpg_rows_params{512, 77, 600, 4, 2, 1, false, false, false, false, 2}, sdpa_hpg_rows_params{512, 128, 128, 4, 2, 2, false, false, true, false, 3},
         sdpa_hpg_rows_params{512, 64, 64, 2, 1, 2, false, false, false, false, 0, 1}, sdpa_hpg_rows_params{512, 1100, 1100, 1, 1, 1, false, false, false, false}
-    ),
-    sdpa_hpg_rows_test::PrintToStringParamName
-);
+    };
+    // The other heads up to 256 in steps of 8 (hpg_pa_prefill_tiling()'s rule: 32-key subgroup tiles in 2 to 8 x 2 subgroups
+    // up to head 128, 16-key ones in 9 to 16 x 2 above; every second head ends in a depth tile of 8): head 72's set. In a loop,
+    // as hpg_sharp_cases().
+    const std::vector<sdpa_hpg_rows_params> head72_set = {
+        {0, 100, 100, 8, 2, 1, false, false, false, false},  {0, 33, 193, 2, 2, 2, false, false, false, false},
+        {0, 100, 200, 4, 4, 1, true, true, false, false},    {0, 77, 77, 4, 1, 2, false, true, true, false},
+        {0, 64, 100, 2, 1, 2, false, false, false, true},    {0, 100, 100, 8, 2, 2, false, false, false, false, 1},
+        {0, 1025, 1025, 4, 4, 1, false, false, false, false, 2}, {0, 128, 128, 4, 2, 2, false, false, true, false, 3},
+        {0, 77, 77, 4, 4, 1, false, false, true, false, 0, 1}};
+    for (int head = 32; head <= 256; head += 8) {
+        if (head == 40 || head == 64 || head == 72 || head == 80 || head == 96 || head == 128 || head == 160 || head == 256)
+            continue;  // above, with cases of their own
+        for (auto p : head72_set) {
+            p.head_size = head;
+            cases.push_back(p);
+        }
+    }
+    return cases;
+}
+}  // namespace
+
+INSTANTIATE_TEST_SUITE_P(smoke_sdpa_hpg_rows, sdpa_hpg_rows_test, ::testing::ValuesIn(hpg_rows_cases()), sdpa_hpg_rows_test::PrintToStringParamName);
 
 // Plain SDPA on an i8 KV cache (asymmetric, planar: a per-token f16 scale and an i8 zero point for K and for V, which is what
 // kv_cache_compression.cpp makes on immad parts), against a CPU reference that dequantizes (q - zp) * scale in double. The
