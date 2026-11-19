@@ -111,11 +111,11 @@ void tensor_conversion::set_kernels(const std::vector<tensor_conversion_key>& ke
                                     const std::vector<kernel::ptr>& kernels, const engine& engine) {
     OPENVINO_ASSERT(keys.size() == kernels.size(), "[GPU] State conversion kernel count mismatch");
     OPENVINO_ASSERT(engine.runtime_type() == runtime_types::ocl, "[GPU] State conversion requires OpenCL");
+    std::map<tensor_conversion_key, kernel_info> prepared_kernels;
 #ifdef OV_GPU_WITH_OCL_RT
     const auto device = engine.get_device();
     const auto& ocl_device = downcast<ocl::ocl_device>(*device).get_device();
     const auto device_limit = static_cast<size_t>(engine.get_device_info().max_work_group_size);
-    std::map<tensor_conversion_key, kernel_info> prepared_kernels;
     for (size_t i = 0; i < keys.size(); ++i) {
         OPENVINO_ASSERT(supports(keys[i]) && kernels[i], "[GPU] Invalid state conversion kernel");
         const auto& handle = downcast<ocl::ocl_kernel>(*kernels[i]).get_handle();
@@ -126,11 +126,11 @@ void tensor_conversion::set_kernels(const std::vector<tensor_conversion_key>& ke
         OPENVINO_ASSERT(prepared_kernels.emplace(keys[i], kernel_info{kernels[i], limit}).second,
                         "[GPU] Duplicate state conversion kernel");
     }
-    _kernels = std::move(prepared_kernels);
-    _context = engine.get_user_context(runtime_types::ocl);
 #else
     OPENVINO_THROW("[GPU] State conversion requires OpenCL");
 #endif
+    _kernels = std::move(prepared_kernels);
+    _context = engine.get_user_context(runtime_types::ocl);
 }
 
 bool tensor_conversion::compatible_with(const engine& engine) const {
