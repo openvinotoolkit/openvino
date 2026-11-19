@@ -10,6 +10,7 @@ set(MANDATORY_UNIT_TESTS_LIBS
         "openvino::gtest"
         "openvino::gtest_main"
         "openvino::runtime"
+        "openvino::conditional_compilation"
         "openvino::reference"
         "openvino::npu_al"
         "openvino::npu_logger_utils"

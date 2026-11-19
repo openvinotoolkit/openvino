@@ -26,7 +26,9 @@ public:
 // Injects an explicit attention_mask [1, kv_capacity] Parameter to replace the frozen causal mask,
 // and an explicit position_ids [1] Parameter to replace the frozen RoPE position scalar.
 // Must run BEFORE ReshapeToStatic so that the dynamic Range/Gather nodes are still present.
-// Unsupported export patterns fail explicitly instead of retaining a frozen causal mask.
+// The injected mask uses 0 for attended tokens. Existing inputs are accepted only if
+// their connections match the graph produced by this pass; unsupported exports fail.
+// Running the pass again on its prepared graph is a no-op.
 class PrepareQwen3ASRKVCacheModel : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::PrepareQwen3ASRKVCacheModel");
@@ -38,7 +40,9 @@ public:
 // Injects attention_mask [1, max_prompt] and position_ids [-1] Parameters so that
 // standard left-padding (right-aligned tokens) can be used and SliceOutEmbeds works normally.
 // Must run BEFORE ReshapeToStatic so that the dynamic Range/Gather nodes are still present.
-// Attention and position branches share one input of each kind.
+// Attention and position branches share one input of each kind. Existing inputs
+// must match the graph produced by this pass, including the 0=attend mask convention.
+// Running the pass again on its prepared graph is a no-op.
 class PrepareQwen3ASRPrefillModel : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::PrepareQwen3ASRPrefillModel");

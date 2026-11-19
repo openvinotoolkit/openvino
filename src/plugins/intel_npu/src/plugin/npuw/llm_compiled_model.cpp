@@ -2348,6 +2348,8 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::whisper::enabled, NPUW_WHISPER, get),
                           BIND(npuw::whisper::whisper_eos_token, NPUW_WHISPER_EOS_TOKEN, get),
                           BIND(npuw::whisper::whisper_decompose_sdpa, NPUW_WHISPER_DECOMPOSE_SDPA, get),
+                          BIND(npuw::qwen3_asr::enabled, NPUW_QWEN3_ASR, get),
+                          BIND(npuw::qwen3_asr::max_encoder_len, NPUW_QWEN3_ASR_MAX_ENCODER_LEN, get),
                           BIND(npuw::eagle::enabled, NPUW_EAGLE, get),
                           BIND(npuw::text_embed::enabled, NPUW_TEXT_EMBED, get),
                           BIND(npuw::text_rerank::enabled, NPUW_TEXT_RERANK, get)});

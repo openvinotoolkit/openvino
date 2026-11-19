@@ -7,12 +7,16 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cstring>
+#include <filesystem>
 #include <map>
 #include <numeric>
+#include <sstream>
 #include <string>
 #include <vector>
 
+#include "common_test_utils/ov_test_utils.hpp"
 #include "llm_stored_tokens_state.hpp"
 #include "llm_test_helpers.hpp"
 #include "npuw_transformations/reshape_to_static.hpp"
@@ -23,7 +27,11 @@
 
 namespace {
 
-std::shared_ptr<ov::Model> make_decoder_mask_model(bool convert_keys = false, size_t branches = 1) {
+std::shared_ptr<ov::Model> make_decoder_mask_model(bool convert_keys = false,
+                                                   size_t branches = 1,
+                                                   bool rewritten = false,
+                                                   bool prefill = false,
+                                                   bool fixed_position_shape = false) {
     using namespace ov::op;
     auto ids = std::make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{1, -1});
     ids->output(0).set_names({"input_ids"});
@@ -47,19 +55,101 @@ std::shared_ptr<ov::Model> make_decoder_mask_model(bool convert_keys = false, si
         query_positions = std::make_shared<v0::Convert>(query_positions, ov::element::f32);
     }
 
+    ov::ParameterVector parameters{ids, past};
+    std::shared_ptr<v0::Parameter> mask;
+    std::shared_ptr<v0::Parameter> position;
+    if (rewritten) {
+        mask = std::make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{1, -1});
+        mask->set_friendly_name("attention_mask");
+        mask->output(0).set_names({"attention_mask"});
+        position =
+            std::make_shared<v0::Parameter>(ov::element::i64, prefill ? ov::PartialShape{-1} : ov::PartialShape{1});
+        position->set_friendly_name("position_ids");
+        position->output(0).set_names({"position_ids"});
+        parameters.push_back(mask);
+        parameters.push_back(position);
+    }
+
     ov::OutputVector outputs;
     for (size_t branch = 0; branch < branches; ++branch) {
         auto causal = std::make_shared<v1::LessEqual>(key_positions, query_positions);
-        auto scores = std::make_shared<v1::Select>(causal,
+        const auto causal_name = "causal_" + std::to_string(branch);
+        causal->set_friendly_name(rewritten ? causal_name + "/causal" : causal_name);
+        ov::Output<ov::Node> condition = causal;
+        if (rewritten) {
+            auto c0 = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+            auto c1 = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+            auto c2 = v0::Constant::create(ov::element::i64, ov::Shape{}, {2});
+            auto u1 = std::make_shared<v0::Unsqueeze>(mask, c1);
+            auto u2 = std::make_shared<v0::Unsqueeze>(u1, c2);
+            auto equal = std::make_shared<v1::Equal>(u2, c0);
+            auto combined = std::make_shared<v1::LogicalAnd>(causal, equal);
+            combined->set_friendly_name(causal_name);
+            condition = combined;
+        }
+        auto scores = std::make_shared<v1::Select>(condition,
                                                    v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f}),
                                                    v0::Constant::create(ov::element::f32, ov::Shape{}, {-1.0e9f}));
         outputs.push_back(std::make_shared<v8::Softmax>(scores, -1));
-        outputs.push_back(
-            std::make_shared<v1::Reshape>(queries,
-                                          v0::Constant::create(ov::element::i64, ov::Shape{3}, {1, 1, -1}),
-                                          false));
+        const int64_t last_dim = fixed_position_shape && !(rewritten && prefill) ? 1 : -1;
+        const auto shape = v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{1, 1, last_dim});
+        const ov::Output<ov::Node> position_source = rewritten ? position->output(0) : queries->output(0);
+        outputs.push_back(std::make_shared<v1::Reshape>(position_source, shape, false));
     }
-    return std::make_shared<ov::Model>(outputs, ov::ParameterVector{ids, past});
+    return std::make_shared<ov::Model>(outputs, parameters);
+}
+
+std::shared_ptr<ov::Model> make_stateful_qwen_decoder() {
+    using namespace ov::op;
+    auto model = ov::test::npuw::build_llm_test_model();
+    const auto ids = model->input("input_ids");
+    const auto beam = model->input("beam_idx");
+    std::shared_ptr<ov::Node> cache;
+    for (const auto& target : beam.get_target_inputs()) {
+        if (ov::is_type<ov::op::util::GatherBase>(target.get_node()->shared_from_this())) {
+            cache = target.get_node()->shared_from_this();
+            break;
+        }
+    }
+    OPENVINO_ASSERT(cache, "Synthetic decoder has no beam-gathered KV cache.");
+    const auto zero = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    const auto one = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+    const auto two = v0::Constant::create(ov::element::i64, ov::Shape{}, {2});
+    const auto past = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(cache), two, zero);
+    const auto query_length = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(ids), one, zero);
+    const auto total = std::make_shared<v1::Add>(past, query_length);
+    const auto keys = std::make_shared<v4::Range>(zero, total, one, ov::element::i64);
+    const auto queries = std::make_shared<v4::Range>(past, total, one, ov::element::i64);
+    const auto k1 = std::make_shared<v0::Unsqueeze>(keys, zero);
+    const auto k2 = std::make_shared<v0::Unsqueeze>(k1, zero);
+    const auto k3 = std::make_shared<v0::Unsqueeze>(k2, zero);
+    const auto q =
+        std::make_shared<v0::Unsqueeze>(queries, v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 1, 3}));
+    const auto causal = std::make_shared<v1::LessEqual>(k3, q);
+    const auto scores = std::make_shared<v1::Select>(causal,
+                                                     v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f}),
+                                                     v0::Constant::create(ov::element::f32, ov::Shape{}, {-1.0e9f}));
+    bool replaced_mask = false;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (node->get_friendly_name() == "model.mask_4d") {
+            ov::replace_node(node, scores);
+            replaced_mask = true;
+            break;
+        }
+    }
+    OPENVINO_ASSERT(replaced_mask, "Synthetic decoder has no full attention mask.");
+    const auto old_mask = ov::as_type_ptr<v0::Parameter>(model->input("attention_mask").get_node_shared_ptr());
+    model->remove_parameter(old_mask);
+    const auto old_position = ov::as_type_ptr<v0::Parameter>(model->input("position_ids").get_node_shared_ptr());
+    const auto positions =
+        std::make_shared<v1::Reshape>(queries, v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, -1}), false);
+    ov::replace_node(old_position, positions);
+    model->remove_parameter(old_position);
+    auto encoder = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, 64});
+    encoder->output(0).set_names({"encoder_hidden_states"});
+    model->add_parameters({encoder});
+    model->validate_nodes_and_infer_types();
+    return model;
 }
 
 void make_static(const std::shared_ptr<ov::Model>& model, size_t query_length, size_t past_length) {
@@ -107,6 +197,47 @@ size_t count_inputs(const std::shared_ptr<ov::Model>& model, const std::string& 
 }
 
 class PrepareQwen3ASRMaskTest : public ::testing::TestWithParam<bool> {};
+
+TEST_F(TransformationTestsF, Qwen3ASRGenerateGraphMatchesReference) {
+    model = make_decoder_mask_model(true, 2, false, false, true);
+    model_ref = make_decoder_mask_model(true, 2, true, false, true);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    manager.register_pass<ov::npuw::PrepareQwen3ASRKVCacheModel>();
+}
+
+TEST_F(TransformationTestsF, Qwen3ASRPrefillGraphMatchesReference) {
+    model = make_decoder_mask_model(false, 2, false, true, true);
+    model_ref = make_decoder_mask_model(false, 2, true, true, true);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    manager.register_pass<ov::npuw::PrepareQwen3ASRPrefillModel>();
+}
+
+TEST_F(TransformationTestsF, Qwen3ASRResidualStateGraphMatchesReference) {
+    using namespace ov::op;
+    const auto variable =
+        std::make_shared<util::Variable>(util::VariableInfo{ov::PartialShape{1, 2}, ov::element::f32, "encoder_state"});
+    const auto initial = v0::Constant::create(ov::element::f32, ov::Shape{1, 2}, {0, 0});
+    const auto read = std::make_shared<v6::ReadValue>(initial, variable);
+    read->set_friendly_name("state_read");
+    read->get_rt_info()["qwen_state_test"] = std::string("state");
+    const auto assign = std::make_shared<v6::Assign>(read, variable);
+    const auto result = std::make_shared<v0::Result>(read);
+    result->set_friendly_name("state_result");
+    model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::SinkVector{assign}, ov::ParameterVector{});
+
+    const auto replacement = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2});
+    replacement->set_friendly_name("state_read");
+    replacement->output(0).set_names({"encoder_state"});
+    replacement->get_rt_info()["qwen_state_test"] = std::string("state");
+    const auto result_ref = std::make_shared<v0::Result>(replacement);
+    result_ref->set_friendly_name("state_result");
+    model_ref = std::make_shared<ov::Model>(ov::ResultVector{result_ref}, ov::ParameterVector{replacement});
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    manager.register_pass<ov::npuw::PrepareQwen3ASRModel>();
+}
 
 TEST_P(PrepareQwen3ASRMaskTest, StaticGenerationMasksUnusedSlotsAndKeepsAbsolutePositions) {
     constexpr size_t capacity = 1024;
@@ -167,6 +298,139 @@ TEST(PrepareQwen3ASRModelTest, SharesInputsAcrossMultipleAttentionAndPositionBra
     }
 }
 
+TEST(PrepareQwen3ASRModelTest, SecondRunIsANoOp) {
+    for (const bool prefill : {false, true}) {
+        SCOPED_TRACE(prefill);
+        auto model = make_decoder_mask_model(false, 2);
+        const auto run = [&] {
+            return prefill ? ov::npuw::PrepareQwen3ASRPrefillModel().run_on_model(model)
+                           : ov::npuw::PrepareQwen3ASRKVCacheModel().run_on_model(model);
+        };
+        ASSERT_TRUE(run());
+        const auto expected = model->clone();
+        ASSERT_FALSE(run());
+        auto comparator = FunctionsComparator::no_default();
+        comparator.enable(FunctionsComparator::NODES);
+        comparator.enable(FunctionsComparator::PRECISIONS);
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+        comparator.enable(FunctionsComparator::RUNTIME_KEYS);
+        comparator.enable(FunctionsComparator::NAMES);
+        comparator.enable(FunctionsComparator::TENSOR_NAMES);
+        const auto comparison = comparator.compare(model, expected);
+        EXPECT_TRUE(comparison.valid) << comparison.message;
+    }
+}
+
+TEST(PrepareQwen3ASRModelTest, RejectsExistingPositiveAttendMaskWithoutChangingItsValues) {
+    using namespace ov::op;
+    for (const bool prefill : {false, true}) {
+        SCOPED_TRACE(prefill);
+        auto model = make_decoder_mask_model();
+        auto mask = std::make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{1, -1});
+        mask->output(0).set_names({"attention_mask"});
+        auto position = std::make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{-1});
+        position->output(0).set_names({"position_ids"});
+        auto positive_is_attended = std::make_shared<v0::Convert>(mask, ov::element::boolean);
+        model->add_parameters({mask, position});
+        model->add_results(
+            {std::make_shared<v0::Result>(positive_is_attended), std::make_shared<v0::Result>(position)});
+        make_static(model, 1, 1);
+        const auto before = evaluate(model, {{"attention_mask", {0, 1}}, {"position_ids", {7}}});
+        EXPECT_FALSE(before[2].data<const char>()[0]);
+        EXPECT_TRUE(before[2].data<const char>()[1]);
+        if (prefill) {
+            EXPECT_THROW(ov::npuw::PrepareQwen3ASRPrefillModel().run_on_model(model), ov::Exception);
+        } else {
+            EXPECT_THROW(ov::npuw::PrepareQwen3ASRKVCacheModel().run_on_model(model), ov::Exception);
+        }
+        const auto after = evaluate(model, {{"attention_mask", {0, 1}}, {"position_ids", {7}}});
+        EXPECT_EQ(std::memcmp(before[2].data(), after[2].data(), before[2].get_byte_size()), 0);
+        EXPECT_EQ(count_inputs(model, "attention_mask"), 1u);
+        EXPECT_EQ(count_inputs(model, "position_ids"), 1u);
+    }
+}
+
+TEST(PrepareQwen3ASRModelTest, RejectsChangedPreparedMaskSemantics) {
+    using namespace ov::op;
+    auto model = make_decoder_mask_model();
+    ASSERT_TRUE(ov::npuw::PrepareQwen3ASRPrefillModel().run_on_model(model));
+    for (const auto& node : model->get_ordered_ops()) {
+        if (const auto equal = ov::as_type_ptr<v1::Equal>(node)) {
+            equal->input(1).replace_source_output(v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
+            break;
+        }
+    }
+    EXPECT_THROW(ov::npuw::PrepareQwen3ASRPrefillModel().run_on_model(model), ov::Exception);
+}
+
+TEST(PrepareQwen3ASRModelTest, PreservesMaskAndPositionMetadata) {
+    using namespace ov::op;
+    auto model = make_decoder_mask_model(false, 1, false, true, true);
+    for (const auto& node : model->get_ordered_ops()) {
+        if (const auto causal = ov::as_type_ptr<v1::LessEqual>(node)) {
+            causal->get_rt_info()["qwen_mask_test"] = std::string("mask");
+            causal->output(0).set_names({"causal_tensor"});
+        } else if (const auto reshape = ov::as_type_ptr<v1::Reshape>(node)) {
+            reshape->get_rt_info()["qwen_position_test"] = std::string("position");
+            const auto shape = reshape->get_input_node_shared_ptr(1);
+            shape->set_friendly_name("position_shape");
+            shape->get_rt_info()["qwen_shape_test"] = std::string("shape");
+        }
+    }
+    ASSERT_TRUE(ov::npuw::PrepareQwen3ASRPrefillModel().run_on_model(model));
+    EXPECT_EQ(model->input("attention_mask").get_node()->get_rt_info().at("qwen_mask_test").as<std::string>(), "mask");
+    EXPECT_EQ(model->input("position_ids").get_node()->get_rt_info().at("qwen_position_test").as<std::string>(),
+              "position");
+    bool found_mask = false;
+    bool found_shape = false;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (node->get_friendly_name() == "causal_0" && ov::is_type<v1::LogicalAnd>(node)) {
+            EXPECT_EQ(node->get_rt_info().at("qwen_mask_test").as<std::string>(), "mask");
+            EXPECT_EQ(node->output(0).get_names().count("causal_tensor"), 1u);
+            found_mask = true;
+        }
+        if (node->get_friendly_name() == "position_shape") {
+            EXPECT_EQ(node->get_rt_info().at("qwen_shape_test").as<std::string>(), "shape");
+            EXPECT_EQ(ov::as_type_ptr<v0::Constant>(node)->cast_vector<int64_t>().back(), -1);
+            found_shape = true;
+        }
+    }
+    EXPECT_TRUE(found_mask);
+    EXPECT_TRUE(found_shape);
+}
+
+TEST(PrepareQwen3ASRModelTest, PreservesResidualStateMetadataAndIsIdempotent) {
+    using namespace ov::op;
+    for (const bool reuse : {false, true}) {
+        SCOPED_TRACE(reuse);
+        const auto variable = std::make_shared<util::Variable>(
+            util::VariableInfo{ov::PartialShape{1, 2}, ov::element::f32, "encoder_state"});
+        auto parameter = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2});
+        parameter->set_friendly_name("encoder_input");
+        parameter->output(0).set_names({"encoder_input"});
+        const ov::Output<ov::Node> initial =
+            reuse ? parameter->output(0) : v0::Constant::create(ov::element::f32, ov::Shape{1, 2}, {0, 0})->output(0);
+        auto read = std::make_shared<v6::ReadValue>(initial, variable);
+        read->set_friendly_name("state_read");
+        read->output(0).set_names({"state_output"});
+        read->get_rt_info()["qwen_state_test"] = std::string("state");
+        auto assign = std::make_shared<v6::Assign>(read, variable);
+        auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<v0::Result>(read)},
+                                                 ov::SinkVector{assign},
+                                                 reuse ? ov::ParameterVector{parameter} : ov::ParameterVector{});
+        ASSERT_TRUE(ov::npuw::PrepareQwen3ASRModel().run_on_model(model));
+        ASSERT_EQ(model->get_parameters().size(), 1u);
+        const auto replacement = model->get_parameters()[0];
+        EXPECT_EQ(replacement->get_rt_info().at("qwen_state_test").as<std::string>(), "state");
+        EXPECT_EQ(replacement->output(0).get_names().count("state_output"), 1u);
+        EXPECT_EQ(replacement->get_friendly_name(), reuse ? "encoder_input" : "state_read");
+        EXPECT_TRUE(model->get_sinks().empty());
+        EXPECT_TRUE(model->get_variables().empty());
+        EXPECT_FALSE(ov::npuw::PrepareQwen3ASRModel().run_on_model(model));
+    }
+}
+
 TEST(PrepareQwen3ASRModelTest, CanonicalKVShapesStayIndependentOfEncoderLength) {
     constexpr uint32_t capacity = 128;
     constexpr uint32_t encoder_length = 64;
@@ -211,10 +475,7 @@ TEST(PrepareQwen3ASRModelTest, WhisperCacheShapesStillUseEncoderLength) {
 }
 
 TEST(Qwen3ASRInferRequestTest, ResetRestartsSingleTokenPrefillAndPublishesState) {
-    auto model = ov::test::npuw::build_llm_test_model();
-    auto encoder = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, 64});
-    encoder->output(0).set_names({"encoder_hidden_states"});
-    model->add_parameters({encoder});
+    auto model = make_stateful_qwen_decoder();
     auto plugin = std::make_shared<ov::test::npuw::NullPlugin>();
     ov::test::npuw::RecordingFactory recorder;
     ov::AnyMap properties{{"NPUW_LLM", "YES"},
@@ -225,6 +486,8 @@ TEST(Qwen3ASRInferRequestTest, ResetRestartsSingleTokenPrefillAndPublishesState)
                           {"NPUW_LLM_PREFILL_HINT", "STATIC"},
                           {"NPUW_DEVICES", "CPU"}};
     auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, properties, recorder.make_factory());
+    EXPECT_TRUE(compiled->get_property("NPUW_QWEN3_ASR").as<bool>());
+    EXPECT_EQ(compiled->get_property("NPUW_QWEN3_ASR_MAX_ENCODER_LEN").as<uint64_t>(), 16u);
     ov::npuw::Qwen3ASRInferRequest request(compiled);
 
     const auto set_input =
@@ -283,6 +546,47 @@ TEST(Qwen3ASRInferRequestTest, ResetRestartsSingleTokenPrefillAndPublishesState)
     ASSERT_EQ(actual_logits->get_shape(), expected_logits.get_shape());
     ASSERT_EQ(actual_logits->get_byte_size(), expected_logits.get_byte_size());
     EXPECT_EQ(std::memcmp(actual_logits->data(), expected_logits.data(), expected_logits.get_byte_size()), 0);
+}
+
+TEST(Qwen3ASRPropertiesTest, CompiledAndImportedModelExposeOptions) {
+    const auto nonce = std::chrono::steady_clock::now().time_since_epoch().count();
+    const auto dir = std::filesystem::temp_directory_path() / ("npuw_qwen_properties_" + std::to_string(nonce));
+    ASSERT_TRUE(std::filesystem::create_directory(dir));
+    struct Cleanup {
+        std::filesystem::path dir;
+        ~Cleanup() {
+            std::error_code ec;
+            std::filesystem::remove(dir / "model.xml", ec);
+            std::filesystem::remove(dir / "model.bin", ec);
+            std::filesystem::remove(dir, ec);
+        }
+    } cleanup{dir};
+    const auto xml = dir / "model.xml";
+    const auto bin = dir / "model.bin";
+    ov::Core core;
+    ov::serialize(make_stateful_qwen_decoder(), xml.string(), bin.string());
+    const auto model = core.read_model(xml.string(), bin.string());
+    const ov::AnyMap properties{{"NPU_USE_NPUW", "YES"},
+                                {"NPUW_LLM", "YES"},
+                                {"NPUW_QWEN3_ASR", "YES"},
+                                {"NPUW_QWEN3_ASR_MAX_ENCODER_LEN", "16"},
+                                {"NPUW_DEVICES", "CPU"},
+                                {"NPUW_ONLINE_PIPELINE", "NONE"},
+                                {"NPUW_LLM_MAX_PROMPT_LEN", "32"},
+                                {"NPUW_LLM_MIN_RESPONSE_LEN", "8"}};
+    auto compiled = core.compile_model(model, "NPU", properties);
+    EXPECT_TRUE(compiled.get_property("NPUW_QWEN3_ASR").as<bool>());
+    EXPECT_EQ(compiled.get_property("NPUW_QWEN3_ASR_MAX_ENCODER_LEN").as<uint64_t>(), 16u);
+
+    std::stringstream blob;
+    compiled.export_model(blob);
+    auto import_properties = properties;
+    import_properties.erase("NPUW_QWEN3_ASR");
+    import_properties.erase("NPUW_QWEN3_ASR_MAX_ENCODER_LEN");
+    import_properties[ov::weights_path.name()] = bin.string();
+    auto imported = core.import_model(blob, "NPU", import_properties);
+    EXPECT_TRUE(imported.get_property("NPUW_QWEN3_ASR").as<bool>());
+    EXPECT_EQ(imported.get_property("NPUW_QWEN3_ASR_MAX_ENCODER_LEN").as<uint64_t>(), 16u);
 }
 
 TEST(PrepareQwen3ASRModelTest, RejectsUnsupportedExportInsteadOfSilentlyFreezingAttention) {
