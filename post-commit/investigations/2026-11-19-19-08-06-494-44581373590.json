@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-19-19-08-06-494-44581373590",
+  "timestamp": "2026-11-19T19:08:06Z",
+  "run_id": "44581373590",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44581373590",
+  "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+  "commit_sha": "38c87081f49abdc2c859449f88b0d73fbad259b6",
+  "pr_number": "38641",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38641",
+  "author": null,
+  "category": "Infrastructure",
+  "title": "Windows CC build fails with compiler/linker out-of-memory errors under high parallelism",
+  "signature": "Windows Release build runs out of memory - compiler fatal error C1060 (out of heap space) and linker fatal error LNK1102 (out of memory) under high parallelism|Infrastructure",
+  "signature_hash": "80cfa127185fbf3e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build_And_Run_Collect_Mode",
+      "conclusion": "failure",
+      "symptom": "Ninja build aborted mid-way: cl.exe fatal error C1060 (compiler out of heap space), c1xx fatal error C1356 (unable to find mspdbcore.dll), and multiple link.exe fatal error LNK1102 (out of memory) for benchmark_app.exe, model_creation_sample.exe, hello_query_device.exe."
+    },
+    {
+      "name": "ci/gha_overall_status_windows_cc",
+      "conclusion": "failure",
+      "symptom": "Reports overall failure because the upstream build job failed."
+    }
+  ],
+  "key_errors": [
+    "C:\\BuildTools\\VC\\Tools\\MSVC\\14.42.34433\\include\\xmemory(1509): fatal error C1060: compiler is out of heap space",
+    "c1xx: fatal error C1356: unable to find mspdbcore.dll",
+    "LINK : fatal error LNK1102: out of memory",
+    "ninja: build stopped: subcommand failed.",
+    "CMAKE_BUILD_PARALLEL_LEVEL: 31"
+  ],
+  "root_cause": "The Windows Conditional Compilation (Release) build runs with CMAKE_BUILD_PARALLEL_LEVEL=31 (high ninja job parallelism) on a runner with finite RAM. Each parallel MSVC cl.exe/link.exe process for template functional test translation units (e.g. op_reference/*.cpp) and sample executables consumes substantial heap, and once the Release build reaches the tests/functional and samples/link stages the aggregate working set exceeds available memory, causing the compiler front-end (c1xx) to run out of heap space (C1060), fail to load mspdbcore.dll (C1356, itself a symptom of memory exhaustion), and the linker to report LNK1102 out of memory on several executables. This is the same recurring infrastructure/runner-resource pattern recorded 10 times previously (first seen 2026-11-03), not a regression introduced by the triggering commit/PR.",
+  "reproduction_steps": "N/A (cannot reliably reproduce without the same constrained Windows runner memory/parallelism combination). Locally: build the Release configuration with Ninja Multi-Config and CMAKE_BUILD_PARALLEL_LEVEL set high (e.g. 31) on a machine with limited RAM relative to core count; compiling src/plugins/template/tests/functional/op_reference/*.cpp in parallel alongside linking benchmark_app/model_creation_sample/hello_query_device reproduces the heap/linker OOM.",
+  "recommended_actions": [
+    "Lower CMAKE_BUILD_PARALLEL_LEVEL for the Windows Conditional Compilation Release job (or split it into fewer concurrent ninja jobs) to reduce peak memory usage.",
+    "Consider building template functional tests and the sample executables in separate ninja invocations/stages rather than all at CMAKE_BUILD_PARALLEL_LEVEL=31 simultaneously.",
+    "Evaluate moving this job to a runner SKU with more RAM, or add a /Zc or linker memory-saving flag (e.g. avoid /LARGEADDRESSAWARE duplication seen twice in the link command) where applicable.",
+    "Track CVS ticket for infra team to raise/tune build concurrency limits on Windows CC runners given this is the 11th occurrence."
+  ],
+  "prevention_strategies": "Cap ninja/MSBuild parallelism proportionally to available runner RAM (rule of thumb ~1.5-2 GB per parallel MSVC job for this codebase) rather than using core count alone; add a CI pre-check or retry-with-reduced-parallelism fallback when C1060/LNK1102 are detected.",
+  "historical_context": "Recorded 10 prior occurrences of this exact signature (pattern 80cfa127185fbf3e, first_seen 2026-11-03T07:07:04Z, last_seen 2026-11-18T11:29:31Z) across many unrelated commits, confirming this is a persistent Windows runner resource-constraint issue rather than code introduced by this PR."
+}

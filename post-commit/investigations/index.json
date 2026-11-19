@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 141,
+  "total": 142,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -1422,6 +1422,17 @@
       "category": "Network",
       "signature_hash": "574040a2a362751d",
       "commit_sha": "9ab80010c1bda2a97a19fa59d855a16cc3d145d1"
+    },
+    {
+      "investigation_id": "2026-11-19-19-08-06-494-44581373590",
+      "run_id": "44581373590",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44581373590",
+      "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+      "timestamp": "2026-11-19T19:08:06Z",
+      "title": "Windows CC build fails with compiler/linker out-of-memory errors under high parallelism",
+      "category": "Infrastructure",
+      "signature_hash": "80cfa127185fbf3e",
+      "commit_sha": "38c87081f49abdc2c859449f88b0d73fbad259b6"
     }
   ]
 }
