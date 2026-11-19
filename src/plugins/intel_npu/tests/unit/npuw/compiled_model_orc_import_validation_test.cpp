@@ -12,6 +12,8 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/util/codec_xor.hpp"
@@ -700,5 +702,106 @@ TEST(CompiledModelOrcImportValidationTest, AcceptsWeightsBankCpuDeviceInsideCall
     std::stringstream stream(blob, std::ios::in | std::ios::out | std::ios::binary);
     EXPECT_NO_THROW(ov::npuw::CompiledModel::import_model(stream, plugin, {{"NPUW_DEVICES", "NPU,CPU"}}));
 }
+
+class RetainedWeightlessBankImportTest : public testing::TestWithParam<bool> {
+protected:
+    void check_import(const std::string& allocation_device,
+                      const std::optional<std::string>& stored_device,
+                      const std::optional<std::string>& allowed_devices,
+                      bool should_throw) {
+        auto [plugin, core] = make_test_plugin_with_core();
+        EXPECT_CALL(*core, get_default_context(testing::_)).Times(0);
+        auto retained_bank = ov::npuw::weights::bank("retained_weightless_import_bank", core, allocation_device);
+        if (stored_device) {
+            retained_bank->m_device_banks[*stored_device].storage[0].tensor = ov::Tensor(ov::element::u8, ov::Shape{1});
+        }
+
+        auto constant = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f});
+        constant->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
+            ov::WeightlessCacheAttribute(constant->get_byte_size(), 0, constant->get_element_type());
+        auto weights_model = std::make_shared<ov::Model>(ov::OutputVector{constant}, ov::ParameterVector{});
+        auto stage = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+        stage->m_dev_list = {"NPU"};
+        stage->m_cfg.update({{"NPUW_DEVICES", "NPU"},
+                             {"NPUW_FOLD", "YES"},
+                             {"NPUW_WEIGHTS_BANK_ALLOC", ""},
+                             {"NPUW_ENSURE_COMPATIBILITY", "NO"}});
+        stage->m_const_to_offset.emplace(constant->get_data_ptr(), 0);
+        stage->set_weights_bank(retained_bank);
+        add_fake_submodel(stage, "NPU");
+
+        std::stringstream stream(std::ios::in | std::ios::out | std::ios::binary);
+        if (GetParam()) {
+            auto llm = std::make_shared<ov::npuw::LLMCompiledModel>(make_simple_model("llm"), plugin, true);
+            llm->m_cfg.update({{"NPUW_LLM_PREFILL_CHUNK_SIZE", "1024"}});
+            llm->m_prefill_compiled = stage;
+            llm->export_model(stream);
+        } else {
+            stage->export_model(stream);
+        }
+        stream.seekg(0);
+
+        ov::AnyMap properties{{ov::hint::model.name(), std::shared_ptr<const ov::Model>(weights_model)}};
+        if (allowed_devices) {
+            properties["NPUW_DEVICES"] = *allowed_devices;
+        }
+        auto import = [&]() {
+            if (GetParam()) {
+                auto imported = ov::npuw::LLMCompiledModel::import_model(stream, plugin, properties);
+                EXPECT_EQ(imported->m_prefill_compiled->get_weights_bank(), retained_bank);
+                std::dynamic_pointer_cast<ov::npuw::CompiledModel>(imported->m_prefill_compiled)->m_eval_future.get();
+            } else {
+                auto imported = ov::npuw::CompiledModel::import_model(stream, plugin, properties);
+                EXPECT_EQ(imported->get_weights_bank(), retained_bank);
+                imported->m_eval_future.get();
+            }
+        };
+        if (should_throw) {
+            try {
+                import();
+                FAIL() << "Expected retained-bank device to be rejected";
+            } catch (const ov::Exception& ex) {
+                EXPECT_NE(std::string(ex.what()).find("NPUW_DEVICES"), std::string::npos) << ex.what();
+            }
+        } else {
+            EXPECT_NO_THROW(import());
+        }
+    }
+};
+
+TEST_P(RetainedWeightlessBankImportTest, RejectsDisallowedAllocationOverride) {
+    check_import("GPU", std::nullopt, "NPU", true);
+}
+
+TEST_P(RetainedWeightlessBankImportTest, RejectsDisallowedStoredDevice) {
+    check_import("", "GPU", "NPU", true);
+}
+
+TEST_P(RetainedWeightlessBankImportTest, AcceptsAllowedAllocationOverride) {
+    check_import("CPU", "CPU", "NPU,CPU", false);
+}
+
+TEST_P(RetainedWeightlessBankImportTest, AcceptsEmptyAllocationOverride) {
+    check_import("", std::nullopt, "NPU", false);
+}
+
+TEST_P(RetainedWeightlessBankImportTest, AcceptsOverrideWhenCallerOmitsDeviceList) {
+    check_import("GPU", std::nullopt, std::nullopt, false);
+}
+
+TEST_P(RetainedWeightlessBankImportTest, RejectsOtherDeviceIdInAllocationOverride) {
+    check_import("GPU.1", std::nullopt, "NPU,GPU.0", true);
+}
+
+TEST_P(RetainedWeightlessBankImportTest, AcceptsExactDeviceIdInAllocationOverride) {
+    check_import("GPU.0", std::nullopt, "NPU,GPU.0", false);
+}
+
+INSTANTIATE_TEST_SUITE_P(StandaloneAndLlm,
+                         RetainedWeightlessBankImportTest,
+                         testing::Bool(),
+                         [](const testing::TestParamInfo<bool>& info) {
+                             return info.param ? "Llm" : "Standalone";
+                         });
 
 }  // namespace

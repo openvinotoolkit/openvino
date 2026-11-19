@@ -316,6 +316,16 @@ void Bank::deserialize(ov::npuw::orc::Stream& stream, const std::function<void(c
     LOG_INFO("DONE.");
 }
 
+void Bank::validate_devices(const std::function<void(const std::string&)>& validate_device) const {
+    std::unique_lock guard(m_mutex);
+    if (!m_alloc_device.empty()) {
+        validate_device(m_alloc_device);
+    }
+    for (const auto& bank : m_device_banks) {
+        validate_device(bank.first);
+    }
+}
+
 std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name,
                                            const std::shared_ptr<const ov::ICore>& core,
                                            const std::string& alloc_device) {

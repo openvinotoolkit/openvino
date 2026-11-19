@@ -1883,6 +1883,9 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
 
         if (is_weightless) {
             auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
+            bank->validate_devices([&](const std::string& device) {
+                CompiledModel::validate_import_device_against_allowlist(device, properties);
+            });
 
             for (const auto& compiled_variant : compiled->m_generate_compiled_variants) {
                 compiled_variant->set_weights_bank(bank);

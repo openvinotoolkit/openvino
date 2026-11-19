@@ -1735,6 +1735,9 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         compiled->m_weights_bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
         if (is_weightless) {
             child.expect_end();
+            compiled->m_weights_bank->validate_devices([&](const std::string& device) {
+                validate_import_devices_against_allowlist({device}, compiled->m_cfg, properties);
+            });
             compiled->finalize_weights_bank();
         } else {
             compiled->m_weights_bank->deserialize(child_stream, [&](const std::string& device) {
