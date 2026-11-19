@@ -131,8 +131,9 @@ public:
         } catch (const dnnl::error& e) {
             // Cache blob export is not supported on some backends (e.g., NVIDIA SYCL).
             // Only suppress "unimplemented" status; rethrow unexpected errors.
-            if (e.status != dnnl_unimplemented)
+            if (e.status != dnnl_unimplemented) {
                 throw;
+            }
         }
         ob << prim_cache;
 #endif

@@ -2452,7 +2452,7 @@ static bool is_nvidia_onednn_reduce_valid(const layout& input_lay, reduce_mode m
 TEST(reduce_gpu_nvidia, onednn_l1_keep_dims_false_cache_restore) {
     auto& engine = get_test_engine();
     auto input_mem = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 4}});
-    set_values(input_mem, std::vector<float>{-1.0f, 2.0f, -3.0f, 4.0f});
+    set_values(input_mem, std::vector<float>{-1.0F, 2.0F, -3.0F, 4.0F});
 
     topology topology;
     topology.add(input_layout("input", input_mem->get_layout()));
@@ -2477,7 +2477,7 @@ TEST(reduce_gpu_nvidia, onednn_l1_keep_dims_false_cache_restore) {
     ASSERT_EQ(output_mem->get_layout().get_linear_size(), 1);
 
     cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
-    ASSERT_NEAR(output_ptr[0], 10.0f, 1e-4f);
+    ASSERT_NEAR(output_ptr[0], 10.0F, 1e-4F);
 }
 
 TEST(reduce_gpu_nvidia, onednn_rejects_unsupported_data_type) {
