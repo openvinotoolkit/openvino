@@ -471,6 +471,44 @@ TEST_F(FlashAttentionTileTest, AttentionSinkInitialStateMatchesSDPA) {
     compare_vectors(actual, expected, 1e-5f, "AttentionSinkInitialStateMatchesSDPA");
 }
 
+TEST_F(FlashAttentionTileTest, AttentionSinkConversionPreservesIntermediateRounding) {
+    auto query = make_filled_tensor(ov::element::f32, {1, 1, 2, 1}, 1.0f);
+    auto key = make_filled_tensor(ov::element::f32, {1, 1, 4, 1}, 2048.0f);
+    auto value = make_filled_tensor(ov::element::f32, {1, 1, 4, 1}, 1.0f);
+    auto sink = make_filled_tensor(ov::element::f32, {1, 1, 1, 1}, 2049.0f);
+    auto acc = make_filled_tensor(ov::element::f32, {1, 1, 2, 1}, 0.0f);
+    auto max = make_filled_tensor(ov::element::f32, {1, 1, 2, 1}, 0.0f);
+    auto sum = make_filled_tensor(ov::element::f32, {1, 1, 2, 1}, 0.0f);
+    auto acc_impl = ov::get_tensor_impl(acc);
+    auto max_impl = ov::get_tensor_impl(max);
+    auto sum_impl = ov::get_tensor_impl(sum);
+    ov::npuw::runtime::host_flash_attention::HFARuntimeContext::initialize_state_tensors(acc_impl,
+                                                                                         max_impl,
+                                                                                         sum_impl,
+                                                                                         ov::get_tensor_impl(sink),
+                                                                                         true);
+
+    EXPECT_FLOAT_EQ(max.data<const float>()[0], 2048.0f);
+    ov::Tensor squeezed_max(ov::element::f32, {1, 1, 2}, max.data());
+    ov::Tensor squeezed_sum(ov::element::f32, {1, 1, 2}, sum.data());
+    const auto result =
+        run_flash_attention_tile(query, key, value, acc, squeezed_max, squeezed_sum, nullptr, {false, true});
+    const float rounded_sink = static_cast<float>(ov::float16(2049.0f));
+    const auto expected = run_sdpa_reference(query, key, value, nullptr, {}, &rounded_sink, {1, 1, 1, 1});
+    for (size_t index = 0; index < expected.size(); ++index) {
+        EXPECT_NEAR(expected[index], 0.8f, 1e-6f);
+        EXPECT_NEAR(result.output.data<const float>()[index], expected[index], 1e-6f);
+    }
+
+    ov::npuw::runtime::host_flash_attention::HFARuntimeContext::initialize_state_tensors(acc_impl,
+                                                                                         max_impl,
+                                                                                         sum_impl,
+                                                                                         ov::get_tensor_impl(sink));
+    const auto unrounded =
+        run_flash_attention_tile(query, key, value, acc, squeezed_max, squeezed_sum, nullptr, {false, true});
+    EXPECT_NEAR(unrounded.output.data<const float>()[0], 0.59539f, 1e-5f);
+}
+
 TEST_F(FlashAttentionTileTest, AttentionSinkBroadcastMatchesReferenceWithVectorTail) {
     const ov::Shape state_shape{2, 3, 19, 1};
     const std::vector<ov::Shape>

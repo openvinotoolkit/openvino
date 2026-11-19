@@ -156,9 +156,9 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::HostFlashAtten
     stream & info._query_size & info._context_size & info._k_seq_dim & info._v_seq_dim & info._sdpa_indices.query &
         info._sdpa_indices.past_key_blocks & info._sdpa_indices.past_value_blocks & info._sdpa_indices.present_key &
         info._sdpa_indices.present_value & info._sdpa_indices.attention_mask & info._sdpa_indices.attention_scale &
-        info._sdpa_indices.attention_sink & info._tile_input_indices & info._final_tile_input_indices &
-        info._tile_output_indices.acc & info._tile_output_indices.max & info._tile_output_indices.d &
-        var._past_tile_size & var._final_tile_size & var._can_use_tensor_view;
+        info._sdpa_indices.attention_sink & info._attention_sink_round_to_f16 & info._tile_input_indices &
+        info._final_tile_input_indices & info._tile_output_indices.acc & info._tile_output_indices.max &
+        info._tile_output_indices.d & var._past_tile_size & var._final_tile_size & var._can_use_tensor_view;
     if (stream.input()) {
         // Port indices are model-specific but must fit in a sane range; SIZE_MAX indicates a corrupted blob.
         constexpr std::size_t kMaxPortIndex = static_cast<std::size_t>(std::numeric_limits<uint16_t>::max());

@@ -69,9 +69,24 @@ TEST(SerializationTest, RejectsPreviousNpuwVersion) {
     write(old_header, major);
     write(old_header, minor);
     write(old_header, patch);
-    write(old_header, std::string("0.36"));
+    write(old_header, std::string("0.37"));
     EXPECT_THROW(read_and_check_header(old_header, NPUW_LLM_COMPILED_MODEL_INDICATOR, "LLMCompiledModel"),
                  ov::Exception);
+}
+
+TEST(SerializationTest, PreservesAttentionSinkRounding) {
+    ov::npuw::compiled::HostFlashAttention original;
+    original._sdpa_attention_info._sdpa_indices.attention_sink = 3;
+    original._sdpa_attention_info._attention_sink_round_to_f16 = true;
+    std::stringstream buffer;
+    auto writer = Stream::writer(buffer);
+    ov::npuw::orc::serialize(writer, original);
+
+    ov::npuw::compiled::HostFlashAttention restored;
+    auto reader = Stream::reader(buffer);
+    ov::npuw::orc::serialize(reader, restored);
+    EXPECT_EQ(restored._sdpa_attention_info._sdpa_indices.attention_sink, std::optional<std::size_t>{3});
+    EXPECT_TRUE(restored._sdpa_attention_info._attention_sink_round_to_f16);
 }
 
 namespace {

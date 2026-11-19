@@ -1104,10 +1104,37 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
         return std::nullopt;
     }
 
-    if (pattern_nodes.attention_sink_node &&
-        !ov::is_type<ov::op::v0::Parameter>(skip_convert_nodes(pattern_nodes.attention_sink_node))) {
-        LOG_WARN("HFA attention sink must originate from a Parameter through optional Convert nodes");
-        return std::nullopt;
+    bool sink_round_to_f16 = false;
+    if (pattern_nodes.attention_sink_node) {
+        auto sink_source = pattern_nodes.attention_sink_node;
+        while (const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(sink_source)) {
+            const auto type = convert->get_output_element_type(0);
+            if (type != ov::element::f16 && type != ov::element::f32) {
+                LOG_WARN("HFA attention sink conversions must use f16 or f32");
+                return std::nullopt;
+            }
+            sink_round_to_f16 |= type == ov::element::f16;
+            sink_source = convert->get_input_node_shared_ptr(0);
+        }
+        const auto sink_param = ov::as_type_ptr<ov::op::v0::Parameter>(sink_source);
+        if (!sink_param || (sink_param->get_element_type() != ov::element::f16 &&
+                            sink_param->get_element_type() != ov::element::f32)) {
+            LOG_WARN("HFA attention sink must originate from an f16 or f32 Parameter");
+            return std::nullopt;
+        }
+        const auto sink_concat = pattern_nodes.softmax_node->get_input_node_shared_ptr(0);
+        const auto sink = sink_concat->get_input_node_shared_ptr(1);
+        if (const auto broadcast = ov::as_type_ptr<ov::op::v1::Broadcast>(sink)) {
+            if (broadcast->get_broadcast_spec().m_type != ov::op::AutoBroadcastType::NUMPY) {
+                LOG_WARN("HFA attention sink requires NumPy broadcast");
+                return std::nullopt;
+            }
+        } else if (const auto broadcast = ov::as_type_ptr<ov::op::v3::Broadcast>(sink)) {
+            if (broadcast->get_broadcast_spec().m_type != ov::op::BroadcastType::NUMPY) {
+                LOG_WARN("HFA attention sink requires NumPy broadcast");
+                return std::nullopt;
+            }
+        }
     }
 
     auto q_input = pattern_nodes.matmul1_node->get_input_node_shared_ptr(0);
@@ -1344,6 +1371,7 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     // Step 6: Create HostFlashAttention structure and set configuration
     // ========================================================================
     HostFlashAttention hfa;
+    hfa._attention_sink_round_to_f16 = sink_round_to_f16;
     hfa._tile_model = tile_model;
     hfa._final_tile_model = final_tile_model;
     hfa._query_size = query_size;  // Query length for PREFILL/GENERATE logic and context_length
@@ -1414,6 +1442,7 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
     _sdpa_attention_info._sdpa_indices.attention_mask = func_hfa._attention_mask_param_idx;
     _sdpa_attention_info._sdpa_indices.attention_scale = func_hfa._attention_scale_param_idx;
     _sdpa_attention_info._sdpa_indices.attention_sink = func_hfa._attention_sink_param_idx;
+    _sdpa_attention_info._attention_sink_round_to_f16 = func_hfa._attention_sink_round_to_f16;
 
     auto get_tile_input_idx = [](const std::map<HFATileInputId, std::size_t>& mapping,
                                  HFATileInputId input_id) -> std::size_t {
@@ -1686,7 +1715,8 @@ void HFARuntimeContext::clear_mask_cache() {
 void HFARuntimeContext::initialize_state_tensors(ov::SoPtr<ov::ITensor>& acc,
                                                  ov::SoPtr<ov::ITensor>& max,
                                                  ov::SoPtr<ov::ITensor>& sum,
-                                                 const ov::SoPtr<ov::ITensor>& attention_sink) {
+                                                 const ov::SoPtr<ov::ITensor>& attention_sink,
+                                                 bool sink_round_to_f16) {
     const auto type = acc->get_element_type();
     if (type == ov::element::f16) {
         std::memset(acc->data<ov::float16>(), 0, acc->get_byte_size());
@@ -1712,7 +1742,18 @@ void HFARuntimeContext::initialize_state_tensors(ov::SoPtr<ov::ITensor>& acc,
     } else {
         std::fill_n(sum->data<float>(), sum->get_size(), 1.0f);
     }
-    ov::npuw::util::broadcast_tensor(attention_sink, max);
+    if (sink_round_to_f16 && attention_sink->get_element_type() == ov::element::f32) {
+        OPENVINO_ASSERT(attention_sink->is_continuous(), "HFA: Attention sink must be contiguous");
+        ov::Tensor rounded(ov::element::f16, attention_sink->get_shape());
+        const auto* source = attention_sink->data<const float>();
+        auto* destination = rounded.data<ov::float16>();
+        for (size_t index = 0; index < attention_sink->get_size(); ++index) {
+            destination[index] = ov::float16(source[index]);
+        }
+        ov::npuw::util::broadcast_tensor(ov::get_tensor_impl(rounded), max);
+    } else {
+        ov::npuw::util::broadcast_tensor(attention_sink, max);
+    }
 }
 
 void HFARuntimeContext::prepare_next_state_buffers() {

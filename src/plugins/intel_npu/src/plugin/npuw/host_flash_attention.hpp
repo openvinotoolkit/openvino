@@ -128,6 +128,7 @@ struct HostFlashAttention {
     std::size_t _attention_mask_param_idx = 0u;
     std::optional<std::size_t> _attention_scale_param_idx;
     std::optional<std::size_t> _attention_sink_param_idx;
+    bool _attention_sink_round_to_f16 = false;
 
     // KV cache block parameter indices (for split KV cache support)
     // After SplitKVCacheIntoBlocks transformation, KV cache is split into multiple block parameters
@@ -195,6 +196,8 @@ struct HostFlashAttentionInfo {
         std::optional<std::size_t> attention_scale;
         std::optional<std::size_t> attention_sink;
     } _sdpa_indices;
+
+    bool _attention_sink_round_to_f16 = false;
 
     struct HFATileInputIndices {
         std::size_t q = 0u;
@@ -479,7 +482,8 @@ struct HFARuntimeContext {
     static void initialize_state_tensors(ov::SoPtr<ov::ITensor>& acc,
                                          ov::SoPtr<ov::ITensor>& max,
                                          ov::SoPtr<ov::ITensor>& sum,
-                                         const ov::SoPtr<ov::ITensor>& attention_sink = {});
+                                         const ov::SoPtr<ov::ITensor>& attention_sink = {},
+                                         bool sink_round_to_f16 = false);
 
     /// Prepare next buffer asynchronously with the fixed no-sink initial state.
     void prepare_next_state_buffers();

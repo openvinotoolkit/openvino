@@ -1131,7 +1131,8 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                 state_acc,
                                 state_max,
                                 state_sum,
-                                attention_sink_tensor);
+                                attention_sink_tensor,
+                                sdpa_info._attention_sink_round_to_f16);
                         }
 
                         regular_tile_request->set_tensor(hfa_desc->_compiled_tile_model->inputs()[regular_tile_in.q],

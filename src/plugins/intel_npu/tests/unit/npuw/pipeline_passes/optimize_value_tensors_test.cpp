@@ -8,7 +8,9 @@
 
 #include <tuple>
 
+#include "common_test_utils/ov_test_utils.hpp"
 #include "embedding/redirect_new_kv_to_output.hpp"
+#include "llm_compiled_model_utils.hpp"
 #include "llm_pass_test_fixture.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -22,11 +24,11 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/constant_folding.hpp"
-#include "openvino/pass/manager.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 
 namespace {
@@ -53,6 +55,23 @@ protected:
 class OptimizeValueTensorsNoSDPATest : public ov::test::npuw::LLMPassTestFixture,
                                        public ::testing::WithParamInterface<std::string> {};
 
+class OptimizeValueTensorsDynamicSinkTest : public TransformationTestsF {
+protected:
+    void TearDown() override {
+        TransformationTestsF::TearDown();
+        if (HasFatalFailure()) {
+            return;
+        }
+        const auto parameters = model->get_parameters();
+        parameters[0]->set_partial_shape(ov::PartialShape{2, 2, 3, 4});
+        parameters[1]->set_partial_shape(ov::PartialShape{2, 2, 5, 4});
+        parameters[2]->set_partial_shape(ov::PartialShape{2, 2, 5, 4});
+        parameters[3]->set_partial_shape(ov::PartialShape{2, 1, 3, 5});
+        ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+        EXPECT_EQ(model->output().get_shape(), (ov::Shape{2, 2, 3, 4}));
+    }
+};
+
 INSTANTIATE_TEST_SUITE_P(SubModels,
                          OptimizeValueTensorsNoSDPATest,
                          ::testing::Values(std::string{"_prefill"}, std::string{"_kv"}),
@@ -76,7 +95,7 @@ TEST_P(OptimizeValueTensorsNoSDPATest, NoSDPAOpsAfterOptimization) {
     EXPECT_EQ(count_ops<ov::op::v13::ScaledDotProductAttention>(sub.model), 0u);
 }
 
-TEST(OptimizeValueTensorsSinkTest, ScalesQueriesBeforeMatMulInMixedModel) {
+TEST_F(TransformationTestsF, OptimizeValueTensorsScalesQueriesBeforeMatMulInMixedModel) {
     auto query = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 3, 4});
     auto key = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 5, 4});
     auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 5, 4});
@@ -86,23 +105,41 @@ TEST(OptimizeValueTensorsSinkTest, ScalesQueriesBeforeMatMulInMixedModel) {
     auto with_sink =
         std::make_shared<ov::op::v13::ScaledDotProductAttention>(query, key, value, mask, scale, sink, false);
     auto without_sink = std::make_shared<ov::op::v13::ScaledDotProductAttention>(query, key, value, mask, scale, false);
-    auto model = std::make_shared<ov::Model>(ov::OutputVector{with_sink, without_sink},
-                                             ov::ParameterVector{query, key, value, mask, scale, sink});
+    model = std::make_shared<ov::Model>(ov::OutputVector{with_sink, without_sink},
+                                        ov::ParameterVector{query, key, value, mask, scale, sink});
 
-    ASSERT_NO_THROW(ov::npuw::util::OptimizeValueTensors(true).run_on_model(model));
-    size_t scaled_queries = 0;
-    for (const auto& node : model->get_ordered_ops()) {
-        const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(node);
-        if (!matmul) {
-            continue;
-        }
-        const auto multiply = ov::as_type_ptr<ov::op::v1::Multiply>(matmul->get_input_node_shared_ptr(0));
-        if (multiply && multiply->get_input_node_shared_ptr(0) == query &&
-            multiply->get_input_node_shared_ptr(1) == scale) {
-            ++scaled_queries;
-        }
-    }
-    EXPECT_EQ(scaled_queries, 2u);
+    auto ref_query = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 3, 4});
+    auto ref_key = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 5, 4});
+    auto ref_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 5, 4});
+    auto ref_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 3, 5});
+    auto ref_scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{});
+    auto ref_sink = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 1, 1});
+    ov::npuw::util::HighPrecisionAttr high_precision;
+    high_precision.compute_precision_type = ov::element::f32;
+    ref_mask->output(0).get_rt_info()[ov::npuw::util::HighPrecisionAttr::get_type_info_static()] = high_precision;
+    auto make_scores = [&]() {
+        auto scaled_query = std::make_shared<ov::op::v1::Multiply>(ref_query, ref_scale);
+        auto scores = std::make_shared<ov::op::v0::MatMul>(scaled_query, ref_key, false, true);
+        return std::make_shared<ov::op::v1::Add>(scores, ref_mask);
+    };
+    auto sink_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {1, 2, 3, 1});
+    auto broadcast = std::make_shared<ov::op::v1::Broadcast>(ref_sink, sink_shape);
+    auto logits = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{make_scores(), broadcast}, -1);
+    auto sink_softmax = std::make_shared<ov::op::v8::Softmax>(logits, -1);
+    auto start = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {0});
+    auto end = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {-1});
+    auto step = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
+    auto probabilities = std::make_shared<ov::op::v8::Slice>(sink_softmax, start, end, step, end);
+    auto sink_output = std::make_shared<ov::op::v0::MatMul>(probabilities, ref_value);
+    auto regular_softmax = std::make_shared<ov::op::v8::Softmax>(make_scores(), -1);
+    auto regular_output = std::make_shared<ov::op::v0::MatMul>(regular_softmax, ref_value);
+    model_ref =
+        std::make_shared<ov::Model>(ov::OutputVector{sink_output, regular_output},
+                                    ov::ParameterVector{ref_query, ref_key, ref_value, ref_mask, ref_scale, ref_sink});
+    manager.register_pass<ov::npuw::util::OptimizeValueTensors>(true);
+    manager.register_pass<ov::pass::ConstantFolding>();
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
 }
 
 TEST(OptimizeValueTensorsSinkTest, MatchesStandardDecompositionForSinkAndMasks) {
@@ -133,9 +170,9 @@ TEST(OptimizeValueTensorsSinkTest, MatchesStandardDecompositionForSinkAndMasks) 
                 auto model = std::make_shared<ov::Model>(ov::OutputVector{sdpa},
                                                          ov::ParameterVector{query, key, value, mask, scale, sink});
                 auto reference = model->clone();
-                ov::pass::Manager manager;
-                manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
-                manager.run_passes(reference);
+                const auto ref_sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(
+                    reference->get_result()->get_input_node_shared_ptr(0));
+                ov::replace_node(ref_sdpa, ov::pass::ScaledDotProductAttentionDecomposition().decompose(ref_sdpa));
                 ov::npuw::util::OptimizeValueTensors(true).run_on_model(model);
                 ov::pass::ConstantFolding().run_on_model(reference);
                 ov::pass::ConstantFolding().run_on_model(model);
@@ -177,7 +214,7 @@ TEST(OptimizeValueTensorsSinkTest, MatchesStandardDecompositionForSinkAndMasks) 
     }
 }
 
-TEST(OptimizeValueTensorsSinkTest, SupportsDynamicSequenceLengths) {
+TEST_F(OptimizeValueTensorsDynamicSinkTest, SupportsDynamicSequenceLengths) {
     auto query = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 2, -1, 4});
     auto key = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 2, -1, 4});
     auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 2, -1, 4});
@@ -185,16 +222,40 @@ TEST(OptimizeValueTensorsSinkTest, SupportsDynamicSequenceLengths) {
     auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{});
     auto sink = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 1, 1});
     auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(query, key, value, mask, scale, sink, false);
-    auto model =
+    model =
         std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{query, key, value, mask, scale, sink});
-    ASSERT_NO_THROW(ov::npuw::util::OptimizeValueTensors(true).run_on_model(model));
-    const auto parameters = model->get_parameters();
-    parameters[0]->set_partial_shape(ov::PartialShape{2, 2, 3, 4});
-    parameters[1]->set_partial_shape(ov::PartialShape{2, 2, 5, 4});
-    parameters[2]->set_partial_shape(ov::PartialShape{2, 2, 5, 4});
-    parameters[3]->set_partial_shape(ov::PartialShape{2, 1, 3, 5});
-    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
-    EXPECT_EQ(model->output().get_shape(), (ov::Shape{2, 2, 3, 4}));
+
+    auto ref_query = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 2, -1, 4});
+    auto ref_key = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 2, -1, 4});
+    auto ref_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 2, -1, 4});
+    auto ref_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 1, -1, -1});
+    auto ref_scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{});
+    auto ref_sink = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 1, 1});
+    ov::npuw::util::HighPrecisionAttr high_precision;
+    high_precision.compute_precision_type = ov::element::f32;
+    ref_mask->output(0).get_rt_info()[ov::npuw::util::HighPrecisionAttr::get_type_info_static()] = high_precision;
+    auto scaled_query = std::make_shared<ov::op::v1::Multiply>(ref_query, ref_scale);
+    auto scores = std::make_shared<ov::op::v0::MatMul>(scaled_query, ref_key, false, true);
+    auto masked = std::make_shared<ov::op::v1::Add>(scores, ref_mask);
+    auto start = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {0});
+    auto end = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {-1});
+    auto step = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
+    auto prefix_end = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {3});
+    auto query_shape = std::make_shared<ov::op::v3::ShapeOf>(ref_query, ov::element::i32);
+    auto prefix = std::make_shared<ov::op::v8::Slice>(query_shape, start, prefix_end, step);
+    auto sink_shape = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{prefix, step}, 0);
+    auto broadcast = std::make_shared<ov::op::v1::Broadcast>(ref_sink, sink_shape);
+    auto logits = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{masked, broadcast}, -1);
+    auto softmax = std::make_shared<ov::op::v8::Softmax>(logits, -1);
+    auto probabilities = std::make_shared<ov::op::v8::Slice>(softmax, start, end, step, end);
+    auto output = std::make_shared<ov::op::v0::MatMul>(probabilities, ref_value);
+    model_ref =
+        std::make_shared<ov::Model>(ov::OutputVector{output},
+                                    ov::ParameterVector{ref_query, ref_key, ref_value, ref_mask, ref_scale, ref_sink});
+    manager.register_pass<ov::npuw::util::OptimizeValueTensors>(true);
+    manager.register_pass<ov::pass::ConstantFolding>();
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
 }
 
 // After SDPA decomposition each layer produces two MatMul ops (QK and SV multiplications).

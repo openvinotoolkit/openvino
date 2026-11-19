@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -27,6 +29,7 @@
 #include "openvino/op/softmax.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "util.hpp"
 #include "variable_state.hpp"
 
@@ -481,6 +484,151 @@ TEST(HostFlashAttentionFromTest, AcceptsConvertedParameterAttentionSink) {
         ASSERT_TRUE(result.has_value());
         EXPECT_EQ(result->_attention_sink_param_idx,
                   std::optional<std::size_t>{static_cast<std::size_t>(model->get_parameter_index(sink))});
+        EXPECT_TRUE(result->_attention_sink_round_to_f16);
+        EXPECT_TRUE(ov::npuw::compiled::HostFlashAttention(*result)._sdpa_attention_info._attention_sink_round_to_f16);
+    }
+}
+
+TEST(HostFlashAttentionFromTest, ConvertedSinkMatchesReferenceAcrossTiles) {
+    for (const bool fused : {false, true}) {
+        SCOPED_TRACE(fused);
+        auto model = build_sdpa_model(2, 2, 1, 1, true);
+        auto sink = model->get_parameters().back();
+        const auto consumers = sink->output(0).get_target_inputs();
+        auto half = std::make_shared<ov::op::v0::Convert>(sink, ov::element::f16);
+        auto converted = std::make_shared<ov::op::v0::Convert>(half, ov::element::f32);
+        for (auto input : consumers) {
+            input.replace_source_output(converted);
+        }
+        model->validate_nodes_and_infer_types();
+
+        const auto hfa = ov::npuw::function::HostFlashAttention::from(model, fused);
+        ASSERT_TRUE(hfa);
+        const ov::npuw::compiled::HostFlashAttention compiled_hfa(*hfa);
+        ASSERT_TRUE(compiled_hfa._sdpa_attention_info._attention_sink_round_to_f16);
+        using InputId = ov::npuw::HFATileInputId;
+        using OutputId = ov::npuw::HFATileOutputId;
+        const auto make_tile_inputs = [](const std::shared_ptr<ov::Model>& tile,
+                                         const std::map<InputId, size_t>& indices) {
+            ov::TensorVector tensors;
+            for (const auto& input : tile->inputs()) {
+                tensors.emplace_back(input.get_element_type(), input.get_shape());
+                std::fill_n(tensors.back().data<float>(), tensors.back().get_size(), 0.0f);
+            }
+            for (const auto& entry : {std::make_pair(InputId::Q, 1.0f),
+                                      std::make_pair(InputId::K_TILE, 2048.0f),
+                                      std::make_pair(InputId::V_TILE, 1.0f)}) {
+                auto& tensor = tensors.at(indices.at(entry.first));
+                std::fill_n(tensor.data<float>(), tensor.get_size(), entry.second);
+            }
+            return tensors;
+        };
+        auto regular_inputs = make_tile_inputs(hfa->_tile_model, hfa->_tile_param_index_map);
+        auto acc = ov::get_tensor_impl(regular_inputs.at(hfa->_tile_param_index_map.at(InputId::PAST_ACC)));
+        auto max = ov::get_tensor_impl(regular_inputs.at(hfa->_tile_param_index_map.at(InputId::PAST_MAX)));
+        auto sum = ov::get_tensor_impl(regular_inputs.at(hfa->_tile_param_index_map.at(InputId::PAST_D)));
+        ov::Tensor sink_tensor(ov::element::f32, sink->get_shape());
+        sink_tensor.data<float>()[0] = 2049.0f;
+        ov::npuw::runtime::host_flash_attention::HFARuntimeContext::initialize_state_tensors(
+            acc,
+            max,
+            sum,
+            ov::get_tensor_impl(sink_tensor),
+            compiled_hfa._sdpa_attention_info._attention_sink_round_to_f16);
+        ov::TensorVector regular_outputs;
+        for (const auto& output : hfa->_tile_model->outputs()) {
+            regular_outputs.emplace_back(output.get_element_type(), output.get_shape());
+        }
+        ASSERT_TRUE(hfa->_tile_model->evaluate(regular_outputs, regular_inputs));
+
+        auto final_inputs = make_tile_inputs(hfa->_final_tile_model, hfa->_final_tile_param_index_map);
+        final_inputs.at(hfa->_final_tile_param_index_map.at(InputId::PAST_ACC)) =
+            regular_outputs.at(hfa->_tile_output_index_map.at(OutputId::ACC));
+        final_inputs.at(hfa->_final_tile_param_index_map.at(InputId::PAST_MAX)) =
+            regular_outputs.at(hfa->_tile_output_index_map.at(OutputId::MAXX));
+        final_inputs.at(hfa->_final_tile_param_index_map.at(InputId::PAST_D)) =
+            regular_outputs.at(hfa->_tile_output_index_map.at(OutputId::D));
+        ov::TensorVector actual{ov::Tensor(ov::element::f32, hfa->_final_tile_model->output().get_shape())};
+        ASSERT_TRUE(hfa->_final_tile_model->evaluate(actual, final_inputs));
+
+        ov::TensorVector inputs;
+        for (const auto& input : model->inputs()) {
+            inputs.emplace_back(input.get_element_type(), input.get_shape());
+            const auto& name = input.get_any_name();
+            float value = 1.0f;
+            if (name.find("attention_sink") == 0) {
+                value = 2049.0f;
+            } else if (name == "past_key_values.0.key" || name == "new_key.0") {
+                value = 2048.0f;
+            } else if (name.find("mask") == 0) {
+                value = 0.0f;
+            }
+            std::fill_n(inputs.back().data<float>(), inputs.back().get_size(), value);
+        }
+        ov::TensorVector expected;
+        for (const auto& output : model->outputs()) {
+            expected.emplace_back(output.get_element_type(), output.get_shape());
+        }
+        ASSERT_TRUE(model->evaluate(expected, inputs));
+        for (size_t index = 0; index < actual.front().get_size(); ++index) {
+            EXPECT_NEAR(expected.back().data<const float>()[index], 0.8f, 1e-6f);
+            EXPECT_NEAR(actual.front().data<const float>()[index], expected.back().data<const float>()[index], 1e-6f);
+        }
+    }
+}
+
+TEST(HostFlashAttentionFromTest, RejectsNonFloatingAttentionSinkConversions) {
+    auto model = build_sdpa_model(QUERY_SIZE, PAST_LEN, NUM_HEADS, HEAD_DIM, true);
+    auto sink = model->get_parameters().back();
+    const auto consumers = sink->output(0).get_target_inputs();
+    auto integer = std::make_shared<ov::op::v0::Convert>(sink, ov::element::i32);
+    auto converted = std::make_shared<ov::op::v0::Convert>(integer, ov::element::f32);
+    for (auto input : consumers) {
+        input.replace_source_output(converted);
+    }
+    model->validate_nodes_and_infer_types();
+    for (const bool fused : {false, true}) {
+        EXPECT_FALSE(ov::npuw::function::HostFlashAttention::from(model, fused).has_value());
+    }
+}
+
+TEST(HostFlashAttentionFromTest, RejectsNonNumpyAttentionSinkBroadcast) {
+    for (const bool version3 : {false, true}) {
+        SCOPED_TRACE(version3);
+        auto model = build_sdpa_model(2, 4, 2, HEAD_DIM, true);
+        auto old_sink = model->get_parameters().back();
+        auto old_broadcast = old_sink->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
+        auto sink = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 1});
+        auto shape = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 2, 2, 1});
+        auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 3});
+        std::shared_ptr<ov::Node> broadcast;
+        if (version3) {
+            broadcast = std::make_shared<ov::op::v3::Broadcast>(sink, shape, axes);
+        } else {
+            broadcast =
+                std::make_shared<ov::op::v1::Broadcast>(sink,
+                                                        shape,
+                                                        axes,
+                                                        ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NONE));
+        }
+        for (auto input : old_broadcast->output(0).get_target_inputs()) {
+            input.replace_source_output(broadcast);
+        }
+        model->remove_parameter(old_sink);
+        model->add_parameters({sink});
+        model->validate_nodes_and_infer_types();
+
+        ov::Tensor input(ov::element::f32, sink->get_shape());
+        input.data<float>()[0] = 0.0f;
+        input.data<float>()[1] = 2.0f;
+        ov::Model broadcast_model(ov::OutputVector{broadcast}, ov::ParameterVector{sink});
+        ov::TensorVector outputs{ov::Tensor(ov::element::f32, {1, 2, 2, 1})};
+        ASSERT_TRUE(broadcast_model.evaluate(outputs, ov::TensorVector{input}));
+        EXPECT_EQ(std::vector<float>(outputs.front().data<const float>(), outputs.front().data<const float>() + 4),
+                  (std::vector<float>{0.0f, 0.0f, 2.0f, 2.0f}));
+        ASSERT_TRUE(ov::npuw::util::find_sdpa_pattern_nodes(model).is_valid());
+        EXPECT_FALSE(ov::npuw::function::HostFlashAttention::from(model, false).has_value());
+        EXPECT_FALSE(ov::npuw::function::HostFlashAttention::from(model, true).has_value());
     }
 }
 
