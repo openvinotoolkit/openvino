@@ -4,9 +4,9 @@
 
 #include <gtest/gtest.h>
 
-#include "intel_npu/common/cre.hpp"
-#include "intel_npu/common/section_id.hpp"
-#include "intel_npu/common/section_type.hpp"
+#include "intel_npu/common/hsm_format/cre.hpp"
+#include "intel_npu/common/hsm_format/section_id.hpp"
+#include "intel_npu/common/hsm_format/section_type.hpp"
 
 using namespace intel_npu;
 

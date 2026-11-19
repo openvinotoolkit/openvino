@@ -5,9 +5,9 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "hsm_sections/compiler_schedules.hpp"
-#include "intel_npu/common/blob_sections_registry.hpp"
-#include "intel_npu/common/section_type.hpp"
+#include "hsm_format/compiler_schedules_sections.hpp"
+#include "intel_npu/common/hsm_format/blob_sections_registry.hpp"
+#include "intel_npu/common/hsm_format/section_type.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "openvino/runtime/hsm_deferred_writer.hpp"
 #include "openvino/runtime/hsm_reader.hpp"

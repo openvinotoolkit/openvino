@@ -9,8 +9,8 @@
 
 #include "blob_format_importers.hpp"
 #include "compiled_model.hpp"
-#include "hsm_sections/batch_size.hpp"
-#include "hsm_sections/compiler_version.hpp"
+#include "hsm_format/batch_size_section.hpp"
+#include "hsm_format/compiler_version_section.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"

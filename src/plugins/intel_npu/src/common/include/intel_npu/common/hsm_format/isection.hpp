@@ -11,9 +11,9 @@
 #include <unordered_set>
 #include <vector>
 
-#include "intel_npu/common/cre_token.hpp"
-#include "intel_npu/common/section_id.hpp"
-#include "intel_npu/common/section_type.hpp"
+#include "intel_npu/common/hsm_format/cre_token.hpp"
+#include "intel_npu/common/hsm_format/section_id.hpp"
+#include "intel_npu/common/hsm_format/section_type.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/runtime/hsm_reader.hpp"
 #include "openvino/runtime/hsm_writer.hpp"

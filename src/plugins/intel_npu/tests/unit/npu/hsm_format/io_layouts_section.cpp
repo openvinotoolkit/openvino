@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "hsm_format/io_layouts_section.hpp"
+
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "hsm_sections/io_layouts.hpp"
 #include "openvino/core/layout.hpp"
 #include "openvino/runtime/hsm_deferred_writer.hpp"
 #include "openvino/runtime/hsm_reader.hpp"

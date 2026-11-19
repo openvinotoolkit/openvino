@@ -6,12 +6,12 @@
 
 #include <unordered_set>
 
-#include "intel_npu/common/cre_token.hpp"
-#include "intel_npu/common/isection.hpp"
-#include "intel_npu/common/isection_type_evaluator.hpp"
-#include "intel_npu/common/section_id.hpp"
-#include "intel_npu/common/section_type.hpp"
-#include "intel_npu/common/single_section_instance_evaluator.hpp"
+#include "intel_npu/common/hsm_format/cre_token.hpp"
+#include "intel_npu/common/hsm_format/isection.hpp"
+#include "intel_npu/common/hsm_format/isection_type_evaluator.hpp"
+#include "intel_npu/common/hsm_format/section_id.hpp"
+#include "intel_npu/common/hsm_format/section_type.hpp"
+#include "intel_npu/common/hsm_format/single_section_instance_evaluator.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/core/except.hpp"
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_npu/common/cre.hpp"
+#include "intel_npu/common/hsm_format/cre.hpp"
 
 #include <functional>
 

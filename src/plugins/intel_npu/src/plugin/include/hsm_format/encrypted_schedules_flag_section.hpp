@@ -6,7 +6,7 @@
 
 #include <functional>
 
-#include "intel_npu/common/isection.hpp"
+#include "intel_npu/common/hsm_format/isection.hpp"
 
 namespace intel_npu {
 

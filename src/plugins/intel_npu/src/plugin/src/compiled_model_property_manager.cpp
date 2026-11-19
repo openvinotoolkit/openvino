@@ -7,7 +7,7 @@
 #include <sstream>
 
 #include "intel_npu/common/device_helpers.hpp"
-#include "intel_npu/common/hsm_sections/runtime_requirements.hpp"
+#include "intel_npu/common/hsm_format/runtime_requirements.hpp"
 #include "intel_npu/config/options.hpp"
 #include "metadata.hpp"
 

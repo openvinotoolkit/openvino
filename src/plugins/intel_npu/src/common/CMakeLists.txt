@@ -5,11 +5,17 @@
 set(TARGET_NAME "openvino_npu_common")
 
 set(SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/blob_sections_registry.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/hsm_format/blob_sections_registry.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/hsm_format/cre_token.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/hsm_format/cre.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/hsm_format/isection_instance_evaluator.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/hsm_format/isection_type_evaluator.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/hsm_format/runtime_requirements.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/hsm_format/section_id.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/hsm_format/section_type.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/hsm_format/single_section_instance_evaluator.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/blob_source.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/compiler_adapter_factory.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/cre_token.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/cre.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/option_support_cache.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/device_helpers.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/icompiled_model.hpp
@@ -17,17 +23,11 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/igraph.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/iprofiling_decoder.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/iparser.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/isection_instance_evaluator.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/isection_type_evaluator.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/itt.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/major_minor_version.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/network_metadata.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/npu.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/parser_factory.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/hsm_sections/runtime_requirements.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/section_id.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/section_type.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/single_section_instance_evaluator.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/blob_sections_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/blob_source.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/cre.cpp

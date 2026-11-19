@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "hsm_format/read_write.hpp"
+
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "hsm_read_write.hpp"
-#include "hsm_sections/batch_size.hpp"
-#include "hsm_sections/compiler_version.hpp"
-#include "hsm_sections/io_layouts.hpp"
-#include "intel_npu/common/hsm_sections/runtime_requirements.hpp"
+#include "hsm_format/batch_size_section.hpp"
+#include "hsm_format/compiler_version_section.hpp"
+#include "hsm_format/io_layouts_section.hpp"
+#include "intel_npu/common/hsm_format/runtime_requirements.hpp"
 #include "openvino/runtime/hsm_deferred_writer.hpp"
 #include "openvino/runtime/hsm_reader.hpp"
 #include "utils.hpp"

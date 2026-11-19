@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "intel_npu/common/isection.hpp"
+#include "intel_npu/common/hsm_format/isection.hpp"
 
 using namespace intel_npu;
 using testing::_;

@@ -8,7 +8,7 @@
 #include <optional>
 
 #include "compiled_model_property_manager.hpp"
-#include "intel_npu/common/blob_sections_registry.hpp"
+#include "intel_npu/common/hsm_format/blob_sections_registry.hpp"
 #include "intel_npu/common/icompiled_model.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"

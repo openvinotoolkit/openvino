@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "hsm_sections/batch_size.hpp"
+#include "hsm_format/batch_size_section.hpp"
 
 #include "intel_npu/common/itt.hpp"
 

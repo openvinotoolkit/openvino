@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "compiler_schedule_instance_evaluator.hpp"
+#include "hsm_format/compiler_schedule_instance_evaluator.hpp"
 
 #include <gtest/gtest.h>
 

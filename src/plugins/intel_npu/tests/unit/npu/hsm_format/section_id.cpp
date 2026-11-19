@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_npu/common/section_id.hpp"
+#include "intel_npu/common/hsm_format/section_id.hpp"
 
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "intel_npu/common/cre.hpp"
-#include "intel_npu/common/section_type.hpp"
+#include "intel_npu/common/hsm_format/cre.hpp"
+#include "intel_npu/common/hsm_format/section_type.hpp"
 
 using namespace intel_npu;
 

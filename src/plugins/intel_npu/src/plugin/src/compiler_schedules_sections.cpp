@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "hsm_sections/compiler_schedules.hpp"
+#include "hsm_format/compiler_schedules_sections.hpp"
 
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"

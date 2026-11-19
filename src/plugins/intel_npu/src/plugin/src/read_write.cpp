@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "hsm_read_write.hpp"
+#include "hsm_format/read_write.hpp"
 
 #include "intel_npu/common/itt.hpp"
 #include "openvino/runtime/hsm_deferred_writer.hpp"

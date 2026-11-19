@@ -8,7 +8,7 @@
 
 #include "dynamic_graph.hpp"
 #include "graph.hpp"
-#include "intel_npu/common/isection.hpp"
+#include "intel_npu/common/hsm_format/isection.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "weightless_graph.hpp"
 
