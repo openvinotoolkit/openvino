@@ -900,19 +900,11 @@ void MemoryInput::runDynamic([[maybe_unused]] dnnl::stream strm) {
                 subgraphMemoryPtrs[i]->redefineDesc(getSrcMemoryAtPort(i)->getDescPtr());
             }
 
-            // State shape and value could be either set by the subgraph during initialization,
-            // or by set_state() directly, which by pass subgraph execution.
-            // After subgraph init and followed set_state() in one infer request,
-            // then a new infer request needs to re-initialized by subgraph as infer requests have separate state.
-            // In this case subgraph shape cache and corresponding shape_infer/executor_parameters/allocated_memory are
-            // invalidated, and needs to be recomputed in this new infer request. Note that ReadValue output shares its
-            // Memory object with the initialization subgraph output.
+            // External state updates may reshape the shared output without running the initialization subgraph.
+            // Restore its last output descriptor to keep the memory consistent with the subgraph's cached parameters.
+            // Note that ReadValue output shares its Memory object with the initialization subgraph output.
             if (lastInitGraphOutputDesc && !lastInitGraphOutputDesc->isCompatible(dst->getDesc())) {
-                for (const auto& node : subGraph->GetNodes()) {
-                    if (node->isDynamicNode()) {
-                        node->invalidateShapeCache();
-                    }
-                }
+                dst->redefineDesc(lastInitGraphOutputDesc->clone());
             }
 
             subGraph->ResetInferCount();
