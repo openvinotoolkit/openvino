@@ -43,7 +43,7 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
     bool key_cache_compressed = impl_param.get_input_layout(key_cache_idx).data_type == ov::element::i8 ||
                                 impl_param.get_input_layout(key_cache_idx).data_type == ov::element::u8 ||
                                 data_type_traits::is_i4_u4(key_cache_dt);
-    auto expected_block_size = desc->has_xattention ? paged_attention::block_size_xattn : paged_attention::block_size;
+    auto expected_block_size = desc->get_block_size();
     // Both INT4 and INT8 BY_CHANNEL use dim order {0,1,3,2} with block_size at dim[3].
     const bool is_int4 = data_type_traits::is_i4_u4(key_cache_dt);
     if (key_cache_compressed && key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {

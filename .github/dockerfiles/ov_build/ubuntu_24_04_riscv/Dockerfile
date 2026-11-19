@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 ARG REGISTRY="docker.io"
-FROM ${REGISTRY}/library/ubuntu:22.04
+FROM ${REGISTRY}/library/ubuntu:24.04
 
 USER root
 
@@ -17,28 +17,27 @@ ENV DEBIAN_FRONTEND="noninteractive" \
 
 # Install RISC-V native debian packages
 RUN dpkg --add-architecture riscv64 && \
-    echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy main restricted > sources.list && \
-    echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-updates main restricted >> sources.list && \
-    echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy universe >> sources.list && \
-    echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-updates universe >> sources.list && \
-    echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy multiverse >> sources.list && \
-    echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-updates multiverse >> sources.list && \
-    echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-backports main restricted universe multiverse >> sources.list && \
-    echo deb [arch=amd64] http://security.ubuntu.com/ubuntu/ jammy-security main restricted >> sources.list && \
-    echo deb [arch=amd64] http://security.ubuntu.com/ubuntu/ jammy-security universe >> sources.list && \
-    echo deb [arch=amd64] http://security.ubuntu.com/ubuntu/ jammy-security multiverse >> sources.list && \
-    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy main >> sources.list && \
-    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy universe >> sources.list && \
-    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy-updates main >> sources.list && \
-    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy-security main >> sources.list && \
+    rm -f /etc/apt/sources.list.d/ubuntu.sources && \
+    echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ noble main restricted > sources.list && \
+    echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ noble-updates main restricted >> sources.list && \
+    echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ noble universe >> sources.list && \
+    echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ noble-updates universe >> sources.list && \
+    echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ noble multiverse >> sources.list && \
+    echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ noble-updates multiverse >> sources.list && \
+    echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ noble-backports main restricted universe multiverse >> sources.list && \
+    echo deb [arch=amd64] http://security.ubuntu.com/ubuntu/ noble-security main restricted >> sources.list && \
+    echo deb [arch=amd64] http://security.ubuntu.com/ubuntu/ noble-security universe >> sources.list && \
+    echo deb [arch=amd64] http://security.ubuntu.com/ubuntu/ noble-security multiverse >> sources.list && \
+    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ noble main >> sources.list && \
+    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ noble universe >> sources.list && \
+    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ noble-updates main >> sources.list && \
+    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ noble-security main >> sources.list && \
     mv sources.list /etc/apt/sources.list
 
 RUN apt-get update && \
-    apt-get install software-properties-common wget && \
+    apt-get install software-properties-common && \
     add-apt-repository --yes --no-update ppa:git-core/ppa && \
     add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
-    add-apt-repository --yes --no-update "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" && \
-    wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.gpg.d/llvm.asc && \
     apt-get update && \
     # install compilers to build OpenVINO for RISC-V 64
     apt-get install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu binutils-riscv64-linux-gnu && \
@@ -60,20 +59,18 @@ RUN apt-get update && \
     python3-dev \
     python3-pip \
     python3-venv \
-    python3-distutils \
     # Compilers
     gcc \
     g++ \
-    # For clang-tidy validation
     clang-format-18 \
     clang-tidy-18 \
     libomp-18-dev && \
-    # Pin ncurses/tinfo to the jammy release-pocket version for both arches. The
+    # Pin ncurses/tinfo to the noble release-pocket version for both arches. The
     # amd64 and riscv64 (ports) mirrors update these multiarch "same" packages on
     # different schedules, so an updated version is often available for only one
     # arch, causing a "Breaks" version conflict. The release-pocket version is the
     # one version guaranteed to exist on both mirrors permanently.
-    NCURSES_VERSION=$(apt-cache madison libtinfo6 | awk -F'|' '$3 ~ / jammy\/main / {gsub(/ /, "", $2); print $2; exit}') && \
+    NCURSES_VERSION=$(apt-cache madison libtinfo6 | awk -F'|' '$3 ~ / noble\/main / {gsub(/ /, "", $2); print $2; exit}') && \
     apt-get install --allow-downgrades \
     libncurses6=${NCURSES_VERSION} \
     libncursesw6=${NCURSES_VERSION} \
@@ -98,11 +95,13 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 
 ENV PATH="$SCCACHE_HOME:$PATH"
 
+RUN python3 -m venv venv
+ENV PATH="/venv/bin:$PATH"
+
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
-# Install newer ninja (apt ships 1.10.1 on 22.04 which lacks --quiet)
 RUN python3 -m pip install --no-cache-dir cmake==3.26.4 ninja==1.13.0

@@ -15,6 +15,12 @@ public:
     ReluPattern();
 };
 
+class GeluPattern : public MarkPattern {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("GeluPattern");
+    GeluPattern();
+};
+
 class ConcatPattern : public MarkPattern {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ConcatPattern");
