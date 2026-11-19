@@ -34,7 +34,7 @@ public:
 
     static std::string to_string(random_uniform_node const &node);
 
-    typed_primitive_inst(network &network, random_uniform_node const &desc);
+    typed_primitive_inst(network& network, const random_uniform_node& node);
 
     // Philox state. It is advanced after every execution so that each inference produces a new sequence.
     uint64_t get_global_seed() const {
