@@ -550,10 +550,6 @@ bool crop_in_place_optimization::match(const program_node& node,
     if (node.is_output() || crop_params.has_fused_primitives() || node.is_in_shape_of_subgraph()) {
         return false;
     }
-    if (!node.get_dependencies().empty() &&
-        (node.get_dependency(0).is_type<loop>() || node.get_dependency(0).is_type<condition>())) {
-        return false;
-    }
 
     // Treat crop as dynamic if its predecessor is dynamic, so that the
     // dyn-only guards below match the runtime path. Skipped at runtime
@@ -561,6 +557,12 @@ bool crop_in_place_optimization::match(const program_node& node,
     const bool dyn_aware = node.is_dynamic() ||
                            (!is_runtime && !node.get_dependencies().empty() &&
                             node.get_dependency(0).is_dynamic());
+
+    // Loop and If do not run do_runtime_in_place_crop(), so a dynamic crop offset stays 0.
+    if (dyn_aware && !node.get_dependencies().empty() &&
+        (node.get_dependency(0).is_type<loop>() || node.get_dependency(0).is_type<condition>())) {
+        return false;
+    }
 
     const auto& crop_layout = crop_params.get_output_layout();
     for (const auto* user : node.get_users()) {

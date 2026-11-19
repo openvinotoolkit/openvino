@@ -3971,4 +3971,83 @@ TEST(prepare_buffer_fusing, in_place_crop_rejected_after_loop) {
     ASSERT_FALSE(net.get_primitive("crop1")->can_be_optimized());
 }
 
+// A static crop gets its offset at build time, so it can stay in-place after loop.
+TEST(prepare_buffer_fusing, in_place_crop_kept_after_static_loop) {
+    auto& engine = get_test_engine();
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    const layout in_layout{ov::PartialShape{1, 4, 2}, data_types::f32, format::bfyx};
+    const layout scalar_layout{ov::PartialShape{}, data_types::i64, format::bfyx};
+    auto in_mem = engine.allocate_memory(in_layout);
+    auto trip_count_mem = engine.allocate_memory(scalar_layout);
+    auto initial_condition_mem = engine.allocate_memory(scalar_layout);
+    auto num_iteration_mem = engine.allocate_memory(scalar_layout);
+    auto axis_mem = engine.allocate_memory(scalar_layout);
+    auto scale_mem = engine.allocate_memory(in_layout);
+
+    set_values<int64_t>(trip_count_mem, {2});
+    set_values<int64_t>(initial_condition_mem, {1});
+    set_values<int64_t>(axis_mem, {2});
+    set_values<float>(scale_mem, std::vector<float>(8, 2.f));
+
+    // body_in has one user, so the static loop shares the external output buffer with the body (SINGLE_SHARED).
+    topology body_topo(
+        input_layout("body_in", in_layout),
+        data("body_scale", scale_mem),
+        eltwise("body_out", {input_info("body_in"), input_info("body_scale")}, eltwise_mode::prod)
+    );
+    ExecutionConfig body_config = config;
+    body_config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"body_out"}));
+    auto body_program = program::build_program(engine, body_topo, body_config, false, false, true);
+
+    std::vector<loop::io_primitive_map> input_primitive_maps{loop::io_primitive_map("input", "body_in")};
+    std::vector<loop::io_primitive_map> output_primitive_maps{loop::io_primitive_map("loop", "body_out")};
+    std::vector<loop::backedge_mapping> back_edges{loop::backedge_mapping("body_out", "body_in")};
+
+    const auto op_mode = cldnn::crop_ngraph_op_mode::split;
+    auto offset0 = cldnn::tensor(0);
+    auto offset1 = cldnn::tensor(cldnn::batch(0), cldnn::feature(0), cldnn::spatial(0, 1));
+
+    topology topo(
+        input_layout("input", in_layout),
+        input_layout("trip_count", scalar_layout),
+        input_layout("initial_condition", scalar_layout),
+        mutable_data("num_iteration", num_iteration_mem),
+        data("axis", axis_mem),
+        loop("loop",
+             {input_info("num_iteration"), input_info("trip_count"), input_info("initial_condition"), input_info("input")},
+             body_program, "trip_count", "initial_condition", "num_iteration",
+             input_primitive_maps, output_primitive_maps, back_edges, 2),
+        crop("crop0", {input_info("loop"), input_info("axis")}, cldnn::tensor(1), offset0, op_mode, 0, 2, 2),
+        crop("crop1", {input_info("loop"), input_info("axis")}, cldnn::tensor(1), offset1, op_mode, 1, 2, 2),
+        eltwise("sum", {input_info("crop0"), input_info("crop1")}, eltwise_mode::sum),
+        reorder("output", input_info("sum"), format::bfyx, data_types::f32)
+    );
+
+    network net(engine, topo, config);
+    net.set_input_data("trip_count", trip_count_mem);
+    net.set_input_data("initial_condition", initial_condition_mem);
+
+    const std::vector<std::vector<float>> inputs = {{1.f, 10.f, 2.f, 20.f, 3.f, 30.f, 4.f, 40.f},
+                                                    {5.f, 50.f, 6.f, 60.f, 7.f, 70.f, 8.f, 80.f}};
+    for (const auto& in : inputs) {
+        set_values<float>(in_mem, in);
+        net.set_input_data("input", in_mem);
+        auto outputs = net.execute();
+
+        auto out_mem = outputs.at("output").get_memory();
+        cldnn::mem_lock<float, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
+        ASSERT_EQ(out_mem->count(), 4u);
+        // Two iterations of x * 2 scale the input by 4.
+        for (size_t f = 0; f < 4; ++f) {
+            ASSERT_FLOAT_EQ(out_ptr[f], 4.f * (in[2 * f] + in[2 * f + 1])) << "Mismatch at feature " << f;
+        }
+    }
+
+    ASSERT_TRUE(net.get_primitive("crop0")->can_be_optimized());
+    ASSERT_TRUE(net.get_primitive("crop1")->can_be_optimized());
+}
+
 
