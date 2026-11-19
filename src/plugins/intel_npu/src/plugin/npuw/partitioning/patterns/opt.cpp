@@ -13,6 +13,7 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
+#include "ov_ops/moe_compressed.hpp"
 
 namespace ov {
 namespace npuw {
@@ -85,6 +86,13 @@ void Context::to_f16(const PPtr& orig_param) {
     closures_to_f16.insert(orig_param);
 
     orig_param->set_element_type(ov::element::f16);
+    orig_param->validate_and_infer_types();
+}
+
+void Context::to_f32(const PPtr& orig_param) {
+    closures_to_f32.insert(orig_param);
+
+    orig_param->set_element_type(ov::element::f32);
     orig_param->validate_and_infer_types();
 }
 
@@ -2500,6 +2508,70 @@ ConvToMatmul::ConvToMatmul(Context::Ref ctx) {
         return false;  // root hasn't changed
     };
     register_matcher(std::make_shared<opp::Matcher>(transpose_out, "ConvToMatmul"), std::move(callback));
+}
+
+// MOECompressed (GEMM3, symmetric) whose scales are function closures.
+// The scales are relaid out on host from group-innermost [E, N, G] to group-major [E, G, N], so
+// a kernel reading per-group scales gets them contiguously. The Transpose keeps the semantics.
+//
+// FROM:
+//     Param(S) [E,N,G] ---------------------------------> MOECompressed.input(4|7|10)
+//
+// TO:
+//     Param(S*) [E,G,N] -> Transpose{0,2,1} -------------> MOECompressed.input(4|7|10)
+//
+// With to_f32, f16 scales are also converted to f32 on host: Param(S*) [E,G,N] f32.
+//
+// Rank-4 scales [E,N,G,1] are skipped: LazyTensor permute is 3D only.
+MoECompressedScaleGroupMajor::MoECompressedScaleGroupMajor(Context::Ref ctx, bool to_f32) {
+    auto moe = opp::wrap_type<ov::op::internal::MOECompressed>();
+
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        using MOE = ov::op::internal::MOE;
+        constexpr std::size_t kInputs = 12u;
+        constexpr std::size_t kScaleInputs[] = {4u, 7u, 10u};
+
+        auto moe_node = ov::as_type_ptr<ov::op::internal::MOECompressed>(m.get_match_root());
+        if (!moe_node || moe_node->get_input_size() != kInputs) {
+            return false;
+        }
+        const auto& cfg = moe_node->get_config();
+        if (cfg.expert_type != MOE::Expert_type::GEMM3_SWIGLU || cfg.has_zp) {
+            return false;
+        }
+
+        // All three scales must qualify, or none is touched
+        std::vector<Context::PPtr> scales;
+        for (const auto idx : kScaleInputs) {
+            auto param = ov::as_type_ptr<ov::op::v0::Parameter>(moe_node->get_input_node_shared_ptr(idx));
+            if (!param || !ctx.get().is_closure(param) || param->output(0).get_target_inputs().size() != 1u) {
+                return false;
+            }
+            const auto type = param->get_element_type();
+            const auto& pshape = param->get_output_partial_shape(0);
+            if ((type != ov::element::f16 && type != ov::element::f32) || !pshape.is_static() ||
+                pshape.size() != 3u || pshape[2].get_length() <= 1) {
+                return false;
+            }
+            scales.push_back(std::move(param));
+        }
+
+        for (std::size_t i = 0; i < scales.size(); ++i) {
+            const auto& param = scales[i];
+            ctx.get().permute(param, {0, 2, 1});
+            if (to_f32 && param->get_element_type() == ov::element::f16) {
+                ctx.get().to_f32(param);
+            }
+
+            auto order = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{3}, {0, 2, 1});
+            auto transpose = std::make_shared<ov::op::v1::Transpose>(param, order);
+            transpose->set_friendly_name(param->get_friendly_name() + "/group_major");
+            moe_node->input(kScaleInputs[i]).replace_source_output(transpose);
+        }
+        moe_node->validate_and_infer_types();
+        return true;  // root has changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(moe, "OptMoECompressedScaleGroupMajor"), std::move(callback));
 }
 
 struct Untangled_Const {

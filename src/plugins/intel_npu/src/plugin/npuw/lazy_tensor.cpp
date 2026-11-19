@@ -354,6 +354,12 @@ bool Convert::operator==(const Convert& other) const {
 }
 
 ov::Tensor Convert::eval() const {
+    if (ov::element::f32 == type) {
+        const auto source = tensor.eval();
+        ov::Tensor result(ov::element::f32, source.get_shape());
+        ov::npuw::util::to_f32(source, result);
+        return result;
+    }
     NPUW_ASSERT(ov::element::f16 == type);
     return ov::npuw::util::to_f16(tensor.eval());
 }
