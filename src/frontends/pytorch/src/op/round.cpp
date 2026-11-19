@@ -54,6 +54,7 @@ Output<Node> round_with_decimals(const NodeContext& context, const Output<Node>&
         const auto scaled = context.mark_node(std::make_shared<v1::Multiply>(x, scale));
         const auto rounded = context.mark_node(std::make_shared<v5::Round>(scaled, v5::Round::RoundMode::HALF_TO_EVEN));
         res = context.mark_node(std::make_shared<v1::Divide>(rounded, scale));
+        disable_divide_conversion(res.get_node_shared_ptr());
     } else {
         const auto scaled = context.mark_node(std::make_shared<v1::Divide>(x, scale));
         // ConvertDivide rewrites a division into a multiplication by a rounded reciprocal, which
