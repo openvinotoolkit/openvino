@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-19-18-15-18-000-44562386957",
+  "timestamp": "2026-11-19T18:15:18Z",
+  "run_id": "44562386957",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44562386957",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "39466",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39466",
+  "author": "pereanub",
+  "category": "Infrastructure",
+  "title": "iGPU unit tests job fails uploading test results - blob storage returns HTML error page",
+  "signature": "artifact upload to blob storage failed html error page returned during finalizeartifact|Infrastructure",
+  "signature_hash": "841a57c639e28d01",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "iGPU Tests (unit) / GPU",
+      "conclusion": "failure",
+      "symptom": "All 29664 unit tests passed, but the 'Upload Test Results' step failed: FinalizeArtifact call to Actions blob storage returned an HTML error page instead of JSON"
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check failed because of the downstream iGPU Tests (unit) / GPU job failure"
+    }
+  ],
+  "key_errors": [
+    "[29664/29664] mem_test/offset_copy_host.basic/22 (896 ms)",
+    "Uploading artifact: test-results-unit-igpu.zip",
+    "Beginning upload of artifact content to blob storage",
+    "##[error]<!DOCTYPE html><html lang=\"en\"> <head> <meta charset=\"UTF-8\"> ... (Actions artifact/blob storage service returned a generic HTML error page instead of a JSON API response)"
+  ],
+  "root_cause": "All 29664 iGPU unit test cases passed; the job only failed in the post-test 'Upload Test Results' step. actions/upload-artifact's call to begin uploading artifact content to GitHub Actions blob storage received an HTML error page (a generic backend/proxy error page) instead of the expected JSON API response, roughly 11 seconds after the upload began. This matches a previously observed signature (first seen 2026-09-04 on an LLM accuracy iGPU run, PR #37898, same author) where the Actions blob-storage backend intermittently returns HTML instead of JSON during artifact finalization/upload - a transient GitHub Actions infrastructure issue unrelated to the PR's code changes (NPU remote-tensor import_size property, affecting only NPU plugin/docs files, not the GPU test suite).",
+  "reproduction_steps": "N/A - not reproducible locally; this is a GitHub Actions Actions-service/blob-storage backend failure that occurs intermittently and is unrelated to code under test.",
+  "recommended_actions": [
+    "Re-run the failed 'iGPU Tests (unit) / GPU' job; the test suite itself passed (29664/29664) and only the artifact upload step failed transiently.",
+    "No code changes required for PR #39466 - the failure is unrelated to the NPU remote-properties changes, which do not touch the GPU plugin or its test suite.",
+    "If this recurs frequently, consider wrapping the 'Upload Test Results' step with continue-on-error (since it only uploads informational test result JSON) or adding retry/backoff so a transient blob-storage hiccup does not fail an otherwise fully-passing job."
+  ],
+  "prevention_strategies": "Wrap non-critical result-artifact uploads (test result JSON/XML for reporting only) with retry logic or continue-on-error so a transient backend blip does not fail an otherwise-passing job. Monitor GitHub Actions status page and this recurring signature to distinguish one-off blips from a systemic issue with the self-hosted iGPU runner's network path to the blob storage service.",
+  "historical_context": "Matches signature_hash 841a57c639e28d01, first seen 2026-09-04 (run 33854130288, PR #37898, LLM accuracy iGPU tests, same author pereanub) and also observed 2026-10-10 (run 38073966332, PR #38105, TensorFlow Layer Tests) under a closely related signature - both prior occurrences were the same Actions blob-storage service returning an HTML error page during artifact finalization/upload, confirmed transient and resolved by re-running the job."
+}

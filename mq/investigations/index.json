@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 489,
+  "total": 490,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -5322,6 +5322,15 @@
       "category": "External Service",
       "signature_hash": "77096fab85d0c146",
       "pr_number": "39439"
+    },
+    {
+      "investigation_id": "2026-11-19-18-15-18-000-44562386957",
+      "run_id": "44562386957",
+      "timestamp": "2026-11-19T18:15:18Z",
+      "title": "iGPU unit tests job fails uploading test results - blob storage returns HTML error page",
+      "category": "Infrastructure",
+      "signature_hash": "841a57c639e28d01",
+      "pr_number": "39466"
     }
   ]
 }

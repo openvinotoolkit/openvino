@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "artifact upload to blob storage failed html error page returned during finalizeartifact|Infrastructure",
+  "signature_hash": "841a57c639e28d01",
+  "title": "iGPU unit tests job fails uploading test results - blob storage returns HTML error page",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-11-19T18:15:18Z",
+  "last_seen": "2026-11-19T18:15:18Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/44562386957"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39466"
+  ],
+  "recent_timestamps": [
+    "2026-11-19T18:15:18Z"
+  ],
+  "rerun_search_string": null
+}
