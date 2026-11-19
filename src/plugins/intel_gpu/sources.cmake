@@ -150,6 +150,7 @@ set(GPU_PLUGIN_OPS_SOURCES
 )
 
 set(GPU_PLUGIN_TRANSFORMATIONS_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/batch_replicated_branches.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/bcast_and_pad_zp_buffers.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/binary_conv_to_conv.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/clamp_fp16_output.cpp
@@ -204,6 +205,7 @@ set(GPU_PLUGIN_TRANSFORMATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/print_model_statistics.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/reduce_fc_dimensions.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/remove_fq_before_dw_conv.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/scale_down_gated_mlp_input.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/sdpa_transpose_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/sink_reshape.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/stateless_kv_fusion.cpp
@@ -227,9 +229,7 @@ set(GPU_PLUGIN_TRANSFORMATIONS_OP_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/lora_subgraph_fused.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/mlir_op.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/moe_router_fused.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/paged_qsa_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/placeholder.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/qsa_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/read_value.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/sdpa.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/sparse_pa.cpp

@@ -176,15 +176,18 @@ memory::ptr sycl_engine::reinterpret_buffer(const memory& memory, const layout& 
         if (new_layout.format.is_image_2d()) {
             OPENVINO_NOT_IMPLEMENTED;
         } else if (memory_capabilities::is_usm_type(memory.get_allocation_type())) {
+            // Use the USM view size, not memory.size(): a shrunk memory may be expanded back to it,
+            // but a sub-buffer must not grow into its siblings' region.
+            const auto& buffer = downcast<const sycl::gpu_usm>(memory).get_buffer();
             const auto requested_mem_size = new_layout.bytes_count();
-            const auto source_mem_size = memory.size();
-            OPENVINO_ASSERT(requested_mem_size <= source_mem_size,
+            const auto buffer_size = buffer.size();
+            OPENVINO_ASSERT(requested_mem_size <= buffer_size,
                             "[GPU] Reinterpret buffer size (", requested_mem_size,
-                            ") exceeds source buffer size (", source_mem_size, ")");
+                            ") exceeds underlying buffer size (", buffer_size, ")");
 
             return std::make_shared<sycl::gpu_usm>(this,
                                                    new_layout,
-                                                   downcast<const sycl::gpu_usm>(memory).get_buffer(),
+                                                   buffer,
                                                    memory.get_allocation_type(),
                                                    memory.get_mem_tracker());
         } else {
