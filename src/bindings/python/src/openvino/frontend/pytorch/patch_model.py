@@ -606,7 +606,7 @@ def _get_16bit_extensions(patch_condition=None):
 
 def wrap_dataclass_outputs(model: torch.nn.Module):
     """Wrap bare dataclass outputs while preserving the original forward signature."""
-    if isinstance(model, torch.jit.ScriptModule):
+    if isinstance(model, getattr(torch.jit, "ScriptModule", ())):
         return model
     signature = inspect.signature(model.forward)
 

@@ -2029,7 +2029,7 @@ def test_inlined_inputs():
 
 def _torch_version_at_least(version_str):
     from packaging.version import parse
-    return parse(torch.__version__.split('+')[0].split('dev')[0]) >= parse(version_str)
+    return parse(torch.__version__).release >= parse(version_str).release
 
 
 @pytest.mark.skipif(not _torch_version_at_least("2.6"),
@@ -2779,6 +2779,16 @@ class TestConvertModelDynamo:
         with pytest.raises(Error, match="incompatible with example_input shape"):
             convert_model(torch.nn.ReLU(), example_input=torch.ones(2, 3), input=PartialShape([4, 3]), dynamo=True)
 
+    def test_torchscript_failure_suggests_dynamo(self, monkeypatch):
+        from openvino import convert_model
+
+        model, example = torch.nn.ReLU(), torch.ones(2, 3)
+        monkeypatch.delattr(torch.jit, "trace", raising=False)
+        with pytest.raises(RuntimeError, match=r"Try convert_model\(.*dynamo=True"):
+            convert_model(model, example_input=example)
+        converted = convert_model(model, example_input=example, dynamo=True)
+        assert converted.input(0).get_partial_shape() == PartialShape([2, 3])
+
     def test_model_without_inputs(self):
         from openvino import convert_model, compile_model
 
@@ -2924,7 +2934,7 @@ class TestConvertModelDynamo:
         result = compile_model(converted, "CPU", default_cfg)([x.numpy()])
         np.testing.assert_allclose(result[0], model(*example).numpy())
 
-    @pytest.mark.parametrize("named_shapes", [None, "keys", "ports", "mixed"])
+    @pytest.mark.parametrize("named_shapes", [None, "keys", "ports", "mixed", "partial_key"])
     def test_nested_dict_example_inputs(self, named_shapes):
         from openvino import convert_model, compile_model
 
@@ -2941,6 +2951,8 @@ class TestConvertModelDynamo:
             shapes = {"values_second": [4, 3], "values_first": [-1, 3]}
         elif named_shapes == "mixed":
             shapes = {"second": [4, 3], "values_first": [-1, 3]}
+        elif named_shapes == "partial_key":
+            shapes = {"first": [-1, 3]}
         else:
             shapes = None
         converted = convert_model(model, example_input=({"first": first, "second": second},), input=shapes, dynamo=True)

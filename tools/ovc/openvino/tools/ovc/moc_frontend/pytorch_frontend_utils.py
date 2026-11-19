@@ -141,7 +141,9 @@ def _build_dynamic_shapes(inputs, input_specs=None, input_names=None):
                 return None
         return "_".join(part.lower() for part in parts)
 
-    canonical_names = [canonical_name(path) for path, _ in flat_paths]
+    from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+    canonical_names = TorchFXPythonDecoder._disambiguate_leaf_names(
+        [canonical_name(path) for path, _ in flat_paths], [len(path) > 1 for path, _ in flat_paths])
     assigned = [None] * len(flat_leaves)
     remaining = set(range(len(input_specs)))
     for candidate_names in (canonical_names, names):
@@ -205,7 +207,7 @@ def get_pytorch_decoder(model, example_inputs, args):
                                "supported directly. Please upgrade nncf or "
                                "export to ONNX first.")
     dynamo = args.get("dynamo", False)
-    if dynamo and isinstance(model, torch.jit.ScriptFunction):
+    if dynamo and isinstance(model, getattr(torch.jit, "ScriptFunction", ())):
         raise Error("torch.export does not support torch.jit.ScriptFunction; pass dynamo=False to use TorchScript.")
     use_dynamo = dynamo and isinstance(model, torch.nn.Module)
     inputs = prepare_torch_inputs(example_inputs, preserve_lists=use_dynamo)
@@ -461,6 +463,23 @@ def _torchscript_input_aliases(model):
     return {model.get_input_debug_name(i): argument.name for i, argument in enumerate(schema.arguments)}
 
 
+def can_suggest_dynamo(model, args):
+    torch = sys.modules.get("torch")
+    return (torch is not None and not args.get("dynamo", False) and isinstance(model, torch.nn.Module)
+            and not isinstance(model, getattr(torch.jit, "ScriptModule", ())))
+
+
+def add_dynamo_hint(error):
+    hint = ("PyTorch model conversion with TorchScript (dynamo=False) failed. "
+            "Try convert_model(model, example_input=..., dynamo=True) to convert it with torch.export.")
+    try:
+        hinted = type(error)(f"{error}\n{hint}")
+    except Exception:
+        return error
+    hinted.__cause__ = error.__cause__
+    return hinted.with_traceback(error.__traceback__)
+
+
 def _validate_exported_input_shapes(model, input_specs):
     shapes = [model.get_input_shape(i) for i in range(len(model.inputs()))]
     by_name = {}
@@ -559,6 +578,10 @@ def extract_input_info_from_example(args, inputs):
             input_arg = new_input
         else:
             if is_exported:
+                exact = {ex.name for ex in input_arg} | {str(tensor_id) for tensor_id in args.input_model.inputs()}
+                args.input = [_InputCutInfo(example_aliases[desc.name], desc.shape, desc.type, desc.value)
+                              if desc.name not in exact and example_aliases.get(desc.name) else desc
+                              for desc in args.input]
                 _validate_exported_input_shapes(args.input_model, args.input)
             return
     if is_exported:
