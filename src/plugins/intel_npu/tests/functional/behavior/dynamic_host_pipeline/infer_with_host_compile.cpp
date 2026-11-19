@@ -991,7 +991,7 @@ TEST_P(InferWithHostCompileTests, SetProperty_Priority_RetryAfterUndersizedOutpu
                                                 0);
     OV_ASSERT_NO_THROW(ctx.reqDynamic.set_input_tensor(0, inTensor));
     OV_ASSERT_NO_THROW(ctx.reqDynamic.set_tensor(model->output(), undersizedOutput));
-    ASSERT_ANY_THROW(ctx.host_compile_profile::infer(reqDynamic, "NPU infer"));
+    ASSERT_ANY_THROW(host_compile_profile::infer(ctx.reqDynamic, "NPU infer"));
 
     // Second switch HIGH->MEDIUM, then retry with a correctly sized output tensor. The retry's Execute2
     // migrates the fence off the original queue, which must still be alive after both switches.
