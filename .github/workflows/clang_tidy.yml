@@ -165,27 +165,26 @@ jobs:
       show-sccache-stats: false
 
   Build-gpu:
-    name: Build-gpu-${{ matrix.runtime }}${{ matrix.onednn == 'OFF' && '-no-oneDNN' || '' }}
+    name: Build-gpu-${{ matrix.mode }}
     needs: [Docker, Smart_CI]
     if: fromJSON(needs.smart_ci.outputs.affected_components).GPU && !needs.smart_ci.outputs.skip_workflow
     strategy:
       fail-fast: false
       matrix:
-        runtime: [OCL, ZE, COMBINED]
-        onednn: ['ON']
-        include:
-          - runtime: ZE
-            onednn: 'OFF'
+        mode: [OCL, ZE, COMBINED, ZE-no-oneDNN]
     uses: ./.github/workflows/job_clang_tidy.yml
     with:
       runner: aks-linux-16-cores-32gb
       cmake-build-parallel-level: '15'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
       cmake-generator: 'Ninja Multi-Config'
-      sccache-prefix: ubuntu24_x86_64_Release_itt_faster_build_clang_tidy_gpu_${{ matrix.runtime }}_onednn_${{ matrix.onednn }}
-      build-target: ${{ matrix.runtime == 'COMBINED' && 'openvino_intel_gpu_plugin openvino_intel_gpu_plugin_ocl' || 'openvino_intel_gpu_plugin' }}
-      compile-commands-artifact: compile_commands_clang_tidy_gpu_x86_64_${{ matrix.runtime }}_onednn_${{ matrix.onednn }}
-      cmake-extra-args: '-DENABLE_INTEL_GPU=ON -DGPU_RT_TYPE=${{ matrix.runtime }} -DENABLE_ONEDNN_FOR_GPU=${{ matrix.onednn }}'
+      sccache-prefix: ubuntu24_x86_64_Release_itt_faster_build_clang_tidy_gpu_${{ matrix.mode }}
+      build-target: ${{ matrix.mode == 'COMBINED' && 'openvino_intel_gpu_plugin openvino_intel_gpu_plugin_ocl' || 'openvino_intel_gpu_plugin' }}
+      compile-commands-artifact: compile_commands_clang_tidy_gpu_x86_64_${{ matrix.mode }}
+      cmake-extra-args: >-
+        -DENABLE_INTEL_GPU=ON
+        -DGPU_RT_TYPE=${{ matrix.mode == 'ZE-no-oneDNN' && 'ZE' || matrix.mode }}
+        -DENABLE_ONEDNN_FOR_GPU=${{ matrix.mode == 'ZE-no-oneDNN' && 'OFF' || 'ON' }}
       build-extra-args: '--quiet -k 0'
 
   Overall_Status:
