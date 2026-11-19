@@ -10,6 +10,7 @@
 #include <exception>
 #include <memory>
 
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/core/except.hpp"
@@ -23,6 +24,7 @@ namespace vcl_provider = ov::test::npu::vcl_provider;
 class ParserFactoryFunctionalTests : public ::testing::Test {
 protected:
     void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         try {
             initStructs = ZeroInitStructsHolder::getInstance();
         } catch (const std::exception& ex) {
