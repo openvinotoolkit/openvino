@@ -200,7 +200,7 @@ jobs:
     name: Cleanup Linux remote ccache
     needs: Docker
     runs-on: aks-linux-medium
-    timeout-minutes: 540
+    timeout-minutes: 60
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
@@ -218,7 +218,7 @@ jobs:
   Cleanup_remote_ccache_win:
     name: Cleanup Windows remote ccache
     runs-on: 'aks-win-4-cores-8gb-build'
-    timeout-minutes: 540
+    timeout-minutes: 60
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     env:
       CCACHE_REMOTE_PATH: "C:\\mount\\caches\\ccache\\shared"
