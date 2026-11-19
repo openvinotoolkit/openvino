@@ -1400,7 +1400,7 @@ TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsNotUsedWithOldCom
     EXPECT_EQ(shifts.generate, 0u);
 }
 
-TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsUsedWithCompilerWithWaiZeroPointDecomposition) {
+TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsUsedWithNewCompiler) {
     m_plugin = std::make_shared<ArchAwarePlugin>("5020", 1, ONEAPI_MAKE_VERSION(8, 5));
     const auto core = attach_mock_core_with_npu_device(m_plugin);
     const auto shifts = compile_llm({});

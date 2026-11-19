@@ -158,7 +158,7 @@ struct NPUDesc {
     bool compiler_matmul_gate = false;
     int64_t compiler_ver = 0;
     bool support_flash_attention_tile = false;
-    bool compiler_shared_vocab = false;
+    bool compiler_dynamic_zp_decomposition = false;
 };
 
 std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -216,10 +216,10 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
         LOG_WARN(compiler_gate_support_msg << "unsupported");
     }
 
-    // The shared vocabulary compiles the LM head with the weights, the zero point and the scale as inputs.
-    // The compiler decomposes this zero point efficiently starting from 8.5 (vpux-plugin PR 29013, EISW-229457);
-    // with an older compiler the LM head becomes several times slower.
-    desc.compiler_shared_vocab = desc.compiler_ver >= ONEAPI_MAKE_VERSION(8, 5);
+    // Zero point decomposition for weights-as-inputs dequantization, where the zero point and the scale are
+    // also model inputs (DynamicDequantize becomes Dequantize). Supported starting from compiler 8.5
+    // (EISW-229457).
+    desc.compiler_dynamic_zp_decomposition = desc.compiler_ver >= ONEAPI_MAKE_VERSION(8, 5);
 
     static const std::unordered_set<std::string_view> flash_attention_tile_supported_platforms = {
         ov::intel_npu::Platform::NPU5010,
@@ -1669,9 +1669,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
 
     if (shared_vocab) {
-        // An explicit NPUW_LLM_VOCAB_ASYM_SHARED=YES is kept with any compiler version.
+        // The shared vocabulary makes the LM head dequantize the weights with the zero point and the scale as
+        // inputs. Without the compiler zero point decomposition for this case the LM head becomes several times
+        // slower, so the default is turned off. An explicit NPUW_LLM_VOCAB_ASYM_SHARED=YES is kept.
         const bool set_by_user = npuw_llm_props.count(std::string(::intel_npu::NPUW_LLM_VOCAB_ASYM_SHARED::key())) > 0;
-        const bool compiler_supports = !npudesc.has_value() || npudesc->compiler_shared_vocab || set_by_user;
+        const bool compiler_supports =
+            !npudesc.has_value() || npudesc->compiler_dynamic_zp_decomposition || set_by_user;
         const bool vocab_is_closure_in_all_stages = vocab_is_closure(prefill_config) &&
                                                     vocab_is_closure(generate_config) &&
                                                     (!lm_head_model || vocab_is_closure(lm_head_config));
