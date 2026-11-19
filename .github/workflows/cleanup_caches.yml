@@ -195,8 +195,9 @@ jobs:
 
   # Remote ccache entries are hash-named files without the ".cache" suffix used by the cache
   # action, so they are trimmed by ccache itself. The two-tier limit mirrors the cache action:
-  # least recently used entries are evicted down to CACHE_SIZE_GB, while entries used within
-  # MIN_UNUSED_DAYS are kept unless the storage exceeds MAX_CACHE_SIZE_GB.
+  # least recently used entries are evicted down to CACHE_SIZE_GB, but entries used within
+  # MIN_UNUSED_DAYS are kept even above it; only when those recent entries alone exceed
+  # MAX_CACHE_SIZE_GB are the oldest of them evicted down to MAX_CACHE_SIZE_GB.
   Cleanup_remote_ccache_lin:
     name: Cleanup Linux remote ccache
     needs: Docker

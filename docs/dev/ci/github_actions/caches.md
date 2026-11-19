@@ -153,8 +153,9 @@ monthly by the `Cleanup_remote_ccache_*` jobs in
 [`cleanup_caches.yml`](./../../../../.github/workflows/cleanup_caches.yml) with
 `ccache --trim-dir --trim-method mtime` (ccache 4.8 or newer, preinstalled in the
 `ov_build/ubuntu_24_04_x64` image and on the Windows build runners). Least recently used entries
-are evicted down to 500 GiB, while entries used within the last 7 days are kept unless the storage
-exceeds 750 GiB. Builds must keep `update-mtime=true` in the remote storage URL so that cache hits
+are evicted down to 500 GiB, but entries used within the last 7 days are kept even above that
+limit; only when those recent entries alone exceed 750 GiB are the oldest of them evicted down to
+750 GiB. This mirrors the `cache-size`/`max-cache-size` logic of the cache action. Builds must keep `update-mtime=true` in the remote storage URL so that cache hits
 refresh the modification time used for eviction.
 
 ## Cloud Storage via Azure Blob Storage
