@@ -461,7 +461,7 @@ class TestParallelRunner:
             test_list_file.close()
         os.remove(test_list_file_name)
         logger.info(
-            f"Len test_list_runtime (without disabled tests): {len(tests_dict)}"
+                f"Discovered {len(tests_dict)} distinct enabled {test_unit}s with --gtest_list_tests"
         )
         if len(tests_dict) == 0:
             logger.warning(
@@ -528,7 +528,7 @@ class TestParallelRunner:
     def __get_negative_filter_suffix(self):
         return f"-{self._gtest_negative_filter}" if self._gtest_negative_filter else ""
 
-    def __prepare_smart_filters(self, proved_test_dict: dict, selected_by_suite: dict):
+    def __prepare_smart_filters(self, proved_test_dict: dict, partial_suites: dict):
         def_length = len(self._command) + len(" --gtest_filter=") + len(self.__get_negative_filter_suffix())
 
         longest_device = ""
@@ -543,8 +543,8 @@ class TestParallelRunner:
         tasks_not_full = []
         tasks = []
         for name, duration in proved_test_dict.items():
-            if selected_by_suite:
-                names = selected_by_suite[name]
+            if name in partial_suites:
+                names = partial_suites[name]
             elif self._split_unit == constants.SUITE_UNIT_NAME:
                 names = [f"{name}.*"]
             else:
@@ -600,14 +600,25 @@ class TestParallelRunner:
             logger.error(f"Test executable file {self._exec_file_path} is not exist!")
             sys.exit(-1)
 
-        selected_by_suite = {}
-        has_positive_patterns = any(pattern.strip("*") for pattern in self._gtest_filter.split(":") if pattern)
+        partial_suites = {}
+        positive_patterns = self._gtest_filter.split(":")
+        has_positive_patterns = any(pattern.strip("*") for pattern in positive_patterns)
         if self._split_unit == constants.SUITE_UNIT_NAME and (has_positive_patterns or self._excluded_tests):
+            selected_by_suite = {}
             for test_name in self.__get_test_list_by_runtime():
                 suite, _, _ = test_name.partition(".")
                 if test_name not in self._excluded_tests:
                     selected_by_suite.setdefault(suite, []).append(test_name)
             test_dict_runtime = {suite: len(tests) for suite, tests in selected_by_suite.items()}
+            partial_suites = {
+                suite: tests
+                for suite, tests in selected_by_suite.items()
+                if self._excluded_tests or not any(
+                    pattern == f"{suite}.*"
+                    or (pattern.startswith("*") and pattern.endswith("*") and pattern[1:-1] in suite)
+                    for pattern in positive_patterns
+                )
+            }
         else:
             test_dict_runtime = self.__get_test_list_by_runtime(self._split_unit)
         test_dict_cache = self.__get_test_list_by_cache()
@@ -619,11 +630,11 @@ class TestParallelRunner:
         cached_test_list = []
         if len(cached_test_dict) > 0:
             self._is_save_cache = False
-            cached_test_list = self.__prepare_smart_filters(cached_test_dict, selected_by_suite)
+            cached_test_list = self.__prepare_smart_filters(cached_test_dict, partial_suites)
         runtime_test_list = []
         if len(runtime_test_dist) > 0:
             self._is_save_cache = True
-            runtime_test_list = self.__prepare_smart_filters(runtime_test_dist, selected_by_suite)
+            runtime_test_list = self.__prepare_smart_filters(runtime_test_dist, partial_suites)
         logger.info(f"Total test counter is {self._total_test_cnt}")
         return cached_test_list, runtime_test_list
 
