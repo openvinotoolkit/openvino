@@ -13,9 +13,8 @@
 SDPA_OCL_INLINE void FUNC(pa_v_pages)(__private uint *v_blk, const __global INPUT3_TYPE *block_indices,
                                       const uint base_block_index, const int k0, const int k, const int lane_i) {
 #if SG8
-    // SG8: one uniform load per cp page. The lane-load + sub_group_broadcast form below loads the same entries, yet on
-    // DG2 it gave wrong pages under some code shapes (MIXED with one KV head, head sizes 48 / 96: keys of a later page
-    // read another block), and which shapes failed moved with unrelated edits of the S*V loop.
+    // SG8: one uniform load per cp page. The lane-load + sub_group_broadcast form below miscompiles on xe_hpg under some
+    // code shapes (keys of a later page read another block), and which shapes fail moves with unrelated S*V loop edits.
     #pragma unroll
     for (int cp = 0; cp < sv_key_blocks; ++cp) {
 #if defined(NEG_SG8) && NEG_SG8 == 37
@@ -66,8 +65,8 @@ SDPA_OCL_INLINE void FUNC(vc_prefetch)(const __global half *Vc_b2d, const int Vc
 
 #if PREFETCH_V
 // Workgroup-cooperative prefetch of the V rows of one key tile (kq_wg_tile_keys rows from k0): 16-row x 64 B
-// blocks dealt round-robin over the subgroups, as sdpa_micro's cooperative_prefetch_2d does. The surface
-// bounds clip rows past the last key and bytes past the head, as they do for the reads.
+// blocks dealt round-robin over the subgroups. The surface bounds clip rows past the last key and bytes past
+// the head, as they do for the reads.
 SDPA_OCL_INLINE void FUNC(v_tile_prefetch)(const __global void *surf, const int w, const int h, const int p,
                                            const int x0, const int k0, const int sg_ij) {
     const int col_blocks = (V_HEAD_SIZE * 2 + 63) / 64;
@@ -81,10 +80,8 @@ SDPA_OCL_INLINE void FUNC(v_tile_prefetch)(const __global void *surf, const int 
 #endif
 
 #if PREFETCH_V_L3
-// L3-only prefetch of the same V rows: one byte address per 256 B line (the B70 L3 line), dealt over the workgroup's
-// lanes as sdpa_micro's cooperative_prefetch_2d does, rows clamped to the last key. A line requested more than once
-// costs L3 throughput (the 64 B wide block prefetch above asks for each line four times), and L1UC_L3C (2) keeps the
-// lines out of L1.
+// L3-only prefetch of the same V rows: one byte address per 256 B L3 line, dealt over the workgroup's lanes, rows
+// clamped to the last key; L1UC_L3C (2) keeps the lines out of L1.
 SDPA_OCL_INLINE void FUNC(v_tile_prefetch_l3)(const __global VAL_DATA_T *V, const int VD_p, const int k0, const int k,
                                               const int sg_ij) {
     const int lines_per_row = (V_HEAD_SIZE * (int)sizeof(VAL_DATA_T) + 255) / 256;
@@ -104,9 +101,8 @@ SDPA_OCL_INLINE void FUNC(v_tile_prefetch_l3)(const __global VAL_DATA_T *V, cons
 #if USE_2D_BLOCK_IO_KV || (IS_PA_MIXED && !SG8)
 // f16 [key, value] surface (the V input, MIXED's Vc, or one f16 V page) via the 16b VNNI-transform
 // read: value block cd at column x0 + sg_j0_sv + cd * SUBGROUP_SIZE, the cp block at row k0 + cp *
-// DPAS_K - y_sub. The coordinates are computed here, in the loop, from their leaves: a partial
-// sum passed in from the caller changed instruction order (and scheduling) on MIXED Vc reads.
-// SG8 has no 2D block IO, so an SG8 MIXED reads its f16 V page with pa_v_tile_gather.
+// DPAS_K - y_sub, computed here from their leaves ("Kernel helpers" in the docs). SG8 has no 2D
+// block IO, so an SG8 MIXED reads its f16 V page with pa_v_tile_gather.
 SDPA_OCL_INLINE void FUNC(v_tile_b2d16)(__private int8 *vb, const __global void *surf, const int w, const int h,
                                         const int p, const int x0, const size_t sg_j0_sv, const int k0, const int cp,
                                         const int y_sub) {
@@ -190,7 +186,7 @@ SDPA_OCL_INLINE void FUNC(v_i8_dequant_ch)(__private int8 *vb, const __private u
 // lane = key, so it folds into pA with a per-lane multiply instead of being broadcast across V's
 // head-dim lanes; zp is a subtraction, so it stays on the V side and is returned. Kept in half:
 // V_scales/V_zp are half (a bf16 scale widens to it exactly in half's normal range), and half
-// arithmetic is bit-identical to the float path over the int8 range (verified). The returned zp has
+// arithmetic is bit-identical to the float path over the int8 range. The returned zp has
 // the bias-trick widen bias folded in (zp + 1152.0h; bf16 keeps the raw zp); keys at/past k get
 // scale 0 (and zp 0), which zeroes their product.
 SDPA_OCL_INLINE half FUNC(v_i8_comp_fold)(OPTIONAL_SHAPE_INFO_ARG __private short8 *pA,
@@ -478,8 +474,7 @@ SDPA_OCL_INLINE void FUNC(pa_v_tile_q_b2d)(__private int8 *vb, __private uint *v
             const half4 q4 = (half4)(U4_TO_HALF(w2.s0, nsh), U4_TO_HALF(w2.s0, (ushort)(8 + nsh)),
                                      U4_TO_HALF(w2.s1, nsh), U4_TO_HALF(w2.s1, (ushort)(8 + nsh)));
             #else
-            // Exact widen on 16-bit words, as for u4: converting the extracted byte cost a strided convert and a
-            // repack move per value.
+            // Exact widen on 16-bit words, as for u4 (I8_TO_HALF).
             const ushort2 w2 = as_ushort2(w);
             const half4 q4 = (half4)(I8_TO_HALF(w2.s0, (ushort)0), I8_TO_HALF(w2.s0, (ushort)8),
                                      I8_TO_HALF(w2.s1, (ushort)0), I8_TO_HALF(w2.s1, (ushort)8));
@@ -496,8 +491,7 @@ SDPA_OCL_INLINE void FUNC(pa_v_tile_q_b2d)(__private int8 *vb, __private uint *v
 
 #if PA_MIXED_PREFETCH_V
 // This key tile's V cache rows, the block columns pa_v_tile_q_b2d() reads for this subgroup, prefetched when the
-// iteration starts so that they arrive during the KQ loop; the S*V loop issued each read only right before its dequant.
-// Same surfaces and coordinates as the read.
+// iteration starts so that they arrive during the KQ loop. Same surfaces and coordinates as the read.
 SDPA_OCL_INLINE void FUNC(pa_v_tile_prefetch)(const __global VAL_DATA_T *V, const __private uint *v_blk, const int k0,
                                               const int k, const int dv, const size_t sg_j0_sv, const size_t b0_kv) {
     #if IS_PA_K_U4
@@ -524,11 +518,9 @@ SDPA_OCL_INLINE void FUNC(pa_v_tile_prefetch)(const __global VAL_DATA_T *V, cons
 #if IS_PA_MIXED && IS_PA_KV_COMPRESSED && USE_1D_BLOCK_IO_V_PA_U4
 // u4 V page by whole-page 1D reads: the same dequant and vb writes as the scalar gather, only the
 // load differs, so SDPA_OCL_V_PA_1D=0 bisects the read alone. The column group comes from sg_j0_sv
-// (not a constant), so the base is biased by it and the index taken at c = 0 (see PA_PAGE_*); that
-// makes the read per cd, which costs nothing because sv_value_blocks is 1 for the head sizes this
-// path fires on. No per-key `key < k` guard (as in the block2d read): a key at/past k has a
-// probability of exactly 0, so its V value only has to be finite -- a nibble is, and v_zp_c is 0
-// there.
+// (not a constant), so the base is biased by it and the index taken at c = 0 (see PA_PAGE_*), one
+// read per cd. No per-key `key < k` guard (as in the block2d read): a key at/past k has a probability
+// of exactly 0, so its V value only has to be finite -- a nibble is, and v_zp_c is 0 there.
 SDPA_OCL_INLINE void FUNC(pa_v_tile_u4_1d)(__private int8 *vb, __private uchar16 *v_pg, const __global VAL_DATA_T *V,
                                            const size_t v_page_base, const int dv, const size_t sg_j0_sv,
                                            const size_t lane, const half v_zp_c) {
@@ -537,8 +529,7 @@ SDPA_OCL_INLINE void FUNC(pa_v_tile_u4_1d)(__private int8 *vb, __private uchar16
         vb[cd] = (int8)0;
         const int value = sg_j0_sv + cd * SUBGROUP_SIZE + lane;
         const int v_base = sg_j0_sv + cd * SUBGROUP_SIZE;
-        // Nibble select as a uniform shift amount: v_hi is subgroup-uniform but not a compile-time
-        // constant, and the `?:` form would cost a select on every element.
+        // Nibble select as a uniform shift amount (v_hi is subgroup-uniform, not a compile-time constant).
         const uint v_sh = PA_V_U4_HI(v_base) ? 4u : 0u;
         const global uchar *v_pg_base =
             (const global uchar *)(V + v_page_base) + PA_V_U4_COL(v_base);

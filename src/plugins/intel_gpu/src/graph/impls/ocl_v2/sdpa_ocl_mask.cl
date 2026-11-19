@@ -48,11 +48,8 @@ SDPA_OCL_INLINE int FUNC(bidir_scan_begin)(const __global int *token_type_ids, c
 
 #if WITH_ATTN_MASK
 // Full 2D mask tile [query x key]: each lane loads its own query row, pre-scaled by iscale and clamped
-// (SDPA_SAT_MASK), so the max loop only adds (sdpa_micro's tile_load_t + unscale). The caller runs it only for
-// MASK_IS_FULL_2D, but for a dynamic mask the host infers kind 2 from the stage, so a [B, H, 1, K]
-// per-key mask can arrive here: clamp its query row to 0 (every query row IS row 0), or the read
-// walks past the single row (OOB -> CL_OUT_OF_RESOURCES or a NaN mask). The same holds for the key
-// side of a [B, H, q, 1] mask. The selects fold when MSK_D2/MSK_D3 are literals.
+// (SDPA_SAT_MASK), so the max loop only adds. For a dynamic mask the host infers kind 2 from the stage, so a
+// [B, H, 1, K] or [B, H, q, 1] mask can arrive here: its size-1 axis is clamped to 0, or the read goes OOB.
 SDPA_OCL_INLINE void FUNC(mask_tile_2d)(OPTIONAL_SHAPE_INFO_ARG
                                         __private float16 (*mask_full)[kq_sg_tile_keys / MASK_VEC_KEYS],
                                         const __global half *msk, const float iscale, const float mask_sat,

@@ -91,7 +91,7 @@ TEST(SdpaOclPredicates, DecodeReaderAvailableTruthTable) {
 
 TEST(SdpaOclPredicates, ExpectedDpasBackendTruthTable) {
     using tests::dpas_backend;
-    // sdpa_ocl on its lane, the opt kernels everywhere else (no other DPAS kernel since sdpa_micro was removed).
+    // sdpa_ocl on its lane, the opt kernels everywhere else.
     const auto oracle = [](gpu_arch a, bool immad) {
         if (!kOneDnn || !immad)
             return dpas_backend::none;
@@ -111,11 +111,11 @@ TEST(SdpaOclPredicates, ExpectedDpasBackendTruthTable) {
     const auto fn = [](gpu_arch a, bool immad = true) {
         return tests::expected_dpas_backend_for(make_info(a, immad));
     };
-    EXPECT_EQ(fn(gpu_arch::xe_hpg), dpas_backend::ocl);          // DG2 (A770)
+    EXPECT_EQ(fn(gpu_arch::xe_hpg), dpas_backend::ocl);          // DG2
     EXPECT_EQ(fn(gpu_arch::xe_hpg, false), dpas_backend::none);  // xe_hpg without XMX
     EXPECT_EQ(fn(gpu_arch::xe_hpc), dpas_backend::ocl);          // PVC
     EXPECT_EQ(fn(gpu_arch::xe_hp), dpas_backend::none);          // XeHP SDV: SIMD8 DPAS, no 2D block IO
     EXPECT_EQ(fn(gpu_arch::unknown), dpas_backend::none);        // arch not detected
-    EXPECT_EQ(fn(gpu_arch::xe2), dpas_backend::ocl);             // B70
+    EXPECT_EQ(fn(gpu_arch::xe2), dpas_backend::ocl);             // BMG
     EXPECT_EQ(fn(gpu_arch::xe3p), dpas_backend::ocl);            // xe3p
 }

@@ -56,8 +56,7 @@
 // Writes the K tile transposed to [token][head_dim] so each lane (key token) reads a contiguous DPAS B operand
 inline void FUNC(dequant_key)(const __global INPUT1_TYPE* key_block, __local half* dst, uint lid, uint local_size) {
 #ifndef IS_KEY_BY_CHANNEL
-    // A page row already is a row of the tile, so a work-item converts 8 adjacent head dims of one token: one load,
-    // one SLM store.
+    // A page row already is a row of the tile, so a work-item converts 8 adjacent head dims of one token.
     for (uint i = lid; i < BLOCK * HEAD_SIZE / 8; i += local_size) {
         const uint t = i / (HEAD_SIZE / 8);
         const uint d0 = i % (HEAD_SIZE / 8) * 8;
@@ -77,8 +76,7 @@ inline void FUNC(dequant_key)(const __global INPUT1_TYPE* key_block, __local hal
     #endif
     }
 #else
-    // A work-item owns 4 adjacent channels for all tokens, so their (scale, zp) pairs are read once and every token costs
-    // one 4-channel load and one SLM store.
+    // A work-item owns 4 adjacent channels for all tokens, so their (scale, zp) pairs are read once.
     #if IS_INT4_COMPRESSED
     const __global uchar* key_bytes = (const __global uchar*)key_block;
     const __global INPUT0_TYPE* comp = (const __global INPUT0_TYPE*)(key_bytes + HEAD_SIZE / 2 * BLOCK);

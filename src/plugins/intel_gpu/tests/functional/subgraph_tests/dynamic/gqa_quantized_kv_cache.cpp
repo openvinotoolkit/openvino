@@ -26,9 +26,9 @@
 // elsewhere the K/V are dequantized before SDPA. Fused are the batch-1 caches the GPU decomposition builds: the full
 // StatelessKV cache and the windowed cache (sliding_window_cache, with the native SDPA window). Batch 2 takes the common
 // per-batch cache, which dequantizes before SDPA on every device (the unfused control).
-// The oracle is the same model in f32 on TEMPLATE (TEMPLATE runs an f16 model in f16, which was off by up to 0.06 on these
-// values on every GPU path). The current K/V are integer codes times power-of-two scales, so quantize-on-write is exact
-// in either precision and the present caches must match bit for bit.
+// The oracle is the same model in f32 on TEMPLATE (TEMPLATE runs an f16 model in f16, too imprecise for these values).
+// The current K/V are integer codes times power-of-two scales, so quantize-on-write is exact in either precision and the
+// present caches must match bit for bit.
 namespace {
 
 struct GQAQuantParams {

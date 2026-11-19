@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// xe_hpg (DG2, SG8) PagedAttention GENERATE reader of a token-major K page: f16, i8 BY_TOKEN, i8 BY_CHANNEL and u4
+// xe_hpg (SG8) PagedAttention GENERATE reader of a token-major K page: f16, i8 BY_TOKEN, i8 BY_CHANNEL and u4
 // BY_CHANNEL (SDPAOclDecodeGenerator with SUBGROUP_SIZE 8). Included by sdpa_ocl_decode.cl in place of its own kernel,
 // with the same contract (the SDPA_STAGE_1 intermediates, the partition and sliding-window arithmetic, the dequant
 // identities at the top of sdpa_ocl_decode.cl) and the same work split: a workgroup takes Q_PER_WG q-heads of one kv
@@ -31,8 +31,8 @@
 
 // The page of a chunk of this partition: one load of its block-table entry at a workgroup-uniform address. Not the SG16
 // form (a per-lane load of page `lane`, then sub_group_broadcast): a partition's 16 pages do not fit one lane each, and
-// that form gave wrong pages on DG2 under some code shapes in the SG8 MIXED reader (pa_v_pages in sdpa_ocl, "xe_hpg
-// bring-up" in docs/sdpa_ocl.md). A chunk past the last block reads page 0 (always allocated); its keys are masked.
+// that form gave wrong pages under SG8 ("xe_hpg bring-up (DG2, SG8)" in the docs). A chunk past the last block reads
+// page 0 (always allocated); its keys are masked.
 #if defined(NEG_SG8) && NEG_SG8 == 32
 // negative control: the page of chunk % 8, so pages 8-15 of a partition are wrong
 #    define CHUNK_PAGE(chunk) FUNC_CALL(chunk_page)(block_indices, base_block_index, chunk_block0, total_blocks_num, (chunk) % SUBGROUP_SIZE)
@@ -509,9 +509,7 @@ KERNEL(sdpa_ocl_decode)(
         S_VEC_TYPE acc = (S_VEC_TYPE)(SOFTMAX_ACCUMULATOR_VAL_ZERO);
         const uint value = cd * SUBGROUP_SIZE + lane;
 
-        // Unrolled by SV_CHUNK_UNROLL, not whole: with every page unrolled IGC is free to hoist all the pages' V reads,
-        // and i8 BY_CHANNEL head 128 at M = 4 spilled 0 / 1184 / 12160 bytes on DG2 depending only on how the page
-        // index was read; unrolled by 4 or 8, every variant of smoke_paged_attention_decode_tm compiles without spill.
+        // Unrolled by SV_CHUNK_UNROLL, not whole: a full unroll lets IGC hoist every page's V read and spill.
         __attribute__((opencl_unroll_hint(SV_CHUNK_UNROLL))) for (uint i = 0; i < CHUNKS_PER_KEY_SG; ++i) {
             const uint chunk = key_slot * CHUNKS_PER_KEY_SG + i;
             // Clamped to page 0 past the last block; such a chunk's probabilities are zero (or stage 1 drops the

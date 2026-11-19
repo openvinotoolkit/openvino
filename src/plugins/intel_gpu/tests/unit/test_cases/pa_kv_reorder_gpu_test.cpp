@@ -24,10 +24,8 @@ using namespace ::tests;
 
 namespace {
 
-// The K page is token-major ([.., block_size, k_head_size]: a token's head dims are contiguous) on every device
-// (paged_attention.hpp). page_head_size sizes the PAGE and defaults to k_head_size; a BY_TOKEN compressed cache passes its
-// adjusted head size there while k_head_size stays the DATA row pitch (the scale/zp arrays trail the data region and are
-// addressed by key_comp_byte_offset, not here).
+// Token-major K page ([.., block_size, k_head_size], paged_attention.hpp). page_head_size (default k_head_size) sizes the
+// page; BY_TOKEN passes its adjusted head size there, k_head_size stays the data row pitch (scale/zp: key_comp_byte_offset).
 size_t key_offset(size_t block,
                   size_t head,
                   size_t k,
@@ -1655,11 +1653,9 @@ TEST(pa_kv_reorder_gpu, cm_key_by_channel_chained_moves_single_sequence) {
 
 namespace {
 
-// pa_kv_reorder on the token-major K page of each cache kind against a host model of the reorder. A random logical cache
-// (codes and (inv_scale, zp) pairs) is laid out as the plugin lays out its pages (paged_attention.hpp and
-// pa_kv_cache_update_ref.cl), reordered on the GPU, read back into the logical form and compared with the same moves
-// applied on the host: bit for bit where the reorder copies (f16, i8 BY_TOKEN, every V page, a u4 move inside one page),
-// in dequantized values where it requantizes the destination column of a BY_CHANNEL page.
+// pa_kv_reorder on the token-major K page of each cache kind against a host model: a random logical cache laid out as the
+// plugin's pages, reordered on the GPU and compared bit for bit where the reorder copies, in dequantized values where it
+// requantizes a BY_CHANNEL destination column.
 enum class lt_kind { f16, i8_by_token, i8_by_channel, u4_by_channel };
 
 struct lt_case {
@@ -1973,12 +1969,10 @@ float lt_k_value(lt_kind kind, const lt_cache& c, size_t b, size_t h, size_t ch,
     return (q - lt_f16(c.k_comp[i + 1])) * lt_f16(c.k_comp[i]);
 }
 
-// The host model of the reorder (pa_kv_cache_reorder_ref.cl): per sequence, the moves in order. A move copies the token's
-// V row and V pair, and its K row and (BY_TOKEN) K pair. On a BY_CHANNEL page it writes the source's dequantized value into
-// the destination column and requantizes that whole column (every channel; i8 also within one page, u4 copies the byte
-// there). `k_val` holds the dequantized BY_CHANNEL K, `k_err` the error each value may have picked up (0.6 of a
-// quantization step per requantization: half a step of rounding plus f16 arithmetic), `requantized` the pages whose K
-// pairs changed.
+// Host model of the reorder (pa_kv_cache_reorder_ref.cl), moves in order. A move copies the V row + pair and the K row
+// (+ BY_TOKEN pair); on a BY_CHANNEL page it writes the dequantized source value and requantizes the whole destination
+// column (i8 also within one page; u4 copies the byte there). k_val: dequantized BY_CHANNEL K; k_err: allowed error, 0.6
+// step per requantization (rounding + f16 math); requantized: pages whose K pairs changed.
 struct lt_model {
     lt_cache exact;
     std::vector<float> k_val;

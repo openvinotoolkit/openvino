@@ -25,11 +25,10 @@
 // (should_decompose_sdpa_for_memory_size()) and a device without XMX runs the fused kernel, so the static variants check the
 // numbers on whichever path the device takes.
 //
-// The rank-3 mask [B, Lq, Lk] is aligned with Q/K/V, which the kernel sees as [B, 1, L, E]; canonicalizing it to [1, B, Lq, Lk]
-// instead made the kernel read B as the head count and broadcast the batch, so every batch used mask[0] (max diff about 0.26
-// on [10, 1024, 77], on sdpa_opt on any non-XMX device (static) and on every device (dynamic)). The older 3D tests use a
-// batch-1 mask and the base generator's mask data repeats with period 2, so neither can see it: this test draws every mask
-// element independently. Batch-1 and rank-2 masks (numpy-broadcast over the batch) and no mask are the controls.
+// The rank-3 mask [B, Lq, Lk] is aligned with Q/K/V, which the kernel sees as [B, 1, L, E]. Guards canonicalizing it to
+// [1, B, Lq, Lk], which makes the kernel read B as the head count and use mask[0] for every batch. The other 3D tests use a
+// batch-1 mask or the base generator's mask data (period 2), so neither can see it: this test draws every mask element
+// independently. Batch-1 and rank-2 masks (numpy-broadcast over the batch) and no mask are the controls.
 namespace {
 
 enum class MaskKind { PER_BATCH, BATCH1, RANK2, NONE };
@@ -139,7 +138,7 @@ public:
 TEST_P(SDPA3DBatchMaskTest, MatchesReference) {
     const auto& p = GetParam();
     auto core = ov::test::utils::PluginCache::get().core();
-    // The failing shape first, then equal lengths, a single-token step, batch 1 (the control that was always right), and an odd length.
+    // The shape that exposes the mask bug first, then equal lengths, a single-token step, batch 1 (the control), and an odd length.
     const std::vector<Step> steps = {{10, 1024, 77}, {4, 64, 64}, {3, 1, 200}, {1, 128, 128}, {2, 33, 77}};
 
     ov::CompiledModel gpu_model;

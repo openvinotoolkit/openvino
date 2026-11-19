@@ -48,9 +48,8 @@ public:
 #if defined(ANDROID)
         GTEST_SKIP();
 #endif
-        // Perf-only mode: skip the CPU reference compute + accuracy compare (expensive at large
-        // context_size). GPU keeps its own KV state and never consumes the reference caches, so
-        // the kernel timing is unaffected. Off by default -> normal accuracy check.
+        // SDPA_SKIP_REF_CHECK: skip the CPU reference compute + accuracy compare (expensive at large
+        // context_size). The GPU keeps its own KV state and never consumes the reference caches. Off by default.
         const bool skip_ref_check = std::getenv("SDPA_SKIP_REF_CHECK") != nullptr;
         auto core = ov::test::utils::PluginCache::get().core();
 
@@ -402,8 +401,7 @@ std::vector<Params> get_test_params() {
     p.push_back({with_rearrange, with_mask, !with_scale, !causal, compressed, 1, ov::element::Type_t::f16, 10, 4, 64, 64, 1, {1, 2, 0, 3}});
     p.push_back({with_rearrange, with_mask, !with_scale, !causal, compressed, 1, ov::element::Type_t::f16, 10, 4, 128, 96, 1, {1, 2, 0, 3}});
 
-    // Large prefill (real-model shape: k/v_head_size=128, q=context_size=4096) for perf measurement.
-    // Run with env SDPA_SKIP_REF_CHECK=1 to skip the expensive CPU reference/accuracy compare.
+    // Large prefill (k/v_head_size=128, q=context_size=4096). SDPA_SKIP_REF_CHECK=1 skips the expensive CPU reference compare.
     p.push_back({with_rearrange, with_mask, !with_scale, !causal, compressed, 1, ov::element::Type_t::f16, 1, 1, 128, 128, 1, {0, 1, 2, 3}, 128});
 
     // Compressed beam search (batch > 1 exercises indirect sdpa_opt path on IMMAD)
@@ -492,7 +490,7 @@ std::vector<Params> get_test_params() {
     // Compressed beam search (batch > 1 exercises indirect sdpa_opt path on IMMAD)
     p.push_back({with_rearrange, with_mask, !with_scale, causal, compressed, 2, ov::element::Type_t::bf16, 10, 4, 64, 64, 1, {0, 2, 1, 3}});
 
-    // Compressed KV-cache the new token must be appended by the dynamic quantize kernel that supports append mode.
+    // Compressed KV-cache: the new token must be appended by the dynamic quantize kernel that supports append mode.
     for (size_t hs : {32u, 80u, 96u, 128u, 192u, 256u, 512u}) {
         // The test mask is not shifted by the past length, so at q=1 only the first key is visible and the appended token is not checked.
         p.push_back({with_rearrange, with_mask, !with_scale, !causal, compressed, 1, ov::element::Type_t::f16, 5, 4, hs, hs, 1, {0, 1, 2, 3}});

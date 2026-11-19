@@ -474,11 +474,10 @@ static bool should_decompose_sdpa_for_memory_size(size_t max_size,
     return false;
 }
 
-// A static rank-3 SDPA that sdpa_ocl runs faster than the decomposed Gemm + Softmax + Gemm: the DPAS kernel is on and the
-// device is one where it was measured (sdpa_ocl_plain_3d_ok()), f16, non-causal, no mask or one f16 mask of rank >= 2, at most
-// a constant scalar scale, one equal static head size that sdpa_ocl_plain_3d_head_ok() accepts. Anything else keeps
-// should_decompose_sdpa_for_memory_size(). Measurements, method and
-// limits: docs/sdpa_ocl.md, "Rank-3 plain SDPA".
+// A static rank-3 SDPA that stays fused on sdpa_ocl instead of the decomposed Gemm + Softmax + Gemm: the DPAS kernel on, an
+// sdpa_ocl_plain_3d_ok() device, f16, non-causal, no mask or one f16 mask of rank >= 2, at most a constant scalar scale, one
+// equal static head size that sdpa_ocl_plain_3d_head_ok() accepts. Anything else keeps should_decompose_sdpa_for_memory_size()
+// (docs/sdpa_ocl.md, "Rank-3 plain SDPA").
 static bool is_fused_sdpa_ocl_3d_faster(const cldnn::device_info& info,
                                         bool dpas_kernel_enabled,
                                         const std::shared_ptr<const ov::op::v13::ScaledDotProductAttention>& sdpa) {
@@ -511,8 +510,8 @@ static bool is_fused_sdpa_ocl_3d_faster(const cldnn::device_info& info,
     if (q.size() != 3 || k.size() != 3 || v.size() != 3 || q[2].is_dynamic() || k[2].is_dynamic() || v[2].is_dynamic()) {
         return false;
     }
-    // Only the heads that were measured: an unaligned head or one outside the DPAS tilings may be refused by sdpa_ocl, and the
-    // op would then run sdpa_opt, which is slower than the decomposition.
+    // Only the verified heads: an unaligned head or one outside the DPAS tilings may be refused by sdpa_ocl, and the op
+    // would then run sdpa_opt instead of the decomposition.
     const auto head_size = q[2].get_length();
     return head_size == k[2].get_length() && head_size == v[2].get_length() && cldnn::paged_attention::sdpa_ocl_plain_3d_head_ok(head_size);
 }
@@ -1350,7 +1349,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // with the DPAS kernel on (not OV_GPU_ENABLE_SDPA_MICRO=0) and f16 queries (it runs after ConvertPrecision).
         // sdpa_opt reads one scale per token, so everywhere else the quantized K/V are dequantized before SDPA. A fused op
         // sdpa_ocl still refuses runs on sdpa_ref (SDPAOpt::validate_impl()), correct but slow; the pass keeps the ops it
-        // can tell apart unfused, and heads above 256 (slower fused there).
+        // can tell apart unfused, and heads above 256.
         const bool fuse_compressed_kv = cldnn::paged_attention::sdpa_ocl_selected(device_info) &&
                                         cldnn::paged_attention::sdpa_ocl_per_channel_kv_ok(device_info) && config.get_enable_sdpa_micro() &&
                                         infer_precision == ov::element::f16;
@@ -1534,7 +1533,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return false;
             }
 
-            // sdpa_opt will be selected for 3d-tensor sdpa, except where sdpa_ocl serves it and is faster (is_fused_sdpa_ocl_3d_faster()).
+            // sdpa_opt will be selected for 3d-tensor sdpa, except where it stays fused on sdpa_ocl (is_fused_sdpa_ocl_3d_faster()).
             // sdpa_opt has performance issue on GPUs with XMX. If memory size allows, it is preferrable to decompose sdpa.
             // If intermediate buffer is expected to be very large, we need to use sdpa_opt to be functional.
             const auto max_size = m_context->get_engine().get_max_memory_size();
@@ -1547,8 +1546,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             const auto head_size = static_cast<uint64_t>(query_ps[query_ps.size() - 1].get_length());
             // The DPAS SDPA kernel serves the op: sdpa_ocl on its lane (no oneDNN microkernel support needed). Other XMX
-            // devices (xe_hp, unknown arch) take the rules below. The 256 limit predates sdpa_ocl (which serves heads
-            // up to 512); raising it would change which models keep SDPA fused.
+            // devices (xe_hp, unknown arch) take the rules below. The 256 limit is not sdpa_ocl's (it serves heads up to
+            // 512); raising it would change which models keep SDPA fused.
             if (device_info.supports_immad && cldnn::paged_attention::sdpa_ocl_selected(device_info) && head_size <= 256) {
                 return true;
             }

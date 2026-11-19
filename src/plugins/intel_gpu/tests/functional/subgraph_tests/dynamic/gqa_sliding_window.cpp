@@ -22,7 +22,7 @@
 // GroupQueryAttention with a sliding window (local_window_size) executed end to end against the TEMPLATE plugin. With
 // a windowed KV cache (sliding_window_cache), causal attention and no scale / bias / sink, the GPU
 // GroupQueryAttentionDecomposition drops the explicit mask and gives SDPA is_causal + sliding_window, so the kernel has
-// to apply the window itself (sdpa_ocl dropped it: its plain-SDPA jit never defined SLIDING_WINDOW_SIZE). The other two
+// to apply the window itself (guards sdpa_ocl's plain-SDPA jit leaving SLIDING_WINDOW_SIZE undefined). The other two
 // paths keep the explicit causal + window mask (SDPA is_causal = false) and are the controls: the windowed cache with an
 // explicit scale, and a full-length cache.
 namespace {

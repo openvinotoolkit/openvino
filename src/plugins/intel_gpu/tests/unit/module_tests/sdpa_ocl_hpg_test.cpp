@@ -110,7 +110,7 @@ TEST(SdpaOclHpg, Xe2TilingUnchanged) {
     EXPECT_EQ(t.slm_bytes, 42112u);
 }
 
-// A tiling exists on xe_hpg for every head size and fits DG2 (64 KiB local memory, 1024 work-items).
+// A tiling exists on xe_hpg for every head size and fits its limits (64 KiB local memory, 1024 work-items).
 TEST(SdpaOclHpg, XeHpgTilingCoversEveryHead) {
     for (const auto k : kHeads) {
         for (const auto v : kHeads) {
@@ -128,7 +128,7 @@ TEST(SdpaOclHpg, XeHpgTilingCoversEveryHead) {
             EXPECT_LE(t.slm_bytes, 64u * 1024);
             EXPECT_EQ(t.slm_bytes, oracle_slm(t, pow2_ceil(k)));
             expect_valid_tiling(t, pow2_ceil(v), what);
-            if (k == v) {  // the seed: 16 x 16 KQ tile, 4 / 8 / 16 x 2 subgroups up to head 128 / 256 / 512 (DG2 spill)
+            if (k == v) {  // the seed: 16 x 16 KQ tile, 4 / 8 / 16 x 2 subgroups up to head 128 / 256 / 512 (register spill)
                 const size_t d_max = pow2_ceil(k);
                 EXPECT_EQ(t.kq_sg_tile_keys, 16);
                 EXPECT_EQ(t.kq_sg_tile_queries, 16);
