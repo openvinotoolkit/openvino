@@ -236,8 +236,21 @@ void GroupedMatMulDnnlExecutor::execute(const MemoryArgs& memory) {
         auto* scale = scale_offset(g);
         auto* zp = zp_offset(g);
 
-        // Source and destination rows are both contiguous, so the primitive runs on them in place
-        impl_for(rows)->exec(src_at(g, start), dst_at(g, start), wei, nullptr, scale, zp);
+        // Source and destination rows are both contiguous, so the primitives run on them in place.
+        // The row count of a group changes with every routing, and the primitive cache keys on it, so
+        // exact counts would create a new primitive for almost every group. Padding in place is not
+        // possible (it would read and write past the group), so the rows are split into chunks whose
+        // sizes are multiples of the normalize_m granularity, followed by a tail shorter than it.
+        // A chunk size is then one of a small set of values, and the primitives are reused.
+        size_t chunk_start = start;
+        size_t remaining = rows;
+        while (remaining > 0) {
+            const size_t granularity = remaining < 512 ? 16 : (remaining < 1024 ? 32 : 256);
+            const size_t chunk = remaining < granularity ? remaining : remaining - remaining % granularity;
+            impl_for(chunk)->exec(src_at(g, chunk_start), dst_at(g, chunk_start), wei, nullptr, scale, zp);
+            chunk_start += chunk;
+            remaining -= chunk;
+        }
     }
 
     // offsets[G-1] is allowed to be smaller than the token count; the rows past the last group are

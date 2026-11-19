@@ -277,4 +277,39 @@ INSTANTIATE_TEST_SUITE_P(smoke_Compressed_DynQuant_3D,
                                             ::testing::ValuesIn(filter_specific_params_brgemm())),
                          GroupedMatMulCompressedLayerCPUTest::get_test_case_name);
 
+// Row counts per expert around the chunking boundaries of GroupedMatMulDnnlExecutor::execute():
+// a multiple of 16 plus a remainder (17, 33, 40), the 512 and 1024 granularity switches
+// (511, 512, 513, 1030) and an inactive expert next to a large one.
+const std::vector<GroupedMatMulShapeParams> shapes_chunking = {
+    {{ov::PartialShape{-1, 128}, {{62, 128}}}, {4, 64, 128}, TokensPerExpert{{17, 0, 40, 5}}},
+    {{ov::PartialShape{-1, 128}, {{81, 128}}}, {4, 64, 128}, TokensPerExpert{{33, 48, 0, 0}}},
+    {{ov::PartialShape{-1, 128}, {{1024, 128}}}, {4, 64, 128}, TokensPerExpert{{511, 0, 513, 0}}},
+    {{ov::PartialShape{-1, 128}, {{1024, 128}}}, {4, 96, 128}, TokensPerExpert{{0, 512, 512, 0}}},
+    {{ov::PartialShape{-1, 128}, {{1111, 128}}}, {4, 64, 128}, TokensPerExpert{{1030, 33, 48, 0}}},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Chunking,
+                         GroupedMatMulLayerCPUTest,
+                         ::testing::Combine(::testing::ValuesIn(shapes_chunking),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(empty_plugin_config),
+                                            ::testing::ValuesIn(filter_specific_params_brgemm())),
+                         GroupedMatMulLayerCPUTest::get_test_case_name);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Compressed_Chunking,
+                         GroupedMatMulCompressedLayerCPUTest,
+                         ::testing::Combine(::testing::ValuesIn(shapes_chunking),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::ValuesIn(weights_precisions),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::Values(false),
+                                            ::testing::Values(-1),
+                                            ::testing::Values(true),
+                                            ::testing::Values(empty_plugin_config),
+                                            ::testing::ValuesIn(filter_specific_params_brgemm())),
+                         GroupedMatMulCompressedLayerCPUTest::get_test_case_name);
+
 }  // namespace ov::test::grouped_matmul
