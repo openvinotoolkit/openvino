@@ -4,6 +4,8 @@
 
 #include "openvino/reference/histc.hpp"
 
+#include <vector>
+
 #include "histc_inst.h"
 #include "impls/cpu/cpu_impl_helpers.hpp"
 #include "register.hpp"
@@ -11,6 +13,24 @@
 
 namespace cldnn {
 namespace cpu {
+
+// Calls f(i, offset) with the buffer offset of each logical element i of a plain, possibly padded layout.
+template <class F>
+void for_each_element(const layout& l, F&& f) {
+    const auto dims = l.get_dims();
+    const auto pitches = l.get_pitches();
+    const auto base = l.get_linear_offset();
+    for (size_t i = 0, n = l.count(); i < n; ++i) {
+        size_t offset = base;
+        size_t rest = i;
+        for (size_t d = dims.size(); d > 0; --d) {
+            const auto dim = static_cast<size_t>(dims[d - 1]);
+            offset += rest % dim * static_cast<size_t>(pitches[d - 1]);
+            rest /= dim;
+        }
+        f(i, offset);
+    }
+}
 
 // Integer Histc bins in double, so devices without fp64 run it on the host.
 struct histc_impl : public typed_primitive_impl<histc> {
@@ -41,23 +61,40 @@ struct histc_impl : public typed_primitive_impl<histc> {
         cldnn::mem_lock<uint8_t, mem_lock_type::read> in_lock(instance.dep_memory_ptr(0), stream);
         cldnn::mem_lock<uint8_t, mem_lock_type::read_write> out_lock(instance.output_memory_ptr(), stream);
 
-        const auto run = [&](const auto* in) {
+        const auto run = [&](const auto* in, auto* out) {
+            using TIn = std::remove_cv_t<std::remove_pointer_t<decltype(in)>>;
+            using TOut = std::remove_pointer_t<decltype(out)>;
+            std::vector<TIn> in_packed;
+            if (in_layout.data_padding) {
+                in_packed.resize(in_layout.count());
+                for_each_element(in_layout, [&](size_t i, size_t offset) {
+                    in_packed[i] = in[offset];
+                });
+                in = in_packed.data();
+            }
+            std::vector<TOut> out_packed(out_layout.count());
+            ov::reference::histc(in, out_packed.data(), in_layout.count(), out_packed.size(), desc->min, desc->max);
+            for_each_element(out_layout, [&](size_t i, size_t offset) {
+                out[offset] = out_packed[i];
+            });
+        };
+        const auto run_in = [&](const auto* in) {
             using T = std::remove_cv_t<std::remove_pointer_t<decltype(in)>>;
             if (out_layout.data_type == data_types::i32) {
-                ov::reference::histc(in, reinterpret_cast<int32_t*>(out_lock.data()), in_layout.count(), out_layout.count(), desc->min, desc->max);
+                run(in, reinterpret_cast<int32_t*>(out_lock.data()));
             } else {
-                ov::reference::histc(in, reinterpret_cast<T*>(out_lock.data()), in_layout.count(), out_layout.count(), desc->min, desc->max);
+                run(in, reinterpret_cast<T*>(out_lock.data()));
             }
         };
         switch (in_layout.data_type) {
         case data_types::i32:
-            run(reinterpret_cast<const int32_t*>(in_lock.data()));
+            run_in(reinterpret_cast<const int32_t*>(in_lock.data()));
             break;
         case data_types::i8:
-            run(reinterpret_cast<const int8_t*>(in_lock.data()));
+            run_in(reinterpret_cast<const int8_t*>(in_lock.data()));
             break;
         case data_types::u8:
-            run(reinterpret_cast<const uint8_t*>(in_lock.data()));
+            run_in(reinterpret_cast<const uint8_t*>(in_lock.data()));
             break;
         default:
             OPENVINO_THROW("[GPU] Unsupported input type ", in_layout.data_type, " of histc primitive with id ", instance.id());

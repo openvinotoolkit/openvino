@@ -87,14 +87,12 @@ protected:
         }
         jit.make("HIST_IN_SLM", hist_in_slm);
         jit.make("HIST_COPIES", copies);
-        if (!range_from_data(params)) {
-            if (is_fp_input(params)) {
-                jit.make("RANGE_MIN", static_cast<float>(desc->min));
-                jit.make("RANGE_MAX", static_cast<float>(desc->max));
-            } else {
-                jit.make("RANGE_MIN", to_double_literal(desc->min));
-                jit.make("RANGE_MAX", to_double_literal(desc->max));
-            }
+        if (is_fp_input(params)) {
+            jit.make("RANGE_MIN", static_cast<float>(desc->min));
+            jit.make("RANGE_MAX", static_cast<float>(desc->max));
+        } else {
+            jit.make("RANGE_MIN", to_double_literal(desc->min));
+            jit.make("RANGE_MAX", to_double_literal(desc->max));
         }
         return jit;
     }
@@ -214,6 +212,11 @@ public:
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
         return make_deep_copy<HistcImpl>(this);
+    }
+
+    // Replay skips execute(), which checks the range taken from data.
+    [[nodiscard]] bool supports_replay() const override {
+        return !has_stage(minmax);
     }
 
     // Histc-17 requires an error for an empty or non-finite range.

@@ -75,6 +75,11 @@ KERNEL(histc_count)(OPTIONAL_SHAPE_INFO_ARG
     }
     lo = work_group_reduce_min(lo);
     hi = work_group_reduce_max(hi);
+    // An empty input keeps the (equal) attributes and still validates the widened range
+    if (DATA_COUNT == 0) {
+        lo = RANGE_MIN;
+        hi = RANGE_MAX;
+    }
     if (lo == hi) {
 #if INPUT0_IS_FP && INPUT0_TYPE_SIZE == 4
         lo = fmin(nextafter(lo, -INFINITY), lo - 1.0f);
@@ -90,9 +95,9 @@ KERNEL(histc_count)(OPTIONAL_SHAPE_INFO_ARG
 #endif
     const bool valid_range = isfinite(lo) && isfinite(hi) && lo < hi;
 #if RANGE_FROM_DATA
-    // The host turns this into an inference error; an empty input has no range to check.
+    // The host turns this into an inference error.
     if (get_global_id(0) == 0) {
-        invalid_range[0] = DATA_COUNT != 0 && !valid_range;
+        invalid_range[0] = !valid_range;
     }
 #endif
 
