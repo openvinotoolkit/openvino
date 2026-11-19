@@ -2068,6 +2068,41 @@ INSTANTIATE_TEST_SUITE_P(Reference,
                                            "deepseekocr_overview",
                                            "deepseekocr2_overview"));
 
+class GGUFMMProjAddedGenAIContracts : public GGUFMMProjAccuracy {};
+
+TEST_P(GGUFMMProjAddedGenAIContracts, PublicAdaptationMatchesReferenceAfterIRReload) {
+    const bool vision = std::string(GetParam()).find("gemma3nv") == 0;
+    for (const auto& source : {model, ov_gguf_test::reload_ir_model(model)}) {
+        const auto models = ov::frontend::gguf::adapt_to_genai(source->clone());
+        ASSERT_EQ(models.size(), 1u);
+        const auto& adapted = models.at(vision ? "vision_embeddings" : "audio_embeddings");
+        ASSERT_EQ(adapted->inputs().size(), 1u);
+        ASSERT_EQ(adapted->outputs().size(), 1u);
+        EXPECT_NO_THROW(adapted->input(vision ? "pixel_values" : "features"));
+        EXPECT_NO_THROW(adapted->output(vision ? "image_features" : "audio_features"));
+        auto request = compile(adapted);
+        for (const auto step : {0, 1, 0}) {
+            const auto prefix = std::to_string(step) + ".";
+            request.set_tensor(vision ? "pixel_values" : "features",
+                               tensor(prefix + (vision ? "pixel_values" : "features"), ov::element::f32));
+            request.infer();
+            const auto output = request.get_output_tensor();
+            const auto& expected = array(prefix + "embeddings");
+            auto shape = expected.shape;
+            shape.erase(shape.begin());
+            ASSERT_EQ(output.get_shape(), shape);
+            ov_gguf_test::expect_nmse_below(
+                ov_gguf_test::nmse(output.data<const float>(), expected.data<float>(), output.get_size()),
+                1e-5);
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Reference,
+    GGUFMMProjAddedGenAIContracts,
+    ::testing::Values("gemma3nv", "gemma3nv_uir", "gemma3nv_attention", "qwen3a", "qwen3tts_spkenc"));
+
 INSTANTIATE_TEST_SUITE_P(Reference,
                          GGUFMMProjAccuracy,
                          ::testing::Values("gemma3",

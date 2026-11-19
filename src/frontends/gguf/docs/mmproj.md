@@ -188,6 +188,11 @@ per-layer inputs. These passes expose graph contracts; they do not construct tok
 preprocessing or a complete GenAI pipeline. GenAI uses an F16 KV cache for GGUF multimodal models
 to match llama.cpp, unless cache precision is set explicitly.
 
+`gemma3nv` exposes `pixel_values`; `qwen3a` and `qwen3tts_spkenc` expose `features` in the
+native audio layout. These adapted graphs require consumer support: GenAI's GGUF VLM integration
+does not yet accept these projector pairings, and its existing Qwen3 audio encoder uses a different
+input interface.
+
 ## Speech generation components
 
 Builders declare speech components in `ModelContract::component_groups["audio_generation"]`,
@@ -288,8 +293,7 @@ with either the original BF16 decoder or the Q8_0 decoder with CPU DQ32, it pass
 3.7% aggregate WER, exact repeats, cancellation, a terminal callback and reset.
 The original Q8_0 and BF16 projectors fail feature parity. The Q8_0 decoder
 reaches the greedy agreement gate with CPU `DYNAMIC_QUANTIZATION_GROUP_SIZE=32`;
-with DQ disabled it matches 10/13 choices. Both settings remain loadable. See
-[decoder reference accuracy](supported_models.md#quantized-support-and-reference-accuracy).
+with DQ disabled it matches 10/13 choices. Both settings remain loadable.
 For two additional synthetic audio-feature inputs, original BF16 NMSE is `2.27e-5` and
 `8.39e-5` at 100 and 200 frames; represented-F32 copies pass at `4.61e-9` and `4.74e-8`.
 

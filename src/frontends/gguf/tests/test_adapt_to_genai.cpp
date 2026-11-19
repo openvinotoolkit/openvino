@@ -668,6 +668,25 @@ TEST(GGUFAdaptToGenAI, ExplicitNamedOutputsAndBorrowedInputsSurviveIRReload) {
     }
 }
 
+TEST(GGUFAdaptToGenAI, PreservesInputByFriendlyNameWhenTensorAliasDiffers) {
+    auto m = build_minimal_gguf_model();
+    auto table = ov::test::utils::make_param(ov::element::f32, {4, 2}, "external_table_alias");
+    table->set_friendly_name("external_table_friendly");
+    table->output(0).set_names({"external_table_alias"});
+    m.embd->get_input_node_shared_ptr(0)->input(0).replace_source_output(table);
+    m.model->add_parameters({table});
+
+    ov::frontend::gguf::ModelContract contract;
+    contract.genai.emplace();
+    contract.genai->preserved_inputs = {"external_table_friendly"};
+    ov::frontend::gguf::write_model_contract(m.model, contract);
+
+    ASSERT_TRUE(AdaptToGenAI().run_on_model(m.model));
+    EXPECT_NE(find_parameter(m.model, "external_table_friendly"), nullptr);
+    EXPECT_NE(find_parameter(m.model, "external_table_alias"), nullptr);
+    EXPECT_NO_THROW(m.model->validate_nodes_and_infer_types());
+}
+
 TEST(GGUFAdaptToGenAI, LegacyAuxiliaryOutputsAndBorrowedInputsSurviveIRReload) {
     for (const std::string architecture : {"eagle3", "qwen3tts"}) {
         for (const bool older_contract : {false, true}) {

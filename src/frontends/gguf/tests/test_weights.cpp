@@ -981,6 +981,35 @@ TEST(GGUFWeight, FractionalQ5KPreservesSourceCodesAndMatchesGgmlToFloat) {
     }
 }
 
+TEST(GGUFWeight, FractionalQ5KPreservesNonzeroOffsetWhenScaleIsZero) {
+    using namespace ov::frontend::gguf;
+    constexpr size_t block_size = 176;
+    std::vector<uint8_t> bytes(block_size);
+    const uint16_t one = ov::float16(1.f).to_bits();
+    std::memcpy(bytes.data(), &one, sizeof(one));
+    std::memcpy(bytes.data() + 2, &one, sizeof(one));
+    bytes[8] = 1;
+
+    GgufTensor tensor;
+    tensor.type = GGUF_TYPE_Q5_K;
+    tensor.bsize = bytes.size();
+    tensor.num_weights = kCols;
+    tensor.weights_data = bytes.data();
+    WeightTensors extracted{ov::Tensor(ov::element::u8, {1, kCols}),
+                            ov::Tensor(ov::element::f16, {1, kCols / 32}),
+                            ov::Tensor(ov::element::f16, {1, kCols / 32})};
+    gguf_fill_asym(tensor, extracted.weight, extracted.scales, extracted.zero_point);
+
+    const auto node = make_weight_node(extracted, GGUF_TYPE_Q5_K, "blk.0.attn_q.weight");
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+    const auto output = run_on_cpu(model, {});
+    ASSERT_EQ(output.get_size(), kCols);
+    for (size_t i = 0; i < 32; ++i)
+        EXPECT_FLOAT_EQ(output.data<const float>()[i], -1.f);
+    for (size_t i = 32; i < kCols; ++i)
+        EXPECT_FLOAT_EQ(output.data<const float>()[i], 0.f);
+}
+
 class GGUFQ5KNative : public ::testing::Test {
 protected:
     void SetUp() override {

@@ -279,8 +279,13 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         auxiliary_outputs.emplace_back(found, output);
     }
 
-    for (const auto& input : genai.preserved_inputs)
-        OPENVINO_ASSERT(find_parameter(model, input), "[GGUF] missing preserved GenAI input ", input);
+    std::vector<std::shared_ptr<v0::Parameter>> preserved_inputs;
+    for (const auto& input : genai.preserved_inputs) {
+        auto parameter = find_parameter(model, input);
+        OPENVINO_ASSERT(parameter, "[GGUF] missing preserved GenAI input ", input);
+        if (std::find(preserved_inputs.begin(), preserved_inputs.end(), parameter) == preserved_inputs.end())
+            preserved_inputs.push_back(std::move(parameter));
+    }
 
     // Token-only lookups move to the embedding model. FixEmbdAxis replaces them, keeping names.
     std::string embedding_name, per_layer_name;
@@ -957,9 +962,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     model->add_parameters(kept);
     const auto params_snapshot = model->get_parameters();  // copy: remove_parameter mutates the list
     for (const auto& p : params_snapshot) {
-        if (std::any_of(genai.preserved_inputs.begin(), genai.preserved_inputs.end(), [&](const auto& name) {
-                return p->output(0).get_names().count(name) != 0;
-            }))
+        if (std::find(preserved_inputs.begin(), preserved_inputs.end(), p) != preserved_inputs.end())
             continue;
         if (p != beam_idx && std::find(kept.begin(), kept.end(), p) == kept.end())
             model->remove_parameter(p);
