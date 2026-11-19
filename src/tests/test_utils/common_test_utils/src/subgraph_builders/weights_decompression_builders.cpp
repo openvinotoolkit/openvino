@@ -6,10 +6,13 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <limits>
 
 #include "common_test_utils/node_builders/constant.hpp"
 #include "openvino/core/type/element_iterator.hpp"
+#include "openvino/core/type/float4_e2m1.hpp"
+#include "openvino/core/type/float8_e8m0.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
@@ -227,8 +230,9 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraphQuantization(
     OPENVINO_ASSERT(
         weights_precision == ov::element::u2 || weights_precision == ov::element::u3 ||
             weights_precision == ov::element::u4 || weights_precision == ov::element::i4 ||
-            weights_precision == ov::element::u8 || weights_precision == ov::element::i8,
-        "initMatMulDecompressionSubgraphQuantization only supports u2, u3, u4, i4, u8, i8 precisions. Got: ",
+            weights_precision == ov::element::u8 || weights_precision == ov::element::i8 ||
+            weights_precision == ov::element::f4e2m1,
+        "initMatMulDecompressionSubgraphQuantization only supports u2, u3, u4, i4, u8, i8, f4e2m1 precisions. Got: ",
         weights_precision);
 
     auto transpose_if_necessary = [&](const ov::Shape& shape) {
@@ -368,6 +372,13 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraphQuantization(
             range = 1e-6f;  // Avoid division by zero
         }
 
+        if (weights_precision == ov::element::f4e2m1) {
+            // MXFP4: symmetric, power-of-two (e8m0) scale chosen so that the group maximum fits the f4e2m1 range (6)
+            const float abs_max = std::max(std::abs(min_val), std::abs(max_val));
+            scales[g] = std::exp2(std::ceil(std::log2(std::max(abs_max, 1e-6f) / 6.0f)));
+            zero_points[g] = 0.0f;
+            continue;
+        }
         scales[g] = range / (qmax - qmin);
         float zp = std::round(-min_val / scales[g] + qmin);
         // Clamp zero point to valid quantization range
@@ -402,6 +413,14 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraphQuantization(
             auto iter = ov::element::iterator<ov::element::u2>(quantized_weights_tensor.data());
             std::copy(quantized_buffer.begin(), quantized_buffer.end(), iter);
         }
+    } else if (weights_precision == ov::element::f4e2m1) {
+        std::vector<ov::float4_e2m1> quantized_buffer(total_size);
+        for (size_t i = 0; i < total_size; ++i) {
+            size_t group_idx = (num_groups == 1) ? 0 : (i / elements_per_group);
+            quantized_buffer[i] = ov::float4_e2m1(fp32_data[i] / scales[group_idx]);
+        }
+        auto iter = ov::element::iterator<ov::element::f4e2m1>(quantized_weights_tensor.data());
+        std::copy(quantized_buffer.begin(), quantized_buffer.end(), iter);
     } else if (weights_precision == ov::element::i4) {
         // For sub-byte signed types, use element::iterator
         std::vector<int8_t> quantized_buffer(total_size);
@@ -545,7 +564,12 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraphQuantization(
         } else {
             // Full scales
             scale_tensor = ov::Tensor(scale_prc, multiply_shape);
-            if (scale_prc == ov::element::f16) {
+            if (scale_prc == ov::element::f8e8m0) {
+                auto* scale_data = scale_tensor.data<ov::float8_e8m0>();
+                for (size_t i = 0; i < num_groups; ++i) {
+                    scale_data[i] = ov::float8_e8m0(scales[i]);
+                }
+            } else if (scale_prc == ov::element::f16) {
                 auto* scale_data = scale_tensor.data<ov::float16>();
                 for (size_t i = 0; i < num_groups; ++i) {
                     scale_data[i] = ov::float16(scales[i]);

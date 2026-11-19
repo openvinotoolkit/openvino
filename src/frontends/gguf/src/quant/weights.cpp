@@ -249,23 +249,25 @@ std::shared_ptr<ov::Node> make_mxfp4(const WeightTensors& tensors) {
     ov::Tensor scales = tensors.scales;  // f8e8m0 [.., groups]
 
     ov::Shape orig_shape = weight.get_shape();
-    size_t rows = 1;
-    for (size_t i = 0; i + 1 < orig_shape.size(); ++i) {
-        rows *= orig_shape[i];
-    }
     const size_t num_groups = scales.get_shape().back();
     const size_t group_size = orig_shape.back() / num_groups;
 
+    // Keep the leading (expert) dims: [.., rows, groups, group_size]. For 3D expert tensors this gives the rank-4
+    // decompression block that the CPU plugin folds into GatherMatmulCompressed (weights stay f4e2m1/e8m0).
+    std::vector<int64_t> w_grp_dims(orig_shape.begin(), orig_shape.end() - 1);
+    w_grp_dims.push_back((int64_t)num_groups);
+    w_grp_dims.push_back((int64_t)group_size);
+    ov::Shape s_dims(orig_shape.begin(), orig_shape.end() - 1);
+    s_dims.push_back(num_groups);
+    s_dims.push_back(1);
     auto w_node = std::make_shared<ov::op::v0::Constant>(weight);
     auto w_grp = std::make_shared<ov::op::v1::Reshape>(
         w_node,
-        ov::op::v0::Constant::create(ov::element::i64,
-                                     {3},
-                                     std::vector<int64_t>{(int64_t)rows, (int64_t)num_groups, (int64_t)group_size}),
+        ov::op::v0::Constant::create(ov::element::i64, {w_grp_dims.size()}, w_grp_dims),
         false);
     auto w_f16 = std::make_shared<ov::op::v0::Convert>(w_grp, ov::element::f16);
 
-    auto s_node = make_shared_constant(scales.get_element_type(), {rows, num_groups, 1}, scales);
+    auto s_node = make_shared_constant(scales.get_element_type(), s_dims, scales);
     auto s_f16 = std::make_shared<ov::op::v0::Convert>(s_node, ov::element::f16);
 
     auto scaled = std::make_shared<ov::op::v1::Multiply>(w_f16, s_f16, ov::op::AutoBroadcastType::NUMPY);
