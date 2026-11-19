@@ -27,8 +27,9 @@ def _build_dynamic_shapes(inputs, input_specs=None, input_names=None):
     """Build dynamic_shapes for torch.export.export.
 
     If input_specs (list of _InputCutInfo from the 'input' parameter) is provided
-    and contains shapes, dynamic dimensions become named torch.export.Dim
-    objects with any requested bounds, and fixed dimensions stay static.
+    and contains shapes, dimensions marked as -1 (fully dynamic) get Dim.AUTO,
+    dimensions with min/max constraints (e.g. Dimension(1, 10)) get
+    Dim.AUTO with the same bounds, and fixed dimensions stay static.
     When no specs are given returns None so that torch.export.export produces
     a fully static graph.
 
@@ -47,7 +48,8 @@ def _build_dynamic_shapes(inputs, input_specs=None, input_names=None):
     def _dims_for_tensor(tensor, spec_shape, input_idx):
         """Return a per-dim dict mapping dim index to Dim hint.
 
-        - Dynamic dims → Dim("dI_D", min=..., max=...)
+        - Fully dynamic dims (-1) → Dim.AUTO
+        - Constrained dims (min, max) → Dim.AUTO(min=..., max=...)
         - Static dims → omitted (stays static)
         """
         if not isinstance(tensor, torch.Tensor) or tensor.ndim == 0:
@@ -67,9 +69,9 @@ def _build_dynamic_shapes(inputs, input_specs=None, input_names=None):
                     kwargs['min'] = min_val
                 if max_val != -1:  # -1 means unbounded
                     kwargs['max'] = max_val
-                dims[d] = Dim(f"d{input_idx}_{d}", **kwargs)
+                dims[d] = Dim.AUTO(**kwargs) if callable(Dim.AUTO) else Dim(f"d{input_idx}_{d}", **kwargs)
             elif sd == -1:
-                dims[d] = Dim(f"d{input_idx}_{d}")
+                dims[d] = Dim.AUTO
         # If no dynamic dims, return None
         if not dims:
             return None

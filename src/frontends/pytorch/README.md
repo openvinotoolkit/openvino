@@ -66,9 +66,12 @@ export again with the desired dynamic dimensions instead. OpenVINO does not
 enforce all export guards, including cross-input equality and divisibility
 constraints, so inference inputs must also satisfy the original program's guards.
 
-For `dynamo=True`, pass a single list argument as `(list_of_tensors,)` and use
-distinct tensor objects for separate example inputs. Repeated tensor objects
-are rejected because `torch.export` can specialize their aliasing.
+For `dynamo=True`, dynamic dimensions requested through `input` are exported
+with `Dim.AUTO`. If `torch.export` infers tighter bounds, for example a minimum
+spatial size, request a shape within them, such as `Dimension(16, -1)`. Pass a
+single list argument as `(list_of_tensors,)` and use distinct tensor objects for
+separate example inputs. Repeated tensor objects are rejected because
+`torch.export` can specialize their aliasing.
 
 ### Context-manager scopes in exported models
 
