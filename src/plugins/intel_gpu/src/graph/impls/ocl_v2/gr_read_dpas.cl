@@ -6,8 +6,8 @@
 //   phase 1  inv_rms[row, c] of the branch-wise RMSNorm                       -> SLM
 //   phase 2  t = SiLU(Rbar @ W_down^T / C) (+ write gate S as an extra tile)  -> SLM (dpas A-operand slots)
 //   phase 3  mixed = (1/C) sum_c sigmoid(t @ W_up^T)[c] * Rbar[c]             -> global
-// Rbar is never materialized: phase 2 scales the raw residual by the gain in half precision and applies inv_rms to the
-// f32 accumulator once per branch; phase 3 recomputes Rbar in f32. The accumulator layout of a dpas (token i in
+// Rbar is never materialized: phase 2 normalizes each residual A tile in f32 (inv_rms from SLM, then the gain) and rounds it
+// once to half, as gr_rbar does; phase 3 recomputes Rbar in f32. The accumulator layout of a dpas (token i in
 // component i, column n in lane n) is already the A-operand layout of the next one, so t only needs an SLM slot
 // of 8 tokens x 16 low-rank values per (token tile, K16 block).
 // The residual tiles come through 2D block reads (a whole TM x K32 A tile per message, rows past the end read 0); W rows
@@ -76,25 +76,25 @@
 #define GR_P2_LOAD(AT, GE, GS, B, KK) { GR_RD2D(GR_RD_TM, residual, GR_CD * 2, num_rows, GR_CD * 2, (KK), t0, AT); GR_P2_GAIN(GE, GS, KK); unroll_for (uint j_ = 0; j_ < GR_RD_NT; j_++) { GR_P2_LDB(B[j_], j_, KK); } }
 #endif
 
-#define GR_P2_SCALE(v, ge, go) as_short8(as_half8(v) * (half8)(ge, go, ge, go, ge, go, ge, go))
+// Rbar of 8 token rows (component i = token i, lane = k) in f32, rounded once: the gr_rbar formula, so the A operand stays
+// finite whenever Rbar does (|R * inv_rms| <= sqrt(D), whereas R * gain alone can overflow half).
+#define GR_P2_SCALE(v, inv, g) as_short8(convert_half8_rte((convert_float8(as_half8(v)) * (inv)) * (g)))
 
-// ... and its dpas: A = half(R * gain) (rounded in half precision), two K16 slices, slice 0 first
+// ... and its dpas: A = Rbar of branch c (inv_rms of its rows in invv), two K16 slices, slice 0 first
 #define GR_P2_MMA(AT, GE, GS, B)                                                                                                   \
     {                                                                                                                              \
-        const half g0e_ = GR_G0E(GE, GS);                                                                                          \
-        const half g0o_ = GR_G0O(GE, GS);                                                                                          \
-        const half g1e_ = GR_G1E(GE, GS);                                                                                          \
-        const half g1o_ = GR_G1O(GE, GS);                                                                                          \
+        const float g0_ = convert_float(GR_G0E(GE, GS));                                                                           \
+        const float g1_ = convert_float(GR_G1E(GE, GS));                                                                           \
         unroll_for (uint m_ = 0; m_ < GR_MT; m_++) {                                                                               \
-            const short8 av_ = GR_P2_SCALE(vload8(m_, (AT)), g0e_, g0o_);                                                          \
+            const short8 av_ = GR_P2_SCALE(vload8(m_, (AT)), invv[m_], g0_);                                                       \
             unroll_for (uint j_ = 0; j_ < GR_RD_NT; j_++) {                                                                        \
-                accc[j_ * GR_MT + m_] = GR_MAD(av_, as_int8((B)[j_].lo), accc[j_ * GR_MT + m_]);                                   \
+                acc[j_ * GR_MT + m_] = GR_MAD(av_, as_int8((B)[j_].lo), acc[j_ * GR_MT + m_]);                                     \
             }                                                                                                                      \
         }                                                                                                                          \
         unroll_for (uint m_ = 0; m_ < GR_MT; m_++) {                                                                               \
-            const short8 av_ = GR_P2_SCALE(vload8(GR_MT + m_, (AT)), g1e_, g1o_);                                                  \
+            const short8 av_ = GR_P2_SCALE(vload8(GR_MT + m_, (AT)), invv[m_], g1_);                                               \
             unroll_for (uint j_ = 0; j_ < GR_RD_NT; j_++) {                                                                        \
-                accc[j_ * GR_MT + m_] = GR_MAD(av_, as_int8((B)[j_].hi), accc[j_ * GR_MT + m_]);                                   \
+                acc[j_ * GR_MT + m_] = GR_MAD(av_, as_int8((B)[j_].hi), acc[j_ * GR_MT + m_]);                                     \
             }                                                                                                                      \
         }                                                                                                                          \
     }
@@ -212,7 +212,7 @@ KERNEL(gr_read_dpas)(const __global ushort* residual,
     barrier(CLK_LOCAL_MEM_FENCE);
 
     // Phase 2: down projection, GR_RD_NT low-rank tiles (or the write-gate tile) per task.
-    //   acc += inv_rms[:, c] * ((R[:, c] * gain[c]) @ W[:, c]^T)   per branch c
+    //   acc += half((R[:, c] * inv_rms[:, c]) * gain[c]) @ W[:, c]^T   per branch c
     for (uint task = sg; task < GR_TASKS; task += GR_WG_SIZE) {
 #if GR_PRODUCE_WRITE_GATE
         const bool is_wgate = task == GR_TASKS - 1;
@@ -258,10 +258,10 @@ KERNEL(gr_read_dpas)(const __global ushort* residual,
             acc[i] = (float8)(0.0f);
         }
         for (uint c = 0; c < GR_BRANCHES; c++) {
-            float8 accc[GR_RD_NT * GR_MT];
+            float8 invv[GR_MT];
 #pragma unroll
-            for (uint i = 0; i < GR_RD_NT * GR_MT; i++) {
-                accc[i] = (float8)(0.0f);
+            for (uint m = 0; m < GR_MT; m++) {
+                invv[m] = vload8(0, slm_inv + c * GR_RD_TM + m * 8);
             }
             const uint kbeg = c * GR_HIDDEN;
             const uint kend = kbeg + GR_HIDDEN;
@@ -296,18 +296,6 @@ KERNEL(gr_read_dpas)(const __global ushort* residual,
                 }
             }
 #endif
-            float8 invv[GR_MT];
-#pragma unroll
-            for (uint m = 0; m < GR_MT; m++) {
-                invv[m] = vload8(0, slm_inv + c * GR_RD_TM + m * 8);
-            }
-#pragma unroll
-            for (uint m = 0; m < GR_MT; m++) {
-#pragma unroll
-                for (uint j = 0; j < GR_RD_NT; j++) {
-                    acc[j * GR_MT + m] += accc[j * GR_MT + m] * invv[m];
-                }
-            }
         }
 
         const float inv_c = GR_INV_C;

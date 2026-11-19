@@ -315,10 +315,11 @@ void add_wq_format_constants(JitConstants& jit, const RuntimeParams& params) {
     jit.make("GR_HAS_ZP", gr_read_layout(params).has_zp ? 1 : 0);
 }
 
-/// Float as an OpenCL C literal with full single precision (an unsuffixed literal would be a double).
+/// Float as an OpenCL C literal with full single precision (an unsuffixed literal would be a double). Always in exponent
+/// notation: "%g" prints integral values without a decimal point ("1f"), which is not a floating constant.
 JitConstant float_constant(const std::string& name, float value) {
     char buf[64];
-    std::snprintf(buf, sizeof(buf), "%.9gf", static_cast<double>(value));
+    std::snprintf(buf, sizeof(buf), "%.9ef", static_cast<double>(value));
     return JitConstant(name, buf);
 }
 

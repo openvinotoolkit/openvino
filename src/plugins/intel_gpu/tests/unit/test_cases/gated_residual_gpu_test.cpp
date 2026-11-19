@@ -855,6 +855,159 @@ std::vector<float> reference_write(size_t rows,
     return ref;
 }
 
+// --- input range and JIT constants: every READ route against the fp32 reference ----------------------------------------------
+
+/// kConst256: residual = gain = 256 with zero weights, i.e. mixed = 0.5 * Rbar = 128 and write gate = 1 exactly, while R * gain
+/// (65536) does not fit in half. kLarge: random residual up to 2048 and gain in [24, 40], R * gain up to ~82k, random weights.
+enum class GrInput { kNormal, kLarge, kConst256 };
+
+struct gr_range_case {
+    size_t rows;  // 0: enough rows for the single kernel (also above the compressed predequantization threshold)
+    size_t L;     // 16 keeps the scalar gr_read.cl
+    bool write_gate;
+    bool u4;  // compressed W_down / W_up / W_inject (u4, group 32, zp), otherwise f16
+    GrInput input;
+    float eps;
+    std::string path;  // GPU_GR_KERNEL_SELECTION, empty = automatic routing
+};
+
+class gated_residual_read_range_test : public ::testing::TestWithParam<gr_range_case> {};
+
+TEST_P(gated_residual_read_range_test, matches_fp32_reference) {
+    const auto tc = GetParam();
+    if (!(tc.u4 ? gr_compression_available() : gr_available())) {
+        GTEST_SKIP() << "GatedResidual (with compressed weights) is not available on this device";
+    }
+#ifndef GPU_DEBUG_CONFIG
+    if (!tc.path.empty()) {
+        GTEST_SKIP() << "GPU_GR_KERNEL_SELECTION is a debug option";
+    }
+#endif
+    const size_t D = 64;
+    if (!caps::is_geometry_supported(gated_residual::Mode::READ, kBranches, D, tc.L, gr_systolic())) {
+        GTEST_SKIP() << "the geometry needs the systolic READ kernels";
+    }
+    gr_ref_params p;
+    p.rows = tc.rows != 0 ? tc.rows : std::max(4 * static_cast<size_t>(get_test_engine().get_device_info().execution_units_count), pd_min_rows()) + 37;
+    p.D = D;
+    p.L = tc.L;
+    p.eps = tc.eps;
+    const size_t CD = p.C * p.D;
+
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    std::mt19937 gen(4321 + static_cast<uint32_t>(p.rows + tc.L));
+    std::vector<float> residual;
+    std::vector<float> gain;
+    switch (tc.input) {
+    case GrInput::kNormal:
+        residual = random_vec(rg, p.rows * CD, 1.0f);
+        gain = random_vec(rg, CD, 0.5f, 1.0f);
+        break;
+    case GrInput::kLarge:
+        residual = random_vec(rg, p.rows * CD, 2048.0f);
+        gain = random_vec(rg, CD, 8.0f, 32.0f);
+        break;
+    case GrInput::kConst256:
+        residual.assign(p.rows * CD, 256.0f);
+        gain.assign(CD, 256.0f);
+        break;
+    }
+    const bool zero_weights = tc.input == GrInput::kConst256;
+
+    // [N, K] weights: f16 values and, for u4, the matching compressed matrix (q == zp for zero weights)
+    auto make_weight = [&](size_t N, size_t K, std::vector<float>& values, std::vector<memory::ptr>& q_inputs) {
+        auto& engine = get_test_engine();
+        if (!tc.u4) {
+            values = zero_weights ? std::vector<float>(N * K, 0.0f) : random_vec(rg, N * K, 0.1f);
+            return make_f16(engine, {static_cast<int64_t>(N), static_cast<int64_t>(K)}, values);
+        }
+        auto m = make_quant_matrix(gen, N, K, /*u4=*/true);
+        if (zero_weights) {
+            for (size_t n = 0; n < N; n++) {
+                for (size_t k = 0; k < K; k++) {
+                    m.q[n * K + k] = m.zp[(k / (K / m.G)) * N + n];
+                    m.dequant[n * K + k] = 0.0f;
+                }
+            }
+        }
+        values = m.dequant;
+        q_inputs.push_back(make_quant_scale(engine, m));
+        q_inputs.push_back(make_quant_zp(engine, m));
+        return make_quant_weights(engine, m);
+    };
+    std::vector<float> wd, wu, wi;
+    std::vector<memory::ptr> sz_dn, sz_up, sz_inj;  // [scale, zp] of each compressed matrix
+    std::vector<memory::ptr> weights = {make_weight(p.L, CD, wd, sz_dn), make_weight(CD, p.L, wu, sz_up)};
+    if (tc.u4) {
+        weights.insert(weights.end(), {sz_dn[0], sz_up[0], sz_dn[1], sz_up[1]});
+    }
+    if (tc.write_gate) {
+        weights.push_back(make_weight(p.C, CD, wi, sz_inj));
+        weights.insert(weights.end(), sz_inj.begin(), sz_inj.end());
+    }
+
+    std::vector<float> ref_mixed;
+    std::vector<float> ref_gate;
+    reference_read(p, residual, gain, wd, wu, tc.write_gate ? &wi : nullptr, ref_mixed, ref_gate);
+    const auto run = run_gr_read(p, residual, gain, weights, tc.write_gate, tc.path);
+    if (gr_systolic() && (tc.path == "single" || (tc.path.empty() && tc.rows == 0))) {
+        ASSERT_FALSE(run.stages.empty());
+        EXPECT_EQ(run.stages.back(), "READ_DPAS");
+    }
+
+    auto check = [](const std::vector<ov::float16>& out, const std::vector<float>& ref, const char* what) {
+        ASSERT_EQ(out.size(), ref.size());
+        float err = 0.0f;
+        for (size_t i = 0; i < ref.size(); i++) {
+            const float v = static_cast<float>(out[i]);
+            ASSERT_TRUE(std::isfinite(v)) << what << " is not finite at " << i;
+            ASSERT_NEAR(v, ref[i], 2e-2f + 4e-3f * std::abs(ref[i])) << what << " mismatch at " << i;
+            err = std::max(err, std::abs(v - ref[i]));
+        }
+        std::cout << " " << what << "_err=" << err;
+    };
+    std::cout << "GR_RANGE rows=" << p.rows << " L=" << p.L << " eps=" << p.eps << " stages=";
+    for (const auto& s : run.stages) {
+        std::cout << s << ",";
+    }
+    check(run.mixed, ref_mixed, "mixed");
+    if (tc.write_gate) {
+        check(run.gate, ref_gate, "gate");
+    }
+    std::cout << std::endl;
+}
+
+std::string gr_range_case_name(const ::testing::TestParamInfo<gr_range_case>& info) {
+    const auto& c = info.param;
+    static const char* inputs[] = {"normal", "large", "const256"};
+    std::ostringstream name;
+    name << (c.rows == 0 ? std::string("single_rows") : "rows" + std::to_string(c.rows)) << "_L" << c.L << (c.write_gate ? "_gate" : "")
+         << (c.u4 ? "_u4" : "_f16") << "_" << inputs[static_cast<int>(c.input)] << "_eps" << static_cast<int>(c.eps >= 1.0f ? c.eps : 0.0f)
+         << (c.path.empty() ? "" : "_" + c.path);
+    return name.str();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         gated_residual_read_range_test,
+                         ::testing::Values(
+                             // R * gain beyond the f16 range, Rbar within it
+                             gr_range_case{0, 32, true, false, GrInput::kConst256, 1e-6f, ""},   // single kernel
+                             gr_range_case{0, 32, false, false, GrInput::kConst256, 1e-6f, ""},  // single kernel, no write gate
+                             gr_range_case{0, 32, false, true, GrInput::kConst256, 1e-6f, ""},   // u4: predequantized single kernel
+                             gr_range_case{0, 32, true, false, GrInput::kLarge, 1e-6f, ""},      // single kernel
+                             gr_range_case{0, 32, false, true, GrInput::kLarge, 1e-6f, ""},      // u4: predequantized single kernel
+                             gr_range_case{0, 32, true, false, GrInput::kLarge, 1e-6f, "ocl3"},  // pipeline on the same rows
+                             gr_range_case{300, 32, true, false, GrInput::kLarge, 1e-6f, "single"},
+                             gr_range_case{17, 32, true, false, GrInput::kLarge, 1e-6f, ""},  // pipeline, decode tiling
+                             gr_range_case{37, 16, true, false, GrInput::kLarge, 1e-6f, ""},  // scalar gr_read
+                             // integral epsilon values ("1f" is not an OpenCL floating constant)
+                             gr_range_case{0, 32, true, false, GrInput::kNormal, 1.0f, ""},    // single kernel
+                             gr_range_case{17, 32, true, false, GrInput::kNormal, 1.0f, ""},   // pipeline
+                             gr_range_case{5, 16, true, false, GrInput::kNormal, 100.0f, ""},  // scalar gr_read
+                             gr_range_case{3, 32, false, true, GrInput::kNormal, 1.0f, ""}),   // u4 gemv
+                         gr_range_case_name);
+
 struct gr_write_case {
     size_t rows;
     size_t D;
