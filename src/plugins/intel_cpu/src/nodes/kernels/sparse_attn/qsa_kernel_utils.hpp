@@ -450,8 +450,8 @@ void score_run(const float* q, const T* rows, size_t n, size_t G, size_t D, floa
         score_rows<kScoreRows>(q, row, G, D, scores + i);
     }
     for (; i < n; i++) {
-        const float* const row = row_as_f32(rows + i * D, D, stage);
-        score_rows<1>(q, &row, G, D, scores + i);
+        const float* const row[1] = {row_as_f32(rows + i * D, D, stage)};
+        score_rows<1>(q, row, G, D, scores + i);
     }
 }
 

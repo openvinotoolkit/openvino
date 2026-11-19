@@ -100,7 +100,7 @@ private:
     /// u8/u4 caches. The attention kernel only reads the caches, so this is its barrier-separated first phase.
     /// @param scratch at least writeKVScratchBytes() bytes, 64-byte aligned: the slot mapping and the by-channel
     /// requantization buffer live there, not in the node
-    void writeKV(uint8_t* scratch);
+    void writeKV(const MemoryPtr& scratch);
     /// @brief Bytes of the slot mapping of `tokens` tokens in the scratch of writeKV(), aligned to keep what follows it
     /// aligned.
     [[nodiscard]] static size_t writeKVSlotMappingBytes(size_t tokens);
