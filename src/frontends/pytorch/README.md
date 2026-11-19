@@ -92,8 +92,6 @@ module's path, and the FX node name distinguishes repeated operations.
 
 Nodes without a non-empty module path retain names without that prefix.
 This does not change input/output tensor names or TorchScript conversion names.
-When FX metadata identifies OpenVINO's export output wrapper, its
-`wrapped_model` path is omitted; a user-defined module with that name is kept.
 Subsequent graph optimizations may fuse or replace operations, so names do not
 guarantee a one-to-one mapping to the original graph.
 
