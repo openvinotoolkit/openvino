@@ -23,7 +23,7 @@ protected:
     JitConstants GetJitConstants(const cum_sum_params& params, DispatchData dispatchData) const override;
     KernelsData GetMultiStageKernelsData(const Params& params) const;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
-    MultiDispatchData SetDefaultForMulti(const cum_sum_params& params) const;
+    static MultiDispatchData SetDefaultForMulti(const cum_sum_params& params);
     KernelsData GetKernelsData(const Params& params) const override;
 };
 }  // namespace kernel_selector

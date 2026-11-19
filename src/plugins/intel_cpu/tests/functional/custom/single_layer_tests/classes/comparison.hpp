@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <optional>
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -21,7 +22,8 @@ using ComparisonLayerCPUTestParamSet =
                ov::test::utils::InputLayerType,    // Second input type
                ov::element::Type,                  // Model precision
                ov::element::Type,                  // Infer precision
-               bool>;                              // Enforce Snippets
+               bool,                               // Enforce Snippets
+               std::optional<ov::test::utils::InputGenerateData>>;  // Value window for i32 inputs
 
 class ComparisonLayerCPUTest : public testing::WithParamInterface<ComparisonLayerCPUTestParamSet>,
                                virtual public ov::test::SubgraphBaseTest,
@@ -31,9 +33,12 @@ public:
 
 protected:
     void SetUp() override;
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 
 private:
     std::string getPrimitiveType(const utils::ComparisonTypes& comparison_type, ov::element::Type modelType) const;
+
+    std::optional<ov::test::utils::InputGenerateData> i32Window;
 };
 
 namespace comparison {
