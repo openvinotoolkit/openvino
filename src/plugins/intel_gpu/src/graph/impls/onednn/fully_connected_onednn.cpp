@@ -50,13 +50,16 @@ static std::pair<dnnl::memory::format_tag, dnnl::memory::format_tag> get_matmul_
 // so the shape-agnostic primitive is always built as a 2D matmul.
 static layout flatten_layout_to_2d(const layout& l, size_t logical_rank) {
     auto pshape = l.get_partial_shape();
-    if (logical_rank > 0 && pshape.size() > logical_rank)
+    if (logical_rank > 0 && pshape.size() > logical_rank) {
         pshape.resize(logical_rank);
-    if (pshape.size() == 1)
+    }
+    if (pshape.size() == 1) {
         pshape = ov::PartialShape{1, pshape[0]};
+    }
     ov::Dimension m = 1;
-    for (size_t i = 0; i + 1 < pshape.size(); i++)
+    for (size_t i = 0; i + 1 < pshape.size(); i++) {
         m = m * pshape[i];
+    }
     return layout(ov::PartialShape{m, pshape[pshape.size() - 1]}, l.data_type, format::bfyx);
 }
 
@@ -456,8 +459,9 @@ public:
         // Attributes of dynamic nodes are not initialized with the user scratchpad mode, so set it here
         // to allocate the scratchpad from the plugin's memory pool. The attributes may be shared by concurrent
         // create() calls (async compilation and the synchronous fallback), so write only when needed.
-        if (attr->get_scratchpad_mode() != dnnl::scratchpad_mode::user)
+        if (attr->get_scratchpad_mode() != dnnl::scratchpad_mode::user) {
             attr->set_scratchpad_mode(dnnl::scratchpad_mode::user);
+        }
         auto prim = impl_params.typed_desc<fully_connected>();
         int group_size = 0;
         dnnl::memory::data_type ds_data_type = dnnl::memory::data_type::undef;
@@ -571,8 +575,9 @@ std::unique_ptr<primitive_impl> FullyConnectedImplementationManager::create_impl
     // produce a fixed-shape primitive that is then cached and reused for other shapes.
     // The shape-agnostic check is repeated here because validate_impl() is skipped for forced implementations.
     if (get_shape_type() == shape_types::dynamic_shape &&
-        (ImplementationManager::get_shape_type(params) != shape_types::dynamic_shape || !supports_shape_agnostic_impl(node)))
+        (ImplementationManager::get_shape_type(params) != shape_types::dynamic_shape || !supports_shape_agnostic_impl(node))) {
         return nullptr;
+    }
     return onednn::fully_connected_onednn::create(static_cast<const fully_connected_node&>(node), params);
 }
 
