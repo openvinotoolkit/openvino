@@ -4,7 +4,7 @@
 
 // xe_hpg (DG2) PA PREFILL kernel, f16 head 64 / 96 / 128 / 256 / 512 (k == v), with or without a sliding window, a sink and
 // token_type_ids, which also serves PA MIXED on an f16 cache (without token_type_ids) and plain SDPA without causality
-// (also at heads 40 / 72 / 80 / 160), with or without an attention mask (HPG_PA_PREFILL, set by the host: SDPAOclGenerator's hpg_pa_prefill_ok() /
+// (heads 32-256 in steps of 8 and 512), with or without an attention mask (HPG_PA_PREFILL, set by the host: SDPAOclGenerator's hpg_pa_prefill_ok() /
 // hpg_plain_prefill_ok()). Included by sdpa_ocl.cl in place of its own kernel, after the config and loader headers. The loop is sdpa_ocl.cl's (online softmax over workgroup key tiles,
 // causal and window bounds, S_max_slm / S_sum_slm exchange); what differs is built around the SG8 operand forms that keep
 // DG2's DPAS fed:
@@ -47,7 +47,7 @@
 // The S*V subgroup of sg_ij owns the 16 queries of its KQ subgroup, 32 for a compressed MIXED at heads 64 / 96 / 128 /
 // 256 (sv_sg_per_wg_values == kq_sg_per_wg_keys, the score tile is the KQ query tile), and each holds 16 or 32 value
 // columns of the head, 8 in that MIXED at head 64 (hpg_pa_prefill_tiling()). The head need not
-// be a power of two (96, 80, 160) nor a multiple of 16: plain SDPA at heads 72 and 40 (HPG_TAIL = 8) has a last depth tile
+// be a power of two (96, 80, 160) nor a multiple of 16: plain SDPA at heads such as 72 and 40 (HPG_TAIL = 8) has a last depth tile
 // of 8 depths (K and Q read 16 B there and the rest is zero) and a last value subgroup of 8 columns, which reads the 16
 // columns that end the head and stores its upper 8 (sv_col below), so no load leaves the head.
 #define HPG_TAIL (K_HEAD_SIZE % DPAS_K)
