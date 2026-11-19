@@ -277,12 +277,18 @@ kernels_cache::kernels_cache(engine& engine,
                              uint32_t prog_id,
                              std::shared_ptr<ov::threading::ITaskExecutor> task_executor,
                              const std::map<std::string, std::string>& batch_headers)
-    : _device(engine.get_device())
-    , _builder(engine.create_kernel_builder())
+    : _engine(engine)
+    , _device(engine.get_device())
     , _task_executor(task_executor)
     , _config(config)
     , _prog_id(prog_id)
     , batch_headers(std::move(batch_headers)) { }
+
+void kernels_cache::ensure_builder() {
+    std::call_once(_builder_init_once, [this] {
+        _builder = _engine.create_kernel_builder();
+    });
+}
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 // GRF size in bytes of the device. It is needed to locate the end of the host kernel thread payload when checking that
@@ -349,6 +355,7 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
         precompiled = ov::util::load_binary(ov::util::make_path(cached_bin_name));
     }
     std::vector<kernel::ptr> kernels;
+    ensure_builder();
     if (!precompiled.empty()) {
         _builder->build_kernels(precompiled.data(), precompiled.size(), KernelFormat::NATIVE_BIN, "", kernels);
     } else {
@@ -622,6 +629,7 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
 
         for (auto& precompiled_kernel : precompiled_kernels) {
             std::vector<kernel::ptr> kernels;
+            ensure_builder();
             _builder->build_kernels(precompiled_kernel.second.data(), precompiled_kernel.second.size(), KernelFormat::NATIVE_BIN, "", kernels);
             for (auto& k : kernels) {
                 const auto& entry_point = k->get_id();
