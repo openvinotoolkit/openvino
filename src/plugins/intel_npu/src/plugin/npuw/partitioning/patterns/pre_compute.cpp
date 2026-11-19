@@ -118,6 +118,11 @@ bool is_valid_longrope_frequency_input(const ov::Output<ov::Node>& input) {
     return shape.is_static() && shape.rank() == 3 && shape[0] == 1 && shape[2] == 1;
 }
 
+bool is_valid_longrope_frequency_concat(const std::shared_ptr<ov::Node>& input) {
+    return ov::is_type<ov::op::v0::Concat>(input) && input->get_input_size() == 2 &&
+           input->input_value(0) == input->input_value(1);
+}
+
 void replaceSinCosByCache(int max_prompt_len, const ov::OutputVector& cache, const pre_compute::RopePatternDesc* rpe) {
     auto inv_freq_size = ov::shape_size(rpe->matched_inv_freq->get_shape());
 
@@ -313,7 +318,8 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi::LongRopePatternPhi() : matc
         this->matched_sin = map_sin.at(output_sin).get_node_shared_ptr();
 
         if (!matched_concat &&
-            !is_valid_longrope_frequency_input(map_sin.at(matmul).get_node_shared_ptr()->input_value(0))) {
+            (!is_valid_longrope_frequency_input(map_sin.at(matmul).get_node_shared_ptr()->input_value(0)) ||
+             !is_valid_longrope_frequency_concat(matched_sin->input_value(0).get_node_shared_ptr()))) {
             this->accept_match = false;
             return;
         }
@@ -402,7 +408,8 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi_v5::LongRopePatternPhi_v5() 
         this->matched_sin = map_sin.at(output_sin).get_node_shared_ptr();
 
         if (!matched_concat &&
-            !is_valid_longrope_frequency_input(map_sin.at(matmul).get_node_shared_ptr()->input_value(0))) {
+            (!is_valid_longrope_frequency_input(map_sin.at(matmul).get_node_shared_ptr()->input_value(0)) ||
+             !is_valid_longrope_frequency_concat(matched_sin->input_value(0).get_node_shared_ptr()))) {
             this->accept_match = false;
             return;
         }
