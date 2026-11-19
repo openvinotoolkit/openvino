@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "could not connect to archive ubuntu com connection timed out unable to correct problems you have held broken packages|Network",
+  "signature_hash": "fc0796927d3b3f4c",
+  "title": "ARM64 cross-compilation Docker image build fails - apt-get cannot reach archive.ubuntu.com (connection timeout)",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-11-19T12:25:18Z",
+  "last_seen": "2026-11-19T12:25:18Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/44521012071"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38775"
+  ],
+  "recent_timestamps": [
+    "2026-11-19T12:25:18Z"
+  ],
+  "rerun_search_string": "Unable to correct problems, you have held broken packages"
+}

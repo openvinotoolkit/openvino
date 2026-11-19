@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-19-12-25-18-939-44521012071",
+  "timestamp": "2026-11-19T12:25:18Z",
+  "run_id": "44521012071",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44521012071",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "38775",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38775",
+  "author": "gkoscins",
+  "category": "Network",
+  "title": "ARM64 cross-compilation Docker image build fails - apt-get cannot reach archive.ubuntu.com (connection timeout)",
+  "signature": "could not connect to archive ubuntu com connection timed out unable to correct problems you have held broken packages|Network",
+  "signature_hash": "fc0796927d3b3f4c",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Docker",
+      "conclusion": "failure",
+      "symptom": "docker buildx build of ubuntu_22_04_arm64_cross_compilation image failed during apt-get install because archive.ubuntu.com/security.ubuntu.com could not be reached, leaving packages unconfigured ('held broken packages')"
+    }
+  ],
+  "key_errors": [
+    "#13 214.7 W: Failed to fetch http://archive.ubuntu.com/ubuntu/dists/jammy/InRelease  Could not connect to archive.ubuntu.com:80 (185.125.190.83), connection timed out Could not connect to archive.ubuntu.com:80 (91.189.91.82)",
+    "#13 214.7 W: Failed to fetch http://security.ubuntu.com/ubuntu/dists/jammy-security/InRelease  Could not connect to security.ubuntu.com:80 (91.189.91.81), connection timed out",
+    "#13 215.8 software-properties-common : Depends: ca-certificates but it is not going to be installed",
+    "#13 215.8 E: Unable to correct problems, you have held broken packages.",
+    "ERROR: failed to solve: process \"/bin/bash -eo pipefail -c dpkg --add-architecture arm64 && apt-get update && apt-get install software-properties-common && ...\" did not complete successfully: exit code: 100",
+    "RuntimeError: Command 'docker buildx build --builder=builder-... --file .github/dockerfiles/ov_build/ubuntu_22_04_arm64_cross_compilation/Dockerfile ...' (.github/actions/handle_docker/helpers.py:68)",
+    "##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The 'Docker' job builds the ubuntu_22_04_arm64_cross_compilation image via `docker buildx build`. During the apt-get layer (Dockerfile line 24), the runner's network could not reach archive.ubuntu.com / security.ubuntu.com over port 80 (both timed out across several mirror IPs). apt silently continued after the index-fetch warnings, but then failed to resolve package dependencies (e.g. software-properties-common -> ca-certificates, python3, gir1.2-*) because those package lists were stale/incomplete, producing 'held broken packages' and exit code 100. This is an outage/flakiness of the upstream Ubuntu mirror infrastructure reachable from the GitHub-hosted runner's network path, not a problem with the Dockerfile or PR changes (the PR only touches RISC-V dockerfiles/workflows, not this ARM64 cross-compilation image).",
+  "reproduction_steps": "Not reliably reproducible locally since it depends on transient network conditions on the GitHub Actions runner. To reproduce the failure mode: run `docker buildx build --file .github/dockerfiles/ov_build/ubuntu_22_04_arm64_cross_compilation/Dockerfile ...` while archive.ubuntu.com/security.ubuntu.com are unreachable (e.g., simulate with a firewall rule blocking port 80 to those hosts) and observe the same 'held broken packages' failure during the apt-get install layer.",
+  "recommended_actions": [
+    "Re-run the failed 'Docker' job / re-run failed jobs for this workflow run - this is very likely a transient upstream mirror outage.",
+    "If failures persist across multiple reruns, consider adding retry logic (e.g. apt-get with --fix-missing and retries, or a mirror fallback) to the ARM64 cross-compilation Dockerfile's apt-get layer.",
+    "Monitor whether archive.ubuntu.com/security.ubuntu.com reachability issues recur; if so, consider caching/mirroring Ubuntu package lists in the internal Azure Container Registry build cache to reduce dependency on the public mirror during builds."
+  ],
+  "prevention_strategies": "Add apt retry/backoff logic (Acquire::Retries, --fix-missing) around network-sensitive apt-get layers in Dockerfiles used for ARM64/RISC-V cross-compilation image builds, and consider pre-baking a known-good base layer with required packages into the internal registry to reduce reliance on live reachability of public Ubuntu mirrors during merge-queue CI.",
+  "historical_context": "Multiple prior merge-queue investigations recorded similar apt-get/archive.ubuntu.com or azure.archive.ubuntu.com connectivity failures in other jobs (e.g. patterns 7d2e2ff59d37c6b4 'Debian Packages job fails - apt-get cannot reach azure.archive.ubuntu.com' seen 9 times, d734e6d0da3ffc69 DNS resolution failures seen 8 times), confirming recurring flakiness of Ubuntu package mirror reachability from GitHub-hosted runners across several different jobs/workflows. This is the first recorded occurrence of the signature affecting the ARM64 cross-compilation Docker image build specifically (archive.ubuntu.com rather than azure.archive.ubuntu.com, and manifesting as 'held broken packages' rather than a direct fetch failure)."
+}
