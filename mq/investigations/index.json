@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 488,
+  "total": 489,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -5313,6 +5313,15 @@
       "category": "Network",
       "signature_hash": "7ea1f05d2ab70199",
       "pr_number": "38775"
+    },
+    {
+      "investigation_id": "2026-11-19-15-25-24-000-44533984845",
+      "run_id": "44533984845",
+      "timestamp": "2026-11-19T15:25:24Z",
+      "title": "LLM accuracy GPU tests fail with HuggingFace 429 Too Many Requests",
+      "category": "External Service",
+      "signature_hash": "77096fab85d0c146",
+      "pr_number": "39439"
     }
   ]
 }

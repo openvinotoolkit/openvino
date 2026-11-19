@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-19-15-25-24-000-44533984845",
+  "timestamp": "2026-11-19T15:25:24Z",
+  "run_id": "44533984845",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44533984845",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "39439",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39439",
+  "author": "arshil42",
+  "category": "External Service",
+  "title": "LLM accuracy GPU tests fail with HuggingFace 429 Too Many Requests",
+  "signature": "httpx HTTPStatusError Client error 429 Too Many Requests for url huggingface.co api models tree|External Service",
+  "signature_hash": "77096fab85d0c146",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "LLM accuracy iGPU tests / LLM accuracy GPU tests",
+      "conclusion": "failure",
+      "symptom": "Qwen/Qwen2-0.5B-Instruct INT8/INT4 GPU accuracy tests failed fetching model metadata from HuggingFace Hub."
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_24",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed because the upstream LLM accuracy GPU tests job failed."
+    }
+  ],
+  "key_errors": [
+    "tests/llm/accuracy_conformance.py::test_accuracy_conformance[Qwen/Qwen2-0.5B-Instruct-INT8-GPU] FAILED [ 75%]",
+    "tests/llm/accuracy_conformance.py::test_accuracy_conformance[Qwen/Qwen2-0.5B-Instruct-INT4-GPU] FAILED [100%]",
+    "httpx.HTTPStatusError: Client error '429 Too Many Requests' for url 'https://huggingface.co/api/models/Qwen/Qwen2-0.5B-Instruct/tree/c540970f9e29518b1d8f06ab8b24cba66ad77b6d?recursive=true&expand=false'",
+    "FAILED tests/llm/accuracy_conformance.py::test_accuracy_conformance[Qwen/Qwen2-0.5B-Instruct-INT8-GPU] - huggingface_hub.errors.HfHubHTTPError"
+  ],
+  "root_cause": "The HuggingFace Hub API rate-limited (HTTP 429 Too Many Requests) the runner's request for the Qwen/Qwen2-0.5B-Instruct model file tree while running the LLM accuracy GPU test suite. The two preceding TinyLlama test cases passed normally, and the failure is unrelated to the PR's change in src/inference/src/dev/make_tensor.cpp (ROI tensor strides rank fix) and its accompanying core unit test - no code under test in this job touches tensor strides. This is a recurring, previously-seen throttling pattern against huggingface.co (first observed 2026-08-27, PR #37531).",
+  "reproduction_steps": "N/A - not locally reproducible on demand; depends on HuggingFace Hub's live rate limiting for the runner's egress IP/token at test time. Re-running tests/llm/accuracy_conformance.py -k GPU may reproduce it if HF Hub is still throttling.",
+  "recommended_actions": [
+    "Re-run the failed LLM accuracy GPU tests job (requested via automated remediation)",
+    "Consider caching HuggingFace model metadata/tree responses locally or pre-warming the shared HF cache to reduce repeated tree API calls",
+    "Use an authenticated HF token with a higher rate-limit tier for CI runners, and add retry/backoff around huggingface_hub calls in tests/llm/accuracy_conformance.py",
+    "No source change is required in PR #39439 for this failure"
+  ],
+  "prevention_strategies": "Add exponential backoff/retry around HuggingFace Hub API calls used by the LLM accuracy test harness, and consider mirroring frequently used models in an internal cache so CI does not repeatedly hit huggingface.co's tree API. The workflow rerunner already recognizes the '429 Too Many Requests' string and will retry such jobs automatically.",
+  "historical_context": "This exact signature (HuggingFace 429 on model tree lookups during LLM accuracy tests) was previously recorded on 2026-08-27 (run 33081663009, PR #37531). This is now its second occurrence; no escalation threshold (3+ in 12h) has been reached."
+}
