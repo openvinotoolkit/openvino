@@ -49,10 +49,11 @@ bool normalize_single_value(std::vector<T> vec, float& value, bool check_value_r
     return true;
 }
 
-template <class T>
+template <class... T>
 bool has_op_with_type(const std::shared_ptr<const ov::Model>& function) {
+    static_assert(sizeof...(T) > 0, "has_op_with_type requires at least one operation type");
     for (const auto& op : function->get_ops()) {
-        if (ov::as_type_ptr<T>(op)) {
+        if (ov::is_type_any_of<T...>(op)) {
             return true;
         }
     }
