@@ -7,6 +7,7 @@
 #include "data_inst.h"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/primitives/convolution.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
@@ -244,7 +245,25 @@ std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>> propagate_constant
         return {};
     }
 
+    // Weights were already reordered for the impl the main program selected; keep the internal program on the same impl type.
+    // A non-empty force_implementations map would silently re-enable optimize_data, so pin it on the nodes instead.
+    for (const auto& node : nodes) {
+        if (node->is_type<convolution>() && node->get_selected_impl() != nullptr) {
+            node->set_forced_impl_type(node->get_selected_impl()->is_onednn() ? impl_types::onednn : impl_types::ocl);
+        }
+    }
+
     ExecutionConfig cf_config = config.clone();
+    // finalize() re-enables optimize_data whenever force_implementations is non-empty, so drop entries of nodes outside this program.
+    ov::intel_gpu::ImplForcingMap cf_forcing_map;
+    const auto& forcing_map = config.get_force_implementations();
+    for (const auto& node : nodes) {
+        const auto forced = forcing_map.find(node->id());
+        if (forced != forcing_map.end()) {
+            cf_forcing_map.insert(*forced);
+        }
+    }
+    cf_config.set_property(ov::intel_gpu::force_implementations(cf_forcing_map));
     cf_config.set_property(ov::intel_gpu::optimize_data(false));
     cf_config.set_property(ov::intel_gpu::custom_outputs(const_outputs));
     cf_config.finalize(engine);
