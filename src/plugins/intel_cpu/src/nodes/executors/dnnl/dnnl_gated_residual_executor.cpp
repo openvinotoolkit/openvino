@@ -18,6 +18,7 @@
 
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "cpu_memory.h"
+#    include "cpu_parallel.hpp"
 #    include "cpu_shape.h"
 #    include "dnnl_scratch_pad.h"
 #    include "memory_desc/cpu_memory_desc.h"
@@ -48,33 +49,32 @@ namespace {
 
 using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
 
-// The ISA the JIT kernels are built for (supports() requires AVX2).
 cpu_isa_t targetIsa() {
     return ov::with_cpu_x86_avx512_core() ? dnnl::impl::cpu::x64::avx512_core : dnnl::impl::cpu::x64::avx2;
 }
 
-// For compressed weights oneDNN decompresses only f32 (and natively supported bf16) activations; FC maps the other
-// precisions to f32 too.
+// For compressed weights oneDNN decompresses only f32 and natively supported bf16 activations; FC maps bf16 on other
+// CPUs to f32 too. The node's type mapping runs f16 in f32.
 ov::element::Type gemmPrecision(ov::element::Type data, bool compressed) {
-    if (compressed && (data == ov::element::f16 || (data == ov::element::bf16 && !ov::with_cpu_x86_bfloat16()))) {
+    if (compressed && data == ov::element::bf16 && !ov::with_cpu_x86_bfloat16()) {
         return ov::element::f32;
     }
     return data;
 }
 
-constexpr size_t kMaxTileRows = 512;
-
-// GEMM row count. Tiny M (decode) uses powers of two from 2, so few real rows do not run the epilogues over 16 rows.
-// M=1 is excluded: oneDNN picks a GEMV-specific packed layout for it, while all M >= 2 share one.
+// GEMM row count. oneDNN has a fast path for a single row (its own GEMV-specific weight layout, packed next to the one
+// shared by all M >= 2), and for M >= 5 it prepacks the compressed weights once per call, which beats the in-kernel
+// weight decompression it uses for M = 2..4. So M = 1 is kept as is and M = 2..8 is padded to 8 rows.
 size_t normalize_rows(size_t m) {
-    if (m > 16) {
-        return utils::normalizeRowsBucket(m);
+    constexpr size_t kDecodeRows = 8;
+    constexpr size_t kSmallRows = 16;
+    if (m == 1) {
+        return m;
     }
-    size_t bucket = 2;
-    while (bucket < m) {
-        bucket <<= 1;
+    if (m <= kDecodeRows) {
+        return kDecodeRows;
     }
-    return bucket;
+    return m <= kSmallRows ? kSmallRows : utils::normalizeRowsBucket(m);
 }
 
 struct RmsKernelKey {
@@ -139,20 +139,25 @@ GatedResidualDnnlExecutor::GatedResidualDnnlExecutor(const GatedResidualAttrs& a
 }
 
 size_t GatedResidualDnnlExecutor::maxTileRows() const {
-    // Each tile re-streams the weights, so larger tiles amortize that, up to a scratch budget. brgemm blocks rows by
-    // 128 only for multiples of 128; 512 measured fastest among 256..768.
-    constexpr size_t kMinTileRows = 32;
+    // Every tile re-reads all weights from memory, so larger tiles amortize that, up to a scratch budget. brgemm splits
+    // a GEMM into chunks of 128 rows x 64 output channels that the threads work on, and it blocks rows by 128 only for
+    // multiples of 128. The narrowest GEMM (down, L output channels) limits the parallelism, so a tile takes the most
+    // 128-row blocks that keep its chunk count within one wave of threads; more rows would start a second, partly empty
+    // wave.
     constexpr size_t kBrgemmRowBlock = 128;
+    constexpr size_t kBrgemmChannelBlock = 64;
     constexpr size_t kScratchBudgetBytes = 128UL << 20;
     const size_t C = m_hc_count;
     const size_t CD = C * m_hidden_size;
     const size_t bytes_per_row = (2 * CD) * sizeof(float) + m_lowrank * m_gemm_precision.size() +
                                  (m_produce_write_gate ? C * m_precision.size() : 0) +
                                  (m_gemm_precision != ov::element::f32 ? CD * sizeof(uint16_t) : 0);
-    const size_t tile = std::clamp(kScratchBudgetBytes / bytes_per_row, kMinTileRows, kMaxTileRows);
-    // A small budget falls back to a 32-row granularity.
-    const size_t alignment = tile >= kBrgemmRowBlock ? kBrgemmRowBlock : kMinTileRows;
-    return tile - tile % alignment;
+    const size_t threads = static_cast<size_t>(std::max(1, CpuParallel::get_num_worker_threads()));
+    const size_t channel_chunks = (m_lowrank + kBrgemmChannelBlock - 1) / kBrgemmChannelBlock;
+    // The tile is a whole number of row blocks: as many as one wave of threads can take, within the scratch budget.
+    const size_t blocks_per_wave = std::max<size_t>(1, threads / channel_chunks);
+    const size_t blocks_in_budget = std::max<size_t>(1, kScratchBudgetBytes / (bytes_per_row * kBrgemmRowBlock));
+    return std::min(blocks_per_wave, blocks_in_budget) * kBrgemmRowBlock;
 }
 
 void GatedResidualDnnlExecutor::createProjections(const GatedResidualAttrs& attrs, const MemoryArgs& memory) {

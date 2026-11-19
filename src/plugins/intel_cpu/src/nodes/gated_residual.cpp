@@ -8,6 +8,7 @@
 #include <functional>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
+#include <optional>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -36,6 +37,7 @@
 #include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "shape_inference/shape_inference_status.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
@@ -117,41 +119,18 @@ void GatedResidual::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty()) {
         return;
     }
-    // One data precision for the node, from the residual port; bf16/f16 reach it only where the plugin supports them.
-    // Accumulation is always f32.
-    auto precision = getOriginalInputPrecisionAtPort(0);
-    if (none_of(precision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
-        precision = ov::element::f32;
-    }
-
-    // Compressed weights and their scale / zero-point ports keep their own type: converting them would corrupt the raw
-    // bytes the executor reads.
-    const auto& layout = m_attrs.read_layout;
-    std::set<size_t> native_precision_ports;
-    if (layout.compressed) {
-        native_precision_ports = {layout.w_down, layout.scale_down, layout.w_up, layout.scale_up};
-        if (layout.has_zp) {
-            native_precision_ports.insert(layout.zp_down);
-            native_precision_ports.insert(layout.zp_up);
-        }
-        if (layout.write_gate) {
-            native_precision_ports.insert(layout.w_inject);
-            native_precision_ports.insert(layout.scale_inject);
-            if (layout.has_zp) {
-                native_precision_ports.insert(layout.zp_inject);
-            }
-        }
-    }
-
+    // Every port keeps its original precision; the executor's type mapping picks the ones it runs in.
     const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     MemoryDescArgs descs;
     for (size_t i = 0; i < getParentEdges().size(); ++i) {
-        const auto prc = native_precision_ports.count(i) != 0U ? getOriginalInputPrecisionAtPort(i) : precision;
-        descs[gatedResidualSrcArg(i)] = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prc, getInputShapeAtPort(i));
+        descs[gatedResidualSrcArg(i)] =
+            creatorsMap.at(LayoutType::ncsp)
+                ->createSharedDesc(getOriginalInputPrecisionAtPort(i), getInputShapeAtPort(i));
     }
     for (size_t i = 0; i < getOriginalOutputsNumber(); ++i) {
         descs[gatedResidualDstArg(i)] =
-            creatorsMap.at(LayoutType::ncsp)->createSharedDesc(precision, getOutputShapeAtPort(i));
+            creatorsMap.at(LayoutType::ncsp)
+                ->createSharedDesc(getOriginalOutputPrecisionAtPort(i), getOutputShapeAtPort(i));
     }
 
     // Each projection gets its own context: the private weight cache is keyed by the packed layout only. The
@@ -235,6 +214,31 @@ void GatedResidual::execute([[maybe_unused]] const dnnl::stream& strm) {
     m_executor->execute(m_memory);
 }
 
+ov::element::TypeVector GatedResidual::getSupportedCompressedWeightsTypes() {
+    return {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4};
+}
+
+void GatedResidual::keepCompressedConstantsPrecision(const std::shared_ptr<const ov::Node>& op) {
+    const auto gr = ov::as_type_ptr<const ov::op::internal::GatedResidual>(op);
+    const auto layout = gr ? gr->get_read_layout() : std::nullopt;
+    if (!layout || !layout->compressed) {
+        return;
+    }
+    std::vector<size_t> ports{layout->w_down, layout->w_up};
+    if (layout->has_zp) {
+        ports.insert(ports.end(), {layout->zp_down, layout->zp_up});
+    }
+    if (layout->write_gate) {
+        ports.push_back(layout->w_inject);
+        if (layout->has_zp) {
+            ports.push_back(layout->zp_inject);
+        }
+    }
+    for (const auto port : ports) {
+        ov::enable_keep_const_precision(op->get_input_node_shared_ptr(port));
+    }
+}
+
 bool GatedResidual::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                          std::string& errorMessage) noexcept {
     try {
@@ -316,7 +320,7 @@ bool GatedResidual::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
         for (size_t i = 0; i < op->get_input_size(); i++) {
             const auto et = op->get_input_element_type(i);
             if (weight_ports.count(i) != 0U) {
-                if (none_of(et, ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4)) {
+                if (!contains(getSupportedCompressedWeightsTypes(), et)) {
                     errorMessage = "GatedResidual CPU implementation only supports u8/i8/u4/i4 compressed weights.";
                     return false;
                 }
@@ -331,7 +335,7 @@ bool GatedResidual::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
                 continue;
             }
             if (zero_point_ports.count(i) != 0U) {
-                if (none_of(et, ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4)) {
+                if (!contains(getSupportedCompressedWeightsTypes(), et)) {
                     errorMessage = "GatedResidual CPU implementation only supports u8/i8/u4/i4 weight decompression "
                                    "zero-points.";
                     return false;

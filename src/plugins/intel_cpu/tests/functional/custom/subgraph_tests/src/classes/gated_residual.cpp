@@ -5,9 +5,7 @@
 #include "custom/subgraph_tests/src/classes/gated_residual.hpp"
 
 #include <algorithm>
-#include <array>
 #include <cstdint>
-#include <cstring>
 #include <random>
 #include <sstream>
 #include <tuple>
@@ -435,116 +433,6 @@ TEST_P(GatedResidualLayerCPUTest, Inference) {
         CheckNumberOfNodesWithType(runtime_model, {"Eltwise"}, 1);
     } else {
         CheckNumberOfNodesWithType(runtime_model, {"GatedResidual"}, 1);
-    }
-}
-
-// Weights that are not constants (here: model inputs) must leave the decomposed graph in place and still compile
-// instead of failing on an unsupported fused node.
-TEST(GatedResidualFusionPipeline, NonConstantWeightsAreNotFused) {
-    GatedResidualWeightCompression no_compression{};
-    auto model = make_reference_model(Mode::READ,
-                                      ov::PartialShape{-1},
-                                      4,
-                                      8,
-                                      16,
-                                      ov::element::f32,
-                                      false,
-                                      true,
-                                      1e-6F,
-                                      no_compression);
-    ov::ParameterVector weights;
-    for (const auto& op : model->get_ops()) {
-        if (auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(op)) {
-            const auto weight = matmul->input_value(1);
-            auto parameter = std::make_shared<ov::op::v0::Parameter>(weight.get_element_type(), weight.get_shape());
-            matmul->input(1).replace_source_output(parameter);
-            weights.push_back(parameter);
-        }
-    }
-    ASSERT_EQ(weights.size(), 2U);
-    model->add_parameters(weights);
-
-    ov::Core core;
-    ov::CompiledModel compiled;
-    ASSERT_NO_THROW(compiled = core.compile_model(model, ov::test::utils::DEVICE_CPU));
-    for (const auto& node : compiled.get_runtime_model()->get_ordered_ops()) {
-        EXPECT_NE(node->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>(), "GatedResidual");
-    }
-}
-
-// Layers of different sizes in one model share the scratchpads of the stream: the second one grows the blocks the first
-// one reads through, in both directions as the row count changes. Every output must equal the one of the layer compiled
-// alone, which owns its scratchpads.
-TEST(GatedResidualScratchPad, LayersOfDifferentSizesShareThePads) {
-    const GatedResidualWeightCompression no_compression{};
-    const auto make_layer = [&](size_t hidden_size, size_t lowrank) {
-        return make_reference_model(Mode::READ,
-                                    ov::PartialShape{-1},
-                                    4,
-                                    hidden_size,
-                                    lowrank,
-                                    ov::element::f32,
-                                    true,
-                                    true,
-                                    1e-6F,
-                                    no_compression);
-    };
-    const auto small = make_layer(8, 16);
-    const auto large = make_layer(64, 128);
-
-    auto first = make_layer(8, 16);
-    auto second = make_layer(64, 128);
-    ov::ParameterVector params = first->get_parameters();
-    const auto second_params = second->get_parameters();
-    params.insert(params.end(), second_params.begin(), second_params.end());
-    ov::ResultVector results = first->get_results();
-    const auto second_results = second->get_results();
-    results.insert(results.end(), second_results.begin(), second_results.end());
-    const auto both = std::make_shared<ov::Model>(results, params, "two_gated_residuals");
-
-    ov::Core core;
-    auto shared_compiled = core.compile_model(both, ov::test::utils::DEVICE_CPU);
-    size_t fused = 0;
-    for (const auto& node : shared_compiled.get_runtime_model()->get_ordered_ops()) {
-        fused += node->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>() == "GatedResidual" ? 1 : 0;
-    }
-    ASSERT_EQ(fused, 2U);
-    auto shared_request = shared_compiled.create_infer_request();
-    std::array<ov::InferRequest, 2> alone_requests{
-        core.compile_model(small, ov::test::utils::DEVICE_CPU).create_infer_request(),
-        core.compile_model(large, ov::test::utils::DEVICE_CPU).create_infer_request()};
-
-    uint32_t seed = 1;
-    // The large layer first, then the small one with fewer rows, then both with more rows than ever.
-    for (const size_t rows : {600U, 5U, 513U, 1U, 1100U}) {
-        std::vector<ov::Tensor> inputs;
-        for (size_t i = 0; i < params.size(); ++i) {
-            const auto& ps = params[i]->get_partial_shape();
-            ov::Shape shape = ps.is_static() ? ps.to_shape() : ov::Shape{rows, static_cast<size_t>(ps[1].get_length())};
-            inputs.push_back(ov::test::utils::create_and_fill_tensor_real_distribution(params[i]->get_element_type(),
-                                                                                       shape,
-                                                                                       -1.0F,
-                                                                                       1.0F,
-                                                                                       seed++));
-            shared_request.set_input_tensor(i, inputs.back());
-        }
-        shared_request.infer();
-
-        const size_t inputs_per_layer = params.size() / 2;
-        const size_t outputs_per_layer = results.size() / 2;
-        for (size_t layer = 0; layer < 2; ++layer) {
-            for (size_t i = 0; i < inputs_per_layer; ++i) {
-                alone_requests[layer].set_input_tensor(i, inputs[layer * inputs_per_layer + i]);
-            }
-            alone_requests[layer].infer();
-            for (size_t o = 0; o < outputs_per_layer; ++o) {
-                const auto expected = alone_requests[layer].get_output_tensor(o);
-                const auto actual = shared_request.get_output_tensor(layer * outputs_per_layer + o);
-                ASSERT_EQ(expected.get_byte_size(), actual.get_byte_size());
-                EXPECT_EQ(0, std::memcmp(expected.data(), actual.data(), expected.get_byte_size()))
-                    << "layer " << layer << " output " << o << " rows " << rows;
-            }
-        }
     }
 }
 

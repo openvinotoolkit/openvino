@@ -30,6 +30,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/manager.hpp"
 #include "ov_ops/rms.hpp"
 
 using namespace testing;
@@ -338,9 +339,13 @@ public:
     }
 
 protected:
+    virtual element::TypeVector supported_weights_types() const {
+        return {element::u8, element::i8, element::u4, element::i4};
+    }
+
     void SetUp() override {
         TransformationTestsF::SetUp();
-        manager.register_pass<pass::GatedResidualFusion>();
+        manager.register_pass<pass::GatedResidualFusion>(supported_weights_types());
     }
 };
 
@@ -470,6 +475,74 @@ TEST_F(GatedResidualFusionTests, Read_CompressedWeightsWithWriteGate) {
     disable_result_friendly_names_check();
     model = getReadModel(opt);
     model_ref = getReadModelRef(opt);
+}
+
+namespace {
+
+std::shared_ptr<Gr> fuse_read_model(const ReadOptions& opt, const element::TypeVector& supported) {
+    auto model = getReadModel(opt);
+    pass::Manager manager;
+    manager.register_pass<pass::GatedResidualFusion>(supported);
+    manager.run_passes(model);
+    std::shared_ptr<Gr> fused;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (const auto gr = ov::as_type_ptr<Gr>(node)) {
+            fused = gr;
+        }
+    }
+    return fused;
+}
+
+}  // namespace
+
+// Weights of a type the backend does not accept are not fed as stored: the op gets the decompressed tensors.
+TEST(GatedResidualFusionWeightTypes, UnsupportedCompressedTypeIsFedDecompressed) {
+    ReadOptions opt;
+    opt.compressed = true;
+    const auto fused = fuse_read_model(opt, {element::u8, element::i8});
+    ASSERT_NE(fused, nullptr);
+    ASSERT_TRUE(fused->get_read_layout().has_value());
+    EXPECT_FALSE(fused->get_read_layout()->compressed);
+}
+
+// The symmetric form is stored as unsigned weights with the middle zero point; the op takes it as signed weights, so
+// a backend without that signed type gets the decompressed tensors.
+TEST(GatedResidualFusionWeightTypes, SymmetricFormNeedsTheSignedType) {
+    ReadOptions opt;
+    opt.compressed = true;
+    opt.zp = Zp::MidScalar;
+    const auto without_i4 = fuse_read_model(opt, {element::u8, element::i8, element::u4});
+    ASSERT_NE(without_i4, nullptr);
+    EXPECT_FALSE(without_i4->get_read_layout()->compressed);
+    const auto with_i4 = fuse_read_model(opt, {element::u8, element::i8, element::u4, element::i4});
+    ASSERT_NE(with_i4, nullptr);
+    EXPECT_TRUE(with_i4->get_read_layout()->compressed);
+}
+
+// The constants of the fused op keep the type of the checkpoint (or the signed one of the symmetric form), so the
+// backend does not get them widened.
+TEST(GatedResidualFusionWeightTypes, FusedOpKeepsTheTypesOfTheCompressedConstants) {
+    for (const auto zp : {Zp::PerGroup, Zp::MidScalar, Zp::None}) {
+        ReadOptions opt;
+        opt.compressed = true;
+        opt.with_gate = true;
+        opt.zp = zp;
+        const auto fused = fuse_read_model(opt, {element::u8, element::i8, element::u4, element::i4});
+        ASSERT_NE(fused, nullptr);
+        const auto layout = fused->get_read_layout();
+        ASSERT_TRUE(layout.has_value());
+        ASSERT_TRUE(layout->compressed);
+        const auto weights_type = zp == Zp::MidScalar ? element::i4 : element::u4;
+        for (const auto port : {layout->w_down, layout->w_up, layout->w_inject}) {
+            EXPECT_EQ(fused->get_input_element_type(port), weights_type);
+        }
+        EXPECT_EQ(layout->has_zp, zp == Zp::PerGroup);
+        if (layout->has_zp) {
+            for (const auto port : {layout->zp_down, layout->zp_up, layout->zp_inject}) {
+                EXPECT_EQ(fused->get_input_element_type(port), weights_type);
+            }
+        }
+    }
 }
 
 TEST_F(GatedResidualFusionTests, Read_CallbackRejectsTheFusedOp) {

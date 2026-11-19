@@ -603,15 +603,19 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
     CPU_REGISTER_PASS_X64(manager, SparseAttentionKVCacheFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::GatedDeltaNetFusion);
-    // Before CommonOptimizations, which folds the 1/C scalings of the READ pattern into the weights. GatedResidual is
-    // the only executor of it on x86-64, and runs WRITE as Eltwise (Multiply + Add) after
-    // GatedResidualWriteSinkReshape.
-    CPU_REGISTER_PASS_X64(manager, ov::pass::GatedResidualFusion);
+    // Before CommonOptimizations, which folds the 1/C scalings of the READ pattern into the weights.
+    CPU_REGISTER_PASS_X64(manager,
+                          ov::pass::GatedResidualFusion,
+                          node::GatedResidual::getSupportedCompressedWeightsTypes());
     CPU_SET_CALLBACK_X64(
         manager,
         [](const_node_ptr& node) -> bool {
             std::string errorMsg;
-            return !node::GatedResidual::isSupportedOperation(node, errorMsg);
+            if (!node::GatedResidual::isSupportedOperation(node, errorMsg)) {
+                return true;
+            }
+            node::GatedResidual::keepCompressedConstantsPrecision(node);
+            return false;
         },
         ov::pass::GatedResidualReadFusion);
     CPU_DISABLE_PASS_X64(manager, ov::pass::GatedResidualWriteFusion);

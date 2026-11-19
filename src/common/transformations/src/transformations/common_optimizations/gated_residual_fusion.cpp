@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <set>
+#include <utility>
 #include <vector>
 
 #include "itt.hpp"
@@ -67,14 +68,15 @@ struct CompressedWeight {
     }
 };
 
-/// Parses `w` as Constant(i4/u4/i8/u8) -> Convert [-> Subtract(zp)] -> Multiply(scale) [-> Reshape] of an [N, K]
-/// weight, else nullopt. A scalar zero point of 0, or 2^(bits - 1) on unsigned weights, is the symmetric form; the
-/// latter becomes signed weights by flipping the sign bit.
-std::optional<CompressedWeight> match_compressed_weight(const ov::Output<ov::Node>& w, size_t N, size_t K) {
-    // The op takes i4/u4/i8/u8 weights of rank 2 after the decompression Reshape.
-    const auto block = std::make_shared<ov::pass::pattern::op::CompressedWeightsBlock>(
-        std::vector<ov::element::Type>{ov::element::i4, ov::element::u4, ov::element::i8, ov::element::u8},
-        std::set<size_t>{2});
+/// Parses `w` as Constant(one of `supported_weights_types`) -> Convert [-> Subtract(zp)] -> Multiply(scale) [->
+/// Reshape] of an [N, K] weight, else nullopt. A scalar zero point of 0, or 2^(bits - 1) on unsigned weights, is the
+/// symmetric form; the latter becomes signed weights by flipping the sign bit.
+std::optional<CompressedWeight> match_compressed_weight(const ov::Output<ov::Node>& w,
+                                                        size_t N,
+                                                        size_t K,
+                                                        const ov::element::TypeVector& supported_weights_types) {
+    const auto block =
+        std::make_shared<ov::pass::pattern::op::CompressedWeightsBlock>(supported_weights_types, std::set<size_t>{2});
     ov::pass::pattern::Matcher matcher(block);
     if (!matcher.match(w)) {
         return std::nullopt;
@@ -130,14 +132,6 @@ std::optional<CompressedWeight> match_compressed_weight(const ov::Output<ov::Nod
     // scale / zp are [N, G, 1] (or [N, 1]) in the checkpoint and [N, G] in the op: the same data, no transpose.
     ov::Output<ov::Node> zp_ng_const;
     if (has_zp) {
-        // The zero point must fit the weight type.
-        const int32_t zp_min = wt.is_signed() ? -(1 << (bits - 1)) : 0;
-        const int32_t zp_max = wt.is_signed() ? (1 << (bits - 1)) - 1 : (1 << bits) - 1;
-        for (const int32_t v : zp->cast_vector<int32_t>()) {
-            if (v < zp_min || v > zp_max) {
-                return std::nullopt;
-            }
-        }
         zp_ng_const = std::make_shared<ov::op::v0::Constant>(*zp, ov::Shape{N, G})->output(0);
         ov::copy_runtime_info(zp, zp_ng_const.get_node_shared_ptr());
     }
@@ -152,6 +146,10 @@ std::optional<CompressedWeight> match_compressed_weight(const ov::Output<ov::Nod
             flipped[i] = src[i] ^ mask;
         }
         wt = bits == 4 ? ov::element::i4 : ov::element::i8;
+        if (std::find(supported_weights_types.begin(), supported_weights_types.end(), wt) ==
+            supported_weights_types.end()) {
+            return std::nullopt;
+        }
         // No weightless cache attribute: the flipped bytes differ from the weights file.
         weights_2d = std::make_shared<ov::op::v0::Constant>(wt, ov::Shape{N, K}, flipped.data());
     } else {
@@ -159,8 +157,6 @@ std::optional<CompressedWeight> match_compressed_weight(const ov::Output<ov::Nod
         ov::copy_weightless_cache_attr(weights, weights_2d);
     }
     CompressedWeight result;
-    // The new constants keep the original runtime info, e.g. the keep-const-precision markup that stops i4/u4 being
-    // promoted to i8/u8.
     ov::copy_runtime_info(weights, weights_2d);
     result.weights = weights_2d->output(0);
     result.scale = std::make_shared<ov::op::v0::Constant>(*scale, ov::Shape{N, G})->output(0);
@@ -276,7 +272,8 @@ auto same_rows(size_t tail) {
 }  // namespace
 
 // READ / FINAL_MIX
-GatedResidualReadFusion::GatedResidualReadFusion() {
+GatedResidualReadFusion::GatedResidualReadFusion(ov::element::TypeVector supported_weights_types)
+    : m_supported_weights_types(std::move(supported_weights_types)) {
     using namespace ov::pass;
     using namespace ov::pass::pattern;
 
@@ -402,8 +399,8 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
         // compressed the same way; otherwise the decompressed tensors are used.
         ov::OutputVector weight_inputs = {w_down, w_up_out};
         std::optional<CompressedWeight> compressed_down;
-        const auto cd = match_compressed_weight(w_down, L, C * D);
-        const auto cu = match_compressed_weight(w_up_out, C * D, L);
+        const auto cd = match_compressed_weight(w_down, L, C * D, m_supported_weights_types);
+        const auto cu = match_compressed_weight(w_up_out, C * D, L, m_supported_weights_types);
         if (cd && cu && cd->type == cu->type && cd->has_zp() == cu->has_zp()) {
             weight_inputs = {cd->weights, cu->weights, cd->scale, cu->scale};
             if (cd->has_zp()) {
@@ -473,7 +470,7 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
         ov::OutputVector gate_inputs;
         if (gate_branch && gate_branch->gate.get_element_type() == data_type) {
             if (compressed_down) {
-                const auto ci = match_compressed_weight(gate_branch->w_inject, C, C * D);
+                const auto ci = match_compressed_weight(gate_branch->w_inject, C, C * D, m_supported_weights_types);
                 if (ci && ci->type == compressed_down->type && ci->has_zp() == compressed_down->has_zp()) {
                     gate_inputs = {ci->weights, ci->scale};
                     if (ci->has_zp()) {
@@ -707,12 +704,15 @@ GatedResidualWriteSinkReshape::GatedResidualWriteSinkReshape() {
     this->register_matcher(matcher, callback);
 }
 
+GatedResidualFusion::GatedResidualFusion(ov::element::TypeVector supported_weights_types)
+    : m_supported_weights_types(std::move(supported_weights_types)) {}
+
 bool GatedResidualFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(GatedResidualFusion);
     // The named dimensions of the patterns are static, so the passes need no symbolic propagation. A backend picks one
     // of the two WRITE forms by disabling the other; the sink is tried first.
     ov::pass::Manager manager(get_pass_config(), "GatedResidualFusion");
-    manager.register_pass<GatedResidualReadFusion>();
+    manager.register_pass<GatedResidualReadFusion>(m_supported_weights_types);
     manager.register_pass<GatedResidualWriteSinkReshape>();
     manager.register_pass<GatedResidualWriteFusion>();
     return manager.run_passes(model);

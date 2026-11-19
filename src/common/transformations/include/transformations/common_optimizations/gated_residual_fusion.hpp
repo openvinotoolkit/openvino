@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pass.hpp"
@@ -35,10 +36,13 @@ namespace ov::pass {
 class TRANSFORMATIONS_API GatedResidualReadFusion : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("GatedResidualReadFusion");
-    GatedResidualReadFusion();
+    /// @param supported_weights_types Types of the compressed weights (and their zero points) the backend accepts;
+    ///        a compressed weight of another type keeps its decompression subgraph out of the fusion.
+    explicit GatedResidualReadFusion(ov::element::TypeVector supported_weights_types);
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 private:
+    ov::element::TypeVector m_supported_weights_types;
     std::shared_ptr<ov::pass::pattern::Matcher> m_matcher;
     ov::matcher_pass_callback m_fuse;
 };
@@ -83,7 +87,12 @@ public:
 class TRANSFORMATIONS_API GatedResidualFusion : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("GatedResidualFusion");
+    /// @param supported_weights_types See GatedResidualReadFusion.
+    explicit GatedResidualFusion(ov::element::TypeVector supported_weights_types);
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+
+private:
+    ov::element::TypeVector m_supported_weights_types;
 };
 
 }  // namespace ov::pass

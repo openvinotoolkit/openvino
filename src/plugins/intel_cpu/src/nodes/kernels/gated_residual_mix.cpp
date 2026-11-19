@@ -11,7 +11,6 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/core/type/float16.hpp"
 
 namespace ov::Extensions::Cpu::XARCH {
 
@@ -46,9 +45,6 @@ void gated_residual_mix(const float* gate,
         break;
     case ov::element::bf16:
         mix_row(gate, rbar, static_cast<ov::bfloat16*>(out), data_size, branches, scale);
-        break;
-    case ov::element::f16:
-        mix_row(gate, rbar, static_cast<ov::float16*>(out), data_size, branches, scale);
         break;
     default:
         OPENVINO_THROW("gated_residual_mix: unsupported output precision ", out_prc);

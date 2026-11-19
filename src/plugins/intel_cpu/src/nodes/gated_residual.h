@@ -18,6 +18,7 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/gated_residual.hpp"
 
 namespace ov::intel_cpu::node {
@@ -41,6 +42,13 @@ public:
     void execute(const dnnl::stream& strm) override;
     const std::vector<impl_desc_type>& getDefaultImplPriority() override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
+    // A subset of the FC types: the projections run as FC, and the op and its fusion handle 4/8-bit integer weights
+    // only.
+    static ov::element::TypeVector getSupportedCompressedWeightsTypes();
+    // Marks the constants of the compressed weights and zero points of a fused op, so ConvertPrecision does not turn
+    // u4/i4 into u8/i8. GatedResidualFusion runs before KeepConstPrecision, which can no longer match once the
+    // decompression Multiply is gone, and the mark is not copyable, so it is set on the constants of the op that stays.
+    static void keepCompressedConstantsPrecision(const std::shared_ptr<const ov::Node>& op);
 
 private:
     void bindMemoryArgs();
