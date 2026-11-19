@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+
 #define INPUT0_GET_TILED_INDEX(ORDER) INPUT0_GET_INDEX(ORDER)
 
 #define INPUTVTYPE CAT(INPUT0_TYPE, TILE_SIZE)
