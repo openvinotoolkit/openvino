@@ -28,6 +28,40 @@ torch.compile = lambda func: func
 default_cfg = {hints.inference_precision: Type.f32}
 
 
+@pytest.mark.parametrize("operation", [torch.sym_min, torch.sym_max])
+@pytest.mark.parametrize("constant_bound", [False, True])
+def test_export_symbolic_min_max_topk(operation, constant_bound):
+    import openvino as ov
+
+    class Model(torch.nn.Module):
+        def forward(self, x, y):
+            k = operation(x.shape[1], 8 if constant_bound else y.shape[1])
+            if operation is torch.sym_min and not constant_bound:
+                result = x.topk(k, dim=1).values
+            else:
+                result = y.new_zeros((y.shape[0], k))
+            return result, y
+
+    model = Model().eval()
+    example = (torch.rand(2, 20), torch.rand(2, 8))
+    exported = torch.export.export(
+        model, example,
+        dynamic_shapes=({1: torch.export.Dim("n", min=2)},
+                        {1: torch.export.Dim("m", min=2)}))
+    assert any(node.target is operation for node in exported.graph.nodes)
+    converted = ov.convert_model(exported)
+    compiled = ov.Core().compile_model(converted, "CPU", default_cfg)
+    for n, m in [(20, 8), (4, 12), (8, 8)]:
+        inputs = (torch.arange(n, dtype=torch.float32).repeat(2, 1),
+                  torch.arange(m, dtype=torch.float32).repeat(2, 1))
+        expected = model(*inputs)
+        actual = list(compiled([x.numpy() for x in inputs]).values())
+        assert len(actual) == len(expected)
+        for result, reference in zip(actual, expected):
+            assert result.shape == tuple(reference.shape)
+            np.testing.assert_array_equal(result, reference.numpy())
+
+
 class aten_relu(torch.nn.Module):
     def forward(self, x):
         return x, torch.nn.functional.relu(x)

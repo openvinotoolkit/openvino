@@ -982,6 +982,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.std.correction", op::translate_std_fx},
         {"aten.sum.default", op::translate_sum_fx},
         {"aten.sum.dim_IntList", op::translate_sum_fx},
+        {"aten.sym_max", op::translate_maximum},
+        {"aten.sym_min", op::translate_minimum},
         {"aten.sym_size.int", op::translate_size},
         {"aten.tensor_split.indices", op::translate_list_view_fx},
         {"aten.tensor_split.sections", op::translate_list_view_fx},

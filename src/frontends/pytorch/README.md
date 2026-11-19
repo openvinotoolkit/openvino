@@ -95,6 +95,12 @@ This region trace runs after export for both models and supplied exported graphs
 The original graph stays unchanged, no OpenVINO loops are introduced, and the
 trace must not introduce new shape guards.
 
+### Exported symbolic shape minima and maxima
+
+Exported symbolic shape minima and maxima (`torch.sym_min` and `torch.sym_max`)
+are converted to runtime `Minimum` and `Maximum` operations. They can drive
+dynamic sizes such as TopK's K input without specializing to the example shape.
+
 ## How to Implement Support for a New PyTorch Operation
 
 PyTorch conversion into the OpenVINO opset operations consists of two stages:
