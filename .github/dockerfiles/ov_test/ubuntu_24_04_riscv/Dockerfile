@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 ARG REGISTRY="docker.io"
-FROM ${REGISTRY}/library/ubuntu:22.04
+FROM ${REGISTRY}/library/ubuntu:24.04
 
 USER root
 
