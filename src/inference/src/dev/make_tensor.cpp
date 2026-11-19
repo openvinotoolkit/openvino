@@ -553,6 +553,11 @@ private:
             m_strides.clear();
             return;
         }
+        if (owner_strides.empty()) {
+            // scalar owner: all dimensions are added ones
+            m_strides = util::get_dense_byte_strides(m_owner->get_element_type(), m_shape);
+            return;
+        }
         m_strides.resize(m_shape.size());
         std::copy(owner_strides.begin(),
                   owner_strides.end(),

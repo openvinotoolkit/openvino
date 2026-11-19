@@ -725,6 +725,16 @@ TEST_F(OVTensorTest, setShapeExpandRoiRankUpdatesStrides) {
     EXPECT_EQ(roi_tensor.get_strides(), ov::Strides({128, 128, 64, 4}));
 }
 
+TEST_F(OVTensorTest, setShapeExpandScalarRoiRankUpdatesStrides) {
+    ov::Tensor t{ov::element::i32, ov::Shape{}};
+    ov::Tensor roi_tensor{t, ov::Coordinate{}, ov::Coordinate{}};
+
+    roi_tensor.set_shape({1});
+    EXPECT_EQ(roi_tensor.get_strides(), ov::Strides({4}));
+    roi_tensor.set_shape({1, 1});
+    EXPECT_EQ(roi_tensor.get_strides(), ov::Strides({4, 4}));
+}
+
 TEST_F(OVTensorTest, copyToRoiTensorWithExpandedRank) {
     // a [1, 1] element copied into a rank-1 ROI, as GenAI does for VLM position ids
     ov::Tensor owner{ov::element::i64, {8}};
