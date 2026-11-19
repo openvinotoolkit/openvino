@@ -916,7 +916,7 @@ def test_pytorch_dynamo_convert_named_input_reaches_argument_not_container():
 
     assert [sorted(port.get_names()) for port in ov_model.inputs] == [["pair_0_1"], ["pair_0"]]
     assert list(ov_model.input("pair_0").get_partial_shape()) == [2, 4]
-    assert ov_model.input("pair_0_1").get_partial_shape().is_dynamic
+    assert list(ov_model.input("pair_0_1").get_partial_shape()) == [2, 4]
     compiled = Core().compile_model(ov_model, "CPU")
     result = compiled({"pair_0_1": pair[0].numpy(), "pair_0": pair_0.numpy()})[0]
     np.testing.assert_allclose(result, expected)
