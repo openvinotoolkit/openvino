@@ -33,10 +33,10 @@ protected:
         };
     }
 
-    size_t GetTileIFM(const deconvolution_params& params) const;
-    size_t GetTileOFM(const deconvolution_params& params) const;
-    size_t GetTileX(const deconvolution_params& params) const;
-    size_t GetTileB(const deconvolution_params& params) const;
+    static size_t GetTileIFM(const deconvolution_params& params);
+    static size_t GetTileOFM(const deconvolution_params& params);
+    static size_t GetTileX(const deconvolution_params& params);
+    static size_t GetTileB(const deconvolution_params& params);
 };
 
 }  // namespace kernel_selector

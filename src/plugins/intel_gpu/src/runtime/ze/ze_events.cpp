@@ -61,9 +61,8 @@ bool ze_events::get_profiling_info_impl(std::list<instrumentation::profiling_int
                     if (!merged) {
                         merged = true;
                         break;
-                    } else {
-                        it = all_timestamps.erase(it);
                     }
+                    it = all_timestamps.erase(it);
                 } else {
                     if (!merged) {
                         timestamp.kernelStart = std::min(timestamp.kernelStart, target_timestamp.kernelStart);
@@ -90,8 +89,9 @@ bool ze_events::get_profiling_info_impl(std::list<instrumentation::profiling_int
         }
     };
 
-    if (_events.empty())
+    if (_events.empty()) {
         return true;
+    }
 
     auto device_info = _engine.get_device_info();
 
@@ -119,7 +119,7 @@ bool ze_events::get_profiling_info_impl(std::list<instrumentation::profiling_int
     };
 
     for (size_t i = 0; i < _events.size(); i++) {
-        auto be = downcast<ze_base_event>(_events[i].get());
+        auto* be = downcast<ze_base_event>(_events[i].get());
         auto opt_timestamp = be->query_timestamp();
         if (!opt_timestamp.has_value()) {
             continue;

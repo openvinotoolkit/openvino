@@ -16,6 +16,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
+#include "transformations/common_optimizations/fuse_qsa_indexer.hpp"
 #include "transformations/common_optimizations/fuse_ssm.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
@@ -23,6 +24,7 @@
 #include "transformations/paged_attention/gemma4_mtp_state_management_pattern.hpp"
 #include "transformations/paged_attention/paged_causal_conv1d_fusion.hpp"
 #include "transformations/paged_attention/paged_gated_delta_net_fusion.hpp"
+#include "transformations/paged_attention/paged_qsa_indexer_fusion.hpp"
 #include "transformations/paged_attention/paged_selective_ssm_fusion.hpp"
 #include "transformations/paged_attention/paged_sparse_attention_fusion.hpp"
 #include "transformations/paged_attention/position_ids_replacer.hpp"
@@ -170,6 +172,9 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                              // nodes are in the expected form before running
                                                              // PagedGatedDeltaNetFusion.
     auto ssm_fusion = manager.register_pass<SelectiveSSMFusion>();
+    // The dense block-key cache is replaced by the paged one, so it is not padded.
+    manager.register_pass<FuseQSAIndexer>(false);
+    manager.register_pass<PagedQSAIndexerFusion>(m_params, var_ids_to_remove);
     if (m_options.is_draft_model) {
         manager.register_pass<Gemma4MTPStateManagementPattern>(m_params, params_to_remove, m_options);
     } else {
@@ -189,6 +194,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     manager.register_pass<PositionIDsReplacerCodeGen2>(position_ids);
     manager.register_pass<PositionIDsReplacerLFM2>(position_ids);
     manager.register_pass<PositionIDsReplacerGranite>(unsqueezed_position_ids);
+    manager.register_pass<PositionIDsReplacerQwen3_5>(unsqueezed_position_ids);
     manager.run_passes(model);
 
     OPENVINO_ASSERT(ssm_fusion->get_fused_count() == paged_ssm_fusion->get_fused_count(),
