@@ -143,8 +143,14 @@ steps. Call it in each reusable workflow that needs the proxy; reusable workflow
 do not inherit the caller's environment.
 
 Runner selection and existing Hugging Face authentication settings are unchanged.
-All participating runners, including Windows, macOS, and dedicated GPU runners,
-must be able to resolve and reach this cluster-local endpoint. There is no
+DMZ GPU runners retain the original Hugging Face endpoint and shared cache at
+`/mnt/caches/huggingface`. GPU RoPE tests do not call `setup_hf_proxy`. LLM accuracy
+tests use the proxy only when the caller sets `use-hf-proxy: true`, independently
+of `use-pip-proxy`. The AKS CPU job opts in; the DMZ GPU jobs use the default
+of `false`.
+
+Runners using `setup_hf_proxy` must be able to resolve and reach this cluster-local
+endpoint. There is no
 direct-download fallback if the proxy is unreachable. Models occupy local runner
 disk even when served from the proxy cache. The proxy covers Hugging Face Hub
 clients, not other model hosts such as Kaggle or torchvision.
