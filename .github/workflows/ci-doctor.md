@@ -19,9 +19,16 @@ if: ${{ contains(fromJSON('["akashchi","mryzhov","akladiev","ababushk","dorloff"
 
 permissions: read-all
 
-model: claude-sonnet-5
 engine:
   id: copilot
+  model-routing:
+    goal: cost
+    mode: auto
+    allowed-models:
+      - claude-sonnet-5.5
+      - gpt-6.1-sol
+      - gpt-6.1-terra
+      - gemini-3.8-flash
 network: defaults
 
 imports:

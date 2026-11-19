@@ -137,6 +137,15 @@ General, applies to any agentic workflow:
 
 Known pitfalls from existing workflows (check whether they still apply, and add new ones as you find
 them — see below):
+- **Model routing** — remove fixed `model:` settings when enabling `engine.model-routing`.
+  Its `allowed-models` shortlist limits only the main agent; `models.allowed` instead restricts
+  all inference requests, including sub-agents and built-in agents. See the developer doc for the
+  three investigators' routing configuration.
+- **Automatic investigation gate** — MQ and Post-Commit import `check-overall-status.md` and declare
+  `on.needs: [check_overall_status]`; preserve the `should_investigate` output guard. The API identifies
+  `Overall_Status` by its `ci/gha_overall_status*` display name, not the YAML job ID. Only `failure`
+  qualifies, including manual dispatches. Shared imports cannot define `on.steps`/`on.permissions`;
+  use an imported custom job with `on.needs` declared in each root workflow.
 - **PR comment collapsibles** (`ci-doctor`) — keep the overview visible and use a separate
   collapsed-by-default `<details>` block per pipeline. HTML-escape dynamic `<summary>` text and leave
   blank lines around the Markdown body. This GitHub-only formatting must not leak into Teams reports.

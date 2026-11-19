@@ -13,6 +13,7 @@ description: |
   the body of this file only holds the post-commit-specific additions.
 
 on:
+  needs: [check_overall_status]
   workflow_dispatch:
     inputs:
       run_id:
@@ -46,17 +47,26 @@ concurrency:
   group: gh-aw-${{ github.workflow }}
 
 # Only trigger for post-commit (push) failures on the master branch (the workflow_run `branches` filter
-# already restricts triggering runs to master), or manual workflow_dispatch for testing
-if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.event == 'push') }}
+# already restricts triggering runs to master), or manual workflow_dispatch for testing.
+# In either case, require a failed Overall_Status job before investigating.
+if: ${{ github.event_name == 'workflow_dispatch' || (needs.check_overall_status.outputs.should_investigate == 'true' && github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.event == 'push') }}
 
 permissions: read-all
 
-model: claude-sonnet-5
 engine:
   id: copilot
+  model-routing:
+    goal: cost
+    mode: auto
+    allowed-models:
+      - claude-sonnet-5.5
+      - gpt-6.1-sol
+      - gpt-6.1-terra
+      - gemini-3.8-flash
 network: defaults
 
 imports:
+  - shared/agentic-workflows/check-overall-status.md
   # Pre-agent steps (log pre-download)
   - shared/agentic-workflows/download-failure-logs.md
   # Safe-output jobs
