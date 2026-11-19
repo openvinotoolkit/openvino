@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "unable to connect to archive ubuntu com 80 failed to fetch unable to fetch some archives apt get install exit code 100|Network",
+  "signature_hash": "5e8abb425bd8f82e",
+  "title": "Docker image build fails - apt-get cannot connect to archive.ubuntu.com:80",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-11-19T12:44:40Z",
+  "last_seen": "2026-11-19T12:44:40Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/44521012358"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38775"
+  ],
+  "recent_timestamps": [
+    "2026-11-19T12:44:40Z"
+  ],
+  "rerun_search_string": "Unable to connect to archive.ubuntu.com:80"
+}

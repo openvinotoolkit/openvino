@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-19-12-44-40-853-44521012358",
+  "timestamp": "2026-11-19T12:44:40Z",
+  "run_id": "44521012358",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44521012358",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "38775",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38775",
+  "author": "gkoscins",
+  "category": "Network",
+  "title": "Docker image build fails - apt-get cannot connect to archive.ubuntu.com:80",
+  "signature": "unable to connect to archive ubuntu com 80 failed to fetch unable to fetch some archives apt get install exit code 100|Network",
+  "signature_hash": "5e8abb425bd8f82e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Docker",
+      "conclusion": "failure",
+      "symptom": "Step 'Run ./.github/actions/handle_docker' failed building ov_build/ubuntu_24_04_x64 image: apt-get could not connect to archive.ubuntu.com:80 to fetch packages, exit code 100"
+    }
+  ],
+  "key_errors": [
+    "#8 ERROR: failed to configure registry cache importer: openvinogithubactions.azurecr.io/ov_build/ubuntu_24_04_x64:pr-38775-cache: not found",
+    "#11 873.4 E: Failed to fetch http://archive.ubuntu.com/ubuntu/pool/main/d/dbus/libdbus-1-3_1.14.10-4ubuntu4.1_amd64.deb  Unable to connect to archive.ubuntu.com:80: [IP: 91.189.92.24 80]",
+    "#11 873.4 E: Unable to fetch some archives, maybe run apt-get update or try with --fix-missing?",
+    "#11 ERROR: process \"/bin/sh -c apt-get update &&     apt-get install software-properties-common && ... \" did not complete successfully: exit code: 100"
+  ],
+  "root_cause": "The Docker build job building the ov_build/ubuntu_24_04_x64 image ran apt-get install for dozens of packages (including the newly added python3.11/3.12/3.13/3.14 dev/venv packages from this PR's Dockerfile change) roughly 873 seconds into the step, by which point every subsequent fetch from archive.ubuntu.com timed out with 'Unable to connect to archive.ubuntu.com:80', causing apt-get to exit with code 100. This is a transient outbound-network failure to the Ubuntu package mirror from the GitHub-hosted/self-hosted runner, not a problem with the Dockerfile contents themselves (the missing registry cache import for the new pr-38775-cache tag is expected on a first build and unrelated).",
+  "reproduction_steps": "Not reliably reproducible locally; requires the runner's network path to archive.ubuntu.com to be degraded. To attempt reproduction: docker buildx build --file .github/dockerfiles/ov_build/ubuntu_24_04_x64/Dockerfile --build-arg REGISTRY=openvinogithubactions.azurecr.io/dockerio . and observe whether apt-get install succeeds; failure is dependent on transient network conditions.",
+  "recommended_actions": [
+    "Re-run the failed Docker job; this is a transient network blip to archive.ubuntu.com and a rerun is expected to succeed.",
+    "No Dockerfile or workflow code changes are required for this specific failure.",
+    "If this recurs frequently, consider adding retry/backoff to the apt-get install step in the ov_build/ubuntu_24_04_x64 Dockerfile, or routing apt through a mirror/proxy with higher availability."
+  ],
+  "prevention_strategies": "Add `--option Acquire::Retries=3` (or similar retry/backoff) to apt-get invocations in Dockerfiles that install many packages in one RUN layer, and consider splitting very long apt-get install lists into smaller layers to reduce the blast radius of a single transient network failure.",
+  "historical_context": "Several prior merge-queue investigations recorded similar archive.ubuntu.com connectivity failures (patterns 7d2e2ff59d37c6b4, c8d00529252cfb02, a3d456bd40bd9f42, e65acb49deb19d88, d734e6d0da3ffc69 with 8 occurrences in Nov 2026, and fc0796927d3b3f4c from this same PR's prior run just ~20 minutes earlier), confirming archive.ubuntu.com reachability from CI runners is an intermittent, recurring issue rather than a one-off."
+}
