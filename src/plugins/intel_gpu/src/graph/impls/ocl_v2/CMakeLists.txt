@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "openvino_intel_gpu_ocl_v2_obj${OV_GPU_SUFFIX}")
+set(TARGET_NAME "openvino_intel_gpu_ocl_v2_backend${OV_GPU_SUFFIX}")
 
 # Path which points to root directory where code generated elements are created
 # (specific to build configuration).

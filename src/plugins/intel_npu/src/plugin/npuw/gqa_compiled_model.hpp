@@ -47,11 +47,8 @@ private:
     mutable std::shared_ptr<ov::IAsyncInferRequest> m_inner_request;
     // Outer-facing tensor for dynamic KV-cache/attention-bias ports, keyed by port name.
     mutable std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_dynamic_kv_cache_tensors;
-    // Dynamic-axis inputs currently bound directly onto the caller's exact-capacity
-    // tensor; must be restored before a shorter set_tensor() reuses the port.
-    mutable std::unordered_set<std::string> m_dynamic_kv_cache_input_aliased;
-    // Private static-capacity buffer stashed when a port gets aliased (see above);
-    // restored once a shorter tensor is bound to the same port.
+    // Static-capacity fallback buffers, allocated only when inference needs padding.
+    // Released when a full-capacity caller tensor replaces the fallback.
     mutable std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_dynamic_kv_cache_private_buffers;
     // Outer-facing tensors for dynamic present_key/present_value outputs; allocated
     // lazily and refreshed from the inner static buffer after every infer().
@@ -149,10 +146,12 @@ private:
         // Static KV-cache capacity actually used to reshape the model; stripped from the
         // inner CompiledModel's properties, so this is the only way to read it back.
         uint32_t effective_max_context_len = 0;
-        // Resolved sliding-window fallback capacity (see resolve_default_sliding_window_capacity()),
+        // Resolved sliding-window fallback length (see resolve_default_sliding_window_size()),
         // 0 if NPUW_LLM_SWA_LEN wasn't configured. Also stripped from the inner
         // CompiledModel's properties.
-        uint32_t effective_sliding_window_capacity = 0;
+        uint32_t effective_sliding_window_length = 0;
+        // NPUW_LLM_SWA_HEADROOM as configured, 0 if unset. Also stripped from the inner properties.
+        uint32_t effective_sliding_window_headroom = 0;
     };
 
     static PreparedState prepare(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties);
@@ -171,7 +170,8 @@ private:
                      std::shared_ptr<ov::npuw::ICompiledModel> inner_compiled_model,
                      std::unordered_map<std::string, size_t> dynamic_kv_cache_axes,
                      uint32_t effective_max_context_len,
-                     uint32_t effective_sliding_window_capacity,
+                     uint32_t effective_sliding_window_length,
+                     uint32_t effective_sliding_window_headroom,
                      std::optional<std::string> total_seq_len_param_name,
                      std::unordered_map<std::string, std::string> present_to_past_param_names);
 
@@ -204,7 +204,9 @@ private:
     // Effective sliding-window fallback capacity (0 if unconfigured); returned from
     // get_property(NPUW_LLM_SWA_LEN) for the same reason. Serialized across
     // export_model()/import_model().
-    uint32_t m_effective_sliding_window_capacity = 0;
+    uint32_t m_effective_sliding_window_length = 0;
+    // Returned from get_property(NPUW_LLM_SWA_HEADROOM); serialized like the two above.
+    uint32_t m_effective_sliding_window_headroom = 0;
 };
 
 }  // namespace ov::npuw

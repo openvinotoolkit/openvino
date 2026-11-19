@@ -122,6 +122,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_transformations/moe_unroll_patterns.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/add_position_ids_param.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/add_position_ids_param.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/broadcast_u2_zero_point.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/broadcast_u2_zero_point.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/collapse_unqdq.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/collapse_unqdq.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/convert_kvcache_to_precision.cpp
@@ -163,6 +165,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/reshape_to_static.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/reshape_to_static_gqa.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/reshape_to_static_gqa.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/rewrite_gqa_attention_mask.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/rewrite_gqa_attention_mask.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/propagate_slice.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/propagate_slice.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/slice_out_embeds.cpp

@@ -107,7 +107,7 @@ static void CreateGroupedMatMulCompressedOp(ProgramBuilder& p,
         const auto scale_pid = inputs[2].pid;
 
         cldnn::primitive_id zp_pid;
-        float zp_scalar_value = 0.0f;
+        float zp_scalar_value = 0.0F;
         bool has_scalar_zp = false;
         if (op->get_input_size() > 3) {
             constexpr size_t zp_idx = 3;
@@ -144,7 +144,7 @@ static void CreateGroupedMatMulCompressedOp(ProgramBuilder& p,
 
     const auto scale = inputs[3];
     cldnn::input_info zp = {};
-    float zp_scalar_value = 0.0f;
+    float zp_scalar_value = 0.0F;
     bool has_scalar_zp = false;
     if (op->get_input_size() > 4) {
         constexpr size_t zp_idx = 4;
