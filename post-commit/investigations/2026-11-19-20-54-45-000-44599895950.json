@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-19-20-54-45-000-44599895950",
+  "timestamp": "2026-11-19T20:54:45Z",
+  "run_id": "44599895950",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44599895950",
+  "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+  "commit_sha": "c9bfbcfe298567c070a1c744e3695d9fcf50bf13",
+  "pr_number": "39849",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39849",
+  "author": "aobolensk",
+  "category": "Infrastructure",
+  "title": "Windows CC build fails with compiler/linker out-of-memory errors under high parallelism",
+  "signature": "Windows Release build runs out of memory - compiler fatal error C1060 (out of heap space) and linker fatal error LNK1102 (out of memory) under high parallelism|Infrastructure",
+  "signature_hash": "80cfa127185fbf3e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build_And_Run_Collect_Mode",
+      "conclusion": "failure",
+      "symptom": "Ninja/MSVC build fails compiling ov_template_func_tests and linking samples with compiler fatal error C1060 (out of heap space) / std::bad_alloc and linker fatal error LNK1102 (out of memory) under CMAKE_BUILD_PARALLEL_LEVEL=31"
+    },
+    {
+      "name": "ci/gha_overall_status_windows_cc",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails because Build_And_Run_Collect_Mode failed"
+    }
+  ],
+  "key_errors": [
+    "terminate called after throwing an instance of 'std::bad_alloc'\n  what():  std::bad_alloc\nFAILED: build-modules/template/tests/functional/CMakeFiles/ov_template_func_tests.dir/Release/op_reference/cos.cpp.obj\nC:\\BuildTools\\VC\\Tools\\MSVC\\14.42.34433\\include\\xiosbase(362): fatal error C1060: compiler is out of heap space",
+    "LINK: command \"...link.exe ... /out:...\\benchmark_app.exe ...\" failed (exit code 1102)\nLINK : fatal error LNK1102: out of memory",
+    "ninja: build stopped: subcommand failed.\n##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The Windows Conditional Compilation build runs ninja with CMAKE_BUILD_PARALLEL_LEVEL=31 (one cl.exe/link.exe process per logical core) on a runner whose available RAM is insufficient to host that many concurrent MSVC compiler and linker instances simultaneously, especially for heavy template-instantiation-heavy op_reference test translation units (e.g. col2im.cpp, cosh.cpp, cos.cpp) and large link steps (benchmark_app.exe, hello_query_device.exe). This is a recurring infrastructure/runner resource-sizing issue (12th occurrence in the pattern database since 2026-11-03), not caused by this specific commit's code changes.",
+  "reproduction_steps": "N/A (requires the exact memory-constrained Windows self-hosted runner under full build parallelism; not reliably reproducible locally). To approximate: build with `cmake --build . --parallel 31` using CMAKE_BUILD_TYPE=Release and CMAKE_COMPILE_WARNING_AS_ERROR=ON on a machine with limited RAM relative to 31 parallel MSVC/link processes.",
+  "recommended_actions": [
+    "Reduce CMAKE_BUILD_PARALLEL_LEVEL for the Windows CC job (or set ninja -j to a lower value) so concurrent MSVC/link processes stay within the runner's available memory.",
+    "Increase the memory of the self-hosted Windows runner pool used for windows_conditional_compilation.yml, or switch to a larger SKU.",
+    "Split heavy test translation units (e.g., template op_reference tests with many template instantiations) into smaller compilation units to reduce per-process memory footprint.",
+    "Add a ccache/ninja retry-with-reduced-parallelism fallback step so a single OOM does not fail the whole job."
+  ],
+  "prevention_strategies": "Track build-time peak memory on the Windows CC runner pool and right-size CMAKE_BUILD_PARALLEL_LEVEL to that pool's RAM/core ratio; alert when the pattern's recurrence count increases to catch regressions in resource sizing before they become chronic.",
+  "historical_context": "This exact signature has now recurred 12 times since 2026-11-03 (see patterns/80cfa127185fbf3e.json), consistently on the Windows Conditional Compilation workflow with compiler C1060/linker LNK1102 out-of-memory errors under high build parallelism, indicating a persistent, unresolved infrastructure capacity issue rather than an isolated incident."
+}
