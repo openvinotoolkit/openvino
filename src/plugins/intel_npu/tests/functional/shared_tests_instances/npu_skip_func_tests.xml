@@ -454,4 +454,15 @@ Example:
         </filters>
     </skip_config>
 
+    <!-- E243525 -->
+    <skip_config>
+        <message>Tests failing randomly after Driver update to 15048</message>
+        <filters>
+            <filter>.*ClassCompatibilityStringTestSuite.CompatibilityCheckInvalidArgument.*</filter>
+            <filter>.*CompatibilityCheckFallbackTestSuite.*</filter>
+            <filter>.*DisableIdleMemoryPruningNPU.SupportMatchesContextExtensionAvailability.*</filter>
+            <filter>.*OVWeightlessCacheAccuracyNPU.SimpleTestModel.*</filter>
+            <filter>.*OVCompiledGraphImportExportTestNPU.*</filter>
+        </filters>
+    </skip_config>
 </skip_configs>
