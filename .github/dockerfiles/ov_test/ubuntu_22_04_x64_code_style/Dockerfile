@@ -45,6 +45,11 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
 RUN python3.11 -m venv venv
 ENV PATH="/venv/bin:$PATH"
 
+# 'packaging' is required by OpenVINO cmake (check_python_requirements.py). get-pip.py installs it
+#  for the system Python 3.11, but not as part of the venv
+RUN python3 -m pip install --no-cache-dir packaging && \
+    chown -R 1001 /venv
+
 # Install CMake 3.26.4 using the Kitware installer script
 RUN wget https://github.com/Kitware/CMake/releases/download/v3.26.4/cmake-3.26.4-linux-x86_64.sh && \
     sh cmake-3.26.4-linux-x86_64.sh --skip-license --prefix=/usr/local && \
