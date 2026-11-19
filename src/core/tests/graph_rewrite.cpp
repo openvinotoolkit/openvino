@@ -358,6 +358,33 @@ TEST(GraphRewriteTest, OrRootWithOptionalAlternativeKeepsFallback) {
     EXPECT_EQ(visited, model->get_ordered_ops());
 }
 
+TEST(GraphRewriteTest, OptionalRootWithoutInputsFiltersUnrelatedTypes) {
+    auto model = get_model();
+    auto root = pattern::optional<op::v1::Divide, op::v0::Relu>();
+    NodeVector visited;
+    GraphRewrite pass;
+    pass.add_matcher(make_recording_pass(root, visited));
+    pass.run_on_model(model);
+
+    ASSERT_EQ(visited.size(), 1);
+    EXPECT_TRUE(ov::is_type<op::v1::Divide>(visited.front()));
+}
+
+TEST(GraphRewriteTest, OptionalRootVisitsOptionalAndInputTypes) {
+    auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{3, 1, 2});
+    auto divide = std::make_shared<op::v1::Divide>(data, op::v0::Constant::create(element::f32, Shape{1}, {1.5}));
+    auto relu = std::make_shared<op::v0::Relu>(divide);
+    auto tanh = std::make_shared<op::v0::Tanh>(relu);
+    auto model = std::make_shared<Model>(OutputVector{tanh}, ParameterVector{data});
+    auto root = pattern::optional<op::v0::Relu>(pattern::wrap_type<op::v1::Divide>());
+    NodeVector visited;
+    GraphRewrite pass;
+    pass.add_matcher(make_recording_pass(root, visited));
+    pass.run_on_model(model);
+
+    EXPECT_EQ(visited, (NodeVector{divide, relu}));
+}
+
 TEST(GraphRewriteTest, OrRootPreservesMatcherOrder) {
     auto model = get_model();
     auto root = pattern::wrap_type<op::v0::Relu>() | pattern::wrap_type<op::v1::Divide>();

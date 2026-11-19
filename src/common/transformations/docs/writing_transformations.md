@@ -62,7 +62,8 @@ Several rules follow from this table:
 `Manager` runs a standalone `MatcherPass` through its own `GraphRewrite`, so
 changing a `ModelPass` to a `MatcherPass` alone does not save a traversal.
 Independent matchers must share a `GraphRewrite` to do that. Keep pattern roots
-type-based (operations, `wrap_type`, or `Or` alternatives with type-based roots)
+type-based (operations, `wrap_type`, or `Or` and `optional` alternatives with
+type-based roots)
 to enable efficient dispatch. An untyped alternative still forces fallback
 dispatch for the whole container. See the [MOC performance audit](./moc_performance.md)
 for pipeline boundaries that must be preserved when grouping passes.

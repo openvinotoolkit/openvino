@@ -16,6 +16,7 @@
 #include "openvino/core/log_util.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/backward_graph_rewrite.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
@@ -102,7 +103,7 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
     bool rewritten = false;
     const auto& pass_config = get_pass_config();
 
-    // Collect root types, including alternatives of Or patterns. An untyped
+    // Collect root types, including alternatives of Or and Optional patterns. An untyped
     // alternative still requires the fallback that tries every matcher.
     bool all_roots_has_type = true;
     std::unordered_map<NodeTypeInfo, std::vector<size_t>> type_to_matcher;
@@ -127,6 +128,14 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
             } else if (auto or_pattern = ov::as_type_ptr<pattern::op::Or>(root)) {
                 for (const auto& input : or_pattern->input_values()) {
                     roots.push_back(input.get_node_shared_ptr());
+                }
+            } else if (auto optional = ov::as_type_ptr<pattern::op::Optional>(root)) {
+                // Optional matches one of its types or, when it has inputs, its input 0 pattern.
+                for (const auto& root_type_info : optional->get_optional_types()) {
+                    type_to_matcher[root_type_info].push_back(matcher_index);
+                }
+                if (optional->get_input_size() > 0) {
+                    roots.push_back(optional->input_value(0).get_node_shared_ptr());
                 }
             } else if (auto wrap_type = ov::as_type_ptr<pattern::op::WrapType>(root)) {
                 for (const auto& root_type_info : wrap_type->get_wrapped_types()) {

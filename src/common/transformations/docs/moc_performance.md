@@ -18,10 +18,12 @@ for the entire container. This affected CommonFusions, CommonEliminations,
 the decomposition group, and nested NopElimination runs.
 
 The accompanying change recognizes Or roots recursively when all alternatives
-are type-based. It keeps existing traversal order, matcher registration order,
+are type-based. An Optional root dispatches on its optional types and, when it
+has inputs, on the root of its input 0 pattern, which matches when the optional
+node is absent. It keeps existing traversal order, matcher registration order,
 first-success behavior, subgraph recursion, and registered-new-node processing.
-Untyped alternatives, Optional roots, and custom handlers without patterns
-retain the original fallback. Overlapping alternatives dispatch a matcher only
+Untyped alternatives, including an Optional over an untyped input, and custom
+handlers without patterns retain the original fallback. Overlapping alternatives dispatch a matcher only
 once per node, including when both a base and derived type are eligible.
 
 No MOC pass is reordered, removed, or given a different public base class.
