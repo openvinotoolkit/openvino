@@ -523,6 +523,7 @@ public:
         OPENVINO_ASSERT(can_compute_byte_strides, "Byte strides are not representable for shape: ", new_shape);
 
         m_shape = std::move(new_shape);
+        update_strides();
     }
 
     size_t get_offset() const {
@@ -534,10 +535,35 @@ public:
     }
 
 protected:
+    const Strides& get_roi_strides() const {
+        return m_strides.empty() ? m_owner->get_strides() : m_strides;
+    }
+
     std::shared_ptr<ITensor> m_owner;
     Shape m_shape;
     const Shape m_capacity;
     const size_t m_offset;
+
+private:
+    // Owner strides prefixed by strides for the leading ones added by a rank-expanding set_shape().
+    void update_strides() {
+        const auto& owner_strides = m_owner->get_strides();
+        const auto added_dims = m_shape.size() - m_capacity.size();
+        if (added_dims == 0 || owner_strides.size() != m_capacity.size()) {
+            m_strides.clear();
+            return;
+        }
+        m_strides.resize(m_shape.size());
+        std::copy(owner_strides.begin(),
+                  owner_strides.end(),
+                  m_strides.begin() + static_cast<Strides::difference_type>(added_dims));
+        const auto byte_shape = util::get_byte_memory_shape(m_owner->get_element_type(), m_shape);
+        for (auto dim = added_dims; dim > 0; --dim) {
+            m_strides[dim - 1] = m_strides[dim] * byte_shape[dim];
+        }
+    }
+
+    Strides m_strides;
 };
 
 /**
@@ -554,7 +580,7 @@ public:
     }
 
     const Strides& get_strides() const override {
-        return m_owner->get_strides();
+        return get_roi_strides();
     }
 
     const Shape& get_shape() const override {
@@ -604,7 +630,7 @@ public:
     }
 
     const Strides& get_strides() const override {
-        return m_owner->get_strides();
+        return get_roi_strides();
     }
 
     const Shape& get_shape() const override {

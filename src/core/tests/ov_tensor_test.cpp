@@ -715,6 +715,49 @@ TEST_F(OVTensorTest, setShapeInvalidExpandRoiRank) {
     OV_EXPECT_THROW(roi_tensor.set_shape({2}), ov::Exception, _);
 }
 
+TEST_F(OVTensorTest, setShapeExpandRoiRankUpdatesStrides) {
+    ov::Tensor t{ov::element::i32, {16, 16}};
+    ov::Tensor roi_tensor{t, {0, 0}, {3, 3}};
+
+    roi_tensor.set_shape({1, 1, 2});
+    EXPECT_EQ(roi_tensor.get_strides(), ov::Strides({64, 64, 4}));
+    roi_tensor.set_shape({1, 1, 2, 2});
+    EXPECT_EQ(roi_tensor.get_strides(), ov::Strides({128, 128, 64, 4}));
+}
+
+TEST_F(OVTensorTest, copyToRoiTensorWithExpandedRank) {
+    // a [1, 1] element copied into a rank-1 ROI, as GenAI does for VLM position ids
+    ov::Tensor owner{ov::element::i64, {8}};
+    std::fill_n(owner.data<int64_t>(), owner.get_size(), -1);
+    ov::Tensor roi_tensor{owner, {3}, {4}};
+    ov::Tensor src{ov::element::i64, {1, 1}};
+    src.data<int64_t>()[0] = 42;
+
+    OV_ASSERT_NO_THROW(src.copy_to(roi_tensor));
+
+    EXPECT_EQ(roi_tensor.get_shape(), ov::Shape({1, 1}));
+    EXPECT_EQ(roi_tensor.get_strides(), ov::Strides({8, 8}));
+    const auto owner_data = owner.data<int64_t>();
+    EXPECT_EQ(std::vector<int64_t>(owner_data, owner_data + owner.get_size()),
+              std::vector<int64_t>({-1, -1, -1, 42, -1, -1, -1, -1}));
+}
+
+TEST_F(OVTensorTest, copyToStridedRoiTensorWithExpandedRank) {
+    ov::Tensor owner{ov::element::i32, {4, 6}};
+    std::fill_n(owner.data<int32_t>(), owner.get_size(), 0);
+    ov::Tensor roi_tensor{owner, {1, 2}, {3, 5}};
+    ov::Tensor src{ov::element::i32, {1, 2, 3}};
+    std::iota(src.data<int32_t>(), src.data<int32_t>() + src.get_size(), 1);
+
+    OV_ASSERT_NO_THROW(src.copy_to(roi_tensor));
+
+    EXPECT_EQ(roi_tensor.get_shape(), ov::Shape({1, 2, 3}));
+    EXPECT_EQ(roi_tensor.get_strides(), ov::Strides({48, 24, 4}));
+    const auto owner_data = owner.data<int32_t>();
+    EXPECT_EQ(std::vector<int32_t>(owner_data, owner_data + owner.get_size()),
+              std::vector<int32_t>({0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 0, 0, 0, 4, 5, 6, 0, 0, 0, 0, 0, 0, 0}));
+}
+
 TEST_F(OVTensorTest, cannotSetShapeOnRoiStringTensor) {
     ov::Tensor t{ov::element::string, {1, 3, 6, 5}};  // RGBp picture of size (WxH) = 5x6
     ov::Tensor roi_tensor{t, {0, 0, 1, 2}, {1, 3, 5, 4}};

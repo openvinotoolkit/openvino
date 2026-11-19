@@ -108,6 +108,14 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
 
         src_strides = get_strides();
         dst_strides = dst->get_strides();
+        OPENVINO_ASSERT(src_strides.size() == shape_rank && dst_strides.size() == shape_rank,
+                        "Tensor strides do not match the shape rank. (shape: ",
+                        shape,
+                        ", src strides: ",
+                        src_strides,
+                        ", dst strides: ",
+                        dst_strides,
+                        ")");
 
         ov::Strides src_str, dst_str;
 
@@ -147,8 +155,14 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
             max_pos[inverted_idx] = byte_shape[inverted_idx];
             cur_pos[inverted_idx] = 0;
         }
-        src_strides = std::move(src_str);
-        dst_strides = std::move(dst_str);
+        if (found_step) {
+            src_strides = std::move(src_str);
+            dst_strides = std::move(dst_str);
+        } else {
+            // every dimension has default strides in both tensors, so copy them as one block
+            src_strides = {get_byte_size()};
+            dst_strides = {dst->get_byte_size()};
+        }
     }
 
     const auto update_index = [](const ov::Shape& pos, const ov::Strides& strides) {
