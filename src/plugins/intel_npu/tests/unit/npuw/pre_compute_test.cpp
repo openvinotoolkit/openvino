@@ -515,6 +515,74 @@ TEST(PreComputeTest, RopeCacheLeavesLongRopeNonDuplicatingConcatUntouched) {
     }
 }
 
+TEST(PreComputeTest, RopeCacheLeavesLongRopeWrongConcatAxisUntouched) {
+    namespace pc = ov::npuw::patterns::pre_compute;
+
+    for (bool v5 : {true, false}) {
+        SCOPED_TRACE(v5 ? "v5" : "phi");
+        for (int64_t axis : {0, 1}) {
+            SCOPED_TRACE(axis);
+            auto model = v5 ? make_longrope_v5_model({1.0f, 2.0f},
+                                                     {4.0f, 5.0f},
+                                                     {0.5f, 1.0f},
+                                                     {2.0f},
+                                                     /*cond_offset=*/1,
+                                                     /*with_broadcast=*/false)
+                            : make_longrope_phi_model({0.5f, 0.25f},
+                                                      {0.1f, 0.05f},
+                                                      /*context_limit=*/4096,
+                                                      /*cond_offset=*/1,
+                                                      /*with_broadcast=*/false);
+            auto concat = ov::as_type_ptr<ov::op::v0::Concat>(
+                model->get_results()[0]->input_value(0).get_node()->input_value(0).get_node_shared_ptr());
+            ASSERT_TRUE(concat);
+            ASSERT_EQ(concat->input_value(0), concat->input_value(1));
+            concat->set_axis(axis);
+            ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+            const auto output_shape = axis == 0 ? ov::Shape{2, 4, 2} : ov::Shape{1, 8, 2};
+            EXPECT_EQ(model->get_output_shape(0), output_shape);
+            EXPECT_EQ(model->get_output_shape(1), output_shape);
+
+            EXPECT_FALSE(pc::extract_longrope_context_limit(model).has_value());
+            pc::RopeCache pass(/*max_prompt_len=*/16);
+            ASSERT_NO_THROW(pass.run_on_model(model));
+            EXPECT_EQ(count_ops_of_type_sin_cos(model), 2u);
+            EXPECT_EQ(model->get_output_shape(0), output_shape);
+            EXPECT_EQ(model->get_output_shape(1), output_shape);
+            EXPECT_FALSE(has_input_name(model, pc::longrope_cos_input));
+            EXPECT_FALSE(has_input_name(model, pc::longrope_sin_input));
+            EXPECT_EQ(pass.host_tables().rotary_ndims, 0u);
+        }
+    }
+}
+
+TEST(PreComputeTest, RopeCacheTransformsLongRopeV5PositiveLastConcatAxisWithoutBroadcastChain) {
+    namespace pc = ov::npuw::patterns::pre_compute;
+
+    auto model = make_longrope_v5_model({1.0f, 2.0f},
+                                        {4.0f, 5.0f},
+                                        {0.5f, 1.0f},
+                                        {2.0f},
+                                        /*cond_offset=*/1,
+                                        /*with_broadcast=*/false);
+    auto concat = ov::as_type_ptr<ov::op::v0::Concat>(
+        model->get_results()[0]->input_value(0).get_node()->input_value(0).get_node_shared_ptr());
+    ASSERT_TRUE(concat);
+    concat->set_axis(2);
+    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+    EXPECT_EQ(pc::extract_longrope_context_limit(model), std::optional<uint64_t>{4u});
+
+    pc::RopeCache pass(/*max_prompt_len=*/16);
+    ASSERT_NO_THROW(pass.run_on_model(model));
+
+    expect_longrope_lut_inputs(model);
+    EXPECT_EQ(model->get_output_shape(0), (ov::Shape{1, 4, 4}));
+    EXPECT_EQ(model->get_output_shape(1), (ov::Shape{1, 4, 4}));
+    EXPECT_EQ(pass.host_tables().rotary_ndims, 4u);
+    EXPECT_EQ(pass.host_tables().inv_freq_short, (std::vector<float>{0.25f, 4.0f}));
+    EXPECT_EQ(pass.host_tables().inv_freq_long, (std::vector<float>{4.0f, 25.0f}));
+}
+
 TEST(PreComputeTest, RopeCacheTransformsLongRopeV5SingleFrequencyAndQueryWithoutBroadcastChain) {
     namespace pc = ov::npuw::patterns::pre_compute;
 
