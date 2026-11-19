@@ -2780,7 +2780,8 @@ TEST(qsa_ops_gpu_test, dense_qsa_indexer_validates_state_rope_and_key_length) {
     using Out = ov::op::internal::QSAIndexer::OutputIdx;
     std::shared_ptr<ov::op::internal::QSAIndexer> node;
     ASSERT_NO_THROW(node = std::make_shared<ov::op::internal::QSAIndexer>(make_dense_indexer_args(d), make_dense_indexer_config(d)));
-    // Outputs: selection plus the updated state, shaped and typed like the state inputs.
+    // Outputs: selection plus the updated state. The incomplete-block states keep their input shape; the block-key
+    // cache follows key_length (checked below).
     ASSERT_EQ(node->get_output_size(), Out::COUNT);
     EXPECT_EQ(node->get_output_partial_shape(Out::SELECTED_BLOCK_INDICES), (ov::PartialShape{1, 1, -1, I(d.block_topk)}));
     EXPECT_EQ(node->get_output_partial_shape(Out::BLOCK_INDEX_KEYS_CACHE), (ov::PartialShape{1, 1, -1, I(d.Di)}));
@@ -2802,7 +2803,7 @@ TEST(qsa_ops_gpu_test, dense_qsa_indexer_validates_state_rope_and_key_length) {
         if (!key_length.empty()) {
             a[In::KEY_LENGTH] = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{key_length.size()}, key_length);
         }
-        auto n = std::make_shared<ov::intel_gpu::op::QSAIndexer>(a, make_dense_indexer_config(d));
+        auto n = std::make_shared<ov::op::internal::QSAIndexer>(a, make_dense_indexer_config(d));
         return n->get_output_partial_shape(Out::BLOCK_INDEX_KEYS_CACHE)[2];
     };
     const auto r = static_cast<int64_t>(d.r);
@@ -3298,7 +3299,7 @@ struct stateful_indexer_model {
 /// assign_indexer_state == false: only the block-key cache is stateful (ReadValue -> indexer); its Assign takes a
 ///                                Parameter, so nothing consumes the indexer's state outputs but Results.
 stateful_indexer_model make_stateful_indexer_model(const split_dims& d, bool assign_indexer_state) {
-    using Out = ov::intel_gpu::op::QSAIndexer::OutputIdx;
+    using Out = ov::op::internal::QSAIndexer::OutputIdx;
     const auto f16 = ov::element::f16;
     stateful_indexer_model m;
     const auto di = I(d.Di);
@@ -3333,7 +3334,7 @@ stateful_indexer_model make_stateful_indexer_model(const split_dims& d, bool ass
     }
 
     ov::OutputVector args = {m.index_query, m.raw_index_keys, m.rope_cos, m.rope_sin, m.key_length, m.q_norm, m.k_norm, read_cache, raw_in, rope_in};
-    auto indexer = std::make_shared<ov::intel_gpu::op::QSAIndexer>(args, make_dense_indexer_config(d));
+    auto indexer = std::make_shared<ov::op::internal::QSAIndexer>(args, make_dense_indexer_config(d));
 
     ov::ResultVector results;
     ov::SinkVector sinks;

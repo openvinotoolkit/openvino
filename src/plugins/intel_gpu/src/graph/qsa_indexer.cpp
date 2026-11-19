@@ -54,9 +54,9 @@ std::vector<layout> qsa_indexer_inst::calc_output_layouts(const qsa_indexer_node
                 for (size_t b = 0; b < key_length_mem->get_layout().count(); b++) {
                     longest = std::max<int64_t>(longest, key_length[b]);
                 }
-                shape[2] = ov::intel_gpu::op::QSAIndexer::exact_cache_blocks(longest, desc->key_block_size);
+                shape[2] = ov::op::internal::QSAIndexer::exact_cache_blocks(longest, desc->key_block_size);
             } else {
-                shape[2] = ov::intel_gpu::op::QSAIndexer::bounded_cache_blocks(shape[2], index_query_shape[1], desc->key_block_size);
+                shape[2] = ov::op::internal::QSAIndexer::bounded_cache_blocks(shape[2], index_query_shape[1], desc->key_block_size);
             }
         }
         layouts.emplace_back(shape, in_layout.data_type, cldnn::format::get_default_format(shape.size()));
