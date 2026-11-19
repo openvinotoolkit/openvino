@@ -943,6 +943,25 @@ TEST_F(GQACompiledModelTest, UsesRepOnlinePipelineForCaseV2PrefillModels) {
     EXPECT_EQ(call.props.at(std::string(::intel_npu::NPUW_PARALLEL_COMPILE::key())).as<std::string>(), "YES");
 }
 
+TEST_F(GQACompiledModelTest, UsesRepOnlinePipelineForCaseV2PositionIdsPrefillModels) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_full_gqa_transformer_model(4,
+                                                                                      2,
+                                                                                      true,
+                                                                                      PositionSignal::PositionIds,
+                                                                                      /*with_2bit_weights=*/true),
+                                                     {},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    // u2 weights take priority over position_ids, so this must not get V1's NONE pipeline.
+    const auto& call = recorder.only_call();
+    EXPECT_EQ(call.props.at("NPUW_ONLINE_PIPELINE").as<std::string>(), "REP");
+    EXPECT_EQ(call.props.at(std::string(::intel_npu::NPUW_PARALLEL_COMPILE::key())).as<std::string>(), "YES");
+}
+
 TEST_F(GQACompiledModelTest, UsesParallelCompileWithDefaultPipelineForCaseV2GenerateModels) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
@@ -1254,6 +1273,17 @@ TEST(GQACompiledModelSupportsTest, IdentifiesCaseV2ForSeqLenPairModelWith2BitWei
                                                   2,
                                                   true,
                                                   PositionSignal::SeqLenPair,
+                                                  /*with_2bit_weights=*/true);
+    EXPECT_EQ(ov::npuw::GQACompiledModel::identify_case(model), ov::npuw::GQACompiledModel::Case::V2);
+    make_kv_cache_dynamic(model, 2);
+    EXPECT_TRUE(ov::npuw::GQACompiledModel::supports(model));
+}
+
+TEST(GQACompiledModelSupportsTest, IdentifiesCaseV2ForPositionIdsModelWith2BitWeights) {
+    auto model = build_full_gqa_transformer_model(4,
+                                                  2,
+                                                  true,
+                                                  PositionSignal::PositionIds,
                                                   /*with_2bit_weights=*/true);
     EXPECT_EQ(ov::npuw::GQACompiledModel::identify_case(model), ov::npuw::GQACompiledModel::Case::V2);
     make_kv_cache_dynamic(model, 2);
