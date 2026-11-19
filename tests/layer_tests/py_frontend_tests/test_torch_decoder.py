@@ -961,6 +961,42 @@ def test_pytorch_fx_frontend_keeps_first_input_named_self(model, example, names)
         "exporter_generated_key": ("encoder", "Block"),
         "another_generated_key": ("encoder.activation", "ReLU"),
     }, "encoder.activation/relu"),
+    ({
+        "root": ("", "openvino.frontend.pytorch.patch_model.wrap_dataclass_outputs.<locals>.OutputWrapper"),
+        "model": ("wrapped_model", "Model"),
+        "child": ("wrapped_model.encoder.activation", "ReLU"),
+    }, "encoder.activation/relu"),
+    ({
+        "root": ("", "openvino.frontend.pytorch.patch_model.wrap_dataclass_outputs.<locals>.OutputWrapper"),
+        "model": ("wrapped_model", "Model"),
+    }, "relu"),
+    ({
+        "root": ("", "openvino.frontend.pytorch.patch_model.wrap_dataclass_outputs.<locals>.OutputWrapper"),
+        "model": ("wrapped_model", "Model"),
+        "child": ("wrapped_model.wrapped_model", "ReLU"),
+    }, "wrapped_model/relu"),
+    ({
+        "root": ("", type("OutputWrapper", (), {
+            "__module__": "openvino.frontend.pytorch.patch_model",
+            "__qualname__": "wrap_dataclass_outputs.<locals>.OutputWrapper",
+        })),
+        "model": ("wrapped_model", "Model"),
+        "child": ("wrapped_model.encoder", "ReLU"),
+    }, "encoder/relu"),
+    ({
+        "root": ("", "Model"),
+        "child": ("wrapped_model.encoder", "ReLU"),
+    }, "wrapped_model.encoder/relu"),
+    ({
+        "root": ("", "my_app.patch_model.wrap_dataclass_outputs.<locals>.OutputWrapper"),
+        "model": ("wrapped_model", "Model"),
+        "child": ("wrapped_model.encoder", "ReLU"),
+    }, "wrapped_model.encoder/relu"),
+    ({
+        "root": ("", "openvino.frontend.pytorch.patch_model.wrap_dataclass_outputs.<locals>.OutputWrapper"),
+        "model": ("", "Model"),
+        "child": ("wrapped_model", "ReLU"),
+    }, "wrapped_model/relu"),
 ])
 def test_pytorch_fx_decoder_friendly_name(module_stack, expected_prefix):
     import openvino.opset13 as ops

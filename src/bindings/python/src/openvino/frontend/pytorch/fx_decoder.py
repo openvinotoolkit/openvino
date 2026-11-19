@@ -803,7 +803,19 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return max_out_id + 1
 
     def _node_name_prefix(self):
-        for module_path, _ in reversed(self.pt_module.meta.get("nn_module_stack", {}).values()):
+        scope = list(self.pt_module.meta.get("nn_module_stack", {}).values())
+        wrapped = False
+        if len(scope) > 1 and scope[0][0] == "" and scope[1][0] == "wrapped_model":
+            wrapper_type = scope[0][1]
+            if isinstance(wrapper_type, type):
+                wrapper_type = f"{wrapper_type.__module__}.{wrapper_type.__qualname__}"
+            wrapped = wrapper_type == (
+                "openvino.frontend.pytorch.patch_model.wrap_dataclass_outputs.<locals>.OutputWrapper")
+        for module_path, _ in reversed(scope):
+            if wrapped and module_path == "wrapped_model":
+                module_path = ""
+            elif wrapped and module_path.startswith("wrapped_model."):
+                module_path = module_path[len("wrapped_model."):]
             if module_path:
                 return f"{module_path}/{self.pt_module.name}"
         return self.pt_module.name

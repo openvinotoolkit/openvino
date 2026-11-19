@@ -2520,6 +2520,54 @@ class TestConvertModelDynamo:
     """Tests for convert_model with dynamo=True (torch.export path)."""
 
     @pytest.mark.precommit
+    @pytest.mark.parametrize("source", ["model", "wrapped_exported_program"])
+    def test_internal_wrapper_friendly_names(self, source):
+        from openvino import Core, convert_model
+
+        class Model(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.encoder = torch.nn.ReLU()
+                self.wrapped_model = torch.nn.Sigmoid()
+
+            def forward(self, x):
+                return self.encoder(x) + self.wrapped_model(x) + torch.tanh(x)
+
+        class OutputWrapper(torch.nn.Module):
+            def __init__(self, model):
+                super().__init__()
+                self.wrapped_model = model
+
+            def forward(self, x):
+                return self.wrapped_model(x)
+
+        model = Model().eval()
+        example = torch.tensor([[-2.0, -0.5, 0.5, 2.0]])
+        if source == "model":
+            converted = convert_model(model, example_input=example, dynamo=True)
+        else:
+            exported = torch.export.export(OutputWrapper(model), (example,))
+            for node in exported.graph.nodes:
+                stack = node.meta.get("nn_module_stack")
+                if stack:
+                    # Match the metadata emitted by OpenVINO's output wrapper.
+                    root = next(iter(stack))
+                    stack[root] = (
+                        "", "openvino.frontend.pytorch.patch_model.wrap_dataclass_outputs.<locals>.OutputWrapper")
+            converted = convert_model(exported)
+
+        names = {node.get_type_name(): node.get_friendly_name()
+                 for node in converted.get_ordered_ops()
+                 if node.get_type_name() in ("Relu", "Sigmoid", "Tanh")}
+        assert names == {
+            "Relu": "encoder/relu/aten.relu.default/Relu",
+            "Sigmoid": "wrapped_model/sigmoid/aten.sigmoid.default/Sigmoid",
+            "Tanh": "tanh/aten.tanh.default/Tanh",
+        }
+        actual = Core().compile_model(converted, "CPU", default_cfg)([example.numpy()])[0]
+        np.testing.assert_allclose(actual, model(example).numpy(), atol=1e-6, rtol=1e-6)
+
+    @pytest.mark.precommit
     @pytest.mark.parametrize("model_format", ["dynamo", "exported_program", "decomposed"])
     def test_module_friendly_names(self, model_format, tmp_path):
         from openvino import Core, convert_model, serialize
