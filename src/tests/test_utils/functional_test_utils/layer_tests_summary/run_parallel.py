@@ -345,6 +345,8 @@ class TestParallelRunner:
         self._conformance_ir_filelists = list()
         self._gtest_filter = ""
         self._command = self.__init_basic_command_line_for_exec_file(test_command_line)
+        # gtest treats everything after the first '-' as negative patterns; keep them for every batch filter
+        self._gtest_filter, _, self._gtest_negative_filter = self._gtest_filter.strip('"').partition("-")
         self._worker_num = worker_num
         os.makedirs(self._working_dir, exist_ok=True)
         if cache_path == "" or not os.path.exists(cache_path):
@@ -542,8 +544,11 @@ class TestParallelRunner:
             )
         return cached_test_dict, runtime_test_dict
 
+    def __get_negative_filter_suffix(self):
+        return f"-{self._gtest_negative_filter}" if self._gtest_negative_filter else ""
+
     def __prepare_smart_filters(self, proved_test_dict: dict):
-        def_length = len(self._command) + len(" --gtest_filter=")
+        def_length = len(self._command) + len(" --gtest_filter=") + len(self.__get_negative_filter_suffix())
 
         longest_device = ""
         for device in self._available_devices:
@@ -622,7 +627,8 @@ class TestParallelRunner:
         return cached_test_list, runtime_test_list
 
     def __execute_tests(self, filters: [], prev_worker_cnt=0):
-        commands = [f"{self._command} --gtest_filter={filter}" for filter in filters]
+        negative_suffix = self.__get_negative_filter_suffix()
+        commands = [f"{self._command} --gtest_filter={filter}{negative_suffix}" for filter in filters]
         tmp_log_dir = os.path.join(self._working_dir, "temp")
         if not os.path.isdir(tmp_log_dir):
             os.mkdir(tmp_log_dir)
@@ -797,6 +803,8 @@ class TestParallelRunner:
                 for line in lines:
                     if constants.GTEST_FILTER in line:
                         line = line[line.find(constants.GTEST_FILTER) :]
+                        if self._gtest_negative_filter:
+                            line = line.split("-", 1)[0]
                         test_cnt_expected = line.count(":")
                     if constants.RUN in line:
                         test_name = line[
