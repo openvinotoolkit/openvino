@@ -1310,14 +1310,16 @@ INSTANTIATE_TEST_SUITE_P(rms_mxfp8,
                                             ::testing::Values(data_types::f8e4m3, data_types::f8e5m2),
                                             ::testing::Values(true, false)));
 
-template <typename T, typename G>
-static void run_rms_mixed_gamma_type(const ov::PartialShape& in_shape) {
+template <typename Types>
+static void run_rms_mixed_gamma_type(const std::string& kernel_name, const ov::PartialShape& in_shape, bool scalar_gamma = false) {
+    using T = typename Types::first_type;
+    using G = typename Types::second_type;
     auto& engine = get_test_engine();
     tests::random_generator rg(GET_SUITE_NAME);
-    const auto norm_size = in_shape[in_shape.size() - 1].get_length();
+    const auto gamma_size = scalar_gamma ? 1 : in_shape[in_shape.size() - 1].get_length();
 
     auto input = engine.allocate_memory({in_shape, ov::element::from<T>(), format::bfyx});
-    auto gamma = engine.allocate_memory({ov::PartialShape{1, norm_size}, ov::element::from<G>(), format::bfyx});
+    auto gamma = engine.allocate_memory({ov::PartialShape{1, gamma_size}, ov::element::from<G>(), format::bfyx});
     auto output_ref = engine.allocate_memory({in_shape, ov::element::from<T>(), format::bfyx});
     set_values(input, rg.generate_random_1d<T>(input->count(), -2, 2));
     set_values(gamma, rg.generate_random_1d<G>(gamma->count(), 0, 2));
@@ -1330,7 +1332,7 @@ static void run_rms_mixed_gamma_type(const ov::PartialShape& in_shape) {
 
     ExecutionConfig config = get_test_default_config(engine);
     ov::intel_gpu::ImplForcingMap forced{
-        {"rms", ov::intel_gpu::ImplementationDesc{format::bfyx, "rms_gpu_bfyx_opt"}},
+        {"rms", ov::intel_gpu::ImplementationDesc{format::bfyx, kernel_name}},
     };
     config.set_property(ov::intel_gpu::force_implementations(forced));
 
@@ -1342,15 +1344,35 @@ static void run_rms_mixed_gamma_type(const ov::PartialShape& in_shape) {
     cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
     cldnn::mem_lock<T, mem_lock_type::read> output_ref_ptr(output_ref, get_test_stream());
     for (size_t i = 0; i < output_ref->count(); ++i) {
-        ASSERT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(output_ref_ptr[i]), 1e-2f) << "i=" << i;
+        const auto ref = static_cast<float>(output_ref_ptr[i]);
+        ASSERT_NEAR(static_cast<float>(output_ptr[i]), ref, std::max(1e-2f, std::abs(ref) * 1e-2f)) << "i=" << i;
     }
 }
 
+template <typename P>
+class rms_gpu_mixed_gamma_type_test : public ::testing::Test {};
+
 // IncreasePrecisionForQwenVLMerger converts the RMS input to f32 and keeps gamma in f16
-TEST(rms_gpu_test, rms_test_bfyx_opt_f32_input_f16_gamma) {
-    run_rms_mixed_gamma_type<float, ov::float16>(ov::PartialShape{2, 1, 4096});
+using rms_mixed_gamma_types = ::testing::Types<std::pair<float, ov::float16>,
+                                               std::pair<ov::float16, float>,
+                                               std::pair<ov::bfloat16, float>,
+                                               std::pair<float, ov::bfloat16>,
+                                               std::pair<ov::bfloat16, ov::float16>,
+                                               std::pair<ov::float16, ov::bfloat16>>;
+TYPED_TEST_SUITE(rms_gpu_mixed_gamma_type_test, rms_mixed_gamma_types);
+
+TYPED_TEST(rms_gpu_mixed_gamma_type_test, bfyx_opt) {
+    run_rms_mixed_gamma_type<TypeParam>("rms_gpu_bfyx_opt", ov::PartialShape{2, 1, 4096});
 }
 
-TEST(rms_gpu_test, rms_test_bfyx_opt_f16_input_f32_gamma) {
-    run_rms_mixed_gamma_type<ov::float16, float>(ov::PartialShape{2, 1, 4096});
+TYPED_TEST(rms_gpu_mixed_gamma_type_test, bfyx_opt_leftovers) {
+    run_rms_mixed_gamma_type<TypeParam>("rms_gpu_bfyx_opt", ov::PartialShape{2, 1, 3088});
+}
+
+TYPED_TEST(rms_gpu_mixed_gamma_type_test, bfyx_opt_scalar_gamma) {
+    run_rms_mixed_gamma_type<TypeParam>("rms_gpu_bfyx_opt", ov::PartialShape{2, 1, 4096}, true);
+}
+
+TYPED_TEST(rms_gpu_mixed_gamma_type_test, ref) {
+    run_rms_mixed_gamma_type<TypeParam>("rms_gpu_ref", ov::PartialShape{1, 2, 6});
 }

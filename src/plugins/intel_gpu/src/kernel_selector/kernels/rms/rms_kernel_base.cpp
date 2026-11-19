@@ -49,6 +49,15 @@ JitConstants RMSKernelBase::GetJitConstants(const rms_params& params, RMSKernelB
         jit.AddConstant(MakeJitConstant("TO_ACCUMULATOR_VECTOR_TYPE(v, size)", "CONVERT_AS_BFLOAT16_FLOAT(v, size)"));
     }
 
+    // gamma may have a different data type than the input
+    if (params.elementwise_affine && params.inputs[1].GetDType() == Datatype::BF16) {
+        jit.AddConstant(MakeJitConstant("TO_GAMMA_ACC_TYPE(v)", "_convert_as_bfloat16_float(v)"));
+        jit.AddConstant(MakeJitConstant("TO_GAMMA_ACC_VECTOR_TYPE(v, size)", "CONVERT_AS_BFLOAT16_FLOAT(v, size)"));
+    } else {
+        jit.AddConstant(MakeJitConstant("TO_GAMMA_ACC_TYPE(v)", "CAT(convert_, ACCUMULATOR_TYPE)(v)"));
+        jit.AddConstant(MakeJitConstant("TO_GAMMA_ACC_VECTOR_TYPE(v, size)", "CAT(convert_, MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, size))(v)"));
+    }
+
     return jit;
 }
 
