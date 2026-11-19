@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-19-13-50-54-000-44534325149",
+  "timestamp": "2026-11-19T13:50:54Z",
+  "run_id": "44534325149",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44534325149",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "38775",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38775",
+  "author": "gkoscins",
+  "category": "Network",
+  "title": "Docker image build fails - archive.ubuntu.com InRelease fetch reports connection failed and repository not signed",
+  "signature": "archive ubuntu com noble inrelease connection failed repository is not signed apt get install exit code 100|Network",
+  "signature_hash": "7ea1f05d2ab70199",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Docker",
+      "conclusion": "failure",
+      "symptom": "Step 'Run ./.github/actions/handle_docker' failed building ov_test/ubuntu_24_04_x64 image: apt-get update could not fetch the noble InRelease file from archive.ubuntu.com (Connection failed), so apt treated the repository as unsigned and apt-get exited with code 100"
+    }
+  ],
+  "key_errors": [
+    "#11 504.2 Err:6 http://archive.ubuntu.com/ubuntu noble InRelease\n#11 504.2   Connection failed [IP: 172.66.152.176 80]",
+    "#11 504.7 E: Failed to fetch http://archive.ubuntu.com/ubuntu/dists/noble/InRelease  Connection failed [IP: 172.66.152.176 80]\n#11 504.7 E: The repository 'http://archive.ubuntu.com/ubuntu noble InRelease' is not signed.",
+    "#11 ERROR: process \"/bin/sh -c apt-get update &&     apt-get install software-properties-common &&     apt-get update &&     apt-get install         curl         git         gpg-agent         tzdata         pigz         clang         libgl1         python3-full         libhdf5-dev         &&     rm -rf /var/lib/apt/lists/*\" did not complete successfully: exit code: 100",
+    "RuntimeError: Command 'docker buildx build --builder=builder-5060aded-5aba-41d9-86de-6f219eaeb035 --file .github/dockerfiles/ov_test/ubuntu_24_04_x64/Dockerfile ...' returned non-zero exit status 1",
+    "##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The 'Docker' job builds the ov_test/ubuntu_24_04_x64 image. During the apt-get install layer, apt first spent ~440s retrying the noble InRelease fetch (repeated 'Ign' lines), eventually fetched the other three release files (noble-updates, noble-backports, security) successfully, but the final retry of http://archive.ubuntu.com/ubuntu/dists/noble/InRelease returned a plain TCP 'Connection failed' from edge IP 172.66.152.176:80. Because that one release file could not be verified, apt reported the whole noble repository as 'not signed' and aborted with exit code 100. The 'cache manifest ... not found' message earlier in the log is expected/benign (first build for a new pr-38775 cache tag) and unrelated. None of the PR's changed files (RISC-V dockerfiles, docs, CI doctor workflows) touch the ov_test/ubuntu_24_04_x64 Dockerfile or its apt layer, confirming this is an upstream Ubuntu mirror reachability blip from the runner's network, not a code regression.",
+  "reproduction_steps": "Not reliably reproducible locally; depends on transient network conditions reaching archive.ubuntu.com from the runner. To approximate: run `docker buildx build --file .github/dockerfiles/ov_test/ubuntu_24_04_x64/Dockerfile --build-arg REGISTRY=openvinogithubactions.azurecr.io/dockerio .` while archive.ubuntu.com's noble InRelease endpoint is unreachable/slow and observe the same 'not signed' + exit code 100 failure.",
+  "recommended_actions": [
+    "Re-run the failed 'Docker' job - this is the third archive.ubuntu.com connectivity failure hit by PR #38775 in the last ~90 minutes (also patterns fc0796927d3b3f4c and 5e8abb425bd8f82e), so a retry is the appropriate and likely sufficient action.",
+    "No Dockerfile or workflow changes are required for this specific failure; it is not caused by the PR's content.",
+    "If this keeps recurring for the same PR, consider adding `Acquire::Retries` / `Acquire::http::Timeout` tuning to the apt-get layers in ov_build/ov_test Ubuntu Dockerfiles, or switching the base apt sources to the Azure mirror already used for Debian-packages jobs."
+  ],
+  "prevention_strategies": "Add apt retry/backoff (Acquire::Retries, longer Acquire::http::Timeout) around the apt-get update/install layer in the ov_test/ubuntu_24_04_x64 Dockerfile (and sibling Ubuntu Dockerfiles), and consider routing the base `archive.ubuntu.com` traffic through the same internal/Azure mirror substitution already applied in job_debian_packages.yml to reduce exposure to public mirror edge outages during image builds.",
+  "historical_context": "This is the third Network-category archive.ubuntu.com/azure.archive.ubuntu.com Docker-build connectivity failure recorded against PR #38775 within the same day (fc0796927d3b3f4c - ARM64 cross-compilation image, 'held broken packages'; 5e8abb425bd8f82e - ubuntu_24_04_x64 image, 'Unable to connect to archive.ubuntu.com:80'). The wider knowledge base also has multiple long-running recurring signatures for the same class of failure in the Debian Packages job (7d2e2ff59d37c6b4, 9 occurrences; d734e6d0da3ffc69, 8 occurrences), confirming archive.ubuntu.com/mirror reachability from GitHub-hosted/self-hosted runners is a recurring, transient infrastructure issue rather than a PR-specific regression."
+}

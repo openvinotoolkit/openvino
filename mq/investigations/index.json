@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 487,
+  "total": 488,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -5302,6 +5302,17 @@
       "category": "Network",
       "signature_hash": "a051dccd640417ef",
       "pr_number": "39784"
+    },
+    {
+      "investigation_id": "2026-11-19-13-50-54-000-44534325149",
+      "run_id": "44534325149",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44534325149",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+      "timestamp": "2026-11-19T13:50:54Z",
+      "title": "Docker image build fails - archive.ubuntu.com InRelease fetch reports connection failed and repository not signed",
+      "category": "Network",
+      "signature_hash": "7ea1f05d2ab70199",
+      "pr_number": "38775"
     }
   ]
 }

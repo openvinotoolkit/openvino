@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "archive ubuntu com noble inrelease connection failed repository is not signed apt get install exit code 100|Network",
+  "signature_hash": "7ea1f05d2ab70199",
+  "title": "Docker image build fails - archive.ubuntu.com InRelease fetch reports connection failed and repository not signed",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-11-19T13:50:54Z",
+  "last_seen": "2026-11-19T13:50:54Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/44534325149"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38775"
+  ],
+  "recent_timestamps": [
+    "2026-11-19T13:50:54Z"
+  ],
+  "rerun_search_string": "InRelease' is not signed."
+}
