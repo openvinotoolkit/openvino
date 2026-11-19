@@ -38,7 +38,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChain_Comparison,
                                             ::testing::ValuesIn(eltwiseOpsComparison()),
                                             ::testing::Values(PostNode::EMPTY),
                                             ::testing::Values(ov::element::dynamic),
-                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values(std::nullopt)),
                          EltwiseChainTest::getTestCaseName);
 
 }  // namespace

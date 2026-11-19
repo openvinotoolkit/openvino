@@ -33,6 +33,22 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/itt.hpp"
 #include "openvino/op/abs.hpp"
+#if defined(OPENVINO_ARCH_ARM64)
+#    include "openvino/op/add.hpp"
+#    include "openvino/op/equal.hpp"
+#    include "openvino/op/floor.hpp"
+#    include "openvino/op/greater.hpp"
+#    include "openvino/op/greater_eq.hpp"
+#    include "openvino/op/less.hpp"
+#    include "openvino/op/less_eq.hpp"
+#    include "openvino/op/maximum.hpp"
+#    include "openvino/op/minimum.hpp"
+#    include "openvino/op/multiply.hpp"
+#    include "openvino/op/negative.hpp"
+#    include "openvino/op/not_equal.hpp"
+#    include "openvino/op/squared_difference.hpp"
+#    include "openvino/op/subtract.hpp"
+#endif
 #include "openvino/op/avg_pool.hpp"
 #if !defined(OPENVINO_ARCH_ARM64)
 #    include "openvino/op/bitwise_not.hpp"
@@ -43,7 +59,9 @@
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/group_conv.hpp"
 #include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
@@ -52,6 +70,9 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
+#if !defined(OPENVINO_ARCH_RISCV64)
+#    include "openvino/op/softmax.hpp"
+#endif
 #include "openvino/op/swish.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
@@ -139,6 +160,7 @@
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
+#include "transformations/utils/utils.hpp"
 #include "utils/general_utils.h"
 #include "utils/ngraph_transformation.hpp"
 
@@ -187,11 +209,7 @@
 
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
-#    include "openvino/op/add.hpp"
 #    include "transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp"
-#else
-#    include "openvino/op/convolution.hpp"
-#    include "openvino/op/group_conv.hpp"
 #endif
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
@@ -209,7 +227,6 @@
 #    include "openvino/op/group_normalization.hpp"
 #    include "openvino/op/mish.hpp"
 #    include "openvino/op/multiply.hpp"
-#    include "openvino/op/softmax.hpp"
 #    include "openvino/op/subtract.hpp"
 #    include "snippets/lowered/pass/mha_parallel_wa_optimizer.hpp"
 #    include "snippets/pass/common_optimizations.hpp"
@@ -230,7 +247,6 @@
 #    include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #    include "transformations/snippets/x64/pass/fuse_brgemm_cpu_postops.hpp"
 #    include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
-#    include "transformations/utils/utils.hpp"
 #endif
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
@@ -1502,8 +1518,7 @@ void Transformations::MainSnippets() {
     auto has_supported_tensors = [ignoreCallback](const std::shared_ptr<const ov::Node>& n) -> bool {
         // Check for supported precision
         auto is_supported_tensor = [&n, ignoreCallback](descriptor::Tensor& t, bool is_input) -> bool {
-            // TODO [105804] int32 isn't supported in general because i32 emitters are required for bit-exact i32
-            // calculations in some cases So i32 is supported exclusively for transposes and broadcast
+            // Integer tensors require exact i32 emitters; admit only operations with native integer execution.
             static const auto supported_element_types = [] {
 #if defined(OPENVINO_ARCH_ARM64)
                 return std::set<ov::element::Type>{ov::element::f32,
@@ -1536,6 +1551,25 @@ void Transformations::MainSnippets() {
                 }
             }
 
+#if defined(OPENVINO_ARCH_ARM64)
+            if (t.get_element_type() == ov::element::i32 && ov::is_type_any_of<const op::v0::Abs,
+                                                                               const op::v1::Add,
+                                                                               const op::v1::Subtract,
+                                                                               const op::v1::Multiply,
+                                                                               const op::v1::Minimum,
+                                                                               const op::v1::Maximum,
+                                                                               const op::v0::Negative,
+                                                                               const op::v0::SquaredDifference,
+                                                                               const op::v0::Floor,
+                                                                               const op::v1::Equal,
+                                                                               const op::v1::NotEqual,
+                                                                               const op::v1::Greater,
+                                                                               const op::v1::GreaterEqual,
+                                                                               const op::v1::Less,
+                                                                               const op::v1::LessEqual>(n)) {
+                return true;
+            }
+#endif
             return supported_element_types.count(t.get_element_type()) != 0 ||
                    (is_input && t.get_element_type() == ov::element::i32 &&
                     (ov::is_type_any_of<const op::v1::Transpose,

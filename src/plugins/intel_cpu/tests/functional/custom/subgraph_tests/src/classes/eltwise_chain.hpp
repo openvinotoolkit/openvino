@@ -2,36 +2,38 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <tuple>
+#include <iostream>
+#include <map>
+#include <memory>
+#include <optional>
 #include <string>
+#include <tuple>
 #include <variant>
 #include <vector>
-#include <memory>
-#include <iostream>
 
+#include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/node_builders/activation.hpp"
 #include "common_test_utils/node_builders/comparison.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
-#include "common_test_utils/node_builders/fake_quantize.hpp"
-#include "common_test_utils/node_builders/activation.hpp"
-#include "common_test_utils/common_utils.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "internal_properties.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 
 namespace ov {
 namespace test {
 
-enum class PostNode : uint8_t {
-    EMPTY,
-    QUANTIZE,
-    SOFTSIGN
-};
+enum class PostNode : uint8_t { EMPTY, QUANTIZE, SOFTSIGN, LOGICAL_NOT };
 
 inline std::ostream& operator<<(std::ostream& os, PostNode node) {
     switch (node) {
         case PostNode::EMPTY:    os << "EMPTY"; break;
         case PostNode::QUANTIZE: os << "QUANTIZE"; break;
+        case PostNode::LOGICAL_NOT:
+            os << "LOGICAL_NOT";
+            break;
         case PostNode::SOFTSIGN: os << "SOFTSIGN"; break;
         default:                 os << "UNKNOWN"; break;
     }
@@ -39,32 +41,51 @@ inline std::ostream& operator<<(std::ostream& os, PostNode node) {
 }
 
 // An operation of the chain. A comparison produces a boolean, so it can only be the last one.
-using EltwiseChainOp = std::variant<ov::test::utils::EltwiseTypes, ov::test::utils::ComparisonTypes>;
+using EltwiseChainOp = std::variant<ov::test::utils::EltwiseTypes,
+                                    ov::test::utils::ComparisonTypes,
+                                    ov::test::utils::ActivationTypes,
+                                    ov::test::utils::MinMaxOpType>;
 
 inline std::ostream& operator<<(std::ostream& os, const EltwiseChainOp& op) {
     std::visit([&os](auto type) { os << type; }, op);
     return os;
 }
 
-typedef std::tuple<std::vector<InputShape>, // Input shapes
-        ov::test::utils::InputLayerType,    // Secondary input type
-        std::vector<ElementType>,           // Input precisions
-        std::vector<EltwiseChainOp>,        // Eltwise operations
-        PostNode,                           // { QA | SoftSign | Nothing }
-        ov::element::Type,                  // Conversion type
-        std::string                         // Device name
-        >
-EltwiseChainTuple;
+// Optional precision inputs and implementation checks; legacy cases retain their original defaults.
+struct EltwiseChainConfig {
+    std::string name;
+    std::vector<ov::test::utils::InputGenerateData> inputData;
+    ov::intel_cpu::SnippetsMode snippetsMode = ov::intel_cpu::SnippetsMode::DISABLE;
+    std::string selectedType = "jit_i32";
+    std::map<std::string, size_t> expectedNodes;
+    std::vector<std::string> expectedImplementations;
+};
+
+typedef std::tuple<std::vector<InputShape>,           // Input shapes
+                   ov::test::utils::InputLayerType,   // Secondary input type
+                   std::vector<ElementType>,          // Input precisions
+                   std::vector<EltwiseChainOp>,       // Eltwise operations
+                   PostNode,                          // { QA | SoftSign | Nothing }
+                   ov::element::Type,                 // Conversion type
+                   std::string,                       // Device name
+                   std::optional<EltwiseChainConfig>  // Precision inputs and implementation checks
+                   >
+    EltwiseChainTuple;
 
 class EltwiseChainTest : public testing::WithParamInterface<EltwiseChainTuple>,
-                         virtual public SubgraphBaseTest {
+                         virtual public SubgraphBaseTest,
+                         public CPUTestUtils::CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<EltwiseChainTuple> &obj);
-    ov::Tensor generate_eltwise_input(const ov::element::Type& type, const ov::Shape& shape);
+    ov::Tensor generate_eltwise_input(const ov::element::Type& type, const ov::Shape& shape, size_t port = 0);
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 
 protected:
     void SetUp() override;
+    void validate() override;
+
+private:
+    std::optional<EltwiseChainConfig> precisionConfig;
 };
 
 namespace eltwise_chain {
