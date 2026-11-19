@@ -113,6 +113,10 @@ const char* impl_type_to_string(impl_desc_type type) {
     CASE(jit_avx_1x1);
     CASE(jit_sse42_1x1);
     CASE(jit_uni_1x1);
+    CASE(jit_1x1);
+    CASE(jit_dw);
+    CASE(brgconv_1x1);
+    CASE(brgconv_dw);
     CASE(jit_avx512_dw);
     CASE(jit_avx2_dw);
     CASE(jit_avx_dw);

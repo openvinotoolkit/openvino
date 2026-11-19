@@ -321,6 +321,29 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
         impl_desc_type::ref_any,
         impl_desc_type::ref,
     };
+#if defined(OPENVINO_ARCH_ARM64)
+    // On SVE CPUs oneDNN's ACL GEMM convolutions decline OC * IC <= 2048 and leave those shapes to its SVE brgconv and
+    // jit kernels, whose names ("brgconv:sve_128", "jit_1x1:sve_128") parse to the ISA-less types added below; without
+    // them such convolutions fall back to the reference implementation. No leading impl_desc_type::unknown: oneDNN
+    // offers the SVE kernels before ACL, and ranking by this list keeps ACL wherever ACL accepts the shape. x86 brgconv
+    // types stay excluded, as before.
+    static const std::vector<impl_desc_type> priorities_aarch64 = [] {
+        std::vector<impl_desc_type> result;
+        std::copy_if(priorities.begin(), priorities.end(), std::back_inserter(result), [](impl_desc_type type) {
+            return type != impl_desc_type::unknown && (type & impl_desc_type::brgconv) == 0;
+        });
+        const auto acl = std::find(result.begin(), result.end(), impl_desc_type::acl);
+        result.insert(std::next(acl),
+                      {impl_desc_type::brgconv_dw,
+                       impl_desc_type::jit_dw,
+                       impl_desc_type::brgconv_1x1,
+                       impl_desc_type::jit_1x1,
+                       impl_desc_type::brgconv,
+                       impl_desc_type::jit});
+        return result;
+    }();
+    return priorities_aarch64;
+#endif
     // WA heuristic to avoid regressions introduced by avx2 brgconv.
     const bool isBrgConvAvailable = ov::with_cpu_x86_avx2() && !useJitPlanar;
     if (isBrgConvAvailable) {
