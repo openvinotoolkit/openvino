@@ -815,6 +815,78 @@ def test_pytorch_fx_decoder_names_mixed_and_empty_container_inputs():
 @pytest.mark.precommit
 @pytest.mark.skipif(version.parse(torch.__version__) < version.parse("2.6.0"),
                     reason="torch.export conversion requires torch>=2.6.0")
+@pytest.mark.parametrize("source", ["model", "exported_program"])
+def test_pytorch_fx_decoder_preserves_original_module_paths(source):
+    from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.encoder = torch.nn.Sequential(torch.nn.ReLU())
+            self.wrapped_model = torch.nn.Sigmoid()
+
+        def forward(self, x):
+            return self.encoder(x) + self.wrapped_model(x) + torch.tanh(x)
+
+    model = Model().eval()
+    example = (torch.randn(2, 4),)
+    if source == "model":
+        decoder = TorchFXPythonDecoder.from_model(model, example)
+    else:
+        decoder = TorchFXPythonDecoder.from_exported_program(torch.export.export(model, example))
+
+    expected = {
+        torch.ops.aten.relu.default: "encoder.0",
+        torch.ops.aten.sigmoid.default: "wrapped_model",
+        torch.ops.aten.tanh.default: "",
+    }
+    found = {}
+    for node in decoder.pt_module.graph.nodes:
+        if node.target in expected:
+            stack = node.meta["nn_module_stack"]
+            found[node.target] = next(reversed(stack.values()))[0]
+    assert found == expected
+
+
+@pytest.mark.precommit
+def test_pytorch_fx_decoder_restores_shared_module_paths_in_subgraphs():
+    from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+    class Wrapper:
+        pass
+
+    class Child(torch.nn.Module):
+        def forward(self, x):
+            return torch.sigmoid(torch.relu(x))
+
+    child = torch.fx.symbolic_trace(Child())
+    graph = torch.fx.Graph()
+    data = graph.placeholder("data")
+    call = graph.call_module("child", (data,))
+    graph.output(call)
+    graph_module = torch.fx.GraphModule({"child": child}, graph)
+    child_calls = [node for node in child.graph.nodes if node.op == "call_function"]
+    stack = {
+        "wrapper": ("", Wrapper),
+        "root": ("wrapped_model", "Model"),
+        "module": ("wrapped_model.wrapped_model", "Module"),
+    }
+    unrelated_stack = {"root": ("", "Other"), "module": ("wrapped_model", "Module")}
+    call.meta["nn_module_stack"] = stack
+    child_calls[0].meta["nn_module_stack"] = stack
+    child_calls[1].meta["nn_module_stack"] = unrelated_stack
+
+    TorchFXPythonDecoder._restore_wrapped_module_paths(graph_module, Wrapper)
+
+    assert call.meta["nn_module_stack"]["module"][0] == "wrapped_model"
+    assert child_calls[0].meta["nn_module_stack"]["module"][0] == "wrapped_model"
+    assert stack["module"][0] == "wrapped_model.wrapped_model"
+    assert child_calls[1].meta["nn_module_stack"] == unrelated_stack
+
+
+@pytest.mark.precommit
+@pytest.mark.skipif(version.parse(torch.__version__) < version.parse("2.6.0"),
+                    reason="torch.export conversion requires torch>=2.6.0")
 def test_pytorch_dynamo_convert_builtin_named_input_with_list_input():
     import numpy as np
     from openvino import Core, convert_model
