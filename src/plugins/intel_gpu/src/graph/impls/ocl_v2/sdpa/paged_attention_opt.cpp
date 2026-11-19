@@ -246,21 +246,13 @@ inline bool supports_gqa_multi_tokens_dpas_kernel(const kernel_impl_params& para
 }
 
 // The small GQA MIXED step where sdpa_ocl serves MIXED on the token-major K page (Xe2+ XMX), so that three kernels can take
-// it: the GQA fallback (paged_attention_opt.cl), pa_small_q_opt.cl and sdpa_ocl (NONE here). Each wins a region (B70 at
-// 1800 MHz, unit-test perf rows with the KV cache out of L2 at the start of a call, 32/8 heads at head size 128 and 64,
-// 24/8, 28/4 and 16/8 at 256, f16 / i8 BY_TOKEN / i8 and u4 BY_CHANNEL caches, 2-16 new tokens, 512-16K context):
-//   - the fallback reads the KV once per new token and spreads the work over tokens x heads x 256-key partitions, so it
-//     wins while new tokens^2 x context is small: up to 320K with an f16 or u4 cache and 192K with an i8 one at head
-//     size 128 and above, half that at 64 (pa_small_q dequantizes less per tile there; sizes in between interpolate);
-//   - pa_small_q (when it can run) wins above that, from a context of 1.5K (768 at head size 64): a work-group of
-//     ceil(tokens / TOKENS_PER_SG) subgroups dequantizes every K/V tile of a 256-key partition into SLM, which costs the
-//     same for any token count and leaves the GPU mostly idle at a short context;
-//   - sdpa_ocl takes the same time for any token count and grows with the context (no split over keys), so it wins only
-//     with an f16 cache above 12 new tokens where pa_small_q does not.
-// Over those 736 cases the choice took 1.007x the fastest kernel's time (geometric mean), the previous policy (sdpa_ocl
-// below prefer_gqa_multi_tokens_fallback_kernel()'s threshold and wherever pa_small_q cannot run, pa_small_q above it)
-// 1.98x; it was more than 2% slower than the previous policy in 3 cases, by at most 7.3% (24/8 heads, f16, 12 new
-// tokens at 1K context: 77.6 against 72.3 us). sdpa_ocl.md, "Small GQA MIXED step on the token-major page (2026-11-08)".
+// it: the GQA fallback (paged_attention_opt.cl), pa_small_q_opt.cl and sdpa_ocl (NONE here), each in its own region:
+//   - the fallback reads the KV once per new token and spreads the work over tokens x heads x 256-key partitions: while
+//     new tokens^2 x context is at most 320K (f16 / u4 cache) or 192K (i8), scaled by head size / 128 below 128;
+//   - pa_small_q (when it can run) above that, from a context of 1.5K (scaled the same): a work-group dequantizes every
+//     K/V tile of a 256-key partition into SLM, which costs the same for any token count and idles a short context;
+//   - sdpa_ocl (no split over keys) only with an f16 cache above 12 new tokens where pa_small_q does not take it.
+// "Small GQA MIXED step on the token-major page (2026-11-08)" in the docs.
 inline GQAMultiTokensKernel token_major_gqa_kernel_without_small_q(const kernel_impl_params& params, size_t max_tokens) {
     return (!get_kv_compressed(params) && max_tokens > 12) ? GQAMultiTokensKernel::NONE : GQAMultiTokensKernel::FALLBACK;
 }
@@ -1315,14 +1307,11 @@ protected:
         // BY_TOKEN over all of its head dims (a sub_group reduction), so a single workgroup has to own
         // it -- and in prefill that same workgroup also quantizes K for every channel, then loops over
         // all 16 tokens of V serially. Splitting them makes the cost max(K, V) instead of K + V.
-        // Measured on a 2-block dispatch (head 128, 8 kv heads, B70): u4 19.1 us -> 14.3 us,
-        // i8 8.2 us -> 5.6 us.
         //
         // Only BY_CHANNEL K can do this -- otherwise K is itself per-token and shares the reduction
-        // structure, leaving nothing to overlap. And only PREFILL benefits: in generate, K is already
-        // split over NUM_K_HEAD_SIZE_PARTITIONS workgroups and V costs 315 ns standalone but only
-        // 22 ns when appended to a workgroup's K (2755 -> 2777 ns), because K is a long dependent
-        // chain whose idle issue slots absorb it. An extra workgroup there would be pure overhead.
+        // structure, leaving nothing to overlap. And only PREFILL: in generate, K is already split
+        // over NUM_K_HEAD_SIZE_PARTITIONS workgroups whose long dependent chain absorbs V, so an extra
+        // workgroup there would be pure overhead.
         const bool separate_v_wg_prefill = is_kv_compressed && is_key_by_channel;
         jit.make("HAS_SEPARATE_V_WG_PREFILL", separate_v_wg_prefill ? 1 : 0);
 
@@ -1737,8 +1726,8 @@ public:
         const auto& info = params.get_device_info();
         const auto desc = params.typed_desc<paged_attention>();
 
-        // Knob (OV_GPU_ENABLE_SDPA_MICRO=0): the DPAS PagedAttention kernel (sdpa_ocl) off (the name is from the removed
-        // sdpa_micro), so PagedAttention runs the OCL paged_attention/sdpa_opt path, for accuracy A/B without rebuilding.
+        // Knob (OV_GPU_ENABLE_SDPA_MICRO=0, a historical name): the DPAS PagedAttention kernel (sdpa_ocl) off, so
+        // PagedAttention runs the OCL paged_attention/sdpa_opt path, for accuracy A/B without rebuilding.
         if (!params.get_program().get_config().get_enable_sdpa_micro()) {
             GPU_DEBUG_TRACE_DETAIL << "[GPU] PA DPAS SDPA kernel (sdpa_ocl) DISABLED via OV_GPU_ENABLE_SDPA_MICRO=0; "
                                       "falling back to OCL paged_attention/sdpa_opt kernel.\n";
@@ -1815,8 +1804,7 @@ public:
         //
         // (1) past_lens[0] against the query length, which is what decides how much of a MIXED
         //     kernel's key range is CACHED context versus this iteration's NEW tokens -- i.e. how much
-        //     sdpa_ocl's PA_CUR_KV_F16 split can win (and how much sdpa_micro was already winning by
-        //     doing the same split).
+        //     sdpa_ocl's PA_CUR_KV_F16 split can win.
         // (2) past_lens_shape[0] against mem_lock::size(). get_paged_attention_stage() scans the
         //     LATTER, which is _mem->size()/sizeof(T) -- the ALLOCATED element count, not the logical
         //     sequence count -- so if they differ, a stale entry past the last real sequence can turn

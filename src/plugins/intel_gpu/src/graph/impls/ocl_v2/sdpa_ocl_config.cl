@@ -5,10 +5,9 @@
 // Compile-time configuration of sdpa_ocl.cl: derived tiling, dtype and layout macros, and the
 // host/kernel invariants as #errors. Included once, by sdpa_ocl.cl only.
 
-// xe_hpg (DG2): 8-lane subgroups. The DPAS A operand is then an int8 of 2 halves per lane (lane l = reduction
-// elements 2l, 2l+1 of a row), not the SG16 short8 of 1 half per lane, so every spot that builds or reads an A operand
-// has an `#if SG8` arm. The SG16 arm is the text that was there before, untouched (SG16 token streams must not move).
-// SG8 is defined here, so anything above the include of this file spells SUBGROUP_SIZE out.
+// xe_hpg: 8-lane subgroups. The DPAS A operand is then an int8 of 2 halves per lane (lane l = reduction elements 2l,
+// 2l+1 of a row), not the SG16 short8 of 1 half per lane, so every spot that builds or reads an A operand has an
+// `#if SG8` arm. SG8 is defined here, so anything above the include of this file spells SUBGROUP_SIZE out.
 #define SG8 (SUBGROUP_SIZE == 8)
 #if SG8
 #  define DPAS_A_T int8
@@ -16,8 +15,7 @@
 #  define DPAS_A_T short8
 #endif
 
-// 16-bit element type of Q/K/V/output (f16 or bf16). The DT_* bodies are not parenthesised (they
-// replaced per-dtype code token for token), so pass only simple operands.
+// 16-bit element type of Q/K/V/output (f16 or bf16). The DT_* bodies are not parenthesised: pass only simple operands.
 #if INPUT0_IS_BF16
 #  define DPAS_MAD_K16 intel_sub_group_bf16_bf16_matrix_mad_k16
 #  define PACK_SOFTMAX8(x) _convert_bfloat168_as_ushort8(x)
@@ -48,43 +46,31 @@
 #  define DT_FROM_RAW(x)       x
 #endif
 
-// The additive attention mask enters the raw score as mask * iscale (16 at head 256). A fill near the float limit
-// (PyTorch's finfo.min, which a bf16 mask keeps) or -inf overflows there to -inf. A query row whose keys are all masked
-// then has no finite score and comes out 0, where the reference gives uniform weights for a finite fill. Every folded
-// mask term is therefore clamped, as sdpa_micro does (#39148), but to a bound picked from scale (the log2-domain factor,
-// after *= LOG2E):
-// - The bound is a power of two with bound * scale in [2^30, 2^31), capped at 2^126.
-// - The products are exact, which the default softmax form S * scale - m_log2 needs. With a fixed 1e37 a fully masked
-//   row put the rounding of m_log2 (about 1e28) into every exponent, so exp2 gave inf and the output was NaN.
-//   sdpa_micro subtracts before it scales, so it never had this problem.
-// - A fully masked row now gets exponents of exactly 0, so uniform weights (the mean of V): the -bound absorbs any
-//   |q.k * scale| below 64.
-// - Next to an unmasked key, exp2 of a clamped score is still exactly 0, so rows with an unmasked key keep their bits.
-// - Masks below 2^30 in the log2 domain are unchanged (|mask| below about 7e8, which includes -1e4 and -65504).
-// - clamp() takes a NaN mask to the lower bound.
+// The additive mask enters the raw score as mask * iscale, where a fill near the float limit (e.g. finfo.min) or -inf
+// overflows to -inf, and a fully masked row would come out 0 instead of the reference's uniform weights. Every folded
+// mask term is therefore clamped to a bound picked from scale (the log2-domain factor, after *= LOG2E):
+// - a power of two with bound * scale in [2^30, 2^31), capped at 2^126, so the products are exact, which the default
+//   softmax form S * scale - m_log2 needs (an inexact bound puts m_log2's rounding into every exponent: NaN);
+// - a fully masked row gets exponents of exactly 0, i.e. uniform weights (the -bound absorbs |q.k * scale| below 64);
+// - next to an unmasked key exp2 of a clamped score is exactly 0, so such rows keep their bits;
+// - masks below 2^30 in the log2 domain (|mask| below about 7e8) are unchanged; clamp() takes a NaN mask to the lower bound.
+// See "Masks" in the docs.
 #define SDPA_MASK_SAT_FOR(scale) ldexp(1.0f, min(126, 30 - max(ilogb(scale), -96)))
 #define SDPA_SAT_MASK(x, sat) clamp((x), -(sat), (sat))
 
-// A key the mask saturates has a raw score of about -bound, so a row whose keys are all masked so far has a log2-domain
-// maximum m_log2 of about -2^30, where floats are 64-128 apart. The softmax argument S * scale - m_log2 is at most 0 in exact
-// arithmetic. The default form is contracted to a mad (see the bullet above on why the bound is a power of two), so the
-// argument of the maximum entry itself is the rounding error of m_log2, exactly 0 only while the product is exact, which holds
-// while the saturated score absorbs S. With logits near 100 it does not: the argument came out positive, exp2 of it
-// overflowed, and the output of a row with a later visible key tile turned to NaN (a '-inf' mask with 128 or more leading
-// masked keys; sdpa_micro, which subtracts before it scales, gave none). Forbidding the contraction with a pragma changed
-// nothing. Saturating the exp2 result to [0, 1] is the same as capping the argument at 0 (bit-identical to an fmin of it) and,
-// as a saturate modifier, costs less: 1-2 % of a head 128 prefill with a mask on the B70 (an fmin: 2-3 %). Only a mask can
-// put a saturated score into a row, so only a build with one pays; paged attention has no mask and is unchanged, and a build
-// without a mask is bit-identical.
+// A row whose keys are all saturated so far has m_log2 near -2^30, where floats are 64-128 apart. The default argument
+// S * scale - m_log2 is contracted to a mad, so at the row maximum it is exactly 0 only while the saturated score absorbs
+// S; with large logits it comes out positive, exp2 overflows and a row with a later visible key tile turns NaN.
+// Saturating exp2 to [0, 1] equals capping the argument at 0. Only a mask can saturate a score, so builds without one keep
+// plain exp2 (bit-identical). See "Masks" in the docs.
 #if WITH_ATTN_MASK || defined(STATIC_SCALAR_ATTN_MASK_VALUE) || defined(HAS_SCALAR_ATTN_MASK)
 #  define SDPA_SOFTMAX_EXP(x) clamp(native_exp2(x), 0.0f, 1.0f)
 #else
 #  define SDPA_SOFTMAX_EXP(x) native_exp2(x)
 #endif
 
-// Runtime scale input: SCALE_DATA_T is the input's own storage type (half, float, or ushort for bf16). A bf16
-// value is the upper half of the f32 with the same bits, so it widens with a shift (no bf16 helper needed,
-// which the include of bf16_utils.cl in sdpa_ocl.cl only provides for a bf16 Q).
+// Runtime scale input: SCALE_DATA_T is the input's own storage type (half, float, or ushort for bf16). A bf16 value
+// widens to f32 with a shift (bf16_utils.cl is included only for a bf16 Q).
 #if SCALE_IS_BF16
 #  define SCALE_TO_FLOAT(x) as_float(((uint)(x)) << 16)
 #else
@@ -99,7 +85,7 @@
 #endif
 
 // Plain-SDPA KV-compression scales: *_ATTR_SCALES_DATA_T is their storage type, ushort for bf16 (kv_cache_compression.cpp
-// types them as the query). The f16 bodies are the conversions the read sites had before bf16 was widened here.
+// types them as the query).
 #if KEY_SCALES_IS_BF16
 #  define K_COMP_SCALE_TO_HALF(x) convert_half(as_float(((uint)(x)) << 16))
 #else
@@ -315,7 +301,7 @@
 #  define LOWER_RIGHT_SHIFT(pos) pos
 #endif
 
-// Bidirectional attention over image-token groups (gemma-4 and friends): a maximal run of
+// Bidirectional attention over image-token groups: a maximal run of
 // token_type_ids[t] == 1 is a group whose members attend to each other in both directions, on top
 // of the causal + sliding-window region. HAS_TOKEN_TYPE_IDS declares the parameter; USE_BIDIR_MASK
 // (SDPA_OCL_BIDIR=0) removes only the logic, so the toggle cannot desync the signature from
@@ -356,8 +342,8 @@
 #define PA_K_HIDDEN_STRIDE 1
 
 // Distance in K elements between consecutive (block, kv_head) pages. The comp region grows
-// whichever factor it is indexed by, so every layout is the same product (table in
-// docs/sdpa_ocl.md): BY_TOKEN widens the row (ADJUSTED_K_HEAD_SIZE), BY_CHANNEL adds rows
+// whichever factor it is indexed by, so every layout is the same product ("Paged-attention cache
+// layouts" in the docs): BY_TOKEN widens the row (ADJUSTED_K_HEAD_SIZE), BY_CHANNEL adds rows
 // (ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE). The data row pitch never includes the comp.
 #if IS_PAGED_ATTENTION
 #  define PA_K_PAGE_STRIDE (ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE)
@@ -380,8 +366,7 @@
 #endif
 
 #if IS_PAGED_ATTENTION
-// Element offset of the (page, kv_head) K / V cache page. The V form keeps its call sites' original
-// (distributed) product.
+// Element offset of the (page, kv_head) K / V cache page. The V form keeps its call sites' distributed product.
 #  define PA_K_PAGE_OFF(page, kvh) (((size_t)(page) * KV_HEADS_NUM + (kvh)) * PA_K_PAGE_STRIDE)
 #  define PA_V_PAGE_OFF(page, kvh) ((size_t)(page) * KV_HEADS_NUM * PAGED_ATTENTION_BLOCK_SIZE * ADJUSTED_V_HEAD_SIZE + \
                                     (size_t)(kvh) * PAGED_ATTENTION_BLOCK_SIZE * ADJUSTED_V_HEAD_SIZE)
@@ -394,8 +379,7 @@
 // High (hi != 0) or low nibble of a u4 byte.
 #define U4_NIBBLE_SEL(b, hi) ((hi) ? ((b) >> 4) : ((b) & 0x0Fu))
 // The u4 nibble at bit `sh` of a 16-bit word, as half: as_half(0x6400 | n) is 1024 + n exactly, so the
-// subtraction gives (half)n bit for bit. 16-bit integer ops on a word of the read keep each key in one packed
-// 16-bit lane; converting an extracted dword lands the half strided and costs a repack move (docs/sdpa_ocl.md).
+// subtraction gives (half)n bit for bit. Works on 16-bit words so each key stays in one packed 16-bit lane.
 #define U4_TO_HALF(w16, sh) (as_half((ushort)((((w16) >> (sh)) & (ushort)0xF) | (ushort)0x6400)) - (half)1024.0h)
 // The signed byte at bit `sh` of a 16-bit word, as half, the same way: 0x6480 ^ b is 0x6400 | (b ^ 0x80) and b ^ 0x80
 // is (char)b + 128, so the subtraction gives (half)(char)b bit for bit (and +0 for 0).
@@ -422,11 +406,11 @@
 #  define KV_K_BIAS 1152.0f
 #endif
 // Packed 4-bit V read by block (USE_2D_BLOCK_IO_V_U4): the value columns of each 32-column window are permuted like the K
-// depth, so the read needs no shuffle (a lane shuffle to the natural order was ~45% of a u4 prefill). A window is two
-// 16-column value blocks, of one subgroup (an even sv_value_blocks) or of two neighbouring ones (one block per subgroup,
-// an even sv_sg_per_wg_values: the d_max <= 128 tilings); the block with parity h (((sg_j0_sv >> 4) + cd) & 1) takes
-// nibble h of the window's bytes, so lane L holds column 2L + h of the window, and the epilogue stores every column where
-// it belongs. The host enables the read for such splits only (v_u4_window_split_ok()); others take v_tile_gather_ch().
+// depth, so the read needs no shuffle. A window is two 16-column value blocks, of one subgroup (an even sv_value_blocks)
+// or of two neighbouring ones (one block per subgroup, an even sv_sg_per_wg_values); the block with parity h
+// (((sg_j0_sv >> 4) + cd) & 1) takes nibble h of the window's bytes, so lane L holds column 2L + h of the window, and the
+// epilogue stores every column where it belongs. The host enables the read for such splits only (v_u4_window_split_ok());
+// others take v_tile_gather_ch().
 #define PLAIN_V_U4_PERMUTED USE_2D_BLOCK_IO_V_U4
 #if USE_2D_BLOCK_IO_V_U4 && !((sv_value_blocks % 2) == 0 || (sv_value_blocks == 1 && (sv_sg_per_wg_values % 2) == 0))
 #  error "sdpa_ocl.cl: USE_2D_BLOCK_IO_V_U4 needs value blocks that pair into 32-column windows"
@@ -449,12 +433,10 @@
 // Offset of the (depth tile db, query block qb) Q tile in Q_slm.
 #define Q_SLM_OFF(db, qb) (((db) * q_blocks + (qb)) * Q_DWORDS * SUBGROUP_SIZE)
 
-// Linkage of every helper in the sdpa_ocl_*.cl headers. With a plain `inline` helper IGC still
-// inlines it, but optimizes the whole kernel differently (the ISA moves far from the call site);
-// with always_inline the ISA is the same as with the code written in place. Helpers also take the
-// lane id twice where needed, `size_t lane` for size_t arithmetic and `int lane_i` for int: a
-// `(int)lane` inside a helper folds against the kernel's widened lane when it is inlined and moves
-// register allocation, so the caller does that conversion. Rationale: docs/sdpa_ocl.md.
+// Linkage of every helper in the sdpa_ocl_*.cl headers: a plain `inline` helper changes how the whole kernel is
+// optimized; always_inline gives the ISA of the code written in place. Helpers take the lane as `size_t lane` and
+// `int lane_i` (converted by the caller): a `(int)lane` inside a helper moves register allocation.
+// See "Kernel helpers" in the docs.
 #define SDPA_OCL_INLINE __attribute__((always_inline)) inline
 
 // u4 (INT4) token-major BY_CHANNEL K cache: the DPAS depth axis is PERMUTED. The KQ A operand is K
@@ -584,8 +566,7 @@
 #  endif
 #endif
 
-// SG8 tripwires: each is a spot that compiles on SG8 but is silently wrong there; the named plan step resolves it.
-// (The DPAS A operand / S_slm pA read tripwire is gone: plan S6a gave both an int8 arm.)
+// SG8 tripwires: each is a spot that compiles on SG8 but is silently wrong there.
 #if SUBGROUP_SIZE != 16
 #  if USE_2D_BLOCK_IO_Q || USE_2D_BLOCK_IO_KV || USE_2D_BLOCK_IO_A || USE_2D_BLOCK_IO_K_I8 || USE_2D_BLOCK_IO_V_I8 || \
       USE_2D_BLOCK_IO_K_PA || USE_2D_BLOCK_IO_V_PA || USE_2D_BLOCK_IO_K_PA_I8 || USE_2D_BLOCK_IO_V_PA_I8

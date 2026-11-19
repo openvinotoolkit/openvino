@@ -381,10 +381,8 @@ KERNEL(pa_sdpa_opt)(
                 const __global uchar* k_page = (const __global uchar*)key_cache + key_block_offset;
                 const __global INPUT0_TYPE* k_comp = (const __global INPUT0_TYPE*)(k_page + (K_HEAD_SIZE / U4_ELEMS_PER_BYTE) * PAGED_ATTENTION_BLOCK_SIZE);
 #ifdef PA_U4_K_ROW_LOADS
-                // xe_hpg GQA single-token kernel (K_HEAD_SIZE % 32 == 0): the lane loads its whole row up front in
-                // 16-byte pieces. The per-step vload8 below is two 4-byte gathers over the 16 rows, each touching 16
-                // cache lines; the pieces carry 16 bytes per line touched, K_HEAD_SIZE / 32 messages per page instead
-                // of K_HEAD_SIZE / 8 ("u4 page reads of the opt kernels on xe_hpg" in sdpa_ocl.md).
+                // xe_hpg GQA single-token kernel (K_HEAD_SIZE % 32 == 0): the lane loads its whole row up front in 16-byte
+                // pieces instead of the per-step vload8 below ("u4 page reads of the opt kernels on xe_hpg" in the docs).
                 uint k_row[K_HEAD_SIZE / 8];
                 {
                     const __global uint* k_row_ptr = (const __global uint*)(k_page + sglid * (K_HEAD_SIZE / U4_ELEMS_PER_BYTE));
@@ -469,18 +467,13 @@ KERNEL(pa_sdpa_opt)(
     #endif
 #else  //  !IS_KV_COMPRESSED
                 KEY_BLOCK k_vals = 0;
-                // Page: [PAGED_ATTENTION_BLOCK_SIZE tokens, K_HEAD_SIZE]. The consumer below needs k_vals[i] on lane L to be
-                // K[token = L][head dim = qk_idx*KEY_VEC_SIZE + i] (q_val is broadcast over head dims, and the score lands in
-                // lane == token). A block read would walk head dims across lanes -- the wrong axis -- so instead each lane
-                // loads its OWN token's row: the KEY_VEC_SIZE head dims a lane needs are contiguous there, so one per-lane
-                // vector load lands the operand already in the layout the mad below wants, with no transpose and no SLM
-                // staging. Reading the whole page unconditionally is safe: rows past seq_len are inside the allocated
-                // page, and their scores are overwritten with SOFTMAX_ACCUMULATOR_VAL_MIN by the token_idx guard below.
+                // Page: [PAGED_ATTENTION_BLOCK_SIZE tokens, K_HEAD_SIZE]. The mad below needs k_vals[i] on lane L to be
+                // K[token = L][head dim = qk_idx*KEY_VEC_SIZE + i], so each lane loads its OWN token's row (a block read
+                // would walk head dims across lanes). Reading the whole page is safe: rows past seq_len are inside the
+                // allocated page, and their scores are overwritten with SOFTMAX_ACCUMULATOR_VAL_MIN by the token_idx guard.
     #if USE_2D_BLOCK_IO_K_TM
                 // The same operand from one block message: a 32-bit transpose of the page (16 token rows, pitch
                 // K_HEAD_SIZE halves) gives lane L row L with dword i = head dims qk_idx*KEY_VEC_SIZE + 2i, 2i + 1.
-                // The per-lane vload16 is a 16-address gather, re-issued for every query a GQA multi-token
-                // work-item handles.
                 uint8 k_dw;
                 intel_sub_group_2d_block_read_transpose_32b_16r8x1c(
                     (__global void*)(key_cache + block_offset), K_HEAD_SIZE * (int)sizeof(INPUT1_TYPE), PAGED_ATTENTION_BLOCK_SIZE,
@@ -826,10 +819,9 @@ KERNEL(pa_sdpa_opt)(
             VALUE_BLOCK_UNCOMPRESSED value_vals_hi;
 #ifdef PA_U4_V_BYTE_PER_LANE
             // xe_hpg single-token kernels: this lane owns byte packed_byte_idx of a row, head dims packed_byte_idx (low
-            // nibble, acc_lo) and packed_byte_idx + PACKED_V_HEAD_SIZE (high, acc_hi), so a subgroup reads its 16 bytes
-            // of a token with one block read, and each byte of the page once ("u4 page reads of the opt kernels on
-            // xe_hpg" in sdpa_ocl.md). PACKED_V_HEAD_SIZE % SUBGROUP_SIZE == 0 under USE_DUAL_NIBBLE_V_OPT, so the 16
-            // bytes are one aligned run.
+            // nibble, acc_lo) and packed_byte_idx + PACKED_V_HEAD_SIZE (high, acc_hi), so a subgroup reads its 16 bytes of
+            // a token with one block read ("u4 page reads of the opt kernels on xe_hpg" in the docs). PACKED_V_HEAD_SIZE %
+            // SUBGROUP_SIZE == 0 under USE_DUAL_NIBBLE_V_OPT, so the 16 bytes are one aligned run.
             const uint v_sg_byte = packed_byte_idx - sglid;
             unroll_for (uint i = 0; i < VALUE_VEC_SIZE; i++) {
                 const uchar packed = as_uchar(BLOCK_READN(INPUT2_TYPE, 1, value_cache, packed_block_offset + i * phys_v_head_size + v_sg_byte));

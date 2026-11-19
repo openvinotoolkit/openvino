@@ -126,7 +126,7 @@ std::shared_ptr<ov::Model> create_xattention_paged_attention_model() {
 }
 
 // A plain (non-XAttention) PagedAttention model: 2 query heads over 2 KV heads, head size 64.
-// with_alibi / with_qq_bias add the inputs (the K cache layout no longer depends on them).
+// with_alibi / with_qq_bias add the inputs (the K cache layout does not depend on them).
 std::shared_ptr<ov::Model> create_paged_attention_model(bool with_alibi, bool with_qq_bias) {
     constexpr int64_t num_heads = 2;
     constexpr int64_t head_size = 64;

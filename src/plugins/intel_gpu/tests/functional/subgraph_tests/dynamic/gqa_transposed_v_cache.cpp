@@ -22,10 +22,10 @@
 
 // GroupQueryAttention executed end to end (ONNX com.microsoft GroupQueryAttention -> the GPU GroupQueryAttentionDecomposition
 // -> StatelessKV + SDPA or the explicit attention chain), against the TEMPLATE plugin. transpose_v: the model keeps its V cache
-// as [B, kv_heads, head_size, S] (past_value -> Transpose{0,1,3,2} -> GQA -> Transpose{0,1,3,2} -> present_value). The
-// decomposition used to hand that layout to SDPA as value order {0,1,3,2}, which sdpa_ocl and sdpa_opt read as if the head dim
-// were contiguous (wrong output), and the explicit attention / quantized KV paths kept StatelessKV -> Transpose -> Result,
-// which the runtime rejects. The plain [B, kv_heads, S, head_size] layout is the control.
+// as [B, kv_heads, head_size, S] (past_value -> Transpose{0,1,3,2} -> GQA -> Transpose{0,1,3,2} -> present_value). Guards
+// that layout reaching SDPA as value order {0,1,3,2}, which sdpa_ocl and sdpa_opt read as if the head dim were contiguous
+// (wrong output), and StatelessKV -> Transpose -> Result on the explicit attention / quantized KV paths, which the runtime
+// rejects. The plain [B, kv_heads, S, head_size] layout is the control.
 namespace {
 
 using QKOutput = ov::op::internal::GroupQueryAttentionQKOutput;

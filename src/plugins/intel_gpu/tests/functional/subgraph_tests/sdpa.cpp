@@ -38,7 +38,7 @@ enum class GQAMode {
     DirectBroadcast = 2,
 };
 
-// validate the batch axis padding of the DPAS SDPA kernel (sdpa_ocl on its lane; written for the removed sdpa_micro).
+// validate the batch axis padding of the DPAS SDPA kernel (sdpa_ocl on its lane).
 class SDPA : virtual public ov::test::SubgraphBaseStaticTest,
              public testing::WithParamInterface<ov::element::Type> {
 protected:
@@ -106,25 +106,21 @@ INSTANTIATE_TEST_SUITE_P(
     }
 );
 
-// Validate that non-PA SDPA with f16/bf16 K/V inputs is not incorrectly blocked
 // Q/K/V as crop views of one fused QKV tensor, split on the HEAD axis, with a head size that is
-// not a multiple of 64 and a full 2D [query x key] mask -- the phi-4-multimodal SigLIP vision
-// tower shape (16 heads x 72, mask [1,1,s,s]).
+// not a multiple of 64 and a full 2D [query x key] mask (16 heads x 72, mask [1,1,s,s]).
 //
 // Split on axis 2 of [b, s, 3H, D] makes each output an in-place view carrying padding on the head
-// axis, so the per-head row pitch becomes (H + pad) * D rather than D. That is the one layout class
-// the 2D-block-IO host gates used to reject outright (block2d_layout_fixup_ok in sdpa_ocl_utils.hpp
-// refused every padded layout), which dropped sdpa_ocl onto a per-lane scalar gather and made it
-// 7.5x slower than sdpa_micro. Nothing else in the suite builds a padded Q/K/V view at
-// head_size % 64 != 0, so without this case that gate has no coverage.
+// axis, so the per-head row pitch becomes (H + pad) * D rather than D: the padded layouts of the
+// 2D-block-IO host gate (block2d_layout_fixup_ok in sdpa_ocl_utils.hpp). Nothing else in the suite
+// builds a padded Q/K/V view at head_size % 64 != 0, so without this case that gate has no coverage.
 //
 // The Transpose([0,2,1,3]) is folded into the SDPA's transpose orders by TransposeSDPAFusion, which
 // is what leaves the head axis INNER to the sequence axis in memory -- the arrangement that makes
-// the padding multiply into the row pitch. phi-4 hits this with dynamic (shape_info) padding; a
-// static shape here takes the same host-gate branch.
+// the padding multiply into the row pitch. A static shape here takes the same host-gate branch as
+// dynamic (shape_info) padding.
 //
-// sdpa_ocl is the default backend on Xe2+ XMX (paged_attention::sdpa_ocl_selected()), so this covers it
-// as written there; a pre-Xe2 XMX device runs the same case through the opt kernels.
+// On the sdpa_ocl lane (paged_attention::sdpa_ocl_selected()) this covers sdpa_ocl; elsewhere the
+// opt kernels run the same case.
 class SDPASplitHeadsPaddedView : virtual public ov::test::SubgraphBaseStaticTest {
 protected:
     static constexpr size_t batch = 1;
@@ -188,8 +184,8 @@ TEST_F(SDPASplitHeadsPaddedView, smoke_Inference) {
     run();
 }
 
-// Validate that non-PA SDPA with f16 K/V inputs is not incorrectly blocked
-// from using the DPAS kernel (sdpa_ocl; sdpa_micro when this was written) when KV_CACHE_PRECISION is globally set to u4.
+// Validate that non-PA SDPA with f16/bf16 K/V inputs is not incorrectly blocked
+// from using the DPAS kernel (sdpa_ocl) when KV_CACHE_PRECISION is globally set to u4.
 // This simulates a Vision Encoder SDPA node running alongside a PA-based LLM
 // that uses INT4 KV cache. The global config should not affect the Vision Encoder path.
 class SDPAWithInt4KVCacheConfig : public SDPA {

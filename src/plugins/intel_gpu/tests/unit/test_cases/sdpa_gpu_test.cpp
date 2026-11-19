@@ -42,12 +42,10 @@ using namespace cldnn;
 using namespace ::tests;
 // #define ENABLE_ONEDNN_FOR_GPU
 namespace {
-// Host SDPA reference (ov::reference, f32) for the suites below. A network forced to "sdpa_ref" is no reference here:
-// force_implementations takes only the impl type for the ocl_v2 SDPA impls (the kernel name reaches kernel_selector impls
-// only), so it ran SDPAOpt like the network under test. Q / K / V / output are [batch, heads, seq, head]; K / V may have
-// fewer heads (GQA: head h reads kv head h / (heads / kv_heads)). The mask (empty: none, rank <= 4) is added with NumPy
-// broadcasting; is_causal is upper-left and ignores the mask, as in ov::reference. Each (batch, head) is computed
-// separately, spread over the host threads.
+// Host SDPA reference (ov::reference, f32). A network forced to "sdpa_ref" is no reference: force_implementations passes
+// only the impl type to the ocl_v2 SDPA impls, so it runs SDPAOpt like the network under test. Q / K / V / output are
+// [batch, heads, seq, head]; K / V may have fewer heads (GQA: head h reads kv head h / (heads / kv_heads)). The mask
+// (empty: none, rank <= 4) is added with NumPy broadcasting; is_causal is upper-left and ignores the mask, as in ov::reference.
 std::vector<float> sdpa_host_reference(const std::vector<float>& q,
                                        const ov::Shape& q_shape,
                                        const std::vector<float>& k,
@@ -401,8 +399,7 @@ struct sdpa_gpu_test : public ::testing::TestWithParam<sdpa_test_params> {
         const auto diff = sdpa_compare_with_reference(ref_data, opt_data);
         ASSERT_FALSE(diff.has_nan) << "NaN in the output or the reference";
         ASSERT_GE(diff.cosine, 0.95);
-        // B70 sdpa_ocl measured up to 1.6e-4 (f16) / 1.2e-3 (bf16) against the reference; a 25% scale error in the reference
-        // moved the long-K rows by 8.7e-3 and more, a dropped mask by 0.03 and more.
+        // Tight enough that a wrong scale or a dropped mask fails.
         ASSERT_LE(diff.max_abs_err, p.dt == data_types::bf16 ? 1.5e-2f : 4e-3f) << "at index " << diff.max_abs_idx;
     }
 
@@ -697,10 +694,9 @@ TEST(sdpa_gpu_causal_mask, prefill_32q_8kv_512q_2048kv) {
     run_sdpa_causal_mask(1, 32, 8, 512, 2048, 128);
 }
 
-// Static is_causal stages, element-wise against the explicit-mask reference. On Xe2+ (f16, d_max 128) they take the
-// causal tile skip (CAUSAL_TILE_SKIP): the 256 x 128 tile at 128+ queries over 2K+ keys, the table tile below. Upper-left
-// q == k, lower-right with a tile-aligned offset (2048) and an unaligned one (2000, 900) where the diagonal cuts a
-// subgroup, and GQA. Both sides share the tiling, so they match exactly where the skipped keys add 0.
+// Static is_causal stages (Xe2+ f16 d_max 128: CAUSAL_TILE_SKIP) element-wise against the explicit-mask reference:
+// upper-left q == k, lower-right with a tile-aligned offset (2048) and unaligned ones (2000, 900) where the diagonal cuts
+// a subgroup, and GQA. Both sides share the tiling, so they match exactly where the skipped keys add 0.
 TEST(sdpa_gpu_causal_mask, prefill_static_upper_left_32q_32kv_2048seq) {
     run_sdpa_causal_mask(1, 32, 32, 2048, 2048, 128, false, {true, 2e-3f, 4.0f});
 }
@@ -723,10 +719,9 @@ TEST(sdpa_gpu_causal_mask, prefill_32q_32kv_300q_2300kv) {
     run_sdpa_causal_mask(1, 32, 32, 300, 2300, 128, true, {false, 5e-3f, 4.0f});
 }
 
-// d_max 64 causal stages (on Xe2 with f16: the 32 x 32 subgroup tiles of the plain d_max 64 tiling, no causal tile
-// skip) against the explicit-mask reference, which takes the masked table tile (another accumulation order: B70 max
-// |diff| 6e-5-4.9e-4) and the host reference: static upper-left q == k and lower-right with an unaligned offset, a
-// shape-agnostic 16-query step and 512-query chunk.
+// d_max 64 causal stages (Xe2 f16: the 32 x 32 subgroup tiles of the plain d_max 64 tiling, no causal tile skip) against
+// the explicit-mask reference (the masked table tile, another accumulation order) and the host reference: static
+// upper-left q == k and lower-right with an unaligned offset, a shape-agnostic 16-query step and 512-query chunk.
 TEST(sdpa_gpu_causal_mask, prefill_static_upper_left_32q_8kv_1357seq_d64) {
     run_sdpa_causal_mask(1, 32, 8, 1357, 1357, 64, false, {true, 2e-3f, 4.0f});
 }
@@ -743,9 +738,9 @@ TEST(sdpa_gpu_causal_mask, prefill_32q_8kv_512q_2048kv_d64) {
     run_sdpa_causal_mask(1, 32, 8, 512, 2048, 64, true, {false, 5e-3f, 4.0f});
 }
 
-// d_max 512 causal stages (on Xe2 with f16: the table tile of the plain d_max 512 tiling, no causal tile skip) against the
-// explicit-mask reference, which takes the masked PA PREFILL workgroup, and the host reference: static lower-right with an
-// unaligned offset, a shape-agnostic 16-query step.
+// d_max 512 causal stages (Xe2 f16: the table tile of the plain d_max 512 tiling, no causal tile skip) against the
+// explicit-mask reference (the masked PA PREFILL workgroup) and the host reference: static lower-right with an unaligned
+// offset, a shape-agnostic 16-query step.
 TEST(sdpa_gpu_causal_mask, prefill_static_8q_1kv_300q_1100kv_d512) {
     run_sdpa_causal_mask(1, 8, 1, 300, 1100, 512, true, {true, 2e-3f, 4.0f});
 }
@@ -754,10 +749,10 @@ TEST(sdpa_gpu_causal_mask, prefill_8q_1kv_16q_1024kv_d512) {
     run_sdpa_causal_mask(1, 8, 1, 16, 1024, 512, true, {false, 5e-3f, 4.0f});
 }
 
-// Non-causal multi-token SDPA (the default kernel: on Xe2+ the f16 d_max 128 table tile, which takes CAUSAL_TILE_SKIP's
-// KQ branch) element-wise against the host reference. Key counts that end inside a key tile and inside a subgroup's 16 keys, where
-// the branch skips the subgroups past the last key; head sizes 72 / 80 (partial depth tiles) and a full 2D mask. Q in
-// [-4, 4] sharpens the softmax, so a key wrongly left out or a score wrongly left at 0 moves some outputs a lot.
+// Non-causal multi-token SDPA (Xe2+ f16 d_max 128: the table tile with CAUSAL_TILE_SKIP's KQ branch) element-wise against
+// the host reference: key counts ending inside a key tile and inside a subgroup's 16 keys (the branch skips subgroups past
+// the last key), heads 72 / 80 (partial depth tiles), a full 2D mask. Q in [-4, 4] sharpens the softmax, so a key wrongly
+// left out or a score wrongly left at 0 moves some outputs a lot.
 static void run_sdpa_noncausal_vs_ref(int q_num_heads, int kv_num_heads, int seq_q, int seq_kv, int head_size, bool dynamic, bool with_mask) {
     tests::random_generator rg;
     rg.set_seed(GET_SUITE_NAME);
@@ -849,10 +844,9 @@ TEST(sdpa_gpu_noncausal_tail, dynamic_head80_mask_16q_16kv_333q_1037kv) {
     run_sdpa_noncausal_vs_ref(16, 16, 333, 1037, 80, true, true);
 }
 
-// d_max 64 (on Xe2 with f16, solve_plain_prefill_d64_tiling(): without a mask 32-key x 32-query subgroup tiles in
-// 128-key x 64-query workgroups with the KQ branch, with a mask the table tile with the loop changes):
-// stable-diffusion-3.5's joint attention (1357 = 10 key tiles + 77 keys, the last subgroup holding 13), a CLIP image
-// encoder, GQA, head 40 (partial depth tiles) and a 2D mask.
+// d_max 64 (Xe2 f16, solve_plain_prefill_d64_tiling(): 32-key x 32-query subgroup tiles with the KQ branch without a
+// mask, the table tile with one): 1357 keys (10 key tiles + 77, the last subgroup holding 13), 577 keys, GQA, head 40
+// (partial depth tiles) and a 2D mask.
 TEST(sdpa_gpu_noncausal_tail, dynamic_38q_38kv_1357seq_d64) {
     run_sdpa_noncausal_vs_ref(38, 38, 1357, 1357, 64, true, false);
 }
@@ -873,10 +867,9 @@ TEST(sdpa_gpu_noncausal_tail, dynamic_mask_16q_16kv_333q_1037kv_d64) {
     run_sdpa_noncausal_vs_ref(16, 16, 333, 1037, 64, true, true);
 }
 
-// d_max 512 (on Xe2 with f16, solve_plain_prefill_d512_tiling(): without a mask the table tile at 256 GRF, with a mask
-// the 256-key x 64-query PA PREFILL workgroup; both with the L3 V prefetch and wide K / V / Q_slm reads): a VAE decoder's
-// one-head attention (1100 keys end 76 keys into a key tile, 12 into a subgroup), static with two heads, and a GQA
-// 2D-mask prompt whose queries end 44 into a query tile.
+// d_max 512 (Xe2 f16, solve_plain_prefill_d512_tiling(): the table tile without a mask, the 256-key x 64-query PA
+// PREFILL workgroup with one): one head over 1100 keys (76 into a key tile, 12 into a subgroup), static with two heads,
+// and a GQA 2D-mask prompt whose queries end 44 into a query tile.
 TEST(sdpa_gpu_noncausal_tail, dynamic_1q_1kv_1100seq_d512) {
     run_sdpa_noncausal_vs_ref(1, 1, 1100, 1100, 512, true, false);
 }
@@ -889,11 +882,9 @@ TEST(sdpa_gpu_noncausal_tail, dynamic_mask_8q_1kv_300q_1100kv_d512) {
     run_sdpa_noncausal_vs_ref(8, 1, 300, 1100, 512, true, true);
 }
 
-// Plain-SDPA decode: the single-token stage (one query), which on Xe2 with f16 Q / K / V takes the decode tiling
-// (solve_plain_decode_tiling(): every subgroup on keys, a 16-query workgroup tile), element-wise against the host
-// reference. Key counts that end inside a workgroup key tile and inside a subgroup's keys, fewer keys than one subgroup
-// tile, GQA ratios 4 and 7, head sizes 64 / 72 (unaligned) / 80 / 128 / 256 / 512, static and dynamic, with and without
-// a mask.
+// Plain-SDPA decode (one query; Xe2 f16: solve_plain_decode_tiling()) element-wise against the host reference: key counts
+// ending inside a workgroup key tile and inside a subgroup's keys, fewer keys than one subgroup tile, GQA ratios 4 and 7,
+// heads 64 / 72 (unaligned) / 80 / 128 / 256 / 512, static and dynamic, with and without a mask.
 TEST(sdpa_gpu_plain_decode, static_32q_8kv_1000kv_d128) {
     run_sdpa_noncausal_vs_ref(32, 8, 1, 1000, 128, false, false);
 }
@@ -1011,7 +1002,6 @@ TEST(sdpa_gpu_plain_decode, prompt_then_decode_mask_28q_4kv_d64) {
 // Attention sink on the multi-token sdpa_opt kernel, with and without FlashAttention-v2 online softmax,
 // against a host reference. Sink logits dominate the softmax denominator, so a missing renormalization
 // shows up as an output scale error that is checked element-wise (cosine similarity is scale-invariant).
-// The scalar mask kept the removed sdpa_micro out, so the regular multi-token sdpa_opt kernel is exercised.
 // A few query rows over several key partitions must not take the partitioned single-token kernel, which adds the sink
 // once per partition.
 struct sdpa_gpu_sink_test : public ::testing::TestWithParam<std::tuple<bool, int, int>> {
@@ -1521,7 +1511,7 @@ TEST_P(sdpa_micro_prefetch_k_test, multi_tile_k_runs_micro_sdpa) {
     auto& engine = get_test_engine();
     const auto p = GetParam();
 
-    // Written for sdpa_micro's PREFETCH_K0/PREFETCH_K (removed with it); kept as multi-K-tile coverage of the DPAS kernel.
+    // Multi-K-tile coverage of the DPAS kernel (sdpa_ocl).
     if (tests::expected_dpas_backend(engine) != tests::dpas_backend::ocl)
         GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
 
@@ -1601,8 +1591,7 @@ TEST_P(sdpa_micro_prefetch_k_test, multi_tile_k_runs_micro_sdpa) {
         << "sdpa_ocl was not selected; the multi-K-tile path was not exercised. Node description was:\n"
         << sdpa_info;
 
-    // No reference is compared against, and a prefetch cannot change results anyway; this is coverage. Verified (with
-    // sdpa_micro): the pre-fix ordering also passes here.
+    // No reference is compared against: a prefetch cannot change results; this is coverage.
     cldnn::mem_lock<ov::float16, mem_lock_type::read> output_data(output, get_test_stream());
     ASSERT_EQ(output_data.size(), ov::shape_size(q_shape));
     bool all_zero = true;
@@ -2134,8 +2123,8 @@ INSTANTIATE_TEST_SUITE_P(
 #endif  // ENABLE_DEBUG_CAPS
 
 // V with the head dim strided (input_v_transpose_order {0,1,3,2}, V stored [b, h, head_size, seq]) must give the same
-// result as the plain layout. Only the removed sdpa_micro read that layout; sdpa_ocl and sdpa_opt take the head dim of V
-// as contiguous, so the op goes to sdpa_ref (SDPAOpt::validate_impl()), while the plain layout runs sdpa_ocl.
+// result as the plain layout. sdpa_ocl and sdpa_opt take the head dim of V as contiguous, so the transposed op goes to
+// sdpa_ref (SDPAOpt::validate_impl()), while the plain layout runs sdpa_ocl.
 TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v) {
     constexpr int batch = 1;
     constexpr int heads = 4;
@@ -2226,8 +2215,7 @@ TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v) {
     }
 }
 
-// Same as above with seq_q == seq_kv, so the last queries attend to the full seq_kv (with sdpa_micro this crossed several
-// K tiles of its TRANSPOSE_V path; now the transposed run is sdpa_ref).
+// Same as above with seq_q == seq_kv, so the last queries attend to the full seq_kv.
 TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v_multi_tile) {
     constexpr int batch = 1;
     constexpr int heads = 4;
@@ -2833,9 +2821,8 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
     const int packed_head_size = bit_width == 4 ? head_size / 2 : head_size;
 
     // Q and original float K/V use [batch, heads, sequence, head_size]. Per-channel cases make K matter at decode: a causal
-    // (upper-left) single query attends key 0 only, so decode is not causal there, and Q is in [-8, 8] (logit std ~2.7
-    // instead of ~0.3) because a near-uniform softmax over 512 keys hides K errors as well. Without both, every decode case
-    // passed with the K scale of the neighbouring channel or the K nibbles swapped (negative controls).
+    // (upper-left) single query attends key 0 only, so decode is not causal there, and Q is in [-8, 8] because a
+    // near-uniform softmax hides K errors too (e.g. the neighbouring channel's K scale, swapped K nibbles).
     const bool causal = !(per_channel && seq_q == 1);
     const float q_range = per_channel ? 8.0f : 1.0f;
     auto q_data = rg.generate_random_1d<T>(static_cast<size_t>(batch) * seq_q * q_num_heads * head_size, -q_range, q_range);
@@ -3018,9 +3005,8 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
         // bf16 has a shorter mantissa, so allow a slightly lower similarity for it.
         const float min_sim = is_bf16 ? 0.99f : 0.999f;
         ASSERT_GE(sim, min_sim) << arm << ": bit_width=" << bit_width << ", asymmetric=" << asymmetric << " cosine similarity too low: " << sim;
-        // B70 measured up to 1.9e-3 (per-token f16), 9.3e-3 (bf16) and 3.5e-2 (per-channel, Q in [-8, 8]); a 25% scale error in
-        // the reference moved the prefill rows by 0.11 and more (per-channel 0.24), which the cosine alone let through for bf16.
-        // The causal decode rows see key 0 only, so no scale error reaches them.
+        // Tight enough that a wrong scale fails the prefill rows (the cosine alone lets it through for bf16). The causal decode
+        // rows see key 0 only, so no scale error reaches them.
         const float max_abs_tol = per_channel ? 1e-1f : (is_bf16 ? 3e-2f : 1e-2f);
         ASSERT_LE(diff.max_abs_err, max_abs_tol) << arm << ": max abs error at index " << diff.max_abs_idx;
     };
@@ -3184,7 +3170,7 @@ TEST(sdpa_gpu_micro, broadcast_mask_multi_tile_k) {
     constexpr size_t head_size = 128;
 
     auto& engine = get_test_engine();
-    // Written for sdpa_micro's PREFETCH_MASK (removed with it); kept as a broadcast-mask check of the DPAS kernel.
+    // Broadcast-mask check of the DPAS kernel (sdpa_ocl).
     if (tests::expected_dpas_backend(engine) != tests::dpas_backend::ocl)
         GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
 
@@ -3257,10 +3243,9 @@ TEST(sdpa_gpu_micro, broadcast_mask_multi_tile_k) {
 }
 
 // Which kernel plain SDPA dispatches: sdpa_ocl on its lane (but a one-query step on xe_hpg at the heads the opt stages take,
-// tests::plain_decode_on_opt()), the opt kernels elsewhere. Dispatch
-// only: accuracy is sdpa_gpu_test's (against its host reference) and the functional ScaledAttn tests'. Static shapes;
-// the second test rebuilds the impl through program save/load (default ctor plus the saved stage order), so the
-// dispatch must not depend on state only the params ctor had.
+// tests::plain_decode_on_opt()), the opt kernels elsewhere. Dispatch only: accuracy is sdpa_gpu_test's and the functional
+// ScaledAttn tests'. Static shapes; the second test rebuilds the impl through program save/load (default ctor plus the
+// saved stage order), so the dispatch must not depend on state only the params ctor had.
 class sdpa_dpas_backend_test : public sdpa_gpu_test {
 public:
     void check_dispatch(bool is_caching_test) {
@@ -3330,12 +3315,10 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 // Sharp-softmax check of the SG8 (xe_hpg) operand mapping of sdpa_ocl, plain f16, static, q == kv > 1, no mask / causal / scale input.
-// Every query's logit row has ONE key that wins by a wide margin, and every key / value row is unique, so
-// a lane that reads the wrong head dim, key pair or query row moves the winner or mixes in another value row: the output is off by
-// ~the value spread, far above the f16 tolerance. Random N(0, 0.1)-like data would not show it (pa-harness-data-hides-qk-errors).
-// Runs wherever sdpa_ocl serves the op (Xe2+ and xe_hpg XMX), SKIPs elsewhere; the SDPA_OCL_NEG_SG8=1..3
-// groups of test/sdpa_ocl_gtests.sh break the mapping on purpose and must FAIL it. max_abs_err is recorded so a NEG run that fails on
-// the error can be told from one that fails on a crash.
+// Every query's logit row has ONE key that wins by a wide margin, and every key / value row is unique, so a lane that reads the
+// wrong head dim, key pair or query row moves the output by ~the value spread, far above the f16 tolerance (random N(0, 0.1)-like
+// data would hide it). Runs wherever sdpa_ocl serves the op (Xe2+ and xe_hpg XMX), SKIPs elsewhere. SDPA_OCL_NEG_SG8=1..3 break
+// the mapping on purpose and must FAIL it; max_abs_err is recorded to tell such a failure from a crash.
 struct sdpa_hpg_sharp_params {
     int head_size;
     int seq_len;
@@ -3343,7 +3326,7 @@ struct sdpa_hpg_sharp_params {
 
 struct sdpa_hpg_sharp_test : public ::testing::TestWithParam<sdpa_hpg_sharp_params> {
     static constexpr int num_heads = 8;
-    static constexpr float key_gain = 32.0f;  // Q = key_gain * K[winner]: the scaled winner logit leads by >= ~20 (head 32) .. ~2500 (head 256)
+    static constexpr float key_gain = 32.0f;  // Q = key_gain * K[winner]: the scaled winner logit leads by >= ~20
 
     // A deterministic pseudo-random value in [-15/16, 15/16] on a 1/16 grid (exact in f16), distinct per (stream, row, col, head).
     // The modulus is a prime, so no row repeats with a short period.
@@ -3459,8 +3442,8 @@ TEST_P(sdpa_hpg_sharp_test, f16_static_prefill) {
 namespace {
 // Every head the xe_hpg PREFILL kernel takes up to 256 (hpg_plain_head_ok(): 32-256 in steps of 8). seq 100 is not a
 // multiple of any query / key tile; a head that is not a multiple of 16 (40, 56, ..., 248) ends in half a DPAS depth step.
-// Built in loops, here and in hpg_rows_cases(): with these cases written out as ::testing::Values() lists the test binary
-// overflowed its 1 MB main-thread stack at static initialization (MSVC, one frame of over 1 MB).
+// Built in loops, here and in hpg_rows_cases(): as ::testing::Values() lists these cases overflow the 1 MB MSVC
+// main-thread stack at static initialization.
 std::vector<sdpa_hpg_sharp_params> hpg_sharp_cases() {
     std::vector<sdpa_hpg_sharp_params> cases;
     for (int head = 32; head <= 256; head += 8) {
@@ -3474,11 +3457,10 @@ std::vector<sdpa_hpg_sharp_params> hpg_sharp_cases() {
 
 INSTANTIATE_TEST_SUITE_P(smoke_sdpa_hpg_sharp, sdpa_hpg_sharp_test, ::testing::ValuesIn(hpg_sharp_cases()), sdpa_hpg_sharp_test::PrintToStringParamName);
 
-// The rest of plain SDPA on xe_hpg: bf16, attn_mask (per key / full 2D / const scalar), causal, sink, dynamic
-// shape, a single query, and a K view whose row pitch or base breaks the 4 B alignment of the dword K read. Same idea as the sharp
-// test: every value row is unique and the softmax has a clear winner per (head, query), so a lane that reads the wrong mask element,
-// key pair or query row moves the winner and the output is off by ~the value spread, far above the tolerance. Two data modes,
-// because one mode cannot show both kinds of error:
+// The rest of plain SDPA on xe_hpg: bf16, attn_mask (per key / full 2D / const scalar), causal, sink, dynamic shape, a single
+// query, and a K view whose row pitch or base breaks the 4 B alignment of the dword K read. As in the sharp test, every value row
+// is unique and each (head, query) has a clear winner, so a lane that reads the wrong mask element, key pair or query row moves the
+// output by ~the value spread. Two data modes, because one mode cannot show both kinds of error:
 //   sharp : Q = 32 * K[winner]; the QK logit decides. A mask / sink here would be invisible (the logit gap dwarfs it).
 //   masked: Q is small independent noise and the mask (or the mask plus the sink) decides: mask = -2.5 * |key - winner| puts a
 //           weight of 1 on the winner, 0.08 on its neighbours, so a mask element read from the wrong key moves the winner. Softmax
@@ -3827,7 +3809,7 @@ struct sdpa_hpg_rows_params {
     bool dynamic;
     bool pad_kv;    // K / V padded on the two middle axes (static only)
     int mask = 0;   // 0 none, 1 per key [b, 1, 1, kv], 2 full [b, 1, q, kv], 3 full per head [b, h, q, kv], 4 full [1, 1, q, kv]
-    int scalar_mask = 0;  // a static scalar mask (attn_mask_val): 0 none, 1 = 0.0 (CLIP vision encoders), 2 = -3.0
+    int scalar_mask = 0;  // a static scalar mask (attn_mask_val): 0 none, 1 = 0.0, 2 = -3.0
 };
 
 struct sdpa_hpg_rows_test : public ::testing::TestWithParam<sdpa_hpg_rows_params> {
@@ -3876,7 +3858,7 @@ TEST_P(sdpa_hpg_rows_test, plain_sdpa) {
                     q[at(H, nq, b, h, i, c)] = key_gain * T::grid_value(1, b * KH + h / G, winner(b, h, i), c);
     }
     // Mask [m0, m1, m2, kv]: a grid value g per (batch, head, query, key) it has, f16 lowest where g < -0.5 (7 in 31), 4 g elsewhere.
-    // Hashed, not periodic in the key: a pattern of period 4 keys hid key offsets by whole 8-key blocks (SDPA_OCL_NEG_SG8=13).
+    // Hashed, not periodic in the key: a period-4 pattern hides key offsets by whole 8-key blocks (SDPA_OCL_NEG_SG8=13).
     const int m0 = p.mask == 4 ? 1 : B, m1 = p.mask == 3 ? H : 1, m2 = p.mask == 1 ? 1 : nq;
     auto mask_value = [&](int b, int h, int i, int j) {
         const float g = T::grid_value(4, static_cast<uint32_t>((m0 == 1 ? 0 : b) * m1 + (m1 == 1 ? 0 : h)), static_cast<uint32_t>(m2 == 1 ? 0 : i),
@@ -4045,7 +4027,7 @@ std::vector<sdpa_hpg_rows_params> hpg_rows_cases() {
         sdpa_hpg_rows_params{256, 64, 100, 2, 1, 2, false, true, false, true},
         // many key tiles
         sdpa_hpg_rows_params{128, 1500, 1500, 2, 2, 1, false, false, false, false}, sdpa_hpg_rows_params{64, 1100, 1100, 2, 1, 1, true, true, false, false},
-        // masks: per key (vision encoders), full shared by the heads (CLIP), full per head (T5), full shared by the batches
+        // masks: per key, full shared by the heads, full per head, full shared by the batches
         sdpa_hpg_rows_params{64, 100, 100, 8, 2, 2, false, false, false, false, 1}, sdpa_hpg_rows_params{256, 33, 129, 2, 2, 1, false, false, false, false, 1},
         sdpa_hpg_rows_params{64, 77, 77, 4, 2, 2, false, false, false, false, 2}, sdpa_hpg_rows_params{128, 300, 300, 4, 2, 1, false, false, false, false, 2},
         sdpa_hpg_rows_params{64, 50, 300, 4, 4, 1, false, false, false, false, 2}, sdpa_hpg_rows_params{64, 128, 128, 8, 2, 2, false, false, false, false, 3},
@@ -4060,18 +4042,17 @@ std::vector<sdpa_hpg_rows_params> hpg_rows_cases() {
         sdpa_hpg_rows_params{96, 64, 100, 2, 1, 2, false, false, false, true}, sdpa_hpg_rows_params{96, 100, 100, 8, 2, 2, false, false, false, false, 1},
         sdpa_hpg_rows_params{96, 77, 300, 4, 2, 1, false, false, false, false, 2}, sdpa_hpg_rows_params{96, 128, 128, 4, 2, 2, false, false, true, false, 3},
         sdpa_hpg_rows_params{96, 1000, 1000, 2, 2, 1, false, false, false, false},
-        // a static scalar mask (0 in CLIP's vision encoder, e.g. phi-3.5-vision; any finite value leaves the softmax alone)
+        // a static scalar mask (any finite value leaves the softmax alone)
         sdpa_hpg_rows_params{64, 577, 577, 16, 16, 2, false, false, false, false, 0, 1}, sdpa_hpg_rows_params{128, 100, 300, 4, 2, 1, true, false, false, false, 0, 2},
         sdpa_hpg_rows_params{96, 77, 77, 4, 4, 1, false, false, true, false, 0, 1}, sdpa_hpg_rows_params{256, 64, 64, 2, 1, 2, false, false, false, false, 0, 2},
-        // head 72 (half a depth tile and half a value block past 64; phi-4-multimodal's vision encoder: 1025 tokens, a full mask)
+        // head 72 (half a depth tile and half a value block past 64)
         sdpa_hpg_rows_params{72, 100, 100, 8, 2, 1, false, false, false, false}, sdpa_hpg_rows_params{72, 33, 193, 2, 2, 2, false, false, false, false},
         sdpa_hpg_rows_params{72, 100, 200, 4, 4, 1, true, true, false, false}, sdpa_hpg_rows_params{72, 77, 77, 4, 1, 2, false, true, true, false},
         sdpa_hpg_rows_params{72, 64, 100, 2, 1, 2, false, false, false, true}, sdpa_hpg_rows_params{72, 100, 100, 8, 2, 2, false, false, false, false, 1},
         sdpa_hpg_rows_params{72, 1025, 1025, 4, 4, 1, false, false, false, false, 2}, sdpa_hpg_rows_params{72, 128, 128, 4, 2, 2, false, false, true, false, 3},
         sdpa_hpg_rows_params{72, 77, 77, 4, 4, 1, false, false, true, false, 0, 1},
         // heads 40 (head 72's tail, 96-key tiles), 80 (160-key tiles) and 160 (160-key x 32-query tiles of 16 x 16): the set of
-        // head 72, plus stable-diffusion-v1-5's UNet ops ([b, s, h, d] in and out, dynamic, 8 heads, batch 2: self-attention
-        // over many key tiles, cross-attention over the 77 tokens of the text encoder)
+        // head 72, plus [b, s, h, d] in and out, dynamic, 8 heads, batch 2 over many key tiles and over 77 keys
         sdpa_hpg_rows_params{40, 100, 100, 8, 2, 1, false, false, false, false}, sdpa_hpg_rows_params{40, 33, 193, 2, 2, 2, false, false, false, false},
         sdpa_hpg_rows_params{40, 100, 200, 4, 4, 1, true, true, false, false}, sdpa_hpg_rows_params{40, 77, 77, 4, 1, 2, false, true, true, false},
         sdpa_hpg_rows_params{40, 64, 100, 2, 1, 2, false, false, false, true}, sdpa_hpg_rows_params{40, 100, 100, 8, 2, 2, false, false, false, false, 1},
@@ -4090,8 +4071,8 @@ std::vector<sdpa_hpg_rows_params> hpg_rows_cases() {
         sdpa_hpg_rows_params{160, 1025, 1025, 4, 4, 1, false, false, false, false, 2},
         sdpa_hpg_rows_params{160, 128, 128, 4, 2, 2, false, false, true, false, 3}, sdpa_hpg_rows_params{160, 77, 77, 4, 4, 1, false, false, true, false, 0, 1},
         sdpa_hpg_rows_params{160, 256, 256, 8, 8, 2, true, true, true, false}, sdpa_hpg_rows_params{160, 256, 77, 8, 8, 2, true, true, true, false},
-        // head 512 (512-key x 16-query tiles; flux.1-schnell's VAE: one head, no mask): GQA, batches with q != kv past a tile,
-        // [b, s, h, d], dynamic, padded K / V, masks, a static scalar mask, three key tiles
+        // head 512 (512-key x 16-query tiles): GQA, batches with q != kv past a tile, [b, s, h, d], dynamic, padded K / V, masks,
+        // a static scalar mask, one head over three key tiles
         sdpa_hpg_rows_params{512, 100, 100, 8, 2, 1, false, false, false, false}, sdpa_hpg_rows_params{512, 33, 529, 2, 2, 2, false, false, false, false},
         sdpa_hpg_rows_params{512, 100, 200, 4, 4, 1, true, true, false, false}, sdpa_hpg_rows_params{512, 77, 77, 4, 1, 2, false, true, true, false},
         sdpa_hpg_rows_params{512, 64, 100, 2, 1, 2, false, false, false, true}, sdpa_hpg_rows_params{512, 100, 100, 8, 2, 2, false, false, false, false, 1},
@@ -4123,11 +4104,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_hpg_rows, sdpa_hpg_rows_test, ::testing::Val
 
 // Plain SDPA on an i8 KV cache (asymmetric, planar: a per-token f16 scale and an i8 zero point for K and for V, which is what
 // kv_cache_compression.cpp makes on immad parts), against a CPU reference that dequantizes (q - zp) * scale in double. The
-// existing F2 compressed tests cannot do this job: their threshold is 1e-1 over an almost uniform softmax and a demoted
-// kernel passes them. Here the softmax is sharp (logit sigma ~5, checked through the mean top probability) and every key has
-// its own scale and zp, so a pair of head dims in the wrong order, a scale/zp read from the wrong key or a dropped zp each move
-// the output far past the tolerance. SDPA_KVC_NEG=pair_swap|scale_alias|zp_off perturbs the REFERENCE the same way; every case
-// must then fail by >= 0.1. dt = bf16 makes Q, the output and both scales bf16 (kv_cache_compression.cpp types the scales
+// softmax is sharp (logit sigma ~5, checked through the mean top probability; a near-uniform one hides dequant errors) and every
+// key has its own scale and zp, so a pair of head dims in the wrong order, a scale/zp read from the wrong key or a dropped zp each
+// move the output far past the tolerance. SDPA_KVC_NEG=pair_swap|scale_alias|zp_off perturbs the REFERENCE the same way; every
+// case must then fail by >= 0.1. dt = bf16 makes Q, the output and both scales bf16 (kv_cache_compression.cpp types the scales
 // as the query), which the kernel must widen from their ushort storage. Not covered here: GQA (the primitive takes equal
 // q/kv heads), a mask input.
 struct sdpa_kv_compressed_params {
@@ -4163,7 +4143,7 @@ TEST_P(sdpa_kv_compressed_test, matches_dequant_reference) {
     std::mt19937 rng(1234u + static_cast<uint32_t>(d) * 31u + static_cast<uint32_t>(nk));
     auto uni = [&](float lo, float hi) { return std::uniform_real_distribution<float>(lo, hi)(rng); };
     auto uni_int = [&](int lo, int hi) { return std::uniform_int_distribution<int>(lo, hi)(rng); };
-    // The values the device holds (f16 cases keep the exact data they had before dt existed).
+    // The values the device holds.
     auto round_dt = [&](float x) { return bf16 ? static_cast<float>(ov::bfloat16(x)) : static_cast<float>(ov::float16(x)); };
 
     const size_t kv_count = static_cast<size_t>(B) * H * nk * d, comp_count = static_cast<size_t>(B) * H * nk;
@@ -4192,7 +4172,7 @@ TEST_P(sdpa_kv_compressed_test, matches_dequant_reference) {
         return (static_cast<double>(vq[(bh * nk + j) * d + c]) - zp) * static_cast<double>(vsc[ci]);
     };
 
-    // Scale the logits to sigma ~5 (measured on the true, unperturbed dequant, so the neg modes keep the same scale).
+    // Scale the logits to sigma ~5 (computed on the true, unperturbed dequant, so the neg modes keep the same scale).
     double sum2 = 0.0;
     size_t samples = 0;
     for (size_t bh = 0; bh < static_cast<size_t>(B) * H; ++bh)
@@ -4331,13 +4311,11 @@ TEST_P(sdpa_kv_compressed_test, matches_dequant_reference) {
               << " neg=" << (neg.empty() ? "none" : neg) << std::endl;
     ASSERT_GE(maxprob_mean, 0.5) << "the softmax is not sharp enough for this case to see a dequant error";
     // bf16 DPAS takes the dequantized K and V, and P, at 8 significant bits; at logit sigma ~5 the K rounding moves the
-    // softmax enough that the removed sdpa_micro measured max 0.106, mean 0.0074 on DG2 against this reference. The
-    // weakest negative control still moves the output by > 1.
+    // softmax, hence the looser bf16 bounds (still far below the weakest negative control).
     const double bf16_max = 0.15, bf16_mean = 0.012;
     if (neg.empty()) {
         // The sdpa_opt single-token kernel (an unaligned head on the sdpa_ocl lane, e.g. head 72) dequantizes less precisely
-        // than sdpa_ocl / the removed sdpa_micro (measured max 0.030, mean 0.007 on DG2), so only the ocl lane is held to the
-        // tight bound.
+        // than sdpa_ocl, so only the ocl lane is held to the tight bound.
         const bool tight = backend == tests::dpas_backend::ocl || entries.find("sdpa_opt") == std::string::npos;
         EXPECT_LE(max_abs_err, bf16 ? bf16_max : (tight ? 0.03 : 0.06));
         EXPECT_LE(mean_abs_err, bf16 ? bf16_mean : (tight ? 0.003 : 0.012));
@@ -4682,7 +4660,7 @@ TEST(sdpa_gpu_custom, static_mismatched_kv_head_size_multi_token_uses_sg_scale_f
     auto output = network->execute().at("result").get_memory();
 
     // Host reference (ov::reference, f32). A force_implementations "sdpa_ref" network is no reference: its kernel name
-    // only reaches kernel_selector impls, so it ran SDPAOpt as well.
+    // only reaches kernel_selector impls, so it runs SDPAOpt as well.
     auto to_float = [&](const memory::ptr& mem) {
         cldnn::mem_lock<ov::float16, mem_lock_type::read> data(mem, get_test_stream());
         return std::vector<float>(data.begin(), data.end());
@@ -5218,7 +5196,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, sdpa_sliding_window_test,
 
 // is_causal=true together with an explicit attention_mask input, for a SWA-style (causal +
 // window) mask: verifies the DPAS kernel's mask path still produces the same result as the
-// is_causal=false + explicit-mask reference (written for the removed sdpa_micro.cl, which did not
+// is_causal=false + explicit-mask reference (the DPAS kernel adds the mask under is_causal: it does not
 // gate WITH_ATTN_MASK on !IS_CAUSAL the way sdpa_opt.cl does).
 TEST(sdpa_sliding_window_test, causal_true_with_explicit_mask) {
     tests::random_generator rg;
@@ -5317,9 +5295,8 @@ TEST(sdpa_sliding_window_test, causal_true_with_explicit_mask) {
 // of every XMX device off the sdpa_ocl lane, where the GQA decomposition still drops the explicit mask for the native
 // window (causal + sliding_window_cache), so a dropped window there would attend over the whole causal range.
 //
-// enable_sdpa_micro(false) pins the opt stage kernels on every device; the check below verifies it. (The scalar mask
-// input used to do that, but sdpa_ocl takes a single-element mask as well, so on its lane this test ran sdpa_ocl.)
-// The mask value itself is irrelevant: sdpa_opt.cl ignores the mask input whenever IS_CAUSAL is set.
+// enable_sdpa_micro(false) pins the opt stage kernels on every device (sdpa_ocl takes a scalar mask too); the check below
+// verifies it. The mask value itself is irrelevant: sdpa_opt.cl ignores the mask input whenever IS_CAUSAL is set.
 TEST(sdpa_sliding_window_test, opt_stage_kernels_apply_sliding_window) {
     tests::random_generator rg;
     rg.set_seed(GET_SUITE_NAME);
@@ -5900,7 +5877,7 @@ INSTANTIATE_TEST_SUITE_P(
 //
 // dpas = true: the DPAS kernel (sdpa_ocl, on its lane only; a one-query step on xe_hpg runs the opt stages at the heads they
 // take, tests::plain_decode_on_opt()), which also takes the single-element runtime mask; false:
-// the opt stage kernels (enable_sdpa_micro off), whose key-leftover read this test was written for. Each arm checks
+// the opt stage kernels (enable_sdpa_micro off), whose key-leftover read this test covers. Each arm checks
 // which kernel it executed, without stopping the accuracy compare.
 struct sdpa_opt_key_leftover_params {
     data_types dt;

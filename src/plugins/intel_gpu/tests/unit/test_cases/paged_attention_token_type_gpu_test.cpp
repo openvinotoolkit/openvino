@@ -18,11 +18,8 @@ struct paged_attention_token_type_test_params : public paged_attention_test_para
 
 constexpr float token_type_tolerance = 1e-2f;
 
-// The kernel-name guard of the suites written for sdpa_ocl's MIXED bidirectional mask (the LOCAL/KEY coordinate shift,
-// the runtime emptiness gate); they skip where another kernel ran. paged_attention_opt.cl implements the mask too, see
-// the suites that pin lane_dpas_kernel(). Check what ACTUALLY ran instead of re-deriving the generator choice -- that
-// covers devices off the sdpa_ocl lane, non-immad devices and builds without oneDNN in one place. Free function so both
-// fixture instantiations can call it.
+// True when sdpa_ocl ran; the suites for its MIXED bidirectional mask (LOCAL/KEY coordinate shift, runtime emptiness gate)
+// skip otherwise. Checks what actually ran, which covers off-lane devices, non-immad devices and builds without oneDNN.
 static bool ran_sdpa_ocl(const cldnn::network::ptr& network, std::string& entries_out) {
     auto pa_inst = network->get_primitive("paged_attention");
     EXPECT_NE(pa_inst, nullptr);
@@ -36,19 +33,16 @@ static bool ran_sdpa_ocl(const cldnn::network::ptr& network, std::string& entrie
     return entries_out.find("sdpa_ocl") != std::string::npos;
 }
 
-// The DPAS kernel of the device's lane, which serves PREFILL and MIXED with token_type_ids like any other step: sdpa_ocl
-// on its lane (Xe2+ and xe_hpg XMX) with enable_sdpa_micro on. Empty where it does not run (MIXED then runs
-// pa_multi_token).
+// The lane's DPAS kernel for PREFILL / MIXED with token_type_ids: sdpa_ocl (Xe2+ and xe_hpg XMX) with enable_sdpa_micro
+// on; empty where it does not run (MIXED then runs pa_multi_token).
 static std::string lane_dpas_kernel() {
     return tests::expected_dpas_backend(tests::get_test_engine()) == tests::dpas_backend::ocl ? "sdpa_ocl" : "";
 }
 
 class paged_attention_token_type_test : public PagedAttentionTest<paged_attention_token_type_test_params> {
 public:
-    // Loads one golden sequence of length L into the manager, split as past = [0, past_len) +
-    // new = [past_len, L). past_len == 0 is the PREFILL case the golden data was generated for;
-    // past_len > 0 turns the same data into a MIXED step, see pick_mixed_split() for when that is
-    // still described by the same golden output.
+    // Loads one golden sequence of length L as past = [0, past_len) + new = [past_len, L): past_len == 0 is the golden
+    // PREFILL case, past_len > 0 a MIXED step (see pick_mixed_split()).
     void apply_token_type_test_data(PagedAttentionManager& pam, const paged_attention_token_type_test_params& p, const test::TestData& data) {
         ASSERT_EQ(p.subsequences.size(), 1);
         const size_t past_len = static_cast<size_t>(p.subsequences[0].past_len);
@@ -61,9 +55,8 @@ public:
         ASSERT_EQ(data.vData.size(), seq_len * hidden_dim);
         ASSERT_EQ(data.expectedOutput.size(), seq_len * hidden_dim);
 
-        // Q holds the NEW tokens only, while K/V keep all L rows: PagedAttentionManager writes
-        // [0, past_len) of key_data/value_data into the KV cache and passes the remainder as the K/V
-        // inputs (get_QKV_memory's skip_past_len). token_type_ids is "[B_token]", i.e. new tokens too.
+        // Q holds the new tokens only; K/V keep all L rows and the manager caches [0, past_len) (skip_past_len).
+        // token_type_ids is "[B_token]": new tokens only.
         const auto q_all = to_float16(data.qData);
         pam.query_data = {std::vector<ov::float16>(q_all.begin() + past_len * hidden_dim, q_all.end())};
         pam.key_data = {to_float16(data.kData)};
@@ -71,8 +64,7 @@ public:
         pam.token_type_ids.assign(data.tokenTypes.begin() + past_len, data.tokenTypes.end());
     }
 
-    // expected_offset skips the golden rows belonging to the cached prefix; the GPU only outputs the
-    // new tokens.
+    // expected_offset skips the golden rows of the cached prefix; the GPU outputs only the new tokens.
     void compare_token_type_output(cldnn::memory::ptr data_output_mem, const std::vector<float>& expected_output, size_t expected_offset = 0) {
         ASSERT_TRUE(data_output_mem);
         ASSERT_EQ(data_output_mem->count(), expected_output.size() - expected_offset);
@@ -144,11 +136,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_token_type,
                          get_token_type_test_name);
 
 // ------------------------------------------------------------------------- the reference's yardstick
-// PagedAttentionReference models bidirectional image groups itself (see
-// get_mask_mem_combined_multi_head), and the MIXED suite below is measured against it. So the model
-// needs its own check: reproduce the checked-in golden output for the PREFILL case it was generated
-// for. Without this, the reference-based MIXED coverage would be our code grading our code.
-// No PagedAttention network runs here -- only the reference topology.
+// PagedAttentionReference models bidirectional image groups itself and grades the MIXED suites below, so check it
+// against the golden PREFILL output (reference topology only, no PagedAttention network).
 class paged_attention_token_type_reference_test : public paged_attention_token_type_test {};
 
 TEST_P(paged_attention_token_type_reference_test, reference_matches_golden) {
@@ -185,20 +174,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_token_type_reference,
                          get_token_type_data_name);
 
 // --------------------------------------------------------------- MIXED over the same golden data
-// Re-runs each golden sequence as a MIXED step: past = [0, P) served from the KV cache, new = [P, L)
-// as the query. This is the coordinate shift the sdpa_ocl change is about -- token_type_ids stays in
-// LOCAL (new-token) coordinates while keys count from the start of the cached context -- and it needs
-// NO new golden data.
-//
-// Why the PREFILL golden output is still the right answer for the new rows: the reference builds image
-// groups over the NEW tokens alone, so MIXED and PREFILL disagree only about a group that STRADDLES P
-// -- MIXED truncates it to [P, group_end), PREFILL keeps [group_begin, group_end). The keys that drops
-// are all < P <= query, i.e. already inside the causal term, so the two allowed sets coincide whenever
-//   (a) there is no sliding window -- the causal term alone reaches back to key 0 -- or
-//   (b) P sits at a group boundary.
-// pick_mixed_split() picks a P satisfying one of those, preferring the middle of the sequence so both
-// halves carry image tokens. A sequence that admits neither (one group covering everything, with a
-// window) is skipped here; the straddling case is covered by the reference-based suite instead.
+// Re-runs each golden sequence as a MIXED step (past [0, P) cached, new [P, L) as query): token_type_ids stays in LOCAL
+// (new-token) coordinates while keys count from the cached context start. The PREFILL golden rows stay valid with no
+// sliding window or with P at a group boundary (a straddling group's dropped keys are < P, inside the causal term);
+// pick_mixed_split() picks such a P, other sequences are skipped (the reference-based suite covers them).
 static int pick_mixed_split(const std::vector<int32_t>& token_types, int sliding_window_size) {
     const int seq_len = static_cast<int>(token_types.size());
     auto usable = [&](int split) {
@@ -316,9 +295,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_token_type_micro_sdpa_prefill,
                          ::testing::ValuesIn(make_micro_sdpa_prefill_test_params()),
                          get_micro_sdpa_prefill_test_name);
 
-// Dispatch check: MIXED with token_type_ids must stay on the DPAS SDPA kernel of the device's lane and K page
-// (lane_dpas_kernel()) instead of falling back to paged_attention_opt__multi_tokens, which used to be
-// selected solely because has_token_type_ids was present.
+// Dispatch check: MIXED with token_type_ids must stay on the lane's DPAS SDPA kernel (lane_dpas_kernel()) rather than
+// fall back to paged_attention_opt__multi_tokens just because has_token_type_ids is set.
 //
 // The PREFILL golden data is replayed as a chunked prefill:
 //
@@ -327,10 +305,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_token_type_micro_sdpa_prefill,
 //     q      | -                    | passed as input      |
 //     golden | -                    | compared             |
 //
-// past_len is picked so the query chunk holds text tokens only. token_type_ids is "[B_token]", i.e.
-// the new tokens, which are then all zeros, so the bidirectional term is a no-op and the PREFILL
-// golden rows for that chunk remain the right answer. Image-token MIXED coverage lives in
-// smoke_paged_attention_token_type_mixed / smoke_paged_attention_token_type_bidir_ref.
+// past_len is picked so the query chunk holds text tokens only (token_type_ids all zero, plain causal), so the PREFILL
+// golden rows stay valid. Image-token MIXED coverage: smoke_paged_attention_token_type_mixed and
+// smoke_paged_attention_token_type_bidir_ref.
 class paged_attention_token_type_micro_sdpa_mixed_test : public paged_attention_token_type_test {};
 
 TEST_P(paged_attention_token_type_micro_sdpa_mixed_test, mixed_stage) {
@@ -833,23 +810,10 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_paged_attention_token_type_perf,
                          [](const testing::TestParamInfo<paged_attention_token_type_test_params>& obj) { return obj.param.case_names.front(); });
 
 // ------------------------------------------------------- token_type_ids present but EMPTY ([B_token | 0])
-// has_token_type_ids is decided at COMPILE time from an input shape that may still be dynamic (see
-// plugin/ops/paged_attention.cpp), but the op contract allows the tensor itself to be EMPTY at runtime,
-// meaning "no image tokens" -- intel_cpu gates on getShape().hasZeroDims() and the reference on
-// count > 0. The GPU paged attention impl is shape-agnostic, so it cannot drop the feature per shape;
-// sdpa_ocl instead receives the runtime element count as a scalar and skips every token_type_ids read
-// when it is 0. Without that gate the kernel reads a zero-sized allocation for [0, B_token) and returns
-// silently wrong output.
-//
-// The harness backs the empty tensor with an all-ONES [B_token] allocation whose layout is shrunk to
-// [0] (see PagedAttentionManager::get_token_type_ids_memory), so a kernel that reads it anyway sees
-// "every token is an image token" and cannot pass by luck. Expected output is therefore the plain
-// causal one, which is what PagedAttentionReference already computes.
-//
-// Covers PREFILL (past_len == 0) and MIXED (past_len > 0). The gate itself is stage-independent -- the
-// scalar comes from update_dispatch_data() -- but MIXED is where reading the buffer anyway is most
-// damaging, because the all-ones poison then makes the whole new-token region one image group and
-// un-masks its future keys.
+// has_token_type_ids is fixed at compile time, but the tensor may be empty at runtime ("no image tokens"): sdpa_ocl gets
+// the runtime element count as a scalar and skips every token_type_ids read when it is 0. The harness backs the empty
+// tensor with an all-ones allocation shrunk to [0] (get_token_type_ids_memory), so a kernel that reads it anyway fails
+// against the plain causal reference. PREFILL and MIXED (where the poison also un-masks future keys).
 class paged_attention_empty_token_type_ids_test : public PagedAttentionTest<paged_attention_test_params> {};
 
 TEST_P(paged_attention_empty_token_type_ids_test, plain_causal) {
@@ -924,11 +888,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_empty_token_type_ids,
                          get_empty_token_type_ids_test_name);
 
 // ------------------------------------------------------- MIXED bidirectional attention vs. reference
-// What the golden data cannot express: an image group that reaches the FIRST new token, i.e. one that
-// would straddle the past/new boundary in the full sequence. The reference resolves that the same way
-// the op does -- groups are built over the new tokens alone, so the group simply starts at local 0 --
-// and with a sliding window that is observably different from the PREFILL answer. Also sweeps the
-// shape axes the golden data fixes at 1 head / head_size 32 / single subsequence.
+// What the golden data cannot express: an image group starting at the first new token (straddling past/new), built
+// over the new tokens alone, which differs from PREFILL under a sliding window. Also sweeps heads / head sizes /
+// subsequences.
 class paged_attention_token_type_bidir_ref_test : public PagedAttentionTest<paged_attention_test_params> {};
 
 TEST_P(paged_attention_token_type_bidir_ref_test, matches_reference) {
@@ -948,9 +910,8 @@ TEST_P(paged_attention_token_type_bidir_ref_test, matches_reference) {
     compare(result.outputs.at("output_data").get_memory(), nullptr, nullptr, ref_data);
 }
 
-// "[B_token]" image-token pattern: a run of `group_len` ones every `period` NEW tokens, the first one
-// starting at `first`. first == 0 is the case of interest -- a group whose begin is the very first new
-// token, which is what a chunked prefill splitting an image in half produces.
+// "[B_token]" image-token pattern: runs of `group_len` ones every `period` new tokens from `first`; first == 0 is a group
+// beginning at the first new token (a chunked prefill splitting an image).
 static std::vector<int> make_image_groups(int b_token, int first, int group_len, int period) {
     std::vector<int> token_type_ids(b_token, 0);
     for (int start = first; start < b_token; start += period)
@@ -990,8 +951,7 @@ static std::string get_bidir_ref_test_name(const testing::TestParamInfo<paged_at
         name += std::to_string(subsequence.num_tokens) + "p" + std::to_string(subsequence.past_len) + "_";
     name += "h" + std::to_string(p.num_heads) + "kv" + std::to_string(p.num_kv_heads) + "_d" + std::to_string(p.k_head_size) + "_SW" +
             std::to_string(p.sliding_window_size);
-    // Several cases share a shape and differ only in the image-token pattern, which does not fit in a
-    // test name; the list index disambiguates them and points straight at the offending entry.
+    // Cases sharing a shape differ only in the image-token pattern; the list index tells them apart.
     return name + "_c" + std::to_string(obj.index);
 }
 

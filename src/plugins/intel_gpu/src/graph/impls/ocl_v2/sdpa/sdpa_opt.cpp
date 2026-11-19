@@ -73,8 +73,8 @@ bool SDPAOpt::per_channel_kv_on_dpas_lane(const kernel_impl_params& params) {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 namespace {
-// Knob (OV_GPU_ENABLE_SDPA_MICRO=0): the DPAS SDPA kernel (sdpa_ocl) off (the name is from the removed sdpa_micro),
-// so the op runs the OCL sdpa_opt kernels, for accuracy A/B without rebuilding.
+// Knob (OV_GPU_ENABLE_SDPA_MICRO=0, a historical name): the DPAS SDPA kernel (sdpa_ocl) off, so the op runs the OCL
+// sdpa_opt kernels, for accuracy A/B without rebuilding.
 bool dpas_sdpa_enabled(const RuntimeParams& params) {
     if (!params.get_program().get_config().get_enable_sdpa_micro()) {
         GPU_DEBUG_TRACE_DETAIL << "[GPU] DPAS SDPA kernel (sdpa_ocl) DISABLED via OV_GPU_ENABLE_SDPA_MICRO=0; "
@@ -110,8 +110,7 @@ class SDPAOptImpl : public SDPAImplBase {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::SDPAOptImpl)
 
-    // Off as it was with the removed sdpa_micro stage, which dispatched on subsequence_begins/max_context_len contents;
-    // replay of the remaining stages has not been checked.
+    // Off as it was with the removed micro stage; replay of the remaining stages has not been checked.
     bool supports_replay() const override {
         return false;
     }
@@ -152,9 +151,9 @@ public:
         auto dpas_supported = [&]() {
             return SDPAOpt::sdpa_ocl_serves_op(params, true);
         };
-        // xe_hpg (DG2, ARL-H) runs a one-query step (decode) of plain SDPA on the opt stages: 31-44 us per step where the
-        // generic SG8 kernel took 946-1464 us (A770, ATTENTION_BACKEND=SDPA, 1K-token prompts). PREFILL keeps sdpa_ocl on
-        // every arch, and so does a decode the opt stages do not take (opt_stages_take_head()).
+        // xe_hpg runs a one-query step (decode) of plain SDPA on the opt stages ("Plain SDPA of stateful LLMs on xe_hpg
+        // (2026-11-14)" in the docs). PREFILL keeps sdpa_ocl on every arch, and so does a decode the opt stages do not take
+        // (opt_stages_take_head()).
         const bool ocl_single_token_ok = params.get_device_info().arch != gpu_arch::xe_hpg || !opt_stages_take_head(params);
 #endif
         GPU_DEBUG_TRACE_DETAIL << "create stages for dynamic = " << params.is_dynamic() << ", sdpa_ocl lane = " << ocl_lane << "\n";
@@ -170,8 +169,7 @@ public:
             if (dpas_supported()) {
                 GPU_DEBUG_TRACE_DETAIL << "add stage for sdpa_ocl dynamic ...\n";
                 add_stage(ocl_multi_tokens, params);
-                // A rank-3 op keeps the opt single-token kernel: for one query it measured 2 us against sdpa_ocl's 10 us
-                // ([10, 1024, 64] keys, B70), while the prefill is 2.4-6.7x faster on sdpa_ocl.
+                // A rank-3 op keeps the opt single-token kernel for one query ("Rank-3 plain SDPA" in the docs).
                 if (ocl_single_token_ok && params.typed_desc<scaled_dot_product_attention>()->input_q_transpose_order.size() != 3) {
                     add_stage(ocl_single_token, params);
                 }
@@ -385,7 +383,7 @@ bool SDPAOpt::dpas_sdpa_op_supported(const RuntimeParams& params, bool allow_sca
     ov::Dimension V_num_heads_dim = get_num_heads(v_layout, extended_input_v_transpose_order);
 
     // The head dim must stay innermost for V too: sdpa_ocl reads V rows with a unit head-dim stride (it never reads
-    // VAL_S3), so a transposed V (order {..,3,2}, which only the removed sdpa_micro read) gives wrong output.
+    // VAL_S3), so a transposed V (order {..,3,2}) gives wrong output.
     if (extended_input_q_transpose_order[3] != 3 || extended_input_k_transpose_order[3] != 3 || extended_input_v_transpose_order[3] != 3) {
         return false;
     }
@@ -412,13 +410,11 @@ bool SDPAOpt::dpas_sdpa_op_supported(const RuntimeParams& params, bool allow_sca
         return false;
     }
 
-    // A rank-3 op (Q/K/V [B, L, E]) was kept off the DPAS kernel because of an accuracy issue of the removed sdpa_micro in the
-    // vision encoder of qwen-vl (3D, one head). sdpa_ocl serves it where it was measured and verified
-    // (sdpa_ocl_plain_3d_ok()); everywhere else it runs on sdpa_opt.
+    // A rank-3 op (Q/K/V [B, L, E]) takes the DPAS kernel only where sdpa_ocl_plain_3d_ok() / _head_ok() accept it; everywhere
+    // else it runs on sdpa_opt ("Rank-3 plain SDPA" in the docs).
     const bool is_output_rank_4d = desc->output_transpose_order.size() == 4;
 
-    // Asymmetric compressed KV with a bf16 zero-point buffer stays off the DPAS kernels: the removed oneDNN micro SDPA
-    // stage emitted NaN on it (oneDNN's own tests did not cover the combination).
+    // Asymmetric compressed KV with a bf16 zero-point buffer stays off the DPAS kernels (the removed micro stage gave NaN on it).
     if (has_bf16_compressed_kv_zero_point(params)) {
         return false;
     }

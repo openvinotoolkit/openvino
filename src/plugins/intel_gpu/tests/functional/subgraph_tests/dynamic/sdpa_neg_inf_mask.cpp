@@ -20,10 +20,9 @@
 #include "openvino/runtime/core.hpp"
 
 // A plain SDPA with a `-inf` attention mask whose first 128 or more keys are masked for a query (left padding, a
-// block-diagonal mask of a vision encoder) and large logits (|q.k / sqrt(d)| above about 100): sdpa_ocl turned the output to
-// NaN (a masked key tile saturates the running maximum, and the exp2 argument of a later tile came out positive), where
-// sdpa_micro, sdpa_opt and the decomposed graph did not. Q/K/V are non-negative so the logits are large, and the mask has
-// `-inf` or, as the control, the f16 lowest (-65504, what Hugging Face style code writes; it never gave NaN). The oracle is an
+// block-diagonal mask) and large logits (|q.k / sqrt(d)| above about 100). Guards a NaN output of sdpa_ocl: a masked key
+// tile saturates the running maximum, and the exp2 argument of a later tile must not come out positive. Q/K/V are
+// non-negative so the logits are large, and the mask has `-inf` or, as the control, the f16 lowest (-65504). The oracle is an
 // fp32 attention over the same f16 inputs. A softmax weights V convexly, so every output lies in the range of V: that holds
 // whatever the logit rounding of the kernel is (f16 logits near 100 are 0.06 apart), and a NaN or an inf cannot pass it; the
 // comparison with the reference is loose for the same reason.

@@ -67,8 +67,7 @@ decode_config make_decode_config(const RuntimeParams& params) {
 
     // The per-lane fallback of a compressed K loads a dword vector per lane covering several tiles (u4: 2
     // dwords a tile, up to 4 tiles; i8: 4 dwords a tile, up to 2), the same 32 bytes a block read hands
-    // each lane. Bit-identical: the tiles still feed the DPAS in ascending order. Measured on B70 against
-    // one load per tile: u4 head 64 -13% (llama-3.2-1b shape, 32K keys), u4 / i8 head 96 -5 / -11%.
+    // each lane. Bit-identical: the tiles still feed the DPAS in ascending order.
     if (c.compressed && c.k_2d == 0) {
         const size_t k_tiles = desc->k_head_size / dpas_k;
         size_t n = c.kv_u4 ? 4 : 2;
@@ -104,8 +103,7 @@ size_t get_sv_dim_sgs(size_t sg_per_wg, size_t v_tiles, bool v_page_1d) {
 }
 
 // Registers per work-item that stay live across the KQ loop, in GRF (SIMD16: one half per lane is half a
-// GRF, one float a whole one). A coarse spill gate calibrated on gemma-4, not a predictor
-// ("sdpa_ocl_decode" in the docs).
+// GRF, one float a whole one). A coarse spill gate, not a predictor ("sdpa_ocl_decode" in the docs).
 size_t live_grf_estimate(size_t m, size_t sg_per_wg, size_t k_head_size, bool compressed, bool by_channel, size_t k_tiles_per_read) {
     const size_t k_tiles = k_head_size / dpas_k;
     const size_t key_groups = (pa_seq_len_partition_size / sg_per_wg) / page_keys;
@@ -127,14 +125,13 @@ size_t live_grf_estimate(size_t m, size_t sg_per_wg, size_t k_head_size, bool co
     return grf;
 }
 
-// Below the 128-GRF file because the estimate omits compiler temporaries; brackets the measured optimum.
+// Below the 128-GRF file because the estimate omits compiler temporaries.
 constexpr size_t grf_budget = 112;
 
 // The same count for the low-register layout (Q_IN_SLM, K_COMP_PER_READ, V_COMP_IN_SLM, V_TWIN_PAIR in
 // sdpa_ocl_decode.cl): q_reg and the BY_CHANNEL comp arrays leave the register file, so nothing scales with
 // K_TILES any more, only with M and KEY_GROUPS. Same coarse role as live_grf_estimate(), with its own
-// budget: on B70 everything up to 148 measured spill-free (u4 head 128 at 8 subgroups and M = 8; head 512
-// at 16 and M = 8 with twin pairing scores 138) and 184 spilled 896 bytes (head 128, 4 subgroups, M = 8).
+// budget ("sdpa_ocl_decode" in the docs).
 size_t low_reg_grf_estimate(size_t m, size_t sg_per_wg, bool compressed, bool by_channel, size_t k_tiles_per_read, bool twin) {
     const size_t key_groups = (pa_seq_len_partition_size / sg_per_wg) / page_keys;
 
@@ -180,16 +177,13 @@ size_t sg8_grf_estimate(size_t m, size_t sg_per_wg, size_t k_head_size, bool com
     grf += m;                   // a, M ints
     grf += 2 * key_groups;      // k_page_off[KEY_GROUPS], 64-bit
     if (kv_u4) {
-        grf += 8;  // the nibble unpacks: u4 head 128 at M = 4 spilled 224 bytes on DG2 at an estimate of 106
+        grf += 8;  // the nibble unpacks ("xe_hpg reader (SG8)" in the docs)
     }
     return grf;
 }
 
-// The longest K row, in tiles, at which the SG8 reader holds a compressed cache spill-free at M > 1. The count above
-// misses what grows along the row there: on DG2 (IGC 2.41.5, ocloc with the runtime options) M = 2 spilled from head
-// 384 for i8 and u4 BY_CHANNEL (384 bytes, then 128 more per tile, 1376 at head 512, where the count is 112) and from
-// head 480 for i8 BY_TOKEN (128 bytes, 512 at head 512), while heads 320 / 448 compiled at 0, as did every M = 4 shape
-// up to the budget (heads 112-192) and head 512 at M = 1. f16 is not capped: head 512 at M = 2 compiled at 0.
+// The longest K row, in tiles, at which the SG8 reader holds a compressed cache spill-free at M > 1: the count above
+// misses what grows along the row there. f16 is not capped ("xe_hpg reader (SG8)" in the docs).
 size_t sg8_compressed_multi_q_max_k_tiles(bool by_channel) {
     return by_channel ? 20 : 28;
 }
@@ -230,11 +224,8 @@ struct q_tiling {
 q_tiling q_tiling_with(const RuntimeParams& params, const decode_config& c, size_t sg_per_wg, bool v_page_1d) {
     const auto desc = params.typed_desc<paged_attention>();
     const size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
-    // K_LANE_TILES stays out of the count on purpose, so M comes out as without it. Checked on B70 over the
-    // shapes the host generates with it and V_PAGE_1D (u4 / i8 head 16..192, kv group 1..8): spill stayed
-    // or fell everywhere (head 160 / 192 at M = 8: 18.5-20 KB -> 0.4-3.5 KB) except u4 head 192 at M = 4
-    // (0 -> 1.25 KB, still 0.29x the time), and no shape got slower. V_PAGE_1D's accumulators live only
-    // after the KQ loop.
+    // K_LANE_TILES stays out of the count on purpose, so M comes out as without it ("Compressed pages
+    // block2d does not take (2026-11-06)" in the docs). V_PAGE_1D's accumulators live only after the KQ loop.
     const size_t k_tiles_per_read = (c.kv_u4 && c.k_2d) ? 4 : ((c.compressed && c.k_2d) ? 2 : 1);
     const bool twin = v_twin_pair_legal(params, c, sg_per_wg);
 
@@ -272,13 +263,8 @@ q_tiling q_tiling_with(const RuntimeParams& params, const decode_config& c, size
         q.m = plain_m;
     } else {
         // When the plain layout caps M below the kv group, each K/V page is read and dequantized once per
-        // workgroup, i.e. target / M times per kv head -- decode is bandwidth bound and that redundancy
-        // grows with the context. The low-register layout keeps the whole group: gemma-4's head-512 layers
-        // (kv group 8) went from M = 1 to M = 8 at 0.23-0.85x the kernel time of the plain layout across
-        // 300 to 33K keys, and every other capped shape among the daily models measured 0.46-0.97x (B70;
-        // "sdpa_ocl_decode" in the docs). Not at head 64 once the plain M is 4: a page is read at most twice
-        // there, and halving the cheap workgroups' count lost up to 2K keys (i8 gpt-oss / minicpm4-0.5b,
-        // 1.06-1.15x).
+        // workgroup, i.e. target / M times per kv head; the low-register layout keeps the whole group. Not at
+        // head 64 once the plain M is 4: a page is read at most twice there ("sdpa_ocl_decode" in the docs).
         q.m = plain_m;
         if (plain_m < target && (plain_m < 4 || desc->k_head_size >= 128)) {
             size_t m = target;
@@ -311,8 +297,6 @@ q_tiling q_tiling_for(const RuntimeParams& params, const decode_config& c, size_
     }
     // V_PAGE_1D only where its partial-output staging does not cost M (a large head with M = 8 at 16
     // subgroups can push past the local-memory budget): the redundancy M avoids outweighs the gather.
-    // Measured on B70 against the gather, both at the shape's M: u4 head 96 MHA (phi-3.5) -36..-39%, u4
-    // head 64 at kv group 4 (llama-3.2-1b) -27..-30% and 8 (gpt-oss) -13..-15%, i8 head 96 MHA -17..-24%.
     const q_tiling page = q_tiling_with(params, c, sg_per_wg, true);
     return page.m >= gather.m ? page : gather;
 }
@@ -322,12 +306,9 @@ size_t q_per_wg_for(const RuntimeParams& params, const decode_config& c, size_t 
 }
 
 size_t sg_per_wg_for(const RuntimeParams& params, const decode_config& c) {
-    // One subgroup is one thread, and thread-level parallelism is what this kernel was short of, but 16 only
-    // pays with at least 16 V head-dim tiles: past V_TILES the surplus subgroups split the keys, which adds
-    // the slm_out staging and a barrier ("sdpa_ocl_decode" in the docs). Below that, 16 pays only where a
-    // workgroup is slow (the u4 dequant) and does not multiply the workgroups: at M >= 4 a partition costs
-    // no more threads than 8 subgroups at M = 2. Measured for u4 head 64 and 128; i8 and the other heads
-    // lose with 16 once the GPU is full, so they keep 8.
+    // 16 subgroups with at least 16 V head-dim tiles (past V_TILES the surplus subgroups split the keys, which
+    // adds the slm_out staging and a barrier), or for u4 head 64 / 128 at M >= 4, where a partition costs no
+    // more threads than 8 subgroups at M = 2. Everything else keeps 8 ("sdpa_ocl_decode" in the docs).
     const auto desc = params.typed_desc<paged_attention>();
     const size_t v_tiles = desc->v_head_size / c.sg;
     size_t value = 8;
@@ -335,10 +316,8 @@ size_t sg_per_wg_for(const RuntimeParams& params, const decode_config& c) {
     if (c.sg == 16 && (v_tiles >= 16 || (c.kv_u4 && (v_tiles == 4 || v_tiles == 8) && q_per_wg_for(params, c, 16) >= 4))) {
         value = 16;
     }
-    // Head 96 MHA (phi-3.5): six tiles split unevenly over 8 subgroups, so S*V reduces over key slots at 8
-    // as well, and a one-head workgroup is the cheapest there is. 16 measured 0.85-0.98x the time of 8 from
-    // 700 to 13K keys for u4, i8 and f16 alike, except 1.06-1.09x at 1.1K (5 partitions: 2560 threads,
-    // just over one wave of B70's 2048), and parity past 18K.
+    // Head 96 MHA also takes 16: six V tiles split unevenly over 8 subgroups, so S*V reduces over key slots
+    // at 8 as well.
     if (c.sg == 16 && v_tiles == 6 && desc->heads_num == desc->kv_heads_num) {
         value = 16;
     }

@@ -36,17 +36,17 @@ struct sdpa_ocl_config_t {
     int sv_sg_per_wg_values = 0;
     int sv_sg_per_wg_scores = 0;
     bool large_grf = false;            // compile with 256 GRF (get_build_options())
-    bool prefill_pipeline = false;     // PA PREFILL loop changes measured with this tiling (add_prefill_pipeline_jit())
-    bool v_prefetch = false;           // PA PREFILL V tile prefetch measured with this tiling (add_tensor_block_io_jit())
-    bool v_prefetch_l3 = false;        // PA PREFILL V tile L3 prefetch measured with this tiling (add_tensor_block_io_jit())
-    bool micro_math = true;            // PA PREFILL f16 sdpa_micro rounding with this tiling (add_micro_math_jit())
-    int wide_reads = 0;                // PA PREFILL wide K (1) / V (2) / Q_slm (4) reads measured with this tiling (add_tensor_block_io_jit())
-    bool mixed_prefetch_v = false;     // PA MIXED u4 V page prefetch measured with this tiling (add_pa_page_read_jit())
-    bool mixed_prefetch_k = false;     // PA MIXED u4 K page prefetch measured with this tiling (add_pa_page_read_jit())
+    bool prefill_pipeline = false;     // PA PREFILL loop changes (add_prefill_pipeline_jit())
+    bool v_prefetch = false;           // PA PREFILL V tile prefetch (add_tensor_block_io_jit())
+    bool v_prefetch_l3 = false;        // PA PREFILL V tile L3 prefetch (add_tensor_block_io_jit())
+    bool micro_math = true;            // PA PREFILL f16 MICRO_MATH softmax rounding (add_micro_math_jit())
+    int wide_reads = 0;                // PA PREFILL wide K (1) / V (2) / Q_slm (4) reads (add_tensor_block_io_jit())
+    bool mixed_prefetch_v = false;     // PA MIXED u4 V page prefetch (add_pa_page_read_jit())
+    bool mixed_prefetch_k = false;     // PA MIXED u4 K page prefetch (add_pa_page_read_jit())
     bool hpg_pa_prefill = false;       // the xe_hpg PA PREFILL kernel, sdpa_ocl_hpg_pa_prefill.cl (hpg_pa_prefill_tiling())
-    bool noncausal_kq_branch = false;  // plain non-causal PREFILL CAUSAL_TILE_SKIP measured with this tiling (add_prefill_pipeline_jit())
+    bool noncausal_kq_branch = false;  // plain non-causal PREFILL CAUSAL_TILE_SKIP (add_prefill_pipeline_jit())
     bool plain_decode = false;         // plain-SDPA decode tiling: the PREFILL loop flags above apply to that stage too
-    bool causal_skip_off = false;      // plain d_max 512 PREFILL: no causal tile skip with these loop flags (add_prefill_pipeline_jit())
+    bool causal_skip_off = false;      // plain d_max 512 PREFILL: no causal tile skip (add_prefill_pipeline_jit())
 
     int sg_per_wg() const {
         return kq_sg_per_wg_keys * kq_sg_per_wg_queries;
@@ -151,9 +151,8 @@ size_t get_subgroup_size(gpu_arch arch) {
     }
 }
 
-// The arches the tilings tuned on Xe2 (B580 / B70) serve: Xe2 and xe_hpc, which runs the same SG16 arms (DPAS, 2D
-// block IO, 256 GRF); the PA PREFILL tilings are sdpa_micro's xe_hpc workgroups. Not measured on xe_hpc. xe3 and later
-// keep the table tiling where a check names Xe2 alone.
+// Arches that take the Xe2-tuned tilings: Xe2 and xe_hpc (same SG16 DPAS / 2D block IO / 256 GRF paths); xe3+ keeps
+// the table tiling where a check names Xe2 alone.
 bool xe2_tuned(gpu_arch arch) {
     return arch == gpu_arch::xe2 || arch == gpu_arch::xe_hpc;
 }
@@ -183,14 +182,13 @@ size_t slm_bytes(const sdpa_ocl_config_t& t, size_t d_max) {
     return (q_slm + s_slm + s_sum + s_max + transpose) * sizeof(uint32_t);
 }
 
-// Per-arch limits the tiling must respect: the xe_hpg values are DG2's (64 KiB local memory, 1024 work-items), the SG16
-// ones (xe_hpc, Xe2+) the B-series' (128 KiB). xe_hpc's 128 KiB is its documented local memory size, not checked here on
-// the device.
+// Per-arch limits the tiling must respect: local memory 64 KiB on xe_hpg, 128 KiB on xe_hpc and Xe2+; 1024 work-items
+// per group on every arch.
 size_t max_slm_bytes_for(gpu_arch arch) {
     return arch >= gpu_arch::xe_hpc ? 128 * 1024 : 64 * 1024;
 }
 size_t max_wg_size_for(gpu_arch) {
-    return 1024;  // DG2 and the B-series alike
+    return 1024;
 }
 
 // Whether the kernel's local memory and work-group fit the device. The one check both choose_config() (asserts)
@@ -203,9 +201,9 @@ bool tiling_fits_device(gpu_arch arch, size_t d_max, const sdpa_ocl_config_t& t)
     return wg_size <= max_wg_size_for(arch) && slm_bytes(t, d_max) <= max_slm_bytes_for(arch);
 }
 
-// Per-head-size tuned tiling for k_head_size == v_head_size, mirroring sdpa_micro's choose_config_*
-// tables: a 128-key KQ workgroup tile with 16 subgroups, varying only the S*V split (and the query tile
-// for d_max <= 64). Every branch must satisfy solve_sv_split()'s invariants.
+// The table tiling per d_max for k_head_size == v_head_size: a 128-key KQ workgroup tile with 16 subgroups,
+// varying only the S*V split (and the query tile for d_max <= 64). Every branch must satisfy solve_sv_split()'s
+// invariants.
 sdpa_ocl_config_t choose_config_kq_only(gpu_arch arch, size_t d_max) {
     // The table stops at 512. SDPAOpt::dpas_sdpa_op_supported() rejects larger heads; this guards against that
     // gate being relaxed without extending the table (the last branch would cover half the head).
@@ -215,12 +213,9 @@ sdpa_ocl_config_t choose_config_kq_only(gpu_arch arch, size_t d_max) {
     config.subgroup_size = static_cast<int>(get_subgroup_size(arch));
 
     if (arch == gpu_arch::xe_hpg) {
-        // DG2 (SG8, 256 GRF): 16 x 16 KQ subgroup tiles, 2 subgroups along the queries and as many along the keys as
-        // keep the S*V accumulator at 64 GRF per thread (4 up to head 128, 8 at 256, 16 at 512): with 4 at head 256 /
-        // 512 it alone is 128 / 256 GRF and the kernel spilled 27 KB / 52 KB (ocloc, IGC 2.41). MICRO_MATH's second
-        // accumulator would double it, and it gives sdpa_micro's rounding only with the Xe2 table tiles. The KQ depth and
-        // S*V key loops are not unrolled on SG8 (add_tiling_jit()). The S*V split is derived (widest value split whose
-        // alpha[] nesting holds); config stays zero-split when none exists, which solve_tiling() then rejects.
+        // xe_hpg (SG8, 256 GRF): 16 x 16 KQ subgroup tiles, 2 query subgroups and as many key subgroups as keep the S*V
+        // accumulator at 64 GRF per thread; MICRO_MATH off (its second accumulator doubles that). The S*V split is derived
+        // and stays zero when none exists, which solve_tiling() rejects ("xe_hpg bring-up (DG2, SG8)" in the docs).
         config.kq_sg_tile_keys = 16;
         config.kq_sg_tile_queries = 16;
         config.kq_sg_per_wg_keys = d_max <= 128 ? 4 : (d_max <= 256 ? 8 : 16);
@@ -247,7 +242,6 @@ sdpa_ocl_config_t choose_config_kq_only(gpu_arch arch, size_t d_max) {
         config.sv_sg_per_wg_values = 2;
         config.sv_sg_per_wg_scores = 8;
     } else if (d_max <= 64) {
-        // The 128-key x 64-query tile evaluated as wide_math on MiniCPM4-0.5B.
         config.kq_sg_tile_queries = 32;
         config.kq_sg_per_wg_keys = 8;
         config.kq_sg_per_wg_queries = 2;
@@ -275,12 +269,9 @@ sdpa_ocl_config_t choose_config_kq_only(gpu_arch arch, size_t d_max) {
     return config;
 }
 
-// PA PREFILL on Xe2 and xe_hpc (xe2_tuned()) at d_max 64, 128, 256 and 512: sdpa_micro's xehpc_h64 / xehpc_h128 / xehpc_h256 / xehpc_h512
-// workgroups (128 / 256 / 128 / 256 keys x 128 / 128 / 128 / 64 queries, 256 GRF) with the loop changes of
-// add_prefill_pipeline_jit(). The table tiles read K/V once per 64 / 32 / 32 / 32 queries, and were up to 1.08x / 1.40x /
-// 1.09x slower than sdpa_micro on llama-3.2-1b / qwen3-8b / gemma-2-9b; at d_max 512 the table tile spilled at 128 GRF
-// (3.8x sdpa_micro on gemma-4-e2b). xehpc_h512 needs 32-key subgroup tiles: 16-key ones would take 1024 work-items, which
-// a 256 GRF kernel cannot dispatch ("Paged-attention PREFILL tiling" in the docs). False: keep the table tiling.
+// PA PREFILL on xe2_tuned() arches at d_max 64 / 128 / 256 / 512: wider 256 GRF workgroups with the loop changes of
+// add_prefill_pipeline_jit(). d_max 512 needs 32-key subgroup tiles: 16-key ones would take 1024 work-items, which a
+// 256 GRF kernel cannot dispatch ("Paged-attention PREFILL tiling" in the docs). False: keep the table tiling.
 bool solve_pa_prefill_tiling(gpu_arch arch, size_t d_max, size_t vd_max, sdpa_ocl_config_t& config) {
     if (!xe2_tuned(arch)) {
         return false;
@@ -289,22 +280,22 @@ bool solve_pa_prefill_tiling(gpu_arch arch, size_t d_max, size_t vd_max, sdpa_oc
     wide.subgroup_size = static_cast<int>(get_subgroup_size(arch));
     wide.kq_sg_tile_keys = 16;
     switch (d_max) {
-    case 64:  // 8 x 2 subgroups of 16 keys x 64 queries
+    case 64:
         wide.kq_sg_tile_queries = 64;
         wide.kq_sg_per_wg_keys = 8;
         wide.kq_sg_per_wg_queries = 2;
         break;
-    case 128:  // 16 x 2 subgroups of 16 keys x 64 queries
+    case 128:
         wide.kq_sg_tile_queries = 64;
         wide.kq_sg_per_wg_keys = 16;
         wide.kq_sg_per_wg_queries = 2;
         break;
-    case 256:  // 8 x 4 subgroups of 16 keys x 32 queries
+    case 256:
         wide.kq_sg_tile_queries = 32;
         wide.kq_sg_per_wg_keys = 8;
         wide.kq_sg_per_wg_queries = 4;
         break;
-    case 512:  // 8 x 4 subgroups of 32 keys x 16 queries
+    case 512:
         wide.kq_sg_tile_keys = 32;
         wide.kq_sg_tile_queries = 16;
         wide.kq_sg_per_wg_keys = 8;
@@ -315,22 +306,13 @@ bool solve_pa_prefill_tiling(gpu_arch arch, size_t d_max, size_t vd_max, sdpa_oc
     }
     wide.large_grf = true;
     wide.prefill_pipeline = true;
-    // The block prefetch is 64 B wide, so it requests each 256 B L3 line of the 1 KiB V rows four times: the d_max 512
-    // kernel got 2-14% slower with it. The L3 prefetch requests each line once and fills L3 only; it took the B70
-    // L3-miss knee out of the d_max 512 kernel (11% faster at 32K keys, 0.4-1.6% at 2K-8K, at a fixed 1800 MHz).
+    // d_max 512 takes the L3-only V prefetch (one request per 256 B line) instead of the 64 B block prefetch.
     wide.v_prefetch = d_max <= 256;
     wide.v_prefetch_l3 = d_max == 512;
-    // At d_max 512 MICRO_MATH's second S*V accumulator is another 64 GRF, which leaves none for loading V ahead of the
-    // DPAS: it made the kernel 21-26% slower, though with this tile it gives sdpa_micro's result.
+    // At d_max 512 MICRO_MATH's second S*V accumulator leaves no registers for loading V ahead of the DPAS.
     wide.micro_math = d_max != 512;
-    // With IGC 2.41 the d_max 512 kernel stalled on message issue (VTune "Send" 26% against sdpa_micro's 5%): it read
-    // K and V in 512 B blocks and Q_slm in 256 B ones. A 2 KB K read per depth-tile pair, a 1 KB V read per value-block
-    // pair and 512 B Q_slm reads made it 21-31% faster at 8K-32K keys (gemma-4-e2b / 26b). The value is unchanged (same
-    // data, same DPAS order). The Q_slm read takes 8 movs per read (ulong4 to the int8 DPAS operand), so it pays only
-    // where the loop waits on memory: d_max 64 takes K + Q_slm (llama-3.2-1b 1.4-5.6% faster at 2K-32K keys), d_max 128
-    // and 256 the K read alone (0.1-1.0% and 1-5% at 2K-32K); with Q_slm they were up to 16% and 2% slower. Of these
-    // tilings only d_max 256 has a V pair, and it was 0.6% slower. A sliding window turns d_max 64 off
-    // (add_tensor_block_io_jit()).
+    // WIDE_READS mask; the result is unchanged (same data, same DPAS order). A sliding window turns d_max 64 off
+    // (add_tensor_block_io_jit(); "Paged-attention PREFILL: wide reads (IGC 2.41)" in the docs).
     wide.wide_reads = d_max == 512 ? 7 : d_max == 64 ? 5 : 1;
     if (!solve_sv_split(wide, vd_max) || !tiling_fits_device(arch, d_max, wide)) {
         return false;
@@ -339,11 +321,9 @@ bool solve_pa_prefill_tiling(gpu_arch arch, size_t d_max, size_t vd_max, sdpa_oc
     return true;
 }
 
-// PA MIXED on Xe2 and xe_hpc (xe2_tuned()) at d_max 128 / 256 / 512: 16-key x 32-query subgroup tiles with 256 GRF, so each K / V cache tile
-// the subgroup dequantizes serves 32 queries instead of the table's 16, as sdpa_micro's xe2_h256_pa_mixed does at head
-// 256. The workgroup is 8 x 2 subgroups (128 keys x 64 queries); at d_max 512 it is 16 x 1 (256 x 32), the 8 x 2 tile
-// spills 14 KB there. With few heads (few_heads) d_max 256 also takes 16 x 1: twice the threads per query block, where
-// 8 x 2 leaves half of the device idle ("Paged-attention MIXED tiling" in the docs). False: keep the table tiling.
+// PA MIXED on xe2_tuned() arches at d_max 128 / 256 / 512: 16-key x 32-query subgroup tiles with 256 GRF, so each K / V
+// cache tile a subgroup dequantizes serves 32 queries. 8 x 2 subgroups, or 16 x 1 at d_max 512 and at d_max 256 with
+// few_heads ("Paged-attention MIXED tiling" in the docs). False: keep the table tiling.
 bool solve_pa_mixed_tiling(gpu_arch arch, size_t d_max, size_t vd_max, bool few_heads, sdpa_ocl_config_t& config) {
     if (!xe2_tuned(arch)) {
         return false;
@@ -380,17 +360,14 @@ struct plain_prefill_shape {
     bool shape_agnostic = true;
     int64_t n_keys = 0;
     int64_t q_len = 0;
-    bool f16_qkv = false;     // f16 Q, K and V: what the tilings below were measured with (no bf16, no compressed KV)
+    bool f16_qkv = false;     // f16 Q, K and V (the tilings below take no bf16, no compressed KV)
     bool mask_input = false;  // an attention mask input (not a const scalar): the op's, so compile time and dispatch agree
 };
 
-// Plain (non-PA) SDPA PREFILL on xe_hpc and Xe2+ at d_max 128: from ~2K keys the sdpa_micro xehpc_h128 workgroup
-// (16 x 2 subgroups of 16 keys x 64 queries = 256 keys x 128 queries, 256 GRF) is what closes the gap to
-// sdpa_micro on the f16-KV chunked-prefill shapes PR-39316 optimizes (PTL-H B390: 3.2x faster than the
-// table tile at 8K keys). It takes the PA PREFILL loop changes (wide K reads, V prefetch, branchless
-// softmax + split S-max barrier); micro_math stays off (plain SDPA never emits MICRO_MATH). A static stage
-// takes it for at least one mirror query tile and 2K keys; below that the table tile wins. A shape-agnostic
-// stage keeps the table tile: SDPA_OCL_PLAIN_MIRROR=0/1 forces table/mirror on both for A/B.
+// Plain (non-PA) SDPA PREFILL on xe_hpc and Xe2+ at d_max 128 with f16 Q / K / V: the "mirror" workgroup of 256 keys x
+// 128 queries (16 x 2 subgroups, 256 GRF) with the PA PREFILL loop changes; micro_math off (plain SDPA never emits
+// MICRO_MATH). Only a static stage with at least one workgroup query tile and 2K keys takes it; a shape-agnostic stage
+// keeps the table tile ("Plain-SDPA PREFILL tiling (d_max 128)" in the docs). SDPA_OCL_PLAIN_MIRROR=0/1 forces either.
 bool solve_plain_prefill_tiling(gpu_arch arch, size_t d_max, size_t vd_max, const plain_prefill_shape& shape, sdpa_ocl_config_t& config) {
     if (d_max != 128 || vd_max != 128 || arch < gpu_arch::xe_hpc || !shape.f16_qkv) {
         return false;
@@ -419,19 +396,11 @@ bool solve_plain_prefill_tiling(gpu_arch arch, size_t d_max, size_t vd_max, cons
     return true;
 }
 
-// Plain (non-PA) SDPA PREFILL on Xe2 and xe_hpc (xe2_tuned()) at d_max 64 with f16 Q / K / V. Without an attention mask input: 32-key x 32-query
-// subgroup tiles, 4 x 2 subgroups (128 keys x 64 queries), 256 GRF, with the PA PREFILL loop changes (V prefetch, the
-// wide K read, branchless softmax + split S-max barrier) and, on a non-causal stage, the KQ branch
-// (add_prefill_pipeline_jit()). With one: the table tile (128 GRF) with those loop changes. The bare table tile
-// (16 x 32 subgroup tiles, 8 x 2 subgroups, none of the loop changes) was 1.29x sdpa_micro on stable-diffusion-3.5's
-// joint attention (38 heads, 1357 tokens, dynamic: 603 vs 469 us per call). Without a mask the 256 GRF tile was faster
-// than the table on every head-64 shape measured (non-causal, causal GQA prompts / chunks / 16-query steps, head 40,
-// static and dynamic): 0.52-0.93x it, 0.60-0.83x sdpa_micro from ~300 tokens. With a 2D mask the kernel also streams the
-// mask, and at 4K tokens (an SDPA-backend LLM prompt, causal through the mask) it was 1.09x the table, every other tile
-// measured 1.06-1.21x; the table with the loop changes was 0.69-1.00x it on every masked shape
-// ("Plain-SDPA PREFILL tiling (d_max 64)" in the docs). The choice reads the op's mask input, never a query or key count,
-// so the compiled stage and its dispatch (shape-agnostic or not) agree. SDPA_OCL_PLAIN_D64=0 keeps the bare table (A/B).
-// False: keep the bare table (bf16, compressed K / V, other devices: not measured).
+// Plain (non-PA) SDPA PREFILL on xe2_tuned() arches at d_max 64 with f16 Q / K / V. Without an attention mask input:
+// 32-key x 32-query subgroup tiles, 4 x 2 subgroups, 256 GRF, with the PA PREFILL loop changes and, on a non-causal
+// stage, the KQ branch (add_prefill_pipeline_jit()); with one: the table tile with those loop changes. The choice reads
+// the op's mask input, never a query or key count, so the compiled stage and its dispatch (shape-agnostic or not) agree
+// ("Plain-SDPA PREFILL tiling (d_max 64)" in the docs). False (also with SDPA_OCL_PLAIN_D64=0): keep the bare table.
 bool solve_plain_prefill_d64_tiling(gpu_arch arch, size_t d_max, size_t vd_max, const plain_prefill_shape& shape, sdpa_ocl_config_t& config) {
     if (d_max != 64 || vd_max != 64 || !xe2_tuned(arch) || !shape.f16_qkv || env_int("SDPA_OCL_PLAIN_D64", 1) == 0) {
         return false;
@@ -445,7 +414,6 @@ bool solve_plain_prefill_d64_tiling(gpu_arch arch, size_t d_max, size_t vd_max, 
         t.kq_sg_tile_queries = 32;
         t.kq_sg_per_wg_keys = 4;
         t.kq_sg_per_wg_queries = 2;
-        // At 128 GRF this tile was 1.4-2.7x slower.
         t.large_grf = true;
         t.noncausal_kq_branch = true;
     }
@@ -453,7 +421,7 @@ bool solve_plain_prefill_d64_tiling(gpu_arch arch, size_t d_max, size_t vd_max, 
     t.v_prefetch = true;
     t.v_prefetch_l3 = false;
     t.micro_math = false;  // plain SDPA never emits MICRO_MATH
-    t.wide_reads = 1;      // the K pair; without it 0.94-1.15x with the KQ branch (faster at head 40 only), 1.00-1.06x causal
+    t.wide_reads = 1;      // the K pair
     if (!solve_sv_split(t, vd_max) || !tiling_fits_device(arch, d_max, t)) {
         return false;
     }
@@ -461,17 +429,11 @@ bool solve_plain_prefill_d64_tiling(gpu_arch arch, size_t d_max, size_t vd_max, 
     return true;
 }
 
-// Plain (non-PA) SDPA PREFILL on Xe2 and xe_hpc (xe2_tuned()) at d_max 512 with f16 Q / K / V, 256 GRF with the PA PREFILL d_max 512 loop changes
-// (L3-only V prefetch, wide K / V / Q_slm reads, branchless softmax + split S-max barrier), no causal tile skip. Without an
-// attention mask input: the table tile (16 x 16 subgroup tiles, 8 x 2 subgroups, 128 keys x 32 queries); with one: the
-// PA PREFILL d_max 512 workgroup (32 x 16 subgroup tiles, 8 x 4 subgroups, 256 keys x 64 queries). The table tile at
-// 128 GRF spilled 1280 B (2432 with a mask) and was 1.43-1.49x sdpa_micro on a VAE decoder's attention (one head, 4096
-// tokens, dynamic: 865-874 vs 587-606 us in stable-diffusion-3.5). Without a mask the 256 GRF table was 0.47-0.66x the
-// old table (VAE 1K-16K tokens, causal 16-query steps and 2K prompts), 0.70-0.99x sdpa_micro; the PA tile was 1.03-1.50x
-// it there except at 16K, but with a 2D mask (an SDPA-backend LLM prompt, GQA) 0.77-0.89x it ("Plain-SDPA PREFILL tiling
-// (d_max 512)" in the docs). The choice reads the op's mask input only, so the compiled stage and its dispatch agree.
-// SDPA_OCL_PLAIN_D512=0 keeps the bare table (A/B). False: keep the bare table (bf16, compressed K / V, other devices:
-// not measured).
+// Plain (non-PA) SDPA PREFILL on xe2_tuned() arches at d_max 512 with f16 Q / K / V: 256 GRF with the PA PREFILL d_max 512
+// loop changes (L3-only V prefetch, wide K / V / Q_slm reads), no causal tile skip. Without an attention mask input the
+// table tile, with one the PA PREFILL d_max 512 workgroup. The choice reads the op's mask input only, so the compiled stage
+// and its dispatch agree ("Plain-SDPA PREFILL tiling (d_max 512)" in the docs). False (also with SDPA_OCL_PLAIN_D512=0):
+// keep the bare table.
 bool solve_plain_prefill_d512_tiling(gpu_arch arch, size_t d_max, size_t vd_max, const plain_prefill_shape& shape, sdpa_ocl_config_t& config) {
     if (d_max != 512 || vd_max != 512 || !xe2_tuned(arch) || !shape.f16_qkv || env_int("SDPA_OCL_PLAIN_D512", 1) == 0) {
         return false;
@@ -489,8 +451,8 @@ bool solve_plain_prefill_d512_tiling(gpu_arch arch, size_t d_max, size_t vd_max,
     t.large_grf = true;
     t.prefill_pipeline = true;
     t.v_prefetch = false;
-    t.v_prefetch_l3 = true;  // without it the table tile was 1.16x at 16K tokens and 1.07x on a masked 4K prompt
-    t.micro_math = false;    // plain SDPA never emits MICRO_MATH
+    t.v_prefetch_l3 = true;
+    t.micro_math = false;  // plain SDPA never emits MICRO_MATH
     t.wide_reads = 7;
     t.causal_skip_off = true;
     if (!solve_sv_split(t, vd_max) || !tiling_fits_device(arch, d_max, t)) {
@@ -500,16 +462,11 @@ bool solve_plain_prefill_d512_tiling(gpu_arch arch, size_t d_max, size_t vd_max,
     return true;
 }
 
-// Plain (non-PA) SDPA decode on Xe2 and xe_hpc (xe2_tuned()) with f16 Q / K / V: the single-token stage, which runs one query. The table tile
-// (16 x 16 subgroup tiles, 8 x 2 subgroups = 128 keys x 32 queries, 64 at d_max 64; 128 GRF) leaves 31 of its 32 query
-// rows padding there, and its second row of subgroups (three of four at d_max 64) reads the same K and V tiles again for
-// padding rows: 1.04-1.43x sdpa_micro at d_max 128, up to 1.56x at 64 and 2.6x at 256 (B70). Here every subgroup takes
-// keys: 32-key x 16-query subgroup tiles in one row, 16 subgroups (512 keys) or 8 at d_max 64, whose S*V cannot split a
-// 64-wide head over 16; 256 GRF, as at 128 GRF the 32-key tile was 1.3-1.8x slower at d_max 128 / 256; and the PREFILL
-// loop changes that pay here: PREFETCH_V, the wide K read, SOFTMAX_BRANCHLESS and MAX_SPLIT_BARRIER, not
-// CAUSAL_TILE_SKIP (add_prefill_pipeline_jit()). "Plain-SDPA decode tiling" in the docs has the measurements. The
-// tiling reads no query or key count, so a shape-agnostic stage gets the same one at compile time and dispatch. False:
-// keep the table tile (d_max 32, bf16 or compressed K / V, other devices: not measured).
+// Plain (non-PA) SDPA decode (one query) on xe2_tuned() arches with f16 Q / K / V: every subgroup takes keys, 32-key x
+// 16-query subgroup tiles in one row of 16 subgroups (8 at d_max 64, whose S*V cannot split a 64-wide head over 16),
+// 256 GRF, and the PREFILL loop changes except CAUSAL_TILE_SKIP (add_prefill_pipeline_jit()). The tiling reads no query
+// or key count, so a shape-agnostic stage gets the same one at compile time and dispatch ("Plain-SDPA decode tiling" in
+// the docs). False: keep the table tile.
 bool solve_plain_decode_tiling(gpu_arch arch, size_t d_max, size_t vd_max, bool f16_qkv, sdpa_ocl_config_t& config) {
     if (!xe2_tuned(arch) || !f16_qkv || env_int("SDPA_OCL_PLAIN_DECODE", 1) == 0) {
         return false;
@@ -578,9 +535,8 @@ bool solve_tiling(gpu_arch arch,
     // A tuned table row has its S*V split filled in; the xe_hpg seed leaves it zero when it found none.
     const bool tuned_split = config.sv_sg_tile_values > 0;
     if (plain_prefill && plain_shape.f16_qkv && d_max == 128 && arch >= gpu_arch::xe_hpc && env_int("SDPA_OCL_PLAIN_TABLE_FLAGS", 1) != 0) {
-        // The table tile below the mirror threshold still takes the PA PREFILL loop changes (wide K reads,
-        // V prefetch, branchless softmax / split barrier); measured faster than the bare table at 0.5K-1.5K
-        // key chunks, and the jit gates keep them off the decode/mixed stages which share this row.
+        // The table tile below the mirror threshold still takes the PA PREFILL loop changes; the jit gates keep
+        // them off the decode / MIXED stages that share this row.
         config.prefill_pipeline = true;
         config.v_prefetch = true;
         config.wide_reads = 1;
@@ -922,11 +878,9 @@ pa_cache_desc classify_pa_cache(const kernel_impl_params& params,
                                 const ov::element::Type& precision,
                                 const sdpa_ocl_problem& p);
 
-// A token matrix the xe_hpg PA PREFILL kernel may read with dword loads: every head starts at a multiple of 4 B and so
-// does every token. Unpadded that holds; a static padding is checked; a dynamic one is taken on trust, as the block2d
-// fixup tier does (block2d_layout_fixup_ok()): a crop view of a fused QKV tensor at head-size offsets has it. The kernel
-// checks Q's at runtime (q_dword_ok); a dynamic K / V (PREFILL) or Kc / Vc (compressed MIXED) padding 2 B off still reads
-// wrong values (the feature_pad_residual cases).
+// A token matrix the xe_hpg PA PREFILL kernel may read with dword loads: every head and token starts at a multiple of
+// 4 B. A static padding is checked, a dynamic one taken on trust as in block2d_layout_fixup_ok(). The kernel rechecks Q
+// at runtime (q_dword_ok), but a dynamic K / V / Kc / Vc padding 2 B off reads wrong values (feature_pad_residual).
 bool dword_token_matrix_ok(const layout& l) {
     if (layout_unpadded(l) || (is_token_matrix(l) && l.data_padding.is_dynamic()))
         return true;
@@ -935,28 +889,19 @@ bool dword_token_matrix_ok(const layout& l) {
     return token_matrix_bytes(l, first_head, token_stride) && first_head % 4 == 0 && token_stride % 4 == 0;
 }
 
-// The plain SDPA heads (k == v) the xe_hpg PREFILL kernel takes: 512, and from 32 to 256 every multiple of 8 (one that is
-// not a multiple of 16 ends in a depth tile of 8, HPG_TAIL). hpg_pa_prefill_tiling() derives each tiling from the head. Up
-// to head 256 the workgroup stays within the 32 subgroups of the tilings measured; heads 264-504 would take d_max 512's S*V
-// loop, near the IGC hazard below, untested. PA stays at the heads below: at the other multiples of 16 from 80 to 240 the
-// hazard corrupted PA PREFILL or MIXED at each V lead tried, 1, 6 and 8 ("Heads by rule on xe_hpg" in the docs).
+// The plain SDPA heads (k == v) the xe_hpg PREFILL kernel takes: 512, and every multiple of 8 from 32 to 256 (one that
+// is not a multiple of 16 ends in a depth tile of 8, HPG_TAIL); heads 264-504 are untested. PA keeps the heads of
+// hpg_pa_prefill_ok(): at the others an IGC codegen hazard corrupts PA PREFILL / MIXED ("xe_hpg follow-ups" in the docs).
 bool hpg_plain_head_ok(size_t head_size) {
     return head_size == 512 || (head_size >= 32 && head_size <= 256 && head_size % 8 == 0);
 }
 
-// The xe_hpg PA PREFILL kernel (sdpa_ocl_hpg_pa_prefill.cl) serves f16 head 64, 96, 128, 256 and 512 (k == v), with or
-// without a sliding window, a sink and token_type_ids, but without alibi or a runtime scale, on dword-aligned Q / K / V rows;
-// every other PA PREFILL takes the generic kernel. At head 512 the S*V loop is near the IGC hazard of "xe_hpg follow-ups" in
-// the docs (one 8 x 8 accumulator tile garbage with a dynamic K / V padding): the driver's IGC 2.41.5 miscompiles a V lead of
-// 4 there, and the SDPA_OCL_NEG_SG8=4 fallback build, not the default.
-// SDPA_OCL_HPG_PA_PREFILL=0 turns it off for A/B, and a SDPA_OCL_KQ_* override does too (it tiles the generic kernel).
-// It serves PA MIXED (!is_prefill) at the same heads on f16 caches, without token_type_ids or qq_bias: it reads every key
-// from the (token-major) pages and of the inputs only Q. It also serves MIXED on the compressed caches
-// sdpa_ocl's MIXED dequantizes (classify_pa_cache().dequant_ok: i8 BY_TOKEN, i8 / u4 BY_CHANNEL), with the new
-// tokens from the f16 K / V inputs (PA_CUR_KV_F16; SDPA_OCL_PA_CUR_F16=0, which reads them back from the cache, takes the
-// generic kernel). It reads Kc / Vc with dword loads and no fallback, on dword_token_matrix_ok() rows: a dynamic padding is
-// taken on trust as PREFILL's K / V, and one 2 B off reads wrong values (the disabled feature_pad_residual cases).
-// SDPA_OCL_HPG_PA_MIXED=0 turns MIXED off for A/B (the generic kernel).
+// The xe_hpg PA PREFILL kernel (sdpa_ocl_hpg_pa_prefill.cl) at f16 heads 64 / 96 / 128 / 256 / 512 (k == v), without
+// alibi or a runtime scale, on dword_token_matrix_ok() rows. PREFILL with or without a sliding window, a sink and
+// token_type_ids; MIXED without token_type_ids or qq_bias, on f16 caches (every key from the token-major pages) or on the
+// compressed ones classify_pa_cache().dequant_ok accepts, with the new tokens from the f16 K / V inputs (PA_CUR_KV_F16,
+// dword loads, no fallback). Head 512's S*V loop is near the IGC codegen hazard of "xe_hpg follow-ups" in the docs.
+// SDPA_OCL_HPG_PA_PREFILL=0, SDPA_OCL_HPG_PA_MIXED=0 or a SDPA_OCL_KQ_* override take the generic kernel.
 bool hpg_pa_prefill_ok(const kernel_impl_params& params, bool is_prefill, size_t k_head_size, size_t v_head_size) {
     const bool head_ok =
         k_head_size == v_head_size && (k_head_size == 64 || k_head_size == 96 || k_head_size == 128 || k_head_size == 256 || k_head_size == 512);
@@ -1005,17 +950,13 @@ bool hpg_pa_prefill_ok(const kernel_impl_params& params, bool is_prefill, size_t
 
 const layout* runtime_scale_layout(const kernel_impl_params& params);  // with the scale jit below
 
-// The same kernel serves plain SDPA (the PREFILL stage, q > 1) without causality, a runtime scalar mask, a runtime scale, a
-// sink or a compressed KV cache (flux, vision encoders, the stateful LLMs of ATTENTION_BACKEND=SDPA), at the heads of
-// hpg_plain_head_ok() (more than PA's: a head such as 40 or 72 of phi-4-multimodal's vision encoder is half a depth tile
-// and half a value block past a multiple of 16), when Q, K,
-// V and the output are rank-4 f16 tensors whose head dimension is innermost and unpadded: every row then starts at a
-// multiple of the head size (a crop view of a fused QKV tensor pads another axis). A tensor mask must be f16, bfyx and
-// unpadded (the kernel reads 8 keys of a row with one load and adds no padding offset, as sdpa_ocl.cl). A static scalar mask
-// is admitted when finite: it adds the same value to every score of a row, which the softmax ignores (CLIP's vision encoder
-// has 0, e.g. in phi-3.5-vision), so the kernel leaves it out. An indirect op (a stateful LLM with beam_idx) is admitted:
-// SDPAOptImpl::execute() dispatches the sdpa_ocl PREFILL only when no beam reorder is needed (need_indirect_load()), so no
-// sdpa_ocl kernel reads the beam table, as on Xe2. SDPA_OCL_HPG_PLAIN_PREFILL=0 turns it off for A/B.
+// The same kernel serves plain SDPA PREFILL (q > 1) at the hpg_plain_head_ok() heads without causality, a runtime scalar
+// mask, a runtime scale, a sink or a compressed KV cache, when Q, K, V and the output are rank-4 f16 tensors whose head
+// dimension is innermost and unpadded (every row starts at a multiple of the head size). A tensor mask must be f16, bfyx
+// and unpadded (8 keys of a row per load, no padding offset). A finite static scalar mask is left out: it adds the same
+// value to every score of a row, which the softmax cancels. An indirect op is admitted: SDPAOptImpl::execute() dispatches
+// the sdpa_ocl PREFILL only when no beam reorder is needed (need_indirect_load()), so no sdpa_ocl kernel reads the beam
+// table. SDPA_OCL_HPG_PLAIN_PREFILL=0 turns it off.
 bool hpg_plain_prefill_ok(const kernel_impl_params& params, size_t k_head_size, size_t v_head_size) {
     const bool head_ok = k_head_size == v_head_size && hpg_plain_head_ok(k_head_size);
     if (params.get_device_info().arch != gpu_arch::xe_hpg || !params.is_type<scaled_dot_product_attention>() || !head_ok) {
@@ -1051,33 +992,13 @@ bool hpg_plain_prefill_ok(const kernel_impl_params& params, size_t k_head_size, 
     return rows_ok(params.input_layouts[0]) && rows_ok(params.input_layouts[1]) && rows_ok(params.input_layouts[2]) && rows_ok(params.output_layouts[0]);
 }
 
-// Its tiling, by head size (keys x queries per workgroup, measured per call against sdpa_micro on DG2 in real models):
-// 32 x 16 subgroup tiles, 4 x 2 at head 64 (128 x 32; 0.96-1.01x sdpa_micro at 1K tokens, where sdpa_micro's own 64 x 128
-// was 1.24x), 5 x 2 at head 72 (160 x 32, 80 value columns, the last 8 past the head) and 6 x 2 at head 96 (192 x 32: a key
-// subgroup per 16 value columns, as at 128) and 8 x 2 at head 128 (256 x 32,
-// "xe_hpg PA PREFILL kernel" in the docs); 16 x 16 subgroup tiles, 16 x 2 at
-// head 256 (256 x 32, sdpa_micro's: 1.13x at 1K tokens), where 32 value columns per S*V subgroup spilled 4.7-9.4 KB, and
-// 32 x 1 at head 512 (512 x 16: 0.90-0.91x sdpa_micro at 1K tokens in gemma-4-e2b, 0.94-0.96x in flux.1-schnell's VAE),
-// where 32 x 16 subgroup tiles of 16 x 1 with 32 value columns spilled 6 KB and were 2.2x.
-// Plain SDPA at heads 40 / 80 / 160 (stable-diffusion-v1-5's UNet, 8 heads, batch 2) takes 32 x 16 subgroup tiles, 3 x 2 at
-// head 40 (96 x 32, 48 value columns, the last 8 past the head) and 5 x 2 at head 80 (160 x 32), and 16 x 16 ones, 10 x 2 at
-// head 160 (160 x 32): 0.64-0.88x sdpa_micro per call (the generic kernel was 2.4-5.4x). Against those, the 4096-token
-// self-attention at head 40 took 1.39x with 6 x 2 (8 value columns per S*V subgroup), 1.24x with 3 x 4 and 1.08x with
-// 16 x 16 tiles, the 1024-token one at head 80 1.44x with 5 x 4, 1.89x with 10 x 2 and 1.08x with 16 x 16 tiles (0.76x on
-// its 77-key cross-attention, 1.02x the pair). At head 160, 10 x 4 (40 subgroups) hung the A770 (driver 32.0.101.9175) and
-// the machine with it: the overrides below are not checked against such shapes.
-// Every tiling above is one rule, which the other heads of hpg_plain_head_ok() take without a sweep of their own: a key
-// subgroup per 16 value columns (the head rounded up to 16), 32-key subgroup tiles up to head 128 and 16-key ones above,
-// two query subgroups but at head 512 (2 x 2 subgroups at head 32 up to 16 x 2 at 256).
-// A MIXED on a compressed cache (comp_mixed) takes 16 x 32 subgroup tiles, kq_sg_per_wg_keys x 1, at heads 64, 96, 128 and
-// 256 (128 x 32 with 8 x 1 at head 64, 8 value columns per S*V subgroup; 96 x 32, 128 x 32, 256 x 32): with two query
-// subgroups each K / V element of the tile was dequantized twice, and once took 0.68-0.71x the device time per call at
-// head 128, 0.78x at 96, 0.73x at 256 and 0.85x at 64 (u4, 4K-token prompts in 256-token chunks; i8 0.73x / 0.77x at 128 /
-// 64). The f16 MIXED keeps its tiling: the 8 x 1 shape alone took 1.24x there at head 64, and 4 x 1 (64 x 32, half the
-// threads) 1.64x ("xe_hpg PA PREFILL kernel" in the docs). SDPA_OCL_HPG_PA_COMP_Q32=0 keeps the 32 x 16 tiles.
-// Each S*V subgroup holds the queries of its KQ subgroup and head / kq_sg_per_wg_keys value columns.
-// SDPA_OCL_HPG_PA_TILE_KEYS / _TILE_QUERIES / _PER_WG_KEYS / _PER_WG_QUERIES replace a value for A/B; a tiling the kernel is
-// not written for throws.
+// Its tiling, by rule from the head: a key subgroup per 16 value columns (the head rounded up to 16), 32-key x 16-query
+// subgroup tiles up to head 128 and 16 x 16 above, two query subgroups except at head 512. A compressed MIXED (comp_mixed)
+// at heads 64 / 96 / 128 / 256 takes 16 x 32 subgroup tiles in one query subgroup (8 key subgroups at head 64), so each
+// K / V element is dequantized once; SDPA_OCL_HPG_PA_COMP_Q32=0 keeps the 32 x 16 tiles. Each S*V subgroup holds the
+// queries of its KQ subgroup and head / kq_sg_per_wg_keys value columns ("xe_hpg PA PREFILL kernel" in the docs).
+// SDPA_OCL_HPG_PA_TILE_KEYS / _TILE_QUERIES / _PER_WG_KEYS / _PER_WG_QUERIES replace a value; a tiling the kernel is not
+// written for throws, and an override is not checked for workgroups that hang the GPU (10 x 4 at head 160 did).
 sdpa_ocl_config_t hpg_pa_prefill_tiling(size_t head_size, bool comp_mixed) {
     sdpa_ocl_config_t t;
     t.subgroup_size = static_cast<int>(get_subgroup_size(gpu_arch::xe_hpg));
@@ -1266,8 +1187,9 @@ void add_sink_qq_bias_jit(JitConstants& jit, const jit_inputs& in) {
     }
 }
 
-// sdpa_micro's softmax rounding, on PA PREFILL f16 without sink / alibi / sliding window / token_type_ids.
-// On by default where the tiling allows it (solve_pa_prefill_tiling()); SDPA_OCL_MICRO_MATH=0/1 forces it off / on.
+// MICRO_MATH, a second softmax rounding (raw maxima subtracted before scaling, each S*V key tile accumulated from zero;
+// "Kernel flow" in the docs), on PA PREFILL f16 without sink / alibi / sliding window / token_type_ids. On where the
+// tiling sets micro_math; SDPA_OCL_MICRO_MATH=0/1 forces it off / on.
 void add_micro_math_jit(JitConstants& jit, const jit_inputs& in) {
     if (in.problem.tiling.hpg_pa_prefill) {
         jit.make("MICRO_MATH", 0);  // the xe_hpg PA PREFILL kernel implements one rounding only
@@ -1284,10 +1206,9 @@ void add_micro_math_jit(JitConstants& jit, const jit_inputs& in) {
     jit.make("MICRO_MATH", env_int("SDPA_OCL_MICRO_MATH", in.problem.tiling.micro_math ? 1 : 0) == 0 ? 0 : 1);
 }
 
-// PA PREFILL loop changes, on by default with the tiling they were measured with (solve_pa_prefill_tiling(); for
-// plain-SDPA PREFILL its f16 d_max 128 tilings in solve_tiling()); each switch forces its change on (1) or off (0) on
-// any PREFILL ("Paged-attention PREFILL tiling" in the docs). None changes a result: the select returns what the
-// ternary did, the split barrier orders the same accesses, and the last-tile mask skips only elements no mask touches,
+// PA PREFILL loop changes, on by default where the tiling sets prefill_pipeline; each switch forces its change on (1) or
+// off (0) on any PREFILL ("Paged-attention PREFILL tiling" in the docs). None changes a result: the select returns what
+// the ternary did, the split barrier orders the same accesses, and the last-tile mask skips only elements no mask touches,
 // taking the maxima in the same order.
 void add_prefill_pipeline_jit(JitConstants& jit, const jit_inputs& in) {
     // PREFILL stages, and the plain decode tiling (solve_plain_decode_tiling()).
@@ -1298,31 +1219,23 @@ void add_prefill_pipeline_jit(JitConstants& jit, const jit_inputs& in) {
     const int dflt = t.prefill_pipeline ? 1 : 0;
     // exp2 then select, instead of a ternary IGC branches around per (mb, qb) block.
     jit.make("SOFTMAX_BRANCHLESS", env_int("SDPA_OCL_SM_BRANCHLESS", dflt));
-    // The S_max barrier split into arrive / wait around the V prefetch, as sdpa_micro does.
+    // The S_max barrier split into arrive / wait around the V prefetch.
     jit.make("MAX_SPLIT_BARRIER", env_int("SDPA_OCL_MAX_SPLIT", dflt));
     // Only the last key tile (and the tiles a sliding window cuts) can hold masked keys when the workgroup query tile
-    // divides the key tile and no other mask reaches back (bidirectional image groups). Measured on PA PREFILL only;
-    // plain SDPA prefill keeps it off (the masked-tile handling there is the table one, and its #error rejects
-    // lower-right causal and an attention mask).
+    // divides the key tile and no other mask reaches back (bidirectional image groups). PA only: the kernel's #error
+    // rejects lower-right causal and an attention mask.
     const bool has_token_type_ids = in.is_pa && in.params.typed_desc<paged_attention>()->has_token_type_ids;
     const bool mask_last_ok = in.is_pa && !has_token_type_ids && t.kq_wg_tile_keys() % t.kq_wg_tile_queries() == 0;
     jit.make("CAUSAL_MASK_LAST_ONLY", mask_last_ok ? env_int("SDPA_OCL_MASK_LAST", dflt) : 0);
-    // Skip the KQ / S*V work the causal triangle of the diagonal tile masks out, per subgroup: the short-prompt gap to
-    // sdpa_micro (qwen3-8b 32 / 1K tokens 24.7 / 253 to 14.1 / 216 us per call, sdpa_micro 12.6 / 214). At d_max 64 the
-    // added branches cost more than the skipped work from 4K on (llama-3.2-1b +6.8%), so not there. Plain SDPA takes
-    // it with is_causal: the kernel bounds the subgroup by the same lower-right offset as its causal predicate.
-    // A non-causal plain stage of the table tile without an attention mask takes it too, for the KQ branch alone (the
-    // kernel keeps the S*V skip causal): it skips nothing there but the subgroups past the last key, yet as a runtime
-    // branch it puts the KQ depth loop in a block of its own, where IGC issues the first two K reads ahead of the Q
-    // SLM reads instead of each right before its DPAS (0.76-0.97x at head 96-128, 0.97-0.999x at 72 / 80). With a
-    // mask it was 0.997-1.022x, and on the 256 x 128 tile 1.002-1.009x, so those stay off.
+    // Skip the KQ / S*V work the causal triangle of the diagonal tile masks out, per subgroup (not at d_max 64). Plain SDPA
+    // takes it with is_causal: the kernel bounds the subgroup by the same lower-right offset as its causal predicate. A
+    // non-causal plain stage without a mask takes it where the tiling sets noncausal_kq_branch, for the KQ branch alone
+    // (the kernel keeps the S*V skip causal): it skips only the subgroups past the last key ("Plain-SDPA causal tile skip"
+    // in the docs).
     const bool noncausal_kq_branch = !in.config.is_causal && t.noncausal_kq_branch && !in.config.has_const_attn_mask_val &&
                                      !sdpa_has_runtime_attn_mask_input(in.params) && !has_scalar_runtime_attn_mask_input(in.params);
-    // The plain decode tiling takes the loop changes above but not this: with one query nothing is masked but the keys past
-    // the last one, and the branch made it 1.40-1.75x slower. The plain d_max 64 tiling takes the KQ branch (0.88-0.99x
-    // on non-causal shapes) but not the causal skip (1.06x / 1.11x on a causal chunk / 16-query step, as at PA d_max 64).
-    // The plain d_max 512 tilings take neither (causal_skip_off): the skip made a 16-query step over 1K keys 1.15x (a 2K
-    // prompt 0.99x) and the KQ branch moved non-causal shapes by -0.7% to +1.8%.
+    // Not taken by the plain decode tiling (one query: nothing to skip but the keys past the last one); the plain d_max 64
+    // tiling takes the KQ branch but not the causal skip, the plain d_max 512 tilings neither (causal_skip_off).
     const bool causal_skip = in.config.is_causal && in.problem.d_max >= 128 && !t.causal_skip_off;
     const int tile_skip = ((causal_skip || noncausal_kq_branch) && t.prefill_pipeline && !t.plain_decode) ? 1 : 0;
     jit.make("CAUSAL_TILE_SKIP", env_int("SDPA_OCL_CAUSAL_SKIP", tile_skip));
@@ -1344,35 +1257,14 @@ void add_tiling_jit(JitConstants& jit, const sdpa_ocl_problem& p) {
     jit.make("DKS", "(D_MAX / DPAS_K)");
     jit.make("Q_DWORDS", 8);  // 16 half values per Q KSTEP packed as 8 uint dwords
     jit.make("SUBGROUP_SIZE", t.subgroup_size);
-    // Negative controls of the SG8 operand mapping (1 = K pair order, 2 = pA transposed, 3 = S_slm pair order): each must
-    // fail a sharp-softmax test. 4 is the positive twin: it forces the unaligned-K fallback, which must still pass. 5 = full 2D mask read
-    // with the SG16 lane width, 6 = per-key mask broadcast one lane off (both must fail the mask tests). 7 = the sink counted by
-    // every subgroup, 8 = qq_bias read transposed, 9 = the sliding window one 16-key block short (each must fail its PA feature
-    // test), 10 = plain SDPA K / V of batch 0, KV head 0 in the xe_hpg PREFILL kernel (must fail smoke_sdpa_hpg_rows), and in its
-    // mask 11 = the first query's row, 12 = the mask of batch 0, head 0, 13 = the 8-key halves of each 16-key block swapped (each
-    // must fail the smoke_sdpa_hpg_rows mask cases it can see), and 18 = head 72's last value subgroup stores its columns
-    // unshifted (must fail every head-72 case of smoke_sdpa_hpg_rows), and in its PA MIXED 14 = the two 8-key halves of each K
-    // page swapped, 15 = the past ignored by the causal bound, 16 = V of adjacent pages swapped (each must fail the
-    // smoke_paged_attention_mixed_tm cases it can see). In the generic kernel's MIXED on a token-major page (f16 with
-    // SDPA_OCL_HPG_PA_MIXED=0): 36 = the two keys of a K pair swapped, 37 = the V pages of adjacent blocks swapped, 38 = the
-    // odd V row of a pair read at/past k (each must fail smoke_paged_attention_mixed_tm, 38 exactly its NaN-poisoned cases).
-    // On a compressed token-major page 19-28 below hold in the PA PREFILL kernel's MIXED (where it serves the case) and in
-    // the generic kernel's (SDPA_OCL_HPG_PA_MIXED=0, or a case the PREFILL kernel does not serve), and the PREFILL kernel
-    // adds 29 = its key loop not cut at past_len, so the new tokens are read back from the pages (must fail the u4 cases
-    // where a new token wins the sharp softmax): on an i8 BY_TOKEN page 19 = the K comp of tokens
-    // 0..7 for both 8-key groups of a page, 20 = the V scales of a lane's two keys swapped, 21 = the V zps of the next key
-    // pair, 22 = the two K channels of a dword swapped (each must fail smoke_paged_attention_comp_tm), on an i8 BY_CHANNEL
-    // page 23 = the (scale, zp) pairs of a lane's two channels swapped, 24 = scale and zp of a pair swapped (each must fail
-    // its BY_CHANNEL cases), on a u4 page 25 = the other nibble of the K bytes, 26 = the other nibble of the V bytes (each
-    // must fail its u4 cases), and for the new tokens of a compressed MIXED (PA_CUR_KV_F16) 27 = the next token's Kc row, 28 =
-    // the next token's Vc row (each must fail the comp cases that read a new token). Absent unless asked for, so the
-    // default jit (and every SG16 jit) is unchanged.
+    // Negative controls of the SG8 kernels (SDPA_OCL_NEG_SG8=<n>): each value breaks one operand mapping, read or bound on
+    // purpose and must fail the tests listed with it in "Debug and bisection switches" in the docs (4, the unaligned-K
+    // fallback, must pass). Absent unless asked for, so the default jit (and every SG16 jit) is unchanged.
     if (t.subgroup_size == 8) {
         if (const int neg = env_int("SDPA_OCL_NEG_SG8", 0); neg != 0)
             jit.make("NEG_SG8", neg);
-        // Unroll of the generic kernel's KQ depth loop and S*V key loop (1 = not unrolled). Unrolled whole, IGC 2.41 loads
-        // K / V of every depth tile / key block ahead and the kernel spilled 4-33 KB at heads 64-256 on DG2; not unrolled
-        // it spills nothing (ocloc). SDPA_OCL_SG8_KQ_UNROLL / SDPA_OCL_SG8_SV_UNROLL change it, 0 = unrolled whole.
+        // Unroll of the generic kernel's KQ depth loop and S*V key loop (1 = not unrolled, 0 = whole): unrolled whole, IGC
+        // loads K / V of every depth tile / key block ahead and spills ("xe_hpg bring-up (DG2, SG8)" in the docs).
         if (!t.hpg_pa_prefill) {
             if (const int kq = env_int("SDPA_OCL_SG8_KQ_UNROLL", 1); kq > 0)
                 jit.make("SG8_KQ_UNROLL", kq);
@@ -1381,12 +1273,10 @@ void add_tiling_jit(JitConstants& jit, const sdpa_ocl_problem& p) {
         }
     }
     // sdpa_ocl.cl includes sdpa_ocl_hpg_pa_prefill.cl in place of its kernel. Absent otherwise, so no other jit changes.
-    // HPG_PA_V_LEAD: key blocks of V loaded ahead (6 measured best on DG2 with IGC 2.41 at head 128; at most the tile's
-    // key blocks, and 3 when each V row slice is 32 values, twice the registers; SDPA_OCL_HPG_PA_V_LEAD for A/B). Head 512
-    // takes 1: on the Windows driver 32.0.101.9175 the leads 2-6 and 8 failed head-512 cases of plain SDPA or PA PREFILL
-    // (the IGC codegen hazard of "xe_hpg follow-ups" in the docs; "Head-512 V lead on xe_hpg" in its Change history).
-    // HPG_PA_KQ_UNROLL: unroll of the KQ depth loop, whole up to head 128 and 2 at 256, where IGC 2.41 would load K of
-    // every depth tile ahead (SDPA_OCL_HPG_PA_KQ_UNROLL, 0 = whole).
+    // HPG_PA_V_LEAD: key blocks of V loaded ahead, at most the tile's key blocks, 3 when each V row slice is 32 values
+    // (twice the registers). Head 512 takes 1: other leads miscompile there (IGC codegen hazard, "xe_hpg follow-ups" in
+    // the docs). HPG_PA_KQ_UNROLL: unroll of the KQ depth loop, whole up to head 128 and 2 at 256, where a whole unroll
+    // loads K of every depth tile ahead (0 = whole).
     if (t.hpg_pa_prefill) {
         jit.make("HPG_PA_PREFILL", 1);
         const int v_lead = p.k_head_size == 512 ? 1 : std::min(t.sv_sg_tile_values <= 16 ? 6 : 3, t.kq_wg_tile_keys() / 16);
@@ -1397,10 +1287,9 @@ void add_tiling_jit(JitConstants& jit, const sdpa_ocl_problem& p) {
 }
 
 // The 2D block builtins (and the 1D page reads / Kc/Vc block reads built on the same subgroup shape) need a
-// 16-wide subgroup; xe_hpg (SG8) has neither the builtins nor a block2d_layout_ok() answer that means anything.
-// Every USE_2D_BLOCK_IO_* / USE_1D_BLOCK_IO_* / PA_CUR_KV_F16 decision goes through this, including the
-// SDPA_OCL_*_2D overrides: on SG8 an override must not turn a path on (DG2 rejects the builtins, or
-// misbehaves). Identity for SG16, so the Xe2 jit does not change.
+// 16-wide subgroup; xe_hpg (SG8) has neither the builtins nor a meaningful block2d_layout_ok() answer. Every
+// USE_2D_BLOCK_IO_* / USE_1D_BLOCK_IO_* / PA_CUR_KV_F16 decision goes through this, the SDPA_OCL_*_2D overrides
+// included, so no override turns such a path on for SG8.
 inline bool block2d_io_allowed(size_t subgroup_size) {
     return subgroup_size == 16;
 }
@@ -1423,22 +1312,16 @@ void add_tensor_block_io_jit(JitConstants& jit, const jit_inputs& in) {
     const int kv_2d = block2d_env_int("SDPA_OCL_KV_2D", (!in.config.is_kv_compressed && (kv_aligned || kv_fixup_ok)) ? 1 : 0, allowed);
     jit.make("USE_2D_BLOCK_IO_KV", kv_2d);
     jit.make("BLOCK2D_KV_BASE_FIXUP", (kv_2d && !kv_aligned) ? 1 : 0);
-    // L1/L3 prefetch of each key tile's V rows, as sdpa_micro's PREFETCH_V does: on by default with the PA PREFILL
-    // tilings it was measured with (solve_pa_prefill_tiling()), SDPA_OCL_V_PREFETCH=0/1 for A/B on any PA PREFILL.
-    // The plain (non-PA) PREFILL lane takes them from its tiling the same way (on for its f16 d_max 128 tilings), and so does
-    // the plain decode tiling (solve_plain_decode_tiling()).
+    // L1/L3 prefetch of each key tile's V rows (PREFETCH_V), on the PREFILL stages and the plain decode tiling where the
+    // tiling sets v_prefetch; SDPA_OCL_V_PREFETCH=0/1 forces it.
     const bool prefill_lane = in.is_prefill || in.problem.tiling.plain_decode;
-    // The same V rows into L3 only, one request per 256 B line; SDPA_OCL_V_PREFETCH_L3=0/1 for A/B on any PA PREFILL,
-    // and it replaces the block prefetch when on.
-    // PREFILL only (the kernel's #error): no decode tiling asks for it.
+    // The same V rows into L3 only, one request per 256 B line, replacing the block prefetch when on;
+    // SDPA_OCL_V_PREFETCH_L3=0/1 forces it. PREFILL only (the kernel's #error).
     const int v_prefetch_l3 = in.is_prefill ? env_int("SDPA_OCL_V_PREFETCH_L3", in.problem.tiling.v_prefetch_l3 ? 1 : 0) : 0;
     jit.make("PREFETCH_V_L3", v_prefetch_l3);
     jit.make("PREFETCH_V", (kv_2d && prefill_lane && !v_prefetch_l3) ? env_int("SDPA_OCL_V_PREFETCH", in.problem.tiling.v_prefetch ? 1 : 0) : 0);
-    // Fewer, larger K (1) / V (2) / Q_slm (4) reads per key tile: the mask of the PA PREFILL tiling they were measured
-    // with (solve_pa_prefill_tiling()), SDPA_OCL_WIDE_READS=<mask> for A/B on any PA PREFILL. With a sliding window
-    // d_max 64 keeps the narrow reads: the window's few key tiles stay in cache, and gpt-oss-20b's 128-key window
-    // layers were 10-12% slower with K + Q_slm and up to 0.7% with K alone. A plain SDPA window (config.sliding_window)
-    // does the same for the plain d_max 64 tiling (not measured there).
+    // Fewer, larger K (1) / V (2) / Q_slm (4) reads per key tile: the tiling's wide_reads mask, SDPA_OCL_WIDE_READS=<mask>
+    // forces it. With a sliding window (PA or plain) d_max 64 keeps the narrow reads.
     const bool narrow_window = in.problem.d_max == 64 && (in.config.paged_attention_sliding_window != 0 || (!in.is_pa && in.config.sliding_window != 0));
     const int wide_reads = narrow_window ? 0 : in.problem.tiling.wide_reads;
     jit.make("WIDE_READS", (kv_2d && prefill_lane) ? env_int("SDPA_OCL_WIDE_READS", wide_reads) : 0);
@@ -1531,9 +1414,8 @@ void add_pa_page_read_jit(JitConstants& jit, const jit_inputs& in) {
     const int v_pa_1d = (c.u4_by_channel_tm && !v_pa_2d_i8 && pa_1d_page_ok(c.v_row_elems, sg, block)) ? 1 : 0;
     jit.make("USE_1D_BLOCK_IO_V_PA_U4", block2d_env_int("SDPA_OCL_V_PA_1D", v_pa_1d, allowed));
 
-    // Prefetches of the pages the 8-bit reads above take; SDPA_OCL_MIXED_PREFETCH_V / _K=0/1 force each off / on. A
-    // prefetch changes no value. u4: on by default with the MIXED tilings they were measured with (solve_pa_mixed_tiling()).
-    // i8: V on every tiling (the table tiling at d_max 64 gained as much as the MIXED ones), K off (no gain measured).
+    // Prefetches of the pages the 8-bit reads above take (no value changes); SDPA_OCL_MIXED_PREFETCH_V / _K=0/1 force each
+    // off / on. u4: where the MIXED tiling sets them; i8: V on every tiling, K off.
     const bool page_mixed = in.is_pa && !in.is_prefill && c.dequant_ok;
     const bool u4 = c.u4_by_channel_tm;
     const int prefetch_v = u4 ? (p.tiling.mixed_prefetch_v ? 1 : 0) : 1;
@@ -1569,8 +1451,8 @@ void add_pa_current_token_jit(JitConstants& jit, const jit_inputs& in) {
         cur_aligned = block2d_layout_ok(kc, ldk) && block2d_layout_ok(vc, ldv);
         const bool fixup_ok = block2d_layout_fixup_ok(kc, ldk) && block2d_layout_fixup_ok(vc, ldv);
         // Here only: Kc/Vc exist only in the MIXED signature. 0 reads the current tokens from the cache. Only a compressed
-        // cache needs Kc/Vc (its round trip is lossy); an f16 page holds the same bits, and reading it was 5-14% faster per
-        // call at 8K (docs "Paged-attention MIXED: i8 and f16 caches").
+        // cache needs Kc/Vc (its round trip is lossy); an f16 page holds the same bits
+        // ("Paged-attention MIXED: i8 and f16 caches" in the docs).
         cur_f16 = env_int("SDPA_OCL_PA_CUR_F16", (f16_in && (cur_aligned || fixup_ok) && in.cache.compressed) ? 1 : 0);
     }
     jit.make("PA_CUR_KV_F16", cur_f16);
@@ -1724,8 +1606,8 @@ void add_mask_jit(JitConstants& jit, const jit_inputs& in) {
     }
     jit.make("MASK_KIND", plain_mask_kind(in.params, config, in.is_prefill));
     // The plain SDPA window (GroupQueryAttentionDecomposition sets it from local_window_size and drops the explicit
-    // mask for causal + sliding_window_cache). Without it every SLIDING_WINDOW_SIZE block of the kernel compiled out
-    // and the window was silently ignored. The kernel applies it only with IS_CAUSAL: with an explicit mask
+    // mask for causal + sliding_window_cache). Without it every SLIDING_WINDOW_SIZE block of the kernel compiles out
+    // and the window is silently ignored. The kernel applies it only with IS_CAUSAL: with an explicit mask
     // (is_causal = false) the mask already holds the window, as in sdpa_opt.cl.
     jit.make("SLIDING_WINDOW_SIZE", config.sliding_window);
 }
@@ -1816,9 +1698,8 @@ std::string SDPAOclGenerator::get_build_options(const kernel_impl_params& params
     extra_options += " -Dcl_intel_global_float_atomic";
     extra_options += " -Dcl_intel_subgroup_matrix_multiply_accumulate";
     extra_options += " -Dcl_intel_subgroup_split_matrix_multiply_accumulate";
-    // 256 GRF halves the threads per EU, so it only pays where it removes spill ("Tiling" in the docs): the tilings
-    // that ask for it, and SDPA_OCL_256GRF=1 (=0 turns it off for them).
-    // xe_hpg always takes it: at 128 GRF every measured DG2 tile spills.
+    // 256 GRF halves the threads per EU, so only the tilings that ask for it take it ("Tiling" in the docs);
+    // SDPA_OCL_256GRF=0/1 overrides that. xe_hpg always takes it: its tiles spill at 128 GRF.
     const bool large_grf = make_problem(params, m_is_prefill, params.is_dynamic()).tiling.large_grf;
     if (env_int("SDPA_OCL_256GRF", large_grf ? 1 : 0) != 0 || params.get_device_info().arch == gpu_arch::xe_hpg)
         extra_options += " -cl-intel-256-GRF-per-thread";

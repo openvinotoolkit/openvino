@@ -145,9 +145,8 @@ struct PagedAttentionManager {
     // optional token_type_ids: one value per scheduled token (all subsequences, no past).
     // When empty, a default all-zero [B_token] buffer is used.
     std::vector<int> token_type_ids;
-    // Materialize token_type_ids as a genuinely EMPTY [0] tensor while the primitive still declares
-    // has_token_type_ids -- the "[B_token | 0]" half of the op contract. See
-    // get_token_type_ids_memory() for why the backing allocation is poisoned rather than zeroed.
+    // Materialize token_type_ids as an EMPTY [0] tensor while the primitive still declares has_token_type_ids (the
+    // "[B_token | 0]" op contract); see get_token_type_ids_memory().
     bool empty_token_type_ids = false;
     cldnn::engine& test_engine;
     cldnn::stream& test_stream;
@@ -388,9 +387,8 @@ struct PagedAttentionManager {
         return kv_cache_precision == ov::element::u4 || kv_cache_precision == ov::element::i4;
     }
 
-    // The K cache is token-major, [.., block_size, k_head_size], on every device (paged_attention.hpp): a token's head
-    // dims are contiguous. A compressed page keeps its scale / zp after the data: per-token arrays (BY_TOKEN, i8 only) or
-    // one (inv_scale, zp) pair per channel (BY_CHANNEL; u4 packs two channels per byte). A 4-bit K cache is BY_CHANNEL.
+    // Token-major K cache ([.., block_size, k_head_size], paged_attention.hpp). A compressed page keeps scale / zp after the
+    // data: per-token arrays (BY_TOKEN, i8 only) or one (inv_scale, zp) pair per channel (BY_CHANNEL; u4: 2 channels/byte).
     cldnn::memory::ptr get_key_cache_memory() {
         auto key_cache_dt = cldnn::data_types::f16;
         auto adjusted_head_size = k_head_size;
@@ -585,7 +583,7 @@ struct PagedAttentionManager {
                         } else if (is_int4_kv_cache()) {
                             // u4 V page: [block_size rows][head_size / 2] with SPLIT nibbles (byte b holds dim b low and
                             // dim b + head_size / 2 high), then the per-token scale and zp arrays (pa_kv_cache_update_ref.cl's
-                            // IS_VALUE_U4_TOKEN_MAJOR). Quantized per token (one scale / zp for all head dims).
+                            // IS_VALUE_U4_TOKEN_MAJOR).
                             const int packed_head_size = head_size / 2;
 
                             // Quantize entire token: one scale/zp for all head dims (BY_TOKEN)
@@ -654,9 +652,8 @@ struct PagedAttentionManager {
         return memory;
     }
 
-    // NaN in every f16 cache slot no past token fills: the new tokens' slots (which the cache update writes before the
-    // attention reads them) and the tail of each subsequence's last page, which nothing writes. A reader that loads whole
-    // pages must clear the tail's scores by an assignment: -INFINITY added to a NaN score stays NaN.
+    // NaN in every f16 cache slot no past token fills (new-token slots, which the cache update overwrites, and the unwritten
+    // tail of each last page). A whole-page reader must clear the tail's scores by assignment: NaN + -INFINITY stays NaN.
     void poison_unwritten_cache_slots(cldnn::memory::ptr key_cache, cldnn::memory::ptr value_cache) {
         OPENVINO_ASSERT(!kv_cache_compression, "poison_cache_tail takes f16 caches only");
         const auto nan = std::numeric_limits<ov::float16>::quiet_NaN();
@@ -681,8 +678,7 @@ struct PagedAttentionManager {
         }
     }
 
-    // The K cache slots past each subsequence's keys (the tail of its last page) that are NaN after the run: the poison
-    // proves something only if it is still there when the attention reads the page.
+    // NaN K cache slots past each subsequence's keys after the run: the poison only proves something if it survives.
     size_t count_nan_cache_tail(cldnn::memory::ptr key_cache, size_t& tail_slots) {
         cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> k(key_cache, test_stream);
         size_t nan_count = 0;
@@ -830,13 +826,9 @@ struct PagedAttentionManager {
         }
 
         if (empty_token_type_ids) {
-            // The other half of the "[B_token | 0]" contract: count() == 0 while the primitive still
-            // declares has_token_type_ids. The backing allocation is [B_token] filled with 1 -- i.e.
-            // "every token is an image token" -- and only the LAYOUT is shrunk to [0]. That makes the
-            // negative control deterministic: a kernel that reads the buffer anyway sees a completely
-            // different mask and must fail, while a kernel that honours count == 0 never touches it
-            // and must match the plain-causal reference. An uninitialized or zeroed backing store
-            // would let an unguarded kernel pass by luck.
+            // "[B_token | 0]": count() == 0 while has_token_type_ids stays declared. The backing allocation is [B_token]
+            // of 1 ("all image tokens") with only the layout shrunk to [0], so a kernel that reads it anyway must fail
+            // against the plain-causal reference; a zeroed store would let it pass by luck.
             auto poison_layout = cldnn::layout{ov::PartialShape{static_cast<int>(std::max<size_t>(total_tokens, 1))},
                                                ov::element::i32,
                                                cldnn::format::bfyx};
@@ -849,11 +841,8 @@ struct PagedAttentionManager {
             return test_engine.reinterpret_buffer(*memory, empty_layout);
         }
 
-        // has_token_type_ids promises a [B_token] input -- one entry per query token -- and any
-        // kernel honouring the flag indexes it over the whole subsequence. A one-element dummy would
-        // therefore be read out of bounds, which matters because has_token_type_ids is also set
-        // without a real buffer by the force_flashattn_v2 sink cases. All-zero means "every token is
-        // text", i.e. a plain causal mask, so this stays a no-op for those tests.
+        // has_token_type_ids promises a [B_token] input that kernels index over the whole subsequence, so a one-element
+        // dummy would be read out of bounds (force_flashattn_v2 sink cases set the flag without real ids). All-zero = text.
         std::vector<int> default_token_type_ids(std::max<size_t>(total_tokens, 1), 0);
         return get_memory_from_vec(default_token_type_ids);
     }
@@ -872,26 +861,23 @@ struct PagedAttentionManager {
         return get_memory_from_vec(qq_bias_begins);
     }
 
-    // Multiplies the default 1/sqrt(k_head_size) scale (the primitive input, the scale memory and the reference all
-    // read it through get_default_scale()). Only paged_attention_test_params::runtime_scale_multiplier and logit_scale_gain set it.
+    // Multiplies the default 1/sqrt(k_head_size) scale (everything reads it through get_default_scale()); set by
+    // paged_attention_test_params::runtime_scale_multiplier / logit_scale_gain.
     float scale_multiplier = 1.0f;
 
     // paged_attention_test_params::reference_past_from_cache.
     bool reference_past_from_cache = false;
-    // With reference_past_from_cache, take the new tokens from the caches too: for a kernel that reads them back from the
-    // cache (the GQA multi-token fallback) rather than from the f16 K / V inputs (sdpa_ocl's Kc / Vc).
+    // With reference_past_from_cache, take the new tokens from the caches too, for a kernel that reads them back from the
+    // cache (GQA multi-token fallback) rather than from the f16 K / V inputs (sdpa_ocl's Kc / Vc).
     bool reference_new_from_cache = false;
 
     float get_default_scale() {
         return scale_multiplier * static_cast<float>(1.f / std::sqrt(k_head_size));
     }
 
-    // paged_attention_test_params::comp_stress: bit 0 distorts the K inputs, bit 1 the V inputs, per token (data layout
-    // [token][kv_head][head]). The two 8-token halves of a 16-token page get amplitudes 4x apart and each token its own
-    // amplitude and offset (golden-ratio sequences), so every token of a compressed page has a very different scale and zp;
-    // V is also reversed and negated so that it does not follow K. Bit 2 distorts K per channel the same way (even and odd
-    // channels 4x apart, offsets growing with the page), so every channel of a BY_CHANNEL page has its own scale and zp. Runs
-    // before the caches are built, so the cache writer and the reference see the same data.
+    // paged_attention_test_params::comp_stress, applied before the caches are built (writer and reference see the same
+    // data): bit 0 / bit 1 give each K / V token its own amplitude and offset (V also does not follow K), bit 2 each K
+    // channel, so every token / channel of a compressed page gets its own scale and zp.
     void apply_kv_comp_stress(int mask) {
         const auto frac = [](double x) {
             return x - std::floor(x);
@@ -1201,11 +1187,9 @@ struct PagedAttentionReference {
                 }
             }
 
-            // token_type_ids is the flat [B_token] buffer over the NEW tokens of every subsequence, so
-            // this one's slice starts at subsequence_begins[i] and is num_tokens long -- never
-            // past_len + num_tokens. That is also why an image group can never contain a cached token:
-            // openvino/reference/paged_attention.hpp scans image_group_* over the new tokens alone and
-            // maps them to key coordinates as past + (idx - t_begin).
+            // token_type_ids is a flat [B_token] buffer over the NEW tokens of all subsequences: this slice starts at
+            // subsequence_begins[i] and is num_tokens long, so an image group never holds a cached token
+            // (openvino/reference/paged_attention.hpp maps idx to key past + (idx - t_begin)).
             std::vector<int> subsequence_token_type_ids;
             if (!pam.token_type_ids.empty()) {
                 const auto tt_begin = static_cast<size_t>(pam.subsequence_begins[i]);
@@ -1311,14 +1295,9 @@ private:
             }
         }
 
-        // An attention sink is, literally, ONE extra key: its logit is sink[head] and its value
-        // vector is ZERO, so it joins the softmax denominator and contributes nothing to the output.
-        // Modelling it that way keeps the reference a plain softmax -- the score column is
-        // concatenated below, and the matching zero V row goes here, which is what makes the extra
-        // column cancel out of the numerator instead of needing a crop.
-        // Every value_shape above puts the key axis outermost (dim 1 when the leading dim is 1, dim 0
-        // in the GQA layout), so one extra key is one extra num_kv_heads * v_head_size run of zeros
-        // at the END of the buffer.
+        // The sink is modelled as one extra key with logit sink[head] and a ZERO V row, so it only joins the softmax
+        // denominator (its score column is concatenated below). The key axis is outermost in every value_shape above, so
+        // that row is num_kv_heads * v_head_size zeros at the end of the buffer.
         std::vector<ov::float16> value_with_sink;
         if (sinks != nullptr) {
             const auto& src = do_gqa_expand ? expanded_value_data : value_data;
@@ -1398,11 +1377,8 @@ private:
                                                          static_cast<int>(block_size),
                                                          qq_bias,
                                                          token_type_ids);
-        // The sink's score column: one entry per (q-head, query), constant along the query axis. The
-        // two topology branches below split the head axis differently -- [1, heads, q, k] against
-        // [kv_heads, group, q, k] -- but both enumerate q-heads in the same order (h = kv_head *
-        // group + group_idx, which is how query_data is reshaped), so the FLAT contents are the same
-        // and only the declared shape differs.
+        // The sink's score column: one entry per (q-head, query). [1, heads, q, k] and [kv_heads, group, q, k] enumerate
+        // q-heads in the same order (h = kv_head * group + group_idx), so only the declared shape differs.
         cldnn::memory::ptr sink_mem = nullptr;
         if (sinks != nullptr) {
             OPENVINO_ASSERT(sinks->size() == static_cast<size_t>(num_heads),
@@ -1458,9 +1434,8 @@ private:
                 cldnn::reorder("scores_data", cldnn::input_info("softmax"), cldnn::format::bfyx, cldnn::data_types::f16));
         }
         if (sinks != nullptr) {
-            // Appended as the LAST key column so the softmax normalises over {keys, sink} together.
-            // The V row for it is zero (see value_with_sink), so the numerator is unchanged and only
-            // the denominator grows -- which is exactly the sink's definition.
+            // The LAST key column: the softmax normalises over {keys, sink}; its zero V row (value_with_sink) keeps the
+            // numerator unchanged.
             topology.add(cldnn::data("sink_col", sink_mem),
                          cldnn::concatenation("eltwise_sink",
                                               {cldnn::input_info("eltwise"), cldnn::input_info("sink_col")},
@@ -1486,9 +1461,7 @@ private:
                                       num_keys + (sinks != nullptr ? 1 : 0))};
     }
 
-    // keys_stride is the softmax's actual row length, which exceeds num_keys by one when a sink
-    // column was concatenated. Only the first num_keys of each row are real key scores, so keeping
-    // the stride separate drops the sink column without a crop primitive.
+    // keys_stride is the softmax row length (num_keys + 1 with a sink column); only the first num_keys are key scores.
     std::vector<ov::float16> get_output_scores_vec(cldnn::memory::ptr scores_output, int window_size, int num_queries, int num_keys, int num_heads,
                                                    int keys_stride) {
         OPENVINO_ASSERT(scores_output->count() == static_cast<size_t>(num_heads * num_queries * keys_stride));
@@ -1620,23 +1593,13 @@ private:
             }
         }
 
-        // Bidirectional attention over image-token groups. token_type_ids[t] == 1 marks an image token
-        // and a maximal contiguous run of them is a group whose members attend to each other in BOTH
-        // directions; the allowed key set of a query is
-        //     (causal n sliding-window)  u  (the query's own image group)
-        // so this pass only ever UN-masks, on top of whatever the causal/window loops above wrote.
-        //
-        // Index spaces: token_type_ids covers the NEW tokens only, i.e. it is num_queries long, while
-        // the mask's key axis starts at the oldest CACHED token. past = num_keys - num_queries bridges
-        // them. That also encodes why a group can never contain a cached token -- see
-        // openvino/reference/paged_attention.hpp, where the group bounds are built over
-        // [seq_begins[s], seq_begins[s+1]) and converted as past + (idx - t_begin).
+        // Bidirectional image groups: a maximal run of token_type_ids == 1 attends both ways, so the allowed keys are
+        // (causal n sliding-window) u (own image group) and this pass only UN-masks. token_type_ids covers the new tokens
+        // (num_queries); past = num_keys - num_queries maps them to key coordinates (openvino/reference/paged_attention.hpp).
         if (token_type_ids && !token_type_ids->empty()) {
             OPENVINO_ASSERT(token_type_ids->size() == static_cast<size_t>(num_queries),
                             "token_type_ids must hold one entry per NEW token, got ", token_type_ids->size(), " for ", num_queries, " queries");
-            // The retained-block branch above writes a SPARSE mask, and what a bidirectional un-mask
-            // should do to a block XAttention dropped is undefined. Nothing combines the two today;
-            // refuse rather than invent semantics.
+            // Un-masking a block XAttention dropped (the sparse mask above) is undefined, so refuse the combination.
             OPENVINO_ASSERT(retained_blocks.empty(), "bidirectional token_type_ids and XAttention retained blocks are not supported together");
 
             const int past = num_keys - num_queries;
@@ -1736,9 +1699,8 @@ public:
                      num_heads, k_head_size, block_size, per_block);
     }
 
-    // The past rows (tokens [0, past_len), data layout [token][kv_head][head]) as the caches hold them after the run, i.e. as
-    // the kernels read them (the cache update runs first, and a BY_CHANNEL page it appends to is requantized); the new rows
-    // stay the f16 inputs, which MIXED reads as they are (PA_CUR_KV_F16).
+    // The past rows (tokens [0, past_len), [token][kv_head][head]) as the caches hold them after the run, i.e. as the kernels
+    // read them (a BY_CHANNEL page the update appends to is requantized); the new rows stay the f16 inputs (PA_CUR_KV_F16).
     void past_from_cache(std::vector<ov::float16>& key_data,
                          std::vector<ov::float16>& value_data,
                          cldnn::memory::ptr key_cache_mem,
@@ -1760,10 +1722,8 @@ public:
         }
     }
 
-    // The dequantized V of a u4 cache, [kv_head][token][head], in the page layout of get_value_cache_memory(): rows of
-    // head / 2 bytes (value b low, b + head / 2 high) and trailing per-token arrays. The writer aligns that row to 16 bytes
-    // (pa_kv_cache_update_ref.cl's PACKED_V_HEAD_SIZE), the harness does not, so the two agree only for a head / 2 that is
-    // a multiple of 16.
+    // The dequantized V of a u4 cache, [kv_head][token][head], in get_value_cache_memory()'s page layout. The writer aligns
+    // the head / 2 byte row to 16 (PACKED_V_HEAD_SIZE), the harness does not, so they agree only for head / 2 % 16 == 0.
     std::vector<ov::float16> read_value_from_cache(cldnn::memory::ptr value_cache_mem, size_t seq_idx, int total_tokens) {
         OPENVINO_ASSERT(pam.kv_cache_compression && pam.is_int4_kv_cache(), "read_value_from_cache reads u4 caches only");
         OPENVINO_ASSERT((pam.v_head_size / 2) % 16 == 0, "the harness's u4 V page matches the writer's only for v_head_size % 32 == 0");
@@ -2169,8 +2129,7 @@ public:
 
         if (p.token_type_ids.has_value()) {
             pam.token_type_ids = p.token_type_ids.value();
-            // "[B_token]" = one entry per NEW token across ALL subsequences -- past_len contributes
-            // nothing, and neither does looking at the last subsequence alone.
+            // "[B_token]": one entry per NEW token across ALL subsequences.
             EXPECT_EQ(pam.token_type_ids.size(), total_scheduled_tokens);
         } else if (p.has_sink_input) {
             // Sink tests force has_token_type_ids on, so pass valid all-zero ids (text only).
@@ -2182,9 +2141,7 @@ public:
         pam.empty_token_type_ids = p.empty_token_type_ids;
 
         if (p.has_sink_input) {
-            // Without values the sinks tensor is allocated with shape {0,0,0,0} while the primitive
-            // still advertises has_sink_input, so the kernel would read out of bounds AND the
-            // reference would silently stay sink-free. Both failures are invisible; refuse instead.
+            // Without values the sinks tensor would be {0,0,0,0}: an OOB kernel read and a silently sink-free reference.
             OPENVINO_ASSERT(p.sink_values.has_value(), "has_sink_input requires explicit sink_values");
             pam.sinks = p.sink_values.value();
         }
@@ -2299,8 +2256,8 @@ public:
         qq_bias_layout.set_partial_shape(ov::PartialShape{-1});
         qq_bias_begins_layout.set_partial_shape(ov::PartialShape{-1});
 
-        // Pads the FEATURE axis of one rank-2 input: re-allocates its memory with a padded layout (the padding is left
-        // uninitialised) and copies the data over. The compile-time layout gets either only the dynamic mask, or the sizes.
+        // Pads the FEATURE axis of one rank-2 input (padding left uninitialised); the compile-time layout gets either only
+        // the dynamic mask or the sizes.
         auto pad_feature_axis = [](cldnn::layout& compile_layout, cldnn::memory::ptr& mem, int pad_before, int pad_after, bool dynamic) {
             const auto padding_axis = 1;
 
@@ -2391,11 +2348,7 @@ public:
             pa_prim.scale_val = pam.get_default_scale();
         }
         pa_prim.has_alibi = false;
-        // has_token_type_ids used to double as the "disable micro-SDPA" lever, which is how the FA_V2
-        // sink test was pinned to sdpa_opt.cl. It no longer is -- can_use_sdpa_ocl_for does not reject
-        // token_type_ids, because sdpa_ocl implements the bidirectional mask for MIXED too. The FA_V2 sink
-        // cases are all PREFILL, where the lever never applied anyway, so nothing there changes. Still tied
-        // to force_flashattn_v2 rather than to has_sink_input alone, so a plain sink case reaches sdpa_ocl in MIXED.
+        // The FA_V2 sink cases (PREFILL only) also declare has_token_type_ids, with all-zero ids; plain sink cases do not.
         pa_prim.has_token_type_ids =
             p.token_type_ids.has_value() || p.empty_token_type_ids || (p.has_sink_input && p.force_flashattn_v2);
         pa_prim.has_sink_input = p.has_sink_input;
@@ -3254,8 +3207,7 @@ public:
 };
 
 // Padding on the FEATURE axis of the rank-2 query / key / value inputs [tokens, heads * head_size], in elements.
-// `dynamic` tells the compile-time layout only that the axis is padded (the sizes arrive at run time, as for a crop
-// view in a dynamic-shape model); otherwise the compile-time layout carries the sizes.
+// `dynamic`: the compile-time layout only marks the axis padded (sizes arrive at run time, like a crop view).
 struct feature_pad {
     int before = 0;
     int after = 0;
@@ -3303,17 +3255,11 @@ struct paged_attention_test_params {
     // is used.
     std::optional<std::vector<int>> token_type_ids = std::nullopt;
 
-    // Declare has_token_type_ids but hand the op a genuinely EMPTY tensor, which the PagedAttention
-    // contract ("[B_token | 0]", see intel_cpu/src/nodes/paged_attn.cpp) allows and reads as "no image
-    // tokens". Mutually exclusive with token_type_ids. Expected output is the plain causal one, which
-    // is exactly what PagedAttentionReference computes, so no golden data is needed.
+    // Declare has_token_type_ids but pass an EMPTY tensor ("[B_token | 0]" contract: "no image tokens"); expected output is
+    // plain causal. Mutually exclusive with token_type_ids.
     bool empty_token_type_ids = false;
 
-    // Sink input testing: enables has_sink_input on the primitive. Combined with force_flashattn_v2
-    // it ALSO sets has_token_type_ids, which used to force the sdpa_opt.cl path by making
-    // can_use_sdpa_ocl_for reject every non-PREFILL stage. That no longer holds (sdpa_ocl implements
-    // the bidirectional mask for MIXED too), so leave force_flashattn_v2 off when a sink case should
-    // reach sdpa_ocl in MIXED.
+    // Sink input testing: enables has_sink_input on the primitive; with force_flashattn_v2 it also sets has_token_type_ids.
     bool has_sink_input = false;
     // When set, overrides the default sink values in PAM before memory allocation.
     std::optional<std::vector<ov::float16>> sink_values = std::nullopt;
@@ -3323,33 +3269,27 @@ struct paged_attention_test_params {
     // Replaces generated Key inputs with zeros and validates BY_CHANNEL cache scales.
     bool zero_key_data = false;
 
-    // When set, the primitive has no constant scale (the kernels read the scale input) and the scale is this
-    // multiple of 1/sqrt(k_head_size). The harness data (N(0, 0.1)) has logits of ~0.01, where any scale
-    // returns almost the same output, so a case needs a large multiplier (64) to notice a misread scale.
+    // When set, the primitive has no constant scale (the kernels read the scale input) and the scale is this multiple of
+    // 1/sqrt(k_head_size). N(0, 0.1) data has tiny logits where any scale gives the same output: use a large multiplier.
     std::optional<float> runtime_scale_multiplier = std::nullopt;
 
-    // Multiplies the default scale like runtime_scale_multiplier, but the primitive keeps its constant scale. The harness
-    // data (N(0, 0.1), q.k ~ 0.08) gives an almost uniform softmax, so a misread Q or K row barely moves the output and
-    // only a misread V is visible; a large gain (128) makes the softmax sharp enough for a wrong Q / K read to fail.
+    // Multiplies the default scale like runtime_scale_multiplier, but keeps a constant scale. N(0, 0.1) data gives an almost
+    // uniform softmax that hides Q / K misreads; a large gain sharpens it so they fail.
     std::optional<float> logit_scale_gain = std::nullopt;
 
-    // Feature-axis padding of query / key / value on top of (and exclusive with) `dynamic_paddings`, which pads only the
-    // query by head sizes. The pads are not multiples of 64 B on purpose: the 2D block IO gates in sdpa_ocl must not
-    // assume an aligned base or pitch for a padded rank-2 input.
+    // Feature-axis padding of query / key / value (exclusive with `dynamic_paddings`, which pads only the query). Pads are
+    // not multiples of 64 B on purpose: sdpa_ocl's 2D block IO gates must not assume an aligned base or pitch.
     std::optional<input_feature_pads> input_pads = std::nullopt;
 
     // NaN in the cache slots no past token fills (PagedAttentionManager::poison_unwritten_cache_slots()), f16 caches only.
     bool poison_cache_tail = false;
 
-    // Per-token affine distortion of the K (bit 0) and V (bit 1) inputs, PagedAttentionManager::apply_kv_comp_stress(): the
-    // two 8-token halves of a 16-token page get amplitudes 4x apart and every token its own offset, so a compressed cache
-    // holds a very different scale / zp per token. Without it a comp read of the wrong token moves the output by < 0.003.
-    // Bit 2 distorts K per channel instead (even / odd channels 4x apart), for the BY_CHANNEL caches.
+    // Per-token affine distortion of the K (bit 0) and V (bit 1) inputs, per-channel K (bit 2, BY_CHANNEL), see
+    // PagedAttentionManager::apply_kv_comp_stress(): without it a comp read of the wrong token barely moves the output.
     int comp_stress = 0;
 
-    // The reference takes the past K and V (tokens before past_len) from the caches after the run, i.e. dequantized as the
-    // kernels read them, instead of the f16 inputs (u4 caches only: read_value_from_cache()). The rounding of a u4 page alone
-    // (up to 1/30 of a token's V range, undiluted under a sharp softmax) otherwise exceeds the tolerance on every kernel.
+    // The reference takes the past K and V from the caches after the run (dequantized as the kernels read them) instead of
+    // the f16 inputs, u4 caches only: u4 rounding alone, undiluted under a sharp softmax, exceeds the tolerance.
     bool reference_past_from_cache = false;
 };
 

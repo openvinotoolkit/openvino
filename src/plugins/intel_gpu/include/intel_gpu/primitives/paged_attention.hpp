@@ -68,14 +68,13 @@ struct paged_attention : public primitive_base<paged_attention> {
 #endif
     }
 
-    // Rank-3 plain SDPA (Q/K/V [B, L, E]) on the sdpa_ocl lane for Xe2 and newer: measured and verified on Xe2 (B70 discrete, LNL
-    // integrated) and Xe3 (PTL-H integrated), not on xe3p (docs/sdpa_ocl.md, "Rank-3 plain SDPA"). On xe_hpg and xe_hpc (not measured)
-    // a rank-3 op stays on sdpa_opt and a static one is still decomposed on XMX devices (should_decompose_sdpa_for_memory_size()).
+    // Rank-3 plain SDPA (Q/K/V [B, L, E]) on the sdpa_ocl lane for Xe2 and newer (docs/sdpa_ocl.md, "Rank-3 plain SDPA"). On xe_hpg
+    // and xe_hpc a rank-3 op stays on sdpa_opt and a static one is still decomposed on XMX devices (should_decompose_sdpa_for_memory_size()).
     static bool sdpa_ocl_plain_3d_ok(const device_info& info) {
         return sdpa_ocl_selected(info) && info.arch >= gpu_arch::xe2;
     }
 
-    // The head sizes of a rank-3 op that were measured and verified: 64, 80, 96, 128 and 256 (a multiple of 16 in 64..256).
+    // Rank-3 head sizes: a multiple of 16 in 64..256 (verified at 64, 80, 96, 128 and 256).
     static bool sdpa_ocl_plain_3d_head_ok(int64_t head_size) {
         return head_size >= 64 && head_size <= 256 && head_size % 16 == 0;
     }
@@ -85,7 +84,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         return info.arch >= gpu_arch::xe_hpc;
     }
 
-    // ARL-H (gfx 12.74) keeps sdpa_opt for a static one-query plain SDPA (upstream PR #27387).
+    // ARL-H (gfx 12.74) keeps sdpa_opt for a static one-query plain SDPA (upstream's rule, "Where it runs" in the docs).
     static bool sdpa_ocl_plain_single_token_ok(const device_info& info) {
         return info.gfx_ver.major != 12 || info.gfx_ver.minor != 74;
     }

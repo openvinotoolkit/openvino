@@ -561,8 +561,8 @@ TEST(GQADecompositionTest, transpose_v_keeps_cache_layout_without_immad) {
     expect_stateless_kv_cache_connections(cfg);
 }
 
-// The explicit attention chain (softcap) gets the same cache layout as SDPA: before, it kept StatelessKV -> Transpose ->
-// present_value, which the runtime rejects ("stateless_kv should directly connect to an output").
+// The explicit attention chain (softcap) gets the same cache layout as SDPA; StatelessKV -> Transpose -> present_value is
+// rejected by the runtime ("stateless_kv should directly connect to an output").
 TEST(GQADecompositionTest, softcap_transpose_v_keeps_cache_layout) {
     GQAConfig cfg;
     cfg.transpose_v = true;

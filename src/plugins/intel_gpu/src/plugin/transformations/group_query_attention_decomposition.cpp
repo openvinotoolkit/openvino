@@ -89,9 +89,8 @@ bool GroupQueryAttentionDecomposition::prepare_compressed_kv(const std::shared_p
     }
     // Only what sdpa_ocl reads (SDPAOclGenerator's per_channel_kv_supported(); its f16-query condition is the pipeline's
     // fuse_compressed_kv): a static head size, and an i8 8-bit cache (a u8 one is read as unsigned bytes); anything else
-    // would land on sdpa_ref. Head sizes above 256 stay unfused although sdpa_ocl reads them: at head 512 its
-    // per-channel kernels spill (8-11 KB against 1.4 KB for the f16 one) and an int8 prefill of 2048 tokens took 42% longer
-    // per layer than dequantizing first (B70; docs "Per-channel compressed KV").
+    // would land on sdpa_ref. Head sizes above 256 stay unfused although sdpa_ocl reads them: its per-channel kernels spill
+    // there ("Per-channel compressed KV (2026-11-02)" in the docs).
     const auto& head_dim = key_partial_shape.rank().is_static() ? key_partial_shape[key_partial_shape.rank().get_length() - 1] : ov::Dimension::dynamic();
     const int64_t head_size = head_dim.is_static() ? head_dim.get_length() * (kv_cache_bit_width == 4 ? 2 : 1) : -1;
     if (head_size <= 0 || head_size > 256 || (kv_cache_bit_width == 8 && key_type != ov::element::i8))
@@ -272,9 +271,8 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
         // After:  past_value -------------------------> StatelessKV(axis=3) -> present_value.
         //         current_value -> Transpose ----------^           |
         //                                                         +-> Transpose -> attention V
-        // V must not reach SDPA as value order {0,1,3,2} instead: no SDPA kernel reads V with a strided head dim (sdpa_ocl
-        // and sdpa_opt read it as contiguous and give wrong output, sdpa_micro was the only reader), and the explicit chain
-        // and the KV dequantization expect the default layout as well.
+        // V must not reach SDPA as value order {0,1,3,2} instead: sdpa_ocl and sdpa_opt read V's head dim as contiguous
+        // (wrong output), and the explicit chain and the KV dequantization expect the default layout as well.
         const auto transposed_value = register_new_node<v1::Transpose>(value, value_transpose_order);
         value_cache = make_stateless_kv(past_value_transpose->input_value(0), transposed_value, 3);
         present_value_transpose->output(0).replace(value_cache->output(0));

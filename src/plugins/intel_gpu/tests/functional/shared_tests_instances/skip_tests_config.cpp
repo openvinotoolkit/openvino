@@ -232,8 +232,8 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.push_back(std::regex(R"(.*smoke_MoE3GemmCompressedFusion.*)"));
             patterns.push_back(std::regex(R"(.*smoke_MoEOffload.*)"));
             // Without immad the quantized K/V are dequantized before SDPA and sdpa_opt runs. Its multi-token kernel accumulates
-            // Q*K^T in f16 (qk_acc in sdpa_opt.cl), so it misses the f32 reference of these tests by up to 0.1 (tolerance 0.02 + 1%).
-            // Re-enable once the sdpa_opt accumulation is fixed (separate task).
+            // Q*K^T in f16 (qk_acc in sdpa_opt.cl), which misses the f32 reference of these tests past their tolerance.
+            // Re-enable once the sdpa_opt accumulation is fixed.
             patterns.push_back(std::regex(R"(.*smoke_GQAQuantizedKVCache/.*)"));
             // Dynamic quantization of fp8 and mxfp8 models supported only through oneDNN (disabled for non-systolic platforms)
             patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_dyn_quan_.*fp8.*)"));

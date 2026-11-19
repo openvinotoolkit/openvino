@@ -2,13 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// PagedAttention GENERATE (decode) stage on DPAS + 2D block IO. Design notes, derivations and
-// measurements: docs/sdpa_ocl.md.
-//
-// A separate kernel rather than a mode of sdpa_ocl.cl, because one query per sequence flips the
-// DPAS operand roles: sdpa_ocl.cl computes S^T with A = K and B = Q, while here A = Q (M = Q_PER_WG
-// heads) and B = K, so the scores land one per lane with lane == key and the softmax is two
-// subgroup reduces.
+// PagedAttention GENERATE (decode) stage on DPAS + 2D block IO ("sdpa_ocl_decode" in the docs). One query per sequence
+// flips sdpa_ocl.cl's DPAS roles: here A = Q (M = Q_PER_WG heads) and B = K, so the scores land one per lane
+// (lane == key) and the softmax is two subgroup reduces.
 //
 // Operand mapping (for every operand, lane == that matrix's COLUMN index):
 //   KQ   S[key] = sum_d Q[d] * K[key][d]      N = key, depth = d
@@ -27,11 +23,11 @@
 // only the V zp needs a broadcast. The softmax denominator stays sum(P): the V scale belongs to the
 // value.
 //
-// GQA: a workgroup takes Q_PER_WG q-heads of one kv group (1/2/4/8, the DPAS repeat count), so
-// every K/V tile is loaded once for all of them -- decode is bandwidth bound.
+// GQA: a workgroup takes Q_PER_WG q-heads of one kv group (1/2/4/8, the DPAS repeat count) and loads every K/V tile once
+// for all of them.
 //
-// Work split: the key axis is the only parallelism, so this kernel writes the intermediates of
-// paged_attention_opt.cl's SDPA_STAGE_1 (pa_sdpa_finalization_stage) unchanged:
+// Work split: this kernel writes the intermediates of paged_attention_opt.cl's SDPA_STAGE_1 (pa_sdpa_finalization_stage)
+// unchanged:
 //   partition p covers keys swa_start_token + [p, p + 1) * SEQ_LEN_PARTITION_SIZE
 //     (with a sliding window the host drops the fully-masked prefix, so p = 0 need not start at 0)
 //   total_partitions_num == get_num_groups(2)
@@ -66,9 +62,8 @@
 #define K_TILES     (K_HEAD_SIZE / DPAS_K)
 #define V_TILES     (V_HEAD_SIZE / SUBGROUP_SIZE)
 
-// Row pitch of a page's DATA region, in cache-dtype elements: head_size for f16 and i8. A u4 page
-// packs two head dims per byte in a u8 layout, so the host supplies it: exactly K_HEAD_SIZE/2 for K
-// (the page the pipeline allocates) and Align(V_HEAD_SIZE/2, 16) for V.
+// Row pitch of a page's DATA region, in cache-dtype elements: head_size for f16 and i8. For u4 the host supplies it:
+// exactly K_HEAD_SIZE/2 for K and Align(V_HEAD_SIZE/2, 16) for V.
 #ifndef K_ROW_ELEMS
 #    define K_ROW_ELEMS K_HEAD_SIZE
 #endif
@@ -78,17 +73,15 @@
 #define K_ROW_BYTES (K_ROW_ELEMS * (int)sizeof(INPUT1_TYPE))
 #define V_ROW_BYTES (V_ROW_ELEMS * (int)sizeof(INPUT2_TYPE))
 
-// Offset from a page base to its comp region, in cache-dtype elements (bytes when compressed).
-// BY_TOKEN: per-token f16 scale at [token], zp at [PAGED_ATTENTION_BLOCK_SIZE + token], where
-// kv_cache_update writes them. BY_CHANNEL: one interleaved (scale, zp) f16 pair -- one DWORD -- per
-// channel.
+// Offset from a page base to its comp region, in cache-dtype elements (bytes when compressed). BY_TOKEN: per-token f16
+// scale at [token], zp at [PAGED_ATTENTION_BLOCK_SIZE + token]. BY_CHANNEL: one interleaved (scale, zp) f16 pair -- one
+// DWORD -- per channel.
 #define K_COMP_OFF (K_ROW_ELEMS * PAGED_ATTENTION_BLOCK_SIZE)
 #define V_COMP_OFF (V_ROW_ELEMS * PAGED_ATTENTION_BLOCK_SIZE)
 
-// u4 V uses the "split" packing: head dim d sits in byte d % V_ROW_ELEMS, low nibble below
-// V_ROW_ELEMS and high above, so a read at byte column V_TILE_COL(cd) hands lane c head dim cd*16 +
-// c for every cd -- lane == head dim, as the DPAS N axis requires. V_READS is how many tiles' low
-// nibbles a row holds.
+// u4 V uses the "split" packing: head dim d sits in byte d % V_ROW_ELEMS, low nibble below V_ROW_ELEMS and high above,
+// so a read at byte column V_TILE_COL(cd) hands lane c head dim cd*16 + c (lane == head dim, as the DPAS N axis
+// requires). V_READS is how many tiles' low nibbles a row holds.
 #if IS_KV_U4
 #    define V_READS       (V_ROW_ELEMS / SUBGROUP_SIZE)
 #    define V_TILE_COL(t) (((t) >= V_READS ? (t) - V_READS : (t)) * SUBGROUP_SIZE)
@@ -97,10 +90,8 @@
 #    define V_TILE_COL(t) ((t) * SUBGROUP_SIZE)
 #endif
 
-// How many DPAS tiles one transposed K read covers. The builtin always hands each lane 8 dwords of
-// its own key's row; that is DPAS_K halves (one tile) for f16, 32 bytes (two tiles) for i8, and 32
-// bytes == 64 nibbles (four tiles) for u4. The per-lane fallback loads one tile's worth unless the host
-// sets K_LANE_TILES (compressed caches only).
+// How many DPAS tiles one transposed K read covers: 8 dwords of the lane's key row are one tile for f16, two for i8 and
+// four for u4. The per-lane fallback loads one tile unless the host sets K_LANE_TILES (compressed caches only).
 #ifndef K_LANE_TILES
 #    define K_LANE_TILES 1
 #endif
@@ -119,13 +110,10 @@
 
 // int8 -> f16 widen for the KQ B operand, shared by both K load paths:
 //     as_half(0x6480 ^ b) == b + K_WIDEN_BIAS   exactly, for every signed byte b  (0x6480: 1152.0h)
-// It is pure dword arithmetic -- 4 source bytes become the 2 VNNI dwords the DPAS wants with no
-// sub-register moves, unlike convert_half16(as_char16(...)). The bias is undone once per (key
-// group, head) by the score correction, in FLOAT, so it is free and leaves zp exact (folding 1152
+// The bias is undone once per (key group, head) by the score correction, in FLOAT, which leaves zp exact (folding 1152
 // into an f16 zp would round the writer's non-integer zp). u4 is the same idea one size down:
 //     as_half(0x6400 | n) == 1024.0 + n   exactly, for every nibble n
-// and K keeps the upstream adjacent nibble order (channels 2b, 2b+1 in byte b), which is exactly
-// the (2i, 2i+1) pairing a VNNI dword wants, so the depth order stays natural here.
+// and K's adjacent nibble order (channels 2b, 2b+1 in byte b) is the (2i, 2i+1) pairing a VNNI dword wants.
 #if IS_KV_U4
 #    define K_WIDEN_BIAS 1024.0f
 #else
@@ -155,11 +143,8 @@
 // How many workgroups cover one kv group, and hence the dim-1 head axis the host dispatches.
 #define HEAD_GROUPS (KV_HEADS_NUM * HEAD_ITERS)
 
-// Work split for S*V: KQ splits the key axis over all SG_PER_WG subgroups, but S*V gives SV_DIM_SGS
-// subgroups the head-dim axis, so a subgroup owning a head-dim tile reduces over every key itself
-// and produces a FINAL result -- no output reduction. With fewer tiles than subgroups (V_TILES <
-// SG_PER_WG) the leftover subgroups split the keys behind each tile, and only those partials are
-// reduced.
+// Work split for S*V: KQ splits the key axis over all SG_PER_WG subgroups, S*V gives SV_DIM_SGS subgroups the head-dim
+// axis; the SV_KEY_SGS subgroups behind each tile split its keys, and only their partials are reduced.
 #define SV_KEY_SGS        (SG_PER_WG / SV_DIM_SGS)
 #define CHUNKS            (SEQ_LEN_PARTITION_SIZE / SUBGROUP_SIZE)
 #define CHUNKS_PER_KEY_SG (CHUNKS / SV_KEY_SGS)
@@ -189,45 +174,35 @@
 #define _QV_8(vec, idx) vec[idx]
 #define QV(vec, idx) CAT(_QV_, Q_PER_WG)(vec, idx)
 
-// Register diet for a large M at a large head size (gemma-4's head 512, kv group 8), where
-// q_reg[Q_PER_WG][K_TILES] alone is the whole 128-GRF file at M = 8. Both are pure data movement --
-// every product, fma and reduce stays in the same order, so the output is bit-identical with or
-// without them:
-//   Q_IN_SLM         the scaled query lives in local memory, one Q_PER_WG-wide vector per (tile,
-//                    lane), and each A operand is read back where the DPAS needs it.
-//   K_COMP_PER_READ  BY_CHANNEL only: the scale/zp pairs of one K read's tiles are loaded with that
-//                    read, and the zp correction accumulates inside the KQ loop (same t order as the
-//                    up-front pass it replaces), instead of holding [KEY_GROUPS][K_TILES] pairs.
+// Register savers for a large M at a large head size. Both are pure data movement -- every product, fma and reduce
+// stays in the same order, so the output is bit-identical with or without them:
+//   Q_IN_SLM         the scaled query lives in local memory, one Q_PER_WG-wide vector per (tile, lane), and each A
+//                    operand is read back where the DPAS needs it.
+//   K_COMP_PER_READ  BY_CHANNEL only: the scale/zp pairs of one K read's tiles are loaded with that read, and the zp
+//                    correction accumulates inside the KQ loop (same t order as the up-front pass).
 #ifndef Q_IN_SLM
 #    define Q_IN_SLM 0
 #endif
 #ifndef K_COMP_PER_READ
 #    define K_COMP_PER_READ 0
 #endif
-// V_TWIN_PAIR (u4 V, block reads): a u4 V byte column holds head dims cd*16 + c (low nibble) and
-// (cd + V_READS)*16 + c (high nibble), so tiles cd and cd + V_READS are "twins" that the plain loop reads,
-// scales and broadcasts twice. Paired, one V read, one comp load and one probability scale feed both
-// tiles' DPAS chains. Each tile still accumulates the same values in the same chunk order.
+// V_TWIN_PAIR (u4 V, block reads): a u4 V byte column holds head dims cd*16 + c (low nibble) and (cd + V_READS)*16 + c
+// (high nibble), so one V read, comp load and probability scale feed both "twin" tiles' DPAS chains. Each tile still
+// accumulates the same values in the same chunk order.
 #ifndef V_TWIN_PAIR
 #    define V_TWIN_PAIR 0
 #endif
-// V_COMP_IN_SLM (compressed V): every S*V subgroup walks every chunk, so the plain loop loads each page's
-// V scale/zp once per (subgroup, tile) and waits for it there -- a prefetch covers only the data rows.
-// Instead the subgroup that scored a page loads that page's pair once, during KQ, folds the scale into
-// the probabilities it writes to slm_p (the same f16 multiply S*V would do) and stages the zp next to
-// them, so S*V reads both from local memory.
+// V_COMP_IN_SLM (compressed V): the subgroup that scored a page loads that page's V (scale, zp) during KQ, folds the
+// scale into the probabilities it writes to slm_p (the same f16 multiply S*V would do) and stages the zp next to them.
 #ifndef V_COMP_IN_SLM
 #    define V_COMP_IN_SLM 0
 #endif
-// V_PAGE_1D (a compressed V page whose row block2d does not take, e.g. the 32- and 48-byte rows of u4 head
-// 64 and 96, and the 96-byte row of i8 head 96 under the strict rule): S*V splits the keys only
-// (SV_DIM_SGS == 1), so each subgroup reads the whole data region of its pages with 1D subgroup block
-// reads instead of one byte gather per (token, lane, tile). intel_sub_group_block_read_uc16 lands
-// component i of lane L on byte 16 * i + L of 256 contiguous bytes, so with V_PAGE_COLS = V_ROW_BYTES /
-// 16 column groups per row, read r of the page holds
+// V_PAGE_1D (a compressed V page whose row block2d does not take, "Compressed pages block2d does not take (2026-11-06)" in
+// the docs): S*V splits the keys only (SV_DIM_SGS == 1) and each subgroup reads the data region of its pages with 1D
+// subgroup block reads. intel_sub_group_block_read_uc16 lands component i of lane L on byte 16 * i + L of 256
+// contiguous bytes, so with V_PAGE_COLS = V_ROW_BYTES / 16 column groups per row, read r of the page holds
 //     16 * (16 * r + i) + L == t * V_ROW_BYTES + 16 * c + L   <=>   16 * r + i == t * V_PAGE_COLS + c
-// i.e. (token t, column group c, lane L) with no shuffle; t and c are compile-time (a runtime subscript into
-// the uchar16 would be indirect register addressing). The V_PAGE_COLS reads cover exactly the data rows.
+// i.e. (token t, column group c, lane L); t and c must stay compile-time (no runtime subscript into the uchar16).
 #ifndef V_PAGE_1D
 #    define V_PAGE_1D 0
 #endif
@@ -245,18 +220,12 @@
 #    endif
 #endif
 
-// 2D block prefetch of V, PREFETCH_DIST chunks ahead: memory-level parallelism that occupancy
-// cannot buy, since a block read needs a destination register and a prefetch does not. V only --
-// the S*V loop walks one page per chunk on one accumulator chain, so its loads are the exposed
-// ones, while the KQ loop already interleaves KEY_GROUPS chains (measurements in docs/sdpa_ocl.md).
-// 0 disables it.
+// 2D block prefetch of V, PREFETCH_DIST chunks ahead (V only); 0 disables it.
 #define USE_PREFETCH_V (PREFETCH_DIST > 0)
 
 #if IS_KV_COMPRESSED
-// Matches the 8-bit VNNI-transform read below. x is in elements (bytes here), and a multiple of
-// SUBGROUP_SIZE satisfies the spec's "multiple of four for 8-bit data" rule on coord.x. For u4 two
-// tiles share one byte column, so V_TILE_COL folds the high half back onto its low twin -- the
-// prefetch for tile cd and for cd + V_READS is deliberately the same line.
+// Matches the 8-bit VNNI-transform read below. x is in elements (bytes here), and a multiple of SUBGROUP_SIZE satisfies
+// the "multiple of four for 8-bit data" rule on coord.x. For u4, tiles cd and cd + V_READS prefetch the same line.
 #    define PREFETCH_V_TILE(page_off, value_tile)                                                  \
         intel_sub_group_2d_block_prefetch_8b_32r16x1c((__global void*)(value_cache + (page_off)),   \
                                                       V_ROW_BYTES,                                 \
@@ -290,8 +259,8 @@
 #    error "sdpa_ocl_decode.cl: Q_PER_WG must be 1, 2, 4 or 8"
 #endif
 #if Q_PER_WG >= 2 * KV_HEADS_GROUP_SIZE
-// Heads beyond the kv group belong to a different K/V page, so they cannot share this read. M may round
-// the group up to the next power of two (kv group 3 -> M 4); the surplus rows are leftovers, never stored.
+// Heads beyond the kv group belong to a different K/V page. M may round the group up to the next power of two (kv
+// group 3 -> M 4); the surplus rows are leftovers, never stored.
 #    error "sdpa_ocl_decode.cl: Q_PER_WG must be below twice KV_HEADS_GROUP_SIZE"
 #endif
 #if HEAD_ITERS != ((KV_HEADS_GROUP_SIZE + Q_PER_WG - 1) / Q_PER_WG)
@@ -306,8 +275,8 @@
 #    error "sdpa_ocl_decode.cl: SV_KEY_SGS must divide the partition's chunk count"
 #endif
 #if PAGED_ATTENTION_BLOCK_SIZE != SUBGROUP_SIZE
-// A key group and an S*V chunk are each exactly one cache page: that is what lets the page index be
-// hoisted out of the d loop and lets a 16-row block read cover exactly the group.
+// A key group and an S*V chunk are each exactly one cache page (the page index is hoisted out of the d loop, and a
+// 16-row block read covers exactly the group).
 #    error "sdpa_ocl_decode.cl: PAGED_ATTENTION_BLOCK_SIZE must equal SUBGROUP_SIZE"
 #endif
 #if CHUNKS > SUBGROUP_SIZE
@@ -325,24 +294,20 @@
 #    error "sdpa_ocl_decode.cl: IS_KEY_BY_CHANNEL requires IS_KV_COMPRESSED"
 #endif
 #if IS_KEY_BY_CHANNEL && (ADJUSTED_K_HEAD_SIZE != K_HEAD_SIZE)
-// BY_CHANNEL's comp region is sized by CHANNEL, so it grows the page's row COUNT
-// (ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE), not its row pitch. A host that added the BY_TOKEN +4 here
-// instead would shift every page by 4 * PAGED_ATTENTION_BLOCK_SIZE bytes.
+// BY_CHANNEL's comp region is sized by CHANNEL, so it grows the page's row COUNT (ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE),
+// not its row pitch; the BY_TOKEN +4 here would shift every page by 4 * PAGED_ATTENTION_BLOCK_SIZE bytes.
 #    error "sdpa_ocl_decode.cl: BY_CHANNEL must leave ADJUSTED_K_HEAD_SIZE == K_HEAD_SIZE"
 #endif
 #if (K_TILES % K_TILES_PER_READ) != 0
-// The i8 transposed read covers two tiles and the u4 one four, so the head dim must divide into whole
-// groups. Implied by the block2d pitch rule the host gates on (K_ROW_BYTES % 64 == 0, i.e.
-// K_HEAD_SIZE % 64 for i8 and % 128 for u4), and the host picks K_LANE_TILES as a divisor of K_TILES,
-// but a drift between host and kernel must be loud rather than silently dropping the last tiles.
+// The head dim must divide into whole reads (the host's block2d pitch gate and its K_LANE_TILES choice imply it); a
+// host/kernel drift would silently drop the last tiles.
 #    error "sdpa_ocl_decode.cl: K_TILES must be a multiple of K_TILES_PER_READ"
 #endif
 #if IS_KV_U4 && !IS_KV_COMPRESSED
 #    error "sdpa_ocl_decode.cl: IS_KV_U4 requires IS_KV_COMPRESSED"
 #endif
 #if IS_KV_U4 && !IS_KEY_BY_CHANNEL
-// A u4 PA cache is BY_CHANNEL for K and BY_TOKEN for V; execution_config.cpp rejects 4-bit BY_TOKEN
-// keys outright, so there is no u4 BY_TOKEN K path to write and none is implemented here.
+// A u4 PA cache is BY_CHANNEL for K and BY_TOKEN for V (execution_config.cpp rejects 4-bit BY_TOKEN keys).
 #    error "sdpa_ocl_decode.cl: a u4 key cache must be BY_CHANNEL"
 #endif
 #if IS_KV_U4 && ((K_HEAD_SIZE % 2) != 0 || (V_ROW_ELEMS % SUBGROUP_SIZE) != 0)
@@ -371,8 +336,7 @@
 #    error "sdpa_ocl_decode.cl: V_COMP_IN_SLM needs a compressed V cache"
 #endif
 #if V_PAGE_1D && (!IS_KV_COMPRESSED || USE_2D_BLOCK_IO_V || (V_ROW_ELEMS % SUBGROUP_SIZE) != 0)
-// The dequant above is the compressed one (a one-byte cache, so V_ROW_ELEMS is the row in bytes), and a row
-// block2d takes needs no help.
+// The dequant above is the compressed one (a one-byte cache, so V_ROW_ELEMS is the row in bytes).
 #    error "sdpa_ocl_decode.cl: V_PAGE_1D reads compressed V pages without V block reads, rows a multiple of 16 bytes"
 #endif
 #if V_PAGE_1D && SV_DIM_SGS != 1
@@ -385,10 +349,9 @@
 #    error "sdpa_ocl_decode.cl: Q_IN_SLM with a BY_CHANNEL K needs K_COMP_PER_READ"
 #endif
 
-// Stores one normalised output element (head, value) of this partition: into tmp_out for the
-// finalization when the sequence's window spans several partitions, straight into output otherwise.
-// always_inline for the reason given at SDPA_OCL_INLINE in sdpa_ocl_config.cl (a plain inline
-// helper changes the whole kernel's ISA).
+// Stores one normalised output element (head, value) of this partition: into tmp_out for the finalization when the
+// sequence's window spans several partitions, straight into output otherwise. always_inline: see SDPA_OCL_INLINE in
+// sdpa_ocl_config.cl.
 __attribute__((always_inline)) inline void FUNC(store_out)(__global OUTPUT_TYPE* output, __global OUTPUT_TYPE* tmp_out,
                                                            const uint effective_seq_len, const uint total_partitions_num,
                                                            const uint seq_idx, const uint head,
@@ -447,13 +410,10 @@ KERNEL(sdpa_ocl_decode)(
     const uint seq_len = past_lens[seq_idx] + 1;
     const uint total_blocks_num = CEIL_DIV(seq_len, PAGED_ATTENTION_BLOCK_SIZE);
 
-    // ---- Sliding-window block skip: with a window the host drops the fully-masked prefix before
-    // counting partitions (paged_attention_opt.cpp, effective_context_len), so partition 0 begins
-    // at the first block the window can reach. Must match pa_sdpa_opt's swa_start_block /
-    // swa_start_token / effective_blocks_num / effective_seq_len exactly (same partition count, same
-    // finalization); a mismatch is silent -- an all-masked, well-formed result, or an output nobody
-    // writes. pa_sdpa_opt skips blocks only without scores output, which supported() rejects here.
-    // swa_start_block rounds down, so the per-key mask is still needed.
+    // ---- Sliding-window block skip: the host drops the fully-masked prefix before counting partitions
+    // (paged_attention_opt.cpp, effective_context_len). Must match pa_sdpa_opt's swa_start_block / swa_start_token /
+    // effective_blocks_num / effective_seq_len exactly; a mismatch is silent. swa_start_block rounds down, so the
+    // per-key mask is still needed.
 #if SLIDING_WINDOW_SIZE != 0
     const uint swa_start_block =
         (seq_len > SLIDING_WINDOW_SIZE) ? ((seq_len - SLIDING_WINDOW_SIZE) / PAGED_ATTENTION_BLOCK_SIZE) : 0;
@@ -463,9 +423,8 @@ KERNEL(sdpa_ocl_decode)(
     const uint effective_blocks_num = total_blocks_num;
 #endif
     const uint swa_start_token = swa_start_block * PAGED_ATTENTION_BLOCK_SIZE;
-    // Picks tmp_out vs output and whether exp_sums / max_logits are written: the finalization
-    // partitions this length, not seq_len. (pa_sdpa_opt's seq_len predicate for exp_sums is broader;
-    // the extra entries it writes are never read.)
+    // Picks tmp_out vs output and whether exp_sums / max_logits are written: the finalization partitions this length,
+    // not seq_len.
     const uint effective_seq_len = seq_len - swa_start_token;
 
     // Workgroup-uniform, so the whole workgroup leaves together and the barrier below is safe.
@@ -483,12 +442,11 @@ KERNEL(sdpa_ocl_decode)(
 
     const uint base_block_index = block_indices_begins[seq_idx];
 
-    // ---- Q: Q_PER_WG heads x K_HEAD_SIZE values in registers, lane == head dim (pa_sdpa_opt
-    // stages it in SLM whenever HEADS_PER_WI > 1). The scale is folded in here, as pa_sdpa_opt
-    // does: better accuracy than scaling the scores, and free since Q is read once.
+    // ---- Q: Q_PER_WG heads x K_HEAD_SIZE values in registers, lane == head dim, with the scale folded in (as
+    // pa_sdpa_opt does).
 #if Q_IN_SLM
-    // Q_IN_SLM: the same values, one Q_PER_WG-wide vector per (tile, lane) -- the A operand's own
-    // layout, so a read-back is one message. The subgroups share the fill tile by tile.
+    // Q_IN_SLM: the same values, one Q_PER_WG-wide vector per (tile, lane) (the A operand's layout); the subgroups share
+    // the fill tile by tile.
     __local H_VEC_TYPE slm_q[K_TILES * SUBGROUP_SIZE];
 #else
     INPUT0_TYPE q_reg[Q_PER_WG][K_TILES];
@@ -517,8 +475,8 @@ KERNEL(sdpa_ocl_decode)(
 #else
         unroll_for(uint m = 0; m < Q_PER_WG; ++m) {
 #    ifdef HAS_HEAD_LEFTOVERS
-            // A leftover slot would read the next kv group's query, or past the tensor at the last
-            // kv head. Re-read head_base instead -- always valid, and its result is never stored.
+            // A leftover slot would read the next kv group's query, or past the tensor at the last kv head: re-read
+            // head_base instead (its result is never stored).
             const uint head = head_base + (m < heads_this_wg ? m : 0);
 #    else
             const uint head = head_base + m;
@@ -535,10 +493,8 @@ KERNEL(sdpa_ocl_decode)(
 #endif
 
 #if IS_KV_COMPRESSED && !IS_KEY_BY_CHANNEL
-    // sum_d Q[d], all the BY_TOKEN K zero point needs: its whole contribution to a score is zp[key]
-    // * sum_d Q[d] (see the identity at the top), so one reduce per head replaces every per-element
-    // subtraction. In float, since it multiplies an f32 accumulator. BY_CHANNEL's correction
-    // (k_corr below) subsumes it.
+    // sum_d Q[d], in float: the BY_TOKEN K zero point's whole contribution to a score is zp[key] * sum_d Q[d] (identity
+    // at the top). BY_CHANNEL's correction (k_corr below) subsumes it.
     SOFTMAX_ACCUMULATOR_TYPE q_sum[Q_PER_WG];
 #    if Q_IN_SLM
     {
@@ -564,22 +520,19 @@ KERNEL(sdpa_ocl_decode)(
 #    endif
 #endif
 
-    // ---- This subgroup's slice of the partition: KEY_GROUPS whole cache pages. Absolute token
-    // indices, so they start at the window's first block rather than at the sequence start.
+    // ---- This subgroup's slice of the partition: KEY_GROUPS whole cache pages, in absolute token indices (from the
+    // window's first block).
     const uint sg_key0 = swa_start_token + partition_idx * SEQ_LEN_PARTITION_SIZE + sgid * KEYS_PER_SG;
 
-    // The partition spans exactly CHUNKS pages (one chunk = one page), so its whole page table fits
-    // one lane-per-chunk register: one coalesced read, then sub_group_broadcast wherever a page is
-    // needed. A chunk past the last block would index outside block_indices[], so it reads page 0
-    // (always allocated) and its scores are masked below. Block index within the SEQUENCE, so the
-    // window's skipped prefix is added back.
+    // The partition's page table, one chunk (= page) per lane, read once and sub_group_broadcast where needed. A chunk
+    // past the last block reads page 0 (always allocated) and its scores are masked below. Block index within the
+    // SEQUENCE, so the window's skipped prefix is added back.
     const uint my_block = swa_start_block + partition_idx * CHUNKS + lane;
     const uint my_page =
         (lane < CHUNKS && my_block < total_blocks_num) ? (uint)block_indices[base_block_index + my_block] : 0u;
 
-    // The page stride is ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE, the pair
-    // pa_sdpa_opt jits: the comp region widens the row for BY_TOKEN and adds rows for BY_CHANNEL.
-    // The data row pitch is K_ROW_ELEMS in every case.
+    // The page stride is ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE: the comp region widens the row for
+    // BY_TOKEN and adds rows for BY_CHANNEL. The data row pitch is K_ROW_ELEMS in every case.
     size_t k_page_off[KEY_GROUPS];
     bool group_in_range[KEY_GROUPS];
     unroll_for(uint g = 0; g < KEY_GROUPS; ++g) {
@@ -591,9 +544,8 @@ KERNEL(sdpa_ocl_decode)(
     }
 
 #if V_COMP_IN_SLM
-    // V scale and zp of this subgroup's own pages, lane == token, with the plain S*V loop's validity
-    // guard (a key at/past seq_len reads 0 for both; see there). Loaded here so the latency hides behind
-    // the KQ loop; consumed when slm_p is written.
+    // V scale and zp of this subgroup's own pages, lane == token, with the plain S*V loop's validity guard (a key at/past
+    // seq_len reads 0 for both; see there). Consumed when slm_p is written.
     INPUT0_TYPE v_sc_g[KEY_GROUPS];
     INPUT0_TYPE v_zp_g[KEY_GROUPS];
     unroll_for(uint g = 0; g < KEY_GROUPS; ++g) {
@@ -607,31 +559,26 @@ KERNEL(sdpa_ocl_decode)(
 #endif
 
 #if IS_KV_COMPRESSED
-    // No validity guard on either variant, unlike the V side below: a token at/past seq_len was never
-    // written by kv_cache_update, so its comp bytes can decode to NaN, but the mask further down
-    // OVERWRITES s[g] with SOFTMAX_ACCUMULATOR_VAL_MIN on exactly those lanes (token_idx >= seq_len ||
-    // !group_in_range[g]), which no NaN survives. V needs the guard because there the masking is
-    // "the probability is 0", i.e. a multiply, and 0 * NaN is NaN.
+    // No validity guard here, unlike the V side: the comp bytes of a token at/past seq_len were never written and can
+    // decode to NaN, but the mask below OVERWRITES s[g] with SOFTMAX_ACCUMULATOR_VAL_MIN on exactly those lanes. V needs
+    // the guard because there the masking is a multiply by 0, and 0 * NaN is NaN.
     // The writer stores 1/scale, so what comes back is already the multiplier.
 #    if IS_KEY_BY_CHANNEL && K_COMP_PER_READ
-    // Per-CHANNEL scale and zero point, loaded per K read inside the KQ loop (see there); only the
-    // zero-point correction's accumulators live across it.
+    // Per-CHANNEL scale and zero point, loaded per K read inside the KQ loop; only the zero-point correction's
+    // accumulators live across it.
     S_VEC_TYPE k_corr_acc[KEY_GROUPS];
     unroll_for(uint g = 0; g < KEY_GROUPS; ++g) {
         k_corr_acc[g] = (S_VEC_TYPE)(SOFTMAX_ACCUMULATOR_VAL_ZERO);
     }
 #    elif IS_KEY_BY_CHANNEL
-    // Per-CHANNEL scale and zero point. The pair for a channel is interleaved, hence exactly one
-    // DWORD, so a uint block read hands lane L the pair for channel (t * SUBGROUP_SIZE + L) -- the
-    // same lane == head dim layout q_reg already has, which is what lets both fold into the A operand
-    // with no broadcast. One message per tile per page, and nothing is re-read in the KQ loop.
+    // Per-CHANNEL scale and zero point. A channel's pair is one DWORD, so a uint block read hands lane L the pair for
+    // channel (t * SUBGROUP_SIZE + L) -- q_reg's lane == head dim layout, so both fold into the A operand.
     INPUT0_TYPE k_sc[KEY_GROUPS][K_TILES];
     INPUT0_TYPE k_zp[KEY_GROUPS][K_TILES];
     unroll_for(uint g = 0; g < KEY_GROUPS; ++g) {
         const __global uint* comp = (const __global uint*)(key_cache + k_page_off[g] + K_COMP_OFF);
         unroll_for(uint t = 0; t < K_TILES; ++t) {
-            // The comp region is f16 by cache format, independent of INPUT0_TYPE (which is f16 in every
-            // configuration the gate admits, so the two coincide).
+            // The comp region is f16 by cache format, independent of INPUT0_TYPE (f16 wherever the gate admits).
             const half2 pair = as_half2(BLOCK_READN(uint, 1, comp, t * SUBGROUP_SIZE));
             k_sc[g][t] = pair.s0;
             k_zp[g][t] = pair.s1;
@@ -640,11 +587,8 @@ KERNEL(sdpa_ocl_decode)(
 
     // The entire zero-point contribution to a score, folded to ONE scalar per (page, head):
     //     k_corr[g][m] = sum_d (Q[d] * sc_g[d]) * (zp_g[d] + K_WIDEN_BIAS)
-    // lane == head dim, so the sum over d is a subgroup reduce; it is key-independent because
-    // within a page zp depends only on the channel. The first factor must be the f16-ROUNDED
-    // product the DPAS actually sees: the widen bias cancels exactly only against that same half,
-    // and the float product leaves a residue that roughly doubles the error without failing the
-    // tests (docs/sdpa_ocl.md).
+    // (key-independent: within a page zp depends only on the channel). The first factor must be the f16-ROUNDED product
+    // the DPAS sees: the widen bias cancels exactly only against that same half (a float product leaves a residue).
     SOFTMAX_ACCUMULATOR_TYPE k_corr[KEY_GROUPS][Q_PER_WG];
     unroll_for(uint g = 0; g < KEY_GROUPS; ++g) {
         unroll_for(uint m = 0; m < Q_PER_WG; ++m) {
@@ -659,10 +603,8 @@ KERNEL(sdpa_ocl_decode)(
         }
     }
 #    else
-    // Per-key scale and zero point, one coalesced 16-lane f16 load each per page. lane == the key's
-    // token within its page (a key group IS a page), so these are exactly the per-lane scalars the
-    // correction after the KQ loop wants -- nothing here is broadcast, and nothing is re-read inside
-    // the tile loop.
+    // Per-key scale and zero point, one 16-lane f16 load each per page; lane == the key's token within its page (a key
+    // group IS a page), the per-lane scalars the correction after the KQ loop wants.
     INPUT0_TYPE k_sc[KEY_GROUPS];
     INPUT0_TYPE k_zp[KEY_GROUPS];
     unroll_for(uint g = 0; g < KEY_GROUPS; ++g) {
@@ -673,22 +615,18 @@ KERNEL(sdpa_ocl_decode)(
 #    endif
 #endif
 
-    // ---- KQ. The K_TILES accumulations into one s[g] are serially dependent, so the g loop is
-    // innermost: KEY_GROUPS independent DPAS chains interleave and hide each other's latency.
-    // One DPAS per (tile, g) regardless of Q_PER_WG -- M rides in the repeat count, and the loaded K
-    // tile `kb` is the shared B operand for all Q_PER_WG heads. That sharing is the amortization.
+    // ---- KQ: the g loop is innermost, so KEY_GROUPS independent DPAS chains interleave. One DPAS per (tile, g); M rides
+    // in the repeat count, and the K tile `kb` is the shared B operand for all Q_PER_WG heads.
     S_VEC_TYPE s[KEY_GROUPS];
     unroll_for(uint g = 0; g < KEY_GROUPS; ++g) {
         s[g] = (S_VEC_TYPE)(SOFTMAX_ACCUMULATOR_VAL_ZERO);
     }
 
     unroll_for(uint r = 0; r < K_READS; ++r) {
-        // One A operand per tile the read covers. K_TILES_PER_READ is 1 everywhere except the
-        // compressed (i8/u4) block-read paths.
+        // One A operand per tile the read covers.
         A_VEC_TYPE a[K_TILES_PER_READ];
 #if !IS_KEY_BY_CHANNEL
-        // Nothing in it depends on the page, so it is built outside the g loop and the Q gather is not
-        // repeated per key group. (BY_CHANNEL cannot do this -- see the rebuild inside the loop.)
+        // Page-independent, so built outside the g loop (BY_CHANNEL rebuilds it per page inside the loop).
         unroll_for(uint u = 0; u < K_TILES_PER_READ; ++u) {
 #    if Q_IN_SLM
             const H_VEC_TYPE qv = slm_q[(r * K_TILES_PER_READ + u) * SUBGROUP_SIZE + lane];
@@ -704,11 +642,8 @@ KERNEL(sdpa_ocl_decode)(
         unroll_for(uint g = 0; g < KEY_GROUPS; ++g) {
             int8 kb[K_TILES_PER_READ];
 #if USE_2D_BLOCK_IO_K
-            // Surface = the page: [PAGED_ATTENTION_BLOCK_SIZE keys, K_ROW_ELEMS] row-major, so the
-            // pitch is the ROW (NOT the whole-cache stride) in BYTES. x is in dwords for a 32b read,
-            // and one read is 8 of them for every precision -- DPAS_K halves for f16,
-            // K_TILES_PER_READ * DPAS_K bytes for i8, the same 32 bytes as 64 nibbles for u4 -- which
-            // is why this call is dtype-independent and only the unpack below branches.
+            // Surface = the page: [PAGED_ATTENTION_BLOCK_SIZE keys, K_ROW_ELEMS] row-major, so the pitch is the ROW (NOT
+            // the whole-cache stride) in BYTES. x is in dwords, 8 per read for every precision; only the unpack branches.
             uint8 kt;
             intel_sub_group_2d_block_read_transpose_32b_16r8x1c((__global void*)(key_cache + k_page_off[g]),
                                                                K_ROW_BYTES,
@@ -717,21 +652,17 @@ KERNEL(sdpa_ocl_decode)(
                                                                (int2)(r * 8, 0),
                                                                (private uint*)&kt);
     #if IS_KV_U4
-            // 32 bytes in ADDRESS order == channels (r*64 .. r*64+63) ascending, since byte i holds
-            // channels 2i and 2i+1. Tile u therefore owns bytes (8u .. 8u+7) of the window, i.e.
-            // source dwords 2u and 2u+1 -- DPAS_K/8 of them.
+            // 32 bytes in ADDRESS order == channels (r*64 .. r*64+63) ascending (byte i holds channels 2i and 2i+1), so
+            // tile u owns source dwords 2u and 2u+1.
             K_WIDEN_U4_DWORDS(kb[u], kt[u * (DPAS_K / 8) + j], K_TILES_PER_READ);
     #elif IS_KV_COMPRESSED
-            // 32 signed bytes in ADDRESS order, so byte i is head dim (r*32 + i) and the operand is
-            // just those bytes widened to halves: two per dword, ascending depth, no shuffle.
+            // 32 signed bytes in ADDRESS order: byte i is head dim (r*32 + i), widened to halves in ascending depth.
             K_WIDEN_DWORDS(kb[u], kt[u * (DPAS_K / 4) + j], K_TILES_PER_READ);
     #else
             kb[0] = as_int8(kt);
     #endif
 #else
-            // Same operand, one per-lane load: lane owns key `lane` of the page and the DPAS_K head
-            // dims it needs are contiguous there. Always inside the page (lane < block size), so no
-            // bounds check is needed.
+            // Same operand, one per-lane load of key `lane`'s row; always inside the page (lane < block size).
     #if IS_KV_COMPRESSED && K_TILES_PER_READ > 1
             // K_LANE_TILES: the read's tiles in one dword vector per lane. The page, the row (K_ROW_ELEMS
             // bytes, a multiple of 8) and the read offset are all dword multiples.
@@ -765,16 +696,11 @@ KERNEL(sdpa_ocl_decode)(
     #endif
 #endif
 #if IS_KEY_BY_CHANNEL
-            // BY_CHANNEL folds this page's per-channel K scale into Q, so the A operand belongs to THIS
-            // page and cannot be hoisted out of the g loop the way the other modes' can. Placed after
-            // the K load so the load's latency is spent on the multiply. Q_PER_WG half multiplies per
-            // (tile, page) -- still far cheaper than dequantizing the B operand, which would cost a
-            // subtract and a multiply on all DPAS_K elements per lane and would break the dword widen.
+            // BY_CHANNEL folds this page's per-channel K scale into Q, so the A operand belongs to THIS page and is built
+            // inside the g loop.
 #    if K_COMP_PER_READ
-            // This read's K_TILES_PER_READ (scale, zp) pairs in one message: element u of a block read
-            // is lane L's dword at u * SUBGROUP_SIZE + L, i.e. channel t * SUBGROUP_SIZE + L -- the
-            // same pair the up-front path reads per tile. The zero-point correction accumulates here
-            // over t in the same ascending order as that path (r outer, u inner), from the same
+            // This read's K_TILES_PER_READ (scale, zp) pairs in one message: element u is the pair of channel
+            // t * SUBGROUP_SIZE + L. The zero-point correction accumulates in the up-front path's t order, from the same
             // f16-rounded product the A operand gets, so k_corr comes out bit-identical.
             uint kc[K_TILES_PER_READ];
             {
@@ -822,8 +748,8 @@ KERNEL(sdpa_ocl_decode)(
     }
 
 #if IS_KV_COMPRESSED && IS_KEY_BY_CHANNEL
-    // The scale already rode into the A operand, so all that is left is the zero point (with the widen
-    // bias folded into it): key-independent within a page, hence one subtract per (page, head).
+    // The scale already rode into the A operand; what is left is the zero point with the widen bias, key-independent
+    // within a page.
     unroll_for(uint g = 0; g < KEY_GROUPS; ++g) {
         unroll_for(uint m = 0; m < Q_PER_WG; ++m) {
 #    if K_COMP_PER_READ
@@ -834,14 +760,11 @@ KERNEL(sdpa_ocl_decode)(
         }
     }
 #elif IS_KV_COMPRESSED
-    // Undo the quantization on the SCORE instead of on every K element: the dequant is affine in the
-    // key, so sc[key] and zp[key] * sum_d Q[d] factor straight out of the dot product. Per (key
-    // group, head) that is one fma and one multiply, against the K_TILES * DPAS_K per-element
-    // subtract-and-scale it replaces. Both factors are per-lane (lane == key), so no broadcast.
+    // Undo the quantization on the SCORE: sc[key] and zp[key] * sum_d Q[d] factor out of the dot product, both per-lane
+    // (lane == key).
     unroll_for(uint g = 0; g < KEY_GROUPS; ++g) {
         const SOFTMAX_ACCUMULATOR_TYPE sc = TO_SOFTMAX_ACCUMULATOR_TYPE(k_sc[g]);
-        // K_WIDEN_BIAS rides along in zp: the B operand held (q_int + bias), so subtracting
-        // (zp + bias) * q_sum removes both in one fma. In float, so zp is not rounded.
+        // K_WIDEN_BIAS rides along in zp: the B operand held (q_int + bias). In float, so zp is not rounded.
         const SOFTMAX_ACCUMULATOR_TYPE zp = TO_SOFTMAX_ACCUMULATOR_TYPE(k_zp[g]) + K_WIDEN_BIAS;
         unroll_for(uint m = 0; m < Q_PER_WG; ++m) {
             QV(s[g], m) = sc * (QV(s[g], m) - zp * q_sum[m]);
@@ -849,12 +772,9 @@ KERNEL(sdpa_ocl_decode)(
     }
 #endif
 
-    // ---- Mask. SOFTMAX_ACCUMULATOR_VAL_MIN rather than -INFINITY, for the same reason
-    // pa_sdpa_opt uses it: a partition can be masked out entirely (sliding window well behind the
-    // partition), and MIN - MIN == 0 keeps exp() finite there while exp(MIN - finite) still
-    // underflows to 0 everywhere else. Stage 1 then zeroes such a partition through
-    // exp(max_logit - global_max).
-    // The mask depends only on the key, so it applies to all Q_PER_WG rows identically.
+    // ---- Mask. SOFTMAX_ACCUMULATOR_VAL_MIN rather than -INFINITY, as in pa_sdpa_opt: a partition can be masked out
+    // entirely, and MIN - MIN == 0 keeps exp() finite there while exp(MIN - finite) still underflows to 0 elsewhere.
+    // Stage 1 then zeroes such a partition through exp(max_logit - global_max). Same mask for all Q_PER_WG rows.
     unroll_for(uint g = 0; g < KEY_GROUPS; ++g) {
         const uint token_idx = sg_key0 + g * SUBGROUP_SIZE + lane;
         bool masked = !group_in_range[g] || token_idx >= seq_len;
@@ -866,10 +786,8 @@ KERNEL(sdpa_ocl_decode)(
         }
     }
 
-    // ---- Softmax over this subgroup's keys. Scores are one per lane with lane == key, so the
-    // reductions are plain subgroup reduces: no SLM staging and no barrier, unlike pa_sdpa_opt's
-    // slm_qk_vals[SEQ_LEN_PARTITION_SIZE].
-    // Every reduction is per-head: the M rows are independent softmaxes over the same key set.
+    // ---- Softmax over this subgroup's keys (lane == key, so plain subgroup reduces). Every reduction is per head: the M
+    // rows are independent softmaxes over the same key set.
     S_VEC_TYPE m_sg = (S_VEC_TYPE)(SOFTMAX_ACCUMULATOR_VAL_MIN);
     unroll_for(uint g = 0; g < KEY_GROUPS; ++g) {
         unroll_for(uint m = 0; m < Q_PER_WG; ++m) {
@@ -880,11 +798,8 @@ KERNEL(sdpa_ocl_decode)(
         QV(m_sg, m) = sub_group_reduce_max(QV(m_sg, m));
     }
 
-    // S*V reads keys this subgroup did not score, so the probabilities go through SLM -- Q_PER_WG *
-    // partition halves, far less than staging SG_PER_WG * Q_PER_WG * V_HEAD_SIZE float partials.
-    // Indexed by key with the heads as the vector element (head innermost), so each S*V access
-    // (lane L reads slm_p[chunk*16 + L]) is one wide message instead of Q_PER_WG narrow ones; the
-    // vector type also gives the alignment a cast on a half array would not.
+    // S*V reads keys this subgroup did not score, so the probabilities go through SLM, indexed by key with the heads as
+    // the vector element (lane L reads slm_p[chunk*16 + L]); the vector type also gives the alignment.
     __local SOFTMAX_ACCUMULATOR_TYPE slm_max[SG_PER_WG * Q_PER_WG];
     __local SOFTMAX_ACCUMULATOR_TYPE slm_sum[SG_PER_WG * Q_PER_WG];
     __local H_VEC_TYPE slm_p[SEQ_LEN_PARTITION_SIZE];
@@ -892,9 +807,7 @@ KERNEL(sdpa_ocl_decode)(
     __local INPUT0_TYPE slm_vzp[SEQ_LEN_PARTITION_SIZE];
 #endif
 
-    // Exchange the max FIRST, so every subgroup can normalise against the same one. The alternative
-    // -- normalise locally and rescale each chunk in S*V -- would need a per-chunk multiply on the
-    // DPAS A operand, and the scores are still in registers here, so exp() costs the same either way.
+    // Exchange the max FIRST, so every subgroup normalises against the same one and S*V needs no rescale.
     if (lane == 0) {
         unroll_for(uint m = 0; m < Q_PER_WG; ++m) {
             slm_max[sgid * Q_PER_WG + m] = QV(m_sg, m);
@@ -910,26 +823,23 @@ KERNEL(sdpa_ocl_decode)(
         }
         QV(m_wg, m) = sub_group_reduce_max(my_max);
 #ifdef HAS_SINK_INPUT
-        // Attention sink: an extra per-head logit with a ZERO value vector, so it only widens the
-        // max and the denominator. Partition 0 only: the finalization merges partitions by
-        // rescaling each exp_sum, so a sink counted in every partition would be counted P times
-        // (same placement as pa_sdpa_opt). Injected before slm_p is filled, so the probabilities,
-        // l_sg and max_logits all see the sink-inclusive max; m_wg is reduced identically by every
-        // subgroup, so no barrier is needed.
+        // Attention sink: an extra per-head logit with a ZERO value vector, so it only widens the max and the denominator.
+        // Partition 0 only (the finalization would count it once per partition), as pa_sdpa_opt. Injected before slm_p
+        // is filled, so the probabilities, l_sg and max_logits all see the sink-inclusive max; m_wg is reduced
+        // identically by every subgroup, so no barrier is needed.
         if (partition_idx == 0) {
             QV(m_wg, m) = SOFTMAX_ACCUMULATOR_MAX_FUNC(QV(m_wg, m), TO_SOFTMAX_ACCUMULATOR_TYPE(sink_ptr[SINK_HEAD(m)]));
         }
 #endif
     }
 
-    // Probabilities against the partition max, so S*V needs no rescale at all. A fully masked key
-    // gives exp(MIN - m_wg) = 0 unless the WHOLE partition is masked, in which case exp(MIN - MIN)
-    // = 1 everywhere and stage 1 discards the partition through max_logits.
+    // Probabilities against the partition max. A masked key gives exp(MIN - m_wg) = 0 unless the WHOLE partition is
+    // masked, in which case exp(MIN - MIN) = 1 everywhere and stage 1 discards the partition through max_logits.
     S_VEC_TYPE l_sg = (S_VEC_TYPE)(SOFTMAX_ACCUMULATOR_VAL_ZERO);
     unroll_for(uint g = 0; g < KEY_GROUPS; ++g) {
         const S_VEC_TYPE e = native_exp(s[g] - m_wg);
         l_sg += e;
-        // f16 probabilities, same as the sdpa_ocl/sdpa_micro S*V operand
+        // f16 probabilities, as the sdpa_ocl S*V operand
         H_VEC_TYPE pv;
         unroll_for(uint m = 0; m < Q_PER_WG; ++m) {
             QV(pv, m) = TO_INPUT0_TYPE(QV(e, m));
@@ -951,9 +861,8 @@ KERNEL(sdpa_ocl_decode)(
         }
     }
 
-    // Which head-dim tiles and which chunks this subgroup will take in S*V. Hoisted above the
-    // barrier so the wait can be spent prefetching the first V tiles instead of idling (split
-    // arrive/prefetch/wait).
+    // Which head-dim tiles and which chunks this subgroup takes in S*V; above the barrier so the split barrier's wait can
+    // prefetch the first V tiles.
     const uint dim_slot = sgid % SV_DIM_SGS;
     const uint key_slot = sgid / SV_DIM_SGS;
 
@@ -977,10 +886,8 @@ KERNEL(sdpa_ocl_decode)(
         }
         SOFTMAX_ACCUMULATOR_TYPE lw = sub_group_reduce_add(my_sum);
 #ifdef HAS_SINK_INPUT
-        // The sink's own term, against the same partition max its logit already widened above. Only
-        // partition 0, for the reason spelled out at the max injection. It rides into inv_l (so
-        // tmp_out is normalised by the sink-inclusive sum) and into exp_sums, which is exactly the
-        // pair SDPA_STAGE_1 needs to reconstruct the global denominator.
+        // The sink's own term against the partition max it widened, partition 0 only (see the max injection). It rides
+        // into inv_l and exp_sums, the pair SDPA_STAGE_1 needs to reconstruct the global denominator.
         if (partition_idx == 0) {
             lw += native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(sink_ptr[SINK_HEAD(m)]) - QV(m_wg, m));
         }
@@ -989,18 +896,16 @@ KERNEL(sdpa_ocl_decode)(
         QV(inv_l, m) = SOFTMAX_ACCUMULATOR_VAL_ONE / lw;
     }
 
-    // ---- S*V, split by head dim: this subgroup owns head-dim tiles {dim_slot, dim_slot +
-    // SV_DIM_SGS, ...} and reduces them over CHUNKS_PER_KEY_SG chunks. With SV_KEY_SGS == 1
-    // (V_TILES >= SG_PER_WG, e.g. head 128 with 8 subgroups) that is every chunk, so each tile is
-    // FINAL when the loop ends and is written straight out -- no output staging, no reduction, no
-    // second barrier.
+    // ---- S*V, split by head dim: this subgroup owns head-dim tiles {dim_slot, dim_slot + SV_DIM_SGS, ...} and reduces
+    // them over CHUNKS_PER_KEY_SG chunks. With SV_KEY_SGS == 1 that is every chunk, so each tile is FINAL when the loop
+    // ends and is written straight out (no reduction, no second barrier).
 #ifdef SV_NEEDS_OUTPUT_REDUCTION
     __local SOFTMAX_ACCUMULATOR_TYPE slm_out[SV_KEY_SGS * Q_PER_WG * V_HEAD_SIZE];
 #endif
 
 #if V_TWIN_PAIR
-    // The same loop as below for the u4 + block-read case, walking the low tiles only and carrying each
-    // one's twin (cd + V_READS) along on a second accumulator.
+    // The loop below for u4 + block reads, walking the low tiles only with each one's twin (cd + V_READS) on a second
+    // accumulator.
     for (uint cd = dim_slot; cd < V_READS; cd += SV_DIM_SGS) {
         S_VEC_TYPE acc_lo = (S_VEC_TYPE)(SOFTMAX_ACCUMULATOR_VAL_ZERO);
         S_VEC_TYPE acc_hi = (S_VEC_TYPE)(SOFTMAX_ACCUMULATOR_VAL_ZERO);
@@ -1019,8 +924,7 @@ KERNEL(sdpa_ocl_decode)(
 #    if V_COMP_IN_SLM
             const MAKE_VECTOR_TYPE(INPUT0_TYPE, DPAS_K) vzp = vload16(0, slm_vzp + chunk * SUBGROUP_SIZE);
 #    else
-            // Scale folded into the probabilities and the zp broadcast, with the same validity guard as
-            // the plain loop (see there).
+            // Scale folded into the probabilities and the zp broadcast, with the plain loop's validity guard (see there).
             const uint v_key = swa_start_token + partition_idx * SEQ_LEN_PARTITION_SIZE + chunk * SUBGROUP_SIZE + lane;
             const __global INPUT0_TYPE* v_comp = (const __global INPUT0_TYPE*)(value_cache + v_page_off + V_COMP_OFF);
             const bool v_valid = v_key < seq_len;
@@ -1064,10 +968,9 @@ KERNEL(sdpa_ocl_decode)(
         }
     }
 #elif V_PAGE_1D
-    // Key split over whole pages: every subgroup owns every head-dim tile of its CHUNKS_PER_KEY_SG chunks,
-    // so each page's data rows are read once (V_PAGE_COLS 1D reads), scaled and broadcast once, and feed
-    // all V_TILES accumulators -- for u4 both nibbles of every byte. The partials of the SV_KEY_SGS
-    // (== SG_PER_WG) key slots are summed below as for any key split.
+    // Key split over whole pages: every subgroup owns every head-dim tile of its CHUNKS_PER_KEY_SG chunks, and each
+    // page's V_PAGE_COLS 1D reads feed all V_TILES accumulators. The SV_KEY_SGS (== SG_PER_WG) key slots' partials are
+    // summed below.
     S_VEC_TYPE acc_v[V_TILES];
     unroll_for(uint cd = 0; cd < V_TILES; ++cd) {
         acc_v[cd] = (S_VEC_TYPE)(SOFTMAX_ACCUMULATOR_VAL_ZERO);
@@ -1080,8 +983,7 @@ KERNEL(sdpa_ocl_decode)(
 #    if V_COMP_IN_SLM
         const MAKE_VECTOR_TYPE(INPUT0_TYPE, DPAS_K) vzp = vload16(0, slm_vzp + chunk * SUBGROUP_SIZE);
 #    else
-        // Scale folded into the probabilities and the zp broadcast, with the validity guard of the plain
-        // loop (see there).
+        // Scale folded into the probabilities and the zp broadcast, with the plain loop's validity guard (see there).
         const uint v_key = swa_start_token + partition_idx * SEQ_LEN_PARTITION_SIZE + chunk * SUBGROUP_SIZE + lane;
         const __global INPUT0_TYPE* v_comp = (const __global INPUT0_TYPE*)(value_cache + v_page_off + V_COMP_OFF);
         const bool v_valid = v_key < seq_len;
@@ -1145,9 +1047,8 @@ KERNEL(sdpa_ocl_decode)(
                 PREFETCH_V_TILE((pf_page * KV_HEADS_NUM + kv_head_idx) * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE, cd);
             }
 #endif
-            // One chunk is one page, already clamped to page 0 when out of range. Such a chunk's
-            // probabilities are zero (or the whole partition is masked and stage 1 drops it), so the
-            // values it contributes never reach the output.
+            // One chunk is one page, clamped to page 0 when out of range; such a chunk's probabilities are zero (or stage 1
+            // drops the whole partition), so nothing it reads reaches the output.
             const size_t page = (size_t)sub_group_broadcast(my_page, chunk);
             const size_t v_page_off = (page * KV_HEADS_NUM + kv_head_idx) * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
 
@@ -1157,15 +1058,10 @@ KERNEL(sdpa_ocl_decode)(
             // Already scaled when slm_p was written; the zp comes from the same staging.
             const MAKE_VECTOR_TYPE(INPUT0_TYPE, DPAS_K) vzp = vload16(0, slm_vzp + chunk * SUBGROUP_SIZE);
 #elif IS_KV_COMPRESSED
-            // Per-key scale and zp of this chunk's page; lane == the key's token, so one coalesced
-            // f16 load each. The scale is folded into the PROBABILITIES rather than into V: pv is
-            // already lane == key, so that is a per-lane multiply with no broadcast, whereas scaling
-            // V would need the value broadcast across the head-dim lanes. It does NOT touch the
-            // softmax denominator -- inv_l divides by sum(P), and the V scale belongs to the value.
-            // A key at/past seq_len was never written, so its comp bytes are arbitrary and could be
-            // NaN: force scale AND zp to 0 there. Then the widened byte stays finite and the
-            // probability (already 0 for a masked key) zeroes the contribution. Unlike the K side
-            // there is no later overwrite to hide a NaN behind.
+            // Per-key scale and zp of this chunk's page (lane == the key's token). The scale is folded into the
+            // PROBABILITIES (lane == key), not into the softmax denominator: inv_l divides by sum(P). A key at/past
+            // seq_len was never written, so its comp bytes could be NaN: force scale AND zp to 0 there (0 * NaN is NaN,
+            // and unlike the K side no later overwrite hides it).
             const uint v_key = swa_start_token + partition_idx * SEQ_LEN_PARTITION_SIZE + chunk * SUBGROUP_SIZE + lane;
             const __global INPUT0_TYPE* v_comp =
                 (const __global INPUT0_TYPE*)(value_cache + v_page_off + V_COMP_OFF);
@@ -1176,9 +1072,7 @@ KERNEL(sdpa_ocl_decode)(
             unroll_for(uint m = 0; m < Q_PER_WG; ++m) {
                 QV(pv, m) *= v_sc;
             }
-            // zp varies along the DPAS depth (the key), not across the lanes, so it is the one factor
-            // that still needs broadcasting. Every lane index here is a full-unroll constant, so each
-            // broadcast folds into the subtract's source region instead of emitting a shuffle.
+            // zp varies along the DPAS depth (the key), so it is broadcast; the lane indices are full-unroll constants.
             MAKE_VECTOR_TYPE(INPUT0_TYPE, DPAS_K) vzp;
             unroll_for(uint kk = 0; kk < DPAS_K; ++kk) {
                 vzp[kk] = sub_group_broadcast(v_zp, kk);
@@ -1188,12 +1082,9 @@ KERNEL(sdpa_ocl_decode)(
             int8 vb;
 #if USE_2D_BLOCK_IO_V
     #if IS_KV_COMPRESSED
-            // 8-bit VNNI transform: lane == head dim, each uint packing 4 consecutive keys as bytes.
-            // On Xe2 the builtin exists only in 32-row form (there is no _8b_16r variant), while a
-            // page holds PAGED_ATTENTION_BLOCK_SIZE tokens -- so the height stops it at the page and
-            // rows past it read as 0, leaving uints 0..3 as the 16 real keys. as_char16 of those puts
-            // the keys in ascending order, which IS the VNNI order the operand wants: after the widen
-            // and the zp subtract, dword i already holds keys (2i, 2i+1).
+            // 8-bit VNNI transform: lane == head dim, each uint packing 4 consecutive keys as bytes. The builtin exists
+            // only in 32-row form; the height stops it at the page and rows past it read as 0, leaving uints 0..3 as the
+            // 16 real keys, already in VNNI order (dword i holds keys (2i, 2i+1) after the widen and zp subtract).
             uint8 vt;
             intel_sub_group_2d_block_read_transform_8b_32r16x1c((__global void*)(value_cache + v_page_off),
                                                                V_ROW_BYTES,
@@ -1202,10 +1093,8 @@ KERNEL(sdpa_ocl_decode)(
                                                                (int2)(V_TILE_COL(cd), 0),
                                                                (private uint*)&vt);
         #if IS_KV_U4
-            // Same transform with lane == BYTE column: byte V_TILE_COL(cd) + lane holds head dim
-            // V_TILE_COL(cd) + lane in its low nibble and that dim + V_ROW_ELEMS in its high one,
-            // so tiles cd < V_READS take the low nibble and the rest the high one -- lane == head
-            // dim survives. Tiles cd and cd + V_READS read the same line (an L1 hit).
+            // Same transform with lane == BYTE column: byte V_TILE_COL(cd) + lane holds head dim V_TILE_COL(cd) + lane in
+            // its low nibble and that dim + V_ROW_ELEMS in its high one, so tiles cd < V_READS take the low nibble.
             const uchar16 vpk = as_uchar16(vt.lo);
             const uchar16 vnb = (cd < V_READS) ? (vpk & (uchar16)0x0F) : (vpk >> (uchar16)4);
             vb = as_int8(convert_half16(vnb) - vzp);
@@ -1221,12 +1110,10 @@ KERNEL(sdpa_ocl_decode)(
                                                                 (private uint*)&vb);
     #endif
 #else
-            // Hand-built VNNI operand: dword `key_pair` packs keys (2*key_pair, 2*key_pair+1) of
-            // this lane's head dim. The row pitch is V_ROW_ELEMS for every precision -- the page's
-            // trailing scale/zp arrays sit after the data, not inside each row.
+            // Hand-built VNNI operand: dword `key_pair` packs keys (2*key_pair, 2*key_pair+1) of this lane's head dim. The
+            // row pitch is V_ROW_ELEMS for every precision (the scale/zp arrays sit after the data).
     #if IS_KV_U4
-            // One packed byte per lane holds this tile's dim and its twin V_ROW_ELEMS above; the same
-            // V_TILE_COL fold as the block read picks the byte, and cd picks the nibble.
+            // One packed byte per lane holds this tile's dim and its twin V_ROW_ELEMS above; cd picks the nibble.
             const uint v_byte = V_TILE_COL(cd) + lane;
     #endif
             unroll_for(uint key_pair = 0; key_pair < DPAS_K / 2; ++key_pair) {
@@ -1272,14 +1159,11 @@ KERNEL(sdpa_ocl_decode)(
 #endif  // V_TWIN_PAIR
 
 #ifdef SV_NEEDS_OUTPUT_REDUCTION
-    // Only reached when there were fewer head-dim tiles than subgroups, so SV_KEY_SGS subgroups
-    // split the keys behind each tile and their partials still have to be summed. No rescale: every
-    // probability was already normalised against m_wg.
+    // SV_KEY_SGS subgroups split the keys behind each tile: sum their partials. No rescale (every probability used m_wg).
     barrier(CLK_LOCAL_MEM_FENCE);
 #    if V_PAGE_1D
-    // The key split leaves SG_PER_WG partials per output, and V_TILES is often below SG_PER_WG (head 64:
-    // 4 tiles, 16 subgroups), so one (tile, head row) per subgroup step keeps every subgroup summing. Same
-    // ks order and the same multiply as the per-tile loop below.
+    // One (tile, head row) per subgroup step, so all subgroups sum when V_TILES < SG_PER_WG; same ks order and multiply
+    // as the per-tile loop below.
     for (uint w = sgid; w < V_TILES * Q_PER_WG; w += SG_PER_WG) {
         const uint cd = w / Q_PER_WG;
         const uint m = w % Q_PER_WG;

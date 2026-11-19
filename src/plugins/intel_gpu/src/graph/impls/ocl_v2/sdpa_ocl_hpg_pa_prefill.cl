@@ -2,54 +2,40 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// xe_hpg (DG2) PA PREFILL kernel, f16 head 64 / 96 / 128 / 256 / 512 (k == v), with or without a sliding window, a sink and
-// token_type_ids, which also serves PA MIXED on an f16 cache (without token_type_ids) and plain SDPA without causality
-// (heads 32-256 in steps of 8 and 512), with or without an attention mask (HPG_PA_PREFILL, set by the host: SDPAOclGenerator's hpg_pa_prefill_ok() /
-// hpg_plain_prefill_ok()). Included by sdpa_ocl.cl in place of its own kernel, after the config and loader headers. The loop is sdpa_ocl.cl's (online softmax over workgroup key tiles,
-// causal and window bounds, S_max_slm / S_sum_slm exchange); what differs is built around the SG8 operand forms that keep
-// DG2's DPAS fed:
+// xe_hpg (SG8) PA PREFILL kernel, f16 head 64 / 96 / 128 / 256 / 512 (k == v), with or without a sliding window, a sink
+// and token_type_ids, which also serves PA MIXED on an f16 cache (without token_type_ids) and plain SDPA without
+// causality (heads 32-256 in steps of 8 and 512), with or without an attention mask (HPG_PA_PREFILL, set by the host:
+// SDPAOclGenerator's hpg_pa_prefill_ok() / hpg_plain_prefill_ok()). Included by sdpa_ocl.cl in place of its own kernel,
+// after the config and loader headers. The loop is sdpa_ocl.cl's (online softmax over workgroup key tiles, causal and
+// window bounds, S_max_slm / S_sum_slm exchange); what differs is built around the SG8 operand forms:
 //  - KQ is DPAS(Q, K): A = Q from Q_slm (staged so one ulong4 SLM block read is the operand), B = K straight from the
-//    input (lane = key, 16 depth halves per lane: one 32 B read per key row, no repacking). The scores come out
-//    lane = key; a per-subgroup 8 x 8 SLM transpose turns them to lane = query for the mask and softmax.
+//    input (lane = key, 16 depth halves per lane: one 32 B read per key row). The scores come out lane = key; a
+//    per-subgroup 8 x 8 SLM transpose turns them to lane = query for the mask and softmax.
 //  - SV is DPAS(V, P): A = V (lane = key pair, component = value), B = P (lane = query), so the output tile is
 //    lane = query and the rescale by alpha needs no broadcast.
 //  - V of the first HPG_PA_V_LEAD key blocks is loaded before the wait of the P barrier and kept HPG_PA_V_LEAD blocks
-//    ahead in the S*V loop: IGC 2.41 sinks loads that are not pinned that way toward their use, which left the V
-//    latency exposed (5% slower S*V on DG2).
+//    ahead in the S*V loop, which pins the loads (IGC otherwise sinks them toward their use).
 //  - A subgroup tile entirely below the diagonal and inside the window (every key <= its first query and in the window
 //    of its last query, all keys < k) skips the mask.
 // The sink and the image groups of token_type_ids follow sdpa_ocl.cl: the sink seeds the online-softmax state (max = the
-// sink logit, sum = 1 in one subgroup), and an image group is bidirectional (the causal bound reaches the end of the group
-// of the workgroup's last query, the window start the start of the group it cuts, and a key in a query's own group is
-// never masked).
-// Plain SDPA takes its rows from the 4D layout (batch = get_group_id(2), a workgroup per 32 queries, q and k from the
-// arguments) and has no causal bound: every workgroup visits all k keys, and only those past k are masked. A mask is added
-// in the raw score domain, as in sdpa_ocl.cl, 8 keys of the lane's query row at a time (no tile skips it).
+// sink logit, sum = 1 in one subgroup), and an image group is bidirectional.
+// Plain SDPA takes its rows from the 4D layout (batch = get_group_id(2), a workgroup per 32 queries) and has no causal
+// bound: only the keys past k are masked. A mask is added in the raw score domain, as in sdpa_ocl.cl (no tile skips it).
 // Out-of-range rows are clamped to the last valid key or query, so no read leaves the subsequence, and their scores are
-// masked to -INFINITY (P = 0 times a finite V). The design and its measurements: "xe_hpg PA PREFILL kernel" in
-// docs/sdpa_ocl.md.
-// PA MIXED (IS_PA_MIXED) reads every key, past and new, from the f16 cache pages (the cache update ran first; an f16 page
-// holds the new tokens bit for bit, so Kc / Vc are unused), with the queries at key positions past_len + query (wg_p0) for
-// the causal and window bounds and masks. Its K page is token-major ([token, head], the only page sdpa_ocl's MIXED reads),
-// so a key's row is a page row and the K read is PREFILL's with the row address taken from the key's page; V likewise.
-// The rows are clamped to the last valid key as in PREFILL, so no read reaches a page slot at/past k.
-// PA MIXED on a compressed cache (HPG_COMP: i8 BY_TOKEN, i8 / u4 BY_CHANNEL, token-major) reads the past keys from the pages
-// and the new ones from the f16 Kc / Vc inputs, as sdpa_ocl.cl does (PA_CUR_KV_F16): the key loop splits its tile at
-// past_len (k_chunk), so a tile reads one source, and keys at/past the tile's end (lim) are masked as keys past k. KQ keeps
-// B = K, lane = key: a past key's page row is dequantized per lane, (q - zp) * scale in half as sdpa_ocl.cl (PA_DEQ), with
-// the key's own scale and zp (BY_TOKEN) or the page's per-depth pairs (BY_CHANNEL, the same for every lane); a u4 byte holds
-// depths 2j, 2j + 1, so the operand is in depth order and Q_slm is the f16 one. A new key's Kc row is read as PREFILL reads
-// K. S*V keeps A = V: a lane reads its key pair's two page rows (bytes; u4 the nibble of the split row that holds its
-// columns) and their zps and dequantizes them (q - zp); the V scale of each key is folded into P where P is stored (P *
-// scale, rounded once; lsum takes P). New keys read Vc rows as PREFILL reads V. Rows are clamped to lim - 1, so every read
-// is of a written slot.
+// masked to -INFINITY (P = 0 times a finite V).
+// PA MIXED (IS_PA_MIXED) reads every key from the token-major f16 pages (an f16 page holds the new tokens bit for bit),
+// with the queries at key positions past_len + query (wg_p0). On a compressed cache (HPG_COMP: i8 BY_TOKEN, i8 / u4
+// BY_CHANNEL) the past keys come from the pages and the new ones from the f16 Kc / Vc (PA_CUR_KV_F16): the key loop
+// splits its tile at past_len (k_chunk), so a tile reads one source. Page rows are dequantized per lane, (q - zp) * scale
+// in half (PA_DEQ); the V scale of each key is folded into P where P is stored (lsum takes the unscaled P). Rows are
+// clamped to the tile's last key, so every read is of a written slot. Design: "xe_hpg PA PREFILL kernel" in the docs.
 
 // The S*V subgroup of sg_ij owns the 16 queries of its KQ subgroup, 32 for a compressed MIXED at heads 64 / 96 / 128 /
 // 256 (sv_sg_per_wg_values == kq_sg_per_wg_keys, the score tile is the KQ query tile), and each holds 16 or 32 value
-// columns of the head, 8 in that MIXED at head 64 (hpg_pa_prefill_tiling()). The head need not
-// be a power of two (96, 80, 160) nor a multiple of 16: plain SDPA at heads such as 72 and 40 (HPG_TAIL = 8) has a last depth tile
-// of 8 depths (K and Q read 16 B there and the rest is zero) and a last value subgroup of 8 columns, which reads the 16
-// columns that end the head and stores its upper 8 (sv_col below), so no load leaves the head.
+// columns of the head, 8 in that MIXED at head 64 (hpg_pa_prefill_tiling()). The head need not be a power of two nor a
+// multiple of 16: plain SDPA at heads such as 72 and 40 (HPG_TAIL = 8) has a last depth tile of 8 depths (K and Q read
+// 16 B there and the rest is zero) and a last value subgroup of 8 columns, which reads the 16 columns that end the head
+// and stores its upper 8 (sv_col below), so no load leaves the head.
 #define HPG_TAIL (K_HEAD_SIZE % DPAS_K)
 #if !(SG8 && (IS_PREFILL || IS_PA_MIXED) && K_HEAD_SIZE == V_HEAD_SIZE && (HPG_TAIL == 0 || HPG_TAIL == DPAS_K / 2) && \
       (kq_sg_tile_queries == 16 || kq_sg_tile_queries == 32) && sv_sg_tile_scores == kq_sg_tile_queries && \
@@ -135,7 +121,7 @@ SDPA_OCL_INLINE void FUNC(hpg_kq)(__private float8 (*scores)[kq_query_blocks], H
     }
 #endif
 #ifdef HPG_PA_KQ_UNROLL
-    // Unrolled whole at head 256, IGC 2.41 would load K of every depth tile ahead (the host's HPG_PA_KQ_UNROLL).
+    // Unrolled whole at head 256, IGC would load K of every depth tile ahead (the host's HPG_PA_KQ_UNROLL).
     __attribute__((opencl_unroll_hint(HPG_PA_KQ_UNROLL)))
 #else
     #pragma unroll
@@ -277,9 +263,7 @@ SDPA_OCL_INLINE void FUNC(hpg_kq_comp)(__private float8 (*scores)[kq_query_block
                     const __global KEY_DATA_T *k_row = k_page[pg] + (size_t)page_row[mb] * PA_K_ROW_ELEMS;
     #if IS_PA_K_U4
                     // Depths db * 16 + 2j and + 1: the low and the high nibble of byte db * 8 + j (unsigned), four
-                    // per 16-bit word of the read (U4_TO_HALF, exact). With the same form in hpg_sv_comp a MIXED call
-                    // took 1-7% less than with byte-wise conversions; this half alone took more (llama-3.1-8b 809
-                    // against 787 us).
+                    // per 16-bit word of the read (U4_TO_HALF, exact).
                     const ushort4 kw = as_ushort4(vload2(0, (const __global uint *)(k_row + db * DPAS_K / 2)));
                     half16 kq;
                     #pragma unroll
@@ -567,8 +551,7 @@ SDPA_OCL_INLINE void FUNC(hpg_sv_comp)(__private float8 (*acc)[sv_value_blocks],
             const uint2 wo = (uint2)(odd[2 * vb], odd[2 * vb + 1]);
     #if IS_PA_K_U4
             // u4: each nibble goes straight to its slot of the interleaved operand, two values per 16-bit word of each
-            // row (U4_TO_HALF, exact; with hpg_kq_comp's form, 1-7% less per MIXED call than converting the bytes and
-            // interleaving them after).
+            // row (U4_TO_HALF, exact).
             const ushort4 ue = as_ushort4(we);
             const ushort4 uo = as_ushort4(wo);
             half16 va;
@@ -781,9 +764,8 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         #endif
     #endif
 #endif
-    // A dynamic padding is taken on trust by the host (dword_token_matrix_ok()); Q's is checked here, where a row 2 B off
-    // costs two ushort loads per dword once per workgroup (an unaligned dword load returns wrong data without an error), and
-    // so is the mask's (an odd key count per row takes two-byte loads).
+    // A dynamic padding is taken on trust by the host (dword_token_matrix_ok()); Q's and the mask's are checked here, with
+    // two-byte-load fallbacks (an unaligned dword load returns wrong data without an error).
 #if defined(NEG_SG8) && NEG_SG8 == 4
     // Not a negative control: forces the fallbacks so the suites cover them (they must still PASS).
     const bool q_dword_ok = false;
@@ -925,8 +907,8 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 #if BIDIR_MASK
     // Each query keeps its causal (and window) keys and its image group: one interval [keep_begin, keep_begin + keep_len),
-    // as both hold the query, so the mask stays one unsigned compare (a separate group test spilled 0.6-1.9 KB with a
-    // window on DG2, IGC 2.41). The group is scanned within the keys the loop visits, as sdpa_ocl.cl does.
+    // as both hold the query, so the mask stays one unsigned compare (a separate group test spills). The group is scanned
+    // within the keys the loop visits, as sdpa_ocl.cl does.
     int keep_begin[kq_query_blocks];
     uint keep_len[kq_query_blocks];
     #pragma unroll
@@ -1074,8 +1056,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     #if BIDIR_MASK
                         if (!causal_block_clear && (uint)(key_base + key_rel - keep_begin[qb]) >= keep_len[qb])
     #elif SLIDING_WINDOW_SIZE
-                        // 0 <= query - key < window as one unsigned compare: the two signed ones (key > query, key <=
-                        // query - window) spilled 2.5 KB on DG2 (IGC 2.41).
+                        // 0 <= query - key < window as one unsigned compare (the two signed ones spill).
                         if (!causal_block_clear && (uint)(query - key_base - key_rel) >= (uint)HPG_PA_WINDOW)
     #else
                         if (!causal_block_clear && key_base + key_rel > query)
@@ -1104,8 +1085,8 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             float lsum = 0.0f;
             #pragma unroll
             for (int mb = 0; mb < kq_key_blocks; ++mb) {
-                // SDPA_SOFTMAX_EXP (sdpa_ocl_config.cl): with a mask, exp2 saturated to [0, 1], or a '-inf' mask over the
-                // first 128 or more keys of a row and logits near 100 give NaN; native_exp2 without one (PA unchanged).
+                // SDPA_SOFTMAX_EXP (sdpa_ocl_config.cl): with a mask, exp2 saturated to [0, 1] (else a '-inf' mask over
+                // the first 128 or more keys of a row and logits near 100 give NaN); native_exp2 without one.
                 const float8 p = ok ? SDPA_SOFTMAX_EXP(S_tile[mb][qb] * scale - m_log2) : (float8)0.0f;
                 lsum += p[0] + p[1] + p[2] + p[3] + p[4] + p[5] + p[6] + p[7];
 #if HPG_COMP

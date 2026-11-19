@@ -21,11 +21,10 @@
 
 // ScaledDotProductAttention whose Q, K and V batches broadcast numpy-style (each is 1 or the output batch), executed
 // end to end: shape inference, the transformations and the kernel, with dynamic batch and sequence lengths in one
-// compiled model. Whisper beam search is the real case: in the cross-attention, Q batch = the number of beams and K/V
-// batch = 1. sdpa_ocl read every input with the output batch index (past the end of a batch-1 input: NaN, wrong rows or
-// a GPU page fault). The equal-batch step is the control. The oracle is an fp32 reference over the same f16 inputs: the
-// TEMPLATE plugin computes in f16 (0.02 off over 1500 keys) and throws "Tile with non-positive repeats" on some of
-// these shapes.
+// compiled model (e.g. beam-search cross-attention: Q batch = the number of beams, K/V batch = 1). Guards reading every
+// input with the output batch index (past the end of a batch-1 input: NaN, wrong rows or a GPU page fault). The
+// equal-batch step is the control. The oracle is an fp32 reference over the same f16 inputs: the TEMPLATE plugin
+// computes in f16 and throws "Tile with non-positive repeats" on some of these shapes.
 namespace {
 
 enum class Variant { PLAIN, MASK, CAUSAL };
@@ -135,8 +134,7 @@ TEST_P(SDPABatchBroadcastTest, MatchesReference) {
     auto gpu = gpu_model.create_infer_request();
 
     std::mt19937 gen(static_cast<uint32_t>(p.head_size * 10 + static_cast<size_t>(p.variant)));
-    // Whisper beam-search decode and a chunk (K/V batch 1, encoder length 1500), Q-only, K-only and V-only broadcast,
-    // then equal batches.
+    // Beam-search decode and a chunk (K/V batch 1, 1500 keys), Q-only, K-only and V-only broadcast, then equal batches.
     const std::vector<Step> steps = {{3, 1, 1, 1, 1500}, {3, 1, 1, 64, 1500}, {1, 2, 2, 1, 256}, {2, 1, 2, 16, 256}, {2, 2, 1, 16, 256}, {2, 2, 2, 16, 256}};
     for (const auto& s : steps) {
         SCOPED_TRACE("batch Q/K/V " + std::to_string(s.q_batch) + "/" + std::to_string(s.k_batch) + "/" + std::to_string(s.v_batch) + ", L " +
