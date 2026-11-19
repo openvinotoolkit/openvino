@@ -119,8 +119,19 @@ bool is_valid_longrope_frequency_input(const ov::Output<ov::Node>& input) {
 }
 
 bool is_valid_longrope_frequency_concat(const std::shared_ptr<ov::Node>& input) {
-    return ov::is_type<ov::op::v0::Concat>(input) && input->get_input_size() == 2 &&
-           input->input_value(0) == input->input_value(1);
+    auto concat = ov::as_type_ptr<ov::op::v0::Concat>(input);
+    if (!concat || concat->get_input_size() != 2 || concat->input_value(0) != concat->input_value(1)) {
+        return false;
+    }
+    const auto rank = concat->get_output_partial_shape(0).rank();
+    if (rank.is_dynamic()) {
+        return false;
+    }
+    auto axis = concat->get_axis();
+    if (axis < 0) {
+        axis += rank.get_length();
+    }
+    return axis == rank.get_length() - 1;
 }
 
 void replaceSinCosByCache(int max_prompt_len, const ov::OutputVector& cache, const pre_compute::RopePatternDesc* rpe) {
