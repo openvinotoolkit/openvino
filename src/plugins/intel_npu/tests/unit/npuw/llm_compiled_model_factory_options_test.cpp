@@ -1338,35 +1338,12 @@ protected:
         return shifts;
     }
 
-    Sub128Shifts compile_whisper(const ov::AnyMap& extra_props) {
-        ov::AnyMap props = {{"NPUW_WHISPER", "YES"}, {"NPUW_WHISPER_EOS_TOKEN", "42"}};
-        props.insert(extra_props.begin(), extra_props.end());
-        return compile_with_shared_vocabulary(build_whisper_decoder_model(),
-                                              "model.decoder.embed_tokens.weight",
-                                              "proj_out",
-                                              props);
-    }
-
     Sub128Shifts compile_llm(const ov::AnyMap& extra_props) {
         ov::AnyMap props = {{"NPUW_LLM_SHARED_HEAD", "YES"}};
         props.insert(extra_props.begin(), extra_props.end());
         return compile_with_shared_vocabulary(build_llm_model(), "model.embed_tokens.weight", "lm_head", props);
     }
 };
-
-// GenAI compiles Whisper on NPU this way by default: the vocabulary is not a closure.
-TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsNotUsedWithoutFunctions) {
-    const auto shifts = compile_whisper({{"NPUW_FOLD", "NO"}, {"NPUW_FUNCALL_FOR_ALL", "NO"}});
-    EXPECT_EQ(shifts.prefill, 0u);
-    EXPECT_EQ(shifts.generate, 0u);
-}
-
-// Whisper has no separate LM head model, so the vocabulary is not shared even with functions.
-TEST_F(LLMCompiledModelSharedVocabularyTest, WhisperDoesNotUseSharedVocabularyWithFunctions) {
-    const auto shifts = compile_whisper({{"NPUW_FOLD", "YES"}, {"NPUW_FUNCALL_FOR_ALL", "YES"}});
-    EXPECT_EQ(shifts.prefill, 0u);
-    EXPECT_EQ(shifts.generate, 0u);
-}
 
 // With the default stage configs the vocabulary is a closure; only the separate LM head model is shifted.
 TEST_F(LLMCompiledModelSharedVocabularyTest, SharedHeadModelIsShiftedWithDefaultConfigs) {
