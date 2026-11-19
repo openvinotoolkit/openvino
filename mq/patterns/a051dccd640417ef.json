@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "the repository security ubuntu com jammy security inrelease is no longer signed|Network",
+  "signature_hash": "a051dccd640417ef",
+  "title": "Debian Packages job fails - security.ubuntu.com repository no longer signed",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-11-19T13:25:11Z",
+  "last_seen": "2026-11-19T13:25:11Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/44517736879"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39784"
+  ],
+  "recent_timestamps": [
+    "2026-11-19T13:25:11Z"
+  ],
+  "rerun_search_string": "is no longer signed"
+}

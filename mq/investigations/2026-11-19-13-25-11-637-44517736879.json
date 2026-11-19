@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-19-13-25-11-637-44517736879",
+  "timestamp": "2026-11-19T13:25:11Z",
+  "run_id": "44517736879",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44517736879",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "39784",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39784",
+  "author": "olpipi",
+  "category": "Network",
+  "title": "Debian Packages job fails - security.ubuntu.com repository no longer signed",
+  "signature": "the repository security ubuntu com jammy security inrelease is no longer signed|Network",
+  "signature_hash": "a051dccd640417ef",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "apt-get update fails: security.ubuntu.com jammy-security InRelease returns HTTP 520 and is reported as no longer signed"
+    }
+  ],
+  "key_errors": [
+    "2026-11-19T12:39:08.1092516Z Err:11 http://security.ubuntu.com/ubuntu jammy-security InRelease\n2026-11-19T12:39:08.1093340Z   520  <none> [IP: 104.20.28.246 80]\n2026-11-19T12:39:09.8149616Z E: Failed to fetch http://security.ubuntu.com/ubuntu/dists/jammy-security/InRelease  520  <none> [IP: 104.20.28.246 80]\n2026-11-19T12:39:09.8150803Z E: The repository 'http://security.ubuntu.com/ubuntu jammy-security InRelease' is no longer signed.\n2026-11-19T12:39:09.8207506Z ##[error]Process completed with exit code 100."
+  ],
+  "root_cause": "The 'Install debian packages & check conflicts' step runs apt-get update, which fetches the jammy-security InRelease file from security.ubuntu.com. The Cloudflare-fronted mirror returned HTTP 520 (an upstream/edge server error, not a content signing problem); apt then reports the repository release file as unreachable, and because it could not fetch a fresh signed release at all apt treats this transient fetch failure as 'no longer signed' and aborts with exit code 100. This is an external Ubuntu/Canonical CDN outage/edge error unrelated to the PR's source changes (prefetch logic in src/common/util and the GPU plugin); none of the PR's changed files are touched by this job.",
+  "reproduction_steps": "N/A (depends on transient availability of http://security.ubuntu.com at the time of the run). Locally: run `apt-get update` inside the same Ubuntu 22.04 container image used by job_debian_packages.yml during an outage window to reproduce the 520 from security.ubuntu.com.",
+  "recommended_actions": [
+    "Re-run the failed 'Debian Packages' job (or the whole run) once security.ubuntu.com recovers; this is not a code issue in PR #39784.",
+    "Consider adding `Acquire::Retries` and exponential backoff around apt-get update in job_debian_packages.yml (similar to the 'Set apt retries' step already present) to better tolerate transient 5xx responses from Ubuntu mirrors.",
+    "Optionally route jammy-security through the same Azure mirror substitution already used for other Ubuntu repos ('Switch Ubuntu APT sources to Azure mirrors' step) if that mirror reliably serves jammy-security without routing through security.ubuntu.com's Cloudflare edge."
+  ],
+  "prevention_strategies": "Harden the Debian Packages job's apt-get update against upstream mirror outages: increase apt retry/backoff settings, and/or ensure the jammy-security repository is also redirected to the Azure mirror set (as already done for the main Ubuntu archive) so a single external CDN's edge errors cannot fail the merge-queue run.",
+  "historical_context": "A related but distinct Network-category pattern exists in the knowledge base (signature_hash e65acb49deb19d88, 'Debian Packages job fails - Unable to connect to azure.archive.ubuntu.com', 1 prior occurrence on 2026-08-19 for PR #37338) for the same job failing to reach the Azure mirror. This is the first recorded occurrence of the specific 'no longer signed' / HTTP 520 failure mode against security.ubuntu.com itself."
+}

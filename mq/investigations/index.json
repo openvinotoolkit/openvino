@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 486,
+  "total": 487,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -5291,6 +5291,17 @@
       "category": "Network",
       "signature_hash": "5e8abb425bd8f82e",
       "pr_number": "38775"
+    },
+    {
+      "investigation_id": "2026-11-19-13-25-11-637-44517736879",
+      "run_id": "44517736879",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44517736879",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-11-19T13:25:11Z",
+      "title": "Debian Packages job fails - security.ubuntu.com repository no longer signed",
+      "category": "Network",
+      "signature_hash": "a051dccd640417ef",
+      "pr_number": "39784"
     }
   ]
 }
