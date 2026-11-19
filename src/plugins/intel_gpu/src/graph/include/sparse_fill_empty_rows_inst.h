@@ -31,7 +31,7 @@ class typed_primitive_inst<sparse_fill_empty_rows> : public typed_primitive_inst
     using parent::parent;
 
 public:
-    typed_primitive_inst(network& network, SparseFillEmptyRows_node const& desc);
+    typed_primitive_inst(network& network, const SparseFillEmptyRows_node& node);
     template <typename ShapeType>
     static std::vector<layout> calc_output_layouts(SparseFillEmptyRows_node const& node, kernel_impl_params const& impl_param);
     static layout calc_output_layout(SparseFillEmptyRows_node const& node, kernel_impl_params const& impl_param);

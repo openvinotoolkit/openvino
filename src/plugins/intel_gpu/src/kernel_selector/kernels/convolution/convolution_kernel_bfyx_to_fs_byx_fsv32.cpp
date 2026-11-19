@@ -59,9 +59,8 @@ DeviceFeaturesKey ConvolutionKernel_bfyx_to_fs_byx_fsv32::get_required_device_fe
     return k;
 }
 
-ConvolutionKernel_bfyx_to_fs_byx_fsv32::AutoTuneOption ConvolutionKernel_bfyx_to_fs_byx_fsv32::GetAutoTuneOptions(
-    const Params&,
-    int autoTuneIndex) const {
+ConvolutionKernel_bfyx_to_fs_byx_fsv32::AutoTuneOption ConvolutionKernel_bfyx_to_fs_byx_fsv32::GetAutoTuneOptions(const Params& /*unused*/,
+                                                                                                                  int autoTuneIndex) const {
     if (autoTuneIndex >= 0 && autoTuneIndex < static_cast<int>(autoTuneOptions.size())) {
         return autoTuneOptions[autoTuneIndex];
     }

@@ -4,14 +4,14 @@
 
 #pragma once
 
+#include "intel_gpu/plugin/custom_layer.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node.hpp"
-#include "intel_gpu/plugin/custom_layer.hpp"
 
 namespace ov::intel_gpu {
 namespace custom_layer_source_detail {
 
-template<typename T>
+template <typename T>
 static inline std::string vecToString(std::vector<T> vec) {
     if (vec.empty()) {
         return "";
@@ -24,7 +24,7 @@ static inline std::string vecToString(std::vector<T> vec) {
     return res;
 }
 
-template<>
+template <>
 inline std::string vecToString<std::string>(std::vector<std::string> vec) {
     if (vec.empty()) {
         return "";
@@ -39,7 +39,7 @@ inline std::string vecToString<std::string>(std::vector<std::string> vec) {
 
 class CustomLayerAttributeVisitor : public ov::AttributeVisitor {
 public:
-    CustomLayerAttributeVisitor() : m_values({}) { }
+    CustomLayerAttributeVisitor() = default;
 
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
         OPENVINO_THROW("Attribute ", name, " can't be processed\n");
@@ -103,8 +103,7 @@ protected:
 
 // This is the source-generation path used by CreateCustomOp. Instance names stay
 // in primitive IDs, while source identity depends on the layer type and defines.
-inline std::vector<std::string> make_custom_layer_source(const std::shared_ptr<ov::Node>& op,
-                                                        const CustomLayer& custom_layer) {
+inline std::vector<std::string> make_custom_layer_source(const std::shared_ptr<ov::Node>& op, const CustomLayer& custom_layer) {
     custom_layer_source_detail::CustomLayerAttributeVisitor visitor;
     op->visit_attributes(visitor);
     const auto params = visitor.get_parameters();
@@ -116,10 +115,7 @@ inline std::vector<std::string> make_custom_layer_source(const std::shared_ptr<o
         value += def.postfix + "\n";
         defines += value;
     }
-    return {"\n// Custom Layer " + custom_layer.Name() + "\n",
-            "// Custom Layer User Defines\n",
-            defines,
-            custom_layer.KernelSource()};
+    return {"\n// Custom Layer " + custom_layer.Name() + "\n", "// Custom Layer User Defines\n", defines, custom_layer.KernelSource()};
 }
 
 }  // namespace ov::intel_gpu

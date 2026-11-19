@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,7 +42,7 @@ DeviceFeaturesKey ConvolutionKernel_b_fs_yx_fsv4_int8::get_required_device_featu
     return k;
 }
 
-ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv4_int8::SetDefault(const convolution_params& cp, int) const {
+ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv4_int8::SetDefault(const convolution_params& cp, int /*autoTuneIndex*/) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
 
     dispatchData.gws[0] = CeilDiv(cp.outputs[0].X().v, sub_group_size) / 2;
@@ -71,7 +71,7 @@ bool ConvolutionKernel_b_fs_yx_fsv4_int8::Validate(const Params& p) const {
     }
 
     const auto& params = static_cast<const convolution_params&>(p);
-    if ((params.inputs[0].X().v % 64) != 0u) {
+    if ((params.inputs[0].X().v % 64) != 0U) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 

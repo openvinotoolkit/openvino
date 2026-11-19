@@ -61,7 +61,7 @@ void collect_ids(const std::optional<pci_bus_info>& pci, std::vector<int>& all, 
     const GUID* device_classes[] = {&GUID_DEVCLASS_COMPUTEACCELERATOR, &GUID_DEVCLASS_DISPLAY};
 
     for (const GUID* device_class : device_classes) {
-        HDEVINFO device_info_set = SetupDiGetClassDevsA(device_class, NULL, NULL, DIGCF_PRESENT);
+        HDEVINFO device_info_set = SetupDiGetClassDevsA(device_class, nullptr, nullptr, DIGCF_PRESENT);
         if (device_info_set == INVALID_HANDLE_VALUE) {
             continue;
         }
@@ -73,19 +73,19 @@ void collect_ids(const std::optional<pci_bus_info>& pci, std::vector<int>& all, 
         for (DWORD dev_idx = 0; SetupDiEnumDeviceInfo(device_info_set, dev_idx, &devinfo_data); dev_idx++) {
             const size_t kBufSize = 512;
             char buf[kBufSize];
-            if (!SetupDiGetDeviceInstanceIdA(device_info_set, &devinfo_data, buf, kBufSize, NULL)) {
+            if (!SetupDiGetDeviceInstanceIdA(device_info_set, &devinfo_data, buf, kBufSize, nullptr)) {
                 continue;
             }
 
             char* vendor_pos = std::strstr(buf, "VEN_");
-            if (vendor_pos == NULL || std::stoi(vendor_pos + 4, NULL, 16) != intel_vendor_id) {
+            if (vendor_pos == nullptr || std::stoi(vendor_pos + 4, nullptr, 16) != intel_vendor_id) {
                 continue;
             }
             char* device_pos = std::strstr(vendor_pos, "DEV_");
-            if (device_pos == NULL) {
+            if (device_pos == nullptr) {
                 continue;
             }
-            const int device_id = std::stoi(device_pos + 4, NULL, 16);
+            const int device_id = std::stoi(device_pos + 4, nullptr, 16);
             if (device_class == &GUID_DEVCLASS_DISPLAY) {
                 all.push_back(device_id);
             }
