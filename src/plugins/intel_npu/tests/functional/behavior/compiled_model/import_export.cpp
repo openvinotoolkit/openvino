@@ -218,9 +218,13 @@ TEST_P(OVCompiledGraphImportExportTestNPU, NonELFBlobExportThrows) {
     }
 }
 
-TEST_P(OVCompiledGraphImportExportTestNPU, SetExportRawBlobOnCompiledModel) {
+static void checkSetExportRawBlobOnCompiledModel(const std::string& target_device,
+                                                 ov::AnyMap configuration,
+                                                 ov::intel_npu::CompilerType compilerType) {
     ov::Core core;
     std::stringstream rawBlobStream, setPropertyBlobStream;
+
+    configuration.insert_or_assign(ov::intel_npu::compiler_type.name(), compilerType);
 
     auto model = ov::test::utils::make_conv_pool_relu();
     // The blob embeds the names of the model and of its nodes. Auto-generated names come from global counters and
@@ -247,7 +251,17 @@ TEST_P(OVCompiledGraphImportExportTestNPU, SetExportRawBlobOnCompiledModel) {
     ASSERT_FALSE(compiledModel.get_property(ov::intel_npu::export_raw_blob));
 }
 
-// Unlike SetExportRawBlobOnCompiledModel, this does not depend on two separate compilations producing identical blobs:
+// Compiler in plugin (CIP)
+TEST_P(OVCompiledGraphImportExportTestNPU, SetExportRawBlobOnCompiledModelCIP) {
+    checkSetExportRawBlobOnCompiledModel(target_device, configuration, ov::intel_npu::CompilerType::PLUGIN);
+}
+
+// Compiler in driver (CID)
+TEST_P(OVCompiledGraphImportExportTestNPU, SetExportRawBlobOnCompiledModelCID) {
+    checkSetExportRawBlobOnCompiledModel(target_device, configuration, ov::intel_npu::CompilerType::DRIVER);
+}
+
+// Unlike SetExportRawBlobOnCompiledModel*, this does not depend on two separate compilations producing identical blobs:
 // both exports come from the same compiled model, the raw one being the regular one without the metadata
 TEST_P(OVCompiledGraphImportExportTestNPU, SetExportRawBlobOnCompiledModelIsRegularBlobWithoutMetadata) {
     ov::Core core;
