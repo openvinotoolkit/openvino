@@ -4,10 +4,11 @@
   "signature_hash": "a284d27dfee44614",
   "title": "TestKerasLSTM test_keras_lstm_flags_float32 numerical accuracy mismatch with dropout",
   "category": "Flaky Test",
-  "count": 9,
+  "count": 10,
   "first_seen": "2026-08-27T01:46:06Z",
-  "last_seen": "2026-11-18T14:37:38Z",
+  "last_seen": "2026-11-19T03:16:53Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/44443009668",
     "https://github.com/openvinotoolkit/openvino/actions/runs/44305133956",
     "https://github.com/openvinotoolkit/openvino/actions/runs/43866326044",
     "https://github.com/openvinotoolkit/openvino/actions/runs/41997458873",
@@ -19,6 +20,7 @@
     "https://github.com/openvinotoolkit/openvino/actions/runs/33025151669"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39291",
     "https://github.com/openvinotoolkit/openvino/pull/39559",
     "https://github.com/openvinotoolkit/openvino/pull/39742",
     "https://github.com/openvinotoolkit/openvino/pull/39270",
@@ -30,6 +32,7 @@
     "https://github.com/openvinotoolkit/openvino/pull/37611"
   ],
   "recent_timestamps": [
+    "2026-11-19T03:16:53Z",
     "2026-11-18T14:37:38Z"
   ],
   "rerun_search_string": null

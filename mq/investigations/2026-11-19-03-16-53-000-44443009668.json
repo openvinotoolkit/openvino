@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-19-03-16-53-000-44443009668",
+  "timestamp": "2026-11-19T03:16:53Z",
+  "run_id": "44443009668",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44443009668",
+  "workflow_name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+  "pr_number": "39291",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39291",
+  "author": "Roszczyk",
+  "category": "Flaky Test",
+  "title": "test_keras_lstm_flags_float32 fails with LSTM accuracy mismatch on CPU",
+  "signature": "test keras lstm flags numerical mismatch with dropout float32|Flaky Test",
+  "signature_hash": "a284d27dfee44614",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+      "conclusion": "failure",
+      "symptom": "TestKerasLSTM::test_keras_lstm_flags_float32 fails on small numerical mismatch between OpenVINO and TensorFlow outputs"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_24",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails because the TensorFlow Layer Tests job failed"
+    }
+  ],
+  "key_errors": [
+    "FAILED .../tensorflow2_keras_tests/test_tf2_keras_lstm.py::TestKerasLSTM::test_keras_lstm_flags_float32[... 'dropouts': (0.1, 0.3), 'units': 3, 'activation': 'relu', 'use_bias': False, 'recurrent_activation': 'tanh', 'flags': True] - AssertionError: Comparing with Framework failed: ie_res={'output_0': array([[-0. , 4.9087753, 0. ], [ 0. , -1.3222721, -0.86339414], [-0. , 7.4408755, 17.25756 ], [ 3.8251286, 0.4003536, -1.7257985]])}; framework_res={'output_0': array([[-0. , 4.9082737, 0. ], [ 0. , -1.2348256, -0.87434685], [-0. , 7.4365854, 17.261955 ], [ 3.8253398, 0.40068954, -1.7257123]])}"
+  ],
+  "root_cause": "The test runs an LSTM layer with dropout/recurrent_dropout enabled (dropouts=(0.1, 0.3)). Keras/TensorFlow applies dropout masks using its own RNG at inference/training time inside the reference computation path exercised by this test, while OpenVINO's CPU LSTM kernel evaluates deterministically without that stochastic masking semantics being bit-exact-replicated. The resulting outputs differ by a small but assertion-breaking margin (~0.001-0.09 in several cells). This is a long-known, previously investigated recurring flaky test unrelated to the current PR's GPU grid_sample changes.",
+  "reproduction_steps": "Run locally: pytest tests/layer_tests/tensorflow2_keras_tests/test_tf2_keras_lstm.py::TestKerasLSTM::test_keras_lstm_flags_float32 -k 'dropouts' --device CPU. Reproduction may require several runs due to flakiness tied to dropout RNG seeding.",
+  "recommended_actions": [
+    "Mark this specific LSTM dropout parametrization as xfail/skip with a tracking ticket, or increase the comparison tolerance for dropout-enabled LSTM cases, since exact bit-for-bit reproduction of TF's internal dropout RNG is not guaranteed by OpenVINO",
+    "File (or update) a ticket to investigate whether OpenVINO's LSTM CPU kernel's accuracy can be tightened, or whether the test itself should seed/disable dropout for deterministic comparison",
+    "Since this is unrelated to the PR's GPU grid_sample changes, re-run only the failed TensorFlow Layer Tests job to confirm the PR change is unaffected"
+  ],
+  "prevention_strategies": "Add an explicit tolerance override or disable dropout determinism dependency in test_tf2_keras_lstm.py for parametrizations combining dropout/recurrent_dropout; track recurring flaky LSTM dropout failures and prioritize a fix given 9+ occurrences across months.",
+  "historical_context": "This exact signature (pattern a284d27dfee44614) has now recurred 10 times since 2026-08-27, most recently 2026-11-18 (run 44305133956), affecting unrelated PRs (#39559, #39742, #39270, #39341, #39286, #39121, #38168, #37654, #37611, and now #39291). A related earlier pattern (134f01149f41adcc, 3 occurrences June-July 2026) covered the same test with a looser signature. This is a well-established recurring flaky test that has not yet been fixed or skipped despite repeated investigation."
+}

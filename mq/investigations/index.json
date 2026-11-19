@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 483,
+  "total": 484,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -5259,6 +5259,17 @@
       "title": "GPU grid_sample_kernel_opt_bilinear.cpp fails clang-tidy braces/uppercase-literal checks",
       "category": "Code Issue",
       "signature_hash": "e50ba4ab716e2289",
+      "pr_number": "39291"
+    },
+    {
+      "investigation_id": "2026-11-19-03-16-53-000-44443009668",
+      "run_id": "44443009668",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44443009668",
+      "workflow_name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+      "timestamp": "2026-11-19T03:16:53Z",
+      "title": "test_keras_lstm_flags_float32 fails with LSTM accuracy mismatch on CPU",
+      "category": "Flaky Test",
+      "signature_hash": "a284d27dfee44614",
       "pr_number": "39291"
     }
   ]
