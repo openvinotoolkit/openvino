@@ -167,9 +167,9 @@ the `CACHE_DIR` disk cache and model export. Each kernel is a program of its own
 `TERNOCL_SELECT_KERNELS` / `TERNOCL_KERNEL_<NAME>` drop the other kernels of the source,
 and the kernel is renamed to the stage's entry point. A dynamic-shape impl builds every
 launch class at compilation and picks one per execution from M. A static-shape impl
-builds only its own class. `u2` FCs skip the asynchronous compilation of static impls
-for new shapes (`primitive_inst::use_async_compilation()`), since the dynamic impl
-already covers every M.
+builds only its own class. `u2` FCs that run the TernOCL impl skip the asynchronous
+compilation of static impls for new shapes (`primitive_inst::use_async_compilation()`),
+since the dynamic impl already covers every M. Other `u2` FC impls keep it.
 
 **Fusion under dynamic shapes**: `primitive_inst::is_valid_fusion()` only
 trusts fused eltwise ops on `impl_types::ocl` FCs whose kernel it knows and
