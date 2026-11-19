@@ -1285,7 +1285,9 @@ void jit_greater_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         h->uni_vmovups(vmm_dst, table_val("zero"));
         h->vblendvps(vmm_dst, vmm_dst, table_val("one"), vmm_aux0);
     } else {
-        h->vcmpps(k_mask, vmm_src0, vmm_src1, _cmp_gt_os);
+        // _cmp_gt_os and _cmp_ge_os are the "not <=" and "not <" predicates, which are true for NaN.
+        // Swap the operands to use the ordered "<" and "<=" instead.
+        h->vcmpps(k_mask, vmm_src1, vmm_src0, _cmp_lt_os);
         h->uni_vmovups(vmm_dst, table_val("zero"));
         h->vblendmps(vmm_dst | k_mask, vmm_dst, table_val("one"));
     }
@@ -1374,7 +1376,9 @@ void jit_greater_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         h->uni_vmovups(vmm_dst, table_val("zero"));
         h->vblendvps(vmm_dst, vmm_dst, table_val("one"), vmm_aux0);
     } else {
-        h->vcmpps(k_mask, vmm_src0, vmm_src1, _cmp_ge_os);
+        // _cmp_gt_os and _cmp_ge_os are the "not <=" and "not <" predicates, which are true for NaN.
+        // Swap the operands to use the ordered "<" and "<=" instead.
+        h->vcmpps(k_mask, vmm_src1, vmm_src0, _cmp_le_os);
         h->uni_vmovups(vmm_dst, table_val("zero"));
         h->vblendmps(vmm_dst | k_mask, vmm_dst, table_val("one"));
     }
