@@ -4,9 +4,9 @@
 
 # mypy: ignore-errors
 
-import contextlib
 import dataclasses
 import functools
+import inspect
 import logging
 import threading
 import torch
@@ -604,25 +604,31 @@ def _get_16bit_extensions(patch_condition=None):
     return extensions, supported
 
 
-@contextlib.contextmanager
-def patched_dataclass_outputs(model: torch.nn.Module):
-    """Temporarily patch model.forward so a bare @dataclass output can be captured."""
-    orig_forward = model.forward
+def wrap_dataclass_outputs(model: torch.nn.Module):
+    """Wrap bare dataclass outputs while preserving the original forward signature."""
+    if isinstance(model, torch.jit.ScriptModule):
+        return model
+    signature = inspect.signature(model.forward)
+    self_name = "_openvino_wrapper_self"
+    while self_name in signature.parameters:
+        self_name += "_"
 
-    @functools.wraps(orig_forward)
-    def forward(*args, **kwargs):
-        return _dataclasses_to_dicts(orig_forward(*args, **kwargs))
+    class OutputWrapper(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.wrapped_model = model
 
-    model.forward = forward
-    try:
-        yield
-    finally:
-        model.forward = orig_forward
+        def forward(self, *args, **kwargs):
+            return _dataclasses_to_dicts(self.wrapped_model(*args, **kwargs))
+
+    OutputWrapper.forward.__signature__ = signature.replace(
+        parameters=[inspect.Parameter(self_name, inspect.Parameter.POSITIONAL_ONLY), *signature.parameters.values()])
+    return OutputWrapper()
 
 
 def _dataclasses_to_dicts(value):
     """Recursively convert bare ``@dataclass`` instances in ``value`` into dicts, keyed by field name."""
-    if dataclasses.is_dataclass(value) and not isinstance(value, (type, list, tuple, dict)):
+    if not isinstance(value, (type, list, tuple, dict)) and hasattr(value, "__dataclass_fields__"):
         return {f.name: _dataclasses_to_dicts(getattr(value, f.name))
                 for f in dataclasses.fields(value)
                 if getattr(value, f.name) is not None}

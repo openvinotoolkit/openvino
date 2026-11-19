@@ -6,6 +6,7 @@
 
 import logging
 import inspect
+import math
 import operator
 from functools import lru_cache
 import torch
@@ -21,7 +22,7 @@ except ImportError:
 
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 from openvino.frontend.pytorch.decoder_base import TorchDecoderBase
-from openvino import PartialShape, Type as OVType, OVAny, Shape
+from openvino import Dimension, PartialShape, Type as OVType, OVAny, Shape
 from openvino.frontend.pytorch.utils import (
     make_constant, fetch_attr, pt_to_ov_type_map, pt_to_scalar_type_map,
     torch_tensor_to_ov_const)
@@ -353,7 +354,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
 
     @classmethod
     def from_exported_program(
-        cls, exported_program: torch.export.ExportedProgram, dynamic_shapes=True,
+        cls, exported_program: torch.export.ExportedProgram, dynamic_shapes=False,
         op_type_mapping=None, shared_memory=True,
     ) -> "TorchFXPythonDecoder":
         """Create a TorchFXPythonDecoder instance from an exported PyTorch program.
@@ -373,10 +374,33 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         constant_inputs = [isinstance(spec.arg, ConstantArgument)
                            for spec in exported_program.graph_signature.input_specs
                            if spec.kind == InputKind.USER_INPUT]
-        return cls(gm, dynamic_shapes=dynamic_shapes,
-                   op_type_mapping=op_type_mapping,
-                   output_names=cls._output_names_from_spec(exported_program.call_spec.out_spec),
-                   shared_memory=shared_memory, constant_inputs=constant_inputs)
+        decoder = cls(gm, dynamic_shapes=dynamic_shapes,
+                      op_type_mapping=op_type_mapping,
+                      output_names=cls._output_names_from_spec(exported_program.call_spec.out_spec),
+                      shared_memory=shared_memory, constant_inputs=constant_inputs)
+        if not dynamic_shapes:
+            placeholders = [node for node in gm.graph.nodes if node.op == "placeholder"]
+            input_index = 0
+            for node, is_constant in zip(placeholders, constant_inputs):
+                if is_constant:
+                    continue
+                shape = cls.get_found_shape(node)
+                if shape is not None:
+                    dimensions = []
+                    for dim in shape:
+                        if not isinstance(dim, torch.SymInt):
+                            dimensions.append(int(dim))
+                            continue
+                        bounds = exported_program.range_constraints.get(dim.node.expr)
+                        if bounds is None:
+                            dimensions.append(-1)
+                            continue
+                        lower = int(bounds.lower) if bounds.lower > 2 else 0
+                        upper = int(bounds.upper) if math.isfinite(bounds.upper) else -1
+                        dimensions.append(Dimension(lower, upper))
+                    decoder.input_shapes[input_index] = PartialShape(dimensions)
+                input_index += 1
+        return decoder
 
     @staticmethod
     def _output_names_from_spec(out_spec):
@@ -433,7 +457,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         """
         from openvino.frontend.pytorch import quantized
         from openvino.frontend.pytorch.patch_model import (
-            patch_model_for_export, unpatch_model, patched_dataclass_outputs, _clear_export_cache)
+            patch_model_for_export, unpatch_model, wrap_dataclass_outputs, _clear_export_cache)
 
         orig_forward_name = "_openvino_module_extension_patch_orig_forward"
 
@@ -469,8 +493,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                 quant_patched = False
 
         try:
-            with patched_dataclass_outputs(model):
-                exported_program = cls._export(model, example_inputs, dynamic_shapes)
+            exported_program = cls._export(wrap_dataclass_outputs(model), example_inputs, dynamic_shapes)
         finally:
             if quant_patched:
                 quantized.unpatch_quantized_for_export(model)
@@ -481,10 +504,28 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             decoder = cls.from_exported_program(
                 exported_program, dynamic_shapes=False,
                 op_type_mapping=op_type_mapping, shared_memory=shared_memory)
+            cls._restore_wrapped_attr_names(decoder.pt_module)
             decoder._use_exported_example_shape = True
             return decoder
         finally:
             _clear_export_cache()
+
+    @staticmethod
+    def _restore_wrapped_attr_names(graph_module):
+        nodes = list(graph_module.graph.nodes)
+        wrapped = [node for node in nodes
+                   if node.op == "get_attr" and str(node.target).startswith("wrapped_model.")]
+        wrapped_nodes = set(wrapped)
+        namespace = type(graph_module.graph._graph_namespace)()
+        for node in nodes:
+            if node not in wrapped_nodes:
+                namespace.create_name(node.name, node)
+        for node in wrapped:
+            base = node.name.removeprefix("wrapped_model_")
+            if base[0].isdigit():
+                base = "_" + base
+            node.name = namespace.create_name(base, node)
+        graph_module.graph._graph_namespace = namespace
 
     @staticmethod
     def _export(model, inputs, dynamic_shapes=None):
@@ -660,6 +701,11 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return PartialShape.dynamic()
 
     def get_attribute(self, name):
+        if name == "__openvino_fx_output_dtype" and isinstance(self.pt_module, torch.fx.Node):
+            value = self.pt_module.meta.get("val")
+            if isinstance(value, torch.Tensor) and not value.is_complex() and str(value.dtype) in pt_to_ov_type_map:
+                return OVAny(pt_to_ov_type_map[str(value.dtype)])
+            return OVAny(None)
         if name in self.pt_module.kwargs:
             attr = self.pt_module.kwargs[name]
             if isinstance(attr, torch.dtype):

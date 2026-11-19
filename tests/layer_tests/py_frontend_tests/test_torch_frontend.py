@@ -1240,11 +1240,10 @@ def test_dataclasses_to_dicts_leaves_supported_containers_alone():
     assert _dataclasses_to_dicts(dict_output) is dict_output
 
 
-def test_patched_dataclass_outputs():
-    """patched_dataclass_outputs temporarily converts a bare @dataclass model
-    output into a dict, and restores the original forward on exit."""
+def test_wrap_dataclass_outputs():
     import dataclasses
-    from openvino.frontend.pytorch.patch_model import patched_dataclass_outputs
+    import inspect
+    from openvino.frontend.pytorch.patch_model import wrap_dataclass_outputs
 
     @dataclasses.dataclass
     class Output:
@@ -1259,13 +1258,12 @@ def test_patched_dataclass_outputs():
     orig_forward = model.forward
     x = torch.tensor([1.0, 2.0])
 
-    with patched_dataclass_outputs(model):
-        assert model.forward != orig_forward
-        result = model(x)
-        assert isinstance(result, dict) and list(result) == ["first"]
-        assert torch.equal(result["first"], x + 1)
+    wrapped_model = wrap_dataclass_outputs(model)
+    assert inspect.signature(wrapped_model.forward) == inspect.signature(orig_forward)
+    result = wrapped_model(x)
+    assert isinstance(result, dict) and list(result) == ["first"]
+    assert torch.equal(result["first"], x + 1)
 
-    # Original forward (and its dataclass output) is restored after exit.
     assert model.forward == orig_forward
     restored = model(x)
     assert dataclasses.is_dataclass(restored)
@@ -1286,8 +1284,12 @@ def test_convert_model_with_dataclass_output():
         unset: torch.Tensor = None
 
     class DataclassOutputModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.weight = torch.nn.Parameter(torch.full((1, 4), 2.0))
+
         def forward(self, x):
-            return GuardOutput(first=x + 1, second=x * 2)
+            return GuardOutput(first=x + self.weight, second=x * 2)
 
     model = DataclassOutputModel().eval()
     example_input = torch.rand(1, 4)
@@ -1298,8 +1300,8 @@ def test_convert_model_with_dataclass_output():
     compiled_model = ov.compile_model(converted_model, "CPU", default_cfg)
     res = compiled_model((example_input.numpy(),))
     ref = model(example_input)
-    np.testing.assert_allclose(res[0], ref.first.numpy(), 1e-7, 0)
-    np.testing.assert_allclose(res[1], ref.second.numpy(), 1e-7, 0)
+    np.testing.assert_allclose(res[0], ref.first.detach().numpy(), 1e-7, 0)
+    np.testing.assert_allclose(res[1], ref.second.detach().numpy(), 1e-7, 0)
 
     # The patch is only active during capture; the model still returns its dataclass.
     assert dataclasses.is_dataclass(model(example_input))
@@ -2498,6 +2500,116 @@ class TestBuildDynamicShapes:
 class TestConvertModelDynamo:
     """Tests for convert_model with dynamo=True (torch.export path)."""
 
+    @pytest.mark.parametrize("as_file", [False, True])
+    def test_exported_program_preserves_specialized_input_shape(self, as_file, tmp_path):
+        from openvino import convert_model, compile_model
+        from openvino.tools.ovc.error import Error
+
+        class Model(torch.nn.Module):
+            def forward(self, x):
+                return x * 2 if x.shape[0] > 2 else x * 3
+
+        example = torch.ones(3, 2)
+        program = torch.export.export(Model(), (example,))
+        if as_file:
+            path = tmp_path / "model.pt2"
+            torch.export.save(program, path)
+            program = path
+        for options in ({}, {"example_input": example}, {"example_input": example, "input": [("x", Type.f32)]}):
+            ov_model = convert_model(program, **options)
+            assert ov_model.input(0).get_partial_shape() == PartialShape([3, 2])
+            actual = compile_model(ov_model, "CPU")([example.numpy()])[0]
+            np.testing.assert_array_equal(actual, Model()(example).numpy())
+        with pytest.raises(Error, match="not contained in the exported shape"):
+            convert_model(program, input=PartialShape([-1, 2]))
+        assert convert_model(program, input={"0": PartialShape([3, 2])}).input(0).get_partial_shape() == \
+            PartialShape([3, 2])
+        with pytest.raises(Error, match="not contained in the exported shape"):
+            convert_model(program, input={"0": PartialShape([-1, 2])})
+
+    def test_exported_program_retains_symbolic_dimensions(self):
+        from openvino import convert_model, compile_model
+
+        class Model(torch.nn.Module):
+            def forward(self, x):
+                return x * 2
+
+        example = torch.ones(3, 2)
+        program = torch.export.export(Model(), (example,), dynamic_shapes=({0: torch.export.Dim("batch")},))
+        ov_model = convert_model(program)
+        assert ov_model.input(0).get_partial_shape() == PartialShape([-1, 2])
+        sample = torch.ones(5, 2)
+        np.testing.assert_array_equal(compile_model(ov_model, "CPU")([sample.numpy()])[0], Model()(sample).numpy())
+        assert convert_model(program, input=PartialShape([5, 2])).input(0).get_partial_shape() == PartialShape([5, 2])
+
+    def test_exported_program_retains_dimension_bounds(self):
+        from openvino import convert_model, Dimension
+        from openvino.tools.ovc.error import Error
+
+        class Model(torch.nn.Module):
+            def forward(self, x):
+                return x * 2
+
+        example = torch.ones(4, 2)
+        program = torch.export.export(Model(), (example,),
+                                      dynamic_shapes=({0: torch.export.Dim("batch", min=3, max=7)},))
+        for options in ({}, {"example_input": example}, {"example_input": example, "input": [("x", Type.f32)]}):
+            ov_model = convert_model(program, **options)
+            assert ov_model.input(0).get_partial_shape() == PartialShape([Dimension(3, 7), 2])
+        with pytest.raises(Error, match="not contained in the exported shape"):
+            convert_model(program, input=PartialShape([-1, 2]))
+
+    @pytest.mark.parametrize("as_keyword", [False, True])
+    def test_list_argument_preserves_container_type(self, as_keyword):
+        from openvino import convert_model, compile_model
+
+        class ListModel(torch.nn.Module):
+            def forward(self, values):
+                return values[0] + (1 if isinstance(values, list) else 5)
+
+        model = ListModel()
+        values = [torch.ones(2, 3)]
+        example = {"values": values} if as_keyword else (values,)
+        ov_model = convert_model(model, example_input=example, dynamo=True)
+        actual = compile_model(ov_model, "CPU", default_cfg)([values[0].numpy()])[0]
+        np.testing.assert_array_equal(actual, model(values).numpy())
+
+    def test_repeated_example_tensor_is_rejected(self):
+        from openvino import convert_model
+        from openvino.tools.ovc.error import Error
+
+        class Subtract(torch.nn.Module):
+            def forward(self, a, b):
+                return a - b
+
+        example = torch.ones(2, 3)
+        with pytest.raises(Error, match="same tensor in multiple positions"):
+            convert_model(Subtract(), example_input=(example, example), dynamo=True)
+
+    @pytest.mark.parametrize("collision", [False, True])
+    def test_dataclass_wrapper_preserves_weight_names(self, collision):
+        from openvino import convert_model
+
+        class Model(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.l1 = torch.nn.Linear(4, 4)
+
+            def forward(self, l1_weight):
+                return self.l1(l1_weight)
+
+        model = Model().eval() if collision else torch.nn.Sequential(torch.nn.Linear(4, 4)).eval()
+        example = torch.ones(2, 4)
+        exported = convert_model(torch.export.export(model, (example,)))
+        wrapped = convert_model(model, example_input=example, dynamo=True)
+
+        def weight_names(ov_model):
+            return {name for node in ov_model.get_ops() if node.get_type_name() == "Constant"
+                    for name in node.output(0).get_names() if "weight" in name}
+
+        assert weight_names(wrapped) == weight_names(exported)
+        assert weight_names(exported)
+
     def test_basic(self):
         from openvino import convert_model, compile_model
 
@@ -2810,6 +2922,35 @@ class TestConvertModelDynamo:
         b = torch.full((4, 3), 2.0)
         result = compile_model(converted, "CPU", default_cfg)([a.numpy(), b.numpy()])
         np.testing.assert_allclose(result[0], model((a, None), b, 3).numpy())
+
+    @pytest.mark.parametrize("as_file", [False, True])
+    def test_exported_bounds_skip_specialized_inputs(self, as_file, tmp_path):
+        from openvino import Dimension, convert_model, compile_model
+        from openvino.tools.ovc.error import Error
+        from torch.export import Dim
+
+        class Model(torch.nn.Module):
+            def forward(self, a, scale, b):
+                return a.sum() + scale * b.sum()
+
+        model = Model()
+        example = (torch.ones(4, 3), 2, torch.ones(9, 3))
+        program = torch.export.export(
+            model, example,
+            dynamic_shapes=({0: Dim("a_batch", min=3, max=7)}, None, {0: Dim("b_batch", min=8, max=12)}))
+        if as_file:
+            path = tmp_path / "model.pt2"
+            torch.export.save(program, path)
+            program = path
+
+        converted = convert_model(program)
+        assert converted.input("a").get_partial_shape() == PartialShape([Dimension(3, 7), 3])
+        assert converted.input("b").get_partial_shape() == PartialShape([Dimension(8, 12), 3])
+        a, b = torch.ones(5, 3), torch.ones(10, 3)
+        result = compile_model(converted, "CPU", default_cfg)([a.numpy(), b.numpy()])
+        np.testing.assert_array_equal(result[0], model(a, 2, b).numpy())
+        with pytest.raises(Error, match="not contained in the exported shape"):
+            convert_model(program, input={"b": PartialShape([-1, 3])})
 
     @pytest.mark.parametrize("exported_program", [False, True])
     def test_specialized_inputs_with_renamed_placeholders(self, exported_program):

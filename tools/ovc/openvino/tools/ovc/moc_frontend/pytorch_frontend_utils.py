@@ -200,11 +200,11 @@ def get_pytorch_decoder(model, example_inputs, args):
             raise RuntimeError("NNCF models produced by nncf<2.6 are not "
                                "supported directly. Please upgrade nncf or "
                                "export to ONNX first.")
-    inputs = prepare_torch_inputs(example_inputs)
     dynamo = args.get("dynamo", False)
     if dynamo and isinstance(model, torch.jit.ScriptFunction):
         raise Error("torch.export does not support torch.jit.ScriptFunction; pass dynamo=False to use TorchScript.")
     use_dynamo = dynamo and isinstance(model, torch.nn.Module)
+    inputs = prepare_torch_inputs(example_inputs, preserve_lists=use_dynamo)
     if use_dynamo and inputs is None:
         raise Error("example_input is required when dynamo=True; pass dynamo=False to use TorchScript.")
     elif use_dynamo and (TorchFXPythonDecoder is None or not hasattr(torch.export, "Dim")
@@ -227,6 +227,8 @@ def get_pytorch_decoder(model, example_inputs, args):
     if not isinstance(model, decoder_types):
         if TorchFXPythonDecoder is not None and isinstance(model, torch.export.ExportedProgram):
             decoder = TorchFXPythonDecoder.from_exported_program(model, shared_memory=args.get("share_weights", True))
+            if args.get("input") is not None:
+                _validate_exported_input_shapes(decoder, input_to_input_cut_info(args["input"]))
         elif use_dynamo:
             from torch.utils._pytree import tree_flatten
             leaves, _ = tree_flatten(inputs)
@@ -390,6 +392,8 @@ def get_pytorch_decoder_for_model_on_disk(argv, args):
     if isinstance(exported_program, torch.export.ExportedProgram):
         argv.input_model = TorchFXPythonDecoder.from_exported_program(
             exported_program, shared_memory=args.get("share_weights", True))
+        if args.get("input") is not None:
+            _validate_exported_input_shapes(argv.input_model, input_to_input_cut_info(args["input"]))
         argv.framework = 'pytorch'
         return True
     return False
@@ -459,22 +463,23 @@ def _torchscript_input_aliases(model):
 
 
 def _validate_exported_input_shapes(model, input_specs):
-    shapes = [(model.get_input_signature_name(i), model.get_input_shape(i)) for i in range(len(model.inputs()))]
-    by_name = dict(shapes)
+    shapes = [model.get_input_shape(i) for i in range(len(model.inputs()))]
+    by_name = {}
+    for i, tensor_id in enumerate(model.inputs()):
+        by_name.setdefault(str(tensor_id), shapes[i])
+        by_name.setdefault(model.get_input_signature_name(i), shapes[i])
     for i, desc in enumerate(input_specs):
         if desc.name is not None:
             exported_shape = by_name.get(desc.name)
         else:
-            exported_shape = shapes[i][1] if i < len(shapes) else None
-        if desc.shape is None or exported_shape is None:
+            exported_shape = shapes[i] if i < len(shapes) else None
+        if desc.shape is None:
             continue
-        if not desc.shape.compatible(exported_shape):
-            raise Error(f"Input shape {desc.shape} is incompatible with exported shape {exported_shape}.")
-        if not desc.shape.rank.is_static or (exported_shape.rank.is_static and any(
-            requested.is_dynamic and exported.is_static for requested, exported in zip(desc.shape, exported_shape)
-        )):
-            raise Error(f"torch.export specialized input '{desc.name}' to {exported_shape}, "
-                        f"which does not support requested shape {desc.shape}. Use dynamo=False instead.")
+        if exported_shape is None:
+            raise Error(f"Cannot match input '{desc.name}' to an exported PyTorch input.")
+        if not desc.shape.refines(exported_shape):
+            raise Error(f"Input shape {desc.shape} is not contained in the exported shape {exported_shape}. "
+                        "Export the model with the requested dynamic dimensions instead.")
 
 
 def extract_input_info_from_example(args, inputs):
@@ -515,11 +520,12 @@ def extract_input_info_from_example(args, inputs):
                 else:
                     example_aliases[name] = exported_name
             name = exported_name
-        shape = PartialShape([-1] * example.ndim) if hasattr(example, "ndim") else PartialShape.dynamic()
-        if getattr(args.input_model, '_use_exported_example_shape', False):
-            # For dynamo mode, use concrete shapes from example; dynamic dims
-            # are only introduced when the user explicitly provides 'input'.
-            shape = PartialShape(list(example.shape)) if hasattr(example, "shape") else shape
+        if is_exported:
+            shape = args.input_model.get_input_shape(len(input_arg))
+        elif getattr(args.input_model, '_use_exported_example_shape', False):
+            shape = PartialShape(list(example.shape)) if hasattr(example, "shape") else PartialShape.dynamic()
+        else:
+            shape = PartialShape([-1] * example.ndim) if hasattr(example, "ndim") else PartialShape.dynamic()
         dtype = getattr(example, "dtype", type(example))
         dtype = pt_to_ov_type_map.get(str(dtype))
         if name:
@@ -556,16 +562,16 @@ def extract_input_info_from_example(args, inputs):
                                                desc.value))
             input_arg = new_input
         else:
-            if is_exported and getattr(args.input_model, "_use_exported_example_shape", False):
+            if is_exported:
                 _validate_exported_input_shapes(args.input_model, args.input)
             return
-    if is_exported and getattr(args.input_model, "_use_exported_example_shape", False):
+    if is_exported:
         _validate_exported_input_shapes(args.input_model, input_arg)
     args.input = input_arg
 
 
 # pylint: disable=no-member
-def to_torch_tensor(tensor):
+def to_torch_tensor(tensor, preserve_lists=False):
     import torch  # pylint: disable=import-error
     if isinstance(tensor, torch.Tensor):
         return tensor
@@ -577,9 +583,10 @@ def to_torch_tensor(tensor):
         return tensor
     if isinstance(tensor, (tuple, list)):
         # TODO: Function to_torch_tensor should be renamed as it handles not only a tensor
-        return tuple(to_torch_tensor(x) for x in tensor)
+        converted = (to_torch_tensor(x, preserve_lists=preserve_lists) for x in tensor)
+        return list(converted) if preserve_lists and isinstance(tensor, list) else tuple(converted)
     if isinstance(tensor, dict) and all(isinstance(k, str) for k in tensor.keys()):
-        return dict((k, to_torch_tensor(x)) for k, x in tensor.items())
+        return dict((k, to_torch_tensor(x, preserve_lists=preserve_lists)) for k, x in tensor.items())
     if tensor is None:
         return None
     else:
@@ -587,22 +594,22 @@ def to_torch_tensor(tensor):
                     "Got {}".format(type(tensor)))
 
 
-def prepare_torch_inputs(example_inputs):
+def prepare_torch_inputs(example_inputs, preserve_lists=False):
     inputs = None
     if example_inputs is not None:
         inputs = example_inputs
         if isinstance(inputs, list):
-            inputs = [to_torch_tensor(x) for x in inputs]
+            inputs = [to_torch_tensor(x, preserve_lists=preserve_lists) for x in inputs]
         elif isinstance(inputs, tuple):
-            inputs = [to_torch_tensor(x) for x in inputs]
+            inputs = [to_torch_tensor(x, preserve_lists=preserve_lists) for x in inputs]
             inputs = tuple(inputs)
         elif isinstance(inputs, dict):
             for name, tensor in inputs.items():
                 assert isinstance(name, str), "Expected dictionary where keys are input names of string type and" \
                                               " values are tensors. Got key of type {}".format(type(name))
-                inputs[name] = to_torch_tensor(tensor)
+                inputs[name] = to_torch_tensor(tensor, preserve_lists=preserve_lists)
         else:
-            inputs = to_torch_tensor(inputs)
+            inputs = to_torch_tensor(inputs, preserve_lists=preserve_lists)
     else:
         return None
     return inputs

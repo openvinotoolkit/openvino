@@ -230,11 +230,15 @@ OP_CONVERTER(translate_quantized_mul);
 OP_CONVERTER(translate_range_length);
 OP_CONVERTER(translate_rad2deg);
 OP_CONVERTER(translate_rand);
+OP_CONVERTER(translate_rand_fx);
 OP_CONVERTER(translate_randperm);
 OP_CONVERTER(translate_randn);
+OP_CONVERTER(translate_randn_fx);
 OP_CONVERTER(translate_randint);
 OP_CONVERTER(translate_rand_like);
+OP_CONVERTER(translate_rand_like_fx);
 OP_CONVERTER(translate_randn_like);
+OP_CONVERTER(translate_randn_like_fx);
 OP_CONVERTER(translate_reciprocal);
 OP_CONVERTER(translate_reflection_pad_nd);
 OP_CONVERTER(translate_relu6);
@@ -873,6 +877,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"<built-in function add>", op::translate_add},
         {"<built-in function floordiv>", op::translate_floor_divide},
         {"<built-in function getitem>", op::translate_getitem},  // TODO: Check if there is any other way to handle this
+        {"<built-in function mod>", op::translate_remainder},
         {"<built-in function mul>", op::translate_mul},
         {"<built-in function neg>", op::translate_neg},
         {"<built-in function sub>", op::translate_sub},
@@ -957,6 +962,12 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.ones_like.default", op::translate_ones_like_fx},
         {"aten.prod.default", op::translate_prod_fx},
         {"aten.prod.dim_int", op::translate_prod_fx},
+        {"aten.rand.default", op::translate_rand_fx},
+        {"aten.rand.out", op::translate_rand_fx},
+        {"aten.rand_like.default", op::translate_rand_like_fx},
+        {"aten.randn.default", op::translate_randn_fx},
+        {"aten.randn.out", op::translate_randn_fx},
+        {"aten.randn_like.default", op::translate_randn_like_fx},
         {"aten.repeat.default", op::translate_repeat_fx},
         {"aten.rsub.Scalar", op::translate_rsub_fx},
         {"aten.rsub.Tensor", op::translate_rsub_fx},
