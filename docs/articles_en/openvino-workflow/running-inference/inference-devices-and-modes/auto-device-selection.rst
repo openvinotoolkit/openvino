@@ -427,6 +427,19 @@ If AUTO is used without specifying any device names, and if there are multiple G
            ov::CompiledModel compiled_model = core.compile_model(model, "AUTO:GPU.1,GPU.0", ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
 
 
+**Performance drop when CPU is used with CUMULATIVE_THROUGHPUT**
+
+When CPU is included in the device candidate list with ``CUMULATIVE_THROUGHPUT``, CPU inference threads compete
+with the host threads of other devices (for example, GPU) for physical CPU cores. This contention reduces the
+throughput of the other devices. The drop is mainly attributed to this contention. In cumulative mode, CPU pinning
+(``ENABLE_CPU_PINNING``) is also enabled by default, which can make the contention worse.
+
+**Reducing the drop with enable_cpu_reservation**
+
+Plugins can set ``ov::hint::enable_cpu_reservation(true)`` to reserve CPU cores for their own inference. This can
+reduce the performance drop caused by other devices, but the effect depends on the platform and the device
+configuration. Verify the effect on your target platform before enabling it.
+
 Code Examples
 --------------------
 
