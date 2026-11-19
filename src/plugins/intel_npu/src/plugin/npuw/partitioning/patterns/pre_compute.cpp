@@ -111,6 +111,13 @@ static ov::NodeVector calculate_freq(const std::shared_ptr<ov::Node> short_facto
     return {inv_freq, inv_freq_long};
 }
 
+bool is_valid_longrope_frequency_input(const ov::Output<ov::Node>& input) {
+    const auto& shape = input.get_partial_shape();
+    // Without Broadcast, only [1, N, 1] is supported: a batch dimension must not be
+    // flattened into the frequency axis when the constants become LUT rows.
+    return shape.is_static() && shape.rank() == 3 && shape[0] == 1 && shape[2] == 1;
+}
+
 void replaceSinCosByCache(int max_prompt_len, const ov::OutputVector& cache, const pre_compute::RopePatternDesc* rpe) {
     auto inv_freq_size = ov::shape_size(rpe->matched_inv_freq->get_shape());
 
@@ -280,7 +287,7 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi::LongRopePatternPhi() : matc
     auto gather = opp::wrap_type<ov::op::v8::Gather>({shape_of, opp::any_input(), opp::any_input()});
     auto concat_1 = opp::wrap_type<ov::op::v0::Concat>({gather, opp::any_input(), opp::any_input()});
     // here we can seen inverse frequencies as a parameter or constant depending on partitioner passes
-    auto broadcast = opp::wrap_type<ov::op::v3::Broadcast>({select, concat_1});
+    auto broadcast = opp::optional<ov::op::v3::Broadcast>({select, concat_1});
     auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({position_ids, MakeConstant()});
     auto convert = opp::wrap_type<ov::op::v0::Convert>({unsqueeze});
     auto matmul = opp::wrap_type<ov::op::v0::MatMul>({broadcast, convert});
@@ -291,7 +298,10 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi::LongRopePatternPhi() : matc
 
     bind_match = [OV_CAPTURE_CPY_AND_THIS](const auto& map_sin, const auto& map_cos) {
         this->matched_position_ids = map_sin.at(position_ids).get_node_shared_ptr();
-        this->matched_concat = map_sin.at(concat_1).get_node_shared_ptr();
+        this->matched_concat = nullptr;
+        if (const auto it = map_sin.find(concat_1); it != map_sin.end()) {
+            this->matched_concat = it->second.get_node_shared_ptr();
+        }
         this->matched_inv_freq = map_sin.at(inv_freq_short).get_node_shared_ptr();
         this->matched_inv_freq_long = map_sin.at(inv_freq_long).get_node_shared_ptr();
         this->matched_context_limit = map_sin.at(context_limit).get_node_shared_ptr();
@@ -301,6 +311,12 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi::LongRopePatternPhi() : matc
 
         this->matched_cos = map_cos.at(output_cos).get_node_shared_ptr();
         this->matched_sin = map_sin.at(output_sin).get_node_shared_ptr();
+
+        if (!matched_concat &&
+            !is_valid_longrope_frequency_input(map_sin.at(matmul).get_node_shared_ptr()->input_value(0))) {
+            this->accept_match = false;
+            return;
+        }
 
         LOG_VERB("Rope found : sin=" << matched_sin->get_name() << ", cos=" << matched_cos->get_name());
     };
@@ -358,7 +374,7 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi_v5::LongRopePatternPhi_v5() 
     auto gather = opp::wrap_type<ov::op::v8::Gather>({shape_of, opp::any_input(), opp::any_input()});
     auto concat_1 = opp::wrap_type<ov::op::v0::Concat>({gather, opp::any_input(), opp::any_input()});
     // here we can seen inverse frequencies as a parameter or constant depending on partitioner passes
-    auto broadcast = opp::wrap_type<ov::op::v3::Broadcast>({select, concat_1});
+    auto broadcast = opp::optional<ov::op::v3::Broadcast>({select, concat_1});
     auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({position_ids, MakeConstant()});
     auto convert = opp::wrap_type<ov::op::v0::Convert>({unsqueeze});
     auto matmul = opp::wrap_type<ov::op::v0::MatMul>({broadcast, convert});
@@ -369,7 +385,10 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi_v5::LongRopePatternPhi_v5() 
 
     bind_match = [OV_CAPTURE_CPY_AND_THIS](const auto& map_sin, const auto& map_cos) {
         this->matched_position_ids = map_sin.at(position_ids).get_node_shared_ptr();
-        this->matched_concat = map_sin.at(concat_1).get_node_shared_ptr();
+        this->matched_concat = nullptr;
+        if (const auto it = map_sin.find(concat_1); it != map_sin.end()) {
+            this->matched_concat = it->second.get_node_shared_ptr();
+        }
         this->matched_short_factor = map_sin.at(short_factor).get_node_shared_ptr();
         this->matched_long_factor = map_sin.at(long_factor).get_node_shared_ptr();
         this->matched_context_limit = map_sin.at(context_limit).get_node_shared_ptr();
@@ -381,6 +400,12 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi_v5::LongRopePatternPhi_v5() 
 
         this->matched_cos = map_cos.at(output_cos).get_node_shared_ptr();
         this->matched_sin = map_sin.at(output_sin).get_node_shared_ptr();
+
+        if (!matched_concat &&
+            !is_valid_longrope_frequency_input(map_sin.at(matmul).get_node_shared_ptr()->input_value(0))) {
+            this->accept_match = false;
+            return;
+        }
 
         LOG_VERB("Rope found : sin=" << matched_sin->get_name() << ", cos=" << matched_cos->get_name());
     };
