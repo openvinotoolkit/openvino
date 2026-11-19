@@ -1918,10 +1918,6 @@ struct MHA {
                 packed
                     ? packed->key.ptr_v()
                     : (_helper._dnn_f16_copy ? _helper._qk_scratch_b.ptr_v(batch_in_reorder, kv_block, hk) : nullptr);
-            auto* value_dst =
-                packed
-                    ? packed->value.ptr_v()
-                    : (_helper._dnn_f16_copy ? _helper._wv_scratch_b.ptr_v(batch_in_reorder, kv_block, hk) : nullptr);
             const auto key_bytes = k_cache.stride_bytes(1);
             const auto value_bytes = v_cache.stride_bytes(1);
             // Cache IDs and addresses can be reused or externally rewritten. Compare all
@@ -1996,6 +1992,8 @@ struct MHA {
                         _helper._params.quant_value_bychannel);
 #    else
                     if (_helper._dnn_f16_copy) {
+                        auto* value_dst = packed ? packed->value.ptr_v()
+                                                 : _helper._wv_scratch_b.ptr_v(batch_in_reorder, kv_block, hk);
                         auto pack_value = [&](auto* tmp) {
                             using T = std::remove_pointer_t<decltype(tmp)>;
                             dequant<T, VALUE_PREC>(tmp,
