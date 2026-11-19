@@ -218,13 +218,13 @@ TEST_P(OVCompiledGraphImportExportTestNPU, NonELFBlobExportThrows) {
     }
 }
 
-static void checkSetExportRawBlobOnCompiledModel(const std::string& target_device,
-                                                 ov::AnyMap configuration,
-                                                 ov::intel_npu::CompilerType compilerType) {
+TEST_P(OVCompiledGraphImportExportTestNPU, SetExportRawBlobOnCompiledModel) {
     ov::Core core;
     std::stringstream rawBlobStream, setPropertyBlobStream;
 
-    configuration.insert_or_assign(ov::intel_npu::compiler_type.name(), compilerType);
+    // The UMD cache key ignores node names, so a compilation can be served a blob compiled earlier (e.g. by another
+    // test) with different embedded names. Bypass it so both compilations are done from scratch.
+    configuration.insert_or_assign(ov::intel_npu::bypass_umd_caching.name(), true);
 
     auto model = ov::test::utils::make_conv_pool_relu();
     // The blob embeds the names of the model and of its nodes. Auto-generated names come from global counters and
@@ -251,17 +251,7 @@ static void checkSetExportRawBlobOnCompiledModel(const std::string& target_devic
     ASSERT_FALSE(compiledModel.get_property(ov::intel_npu::export_raw_blob));
 }
 
-// Compiler in plugin (CIP)
-TEST_P(OVCompiledGraphImportExportTestNPU, SetExportRawBlobOnCompiledModelCIP) {
-    checkSetExportRawBlobOnCompiledModel(target_device, configuration, ov::intel_npu::CompilerType::PLUGIN);
-}
-
-// Compiler in driver (CID)
-TEST_P(OVCompiledGraphImportExportTestNPU, SetExportRawBlobOnCompiledModelCID) {
-    checkSetExportRawBlobOnCompiledModel(target_device, configuration, ov::intel_npu::CompilerType::DRIVER);
-}
-
-// Unlike SetExportRawBlobOnCompiledModel*, this does not depend on two separate compilations producing identical blobs:
+// Unlike SetExportRawBlobOnCompiledModel, this does not depend on two separate compilations producing identical blobs:
 // both exports come from the same compiled model, the raw one being the regular one without the metadata
 TEST_P(OVCompiledGraphImportExportTestNPU, SetExportRawBlobOnCompiledModelIsRegularBlobWithoutMetadata) {
     ov::Core core;
