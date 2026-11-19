@@ -38,8 +38,8 @@ public:
               bool enable_feature_axis = false,
               bool restrict_last_axis_gamma = false) {
         add_matcher<RMSFusionMatcher>(force_tail_convert,
-                                     enable_without_gamma,
-                                     enable_feature_axis,
-                                     restrict_last_axis_gamma);
+                                      enable_without_gamma,
+                                      enable_feature_axis,
+                                      restrict_last_axis_gamma);
     }
 };

@@ -734,10 +734,8 @@ TEST_F(RMSNormFusionLastAxisGammaTest, SharedGammaStillFuses) {
     auto gamma = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 2}, {2.f, 3.f});
     model = getModel(gamma);
     auto input = make_input();
-    auto rms = std::make_shared<ov::op::internal::RMS>(input,
-                                                      gamma->clone_with_new_inputs({}),
-                                                      1e-6f,
-                                                      ov::element::f32);
+    auto rms =
+        std::make_shared<ov::op::internal::RMS>(input, gamma->clone_with_new_inputs({}), 1e-6f, ov::element::f32);
     model_ref = std::make_shared<ov::Model>(ov::OutputVector{rms}, ov::ParameterVector{input});
 }
 
