@@ -46,7 +46,9 @@ RUN python3.11 -m venv venv
 ENV PATH="/venv/bin:$PATH"
 
 # 'packaging' is required by OpenVINO cmake (check_python_requirements.py). get-pip.py installs it
-#  for the system Python 3.11, but not as part of the venv
+# for the system Python 3.11, but not as part of the venv
+# chown: code_style jobs run the container as uid 1001, so the venv must be writable for pip install, see
+# https://github.com/openvinotoolkit/openvino/blob/154c1eecbad6a481cae9a110cd28dbe6842f2322/.github/workflows/code_style.yml#L210
 RUN python3 -m pip install --no-cache-dir packaging && \
     chown -R 1001 /venv
 
