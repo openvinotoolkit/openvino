@@ -1661,7 +1661,7 @@ TEST(GGUFOps, GetRowsMoeWeights) {
 
 TEST(GGUFOps, GetRowsMoeWeightGatherModes) {
     constexpr int64_t tokens = 2, experts = 4, selected = 2;
-    const auto make_model = [](bool shared_row) {
+    const auto make_model = [=](bool shared_row) {
         auto builder = SingleOpBuilder()
                            .op("GGML_OP_GET_ROWS")
                            .input("data", ov::element::f32, {1, 1, shared_row ? int64_t{1} : tokens, experts})
@@ -2328,6 +2328,7 @@ TEST(GGUFOps, RopeNeoxPartialRotary) {
 // ggml_rope_set_truncate controls. With these parameters the high correction dim is 1.008 or, rounded, 2.
 TEST(GGUFOps, RopeYarnTruncation) {
     const int n_dims = 8, pos = 7;
+    constexpr float pi = 3.14159265358979323846f;
     RopeConfig cfg;
     cfg.n_dims = n_dims;
     cfg.n_ctx_orig = 64;
@@ -2358,8 +2359,7 @@ TEST(GGUFOps, RopeYarnTruncation) {
                        {{"data", make_f32_tensor({1, 1, 1, static_cast<size_t>(n_dims)}, data)}, {"pos", pos_t}});
 
         auto corr_dim = [&](float n_rot) {
-            return n_dims * std::log(cfg.n_ctx_orig / (n_rot * 2 * static_cast<float>(M_PI))) /
-                   (2 * std::log(cfg.freq_base));
+            return n_dims * std::log(cfg.n_ctx_orig / (n_rot * 2 * pi)) / (2 * std::log(cfg.freq_base));
         };
         float low = corr_dim(cfg.beta_fast);
         float high = corr_dim(cfg.beta_slow);
