@@ -847,6 +847,54 @@ protected:
         }
     }
 
+    void setup_mocks(const std::vector<ov::Output<const ov::Node>>& model_inputs,
+                     const std::vector<ov::Output<const ov::Node>>& model_outputs,
+                     const std::shared_ptr<testing::NiceMock<ov::MockICore>>& mock_core,
+                     const std::shared_ptr<testing::NiceMock<ov::MockICompiledModel>>& mock_compiled_model) {
+        ON_CALL(*mock_core, get_property(testing::_, testing::_, testing::_))
+            .WillByDefault(testing::Return(ov::Any("")));
+        ON_CALL(*mock_core, get_property(testing::_, testing::StrEq(ov::available_devices.name()), testing::_))
+            .WillByDefault(testing::Return(ov::Any(std::vector<std::string>{})));
+        ON_CALL(*mock_core,
+                compile_model(testing::An<const std::shared_ptr<const ov::Model>&>(),
+                              testing::An<const std::string&>(),
+                              testing::An<const ov::AnyMap&>()))
+            .WillByDefault(testing::Return(mock_compiled_model));
+
+        ON_CALL(*mock_compiled_model, inputs())
+            .WillByDefault([&model_inputs]() -> const std::vector<ov::Output<const ov::Node>>& {
+                return model_inputs;
+            });
+        ON_CALL(*mock_compiled_model, outputs())
+            .WillByDefault([&model_outputs]() -> const std::vector<ov::Output<const ov::Node>>& {
+                return model_outputs;
+            });
+        ON_CALL(*mock_compiled_model, get_property(testing::_)).WillByDefault(testing::Return(ov::Any("")));
+        ON_CALL(*mock_compiled_model, get_property(testing::StrEq(ov::execution_devices.name())))
+            .WillByDefault(testing::Return(ov::Any(std::vector<std::string>{"NPU.0"})));
+    }
+
+    void make_port_asserts(const std::vector<ov::Output<const ov::Node>>& model_inputs,
+                           const std::vector<ov::Output<const ov::Node>>& model_outputs,
+                           const std::vector<ov::Output<const ov::Node>>& inputs,
+                           const std::vector<ov::Output<const ov::Node>>& outputs) {
+        ASSERT_EQ(inputs.size(), model_inputs.size());
+        ASSERT_EQ(outputs.size(), model_outputs.size());
+        for (size_t i = 0; i < model_inputs.size(); ++i) {
+            ASSERT_EQ(model_inputs.at(i).get_partial_shape(), inputs.at(i).get_partial_shape());
+            ASSERT_EQ(model_inputs.at(i).get_element_type(), inputs.at(i).get_element_type());
+            ASSERT_EQ(model_inputs.at(i).get_node()->get_friendly_name(), inputs.at(i).get_node()->get_friendly_name());
+            ASSERT_EQ(model_inputs.at(i).get_names(), inputs.at(i).get_names());
+        }
+        for (size_t j = 0; j < model_outputs.size(); ++j) {
+            ASSERT_EQ(model_outputs.at(j).get_partial_shape(), outputs.at(j).get_partial_shape());
+            ASSERT_EQ(model_outputs.at(j).get_element_type(), outputs.at(j).get_element_type());
+            ASSERT_EQ(model_outputs.at(j).get_node()->get_friendly_name(),
+                      outputs.at(j).get_node()->get_friendly_name());
+            ASSERT_EQ(model_outputs.at(j).get_names(), outputs.at(j).get_names());
+        }
+    }
+
     std::unique_ptr<ov::npuw::GQACompiledModel> create_compiled_model(const std::shared_ptr<ov::Model>& model,
                                                                       const ov::AnyMap& extra_props,
                                                                       RecordingFactory& recorder) const {
@@ -2411,11 +2459,11 @@ TEST_F(GQACompiledModelTest, ImportRejectsNonORCGQACompiledModelWithPrettyMessag
     OV_EXPECT_THROW_HAS_SUBSTRING(
         ov::npuw::ICompiledModel::import_model(stream, m_plugin, {}),
         ov::Exception,
-        "Legacy flat NPUW CompiledModel blobs are no longer supported. Re-export the model with "
+        "Legacy flat NPUW GQACompiledModel blobs are no longer supported. Re-export the model with "
         "the current ORC serializer.");
 }
 
-TEST_F(GQACompiledModelTest, ImportRejectsOtherGQASchema) {
+TEST_F(GQACompiledModelTest, ImportRejectsNonGQAORCSchema) {
     std::stringstream stream;
     ov::npuw::orc::write_file_header(stream, ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA);
     ov::npuw::orc::with_section(stream,
@@ -2442,7 +2490,21 @@ TEST_F(GQACompiledModelTest, ImportRejectsNewerORCGQAVersion) {
 }
 
 TEST_F(GQACompiledModelTest, ImportRejectsORCGQAMetaMissingOrNonLeafSection) {
-    {
+    const std::vector<std::function<void(std::ostream&)>> test_section_lambdas = {
+        [](std::ostream& stream) {
+            // It is expected for GQACompiledModel to have an inner ov::npuw::CompiledModel
+            // section, but not before META section
+            ov::npuw::orc::with_section(stream,
+                                        ov::npuw::CompiledModel::kOrcType,
+                                        ov::npuw::CompiledModel::kOrcVersion,
+                                        0u,
+                                        [] {});
+        },
+        [](std::ostream& stream) {
+            // Even if it is a nested section of META type, import still rejects it because it is not a LEAF section
+            ov::npuw::orc::with_section(stream, ov::npuw::orc::META_SECTION_TYPE, 0u, 0u, [] {});
+        }};
+    for (const auto& test_lambda_case : test_section_lambdas) {
         std::stringstream stream;
         ov::npuw::orc::write_file_header(stream, ov::npuw::orc::schema_npuw::NPUW_ORC_GQA_SCHEMA);
         ov::npuw::orc::with_section(stream,
@@ -2450,32 +2512,8 @@ TEST_F(GQACompiledModelTest, ImportRejectsORCGQAMetaMissingOrNonLeafSection) {
                                     ov::npuw::GQACompiledModel::kOrcVersion,
                                     0u,
                                     [&] {
-                                        // It is expected for GQACompiledModel to have an inner ov::npuw::CompiledModel
-                                        // section, but not before META section
-                                        ov::npuw::orc::with_section(stream,
-                                                                    ov::npuw::CompiledModel::kOrcType,
-                                                                    ov::npuw::CompiledModel::kOrcVersion,
-                                                                    0u,
-                                                                    [&] {});
+                                        test_lambda_case(stream);
                                     });
-
-        OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
-                                      ov::Exception,
-                                      "Expected ORC NPUW metadata section, got type");
-    }
-
-    {
-        std::stringstream stream;
-        ov::npuw::orc::write_file_header(stream, ov::npuw::orc::schema_npuw::NPUW_ORC_GQA_SCHEMA);
-        ov::npuw::orc::with_section(
-            stream,
-            ov::npuw::GQACompiledModel::kOrcType,
-            ov::npuw::GQACompiledModel::kOrcVersion,
-            0u,
-            [&] {
-                // Even if it is a nested section of META type, import still rejects it because it is not a LEAF section
-                ov::npuw::orc::with_section(stream, ov::npuw::orc::META_SECTION_TYPE, 0u, 0u, [&] {});
-            });
 
         OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
                                       ov::Exception,
@@ -2483,39 +2521,105 @@ TEST_F(GQACompiledModelTest, ImportRejectsORCGQAMetaMissingOrNonLeafSection) {
     }
 }
 
+TEST_F(GQACompiledModelTest, ImportRejectsORCGQARootOverrunningStream) {
+    std::stringstream stream;
+    std::streampos pos;
+    ov::npuw::orc::write_file_header(stream, ov::npuw::orc::schema_npuw::NPUW_ORC_GQA_SCHEMA);
+    pos = stream.tellp();
+    ov::npuw::orc::with_section(stream,
+                                ov::npuw::GQACompiledModel::kOrcType,
+                                ov::npuw::GQACompiledModel::kOrcVersion,
+                                0u,
+                                [] {});
+    uint64_t total_wrote_bytes = stream.tellp();
+    stream.seekp(pos + static_cast<std::stringstream::pos_type>(sizeof(ov::npuw::orc::TypeId)) +
+                     static_cast<std::stringstream::pos_type>(sizeof(ov::npuw::orc::Version)) +
+                     static_cast<std::stringstream::pos_type>(sizeof(ov::npuw::orc::SectionFlags)),
+                 std::ios::beg);
+    uint64_t altered_meta_size = total_wrote_bytes + static_cast<std::stringstream::pos_type>(1);
+    stream.write(reinterpret_cast<const char*>(&altered_meta_size), sizeof(altered_meta_size));
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "GQA root section claims");
+}
+
+TEST_F(GQACompiledModelTest, ImportRejectsORCGQAMetaOverrunningRoot) {
+    std::stringstream stream;
+    std::streampos pos;
+    ov::npuw::orc::write_file_header(stream, ov::npuw::orc::schema_npuw::NPUW_ORC_GQA_SCHEMA);
+    ov::npuw::orc::with_section(stream,
+                                ov::npuw::GQACompiledModel::kOrcType,
+                                ov::npuw::GQACompiledModel::kOrcVersion,
+                                0u,
+                                [&] {
+                                    pos = stream.tellp();
+                                    ov::npuw::orc::with_leaf_section(stream, ov::npuw::orc::META_SECTION_TYPE, 0u, [&] {
+                                        std::fill_n(std::ostreambuf_iterator<char>(stream), 10, 0);
+                                    });
+                                });
+    stream.seekp(pos + static_cast<std::stringstream::pos_type>(sizeof(ov::npuw::orc::TypeId)) +
+                     static_cast<std::stringstream::pos_type>(sizeof(ov::npuw::orc::Version)) +
+                     static_cast<std::stringstream::pos_type>(sizeof(ov::npuw::orc::SectionFlags)),
+                 std::ios::beg);
+    uint64_t altered_meta_size = stream.tellp() + static_cast<std::stringstream::pos_type>(1);
+    stream.write(reinterpret_cast<const char*>(&altered_meta_size), sizeof(altered_meta_size));
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "GQA META section exceeds GQA root section");
+}
+
 TEST_F(GQACompiledModelTest, GQAExportImportRoundTrip) {
-    auto model = build_llm_test_model();
-    const auto& inputs = std::const_pointer_cast<const ov::Model>(model)->inputs();
-    const auto& outputs = std::const_pointer_cast<const ov::Model>(model)->outputs();
+    const size_t axis = 2;
+    auto model = build_gqa_model_with_dynamic_kv_cache(axis);
+    const auto& model_inputs = std::const_pointer_cast<const ov::Model>(model)->inputs();
+    const auto& model_outputs = std::const_pointer_cast<const ov::Model>(model)->outputs();
+
+    const uint32_t max_context_len = 4096u;
+    const uint32_t sliding_window_length = 8u;
+    const uint32_t sliding_window_headroom = 512u;
+    auto test_props = base_props();
+    merge_props(test_props,
+                ov::AnyMap{ov::intel_npu::npuw::llm::max_context_len(max_context_len),
+                           ov::intel_npu::npuw::llm::swa_len(sliding_window_length),
+                           ov::intel_npu::npuw::llm::swa_headroom(sliding_window_headroom)});
 
     auto mock_core = std::make_shared<testing::NiceMock<ov::MockICore>>();
     auto mock_compiled_model = std::make_shared<testing::NiceMock<ov::MockICompiledModel>>(model, m_plugin);
-
-    ON_CALL(*mock_core, get_property(testing::_, testing::_)).WillByDefault(testing::Return(ov::Any("")));
-    ON_CALL(*mock_core, get_property(testing::_, testing::_, testing::_)).WillByDefault(testing::Return(ov::Any("")));
-    ON_CALL(*mock_core,
-            compile_model(testing::An<const std::shared_ptr<const ov::Model>&>(),
-                          testing::An<const std::string&>(),
-                          testing::An<const ov::AnyMap&>()))
-        .WillByDefault(testing::Return(mock_compiled_model));
     m_plugin->set_core(mock_core);
+    setup_mocks(model_inputs, model_outputs, mock_core, mock_compiled_model);
 
-    ON_CALL(*mock_compiled_model, inputs())
-        .WillByDefault([&inputs]() -> const std::vector<ov::Output<const ov::Node>>& {
-            return inputs;
-        });
-    ON_CALL(*mock_compiled_model, outputs())
-        .WillByDefault([&outputs]() -> const std::vector<ov::Output<const ov::Node>>& {
-            return outputs;
-        });
-    ON_CALL(*mock_compiled_model, get_property(testing::_)).WillByDefault(testing::Return(ov::Any("")));
-    ON_CALL(*mock_compiled_model, get_property(testing::Matcher<const std::string&>(ov::execution_devices.name())))
-        .WillByDefault(testing::Return(ov::Any("NPU.0")));
-
-    auto compiled = std::make_unique<ov::npuw::GQACompiledModel>(model, m_plugin, base_props());
+    auto compiled = std::make_unique<ov::npuw::GQACompiledModel>(model, m_plugin, test_props);
     std::stringstream stream;
     ASSERT_NO_THROW(compiled->export_model(stream));
-    ASSERT_NO_THROW(ov::npuw::ICompiledModel::import_model(stream, m_plugin, {}));
+
+    std::shared_ptr<ov::npuw::GQACompiledModel> imported;
+    EXPECT_CALL(
+        *mock_core,
+        import_model(testing::An<std::istream&>(), testing::An<const std::string&>(), testing::An<const ov::AnyMap&>()))
+        .Times(testing::AtLeast(1))
+        .WillRepeatedly(testing::Return(mock_compiled_model));
+    ASSERT_NO_THROW(imported = std::dynamic_pointer_cast<ov::npuw::GQACompiledModel>(
+                        ov::npuw::ICompiledModel::import_model(stream, m_plugin, {})));
+    ASSERT_NE(imported, nullptr);
+    ASSERT_EQ(stream.peek(), EOF);
+    ASSERT_NO_FATAL_FAILURE(make_port_asserts(model_inputs, model_outputs, imported->inputs(), imported->outputs()));
+
+    size_t matched_ports = 0;
+    for (const auto& input : imported->inputs()) {
+        if (input.get_node()->get_friendly_name() != "past_keys_0" &&
+            input.get_node()->get_friendly_name() != "past_values_0") {
+            continue;
+        }
+        ASSERT_TRUE(input.get_partial_shape()[axis].is_dynamic());
+        ++matched_ports;
+    }
+    ASSERT_EQ(matched_ports, 2u);
+
+    ASSERT_EQ(imported->get_property(ov::intel_npu::npuw::llm::max_context_len.name()), max_context_len);
+    ASSERT_EQ(imported->get_property(ov::intel_npu::npuw::llm::swa_len.name()), sliding_window_length);
+    ASSERT_EQ(imported->get_property(ov::intel_npu::npuw::llm::swa_headroom.name()), sliding_window_headroom);
 }
 
 }  // namespace

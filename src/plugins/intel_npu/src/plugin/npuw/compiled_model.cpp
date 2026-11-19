@@ -373,16 +373,6 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
 }
 
 namespace {
-bool is_partitioned_orc(std::istream& stream) {
-    const auto header = ov::npuw::orc::is_orc(stream);
-    return header.has_value() && header->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA;
-}
-
-bool is_gqa_orc(std::istream& stream) {
-    const auto header = ov::npuw::orc::is_orc(stream);
-    return header.has_value() && header->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_GQA_SCHEMA;
-}
-
 bool has_npuw_indicator(std::istream& stream) {
     const auto start = stream.tellg();
     ov::npuw::s11n::IndicatorType indicator;
@@ -395,7 +385,7 @@ bool has_npuw_indicator(std::istream& stream) {
 }  // anonymous namespace
 
 bool ov::npuw::ICompiledModel::is_npuw_blob(std::istream& stream) {
-    return is_partitioned_orc(stream) || is_gqa_orc(stream) || has_npuw_indicator(stream);
+    return ov::npuw::orc::is_orc(stream).has_value() || has_npuw_indicator(stream);
 }
 
 std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::import_model(
@@ -405,17 +395,15 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::import_model
     LOG_INFO("Choosing which NPUW CompiledModel to import");
     LOG_BLOCK();
 
-    // The partitioned CompiledModel is a plain ORC container with no indicator
-    // header of its own.
-    auto orcHeader = orc::is_orc(stream);
-    if (is_npuw_blob(stream) && orcHeader.has_value()) {
-        if (orcHeader->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_GQA_SCHEMA) {
+    const auto orc_header = orc::is_orc(stream);
+    if (orc_header.has_value()) {
+        if (orc_header->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_GQA_SCHEMA) {
             return ov::npuw::GQACompiledModel::import_model(stream, plugin, properties);
-        } else if (orcHeader->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA) {
-            return ov::npuw::CompiledModel::import_model(stream, plugin, properties);
-        } else {
-            NPUW_ASSERT(false && "Couldn't determine blob type from ORC root section");
         }
+        if (orc_header->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA) {
+            return ov::npuw::CompiledModel::import_model(stream, plugin, properties);
+        }
+        NPUW_ASSERT(false && "Couldn't determine blob type from ORC root section");
     }
 
     const auto stream_start_pos = stream.tellg();
@@ -431,6 +419,7 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::import_model
     stream.clear();
     stream.seekg(stream_start_pos);
 
+    std::string legacy_kind_cmod;
     if (compiled_model_indicator == NPUW_FLUX2_COMPILED_MODEL_INDICATOR) {
         return ov::npuw::Flux2CompiledModel::import_model(stream, plugin, properties);
     } else if (compiled_model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR) {
@@ -438,11 +427,17 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::import_model
         return ov::npuw::LLMCompiledModel::import_model(stream, plugin, properties);
     } else if (compiled_model_indicator == NPUW_BATCHED_COMPILED_MODEL_INDICATOR) {
         return ov::npuw::batched::CompiledModel::import_model(stream, plugin, properties);
-    } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR ||
-               compiled_model_indicator == NPUW_GQA_COMPILED_MODEL_INDICATOR) {
-        // The flat CompiledModel moved to the ORC container above; its old
+    } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR) {
+        // The flat CompiledModel and GQACompiledModel moved to the ORC container above; its old
         // indicator-headed layout has no reader anymore.
-        OPENVINO_THROW("Legacy flat NPUW CompiledModel blobs are no longer supported. Re-export the model with "
+        legacy_kind_cmod = "CompiledModel";
+    } else if (compiled_model_indicator == NPUW_GQA_COMPILED_MODEL_INDICATOR) {
+        legacy_kind_cmod = "GQACompiledModel";
+    }
+    if (!legacy_kind_cmod.empty()) {
+        OPENVINO_THROW("Legacy flat NPUW ",
+                       legacy_kind_cmod,
+                       " blobs are no longer supported. Re-export the model with "
                        "the current ORC serializer.");
     }
     OPENVINO_THROW("Couldn't deserialize NPUW blob - fatal error!");

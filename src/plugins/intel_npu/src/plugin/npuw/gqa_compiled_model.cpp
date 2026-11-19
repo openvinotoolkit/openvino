@@ -705,7 +705,8 @@ ov::ParameterVector ov::npuw::GQACompiledModel::read_input_port_list(ov::npuw::o
 }
 
 ov::NodeVector ov::npuw::GQACompiledModel::read_output_port_list(ov::npuw::orc::Stream& stream) {
-    size_t count = 0;
+    NPUW_ASSERT(stream.input());
+    uint64_t count = 0;
     stream & count;
     OPENVINO_ASSERT(count <= 1024, "GQACompiledModel: implausible outer output port count (", count, ") on import");
     ov::NodeVector results;
@@ -734,6 +735,11 @@ ov::NodeVector ov::npuw::GQACompiledModel::read_output_port_list(ov::npuw::orc::
 void ov::npuw::GQACompiledModel::export_model(std::ostream& stream) const {
     LOG_INFO("Exporting GQACompiledModel...");
     LOG_BLOCK();
+
+    auto npu_compiled_model = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(m_inner_compiled_model);
+    NPUW_ASSERT(npu_compiled_model &&
+                "GQACompiledModel: Currently, ov::npuw::CompiledModel is the only allowed inner compiled model type");
+
     GQA_TRACE("GQACompiledModel::export_model() begin, m_dynamic_kv_cache_axes has " << m_dynamic_kv_cache_axes.size()
                                                                                      << " entries:");
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
@@ -771,10 +777,6 @@ void ov::npuw::GQACompiledModel::export_model(std::ostream& stream) const {
                       << ", present_to_past_param_names has " << m_present_to_past_param_names.size() << " entries"
                       << "; delegating to inner m_inner_compiled_model->serialize_orc_container()");
         });
-        auto npu_compiled_model = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(m_inner_compiled_model);
-        NPUW_ASSERT(
-            npu_compiled_model &&
-            "GQACompiledModel: Currently, ov::npuw::CompiledModel is the only allowed inner compiled model type");
         npu_compiled_model->serialize_orc_container(stream,
                                                     /* include_weights_bank = */ true,
                                                     get_encrypt_callback(npu_compiled_model->non_npuw_props()));
@@ -796,6 +798,10 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
                     "Unsupported ORC schema for NPUW GQACompiledModel");
 
     orc::ScopedReadSection root(stream);
+    OPENVINO_ASSERT(root.remaining() <= ov::npuw::orc::Stream::reader(stream).remaining(),
+                    "GQA root section claims ",
+                    root.remaining(),
+                    " which exceeds the stream size");
     OPENVINO_ASSERT(root.header().type == kOrcType, "Not a GQA ORC blob");
     OPENVINO_ASSERT(root.header().version <= kOrcVersion,
                     "GQA blob was produced by a newer NPUW (section version ",
@@ -805,7 +811,7 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
                     ")");
     OPENVINO_ASSERT(!orc::has_flag(root.header().flags, orc::SectionFlag::LEAF),
                     "Unsupported ORC NPUW GQA root section");
-    OPENVINO_ASSERT(!root.done(), "Unexpected end of GQA section");
+    OPENVINO_ASSERT(!root.done(), "Unexpected end of GQA section: empty GQA root section (missing META)");
 
     // Rebuild the outer-facing model (dynamic axes restored) exactly as before export.
     ov::ParameterVector outer_parameters;
@@ -816,8 +822,9 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
     uint32_t effective_sliding_window_headroom = 0;
     std::optional<std::string> total_seq_len_param_name;
     std::unordered_map<std::string, std::string> present_to_past_param_names;
-    auto read_meta_fields = [&]() {
-        auto meta_stream = ov::npuw::orc::Stream::reader(stream);
+
+    auto read_meta_fields = [&](const std::string& meta_blob) {
+        auto meta_stream = ov::npuw::orc::Stream::memory_reader(meta_blob.data(), meta_blob.size());
         outer_parameters = GQACompiledModel::read_input_port_list(meta_stream);
         outer_results = GQACompiledModel::read_output_port_list(meta_stream);
         meta_stream & dynamic_kv_cache_axes;
@@ -826,14 +833,18 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
         meta_stream & effective_sliding_window_headroom;
         meta_stream & total_seq_len_param_name;
         meta_stream & present_to_past_param_names;
+        OPENVINO_ASSERT(meta_stream.remaining() == 0, "Unexpected remaining bytes of GQACompiledModel's META section");
     };
     ov::npuw::orc::ScopedReadSection meta(stream);
+    OPENVINO_ASSERT(meta.remaining() <= root.remaining(), "GQA META section exceeds GQA root section");
     if (meta.header().type != ov::npuw::orc::META_SECTION_TYPE ||
         !ov::npuw::orc::has_flag(meta.header().flags, ov::npuw::orc::SectionFlag::LEAF)) {
         OPENVINO_THROW("Expected ORC NPUW metadata section, got type ", meta.header().type);
     }
-    read_meta_fields();
+    auto meta_blob = meta.read_remaining_blob();
+    read_meta_fields(meta_blob);
     meta.expect_end();
+    OPENVINO_ASSERT(!root.done(), "Unexpected end of GQA section: missing inner CompiledModel section after META");
 
     GQA_TRACE("    read " << outer_parameters.size() << " outer parameters, " << outer_results.size()
                           << " outer results, " << dynamic_kv_cache_axes.size() << " dynamic-axis entries:");
@@ -846,7 +857,7 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
     auto outer_model =
         std::make_shared<ov::Model>(ov::as_output_vector(outer_results), outer_parameters, "gqa_outer_model");
 
-    // The rest of the stream is the self-contained inner CompiledModel ORC blob.
+    // Next child of the GQA root: the inner CompiledModel ORC container section (no file header).
     auto inner_compiled_model = ov::npuw::CompiledModel::deserialize_orc_container(stream,
                                                                                    plugin,
                                                                                    properties,
@@ -854,7 +865,6 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
                                                                                    /* decrypt = */ {});
     root.expect_end();
 
-    NPUW_ASSERT(inner_compiled_model != nullptr);
     GQA_TRACE("    inner CompiledModel imported @ "
               << inner_compiled_model.get()
               << "; wrapping it back into a GQACompiledModel so dynamic KV-cache/attention-bias reshape "
