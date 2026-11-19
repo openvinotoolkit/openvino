@@ -1201,6 +1201,173 @@ TEST_F(SDPAToPATest, SDPAToPA_Qwen7bChat_PositionIDsReplacerQwenPattern) {
     disable_rt_info_check();
 }
 
+namespace {
+OutputVector make_granite_rope(const Output<Node>& rotary_positions) {
+    auto converted = std::make_shared<v0::Convert>(rotary_positions, element::f32);
+    auto inv_freq = v0::Constant::create(element::f32, Shape{1, 2, 1}, {1.f, 0.1f});
+    auto matmul = std::make_shared<v0::MatMul>(inv_freq, converted);
+    auto transpose = std::make_shared<v1::Transpose>(matmul, v0::Constant::create(element::i64, Shape{3}, {0, 2, 1}));
+    auto angles = std::make_shared<v0::Concat>(OutputVector{transpose, transpose}, -1);
+    auto cos = std::make_shared<v0::Cos>(angles);
+    auto sin = std::make_shared<v0::Sin>(angles);
+    auto one = v0::Constant::create(element::i64, Shape{}, {1});
+    auto unsq_cos = std::make_shared<v0::Unsqueeze>(cos, one);
+    auto unsq_sin = std::make_shared<v0::Unsqueeze>(sin, one);
+    return {unsq_cos, unsq_sin};
+}
+}  // namespace
+
+class SDPAToPAGranitePositionIDsTest : public TransformationTestsF,
+                                       public ::testing::WithParamInterface<std::tuple<element::Type, bool, bool>> {
+public:
+    SDPAToPAGranitePositionIDsTest() {
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+        disable_result_friendly_names_check();
+        disable_rt_info_check();
+    }
+};
+
+TEST_P(SDPAToPAGranitePositionIDsTest, SDPAToPA_Granite_PositionIDsReplacer_AfterPrevSequenceLength) {
+    const auto& [length_type, vector_index, exec_PrevSequenceLengthPattern] = GetParam();
+    {
+        auto hidden_states = std::make_shared<v0::Parameter>(element::f32, PartialShape{3, 1, 4});
+        auto processed_input_ids = std::make_shared<v0::Parameter>(element::i64, PartialShape{3, 1});
+        auto position_ids = ov::test::utils::make_param(element::i64, PartialShape{DYN}, "position_ids");
+        auto max_context_len = ov::test::utils::make_param(element::i32, PartialShape{}, "max_context_len");
+        auto unsqueezed_position_ids =
+            std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i64, Shape{}, {-1}));
+
+        // The cache-length Gather's type and rank determine which wrappers the earlier pass inserts.
+        auto init = v0::Constant::create(element::f32, Shape{1, 2, 0, 4}, {0.f});
+        auto variable = std::make_shared<op::util::Variable>(
+            op::util::VariableInfo{PartialShape{1, 2, DYN, 4}, element::f32, "cache"});
+        auto cache = std::make_shared<v6::ReadValue>(init, variable);
+        auto zero = v0::Constant::create(element::i64, Shape{}, {0});
+        auto one = v0::Constant::create(element::i64, Shape{}, {1});
+        auto cache_gather =
+            std::make_shared<v8::Gather>(cache, v0::Constant::create(element::i32, Shape{1}, {0}), zero);
+        // length_type selects i32 or i64 for the cache length and current-token offsets.
+        auto cache_shape = std::make_shared<v3::ShapeOf>(cache_gather, length_type);
+        auto cache_length_index = v0::Constant::create(element::i64, vector_index ? Shape{1} : Shape{}, {2});
+        auto cache_length = std::make_shared<v8::Gather>(cache_shape, cache_length_index, zero);
+
+        auto current_shape = std::make_shared<v3::ShapeOf>(hidden_states, length_type);
+        auto current_length = std::make_shared<v8::Gather>(current_shape, one, zero);
+        auto range_start = v0::Constant::create(length_type, Shape{}, {0});
+        auto range_step = v0::Constant::create(length_type, Shape{}, {1});
+        auto range = std::make_shared<v4::Range>(range_start, current_length, range_step, length_type);
+        auto positions = std::make_shared<v1::Add>(range, cache_length);
+        auto batch_positions = std::make_shared<v0::Unsqueeze>(positions, zero);
+        auto rotary_positions = std::make_shared<v0::Unsqueeze>(batch_positions, one);
+        model =
+            std::make_shared<Model>(make_granite_rope(rotary_positions),
+                                    ParameterVector{hidden_states, processed_input_ids, position_ids, max_context_len});
+
+        if (exec_PrevSequenceLengthPattern) {
+            manager.register_pass<pass::PrevSequenceLengthPattern>(processed_input_ids, max_context_len, position_ids);
+        }
+        manager.register_pass<pass::PositionIDsReplacerGranite>(unsqueezed_position_ids);
+    }
+    {
+        // All four input variants produce the same RoPE graph using the supplied position_ids.
+        auto hidden_states = std::make_shared<v0::Parameter>(element::f32, PartialShape{3, 1, 4});
+        auto processed_input_ids = std::make_shared<v0::Parameter>(element::i64, PartialShape{3, 1});
+        auto position_ids = ov::test::utils::make_param(element::i64, PartialShape{DYN}, "position_ids");
+        auto max_context_len = ov::test::utils::make_param(element::i32, PartialShape{}, "max_context_len");
+        auto one = v0::Constant::create(element::i64, Shape{}, {1});
+        auto unsqueezed_position_ids =
+            std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i64, Shape{}, {-1}));
+        auto rotary_positions = std::make_shared<v0::Unsqueeze>(unsqueezed_position_ids, one);
+        model_ref =
+            std::make_shared<Model>(make_granite_rope(rotary_positions),
+                                    ParameterVector{hidden_states, processed_input_ids, position_ids, max_context_len});
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(SDPAToPA,
+                         SDPAToPAGranitePositionIDsTest,
+                         ::testing::Combine(::testing::Values(element::i32, element::i64),
+                                            ::testing::Values(false, true),
+                                            ::testing::Values(false, true)),
+                         [](const ::testing::TestParamInfo<SDPAToPAGranitePositionIDsTest::ParamType>& info) {
+                             const auto& length_type = std::get<0>(info.param);
+                             const auto vector_index = std::get<1>(info.param);
+                             const auto exec_PrevSequenceLengthPattern = std::get<2>(info.param);
+                             return length_type.to_string() + (vector_index ? "_Vector" : "_Scalar") +
+                                    (exec_PrevSequenceLengthPattern ? "_PrevSequenceLengthPattern" : "");
+                         });
+
+TEST_F(TransformationTestsF, SDPAToPA_Qwen3_5_PositionIDsReplacer) {
+    auto make_rope = [](const Output<Node>& positions, const Output<Node>& hidden_states) {
+        auto zero = v0::Constant::create(element::i64, Shape{}, {0});
+        auto hidden_shape = std::make_shared<v3::ShapeOf>(hidden_states);
+        auto batch = std::make_shared<v8::Gather>(hidden_shape, zero, zero);
+        auto batch_vector =
+            std::make_shared<v1::Reshape>(batch, v0::Constant::create(element::i64, Shape{1}, {1}), false);
+        auto target_shape =
+            std::make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i64, Shape{1}, {3}),
+                                                      batch_vector,
+                                                      v0::Constant::create(element::i64, Shape{1}, {1})},
+                                         0);
+        auto broadcast = std::make_shared<v3::Broadcast>(positions, target_shape, op::BroadcastType::BIDIRECTIONAL);
+        auto unsqueeze = std::make_shared<v0::Unsqueeze>(broadcast, v0::Constant::create(element::i64, Shape{}, {2}));
+        auto convert = std::make_shared<v0::Convert>(unsqueeze, element::f32);
+        auto inv_freq = v0::Constant::create(element::f32, Shape{1, 1, 32, 1}, {1.f});
+        auto matmul = std::make_shared<v0::MatMul>(inv_freq, convert);
+        auto transpose =
+            std::make_shared<v1::Transpose>(matmul, v0::Constant::create(element::i64, Shape{4}, {0, 1, 3, 2}));
+        return transpose;
+    };
+
+    {
+        auto hidden_states = ov::test::utils::make_param(element::f32, PartialShape{DYN, 6144, 1}, "hidden_states");
+        auto position_ids = ov::test::utils::make_param(element::i64, PartialShape{DYN}, "position_ids");
+        auto unsq_position_ids =
+            std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {-1}));
+        auto beam_idx = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "beam_idx");
+        auto init = v0::Constant::create(element::f32, Shape{1, 2, 0, 256}, {0.f});
+        auto variable = std::make_shared<op::util::Variable>(
+            op::util::VariableInfo{PartialShape{DYN, 2, DYN, 256}, element::f32, "key_cache"});
+        auto cache = std::make_shared<v6::ReadValue>(init, variable);
+        auto zero = v0::Constant::create(element::i64, Shape{}, {0});
+        auto reordered_cache = std::make_shared<v8::Gather>(cache, beam_idx, zero);
+        auto cache_shape = std::make_shared<v3::ShapeOf>(reordered_cache);
+        auto past_length =
+            std::make_shared<v8::Gather>(cache_shape, v0::Constant::create(element::i64, Shape{}, {2}), zero);
+        auto hidden_shape = std::make_shared<v3::ShapeOf>(hidden_states);
+        auto sequence_length_vector =
+            std::make_shared<v8::Gather>(hidden_shape, v0::Constant::create(element::i64, Shape{1}, {2}), zero);
+        auto sequence_length = std::make_shared<v0::Squeeze>(sequence_length_vector, zero);
+        auto end = std::make_shared<v1::Add>(sequence_length, past_length);
+        auto step = v0::Constant::create(element::i64, Shape{}, {1});
+        auto range = std::make_shared<v4::Range>(past_length, end, step, element::i64);
+        auto reshape =
+            std::make_shared<v1::Reshape>(range, v0::Constant::create(element::i64, Shape{3}, {1, 1, -1}), false);
+        auto rope = make_rope(reshape, hidden_states);
+
+        model = std::make_shared<Model>(OutputVector{rope}, ParameterVector{hidden_states, position_ids, beam_idx});
+        manager.register_pass<pass::PositionIDsReplacerQwen3_5>(unsq_position_ids);
+    }
+    {
+        auto hidden_states = ov::test::utils::make_param(element::f32, PartialShape{DYN, 6144, 1}, "hidden_states");
+        auto position_ids = ov::test::utils::make_param(element::i64, PartialShape{DYN}, "position_ids");
+        // This test runs only the matcher. The full SDPAToPA pipeline removes the unused beam_idx input later.
+        auto beam_idx = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "beam_idx");
+        auto unsq_position_ids =
+            std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {-1}));
+        auto positions =
+            std::make_shared<v0::Unsqueeze>(unsq_position_ids, v0::Constant::create(element::i32, Shape{}, {0}));
+        auto rope = make_rope(positions, hidden_states);
+
+        model_ref = std::make_shared<Model>(OutputVector{rope}, ParameterVector{hidden_states, position_ids, beam_idx});
+    }
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    disable_result_friendly_names_check();
+    disable_rt_info_check();
+}
+
 TEST_F(SDPAToPATest, SDPAToPA_PositionIDsReplacerLFM2_DequantStartBranch) {
     {
         auto max_context_len = std::make_shared<v0::Parameter>(element::i64, PartialShape{});

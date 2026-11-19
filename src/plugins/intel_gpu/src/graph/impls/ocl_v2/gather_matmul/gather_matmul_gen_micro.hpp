@@ -23,8 +23,7 @@ struct GatherMatmulRuntimeParams : public ImplRuntimeParams {
     int32_t n_tokens = 0;
 };
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
-#    include "micro_utils.hpp"
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
 
 struct gathermatmul_config {
     bool has_bias = false;

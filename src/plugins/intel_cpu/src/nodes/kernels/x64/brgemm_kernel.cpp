@@ -45,6 +45,7 @@ BrgemmKernel::BrgemmKernel(size_t M,
                            bool b_transposed,
                            ov::element::Type inType,
                            bool b_accumulate,
+                           bool fuse_relu,
                            ov::element::Type b_in_type,
                            ov::element::Type a_in_type)
     : BrgemmKernel(M,
@@ -59,6 +60,7 @@ BrgemmKernel::BrgemmKernel(size_t M,
                    ov::element::dynamic,
                    BrgemmKernel::ScaleType::NONE,
                    b_accumulate,
+                   fuse_relu,
                    b_in_type,
                    a_in_type) {}
 
@@ -74,6 +76,7 @@ BrgemmKernel::BrgemmKernel(size_t M,
                            ov::element::Type DType,
                            BrgemmKernel::ScaleType bScaleType,
                            bool b_accumulate,
+                           bool fuse_relu,
                            ov::element::Type b_in_type,
                            ov::element::Type a_in_type)
     : M(M),
@@ -91,7 +94,8 @@ BrgemmKernel::BrgemmKernel(size_t M,
       a_in_type(a_in_type == ov::element::dynamic ? inType : a_in_type),
       DType(DType),
       bScaleType(bScaleType),
-      b_accumulate(b_accumulate) {
+      b_accumulate(b_accumulate),
+      post_relu(fuse_relu) {
     if (none_of(inType, ov::element::i8, ov::element::bf16, ov::element::f16, ov::element::f32)) {
         THROW_ERROR("brgemm kernel only supports i8, f16, bf16, f32");
     }
@@ -292,6 +296,14 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
         status = memory_desc_init_by_strides(Dmd, /* ndims = */ 2, dims, dnnl_data_type_t::dnnl_f32, strides);
         attr.scales_.set(DNNL_ARG_WEIGHTS, 2);
         status = brgemm_desc_set_postops(&brgDesc, &attr, &Dmd, ldd, data_type::undef);
+    } else if (post_relu) {
+        dnnl::impl::primitive_attr_t attr;
+        memory_desc_t Dmd;
+        dims_t dims{static_cast<dnnl_dim_t>(ctx.M), static_cast<dnnl_dim_t>(ctx.N)};
+        dims_t strides{static_cast<dnnl_dim_t>(ldd), static_cast<dnnl_dim_t>(1)};
+        status = memory_desc_init_by_strides(Dmd, /* ndims = */ 2, dims, dnnl_data_type_t::dnnl_f32, strides);
+        attr.post_ops_.append_eltwise(1.0F, alg_kind::eltwise_relu, 0.0F, 0.0F);
+        status = brgemm_desc_set_postops(&brgDesc, &attr, &Dmd, ldd, data_type::undef);
     }
 
     if (status != dnnl_success) {
@@ -490,6 +502,18 @@ void BrgemmKernel::executeGemm(bool is_M_tail,
     execute_without_scale(is_M_tail, a, b, c, wsp, scratch_a);
 }
 
+void BrgemmKernel::executeGemm(bool is_M_tail,
+                               void* a,
+                               void* b,
+                               void* c,
+                               [[maybe_unused]] void* d,
+                               [[maybe_unused]] float* scale_b,
+                               void* wsp,
+                               void* scratch_a,
+                               AmxTileState& tiles) {
+    execute_without_scale(is_M_tail, a, b, c, wsp, scratch_a, &tiles);
+}
+
 void BrgemmKernel::copy_buffer_a(bool is_M_tail, void* a, void* scratch_a) {
     auto* ptr_A = reinterpret_cast<uint8_t*>(a);
     auto* ptr_scartch_a = reinterpret_cast<uint8_t*>(scratch_a);
@@ -524,7 +548,7 @@ void BrgemmKernel::copy_buffer_a(bool is_M_tail, void* a, void* scratch_a) {
 
 void BrgemmKernel::execute_with_packed_a(bool is_M_tail, void* a, void* b, void* c, void* wsp) {
     OPENVINO_ASSERT(f16_copy, "Packed A execution requires non-AMX FP16.");
-    execute_without_scale(is_M_tail, a, b, c, wsp, nullptr, true);
+    execute_without_scale(is_M_tail, a, b, c, wsp, nullptr, nullptr, true);
 }
 
 void BrgemmKernel::execute_without_scale(bool is_M_tail,
@@ -533,6 +557,7 @@ void BrgemmKernel::execute_without_scale(bool is_M_tail,
                                          void* c,
                                          void* wsp,
                                          void* scratch_a,
+                                         AmxTileState* tiles,
                                          bool a_is_packed) {
     auto* ptr_A = reinterpret_cast<uint8_t*>(a);
     auto* ptr_C = reinterpret_cast<uint8_t*>(c);
@@ -558,15 +583,18 @@ void BrgemmKernel::execute_without_scale(bool is_M_tail,
                 auto* weight_ptr = ptr_scartch_b + B_stride;
                 auto C_stride = n * count_N * ov::element::f32.size();
                 auto* out_ptr = ptr_C + C_stride;
+                // the ReLU post-op runs with the last K step of the result block (in place: C is also D)
+                const bool do_post = post_relu && ((k == 0 && K_tail == 0) || k == 1);
                 callBrgemm(brgemmCtx,
                            brgKernels[getBrgIdx(mIdx, k, n)],
                            local_a_ptr,
                            weight_ptr,
                            out_ptr,
-                           nullptr,
+                           do_post ? out_ptr : nullptr,
                            nullptr,
                            wsp,
-                           false);
+                           do_post,
+                           tiles);
                 // stride K, N if body kernel is executed.
                 if (k == 0) {
                     count_K = brgemmCtx.K * brgemmCtx.LDB;
@@ -587,8 +615,9 @@ void BrgemmKernel::callBrgemm(brgemmCtx& ctx,
                               void* Dout,
                               const float* bScale,
                               void* wsp,
-                              bool doPostops) {
-    if (ctx.is_with_amx) {
+                              bool doPostops,
+                              AmxTileState* tiles) {
+    if (ctx.is_with_amx && (tiles == nullptr || tiles->needs_configure(ctx.palette))) {
         amx_tile_configure(ctx.palette);
     }
     if (doPostops) {
@@ -631,9 +660,33 @@ void BrgemmKernelQuantized::executeGemm(bool is_M_tail,
                                         float* scale_b,
                                         void* wsp,
                                         void* scratch_a) {
+    execute_scaled(is_M_tail, a, b, c, d, scale_b, wsp, scratch_a, nullptr);
+}
+
+void BrgemmKernelQuantized::executeGemm(bool is_M_tail,
+                                        void* a,
+                                        void* b,
+                                        void* c,
+                                        void* d,
+                                        float* scale_b,
+                                        void* wsp,
+                                        void* scratch_a,
+                                        AmxTileState& tiles) {
+    execute_scaled(is_M_tail, a, b, c, d, scale_b, wsp, scratch_a, &tiles);
+}
+
+void BrgemmKernelQuantized::execute_scaled(bool is_M_tail,
+                                           void* a,
+                                           void* b,
+                                           void* c,
+                                           void* d,
+                                           float* scale_b,
+                                           void* wsp,
+                                           void* scratch_a,
+                                           AmxTileState* tiles) {
     // If no scale is provided, run kernel without post-scales
     if (scale_b == nullptr) {
-        execute_without_scale(is_M_tail, a, b, c, wsp, scratch_a);
+        execute_without_scale(is_M_tail, a, b, c, wsp, scratch_a, tiles);
         return;
     }
     auto* ptr_A = reinterpret_cast<uint8_t*>(a);
@@ -695,7 +748,8 @@ void BrgemmKernelQuantized::executeGemm(bool is_M_tail,
                            d_ptr,
                            scale_b + n * count_N,
                            wsp,
-                           do_post);
+                           do_post,
+                           tiles);
                 // stride K, N if body kernel is executed.
                 if (k == 0) {
                     count_K = brgemmCtx.K * brgemmCtx.LDB;

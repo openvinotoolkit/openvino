@@ -32,7 +32,6 @@ public:
     static layout calc_output_layout(roi_pooling_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(roi_pooling_node const& node);
 
-public:
     using parent::parent;
 
     memory::ptr rois_memory() const { return dep_memory_ptr(1); }

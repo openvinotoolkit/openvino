@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "custom/subgraph_tests/src/classes/paged_attn.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -9,7 +11,6 @@
 #include <vector>
 
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
-#include "custom/subgraph_tests/src/classes/paged_attn.hpp"
 #include "internal_properties.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/paged_attention.hpp"

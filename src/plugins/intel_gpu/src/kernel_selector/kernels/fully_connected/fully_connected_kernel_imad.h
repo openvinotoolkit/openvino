@@ -42,7 +42,7 @@ protected:
         size_t work_groups_number;
     };
 
-    FullyConnectedTuningData GetTuningParams(const fully_connected_params& params) const;
-    float EstimateOccupancy(const fully_connected_params& params, size_t tile_ofm, size_t tile_batch, size_t slm_div_factor = 1) const;
+    static FullyConnectedTuningData GetTuningParams(const fully_connected_params& params);
+    static float EstimateOccupancy(const fully_connected_params& params, size_t tile_ofm, size_t tile_batch, size_t slm_div_factor = 1);
 };
 }  // namespace kernel_selector

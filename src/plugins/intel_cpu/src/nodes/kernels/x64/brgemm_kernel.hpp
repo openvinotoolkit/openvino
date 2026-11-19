@@ -8,9 +8,31 @@
 #include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
 #include <cpu/x64/matmul/brgemm_matmul_utils.hpp>
 #include <cstddef>
+#include <cstring>
 #include <openvino/core/type/element_type.hpp>
 
 namespace ov::intel_cpu {
+
+// Which AMX palette the calling thread's tiles hold, to skip redundant configurations of back-to-back brgemm calls (a
+// ldtilecfg each), like prev_ker_idx of the oneDNN brgemm primitives. Make it a local of the loop that runs the
+// calls, so it starts out "unknown", and pass it to every executeGemm() of the loop; the thread must not run other
+// AMX code that changes the tile configuration (oneDNN primitives, calls without the state) between those calls.
+class AmxTileState {
+public:
+    // Whether `palette` has to be loaded on the tile hardware; remembers it as the configured one.
+    bool needs_configure(const char* palette) {
+        if (m_configured && std::memcmp(m_palette, palette, sizeof(m_palette)) == 0) {
+            return false;
+        }
+        std::memcpy(m_palette, palette, sizeof(m_palette));
+        m_configured = true;
+        return true;
+    }
+
+private:
+    char m_palette[dnnl::impl::cpu::x64::AMX_PALETTE_SIZE] = {};
+    bool m_configured = false;
+};
 
 class BrgemmKernel {
 public:
@@ -24,6 +46,8 @@ public:
     // ldc is the leading dimension for C matrix
     // b_transpose indicates wheter B matrix is transposed.
     // Non-AMX FP16 accepts FP32 A/B to retain softmax/dequantized values.
+    // fuse_relu applies ReLU to the result as a brgemm post-op: C = max(0, A * B). BrgemmKernelQuantized has no such
+    // option: its post-op slot is taken by the scales.
     BrgemmKernel(size_t M,
                  size_t N,
                  size_t K,
@@ -33,6 +57,7 @@ public:
                  bool b_transposed = false,
                  ov::element::Type inType = ov::element::bf16,
                  bool b_accumulate = false,
+                 bool fuse_relu = false,
                  ov::element::Type b_in_type = ov::element::dynamic,
                  ov::element::Type a_in_type = ov::element::dynamic);
 
@@ -49,6 +74,16 @@ public:
     // scratch_a, pointer to store temp a
     virtual void
     executeGemm(bool is_M_tail, void* a, void* b, void* c, void* d, float* scale_b, void* wsp, void* scratch_a);
+    // The same, configuring the AMX tiles only when `tiles` does not hold the palette of the call already
+    virtual void executeGemm(bool is_M_tail,
+                             void* a,
+                             void* b,
+                             void* c,
+                             void* d,
+                             float* scale_b,
+                             void* wsp,
+                             void* scratch_a,
+                             AmxTileState& tiles);
 
     void copy_buffer_b(void* b, void* scratch_b);
     void copy_buffer_a(bool is_M_tail, void* a, void* scratch_a);
@@ -90,6 +125,7 @@ protected:
                  ov::element::Type DType,
                  ScaleType bScaleType,
                  bool b_accumulate,
+                 bool fuse_relu = false,
                  ov::element::Type b_in_type = ov::element::dynamic,
                  ov::element::Type a_in_type = ov::element::dynamic);
     size_t M = 0, M_blk = 0, M_tail = 0;
@@ -108,6 +144,7 @@ protected:
     ScaleType bScaleType = ScaleType::NONE;
     bool b_accumulate = false;
     bool f16_copy = false;
+    bool post_relu = false;
     static constexpr size_t MHA_BRGEMM_KERNELS_NUM = 8;
     static constexpr size_t matmulOptimalM = 32;
     struct brgemmCtx {
@@ -135,6 +172,7 @@ protected:
                                void* c,
                                void* wsp,
                                void* scratch_a,
+                               AmxTileState* tiles = nullptr,
                                bool a_is_packed = false);
     void init_brgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel, bool use_amx);
     // LDA, LDB is used for stride of target memory
@@ -167,7 +205,8 @@ protected:
                            void* Dout,
                            const float* bScale,
                            void* wsp,
-                           bool doPostops);
+                           bool doPostops,
+                           AmxTileState* tiles = nullptr);
 };
 
 class BrgemmKernelQuantized : public BrgemmKernel {
@@ -190,5 +229,25 @@ public:
     // execute by m_blk + scale
     void executeGemm(bool is_M_tail, void* a, void* b, void* c, void* d, float* scale_b, void* wsp, void* scratch_a)
         override;
+    void executeGemm(bool is_M_tail,
+                     void* a,
+                     void* b,
+                     void* c,
+                     void* d,
+                     float* scale_b,
+                     void* wsp,
+                     void* scratch_a,
+                     AmxTileState& tiles) override;
+
+private:
+    void execute_scaled(bool is_M_tail,
+                        void* a,
+                        void* b,
+                        void* c,
+                        void* d,
+                        float* scale_b,
+                        void* wsp,
+                        void* scratch_a,
+                        AmxTileState* tiles);
 };
 }  // namespace ov::intel_cpu

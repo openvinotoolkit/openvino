@@ -114,3 +114,4 @@ starcoder-dense.gguf.hdr 4087296 reject
 starcoder2-dense.gguf.hdr 3956480 reject
 talkie-dense.gguf.hdr 4725760 reject
 xverse-dense.gguf.hdr 4730752 reject
+lfm3.gguf.hdr 139296 convert

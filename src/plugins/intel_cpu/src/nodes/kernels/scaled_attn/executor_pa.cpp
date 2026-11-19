@@ -752,6 +752,7 @@ struct MHAHelper {
                                                       accumulate
 #    if defined(OPENVINO_ARCH_X86_64)
                                                       ,
+                                                      false,
                                                       b_type,
                                                       a_type
 #    endif
