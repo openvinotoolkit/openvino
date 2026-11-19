@@ -493,8 +493,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                 quant_patched = False
 
         try:
-            export_model = wrap_dataclass_outputs(model)
-            exported_program = cls._export(export_model, example_inputs, dynamic_shapes)
+            exported_program = cls._export(wrap_dataclass_outputs(model), example_inputs, dynamic_shapes)
         finally:
             if quant_patched:
                 quantized.unpatch_quantized_for_export(model)
@@ -505,9 +504,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             decoder = cls.from_exported_program(
                 exported_program, dynamic_shapes=False,
                 op_type_mapping=op_type_mapping, shared_memory=shared_memory)
-            if export_model is not model:
-                cls._restore_wrapped_attr_names(decoder.pt_module)
-                cls._restore_wrapped_module_paths(decoder.pt_module, type(export_model))
+            cls._restore_wrapped_attr_names(decoder.pt_module)
             decoder._use_exported_example_shape = True
             return decoder
         finally:
@@ -529,26 +526,6 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                 base = "_" + base
             node.name = namespace.create_name(base, node)
         graph_module.graph._graph_namespace = namespace
-
-    @staticmethod
-    def _restore_wrapped_module_paths(graph_module, wrapper_type):
-        prefix = "wrapped_model."
-        wrapper_name = f"{wrapper_type.__module__}.{wrapper_type.__qualname__}"
-        for module in graph_module.modules():
-            if not isinstance(module, torch.fx.GraphModule):
-                continue
-            for node in module.graph.nodes:
-                stack = node.meta.get("nn_module_stack")
-                if not stack or not any(path == "" and module_type in (wrapper_type, wrapper_name)
-                                        for path, module_type in stack.values()):
-                    continue
-                restored = stack.copy()
-                for key, (path, module_type) in stack.items():
-                    if path == "wrapped_model":
-                        restored[key] = ("", module_type)
-                    elif path.startswith(prefix):
-                        restored[key] = (path[len(prefix):], module_type)
-                node.meta["nn_module_stack"] = restored
 
     @staticmethod
     def _export(model, inputs, dynamic_shapes=None):

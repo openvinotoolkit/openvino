@@ -75,10 +75,6 @@ For `dynamo=True`, pass a single list argument as `(list_of_tensors,)` and use
 distinct tensor objects for separate example inputs. Repeated tensor objects
 are rejected because `torch.export` can specialize their aliasing.
 
-When OpenVINO wraps a model for export, the wrapper is omitted from the original
-module paths in FX metadata. User-defined modules named `wrapped_model` remain
-part of those paths.
-
 ### Context-manager scopes in exported models
 
 OpenVINO performs inference only. `torch.export` represents `torch.no_grad()`,
