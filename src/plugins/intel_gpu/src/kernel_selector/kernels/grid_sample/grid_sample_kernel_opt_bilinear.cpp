@@ -26,8 +26,9 @@ CommonDispatchData GridSampleKernelOpt_Bilinear::CalcDispatch(const grid_sample_
 KernelsPriority GridSampleKernelOpt_Bilinear::GetKernelsPriority(const Params& params) const {
     const auto& kernel_params = static_cast<const grid_sample_params&>(params);
     const auto& input = kernel_params.inputs[0];
-    if (input.X().v == 1 && input.Y().v == 1)
-        return DONT_USE_IF_HAVE_SOMETHING_ELSE + 1.f;
+    if (input.X().v == 1 && input.Y().v == 1) {
+        return DONT_USE_IF_HAVE_SOMETHING_ELSE + 1.F;
+    }
     return FORCE_PRIORITY_8;
 }
 
