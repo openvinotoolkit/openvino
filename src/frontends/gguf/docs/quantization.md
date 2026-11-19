@@ -202,7 +202,27 @@ whole quantization blocks; otherwise existing non-permuted execution is retained
 SG shuffle is lossless repacking. With the source defaults, large prefill batches use
 F16 transcode plus GEMM rather than native block computation; preserving raw input does
 not mean every inference stage computes directly from GGUF blocks. The default prefill
-threshold is 32 flattened activation rows. Model accuracy requires independent validation.
+threshold is 1 flattened activation row. Model accuracy requires independent validation.
+
+For eligible shuffled FC nodes with `OV_GPU_GGUF_PREFILL_GEMM=ocl`,
+`OV_GPU_GGUF_PREFILL_THRESHOLD` controls the GEMV-to-GEMM boundary (default 1).
+On Xe3 or newer, `OV_GPU_GGUF_SMALL_M_THRESHOLD` independently controls the upper
+row limit for the 32-by-32 small-M OCL GEMM tile (default 64). Rows at or below
+the prefill threshold use GEMV; larger row counts at or below the small-M limit
+use the small tile; remaining rows use the existing large OCL tile. These controls
+do not bypass format, fusion, shuffle or architecture eligibility checks. For
+example, thresholds 3 and 32 select GEMV for rows 1-3, small GEMM for 4-32, and
+large GEMM from 33. The defaults select GEMV for row 1, small GEMM for rows
+2-64, and large GEMM from 65 on eligible Xe3 nodes.
+Setting the small-M limit to zero disables that tile; a larger limit permits
+crossover experiments above 32 rows. These are diagnostic compilation controls,
+not a per-prompt runtime API. Set them before compilation and keep them stable
+through inference, including asynchronous shape specialization. Use fresh caches
+when changing policies or builds; private compiled artifacts are not guaranteed
+to be compatible across builds. The row count is the product of FC activation
+dimensions except the final input-channel dimension, not necessarily one
+request's token count. Performance-optimal boundaries require device, shape and
+whole-model measurements; the implementation limits alone do not establish them.
 
 Raw GGUF block weights and the internal `FullyConnectedCompressed` and
 `GatherCompressed` operations are not a supported standard IR representation.

@@ -126,6 +126,7 @@ struct gguf_fc_mode {
     size_t rank4_batch = 0;
     bool low_bit_prefill = false;
     bool small_m_tile = false;
+    const char* small_m_threshold = nullptr;
 };
 
 class gguf_fc_dynamic_reference : public ::testing::TestWithParam<gguf_fc_mode> {};
@@ -708,6 +709,7 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
     }
     gguf_scoped_env_var shuffle("OV_GPU_GGUF_SHUFFLE", GetParam().shuffle ? "1" : "0");
     gguf_scoped_env_var threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", GetParam().threshold);
+    gguf_scoped_env_var small_m_threshold("OV_GPU_GGUF_SMALL_M_THRESHOLD", GetParam().small_m_threshold);
     gguf_scoped_env_var prefill_f16("OV_GPU_GGUF_PREFILL_F16", GetParam().low_bit_prefill ? "0" : nullptr);
     gguf_scoped_env_var dq_act("OV_GPU_GGUF_PREFILL_DQ_ACT", GetParam().low_bit_prefill ? "0" : nullptr);
     gguf_scoped_env_var dq_group("OV_GPU_GGUF_PREFILL_DQ_GROUP_SIZE", nullptr);
@@ -913,7 +915,7 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
     network network(engine, topology, config);
     std::vector<size_t> row_counts = {1, 2, 31, 32, 33, 1, 1, 33, 2};
     if (GetParam().small_m_tile)
-        row_counts = {1, 3, 4, 8, 17, 31, 32, 33, 1, 17, 1};
+        row_counts = {1, 2, 3, 4, 8, 17, 31, 32, 33, 48, 64, 65, 1, 17, 1};
     if (GetParam().cm) {
         row_counts.push_back(128);
         row_counts.push_back(1);
@@ -1053,7 +1055,7 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
             EXPECT_TRUE(found_binary);
         }
         RecordProperty("stage_iteration_" + std::to_string(iteration), entries);
-        const size_t prefill_threshold = GetParam().threshold ? static_cast<size_t>(std::atol(GetParam().threshold)) : 32;
+        const size_t prefill_threshold = GetParam().threshold ? static_cast<size_t>(std::atol(GetParam().threshold)) : 1;
         const bool prefill = rows > prefill_threshold;
         const std::string sg_stage = weight_type == ov::element::gguf_q4_k ? "fc_gguf_q4k_sg"
                          : weight_type == ov::element::gguf_q5_k ? "fc_gguf_q5k_sg"
@@ -1069,7 +1071,8 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
                                            : "gemm_q80_full";
         const bool cm_for_iteration = cm_selected && !broadcast_peer;
         const bool ocl_for_iteration = ocl_selected && !broadcast_peer;
-        const bool small_m = prefill && ocl_for_iteration && rows <= 32 && engine.get_device_info().arch >= gpu_arch::xe3;
+        const size_t small_m_cutoff = GetParam().small_m_threshold ? static_cast<size_t>(std::atol(GetParam().small_m_threshold)) : 64;
+        const bool small_m = prefill && ocl_for_iteration && rows <= small_m_cutoff && engine.get_device_info().arch >= gpu_arch::xe3;
         const std::string expected_stage = broadcast_peer ? sg_stage
                   : prefill && cm_for_iteration ? cm_stage
                   : prefill && ocl_for_iteration ? gguf_ocl_gemm_stage(weight_type) + (small_m ? "_small_m" : "")
@@ -1353,7 +1356,7 @@ TEST_P(gguf_qkv_dynamic_reference, matches_unfused_and_reference) {
             EXPECT_EQ(weight_bytes, total_bytes);
             RecordProperty(std::string(shared ? "fused_stage_" : "unfused_stage_") + std::to_string(iteration), stages);
             if (shared) {
-                const std::string expected = rows > 32 ? mode.cm ? "gemm_q41_full"
+                const std::string expected = rows > 1 ? mode.cm ? "gemm_q41_full"
                                                                : gguf_gemm_capable(engine, mode.shuffle, 128) ? "fc_gguf_gemm_q4_1"
                                                                                                               : "fc_gguf_transcode_gguf_q4_1"
                                                        : mode.shuffle ? "fc_gguf_q4_1_sg" : "fc_gguf_opt_gguf_q4_1";
@@ -1411,13 +1414,20 @@ INSTANTIATE_TEST_SUITE_P(gguf_small_m,
                             for (const auto& type : {ov::element::gguf_q4_k, ov::element::gguf_q5_k, ov::element::gguf_q6_k,
                                                      ov::element::gguf_q4_0, ov::element::gguf_q4_1, ov::element::gguf_q8_0}) {
                                 for (const auto& precision : {ov::element::f16, ov::element::f32}) {
-                                    gguf_fc_mode mode{type.to_string() + "_" + precision.to_string(), true, "3"};
+                                    gguf_fc_mode mode{type.to_string() + "_" + precision.to_string(), true, nullptr};
                                     mode.channels = 128;
                                     mode.columns = 512;
+                                    mode.weight_type = type;
                                     mode.precision = precision;
                                     mode.small_m_tile = true;
                                     modes.push_back(mode);
                                     if (type == ov::element::gguf_q4_k || type == ov::element::gguf_q6_k) {
+                                        for (const auto* cutoff : {"0", "64"}) {
+                                            auto variant = mode;
+                                            variant.name += "_cutoff_" + std::string(cutoff);
+                                            variant.small_m_threshold = cutoff;
+                                            modes.push_back(variant);
+                                        }
                                         mode.name += "_swish";
                                         mode.post_activation = activation_func::swish;
                                         modes.push_back(mode);

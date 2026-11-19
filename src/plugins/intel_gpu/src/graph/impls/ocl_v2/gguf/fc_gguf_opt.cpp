@@ -1505,7 +1505,8 @@ public:
 
     // Activation rows above which the transcode + OneDNN WOQ GEMM path is used (SUMMARY §5,
     // M_MEM_BOUND_THRESHOLD). Overridable via OV_GPU_GGUF_PREFILL_THRESHOLD for tuning.
-    size_t m_prefill_threshold = 32;
+    size_t m_prefill_threshold = 1;
+    size_t m_small_m_threshold = 64;
 
     // Q4_K / Q5_K / Q6_K weight-shuffle decode path (OV_GPU_GGUF_SHUFFLE=1): the weight was reordered into
     // the SG-transposed plane-separated layout at compile_model (RepackGGUFWeightsShuffle replaced the
@@ -1555,6 +1556,12 @@ public:
             const long v = std::atol(env);
             if (v >= 0) {
                 m_prefill_threshold = static_cast<size_t>(v);
+            }
+        }
+        if (const char* env = std::getenv("OV_GPU_GGUF_SMALL_M_THRESHOLD")) {
+            const long value = std::atol(env);
+            if (value >= 0) {
+                m_small_m_threshold = static_cast<size_t>(value);
             }
         }
         m_prefill_f16 = gguf_prefill_f16_enabled();
@@ -1617,7 +1624,7 @@ public:
         switch (m_prefill_kernel) {
         case PrefillKernel::ocl:
             add_stage(gemm_stages[static_cast<size_t>(fmt_idx)], params);
-            if (m_prefill_threshold < 32 && params.get_device_info().arch >= gpu_arch::xe3) {
+            if (m_prefill_threshold < m_small_m_threshold && params.get_device_info().arch >= gpu_arch::xe3) {
                 add_stage(small_m_gemm_stages[static_cast<size_t>(fmt_idx)], params);
             }
             break;
@@ -1642,7 +1649,7 @@ public:
         ob << m_prefill_threshold << m_q4k_shuffle << m_q5k_shuffle << m_q6k_shuffle << m_q4_0_shuffle << m_q4_1_shuffle << m_q8_0_shuffle << m_prefill_f16
            << m_use_dq_act << m_act_dq_group << m_act_dq_asymmetric << m_requant_group;
         const auto prefill_kernel = static_cast<uint8_t>(m_prefill_kernel);
-        ob << prefill_kernel << m_gemm_strict << m_gemm_family;
+        ob << prefill_kernel << m_gemm_strict << m_gemm_family << m_small_m_threshold;
     }
 
     void load(cldnn::BinaryInputBuffer& ib) override {
@@ -1650,7 +1657,7 @@ public:
         ib >> m_prefill_threshold >> m_q4k_shuffle >> m_q5k_shuffle >> m_q6k_shuffle >> m_q4_0_shuffle >> m_q4_1_shuffle >> m_q8_0_shuffle >> m_prefill_f16 >>
             m_use_dq_act >> m_act_dq_group >> m_act_dq_asymmetric >> m_requant_group;
         uint8_t prefill_kernel = 0;
-        ib >> prefill_kernel >> m_gemm_strict >> m_gemm_family;
+        ib >> prefill_kernel >> m_gemm_strict >> m_gemm_family >> m_small_m_threshold;
         m_prefill_kernel = static_cast<PrefillKernel>(prefill_kernel);
     }
 
@@ -1658,6 +1665,7 @@ public:
         auto copy = make_deep_copy<FCGGUFOptImpl>(this);
         auto* c = static_cast<FCGGUFOptImpl*>(copy.get());
         c->m_prefill_threshold = m_prefill_threshold;
+        c->m_small_m_threshold = m_small_m_threshold;
         c->m_q4k_shuffle = m_q4k_shuffle;
         c->m_q5k_shuffle = m_q5k_shuffle;
         c->m_q6k_shuffle = m_q6k_shuffle;
@@ -1866,7 +1874,7 @@ private:
     cldnn::event::ptr execute_ocl_gemm(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance, size_t fmt) {
         const auto& params = *instance.get_impl_params();
         const size_t rows = derive_bm(params.get_input_layout(0).get_shape());
-        Stage& gemm = rows <= 32 && has_stage(small_m_gemm_stages[fmt]) ? *small_m_gemm_stages[fmt] : *gemm_stages[fmt];
+        Stage& gemm = rows <= m_small_m_threshold && has_stage(small_m_gemm_stages[fmt]) ? *small_m_gemm_stages[fmt] : *gemm_stages[fmt];
         // Dispatch (M tiles) and the activation / output buffers change from call to call.
         gemm.kd.need_dispatch_data_update = true;
         gemm.kd.need_args_update = true;

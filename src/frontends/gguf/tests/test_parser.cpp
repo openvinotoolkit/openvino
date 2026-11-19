@@ -1123,7 +1123,7 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
                 RecordProperty(request_scenario + "_stage_" + std::to_string(iteration), iteration_stages);
                 if (!has_gather) {
                     const auto weight_name = gguf_raw_element_type(format.type).to_string();
-                    const bool prefill_stage = !threshold_value && rows > 32;
+                    const bool prefill_stage = !threshold_value && rows > 1;
                     const std::string expected_stage = prefill_stage
                         ? "fc_gguf_transcode_" + weight_name : "fc_gguf_opt_" + weight_name;
                     // A shuffled prefill node may run the OCL GEMM when the device supports it.
@@ -1136,7 +1136,7 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
                 }
                 EXPECT_EQ(iteration_stages.find("fc_gguf_act_dq"), std::string::npos) << iteration_stages;
                 if (binary_mode) {
-                    const bool require_fused = !static_rows || (shuffled && (cm_requested || static_rows > 32));
+                    const bool require_fused = !static_rows || (shuffled && (cm_requested || static_rows > 1));
                     const bool binary_fused = iteration_fusions.find("file_binary_post") != std::string::npos;
                     if (require_fused)
                         EXPECT_TRUE(binary_fused) << iteration_fusions;
@@ -1144,7 +1144,7 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
                     RecordProperty(request_scenario + "_fusions_" + std::to_string(iteration), iteration_fusions);
                 }
                 if (binary_mode || stream_count == 2) {
-                    const bool prefill = !threshold_value && rows > 32;
+                    const bool prefill = !threshold_value && rows > 1;
                     const std::string sg_stage = format.type == GGUF_TYPE_Q4_0 ? "fc_gguf_q4_0_sg"
                         : format.type == GGUF_TYPE_Q4_1 ? "fc_gguf_q4_1_sg"
                         : format.type == GGUF_TYPE_Q4_K ? "fc_gguf_q4k_sg"
@@ -1174,7 +1174,7 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
                         float expected = 0.f;
                         for (size_t column = 0; column < columns; ++column) {
                             const float weight = decoded[((channel + source_row_offset) % 4) * 256 + column % 256];
-                            const float reference = !threshold_value && rows > 32
+                            const float reference = !threshold_value && rows > 1
                                                         ? static_cast<float>(ov::float16(weight)) : weight;
                             expected += reference * input.data<const float>()[row * columns + column];
                         }
