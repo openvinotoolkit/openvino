@@ -292,6 +292,20 @@ TEST(post_optimize_weights, onednn_group_conv_weights_reorder_test) {
 #endif
 }
 
+template <typename T>
+static void check_folded_fc_weights(program_node& node, const std::vector<T>& src, int32_t ofm, int32_t ifm) {
+    const auto& out_layout = node.get_output_layout();
+    ASSERT_EQ(out_layout.data_type, data_types::f16);
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> mem(node.as<data>().get_attached_memory_ptr(), get_test_stream());
+    for (int32_t o = 0; o < ofm; ++o) {
+        for (int32_t i = 0; i < ifm; ++i) {
+            const auto offset = out_layout.get_linear_offset(tensor(batch(o), feature(i), spatial(0, 0, 0, 0)));
+            ASSERT_EQ(static_cast<float>(mem[offset]), static_cast<float>(ov::float16(src[static_cast<size_t>(o * ifm + i)])))
+                << "o=" << o << " i=" << i << " format=" << out_layout.format.to_string();
+        }
+    }
+}
+
 TEST(post_optimize_weights, fc_5d_weights_reorder_constant_folding_test) {
     auto& engine = get_test_engine();
 
@@ -328,6 +342,7 @@ TEST(post_optimize_weights, fc_5d_weights_reorder_constant_folding_test) {
     EXPECT_TRUE(format::is_weights_format(weights_node.get_output_layout().format));
     EXPECT_EQ(weights_node.get_output_layout().get_partial_shape(), ov::PartialShape({32, 16}));
     EXPECT_GT(weights_node.get_output_layout().bytes_count(), 0u);
+    check_folded_fc_weights(weights_node, weights_data, 32, 16);
 }
 
 TEST(post_optimize_weights, fc_5d_fuse_reorder_to_weights_reorder_test) {
@@ -376,4 +391,5 @@ TEST(post_optimize_weights, fc_5d_fuse_reorder_to_weights_reorder_test) {
     EXPECT_TRUE(format::is_weights_format(folded_node.get_output_layout().format));
     EXPECT_EQ(folded_node.get_output_layout().get_partial_shape(), ov::PartialShape({32, 16}));
     EXPECT_GT(folded_node.get_output_layout().bytes_count(), 0u);
+    check_folded_fc_weights(folded_node, weights_data, 32, 16);
 }
