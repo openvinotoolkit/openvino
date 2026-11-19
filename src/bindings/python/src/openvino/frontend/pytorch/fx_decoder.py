@@ -572,10 +572,27 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         if kwargs_spec.num_leaves:
             argument_specs += list(zip(kwargs_spec.context, children(kwargs_spec)))
         names = []
+        is_container_leaf = []
         for name, spec in argument_specs:
             start = len(names)
-            names += [name] if spec.is_leaf() else placeholder_names[start:start + spec.num_leaves]
-        return names if len(names) == len(placeholder_names) else None
+            leaves = [name] if spec.is_leaf() else placeholder_names[start:start + spec.num_leaves]
+            names += leaves
+            is_container_leaf += [not spec.is_leaf()] * len(leaves)
+        if len(names) != len(placeholder_names):
+            return None
+        # A plain argument keeps its own name. A container leaf whose placeholder name is already taken,
+        # e.g. pair[0] -> "pair_0" next to an argument called "pair_0", gets a suffix instead.
+        taken = {name for name, leaf in zip(names, is_container_leaf) if not leaf}
+        reserved = taken | {name for name, leaf in zip(names, is_container_leaf) if leaf}
+        for i, name in enumerate(names):
+            if is_container_leaf[i] and name in taken:
+                suffix = 1
+                while f"{name}_{suffix}" in reserved:
+                    suffix += 1
+                name = names[i] = f"{name}_{suffix}"
+                reserved.add(name)
+            taken.add(name)
+        return names
 
     @staticmethod
     def _is_export_guard(node):
