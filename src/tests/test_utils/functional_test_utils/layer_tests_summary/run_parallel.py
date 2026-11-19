@@ -174,6 +174,8 @@ class TestStructure:
 
 class TaskManager:
     process_timeout = -1
+    # log file name -> exit code of the process that wrote it
+    exit_codes = {}
 
     def __init__(
         self,
@@ -223,16 +225,14 @@ class TaskManager:
                 )
                 if not constants.IS_WIN:
                     args = shlex.split(args)
-                worker = self.__create_thread(
-                    self._process_list.append(
-                        Popen(
-                            args,
-                            shell=False,
-                            stdout=log_file,
-                            stderr=log_file,
-                        )
-                    )
+                process = Popen(
+                    args,
+                    shell=False,
+                    stdout=log_file,
+                    stderr=log_file,
                 )
+                process.log_name = os.path.basename(log_file_name)
+                worker = self.__create_thread(self._process_list.append(process))
                 self._workers.append(worker)
                 worker.join()
                 self._timers.append(datetime.datetime.now())
@@ -264,6 +264,7 @@ class TaskManager:
                         self._process_list[pid].kill()
                         self._process_list[pid].wait(timeout=1)
                     returncode = self._process_list[pid].wait(timeout=0)
+                    TaskManager.exit_codes[self._process_list[pid].log_name] = returncode
                     args = self._process_list[pid].args
                     if returncode != 0:
                         logger.warning(
@@ -285,6 +286,7 @@ class TaskManager:
         self._process_list[pid] = Popen(
             args, shell=constants.IS_WIN, stdout=log_file, stderr=log_file
         )
+        self._process_list[pid].log_name = os.path.basename(log_file.name)
 
     def update_worker(self):
         if self._idx >= len(self._command_list):
@@ -314,7 +316,8 @@ class TaskManager:
                         self.kill_process_tree(self._process_list[pid].pid)
                         self._process_list[pid].kill()
                         self._process_list[pid].wait(timeout=1)
-                    self._process_list[pid].wait(timeout=0)
+                    returncode = self._process_list[pid].wait(timeout=0)
+                    TaskManager.exit_codes[self._process_list[pid].log_name] = returncode
                     # logger.info(f"Process {pid} takes {float((datetime.datetime.now() - self._timers[pid]).total_seconds())}")
                     self._process_list.pop(pid)
                     logger.info(
@@ -408,15 +411,16 @@ class TestParallelRunner:
     def __get_suite_filter(test_filter: str, suite_filter: str):
         # empty patterns (e.g. from a trailing ':') would widen the batch to the whole suite
         filters = [f for f in test_filter.split(":") if f.strip('"')] or [""]
+        # '.' keeps 'Suite' from also selecting 'Suite_other' scheduled in another batch
+        suite_prefix = f"{suite_filter}.*"
         suite_filter_mixed = ""
         for filter in filters:
             patterns = filter.strip('"').split("*")
-            suite_filter = f"{suite_filter}*"
-            suite_filter_part = suite_filter
+            suite_filter_part = suite_prefix
             for pattern in patterns:
                 if pattern and suite_filter.find(pattern) == -1:
                     suite_filter_part += f"{pattern}*"
-            if suite_filter_part == suite_filter:
+            if suite_filter_part == suite_prefix:
                 suite_filter_mixed = f'"{suite_filter_part}"'
                 break
             if not suite_filter_mixed:
@@ -457,19 +461,16 @@ class TestParallelRunner:
         tests_dict = {}
         with open(test_list_file_name, encoding=constants.ENCODING) as test_list_file:
             test_suite = ""
-            for test_name in test_list_file.read().split("\n"):
-                if "Running main() from" in test_name:
+            for line in test_list_file.read().split("\n"):
+                # suites: 'Suite.  # TypeParam = ...' at column 0, tests: '  name  # GetParam() = ...'
+                name = line.split("#", 1)[0].strip()
+                if not name:
                     continue
-                if not " " in test_name:
-                    test_suite = test_name.replace(".", "")
+                if not line.startswith(" "):
+                    test_suite = name[:-1] if name.endswith(".") else ""
                     continue
-                pos = test_name.find(" # ")
-                if pos > 0 or test_suite != "":
-                    real_test_name = (
-                        test_suite
-                        + "."
-                        + (test_name[2 : pos - 1] if pos > 0 else test_name[2:])
-                    )
+                if test_suite:
+                    real_test_name = f"{test_suite}.{name}"
                     if constants.DISABLED_PREFIX in real_test_name:
                         self._disabled_tests.append(real_test_name)
                     elif test_unit == constants.TEST_UNIT_NAME:
@@ -787,6 +788,7 @@ class TestParallelRunner:
         hash_map = {}
         test_times = []
         fix_priority = []
+        unresolved_crashes = []
         for log in Path(self._working_dir).rglob("log_*.log"):
             log_filename = os.path.join(self._working_dir, log)
             with open(log_filename, "r", encoding=constants.ENCODING) as log_file:
@@ -861,6 +863,11 @@ class TestParallelRunner:
                     if __save_log(logs_dir, dir, test_name):
                         interapted_tests.add(test_name)
                         fix_priority.append((ref_k or 0, test_name))
+                else:
+                    # gtest exits with 1 on test failures; anything else outside a test is a crash no retry can fix
+                    returncode = TaskManager.exit_codes.get(log.name)
+                    if returncode not in (None, 0, 1):
+                        unresolved_crashes.append((log.name, returncode))
 
                 if self._split_unit == constants.SUITE_UNIT_NAME:
                     test_cnt_real = len(test_suites)
@@ -1000,8 +1007,7 @@ class TestParallelRunner:
         with open(not_run_tests_path, "w", encoding=constants.ENCODING) as not_run_tests_path_file:
             test_list_runtime = self.__get_test_list_by_runtime()
             diff_set = (
-                set(saved_tests)
-                .intersection(test_list_runtime)
+                set(test_list_runtime)
                 .difference(set(saved_tests))
                 .difference(self._excluded_tests)
             )
@@ -1011,10 +1017,13 @@ class TestParallelRunner:
             not_run_tests_path_file.writelines(diff_list)
             not_run_tests_path_file.close()
             if diff_list:
-                logger.warning(f"Not run test test counter is: {len(diff_list)}")
+                logger.error(f"Not run test test counter is: {len(diff_list)}")
                 logger.info(f"Not run test list is saved to: {not_run_tests_path}")
 
-        is_successfull_run = True
+        is_successfull_run = not diff_list
+        for log_name, returncode in unresolved_crashes:
+            logger.error(f"Process of {log_name} exited with code {returncode} outside of any test")
+            is_successfull_run = False
         test_cnt = 0
         for test_st, test_res in test_results.items():
             logger.info(f"{test_st} test counter is: {test_res}")
@@ -1029,7 +1038,7 @@ class TestParallelRunner:
             logger.error(
                 f"Total test count is {test_cnt} is different with expected {self._total_test_cnt} tests"
             )
-            [logger.error(f"Missed test: {test}") for test in diff_set]
+            [logger.error(f"Unexpected test: {test}") for test in diff_set]
             is_successfull_run = False
         logger.info(
             f"Total test count with disabled tests is {test_cnt + len(self._disabled_tests)}. All logs is saved to {logs_dir}"
