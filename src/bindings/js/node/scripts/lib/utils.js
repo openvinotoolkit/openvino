@@ -124,6 +124,7 @@ function downloadFileAttempt(url, destination, filename, proxy, timeout) {
       }
 
       res.pipe(file);
+      res.on("error", (error) => reject(`Download interrupted: ${error}.`));
 
       file.on("finish", () => {
         file.close();
