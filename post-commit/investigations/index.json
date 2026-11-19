@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 140,
+  "total": 141,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -1411,6 +1411,17 @@
       "category": "Flaky Test",
       "signature_hash": "da5b0923c1cd0777",
       "commit_sha": "cec54fea222a04df216ea2877df41792999d6c16"
+    },
+    {
+      "investigation_id": "2026-11-19-13-16-09-000-44516181046",
+      "run_id": "44516181046",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44516181046",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-11-19T13:16:09Z",
+      "title": "Debian Packages job fails apt-get update/install with TCP connect timeout to Ubuntu mirrors",
+      "category": "Network",
+      "signature_hash": "574040a2a362751d",
+      "commit_sha": "9ab80010c1bda2a97a19fa59d855a16cc3d145d1"
     }
   ]
 }

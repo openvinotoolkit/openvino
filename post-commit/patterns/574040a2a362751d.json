@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "apt-get update/install fails: Could not connect to archive.ubuntu.com/security.ubuntu.com/azure.archive.ubuntu.com:80, connection timed out; package installation (apt-get install) unable to retrieve packages|Network",
+  "signature_hash": "574040a2a362751d",
+  "title": "Debian Packages job fails apt-get update/install with TCP connect timeout to Ubuntu mirrors",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-11-19T13:16:09Z",
+  "last_seen": "2026-11-19T13:16:09Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/44516181046"
+  ],
+  "affected_commits": [
+    "9ab80010c1bda2a97a19fa59d855a16cc3d145d1"
+  ],
+  "recent_timestamps": [
+    "2026-11-19T13:16:09Z"
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-19-13-16-09-000-44516181046",
+  "timestamp": "2026-11-19T13:16:09Z",
+  "run_id": "44516181046",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/44516181046",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "commit_sha": "9ab80010c1bda2a97a19fa59d855a16cc3d145d1",
+  "pr_number": "40000",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/40000",
+  "author": "dependabot[bot]",
+  "category": "Network",
+  "title": "Debian Packages job fails apt-get update/install with TCP connect timeout to Ubuntu mirrors",
+  "signature": "apt-get update/install fails: Could not connect to archive.ubuntu.com/security.ubuntu.com/azure.archive.ubuntu.com:80, connection timed out; package installation (apt-get install) unable to retrieve packages|Network",
+  "signature_hash": "574040a2a362751d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "apt-get update and apt-get install repeatedly fail to connect to archive.ubuntu.com, security.ubuntu.com and azure.archive.ubuntu.com over port 80; all mirrors time out"
+    }
+  ],
+  "key_errors": [
+    "Err:16 http://archive.ubuntu.com/ubuntu jammy InRelease\n  Could not connect to archive.ubuntu.com:80 (91.189.92.23), connection timed out ... [IP: 185.125.190.82 80]",
+    "Err:19 http://security.ubuntu.com/ubuntu jammy-security InRelease\n  Could not connect to security.ubuntu.com:80 (91.189.92.24), connection timed out ... [IP: 91.189.91.82 80]",
+    "Err:17 http://azure.archive.ubuntu.com/ubuntu jammy InRelease\n  Could not connect to azure.archive.ubuntu.com:80 (52.250.76.244), connection timed out [IP: 52.250.76.244 80]",
+    "W: Tried to start delayed item http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 libc6 amd64 2.35-0ubuntu3.18, but failed (repeated thousands of times for the full package list)"
+  ],
+  "root_cause": "The 'Debian Packages' job runs apt-get update and apt-get install inside the Ubuntu 22.04 (jammy) runner, which needs outbound HTTP (port 80) access to archive.ubuntu.com, security.ubuntu.com and the Azure regional mirror azure.archive.ubuntu.com. All three endpoints and all of their resolved IPs timed out on every connection attempt throughout the job (12:10-12:24 UTC), indicating a transient outbound network/runner-infrastructure problem (egress connectivity or DNS-resolved-IP routing issue on the GitHub-hosted/self-hosted (aks-linux) runner) rather than any code or configuration change in the commit. The triggering commit is a routine Dependabot pip dependency bump (cmake/patchelf pinning) unrelated to apt or networking configuration, reinforcing that this is an infrastructure/network blip external to the repository.",
+  "reproduction_steps": "N/A - not reproducible locally; requires the same transient outbound network failure to archive.ubuntu.com/security.ubuntu.com/azure.archive.ubuntu.com from the CI runner. Can be approximated by running the job's apt-get update/install steps on an aks-linux runner while that egress path is impaired.",
+  "recommended_actions": [
+    "Re-run the failed 'Debian Packages' job; this is a transient network failure, not a code issue.",
+    "If recurrence increases, consider adding retry/backoff around apt-get update/install in the Debian Packages workflow step.",
+    "Consider pinning an apt mirror with built-in retry (e.g., using apt's Acquire::Retries option) to reduce sensitivity to transient mirror outages.",
+    "Monitor runner pool (aks-linux-4-cores-16gb) egress health if this signature recurs across multiple jobs/runs."
+  ],
+  "prevention_strategies": "Set Acquire::Retries and Acquire::http::Timeout in apt configuration for CI jobs that call apt-get update/install, and consider a small retry wrapper around apt operations so transient mirror/network blips do not fail the whole job.",
+  "historical_context": "This signature is distinct from the previously recorded 'Debian Packages job fails apt-get update/install with DNS resolution errors on Ubuntu mirrors' pattern (5af712f5b77c1b2d, count=2), which showed 'Temporary failure resolving' (DNS resolution failures). This run instead shows TCP connect timeouts to already-resolved IPs (Could not connect ... connection timed out), a different failure mode within the same broader category of intermittent connectivity problems to Ubuntu package mirrors from CI runners. Also related: Hash Sum mismatch (ad3678610dab3215) and File has unexpected size (23eeaa0c051f425e) patterns, both one-off apt mirror sync issues."
+}
