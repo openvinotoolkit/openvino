@@ -518,6 +518,49 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     decompression_handling_manager.run_passes(model);
 
     {
+        // MXFP4 expert weights: keep the f8e8m0 scale Convert unfolded, so the scale constant stays in 8 bits and
+        // reaches GatherMatmulCompressed as f8e8m0 instead of a widened copy. Only batched (expert) weights
+        // are handled (consumer is GatherMatmul, GroupedMatMul or a MatMul with 3D weights); FullyConnected keeps its
+        // widened scales.
+        ov::pass::Manager e8m0_scales_manager("CPU:KeepE8M0ExpertScales");
+        e8m0_scales_manager.set_per_pass_validation(false);
+        CPU_REGISTER_PASS_X64(e8m0_scales_manager,
+                              ov::pass::MarkDequantization,
+                              ov::element::TypeVector{ov::element::f8e8m0},
+                              false,
+                              false);
+        CPU_SET_CALLBACK_X64(
+            e8m0_scales_manager,
+            [&](const_node_ptr& node) -> bool {
+                if (!is_decompression_multiply(node)) {
+                    return true;
+                }
+                // Follow the decompressed weights through Reshape/Transpose/Convert to their consumer
+                const ov::Node* cur = node.get();
+                for (;;) {
+                    const auto consumers = cur->get_output_target_inputs(0);
+                    if (consumers.size() != 1) {
+                        return true;
+                    }
+                    const auto* next = consumers.begin()->get_node();
+                    if (ov::is_type_any_of<ov::op::v1::Reshape, ov::op::v1::Transpose, ov::op::v0::Convert>(next)) {
+                        cur = next;
+                        continue;
+                    }
+                    // expert (batched) weights consumers only; FullyConnected-bound MatMul weights are 2D
+                    if (ov::is_type_any_of<ov::op::v17::GroupedMatMul, ov::op::internal::GatherMatmul>(next)) {
+                        return false;
+                    }
+                    const auto* matmul = ov::as_type<const ov::op::v0::MatMul>(next);
+                    return !(matmul && matmul->get_input_partial_shape(1).rank().is_static() &&
+                             matmul->get_input_partial_shape(1).rank().get_length() == 3);
+                }
+            },
+            ov::pass::MarkDequantization);
+        e8m0_scales_manager.run_passes(model);
+    }
+
+    {
         using namespace ov::pass::low_precision;
         const auto enableQDQStripping = LowPrecision::isFunctionQuantized(model, std::set<levels>{levels::int16});
         if (enableQDQStripping) {
