@@ -1361,24 +1361,9 @@ TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsNotUsedWithoutFun
     EXPECT_EQ(shifts.generate, 0u);
 }
 
-TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsUsedWhenVocabularyIsClosure) {
+// Whisper has no separate LM head model, so the vocabulary is not shared even with functions.
+TEST_F(LLMCompiledModelSharedVocabularyTest, WhisperDoesNotUseSharedVocabularyWithFunctions) {
     const auto shifts = compile_whisper({{"NPUW_FOLD", "YES"}, {"NPUW_FUNCALL_FOR_ALL", "YES"}});
-    // The weight and the zero point of the LM head are shifted.
-    EXPECT_EQ(shifts.prefill, 2u);
-    EXPECT_EQ(shifts.generate, 2u);
-}
-
-TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsNotUsedIfOneStageHasNoFunctions) {
-    const auto shifts = compile_whisper({{"NPUW_FOLD", "YES"},
-                                         {"NPUW_FUNCALL_FOR_ALL", "YES"},
-                                         {"++NPUW_LLM_GENERATE_CONFIG", ov::AnyMap{{"NPUW_FUNCALL_FOR_ALL", "NO"}}}});
-    EXPECT_EQ(shifts.prefill, 0u);
-    EXPECT_EQ(shifts.generate, 0u);
-}
-
-TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsNotUsedWithoutHostGather) {
-    const auto shifts =
-        compile_whisper({{"NPUW_FOLD", "YES"}, {"NPUW_FUNCALL_FOR_ALL", "YES"}, {"NPUW_HOST_GATHER", "NO"}});
     EXPECT_EQ(shifts.prefill, 0u);
     EXPECT_EQ(shifts.generate, 0u);
 }
@@ -1387,6 +1372,36 @@ TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsNotUsedWithoutHos
 TEST_F(LLMCompiledModelSharedVocabularyTest, SharedHeadModelIsShiftedWithDefaultConfigs) {
     const auto shifts = compile_llm({});
     EXPECT_EQ(shifts.lm_head, 2u);
+    EXPECT_EQ(shifts.prefill, 0u);
+    EXPECT_EQ(shifts.generate, 0u);
+}
+
+// Without the separate LM head model the embedding and the LM head are in one model, where the quantized
+// host gather can skip ConvertDQVocab. An explicit NPUW_LLM_VOCAB_ASYM_SHARED=YES does not change this.
+TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsNotUsedWithoutSharedHead) {
+    for (const auto* explicit_value : {"", "YES"}) {
+        ov::AnyMap props = {{"NPUW_LLM_SHARED_HEAD", "NO"}};
+        if (*explicit_value) {
+            props["NPUW_LLM_VOCAB_ASYM_SHARED"] = explicit_value;
+        }
+        const auto shifts =
+            compile_with_shared_vocabulary(build_llm_model(), "model.embed_tokens.weight", "lm_head", props);
+        EXPECT_EQ(shifts.lm_head, 0u);
+        EXPECT_EQ(shifts.prefill, 0u);
+        EXPECT_EQ(shifts.generate, 0u);
+    }
+}
+
+TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsNotUsedIfOneStageHasNoFunctions) {
+    const auto shifts = compile_llm({{"++NPUW_LLM_GENERATE_CONFIG", ov::AnyMap{{"NPUW_FUNCALL_FOR_ALL", "NO"}}}});
+    EXPECT_EQ(shifts.lm_head, 0u);
+    EXPECT_EQ(shifts.prefill, 0u);
+    EXPECT_EQ(shifts.generate, 0u);
+}
+
+TEST_F(LLMCompiledModelSharedVocabularyTest, SharedVocabularyIsNotUsedWithoutHostGather) {
+    const auto shifts = compile_llm({{"NPUW_HOST_GATHER", "NO"}});
+    EXPECT_EQ(shifts.lm_head, 0u);
     EXPECT_EQ(shifts.prefill, 0u);
     EXPECT_EQ(shifts.generate, 0u);
 }

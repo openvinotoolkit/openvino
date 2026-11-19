@@ -1677,30 +1677,24 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             !npudesc.has_value() || npudesc->compiler_dynamic_zp_decomposition || set_by_user;
         const bool vocab_is_closure_in_all_stages = vocab_is_closure(prefill_config) &&
                                                     vocab_is_closure(generate_config) &&
-                                                    (!lm_head_model || vocab_is_closure(lm_head_config));
+                                                    (lm_head_model && vocab_is_closure(lm_head_config));
         if (!compiler_supports) {
             LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is turned off: it needs NPU compiler 8.5 or newer, the compiler is "
                      << ONEAPI_VERSION_MAJOR(npudesc->compiler_ver) << "."
                      << ONEAPI_VERSION_MINOR(npudesc->compiler_ver) << ".");
+            m_cfg.update({{"NPUW_LLM_VOCAB_ASYM_SHARED", "NO"}});
+        } else if (!lm_head_model) {
+            // Without a separate LM head model the embedding and the LM head are in one model. If the embedding
+            // matches the quantized host gather (hidden size 2048 or more), the partitioner uses it for the whole
+            // model and does not run ConvertDQVocab, so the Sub128 shifts of the LM head reach the compiler.
+            LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is turned off: it needs NPUW_LLM_SHARED_HEAD.");
             m_cfg.update({{"NPUW_LLM_VOCAB_ASYM_SHARED", "NO"}});
         } else if (!vocab_is_closure_in_all_stages) {
             LOG_INFO("NPUW_LLM_VOCAB_ASYM_SHARED is turned off: it needs NPUW_FOLD, NPUW_FUNCALL_FOR_ALL and "
                      "NPUW_HOST_GATHER in every stage.");
             m_cfg.update({{"NPUW_LLM_VOCAB_ASYM_SHARED", "NO"}});
         } else {
-            // The LM head is in its own model when it is cut off, otherwise in the prefill and generate models.
-            std::vector<std::shared_ptr<ov::Model>> lm_head_models;
-            if (lm_head_model) {
-                lm_head_models.push_back(lm_head_model);
-            } else {
-                lm_head_models = generate_model_variants;
-                lm_head_models.push_back(prefill_model);
-            }
-            bool inserted = false;
-            for (const auto& lm_head_owner : lm_head_models) {
-                inserted = ov::npuw::InsertVocabSub128().run_on_model(lm_head_owner) || inserted;
-            }
-            if (!inserted) {
+            if (!ov::npuw::InsertVocabSub128().run_on_model(lm_head_model)) {
                 // Sharing was detected, but the shared vocabulary is not u8 asymmetric (e.g. f16 or i4).
                 LOG_INFO("Shared vocabulary is not asymmetric u8 - graph Sub128 insertion is skipped.");
             }
