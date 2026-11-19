@@ -16,6 +16,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/util/node_util.hpp"
 #include "openvino/openvino.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/math_util.hpp"
 #include "openvino/util/mmap_object.hpp"
@@ -142,7 +143,7 @@ SharedWeightsAssigner::SharedSourcesWithConstants SharedWeightsAssigner::mutate_
 
 bool SharedWeightsAssigner::constant_can_be_shared(const ov::op::v0::Constant& constant) const {
     if (constant.get_byte_size() < m_min_relocate_bytes ||
-        constant.get_byte_size() > m_options.single_weight_shared_source_size_max) {
+        get_constant_aligned_size(constant) > m_options.single_weight_shared_source_size_max) {
         return false;
     }
 
@@ -150,17 +151,15 @@ bool SharedWeightsAssigner::constant_can_be_shared(const ov::op::v0::Constant& c
     for (auto it = m_options.shared_device_contexts.begin();
          !needs_conversion && it != m_options.shared_device_contexts.end();
          ++it) {
-        auto& device_context = *it;
+        const auto& device_context = *it;
         // Reconcile the constant's data type with the requirements of all shared device contexts
-        if (device_context == "GPU") {
+        if (ov::DeviceIDParser(device_context).get_device_name() == "GPU") {
             if (constant.get_output_element_type(0) == ov::element::f64 ||
                 constant.get_output_element_type(0) == ov::element::i64 ||
                 constant.get_output_element_type(0) == ov::element::u32 ||
                 constant.get_output_element_type(0) == ov::element::u16 ||
-                constant.get_output_element_type(0) == ov::element::u4 ||
                 constant.get_output_element_type(0) == ov::element::i64 ||
-                constant.get_output_element_type(0) == ov::element::i16 ||
-                constant.get_output_element_type(0) == ov::element::i4) {
+                constant.get_output_element_type(0) == ov::element::i16) {
                 needs_conversion = true;
             }
         }
