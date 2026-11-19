@@ -464,7 +464,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13", "3.14", "3.14t"]
+        # 3.15t fails with `Windows fatal exception: access violation`
+        python-version: ["3.11", "3.12", "3.13", "3.14", "3.14t", "3.15"]
     defaults:
       run:
         shell: pwsh
@@ -475,6 +476,7 @@ jobs:
       INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
       INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
       PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
+      PYYAML_FORCE_LIBYAML: ${{ (matrix.python-version == '3.15' || matrix.python-version == '3.15t') && '0' || '' }} # pyYAML does not have Python 3.15 wheels
     steps:
       - name: Download OpenVINO artifacts (tarballs)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
@@ -529,6 +531,7 @@ jobs:
           python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/pyopenvino ${{ env.PYTHON_STATIC_ARGS }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py
 
       - name: Python API Tests -- numpy>=2.0.0
+        if: ${{ matrix.python-version != '3.15' && matrix.python-version != '3.15t' }} # numpy<2.1 has no Python 3.15 wheels
         shell: cmd
         run: |
           python3 -m pip uninstall -y numpy
@@ -773,7 +776,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_windows
-    needs: [ Smart_CI, Build, Samples, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests, Openvino_tokenizers, TensorFlow_Layer_Tests, Pytorch_Layer_Tests, JS_API, NPU_Models_Tests ]
+    needs: [ Smart_CI, Build, Samples, CXX_Unit_Tests, Python_Unit_Tests, Python_API_Tests, CPU_Functional_Tests, Openvino_tokenizers, TensorFlow_Layer_Tests, Pytorch_Layer_Tests, JS_API, NPU_Models_Tests ]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
